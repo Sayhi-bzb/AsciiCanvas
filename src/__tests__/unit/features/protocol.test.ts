@@ -10,9 +10,9 @@ import {
   isAsciiCanvasDocument,
   parseProtocolDocument,
   protocolDocumentToSnapshot,
-} from "@/features/protocol";
-import { normalizeAnimationTimeline } from "@/store/helpers/animationHelpers";
-import type { GridMap, StructuredNode } from "@/types";
+} from "@/domains/protocol";
+import { normalizeAnimationTimeline } from "@/domains/canvas/state/helpers/animationHelpers";
+import type { GridMap, StructuredNode } from "@/shared/types";
 
 describe("protocol builders", () => {
   it("builds a stable freeform document from a colored sparse grid", () => {

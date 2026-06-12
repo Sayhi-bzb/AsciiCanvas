@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
-import * as editorCommands from "@/store/actions/editorCommands";
-import { editorHandlers } from "@/features/actions/handlers/editor";
-import { useCanvasStore } from "@/store/canvasStore";
+import * as editorCommands from "@/domains/actions/adapters/editorCommands";
+import { editorHandlers } from "@/domains/actions/core/handlers/editor";
+import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
 
 describe("editorHandlers clipboard sources", () => {
   afterEach(() => {

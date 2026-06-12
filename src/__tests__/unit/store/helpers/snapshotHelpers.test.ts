@@ -9,14 +9,14 @@ import {
   isSameCell,
   isPoint,
   toStructuredNode
-} from '@/store/helpers/snapshotHelpers';
+} from '@/domains/canvas/state/helpers/snapshotHelpers';
 import type {
   StructuredBoxNode,
   StructuredLineNode,
   StructuredNode,
   StructuredTextNode,
   GridCell,
-} from '@/types';
+} from '@/shared/types';
 
 describe('snapshotHelpers', () => {
   describe('cloneStructuredNode', () => {

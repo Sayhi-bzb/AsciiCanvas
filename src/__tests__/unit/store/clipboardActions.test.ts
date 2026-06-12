@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { writeClipboardPayload } from "@/store/actions/clipboardActions";
+import { writeClipboardPayload } from "@/domains/actions/adapters/clipboardActions";
 
 describe("clipboardActions", () => {
   it("writes app-rich clipboard data during native copy events", async () => {

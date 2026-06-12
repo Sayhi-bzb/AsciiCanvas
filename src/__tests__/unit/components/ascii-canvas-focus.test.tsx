@@ -1,20 +1,20 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { render } from "@testing-library/react";
-import { AsciiCanvas } from "@/components/AsciiCanvas";
-import { useCanvasStore } from "@/store/canvasStore";
+import { AsciiCanvas } from "@/domains/canvas/components/AsciiCanvas";
+import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
 
-vi.mock("@/components/AsciiCanvas/hooks/useCanvasRenderer", () => ({
+vi.mock("@/domains/canvas/components/AsciiCanvas/hooks/useCanvasRenderer", () => ({
   useCanvasRenderer: vi.fn(),
 }));
 
-vi.mock("@/components/AsciiCanvas/hooks/useCanvasInteraction", () => ({
+vi.mock("@/domains/canvas/components/AsciiCanvas/hooks/useCanvasInteraction", () => ({
   useCanvasInteraction: vi.fn(() => ({
     bind: {},
     draggingSelection: null,
   })),
 }));
 
-vi.mock("@/components/AsciiCanvas/Minimap", () => ({
+vi.mock("@/domains/canvas/components/AsciiCanvas/Minimap", () => ({
   Minimap: () => null,
 }));
 

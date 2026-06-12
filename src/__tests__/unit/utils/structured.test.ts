@@ -7,8 +7,8 @@ import {
   intersectsBounds,
   buildStructuredTree,
   createStructuredNodeId
-} from '@/utils/structured';
-import type { StructuredNode, NodeBounds } from '@/types';
+} from '@/shared/utils/structured';
+import type { StructuredNode, NodeBounds } from '@/shared/types';
 
 describe('structured', () => {
   describe('normalizeScene', () => {

@@ -7,9 +7,9 @@ import {
   exportAnimationToJSON,
   exportProtocolToJSON,
   exportToAnsi,
-} from "@/features/export/utils/export";
-import { normalizeAnimationTimeline } from "@/store/helpers/animationHelpers";
-import type { GridMap, StructuredNode } from "@/types";
+} from "@/domains/export/utils/export";
+import { normalizeAnimationTimeline } from "@/domains/canvas/state/helpers/animationHelpers";
+import type { GridMap, StructuredNode } from "@/shared/types";
 
 const quantizeGifIndex = (red: number, green: number, blue: number) => {
   return ((red & 0xe0) | ((green & 0xe0) >> 3) | (blue >> 6)) & 0xff;

@@ -4,8 +4,8 @@ import {
   getLShapeLinePoints,
   getStepLinePoints,
   getCirclePoints
-} from '@/utils/shapes';
-import { BOX_CHARS } from '@/lib/constants';
+} from '@/shared/utils/shapes';
+import { BOX_CHARS } from '@/shared/lib/constants';
 
 describe('shapes', () => {
   describe('getBoxPoints', () => {

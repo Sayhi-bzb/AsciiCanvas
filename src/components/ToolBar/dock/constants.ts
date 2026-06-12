@@ -1,5 +1,1 @@
-import type { ToolType } from "@/types";
-
-export const MATERIAL_PRESETS = ["*", ".", "@", "▒"];
-export const SHAPE_TOOLS: ToolType[] = ["box", "circle", "line", "stepline"];
-
+export * from "@/domains/canvas/components/ToolBar/dock/constants";

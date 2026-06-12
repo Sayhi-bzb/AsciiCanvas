@@ -28,6 +28,27 @@ const checks = [
   },
 ];
 
+const importPattern =
+  /\b(?:import|export)\b(?:[\s\S]*?\bfrom\s*)?["']([^"']+)["']/g;
+
+const boundaryChecks = [
+  {
+    name: "shared must not import domains",
+    file: /^src\/shared\//,
+    forbiddenImport: /^@\/domains\//,
+  },
+  {
+    name: "domain code must not import legacy feature/store/component paths",
+    file: /^src\/domains\//,
+    forbiddenImport: /^@\/(?:features|store|components|lib|utils|services|types|styles)(?:\/|$)/,
+  },
+  {
+    name: "domain state must not import UI components",
+    file: /^src\/domains\/[^/]+\/(?:state|model|logic)\//,
+    forbiddenImport: /^@\/(?:domains\/[^/]+\/components|shared\/ui)\//,
+  },
+];
+
 const walk = (dir) => {
   const files = [];
   for (const entry of readdirSync(dir)) {
@@ -59,6 +80,7 @@ const files = walk(SRC_DIR);
 
 for (const filePath of files) {
   const content = readFileSync(filePath, "utf8");
+  const relFile = relative(ROOT, filePath).replace(/\\/g, "/");
   for (const check of checks) {
     if (isAllowedPath(filePath, check.allow)) continue;
 
@@ -66,6 +88,21 @@ for (const filePath of files) {
       violations.push({
         check: check.name,
         file: relative(ROOT, filePath).replace(/\\/g, "/"),
+        line: lineFromIndex(content, match.index ?? 0),
+      });
+    }
+  }
+
+  for (const check of boundaryChecks) {
+    if (!check.file.test(relFile)) continue;
+
+    for (const match of content.matchAll(importPattern)) {
+      const specifier = match[1];
+      if (!check.forbiddenImport.test(specifier)) continue;
+
+      violations.push({
+        check: check.name,
+        file: relFile,
         line: lineFromIndex(content, match.index ?? 0),
       });
     }

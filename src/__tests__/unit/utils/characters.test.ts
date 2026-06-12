@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   getFirstGrapheme,
   normalizeBrushChar
-} from '@/utils/characters';
+} from '@/shared/utils/characters';
 
 type IntlWithOptionalSegmenter = typeof Intl & {
   Segmenter?: typeof Intl.Segmenter;

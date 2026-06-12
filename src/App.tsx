@@ -1,19 +1,19 @@
 import { useKeyPress, useLocalStorageState } from "ahooks";
 import { Library } from "lucide-react";
-import { AsciiCanvas } from "./components/AsciiCanvas";
-import { useCanvasStore } from "./store/canvasStore";
+import { AsciiCanvas } from "@/domains/canvas/components/AsciiCanvas";
+import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
 import { AppLayout } from "./layout";
-import { Toolbar } from "./components/ToolBar/dock";
-import { SidebarInset, SidebarProvider, useSidebar } from "./components/ui/sidebar";
+import { Toolbar } from "@/domains/canvas/components/ToolBar/dock";
+import { SidebarInset, SidebarProvider, useSidebar } from "@/shared/ui/sidebar";
 import { Suspense, lazy } from "react";
-import { runRedo, runUndo } from "./store/actions/shortcutActions";
-import { runAction } from "./features/actions";
-import { resolveFillHotkeyChar } from "./features/input-arbiter";
-import { feedback } from "./services/effects";
+import { runRedo, runUndo } from "@/domains/actions/adapters/shortcutActions";
+import { runAction } from "@/domains/actions/core";
+import { resolveFillHotkeyChar } from "@/domains/actions/input-arbiter";
+import { feedback } from "@/shared/services/effects";
 import { useShallow } from "zustand/react/shallow";
-import { SessionTabs } from "./components/SessionTabs";
+import { SessionTabs } from "@/domains/sessions/components/SessionTabs";
 import { useIsMobile } from "./hooks/use-mobile";
-import { cn } from "./lib/utils";
+import { cn } from "@/shared/lib/utils";
 
 const SidebarRight = lazy(() =>
   import("./components/ToolBar/sidebar-right").then((module) => ({

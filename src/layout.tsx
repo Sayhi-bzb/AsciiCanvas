@@ -1,5 +1,5 @@
 import React from "react";
-import { Toaster } from "./components/ui/sonner";
+import { Toaster } from "@/shared/ui/sonner";
 
 interface AppLayoutProps {
   canvas: React.ReactNode;

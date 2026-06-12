@@ -1,1 +1,1 @@
-export { ImportButton } from "./components/import-button";
+export * from "@/domains/import";

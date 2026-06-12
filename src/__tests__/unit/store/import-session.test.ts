@@ -2,9 +2,9 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   ASCII_CANVAS_DOCUMENT_TYPE,
   ASCII_CANVAS_DOCUMENT_VERSION,
-} from "@/features/protocol";
-import { useCanvasStore } from "@/store/canvasStore";
-import { applyFreeformSnapshotToYMaps } from "@/store/helpers/gridHelpers";
+} from "@/domains/protocol";
+import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
+import { applyFreeformSnapshotToYMaps } from "@/domains/canvas/state/helpers/gridHelpers";
 
 describe("importCanvasSession", () => {
   const initialState = useCanvasStore.getState();

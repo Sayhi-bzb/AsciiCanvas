@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AnimationTimeline } from "@/types";
+import type { AnimationTimeline } from "@/shared/types";
 import {
   cloneAnimationFrame,
   clampPointToBounds,
@@ -9,7 +9,7 @@ import {
   normalizeAnimationCanvasSize,
   normalizeAnimationTimeline,
   updateAnimationFrameEntries,
-} from "@/store/helpers/animationHelpers";
+} from "@/domains/canvas/state/helpers/animationHelpers";
 
 describe("animationHelpers", () => {
   it("normalizes invalid canvas size inputs", () => {
