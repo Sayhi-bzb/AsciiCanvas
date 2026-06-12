@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
-import { CELL_WIDTH, CELL_HEIGHT } from "@/shared/lib/constants";
 import { cn } from "@/shared/lib/utils";
 import { uiClass } from "@/shared/styles/components";
+import { DEFAULT_GRID_RENDER_METRICS } from "@/shared/metrics";
 import {
   clampViewportRect,
   computeMinimapMeta,
@@ -233,8 +233,8 @@ export const Minimap = ({
       const dyGrid = deltaY / meta.scale;
 
       setOffset((prev) => ({
-        x: prev.x - dxGrid * CELL_WIDTH * zoom,
-        y: prev.y - dyGrid * CELL_HEIGHT * zoom,
+        x: prev.x - dxGrid * DEFAULT_GRID_RENDER_METRICS.cellWidth * zoom,
+        y: prev.y - dyGrid * DEFAULT_GRID_RENDER_METRICS.cellHeight * zoom,
       }));
       e.preventDefault();
       return;
@@ -300,9 +300,9 @@ export const Minimap = ({
     const target = minimapPointToGrid(point, meta, PADDING);
 
     const newOffsetX =
-      containerSize.width / 2 - target.x * CELL_WIDTH * zoom;
+      containerSize.width / 2 - target.x * DEFAULT_GRID_RENDER_METRICS.cellWidth * zoom;
     const newOffsetY =
-      containerSize.height / 2 - target.y * CELL_HEIGHT * zoom;
+      containerSize.height / 2 - target.y * DEFAULT_GRID_RENDER_METRICS.cellHeight * zoom;
 
     setOffset(() => ({ x: newOffsetX, y: newOffsetY }));
   };

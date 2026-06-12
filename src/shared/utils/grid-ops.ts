@@ -1,5 +1,6 @@
 import { GridManager } from "@/shared/utils/grid";
 import type { GridCell, GridMap } from "@/shared/types";
+import { isWideCell } from "@/shared/metrics";
 
 type GridTarget = {
   set(key: string, value: GridCell): void;
@@ -39,14 +40,14 @@ export const writeCell = (
 
   const leftKey = GridManager.toKey(x - 1, y);
   const leftCell = target.get(leftKey);
-  const removedLeftAnchor = !!leftCell && GridManager.isWideChar(leftCell.char);
+  const removedLeftAnchor = !!leftCell && isWideCell(leftCell.char);
   if (removedLeftAnchor) {
     target.delete(leftKey);
   }
 
   target.set(GridManager.toKey(x, y), { char, color });
 
-  const removedRightFollower = GridManager.isWideChar(char);
+  const removedRightFollower = isWideCell(char);
   if (removedRightFollower) {
     target.delete(GridManager.toKey(x + 1, y));
   }
@@ -72,7 +73,7 @@ export const deleteCellAt = (
 
   const leftKey = GridManager.toKey(x - 1, y);
   const leftCell = target.get(leftKey);
-  if (leftCell && GridManager.isWideChar(leftCell.char)) {
+  if (leftCell && isWideCell(leftCell.char)) {
     target.delete(leftKey);
     return { removedAnchors: 1, removedFollowers: 1 };
   }
@@ -111,7 +112,7 @@ export const resolveBackspaceAnchor = (
   if (
     !cellAtMinus1 &&
     cellAtMinus2 &&
-    GridManager.isWideChar(cellAtMinus2.char)
+    isWideCell(cellAtMinus2.char)
   ) {
     return { x: cursorX - 2, y: cursorY };
   }

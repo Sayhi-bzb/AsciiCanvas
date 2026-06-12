@@ -3,7 +3,6 @@ import { useSize, useEventListener } from 'ahooks';
 import { useCanvasStore } from '@/domains/canvas/state/canvasStore';
 import { useCanvasInteraction } from './hooks/useCanvasInteraction';
 import { useCanvasRenderer } from './hooks/useCanvasRenderer';
-import { GridManager } from '@/shared/utils/grid';
 import { Minimap } from './Minimap';
 import { getCenteredAnimationOffset } from '@/domains/canvas/state/helpers/animationHelpers';
 import {
@@ -25,6 +24,7 @@ import { resolveFillHotkeyChar } from '@/domains/actions/input-arbiter';
 import {
   resolveHistoryShortcutCommand,
 } from '@/domains/actions/adapters/editorCommands';
+import { gridCellRect } from '@/shared/metrics';
 import { useShallow } from 'zustand/react/shallow';
 
 interface AsciiCanvasProps {
@@ -208,28 +208,15 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
 
   const textareaStyle: React.CSSProperties = useMemo(() => {
     if ((!textCursor && selections.length === 0) || !size) return { display: 'none' };
-    const pos = textCursor
-      ? GridManager.gridToScreen(
-          textCursor.x,
-          textCursor.y,
-          offset.x,
-          offset.y,
-          zoom
-        )
-      : GridManager.gridToScreen(
-          selections[0].start.x,
-          selections[0].start.y,
-          offset.x,
-          offset.y,
-          zoom
-        );
+    const point = textCursor ?? selections[0].start;
+    const pos = gridCellRect(point, { offset, zoom });
 
     return {
       position: 'absolute',
       left: `${pos.x}px`,
       top: `${pos.y}px`,
-      width: '1px',
-      height: '1px',
+      width: `${Math.max(1, pos.width)}px`,
+      height: `${Math.max(1, pos.height)}px`,
       opacity: 0,
       pointerEvents: 'none',
       zIndex: -1,

@@ -19,6 +19,7 @@ import {
 } from "@/domains/actions/adapters/clipboardActions";
 import { getStructuredNodeBounds, intersectsBounds, withPointWithinBounds } from "@/shared/utils/structured";
 import { clampSelectionToBounds } from "../helpers/animationHelpers";
+import { getCellOccupancy } from "@/shared/metrics";
 
 export const createSelectionSlice: StateCreator<
   CanvasState,
@@ -183,7 +184,7 @@ export const createSelectionSlice: StateCreator<
     if (canvasMode === "structured") return;
     if (selections.length === 0) return;
 
-    const charWidth = GridManager.getCharWidth(char);
+    const charWidth = getCellOccupancy(char);
 
     transactWithHistory(() => {
       selections.forEach((area) => {

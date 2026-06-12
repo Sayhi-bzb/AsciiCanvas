@@ -13,11 +13,13 @@ import { cn } from "@/shared/lib/utils";
 import type { AnimationCanvasSize, AnimationFrame, GridCell } from "@/shared/types";
 import {
   BACKGROUND_COLOR,
-  CELL_HEIGHT,
-  CELL_WIDTH,
-  FONT_SIZE,
 } from "@/shared/lib/constants";
 import { GridManager } from "@/shared/utils/grid";
+import {
+  DEFAULT_GRID_RENDER_METRICS,
+  drawTextCell,
+  setTextRenderStyle,
+} from "@/shared/metrics";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -68,8 +70,9 @@ function FramePreview({
     ctx.fillStyle = BACKGROUND_COLOR;
     ctx.fillRect(0, 0, displayWidth, displayHeight);
 
-    const sourceWidth = Math.max(previewSize.width, 1) * CELL_WIDTH;
-    const sourceHeight = Math.max(previewSize.height, 1) * CELL_HEIGHT;
+    const { cellWidth, cellHeight } = DEFAULT_GRID_RENDER_METRICS;
+    const sourceWidth = Math.max(previewSize.width, 1) * cellWidth;
+    const sourceHeight = Math.max(previewSize.height, 1) * cellHeight;
     const scale = Math.min(
       (displayWidth - FRAME_PREVIEW_PADDING * 2) / sourceWidth,
       (displayHeight - FRAME_PREVIEW_PADDING * 2) / sourceHeight
@@ -80,24 +83,15 @@ function FramePreview({
     ctx.save();
     ctx.translate(offsetX, offsetY);
     ctx.scale(scale, scale);
-    ctx.font = `${FONT_SIZE}px 'Maple Mono NF CN', monospace`;
-    ctx.textBaseline = "middle";
-    ctx.textAlign = "center";
+    setTextRenderStyle(ctx);
 
     frameMap.forEach((cell, key) => {
       const [x, y] = key.split(",").map(Number);
       if (!Number.isFinite(x) || !Number.isFinite(y)) return;
 
-      const drawX = x * CELL_WIDTH;
-      const drawY = y * CELL_HEIGHT;
-      const wide = GridManager.isWideChar(cell.char);
-
-      ctx.fillStyle = cell.color;
-      ctx.fillText(
-        cell.char,
-        drawX + (wide ? CELL_WIDTH : CELL_WIDTH / 2),
-        drawY + CELL_HEIGHT / 2
-      );
+      const drawX = x * cellWidth;
+      const drawY = y * cellHeight;
+      drawTextCell(ctx, cell, drawX, drawY);
     });
 
     ctx.strokeStyle = isActive ? "rgba(37, 99, 235, 0.7)" : "rgba(15, 23, 42, 0.7)";

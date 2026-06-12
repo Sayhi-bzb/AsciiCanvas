@@ -1,5 +1,10 @@
-import { CELL_WIDTH, CELL_HEIGHT } from "@/shared/lib/constants";
 import type { Point, GridMap } from "@/shared/types";
+import {
+  getCellOccupancy,
+  gridToScreen,
+  screenToGrid,
+  getViewportGridBounds,
+} from "@/shared/metrics";
 
 export const GridManager = {
   screenToGrid(
@@ -9,10 +14,10 @@ export const GridManager = {
     offsetY: number,
     zoom: number
   ): Point {
-    return {
-      x: Math.floor((screenX - offsetX) / (CELL_WIDTH * zoom)),
-      y: Math.floor((screenY - offsetY) / (CELL_HEIGHT * zoom)),
-    };
+    return screenToGrid(screenX, screenY, {
+      offset: { x: offsetX, y: offsetY },
+      zoom,
+    });
   },
 
   gridToScreen(
@@ -22,10 +27,10 @@ export const GridManager = {
     offsetY: number,
     zoom: number
   ): Point {
-    return {
-      x: gridX * CELL_WIDTH * zoom + offsetX,
-      y: gridY * CELL_HEIGHT * zoom + offsetY,
-    };
+    return gridToScreen(gridX, gridY, {
+      offset: { x: offsetX, y: offsetY },
+      zoom,
+    });
   },
 
   toKey(x: number, y: number): string {
@@ -48,31 +53,7 @@ export const GridManager = {
   },
 
   getCharWidth(char: string): number {
-    if (!char) return 1;
-
-    const codePoint = char.codePointAt(0) || 0;
-
-    if (codePoint < 128) return 1;
-
-    if (/\p{Emoji_Presentation}/u.test(char)) return 2;
-
-    if (
-      (codePoint >= 0xe000 && codePoint <= 0xf8ff) ||
-      (codePoint >= 0xf0000 && codePoint <= 0xffffd) ||
-      (codePoint >= 0x100000 && codePoint <= 0x10fffd)
-    ) {
-      return 2;
-    }
-
-    if (
-      (codePoint >= 0x2e80 && codePoint <= 0x9fff) ||
-      (codePoint >= 0xf900 && codePoint <= 0xfaff) ||
-      (codePoint >= 0xff00 && codePoint <= 0xffef)
-    ) {
-      return 2;
-    }
-
-    return 1;
+    return getCellOccupancy(char);
   },
 
   isWideChar(char: string): boolean {
@@ -113,13 +94,9 @@ export const GridManager = {
     offsetY: number,
     zoom: number
   ) {
-    const sw = CELL_WIDTH * zoom;
-    const sh = CELL_HEIGHT * zoom;
-    return {
-      startX: Math.floor(-offsetX / sw),
-      endX: Math.ceil((width - offsetX) / sw),
-      startY: Math.floor(-offsetY / sh),
-      endY: Math.ceil((height - offsetY) / sh),
-    };
+    return getViewportGridBounds(width, height, {
+      offset: { x: offsetX, y: offsetY },
+      zoom,
+    });
   },
 };

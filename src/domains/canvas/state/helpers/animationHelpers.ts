@@ -7,7 +7,7 @@ import type {
   Point,
   SelectionArea,
 } from "@/shared/types";
-import { CELL_HEIGHT, CELL_WIDTH } from "@/shared/lib/constants";
+import { DEFAULT_GRID_RENDER_METRICS } from "@/shared/metrics";
 
 export const DEFAULT_ANIMATION_SIZE: AnimationCanvasSize = {
   width: 80,
@@ -358,8 +358,9 @@ export const getCenteredAnimationOffset = (
   containerSize: { width: number; height: number },
   zoom: number
 ): Point => {
+  const { cellWidth, cellHeight } = DEFAULT_GRID_RENDER_METRICS;
   return {
-    x: (containerSize.width - bounds.width * CELL_WIDTH * zoom) / 2,
-    y: (containerSize.height - bounds.height * CELL_HEIGHT * zoom) / 2,
+    x: (containerSize.width - bounds.width * cellWidth * zoom) / 2,
+    y: (containerSize.height - bounds.height * cellHeight * zoom) / 2,
   };
 };

@@ -4,13 +4,16 @@ import { useEffect, useRef } from "react";
 import type { GridMap } from "@/shared/types";
 import { GridManager } from "@/shared/utils/grid";
 import {
-  CELL_WIDTH,
-  CELL_HEIGHT,
-  FONT_SIZE,
   BACKGROUND_COLOR,
   GRID_COLOR,
   COLOR_PRIMARY_TEXT,
 } from "@/shared/lib/constants";
+import {
+  DEFAULT_GRID_RENDER_METRICS,
+  drawGridLines,
+  drawTextCell,
+  setTextRenderStyle,
+} from "@/shared/metrics";
 
 type ExportPreviewProps = {
   grid: GridMap;
@@ -30,8 +33,9 @@ export function ExportPreview({ grid, showGrid, showColor }: ExportPreviewProps)
 
     const { minX, maxX, minY, maxY } = GridManager.getGridBounds(grid);
     const padding = 2;
-    const contentWidth = (maxX - minX + 1 + padding * 2) * CELL_WIDTH;
-    const contentHeight = (maxY - minY + 1 + padding * 2) * CELL_HEIGHT;
+    const { cellWidth, cellHeight } = DEFAULT_GRID_RENDER_METRICS;
+    const contentWidth = (maxX - minX + 1 + padding * 2) * cellWidth;
+    const contentHeight = (maxY - minY + 1 + padding * 2) * cellHeight;
 
     const dpr = window.devicePixelRatio || 1;
     const displayWidth = canvas.clientWidth;
@@ -55,36 +59,28 @@ export function ExportPreview({ grid, showGrid, showColor }: ExportPreviewProps)
     ctx.scale(scale, scale);
 
     if (showGrid) {
-      ctx.beginPath();
-      ctx.strokeStyle = GRID_COLOR;
-      ctx.lineWidth = 0.5;
       const gw = maxX - minX + 1 + padding * 2;
       const gh = maxY - minY + 1 + padding * 2;
-      for (let x = 0; x <= gw; x++) {
-        ctx.moveTo(x * CELL_WIDTH, 0);
-        ctx.lineTo(x * CELL_WIDTH, contentHeight);
-      }
-      for (let y = 0; y <= gh; y++) {
-        ctx.moveTo(0, y * CELL_HEIGHT);
-        ctx.lineTo(contentWidth, y * CELL_HEIGHT);
-      }
-      ctx.stroke();
+      drawGridLines(ctx, {
+        startX: 0,
+        endX: gw,
+        startY: 0,
+        endY: gh,
+        width: contentWidth,
+        height: contentHeight,
+        color: GRID_COLOR,
+        lineWidth: 0.5,
+      });
     }
 
-    ctx.font = `${FONT_SIZE}px 'Maple Mono NF CN', monospace`;
-    ctx.textBaseline = "middle";
-    ctx.textAlign = "center";
+    setTextRenderStyle(ctx);
 
     GridManager.iterate(grid, (cell, x, y) => {
-      const drawX = (x - minX + padding) * CELL_WIDTH;
-      const drawY = (y - minY + padding) * CELL_HEIGHT;
-      const wide = GridManager.isWideChar(cell.char);
-      ctx.fillStyle = showColor ? cell.color : COLOR_PRIMARY_TEXT;
-      ctx.fillText(
-        cell.char,
-        drawX + (wide ? CELL_WIDTH : CELL_WIDTH / 2),
-        drawY + CELL_HEIGHT / 2
-      );
+      const drawX = (x - minX + padding) * cellWidth;
+      const drawY = (y - minY + padding) * cellHeight;
+      drawTextCell(ctx, cell, drawX, drawY, {
+        color: showColor ? cell.color : COLOR_PRIMARY_TEXT,
+      });
     });
     ctx.restore();
   }, [grid, showColor, showGrid]);

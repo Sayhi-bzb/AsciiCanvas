@@ -1,7 +1,11 @@
 import type { GridCell, NodeBounds, Point, StructuredNode } from "@/shared/types";
-import { GridManager } from "@/shared/utils/grid";
 import { writeCell } from "@/shared/utils/grid-ops";
 import { getBoxPoints, getLShapeLinePoints } from "@/shared/utils/shapes";
+import {
+  getCellOccupancy,
+  getTextCellWidth,
+  splitGraphemes,
+} from "@/shared/metrics";
 
 const placeCharInMap = (
   targetMap: {
@@ -35,19 +39,15 @@ const boundsArea = (bounds: NodeBounds) => bounds.width * bounds.height;
 const splitLines = (text: string) => text.split("\n");
 
 export const getTextColumnWidth = (text: string) => {
-  let width = 0;
-  for (const char of text) {
-    width += GridManager.getCharWidth(char);
-  }
-  return width;
+  return getTextCellWidth(text);
 };
 
 export const trimTextToColumns = (text: string, maxColumns: number) => {
   if (maxColumns <= 0 || !text) return "";
   let width = 0;
   let out = "";
-  for (const char of text) {
-    const charWidth = GridManager.getCharWidth(char);
+  for (const char of splitGraphemes(text)) {
+    const charWidth = getCellOccupancy(char);
     if (width + charWidth > maxColumns) break;
     width += charWidth;
     out += char;
@@ -114,9 +114,9 @@ export const renderStructuredScene = (scene: StructuredNode[]) => {
         const bounds = getStructuredNodeBounds(node);
         const label = trimTextToColumns(node.name, Math.max(0, bounds.width - 2));
         let writeX = bounds.x + 1;
-        for (const char of label) {
+        for (const char of splitGraphemes(label)) {
           placeCharInMap(grid, writeX, bounds.y, char, node.style.color);
-          writeX += GridManager.getCharWidth(char);
+          writeX += getCellOccupancy(char);
           if (writeX >= bounds.x + bounds.width - 1) break;
         }
       }
@@ -134,9 +134,9 @@ export const renderStructuredScene = (scene: StructuredNode[]) => {
     const lines = splitLines(node.text);
     lines.forEach((line, rowIndex) => {
       let currentX = node.position.x;
-      for (const char of line) {
+      for (const char of splitGraphemes(line)) {
         placeCharInMap(grid, currentX, node.position.y + rowIndex, char, node.style.color);
-        currentX += GridManager.getCharWidth(char);
+        currentX += getCellOccupancy(char);
       }
     });
   });

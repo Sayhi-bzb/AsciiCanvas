@@ -8,6 +8,7 @@ import { forceHistorySave } from "@/shared/lib/yjs-setup";
 import bresenham from "bresenham";
 import { isCtrlOrMeta } from "@/shared/utils/event";
 import { MIN_ZOOM, MAX_ZOOM } from "@/shared/lib/constants";
+import { getCellOccupancy } from "@/shared/metrics";
 import {
   clampPointToBounds,
   clampSelectionToBounds,
@@ -186,7 +187,7 @@ export const useCanvasInteraction = (
       );
 
       if (tool === "brush") {
-        const charWidth = GridManager.getCharWidth(brushChar);
+        const charWidth = getCellOccupancy(brushChar);
         if (charWidth > 1) {
           const filteredPoints: Point[] = [];
           points.forEach((p) => {

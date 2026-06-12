@@ -4,15 +4,16 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Pause, Play, Repeat } from "lucide-react";
 import type { AnimationCanvasSize, AnimationTimeline, GridCell } from "@/shared/types";
 import {
-  CELL_HEIGHT,
-  CELL_WIDTH,
-  FONT_SIZE,
   BACKGROUND_COLOR,
   COLOR_PRIMARY_TEXT,
 } from "@/shared/lib/constants";
 import { Button } from "@/shared/ui/button";
 import { cn } from "@/shared/lib/utils";
-import { GridManager } from "@/shared/utils/grid";
+import {
+  DEFAULT_GRID_RENDER_METRICS,
+  drawTextCell,
+  setTextRenderStyle,
+} from "@/shared/metrics";
 
 type AnimationExportPreviewProps = {
   size: AnimationCanvasSize;
@@ -82,8 +83,9 @@ export function AnimationExportPreview({
     ctx.fillStyle = BACKGROUND_COLOR;
     ctx.fillRect(0, 0, displayWidth, displayHeight);
 
-    const sourceWidth = size.width * CELL_WIDTH;
-    const sourceHeight = size.height * CELL_HEIGHT;
+    const { cellWidth, cellHeight } = DEFAULT_GRID_RENDER_METRICS;
+    const sourceWidth = size.width * cellWidth;
+    const sourceHeight = size.height * cellHeight;
     const scale = Math.min(
       (displayWidth - PREVIEW_PADDING * 2) / sourceWidth,
       (displayHeight - PREVIEW_PADDING * 2) / sourceHeight
@@ -97,24 +99,17 @@ export function AnimationExportPreview({
 
     ctx.fillStyle = BACKGROUND_COLOR;
     ctx.fillRect(0, 0, sourceWidth, sourceHeight);
-    ctx.font = `${FONT_SIZE}px 'Maple Mono NF CN', monospace`;
-    ctx.textBaseline = "middle";
-    ctx.textAlign = "center";
+    setTextRenderStyle(ctx);
 
     frameMap.forEach((cell, key) => {
       const [x, y] = key.split(",").map(Number);
       if (!Number.isFinite(x) || !Number.isFinite(y)) return;
 
-      const drawX = x * CELL_WIDTH;
-      const drawY = y * CELL_HEIGHT;
-      const wide = GridManager.isWideChar(cell.char);
-
-      ctx.fillStyle = showColor ? cell.color : COLOR_PRIMARY_TEXT;
-      ctx.fillText(
-        cell.char,
-        drawX + (wide ? CELL_WIDTH : CELL_WIDTH / 2),
-        drawY + CELL_HEIGHT / 2
-      );
+      const drawX = x * cellWidth;
+      const drawY = y * cellHeight;
+      drawTextCell(ctx, cell, drawX, drawY, {
+        color: showColor ? cell.color : COLOR_PRIMARY_TEXT,
+      });
     });
 
     ctx.strokeStyle = "#000000";

@@ -1,8 +1,5 @@
 import {
   EXPORT_PADDING,
-  CELL_WIDTH,
-  CELL_HEIGHT,
-  FONT_SIZE,
   BACKGROUND_COLOR,
   GRID_COLOR,
   COLOR_PRIMARY_TEXT,
@@ -22,6 +19,14 @@ import { GridManager } from "@/shared/utils/grid";
 import { getSelectionsBoundingBox } from "@/shared/utils/selection";
 import { clipboard } from "@/shared/services/effects";
 import { buildStructuredTree, getStructuredNodeBounds } from "@/shared/utils/structured";
+import {
+  DEFAULT_GRID_RENDER_METRICS,
+  drawGridLines,
+  drawTextCell,
+  getCellOccupancy,
+  setTextRenderStyle,
+  waitForRenderFont,
+} from "@/shared/metrics";
 
 type AnimationExchangeCell = {
   x: number;
@@ -57,9 +62,6 @@ const GIF_GLOBAL_COLOR_COUNT = 256;
 const GIF_PALETTE_COMPONENTS = 3;
 const ANSI_RESET = "\u001b[0m";
 const MONOCHROME_EXPORT_COLOR = COLOR_PRIMARY_TEXT;
-const EXPORT_FONT_FAMILY = "'Maple Mono NF CN', monospace";
-const EXPORT_FONT = `${FONT_SIZE}px ${EXPORT_FONT_FAMILY}`;
-const EXPORT_FONT_SAMPLE = "A@╭你";
 
 type AnsiRgb = {
   red: number;
@@ -71,16 +73,7 @@ const resolveExportColor = (color: string, includeColor: boolean) => {
   return includeColor ? color : MONOCHROME_EXPORT_COLOR;
 };
 
-const waitForExportFont = async () => {
-  if (typeof document === "undefined" || !document.fonts) return;
-
-  try {
-    await document.fonts.load(EXPORT_FONT, EXPORT_FONT_SAMPLE);
-    await document.fonts.ready;
-  } catch {
-    // Fall back to the browser monospace stack if the remote font is unavailable.
-  }
-};
+const waitForExportFont = waitForRenderFont;
 
 const applyMonochromeProtocolColor = (
   document: AsciiCanvasDocumentV1
@@ -128,49 +121,38 @@ const renderAnimationFrame = (
     includeColor?: boolean;
   }
 ) => {
-  const width = size.width * CELL_WIDTH;
-  const height = size.height * CELL_HEIGHT;
+  const { cellWidth, cellHeight } = DEFAULT_GRID_RENDER_METRICS;
+  const width = size.width * cellWidth;
+  const height = size.height * cellHeight;
 
   ctx.clearRect(0, 0, width, height);
   ctx.fillStyle = BACKGROUND_COLOR;
   ctx.fillRect(0, 0, width, height);
 
   if (options?.showGrid) {
-    ctx.beginPath();
-    ctx.strokeStyle = GRID_COLOR;
-    ctx.lineWidth = 0.5;
-    for (let x = 0; x <= size.width; x++) {
-      ctx.moveTo(x * CELL_WIDTH, 0);
-      ctx.lineTo(x * CELL_WIDTH, height);
-    }
-    for (let y = 0; y <= size.height; y++) {
-      ctx.moveTo(0, y * CELL_HEIGHT);
-      ctx.lineTo(width, y * CELL_HEIGHT);
-    }
-    ctx.stroke();
+    drawGridLines(ctx, {
+      startX: 0,
+      endX: size.width,
+      startY: 0,
+      endY: size.height,
+      width,
+      height,
+      color: GRID_COLOR,
+      lineWidth: 0.5,
+    });
   }
 
-  ctx.font = EXPORT_FONT;
-  ctx.textBaseline = "middle";
-  ctx.textAlign = "center";
+  setTextRenderStyle(ctx);
 
   frameGrid.forEach(([key, cell]) => {
     const [x, y] = key.split(",").map(Number);
     if (!Number.isFinite(x) || !Number.isFinite(y)) return;
 
-    const drawX = x * CELL_WIDTH;
-    const drawY = y * CELL_HEIGHT;
-    const wide = GridManager.isWideChar(cell.char);
-
-    ctx.fillStyle = resolveExportColor(
-      cell.color,
-      options?.includeColor !== false
-    );
-    ctx.fillText(
-      cell.char,
-      drawX + (wide ? CELL_WIDTH : CELL_WIDTH / 2),
-      drawY + CELL_HEIGHT / 2
-    );
+    const drawX = x * cellWidth;
+    const drawY = y * cellHeight;
+    drawTextCell(ctx, cell, drawX, drawY, {
+      color: resolveExportColor(cell.color, options?.includeColor !== false),
+    });
   });
 };
 
@@ -353,7 +335,7 @@ const buildAnsiPiecesFromBounds = (
         char: cell.char,
         color: options?.includeColor === false ? null : cell.color,
       });
-      if (GridManager.getCharWidth(cell.char) === 2) x++;
+      if (getCellOccupancy(cell.char) === 2) x++;
       continue;
     }
     pieces.push({ char: " ", color: null });
@@ -421,7 +403,7 @@ const generateStringFromBounds = (
       const cell = grid.get(GridManager.toKey(x, y));
       if (cell) {
         line += cell.char;
-        if (GridManager.getCharWidth(cell.char) === 2) x++;
+        if (getCellOccupancy(cell.char) === 2) x++;
       } else {
         line += " ";
       }
@@ -543,8 +525,9 @@ export const copySelectionToPngClipboard = async (
   const cols = maxX - minX + 1 + padding * 2;
   const rows = maxY - minY + 1 + padding * 2;
 
-  const width = cols * CELL_WIDTH;
-  const height = rows * CELL_HEIGHT;
+  const { cellWidth, cellHeight } = DEFAULT_GRID_RENDER_METRICS;
+  const width = cols * cellWidth;
+  const height = rows * cellHeight;
 
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
@@ -559,43 +542,29 @@ export const copySelectionToPngClipboard = async (
   ctx.fillRect(0, 0, width, height);
 
   if (showGrid) {
-    ctx.beginPath();
-    ctx.strokeStyle = GRID_COLOR;
-    ctx.lineWidth = 1;
-
-    for (let i = 0; i <= cols; i++) {
-      const x = i * CELL_WIDTH;
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, height);
-    }
-
-    for (let i = 0; i <= rows; i++) {
-      const y = i * CELL_HEIGHT;
-      ctx.moveTo(0, y);
-      ctx.lineTo(width, y);
-    }
-    ctx.stroke();
+    drawGridLines(ctx, {
+      startX: 0,
+      endX: cols,
+      startY: 0,
+      endY: rows,
+      width,
+      height,
+      color: GRID_COLOR,
+    });
   }
 
-  ctx.font = EXPORT_FONT;
-  ctx.textBaseline = "middle";
-  ctx.textAlign = "center";
+  setTextRenderStyle(ctx);
 
   for (let y = minY - padding; y <= maxY + padding; y++) {
     for (let x = minX - padding; x <= maxX + padding; x++) {
       const cell = grid.get(GridManager.toKey(x, y));
       if (!cell) continue;
 
-      const drawX = (x - (minX - padding)) * CELL_WIDTH;
-      const drawY = (y - (minY - padding)) * CELL_HEIGHT;
-      const wide = GridManager.isWideChar(cell.char);
-
-      ctx.fillStyle = resolveExportColor(cell.color, includeColor);
-      ctx.fillText(
-        cell.char,
-        drawX + (wide ? CELL_WIDTH : CELL_WIDTH / 2),
-        drawY + CELL_HEIGHT / 2
-      );
+      const drawX = (x - (minX - padding)) * cellWidth;
+      const drawY = (y - (minY - padding)) * cellHeight;
+      drawTextCell(ctx, cell, drawX, drawY, {
+        color: resolveExportColor(cell.color, includeColor),
+      });
     }
   }
 
@@ -627,8 +596,9 @@ const createPngBlobFromGrid = async (
   await waitForExportFont();
   const { minX, maxX, minY, maxY } = GridManager.getGridBounds(grid);
   const padding = 2;
-  const width = (maxX - minX + 1 + padding * 2) * CELL_WIDTH;
-  const height = (maxY - minY + 1 + padding * 2) * CELL_HEIGHT;
+  const { cellWidth, cellHeight } = DEFAULT_GRID_RENDER_METRICS;
+  const width = (maxX - minX + 1 + padding * 2) * cellWidth;
+  const height = (maxY - minY + 1 + padding * 2) * cellHeight;
 
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
@@ -643,37 +613,28 @@ const createPngBlobFromGrid = async (
   ctx.fillRect(0, 0, width, height);
 
   if (showGrid) {
-    ctx.beginPath();
-    ctx.strokeStyle = GRID_COLOR;
-    ctx.lineWidth = 0.5;
     const gridWidth = maxX - minX + 1 + padding * 2;
     const gridHeight = maxY - minY + 1 + padding * 2;
-    for (let x = 0; x <= gridWidth; x++) {
-      ctx.moveTo(x * CELL_WIDTH, 0);
-      ctx.lineTo(x * CELL_WIDTH, height);
-    }
-    for (let y = 0; y <= gridHeight; y++) {
-      ctx.moveTo(0, y * CELL_HEIGHT);
-      ctx.lineTo(width, y * CELL_HEIGHT);
-    }
-    ctx.stroke();
+    drawGridLines(ctx, {
+      startX: 0,
+      endX: gridWidth,
+      startY: 0,
+      endY: gridHeight,
+      width,
+      height,
+      color: GRID_COLOR,
+      lineWidth: 0.5,
+    });
   }
 
-  ctx.font = EXPORT_FONT;
-  ctx.textBaseline = "middle";
-  ctx.textAlign = "center";
+  setTextRenderStyle(ctx);
 
   GridManager.iterate(grid, (cell, x, y) => {
-    const drawX = (x - minX + padding) * CELL_WIDTH;
-    const drawY = (y - minY + padding) * CELL_HEIGHT;
-    const wide = GridManager.isWideChar(cell.char);
-
-    ctx.fillStyle = resolveExportColor(cell.color, includeColor);
-    ctx.fillText(
-      cell.char,
-      drawX + (wide ? CELL_WIDTH : CELL_WIDTH / 2),
-      drawY + CELL_HEIGHT / 2
-    );
+    const drawX = (x - minX + padding) * cellWidth;
+    const drawY = (y - minY + padding) * cellHeight;
+    drawTextCell(ctx, cell, drawX, drawY, {
+      color: resolveExportColor(cell.color, includeColor),
+    });
   });
 
   return new Promise<Blob | null>((resolve) =>
@@ -700,8 +661,9 @@ export const exportToPNG = async (
   await waitForExportFont();
   const { minX, maxX, minY, maxY } = GridManager.getGridBounds(grid);
   const padding = 2;
-  const width = (maxX - minX + 1 + padding * 2) * CELL_WIDTH;
-  const height = (maxY - minY + 1 + padding * 2) * CELL_HEIGHT;
+  const { cellWidth, cellHeight } = DEFAULT_GRID_RENDER_METRICS;
+  const width = (maxX - minX + 1 + padding * 2) * cellWidth;
+  const height = (maxY - minY + 1 + padding * 2) * cellHeight;
 
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
@@ -716,37 +678,28 @@ export const exportToPNG = async (
   ctx.fillRect(0, 0, width, height);
 
   if (showGrid) {
-    ctx.beginPath();
-    ctx.strokeStyle = GRID_COLOR;
-    ctx.lineWidth = 0.5;
     const gridWidth = maxX - minX + 1 + padding * 2;
     const gridHeight = maxY - minY + 1 + padding * 2;
-    for (let x = 0; x <= gridWidth; x++) {
-      ctx.moveTo(x * CELL_WIDTH, 0);
-      ctx.lineTo(x * CELL_WIDTH, height);
-    }
-    for (let y = 0; y <= gridHeight; y++) {
-      ctx.moveTo(0, y * CELL_HEIGHT);
-      ctx.lineTo(width, y * CELL_HEIGHT);
-    }
-    ctx.stroke();
+    drawGridLines(ctx, {
+      startX: 0,
+      endX: gridWidth,
+      startY: 0,
+      endY: gridHeight,
+      width,
+      height,
+      color: GRID_COLOR,
+      lineWidth: 0.5,
+    });
   }
 
-  ctx.font = EXPORT_FONT;
-  ctx.textBaseline = "middle";
-  ctx.textAlign = "center";
+  setTextRenderStyle(ctx);
 
   GridManager.iterate(grid, (cell, x, y) => {
-    const drawX = (x - minX + padding) * CELL_WIDTH;
-    const drawY = (y - minY + padding) * CELL_HEIGHT;
-    const wide = GridManager.isWideChar(cell.char);
-
-    ctx.fillStyle = resolveExportColor(cell.color, includeColor);
-    ctx.fillText(
-      cell.char,
-      drawX + (wide ? CELL_WIDTH : CELL_WIDTH / 2),
-      drawY + CELL_HEIGHT / 2
-    );
+    const drawX = (x - minX + padding) * cellWidth;
+    const drawY = (y - minY + padding) * cellHeight;
+    drawTextCell(ctx, cell, drawX, drawY, {
+      color: resolveExportColor(cell.color, includeColor),
+    });
   });
 
   const link = document.createElement("a");
@@ -818,8 +771,9 @@ export const exportAnimationToGIF = async (
   includeColor: boolean = true
 ) => {
   await waitForExportFont();
-  const width = Math.max(1, Math.round(size.width * CELL_WIDTH));
-  const height = Math.max(1, Math.round(size.height * CELL_HEIGHT));
+  const { cellWidth, cellHeight } = DEFAULT_GRID_RENDER_METRICS;
+  const width = Math.max(1, Math.round(size.width * cellWidth));
+  const height = Math.max(1, Math.round(size.height * cellHeight));
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;

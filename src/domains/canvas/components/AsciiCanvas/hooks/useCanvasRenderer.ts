@@ -1,13 +1,10 @@
 import { useEffect } from "react";
 import {
   BACKGROUND_COLOR,
-  CELL_HEIGHT,
-  CELL_WIDTH,
   COLOR_ORIGIN_MARKER,
   COLOR_SELECTION_BG,
   COLOR_TEXT_CURSOR_BG,
   COLOR_TEXT_CURSOR_FG,
-  FONT_SIZE,
   GRID_COLOR,
 } from "@/shared/lib/constants";
 import type { CanvasState } from "@/domains/canvas/state/canvasStore";
@@ -16,6 +13,16 @@ import type { SelectionArea, GridMap, Point } from "@/shared/types";
 import { getSelectionBounds } from "@/shared/utils/selection";
 import { createMapFromEntries } from "@/domains/canvas/state/helpers/snapshotHelpers";
 import { getAnimationFrameIndex } from "@/domains/canvas/state/helpers/animationHelpers";
+import {
+  DEFAULT_GRID_RENDER_METRICS,
+  drawGridLines,
+  drawTextCell,
+  getCellOccupancy,
+  getCellPixelSize,
+  gridCellRect,
+  prepareCanvasSurface,
+  setTextRenderStyle,
+} from "@/shared/metrics";
 
 interface LayerRefs {
   bg: React.RefObject<HTMLCanvasElement | null>;
@@ -71,25 +78,6 @@ export const useCanvasRenderer = (
     ctx.roundRect(x, y, width, height, safeRadius);
   };
 
-  const prepareCanvas = (
-    canvas: HTMLCanvasElement,
-    ctx: CanvasRenderingContext2D,
-    width: number,
-    height: number,
-    dpr: number
-  ) => {
-    const targetWidth = Math.floor(width * dpr);
-    const targetHeight = Math.floor(height * dpr);
-    if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
-      canvas.width = targetWidth;
-      canvas.height = targetHeight;
-    } else {
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.clearRect(0, 0, targetWidth, targetHeight);
-    }
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  };
-
   const drawLayer = (
     ctx: CanvasRenderingContext2D,
     targetGrid: GridMap | null,
@@ -100,13 +88,9 @@ export const useCanvasRenderer = (
   ) => {
     if (!targetGrid || targetGrid.size === 0) return;
 
-    const sw = CELL_WIDTH * zoom;
-    const sh = CELL_HEIGHT * zoom;
     ctx.save();
     ctx.globalAlpha = alpha;
-    ctx.font = `${FONT_SIZE * zoom}px 'Maple Mono NF CN', monospace`;
-    ctx.textBaseline = "middle";
-    ctx.textAlign = "center";
+    setTextRenderStyle(ctx, zoom);
 
     for (let y = viewBounds.startY; y <= viewBounds.endY; y++) {
       for (let x = viewBounds.startX; x <= viewBounds.endX; x++) {
@@ -114,13 +98,7 @@ export const useCanvasRenderer = (
         if (!cell || cell.char === " ") continue;
 
         const pos = GridManager.gridToScreen(x, y, offset.x, offset.y, zoom);
-        const wide = GridManager.isWideChar(cell.char);
-        ctx.fillStyle = cell.color;
-        ctx.fillText(
-          cell.char,
-          Math.round(pos.x + (wide ? sw : sw / 2)),
-          Math.round(pos.y + sh / 2)
-        );
+        drawTextCell(ctx, cell, pos.x, pos.y, { zoom });
       }
     }
     ctx.restore();
@@ -173,8 +151,7 @@ export const useCanvasRenderer = (
       if (!size || size.width === 0 || size.height === 0) return;
 
       const dpr = window.devicePixelRatio || 1;
-      const sw = CELL_WIDTH * zoom;
-      const sh = CELL_HEIGHT * zoom;
+      const { width: sw, height: sh } = getCellPixelSize(zoom);
       const viewBounds = GridManager.getViewportGridBounds(
         size.width,
         size.height,
@@ -205,7 +182,7 @@ export const useCanvasRenderer = (
       const bgCanvas = layers.bg.current;
       const bgCtx = bgCanvas?.getContext("2d", { alpha: false });
       if (bgCanvas && bgCtx) {
-        prepareCanvas(bgCanvas, bgCtx, size.width, size.height, dpr);
+        prepareCanvasSurface(bgCanvas, bgCtx, size.width, size.height, dpr);
         bgCtx.fillStyle = BACKGROUND_COLOR;
         bgCtx.fillRect(0, 0, size.width, size.height);
 
@@ -224,9 +201,6 @@ export const useCanvasRenderer = (
         }
 
         if (showGrid) {
-          bgCtx.beginPath();
-          bgCtx.strokeStyle = GRID_COLOR;
-          bgCtx.lineWidth = 1;
           const gridStartX =
             canvasMode === "animation" && canvasBounds
               ? Math.max(0, boundedView.startX)
@@ -243,17 +217,18 @@ export const useCanvasRenderer = (
             canvasMode === "animation" && canvasBounds
               ? Math.min(canvasBounds.height, boundedView.endY + 1)
               : viewBounds.endY;
-          for (let x = gridStartX; x <= gridEndX; x++) {
-            const posX = Math.round(x * sw + offset.x);
-            bgCtx.moveTo(posX, 0);
-            bgCtx.lineTo(posX, size.height);
-          }
-          for (let y = gridStartY; y <= gridEndY; y++) {
-            const posY = Math.round(y * sh + offset.y);
-            bgCtx.moveTo(0, posY);
-            bgCtx.lineTo(size.width, posY);
-          }
-          bgCtx.stroke();
+          drawGridLines(bgCtx, {
+            startX: gridStartX,
+            endX: gridEndX,
+            startY: gridStartY,
+            endY: gridEndY,
+            offsetX: offset.x,
+            offsetY: offset.y,
+            width: size.width,
+            height: size.height,
+            zoom,
+            color: GRID_COLOR,
+          });
         }
         animationGhostLayers.forEach((layer) => {
           drawLayer(bgCtx, layer.grid, boundedView, zoom, offset, layer.alpha);
@@ -290,7 +265,7 @@ export const useCanvasRenderer = (
       const scratchCanvas = layers.scratch.current;
       const scratchCtx = scratchCanvas?.getContext("2d");
       if (scratchCanvas && scratchCtx) {
-        prepareCanvas(scratchCanvas, scratchCtx, size.width, size.height, dpr);
+        prepareCanvasSurface(scratchCanvas, scratchCtx, size.width, size.height, dpr);
         drawLayer(
           scratchCtx,
           scratchLayer,
@@ -303,72 +278,50 @@ export const useCanvasRenderer = (
       const uiCanvas = layers.ui.current;
       const uiCtx = uiCanvas?.getContext("2d");
       if (uiCanvas && uiCtx) {
-        prepareCanvas(uiCanvas, uiCtx, size.width, size.height, dpr);
+        prepareCanvasSurface(uiCanvas, uiCtx, size.width, size.height, dpr);
 
         const drawSel = (area: SelectionArea) => {
           const { minX, minY, maxX, maxY } = getSelectionBounds(area);
-          const pos = GridManager.gridToScreen(
-            minX,
-            minY,
-            offset.x,
-            offset.y,
-            zoom
-          );
+          const pos = gridCellRect({ x: minX, y: minY }, { offset, zoom });
           uiCtx.fillStyle = COLOR_SELECTION_BG;
           uiCtx.fillRect(
             Math.round(pos.x),
             Math.round(pos.y),
-            Math.round((maxX - minX + 1) * sw),
-            Math.round((maxY - minY + 1) * sh)
+            Math.round((maxX - minX + 1) * pos.width),
+            Math.round((maxY - minY + 1) * pos.height)
           );
         };
         selections.forEach(drawSel);
         if (draggingSelection) drawSel(draggingSelection);
 
         if (tool === "eraser" && hoveredGrid) {
-          const pos = GridManager.gridToScreen(
-            hoveredGrid.x,
-            hoveredGrid.y,
-            offset.x,
-            offset.y,
-            zoom
-          );
+          const pos = gridCellRect(hoveredGrid, { offset, zoom });
           uiCtx.fillStyle = "rgba(239, 68, 68, 0.3)";
           uiCtx.fillRect(
             Math.round(pos.x),
             Math.round(pos.y),
-            Math.round(sw),
-            Math.round(sh)
+            Math.round(pos.width),
+            Math.round(pos.height)
           );
         }
 
         if (textCursor) {
-          const pos = GridManager.gridToScreen(
-            textCursor.x,
-            textCursor.y,
-            offset.x,
-            offset.y,
-            zoom
-          );
+          const pos = gridCellRect(textCursor, { offset, zoom });
           const cell = grid.get(GridManager.toKey(textCursor.x, textCursor.y));
-          const wide = cell ? GridManager.isWideChar(cell.char) : false;
+          const occupancy = cell ? getCellOccupancy(cell.char) : 1;
           uiCtx.fillStyle = COLOR_TEXT_CURSOR_BG;
           uiCtx.fillRect(
             Math.round(pos.x),
             Math.round(pos.y),
-            Math.round(wide ? sw * 2 : sw),
-            Math.round(sh)
+            Math.round(pos.width * occupancy),
+            Math.round(pos.height)
           );
           if (cell) {
-            uiCtx.font = `${FONT_SIZE * zoom}px 'Maple Mono NF CN', monospace`;
-            uiCtx.textAlign = "center";
-            uiCtx.textBaseline = "middle";
-            uiCtx.fillStyle = COLOR_TEXT_CURSOR_FG;
-            uiCtx.fillText(
-              cell.char,
-              Math.round(pos.x + (wide ? sw : sw / 2)),
-              Math.round(pos.y + sh / 2)
-            );
+            setTextRenderStyle(uiCtx, zoom, DEFAULT_GRID_RENDER_METRICS);
+            drawTextCell(uiCtx, cell, pos.x, pos.y, {
+              color: COLOR_TEXT_CURSOR_FG,
+              zoom,
+            });
           }
         }
 

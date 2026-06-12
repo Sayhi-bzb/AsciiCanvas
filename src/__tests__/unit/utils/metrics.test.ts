@@ -1,0 +1,67 @@
+import { describe, expect, it } from "vitest";
+import {
+  DEFAULT_GRID_RENDER_METRICS,
+  getCellOccupancy,
+  getTextCellWidth,
+  gridCellRect,
+  gridToScreen,
+  isWideCell,
+  screenToGrid,
+  splitGraphemes,
+} from "@/shared/metrics";
+
+describe("metrics", () => {
+  describe("splitGraphemes", () => {
+    it("keeps combining marks and emoji modifiers together", () => {
+      expect(splitGraphemes("e\u0301x")).toEqual(["e\u0301", "x"]);
+      expect(splitGraphemes("👋🏽x")).toEqual(["👋🏽", "x"]);
+    });
+
+    it("keeps zwj emoji clusters together when Intl.Segmenter supports them", () => {
+      expect(splitGraphemes("👨‍👩‍👧‍👦x")[0]).toBe("👨‍👩‍👧‍👦");
+    });
+  });
+
+  describe("cell occupancy", () => {
+    it("treats ASCII as one cell", () => {
+      expect(getCellOccupancy("A")).toBe(1);
+      expect(getTextCellWidth("abc")).toBe(3);
+    });
+
+    it("treats CJK, emoji, and private-use glyphs as wide cells", () => {
+      expect(getCellOccupancy("你")).toBe(2);
+      expect(getCellOccupancy("👋")).toBe(2);
+      expect(getCellOccupancy("\ue0b0")).toBe(2);
+      expect(isWideCell("你")).toBe(true);
+    });
+
+    it("sums mixed text by grapheme occupancy", () => {
+      expect(getTextCellWidth("A你👋")).toBe(5);
+    });
+  });
+
+  describe("viewport conversion", () => {
+    it("converts grid and screen coordinates through shared metrics", () => {
+      const viewport = { offset: { x: 10, y: 20 }, zoom: 2 };
+      const screen = gridToScreen(3, 4, viewport);
+      expect(screen).toEqual({
+        x: 10 + 3 * DEFAULT_GRID_RENDER_METRICS.cellWidth * 2,
+        y: 20 + 4 * DEFAULT_GRID_RENDER_METRICS.cellHeight * 2,
+      });
+      expect(screenToGrid(screen.x, screen.y, viewport)).toEqual({ x: 3, y: 4 });
+    });
+
+    it("returns cell rects from the same viewport model", () => {
+      const rect = gridCellRect(
+        { x: 2, y: 3 },
+        { offset: { x: 5, y: 7 }, zoom: 1.5 }
+      );
+      expect(rect).toEqual({
+        x: 5 + 2 * DEFAULT_GRID_RENDER_METRICS.cellWidth * 1.5,
+        y: 7 + 3 * DEFAULT_GRID_RENDER_METRICS.cellHeight * 1.5,
+        width: DEFAULT_GRID_RENDER_METRICS.cellWidth * 1.5,
+        height: DEFAULT_GRID_RENDER_METRICS.cellHeight * 1.5,
+      });
+    });
+  });
+});

@@ -1,7 +1,7 @@
-import { CELL_HEIGHT, CELL_WIDTH } from "@/shared/lib/constants";
 import { GridManager } from "@/shared/utils/grid";
 import type { GridMap } from "@/shared/types";
 import type { MinimapMeta, MinimapPoint, ViewportRect } from "./types";
+import { DEFAULT_GRID_RENDER_METRICS } from "@/shared/metrics";
 
 export const computeMinimapMeta = (
   grid: GridMap,
@@ -60,10 +60,11 @@ export const computeViewportRect = (
   meta: MinimapMeta,
   padding: number
 ): ViewportRect => {
-  const viewGridStartX = -offset.x / (CELL_WIDTH * zoom);
-  const viewGridStartY = -offset.y / (CELL_HEIGHT * zoom);
-  const viewGridWidth = containerSize.width / (CELL_WIDTH * zoom);
-  const viewGridHeight = containerSize.height / (CELL_HEIGHT * zoom);
+  const { cellWidth, cellHeight } = DEFAULT_GRID_RENDER_METRICS;
+  const viewGridStartX = -offset.x / (cellWidth * zoom);
+  const viewGridStartY = -offset.y / (cellHeight * zoom);
+  const viewGridWidth = containerSize.width / (cellWidth * zoom);
+  const viewGridHeight = containerSize.height / (cellHeight * zoom);
 
   return {
     x: (viewGridStartX - meta.minX) * meta.scale + padding,

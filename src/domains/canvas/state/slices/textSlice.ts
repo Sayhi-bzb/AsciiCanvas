@@ -19,15 +19,17 @@ import {
   clampPointToBounds,
   isPointWithinBounds,
 } from "../helpers/animationHelpers";
-
-const graphemes = (text: string) => Array.from(text);
+import {
+  getCellOccupancy,
+  splitGraphemes,
+} from "@/shared/metrics";
 
 const toCharIndexByColumn = (text: string, columnOffset: number) => {
   if (columnOffset <= 0) return 0;
   let width = 0;
-  const chars = graphemes(text);
+  const chars = splitGraphemes(text);
   for (let i = 0; i < chars.length; i++) {
-    const charWidth = GridManager.getCharWidth(chars[i]);
+    const charWidth = getCellOccupancy(chars[i]);
     if (width + charWidth > columnOffset) return i;
     width += charWidth;
   }
@@ -109,8 +111,8 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
         const labelStartX = bounds.x + 1;
         const cursorColumn = clamp(cursor.x - labelStartX, 0, labelCapacity);
         const insertAt = toCharIndexByColumn(currentName, cursorColumn);
-        const chars = graphemes(currentName);
-        chars.splice(insertAt, 0, ...graphemes(normalized));
+        const chars = splitGraphemes(currentName);
+        chars.splice(insertAt, 0, ...splitGraphemes(normalized));
         const nextName = trimTextToColumns(chars.join(""), labelCapacity);
         const nextScene = structuredScene.map((sceneNode) =>
           sceneNode.id === node.id
@@ -151,8 +153,8 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
 
       const columnOffset = Math.max(0, cursor.x - existingNode.position.x);
       const insertAt = toCharIndexByColumn(existingNode.text, columnOffset);
-      const chars = graphemes(existingNode.text);
-      chars.splice(insertAt, 0, ...graphemes(normalized));
+      const chars = splitGraphemes(existingNode.text);
+      chars.splice(insertAt, 0, ...splitGraphemes(normalized));
       const nextText = chars.join("");
       const nextScene = structuredScene.map((node) =>
         node.id === existingNode.id
@@ -191,7 +193,7 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
     const startX = boundedCursor.x;
 
     transactWithHistory(() => {
-      for (const char of str) {
+      for (const char of splitGraphemes(str)) {
         if (char === "\n") {
           if (
             canvasBounds &&
@@ -210,7 +212,7 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
           continue;
         }
         placeCharInYMap(yMainGrid, currentX, currentY, char, brushColor);
-        currentX += GridManager.getCharWidth(char);
+        currentX += getCellOccupancy(char);
       }
     });
     set({ textCursor: { x: currentX, y: currentY } });
@@ -256,13 +258,13 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
     const newY = textCursor.y + dy;
     if (dx > 0) {
       const cell = grid.get(GridManager.toKey(newX, textCursor.y));
-      newX += GridManager.getCharWidth(cell?.char || " ");
+      newX += getCellOccupancy(cell?.char || " ");
     } else if (dx < 0) {
       const leftKey = GridManager.toKey(newX - 1, textCursor.y);
       const leftCell = grid.get(leftKey);
       if (!leftCell) {
         const farLeftCell = grid.get(GridManager.toKey(newX - 2, textCursor.y));
-        newX -= farLeftCell && GridManager.isWideChar(farLeftCell.char) ? 2 : 1;
+        newX -= farLeftCell && getCellOccupancy(farLeftCell.char) === 2 ? 2 : 1;
       } else {
         newX -= 1;
       }
@@ -286,7 +288,7 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
         const deleteAt = toCharIndexByColumn(currentName, cursorColumn) - 1;
         if (deleteAt < 0) return;
 
-        const chars = graphemes(currentName);
+        const chars = splitGraphemes(currentName);
         const removed = chars[deleteAt];
         chars.splice(deleteAt, 1);
         const nextName = chars.join("");
@@ -300,7 +302,7 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
         );
         set({
           textCursor: {
-            x: Math.max(labelStartX, textCursor.x - GridManager.getCharWidth(removed)),
+            x: Math.max(labelStartX, textCursor.x - getCellOccupancy(removed)),
             y: bounds.y,
           },
         });
@@ -314,7 +316,7 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
       const deleteAt = toCharIndexByColumn(existingNode.text, columnOffset) - 1;
       if (deleteAt < 0) return;
 
-      const chars = graphemes(existingNode.text);
+      const chars = splitGraphemes(existingNode.text);
       const removed = chars[deleteAt];
       chars.splice(deleteAt, 1);
       const nextText = chars.join("");
@@ -335,7 +337,7 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
       }
       set({
         textCursor: {
-          x: textCursor.x - GridManager.getCharWidth(removed),
+          x: textCursor.x - getCellOccupancy(removed),
           y: textCursor.y,
         },
       });
