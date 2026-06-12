@@ -1,6 +1,6 @@
 import type { StateCreator } from "zustand";
 import type { CanvasState, AnimationSlice } from "../interfaces";
-import type { AnimationTimeline, AnimationCanvasSize, GridCell } from "@/shared/types";
+import type { AnimationFrame, AnimationTimeline, AnimationCanvasSize, GridCell } from "@/shared/types";
 import {
   cloneAnimationTimeline,
   getAnimationFrameEntries,
@@ -337,6 +337,58 @@ export const createAnimationSlice: StateCreator<
       syncAnimationRuntime(syncedTimeline, {
         size: nextBounds,
         isPlaying: state.animationIsPlaying,
+      });
+    },
+    applyGeneratedAnimationFrames: (
+      frames: AnimationFrame[],
+      mode: "insert-after-current" | "replace-animation" | "append-to-end",
+      options?: { fps?: number; size?: AnimationCanvasSize }
+    ) => {
+      const state = get();
+      if (state.canvasMode !== "animation" || !state.animationTimeline) return;
+      if (frames.length === 0) return;
+
+      const syncedTimeline = updateAnimationFrameEntries(
+        state.animationTimeline,
+        state.animationTimeline.currentFrameId,
+        serializeGrid(state.grid)
+      );
+      const sourceFrames = frames.map(
+        (frame, index) =>
+          ({
+            ...frame,
+            id: `${frame.id}-${Date.now().toString(36)}-${index}`,
+            grid: frame.grid.map(
+              ([key, cell]) => [key, { ...cell }] as [string, GridCell]
+            ),
+          } satisfies AnimationFrame)
+      );
+      const nextTimeline = cloneAnimationTimeline(syncedTimeline);
+
+      if (mode === "replace-animation") {
+        nextTimeline.frames = sourceFrames;
+        nextTimeline.currentFrameId = sourceFrames[0].id;
+      } else if (mode === "append-to-end") {
+        nextTimeline.frames.push(...sourceFrames);
+        nextTimeline.currentFrameId = sourceFrames[0].id;
+      } else {
+        const currentIndex = getAnimationFrameIndex(
+          nextTimeline,
+          nextTimeline.currentFrameId
+        );
+        const insertIndex = currentIndex === -1 ? nextTimeline.frames.length : currentIndex + 1;
+        nextTimeline.frames.splice(insertIndex, 0, ...sourceFrames);
+        nextTimeline.currentFrameId = sourceFrames[0].id;
+      }
+
+      if (options?.fps) {
+        nextTimeline.fps = Math.max(1, Math.min(24, Math.round(options.fps)));
+      }
+
+      syncAnimationRuntime(nextTimeline, {
+        currentFrameId: nextTimeline.currentFrameId,
+        size: options?.size,
+        isPlaying: false,
       });
     },
     playAnimation: () => {

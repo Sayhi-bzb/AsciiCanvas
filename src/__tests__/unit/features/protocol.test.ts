@@ -3,7 +3,6 @@ import {
   ASCII_CANVAS_DOCUMENT_TYPE,
   ASCII_CANVAS_DOCUMENT_VERSION,
   buildAnimationProtocolDocument,
-  buildAnsiAnimationProtocolDocument,
   buildFreeformProtocolDocument,
   buildProtocolDocument,
   buildProtocolDocumentFromCanvasState,
@@ -137,41 +136,6 @@ describe("protocol builders", () => {
           style: { color: "#ffffff" },
         },
       ],
-    });
-  });
-
-  it("builds and imports an ANSI animation document", () => {
-    const document = buildAnsiAnimationProtocolDocument({
-      script: "\u001b[38;2;255;0;0mHi\u001b[0m",
-      width: 80,
-      height: 25,
-      fps: 12,
-      background: "#0f0f0f",
-    });
-
-    expect(document).toEqual({
-      type: ASCII_CANVAS_DOCUMENT_TYPE,
-      version: ASCII_CANVAS_DOCUMENT_VERSION,
-      mode: "ansi-animation",
-      size: { width: 80, height: 25 },
-      playback: { fps: 12 },
-      background: "#0f0f0f",
-      script: "\u001b[38;2;255;0;0mHi\u001b[0m",
-    });
-
-    const snapshot = protocolDocumentToSnapshot(document);
-    expect(snapshot).toMatchObject({
-      mode: "ansi-animation",
-      scene: [],
-      grid: [],
-      size: { width: 80, height: 25 },
-      ansiAnimation: {
-        script: "\u001b[38;2;255;0;0mHi\u001b[0m",
-        width: 80,
-        height: 25,
-        fps: 12,
-        background: "#0f0f0f",
-      },
     });
   });
 

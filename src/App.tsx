@@ -1,7 +1,6 @@
 import { useKeyPress, useLocalStorageState } from "ahooks";
 import { Library } from "lucide-react";
 import { AsciiCanvas } from "@/domains/canvas/components/AsciiCanvas";
-import { AnsiAnimationWorkspace } from "@/domains/ansi-animation/components/AnsiAnimationWorkspace";
 import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
 import { AppLayout } from "./layout";
 import { Toolbar } from "@/domains/canvas/components/ToolBar/dock";
@@ -117,21 +116,13 @@ function AppContent() {
       <SidebarInset className="relative flex flex-1 flex-col overflow-hidden">
         <SessionTabs />
         <AppLayout
-          canvas={
-            canvasMode === "ansi-animation" ? (
-              <AnsiAnimationWorkspace />
-            ) : (
-              <AsciiCanvas onUndo={handleUndo} onRedo={handleRedo} />
-            )
-          }
+          canvas={<AsciiCanvas onUndo={handleUndo} onRedo={handleRedo} />}
         >
-          {canvasMode !== "ansi-animation" && (
-            <Toolbar
-              tool={tool}
-              setTool={setTool}
-              onUndo={handleUndo}
-            />
-          )}
+          <Toolbar
+            tool={tool}
+            setTool={setTool}
+            onUndo={handleUndo}
+          />
         </AppLayout>
 
         {canvasMode === "animation" && (

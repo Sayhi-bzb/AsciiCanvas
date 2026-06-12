@@ -58,24 +58,26 @@ It now supports three session modes:
 - **Setback Inheritance**: Smart newline logic automatically detects and maintains indentation.
 - **Wide-Character Support**: Native support for **CJK characters**, **Nerd Fonts**, and **Emojis**.
 - **Modular Indentation**: Professional Tab system shifting cursor by 2 grid units.
+- **Character Library**: Browse Unicode, Nerd Font, Emoji, and Box Drawing characters from a dense right sidebar with character names/tooltips.
 
 ### 3. Animation Workflow
 
 - **Fixed Canvas Presets**: Start animation sessions with common sizes like `80x25`, `64x64`, and `128x128`, or enter custom dimensions.
-- **Frame Timeline**: Add, duplicate, delete, reorder, and rename frames from the dedicated animation sidebar.
+- **Frame Sidebar**: Add, duplicate, delete, reorder, and rename frames from a dedicated left sidebar with compact previews.
 - **Onion Skin Playback**: Toggle ghosted neighboring frames for frame-by-frame ASCII animation.
-- **Export Ready**: Export animations as lightweight JSON, with GIF export support built into the app.
+- **Export Ready**: Export animations as lightweight JSON, GIF, or ANSI text for the current frame.
 
 ### 4. Distributed Collaboration
 
 - **Yjs CRDT Integration**: Real-time, low-latency collaborative editing.
 - **Robust Persistence**: High-granularity undo/redo management with local storage sync.
 
-### 5. Precision Editing Tools
+### 5. Precision Editing & Clipboard
 
 - **Anchor Zoning**: `Shift + Click` for rapid rectangular selection.
 - **Mass Fill**: Instantly fill active selections with any character.
-- **Context Hub**: Professional menu for Copy, Cut, Paste, and Demolish operations.
+- **Context Hub**: Professional menu for Copy, Copy as ANSI, Cut, Paste, and Delete operations.
+- **ANSI Clipboard**: Copy selected content as truecolor ANSI (`ESC[38;2;R;G;Bm`) and paste ANSI or ANSI-like text such as `[38;2;190;24;93m...`.
 
 ---
 
@@ -94,6 +96,7 @@ It now supports three session modes:
 - **Synchronization**: Yjs / Y-IndexedDB
 - **Gestures**: @use-gesture/react
 - **Animation Export**: JSON exchange format, in-browser GIF generation
+- **Terminal Text**: ANSI SGR truecolor copy/export and ANSI-like paste parsing
 - **UI Components**: Tailwind CSS, Shadcn UI, Radix UI
 
 ---
@@ -131,9 +134,9 @@ npm run build
 | **Mass Fill**     | `Char Key`      | Fill active selection with the pressed character  |
 | **Smart Newline** | `Enter`         | New line with inherited indentation               |
 | **Pave Space**    | `Tab`           | Shift cursor right by 2 grid units                |
-| **Context Menu**  | `Right Click`   | Access Copy, Cut, Paste, and Delete commands      |
+| **Context Menu**  | `Right Click`   | Access Copy, Copy as ANSI, Cut, Paste, and Delete |
 
-Animation sessions also expose timeline controls for frame stepping, playback, loop, ghost toggle, and export from the animation bar/sidebar UI.
+Paste accepts plain text, app-native rich clipboard data, and ANSI/ANSI-like truecolor text. Animation sessions also expose timeline controls for frame stepping, playback, loop, ghost toggle, and export from the animation bar/sidebar UI.
 
 ---
 
@@ -144,9 +147,10 @@ Animation sessions also expose timeline controls for frame stepping, playback, l
 - [x] Intelligent Indentation & Tab system.
 - [x] Context Menu & Clipboard integration.
 - [x] Fixed-size animation mode with timeline, onion skin, and export.
+- [x] ANSI truecolor copy/export and ANSI-like paste parsing.
 - [ ] **NES (Next Edit Suggestion)**: Predictive character placement based on layout patterns.
 - [ ] **AI Chat Integration**: Natural language interface for generating canvas components.
-- [ ] ANSI Sequence & SVG Export support.
+- [ ] Full ANSI terminal sequence workspace and SVG export support.
 
 ---
 

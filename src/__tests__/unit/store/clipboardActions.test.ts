@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   buildClipboardPayload,
+  parseAnsiClipboardText,
   writeClipboardPayload,
 } from "@/domains/actions/adapters/clipboardActions";
 
@@ -49,6 +50,54 @@ describe("clipboardActions", () => {
       plain: "\u001b[38;2;255;0;0mA\u001b[38;2;0;255;0mB\u001b[0m",
       rich: null,
     });
+  });
+
+  it("parses ANSI-like clipboard text without ESC prefixes", () => {
+    expect(
+      parseAnsiClipboardText(
+        "[38;2;190;24;93mWhat doesn’t kill [38;2;0;0;0myou makes you stronger.[0m",
+        "#ffffff"
+      )
+    ).toEqual([
+      ...Array.from("What doesn’t kill ").map((char, x) => ({
+        x,
+        y: 0,
+        char,
+        color: "#be185d",
+      })),
+      ...Array.from("you makes you stronger.").map((char, offset) => ({
+        x: "What doesn’t kill ".length + offset,
+        y: 0,
+        char,
+        color: "#000000",
+      })),
+    ]);
+  });
+
+  it("parses standard ANSI clipboard text and reset color", () => {
+    expect(
+      parseAnsiClipboardText(
+        "\u001b[38;2;255;0;0mA\u001b[0mB",
+        "#123456"
+      )
+    ).toEqual([
+      { x: 0, y: 0, char: "A", color: "#ff0000" },
+      { x: 1, y: 0, char: "B", color: "#123456" },
+    ]);
+  });
+
+  it("does not parse plain bracketed text as ANSI", () => {
+    expect(parseAnsiClipboardText("hello [world]", "#ffffff")).toBeNull();
+  });
+
+  it("preserves ANSI color across wide characters and new lines", () => {
+    expect(
+      parseAnsiClipboardText("\u001b[38;2;255;255;255m你A\nB", "#000000")
+    ).toEqual([
+      { x: 0, y: 0, char: "你", color: "#ffffff" },
+      { x: 2, y: 0, char: "A", color: "#ffffff" },
+      { x: 0, y: 1, char: "B", color: "#ffffff" },
+    ]);
   });
 
   it("writes ANSI copy event data as text/plain only", async () => {

@@ -1,6 +1,6 @@
 import type {
-  AnsiAnimationDocument,
   AnimationCanvasSize,
+  AnimationFrame,
   AnimationTimeline,
   CanvasMode,
   GridCell,
@@ -78,7 +78,6 @@ export interface CanvasSession {
   grid: [string, GridCell][];
   size?: AnimationCanvasSize;
   timeline?: AnimationTimeline;
-  ansiAnimation?: AnsiAnimationDocument;
 }
 
 export interface SessionSlice {
@@ -93,10 +92,6 @@ export interface SessionSlice {
   switchCanvasSession: (canvasId: string) => void;
   removeCanvasSession: (canvasId: string) => void;
   renameCanvasSession: (canvasId: string, nextName: string) => void;
-  setAnsiAnimationScript: (script: string) => void;
-  updateAnsiAnimationDocument: (
-    update: Partial<AnsiAnimationDocument>
-  ) => void;
 }
 
 export interface AnimationSlice {
@@ -111,6 +106,11 @@ export interface AnimationSlice {
   toggleAnimationLoop: () => void;
   setOnionSkinSettings: (settings: Partial<OnionSkinSettings>) => void;
   setAnimationCanvasSize: (size: AnimationCanvasSize) => void;
+  applyGeneratedAnimationFrames: (
+    frames: AnimationFrame[],
+    mode: "insert-after-current" | "replace-animation" | "append-to-end",
+    options?: { fps?: number; size?: AnimationCanvasSize }
+  ) => void;
   playAnimation: () => void;
   pauseAnimation: () => void;
   stepAnimationFrame: (direction?: -1 | 1) => void;
@@ -128,7 +128,6 @@ export type CanvasState = {
   structuredScene: StructuredNode[];
   canvasBounds: AnimationCanvasSize | null;
   animationTimeline: AnimationTimeline | null;
-  ansiAnimation: AnsiAnimationDocument | null;
   animationIsPlaying: boolean;
   showGrid: boolean;
   exportShowGrid: boolean;

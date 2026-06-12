@@ -9,6 +9,7 @@ import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { ScrollArea } from "@/shared/ui/scroll-area";
+import { AnimationEffectsPanel } from "@/domains/animation-generators/components/AnimationEffectsPanel";
 import { cn } from "@/shared/lib/utils";
 import type { AnimationCanvasSize, AnimationFrame, GridCell } from "@/shared/types";
 import {
@@ -301,6 +302,7 @@ export function SidebarLeft() {
   const [editingName, setEditingName] = useState("");
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [pinnedFrameId, setPinnedFrameId] = useState<string | null>(null);
+  const [panelMode, setPanelMode] = useState<"frames" | "effects">("frames");
 
   useEffect(() => {
     if (!editingId) return;
@@ -384,6 +386,29 @@ export function SidebarLeft() {
         </div>
       }
     >
+      {!isCollapsed && (
+        <div className="mb-3 grid grid-cols-2 gap-1">
+          {(["frames", "effects"] as const).map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => setPanelMode(mode)}
+              className={cn(
+                "h-8 rounded-lg text-xs font-semibold capitalize transition-colors",
+                panelMode === mode
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted/35 text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+              )}
+            >
+              {mode}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {panelMode === "effects" && !isCollapsed ? (
+        <AnimationEffectsPanel />
+      ) : (
       <ScrollArea className="min-w-0 flex-1">
         <Reorder.Group
           as="div"
@@ -429,6 +454,7 @@ export function SidebarLeft() {
           })}
         </Reorder.Group>
       </ScrollArea>
+      )}
 
       {!isCollapsed && (
         <div className="px-1 pt-2 text-[11px] font-medium text-muted-foreground">

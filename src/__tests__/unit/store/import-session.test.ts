@@ -105,31 +105,6 @@ describe("importCanvasSession", () => {
     expect(state.grid.size).toBeGreaterThan(0);
   });
 
-  it("imports ANSI animation protocol documents as script sessions", () => {
-    const session = useCanvasStore.getState().importCanvasSession({
-      type: ASCII_CANVAS_DOCUMENT_TYPE,
-      version: ASCII_CANVAS_DOCUMENT_VERSION,
-      mode: "ansi-animation",
-      size: { width: 80, height: 25 },
-      playback: { fps: 12 },
-      background: "#0f0f0f",
-      script: "\u001b[1;1HHello",
-    });
-
-    const state = useCanvasStore.getState();
-    expect(session.mode).toBe("ansi-animation");
-    expect(state.canvasMode).toBe("ansi-animation");
-    expect(state.canvasBounds).toEqual({ width: 80, height: 25 });
-    expect(state.ansiAnimation).toEqual({
-      script: "\u001b[1;1HHello",
-      width: 80,
-      height: 25,
-      fps: 12,
-      background: "#0f0f0f",
-    });
-    expect(state.grid.size).toBe(0);
-  });
-
   it("does not mutate sessions when the payload is invalid", () => {
     const before = useCanvasStore.getState();
     const activeCanvasId = before.activeCanvasId;

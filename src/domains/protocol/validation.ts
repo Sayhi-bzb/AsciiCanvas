@@ -103,21 +103,6 @@ export const isAsciiCanvasDocument = (
     return Array.isArray(value.nodes) && value.nodes.every(isStructuredNode);
   }
 
-  if (value.mode === "ansi-animation") {
-    return (
-      isObject(value.size) &&
-      typeof value.size.width === "number" &&
-      Number.isFinite(value.size.width) &&
-      typeof value.size.height === "number" &&
-      Number.isFinite(value.size.height) &&
-      isObject(value.playback) &&
-      typeof value.playback.fps === "number" &&
-      Number.isFinite(value.playback.fps) &&
-      typeof value.background === "string" &&
-      typeof value.script === "string"
-    );
-  }
-
   return false;
 };
 

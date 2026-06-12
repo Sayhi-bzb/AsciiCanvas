@@ -5,7 +5,6 @@ import {
   COLOR_PRIMARY_TEXT,
 } from "@/shared/lib/constants";
 import type {
-  AnsiAnimationDocument,
   AnimationCanvasSize,
   AnimationTimeline,
   CanvasMode,
@@ -56,7 +55,6 @@ interface ProtocolExportInput {
   structuredScene: StructuredNode[];
   canvasBounds: AnimationCanvasSize | null;
   animationTimeline: AnimationTimeline | null;
-  ansiAnimation?: AnsiAnimationDocument | null;
   includeColor?: boolean;
 }
 
@@ -111,8 +109,6 @@ const applyMonochromeProtocolColor = (
           },
         })),
       };
-    case "ansi-animation":
-      return document;
   }
 };
 
@@ -767,7 +763,6 @@ export const buildProtocolExportDocument = ({
   structuredScene,
   canvasBounds,
   animationTimeline,
-  ansiAnimation,
   includeColor = true,
 }: ProtocolExportInput) => {
   const document = buildProtocolDocumentFromCanvasState({
@@ -776,7 +771,6 @@ export const buildProtocolExportDocument = ({
     structuredScene,
     canvasBounds,
     animationTimeline,
-    ansiAnimation,
   });
   return includeColor ? document : applyMonochromeProtocolColor(document);
 };

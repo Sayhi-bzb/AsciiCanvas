@@ -13,7 +13,6 @@ import {
 } from "@/shared/lib/yjs-setup";
 import type { CanvasSession, CanvasState } from "./interfaces";
 import type {
-  AnsiAnimationDocument,
   AnimationCanvasSize,
   StructuredNode,
 } from "@/shared/types";
@@ -53,7 +52,6 @@ import {
   DEFAULT_MODE,
   isToolAllowedForMode,
   buildSessionSnapshot,
-  DEFAULT_ANSI_ANIMATION_DOCUMENT,
   resolveSessionRuntime,
 } from "./helpers/storeUtils";
 
@@ -85,7 +83,6 @@ export const useCanvasStore = create<CanvasState>()(
         structuredScene: [],
         canvasBounds: null,
         animationTimeline: null,
-        ansiAnimation: null,
         animationIsPlaying: false,
         canvasSessions: [
           {
@@ -175,9 +172,6 @@ export const useCanvasStore = create<CanvasState>()(
           animationTimeline: state.animationTimeline
             ? cloneAnimationTimeline(state.animationTimeline)
             : null,
-          ansiAnimation: state.ansiAnimation
-            ? { ...state.ansiAnimation }
-            : null,
           brushChar: state.brushChar,
           brushColor: state.brushColor,
           showGrid: state.showGrid,
@@ -260,58 +254,6 @@ export const useCanvasStore = create<CanvasState>()(
                     } satisfies CanvasSession;
                   }
 
-                  if (mode === "ansi-animation") {
-                    const maybeAnsi =
-                      maybe.ansiAnimation as Partial<AnsiAnimationDocument> | undefined;
-                    const width = Math.max(
-                      1,
-                      Math.floor(
-                        maybeAnsi?.width ??
-                          maybe.size?.width ??
-                          DEFAULT_ANSI_ANIMATION_DOCUMENT.width
-                      )
-                    );
-                    const height = Math.max(
-                      1,
-                      Math.floor(
-                        maybeAnsi?.height ??
-                          maybe.size?.height ??
-                          DEFAULT_ANSI_ANIMATION_DOCUMENT.height
-                      )
-                    );
-                    const ansiAnimation: AnsiAnimationDocument = {
-                      script:
-                        typeof maybeAnsi?.script === "string"
-                          ? maybeAnsi.script
-                          : "",
-                      width,
-                      height,
-                      fps: Math.max(
-                        1,
-                        Math.floor(
-                          maybeAnsi?.fps ?? DEFAULT_ANSI_ANIMATION_DOCUMENT.fps
-                        )
-                      ),
-                      background:
-                        typeof maybeAnsi?.background === "string" &&
-                        maybeAnsi.background.trim()
-                          ? maybeAnsi.background
-                          : DEFAULT_ANSI_ANIMATION_DOCUMENT.background,
-                    };
-                    return {
-                      id: maybe.id,
-                      name:
-                        typeof maybe.name === "string" && maybe.name.trim()
-                          ? maybe.name
-                          : "Canvas",
-                      mode,
-                      scene: [],
-                      grid: [],
-                      size: { width, height },
-                      ansiAnimation,
-                    } satisfies CanvasSession;
-                  }
-
                   return {
                     id: maybe.id,
                     name:
@@ -359,13 +301,10 @@ export const useCanvasStore = create<CanvasState>()(
           hState.tool = runtime.nextTool;
           hState.canvasBounds = runtime.nextBounds;
           hState.animationTimeline = runtime.nextTimeline;
-          hState.ansiAnimation = runtime.nextAnsiAnimation;
           hState.animationIsPlaying = false;
 
           if (runtime.nextMode === "structured") {
             applyStructuredSnapshotToYMaps(runtime.nextScene);
-          } else if (runtime.nextMode === "ansi-animation") {
-            applyFreeformSnapshotToYMaps([]);
           } else {
             applyFreeformSnapshotToYMaps(runtime.nextGridEntries);
           }

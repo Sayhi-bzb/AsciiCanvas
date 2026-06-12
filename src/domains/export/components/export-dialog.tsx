@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import { Copy, Download, Film, ImageIcon } from "lucide-react";
 import type {
-  AnsiAnimationDocument,
   AnimationCanvasSize,
   AnimationTimeline,
   CanvasMode,
@@ -47,7 +46,6 @@ type ExportDialogProps = {
   structuredScene: StructuredNode[];
   canvasBounds: AnimationCanvasSize | null;
   animationTimeline: AnimationTimeline | null;
-  ansiAnimation: AnsiAnimationDocument | null;
   exportShowGrid: boolean;
   setExportShowGrid: (show: boolean) => void;
 };
@@ -87,13 +85,11 @@ export function ExportDialog({
   structuredScene,
   canvasBounds,
   animationTimeline,
-  ansiAnimation,
   exportShowGrid,
   setExportShowGrid,
 }: ExportDialogProps) {
   const shouldExportStructured = canvasMode === "structured";
   const shouldExportAnimation = canvasMode === "animation";
-  const shouldExportAnsiAnimation = canvasMode === "ansi-animation";
   const [exportFormat, setExportFormat] = useState<ExportFormat>("txt");
   const [includeColor, setIncludeColor] = useState(true);
   const availableFormats = useMemo(
@@ -103,19 +99,13 @@ export function ExportDialog({
             { value: "json" as const, label: "JSON", subLabel: "protocol" },
             { value: "gif" as const, label: "GIF", subLabel: "animation" },
           ]
-        : shouldExportAnsiAnimation
-        ? [
-            { value: "txt" as const, label: "TXT", subLabel: "script" },
-            { value: "json" as const, label: "JSON", subLabel: "protocol" },
-            { value: "ansi" as const, label: "ANSI", subLabel: "terminal" },
-          ]
         : [
             { value: "txt" as const, label: "TXT", subLabel: "plain" },
             { value: "json" as const, label: "JSON", subLabel: "protocol" },
             { value: "ansi" as const, label: "ANSI", subLabel: "terminal" },
             { value: "png" as const, label: "PNG", subLabel: "image" },
           ],
-    [shouldExportAnimation, shouldExportAnsiAnimation]
+    [shouldExportAnimation]
   );
   const activeFormat = availableFormats.some(
     (format) => format.value === exportFormat
@@ -132,24 +122,18 @@ export function ExportDialog({
             structuredScene,
             canvasBounds,
             animationTimeline,
-            ansiAnimation,
             includeColor,
           }),
     [
       canvasMode,
       canvasBounds,
       animationTimeline,
-      ansiAnimation,
       includeColor,
       structuredScene,
       grid,
     ]
   );
   const plainTextExport = useMemo(() => exportToString(grid), [grid]);
-  const ansiScriptExport = useMemo(
-    () => ansiAnimation?.script ?? "",
-    [ansiAnimation]
-  );
   const structuredF12Export = useMemo(
     () => exportStructuredF12Text(structuredScene),
     [structuredScene]
@@ -160,34 +144,22 @@ export function ExportDialog({
         ? exportAnimationFrameToAnsi(canvasBounds, Array.from(grid.entries()), {
             includeColor,
           })
-        : shouldExportAnsiAnimation
-        ? ansiScriptExport
         : exportToAnsi(grid, { includeColor }),
-    [
-      ansiScriptExport,
-      shouldExportAnimation,
-      shouldExportAnsiAnimation,
-      canvasBounds,
-      grid,
-      includeColor,
-    ]
+    [shouldExportAnimation, canvasBounds, grid, includeColor]
   );
   const textExport = useMemo(() => {
     if (activeFormat === "json") return protocolJsonExport;
     if (activeFormat === "ansi") return ansiExport;
     if (activeFormat === "txt") {
-      if (shouldExportAnsiAnimation) return ansiScriptExport;
       return shouldExportStructured ? structuredF12Export : plainTextExport;
     }
     return "";
   }, [
     activeFormat,
     ansiExport,
-    ansiScriptExport,
     plainTextExport,
     protocolJsonExport,
     shouldExportStructured,
-    shouldExportAnsiAnimation,
     structuredF12Export,
   ]);
   const isTextPreview =
@@ -225,17 +197,13 @@ export function ExportDialog({
     if (activeFormat === "json") {
       return shouldExportAnimation
         ? '{\n  "type": "ascii-canvas-document",\n  "version": 1,\n  "mode": "animation",\n  "frames": []\n}'
-        : shouldExportAnsiAnimation
-        ? '{\n  "type": "ascii-canvas-document",\n  "version": 1,\n  "mode": "ansi-animation",\n  "script": ""\n}'
         : shouldExportStructured
         ? '{\n  "type": "ascii-canvas-document",\n  "version": 1,\n  "mode": "structured",\n  "nodes": []\n}'
         : '{\n  "type": "ascii-canvas-document",\n  "version": 1,\n  "mode": "freeform",\n  "cells": []\n}';
     }
 
     if (activeFormat === "ansi") {
-      return shouldExportAnsiAnimation
-        ? ansiScriptExport || "# ANSI animation script will appear here"
-        : "\u001b[38;2;255;255;255m# ANSI preview will appear here\u001b[0m";
+      return "\u001b[38;2;255;255;255m# ANSI preview will appear here\u001b[0m";
     }
 
     return shouldExportStructured
@@ -243,9 +211,7 @@ export function ExportDialog({
       : "No characters to export yet.";
   }, [
     activeFormat,
-    ansiScriptExport,
     shouldExportAnimation,
-    shouldExportAnsiAnimation,
     shouldExportStructured,
   ]);
   const saveIcon = activeFormat === "gif" ? Film : activeFormat === "png" ? ImageIcon : Download;

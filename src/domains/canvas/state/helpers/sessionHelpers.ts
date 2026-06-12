@@ -1,6 +1,5 @@
 import type { CanvasSession } from "../interfaces";
 import type {
-  AnsiAnimationDocument,
   AnimationCanvasSize,
   AnimationTimeline,
   CanvasMode,
@@ -34,7 +33,6 @@ type ActiveSnapshot = {
   grid: [string, { char: string; color: string }][];
   size?: AnimationCanvasSize;
   timeline?: AnimationTimeline;
-  ansiAnimation?: AnsiAnimationDocument;
 };
 
 export const withActiveCanvasSnapshot = (
@@ -51,17 +49,12 @@ export const withActiveCanvasSnapshot = (
           grid: snapshot.grid,
           size: snapshot.mode === "animation" ? snapshot.size : undefined,
           timeline: snapshot.mode === "animation" ? snapshot.timeline : undefined,
-          ansiAnimation:
-            snapshot.mode === "ansi-animation"
-              ? snapshot.ansiAnimation
-              : undefined,
         }
       : session
   );
 };
 
 export const normalizeSessionMode = (mode: unknown): CanvasMode => {
-  if (mode === "ansi-animation") return "ansi-animation";
   if (mode === "structured") return "structured";
   if (mode === "animation") return "animation";
   return "freeform";

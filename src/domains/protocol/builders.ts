@@ -1,5 +1,4 @@
 import type {
-  AnsiAnimationDocument,
   AnimationCanvasSize,
   AnimationTimeline,
   CanvasMode,
@@ -12,7 +11,6 @@ import {
 } from "./types";
 import type {
   AsciiCanvasAnimationDocumentV1,
-  AsciiCanvasAnsiAnimationDocumentV1,
   AsciiCanvasDocumentV1,
   AsciiCanvasFreeformDocumentV1,
   AsciiCanvasProtocolCellV1,
@@ -137,25 +135,6 @@ export const buildStructuredProtocolDocument = (
   };
 };
 
-export const buildAnsiAnimationProtocolDocument = (
-  document: AnsiAnimationDocument
-): AsciiCanvasAnsiAnimationDocumentV1 => {
-  return {
-    type: ASCII_CANVAS_DOCUMENT_TYPE,
-    version: ASCII_CANVAS_DOCUMENT_VERSION,
-    mode: "ansi-animation",
-    size: {
-      width: document.width,
-      height: document.height,
-    },
-    playback: {
-      fps: document.fps,
-    },
-    background: document.background,
-    script: document.script,
-  };
-};
-
 type BuildProtocolDocumentByModeInput =
   | {
       mode: "freeform";
@@ -169,10 +148,6 @@ type BuildProtocolDocumentByModeInput =
   | {
       mode: "structured";
       scene: StructuredNode[];
-    }
-  | {
-      mode: "ansi-animation";
-      ansiAnimation: AnsiAnimationDocument;
     };
 
 export const buildProtocolDocument = (
@@ -185,8 +160,6 @@ export const buildProtocolDocument = (
       return buildAnimationProtocolDocument(input.size, input.timeline);
     case "structured":
       return buildStructuredProtocolDocument(input.scene);
-    case "ansi-animation":
-      return buildAnsiAnimationProtocolDocument(input.ansiAnimation);
   }
 };
 
@@ -196,7 +169,6 @@ export interface ProtocolCanvasStateSnapshotInput {
   structuredScene: StructuredNode[];
   canvasBounds: AnimationCanvasSize | null;
   animationTimeline: AnimationTimeline | null;
-  ansiAnimation?: AnsiAnimationDocument | null;
 }
 
 export const buildProtocolDocumentFromCanvasState = (
@@ -217,10 +189,5 @@ export const buildProtocolDocumentFromCanvasState = (
         input.canvasBounds,
         input.animationTimeline
       );
-    case "ansi-animation":
-      if (!input.ansiAnimation) {
-        throw new Error("ANSI animation protocol export requires an ANSI animation document.");
-      }
-      return buildAnsiAnimationProtocolDocument(input.ansiAnimation);
   }
 };

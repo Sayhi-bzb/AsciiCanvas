@@ -149,14 +149,17 @@ export const createSelectionSlice: StateCreator<
   },
 
   pasteFromClipboard: async (options) => {
-    const { pasteRichData, writeTextString, canvasMode } = get();
+    const { pasteRichData, writeTextString, canvasMode, brushColor } = get();
     if (canvasMode === "structured") {
       feedback.warning("Paste disabled in structured mode", {
         description: "Structured mode only accepts node-based editing.",
       });
       return;
     }
-    const payload = await readClipboardPayload(options?.eventDataTransfer);
+    const payload = await readClipboardPayload(
+      options?.eventDataTransfer,
+      brushColor
+    );
 
     if (payload.richCells) {
       pasteRichData(payload.richCells);

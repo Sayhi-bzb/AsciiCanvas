@@ -92,7 +92,7 @@ export function SessionTabs() {
   const createOptions = [
     { mode: "freeform" as const, label: "New Freeform", icon: Pencil },
     { mode: "animation" as const, label: "New Animation", icon: Clapperboard },
-    { mode: "ansi-animation" as const, label: "New ANSI", icon: Code2 },
+    { mode: "generated-animation" as const, label: "New Generated", icon: Code2 },
   ];
 
   const commitAnimationCreation = () => {
@@ -116,16 +116,12 @@ export function SessionTabs() {
             const ModeIcon =
               session.mode === "structured"
                 ? Box
-                : session.mode === "ansi-animation"
-                ? Code2
                 : session.mode === "animation"
                 ? Clapperboard
                 : Pencil;
             const modeLabel =
               session.mode === "structured"
                 ? "Structured"
-                : session.mode === "ansi-animation"
-                ? "ANSI Animation"
                 : session.mode === "animation"
                 ? "Animation"
                 : "Freeform";
@@ -226,8 +222,8 @@ export function SessionTabs() {
                   onClick={() => {
                     if (option.mode === "animation") {
                       setAnimationDialogOpen(true);
-                    } else if (option.mode === "ansi-animation") {
-                      createCanvasSession("ansi-animation", {
+                    } else if (option.mode === "generated-animation") {
+                      createCanvasSession("animation", {
                         size: { width: 80, height: 25 },
                       });
                     } else {
