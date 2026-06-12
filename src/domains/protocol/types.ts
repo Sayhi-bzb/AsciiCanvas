@@ -1,4 +1,8 @@
-import type { AnimationCanvasSize, CanvasMode, Point } from "@/shared/types";
+import type {
+  AnimationCanvasSize,
+  CanvasMode,
+  Point,
+} from "@/shared/types";
 
 export const ASCII_CANVAS_DOCUMENT_TYPE = "ascii-canvas-document";
 export const ASCII_CANVAS_DOCUMENT_VERSION = 1;
@@ -85,7 +89,18 @@ export interface AsciiCanvasStructuredDocumentV1
   nodes: AsciiCanvasProtocolNodeV1[];
 }
 
+export interface AsciiCanvasAnsiAnimationDocumentV1
+  extends AsciiCanvasDocumentBaseV1<"ansi-animation"> {
+  size: AnimationCanvasSize;
+  playback: {
+    fps: number;
+  };
+  background: string;
+  script: string;
+}
+
 export type AsciiCanvasDocumentV1 =
   | AsciiCanvasFreeformDocumentV1
   | AsciiCanvasAnimationDocumentV1
-  | AsciiCanvasStructuredDocumentV1;
+  | AsciiCanvasStructuredDocumentV1
+  | AsciiCanvasAnsiAnimationDocumentV1;

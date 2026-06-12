@@ -3,6 +3,8 @@ import type { CanvasSession, CanvasState, SessionSlice } from "../interfaces";
 import {
   buildSessionSnapshot,
   createAnimationSession,
+  createAnsiAnimationSession,
+  DEFAULT_ANSI_ANIMATION_DOCUMENT,
   resolveSessionRuntime,
 } from "../helpers/storeUtils";
 import {
@@ -26,6 +28,8 @@ const getImportedSessionBaseName = (mode: CanvasSession["mode"]) => {
   switch (mode) {
     case "animation":
       return "Imported Animation";
+    case "ansi-animation":
+      return "Imported ANSI Animation";
     case "structured":
       return "Imported Structured";
     case "freeform":
@@ -72,6 +76,14 @@ const createImportedSession = (
     };
   }
 
+  if (snapshot.mode === "ansi-animation") {
+    return {
+      ...baseSession,
+      size: snapshot.size,
+      ansiAnimation: snapshot.ansiAnimation,
+    };
+  }
+
   return baseSession;
 };
 
@@ -94,6 +106,8 @@ export const createSessionSlice: StateCreator<
     const newSession =
       normalizedMode === "animation"
         ? createAnimationSession(sessionsWithSnapshot, options?.size)
+        : normalizedMode === "ansi-animation"
+        ? createAnsiAnimationSession(sessionsWithSnapshot, options?.size)
         : {
             id: createSessionId(sessionsWithSnapshot),
             name: resolveNextSessionName(sessionsWithSnapshot),
@@ -113,6 +127,7 @@ export const createSessionSlice: StateCreator<
       tool: runtime.nextTool,
       canvasBounds: runtime.nextBounds,
       animationTimeline: runtime.nextTimeline,
+      ansiAnimation: runtime.nextAnsiAnimation,
       animationIsPlaying: false,
       selections: [],
       textCursor: null,
@@ -122,6 +137,8 @@ export const createSessionSlice: StateCreator<
 
     if (runtime.nextMode === "structured") {
       applyStructuredSnapshotToYMaps(runtime.nextScene);
+    } else if (runtime.nextMode === "ansi-animation") {
+      applyFreeformSnapshotToYMaps([]);
     } else {
       applyFreeformSnapshotToYMaps(runtime.nextGridEntries);
     }
@@ -158,6 +175,7 @@ export const createSessionSlice: StateCreator<
       tool: runtime.nextTool,
       canvasBounds: runtime.nextBounds,
       animationTimeline: runtime.nextTimeline,
+      ansiAnimation: runtime.nextAnsiAnimation,
       animationIsPlaying: false,
       selections: [],
       textCursor: null,
@@ -167,6 +185,8 @@ export const createSessionSlice: StateCreator<
 
     if (runtime.nextMode === "structured") {
       applyStructuredSnapshotToYMaps(runtime.nextScene);
+    } else if (runtime.nextMode === "ansi-animation") {
+      applyFreeformSnapshotToYMaps([]);
     } else {
       applyFreeformSnapshotToYMaps(runtime.nextGridEntries);
     }
@@ -199,6 +219,7 @@ export const createSessionSlice: StateCreator<
       tool: runtime.nextTool,
       canvasBounds: runtime.nextBounds,
       animationTimeline: runtime.nextTimeline,
+      ansiAnimation: runtime.nextAnsiAnimation,
       animationIsPlaying: false,
       selections: [],
       textCursor: null,
@@ -208,6 +229,8 @@ export const createSessionSlice: StateCreator<
 
     if (runtime.nextMode === "structured") {
       applyStructuredSnapshotToYMaps(runtime.nextScene);
+    } else if (runtime.nextMode === "ansi-animation") {
+      applyFreeformSnapshotToYMaps([]);
     } else {
       applyFreeformSnapshotToYMaps(runtime.nextGridEntries);
     }
@@ -250,6 +273,7 @@ export const createSessionSlice: StateCreator<
       tool: runtime.nextTool,
       canvasBounds: runtime.nextBounds,
       animationTimeline: runtime.nextTimeline,
+      ansiAnimation: runtime.nextAnsiAnimation,
       animationIsPlaying: false,
       selections: [],
       textCursor: null,
@@ -259,6 +283,8 @@ export const createSessionSlice: StateCreator<
 
     if (runtime.nextMode === "structured") {
       applyStructuredSnapshotToYMaps(runtime.nextScene);
+    } else if (runtime.nextMode === "ansi-animation") {
+      applyFreeformSnapshotToYMaps([]);
     } else {
       applyFreeformSnapshotToYMaps(runtime.nextGridEntries);
     }
@@ -271,5 +297,51 @@ export const createSessionSlice: StateCreator<
         session.id === canvasId ? { ...session, name } : session
       ),
     }));
+  },
+  setAnsiAnimationScript: (script) => {
+    set((state) => {
+      if (state.canvasMode !== "ansi-animation") return state;
+      const nextAnsiAnimation = {
+        ...(state.ansiAnimation ?? {
+          script: "",
+          width: state.canvasBounds?.width ?? DEFAULT_ANSI_ANIMATION_DOCUMENT.width,
+          height: state.canvasBounds?.height ?? DEFAULT_ANSI_ANIMATION_DOCUMENT.height,
+          fps: DEFAULT_ANSI_ANIMATION_DOCUMENT.fps,
+          background: DEFAULT_ANSI_ANIMATION_DOCUMENT.background,
+        }),
+        script,
+      };
+      return {
+        ansiAnimation: nextAnsiAnimation,
+        canvasSessions: state.canvasSessions.map((session) =>
+          session.id === state.activeCanvasId
+            ? { ...session, ansiAnimation: nextAnsiAnimation }
+            : session
+        ),
+      };
+    });
+  },
+  updateAnsiAnimationDocument: (update) => {
+    set((state) => {
+      if (state.canvasMode !== "ansi-animation") return state;
+      const nextAnsiAnimation = {
+        ...(state.ansiAnimation ?? {
+          script: "",
+          width: state.canvasBounds?.width ?? DEFAULT_ANSI_ANIMATION_DOCUMENT.width,
+          height: state.canvasBounds?.height ?? DEFAULT_ANSI_ANIMATION_DOCUMENT.height,
+          fps: DEFAULT_ANSI_ANIMATION_DOCUMENT.fps,
+          background: DEFAULT_ANSI_ANIMATION_DOCUMENT.background,
+        }),
+        ...update,
+      };
+      return {
+        ansiAnimation: nextAnsiAnimation,
+        canvasSessions: state.canvasSessions.map((session) =>
+          session.id === state.activeCanvasId
+            ? { ...session, ansiAnimation: nextAnsiAnimation }
+            : session
+        ),
+      };
+    });
   },
 });

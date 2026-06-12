@@ -1,5 +1,6 @@
 import type { CanvasSession, CanvasState } from "../interfaces";
 import type {
+  AnsiAnimationDocument,
   AnimationCanvasSize,
   AnimationTimeline,
   CanvasMode,
@@ -30,6 +31,17 @@ export const DEFAULT_SESSION_ID = "canvas-1";
 export const DEFAULT_SESSION_NAME = "Canvas 1";
 export const DEFAULT_MODE: CanvasMode = "freeform";
 export const STRUCTURED_ALLOWED_TOOLS: ToolType[] = ["select", "box", "line"];
+export const DEFAULT_ANSI_ANIMATION_SIZE: AnimationCanvasSize = {
+  width: 80,
+  height: 25,
+};
+export const DEFAULT_ANSI_ANIMATION_DOCUMENT: AnsiAnimationDocument = {
+  script: "",
+  width: DEFAULT_ANSI_ANIMATION_SIZE.width,
+  height: DEFAULT_ANSI_ANIMATION_SIZE.height,
+  fps: 12,
+  background: "#0f0f0f",
+};
 
 export const isToolAllowedForMode = (tool: ToolType, mode: CanvasMode) => {
   if (mode === "structured") return STRUCTURED_ALLOWED_TOOLS.includes(tool);
@@ -71,6 +83,16 @@ export const buildSessionSnapshot = (state: CanvasState) => {
     };
   }
 
+  if (state.canvasMode === "ansi-animation") {
+    const ansiAnimation = state.ansiAnimation ?? DEFAULT_ANSI_ANIMATION_DOCUMENT;
+    return {
+      mode: "ansi-animation" as const,
+      scene: [] as StructuredNode[],
+      grid: [],
+      ansiAnimation,
+    };
+  }
+
   if (state.canvasMode === "structured") {
     return {
       mode: "structured" as const,
@@ -105,6 +127,34 @@ export const resolveSessionRuntime = (session: CanvasSession, currentTool: ToolT
         : getFallbackToolForMode(nextMode),
       nextBounds,
       nextTimeline,
+      nextAnsiAnimation: null as AnsiAnimationDocument | null,
+    };
+  }
+
+  if (nextMode === "ansi-animation") {
+    const ansiAnimation = session.ansiAnimation ?? DEFAULT_ANSI_ANIMATION_DOCUMENT;
+    return {
+      nextMode,
+      nextScene: [] as StructuredNode[],
+      nextGridEntries: [],
+      nextTool: isToolAllowedForMode(currentTool, nextMode)
+        ? currentTool
+        : getFallbackToolForMode(nextMode),
+      nextBounds: {
+        width: Math.max(1, Math.floor(ansiAnimation.width || DEFAULT_ANSI_ANIMATION_SIZE.width)),
+        height: Math.max(1, Math.floor(ansiAnimation.height || DEFAULT_ANSI_ANIMATION_SIZE.height)),
+      },
+      nextTimeline: null as AnimationTimeline | null,
+      nextAnsiAnimation: {
+        script: typeof ansiAnimation.script === "string" ? ansiAnimation.script : "",
+        width: Math.max(1, Math.floor(ansiAnimation.width || DEFAULT_ANSI_ANIMATION_SIZE.width)),
+        height: Math.max(1, Math.floor(ansiAnimation.height || DEFAULT_ANSI_ANIMATION_SIZE.height)),
+        fps: Math.max(1, Math.floor(ansiAnimation.fps || DEFAULT_ANSI_ANIMATION_DOCUMENT.fps)),
+        background:
+          typeof ansiAnimation.background === "string" && ansiAnimation.background.trim()
+            ? ansiAnimation.background
+            : DEFAULT_ANSI_ANIMATION_DOCUMENT.background,
+      },
     };
   }
 
@@ -122,6 +172,7 @@ export const resolveSessionRuntime = (session: CanvasSession, currentTool: ToolT
       : getFallbackToolForMode(nextMode),
     nextBounds: null as AnimationCanvasSize | null,
     nextTimeline: null as AnimationTimeline | null,
+    nextAnsiAnimation: null as AnsiAnimationDocument | null,
   };
 };
 
@@ -139,5 +190,29 @@ export const createAnimationSession = (
     grid: getAnimationFrameEntries(timeline, timeline.currentFrameId),
     size: normalizedSize,
     timeline,
+  };
+};
+
+export const createAnsiAnimationSession = (
+  sessions: CanvasSession[],
+  size?: AnimationCanvasSize
+): CanvasSession => {
+  const normalizedSize = {
+    width: Math.max(1, Math.floor(size?.width ?? DEFAULT_ANSI_ANIMATION_SIZE.width)),
+    height: Math.max(1, Math.floor(size?.height ?? DEFAULT_ANSI_ANIMATION_SIZE.height)),
+  };
+
+  return {
+    id: createSessionId(sessions),
+    name: resolveNextSessionName(sessions),
+    mode: "ansi-animation",
+    scene: [],
+    grid: [],
+    ansiAnimation: {
+      ...DEFAULT_ANSI_ANIMATION_DOCUMENT,
+      width: normalizedSize.width,
+      height: normalizedSize.height,
+    },
+    size: normalizedSize,
   };
 };

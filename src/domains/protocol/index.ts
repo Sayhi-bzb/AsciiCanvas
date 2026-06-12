@@ -3,6 +3,7 @@ export {
   ASCII_CANVAS_DOCUMENT_VERSION,
 } from "./types";
 export type {
+  AsciiCanvasAnsiAnimationDocumentV1,
   AsciiCanvasAnimationDocumentV1,
   AsciiCanvasDocumentV1,
   AsciiCanvasDocumentType,
@@ -19,6 +20,7 @@ export type {
   AsciiCanvasStructuredDocumentV1,
 } from "./types";
 export {
+  buildAnsiAnimationProtocolDocument,
   buildAnimationProtocolDocument,
   buildFreeformProtocolDocument,
   buildProtocolDocument,

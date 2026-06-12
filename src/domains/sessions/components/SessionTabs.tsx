@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Box, Clapperboard, Pencil, Plus, X } from "lucide-react";
+import { Box, Clapperboard, Code2, Pencil, Plus, X } from "lucide-react";
 import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
 import { useShallow } from "zustand/react/shallow";
 import { cn } from "@/shared/lib/utils";
@@ -92,6 +92,7 @@ export function SessionTabs() {
   const createOptions = [
     { mode: "freeform" as const, label: "New Freeform", icon: Pencil },
     { mode: "animation" as const, label: "New Animation", icon: Clapperboard },
+    { mode: "ansi-animation" as const, label: "New ANSI", icon: Code2 },
   ];
 
   const commitAnimationCreation = () => {
@@ -115,12 +116,16 @@ export function SessionTabs() {
             const ModeIcon =
               session.mode === "structured"
                 ? Box
+                : session.mode === "ansi-animation"
+                ? Code2
                 : session.mode === "animation"
                 ? Clapperboard
                 : Pencil;
             const modeLabel =
               session.mode === "structured"
                 ? "Structured"
+                : session.mode === "ansi-animation"
+                ? "ANSI Animation"
                 : session.mode === "animation"
                 ? "Animation"
                 : "Freeform";
@@ -221,6 +226,10 @@ export function SessionTabs() {
                   onClick={() => {
                     if (option.mode === "animation") {
                       setAnimationDialogOpen(true);
+                    } else if (option.mode === "ansi-animation") {
+                      createCanvasSession("ansi-animation", {
+                        size: { width: 80, height: 25 },
+                      });
                     } else {
                       createCanvasSession(option.mode);
                     }

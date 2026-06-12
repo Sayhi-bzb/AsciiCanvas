@@ -46,7 +46,19 @@ export interface AnimationTimeline {
   onionSkin: OnionSkinSettings;
 }
 
-export type CanvasMode = "freeform" | "structured" | "animation";
+export interface AnsiAnimationDocument {
+  script: string;
+  width: number;
+  height: number;
+  fps: number;
+  background: string;
+}
+
+export type CanvasMode =
+  | "freeform"
+  | "structured"
+  | "animation"
+  | "ansi-animation";
 
 export type ToolType =
   | "select"

@@ -22,6 +22,7 @@ export function SidebarRight() {
     structuredScene,
     canvasBounds,
     animationTimeline,
+    ansiAnimation,
     clearCanvas,
     showGrid,
     setShowGrid,
@@ -36,6 +37,7 @@ export function SidebarRight() {
       structuredScene: state.structuredScene,
       canvasBounds: state.canvasBounds,
       animationTimeline: state.animationTimeline,
+      ansiAnimation: state.ansiAnimation,
       clearCanvas: state.clearCanvas,
       showGrid: state.showGrid,
       setShowGrid: state.setShowGrid,
@@ -83,6 +85,7 @@ export function SidebarRight() {
                 structuredScene={structuredScene}
                 canvasBounds={canvasBounds}
                 animationTimeline={animationTimeline}
+                ansiAnimation={ansiAnimation}
                 exportShowGrid={exportShowGrid}
                 setExportShowGrid={setExportShowGrid}
               />

@@ -349,6 +349,34 @@ describe("export utilities", () => {
     );
   });
 
+  it("serializes the ANSI animation protocol document", () => {
+    const json = exportProtocolToJSON({
+      canvasMode: "ansi-animation",
+      grid: new Map(),
+      structuredScene: [],
+      canvasBounds: { width: 80, height: 25 },
+      animationTimeline: null,
+      ansiAnimation: {
+        script: "\u001b[2J\u001b[1;1HHello",
+        width: 80,
+        height: 25,
+        fps: 12,
+        background: "#0f0f0f",
+      },
+    });
+    const parsed = JSON.parse(json);
+
+    expect(parsed).toEqual({
+      type: "ascii-canvas-document",
+      version: 1,
+      mode: "ansi-animation",
+      size: { width: 80, height: 25 },
+      playback: { fps: 12 },
+      background: "#0f0f0f",
+      script: "\u001b[2J\u001b[1;1HHello",
+    });
+  });
+
   it("exports selected cells as ANSI truecolor within the selection bounds", () => {
     const grid: GridMap = new Map([
       ["0,0", { char: "A", color: "#ff0000" }],

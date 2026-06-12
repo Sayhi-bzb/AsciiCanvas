@@ -1,8 +1,8 @@
 "use client";
 
-import { Clapperboard, Copy, Pencil, Plus, Trash2 } from "lucide-react";
+import { Clapperboard, Copy, GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Reorder } from "motion/react";
+import { Reorder, useDragControls } from "motion/react";
 import { useShallow } from "zustand/react/shallow";
 import { SidebarStandard, useSidebar } from "@/shared/ui/sidebar";
 import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
@@ -103,12 +103,169 @@ function FramePreview({
   return (
     <div
       className={cn(
-        "h-11 w-16 shrink-0 overflow-hidden rounded-lg border bg-background/80",
+        "relative h-12 w-16 shrink-0 overflow-hidden rounded-lg border bg-background/80",
         isActive ? "border-primary/40" : "border-border/70"
       )}
     >
       <canvas ref={canvasRef} className="h-full w-full" />
+      {frame.grid.length === 0 && (
+        <div className="absolute inset-0 flex items-center justify-center bg-background/70 text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+          Empty
+        </div>
+      )}
     </div>
+  );
+}
+
+function FrameRow({
+  frame,
+  index,
+  size,
+  isActive,
+  isEditing,
+  isCollapsed,
+  editingName,
+  inputRef,
+  canDelete,
+  onSelect,
+  onStartRename,
+  onEditingNameChange,
+  onCommitRename,
+  onCancelRename,
+  onInsertAfter,
+  onDuplicate,
+  onDelete,
+}: {
+  frame: AnimationFrame;
+  index: number;
+  size: AnimationCanvasSize | null;
+  isActive: boolean;
+  isEditing: boolean;
+  isCollapsed: boolean;
+  editingName: string;
+  inputRef: React.RefObject<HTMLInputElement | null>;
+  canDelete: boolean;
+  onSelect: () => void;
+  onStartRename: () => void;
+  onEditingNameChange: (value: string) => void;
+  onCommitRename: () => void;
+  onCancelRename: () => void;
+  onInsertAfter: () => void;
+  onDuplicate: () => void;
+  onDelete: () => void;
+}) {
+  const dragControls = useDragControls();
+  const frameLabel = `Frame ${index + 1}`;
+  const rowClassName = cn(
+    "group/frame relative flex w-full min-w-0 items-center rounded-xl px-1.5 py-2 text-left outline-none overflow-hidden",
+    isActive
+      ? "bg-primary/12 text-primary ring-1 ring-primary/20"
+      : "text-foreground hover:bg-accent/45 focus-visible:bg-accent/45"
+  );
+
+  return (
+    <Reorder.Item
+      key={frame.id}
+      value={frame.id}
+      dragListener={false}
+      dragControls={dragControls}
+      transition={{ duration: 0 }}
+      className="min-w-0 list-none"
+    >
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          {isEditing ? (
+            <div className={rowClassName}>
+              <Input
+                ref={inputRef}
+                value={editingName}
+                onChange={(event) => onEditingNameChange(event.target.value)}
+                onBlur={onCommitRename}
+                onClick={(event) => event.stopPropagation()}
+                onPointerDown={(event) => event.stopPropagation()}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    onCommitRename();
+                  } else if (event.key === "Escape") {
+                    event.preventDefault();
+                    onCancelRename();
+                  }
+                }}
+                className="h-8 border-none bg-background/90 px-2 text-sm font-semibold shadow-none focus-visible:ring-1"
+              />
+            </div>
+          ) : (
+            <div
+              role="button"
+              tabIndex={0}
+              aria-current={isActive ? "true" : undefined}
+              aria-label={`Select ${frameLabel}: ${frame.name}`}
+              onClick={onSelect}
+              onDoubleClick={onStartRename}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onSelect();
+                }
+              }}
+              className={rowClassName}
+            >
+              <button
+                type="button"
+                aria-label={`Reorder ${frame.name}`}
+                title="Drag to reorder"
+                onPointerDown={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  dragControls.start(event);
+                }}
+                onClick={(event) => event.stopPropagation()}
+                className="mr-1 flex size-6 shrink-0 cursor-grab items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground active:cursor-grabbing"
+              >
+                <GripVertical className="size-3.5" />
+              </button>
+
+              <FramePreview frame={frame} size={size} isActive={isActive} />
+
+              {!isCollapsed && (
+                <div className="ml-2 min-w-0 flex-1 overflow-hidden">
+                  <span className="block truncate text-sm font-semibold">
+                    {frame.name}
+                  </span>
+                </div>
+              )}
+
+            </div>
+          )}
+        </ContextMenuTrigger>
+        <ContextMenuContent className="min-w-36">
+          <ContextMenuItem onClick={onStartRename}>
+            <Pencil className="size-4" />
+            Rename
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem onClick={onDuplicate}>
+            <Copy className="size-4" />
+            Duplicate
+          </ContextMenuItem>
+          <ContextMenuItem onClick={onInsertAfter}>
+            <Plus className="size-4" />
+            Insert After
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem
+            variant="destructive"
+            disabled={!canDelete}
+            onClick={onDelete}
+          >
+            <Trash2 className="size-4" />
+            Delete
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
+
+    </Reorder.Item>
   );
 }
 
@@ -218,11 +375,11 @@ export function SidebarLeft() {
               isCollapsed && "size-8 rounded-lg px-0"
             )}
             onClick={() => insertAnimationFrame("after")}
-            aria-label="Add frame"
-            title="Add frame"
+            aria-label="Add frame after current"
+            title="Add frame after current"
           >
             <Plus className="size-4" />
-            {!isCollapsed && <span>Add Frame</span>}
+            {!isCollapsed && <span>Add After Current</span>}
           </Button>
         </div>
       }
@@ -233,101 +390,41 @@ export function SidebarLeft() {
           axis="y"
           values={frameOrder}
           onReorder={reorderAnimationFrames}
-          className="flex w-full max-w-full min-w-0 flex-col gap-1.5 pr-1 overflow-hidden"
+          className="flex w-full max-w-full min-w-0 flex-col gap-2 pr-1 overflow-hidden"
         >
-          {animationTimeline.frames.map((frame) => {
+          {animationTimeline.frames.map((frame, index) => {
             const isActive = frame.id === sidebarCurrentFrameId;
             const canDelete = animationTimeline.frames.length > 1;
             const isEditing = frame.id === editingId;
-            const frameRowClassName = cn(
-              "relative flex w-full min-w-0 items-center rounded-xl px-2.5 py-2 text-left transition-colors outline-none overflow-hidden",
-              isActive
-                ? "bg-primary/12 text-primary"
-                : "text-foreground hover:bg-accent/45"
-            );
+            const selectFrame = () => {
+              setPinnedFrameId(frame.id);
+              setAnimationCurrentFrame(frame.id);
+            };
 
             return (
-              <Reorder.Item
+              <FrameRow
                 key={frame.id}
-                value={frame.id}
-                className="min-w-0 list-none"
-                dragListener={!isEditing}
-              >
-                <ContextMenu>
-                  <ContextMenuTrigger asChild>
-                    {isEditing ? (
-                      <div className={frameRowClassName}>
-                        <Input
-                          ref={inputRef}
-                          value={editingName}
-                          onChange={(event) => setEditingName(event.target.value)}
-                          onBlur={commitRename}
-                          onClick={(event) => event.stopPropagation()}
-                          onPointerDown={(event) => event.stopPropagation()}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter") {
-                              event.preventDefault();
-                              commitRename();
-                            } else if (event.key === "Escape") {
-                              event.preventDefault();
-                              cancelRename();
-                            }
-                          }}
-                          className="h-8 border-none bg-background/90 px-2 text-sm font-semibold shadow-none focus-visible:ring-1"
-                        />
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setPinnedFrameId(frame.id);
-                          setAnimationCurrentFrame(frame.id);
-                        }}
-                        onDoubleClick={() => startRename(frame.id, frame.name)}
-                        className={cn(
-                          frameRowClassName,
-                          "cursor-grab active:cursor-grabbing"
-                        )}
-                      >
-                        <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
-                          <FramePreview
-                            frame={frame}
-                            size={canvasBounds}
-                            isActive={isActive}
-                          />
-                          {!isCollapsed && (
-                            <div className="min-w-0">
-                              <span className="block truncate text-sm font-semibold">
-                                {frame.name}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </button>
-                    )}
-                  </ContextMenuTrigger>
-                  <ContextMenuContent className="min-w-36">
-                    <ContextMenuItem onClick={() => startRename(frame.id, frame.name)}>
-                      <Pencil className="size-4" />
-                      Rename
-                    </ContextMenuItem>
-                    <ContextMenuSeparator />
-                    <ContextMenuItem onClick={() => duplicateAnimationFrame(frame.id)}>
-                      <Copy className="size-4" />
-                      Duplicate
-                    </ContextMenuItem>
-                    <ContextMenuSeparator />
-                    <ContextMenuItem
-                      variant="destructive"
-                      disabled={!canDelete}
-                      onClick={() => removeAnimationFrame(frame.id)}
-                    >
-                      <Trash2 className="size-4" />
-                      Delete
-                    </ContextMenuItem>
-                  </ContextMenuContent>
-                </ContextMenu>
-              </Reorder.Item>
+                frame={frame}
+                index={index}
+                size={canvasBounds}
+                isActive={isActive}
+                isEditing={isEditing}
+                isCollapsed={isCollapsed}
+                editingName={editingName}
+                inputRef={inputRef}
+                canDelete={canDelete}
+                onSelect={selectFrame}
+                onStartRename={() => startRename(frame.id, frame.name)}
+                onEditingNameChange={setEditingName}
+                onCommitRename={commitRename}
+                onCancelRename={cancelRename}
+                onDuplicate={() => duplicateAnimationFrame(frame.id)}
+                onInsertAfter={() => {
+                  selectFrame();
+                  insertAnimationFrame("after");
+                }}
+                onDelete={() => removeAnimationFrame(frame.id)}
+              />
             );
           })}
         </Reorder.Group>

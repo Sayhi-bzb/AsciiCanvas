@@ -1,6 +1,7 @@
 import { useKeyPress, useLocalStorageState } from "ahooks";
 import { Library } from "lucide-react";
 import { AsciiCanvas } from "@/domains/canvas/components/AsciiCanvas";
+import { AnsiAnimationWorkspace } from "@/domains/ansi-animation/components/AnsiAnimationWorkspace";
 import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
 import { AppLayout } from "./layout";
 import { Toolbar } from "@/domains/canvas/components/ToolBar/dock";
@@ -116,13 +117,21 @@ function AppContent() {
       <SidebarInset className="relative flex flex-1 flex-col overflow-hidden">
         <SessionTabs />
         <AppLayout
-          canvas={<AsciiCanvas onUndo={handleUndo} onRedo={handleRedo} />}
+          canvas={
+            canvasMode === "ansi-animation" ? (
+              <AnsiAnimationWorkspace />
+            ) : (
+              <AsciiCanvas onUndo={handleUndo} onRedo={handleRedo} />
+            )
+          }
         >
-          <Toolbar
-            tool={tool}
-            setTool={setTool}
-            onUndo={handleUndo}
-          />
+          {canvasMode !== "ansi-animation" && (
+            <Toolbar
+              tool={tool}
+              setTool={setTool}
+              onUndo={handleUndo}
+            />
+          )}
         </AppLayout>
 
         {canvasMode === "animation" && (
@@ -131,6 +140,9 @@ function AppContent() {
               open={isLeftPanelOpen}
               onOpenChange={setIsLeftPanelOpen}
               className="h-full items-start"
+              style={
+                { "--sidebar-width": "20rem" } as React.CSSProperties
+              }
             >
               <Suspense fallback={<div className="w-0" />}>
                 <SidebarLeft />

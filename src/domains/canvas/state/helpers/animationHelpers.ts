@@ -91,12 +91,25 @@ export const createDuplicateAnimationFrameName = (
   existingFrames: Array<Pick<AnimationFrame, "id" | "name">>,
   sourceName: string
 ) => {
-  const trimmedSourceName =
+  const duplicateSuffixPattern = /\s+\(\d+\)$/;
+  const legacyCopySuffixPattern = /(?:\s+Copy)+$/i;
+  const sourceBaseName =
     getTrimmedFrameName(sourceName) || DEFAULT_ANIMATION_FRAME_NAME;
-  return getUniqueAnimationFrameName(
-    existingFrames,
-    `${trimmedSourceName} Copy`
-  );
+  const duplicateBaseName =
+    sourceBaseName
+      .replace(duplicateSuffixPattern, "")
+      .replace(legacyCopySuffixPattern, "") ||
+    DEFAULT_ANIMATION_FRAME_NAME;
+  const usedNames = buildFrameNameSet(existingFrames);
+  let duplicateIndex = 1;
+
+  while (
+    usedNames.has(`${duplicateBaseName} (${duplicateIndex})`.toLocaleLowerCase())
+  ) {
+    duplicateIndex += 1;
+  }
+
+  return `${duplicateBaseName} (${duplicateIndex})`;
 };
 
 export const normalizeAnimationCanvasSize = (

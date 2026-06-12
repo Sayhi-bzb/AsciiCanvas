@@ -4,6 +4,7 @@ import {
   cloneAnimationFrame,
   clampPointToBounds,
   clampSelectionToBounds,
+  createDuplicateAnimationFrameName,
   DEFAULT_ANIMATION_SIZE,
   getCenteredAnimationOffset,
   normalizeAnimationCanvasSize,
@@ -75,6 +76,22 @@ describe("animationHelpers", () => {
       name: "Idle",
       grid: [["0,0", { char: "#", color: "#000" }]],
     });
+  });
+
+  it("creates duplicate frame names with numbered suffixes", () => {
+    const frames = [
+      { id: "f1", name: "2" },
+      { id: "f2", name: "2 (1)" },
+    ];
+
+    expect(createDuplicateAnimationFrameName([{ id: "f1", name: "2" }], "2")).toBe(
+      "2 (1)"
+    );
+    expect(createDuplicateAnimationFrameName(frames, "2")).toBe("2 (2)");
+    expect(createDuplicateAnimationFrameName(frames, "2 (1)")).toBe("2 (2)");
+    expect(createDuplicateAnimationFrameName(frames, "2 Copy Copy (1)")).toBe(
+      "2 (2)"
+    );
   });
 
   it("clamps points and selections to the fixed animation bounds", () => {

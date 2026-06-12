@@ -4,6 +4,7 @@ import {
   normalizeAnimationTimeline,
 } from "@/domains/canvas/state/helpers/animationHelpers";
 import type {
+  AnsiAnimationDocument,
   AnimationCanvasSize,
   AnimationTimeline,
   GridCell,
@@ -13,6 +14,7 @@ import { GridManager } from "@/shared/utils/grid";
 import { sceneToGridEntries } from "@/shared/utils/structured";
 import type {
   AsciiCanvasAnimationDocumentV1,
+  AsciiCanvasAnsiAnimationDocumentV1,
   AsciiCanvasDocumentV1,
   AsciiCanvasFreeformDocumentV1,
   AsciiCanvasProtocolCellV1,
@@ -27,6 +29,7 @@ export interface ProtocolImportSnapshot {
   grid: [string, GridCell][];
   size?: AnimationCanvasSize;
   timeline?: AnimationTimeline;
+  ansiAnimation?: AnsiAnimationDocument;
 }
 
 const toGridEntries = (cells: AsciiCanvasProtocolCellV1[]) => {
@@ -123,6 +126,28 @@ const importStructuredDocument = (
   };
 };
 
+const importAnsiAnimationDocument = (
+  document: AsciiCanvasAnsiAnimationDocumentV1
+): ProtocolImportSnapshot => {
+  const width = Math.max(1, Math.floor(document.size.width));
+  const height = Math.max(1, Math.floor(document.size.height));
+  const ansiAnimation: AnsiAnimationDocument = {
+    script: document.script,
+    width,
+    height,
+    fps: Math.max(1, Math.floor(document.playback.fps)),
+    background: document.background,
+  };
+
+  return {
+    mode: "ansi-animation",
+    scene: [],
+    grid: [],
+    size: { width, height },
+    ansiAnimation,
+  };
+};
+
 export const parseProtocolDocument = (
   raw: string | unknown
 ): AsciiCanvasDocumentV1 => {
@@ -146,5 +171,7 @@ export const protocolDocumentToSnapshot = (
       return importAnimationDocument(document);
     case "structured":
       return importStructuredDocument(document);
+    case "ansi-animation":
+      return importAnsiAnimationDocument(document);
   }
 };

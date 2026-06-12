@@ -1,4 +1,5 @@
 import type {
+  AnsiAnimationDocument,
   AnimationCanvasSize,
   AnimationTimeline,
   CanvasMode,
@@ -77,6 +78,7 @@ export interface CanvasSession {
   grid: [string, GridCell][];
   size?: AnimationCanvasSize;
   timeline?: AnimationTimeline;
+  ansiAnimation?: AnsiAnimationDocument;
 }
 
 export interface SessionSlice {
@@ -91,6 +93,10 @@ export interface SessionSlice {
   switchCanvasSession: (canvasId: string) => void;
   removeCanvasSession: (canvasId: string) => void;
   renameCanvasSession: (canvasId: string, nextName: string) => void;
+  setAnsiAnimationScript: (script: string) => void;
+  updateAnsiAnimationDocument: (
+    update: Partial<AnsiAnimationDocument>
+  ) => void;
 }
 
 export interface AnimationSlice {
@@ -122,6 +128,7 @@ export type CanvasState = {
   structuredScene: StructuredNode[];
   canvasBounds: AnimationCanvasSize | null;
   animationTimeline: AnimationTimeline | null;
+  ansiAnimation: AnsiAnimationDocument | null;
   animationIsPlaying: boolean;
   showGrid: boolean;
   exportShowGrid: boolean;
