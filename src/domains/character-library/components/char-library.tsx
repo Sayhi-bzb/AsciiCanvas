@@ -260,14 +260,14 @@ export function CharLibrary() {
             <SidebarMenuButton>
               <Languages className="size-4 text-indigo-500" />
               <span className="font-bold text-xs uppercase tracking-tight">
-                Characters
+                Unicode Blocks
               </span>
               <ChevronRight className="ml-auto size-4 transition-transform group-data-[state=open]/collapsible:rotate-90" />
             </SidebarMenuButton>
           </CollapsibleTrigger>
           <CollapsibleContent>
             <SidebarMenuSub className="mr-0 pr-0">
-              {Object.entries(data.alphabets).map(([name, chars]) => (
+              {Object.entries(data.unicodeBlocks).map(([name, chars]) => (
                 <Collapsible key={name} className="group/sub">
                   <SidebarMenuItem>
                     <CollapsibleTrigger asChild>

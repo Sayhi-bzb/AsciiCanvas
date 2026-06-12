@@ -54,6 +54,35 @@ const clamp = (value: number, min: number, max: number) => {
   return Math.max(min, Math.min(max, value));
 };
 
+const getNewlineTargetX = (
+  grid: CanvasState["grid"],
+  currentX: number,
+  currentY: number
+) => {
+  let firstOccupiedX: number | null = null;
+
+  grid.forEach((cell, key) => {
+    if (!cell || cell.char === " ") return;
+    const { x, y } = GridManager.fromKey(key);
+    if (y !== currentY) return;
+    firstOccupiedX =
+      firstOccupiedX === null ? x : Math.min(firstOccupiedX, x);
+  });
+
+  if (firstOccupiedX === null || currentX <= firstOccupiedX) {
+    return currentX;
+  }
+
+  let indentEndX = firstOccupiedX;
+  for (let x = 0; x < firstOccupiedX; x++) {
+    const cell = grid.get(GridManager.toKey(x, currentY));
+    if (cell && cell.char !== " ") return currentX;
+    indentEndX = x + 1;
+  }
+
+  return Math.min(currentX, indentEndX);
+};
+
 const findBoxNameTargetAtCursor = (
   scene: CanvasState["structuredScene"],
   cursor: CanvasState["textCursor"]
@@ -362,25 +391,7 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
 
     const currentY = textCursor.y;
     const currentX = textCursor.x;
-
-    let minLineX = currentX;
-    grid.forEach((_, key) => {
-      const { x, y } = GridManager.fromKey(key);
-      if (y === currentY) {
-        minLineX = Math.min(minLineX, x);
-      }
-    });
-
-    let leadingSpaces = 0;
-    for (let x = minLineX; x < currentX; x++) {
-      const cell = grid.get(GridManager.toKey(x, currentY));
-      if (!cell || cell.char === " ") {
-        leadingSpaces++;
-      } else {
-        break;
-      }
-    }
-    const targetX = minLineX + leadingSpaces;
+    const targetX = getNewlineTargetX(grid, currentX, currentY);
     set({
       textCursor: clampPointToBounds(
         { x: targetX, y: currentY + 1 },

@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
+    "generate:character-data": "node scripts/generate-character-data.mjs",
     "knip": "knip",
     "check-style-api": "node scripts/check-style-api.mjs",
     "test": "vitest",

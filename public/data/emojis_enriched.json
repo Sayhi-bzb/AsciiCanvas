@@ -360,10 +360,6 @@
         "char": "😳"
       },
       {
-        "name": "distorted face",
-        "char": "🫪"
-      },
-      {
         "name": "pleading face",
         "char": "🥺"
       },
@@ -666,10 +662,6 @@
       {
         "name": "anger symbol",
         "char": "💢"
-      },
-      {
-        "name": "fight cloud",
-        "char": "🫯"
       },
       {
         "name": "collision",
@@ -6030,10 +6022,6 @@
       {
         "name": "troll",
         "char": "🧌"
-      },
-      {
-        "name": "hairy creature",
-        "char": "🫈"
       }
     ],
     "person-activity": [
@@ -7118,30 +7106,6 @@
         "char": "🏃🏿‍♂️‍➡️"
       },
       {
-        "name": "ballet dancer",
-        "char": "🧑‍🩰"
-      },
-      {
-        "name": "ballet dancer: light skin tone",
-        "char": "🧑🏻‍🩰"
-      },
-      {
-        "name": "ballet dancer: medium-light skin tone",
-        "char": "🧑🏼‍🩰"
-      },
-      {
-        "name": "ballet dancer: medium skin tone",
-        "char": "🧑🏽‍🩰"
-      },
-      {
-        "name": "ballet dancer: medium-dark skin tone",
-        "char": "🧑🏾‍🩰"
-      },
-      {
-        "name": "ballet dancer: dark skin tone",
-        "char": "🧑🏿‍🩰"
-      },
-      {
         "name": "woman dancing",
         "char": "💃"
       },
@@ -7218,312 +7182,12 @@
         "char": "👯"
       },
       {
-        "name": "people with bunny ears: light skin tone",
-        "char": "👯🏻"
-      },
-      {
-        "name": "people with bunny ears: medium-light skin tone",
-        "char": "👯🏼"
-      },
-      {
-        "name": "people with bunny ears: medium skin tone",
-        "char": "👯🏽"
-      },
-      {
-        "name": "people with bunny ears: medium-dark skin tone",
-        "char": "👯🏾"
-      },
-      {
-        "name": "people with bunny ears: dark skin tone",
-        "char": "👯🏿"
-      },
-      {
         "name": "men with bunny ears",
         "char": "👯‍♂️"
       },
       {
-        "name": "men with bunny ears: light skin tone",
-        "char": "👯🏻‍♂️"
-      },
-      {
-        "name": "men with bunny ears: medium-light skin tone",
-        "char": "👯🏼‍♂️"
-      },
-      {
-        "name": "men with bunny ears: medium skin tone",
-        "char": "👯🏽‍♂️"
-      },
-      {
-        "name": "men with bunny ears: medium-dark skin tone",
-        "char": "👯🏾‍♂️"
-      },
-      {
-        "name": "men with bunny ears: dark skin tone",
-        "char": "👯🏿‍♂️"
-      },
-      {
         "name": "women with bunny ears",
         "char": "👯‍♀️"
-      },
-      {
-        "name": "women with bunny ears: light skin tone",
-        "char": "👯🏻‍♀️"
-      },
-      {
-        "name": "women with bunny ears: medium-light skin tone",
-        "char": "👯🏼‍♀️"
-      },
-      {
-        "name": "women with bunny ears: medium skin tone",
-        "char": "👯🏽‍♀️"
-      },
-      {
-        "name": "women with bunny ears: medium-dark skin tone",
-        "char": "👯🏾‍♀️"
-      },
-      {
-        "name": "women with bunny ears: dark skin tone",
-        "char": "👯🏿‍♀️"
-      },
-      {
-        "name": "people with bunny ears: light skin tone, medium-light skin tone",
-        "char": "🧑🏻‍🐰‍🧑🏼"
-      },
-      {
-        "name": "people with bunny ears: light skin tone, medium skin tone",
-        "char": "🧑🏻‍🐰‍🧑🏽"
-      },
-      {
-        "name": "people with bunny ears: light skin tone, medium-dark skin tone",
-        "char": "🧑🏻‍🐰‍🧑🏾"
-      },
-      {
-        "name": "people with bunny ears: light skin tone, dark skin tone",
-        "char": "🧑🏻‍🐰‍🧑🏿"
-      },
-      {
-        "name": "people with bunny ears: medium-light skin tone, light skin tone",
-        "char": "🧑🏼‍🐰‍🧑🏻"
-      },
-      {
-        "name": "people with bunny ears: medium-light skin tone, medium skin tone",
-        "char": "🧑🏼‍🐰‍🧑🏽"
-      },
-      {
-        "name": "people with bunny ears: medium-light skin tone, medium-dark skin tone",
-        "char": "🧑🏼‍🐰‍🧑🏾"
-      },
-      {
-        "name": "people with bunny ears: medium-light skin tone, dark skin tone",
-        "char": "🧑🏼‍🐰‍🧑🏿"
-      },
-      {
-        "name": "people with bunny ears: medium skin tone, light skin tone",
-        "char": "🧑🏽‍🐰‍🧑🏻"
-      },
-      {
-        "name": "people with bunny ears: medium skin tone, medium-light skin tone",
-        "char": "🧑🏽‍🐰‍🧑🏼"
-      },
-      {
-        "name": "people with bunny ears: medium skin tone, medium-dark skin tone",
-        "char": "🧑🏽‍🐰‍🧑🏾"
-      },
-      {
-        "name": "people with bunny ears: medium skin tone, dark skin tone",
-        "char": "🧑🏽‍🐰‍🧑🏿"
-      },
-      {
-        "name": "people with bunny ears: medium-dark skin tone, light skin tone",
-        "char": "🧑🏾‍🐰‍🧑🏻"
-      },
-      {
-        "name": "people with bunny ears: medium-dark skin tone, medium-light skin tone",
-        "char": "🧑🏾‍🐰‍🧑🏼"
-      },
-      {
-        "name": "people with bunny ears: medium-dark skin tone, medium skin tone",
-        "char": "🧑🏾‍🐰‍🧑🏽"
-      },
-      {
-        "name": "people with bunny ears: medium-dark skin tone, dark skin tone",
-        "char": "🧑🏾‍🐰‍🧑🏿"
-      },
-      {
-        "name": "people with bunny ears: dark skin tone, light skin tone",
-        "char": "🧑🏿‍🐰‍🧑🏻"
-      },
-      {
-        "name": "people with bunny ears: dark skin tone, medium-light skin tone",
-        "char": "🧑🏿‍🐰‍🧑🏼"
-      },
-      {
-        "name": "people with bunny ears: dark skin tone, medium skin tone",
-        "char": "🧑🏿‍🐰‍🧑🏽"
-      },
-      {
-        "name": "people with bunny ears: dark skin tone, medium-dark skin tone",
-        "char": "🧑🏿‍🐰‍🧑🏾"
-      },
-      {
-        "name": "men with bunny ears: light skin tone, medium-light skin tone",
-        "char": "👨🏻‍🐰‍👨🏼"
-      },
-      {
-        "name": "men with bunny ears: light skin tone, medium skin tone",
-        "char": "👨🏻‍🐰‍👨🏽"
-      },
-      {
-        "name": "men with bunny ears: light skin tone, medium-dark skin tone",
-        "char": "👨🏻‍🐰‍👨🏾"
-      },
-      {
-        "name": "men with bunny ears: light skin tone, dark skin tone",
-        "char": "👨🏻‍🐰‍👨🏿"
-      },
-      {
-        "name": "men with bunny ears: medium-light skin tone, light skin tone",
-        "char": "👨🏼‍🐰‍👨🏻"
-      },
-      {
-        "name": "men with bunny ears: medium-light skin tone, medium skin tone",
-        "char": "👨🏼‍🐰‍👨🏽"
-      },
-      {
-        "name": "men with bunny ears: medium-light skin tone, medium-dark skin tone",
-        "char": "👨🏼‍🐰‍👨🏾"
-      },
-      {
-        "name": "men with bunny ears: medium-light skin tone, dark skin tone",
-        "char": "👨🏼‍🐰‍👨🏿"
-      },
-      {
-        "name": "men with bunny ears: medium skin tone, light skin tone",
-        "char": "👨🏽‍🐰‍👨🏻"
-      },
-      {
-        "name": "men with bunny ears: medium skin tone, medium-light skin tone",
-        "char": "👨🏽‍🐰‍👨🏼"
-      },
-      {
-        "name": "men with bunny ears: medium skin tone, medium-dark skin tone",
-        "char": "👨🏽‍🐰‍👨🏾"
-      },
-      {
-        "name": "men with bunny ears: medium skin tone, dark skin tone",
-        "char": "👨🏽‍🐰‍👨🏿"
-      },
-      {
-        "name": "men with bunny ears: medium-dark skin tone, light skin tone",
-        "char": "👨🏾‍🐰‍👨🏻"
-      },
-      {
-        "name": "men with bunny ears: medium-dark skin tone, medium-light skin tone",
-        "char": "👨🏾‍🐰‍👨🏼"
-      },
-      {
-        "name": "men with bunny ears: medium-dark skin tone, medium skin tone",
-        "char": "👨🏾‍🐰‍👨🏽"
-      },
-      {
-        "name": "men with bunny ears: medium-dark skin tone, dark skin tone",
-        "char": "👨🏾‍🐰‍👨🏿"
-      },
-      {
-        "name": "men with bunny ears: dark skin tone, light skin tone",
-        "char": "👨🏿‍🐰‍👨🏻"
-      },
-      {
-        "name": "men with bunny ears: dark skin tone, medium-light skin tone",
-        "char": "👨🏿‍🐰‍👨🏼"
-      },
-      {
-        "name": "men with bunny ears: dark skin tone, medium skin tone",
-        "char": "👨🏿‍🐰‍👨🏽"
-      },
-      {
-        "name": "men with bunny ears: dark skin tone, medium-dark skin tone",
-        "char": "👨🏿‍🐰‍👨🏾"
-      },
-      {
-        "name": "women with bunny ears: light skin tone, medium-light skin tone",
-        "char": "👩🏻‍🐰‍👩🏼"
-      },
-      {
-        "name": "women with bunny ears: light skin tone, medium skin tone",
-        "char": "👩🏻‍🐰‍👩🏽"
-      },
-      {
-        "name": "women with bunny ears: light skin tone, medium-dark skin tone",
-        "char": "👩🏻‍🐰‍👩🏾"
-      },
-      {
-        "name": "women with bunny ears: light skin tone, dark skin tone",
-        "char": "👩🏻‍🐰‍👩🏿"
-      },
-      {
-        "name": "women with bunny ears: medium-light skin tone, light skin tone",
-        "char": "👩🏼‍🐰‍👩🏻"
-      },
-      {
-        "name": "women with bunny ears: medium-light skin tone, medium skin tone",
-        "char": "👩🏼‍🐰‍👩🏽"
-      },
-      {
-        "name": "women with bunny ears: medium-light skin tone, medium-dark skin tone",
-        "char": "👩🏼‍🐰‍👩🏾"
-      },
-      {
-        "name": "women with bunny ears: medium-light skin tone, dark skin tone",
-        "char": "👩🏼‍🐰‍👩🏿"
-      },
-      {
-        "name": "women with bunny ears: medium skin tone, light skin tone",
-        "char": "👩🏽‍🐰‍👩🏻"
-      },
-      {
-        "name": "women with bunny ears: medium skin tone, medium-light skin tone",
-        "char": "👩🏽‍🐰‍👩🏼"
-      },
-      {
-        "name": "women with bunny ears: medium skin tone, medium-dark skin tone",
-        "char": "👩🏽‍🐰‍👩🏾"
-      },
-      {
-        "name": "women with bunny ears: medium skin tone, dark skin tone",
-        "char": "👩🏽‍🐰‍👩🏿"
-      },
-      {
-        "name": "women with bunny ears: medium-dark skin tone, light skin tone",
-        "char": "👩🏾‍🐰‍👩🏻"
-      },
-      {
-        "name": "women with bunny ears: medium-dark skin tone, medium-light skin tone",
-        "char": "👩🏾‍🐰‍👩🏼"
-      },
-      {
-        "name": "women with bunny ears: medium-dark skin tone, medium skin tone",
-        "char": "👩🏾‍🐰‍👩🏽"
-      },
-      {
-        "name": "women with bunny ears: medium-dark skin tone, dark skin tone",
-        "char": "👩🏾‍🐰‍👩🏿"
-      },
-      {
-        "name": "women with bunny ears: dark skin tone, light skin tone",
-        "char": "👩🏿‍🐰‍👩🏻"
-      },
-      {
-        "name": "women with bunny ears: dark skin tone, medium-light skin tone",
-        "char": "👩🏿‍🐰‍👩🏼"
-      },
-      {
-        "name": "women with bunny ears: dark skin tone, medium skin tone",
-        "char": "👩🏿‍🐰‍👩🏽"
-      },
-      {
-        "name": "women with bunny ears: dark skin tone, medium-dark skin tone",
-        "char": "👩🏿‍🐰‍👩🏾"
       },
       {
         "name": "person in steamy room",
@@ -8380,312 +8044,12 @@
         "char": "🤼"
       },
       {
-        "name": "people wrestling: light skin tone",
-        "char": "🤼🏻"
-      },
-      {
-        "name": "people wrestling: medium-light skin tone",
-        "char": "🤼🏼"
-      },
-      {
-        "name": "people wrestling: medium skin tone",
-        "char": "🤼🏽"
-      },
-      {
-        "name": "people wrestling: medium-dark skin tone",
-        "char": "🤼🏾"
-      },
-      {
-        "name": "people wrestling: dark skin tone",
-        "char": "🤼🏿"
-      },
-      {
         "name": "men wrestling",
         "char": "🤼‍♂️"
       },
       {
-        "name": "men wrestling: light skin tone",
-        "char": "🤼🏻‍♂️"
-      },
-      {
-        "name": "men wrestling: medium-light skin tone",
-        "char": "🤼🏼‍♂️"
-      },
-      {
-        "name": "men wrestling: medium skin tone",
-        "char": "🤼🏽‍♂️"
-      },
-      {
-        "name": "men wrestling: medium-dark skin tone",
-        "char": "🤼🏾‍♂️"
-      },
-      {
-        "name": "men wrestling: dark skin tone",
-        "char": "🤼🏿‍♂️"
-      },
-      {
         "name": "women wrestling",
         "char": "🤼‍♀️"
-      },
-      {
-        "name": "women wrestling: light skin tone",
-        "char": "🤼🏻‍♀️"
-      },
-      {
-        "name": "women wrestling: medium-light skin tone",
-        "char": "🤼🏼‍♀️"
-      },
-      {
-        "name": "women wrestling: medium skin tone",
-        "char": "🤼🏽‍♀️"
-      },
-      {
-        "name": "women wrestling: medium-dark skin tone",
-        "char": "🤼🏾‍♀️"
-      },
-      {
-        "name": "women wrestling: dark skin tone",
-        "char": "🤼🏿‍♀️"
-      },
-      {
-        "name": "people wrestling: light skin tone, medium-light skin tone",
-        "char": "🧑🏻‍🫯‍🧑🏼"
-      },
-      {
-        "name": "people wrestling: light skin tone, medium skin tone",
-        "char": "🧑🏻‍🫯‍🧑🏽"
-      },
-      {
-        "name": "people wrestling: light skin tone, medium-dark skin tone",
-        "char": "🧑🏻‍🫯‍🧑🏾"
-      },
-      {
-        "name": "people wrestling: light skin tone, dark skin tone",
-        "char": "🧑🏻‍🫯‍🧑🏿"
-      },
-      {
-        "name": "people wrestling: medium-light skin tone, light skin tone",
-        "char": "🧑🏼‍🫯‍🧑🏻"
-      },
-      {
-        "name": "people wrestling: medium-light skin tone, medium skin tone",
-        "char": "🧑🏼‍🫯‍🧑🏽"
-      },
-      {
-        "name": "people wrestling: medium-light skin tone, medium-dark skin tone",
-        "char": "🧑🏼‍🫯‍🧑🏾"
-      },
-      {
-        "name": "people wrestling: medium-light skin tone, dark skin tone",
-        "char": "🧑🏼‍🫯‍🧑🏿"
-      },
-      {
-        "name": "people wrestling: medium skin tone, light skin tone",
-        "char": "🧑🏽‍🫯‍🧑🏻"
-      },
-      {
-        "name": "people wrestling: medium skin tone, medium-light skin tone",
-        "char": "🧑🏽‍🫯‍🧑🏼"
-      },
-      {
-        "name": "people wrestling: medium skin tone, medium-dark skin tone",
-        "char": "🧑🏽‍🫯‍🧑🏾"
-      },
-      {
-        "name": "people wrestling: medium skin tone, dark skin tone",
-        "char": "🧑🏽‍🫯‍🧑🏿"
-      },
-      {
-        "name": "people wrestling: medium-dark skin tone, light skin tone",
-        "char": "🧑🏾‍🫯‍🧑🏻"
-      },
-      {
-        "name": "people wrestling: medium-dark skin tone, medium-light skin tone",
-        "char": "🧑🏾‍🫯‍🧑🏼"
-      },
-      {
-        "name": "people wrestling: medium-dark skin tone, medium skin tone",
-        "char": "🧑🏾‍🫯‍🧑🏽"
-      },
-      {
-        "name": "people wrestling: medium-dark skin tone, dark skin tone",
-        "char": "🧑🏾‍🫯‍🧑🏿"
-      },
-      {
-        "name": "people wrestling: dark skin tone, light skin tone",
-        "char": "🧑🏿‍🫯‍🧑🏻"
-      },
-      {
-        "name": "people wrestling: dark skin tone, medium-light skin tone",
-        "char": "🧑🏿‍🫯‍🧑🏼"
-      },
-      {
-        "name": "people wrestling: dark skin tone, medium skin tone",
-        "char": "🧑🏿‍🫯‍🧑🏽"
-      },
-      {
-        "name": "people wrestling: dark skin tone, medium-dark skin tone",
-        "char": "🧑🏿‍🫯‍🧑🏾"
-      },
-      {
-        "name": "men wrestling: light skin tone, medium-light skin tone",
-        "char": "👨🏻‍🫯‍👨🏼"
-      },
-      {
-        "name": "men wrestling: light skin tone, medium skin tone",
-        "char": "👨🏻‍🫯‍👨🏽"
-      },
-      {
-        "name": "men wrestling: light skin tone, medium-dark skin tone",
-        "char": "👨🏻‍🫯‍👨🏾"
-      },
-      {
-        "name": "men wrestling: light skin tone, dark skin tone",
-        "char": "👨🏻‍🫯‍👨🏿"
-      },
-      {
-        "name": "men wrestling: medium-light skin tone, light skin tone",
-        "char": "👨🏼‍🫯‍👨🏻"
-      },
-      {
-        "name": "men wrestling: medium-light skin tone, medium skin tone",
-        "char": "👨🏼‍🫯‍👨🏽"
-      },
-      {
-        "name": "men wrestling: medium-light skin tone, medium-dark skin tone",
-        "char": "👨🏼‍🫯‍👨🏾"
-      },
-      {
-        "name": "men wrestling: medium-light skin tone, dark skin tone",
-        "char": "👨🏼‍🫯‍👨🏿"
-      },
-      {
-        "name": "men wrestling: medium skin tone, light skin tone",
-        "char": "👨🏽‍🫯‍👨🏻"
-      },
-      {
-        "name": "men wrestling: medium skin tone, medium-light skin tone",
-        "char": "👨🏽‍🫯‍👨🏼"
-      },
-      {
-        "name": "men wrestling: medium skin tone, medium-dark skin tone",
-        "char": "👨🏽‍🫯‍👨🏾"
-      },
-      {
-        "name": "men wrestling: medium skin tone, dark skin tone",
-        "char": "👨🏽‍🫯‍👨🏿"
-      },
-      {
-        "name": "men wrestling: medium-dark skin tone, light skin tone",
-        "char": "👨🏾‍🫯‍👨🏻"
-      },
-      {
-        "name": "men wrestling: medium-dark skin tone, medium-light skin tone",
-        "char": "👨🏾‍🫯‍👨🏼"
-      },
-      {
-        "name": "men wrestling: medium-dark skin tone, medium skin tone",
-        "char": "👨🏾‍🫯‍👨🏽"
-      },
-      {
-        "name": "men wrestling: medium-dark skin tone, dark skin tone",
-        "char": "👨🏾‍🫯‍👨🏿"
-      },
-      {
-        "name": "men wrestling: dark skin tone, light skin tone",
-        "char": "👨🏿‍🫯‍👨🏻"
-      },
-      {
-        "name": "men wrestling: dark skin tone, medium-light skin tone",
-        "char": "👨🏿‍🫯‍👨🏼"
-      },
-      {
-        "name": "men wrestling: dark skin tone, medium skin tone",
-        "char": "👨🏿‍🫯‍👨🏽"
-      },
-      {
-        "name": "men wrestling: dark skin tone, medium-dark skin tone",
-        "char": "👨🏿‍🫯‍👨🏾"
-      },
-      {
-        "name": "women wrestling: light skin tone, medium-light skin tone",
-        "char": "👩🏻‍🫯‍👩🏼"
-      },
-      {
-        "name": "women wrestling: light skin tone, medium skin tone",
-        "char": "👩🏻‍🫯‍👩🏽"
-      },
-      {
-        "name": "women wrestling: light skin tone, medium-dark skin tone",
-        "char": "👩🏻‍🫯‍👩🏾"
-      },
-      {
-        "name": "women wrestling: light skin tone, dark skin tone",
-        "char": "👩🏻‍🫯‍👩🏿"
-      },
-      {
-        "name": "women wrestling: medium-light skin tone, light skin tone",
-        "char": "👩🏼‍🫯‍👩🏻"
-      },
-      {
-        "name": "women wrestling: medium-light skin tone, medium skin tone",
-        "char": "👩🏼‍🫯‍👩🏽"
-      },
-      {
-        "name": "women wrestling: medium-light skin tone, medium-dark skin tone",
-        "char": "👩🏼‍🫯‍👩🏾"
-      },
-      {
-        "name": "women wrestling: medium-light skin tone, dark skin tone",
-        "char": "👩🏼‍🫯‍👩🏿"
-      },
-      {
-        "name": "women wrestling: medium skin tone, light skin tone",
-        "char": "👩🏽‍🫯‍👩🏻"
-      },
-      {
-        "name": "women wrestling: medium skin tone, medium-light skin tone",
-        "char": "👩🏽‍🫯‍👩🏼"
-      },
-      {
-        "name": "women wrestling: medium skin tone, medium-dark skin tone",
-        "char": "👩🏽‍🫯‍👩🏾"
-      },
-      {
-        "name": "women wrestling: medium skin tone, dark skin tone",
-        "char": "👩🏽‍🫯‍👩🏿"
-      },
-      {
-        "name": "women wrestling: medium-dark skin tone, light skin tone",
-        "char": "👩🏾‍🫯‍👩🏻"
-      },
-      {
-        "name": "women wrestling: medium-dark skin tone, medium-light skin tone",
-        "char": "👩🏾‍🫯‍👩🏼"
-      },
-      {
-        "name": "women wrestling: medium-dark skin tone, medium skin tone",
-        "char": "👩🏾‍🫯‍👩🏽"
-      },
-      {
-        "name": "women wrestling: medium-dark skin tone, dark skin tone",
-        "char": "👩🏾‍🫯‍👩🏿"
-      },
-      {
-        "name": "women wrestling: dark skin tone, light skin tone",
-        "char": "👩🏿‍🫯‍👩🏻"
-      },
-      {
-        "name": "women wrestling: dark skin tone, medium-light skin tone",
-        "char": "👩🏿‍🫯‍👩🏼"
-      },
-      {
-        "name": "women wrestling: dark skin tone, medium skin tone",
-        "char": "👩🏿‍🫯‍👩🏽"
-      },
-      {
-        "name": "women wrestling: dark skin tone, medium-dark skin tone",
-        "char": "👩🏿‍🫯‍👩🏾"
       },
       {
         "name": "person playing water polo",
@@ -10838,10 +10202,6 @@
         "char": "🐬"
       },
       {
-        "name": "orca",
-        "char": "🫍"
-      },
-      {
         "name": "seal",
         "char": "🦭"
       },
@@ -11664,10 +11024,6 @@
       {
         "name": "mountain",
         "char": "⛰️"
-      },
-      {
-        "name": "landslide",
-        "char": "🛘"
       },
       {
         "name": "volcano",
@@ -13150,14 +12506,6 @@
         "char": "🎷"
       },
       {
-        "name": "trumpet",
-        "char": "🎺"
-      },
-      {
-        "name": "trombone",
-        "char": "🪊"
-      },
-      {
         "name": "accordion",
         "char": "🪗"
       },
@@ -13168,6 +12516,10 @@
       {
         "name": "musical keyboard",
         "char": "🎹"
+      },
+      {
+        "name": "trumpet",
+        "char": "🎺"
       },
       {
         "name": "violin",
@@ -13420,16 +12772,12 @@
     ],
     "money": [
       {
-        "name": "coin",
-        "char": "🪙"
-      },
-      {
         "name": "money bag",
         "char": "💰"
       },
       {
-        "name": "treasure chest",
-        "char": "🪎"
+        "name": "coin",
+        "char": "🪙"
       },
       {
         "name": "yen banknote",
