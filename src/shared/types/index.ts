@@ -50,6 +50,7 @@ export type CanvasMode = "freeform" | "structured" | "animation";
 
 export type ToolType =
   | "select"
+  | "pan"
   | "brush"
   | "eraser"
   | "fill"

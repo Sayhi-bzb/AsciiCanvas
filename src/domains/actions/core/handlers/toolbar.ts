@@ -23,7 +23,13 @@ export const resolveActiveToolbarAction = (
   isShapeGroupActive: boolean
 ): ToolbarActionId => {
   if (isShapeGroupActive) return "shape-group";
-  if (tool === "select" || tool === "brush" || tool === "eraser" || tool === "fill") {
+  if (
+    tool === "select" ||
+    tool === "pan" ||
+    tool === "brush" ||
+    tool === "eraser" ||
+    tool === "fill"
+  ) {
     return tool;
   }
   return "brush";
@@ -36,6 +42,11 @@ export const toolbarHandlers: Record<
 > = {
   select: (_options, context): ActionResult => {
     context.setTool("select");
+    return actionSucceeded();
+  },
+
+  pan: (_options, context): ActionResult => {
+    context.setTool("pan");
     return actionSucceeded();
   },
 

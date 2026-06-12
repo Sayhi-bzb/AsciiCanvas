@@ -1,13 +1,19 @@
 import { create } from "zustand";
 
+interface CharacterEntry {
+  char: string;
+  name: string;
+}
+
 interface LibraryData {
   entities: Record<string, Record<string, string>>;
   related: Record<string, string[]>;
-  alphabets: Record<string, string[]>;
-  unicodeBlocks: Record<string, string[]>;
-  boxDrawing: Record<string, string[]>;
+  alphabets: Record<string, CharacterEntry[]>;
+  unicodeBlocks: Record<string, CharacterEntry[]>;
+  boxDrawing: Record<string, CharacterEntry[]>;
   nerdfonts: Record<string, { name: string; char: string }[]>;
   emojis: Record<string, Record<string, { name: string; char: string }[]>>;
+  characterLabels: Record<string, string>;
 }
 
 interface LibraryState {
@@ -19,6 +25,29 @@ interface LibraryState {
   fetchLibrary: () => Promise<void>;
   setSearchQuery: (query: string) => void;
 }
+
+const fetchLibraryJson = async (base: string, file: string) => {
+  const path = `data/${file}.json`;
+  const response = await fetch(`${base}${path}`);
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to load ${path}: ${response.status} ${response.statusText}`.trim()
+    );
+  }
+
+  const contentType = response.headers.get("content-type") ?? "";
+  if (contentType && !contentType.includes("json")) {
+    throw new Error(`Expected JSON for ${path}, received ${contentType}`);
+  }
+
+  try {
+    return await response.json();
+  } catch (error) {
+    const detail = error instanceof Error ? `: ${error.message}` : "";
+    throw new Error(`Failed to parse ${path} as JSON${detail}`);
+  }
+};
 
 export const useLibraryStore = create<LibraryState>((set, get) => ({
   data: null,
@@ -41,11 +70,16 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
         "nerdfonts_enriched",
         "emojis_enriched",
       ];
-      const [entities, related, unicodeBlocks, boxDrawing, nerdfonts, emojis] =
+      const [
+        entities,
+        related,
+        unicodeBlocks,
+        boxDrawing,
+        nerdfonts,
+        emojis,
+      ] =
         await Promise.all(
-          files.map((f) =>
-            fetch(`${base}data/${f}.json`).then((res) => res.json())
-          )
+          files.map((file) => fetchLibraryJson(base, file))
         );
 
       set({
@@ -57,11 +91,20 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
           boxDrawing,
           nerdfonts,
           emojis,
+          characterLabels: buildNamedCharacterLookup(
+            entities,
+            unicodeBlocks,
+            boxDrawing,
+            nerdfonts,
+            emojis
+          ),
         },
         isLoading: false,
       });
     } catch (err) {
-      set({ error: "Failed to load logistics data", isLoading: false });
+      const message =
+        err instanceof Error ? err.message : "Failed to load library data";
+      set({ error: message, isLoading: false });
       console.error("Library fetch error:", err);
     }
   },
@@ -110,3 +153,47 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
     });
   },
 }));
+
+const buildNamedCharacterLookup = (
+  entities: Record<string, Record<string, string>>,
+  unicodeBlocks: Record<string, CharacterEntry[]>,
+  boxDrawing: Record<string, CharacterEntry[]>,
+  nerdfonts: Record<string, { name: string; char: string }[]>,
+  emojis: Record<string, Record<string, { name: string; char: string }[]>>
+) => {
+  const lookup: Record<string, string> = {};
+
+  Object.values(entities).forEach((category) => {
+    Object.entries(category).forEach(([name, char]) => {
+      lookup[char] = name;
+    });
+  });
+
+  Object.values(unicodeBlocks).forEach((items) => {
+    items.forEach((item) => {
+      lookup[item.char] = item.name;
+    });
+  });
+
+  Object.values(boxDrawing).forEach((items) => {
+    items.forEach((item) => {
+      lookup[item.char] = item.name;
+    });
+  });
+
+  Object.values(nerdfonts).forEach((items) => {
+    items.forEach((item) => {
+      lookup[item.char] = item.name;
+    });
+  });
+
+  Object.values(emojis).forEach((group) => {
+    Object.values(group).forEach((subgroup) => {
+      subgroup.forEach((item) => {
+        lookup[item.char] = item.name;
+      });
+    });
+  });
+
+  return lookup;
+};

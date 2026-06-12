@@ -2,6 +2,7 @@ import {
   Clipboard,
   Copy,
   Eraser,
+  Hand,
   Image,
   LineSquiggle,
   MousePointer2,
@@ -70,6 +71,7 @@ export const TOOLBAR_ACTION_META: Record<ToolbarActionId, ActionMeta> = {
   eraser: { id: "eraser", label: "Eraser", icon: Eraser },
   undo: { id: "undo", label: "Undo", icon: Undo2 },
   color: { id: "color", label: "Color", icon: Palette, hasSub: true },
+  pan: { id: "pan", label: "Pan", icon: Hand },
 };
 
 // Sidebar Actions

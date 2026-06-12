@@ -15,16 +15,38 @@ describe("generated character data", () => {
 
   it("contains Box Drawing characters from the Unicode block", async () => {
     expect(boxDrawing["Box Drawing"]).toEqual(
-      expect.arrayContaining(["─", "│", "┌", "┼", "╬"])
+      expect.arrayContaining([
+        expect.objectContaining({
+          char: "─",
+          name: "BOX DRAWINGS LIGHT HORIZONTAL",
+        }),
+        expect.objectContaining({ char: "│" }),
+        expect.objectContaining({ char: "┌" }),
+        expect.objectContaining({ char: "┼" }),
+        expect.objectContaining({ char: "╬" }),
+      ])
     );
   });
 
   it("contains Unicode blocks without control or surrogate code points", async () => {
-    const chars = Object.values(unicodeBlocks).flat();
+    const chars = Object.values(unicodeBlocks)
+      .flat()
+      .map((entry) => entry.char);
 
-    expect(unicodeBlocks["Basic Latin"]).toEqual(expect.arrayContaining(["A", "z"]));
+    expect(unicodeBlocks["Basic Latin"]).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          char: "A",
+          name: "LATIN CAPITAL LETTER A",
+        }),
+        expect.objectContaining({ char: "z" }),
+      ])
+    );
     expect(unicodeBlocks["Box Drawing"]).toEqual(
-      expect.arrayContaining(["─", "╬"])
+      expect.arrayContaining([
+        expect.objectContaining({ char: "─" }),
+        expect.objectContaining({ char: "╬" }),
+      ])
     );
     expect(chars.some(isControlCharacter)).toBe(false);
     expect(
@@ -39,6 +61,25 @@ describe("generated character data", () => {
     expect(emojis["Smileys & Emotion"]["face-smiling"]).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ name: "grinning face", char: "😀" }),
+      ])
+    );
+  });
+
+  it("generates Unicode names for tooltips in block entries", async () => {
+    expect(unicodeBlocks["Basic Latin"]).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          char: "A",
+          name: "LATIN CAPITAL LETTER A",
+        }),
+      ])
+    );
+    expect(boxDrawing["Box Drawing"]).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          char: "─",
+          name: "BOX DRAWINGS LIGHT HORIZONTAL",
+        }),
       ])
     );
   });

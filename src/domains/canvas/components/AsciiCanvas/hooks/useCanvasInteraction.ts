@@ -284,6 +284,13 @@ export const useCanvasInteraction = (
       onDragStart: ({ xy: [x, y], event }) => {
         if (isFromMinimap(event)) return;
         const mouseEvent = event as MouseEvent;
+        if (canvasMode !== "animation" && tool === "pan") {
+          isPanningRef.current = true;
+          interactionModeRef.current = "panning";
+          document.body.style.cursor = "grabbing";
+          return;
+        }
+
         if (
           canvasMode !== "animation" &&
           (mouseEvent.button === 1 || isCtrlOrMeta(mouseEvent))

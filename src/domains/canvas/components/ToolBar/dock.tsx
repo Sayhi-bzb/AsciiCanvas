@@ -97,10 +97,21 @@ export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
     [isShapeGroupActive, tool, lastUsedShape, getToolMeta]
   );
 
+  useEffect(() => {
+    if (tool === "pan" && (!isMobile || canvasMode === "animation")) {
+      setTool("select");
+    }
+  }, [canvasMode, isMobile, setTool, tool]);
+
   const visibleActionOrder = useMemo<ToolbarActionId[]>(() => {
-    if (canvasMode !== "structured") return TOOLBAR_ACTION_ORDER;
-    return ["select", "shape-group", "undo", "color"];
-  }, [canvasMode]);
+    const baseOrder =
+      canvasMode === "structured"
+        ? (["select", "shape-group", "undo", "color"] as ToolbarActionId[])
+        : TOOLBAR_ACTION_ORDER;
+
+    if (!isMobile || canvasMode === "animation") return baseOrder;
+    return ["pan", ...baseOrder];
+  }, [canvasMode, isMobile]);
 
   const structuredShapeTools = useMemo<ToolType[]>(() => {
     if (canvasMode !== "structured") return SHAPE_TOOLS;

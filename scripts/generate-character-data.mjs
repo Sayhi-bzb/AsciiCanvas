@@ -112,8 +112,12 @@ function buildUnicodeBlocks(blocks, characters) {
   for (const block of blocks) {
     const chars = [];
     for (let codePoint = block.start; codePoint <= block.end; codePoint += 1) {
-      if (characters.has(codePoint)) {
-        chars.push(codePointToChar(codePoint));
+      const character = characters.get(codePoint);
+      if (character) {
+        chars.push({
+          char: codePointToChar(codePoint),
+          name: character.name,
+        });
       }
     }
 
@@ -133,8 +137,12 @@ function buildBoxDrawing(blocks, characters) {
 
   const chars = [];
   for (let codePoint = boxBlock.start; codePoint <= boxBlock.end; codePoint += 1) {
-    if (characters.has(codePoint)) {
-      chars.push(codePointToChar(codePoint));
+    const character = characters.get(codePoint);
+    if (character) {
+      chars.push({
+        char: codePointToChar(codePoint),
+        name: character.name,
+      });
     }
   }
 

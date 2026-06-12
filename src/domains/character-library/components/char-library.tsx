@@ -6,6 +6,7 @@ import {
   Languages,
   SearchX,
   Loader2,
+  RefreshCcw,
   Folder,
   Terminal,
   FolderOpen,
@@ -29,29 +30,61 @@ import {
   SidebarGroupLabel,
   SidebarGroupContent,
 } from "@/shared/ui/sidebar";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/shared/ui/tooltip";
 import { useShallow } from "zustand/react/shallow";
+
+const getCodePointLabel = (char: string) =>
+  Array.from(char)
+    .map((part) => {
+      const codePoint = part.codePointAt(0);
+      return codePoint === undefined
+        ? ""
+        : `U+${codePoint.toString(16).toUpperCase().padStart(4, "0")}`;
+    })
+    .filter(Boolean)
+    .join(" ");
 
 const CharButton = ({
   char,
+  label,
   isSelected,
   onClick,
 }: {
   char: string;
+  label: string;
   isSelected: boolean;
   onClick: (c: string) => void;
-}) => (
-  <button
-    onClick={() => onClick(char)}
-    className={cn(
-      "inline-flex size-6 shrink-0 items-center justify-center rounded-sm p-0 font-mono text-sm leading-none transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
-      isSelected
-        ? "bg-primary text-primary-foreground"
-        : "bg-transparent text-foreground hover:bg-accent hover:text-accent-foreground"
-    )}
-  >
-    {char}
-  </button>
-);
+}) => {
+  const codePointLabel = getCodePointLabel(char);
+  const tooltipLabel = codePointLabel ? `${label} · ${codePointLabel}` : label;
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          aria-label={tooltipLabel}
+          title={tooltipLabel}
+          onClick={() => onClick(char)}
+          className={cn(
+            "inline-flex size-6 shrink-0 items-center justify-center rounded-sm p-0 font-mono text-sm leading-none transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+            isSelected
+              ? "bg-primary text-primary-foreground"
+              : "bg-transparent text-foreground hover:bg-accent hover:text-accent-foreground"
+          )}
+        >
+          {char}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="left" className="max-w-56">
+        {tooltipLabel}
+      </TooltipContent>
+    </Tooltip>
+  );
+};
 
 export function CharLibrary() {
   const { brushChar, setBrushChar, setTool } = useCanvasStore(
@@ -61,7 +94,11 @@ export function CharLibrary() {
       setTool: state.setTool,
     }))
   );
-  const { data, isLoading, searchQuery, searchResults } = useLibraryStore();
+  const { data, isLoading, error, searchQuery, searchResults, fetchLibrary } =
+    useLibraryStore();
+
+  const getCharacterLabel = (char: string) =>
+    data?.characterLabels[char] ?? getCodePointLabel(char) ?? char;
 
   const handleSelect = (char: string) => {
     setBrushChar(char);
@@ -81,6 +118,7 @@ export function CharLibrary() {
               <CharButton
                 key={`search-${idx}`}
                 char={char}
+                label={getCharacterLabel(char)}
                 isSelected={brushChar === char}
                 onClick={handleSelect}
               />
@@ -91,6 +129,32 @@ export function CharLibrary() {
                 <p className="text-[10px]">No blueprints found</p>
               </div>
             )}
+          </div>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    );
+  }
+
+  if (error && !data) {
+    return (
+      <SidebarGroup>
+        <SidebarGroupContent>
+          <div className="flex flex-col items-center gap-3 px-3 py-10 text-center text-muted-foreground">
+            <SearchX className="size-8 opacity-25" />
+            <div className="space-y-1">
+              <p className="text-xs font-semibold text-foreground">
+                Library failed to load
+              </p>
+              <p className="break-words text-[10px] leading-4">{error}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void fetchLibrary()}
+              className="inline-flex h-8 items-center gap-1.5 rounded-md bg-accent px-2.5 text-xs font-medium text-accent-foreground hover:bg-accent/80"
+            >
+              <RefreshCcw className="size-3.5" />
+              Retry
+            </button>
           </div>
         </SidebarGroupContent>
       </SidebarGroup>
@@ -137,6 +201,7 @@ export function CharLibrary() {
                           <CharButton
                             key={`${name}-${item.name}-${idx}`}
                             char={item.char}
+                            label={item.name}
                             isSelected={brushChar === item.char}
                             onClick={handleSelect}
                           />
@@ -164,7 +229,7 @@ export function CharLibrary() {
           </CollapsibleTrigger>
           <CollapsibleContent>
             <SidebarMenuSub className="mr-0 pr-0">
-              {Object.entries(data.boxDrawing).map(([name, chars]) => (
+              {Object.entries(data.boxDrawing).map(([name, items]) => (
                 <Collapsible key={name} className="group/sub">
                   <SidebarMenuItem>
                     <CollapsibleTrigger asChild>
@@ -174,11 +239,12 @@ export function CharLibrary() {
                     </CollapsibleTrigger>
                     <CollapsibleContent>
                       <div className="flex flex-wrap gap-0.5 py-1 pl-0 overflow-hidden">
-                        {chars.map((char, idx) => (
+                        {items.map((item, idx) => (
                           <CharButton
                             key={`${name}-${idx}`}
-                            char={char}
-                            isSelected={brushChar === char}
+                            char={item.char}
+                            label={item.name}
+                            isSelected={brushChar === item.char}
                             onClick={handleSelect}
                           />
                         ))}
@@ -234,6 +300,7 @@ export function CharLibrary() {
                                       <CharButton
                                         key={`${subgroupName}-${idx}`}
                                         char={item.char}
+                                        label={item.name}
                                         isSelected={brushChar === item.char}
                                         onClick={handleSelect}
                                       />
@@ -267,7 +334,7 @@ export function CharLibrary() {
           </CollapsibleTrigger>
           <CollapsibleContent>
             <SidebarMenuSub className="mr-0 pr-0">
-              {Object.entries(data.unicodeBlocks).map(([name, chars]) => (
+              {Object.entries(data.unicodeBlocks).map(([name, items]) => (
                 <Collapsible key={name} className="group/sub">
                   <SidebarMenuItem>
                     <CollapsibleTrigger asChild>
@@ -277,11 +344,12 @@ export function CharLibrary() {
                     </CollapsibleTrigger>
                     <CollapsibleContent>
                       <div className="flex flex-wrap gap-0.5 py-1 pl-0 overflow-hidden">
-                        {chars.map((char, idx) => (
+                        {items.map((item, idx) => (
                           <CharButton
                             key={idx}
-                            char={char}
-                            isSelected={brushChar === char}
+                            char={item.char}
+                            label={item.name}
+                            isSelected={brushChar === item.char}
                             onClick={handleSelect}
                           />
                         ))}

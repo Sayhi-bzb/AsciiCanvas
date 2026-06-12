@@ -144,6 +144,9 @@ function AppContent() {
             open={isRightPanelOpen}
             onOpenChange={setIsRightPanelOpen}
             className="h-full items-end"
+            style={
+              { "--sidebar-width": "20rem" } as React.CSSProperties
+            }
           >
             <MobileSidebarTrigger />
             <Suspense fallback={<div className="w-0" />}>

@@ -1,132 +1,516 @@
 {
   "Box Drawing": [
-    "─",
-    "━",
-    "│",
-    "┃",
-    "┄",
-    "┅",
-    "┆",
-    "┇",
-    "┈",
-    "┉",
-    "┊",
-    "┋",
-    "┌",
-    "┍",
-    "┎",
-    "┏",
-    "┐",
-    "┑",
-    "┒",
-    "┓",
-    "└",
-    "┕",
-    "┖",
-    "┗",
-    "┘",
-    "┙",
-    "┚",
-    "┛",
-    "├",
-    "┝",
-    "┞",
-    "┟",
-    "┠",
-    "┡",
-    "┢",
-    "┣",
-    "┤",
-    "┥",
-    "┦",
-    "┧",
-    "┨",
-    "┩",
-    "┪",
-    "┫",
-    "┬",
-    "┭",
-    "┮",
-    "┯",
-    "┰",
-    "┱",
-    "┲",
-    "┳",
-    "┴",
-    "┵",
-    "┶",
-    "┷",
-    "┸",
-    "┹",
-    "┺",
-    "┻",
-    "┼",
-    "┽",
-    "┾",
-    "┿",
-    "╀",
-    "╁",
-    "╂",
-    "╃",
-    "╄",
-    "╅",
-    "╆",
-    "╇",
-    "╈",
-    "╉",
-    "╊",
-    "╋",
-    "╌",
-    "╍",
-    "╎",
-    "╏",
-    "═",
-    "║",
-    "╒",
-    "╓",
-    "╔",
-    "╕",
-    "╖",
-    "╗",
-    "╘",
-    "╙",
-    "╚",
-    "╛",
-    "╜",
-    "╝",
-    "╞",
-    "╟",
-    "╠",
-    "╡",
-    "╢",
-    "╣",
-    "╤",
-    "╥",
-    "╦",
-    "╧",
-    "╨",
-    "╩",
-    "╪",
-    "╫",
-    "╬",
-    "╭",
-    "╮",
-    "╯",
-    "╰",
-    "╱",
-    "╲",
-    "╳",
-    "╴",
-    "╵",
-    "╶",
-    "╷",
-    "╸",
-    "╹",
-    "╺",
-    "╻",
-    "╼",
-    "╽",
-    "╾",
-    "╿"
+    {
+      "char": "─",
+      "name": "BOX DRAWINGS LIGHT HORIZONTAL"
+    },
+    {
+      "char": "━",
+      "name": "BOX DRAWINGS HEAVY HORIZONTAL"
+    },
+    {
+      "char": "│",
+      "name": "BOX DRAWINGS LIGHT VERTICAL"
+    },
+    {
+      "char": "┃",
+      "name": "BOX DRAWINGS HEAVY VERTICAL"
+    },
+    {
+      "char": "┄",
+      "name": "BOX DRAWINGS LIGHT TRIPLE DASH HORIZONTAL"
+    },
+    {
+      "char": "┅",
+      "name": "BOX DRAWINGS HEAVY TRIPLE DASH HORIZONTAL"
+    },
+    {
+      "char": "┆",
+      "name": "BOX DRAWINGS LIGHT TRIPLE DASH VERTICAL"
+    },
+    {
+      "char": "┇",
+      "name": "BOX DRAWINGS HEAVY TRIPLE DASH VERTICAL"
+    },
+    {
+      "char": "┈",
+      "name": "BOX DRAWINGS LIGHT QUADRUPLE DASH HORIZONTAL"
+    },
+    {
+      "char": "┉",
+      "name": "BOX DRAWINGS HEAVY QUADRUPLE DASH HORIZONTAL"
+    },
+    {
+      "char": "┊",
+      "name": "BOX DRAWINGS LIGHT QUADRUPLE DASH VERTICAL"
+    },
+    {
+      "char": "┋",
+      "name": "BOX DRAWINGS HEAVY QUADRUPLE DASH VERTICAL"
+    },
+    {
+      "char": "┌",
+      "name": "BOX DRAWINGS LIGHT DOWN AND RIGHT"
+    },
+    {
+      "char": "┍",
+      "name": "BOX DRAWINGS DOWN LIGHT AND RIGHT HEAVY"
+    },
+    {
+      "char": "┎",
+      "name": "BOX DRAWINGS DOWN HEAVY AND RIGHT LIGHT"
+    },
+    {
+      "char": "┏",
+      "name": "BOX DRAWINGS HEAVY DOWN AND RIGHT"
+    },
+    {
+      "char": "┐",
+      "name": "BOX DRAWINGS LIGHT DOWN AND LEFT"
+    },
+    {
+      "char": "┑",
+      "name": "BOX DRAWINGS DOWN LIGHT AND LEFT HEAVY"
+    },
+    {
+      "char": "┒",
+      "name": "BOX DRAWINGS DOWN HEAVY AND LEFT LIGHT"
+    },
+    {
+      "char": "┓",
+      "name": "BOX DRAWINGS HEAVY DOWN AND LEFT"
+    },
+    {
+      "char": "└",
+      "name": "BOX DRAWINGS LIGHT UP AND RIGHT"
+    },
+    {
+      "char": "┕",
+      "name": "BOX DRAWINGS UP LIGHT AND RIGHT HEAVY"
+    },
+    {
+      "char": "┖",
+      "name": "BOX DRAWINGS UP HEAVY AND RIGHT LIGHT"
+    },
+    {
+      "char": "┗",
+      "name": "BOX DRAWINGS HEAVY UP AND RIGHT"
+    },
+    {
+      "char": "┘",
+      "name": "BOX DRAWINGS LIGHT UP AND LEFT"
+    },
+    {
+      "char": "┙",
+      "name": "BOX DRAWINGS UP LIGHT AND LEFT HEAVY"
+    },
+    {
+      "char": "┚",
+      "name": "BOX DRAWINGS UP HEAVY AND LEFT LIGHT"
+    },
+    {
+      "char": "┛",
+      "name": "BOX DRAWINGS HEAVY UP AND LEFT"
+    },
+    {
+      "char": "├",
+      "name": "BOX DRAWINGS LIGHT VERTICAL AND RIGHT"
+    },
+    {
+      "char": "┝",
+      "name": "BOX DRAWINGS VERTICAL LIGHT AND RIGHT HEAVY"
+    },
+    {
+      "char": "┞",
+      "name": "BOX DRAWINGS UP HEAVY AND RIGHT DOWN LIGHT"
+    },
+    {
+      "char": "┟",
+      "name": "BOX DRAWINGS DOWN HEAVY AND RIGHT UP LIGHT"
+    },
+    {
+      "char": "┠",
+      "name": "BOX DRAWINGS VERTICAL HEAVY AND RIGHT LIGHT"
+    },
+    {
+      "char": "┡",
+      "name": "BOX DRAWINGS DOWN LIGHT AND RIGHT UP HEAVY"
+    },
+    {
+      "char": "┢",
+      "name": "BOX DRAWINGS UP LIGHT AND RIGHT DOWN HEAVY"
+    },
+    {
+      "char": "┣",
+      "name": "BOX DRAWINGS HEAVY VERTICAL AND RIGHT"
+    },
+    {
+      "char": "┤",
+      "name": "BOX DRAWINGS LIGHT VERTICAL AND LEFT"
+    },
+    {
+      "char": "┥",
+      "name": "BOX DRAWINGS VERTICAL LIGHT AND LEFT HEAVY"
+    },
+    {
+      "char": "┦",
+      "name": "BOX DRAWINGS UP HEAVY AND LEFT DOWN LIGHT"
+    },
+    {
+      "char": "┧",
+      "name": "BOX DRAWINGS DOWN HEAVY AND LEFT UP LIGHT"
+    },
+    {
+      "char": "┨",
+      "name": "BOX DRAWINGS VERTICAL HEAVY AND LEFT LIGHT"
+    },
+    {
+      "char": "┩",
+      "name": "BOX DRAWINGS DOWN LIGHT AND LEFT UP HEAVY"
+    },
+    {
+      "char": "┪",
+      "name": "BOX DRAWINGS UP LIGHT AND LEFT DOWN HEAVY"
+    },
+    {
+      "char": "┫",
+      "name": "BOX DRAWINGS HEAVY VERTICAL AND LEFT"
+    },
+    {
+      "char": "┬",
+      "name": "BOX DRAWINGS LIGHT DOWN AND HORIZONTAL"
+    },
+    {
+      "char": "┭",
+      "name": "BOX DRAWINGS LEFT HEAVY AND RIGHT DOWN LIGHT"
+    },
+    {
+      "char": "┮",
+      "name": "BOX DRAWINGS RIGHT HEAVY AND LEFT DOWN LIGHT"
+    },
+    {
+      "char": "┯",
+      "name": "BOX DRAWINGS DOWN LIGHT AND HORIZONTAL HEAVY"
+    },
+    {
+      "char": "┰",
+      "name": "BOX DRAWINGS DOWN HEAVY AND HORIZONTAL LIGHT"
+    },
+    {
+      "char": "┱",
+      "name": "BOX DRAWINGS RIGHT LIGHT AND LEFT DOWN HEAVY"
+    },
+    {
+      "char": "┲",
+      "name": "BOX DRAWINGS LEFT LIGHT AND RIGHT DOWN HEAVY"
+    },
+    {
+      "char": "┳",
+      "name": "BOX DRAWINGS HEAVY DOWN AND HORIZONTAL"
+    },
+    {
+      "char": "┴",
+      "name": "BOX DRAWINGS LIGHT UP AND HORIZONTAL"
+    },
+    {
+      "char": "┵",
+      "name": "BOX DRAWINGS LEFT HEAVY AND RIGHT UP LIGHT"
+    },
+    {
+      "char": "┶",
+      "name": "BOX DRAWINGS RIGHT HEAVY AND LEFT UP LIGHT"
+    },
+    {
+      "char": "┷",
+      "name": "BOX DRAWINGS UP LIGHT AND HORIZONTAL HEAVY"
+    },
+    {
+      "char": "┸",
+      "name": "BOX DRAWINGS UP HEAVY AND HORIZONTAL LIGHT"
+    },
+    {
+      "char": "┹",
+      "name": "BOX DRAWINGS RIGHT LIGHT AND LEFT UP HEAVY"
+    },
+    {
+      "char": "┺",
+      "name": "BOX DRAWINGS LEFT LIGHT AND RIGHT UP HEAVY"
+    },
+    {
+      "char": "┻",
+      "name": "BOX DRAWINGS HEAVY UP AND HORIZONTAL"
+    },
+    {
+      "char": "┼",
+      "name": "BOX DRAWINGS LIGHT VERTICAL AND HORIZONTAL"
+    },
+    {
+      "char": "┽",
+      "name": "BOX DRAWINGS LEFT HEAVY AND RIGHT VERTICAL LIGHT"
+    },
+    {
+      "char": "┾",
+      "name": "BOX DRAWINGS RIGHT HEAVY AND LEFT VERTICAL LIGHT"
+    },
+    {
+      "char": "┿",
+      "name": "BOX DRAWINGS VERTICAL LIGHT AND HORIZONTAL HEAVY"
+    },
+    {
+      "char": "╀",
+      "name": "BOX DRAWINGS UP HEAVY AND DOWN HORIZONTAL LIGHT"
+    },
+    {
+      "char": "╁",
+      "name": "BOX DRAWINGS DOWN HEAVY AND UP HORIZONTAL LIGHT"
+    },
+    {
+      "char": "╂",
+      "name": "BOX DRAWINGS VERTICAL HEAVY AND HORIZONTAL LIGHT"
+    },
+    {
+      "char": "╃",
+      "name": "BOX DRAWINGS LEFT UP HEAVY AND RIGHT DOWN LIGHT"
+    },
+    {
+      "char": "╄",
+      "name": "BOX DRAWINGS RIGHT UP HEAVY AND LEFT DOWN LIGHT"
+    },
+    {
+      "char": "╅",
+      "name": "BOX DRAWINGS LEFT DOWN HEAVY AND RIGHT UP LIGHT"
+    },
+    {
+      "char": "╆",
+      "name": "BOX DRAWINGS RIGHT DOWN HEAVY AND LEFT UP LIGHT"
+    },
+    {
+      "char": "╇",
+      "name": "BOX DRAWINGS DOWN LIGHT AND UP HORIZONTAL HEAVY"
+    },
+    {
+      "char": "╈",
+      "name": "BOX DRAWINGS UP LIGHT AND DOWN HORIZONTAL HEAVY"
+    },
+    {
+      "char": "╉",
+      "name": "BOX DRAWINGS RIGHT LIGHT AND LEFT VERTICAL HEAVY"
+    },
+    {
+      "char": "╊",
+      "name": "BOX DRAWINGS LEFT LIGHT AND RIGHT VERTICAL HEAVY"
+    },
+    {
+      "char": "╋",
+      "name": "BOX DRAWINGS HEAVY VERTICAL AND HORIZONTAL"
+    },
+    {
+      "char": "╌",
+      "name": "BOX DRAWINGS LIGHT DOUBLE DASH HORIZONTAL"
+    },
+    {
+      "char": "╍",
+      "name": "BOX DRAWINGS HEAVY DOUBLE DASH HORIZONTAL"
+    },
+    {
+      "char": "╎",
+      "name": "BOX DRAWINGS LIGHT DOUBLE DASH VERTICAL"
+    },
+    {
+      "char": "╏",
+      "name": "BOX DRAWINGS HEAVY DOUBLE DASH VERTICAL"
+    },
+    {
+      "char": "═",
+      "name": "BOX DRAWINGS DOUBLE HORIZONTAL"
+    },
+    {
+      "char": "║",
+      "name": "BOX DRAWINGS DOUBLE VERTICAL"
+    },
+    {
+      "char": "╒",
+      "name": "BOX DRAWINGS DOWN SINGLE AND RIGHT DOUBLE"
+    },
+    {
+      "char": "╓",
+      "name": "BOX DRAWINGS DOWN DOUBLE AND RIGHT SINGLE"
+    },
+    {
+      "char": "╔",
+      "name": "BOX DRAWINGS DOUBLE DOWN AND RIGHT"
+    },
+    {
+      "char": "╕",
+      "name": "BOX DRAWINGS DOWN SINGLE AND LEFT DOUBLE"
+    },
+    {
+      "char": "╖",
+      "name": "BOX DRAWINGS DOWN DOUBLE AND LEFT SINGLE"
+    },
+    {
+      "char": "╗",
+      "name": "BOX DRAWINGS DOUBLE DOWN AND LEFT"
+    },
+    {
+      "char": "╘",
+      "name": "BOX DRAWINGS UP SINGLE AND RIGHT DOUBLE"
+    },
+    {
+      "char": "╙",
+      "name": "BOX DRAWINGS UP DOUBLE AND RIGHT SINGLE"
+    },
+    {
+      "char": "╚",
+      "name": "BOX DRAWINGS DOUBLE UP AND RIGHT"
+    },
+    {
+      "char": "╛",
+      "name": "BOX DRAWINGS UP SINGLE AND LEFT DOUBLE"
+    },
+    {
+      "char": "╜",
+      "name": "BOX DRAWINGS UP DOUBLE AND LEFT SINGLE"
+    },
+    {
+      "char": "╝",
+      "name": "BOX DRAWINGS DOUBLE UP AND LEFT"
+    },
+    {
+      "char": "╞",
+      "name": "BOX DRAWINGS VERTICAL SINGLE AND RIGHT DOUBLE"
+    },
+    {
+      "char": "╟",
+      "name": "BOX DRAWINGS VERTICAL DOUBLE AND RIGHT SINGLE"
+    },
+    {
+      "char": "╠",
+      "name": "BOX DRAWINGS DOUBLE VERTICAL AND RIGHT"
+    },
+    {
+      "char": "╡",
+      "name": "BOX DRAWINGS VERTICAL SINGLE AND LEFT DOUBLE"
+    },
+    {
+      "char": "╢",
+      "name": "BOX DRAWINGS VERTICAL DOUBLE AND LEFT SINGLE"
+    },
+    {
+      "char": "╣",
+      "name": "BOX DRAWINGS DOUBLE VERTICAL AND LEFT"
+    },
+    {
+      "char": "╤",
+      "name": "BOX DRAWINGS DOWN SINGLE AND HORIZONTAL DOUBLE"
+    },
+    {
+      "char": "╥",
+      "name": "BOX DRAWINGS DOWN DOUBLE AND HORIZONTAL SINGLE"
+    },
+    {
+      "char": "╦",
+      "name": "BOX DRAWINGS DOUBLE DOWN AND HORIZONTAL"
+    },
+    {
+      "char": "╧",
+      "name": "BOX DRAWINGS UP SINGLE AND HORIZONTAL DOUBLE"
+    },
+    {
+      "char": "╨",
+      "name": "BOX DRAWINGS UP DOUBLE AND HORIZONTAL SINGLE"
+    },
+    {
+      "char": "╩",
+      "name": "BOX DRAWINGS DOUBLE UP AND HORIZONTAL"
+    },
+    {
+      "char": "╪",
+      "name": "BOX DRAWINGS VERTICAL SINGLE AND HORIZONTAL DOUBLE"
+    },
+    {
+      "char": "╫",
+      "name": "BOX DRAWINGS VERTICAL DOUBLE AND HORIZONTAL SINGLE"
+    },
+    {
+      "char": "╬",
+      "name": "BOX DRAWINGS DOUBLE VERTICAL AND HORIZONTAL"
+    },
+    {
+      "char": "╭",
+      "name": "BOX DRAWINGS LIGHT ARC DOWN AND RIGHT"
+    },
+    {
+      "char": "╮",
+      "name": "BOX DRAWINGS LIGHT ARC DOWN AND LEFT"
+    },
+    {
+      "char": "╯",
+      "name": "BOX DRAWINGS LIGHT ARC UP AND LEFT"
+    },
+    {
+      "char": "╰",
+      "name": "BOX DRAWINGS LIGHT ARC UP AND RIGHT"
+    },
+    {
+      "char": "╱",
+      "name": "BOX DRAWINGS LIGHT DIAGONAL UPPER RIGHT TO LOWER LEFT"
+    },
+    {
+      "char": "╲",
+      "name": "BOX DRAWINGS LIGHT DIAGONAL UPPER LEFT TO LOWER RIGHT"
+    },
+    {
+      "char": "╳",
+      "name": "BOX DRAWINGS LIGHT DIAGONAL CROSS"
+    },
+    {
+      "char": "╴",
+      "name": "BOX DRAWINGS LIGHT LEFT"
+    },
+    {
+      "char": "╵",
+      "name": "BOX DRAWINGS LIGHT UP"
+    },
+    {
+      "char": "╶",
+      "name": "BOX DRAWINGS LIGHT RIGHT"
+    },
+    {
+      "char": "╷",
+      "name": "BOX DRAWINGS LIGHT DOWN"
+    },
+    {
+      "char": "╸",
+      "name": "BOX DRAWINGS HEAVY LEFT"
+    },
+    {
+      "char": "╹",
+      "name": "BOX DRAWINGS HEAVY UP"
+    },
+    {
+      "char": "╺",
+      "name": "BOX DRAWINGS HEAVY RIGHT"
+    },
+    {
+      "char": "╻",
+      "name": "BOX DRAWINGS HEAVY DOWN"
+    },
+    {
+      "char": "╼",
+      "name": "BOX DRAWINGS LIGHT LEFT AND HEAVY RIGHT"
+    },
+    {
+      "char": "╽",
+      "name": "BOX DRAWINGS LIGHT UP AND HEAVY DOWN"
+    },
+    {
+      "char": "╾",
+      "name": "BOX DRAWINGS HEAVY LEFT AND LIGHT RIGHT"
+    },
+    {
+      "char": "╿",
+      "name": "BOX DRAWINGS HEAVY UP AND LIGHT DOWN"
+    }
   ]
 }

@@ -18,6 +18,7 @@ export type EditorActionId =
 // Toolbar Actions
 export type ToolbarActionId =
   | "select"
+  | "pan"
   | "brush"
   | "shape-group"
   | "fill"
