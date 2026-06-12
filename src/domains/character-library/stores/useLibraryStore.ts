@@ -4,6 +4,7 @@ interface LibraryData {
   entities: Record<string, Record<string, string>>;
   related: Record<string, string[]>;
   alphabets: Record<string, string[]>;
+  boxDrawing: Record<string, string[]>;
   nerdfonts: Record<string, { name: string; char: string }[]>;
   emojis: Record<string, Record<string, { name: string; char: string }[]>>;
 }
@@ -35,10 +36,11 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
         "entities",
         "related",
         "alphabets",
+        "box_drawing",
         "nerdfonts_enriched",
         "emojis_enriched",
       ];
-      const [entities, related, alphabets, nerdfonts, emojis] =
+      const [entities, related, alphabets, boxDrawing, nerdfonts, emojis] =
         await Promise.all(
           files.map((f) =>
             fetch(`${base}data/${f}.json`).then((res) => res.json())
@@ -46,7 +48,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
         );
 
       set({
-        data: { entities, related, alphabets, nerdfonts, emojis },
+        data: { entities, related, alphabets, boxDrawing, nerdfonts, emojis },
         isLoading: false,
       });
     } catch (err) {
