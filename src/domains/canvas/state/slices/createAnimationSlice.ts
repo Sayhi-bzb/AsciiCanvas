@@ -148,62 +148,89 @@ export const createAnimationSlice: StateCreator<
     duplicateAnimationFrame: (frameId) => {
       const state = get();
       if (state.canvasMode !== "animation" || !state.animationTimeline) return;
+      state.duplicateAnimationFrames([
+        frameId ?? state.animationTimeline.currentFrameId,
+      ]);
+    },
+    duplicateAnimationFrames: (frameIds) => {
+      const state = get();
+      if (state.canvasMode !== "animation" || !state.animationTimeline) return [];
+      if (frameIds.length === 0) return [];
 
       const syncedTimeline = updateAnimationFrameEntries(
         state.animationTimeline,
         state.animationTimeline.currentFrameId,
         serializeGrid(state.grid)
       );
-      const sourceFrameId = frameId ?? syncedTimeline.currentFrameId;
-      const sourceIndex = getAnimationFrameIndex(syncedTimeline, sourceFrameId);
-      if (sourceIndex === -1) return;
       const nextTimeline = cloneAnimationTimeline(syncedTimeline);
-      const sourceFrame = nextTimeline.frames[sourceIndex];
-      const duplicated = {
-        id: createEmptyAnimationFrame().id,
-        name: createDuplicateAnimationFrameName(
-          nextTimeline.frames,
-          sourceFrame.name
-        ),
-        grid: sourceFrame.grid.map(
-          ([key, cell]) => [key, { ...cell }] as [string, GridCell]
-        ),
-      };
-      nextTimeline.frames.splice(sourceIndex + 1, 0, duplicated);
-      nextTimeline.currentFrameId = duplicated.id;
+      const requestedIds = new Set(frameIds);
+      const sourceEntries = nextTimeline.frames
+        .map((frame, index) => ({ frame, index }))
+        .filter(({ frame }) => requestedIds.has(frame.id));
+      if (sourceEntries.length === 0) return [];
+
+      const duplicatedFrames: AnimationFrame[] = [];
+      sourceEntries.forEach(({ frame }) => {
+        const existingFrames = [...nextTimeline.frames, ...duplicatedFrames];
+        duplicatedFrames.push({
+          id: createEmptyAnimationFrame().id,
+          name: createDuplicateAnimationFrameName(existingFrames, frame.name),
+          grid: frame.grid.map(
+            ([key, cell]) => [key, { ...cell }] as [string, GridCell]
+          ),
+        });
+      });
+
+      const insertIndex =
+        Math.max(...sourceEntries.map(({ index }) => index)) + 1;
+      nextTimeline.frames.splice(insertIndex, 0, ...duplicatedFrames);
+      nextTimeline.currentFrameId = duplicatedFrames[0].id;
       syncAnimationRuntime(nextTimeline, { isPlaying: false });
+      return duplicatedFrames.map((frame) => frame.id);
     },
     removeAnimationFrame: (frameId) => {
       const state = get();
       if (state.canvasMode !== "animation" || !state.animationTimeline) return;
+      state.removeAnimationFrames([
+        frameId ?? state.animationTimeline.currentFrameId,
+      ]);
+    },
+    removeAnimationFrames: (frameIds) => {
+      const state = get();
+      if (state.canvasMode !== "animation" || !state.animationTimeline) return [];
+      if (frameIds.length === 0) return [];
 
       const syncedTimeline = updateAnimationFrameEntries(
         state.animationTimeline,
         state.animationTimeline.currentFrameId,
         serializeGrid(state.grid)
       );
-      if (syncedTimeline.frames.length <= 1) {
-        const clearedTimeline = updateAnimationFrameEntries(
-          syncedTimeline,
-          syncedTimeline.currentFrameId,
-          []
-        );
-        syncAnimationRuntime(clearedTimeline, { isPlaying: false });
-        return;
-      }
-
-      const targetFrameId = frameId ?? syncedTimeline.currentFrameId;
-      const targetIndex = getAnimationFrameIndex(syncedTimeline, targetFrameId);
-      if (targetIndex === -1) return;
+      const requestedIds = new Set(frameIds);
+      const targetIndexes = syncedTimeline.frames
+        .map((frame, index) => (requestedIds.has(frame.id) ? index : -1))
+        .filter((index) => index !== -1);
+      if (targetIndexes.length === 0) return [];
 
       const nextTimeline = cloneAnimationTimeline(syncedTimeline);
-      nextTimeline.frames.splice(targetIndex, 1);
-      const fallbackIndex = Math.min(
-        targetIndex,
-        nextTimeline.frames.length - 1
+      if (targetIndexes.length >= nextTimeline.frames.length) {
+        const fallbackFrame = createEmptyAnimationFrame(
+          undefined,
+          createNextAnimationFrameName([])
+        );
+        nextTimeline.frames = [fallbackFrame];
+        nextTimeline.currentFrameId = fallbackFrame.id;
+        syncAnimationRuntime(nextTimeline, { isPlaying: false });
+        return [fallbackFrame.id];
+      }
+
+      const firstTargetIndex = Math.min(...targetIndexes);
+      nextTimeline.frames = nextTimeline.frames.filter(
+        (frame) => !requestedIds.has(frame.id)
       );
+      const fallbackIndex = Math.min(firstTargetIndex, nextTimeline.frames.length - 1);
       nextTimeline.currentFrameId = nextTimeline.frames[fallbackIndex].id;
       syncAnimationRuntime(nextTimeline, { isPlaying: false });
+      return [nextTimeline.currentFrameId];
     },
     moveAnimationFrame: (frameId, direction) => {
       const state = get();

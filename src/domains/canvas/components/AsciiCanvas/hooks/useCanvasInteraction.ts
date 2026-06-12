@@ -41,6 +41,20 @@ const isFromMinimap = (event: Event | undefined) => {
   return !!target.closest('[data-minimap-root="true"]');
 };
 
+const isFromCanvasUi = (event: Event | undefined) => {
+  const target = event?.target;
+  if (target instanceof Element && target.closest('[data-canvas-ui="true"]')) {
+    return true;
+  }
+
+  const path = event?.composedPath?.() ?? [];
+  return path.some(
+    (entry) =>
+      entry instanceof Element &&
+      entry.matches('[data-canvas-ui="true"], [data-canvas-ui="true"] *')
+  );
+};
+
 export const useCanvasInteraction = (
   store: Pick<
     CanvasState,
@@ -258,6 +272,7 @@ export const useCanvasInteraction = (
         // Pinch gesture ended
       },
       onMove: ({ xy: [x, y], event }) => {
+        if (isFromCanvasUi(event)) return;
         if (isFromMinimap(event)) return;
         if (canvasMode === "structured") return;
         if (tool !== "eraser") return;
@@ -282,6 +297,7 @@ export const useCanvasInteraction = (
         }
       },
       onDragStart: ({ xy: [x, y], event }) => {
+        if (isFromCanvasUi(event)) return;
         if (isFromMinimap(event)) return;
         const mouseEvent = event as MouseEvent;
         if (canvasMode !== "animation" && tool === "pan") {
@@ -375,6 +391,7 @@ export const useCanvasInteraction = (
         }
       },
       onDrag: ({ xy: [x, y], delta: [dx, dy], event }) => {
+        if (isFromCanvasUi(event)) return;
         if (shouldIgnoreMinimapGestureEvent(event)) return;
         if (interactionModeRef.current === "panning") {
           queueOffsetDelta(dx, dy);
@@ -437,6 +454,7 @@ export const useCanvasInteraction = (
         }
       },
       onDragEnd: ({ event, xy: [x, y] }) => {
+        if (isFromCanvasUi(event)) return;
         if (shouldIgnoreMinimapGestureEvent(event)) return;
         if (interactionModeRef.current === "panning") {
           flushQueuedOffset();
@@ -492,6 +510,7 @@ export const useCanvasInteraction = (
         document.body.style.cursor = "auto";
       },
       onWheel: ({ xy: [clientX, clientY], delta: [, dy], event }) => {
+        if (isFromCanvasUi(event)) return;
         if (isFromMinimap(event)) return;
         const rect = containerRef.current?.getBoundingClientRect();
         if (!rect) return;

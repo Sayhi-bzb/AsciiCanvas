@@ -77,18 +77,20 @@ export const parseAnsiClipboardText = (
       continue;
     }
 
-    const char = splitGraphemes(input.slice(index))[0] ?? input[index];
-    if (char === "\n") {
+    if (input[index] === "\r" && input[index + 1] === "\n") {
+      x = 0;
+      y += 1;
+      index += 2;
+      continue;
+    }
+    if (input[index] === "\n" || input[index] === "\r") {
       x = 0;
       y += 1;
       index += 1;
       continue;
     }
-    if (char === "\r") {
-      x = 0;
-      index += 1;
-      continue;
-    }
+
+    const char = splitGraphemes(input.slice(index))[0] ?? input[index];
 
     cells.push({ x, y, char, color: currentColor });
     x += getCellOccupancy(char);

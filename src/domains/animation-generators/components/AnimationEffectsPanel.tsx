@@ -7,6 +7,12 @@ import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/shared/ui/popover";
+import { ColorPickerPanel } from "@/domains/canvas/components/ToolBar/dock/submenus";
 import { cn } from "@/shared/lib/utils";
 import type {
   AnimationGeneratorConfig,
@@ -22,19 +28,21 @@ const PRESET_LABELS: Record<AnimationGeneratorKind, string> = {
   "color-flow": "Color Flow",
 };
 
-const DEFAULT_CONFIGS: Record<AnimationGeneratorKind, AnimationGeneratorConfig> = {
+const createDefaultConfigs = (
+  brushColor: string
+): Record<AnimationGeneratorKind, AnimationGeneratorConfig> => ({
   spinner: {
     kind: "spinner",
     sequence: "|/-\\",
     x: 0,
     y: 0,
-    color: "#ffffff",
+    color: brushColor,
     loops: 2,
   },
   "sweep-highlight": {
     kind: "sweep-highlight",
     direction: "left-to-right",
-    highlightColor: "#ffffff",
+    highlightColor: brushColor,
     width: 2,
     frameCount: 12,
     preserveBaseColor: true,
@@ -46,12 +54,12 @@ const DEFAULT_CONFIGS: Record<AnimationGeneratorKind, AnimationGeneratorConfig> 
   },
   "color-flow": {
     kind: "color-flow",
-    fromColor: "#38bdf8",
+    fromColor: brushColor,
     toColor: "#f97316",
     direction: "left-to-right",
     frameCount: 16,
   },
-};
+});
 
 const fieldClassName = "h-8 rounded-md border-border bg-background px-2 text-xs";
 
@@ -102,6 +110,45 @@ function TextField({
   );
 }
 
+function ColorField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+        {label}
+      </Label>
+      <Popover>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="flex h-8 w-full items-center gap-2 rounded-md border border-border bg-background px-2 text-left text-xs text-muted-foreground hover:bg-accent/45"
+          >
+            <span
+              className="size-4 rounded-full border border-border shadow-sm"
+              style={{ backgroundColor: value }}
+            />
+            <span className="truncate">Pick color</span>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent side="right" align="start" className="w-auto p-0">
+          <ColorPickerPanel
+            value={value}
+            onPick={onChange}
+            showCustomInput={false}
+          />
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
 export function AnimationEffectsPanel() {
   const {
     grid,
@@ -117,7 +164,7 @@ export function AnimationEffectsPanel() {
     }))
   );
   const [kind, setKind] = useState<AnimationGeneratorKind>("sweep-highlight");
-  const [configs, setConfigs] = useState(DEFAULT_CONFIGS);
+  const [configs, setConfigs] = useState(() => createDefaultConfigs(brushColor));
   const [applyMode, setApplyMode] =
     useState<GeneratedAnimationApplyMode>("insert-after-current");
   const activeConfig = configs[kind];
@@ -179,14 +226,14 @@ export function AnimationEffectsPanel() {
               <NumberField label="X" value={activeConfig.x} onChange={(x) => updateConfig({ x })} />
               <NumberField label="Y" value={activeConfig.y} onChange={(y) => updateConfig({ y })} />
             </div>
-            <TextField label="Color" value={activeConfig.color} onChange={(color) => updateConfig({ color })} />
+            <ColorField label="Color" value={activeConfig.color} onChange={(color) => updateConfig({ color })} />
             <NumberField label="Loops" value={activeConfig.loops} onChange={(loops) => updateConfig({ loops })} />
           </>
         )}
 
         {activeConfig.kind === "sweep-highlight" && (
           <>
-            <TextField
+            <ColorField
               label="Highlight"
               value={activeConfig.highlightColor}
               onChange={(highlightColor) => updateConfig({ highlightColor })}
@@ -234,8 +281,8 @@ export function AnimationEffectsPanel() {
 
         {activeConfig.kind === "color-flow" && (
           <>
-            <TextField label="From" value={activeConfig.fromColor} onChange={(fromColor) => updateConfig({ fromColor })} />
-            <TextField label="To" value={activeConfig.toColor} onChange={(toColor) => updateConfig({ toColor })} />
+            <ColorField label="From" value={activeConfig.fromColor} onChange={(fromColor) => updateConfig({ fromColor })} />
+            <ColorField label="To" value={activeConfig.toColor} onChange={(toColor) => updateConfig({ toColor })} />
             <NumberField label="Frames" value={activeConfig.frameCount} onChange={(frameCount) => updateConfig({ frameCount })} />
           </>
         )}
@@ -265,9 +312,9 @@ export function AnimationEffectsPanel() {
         </div>
         <Button
           type="button"
-          tone="neutral"
-          size="sm"
-          className="w-full shadow-none"
+          tone="primary"
+          size="md"
+          className="h-10 w-full rounded-lg border border-primary/50 font-semibold shadow-sm shadow-primary/15 transition-transform hover:scale-[1.01] active:scale-[0.99] disabled:transform-none disabled:shadow-none"
           onClick={applyFrames}
           disabled={generated.frames.length === 0}
         >

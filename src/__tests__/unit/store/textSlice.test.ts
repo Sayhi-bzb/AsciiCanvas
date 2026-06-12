@@ -93,3 +93,25 @@ describe("textSlice newlineText", () => {
     expect(useCanvasStore.getState().textCursor).toEqual({ x: 8, y: 1 });
   });
 });
+
+describe("textSlice writeTextString", () => {
+  afterEach(() => {
+    resetStore();
+  });
+
+  it("preserves CRLF new lines when writing pasted text", () => {
+    setTextState({
+      textCursor: { x: 3, y: 4 },
+    });
+
+    useCanvasStore.getState().writeTextString("a\r\nb");
+
+    expect(useCanvasStore.getState().grid).toEqual(
+      new Map([
+        ["3,4", { char: "a", color: "#000000" }],
+        ["3,5", { char: "b", color: "#000000" }],
+      ])
+    );
+    expect(useCanvasStore.getState().textCursor).toEqual({ x: 4, y: 5 });
+  });
+});

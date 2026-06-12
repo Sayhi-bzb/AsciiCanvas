@@ -222,8 +222,9 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
     const startX = boundedCursor.x;
 
     transactWithHistory(() => {
-      for (const char of splitGraphemes(str)) {
-        if (char === "\n") {
+      let index = 0;
+      while (index < str.length) {
+        if (str[index] === "\r" && str[index + 1] === "\n") {
           if (
             canvasBounds &&
             currentY + 1 >= canvasBounds.height
@@ -232,16 +233,34 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
           }
           currentY++;
           currentX = startX;
+          index += 2;
           continue;
         }
+        if (str[index] === "\n" || str[index] === "\r") {
+          if (
+            canvasBounds &&
+            currentY + 1 >= canvasBounds.height
+          ) {
+            break;
+          }
+          currentY++;
+          currentX = startX;
+          index += 1;
+          continue;
+        }
+
+        const char = splitGraphemes(str.slice(index))[0] ?? str[index];
         if (!isPointWithinBounds({ x: currentX, y: currentY }, canvasBounds)) {
+          index += char.length;
           continue;
         }
         if (canvasBounds && currentX >= canvasBounds.width) {
+          index += char.length;
           continue;
         }
         placeCharInYMap(yMainGrid, currentX, currentY, char, brushColor);
         currentX += getCellOccupancy(char);
+        index += char.length;
       }
     });
     set({ textCursor: { x: currentX, y: currentY } });

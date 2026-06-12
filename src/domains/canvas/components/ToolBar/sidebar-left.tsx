@@ -123,12 +123,14 @@ function FrameRow({
   index,
   size,
   isActive,
+  isSelected,
   isEditing,
   isCollapsed,
   editingName,
   inputRef,
   canDelete,
   onSelect,
+  onContextSelect,
   onStartRename,
   onEditingNameChange,
   onCommitRename,
@@ -141,12 +143,14 @@ function FrameRow({
   index: number;
   size: AnimationCanvasSize | null;
   isActive: boolean;
+  isSelected: boolean;
   isEditing: boolean;
   isCollapsed: boolean;
   editingName: string;
   inputRef: React.RefObject<HTMLInputElement | null>;
   canDelete: boolean;
-  onSelect: () => void;
+  onSelect: (event?: React.MouseEvent | React.KeyboardEvent) => void;
+  onContextSelect: () => void;
   onStartRename: () => void;
   onEditingNameChange: (value: string) => void;
   onCommitRename: () => void;
@@ -161,8 +165,18 @@ function FrameRow({
     "group/frame relative flex w-full min-w-0 items-center rounded-xl px-1.5 py-2 text-left outline-none overflow-hidden",
     isActive
       ? "bg-primary/12 text-primary ring-1 ring-primary/20"
+      : isSelected
+      ? "bg-accent/55 text-foreground ring-1 ring-border/80"
       : "text-foreground hover:bg-accent/45 focus-visible:bg-accent/45"
   );
+  const stopFrameSelectionEvent = (
+    event: React.MouseEvent | React.PointerEvent
+  ) => {
+    event.stopPropagation();
+    if (event.shiftKey || event.ctrlKey || event.metaKey) {
+      event.preventDefault();
+    }
+  };
 
   return (
     <Reorder.Item
@@ -201,8 +215,12 @@ function FrameRow({
               role="button"
               tabIndex={0}
               aria-current={isActive ? "true" : undefined}
+              aria-selected={isSelected}
               aria-label={`Select ${frameLabel}: ${frame.name}`}
+              onPointerDown={stopFrameSelectionEvent}
+              onMouseDown={stopFrameSelectionEvent}
               onClick={onSelect}
+              onContextMenu={onContextSelect}
               onDoubleClick={onStartRename}
               onKeyDown={(event) => {
                 if (event.key === "Enter" || event.key === " ") {
@@ -279,8 +297,8 @@ export function SidebarLeft() {
     setAnimationCurrentFrame,
     insertAnimationFrame,
     renameAnimationFrame,
-    duplicateAnimationFrame,
-    removeAnimationFrame,
+    duplicateAnimationFrames,
+    removeAnimationFrames,
     reorderAnimationFrames,
   } = useCanvasStore(
     useShallow((state) => ({
@@ -291,8 +309,8 @@ export function SidebarLeft() {
       setAnimationCurrentFrame: state.setAnimationCurrentFrame,
       insertAnimationFrame: state.insertAnimationFrame,
       renameAnimationFrame: state.renameAnimationFrame,
-      duplicateAnimationFrame: state.duplicateAnimationFrame,
-      removeAnimationFrame: state.removeAnimationFrame,
+      duplicateAnimationFrames: state.duplicateAnimationFrames,
+      removeAnimationFrames: state.removeAnimationFrames,
       reorderAnimationFrames: state.reorderAnimationFrames,
     }))
   );
@@ -303,6 +321,10 @@ export function SidebarLeft() {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [pinnedFrameId, setPinnedFrameId] = useState<string | null>(null);
   const [panelMode, setPanelMode] = useState<"frames" | "effects">("frames");
+  const [selectedFrameIds, setSelectedFrameIds] = useState<string[]>([]);
+  const [selectionAnchorFrameId, setSelectionAnchorFrameId] = useState<
+    string | null
+  >(null);
 
   useEffect(() => {
     if (!editingId) return;
@@ -334,9 +356,113 @@ export function SidebarLeft() {
     [animationTimeline]
   );
 
+  const effectiveSelectedFrameIds = useMemo(() => {
+    if (!animationTimeline) return [];
+    const existingIds = new Set(animationTimeline.frames.map((frame) => frame.id));
+    const next = selectedFrameIds.filter((frameId) => existingIds.has(frameId));
+    if (next.length > 0) return next;
+    return animationTimeline.currentFrameId
+      ? [animationTimeline.currentFrameId]
+      : [];
+  }, [animationTimeline, selectedFrameIds]);
+
+  const effectiveSelectionAnchorFrameId = useMemo(() => {
+    if (!animationTimeline) return null;
+    const existingIds = new Set(animationTimeline.frames.map((frame) => frame.id));
+    return selectionAnchorFrameId && existingIds.has(selectionAnchorFrameId)
+      ? selectionAnchorFrameId
+      : effectiveSelectedFrameIds[0] ?? animationTimeline.currentFrameId;
+  }, [animationTimeline, effectiveSelectedFrameIds, selectionAnchorFrameId]);
+
   if (canvasMode !== "animation" || !animationTimeline) {
     return null;
   }
+
+  const stopCanvasUiEvent = (event: { stopPropagation: () => void }) => {
+    event.stopPropagation();
+  };
+
+  const selectFrame = (
+    frameId: string,
+    event?: React.MouseEvent | React.KeyboardEvent
+  ) => {
+    const frameIds = animationTimeline.frames.map((frame) => frame.id);
+    const frameIndex = frameIds.indexOf(frameId);
+    if (frameIndex === -1) return;
+
+    if (event?.shiftKey) {
+      const anchorId = effectiveSelectionAnchorFrameId ?? frameId;
+      const anchorIndex = frameIds.indexOf(anchorId);
+      const start = Math.min(anchorIndex === -1 ? frameIndex : anchorIndex, frameIndex);
+      const end = Math.max(anchorIndex === -1 ? frameIndex : anchorIndex, frameIndex);
+      setPinnedFrameId(frameId);
+      setAnimationCurrentFrame(frameId);
+      setSelectedFrameIds(frameIds.slice(start, end + 1));
+      setSelectionAnchorFrameId(anchorId);
+      return;
+    }
+
+    if (event?.ctrlKey || event?.metaKey) {
+      if (effectiveSelectedFrameIds.includes(frameId)) {
+        if (effectiveSelectedFrameIds.length === 1) return;
+        const nextFrameIds = effectiveSelectedFrameIds.filter(
+          (entry) => entry !== frameId
+        );
+        const nextCurrentFrameId = nextFrameIds[0];
+        setPinnedFrameId(nextCurrentFrameId);
+        setAnimationCurrentFrame(nextCurrentFrameId);
+        setSelectedFrameIds(nextFrameIds);
+        setSelectionAnchorFrameId(nextCurrentFrameId);
+        return;
+      }
+      setPinnedFrameId(frameId);
+      setAnimationCurrentFrame(frameId);
+      setSelectedFrameIds([...effectiveSelectedFrameIds, frameId]);
+      setSelectionAnchorFrameId(frameId);
+      return;
+    }
+
+    setPinnedFrameId(frameId);
+    setAnimationCurrentFrame(frameId);
+    setSelectedFrameIds([frameId]);
+    setSelectionAnchorFrameId(frameId);
+  };
+
+  const selectFrameForContextMenu = (frameId: string) => {
+    if (effectiveSelectedFrameIds.includes(frameId)) return;
+    setPinnedFrameId(frameId);
+    setAnimationCurrentFrame(frameId);
+    setSelectedFrameIds([frameId]);
+    setSelectionAnchorFrameId(frameId);
+  };
+
+  const getActionFrameIds = (frameId: string) => {
+    const selectedIds = new Set(effectiveSelectedFrameIds);
+    const actionIds = animationTimeline.frames
+      .map((frame) => frame.id)
+      .filter((id) => selectedIds.has(id));
+    return actionIds.includes(frameId) ? actionIds : [frameId];
+  };
+
+  const duplicateSelectedFrames = (frameId: string) => {
+    const newFrameIds = duplicateAnimationFrames(getActionFrameIds(frameId));
+    if (newFrameIds.length === 0) return;
+    setSelectedFrameIds(newFrameIds);
+    setSelectionAnchorFrameId(newFrameIds[0]);
+    setPinnedFrameId(newFrameIds[0]);
+  };
+
+  const removeSelectedFrames = (frameId: string) => {
+    const actionFrameIds = getActionFrameIds(frameId);
+    const fallbackFrameIds = removeAnimationFrames(actionFrameIds);
+    if (fallbackFrameIds.length === 0) return;
+    setSelectedFrameIds(fallbackFrameIds);
+    setSelectionAnchorFrameId(fallbackFrameIds[0]);
+    setPinnedFrameId(fallbackFrameIds[0]);
+    if (editingId && actionFrameIds.includes(editingId)) {
+      setEditingId(null);
+    }
+  };
 
   const startRename = (frameId: string, frameName: string) => {
     setAnimationCurrentFrame(frameId);
@@ -361,6 +487,11 @@ export function SidebarLeft() {
       side="left"
       title="Frames"
       className="pointer-events-auto"
+      data-canvas-ui="true"
+      onPointerDown={stopCanvasUiEvent}
+      onMouseDown={stopCanvasUiEvent}
+      onClick={stopCanvasUiEvent}
+      onContextMenu={stopCanvasUiEvent}
       icon={
         <div className="flex items-center justify-center rounded-lg bg-accent p-1.5 shrink-0">
           <Clapperboard className="size-4 text-accent-foreground" />
@@ -419,12 +550,8 @@ export function SidebarLeft() {
         >
           {animationTimeline.frames.map((frame, index) => {
             const isActive = frame.id === sidebarCurrentFrameId;
-            const canDelete = animationTimeline.frames.length > 1;
+            const isSelected = effectiveSelectedFrameIds.includes(frame.id);
             const isEditing = frame.id === editingId;
-            const selectFrame = () => {
-              setPinnedFrameId(frame.id);
-              setAnimationCurrentFrame(frame.id);
-            };
 
             return (
               <FrameRow
@@ -433,22 +560,26 @@ export function SidebarLeft() {
                 index={index}
                 size={canvasBounds}
                 isActive={isActive}
+                isSelected={isSelected}
                 isEditing={isEditing}
                 isCollapsed={isCollapsed}
                 editingName={editingName}
                 inputRef={inputRef}
-                canDelete={canDelete}
-                onSelect={selectFrame}
+                canDelete
+                onSelect={(event) => selectFrame(frame.id, event)}
+                onContextSelect={() => selectFrameForContextMenu(frame.id)}
                 onStartRename={() => startRename(frame.id, frame.name)}
                 onEditingNameChange={setEditingName}
                 onCommitRename={commitRename}
                 onCancelRename={cancelRename}
-                onDuplicate={() => duplicateAnimationFrame(frame.id)}
+                onDuplicate={() => duplicateSelectedFrames(frame.id)}
                 onInsertAfter={() => {
-                  selectFrame();
+                  selectFrame(frame.id);
                   insertAnimationFrame("after");
+                  setSelectedFrameIds([]);
+                  setSelectionAnchorFrameId(null);
                 }}
-                onDelete={() => removeAnimationFrame(frame.id)}
+                onDelete={() => removeSelectedFrames(frame.id)}
               />
             );
           })}

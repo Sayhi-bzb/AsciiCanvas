@@ -4,6 +4,16 @@ import {
   parseAnsiClipboardText,
   writeClipboardPayload,
 } from "@/domains/actions/adapters/clipboardActions";
+import { getCellOccupancy } from "@/shared/metrics";
+
+const mapAnsiCells = (text: string, color: string, y = 0, startX = 0) => {
+  let x = startX;
+  return Array.from(text).map((char) => {
+    const cell = { x, y, char, color };
+    x += getCellOccupancy(char);
+    return cell;
+  });
+};
 
 describe("clipboardActions", () => {
   it("writes app-rich clipboard data during native copy events", async () => {
@@ -97,6 +107,23 @@ describe("clipboardActions", () => {
       { x: 0, y: 0, char: "你", color: "#ffffff" },
       { x: 2, y: 0, char: "A", color: "#ffffff" },
       { x: 0, y: 1, char: "B", color: "#ffffff" },
+    ]);
+  });
+
+  it("preserves CRLF new lines in ANSI-like clipboard text", () => {
+    expect(
+      parseAnsiClipboardText(
+        "[38;2;244;63;94m[ 比例数字 (Proportional Nums) - 每个数字宽度根据字形变化 ][0m\r\n  [38;2;251;146;60m1 1 1 . 1 1[0m",
+        "#ffffff"
+      )
+    ).toEqual([
+      ...mapAnsiCells(
+        "[ 比例数字 (Proportional Nums) - 每个数字宽度根据字形变化 ]",
+        "#f43f5e"
+      ),
+      { x: 0, y: 1, char: " ", color: "#ffffff" },
+      { x: 1, y: 1, char: " ", color: "#ffffff" },
+      ...mapAnsiCells("1 1 1 . 1 1", "#fb923c", 1, 2),
     ]);
   });
 
