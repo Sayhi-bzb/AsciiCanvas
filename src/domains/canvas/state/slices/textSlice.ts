@@ -61,13 +61,13 @@ const getNewlineTargetX = (
 ) => {
   let firstOccupiedX: number | null = null;
 
-  grid.forEach((cell, key) => {
-    if (!cell || cell.char === " ") return;
+  for (const [key, cell] of grid.entries()) {
+    if (!cell || cell.char === " ") continue;
     const { x, y } = GridManager.fromKey(key);
-    if (y !== currentY) return;
+    if (y !== currentY) continue;
     firstOccupiedX =
       firstOccupiedX === null ? x : Math.min(firstOccupiedX, x);
-  });
+  }
 
   if (firstOccupiedX === null || currentX <= firstOccupiedX) {
     return currentX;
