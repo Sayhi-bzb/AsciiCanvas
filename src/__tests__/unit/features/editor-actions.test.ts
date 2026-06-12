@@ -42,4 +42,55 @@ describe("editorHandlers clipboard sources", () => {
       })
     );
   });
+
+  it("forwards copy-ansi to runEditorCommand without a shortcut path", () => {
+    const runEditorCommandSpy = vi
+      .spyOn(editorCommands, "runEditorCommand")
+      .mockReturnValue(true);
+
+    const state = {
+      ...useCanvasStore.getState(),
+      canvasMode: "freeform" as const,
+      canCopyOrCut: () => true,
+    };
+
+    const result = editorHandlers["copy-ansi"](
+      {
+        source: "context-menu",
+      },
+      {
+        state,
+        setTool: vi.fn(),
+        onUndo: vi.fn(),
+        onRedo: vi.fn(),
+      }
+    );
+
+    expect(result.succeeded).toBe(true);
+    expect(runEditorCommandSpy).toHaveBeenCalledWith(
+      "copy-ansi",
+      expect.objectContaining({
+        source: "context-menu",
+      })
+    );
+  });
+
+  it("disables copy-ansi in structured mode", () => {
+    const result = editorHandlers["copy-ansi"](
+      { source: "context-menu" },
+      {
+        state: {
+          ...useCanvasStore.getState(),
+          canvasMode: "structured" as const,
+          canCopyOrCut: () => true,
+        },
+        setTool: vi.fn(),
+        onUndo: vi.fn(),
+        onRedo: vi.fn(),
+      }
+    );
+
+    expect(result.succeeded).toBe(false);
+    expect(result.reason).toBe("not-supported-in-structured");
+  });
 });

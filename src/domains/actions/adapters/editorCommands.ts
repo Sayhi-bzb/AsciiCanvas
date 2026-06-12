@@ -8,7 +8,7 @@ import { getFirstGrapheme } from "@/shared/utils/characters";
 
 type EditorCommand = Extract<
   ActionId,
-  "undo" | "redo" | "copy" | "copy-rich" | "cut" | "paste" | "fill-selection-char"
+  "undo" | "redo" | "copy" | "copy-rich" | "copy-ansi" | "cut" | "paste" | "fill-selection-char"
 >;
 type CommandSource = ActionSource;
 
@@ -49,13 +49,18 @@ export const runEditorCommand = (
       return true;
     case "copy":
     case "copy-rich":
-      if (state.canvasMode === "structured" && command === "copy-rich") {
+    case "copy-ansi":
+      if (
+        state.canvasMode === "structured" &&
+        (command === "copy-rich" || command === "copy-ansi")
+      ) {
         return false;
       }
       if (!state.canCopyOrCut()) return false;
       void state.copySelection({
         event: options.clipboardEvent,
         rich: command === "copy-rich",
+        ansi: command === "copy-ansi",
       });
       return true;
     case "cut":

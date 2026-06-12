@@ -435,6 +435,27 @@ export const exportSelectionToString = (
   return generateStringFromBounds(grid, minX, maxX, minY, maxY);
 };
 
+export const exportSelectionToAnsi = (
+  grid: GridMap,
+  selections: SelectionArea[],
+  options?: {
+    includeColor?: boolean;
+  }
+) => {
+  if (selections.length === 0) return "";
+  const { minX, maxX, minY, maxY } = getSelectionsBoundingBox(selections);
+  const lines: string[] = [];
+
+  for (let y = minY; y <= maxY; y++) {
+    const pieces = trimTrailingAnsiSpaces(
+      buildAnsiPiecesFromBounds(grid, minX, maxX, y, options)
+    );
+    lines.push(serializeAnsiLine(pieces));
+  }
+
+  return lines.join("\n");
+};
+
 export const exportToAnsi = (
   grid: GridMap,
   options?: {

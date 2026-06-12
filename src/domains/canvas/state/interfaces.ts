@@ -59,7 +59,7 @@ export interface SelectionSlice {
   clearInteractionState: () => void;
   canCopyOrCut: () => boolean;
   deleteSelection: () => void;
-  copySelection: (options?: { rich?: boolean; event?: ClipboardEvent }) => Promise<void>;
+  copySelection: (options?: { rich?: boolean; ansi?: boolean; event?: ClipboardEvent }) => Promise<void>;
   cutSelection: (options?: { event?: ClipboardEvent }) => Promise<void>;
   pasteFromClipboard: (options?: { eventDataTransfer?: DataTransfer }) => Promise<void>;
   copySelectionAsPng: (withGrid: boolean) => Promise<void>;

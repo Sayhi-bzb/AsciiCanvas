@@ -24,6 +24,11 @@ export const EDITOR_ACTION_META: Record<EditorActionId, ActionMeta> = {
     label: "Copy with Color",
     icon: Palette,
   },
+  "copy-ansi": {
+    id: "copy-ansi",
+    label: "Copy as ANSI",
+    icon: Palette,
+  },
   cut: { id: "cut", label: "Cut Zone", shortcut: "⌘X", icon: Scissors },
   paste: { id: "paste", label: "Paste Lot", shortcut: "⌘V", icon: Clipboard },
   "fill-selection-char": { id: "fill-selection-char", label: "Fill Selection" },
@@ -85,6 +90,7 @@ export const ACTION_CATALOG: Record<string, ActionMeta> = {
 export const CANVAS_CONTEXT_MENU: ContextMenuEntry[] = [
   { type: "action", id: "copy" },
   { type: "action", id: "copy-rich" },
+  { type: "action", id: "copy-ansi" },
   { type: "action", id: "snapshot-png" },
   { type: "action", id: "cut" },
   { type: "action", id: "paste" },

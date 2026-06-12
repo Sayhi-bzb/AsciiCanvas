@@ -82,6 +82,22 @@ export const editorHandlers: Record<
     return succeeded ? actionSucceeded() : actionFailed("command-failed");
   },
 
+  "copy-ansi": (options, context): ActionResult => {
+    const opts = options as ClipboardOptions;
+    if (context.state.canvasMode === "structured") {
+      return actionFailed("not-supported-in-structured");
+    }
+    if (!canCopyOrCut(context.state)) {
+      return actionFailed("empty-selection");
+    }
+    const succeeded = runEditorCommand("copy-ansi", {
+      source: opts.source ?? "keyboard",
+      clipboardEvent: opts.clipboardEvent,
+      managedTextarea: opts.managedTextarea,
+    });
+    return succeeded ? actionSucceeded() : actionFailed("command-failed");
+  },
+
   cut: (options, context): ActionResult => {
     const opts = options as ClipboardOptions;
     if (context.state.canvasMode === "structured") {
@@ -152,6 +168,8 @@ export const editorCheckers: Partial<Record<EditorActionId, (state: ReturnType<t
       ? state.structuredScene.length > 0
       : state.canCopyOrCut(),
   "copy-rich": (state) =>
+    state.canvasMode !== "structured" && state.canCopyOrCut(),
+  "copy-ansi": (state) =>
     state.canvasMode !== "structured" && state.canCopyOrCut(),
   cut: (state) =>
     state.canvasMode !== "structured" && state.canCopyOrCut(),

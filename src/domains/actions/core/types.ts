@@ -8,6 +8,7 @@ export type EditorActionId =
   | "redo"
   | "copy"
   | "copy-rich"
+  | "copy-ansi"
   | "cut"
   | "paste"
   | "fill-selection-char"

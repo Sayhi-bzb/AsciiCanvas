@@ -6,6 +6,7 @@ import {
   exportAnimationToGIF,
   exportAnimationToJSON,
   exportProtocolToJSON,
+  exportSelectionToAnsi,
   exportToAnsi,
 } from "@/domains/export/utils/export";
 import { normalizeAnimationTimeline } from "@/domains/canvas/state/helpers/animationHelpers";
@@ -346,6 +347,44 @@ describe("export utilities", () => {
     expect(exportToAnsi(grid)).toBe(
       "\u001b[38;2;255;0;0mAB\u001b[38;2;0;255;0mC\u001b[0m"
     );
+  });
+
+  it("exports selected cells as ANSI truecolor within the selection bounds", () => {
+    const grid: GridMap = new Map([
+      ["0,0", { char: "A", color: "#ff0000" }],
+      ["1,0", { char: "B", color: "#00ff00" }],
+      ["3,0", { char: "X", color: "#ffffff" }],
+    ]);
+
+    expect(
+      exportSelectionToAnsi(grid, [{ start: { x: 0, y: 0 }, end: { x: 1, y: 0 } }])
+    ).toBe("\u001b[38;2;255;0;0mA\u001b[38;2;0;255;0mB\u001b[0m");
+  });
+
+  it("exports selected ANSI without rich color escapes when color export is disabled", () => {
+    const grid: GridMap = new Map([
+      ["0,0", { char: "A", color: "#ff0000" }],
+      ["1,0", { char: "B", color: "#00ff00" }],
+    ]);
+
+    expect(
+      exportSelectionToAnsi(
+        grid,
+        [{ start: { x: 0, y: 0 }, end: { x: 1, y: 0 } }],
+        { includeColor: false }
+      )
+    ).toBe("AB");
+  });
+
+  it("preserves wide-character stepping in selected ANSI export", () => {
+    const grid: GridMap = new Map([
+      ["0,0", { char: "你", color: "#ffffff" }],
+      ["2,0", { char: "A", color: "#ffffff" }],
+    ]);
+
+    expect(
+      exportSelectionToAnsi(grid, [{ start: { x: 0, y: 0 }, end: { x: 2, y: 0 } }])
+    ).toBe("\u001b[38;2;255;255;255m你A\u001b[0m");
   });
 
   it("supports short hex ANSI colors and falls back to default text on invalid colors", () => {

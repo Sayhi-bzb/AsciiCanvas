@@ -102,11 +102,17 @@ export const createSelectionSlice: StateCreator<
       }
       return;
     }
-    const payload = buildClipboardPayload(grid, selections, textCursor, brushColor);
+    const payload = buildClipboardPayload(
+      grid,
+      selections,
+      textCursor,
+      brushColor,
+      options?.ansi ? "ansi" : "plain"
+    );
     if (!payload) return;
     await writeClipboardPayload(payload, {
       event: options?.event,
-      withRich: !!options?.rich,
+      withRich: !!options?.rich && !options?.ansi,
     });
   },
 

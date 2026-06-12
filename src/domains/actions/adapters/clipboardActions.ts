@@ -1,4 +1,9 @@
-import { exportSelectionToJSON, exportSelectionToString } from "@/domains/export";
+import {
+  exportSelectionToAnsi,
+  exportSelectionToJSON,
+  exportSelectionToString,
+  exportToAnsi,
+} from "@/domains/export";
 import { GridManager } from "@/shared/utils/grid";
 import type { GridMap, Point, SelectionArea } from "@/shared/types";
 import type { RichTextCell } from "@/domains/canvas/state/interfaces";
@@ -11,6 +16,8 @@ interface ClipboardPayload {
   rich: string | null;
 }
 
+type ClipboardPayloadFormat = "plain" | "ansi";
+
 export const hasClipboardSource = (
   selections: SelectionArea[],
   textCursor: Point | null
@@ -22,27 +29,37 @@ export const buildClipboardPayload = (
   grid: GridMap,
   selections: SelectionArea[],
   textCursor: Point | null,
-  brushColor: string
+  brushColor: string,
+  format: ClipboardPayloadFormat = "plain"
 ): ClipboardPayload | null => {
   if (!hasClipboardSource(selections, textCursor)) return null;
 
   if (selections.length > 0) {
     return {
-      plain: exportSelectionToString(grid, selections),
-      rich: exportSelectionToJSON(grid, selections),
+      plain:
+        format === "ansi"
+          ? exportSelectionToAnsi(grid, selections)
+          : exportSelectionToString(grid, selections),
+      rich: format === "ansi" ? null : exportSelectionToJSON(grid, selections),
     };
   }
 
   if (!textCursor) return null;
   const cell = grid.get(GridManager.toKey(textCursor.x, textCursor.y));
   const char = cell?.char || " ";
+  const singleCellGrid: GridMap = new Map([
+    ["0,0", { char, color: cell?.color || brushColor }],
+  ]);
   return {
-    plain: char,
-    rich: JSON.stringify({
-      type: "ascii-metropolis-zone",
-      version: 1,
-      cells: [{ x: 0, y: 0, char, color: cell?.color || brushColor }],
-    }),
+    plain: format === "ansi" ? exportToAnsi(singleCellGrid) : char,
+    rich:
+      format === "ansi"
+        ? null
+        : JSON.stringify({
+            type: "ascii-metropolis-zone",
+            version: 1,
+            cells: [{ x: 0, y: 0, char, color: cell?.color || brushColor }],
+          }),
   };
 };
 
