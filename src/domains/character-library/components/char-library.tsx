@@ -109,7 +109,7 @@ export function CharLibrary() {
   }
 
   return (
-    <SidebarMenu className="px-2 gap-1 pb-10">
+    <SidebarMenu className="px-0 gap-1 pb-10">
       <Collapsible defaultOpen className="group/collapsible">
         <SidebarMenuItem>
           <CollapsibleTrigger asChild>
@@ -122,7 +122,7 @@ export function CharLibrary() {
             </SidebarMenuButton>
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <SidebarMenuSub className="mr-0 pr-0 border-l ml-3">
+            <SidebarMenuSub className="mr-0 pr-0">
               {Object.entries(data.nerdfonts).map(([name, items]) => (
                 <Collapsible key={name} className="group/sub">
                   <SidebarMenuItem>
@@ -132,7 +132,7 @@ export function CharLibrary() {
                       </SidebarMenuButton>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
-                      <div className="flex flex-wrap gap-0.5 py-1 pl-1 overflow-hidden">
+                      <div className="flex flex-wrap gap-0.5 py-1 pl-0 overflow-hidden">
                         {items.map((item, idx) => (
                           <CharButton
                             key={`${name}-${item.name}-${idx}`}
@@ -163,7 +163,7 @@ export function CharLibrary() {
             </SidebarMenuButton>
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <SidebarMenuSub className="mr-0 pr-0 border-l ml-3">
+            <SidebarMenuSub className="mr-0 pr-0">
               {Object.entries(data.boxDrawing).map(([name, chars]) => (
                 <Collapsible key={name} className="group/sub">
                   <SidebarMenuItem>
@@ -173,7 +173,7 @@ export function CharLibrary() {
                       </SidebarMenuButton>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
-                      <div className="flex flex-wrap gap-0.5 py-1 pl-1 overflow-hidden">
+                      <div className="flex flex-wrap gap-0.5 py-1 pl-0 overflow-hidden">
                         {chars.map((char, idx) => (
                           <CharButton
                             key={`${name}-${idx}`}
@@ -204,7 +204,7 @@ export function CharLibrary() {
             </SidebarMenuButton>
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <SidebarMenuSub className="mr-0 pr-0 border-l ml-3">
+            <SidebarMenuSub className="mr-0 pr-0">
               {Object.entries(data.emojis).map(([groupName, subgroups]) => (
                 <Collapsible key={groupName} className="group/sub">
                   <SidebarMenuItem>
@@ -214,7 +214,7 @@ export function CharLibrary() {
                       </SidebarMenuButton>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
-                      <SidebarMenuSub className="mr-0 pr-0 border-l ml-3">
+                      <SidebarMenuSub className="mr-0 pr-0">
                         {Object.entries(subgroups).map(
                           ([subgroupName, items]) => (
                             <Collapsible
@@ -229,7 +229,7 @@ export function CharLibrary() {
                                   </SidebarMenuButton>
                                 </CollapsibleTrigger>
                                 <CollapsibleContent>
-                                  <div className="flex flex-wrap gap-0.5 py-1 pl-1 overflow-hidden">
+                                  <div className="flex flex-wrap gap-0.5 py-1 pl-0 overflow-hidden">
                                     {items.map((item, idx) => (
                                       <CharButton
                                         key={`${subgroupName}-${idx}`}
@@ -266,7 +266,7 @@ export function CharLibrary() {
             </SidebarMenuButton>
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <SidebarMenuSub className="mr-0 pr-0 border-l ml-3">
+            <SidebarMenuSub className="mr-0 pr-0">
               {Object.entries(data.alphabets).map(([name, chars]) => (
                 <Collapsible key={name} className="group/sub">
                   <SidebarMenuItem>
@@ -276,7 +276,7 @@ export function CharLibrary() {
                       </SidebarMenuButton>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
-                      <div className="flex flex-wrap gap-0.5 py-1 pl-1 overflow-hidden">
+                      <div className="flex flex-wrap gap-0.5 py-1 pl-0 overflow-hidden">
                         {chars.map((char, idx) => (
                           <CharButton
                             key={idx}
