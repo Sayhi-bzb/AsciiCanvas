@@ -6,6 +6,9 @@ const resetLibraryStore = () => {
     data: null,
     isLoading: false,
     error: null,
+    unicodeBlocks: null,
+    unicodeIsLoading: false,
+    unicodeError: null,
     searchQuery: "",
     searchResults: [],
   });
@@ -36,26 +39,36 @@ const libraryPayloads: Record<string, unknown> = {
   },
 };
 
+const mockLibraryFetch = (
+  override?: (fileName: string | undefined) => Response | undefined
+) => {
+  const requested: string[] = [];
+  vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    const fileName = String(input).match(/\/data\/(.+)\.json$/)?.[1];
+    if (fileName) requested.push(fileName);
+    const overridden = override?.(fileName);
+    if (overridden) return overridden;
+    return okJson(libraryPayloads[fileName ?? ""]);
+  });
+  return requested;
+};
+
 describe("useLibraryStore", () => {
   beforeEach(() => {
     resetLibraryStore();
     vi.restoreAllMocks();
   });
 
-  it("loads library data and merges character labels", async () => {
-    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
-      const fileName = String(input).match(/\/data\/(.+)\.json$/)?.[1];
-      return okJson(libraryPayloads[fileName ?? ""]);
-    });
+  it("loads base library data without fetching Unicode blocks", async () => {
+    const requested = mockLibraryFetch();
 
     await useLibraryStore.getState().fetchLibrary();
 
     const state = useLibraryStore.getState();
+    expect(requested).not.toContain("unicode_blocks");
     expect(state.isLoading).toBe(false);
     expect(state.error).toBeNull();
-    expect(state.data?.unicodeBlocks["Basic Latin"]).toEqual([
-      { char: "A", name: "LATIN CAPITAL LETTER A" },
-    ]);
+    expect(state.unicodeBlocks).toBeNull();
     expect(state.data?.characterLabels["─"]).toBe(
       "BOX DRAWINGS LIGHT HORIZONTAL"
     );
@@ -63,16 +76,30 @@ describe("useLibraryStore", () => {
     expect(state.data?.characterLabels[""]).toBe("nf-test");
   });
 
-  it("reports the file name when a data file returns HTML", async () => {
-    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
-      const fileName = String(input).match(/\/data\/(.+)\.json$/)?.[1];
-      if (fileName === "unicode_blocks") {
+  it("loads Unicode blocks on demand and merges Unicode labels", async () => {
+    mockLibraryFetch();
+
+    await useLibraryStore.getState().fetchLibrary();
+    await useLibraryStore.getState().fetchUnicodeBlocks();
+
+    const state = useLibraryStore.getState();
+    expect(state.unicodeBlocks?.["Basic Latin"]).toEqual([
+      { char: "A", name: "LATIN CAPITAL LETTER A" },
+    ]);
+    expect(state.unicodeIsLoading).toBe(false);
+    expect(state.unicodeError).toBeNull();
+    expect(state.data?.characterLabels.A).toBe("LATIN CAPITAL LETTER A");
+  });
+
+  it("reports the file name when base data returns HTML", async () => {
+    mockLibraryFetch((fileName) => {
+      if (fileName === "box_drawing") {
         return new Response("<!DOCTYPE html>", {
           status: 200,
           headers: { "content-type": "text/html" },
         });
       }
-      return okJson(libraryPayloads[fileName ?? ""]);
+      return undefined;
     });
 
     await useLibraryStore.getState().fetchLibrary();
@@ -80,7 +107,28 @@ describe("useLibraryStore", () => {
     const state = useLibraryStore.getState();
     expect(state.data).toBeNull();
     expect(state.isLoading).toBe(false);
-    expect(state.error).toContain("data/unicode_blocks.json");
+    expect(state.error).toContain("data/box_drawing.json");
     expect(state.error).toContain("text/html");
+  });
+
+  it("keeps base library data when Unicode loading fails", async () => {
+    mockLibraryFetch((fileName) => {
+      if (fileName === "unicode_blocks") {
+        return new Response("<!DOCTYPE html>", {
+          status: 200,
+          headers: { "content-type": "text/html" },
+        });
+      }
+      return undefined;
+    });
+
+    await useLibraryStore.getState().fetchLibrary();
+    await useLibraryStore.getState().fetchUnicodeBlocks();
+
+    const state = useLibraryStore.getState();
+    expect(state.data).not.toBeNull();
+    expect(state.unicodeBlocks).toBeNull();
+    expect(state.unicodeIsLoading).toBe(false);
+    expect(state.unicodeError).toContain("data/unicode_blocks.json");
   });
 });

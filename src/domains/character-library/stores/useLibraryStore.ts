@@ -8,8 +8,6 @@ interface CharacterEntry {
 interface LibraryData {
   entities: Record<string, Record<string, string>>;
   related: Record<string, string[]>;
-  alphabets: Record<string, CharacterEntry[]>;
-  unicodeBlocks: Record<string, CharacterEntry[]>;
   boxDrawing: Record<string, CharacterEntry[]>;
   nerdfonts: Record<string, { name: string; char: string }[]>;
   emojis: Record<string, Record<string, { name: string; char: string }[]>>;
@@ -20,9 +18,13 @@ interface LibraryState {
   data: LibraryData | null;
   isLoading: boolean;
   error: string | null;
+  unicodeBlocks: Record<string, CharacterEntry[]> | null;
+  unicodeIsLoading: boolean;
+  unicodeError: string | null;
   searchQuery: string;
   searchResults: string[];
   fetchLibrary: () => Promise<void>;
+  fetchUnicodeBlocks: () => Promise<void>;
   setSearchQuery: (query: string) => void;
 }
 
@@ -53,6 +55,9 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   data: null,
   isLoading: false,
   error: null,
+  unicodeBlocks: null,
+  unicodeIsLoading: false,
+  unicodeError: null,
   searchQuery: "",
   searchResults: [],
 
@@ -65,7 +70,6 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       const files = [
         "entities",
         "related",
-        "unicode_blocks",
         "box_drawing",
         "nerdfonts_enriched",
         "emojis_enriched",
@@ -73,7 +77,6 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
       const [
         entities,
         related,
-        unicodeBlocks,
         boxDrawing,
         nerdfonts,
         emojis,
@@ -86,14 +89,11 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
         data: {
           entities,
           related,
-          alphabets: unicodeBlocks,
-          unicodeBlocks,
           boxDrawing,
           nerdfonts,
           emojis,
           characterLabels: buildNamedCharacterLookup(
             entities,
-            unicodeBlocks,
             boxDrawing,
             nerdfonts,
             emojis
@@ -106,6 +106,35 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
         err instanceof Error ? err.message : "Failed to load library data";
       set({ error: message, isLoading: false });
       console.error("Library fetch error:", err);
+    }
+  },
+
+  fetchUnicodeBlocks: async () => {
+    if (get().unicodeBlocks || get().unicodeIsLoading) return;
+
+    set({ unicodeIsLoading: true, unicodeError: null });
+    try {
+      const base = import.meta.env.BASE_URL;
+      const unicodeBlocks = await fetchLibraryJson(base, "unicode_blocks");
+
+      set((state) => ({
+        unicodeBlocks,
+        unicodeIsLoading: false,
+        data: state.data
+          ? {
+              ...state.data,
+              characterLabels: {
+                ...state.data.characterLabels,
+                ...buildEntryLookup(unicodeBlocks),
+              },
+            }
+          : state.data,
+      }));
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to load Unicode blocks";
+      set({ unicodeError: message, unicodeIsLoading: false });
+      console.error("Unicode blocks fetch error:", err);
     }
   },
 
@@ -156,7 +185,6 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
 
 const buildNamedCharacterLookup = (
   entities: Record<string, Record<string, string>>,
-  unicodeBlocks: Record<string, CharacterEntry[]>,
   boxDrawing: Record<string, CharacterEntry[]>,
   nerdfonts: Record<string, { name: string; char: string }[]>,
   emojis: Record<string, Record<string, { name: string; char: string }[]>>
@@ -169,17 +197,7 @@ const buildNamedCharacterLookup = (
     });
   });
 
-  Object.values(unicodeBlocks).forEach((items) => {
-    items.forEach((item) => {
-      lookup[item.char] = item.name;
-    });
-  });
-
-  Object.values(boxDrawing).forEach((items) => {
-    items.forEach((item) => {
-      lookup[item.char] = item.name;
-    });
-  });
+  Object.assign(lookup, buildEntryLookup(boxDrawing));
 
   Object.values(nerdfonts).forEach((items) => {
     items.forEach((item) => {
@@ -192,6 +210,18 @@ const buildNamedCharacterLookup = (
       subgroup.forEach((item) => {
         lookup[item.char] = item.name;
       });
+    });
+  });
+
+  return lookup;
+};
+
+const buildEntryLookup = (groups: Record<string, CharacterEntry[]>) => {
+  const lookup: Record<string, string> = {};
+
+  Object.values(groups).forEach((items) => {
+    items.forEach((item) => {
+      lookup[item.char] = item.name;
     });
   });
 

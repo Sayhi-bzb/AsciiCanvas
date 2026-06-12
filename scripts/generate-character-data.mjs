@@ -13,7 +13,6 @@ const dataDir = path.join(repoRoot, "public", "data");
 
 const OUTPUTS = {
   unicodeBlocks: path.join(dataDir, "unicode_blocks.json"),
-  alphabets: path.join(dataDir, "alphabets.json"),
   boxDrawing: path.join(dataDir, "box_drawing.json"),
   emojis: path.join(dataDir, "emojis_enriched.json"),
 };
@@ -212,7 +211,6 @@ async function main() {
   await mkdir(dataDir, { recursive: true });
   await Promise.all([
     writeJson(OUTPUTS.unicodeBlocks, unicodeBlocks),
-    writeJson(OUTPUTS.alphabets, unicodeBlocks),
     writeJson(OUTPUTS.boxDrawing, boxDrawing),
     writeJson(OUTPUTS.emojis, emojis),
   ]);

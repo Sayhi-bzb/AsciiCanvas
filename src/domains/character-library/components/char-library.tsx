@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   ChevronRight,
   Sparkles,
@@ -94,8 +95,19 @@ export function CharLibrary() {
       setTool: state.setTool,
     }))
   );
-  const { data, isLoading, error, searchQuery, searchResults, fetchLibrary } =
-    useLibraryStore();
+  const {
+    data,
+    isLoading,
+    error,
+    unicodeBlocks,
+    unicodeIsLoading,
+    unicodeError,
+    searchQuery,
+    searchResults,
+    fetchLibrary,
+    fetchUnicodeBlocks,
+  } = useLibraryStore();
+  const [isUnicodeOpen, setIsUnicodeOpen] = useState(false);
 
   const getCharacterLabel = (char: string) =>
     data?.characterLabels[char] ?? getCodePointLabel(char) ?? char;
@@ -104,6 +116,11 @@ export function CharLibrary() {
     setBrushChar(char);
     setTool("brush");
     feedback.success(`Picked: ${char}`, { duration: 600, position: "top-right" });
+  };
+
+  const handleUnicodeOpenChange = (open: boolean) => {
+    setIsUnicodeOpen(open);
+    if (open) void fetchUnicodeBlocks();
   };
 
   if (searchQuery.trim() !== "") {
@@ -321,7 +338,11 @@ export function CharLibrary() {
         </SidebarMenuItem>
       </Collapsible>
 
-      <Collapsible className="group/collapsible">
+      <Collapsible
+        open={isUnicodeOpen}
+        onOpenChange={handleUnicodeOpenChange}
+        className="group/collapsible"
+      >
         <SidebarMenuItem>
           <CollapsibleTrigger asChild>
             <SidebarMenuButton>
@@ -334,7 +355,31 @@ export function CharLibrary() {
           </CollapsibleTrigger>
           <CollapsibleContent>
             <SidebarMenuSub className="mr-0 pr-0">
-              {Object.entries(data.unicodeBlocks).map(([name, items]) => (
+              {unicodeIsLoading && (
+                <div className="flex items-center gap-2 px-2 py-3 text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
+                  <Loader2 className="size-3.5 animate-spin" />
+                  Loading Unicode...
+                </div>
+              )}
+
+              {unicodeError && !unicodeBlocks && (
+                <div className="flex flex-col gap-2 px-2 py-3 text-muted-foreground">
+                  <p className="break-words text-[10px] leading-4">
+                    {unicodeError}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void fetchUnicodeBlocks()}
+                    className="inline-flex h-7 w-fit items-center gap-1.5 rounded-md bg-accent px-2 text-[10px] font-medium text-accent-foreground hover:bg-accent/80"
+                  >
+                    <RefreshCcw className="size-3" />
+                    Retry
+                  </button>
+                </div>
+              )}
+
+              {unicodeBlocks &&
+                Object.entries(unicodeBlocks).map(([name, items]) => (
                 <Collapsible key={name} className="group/sub">
                   <SidebarMenuItem>
                     <CollapsibleTrigger asChild>
