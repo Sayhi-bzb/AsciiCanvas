@@ -77,7 +77,7 @@ It now supports three session modes:
 - **Anchor Zoning**: `Shift + Click` for rapid rectangular selection.
 - **Mass Fill**: Instantly fill active selections with any character.
 - **Context Hub**: Professional menu for Copy, Copy as ANSI, Cut, Paste, and Delete operations.
-- **ANSI Clipboard**: Copy selected content as truecolor ANSI (`ESC[38;2;R;G;Bm`) and paste ANSI or ANSI-like text such as `[38;2;190;24;93m...`.
+- **ANSI Clipboard**: Copy selected content as truecolor ANSI-like text without ESC (`[38;2;R;G;Bm`) and paste standard ANSI or ANSI-like text such as `[38;2;190;24;93m...`.
 
 ---
 
@@ -96,7 +96,7 @@ It now supports three session modes:
 - **Synchronization**: Yjs / Y-IndexedDB
 - **Gestures**: @use-gesture/react
 - **Animation Export**: JSON exchange format, in-browser GIF generation
-- **Terminal Text**: ANSI SGR truecolor copy/export and ANSI-like paste parsing
+- **Terminal Text**: ANSI-like truecolor copy, standard ANSI export, and ANSI-like paste parsing
 - **UI Components**: Tailwind CSS, Shadcn UI, Radix UI
 
 ---
@@ -147,7 +147,7 @@ Paste accepts plain text, app-native rich clipboard data, and ANSI/ANSI-like tru
 - [x] Intelligent Indentation & Tab system.
 - [x] Context Menu & Clipboard integration.
 - [x] Fixed-size animation mode with timeline, onion skin, and export.
-- [x] ANSI truecolor copy/export and ANSI-like paste parsing.
+- [x] ANSI-like truecolor copy, standard ANSI export, and ANSI-like paste parsing.
 - [ ] **NES (Next Edit Suggestion)**: Predictive character placement based on layout patterns.
 - [ ] **AI Chat Integration**: Natural language interface for generating canvas components.
 - [ ] Full ANSI terminal sequence workspace and SVG export support.

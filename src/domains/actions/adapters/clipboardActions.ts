@@ -20,6 +20,8 @@ interface ClipboardPayload {
 
 type ClipboardPayloadFormat = "plain" | "ansi";
 
+const toAnsiLikeClipboardText = (value: string) => value.replaceAll("\u001b[", "[");
+
 const toHexByte = (value: number) => {
   return Math.max(0, Math.min(255, value)).toString(16).padStart(2, "0");
 };
@@ -120,7 +122,7 @@ export const buildClipboardPayload = (
     return {
       plain:
         format === "ansi"
-          ? exportSelectionToAnsi(grid, selections)
+          ? toAnsiLikeClipboardText(exportSelectionToAnsi(grid, selections))
           : exportSelectionToString(grid, selections),
       rich: format === "ansi" ? null : exportSelectionToJSON(grid, selections),
     };
@@ -133,7 +135,10 @@ export const buildClipboardPayload = (
     ["0,0", { char, color: cell?.color || brushColor }],
   ]);
   return {
-    plain: format === "ansi" ? exportToAnsi(singleCellGrid) : char,
+    plain:
+      format === "ansi"
+        ? toAnsiLikeClipboardText(exportToAnsi(singleCellGrid))
+        : char,
     rich:
       format === "ansi"
         ? null

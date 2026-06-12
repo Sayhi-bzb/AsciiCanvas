@@ -57,7 +57,7 @@ describe("clipboardActions", () => {
     );
 
     expect(payload).toEqual({
-      plain: "\u001b[38;2;255;0;0mA\u001b[38;2;0;255;0mB\u001b[0m",
+      plain: "[38;2;255;0;0mA[38;2;0;255;0mB[0m",
       rich: null,
     });
   });
@@ -133,7 +133,7 @@ describe("clipboardActions", () => {
 
     const result = await writeClipboardPayload(
       {
-        plain: "\u001b[38;2;255;0;0mA\u001b[0m",
+        plain: "[38;2;255;0;0mA[0m",
         rich: null,
       },
       {
@@ -151,7 +151,7 @@ describe("clipboardActions", () => {
     expect(setData).toHaveBeenCalledTimes(1);
     expect(setData).toHaveBeenCalledWith(
       "text/plain",
-      "\u001b[38;2;255;0;0mA\u001b[0m"
+      "[38;2;255;0;0mA[0m"
     );
   });
 });

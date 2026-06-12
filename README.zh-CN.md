@@ -67,7 +67,7 @@
 - **锚点框选**：支持 `Shift + Click` 快速创建以锚点为中心的矩形选区。
 - **批量填充**：一键用任意字符填充当前的活跃选区。
 - **上下文枢纽**：专业的右键菜单，支持复制、ANSI 格式复制、剪切、粘贴和删除操作。
-- **ANSI 剪贴板**：可将选区复制为 truecolor ANSI (`ESC[38;2;R;G;Bm`)，也能粘贴标准 ANSI 或缺少 ESC 的 ANSI-like 文本，例如 `[38;2;190;24;93m...`。
+- **ANSI 剪贴板**：可将选区复制为不带 ESC 的 truecolor ANSI-like 文本 (`[38;2;R;G;Bm`)，也能粘贴标准 ANSI 或 ANSI-like 文本，例如 `[38;2;190;24;93m...`。
 
 ---
 
@@ -88,7 +88,7 @@
 - **同步引擎**: Yjs / Y-IndexedDB
 - **手势交互**: @use-gesture/react
 - **动画导出**: JSON 交换格式、浏览器内 GIF 生成
-- **终端文本**: ANSI SGR truecolor 复制/导出与 ANSI-like 粘贴解析
+- **终端文本**: ANSI-like truecolor 复制、标准 ANSI 导出与 ANSI-like 粘贴解析
 - **UI 组件**: Tailwind CSS, Shadcn UI, Radix UI
 
 ---
@@ -139,7 +139,7 @@ npm run build
 - [x] 智能缩进与 Tab 系统
 - [x] 右键菜单与剪贴板集成
 - [x] 固定尺寸动画模式、时间轴、洋葱皮与导出能力
-- [x] ANSI truecolor 复制/导出与 ANSI-like 粘贴解析
+- [x] ANSI-like truecolor 复制、标准 ANSI 导出与 ANSI-like 粘贴解析
 - [ ] **NES (Next Edit Suggestion)**: 基于布局模式的字符预测
 - [ ] **AI Chat 集成**: 通过自然语言生成画布组件
 - [ ] 完整 ANSI terminal sequence workspace 与 SVG 导出
