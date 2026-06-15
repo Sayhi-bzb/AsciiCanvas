@@ -349,6 +349,41 @@ describe("export utilities", () => {
     );
   });
 
+  it("exports default black ANSI text without color escapes", () => {
+    const grid: GridMap = new Map([
+      ["0,0", { char: "C", color: "#000000" }],
+      ["1,0", { char: "l", color: "#000000" }],
+      ["2,0", { char: "o", color: "#000000" }],
+      ["3,0", { char: "u", color: "#000000" }],
+      ["4,0", { char: "d", color: "#000000" }],
+    ]);
+
+    expect(exportToAnsi(grid)).toBe("Cloud");
+  });
+
+  it("exports selected default black ANSI text without color escapes", () => {
+    const grid: GridMap = new Map([
+      ["0,0", { char: "C", color: "#000000" }],
+      ["1,0", { char: "l", color: "#000000" }],
+      ["2,0", { char: "o", color: "#000000" }],
+      ["3,0", { char: "u", color: "#000000" }],
+      ["4,0", { char: "d", color: "#000000" }],
+    ]);
+
+    expect(
+      exportSelectionToAnsi(grid, [{ start: { x: 0, y: 0 }, end: { x: 4, y: 0 } }])
+    ).toBe("Cloud");
+  });
+
+  it("resets to default text when ANSI color returns to black", () => {
+    const grid: GridMap = new Map([
+      ["0,0", { char: "A", color: "#ff0000" }],
+      ["1,0", { char: "B", color: "#000000" }],
+    ]);
+
+    expect(exportToAnsi(grid)).toBe("\u001b[38;2;255;0;0mA\u001b[0mB");
+  });
+
   it("exports selected cells as ANSI truecolor within the selection bounds", () => {
     const grid: GridMap = new Map([
       ["0,0", { char: "A", color: "#ff0000" }],
@@ -393,7 +428,7 @@ describe("export utilities", () => {
       ["1,0", { char: "B", color: "oklch(0.7 0.2 120)" }],
     ]);
 
-    expect(exportToAnsi(grid)).toBe("\u001b[38;2;0;255;0mA\u001b[0mB\u001b[0m");
+    expect(exportToAnsi(grid)).toBe("\u001b[38;2;0;255;0mA\u001b[0mB");
   });
 
   it("exports ANSI without escape colors when color export is disabled", () => {
@@ -420,9 +455,7 @@ describe("export utilities", () => {
       [["1,0", { char: "@", color: "#ff0000" }]]
     );
 
-    expect(ansi).toBe(
-      " \u001b[38;2;255;0;0m@\u001b[0m \u001b[0m\n   "
-    );
+    expect(ansi).toBe(" \u001b[38;2;255;0;0m@\u001b[0m \n   ");
   });
 
   it("encodes complex GIF pixel streams without corrupting LZW data", async () => {

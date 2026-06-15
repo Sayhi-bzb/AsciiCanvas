@@ -61,6 +61,7 @@ interface ProtocolExportInput {
 const GIF_GLOBAL_COLOR_COUNT = 256;
 const GIF_PALETTE_COMPONENTS = 3;
 const ANSI_RESET = "\u001b[0m";
+const ANSI_DEFAULT_FOREGROUND_COLOR = "#000000";
 const MONOCHROME_EXPORT_COLOR = COLOR_PRIMARY_TEXT;
 
 type AnsiRgb = {
@@ -312,6 +313,14 @@ const toAnsiForeground = ({ red, green, blue }: AnsiRgb) => {
   return `\u001b[38;2;${red};${green};${blue}m`;
 };
 
+const isAnsiDefaultForeground = (color: string) => {
+  const parsedColor = parseAnsiHexColor(color);
+  return (
+    color.toLowerCase() === ANSI_DEFAULT_FOREGROUND_COLOR ||
+    (parsedColor?.red === 0 && parsedColor.green === 0 && parsedColor.blue === 0)
+  );
+};
+
 type AnsiPiece = {
   char: string;
   color: string | null;
@@ -357,11 +366,13 @@ const serializeAnsiLine = (pieces: AnsiPiece[]) => {
 
   let out = "";
   let activeColor: string | null = null;
-  let usedColor = false;
 
   pieces.forEach((piece) => {
     const parsedColor = piece.color ? parseAnsiHexColor(piece.color) : null;
-    const nextColor = parsedColor && piece.color ? piece.color : null;
+    const nextColor =
+      parsedColor && piece.color && !isAnsiDefaultForeground(piece.color)
+        ? piece.color
+        : null;
 
     if (nextColor === null) {
       if (activeColor !== null) {
@@ -380,12 +391,11 @@ const serializeAnsiLine = (pieces: AnsiPiece[]) => {
     if (activeColor !== nextColor) {
       out += toAnsiForeground(parsedColor);
       activeColor = nextColor;
-      usedColor = true;
     }
     out += piece.char;
   });
 
-  return usedColor ? `${out}${ANSI_RESET}` : out;
+  return activeColor !== null ? `${out}${ANSI_RESET}` : out;
 };
 
 const generateStringFromBounds = (
