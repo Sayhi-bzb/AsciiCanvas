@@ -44,7 +44,7 @@ export function ImportButton() {
         description:
           error instanceof Error
             ? error.message
-            : "Could not import the selected JSON file.",
+            : "Could not import the selected file.",
       });
     } finally {
       setIsImporting(false);
@@ -56,7 +56,7 @@ export function ImportButton() {
       <input
         ref={fileInputRef}
         type="file"
-        accept=".json,application/json"
+        accept=".json,.cast,application/json,text/plain"
         className="sr-only"
         onChange={handleFileChange}
       />

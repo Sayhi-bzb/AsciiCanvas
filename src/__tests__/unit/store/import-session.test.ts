@@ -68,6 +68,27 @@ describe("importCanvasSession", () => {
     expect(state.grid.get("1,2")).toEqual({ char: "@", color: "#ff0000" });
   });
 
+  it("imports asciinema cast documents as animation sessions", () => {
+    const session = useCanvasStore.getState().importCanvasSession(
+      [
+        '{"version":2,"width":5,"height":2,"timestamp":1770000000,"env":{"TERM":"xterm-256color"}}',
+        '[0,"o","\\r\\u001b[38;2;255;0;0m@\\u001b[0m    \\n     "]',
+        '[0.25,"o","\\r \\u001b[38;2;0;255;0m*\\u001b[0m   \\n     "]',
+        "",
+      ].join("\n"),
+      { name: "Imported Cast" }
+    );
+
+    const state = useCanvasStore.getState();
+    expect(session.name).toBe("Imported Cast");
+    expect(session.mode).toBe("animation");
+    expect(state.canvasMode).toBe("animation");
+    expect(state.canvasBounds).toEqual({ width: 5, height: 2 });
+    expect(state.animationTimeline?.fps).toBe(4);
+    expect(state.animationTimeline?.frames).toHaveLength(2);
+    expect(state.grid.get("0,0")).toEqual({ char: "@", color: "#ff0000" });
+  });
+
   it("imports structured protocol documents as semantic scenes", () => {
     const session = useCanvasStore.getState().importCanvasSession({
       type: ASCII_CANVAS_DOCUMENT_TYPE,

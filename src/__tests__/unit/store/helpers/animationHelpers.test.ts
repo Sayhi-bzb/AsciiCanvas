@@ -6,7 +6,9 @@ import {
   clampSelectionToBounds,
   createDuplicateAnimationFrameName,
   DEFAULT_ANIMATION_SIZE,
+  MAX_ANIMATION_FPS,
   getCenteredAnimationOffset,
+  getAnimationFrameDelayMs,
   normalizeAnimationCanvasSize,
   normalizeAnimationTimeline,
   updateAnimationFrameEntries,
@@ -27,6 +29,23 @@ describe("animationHelpers", () => {
     expect(timeline.currentFrameId).toBe(timeline.frames[0].id);
     expect(timeline.frames[0].name).toBe("Frame 1");
     expect(timeline.fps).toBe(10);
+  });
+
+  it("clamps timeline fps to the supported maximum", () => {
+    const timeline = normalizeAnimationTimeline({
+      fps: MAX_ANIMATION_FPS + 100,
+      frames: [{ id: "f1", name: "Frame 1", grid: [] }],
+      currentFrameId: "f1",
+    });
+
+    expect(timeline.fps).toBe(MAX_ANIMATION_FPS);
+  });
+
+  it("converts fps to playback delay with the supported maximum", () => {
+    expect(getAnimationFrameDelayMs(1)).toBe(1000);
+    expect(getAnimationFrameDelayMs(10)).toBe(100);
+    expect(getAnimationFrameDelayMs(60)).toBeCloseTo(1000 / 60);
+    expect(getAnimationFrameDelayMs(120)).toBeCloseTo(1000 / 60);
   });
 
   it("hydrates stable frame names for legacy timelines", () => {

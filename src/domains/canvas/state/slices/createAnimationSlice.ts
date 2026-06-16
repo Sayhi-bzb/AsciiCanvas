@@ -13,6 +13,7 @@ import {
   createDuplicateAnimationFrameName,
   cloneAnimationFrame,
   DEFAULT_ANIMATION_SIZE,
+  MAX_ANIMATION_FPS,
 } from "../helpers/animationHelpers";
 import { withActiveCanvasSnapshot } from "../helpers/sessionHelpers";
 import { createMapFromEntries, serializeGrid } from "../helpers/snapshotHelpers";
@@ -289,7 +290,7 @@ export const createAnimationSlice: StateCreator<
         state.animationTimeline.currentFrameId,
         serializeGrid(state.grid)
       );
-      syncedTimeline.fps = Math.max(1, Math.min(24, Math.round(fps)));
+      syncedTimeline.fps = Math.max(1, Math.min(MAX_ANIMATION_FPS, Math.round(fps)));
       syncAnimationRuntime(syncedTimeline, {
         isPlaying: state.animationIsPlaying,
       });
@@ -409,7 +410,10 @@ export const createAnimationSlice: StateCreator<
       }
 
       if (options?.fps) {
-        nextTimeline.fps = Math.max(1, Math.min(24, Math.round(options.fps)));
+        nextTimeline.fps = Math.max(
+          1,
+          Math.min(MAX_ANIMATION_FPS, Math.round(options.fps))
+        );
       }
 
       syncAnimationRuntime(nextTimeline, {

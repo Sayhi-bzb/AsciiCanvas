@@ -4,6 +4,7 @@ import { useEffect, useMemo } from "react";
 import { ChevronLeft, ChevronRight, Pause, Play, Repeat } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
+import { getAnimationFrameDelayMs } from "@/domains/canvas/state/helpers/animationHelpers";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
@@ -52,11 +53,12 @@ export function AnimationTimeline({
       tickAnimationPlayback: state.tickAnimationPlayback,
     }))
   );
+  const playbackFps = animationTimeline?.fps;
 
   useEffect(() => {
     if (
       canvasMode !== "animation" ||
-      !animationTimeline ||
+      !playbackFps ||
       !animationIsPlaying
     ) {
       return;
@@ -64,12 +66,12 @@ export function AnimationTimeline({
 
     const intervalId = window.setInterval(() => {
       tickAnimationPlayback();
-    }, Math.max(1000 / animationTimeline.fps, 40));
+    }, getAnimationFrameDelayMs(playbackFps));
 
     return () => window.clearInterval(intervalId);
   }, [
     canvasMode,
-    animationTimeline,
+    playbackFps,
     animationIsPlaying,
     tickAnimationPlayback,
   ]);

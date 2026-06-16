@@ -15,6 +15,7 @@ export const DEFAULT_ANIMATION_SIZE: AnimationCanvasSize = {
 };
 
 export const DEFAULT_ANIMATION_FPS = 10;
+export const MAX_ANIMATION_FPS = 60;
 export const DEFAULT_ANIMATION_FRAME_NAME = "Frame";
 
 export const DEFAULT_ONION_SKIN = {
@@ -26,6 +27,14 @@ export const DEFAULT_ONION_SKIN = {
 
 const clampNumber = (value: number, min: number, max: number) => {
   return Math.max(min, Math.min(max, value));
+};
+
+export const getAnimationFrameDelayMs = (fps: number) => {
+  const safeFps = Number.isFinite(fps) ? fps : DEFAULT_ANIMATION_FPS;
+  return Math.max(
+    1000 / Math.max(safeFps, 1),
+    1000 / MAX_ANIMATION_FPS
+  );
 };
 
 export const createAnimationFrameId = () => {
@@ -261,7 +270,7 @@ export const normalizeAnimationTimeline = (
     currentFrameId,
     fps:
       typeof timeline?.fps === "number"
-        ? clampNumber(Math.round(timeline.fps), 1, 24)
+        ? clampNumber(Math.round(timeline.fps), 1, MAX_ANIMATION_FPS)
         : DEFAULT_ANIMATION_FPS,
     loop: typeof timeline?.loop === "boolean" ? timeline.loop : true,
     onionSkin: normalizeOnionSkinSettings(timeline?.onionSkin),

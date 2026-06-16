@@ -55,7 +55,7 @@
 - **固定画布预设**：支持 `80x25`、`64x64`、`128x128` 等常用尺寸，也支持自定义宽高。
 - **左侧帧栏**：可通过紧凑帧预览新增、复制、删除、拖拽排序与重命名帧。
 - **洋葱皮辅助**：支持邻近帧的 ghost/onion skin 显示，便于逐帧 ASCII 动画绘制。
-- **导出能力**：支持导出轻量 JSON 动画数据、GIF，以及当前帧 ANSI 文本。
+- **导出能力**：支持导出轻量 JSON 动画数据、GIF、asciinema `.cast`，以及当前帧 ANSI 文本。
 
 ### 4. 分布式协作
 
@@ -87,7 +87,7 @@
 - **状态管理**: Zustand (Slice Pattern)
 - **同步引擎**: Yjs / Y-IndexedDB
 - **手势交互**: @use-gesture/react
-- **动画导出**: JSON 交换格式、浏览器内 GIF 生成
+- **动画导出**: JSON 交换格式、浏览器内 GIF 生成、简单 asciinema `.cast` 帧流
 - **终端文本**: ANSI-like truecolor 复制、标准 ANSI 导出与 ANSI-like 粘贴解析
 - **UI 组件**: Tailwind CSS, Shadcn UI, Radix UI
 
@@ -128,7 +128,7 @@ npm run build
 | **铺设空格**   | `Tab`          | 光标向右移动 2 个网格单位            |
 | **上下文菜单** | `右键点击`     | 唤起复制、ANSI 复制、剪切、粘贴和删除 |
 
-粘贴支持纯文本、应用内富剪贴板数据，以及 ANSI/ANSI-like truecolor 文本。动画模式额外提供时间轴播放、逐帧切换、循环、ghost 开关与导出等 UI 控件。
+粘贴支持纯文本、应用内富剪贴板数据，以及 ANSI/ANSI-like truecolor 文本。动画模式额外提供时间轴播放、逐帧切换、循环、ghost 开关与 JSON/GIF/asciinema `.cast` 导出等 UI 控件。
 
 ---
 
@@ -139,6 +139,7 @@ npm run build
 - [x] 智能缩进与 Tab 系统
 - [x] 右键菜单与剪贴板集成
 - [x] 固定尺寸动画模式、时间轴、洋葱皮与导出能力
+- [x] 面向动画帧流的简单 asciinema `.cast` 导入/导出
 - [x] ANSI-like truecolor 复制、标准 ANSI 导出与 ANSI-like 粘贴解析
 - [ ] **NES (Next Edit Suggestion)**: 基于布局模式的字符预测
 - [ ] **AI Chat 集成**: 通过自然语言生成画布组件

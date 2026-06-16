@@ -89,6 +89,9 @@ The export dialog JSON path should use `ascii-canvas-document@v1` as the primary
 serialized format for `freeform`, `animation`, and `structured` modes.
 
 - PNG and GIF exports remain visual export paths and do not change protocol shape.
+- Asciinema `.cast` import/export is an animation-only terminal playback
+  adapter. It serializes each animation frame as a v2 output event and is not
+  the primary JSON representation.
 - Plain text export remains available for freeform copy/export workflows.
 - Structured F12 text remains a compatibility helper format and is no longer the
   primary JSON export representation.
@@ -101,3 +104,17 @@ ANSI export is a display protocol for terminals, not the canonical data format.
 - Current implementation exports foreground color only.
 - Freeform and structured ANSI output are grid-based terminal renderings.
 - Animation ANSI export targets the current frame as fixed-size terminal text.
+
+## Asciinema Cast
+
+`.cast` support targets simple frame streams, not full terminal emulation.
+
+- Import reads asciinema v2 headers and `"o"` output events into animation
+  frames.
+- Export writes one full-frame output event per animation frame using the
+  timeline FPS.
+- Imported event timing is rounded to the nearest FPS and capped at 60 FPS.
+- Supported input terminal text is limited to printable graphemes, CR/LF,
+  SGR reset, and SGR truecolor foreground sequences.
+- Cursor movement, clear-screen, background colors, and 8/256-color palette
+  terminal semantics are out of scope for this adapter.

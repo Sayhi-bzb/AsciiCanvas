@@ -65,7 +65,7 @@ It now supports three session modes:
 - **Fixed Canvas Presets**: Start animation sessions with common sizes like `80x25`, `64x64`, and `128x128`, or enter custom dimensions.
 - **Frame Sidebar**: Add, duplicate, delete, reorder, and rename frames from a dedicated left sidebar with compact previews.
 - **Onion Skin Playback**: Toggle ghosted neighboring frames for frame-by-frame ASCII animation.
-- **Export Ready**: Export animations as lightweight JSON, GIF, or ANSI text for the current frame.
+- **Export Ready**: Export animations as lightweight JSON, GIF, asciinema `.cast`, or ANSI text for the current frame.
 
 ### 4. Distributed Collaboration
 
@@ -95,7 +95,7 @@ It now supports three session modes:
 - **State Management**: Zustand (Slice Pattern)
 - **Synchronization**: Yjs / Y-IndexedDB
 - **Gestures**: @use-gesture/react
-- **Animation Export**: JSON exchange format, in-browser GIF generation
+- **Animation Export**: JSON exchange format, in-browser GIF generation, and simple asciinema `.cast` frame streams
 - **Terminal Text**: ANSI-like truecolor copy, standard ANSI export, and ANSI-like paste parsing
 - **UI Components**: Tailwind CSS, Shadcn UI, Radix UI
 
@@ -136,7 +136,7 @@ npm run build
 | **Pave Space**    | `Tab`           | Shift cursor right by 2 grid units                |
 | **Context Menu**  | `Right Click`   | Access Copy, Copy as ANSI, Cut, Paste, and Delete |
 
-Paste accepts plain text, app-native rich clipboard data, and ANSI/ANSI-like truecolor text. Animation sessions also expose timeline controls for frame stepping, playback, loop, ghost toggle, and export from the animation bar/sidebar UI.
+Paste accepts plain text, app-native rich clipboard data, and ANSI/ANSI-like truecolor text. Animation sessions also expose timeline controls for frame stepping, playback, loop, ghost toggle, and JSON/GIF/asciinema `.cast` export from the animation bar/sidebar UI.
 
 ---
 
@@ -147,6 +147,7 @@ Paste accepts plain text, app-native rich clipboard data, and ANSI/ANSI-like tru
 - [x] Intelligent Indentation & Tab system.
 - [x] Context Menu & Clipboard integration.
 - [x] Fixed-size animation mode with timeline, onion skin, and export.
+- [x] Simple asciinema `.cast` import/export for animation frame streams.
 - [x] ANSI-like truecolor copy, standard ANSI export, and ANSI-like paste parsing.
 - [ ] **NES (Next Edit Suggestion)**: Predictive character placement based on layout patterns.
 - [ ] **AI Chat Integration**: Natural language interface for generating canvas components.

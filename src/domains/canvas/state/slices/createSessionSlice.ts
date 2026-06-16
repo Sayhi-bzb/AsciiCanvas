@@ -21,6 +21,7 @@ import {
   protocolDocumentToSnapshot,
 } from "@/domains/protocol";
 import type { ProtocolImportSnapshot } from "@/domains/protocol";
+import { isLikelyAsciinemaCast, parseAsciinemaCast } from "@/domains/cast";
 
 const getImportedSessionBaseName = (mode: CanvasSession["mode"]) => {
   switch (mode) {
@@ -134,8 +135,10 @@ export const createSessionSlice: StateCreator<
       state.activeCanvasId,
       snapshot
     );
-    const document = parseProtocolDocument(raw);
-    const importedSnapshot = protocolDocumentToSnapshot(document);
+    const importedSnapshot =
+      typeof raw === "string" && isLikelyAsciinemaCast(raw)
+        ? parseAsciinemaCast(raw)
+        : protocolDocumentToSnapshot(parseProtocolDocument(raw));
     const sessionId = createSessionId(sessionsWithSnapshot);
     const sessionName = resolveImportedSessionName(
       sessionsWithSnapshot,

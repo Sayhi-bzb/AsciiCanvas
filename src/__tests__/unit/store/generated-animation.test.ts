@@ -35,6 +35,28 @@ describe("generated animation frames", () => {
     expect(timeline?.fps).toBe(12);
   });
 
+  it("clamps generated animation fps to 60", () => {
+    const store = useCanvasStore.getState();
+    store.createCanvasSession("animation", { size: { width: 8, height: 4 } });
+    useCanvasStore
+      .getState()
+      .applyGeneratedAnimationFrames(
+        [makeFrame("gen-a", "A")],
+        "insert-after-current",
+        { fps: 120 }
+      );
+
+    expect(useCanvasStore.getState().animationTimeline?.fps).toBe(60);
+  });
+
+  it("clamps manually edited animation fps to 60", () => {
+    const store = useCanvasStore.getState();
+    store.createCanvasSession("animation", { size: { width: 8, height: 4 } });
+    useCanvasStore.getState().setAnimationFps(120);
+
+    expect(useCanvasStore.getState().animationTimeline?.fps).toBe(60);
+  });
+
   it("replaces the current animation with generated frames", () => {
     const store = useCanvasStore.getState();
     store.createCanvasSession("animation", { size: { width: 8, height: 4 } });

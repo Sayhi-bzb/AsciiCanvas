@@ -39,6 +39,7 @@ import {
   exportToPNG,
   exportToString,
 } from "../utils/export";
+import { exportAnimationToCast } from "@/domains/cast";
 
 type ExportDialogProps = {
   grid: GridMap;
@@ -50,7 +51,7 @@ type ExportDialogProps = {
   setExportShowGrid: (show: boolean) => void;
 };
 
-type ExportFormat = "txt" | "json" | "ansi" | "png" | "gif";
+type ExportFormat = "txt" | "json" | "ansi" | "png" | "gif" | "cast";
 
 const PREVIEW_CHAR_LIMIT = 12_000;
 const PREVIEW_LINE_LIMIT = 160;
@@ -97,6 +98,7 @@ export function ExportDialog({
       shouldExportAnimation
         ? [
             { value: "json" as const, label: "JSON", subLabel: "protocol" },
+            { value: "cast" as const, label: "CAST", subLabel: "asciinema" },
             { value: "gif" as const, label: "GIF", subLabel: "animation" },
           ]
         : [
@@ -147,9 +149,19 @@ export function ExportDialog({
         : exportToAnsi(grid, { includeColor }),
     [shouldExportAnimation, canvasBounds, grid, includeColor]
   );
+  const castExport = useMemo(
+    () =>
+      shouldExportAnimation && canvasBounds && animationTimeline
+        ? exportAnimationToCast(canvasBounds, animationTimeline, {
+            includeColor,
+          })
+        : "",
+    [animationTimeline, canvasBounds, includeColor, shouldExportAnimation]
+  );
   const textExport = useMemo(() => {
     if (activeFormat === "json") return protocolJsonExport;
     if (activeFormat === "ansi") return ansiExport;
+    if (activeFormat === "cast") return castExport;
     if (activeFormat === "txt") {
       return shouldExportStructured ? structuredF12Export : plainTextExport;
     }
@@ -157,20 +169,25 @@ export function ExportDialog({
   }, [
     activeFormat,
     ansiExport,
+    castExport,
     plainTextExport,
     protocolJsonExport,
     shouldExportStructured,
     structuredF12Export,
   ]);
   const isTextPreview =
-    activeFormat === "txt" || activeFormat === "json" || activeFormat === "ansi";
+    activeFormat === "txt" ||
+    activeFormat === "json" ||
+    activeFormat === "ansi" ||
+    activeFormat === "cast";
   const supportsColorToggle =
     activeFormat === "json" ||
     activeFormat === "ansi" ||
+    activeFormat === "cast" ||
     activeFormat === "png" ||
     activeFormat === "gif";
   const shouldTruncatePreview =
-    activeFormat === "json" || activeFormat === "ansi";
+    activeFormat === "json" || activeFormat === "ansi" || activeFormat === "cast";
   const lineCount = useMemo(() => {
     if (shouldTruncatePreview || !textExport) return 0;
     return textExport.split("\n").length;
@@ -204,6 +221,10 @@ export function ExportDialog({
 
     if (activeFormat === "ansi") {
       return "\u001b[38;2;255;255;255m# ANSI preview will appear here\u001b[0m";
+    }
+
+    if (activeFormat === "cast") {
+      return '{"version":2,"width":80,"height":25,"env":{"TERM":"xterm-256color"}}';
     }
 
     return shouldExportStructured
@@ -259,6 +280,12 @@ export function ExportDialog({
         );
       case "json":
         return downloadTextFile(`ascii-canvas-${Date.now()}.json`, textExport);
+      case "cast":
+        return downloadTextFile(
+          `ascii-animation-${Date.now()}.cast`,
+          textExport,
+          "text/plain;charset=utf-8"
+        );
       case "ansi":
         return downloadTextFile(
           `ascii-canvas-${Date.now()}.ans`,

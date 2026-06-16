@@ -16,3 +16,4 @@ export {
   exportSelectionToJSON,
   copySelectionToPngClipboard,
 } from './utils/export';
+export { exportAnimationToCast } from "@/domains/cast";

@@ -9,6 +9,7 @@ import {
 } from "@/shared/lib/constants";
 import { Button } from "@/shared/ui/button";
 import { cn } from "@/shared/lib/utils";
+import { getAnimationFrameDelayMs } from "@/domains/canvas/state/helpers/animationHelpers";
 import {
   DEFAULT_GRID_RENDER_METRICS,
   drawTextCell,
@@ -50,7 +51,7 @@ export function AnimationExportPreview({
   useEffect(() => {
     if (!isPlaying || frameCount <= 1) return;
 
-    const delay = Math.max(1000 / Math.max(timeline.fps, 1), 40);
+    const delay = getAnimationFrameDelayMs(timeline.fps);
     const timerId = window.setInterval(() => {
       setFrameIndex((prev) => {
         const next = prev + 1;
