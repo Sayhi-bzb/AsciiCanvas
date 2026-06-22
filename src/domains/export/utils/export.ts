@@ -27,12 +27,21 @@ import {
   setTextRenderStyle,
   waitForRenderFont,
 } from "@/shared/metrics";
+import {
+  cloneTextAttributes,
+  effectiveCellStyle,
+  isSameTextAttributes,
+  parseAnsiHexColor,
+  toAnsiTruecolor,
+} from "@/shared/utils/ansi";
 
 type AnimationExchangeCell = {
   x: number;
   y: number;
   char: string;
   color: string;
+  bgColor?: string;
+  attrs?: GridCell["attrs"];
 };
 
 type AnimationExchangeDocument = {
@@ -64,12 +73,6 @@ const ANSI_RESET = "\u001b[0m";
 const ANSI_DEFAULT_FOREGROUND_COLOR = "#000000";
 const MONOCHROME_EXPORT_COLOR = COLOR_PRIMARY_TEXT;
 
-type AnsiRgb = {
-  red: number;
-  green: number;
-  blue: number;
-};
-
 const resolveExportColor = (color: string, includeColor: boolean) => {
   return includeColor ? color : MONOCHROME_EXPORT_COLOR;
 };
@@ -84,7 +87,9 @@ const applyMonochromeProtocolColor = (
       return {
         ...document,
         cells: document.cells.map((cell) => ({
-          ...cell,
+          x: cell.x,
+          y: cell.y,
+          char: cell.char,
           color: MONOCHROME_EXPORT_COLOR,
         })),
       };
@@ -94,7 +99,9 @@ const applyMonochromeProtocolColor = (
         frames: document.frames.map((frame) => ({
           ...frame,
           cells: frame.cells.map((cell) => ({
-            ...cell,
+            x: cell.x,
+            y: cell.y,
+            char: cell.char,
             color: MONOCHROME_EXPORT_COLOR,
           })),
         })),
@@ -105,7 +112,6 @@ const applyMonochromeProtocolColor = (
         nodes: document.nodes.map((node) => ({
           ...node,
           style: {
-            ...node.style,
             color: MONOCHROME_EXPORT_COLOR,
           },
         })),
@@ -286,33 +292,6 @@ const downloadBlob = (filename: string, blob: Blob) => {
   return true;
 };
 
-const parseAnsiHexColor = (value: string): AnsiRgb | null => {
-  const shortHex = /^#([\da-f]{3})$/i.exec(value);
-  if (shortHex) {
-    const [red, green, blue] = shortHex[1].split("");
-    return {
-      red: Number.parseInt(`${red}${red}`, 16),
-      green: Number.parseInt(`${green}${green}`, 16),
-      blue: Number.parseInt(`${blue}${blue}`, 16),
-    };
-  }
-
-  const fullHex = /^#([\da-f]{6})$/i.exec(value);
-  if (fullHex) {
-    return {
-      red: Number.parseInt(fullHex[1].slice(0, 2), 16),
-      green: Number.parseInt(fullHex[1].slice(2, 4), 16),
-      blue: Number.parseInt(fullHex[1].slice(4, 6), 16),
-    };
-  }
-
-  return null;
-};
-
-const toAnsiForeground = ({ red, green, blue }: AnsiRgb) => {
-  return `\u001b[38;2;${red};${green};${blue}m`;
-};
-
 const isAnsiDefaultForeground = (color: string) => {
   const parsedColor = parseAnsiHexColor(color);
   return (
@@ -323,7 +302,13 @@ const isAnsiDefaultForeground = (color: string) => {
 
 type AnsiPiece = {
   char: string;
+  cell: GridCell | null;
+};
+
+type ActiveAnsiStyle = {
   color: string | null;
+  bgColor: string | null;
+  attrs?: GridCell["attrs"];
 };
 
 const buildAnsiPiecesFromBounds = (
@@ -342,12 +327,12 @@ const buildAnsiPiecesFromBounds = (
     if (cell) {
       pieces.push({
         char: cell.char,
-        color: options?.includeColor === false ? null : cell.color,
+        cell: options?.includeColor === false ? null : cell,
       });
       if (getCellOccupancy(cell.char) === 2) x++;
       continue;
     }
-    pieces.push({ char: " ", color: null });
+    pieces.push({ char: " ", cell: null });
   }
 
   return pieces;
@@ -361,41 +346,68 @@ const trimTrailingAnsiSpaces = (pieces: AnsiPiece[]) => {
   return pieces.slice(0, end);
 };
 
+const resolveAnsiPieceStyle = (piece: AnsiPiece): ActiveAnsiStyle => {
+  if (!piece.cell) return { color: null, bgColor: null };
+  const style = effectiveCellStyle(piece.cell);
+  const color =
+    parseAnsiHexColor(style.color) && !isAnsiDefaultForeground(style.color)
+      ? style.color
+      : null;
+  return {
+    color,
+    bgColor: style.bgColor && parseAnsiHexColor(style.bgColor) ? style.bgColor : null,
+    attrs: style.attrs,
+  };
+};
+
+const sameAnsiStyle = (a: ActiveAnsiStyle, b: ActiveAnsiStyle) => {
+  return (
+    a.color === b.color &&
+    a.bgColor === b.bgColor &&
+    isSameTextAttributes(a.attrs, b.attrs)
+  );
+};
+
+const toAnsiStyleSequence = (style: ActiveAnsiStyle) => {
+  const codes: string[] = [];
+  if (style.attrs?.bold) codes.push("1");
+  if (style.attrs?.italic) codes.push("3");
+  if (style.attrs?.underline) codes.push("4");
+  if (style.attrs?.inverse) codes.push("7");
+  if (style.attrs?.strike) codes.push("9");
+  const foreground = style.color ? toAnsiTruecolor(38, style.color) : null;
+  const background = style.bgColor ? toAnsiTruecolor(48, style.bgColor) : null;
+  if (foreground) codes.push(foreground);
+  if (background) codes.push(background);
+  return codes.length > 0 ? `\u001b[${codes.join(";")}m` : "";
+};
+
 const serializeAnsiLine = (pieces: AnsiPiece[]) => {
   if (pieces.length === 0) return "";
 
   let out = "";
-  let activeColor: string | null = null;
+  let activeStyle: ActiveAnsiStyle = { color: null, bgColor: null };
 
   pieces.forEach((piece) => {
-    const parsedColor = piece.color ? parseAnsiHexColor(piece.color) : null;
-    const nextColor =
-      parsedColor && piece.color && !isAnsiDefaultForeground(piece.color)
-        ? piece.color
-        : null;
-
-    if (nextColor === null) {
-      if (activeColor !== null) {
+    const nextStyle = resolveAnsiPieceStyle(piece);
+    if (!sameAnsiStyle(activeStyle, nextStyle)) {
+      if (!sameAnsiStyle(activeStyle, { color: null, bgColor: null })) {
         out += ANSI_RESET;
-        activeColor = null;
       }
+      out += toAnsiStyleSequence(nextStyle);
+      activeStyle = nextStyle;
+    }
+    if (!piece.cell) {
       out += piece.char;
       return;
     }
 
-    if (!parsedColor) {
-      out += piece.char;
-      return;
-    }
-
-    if (activeColor !== nextColor) {
-      out += toAnsiForeground(parsedColor);
-      activeColor = nextColor;
-    }
     out += piece.char;
   });
 
-  return activeColor !== null ? `${out}${ANSI_RESET}` : out;
+  return sameAnsiStyle(activeStyle, { color: null, bgColor: null })
+    ? out
+    : `${out}${ANSI_RESET}`;
 };
 
 const generateStringFromBounds = (
@@ -529,6 +541,10 @@ export const exportSelectionToJSON = (
           y: y - minY,
           char: cell.char,
           color: cell.color,
+          ...(cell.bgColor ? { bgColor: cell.bgColor } : {}),
+          ...(cloneTextAttributes(cell.attrs)
+            ? { attrs: cloneTextAttributes(cell.attrs) }
+            : {}),
         });
       }
     }
@@ -761,6 +777,10 @@ export const buildAnimationExchangeDocument = (
           y,
           char: cell.char,
           color: cell.color,
+          ...(cell.bgColor ? { bgColor: cell.bgColor } : {}),
+          ...(cloneTextAttributes(cell.attrs)
+            ? { attrs: cloneTextAttributes(cell.attrs) }
+            : {}),
         };
       }),
     })),
@@ -895,6 +915,20 @@ const formatBounds = (node: StructuredNode) => {
   return `${bounds.x},${bounds.y},${bounds.width},${bounds.height}`;
 };
 
+const formatStyle = (style: StructuredNode["style"]) => {
+  const parts = [`color:${escapeAttr(style.color)}`];
+  if (style.bgColor) parts.push(`bgColor:${escapeAttr(style.bgColor)}`);
+  const attrs = cloneTextAttributes(style.attrs);
+  if (attrs) {
+    parts.push(
+      `attrs:${Object.keys(attrs)
+        .filter((key) => attrs[key as keyof typeof attrs])
+        .join(",")}`
+    );
+  }
+  return parts.join(";");
+};
+
 const emitTag = (
   lines: string[],
   tag: string,
@@ -918,7 +952,7 @@ export const exportStructuredF12Text = (scene: StructuredNode[]) => {
     const commonAttrs: Array<[string, string]> = [
       ["id", escapeAttr(node.id)],
       ["bounds", formatBounds(node)],
-      ["style", `color:${escapeAttr(node.style.color)}`],
+      ["style", formatStyle(node.style)],
     ];
 
     if (node.type === "box") {

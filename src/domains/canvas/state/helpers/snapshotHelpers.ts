@@ -1,6 +1,7 @@
 import type { GridCell, StructuredNode } from "@/shared/types";
 import { COLOR_PRIMARY_TEXT } from "@/shared/lib/constants";
 import { normalizeScene } from "@/shared/utils/structured";
+import { cloneTextAttributes, isSameTextAttributes } from "@/shared/utils/ansi";
 
 export const cloneStructuredNode = (node: StructuredNode): StructuredNode => {
   if (node.type === "text") {
@@ -59,6 +60,10 @@ export const normalizeGridEntries = (
         {
           char,
           color: typeof cell.color === "string" ? cell.color : fallbackColor,
+          ...(typeof cell.bgColor === "string" ? { bgColor: cell.bgColor } : {}),
+          ...(cloneTextAttributes(cell.attrs)
+            ? { attrs: cloneTextAttributes(cell.attrs) }
+            : {}),
         },
       ]);
     }
@@ -73,7 +78,12 @@ export const createMapFromEntries = (entries: unknown) => {
 
 export const isSameCell = (a?: GridCell, b?: GridCell) => {
   if (!a || !b) return false;
-  return a.char === b.char && a.color === b.color;
+  return (
+    a.char === b.char &&
+    a.color === b.color &&
+    a.bgColor === b.bgColor &&
+    isSameTextAttributes(a.attrs, b.attrs)
+  );
 };
 
 export const isPoint = (value: unknown): value is { x: number; y: number } => {

@@ -16,6 +16,18 @@ Color encoding is preserved exactly as the editor stores it today: CSS-compatibl
 color strings such as hex values. The protocol does not normalize to ANSI or a
 palette in v1.
 
+Cell and structured-node styles may also include optional `bgColor` and `attrs`
+fields. `bgColor` uses the same CSS-compatible color string convention as
+`color`. `attrs` is an object of enabled text attributes:
+
+- `bold`
+- `italic`
+- `underline`
+- `strike`
+- `inverse`
+
+Absent optional fields are equivalent to no background and no text attributes.
+
 Coordinates are absolute sparse canvas coordinates. Cells and nodes that are not
 present are omitted from the document.
 
@@ -29,7 +41,8 @@ present are omitted from the document.
   "version": 1,
   "mode": "freeform",
   "cells": [
-    { "x": 0, "y": 0, "char": "@", "color": "#ff0000" }
+    { "x": 0, "y": 0, "char": "@", "color": "#ff0000" },
+    { "x": 1, "y": 0, "char": "!", "color": "#ffffff", "bgColor": "#111111", "attrs": { "bold": true } }
   ]
 }
 ```
@@ -100,8 +113,13 @@ serialized format for `freeform`, `animation`, and `structured` modes.
 
 ANSI export is a display protocol for terminals, not the canonical data format.
 
-- ANSI output uses SGR truecolor foreground sequences (`38;2;R;G;B`).
-- Current implementation exports foreground color only.
+- ANSI output uses SGR truecolor foreground and background sequences
+  (`38;2;R;G;B` and `48;2;R;G;B`).
+- ANSI import accepts 8-color, bright 16-color, 256-color, and truecolor
+  foreground/background SGR forms, normalized to color strings in the document
+  model.
+- Supported text attributes are bold, italic, underline, strikethrough, and
+  inverse.
 - Freeform and structured ANSI output are grid-based terminal renderings.
 - Animation ANSI export targets the current frame as fixed-size terminal text.
 
@@ -115,6 +133,7 @@ ANSI export is a display protocol for terminals, not the canonical data format.
   timeline FPS.
 - Imported event timing is rounded to the nearest FPS and capped at 60 FPS.
 - Supported input terminal text is limited to printable graphemes, CR/LF,
-  SGR reset, and SGR truecolor foreground sequences.
-- Cursor movement, clear-screen, background colors, and 8/256-color palette
-  terminal semantics are out of scope for this adapter.
+  SGR reset, SGR foreground/background colors, and the supported text
+  attributes listed above.
+- Cursor movement, clear-screen, OSC, blink animation, terminal scrollback, and
+  full terminal emulation are out of scope for this adapter.

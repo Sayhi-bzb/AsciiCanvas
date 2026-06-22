@@ -9,6 +9,12 @@ import type { GridMap, Point, SelectionArea } from "@/shared/types";
 import type { RichTextCell } from "@/domains/canvas/state/interfaces";
 import { clipboard } from "@/shared/services/effects";
 import { getCellOccupancy, splitGraphemes } from "@/shared/metrics";
+import {
+  cloneTextAttributes,
+  parseSgrSequenceAt,
+  styleStateToCell,
+  type AnsiStyleState,
+} from "@/shared/utils/ansi";
 
 const MIME_RICH_DATA = "web application/x-ascii-metropolis";
 const DEFAULT_ANSI_PASTE_COLOR = "#ffffff";
@@ -22,41 +28,6 @@ type ClipboardPayloadFormat = "plain" | "ansi";
 
 const toAnsiLikeClipboardText = (value: string) => value.replaceAll("\u001b[", "[");
 
-const toHexByte = (value: number) => {
-  return Math.max(0, Math.min(255, value)).toString(16).padStart(2, "0");
-};
-
-const parseAnsiPasteSequenceAt = (input: string, index: number) => {
-  const startsWithEscape = input[index] === "\u001b" && input[index + 1] === "[";
-  const startsWithBracket = input[index] === "[";
-  if (!startsWithEscape && !startsWithBracket) return null;
-
-  const sequenceStart = startsWithEscape ? index + 2 : index + 1;
-  const sequenceEnd = input.indexOf("m", sequenceStart);
-  if (sequenceEnd === -1) return null;
-
-  const body = input.slice(sequenceStart, sequenceEnd);
-  if (body === "0") {
-    return {
-      nextIndex: sequenceEnd + 1,
-      color: null as string | null,
-      isColorSequence: false,
-    };
-  }
-
-  const colorMatch = /^38;2;(\d{1,3});(\d{1,3});(\d{1,3})$/.exec(body);
-  if (!colorMatch) return null;
-
-  const [, red, green, blue] = colorMatch;
-  return {
-    nextIndex: sequenceEnd + 1,
-    color: `#${toHexByte(Number(red))}${toHexByte(Number(green))}${toHexByte(
-      Number(blue)
-    )}`,
-    isColorSequence: true,
-  };
-};
-
 export const parseAnsiClipboardText = (
   input: string,
   defaultColor = DEFAULT_ANSI_PASTE_COLOR
@@ -67,14 +38,21 @@ export const parseAnsiClipboardText = (
   let x = 0;
   let y = 0;
   let index = 0;
-  let currentColor = defaultColor;
-  let sawColorSequence = false;
+  const defaultStyle: AnsiStyleState = { color: defaultColor };
+  let currentStyle: AnsiStyleState = { color: defaultColor };
+  let sawSgrSequence = false;
 
   while (index < input.length) {
-    const sequence = parseAnsiPasteSequenceAt(input, index);
+    const sequence = parseSgrSequenceAt(
+      input,
+      index,
+      currentStyle,
+      defaultStyle,
+      true
+    );
     if (sequence) {
-      currentColor = sequence.color ?? defaultColor;
-      sawColorSequence ||= sequence.isColorSequence;
+      currentStyle = sequence.style;
+      sawSgrSequence ||= sequence.changed;
       index = sequence.nextIndex;
       continue;
     }
@@ -93,13 +71,12 @@ export const parseAnsiClipboardText = (
     }
 
     const char = splitGraphemes(input.slice(index))[0] ?? input[index];
-
-    cells.push({ x, y, char, color: currentColor });
+    cells.push({ x, y, ...styleStateToCell(char, currentStyle) });
     x += getCellOccupancy(char);
     index += char.length;
   }
 
-  return sawColorSequence && cells.length > 0 ? cells : null;
+  return sawSgrSequence && cells.length > 0 ? cells : null;
 };
 
 export const hasClipboardSource = (
@@ -132,7 +109,17 @@ export const buildClipboardPayload = (
   const cell = grid.get(GridManager.toKey(textCursor.x, textCursor.y));
   const char = cell?.char || " ";
   const singleCellGrid: GridMap = new Map([
-    ["0,0", { char, color: cell?.color || brushColor }],
+    [
+      "0,0",
+      {
+        char,
+        color: cell?.color || brushColor,
+        ...(cell?.bgColor ? { bgColor: cell.bgColor } : {}),
+        ...(cloneTextAttributes(cell?.attrs)
+          ? { attrs: cloneTextAttributes(cell?.attrs) }
+          : {}),
+      },
+    ],
   ]);
   return {
     plain:
@@ -145,7 +132,18 @@ export const buildClipboardPayload = (
         : JSON.stringify({
             type: "ascii-metropolis-zone",
             version: 1,
-            cells: [{ x: 0, y: 0, char, color: cell?.color || brushColor }],
+            cells: [
+              {
+                x: 0,
+                y: 0,
+                char,
+                color: cell?.color || brushColor,
+                ...(cell?.bgColor ? { bgColor: cell.bgColor } : {}),
+                ...(cloneTextAttributes(cell?.attrs)
+                  ? { attrs: cloneTextAttributes(cell?.attrs) }
+                  : {}),
+              },
+            ],
           }),
   };
 };

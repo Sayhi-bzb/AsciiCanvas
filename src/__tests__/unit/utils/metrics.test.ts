@@ -28,11 +28,12 @@ describe("metrics", () => {
       expect(getTextCellWidth("abc")).toBe(3);
     });
 
-    it("treats CJK, emoji, and private-use glyphs as wide cells", () => {
+    it("treats CJK and emoji as wide cells, and private-use glyphs as narrow cells", () => {
       expect(getCellOccupancy("你")).toBe(2);
       expect(getCellOccupancy("👋")).toBe(2);
-      expect(getCellOccupancy("\ue0b0")).toBe(2);
+      expect(getCellOccupancy("\ue0b0")).toBe(1);
       expect(isWideCell("你")).toBe(true);
+      expect(isWideCell("\ue0b0")).toBe(false);
     });
 
     it("sums mixed text by grapheme occupancy", () => {

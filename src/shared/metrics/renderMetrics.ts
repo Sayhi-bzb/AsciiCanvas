@@ -24,8 +24,15 @@ export const DEFAULT_GRID_RENDER_METRICS: GridRenderMetrics = {
 
 export const getCanvasFont = (
   metrics: GridRenderMetrics = DEFAULT_GRID_RENDER_METRICS,
-  zoom = 1
-) => `${metrics.fontSize * zoom}px ${metrics.fontFamily}`;
+  zoom = 1,
+  options?: {
+    bold?: boolean;
+    italic?: boolean;
+  }
+) =>
+  `${options?.italic ? "italic " : ""}${options?.bold ? "700 " : ""}${
+    metrics.fontSize * zoom
+  }px ${metrics.fontFamily}`;
 
 export const getCellPixelSize = (
   zoom: number,

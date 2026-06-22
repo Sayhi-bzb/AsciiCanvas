@@ -1,6 +1,7 @@
 import * as Y from "yjs";
 import type { GridCell } from "@/shared/types";
-import { writeCell } from "@/shared/utils/grid-ops";
+import { writeCell, writeStyledCell } from "@/shared/utils/grid-ops";
+import { styleStateToCell, type AnsiStyleState } from "@/shared/utils/ansi";
 
 export const placeCharInMap = (
   targetMap: {
@@ -14,6 +15,16 @@ export const placeCharInMap = (
   color: string
 ) => {
   writeCell(targetMap, x, y, char, color);
+};
+
+export const placeStyledCellInYMap = (
+  targetGrid: Y.Map<GridCell>,
+  x: number,
+  y: number,
+  char: string,
+  style: AnsiStyleState
+) => {
+  writeStyledCell(targetGrid, x, y, styleStateToCell(char, style));
 };
 
 export const placeCharInYMap = (

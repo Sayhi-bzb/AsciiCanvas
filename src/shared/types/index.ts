@@ -6,11 +6,15 @@ export interface Point {
 export interface GridCell {
   char: string;
   color: string;
+  bgColor?: string;
+  attrs?: TextAttributes;
 }
 
 export interface GridPoint extends Point {
   char: string;
   color?: string;
+  bgColor?: string;
+  attrs?: TextAttributes;
 }
 
 export interface SelectionArea {
@@ -68,6 +72,16 @@ export interface NodeBounds {
 
 export interface StructuredNodeStyle {
   color: string;
+  bgColor?: string;
+  attrs?: TextAttributes;
+}
+
+export interface TextAttributes {
+  bold?: true;
+  italic?: true;
+  underline?: true;
+  strike?: true;
+  inverse?: true;
 }
 
 interface StructuredNodeBase {

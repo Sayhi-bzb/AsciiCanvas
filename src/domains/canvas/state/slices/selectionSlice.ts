@@ -221,6 +221,7 @@ export const createSelectionSlice: StateCreator<
 
           if (existingCell) {
             yMainGrid.set(key, {
+              ...existingCell,
               char: existingCell.char,
               color: brushColor,
             });

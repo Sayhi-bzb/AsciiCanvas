@@ -1,4 +1,5 @@
 import type { GridCell } from "@/shared/types";
+import { effectiveCellStyle } from "@/shared/utils/ansi";
 import { getCellOccupancy } from "./cellOccupancy";
 import {
   alignCanvasCoordinate,
@@ -80,9 +81,45 @@ export const drawTextCell = (
 ) => {
   const zoom = options?.zoom ?? 1;
   const metrics = options?.metrics ?? DEFAULT_GRID_RENDER_METRICS;
+  const style = effectiveCellStyle(cell);
   const anchor = getTextCellAnchor(x, y, cell.char, zoom, metrics);
-  ctx.fillStyle = options?.color ?? cell.color;
+  const cellWidth = metrics.cellWidth * zoom;
+  const cellHeight = metrics.cellHeight * zoom;
+  const cellPixelWidth = cellWidth * getCellOccupancy(cell.char);
+
+  if (style.bgColor) {
+    ctx.fillStyle = style.bgColor;
+    ctx.fillRect(x, y, cellPixelWidth, cellHeight);
+  }
+
+  ctx.save();
+  ctx.font = getCanvasFont(metrics, zoom, {
+    bold: !!style.attrs?.bold,
+    italic: !!style.attrs?.italic,
+  });
+  ctx.textBaseline = "middle";
+  ctx.textAlign = "center";
+  ctx.fillStyle = options?.color ?? style.color;
   ctx.fillText(cell.char, Math.round(anchor.x), Math.round(anchor.y));
+
+  const lineWidth = Math.max(1, Math.round(zoom));
+  ctx.strokeStyle = options?.color ?? style.color;
+  ctx.lineWidth = lineWidth;
+  if (style.attrs?.underline) {
+    const underlineY = alignCanvasCoordinate(y + cellHeight * 0.82, lineWidth);
+    ctx.beginPath();
+    ctx.moveTo(x, underlineY);
+    ctx.lineTo(x + cellPixelWidth, underlineY);
+    ctx.stroke();
+  }
+  if (style.attrs?.strike) {
+    const strikeY = alignCanvasCoordinate(y + cellHeight * 0.54, lineWidth);
+    ctx.beginPath();
+    ctx.moveTo(x, strikeY);
+    ctx.lineTo(x + cellPixelWidth, strikeY);
+    ctx.stroke();
+  }
+  ctx.restore();
 };
 
 export const getCellTextOffset = (

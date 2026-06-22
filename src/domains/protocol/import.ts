@@ -20,6 +20,7 @@ import type {
   AsciiCanvasStructuredDocumentV1,
 } from "./types";
 import { isAsciiCanvasDocument } from "./validation";
+import { cloneTextAttributes } from "@/shared/utils/ansi";
 
 export interface ProtocolImportSnapshot {
   mode: AsciiCanvasDocumentV1["mode"];
@@ -36,6 +37,10 @@ const toGridEntries = (cells: AsciiCanvasProtocolCellV1[]) => {
     entries.set(GridManager.toKey(cell.x, cell.y), {
       char: cell.char,
       color: cell.color,
+      ...(cell.bgColor ? { bgColor: cell.bgColor } : {}),
+      ...(cloneTextAttributes(cell.attrs)
+        ? { attrs: cloneTextAttributes(cell.attrs) }
+        : {}),
     });
   });
 
@@ -45,6 +50,13 @@ const toGridEntries = (cells: AsciiCanvasProtocolCellV1[]) => {
 const cloneStructuredProtocolNode = (
   node: AsciiCanvasProtocolNodeV1
 ): StructuredNode => {
+  const style = {
+    color: node.style.color,
+    ...(node.style.bgColor ? { bgColor: node.style.bgColor } : {}),
+    ...(cloneTextAttributes(node.style.attrs)
+      ? { attrs: cloneTextAttributes(node.style.attrs) }
+      : {}),
+  };
   switch (node.type) {
     case "box":
       return {
@@ -53,7 +65,7 @@ const cloneStructuredProtocolNode = (
         order: node.order,
         start: { ...node.start },
         end: { ...node.end },
-        style: { color: node.style.color },
+        style,
         ...(node.name ? { name: node.name } : {}),
       };
     case "line":
@@ -64,7 +76,7 @@ const cloneStructuredProtocolNode = (
         start: { ...node.start },
         end: { ...node.end },
         axis: node.axis,
-        style: { color: node.style.color },
+        style,
       };
     case "text":
       return {
@@ -73,7 +85,7 @@ const cloneStructuredProtocolNode = (
         order: node.order,
         position: { ...node.position },
         text: node.text,
-        style: { color: node.style.color },
+        style,
       };
   }
 };

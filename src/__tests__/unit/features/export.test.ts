@@ -7,6 +7,7 @@ import {
   exportAnimationToJSON,
   exportProtocolToJSON,
   exportSelectionToAnsi,
+  exportSelectionToJSON,
   exportToAnsi,
 } from "@/domains/export/utils/export";
 import { normalizeAnimationTimeline } from "@/domains/canvas/state/helpers/animationHelpers";
@@ -345,7 +346,7 @@ describe("export utilities", () => {
     ]);
 
     expect(exportToAnsi(grid)).toBe(
-      "\u001b[38;2;255;0;0mAB\u001b[38;2;0;255;0mC\u001b[0m"
+      "\u001b[38;2;255;0;0mAB\u001b[0m\u001b[38;2;0;255;0mC\u001b[0m"
     );
   });
 
@@ -393,7 +394,44 @@ describe("export utilities", () => {
 
     expect(
       exportSelectionToAnsi(grid, [{ start: { x: 0, y: 0 }, end: { x: 1, y: 0 } }])
-    ).toBe("\u001b[38;2;255;0;0mA\u001b[38;2;0;255;0mB\u001b[0m");
+    ).toBe("\u001b[38;2;255;0;0mA\u001b[0m\u001b[38;2;0;255;0mB\u001b[0m");
+  });
+
+  it("exports ANSI background and text attributes", () => {
+    const grid: GridMap = new Map([
+      [
+        "0,0",
+        {
+          char: "A",
+          color: "#ff0000",
+          bgColor: "#0000ff",
+          attrs: { bold: true, italic: true, underline: true, strike: true },
+        },
+      ],
+      ["1,0", { char: "B", color: "#000000" }],
+    ]);
+
+    expect(exportToAnsi(grid)).toBe(
+      "\u001b[1;3;4;9;38;2;255;0;0;48;2;0;0;255mA\u001b[0mB"
+    );
+  });
+
+  it("exports inverse ANSI using swapped effective colors", () => {
+    const grid: GridMap = new Map([
+      [
+        "0,0",
+        {
+          char: "A",
+          color: "#ff0000",
+          bgColor: "#0000ff",
+          attrs: { inverse: true },
+        },
+      ],
+    ]);
+
+    expect(exportToAnsi(grid)).toBe(
+      "\u001b[7;38;2;0;0;255;48;2;255;0;0mA\u001b[0m"
+    );
   });
 
   it("exports selected ANSI without rich color escapes when color export is disabled", () => {
@@ -409,6 +447,41 @@ describe("export utilities", () => {
         { includeColor: false }
       )
     ).toBe("AB");
+  });
+
+  it("exports selection rich JSON with background and text attributes", () => {
+    const grid: GridMap = new Map([
+      [
+        "0,0",
+        {
+          char: " ",
+          color: "#ffffff",
+          bgColor: "#eff6ff",
+          attrs: { bold: true },
+        },
+      ],
+    ]);
+
+    expect(
+      JSON.parse(
+        exportSelectionToJSON(grid, [
+          { start: { x: 0, y: 0 }, end: { x: 0, y: 0 } },
+        ])!
+      )
+    ).toEqual({
+      type: "ascii-metropolis-zone",
+      version: 1,
+      cells: [
+        {
+          x: 0,
+          y: 0,
+          char: " ",
+          color: "#ffffff",
+          bgColor: "#eff6ff",
+          attrs: { bold: true },
+        },
+      ],
+    });
   });
 
   it("preserves wide-character stepping in selected ANSI export", () => {

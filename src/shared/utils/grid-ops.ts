@@ -30,6 +30,16 @@ export const writeCell = (
   char: string,
   color: string
 ): WriteResult => {
+  return writeStyledCell(target, x, y, { char, color });
+};
+
+export const writeStyledCell = (
+  target: GridTarget,
+  x: number,
+  y: number,
+  cell: GridCell
+): WriteResult => {
+  const { char } = cell;
   if (!char) {
     return {
       wrote: false,
@@ -45,7 +55,7 @@ export const writeCell = (
     target.delete(leftKey);
   }
 
-  target.set(GridManager.toKey(x, y), { char, color });
+  target.set(GridManager.toKey(x, y), cell);
 
   const removedRightFollower = isWideCell(char);
   if (removedRightFollower) {

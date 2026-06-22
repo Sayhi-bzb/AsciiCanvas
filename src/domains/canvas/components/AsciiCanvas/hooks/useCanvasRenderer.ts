@@ -23,6 +23,7 @@ import {
   prepareCanvasSurface,
   setTextRenderStyle,
 } from "@/shared/metrics";
+import { effectiveCellStyle } from "@/shared/utils/ansi";
 
 interface LayerRefs {
   bg: React.RefObject<HTMLCanvasElement | null>;
@@ -95,7 +96,9 @@ export const useCanvasRenderer = (
     for (let y = viewBounds.startY; y <= viewBounds.endY; y++) {
       for (let x = viewBounds.startX; x <= viewBounds.endX; x++) {
         const cell = targetGrid.get(GridManager.toKey(x, y));
-        if (!cell || cell.char === " ") continue;
+        if (!cell) continue;
+        const style = effectiveCellStyle(cell);
+        if (cell.char === " " && !style.bgColor) continue;
 
         const pos = GridManager.gridToScreen(x, y, offset.x, offset.y, zoom);
         drawTextCell(ctx, cell, pos.x, pos.y, { zoom });

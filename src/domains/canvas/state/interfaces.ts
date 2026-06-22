@@ -10,6 +10,7 @@ import type {
   Point,
   SelectionArea,
   StructuredNode,
+  TextAttributes,
   ToolType,
 } from "@/shared/types";
 
@@ -18,6 +19,8 @@ export interface RichTextCell {
   y: number;
   char: string;
   color: string;
+  bgColor?: string;
+  attrs?: TextAttributes;
 }
 
 export interface DrawingSlice {

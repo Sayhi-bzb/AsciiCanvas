@@ -46,7 +46,7 @@
 ### 2. 智能排版系统
 
 - **缩进继承**：智能换行逻辑，自动检测并保持上一行的缩进层级。
-- **宽字符原生支持**：完美适配 **中日韩 (CJK) 字符**、**Nerd Fonts 图标** 和 **Emoji**，自动修正网格占用。
+- **网格感知 Unicode**：原生支持 **中日韩 (CJK) 字符** 与 **Emoji** 的宽字符占用，同时将 **Nerd Font / PUA 图标** 按单个网格符号放置。
 - **模块化缩进**：专业的 Tab 系统，按 2 个标准网格单位移动光标，对齐更精准。
 - **字符库**：右侧 Library 按 Unicode、Nerd Font、Emoji 与 Box Drawing 分类展示字符，并提供名称/tooltip 辅助识别。
 
@@ -67,7 +67,8 @@
 - **锚点框选**：支持 `Shift + Click` 快速创建以锚点为中心的矩形选区。
 - **批量填充**：一键用任意字符填充当前的活跃选区。
 - **上下文枢纽**：专业的右键菜单，支持复制、ANSI 格式复制、剪切、粘贴和删除操作。
-- **ANSI 剪贴板**：可将选区复制为不带 ESC 的 truecolor ANSI-like 文本 (`[38;2;R;G;Bm`)，也能粘贴标准 ANSI 或 ANSI-like 文本，例如 `[38;2;190;24;93m...`。
+- **ANSI 剪贴板**：可复制/导出 SGR 前景色、背景色与文本属性，也能粘贴标准 ESC ANSI 或 ANSI-like 文本，例如 `[38;2;190;24;93m...`。
+- **终端样式解析**：粘贴支持 8 色、亮色 16 色、256 色与 truecolor SGR 形式，也支持 bold、dim、italic、underline、strikethrough 等文本属性。Reset (`0m`) 会清除前景色、背景色和文本属性。
 
 ---
 
@@ -88,7 +89,7 @@
 - **同步引擎**: Yjs / Y-IndexedDB
 - **手势交互**: @use-gesture/react
 - **动画导出**: JSON 交换格式、浏览器内 GIF 生成、简单 asciinema `.cast` 帧流
-- **终端文本**: ANSI-like truecolor 复制、标准 ANSI 导出与 ANSI-like 粘贴解析
+- **终端文本**: SGR 前景/背景、文本属性，以及 ANSI/ANSI-like 导入导出
 - **UI 组件**: Tailwind CSS, Shadcn UI, Radix UI
 
 ---
@@ -128,7 +129,7 @@ npm run build
 | **铺设空格**   | `Tab`          | 光标向右移动 2 个网格单位            |
 | **上下文菜单** | `右键点击`     | 唤起复制、ANSI 复制、剪切、粘贴和删除 |
 
-粘贴支持纯文本、应用内富剪贴板数据，以及 ANSI/ANSI-like truecolor 文本。动画模式额外提供时间轴播放、逐帧切换、循环、ghost 开关与 JSON/GIF/asciinema `.cast` 导出等 UI 控件。
+粘贴支持纯文本、应用内富剪贴板数据，以及 ANSI/ANSI-like 终端样式文本。动画模式额外提供时间轴播放、逐帧切换、循环、ghost 开关与 JSON/GIF/asciinema `.cast` 导出等 UI 控件。
 
 ---
 
@@ -140,7 +141,7 @@ npm run build
 - [x] 右键菜单与剪贴板集成
 - [x] 固定尺寸动画模式、时间轴、洋葱皮与导出能力
 - [x] 面向动画帧流的简单 asciinema `.cast` 导入/导出
-- [x] ANSI-like truecolor 复制、标准 ANSI 导出与 ANSI-like 粘贴解析
+- [x] ANSI/ANSI-like 前景色、背景色与文本属性导入导出
 - [ ] **NES (Next Edit Suggestion)**: 基于布局模式的字符预测
 - [ ] **AI Chat 集成**: 通过自然语言生成画布组件
 - [ ] 完整 ANSI terminal sequence workspace 与 SVG 导出

@@ -4,14 +4,6 @@ const isEmojiPresentation = (value: string) => {
   return /\p{Emoji_Presentation}/u.test(value);
 };
 
-const isPrivateUseWideGlyph = (codePoint: number) => {
-  return (
-    (codePoint >= 0xe000 && codePoint <= 0xf8ff) ||
-    (codePoint >= 0xf0000 && codePoint <= 0xffffd) ||
-    (codePoint >= 0x100000 && codePoint <= 0x10fffd)
-  );
-};
-
 const isCjkOrFullwidth = (codePoint: number) => {
   return (
     (codePoint >= 0x2e80 && codePoint <= 0x9fff) ||
@@ -28,7 +20,6 @@ export const getCellOccupancy = (grapheme: string) => {
 
   if (
     isEmojiPresentation(grapheme) ||
-    isPrivateUseWideGlyph(firstCodePoint) ||
     isCjkOrFullwidth(firstCodePoint)
   ) {
     return 2;

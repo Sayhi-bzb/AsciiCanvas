@@ -8,6 +8,7 @@ import type {
   SelectionArea,
 } from "@/shared/types";
 import { DEFAULT_GRID_RENDER_METRICS } from "@/shared/metrics";
+import { cloneTextAttributes } from "@/shared/utils/ansi";
 
 export const DEFAULT_ANIMATION_SIZE: AnimationCanvasSize = {
   width: 80,
@@ -134,11 +135,22 @@ export const normalizeAnimationCanvasSize = (
   return { width, height };
 };
 
+const cloneGridCell = (cell: GridCell): GridCell => ({
+  char: cell.char,
+  color: cell.color,
+  ...(cell.bgColor ? { bgColor: cell.bgColor } : {}),
+  ...(cloneTextAttributes(cell.attrs)
+    ? { attrs: cloneTextAttributes(cell.attrs) }
+    : {}),
+});
+
 export const cloneAnimationFrame = (frame: AnimationFrame): AnimationFrame => {
   return {
     id: frame.id,
     name: getTrimmedFrameName(frame.name) || DEFAULT_ANIMATION_FRAME_NAME,
-    grid: frame.grid.map(([key, cell]) => [key, { ...cell }] satisfies [string, GridCell]),
+    grid: frame.grid.map(
+      ([key, cell]) => [key, cloneGridCell(cell)] satisfies [string, GridCell]
+    ),
   };
 };
 
@@ -232,7 +244,7 @@ export const normalizeAnimationTimeline = (
             )
             .map(
               ([key, cell]) =>
-                [key, { char: cell.char, color: cell.color }] satisfies [
+                [key, cloneGridCell(cell)] satisfies [
                   string,
                   GridCell,
                 ]
@@ -251,7 +263,7 @@ export const normalizeAnimationTimeline = (
             name: createNextAnimationFrameName([]),
             grid: fallbackGrid.map(
               ([key, cell]) =>
-                [key, { char: cell.char, color: cell.color }] satisfies [
+                [key, cloneGridCell(cell)] satisfies [
                   string,
                   GridCell,
                 ]
@@ -293,7 +305,7 @@ export const getAnimationFrameEntries = (
   return frame
     ? frame.grid.map(
         ([key, cell]) =>
-          [key, { char: cell.char, color: cell.color }] satisfies [
+          [key, cloneGridCell(cell)] satisfies [
             string,
             GridCell,
           ]
@@ -313,7 +325,7 @@ export const updateAnimationFrameEntries = (
     ...next.frames[targetIndex],
     grid: grid.map(
       ([key, cell]) =>
-        [key, { char: cell.char, color: cell.color }] satisfies [string, GridCell]
+        [key, cloneGridCell(cell)] satisfies [string, GridCell]
     ),
   };
   return next;

@@ -5,6 +5,7 @@ import type {
   GridMap,
   StructuredNode,
 } from "@/shared/types";
+import { cloneTextAttributes } from "@/shared/utils/ansi";
 import {
   ASCII_CANVAS_DOCUMENT_TYPE,
   ASCII_CANVAS_DOCUMENT_VERSION,
@@ -23,12 +24,23 @@ const sortCells = (cells: AsciiCanvasProtocolCellV1[]) => {
     if (a.y !== b.y) return a.y - b.y;
     if (a.x !== b.x) return a.x - b.x;
     if (a.char !== b.char) return a.char.localeCompare(b.char);
-    return a.color.localeCompare(b.color);
+    if (a.color !== b.color) return a.color.localeCompare(b.color);
+    return (a.bgColor ?? "").localeCompare(b.bgColor ?? "");
   });
 };
 
 const gridEntriesToCells = (
-  entries: Iterable<[string, { char: string; color: string }]>
+  entries: Iterable<
+    [
+      string,
+      {
+        char: string;
+        color: string;
+        bgColor?: string;
+        attrs?: AsciiCanvasProtocolCellV1["attrs"];
+      },
+    ]
+  >
 ) => {
   const cells: AsciiCanvasProtocolCellV1[] = [];
 
@@ -40,6 +52,10 @@ const gridEntriesToCells = (
       y,
       char: cell.char,
       color: cell.color,
+      ...(cell.bgColor ? { bgColor: cell.bgColor } : {}),
+      ...(cloneTextAttributes(cell.attrs)
+        ? { attrs: cloneTextAttributes(cell.attrs) }
+        : {}),
     });
   }
 
@@ -49,6 +65,13 @@ const gridEntriesToCells = (
 const cloneStructuredNode = (
   node: StructuredNode
 ): AsciiCanvasProtocolNodeV1 => {
+  const style = {
+    color: node.style.color,
+    ...(node.style.bgColor ? { bgColor: node.style.bgColor } : {}),
+    ...(cloneTextAttributes(node.style.attrs)
+      ? { attrs: cloneTextAttributes(node.style.attrs) }
+      : {}),
+  };
   switch (node.type) {
     case "box":
       return {
@@ -57,7 +80,7 @@ const cloneStructuredNode = (
         order: node.order,
         start: { ...node.start },
         end: { ...node.end },
-        style: { color: node.style.color },
+        style,
         ...(node.name ? { name: node.name } : {}),
       };
     case "line":
@@ -68,7 +91,7 @@ const cloneStructuredNode = (
         start: { ...node.start },
         end: { ...node.end },
         axis: node.axis,
-        style: { color: node.style.color },
+        style,
       };
     case "text":
       return {
@@ -77,7 +100,7 @@ const cloneStructuredNode = (
         order: node.order,
         position: { ...node.position },
         text: node.text,
-        style: { color: node.style.color },
+        style,
       };
   }
 };

@@ -27,6 +27,7 @@ const isProtocolCell = (value: unknown): value is AsciiCanvasProtocolCellV1 => {
     isObject(value) &&
     typeof value.char === "string" &&
     typeof value.color === "string" &&
+    hasOptionalStyleFields(value) &&
     typeof value.x === "number" &&
     Number.isFinite(value.x) &&
     typeof value.y === "number" &&
@@ -34,8 +35,27 @@ const isProtocolCell = (value: unknown): value is AsciiCanvasProtocolCellV1 => {
   );
 };
 
+const isTextAttributes = (value: unknown) => {
+  if (value === undefined) return true;
+  if (!isObject(value)) return false;
+  return ["bold", "italic", "underline", "strike", "inverse"].every(
+    (key) => value[key] === undefined || value[key] === true
+  );
+};
+
+const hasOptionalStyleFields = (value: Record<string, unknown>) => {
+  return (
+    (value.bgColor === undefined || typeof value.bgColor === "string") &&
+    isTextAttributes(value.attrs)
+  );
+};
+
 const isProtocolNodeStyle = (value: unknown): value is { color: string } => {
-  return isObject(value) && typeof value.color === "string";
+  return (
+    isObject(value) &&
+    typeof value.color === "string" &&
+    hasOptionalStyleFields(value)
+  );
 };
 
 const isStructuredNode = (value: unknown): value is AsciiCanvasProtocolNodeV1 => {

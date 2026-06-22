@@ -14,6 +14,11 @@ import type {
   GridCell,
 } from "@/shared/types";
 import { GridManager } from "@/shared/utils/grid";
+import {
+  parseSgrSequenceAt,
+  styleStateToCell,
+  type AnsiStyleState,
+} from "@/shared/utils/ansi";
 
 const ASCIINEMA_VERSION = 2;
 const DEFAULT_CAST_TERM = "xterm-256color";
@@ -28,10 +33,6 @@ type CastHeader = {
 };
 
 type CastOutputEvent = [number, "o", string];
-
-const toHexByte = (value: number) => {
-  return Math.max(0, Math.min(255, value)).toString(16).padStart(2, "0");
-};
 
 const isObject = (value: unknown): value is Record<string, unknown> => {
   return typeof value === "object" && value !== null;
@@ -75,25 +76,6 @@ export const isLikelyAsciinemaCast = (raw: string) => {
   }
 };
 
-const parseAnsiColorSequence = (body: string) => {
-  if (body === "0") return null;
-
-  const parts = body
-    .split(";")
-    .map((part) => Number.parseInt(part, 10))
-    .filter((part) => Number.isFinite(part));
-
-  for (let index = 0; index <= parts.length - 5; index += 1) {
-    if (parts[index] !== 38 || parts[index + 1] !== 2) continue;
-    const red = parts[index + 2];
-    const green = parts[index + 3];
-    const blue = parts[index + 4];
-    return `#${toHexByte(red)}${toHexByte(green)}${toHexByte(blue)}`;
-  }
-
-  return undefined;
-};
-
 const parseCsiSequenceAt = (input: string, index: number) => {
   if (input[index] !== "\u001b" || input[index + 1] !== "[") return null;
 
@@ -121,19 +103,19 @@ const ansiTextToGrid = (
   let x = 0;
   let y = 0;
   let index = 0;
-  let color = DEFAULT_CAST_COLOR;
+  const defaultStyle: AnsiStyleState = { color: DEFAULT_CAST_COLOR };
+  let style: AnsiStyleState = { color: DEFAULT_CAST_COLOR };
 
   while (index < input.length) {
+    const sgrSequence = parseSgrSequenceAt(input, index, style, defaultStyle);
+    if (sgrSequence) {
+      style = sgrSequence.style;
+      index = sgrSequence.nextIndex;
+      continue;
+    }
+
     const sequence = parseCsiSequenceAt(input, index);
     if (sequence) {
-      if (sequence.finalByte === "m") {
-        const nextColor = parseAnsiColorSequence(sequence.body);
-        if (nextColor === null) {
-          color = DEFAULT_CAST_COLOR;
-        } else if (nextColor) {
-          color = nextColor;
-        }
-      }
       index = sequence.nextIndex;
       continue;
     }
@@ -155,7 +137,7 @@ const ansiTextToGrid = (
     const width = getCellOccupancy(char);
 
     if (char !== " " && x >= 0 && y >= 0 && x < size.width && y < size.height) {
-      cells.set(GridManager.toKey(x, y), { char, color });
+      cells.set(GridManager.toKey(x, y), styleStateToCell(char, style));
     }
 
     x += width;

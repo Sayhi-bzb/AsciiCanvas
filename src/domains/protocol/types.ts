@@ -2,6 +2,7 @@ import type {
   AnimationCanvasSize,
   CanvasMode,
   Point,
+  TextAttributes,
 } from "@/shared/types";
 
 export const ASCII_CANVAS_DOCUMENT_TYPE = "ascii-canvas-document";
@@ -15,6 +16,8 @@ export interface AsciiCanvasProtocolCellV1 {
   y: number;
   char: string;
   color: string;
+  bgColor?: string;
+  attrs?: TextAttributes;
 }
 
 export interface AsciiCanvasProtocolPlaybackV1 {
@@ -30,6 +33,8 @@ export interface AsciiCanvasProtocolFrameV1 {
 
 export interface AsciiCanvasProtocolStyleV1 {
   color: string;
+  bgColor?: string;
+  attrs?: TextAttributes;
 }
 
 interface AsciiCanvasProtocolNodeBaseV1 {

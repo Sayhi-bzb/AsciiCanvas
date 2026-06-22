@@ -2,7 +2,7 @@ import type { StateCreator } from "zustand";
 import type { CanvasState, TextSlice } from "../interfaces";
 import { transactWithHistory, yMainGrid } from "@/shared/lib/yjs-setup";
 import { GridManager } from "@/shared/utils/grid";
-import { placeCharInYMap } from "../utils";
+import { placeCharInYMap, placeStyledCellInYMap } from "../utils";
 import {
   deleteCellAt,
   resolveBackspaceAnchor,
@@ -288,13 +288,11 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
           y: basePos.y + cell.y,
         };
         if (!isPointWithinBounds(nextPoint, canvasBounds)) return;
-        placeCharInYMap(
-          yMainGrid,
-          nextPoint.x,
-          nextPoint.y,
-          cell.char,
-          cell.color
-        );
+        placeStyledCellInYMap(yMainGrid, nextPoint.x, nextPoint.y, cell.char, {
+          color: cell.color,
+          ...(cell.bgColor ? { bgColor: cell.bgColor } : {}),
+          ...(cell.attrs ? { attrs: cell.attrs } : {}),
+        });
       });
     });
   },
