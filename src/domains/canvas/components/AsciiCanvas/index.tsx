@@ -4,6 +4,7 @@ import { useCanvasStore } from '@/domains/canvas/state/canvasStore';
 import { useCanvasInteraction } from './hooks/useCanvasInteraction';
 import { useCanvasRenderer } from './hooks/useCanvasRenderer';
 import { Minimap } from './Minimap';
+import { SelectionFormatToolbar } from './SelectionFormatToolbar';
 import { getCenteredAnimationOffset } from '@/domains/canvas/state/helpers/animationHelpers';
 import {
   ContextMenu,
@@ -305,6 +306,7 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
             ref={uiCanvasRef}
             className="absolute inset-0 w-full h-full block pointer-events-none"
           />
+          <SelectionFormatToolbar containerSize={size} />
           {canvasMode !== 'animation' && <Minimap containerSize={size} />}
           <textarea
             ref={textareaRef}

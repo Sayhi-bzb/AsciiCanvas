@@ -70,7 +70,11 @@ interface ProtocolExportInput {
 const GIF_GLOBAL_COLOR_COUNT = 256;
 const GIF_PALETTE_COMPONENTS = 3;
 const ANSI_RESET = "\u001b[0m";
-const ANSI_DEFAULT_FOREGROUND_COLOR = "#000000";
+const ANSI_DEFAULT_FOREGROUND_COLORS = new Set([
+  "#000000",
+  COLOR_PRIMARY_TEXT.toLowerCase(),
+  "#0f172a",
+]);
 const MONOCHROME_EXPORT_COLOR = COLOR_PRIMARY_TEXT;
 
 const resolveExportColor = (color: string, includeColor: boolean) => {
@@ -295,7 +299,7 @@ const downloadBlob = (filename: string, blob: Blob) => {
 const isAnsiDefaultForeground = (color: string) => {
   const parsedColor = parseAnsiHexColor(color);
   return (
-    color.toLowerCase() === ANSI_DEFAULT_FOREGROUND_COLOR ||
+    ANSI_DEFAULT_FOREGROUND_COLORS.has(color.toLowerCase()) ||
     (parsedColor?.red === 0 && parsedColor.green === 0 && parsedColor.blue === 0)
   );
 };

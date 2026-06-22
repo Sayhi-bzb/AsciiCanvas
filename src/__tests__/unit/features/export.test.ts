@@ -376,10 +376,31 @@ describe("export utilities", () => {
     ).toBe("Cloud");
   });
 
+  it("exports default slate ANSI text without color escapes", () => {
+    const grid: GridMap = new Map([
+      ["0,0", { char: "C", color: "#0f172a" }],
+      ["1,0", { char: "l", color: "#0f172a" }],
+      ["2,0", { char: "e", color: "#0f172a" }],
+      ["3,0", { char: "a", color: "#0f172a" }],
+      ["4,0", { char: "r", color: "#0f172a" }],
+    ]);
+
+    expect(exportToAnsi(grid)).toBe("Clear");
+  });
+
   it("resets to default text when ANSI color returns to black", () => {
     const grid: GridMap = new Map([
       ["0,0", { char: "A", color: "#ff0000" }],
       ["1,0", { char: "B", color: "#000000" }],
+    ]);
+
+    expect(exportToAnsi(grid)).toBe("\u001b[38;2;255;0;0mA\u001b[0mB");
+  });
+
+  it("resets to default text when ANSI color returns to default slate", () => {
+    const grid: GridMap = new Map([
+      ["0,0", { char: "A", color: "#ff0000" }],
+      ["1,0", { char: "B", color: "#0f172a" }],
     ]);
 
     expect(exportToAnsi(grid)).toBe("\u001b[38;2;255;0;0mA\u001b[0mB");
@@ -413,6 +434,24 @@ describe("export utilities", () => {
 
     expect(exportToAnsi(grid)).toBe(
       "\u001b[1;3;4;9;38;2;255;0;0;48;2;0;0;255mA\u001b[0mB"
+    );
+  });
+
+  it("exports background and attributes without default slate foreground escapes", () => {
+    const grid: GridMap = new Map([
+      [
+        "0,0",
+        {
+          char: "A",
+          color: "#0f172a",
+          bgColor: "#eff6ff",
+          attrs: { bold: true, underline: true },
+        },
+      ],
+    ]);
+
+    expect(exportToAnsi(grid)).toBe(
+      "\u001b[1;4;48;2;239;246;255mA\u001b[0m"
     );
   });
 

@@ -20,6 +20,7 @@ import {
 import { getStructuredNodeBounds, intersectsBounds, withPointWithinBounds } from "@/shared/utils/structured";
 import { clampSelectionToBounds } from "../helpers/animationHelpers";
 import { getCellOccupancy } from "@/shared/metrics";
+import { cloneTextAttributes } from "@/shared/utils/ansi";
 
 export const createSelectionSlice: StateCreator<
   CanvasState,
@@ -202,6 +203,44 @@ export const createSelectionSlice: StateCreator<
           for (let x = minX; x <= maxX; x += charWidth) {
             if (x + charWidth - 1 > maxX) break;
             placeCharInYMap(yMainGrid, x, y, char, brushColor);
+          }
+        }
+      });
+    });
+  },
+
+  setSelectionTextAttributes: (attrs) => {
+    const { selections, canvasMode } = get();
+    if (canvasMode === "structured") return;
+    if (selections.length === 0) return;
+
+    transactWithHistory(() => {
+      selections.forEach((area) => {
+        const { minX, maxX, minY, maxY } = getSelectionBounds(area);
+        for (let y = minY; y <= maxY; y++) {
+          for (let x = minX; x <= maxX; x++) {
+            const key = GridManager.toKey(x, y);
+            const existingCell = yMainGrid.get(key) as GridCell | undefined;
+            if (!existingCell) continue;
+
+            const nextAttrs = cloneTextAttributes(existingCell.attrs) ?? {};
+            Object.entries(attrs).forEach(([name, enabled]) => {
+              const attrName = name as "bold" | "italic" | "underline";
+              if (enabled) {
+                nextAttrs[attrName] = true;
+              } else {
+                delete nextAttrs[attrName];
+              }
+            });
+
+            const normalizedAttrs = cloneTextAttributes(nextAttrs);
+            const nextCell = { ...existingCell };
+            if (normalizedAttrs) {
+              nextCell.attrs = normalizedAttrs;
+            } else {
+              delete nextCell.attrs;
+            }
+            yMainGrid.set(key, nextCell);
           }
         }
       });

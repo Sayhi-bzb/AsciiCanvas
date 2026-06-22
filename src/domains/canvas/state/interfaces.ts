@@ -68,6 +68,9 @@ export interface SelectionSlice {
   pasteFromClipboard: (options?: { eventDataTransfer?: DataTransfer }) => Promise<void>;
   copySelectionAsPng: (withGrid: boolean) => Promise<void>;
   fillSelectionsWithChar: (char: string) => void;
+  setSelectionTextAttributes: (
+    attrs: Partial<Record<"bold" | "italic" | "underline", boolean>>
+  ) => void;
   fillArea: (area: SelectionArea) => void;
   moveSelections: (dx: number, dy: number) => void;
   expandSelection: (dx: number, dy: number) => void;

@@ -64,6 +64,12 @@ export function SessionTabs() {
   const isMobile = useIsMobile();
 
   const canRemove = canvasSessions.length > 1;
+  const forceVisible =
+    isMobile ||
+    !!editingId ||
+    createMenuOpen ||
+    animationDialogOpen ||
+    !!pendingDeleteId;
 
   useEffect(() => {
     if (!editingId) return;
@@ -108,8 +114,34 @@ export function SessionTabs() {
   };
 
   return (
-    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[70] pointer-events-none">
-      <div className={uiClass.sessionShell}>
+    <div
+      className={cn(
+        "group fixed top-0 left-1/2 z-[70] h-16 w-[min(92vw,800px)] -translate-x-1/2 pointer-events-auto",
+        isMobile && "h-auto"
+      )}
+      data-canvas-ui="true"
+    >
+      {!isMobile && (
+        <div
+          aria-hidden="true"
+          className={cn(
+            "absolute left-1/2 top-1 h-1 w-20 -translate-x-1/2 rounded-full bg-border/60 transition-opacity duration-150",
+            forceVisible
+              ? "opacity-0"
+              : "opacity-45 group-hover:opacity-0 group-focus-within:opacity-0"
+          )}
+        />
+      )}
+      <div
+        className={cn(
+          uiClass.sessionShell,
+          "absolute left-1/2 top-4 -translate-x-1/2 transition-all duration-150 ease-out",
+          !forceVisible &&
+            !isMobile &&
+            "pointer-events-none -translate-y-2 opacity-0 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:translate-y-0 group-focus-within:opacity-100",
+          forceVisible && "pointer-events-auto translate-y-0 opacity-100"
+        )}
+      >
         <div className="flex items-center gap-1 max-w-[min(85vw,760px)] md:max-w-[min(72vw,760px)] overflow-x-auto pr-1 scrollbar-hide">
           {canvasSessions.map((session) => {
             const isActive = session.id === activeCanvasId;
