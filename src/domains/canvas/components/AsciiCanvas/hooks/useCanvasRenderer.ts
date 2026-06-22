@@ -98,7 +98,7 @@ export const useCanvasRenderer = (
         const cell = targetGrid.get(GridManager.toKey(x, y));
         if (!cell) continue;
         const style = effectiveCellStyle(cell);
-        if (cell.char === " " && !style.bgColor) continue;
+        if (cell.char === " " && !style.bgColor && !style.attrs) continue;
 
         const pos = GridManager.gridToScreen(x, y, offset.x, offset.y, zoom);
         drawTextCell(ctx, cell, pos.x, pos.y, { zoom });

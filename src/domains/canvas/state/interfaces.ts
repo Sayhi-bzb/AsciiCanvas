@@ -69,8 +69,9 @@ export interface SelectionSlice {
   copySelectionAsPng: (withGrid: boolean) => Promise<void>;
   fillSelectionsWithChar: (char: string) => void;
   setSelectionTextAttributes: (
-    attrs: Partial<Record<"bold" | "italic" | "underline", boolean>>
+    attrs: Partial<Record<"bold" | "italic" | "underline" | "strike", boolean>>
   ) => void;
+  setSelectionBackgroundColor: (bgColor: string | null) => void;
   fillArea: (area: SelectionArea) => void;
   moveSelections: (dx: number, dy: number) => void;
   expandSelection: (dx: number, dy: number) => void;

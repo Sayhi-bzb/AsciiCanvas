@@ -8,13 +8,8 @@ import { GridManager } from "@/shared/utils/grid";
 import type { GridMap, Point, SelectionArea } from "@/shared/types";
 import type { RichTextCell } from "@/domains/canvas/state/interfaces";
 import { clipboard } from "@/shared/services/effects";
-import { getCellOccupancy, splitGraphemes } from "@/shared/metrics";
-import {
-  cloneTextAttributes,
-  parseSgrSequenceAt,
-  styleStateToCell,
-  type AnsiStyleState,
-} from "@/shared/utils/ansi";
+import { cloneTextAttributes } from "@/shared/utils/ansi";
+import { parseAnsiTextCells } from "@/shared/utils/ansiText";
 
 const MIME_RICH_DATA = "web application/x-ascii-metropolis";
 const DEFAULT_ANSI_PASTE_COLOR = "#ffffff";
@@ -28,56 +23,7 @@ type ClipboardPayloadFormat = "plain" | "ansi";
 
 const toAnsiLikeClipboardText = (value: string) => value.replaceAll("\u001b[", "[");
 
-export const parseAnsiClipboardText = (
-  input: string,
-  defaultColor = DEFAULT_ANSI_PASTE_COLOR
-): RichTextCell[] | null => {
-  if (!input) return null;
-
-  const cells: RichTextCell[] = [];
-  let x = 0;
-  let y = 0;
-  let index = 0;
-  const defaultStyle: AnsiStyleState = { color: defaultColor };
-  let currentStyle: AnsiStyleState = { color: defaultColor };
-  let sawSgrSequence = false;
-
-  while (index < input.length) {
-    const sequence = parseSgrSequenceAt(
-      input,
-      index,
-      currentStyle,
-      defaultStyle,
-      true
-    );
-    if (sequence) {
-      currentStyle = sequence.style;
-      sawSgrSequence ||= sequence.changed;
-      index = sequence.nextIndex;
-      continue;
-    }
-
-    if (input[index] === "\r" && input[index + 1] === "\n") {
-      x = 0;
-      y += 1;
-      index += 2;
-      continue;
-    }
-    if (input[index] === "\n" || input[index] === "\r") {
-      x = 0;
-      y += 1;
-      index += 1;
-      continue;
-    }
-
-    const char = splitGraphemes(input.slice(index))[0] ?? input[index];
-    cells.push({ x, y, ...styleStateToCell(char, currentStyle) });
-    x += getCellOccupancy(char);
-    index += char.length;
-  }
-
-  return sawSgrSequence && cells.length > 0 ? cells : null;
-};
+export const parseAnsiClipboardText = parseAnsiTextCells;
 
 export const hasClipboardSource = (
   selections: SelectionArea[],

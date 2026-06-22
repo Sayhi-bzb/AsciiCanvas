@@ -5,12 +5,22 @@ import {
 } from "@/domains/protocol";
 import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
 import { applyFreeformSnapshotToYMaps } from "@/domains/canvas/state/helpers/gridHelpers";
+import { DEFAULT_SESSION_ID } from "@/domains/canvas/state/helpers/storeUtils";
 
 describe("importCanvasSession", () => {
   const initialState = useCanvasStore.getState();
 
   afterEach(() => {
-    useCanvasStore.setState(initialState, true);
+    useCanvasStore.setState(
+      {
+        ...initialState,
+        grid: new Map(),
+        canvasSessions: initialState.canvasSessions.map((session) =>
+          session.id === DEFAULT_SESSION_ID ? { ...session, grid: [] } : session
+        ),
+      },
+      true
+    );
     applyFreeformSnapshotToYMaps([]);
   });
 

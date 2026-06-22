@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { BoldIcon, ItalicIcon, UnderlineIcon } from "lucide-react";
+import { BoldIcon, ItalicIcon, PaintBucket, UnderlineIcon } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 
 import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
@@ -17,7 +17,7 @@ type SelectionFormatToolbarProps = {
   containerSize: { width: number; height: number } | undefined;
 };
 
-const TOOLBAR_WIDTH = 132;
+const TOOLBAR_WIDTH = 178;
 const TOOLBAR_HEIGHT = 42;
 const TOOLBAR_GAP = 8;
 
@@ -65,7 +65,9 @@ export function SelectionFormatToolbar({
     offset,
     zoom,
     selections,
+    brushColor,
     setSelectionTextAttributes,
+    setSelectionBackgroundColor,
   } = useCanvasStore(
     useShallow((state) => ({
       canvasMode: state.canvasMode,
@@ -73,7 +75,9 @@ export function SelectionFormatToolbar({
       offset: state.offset,
       zoom: state.zoom,
       selections: state.selections,
+      brushColor: state.brushColor,
       setSelectionTextAttributes: state.setSelectionTextAttributes,
+      setSelectionBackgroundColor: state.setSelectionBackgroundColor,
     }))
   );
 
@@ -82,12 +86,22 @@ export function SelectionFormatToolbar({
     [grid, selections]
   );
 
-  const value = useMemo(() => {
+  const textValue = useMemo(() => {
     if (selectedCells.length === 0) return [];
     return (["bold", "italic", "underline"] as const).filter((attr) =>
       selectedCells.every((cell) => !!cell.attrs?.[attr])
     );
   }, [selectedCells]);
+
+  const hasCurrentBackground = useMemo(() => {
+    if (selectedCells.length === 0) return false;
+    return selectedCells.every((cell) => cell.bgColor === brushColor);
+  }, [brushColor, selectedCells]);
+
+  const toolbarValue = useMemo(
+    () => (hasCurrentBackground ? [...textValue, "background"] : textValue),
+    [hasCurrentBackground, textValue]
+  );
 
   const style = useMemo(() => {
     if (!containerSize || selections.length === 0) return null;
@@ -134,7 +148,7 @@ export function SelectionFormatToolbar({
     >
       <ToggleGroup
         type="multiple"
-        value={value}
+        value={toolbarValue}
         variant="outline"
         aria-label="Selection text formatting"
         onValueChange={(nextValue) => {
@@ -144,6 +158,9 @@ export function SelectionFormatToolbar({
             italic: next.has("italic"),
             underline: next.has("underline"),
           });
+          setSelectionBackgroundColor(
+            next.has("background") ? brushColor : null
+          );
         }}
       >
         <ToggleGroupItem aria-label="Toggle bold" title="Bold" value="bold">
@@ -160,6 +177,14 @@ export function SelectionFormatToolbar({
           value="underline"
         >
           <UnderlineIcon className="size-4" />
+        </ToggleGroupItem>
+        <ToggleGroupSeparator />
+        <ToggleGroupItem
+          aria-label="Toggle background fill"
+          title="Background fill"
+          value="background"
+        >
+          <PaintBucket className="size-4" style={{ color: brushColor }} />
         </ToggleGroupItem>
       </ToggleGroup>
     </div>

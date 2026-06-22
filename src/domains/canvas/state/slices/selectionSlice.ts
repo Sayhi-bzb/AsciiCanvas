@@ -210,6 +210,57 @@ export const createSelectionSlice: StateCreator<
   },
 
   setSelectionTextAttributes: (attrs) => {
+    const { selections, brushColor, canvasMode } = get();
+    if (canvasMode === "structured") return;
+    if (selections.length === 0) return;
+
+    const shouldMaterializeBlank =
+      attrs.underline === true || attrs.strike === true;
+
+    transactWithHistory(() => {
+      selections.forEach((area) => {
+        const { minX, maxX, minY, maxY } = getSelectionBounds(area);
+        for (let y = minY; y <= maxY; y++) {
+          for (let x = minX; x <= maxX; x++) {
+            const key = GridManager.toKey(x, y);
+            const existingCell = yMainGrid.get(key) as GridCell | undefined;
+            if (!existingCell && !shouldMaterializeBlank) continue;
+
+            const nextAttrs = cloneTextAttributes(existingCell?.attrs) ?? {};
+            Object.entries(attrs).forEach(([name, enabled]) => {
+              const attrName = name as "bold" | "italic" | "underline" | "strike";
+              if (enabled) {
+                nextAttrs[attrName] = true;
+              } else {
+                delete nextAttrs[attrName];
+              }
+            });
+
+            const normalizedAttrs = cloneTextAttributes(nextAttrs);
+            const nextCell: GridCell = existingCell
+              ? { ...existingCell }
+              : { char: " ", color: brushColor };
+            if (normalizedAttrs) {
+              nextCell.attrs = normalizedAttrs;
+            } else {
+              delete nextCell.attrs;
+            }
+            if (
+              nextCell.char === " " &&
+              !nextCell.bgColor &&
+              !cloneTextAttributes(nextCell.attrs)
+            ) {
+              yMainGrid.delete(key);
+              continue;
+            }
+            yMainGrid.set(key, nextCell);
+          }
+        }
+      });
+    });
+  },
+
+  setSelectionBackgroundColor: (bgColor) => {
     const { selections, canvasMode } = get();
     if (canvasMode === "structured") return;
     if (selections.length === 0) return;
@@ -223,22 +274,11 @@ export const createSelectionSlice: StateCreator<
             const existingCell = yMainGrid.get(key) as GridCell | undefined;
             if (!existingCell) continue;
 
-            const nextAttrs = cloneTextAttributes(existingCell.attrs) ?? {};
-            Object.entries(attrs).forEach(([name, enabled]) => {
-              const attrName = name as "bold" | "italic" | "underline";
-              if (enabled) {
-                nextAttrs[attrName] = true;
-              } else {
-                delete nextAttrs[attrName];
-              }
-            });
-
-            const normalizedAttrs = cloneTextAttributes(nextAttrs);
             const nextCell = { ...existingCell };
-            if (normalizedAttrs) {
-              nextCell.attrs = normalizedAttrs;
+            if (bgColor) {
+              nextCell.bgColor = bgColor;
             } else {
-              delete nextCell.attrs;
+              delete nextCell.bgColor;
             }
             yMainGrid.set(key, nextCell);
           }

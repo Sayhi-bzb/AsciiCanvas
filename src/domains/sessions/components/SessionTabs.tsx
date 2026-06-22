@@ -64,12 +64,6 @@ export function SessionTabs() {
   const isMobile = useIsMobile();
 
   const canRemove = canvasSessions.length > 1;
-  const forceVisible =
-    isMobile ||
-    !!editingId ||
-    createMenuOpen ||
-    animationDialogOpen ||
-    !!pendingDeleteId;
 
   useEffect(() => {
     if (!editingId) return;
@@ -116,33 +110,18 @@ export function SessionTabs() {
   return (
     <div
       className={cn(
-        "group fixed top-0 left-1/2 z-[70] h-16 w-[min(92vw,800px)] -translate-x-1/2 pointer-events-auto",
-        isMobile && "h-auto"
+        "fixed left-1/2 top-3 z-[70] w-[min(92vw,820px)] -translate-x-1/2 pointer-events-none",
+        isMobile && "top-2 w-[min(96vw,820px)]"
       )}
       data-canvas-ui="true"
     >
-      {!isMobile && (
-        <div
-          aria-hidden="true"
-          className={cn(
-            "absolute left-1/2 top-1 h-1 w-20 -translate-x-1/2 rounded-full bg-border/60 transition-opacity duration-150",
-            forceVisible
-              ? "opacity-0"
-              : "opacity-45 group-hover:opacity-0 group-focus-within:opacity-0"
-          )}
-        />
-      )}
       <div
         className={cn(
           uiClass.sessionShell,
-          "absolute left-1/2 top-4 -translate-x-1/2 transition-all duration-150 ease-out",
-          !forceVisible &&
-            !isMobile &&
-            "pointer-events-none -translate-y-2 opacity-0 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:translate-y-0 group-focus-within:opacity-100",
-          forceVisible && "pointer-events-auto translate-y-0 opacity-100"
+          "w-full min-w-0 rounded-xl border-border/80 bg-background/88 px-1.5 py-1 shadow-lg shadow-black/8"
         )}
       >
-        <div className="flex items-center gap-1 max-w-[min(85vw,760px)] md:max-w-[min(72vw,760px)] overflow-x-auto pr-1 scrollbar-hide">
+        <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto pr-1 scrollbar-hide">
           {canvasSessions.map((session) => {
             const isActive = session.id === activeCanvasId;
             const ModeIcon =
@@ -161,10 +140,10 @@ export function SessionTabs() {
               <div
                 key={session.id}
                 className={cn(
-                  "group flex items-center rounded-lg transition-colors",
+                  "group/tab flex shrink-0 items-center rounded-lg border transition-colors",
                   isActive
-                    ? "bg-primary/12"
-                    : "bg-transparent hover:bg-accent/60"
+                    ? "border-primary/25 bg-primary/10"
+                    : "border-transparent bg-transparent hover:bg-accent/55"
                 )}
               >
                 {editingId === session.id ? (
@@ -190,9 +169,9 @@ export function SessionTabs() {
                     onClick={() => switchCanvasSession(session.id)}
                     onDoubleClick={() => startRename(session.id, session.name)}
                     className={cn(
-                      "h-8 text-xs font-medium whitespace-nowrap outline-none flex items-center gap-1.5",
-                      isActive ? "text-primary" : "text-foreground",
-                      isMobile ? "px-2 max-w-20" : "px-3 max-w-44"
+                      "h-8 min-w-0 text-xs font-medium whitespace-nowrap outline-none flex items-center gap-1.5",
+                      isActive ? "text-primary" : "text-foreground/88",
+                      isMobile ? "px-2 max-w-24" : "px-3 max-w-44"
                     )}
                     title={`${session.name} (${modeLabel})`}
                   >
@@ -213,9 +192,9 @@ export function SessionTabs() {
                   }}
                   disabled={!canRemove}
                   className={cn(
-                    "h-8 w-7 flex items-center justify-center rounded-r-lg transition-colors",
+                    "h-8 w-7 flex shrink-0 items-center justify-center rounded-r-lg transition-colors",
                     canRemove
-                      ? "text-muted-foreground hover:text-destructive"
+                      ? "text-muted-foreground/55 opacity-65 hover:text-destructive hover:opacity-100 group-hover/tab:opacity-100 group-focus-within/tab:opacity-100"
                       : "text-muted-foreground/40 cursor-not-allowed"
                   )}
                   aria-label={`Close ${session.name}`}

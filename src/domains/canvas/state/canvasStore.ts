@@ -54,10 +54,15 @@ import {
   buildSessionSnapshot,
   resolveSessionRuntime,
 } from "./helpers/storeUtils";
+import { DEFAULT_DEMO_GRID } from "./helpers/defaultDemo";
 
 export const useCanvasStore = create<CanvasState>()(
   persist(
     (set, get, ...a) => {
+      if (yMainGrid.size === 0 && yStructuredScene.size === 0) {
+        applyFreeformSnapshotToYMaps(DEFAULT_DEMO_GRID);
+      }
+
       yMainGrid.observe((event) => {
         const currentGrid = get().grid;
         const patchedGrid = patchGridByChangedKeys(currentGrid, event.keysChanged);
@@ -78,7 +83,7 @@ export const useCanvasStore = create<CanvasState>()(
       return {
         offset: { x: 0, y: 0 },
         zoom: 1,
-        grid: new Map(),
+        grid: createMapFromEntries(DEFAULT_DEMO_GRID),
         canvasMode: DEFAULT_MODE,
         structuredScene: [],
         canvasBounds: null,
@@ -90,7 +95,7 @@ export const useCanvasStore = create<CanvasState>()(
             name: DEFAULT_SESSION_NAME,
             mode: DEFAULT_MODE,
             scene: [],
-            grid: [],
+            grid: DEFAULT_DEMO_GRID,
           },
         ],
         activeCanvasId: DEFAULT_SESSION_ID,
@@ -189,6 +194,10 @@ export const useCanvasStore = create<CanvasState>()(
         };
       },
       onRehydrateStorage: () => {
+        const hasPersistedState =
+          typeof localStorage !== "undefined" &&
+          localStorage.getItem("ascii-canvas-persistence") !== null;
+
         return (hydratedState, error) => {
           if (error || !hydratedState) return;
           const hState = hydratedState as CanvasState & {
@@ -277,7 +286,10 @@ export const useCanvasStore = create<CanvasState>()(
                     name: DEFAULT_SESSION_NAME,
                     mode: legacyMode,
                     scene: normalizeAndCloneScene(legacyScene),
-                    grid: legacyGridEntries,
+                    grid:
+                      !hasPersistedState && legacyGridEntries.length === 0
+                        ? DEFAULT_DEMO_GRID
+                        : legacyGridEntries,
                   },
                 ];
 
