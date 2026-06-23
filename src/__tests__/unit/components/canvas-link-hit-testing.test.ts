@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { resolveCanvasLinkHit } from "@/domains/canvas/components/AsciiCanvas/hooks/linkHitTesting";
+import { shouldOpenCanvasLink } from "@/domains/canvas/components/AsciiCanvas/hooks/useCanvasInteraction";
 import { DEFAULT_GRID_RENDER_METRICS } from "@/shared/metrics";
 import type { GridMap } from "@/shared/types";
 
@@ -91,5 +92,12 @@ describe("resolveCanvasLinkHit", () => {
         canvasBounds: { width: 10, height: 10 },
       })
     ).toBeNull();
+  });
+});
+describe("shouldOpenCanvasLink", () => {
+  it("requires Ctrl or Meta before opening a canvas link", () => {
+    expect(shouldOpenCanvasLink({ ctrlKey: false, metaKey: false })).toBe(false);
+    expect(shouldOpenCanvasLink({ ctrlKey: true, metaKey: false })).toBe(true);
+    expect(shouldOpenCanvasLink({ ctrlKey: false, metaKey: true })).toBe(true);
   });
 });

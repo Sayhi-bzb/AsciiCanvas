@@ -59,6 +59,9 @@ const isFromCanvasUi = (event: Event | undefined) => {
   );
 };
 
+export const shouldOpenCanvasLink = (event: Pick<MouseEvent, "ctrlKey" | "metaKey">) =>
+  event.ctrlKey || event.metaKey;
+
 export const useCanvasInteraction = (
   store: Pick<
     CanvasState,
@@ -543,6 +546,7 @@ export const useCanvasInteraction = (
         const mouseEvent = event as MouseEvent;
         const linkHit = resolveLinkHitFromScreen(mouseEvent.clientX, mouseEvent.clientY);
         if (!linkHit) return;
+        if (!shouldOpenCanvasLink(mouseEvent)) return;
         event.preventDefault();
         window.open(linkHit.href, "_blank", "noopener,noreferrer");
         setHoveredLink(linkHit);
