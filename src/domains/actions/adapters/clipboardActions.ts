@@ -64,6 +64,7 @@ export const buildClipboardPayload = (
         ...(cloneTextAttributes(cell?.attrs)
           ? { attrs: cloneTextAttributes(cell?.attrs) }
           : {}),
+        ...(cell?.href ? { href: cell.href } : {}),
       },
     ],
   ]);
@@ -88,6 +89,7 @@ export const buildClipboardPayload = (
                 ...(cloneTextAttributes(cell?.attrs)
                   ? { attrs: cloneTextAttributes(cell?.attrs) }
                   : {}),
+                ...(cell?.href ? { href: cell.href } : {}),
               },
             ],
           }),

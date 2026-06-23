@@ -21,6 +21,7 @@ export interface RichTextCell {
   color: string;
   bgColor?: string;
   attrs?: TextAttributes;
+  href?: string;
 }
 
 export interface DrawingSlice {

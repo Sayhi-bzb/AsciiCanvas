@@ -10,6 +10,7 @@ import {
 import type { CanvasState } from "@/domains/canvas/state/canvasStore";
 import { GridManager } from "@/shared/utils/grid";
 import type { SelectionArea, GridMap, Point } from "@/shared/types";
+import type { CanvasLinkHit } from "./linkHitTesting";
 import { getSelectionBounds } from "@/shared/utils/selection";
 import { createMapFromEntries } from "@/domains/canvas/state/helpers/snapshotHelpers";
 import { getAnimationFrameIndex } from "@/domains/canvas/state/helpers/animationHelpers";
@@ -49,7 +50,8 @@ export const useCanvasRenderer = (
     | "canvasBounds"
     | "animationTimeline"
   >,
-  draggingSelection: SelectionArea | null
+  draggingSelection: SelectionArea | null,
+  hoveredLink: CanvasLinkHit | null
 ) => {
   const {
     offset,
@@ -101,7 +103,15 @@ export const useCanvasRenderer = (
         if (cell.char === " " && !style.bgColor && !style.attrs) continue;
 
         const pos = GridManager.gridToScreen(x, y, offset.x, offset.y, zoom);
-        drawTextCell(ctx, cell, pos.x, pos.y, { zoom });
+        drawTextCell(ctx, cell, pos.x, pos.y, {
+          zoom,
+          underline:
+            !!cell.href &&
+            hoveredLink?.href === cell.href &&
+            hoveredLink.y === y &&
+            x >= hoveredLink.startX &&
+            x <= hoveredLink.endX,
+        });
       }
     }
     ctx.restore();
@@ -356,5 +366,6 @@ export const useCanvasRenderer = (
     canvasBounds,
     animationTimeline,
     layers,
+    hoveredLink,
   ]);
 };

@@ -1,7 +1,11 @@
 import type { GridCell, StructuredNode } from "@/shared/types";
 import { COLOR_PRIMARY_TEXT } from "@/shared/lib/constants";
 import { normalizeScene } from "@/shared/utils/structured";
-import { cloneTextAttributes, isSameTextAttributes } from "@/shared/utils/ansi";
+import {
+  cloneTextAttributes,
+  isSameTextAttributes,
+  normalizeCellHref,
+} from "@/shared/utils/ansi";
 
 export const cloneStructuredNode = (node: StructuredNode): StructuredNode => {
   if (node.type === "text") {
@@ -64,6 +68,7 @@ export const normalizeGridEntries = (
           ...(cloneTextAttributes(cell.attrs)
             ? { attrs: cloneTextAttributes(cell.attrs) }
             : {}),
+          ...(normalizeCellHref(cell.href) ? { href: normalizeCellHref(cell.href) } : {}),
         },
       ]);
     }
@@ -82,6 +87,7 @@ export const isSameCell = (a?: GridCell, b?: GridCell) => {
     a.char === b.char &&
     a.color === b.color &&
     a.bgColor === b.bgColor &&
+    a.href === b.href &&
     isSameTextAttributes(a.attrs, b.attrs)
   );
 };

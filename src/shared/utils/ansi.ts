@@ -4,6 +4,7 @@ export type AnsiStyleState = {
   color: string;
   bgColor?: string;
   attrs?: TextAttributes;
+  href?: string;
 };
 
 export type AnsiToken = {
@@ -63,6 +64,10 @@ export const normalizeCellStyle = <T extends { color: string }>(
     ...(typeof source.bgColor === "string" ? { bgColor: source.bgColor } : {}),
     ...(attrs ? { attrs } : {}),
   };
+};
+
+export const normalizeCellHref = (href?: unknown) => {
+  return typeof href === "string" && href.length > 0 ? href : undefined;
 };
 
 export const isSameTextAttributes = (
@@ -153,6 +158,7 @@ const cloneStyleState = (style: AnsiStyleState): AnsiStyleState => ({
   color: style.color,
   ...(style.bgColor ? { bgColor: style.bgColor } : {}),
   ...(style.attrs ? { attrs: { ...style.attrs } } : {}),
+  ...(style.href ? { href: style.href } : {}),
 });
 
 const setAttr = (
@@ -304,4 +310,5 @@ export const styleStateToCell = (
   color: style.color,
   ...(style.bgColor ? { bgColor: style.bgColor } : {}),
   ...(style.attrs ? { attrs: { ...style.attrs } } : {}),
+  ...(style.href ? { href: style.href } : {}),
 });

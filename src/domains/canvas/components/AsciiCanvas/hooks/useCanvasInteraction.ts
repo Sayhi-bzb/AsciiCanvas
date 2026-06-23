@@ -14,6 +14,10 @@ import {
   clampSelectionToBounds,
   isPointWithinBounds,
 } from "@/domains/canvas/state/helpers/animationHelpers";
+import {
+  resolveCanvasLinkHit,
+  type CanvasLinkHit,
+} from "./linkHitTesting";
 
 const isShapeTool = (tool: ToolType, canvasMode: CanvasState["canvasMode"]): boolean => {
   if (canvasMode === "structured") return tool === "box" || tool === "line";
@@ -79,7 +83,8 @@ export const useCanvasInteraction = (
     | "fillArea"
     | "canvasBounds"
   >,
-  containerRef: React.RefObject<HTMLDivElement | null>
+  containerRef: React.RefObject<HTMLDivElement | null>,
+  setHoveredLink: (hit: CanvasLinkHit | null) => void
 ) => {
   const {
     tool,
@@ -118,6 +123,21 @@ export const useCanvasInteraction = (
     return canvasMode === "animation"
       ? clampPointToBounds(snapped, canvasBounds)
       : snapped;
+  };
+
+  const resolveLinkHitFromScreen = (clientX: number, clientY: number) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return null;
+    return resolveCanvasLinkHit({
+      clientX,
+      clientY,
+      rect,
+      offset,
+      zoom,
+      grid,
+      canvasMode,
+      canvasBounds,
+    });
   };
 
   const dragStartGrid = useRef<Point | null>(null);
@@ -274,6 +294,11 @@ export const useCanvasInteraction = (
       onMove: ({ xy: [x, y], event }) => {
         if (isFromCanvasUi(event)) return;
         if (isFromMinimap(event)) return;
+        const linkHit = resolveLinkHitFromScreen(x, y);
+        setHoveredLink(linkHit);
+        if (containerRef.current) {
+          containerRef.current.style.cursor = linkHit ? "pointer" : "";
+        }
         if (canvasMode === "structured") return;
         if (tool !== "eraser") return;
         const rect = containerRef.current?.getBoundingClientRect();
@@ -299,6 +324,7 @@ export const useCanvasInteraction = (
       onDragStart: ({ xy: [x, y], event }) => {
         if (isFromCanvasUi(event)) return;
         if (isFromMinimap(event)) return;
+        setHoveredLink(null);
         const mouseEvent = event as MouseEvent;
         if (canvasMode !== "animation" && tool === "pan") {
           isPanningRef.current = true;
@@ -461,6 +487,7 @@ export const useCanvasInteraction = (
           isPanningRef.current = false;
           interactionModeRef.current = "idle";
           document.body.style.cursor = "auto";
+          if (containerRef.current) containerRef.current.style.cursor = "";
           return;
         }
         if ((event as MouseEvent).button === 0) {
@@ -508,6 +535,17 @@ export const useCanvasInteraction = (
           resetDragState();
         }
         document.body.style.cursor = "auto";
+      },
+      onClick: ({ event }) => {
+        if (isFromCanvasUi(event)) return;
+        if (isFromMinimap(event)) return;
+        if (interactionModeRef.current !== "idle") return;
+        const mouseEvent = event as MouseEvent;
+        const linkHit = resolveLinkHitFromScreen(mouseEvent.clientX, mouseEvent.clientY);
+        if (!linkHit) return;
+        event.preventDefault();
+        window.open(linkHit.href, "_blank", "noopener,noreferrer");
+        setHoveredLink(linkHit);
       },
       onWheel: ({ xy: [clientX, clientY], delta: [, dy], event }) => {
         if (isFromCanvasUi(event)) return;

@@ -46,7 +46,8 @@ const isTextAttributes = (value: unknown) => {
 const hasOptionalStyleFields = (value: Record<string, unknown>) => {
   return (
     (value.bgColor === undefined || typeof value.bgColor === "string") &&
-    isTextAttributes(value.attrs)
+    isTextAttributes(value.attrs) &&
+    (value.href === undefined || typeof value.href === "string")
   );
 };
 

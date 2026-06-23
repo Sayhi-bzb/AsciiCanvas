@@ -18,6 +18,7 @@ export interface AsciiCanvasProtocolCellV1 {
   color: string;
   bgColor?: string;
   attrs?: TextAttributes;
+  href?: string;
 }
 
 export interface AsciiCanvasProtocolPlaybackV1 {

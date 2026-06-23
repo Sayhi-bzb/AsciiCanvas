@@ -41,6 +41,7 @@ const toGridEntries = (cells: AsciiCanvasProtocolCellV1[]) => {
       ...(cloneTextAttributes(cell.attrs)
         ? { attrs: cloneTextAttributes(cell.attrs) }
         : {}),
+      ...(cell.href ? { href: cell.href } : {}),
     });
   });
 

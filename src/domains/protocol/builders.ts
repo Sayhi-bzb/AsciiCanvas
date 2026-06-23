@@ -38,6 +38,7 @@ const gridEntriesToCells = (
         color: string;
         bgColor?: string;
         attrs?: AsciiCanvasProtocolCellV1["attrs"];
+        href?: string;
       },
     ]
   >
@@ -56,6 +57,7 @@ const gridEntriesToCells = (
       ...(cloneTextAttributes(cell.attrs)
         ? { attrs: cloneTextAttributes(cell.attrs) }
         : {}),
+      ...(cell.href ? { href: cell.href } : {}),
     });
   }
 

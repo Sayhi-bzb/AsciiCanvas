@@ -8,6 +8,7 @@ export interface GridCell {
   color: string;
   bgColor?: string;
   attrs?: TextAttributes;
+  href?: string;
 }
 
 export interface GridPoint extends Point {
@@ -15,6 +16,7 @@ export interface GridPoint extends Point {
   color?: string;
   bgColor?: string;
   attrs?: TextAttributes;
+  href?: string;
 }
 
 export interface SelectionArea {

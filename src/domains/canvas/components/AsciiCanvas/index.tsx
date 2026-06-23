@@ -1,4 +1,4 @@
-import { useRef, useMemo, useEffect, useLayoutEffect } from 'react';
+import { useRef, useMemo, useEffect, useLayoutEffect, useState } from 'react';
 import { useSize, useEventListener } from 'ahooks';
 import { useCanvasStore } from '@/domains/canvas/state/canvasStore';
 import { useCanvasInteraction } from './hooks/useCanvasInteraction';
@@ -27,6 +27,7 @@ import {
 } from '@/domains/actions/adapters/editorCommands';
 import { gridCellRect } from '@/shared/metrics';
 import { useShallow } from 'zustand/react/shallow';
+import type { CanvasLinkHit } from './hooks/linkHitTesting';
 
 interface AsciiCanvasProps {
   onUndo: () => void;
@@ -40,6 +41,7 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isComposing = useRef(false);
+  const [hoveredLink, setHoveredLink] = useState<CanvasLinkHit | null>(null);
 
   const size = useSize(containerRef);
   const interactionStore = useCanvasStore(
@@ -152,14 +154,16 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
 
   const { draggingSelection } = useCanvasInteraction(
     interactionStore,
-    containerRef
+    containerRef,
+    setHoveredLink
   );
 
   useCanvasRenderer(
     { bg: bgCanvasRef, scratch: scratchCanvasRef, ui: uiCanvasRef },
     size,
     rendererStore,
-    draggingSelection
+    draggingSelection,
+    hoveredLink
   );
 
   useLayoutEffect(() => {

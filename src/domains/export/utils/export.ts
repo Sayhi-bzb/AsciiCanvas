@@ -42,6 +42,7 @@ type AnimationExchangeCell = {
   color: string;
   bgColor?: string;
   attrs?: GridCell["attrs"];
+  href?: string;
 };
 
 type AnimationExchangeDocument = {
@@ -313,6 +314,7 @@ type ActiveAnsiStyle = {
   color: string | null;
   bgColor: string | null;
   attrs?: GridCell["attrs"];
+  href?: string;
 };
 
 const buildAnsiPiecesFromBounds = (
@@ -361,6 +363,7 @@ const resolveAnsiPieceStyle = (piece: AnsiPiece): ActiveAnsiStyle => {
     color,
     bgColor: style.bgColor && parseAnsiHexColor(style.bgColor) ? style.bgColor : null,
     attrs: style.attrs,
+    ...(piece.cell.href ? { href: piece.cell.href } : {}),
   };
 };
 
@@ -368,6 +371,7 @@ const sameAnsiStyle = (a: ActiveAnsiStyle, b: ActiveAnsiStyle) => {
   return (
     a.color === b.color &&
     a.bgColor === b.bgColor &&
+    a.href === b.href &&
     isSameTextAttributes(a.attrs, b.attrs)
   );
 };
@@ -386,6 +390,9 @@ const toAnsiStyleSequence = (style: ActiveAnsiStyle) => {
   return codes.length > 0 ? `\u001b[${codes.join(";")}m` : "";
 };
 
+const toHyperlinkSequence = (href: string) => `]8;;${href}\\`;
+const closeHyperlinkSequence = () => "]8;;\\";
+
 const serializeAnsiLine = (pieces: AnsiPiece[]) => {
   if (pieces.length === 0) return "";
 
@@ -395,8 +402,14 @@ const serializeAnsiLine = (pieces: AnsiPiece[]) => {
   pieces.forEach((piece) => {
     const nextStyle = resolveAnsiPieceStyle(piece);
     if (!sameAnsiStyle(activeStyle, nextStyle)) {
+      if (activeStyle.href && activeStyle.href !== nextStyle.href) {
+        out += closeHyperlinkSequence();
+      }
       if (!sameAnsiStyle(activeStyle, { color: null, bgColor: null })) {
         out += ANSI_RESET;
+      }
+      if (nextStyle.href && activeStyle.href !== nextStyle.href) {
+        out += toHyperlinkSequence(nextStyle.href);
       }
       out += toAnsiStyleSequence(nextStyle);
       activeStyle = nextStyle;
@@ -549,6 +562,7 @@ export const exportSelectionToJSON = (
           ...(cloneTextAttributes(cell.attrs)
             ? { attrs: cloneTextAttributes(cell.attrs) }
             : {}),
+          ...(cell.href ? { href: cell.href } : {}),
         });
       }
     }
@@ -785,6 +799,7 @@ export const buildAnimationExchangeDocument = (
           ...(cloneTextAttributes(cell.attrs)
             ? { attrs: cloneTextAttributes(cell.attrs) }
             : {}),
+          ...(cell.href ? { href: cell.href } : {}),
         };
       }),
     })),

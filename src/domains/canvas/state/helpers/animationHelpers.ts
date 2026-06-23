@@ -142,6 +142,7 @@ const cloneGridCell = (cell: GridCell): GridCell => ({
   ...(cloneTextAttributes(cell.attrs)
     ? { attrs: cloneTextAttributes(cell.attrs) }
     : {}),
+  ...(cell.href ? { href: cell.href } : {}),
 });
 
 export const cloneAnimationFrame = (frame: AnimationFrame): AnimationFrame => {

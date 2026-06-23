@@ -75,6 +75,7 @@ export const drawTextCell = (
   y: number,
   options?: {
     color?: string;
+    underline?: boolean;
     zoom?: number;
     metrics?: GridRenderMetrics;
   }
@@ -105,7 +106,7 @@ export const drawTextCell = (
   const lineWidth = Math.max(1, Math.round(zoom));
   ctx.strokeStyle = options?.color ?? style.color;
   ctx.lineWidth = lineWidth;
-  if (style.attrs?.underline) {
+  if (style.attrs?.underline || options?.underline) {
     const underlineY = alignCanvasCoordinate(y + cellHeight * 0.82, lineWidth);
     ctx.beginPath();
     ctx.moveTo(x, underlineY);

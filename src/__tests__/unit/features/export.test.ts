@@ -473,6 +473,17 @@ describe("export utilities", () => {
     );
   });
 
+  it("exports hyperlink cells as OSC 8-like shorthand", () => {
+    const grid: GridMap = new Map([
+      ["0,0", { char: "A", color: "#ffffff", href: "https://example.com" }],
+      ["1,0", { char: "B", color: "#ffffff", href: "https://example.com" }],
+      ["2,0", { char: "C", color: "#ffffff" }],
+    ]);
+
+    expect(exportToAnsi(grid)).toBe(
+      "]8;;https://example.com\\\u001b[38;2;255;255;255mAB]8;;\\\u001b[0m\u001b[38;2;255;255;255mC\u001b[0m"
+    );
+  });
   it("exports selected ANSI without rich color escapes when color export is disabled", () => {
     const grid: GridMap = new Map([
       ["0,0", { char: "A", color: "#ff0000" }],

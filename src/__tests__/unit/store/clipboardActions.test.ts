@@ -165,6 +165,175 @@ describe("clipboardActions", () => {
     ]);
   });
 
+  it("parses Markdown inline links into linked visible label text", () => {
+    expect(
+      parseAnsiClipboardText(
+        "前 [启动图形界面](https://example.com/gui) 后",
+        "#ffffff"
+      )
+    ).toEqual([
+      { x: 0, y: 0, char: "前", color: "#ffffff" },
+      { x: 2, y: 0, char: " ", color: "#ffffff" },
+      { x: 3, y: 0, char: "启", color: "#ffffff", href: "https://example.com/gui" },
+      { x: 5, y: 0, char: "动", color: "#ffffff", href: "https://example.com/gui" },
+      { x: 7, y: 0, char: "图", color: "#ffffff", href: "https://example.com/gui" },
+      { x: 9, y: 0, char: "形", color: "#ffffff", href: "https://example.com/gui" },
+      { x: 11, y: 0, char: "界", color: "#ffffff", href: "https://example.com/gui" },
+      { x: 13, y: 0, char: "面", color: "#ffffff", href: "https://example.com/gui" },
+      { x: 15, y: 0, char: " ", color: "#ffffff" },
+      { x: 16, y: 0, char: "后", color: "#ffffff" },
+    ]);
+  });
+
+  it("parses Markdown URL labels and leaves following text unlinked", () => {
+    expect(
+      parseAnsiClipboardText(
+        "[https://example.com/gui](https://example.com/gui) 启动图形界面",
+        "#ffffff"
+      )
+    ).toEqual([
+      ...Array.from("https://example.com/gui").map((char, x) => ({
+        x,
+        y: 0,
+        char,
+        color: "#ffffff",
+        href: "https://example.com/gui",
+      })),
+      { x: 23, y: 0, char: " ", color: "#ffffff" },
+      { x: 24, y: 0, char: "启", color: "#ffffff" },
+      { x: 26, y: 0, char: "动", color: "#ffffff" },
+      { x: 28, y: 0, char: "图", color: "#ffffff" },
+      { x: 30, y: 0, char: "形", color: "#ffffff" },
+      { x: 32, y: 0, char: "界", color: "#ffffff" },
+      { x: 34, y: 0, char: "面", color: "#ffffff" },
+    ]);
+  });
+
+  it("does not parse malformed Markdown links as rich text", () => {
+    expect(parseAnsiClipboardText("[启动图形界面](", "#ffffff")).toBeNull();
+    expect(parseAnsiClipboardText("![alt](https://example.com/image.png)", "#ffffff")).toBeNull();
+  });
+  it("parses OSC 8-like hyperlink shorthand", () => {
+    expect(
+      parseAnsiClipboardText(
+        "]8;;https://example.com\\文字]8;;\\ plain",
+        "#ffffff"
+      )
+    ).toEqual([
+      { x: 0, y: 0, char: "文", color: "#ffffff", href: "https://example.com" },
+      { x: 2, y: 0, char: "字", color: "#ffffff", href: "https://example.com" },
+      { x: 4, y: 0, char: " ", color: "#ffffff" },
+      { x: 5, y: 0, char: "p", color: "#ffffff" },
+      { x: 6, y: 0, char: "l", color: "#ffffff" },
+      { x: 7, y: 0, char: "a", color: "#ffffff" },
+      { x: 8, y: 0, char: "i", color: "#ffffff" },
+      { x: 9, y: 0, char: "n", color: "#ffffff" },
+    ]);
+  });
+
+  it("parses hyperlink shorthand without a backslash before SGR", () => {
+    expect(
+      parseAnsiClipboardText(
+        "]8;;https://example.com/gui[1;38;2;255;255;255;48;2;37;99;235m 启动图形界面 ]8;;[0m",
+        "#000000"
+      )
+    ).toEqual([
+      {
+        x: 0,
+        y: 0,
+        char: " ",
+        color: "#ffffff",
+        bgColor: "#2563eb",
+        attrs: { bold: true },
+        href: "https://example.com/gui",
+      },
+      {
+        x: 1,
+        y: 0,
+        char: "启",
+        color: "#ffffff",
+        bgColor: "#2563eb",
+        attrs: { bold: true },
+        href: "https://example.com/gui",
+      },
+      {
+        x: 3,
+        y: 0,
+        char: "动",
+        color: "#ffffff",
+        bgColor: "#2563eb",
+        attrs: { bold: true },
+        href: "https://example.com/gui",
+      },
+      {
+        x: 5,
+        y: 0,
+        char: "图",
+        color: "#ffffff",
+        bgColor: "#2563eb",
+        attrs: { bold: true },
+        href: "https://example.com/gui",
+      },
+      {
+        x: 7,
+        y: 0,
+        char: "形",
+        color: "#ffffff",
+        bgColor: "#2563eb",
+        attrs: { bold: true },
+        href: "https://example.com/gui",
+      },
+      {
+        x: 9,
+        y: 0,
+        char: "界",
+        color: "#ffffff",
+        bgColor: "#2563eb",
+        attrs: { bold: true },
+        href: "https://example.com/gui",
+      },
+      {
+        x: 11,
+        y: 0,
+        char: "面",
+        color: "#ffffff",
+        bgColor: "#2563eb",
+        attrs: { bold: true },
+        href: "https://example.com/gui",
+      },
+      {
+        x: 13,
+        y: 0,
+        char: " ",
+        color: "#ffffff",
+        bgColor: "#2563eb",
+        attrs: { bold: true },
+        href: "https://example.com/gui",
+      },
+    ]);
+  });
+  it("parses multiple backslash-free linked SGR segments", () => {
+    const cells = parseAnsiClipboardText(
+      "]8;;https://example.com/gui[1;38;2;255;255;255;48;2;37;99;235m 启动图形界面 ]8;;[0m  ]8;;https://example.com/logs[1;38;2;255;255;255;48;2;100;116;139m 查看系统日志 ]8;;[0m",
+      "#000000"
+    );
+
+    expect(cells).not.toBeNull();
+    expect(cells?.some((cell) => cell.href === "https://example.com/gui")).toBe(true);
+    expect(cells?.some((cell) => cell.href === "https://example.com/logs")).toBe(true);
+    expect(cells?.some((cell) => cell.char === "查" && !cell.href)).toBe(false);
+  });
+  it("combines hyperlink shorthand with SGR style", () => {
+    expect(
+      parseAnsiClipboardText(
+        "]8;;https://example.com\\[38;2;255;0;0mA]8;;\\B",
+        "#ffffff"
+      )
+    ).toEqual([
+      { x: 0, y: 0, char: "A", color: "#ff0000", href: "https://example.com" },
+      { x: 1, y: 0, char: "B", color: "#ff0000" },
+    ]);
+  });
   it("parses inverse ANSI style without swapping stored colors", () => {
     expect(
       parseAnsiClipboardText(

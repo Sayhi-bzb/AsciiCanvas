@@ -177,6 +177,40 @@ describe("protocol builders", () => {
     ]);
   });
 
+  it("round-trips cell hyperlinks in v1 documents", () => {
+    const grid: GridMap = new Map([
+      [
+        "0,0",
+        {
+          char: "A",
+          color: "#ff0000",
+          href: "https://example.com",
+        },
+      ],
+    ]);
+
+    const document = buildFreeformProtocolDocument(grid);
+    expect(document.cells).toEqual([
+      {
+        x: 0,
+        y: 0,
+        char: "A",
+        color: "#ff0000",
+        href: "https://example.com",
+      },
+    ]);
+    expect(isAsciiCanvasDocument(document)).toBe(true);
+    expect(protocolDocumentToSnapshot(document).grid).toEqual([
+      [
+        "0,0",
+        {
+          char: "A",
+          color: "#ff0000",
+          href: "https://example.com",
+        },
+      ],
+    ]);
+  });
   it("validates protocol headers and rejects mode mismatches", () => {
     const valid = {
       type: ASCII_CANVAS_DOCUMENT_TYPE,

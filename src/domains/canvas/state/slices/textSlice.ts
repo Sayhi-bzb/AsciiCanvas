@@ -292,6 +292,7 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
           color: cell.color,
           ...(cell.bgColor ? { bgColor: cell.bgColor } : {}),
           ...(cell.attrs ? { attrs: cell.attrs } : {}),
+          ...(cell.href ? { href: cell.href } : {}),
         });
       });
     });
