@@ -62,6 +62,11 @@ const isFromCanvasUi = (event: Event | undefined) => {
 export const shouldOpenCanvasLink = (event: Pick<MouseEvent, "ctrlKey" | "metaKey">) =>
   event.ctrlKey || event.metaKey;
 
+export const getActiveCanvasLinkHover = (
+  hit: CanvasLinkHit | null,
+  event: Pick<MouseEvent | KeyboardEvent, "ctrlKey" | "metaKey">
+) => (shouldOpenCanvasLink(event) ? hit : null);
+
 export const useCanvasInteraction = (
   store: Pick<
     CanvasState,
@@ -153,8 +158,21 @@ export const useCanvasInteraction = (
   const queuedOffsetRafRef = useRef<number | null>(null);
   const interactionModeRef = useRef<InteractionMode>("idle");
   const lineAxisRef = useRef<"vertical" | "horizontal" | null>(null);
+  const hoveredLinkCandidateRef = useRef<CanvasLinkHit | null>(null);
   const [draggingSelection, setDraggingSelection] =
     useState<SelectionArea | null>(null);
+
+  const updateActiveLinkHover = (
+    hit: CanvasLinkHit | null,
+    event: Pick<MouseEvent | KeyboardEvent, "ctrlKey" | "metaKey">
+  ) => {
+    hoveredLinkCandidateRef.current = hit;
+    const activeHit = getActiveCanvasLinkHover(hit, event);
+    setHoveredLink(activeHit);
+    if (containerRef.current) {
+      containerRef.current.style.cursor = activeHit ? "pointer" : "";
+    }
+  };
 
   const resetDragState = () => {
     dragStartGrid.current = null;
@@ -199,6 +217,18 @@ export const useCanvasInteraction = (
       setOffset((prev: Point) => ({ x: prev.x + x, y: prev.y + y }));
     });
   };
+
+  useEffect(() => {
+    const syncModifierState = (event: KeyboardEvent) => {
+      updateActiveLinkHover(hoveredLinkCandidateRef.current, event);
+    };
+    window.addEventListener("keydown", syncModifierState);
+    window.addEventListener("keyup", syncModifierState);
+    return () => {
+      window.removeEventListener("keydown", syncModifierState);
+      window.removeEventListener("keyup", syncModifierState);
+    };
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -298,10 +328,7 @@ export const useCanvasInteraction = (
         if (isFromCanvasUi(event)) return;
         if (isFromMinimap(event)) return;
         const linkHit = resolveLinkHitFromScreen(x, y);
-        setHoveredLink(linkHit);
-        if (containerRef.current) {
-          containerRef.current.style.cursor = linkHit ? "pointer" : "";
-        }
+        updateActiveLinkHover(linkHit, event as MouseEvent);
         if (canvasMode === "structured") return;
         if (tool !== "eraser") return;
         const rect = containerRef.current?.getBoundingClientRect();
@@ -327,7 +354,7 @@ export const useCanvasInteraction = (
       onDragStart: ({ xy: [x, y], event }) => {
         if (isFromCanvasUi(event)) return;
         if (isFromMinimap(event)) return;
-        setHoveredLink(null);
+        updateActiveLinkHover(null, event as MouseEvent);
         const mouseEvent = event as MouseEvent;
         if (canvasMode !== "animation" && tool === "pan") {
           isPanningRef.current = true;
@@ -491,6 +518,8 @@ export const useCanvasInteraction = (
           interactionModeRef.current = "idle";
           document.body.style.cursor = "auto";
           if (containerRef.current) containerRef.current.style.cursor = "";
+          hoveredLinkCandidateRef.current = null;
+          setHoveredLink(null);
           return;
         }
         if ((event as MouseEvent).button === 0) {

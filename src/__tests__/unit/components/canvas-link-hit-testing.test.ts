@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { resolveCanvasLinkHit } from "@/domains/canvas/components/AsciiCanvas/hooks/linkHitTesting";
-import { shouldOpenCanvasLink } from "@/domains/canvas/components/AsciiCanvas/hooks/useCanvasInteraction";
+import {
+  getActiveCanvasLinkHover,
+  shouldOpenCanvasLink,
+} from "@/domains/canvas/components/AsciiCanvas/hooks/useCanvasInteraction";
 import { DEFAULT_GRID_RENDER_METRICS } from "@/shared/metrics";
 import type { GridMap } from "@/shared/types";
 
@@ -94,10 +97,19 @@ describe("resolveCanvasLinkHit", () => {
     ).toBeNull();
   });
 });
-describe("shouldOpenCanvasLink", () => {
+describe("canvas link modifier affordance", () => {
+  const hit = { y: 0, startX: 0, endX: 2, href: "https://example.com" };
+
   it("requires Ctrl or Meta before opening a canvas link", () => {
     expect(shouldOpenCanvasLink({ ctrlKey: false, metaKey: false })).toBe(false);
     expect(shouldOpenCanvasLink({ ctrlKey: true, metaKey: false })).toBe(true);
     expect(shouldOpenCanvasLink({ ctrlKey: false, metaKey: true })).toBe(true);
+  });
+
+  it("activates link hover only while Ctrl or Meta is held", () => {
+    expect(getActiveCanvasLinkHover(hit, { ctrlKey: false, metaKey: false })).toBeNull();
+    expect(getActiveCanvasLinkHover(hit, { ctrlKey: true, metaKey: false })).toBe(hit);
+    expect(getActiveCanvasLinkHover(hit, { ctrlKey: false, metaKey: true })).toBe(hit);
+    expect(getActiveCanvasLinkHover(null, { ctrlKey: true, metaKey: false })).toBeNull();
   });
 });
