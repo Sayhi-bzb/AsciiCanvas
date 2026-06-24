@@ -62,10 +62,10 @@ const isFromCanvasUi = (event: Event | undefined) => {
 export const shouldOpenCanvasLink = (event: Pick<MouseEvent, "ctrlKey" | "metaKey">) =>
   event.ctrlKey || event.metaKey;
 
-export const getActiveCanvasLinkHover = (
+export const shouldUseCanvasLinkPointer = (
   hit: CanvasLinkHit | null,
   event: Pick<MouseEvent | KeyboardEvent, "ctrlKey" | "metaKey">
-) => (shouldOpenCanvasLink(event) ? hit : null);
+) => !!hit && shouldOpenCanvasLink(event);
 
 export const useCanvasInteraction = (
   store: Pick<
@@ -162,15 +162,14 @@ export const useCanvasInteraction = (
   const [draggingSelection, setDraggingSelection] =
     useState<SelectionArea | null>(null);
 
-  const updateActiveLinkHover = (
+  const updateLinkHover = (
     hit: CanvasLinkHit | null,
     event: Pick<MouseEvent | KeyboardEvent, "ctrlKey" | "metaKey">
   ) => {
     hoveredLinkCandidateRef.current = hit;
-    const activeHit = getActiveCanvasLinkHover(hit, event);
-    setHoveredLink(activeHit);
+    setHoveredLink(hit);
     if (containerRef.current) {
-      containerRef.current.style.cursor = activeHit ? "pointer" : "";
+      containerRef.current.style.cursor = shouldUseCanvasLinkPointer(hit, event) ? "pointer" : "";
     }
   };
 
@@ -220,7 +219,7 @@ export const useCanvasInteraction = (
 
   useEffect(() => {
     const syncModifierState = (event: KeyboardEvent) => {
-      updateActiveLinkHover(hoveredLinkCandidateRef.current, event);
+      updateLinkHover(hoveredLinkCandidateRef.current, event);
     };
     window.addEventListener("keydown", syncModifierState);
     window.addEventListener("keyup", syncModifierState);
@@ -328,7 +327,7 @@ export const useCanvasInteraction = (
         if (isFromCanvasUi(event)) return;
         if (isFromMinimap(event)) return;
         const linkHit = resolveLinkHitFromScreen(x, y);
-        updateActiveLinkHover(linkHit, event as MouseEvent);
+        updateLinkHover(linkHit, event as MouseEvent);
         if (canvasMode === "structured") return;
         if (tool !== "eraser") return;
         const rect = containerRef.current?.getBoundingClientRect();
@@ -354,7 +353,7 @@ export const useCanvasInteraction = (
       onDragStart: ({ xy: [x, y], event }) => {
         if (isFromCanvasUi(event)) return;
         if (isFromMinimap(event)) return;
-        updateActiveLinkHover(null, event as MouseEvent);
+        updateLinkHover(null, event as MouseEvent);
         const mouseEvent = event as MouseEvent;
         if (canvasMode !== "animation" && tool === "pan") {
           isPanningRef.current = true;

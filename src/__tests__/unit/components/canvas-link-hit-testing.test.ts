@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { resolveCanvasLinkHit } from "@/domains/canvas/components/AsciiCanvas/hooks/linkHitTesting";
 import {
-  getActiveCanvasLinkHover,
+  shouldUseCanvasLinkPointer,
   shouldOpenCanvasLink,
 } from "@/domains/canvas/components/AsciiCanvas/hooks/useCanvasInteraction";
 import { DEFAULT_GRID_RENDER_METRICS } from "@/shared/metrics";
@@ -106,10 +106,10 @@ describe("canvas link modifier affordance", () => {
     expect(shouldOpenCanvasLink({ ctrlKey: false, metaKey: true })).toBe(true);
   });
 
-  it("activates link hover only while Ctrl or Meta is held", () => {
-    expect(getActiveCanvasLinkHover(hit, { ctrlKey: false, metaKey: false })).toBeNull();
-    expect(getActiveCanvasLinkHover(hit, { ctrlKey: true, metaKey: false })).toBe(hit);
-    expect(getActiveCanvasLinkHover(hit, { ctrlKey: false, metaKey: true })).toBe(hit);
-    expect(getActiveCanvasLinkHover(null, { ctrlKey: true, metaKey: false })).toBeNull();
+  it("uses a hand cursor only while Ctrl or Meta is held over a link", () => {
+    expect(shouldUseCanvasLinkPointer(hit, { ctrlKey: false, metaKey: false })).toBe(false);
+    expect(shouldUseCanvasLinkPointer(hit, { ctrlKey: true, metaKey: false })).toBe(true);
+    expect(shouldUseCanvasLinkPointer(hit, { ctrlKey: false, metaKey: true })).toBe(true);
+    expect(shouldUseCanvasLinkPointer(null, { ctrlKey: true, metaKey: false })).toBe(false);
   });
 });
