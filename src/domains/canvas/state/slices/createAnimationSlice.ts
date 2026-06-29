@@ -69,6 +69,7 @@ export const createAnimationSlice: StateCreator<
           grid: nextGridEntries,
           size: nextBounds,
           timeline: nextTimeline,
+          viewport: { offset: { ...state.offset }, zoom: state.zoom },
         }
       ),
     });

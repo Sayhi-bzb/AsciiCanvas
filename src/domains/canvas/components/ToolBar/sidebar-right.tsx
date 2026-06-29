@@ -69,8 +69,8 @@ export function SidebarRight() {
               : "flex-row items-center gap-2 px-3 py-2"
           )}
         >
-          <SidebarTrigger className="size-8 shrink-0" />
           {!isCollapsed && <SearchForm className="min-w-0 flex-1" />}
+          <SidebarTrigger className="size-8 shrink-0" />
         </SidebarHeader>
       }
       footer={
@@ -207,4 +207,6 @@ export function SidebarRight() {
     </SidebarStandard>
   );
 }
+
+
 

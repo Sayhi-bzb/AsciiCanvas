@@ -13,6 +13,7 @@ import type {
   TextAttributes,
   ToolType,
 } from "@/shared/types";
+import type { GridAddress, GridEditMode, GridRange, GridSelectionState } from "./helpers/staticGridModel";
 
 export interface RichTextCell {
   x: number;
@@ -44,6 +45,17 @@ export interface DrawingSlice {
     end: Point,
     options?: { axis?: "vertical" | "horizontal" | null }
   ) => void;
+}
+
+export interface StaticGridSlice {
+  staticGridSelection: GridSelectionState;
+  staticGridEditMode: GridEditMode;
+  setStaticGridActiveCell: (address: GridAddress) => void;
+  setStaticGridSelectionRange: (range: GridRange) => void;
+  moveStaticGridFocus: (dx: number, dy: number, options?: { extend?: boolean }) => void;
+  enterStaticGridTextEdit: (address?: GridAddress) => void;
+  exitStaticGridTextEdit: () => void;
+  clearStaticGridSelection: () => void;
 }
 
 export interface TextSlice {
@@ -78,6 +90,11 @@ export interface SelectionSlice {
   expandSelection: (dx: number, dy: number) => void;
 }
 
+export interface CanvasViewport {
+  offset: Point;
+  zoom: number;
+}
+
 export interface CanvasSession {
   id: string;
   name: string;
@@ -86,6 +103,7 @@ export interface CanvasSession {
   grid: [string, GridCell][];
   size?: AnimationCanvasSize;
   timeline?: AnimationTimeline;
+  viewport?: CanvasViewport;
 }
 
 export interface SessionSlice {
@@ -144,6 +162,7 @@ export type CanvasState = {
   hoveredGrid: Point | null;
   canvasSessions: CanvasSession[];
   activeCanvasId: string;
+  activeCanvasHasSavedViewport: boolean;
 
   setOffset: (updater: (prev: Point) => Point) => void;
   setZoom: (updater: (prev: number) => number) => void;
@@ -156,6 +175,7 @@ export type CanvasState = {
   setExportShowGrid: (show: boolean) => void;
   setHoveredGrid: (pos: Point | null) => void;
 } & DrawingSlice &
+  StaticGridSlice &
   TextSlice &
   SelectionSlice &
   SessionSlice &

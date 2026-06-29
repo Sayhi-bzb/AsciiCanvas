@@ -25,6 +25,7 @@ import {
   setTextRenderStyle,
 } from "@/shared/metrics";
 import { effectiveCellStyle } from "@/shared/utils/ansi";
+import { getStaticGridViewState } from "@/domains/canvas/state/helpers/staticGridModel";
 
 interface LayerRefs {
   bg: React.RefObject<HTMLCanvasElement | null>;
@@ -43,6 +44,8 @@ export const useCanvasRenderer = (
     | "scratchLayer"
     | "textCursor"
     | "selections"
+    | "staticGridSelection"
+    | "staticGridEditMode"
     | "showGrid"
     | "hoveredGrid"
     | "tool"
@@ -60,6 +63,8 @@ export const useCanvasRenderer = (
     scratchLayer,
     textCursor,
     selections,
+    staticGridSelection,
+    staticGridEditMode,
     showGrid,
     hoveredGrid,
     tool,
@@ -68,6 +73,16 @@ export const useCanvasRenderer = (
     animationTimeline,
   } = store;
 
+  const staticGridView = getStaticGridViewState({
+    selection: staticGridSelection,
+    editMode: staticGridEditMode,
+    textCursor,
+    selections,
+  });
+  const renderedSelections =
+    canvasMode === "freeform" ? staticGridView.selectionAreas : selections;
+  const renderedTextCursor =
+    canvasMode === "freeform" ? staticGridView.textCursor : textCursor;
   const traceRoundRect = (
     ctx: CanvasRenderingContext2D,
     x: number,
@@ -304,7 +319,7 @@ export const useCanvasRenderer = (
             Math.round((maxY - minY + 1) * pos.height)
           );
         };
-        selections.forEach(drawSel);
+        renderedSelections.forEach(drawSel);
         if (draggingSelection) drawSel(draggingSelection);
 
         if (tool === "eraser" && hoveredGrid) {
@@ -318,9 +333,9 @@ export const useCanvasRenderer = (
           );
         }
 
-        if (textCursor) {
-          const pos = gridCellRect(textCursor, { offset, zoom });
-          const cell = grid.get(GridManager.toKey(textCursor.x, textCursor.y));
+        if (renderedTextCursor) {
+          const pos = gridCellRect(renderedTextCursor, { offset, zoom });
+          const cell = grid.get(GridManager.toKey(renderedTextCursor.x, renderedTextCursor.y));
           const occupancy = cell ? getCellOccupancy(cell.char) : 1;
           uiCtx.fillStyle = COLOR_TEXT_CURSOR_BG;
           uiCtx.fillRect(
@@ -358,6 +373,8 @@ export const useCanvasRenderer = (
     scratchLayer,
     textCursor,
     selections,
+    staticGridSelection,
+    staticGridEditMode,
     draggingSelection,
     showGrid,
     hoveredGrid,

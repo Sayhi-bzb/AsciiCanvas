@@ -26,8 +26,11 @@ import {
   resolveHistoryShortcutCommand,
 } from '@/domains/actions/adapters/editorCommands';
 import { gridCellRect } from '@/shared/metrics';
+import { getStaticGridViewState } from '@/domains/canvas/state/helpers/staticGridModel';
 import { useShallow } from 'zustand/react/shallow';
 import type { CanvasLinkHit } from './hooks/linkHitTesting';
+
+const KEYBOARD_PAN_STEP = 48;
 
 interface AsciiCanvasProps {
   onUndo: () => void;
@@ -66,12 +69,14 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
       setHoveredGrid: state.setHoveredGrid,
       fillArea: state.fillArea,
       canvasBounds: state.canvasBounds,
+      activeCanvasHasSavedViewport: state.activeCanvasHasSavedViewport,
     }))
   );
   const {
     canvasMode,
     canvasBounds: interactionCanvasBounds,
     setOffset: setCanvasOffset,
+    activeCanvasHasSavedViewport,
   } = interactionStore;
   const rendererStore = useCanvasStore(
     useShallow((state) => ({
@@ -81,6 +86,8 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
       scratchLayer: state.scratchLayer,
       textCursor: state.textCursor,
       selections: state.selections,
+      staticGridSelection: state.staticGridSelection,
+      staticGridEditMode: state.staticGridEditMode,
       showGrid: state.showGrid,
       hoveredGrid: state.hoveredGrid,
       tool: state.tool,
@@ -91,15 +98,19 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
   );
   const {
     textCursor,
+    staticGridSelection,
+    staticGridEditMode,
     writeTextString,
     backspaceText,
     newlineText,
     indentText,
     moveTextCursor,
+    moveStaticGridFocus,
     setTextCursor,
     selections,
     offset,
     zoom,
+    setOffset,
     moveSelections,
     expandSelection,
     fillSelectionsWithChar,
@@ -107,15 +118,19 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
   } = useCanvasStore(
     useShallow((state) => ({
       textCursor: state.textCursor,
+      staticGridSelection: state.staticGridSelection,
+      staticGridEditMode: state.staticGridEditMode,
       writeTextString: state.writeTextString,
       backspaceText: state.backspaceText,
       newlineText: state.newlineText,
       indentText: state.indentText,
       moveTextCursor: state.moveTextCursor,
+      moveStaticGridFocus: state.moveStaticGridFocus,
       setTextCursor: state.setTextCursor,
       selections: state.selections,
       offset: state.offset,
       zoom: state.zoom,
+      setOffset: state.setOffset,
       moveSelections: state.moveSelections,
       expandSelection: state.expandSelection,
       fillSelectionsWithChar: state.fillSelectionsWithChar,
@@ -127,7 +142,8 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
     if (
       canvasMode !== 'animation' ||
       !interactionCanvasBounds ||
-      !size
+      !size ||
+      activeCanvasHasSavedViewport
     ) {
       return;
     }
@@ -145,6 +161,7 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
       return centeredOffset;
     });
   }, [
+    activeCanvasHasSavedViewport,
     canvasMode,
     interactionCanvasBounds,
     setCanvasOffset,
@@ -166,11 +183,26 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
     hoveredLink
   );
 
+  const staticGridView = useMemo(
+    () =>
+      getStaticGridViewState({
+        selection: staticGridSelection,
+        editMode: staticGridEditMode,
+        textCursor,
+        selections,
+      }),
+    [staticGridEditMode, staticGridSelection, textCursor, selections]
+  );
+  const activeTextCursor =
+    canvasMode === 'freeform' ? staticGridView.textCursor : textCursor;
+  const activeSelections =
+    canvasMode === 'freeform' ? staticGridView.selectionAreas : selections;
+  const hasActiveSelection = activeSelections.length > 0;
   useLayoutEffect(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
 
-    const shouldFocus = textCursor || selections.length > 0;
+    const shouldFocus = activeTextCursor || hasActiveSelection;
     if (shouldFocus) {
       if (document.activeElement !== textarea) {
         textarea.focus({ preventScroll: true });
@@ -181,7 +213,7 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
     if (document.activeElement === textarea) {
       textarea.blur();
     }
-  }, [textCursor, selections.length]);
+  }, [activeTextCursor, hasActiveSelection]);
 
   const runManagedAction = (
     actionId: 'copy' | 'cut' | 'paste',
@@ -212,8 +244,8 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
   });
 
   const textareaStyle: React.CSSProperties = useMemo(() => {
-    if ((!textCursor && selections.length === 0) || !size) return { display: 'none' };
-    const point = textCursor ?? selections[0].start;
+    if ((!activeTextCursor && !hasActiveSelection) || !size) return { display: 'none' };
+    const point = activeTextCursor ?? activeSelections[0].start;
     const pos = gridCellRect(point, { offset, zoom });
 
     return {
@@ -226,7 +258,7 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
       pointerEvents: 'none',
       zIndex: -1,
     };
-  }, [textCursor, selections, offset, zoom, size]);
+  }, [activeTextCursor, activeSelections, hasActiveSelection, offset, zoom, size]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     e.stopPropagation();
@@ -242,14 +274,14 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
       });
       return;
     }
-    if ((e.key === 'Delete' || e.key === 'Backspace') && selections.length > 0) {
+    if ((e.key === 'Delete' || e.key === 'Backspace') && hasActiveSelection) {
       e.preventDefault();
       runAction('delete-selection', { source: 'canvas-keydown' });
       return;
     }
 
     if (e.key === 'Backspace') {
-      if (textCursor) {
+      if (activeTextCursor) {
         e.preventDefault();
         backspaceText();
       }
@@ -263,8 +295,17 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
       e.preventDefault();
       const dx = e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : 0;
       const dy = e.key === 'ArrowUp' ? -1 : e.key === 'ArrowDown' ? 1 : 0;
+      if (e.ctrlKey || e.metaKey) {
+        setOffset((prev) => ({
+          x: prev.x - dx * KEYBOARD_PAN_STEP,
+          y: prev.y - dy * KEYBOARD_PAN_STEP,
+        }));
+        return;
+      }
 
-      if (textCursor) {
+      if (canvasMode === 'freeform') {
+        moveStaticGridFocus(dx, dy, { extend: e.shiftKey });
+      } else if (textCursor) {
         moveTextCursor(dx, dy);
       } else if (selections.length > 0) {
         if (e.shiftKey) {
@@ -275,12 +316,12 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
       }
     } else if (e.key === 'Escape') {
       e.preventDefault();
-      if (textCursor) {
+      if (activeTextCursor) {
         setTextCursor(null);
-      } else if (selections.length > 0) {
+      } else if (hasActiveSelection) {
         clearSelections();
       }
-    } else if (selections.length > 0 && !textCursor) {
+    } else if (hasActiveSelection && !activeTextCursor) {
       const fillChar = resolveFillHotkeyChar(e);
       if (!fillChar) return;
 

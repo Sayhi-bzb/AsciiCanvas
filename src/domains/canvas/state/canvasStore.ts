@@ -14,10 +14,18 @@ import {
 import type { CanvasSession, CanvasState } from "./interfaces";
 import type {
   AnimationCanvasSize,
+  Point,
   StructuredNode,
 } from "@/shared/types";
 import { normalizeBrushChar } from "@/shared/utils/characters";
-import { createDrawingSlice, createTextSlice, createSelectionSlice, createSessionSlice, createAnimationSlice } from "./slices";
+import {
+  createDrawingSlice,
+  createTextSlice,
+  createSelectionSlice,
+  createSessionSlice,
+  createAnimationSlice,
+  createStaticGridSlice,
+} from "./slices";
 import { sceneToGridEntries } from "@/shared/utils/structured";
 import {
   rebuildGridFromYMap,
@@ -53,6 +61,7 @@ import {
   isToolAllowedForMode,
   buildSessionSnapshot,
   resolveSessionRuntime,
+  normalizeSessionViewport,
 } from "./helpers/storeUtils";
 import { DEFAULT_DEMO_GRID } from "./helpers/defaultDemo";
 
@@ -99,6 +108,7 @@ export const useCanvasStore = create<CanvasState>()(
           },
         ],
         activeCanvasId: DEFAULT_SESSION_ID,
+        activeCanvasHasSavedViewport: false,
         tool: "select",
         brushChar: DEFAULT_BRUSH_CHAR,
         brushColor: COLOR_PRIMARY_TEXT,
@@ -157,6 +167,7 @@ export const useCanvasStore = create<CanvasState>()(
         setHoveredGrid: (pos) => set({ hoveredGrid: pos }),
         ...createSessionSlice(set, get, ...a),
         ...createAnimationSlice(set, get, ...a),
+        ...createStaticGridSlice(set, get, ...a),
 
         ...createDrawingSlice(set, get, ...a),
         ...createTextSlice(set, get, ...a),
@@ -212,6 +223,10 @@ export const useCanvasStore = create<CanvasState>()(
           );
 
           const legacyGridEntries = normalizeGridEntries(hState.grid);
+          const legacyViewport = normalizeSessionViewport({
+            offset: hState.offset as Point,
+            zoom: hState.zoom,
+          });
           const legacyMode = normalizeSessionMode(hState.canvasMode);
           const legacyScene = Array.isArray(hState.structuredScene)
             ? (hState.structuredScene
@@ -233,6 +248,7 @@ export const useCanvasStore = create<CanvasState>()(
                   };
                   if (typeof maybe.id !== "string") return null;
                   const mode = normalizeSessionMode(maybe.mode);
+                  const viewport = normalizeSessionViewport(maybe.viewport);
                   const scene = Array.isArray(maybe.scene)
                     ? maybe.scene
                         .map((item) => toStructuredNode(item))
@@ -260,6 +276,7 @@ export const useCanvasStore = create<CanvasState>()(
                       grid: getAnimationFrameEntries(timeline, timeline.currentFrameId),
                       size,
                       timeline,
+                      ...(viewport ? { viewport } : {}),
                     } satisfies CanvasSession;
                   }
 
@@ -272,6 +289,7 @@ export const useCanvasStore = create<CanvasState>()(
                     mode,
                     scene: normalizeAndCloneScene(scene),
                     grid: normalizeGridEntries(maybe.grid),
+                    ...(viewport ? { viewport } : {}),
                   } satisfies CanvasSession;
                 })
                 .filter((session): session is CanvasSession => session !== null)
@@ -290,6 +308,7 @@ export const useCanvasStore = create<CanvasState>()(
                       !hasPersistedState && legacyGridEntries.length === 0
                         ? DEFAULT_DEMO_GRID
                         : legacyGridEntries,
+                    ...(legacyViewport ? { viewport: legacyViewport } : {}),
                   },
                 ];
 
@@ -299,13 +318,18 @@ export const useCanvasStore = create<CanvasState>()(
               ? hState.activeCanvasId
               : sessions[0].id;
 
+          const sessionsWithActiveViewport = sessions.map((session) =>
+            session.id === activeCanvasId && !session.viewport && legacyViewport
+              ? { ...session, viewport: legacyViewport }
+              : session
+          );
           const activeSession =
-            sessions.find((session) => session.id === activeCanvasId) ??
-            sessions[0];
+            sessionsWithActiveViewport.find((session) => session.id === activeCanvasId) ??
+            sessionsWithActiveViewport[0];
           const currentTool = hState.tool || "select";
           const runtime = resolveSessionRuntime(activeSession, currentTool);
 
-          hState.canvasSessions = sessions;
+          hState.canvasSessions = sessionsWithActiveViewport;
           hState.activeCanvasId = activeCanvasId;
           hState.canvasMode = runtime.nextMode;
           hState.structuredScene = runtime.nextScene;
@@ -313,6 +337,9 @@ export const useCanvasStore = create<CanvasState>()(
           hState.tool = runtime.nextTool;
           hState.canvasBounds = runtime.nextBounds;
           hState.animationTimeline = runtime.nextTimeline;
+          hState.offset = runtime.nextOffset;
+          hState.zoom = runtime.nextZoom;
+          hState.activeCanvasHasSavedViewport = runtime.hasSavedViewport;
           hState.animationIsPlaying = false;
 
           if (runtime.nextMode === "structured") {

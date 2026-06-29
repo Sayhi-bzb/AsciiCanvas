@@ -2,6 +2,7 @@ import type { StateCreator } from "zustand";
 import type { CanvasState, TextSlice } from "../interfaces";
 import { transactWithHistory, yMainGrid } from "@/shared/lib/yjs-setup";
 import { GridManager } from "@/shared/utils/grid";
+import { collapseGridSelectionTo, getStaticGridViewState } from "../helpers/staticGridModel";
 import { placeCharInYMap, placeStyledCellInYMap } from "../utils";
 import {
   deleteCellAt,
@@ -110,11 +111,26 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
   get
 ) => ({
   textCursor: null,
-  setTextCursor: (pos) => set({ textCursor: pos, selections: [] }),
+  setTextCursor: (pos) =>
+    set((state) => ({
+      textCursor: pos,
+      selections: [],
+      ...(pos
+        ? {
+            staticGridSelection: collapseGridSelectionTo(
+              state.staticGridSelection,
+              pos
+            ),
+            staticGridEditMode: "text-edit" as const,
+          }
+        : {}),
+    })),
 
   writeTextString: (str, startPos) => {
     const {
       selections,
+      staticGridSelection,
+      staticGridEditMode,
       fillSelectionsWithChar,
       textCursor,
       brushColor,
@@ -200,21 +216,23 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
       return;
     }
 
-    if (selections.length > 0 && str.length === 1) {
+    const staticGridView = getStaticGridViewState({
+      selection: staticGridSelection,
+      editMode: staticGridEditMode,
+      textCursor,
+      selections,
+    });
+
+    if (staticGridView.hasSelection && str.length === 1) {
       fillSelectionsWithChar(str);
       return;
     }
 
-    const fallbackSelectionStart =
-      !startPos && !textCursor && selections.length > 0
-        ? {
-            x: Math.min(selections[0].start.x, selections[0].end.x),
-            y: Math.min(selections[0].start.y, selections[0].end.y),
-          }
-        : null;
+    const fallbackSelectionStart = !startPos && !textCursor && staticGridView.hasSelection
+      ? staticGridView.selectionAreas[0].start
+      : null;
 
-    const cursor = startPos || textCursor || fallbackSelectionStart;
-    if (!cursor) return;
+    const cursor = startPos || textCursor || fallbackSelectionStart || staticGridView.activeCell;
 
     const boundedCursor = clampPointToBounds(cursor, canvasBounds);
     let currentX = boundedCursor.x;
@@ -267,18 +285,28 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
   },
 
   pasteRichData: (cells, startPos) => {
-    const { textCursor, selections, canvasMode, canvasBounds } = get();
+    const {
+      textCursor,
+      selections,
+      staticGridSelection,
+      staticGridEditMode,
+      canvasMode,
+      canvasBounds,
+    } = get();
     if (canvasMode === "structured") return;
 
+    const staticGridView = getStaticGridViewState({
+      selection: staticGridSelection,
+      editMode: staticGridEditMode,
+      textCursor,
+      selections,
+    });
+
     let pos = startPos || textCursor;
-    if (!pos && selections.length > 0) {
-      const sel = selections[0];
-      pos = {
-        x: Math.min(sel.start.x, sel.end.x),
-        y: Math.min(sel.start.y, sel.end.y),
-      };
+    if (!pos && staticGridView.hasSelection) {
+      pos = staticGridView.selectionAreas[0].start;
     }
-    if (!pos) return;
+    pos = pos || staticGridView.activeCell;
 
     const basePos = pos;
     transactWithHistory(() => {

@@ -177,6 +177,61 @@ describe("selectionSlice setSelectionTextAttributes", () => {
   });
 });
 
+
+describe("selectionSlice static grid selection compatibility", () => {
+  afterEach(() => {
+    resetStore();
+  });
+
+  it("fills cells from static grid ranges when legacy selections are empty", () => {
+    useCanvasStore.setState({
+      canvasMode: "freeform",
+      brushColor: "#22c55e",
+      selections: [],
+      staticGridSelection: {
+        activeCell: { x: 2, y: 0 },
+        anchorCell: { x: 0, y: 0 },
+        ranges: [{ start: { x: 0, y: 0 }, end: { x: 2, y: 0 } }],
+      },
+    });
+    applyFreeformSnapshotToYMaps([]);
+
+    useCanvasStore.getState().fillSelectionsWithChar("X");
+
+    expect(useCanvasStore.getState().grid).toEqual(
+      new Map([
+        ["0,0", { char: "X", color: "#22c55e" }],
+        ["1,0", { char: "X", color: "#22c55e" }],
+        ["2,0", { char: "X", color: "#22c55e" }],
+      ])
+    );
+  });
+
+  it("styles cells from static grid ranges when legacy selections are empty", () => {
+    useCanvasStore.setState({
+      canvasMode: "freeform",
+      selections: [],
+      staticGridSelection: {
+        activeCell: { x: 1, y: 0 },
+        anchorCell: { x: 0, y: 0 },
+        ranges: [{ start: { x: 0, y: 0 }, end: { x: 1, y: 0 } }],
+      },
+    });
+    applyFreeformSnapshotToYMaps([
+      ["0,0", { char: "A", color: "#ffffff" }],
+      ["1,0", { char: "B", color: "#ffffff" }],
+    ]);
+
+    useCanvasStore.getState().setSelectionBackgroundColor("#0f172a");
+
+    expect(useCanvasStore.getState().grid).toEqual(
+      new Map([
+        ["0,0", { char: "A", color: "#ffffff", bgColor: "#0f172a" }],
+        ["1,0", { char: "B", color: "#ffffff", bgColor: "#0f172a" }],
+      ])
+    );
+  });
+});
 describe("selectionSlice setSelectionBackgroundColor", () => {
   afterEach(() => {
     resetStore();

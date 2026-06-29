@@ -5,14 +5,14 @@ import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
 import { AppLayout } from "./layout";
 import { Toolbar } from "@/domains/canvas/components/ToolBar/dock";
 import { SidebarInset, SidebarProvider, useSidebar } from "@/shared/ui/sidebar";
-import { Suspense, lazy } from "react";
+import { Suspense, lazy, useEffect } from "react";
 import { runRedo, runUndo } from "@/domains/actions/adapters/shortcutActions";
 import { runAction } from "@/domains/actions/core";
 import { resolveFillHotkeyChar } from "@/domains/actions/input-arbiter";
 import { feedback } from "@/shared/services/effects";
 import { useShallow } from "zustand/react/shallow";
 import { SessionTabs } from "@/domains/sessions/components/SessionTabs";
-import { useIsMobile } from "./hooks/use-mobile";
+import { useIsMobile, useSidebarAutoCollapseSignal } from "./hooks/use-mobile";
 import { cn } from "@/shared/lib/utils";
 
 const SidebarRight = lazy(() =>
@@ -27,7 +27,7 @@ const SidebarLeft = lazy(() =>
   }))
 );
 
-// 移动端侧边栏触发按钮组件
+// Mobile sidebar trigger.
 function MobileSidebarTrigger() {
   const isMobile = useIsMobile();
   const { setOpenMobile } = useSidebar();
@@ -68,6 +68,18 @@ function AppContent() {
     "ui-right-panel-status",
     { defaultValue: true }
   );
+
+  const sidebarAutoCollapseSignal = useSidebarAutoCollapseSignal();
+
+  useEffect(() => {
+    if (sidebarAutoCollapseSignal === 0) return;
+    setIsLeftPanelOpen(false);
+    setIsRightPanelOpen(false);
+  }, [
+    sidebarAutoCollapseSignal,
+    setIsLeftPanelOpen,
+    setIsRightPanelOpen,
+  ]);
 
   const handleUndo = () => {
     runUndo();
@@ -165,3 +177,6 @@ function AppContent() {
 export default function App() {
   return <AppContent />;
 }
+
+
+

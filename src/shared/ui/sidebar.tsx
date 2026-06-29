@@ -87,6 +87,12 @@ function SidebarProvider({
   }, [isMobile, setOpen, setOpenMobile]);
 
   React.useEffect(() => {
+    if (!isMobile) return;
+    setOpen(false);
+    setOpenMobile(false);
+  }, [isMobile, setOpen, setOpenMobile]);
+
+  React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (
         event.key === SIDEBAR_KEYBOARD_SHORTCUT &&
@@ -590,3 +596,4 @@ export {
   SidebarStandard,
   useSidebar,
 };
+

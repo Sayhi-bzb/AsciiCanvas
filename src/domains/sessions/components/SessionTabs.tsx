@@ -91,6 +91,7 @@ export function SessionTabs() {
     : null;
   const createOptions = [
     { mode: "freeform" as const, label: "New Freeform", icon: Pencil },
+    { mode: "structured" as const, label: "New Structured", icon: Box },
     { mode: "animation" as const, label: "New Animation", icon: Clapperboard },
   ];
 

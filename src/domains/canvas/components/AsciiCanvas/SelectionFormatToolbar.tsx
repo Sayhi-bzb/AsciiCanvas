@@ -7,6 +7,7 @@ import { gridCellRect } from "@/shared/metrics";
 import type { GridMap, SelectionArea } from "@/shared/types";
 import { GridManager } from "@/shared/utils/grid";
 import { getSelectionBounds } from "@/shared/utils/selection";
+import { getStaticGridViewState } from "@/domains/canvas/state/helpers/staticGridModel";
 import {
   ToggleGroup,
   ToggleGroupItem,
@@ -65,6 +66,9 @@ export function SelectionFormatToolbar({
     offset,
     zoom,
     selections,
+    staticGridSelection,
+    staticGridEditMode,
+    textCursor,
     brushColor,
     setSelectionTextAttributes,
     setSelectionBackgroundColor,
@@ -75,15 +79,31 @@ export function SelectionFormatToolbar({
       offset: state.offset,
       zoom: state.zoom,
       selections: state.selections,
+      staticGridSelection: state.staticGridSelection,
+      staticGridEditMode: state.staticGridEditMode,
+      textCursor: state.textCursor,
       brushColor: state.brushColor,
       setSelectionTextAttributes: state.setSelectionTextAttributes,
       setSelectionBackgroundColor: state.setSelectionBackgroundColor,
     }))
   );
 
+  const staticGridView = useMemo(
+    () =>
+      getStaticGridViewState({
+        selection: staticGridSelection,
+        editMode: staticGridEditMode,
+        textCursor,
+        selections,
+      }),
+    [staticGridEditMode, staticGridSelection, textCursor, selections]
+  );
+  const activeSelections =
+    canvasMode === "freeform" ? staticGridView.selectionAreas : selections;
+
   const selectedCells = useMemo(
-    () => getSelectedCells(grid, selections),
-    [grid, selections]
+    () => getSelectedCells(grid, activeSelections),
+    [grid, activeSelections]
   );
 
   const textValue = useMemo(() => {
@@ -104,8 +124,8 @@ export function SelectionFormatToolbar({
   );
 
   const style = useMemo(() => {
-    if (!containerSize || selections.length === 0) return null;
-    const bounds = getUnionBounds(selections);
+    if (!containerSize || activeSelections.length === 0) return null;
+    const bounds = getUnionBounds(activeSelections);
     if (!bounds) return null;
 
     const startRect = gridCellRect({ x: bounds.minX, y: bounds.minY }, { offset, zoom });
@@ -129,11 +149,11 @@ export function SelectionFormatToolbar({
       left,
       top: Math.max(8, top),
     };
-  }, [containerSize, offset, selections, zoom]);
+  }, [activeSelections, containerSize, offset, zoom]);
 
   if (
     canvasMode === "structured" ||
-    selections.length === 0 ||
+    activeSelections.length === 0 ||
     selectedCells.length === 0 ||
     !style
   ) {

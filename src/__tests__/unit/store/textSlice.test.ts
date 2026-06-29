@@ -114,4 +114,27 @@ describe("textSlice writeTextString", () => {
     );
     expect(useCanvasStore.getState().textCursor).toEqual({ x: 4, y: 5 });
   });
+
+  it("writes at the static active cell when legacy cursor and selections are empty", () => {
+    useCanvasStore.setState({
+      canvasMode: "freeform",
+      canvasBounds: null,
+      grid: new Map(),
+      textCursor: null,
+      selections: [],
+      staticGridSelection: {
+        activeCell: { x: 6, y: 7 },
+        anchorCell: { x: 6, y: 7 },
+        ranges: [],
+      },
+      staticGridEditMode: "navigate",
+    });
+
+    useCanvasStore.getState().writeTextString("A");
+
+    expect(useCanvasStore.getState().grid).toEqual(
+      new Map([["6,7", { char: "A", color: "#000000" }]])
+    );
+    expect(useCanvasStore.getState().textCursor).toEqual({ x: 7, y: 7 });
+  });
 });

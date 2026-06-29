@@ -19,8 +19,19 @@ import {
 } from "@/domains/actions/adapters/clipboardActions";
 import { getStructuredNodeBounds, intersectsBounds, withPointWithinBounds } from "@/shared/utils/structured";
 import { clampSelectionToBounds } from "../helpers/animationHelpers";
+import {
+  collapseGridSelectionTo,
+  createGridSelectionState,
+  gridRangeFromSelectionArea,
+  getStaticGridSelectionAreas,
+} from "../helpers/staticGridModel";
 import { getCellOccupancy } from "@/shared/metrics";
 import { cloneTextAttributes } from "@/shared/utils/ansi";
+
+const resolveSelectionAreas = (state: CanvasState) => {
+  const staticSelections = getStaticGridSelectionAreas(state.staticGridSelection);
+  return staticSelections.length > 0 ? staticSelections : state.selections;
+};
 
 export const createSelectionSlice: StateCreator<
   CanvasState,
@@ -30,22 +41,49 @@ export const createSelectionSlice: StateCreator<
 > = (set, get) => ({
   selections: [],
   addSelection: (area) =>
-    set((s) => ({
-      selections: [
-        ...s.selections,
-        clampSelectionToBounds(area, s.canvasBounds),
-      ],
+    set((s) => {
+      const nextArea = clampSelectionToBounds(area, s.canvasBounds);
+      const range = gridRangeFromSelectionArea(nextArea);
+      return {
+        selections: [...s.selections, nextArea],
+        textCursor: null,
+        staticGridSelection: {
+          activeCell: { ...range.end },
+          anchorCell: { ...range.start },
+          ranges: [...s.staticGridSelection.ranges, range],
+        },
+        staticGridEditMode: "navigate" as const,
+      };
+    }),
+  clearSelections: () =>
+    set((state) => ({
+      selections: [],
+      staticGridSelection: collapseGridSelectionTo(
+        state.staticGridSelection,
+        state.staticGridSelection.activeCell
+      ),
     })),
-  clearSelections: () => set({ selections: [] }),
-  clearInteractionState: () => set({ selections: [], textCursor: null }),
+  clearInteractionState: () =>
+    set((state) => ({
+      selections: [],
+      textCursor: null,
+      staticGridSelection: createGridSelectionState(
+        state.staticGridSelection.activeCell
+      ),
+      staticGridEditMode: "navigate" as const,
+    })),
   canCopyOrCut: () => {
-    const { selections, textCursor, canvasMode, structuredScene } = get();
+    const state = get();
+    const { textCursor, canvasMode, structuredScene } = state;
+    const selections = resolveSelectionAreas(state);
     if (canvasMode === "structured") return structuredScene.length > 0;
     return hasClipboardSource(selections, textCursor);
   },
 
   deleteSelection: () => {
-    const { selections, canvasMode, structuredScene, applyStructuredScene, textCursor } = get();
+    const state = get();
+    const { canvasMode, structuredScene, applyStructuredScene, textCursor } = state;
+    const selections = resolveSelectionAreas(state);
     if (canvasMode === "structured") {
       if (structuredScene.length === 0) return;
       const bounds = selections.map((area) => {
@@ -84,14 +122,15 @@ export const createSelectionSlice: StateCreator<
   },
 
   copySelection: async (options) => {
+    const state = get();
     const {
       grid,
-      selections,
       textCursor,
       brushColor,
       canvasMode,
       structuredScene,
-    } = get();
+    } = state;
+    const selections = resolveSelectionAreas(state);
     if (canvasMode === "structured") {
       const copied = await clipboard.writeText(
         exportStructuredF12Text(structuredScene)
@@ -118,15 +157,16 @@ export const createSelectionSlice: StateCreator<
   },
 
   cutSelection: async (options) => {
+    const state = get();
     const {
       grid,
-      selections,
       textCursor,
       brushColor,
       deleteSelection,
       erasePoints,
       canvasMode,
-    } = get();
+    } = state;
+    const selections = resolveSelectionAreas(state);
     if (canvasMode === "structured") {
       feedback.warning("Cut disabled in structured mode", {
         description: "Use delete on selected nodes instead.",
@@ -173,7 +213,9 @@ export const createSelectionSlice: StateCreator<
   },
 
   copySelectionAsPng: async (withGrid) => {
-    const { grid, selections } = get();
+    const state = get();
+    const { grid } = state;
+    const selections = resolveSelectionAreas(state);
     if (selections.length === 0) return;
     try {
       await copySelectionToPngClipboard(grid, selections, withGrid);
@@ -190,7 +232,9 @@ export const createSelectionSlice: StateCreator<
   },
 
   fillSelectionsWithChar: (char) => {
-    const { selections, brushColor, canvasMode } = get();
+    const state = get();
+    const { brushColor, canvasMode } = state;
+    const selections = resolveSelectionAreas(state);
     if (canvasMode === "structured") return;
     if (selections.length === 0) return;
 
@@ -210,7 +254,9 @@ export const createSelectionSlice: StateCreator<
   },
 
   setSelectionTextAttributes: (attrs) => {
-    const { selections, brushColor, canvasMode } = get();
+    const state = get();
+    const { brushColor, canvasMode } = state;
+    const selections = resolveSelectionAreas(state);
     if (canvasMode === "structured") return;
     if (selections.length === 0) return;
 
@@ -261,7 +307,9 @@ export const createSelectionSlice: StateCreator<
   },
 
   setSelectionBackgroundColor: (bgColor) => {
-    const { selections, canvasMode } = get();
+    const state = get();
+    const { canvasMode } = state;
+    const selections = resolveSelectionAreas(state);
     if (canvasMode === "structured") return;
     if (selections.length === 0) return;
 

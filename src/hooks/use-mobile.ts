@@ -1,19 +1,48 @@
 import * as React from "react"
 
 const MOBILE_BREAKPOINT = 768
+export const SIDEBAR_AUTO_COLLAPSE_BREAKPOINT = 1200
 
-export function useIsMobile() {
-  const [isMobile, setIsMobile] = React.useState<boolean | undefined>(undefined)
+function useMaxWidthQuery(breakpoint: number) {
+  const [matches, setMatches] = React.useState(() => {
+    if (typeof window === "undefined") return false
+    return window.innerWidth < breakpoint
+  })
 
   React.useEffect(() => {
-    const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`)
+    const mql = window.matchMedia(`(max-width: ${breakpoint - 1}px)`)
     const onChange = () => {
-      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
+      setMatches(window.innerWidth < breakpoint)
     }
     mql.addEventListener("change", onChange)
-    setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
+    setMatches(window.innerWidth < breakpoint)
     return () => mql.removeEventListener("change", onChange)
-  }, [])
+  }, [breakpoint])
 
-  return !!isMobile
+  return !!matches
+}
+
+export function useIsMobile() {
+  return useMaxWidthQuery(MOBILE_BREAKPOINT)
+}
+
+export function useShouldAutoCollapseSidebar() {
+  return useMaxWidthQuery(SIDEBAR_AUTO_COLLAPSE_BREAKPOINT)
+}
+
+export function useSidebarAutoCollapseSignal() {
+  const shouldAutoCollapseSidebar = useShouldAutoCollapseSidebar()
+  const previousShouldAutoCollapseSidebar = React.useRef(
+    shouldAutoCollapseSidebar
+  )
+  const [signal, setSignal] = React.useState(0)
+
+  React.useEffect(() => {
+    if (!previousShouldAutoCollapseSidebar.current && shouldAutoCollapseSidebar) {
+      setSignal((currentSignal) => currentSignal + 1)
+    }
+    previousShouldAutoCollapseSidebar.current = shouldAutoCollapseSidebar
+  }, [shouldAutoCollapseSidebar])
+
+  return signal
 }

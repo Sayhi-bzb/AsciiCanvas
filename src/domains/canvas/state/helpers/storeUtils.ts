@@ -7,6 +7,7 @@ import type {
   ToolType,
 } from "@/shared/types";
 import { sceneToGridEntries } from "@/shared/utils/structured";
+import { MIN_ZOOM, MAX_ZOOM } from "@/shared/lib/constants";
 import { serializeGrid } from "./snapshotHelpers";
 import {
   normalizeAndCloneScene,
@@ -30,6 +31,17 @@ export const DEFAULT_SESSION_ID = "canvas-1";
 export const DEFAULT_SESSION_NAME = "Canvas 1";
 export const DEFAULT_MODE: CanvasMode = "freeform";
 export const STRUCTURED_ALLOWED_TOOLS: ToolType[] = ["select", "box", "line"];
+
+const DEFAULT_VIEWPORT = { offset: { x: 0, y: 0 }, zoom: 1 };
+
+export const normalizeSessionViewport = (viewport: CanvasSession["viewport"] | undefined) => {
+  if (!viewport) return null;
+  const x = Number.isFinite(viewport.offset?.x) ? viewport.offset.x : DEFAULT_VIEWPORT.offset.x;
+  const y = Number.isFinite(viewport.offset?.y) ? viewport.offset.y : DEFAULT_VIEWPORT.offset.y;
+  const rawZoom = Number.isFinite(viewport.zoom) ? viewport.zoom : DEFAULT_VIEWPORT.zoom;
+  const zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, rawZoom));
+  return { offset: { x, y }, zoom };
+};
 
 export const isToolAllowedForMode = (tool: ToolType, mode: CanvasMode) => {
   if (mode === "structured") return STRUCTURED_ALLOWED_TOOLS.includes(tool);
@@ -68,6 +80,7 @@ export const buildSessionSnapshot = (state: CanvasState) => {
       grid: getAnimationFrameEntries(timeline, timeline.currentFrameId),
       size,
       timeline,
+      viewport: { offset: { ...state.offset }, zoom: state.zoom },
     };
   }
 
@@ -76,6 +89,7 @@ export const buildSessionSnapshot = (state: CanvasState) => {
       mode: "structured" as const,
       scene: state.structuredScene,
       grid: sceneToGridEntries(state.structuredScene),
+      viewport: { offset: { ...state.offset }, zoom: state.zoom },
     };
   }
 
@@ -83,11 +97,15 @@ export const buildSessionSnapshot = (state: CanvasState) => {
     mode: "freeform" as const,
     scene: [] as StructuredNode[],
     grid: serializeGrid(state.grid),
+    viewport: { offset: { ...state.offset }, zoom: state.zoom },
   };
 };
 
 export const resolveSessionRuntime = (session: CanvasSession, currentTool: ToolType) => {
   const nextMode = normalizeSessionMode(session.mode);
+  const viewport = normalizeSessionViewport(session.viewport);
+  const nextOffset = viewport?.offset ?? DEFAULT_VIEWPORT.offset;
+  const nextZoom = viewport?.zoom ?? DEFAULT_VIEWPORT.zoom;
 
   if (nextMode === "animation") {
     const nextBounds = normalizeAnimationCanvasSize(session.size);
@@ -105,6 +123,9 @@ export const resolveSessionRuntime = (session: CanvasSession, currentTool: ToolT
         : getFallbackToolForMode(nextMode),
       nextBounds,
       nextTimeline,
+      nextOffset,
+      nextZoom,
+      hasSavedViewport: !!viewport,
     };
   }
 
@@ -122,6 +143,9 @@ export const resolveSessionRuntime = (session: CanvasSession, currentTool: ToolT
       : getFallbackToolForMode(nextMode),
     nextBounds: null as AnimationCanvasSize | null,
     nextTimeline: null as AnimationTimeline | null,
+    nextOffset,
+    nextZoom,
+    hasSavedViewport: !!viewport,
   };
 };
 
