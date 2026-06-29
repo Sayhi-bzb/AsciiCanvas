@@ -1,6 +1,8 @@
 import {
+  BringToFront,
   Clipboard,
   Copy,
+  CopyPlus,
   Eraser,
   Hand,
   Image,
@@ -10,6 +12,7 @@ import {
   Palette,
   Pencil,
   Scissors,
+  SendToBack,
   Trash2,
   Undo2,
 } from "lucide-react";
@@ -44,6 +47,31 @@ export const EDITOR_ACTION_META: Record<EditorActionId, ActionMeta> = {
     shortcut: "⌫",
     icon: Trash2,
     destructive: true,
+  },
+  "structured-bring-forward": {
+    id: "structured-bring-forward",
+    label: "Bring Forward",
+    icon: BringToFront,
+  },
+  "structured-send-backward": {
+    id: "structured-send-backward",
+    label: "Send Backward",
+    icon: SendToBack,
+  },
+  "structured-bring-to-front": {
+    id: "structured-bring-to-front",
+    label: "Bring to Front",
+    icon: BringToFront,
+  },
+  "structured-send-to-back": {
+    id: "structured-send-to-back",
+    label: "Send to Back",
+    icon: SendToBack,
+  },
+  "structured-duplicate": {
+    id: "structured-duplicate",
+    label: "Duplicate",
+    icon: CopyPlus,
   },
 };
 
@@ -96,6 +124,18 @@ export const CANVAS_CONTEXT_MENU: ContextMenuEntry[] = [
   { type: "action", id: "snapshot-png" },
   { type: "action", id: "cut" },
   { type: "action", id: "paste" },
+  { type: "separator" },
+  { type: "action", id: "delete-selection" },
+];
+
+
+export const STRUCTURED_CONTEXT_MENU: ContextMenuEntry[] = [
+  { type: "action", id: "structured-bring-forward" },
+  { type: "action", id: "structured-send-backward" },
+  { type: "action", id: "structured-bring-to-front" },
+  { type: "action", id: "structured-send-to-back" },
+  { type: "separator" },
+  { type: "action", id: "structured-duplicate" },
   { type: "separator" },
   { type: "action", id: "delete-selection" },
 ];

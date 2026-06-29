@@ -67,6 +67,8 @@ export const createSelectionSlice: StateCreator<
     set((state) => ({
       selections: [],
       textCursor: null,
+      selectedStructuredNodeIds: [],
+      selectedStructuredBoxId: null,
       staticGridSelection: createGridSelectionState(
         state.staticGridSelection.activeCell
       ),
@@ -82,10 +84,25 @@ export const createSelectionSlice: StateCreator<
 
   deleteSelection: () => {
     const state = get();
-    const { canvasMode, structuredScene, applyStructuredScene, textCursor } = state;
+    const {
+      canvasMode,
+      structuredScene,
+      selectedStructuredNodeIds,
+      applyStructuredScene,
+      textCursor,
+    } = state;
     const selections = resolveSelectionAreas(state);
     if (canvasMode === "structured") {
       if (structuredScene.length === 0) return;
+      if (selectedStructuredNodeIds.length > 0) {
+        const selectedIds = new Set(selectedStructuredNodeIds);
+        const nextScene = structuredScene.filter((node) => !selectedIds.has(node.id));
+        if (nextScene.length !== structuredScene.length) {
+          applyStructuredScene(nextScene, true);
+          set({ selectedStructuredNodeIds: [], selectedStructuredBoxId: null });
+        }
+        return;
+      }
       const bounds = selections.map((area) => {
         const { minX, maxX, minY, maxY } = getSelectionBounds(area);
         return {

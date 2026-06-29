@@ -21,6 +21,10 @@ type ClipboardOptions = {
 };
 type FillOptions = { fillChar?: string };
 
+const hasStructuredSelection = (
+  state: ReturnType<typeof useCanvasStore.getState>
+) => state.canvasMode === "structured" && state.selectedStructuredNodeIds.length > 0;
+
 // Check if action can run
 const canCopyOrCut = (state: ReturnType<typeof useCanvasStore.getState>): boolean => {
   return state.canCopyOrCut();
@@ -153,11 +157,41 @@ export const editorHandlers: Record<
   },
 
   "delete-selection": (_options, context): ActionResult => {
-    if (context.state.selections.length === 0) {
+    if (context.state.selections.length === 0 && !hasStructuredSelection(context.state)) {
       return actionFailed("empty-selection");
     }
     context.state.deleteSelection();
     return actionSucceeded();
+  },
+
+  "structured-bring-forward": (_options, context): ActionResult => {
+    if (!hasStructuredSelection(context.state)) return actionFailed("empty-selection");
+    context.state.reorderStructuredSelection("forward");
+    return actionSucceeded();
+  },
+
+  "structured-send-backward": (_options, context): ActionResult => {
+    if (!hasStructuredSelection(context.state)) return actionFailed("empty-selection");
+    context.state.reorderStructuredSelection("backward");
+    return actionSucceeded();
+  },
+
+  "structured-bring-to-front": (_options, context): ActionResult => {
+    if (!hasStructuredSelection(context.state)) return actionFailed("empty-selection");
+    context.state.reorderStructuredSelection("front");
+    return actionSucceeded();
+  },
+
+  "structured-send-to-back": (_options, context): ActionResult => {
+    if (!hasStructuredSelection(context.state)) return actionFailed("empty-selection");
+    context.state.reorderStructuredSelection("back");
+    return actionSucceeded();
+  },
+
+  "structured-duplicate": (_options, context): ActionResult => {
+    if (!hasStructuredSelection(context.state)) return actionFailed("empty-selection");
+    const duplicatedIds = context.state.duplicateStructuredSelection();
+    return duplicatedIds.length > 0 ? actionSucceeded() : actionFailed("empty-selection");
   },
 };
 
@@ -174,7 +208,13 @@ export const editorCheckers: Partial<Record<EditorActionId, (state: ReturnType<t
   cut: (state) =>
     state.canvasMode !== "structured" && state.canCopyOrCut(),
   "snapshot-png": (state) => state.selections.length > 0,
-  "delete-selection": (state) => state.selections.length > 0,
+  "delete-selection": (state) =>
+    state.selections.length > 0 || hasStructuredSelection(state),
+  "structured-bring-forward": hasStructuredSelection,
+  "structured-send-backward": hasStructuredSelection,
+  "structured-bring-to-front": hasStructuredSelection,
+  "structured-send-to-back": hasStructuredSelection,
+  "structured-duplicate": hasStructuredSelection,
   "fill-selection-char": (state) =>
     state.canvasMode !== "structured" &&
     state.selections.length > 0 &&

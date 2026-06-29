@@ -52,6 +52,8 @@ export const createAnimationSlice: StateCreator<
     set({
       canvasMode: "animation",
       structuredScene: [],
+      selectedStructuredNodeIds: [],
+      selectedStructuredBoxId: null,
       grid: createMapFromEntries(nextGridEntries),
       canvasBounds: nextBounds,
       animationTimeline: nextTimeline,

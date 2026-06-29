@@ -95,6 +95,8 @@ export const useCanvasStore = create<CanvasState>()(
         grid: createMapFromEntries(DEFAULT_DEMO_GRID),
         canvasMode: DEFAULT_MODE,
         structuredScene: [],
+        selectedStructuredNodeIds: [],
+        selectedStructuredBoxId: null,
         canvasBounds: null,
         animationTimeline: null,
         animationIsPlaying: false,
@@ -140,6 +142,12 @@ export const useCanvasStore = create<CanvasState>()(
           }, shouldSaveHistory);
           set((state) => ({
             structuredScene: normalizedScene,
+            selectedStructuredNodeIds: state.selectedStructuredNodeIds.filter((id) =>
+              normalizedScene.some((node) => node.id === id)
+            ),
+            selectedStructuredBoxId: state.selectedStructuredBoxId && normalizedScene.some((node) => node.id === state.selectedStructuredBoxId && node.type === "box")
+              ? state.selectedStructuredBoxId
+              : null,
             grid: createMapFromEntries(gridEntries),
             canvasSessions: withActiveCanvasSnapshot(
               state.canvasSessions,
@@ -333,6 +341,8 @@ export const useCanvasStore = create<CanvasState>()(
           hState.activeCanvasId = activeCanvasId;
           hState.canvasMode = runtime.nextMode;
           hState.structuredScene = runtime.nextScene;
+          hState.selectedStructuredNodeIds = [];
+          hState.selectedStructuredBoxId = null;
           hState.grid = createMapFromEntries(runtime.nextGridEntries);
           hState.tool = runtime.nextTool;
           hState.canvasBounds = runtime.nextBounds;

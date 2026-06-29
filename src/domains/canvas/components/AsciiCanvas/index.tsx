@@ -17,6 +17,7 @@ import {
 import {
   ACTION_CATALOG,
   CANVAS_CONTEXT_MENU,
+  STRUCTURED_CONTEXT_MENU,
   canRunAction,
   runAction,
 } from '@/domains/actions/core';
@@ -26,6 +27,8 @@ import {
   resolveHistoryShortcutCommand,
 } from '@/domains/actions/adapters/editorCommands';
 import { gridCellRect } from '@/shared/metrics';
+import { GridManager } from '@/shared/utils/grid';
+import { findStructuredNodeIdAtPoint } from '@/domains/canvas/state/helpers/structuredNodeActions';
 import { getStaticGridViewState } from '@/domains/canvas/state/helpers/staticGridModel';
 import { useShallow } from 'zustand/react/shallow';
 import type { CanvasLinkHit } from './hooks/linkHitTesting';
@@ -69,6 +72,10 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
       setHoveredGrid: state.setHoveredGrid,
       fillArea: state.fillArea,
       canvasBounds: state.canvasBounds,
+      structuredScene: state.structuredScene,
+      setSelectedStructuredNodeIds: state.setSelectedStructuredNodeIds,
+      setSelectedStructuredBoxId: state.setSelectedStructuredBoxId,
+      updateStructuredBox: state.updateStructuredBox,
       activeCanvasHasSavedViewport: state.activeCanvasHasSavedViewport,
     }))
   );
@@ -94,6 +101,9 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
       canvasMode: state.canvasMode,
       canvasBounds: state.canvasBounds,
       animationTimeline: state.animationTimeline,
+      structuredScene: state.structuredScene,
+      selectedStructuredNodeIds: state.selectedStructuredNodeIds,
+      selectedStructuredBoxId: state.selectedStructuredBoxId,
     }))
   );
   const {
@@ -115,6 +125,9 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
     expandSelection,
     fillSelectionsWithChar,
     clearSelections,
+    selectedStructuredNodeIds,
+    setSelectedStructuredNodeIds,
+    structuredScene,
   } = useCanvasStore(
     useShallow((state) => ({
       textCursor: state.textCursor,
@@ -135,6 +148,9 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
       expandSelection: state.expandSelection,
       fillSelectionsWithChar: state.fillSelectionsWithChar,
       clearSelections: state.clearSelections,
+      selectedStructuredNodeIds: state.selectedStructuredNodeIds,
+      setSelectedStructuredNodeIds: state.setSelectedStructuredNodeIds,
+      structuredScene: state.structuredScene,
     }))
   );
 
@@ -197,7 +213,11 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
     canvasMode === 'freeform' ? staticGridView.textCursor : textCursor;
   const activeSelections =
     canvasMode === 'freeform' ? staticGridView.selectionAreas : selections;
-  const hasActiveSelection = activeSelections.length > 0;
+  const hasStructuredSelection =
+    canvasMode === 'structured' && selectedStructuredNodeIds.length > 0;
+  const hasActiveSelection = activeSelections.length > 0 || hasStructuredSelection;
+  const activeContextMenu =
+    canvasMode === 'structured' ? STRUCTURED_CONTEXT_MENU : CANVAS_CONTEXT_MENU;
   useLayoutEffect(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
@@ -245,7 +265,7 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
 
   const textareaStyle: React.CSSProperties = useMemo(() => {
     if ((!activeTextCursor && !hasActiveSelection) || !size) return { display: 'none' };
-    const point = activeTextCursor ?? activeSelections[0].start;
+    const point = activeTextCursor ?? activeSelections[0]?.start ?? { x: 0, y: 0 };
     const pos = gridCellRect(point, { offset, zoom });
 
     return {
@@ -259,6 +279,29 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
       zIndex: -1,
     };
   }, [activeTextCursor, activeSelections, hasActiveSelection, offset, zoom, size]);
+
+
+  const handleContextMenu = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (canvasMode !== 'structured') return;
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const point = GridManager.screenToGrid(
+      event.clientX - rect.left,
+      event.clientY - rect.top,
+      offset.x,
+      offset.y,
+      zoom
+    );
+    const hitId = findStructuredNodeIdAtPoint(structuredScene, point);
+    if (!hitId) {
+      setSelectedStructuredNodeIds([]);
+      return;
+    }
+    if (!selectedStructuredNodeIds.includes(hitId)) {
+      setSelectedStructuredNodeIds([hitId]);
+    }
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     e.stopPropagation();
@@ -318,10 +361,12 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
       e.preventDefault();
       if (activeTextCursor) {
         setTextCursor(null);
+      } else if (hasStructuredSelection) {
+        setSelectedStructuredNodeIds([]);
       } else if (hasActiveSelection) {
         clearSelections();
       }
-    } else if (hasActiveSelection && !activeTextCursor) {
+    } else if (activeSelections.length > 0 && !activeTextCursor) {
       const fillChar = resolveFillHotkeyChar(e);
       if (!fillChar) return;
 
@@ -337,6 +382,7 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
         <div
           ref={containerRef}
           style={{ touchAction: 'none' }}
+          onContextMenu={handleContextMenu}
           className="relative w-screen h-screen overflow-hidden bg-background touch-none select-none cursor-default"
         >
           <canvas
@@ -380,7 +426,7 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
       </ContextMenuTrigger>
 
       <ContextMenuContent className="w-56">
-        {CANVAS_CONTEXT_MENU.map((entry, index) => {
+        {activeContextMenu.map((entry, index) => {
           if (entry.type === 'separator') {
             return <ContextMenuSeparator key={`sep-${index}`} />;
           }

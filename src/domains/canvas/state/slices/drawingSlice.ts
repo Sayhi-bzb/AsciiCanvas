@@ -2,7 +2,7 @@ import type { StateCreator } from "zustand";
 import type { CanvasState, DrawingSlice } from "../interfaces";
 import { transactWithHistory, yMainGrid } from "@/shared/lib/yjs-setup";
 import { GridManager } from "@/shared/utils/grid";
-import type { GridPoint, StructuredNode } from "@/shared/types";
+import type { GridPoint, StructuredBoxNode, StructuredNode } from "@/shared/types";
 import { placeCharInMap, placeCharInYMap } from "../utils";
 import { deleteCellAt } from "../gridOps";
 import {
@@ -12,6 +12,10 @@ import {
   getStepLinePoints,
 } from "@/shared/utils/shapes";
 import { createStructuredNodeId } from "@/shared/utils/structured";
+import {
+  duplicateStructuredNodes,
+  reorderStructuredNodes,
+} from "../helpers/structuredNodeActions";
 import { filterGridPointsToBounds, filterPointsToBounds } from "../helpers/animationHelpers";
 
 export const createDrawingSlice: StateCreator<
@@ -88,11 +92,11 @@ export const createDrawingSlice: StateCreator<
     const { canvasMode, applyStructuredScene } = get();
     if (canvasMode === "structured") {
       applyStructuredScene([], true);
-      set({ scratchLayer: null, selections: [], textCursor: null });
+      set({ scratchLayer: null, selections: [], textCursor: null, selectedStructuredNodeIds: [], selectedStructuredBoxId: null });
       return;
     }
     transactWithHistory(() => yMainGrid.clear());
-    set({ scratchLayer: null, selections: [], textCursor: null });
+    set({ scratchLayer: null, selections: [], textCursor: null, selectedStructuredNodeIds: [], selectedStructuredBoxId: null });
   },
 
   erasePoints: (points, shouldSaveHistory = true) => {
@@ -139,6 +143,72 @@ export const createDrawingSlice: StateCreator<
           };
 
     state.applyStructuredScene([...state.structuredScene, node], true);
-    set({ scratchLayer: null });
+    set({
+      scratchLayer: null,
+      selectedStructuredNodeIds: [node.id],
+      selectedStructuredBoxId: node.type === "box" ? node.id : null,
+    });
+  },
+  setSelectedStructuredNodeIds: (ids) =>
+    set((state) => {
+      const validIds = ids.filter((id, index) =>
+        ids.indexOf(id) === index && state.structuredScene.some((node) => node.id === id)
+      );
+      const selectedBox =
+        validIds.length === 1
+          ? state.structuredScene.find((node) => node.id === validIds[0] && node.type === "box")
+          : null;
+      return {
+        selectedStructuredNodeIds: validIds,
+        selectedStructuredBoxId: selectedBox?.id ?? null,
+      };
+    }),
+  setSelectedStructuredBoxId: (id) =>
+    set((state) => {
+      if (!id) return { selectedStructuredNodeIds: [], selectedStructuredBoxId: null };
+      const selectedBox = state.structuredScene.find((node) => node.id === id && node.type === "box");
+      if (!selectedBox) return { selectedStructuredNodeIds: [], selectedStructuredBoxId: null };
+      return { selectedStructuredNodeIds: [id], selectedStructuredBoxId: id };
+    }),
+
+  updateStructuredBox: (id, updater) => {
+    const state = get();
+    if (state.canvasMode !== "structured") return;
+    let didUpdate = false;
+    const nextScene = state.structuredScene.map((node) => {
+      if (node.id !== id || node.type !== "box") return node;
+      didUpdate = true;
+      return updater(node as StructuredBoxNode);
+    });
+    if (!didUpdate) return;
+    state.applyStructuredScene(nextScene, true);
+    set({ selectedStructuredNodeIds: [id], selectedStructuredBoxId: id });
+  },
+
+  reorderStructuredSelection: (direction) => {
+    const state = get();
+    if (state.canvasMode !== "structured") return;
+    if (state.selectedStructuredNodeIds.length === 0) return;
+    const nextScene = reorderStructuredNodes(
+      state.structuredScene,
+      state.selectedStructuredNodeIds,
+      direction
+    );
+    state.applyStructuredScene(nextScene, true);
+    state.setSelectedStructuredNodeIds(state.selectedStructuredNodeIds);
+  },
+
+  duplicateStructuredSelection: () => {
+    const state = get();
+    if (state.canvasMode !== "structured") return [];
+    if (state.selectedStructuredNodeIds.length === 0) return [];
+    const { scene, duplicatedIds } = duplicateStructuredNodes(
+      state.structuredScene,
+      state.selectedStructuredNodeIds
+    );
+    if (duplicatedIds.length === 0) return [];
+    state.applyStructuredScene(scene, true);
+    state.setSelectedStructuredNodeIds(duplicatedIds);
+    return duplicatedIds;
   },
 });

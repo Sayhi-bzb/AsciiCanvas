@@ -13,7 +13,12 @@ export type EditorActionId =
   | "paste"
   | "fill-selection-char"
   | "snapshot-png"
-  | "delete-selection";
+  | "delete-selection"
+  | "structured-bring-forward"
+  | "structured-send-backward"
+  | "structured-bring-to-front"
+  | "structured-send-to-back"
+  | "structured-duplicate";
 
 // Toolbar Actions
 export type ToolbarActionId =

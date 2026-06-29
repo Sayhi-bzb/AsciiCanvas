@@ -9,7 +9,7 @@ import {
 } from "@/shared/lib/constants";
 import type { CanvasState } from "@/domains/canvas/state/canvasStore";
 import { GridManager } from "@/shared/utils/grid";
-import type { SelectionArea, GridMap, Point } from "@/shared/types";
+import type { SelectionArea, GridMap, Point, NodeBounds } from "@/shared/types";
 import type { CanvasLinkHit } from "./linkHitTesting";
 import { getSelectionBounds } from "@/shared/utils/selection";
 import { createMapFromEntries } from "@/domains/canvas/state/helpers/snapshotHelpers";
@@ -26,6 +26,8 @@ import {
 } from "@/shared/metrics";
 import { effectiveCellStyle } from "@/shared/utils/ansi";
 import { getStaticGridViewState } from "@/domains/canvas/state/helpers/staticGridModel";
+import { getStructuredBoxBounds } from "@/domains/canvas/state/helpers/structuredBoxEditing";
+import { getStructuredNodeBounds } from "@/shared/utils/structured";
 
 interface LayerRefs {
   bg: React.RefObject<HTMLCanvasElement | null>;
@@ -52,6 +54,9 @@ export const useCanvasRenderer = (
     | "canvasMode"
     | "canvasBounds"
     | "animationTimeline"
+    | "selectedStructuredNodeIds"
+    | "selectedStructuredBoxId"
+    | "structuredScene"
   >,
   draggingSelection: SelectionArea | null,
   hoveredLink: CanvasLinkHit | null
@@ -71,6 +76,9 @@ export const useCanvasRenderer = (
     canvasMode,
     canvasBounds,
     animationTimeline,
+    selectedStructuredNodeIds,
+    selectedStructuredBoxId,
+    structuredScene,
   } = store;
 
   const staticGridView = getStaticGridViewState({
@@ -322,6 +330,56 @@ export const useCanvasRenderer = (
         renderedSelections.forEach(drawSel);
         if (draggingSelection) drawSel(draggingSelection);
 
+        if (canvasMode === "structured" && selectedStructuredNodeIds.length > 0) {
+          const selectedIds = new Set(selectedStructuredNodeIds);
+          const selectedNodes = structuredScene.filter((node) => selectedIds.has(node.id));
+          const drawStructuredBounds = (bounds: NodeBounds) => {
+            const pos = gridCellRect({ x: bounds.x, y: bounds.y }, { offset, zoom });
+            const width = bounds.width * pos.width;
+            const height = bounds.height * pos.height;
+            uiCtx.strokeRect(
+              Math.round(pos.x),
+              Math.round(pos.y),
+              Math.round(width),
+              Math.round(height)
+            );
+            return { pos, width, height };
+          };
+
+          uiCtx.save();
+          uiCtx.strokeStyle = "#2563eb";
+          uiCtx.lineWidth = Math.max(1, Math.round(2 * zoom));
+          selectedNodes.forEach((node) => drawStructuredBounds(getStructuredNodeBounds(node)));
+
+          const selectedBox =
+            selectedStructuredNodeIds.length === 1
+              ? structuredScene.find((node) => node.id === selectedStructuredBoxId && node.type === "box")
+              : null;
+          if (selectedBox?.type === "box") {
+            const bounds = getStructuredBoxBounds(selectedBox);
+            const { pos, width, height } = drawStructuredBounds(bounds);
+            uiCtx.fillStyle = "#ffffff";
+            uiCtx.strokeStyle = "#2563eb";
+            uiCtx.lineWidth = 1;
+            const handleSize = Math.max(6, Math.round(7 * zoom));
+            const points = [
+              [pos.x, pos.y],
+              [pos.x + width / 2, pos.y],
+              [pos.x + width, pos.y],
+              [pos.x + width, pos.y + height / 2],
+              [pos.x + width, pos.y + height],
+              [pos.x + width / 2, pos.y + height],
+              [pos.x, pos.y + height],
+              [pos.x, pos.y + height / 2],
+            ];
+            points.forEach(([px, py]) => {
+              uiCtx.fillRect(Math.round(px - handleSize / 2), Math.round(py - handleSize / 2), handleSize, handleSize);
+              uiCtx.strokeRect(Math.round(px - handleSize / 2), Math.round(py - handleSize / 2), handleSize, handleSize);
+            });
+          }
+          uiCtx.restore();
+        }
+
         if (tool === "eraser" && hoveredGrid) {
           const pos = gridCellRect(hoveredGrid, { offset, zoom });
           uiCtx.fillStyle = "rgba(239, 68, 68, 0.3)";
@@ -382,6 +440,9 @@ export const useCanvasRenderer = (
     canvasMode,
     canvasBounds,
     animationTimeline,
+    structuredScene,
+    selectedStructuredNodeIds,
+    selectedStructuredBoxId,
     layers,
     hoveredLink,
   ]);

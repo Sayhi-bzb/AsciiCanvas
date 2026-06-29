@@ -28,6 +28,7 @@ export {
   TOOLBAR_ACTION_ORDER,
   SIDEBAR_ACTION_META,
   CANVAS_CONTEXT_MENU,
+  STRUCTURED_CONTEXT_MENU,
 } from "./catalog";
 
 // Runtime

@@ -10,6 +10,7 @@ import type {
   Point,
   SelectionArea,
   StructuredNode,
+  StructuredBoxNode,
   TextAttributes,
   ToolType,
 } from "@/shared/types";
@@ -45,6 +46,11 @@ export interface DrawingSlice {
     end: Point,
     options?: { axis?: "vertical" | "horizontal" | null }
   ) => void;
+  setSelectedStructuredNodeIds: (ids: string[]) => void;
+  setSelectedStructuredBoxId: (id: string | null) => void;
+  updateStructuredBox: (id: string, updater: (node: StructuredBoxNode) => StructuredBoxNode) => void;
+  reorderStructuredSelection: (direction: "forward" | "backward" | "front" | "back") => void;
+  duplicateStructuredSelection: () => string[];
 }
 
 export interface StaticGridSlice {
@@ -154,6 +160,8 @@ export type CanvasState = {
   brushColor: string;
   grid: GridMap;
   structuredScene: StructuredNode[];
+  selectedStructuredNodeIds: string[];
+  selectedStructuredBoxId: string | null;
   canvasBounds: AnimationCanvasSize | null;
   animationTimeline: AnimationTimeline | null;
   animationIsPlaying: boolean;
