@@ -502,12 +502,14 @@ function SidebarMenuSub({ className, ...props }: React.ComponentProps<"ul">) {
 
 function SidebarStandard({
   children,
+  header,
   icon,
   title,
   footer,
   className,
   ...props
 }: React.ComponentProps<typeof Sidebar> & {
+  header?: React.ReactNode;
   icon?: React.ReactNode;
   title?: string;
   footer?: React.ReactNode;
@@ -521,31 +523,33 @@ function SidebarStandard({
       className={cn("z-40 transition-all duration-200", className)}
       {...props}
     >
-      <SidebarHeader
-        className={cn(
-          "flex py-4 transition-all duration-200",
-          isCollapsed
-            ? "flex-col items-center justify-center gap-y-4"
-            : "flex-row items-center justify-between px-4 border-b"
-        )}
-      >
-        <div className="flex items-center gap-2">
-          {icon && <div className="shrink-0">{icon}</div>}
-          {!isCollapsed && title && (
-            <span className="font-bold text-sm tracking-tight whitespace-nowrap animate-in fade-in duration-300">
-              {title}
-            </span>
-          )}
-        </div>
-        <div
+      {header ?? (
+        <SidebarHeader
           className={cn(
-            "flex items-center gap-2",
-            isCollapsed ? "flex-col-reverse" : "flex-row"
+            "flex py-4 transition-all duration-200",
+            isCollapsed
+              ? "flex-col items-center justify-center gap-y-4"
+              : "flex-row items-center justify-between px-4 border-b"
           )}
         >
-          <SidebarTrigger />
-        </div>
-      </SidebarHeader>
+          <div className="flex items-center gap-2">
+            {icon && <div className="shrink-0">{icon}</div>}
+            {!isCollapsed && title && (
+              <span className="font-bold text-sm tracking-tight whitespace-nowrap animate-in fade-in duration-300">
+                {title}
+              </span>
+            )}
+          </div>
+          <div
+            className={cn(
+              "flex items-center gap-2",
+              isCollapsed ? "flex-col-reverse" : "flex-row"
+            )}
+          >
+            <SidebarTrigger />
+          </div>
+        </SidebarHeader>
+      )}
 
       <SidebarContent
         className={cn(
@@ -576,6 +580,8 @@ export {
   SidebarGroupLabel,
   SidebarInput,
   SidebarInset,
+  SidebarHeader,
+  SidebarTrigger,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,

@@ -12,12 +12,12 @@ import { useLibraryStore } from "../stores/useLibraryStore";
 import { rx } from "@/shared/styles/recipes";
 import { cn } from "@/shared/lib/utils";
 
-export function SearchForm({ ...props }: React.ComponentProps<"form">) {
+export function SearchForm({ className, ...props }: React.ComponentProps<"form">) {
   const { searchQuery, setSearchQuery } = useLibraryStore();
 
   return (
-    <form {...props} onSubmit={(e) => e.preventDefault()}>
-      <SidebarGroup className="py-2 border-b">
+    <form className={className} {...props} onSubmit={(e) => e.preventDefault()}>
+      <SidebarGroup className="p-0">
         <SidebarGroupContent className="relative">
           <Label htmlFor="search" className="sr-only">
             Search Blueprint
@@ -47,3 +47,4 @@ export function SearchForm({ ...props }: React.ComponentProps<"form">) {
     </form>
   );
 }
+

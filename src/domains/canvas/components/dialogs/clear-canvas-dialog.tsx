@@ -18,6 +18,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/shar
 
 type ClearCanvasDialogProps = {
   isCollapsed: boolean;
+  iconOnly?: boolean;
   label?: string;
   description?: string;
   onConfirm: () => void;
@@ -25,6 +26,7 @@ type ClearCanvasDialogProps = {
 
 export function ClearCanvasDialog({
   isCollapsed,
+  iconOnly = false,
   label = "Clear Canvas",
   description = "This will completely clear the current blueprint.",
   onConfirm,
@@ -37,21 +39,21 @@ export function ClearCanvasDialog({
             <AlertDialogTrigger asChild>
               <Button
                 tone="subtle"
-                shape={isCollapsed ? "square" : "auto"}
-                size={isCollapsed ? "md" : "sm"}
+                shape={isCollapsed || iconOnly ? "square" : "auto"}
+                size={isCollapsed || iconOnly ? "md" : "sm"}
                 className={cn(
                   "justify-start gap-2 text-destructive hover:bg-destructive/10 transition-colors",
-                  isCollapsed ? "size-8 justify-center" : "w-full h-8 px-2"
+                  isCollapsed || iconOnly ? "size-8 justify-center" : "w-full h-8 px-2"
                 )}
               >
                 <Trash2 className="size-4" />
-                {!isCollapsed && (
+                {!isCollapsed && !iconOnly && (
                   <span className="font-medium text-xs">{label}</span>
                 )}
               </Button>
             </AlertDialogTrigger>
           </TooltipTrigger>
-          {isCollapsed && <TooltipContent side="left">{label}</TooltipContent>}
+          {(isCollapsed || iconOnly) && <TooltipContent side="left">{label}</TooltipContent>}
         </Tooltip>
       </TooltipProvider>
 

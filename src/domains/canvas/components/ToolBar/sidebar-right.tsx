@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect } from "react";
-import { Eye, EyeOff, Github, Library, Target } from "lucide-react";
-import { SidebarStandard, useSidebar } from "@/shared/ui/sidebar";
+import { Eye, EyeOff, Github, Target } from "lucide-react";
+import { SidebarHeader, SidebarStandard, SidebarTrigger, useSidebar } from "@/shared/ui/sidebar";
 import { CharLibrary, SearchForm, useLibraryStore } from "@/domains/character-library";
 import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
 import { SIDEBAR_ACTION_META, runSidebarAction } from "@/domains/actions/core";
@@ -59,12 +59,19 @@ export function SidebarRight() {
     <SidebarStandard
       variant="floating"
       side="right"
-      title="Library"
       className="pointer-events-auto"
-      icon={
-        <div className="flex items-center justify-center rounded-lg bg-accent p-1.5 shrink-0">
-          <Library className="size-4 text-accent-foreground" />
-        </div>
+      header={
+        <SidebarHeader
+          className={cn(
+            "border-b transition-all duration-200",
+            isCollapsed
+              ? "items-center justify-center px-0 py-4"
+              : "flex-row items-center gap-2 px-3 py-2"
+          )}
+        >
+          <SidebarTrigger className="size-8 shrink-0" />
+          {!isCollapsed && <SearchForm className="min-w-0 flex-1" />}
+        </SidebarHeader>
       }
       footer={
         <div className={cn("flex w-full flex-col gap-2", isCollapsed && "items-center")}>
@@ -148,6 +155,18 @@ export function SidebarRight() {
                 )}
 
                 <HandbookDialog />
+
+                <ClearCanvasDialog
+                  isCollapsed={isCollapsed}
+                  iconOnly
+                  label={canvasMode === "animation" ? "Clear Frame" : "Clear Canvas"}
+                  description={
+                    canvasMode === "animation"
+                      ? "This will completely clear the current animation frame."
+                      : "This will completely clear the current blueprint."
+                  }
+                  onConfirm={clearCanvas}
+                />
               </TooltipProvider>
             </div>
 
@@ -177,22 +196,10 @@ export function SidebarRight() {
               </Tooltip>
             </TooltipProvider>
           </div>
-
-          <ClearCanvasDialog
-            isCollapsed={isCollapsed}
-            label={canvasMode === "animation" ? "Clear Frame" : "Clear Canvas"}
-            description={
-              canvasMode === "animation"
-                ? "This will completely clear the current animation frame."
-                : "This will completely clear the current blueprint."
-            }
-            onConfirm={clearCanvas}
-          />
         </div>
       }
     >
       <div className="flex flex-col h-full">
-        {!isCollapsed && <SearchForm />}
         <ScrollArea className="flex-1">
           <CharLibrary />
         </ScrollArea>
@@ -200,3 +207,4 @@ export function SidebarRight() {
     </SidebarStandard>
   );
 }
+
