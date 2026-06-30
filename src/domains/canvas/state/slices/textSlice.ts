@@ -8,7 +8,7 @@ import {
   deleteCellAt,
   resolveBackspaceAnchor,
 } from "../gridOps";
-import type { StructuredBoxNode, StructuredTextNode } from "@/shared/types";
+import type { NodeBounds, StructuredBoxNode, StructuredTextNode } from "@/shared/types";
 import {
   createStructuredNodeId,
   getTextColumnWidth,
@@ -55,6 +55,12 @@ const clamp = (value: number, min: number, max: number) => {
   return Math.max(min, Math.min(max, value));
 };
 
+const getBoxNameTextCapacity = (bounds: NodeBounds) =>
+  Math.max(0, bounds.width - 5);
+
+const getBoxNameTextStartX = (bounds: NodeBounds) =>
+  bounds.x + 3;
+
 const getNewlineTargetX = (
   grid: CanvasState["grid"],
   currentX: number,
@@ -93,8 +99,8 @@ const findBoxNameTargetAtCursor = (
     .filter((node): node is StructuredBoxNode => node.type === "box")
     .map((node) => ({ node, bounds: getStructuredNodeBounds(node) }))
     .filter(({ bounds }) => {
-      const left = bounds.x + 1;
-      const right = bounds.x + bounds.width - 2;
+      const left = getBoxNameTextStartX(bounds);
+      const right = left + getBoxNameTextCapacity(bounds) - 1;
       if (left > right) return false;
       return cursor.y === bounds.y && cursor.x >= left && cursor.x <= right;
     });
@@ -150,26 +156,30 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
       const boxNameTarget = findBoxNameTargetAtCursor(structuredScene, cursor);
       if (boxNameTarget) {
         const { node, bounds } = boxNameTarget;
-        const labelCapacity = Math.max(0, bounds.width - 2);
+        const labelCapacity = getBoxNameTextCapacity(bounds);
         if (labelCapacity <= 0) return;
         const currentName = node.name || "";
-        const labelStartX = bounds.x + 1;
+        const labelStartX = getBoxNameTextStartX(bounds);
         const cursorColumn = clamp(cursor.x - labelStartX, 0, labelCapacity);
         const insertAt = toCharIndexByColumn(currentName, cursorColumn);
         const chars = splitGraphemes(currentName);
-        chars.splice(insertAt, 0, ...splitGraphemes(normalized));
-        const nextName = trimTextToColumns(chars.join(""), labelCapacity);
+        const insertedChars = splitGraphemes(normalized);
+        chars.splice(insertAt, 0, ...insertedChars);
+        const nextName = chars.join("");
         const nextScene = structuredScene.map((sceneNode) =>
           sceneNode.id === node.id
             ? { ...node, name: nextName || undefined }
             : sceneNode
         );
         applyStructuredScene(nextScene, true);
+        const nextCursorText = trimTextToColumns(
+          chars.slice(0, insertAt + insertedChars.length).join(""),
+          labelCapacity
+        );
+        const nextCursorColumn = getTextColumnWidth(nextCursorText);
         set({
           textCursor: {
-            x:
-              labelStartX +
-              clamp(cursorColumn + getTextColumnWidth(normalized), 0, labelCapacity),
+            x: labelStartX + nextCursorColumn,
             y: bounds.y,
           },
         });
@@ -355,18 +365,19 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
       const boxNameTarget = findBoxNameTargetAtCursor(structuredScene, textCursor);
       if (boxNameTarget) {
         const { node, bounds } = boxNameTarget;
-        const labelCapacity = Math.max(0, bounds.width - 2);
-        const currentName = trimTextToColumns(node.name || "", labelCapacity);
+        const labelCapacity = getBoxNameTextCapacity(bounds);
+        const currentName = node.name || "";
         if (!currentName) return;
-        const labelStartX = bounds.x + 1;
+        const labelStartX = getBoxNameTextStartX(bounds);
         const cursorColumn = clamp(textCursor.x - labelStartX, 0, labelCapacity);
-        const deleteAt = toCharIndexByColumn(currentName, cursorColumn) - 1;
+        const visibleNameBeforeCursor = trimTextToColumns(currentName, cursorColumn);
+        const deleteAt = splitGraphemes(visibleNameBeforeCursor).length - 1;
         if (deleteAt < 0) return;
 
         const chars = splitGraphemes(currentName);
-        const removed = chars[deleteAt];
         chars.splice(deleteAt, 1);
         const nextName = chars.join("");
+        const nextCursorColumn = getTextColumnWidth(chars.slice(0, deleteAt).join(""));
         applyStructuredScene(
           structuredScene.map((sceneNode) =>
             sceneNode.id === node.id
@@ -377,7 +388,7 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
         );
         set({
           textCursor: {
-            x: Math.max(labelStartX, textCursor.x - getCellOccupancy(removed)),
+            x: labelStartX + nextCursorColumn,
             y: bounds.y,
           },
         });
@@ -425,6 +436,38 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
       deleteCellAt(yMainGrid, deletePos.x, deletePos.y);
       set({ textCursor: deletePos });
     });
+  },
+
+  deleteTextForward: () => {
+    const { textCursor, canvasMode, structuredScene, applyStructuredScene } = get();
+    if (!textCursor || canvasMode !== "structured") return;
+
+    const boxNameTarget = findBoxNameTargetAtCursor(structuredScene, textCursor);
+    if (!boxNameTarget) return;
+
+    const { node, bounds } = boxNameTarget;
+    const labelCapacity = getBoxNameTextCapacity(bounds);
+    const currentName = node.name || "";
+    if (!currentName) return;
+
+    const labelStartX = getBoxNameTextStartX(bounds);
+    const cursorColumn = clamp(textCursor.x - labelStartX, 0, labelCapacity);
+    const visibleNameBeforeCursor = trimTextToColumns(currentName, cursorColumn);
+    const deleteAt = splitGraphemes(visibleNameBeforeCursor).length;
+    const chars = splitGraphemes(currentName);
+    if (deleteAt >= chars.length) return;
+
+    chars.splice(deleteAt, 1);
+    const nextName = chars.join("");
+    applyStructuredScene(
+      structuredScene.map((sceneNode) =>
+        sceneNode.id === node.id
+          ? { ...node, name: nextName || undefined }
+          : sceneNode
+      ),
+      true
+    );
+    set({ textCursor: { x: textCursor.x, y: bounds.y } });
   },
 
   newlineText: () => {

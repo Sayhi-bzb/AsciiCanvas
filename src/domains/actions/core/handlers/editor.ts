@@ -1,6 +1,9 @@
 import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
 import { runEditorCommand } from "@/domains/actions/adapters/editorCommands";
 import { getFirstGrapheme } from "@/shared/utils/characters";
+import { getTextColumnWidth } from "@/shared/utils/structured";
+import { getStructuredBoxNameEndPoint } from "@/domains/canvas/state/helpers/structuredBoxEditing";
+import type { StructuredBoxNode, StructuredTextNode } from "@/shared/types";
 import {
   actionFailed,
   actionSucceeded,
@@ -24,6 +27,42 @@ type FillOptions = { fillChar?: string };
 const hasStructuredSelection = (
   state: ReturnType<typeof useCanvasStore.getState>
 ) => state.canvasMode === "structured" && state.selectedStructuredNodeIds.length > 0;
+
+const isStructuredBoxNode = (node: { type: string }): node is StructuredBoxNode =>
+  node.type === "box";
+
+const isStructuredTextNode = (node: { type: string }): node is StructuredTextNode =>
+  node.type === "text";
+
+const getSelectedStructuredBox = (
+  state: ReturnType<typeof useCanvasStore.getState>
+) => {
+  if (state.canvasMode !== "structured" || !state.selectedStructuredBoxId) return null;
+  return (
+    state.structuredScene.find(
+      (node): node is StructuredBoxNode =>
+        node.id === state.selectedStructuredBoxId && isStructuredBoxNode(node)
+    ) ?? null
+  );
+};
+
+const getSelectedStructuredEditCursor = (
+  state: ReturnType<typeof useCanvasStore.getState>
+) => {
+  const box = getSelectedStructuredBox(state);
+  if (box) return getStructuredBoxNameEndPoint(box);
+  if (state.canvasMode !== "structured" || state.selectedStructuredNodeIds.length !== 1) return null;
+  const selectedId = state.selectedStructuredNodeIds[0];
+  const text = state.structuredScene.find(
+    (node): node is StructuredTextNode =>
+      node.id === selectedId && isStructuredTextNode(node)
+  );
+  if (!text) return null;
+  return {
+    x: text.position.x + getTextColumnWidth(text.text),
+    y: text.position.y,
+  };
+};
 
 // Check if action can run
 const canCopyOrCut = (state: ReturnType<typeof useCanvasStore.getState>): boolean => {
@@ -164,6 +203,13 @@ export const editorHandlers: Record<
     return actionSucceeded();
   },
 
+  "structured-rename": (_options, context): ActionResult => {
+    const cursor = getSelectedStructuredEditCursor(context.state);
+    if (!cursor) return actionFailed("empty-selection");
+    context.state.setTextCursor(cursor);
+    return actionSucceeded();
+  },
+
   "structured-bring-forward": (_options, context): ActionResult => {
     if (!hasStructuredSelection(context.state)) return actionFailed("empty-selection");
     context.state.reorderStructuredSelection("forward");
@@ -210,6 +256,7 @@ export const editorCheckers: Partial<Record<EditorActionId, (state: ReturnType<t
   "snapshot-png": (state) => state.selections.length > 0,
   "delete-selection": (state) =>
     state.selections.length > 0 || hasStructuredSelection(state),
+  "structured-rename": (state) => getSelectedStructuredEditCursor(state) !== null,
   "structured-bring-forward": hasStructuredSelection,
   "structured-send-backward": hasStructuredSelection,
   "structured-bring-to-front": hasStructuredSelection,
@@ -220,3 +267,4 @@ export const editorCheckers: Partial<Record<EditorActionId, (state: ReturnType<t
     state.selections.length > 0 &&
     state.textCursor === null,
 };
+

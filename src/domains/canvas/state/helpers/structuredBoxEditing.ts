@@ -1,6 +1,8 @@
-import type { NodeBounds, Point, SelectionArea, StructuredBoxNode, StructuredNode } from "@/shared/types";
+import type { NodeBounds, Point, SelectionArea, StructuredBoxNode, StructuredLineNode, StructuredNode, StructuredTextNode } from "@/shared/types";
+import { getTextCellWidth } from "@/shared/metrics";
 import { getSelectionBounds } from "@/shared/utils/selection";
-import { getStructuredNodeBounds, intersectsBounds } from "@/shared/utils/structured";
+import { getLShapeLinePoints } from "@/shared/utils/shapes";
+import { getStructuredNodeBounds, intersectsBounds, trimTextToColumns, withPointWithinBounds } from "@/shared/utils/structured";
 
 export type StructuredBoxResizeHandle =
   | "nw"
@@ -12,16 +14,69 @@ export type StructuredBoxResizeHandle =
   | "sw"
   | "w";
 
+export type StructuredLineResizeHandle = "start" | "end";
+
 export type StructuredBoxHit = {
   node: StructuredBoxNode;
   handle: StructuredBoxResizeHandle | null;
 };
 
+export type StructuredNodeHit =
+  | { node: StructuredBoxNode; kind: "box"; handle: StructuredBoxResizeHandle | null }
+  | { node: StructuredLineNode; kind: "line"; handle: StructuredLineResizeHandle | null }
+  | { node: StructuredTextNode; kind: "text"; handle: null };
+
 const isBoxNode = (node: StructuredNode): node is StructuredBoxNode =>
   node.type === "box";
 
+const isPointEqual = (a: Point, b: Point) => a.x === b.x && a.y === b.y;
+
 export const getStructuredBoxBounds = (node: StructuredBoxNode): NodeBounds =>
   getStructuredNodeBounds(node);
+
+export const getStructuredBoxNameCapacity = (node: StructuredBoxNode) =>
+  Math.max(0, getStructuredBoxBounds(node).width - 5);
+
+export const getStructuredBoxNameStartPoint = (
+  node: StructuredBoxNode
+): Point | null => {
+  if (getStructuredBoxNameCapacity(node) <= 0) return null;
+  const bounds = getStructuredBoxBounds(node);
+  return { x: bounds.x + 3, y: bounds.y };
+};
+
+export const getStructuredBoxNameEndPoint = (
+  node: StructuredBoxNode
+): Point | null => {
+  const start = getStructuredBoxNameStartPoint(node);
+  if (!start) return null;
+  const visibleName = trimTextToColumns(
+    node.name ?? "",
+    getStructuredBoxNameCapacity(node)
+  );
+  return {
+    x: start.x + getTextCellWidth(visibleName),
+    y: start.y,
+  };
+};
+
+export const isPointOnStructuredBoxBorder = (
+  node: StructuredBoxNode,
+  point: Point
+) => {
+  const bounds = getStructuredBoxBounds(node);
+  const left = bounds.x;
+  const right = bounds.x + bounds.width - 1;
+  const top = bounds.y;
+  const bottom = bounds.y + bounds.height - 1;
+  return (
+    point.x >= left &&
+    point.x <= right &&
+    point.y >= top &&
+    point.y <= bottom &&
+    (point.x === left || point.x === right || point.y === top || point.y === bottom)
+  );
+};
 
 export const getStructuredBoxHandleAtPoint = (
   node: StructuredBoxNode,
@@ -61,6 +116,23 @@ export const isPointInsideStructuredBox = (
   );
 };
 
+const getStructuredLineHandleAtPoint = (
+  node: StructuredLineNode,
+  point: Point
+): StructuredLineResizeHandle | null => {
+  if (isPointEqual(point, node.start)) return "start";
+  if (isPointEqual(point, node.end)) return "end";
+  return null;
+};
+
+const isPointOnStructuredLine = (node: StructuredLineNode, point: Point) => {
+  const points = getLShapeLinePoints(node.start, node.end, node.axis === "vertical");
+  return points.some((linePoint) => isPointEqual(linePoint, point));
+};
+
+const isPointInsideStructuredText = (node: StructuredTextNode, point: Point) =>
+  withPointWithinBounds(point, getStructuredNodeBounds(node), false);
+
 export const findStructuredBoxHit = (
   scene: StructuredNode[],
   point: Point
@@ -69,6 +141,26 @@ export const findStructuredBoxHit = (
   for (const node of boxes) {
     if (!isPointInsideStructuredBox(node, point)) continue;
     return { node, handle: getStructuredBoxHandleAtPoint(node, point) };
+  }
+  return null;
+};
+
+export const findStructuredNodeHit = (
+  scene: StructuredNode[],
+  point: Point
+): StructuredNodeHit | null => {
+  const ordered = [...scene].sort((a, b) => b.order - a.order);
+  for (const node of ordered) {
+    if (node.type === "box") {
+      if (!isPointInsideStructuredBox(node, point)) continue;
+      return { node, kind: "box", handle: getStructuredBoxHandleAtPoint(node, point) };
+    }
+    if (node.type === "line") {
+      if (!isPointOnStructuredLine(node, point)) continue;
+      return { node, kind: "line", handle: getStructuredLineHandleAtPoint(node, point) };
+    }
+    if (!isPointInsideStructuredText(node, point)) continue;
+    return { node, kind: "text", handle: null };
   }
   return null;
 };
@@ -92,14 +184,41 @@ export const findStructuredNodeIdsInSelection = (
     .map((node) => node.id);
 };
 
+export const moveStructuredNode = <T extends StructuredNode>(
+  node: T,
+  delta: Point
+): T => {
+  if (node.type === "text") {
+    return {
+      ...node,
+      position: { x: node.position.x + delta.x, y: node.position.y + delta.y },
+    } as T;
+  }
+
+  return {
+    ...node,
+    start: { x: node.start.x + delta.x, y: node.start.y + delta.y },
+    end: { x: node.end.x + delta.x, y: node.end.y + delta.y },
+  } as T;
+};
+
 export const moveStructuredBox = (
   node: StructuredBoxNode,
   delta: Point
-): StructuredBoxNode => ({
-  ...node,
-  start: { x: node.start.x + delta.x, y: node.start.y + delta.y },
-  end: { x: node.end.x + delta.x, y: node.end.y + delta.y },
-});
+): StructuredBoxNode => moveStructuredNode(node, delta);
+
+export const resizeStructuredLine = (
+  node: StructuredLineNode,
+  handle: StructuredLineResizeHandle,
+  point: Point
+): StructuredLineNode => {
+  const start = handle === "start" ? { ...point } : node.start;
+  const end = handle === "end" ? { ...point } : node.end;
+  const axis = Math.abs(end.y - start.y) > Math.abs(end.x - start.x)
+    ? "vertical"
+    : "horizontal";
+  return { ...node, start, end, axis };
+};
 
 export const resizeStructuredBox = (
   node: StructuredBoxNode,
@@ -128,3 +247,4 @@ export const resizeStructuredBox = (
     end: { x: nextRight, y: nextBottom },
   };
 };
+

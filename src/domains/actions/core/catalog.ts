@@ -13,6 +13,7 @@ import {
   Pencil,
   Scissors,
   SendToBack,
+  SquarePen,
   Trash2,
   Undo2,
 } from "lucide-react";
@@ -47,6 +48,11 @@ export const EDITOR_ACTION_META: Record<EditorActionId, ActionMeta> = {
     shortcut: "⌫",
     icon: Trash2,
     destructive: true,
+  },
+  "structured-rename": {
+    id: "structured-rename",
+    label: "Rename",
+    icon: SquarePen,
   },
   "structured-bring-forward": {
     id: "structured-bring-forward",
@@ -130,6 +136,8 @@ export const CANVAS_CONTEXT_MENU: ContextMenuEntry[] = [
 
 
 export const STRUCTURED_CONTEXT_MENU: ContextMenuEntry[] = [
+  { type: "action", id: "structured-rename" },
+  { type: "separator" },
   { type: "action", id: "structured-bring-forward" },
   { type: "action", id: "structured-send-backward" },
   { type: "action", id: "structured-bring-to-front" },

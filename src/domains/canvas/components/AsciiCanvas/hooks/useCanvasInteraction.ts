@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useGesture } from "@use-gesture/react";
 import { useCreation, useThrottleFn } from "ahooks";
 import { GridManager } from "@/shared/utils/grid";
-import type { Point, SelectionArea, StructuredBoxNode, ToolType } from "@/shared/types";
+import type { Point, SelectionArea, StructuredNode, ToolType } from "@/shared/types";
 import type { CanvasState } from "@/domains/canvas/state/canvasStore";
 import { forceHistorySave } from "@/shared/lib/yjs-setup";
 import bresenham from "bresenham";
@@ -19,11 +19,15 @@ import {
   type CanvasLinkHit,
 } from "./linkHitTesting";
 import {
-  findStructuredBoxHit,
+  findStructuredNodeHit,
   findStructuredNodeIdsInSelection,
-  moveStructuredBox,
+  getStructuredBoxNameEndPoint,
+  isPointOnStructuredBoxBorder,
+  moveStructuredNode,
   resizeStructuredBox,
+  resizeStructuredLine,
   type StructuredBoxResizeHandle,
+  type StructuredLineResizeHandle,
 } from "@/domains/canvas/state/helpers/structuredBoxEditing";
 
 const isShapeTool = (tool: ToolType, canvasMode: CanvasState["canvasMode"]): boolean => {
@@ -37,8 +41,9 @@ type InteractionMode =
   | "selecting"
   | "drawing"
   | "shape-preview"
-  | "structured-box-moving"
-  | "structured-box-resizing";
+  | "structured-node-moving"
+  | "structured-box-resizing"
+  | "structured-line-resizing";
 
 const isSelectionTool = (
   tool: ToolType,
@@ -120,8 +125,7 @@ export const useCanvasInteraction = (
     | "canvasBounds"
     | "structuredScene"
     | "setSelectedStructuredNodeIds"
-    | "setSelectedStructuredBoxId"
-    | "updateStructuredBox"
+    | "updateStructuredNode"
   >,
   containerRef: React.RefObject<HTMLDivElement | null>,
   setHoveredLink: (hit: CanvasLinkHit | null) => void
@@ -149,8 +153,7 @@ export const useCanvasInteraction = (
     canvasBounds,
     structuredScene,
     setSelectedStructuredNodeIds,
-    setSelectedStructuredBoxId,
-    updateStructuredBox,
+    updateStructuredNode,
   } = store;
 
   const resolveGridPointFromScreen = (clientX: number, clientY: number) => {
@@ -194,9 +197,9 @@ export const useCanvasInteraction = (
   const queuedOffsetRafRef = useRef<number | null>(null);
   const interactionModeRef = useRef<InteractionMode>("idle");
   const lineAxisRef = useRef<"vertical" | "horizontal" | null>(null);
-  const structuredBoxDragRef = useRef<{
-    node: StructuredBoxNode;
-    handle: StructuredBoxResizeHandle | null;
+  const structuredNodeDragRef = useRef<{
+    node: StructuredNode;
+    handle: StructuredBoxResizeHandle | StructuredLineResizeHandle | null;
   } | null>(null);
   const hoveredLinkCandidateRef = useRef<CanvasLinkHit | null>(null);
   const [draggingSelection, setDraggingSelection] =
@@ -218,7 +221,7 @@ export const useCanvasInteraction = (
     lastGrid.current = null;
     lastPlacedGrid.current = null;
     lineAxisRef.current = null;
-    structuredBoxDragRef.current = null;
+    structuredNodeDragRef.current = null;
     interactionModeRef.current = "idle";
   };
 
@@ -331,6 +334,34 @@ export const useCanvasInteraction = (
     trailing: true,
   });
 
+  const startStructuredNodeEdit = (clientX: number, clientY: number) => {
+    if (canvasMode !== "structured" || tool !== "select") return false;
+    const point = resolveGridPointFromScreen(clientX, clientY);
+    if (!point) return false;
+    const hit = findStructuredNodeHit(structuredScene, point);
+    if (!hit) return false;
+    if (hit.kind === "text") {
+      setSelectedStructuredNodeIds([hit.node.id]);
+      clearSelections();
+      setTextCursor(point);
+      setDraggingSelection(null);
+      resetDragState();
+      if (containerRef.current) containerRef.current.style.cursor = "text";
+      return true;
+    }
+    if (hit.kind !== "box" || !isPointOnStructuredBoxBorder(hit.node, point)) return false;
+    const cursor = getStructuredBoxNameEndPoint(hit.node);
+    if (!cursor) return false;
+
+    setSelectedStructuredNodeIds([hit.node.id]);
+    clearSelections();
+    setTextCursor(cursor);
+    setDraggingSelection(null);
+    resetDragState();
+    if (containerRef.current) containerRef.current.style.cursor = "text";
+    return true;
+  };
+
   const pinchStartZoomRef = useRef(zoom);
 
   const bind = useGesture(
@@ -372,9 +403,15 @@ export const useCanvasInteraction = (
         if (canvasMode === "structured") {
           if (tool === "select") {
             const point = resolveGridPointFromScreen(x, y);
-            const hit = point ? findStructuredBoxHit(structuredScene, point) : null;
+            const hit = point ? findStructuredNodeHit(structuredScene, point) : null;
             if (containerRef.current) {
-              containerRef.current.style.cursor = hit ? getStructuredBoxCursor(hit.handle) : "";
+              containerRef.current.style.cursor = hit
+                ? hit.kind === "box"
+                  ? getStructuredBoxCursor(hit.handle)
+                  : hit.kind === "line" && hit.handle
+                    ? "crosshair"
+                    : "move"
+                : "";
             }
           }
           return;
@@ -437,14 +474,22 @@ export const useCanvasInteraction = (
               : GridManager.snapToCharStart(raw, grid);
 
           if (canvasMode === "structured" && tool === "select") {
-            const hit = findStructuredBoxHit(structuredScene, start);
+            const hit = findStructuredNodeHit(structuredScene, start);
             if (hit) {
-              setSelectedStructuredBoxId(hit.node.id);
-              structuredBoxDragRef.current = { node: hit.node, handle: hit.handle };
+              setSelectedStructuredNodeIds([hit.node.id]);
+              structuredNodeDragRef.current = { node: hit.node, handle: hit.handle };
               dragStartGrid.current = start;
-              interactionModeRef.current = hit.handle ? "structured-box-resizing" : "structured-box-moving";
+              interactionModeRef.current = hit.kind === "box" && hit.handle
+                ? "structured-box-resizing"
+                : hit.kind === "line" && hit.handle
+                  ? "structured-line-resizing"
+                  : "structured-node-moving";
               if (containerRef.current) {
-                containerRef.current.style.cursor = getStructuredBoxCursor(hit.handle);
+                containerRef.current.style.cursor = hit.kind === "box"
+                  ? getStructuredBoxCursor(hit.handle)
+                  : hit.kind === "line" && hit.handle
+                    ? "crosshair"
+                    : "move";
               }
               setTextCursor(null);
               clearSelections();
@@ -557,11 +602,11 @@ export const useCanvasInteraction = (
                 throttledDraw(currentGrid);
               }
               break;
-            case "structured-box-moving": {
-              const drag = structuredBoxDragRef.current;
+            case "structured-node-moving": {
+              const drag = structuredNodeDragRef.current;
               if (drag) {
-                updateStructuredBox(drag.node.id, () =>
-                  moveStructuredBox(drag.node, {
+                updateStructuredNode(drag.node.id, () =>
+                  moveStructuredNode(drag.node, {
                     x: currentGrid.x - dragStartGrid.current!.x,
                     y: currentGrid.y - dragStartGrid.current!.y,
                   })
@@ -570,10 +615,29 @@ export const useCanvasInteraction = (
               break;
             }
             case "structured-box-resizing": {
-              const drag = structuredBoxDragRef.current;
-              if (drag?.handle) {
-                updateStructuredBox(drag.node.id, () =>
-                  resizeStructuredBox(drag.node, drag.handle!, currentGrid)
+              const drag = structuredNodeDragRef.current;
+              if (drag?.node.type === "box" && drag.handle) {
+                const node = drag.node;
+                updateStructuredNode(node.id, () =>
+                  resizeStructuredBox(
+                    node,
+                    drag.handle as StructuredBoxResizeHandle,
+                    currentGrid
+                  )
+                );
+              }
+              break;
+            }
+            case "structured-line-resizing": {
+              const drag = structuredNodeDragRef.current;
+              if (drag?.node.type === "line" && drag.handle) {
+                const node = drag.node;
+                updateStructuredNode(node.id, () =>
+                  resizeStructuredLine(
+                    node,
+                    drag.handle as StructuredLineResizeHandle,
+                    currentGrid
+                  )
                 );
               }
               break;
@@ -726,5 +790,14 @@ export const useCanvasInteraction = (
     }
   );
 
-  return { bind, draggingSelection };
+  const handleDoubleClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (isFromCanvasUi(event.nativeEvent)) return;
+    if (isFromMinimap(event.nativeEvent)) return;
+    if (startStructuredNodeEdit(event.clientX, event.clientY)) {
+      event.preventDefault();
+    }
+  };
+
+  return { bind, draggingSelection, handleDoubleClick };
 };
+

@@ -48,6 +48,7 @@ export interface DrawingSlice {
   ) => void;
   setSelectedStructuredNodeIds: (ids: string[]) => void;
   setSelectedStructuredBoxId: (id: string | null) => void;
+  updateStructuredNode: (id: string, updater: (node: StructuredNode) => StructuredNode) => void;
   updateStructuredBox: (id: string, updater: (node: StructuredBoxNode) => StructuredBoxNode) => void;
   reorderStructuredSelection: (direction: "forward" | "backward" | "front" | "back") => void;
   duplicateStructuredSelection: () => string[];
@@ -71,6 +72,7 @@ export interface TextSlice {
   pasteRichData: (cells: RichTextCell[], startPos?: Point) => void;
   moveTextCursor: (dx: number, dy: number) => void;
   backspaceText: () => void;
+  deleteTextForward: () => void;
   newlineText: () => void;
   indentText: () => void;
 }

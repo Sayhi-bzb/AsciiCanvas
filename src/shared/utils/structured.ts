@@ -20,6 +20,14 @@ const placeStyledCharInMap = (
     `${x},${y}`,
     normalizeCellStyle({ char, ...style })
   );
+
+  const occupancy = getCellOccupancy(char);
+  for (let offset = 1; offset < occupancy; offset++) {
+    targetMap.set(
+      `${x + offset},${y}`,
+      normalizeCellStyle({ char: " ", ...style })
+    );
+  }
 };
 
 const toBounds = (start: Point, end: Point): NodeBounds => {
@@ -38,6 +46,8 @@ const toBounds = (start: Point, end: Point): NodeBounds => {
 const boundsArea = (bounds: NodeBounds) => bounds.width * bounds.height;
 
 const splitLines = (text: string) => text.split("\n");
+
+const getBoxNameTextCapacity = (bounds: NodeBounds) => Math.max(0, bounds.width - 5);
 
 export const getTextColumnWidth = (text: string) => {
   return getTextCellWidth(text);
@@ -113,9 +123,10 @@ export const renderStructuredScene = (scene: StructuredNode[]) => {
       });
       if (node.name) {
         const bounds = getStructuredNodeBounds(node);
-        const label = trimTextToColumns(node.name, Math.max(0, bounds.width - 2));
-        let writeX = bounds.x + 1;
-        for (const char of splitGraphemes(label)) {
+        const label = trimTextToColumns(node.name, getBoxNameTextCapacity(bounds));
+        if (!label) return;
+        let writeX = bounds.x + 2;
+        for (const char of splitGraphemes(` ${label} `)) {
           placeStyledCharInMap(grid, writeX, bounds.y, char, node.style);
           writeX += getCellOccupancy(char);
           if (writeX >= bounds.x + bounds.width - 1) break;

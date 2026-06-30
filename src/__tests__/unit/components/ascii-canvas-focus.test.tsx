@@ -7,10 +7,13 @@ vi.mock("@/domains/canvas/components/AsciiCanvas/hooks/useCanvasRenderer", () =>
   useCanvasRenderer: vi.fn(),
 }));
 
+const handleDoubleClickMock = vi.fn();
+
 vi.mock("@/domains/canvas/components/AsciiCanvas/hooks/useCanvasInteraction", () => ({
   useCanvasInteraction: vi.fn(() => ({
     bind: {},
     draggingSelection: null,
+    handleDoubleClick: handleDoubleClickMock,
   })),
 }));
 
@@ -22,6 +25,7 @@ describe("AsciiCanvas focus management", () => {
   const initialState = useCanvasStore.getState();
 
   afterEach(() => {
+    handleDoubleClickMock.mockClear();
     useCanvasStore.setState(initialState, true);
   });
 
@@ -45,6 +49,53 @@ describe("AsciiCanvas focus management", () => {
 
     expect(textarea).not.toBeNull();
     expect(document.activeElement).toBe(textarea);
+  });
+
+  it("forwards root double clicks to the canvas interaction hook", () => {
+    const { container } = render(
+      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+    );
+
+    const root = container.firstElementChild;
+    expect(root).toBeInstanceOf(HTMLDivElement);
+
+    fireEvent.doubleClick(root!);
+
+    expect(handleDoubleClickMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a selected structured box when Delete edits its active name", () => {
+    useCanvasStore.setState({
+      canvasMode: "structured",
+      textCursor: { x: 6, y: 2 },
+      selectedStructuredNodeIds: ["box-1"],
+      selectedStructuredBoxId: "box-1",
+      structuredScene: [
+        {
+          id: "box-1",
+          type: "box",
+          order: 1,
+          start: { x: 2, y: 2 },
+          end: { x: 12, y: 6 },
+          name: "API",
+          style: { color: "#ffffff" },
+        },
+      ],
+    });
+
+    const { container } = render(
+      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+    );
+
+    const textarea = container.querySelector("textarea");
+    expect(textarea).not.toBeNull();
+
+    fireEvent.keyDown(textarea!, { key: "Delete" });
+
+    expect(useCanvasStore.getState().structuredScene).toMatchObject([
+      { id: "box-1", name: "AI" },
+    ]);
+    expect(useCanvasStore.getState().selectedStructuredNodeIds).toEqual(["box-1"]);
   });
   it("pans the viewport for ctrl arrow keys without moving the static active cell", () => {
     useCanvasStore.setState({

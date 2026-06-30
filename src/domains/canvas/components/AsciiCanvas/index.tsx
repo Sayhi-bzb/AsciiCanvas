@@ -74,8 +74,7 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
       canvasBounds: state.canvasBounds,
       structuredScene: state.structuredScene,
       setSelectedStructuredNodeIds: state.setSelectedStructuredNodeIds,
-      setSelectedStructuredBoxId: state.setSelectedStructuredBoxId,
-      updateStructuredBox: state.updateStructuredBox,
+      updateStructuredNode: state.updateStructuredNode,
       activeCanvasHasSavedViewport: state.activeCanvasHasSavedViewport,
     }))
   );
@@ -112,6 +111,7 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
     staticGridEditMode,
     writeTextString,
     backspaceText,
+    deleteTextForward,
     newlineText,
     indentText,
     moveTextCursor,
@@ -135,6 +135,7 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
       staticGridEditMode: state.staticGridEditMode,
       writeTextString: state.writeTextString,
       backspaceText: state.backspaceText,
+      deleteTextForward: state.deleteTextForward,
       newlineText: state.newlineText,
       indentText: state.indentText,
       moveTextCursor: state.moveTextCursor,
@@ -185,7 +186,7 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
     zoom,
   ]);
 
-  const { draggingSelection } = useCanvasInteraction(
+  const { draggingSelection, handleDoubleClick } = useCanvasInteraction(
     interactionStore,
     containerRef,
     setHoveredLink
@@ -317,6 +318,19 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
       });
       return;
     }
+    if (activeTextCursor) {
+      if (e.key === 'Backspace') {
+        e.preventDefault();
+        backspaceText();
+        return;
+      }
+      if (e.key === 'Delete') {
+        e.preventDefault();
+        deleteTextForward();
+        return;
+      }
+    }
+
     if ((e.key === 'Delete' || e.key === 'Backspace') && hasActiveSelection) {
       e.preventDefault();
       runAction('delete-selection', { source: 'canvas-keydown' });
@@ -383,6 +397,7 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
           ref={containerRef}
           style={{ touchAction: 'none' }}
           onContextMenu={handleContextMenu}
+          onDoubleClick={handleDoubleClick}
           className="relative w-screen h-screen overflow-hidden bg-background touch-none select-none cursor-default"
         >
           <canvas
@@ -460,3 +475,4 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
     </ContextMenu>
   );
 };
+

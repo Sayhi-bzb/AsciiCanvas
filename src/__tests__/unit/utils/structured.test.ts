@@ -67,6 +67,139 @@ describe('structured', () => {
     it('should handle empty scene', () => {
       expect(sceneToGridEntries([])).toEqual([]);
     });
+
+    it('renders a box name in the top border title slot', () => {
+      const entries = sceneToGridEntries([
+        {
+          id: 'named',
+          type: 'box',
+          order: 1,
+          start: { x: 0, y: 0 },
+          end: { x: 10, y: 2 },
+          name: 'API',
+          style: { color: '#000' }
+        }
+      ]);
+      const grid = new Map(entries);
+      const top = Array.from({ length: 11 }, (_, x) => grid.get(`${x},0`)?.char ?? '');
+
+      expect(top.join('')).toBe('╭─ API ───╮');
+    });
+
+    it('renders a CJK box name using display columns', () => {
+      const entries = sceneToGridEntries([
+        {
+          id: 'named-cjk',
+          type: 'box',
+          order: 1,
+          start: { x: 0, y: 0 },
+          end: { x: 10, y: 2 },
+          name: '接口',
+          style: { color: '#000' }
+        }
+      ]);
+      const grid = new Map(entries);
+
+      expect(grid.get('2,0')?.char).toBe(' ');
+      expect(grid.get('3,0')?.char).toBe('接');
+      expect(grid.get('4,0')?.char).toBe(' ');
+      expect(grid.get('5,0')?.char).toBe('口');
+      expect(grid.get('6,0')?.char).toBe(' ');
+      expect(grid.get('7,0')?.char).toBe(' ');
+      expect(grid.get('10,0')?.char).toBe('╮');
+    });
+
+    it('does not truncate a CJK box name halfway through a wide character', () => {
+      const entries = sceneToGridEntries([
+        {
+          id: 'named-cjk-trimmed',
+          type: 'box',
+          order: 1,
+          start: { x: 0, y: 0 },
+          end: { x: 7, y: 2 },
+          name: '接口',
+          style: { color: '#000' }
+        }
+      ]);
+      const grid = new Map(entries);
+
+      expect(grid.get('3,0')?.char).toBe('接');
+      expect(grid.get('4,0')?.char).toBe(' ');
+      expect(grid.get('5,0')?.char).toBe(' ');
+      expect(grid.get('7,0')?.char).toBe('╮');
+    });
+
+    it('reveals previously hidden CJK name columns when the box is wider', () => {
+      const entries = sceneToGridEntries([
+        {
+          id: 'named-cjk-wide',
+          type: 'box',
+          order: 1,
+          start: { x: 0, y: 0 },
+          end: { x: 10, y: 2 },
+          name: '接口',
+          style: { color: '#000' }
+        }
+      ]);
+      const grid = new Map(entries);
+
+      expect(grid.get('3,0')?.char).toBe('接');
+      expect(grid.get('5,0')?.char).toBe('口');
+      expect(grid.get('10,0')?.char).toBe('╮');
+    });
+
+    it('keeps the top-right corner when a box name is too long', () => {
+      const entries = sceneToGridEntries([
+        {
+          id: 'named',
+          type: 'box',
+          order: 1,
+          start: { x: 0, y: 0 },
+          end: { x: 8, y: 2 },
+          name: 'LongName',
+          style: { color: '#000' }
+        }
+      ]);
+      const grid = new Map(entries);
+
+      expect(grid.get('8,0')?.char).toBe('╮');
+      expect(Array.from({ length: 9 }, (_, x) => grid.get(`${x},0`)?.char ?? '').join('')).toBe('╭─ Long ╮');
+    });
+
+    it('clears follower cells for wide structured text characters', () => {
+      const entries = sceneToGridEntries([
+        {
+          id: 'text-cjk',
+          type: 'text',
+          order: 1,
+          position: { x: 4, y: 2 },
+          text: '你A',
+          style: { color: '#000' }
+        }
+      ]);
+      const grid = new Map(entries);
+
+      expect(grid.get('4,2')?.char).toBe('你');
+      expect(grid.get('5,2')?.char).toBe(' ');
+      expect(grid.get('6,2')?.char).toBe('A');
+    });
+
+    it('leaves unnamed box borders unchanged', () => {
+      const entries = sceneToGridEntries([
+        {
+          id: 'plain',
+          type: 'box',
+          order: 1,
+          start: { x: 0, y: 0 },
+          end: { x: 4, y: 2 },
+          style: { color: '#000' }
+        }
+      ]);
+      const grid = new Map(entries);
+      const top = Array.from({ length: 5 }, (_, x) => grid.get(`${x},0`)?.char ?? '');
+
+      expect(top.join('')).toBe('╭───╮');
+    });
   });
 
   describe('getStructuredNodeBounds', () => {

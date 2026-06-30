@@ -171,18 +171,31 @@ export const createDrawingSlice: StateCreator<
       return { selectedStructuredNodeIds: [id], selectedStructuredBoxId: id };
     }),
 
-  updateStructuredBox: (id, updater) => {
+  updateStructuredNode: (id, updater) => {
     const state = get();
     if (state.canvasMode !== "structured") return;
+    let selectedBoxId: string | null = null;
     let didUpdate = false;
     const nextScene = state.structuredScene.map((node) => {
-      if (node.id !== id || node.type !== "box") return node;
+      if (node.id !== id) return node;
+      const updatedNode = updater(node);
       didUpdate = true;
-      return updater(node as StructuredBoxNode);
+      selectedBoxId = updatedNode.type === "box" ? id : null;
+      return updatedNode;
     });
     if (!didUpdate) return;
     state.applyStructuredScene(nextScene, true);
-    set({ selectedStructuredNodeIds: [id], selectedStructuredBoxId: id });
+    set({
+      selectedStructuredNodeIds: [id],
+      selectedStructuredBoxId: selectedBoxId,
+    });
+  },
+
+  updateStructuredBox: (id, updater) => {
+    get().updateStructuredNode(id, (node) => {
+      if (node.type !== "box") return node;
+      return updater(node as StructuredBoxNode);
+    });
   },
 
   reorderStructuredSelection: (direction) => {
@@ -212,3 +225,4 @@ export const createDrawingSlice: StateCreator<
     return duplicatedIds;
   },
 });
+

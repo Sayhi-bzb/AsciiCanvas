@@ -14,6 +14,7 @@ export type EditorActionId =
   | "fill-selection-char"
   | "snapshot-png"
   | "delete-selection"
+  | "structured-rename"
   | "structured-bring-forward"
   | "structured-send-backward"
   | "structured-bring-to-front"
