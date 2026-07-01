@@ -43,9 +43,11 @@ function InteractionHarness() {
       canvasBounds: state.canvasBounds,
       structuredScene: state.structuredScene,
       editingStructuredTextNodeId: state.editingStructuredTextNodeId,
+      selectedStructuredNodeIds: state.selectedStructuredNodeIds,
       setSelectedStructuredNodeIds: state.setSelectedStructuredNodeIds,
       setEditingStructuredTextNodeId: state.setEditingStructuredTextNodeId,
       setStructuredTextSelection: state.setStructuredTextSelection,
+      applyStructuredScene: state.applyStructuredScene,
       updateStructuredNode: state.updateStructuredNode,
     }))
   );
@@ -86,6 +88,38 @@ describe("structured text interaction", () => {
           order: 1,
           position: { x: 0, y: 0 },
           text: "Edit",
+          style: { color: "#ffffff" },
+        },
+      ],
+    });
+  };
+
+  const setStructuredMixedScene = () => {
+    useCanvasStore.setState({
+      canvasMode: "structured",
+      tool: "select",
+      offset: { x: 0, y: 0 },
+      zoom: 1,
+      grid: new Map(),
+      selections: [],
+      textCursor: null,
+      editingStructuredTextNodeId: null,
+      selectedStructuredNodeIds: ["box-1", "text-1"],
+      structuredScene: [
+        {
+          id: "box-1",
+          type: "box",
+          order: 1,
+          start: { x: 0, y: 0 },
+          end: { x: 2, y: 2 },
+          style: { color: "#ffffff" },
+        },
+        {
+          id: "text-1",
+          type: "text",
+          order: 2,
+          position: { x: 5, y: 0 },
+          text: "Node",
           style: { color: "#ffffff" },
         },
       ],
@@ -216,5 +250,103 @@ describe("structured text interaction", () => {
       id: "text-1",
       position: { x: 2, y: 0 },
     });
+  });
+
+  it("moves every selected structured node when dragging inside the selection", () => {
+    setStructuredMixedScene();
+    render(<InteractionHarness />);
+
+    act(() => {
+      gestureState.handlers?.onDragStart?.({
+        xy: [11, 21],
+        event: dragEvent(),
+      });
+      gestureState.handlers?.onDrag?.({
+        xy: [31, 21],
+        delta: [20, 0],
+        event: dragEvent(),
+      });
+    });
+
+    expect(useCanvasStore.getState().selectedStructuredNodeIds).toEqual([
+      "box-1",
+      "text-1",
+    ]);
+    expect(useCanvasStore.getState().structuredScene).toMatchObject([
+      {
+        id: "box-1",
+        start: { x: 2, y: 0 },
+        end: { x: 4, y: 2 },
+      },
+      {
+        id: "text-1",
+        position: { x: 7, y: 0 },
+      },
+    ]);
+  });
+
+  it("switches to single-node movement when dragging an unselected structured node", () => {
+    setStructuredMixedScene();
+    useCanvasStore.setState({ selectedStructuredNodeIds: ["text-1"] });
+    render(<InteractionHarness />);
+
+    act(() => {
+      gestureState.handlers?.onDragStart?.({
+        xy: [11, 21],
+        event: dragEvent(),
+      });
+      gestureState.handlers?.onDrag?.({
+        xy: [31, 21],
+        delta: [20, 0],
+        event: dragEvent(),
+      });
+    });
+
+    expect(useCanvasStore.getState().selectedStructuredNodeIds).toEqual([
+      "box-1",
+    ]);
+    expect(useCanvasStore.getState().structuredScene).toMatchObject([
+      {
+        id: "box-1",
+        start: { x: 2, y: 0 },
+        end: { x: 4, y: 2 },
+      },
+      {
+        id: "text-1",
+        position: { x: 5, y: 0 },
+      },
+    ]);
+  });
+
+  it("resizes the hit rectangle instead of moving every selected node", () => {
+    setStructuredMixedScene();
+    render(<InteractionHarness />);
+
+    act(() => {
+      gestureState.handlers?.onDragStart?.({
+        xy: [1, 1],
+        event: dragEvent(),
+      });
+      gestureState.handlers?.onDrag?.({
+        xy: [31, 1],
+        delta: [30, 0],
+        event: dragEvent(),
+      });
+    });
+
+    expect(useCanvasStore.getState().selectedStructuredNodeIds).toEqual([
+      "box-1",
+    ]);
+    expect(useCanvasStore.getState().structuredScene).toMatchObject([
+      {
+        id: "box-1",
+        start: { x: 2, y: 0 },
+        end: { x: 3, y: 2 },
+      },
+      {
+        id: "text-1",
+        position: { x: 5, y: 0 },
+      },
+    ]);
   });
 });

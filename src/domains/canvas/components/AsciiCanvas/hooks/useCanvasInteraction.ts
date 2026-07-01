@@ -130,9 +130,11 @@ export const useCanvasInteraction = (
     | "canvasBounds"
     | "structuredScene"
     | "editingStructuredTextNodeId"
+    | "selectedStructuredNodeIds"
     | "setSelectedStructuredNodeIds"
     | "setEditingStructuredTextNodeId"
     | "setStructuredTextSelection"
+    | "applyStructuredScene"
     | "updateStructuredNode"
   >,
   containerRef: React.RefObject<HTMLDivElement | null>,
@@ -161,9 +163,11 @@ export const useCanvasInteraction = (
     canvasBounds,
     structuredScene,
     editingStructuredTextNodeId,
+    selectedStructuredNodeIds,
     setSelectedStructuredNodeIds,
     setEditingStructuredTextNodeId,
     setStructuredTextSelection,
+    applyStructuredScene,
     updateStructuredNode,
   } = store;
 
@@ -210,6 +214,8 @@ export const useCanvasInteraction = (
   const lineAxisRef = useRef<"vertical" | "horizontal" | null>(null);
   const structuredNodeDragRef = useRef<{
     node: StructuredNode;
+    selectedIds: string[];
+    selectedNodes: StructuredNode[];
     handle: StructuredBoxResizeHandle | StructuredLineResizeHandle | null;
   } | null>(null);
   const structuredTextSelectionStartRef = useRef<{
@@ -535,14 +541,35 @@ export const useCanvasInteraction = (
                 }
                 return;
               }
-              setSelectedStructuredNodeIds([hit.node.id]);
+              const isRectResize =
+                (hit.kind === "box" || hit.kind === "bg") && !!hit.handle;
+              const isLineResize = hit.kind === "line" && !!hit.handle;
+              const shouldMoveSelection =
+                !isRectResize &&
+                !isLineResize &&
+                selectedStructuredNodeIds.includes(hit.node.id);
+              const dragSelectedIds = shouldMoveSelection
+                ? [...selectedStructuredNodeIds]
+                : [hit.node.id];
+              const dragSelectedIdSet = new Set(dragSelectedIds);
+              const dragSelectedNodes = structuredScene.filter((node) =>
+                dragSelectedIdSet.has(node.id)
+              );
+
+              setSelectedStructuredNodeIds(dragSelectedIds);
               setEditingStructuredTextNodeId(null);
               setStructuredTextSelection(null);
-              structuredNodeDragRef.current = { node: hit.node, handle: hit.handle };
+              structuredNodeDragRef.current = {
+                node: hit.node,
+                selectedIds: dragSelectedIds,
+                selectedNodes:
+                  dragSelectedNodes.length > 0 ? dragSelectedNodes : [hit.node],
+                handle: hit.handle,
+              };
               dragStartGrid.current = start;
-              interactionModeRef.current = (hit.kind === "box" || hit.kind === "bg") && hit.handle
+              interactionModeRef.current = isRectResize
                 ? "structured-box-resizing"
-                : hit.kind === "line" && hit.handle
+                : isLineResize
                   ? "structured-line-resizing"
                   : "structured-node-moving";
               if (containerRef.current) {
@@ -671,12 +698,21 @@ export const useCanvasInteraction = (
             case "structured-node-moving": {
               const drag = structuredNodeDragRef.current;
               if (drag) {
-                updateStructuredNode(drag.node.id, () =>
-                  moveStructuredNode(drag.node, {
-                    x: currentGrid.x - dragStartGrid.current!.x,
-                    y: currentGrid.y - dragStartGrid.current!.y,
-                  })
+                const delta = {
+                  x: currentGrid.x - dragStartGrid.current!.x,
+                  y: currentGrid.y - dragStartGrid.current!.y,
+                };
+                const movingNodes = new Map(
+                  drag.selectedNodes.map((node) => [
+                    node.id,
+                    moveStructuredNode(node, delta),
+                  ])
                 );
+                applyStructuredScene(
+                  structuredScene.map((node) => movingNodes.get(node.id) ?? node),
+                  true
+                );
+                setSelectedStructuredNodeIds(drag.selectedIds);
               }
               break;
             }

@@ -200,6 +200,206 @@ describe('structured', () => {
 
       expect(top.join('')).toBe('╭───╮');
     });
+
+    it('lets text above a bg node inherit the bg color', () => {
+      const entries = sceneToGridEntries([
+        {
+          id: 'bg',
+          type: 'bg',
+          order: 1,
+          start: { x: 0, y: 0 },
+          end: { x: 4, y: 2 },
+          style: { color: '#000', bgColor: '#334155' }
+        },
+        {
+          id: 'text',
+          type: 'text',
+          order: 2,
+          position: { x: 1, y: 1 },
+          text: 'Hi',
+          style: { color: '#fff' }
+        }
+      ]);
+      const grid = new Map(entries);
+
+      expect(grid.get('1,1')).toMatchObject({ char: 'H', bgColor: '#334155' });
+      expect(grid.get('2,1')).toMatchObject({ char: 'i', bgColor: '#334155' });
+    });
+
+    it('lets box borders above a bg node inherit the bg color', () => {
+      const entries = sceneToGridEntries([
+        {
+          id: 'bg',
+          type: 'bg',
+          order: 1,
+          start: { x: 0, y: 0 },
+          end: { x: 4, y: 2 },
+          style: { color: '#000', bgColor: '#1f2937' }
+        },
+        {
+          id: 'box',
+          type: 'box',
+          order: 2,
+          start: { x: 0, y: 0 },
+          end: { x: 4, y: 2 },
+          style: { color: '#fff' }
+        }
+      ]);
+      const grid = new Map(entries);
+
+      expect(grid.get('0,0')).toMatchObject({ char: '╭', bgColor: '#1f2937' });
+      expect(grid.get('4,2')).toMatchObject({ char: '╯', bgColor: '#1f2937' });
+    });
+
+    it('keeps an explicit node bg color over inherited bg color', () => {
+      const entries = sceneToGridEntries([
+        {
+          id: 'bg',
+          type: 'bg',
+          order: 1,
+          start: { x: 0, y: 0 },
+          end: { x: 4, y: 2 },
+          style: { color: '#000', bgColor: '#334155' }
+        },
+        {
+          id: 'text',
+          type: 'text',
+          order: 2,
+          position: { x: 1, y: 1 },
+          text: 'Hi',
+          style: { color: '#fff', bgColor: '#123456' }
+        }
+      ]);
+      const grid = new Map(entries);
+
+      expect(grid.get('1,1')).toMatchObject({ char: 'H', bgColor: '#123456' });
+    });
+
+    it('uses the latest lower bg layer for later foreground nodes', () => {
+      const entries = sceneToGridEntries([
+        {
+          id: 'bg-1',
+          type: 'bg',
+          order: 1,
+          start: { x: 0, y: 0 },
+          end: { x: 4, y: 2 },
+          style: { color: '#000', bgColor: '#111111' }
+        },
+        {
+          id: 'bg-2',
+          type: 'bg',
+          order: 2,
+          start: { x: 1, y: 1 },
+          end: { x: 4, y: 2 },
+          style: { color: '#000', bgColor: '#222222' }
+        },
+        {
+          id: 'text',
+          type: 'text',
+          order: 3,
+          position: { x: 1, y: 1 },
+          text: 'A',
+          style: { color: '#fff' }
+        }
+      ]);
+      const grid = new Map(entries);
+
+      expect(grid.get('1,1')).toMatchObject({ char: 'A', bgColor: '#222222' });
+    });
+
+    it('lets an upper bg node cover earlier foreground', () => {
+      const entries = sceneToGridEntries([
+        {
+          id: 'text',
+          type: 'text',
+          order: 1,
+          position: { x: 1, y: 1 },
+          text: 'A',
+          style: { color: '#fff' }
+        },
+        {
+          id: 'bg',
+          type: 'bg',
+          order: 2,
+          start: { x: 0, y: 0 },
+          end: { x: 4, y: 2 },
+          style: { color: '#000', bgColor: '#334155' }
+        }
+      ]);
+      const grid = new Map(entries);
+
+      expect(grid.get('1,1')).toMatchObject({ char: ' ', bgColor: '#334155' });
+    });
+
+    it('keeps empty bg cells visible', () => {
+      const entries = sceneToGridEntries([
+        {
+          id: 'bg',
+          type: 'bg',
+          order: 1,
+          start: { x: 1, y: 1 },
+          end: { x: 2, y: 1 },
+          style: { color: '#000', bgColor: '#334155' }
+        }
+      ]);
+      const grid = new Map(entries);
+
+      expect(grid.get('1,1')).toMatchObject({ char: ' ', bgColor: '#334155' });
+      expect(grid.get('2,1')).toMatchObject({ char: ' ', bgColor: '#334155' });
+    });
+
+    it('applies inherited bg color to wide text follower cells', () => {
+      const entries = sceneToGridEntries([
+        {
+          id: 'bg',
+          type: 'bg',
+          order: 1,
+          start: { x: 4, y: 2 },
+          end: { x: 6, y: 2 },
+          style: { color: '#000', bgColor: '#334155' }
+        },
+        {
+          id: 'text-cjk',
+          type: 'text',
+          order: 2,
+          position: { x: 4, y: 2 },
+          text: '你A',
+          style: { color: '#fff' }
+        }
+      ]);
+      const grid = new Map(entries);
+
+      expect(grid.get('4,2')).toMatchObject({ char: '你', bgColor: '#334155' });
+      expect(grid.get('5,2')).toMatchObject({ char: ' ', bgColor: '#334155' });
+      expect(grid.get('6,2')).toMatchObject({ char: 'A', bgColor: '#334155' });
+    });
+
+    it('lets an upper bg node cover wide text follower cells', () => {
+      const entries = sceneToGridEntries([
+        {
+          id: 'text-cjk',
+          type: 'text',
+          order: 1,
+          position: { x: 4, y: 2 },
+          text: '你A',
+          style: { color: '#fff' }
+        },
+        {
+          id: 'bg',
+          type: 'bg',
+          order: 2,
+          start: { x: 4, y: 2 },
+          end: { x: 5, y: 2 },
+          style: { color: '#000', bgColor: '#334155' }
+        }
+      ]);
+      const grid = new Map(entries);
+
+      expect(grid.get('4,2')).toMatchObject({ char: ' ', bgColor: '#334155' });
+      expect(grid.get('5,2')).toMatchObject({ char: ' ', bgColor: '#334155' });
+      expect(grid.get('6,2')).toMatchObject({ char: 'A' });
+      expect(grid.get('6,2')?.bgColor).toBeUndefined();
+    });
   });
 
   describe('getStructuredNodeBounds', () => {

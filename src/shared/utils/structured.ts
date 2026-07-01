@@ -12,22 +12,34 @@ const placeStyledCharInMap = (
   targetMap: {
     set(key: string, value: GridCell): void;
   },
+  bgLayer: Map<string, string>,
+  visibleForegroundKeys: Set<string>,
   x: number,
   y: number,
   char: string,
   style: StructuredNode["style"]
 ) => {
+  const key = `${x},${y}`;
+  const bgColor = style.bgColor ?? bgLayer.get(key);
   targetMap.set(
-    `${x},${y}`,
-    normalizeCellStyle({ char, ...style })
+    key,
+    normalizeCellStyle({ char, ...style, ...(bgColor ? { bgColor } : {}) })
   );
+  visibleForegroundKeys.add(key);
 
   const occupancy = getCellOccupancy(char);
   for (let offset = 1; offset < occupancy; offset++) {
+    const followerKey = `${x + offset},${y}`;
+    const followerBgColor = style.bgColor ?? bgLayer.get(followerKey);
     targetMap.set(
-      `${x + offset},${y}`,
-      normalizeCellStyle({ char: " ", ...style })
+      followerKey,
+      normalizeCellStyle({
+        char: " ",
+        ...style,
+        ...(followerBgColor ? { bgColor: followerBgColor } : {}),
+      })
     );
+    visibleForegroundKeys.add(followerKey);
   }
 };
 
@@ -116,13 +128,23 @@ const sortForDeterminism = (nodes: StructuredNode[]) => {
 
 export const renderStructuredScene = (scene: StructuredNode[]) => {
   const grid = new Map<string, GridCell>();
+  const bgLayer = new Map<string, string>();
+  const visibleForegroundKeys = new Set<string>();
   const ordered = [...scene].sort((a, b) => a.order - b.order);
 
   ordered.forEach((node) => {
     if (node.type === "box") {
       const points = getBoxPoints(node.start, node.end);
       points.forEach((point) => {
-        placeStyledCharInMap(grid, point.x, point.y, point.char, node.style);
+        placeStyledCharInMap(
+          grid,
+          bgLayer,
+          visibleForegroundKeys,
+          point.x,
+          point.y,
+          point.char,
+          node.style
+        );
       });
       if (node.name) {
         const bounds = getStructuredNodeBounds(node);
@@ -130,7 +152,15 @@ export const renderStructuredScene = (scene: StructuredNode[]) => {
         if (!label) return;
         let writeX = bounds.x + 2;
         for (const char of splitGraphemes(` ${label} `)) {
-          placeStyledCharInMap(grid, writeX, bounds.y, char, node.style);
+          placeStyledCharInMap(
+            grid,
+            bgLayer,
+            visibleForegroundKeys,
+            writeX,
+            bounds.y,
+            char,
+            node.style
+          );
           writeX += getCellOccupancy(char);
           if (writeX >= bounds.x + bounds.width - 1) break;
         }
@@ -141,7 +171,15 @@ export const renderStructuredScene = (scene: StructuredNode[]) => {
     if (node.type === "line") {
       const points = getLShapeLinePoints(node.start, node.end, node.axis === "vertical");
       points.forEach((point) => {
-        placeStyledCharInMap(grid, point.x, point.y, point.char, node.style);
+        placeStyledCharInMap(
+          grid,
+          bgLayer,
+          visibleForegroundKeys,
+          point.x,
+          point.y,
+          point.char,
+          node.style
+        );
       });
       return;
     }
@@ -150,7 +188,10 @@ export const renderStructuredScene = (scene: StructuredNode[]) => {
       const bounds = getStructuredNodeBounds(node);
       for (let y = bounds.y; y < bounds.y + bounds.height; y++) {
         for (let x = bounds.x; x < bounds.x + bounds.width; x++) {
-          placeStyledCharInMap(grid, x, y, " ", node.style);
+          const key = `${x},${y}`;
+          if (node.style.bgColor) bgLayer.set(key, node.style.bgColor);
+          visibleForegroundKeys.delete(key);
+          grid.set(key, normalizeCellStyle({ char: " ", ...node.style }));
         }
       }
       return;
@@ -163,6 +204,8 @@ export const renderStructuredScene = (scene: StructuredNode[]) => {
       for (const char of splitGraphemes(line)) {
         placeStyledCharInMap(
           grid,
+          bgLayer,
+          visibleForegroundKeys,
           currentX,
           node.position.y + rowIndex,
           char,
