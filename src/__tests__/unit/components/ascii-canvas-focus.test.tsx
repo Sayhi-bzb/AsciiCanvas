@@ -209,7 +209,8 @@ describe("AsciiCanvas focus management", () => {
       top: "38px",
       width: "72px",
       height: "19px",
-      background: "rgb(51, 65, 85)",
+      color: "rgb(0, 0, 0)",
+      background: "rgb(219, 234, 254)",
     });
 
     act(() => {
@@ -224,12 +225,13 @@ describe("AsciiCanvas focus management", () => {
       type: "bg",
       start: { x: 2, y: 2 },
       end: { x: 9, y: 2 },
-      style: { bgColor: "#334155" },
+      style: { color: "#000000", bgColor: "#dbeafe" },
     });
     expect(state.structuredScene[1]).toMatchObject({
       type: "text",
       position: { x: 3, y: 2 },
       text: "BUTTON",
+      style: { color: "#000000" },
     });
     expect(state.selectedStructuredNodeIds).toEqual(
       state.structuredScene.map((node) => node.id)

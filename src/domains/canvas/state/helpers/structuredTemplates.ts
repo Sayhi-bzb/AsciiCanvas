@@ -6,6 +6,15 @@ export const STRUCTURED_TEMPLATE_MIME =
 
 export type StructuredTemplateId = "button";
 
+export const STRUCTURED_TEMPLATE_TEXT_COLOR = "#000000";
+export const STRUCTURED_TEMPLATE_FALLBACK_COLORS = [
+  "#dbeafe",
+  "#dcfce7",
+  "#fef3c7",
+  "#fce7f3",
+  "#e2e8f0",
+] as const;
+
 export const STRUCTURED_TEMPLATES: Array<{
   id: StructuredTemplateId;
   label: string;
@@ -44,7 +53,10 @@ export const buildStructuredTemplateNodes = (
       order: options.startOrder,
       start: { x: position.x, y: position.y },
       end: { x: position.x + 7, y: position.y },
-      style: { color: "#000000", bgColor: options.brushColor },
+      style: {
+        color: STRUCTURED_TEMPLATE_TEXT_COLOR,
+        bgColor: STRUCTURED_TEMPLATE_FALLBACK_COLORS[0],
+      },
     },
     {
       id: textId,
@@ -52,7 +64,7 @@ export const buildStructuredTemplateNodes = (
       order: options.startOrder + 1,
       position: { x: position.x + 1, y: position.y },
       text: "BUTTON",
-      style: { color: "#000000" },
+      style: { color: STRUCTURED_TEMPLATE_TEXT_COLOR },
     },
   ];
 };

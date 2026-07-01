@@ -4,6 +4,7 @@ import { useRef } from "react";
 
 import { useCanvasInteraction } from "@/domains/canvas/components/AsciiCanvas/hooks/useCanvasInteraction";
 import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
+import { runUndo } from "@/domains/actions/adapters/shortcutActions";
 import { useShallow } from "zustand/react/shallow";
 
 const gestureState = vi.hoisted(() => ({
@@ -124,6 +125,42 @@ describe("structured text interaction", () => {
           style: { color: "#ffffff" },
         },
       ],
+    });
+  };
+
+  const setStructuredMixedSceneWithHistory = () => {
+    const scene = [
+      {
+        id: "box-1",
+        type: "box" as const,
+        order: 1,
+        start: { x: 0, y: 0 },
+        end: { x: 2, y: 2 },
+        style: { color: "#ffffff" },
+      },
+      {
+        id: "text-1",
+        type: "text" as const,
+        order: 2,
+        position: { x: 5, y: 0 },
+        text: "Node",
+        style: { color: "#ffffff" },
+      },
+    ];
+    useCanvasStore.setState({
+      canvasMode: "structured",
+      tool: "select",
+      offset: { x: 0, y: 0 },
+      zoom: 1,
+      grid: new Map(),
+      selections: [],
+      textCursor: null,
+      editingStructuredTextNodeId: null,
+      selectedStructuredNodeIds: ["box-1", "text-1"],
+    });
+    useCanvasStore.getState().applyStructuredScene(scene, "reset");
+    useCanvasStore.setState({
+      selectedStructuredNodeIds: ["box-1", "text-1"],
     });
   };
 
@@ -308,6 +345,60 @@ describe("structured text interaction", () => {
       {
         id: "text-1",
         position: { x: 7, y: 0 },
+      },
+    ]);
+  });
+
+  it("undoes a structured multi-node drag as a single history step", () => {
+    setStructuredMixedSceneWithHistory();
+    render(<InteractionHarness />);
+
+    act(() => {
+      gestureState.handlers?.onDragStart?.({
+        xy: [11, 21],
+        event: dragEvent(),
+      });
+      gestureState.handlers?.onDrag?.({
+        xy: [31, 21],
+        delta: [20, 0],
+        event: dragEvent(),
+      });
+      gestureState.handlers?.onDrag?.({
+        xy: [41, 21],
+        delta: [10, 0],
+        event: dragEvent(),
+      });
+      gestureState.handlers?.onDragEnd?.({
+        xy: [41, 21],
+        event: dragEvent(),
+      });
+    });
+
+    expect(useCanvasStore.getState().structuredScene).toMatchObject([
+      {
+        id: "box-1",
+        start: { x: 3, y: 0 },
+        end: { x: 5, y: 2 },
+      },
+      {
+        id: "text-1",
+        position: { x: 8, y: 0 },
+      },
+    ]);
+
+    act(() => {
+      runUndo();
+    });
+
+    expect(useCanvasStore.getState().structuredScene).toMatchObject([
+      {
+        id: "box-1",
+        start: { x: 0, y: 0 },
+        end: { x: 2, y: 2 },
+      },
+      {
+        id: "text-1",
+        position: { x: 5, y: 0 },
       },
     ]);
   });

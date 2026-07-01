@@ -1,6 +1,6 @@
 import type { StateCreator } from "zustand";
 import type { CanvasState, DrawingSlice } from "../interfaces";
-import { transactWithHistory, yMainGrid } from "@/shared/lib/yjs-setup";
+import { runCanvasTransaction, yMainGrid } from "@/shared/lib/yjs-setup";
 import { GridManager } from "@/shared/utils/grid";
 import type { GridPoint, StructuredBoxNode, StructuredNode } from "@/shared/types";
 import { placeCharInMap, placeCharInYMap } from "../utils";
@@ -130,7 +130,7 @@ export const createDrawingSlice: StateCreator<
       return;
     }
     if (!scratchLayer || scratchLayer.size === 0) return;
-    transactWithHistory(() => {
+    runCanvasTransaction(() => {
       GridManager.iterate(scratchLayer, (cell, x, y) => {
         const key = GridManager.toKey(x, y);
         if (cell.bgColor && cell.char === " ") {
@@ -165,7 +165,7 @@ export const createDrawingSlice: StateCreator<
       set({ scratchLayer: null, selections: [], textCursor: null, editingStructuredTextNodeId: null, structuredTextSelection: null, selectedStructuredNodeIds: [], selectedStructuredBoxId: null });
       return;
     }
-    transactWithHistory(() => yMainGrid.clear());
+    runCanvasTransaction(() => yMainGrid.clear());
     set({ scratchLayer: null, selections: [], textCursor: null, editingStructuredTextNodeId: null, structuredTextSelection: null, selectedStructuredNodeIds: [], selectedStructuredBoxId: null });
   },
 
@@ -174,7 +174,7 @@ export const createDrawingSlice: StateCreator<
     if (canvasMode === "structured") return;
     const boundedPoints = filterPointsToBounds(points, canvasBounds);
     if (boundedPoints.length === 0) return;
-    transactWithHistory(() => {
+    runCanvasTransaction(() => {
       boundedPoints.forEach((p) => {
         deleteCellAt(yMainGrid, p.x, p.y);
       });
@@ -264,7 +264,7 @@ export const createDrawingSlice: StateCreator<
       return { selectedStructuredNodeIds: [id], selectedStructuredBoxId: id, structuredGridFocus: null, editingStructuredTextNodeId: null, structuredTextSelection: null };
     }),
 
-  updateStructuredNode: (id, updater) => {
+  updateStructuredNode: (id, updater, history = "save") => {
     const state = get();
     if (state.canvasMode !== "structured") return;
     let selectedBoxId: string | null = null;
@@ -277,7 +277,7 @@ export const createDrawingSlice: StateCreator<
       return updatedNode;
     });
     if (!didUpdate) return;
-    state.applyStructuredScene(nextScene, true);
+    state.applyStructuredScene(nextScene, history);
     set({
       selectedStructuredNodeIds: [id],
       selectedStructuredBoxId: selectedBoxId,

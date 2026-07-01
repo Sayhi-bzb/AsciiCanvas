@@ -1,6 +1,6 @@
 import type { StateCreator } from "zustand";
 import type { CanvasState, SelectionSlice } from "../interfaces";
-import { transactWithHistory, yMainGrid } from "@/shared/lib/yjs-setup";
+import { runCanvasTransaction, yMainGrid } from "@/shared/lib/yjs-setup";
 import { GridManager } from "@/shared/utils/grid";
 import { getSelectionBounds } from "@/shared/utils/selection";
 import {
@@ -178,7 +178,7 @@ export const createSelectionSlice: StateCreator<
       return;
     }
 
-    transactWithHistory(() => {
+    runCanvasTransaction(() => {
       selections.forEach((area) => {
         const { minX, maxX, minY, maxY } = getSelectionBounds(area);
         deleteRect(yMainGrid, minX, minY, maxX, maxY);
@@ -344,7 +344,7 @@ export const createSelectionSlice: StateCreator<
 
     const charWidth = getCellOccupancy(char);
 
-    transactWithHistory(() => {
+    runCanvasTransaction(() => {
       selections.forEach((area) => {
         const { minX, maxX, minY, maxY } = getSelectionBounds(area);
         for (let y = minY; y <= maxY; y++) {
@@ -367,7 +367,7 @@ export const createSelectionSlice: StateCreator<
     const shouldMaterializeBlank =
       attrs.underline === true || attrs.strike === true;
 
-    transactWithHistory(() => {
+    runCanvasTransaction(() => {
       selections.forEach((area) => {
         const { minX, maxX, minY, maxY } = getSelectionBounds(area);
         for (let y = minY; y <= maxY; y++) {
@@ -417,7 +417,7 @@ export const createSelectionSlice: StateCreator<
     if (canvasMode === "structured") return;
     if (selections.length === 0) return;
 
-    transactWithHistory(() => {
+    runCanvasTransaction(() => {
       selections.forEach((area) => {
         const { minX, maxX, minY, maxY } = getSelectionBounds(area);
         for (let y = minY; y <= maxY; y++) {
@@ -454,7 +454,7 @@ export const createSelectionSlice: StateCreator<
     if (canvasMode === "structured") return;
     const { minX, maxX, minY, maxY } = getSelectionBounds(area);
 
-    transactWithHistory(() => {
+    runCanvasTransaction(() => {
       for (let y = minY; y <= maxY; y++) {
         for (let x = minX; x <= maxX; x++) {
           const key = GridManager.toKey(x, y);

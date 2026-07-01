@@ -3,6 +3,7 @@ import type { GridCell } from "@/shared/types";
 import type { StructuredNode } from "@/shared/types";
 
 const yDoc = new Y.Doc();
+const HISTORY_IGNORED_ORIGIN = Symbol("canvas-history-ignored");
 
 export const yMainGrid = yDoc.getMap<GridCell>("main-grid");
 export const yStructuredScene = yDoc.getMap<StructuredNode>("structured-scene");
@@ -16,14 +17,42 @@ export const forceHistorySave = () => {
   undoManager.stopCapturing();
 };
 
+export type CanvasHistoryMode = "save" | "merge" | "none" | "reset";
+
+export const normalizeCanvasHistoryMode = (
+  history: CanvasHistoryMode | boolean = "save"
+): CanvasHistoryMode => {
+  if (history === true) return "save";
+  if (history === false) return "merge";
+  return history;
+};
+
+export const runCanvasTransaction = (
+  fn: () => void,
+  history: CanvasHistoryMode | boolean = "save"
+) => {
+  const mode = normalizeCanvasHistoryMode(history);
+  const origin =
+    mode === "none" || mode === "reset" ? HISTORY_IGNORED_ORIGIN : null;
+
+  if (mode === "save" || mode === "reset") {
+    forceHistorySave();
+  }
+
+  yDoc.transact(() => {
+    fn();
+  }, origin);
+
+  if (mode === "save") {
+    forceHistorySave();
+  } else if (mode === "reset") {
+    undoManager.clear();
+  }
+};
+
 export const transactWithHistory = (
   fn: () => void,
   shouldSaveHistory = true
 ) => {
-  yDoc.transact(() => {
-    fn();
-  });
-  if (shouldSaveHistory) {
-    forceHistorySave();
-  }
+  runCanvasTransaction(fn, shouldSaveHistory);
 };

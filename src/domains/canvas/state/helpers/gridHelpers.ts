@@ -1,8 +1,7 @@
 import {
-  undoManager,
+  runCanvasTransaction,
   yMainGrid,
   yStructuredScene,
-  transactWithHistory,
 } from "@/shared/lib/yjs-setup";
 import type { GridCell, StructuredNode } from "@/shared/types";
 import { normalizeScene, sceneToGridEntries } from "@/shared/utils/structured";
@@ -56,24 +55,22 @@ export const patchGridByChangedKeys = (
 export const applyFreeformSnapshotToYMaps = (
   entries: [string, GridCell][]
 ) => {
-  transactWithHistory(() => {
+  runCanvasTransaction(() => {
     yStructuredScene.clear();
     yMainGrid.clear();
     entries.forEach(([key, val]) => yMainGrid.set(key, val));
-  }, false);
-  undoManager.clear();
+  }, "reset");
 };
 
 export const applyStructuredSnapshotToYMaps = (scene: StructuredNode[]) => {
   const normalizedScene = normalizeAndCloneScene(scene);
   const gridEntries = sceneToGridEntries(normalizedScene);
-  transactWithHistory(() => {
+  runCanvasTransaction(() => {
     yStructuredScene.clear();
     normalizedScene.forEach((node) => {
       yStructuredScene.set(node.id, node);
     });
     yMainGrid.clear();
     gridEntries.forEach(([key, val]) => yMainGrid.set(key, val));
-  }, false);
-  undoManager.clear();
+  }, "reset");
 };

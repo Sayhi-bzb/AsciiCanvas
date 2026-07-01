@@ -9,6 +9,8 @@ import {
 } from "@/shared/ui/sidebar";
 import {
   STRUCTURED_TEMPLATE_MIME,
+  STRUCTURED_TEMPLATE_FALLBACK_COLORS,
+  STRUCTURED_TEMPLATE_TEXT_COLOR,
   STRUCTURED_TEMPLATES,
   type StructuredTemplateId,
 } from "@/domains/canvas/state/helpers/structuredTemplates";
@@ -52,14 +54,20 @@ export function StructuredTemplateLibrary() {
                 draggable
                 onDragStart={handleTemplateDragStart(template)}
                 className={cn(
-                  "group flex w-full flex-col items-start gap-1 bg-transparent text-left transition-colors",
+                  "group flex w-full items-center gap-3 bg-transparent px-2 py-1.5 text-left transition-colors",
                   "hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50"
                 )}
               >
-                <span className="font-mono text-[11px] leading-4 text-foreground">
-                  {template.thumbnail}
+                <span
+                  className="shrink-0 whitespace-pre px-1 font-mono text-[11px] leading-4"
+                  style={{
+                    color: STRUCTURED_TEMPLATE_TEXT_COLOR,
+                    backgroundColor: STRUCTURED_TEMPLATE_FALLBACK_COLORS[0],
+                  }}
+                >
+                  {template.dragPreview}
                 </span>
-                <span className="text-xs font-semibold text-foreground">
+                <span className="min-w-0 flex-1 truncate text-xs font-semibold text-foreground">
                   {template.label}
                 </span>
               </button>

@@ -9,7 +9,7 @@ import {
 import {
   yMainGrid,
   yStructuredScene,
-  transactWithHistory,
+  runCanvasTransaction,
 } from "@/shared/lib/yjs-setup";
 import type { CanvasSession, CanvasState } from "./interfaces";
 import type {
@@ -130,17 +130,17 @@ export const useCanvasStore = create<CanvasState>()(
             if (!isToolAllowedForMode(tool, state.canvasMode)) return state;
             return { tool, textCursor: null, editingStructuredTextNodeId: null, structuredTextSelection: null, hoveredGrid: null };
           }),
-        applyStructuredScene: (scene, shouldSaveHistory = true) => {
+        applyStructuredScene: (scene, history = "save") => {
           const normalizedScene = normalizeAndCloneScene(scene);
           const gridEntries = sceneToGridEntries(normalizedScene);
-          transactWithHistory(() => {
+          runCanvasTransaction(() => {
             yStructuredScene.clear();
             normalizedScene.forEach((node) => {
               yStructuredScene.set(node.id, node);
             });
             yMainGrid.clear();
             gridEntries.forEach(([key, val]) => yMainGrid.set(key, val));
-          }, shouldSaveHistory);
+          }, history);
           set((state) => ({
             structuredScene: normalizedScene,
             selectedStructuredNodeIds: state.selectedStructuredNodeIds.filter((id) =>

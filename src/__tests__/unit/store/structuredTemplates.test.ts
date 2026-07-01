@@ -15,13 +15,14 @@ describe("structuredTemplates", () => {
       order: 10,
       start: { x: 4, y: 7 },
       end: { x: 11, y: 7 },
-      style: { bgColor: "#334155" },
+      style: { color: "#000000", bgColor: "#dbeafe" },
     });
     expect(nodes[1]).toMatchObject({
       type: "text",
       order: 11,
       position: { x: 5, y: 7 },
       text: "BUTTON",
+      style: { color: "#000000" },
     });
   });
 });

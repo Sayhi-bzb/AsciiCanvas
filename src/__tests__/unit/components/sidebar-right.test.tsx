@@ -41,11 +41,12 @@ describe("SidebarRight structured templates", () => {
 
     expect(screen.getByText("Templates")).toBeInTheDocument();
     expect(button).toBeInTheDocument();
-    expect(screen.getByText("[BUTTON]")).toBeInTheDocument();
-    expect(screen.queryByText("BUTTON")).not.toBeInTheDocument();
+    const preview = button.querySelector("span");
+    expect(preview?.textContent).toBe(" BUTTON ");
+    expect(screen.queryByText("[BUTTON]")).not.toBeInTheDocument();
     expect(content).toHaveClass("p-2");
     expect(group).toHaveClass("p-0");
-    expect(button).not.toHaveClass("px-3", "py-2");
+    expect(button).toHaveClass("items-center", "gap-3");
     expect(screen.queryByText("Nerd Icons")).not.toBeInTheDocument();
   });
 

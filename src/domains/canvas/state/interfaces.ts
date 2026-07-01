@@ -16,6 +16,7 @@ import type {
 } from "@/shared/types";
 import type { StructuredTextSelection } from "@/shared/utils/structuredTextRanges";
 import type { GridAddress, GridEditMode, GridRange, GridSelectionState } from "./helpers/staticGridModel";
+import type { CanvasHistoryMode } from "@/shared/lib/yjs-setup";
 
 export interface RichTextCell {
   x: number;
@@ -49,7 +50,11 @@ export interface DrawingSlice {
   ) => void;
   setSelectedStructuredNodeIds: (ids: string[]) => void;
   setSelectedStructuredBoxId: (id: string | null) => void;
-  updateStructuredNode: (id: string, updater: (node: StructuredNode) => StructuredNode) => void;
+  updateStructuredNode: (
+    id: string,
+    updater: (node: StructuredNode) => StructuredNode,
+    history?: CanvasHistoryMode | boolean
+  ) => void;
   updateStructuredBox: (id: string, updater: (node: StructuredBoxNode) => StructuredBoxNode) => void;
   setStructuredTextAttributes: (
     attrs: Partial<Record<"bold" | "italic" | "underline" | "strike", boolean>>
@@ -195,7 +200,10 @@ export type CanvasState = {
   setOffset: (updater: (prev: Point) => Point) => void;
   setZoom: (updater: (prev: number) => number) => void;
   setTool: (tool: ToolType) => void;
-  applyStructuredScene: (scene: StructuredNode[], shouldSaveHistory?: boolean) => void;
+  applyStructuredScene: (
+    scene: StructuredNode[],
+    history?: CanvasHistoryMode | boolean
+  ) => void;
   getNextStructuredOrder: () => number;
   setBrushChar: (char: string) => void;
   setBrushColor: (color: string) => void;

@@ -33,6 +33,8 @@ import {
   buildStructuredTemplateNodes,
   isStructuredTemplateId,
   STRUCTURED_TEMPLATE_MIME,
+  STRUCTURED_TEMPLATE_FALLBACK_COLORS,
+  STRUCTURED_TEMPLATE_TEXT_COLOR,
   STRUCTURED_TEMPLATES,
   type StructuredTemplateId,
 } from '@/domains/canvas/state/helpers/structuredTemplates';
@@ -40,7 +42,7 @@ import { getStaticGridViewState } from '@/domains/canvas/state/helpers/staticGri
 import { useShallow } from 'zustand/react/shallow';
 import type { CanvasLinkHit } from './hooks/linkHitTesting';
 import type { Point } from '@/shared/types';
-import { COLOR_PRIMARY_TEXT, FONT_SIZE } from '@/shared/lib/constants';
+import { FONT_SIZE } from '@/shared/lib/constants';
 
 const KEYBOARD_PAN_STEP = 48;
 
@@ -579,8 +581,8 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
                 lineHeight: `${structuredTemplatePreviewRect.height}px`,
                 fontSize: `${FONT_SIZE * zoom}px`,
                 whiteSpace: 'pre',
-                color: COLOR_PRIMARY_TEXT,
-                background: brushColor,
+                color: STRUCTURED_TEMPLATE_TEXT_COLOR,
+                background: STRUCTURED_TEMPLATE_FALLBACK_COLORS[0],
                 zIndex: 20,
               }}
             >

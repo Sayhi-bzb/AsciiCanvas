@@ -712,7 +712,7 @@ export const useCanvasInteraction = (
                 );
                 applyStructuredScene(
                   structuredScene.map((node) => movingNodes.get(node.id) ?? node),
-                  true
+                  "merge"
                 );
                 setSelectedStructuredNodeIds(drag.selectedIds);
               }
@@ -730,7 +730,8 @@ export const useCanvasInteraction = (
                     node,
                     drag.handle as StructuredBoxResizeHandle,
                     currentGrid
-                  )
+                  ),
+                  "merge"
                 );
               }
               break;
@@ -744,7 +745,8 @@ export const useCanvasInteraction = (
                     node,
                     drag.handle as StructuredLineResizeHandle,
                     currentGrid
-                  )
+                  ),
+                  "merge"
                 );
               }
               break;
@@ -848,6 +850,11 @@ export const useCanvasInteraction = (
                   commitScratch();
                 }
               }
+              break;
+            case "structured-node-moving":
+            case "structured-box-resizing":
+            case "structured-line-resizing":
+              forceHistorySave();
               break;
             default:
               break;

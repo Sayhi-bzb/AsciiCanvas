@@ -1,6 +1,6 @@
 import type { StateCreator } from "zustand";
 import type { CanvasState, TextSlice } from "../interfaces";
-import { transactWithHistory, yMainGrid } from "@/shared/lib/yjs-setup";
+import { runCanvasTransaction, yMainGrid } from "@/shared/lib/yjs-setup";
 import { GridManager } from "@/shared/utils/grid";
 import { collapseGridSelectionTo, getStaticGridViewState } from "../helpers/staticGridModel";
 import { placeCharInYMap, placeStyledCellInYMap } from "../utils";
@@ -298,7 +298,7 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
     let currentY = boundedCursor.y;
     const startX = boundedCursor.x;
 
-    transactWithHistory(() => {
+    runCanvasTransaction(() => {
       let index = 0;
       while (index < str.length) {
         if (str[index] === "\r" && str[index + 1] === "\n") {
@@ -368,7 +368,7 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
     pos = pos || staticGridView.activeCell;
 
     const basePos = pos;
-    transactWithHistory(() => {
+    runCanvasTransaction(() => {
       cells.forEach((cell) => {
         const nextPoint = {
           x: basePos.x + cell.x,
@@ -483,7 +483,7 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
       return;
     }
 
-    transactWithHistory(() => {
+    runCanvasTransaction(() => {
       const { x, y } = textCursor;
       const deletePos = resolveBackspaceAnchor(grid, x, y);
       deleteCellAt(yMainGrid, deletePos.x, deletePos.y);
