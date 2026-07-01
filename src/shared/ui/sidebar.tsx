@@ -512,6 +512,7 @@ function SidebarStandard({
   icon,
   title,
   footer,
+  contentClassName,
   className,
   ...props
 }: React.ComponentProps<typeof Sidebar> & {
@@ -519,6 +520,7 @@ function SidebarStandard({
   icon?: React.ReactNode;
   title?: string;
   footer?: React.ReactNode;
+  contentClassName?: string;
 }) {
   const { state, isMobile } = useSidebar();
   const isCollapsed = state === "collapsed" && !isMobile;
@@ -560,7 +562,8 @@ function SidebarStandard({
       <SidebarContent
         className={cn(
           "gap-2 px-2 py-2 transition-all duration-300",
-          isCollapsed ? "opacity-0 pointer-events-none" : "opacity-100"
+          isCollapsed ? "opacity-0 pointer-events-none" : "opacity-100",
+          contentClassName
         )}
       >
         {children}

@@ -58,6 +58,7 @@ export const useCanvasRenderer = (
     | "animationTimeline"
     | "selectedStructuredNodeIds"
     | "selectedStructuredBoxId"
+    | "structuredGridFocus"
     | "structuredScene"
     | "editingStructuredTextNodeId"
     | "structuredTextSelection"
@@ -82,6 +83,7 @@ export const useCanvasRenderer = (
     animationTimeline,
     selectedStructuredNodeIds,
     selectedStructuredBoxId,
+    structuredGridFocus,
     structuredScene,
     editingStructuredTextNodeId,
     structuredTextSelection,
@@ -337,6 +339,31 @@ export const useCanvasRenderer = (
         if (draggingSelection) drawSel(draggingSelection);
 
         if (canvasMode === "structured") {
+          if (
+            structuredGridFocus &&
+            !editingStructuredTextNodeId &&
+            selectedStructuredNodeIds.length === 0
+          ) {
+            const pos = gridCellRect(structuredGridFocus, { offset, zoom });
+            uiCtx.save();
+            uiCtx.fillStyle = "rgba(37, 99, 235, 0.12)";
+            uiCtx.strokeStyle = "#2563eb";
+            uiCtx.lineWidth = Math.max(1, Math.round(1.5 * zoom));
+            uiCtx.fillRect(
+              Math.round(pos.x),
+              Math.round(pos.y),
+              Math.round(pos.width),
+              Math.round(pos.height)
+            );
+            uiCtx.strokeRect(
+              Math.round(pos.x),
+              Math.round(pos.y),
+              Math.round(pos.width),
+              Math.round(pos.height)
+            );
+            uiCtx.restore();
+          }
+
           const selectionRange = getStructuredTextSelectionRange(
             structuredTextSelection
           );
@@ -507,6 +534,7 @@ export const useCanvasRenderer = (
     structuredScene,
     selectedStructuredNodeIds,
     selectedStructuredBoxId,
+    structuredGridFocus,
     editingStructuredTextNodeId,
     structuredTextSelection,
     layers,

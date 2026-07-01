@@ -129,6 +129,9 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
     set((state) => ({
       textCursor: pos,
       selections: [],
+      ...(state.canvasMode === "structured" && pos
+        ? { structuredGridFocus: null }
+        : {}),
       ...(pos ? {} : { editingStructuredTextNodeId: null, structuredTextSelection: null }),
       ...(pos
         ? {

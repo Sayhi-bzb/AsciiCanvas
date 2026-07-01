@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { Eye, EyeOff, Github, Target } from "lucide-react";
 import { SidebarHeader, SidebarStandard, SidebarTrigger, useSidebar } from "@/shared/ui/sidebar";
 import { CharLibrary, SearchForm, useLibraryStore } from "@/domains/character-library";
+import { StructuredTemplateLibrary } from "./structured-template-library";
 import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
 import { SIDEBAR_ACTION_META, runSidebarAction } from "@/domains/actions/core";
 import { cn } from "@/shared/lib/utils";
@@ -52,14 +53,16 @@ export function SidebarRight() {
   const canResetView = canvasMode !== "animation";
 
   useEffect(() => {
+    if (canvasMode === "structured") return;
     fetchLibrary();
-  }, [fetchLibrary]);
+  }, [canvasMode, fetchLibrary]);
 
   return (
     <SidebarStandard
       variant="floating"
       side="right"
       className="pointer-events-auto"
+      contentClassName={canvasMode === "structured" ? "gap-0 p-2" : undefined}
       header={
         <SidebarHeader
           className={cn(
@@ -69,7 +72,9 @@ export function SidebarRight() {
               : "flex-row items-center gap-2 px-3 py-2"
           )}
         >
-          {!isCollapsed && <SearchForm className="min-w-0 flex-1" />}
+          {!isCollapsed && canvasMode !== "structured" && (
+            <SearchForm className="min-w-0 flex-1" />
+          )}
           <SidebarTrigger className="size-8 shrink-0" />
         </SidebarHeader>
       }
@@ -201,7 +206,11 @@ export function SidebarRight() {
     >
       <div className="flex flex-col h-full">
         <ScrollArea className="flex-1">
-          <CharLibrary />
+          {canvasMode === "structured" ? (
+            <StructuredTemplateLibrary />
+          ) : (
+            <CharLibrary />
+          )}
         </ScrollArea>
       </div>
     </SidebarStandard>

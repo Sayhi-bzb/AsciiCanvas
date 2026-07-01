@@ -72,6 +72,12 @@ export interface StaticGridSlice {
   clearStaticGridSelection: () => void;
 }
 
+export interface StructuredGridFocusSlice {
+  structuredGridFocus: Point | null;
+  setStructuredGridFocus: (point: Point | null) => void;
+  moveStructuredGridFocus: (dx: number, dy: number) => void;
+}
+
 export interface TextSlice {
   textCursor: Point | null;
   editingStructuredTextNodeId: string | null;
@@ -175,6 +181,7 @@ export type CanvasState = {
   structuredScene: StructuredNode[];
   selectedStructuredNodeIds: string[];
   selectedStructuredBoxId: string | null;
+  structuredGridFocus: Point | null;
   canvasBounds: AnimationCanvasSize | null;
   animationTimeline: AnimationTimeline | null;
   animationIsPlaying: boolean;
@@ -197,6 +204,7 @@ export type CanvasState = {
   setHoveredGrid: (pos: Point | null) => void;
 } & DrawingSlice &
   StaticGridSlice &
+  StructuredGridFocusSlice &
   TextSlice &
   SelectionSlice &
   SessionSlice &

@@ -226,6 +226,7 @@ export const createDrawingSlice: StateCreator<
       scratchLayer: null,
       selectedStructuredNodeIds: [node.id],
       selectedStructuredBoxId: node.type === "box" ? node.id : null,
+      structuredGridFocus: null,
       editingStructuredTextNodeId: null,
       structuredTextSelection: null,
     });
@@ -245,6 +246,7 @@ export const createDrawingSlice: StateCreator<
       return {
         selectedStructuredNodeIds: validIds,
         selectedStructuredBoxId: selectedBox?.id ?? null,
+        structuredGridFocus: validIds.length > 0 ? null : state.structuredGridFocus,
         editingStructuredTextNodeId: keepsEditing
           ? state.editingStructuredTextNodeId
           : null,
@@ -259,7 +261,7 @@ export const createDrawingSlice: StateCreator<
       if (!id) return { selectedStructuredNodeIds: [], selectedStructuredBoxId: null, editingStructuredTextNodeId: null, structuredTextSelection: null };
       const selectedBox = state.structuredScene.find((node) => node.id === id && node.type === "box");
       if (!selectedBox) return { selectedStructuredNodeIds: [], selectedStructuredBoxId: null, editingStructuredTextNodeId: null, structuredTextSelection: null };
-      return { selectedStructuredNodeIds: [id], selectedStructuredBoxId: id, editingStructuredTextNodeId: null, structuredTextSelection: null };
+      return { selectedStructuredNodeIds: [id], selectedStructuredBoxId: id, structuredGridFocus: null, editingStructuredTextNodeId: null, structuredTextSelection: null };
     }),
 
   updateStructuredNode: (id, updater) => {
@@ -279,6 +281,7 @@ export const createDrawingSlice: StateCreator<
     set({
       selectedStructuredNodeIds: [id],
       selectedStructuredBoxId: selectedBoxId,
+      structuredGridFocus: null,
     });
   },
 

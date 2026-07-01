@@ -97,6 +97,7 @@ export const useCanvasStore = create<CanvasState>()(
         structuredScene: [],
         selectedStructuredNodeIds: [],
         selectedStructuredBoxId: null,
+        structuredGridFocus: null,
         canvasBounds: null,
         animationTimeline: null,
         animationIsPlaying: false,
@@ -183,6 +184,30 @@ export const useCanvasStore = create<CanvasState>()(
         setShowGrid: (show) => set({ showGrid: show }),
         setExportShowGrid: (show) => set({ exportShowGrid: show }),
         setHoveredGrid: (pos) => set({ hoveredGrid: pos }),
+        setStructuredGridFocus: (point) =>
+          set({
+            structuredGridFocus: point ? { ...point } : null,
+            ...(point
+              ? {
+                  selectedStructuredNodeIds: [],
+                  selectedStructuredBoxId: null,
+                  editingStructuredTextNodeId: null,
+                  structuredTextSelection: null,
+                  textCursor: null,
+                  selections: [],
+                }
+              : {}),
+          }),
+        moveStructuredGridFocus: (dx, dy) =>
+          set((state) => {
+            const current = state.structuredGridFocus ?? { x: 0, y: 0 };
+            return {
+              structuredGridFocus: {
+                x: current.x + dx,
+                y: current.y + dy,
+              },
+            };
+          }),
         ...createSessionSlice(set, get, ...a),
         ...createAnimationSlice(set, get, ...a),
         ...createStaticGridSlice(set, get, ...a),

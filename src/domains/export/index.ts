@@ -11,6 +11,7 @@ export {
   exportToPNG,
   exportToString,
   exportStructuredF12Text,
+  exportStructuredHierarchyText,
   exportSelectionToAnsi,
   exportSelectionToString,
   exportSelectionToJSON,

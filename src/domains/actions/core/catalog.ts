@@ -80,6 +80,11 @@ export const EDITOR_ACTION_META: Record<EditorActionId, ActionMeta> = {
     label: "Duplicate",
     icon: CopyPlus,
   },
+  "structured-copy-hierarchy": {
+    id: "structured-copy-hierarchy",
+    label: "Copy Structure",
+    icon: Copy,
+  },
 };
 
 // Toolbar Actions
@@ -146,6 +151,7 @@ export const STRUCTURED_CONTEXT_MENU: ContextMenuEntry[] = [
   { type: "action", id: "structured-send-to-back" },
   { type: "separator" },
   { type: "action", id: "structured-duplicate" },
+  { type: "action", id: "structured-copy-hierarchy" },
   { type: "separator" },
   { type: "action", id: "delete-selection" },
 ];

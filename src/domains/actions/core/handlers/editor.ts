@@ -1,8 +1,10 @@
 import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
+import { exportStructuredHierarchyText } from "@/domains/export";
 import { runEditorCommand } from "@/domains/actions/adapters/editorCommands";
 import { getFirstGrapheme } from "@/shared/utils/characters";
 import { getTextColumnWidth } from "@/shared/utils/structured";
 import { getStructuredBoxNameEndPoint } from "@/domains/canvas/state/helpers/structuredBoxEditing";
+import { clipboard, feedback } from "@/shared/services/effects";
 import type { StructuredBoxNode, StructuredTextNode } from "@/shared/types";
 import {
   actionFailed,
@@ -239,6 +241,27 @@ export const editorHandlers: Record<
     const duplicatedIds = context.state.duplicateStructuredSelection();
     return duplicatedIds.length > 0 ? actionSucceeded() : actionFailed("empty-selection");
   },
+
+  "structured-copy-hierarchy": (_options, context): ActionResult => {
+    if (context.state.canvasMode !== "structured") {
+      return actionFailed("not-supported-in-freeform");
+    }
+    if (context.state.structuredScene.length === 0) {
+      return actionFailed("empty-scene");
+    }
+    const text = exportStructuredHierarchyText(
+      context.state.structuredScene,
+      context.state.selectedStructuredNodeIds
+    );
+    void clipboard.writeText(text).then((copied) => {
+      if (!copied) {
+        feedback.error("Copy failed", {
+          description: "Could not write structure hierarchy to clipboard.",
+        });
+      }
+    });
+    return actionSucceeded();
+  },
 };
 
 // Editor action checkers
@@ -262,6 +285,8 @@ export const editorCheckers: Partial<Record<EditorActionId, (state: ReturnType<t
   "structured-bring-to-front": hasStructuredSelection,
   "structured-send-to-back": hasStructuredSelection,
   "structured-duplicate": hasStructuredSelection,
+  "structured-copy-hierarchy": (state) =>
+    state.canvasMode === "structured" && state.structuredScene.length > 0,
   "fill-selection-char": (state) =>
     state.canvasMode !== "structured" &&
     state.selections.length > 0 &&

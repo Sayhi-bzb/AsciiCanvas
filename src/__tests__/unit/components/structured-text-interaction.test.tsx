@@ -44,6 +44,7 @@ function InteractionHarness() {
       structuredScene: state.structuredScene,
       editingStructuredTextNodeId: state.editingStructuredTextNodeId,
       selectedStructuredNodeIds: state.selectedStructuredNodeIds,
+      setStructuredGridFocus: state.setStructuredGridFocus,
       setSelectedStructuredNodeIds: state.setSelectedStructuredNodeIds,
       setEditingStructuredTextNodeId: state.setEditingStructuredTextNodeId,
       setStructuredTextSelection: state.setStructuredTextSelection,
@@ -200,6 +201,32 @@ describe("structured text interaction", () => {
     });
 
     expect(getByTestId("canvas-root").style.cursor).toBe("text");
+  });
+
+  it("focuses an empty structured cell after a blank select click", () => {
+    setStructuredTextScene();
+    useCanvasStore.setState({
+      selectedStructuredNodeIds: ["text-1"],
+      structuredGridFocus: null,
+    });
+    render(<InteractionHarness />);
+
+    act(() => {
+      gestureState.handlers?.onDragStart?.({
+        xy: [50, 40],
+        event: dragEvent(),
+      });
+    });
+    act(() => {
+      gestureState.handlers?.onDragEnd?.({
+        xy: [50, 40],
+        event: dragEvent(),
+      });
+    });
+
+    expect(useCanvasStore.getState().selectedStructuredNodeIds).toEqual([]);
+    expect(useCanvasStore.getState().textCursor).toBeNull();
+    expect(useCanvasStore.getState().structuredGridFocus).toEqual({ x: 5, y: 2 });
   });
 
   it("does not start moving text on the second press of a double-click", () => {

@@ -8,6 +8,7 @@ import {
   exportProtocolToJSON,
   exportSelectionToAnsi,
   exportSelectionToJSON,
+  exportStructuredHierarchyText,
   exportToAnsi,
 } from "@/domains/export/utils/export";
 import { normalizeAnimationTimeline } from "@/domains/canvas/state/helpers/animationHelpers";
@@ -320,6 +321,108 @@ describe("export utilities", () => {
       text: "Hi",
       style: { color: "#ffffff" },
     });
+  });
+
+  it("exports simplified structured hierarchy without coordinates or ids", () => {
+    const scene: StructuredNode[] = [
+      {
+        id: "box-1",
+        type: "box",
+        order: 1,
+        start: { x: 0, y: 0 },
+        end: { x: 8, y: 4 },
+        name: "API",
+        style: { color: "#111111" },
+      },
+      {
+        id: "text-1",
+        type: "text",
+        order: 2,
+        position: { x: 1, y: 1 },
+        text: "Hello",
+        style: { color: "#ffffff" },
+      },
+      {
+        id: "bg-1",
+        type: "bg",
+        order: 3,
+        start: { x: 1, y: 2 },
+        end: { x: 3, y: 3 },
+        style: { color: "#000000", bgColor: "#334155" },
+      },
+      {
+        id: "line-1",
+        type: "line",
+        order: 4,
+        start: { x: 10, y: 0 },
+        end: { x: 14, y: 0 },
+        axis: "horizontal",
+        style: { color: "#ffffff" },
+      },
+    ];
+
+    expect(exportStructuredHierarchyText(scene)).toBe([
+      '<canvas',
+      '  mode="structured"',
+      '>',
+      '  <box',
+      '    name="API"',
+      '  >',
+      '    <text',
+      '      value="Hello"',
+      '    />',
+      '    <bg',
+      '    />',
+      '  </box>',
+      '  <line',
+      '    axis="horizontal"',
+      '  />',
+      '</canvas>',
+    ].join("\n"));
+  });
+
+  it("exports selected structured roots without duplicating selected descendants", () => {
+    const scene: StructuredNode[] = [
+      {
+        id: "box-1",
+        type: "box",
+        order: 1,
+        start: { x: 0, y: 0 },
+        end: { x: 8, y: 4 },
+        name: "API",
+        style: { color: "#111111" },
+      },
+      {
+        id: "text-1",
+        type: "text",
+        order: 2,
+        position: { x: 1, y: 1 },
+        text: "Hello",
+        style: { color: "#ffffff" },
+      },
+      {
+        id: "text-2",
+        type: "text",
+        order: 3,
+        position: { x: 12, y: 1 },
+        text: "Loose",
+        style: { color: "#ffffff" },
+      },
+    ];
+
+    expect(exportStructuredHierarchyText(scene, ["box-1", "text-1"])).toBe([
+      '<canvas',
+      '  mode="structured"',
+      '>',
+      '  <box',
+      '    name="API"',
+      '  >',
+      '    <text',
+      '      value="Hello"',
+      '    />',
+      '  </box>',
+      '</canvas>',
+    ].join("\n"));
   });
 
   it("serializes protocol JSON in monochrome when color export is disabled", () => {

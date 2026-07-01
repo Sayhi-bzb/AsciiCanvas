@@ -19,7 +19,8 @@ export type EditorActionId =
   | "structured-send-backward"
   | "structured-bring-to-front"
   | "structured-send-to-back"
-  | "structured-duplicate";
+  | "structured-duplicate"
+  | "structured-copy-hierarchy";
 
 // Toolbar Actions
 export type ToolbarActionId =

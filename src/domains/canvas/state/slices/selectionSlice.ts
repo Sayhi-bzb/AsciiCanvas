@@ -5,19 +5,24 @@ import { GridManager } from "@/shared/utils/grid";
 import { getSelectionBounds } from "@/shared/utils/selection";
 import {
   copySelectionToPngClipboard,
-  exportStructuredF12Text,
 } from "@/domains/export";
 import { placeCharInYMap } from "../utils";
-import { clipboard, feedback } from "@/shared/services/effects";
-import type { GridCell } from "@/shared/types";
+import { feedback } from "@/shared/services/effects";
+import type { GridCell, Point, StructuredNode } from "@/shared/types";
 import { deleteRect } from "../gridOps";
 import {
   buildClipboardPayload,
+  buildStructuredClipboardPayload,
   hasClipboardSource,
   readClipboardPayload,
   writeClipboardPayload,
 } from "@/domains/actions/adapters/clipboardActions";
-import { getStructuredNodeBounds, intersectsBounds, withPointWithinBounds } from "@/shared/utils/structured";
+import {
+  createStructuredNodeId,
+  getStructuredNodeBounds,
+  intersectsBounds,
+  withPointWithinBounds,
+} from "@/shared/utils/structured";
 import { clampSelectionToBounds } from "../helpers/animationHelpers";
 import {
   collapseGridSelectionTo,
@@ -27,10 +32,48 @@ import {
 } from "../helpers/staticGridModel";
 import { getCellOccupancy } from "@/shared/metrics";
 import { cloneTextAttributes } from "@/shared/utils/ansi";
+import { cloneStructuredNode } from "../helpers/snapshotHelpers";
 
 const resolveSelectionAreas = (state: CanvasState) => {
   const staticSelections = getStaticGridSelectionAreas(state.staticGridSelection);
   return staticSelections.length > 0 ? staticSelections : state.selections;
+};
+
+const moveStructuredClipboardNode = (
+  node: StructuredNode,
+  dx: number,
+  dy: number,
+  order: number
+): StructuredNode => {
+  const cloned = cloneStructuredNode(node);
+  if (cloned.type === "text") {
+    return {
+      ...cloned,
+      id: createStructuredNodeId(),
+      order,
+      position: {
+        x: cloned.position.x + dx,
+        y: cloned.position.y + dy,
+      },
+    };
+  }
+  return {
+    ...cloned,
+    id: createStructuredNodeId(),
+    order,
+    start: {
+      x: cloned.start.x + dx,
+      y: cloned.start.y + dy,
+    },
+    end: {
+      x: cloned.end.x + dx,
+      y: cloned.end.y + dy,
+    },
+  };
+};
+
+const resolveStructuredPastePoint = (state: CanvasState): Point => {
+  return state.structuredGridFocus ?? state.textCursor ?? { x: 0, y: 0 };
 };
 
 export const createSelectionSlice: StateCreator<
@@ -73,6 +116,7 @@ export const createSelectionSlice: StateCreator<
       structuredTextSelection: null,
       selectedStructuredNodeIds: [],
       selectedStructuredBoxId: null,
+      structuredGridFocus: null,
       staticGridSelection: createGridSelectionState(
         state.staticGridSelection.activeCell
       ),
@@ -150,12 +194,19 @@ export const createSelectionSlice: StateCreator<
       brushColor,
       canvasMode,
       structuredScene,
+      selectedStructuredNodeIds,
     } = state;
     const selections = resolveSelectionAreas(state);
     if (canvasMode === "structured") {
-      const copied = await clipboard.writeText(
-        exportStructuredF12Text(structuredScene)
+      const payload = buildStructuredClipboardPayload(
+        structuredScene,
+        selectedStructuredNodeIds
       );
+      if (!payload) return;
+      const copied = await writeClipboardPayload(payload, {
+        event: options?.event,
+        withRich: true,
+      });
       if (!copied) {
         feedback.error("Copy failed", {
           description: "Could not write structured export to clipboard.",
@@ -211,17 +262,49 @@ export const createSelectionSlice: StateCreator<
   },
 
   pasteFromClipboard: async (options) => {
-    const { pasteRichData, writeTextString, canvasMode, brushColor } = get();
-    if (canvasMode === "structured") {
-      feedback.warning("Paste disabled in structured mode", {
-        description: "Structured mode only accepts node-based editing.",
-      });
-      return;
-    }
+    const { brushColor } = get();
     const payload = await readClipboardPayload(
       options?.eventDataTransfer,
       brushColor
     );
+    const state = get();
+    const { pasteRichData, writeTextString, canvasMode } = state;
+
+    if (canvasMode === "structured") {
+      const structured = payload.structured;
+      if (!structured) {
+        feedback.warning("Paste disabled in structured mode", {
+          description: "Clipboard does not contain structured nodes.",
+        });
+        return;
+      }
+      const pastePoint = resolveStructuredPastePoint(state);
+      const dx = pastePoint.x - structured.bounds.x;
+      const dy = pastePoint.y - structured.bounds.y;
+      const maxOrder = state.structuredScene.reduce(
+        (max, node) => Math.max(max, node.order),
+        0
+      );
+      const pastedNodes = structured.structuredNodes
+        .slice()
+        .sort((a, b) => a.order - b.order)
+        .map((node, index) =>
+          moveStructuredClipboardNode(node, dx, dy, maxOrder + index + 1)
+        );
+      state.applyStructuredScene([...state.structuredScene, ...pastedNodes], true);
+      set({
+        selectedStructuredNodeIds: pastedNodes.map((node) => node.id),
+        selectedStructuredBoxId:
+          pastedNodes.length === 1 && pastedNodes[0].type === "box"
+            ? pastedNodes[0].id
+            : null,
+        structuredGridFocus: null,
+        textCursor: null,
+        editingStructuredTextNodeId: null,
+        structuredTextSelection: null,
+      });
+      return;
+    }
 
     if (payload.richCells) {
       pasteRichData(payload.richCells);

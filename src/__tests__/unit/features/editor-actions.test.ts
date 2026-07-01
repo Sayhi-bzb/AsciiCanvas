@@ -3,6 +3,7 @@ import * as editorCommands from "@/domains/actions/adapters/editorCommands";
 import { STRUCTURED_CONTEXT_MENU } from "@/domains/actions/core";
 import { editorCheckers, editorHandlers } from "@/domains/actions/core/handlers/editor";
 import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
+import { clipboard } from "@/shared/services/effects";
 
 describe("editorHandlers clipboard sources", () => {
   afterEach(() => {
@@ -226,6 +227,68 @@ describe("editorHandlers structured rename", () => {
     expect(STRUCTURED_CONTEXT_MENU[0]).toEqual({
       type: "action",
       id: "structured-rename",
+    });
+  });
+
+  it("copies simplified structured hierarchy from the context menu action", () => {
+    const writeTextSpy = vi.spyOn(clipboard, "writeText").mockResolvedValue(true);
+    const state = {
+      ...baseState,
+      canvasMode: "structured" as const,
+      selectedStructuredBoxId: "box-1",
+      selectedStructuredNodeIds: ["box-1"],
+      structuredScene: [
+        {
+          id: "box-1",
+          type: "box" as const,
+          order: 1,
+          start: { x: 0, y: 0 },
+          end: { x: 8, y: 4 },
+          name: "API",
+          style: { color: "#ffffff" },
+        },
+        {
+          id: "text-1",
+          type: "text" as const,
+          order: 2,
+          position: { x: 1, y: 1 },
+          text: "Hello",
+          style: { color: "#ffffff" },
+        },
+      ],
+    };
+
+    const result = editorHandlers["structured-copy-hierarchy"](
+      { source: "context-menu" },
+      {
+        state,
+        setTool: vi.fn(),
+        onUndo: vi.fn(),
+        onRedo: vi.fn(),
+      }
+    );
+
+    expect(result.succeeded).toBe(true);
+    expect(writeTextSpy).toHaveBeenCalledWith([
+      '<canvas',
+      '  mode="structured"',
+      '>',
+      '  <box',
+      '    name="API"',
+      '  >',
+      '    <text',
+      '      value="Hello"',
+      '    />',
+      '  </box>',
+      '</canvas>',
+    ].join("\n"));
+    expect(editorCheckers["structured-copy-hierarchy"]?.(state)).toBe(true);
+  });
+
+  it("shows Copy Structure in the structured context menu", () => {
+    expect(STRUCTURED_CONTEXT_MENU).toContainEqual({
+      type: "action",
+      id: "structured-copy-hierarchy",
     });
   });
 });

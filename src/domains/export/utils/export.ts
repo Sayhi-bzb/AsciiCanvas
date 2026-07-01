@@ -1034,3 +1034,69 @@ export const exportStructuredF12Text = (scene: StructuredNode[]) => {
   lines.push("</canvas>");
   return lines.join("\n");
 };
+
+export const exportStructuredHierarchyText = (
+  scene: StructuredNode[],
+  selectedNodeIds: string[] = []
+) => {
+  const { roots, childrenById } = buildStructuredTree(scene);
+  const selectedIds = new Set(selectedNodeIds);
+  const lines: string[] = [];
+
+  const emitNode = (node: StructuredNode, depth: number) => {
+    const indent = "  ".repeat(depth);
+
+    if (node.type === "box") {
+      const attrs =
+        node.name && node.name.trim()
+          ? [["name", escapeAttr(node.name)] as [string, string]]
+          : [];
+      emitTag(lines, "box", attrs, indent, false);
+      const children = childrenById.get(node.id) || [];
+      children.forEach((child) => emitNode(child, depth + 1));
+      lines.push(`${indent}</box>`);
+      return;
+    }
+
+    if (node.type === "line") {
+      emitTag(lines, "line", [["axis", node.axis]], indent, true);
+      return;
+    }
+
+    if (node.type === "bg") {
+      emitTag(lines, "bg", [], indent, true);
+      return;
+    }
+
+    emitTag(lines, "text", [["value", escapeAttr(node.text)]], indent, true);
+  };
+
+  const collectSelectedRoots = (
+    node: StructuredNode,
+    hasSelectedAncestor: boolean,
+    out: StructuredNode[]
+  ) => {
+    const isSelected = selectedIds.has(node.id);
+    if (isSelected && !hasSelectedAncestor) {
+      out.push(node);
+      return;
+    }
+    const children = childrenById.get(node.id) || [];
+    children.forEach((child) =>
+      collectSelectedRoots(child, hasSelectedAncestor || isSelected, out)
+    );
+  };
+
+  const exportRoots =
+    selectedIds.size === 0
+      ? roots
+      : roots.reduce<StructuredNode[]>((out, root) => {
+          collectSelectedRoots(root, false, out);
+          return out;
+        }, []);
+
+  emitTag(lines, "canvas", [["mode", "structured"]], "", false);
+  exportRoots.forEach((node) => emitNode(node, 1));
+  lines.push("</canvas>");
+  return lines.join("\n");
+};

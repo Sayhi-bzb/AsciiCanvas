@@ -131,6 +131,7 @@ export const useCanvasInteraction = (
     | "structuredScene"
     | "editingStructuredTextNodeId"
     | "selectedStructuredNodeIds"
+    | "setStructuredGridFocus"
     | "setSelectedStructuredNodeIds"
     | "setEditingStructuredTextNodeId"
     | "setStructuredTextSelection"
@@ -164,6 +165,7 @@ export const useCanvasInteraction = (
     structuredScene,
     editingStructuredTextNodeId,
     selectedStructuredNodeIds,
+    setStructuredGridFocus,
     setSelectedStructuredNodeIds,
     setEditingStructuredTextNodeId,
     setStructuredTextSelection,
@@ -809,7 +811,11 @@ export const useCanvasInteraction = (
                       structuredScene,
                       draggingSelection
                     );
-                    setSelectedStructuredNodeIds(selectedIds);
+                    if (selectedIds.length > 0) {
+                      setSelectedStructuredNodeIds(selectedIds);
+                    } else {
+                      setStructuredGridFocus(draggingSelection.start);
+                    }
                     clearSelections();
                   } else if (
                     draggingSelection.start.x === draggingSelection.end.x &&
