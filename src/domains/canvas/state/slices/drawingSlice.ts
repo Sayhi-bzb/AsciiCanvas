@@ -132,6 +132,25 @@ export const createDrawingSlice: StateCreator<
     if (!scratchLayer || scratchLayer.size === 0) return;
     transactWithHistory(() => {
       GridManager.iterate(scratchLayer, (cell, x, y) => {
+        const key = GridManager.toKey(x, y);
+        if (cell.bgColor && cell.char === " ") {
+          const existingCell = yMainGrid.get(key);
+          yMainGrid.set(key, {
+            ...(existingCell ?? { char: " ", color: cell.color }),
+            bgColor: cell.bgColor,
+          });
+          return;
+        }
+        if (cell.bgColor || cell.attrs || cell.href) {
+          yMainGrid.set(key, {
+            char: cell.char,
+            color: cell.color,
+            ...(cell.bgColor ? { bgColor: cell.bgColor } : {}),
+            ...(cell.attrs ? { attrs: cell.attrs } : {}),
+            ...(cell.href ? { href: cell.href } : {}),
+          });
+          return;
+        }
         placeCharInYMap(yMainGrid, x, y, cell.char, cell.color);
       });
     });

@@ -36,7 +36,7 @@ import {
 
 const isShapeTool = (tool: ToolType, canvasMode: CanvasState["canvasMode"]): boolean => {
   if (canvasMode === "structured") return tool === "box" || tool === "line" || tool === "bg";
-  return ["box", "circle", "line", "stepline"].includes(tool);
+  return ["box", "circle", "line", "stepline", "bg"].includes(tool);
 };
 
 type InteractionMode =

@@ -127,8 +127,9 @@ export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
   }, [canvasMode, isMobile]);
 
   const structuredShapeTools = useMemo<ToolType[]>(() => {
-    if (canvasMode !== "structured") return SHAPE_TOOLS;
-    return ["box", "line", "bg"];
+    if (canvasMode === "structured") return ["box", "line", "bg"];
+    if (canvasMode === "animation") return ["box", "circle", "line", "stepline"];
+    return SHAPE_TOOLS;
   }, [canvasMode]);
 
   const navItems = useMemo(() => {

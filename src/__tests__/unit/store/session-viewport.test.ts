@@ -204,6 +204,34 @@ describe("canvas session viewport state", () => {
     });
   });
 
+  it("fills freeform background rectangles without erasing existing cells", () => {
+    useCanvasStore.setState({
+      canvasMode: "freeform",
+      brushColor: "#334155",
+    });
+    applyFreeformSnapshotToYMaps([
+      ["1,1", { char: "A", color: "#ffffff", attrs: { bold: true } }],
+    ]);
+
+    useCanvasStore
+      .getState()
+      .updateScratchForShape("bg", { x: 0, y: 0 }, { x: 1, y: 1 });
+    useCanvasStore.getState().commitScratch();
+
+    const grid = useCanvasStore.getState().grid;
+    expect(grid.get("0,0")).toEqual({
+      char: " ",
+      color: "#000000",
+      bgColor: "#334155",
+    });
+    expect(grid.get("1,1")).toEqual({
+      char: "A",
+      color: "#ffffff",
+      bgColor: "#334155",
+      attrs: { bold: true },
+    });
+  });
+
   it("formats selected structured text ranges", () => {
     useCanvasStore.getState().createCanvasSession("structured");
     useCanvasStore.getState().applyStructuredScene(
@@ -404,7 +432,7 @@ describe("canvas session viewport state", () => {
     });
   });
 
-  it("falls back from structured text tool outside structured sessions", () => {
+  it("allows freeform bg fill but falls back from unsupported tools per session mode", () => {
     useCanvasStore.getState().createCanvasSession("structured");
     const structuredSessionId = useCanvasStore.getState().activeCanvasId;
 
@@ -415,6 +443,10 @@ describe("canvas session viewport state", () => {
 
     useCanvasStore.getState().createCanvasSession("freeform");
     expect(useCanvasStore.getState().canvasMode).toBe("freeform");
+    expect(useCanvasStore.getState().tool).toBe("bg");
+
+    useCanvasStore.getState().createCanvasSession("animation");
+    expect(useCanvasStore.getState().canvasMode).toBe("animation");
     expect(useCanvasStore.getState().tool).toBe("brush");
 
     useCanvasStore.getState().switchCanvasSession(structuredSessionId);

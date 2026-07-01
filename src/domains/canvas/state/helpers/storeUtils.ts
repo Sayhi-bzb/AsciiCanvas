@@ -45,7 +45,8 @@ export const normalizeSessionViewport = (viewport: CanvasSession["viewport"] | u
 
 export const isToolAllowedForMode = (tool: ToolType, mode: CanvasMode) => {
   if (mode === "structured") return STRUCTURED_ALLOWED_TOOLS.includes(tool);
-  return tool !== "text" && tool !== "bg";
+  if (mode === "animation") return tool !== "text" && tool !== "bg";
+  return tool !== "text";
 };
 
 export const getFallbackToolForMode = (mode: CanvasMode): ToolType => {
