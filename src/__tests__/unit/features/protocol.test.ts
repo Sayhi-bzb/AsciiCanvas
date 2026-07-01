@@ -102,6 +102,14 @@ describe("protocol builders", () => {
         text: "hi",
         style: { color: "#ffffff" },
       },
+      {
+        id: "bg-1",
+        type: "bg",
+        order: 4,
+        start: { x: 1, y: 1 },
+        end: { x: 4, y: 4 },
+        style: { color: "#000000", bgColor: "#334155" },
+      },
     ];
 
     expect(buildStructuredProtocolDocument(scene)).toEqual({
@@ -134,6 +142,14 @@ describe("protocol builders", () => {
           position: { x: 2, y: 2 },
           text: "hi",
           style: { color: "#ffffff" },
+        },
+        {
+          id: "bg-1",
+          type: "bg",
+          order: 4,
+          start: { x: 1, y: 1 },
+          end: { x: 4, y: 4 },
+          style: { color: "#000000", bgColor: "#334155" },
         },
       ],
     });

@@ -6,6 +6,7 @@ import {
   isSameTextAttributes,
   normalizeCellHref,
 } from "@/shared/utils/ansi";
+import { cloneStructuredTextStyleRanges } from "@/shared/utils/structuredTextRanges";
 
 export const cloneStructuredNode = (node: StructuredNode): StructuredNode => {
   if (node.type === "text") {
@@ -13,6 +14,9 @@ export const cloneStructuredNode = (node: StructuredNode): StructuredNode => {
       ...node,
       position: { ...node.position },
       style: { ...node.style },
+      ...(cloneStructuredTextStyleRanges(node.styleRanges)
+        ? { styleRanges: cloneStructuredTextStyleRanges(node.styleRanges) }
+        : {}),
     };
   }
   return {
@@ -111,7 +115,7 @@ export const toStructuredNode = (value: unknown): StructuredNode | null => {
     return null;
   }
 
-  if (raw.type === "box" || raw.type === "line") {
+  if (raw.type === "box" || raw.type === "line" || raw.type === "bg") {
     if (!isPoint(raw.start) || !isPoint(raw.end)) return null;
     if (raw.type === "box" && raw.name !== undefined && typeof raw.name !== "string") {
       return null;

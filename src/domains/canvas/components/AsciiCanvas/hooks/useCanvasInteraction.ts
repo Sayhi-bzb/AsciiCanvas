@@ -24,14 +24,18 @@ import {
   getStructuredBoxNameEndPoint,
   isPointOnStructuredBoxBorder,
   moveStructuredNode,
-  resizeStructuredBox,
+  resizeStructuredRect,
   resizeStructuredLine,
   type StructuredBoxResizeHandle,
   type StructuredLineResizeHandle,
 } from "@/domains/canvas/state/helpers/structuredBoxEditing";
+import {
+  getStructuredTextOffsetAtPoint,
+  getStructuredTextCaretPoint,
+} from "@/shared/utils/structuredTextRanges";
 
 const isShapeTool = (tool: ToolType, canvasMode: CanvasState["canvasMode"]): boolean => {
-  if (canvasMode === "structured") return tool === "box" || tool === "line";
+  if (canvasMode === "structured") return tool === "box" || tool === "line" || tool === "bg";
   return ["box", "circle", "line", "stepline"].includes(tool);
 };
 
@@ -43,7 +47,8 @@ type InteractionMode =
   | "shape-preview"
   | "structured-node-moving"
   | "structured-box-resizing"
-  | "structured-line-resizing";
+  | "structured-line-resizing"
+  | "structured-text-selecting";
 
 const isSelectionTool = (
   tool: ToolType,
@@ -124,7 +129,10 @@ export const useCanvasInteraction = (
     | "fillArea"
     | "canvasBounds"
     | "structuredScene"
+    | "editingStructuredTextNodeId"
     | "setSelectedStructuredNodeIds"
+    | "setEditingStructuredTextNodeId"
+    | "setStructuredTextSelection"
     | "updateStructuredNode"
   >,
   containerRef: React.RefObject<HTMLDivElement | null>,
@@ -152,7 +160,10 @@ export const useCanvasInteraction = (
     fillArea,
     canvasBounds,
     structuredScene,
+    editingStructuredTextNodeId,
     setSelectedStructuredNodeIds,
+    setEditingStructuredTextNodeId,
+    setStructuredTextSelection,
     updateStructuredNode,
   } = store;
 
@@ -201,6 +212,10 @@ export const useCanvasInteraction = (
     node: StructuredNode;
     handle: StructuredBoxResizeHandle | StructuredLineResizeHandle | null;
   } | null>(null);
+  const structuredTextSelectionStartRef = useRef<{
+    nodeId: string;
+    offset: number;
+  } | null>(null);
   const hoveredLinkCandidateRef = useRef<CanvasLinkHit | null>(null);
   const [draggingSelection, setDraggingSelection] =
     useState<SelectionArea | null>(null);
@@ -222,6 +237,7 @@ export const useCanvasInteraction = (
     lastPlacedGrid.current = null;
     lineAxisRef.current = null;
     structuredNodeDragRef.current = null;
+    structuredTextSelectionStartRef.current = null;
     interactionModeRef.current = "idle";
   };
 
@@ -344,6 +360,8 @@ export const useCanvasInteraction = (
       setSelectedStructuredNodeIds([hit.node.id]);
       clearSelections();
       setTextCursor(point);
+      setEditingStructuredTextNodeId(hit.node.id);
+      setStructuredTextSelection(null);
       setDraggingSelection(null);
       resetDragState();
       if (containerRef.current) containerRef.current.style.cursor = "text";
@@ -355,6 +373,8 @@ export const useCanvasInteraction = (
 
     setSelectedStructuredNodeIds([hit.node.id]);
     clearSelections();
+    setEditingStructuredTextNodeId(null);
+    setStructuredTextSelection(null);
     setTextCursor(cursor);
     setDraggingSelection(null);
     resetDragState();
@@ -401,12 +421,19 @@ export const useCanvasInteraction = (
         const linkHit = resolveLinkHitFromScreen(x, y);
         updateLinkHover(linkHit, event as MouseEvent);
         if (canvasMode === "structured") {
+          if (tool === "text") {
+            if (containerRef.current) containerRef.current.style.cursor = "text";
+            return;
+          }
           if (tool === "select") {
             const point = resolveGridPointFromScreen(x, y);
             const hit = point ? findStructuredNodeHit(structuredScene, point) : null;
             if (containerRef.current) {
               containerRef.current.style.cursor = hit
-                ? hit.kind === "box"
+                ? hit.kind === "text" &&
+                  editingStructuredTextNodeId === hit.node.id
+                  ? "text"
+                  : hit.kind === "box" || hit.kind === "bg"
                   ? getStructuredBoxCursor(hit.handle)
                   : hit.kind === "line" && hit.handle
                     ? "crosshair"
@@ -476,16 +503,50 @@ export const useCanvasInteraction = (
           if (canvasMode === "structured" && tool === "select") {
             const hit = findStructuredNodeHit(structuredScene, start);
             if (hit) {
+              if (hit.kind === "text" && mouseEvent.detail >= 2) {
+                setSelectedStructuredNodeIds([hit.node.id]);
+                clearSelections();
+                setDraggingSelection(null);
+                resetDragState();
+                if (containerRef.current) {
+                  containerRef.current.style.cursor = "text";
+                }
+                return;
+              }
+              if (
+                hit.kind === "text" &&
+                editingStructuredTextNodeId === hit.node.id
+              ) {
+                const offset = getStructuredTextOffsetAtPoint(hit.node, start);
+                const caretPoint = getStructuredTextCaretPoint(hit.node, offset);
+                setSelectedStructuredNodeIds([hit.node.id]);
+                clearSelections();
+                setTextCursor(caretPoint);
+                setStructuredTextSelection(null);
+                structuredTextSelectionStartRef.current = {
+                  nodeId: hit.node.id,
+                  offset,
+                };
+                dragStartGrid.current = start;
+                interactionModeRef.current = "structured-text-selecting";
+                setDraggingSelection(null);
+                if (containerRef.current) {
+                  containerRef.current.style.cursor = "text";
+                }
+                return;
+              }
               setSelectedStructuredNodeIds([hit.node.id]);
+              setEditingStructuredTextNodeId(null);
+              setStructuredTextSelection(null);
               structuredNodeDragRef.current = { node: hit.node, handle: hit.handle };
               dragStartGrid.current = start;
-              interactionModeRef.current = hit.kind === "box" && hit.handle
+              interactionModeRef.current = (hit.kind === "box" || hit.kind === "bg") && hit.handle
                 ? "structured-box-resizing"
                 : hit.kind === "line" && hit.handle
                   ? "structured-line-resizing"
                   : "structured-node-moving";
               if (containerRef.current) {
-                containerRef.current.style.cursor = hit.kind === "box"
+                containerRef.current.style.cursor = hit.kind === "box" || hit.kind === "bg"
                   ? getStructuredBoxCursor(hit.handle)
                   : hit.kind === "line" && hit.handle
                     ? "crosshair"
@@ -496,6 +557,8 @@ export const useCanvasInteraction = (
               return;
             }
             setSelectedStructuredNodeIds([]);
+            setEditingStructuredTextNodeId(null);
+            setStructuredTextSelection(null);
             if (containerRef.current) containerRef.current.style.cursor = "";
           }
 
@@ -535,12 +598,15 @@ export const useCanvasInteraction = (
           if (
             canvasMode === "structured" &&
             tool !== "box" &&
-            tool !== "line"
+            tool !== "line" &&
+            tool !== "bg"
           ) {
             return;
           }
 
           clearInteractionState();
+          setEditingStructuredTextNodeId(null);
+          setStructuredTextSelection(null);
           dragStartGrid.current = start;
           lastGrid.current = start;
           lastPlacedGrid.current = start;
@@ -616,10 +682,13 @@ export const useCanvasInteraction = (
             }
             case "structured-box-resizing": {
               const drag = structuredNodeDragRef.current;
-              if (drag?.node.type === "box" && drag.handle) {
+              if (
+                (drag?.node.type === "box" || drag?.node.type === "bg") &&
+                drag.handle
+              ) {
                 const node = drag.node;
                 updateStructuredNode(node.id, () =>
-                  resizeStructuredBox(
+                  resizeStructuredRect(
                     node,
                     drag.handle as StructuredBoxResizeHandle,
                     currentGrid
@@ -640,6 +709,24 @@ export const useCanvasInteraction = (
                   )
                 );
               }
+              break;
+            }
+            case "structured-text-selecting": {
+              const selectionStart = structuredTextSelectionStartRef.current;
+              if (!selectionStart) break;
+              const node = structuredScene.find(
+                (sceneNode) =>
+                  sceneNode.id === selectionStart.nodeId &&
+                  sceneNode.type === "text"
+              );
+              if (!node || node.type !== "text") break;
+              const focus = getStructuredTextOffsetAtPoint(node, currentGrid);
+              setStructuredTextSelection({
+                nodeId: node.id,
+                anchor: selectionStart.offset,
+                focus,
+              });
+              setTextCursor(getStructuredTextCaretPoint(node, focus));
               break;
             }
             case "shape-preview":
@@ -709,7 +796,7 @@ export const useCanvasInteraction = (
               break;
             case "shape-preview":
               if (isShapeTool(tool, canvasMode) && dragStartGrid.current) {
-                if (canvasMode === "structured" && (tool === "box" || tool === "line")) {
+                if (canvasMode === "structured" && (tool === "box" || tool === "line" || tool === "bg")) {
                   const endGrid =
                     resolveGridPointFromScreen(x, y) || dragStartGrid.current;
                   commitStructuredShape(tool, dragStartGrid.current, endGrid, {
@@ -732,6 +819,20 @@ export const useCanvasInteraction = (
         if (isFromMinimap(event)) return;
         if (interactionModeRef.current !== "idle") return;
         const mouseEvent = event as MouseEvent;
+        if (canvasMode === "structured" && tool === "text") {
+          const point = resolveGridPointFromScreen(
+            mouseEvent.clientX,
+            mouseEvent.clientY
+          );
+          if (!point) return;
+          event.preventDefault();
+          clearSelections();
+          setSelectedStructuredNodeIds([]);
+          setEditingStructuredTextNodeId(null);
+          setTextCursor(point);
+          if (containerRef.current) containerRef.current.style.cursor = "text";
+          return;
+        }
         const linkHit = resolveLinkHitFromScreen(mouseEvent.clientX, mouseEvent.clientY);
         if (!linkHit) return;
         if (!shouldOpenCanvasLink(mouseEvent)) return;

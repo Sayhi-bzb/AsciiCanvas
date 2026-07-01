@@ -60,6 +60,8 @@ export const createAnimationSlice: StateCreator<
       animationIsPlaying: options?.isPlaying ?? state.animationIsPlaying,
       selections: [],
       textCursor: null,
+      editingStructuredTextNodeId: null,
+      structuredTextSelection: null,
       hoveredGrid: null,
       scratchLayer: null,
       canvasSessions: withActiveCanvasSnapshot(

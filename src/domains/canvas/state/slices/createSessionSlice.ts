@@ -122,6 +122,8 @@ export const createSessionSlice: StateCreator<
       activeCanvasHasSavedViewport: runtime.hasSavedViewport,
       selections: [],
       textCursor: null,
+      editingStructuredTextNodeId: null,
+      structuredTextSelection: null,
       hoveredGrid: null,
       scratchLayer: null,
     });
@@ -174,6 +176,8 @@ export const createSessionSlice: StateCreator<
       activeCanvasHasSavedViewport: runtime.hasSavedViewport,
       selections: [],
       textCursor: null,
+      editingStructuredTextNodeId: null,
+      structuredTextSelection: null,
       hoveredGrid: null,
       scratchLayer: null,
     });
@@ -220,6 +224,8 @@ export const createSessionSlice: StateCreator<
       activeCanvasHasSavedViewport: runtime.hasSavedViewport,
       selections: [],
       textCursor: null,
+      editingStructuredTextNodeId: null,
+      structuredTextSelection: null,
       hoveredGrid: null,
       scratchLayer: null,
     });
@@ -276,6 +282,8 @@ export const createSessionSlice: StateCreator<
       activeCanvasHasSavedViewport: runtime.hasSavedViewport,
       selections: [],
       textCursor: null,
+      editingStructuredTextNodeId: null,
+      structuredTextSelection: null,
       hoveredGrid: null,
       scratchLayer: null,
     });

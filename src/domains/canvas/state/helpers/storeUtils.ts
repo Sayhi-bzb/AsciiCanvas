@@ -30,7 +30,7 @@ import {
 export const DEFAULT_SESSION_ID = "canvas-1";
 export const DEFAULT_SESSION_NAME = "Canvas 1";
 export const DEFAULT_MODE: CanvasMode = "freeform";
-export const STRUCTURED_ALLOWED_TOOLS: ToolType[] = ["select", "box", "line"];
+export const STRUCTURED_ALLOWED_TOOLS: ToolType[] = ["select", "text", "box", "line", "bg"];
 
 const DEFAULT_VIEWPORT = { offset: { x: 0, y: 0 }, zoom: 1 };
 
@@ -45,7 +45,7 @@ export const normalizeSessionViewport = (viewport: CanvasSession["viewport"] | u
 
 export const isToolAllowedForMode = (tool: ToolType, mode: CanvasMode) => {
   if (mode === "structured") return STRUCTURED_ALLOWED_TOOLS.includes(tool);
-  return true;
+  return tool !== "text" && tool !== "bg";
 };
 
 export const getFallbackToolForMode = (mode: CanvasMode): ToolType => {

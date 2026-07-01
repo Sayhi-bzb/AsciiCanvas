@@ -23,11 +23,13 @@ import {
   gridCellRect,
   prepareCanvasSurface,
   setTextRenderStyle,
+  splitGraphemes,
 } from "@/shared/metrics";
 import { effectiveCellStyle } from "@/shared/utils/ansi";
 import { getStaticGridViewState } from "@/domains/canvas/state/helpers/staticGridModel";
 import { getStructuredBoxBounds } from "@/domains/canvas/state/helpers/structuredBoxEditing";
 import { getStructuredNodeBounds } from "@/shared/utils/structured";
+import { getStructuredTextSelectionRange } from "@/shared/utils/structuredTextRanges";
 
 interface LayerRefs {
   bg: React.RefObject<HTMLCanvasElement | null>;
@@ -57,6 +59,8 @@ export const useCanvasRenderer = (
     | "selectedStructuredNodeIds"
     | "selectedStructuredBoxId"
     | "structuredScene"
+    | "editingStructuredTextNodeId"
+    | "structuredTextSelection"
   >,
   draggingSelection: SelectionArea | null,
   hoveredLink: CanvasLinkHit | null
@@ -79,6 +83,8 @@ export const useCanvasRenderer = (
     selectedStructuredNodeIds,
     selectedStructuredBoxId,
     structuredScene,
+    editingStructuredTextNodeId,
+    structuredTextSelection,
   } = store;
 
   const staticGridView = getStaticGridViewState({
@@ -330,9 +336,57 @@ export const useCanvasRenderer = (
         renderedSelections.forEach(drawSel);
         if (draggingSelection) drawSel(draggingSelection);
 
+        if (canvasMode === "structured") {
+          const selectionRange = getStructuredTextSelectionRange(
+            structuredTextSelection
+          );
+          const selectedTextNode =
+            selectionRange && structuredTextSelection
+              ? structuredScene.find(
+                  (node) =>
+                    node.id === structuredTextSelection.nodeId &&
+                    node.type === "text"
+                )
+              : null;
+          if (selectedTextNode?.type === "text") {
+            let currentX = selectedTextNode.position.x;
+            let currentY = selectedTextNode.position.y;
+            splitGraphemes(selectedTextNode.text).forEach((char, index) => {
+              if (char === "\n") {
+                currentX = selectedTextNode.position.x;
+                currentY += 1;
+                return;
+              }
+              const occupancy = getCellOccupancy(char);
+              if (index >= selectionRange!.start && index < selectionRange!.end) {
+                const pos = gridCellRect(
+                  { x: currentX, y: currentY },
+                  { offset, zoom }
+                );
+                uiCtx.fillStyle = COLOR_SELECTION_BG;
+                uiCtx.fillRect(
+                  Math.round(pos.x),
+                  Math.round(pos.y),
+                  Math.round(pos.width * occupancy),
+                  Math.round(pos.height)
+                );
+              }
+              currentX += occupancy;
+            });
+          }
+        }
+
         if (canvasMode === "structured" && selectedStructuredNodeIds.length > 0) {
           const selectedIds = new Set(selectedStructuredNodeIds);
-          const selectedNodes = structuredScene.filter((node) => selectedIds.has(node.id));
+          const selectedNodes = structuredScene.filter(
+            (node) =>
+              selectedIds.has(node.id) &&
+              !(
+                editingStructuredTextNodeId &&
+                node.id === editingStructuredTextNodeId &&
+                node.type === "text"
+              )
+          );
           const drawStructuredBounds = (bounds: NodeBounds) => {
             const pos = gridCellRect({ x: bounds.x, y: bounds.y }, { offset, zoom });
             const width = bounds.width * pos.width;
@@ -393,25 +447,35 @@ export const useCanvasRenderer = (
 
         if (renderedTextCursor) {
           const pos = gridCellRect(renderedTextCursor, { offset, zoom });
-          const cell = grid.get(GridManager.toKey(renderedTextCursor.x, renderedTextCursor.y));
-          const occupancy = cell ? getCellOccupancy(cell.char) : 1;
-          uiCtx.fillStyle = COLOR_TEXT_CURSOR_BG;
-          uiCtx.fillRect(
-            Math.round(pos.x),
-            Math.round(pos.y),
-            Math.round(pos.width * occupancy),
-            Math.round(pos.height)
-          );
-          if (cell) {
-            setTextRenderStyle(uiCtx, zoom, DEFAULT_GRID_RENDER_METRICS);
-            drawTextCell(uiCtx, cell, pos.x, pos.y, {
-              color: COLOR_TEXT_CURSOR_FG,
-              zoom,
-            });
+          if (canvasMode === "structured" && editingStructuredTextNodeId) {
+            uiCtx.fillStyle = COLOR_TEXT_CURSOR_BG;
+            uiCtx.fillRect(
+              Math.round(pos.x),
+              Math.round(pos.y),
+              Math.max(1, Math.round(2 * zoom)),
+              Math.round(pos.height)
+            );
+          } else {
+            const cell = grid.get(GridManager.toKey(renderedTextCursor.x, renderedTextCursor.y));
+            const occupancy = cell ? getCellOccupancy(cell.char) : 1;
+            uiCtx.fillStyle = COLOR_TEXT_CURSOR_BG;
+            uiCtx.fillRect(
+              Math.round(pos.x),
+              Math.round(pos.y),
+              Math.round(pos.width * occupancy),
+              Math.round(pos.height)
+            );
+            if (cell) {
+              setTextRenderStyle(uiCtx, zoom, DEFAULT_GRID_RENDER_METRICS);
+              drawTextCell(uiCtx, cell, pos.x, pos.y, {
+                color: COLOR_TEXT_CURSOR_FG,
+                zoom,
+              });
+            }
           }
         }
 
-        if (canvasMode !== "animation") {
+        if (canvasMode !== "animation" && !editingStructuredTextNodeId) {
           uiCtx.fillStyle = COLOR_ORIGIN_MARKER;
           const originX = Math.round(offset.x);
           const originY = Math.round(offset.y);
@@ -443,6 +507,8 @@ export const useCanvasRenderer = (
     structuredScene,
     selectedStructuredNodeIds,
     selectedStructuredBoxId,
+    editingStructuredTextNodeId,
+    structuredTextSelection,
     layers,
     hoveredLink,
   ]);

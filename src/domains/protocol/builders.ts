@@ -6,6 +6,7 @@ import type {
   StructuredNode,
 } from "@/shared/types";
 import { cloneTextAttributes } from "@/shared/utils/ansi";
+import { cloneStructuredTextStyleRanges } from "@/shared/utils/structuredTextRanges";
 import {
   ASCII_CANVAS_DOCUMENT_TYPE,
   ASCII_CANVAS_DOCUMENT_VERSION,
@@ -95,6 +96,15 @@ const cloneStructuredNode = (
         axis: node.axis,
         style,
       };
+    case "bg":
+      return {
+        type: "bg",
+        id: node.id,
+        order: node.order,
+        start: { ...node.start },
+        end: { ...node.end },
+        style,
+      };
     case "text":
       return {
         type: "text",
@@ -103,6 +113,9 @@ const cloneStructuredNode = (
         position: { ...node.position },
         text: node.text,
         style,
+        ...(cloneStructuredTextStyleRanges(node.styleRanges)
+          ? { styleRanges: cloneStructuredTextStyleRanges(node.styleRanges) }
+          : {}),
       };
   }
 };

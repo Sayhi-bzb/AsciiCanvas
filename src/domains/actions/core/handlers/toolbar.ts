@@ -26,6 +26,7 @@ export const resolveActiveToolbarAction = (
   if (
     tool === "select" ||
     tool === "pan" ||
+    tool === "text" ||
     tool === "brush" ||
     tool === "eraser" ||
     tool === "fill"
@@ -47,6 +48,11 @@ export const toolbarHandlers: Record<
 
   pan: (_options, context): ActionResult => {
     context.setTool("pan");
+    return actionSucceeded();
+  },
+
+  text: (_options, context): ActionResult => {
+    context.setTool("text");
     return actionSucceeded();
   },
 

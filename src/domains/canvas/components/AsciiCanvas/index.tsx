@@ -73,7 +73,10 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
       fillArea: state.fillArea,
       canvasBounds: state.canvasBounds,
       structuredScene: state.structuredScene,
+      editingStructuredTextNodeId: state.editingStructuredTextNodeId,
       setSelectedStructuredNodeIds: state.setSelectedStructuredNodeIds,
+      setEditingStructuredTextNodeId: state.setEditingStructuredTextNodeId,
+      setStructuredTextSelection: state.setStructuredTextSelection,
       updateStructuredNode: state.updateStructuredNode,
       activeCanvasHasSavedViewport: state.activeCanvasHasSavedViewport,
     }))
@@ -103,6 +106,8 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
       structuredScene: state.structuredScene,
       selectedStructuredNodeIds: state.selectedStructuredNodeIds,
       selectedStructuredBoxId: state.selectedStructuredBoxId,
+      editingStructuredTextNodeId: state.editingStructuredTextNodeId,
+      structuredTextSelection: state.structuredTextSelection,
     }))
   );
   const {
@@ -127,6 +132,8 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
     clearSelections,
     selectedStructuredNodeIds,
     setSelectedStructuredNodeIds,
+    setEditingStructuredTextNodeId,
+    setStructuredTextSelection,
     structuredScene,
   } = useCanvasStore(
     useShallow((state) => ({
@@ -151,6 +158,8 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
       clearSelections: state.clearSelections,
       selectedStructuredNodeIds: state.selectedStructuredNodeIds,
       setSelectedStructuredNodeIds: state.setSelectedStructuredNodeIds,
+      setEditingStructuredTextNodeId: state.setEditingStructuredTextNodeId,
+      setStructuredTextSelection: state.setStructuredTextSelection,
       structuredScene: state.structuredScene,
     }))
   );
@@ -375,6 +384,8 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
       e.preventDefault();
       if (activeTextCursor) {
         setTextCursor(null);
+        setEditingStructuredTextNodeId(null);
+        setStructuredTextSelection(null);
       } else if (hasStructuredSelection) {
         setSelectedStructuredNodeIds([]);
       } else if (hasActiveSelection) {

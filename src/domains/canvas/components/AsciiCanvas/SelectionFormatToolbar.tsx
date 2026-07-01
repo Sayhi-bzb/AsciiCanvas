@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { BoldIcon, ItalicIcon, PaintBucket, UnderlineIcon } from "lucide-react";
+import { BoldIcon, ItalicIcon, PaletteIcon, UnderlineIcon } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 
 import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
@@ -8,6 +8,11 @@ import type { GridMap, SelectionArea } from "@/shared/types";
 import { GridManager } from "@/shared/utils/grid";
 import { getSelectionBounds } from "@/shared/utils/selection";
 import { getStaticGridViewState } from "@/domains/canvas/state/helpers/staticGridModel";
+import {
+  getStructuredTextCaretPoint,
+  getStructuredTextSelectionRange,
+  getStructuredTextStylesInRange,
+} from "@/shared/utils/structuredTextRanges";
 import {
   ToggleGroup,
   ToggleGroupItem,
@@ -69,9 +74,12 @@ export function SelectionFormatToolbar({
     staticGridSelection,
     staticGridEditMode,
     textCursor,
+    structuredTextSelection,
+    structuredScene,
     brushColor,
     setSelectionTextAttributes,
-    setSelectionBackgroundColor,
+    setStructuredTextAttributes,
+    setStructuredTextColor,
   } = useCanvasStore(
     useShallow((state) => ({
       canvasMode: state.canvasMode,
@@ -82,9 +90,12 @@ export function SelectionFormatToolbar({
       staticGridSelection: state.staticGridSelection,
       staticGridEditMode: state.staticGridEditMode,
       textCursor: state.textCursor,
+      structuredTextSelection: state.structuredTextSelection,
+      structuredScene: state.structuredScene,
       brushColor: state.brushColor,
       setSelectionTextAttributes: state.setSelectionTextAttributes,
-      setSelectionBackgroundColor: state.setSelectionBackgroundColor,
+      setStructuredTextAttributes: state.setStructuredTextAttributes,
+      setStructuredTextColor: state.setStructuredTextColor,
     }))
   );
 
@@ -106,26 +117,54 @@ export function SelectionFormatToolbar({
     [grid, activeSelections]
   );
 
+  const structuredTextSelectionModel = useMemo(() => {
+    if (canvasMode !== "structured") return null;
+    const range = getStructuredTextSelectionRange(structuredTextSelection);
+    if (!range || !structuredTextSelection) return null;
+    const node = structuredScene.find(
+      (sceneNode) =>
+        sceneNode.id === structuredTextSelection.nodeId &&
+        sceneNode.type === "text"
+    );
+    if (!node || node.type !== "text") return null;
+    const styles = getStructuredTextStylesInRange(node, range.start, range.end);
+    if (styles.length === 0) return null;
+    return { node, range, styles };
+  }, [canvasMode, structuredScene, structuredTextSelection]);
+
   const textValue = useMemo(() => {
+    if (canvasMode === "structured") {
+      if (!structuredTextSelectionModel) return [];
+      return (["bold", "italic", "underline"] as const).filter((attr) =>
+        structuredTextSelectionModel.styles.every((style) => !!style.attrs?.[attr])
+      );
+    }
+
     if (selectedCells.length === 0) return [];
     return (["bold", "italic", "underline"] as const).filter((attr) =>
       selectedCells.every((cell) => !!cell.attrs?.[attr])
     );
-  }, [selectedCells]);
-
-  const hasCurrentBackground = useMemo(() => {
-    if (selectedCells.length === 0) return false;
-    return selectedCells.every((cell) => cell.bgColor === brushColor);
-  }, [brushColor, selectedCells]);
-
-  const toolbarValue = useMemo(
-    () => (hasCurrentBackground ? [...textValue, "background"] : textValue),
-    [hasCurrentBackground, textValue]
-  );
+  }, [canvasMode, selectedCells, structuredTextSelectionModel]);
 
   const style = useMemo(() => {
-    if (!containerSize || activeSelections.length === 0) return null;
-    const bounds = getUnionBounds(activeSelections);
+    if (!containerSize) return null;
+    const bounds = canvasMode === "structured"
+      ? structuredTextSelectionModel
+        ? (() => {
+            const startPoint = getStructuredTextCaretPoint(
+              structuredTextSelectionModel.node,
+              structuredTextSelectionModel.range.start
+            );
+            const endPoint = getStructuredTextCaretPoint(
+              structuredTextSelectionModel.node,
+              structuredTextSelectionModel.range.end
+            );
+            return getUnionBounds([{ start: startPoint, end: endPoint }]);
+          })()
+        : null
+      : activeSelections.length > 0
+          ? getUnionBounds(activeSelections)
+          : null;
     if (!bounds) return null;
 
     const startRect = gridCellRect({ x: bounds.minX, y: bounds.minY }, { offset, zoom });
@@ -149,12 +188,22 @@ export function SelectionFormatToolbar({
       left,
       top: Math.max(8, top),
     };
-  }, [activeSelections, containerSize, offset, zoom]);
+  }, [
+    activeSelections,
+    canvasMode,
+    containerSize,
+    offset,
+    structuredTextSelectionModel,
+    zoom,
+  ]);
+
+  const hasFormatTarget =
+    canvasMode === "structured"
+      ? !!structuredTextSelectionModel
+      : activeSelections.length > 0 && selectedCells.length > 0;
 
   if (
-    canvasMode === "structured" ||
-    activeSelections.length === 0 ||
-    selectedCells.length === 0 ||
+    !hasFormatTarget ||
     !style
   ) {
     return null;
@@ -168,19 +217,23 @@ export function SelectionFormatToolbar({
     >
       <ToggleGroup
         type="multiple"
-        value={toolbarValue}
+        value={textValue}
         variant="outline"
         aria-label="Selection text formatting"
         onValueChange={(nextValue) => {
           const next = new Set(nextValue);
-          setSelectionTextAttributes({
+          const attrs = {
             bold: next.has("bold"),
             italic: next.has("italic"),
             underline: next.has("underline"),
-          });
-          setSelectionBackgroundColor(
-            next.has("background") ? brushColor : null
-          );
+          };
+
+          if (canvasMode === "structured") {
+            setStructuredTextAttributes(attrs);
+            return;
+          }
+
+          setSelectionTextAttributes(attrs);
         }}
       >
         <ToggleGroupItem aria-label="Toggle bold" title="Bold" value="bold">
@@ -199,13 +252,19 @@ export function SelectionFormatToolbar({
           <UnderlineIcon className="size-4" />
         </ToggleGroupItem>
         <ToggleGroupSeparator />
-        <ToggleGroupItem
-          aria-label="Toggle background fill"
-          title="Background fill"
-          value="background"
-        >
-          <PaintBucket className="size-4" style={{ color: brushColor }} />
-        </ToggleGroupItem>
+        {canvasMode === "structured" && (
+          <>
+            <button
+              type="button"
+              aria-label="Apply brush color to selected text"
+              title={`Apply brush color to selected text (${brushColor})`}
+              className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring"
+              onClick={() => setStructuredTextColor(brushColor)}
+            >
+              <PaletteIcon className="size-4" style={{ color: brushColor }} />
+            </button>
+          </>
+        )}
       </ToggleGroup>
     </div>
   );

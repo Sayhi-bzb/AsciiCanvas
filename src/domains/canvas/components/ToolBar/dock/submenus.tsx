@@ -133,6 +133,7 @@ export function ShapeSubmenu({
 type ColorSubmenuProps = {
   brushColor: string;
   setBrushColor: (color: string) => void;
+  applyStructuredTextColor?: (color: string) => void;
   onPicked: () => void;
 };
 
@@ -309,6 +310,7 @@ export function ColorPickerPanel({
 export function ColorSubmenu({
   brushColor,
   setBrushColor,
+  applyStructuredTextColor,
   onPicked,
 }: ColorSubmenuProps) {
   return (
@@ -316,6 +318,7 @@ export function ColorSubmenu({
       value={brushColor}
       onPick={(color) => {
         setBrushColor(color);
+        applyStructuredTextColor?.(color);
         onPicked();
       }}
     />

@@ -21,6 +21,7 @@ import type {
 } from "./types";
 import { isAsciiCanvasDocument } from "./validation";
 import { cloneTextAttributes } from "@/shared/utils/ansi";
+import { cloneStructuredTextStyleRanges } from "@/shared/utils/structuredTextRanges";
 
 export interface ProtocolImportSnapshot {
   mode: AsciiCanvasDocumentV1["mode"];
@@ -79,6 +80,15 @@ const cloneStructuredProtocolNode = (
         axis: node.axis,
         style,
       };
+    case "bg":
+      return {
+        type: "bg",
+        id: node.id,
+        order: node.order,
+        start: { ...node.start },
+        end: { ...node.end },
+        style,
+      };
     case "text":
       return {
         type: "text",
@@ -87,6 +97,9 @@ const cloneStructuredProtocolNode = (
         position: { ...node.position },
         text: node.text,
         style,
+        ...(cloneStructuredTextStyleRanges(node.styleRanges)
+          ? { styleRanges: cloneStructuredTextStyleRanges(node.styleRanges) }
+          : {}),
       };
   }
 };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { StructuredBoxNode, StructuredNode } from "@/shared/types";
+import type { StructuredBgNode, StructuredBoxNode, StructuredNode } from "@/shared/types";
 import {
   findStructuredBoxHit,
   findStructuredNodeHit,
@@ -11,6 +11,7 @@ import {
   moveStructuredBox,
   moveStructuredNode,
   resizeStructuredBox,
+  resizeStructuredRect,
   resizeStructuredLine,
 } from "@/domains/canvas/state/helpers/structuredBoxEditing";
 
@@ -21,6 +22,16 @@ const box = (overrides: Partial<StructuredBoxNode> = {}): StructuredBoxNode => (
   start: { x: 2, y: 3 },
   end: { x: 6, y: 7 },
   style: { color: "#ffffff" },
+  ...overrides,
+});
+
+const bg = (overrides: Partial<StructuredBgNode> = {}): StructuredBgNode => ({
+  id: "bg-1",
+  type: "bg",
+  order: 1,
+  start: { x: 0, y: 0 },
+  end: { x: 4, y: 4 },
+  style: { color: "#ffffff", bgColor: "#2563eb" },
   ...overrides,
 });
 
@@ -79,6 +90,22 @@ describe("structuredBoxEditing", () => {
       node: { id: "box-1" },
     });
   });
+
+  it("hits background nodes with box resize handles", () => {
+    const scene: StructuredNode[] = [bg()];
+
+    expect(findStructuredNodeHit(scene, { x: 0, y: 0 })).toMatchObject({
+      kind: "bg",
+      handle: "nw",
+      node: { id: "bg-1" },
+    });
+    expect(findStructuredNodeHit(scene, { x: 2, y: 2 })).toMatchObject({
+      kind: "bg",
+      handle: null,
+      node: { id: "bg-1" },
+    });
+  });
+
   it("detects edge and corner handles", () => {
     const node = box();
 
@@ -213,6 +240,19 @@ describe("structuredBoxEditing", () => {
     });
     expect(resizeStructuredBox(box(), "nw", { x: 8, y: 9 })).toMatchObject({
       start: { x: 6, y: 7 },
+      end: { x: 8, y: 9 },
+    });
+  });
+
+  it("resizes background nodes with the shared rectangle logic", () => {
+    expect(resizeStructuredRect(bg(), "e", { x: 9, y: 4 })).toMatchObject({
+      type: "bg",
+      start: { x: 0, y: 0 },
+      end: { x: 9, y: 4 },
+    });
+    expect(resizeStructuredRect(bg(), "nw", { x: 8, y: 9 })).toMatchObject({
+      type: "bg",
+      start: { x: 4, y: 4 },
       end: { x: 8, y: 9 },
     });
   });

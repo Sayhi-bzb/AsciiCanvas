@@ -47,6 +47,8 @@ export const createSelectionSlice: StateCreator<
       return {
         selections: [...s.selections, nextArea],
         textCursor: null,
+        editingStructuredTextNodeId: null,
+        structuredTextSelection: null,
         staticGridSelection: {
           activeCell: { ...range.end },
           anchorCell: { ...range.start },
@@ -67,6 +69,8 @@ export const createSelectionSlice: StateCreator<
     set((state) => ({
       selections: [],
       textCursor: null,
+      editingStructuredTextNodeId: null,
+      structuredTextSelection: null,
       selectedStructuredNodeIds: [],
       selectedStructuredBoxId: null,
       staticGridSelection: createGridSelectionState(
@@ -325,7 +329,7 @@ export const createSelectionSlice: StateCreator<
 
   setSelectionBackgroundColor: (bgColor) => {
     const state = get();
-    const { canvasMode } = state;
+    const { brushColor, canvasMode } = state;
     const selections = resolveSelectionAreas(state);
     if (canvasMode === "structured") return;
     if (selections.length === 0) return;
@@ -337,13 +341,23 @@ export const createSelectionSlice: StateCreator<
           for (let x = minX; x <= maxX; x++) {
             const key = GridManager.toKey(x, y);
             const existingCell = yMainGrid.get(key) as GridCell | undefined;
-            if (!existingCell) continue;
+            if (!existingCell && !bgColor) continue;
 
-            const nextCell = { ...existingCell };
+            const nextCell: GridCell = existingCell
+              ? { ...existingCell }
+              : { char: " ", color: brushColor };
             if (bgColor) {
               nextCell.bgColor = bgColor;
             } else {
               delete nextCell.bgColor;
+            }
+            if (
+              nextCell.char === " " &&
+              !nextCell.bgColor &&
+              !cloneTextAttributes(nextCell.attrs)
+            ) {
+              yMainGrid.delete(key);
+              continue;
             }
             yMainGrid.set(key, nextCell);
           }

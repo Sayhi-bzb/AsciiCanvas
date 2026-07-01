@@ -24,6 +24,9 @@ import {
   getCellOccupancy,
   splitGraphemes,
 } from "@/shared/metrics";
+import {
+  normalizeStructuredTextSelection,
+} from "@/shared/utils/structuredTextRanges";
 
 const toCharIndexByColumn = (text: string, columnOffset: number) => {
   if (columnOffset <= 0) return 0;
@@ -39,7 +42,8 @@ const toCharIndexByColumn = (text: string, columnOffset: number) => {
 
 const findTextNodeAtCursor = (
   scene: CanvasState["structuredScene"],
-  cursor: CanvasState["textCursor"]
+  cursor: CanvasState["textCursor"],
+  preferredNodeId?: string | null
 ) => {
   if (!cursor) return null;
   const candidates = scene.filter((node): node is StructuredTextNode => {
@@ -48,6 +52,8 @@ const findTextNodeAtCursor = (
     return withPointWithinBounds(cursor, bounds, true);
   });
   if (candidates.length === 0) return null;
+  const preferredNode = candidates.find((node) => node.id === preferredNodeId);
+  if (preferredNode) return preferredNode;
   return [...candidates].sort((a, b) => b.order - a.order)[0];
 };
 
@@ -117,10 +123,13 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
   get
 ) => ({
   textCursor: null,
+  editingStructuredTextNodeId: null,
+  structuredTextSelection: null,
   setTextCursor: (pos) =>
     set((state) => ({
       textCursor: pos,
       selections: [],
+      ...(pos ? {} : { editingStructuredTextNodeId: null, structuredTextSelection: null }),
       ...(pos
         ? {
             staticGridSelection: collapseGridSelectionTo(
@@ -131,6 +140,31 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
           }
         : {}),
     })),
+  setEditingStructuredTextNodeId: (id) =>
+    set((state) => {
+      if (!id) return { editingStructuredTextNodeId: null, structuredTextSelection: null };
+      const node = state.structuredScene.find(
+        (sceneNode) => sceneNode.id === id && sceneNode.type === "text"
+      );
+      return {
+        editingStructuredTextNodeId: node ? id : null,
+        structuredTextSelection: node ? state.structuredTextSelection : null,
+      };
+    }),
+  setStructuredTextSelection: (selection) =>
+    set((state) => {
+      if (!selection) return { structuredTextSelection: null };
+      const node = state.structuredScene.find(
+        (sceneNode) => sceneNode.id === selection.nodeId && sceneNode.type === "text"
+      );
+      if (!node || node.type !== "text") return { structuredTextSelection: null };
+      return {
+        structuredTextSelection: normalizeStructuredTextSelection(
+          selection,
+          splitGraphemes(node.text).length
+        ),
+      };
+    }),
 
   writeTextString: (str, startPos) => {
     const {
@@ -145,6 +179,7 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
       structuredScene,
       applyStructuredScene,
       getNextStructuredOrder,
+      editingStructuredTextNodeId,
     } = get();
 
     if (canvasMode === "structured") {
@@ -186,10 +221,15 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
         return;
       }
 
-      const existingNode = findTextNodeAtCursor(structuredScene, cursor);
+      const existingNode = findTextNodeAtCursor(
+        structuredScene,
+        cursor,
+        editingStructuredTextNodeId
+      );
       if (!existingNode) {
+        const nodeId = createStructuredNodeId();
         const nextNode: StructuredTextNode = {
-          id: createStructuredNodeId(),
+          id: nodeId,
           type: "text",
           order: getNextStructuredOrder(),
           position: { ...cursor },
@@ -202,6 +242,10 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
             x: cursor.x + getTextColumnWidth(normalized),
             y: cursor.y,
           },
+          editingStructuredTextNodeId: nodeId,
+          structuredTextSelection: null,
+          selectedStructuredNodeIds: [nodeId],
+          selectedStructuredBoxId: null,
         });
         return;
       }
@@ -213,7 +257,7 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
       const nextText = chars.join("");
       const nextScene = structuredScene.map((node) =>
         node.id === existingNode.id
-          ? { ...existingNode, text: nextText, style: { color: brushColor } }
+          ? { ...existingNode, text: nextText }
           : node
       );
       applyStructuredScene(nextScene, true);
@@ -222,6 +266,8 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
           x: cursor.x + getTextColumnWidth(normalized),
           y: cursor.y,
         },
+        editingStructuredTextNodeId: existingNode.id,
+        structuredTextSelection: null,
       });
       return;
     }
@@ -358,7 +404,7 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
   },
 
   backspaceText: () => {
-    const { textCursor, grid, canvasMode, structuredScene, applyStructuredScene } = get();
+    const { textCursor, grid, canvasMode, structuredScene, applyStructuredScene, editingStructuredTextNodeId } = get();
     if (!textCursor) return;
 
     if (canvasMode === "structured") {
@@ -395,7 +441,11 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
         return;
       }
 
-      const existingNode = findTextNodeAtCursor(structuredScene, textCursor);
+      const existingNode = findTextNodeAtCursor(
+        structuredScene,
+        textCursor,
+        editingStructuredTextNodeId
+      );
       if (!existingNode) return;
 
       const columnOffset = Math.max(0, textCursor.x - existingNode.position.x);

@@ -5,6 +5,7 @@ import { GridManager } from "@/shared/utils/grid";
 import type { GridPoint, StructuredBoxNode, StructuredNode } from "@/shared/types";
 import { placeCharInMap, placeCharInYMap } from "../utils";
 import { deleteCellAt } from "../gridOps";
+import { COLOR_PRIMARY_TEXT } from "@/shared/lib/constants";
 import {
   getBoxPoints,
   getCirclePoints,
@@ -17,6 +18,29 @@ import {
   reorderStructuredNodes,
 } from "../helpers/structuredNodeActions";
 import { filterGridPointsToBounds, filterPointsToBounds } from "../helpers/animationHelpers";
+import { cloneTextAttributes } from "@/shared/utils/ansi";
+import { splitGraphemes } from "@/shared/metrics";
+import {
+  getStructuredTextSelectionRange,
+  updateStructuredTextStyleRanges,
+} from "@/shared/utils/structuredTextRanges";
+
+const getFilledRectPoints = (
+  start: { x: number; y: number },
+  end: { x: number; y: number }
+): GridPoint[] => {
+  const minX = Math.min(start.x, end.x);
+  const maxX = Math.max(start.x, end.x);
+  const minY = Math.min(start.y, end.y);
+  const maxY = Math.max(start.y, end.y);
+  const points: GridPoint[] = [];
+  for (let y = minY; y <= maxY; y++) {
+    for (let x = minX; x <= maxX; x++) {
+      points.push({ x, y, char: " " });
+    }
+  }
+  return points;
+};
 
 export const createDrawingSlice: StateCreator<
   CanvasState,
@@ -30,6 +54,16 @@ export const createDrawingSlice: StateCreator<
     const { brushColor, canvasBounds } = get();
     const layer = new Map();
     filterGridPointsToBounds(points, canvasBounds).forEach((p) => {
+      if (p.bgColor || p.attrs || p.href) {
+        layer.set(GridManager.toKey(p.x, p.y), {
+          char: p.char,
+          color: p.color || brushColor,
+          ...(p.bgColor ? { bgColor: p.bgColor } : {}),
+          ...(p.attrs ? { attrs: p.attrs } : {}),
+          ...(p.href ? { href: p.href } : {}),
+        });
+        return;
+      }
       placeCharInMap(layer, p.x, p.y, p.char, p.color || brushColor);
     });
     set({ scratchLayer: layer });
@@ -40,6 +74,16 @@ export const createDrawingSlice: StateCreator<
     set((state) => {
       const layer = new Map(state.scratchLayer || []);
       filterGridPointsToBounds(points, canvasBounds).forEach((p) => {
+        if (p.bgColor || p.attrs || p.href) {
+          layer.set(GridManager.toKey(p.x, p.y), {
+            char: p.char,
+            color: p.color || brushColor,
+            ...(p.bgColor ? { bgColor: p.bgColor } : {}),
+            ...(p.attrs ? { attrs: p.attrs } : {}),
+            ...(p.href ? { href: p.href } : {}),
+          });
+          return;
+        }
         placeCharInMap(layer, p.x, p.y, p.char, p.color || brushColor);
       });
       return { scratchLayer: layer };
@@ -52,6 +96,13 @@ export const createDrawingSlice: StateCreator<
     switch (tool) {
       case "box":
         points = getBoxPoints(start, end);
+        break;
+      case "bg":
+        points = getFilledRectPoints(start, end).map((point) => ({
+          ...point,
+          color: COLOR_PRIMARY_TEXT,
+          bgColor: color,
+        }));
         break;
       case "circle":
         points = getCirclePoints(start, end);
@@ -66,7 +117,7 @@ export const createDrawingSlice: StateCreator<
       }
     }
     const coloredPoints = filterGridPointsToBounds(
-      points.map((p) => ({ ...p, color })),
+      points.map((p) => ({ ...p, color: p.color || color })),
       get().canvasBounds
     );
     get().setScratchLayer(coloredPoints);
@@ -92,11 +143,11 @@ export const createDrawingSlice: StateCreator<
     const { canvasMode, applyStructuredScene } = get();
     if (canvasMode === "structured") {
       applyStructuredScene([], true);
-      set({ scratchLayer: null, selections: [], textCursor: null, selectedStructuredNodeIds: [], selectedStructuredBoxId: null });
+      set({ scratchLayer: null, selections: [], textCursor: null, editingStructuredTextNodeId: null, structuredTextSelection: null, selectedStructuredNodeIds: [], selectedStructuredBoxId: null });
       return;
     }
     transactWithHistory(() => yMainGrid.clear());
-    set({ scratchLayer: null, selections: [], textCursor: null, selectedStructuredNodeIds: [], selectedStructuredBoxId: null });
+    set({ scratchLayer: null, selections: [], textCursor: null, editingStructuredTextNodeId: null, structuredTextSelection: null, selectedStructuredNodeIds: [], selectedStructuredBoxId: null });
   },
 
   erasePoints: (points, shouldSaveHistory = true) => {
@@ -114,7 +165,7 @@ export const createDrawingSlice: StateCreator<
   commitStructuredShape: (tool, start, end, options) => {
     const state = get();
     if (state.canvasMode !== "structured") return;
-    if (tool !== "box" && tool !== "line") return;
+    if (tool !== "box" && tool !== "line" && tool !== "bg") return;
 
     const axis =
       options?.axis ??
@@ -132,6 +183,15 @@ export const createDrawingSlice: StateCreator<
             end: { ...end },
             style: { color: state.brushColor },
           }
+        : tool === "bg"
+          ? {
+              id: createStructuredNodeId(),
+              type: "bg",
+              order: state.getNextStructuredOrder(),
+              start: { ...start },
+              end: { ...end },
+              style: { color: COLOR_PRIMARY_TEXT, bgColor: state.brushColor },
+            }
         : {
             id: createStructuredNodeId(),
             type: "line",
@@ -147,6 +207,8 @@ export const createDrawingSlice: StateCreator<
       scratchLayer: null,
       selectedStructuredNodeIds: [node.id],
       selectedStructuredBoxId: node.type === "box" ? node.id : null,
+      editingStructuredTextNodeId: null,
+      structuredTextSelection: null,
     });
   },
   setSelectedStructuredNodeIds: (ids) =>
@@ -158,17 +220,27 @@ export const createDrawingSlice: StateCreator<
         validIds.length === 1
           ? state.structuredScene.find((node) => node.id === validIds[0] && node.type === "box")
           : null;
+      const keepsEditing =
+        !!state.editingStructuredTextNodeId &&
+        validIds.includes(state.editingStructuredTextNodeId);
       return {
         selectedStructuredNodeIds: validIds,
         selectedStructuredBoxId: selectedBox?.id ?? null,
+        editingStructuredTextNodeId: keepsEditing
+          ? state.editingStructuredTextNodeId
+          : null,
+        structuredTextSelection: keepsEditing
+          ? state.structuredTextSelection
+          : null,
+        textCursor: keepsEditing ? state.textCursor : null,
       };
     }),
   setSelectedStructuredBoxId: (id) =>
     set((state) => {
-      if (!id) return { selectedStructuredNodeIds: [], selectedStructuredBoxId: null };
+      if (!id) return { selectedStructuredNodeIds: [], selectedStructuredBoxId: null, editingStructuredTextNodeId: null, structuredTextSelection: null };
       const selectedBox = state.structuredScene.find((node) => node.id === id && node.type === "box");
-      if (!selectedBox) return { selectedStructuredNodeIds: [], selectedStructuredBoxId: null };
-      return { selectedStructuredNodeIds: [id], selectedStructuredBoxId: id };
+      if (!selectedBox) return { selectedStructuredNodeIds: [], selectedStructuredBoxId: null, editingStructuredTextNodeId: null, structuredTextSelection: null };
+      return { selectedStructuredNodeIds: [id], selectedStructuredBoxId: id, editingStructuredTextNodeId: null, structuredTextSelection: null };
     }),
 
   updateStructuredNode: (id, updater) => {
@@ -196,6 +268,119 @@ export const createDrawingSlice: StateCreator<
       if (node.type !== "box") return node;
       return updater(node as StructuredBoxNode);
     });
+  },
+
+  setStructuredTextAttributes: (attrs) => {
+    const state = get();
+    if (state.canvasMode !== "structured" || !state.structuredTextSelection) return;
+    const range = getStructuredTextSelectionRange(state.structuredTextSelection);
+    if (!range) return;
+    const targetId = state.structuredTextSelection.nodeId;
+
+    const nextScene = state.structuredScene.map((node) => {
+      if (node.id !== targetId || node.type !== "text") return node;
+      return {
+        ...node,
+        styleRanges: updateStructuredTextStyleRanges(
+          node.styleRanges,
+          range.start,
+          range.end,
+          (style) => {
+            const nextAttrs = cloneTextAttributes(style.attrs) ?? {};
+            Object.entries(attrs).forEach(([name, enabled]) => {
+              const attrName = name as "bold" | "italic" | "underline" | "strike";
+              if (enabled) {
+                nextAttrs[attrName] = true;
+              } else {
+                delete nextAttrs[attrName];
+              }
+            });
+            const normalizedAttrs = cloneTextAttributes(nextAttrs);
+            return {
+              ...style,
+              ...(normalizedAttrs ? { attrs: normalizedAttrs } : { attrs: undefined }),
+            };
+          }
+        ),
+      };
+    });
+
+    state.applyStructuredScene(nextScene, true);
+  },
+
+  setStructuredTextColor: (color) => {
+    const state = get();
+    if (state.canvasMode !== "structured" || !state.structuredTextSelection) return;
+    const range = getStructuredTextSelectionRange(state.structuredTextSelection);
+    if (!range) return;
+    const targetId = state.structuredTextSelection.nodeId;
+
+    const nextScene = state.structuredScene.map((node) => {
+      if (node.id !== targetId || node.type !== "text") return node;
+      return {
+        ...node,
+        styleRanges: updateStructuredTextStyleRanges(
+          node.styleRanges,
+          range.start,
+          range.end,
+          (style) => ({
+            ...style,
+            color,
+          })
+        ),
+      };
+    });
+
+    state.applyStructuredScene(nextScene, true);
+  },
+
+  setStructuredTextBackgroundColor: (bgColor) => {
+    const state = get();
+    if (state.canvasMode !== "structured" || !state.structuredTextSelection) return;
+    const range = getStructuredTextSelectionRange(state.structuredTextSelection);
+    if (!range) return;
+    const targetId = state.structuredTextSelection.nodeId;
+
+    const nextScene = state.structuredScene.map((node) => {
+      if (node.id !== targetId || node.type !== "text") return node;
+      return {
+        ...node,
+        styleRanges: updateStructuredTextStyleRanges(
+          node.styleRanges,
+          range.start,
+          range.end,
+          (style) => ({
+            ...style,
+            ...(bgColor ? { bgColor } : { bgColor: undefined }),
+          })
+        ),
+      };
+    });
+
+    state.applyStructuredScene(nextScene, true);
+  },
+
+  fillStructuredTextSelectionWithChar: (char) => {
+    const state = get();
+    if (state.canvasMode !== "structured" || !state.structuredTextSelection) return;
+    const range = getStructuredTextSelectionRange(state.structuredTextSelection);
+    if (!range) return;
+    const fillChar = splitGraphemes(char)[0] ?? char[0] ?? "";
+    if (!fillChar) return;
+    const targetId = state.structuredTextSelection.nodeId;
+
+    const nextScene = state.structuredScene.map((node) => {
+      if (node.id !== targetId || node.type !== "text") return node;
+      const chars = splitGraphemes(node.text);
+      const fillLength = range.end - range.start;
+      chars.splice(range.start, fillLength, ...Array(fillLength).fill(fillChar));
+      return {
+        ...node,
+        text: chars.join(""),
+      };
+    });
+
+    state.applyStructuredScene(nextScene, true);
   },
 
   reorderStructuredSelection: (direction) => {

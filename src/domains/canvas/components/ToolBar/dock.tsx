@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import {
   Square,
+  SquareStack,
   Minus,
   LineSquiggle,
   Circle as CircleIcon,
@@ -55,13 +56,23 @@ const submenuOptionClass = (active: boolean) =>
   );
 
 export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
-  const { brushChar, setBrushChar, brushColor, setBrushColor, canvasMode } = useCanvasStore(
+  const {
+    brushChar,
+    setBrushChar,
+    brushColor,
+    setBrushColor,
+    canvasMode,
+    structuredTextSelection,
+    setStructuredTextColor,
+  } = useCanvasStore(
     useShallow((state) => ({
       brushChar: state.brushChar,
       setBrushChar: state.setBrushChar,
       brushColor: state.brushColor,
       setBrushColor: state.setBrushColor,
       canvasMode: state.canvasMode,
+      structuredTextSelection: state.structuredTextSelection,
+      setStructuredTextColor: state.setStructuredTextColor,
     }))
   );
   const [lastUsedShape, setLastUsedShape] = useState<ToolType>("box");
@@ -85,6 +96,8 @@ export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
         return { icon: CircleIcon, label: "Circle" };
       case "line":
         return { icon: Minus, label: "Line" };
+      case "bg":
+        return { icon: SquareStack, label: "Background" };
       case "stepline":
         return { icon: LineSquiggle, label: "Curve" };
       default:
@@ -106,7 +119,7 @@ export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
   const visibleActionOrder = useMemo<ToolbarActionId[]>(() => {
     const baseOrder =
       canvasMode === "structured"
-        ? (["select", "shape-group", "undo", "color"] as ToolbarActionId[])
+        ? (["select", "text", "shape-group", "undo", "color"] as ToolbarActionId[])
         : TOOLBAR_ACTION_ORDER;
 
     if (!isMobile || canvasMode === "animation") return baseOrder;
@@ -115,7 +128,7 @@ export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
 
   const structuredShapeTools = useMemo<ToolType[]>(() => {
     if (canvasMode !== "structured") return SHAPE_TOOLS;
-    return ["box", "line"];
+    return ["box", "line", "bg"];
   }, [canvasMode]);
 
   const navItems = useMemo(() => {
@@ -256,6 +269,11 @@ export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
                           <ColorSubmenu
                             brushColor={brushColor}
                             setBrushColor={setBrushColor}
+                            applyStructuredTextColor={
+                              canvasMode === "structured" && structuredTextSelection
+                                ? setStructuredTextColor
+                                : undefined
+                            }
                             onPicked={() => setOpenSubMenuId(null)}
                           />
                         ) : (

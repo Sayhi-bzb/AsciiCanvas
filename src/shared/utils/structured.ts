@@ -1,5 +1,6 @@
 import type { GridCell, NodeBounds, Point, StructuredNode } from "@/shared/types";
 import { normalizeCellStyle } from "@/shared/utils/ansi";
+import { mergeStructuredTextStyle } from "@/shared/utils/structuredTextRanges";
 import { getBoxPoints, getLShapeLinePoints } from "@/shared/utils/shapes";
 import {
   getCellOccupancy,
@@ -67,7 +68,9 @@ export const trimTextToColumns = (text: string, maxColumns: number) => {
 };
 
 export const getStructuredNodeBounds = (node: StructuredNode): NodeBounds => {
-  if (node.type === "box") return toBounds(node.start, node.end);
+  if (node.type === "box" || node.type === "bg") {
+    return toBounds(node.start, node.end);
+  }
 
   if (node.type === "line") {
     const points = getLShapeLinePoints(node.start, node.end, node.axis === "vertical");
@@ -143,13 +146,32 @@ export const renderStructuredScene = (scene: StructuredNode[]) => {
       return;
     }
 
+    if (node.type === "bg") {
+      const bounds = getStructuredNodeBounds(node);
+      for (let y = bounds.y; y < bounds.y + bounds.height; y++) {
+        for (let x = bounds.x; x < bounds.x + bounds.width; x++) {
+          placeStyledCharInMap(grid, x, y, " ", node.style);
+        }
+      }
+      return;
+    }
+
     const lines = splitLines(node.text);
+    let textOffset = 0;
     lines.forEach((line, rowIndex) => {
       let currentX = node.position.x;
       for (const char of splitGraphemes(line)) {
-        placeStyledCharInMap(grid, currentX, node.position.y + rowIndex, char, node.style);
+        placeStyledCharInMap(
+          grid,
+          currentX,
+          node.position.y + rowIndex,
+          char,
+          mergeStructuredTextStyle(node.style, node.styleRanges, textOffset)
+        );
         currentX += getCellOccupancy(char);
+        textOffset += 1;
       }
+      if (rowIndex < lines.length - 1) textOffset += 1;
     });
   });
 

@@ -2,6 +2,7 @@ import type {
   AnimationCanvasSize,
   CanvasMode,
   Point,
+  StructuredTextStyleRange,
   TextAttributes,
 } from "@/shared/types";
 
@@ -60,16 +61,25 @@ export interface AsciiCanvasProtocolLineNodeV1
   axis: "vertical" | "horizontal";
 }
 
+export interface AsciiCanvasProtocolBgNodeV1
+  extends AsciiCanvasProtocolNodeBaseV1 {
+  type: "bg";
+  start: Point;
+  end: Point;
+}
+
 export interface AsciiCanvasProtocolTextNodeV1
   extends AsciiCanvasProtocolNodeBaseV1 {
   type: "text";
   position: Point;
   text: string;
+  styleRanges?: StructuredTextStyleRange[];
 }
 
 export type AsciiCanvasProtocolNodeV1 =
   | AsciiCanvasProtocolBoxNodeV1
   | AsciiCanvasProtocolLineNodeV1
+  | AsciiCanvasProtocolBgNodeV1
   | AsciiCanvasProtocolTextNodeV1;
 
 interface AsciiCanvasDocumentBaseV1<TMode extends CanvasMode> {

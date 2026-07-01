@@ -57,11 +57,13 @@ export type CanvasMode = "freeform" | "structured" | "animation";
 export type ToolType =
   | "select"
   | "pan"
+  | "text"
   | "brush"
   | "eraser"
   | "fill"
   | "box"
   | "line"
+  | "bg"
   | "stepline"
   | "circle";
 
@@ -76,6 +78,18 @@ export interface StructuredNodeStyle {
   color: string;
   bgColor?: string;
   attrs?: TextAttributes;
+}
+
+export interface StructuredTextRangeStyle {
+  color?: string;
+  bgColor?: string;
+  attrs?: TextAttributes;
+}
+
+export interface StructuredTextStyleRange {
+  start: number;
+  end: number;
+  style: StructuredTextRangeStyle;
 }
 
 export interface TextAttributes {
@@ -106,13 +120,21 @@ export interface StructuredLineNode extends StructuredNodeBase {
   axis: "vertical" | "horizontal";
 }
 
+export interface StructuredBgNode extends StructuredNodeBase {
+  type: "bg";
+  start: Point;
+  end: Point;
+}
+
 export interface StructuredTextNode extends StructuredNodeBase {
   type: "text";
   position: Point;
   text: string;
+  styleRanges?: StructuredTextStyleRange[];
 }
 
 export type StructuredNode =
   | StructuredBoxNode
   | StructuredLineNode
+  | StructuredBgNode
   | StructuredTextNode;

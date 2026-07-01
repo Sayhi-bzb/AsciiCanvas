@@ -207,19 +207,20 @@ describe("selectionSlice static grid selection compatibility", () => {
     );
   });
 
-  it("styles cells from static grid ranges when legacy selections are empty", () => {
+  it("styles and materializes cells from static grid ranges when legacy selections are empty", () => {
     useCanvasStore.setState({
       canvasMode: "freeform",
+      brushColor: "#f8fafc",
       selections: [],
       staticGridSelection: {
-        activeCell: { x: 1, y: 0 },
+        activeCell: { x: 2, y: 0 },
         anchorCell: { x: 0, y: 0 },
-        ranges: [{ start: { x: 0, y: 0 }, end: { x: 1, y: 0 } }],
+        ranges: [{ start: { x: 0, y: 0 }, end: { x: 2, y: 0 } }],
       },
     });
     applyFreeformSnapshotToYMaps([
       ["0,0", { char: "A", color: "#ffffff" }],
-      ["1,0", { char: "B", color: "#ffffff" }],
+      ["2,0", { char: "B", color: "#ffffff" }],
     ]);
 
     useCanvasStore.getState().setSelectionBackgroundColor("#0f172a");
@@ -227,7 +228,8 @@ describe("selectionSlice static grid selection compatibility", () => {
     expect(useCanvasStore.getState().grid).toEqual(
       new Map([
         ["0,0", { char: "A", color: "#ffffff", bgColor: "#0f172a" }],
-        ["1,0", { char: "B", color: "#ffffff", bgColor: "#0f172a" }],
+        ["1,0", { char: " ", color: "#f8fafc", bgColor: "#0f172a" }],
+        ["2,0", { char: "B", color: "#ffffff", bgColor: "#0f172a" }],
       ])
     );
   });
@@ -237,9 +239,10 @@ describe("selectionSlice setSelectionBackgroundColor", () => {
     resetStore();
   });
 
-  it("fills background color on existing selected cells only", () => {
+  it("fills background color and materializes empty selected cells", () => {
     useCanvasStore.setState({
       canvasMode: "freeform",
+      brushColor: "#f8fafc",
       selections: [{ start: { x: 0, y: 0 }, end: { x: 2, y: 0 } }],
     });
     applyFreeformSnapshotToYMaps([
@@ -252,6 +255,7 @@ describe("selectionSlice setSelectionBackgroundColor", () => {
     expect(useCanvasStore.getState().grid).toEqual(
       new Map([
         ["0,0", { char: "A", color: "#ffffff", bgColor: "#2563eb" }],
+        ["1,0", { char: " ", color: "#f8fafc", bgColor: "#2563eb" }],
         [
           "2,0",
           {
@@ -291,22 +295,36 @@ describe("selectionSlice setSelectionBackgroundColor", () => {
     });
   });
 
-  it("does not create cells for empty selected positions", () => {
+  it("clears background color without materializing empty selected positions", () => {
     useCanvasStore.setState({
       canvasMode: "freeform",
       selections: [{ start: { x: 0, y: 0 }, end: { x: 2, y: 0 } }],
     });
     applyFreeformSnapshotToYMaps([
-      ["1,0", { char: "A", color: "#ffffff" }],
+      ["1,0", { char: "A", color: "#ffffff", bgColor: "#2563eb" }],
     ]);
 
-    useCanvasStore.getState().setSelectionBackgroundColor("#2563eb");
+    useCanvasStore.getState().setSelectionBackgroundColor(null);
 
     expect(useCanvasStore.getState().grid).toEqual(
       new Map([
-        ["1,0", { char: "A", color: "#ffffff", bgColor: "#2563eb" }],
+        ["1,0", { char: "A", color: "#ffffff" }],
       ])
     );
+  });
+
+  it("deletes materialized blank cells when background color is cleared", () => {
+    useCanvasStore.setState({
+      canvasMode: "freeform",
+      selections: [{ start: { x: 0, y: 0 }, end: { x: 0, y: 0 } }],
+    });
+    applyFreeformSnapshotToYMaps([
+      ["0,0", { char: " ", color: "#ffffff", bgColor: "#2563eb" }],
+    ]);
+
+    useCanvasStore.getState().setSelectionBackgroundColor(null);
+
+    expect(useCanvasStore.getState().grid).toEqual(new Map());
   });
 
   it("does not update background color in structured mode", () => {

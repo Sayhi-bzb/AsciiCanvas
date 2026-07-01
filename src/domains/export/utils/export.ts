@@ -1002,6 +1002,11 @@ export const exportStructuredF12Text = (scene: StructuredNode[]) => {
       return;
     }
 
+    if (node.type === "bg") {
+      emitTag(lines, "bg", commonAttrs, indent, true);
+      return;
+    }
+
     emitTag(
       lines,
       "text",

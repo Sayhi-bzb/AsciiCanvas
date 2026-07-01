@@ -1,0 +1,220 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render } from "@testing-library/react";
+import { useRef } from "react";
+
+import { useCanvasInteraction } from "@/domains/canvas/components/AsciiCanvas/hooks/useCanvasInteraction";
+import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
+import { useShallow } from "zustand/react/shallow";
+
+const gestureState = vi.hoisted(() => ({
+  handlers: null as Record<string, (input: any) => void> | null,
+}));
+
+vi.mock("@use-gesture/react", () => ({
+  useGesture: vi.fn((handlers) => {
+    gestureState.handlers = handlers;
+    return {};
+  }),
+}));
+
+function InteractionHarness() {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const store = useCanvasStore(
+    useShallow((state) => ({
+      tool: state.tool,
+      brushChar: state.brushChar,
+      setOffset: state.setOffset,
+      setZoom: state.setZoom,
+      canvasMode: state.canvasMode,
+      addScratchPoints: state.addScratchPoints,
+      commitScratch: state.commitScratch,
+      commitStructuredShape: state.commitStructuredShape,
+      setTextCursor: state.setTextCursor,
+      addSelection: state.addSelection,
+      clearSelections: state.clearSelections,
+      clearInteractionState: state.clearInteractionState,
+      erasePoints: state.erasePoints,
+      offset: state.offset,
+      zoom: state.zoom,
+      grid: state.grid,
+      updateScratchForShape: state.updateScratchForShape,
+      setHoveredGrid: state.setHoveredGrid,
+      fillArea: state.fillArea,
+      canvasBounds: state.canvasBounds,
+      structuredScene: state.structuredScene,
+      editingStructuredTextNodeId: state.editingStructuredTextNodeId,
+      setSelectedStructuredNodeIds: state.setSelectedStructuredNodeIds,
+      setEditingStructuredTextNodeId: state.setEditingStructuredTextNodeId,
+      setStructuredTextSelection: state.setStructuredTextSelection,
+      updateStructuredNode: state.updateStructuredNode,
+    }))
+  );
+  const { handleDoubleClick } = useCanvasInteraction(store, containerRef, vi.fn());
+
+  return (
+    <div
+      ref={containerRef}
+      data-testid="canvas-root"
+      onDoubleClick={handleDoubleClick}
+    />
+  );
+}
+
+describe("structured text interaction", () => {
+  const initialState = useCanvasStore.getState();
+
+  afterEach(() => {
+    gestureState.handlers = null;
+    useCanvasStore.setState(initialState, true);
+  });
+
+  const setStructuredTextScene = (options?: { editing?: boolean }) => {
+    useCanvasStore.setState({
+      canvasMode: "structured",
+      tool: "select",
+      offset: { x: 0, y: 0 },
+      zoom: 1,
+      grid: new Map(),
+      selections: [],
+      textCursor: options?.editing ? { x: 0, y: 0 } : null,
+      editingStructuredTextNodeId: options?.editing ? "text-1" : null,
+      selectedStructuredNodeIds: options?.editing ? ["text-1"] : [],
+      structuredScene: [
+        {
+          id: "text-1",
+          type: "text",
+          order: 1,
+          position: { x: 0, y: 0 },
+          text: "Edit",
+          style: { color: "#ffffff" },
+        },
+      ],
+    });
+  };
+
+  const dragEvent = (detail = 1) =>
+    new MouseEvent("mousedown", {
+      button: 0,
+      bubbles: true,
+      cancelable: true,
+      detail,
+    });
+
+  it("enters text editing when double-clicking selected-mode structured text", () => {
+    setStructuredTextScene();
+
+    const { getByTestId } = render(<InteractionHarness />);
+
+    fireEvent.doubleClick(getByTestId("canvas-root"), {
+      clientX: 1,
+      clientY: 1,
+    });
+
+    expect(useCanvasStore.getState().selectedStructuredNodeIds).toEqual([
+      "text-1",
+    ]);
+    expect(useCanvasStore.getState().textCursor).toEqual({ x: 0, y: 0 });
+    expect(useCanvasStore.getState().editingStructuredTextNodeId).toBe(
+      "text-1"
+    );
+    expect(useCanvasStore.getState().structuredTextSelection).toBeNull();
+  });
+
+  it("keeps active structured text editing from turning into a text-node drag", () => {
+    setStructuredTextScene({ editing: true });
+    render(<InteractionHarness />);
+
+    act(() => {
+      gestureState.handlers?.onDragStart?.({
+        xy: [1, 1],
+        event: dragEvent(),
+      });
+      gestureState.handlers?.onDrag?.({
+        xy: [20, 1],
+        delta: [19, 0],
+        event: dragEvent(),
+      });
+    });
+
+    expect(useCanvasStore.getState().textCursor).toEqual({ x: 2, y: 0 });
+    expect(useCanvasStore.getState().editingStructuredTextNodeId).toBe(
+      "text-1"
+    );
+    expect(useCanvasStore.getState().structuredTextSelection).toEqual({
+      nodeId: "text-1",
+      anchor: 0,
+      focus: 2,
+    });
+    expect(useCanvasStore.getState().structuredScene[0]).toMatchObject({
+      id: "text-1",
+      position: { x: 0, y: 0 },
+    });
+  });
+
+  it("uses a text cursor when hovering the actively edited structured text", () => {
+    setStructuredTextScene({ editing: true });
+    const { getByTestId } = render(<InteractionHarness />);
+
+    act(() => {
+      gestureState.handlers?.onMove?.({
+        xy: [1, 1],
+        event: new MouseEvent("mousemove", {
+          bubbles: true,
+          cancelable: true,
+        }),
+      });
+    });
+
+    expect(getByTestId("canvas-root").style.cursor).toBe("text");
+  });
+
+  it("does not start moving text on the second press of a double-click", () => {
+    setStructuredTextScene();
+    render(<InteractionHarness />);
+
+    act(() => {
+      gestureState.handlers?.onDragStart?.({
+        xy: [1, 1],
+        event: dragEvent(2),
+      });
+      gestureState.handlers?.onDrag?.({
+        xy: [20, 1],
+        delta: [19, 0],
+        event: dragEvent(2),
+      });
+    });
+
+    expect(useCanvasStore.getState().selectedStructuredNodeIds).toEqual([
+      "text-1",
+    ]);
+    expect(useCanvasStore.getState().editingStructuredTextNodeId).toBeNull();
+    expect(useCanvasStore.getState().structuredScene[0]).toMatchObject({
+      id: "text-1",
+      position: { x: 0, y: 0 },
+    });
+  });
+
+  it("still drags structured text when it is not in text edit mode", () => {
+    setStructuredTextScene();
+    render(<InteractionHarness />);
+
+    act(() => {
+      gestureState.handlers?.onDragStart?.({
+        xy: [1, 1],
+        event: dragEvent(),
+      });
+      gestureState.handlers?.onDrag?.({
+        xy: [20, 1],
+        delta: [19, 0],
+        event: dragEvent(),
+      });
+    });
+
+    expect(useCanvasStore.getState().textCursor).toBeNull();
+    expect(useCanvasStore.getState().editingStructuredTextNodeId).toBeNull();
+    expect(useCanvasStore.getState().structuredScene[0]).toMatchObject({
+      id: "text-1",
+      position: { x: 2, y: 0 },
+    });
+  });
+});

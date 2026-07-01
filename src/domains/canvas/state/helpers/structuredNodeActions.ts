@@ -101,6 +101,17 @@ export const duplicateStructuredNodes = (
         };
       }
 
+      if (node.type === "bg") {
+        return {
+          ...node,
+          id: createStructuredNodeId(),
+          order: highestOrder + index + 1,
+          style: { ...node.style },
+          start: offsetPoint(node.start, offset),
+          end: offsetPoint(node.end, offset),
+        };
+      }
+
       return {
         ...node,
         id: createStructuredNodeId(),

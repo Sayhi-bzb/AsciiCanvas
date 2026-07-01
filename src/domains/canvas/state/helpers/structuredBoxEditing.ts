@@ -1,4 +1,4 @@
-import type { NodeBounds, Point, SelectionArea, StructuredBoxNode, StructuredLineNode, StructuredNode, StructuredTextNode } from "@/shared/types";
+import type { NodeBounds, Point, SelectionArea, StructuredBgNode, StructuredBoxNode, StructuredLineNode, StructuredNode, StructuredTextNode } from "@/shared/types";
 import { getTextCellWidth } from "@/shared/metrics";
 import { getSelectionBounds } from "@/shared/utils/selection";
 import { getLShapeLinePoints } from "@/shared/utils/shapes";
@@ -24,12 +24,15 @@ export type StructuredBoxHit = {
 export type StructuredNodeHit =
   | { node: StructuredBoxNode; kind: "box"; handle: StructuredBoxResizeHandle | null }
   | { node: StructuredLineNode; kind: "line"; handle: StructuredLineResizeHandle | null }
+  | { node: StructuredBgNode; kind: "bg"; handle: StructuredBoxResizeHandle | null }
   | { node: StructuredTextNode; kind: "text"; handle: null };
 
 const isBoxNode = (node: StructuredNode): node is StructuredBoxNode =>
   node.type === "box";
 
 const isPointEqual = (a: Point, b: Point) => a.x === b.x && a.y === b.y;
+
+type StructuredRectNode = StructuredBoxNode | StructuredBgNode;
 
 export const getStructuredBoxBounds = (node: StructuredBoxNode): NodeBounds =>
   getStructuredNodeBounds(node);
@@ -79,10 +82,10 @@ export const isPointOnStructuredBoxBorder = (
 };
 
 export const getStructuredBoxHandleAtPoint = (
-  node: StructuredBoxNode,
+  node: StructuredRectNode,
   point: Point
 ): StructuredBoxResizeHandle | null => {
-  const bounds = getStructuredBoxBounds(node);
+  const bounds = getStructuredNodeBounds(node);
   const left = bounds.x;
   const right = bounds.x + bounds.width - 1;
   const top = bounds.y;
@@ -133,6 +136,9 @@ const isPointOnStructuredLine = (node: StructuredLineNode, point: Point) => {
 const isPointInsideStructuredText = (node: StructuredTextNode, point: Point) =>
   withPointWithinBounds(point, getStructuredNodeBounds(node), false);
 
+const isPointInsideStructuredBg = (node: StructuredBgNode, point: Point) =>
+  withPointWithinBounds(point, getStructuredNodeBounds(node), false);
+
 export const findStructuredBoxHit = (
   scene: StructuredNode[],
   point: Point
@@ -158,6 +164,10 @@ export const findStructuredNodeHit = (
     if (node.type === "line") {
       if (!isPointOnStructuredLine(node, point)) continue;
       return { node, kind: "line", handle: getStructuredLineHandleAtPoint(node, point) };
+    }
+    if (node.type === "bg") {
+      if (!isPointInsideStructuredBg(node, point)) continue;
+      return { node, kind: "bg", handle: getStructuredBoxHandleAtPoint(node, point) };
     }
     if (!isPointInsideStructuredText(node, point)) continue;
     return { node, kind: "text", handle: null };
@@ -220,12 +230,12 @@ export const resizeStructuredLine = (
   return { ...node, start, end, axis };
 };
 
-export const resizeStructuredBox = (
-  node: StructuredBoxNode,
+export const resizeStructuredRect = <T extends StructuredRectNode>(
+  node: T,
   handle: StructuredBoxResizeHandle,
   point: Point
-): StructuredBoxNode => {
-  const bounds = getStructuredBoxBounds(node);
+): T => {
+  const bounds = getStructuredNodeBounds(node);
   let left = bounds.x;
   let right = bounds.x + bounds.width - 1;
   let top = bounds.y;
@@ -245,6 +255,12 @@ export const resizeStructuredBox = (
     ...node,
     start: { x: nextLeft, y: nextTop },
     end: { x: nextRight, y: nextBottom },
-  };
+  } as T;
 };
+
+export const resizeStructuredBox = (
+  node: StructuredBoxNode,
+  handle: StructuredBoxResizeHandle,
+  point: Point
+): StructuredBoxNode => resizeStructuredRect(node, handle, point);
 

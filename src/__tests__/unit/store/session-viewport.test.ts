@@ -176,4 +176,249 @@ describe("canvas session viewport state", () => {
     });
   });
 
+  it("creates structured background blocks with the brush color as fill", () => {
+    useCanvasStore.getState().createCanvasSession("structured");
+    useCanvasStore.setState({ brushColor: "#334155" });
+
+    useCanvasStore
+      .getState()
+      .commitStructuredShape("bg", { x: 1, y: 2 }, { x: 3, y: 4 });
+
+    const state = useCanvasStore.getState();
+    expect(state.structuredScene[0]).toMatchObject({
+      type: "bg",
+      start: { x: 1, y: 2 },
+      end: { x: 3, y: 4 },
+      style: { color: "#000000", bgColor: "#334155" },
+    });
+    expect(state.selectedStructuredNodeIds).toEqual([state.structuredScene[0].id]);
+    expect(state.grid.get("1,2")).toEqual({
+      char: " ",
+      color: "#000000",
+      bgColor: "#334155",
+    });
+    expect(state.grid.get("3,4")).toEqual({
+      char: " ",
+      color: "#000000",
+      bgColor: "#334155",
+    });
+  });
+
+  it("formats selected structured text ranges", () => {
+    useCanvasStore.getState().createCanvasSession("structured");
+    useCanvasStore.getState().applyStructuredScene(
+      [
+        {
+          id: "text-1",
+          type: "text",
+          order: 1,
+          position: { x: 1, y: 2 },
+          text: "Label",
+          style: { color: "#ffffff" },
+        },
+        {
+          id: "text-2",
+          type: "text",
+          order: 2,
+          position: { x: 1, y: 4 },
+          text: "Value",
+          style: { color: "#ffffff", attrs: { italic: true } },
+        },
+      ],
+      false
+    );
+
+    useCanvasStore.getState().setSelectedStructuredNodeIds(["text-1"]);
+    useCanvasStore.getState().setEditingStructuredTextNodeId("text-1");
+    useCanvasStore
+      .getState()
+      .setStructuredTextSelection({ nodeId: "text-1", anchor: 1, focus: 4 });
+    useCanvasStore.getState().setStructuredTextAttributes({
+      bold: true,
+      italic: false,
+      underline: true,
+    });
+    useCanvasStore.getState().setStructuredTextBackgroundColor("#123456");
+
+    expect(useCanvasStore.getState().structuredScene).toMatchObject([
+      {
+        id: "text-1",
+        styleRanges: [
+          {
+            start: 1,
+            end: 4,
+            style: {
+              bgColor: "#123456",
+              attrs: { bold: true, underline: true },
+            },
+          },
+        ],
+      },
+      {
+        id: "text-2",
+        style: { color: "#ffffff", attrs: { italic: true } },
+      },
+    ]);
+
+    useCanvasStore.getState().setStructuredTextAttributes({
+      bold: false,
+      underline: false,
+    });
+    useCanvasStore.getState().setStructuredTextBackgroundColor(null);
+
+    expect(useCanvasStore.getState().structuredScene[0]).toMatchObject({
+      id: "text-1",
+      style: { color: "#ffffff" },
+    });
+    const formattedNode = useCanvasStore.getState().structuredScene[0];
+    expect(formattedNode.type).toBe("text");
+    if (formattedNode.type === "text") {
+      expect(formattedNode.styleRanges).toBeUndefined();
+    }
+  });
+
+  it("colors selected structured text ranges without changing text content", () => {
+    useCanvasStore.getState().createCanvasSession("structured");
+    useCanvasStore.getState().applyStructuredScene(
+      [
+        {
+          id: "text-1",
+          type: "text",
+          order: 1,
+          position: { x: 1, y: 2 },
+          text: "Label",
+          style: { color: "#ffffff" },
+          styleRanges: [
+            {
+              start: 1,
+              end: 4,
+              style: { attrs: { bold: true }, bgColor: "#111111" },
+            },
+          ],
+        },
+      ],
+      false
+    );
+
+    useCanvasStore.getState().setStructuredTextSelection({
+      nodeId: "text-1",
+      anchor: 1,
+      focus: 4,
+    });
+    useCanvasStore.getState().setStructuredTextColor("#ef4444");
+    useCanvasStore.getState().setStructuredTextColor("#22c55e");
+
+    expect(useCanvasStore.getState().structuredScene[0]).toMatchObject({
+      id: "text-1",
+      text: "Label",
+      styleRanges: [
+        {
+          start: 1,
+          end: 4,
+          style: {
+            color: "#22c55e",
+            bgColor: "#111111",
+            attrs: { bold: true },
+          },
+        },
+      ],
+    });
+  });
+
+  it("does not format mixed structured selections", () => {
+    useCanvasStore.getState().createCanvasSession("structured");
+    useCanvasStore.getState().applyStructuredScene(
+      [
+        {
+          id: "text-1",
+          type: "text",
+          order: 1,
+          position: { x: 1, y: 2 },
+          text: "Label",
+          style: { color: "#ffffff" },
+        },
+        {
+          id: "box-1",
+          type: "box",
+          order: 2,
+          start: { x: 0, y: 0 },
+          end: { x: 4, y: 4 },
+          style: { color: "#ffffff" },
+        },
+      ],
+      false
+    );
+
+    useCanvasStore.getState().setSelectedStructuredNodeIds(["text-1", "box-1"]);
+    useCanvasStore.getState().setStructuredTextAttributes({ bold: true });
+    useCanvasStore.getState().setStructuredTextBackgroundColor("#123456");
+
+    expect(useCanvasStore.getState().structuredScene[0]).toMatchObject({
+      id: "text-1",
+      style: { color: "#ffffff" },
+    });
+    expect(useCanvasStore.getState().structuredScene[0].style.attrs).toBeUndefined();
+    expect(useCanvasStore.getState().structuredScene[0].style.bgColor).toBeUndefined();
+  });
+
+  it("fills selected structured text ranges with the brush character", () => {
+    useCanvasStore.getState().createCanvasSession("structured");
+    useCanvasStore.getState().applyStructuredScene(
+      [
+        {
+          id: "text-1",
+          type: "text",
+          order: 1,
+          position: { x: 1, y: 2 },
+          text: "Label",
+          style: { color: "#ffffff" },
+          styleRanges: [
+            {
+              start: 1,
+              end: 4,
+              style: { attrs: { bold: true } },
+            },
+          ],
+        },
+      ],
+      false
+    );
+
+    useCanvasStore.getState().setStructuredTextSelection({
+      nodeId: "text-1",
+      anchor: 1,
+      focus: 4,
+    });
+    useCanvasStore.getState().fillStructuredTextSelectionWithChar("#");
+
+    expect(useCanvasStore.getState().structuredScene[0]).toMatchObject({
+      id: "text-1",
+      text: "L###l",
+      styleRanges: [
+        {
+          start: 1,
+          end: 4,
+          style: { attrs: { bold: true } },
+        },
+      ],
+    });
+  });
+
+  it("falls back from structured text tool outside structured sessions", () => {
+    useCanvasStore.getState().createCanvasSession("structured");
+    const structuredSessionId = useCanvasStore.getState().activeCanvasId;
+
+    useCanvasStore.getState().setTool("text");
+    expect(useCanvasStore.getState().tool).toBe("text");
+    useCanvasStore.getState().setTool("bg");
+    expect(useCanvasStore.getState().tool).toBe("bg");
+
+    useCanvasStore.getState().createCanvasSession("freeform");
+    expect(useCanvasStore.getState().canvasMode).toBe("freeform");
+    expect(useCanvasStore.getState().tool).toBe("brush");
+
+    useCanvasStore.getState().switchCanvasSession(structuredSessionId);
+    expect(useCanvasStore.getState().canvasMode).toBe("structured");
+    expect(useCanvasStore.getState().tool).toBe("select");
+  });
 });

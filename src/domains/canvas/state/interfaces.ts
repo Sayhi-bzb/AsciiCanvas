@@ -14,6 +14,7 @@ import type {
   TextAttributes,
   ToolType,
 } from "@/shared/types";
+import type { StructuredTextSelection } from "@/shared/utils/structuredTextRanges";
 import type { GridAddress, GridEditMode, GridRange, GridSelectionState } from "./helpers/staticGridModel";
 
 export interface RichTextCell {
@@ -41,7 +42,7 @@ export interface DrawingSlice {
     options?: { axis?: "vertical" | "horizontal" | null }
   ) => void;
   commitStructuredShape: (
-    tool: "box" | "line",
+    tool: "box" | "line" | "bg",
     start: Point,
     end: Point,
     options?: { axis?: "vertical" | "horizontal" | null }
@@ -50,6 +51,12 @@ export interface DrawingSlice {
   setSelectedStructuredBoxId: (id: string | null) => void;
   updateStructuredNode: (id: string, updater: (node: StructuredNode) => StructuredNode) => void;
   updateStructuredBox: (id: string, updater: (node: StructuredBoxNode) => StructuredBoxNode) => void;
+  setStructuredTextAttributes: (
+    attrs: Partial<Record<"bold" | "italic" | "underline" | "strike", boolean>>
+  ) => void;
+  setStructuredTextColor: (color: string) => void;
+  setStructuredTextBackgroundColor: (bgColor: string | null) => void;
+  fillStructuredTextSelectionWithChar: (char: string) => void;
   reorderStructuredSelection: (direction: "forward" | "backward" | "front" | "back") => void;
   duplicateStructuredSelection: () => string[];
 }
@@ -67,7 +74,11 @@ export interface StaticGridSlice {
 
 export interface TextSlice {
   textCursor: Point | null;
+  editingStructuredTextNodeId: string | null;
+  structuredTextSelection: StructuredTextSelection | null;
   setTextCursor: (pos: Point | null) => void;
+  setEditingStructuredTextNodeId: (id: string | null) => void;
+  setStructuredTextSelection: (selection: StructuredTextSelection | null) => void;
   writeTextString: (str: string, startPos?: Point) => void;
   pasteRichData: (cells: RichTextCell[], startPos?: Point) => void;
   moveTextCursor: (dx: number, dy: number) => void;

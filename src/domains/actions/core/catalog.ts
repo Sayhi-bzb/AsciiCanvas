@@ -15,6 +15,7 @@ import {
   SendToBack,
   SquarePen,
   Trash2,
+  Type,
   Undo2,
 } from "lucide-react";
 import type { ActionMeta, ContextMenuEntry, EditorActionId, ToolbarActionId, SidebarActionId } from "./types";
@@ -94,6 +95,7 @@ export const TOOLBAR_ACTION_ORDER: ToolbarActionId[] = [
 
 export const TOOLBAR_ACTION_META: Record<ToolbarActionId, ActionMeta> = {
   select: { id: "select", label: "Select", icon: MousePointer2 },
+  text: { id: "text", label: "Text", icon: Type },
   brush: { id: "brush", label: "Brush", icon: Pencil, hasSub: true },
   "shape-group": {
     id: "shape-group",

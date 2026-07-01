@@ -59,6 +59,17 @@ const isProtocolNodeStyle = (value: unknown): value is { color: string } => {
   );
 };
 
+const isStructuredTextStyleRange = (value: unknown) => {
+  if (!isObject(value)) return false;
+  if (typeof value.start !== "number" || !Number.isFinite(value.start)) return false;
+  if (typeof value.end !== "number" || !Number.isFinite(value.end)) return false;
+  if (!isObject(value.style)) return false;
+  return (
+    (value.style.color === undefined || typeof value.style.color === "string") &&
+    hasOptionalStyleFields(value.style)
+  );
+};
+
 const isStructuredNode = (value: unknown): value is AsciiCanvasProtocolNodeV1 => {
   if (!isObject(value)) return false;
   if (typeof value.id !== "string") return false;
@@ -80,8 +91,17 @@ const isStructuredNode = (value: unknown): value is AsciiCanvasProtocolNodeV1 =>
       (value.axis === "vertical" || value.axis === "horizontal")
     );
   }
+  if (value.type === "bg") {
+    return isPoint(value.start) && isPoint(value.end);
+  }
   if (value.type === "text") {
-    return isPoint(value.position) && typeof value.text === "string";
+    return (
+      isPoint(value.position) &&
+      typeof value.text === "string" &&
+      (value.styleRanges === undefined ||
+        (Array.isArray(value.styleRanges) &&
+          value.styleRanges.every(isStructuredTextStyleRange)))
+    );
   }
   return false;
 };

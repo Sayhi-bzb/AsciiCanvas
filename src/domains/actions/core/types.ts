@@ -25,6 +25,7 @@ export type EditorActionId =
 export type ToolbarActionId =
   | "select"
   | "pan"
+  | "text"
   | "brush"
   | "shape-group"
   | "fill"

@@ -127,7 +127,7 @@ export const useCanvasStore = create<CanvasState>()(
         setTool: (tool) =>
           set((state) => {
             if (!isToolAllowedForMode(tool, state.canvasMode)) return state;
-            return { tool, textCursor: null, hoveredGrid: null };
+            return { tool, textCursor: null, editingStructuredTextNodeId: null, structuredTextSelection: null, hoveredGrid: null };
           }),
         applyStructuredScene: (scene, shouldSaveHistory = true) => {
           const normalizedScene = normalizeAndCloneScene(scene);
@@ -148,6 +148,16 @@ export const useCanvasStore = create<CanvasState>()(
             selectedStructuredBoxId: state.selectedStructuredBoxId && normalizedScene.some((node) => node.id === state.selectedStructuredBoxId && node.type === "box")
               ? state.selectedStructuredBoxId
               : null,
+            editingStructuredTextNodeId:
+              state.editingStructuredTextNodeId &&
+              normalizedScene.some((node) => node.id === state.editingStructuredTextNodeId && node.type === "text")
+                ? state.editingStructuredTextNodeId
+                : null,
+            structuredTextSelection:
+              state.structuredTextSelection &&
+              normalizedScene.some((node) => node.id === state.structuredTextSelection?.nodeId && node.type === "text")
+                ? state.structuredTextSelection
+                : null,
             grid: createMapFromEntries(gridEntries),
             canvasSessions: withActiveCanvasSnapshot(
               state.canvasSessions,
