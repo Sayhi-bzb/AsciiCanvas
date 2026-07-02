@@ -17,6 +17,7 @@ import {
   Trash2,
   Type,
   Undo2,
+  Wallpaper,
 } from "lucide-react";
 import type { ActionMeta, ContextMenuEntry, EditorActionId, ToolbarActionId, SidebarActionId } from "./types";
 
@@ -108,6 +109,7 @@ export const TOOLBAR_ACTION_META: Record<ToolbarActionId, ActionMeta> = {
     icon: LineSquiggle,
     hasSub: true,
   },
+  bg: { id: "bg", label: "Background", icon: Wallpaper },
   fill: { id: "fill", label: "Fill Area", icon: PaintBucket },
   eraser: { id: "eraser", label: "Eraser", icon: Eraser },
   undo: { id: "undo", label: "Undo", icon: Undo2 },

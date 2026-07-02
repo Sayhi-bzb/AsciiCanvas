@@ -1,5 +1,11 @@
-import type { Point, StructuredBoxNode, StructuredNode } from "@/shared/types";
+import type {
+  Point,
+  StructuredBoxNode,
+  StructuredNode,
+  StructuredTextStyleRange,
+} from "@/shared/types";
 import { createStructuredNodeId } from "@/shared/utils/structured";
+import { mergeStructuredTextStyle } from "@/shared/utils/structuredTextRanges";
 
 export const STRUCTURED_TEMPLATE_MIME =
   "application/x-ascii-canvas-structured-template";
@@ -136,7 +142,8 @@ export const buildStructuredTemplateNodes = (
   const createText = (
     text: string,
     offset: Point = { x: 0, y: 0 },
-    orderOffset = 0
+    orderOffset = 0,
+    styleRanges?: StructuredTextStyleRange[]
   ): StructuredNode => ({
     id: createStructuredNodeId(),
     type: "text",
@@ -144,17 +151,22 @@ export const buildStructuredTemplateNodes = (
     position: { x: position.x + offset.x, y: position.y + offset.y },
     text,
     style: textStyle,
+    ...(styleRanges ? { styleRanges } : {}),
   });
   const createBg = (
     width: number,
     colorIndex: number,
-    orderOffset = 0
+    orderOffset = 0,
+    offset: Point = { x: 0, y: 0 }
   ): StructuredNode => ({
     id: createStructuredNodeId(),
     type: "bg",
     order: options.startOrder + orderOffset,
-    start: { x: position.x, y: position.y },
-    end: { x: position.x + width - 1, y: position.y },
+    start: { x: position.x + offset.x, y: position.y + offset.y },
+    end: {
+      x: position.x + offset.x + width - 1,
+      y: position.y + offset.y,
+    },
     style: {
       color: STRUCTURED_TEMPLATE_TEXT_COLOR,
       bgColor: getTemplateBgColor(colorIndex),
@@ -179,17 +191,27 @@ export const buildStructuredTemplateNodes = (
 
   switch (templateId) {
     case "button":
-      return [createBg(8, 0), createText("BUTTON", { x: 1, y: 0 }, 1)];
+      return [createBg(8, 0), createText("[BUTTON]", { x: 0, y: 0 }, 1)];
     case "label":
       return [createText("Label")];
     case "badge":
       return [createBg(8, 1), createText("STATUS", { x: 1, y: 0 }, 1)];
     case "input":
-      return [createBox(14, 3), createText("Enter text", { x: 2, y: 1 }, 1)];
+      return [
+        createBg(20, 0, 0, { x: 6, y: 0 }),
+        createText("Name: [ Ascii-Canvas |   ]", { x: 0, y: 0 }, 1),
+      ];
     case "checkbox":
-      return [createText("[ ] Label")];
+      return [
+        createText("󰱒 checkbox 1"),
+        createText("󰄱 checkbox 2", { x: 0, y: 1 }, 1),
+      ];
     case "radio":
-      return [createText("( ) Option")];
+      return [
+        createText("󰄰 radio 1"),
+        createText("󰄳 radio 2", { x: 0, y: 1 }, 1),
+        createText("󰄰 radio 3", { x: 0, y: 2 }, 2),
+      ];
     case "divider":
       return [
         {
@@ -253,8 +275,10 @@ export const buildStructuredTemplatePreview = (
   let maxY = 0;
   nodes.forEach((node) => {
     if (node.type === "text") {
-      maxX = Math.max(maxX, node.position.x + node.text.length - 1);
-      maxY = Math.max(maxY, node.position.y);
+      node.text.split("\n").forEach((line, rowIndex) => {
+        maxX = Math.max(maxX, node.position.x + Array.from(line).length - 1);
+        maxY = Math.max(maxY, node.position.y + rowIndex);
+      });
       return;
     }
     maxX = Math.max(maxX, node.start.x, node.end.x);
@@ -294,15 +318,26 @@ export const buildStructuredTemplatePreview = (
       }
 
       if (node.type === "text") {
-        Array.from(node.text).forEach((char, index) => {
-          const x = node.position.x + index;
-          const y = node.position.y;
-          if (!rows[y]?.[x]) return;
-          rows[y][x] = {
-            ...rows[y][x],
-            char,
-            color: node.style?.color ?? STRUCTURED_TEMPLATE_TEXT_COLOR,
-          };
+        let textOffset = 0;
+        node.text.split("\n").forEach((line, rowIndex) => {
+          Array.from(line).forEach((char, index) => {
+            const x = node.position.x + index;
+            const y = node.position.y + rowIndex;
+            if (!rows[y]?.[x]) return;
+            const style = mergeStructuredTextStyle(
+              node.style,
+              node.styleRanges,
+              textOffset
+            );
+            rows[y][x] = {
+              ...rows[y][x],
+              char,
+              color: style.color ?? STRUCTURED_TEMPLATE_TEXT_COLOR,
+              bgColor: style.bgColor ?? rows[y][x].bgColor,
+            };
+            textOffset += 1;
+          });
+          if (rowIndex < node.text.split("\n").length - 1) textOffset += 1;
         });
         return;
       }

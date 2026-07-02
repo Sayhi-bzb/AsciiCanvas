@@ -29,6 +29,7 @@ export type ToolbarActionId =
   | "text"
   | "brush"
   | "shape-group"
+  | "bg"
   | "fill"
   | "eraser"
   | "undo"

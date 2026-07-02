@@ -326,7 +326,7 @@ describe("AsciiCanvas focus management", () => {
     });
 
     const preview = screen.getByTestId("structured-template-preview");
-    expect(preview.textContent).toBe(" BUTTON ");
+    expect(preview.textContent).toBe("[BUTTON]");
     expect(preview).toHaveStyle({
       left: "18px",
       top: "38px",
@@ -357,8 +357,8 @@ describe("AsciiCanvas focus management", () => {
     });
     expect(state.structuredScene[1]).toMatchObject({
       type: "text",
-      position: { x: 3, y: 2 },
-      text: "BUTTON",
+      position: { x: 2, y: 2 },
+      text: "[BUTTON]",
       style: { color: "#000000" },
     });
     expect(state.selectedStructuredNodeIds).toEqual(

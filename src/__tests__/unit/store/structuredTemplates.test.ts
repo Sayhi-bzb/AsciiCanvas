@@ -63,8 +63,8 @@ describe("structuredTemplates", () => {
     expect(nodes[1]).toMatchObject({
       type: "text",
       order: 11,
-      position: { x: 5, y: 7 },
-      text: "BUTTON",
+      position: { x: 4, y: 7 },
+      text: "[BUTTON]",
       style: { color: "#000000" },
     });
   });
@@ -76,14 +76,40 @@ describe("structuredTemplates", () => {
       text: "Label",
       style: { color: "#000000" },
     });
-    expect(build("checkbox")[0]).toMatchObject({
-      type: "text",
-      text: "[ ] Label",
-    });
-    expect(build("radio")[0]).toMatchObject({
-      type: "text",
-      text: "( ) Option",
-    });
+    expect(build("checkbox")).toMatchObject([
+      {
+        type: "text",
+        order: 10,
+        position: { x: 4, y: 7 },
+        text: "󰱒 checkbox 1",
+      },
+      {
+        type: "text",
+        order: 11,
+        position: { x: 4, y: 8 },
+        text: "󰄱 checkbox 2",
+      },
+    ]);
+    expect(build("radio")).toMatchObject([
+      {
+        type: "text",
+        order: 10,
+        position: { x: 4, y: 7 },
+        text: "󰄰 radio 1",
+      },
+      {
+        type: "text",
+        order: 11,
+        position: { x: 4, y: 8 },
+        text: "󰄳 radio 2",
+      },
+      {
+        type: "text",
+        order: 12,
+        position: { x: 4, y: 9 },
+        text: "󰄰 radio 3",
+      },
+    ]);
     expect(build("link")[0]).toMatchObject({
       type: "text",
       text: "Link ->",
@@ -114,15 +140,16 @@ describe("structuredTemplates", () => {
   it("builds input, divider, and card layout templates", () => {
     expect(build("input")).toMatchObject([
       {
-        type: "box",
-        start: { x: 4, y: 7 },
-        end: { x: 17, y: 9 },
-        style: { color: "#000000" },
+        type: "bg",
+        start: { x: 10, y: 7 },
+        end: { x: 29, y: 7 },
+        style: { color: "#000000", bgColor: "#dbeafe" },
       },
       {
         type: "text",
-        position: { x: 6, y: 8 },
-        text: "Enter text",
+        position: { x: 4, y: 7 },
+        text: "Name: [ Ascii-Canvas |   ]",
+        style: { color: "#000000" },
       },
     ]);
     expect(build("divider")[0]).toMatchObject({
@@ -225,10 +252,43 @@ describe("structuredTemplates", () => {
     const buttonPreview = buildStructuredTemplatePreview("button");
     expect(buttonPreview).toMatchObject({ width: 8, height: 1 });
     expect(buttonPreview.rows[0].map((cell) => cell.char).join("")).toBe(
-      " BUTTON "
+      "[BUTTON]"
     );
     expect(buttonPreview.rows[0].every((cell) => cell.bgColor === "#dbeafe")).toBe(
       true
+    );
+
+    const inputPreview = buildStructuredTemplatePreview("input");
+    expect(inputPreview).toMatchObject({ width: 26, height: 1 });
+    expect(inputPreview.rows[0].map((cell) => cell.char).join("")).toBe(
+      "Name: [ Ascii-Canvas |   ]"
+    );
+    expect(inputPreview.rows[0].slice(0, 6).some((cell) => cell.bgColor)).toBe(
+      false
+    );
+    expect(
+      inputPreview.rows[0].slice(6, 26).every((cell) => cell.bgColor === "#dbeafe")
+    ).toBe(true);
+
+    const checkboxPreview = buildStructuredTemplatePreview("checkbox");
+    expect(checkboxPreview).toMatchObject({ width: 12, height: 2 });
+    expect(checkboxPreview.rows[0].map((cell) => cell.char).join("")).toBe(
+      "󰱒 checkbox 1"
+    );
+    expect(checkboxPreview.rows[1].map((cell) => cell.char).join("")).toBe(
+      "󰄱 checkbox 2"
+    );
+
+    const radioPreview = buildStructuredTemplatePreview("radio");
+    expect(radioPreview).toMatchObject({ width: 9, height: 3 });
+    expect(radioPreview.rows[0].map((cell) => cell.char).join("")).toBe(
+      "󰄰 radio 1"
+    );
+    expect(radioPreview.rows[1].map((cell) => cell.char).join("")).toBe(
+      "󰄳 radio 2"
+    );
+    expect(radioPreview.rows[2].map((cell) => cell.char).join("")).toBe(
+      "󰄰 radio 3"
     );
 
     const cardPreview = buildStructuredTemplatePreview("card");

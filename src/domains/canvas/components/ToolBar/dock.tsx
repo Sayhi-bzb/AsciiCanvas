@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import {
   Square,
-  SquareStack,
   Minus,
   LineSquiggle,
   Circle as CircleIcon,
@@ -55,6 +54,23 @@ const submenuOptionClass = (active: boolean) =>
       : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
   );
 
+const FREEFORM_ACTION_ORDER: ToolbarActionId[] = [
+  "select",
+  "shape-group",
+  "bg",
+  "fill",
+  "undo",
+  "color",
+];
+
+const STRUCTURED_ACTION_ORDER: ToolbarActionId[] = [
+  "select",
+  "shape-group",
+  "bg",
+  "undo",
+  "color",
+];
+
 export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
   const {
     brushChar,
@@ -96,8 +112,6 @@ export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
         return { icon: CircleIcon, label: "Circle" };
       case "line":
         return { icon: Minus, label: "Line" };
-      case "bg":
-        return { icon: SquareStack, label: "Background" };
       case "stepline":
         return { icon: LineSquiggle, label: "Curve" };
       default:
@@ -117,21 +131,27 @@ export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
     }
     if (canvasMode === "structured" && tool === "text") {
       setTool("select");
+      return;
+    }
+    if (canvasMode === "freeform" && (tool === "brush" || tool === "eraser")) {
+      setTool("select");
     }
   }, [canvasMode, isMobile, setTool, tool]);
 
   const visibleActionOrder = useMemo<ToolbarActionId[]>(() => {
     const baseOrder =
       canvasMode === "structured"
-        ? (["select", "shape-group", "undo", "color"] as ToolbarActionId[])
-        : TOOLBAR_ACTION_ORDER;
+        ? STRUCTURED_ACTION_ORDER
+        : canvasMode === "freeform"
+          ? FREEFORM_ACTION_ORDER
+          : TOOLBAR_ACTION_ORDER;
 
     if (!isMobile || canvasMode === "animation") return baseOrder;
     return ["pan", ...baseOrder];
   }, [canvasMode, isMobile]);
 
   const structuredShapeTools = useMemo<ToolType[]>(() => {
-    if (canvasMode === "structured") return ["box", "line", "bg"];
+    if (canvasMode === "structured") return ["box", "line"];
     if (canvasMode === "animation") return ["box", "circle", "line", "stepline"];
     return SHAPE_TOOLS;
   }, [canvasMode]);

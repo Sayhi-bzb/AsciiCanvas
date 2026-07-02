@@ -338,30 +338,34 @@ export const useCanvasRenderer = (
         renderedSelections.forEach(drawSel);
         if (draggingSelection) drawSel(draggingSelection);
 
+        const drawActiveCellFocus = (point: Point) => {
+          const pos = gridCellRect(point, { offset, zoom });
+          uiCtx.save();
+          uiCtx.fillStyle = "rgba(37, 99, 235, 0.12)";
+          uiCtx.strokeStyle = "#2563eb";
+          uiCtx.lineWidth = Math.max(1, Math.round(1.5 * zoom));
+          uiCtx.fillRect(
+            Math.round(pos.x),
+            Math.round(pos.y),
+            Math.round(pos.width),
+            Math.round(pos.height)
+          );
+          uiCtx.strokeRect(
+            Math.round(pos.x),
+            Math.round(pos.y),
+            Math.round(pos.width),
+            Math.round(pos.height)
+          );
+          uiCtx.restore();
+        };
+
         if (canvasMode === "structured") {
           if (
             structuredGridFocus &&
             !editingStructuredTextNodeId &&
             selectedStructuredNodeIds.length === 0
           ) {
-            const pos = gridCellRect(structuredGridFocus, { offset, zoom });
-            uiCtx.save();
-            uiCtx.fillStyle = "rgba(37, 99, 235, 0.12)";
-            uiCtx.strokeStyle = "#2563eb";
-            uiCtx.lineWidth = Math.max(1, Math.round(1.5 * zoom));
-            uiCtx.fillRect(
-              Math.round(pos.x),
-              Math.round(pos.y),
-              Math.round(pos.width),
-              Math.round(pos.height)
-            );
-            uiCtx.strokeRect(
-              Math.round(pos.x),
-              Math.round(pos.y),
-              Math.round(pos.width),
-              Math.round(pos.height)
-            );
-            uiCtx.restore();
+            drawActiveCellFocus(structuredGridFocus);
           }
 
           const selectionRange = getStructuredTextSelectionRange(
@@ -474,7 +478,9 @@ export const useCanvasRenderer = (
 
         if (renderedTextCursor) {
           const pos = gridCellRect(renderedTextCursor, { offset, zoom });
-          if (canvasMode === "structured" && editingStructuredTextNodeId) {
+          if (canvasMode === "freeform") {
+            drawActiveCellFocus(renderedTextCursor);
+          } else if (canvasMode === "structured" && editingStructuredTextNodeId) {
             uiCtx.fillStyle = COLOR_TEXT_CURSOR_BG;
             uiCtx.fillRect(
               Math.round(pos.x),

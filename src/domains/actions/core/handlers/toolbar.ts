@@ -29,6 +29,7 @@ export const resolveActiveToolbarAction = (
     tool === "text" ||
     tool === "brush" ||
     tool === "eraser" ||
+    tool === "bg" ||
     tool === "fill"
   ) {
     return tool;
@@ -66,6 +67,11 @@ export const toolbarHandlers: Record<
       ? options.tool
       : options.lastUsedShape;
     context.setTool(newTool);
+    return actionSucceeded();
+  },
+
+  bg: (_options, context): ActionResult => {
+    context.setTool("bg");
     return actionSucceeded();
   },
 
