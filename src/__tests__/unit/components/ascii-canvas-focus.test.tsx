@@ -188,6 +188,37 @@ describe("AsciiCanvas focus management", () => {
     ]);
     expect(useCanvasStore.getState().selectedStructuredNodeIds).toEqual(["box-1"]);
   });
+
+  it("renders structured layer actions behind a Layer context submenu", async () => {
+    useCanvasStore.setState({
+      canvasMode: "structured",
+      textCursor: null,
+      selections: [],
+      selectedStructuredNodeIds: ["box-1"],
+      selectedStructuredBoxId: "box-1",
+      structuredScene: [
+        {
+          id: "box-1",
+          type: "box",
+          order: 1,
+          start: { x: 0, y: 0 },
+          end: { x: 4, y: 4 },
+          style: { color: "#ffffff" },
+        },
+      ],
+    });
+
+    const { container } = render(
+      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+    );
+    const root = container.firstElementChild as HTMLDivElement;
+
+    fireEvent.contextMenu(root);
+
+    expect(await screen.findByText("Layer")).toBeInTheDocument();
+    expect(screen.queryByText("Bring Forward")).not.toBeInTheDocument();
+    expect(screen.queryByText("Send Backward")).not.toBeInTheDocument();
+  });
   it("pans the viewport for ctrl arrow keys without moving the static active cell", () => {
     useCanvasStore.setState({
       canvasMode: "freeform",

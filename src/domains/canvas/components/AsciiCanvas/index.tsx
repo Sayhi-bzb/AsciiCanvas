@@ -14,6 +14,9 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
   ContextMenuShortcut,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
 } from '@/shared/ui/context-menu';
 import {
   ACTION_CATALOG,
@@ -46,6 +49,7 @@ import { useShallow } from 'zustand/react/shallow';
 import type { CanvasLinkHit } from './hooks/linkHitTesting';
 import type { Point } from '@/shared/types';
 import { FONT_SIZE } from '@/shared/lib/constants';
+import type { ContextMenuEntry } from '@/domains/actions/core/types';
 
 const KEYBOARD_PAN_STEP = 48;
 
@@ -299,6 +303,57 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
     : null;
   const activeContextMenu =
     canvasMode === 'structured' ? STRUCTURED_CONTEXT_MENU : CANVAS_CONTEXT_MENU;
+  const renderContextMenuEntry = (entry: ContextMenuEntry, index: number) => {
+    if (entry.type === 'separator') {
+      return <ContextMenuSeparator key={`sep-${index}`} />;
+    }
+
+    if (entry.type === 'submenu') {
+      const Icon = entry.icon;
+      const hasEnabledChild = entry.children.some(
+        (child) => child.type === 'action' && canRunAction(child.id, useCanvasStore.getState())
+      );
+
+      return (
+        <ContextMenuSub key={`sub-${entry.label}-${index}`}>
+          <ContextMenuSubTrigger disabled={!hasEnabledChild}>
+            {Icon && <Icon className="mr-2 size-4" />}
+            <span>{entry.label}</span>
+          </ContextMenuSubTrigger>
+          <ContextMenuSubContent>
+            {entry.children.map((child, childIndex) =>
+              renderContextMenuEntry(child, childIndex)
+            )}
+          </ContextMenuSubContent>
+        </ContextMenuSub>
+      );
+    }
+
+    const meta = ACTION_CATALOG[entry.id];
+    const Icon = meta.icon;
+    const disabled = !canRunAction(entry.id, useCanvasStore.getState());
+    const shortcutLabel = getActionShortcutLabel(entry.id);
+
+    return (
+      <ContextMenuItem
+        key={entry.id}
+        onClick={() =>
+          runAction(entry.id, {
+            source: 'context-menu',
+            managedTextarea: textareaRef.current,
+          })
+        }
+        variant={meta.destructive ? 'destructive' : 'default'}
+        disabled={disabled}
+      >
+        {Icon && <Icon className="mr-2 size-4" />}
+        <span>{meta.label}</span>
+        {shortcutLabel && (
+          <ContextMenuShortcut>{shortcutLabel}</ContextMenuShortcut>
+        )}
+      </ContextMenuItem>
+    );
+  };
   useLayoutEffect(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
@@ -680,36 +735,9 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
       </ContextMenuTrigger>
 
       <ContextMenuContent className="w-56">
-        {activeContextMenu.map((entry, index) => {
-          if (entry.type === 'separator') {
-            return <ContextMenuSeparator key={`sep-${index}`} />;
-          }
-
-          const meta = ACTION_CATALOG[entry.id];
-          const Icon = meta.icon;
-          const disabled = !canRunAction(entry.id, useCanvasStore.getState());
-          const shortcutLabel = getActionShortcutLabel(entry.id);
-
-          return (
-            <ContextMenuItem
-              key={entry.id}
-              onClick={() =>
-                runAction(entry.id, {
-                  source: 'context-menu',
-                  managedTextarea: textareaRef.current,
-                })
-              }
-              variant={meta.destructive ? 'destructive' : 'default'}
-              disabled={disabled}
-            >
-              {Icon && <Icon className="mr-2 size-4" />}
-              <span>{meta.label}</span>
-              {shortcutLabel && (
-                <ContextMenuShortcut>{shortcutLabel}</ContextMenuShortcut>
-              )}
-            </ContextMenuItem>
-          );
-        })}
+        {activeContextMenu.map((entry, index) =>
+          renderContextMenuEntry(entry, index)
+        )}
       </ContextMenuContent>
     </ContextMenu>
   );

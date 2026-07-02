@@ -90,4 +90,10 @@ export type ActionChecker = (state: CanvasState) => boolean;
 // Context Menu Entry
 export type ContextMenuEntry =
   | { type: "action"; id: EditorActionId }
-  | { type: "separator" };
+  | { type: "separator" }
+  | {
+      type: "submenu";
+      label: string;
+      icon?: ComponentType<{ className?: string }>;
+      children: ContextMenuEntry[];
+    };

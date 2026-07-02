@@ -7,6 +7,7 @@ import {
   Hand,
   Highlighter,
   Image,
+  Layers,
   LineSquiggle,
   MousePointer2,
   PaintbrushVertical,
@@ -46,7 +47,7 @@ export const EDITOR_ACTION_META: Record<EditorActionId, ActionMeta> = {
   },
   "delete-selection": {
     id: "delete-selection",
-    label: "Demolish (Delete)",
+    label: "Delete",
     shortcut: "⌫",
     icon: Trash2,
     destructive: true,
@@ -133,10 +134,8 @@ export const ACTION_CATALOG: Record<string, ActionMeta> = {
 // Context Menu Configuration
 export const CANVAS_CONTEXT_MENU: ContextMenuEntry[] = [
   { type: "action", id: "copy" },
-  { type: "action", id: "copy-rich" },
   { type: "action", id: "copy-ansi" },
   { type: "action", id: "snapshot-png" },
-  { type: "action", id: "cut" },
   { type: "action", id: "paste" },
   { type: "separator" },
   { type: "action", id: "delete-selection" },
@@ -146,10 +145,17 @@ export const CANVAS_CONTEXT_MENU: ContextMenuEntry[] = [
 export const STRUCTURED_CONTEXT_MENU: ContextMenuEntry[] = [
   { type: "action", id: "structured-rename" },
   { type: "separator" },
-  { type: "action", id: "structured-bring-forward" },
-  { type: "action", id: "structured-send-backward" },
-  { type: "action", id: "structured-bring-to-front" },
-  { type: "action", id: "structured-send-to-back" },
+  {
+    type: "submenu",
+    label: "Layer",
+    icon: Layers,
+    children: [
+      { type: "action", id: "structured-bring-forward" },
+      { type: "action", id: "structured-send-backward" },
+      { type: "action", id: "structured-bring-to-front" },
+      { type: "action", id: "structured-send-to-back" },
+    ],
+  },
   { type: "separator" },
   { type: "action", id: "structured-duplicate" },
   { type: "action", id: "structured-copy-hierarchy" },
