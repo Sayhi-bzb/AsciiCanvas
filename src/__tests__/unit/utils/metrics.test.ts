@@ -1,6 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_GRID_RENDER_METRICS,
+  drawCellBackground,
+  drawCellText,
   getCellOccupancy,
   getTextCellWidth,
   gridCellRect,
@@ -63,6 +65,59 @@ describe("metrics", () => {
         width: DEFAULT_GRID_RENDER_METRICS.cellWidth * 1.5,
         height: DEFAULT_GRID_RENDER_METRICS.cellHeight * 1.5,
       });
+    });
+  });
+
+  describe("cell rendering passes", () => {
+    const createContext = () =>
+      ({
+        save: vi.fn(),
+        restore: vi.fn(),
+        fillRect: vi.fn(),
+        fillText: vi.fn(),
+        beginPath: vi.fn(),
+        moveTo: vi.fn(),
+        lineTo: vi.fn(),
+        stroke: vi.fn(),
+        set fillStyle(_value: string) {},
+        set font(_value: string) {},
+        set textBaseline(_value: CanvasTextBaseline) {},
+        set textAlign(_value: CanvasTextAlign) {},
+        set strokeStyle(_value: string) {},
+        set lineWidth(_value: number) {},
+      }) as unknown as CanvasRenderingContext2D;
+
+    it("keeps background drawing separate from glyph drawing", () => {
+      const ctx = createContext();
+      const cell = { char: "\ue0b0", color: "#111111", bgColor: "#eeeeee" };
+
+      drawCellBackground(ctx, cell, 0, 0);
+      drawCellText(ctx, cell, 0, 0);
+
+      expect(ctx.fillRect).toHaveBeenCalledTimes(1);
+      expect(ctx.fillText).toHaveBeenCalledTimes(1);
+      expect(ctx.fillRect).toHaveBeenCalledWith(
+        0,
+        0,
+        DEFAULT_GRID_RENDER_METRICS.cellWidth,
+        DEFAULT_GRID_RENDER_METRICS.cellHeight
+      );
+    });
+
+    it("draws text decorations in the text pass without repainting background", () => {
+      const ctx = createContext();
+      const cell = {
+        char: "A",
+        color: "#111111",
+        bgColor: "#eeeeee",
+        attrs: { underline: true, strike: true } as const,
+      };
+
+      drawCellText(ctx, cell, 0, 0);
+
+      expect(ctx.fillRect).not.toHaveBeenCalled();
+      expect(ctx.fillText).toHaveBeenCalledTimes(1);
+      expect(ctx.stroke).toHaveBeenCalledTimes(2);
     });
   });
 });

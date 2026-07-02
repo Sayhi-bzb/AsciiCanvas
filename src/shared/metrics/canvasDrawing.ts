@@ -83,7 +83,6 @@ export const drawTextCell = (
   const zoom = options?.zoom ?? 1;
   const metrics = options?.metrics ?? DEFAULT_GRID_RENDER_METRICS;
   const style = effectiveCellStyle(cell);
-  const anchor = getTextCellAnchor(x, y, cell.char, zoom, metrics);
   const cellWidth = metrics.cellWidth * zoom;
   const cellHeight = metrics.cellHeight * zoom;
   const cellPixelWidth = cellWidth * getCellOccupancy(cell.char);
@@ -92,6 +91,51 @@ export const drawTextCell = (
     ctx.fillStyle = style.bgColor;
     ctx.fillRect(x, y, cellPixelWidth, cellHeight);
   }
+
+  drawCellText(ctx, cell, x, y, options);
+};
+
+export const drawCellBackground = (
+  ctx: CanvasRenderingContext2D,
+  cell: GridCell,
+  x: number,
+  y: number,
+  options?: {
+    zoom?: number;
+    metrics?: GridRenderMetrics;
+  }
+) => {
+  const zoom = options?.zoom ?? 1;
+  const metrics = options?.metrics ?? DEFAULT_GRID_RENDER_METRICS;
+  const style = effectiveCellStyle(cell);
+  if (!style.bgColor) return;
+
+  const cellWidth = metrics.cellWidth * zoom;
+  const cellHeight = metrics.cellHeight * zoom;
+  const cellPixelWidth = cellWidth * getCellOccupancy(cell.char);
+  ctx.fillStyle = style.bgColor;
+  ctx.fillRect(x, y, cellPixelWidth, cellHeight);
+};
+
+export const drawCellText = (
+  ctx: CanvasRenderingContext2D,
+  cell: GridCell,
+  x: number,
+  y: number,
+  options?: {
+    color?: string;
+    underline?: boolean;
+    zoom?: number;
+    metrics?: GridRenderMetrics;
+  }
+) => {
+  const zoom = options?.zoom ?? 1;
+  const metrics = options?.metrics ?? DEFAULT_GRID_RENDER_METRICS;
+  const style = effectiveCellStyle(cell);
+  const anchor = getTextCellAnchor(x, y, cell.char, zoom, metrics);
+  const cellWidth = metrics.cellWidth * zoom;
+  const cellHeight = metrics.cellHeight * zoom;
+  const cellPixelWidth = cellWidth * getCellOccupancy(cell.char);
 
   ctx.save();
   ctx.font = getCanvasFont(metrics, zoom, {

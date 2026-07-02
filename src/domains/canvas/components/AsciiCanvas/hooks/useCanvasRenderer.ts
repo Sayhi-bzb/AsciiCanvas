@@ -16,6 +16,8 @@ import { createMapFromEntries } from "@/domains/canvas/state/helpers/snapshotHel
 import { getAnimationFrameIndex } from "@/domains/canvas/state/helpers/animationHelpers";
 import {
   DEFAULT_GRID_RENDER_METRICS,
+  drawCellBackground,
+  drawCellText,
   drawGridLines,
   drawTextCell,
   getCellOccupancy,
@@ -205,7 +207,19 @@ export const useCanvasRenderer = (
         if (cell.char === " " && !style.bgColor && !style.attrs) continue;
 
         const pos = GridManager.gridToScreen(x, y, offset.x, offset.y, zoom);
-        drawTextCell(ctx, cell, pos.x, pos.y, {
+        drawCellBackground(ctx, cell, pos.x, pos.y, { zoom });
+      }
+    }
+
+    for (let y = viewBounds.startY; y <= viewBounds.endY; y++) {
+      for (let x = viewBounds.startX; x <= viewBounds.endX; x++) {
+        const cell = targetGrid.get(GridManager.toKey(x, y));
+        if (!cell) continue;
+        const style = effectiveCellStyle(cell);
+        if (cell.char === " " && !style.attrs) continue;
+
+        const pos = GridManager.gridToScreen(x, y, offset.x, offset.y, zoom);
+        drawCellText(ctx, cell, pos.x, pos.y, {
           zoom,
           underline:
             !!cell.href &&
