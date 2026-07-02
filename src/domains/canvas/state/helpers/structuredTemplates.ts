@@ -8,6 +8,7 @@ import { getSplitBoxPoints } from "@/shared/utils/shapes";
 import {
   createStructuredComponentFactory,
   STRUCTURED_COMPONENTS,
+  STRUCTURED_PAGE_TEMPLATE_COMPONENTS,
   STRUCTURED_TEMPLATE_FALLBACK_COLORS,
   STRUCTURED_TEMPLATE_TEXT_COLOR,
   type StructuredTemplateBuildOptions,
@@ -24,13 +25,26 @@ export {
 export const STRUCTURED_TEMPLATE_MIME =
   "application/x-ascii-canvas-structured-template";
 
-export const STRUCTURED_TEMPLATES: Array<{
+export type StructuredTemplateListItem = {
   id: StructuredTemplateId;
   label: string;
-}> = STRUCTURED_COMPONENTS.map(({ id, label }) => ({ id, label }));
+};
+
+export const STRUCTURED_COMPONENT_TEMPLATES: StructuredTemplateListItem[] =
+  STRUCTURED_COMPONENTS.map(({ id, label }) => ({ id, label }));
+
+export const STRUCTURED_PAGE_TEMPLATES: StructuredTemplateListItem[] =
+  STRUCTURED_PAGE_TEMPLATE_COMPONENTS.map(({ id, label }) => ({ id, label }));
+
+export const STRUCTURED_TEMPLATES: StructuredTemplateListItem[] = [
+  ...STRUCTURED_COMPONENT_TEMPLATES,
+  ...STRUCTURED_PAGE_TEMPLATES,
+];
 
 const STRUCTURED_COMPONENT_BY_ID = new Map(
-  STRUCTURED_COMPONENTS.map((component) => [component.id, component])
+  [...STRUCTURED_COMPONENTS, ...STRUCTURED_PAGE_TEMPLATE_COMPONENTS].map(
+    (component) => [component.id, component]
+  )
 );
 
 let activeStructuredTemplateDragId: StructuredTemplateId | null = null;

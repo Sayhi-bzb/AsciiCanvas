@@ -16,6 +16,7 @@ export type StructuredTemplateId =
   | "radio"
   | "divider"
   | "card"
+  | "safari"
   | "textarea"
   | "status"
   | "accordion"

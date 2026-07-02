@@ -5,6 +5,7 @@ import {
   shouldIgnoreEditorCommandByFocus,
 } from "@/domains/actions/input-arbiter";
 import { getFirstGrapheme } from "@/shared/utils/characters";
+import { getStructuredTextSelectionRange } from "@/shared/utils/structuredTextRanges";
 
 type EditorCommand = Extract<
   ActionId,
@@ -65,8 +66,11 @@ export const runEditorCommand = (
       return true;
     case "cut":
       if (state.canvasMode === "structured") {
+        const hasStructuredTextSelection = !!getStructuredTextSelectionRange(
+          state.structuredTextSelection
+        );
         void state.cutSelection({ event: options.clipboardEvent });
-        return false;
+        return hasStructuredTextSelection;
       }
       if (!state.canCopyOrCut()) return false;
       void state.cutSelection({ event: options.clipboardEvent });
@@ -76,7 +80,7 @@ export const runEditorCommand = (
         void state.pasteFromClipboard({
           eventDataTransfer: options.clipboardEvent?.clipboardData || undefined,
         });
-        return false;
+        return true;
       }
       void state.pasteFromClipboard({
         eventDataTransfer: options.clipboardEvent?.clipboardData || undefined,

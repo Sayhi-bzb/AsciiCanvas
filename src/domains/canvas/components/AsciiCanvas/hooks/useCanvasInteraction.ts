@@ -10,6 +10,7 @@ import { isCtrlOrMeta } from "@/shared/utils/event";
 import { MIN_ZOOM, MAX_ZOOM } from "@/shared/lib/constants";
 import { getCellOccupancy, gridCellRect } from "@/shared/metrics";
 import { getStructuredNodeBounds, sceneToGridEntries } from "@/shared/utils/structured";
+import { getSplitBoxPoints } from "@/shared/utils/shapes";
 import { createMapFromEntries } from "@/domains/canvas/state/helpers/snapshotHelpers";
 import {
   clampPointToBounds,
@@ -72,6 +73,26 @@ const isSelectionTool = (
 ) => {
   if (canvasMode === "structured") return tool === "select";
   return tool === "select" || tool === "fill";
+};
+
+const createStructuredSplitBoxGrid = (
+  node: Extract<StructuredNode, { type: "splitBox" }>
+) => {
+  const grid = new Map<string, GridCell>();
+  getSplitBoxPoints(node.start, node.end, {
+    verticalSplitRatio: node.verticalSplitRatio,
+    topSplitRatio: node.topSplitRatio,
+    bottomSplitRatio: node.bottomSplitRatio,
+    root: node.root,
+  }).forEach((point) => {
+    grid.set(GridManager.toKey(point.x, point.y), {
+      char: point.char,
+      color: node.style.color,
+      bgColor: node.style.bgColor,
+      attrs: node.style.attrs,
+    });
+  });
+  return grid;
 };
 
 const isFromMinimap = (event: Event | undefined) => {
@@ -422,6 +443,17 @@ export const useCanvasInteraction = (
     scene: StructuredNode[];
   } | null>(null);
   const queuedStructuredMoveRafRef = useRef<number | null>(null);
+  const queuedStructuredSplitBoxResizeRef = useRef<{
+    drag: NonNullable<typeof structuredNodeDragRef.current>;
+    point: Point;
+    scene: StructuredNode[];
+  } | null>(null);
+  const lastStructuredSplitBoxResizeRef = useRef<{
+    drag: NonNullable<typeof structuredNodeDragRef.current>;
+    point: Point;
+    scene: StructuredNode[];
+  } | null>(null);
+  const queuedStructuredSplitBoxResizeRafRef = useRef<number | null>(null);
   const structuredTextSelectionStartRef = useRef<{
     nodeId: string;
     offset: number;
@@ -468,6 +500,7 @@ export const useCanvasInteraction = (
     lineAxisRef.current = null;
     structuredNodeDragRef.current = null;
     lastStructuredMoveRef.current = null;
+    lastStructuredSplitBoxResizeRef.current = null;
     clearStructuredMovePreview();
     structuredTextSelectionStartRef.current = null;
     interactionModeRef.current = "idle";
@@ -647,6 +680,57 @@ export const useCanvasInteraction = (
     });
   };
 
+  const flushQueuedStructuredSplitBoxResize = (commit = false) => {
+    if (queuedStructuredSplitBoxResizeRafRef.current !== null) {
+      window.cancelAnimationFrame(queuedStructuredSplitBoxResizeRafRef.current);
+      queuedStructuredSplitBoxResizeRafRef.current = null;
+    }
+    const queued =
+      queuedStructuredSplitBoxResizeRef.current ??
+      (commit ? lastStructuredSplitBoxResizeRef.current : null);
+    if (!queued) return;
+    queuedStructuredSplitBoxResizeRef.current = null;
+    lastStructuredSplitBoxResizeRef.current = queued;
+    const { drag, point, scene } = queued;
+    if (drag.node.type !== "splitBox" || !drag.handle) return;
+
+    const resizedNode = resizeStructuredSplitBox(
+      drag.node,
+      drag.handle as StructuredSplitBoxHandle,
+      point
+    );
+
+    if (commit) {
+      const nextScene = scene.map((node) =>
+        node.id === resizedNode.id ? resizedNode : node
+      );
+      applyStructuredScene(nextScene, true);
+      clearStructuredMovePreview();
+      return;
+    }
+
+    setStructuredMovePreview({
+      baseScene: drag.baseScene,
+      movingNodes: [resizedNode],
+      baseGrid: drag.baseGrid,
+      movingGrid: createStructuredSplitBoxGrid(resizedNode),
+    });
+  };
+
+  const queueStructuredSplitBoxResize = (
+    drag: NonNullable<typeof structuredNodeDragRef.current>,
+    point: Point,
+    scene: StructuredNode[]
+  ) => {
+    queuedStructuredSplitBoxResizeRef.current = { drag, point, scene };
+    lastStructuredSplitBoxResizeRef.current = queuedStructuredSplitBoxResizeRef.current;
+    if (queuedStructuredSplitBoxResizeRafRef.current !== null) return;
+    queuedStructuredSplitBoxResizeRafRef.current = window.requestAnimationFrame(() => {
+      queuedStructuredSplitBoxResizeRafRef.current = null;
+      flushQueuedStructuredSplitBoxResize();
+    });
+  };
+
   useEffect(() => {
     const syncModifierState = (event: KeyboardEvent) => {
       updateLinkHover(hoveredLinkCandidateRef.current, event);
@@ -666,6 +750,9 @@ export const useCanvasInteraction = (
       }
       if (queuedZoomRafRef.current !== null) {
         window.cancelAnimationFrame(queuedZoomRafRef.current);
+      }
+      if (queuedStructuredSplitBoxResizeRafRef.current !== null) {
+        window.cancelAnimationFrame(queuedStructuredSplitBoxResizeRafRef.current);
       }
       if (draggingSelectionRafRef.current !== null) {
         window.cancelAnimationFrame(draggingSelectionRafRef.current);
@@ -1161,21 +1248,18 @@ export const useCanvasInteraction = (
               }
               interactionModeRef.current = "structured-splitbox-resizing";
               if (drag?.node.type === "splitBox" && drag.handle) {
-                const node = drag.node;
-                updateStructuredNode(node.id, () =>
-                  resizeStructuredSplitBox(
-                    node,
-                    drag.handle as StructuredSplitBoxHandle,
-                    currentGrid
-                  ),
-                  "merge"
-                );
+                queueStructuredSplitBoxResize(drag, currentGrid, structuredScene);
               }
               break;
             }
             case "structured-splitbox-resizing": {
               const drag = structuredNodeDragRef.current;
               if (drag?.node.type === "splitBox" && drag.handle) {
+                const splitHandle = drag.handle as StructuredSplitBoxHandle;
+                if (isStructuredSplitBoxLineHandle(splitHandle)) {
+                  queueStructuredSplitBoxResize(drag, currentGrid, structuredScene);
+                  break;
+                }
                 const node = drag.node;
                 updateStructuredNode(node.id, () =>
                   resizeStructuredSplitBox(
@@ -1314,10 +1398,22 @@ export const useCanvasInteraction = (
               flushQueuedStructuredMove(true);
               break;
             case "structured-box-resizing":
-            case "structured-splitbox-resizing":
             case "structured-line-resizing":
               forceHistorySave();
               break;
+            case "structured-splitbox-resizing": {
+              const drag = structuredNodeDragRef.current;
+              if (
+                drag?.node.type === "splitBox" &&
+                drag.handle &&
+                isStructuredSplitBoxLineHandle(drag.handle as StructuredSplitBoxHandle)
+              ) {
+                flushQueuedStructuredSplitBoxResize(true);
+              } else {
+                forceHistorySave();
+              }
+              break;
+            }
             default:
               break;
           }

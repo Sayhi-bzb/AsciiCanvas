@@ -10,6 +10,7 @@ import {
   isStructuredSplitBoxLineHandle,
 } from "@/domains/canvas/state/helpers/structuredBoxEditing";
 import { clipboard, feedback } from "@/shared/services/effects";
+import { getStructuredTextSelectionRange } from "@/shared/utils/structuredTextRanges";
 import type { StructuredBoxNode, StructuredTextNode } from "@/shared/types";
 import {
   actionFailed,
@@ -75,6 +76,12 @@ const hasSelectedStructuredDivider = (
   state.canvasMode === "structured" &&
   !!state.selectedStructuredSplitHandle &&
   isStructuredSplitBoxLineHandle(state.selectedStructuredSplitHandle.handle);
+
+const hasStructuredTextSelection = (
+  state: ReturnType<typeof useCanvasStore.getState>
+) =>
+  state.canvasMode === "structured" &&
+  !!getStructuredTextSelectionRange(state.structuredTextSelection);
 
 const isStructuredBoxNode = (node: { type: string }): node is StructuredBoxNode =>
   node.type === "box";
@@ -352,7 +359,9 @@ export const editorCheckers: Partial<Record<EditorActionId, (state: ReturnType<t
   "copy-ansi": (state) =>
     state.canvasMode !== "structured" && state.canCopyOrCut(),
   cut: (state) =>
-    state.canvasMode !== "structured" && state.canCopyOrCut(),
+    state.canvasMode === "structured"
+      ? hasStructuredTextSelection(state)
+      : state.canCopyOrCut(),
   "snapshot-png": (state) => state.selections.length > 0,
   "delete-selection": (state) =>
     state.selections.length > 0 || hasStructuredSelection(state),

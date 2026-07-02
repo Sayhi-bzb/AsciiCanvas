@@ -35,6 +35,17 @@ export const getStructuredTextSelectionRange = (
   };
 };
 
+export const getStructuredTextSlice = (
+  node: StructuredTextNode,
+  start: number,
+  end: number
+) => {
+  const chars = splitGraphemes(node.text);
+  const rangeStart = Math.max(0, Math.min(chars.length, start));
+  const rangeEnd = Math.max(rangeStart, Math.min(chars.length, end));
+  return chars.slice(rangeStart, rangeEnd).join("");
+};
+
 const cloneRangeStyle = (
   style: StructuredTextRangeStyle
 ): StructuredTextRangeStyle => ({
@@ -239,6 +250,96 @@ export const updateStructuredTextStyleRanges = (
   const merged: StructuredTextStyleRange[] = [];
   sorted.forEach((range) => pushRange(merged, range));
   return merged.length > 0 ? merged : undefined;
+};
+
+export const getStructuredTextStyleRangesInRange = (
+  ranges: StructuredTextStyleRange[] | undefined,
+  start: number,
+  end: number
+) => {
+  if (start >= end) return undefined;
+  const next: StructuredTextStyleRange[] = [];
+  ranges?.forEach((range) => {
+    const rangeStart = Math.max(start, range.start);
+    const rangeEnd = Math.min(end, range.end);
+    if (rangeStart >= rangeEnd) return;
+    pushRange(next, {
+      start: rangeStart - start,
+      end: rangeEnd - start,
+      style: cloneRangeStyle(range.style),
+    });
+  });
+  return next.length > 0 ? next : undefined;
+};
+
+export const replaceStructuredTextRange = (
+  node: StructuredTextNode,
+  start: number,
+  end: number,
+  insertText: string,
+  insertStyleRanges?: StructuredTextStyleRange[]
+): StructuredTextNode => {
+  const chars = splitGraphemes(node.text);
+  const rangeStart = Math.max(0, Math.min(chars.length, start));
+  const rangeEnd = Math.max(rangeStart, Math.min(chars.length, end));
+  const insertChars = splitGraphemes(insertText);
+  const insertLength = insertChars.length;
+  const removedLength = rangeEnd - rangeStart;
+  const delta = insertLength - removedLength;
+  const nextText = [
+    ...chars.slice(0, rangeStart),
+    ...insertChars,
+    ...chars.slice(rangeEnd),
+  ].join("");
+
+  const nextRanges: StructuredTextStyleRange[] = [];
+  node.styleRanges?.forEach((range) => {
+    if (range.end <= rangeStart) {
+      pushRange(nextRanges, { ...range, style: cloneRangeStyle(range.style) });
+      return;
+    }
+    if (range.start >= rangeEnd) {
+      pushRange(nextRanges, {
+        start: range.start + delta,
+        end: range.end + delta,
+        style: cloneRangeStyle(range.style),
+      });
+      return;
+    }
+    if (range.start < rangeStart) {
+      pushRange(nextRanges, {
+        start: range.start,
+        end: rangeStart,
+        style: cloneRangeStyle(range.style),
+      });
+    }
+    if (range.end > rangeEnd) {
+      pushRange(nextRanges, {
+        start: rangeStart + insertLength,
+        end: range.end + delta,
+        style: cloneRangeStyle(range.style),
+      });
+    }
+  });
+
+  insertStyleRanges?.forEach((range) => {
+    const rangeStartOffset = Math.max(0, Math.min(insertLength, range.start));
+    const rangeEndOffset = Math.max(rangeStartOffset, Math.min(insertLength, range.end));
+    pushRange(nextRanges, {
+      start: rangeStart + rangeStartOffset,
+      end: rangeStart + rangeEndOffset,
+      style: cloneRangeStyle(range.style),
+    });
+  });
+
+  return {
+    ...node,
+    text: nextText,
+    styleRanges: normalizeStructuredTextStyleRanges(
+      nextRanges,
+      splitGraphemes(nextText).length
+    ),
+  };
 };
 
 export const getStructuredTextOffsetAtPoint = (

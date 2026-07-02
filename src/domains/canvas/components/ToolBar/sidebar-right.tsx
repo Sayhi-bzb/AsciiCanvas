@@ -5,6 +5,10 @@ import { Eye, EyeOff, Github, Target } from "lucide-react";
 import { SidebarHeader, SidebarStandard, SidebarTrigger, useSidebar } from "@/shared/ui/sidebar";
 import { CharLibrary, SearchForm, useLibraryStore } from "@/domains/character-library";
 import { StructuredTemplateLibrary } from "./structured-template-library";
+import {
+  STRUCTURED_COMPONENT_TEMPLATES,
+  STRUCTURED_PAGE_TEMPLATES,
+} from "@/domains/canvas/state/helpers/structuredTemplates";
 import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
 import { SIDEBAR_ACTION_META, runSidebarAction } from "@/domains/actions/core";
 import { cn } from "@/shared/lib/utils";
@@ -273,12 +277,18 @@ export function SidebarRight() {
         )}
         <ScrollArea className="flex-1">
           {canvasMode === "structured" ? (
-            structuredSidebarTab === "components" ? (
-              <StructuredTemplateLibrary query={structuredLibraryQuery} />
+            structuredSidebarTab === "template" ? (
+              <StructuredTemplateLibrary
+                templates={STRUCTURED_PAGE_TEMPLATES}
+                query={structuredLibraryQuery}
+                emptyLabel="No templates found"
+              />
             ) : (
-              <div className="px-2 py-4 text-xs text-muted-foreground">
-                No templates yet
-              </div>
+              <StructuredTemplateLibrary
+                templates={STRUCTURED_COMPONENT_TEMPLATES}
+                query={structuredLibraryQuery}
+                emptyLabel="No components found"
+              />
             )
           ) : (
             <CharLibrary />

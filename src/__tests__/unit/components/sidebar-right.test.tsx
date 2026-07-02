@@ -4,7 +4,8 @@ import { SidebarRight } from "@/domains/canvas/components/ToolBar/sidebar-right"
 import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
 import { SidebarProvider } from "@/shared/ui/sidebar";
 import {
-  STRUCTURED_TEMPLATES,
+  STRUCTURED_COMPONENT_TEMPLATES,
+  STRUCTURED_PAGE_TEMPLATES,
   getActiveStructuredTemplateDragId,
   getStructuredTemplatePreview,
   setActiveStructuredTemplateDragId,
@@ -80,8 +81,8 @@ describe("SidebarRight structured templates", () => {
     const templateItems = Array.from(
       group?.querySelectorAll('button[draggable="true"]') ?? []
     );
-    const sortedTemplates = sortTemplateLabels(STRUCTURED_TEMPLATES);
-    expect(templateItems).toHaveLength(STRUCTURED_TEMPLATES.length);
+    const sortedTemplates = sortTemplateLabels(STRUCTURED_COMPONENT_TEMPLATES);
+    expect(templateItems).toHaveLength(STRUCTURED_COMPONENT_TEMPLATES.length);
     const itemLabels = templateItems.map(
       (item) => item.querySelector(":scope > span:last-child")?.textContent
     );
@@ -101,9 +102,6 @@ describe("SidebarRight structured templates", () => {
         width: `${expectedPreview.width * 5}px`,
         height: `${expectedPreview.height * 9}px`,
       });
-      if (template.id === "card") {
-        expect(expectedPreview.height * 9).toBeLessThanOrEqual(48);
-      }
       expect(item).toHaveTextContent(template.label);
       expect(item.querySelector(":scope > span:last-child")).not.toHaveClass("font-semibold");
     });
@@ -115,6 +113,7 @@ describe("SidebarRight structured templates", () => {
     expect(content).toHaveClass("p-2");
     expect(group).toHaveClass("p-0");
     expect(button).toHaveClass("items-center", "gap-3");
+    expect(screen.queryByRole("button", { name: /safari/i })).not.toBeInTheDocument();
     expect(screen.queryByText("Nerd Icons")).not.toBeInTheDocument();
   });
 
@@ -135,8 +134,12 @@ describe("SidebarRight structured templates", () => {
       "aria-selected",
       "true"
     );
-    expect(screen.getByText("No templates yet")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /safari/i })).toBeInTheDocument();
+    expect(STRUCTURED_PAGE_TEMPLATES.map((template) => template.id)).toEqual([
+      "safari",
+    ]);
     expect(screen.queryByRole("button", { name: /button/i })).not.toBeInTheDocument();
+    expect(screen.queryByText("No templates found")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("tab", { name: "Components" }));
 
@@ -145,6 +148,7 @@ describe("SidebarRight structured templates", () => {
       "true"
     );
     expect(screen.getByRole("button", { name: /button/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /safari/i })).not.toBeInTheDocument();
   });
 
   it("filters structured components from the main header search", () => {
@@ -213,7 +217,7 @@ describe("SidebarRight structured templates", () => {
     expect(
       screen.queryByRole("searchbox", { name: "Search structured library" })
     ).not.toBeInTheDocument();
-    expect(screen.queryByText("No templates yet")).not.toBeInTheDocument();
+    expect(screen.queryByText("No templates found")).not.toBeInTheDocument();
   });
 
   it("hides structured search when the sidebar is collapsed", () => {

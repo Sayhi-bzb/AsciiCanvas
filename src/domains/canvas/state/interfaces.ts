@@ -12,6 +12,7 @@ import type {
   StructuredNode,
   StructuredBoxNode,
   StructuredComponentInstance,
+  StructuredTextStyleRange,
   TextAttributes,
   ToolType,
 } from "@/shared/types";
@@ -102,6 +103,13 @@ export interface TextSlice {
   setTextCursor: (pos: Point | null) => void;
   setEditingStructuredTextNodeId: (id: string | null) => void;
   setStructuredTextSelection: (selection: StructuredTextSelection | null) => void;
+  replaceStructuredTextRange: (
+    nodeId: string,
+    start: number,
+    end: number,
+    text: string,
+    styleRanges?: StructuredTextStyleRange[]
+  ) => void;
   writeTextString: (str: string, startPos?: Point) => void;
   pasteRichData: (cells: RichTextCell[], startPos?: Point) => void;
   moveTextCursor: (dx: number, dy: number) => void;

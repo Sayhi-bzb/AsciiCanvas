@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  STRUCTURED_COMPONENT_TEMPLATES,
+  STRUCTURED_PAGE_TEMPLATES,
   STRUCTURED_TEMPLATES,
   buildStructuredTemplate,
   buildStructuredTemplatePreview,
@@ -19,7 +21,7 @@ describe("structuredTemplates", () => {
     );
 
   it("registers the basic structured templates", () => {
-    expect(STRUCTURED_TEMPLATES.map((template) => template.id)).toEqual([
+    expect(STRUCTURED_COMPONENT_TEMPLATES.map((template) => template.id)).toEqual([
       "button",
       "badge",
       "switch",
@@ -43,6 +45,13 @@ describe("structuredTemplates", () => {
       "slider",
       "progress",
       "scrollArea",
+    ]);
+    expect(STRUCTURED_PAGE_TEMPLATES.map((template) => template.id)).toEqual([
+      "safari",
+    ]);
+    expect(STRUCTURED_TEMPLATES.map((template) => template.id)).toEqual([
+      ...STRUCTURED_COMPONENT_TEMPLATES.map((template) => template.id),
+      "safari",
     ]);
   });
 
@@ -366,6 +375,51 @@ describe("structuredTemplates", () => {
         type: "text",
         position: { x: 5, y: 15 },
         text: "CardFooter",
+      },
+    ]);
+    expect(build("safari")).toMatchObject([
+      {
+        type: "splitBox",
+        start: { x: 4, y: 7 },
+        end: { x: 75, y: 27 },
+        root: {
+          type: "split",
+          id: "split-toolbar",
+          axis: "horizontal",
+          first: { type: "leaf", id: "leaf-toolbar" },
+          second: { type: "leaf", id: "leaf-content" },
+        },
+      },
+      {
+        type: "text",
+        position: { x: 6, y: 8 },
+        text: "● ● ●",
+        styleRanges: [
+          { start: 0, end: 1, style: { color: "#ff6159" } },
+          { start: 2, end: 3, style: { color: "#ffbd2e" } },
+          { start: 4, end: 5, style: { color: "#28c941" } },
+        ],
+      },
+      {
+        type: "text",
+        position: { x: 14, y: 8 },
+        text: "  < >   ",
+      },
+      {
+        type: "bg",
+        start: { x: 28, y: 8 },
+        end: { x: 61, y: 8 },
+        style: { color: "#000000", bgColor: "#d1d5db" },
+      },
+      {
+        type: "text",
+        position: { x: 28, y: 8 },
+        text: "      ascii-canvas.pages.dev     ",
+      },
+      {
+        type: "text",
+        position: { x: 66, y: 8 },
+        text: "    󰆏",
       },
     ]);
   });

@@ -546,6 +546,14 @@ describe("structured text interaction", () => {
         delta: [18, 0],
         event: dragEvent(),
       });
+    });
+
+    expect(useCanvasStore.getState().structuredScene[0]).toMatchObject({
+      type: "splitBox",
+      root: { type: "split", id: "split-existing", ratio: 0.5 },
+    });
+
+    act(() => {
       gestureState.handlers?.onDragEnd?.({
         xy: [68, 39],
         event: dragEvent(),
@@ -559,6 +567,10 @@ describe("structured text interaction", () => {
     });
     expect(node.type === "splitBox" && node.root?.type === "split" && node.root.ratio)
       .toBeGreaterThan(0.5);
+    expect(useCanvasStore.getState().selectedStructuredSplitHandle).toEqual({
+      nodeId: "split-1",
+      handle: "split:split-existing",
+    });
   });
 
   it("clears stale split box focus when left-clicking another structured node", () => {

@@ -9,8 +9,9 @@ import {
 import {
   getStructuredTemplatePreview,
   STRUCTURED_TEMPLATE_MIME,
-  STRUCTURED_TEMPLATES,
+  STRUCTURED_COMPONENT_TEMPLATES,
   setActiveStructuredTemplateDragId,
+  type StructuredTemplateListItem,
   type StructuredTemplateId,
 } from "@/domains/canvas/state/helpers/structuredTemplates";
 import { StructuredTemplatePreviewGrid } from "./structured-template-preview-grid";
@@ -53,18 +54,22 @@ const handleTemplateDragStart =
   };
 
 type StructuredTemplateLibraryProps = {
+  templates?: StructuredTemplateListItem[];
   query?: string;
+  emptyLabel?: string;
 };
 
 export function StructuredTemplateLibrary({
+  templates: sourceTemplates = STRUCTURED_COMPONENT_TEMPLATES,
   query = "",
+  emptyLabel = "No components found",
 }: StructuredTemplateLibraryProps) {
   const normalizedQuery = query.trim().toLowerCase();
   const templates = normalizedQuery
-    ? STRUCTURED_TEMPLATES.filter((template) =>
+    ? sourceTemplates.filter((template) =>
         template.label.toLowerCase().includes(normalizedQuery)
       )
-    : STRUCTURED_TEMPLATES;
+    : sourceTemplates;
   const sortedTemplates = sortTemplatesByLabel(templates);
 
   return (
@@ -73,7 +78,7 @@ export function StructuredTemplateLibrary({
         <div className="flex flex-col">
           {sortedTemplates.length === 0 && (
             <div className="px-2 py-4 text-xs text-muted-foreground">
-              No components found
+              {emptyLabel}
             </div>
           )}
           {sortedTemplates.map((template, index) => (

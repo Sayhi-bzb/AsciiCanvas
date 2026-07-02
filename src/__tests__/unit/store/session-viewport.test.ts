@@ -652,6 +652,127 @@ describe("canvas session viewport state", () => {
     });
   });
 
+  it("copies selected structured text as plain text and rich text fragment", async () => {
+    useCanvasStore.getState().createCanvasSession("structured");
+    useCanvasStore.getState().applyStructuredScene(
+      [
+        {
+          id: "text-1",
+          type: "text",
+          order: 1,
+          position: { x: 1, y: 2 },
+          text: "Hello",
+          style: { color: "#000000" },
+          styleRanges: [
+            {
+              start: 1,
+              end: 4,
+              style: { color: "#ef4444", attrs: { bold: true } },
+            },
+          ],
+        },
+      ],
+      false
+    );
+    useCanvasStore.getState().setEditingStructuredTextNodeId("text-1");
+    useCanvasStore.getState().setStructuredTextSelection({
+      nodeId: "text-1",
+      anchor: 1,
+      focus: 4,
+    });
+
+    const capture = createClipboardEventCapture();
+    await useCanvasStore.getState().copySelection({ event: capture.event });
+
+    expect(capture.data.get("text/plain")).toBe("ell");
+    const rich = JSON.parse(
+      capture.data.get("web application/x-ascii-metropolis") ?? "{}"
+    );
+    expect(rich.structuredText).toMatchObject({
+      text: "ell",
+      style: { color: "#000000" },
+      styleRanges: [
+        {
+          start: 0,
+          end: 3,
+          style: { color: "#ef4444", attrs: { bold: true } },
+        },
+      ],
+    });
+    expect(rich.structuredNodes).toEqual([]);
+  });
+
+  it("replaces selected structured text when pasting plain text", async () => {
+    useCanvasStore.getState().createCanvasSession("structured");
+    useCanvasStore.getState().applyStructuredScene(
+      [
+        {
+          id: "text-1",
+          type: "text",
+          order: 1,
+          position: { x: 1, y: 2 },
+          text: "Hello",
+          style: { color: "#000000" },
+        },
+      ],
+      false
+    );
+    useCanvasStore.getState().setEditingStructuredTextNodeId("text-1");
+    useCanvasStore.getState().setTextCursor({ x: 2, y: 2 });
+    useCanvasStore.getState().setStructuredTextSelection({
+      nodeId: "text-1",
+      anchor: 1,
+      focus: 4,
+    });
+
+    await useCanvasStore.getState().pasteFromClipboard({
+      eventDataTransfer: {
+        getData: (type: string) => (type === "text/plain" ? "X" : ""),
+      } as unknown as DataTransfer,
+    });
+
+    expect(useCanvasStore.getState().structuredScene[0]).toMatchObject({
+      id: "text-1",
+      text: "HXo",
+    });
+    expect(useCanvasStore.getState().textCursor).toEqual({ x: 3, y: 2 });
+    expect(useCanvasStore.getState().structuredTextSelection).toBeNull();
+  });
+
+  it("cuts selected structured text instead of cutting structured nodes", async () => {
+    useCanvasStore.getState().createCanvasSession("structured");
+    useCanvasStore.getState().applyStructuredScene(
+      [
+        {
+          id: "text-1",
+          type: "text",
+          order: 1,
+          position: { x: 1, y: 2 },
+          text: "Hello",
+          style: { color: "#000000" },
+        },
+      ],
+      false
+    );
+    useCanvasStore.getState().setSelectedStructuredNodeIds(["text-1"]);
+    useCanvasStore.getState().setEditingStructuredTextNodeId("text-1");
+    useCanvasStore.getState().setStructuredTextSelection({
+      nodeId: "text-1",
+      anchor: 1,
+      focus: 4,
+    });
+
+    const capture = createClipboardEventCapture();
+    await useCanvasStore.getState().cutSelection({ event: capture.event });
+
+    expect(capture.data.get("text/plain")).toBe("ell");
+    expect(useCanvasStore.getState().structuredScene).toHaveLength(1);
+    expect(useCanvasStore.getState().structuredScene[0]).toMatchObject({
+      id: "text-1",
+      text: "Ho",
+    });
+  });
+
   it("allows freeform bg fill but falls back from unsupported tools per session mode", () => {
     useCanvasStore.getState().createCanvasSession("structured");
     const structuredSessionId = useCanvasStore.getState().activeCanvasId;

@@ -5,7 +5,16 @@ import {
   exportToAnsi,
 } from "@/domains/export";
 import { GridManager } from "@/shared/utils/grid";
-import type { GridMap, NodeBounds, Point, SelectionArea, StructuredNode } from "@/shared/types";
+import type {
+  GridMap,
+  NodeBounds,
+  Point,
+  SelectionArea,
+  StructuredNode,
+  StructuredNodeStyle,
+  StructuredTextNode,
+  StructuredTextStyleRange,
+} from "@/shared/types";
 import type { RichTextCell } from "@/domains/canvas/state/interfaces";
 import { clipboard } from "@/shared/services/effects";
 import { cloneTextAttributes } from "@/shared/utils/ansi";
@@ -15,6 +24,10 @@ import {
   getStructuredNodeBounds,
   renderStructuredScene,
 } from "@/shared/utils/structured";
+import {
+  getStructuredTextSlice,
+  getStructuredTextStyleRangesInRange,
+} from "@/shared/utils/structuredTextRanges";
 import { toStructuredNode } from "@/domains/canvas/state/helpers/snapshotHelpers";
 
 const MIME_RICH_DATA = "web application/x-ascii-metropolis";
@@ -33,6 +46,12 @@ export interface StructuredClipboardData {
   bounds: NodeBounds;
 }
 
+export interface StructuredTextClipboardData {
+  text: string;
+  style: StructuredNodeStyle;
+  styleRanges?: StructuredTextStyleRange[];
+}
+
 interface StructuredClipboardPayload {
   type: "ascii-metropolis-clipboard";
   version: 2;
@@ -40,9 +59,20 @@ interface StructuredClipboardPayload {
   surfaceCells: RichTextCell[];
   structuredNodes: StructuredNode[];
   bounds: NodeBounds;
+  structuredText?: StructuredTextClipboardData;
 }
 
 const toAnsiLikeClipboardText = (value: string) => value.replaceAll("\u001b[", "[");
+
+const cloneStructuredNodeStyle = (
+  style: StructuredNodeStyle
+): StructuredNodeStyle => ({
+  color: style.color,
+  ...(style.bgColor ? { bgColor: style.bgColor } : {}),
+  ...(cloneTextAttributes(style.attrs)
+    ? { attrs: cloneTextAttributes(style.attrs) }
+    : {}),
+});
 
 export const parseAnsiClipboardText = parseAnsiTextCells;
 
@@ -241,6 +271,40 @@ export const buildStructuredClipboardPayload = (
   };
 };
 
+export const buildStructuredTextClipboardPayload = (
+  node: StructuredTextNode,
+  start: number,
+  end: number
+): ClipboardPayload | null => {
+  const text = getStructuredTextSlice(node, start, end);
+  if (!text) return null;
+  const rich: StructuredClipboardPayload = {
+    type: "ascii-metropolis-clipboard",
+    version: 2,
+    cells: [],
+    surfaceCells: [],
+    structuredNodes: [],
+    bounds: { x: 0, y: 0, width: 0, height: 0 },
+    structuredText: {
+      text,
+      style: cloneStructuredNodeStyle(node.style),
+      ...(getStructuredTextStyleRangesInRange(node.styleRanges, start, end)
+        ? {
+            styleRanges: getStructuredTextStyleRangesInRange(
+              node.styleRanges,
+              start,
+              end
+            ),
+          }
+        : {}),
+    },
+  };
+  return {
+    plain: text,
+    rich: JSON.stringify(rich),
+  };
+};
+
 interface WriteClipboardOptions {
   event?: ClipboardEvent;
   withRich?: boolean;
@@ -289,7 +353,11 @@ export const writeClipboardPayload = async (
 
 const parseRichClipboardText = (
   rawText: string
-): { richCells: RichTextCell[] | null; structured: StructuredClipboardData | null } | null => {
+): {
+  richCells: RichTextCell[] | null;
+  structured: StructuredClipboardData | null;
+  structuredText: StructuredTextClipboardData | null;
+} | null => {
   if (!rawText) return null;
   try {
     const parsed = JSON.parse(rawText) as {
@@ -298,6 +366,7 @@ const parseRichClipboardText = (
       surfaceCells?: RichTextCell[];
       structuredNodes?: unknown[];
       bounds?: Partial<NodeBounds>;
+      structuredText?: Partial<StructuredTextClipboardData>;
     };
     if (parsed.type === "ascii-metropolis-clipboard") {
       const surfaceCells = Array.isArray(parsed.surfaceCells)
@@ -305,6 +374,19 @@ const parseRichClipboardText = (
         : Array.isArray(parsed.cells)
           ? parsed.cells
           : [];
+      const structuredText =
+        parsed.structuredText &&
+        typeof parsed.structuredText.text === "string" &&
+        parsed.structuredText.style &&
+        typeof parsed.structuredText.style.color === "string"
+          ? {
+              text: parsed.structuredText.text,
+              style: cloneStructuredNodeStyle(parsed.structuredText.style),
+              ...(Array.isArray(parsed.structuredText.styleRanges)
+                ? { styleRanges: parsed.structuredText.styleRanges }
+                : {}),
+            }
+          : null;
       const structuredNodes = Array.isArray(parsed.structuredNodes)
         ? parsed.structuredNodes
             .map((node) => toStructuredNode(node))
@@ -330,10 +412,11 @@ const parseRichClipboardText = (
           structuredNodes.length > 0 && bounds
             ? { structuredNodes, surfaceCells, bounds }
             : null,
+        structuredText,
       };
     }
     if (!Array.isArray(parsed.cells)) return null;
-    return { richCells: parsed.cells, structured: null };
+    return { richCells: parsed.cells, structured: null, structuredText: null };
   } catch {
     return null;
   }
@@ -341,7 +424,11 @@ const parseRichClipboardText = (
 
 const readRichClipboardCells = async (
   eventDataTransfer?: DataTransfer
-): Promise<{ richCells: RichTextCell[] | null; structured: StructuredClipboardData | null } | null> => {
+): Promise<{
+  richCells: RichTextCell[] | null;
+  structured: StructuredClipboardData | null;
+  structuredText: StructuredTextClipboardData | null;
+} | null> => {
   if (eventDataTransfer) {
     const richData = eventDataTransfer.getData(MIME_RICH_DATA);
     const parsed = parseRichClipboardText(richData);
@@ -370,7 +457,8 @@ export const readClipboardPayload = async (
     return {
       richCells: richPayload.richCells,
       structured: richPayload.structured,
-      plainText: null as string | null,
+      structuredText: richPayload.structuredText,
+      plainText: richPayload.structuredText?.text ?? null,
     };
   }
 
@@ -379,8 +467,8 @@ export const readClipboardPayload = async (
     if (text) {
       const ansiCells = parseAnsiClipboardText(text, defaultColor);
       return ansiCells
-        ? { richCells: ansiCells, structured: null, plainText: null }
-        : { richCells: null, structured: null, plainText: text };
+        ? { richCells: ansiCells, structured: null, structuredText: null, plainText: text }
+        : { richCells: null, structured: null, structuredText: null, plainText: text };
     }
   }
 
@@ -388,9 +476,9 @@ export const readClipboardPayload = async (
   if (text) {
     const ansiCells = parseAnsiClipboardText(text, defaultColor);
     return ansiCells
-      ? { richCells: ansiCells, structured: null, plainText: null }
-      : { richCells: null, structured: null, plainText: text };
+      ? { richCells: ansiCells, structured: null, structuredText: null, plainText: text }
+      : { richCells: null, structured: null, structuredText: null, plainText: text };
   }
 
-  return { richCells: null, structured: null, plainText: null };
+  return { richCells: null, structured: null, structuredText: null, plainText: null };
 };
