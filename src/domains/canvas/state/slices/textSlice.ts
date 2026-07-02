@@ -183,12 +183,13 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
       applyStructuredScene,
       getNextStructuredOrder,
       editingStructuredTextNodeId,
+      structuredGridFocus,
     } = get();
 
     if (canvasMode === "structured") {
       const normalized = str.replace(/[\r\n]+/g, "");
       if (!normalized) return;
-      const cursor = startPos || textCursor;
+      const cursor = startPos || textCursor || structuredGridFocus;
       if (!cursor) return;
 
       const boxNameTarget = findBoxNameTargetAtCursor(structuredScene, cursor);
@@ -220,6 +221,7 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
             x: labelStartX + nextCursorColumn,
             y: bounds.y,
           },
+          structuredGridFocus: null,
         });
         return;
       }
@@ -249,6 +251,7 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
           structuredTextSelection: null,
           selectedStructuredNodeIds: [nodeId],
           selectedStructuredBoxId: null,
+          structuredGridFocus: null,
         });
         return;
       }
@@ -271,6 +274,7 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
         },
         editingStructuredTextNodeId: existingNode.id,
         structuredTextSelection: null,
+        structuredGridFocus: null,
       });
       return;
     }

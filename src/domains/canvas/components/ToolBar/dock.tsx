@@ -113,13 +113,17 @@ export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
   useEffect(() => {
     if (tool === "pan" && (!isMobile || canvasMode === "animation")) {
       setTool("select");
+      return;
+    }
+    if (canvasMode === "structured" && tool === "text") {
+      setTool("select");
     }
   }, [canvasMode, isMobile, setTool, tool]);
 
   const visibleActionOrder = useMemo<ToolbarActionId[]>(() => {
     const baseOrder =
       canvasMode === "structured"
-        ? (["select", "text", "shape-group", "undo", "color"] as ToolbarActionId[])
+        ? (["select", "shape-group", "undo", "color"] as ToolbarActionId[])
         : TOOLBAR_ACTION_ORDER;
 
     if (!isMobile || canvasMode === "animation") return baseOrder;
@@ -213,6 +217,7 @@ export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
                             onUndo,
                           })
                         }
+                        aria-label={item.label}
                         className={cn(
                           "flex items-center justify-center h-9 px-3 outline-none rounded-l-lg transition-colors",
                           !item.hasSub && "rounded-lg",

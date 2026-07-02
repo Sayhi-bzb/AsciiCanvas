@@ -173,6 +173,26 @@ describe("clipboardActions", () => {
     });
   });
 
+  it("preserves trailing background spaces in ANSI clipboard payloads", () => {
+    const payload = buildClipboardPayload(
+      new Map(
+        Array.from(" BUTTON ").map((char, x) => [
+          `${x},0`,
+          { char, color: "#000000", bgColor: "#dbeafe" },
+        ])
+      ),
+      [{ start: { x: 0, y: 0 }, end: { x: 7, y: 0 } }],
+      null,
+      "#000000",
+      "ansi"
+    );
+
+    expect(payload).toEqual({
+      plain: "[48;2;219;234;254m BUTTON [0m",
+      rich: null,
+    });
+  });
+
   it("parses ANSI-like clipboard text without ESC prefixes", () => {
     expect(
       parseAnsiClipboardText(

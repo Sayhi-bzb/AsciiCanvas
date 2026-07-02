@@ -253,6 +253,39 @@ describe("AsciiCanvas focus management", () => {
     expect(useCanvasStore.getState().structuredGridFocus).toBeNull();
   });
 
+  it("creates structured text from managed textarea input at structured grid focus", () => {
+    useCanvasStore.setState({
+      canvasMode: "structured",
+      textCursor: null,
+      selections: [],
+      selectedStructuredNodeIds: [],
+      structuredScene: [],
+      structuredGridFocus: { x: 3, y: 4 },
+      brushColor: "#123456",
+    });
+
+    const { container } = render(
+      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+    );
+
+    const textarea = container.querySelector("textarea");
+    expect(textarea).not.toBeNull();
+    expect(document.activeElement).toBe(textarea);
+
+    fireEvent.input(textarea!, { target: { value: "Go" } });
+
+    const state = useCanvasStore.getState();
+    expect(state.structuredScene).toHaveLength(1);
+    expect(state.structuredScene[0]).toMatchObject({
+      type: "text",
+      position: { x: 3, y: 4 },
+      text: "Go",
+      style: { color: "#123456" },
+    });
+    expect(state.structuredGridFocus).toBeNull();
+    expect(state.textCursor).toEqual({ x: 5, y: 4 });
+  });
+
   it("drops a structured button template onto the canvas", () => {
     useCanvasStore.setState({
       canvasMode: "structured",

@@ -356,4 +356,31 @@ describe("textSlice structured box name editing", () => {
     expect(useCanvasStore.getState().textCursor).toEqual({ x: 5, y: 2 });
     expect(useCanvasStore.getState().selectedStructuredNodeIds).toEqual(["box-1"]);
   });
+
+  it("creates a structured text node from structured grid focus input", () => {
+    useCanvasStore.setState({
+      canvasMode: "structured",
+      structuredScene: [],
+      grid: new Map(),
+      textCursor: null,
+      structuredGridFocus: { x: 7, y: 4 },
+      selectedStructuredNodeIds: [],
+      selectedStructuredBoxId: null,
+      brushColor: "#abcdef",
+    });
+
+    useCanvasStore.getState().writeTextString("Hi");
+
+    const state = useCanvasStore.getState();
+    expect(state.structuredScene).toHaveLength(1);
+    expect(state.structuredScene[0]).toMatchObject({
+      type: "text",
+      position: { x: 7, y: 4 },
+      text: "Hi",
+      style: { color: "#abcdef" },
+    });
+    expect(state.structuredGridFocus).toBeNull();
+    expect(state.textCursor).toEqual({ x: 9, y: 4 });
+    expect(state.selectedStructuredNodeIds).toEqual([state.structuredScene[0].id]);
+  });
 });

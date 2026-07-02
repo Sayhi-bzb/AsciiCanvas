@@ -558,6 +558,54 @@ describe("export utilities", () => {
     );
   });
 
+  it("preserves trailing spaces with visible ANSI background", () => {
+    const grid: GridMap = new Map(
+      Array.from(" BUTTON ").map((char, x) => [
+        `${x},0`,
+        { char, color: "#000000", bgColor: "#dbeafe" },
+      ])
+    );
+
+    expect(exportToAnsi(grid)).toBe(
+      "\u001b[48;2;219;234;254m BUTTON \u001b[0m"
+    );
+    expect(
+      exportSelectionToAnsi(grid, [
+        { start: { x: 0, y: 0 }, end: { x: 7, y: 0 } },
+      ])
+    ).toBe("\u001b[48;2;219;234;254m BUTTON \u001b[0m");
+  });
+
+  it("still trims trailing spaces without visible ANSI style", () => {
+    const grid: GridMap = new Map([
+      ["0,0", { char: "A", color: "#000000" }],
+      ["1,0", { char: " ", color: "#000000" }],
+    ]);
+
+    expect(exportToAnsi(grid)).toBe("A");
+    expect(
+      exportSelectionToAnsi(grid, [
+        { start: { x: 0, y: 0 }, end: { x: 1, y: 0 } },
+      ])
+    ).toBe("A");
+  });
+
+  it("trims styled trailing spaces when ANSI color export is disabled", () => {
+    const grid: GridMap = new Map([
+      ["0,0", { char: "A", color: "#000000" }],
+      ["1,0", { char: " ", color: "#000000", bgColor: "#dbeafe" }],
+    ]);
+
+    expect(exportToAnsi(grid, { includeColor: false })).toBe("A");
+    expect(
+      exportSelectionToAnsi(
+        grid,
+        [{ start: { x: 0, y: 0 }, end: { x: 1, y: 0 } }],
+        { includeColor: false }
+      )
+    ).toBe("A");
+  });
+
   it("exports inverse ANSI using swapped effective colors", () => {
     const grid: GridMap = new Map([
       [

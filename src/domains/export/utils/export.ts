@@ -344,14 +344,6 @@ const buildAnsiPiecesFromBounds = (
   return pieces;
 };
 
-const trimTrailingAnsiSpaces = (pieces: AnsiPiece[]) => {
-  let end = pieces.length;
-  while (end > 0 && pieces[end - 1].char === " ") {
-    end -= 1;
-  }
-  return pieces.slice(0, end);
-};
-
 const resolveAnsiPieceStyle = (piece: AnsiPiece): ActiveAnsiStyle => {
   if (!piece.cell) return { color: null, bgColor: null };
   const style = effectiveCellStyle(piece.cell);
@@ -365,6 +357,26 @@ const resolveAnsiPieceStyle = (piece: AnsiPiece): ActiveAnsiStyle => {
     attrs: style.attrs,
     ...(piece.cell.href ? { href: piece.cell.href } : {}),
   };
+};
+
+const isAnsiSignificantPiece = (piece: AnsiPiece) => {
+  if (piece.char !== " ") return true;
+  if (!piece.cell) return false;
+  const style = resolveAnsiPieceStyle(piece);
+  return (
+    !!style.color ||
+    !!style.bgColor ||
+    !!style.href ||
+    !!cloneTextAttributes(style.attrs)
+  );
+};
+
+const trimTrailingAnsiSpaces = (pieces: AnsiPiece[]) => {
+  let end = pieces.length;
+  while (end > 0 && !isAnsiSignificantPiece(pieces[end - 1])) {
+    end -= 1;
+  }
+  return pieces.slice(0, end);
 };
 
 const sameAnsiStyle = (a: ActiveAnsiStyle, b: ActiveAnsiStyle) => {
