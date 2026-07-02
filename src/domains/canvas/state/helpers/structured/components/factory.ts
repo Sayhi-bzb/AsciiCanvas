@@ -33,13 +33,25 @@ export const createStructuredComponentFactory = (
   options: StructuredTemplateBuildOptions
 ): StructuredComponentFactory => {
   const textStyle = { color: STRUCTURED_TEMPLATE_TEXT_COLOR };
+  const componentInstanceId = options.templateId ? createStructuredNodeId() : null;
+  const createComponentMetadata = (role?: string) =>
+    options.templateId && componentInstanceId && role
+      ? {
+          component: {
+            instanceId: componentInstanceId,
+            templateId: options.templateId,
+            role,
+          },
+        }
+      : {};
 
   const createText = (
     text: string,
     offset: Point = { x: 0, y: 0 },
     orderOffset = 0,
     styleRanges?: StructuredTextStyleRange[],
-    style: StructuredNodeStyle = textStyle
+    style: StructuredNodeStyle = textStyle,
+    role?: string
   ): StructuredNode => ({
     id: createStructuredNodeId(),
     type: "text",
@@ -48,6 +60,7 @@ export const createStructuredComponentFactory = (
     text,
     style,
     ...(styleRanges ? { styleRanges } : {}),
+    ...createComponentMetadata(role),
   });
 
   const createBg = (
@@ -56,7 +69,8 @@ export const createStructuredComponentFactory = (
     orderOffset = 0,
     offset: Point = { x: 0, y: 0 },
     height = 1,
-    color: string = getTemplateBgColor(colorIndex)
+    color: string = getTemplateBgColor(colorIndex),
+    role?: string
   ): StructuredNode => ({
     id: createStructuredNodeId(),
     type: "bg",
@@ -70,6 +84,7 @@ export const createStructuredComponentFactory = (
       color: STRUCTURED_TEMPLATE_TEXT_COLOR,
       bgColor: color,
     },
+    ...createComponentMetadata(role),
   });
 
   const createBox = (
@@ -77,7 +92,8 @@ export const createStructuredComponentFactory = (
     height: number,
     orderOffset = 0,
     offset: Point = { x: 0, y: 0 },
-    style: StructuredNodeStyle = textStyle
+    style: StructuredNodeStyle = textStyle,
+    role?: string
   ): StructuredBoxNode => ({
     id: createStructuredNodeId(),
     type: "box",
@@ -88,13 +104,15 @@ export const createStructuredComponentFactory = (
       y: position.y + offset.y + height - 1,
     },
     style,
+    ...createComponentMetadata(role),
   });
 
   const createLine = (
     width: number,
     orderOffset = 0,
     offset: Point = { x: 0, y: 0 },
-    style: StructuredNodeStyle = textStyle
+    style: StructuredNodeStyle = textStyle,
+    role?: string
   ): StructuredLineNode => ({
     id: createStructuredNodeId(),
     type: "line",
@@ -103,6 +121,7 @@ export const createStructuredComponentFactory = (
     end: { x: position.x + offset.x + width - 1, y: position.y + offset.y },
     axis: "horizontal",
     style,
+    ...createComponentMetadata(role),
   });
 
   const createSplitBox = (
@@ -115,7 +134,8 @@ export const createStructuredComponentFactory = (
       topSplitRatio: 0.25,
       bottomSplitRatio: 0.75,
     },
-    style: StructuredNodeStyle = textStyle
+    style: StructuredNodeStyle = textStyle,
+    role?: string
   ): StructuredSplitBoxNode => ({
     id: createStructuredNodeId(),
     type: "splitBox",
@@ -130,6 +150,7 @@ export const createStructuredComponentFactory = (
     bottomSplitRatio: ratios.bottomSplitRatio,
     root: createDefaultSplitBoxRoot(ratios),
     style,
+    ...createComponentMetadata(role),
   });
 
   return { createText, createBg, createBox, createLine, createSplitBox };

@@ -7,6 +7,7 @@ import type {
   AnimationCanvasSize,
   AnimationTimeline,
   GridCell,
+  StructuredComponentInstance,
   StructuredNode,
 } from "@/shared/types";
 import { GridManager } from "@/shared/utils/grid";
@@ -22,14 +23,27 @@ import type {
 import { isAsciiCanvasDocument } from "./validation";
 import { cloneTextAttributes } from "@/shared/utils/ansi";
 import { cloneStructuredTextStyleRanges } from "@/shared/utils/structuredTextRanges";
+import { normalizeStructuredComponents } from "@/domains/canvas/state/helpers/snapshotHelpers";
 
 const assertNever = (value: never): never => {
   throw new Error(`Unsupported structured protocol node: ${JSON.stringify(value)}`);
 };
 
+const cloneComponentMetadata = (component: StructuredNode["component"]) =>
+  component
+    ? {
+        component: {
+          instanceId: component.instanceId,
+          templateId: component.templateId,
+          role: component.role,
+        },
+      }
+    : {};
+
 export interface ProtocolImportSnapshot {
   mode: AsciiCanvasDocumentV1["mode"];
   scene: StructuredNode[];
+  components: StructuredComponentInstance[];
   grid: [string, GridCell][];
   size?: AnimationCanvasSize;
   timeline?: AnimationTimeline;
@@ -73,6 +87,7 @@ const cloneStructuredProtocolNode = (
         end: { ...node.end },
         style,
         ...(node.name ? { name: node.name } : {}),
+        ...cloneComponentMetadata(node.component),
       };
     case "splitBox":
       return {
@@ -86,6 +101,7 @@ const cloneStructuredProtocolNode = (
         bottomSplitRatio: node.bottomSplitRatio,
         ...(node.root ? { root: node.root } : {}),
         style,
+        ...cloneComponentMetadata(node.component),
       };
     case "line":
       return {
@@ -96,6 +112,7 @@ const cloneStructuredProtocolNode = (
         end: { ...node.end },
         axis: node.axis,
         style,
+        ...cloneComponentMetadata(node.component),
       };
     case "bg":
       return {
@@ -105,6 +122,7 @@ const cloneStructuredProtocolNode = (
         start: { ...node.start },
         end: { ...node.end },
         style,
+        ...cloneComponentMetadata(node.component),
       };
     case "text":
       return {
@@ -117,6 +135,7 @@ const cloneStructuredProtocolNode = (
         ...(cloneStructuredTextStyleRanges(node.styleRanges)
           ? { styleRanges: cloneStructuredTextStyleRanges(node.styleRanges) }
           : {}),
+        ...cloneComponentMetadata(node.component),
       };
     default:
       return assertNever(node);
@@ -129,6 +148,7 @@ const importFreeformDocument = (
   return {
     mode: "freeform",
     scene: [],
+    components: [],
     grid: toGridEntries(document.cells),
   };
 };
@@ -151,6 +171,7 @@ const importAnimationDocument = (
   return {
     mode: "animation",
     scene: [],
+    components: [],
     size,
     timeline,
     grid: getAnimationFrameEntries(timeline, timeline.currentFrameId),
@@ -161,9 +182,11 @@ const importStructuredDocument = (
   document: AsciiCanvasStructuredDocumentV1
 ): ProtocolImportSnapshot => {
   const scene = document.nodes.map(cloneStructuredProtocolNode);
+  const components = normalizeStructuredComponents(document.components, scene);
   return {
     mode: "structured",
     scene,
+    components,
     grid: sceneToGridEntries(scene),
   };
 };

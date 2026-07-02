@@ -58,6 +58,7 @@ export const createAnimationSlice: StateCreator<
       canvasBounds: nextBounds,
       animationTimeline: nextTimeline,
       animationIsPlaying: options?.isPlaying ?? state.animationIsPlaying,
+      animationPlaybackFrameId: null,
       selections: [],
       textCursor: null,
       editingStructuredTextNodeId: null,
@@ -78,6 +79,27 @@ export const createAnimationSlice: StateCreator<
       ),
     });
     applyFreeformSnapshotToYMaps(nextGridEntries);
+  };
+
+  const switchAnimationPlaybackFrame = (
+    frameId: string,
+    options?: { isPlaying?: boolean }
+  ) => {
+    const state = get();
+    const timeline = state.animationTimeline;
+    if (state.canvasMode !== "animation" || !timeline) return;
+    const frame = timeline.frames.find((entry) => entry.id === frameId);
+    if (!frame) return;
+
+    set({
+      grid: createMapFromEntries(frame.grid),
+      animationPlaybackFrameId: frameId,
+      animationIsPlaying: options?.isPlaying ?? state.animationIsPlaying,
+      selections: [],
+      textCursor: null,
+      hoveredGrid: null,
+      scratchLayer: null,
+    });
   };
 
   return {
@@ -430,12 +452,29 @@ export const createAnimationSlice: StateCreator<
     playAnimation: () => {
       const state = get();
       if (state.canvasMode !== "animation" || !state.animationTimeline) return;
-      set({ animationIsPlaying: true });
+      set({
+        animationIsPlaying: true,
+        animationPlaybackFrameId:
+          state.animationPlaybackFrameId ??
+          state.animationTimeline.currentFrameId,
+      });
     },
     pauseAnimation: () => {
       const state = get();
       if (state.canvasMode !== "animation") return;
-      set({ animationIsPlaying: false });
+      const playbackFrameId = state.animationPlaybackFrameId;
+      set({
+        animationIsPlaying: false,
+        animationPlaybackFrameId: null,
+        ...(state.animationTimeline && playbackFrameId
+          ? {
+              animationTimeline: {
+                ...state.animationTimeline,
+                currentFrameId: playbackFrameId,
+              },
+            }
+          : {}),
+      });
     },
     stepAnimationFrame: (direction = 1) => {
       const state = get();
@@ -462,9 +501,23 @@ export const createAnimationSlice: StateCreator<
         nextIndex = syncedTimeline.loop ? 0 : currentIndex;
       }
 
-      syncAnimationRuntime(syncedTimeline, {
-        currentFrameId: syncedTimeline.frames[nextIndex].id,
-        isPlaying: state.animationIsPlaying,
+      const nextFrameId = syncedTimeline.frames[nextIndex].id;
+      const nextGridEntries = getAnimationFrameEntries(
+        syncedTimeline,
+        nextFrameId
+      );
+      set({
+        grid: createMapFromEntries(nextGridEntries),
+        animationTimeline: {
+          ...syncedTimeline,
+          currentFrameId: nextFrameId,
+        },
+        animationPlaybackFrameId: null,
+        animationIsPlaying: state.animationIsPlaying,
+        selections: [],
+        textCursor: null,
+        hoveredGrid: null,
+        scratchLayer: null,
       });
     },
     tickAnimationPlayback: () => {
@@ -477,32 +530,25 @@ export const createAnimationSlice: StateCreator<
         return;
       }
 
-      const syncedTimeline = updateAnimationFrameEntries(
-        state.animationTimeline,
-        state.animationTimeline.currentFrameId,
-        serializeGrid(state.grid)
-      );
       const currentIndex = getAnimationFrameIndex(
-        syncedTimeline,
-        syncedTimeline.currentFrameId
+        state.animationTimeline,
+        state.animationPlaybackFrameId ?? state.animationTimeline.currentFrameId
       );
       if (currentIndex === -1) return;
 
       const nextIndex = currentIndex + 1;
-      if (nextIndex >= syncedTimeline.frames.length) {
-        if (!syncedTimeline.loop) {
-          set({ animationIsPlaying: false, animationTimeline: syncedTimeline });
+      if (nextIndex >= state.animationTimeline.frames.length) {
+        if (!state.animationTimeline.loop) {
+          set({ animationIsPlaying: false });
           return;
         }
-        syncAnimationRuntime(syncedTimeline, {
-          currentFrameId: syncedTimeline.frames[0].id,
+        switchAnimationPlaybackFrame(state.animationTimeline.frames[0].id, {
           isPlaying: true,
         });
         return;
       }
 
-      syncAnimationRuntime(syncedTimeline, {
-        currentFrameId: syncedTimeline.frames[nextIndex].id,
+      switchAnimationPlaybackFrame(state.animationTimeline.frames[nextIndex].id, {
         isPlaying: true,
       });
     },

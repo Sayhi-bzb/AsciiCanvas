@@ -59,6 +59,33 @@ const isProtocolNodeStyle = (value: unknown): value is { color: string } => {
   );
 };
 
+const isComponentMetadata = (value: unknown) => {
+  if (value === undefined) return true;
+  return (
+    isObject(value) &&
+    typeof value.instanceId === "string" &&
+    typeof value.templateId === "string" &&
+    typeof value.role === "string"
+  );
+};
+
+const isStructuredComponentInstance = (value: unknown) => {
+  if (!isObject(value)) return false;
+  if (
+    typeof value.id !== "string" ||
+    typeof value.templateId !== "string" ||
+    typeof value.label !== "string" ||
+    !Array.isArray(value.atomIds) ||
+    !value.atomIds.every((id) => typeof id === "string") ||
+    !isObject(value.roles)
+  ) {
+    return false;
+  }
+  return Object.values(value.roles).every(
+    (ids) => Array.isArray(ids) && ids.every((id) => typeof id === "string")
+  );
+};
+
 const isStructuredTextStyleRange = (value: unknown) => {
   if (!isObject(value)) return false;
   if (typeof value.start !== "number" || !Number.isFinite(value.start)) return false;
@@ -91,6 +118,7 @@ const isStructuredNode = (value: unknown): value is AsciiCanvasProtocolNodeV1 =>
     return false;
   }
   if (!isProtocolNodeStyle(value.style)) return false;
+  if (!isComponentMetadata(value.component)) return false;
   if (value.type === "box") {
     return (
       isPoint(value.start) &&
@@ -168,7 +196,13 @@ export const isAsciiCanvasDocument = (
   }
 
   if (value.mode === "structured") {
-    return Array.isArray(value.nodes) && value.nodes.every(isStructuredNode);
+    return (
+      Array.isArray(value.nodes) &&
+      value.nodes.every(isStructuredNode) &&
+      (value.components === undefined ||
+        (Array.isArray(value.components) &&
+          value.components.every(isStructuredComponentInstance)))
+    );
   }
 
   return false;

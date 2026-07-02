@@ -8,6 +8,7 @@ import {
   buildStructuredTemplateNodes,
   setActiveStructuredTemplateDragId,
 } from "@/domains/canvas/state/helpers/structuredTemplates";
+import { normalizeScene } from "@/shared/utils/structured";
 
 vi.mock("@/domains/canvas/components/AsciiCanvas/hooks/useCanvasRenderer", () => ({
   useCanvasRenderer: vi.fn(),
@@ -15,8 +16,15 @@ vi.mock("@/domains/canvas/components/AsciiCanvas/hooks/useCanvasRenderer", () =>
 
 const handleDoubleClickMock = vi.fn();
 
-const stripNodeIds = <T extends { id: string }>(nodes: T[]) =>
-  nodes.map(({ id: _id, ...node }) => node);
+const stripNodeIds = <T extends { id: string; component?: { instanceId: string } }>(
+  nodes: T[]
+) =>
+  nodes.map(({ id: _id, ...node }) => ({
+    ...node,
+    component: node.component
+      ? { ...node.component, instanceId: "<component-instance>" }
+      : undefined,
+  }));
 
 const waitForAnimationFrame = () =>
   new Promise<void>((resolve) => {
@@ -520,24 +528,26 @@ describe("AsciiCanvas focus management", () => {
     expect(preview).toHaveStyle({
       left: "18px",
       top: "38px",
-      width: "162px",
-      height: "95px",
+      width: "234px",
+      height: "76px",
     });
     const previewGrid = preview.querySelector(
       '[data-testid="structured-template-preview-grid"]'
     );
     expect(previewGrid?.tagName).toBe("CANVAS");
-    expect(previewGrid).toHaveStyle({ width: "162px", height: "95px" });
+    expect(previewGrid).toHaveStyle({ width: "234px", height: "76px" });
 
     act(() => {
       fireEvent(root, dropEvent);
     });
 
     const state = useCanvasStore.getState();
-    const expectedNodes = buildStructuredTemplateNodes(
-      "textarea",
-      { x: 2, y: 2 },
-      { brushColor: "#000000", startOrder: 1 }
+    const expectedNodes = normalizeScene(
+      buildStructuredTemplateNodes(
+        "textarea",
+        { x: 2, y: 2 },
+        { brushColor: "#000000", startOrder: 1 }
+      )
     );
     expect(dataTransfer.dropEffect).toBe("copy");
     expect(stripNodeIds(state.structuredScene)).toEqual(

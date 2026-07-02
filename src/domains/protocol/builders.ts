@@ -3,9 +3,11 @@ import type {
   AnimationTimeline,
   CanvasMode,
   GridMap,
+  StructuredComponentInstance,
   StructuredNode,
 } from "@/shared/types";
 import { cloneTextAttributes } from "@/shared/utils/ansi";
+import { normalizeStructuredComponents } from "@/domains/canvas/state/helpers/snapshotHelpers";
 import { cloneStructuredTextStyleRanges } from "@/shared/utils/structuredTextRanges";
 import {
   ASCII_CANVAS_DOCUMENT_TYPE,
@@ -23,6 +25,17 @@ import type {
 const assertNever = (value: never): never => {
   throw new Error(`Unsupported structured node: ${JSON.stringify(value)}`);
 };
+
+const cloneComponentMetadata = (component: StructuredNode["component"]) =>
+  component
+    ? {
+        component: {
+          instanceId: component.instanceId,
+          templateId: component.templateId,
+          role: component.role,
+        },
+      }
+    : {};
 
 const sortCells = (cells: AsciiCanvasProtocolCellV1[]) => {
   return [...cells].sort((a, b) => {
@@ -89,6 +102,7 @@ const cloneStructuredNode = (
         end: { ...node.end },
         style,
         ...(node.name ? { name: node.name } : {}),
+        ...cloneComponentMetadata(node.component),
       };
     case "splitBox":
       return {
@@ -102,6 +116,7 @@ const cloneStructuredNode = (
         bottomSplitRatio: node.bottomSplitRatio,
         ...(node.root ? { root: node.root } : {}),
         style,
+        ...cloneComponentMetadata(node.component),
       };
     case "line":
       return {
@@ -112,6 +127,7 @@ const cloneStructuredNode = (
         end: { ...node.end },
         axis: node.axis,
         style,
+        ...cloneComponentMetadata(node.component),
       };
     case "bg":
       return {
@@ -121,6 +137,7 @@ const cloneStructuredNode = (
         start: { ...node.start },
         end: { ...node.end },
         style,
+        ...cloneComponentMetadata(node.component),
       };
     case "text":
       return {
@@ -133,6 +150,7 @@ const cloneStructuredNode = (
         ...(cloneStructuredTextStyleRanges(node.styleRanges)
           ? { styleRanges: cloneStructuredTextStyleRanges(node.styleRanges) }
           : {}),
+        ...cloneComponentMetadata(node.component),
       };
     default:
       return assertNever(node);
@@ -182,13 +200,18 @@ export const buildAnimationProtocolDocument = (
 };
 
 export const buildStructuredProtocolDocument = (
-  scene: StructuredNode[]
+  scene: StructuredNode[],
+  components?: StructuredComponentInstance[]
 ): AsciiCanvasStructuredDocumentV1 => {
+  const normalizedComponents = normalizeStructuredComponents(components, scene);
   return {
     type: ASCII_CANVAS_DOCUMENT_TYPE,
     version: ASCII_CANVAS_DOCUMENT_VERSION,
     mode: "structured",
     nodes: sortStructuredNodes(scene).map(cloneStructuredNode),
+    ...(normalizedComponents.length > 0
+      ? { components: normalizedComponents }
+      : {}),
   };
 };
 
@@ -205,6 +228,7 @@ type BuildProtocolDocumentByModeInput =
   | {
       mode: "structured";
       scene: StructuredNode[];
+      components?: StructuredComponentInstance[];
     };
 
 export const buildProtocolDocument = (
@@ -216,7 +240,7 @@ export const buildProtocolDocument = (
     case "animation":
       return buildAnimationProtocolDocument(input.size, input.timeline);
     case "structured":
-      return buildStructuredProtocolDocument(input.scene);
+      return buildStructuredProtocolDocument(input.scene, input.components);
   }
 };
 
@@ -224,6 +248,7 @@ export interface ProtocolCanvasStateSnapshotInput {
   canvasMode: CanvasMode;
   grid: GridMap;
   structuredScene: StructuredNode[];
+  structuredComponents?: StructuredComponentInstance[];
   canvasBounds: AnimationCanvasSize | null;
   animationTimeline: AnimationTimeline | null;
 }
@@ -235,7 +260,10 @@ export const buildProtocolDocumentFromCanvasState = (
     case "freeform":
       return buildFreeformProtocolDocument(input.grid);
     case "structured":
-      return buildStructuredProtocolDocument(input.structuredScene);
+      return buildStructuredProtocolDocument(
+        input.structuredScene,
+        input.structuredComponents
+      );
     case "animation":
       if (!input.canvasBounds || !input.animationTimeline) {
         throw new Error(

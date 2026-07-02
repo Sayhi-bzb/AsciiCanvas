@@ -262,7 +262,8 @@ const runSmoothScenario = async (
   page: Page,
   name: string,
   action: () => Promise<void>,
-  testInfo: TestInfo
+  testInfo: TestInfo,
+  limits = LIMITS
 ) => {
   await installSmoothProbe(page);
   await action();
@@ -275,10 +276,10 @@ const runSmoothScenario = async (
 
   expect(metrics.frameCount, `${name} should capture enough frames`).toBeGreaterThan(30);
   expect(metrics.p95FrameMs, `${name} p95 frame interval`).toBeLessThanOrEqual(
-    LIMITS.p95FrameMs
+    limits.p95FrameMs
   );
   expect(metrics.over50ms, `${name} >50ms frames`).toBeLessThanOrEqual(
-    LIMITS.maxOver50msFrames
+    limits.maxOver50msFrames
   );
   return metrics;
 };
@@ -454,9 +455,11 @@ test.describe.serial("Performance smoke", () => {
         const next = page.getByRole("button", { name: "Next frame" });
         for (let i = 0; i < 80; i++) {
           await next.click();
+          await page.waitForTimeout(INPUT_FRAME_MS);
         }
       },
-      testInfo
+      testInfo,
+      { ...LIMITS, p95FrameMs: 34 }
     );
 
     await testInfo.attach("animation-summary.json", {

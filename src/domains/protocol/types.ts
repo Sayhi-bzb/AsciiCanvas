@@ -2,6 +2,7 @@ import type {
   AnimationCanvasSize,
   CanvasMode,
   Point,
+  StructuredComponentInstance,
   StructuredSplitBoxTreeNode,
   StructuredTextStyleRange,
   TextAttributes,
@@ -40,10 +41,17 @@ export interface AsciiCanvasProtocolStyleV1 {
   attrs?: TextAttributes;
 }
 
+export interface AsciiCanvasProtocolComponentMetadataV1 {
+  instanceId: string;
+  templateId: string;
+  role: string;
+}
+
 interface AsciiCanvasProtocolNodeBaseV1 {
   id: string;
   order: number;
   style: AsciiCanvasProtocolStyleV1;
+  component?: AsciiCanvasProtocolComponentMetadataV1;
 }
 
 export interface AsciiCanvasProtocolBoxNodeV1
@@ -116,6 +124,7 @@ export interface AsciiCanvasAnimationDocumentV1
 export interface AsciiCanvasStructuredDocumentV1
   extends AsciiCanvasDocumentBaseV1<"structured"> {
   nodes: AsciiCanvasProtocolNodeV1[];
+  components?: StructuredComponentInstance[];
 }
 
 export type AsciiCanvasDocumentV1 =

@@ -28,7 +28,12 @@ describe('snapshotHelpers', () => {
         order: 1,
         position: { x: 10, y: 20 },
         text: 'Hello',
-        style: { color: '#000' }
+        style: { color: '#000' },
+        component: {
+          instanceId: 'component-1',
+          templateId: 'button',
+          role: 'label'
+        }
       };
       const cloned = cloneStructuredNode(node) as StructuredTextNode;
 
@@ -36,6 +41,7 @@ describe('snapshotHelpers', () => {
       expect(cloned).not.toBe(node);
       expect(cloned.position).not.toBe(node.position);
       expect(cloned.style).not.toBe(node.style);
+      expect(cloned.component).not.toBe(node.component);
     });
 
     it('should deep clone box node', () => {

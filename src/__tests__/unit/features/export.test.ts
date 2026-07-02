@@ -285,6 +285,11 @@ describe("export utilities", () => {
         end: { x: 4, y: 4 },
         name: "Box",
         style: { color: "#111111" },
+        component: {
+          instanceId: "component-1",
+          templateId: "card",
+          role: "container",
+        },
       },
       {
         id: "text-1",
@@ -314,6 +319,11 @@ describe("export utilities", () => {
       type: "box",
       name: "Box",
       style: { color: "#111111" },
+      component: {
+        instanceId: "component-1",
+        templateId: "card",
+        role: "container",
+      },
     });
     expect(parsed.nodes[1]).toMatchObject({
       id: "text-1",
@@ -377,6 +387,66 @@ describe("export utilities", () => {
       '  <line',
       '    axis="horizontal"',
       '  />',
+      '</canvas>',
+    ].join("\n"));
+  });
+
+  it("exports component roles in simplified structured hierarchy", () => {
+    const scene: StructuredNode[] = [
+      {
+        id: "bg-1",
+        type: "bg",
+        order: 1,
+        start: { x: 0, y: 0 },
+        end: { x: 7, y: 0 },
+        style: { color: "#000000", bgColor: "#dbeafe" },
+        component: {
+          instanceId: "component-1",
+          templateId: "button",
+          role: "fill",
+        },
+      },
+      {
+        id: "text-1",
+        type: "text",
+        order: 2,
+        position: { x: 0, y: 0 },
+        text: "[BUTTON]",
+        style: { color: "#000000" },
+        component: {
+          instanceId: "component-1",
+          templateId: "button",
+          role: "label",
+        },
+      },
+    ];
+
+    expect(exportStructuredHierarchyText(scene)).toBe([
+      '<canvas',
+      '  mode="structured"',
+      '>',
+      '  <component',
+      '    template="button"',
+      '    label="button"',
+      '  >',
+      '    <role',
+      '      name="fill"',
+      '    >',
+      '      <bg',
+      '        component="button"',
+      '        role="fill"',
+      '      />',
+      '    </role>',
+      '    <role',
+      '      name="label"',
+      '    >',
+      '      <text',
+      '        component="button"',
+      '        role="label"',
+      '        value="[BUTTON]"',
+      '      />',
+      '    </role>',
+      '  </component>',
       '</canvas>',
     ].join("\n"));
   });

@@ -11,6 +11,7 @@ import type {
   GridCell,
   GridMap,
   SelectionArea,
+  StructuredComponentInstance,
   StructuredNode,
 } from "@/shared/types";
 import { buildProtocolDocumentFromCanvasState } from "@/domains/protocol";
@@ -19,6 +20,7 @@ import { GridManager } from "@/shared/utils/grid";
 import { getSelectionsBoundingBox } from "@/shared/utils/selection";
 import { clipboard } from "@/shared/services/effects";
 import { buildStructuredTree, getStructuredNodeBounds } from "@/shared/utils/structured";
+import { normalizeStructuredComponents } from "@/domains/canvas/state/helpers/snapshotHelpers";
 import {
   DEFAULT_GRID_RENDER_METRICS,
   drawGridLines,
@@ -63,6 +65,7 @@ interface ProtocolExportInput {
   canvasMode: CanvasMode;
   grid: GridMap;
   structuredScene: StructuredNode[];
+  structuredComponents?: StructuredComponentInstance[];
   canvasBounds: AnimationCanvasSize | null;
   animationTimeline: AnimationTimeline | null;
   includeColor?: boolean;
@@ -822,6 +825,7 @@ export const buildProtocolExportDocument = ({
   canvasMode,
   grid,
   structuredScene,
+  structuredComponents,
   canvasBounds,
   animationTimeline,
   includeColor = true,
@@ -830,6 +834,7 @@ export const buildProtocolExportDocument = ({
     canvasMode,
     grid,
     structuredScene,
+    structuredComponents,
     canvasBounds,
     animationTimeline,
   });
@@ -960,6 +965,14 @@ const formatStyle = (style: StructuredNode["style"]) => {
   return parts.join(";");
 };
 
+const formatComponentAttrs = (node: StructuredNode): Array<[string, string]> => {
+  if (!node.component) return [];
+  return [
+    ["component", escapeAttr(node.component.templateId)],
+    ["role", escapeAttr(node.component.role)],
+  ];
+};
+
 const emitTag = (
   lines: string[],
   tag: string,
@@ -974,8 +987,12 @@ const emitTag = (
   lines.push(`${indent}${selfClose ? "/>" : ">"}`);
 };
 
-export const exportStructuredF12Text = (scene: StructuredNode[]) => {
+export const exportStructuredF12Text = (
+  scene: StructuredNode[],
+  components?: StructuredComponentInstance[]
+) => {
   const { roots, childrenById } = buildStructuredTree(scene);
+  const componentRegistry = normalizeStructuredComponents(components, scene);
   const lines: string[] = [];
 
   const emitNode = (node: StructuredNode, depth: number) => {
@@ -984,6 +1001,7 @@ export const exportStructuredF12Text = (scene: StructuredNode[]) => {
       ["id", escapeAttr(node.id)],
       ["bounds", formatBounds(node)],
       ["style", formatStyle(node.style)],
+      ...formatComponentAttrs(node),
     ];
 
     if (node.type === "box") {
@@ -1057,6 +1075,7 @@ export const exportStructuredF12Text = (scene: StructuredNode[]) => {
     [
       ["mode", "structured"],
       ["nodes", String(scene.length)],
+      ["components", String(componentRegistry.length)],
     ],
     "",
     false
@@ -1068,20 +1087,63 @@ export const exportStructuredF12Text = (scene: StructuredNode[]) => {
 
 export const exportStructuredHierarchyText = (
   scene: StructuredNode[],
-  selectedNodeIds: string[] = []
+  selectedNodeIds: string[] = [],
+  components?: StructuredComponentInstance[]
 ) => {
   const { roots, childrenById } = buildStructuredTree(scene);
+  const componentRegistry = normalizeStructuredComponents(components, scene);
+  const componentByAtomId = new Map<string, StructuredComponentInstance>();
+  componentRegistry.forEach((component) => {
+    component.atomIds.forEach((atomId) => componentByAtomId.set(atomId, component));
+  });
   const selectedIds = new Set(selectedNodeIds);
   const lines: string[] = [];
+  const emittedComponentIds = new Set<string>();
+  const nodeById = new Map(scene.map((node) => [node.id, node]));
 
   const emitNode = (node: StructuredNode, depth: number) => {
+    const indent = "  ".repeat(depth);
+    const component = componentByAtomId.get(node.id);
+    if (component && !emittedComponentIds.has(component.id)) {
+      emittedComponentIds.add(component.id);
+      emitTag(
+        lines,
+        "component",
+        [
+          ["template", escapeAttr(component.templateId)],
+          ["label", escapeAttr(component.label)],
+        ],
+        indent,
+        false
+      );
+      Object.entries(component.roles).forEach(([role, atomIds]) => {
+        const roleIndent = "  ".repeat(depth + 1);
+        emitTag(lines, "role", [["name", escapeAttr(role)]], roleIndent, false);
+        atomIds.forEach((atomId) => {
+          const atom = nodeById.get(atomId);
+          if (atom) emitAtom(atom, depth + 2);
+        });
+        lines.push(`${roleIndent}</role>`);
+      });
+      lines.push(`${indent}</component>`);
+      return;
+    }
+    if (component) return;
+
+    emitAtom(node, depth);
+  };
+
+  const emitAtom = (node: StructuredNode, depth: number) => {
     const indent = "  ".repeat(depth);
 
     if (node.type === "box") {
       const attrs =
         node.name && node.name.trim()
-          ? [["name", escapeAttr(node.name)] as [string, string]]
-          : [];
+          ? [
+              ...formatComponentAttrs(node),
+              ["name", escapeAttr(node.name)] as [string, string],
+            ]
+          : formatComponentAttrs(node);
       emitTag(lines, "box", attrs, indent, false);
       const children = childrenById.get(node.id) || [];
       children.forEach((child) => emitNode(child, depth + 1));
@@ -1090,7 +1152,7 @@ export const exportStructuredHierarchyText = (
     }
 
     if (node.type === "splitBox") {
-      emitTag(lines, "splitBox", [], indent, false);
+      emitTag(lines, "splitBox", formatComponentAttrs(node), indent, false);
       const children = childrenById.get(node.id) || [];
       children.forEach((child) => emitNode(child, depth + 1));
       lines.push(`${indent}</splitBox>`);
@@ -1098,16 +1160,28 @@ export const exportStructuredHierarchyText = (
     }
 
     if (node.type === "line") {
-      emitTag(lines, "line", [["axis", node.axis]], indent, true);
+      emitTag(
+        lines,
+        "line",
+        [...formatComponentAttrs(node), ["axis", node.axis]],
+        indent,
+        true
+      );
       return;
     }
 
     if (node.type === "bg") {
-      emitTag(lines, "bg", [], indent, true);
+      emitTag(lines, "bg", formatComponentAttrs(node), indent, true);
       return;
     }
 
-    emitTag(lines, "text", [["value", escapeAttr(node.text)]], indent, true);
+    emitTag(
+      lines,
+      "text",
+      [...formatComponentAttrs(node), ["value", escapeAttr(node.text)]],
+      indent,
+      true
+    );
   };
 
   const collectSelectedRoots = (

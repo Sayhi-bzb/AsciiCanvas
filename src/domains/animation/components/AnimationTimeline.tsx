@@ -32,6 +32,7 @@ export function AnimationTimeline({
     canvasMode,
     animationTimeline,
     animationIsPlaying,
+    animationPlaybackFrameId,
     setAnimationFps,
     toggleAnimationLoop,
     setOnionSkinSettings,
@@ -44,6 +45,7 @@ export function AnimationTimeline({
       canvasMode: state.canvasMode,
       animationTimeline: state.animationTimeline,
       animationIsPlaying: state.animationIsPlaying,
+      animationPlaybackFrameId: state.animationPlaybackFrameId,
       setAnimationFps: state.setAnimationFps,
       toggleAnimationLoop: state.toggleAnimationLoop,
       setOnionSkinSettings: state.setOnionSkinSettings,
@@ -78,10 +80,12 @@ export function AnimationTimeline({
 
   const activeFrameIndex = useMemo(() => {
     if (!animationTimeline) return -1;
+    const activeFrameId =
+      animationPlaybackFrameId ?? animationTimeline.currentFrameId;
     return animationTimeline.frames.findIndex(
-      (frame) => frame.id === animationTimeline.currentFrameId
+      (frame) => frame.id === activeFrameId
     );
-  }, [animationTimeline]);
+  }, [animationPlaybackFrameId, animationTimeline]);
 
   if (canvasMode !== "animation" || !animationTimeline) {
     return null;

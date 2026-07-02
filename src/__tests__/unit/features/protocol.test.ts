@@ -306,6 +306,7 @@ describe("protocol builders", () => {
     expect(protocolDocumentToSnapshot(document)).toEqual({
       mode: "freeform",
       scene: [],
+      components: [],
       grid: [
         ["3,4", { char: "Z", color: "#abcdef" }],
         ["0,0", { char: "@", color: "#ff0000" }],
@@ -365,6 +366,11 @@ describe("protocol builders", () => {
           end: { x: 3, y: 2 },
           name: "Box",
           style: { color: "#111111" },
+          component: {
+            instanceId: "component-1",
+            templateId: "card",
+            role: "container",
+          },
         },
         {
           id: "text-1",
@@ -384,6 +390,11 @@ describe("protocol builders", () => {
       id: "box-1",
       type: "box",
       style: { color: "#111111" },
+      component: {
+        instanceId: "component-1",
+        templateId: "card",
+        role: "container",
+      },
     });
     expect(snapshot.grid.length).toBeGreaterThan(0);
   });

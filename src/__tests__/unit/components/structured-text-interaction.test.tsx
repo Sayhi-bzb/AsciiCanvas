@@ -3,12 +3,13 @@ import { act, fireEvent, render } from "@testing-library/react";
 import { useRef } from "react";
 
 import { useCanvasInteraction } from "@/domains/canvas/components/AsciiCanvas/hooks/useCanvasInteraction";
+import type { StructuredMovePreview } from "@/domains/canvas/components/AsciiCanvas/hooks/useCanvasRenderer";
 import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
 import { runUndo } from "@/domains/actions/adapters/shortcutActions";
 import { useShallow } from "zustand/react/shallow";
 
 const gestureState = vi.hoisted(() => ({
-  handlers: null as Record<string, (input: any) => void> | null,
+  handlers: null as Record<string, (input: unknown) => void> | null,
 }));
 
 vi.mock("@use-gesture/react", () => ({
@@ -20,6 +21,8 @@ vi.mock("@use-gesture/react", () => ({
 
 function InteractionHarness() {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const structuredMovePreviewRef = useRef<StructuredMovePreview | null>(null);
+  const requestRenderRef = useRef<(() => void) | null>(null);
   const store = useCanvasStore(
     useShallow((state) => ({
       tool: state.tool,
@@ -50,6 +53,7 @@ function InteractionHarness() {
       editingStructuredTextNodeId: state.editingStructuredTextNodeId,
       selectedStructuredNodeIds: state.selectedStructuredNodeIds,
       setStructuredGridFocus: state.setStructuredGridFocus,
+      setStructuredContextPoint: state.setStructuredContextPoint,
       setSelectedStructuredNodeIds: state.setSelectedStructuredNodeIds,
       setSelectedStructuredSplitHandle: state.setSelectedStructuredSplitHandle,
       setEditingStructuredTextNodeId: state.setEditingStructuredTextNodeId,
@@ -57,12 +61,16 @@ function InteractionHarness() {
       structuredTextSelection: state.structuredTextSelection,
       setStructuredTextColor: state.setStructuredTextColor,
       applyStructuredScene: state.applyStructuredScene,
-      previewStructuredScene: state.previewStructuredScene,
-      previewStructuredNodeMove: state.previewStructuredNodeMove,
       updateStructuredNode: state.updateStructuredNode,
     }))
   );
-  const { handleDoubleClick } = useCanvasInteraction(store, containerRef, vi.fn());
+  const { handleDoubleClick } = useCanvasInteraction(
+    store,
+    containerRef,
+    vi.fn(),
+    structuredMovePreviewRef,
+    requestRenderRef
+  );
 
   return (
     <div
@@ -216,6 +224,36 @@ describe("structured text interaction", () => {
           start: { x: 0, y: 0 },
           end: { x: 4, y: 0 },
           axis: "horizontal",
+          style: { color: "#ffffff" },
+        },
+      ],
+    });
+  };
+
+  const setStructuredSplitBoxScene = () => {
+    useCanvasStore.setState({
+      canvasMode: "structured",
+      tool: "select",
+      offset: { x: 0, y: 0 },
+      zoom: 1,
+      grid: new Map(),
+      selections: [],
+      textCursor: null,
+      editingStructuredTextNodeId: null,
+      selectedStructuredNodeIds: [],
+      selectedStructuredSplitHandle: null,
+      structuredContextPoint: null,
+      structuredScene: [
+        {
+          id: "split-1",
+          type: "splitBox",
+          order: 1,
+          start: { x: 0, y: 0 },
+          end: { x: 9, y: 9 },
+          verticalSplitRatio: 0.5,
+          topSplitRatio: 0.25,
+          bottomSplitRatio: 0.75,
+          root: { type: "leaf", id: "root-leaf" },
           style: { color: "#ffffff" },
         },
       ],
@@ -385,6 +423,163 @@ describe("structured text interaction", () => {
     expect(state.brushColor).toBe("#445566");
     expect(state.canvasColorPickerTarget).toBeNull();
     expect(state.hoveredGrid).toBeNull();
+  });
+
+  it("activates a split box leaf focus from a left click", () => {
+    setStructuredSplitBoxScene();
+    render(<InteractionHarness />);
+
+    act(() => {
+      gestureState.handlers?.onDragStart?.({
+        xy: [18, 39],
+        event: dragEvent(),
+      });
+    });
+
+    const state = useCanvasStore.getState();
+    expect(state.selectedStructuredNodeIds).toEqual(["split-1"]);
+    expect(state.structuredContextPoint).toEqual({ x: 2, y: 2 });
+  });
+
+  it("selects a split divider handle from a left click", () => {
+    setStructuredSplitBoxScene();
+    useCanvasStore.setState({
+      structuredScene: [
+        {
+          id: "split-1",
+          type: "splitBox",
+          order: 1,
+          start: { x: 0, y: 0 },
+          end: { x: 9, y: 9 },
+          verticalSplitRatio: 0.5,
+          topSplitRatio: 0.25,
+          bottomSplitRatio: 0.75,
+          root: {
+            type: "split",
+            id: "split-existing",
+            axis: "vertical",
+            ratio: 0.5,
+            first: { type: "leaf", id: "left" },
+            second: { type: "leaf", id: "right" },
+          },
+          style: { color: "#ffffff" },
+        },
+      ],
+    });
+    render(<InteractionHarness />);
+
+    act(() => {
+      gestureState.handlers?.onDragStart?.({
+        xy: [50, 39],
+        event: dragEvent(),
+      });
+    });
+
+    const state = useCanvasStore.getState();
+    expect(state.selectedStructuredNodeIds).toEqual(["split-1"]);
+    expect(state.selectedStructuredSplitHandle).toEqual({
+      nodeId: "split-1",
+      handle: "split:split-existing",
+    });
+    expect(state.structuredScene[0]).toMatchObject({
+      type: "splitBox",
+      root: { type: "split", id: "split-existing", ratio: 0.5 },
+    });
+  });
+
+  it("resizes a split divider only after dragging away from the clicked cell", () => {
+    setStructuredSplitBoxScene();
+    useCanvasStore.setState({
+      selectedStructuredNodeIds: ["split-1"],
+      structuredScene: [
+        {
+          id: "split-1",
+          type: "splitBox",
+          order: 1,
+          start: { x: 0, y: 0 },
+          end: { x: 9, y: 9 },
+          verticalSplitRatio: 0.5,
+          topSplitRatio: 0.25,
+          bottomSplitRatio: 0.75,
+          root: {
+            type: "split",
+            id: "split-existing",
+            axis: "vertical",
+            ratio: 0.5,
+            first: { type: "leaf", id: "left" },
+            second: { type: "leaf", id: "right" },
+          },
+          style: { color: "#ffffff" },
+        },
+      ],
+    });
+    render(<InteractionHarness />);
+
+    act(() => {
+      gestureState.handlers?.onDragStart?.({
+        xy: [50, 39],
+        event: dragEvent(),
+      });
+      gestureState.handlers?.onDrag?.({
+        xy: [50, 39],
+        delta: [0, 0],
+        event: dragEvent(),
+      });
+      gestureState.handlers?.onDragEnd?.({
+        xy: [50, 39],
+        event: dragEvent(),
+      });
+    });
+
+    expect(useCanvasStore.getState().structuredScene[0]).toMatchObject({
+      type: "splitBox",
+      root: { type: "split", id: "split-existing", ratio: 0.5 },
+    });
+
+    act(() => {
+      gestureState.handlers?.onDragStart?.({
+        xy: [50, 39],
+        event: dragEvent(),
+      });
+      gestureState.handlers?.onDrag?.({
+        xy: [68, 39],
+        delta: [18, 0],
+        event: dragEvent(),
+      });
+      gestureState.handlers?.onDragEnd?.({
+        xy: [68, 39],
+        event: dragEvent(),
+      });
+    });
+
+    const node = useCanvasStore.getState().structuredScene[0];
+    expect(node).toMatchObject({
+      type: "splitBox",
+      root: { type: "split", id: "split-existing" },
+    });
+    expect(node.type === "splitBox" && node.root?.type === "split" && node.root.ratio)
+      .toBeGreaterThan(0.5);
+  });
+
+  it("clears stale split box focus when left-clicking another structured node", () => {
+    setStructuredMixedScene();
+    useCanvasStore.setState({
+      selectedStructuredNodeIds: [],
+      structuredContextPoint: { x: 2, y: 2 },
+    });
+    render(<InteractionHarness />);
+
+    act(() => {
+      gestureState.handlers?.onDragStart?.({
+        xy: [1, 1],
+        event: dragEvent(),
+      });
+    });
+
+    expect(useCanvasStore.getState().selectedStructuredNodeIds).toEqual([
+      "box-1",
+    ]);
+    expect(useCanvasStore.getState().structuredContextPoint).toBeNull();
   });
 
   it("focuses an empty structured cell after a blank select click", () => {

@@ -15,6 +15,8 @@ import {
   Pencil,
   Scissors,
   SendToBack,
+  SquareSplitHorizontal,
+  SquareSplitVertical,
   SquarePen,
   Trash2,
   Type,
@@ -90,10 +92,12 @@ export const EDITOR_ACTION_META: Record<EditorActionId, ActionMeta> = {
   "structured-split-horizontal": {
     id: "structured-split-horizontal",
     label: "Split Horizontal",
+    icon: SquareSplitVertical,
   },
   "structured-split-vertical": {
     id: "structured-split-vertical",
     label: "Split Vertical",
+    icon: SquareSplitHorizontal,
   },
   "structured-delete-divider": {
     id: "structured-delete-divider",
@@ -158,10 +162,6 @@ export const CANVAS_CONTEXT_MENU: ContextMenuEntry[] = [
 
 export const STRUCTURED_CONTEXT_MENU: ContextMenuEntry[] = [
   { type: "action", id: "structured-rename" },
-  { type: "action", id: "structured-split-horizontal" },
-  { type: "action", id: "structured-split-vertical" },
-  { type: "action", id: "structured-delete-divider" },
-  { type: "separator" },
   {
     type: "submenu",
     label: "Layer",

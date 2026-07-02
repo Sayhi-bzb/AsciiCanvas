@@ -3,6 +3,7 @@ import type {
   AnimationCanvasSize,
   AnimationTimeline,
   CanvasMode,
+  StructuredComponentInstance,
   StructuredNode,
   ToolType,
 } from "@/shared/types";
@@ -11,6 +12,7 @@ import { MIN_ZOOM, MAX_ZOOM } from "@/shared/lib/constants";
 import { serializeGrid } from "./snapshotHelpers";
 import {
   normalizeAndCloneScene,
+  normalizeStructuredComponents,
 } from "./snapshotHelpers";
 import {
   createEmptyAnimationFrame,
@@ -78,6 +80,7 @@ export const buildSessionSnapshot = (state: CanvasState) => {
     return {
       mode: "animation" as const,
       scene: [] as StructuredNode[],
+      components: [] as StructuredComponentInstance[],
       grid: getAnimationFrameEntries(timeline, timeline.currentFrameId),
       size,
       timeline,
@@ -89,6 +92,7 @@ export const buildSessionSnapshot = (state: CanvasState) => {
     return {
       mode: "structured" as const,
       scene: state.structuredScene,
+      components: state.structuredComponents,
       grid: sceneToGridEntries(state.structuredScene),
       viewport: { offset: { ...state.offset }, zoom: state.zoom },
     };
@@ -97,6 +101,7 @@ export const buildSessionSnapshot = (state: CanvasState) => {
   return {
     mode: "freeform" as const,
     scene: [] as StructuredNode[],
+    components: [] as StructuredComponentInstance[],
     grid: serializeGrid(state.grid),
     viewport: { offset: { ...state.offset }, zoom: state.zoom },
   };
@@ -118,6 +123,7 @@ export const resolveSessionRuntime = (session: CanvasSession, currentTool: ToolT
     return {
       nextMode,
       nextScene: [] as StructuredNode[],
+      nextComponents: [] as StructuredComponentInstance[],
       nextGridEntries,
       nextTool: isToolAllowedForMode(currentTool, nextMode)
         ? currentTool
@@ -132,12 +138,17 @@ export const resolveSessionRuntime = (session: CanvasSession, currentTool: ToolT
 
   const nextScene =
     nextMode === "structured" ? normalizeAndCloneScene(session.scene) : [];
+  const nextComponents =
+    nextMode === "structured"
+      ? normalizeStructuredComponents(session.components, nextScene)
+      : [];
   const nextGridEntries =
     nextMode === "structured" ? sceneToGridEntries(nextScene) : session.grid;
 
   return {
     nextMode,
     nextScene,
+    nextComponents,
     nextGridEntries,
     nextTool: isToolAllowedForMode(currentTool, nextMode)
       ? currentTool

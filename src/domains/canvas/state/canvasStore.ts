@@ -40,6 +40,8 @@ import {
 } from "./helpers/sessionHelpers";
 import {
   cloneScene,
+  deriveStructuredComponentsFromScene,
+  normalizeStructuredComponents,
   normalizeAndCloneScene,
   createMapFromEntries,
   normalizeGridEntries,
@@ -86,7 +88,16 @@ export const useCanvasStore = create<CanvasState>()(
       });
 
       yStructuredScene.observe(() => {
-        set({ structuredScene: rebuildSceneFromYMap() });
+        set((state) => {
+          const structuredScene = rebuildSceneFromYMap();
+          return {
+            structuredScene,
+            structuredComponents: normalizeStructuredComponents(
+              state.structuredComponents,
+              structuredScene
+            ),
+          };
+        });
       });
 
       return {
@@ -95,6 +106,7 @@ export const useCanvasStore = create<CanvasState>()(
         grid: createMapFromEntries(DEFAULT_DEMO_GRID),
         canvasMode: DEFAULT_MODE,
         structuredScene: [],
+        structuredComponents: [],
         selectedStructuredNodeIds: [],
         selectedStructuredBoxId: null,
         selectedStructuredSplitHandle: null,
@@ -103,6 +115,7 @@ export const useCanvasStore = create<CanvasState>()(
         canvasBounds: null,
         animationTimeline: null,
         animationIsPlaying: false,
+        animationPlaybackFrameId: null,
         canvasSessions: [
           {
             id: DEFAULT_SESSION_ID,
@@ -133,8 +146,23 @@ export const useCanvasStore = create<CanvasState>()(
             if (!isToolAllowedForMode(tool, state.canvasMode)) return state;
             return { tool, textCursor: null, editingStructuredTextNodeId: null, structuredTextSelection: null, hoveredGrid: null };
           }),
-        applyStructuredScene: (scene, history = "save") => {
+        applyStructuredScene: (scene, history = "save", components) => {
           const normalizedScene = normalizeAndCloneScene(scene);
+          const componentSource =
+            components ??
+            [
+              ...get().structuredComponents,
+              ...deriveStructuredComponentsFromScene(normalizedScene).filter(
+                (component) =>
+                  !get().structuredComponents.some(
+                    (existing) => existing.id === component.id
+                  )
+              ),
+            ];
+          const normalizedComponents = normalizeStructuredComponents(
+            componentSource,
+            normalizedScene
+          );
           const gridEntries = sceneToGridEntries(normalizedScene);
           runCanvasTransaction(() => {
             yStructuredScene.clear();
@@ -146,6 +174,7 @@ export const useCanvasStore = create<CanvasState>()(
           }, history);
           set((state) => ({
             structuredScene: normalizedScene,
+            structuredComponents: normalizedComponents,
             selectedStructuredNodeIds: state.selectedStructuredNodeIds.filter((id) =>
               normalizedScene.some((node) => node.id === id)
             ),
@@ -178,6 +207,7 @@ export const useCanvasStore = create<CanvasState>()(
               {
                 mode: state.canvasMode,
                 scene: normalizedScene,
+                components: normalizedComponents,
                 grid: gridEntries,
               }
             ),
@@ -245,6 +275,10 @@ export const useCanvasStore = create<CanvasState>()(
           zoom: state.zoom,
           canvasMode: state.canvasMode,
           structuredScene: cloneScene(state.structuredScene),
+          structuredComponents: normalizeStructuredComponents(
+            state.structuredComponents,
+            state.structuredScene
+          ),
           canvasBounds: state.canvasBounds ? { ...state.canvasBounds } : null,
           animationTimeline: state.animationTimeline
             ? cloneAnimationTimeline(state.animationTimeline)
@@ -277,6 +311,7 @@ export const useCanvasStore = create<CanvasState>()(
             activeCanvasId?: unknown;
             canvasMode?: unknown;
             structuredScene?: unknown;
+            structuredComponents?: unknown;
           };
           hState.brushChar = normalizeBrushChar(
             hState.brushChar,
@@ -296,6 +331,12 @@ export const useCanvasStore = create<CanvasState>()(
                   (item): item is StructuredNode => !!item
                 ) as StructuredNode[])
             : [];
+          const legacyComponents = Array.isArray(hState.structuredComponents)
+            ? normalizeStructuredComponents(
+                hState.structuredComponents as never,
+                legacyScene
+              )
+            : normalizeStructuredComponents(undefined, legacyScene);
 
           const recoveredSessions: CanvasSession[] = Array.isArray(
             hState.canvasSessions
@@ -306,6 +347,7 @@ export const useCanvasStore = create<CanvasState>()(
                   const maybe = raw as Partial<CanvasSession> & {
                     mode?: unknown;
                     scene?: unknown;
+                    components?: unknown;
                   };
                   if (typeof maybe.id !== "string") return null;
                   const mode = normalizeSessionMode(maybe.mode);
@@ -317,6 +359,12 @@ export const useCanvasStore = create<CanvasState>()(
                           (item): item is StructuredNode => !!item
                         )
                     : [];
+                  const components = Array.isArray(maybe.components)
+                    ? normalizeStructuredComponents(
+                        maybe.components as never,
+                        scene
+                      )
+                    : normalizeStructuredComponents(undefined, scene);
 
                   if (mode === "animation") {
                     const size = normalizeAnimationCanvasSize(
@@ -334,6 +382,7 @@ export const useCanvasStore = create<CanvasState>()(
                           : "Canvas",
                       mode,
                       scene: [],
+                      components: [],
                       grid: getAnimationFrameEntries(timeline, timeline.currentFrameId),
                       size,
                       timeline,
@@ -349,6 +398,7 @@ export const useCanvasStore = create<CanvasState>()(
                         : "Canvas",
                     mode,
                     scene: normalizeAndCloneScene(scene),
+                    components,
                     grid: normalizeGridEntries(maybe.grid),
                     ...(viewport ? { viewport } : {}),
                   } satisfies CanvasSession;
@@ -365,6 +415,7 @@ export const useCanvasStore = create<CanvasState>()(
                     name: DEFAULT_SESSION_NAME,
                     mode: legacyMode,
                     scene: normalizeAndCloneScene(legacyScene),
+                    components: legacyComponents,
                     grid:
                       !hasPersistedState && legacyGridEntries.length === 0
                         ? DEFAULT_DEMO_GRID
@@ -394,6 +445,7 @@ export const useCanvasStore = create<CanvasState>()(
           hState.activeCanvasId = activeCanvasId;
           hState.canvasMode = runtime.nextMode;
           hState.structuredScene = runtime.nextScene;
+          hState.structuredComponents = runtime.nextComponents;
           hState.selectedStructuredNodeIds = [];
           hState.selectedStructuredBoxId = null;
           hState.selectedStructuredSplitHandle = null;
@@ -406,6 +458,7 @@ export const useCanvasStore = create<CanvasState>()(
           hState.zoom = runtime.nextZoom;
           hState.activeCanvasHasSavedViewport = runtime.hasSavedViewport;
           hState.animationIsPlaying = false;
+          hState.animationPlaybackFrameId = null;
 
           if (runtime.nextMode === "structured") {
             applyStructuredSnapshotToYMaps(runtime.nextScene);

@@ -36,6 +36,7 @@ export type StructuredTemplateId =
 export type StructuredTemplateBuildOptions = {
   brushColor: string;
   startOrder: number;
+  templateId?: StructuredTemplateId;
 };
 
 export type StructuredComponentFactory = {
@@ -44,7 +45,8 @@ export type StructuredComponentFactory = {
     offset?: Point,
     orderOffset?: number,
     styleRanges?: StructuredTextStyleRange[],
-    style?: StructuredNodeStyle
+    style?: StructuredNodeStyle,
+    role?: string
   ) => StructuredNode;
   createBg: (
     width: number,
@@ -52,20 +54,23 @@ export type StructuredComponentFactory = {
     orderOffset?: number,
     offset?: Point,
     height?: number,
-    color?: string
+    color?: string,
+    role?: string
   ) => StructuredNode;
   createBox: (
     width: number,
     height: number,
     orderOffset?: number,
     offset?: Point,
-    style?: StructuredNodeStyle
+    style?: StructuredNodeStyle,
+    role?: string
   ) => StructuredBoxNode;
   createLine: (
     width: number,
     orderOffset?: number,
     offset?: Point,
-    style?: StructuredNodeStyle
+    style?: StructuredNodeStyle,
+    role?: string
   ) => StructuredLineNode;
   createSplitBox: (
     width: number,
@@ -77,7 +82,8 @@ export type StructuredComponentFactory = {
       topSplitRatio: number;
       bottomSplitRatio: number;
     },
-    style?: StructuredNodeStyle
+    style?: StructuredNodeStyle,
+    role?: string
   ) => StructuredSplitBoxNode;
 };
 

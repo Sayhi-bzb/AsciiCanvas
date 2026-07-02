@@ -1,4 +1,8 @@
-import type { StructuredNode, TextAttributes } from "@/shared/types";
+import type {
+  StructuredComponentInstance,
+  StructuredNode,
+  TextAttributes,
+} from "@/shared/types";
 import { mergeStructuredTextStyle } from "@/shared/utils/structuredTextRanges";
 import { getSplitBoxPoints } from "@/shared/utils/shapes";
 import {
@@ -9,6 +13,7 @@ import {
   type StructuredTemplateBuildOptions,
   type StructuredTemplateId,
 } from "./structured/components";
+import { normalizeStructuredComponents } from "./snapshotHelpers";
 
 export type { StructuredTemplateId };
 export {
@@ -52,19 +57,43 @@ export type StructuredTemplatePreview = {
   height: number;
 };
 
+export type StructuredTemplateBuildResult = {
+  nodes: StructuredNode[];
+  components: StructuredComponentInstance[];
+};
+
 export const isStructuredTemplateId = (
   value: string | null
 ): value is StructuredTemplateId =>
   STRUCTURED_TEMPLATES.some((template) => template.id === value);
+
+export const buildStructuredTemplate = (
+  templateId: StructuredTemplateId,
+  position: { x: number; y: number },
+  options: StructuredTemplateBuildOptions
+): StructuredTemplateBuildResult => {
+  const component = STRUCTURED_COMPONENT_BY_ID.get(templateId);
+  if (!component) return { nodes: [], components: [] };
+  const nodes = component.build(
+    createStructuredComponentFactory(position, { ...options, templateId })
+  );
+  return {
+    nodes,
+    components: normalizeStructuredComponents(undefined, nodes).map(
+      (instance) => ({
+        ...instance,
+        label: component.label,
+      })
+    ),
+  };
+};
 
 export const buildStructuredTemplateNodes = (
   templateId: StructuredTemplateId,
   position: { x: number; y: number },
   options: StructuredTemplateBuildOptions
 ): StructuredNode[] => {
-  const component = STRUCTURED_COMPONENT_BY_ID.get(templateId);
-  if (!component) return [];
-  return component.build(createStructuredComponentFactory(position, options));
+  return buildStructuredTemplate(templateId, position, options).nodes;
 };
 
 export const buildStructuredTemplatePreview = (

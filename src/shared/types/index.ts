@@ -101,10 +101,25 @@ export interface TextAttributes {
   inverse?: true;
 }
 
+export interface StructuredNodeComponentMetadata {
+  instanceId: string;
+  templateId: string;
+  role: string;
+}
+
+export interface StructuredComponentInstance {
+  id: string;
+  templateId: string;
+  label: string;
+  atomIds: string[];
+  roles: Record<string, string[]>;
+}
+
 interface StructuredNodeBase {
   id: string;
   order: number;
   style: StructuredNodeStyle;
+  component?: StructuredNodeComponentMetadata;
 }
 
 export interface StructuredBoxNode extends StructuredNodeBase {

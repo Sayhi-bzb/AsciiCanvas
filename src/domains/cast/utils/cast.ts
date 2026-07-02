@@ -204,6 +204,7 @@ export const parseAsciinemaCast = (raw: string): ProtocolImportSnapshot => {
   return {
     mode: "animation",
     scene: [],
+    components: [],
     size,
     timeline,
     grid: frames[0].grid,

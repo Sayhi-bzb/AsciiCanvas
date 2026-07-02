@@ -7,6 +7,7 @@ import type {
   AnimationTimeline,
   CanvasMode,
   GridMap,
+  StructuredComponentInstance,
   StructuredNode,
 } from "@/shared/types";
 import { Button } from "@/shared/ui/button";
@@ -45,6 +46,7 @@ type ExportDialogProps = {
   grid: GridMap;
   canvasMode: CanvasMode;
   structuredScene: StructuredNode[];
+  structuredComponents: StructuredComponentInstance[];
   canvasBounds: AnimationCanvasSize | null;
   animationTimeline: AnimationTimeline | null;
   exportShowGrid: boolean;
@@ -84,6 +86,7 @@ export function ExportDialog({
   grid,
   canvasMode,
   structuredScene,
+  structuredComponents,
   canvasBounds,
   animationTimeline,
   exportShowGrid,
@@ -122,6 +125,7 @@ export function ExportDialog({
             canvasMode,
             grid,
             structuredScene,
+            structuredComponents,
             canvasBounds,
             animationTimeline,
             includeColor,
@@ -132,13 +136,14 @@ export function ExportDialog({
       animationTimeline,
       includeColor,
       structuredScene,
+      structuredComponents,
       grid,
     ]
   );
   const plainTextExport = useMemo(() => exportToString(grid), [grid]);
   const structuredF12Export = useMemo(
-    () => exportStructuredF12Text(structuredScene),
-    [structuredScene]
+    () => exportStructuredF12Text(structuredScene, structuredComponents),
+    [structuredScene, structuredComponents]
   );
   const ansiExport = useMemo(
     () =>

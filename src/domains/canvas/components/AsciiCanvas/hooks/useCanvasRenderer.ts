@@ -9,7 +9,7 @@ import {
 } from "@/shared/lib/constants";
 import type { CanvasState } from "@/domains/canvas/state/canvasStore";
 import { GridManager } from "@/shared/utils/grid";
-import type { SelectionArea, GridMap, Point, NodeBounds, StructuredSplitBoxNode } from "@/shared/types";
+import type { SelectionArea, GridMap, Point, NodeBounds, StructuredSplitBoxNode, AnimationFrame } from "@/shared/types";
 import type { CanvasLinkHit } from "./linkHitTesting";
 import { getSelectionBounds } from "@/shared/utils/selection";
 import { createMapFromEntries } from "@/domains/canvas/state/helpers/snapshotHelpers";
@@ -37,6 +37,13 @@ import {
 import { getStructuredNodeBounds } from "@/shared/utils/structured";
 import { getStructuredTextSelectionRange } from "@/shared/utils/structuredTextRanges";
 import type { StructuredBoxResizeHandle, StructuredLineResizeHandle } from "@/domains/canvas/state/helpers/structuredBoxEditing";
+
+export type StructuredMovePreview = {
+  baseScene: CanvasState["structuredScene"];
+  movingNodes: CanvasState["structuredScene"];
+  baseGrid: GridMap;
+  movingGrid: GridMap;
+};
 
 interface LayerRefs {
   bg: React.RefObject<HTMLCanvasElement | null>;
@@ -184,6 +191,7 @@ export const useCanvasRenderer = (
     | "canvasMode"
     | "canvasBounds"
     | "animationTimeline"
+    | "animationPlaybackFrameId"
     | "selectedStructuredNodeIds"
     | "structuredContextPoint"
     | "structuredGridFocus"
@@ -193,8 +201,9 @@ export const useCanvasRenderer = (
     | "canvasColorPickerTarget"
   >,
   draggingSelection: SelectionArea | null,
-  structuredScenePreview: CanvasState["structuredScene"] | null,
-  hoveredLink: CanvasLinkHit | null
+  structuredMovePreviewRef: React.RefObject<StructuredMovePreview | null>,
+  hoveredLink: CanvasLinkHit | null,
+  requestRenderRef?: React.MutableRefObject<(() => void) | null>
 ) => {
   const {
     offset,
@@ -211,6 +220,7 @@ export const useCanvasRenderer = (
     canvasMode,
     canvasBounds,
     animationTimeline,
+    animationPlaybackFrameId,
     selectedStructuredNodeIds,
     structuredContextPoint,
     structuredGridFocus,
@@ -230,7 +240,6 @@ export const useCanvasRenderer = (
     canvasMode === "freeform" ? staticGridView.selectionAreas : selections;
   const renderedTextCursor =
     canvasMode === "freeform" ? staticGridView.textCursor : textCursor;
-  const renderedStructuredScene = structuredScenePreview ?? structuredScene;
   const traceRoundRect = (
     ctx: CanvasRenderingContext2D,
     x: number,
@@ -244,6 +253,10 @@ export const useCanvasRenderer = (
     ctx.roundRect(x, y, width, height, safeRadius);
   };
   const baseRenderInputsRef = useRef<unknown[] | null>(null);
+  const manualRenderRafRef = useRef<number | null>(null);
+  const animationFrameGridCacheRef = useRef<
+    Map<string, { entries: AnimationFrame["grid"]; grid: GridMap }>
+  >(new Map());
 
   const shouldRenderBaseLayers = (inputs: unknown[]) => {
     const previous = baseRenderInputsRef.current;
@@ -304,6 +317,17 @@ export const useCanvasRenderer = (
   };
 
   useEffect(() => {
+    const getCachedAnimationFrameGrid = (frame: AnimationFrame) => {
+      const cached = animationFrameGridCacheRef.current.get(frame.id);
+      if (cached?.entries === frame.grid) return cached.grid;
+      const grid = createMapFromEntries(frame.grid);
+      animationFrameGridCacheRef.current.set(frame.id, {
+        entries: frame.grid,
+        grid,
+      });
+      return grid;
+    };
+
     const getAnimationGhostLayers = () => {
       if (
         canvasMode !== "animation" ||
@@ -315,7 +339,7 @@ export const useCanvasRenderer = (
 
       const currentIndex = getAnimationFrameIndex(
         animationTimeline,
-        animationTimeline.currentFrameId
+        animationPlaybackFrameId ?? animationTimeline.currentFrameId
       );
       if (currentIndex === -1) return [];
 
@@ -328,7 +352,7 @@ export const useCanvasRenderer = (
         const alpha = opacityFalloff[i - 1] ?? 0;
         if (!frame || alpha <= 0) continue;
         layers.push({
-          grid: createMapFromEntries(frame.grid),
+          grid: getCachedAnimationFrameGrid(frame),
           alpha,
         });
       }
@@ -338,7 +362,7 @@ export const useCanvasRenderer = (
         const alpha = opacityFalloff[i - 1] ?? 0;
         if (!frame || alpha <= 0) continue;
         layers.push({
-          grid: createMapFromEntries(frame.grid),
+          grid: getCachedAnimationFrameGrid(frame),
           alpha,
         });
       }
@@ -348,6 +372,13 @@ export const useCanvasRenderer = (
 
     const render = () => {
       if (!size || size.width === 0 || size.height === 0) return;
+      const structuredMovePreview = structuredMovePreviewRef.current;
+      const renderedGrid = structuredMovePreview?.baseGrid ?? grid;
+      const structuredPreviewMovingGrid =
+        structuredMovePreview?.movingGrid ?? null;
+      const renderedStructuredScene = structuredMovePreview
+        ? [...structuredMovePreview.baseScene, ...structuredMovePreview.movingNodes]
+        : structuredScene;
 
       const dpr = window.devicePixelRatio || 1;
       const { width: sw, height: sh } = getCellPixelSize(zoom);
@@ -391,6 +422,7 @@ export const useCanvasRenderer = (
         canvasBounds,
         animationTimeline,
         hoveredLink,
+        structuredMovePreview?.baseGrid ?? null,
       ]);
 
       const bgCanvas = layers.bg.current;
@@ -449,7 +481,7 @@ export const useCanvasRenderer = (
         });
         drawLayer(
           bgCtx,
-          grid,
+          renderedGrid,
           canvasMode === "animation" ? boundedView : viewBounds,
           zoom,
           offset
@@ -507,6 +539,10 @@ export const useCanvasRenderer = (
         };
         renderedSelections.forEach(drawSel);
         if (draggingSelection) drawSel(draggingSelection);
+
+        if (canvasMode === "structured" && structuredPreviewMovingGrid) {
+          drawLayer(uiCtx, structuredPreviewMovingGrid, viewBounds, zoom, offset);
+        }
 
         const drawActiveCellFocus = (point: Point) => {
           const pos = gridCellRect(point, { offset, zoom });
@@ -733,7 +769,7 @@ export const useCanvasRenderer = (
               Math.round(pos.height)
             );
           } else {
-            const cell = grid.get(GridManager.toKey(renderedTextCursor.x, renderedTextCursor.y));
+            const cell = renderedGrid.get(GridManager.toKey(renderedTextCursor.x, renderedTextCursor.y));
             const occupancy = cell ? getCellOccupancy(cell.char) : 1;
             uiCtx.fillStyle = COLOR_TEXT_CURSOR_BG;
             uiCtx.fillRect(
@@ -766,8 +802,28 @@ export const useCanvasRenderer = (
       }
     };
 
+    const scheduleRender = () => {
+      if (manualRenderRafRef.current !== null) return;
+      manualRenderRafRef.current = requestAnimationFrame(() => {
+        manualRenderRafRef.current = null;
+        render();
+      });
+    };
+    if (requestRenderRef) {
+      requestRenderRef.current = scheduleRender;
+    }
+
     const requestId = requestAnimationFrame(render);
-    return () => cancelAnimationFrame(requestId);
+    return () => {
+      cancelAnimationFrame(requestId);
+      if (manualRenderRafRef.current !== null) {
+        cancelAnimationFrame(manualRenderRafRef.current);
+        manualRenderRafRef.current = null;
+      }
+      if (requestRenderRef?.current === scheduleRender) {
+        requestRenderRef.current = null;
+      }
+    };
   }, [
     offset,
     zoom,
@@ -785,8 +841,8 @@ export const useCanvasRenderer = (
     canvasMode,
     canvasBounds,
     animationTimeline,
+    animationPlaybackFrameId,
     structuredScene,
-    structuredScenePreview,
     selectedStructuredNodeIds,
     structuredContextPoint,
     structuredGridFocus,
@@ -795,5 +851,7 @@ export const useCanvasRenderer = (
     canvasColorPickerTarget,
     layers,
     hoveredLink,
+    structuredMovePreviewRef,
+    requestRenderRef,
   ]);
 };

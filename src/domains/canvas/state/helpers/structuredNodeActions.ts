@@ -55,6 +55,23 @@ const offsetPoint = (point: Point, offset: Point): Point => ({
   y: point.y + offset.y,
 });
 
+const cloneComponentWithRemappedInstance = (
+  component: StructuredNode["component"],
+  instanceIdMap: Map<string, string>
+) => {
+  if (!component) return {};
+  let instanceId = instanceIdMap.get(component.instanceId);
+  if (!instanceId) {
+    instanceId = createStructuredNodeId();
+    instanceIdMap.set(component.instanceId, instanceId);
+  }
+  return {
+    component: {
+      ...component,
+      instanceId,
+    },
+  };
+};
 
 export const findStructuredNodeIdAtPoint = (
   scene: StructuredNode[],
@@ -76,6 +93,7 @@ export const duplicateStructuredNodes = (
   const selected = new Set(selectedIds);
   const ordered = normalizeOrders(sortByOrder(scene));
   const highestOrder = ordered.length;
+  const componentInstanceIdMap = new Map<string, string>();
   const duplicates = ordered
     .filter((node) => selected.has(node.id))
     .map((node, index): StructuredNode => {
@@ -87,6 +105,10 @@ export const duplicateStructuredNodes = (
           style: { ...node.style },
           start: offsetPoint(node.start, offset),
           end: offsetPoint(node.end, offset),
+          ...cloneComponentWithRemappedInstance(
+            node.component,
+            componentInstanceIdMap
+          ),
         };
       }
 
@@ -98,6 +120,10 @@ export const duplicateStructuredNodes = (
           style: { ...node.style },
           start: offsetPoint(node.start, offset),
           end: offsetPoint(node.end, offset),
+          ...cloneComponentWithRemappedInstance(
+            node.component,
+            componentInstanceIdMap
+          ),
         };
       }
 
@@ -109,6 +135,10 @@ export const duplicateStructuredNodes = (
           style: { ...node.style },
           start: offsetPoint(node.start, offset),
           end: offsetPoint(node.end, offset),
+          ...cloneComponentWithRemappedInstance(
+            node.component,
+            componentInstanceIdMap
+          ),
         };
       }
 
@@ -118,6 +148,10 @@ export const duplicateStructuredNodes = (
         order: highestOrder + index + 1,
         style: { ...node.style },
         position: offsetPoint(node.position, offset),
+        ...cloneComponentWithRemappedInstance(
+          node.component,
+          componentInstanceIdMap
+        ),
       };
     });
 

@@ -297,7 +297,8 @@ export const editorHandlers: Record<
     }
     const text = exportStructuredHierarchyText(
       context.state.structuredScene,
-      context.state.selectedStructuredNodeIds
+      context.state.selectedStructuredNodeIds,
+      context.state.structuredComponents
     );
     void clipboard.writeText(text).then((copied) => {
       if (!copied) {

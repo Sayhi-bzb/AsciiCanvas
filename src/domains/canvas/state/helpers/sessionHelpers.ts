@@ -3,6 +3,7 @@ import type {
   AnimationCanvasSize,
   AnimationTimeline,
   CanvasMode,
+  StructuredComponentInstance,
   StructuredNode,
   Point,
 } from "@/shared/types";
@@ -31,6 +32,7 @@ export const createSessionId = (sessions: CanvasSession[]) => {
 type ActiveSnapshot = {
   mode: CanvasMode;
   scene: StructuredNode[];
+  components?: StructuredComponentInstance[];
   grid: [string, { char: string; color: string }][];
   size?: AnimationCanvasSize;
   timeline?: AnimationTimeline;
@@ -48,6 +50,7 @@ export const withActiveCanvasSnapshot = (
           ...session,
           mode: snapshot.mode,
           scene: snapshot.scene,
+          components: snapshot.components,
           grid: snapshot.grid,
           size: snapshot.mode === "animation" ? snapshot.size : undefined,
           timeline: snapshot.mode === "animation" ? snapshot.timeline : undefined,

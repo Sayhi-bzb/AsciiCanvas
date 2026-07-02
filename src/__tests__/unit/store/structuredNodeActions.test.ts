@@ -81,4 +81,50 @@ describe("structuredNodeActions", () => {
       text: "label",
     });
   });
+
+  it("duplicates component nodes with a new shared component instance", () => {
+    const { scene: nextScene, duplicatedIds } = duplicateStructuredNodes(
+      [
+        {
+          id: "bg",
+          type: "bg",
+          order: 1,
+          start: { x: 0, y: 0 },
+          end: { x: 7, y: 0 },
+          style: { color: "#000", bgColor: "#dbeafe" },
+          component: {
+            instanceId: "component-original",
+            templateId: "button",
+            role: "fill",
+          },
+        },
+        {
+          id: "text",
+          type: "text",
+          order: 2,
+          position: { x: 0, y: 0 },
+          text: "[BUTTON]",
+          style: { color: "#000" },
+          component: {
+            instanceId: "component-original",
+            templateId: "button",
+            role: "label",
+          },
+        },
+      ],
+      ["bg", "text"]
+    );
+
+    const duplicates = nextScene.filter((node) => duplicatedIds.includes(node.id));
+    const duplicateInstanceIds = new Set(
+      duplicates.map((node) => node.component?.instanceId)
+    );
+
+    expect(duplicateInstanceIds.size).toBe(1);
+    expect(duplicateInstanceIds.has("component-original")).toBe(false);
+    expect(duplicates.map((node) => node.component?.role)).toEqual([
+      "fill",
+      "label",
+    ]);
+  });
 });

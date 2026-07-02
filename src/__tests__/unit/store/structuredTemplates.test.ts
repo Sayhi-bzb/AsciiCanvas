@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   STRUCTURED_TEMPLATES,
+  buildStructuredTemplate,
   buildStructuredTemplatePreview,
   buildStructuredTemplateNodes,
   getActiveStructuredTemplateDragId,
@@ -75,6 +76,83 @@ describe("structuredTemplates", () => {
       position: { x: 4, y: 7 },
       text: "[BUTTON]",
       style: { color: "#000000" },
+    });
+  });
+
+  it("adds component metadata to template nodes", () => {
+    const nodes = build("button");
+    const instanceId = nodes[0].component?.instanceId;
+
+    expect(instanceId).toBeTruthy();
+    expect(nodes).toMatchObject([
+      {
+        component: {
+          instanceId,
+          templateId: "button",
+          role: "fill",
+        },
+      },
+      {
+        component: {
+          instanceId,
+          templateId: "button",
+          role: "label",
+        },
+      },
+    ]);
+
+    const tableNodes = build("table");
+    expect(new Set(tableNodes.map((node) => node.component?.instanceId)).size).toBe(
+      1
+    );
+    expect(tableNodes.map((node) => node.component?.role)).toEqual([
+      "captionFill",
+      "caption",
+      "header",
+      "rowStripe",
+      "row",
+      "row",
+      "rowStripe",
+      "row",
+      "footerFill",
+      "footer",
+    ]);
+  });
+
+  it("builds a molecule registry for template atoms", () => {
+    const { nodes, components } = buildStructuredTemplate(
+      "button",
+      { x: 4, y: 7 },
+      { brushColor: "#334155", startOrder: 10 }
+    );
+
+    expect(components).toHaveLength(1);
+    expect(components[0]).toMatchObject({
+      templateId: "button",
+      label: "Button",
+      atomIds: nodes.map((node) => node.id),
+      roles: {
+        fill: [nodes[0].id],
+        label: [nodes[1].id],
+      },
+    });
+  });
+
+  it("adds complete component metadata to every template node", () => {
+    STRUCTURED_TEMPLATES.forEach((template) => {
+      const nodes = build(template.id);
+      const instanceIds = new Set(nodes.map((node) => node.component?.instanceId));
+
+      expect(nodes.length, template.id).toBeGreaterThan(0);
+      expect(instanceIds.size, template.id).toBe(1);
+      nodes.forEach((node) => {
+        expect(node.component, `${template.id}:${node.type}`).toMatchObject({
+          instanceId: expect.any(String),
+          templateId: template.id,
+          role: expect.any(String),
+        });
+        expect(node.component?.role.length, template.id).toBeGreaterThan(0);
+      });
     });
   });
 
@@ -260,10 +338,34 @@ describe("structuredTemplates", () => {
     });
     expect(build("card")).toMatchObject([
       {
-        type: "box",
+        type: "splitBox",
         start: { x: 4, y: 7 },
-        end: { x: 19, y: 11 },
-        name: "Card",
+        end: { x: 24, y: 16 },
+        root: {
+          type: "split",
+          id: "split-title",
+          axis: "horizontal",
+          second: {
+            type: "split",
+            id: "split-footer",
+            axis: "horizontal",
+          },
+        },
+      },
+      {
+        type: "text",
+        position: { x: 5, y: 8 },
+        text: "CardTitle",
+      },
+      {
+        type: "text",
+        position: { x: 5, y: 10 },
+        text: "CardContent",
+      },
+      {
+        type: "text",
+        position: { x: 5, y: 15 },
+        text: "CardFooter",
       },
     ]);
   });
@@ -443,10 +545,21 @@ describe("structuredTemplates", () => {
     );
 
     const cardPreview = buildStructuredTemplatePreview("card");
-    expect(cardPreview).toMatchObject({ width: 16, height: 5 });
-    expect(cardPreview.rows[0].map((cell) => cell.char).join("")).toContain(
-      "Card"
-    );
+    expect(cardPreview).toMatchObject({ width: 21, height: 10 });
+    expect(
+      cardPreview.rows.map((row) => row.map((cell) => cell.char).join(""))
+    ).toEqual([
+      "╭───────────────────╮",
+      "│CardTitle          │",
+      "├───────────────────┤",
+      "│CardContent        │",
+      "│                   │",
+      "│                   │",
+      "│                   │",
+      "├───────────────────┤",
+      "│CardFooter         │",
+      "╰───────────────────╯",
+    ]);
 
     const textareaPreview = buildStructuredTemplatePreview("textarea");
     expect(textareaPreview).toMatchObject({ width: 26, height: 4 });

@@ -38,7 +38,7 @@ import {
   isStructuredSplitBoxLineHandle,
 } from '@/domains/canvas/state/helpers/structuredBoxEditing';
 import {
-  buildStructuredTemplateNodes,
+  buildStructuredTemplate,
   getActiveStructuredTemplateDragId,
   getStructuredTemplatePreview,
   isStructuredTemplateId,
@@ -53,6 +53,8 @@ import type { CanvasLinkHit } from './hooks/linkHitTesting';
 import type { Point } from '@/shared/types';
 import { FONT_SIZE } from '@/shared/lib/constants';
 import type { ContextMenuEntry } from '@/domains/actions/core/types';
+import type { StructuredMovePreview } from './hooks/useCanvasRenderer';
+import { normalizeScene } from '@/shared/utils/structured';
 
 const KEYBOARD_PAN_STEP = 48;
 
@@ -74,6 +76,8 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isComposing = useRef(false);
   const [hoveredLink, setHoveredLink] = useState<CanvasLinkHit | null>(null);
+  const structuredMovePreviewRef = useRef<StructuredMovePreview | null>(null);
+  const requestCanvasRenderRef = useRef<(() => void) | null>(null);
   const [structuredTemplatePreview, setStructuredTemplatePreviewState] =
     useState<StructuredTemplatePreviewState | null>(null);
   const structuredTemplatePreviewRef =
@@ -110,9 +114,11 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
       fillArea: state.fillArea,
       canvasBounds: state.canvasBounds,
       structuredScene: state.structuredScene,
+      structuredComponents: state.structuredComponents,
       editingStructuredTextNodeId: state.editingStructuredTextNodeId,
       selectedStructuredNodeIds: state.selectedStructuredNodeIds,
       setStructuredGridFocus: state.setStructuredGridFocus,
+      setStructuredContextPoint: state.setStructuredContextPoint,
       setSelectedStructuredNodeIds: state.setSelectedStructuredNodeIds,
       setSelectedStructuredSplitHandle: state.setSelectedStructuredSplitHandle,
       setEditingStructuredTextNodeId: state.setEditingStructuredTextNodeId,
@@ -146,6 +152,7 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
       canvasMode: state.canvasMode,
       canvasBounds: state.canvasBounds,
       animationTimeline: state.animationTimeline,
+      animationPlaybackFrameId: state.animationPlaybackFrameId,
       structuredScene: state.structuredScene,
       selectedStructuredNodeIds: state.selectedStructuredNodeIds,
       selectedStructuredBoxId: state.selectedStructuredBoxId,
@@ -185,6 +192,7 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
     setEditingStructuredTextNodeId,
     setStructuredTextSelection,
     structuredScene,
+    structuredComponents,
     brushColor,
     canvasColorPickerTarget,
     setCanvasColorPickerTarget,
@@ -222,6 +230,7 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
       setEditingStructuredTextNodeId: state.setEditingStructuredTextNodeId,
       setStructuredTextSelection: state.setStructuredTextSelection,
       structuredScene: state.structuredScene,
+      structuredComponents: state.structuredComponents,
       brushColor: state.brushColor,
       canvasColorPickerTarget: state.canvasColorPickerTarget,
       setCanvasColorPickerTarget: state.setCanvasColorPickerTarget,
@@ -263,10 +272,12 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
     zoom,
   ]);
 
-  const { draggingSelection, structuredMovePreview, handleDoubleClick } = useCanvasInteraction(
+  const { draggingSelection, handleDoubleClick } = useCanvasInteraction(
     interactionStore,
     containerRef,
-    setHoveredLink
+    setHoveredLink,
+    structuredMovePreviewRef,
+    requestCanvasRenderRef
   );
 
   useCanvasRenderer(
@@ -274,8 +285,9 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
     size,
     rendererStore,
     draggingSelection,
-    structuredMovePreview,
-    hoveredLink
+    structuredMovePreviewRef,
+    hoveredLink,
+    requestCanvasRenderRef
   );
 
   const staticGridView = useMemo(
@@ -618,14 +630,18 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
 
     clearStructuredTemplatePreview();
     setActiveStructuredTemplateDragId(null);
-    const nodes = buildStructuredTemplateNodes(templateId, point, {
+    const { nodes, components } = buildStructuredTemplate(templateId, point, {
       brushColor,
       startOrder: getNextStructuredOrder(),
     });
     if (nodes.length === 0) return;
 
-    applyStructuredScene([...structuredScene, ...nodes], true);
-    setSelectedStructuredNodeIds(nodes.map((node) => node.id));
+    applyStructuredScene(
+      [...structuredScene, ...nodes],
+      true,
+      [...structuredComponents, ...components]
+    );
+    setSelectedStructuredNodeIds(normalizeScene(nodes).map((node) => node.id));
     setEditingStructuredTextNodeId(null);
     setStructuredTextSelection(null);
     setTextCursor(null);

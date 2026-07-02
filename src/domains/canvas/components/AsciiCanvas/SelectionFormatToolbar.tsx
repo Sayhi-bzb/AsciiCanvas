@@ -1,13 +1,27 @@
-import { useMemo } from "react";
-import { BoldIcon, ItalicIcon, PaletteIcon, UnderlineIcon } from "lucide-react";
+import { useCallback, useMemo } from "react";
+import {
+  BoldIcon,
+  ItalicIcon,
+  PaletteIcon,
+  SquareSplitHorizontal,
+  SquareSplitVertical,
+  Trash2,
+  UnderlineIcon,
+} from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 
 import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
 import { gridCellRect } from "@/shared/metrics";
-import type { GridMap, SelectionArea } from "@/shared/types";
+import type { GridMap, NodeBounds, SelectionArea } from "@/shared/types";
 import { GridManager } from "@/shared/utils/grid";
 import { getSelectionBounds } from "@/shared/utils/selection";
+import { getStructuredNodeBounds } from "@/shared/utils/structured";
 import { getStaticGridViewState } from "@/domains/canvas/state/helpers/staticGridModel";
+import {
+  canSplitStructuredSplitBoxLeaf,
+  getStructuredSplitBoxLeafAtPoint,
+  isStructuredSplitBoxLineHandle,
+} from "@/domains/canvas/state/helpers/structuredBoxEditing";
 import {
   getStructuredTextCaretPoint,
   getStructuredTextSelectionRange,
@@ -23,7 +37,8 @@ type SelectionFormatToolbarProps = {
   containerSize: { width: number; height: number } | undefined;
 };
 
-const TOOLBAR_WIDTH = 178;
+const FORMAT_TOOLBAR_WIDTH = 178;
+const SPLIT_TOOLBAR_WIDTH = 138;
 const TOOLBAR_HEIGHT = 42;
 const TOOLBAR_GAP = 8;
 
@@ -62,6 +77,13 @@ const getSelectedCells = (grid: GridMap, selections: SelectionArea[]) => {
   return cells;
 };
 
+const getBoundsFromNodeBounds = (bounds: NodeBounds) => ({
+  minX: bounds.x,
+  minY: bounds.y,
+  maxX: bounds.x + bounds.width - 1,
+  maxY: bounds.y + bounds.height - 1,
+});
+
 export function SelectionFormatToolbar({
   containerSize,
 }: SelectionFormatToolbarProps) {
@@ -76,10 +98,16 @@ export function SelectionFormatToolbar({
     textCursor,
     structuredTextSelection,
     structuredScene,
+    selectedStructuredNodeIds,
+    selectedStructuredSplitHandle,
+    hoveredGrid,
+    structuredContextPoint,
     brushColor,
     setSelectionTextAttributes,
     setStructuredTextAttributes,
     setStructuredTextColor,
+    splitStructuredSplitBoxLeaf,
+    deleteSelection,
   } = useCanvasStore(
     useShallow((state) => ({
       canvasMode: state.canvasMode,
@@ -92,10 +120,16 @@ export function SelectionFormatToolbar({
       textCursor: state.textCursor,
       structuredTextSelection: state.structuredTextSelection,
       structuredScene: state.structuredScene,
+      selectedStructuredNodeIds: state.selectedStructuredNodeIds,
+      selectedStructuredSplitHandle: state.selectedStructuredSplitHandle,
+      hoveredGrid: state.hoveredGrid,
+      structuredContextPoint: state.structuredContextPoint,
       brushColor: state.brushColor,
       setSelectionTextAttributes: state.setSelectionTextAttributes,
       setStructuredTextAttributes: state.setStructuredTextAttributes,
       setStructuredTextColor: state.setStructuredTextColor,
+      splitStructuredSplitBoxLeaf: state.splitStructuredSplitBoxLeaf,
+      deleteSelection: state.deleteSelection,
     }))
   );
 
@@ -146,66 +180,185 @@ export function SelectionFormatToolbar({
     );
   }, [canvasMode, selectedCells, structuredTextSelectionModel]);
 
-  const style = useMemo(() => {
-    if (!containerSize) return null;
-    const bounds = canvasMode === "structured"
-      ? structuredTextSelectionModel
-        ? (() => {
-            const startPoint = getStructuredTextCaretPoint(
-              structuredTextSelectionModel.node,
-              structuredTextSelectionModel.range.start
-            );
-            const endPoint = getStructuredTextCaretPoint(
-              structuredTextSelectionModel.node,
-              structuredTextSelectionModel.range.end
-            );
-            return getUnionBounds([{ start: startPoint, end: endPoint }]);
-          })()
-        : null
-      : activeSelections.length > 0
-          ? getUnionBounds(activeSelections)
-          : null;
-    if (!bounds) return null;
-
-    const startRect = gridCellRect({ x: bounds.minX, y: bounds.minY }, { offset, zoom });
-    const endRect = gridCellRect({ x: bounds.maxX, y: bounds.maxY }, { offset, zoom });
-    const selectionLeft = startRect.x;
-    const selectionTop = startRect.y;
-    const selectionRight = endRect.x + endRect.width;
-    const selectionBottom = endRect.y + endRect.height;
-    const selectionCenter = (selectionLeft + selectionRight) / 2;
-    const left = Math.max(
-      8,
-      Math.min(containerSize.width - TOOLBAR_WIDTH - 8, selectionCenter - TOOLBAR_WIDTH / 2)
+  const splitBoxModel = useMemo(() => {
+    if (
+      canvasMode !== "structured" ||
+      structuredTextSelectionModel ||
+      selectedStructuredNodeIds.length !== 1
+    ) {
+      return null;
+    }
+    const selectedId = selectedStructuredNodeIds[0];
+    const node = structuredScene.find(
+      (sceneNode) => sceneNode.id === selectedId && sceneNode.type === "splitBox"
     );
-    const topCandidate = selectionTop - TOOLBAR_HEIGHT - TOOLBAR_GAP;
-    const top =
-      topCandidate >= 8
-        ? topCandidate
-        : Math.min(containerSize.height - TOOLBAR_HEIGHT - 8, selectionBottom + TOOLBAR_GAP);
+    if (!node || node.type !== "splitBox") return null;
+
+    const activePoint =
+      [hoveredGrid, structuredContextPoint].find((point) =>
+        point ? !!getStructuredSplitBoxLeafAtPoint(node, point) : false
+      ) ?? null;
+    const leaf = activePoint
+      ? getStructuredSplitBoxLeafAtPoint(node, activePoint)
+      : null;
+    const dividerSelected =
+      selectedStructuredSplitHandle?.nodeId === node.id &&
+      isStructuredSplitBoxLineHandle(selectedStructuredSplitHandle.handle);
 
     return {
-      left,
-      top: Math.max(8, top),
+      node,
+      activePoint,
+      canSplitHorizontal:
+        !dividerSelected && !!leaf && canSplitStructuredSplitBoxLeaf(leaf, "horizontal"),
+      canSplitVertical:
+        !dividerSelected && !!leaf && canSplitStructuredSplitBoxLeaf(leaf, "vertical"),
+      canDeleteDivider: dividerSelected,
     };
   }, [
-    activeSelections,
     canvasMode,
-    containerSize,
-    offset,
+    hoveredGrid,
+    selectedStructuredNodeIds,
+    selectedStructuredSplitHandle,
+    structuredContextPoint,
+    structuredScene,
     structuredTextSelectionModel,
-    zoom,
   ]);
+
+  const formatBounds = useMemo(() => {
+    if (canvasMode === "structured") {
+      if (!structuredTextSelectionModel) return null;
+      const startPoint = getStructuredTextCaretPoint(
+        structuredTextSelectionModel.node,
+        structuredTextSelectionModel.range.start
+      );
+      const endPoint = getStructuredTextCaretPoint(
+        structuredTextSelectionModel.node,
+        structuredTextSelectionModel.range.end
+      );
+      return getUnionBounds([{ start: startPoint, end: endPoint }]);
+    }
+
+    return activeSelections.length > 0 ? getUnionBounds(activeSelections) : null;
+  }, [activeSelections, canvasMode, structuredTextSelectionModel]);
+
+  const splitBounds = useMemo(() => {
+    if (!splitBoxModel) return null;
+    return getBoundsFromNodeBounds(getStructuredNodeBounds(splitBoxModel.node));
+  }, [splitBoxModel]);
+
+  const getToolbarStyle = useCallback(
+    (bounds: ReturnType<typeof getUnionBounds>, toolbarWidth: number) => {
+      if (!containerSize) return null;
+      if (!bounds) return null;
+
+      const startRect = gridCellRect({ x: bounds.minX, y: bounds.minY }, { offset, zoom });
+      const endRect = gridCellRect({ x: bounds.maxX, y: bounds.maxY }, { offset, zoom });
+      const selectionLeft = startRect.x;
+      const selectionTop = startRect.y;
+      const selectionRight = endRect.x + endRect.width;
+      const selectionBottom = endRect.y + endRect.height;
+      const selectionCenter = (selectionLeft + selectionRight) / 2;
+      const left = Math.max(
+        8,
+        Math.min(containerSize.width - toolbarWidth - 8, selectionCenter - toolbarWidth / 2)
+      );
+      const topCandidate = selectionTop - TOOLBAR_HEIGHT - TOOLBAR_GAP;
+      const top =
+        topCandidate >= 8
+          ? topCandidate
+          : Math.min(containerSize.height - TOOLBAR_HEIGHT - 8, selectionBottom + TOOLBAR_GAP);
+
+      return {
+        left,
+        top: Math.max(8, top),
+      };
+    },
+    [containerSize, offset, zoom]
+  );
+
+  const formatStyle = useMemo(
+    () => getToolbarStyle(formatBounds, FORMAT_TOOLBAR_WIDTH),
+    [formatBounds, getToolbarStyle]
+  );
+  const splitStyle = useMemo(
+    () => getToolbarStyle(splitBounds, SPLIT_TOOLBAR_WIDTH),
+    [getToolbarStyle, splitBounds]
+  );
 
   const hasFormatTarget =
     canvasMode === "structured"
       ? !!structuredTextSelectionModel
       : activeSelections.length > 0 && selectedCells.length > 0;
 
-  if (
-    !hasFormatTarget ||
-    !style
-  ) {
+  if (splitBoxModel && splitStyle && !hasFormatTarget) {
+    return (
+      <div
+        data-canvas-ui="true"
+        className="absolute z-40 pointer-events-auto"
+        style={{ left: splitStyle.left, top: splitStyle.top }}
+      >
+        <div
+          className="inline-flex h-10 items-center gap-1 rounded-md border bg-background p-1 shadow-sm"
+          aria-label="Split box controls"
+        >
+          <button
+            type="button"
+            aria-label="Split box horizontally"
+            title="Split horizontally"
+            disabled={!splitBoxModel.canSplitHorizontal || !splitBoxModel.activePoint}
+            className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-ring"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => {
+              if (!splitBoxModel.activePoint || !splitBoxModel.canSplitHorizontal) return;
+              splitStructuredSplitBoxLeaf(
+                splitBoxModel.node.id,
+                splitBoxModel.activePoint,
+                "horizontal"
+              );
+            }}
+          >
+            <SquareSplitVertical className="size-4" />
+          </button>
+          <ToggleGroupSeparator />
+          <button
+            type="button"
+            aria-label="Split box vertically"
+            title="Split vertically"
+            disabled={!splitBoxModel.canSplitVertical || !splitBoxModel.activePoint}
+            className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-ring"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => {
+              if (!splitBoxModel.activePoint || !splitBoxModel.canSplitVertical) return;
+              splitStructuredSplitBoxLeaf(
+                splitBoxModel.node.id,
+                splitBoxModel.activePoint,
+                "vertical"
+              );
+            }}
+          >
+            <SquareSplitHorizontal className="size-4" />
+          </button>
+          <ToggleGroupSeparator />
+          <button
+            type="button"
+            aria-label="Delete split divider"
+            title="Delete divider"
+            disabled={!splitBoxModel.canDeleteDivider}
+            className="inline-flex size-8 items-center justify-center rounded-md text-destructive transition-colors outline-none hover:bg-destructive/10 disabled:pointer-events-none disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-ring"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => {
+              if (!splitBoxModel.canDeleteDivider) return;
+              deleteSelection();
+            }}
+          >
+            <Trash2 className="size-4" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!hasFormatTarget || !formatStyle) {
     return null;
   }
 
@@ -213,7 +366,7 @@ export function SelectionFormatToolbar({
     <div
       data-canvas-ui="true"
       className="absolute z-40 pointer-events-auto"
-      style={{ left: style.left, top: style.top }}
+      style={{ left: formatStyle.left, top: formatStyle.top }}
     >
       <ToggleGroup
         type="multiple"

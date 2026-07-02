@@ -31,6 +31,7 @@ export function SidebarRight() {
     grid,
     canvasMode,
     structuredScene,
+    structuredComponents,
     canvasBounds,
     animationTimeline,
     clearCanvas,
@@ -45,6 +46,7 @@ export function SidebarRight() {
       grid: state.grid,
       canvasMode: state.canvasMode,
       structuredScene: state.structuredScene,
+      structuredComponents: state.structuredComponents,
       canvasBounds: state.canvasBounds,
       animationTimeline: state.animationTimeline,
       clearCanvas: state.clearCanvas,
@@ -119,6 +121,7 @@ export function SidebarRight() {
                 grid={grid}
                 canvasMode={canvasMode}
                 structuredScene={structuredScene}
+                structuredComponents={structuredComponents}
                 canvasBounds={canvasBounds}
                 animationTimeline={animationTimeline}
                 exportShowGrid={exportShowGrid}

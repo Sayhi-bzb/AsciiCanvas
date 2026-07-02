@@ -11,6 +11,7 @@ import type {
   SelectionArea,
   StructuredNode,
   StructuredBoxNode,
+  StructuredComponentInstance,
   TextAttributes,
   ToolType,
 } from "@/shared/types";
@@ -141,6 +142,7 @@ export interface CanvasSession {
   name: string;
   mode: CanvasMode;
   scene: StructuredNode[];
+  components?: StructuredComponentInstance[];
   grid: [string, GridCell][];
   size?: AnimationCanvasSize;
   timeline?: AnimationTimeline;
@@ -195,6 +197,7 @@ export type CanvasState = {
   brushColor: string;
   grid: GridMap;
   structuredScene: StructuredNode[];
+  structuredComponents: StructuredComponentInstance[];
   selectedStructuredNodeIds: string[];
   selectedStructuredBoxId: string | null;
   selectedStructuredSplitHandle: {
@@ -206,6 +209,7 @@ export type CanvasState = {
   canvasBounds: AnimationCanvasSize | null;
   animationTimeline: AnimationTimeline | null;
   animationIsPlaying: boolean;
+  animationPlaybackFrameId: string | null;
   showGrid: boolean;
   exportShowGrid: boolean;
   hoveredGrid: Point | null;
@@ -219,7 +223,8 @@ export type CanvasState = {
   setTool: (tool: ToolType) => void;
   applyStructuredScene: (
     scene: StructuredNode[],
-    history?: CanvasHistoryMode | boolean
+    history?: CanvasHistoryMode | boolean,
+    components?: StructuredComponentInstance[]
   ) => void;
   getNextStructuredOrder: () => number;
   setBrushChar: (char: string) => void;
