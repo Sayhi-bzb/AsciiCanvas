@@ -10,6 +10,7 @@ import {
   getBoxPoints,
   getCirclePoints,
   getLShapeLinePoints,
+  getSplitBoxPoints,
   getStepLinePoints,
 } from "@/shared/utils/shapes";
 import { createStructuredNodeId } from "@/shared/utils/structured";
@@ -96,6 +97,13 @@ export const createDrawingSlice: StateCreator<
     switch (tool) {
       case "box":
         points = getBoxPoints(start, end);
+        break;
+      case "splitBox":
+        points = getSplitBoxPoints(start, end, {
+          verticalSplitRatio: 0.36,
+          topSplitRatio: 0.25,
+          bottomSplitRatio: 0.75,
+        });
         break;
       case "bg":
         points = getFilledRectPoints(start, end).map((point) => ({
@@ -184,7 +192,7 @@ export const createDrawingSlice: StateCreator<
   commitStructuredShape: (tool, start, end, options) => {
     const state = get();
     if (state.canvasMode !== "structured") return;
-    if (tool !== "box" && tool !== "line" && tool !== "bg") return;
+    if (tool !== "box" && tool !== "splitBox" && tool !== "line" && tool !== "bg") return;
 
     const axis =
       options?.axis ??
@@ -202,6 +210,18 @@ export const createDrawingSlice: StateCreator<
             end: { ...end },
             style: { color: state.brushColor },
           }
+        : tool === "splitBox"
+          ? {
+              id: createStructuredNodeId(),
+              type: "splitBox",
+              order: state.getNextStructuredOrder(),
+              start: { ...start },
+              end: { ...end },
+              verticalSplitRatio: 0.36,
+              topSplitRatio: 0.25,
+              bottomSplitRatio: 0.75,
+              style: { color: state.brushColor },
+            }
         : tool === "bg"
           ? {
               id: createStructuredNodeId(),

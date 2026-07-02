@@ -998,6 +998,25 @@ export const exportStructuredF12Text = (scene: StructuredNode[]) => {
       return;
     }
 
+    if (node.type === "splitBox") {
+      emitTag(
+        lines,
+        "splitBox",
+        [
+          ...commonAttrs,
+          ["verticalSplitRatio", String(node.verticalSplitRatio)],
+          ["topSplitRatio", String(node.topSplitRatio)],
+          ["bottomSplitRatio", String(node.bottomSplitRatio)],
+        ],
+        indent,
+        false
+      );
+      const children = childrenById.get(node.id) || [];
+      children.forEach((child) => emitNode(child, depth + 1));
+      lines.push(`${indent}</splitBox>`);
+      return;
+    }
+
     if (node.type === "line") {
       emitTag(
         lines,
@@ -1067,6 +1086,14 @@ export const exportStructuredHierarchyText = (
       const children = childrenById.get(node.id) || [];
       children.forEach((child) => emitNode(child, depth + 1));
       lines.push(`${indent}</box>`);
+      return;
+    }
+
+    if (node.type === "splitBox") {
+      emitTag(lines, "splitBox", [], indent, false);
+      const children = childrenById.get(node.id) || [];
+      children.forEach((child) => emitNode(child, depth + 1));
+      lines.push(`${indent}</splitBox>`);
       return;
     }
 

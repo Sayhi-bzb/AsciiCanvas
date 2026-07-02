@@ -9,7 +9,7 @@ import {
 } from "@/shared/lib/constants";
 import type { CanvasState } from "@/domains/canvas/state/canvasStore";
 import { GridManager } from "@/shared/utils/grid";
-import type { SelectionArea, GridMap, Point, NodeBounds } from "@/shared/types";
+import type { SelectionArea, GridMap, Point, NodeBounds, StructuredSplitBoxNode } from "@/shared/types";
 import type { CanvasLinkHit } from "./linkHitTesting";
 import { getSelectionBounds } from "@/shared/utils/selection";
 import { createMapFromEntries } from "@/domains/canvas/state/helpers/snapshotHelpers";
@@ -29,7 +29,11 @@ import {
 } from "@/shared/metrics";
 import { effectiveCellStyle } from "@/shared/utils/ansi";
 import { getStaticGridViewState } from "@/domains/canvas/state/helpers/staticGridModel";
-import { getStructuredBoxBounds } from "@/domains/canvas/state/helpers/structuredBoxEditing";
+import {
+  getStructuredBoxBounds,
+  getStructuredSplitBoxGuides,
+  type StructuredSplitBoxHandle,
+} from "@/domains/canvas/state/helpers/structuredBoxEditing";
 import { getStructuredNodeBounds } from "@/shared/utils/structured";
 import { getStructuredTextSelectionRange } from "@/shared/utils/structuredTextRanges";
 import type { StructuredBoxResizeHandle, StructuredLineResizeHandle } from "@/domains/canvas/state/helpers/structuredBoxEditing";
@@ -68,6 +72,32 @@ export const getStructuredLineHandlePoints = (): Array<{
   { handle: "start", point: "start" },
   { handle: "end", point: "end" },
 ];
+
+export const getStructuredSplitBoxHandlePoints = (
+  node: StructuredSplitBoxNode
+): Array<{
+  handle: StructuredSplitBoxHandle;
+  point: Point;
+}> => {
+  const { verticalX, topY, bottomY, bounds } = getStructuredSplitBoxGuides(node);
+  const left = bounds.x;
+  const right = bounds.x + bounds.width - 1;
+  const top = bounds.y;
+  const bottom = bounds.y + bounds.height - 1;
+  return [
+    { handle: "verticalSplit", point: { x: verticalX, y: Math.round((topY + bottomY) / 2) } },
+    { handle: "topSplit", point: { x: Math.round((left + right) / 2), y: topY } },
+    { handle: "bottomSplit", point: { x: Math.round((left + right) / 2), y: bottomY } },
+    { handle: "nw", point: { x: left, y: top } },
+    { handle: "n", point: { x: Math.round((left + right) / 2), y: top } },
+    { handle: "ne", point: { x: right, y: top } },
+    { handle: "e", point: { x: right, y: Math.round((top + bottom) / 2) } },
+    { handle: "se", point: { x: right, y: bottom } },
+    { handle: "s", point: { x: Math.round((left + right) / 2), y: bottom } },
+    { handle: "sw", point: { x: left, y: bottom } },
+    { handle: "w", point: { x: left, y: Math.round((top + bottom) / 2) } },
+  ];
+};
 
 export const drawCanvasColorPickerAnchor = (
   ctx: CanvasRenderingContext2D,
@@ -545,6 +575,7 @@ export const useCanvasRenderer = (
               : null;
           if (
             selectedHandleNode?.type === "box" ||
+            selectedHandleNode?.type === "splitBox" ||
             selectedHandleNode?.type === "bg"
           ) {
             const bounds =
@@ -555,11 +586,23 @@ export const useCanvasRenderer = (
             uiCtx.fillStyle = "#ffffff";
             uiCtx.strokeStyle = "#2563eb";
             uiCtx.lineWidth = 1;
-            getStructuredRectHandlePoints(bounds).forEach(({ xRatio, yRatio }) => {
-              const px = pos.x + width * xRatio;
-              const py = pos.y + height * yRatio;
-              drawHandle(px, py);
-            });
+            if (selectedHandleNode.type === "splitBox") {
+              getStructuredSplitBoxHandlePoints(selectedHandleNode).forEach(
+                ({ point }) => {
+                  const handlePos = gridCellRect(point, { offset, zoom });
+                  drawHandle(
+                    handlePos.x + handlePos.width / 2,
+                    handlePos.y + handlePos.height / 2
+                  );
+                }
+              );
+            } else {
+              getStructuredRectHandlePoints(bounds).forEach(({ xRatio, yRatio }) => {
+                const px = pos.x + width * xRatio;
+                const py = pos.y + height * yRatio;
+                drawHandle(px, py);
+              });
+            }
           } else if (selectedHandleNode?.type === "line") {
             uiCtx.fillStyle = "#ffffff";
             uiCtx.strokeStyle = "#2563eb";

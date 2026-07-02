@@ -1,4 +1,4 @@
-import type { GridCell, StructuredNode } from "@/shared/types";
+import type { GridCell, StructuredNode, StructuredSplitBoxNode } from "@/shared/types";
 import { COLOR_PRIMARY_TEXT } from "@/shared/lib/constants";
 import { normalizeScene } from "@/shared/utils/structured";
 import {
@@ -115,10 +115,26 @@ export const toStructuredNode = (value: unknown): StructuredNode | null => {
     return null;
   }
 
-  if (raw.type === "box" || raw.type === "line" || raw.type === "bg") {
+  if (raw.type === "box" || raw.type === "line" || raw.type === "bg" || raw.type === "splitBox") {
     if (!isPoint(raw.start) || !isPoint(raw.end)) return null;
     if (raw.type === "box" && raw.name !== undefined && typeof raw.name !== "string") {
       return null;
+    }
+    if (raw.type === "splitBox") {
+      const splitBox = raw as Partial<StructuredSplitBoxNode>;
+      return cloneStructuredNode({
+        ...(raw as StructuredSplitBoxNode),
+        verticalSplitRatio:
+          typeof splitBox.verticalSplitRatio === "number"
+            ? splitBox.verticalSplitRatio
+            : 0.36,
+        topSplitRatio:
+          typeof splitBox.topSplitRatio === "number" ? splitBox.topSplitRatio : 0.25,
+        bottomSplitRatio:
+          typeof splitBox.bottomSplitRatio === "number"
+            ? splitBox.bottomSplitRatio
+            : 0.75,
+      });
     }
     if (
       raw.type === "line" &&

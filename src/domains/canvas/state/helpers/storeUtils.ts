@@ -30,7 +30,7 @@ import {
 export const DEFAULT_SESSION_ID = "canvas-1";
 export const DEFAULT_SESSION_NAME = "Canvas 1";
 export const DEFAULT_MODE: CanvasMode = "freeform";
-export const STRUCTURED_ALLOWED_TOOLS: ToolType[] = ["select", "text", "box", "line", "bg"];
+export const STRUCTURED_ALLOWED_TOOLS: ToolType[] = ["select", "text", "box", "splitBox", "line", "bg"];
 
 const DEFAULT_VIEWPORT = { offset: { x: 0, y: 0 }, zoom: 1 };
 

@@ -53,6 +53,16 @@ export interface AsciiCanvasProtocolBoxNodeV1
   name?: string;
 }
 
+export interface AsciiCanvasProtocolSplitBoxNodeV1
+  extends AsciiCanvasProtocolNodeBaseV1 {
+  type: "splitBox";
+  start: Point;
+  end: Point;
+  verticalSplitRatio: number;
+  topSplitRatio: number;
+  bottomSplitRatio: number;
+}
+
 export interface AsciiCanvasProtocolLineNodeV1
   extends AsciiCanvasProtocolNodeBaseV1 {
   type: "line";
@@ -78,6 +88,7 @@ export interface AsciiCanvasProtocolTextNodeV1
 
 export type AsciiCanvasProtocolNodeV1 =
   | AsciiCanvasProtocolBoxNodeV1
+  | AsciiCanvasProtocolSplitBoxNodeV1
   | AsciiCanvasProtocolLineNodeV1
   | AsciiCanvasProtocolBgNodeV1
   | AsciiCanvasProtocolTextNodeV1;

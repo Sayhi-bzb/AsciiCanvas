@@ -340,6 +340,30 @@ describe("canvas session viewport state", () => {
     });
   });
 
+  it("creates split boxes as structured shape nodes", () => {
+    useCanvasStore.getState().createCanvasSession("structured");
+    useCanvasStore.setState({ brushColor: "#334155" });
+
+    useCanvasStore
+      .getState()
+      .commitStructuredShape("splitBox", { x: 0, y: 0 }, { x: 10, y: 4 });
+
+    const state = useCanvasStore.getState();
+    expect(state.structuredScene[0]).toMatchObject({
+      type: "splitBox",
+      start: { x: 0, y: 0 },
+      end: { x: 10, y: 4 },
+      verticalSplitRatio: 0.36,
+      topSplitRatio: 0.25,
+      bottomSplitRatio: 0.75,
+      style: { color: "#334155" },
+    });
+    expect(state.selectedStructuredNodeIds).toEqual([state.structuredScene[0].id]);
+    expect(state.grid.get("0,0")).toMatchObject({ char: "╭", color: "#334155" });
+    expect(state.grid.get("4,1")).toMatchObject({ char: "┬", color: "#334155" });
+    expect(state.grid.get("4,3")).toMatchObject({ char: "┴", color: "#334155" });
+  });
+
   it("fills freeform background rectangles without erasing existing cells", () => {
     useCanvasStore.setState({
       canvasMode: "freeform",

@@ -13,7 +13,8 @@
     "check-style-api": "node scripts/check-style-api.mjs",
     "test": "vitest",
     "test:coverage": "vitest --coverage",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:perf": "npm run build && node scripts/run-perf.mjs"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.15",

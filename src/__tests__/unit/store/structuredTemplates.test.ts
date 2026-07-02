@@ -22,6 +22,9 @@ describe("structuredTemplates", () => {
       "button",
       "label",
       "badge",
+      "switch",
+      "alert",
+      "tabs",
       "input",
       "checkbox",
       "radio",
@@ -35,6 +38,9 @@ describe("structuredTemplates", () => {
       "formRow",
       "status",
       "accordion",
+      "avatar",
+      "breadcrumb",
+      "calendar",
     ]);
   });
 
@@ -129,14 +135,118 @@ describe("structuredTemplates", () => {
     expect(nodes[0]).toMatchObject({
       type: "bg",
       start: { x: 4, y: 7 },
-      end: { x: 11, y: 7 },
-      style: { color: "#000000", bgColor: "#dcfce7" },
+      end: { x: 12, y: 7 },
+      style: { color: "#000000", bgColor: "#dcfcf3" },
     });
     expect(nodes[1]).toMatchObject({
       type: "text",
       position: { x: 5, y: 7 },
-      text: "STATUS",
+      text: " badge",
+      style: { color: "#0d9488" },
     });
+  });
+
+  it("builds demo surface components as structured nodes", () => {
+    expect(build("switch")).toMatchObject([
+      {
+        type: "text",
+        position: { x: 4, y: 7 },
+        text: "󰨙 Switch",
+      },
+    ]);
+
+    expect(build("alert")).toMatchObject([
+      {
+        type: "box",
+        start: { x: 4, y: 7 },
+        end: { x: 27, y: 10 },
+        style: { color: "#0d9488" },
+      },
+      {
+        type: "text",
+        position: { x: 6, y: 8 },
+        text: "󰄳",
+        style: { color: "#0d9488" },
+      },
+      {
+        type: "text",
+        position: { x: 9, y: 8 },
+        text: "AlertTitle",
+      },
+      {
+        type: "text",
+        position: { x: 9, y: 9 },
+        text: "AlertDescription",
+      },
+    ]);
+
+    expect(build("tabs")[0]).toMatchObject({
+      type: "text",
+      position: { x: 4, y: 7 },
+      text: "tab 1 | tab 2 | tab 3",
+      styleRanges: [
+        {
+          start: 7,
+          end: 14,
+          style: {
+            color: "#2563eb",
+            bgColor: "#eff6ff",
+            attrs: { underline: true },
+          },
+        },
+      ],
+    });
+
+    expect(build("avatar")[0]).toMatchObject({
+      type: "text",
+      text: "󰀉 󰭕 󰭕",
+      styleRanges: [
+        { start: 0, end: 1, style: { color: "#0d9488" } },
+        { start: 2, end: 5, style: { color: "#64748b" } },
+      ],
+    });
+
+    expect(build("breadcrumb")[0]).toMatchObject({
+      type: "text",
+      text: "BreadcrumbItem / ... / BreadcrumbItem",
+    });
+  });
+
+  it("builds calendar with bg containers and selected day styling", () => {
+    const nodes = build("calendar");
+    expect(nodes).toHaveLength(8);
+    expect(nodes.slice(0, 4)).toMatchObject([
+      {
+        type: "bg",
+        start: { x: 4, y: 7 },
+        end: { x: 29, y: 8 },
+        style: { color: "#000000", bgColor: "#f3f4f6" },
+      },
+      {
+        type: "text",
+        position: { x: 4, y: 7 },
+        text: "󰃭  July 2026          󰁍  󰁔",
+      },
+      {
+        type: "text",
+        position: { x: 4, y: 8 },
+        text: "Su  Mo  Tu  We  Th  Fr  Sa",
+        style: { color: "#9ca3af" },
+      },
+      {
+        type: "text",
+        position: { x: 4, y: 9 },
+        text: "28  29  30  01  02  03  04",
+        styleRanges: [
+          { start: 0, end: 12, style: { color: "#9ca3af" } },
+          {
+            start: 15,
+            end: 19,
+            style: { color: "#1d4ed8", bgColor: "#dbeafe" },
+          },
+        ],
+      },
+    ]);
   });
 
   it("builds input, divider, and card layout templates", () => {
@@ -325,6 +435,33 @@ describe("structuredTemplates", () => {
       true
     );
 
+    const badgePreview = buildStructuredTemplatePreview("badge");
+    expect(badgePreview).toMatchObject({ width: 9, height: 1 });
+    expect(badgePreview.rows[0].map((cell) => cell.char).join("")).toBe(
+      "  badge "
+    );
+    expect(badgePreview.rows[0].every((cell) => cell.bgColor === "#dcfcf3")).toBe(
+      true
+    );
+    expect(badgePreview.rows[0][1].color).toBe("#0d9488");
+
+    const tabsPreview = buildStructuredTemplatePreview("tabs");
+    expect(tabsPreview.rows[0].map((cell) => cell.char).join("")).toBe(
+      "tab 1 | tab 2 | tab 3"
+    );
+    expect(tabsPreview.rows[0][7]).toMatchObject({
+      color: "#2563eb",
+      bgColor: "#eff6ff",
+      attrs: { underline: true },
+    });
+
+    const alertPreview = buildStructuredTemplatePreview("alert");
+    expect(alertPreview).toMatchObject({ width: 24, height: 4 });
+    expect(alertPreview.rows[1].map((cell) => cell.char).join("")).toContain(
+      "AlertTitle"
+    );
+    expect(alertPreview.rows[1][0].color).toBe("#0d9488");
+
     const inputPreview = buildStructuredTemplatePreview("input");
     expect(inputPreview).toMatchObject({ width: 26, height: 1 });
     expect(inputPreview.rows[0].map((cell) => cell.char).join("")).toBe(
@@ -419,6 +556,43 @@ describe("structuredTemplates", () => {
       "AccordionContent"
     );
     expect(accordionPreview.rows[3][0].attrs).toEqual({ bold: true });
+
+    const avatarPreview = buildStructuredTemplatePreview("avatar");
+    expect(avatarPreview.rows[0].map((cell) => cell.char).join("")).toBe(
+      "󰀉 󰭕 󰭕"
+    );
+    expect(avatarPreview.rows[0][0].color).toBe("#0d9488");
+    expect(avatarPreview.rows[0][2].color).toBe("#64748b");
+
+    const breadcrumbPreview = buildStructuredTemplatePreview("breadcrumb");
+    expect(breadcrumbPreview.rows[0].map((cell) => cell.char).join("")).toBe(
+      "BreadcrumbItem / ... / BreadcrumbItem"
+    );
+
+    const calendarPreview = buildStructuredTemplatePreview("calendar");
+    expect(calendarPreview).toMatchObject({ width: 26, height: 7 });
+    expect(calendarPreview.rows.map((row) => row.map((cell) => cell.char).join(""))).toEqual([
+      "󰃭  July 2026          󰁍  󰁔",
+      "Su  Mo  Tu  We  Th  Fr  Sa",
+      "28  29  30  01  02  03  04",
+      "05  06  07  08  09  10  11",
+      "12  13  14  15  16  17  18",
+      "19  20  21  22  23  24  25",
+      "26  27  28  29  30  31  01",
+    ]);
+    expect(calendarPreview.rows[0].every((cell) => cell.bgColor === "#f3f4f6")).toBe(true);
+    expect(calendarPreview.rows[1].every((cell) => cell.bgColor === "#f3f4f6")).toBe(true);
+    expect(calendarPreview.rows[1][0]).toMatchObject({
+      color: "#9ca3af",
+      bgColor: "#f3f4f6",
+    });
+    expect(calendarPreview.rows[2][15]).toMatchObject({
+      color: "#1d4ed8",
+      bgColor: "#dbeafe",
+    });
+    expect(calendarPreview.rows[6][23]).toMatchObject({
+      color: "#9ca3af",
+    });
   });
 
   it("returns an empty scene for unsupported ids at runtime", () => {

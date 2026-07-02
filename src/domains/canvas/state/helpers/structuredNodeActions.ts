@@ -79,7 +79,7 @@ export const duplicateStructuredNodes = (
   const duplicates = ordered
     .filter((node) => selected.has(node.id))
     .map((node, index): StructuredNode => {
-      if (node.type === "box") {
+      if (node.type === "box" || node.type === "splitBox") {
         return {
           ...node,
           id: createStructuredNodeId(),

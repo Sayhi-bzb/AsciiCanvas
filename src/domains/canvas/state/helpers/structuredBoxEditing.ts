@@ -1,4 +1,4 @@
-import type { NodeBounds, Point, SelectionArea, StructuredBgNode, StructuredBoxNode, StructuredLineNode, StructuredNode, StructuredTextNode } from "@/shared/types";
+import type { NodeBounds, Point, SelectionArea, StructuredBgNode, StructuredBoxNode, StructuredLineNode, StructuredNode, StructuredSplitBoxNode, StructuredTextNode } from "@/shared/types";
 import { getTextCellWidth } from "@/shared/metrics";
 import { getSelectionBounds } from "@/shared/utils/selection";
 import { getLShapeLinePoints } from "@/shared/utils/shapes";
@@ -15,6 +15,11 @@ export type StructuredBoxResizeHandle =
   | "w";
 
 export type StructuredLineResizeHandle = "start" | "end";
+export type StructuredSplitBoxHandle =
+  | StructuredBoxResizeHandle
+  | "verticalSplit"
+  | "topSplit"
+  | "bottomSplit";
 
 export type StructuredBoxHit = {
   node: StructuredBoxNode;
@@ -23,6 +28,7 @@ export type StructuredBoxHit = {
 
 export type StructuredNodeHit =
   | { node: StructuredBoxNode; kind: "box"; handle: StructuredBoxResizeHandle | null }
+  | { node: StructuredSplitBoxNode; kind: "splitBox"; handle: StructuredSplitBoxHandle | null }
   | { node: StructuredLineNode; kind: "line"; handle: StructuredLineResizeHandle | null }
   | { node: StructuredBgNode; kind: "bg"; handle: StructuredBoxResizeHandle | null }
   | { node: StructuredTextNode; kind: "text"; handle: null };
@@ -32,7 +38,10 @@ const isBoxNode = (node: StructuredNode): node is StructuredBoxNode =>
 
 const isPointEqual = (a: Point, b: Point) => a.x === b.x && a.y === b.y;
 
-type StructuredRectNode = StructuredBoxNode | StructuredBgNode;
+type StructuredRectNode = StructuredBoxNode | StructuredSplitBoxNode | StructuredBgNode;
+
+const clamp = (value: number, min: number, max: number) =>
+  Math.max(min, Math.min(max, value));
 
 export const getStructuredBoxBounds = (node: StructuredBoxNode): NodeBounds =>
   getStructuredNodeBounds(node);
@@ -106,6 +115,69 @@ export const getStructuredBoxHandleAtPoint = (
   return null;
 };
 
+export const getStructuredSplitBoxGuides = (node: StructuredSplitBoxNode) => {
+  const bounds = getStructuredNodeBounds(node);
+  const left = bounds.x;
+  const right = bounds.x + bounds.width - 1;
+  const top = bounds.y;
+  const bottom = bounds.y + bounds.height - 1;
+  const width = bounds.width;
+  const height = bounds.height;
+
+  if (width < 3 || height < 3) {
+    return {
+      verticalX: left,
+      topY: top,
+      bottomY: bottom,
+      bounds,
+    };
+  }
+
+  const verticalX = clamp(
+    left + Math.round((width - 1) * node.verticalSplitRatio),
+    left + 1,
+    right - 1
+  );
+  const topY = clamp(
+    top + Math.round((height - 1) * node.topSplitRatio),
+    top + 1,
+    Math.max(top + 1, bottom - 2)
+  );
+  const bottomY = clamp(
+    top + Math.round((height - 1) * node.bottomSplitRatio),
+    Math.min(bottom - 1, topY + 1),
+    bottom - 1
+  );
+
+  return { verticalX, topY, bottomY, bounds };
+};
+
+export const getStructuredSplitBoxHandleAtPoint = (
+  node: StructuredSplitBoxNode,
+  point: Point
+): StructuredSplitBoxHandle | null => {
+  const rectHandle = getStructuredBoxHandleAtPoint(node, point);
+  if (rectHandle) return rectHandle;
+
+  const { verticalX, topY, bottomY, bounds } = getStructuredSplitBoxGuides(node);
+  const left = bounds.x;
+  const right = bounds.x + bounds.width - 1;
+
+  if (point.x === verticalX && point.y > topY && point.y < bottomY) {
+    return "verticalSplit";
+  }
+  if (point.y === topY && point.x > left && point.x < right) {
+    return "topSplit";
+  }
+  if (point.y === bottomY && point.x > left && point.x < right) {
+    return "bottomSplit";
+  }
+  if (point.x === verticalX && point.y >= topY && point.y <= bottomY) {
+    return "verticalSplit";
+  }
+  return null;
+};
+
 export const isPointInsideStructuredBox = (
   node: StructuredBoxNode,
   point: Point
@@ -161,6 +233,10 @@ export const findStructuredNodeHit = (
     if (node.type === "box") {
       if (!isPointInsideStructuredBox(node, point)) continue;
       return { node, kind: "box", handle: getStructuredBoxHandleAtPoint(node, point) };
+    }
+    if (node.type === "splitBox") {
+      if (!withPointWithinBounds(point, getStructuredNodeBounds(node), false)) continue;
+      return { node, kind: "splitBox", handle: getStructuredSplitBoxHandleAtPoint(node, point) };
     }
     if (node.type === "line") {
       if (!isPointOnStructuredLine(node, point)) continue;
@@ -257,6 +333,41 @@ export const resizeStructuredRect = <T extends StructuredRectNode>(
     start: { x: nextLeft, y: nextTop },
     end: { x: nextRight, y: nextBottom },
   } as T;
+};
+
+export const resizeStructuredSplitBox = (
+  node: StructuredSplitBoxNode,
+  handle: StructuredSplitBoxHandle,
+  point: Point
+): StructuredSplitBoxNode => {
+  if (
+    handle !== "verticalSplit" &&
+    handle !== "topSplit" &&
+    handle !== "bottomSplit"
+  ) {
+    return resizeStructuredRect(node, handle, point);
+  }
+
+  const { bounds, topY, bottomY } = getStructuredSplitBoxGuides(node);
+  const left = bounds.x;
+  const right = bounds.x + bounds.width - 1;
+  const top = bounds.y;
+  const bottom = bounds.y + bounds.height - 1;
+  const widthDenominator = Math.max(1, bounds.width - 1);
+  const heightDenominator = Math.max(1, bounds.height - 1);
+
+  if (handle === "verticalSplit") {
+    const x = clamp(point.x, left + 1, right - 1);
+    return { ...node, verticalSplitRatio: (x - left) / widthDenominator };
+  }
+
+  if (handle === "topSplit") {
+    const y = clamp(point.y, top + 1, bottomY - 1);
+    return { ...node, topSplitRatio: (y - top) / heightDenominator };
+  }
+
+  const y = clamp(point.y, topY + 1, bottom - 1);
+  return { ...node, bottomSplitRatio: (y - top) / heightDenominator };
 };
 
 export const resizeStructuredBox = (

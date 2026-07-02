@@ -84,6 +84,18 @@ const isStructuredNode = (value: unknown): value is AsciiCanvasProtocolNodeV1 =>
       (value.name === undefined || typeof value.name === "string")
     );
   }
+  if (value.type === "splitBox") {
+    return (
+      isPoint(value.start) &&
+      isPoint(value.end) &&
+      typeof value.verticalSplitRatio === "number" &&
+      Number.isFinite(value.verticalSplitRatio) &&
+      typeof value.topSplitRatio === "number" &&
+      Number.isFinite(value.topSplitRatio) &&
+      typeof value.bottomSplitRatio === "number" &&
+      Number.isFinite(value.bottomSplitRatio)
+    );
+  }
   if (value.type === "line") {
     return (
       isPoint(value.start) &&

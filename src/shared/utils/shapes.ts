@@ -142,6 +142,81 @@ export function getBoxPoints(start: Point, end: Point): GridPoint[] {
   return points;
 }
 
+const clamp = (value: number, min: number, max: number) =>
+  Math.max(min, Math.min(max, value));
+
+export function getSplitBoxPoints(
+  start: Point,
+  end: Point,
+  ratios: {
+    verticalSplitRatio: number;
+    topSplitRatio: number;
+    bottomSplitRatio: number;
+  }
+): GridPoint[] {
+  const x1 = Math.min(start.x, end.x);
+  const x2 = Math.max(start.x, end.x);
+  const y1 = Math.min(start.y, end.y);
+  const y2 = Math.max(start.y, end.y);
+  const width = x2 - x1 + 1;
+  const height = y2 - y1 + 1;
+
+  if (width < 3 || height < 3) return getBoxPoints(start, end);
+
+  const splitX = clamp(
+    x1 + Math.round((width - 1) * ratios.verticalSplitRatio),
+    x1 + 1,
+    x2 - 1
+  );
+  const topY = clamp(
+    y1 + Math.round((height - 1) * ratios.topSplitRatio),
+    y1 + 1,
+    Math.max(y1 + 1, y2 - 2)
+  );
+  const bottomY = clamp(
+    y1 + Math.round((height - 1) * ratios.bottomSplitRatio),
+    Math.min(y2 - 1, topY + 1),
+    y2 - 1
+  );
+
+  const chars = new Map<string, string>();
+  const set = (x: number, y: number, char: string) => {
+    chars.set(`${x},${y}`, char);
+  };
+
+  for (let x = x1; x <= x2; x++) {
+    set(x, y1, BOX_CHARS.HORIZONTAL);
+    set(x, y2, BOX_CHARS.HORIZONTAL);
+    set(x, topY, BOX_CHARS.HORIZONTAL);
+    set(x, bottomY, BOX_CHARS.HORIZONTAL);
+  }
+
+  for (let y = y1; y <= y2; y++) {
+    set(x1, y, BOX_CHARS.VERTICAL);
+    set(x2, y, BOX_CHARS.VERTICAL);
+  }
+
+  for (let y = topY; y <= bottomY; y++) {
+    set(splitX, y, BOX_CHARS.VERTICAL);
+  }
+
+  set(x1, y1, BOX_CHARS.TOP_LEFT);
+  set(x2, y1, BOX_CHARS.TOP_RIGHT);
+  set(x1, y2, BOX_CHARS.BOTTOM_LEFT);
+  set(x2, y2, BOX_CHARS.BOTTOM_RIGHT);
+  set(x1, topY, "├");
+  set(splitX, topY, "┬");
+  set(x2, topY, "┤");
+  set(x1, bottomY, "├");
+  set(splitX, bottomY, "┴");
+  set(x2, bottomY, "┤");
+
+  return Array.from(chars.entries()).map(([key, char]) => {
+    const [x, y] = key.split(",").map(Number);
+    return { x, y, char };
+  });
+}
+
 export function getCirclePoints(center: Point, edge: Point): GridPoint[] {
   const dx = edge.x - center.x;
   const dy = edge.y - center.y;

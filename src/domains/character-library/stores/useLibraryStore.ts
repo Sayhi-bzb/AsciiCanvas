@@ -62,7 +62,7 @@ export const useLibraryStore = create<LibraryState>((set, get) => ({
   searchResults: [],
 
   fetchLibrary: async () => {
-    if (get().data) return;
+    if (get().data || get().isLoading) return;
 
     set({ isLoading: true, error: null });
     try {

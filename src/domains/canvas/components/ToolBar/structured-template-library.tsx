@@ -15,6 +15,17 @@ import {
 } from "@/domains/canvas/state/helpers/structuredTemplates";
 import { StructuredTemplatePreviewGrid } from "./structured-template-preview-grid";
 
+const sortTemplatesByLabel = <
+  T extends { id: StructuredTemplateId; label: string },
+>(
+  templates: T[]
+) =>
+  [...templates].sort(
+    (a, b) =>
+      a.label.localeCompare(b.label, undefined, { sensitivity: "base" }) ||
+      a.id.localeCompare(b.id)
+  );
+
 const handleTemplateDragStart =
   (template: { id: StructuredTemplateId }) =>
   (event: DragEvent<HTMLButtonElement>) => {
@@ -54,17 +65,18 @@ export function StructuredTemplateLibrary({
         template.label.toLowerCase().includes(normalizedQuery)
       )
     : STRUCTURED_TEMPLATES;
+  const sortedTemplates = sortTemplatesByLabel(templates);
 
   return (
     <SidebarGroup className="p-0">
       <SidebarGroupContent>
         <div className="flex flex-col">
-          {templates.length === 0 && (
+          {sortedTemplates.length === 0 && (
             <div className="px-2 py-4 text-xs text-muted-foreground">
               No components found
             </div>
           )}
-          {templates.map((template, index) => (
+          {sortedTemplates.map((template, index) => (
             <div key={template.id}>
               {index > 0 && <div className="h-px bg-border" />}
               <button

@@ -62,6 +62,7 @@ export type ToolType =
   | "eraser"
   | "fill"
   | "box"
+  | "splitBox"
   | "line"
   | "bg"
   | "stepline"
@@ -113,6 +114,15 @@ export interface StructuredBoxNode extends StructuredNodeBase {
   name?: string;
 }
 
+export interface StructuredSplitBoxNode extends StructuredNodeBase {
+  type: "splitBox";
+  start: Point;
+  end: Point;
+  verticalSplitRatio: number;
+  topSplitRatio: number;
+  bottomSplitRatio: number;
+}
+
 export interface StructuredLineNode extends StructuredNodeBase {
   type: "line";
   start: Point;
@@ -135,6 +145,7 @@ export interface StructuredTextNode extends StructuredNodeBase {
 
 export type StructuredNode =
   | StructuredBoxNode
+  | StructuredSplitBoxNode
   | StructuredLineNode
   | StructuredBgNode
   | StructuredTextNode;

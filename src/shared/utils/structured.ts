@@ -1,7 +1,7 @@
 import type { GridCell, NodeBounds, Point, StructuredNode } from "@/shared/types";
 import { normalizeCellStyle } from "@/shared/utils/ansi";
 import { mergeStructuredTextStyle } from "@/shared/utils/structuredTextRanges";
-import { getBoxPoints, getLShapeLinePoints } from "@/shared/utils/shapes";
+import { getBoxPoints, getLShapeLinePoints, getSplitBoxPoints } from "@/shared/utils/shapes";
 import {
   getCellOccupancy,
   getTextCellWidth,
@@ -80,7 +80,7 @@ export const trimTextToColumns = (text: string, maxColumns: number) => {
 };
 
 export const getStructuredNodeBounds = (node: StructuredNode): NodeBounds => {
-  if (node.type === "box" || node.type === "bg") {
+  if (node.type === "box" || node.type === "splitBox" || node.type === "bg") {
     return toBounds(node.start, node.end);
   }
 
@@ -184,6 +184,26 @@ export const renderStructuredScene = (scene: StructuredNode[]) => {
       return;
     }
 
+    if (node.type === "splitBox") {
+      const points = getSplitBoxPoints(node.start, node.end, {
+        verticalSplitRatio: node.verticalSplitRatio,
+        topSplitRatio: node.topSplitRatio,
+        bottomSplitRatio: node.bottomSplitRatio,
+      });
+      points.forEach((point) => {
+        placeStyledCharInMap(
+          grid,
+          bgLayer,
+          visibleForegroundKeys,
+          point.x,
+          point.y,
+          point.char,
+          node.style
+        );
+      });
+      return;
+    }
+
     if (node.type === "bg") {
       const bounds = getStructuredNodeBounds(node);
       for (let y = bounds.y; y < bounds.y + bounds.height; y++) {
@@ -250,7 +270,7 @@ export const buildStructuredTree = (scene: StructuredNode[]) => {
   const sorted = sortForDeterminism(scene);
   const byId = new Map(sorted.map((node) => [node.id, node]));
   const boundsById = new Map(sorted.map((node) => [node.id, getStructuredNodeBounds(node)]));
-  const boxes = sorted.filter((node) => node.type === "box");
+  const boxes = sorted.filter((node) => node.type === "box" || node.type === "splitBox");
   const parentById = new Map<string, string | null>();
   const childrenById = new Map<string, StructuredNode[]>();
 

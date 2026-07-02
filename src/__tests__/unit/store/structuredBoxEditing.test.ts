@@ -7,12 +7,14 @@ import {
   getStructuredBoxNameEndPoint,
   getStructuredBoxNameStartPoint,
   getStructuredBoxHandleAtPoint,
+  getStructuredSplitBoxHandleAtPoint,
   isPointOnStructuredBoxBorder,
   moveStructuredBox,
   moveStructuredNode,
   resizeStructuredBox,
   resizeStructuredRect,
   resizeStructuredLine,
+  resizeStructuredSplitBox,
 } from "@/domains/canvas/state/helpers/structuredBoxEditing";
 
 const box = (overrides: Partial<StructuredBoxNode> = {}): StructuredBoxNode => ({
@@ -283,6 +285,55 @@ describe("structuredBoxEditing", () => {
       type: "bg",
       start: { x: 4, y: 4 },
       end: { x: 8, y: 9 },
+    });
+  });
+
+  it("hits and resizes split boxes as rectangle nodes", () => {
+    const splitBox: StructuredNode = {
+      id: "split-1",
+      type: "splitBox",
+      order: 1,
+      start: { x: 0, y: 0 },
+      end: { x: 10, y: 4 },
+      verticalSplitRatio: 0.36,
+      topSplitRatio: 0.25,
+      bottomSplitRatio: 0.75,
+      style: { color: "#000000" },
+    };
+
+    expect(findStructuredNodeHit([splitBox], { x: 0, y: 0 })).toMatchObject({
+      kind: "splitBox",
+      handle: "nw",
+      node: { id: "split-1" },
+    });
+    expect(findStructuredNodeHit([splitBox], { x: 4, y: 2 })).toMatchObject({
+      kind: "splitBox",
+      handle: "verticalSplit",
+    });
+    expect(getStructuredSplitBoxHandleAtPoint(splitBox, { x: 5, y: 1 })).toBe(
+      "topSplit"
+    );
+    expect(getStructuredSplitBoxHandleAtPoint(splitBox, { x: 5, y: 3 })).toBe(
+      "bottomSplit"
+    );
+    expect(resizeStructuredSplitBox(splitBox, "e", { x: 12, y: 2 })).toMatchObject({
+      type: "splitBox",
+      start: { x: 0, y: 0 },
+      end: { x: 12, y: 4 },
+      verticalSplitRatio: 0.36,
+    });
+    expect(resizeStructuredSplitBox(splitBox, "verticalSplit", { x: 6, y: 2 })).toMatchObject({
+      verticalSplitRatio: 0.6,
+      topSplitRatio: 0.25,
+      bottomSplitRatio: 0.75,
+    });
+    expect(resizeStructuredSplitBox(splitBox, "topSplit", { x: 5, y: 2 })).toMatchObject({
+      topSplitRatio: 0.5,
+      bottomSplitRatio: 0.75,
+    });
+    expect(resizeStructuredSplitBox(splitBox, "bottomSplit", { x: 5, y: 2 })).toMatchObject({
+      topSplitRatio: 0.25,
+      bottomSplitRatio: 0.5,
     });
   });
 });

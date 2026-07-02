@@ -14,6 +14,7 @@ import type {
   StructuredBoxNode,
   StructuredLineNode,
   StructuredNode,
+  StructuredSplitBoxNode,
   StructuredTextNode,
   GridCell,
 } from '@/shared/types';
@@ -69,6 +70,26 @@ describe('snapshotHelpers', () => {
       expect(cloned).toEqual(node);
       expect(cloned.start).not.toBe(node.start);
       expect(cloned.end).not.toBe(node.end);
+    });
+
+    it('should deep clone split box node', () => {
+      const node: StructuredNode = {
+        id: 'split',
+        type: 'splitBox',
+        order: 1,
+        start: { x: 0, y: 0 },
+        end: { x: 10, y: 4 },
+        verticalSplitRatio: 0.36,
+        topSplitRatio: 0.25,
+        bottomSplitRatio: 0.75,
+        style: { color: '#000' }
+      };
+      const cloned = cloneStructuredNode(node) as StructuredSplitBoxNode;
+
+      expect(cloned).toEqual(node);
+      expect(cloned.start).not.toBe(node.start);
+      expect(cloned.end).not.toBe(node.end);
+      expect(cloned.verticalSplitRatio).toBe(0.36);
     });
 
     it('should not affect original when modifying clone', () => {
@@ -287,6 +308,25 @@ describe('snapshotHelpers', () => {
 
       expect(result).not.toBeNull();
       expect(result?.type).toBe('text');
+    });
+
+    it('should convert split box node and default missing ratios', () => {
+      const raw = {
+        id: 'split',
+        type: 'splitBox' as const,
+        order: 1,
+        start: { x: 0, y: 0 },
+        end: { x: 10, y: 4 },
+        style: { color: '#000' }
+      };
+      const result = toStructuredNode(raw);
+
+      expect(result).toMatchObject({
+        type: 'splitBox',
+        verticalSplitRatio: 0.36,
+        topSplitRatio: 0.25,
+        bottomSplitRatio: 0.75
+      });
     });
 
     it('should return null for invalid input', () => {

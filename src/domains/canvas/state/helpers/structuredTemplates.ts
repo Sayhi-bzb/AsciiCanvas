@@ -1,117 +1,32 @@
-import type {
-  Point,
-  StructuredBoxNode,
-  StructuredNode,
-  StructuredTextStyleRange,
-  TextAttributes,
-} from "@/shared/types";
-import { createStructuredNodeId } from "@/shared/utils/structured";
+import type { StructuredNode, TextAttributes } from "@/shared/types";
 import { mergeStructuredTextStyle } from "@/shared/utils/structuredTextRanges";
+import { getSplitBoxPoints } from "@/shared/utils/shapes";
+import {
+  createStructuredComponentFactory,
+  STRUCTURED_COMPONENTS,
+  STRUCTURED_TEMPLATE_FALLBACK_COLORS,
+  STRUCTURED_TEMPLATE_TEXT_COLOR,
+  type StructuredTemplateBuildOptions,
+  type StructuredTemplateId,
+} from "./structured/components";
+
+export type { StructuredTemplateId };
+export {
+  STRUCTURED_TEMPLATE_FALLBACK_COLORS,
+  STRUCTURED_TEMPLATE_TEXT_COLOR,
+};
 
 export const STRUCTURED_TEMPLATE_MIME =
   "application/x-ascii-canvas-structured-template";
 
-export type StructuredTemplateId =
-  | "button"
-  | "label"
-  | "badge"
-  | "input"
-  | "checkbox"
-  | "radio"
-  | "divider"
-  | "card"
-  | "textarea"
-  | "select"
-  | "link"
-  | "listItem"
-  | "field"
-  | "formRow"
-  | "status"
-  | "accordion";
-
-export const STRUCTURED_TEMPLATE_TEXT_COLOR = "#000000";
-export const STRUCTURED_TEMPLATE_FALLBACK_COLORS = [
-  "#dbeafe",
-  "#dcfce7",
-  "#fef3c7",
-  "#fce7f3",
-  "#e2e8f0",
-] as const;
-
-const getTemplateBgColor = (index: number) =>
-  STRUCTURED_TEMPLATE_FALLBACK_COLORS[
-    index % STRUCTURED_TEMPLATE_FALLBACK_COLORS.length
-  ];
-
 export const STRUCTURED_TEMPLATES: Array<{
   id: StructuredTemplateId;
   label: string;
-}> = [
-  {
-    id: "button",
-    label: "Button",
-  },
-  {
-    id: "label",
-    label: "Label",
-  },
-  {
-    id: "badge",
-    label: "Badge",
-  },
-  {
-    id: "input",
-    label: "Input",
-  },
-  {
-    id: "checkbox",
-    label: "Checkbox",
-  },
-  {
-    id: "radio",
-    label: "Radio",
-  },
-  {
-    id: "divider",
-    label: "Divider",
-  },
-  {
-    id: "card",
-    label: "Card",
-  },
-  {
-    id: "textarea",
-    label: "Textarea",
-  },
-  {
-    id: "select",
-    label: "Select",
-  },
-  {
-    id: "link",
-    label: "Link",
-  },
-  {
-    id: "listItem",
-    label: "List item",
-  },
-  {
-    id: "field",
-    label: "Field",
-  },
-  {
-    id: "formRow",
-    label: "Form row",
-  },
-  {
-    id: "status",
-    label: "Status",
-  },
-  {
-    id: "accordion",
-    label: "Accordion",
-  },
-];
+}> = STRUCTURED_COMPONENTS.map(({ id, label }) => ({ id, label }));
+
+const STRUCTURED_COMPONENT_BY_ID = new Map(
+  STRUCTURED_COMPONENTS.map((component) => [component.id, component])
+);
 
 let activeStructuredTemplateDragId: StructuredTemplateId | null = null;
 
@@ -144,163 +59,12 @@ export const isStructuredTemplateId = (
 
 export const buildStructuredTemplateNodes = (
   templateId: StructuredTemplateId,
-  position: Point,
-  options: {
-    brushColor: string;
-    startOrder: number;
-  }
+  position: { x: number; y: number },
+  options: StructuredTemplateBuildOptions
 ): StructuredNode[] => {
-  const textStyle = { color: STRUCTURED_TEMPLATE_TEXT_COLOR };
-  const createText = (
-    text: string,
-    offset: Point = { x: 0, y: 0 },
-    orderOffset = 0,
-    styleRanges?: StructuredTextStyleRange[],
-    style: { color: string; attrs?: TextAttributes } = textStyle
-  ): StructuredNode => ({
-    id: createStructuredNodeId(),
-    type: "text",
-    order: options.startOrder + orderOffset,
-    position: { x: position.x + offset.x, y: position.y + offset.y },
-    text,
-    style,
-    ...(styleRanges ? { styleRanges } : {}),
-  });
-  const createBg = (
-    width: number,
-    colorIndex: number,
-    orderOffset = 0,
-    offset: Point = { x: 0, y: 0 },
-    height = 1
-  ): StructuredNode => ({
-    id: createStructuredNodeId(),
-    type: "bg",
-    order: options.startOrder + orderOffset,
-    start: { x: position.x + offset.x, y: position.y + offset.y },
-    end: {
-      x: position.x + offset.x + width - 1,
-      y: position.y + offset.y + height - 1,
-    },
-    style: {
-      color: STRUCTURED_TEMPLATE_TEXT_COLOR,
-      bgColor: getTemplateBgColor(colorIndex),
-    },
-  });
-  const createBox = (
-    width: number,
-    height: number,
-    orderOffset = 0,
-    offset: Point = { x: 0, y: 0 }
-  ): StructuredBoxNode => ({
-    id: createStructuredNodeId(),
-    type: "box",
-    order: options.startOrder + orderOffset,
-    start: { x: position.x + offset.x, y: position.y + offset.y },
-    end: {
-      x: position.x + offset.x + width - 1,
-      y: position.y + offset.y + height - 1,
-    },
-    style: textStyle,
-  });
-
-  switch (templateId) {
-    case "button":
-      return [createBg(8, 0), createText("[BUTTON]", { x: 0, y: 0 }, 1)];
-    case "label":
-      return [createText("Label")];
-    case "badge":
-      return [createBg(8, 1), createText("STATUS", { x: 1, y: 0 }, 1)];
-    case "input":
-      return [
-        createBg(20, 0, 0, { x: 6, y: 0 }),
-        createText("Name: [ Ascii-Canvas |   ]", { x: 0, y: 0 }, 1),
-      ];
-    case "checkbox":
-      return [
-        createText("󰱒 checkbox 1"),
-        createText("󰄱 checkbox 2", { x: 0, y: 1 }, 1),
-      ];
-    case "radio":
-      return [
-        createText("󰄰 radio 1"),
-        createText("󰄳 radio 2", { x: 0, y: 1 }, 1),
-        createText("󰄰 radio 3", { x: 0, y: 2 }, 2),
-      ];
-    case "divider":
-      return [
-        {
-          id: createStructuredNodeId(),
-          type: "line",
-          order: options.startOrder,
-          start: { x: position.x, y: position.y },
-          end: { x: position.x + 11, y: position.y },
-          axis: "horizontal",
-          style: textStyle,
-        },
-      ];
-    case "card": {
-      const node = createBox(16, 5);
-      return [{ ...node, name: "Card" }];
-    }
-    case "textarea":
-      return [
-        createBox(18, 5),
-        createText("Multiline", { x: 2, y: 1 }, 1),
-        createText("text...", { x: 2, y: 2 }, 2),
-      ];
-    case "select":
-      return [
-        createBox(14, 3),
-        createText("Option", { x: 2, y: 1 }, 1),
-        createText("v", { x: 11, y: 1 }, 2),
-      ];
-    case "link":
-      return [createText("Link ->")];
-    case "listItem":
-      return [createText("- Item")];
-    case "field":
-      return [
-        createText("Label"),
-        createBox(16, 3, 1, { x: 0, y: 1 }),
-        createText("Value", { x: 2, y: 2 }, 2),
-      ];
-    case "formRow":
-      return [
-        createText("Label", { x: 0, y: 1 }),
-        createBox(18, 3, 1, { x: 8, y: 0 }),
-        createText("Value", { x: 10, y: 1 }, 2),
-      ];
-    case "status":
-      return [
-        createText("󰄳 Success", { x: 0, y: 0 }, 0, undefined, {
-          color: "#22c55e",
-        }),
-        createText(" Warning", { x: 0, y: 1 }, 1, undefined, {
-          color: "#eab308",
-        }),
-        createText(" Error", { x: 0, y: 2 }, 2, undefined, {
-          color: "#ef4444",
-        }),
-        createText(" Loading", { x: 0, y: 3 }, 3, undefined, {
-          color: "#64748b",
-        }),
-      ];
-    case "accordion":
-      return [
-        createBg(20, 4, 0, { x: 0, y: 1 }, 2),
-        createText("Accordion          󰅃", { x: 0, y: 0 }, 1, undefined, {
-          color: STRUCTURED_TEMPLATE_TEXT_COLOR,
-          attrs: { bold: true, underline: true },
-        }),
-        createText("AccordionContent", { x: 0, y: 1 }, 2),
-        createText("Accordion          󰅀", { x: 0, y: 3 }, 3, undefined, {
-          color: STRUCTURED_TEMPLATE_TEXT_COLOR,
-          attrs: { bold: true },
-        }),
-      ];
-    default:
-      return [];
-  }
+  const component = STRUCTURED_COMPONENT_BY_ID.get(templateId);
+  if (!component) return [];
+  return component.build(createStructuredComponentFactory(position, options));
 };
 
 export const buildStructuredTemplatePreview = (
@@ -360,8 +124,9 @@ export const buildStructuredTemplatePreview = (
       }
 
       if (node.type === "text") {
+        const lines = node.text.split("\n");
         let textOffset = 0;
-        node.text.split("\n").forEach((line, rowIndex) => {
+        lines.forEach((line, rowIndex) => {
           Array.from(line).forEach((char, index) => {
             const x = node.position.x + index;
             const y = node.position.y + rowIndex;
@@ -380,7 +145,7 @@ export const buildStructuredTemplatePreview = (
             };
             textOffset += 1;
           });
-          if (rowIndex < node.text.split("\n").length - 1) textOffset += 1;
+          if (rowIndex < lines.length - 1) textOffset += 1;
         });
         return;
       }
@@ -398,6 +163,20 @@ export const buildStructuredTemplatePreview = (
             };
           }
         }
+        return;
+      }
+
+      if (node.type === "splitBox") {
+        getSplitBoxPoints(node.start, node.end, {
+          verticalSplitRatio: node.verticalSplitRatio,
+          topSplitRatio: node.topSplitRatio,
+          bottomSplitRatio: node.bottomSplitRatio,
+        }).forEach((point) => {
+          rows[point.y][point.x] = {
+            char: point.char,
+            color: node.style?.color ?? STRUCTURED_TEMPLATE_TEXT_COLOR,
+          };
+        });
         return;
       }
 

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import {
   Square,
+  SquareSplitVertical,
   Minus,
   LineSquiggle,
   Circle as CircleIcon,
@@ -97,7 +98,6 @@ export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
     MATERIAL_PRESETS.includes(brushChar) ? "" : brushChar
   );
 
-  const isShapeGroupActive = SHAPE_TOOLS.includes(tool);
   const [indicatorStyle, setIndicatorStyle] = useState({ width: 0, left: 0 });
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const isMobile = useIsMobile();
@@ -106,6 +106,8 @@ export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
     switch (type) {
       case "box":
         return { icon: Square, label: "Box" };
+      case "splitBox":
+        return { icon: SquareSplitVertical, label: "Split box" };
       case "circle":
         return { icon: CircleIcon, label: "Circle" };
       case "line":
@@ -116,11 +118,6 @@ export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
         return { icon: Square, label: "Shape" };
     }
   }, []);
-
-  const activeShapeMeta = useMemo(
-    () => getToolMeta(isShapeGroupActive ? tool : lastUsedShape),
-    [isShapeGroupActive, tool, lastUsedShape, getToolMeta]
-  );
 
   useEffect(() => {
     if (tool === "pan" && (!isMobile || canvasMode === "animation")) {
@@ -149,10 +146,16 @@ export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
   }, [canvasMode, isMobile]);
 
   const structuredShapeTools = useMemo<ToolType[]>(() => {
-    if (canvasMode === "structured") return ["box", "line"];
+    if (canvasMode === "structured") return ["box", "splitBox", "line"];
     if (canvasMode === "animation") return ["box", "circle", "line", "stepline"];
     return SHAPE_TOOLS;
   }, [canvasMode]);
+  const isShapeGroupActive = structuredShapeTools.includes(tool);
+
+  const activeShapeMeta = useMemo(
+    () => getToolMeta(isShapeGroupActive ? tool : lastUsedShape),
+    [isShapeGroupActive, tool, lastUsedShape, getToolMeta]
+  );
 
   const navItems = useMemo(() => {
     return visibleActionOrder.map((id) => {

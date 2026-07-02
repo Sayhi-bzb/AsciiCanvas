@@ -8,9 +8,24 @@ import {
   buildStructuredTree,
   createStructuredNodeId
 } from '@/shared/utils/structured';
+import { getSplitBoxPoints } from '@/shared/utils/shapes';
 import type { StructuredNode, NodeBounds } from '@/shared/types';
 
 describe('structured', () => {
+  it('builds split box glyph points with connected junctions', () => {
+    const points = getSplitBoxPoints(
+      { x: 0, y: 0 },
+      { x: 10, y: 4 },
+      { verticalSplitRatio: 0.36, topSplitRatio: 0.25, bottomSplitRatio: 0.75 }
+    );
+    const byKey = new Map(points.map((point) => [`${point.x},${point.y}`, point.char]));
+
+    expect(byKey.get('0,1')).toBe('├');
+    expect(byKey.get('4,1')).toBe('┬');
+    expect(byKey.get('4,3')).toBe('┴');
+    expect(byKey.get('10,3')).toBe('┤');
+  });
+
   describe('normalizeScene', () => {
     it('should sort nodes by order', () => {
       const scene: StructuredNode[] = [
@@ -199,6 +214,34 @@ describe('structured', () => {
       const top = Array.from({ length: 5 }, (_, x) => grid.get(`${x},0`)?.char ?? '');
 
       expect(top.join('')).toBe('╭───╮');
+    });
+
+    it('renders split box dividers and junctions from one structured node', () => {
+      const entries = sceneToGridEntries([
+        {
+          id: 'split',
+          type: 'splitBox',
+          order: 1,
+          start: { x: 0, y: 0 },
+          end: { x: 10, y: 4 },
+          verticalSplitRatio: 0.36,
+          topSplitRatio: 0.25,
+          bottomSplitRatio: 0.75,
+          style: { color: '#000' }
+        }
+      ]);
+      const grid = new Map(entries);
+      const rows = Array.from({ length: 5 }, (_, y) =>
+        Array.from({ length: 11 }, (_, x) => grid.get(`${x},${y}`)?.char ?? ' ').join('')
+      );
+
+      expect(rows).toEqual([
+        '╭─────────╮',
+        '├───┬─────┤',
+        '│   │     │',
+        '├───┴─────┤',
+        '╰─────────╯'
+      ]);
     });
 
     it('lets text above a bg node inherit the bg color', () => {
@@ -413,6 +456,20 @@ describe('structured', () => {
       const bounds = getStructuredNodeBounds(node);
 
       expect(bounds).toEqual({ x: 5, y: 5, width: 11, height: 6 });
+    });
+
+    it('should calculate split box bounds', () => {
+      const node: StructuredNode = {
+        id: 'split', type: 'splitBox', order: 1,
+        start: { x: 5, y: 5 },
+        end: { x: 15, y: 9 },
+        verticalSplitRatio: 0.36,
+        topSplitRatio: 0.25,
+        bottomSplitRatio: 0.75,
+        style: { color: '#000' }
+      };
+
+      expect(getStructuredNodeBounds(node)).toEqual({ x: 5, y: 5, width: 11, height: 5 });
     });
 
     it('should calculate text bounds', () => {

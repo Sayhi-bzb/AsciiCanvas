@@ -23,6 +23,10 @@ import { isAsciiCanvasDocument } from "./validation";
 import { cloneTextAttributes } from "@/shared/utils/ansi";
 import { cloneStructuredTextStyleRanges } from "@/shared/utils/structuredTextRanges";
 
+const assertNever = (value: never): never => {
+  throw new Error(`Unsupported structured protocol node: ${JSON.stringify(value)}`);
+};
+
 export interface ProtocolImportSnapshot {
   mode: AsciiCanvasDocumentV1["mode"];
   scene: StructuredNode[];
@@ -70,6 +74,18 @@ const cloneStructuredProtocolNode = (
         style,
         ...(node.name ? { name: node.name } : {}),
       };
+    case "splitBox":
+      return {
+        type: "splitBox",
+        id: node.id,
+        order: node.order,
+        start: { ...node.start },
+        end: { ...node.end },
+        verticalSplitRatio: node.verticalSplitRatio,
+        topSplitRatio: node.topSplitRatio,
+        bottomSplitRatio: node.bottomSplitRatio,
+        style,
+      };
     case "line":
       return {
         type: "line",
@@ -101,6 +117,8 @@ const cloneStructuredProtocolNode = (
           ? { styleRanges: cloneStructuredTextStyleRanges(node.styleRanges) }
           : {}),
       };
+    default:
+      return assertNever(node);
   }
 };
 

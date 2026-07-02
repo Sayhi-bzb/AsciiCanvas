@@ -20,6 +20,10 @@ import type {
   AsciiCanvasStructuredDocumentV1,
 } from "./types";
 
+const assertNever = (value: never): never => {
+  throw new Error(`Unsupported structured node: ${JSON.stringify(value)}`);
+};
+
 const sortCells = (cells: AsciiCanvasProtocolCellV1[]) => {
   return [...cells].sort((a, b) => {
     if (a.y !== b.y) return a.y - b.y;
@@ -86,6 +90,18 @@ const cloneStructuredNode = (
         style,
         ...(node.name ? { name: node.name } : {}),
       };
+    case "splitBox":
+      return {
+        type: "splitBox",
+        id: node.id,
+        order: node.order,
+        start: { ...node.start },
+        end: { ...node.end },
+        verticalSplitRatio: node.verticalSplitRatio,
+        topSplitRatio: node.topSplitRatio,
+        bottomSplitRatio: node.bottomSplitRatio,
+        style,
+      };
     case "line":
       return {
         type: "line",
@@ -117,6 +133,8 @@ const cloneStructuredNode = (
           ? { styleRanges: cloneStructuredTextStyleRanges(node.styleRanges) }
           : {}),
       };
+    default:
+      return assertNever(node);
   }
 };
 

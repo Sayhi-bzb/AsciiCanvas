@@ -10,6 +10,17 @@ import {
   setActiveStructuredTemplateDragId,
 } from "@/domains/canvas/state/helpers/structuredTemplates";
 
+const sortTemplateLabels = <
+  T extends { id: string; label: string },
+>(
+  templates: T[]
+) =>
+  [...templates].sort(
+    (a, b) =>
+      a.label.localeCompare(b.label, undefined, { sensitivity: "base" }) ||
+      a.id.localeCompare(b.id)
+  );
+
 describe("SidebarRight structured templates", () => {
   const initialState = useCanvasStore.getState();
 
@@ -69,8 +80,13 @@ describe("SidebarRight structured templates", () => {
     const templateItems = Array.from(
       group?.querySelectorAll('button[draggable="true"]') ?? []
     );
+    const sortedTemplates = sortTemplateLabels(STRUCTURED_TEMPLATES);
     expect(templateItems).toHaveLength(STRUCTURED_TEMPLATES.length);
-    STRUCTURED_TEMPLATES.forEach((template, index) => {
+    const itemLabels = templateItems.map(
+      (item) => item.querySelector(":scope > span:last-child")?.textContent
+    );
+    expect(itemLabels).toEqual(sortedTemplates.map((template) => template.label));
+    sortedTemplates.forEach((template, index) => {
       const item = templateItems[index];
       const viewport = item.querySelector(
         '[data-testid="structured-template-preview-viewport"]'
@@ -80,9 +96,7 @@ describe("SidebarRight structured templates", () => {
       );
       const expectedPreview = buildStructuredTemplatePreview(template.id);
       expect(viewport).toHaveClass("h-12", "w-24", "items-center", "overflow-hidden");
-      expect(preview?.textContent).toBe(
-        expectedPreview.rows.flat().map((cell) => cell.char).join("")
-      );
+      expect(preview?.tagName).toBe("CANVAS");
       expect(preview).toHaveStyle({
         width: `${expectedPreview.width * 5}px`,
         height: `${expectedPreview.height * 9}px`,
@@ -91,15 +105,13 @@ describe("SidebarRight structured templates", () => {
         expect(expectedPreview.height * 9).toBeLessThanOrEqual(48);
       }
       expect(item).toHaveTextContent(template.label);
-      expect(item.querySelector("span:last-child")).not.toHaveClass("font-semibold");
+      expect(item.querySelector(":scope > span:last-child")).not.toHaveClass("font-semibold");
     });
-    const buttonPreview = templateItems[0].querySelector(
+    const buttonIndex = sortedTemplates.findIndex((template) => template.id === "button");
+    const buttonPreview = templateItems[buttonIndex].querySelector(
       '[data-testid="structured-template-preview-grid"]'
     );
-    expect(
-      (buttonPreview?.firstElementChild as HTMLElement | null)?.style
-        .backgroundColor
-    ).toBe("rgb(219, 234, 254)");
+    expect(buttonPreview?.tagName).toBe("CANVAS");
     expect(content).toHaveClass("p-2");
     expect(group).toHaveClass("p-0");
     expect(button).toHaveClass("items-center", "gap-3");
@@ -166,6 +178,21 @@ describe("SidebarRight structured templates", () => {
     expect(
       screen.queryByRole("button", { name: /accordion/i })
     ).not.toBeInTheDocument();
+
+    fireEvent.change(search, { target: { value: "calendar" } });
+
+    expect(screen.getByRole("button", { name: /calendar/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /status/i })).not.toBeInTheDocument();
+
+    fireEvent.change(search, { target: { value: "alert" } });
+
+    expect(screen.getByRole("button", { name: /alert/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /calendar/i })).not.toBeInTheDocument();
+
+    fireEvent.change(search, { target: { value: "switch" } });
+
+    expect(screen.getByRole("button", { name: /switch/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /alert/i })).not.toBeInTheDocument();
 
     fireEvent.change(search, { target: { value: "missing" } });
 

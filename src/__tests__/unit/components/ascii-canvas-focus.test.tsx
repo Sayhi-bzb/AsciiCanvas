@@ -5,6 +5,7 @@ import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
 import { applyFreeformSnapshotToYMaps } from "@/domains/canvas/state/helpers/gridHelpers";
 import {
   STRUCTURED_TEMPLATE_MIME,
+  buildStructuredTemplateNodes,
   setActiveStructuredTemplateDragId,
 } from "@/domains/canvas/state/helpers/structuredTemplates";
 
@@ -13,6 +14,9 @@ vi.mock("@/domains/canvas/components/AsciiCanvas/hooks/useCanvasRenderer", () =>
 }));
 
 const handleDoubleClickMock = vi.fn();
+
+const stripNodeIds = <T extends { id: string }>(nodes: T[]) =>
+  nodes.map(({ id: _id, ...node }) => node);
 
 vi.mock("@/domains/canvas/components/AsciiCanvas/hooks/useCanvasInteraction", () => ({
   useCanvasInteraction: vi.fn(() => ({
@@ -357,7 +361,6 @@ describe("AsciiCanvas focus management", () => {
     });
 
     const preview = screen.getByTestId("structured-template-preview");
-    expect(preview.textContent).toBe("[BUTTON]");
     expect(preview).toHaveStyle({
       left: "18px",
       top: "38px",
@@ -368,9 +371,8 @@ describe("AsciiCanvas focus management", () => {
     const previewGrid = preview.querySelector(
       '[data-testid="structured-template-preview-grid"]'
     );
-    expect((previewGrid?.firstElementChild as HTMLElement).style.backgroundColor).toBe(
-      "rgb(219, 234, 254)"
-    );
+    expect(previewGrid?.tagName).toBe("CANVAS");
+    expect(previewGrid).toHaveStyle({ width: "72px", height: "19px" });
 
     act(() => {
       fireEvent(root, dropEvent);
@@ -437,7 +439,6 @@ describe("AsciiCanvas focus management", () => {
     });
 
     const preview = screen.getByTestId("structured-template-preview");
-    expect(preview.textContent).toBe(" STATUS ");
     expect(preview).toHaveStyle({
       left: "27px",
       top: "57px",
@@ -446,30 +447,23 @@ describe("AsciiCanvas focus management", () => {
     const previewGrid = preview.querySelector(
       '[data-testid="structured-template-preview-grid"]'
     );
-    expect((previewGrid?.firstElementChild as HTMLElement).style.backgroundColor).toBe(
-      "rgb(220, 252, 231)"
-    );
+    expect(previewGrid?.tagName).toBe("CANVAS");
 
     act(() => {
       fireEvent(root, dropEvent);
     });
 
     const state = useCanvasStore.getState();
+    const expectedNodes = buildStructuredTemplateNodes(
+      "badge",
+      { x: 3, y: 3 },
+      { brushColor: "#334155", startOrder: 1 }
+    );
     expect(dataTransfer.dropEffect).toBe("copy");
     expect(screen.queryByTestId("structured-template-preview")).not.toBeInTheDocument();
-    expect(state.structuredScene).toHaveLength(2);
-    expect(state.structuredScene[0]).toMatchObject({
-      type: "bg",
-      start: { x: 3, y: 3 },
-      end: { x: 10, y: 3 },
-      style: { color: "#000000", bgColor: "#dcfce7" },
-    });
-    expect(state.structuredScene[1]).toMatchObject({
-      type: "text",
-      position: { x: 4, y: 3 },
-      text: "STATUS",
-      style: { color: "#000000" },
-    });
+    expect(stripNodeIds(state.structuredScene)).toEqual(
+      stripNodeIds(expectedNodes)
+    );
     expect(state.selectedStructuredNodeIds).toEqual(
       state.structuredScene.map((node) => node.id)
     );
@@ -514,42 +508,32 @@ describe("AsciiCanvas focus management", () => {
     });
 
     const preview = screen.getByTestId("structured-template-preview");
-    expect(preview.textContent).toContain("Label");
-    expect(preview.textContent).toContain("Value");
     expect(preview).toHaveStyle({
       left: "18px",
       top: "38px",
       width: "144px",
       height: "76px",
     });
+    const previewGrid = preview.querySelector(
+      '[data-testid="structured-template-preview-grid"]'
+    );
+    expect(previewGrid?.tagName).toBe("CANVAS");
+    expect(previewGrid).toHaveStyle({ width: "144px", height: "76px" });
 
     act(() => {
       fireEvent(root, dropEvent);
     });
 
     const state = useCanvasStore.getState();
+    const expectedNodes = buildStructuredTemplateNodes(
+      "field",
+      { x: 2, y: 2 },
+      { brushColor: "#000000", startOrder: 1 }
+    );
     expect(dataTransfer.dropEffect).toBe("copy");
-    expect(state.structuredScene).toHaveLength(3);
-    expect(state.structuredScene).toMatchObject([
-      {
-        type: "text",
-        position: { x: 2, y: 2 },
-        text: "Label",
-        style: { color: "#000000" },
-      },
-      {
-        type: "box",
-        start: { x: 2, y: 3 },
-        end: { x: 17, y: 5 },
-        style: { color: "#000000" },
-      },
-      {
-        type: "text",
-        position: { x: 4, y: 4 },
-        text: "Value",
-        style: { color: "#000000" },
-      },
-    ]);
+    expect(stripNodeIds(state.structuredScene)).toEqual(
+      stripNodeIds(expectedNodes)
+    );
     expect(state.selectedStructuredNodeIds).toEqual(
       state.structuredScene.map((node) => node.id)
     );
@@ -586,7 +570,6 @@ describe("AsciiCanvas focus management", () => {
     });
 
     const preview = screen.getByTestId("structured-template-preview");
-    expect(preview.textContent).toBe("Label");
     expect(preview).toHaveStyle({
       left: "36px",
       top: "76px",
@@ -597,8 +580,7 @@ describe("AsciiCanvas focus management", () => {
     const previewGrid = preview.querySelector(
       '[data-testid="structured-template-preview-grid"]'
     );
-    Array.from(previewGrid?.children ?? []).forEach((child) => {
-      expect((child as HTMLElement).style.backgroundColor).toBe("transparent");
-    });
+    expect(previewGrid?.tagName).toBe("CANVAS");
+    expect(previewGrid).toHaveStyle({ width: "45px", height: "19px" });
   });
 });
