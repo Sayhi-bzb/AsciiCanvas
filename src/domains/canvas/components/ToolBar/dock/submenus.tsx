@@ -1,13 +1,16 @@
 "use client";
 
 import { useState, type ComponentType, type RefObject } from "react";
-import { Check } from "lucide-react";
+import { Check, Pipette } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { Input } from "@/shared/ui/input";
 import { PALETTE } from "@/shared/lib/constants";
 import type { ToolType } from "@/shared/types";
 import { getFirstGrapheme } from "@/shared/utils/characters";
 import { MATERIAL_PRESETS } from "./constants";
+import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
+import type { CanvasColorPickerTarget } from "@/domains/canvas/state/interfaces";
+import { useShallow } from "zustand/react/shallow";
 
 type SubmenuOptionClass = (active: boolean) => string;
 
@@ -141,6 +144,7 @@ type ColorPickerPanelProps = {
   value: string;
   onPick: (color: string) => void;
   showCustomInput?: boolean;
+  onCanvasPickStarted?: () => void;
 };
 
 const DIY_COLOR_GRID = [
@@ -212,17 +216,58 @@ export function ColorPickerPanel({
   value,
   onPick,
   showCustomInput = true,
+  onCanvasPickStarted,
 }: ColorPickerPanelProps) {
   const [customColor, setCustomColor] = useState(value);
   const normalizedCustomColor = normalizeHexColor(customColor);
+  const { canvasColorPickerTarget, setCanvasColorPickerTarget } = useCanvasStore(
+    useShallow((state) => ({
+      canvasColorPickerTarget: state.canvasColorPickerTarget,
+      setCanvasColorPickerTarget: state.setCanvasColorPickerTarget,
+    }))
+  );
 
   const pickColor = (color: string) => {
     setCustomColor(color);
     onPick(color);
   };
 
+  const toggleCanvasColorPicker = (target: CanvasColorPickerTarget) => {
+    const nextTarget = canvasColorPickerTarget === target ? null : target;
+    setCanvasColorPickerTarget(nextTarget);
+    if (nextTarget) onCanvasPickStarted?.();
+  };
+
   return (
     <div className="w-64 space-y-2 p-1.5">
+      <div className="grid grid-cols-2 gap-1">
+        {(["char", "bg"] as const).map((target) => {
+          const isActive = canvasColorPickerTarget === target;
+          const label =
+            target === "char"
+              ? "Pick char color from canvas"
+              : "Pick BG color from canvas";
+          return (
+            <button
+              key={target}
+              type="button"
+              aria-label={label}
+              title={label}
+              onClick={() => toggleCanvasColorPicker(target)}
+              className={cn(
+                "flex h-8 items-center justify-center gap-1.5 rounded-lg border px-2 text-[11px] font-medium transition-colors",
+                isActive
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-border bg-background/70 text-muted-foreground hover:bg-accent hover:text-foreground"
+              )}
+            >
+              <Pipette className="size-3.5" />
+              <span>{target === "char" ? "Char" : "BG"}</span>
+            </button>
+          );
+        })}
+      </div>
+
       <div className="grid grid-cols-5 gap-1">
         {PALETTE.map((c) => (
           <button
@@ -321,6 +366,7 @@ export function ColorSubmenu({
         applyStructuredTextColor?.(color);
         onPicked();
       }}
+      onCanvasPickStarted={onPicked}
     />
   );
 }

@@ -73,6 +73,10 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
       tool: state.tool,
       canvasMode: state.canvasMode,
       brushChar: state.brushChar,
+      brushColor: state.brushColor,
+      setBrushColor: state.setBrushColor,
+      canvasColorPickerTarget: state.canvasColorPickerTarget,
+      setCanvasColorPickerTarget: state.setCanvasColorPickerTarget,
       setOffset: state.setOffset,
       setZoom: state.setZoom,
       addScratchPoints: state.addScratchPoints,
@@ -97,6 +101,8 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
       setSelectedStructuredNodeIds: state.setSelectedStructuredNodeIds,
       setEditingStructuredTextNodeId: state.setEditingStructuredTextNodeId,
       setStructuredTextSelection: state.setStructuredTextSelection,
+      structuredTextSelection: state.structuredTextSelection,
+      setStructuredTextColor: state.setStructuredTextColor,
       applyStructuredScene: state.applyStructuredScene,
       updateStructuredNode: state.updateStructuredNode,
       activeCanvasHasSavedViewport: state.activeCanvasHasSavedViewport,
@@ -130,6 +136,7 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
       structuredGridFocus: state.structuredGridFocus,
       editingStructuredTextNodeId: state.editingStructuredTextNodeId,
       structuredTextSelection: state.structuredTextSelection,
+      canvasColorPickerTarget: state.canvasColorPickerTarget,
     }))
   );
   const {
@@ -161,6 +168,9 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
     setStructuredTextSelection,
     structuredScene,
     brushColor,
+    canvasColorPickerTarget,
+    setCanvasColorPickerTarget,
+    setHoveredGrid,
     getNextStructuredOrder,
     applyStructuredScene,
   } = useCanvasStore(
@@ -193,6 +203,9 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
       setStructuredTextSelection: state.setStructuredTextSelection,
       structuredScene: state.structuredScene,
       brushColor: state.brushColor,
+      canvasColorPickerTarget: state.canvasColorPickerTarget,
+      setCanvasColorPickerTarget: state.setCanvasColorPickerTarget,
+      setHoveredGrid: state.setHoveredGrid,
       getNextStructuredOrder: state.getNextStructuredOrder,
       applyStructuredScene: state.applyStructuredScene,
     }))
@@ -561,7 +574,10 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
       }
     } else if (e.key === 'Escape') {
       e.preventDefault();
-      if (activeTextCursor) {
+      if (canvasColorPickerTarget) {
+        setCanvasColorPickerTarget(null);
+        setHoveredGrid(null);
+      } else if (activeTextCursor) {
         setTextCursor(null);
         setEditingStructuredTextNodeId(null);
         setStructuredTextSelection(null);

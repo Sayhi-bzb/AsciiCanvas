@@ -153,6 +153,20 @@ describe("SidebarRight structured templates", () => {
     expect(screen.getByRole("button", { name: /badge/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /button/i })).not.toBeInTheDocument();
 
+    fireEvent.change(search, { target: { value: "accordion" } });
+
+    expect(
+      screen.getByRole("button", { name: /accordion/i })
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /badge/i })).not.toBeInTheDocument();
+
+    fireEvent.change(search, { target: { value: "status" } });
+
+    expect(screen.getByRole("button", { name: /status/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /accordion/i })
+    ).not.toBeInTheDocument();
+
     fireEvent.change(search, { target: { value: "missing" } });
 
     expect(screen.getByText("No components found")).toBeInTheDocument();

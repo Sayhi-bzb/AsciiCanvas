@@ -30,12 +30,83 @@ import { getStaticGridViewState } from "@/domains/canvas/state/helpers/staticGri
 import { getStructuredBoxBounds } from "@/domains/canvas/state/helpers/structuredBoxEditing";
 import { getStructuredNodeBounds } from "@/shared/utils/structured";
 import { getStructuredTextSelectionRange } from "@/shared/utils/structuredTextRanges";
+import type { StructuredBoxResizeHandle, StructuredLineResizeHandle } from "@/domains/canvas/state/helpers/structuredBoxEditing";
 
 interface LayerRefs {
   bg: React.RefObject<HTMLCanvasElement | null>;
   scratch: React.RefObject<HTMLCanvasElement | null>;
   ui: React.RefObject<HTMLCanvasElement | null>;
 }
+
+type RectHandlePoint = {
+  handle: StructuredBoxResizeHandle;
+  xRatio: number;
+  yRatio: number;
+};
+
+export const getStructuredRectHandlePoints = (
+  _bounds: NodeBounds
+): RectHandlePoint[] => {
+  return [
+    { handle: "nw", xRatio: 0, yRatio: 0 },
+    { handle: "n", xRatio: 0.5, yRatio: 0 },
+    { handle: "ne", xRatio: 1, yRatio: 0 },
+    { handle: "e", xRatio: 1, yRatio: 0.5 },
+    { handle: "se", xRatio: 1, yRatio: 1 },
+    { handle: "s", xRatio: 0.5, yRatio: 1 },
+    { handle: "sw", xRatio: 0, yRatio: 1 },
+    { handle: "w", xRatio: 0, yRatio: 0.5 },
+  ];
+};
+
+export const getStructuredLineHandlePoints = (): Array<{
+  handle: StructuredLineResizeHandle;
+  point: "start" | "end";
+}> => [
+  { handle: "start", point: "start" },
+  { handle: "end", point: "end" },
+];
+
+export const drawCanvasColorPickerAnchor = (
+  ctx: CanvasRenderingContext2D,
+  point: Point,
+  viewport: { offset: Point; zoom: number }
+) => {
+  const pos = gridCellRect(point, viewport);
+  const x = Math.round(pos.x);
+  const y = Math.round(pos.y);
+  const width = Math.round(pos.width);
+  const height = Math.round(pos.height);
+  const corner = Math.max(4, Math.round(Math.min(width, height) * 0.32));
+  const lineWidth = Math.max(1, Math.round(1.5 * viewport.zoom));
+
+  ctx.save();
+  ctx.lineWidth = lineWidth + 2;
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
+  ctx.strokeRect(x, y, width, height);
+
+  ctx.lineWidth = lineWidth;
+  ctx.strokeStyle = "#111827";
+  ctx.strokeRect(x, y, width, height);
+
+  ctx.strokeStyle = "#f59e0b";
+  ctx.lineWidth = Math.max(2, lineWidth);
+  ctx.beginPath();
+  ctx.moveTo(x, y + corner);
+  ctx.lineTo(x, y);
+  ctx.lineTo(x + corner, y);
+  ctx.moveTo(x + width - corner, y);
+  ctx.lineTo(x + width, y);
+  ctx.lineTo(x + width, y + corner);
+  ctx.moveTo(x + width, y + height - corner);
+  ctx.lineTo(x + width, y + height);
+  ctx.lineTo(x + width - corner, y + height);
+  ctx.moveTo(x + corner, y + height);
+  ctx.lineTo(x, y + height);
+  ctx.lineTo(x, y + height - corner);
+  ctx.stroke();
+  ctx.restore();
+};
 
 export const useCanvasRenderer = (
   layers: LayerRefs,
@@ -57,11 +128,11 @@ export const useCanvasRenderer = (
     | "canvasBounds"
     | "animationTimeline"
     | "selectedStructuredNodeIds"
-    | "selectedStructuredBoxId"
     | "structuredGridFocus"
     | "structuredScene"
     | "editingStructuredTextNodeId"
     | "structuredTextSelection"
+    | "canvasColorPickerTarget"
   >,
   draggingSelection: SelectionArea | null,
   hoveredLink: CanvasLinkHit | null
@@ -82,11 +153,11 @@ export const useCanvasRenderer = (
     canvasBounds,
     animationTimeline,
     selectedStructuredNodeIds,
-    selectedStructuredBoxId,
     structuredGridFocus,
     structuredScene,
     editingStructuredTextNodeId,
     structuredTextSelection,
+    canvasColorPickerTarget,
   } = store;
 
   const staticGridView = getStaticGridViewState({
@@ -436,30 +507,53 @@ export const useCanvasRenderer = (
           uiCtx.lineWidth = Math.max(1, Math.round(2 * zoom));
           selectedNodes.forEach((node) => drawStructuredBounds(getStructuredNodeBounds(node)));
 
-          const selectedBox =
+          const drawHandle = (x: number, y: number) => {
+            const handleSize = Math.max(6, Math.round(7 * zoom));
+            uiCtx.fillRect(
+              Math.round(x - handleSize / 2),
+              Math.round(y - handleSize / 2),
+              handleSize,
+              handleSize
+            );
+            uiCtx.strokeRect(
+              Math.round(x - handleSize / 2),
+              Math.round(y - handleSize / 2),
+              handleSize,
+              handleSize
+            );
+          };
+
+          const selectedHandleNode =
             selectedStructuredNodeIds.length === 1
-              ? structuredScene.find((node) => node.id === selectedStructuredBoxId && node.type === "box")
+              ? structuredScene.find(
+                  (node) => node.id === selectedStructuredNodeIds[0]
+                )
               : null;
-          if (selectedBox?.type === "box") {
-            const bounds = getStructuredBoxBounds(selectedBox);
+          if (
+            selectedHandleNode?.type === "box" ||
+            selectedHandleNode?.type === "bg"
+          ) {
+            const bounds =
+              selectedHandleNode.type === "box"
+                ? getStructuredBoxBounds(selectedHandleNode)
+                : getStructuredNodeBounds(selectedHandleNode);
             const { pos, width, height } = drawStructuredBounds(bounds);
             uiCtx.fillStyle = "#ffffff";
             uiCtx.strokeStyle = "#2563eb";
             uiCtx.lineWidth = 1;
-            const handleSize = Math.max(6, Math.round(7 * zoom));
-            const points = [
-              [pos.x, pos.y],
-              [pos.x + width / 2, pos.y],
-              [pos.x + width, pos.y],
-              [pos.x + width, pos.y + height / 2],
-              [pos.x + width, pos.y + height],
-              [pos.x + width / 2, pos.y + height],
-              [pos.x, pos.y + height],
-              [pos.x, pos.y + height / 2],
-            ];
-            points.forEach(([px, py]) => {
-              uiCtx.fillRect(Math.round(px - handleSize / 2), Math.round(py - handleSize / 2), handleSize, handleSize);
-              uiCtx.strokeRect(Math.round(px - handleSize / 2), Math.round(py - handleSize / 2), handleSize, handleSize);
+            getStructuredRectHandlePoints(bounds).forEach(({ xRatio, yRatio }) => {
+              const px = pos.x + width * xRatio;
+              const py = pos.y + height * yRatio;
+              drawHandle(px, py);
+            });
+          } else if (selectedHandleNode?.type === "line") {
+            uiCtx.fillStyle = "#ffffff";
+            uiCtx.strokeStyle = "#2563eb";
+            uiCtx.lineWidth = 1;
+            getStructuredLineHandlePoints().forEach(({ point }) => {
+              const endpoint = selectedHandleNode[point];
+              const pos = gridCellRect(endpoint, { offset, zoom });
+              drawHandle(pos.x + pos.width / 2, pos.y + pos.height / 2);
             });
           }
           uiCtx.restore();
@@ -515,6 +609,10 @@ export const useCanvasRenderer = (
           uiCtx.fillRect(originX - 1, originY - 10, 2, 20);
           uiCtx.fillRect(originX - 10, originY - 1, 20, 2);
         }
+
+        if (canvasColorPickerTarget && hoveredGrid) {
+          drawCanvasColorPickerAnchor(uiCtx, hoveredGrid, { offset, zoom });
+        }
       }
     };
 
@@ -539,10 +637,10 @@ export const useCanvasRenderer = (
     animationTimeline,
     structuredScene,
     selectedStructuredNodeIds,
-    selectedStructuredBoxId,
     structuredGridFocus,
     editingStructuredTextNodeId,
     structuredTextSelection,
+    canvasColorPickerTarget,
     layers,
     hoveredLink,
   ]);

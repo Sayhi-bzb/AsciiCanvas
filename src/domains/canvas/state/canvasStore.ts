@@ -118,6 +118,7 @@ export const useCanvasStore = create<CanvasState>()(
         showGrid: true,
         exportShowGrid: false,
         hoveredGrid: null,
+        canvasColorPickerTarget: null,
 
         setOffset: (updater) =>
           set((state) => ({ offset: updater(state.offset) })),
@@ -181,6 +182,8 @@ export const useCanvasStore = create<CanvasState>()(
             brushChar: normalizeBrushChar(char, state.brushChar),
           })),
         setBrushColor: (color) => set({ brushColor: color }),
+        setCanvasColorPickerTarget: (target) =>
+          set({ canvasColorPickerTarget: target }),
         setShowGrid: (show) => set({ showGrid: show }),
         setExportShowGrid: (show) => set({ exportShowGrid: show }),
         setHoveredGrid: (pos) => set({ hoveredGrid: pos }),

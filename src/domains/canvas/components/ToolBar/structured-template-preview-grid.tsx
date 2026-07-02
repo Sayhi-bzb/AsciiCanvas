@@ -41,6 +41,13 @@ export function StructuredTemplatePreviewGrid({
               lineHeight: `${cellHeight}px`,
               color: cell.color,
               backgroundColor: cell.bgColor ?? "transparent",
+              fontWeight: cell.attrs?.bold ? 700 : undefined,
+              fontStyle: cell.attrs?.italic ? "italic" : undefined,
+              textDecoration: cell.attrs?.underline
+                ? "underline"
+                : cell.attrs?.strike
+                  ? "line-through"
+                  : undefined,
             }}
           >
             {cell.char}

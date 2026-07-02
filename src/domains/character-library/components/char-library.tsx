@@ -14,6 +14,7 @@ import {
   SquareDashed,
 } from "lucide-react";
 import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
+import { writeClipboardPayload } from "@/domains/actions/adapters/clipboardActions";
 import { useLibraryStore } from "../stores/useLibraryStore";
 import { cn } from "@/shared/lib/utils";
 import { feedback } from "@/shared/services/effects";
@@ -88,11 +89,9 @@ const CharButton = ({
 };
 
 export function CharLibrary() {
-  const { brushChar, setBrushChar, setTool } = useCanvasStore(
+  const { brushColor } = useCanvasStore(
     useShallow((state) => ({
-      brushChar: state.brushChar,
-      setBrushChar: state.setBrushChar,
-      setTool: state.setTool,
+      brushColor: state.brushColor,
     }))
   );
   const {
@@ -108,14 +107,34 @@ export function CharLibrary() {
     fetchUnicodeBlocks,
   } = useLibraryStore();
   const [isUnicodeOpen, setIsUnicodeOpen] = useState(false);
+  const [copiedChar, setCopiedChar] = useState<string | null>(null);
 
   const getCharacterLabel = (char: string) =>
     data?.characterLabels[char] ?? getCodePointLabel(char) ?? char;
 
-  const handleSelect = (char: string) => {
-    setBrushChar(char);
-    setTool("brush");
-    feedback.success(`Picked: ${char}`, { duration: 600, position: "top-right" });
+  const handleSelect = async (char: string) => {
+    const copied = await writeClipboardPayload(
+      {
+        plain: char,
+        rich: JSON.stringify({
+          type: "ascii-metropolis-zone",
+          version: 1,
+          cells: [{ x: 0, y: 0, char, color: brushColor }],
+        }),
+      },
+      { withRich: true }
+    );
+
+    if (!copied) {
+      feedback.error("Could not copy character.", {
+        duration: 1200,
+        position: "top-right",
+      });
+      return;
+    }
+
+    setCopiedChar(char);
+    feedback.success(`Copied: ${char}`, { duration: 600, position: "top-right" });
   };
 
   const handleUnicodeOpenChange = (open: boolean) => {
@@ -136,7 +155,7 @@ export function CharLibrary() {
                 key={`search-${idx}`}
                 char={char}
                 label={getCharacterLabel(char)}
-                isSelected={brushChar === char}
+                isSelected={copiedChar === char}
                 onClick={handleSelect}
               />
             ))}
@@ -219,7 +238,7 @@ export function CharLibrary() {
                             key={`${name}-${item.name}-${idx}`}
                             char={item.char}
                             label={item.name}
-                            isSelected={brushChar === item.char}
+                            isSelected={copiedChar === item.char}
                             onClick={handleSelect}
                           />
                         ))}
@@ -261,7 +280,7 @@ export function CharLibrary() {
                             key={`${name}-${idx}`}
                             char={item.char}
                             label={item.name}
-                            isSelected={brushChar === item.char}
+                            isSelected={copiedChar === item.char}
                             onClick={handleSelect}
                           />
                         ))}
@@ -318,7 +337,7 @@ export function CharLibrary() {
                                         key={`${subgroupName}-${idx}`}
                                         char={item.char}
                                         label={item.name}
-                                        isSelected={brushChar === item.char}
+                                        isSelected={copiedChar === item.char}
                                         onClick={handleSelect}
                                       />
                                     ))}
@@ -394,7 +413,7 @@ export function CharLibrary() {
                             key={idx}
                             char={item.char}
                             label={item.name}
-                            isSelected={brushChar === item.char}
+                            isSelected={copiedChar === item.char}
                             onClick={handleSelect}
                           />
                         ))}

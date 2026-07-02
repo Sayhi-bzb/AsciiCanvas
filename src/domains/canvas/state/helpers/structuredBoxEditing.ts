@@ -153,7 +153,8 @@ export const findStructuredBoxHit = (
 
 export const findStructuredNodeHit = (
   scene: StructuredNode[],
-  point: Point
+  point: Point,
+  _selectedNodeIds: string[] = []
 ): StructuredNodeHit | null => {
   const ordered = [...scene].sort((a, b) => b.order - a.order);
   for (const node of ordered) {
@@ -167,7 +168,7 @@ export const findStructuredNodeHit = (
     }
     if (node.type === "bg") {
       if (!isPointInsideStructuredBg(node, point)) continue;
-      return { node, kind: "bg", handle: getStructuredBoxHandleAtPoint(node, point) };
+      return { node, kind: "bg", handle: null };
     }
     if (!isPointInsideStructuredText(node, point)) continue;
     return { node, kind: "text", handle: null };

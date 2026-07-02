@@ -5,10 +5,11 @@ import {
   CopyPlus,
   Eraser,
   Hand,
+  Highlighter,
   Image,
   LineSquiggle,
   MousePointer2,
-  PaintBucket,
+  PaintbrushVertical,
   Palette,
   Pencil,
   Scissors,
@@ -17,7 +18,6 @@ import {
   Trash2,
   Type,
   Undo2,
-  Wallpaper,
 } from "lucide-react";
 import type { ActionMeta, ContextMenuEntry, EditorActionId, ToolbarActionId, SidebarActionId } from "./types";
 
@@ -95,7 +95,6 @@ export const TOOLBAR_ACTION_ORDER: ToolbarActionId[] = [
   "shape-group",
   "fill",
   "eraser",
-  "undo",
   "color",
 ];
 
@@ -109,8 +108,8 @@ export const TOOLBAR_ACTION_META: Record<ToolbarActionId, ActionMeta> = {
     icon: LineSquiggle,
     hasSub: true,
   },
-  bg: { id: "bg", label: "Background", icon: Wallpaper },
-  fill: { id: "fill", label: "Fill Area", icon: PaintBucket },
+  bg: { id: "bg", label: "Background", icon: Highlighter },
+  fill: { id: "fill", label: "Paint Char Color", icon: PaintbrushVertical },
   eraser: { id: "eraser", label: "Eraser", icon: Eraser },
   undo: { id: "undo", label: "Undo", icon: Undo2 },
   color: { id: "color", label: "Color", icon: Palette, hasSub: true },

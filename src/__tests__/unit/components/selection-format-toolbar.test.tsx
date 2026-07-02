@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 
 import { SelectionFormatToolbar } from "@/domains/canvas/components/AsciiCanvas/SelectionFormatToolbar";
@@ -9,6 +9,7 @@ describe("SelectionFormatToolbar", () => {
   const initialState = useCanvasStore.getState();
 
   afterEach(() => {
+    vi.restoreAllMocks();
     useCanvasStore.setState(initialState, true);
   });
 
@@ -135,5 +136,49 @@ describe("SelectionFormatToolbar", () => {
 
     expect(picked).toEqual(["#ef4444"]);
     expect(applied).toEqual(["#ef4444"]);
+  });
+
+  it("starts canvas char color picking from the color submenu", () => {
+    render(
+      <ColorSubmenu
+        brushColor="#ffffff"
+        setBrushColor={() => {}}
+        onPicked={() => {}}
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText("Pick char color from canvas"));
+
+    expect(useCanvasStore.getState().canvasColorPickerTarget).toBe("char");
+  });
+
+  it("starts canvas background color picking from the color submenu", () => {
+    render(
+      <ColorSubmenu
+        brushColor="#ffffff"
+        setBrushColor={() => {}}
+        onPicked={() => {}}
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText("Pick BG color from canvas"));
+
+    expect(useCanvasStore.getState().canvasColorPickerTarget).toBe("bg");
+  });
+
+  it("toggles an active canvas color picker target off", () => {
+    useCanvasStore.setState({ canvasColorPickerTarget: "char" });
+
+    render(
+      <ColorSubmenu
+        brushColor="#ffffff"
+        setBrushColor={() => {}}
+        onPicked={() => {}}
+      />
+    );
+
+    fireEvent.click(screen.getByLabelText("Pick char color from canvas"));
+
+    expect(useCanvasStore.getState().canvasColorPickerTarget).toBeNull();
   });
 });

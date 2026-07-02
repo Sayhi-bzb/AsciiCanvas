@@ -59,7 +59,6 @@ const FREEFORM_ACTION_ORDER: ToolbarActionId[] = [
   "shape-group",
   "bg",
   "fill",
-  "undo",
   "color",
 ];
 
@@ -67,7 +66,6 @@ const STRUCTURED_ACTION_ORDER: ToolbarActionId[] = [
   "select",
   "shape-group",
   "bg",
-  "undo",
   "color",
 ];
 
@@ -107,7 +105,7 @@ export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
   const getToolMeta = useCallback((type: ToolType) => {
     switch (type) {
       case "box":
-        return { icon: Square, label: "Rectangle" };
+        return { icon: Square, label: "Box" };
       case "circle":
         return { icon: CircleIcon, label: "Circle" };
       case "line":

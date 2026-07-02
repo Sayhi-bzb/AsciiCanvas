@@ -3,6 +3,7 @@ import type {
   StructuredBoxNode,
   StructuredNode,
   StructuredTextStyleRange,
+  TextAttributes,
 } from "@/shared/types";
 import { createStructuredNodeId } from "@/shared/utils/structured";
 import { mergeStructuredTextStyle } from "@/shared/utils/structuredTextRanges";
@@ -24,7 +25,9 @@ export type StructuredTemplateId =
   | "link"
   | "listItem"
   | "field"
-  | "formRow";
+  | "formRow"
+  | "status"
+  | "accordion";
 
 export const STRUCTURED_TEMPLATE_TEXT_COLOR = "#000000";
 export const STRUCTURED_TEMPLATE_FALLBACK_COLORS = [
@@ -100,6 +103,14 @@ export const STRUCTURED_TEMPLATES: Array<{
     id: "formRow",
     label: "Form row",
   },
+  {
+    id: "status",
+    label: "Status",
+  },
+  {
+    id: "accordion",
+    label: "Accordion",
+  },
 ];
 
 let activeStructuredTemplateDragId: StructuredTemplateId | null = null;
@@ -117,6 +128,7 @@ export type StructuredTemplatePreviewCell = {
   char: string;
   color?: string;
   bgColor?: string;
+  attrs?: TextAttributes;
 };
 
 export type StructuredTemplatePreview = {
@@ -143,21 +155,23 @@ export const buildStructuredTemplateNodes = (
     text: string,
     offset: Point = { x: 0, y: 0 },
     orderOffset = 0,
-    styleRanges?: StructuredTextStyleRange[]
+    styleRanges?: StructuredTextStyleRange[],
+    style: { color: string; attrs?: TextAttributes } = textStyle
   ): StructuredNode => ({
     id: createStructuredNodeId(),
     type: "text",
     order: options.startOrder + orderOffset,
     position: { x: position.x + offset.x, y: position.y + offset.y },
     text,
-    style: textStyle,
+    style,
     ...(styleRanges ? { styleRanges } : {}),
   });
   const createBg = (
     width: number,
     colorIndex: number,
     orderOffset = 0,
-    offset: Point = { x: 0, y: 0 }
+    offset: Point = { x: 0, y: 0 },
+    height = 1
   ): StructuredNode => ({
     id: createStructuredNodeId(),
     type: "bg",
@@ -165,7 +179,7 @@ export const buildStructuredTemplateNodes = (
     start: { x: position.x + offset.x, y: position.y + offset.y },
     end: {
       x: position.x + offset.x + width - 1,
-      y: position.y + offset.y,
+      y: position.y + offset.y + height - 1,
     },
     style: {
       color: STRUCTURED_TEMPLATE_TEXT_COLOR,
@@ -256,6 +270,34 @@ export const buildStructuredTemplateNodes = (
         createBox(18, 3, 1, { x: 8, y: 0 }),
         createText("Value", { x: 10, y: 1 }, 2),
       ];
+    case "status":
+      return [
+        createText("󰄳 Success", { x: 0, y: 0 }, 0, undefined, {
+          color: "#22c55e",
+        }),
+        createText(" Warning", { x: 0, y: 1 }, 1, undefined, {
+          color: "#eab308",
+        }),
+        createText(" Error", { x: 0, y: 2 }, 2, undefined, {
+          color: "#ef4444",
+        }),
+        createText(" Loading", { x: 0, y: 3 }, 3, undefined, {
+          color: "#64748b",
+        }),
+      ];
+    case "accordion":
+      return [
+        createBg(20, 4, 0, { x: 0, y: 1 }, 2),
+        createText("Accordion          󰅃", { x: 0, y: 0 }, 1, undefined, {
+          color: STRUCTURED_TEMPLATE_TEXT_COLOR,
+          attrs: { bold: true, underline: true },
+        }),
+        createText("AccordionContent", { x: 0, y: 1 }, 2),
+        createText("Accordion          󰅀", { x: 0, y: 3 }, 3, undefined, {
+          color: STRUCTURED_TEMPLATE_TEXT_COLOR,
+          attrs: { bold: true },
+        }),
+      ];
     default:
       return [];
   }
@@ -334,6 +376,7 @@ export const buildStructuredTemplatePreview = (
               char,
               color: style.color ?? STRUCTURED_TEMPLATE_TEXT_COLOR,
               bgColor: style.bgColor ?? rows[y][x].bgColor,
+              attrs: style.attrs,
             };
             textOffset += 1;
           });

@@ -2,13 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { useGesture } from "@use-gesture/react";
 import { useCreation, useThrottleFn } from "ahooks";
 import { GridManager } from "@/shared/utils/grid";
-import type { Point, SelectionArea, StructuredNode, ToolType } from "@/shared/types";
+import type { GridCell, Point, SelectionArea, StructuredNode, ToolType } from "@/shared/types";
 import type { CanvasState } from "@/domains/canvas/state/canvasStore";
 import { forceHistorySave } from "@/shared/lib/yjs-setup";
 import bresenham from "bresenham";
 import { isCtrlOrMeta } from "@/shared/utils/event";
 import { MIN_ZOOM, MAX_ZOOM } from "@/shared/lib/constants";
-import { getCellOccupancy } from "@/shared/metrics";
+import { getCellOccupancy, gridCellRect } from "@/shared/metrics";
+import { getStructuredNodeBounds } from "@/shared/utils/structured";
 import {
   clampPointToBounds,
   clampSelectionToBounds,
@@ -28,11 +29,16 @@ import {
   resizeStructuredLine,
   type StructuredBoxResizeHandle,
   type StructuredLineResizeHandle,
+  type StructuredNodeHit,
 } from "@/domains/canvas/state/helpers/structuredBoxEditing";
 import {
   getStructuredTextOffsetAtPoint,
   getStructuredTextCaretPoint,
 } from "@/shared/utils/structuredTextRanges";
+import {
+  getStructuredLineHandlePoints,
+  getStructuredRectHandlePoints,
+} from "./useCanvasRenderer";
 
 const isShapeTool = (tool: ToolType, canvasMode: CanvasState["canvasMode"]): boolean => {
   if (canvasMode === "structured") return tool === "box" || tool === "line" || tool === "bg";
@@ -105,11 +111,32 @@ const getStructuredBoxCursor = (handle: StructuredBoxResizeHandle | null) => {
   }
 };
 
+const stripStructuredResizeHandle = (
+  hit: StructuredNodeHit | null
+): StructuredNodeHit | null => {
+  if (!hit) return null;
+  if (hit.kind === "text") return hit;
+  return { ...hit, handle: null } as StructuredNodeHit;
+};
+
+const getCellPickedColor = (
+  cell: GridCell | undefined,
+  target: CanvasState["canvasColorPickerTarget"]
+) => {
+  if (!cell || !target) return null;
+  if (target === "bg") return cell.bgColor ?? null;
+  return cell.char.trim() ? cell.color : null;
+};
+
 export const useCanvasInteraction = (
   store: Pick<
     CanvasState,
     | "tool"
     | "brushChar"
+    | "brushColor"
+    | "setBrushColor"
+    | "canvasColorPickerTarget"
+    | "setCanvasColorPickerTarget"
     | "setOffset"
     | "setZoom"
     | "canvasMode"
@@ -135,6 +162,8 @@ export const useCanvasInteraction = (
     | "setSelectedStructuredNodeIds"
     | "setEditingStructuredTextNodeId"
     | "setStructuredTextSelection"
+    | "structuredTextSelection"
+    | "setStructuredTextColor"
     | "applyStructuredScene"
     | "updateStructuredNode"
   >,
@@ -144,6 +173,9 @@ export const useCanvasInteraction = (
   const {
     tool,
     brushChar,
+    setBrushColor,
+    canvasColorPickerTarget,
+    setCanvasColorPickerTarget,
     setOffset,
     setZoom,
     canvasMode,
@@ -169,6 +201,8 @@ export const useCanvasInteraction = (
     setSelectedStructuredNodeIds,
     setEditingStructuredTextNodeId,
     setStructuredTextSelection,
+    structuredTextSelection,
+    setStructuredTextColor,
     applyStructuredScene,
     updateStructuredNode,
   } = store;
@@ -204,6 +238,83 @@ export const useCanvasInteraction = (
     });
   };
 
+  const getLocalScreenPoint = (clientX: number, clientY: number) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return null;
+    return {
+      x: clientX - rect.left,
+      y: clientY - rect.top,
+    };
+  };
+
+  const isPointInHandle = (point: Point, x: number, y: number) => {
+    const handleSize = Math.max(6, Math.round(7 * zoom));
+    const half = handleSize / 2;
+    return (
+      point.x >= x - half &&
+      point.x <= x + half &&
+      point.y >= y - half &&
+      point.y <= y + half
+    );
+  };
+
+  const findSelectedStructuredHandleHit = (
+    screenPoint: Point
+  ): StructuredNodeHit | null => {
+    if (selectedStructuredNodeIds.length !== 1) return null;
+    const node = structuredScene.find(
+      (sceneNode) => sceneNode.id === selectedStructuredNodeIds[0]
+    );
+    if (!node) return null;
+
+    if (node.type === "box") {
+      const bounds = getStructuredNodeBounds(node);
+      const pos = gridCellRect({ x: bounds.x, y: bounds.y }, { offset, zoom });
+      const width = bounds.width * pos.width;
+      const height = bounds.height * pos.height;
+      const handle = getStructuredRectHandlePoints(bounds).find(
+        ({ xRatio, yRatio }) =>
+          isPointInHandle(
+            screenPoint,
+            pos.x + width * xRatio,
+            pos.y + height * yRatio
+          )
+      )?.handle;
+      return handle ? { node, kind: "box", handle } : null;
+    }
+
+    if (node.type === "bg") {
+      const bounds = getStructuredNodeBounds(node);
+      const pos = gridCellRect({ x: bounds.x, y: bounds.y }, { offset, zoom });
+      const width = bounds.width * pos.width;
+      const height = bounds.height * pos.height;
+      const handle = getStructuredRectHandlePoints(bounds).find(
+        ({ xRatio, yRatio }) =>
+          isPointInHandle(
+            screenPoint,
+            pos.x + width * xRatio,
+            pos.y + height * yRatio
+          )
+      )?.handle;
+      return handle ? { node, kind: "bg", handle } : null;
+    }
+
+    if (node.type === "line") {
+      const handle = getStructuredLineHandlePoints().find(({ point }) => {
+        const endpoint = node[point];
+        const pos = gridCellRect(endpoint, { offset, zoom });
+        return isPointInHandle(
+          screenPoint,
+          pos.x + pos.width / 2,
+          pos.y + pos.height / 2
+        );
+      })?.handle;
+      return handle ? { node, kind: "line", handle } : null;
+    }
+
+    return null;
+  };
+
   const dragStartGrid = useRef<Point | null>(null);
   const lastGrid = useRef<Point | null>(null);
   const lastPlacedGrid = useRef<Point | null>(null);
@@ -225,6 +336,7 @@ export const useCanvasInteraction = (
     offset: number;
   } | null>(null);
   const hoveredLinkCandidateRef = useRef<CanvasLinkHit | null>(null);
+  const colorPickerClickRef = useRef(false);
   const [draggingSelection, setDraggingSelection] =
     useState<SelectionArea | null>(null);
 
@@ -247,6 +359,34 @@ export const useCanvasInteraction = (
     structuredNodeDragRef.current = null;
     structuredTextSelectionStartRef.current = null;
     interactionModeRef.current = "idle";
+  };
+
+  const pickCanvasCellColor = (point: Point) => {
+    const target = canvasColorPickerTarget;
+    if (!target) return false;
+    const color = getCellPickedColor(
+      grid.get(GridManager.toKey(point.x, point.y)),
+      target
+    );
+    if (color) {
+      setBrushColor(color);
+      if (
+        target === "char" &&
+        canvasMode === "structured" &&
+        structuredTextSelection
+      ) {
+        setStructuredTextColor(color);
+      }
+    }
+    setCanvasColorPickerTarget(null);
+    setHoveredGrid(null);
+    return true;
+  };
+
+  const updateCanvasColorPickerHover = (clientX: number, clientY: number) => {
+    const point = resolveGridPointFromScreen(clientX, clientY);
+    setHoveredGrid(point);
+    if (containerRef.current) containerRef.current.style.cursor = "crosshair";
   };
 
   const shouldIgnoreMinimapGestureEvent = (event: Event | undefined) => {
@@ -362,7 +502,11 @@ export const useCanvasInteraction = (
     if (canvasMode !== "structured" || tool !== "select") return false;
     const point = resolveGridPointFromScreen(clientX, clientY);
     if (!point) return false;
-    const hit = findStructuredNodeHit(structuredScene, point);
+    const hit = findStructuredNodeHit(
+      structuredScene,
+      point,
+      selectedStructuredNodeIds
+    );
     if (!hit) return false;
     if (hit.kind === "text") {
       setSelectedStructuredNodeIds([hit.node.id]);
@@ -426,6 +570,10 @@ export const useCanvasInteraction = (
       onMove: ({ xy: [x, y], event }) => {
         if (isFromCanvasUi(event)) return;
         if (isFromMinimap(event)) return;
+        if (canvasColorPickerTarget) {
+          updateCanvasColorPickerHover(x, y);
+          return;
+        }
         const linkHit = resolveLinkHitFromScreen(x, y);
         updateLinkHover(linkHit, event as MouseEvent);
         if (canvasMode === "structured") {
@@ -434,8 +582,15 @@ export const useCanvasInteraction = (
             return;
           }
           if (tool === "select") {
+            const screenPoint = getLocalScreenPoint(x, y);
             const point = resolveGridPointFromScreen(x, y);
-            const hit = point ? findStructuredNodeHit(structuredScene, point) : null;
+            const hit =
+              (screenPoint
+                ? findSelectedStructuredHandleHit(screenPoint)
+                : null) ??
+              stripStructuredResizeHandle(
+                point ? findStructuredNodeHit(structuredScene, point) : null
+              );
             if (containerRef.current) {
               containerRef.current.style.cursor = hit
                 ? hit.kind === "text" &&
@@ -477,6 +632,17 @@ export const useCanvasInteraction = (
         if (isFromMinimap(event)) return;
         updateLinkHover(null, event as MouseEvent);
         const mouseEvent = event as MouseEvent;
+        if (canvasColorPickerTarget && mouseEvent.button === 0) {
+          const point = resolveGridPointFromScreen(x, y);
+          if (point) {
+            event.preventDefault();
+            colorPickerClickRef.current = true;
+            pickCanvasCellColor(point);
+            resetDragState();
+            if (containerRef.current) containerRef.current.style.cursor = "";
+          }
+          return;
+        }
         if (canvasMode !== "animation" && tool === "pan") {
           isPanningRef.current = true;
           interactionModeRef.current = "panning";
@@ -509,7 +675,14 @@ export const useCanvasInteraction = (
               : GridManager.snapToCharStart(raw, grid);
 
           if (canvasMode === "structured" && tool === "select") {
-            const hit = findStructuredNodeHit(structuredScene, start);
+            const screenPoint = getLocalScreenPoint(x, y);
+            const hit =
+              (screenPoint
+                ? findSelectedStructuredHandleHit(screenPoint)
+                : null) ??
+              stripStructuredResizeHandle(
+                findStructuredNodeHit(structuredScene, start)
+              );
             if (hit) {
               if (hit.kind === "text" && mouseEvent.detail >= 2) {
                 setSelectedStructuredNodeIds([hit.node.id]);
@@ -866,6 +1039,11 @@ export const useCanvasInteraction = (
       onClick: ({ event }) => {
         if (isFromCanvasUi(event)) return;
         if (isFromMinimap(event)) return;
+        if (colorPickerClickRef.current) {
+          colorPickerClickRef.current = false;
+          event.preventDefault();
+          return;
+        }
         if (interactionModeRef.current !== "idle") return;
         const mouseEvent = event as MouseEvent;
         if (canvasMode === "structured" && tool === "text") {

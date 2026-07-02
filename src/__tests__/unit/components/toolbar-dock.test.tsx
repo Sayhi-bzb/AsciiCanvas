@@ -20,13 +20,14 @@ describe("Toolbar dock", () => {
     render(<Toolbar tool="select" setTool={vi.fn()} onUndo={vi.fn()} />);
 
     expect(screen.getByRole("button", { name: "Select" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Rectangle" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Box" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Background" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Fill Area" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Undo" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Paint Char Color" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Color" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Brush/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Eraser" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Fill Area" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Undo" })).not.toBeInTheDocument();
   });
 
   it("returns hidden freeform brush tool state to select", () => {
@@ -62,7 +63,7 @@ describe("Toolbar dock", () => {
 
     render(<Toolbar tool="bg" setTool={vi.fn()} onUndo={vi.fn()} />);
 
-    expect(screen.getByRole("button", { name: "Rectangle" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Box" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Background" })).toBeInTheDocument();
   });
 
@@ -72,6 +73,7 @@ describe("Toolbar dock", () => {
     render(<Toolbar tool="select" setTool={vi.fn()} onUndo={vi.fn()} />);
 
     expect(screen.queryByRole("button", { name: "Background" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Undo" })).not.toBeInTheDocument();
   });
 
   it("hides the explicit text tool in structured mode", () => {
@@ -80,8 +82,9 @@ describe("Toolbar dock", () => {
     render(<Toolbar tool="select" setTool={vi.fn()} onUndo={vi.fn()} />);
 
     expect(screen.getByRole("button", { name: "Select" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Rectangle" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Box" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Background" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Undo" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Text" })).not.toBeInTheDocument();
   });
 

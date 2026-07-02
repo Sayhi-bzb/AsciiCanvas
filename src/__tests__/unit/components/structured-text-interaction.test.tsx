@@ -24,6 +24,10 @@ function InteractionHarness() {
     useShallow((state) => ({
       tool: state.tool,
       brushChar: state.brushChar,
+      brushColor: state.brushColor,
+      setBrushColor: state.setBrushColor,
+      canvasColorPickerTarget: state.canvasColorPickerTarget,
+      setCanvasColorPickerTarget: state.setCanvasColorPickerTarget,
       setOffset: state.setOffset,
       setZoom: state.setZoom,
       canvasMode: state.canvasMode,
@@ -49,6 +53,8 @@ function InteractionHarness() {
       setSelectedStructuredNodeIds: state.setSelectedStructuredNodeIds,
       setEditingStructuredTextNodeId: state.setEditingStructuredTextNodeId,
       setStructuredTextSelection: state.setStructuredTextSelection,
+      structuredTextSelection: state.structuredTextSelection,
+      setStructuredTextColor: state.setStructuredTextColor,
       applyStructuredScene: state.applyStructuredScene,
       updateStructuredNode: state.updateStructuredNode,
     }))
@@ -164,6 +170,55 @@ describe("structured text interaction", () => {
     });
   };
 
+  const setStructuredBgScene = (selected = false) => {
+    useCanvasStore.setState({
+      canvasMode: "structured",
+      tool: "select",
+      offset: { x: 0, y: 0 },
+      zoom: 1,
+      grid: new Map(),
+      selections: [],
+      textCursor: null,
+      editingStructuredTextNodeId: null,
+      selectedStructuredNodeIds: selected ? ["bg-1"] : [],
+      structuredScene: [
+        {
+          id: "bg-1",
+          type: "bg",
+          order: 1,
+          start: { x: 0, y: 0 },
+          end: { x: 4, y: 0 },
+          style: { color: "#ffffff", bgColor: "#dbeafe" },
+        },
+      ],
+    });
+  };
+
+  const setStructuredLineScene = (selected = false) => {
+    useCanvasStore.setState({
+      canvasMode: "structured",
+      tool: "select",
+      offset: { x: 0, y: 0 },
+      zoom: 1,
+      grid: new Map(),
+      selections: [],
+      textCursor: null,
+      editingStructuredTextNodeId: null,
+      selectedStructuredNodeIds: selected ? ["line-1"] : [],
+      structuredScene: [
+        {
+          id: "line-1",
+          type: "line",
+          order: 1,
+          start: { x: 0, y: 0 },
+          end: { x: 4, y: 0 },
+          axis: "horizontal",
+          style: { color: "#ffffff" },
+        },
+      ],
+    });
+  };
+
   const dragEvent = (detail = 1) =>
     new MouseEvent("mousedown", {
       button: 0,
@@ -238,6 +293,87 @@ describe("structured text interaction", () => {
     });
 
     expect(getByTestId("canvas-root").style.cursor).toBe("text");
+  });
+
+  it("anchors the hovered cell while canvas color picking is active", () => {
+    useCanvasStore.setState({
+      canvasMode: "freeform",
+      tool: "select",
+      offset: { x: 0, y: 0 },
+      zoom: 1,
+      canvasColorPickerTarget: "char",
+      hoveredGrid: null,
+    });
+    const { getByTestId } = render(<InteractionHarness />);
+
+    act(() => {
+      gestureState.handlers?.onMove?.({
+        xy: [18, 57],
+        event: new MouseEvent("mousemove", {
+          bubbles: true,
+          cancelable: true,
+        }),
+      });
+    });
+
+    expect(useCanvasStore.getState().hoveredGrid).toEqual({ x: 2, y: 3 });
+    expect(getByTestId("canvas-root").style.cursor).toBe("crosshair");
+  });
+
+  it("picks char color from a visible canvas cell", () => {
+    useCanvasStore.setState({
+      canvasMode: "freeform",
+      tool: "select",
+      offset: { x: 0, y: 0 },
+      zoom: 1,
+      brushColor: "#000000",
+      canvasColorPickerTarget: "char",
+      hoveredGrid: { x: 2, y: 3 },
+      grid: new Map([
+        ["2,3", { char: "A", color: "#112233", bgColor: "#445566" }],
+      ]),
+    });
+    render(<InteractionHarness />);
+
+    act(() => {
+      gestureState.handlers?.onDragStart?.({
+        xy: [18, 57],
+        event: dragEvent(),
+      });
+    });
+
+    const state = useCanvasStore.getState();
+    expect(state.brushColor).toBe("#112233");
+    expect(state.canvasColorPickerTarget).toBeNull();
+    expect(state.hoveredGrid).toBeNull();
+  });
+
+  it("picks background color from a blank canvas cell", () => {
+    useCanvasStore.setState({
+      canvasMode: "freeform",
+      tool: "select",
+      offset: { x: 0, y: 0 },
+      zoom: 1,
+      brushColor: "#000000",
+      canvasColorPickerTarget: "bg",
+      hoveredGrid: { x: 2, y: 3 },
+      grid: new Map([
+        ["2,3", { char: " ", color: "#112233", bgColor: "#445566" }],
+      ]),
+    });
+    render(<InteractionHarness />);
+
+    act(() => {
+      gestureState.handlers?.onDragStart?.({
+        xy: [18, 57],
+        event: dragEvent(),
+      });
+    });
+
+    const state = useCanvasStore.getState();
+    expect(state.brushColor).toBe("#445566");
+    expect(state.canvasColorPickerTarget).toBeNull();
+    expect(state.hoveredGrid).toBeNull();
   });
 
   it("focuses an empty structured cell after a blank select click", () => {
@@ -436,8 +572,154 @@ describe("structured text interaction", () => {
     ]);
   });
 
+  it("moves an unselected single-row background from its endpoint", () => {
+    setStructuredBgScene(false);
+    render(<InteractionHarness />);
+
+    act(() => {
+      gestureState.handlers?.onDragStart?.({
+        xy: [1, 1],
+        event: dragEvent(),
+      });
+      gestureState.handlers?.onDrag?.({
+        xy: [31, 1],
+        delta: [30, 0],
+        event: dragEvent(),
+      });
+    });
+
+    expect(useCanvasStore.getState().selectedStructuredNodeIds).toEqual([
+      "bg-1",
+    ]);
+    expect(useCanvasStore.getState().structuredScene[0]).toMatchObject({
+      id: "bg-1",
+      start: { x: 3, y: 0 },
+      end: { x: 7, y: 0 },
+    });
+  });
+
+  it("resizes a selected single-row background from its endpoint", () => {
+    setStructuredBgScene(true);
+    render(<InteractionHarness />);
+
+    act(() => {
+      gestureState.handlers?.onDragStart?.({
+        xy: [45, 10],
+        event: dragEvent(),
+      });
+      gestureState.handlers?.onDrag?.({
+        xy: [61, 10],
+        delta: [18, 0],
+        event: dragEvent(),
+      });
+    });
+
+    expect(useCanvasStore.getState().selectedStructuredNodeIds).toEqual([
+      "bg-1",
+    ]);
+    expect(useCanvasStore.getState().structuredScene[0]).toMatchObject({
+      id: "bg-1",
+      start: { x: 0, y: 0 },
+      end: { x: 6, y: 0 },
+    });
+  });
+
+  it("expands a selected single-row background vertically from its visible handle", () => {
+    setStructuredBgScene(true);
+    render(<InteractionHarness />);
+
+    act(() => {
+      gestureState.handlers?.onDragStart?.({
+        xy: [23, 19],
+        event: dragEvent(),
+      });
+      gestureState.handlers?.onDrag?.({
+        xy: [23, 41],
+        delta: [0, 22],
+        event: dragEvent(),
+      });
+    });
+
+    expect(useCanvasStore.getState().structuredScene[0]).toMatchObject({
+      id: "bg-1",
+      start: { x: 0, y: 0 },
+      end: { x: 4, y: 2 },
+    });
+  });
+
+  it("moves a selected single-row background from its body safe area", () => {
+    setStructuredBgScene(true);
+    render(<InteractionHarness />);
+
+    act(() => {
+      gestureState.handlers?.onDragStart?.({
+        xy: [23, 10],
+        event: dragEvent(),
+      });
+      gestureState.handlers?.onDrag?.({
+        xy: [41, 10],
+        delta: [18, 0],
+        event: dragEvent(),
+      });
+    });
+
+    expect(useCanvasStore.getState().structuredScene[0]).toMatchObject({
+      id: "bg-1",
+      start: { x: 2, y: 0 },
+      end: { x: 6, y: 0 },
+    });
+  });
+
+  it("resizes a selected structured line from its visible endpoint handle", () => {
+    setStructuredLineScene(true);
+    render(<InteractionHarness />);
+
+    act(() => {
+      gestureState.handlers?.onDragStart?.({
+        xy: [41, 10],
+        event: dragEvent(),
+      });
+      gestureState.handlers?.onDrag?.({
+        xy: [41, 48],
+        delta: [0, 38],
+        event: dragEvent(),
+      });
+    });
+
+    expect(useCanvasStore.getState().structuredScene[0]).toMatchObject({
+      id: "line-1",
+      start: { x: 0, y: 0 },
+      end: { x: 4, y: 2 },
+      axis: "horizontal",
+    });
+  });
+
+  it("moves a selected structured line from its body safe area", () => {
+    setStructuredLineScene(true);
+    render(<InteractionHarness />);
+
+    act(() => {
+      gestureState.handlers?.onDragStart?.({
+        xy: [23, 10],
+        event: dragEvent(),
+      });
+      gestureState.handlers?.onDrag?.({
+        xy: [41, 10],
+        delta: [18, 0],
+        event: dragEvent(),
+      });
+    });
+
+    expect(useCanvasStore.getState().structuredScene[0]).toMatchObject({
+      id: "line-1",
+      start: { x: 2, y: 0 },
+      end: { x: 6, y: 0 },
+    });
+  });
+
   it("resizes the hit rectangle instead of moving every selected node", () => {
     setStructuredMixedScene();
+    useCanvasStore.setState({ selectedStructuredNodeIds: ["box-1"] });
     render(<InteractionHarness />);
 
     act(() => {

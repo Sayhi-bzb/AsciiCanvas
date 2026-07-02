@@ -18,6 +18,8 @@ import type { StructuredTextSelection } from "@/shared/utils/structuredTextRange
 import type { GridAddress, GridEditMode, GridRange, GridSelectionState } from "./helpers/staticGridModel";
 import type { CanvasHistoryMode } from "@/shared/lib/yjs-setup";
 
+export type CanvasColorPickerTarget = "char" | "bg";
+
 export interface RichTextCell {
   x: number;
   y: number;
@@ -193,6 +195,7 @@ export type CanvasState = {
   showGrid: boolean;
   exportShowGrid: boolean;
   hoveredGrid: Point | null;
+  canvasColorPickerTarget: CanvasColorPickerTarget | null;
   canvasSessions: CanvasSession[];
   activeCanvasId: string;
   activeCanvasHasSavedViewport: boolean;
@@ -207,6 +210,7 @@ export type CanvasState = {
   getNextStructuredOrder: () => number;
   setBrushChar: (char: string) => void;
   setBrushColor: (color: string) => void;
+  setCanvasColorPickerTarget: (target: CanvasColorPickerTarget | null) => void;
   setShowGrid: (show: boolean) => void;
   setExportShowGrid: (show: boolean) => void;
   setHoveredGrid: (pos: Point | null) => void;

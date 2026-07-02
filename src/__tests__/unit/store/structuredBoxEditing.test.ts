@@ -91,18 +91,47 @@ describe("structuredBoxEditing", () => {
     });
   });
 
-  it("hits background nodes with box resize handles", () => {
+  it("hits background nodes as move targets unless they are selected", () => {
     const scene: StructuredNode[] = [bg()];
 
     expect(findStructuredNodeHit(scene, { x: 0, y: 0 })).toMatchObject({
       kind: "bg",
-      handle: "nw",
+      handle: null,
       node: { id: "bg-1" },
     });
     expect(findStructuredNodeHit(scene, { x: 2, y: 2 })).toMatchObject({
       kind: "bg",
       handle: null,
       node: { id: "bg-1" },
+    });
+    expect(findStructuredNodeHit(scene, { x: 0, y: 0 }, ["bg-1"])).toMatchObject({
+      kind: "bg",
+      handle: null,
+      node: { id: "bg-1" },
+    });
+    expect(findStructuredNodeHit(scene, { x: 2, y: 0 }, ["bg-1"])).toMatchObject({
+      kind: "bg",
+      handle: null,
+      node: { id: "bg-1" },
+    });
+  });
+
+  it("keeps background node hits as move targets for thin backgrounds", () => {
+    const singleRow = bg({ start: { x: 0, y: 0 }, end: { x: 4, y: 0 } });
+    const singleColumn = bg({ start: { x: 2, y: 0 }, end: { x: 2, y: 4 } });
+
+    const scene: StructuredNode[] = [singleRow];
+    expect(findStructuredNodeHit(scene, { x: 2, y: 0 }, ["bg-1"])).toMatchObject({
+      kind: "bg",
+      handle: null,
+    });
+    expect(findStructuredNodeHit(scene, { x: 4, y: 0 }, ["bg-1"])).toMatchObject({
+      kind: "bg",
+      handle: null,
+    });
+    expect(findStructuredNodeHit([singleColumn], { x: 2, y: 2 }, ["bg-1"])).toMatchObject({
+      kind: "bg",
+      handle: null,
     });
   });
 

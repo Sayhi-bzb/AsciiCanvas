@@ -33,6 +33,8 @@ describe("structuredTemplates", () => {
       "listItem",
       "field",
       "formRow",
+      "status",
+      "accordion",
     ]);
   });
 
@@ -243,6 +245,71 @@ describe("structuredTemplates", () => {
     ]);
   });
 
+  it("builds status as separate styled text rows", () => {
+    expect(build("status")).toMatchObject([
+      {
+        type: "text",
+        order: 10,
+        position: { x: 4, y: 7 },
+        text: "󰄳 Success",
+        style: { color: "#22c55e" },
+      },
+      {
+        type: "text",
+        order: 11,
+        position: { x: 4, y: 8 },
+        text: " Warning",
+        style: { color: "#eab308" },
+      },
+      {
+        type: "text",
+        order: 12,
+        position: { x: 4, y: 9 },
+        text: " Error",
+        style: { color: "#ef4444" },
+      },
+      {
+        type: "text",
+        order: 13,
+        position: { x: 4, y: 10 },
+        text: " Loading",
+        style: { color: "#64748b" },
+      },
+    ]);
+  });
+
+  it("builds accordion with a background container below text", () => {
+    expect(build("accordion")).toMatchObject([
+      {
+        type: "bg",
+        order: 10,
+        start: { x: 4, y: 8 },
+        end: { x: 23, y: 9 },
+        style: { color: "#000000", bgColor: "#e2e8f0" },
+      },
+      {
+        type: "text",
+        order: 11,
+        position: { x: 4, y: 7 },
+        text: "Accordion          󰅃",
+        style: { color: "#000000", attrs: { bold: true, underline: true } },
+      },
+      {
+        type: "text",
+        order: 12,
+        position: { x: 4, y: 8 },
+        text: "AccordionContent",
+      },
+      {
+        type: "text",
+        order: 13,
+        position: { x: 4, y: 10 },
+        text: "Accordion          󰅀",
+        style: { color: "#000000", attrs: { bold: true } },
+      },
+    ]);
+  });
+
   it("builds previews from each template node structure", () => {
     const labelPreview = buildStructuredTemplatePreview("label");
     expect(labelPreview).toMatchObject({ width: 5, height: 1 });
@@ -323,6 +390,35 @@ describe("structuredTemplates", () => {
     expect(fieldPreview.rows[2].map((cell) => cell.char).join("")).toContain(
       "Value"
     );
+
+    const statusPreview = buildStructuredTemplatePreview("status");
+    expect(statusPreview).toMatchObject({ width: 9, height: 4 });
+    expect(statusPreview.rows[0].map((cell) => cell.char).join("")).toBe(
+      "󰄳 Success"
+    );
+    expect(statusPreview.rows[1][0].color).toBe("#eab308");
+    expect(statusPreview.rows[2][0].color).toBe("#ef4444");
+    expect(statusPreview.rows[3][0].color).toBe("#64748b");
+
+    const accordionPreview = buildStructuredTemplatePreview("accordion");
+    expect(accordionPreview).toMatchObject({ width: 20, height: 4 });
+    expect(accordionPreview.rows[0].map((cell) => cell.char).join("")).toBe(
+      "Accordion          󰅃"
+    );
+    expect(accordionPreview.rows[0][0].attrs).toEqual({
+      bold: true,
+      underline: true,
+    });
+    expect(
+      accordionPreview.rows[1].every((cell) => cell.bgColor === "#e2e8f0")
+    ).toBe(true);
+    expect(
+      accordionPreview.rows[2].every((cell) => cell.bgColor === "#e2e8f0")
+    ).toBe(true);
+    expect(accordionPreview.rows[1].map((cell) => cell.char).join("")).toContain(
+      "AccordionContent"
+    );
+    expect(accordionPreview.rows[3][0].attrs).toEqual({ bold: true });
   });
 
   it("returns an empty scene for unsupported ids at runtime", () => {
