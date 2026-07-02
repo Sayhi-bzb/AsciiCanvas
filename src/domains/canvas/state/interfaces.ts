@@ -74,6 +74,7 @@ export interface DrawingSlice {
   ) => void;
   setStructuredTextColor: (color: string) => void;
   setStructuredTextBackgroundColor: (bgColor: string | null) => void;
+  setStructuredNodeCharColor: (color: string) => void;
   fillStructuredTextSelectionWithChar: (char: string) => void;
   reorderStructuredSelection: (direction: "forward" | "backward" | "front" | "back") => void;
   duplicateStructuredSelection: () => string[];

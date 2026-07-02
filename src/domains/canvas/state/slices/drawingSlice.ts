@@ -466,6 +466,33 @@ export const createDrawingSlice: StateCreator<
     state.applyStructuredScene(nextScene, true);
   },
 
+  setStructuredNodeCharColor: (color) => {
+    const state = get();
+    if (state.canvasMode !== "structured" || state.selectedStructuredNodeIds.length === 0) {
+      return;
+    }
+    const selectedIds = new Set(state.selectedStructuredNodeIds);
+    let didUpdate = false;
+    const nextScene = state.structuredScene.map((node) => {
+      if (!selectedIds.has(node.id)) return node;
+      if (node.type !== "box" && node.type !== "splitBox" && node.type !== "line") {
+        return node;
+      }
+      didUpdate = true;
+      return {
+        ...node,
+        style: {
+          ...node.style,
+          color,
+        },
+      };
+    });
+
+    if (!didUpdate) return;
+    state.applyStructuredScene(nextScene, true);
+    state.setSelectedStructuredNodeIds(state.selectedStructuredNodeIds);
+  },
+
   fillStructuredTextSelectionWithChar: (char) => {
     const state = get();
     if (state.canvasMode !== "structured" || !state.structuredTextSelection) return;

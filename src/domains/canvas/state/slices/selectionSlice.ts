@@ -12,6 +12,8 @@ import type {
   GridCell,
   Point,
   StructuredNode,
+  StructuredNodeStyle,
+  StructuredTextNode,
   StructuredTextStyleRange,
 } from "@/shared/types";
 import { deleteRect } from "../gridOps";
@@ -155,6 +157,100 @@ const richCellsToPlainText = (cells: RichTextCell[] | null | undefined) => {
     .join("\n");
 };
 
+const isSameStructuredRangeStyle = (
+  a: StructuredTextStyleRange["style"],
+  b: StructuredTextStyleRange["style"]
+) =>
+  a.color === b.color &&
+  a.bgColor === b.bgColor &&
+  !!a.attrs?.bold === !!b.attrs?.bold &&
+  !!a.attrs?.italic === !!b.attrs?.italic &&
+  !!a.attrs?.underline === !!b.attrs?.underline &&
+  !!a.attrs?.strike === !!b.attrs?.strike;
+
+const pushStructuredTextStyleRange = (
+  ranges: StructuredTextStyleRange[],
+  range: StructuredTextStyleRange
+) => {
+  if (range.start >= range.end) return;
+  const last = ranges[ranges.length - 1];
+  if (
+    last &&
+    last.end === range.start &&
+    isSameStructuredRangeStyle(last.style, range.style)
+  ) {
+    last.end = range.end;
+    return;
+  }
+  ranges.push(range);
+};
+
+const richCellsToStructuredText = (
+  cells: RichTextCell[] | null | undefined,
+  fallbackStyle: StructuredNodeStyle
+): { text: string; style: StructuredNodeStyle; styleRanges?: StructuredTextStyleRange[] } | null => {
+  if (!cells || cells.length === 0) return null;
+  const minX = Math.min(...cells.map((cell) => cell.x));
+  const minY = Math.min(...cells.map((cell) => cell.y));
+  const maxY = Math.max(...cells.map((cell) => cell.y));
+  const byRow = new Map<number, RichTextCell[]>();
+  cells.forEach((cell) => {
+    const row = byRow.get(cell.y) ?? [];
+    row.push(cell);
+    byRow.set(cell.y, row);
+  });
+
+  const lines: string[] = [];
+  const styleRanges: StructuredTextStyleRange[] = [];
+  let offset = 0;
+  for (let y = minY; y <= maxY; y++) {
+    const row = [...(byRow.get(y) ?? [])].sort((a, b) => a.x - b.x);
+    let cursorX = minX;
+    let line = "";
+    row.forEach((cell) => {
+      const gap = Math.max(0, cell.x - cursorX);
+      if (gap > 0) {
+        line += " ".repeat(gap);
+        offset += gap;
+        cursorX += gap;
+      }
+      const char = cell.char || " ";
+      const charLength = splitGraphemes(char).length || 1;
+      line += char;
+      pushStructuredTextStyleRange(styleRanges, {
+        start: offset,
+        end: offset + charLength,
+        style: {
+          color: cell.color,
+          ...(cell.bgColor ? { bgColor: cell.bgColor } : {}),
+          ...(cloneTextAttributes(cell.attrs)
+            ? { attrs: cloneTextAttributes(cell.attrs) }
+            : {}),
+        },
+      });
+      offset += charLength;
+      cursorX += getCellOccupancy(char);
+    });
+    lines.push(line.trimEnd());
+    if (y < maxY) offset += 1;
+  }
+
+  const text = lines.join("\n").replace(/\s+$/g, "");
+  if (!text) return null;
+  const textLength = splitGraphemes(text).length;
+  const normalizedRanges = styleRanges
+    .map((range) => ({
+      ...range,
+      end: Math.min(range.end, textLength),
+    }))
+    .filter((range) => range.start < range.end);
+  return {
+    text,
+    style: fallbackStyle,
+    styleRanges: normalizedRanges.length > 0 ? normalizedRanges : undefined,
+  };
+};
+
 const createInheritedTextStyleRanges = (
   target: NonNullable<ReturnType<typeof getStructuredTextPasteTarget>>,
   text: string
@@ -187,6 +283,21 @@ const createPastedStructuredTextStyleRanges = (
     ...(styleRanges ?? []),
   ];
 };
+
+const createStructuredTextNodeFromPaste = (
+  state: CanvasState,
+  text: string,
+  style: StructuredNodeStyle,
+  styleRanges?: StructuredTextStyleRange[]
+): StructuredTextNode => ({
+  id: createStructuredNodeId(),
+  type: "text",
+  order: state.getNextStructuredOrder(),
+  position: resolveStructuredPastePoint(state),
+  text,
+  style,
+  ...(styleRanges ? { styleRanges } : {}),
+});
 
 export const createSelectionSlice: StateCreator<
   CanvasState,
@@ -466,12 +577,14 @@ export const createSelectionSlice: StateCreator<
     if (canvasMode === "structured") {
       const textTarget = getStructuredTextPasteTarget(state);
       if (textTarget) {
+        const richText = richCellsToStructuredText(payload.richCells, {
+          color: brushColor,
+        });
         const text =
           payload.structuredText?.text ??
+          richText?.text ??
           payload.plainText ??
-          richCellsToPlainText(
-            payload.richCells ?? payload.structured?.surfaceCells
-          );
+          richCellsToPlainText(payload.structured?.surfaceCells);
         if (!text) return;
         const normalizedText = text.replace(/\r\n?/g, "\n");
         state.replaceStructuredTextRange(
@@ -485,37 +598,70 @@ export const createSelectionSlice: StateCreator<
                 payload.structuredText.style,
                 payload.structuredText.styleRanges
               )
-            : createInheritedTextStyleRanges(textTarget, normalizedText)
+            : richText?.styleRanges ??
+              createInheritedTextStyleRanges(textTarget, normalizedText)
         );
         return;
       }
       const structured = payload.structured;
-      if (!structured) {
-        feedback.warning("Paste disabled in structured mode", {
-          description: "Clipboard does not contain structured nodes.",
+      if (structured) {
+        const pastePoint = resolveStructuredPastePoint(state);
+        const dx = pastePoint.x - structured.bounds.x;
+        const dy = pastePoint.y - structured.bounds.y;
+        const maxOrder = state.structuredScene.reduce(
+          (max, node) => Math.max(max, node.order),
+          0
+        );
+        const pastedNodes = structured.structuredNodes
+          .slice()
+          .sort((a, b) => a.order - b.order)
+          .map((node, index) =>
+            moveStructuredClipboardNode(node, dx, dy, maxOrder + index + 1)
+          );
+        state.applyStructuredScene([...state.structuredScene, ...pastedNodes], true);
+        set({
+          selectedStructuredNodeIds: pastedNodes.map((node) => node.id),
+          selectedStructuredBoxId:
+            pastedNodes.length === 1 && pastedNodes[0].type === "box"
+              ? pastedNodes[0].id
+              : null,
+          structuredGridFocus: null,
+          textCursor: null,
+          editingStructuredTextNodeId: null,
+          structuredTextSelection: null,
         });
         return;
       }
-      const pastePoint = resolveStructuredPastePoint(state);
-      const dx = pastePoint.x - structured.bounds.x;
-      const dy = pastePoint.y - structured.bounds.y;
-      const maxOrder = state.structuredScene.reduce(
-        (max, node) => Math.max(max, node.order),
-        0
+
+      const richText = richCellsToStructuredText(payload.richCells, {
+        color: brushColor,
+      });
+      const pastedText = payload.structuredText
+        ? {
+            text: payload.structuredText.text,
+            style: payload.structuredText.style,
+            styleRanges: payload.structuredText.styleRanges,
+          }
+        : richText ??
+          (payload.plainText
+            ? {
+                text: payload.plainText.replace(/\r\n?/g, "\n"),
+                style: { color: brushColor },
+              }
+            : null);
+      if (!pastedText?.text) return;
+      const nextNode = createStructuredTextNodeFromPaste(
+        state,
+        pastedText.text,
+        pastedText.style,
+        pastedText.styleRanges
       );
-      const pastedNodes = structured.structuredNodes
-        .slice()
-        .sort((a, b) => a.order - b.order)
-        .map((node, index) =>
-          moveStructuredClipboardNode(node, dx, dy, maxOrder + index + 1)
-        );
-      state.applyStructuredScene([...state.structuredScene, ...pastedNodes], true);
+      state.applyStructuredScene([...state.structuredScene, nextNode], true);
       set({
-        selectedStructuredNodeIds: pastedNodes.map((node) => node.id),
-        selectedStructuredBoxId:
-          pastedNodes.length === 1 && pastedNodes[0].type === "box"
-            ? pastedNodes[0].id
-            : null,
+        selectedStructuredNodeIds: [nextNode.id],
+        selectedStructuredBoxId: null,
+        selectedStructuredSplitHandle: null,
+        structuredContextPoint: null,
         structuredGridFocus: null,
         textCursor: null,
         editingStructuredTextNodeId: null,

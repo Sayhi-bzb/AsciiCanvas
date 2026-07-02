@@ -402,23 +402,23 @@ describe("structuredTemplates", () => {
       },
       {
         type: "text",
-        position: { x: 14, y: 8 },
+        position: { x: 12, y: 8 },
         text: "  < >   ",
       },
       {
         type: "bg",
-        start: { x: 28, y: 8 },
-        end: { x: 61, y: 8 },
+        start: { x: 23, y: 8 },
+        end: { x: 56, y: 8 },
         style: { color: "#000000", bgColor: "#d1d5db" },
       },
       {
         type: "text",
-        position: { x: 28, y: 8 },
+        position: { x: 23, y: 8 },
         text: "      ascii-canvas.pages.dev     ",
       },
       {
         type: "text",
-        position: { x: 66, y: 8 },
+        position: { x: 65, y: 8 },
         text: "    󰆏",
       },
     ]);

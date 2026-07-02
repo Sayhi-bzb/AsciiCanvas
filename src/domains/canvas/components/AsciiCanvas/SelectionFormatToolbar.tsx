@@ -39,6 +39,7 @@ type SelectionFormatToolbarProps = {
 
 const FORMAT_TOOLBAR_WIDTH = 178;
 const SPLIT_TOOLBAR_WIDTH = 138;
+const SHAPE_COLOR_TOOLBAR_WIDTH = 42;
 const TOOLBAR_HEIGHT = 42;
 const TOOLBAR_GAP = 8;
 
@@ -106,6 +107,7 @@ export function SelectionFormatToolbar({
     setSelectionTextAttributes,
     setStructuredTextAttributes,
     setStructuredTextColor,
+    setStructuredNodeCharColor,
     splitStructuredSplitBoxLeaf,
     deleteSelection,
   } = useCanvasStore(
@@ -128,6 +130,7 @@ export function SelectionFormatToolbar({
       setSelectionTextAttributes: state.setSelectionTextAttributes,
       setStructuredTextAttributes: state.setStructuredTextAttributes,
       setStructuredTextColor: state.setStructuredTextColor,
+      setStructuredNodeCharColor: state.setStructuredNodeCharColor,
       splitStructuredSplitBoxLeaf: state.splitStructuredSplitBoxLeaf,
       deleteSelection: state.deleteSelection,
     }))
@@ -224,6 +227,39 @@ export function SelectionFormatToolbar({
     structuredTextSelectionModel,
   ]);
 
+  const shapeColorModel = useMemo(() => {
+    if (canvasMode !== "structured" || structuredTextSelectionModel) return null;
+    const selectedIds = new Set(selectedStructuredNodeIds);
+    const nodes = structuredScene.filter(
+      (node) =>
+        selectedIds.has(node.id) &&
+        (node.type === "box" || node.type === "splitBox" || node.type === "line")
+    );
+    if (nodes.length === 0) return null;
+    const bounds = nodes
+      .map((node) => getBoundsFromNodeBounds(getStructuredNodeBounds(node)))
+      .reduce(
+        (acc, bounds) => ({
+          minX: Math.min(acc.minX, bounds.minX),
+          minY: Math.min(acc.minY, bounds.minY),
+          maxX: Math.max(acc.maxX, bounds.maxX),
+          maxY: Math.max(acc.maxY, bounds.maxY),
+        }),
+        {
+          minX: Number.POSITIVE_INFINITY,
+          minY: Number.POSITIVE_INFINITY,
+          maxX: Number.NEGATIVE_INFINITY,
+          maxY: Number.NEGATIVE_INFINITY,
+        }
+      );
+    return { nodes, bounds };
+  }, [
+    canvasMode,
+    selectedStructuredNodeIds,
+    structuredScene,
+    structuredTextSelectionModel,
+  ]);
+
   const formatBounds = useMemo(() => {
     if (canvasMode === "structured") {
       if (!structuredTextSelectionModel) return null;
@@ -245,6 +281,7 @@ export function SelectionFormatToolbar({
     if (!splitBoxModel) return null;
     return getBoundsFromNodeBounds(getStructuredNodeBounds(splitBoxModel.node));
   }, [splitBoxModel]);
+  const shapeBounds = shapeColorModel?.bounds ?? null;
 
   const getToolbarStyle = useCallback(
     (bounds: ReturnType<typeof getUnionBounds>, toolbarWidth: number) => {
@@ -283,6 +320,10 @@ export function SelectionFormatToolbar({
   const splitStyle = useMemo(
     () => getToolbarStyle(splitBounds, SPLIT_TOOLBAR_WIDTH),
     [getToolbarStyle, splitBounds]
+  );
+  const shapeStyle = useMemo(
+    () => getToolbarStyle(shapeBounds, SHAPE_COLOR_TOOLBAR_WIDTH),
+    [getToolbarStyle, shapeBounds]
   );
 
   const hasFormatTarget =
@@ -341,6 +382,17 @@ export function SelectionFormatToolbar({
           <ToggleGroupSeparator />
           <button
             type="button"
+            aria-label="Apply brush color to selected shape"
+            title={`Apply brush color to selected shape (${brushColor})`}
+            className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => setStructuredNodeCharColor(brushColor)}
+          >
+            <PaletteIcon className="size-4" style={{ color: brushColor }} />
+          </button>
+          <ToggleGroupSeparator />
+          <button
+            type="button"
             aria-label="Delete split divider"
             title="Delete divider"
             disabled={!splitBoxModel.canDeleteDivider}
@@ -352,6 +404,32 @@ export function SelectionFormatToolbar({
             }}
           >
             <Trash2 className="size-4" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (shapeColorModel && shapeStyle && !hasFormatTarget) {
+    return (
+      <div
+        data-canvas-ui="true"
+        className="absolute z-40 pointer-events-auto"
+        style={{ left: shapeStyle.left, top: shapeStyle.top }}
+      >
+        <div
+          className="inline-flex h-10 items-center gap-1 rounded-md border bg-background p-1 shadow-sm"
+          aria-label="Shape color controls"
+        >
+          <button
+            type="button"
+            aria-label="Apply brush color to selected shape"
+            title={`Apply brush color to selected shape (${brushColor})`}
+            className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => setStructuredNodeCharColor(brushColor)}
+          >
+            <PaletteIcon className="size-4" style={{ color: brushColor }} />
           </button>
         </div>
       </div>

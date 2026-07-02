@@ -609,6 +609,73 @@ describe("canvas session viewport state", () => {
     expect(useCanvasStore.getState().structuredScene[0].style.bgColor).toBeUndefined();
   });
 
+  it("colors selected structured shape chars without changing text or bg nodes", () => {
+    useCanvasStore.getState().createCanvasSession("structured");
+    useCanvasStore.getState().applyStructuredScene(
+      [
+        {
+          id: "box-1",
+          type: "box",
+          order: 1,
+          start: { x: 0, y: 0 },
+          end: { x: 4, y: 4 },
+          style: { color: "#ffffff" },
+        },
+        {
+          id: "split-1",
+          type: "splitBox",
+          order: 2,
+          start: { x: 6, y: 0 },
+          end: { x: 12, y: 4 },
+          verticalSplitRatio: 0.5,
+          topSplitRatio: 0.25,
+          bottomSplitRatio: 0.75,
+          root: { type: "leaf", id: "leaf-1" },
+          style: { color: "#ffffff" },
+        },
+        {
+          id: "line-1",
+          type: "line",
+          order: 3,
+          start: { x: 0, y: 6 },
+          end: { x: 8, y: 6 },
+          axis: "horizontal",
+          style: { color: "#ffffff" },
+        },
+        {
+          id: "text-1",
+          type: "text",
+          order: 4,
+          position: { x: 0, y: 8 },
+          text: "Label",
+          style: { color: "#ffffff" },
+        },
+        {
+          id: "bg-1",
+          type: "bg",
+          order: 5,
+          start: { x: 0, y: 10 },
+          end: { x: 4, y: 10 },
+          style: { color: "#000000", bgColor: "#ffffff" },
+        },
+      ],
+      false
+    );
+
+    useCanvasStore
+      .getState()
+      .setSelectedStructuredNodeIds(["box-1", "split-1", "line-1", "text-1", "bg-1"]);
+    useCanvasStore.getState().setStructuredNodeCharColor("#22c55e");
+
+    expect(useCanvasStore.getState().structuredScene).toMatchObject([
+      { id: "box-1", style: { color: "#22c55e" } },
+      { id: "split-1", style: { color: "#22c55e" } },
+      { id: "line-1", style: { color: "#22c55e" } },
+      { id: "text-1", style: { color: "#ffffff" } },
+      { id: "bg-1", style: { color: "#000000", bgColor: "#ffffff" } },
+    ]);
+  });
+
   it("fills selected structured text ranges with the brush character", () => {
     useCanvasStore.getState().createCanvasSession("structured");
     useCanvasStore.getState().applyStructuredScene(
@@ -737,6 +804,90 @@ describe("canvas session viewport state", () => {
     });
     expect(useCanvasStore.getState().textCursor).toEqual({ x: 3, y: 2 });
     expect(useCanvasStore.getState().structuredTextSelection).toBeNull();
+  });
+
+  it("creates structured text when pasting external plain text into focused structured canvas", async () => {
+    useCanvasStore.getState().createCanvasSession("structured");
+    useCanvasStore.getState().setStructuredGridFocus({ x: 4, y: 5 });
+
+    await useCanvasStore.getState().pasteFromClipboard({
+      eventDataTransfer: {
+        getData: (type: string) => (type === "text/plain" ? "A\nB" : ""),
+      } as unknown as DataTransfer,
+    });
+
+    expect(useCanvasStore.getState().structuredScene).toHaveLength(1);
+    expect(useCanvasStore.getState().structuredScene[0]).toMatchObject({
+      type: "text",
+      position: { x: 4, y: 5 },
+      text: "A\nB",
+    });
+    expect(useCanvasStore.getState().grid.get("4,5")).toMatchObject({
+      char: "A",
+    });
+    expect(useCanvasStore.getState().grid.get("4,6")).toMatchObject({
+      char: "B",
+    });
+  });
+
+  it("creates styled structured text when pasting ANSI text into structured canvas", async () => {
+    useCanvasStore.getState().createCanvasSession("structured");
+    useCanvasStore.getState().setStructuredGridFocus({ x: 2, y: 3 });
+
+    await useCanvasStore.getState().pasteFromClipboard({
+      eventDataTransfer: {
+        getData: (type: string) =>
+          type === "text/plain" ? "[38;2;239;68;68mHi[0m" : "",
+      } as unknown as DataTransfer,
+    });
+
+    const node = useCanvasStore.getState().structuredScene[0];
+    expect(node).toMatchObject({
+      type: "text",
+      position: { x: 2, y: 3 },
+      text: "Hi",
+      styleRanges: [
+        { start: 0, end: 2, style: { color: "#ef4444" } },
+      ],
+    });
+  });
+
+  it("creates structured text from free canvas rich cells when pasted into structured canvas", async () => {
+    useCanvasStore.getState().createCanvasSession("structured");
+    useCanvasStore.getState().setStructuredGridFocus({ x: 1, y: 1 });
+
+    await useCanvasStore.getState().pasteFromClipboard({
+      eventDataTransfer: {
+        getData: (type: string) =>
+          type === "web application/x-ascii-metropolis"
+            ? JSON.stringify({
+                type: "ascii-metropolis-zone",
+                version: 1,
+                cells: [
+                  { x: 0, y: 0, char: "A", color: "#111111" },
+                  {
+                    x: 2,
+                    y: 0,
+                    char: "B",
+                    color: "#222222",
+                    attrs: { bold: true },
+                  },
+                ],
+              })
+            : "",
+      } as unknown as DataTransfer,
+    });
+
+    expect(useCanvasStore.getState().structuredScene).toHaveLength(1);
+    expect(useCanvasStore.getState().structuredScene[0]).toMatchObject({
+      type: "text",
+      position: { x: 1, y: 1 },
+      text: "A B",
+      styleRanges: [
+        { start: 0, end: 1, style: { color: "#111111" } },
+        { start: 2, end: 3, style: { color: "#222222", attrs: { bold: true } } },
+      ],
+    });
   });
 
   it("cuts selected structured text instead of cutting structured nodes", async () => {

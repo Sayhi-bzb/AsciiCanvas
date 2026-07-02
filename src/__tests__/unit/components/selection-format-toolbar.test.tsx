@@ -97,9 +97,10 @@ describe("SelectionFormatToolbar", () => {
     });
   });
 
-  it("does not show for selected structured boxes", () => {
+  it("applies brush color to selected structured shape chars", () => {
     useCanvasStore.setState({
       canvasMode: "structured",
+      brushColor: "#22c55e",
       offset: { x: 0, y: 0 },
       zoom: 1,
       selectedStructuredNodeIds: ["box-1"],
@@ -118,6 +119,15 @@ describe("SelectionFormatToolbar", () => {
     render(<SelectionFormatToolbar containerSize={{ width: 800, height: 600 }} />);
 
     expect(screen.queryByLabelText("Selection text formatting")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Shape color controls")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText("Apply brush color to selected shape"));
+
+    expect(useCanvasStore.getState().structuredScene[0]).toMatchObject({
+      id: "box-1",
+      type: "box",
+      style: { color: "#22c55e" },
+    });
   });
 
   it("splits selected structured split boxes from the floating toolbar", () => {
@@ -157,6 +167,7 @@ describe("SelectionFormatToolbar", () => {
         .querySelector(".lucide-square-split-horizontal")
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Delete split divider")).toBeDisabled();
+    expect(screen.getByLabelText("Apply brush color to selected shape")).toBeInTheDocument();
 
     fireEvent.click(screen.getByLabelText("Split box horizontally"));
 

@@ -228,7 +228,7 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
     } = get();
 
     if (canvasMode === "structured") {
-      const normalized = str.replace(/[\r\n]+/g, "");
+      const normalized = str.replace(/\r\n?/g, "\n");
       if (!normalized) return;
       const selectedRange = getStructuredTextSelectionRange(
         get().structuredTextSelection
@@ -248,6 +248,8 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
 
       const boxNameTarget = findBoxNameTargetAtCursor(structuredScene, cursor);
       if (boxNameTarget) {
+        const inlineText = normalized.replace(/\n+/g, "");
+        if (!inlineText) return;
         const { node, bounds } = boxNameTarget;
         const labelCapacity = getBoxNameTextCapacity(bounds);
         if (labelCapacity <= 0) return;
@@ -256,7 +258,7 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
         const cursorColumn = clamp(cursor.x - labelStartX, 0, labelCapacity);
         const insertAt = toCharIndexByColumn(currentName, cursorColumn);
         const chars = splitGraphemes(currentName);
-        const insertedChars = splitGraphemes(normalized);
+        const insertedChars = splitGraphemes(inlineText);
         chars.splice(insertAt, 0, ...insertedChars);
         const nextName = chars.join("");
         const nextScene = structuredScene.map((sceneNode) =>
@@ -297,10 +299,10 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
         };
         applyStructuredScene([...structuredScene, nextNode], true);
         set({
-          textCursor: {
-            x: cursor.x + getTextColumnWidth(normalized),
-            y: cursor.y,
-          },
+          textCursor: getStructuredTextCaretPoint(
+            nextNode,
+            splitGraphemes(normalized).length
+          ),
           editingStructuredTextNodeId: nodeId,
           structuredTextSelection: null,
           selectedStructuredNodeIds: [nodeId],

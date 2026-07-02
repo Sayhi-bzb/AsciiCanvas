@@ -44,16 +44,16 @@ export const PAGE_TEMPLATE_COMPONENTS: StructuredComponentDefinition[] = [
         ),
         createText(
           "  < >   ",
-          { x: 10, y: 1 },
+          { x: 8, y: 1 },
           2,
           undefined,
           undefined,
           "toolbarLeft"
         ),
-        createBg(34, 4, 3, { x: 24, y: 1 }, 1, "#d1d5db", "addressFill"),
+        createBg(34, 4, 3, { x: 19, y: 1 }, 1, "#d1d5db", "addressFill"),
         createText(
           "      ascii-canvas.pages.dev     ",
-          { x: 24, y: 1 },
+          { x: 19, y: 1 },
           4,
           undefined,
           undefined,
@@ -61,7 +61,7 @@ export const PAGE_TEMPLATE_COMPONENTS: StructuredComponentDefinition[] = [
         ),
         createText(
           "    󰆏",
-          { x: 62, y: 1 },
+          { x: 61, y: 1 },
           5,
           undefined,
           undefined,
