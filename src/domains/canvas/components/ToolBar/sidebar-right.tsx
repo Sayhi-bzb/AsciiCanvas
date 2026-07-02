@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Eye, EyeOff, Github, Target } from "lucide-react";
 import { SidebarHeader, SidebarStandard, SidebarTrigger, useSidebar } from "@/shared/ui/sidebar";
 import { CharLibrary, SearchForm, useLibraryStore } from "@/domains/character-library";
@@ -15,6 +15,16 @@ import { ExportDialog } from "@/domains/export";
 import { ImportButton } from "@/domains/import";
 import { HandbookDialog, ClearCanvasDialog } from "@/domains/canvas/components/dialogs";
 import { useShallow } from "zustand/react/shallow";
+
+type StructuredSidebarTab = "template" | "components";
+
+const STRUCTURED_SIDEBAR_TABS: Array<{
+  id: StructuredSidebarTab;
+  label: string;
+}> = [
+  { id: "template", label: "Template" },
+  { id: "components", label: "Components" },
+];
 
 export function SidebarRight() {
   const {
@@ -51,6 +61,9 @@ export function SidebarRight() {
   const { state, isMobile } = useSidebar();
   const isCollapsed = state === "collapsed" && !isMobile;
   const canResetView = canvasMode !== "animation";
+  const [structuredSidebarTab, setStructuredSidebarTab] =
+    useState<StructuredSidebarTab>("components");
+  const [structuredLibraryQuery, setStructuredLibraryQuery] = useState("");
 
   useEffect(() => {
     if (canvasMode === "structured") return;
@@ -72,9 +85,22 @@ export function SidebarRight() {
               : "flex-row items-center gap-2 px-3 py-2"
           )}
         >
-          {!isCollapsed && canvasMode !== "structured" && (
-            <SearchForm className="min-w-0 flex-1" />
-          )}
+          {!isCollapsed &&
+            (canvasMode === "structured" ? (
+              <input
+                type="search"
+                aria-label="Search structured library"
+                value={structuredLibraryQuery}
+                onChange={(event) => setStructuredLibraryQuery(event.target.value)}
+                placeholder="Search"
+                className={cn(
+                  "h-8 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-xs outline-none",
+                  "placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+                )}
+              />
+            ) : (
+              <SearchForm className="min-w-0 flex-1" />
+            ))}
           <SidebarTrigger className="size-8 shrink-0" />
         </SidebarHeader>
       }
@@ -205,9 +231,52 @@ export function SidebarRight() {
       }
     >
       <div className="flex flex-col h-full">
+        {canvasMode === "structured" && !isCollapsed && (
+          <div className="border-b px-2 pb-2 pt-1">
+            <div
+              className="flex items-end gap-4"
+              role="tablist"
+              aria-label="Structured library sections"
+            >
+              {STRUCTURED_SIDEBAR_TABS.map((tab) => {
+                const isActive = structuredSidebarTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    className={cn(
+                      "relative h-7 px-0 text-xs font-medium transition-colors outline-none",
+                      "focus-visible:ring-2 focus-visible:ring-ring/50",
+                      isActive
+                        ? "text-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                    onClick={() => setStructuredSidebarTab(tab.id)}
+                  >
+                    {tab.label}
+                    {isActive && (
+                      <span
+                        data-testid="structured-sidebar-active-tab-line"
+                        className="absolute inset-x-0 -bottom-px h-px bg-foreground"
+                      />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
         <ScrollArea className="flex-1">
           {canvasMode === "structured" ? (
-            <StructuredTemplateLibrary />
+            structuredSidebarTab === "components" ? (
+              <StructuredTemplateLibrary query={structuredLibraryQuery} />
+            ) : (
+              <div className="px-2 py-4 text-xs text-muted-foreground">
+                No templates yet
+              </div>
+            )
           ) : (
             <CharLibrary />
           )}

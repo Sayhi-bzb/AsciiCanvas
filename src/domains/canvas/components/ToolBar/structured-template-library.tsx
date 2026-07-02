@@ -5,21 +5,22 @@ import { cn } from "@/shared/lib/utils";
 import {
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
 } from "@/shared/ui/sidebar";
 import {
+  buildStructuredTemplatePreview,
   STRUCTURED_TEMPLATE_MIME,
-  STRUCTURED_TEMPLATE_FALLBACK_COLORS,
-  STRUCTURED_TEMPLATE_TEXT_COLOR,
   STRUCTURED_TEMPLATES,
+  setActiveStructuredTemplateDragId,
   type StructuredTemplateId,
 } from "@/domains/canvas/state/helpers/structuredTemplates";
+import { StructuredTemplatePreviewGrid } from "./structured-template-preview-grid";
 
 const handleTemplateDragStart =
   (template: { id: StructuredTemplateId }) =>
   (event: DragEvent<HTMLButtonElement>) => {
     event.dataTransfer.effectAllowed = "copy";
     event.dataTransfer.setData(STRUCTURED_TEMPLATE_MIME, template.id);
+    setActiveStructuredTemplateDragId(template.id);
 
     const dragImage = document.createElement("div");
     dragImage.style.position = "fixed";
@@ -40,34 +41,55 @@ const handleTemplateDragStart =
     }
   };
 
-export function StructuredTemplateLibrary() {
+type StructuredTemplateLibraryProps = {
+  query?: string;
+};
+
+export function StructuredTemplateLibrary({
+  query = "",
+}: StructuredTemplateLibraryProps) {
+  const normalizedQuery = query.trim().toLowerCase();
+  const templates = normalizedQuery
+    ? STRUCTURED_TEMPLATES.filter((template) =>
+        template.label.toLowerCase().includes(normalizedQuery)
+      )
+    : STRUCTURED_TEMPLATES;
+
   return (
     <SidebarGroup className="p-0">
-      <SidebarGroupLabel className="px-0">Templates</SidebarGroupLabel>
       <SidebarGroupContent>
         <div className="flex flex-col">
-          {STRUCTURED_TEMPLATES.map((template, index) => (
+          {templates.length === 0 && (
+            <div className="px-2 py-4 text-xs text-muted-foreground">
+              No components found
+            </div>
+          )}
+          {templates.map((template, index) => (
             <div key={template.id}>
               {index > 0 && <div className="h-px bg-border" />}
               <button
                 type="button"
                 draggable
                 onDragStart={handleTemplateDragStart(template)}
+                onDragEnd={() => setActiveStructuredTemplateDragId(null)}
                 className={cn(
                   "group flex w-full items-center gap-3 bg-transparent px-2 py-1.5 text-left transition-colors",
                   "hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50"
                 )}
               >
-                <span
-                  className="shrink-0 whitespace-pre px-1 font-mono text-[11px] leading-4"
-                  style={{
-                    color: STRUCTURED_TEMPLATE_TEXT_COLOR,
-                    backgroundColor: STRUCTURED_TEMPLATE_FALLBACK_COLORS[0],
-                  }}
+                <div
+                  data-testid="structured-template-preview-viewport"
+                  className="flex h-12 w-24 shrink-0 items-center overflow-hidden"
                 >
-                  {template.dragPreview}
-                </span>
-                <span className="min-w-0 flex-1 truncate text-xs font-semibold text-foreground">
+                  <StructuredTemplatePreviewGrid
+                    preview={buildStructuredTemplatePreview(template.id)}
+                    cellWidth={5}
+                    cellHeight={9}
+                    fontSize={8}
+                    className="text-foreground"
+                  />
+                </div>
+                <span className="min-w-0 flex-1 truncate text-xs text-foreground">
                   {template.label}
                 </span>
               </button>

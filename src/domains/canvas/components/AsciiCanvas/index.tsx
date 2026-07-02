@@ -5,6 +5,7 @@ import { useCanvasInteraction } from './hooks/useCanvasInteraction';
 import { useCanvasRenderer } from './hooks/useCanvasRenderer';
 import { Minimap } from './Minimap';
 import { SelectionFormatToolbar } from './SelectionFormatToolbar';
+import { StructuredTemplatePreviewGrid } from '@/domains/canvas/components/ToolBar/structured-template-preview-grid';
 import { getCenteredAnimationOffset } from '@/domains/canvas/state/helpers/animationHelpers';
 import {
   ContextMenu,
@@ -26,15 +27,17 @@ import { resolveFillHotkeyChar } from '@/domains/actions/input-arbiter';
 import {
   resolveHistoryShortcutCommand,
 } from '@/domains/actions/adapters/editorCommands';
+import { shouldIgnoreClipboardShortcut } from '@/shared/utils/dom-focus';
 import { gridCellRect } from '@/shared/metrics';
 import { GridManager } from '@/shared/utils/grid';
 import { findStructuredNodeIdAtPoint } from '@/domains/canvas/state/helpers/structuredNodeActions';
 import {
+  buildStructuredTemplatePreview,
   buildStructuredTemplateNodes,
+  getActiveStructuredTemplateDragId,
   isStructuredTemplateId,
+  setActiveStructuredTemplateDragId,
   STRUCTURED_TEMPLATE_MIME,
-  STRUCTURED_TEMPLATE_FALLBACK_COLORS,
-  STRUCTURED_TEMPLATE_TEXT_COLOR,
   STRUCTURED_TEMPLATES,
   type StructuredTemplateId,
 } from '@/domains/canvas/state/helpers/structuredTemplates';
@@ -254,13 +257,33 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
     canvasMode === 'freeform' ? staticGridView.textCursor : textCursor;
   const activeSelections =
     canvasMode === 'freeform' ? staticGridView.selectionAreas : selections;
+  const freeformStaticCell =
+    canvasMode === 'freeform' ? staticGridView.activeCell : null;
   const hasStructuredSelection =
     canvasMode === 'structured' && selectedStructuredNodeIds.length > 0;
   const hasStructuredGridFocus =
     canvasMode === 'structured' && !!structuredGridFocus;
   const hasActiveSelection = activeSelections.length > 0 || hasStructuredSelection;
   const hasManagedTextareaTarget =
-    !!activeTextCursor || hasActiveSelection || hasStructuredGridFocus;
+    !!activeTextCursor ||
+    hasActiveSelection ||
+    hasStructuredGridFocus ||
+    !!freeformStaticCell;
+  const managedTextareaPoint =
+    activeTextCursor ??
+    structuredGridFocus ??
+    activeSelections[0]?.start ??
+    freeformStaticCell ??
+    null;
+  const managedTextareaFocusKey = hasManagedTextareaTarget
+    ? [
+        canvasMode,
+        managedTextareaPoint?.x ?? 'none',
+        managedTextareaPoint?.y ?? 'none',
+        activeSelections.length,
+        selectedStructuredNodeIds.join(','),
+      ].join(':')
+    : null;
   const activeContextMenu =
     canvasMode === 'structured' ? STRUCTURED_CONTEXT_MENU : CANVAS_CONTEXT_MENU;
   useLayoutEffect(() => {
@@ -268,6 +291,9 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
     if (!textarea) return;
 
     if (hasManagedTextareaTarget) {
+      if (shouldIgnoreClipboardShortcut(document.activeElement, textarea)) {
+        return;
+      }
       if (document.activeElement !== textarea) {
         textarea.focus({ preventScroll: true });
       }
@@ -277,7 +303,7 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
     if (document.activeElement === textarea) {
       textarea.blur();
     }
-  }, [hasManagedTextareaTarget]);
+  }, [hasManagedTextareaTarget, managedTextareaFocusKey]);
 
   const runManagedAction = (
     actionId: 'copy' | 'cut' | 'paste',
@@ -309,8 +335,7 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
 
   const textareaStyle: React.CSSProperties = useMemo(() => {
     if (!hasManagedTextareaTarget || !size) return { display: 'none' };
-    const point =
-      activeTextCursor ?? structuredGridFocus ?? activeSelections[0]?.start ?? { x: 0, y: 0 };
+    const point = managedTextareaPoint ?? { x: 0, y: 0 };
     const pos = gridCellRect(point, { offset, zoom });
 
     return {
@@ -323,7 +348,13 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
       pointerEvents: 'none',
       zIndex: -1,
     };
-  }, [activeTextCursor, activeSelections, structuredGridFocus, hasManagedTextareaTarget, offset, zoom, size]);
+  }, [
+    hasManagedTextareaTarget,
+    managedTextareaPoint,
+    offset,
+    zoom,
+    size,
+  ]);
 
 
   const handleContextMenu = (event: React.MouseEvent<HTMLDivElement>) => {
@@ -373,9 +404,11 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
     const templateId = dataTransfer.getData(STRUCTURED_TEMPLATE_MIME);
     if (isStructuredTemplateId(templateId)) return templateId;
 
-    // Some browsers hide custom drag data until drop. With one template, the
-    // MIME type is enough to render an accurate snapped preview during dragover.
-    if (hasStructuredTemplateDragData(dataTransfer)) return STRUCTURED_TEMPLATES[0].id;
+    // Some browsers hide custom drag data until drop, so dragover reads the
+    // active template captured by the sidebar drag session.
+    if (hasStructuredTemplateDragData(dataTransfer)) {
+      return getActiveStructuredTemplateDragId();
+    }
     return null;
   };
 
@@ -414,7 +447,11 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
   const handleDrop = (event: DragEvent<HTMLDivElement>) => {
     if (canvasMode !== 'structured') return;
     const templateId = event.dataTransfer.getData(STRUCTURED_TEMPLATE_MIME);
-    if (!isStructuredTemplateId(templateId)) return;
+    if (!isStructuredTemplateId(templateId)) {
+      setStructuredTemplatePreview(null);
+      setActiveStructuredTemplateDragId(null);
+      return;
+    }
 
     event.preventDefault();
     const point =
@@ -424,6 +461,7 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
     if (!point) return;
 
     setStructuredTemplatePreview(null);
+    setActiveStructuredTemplateDragId(null);
     const nodes = buildStructuredTemplateNodes(templateId, point, {
       brushColor,
       startOrder: getNextStructuredOrder(),
@@ -448,6 +486,9 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
     structuredTemplatePreview && activeStructuredTemplatePreview
       ? gridCellRect(structuredTemplatePreview.position, { offset, zoom })
       : null;
+  const structuredTemplatePreviewGrid = activeStructuredTemplatePreview
+    ? buildStructuredTemplatePreview(activeStructuredTemplatePreview.id)
+    : null;
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     e.stopPropagation();
@@ -566,27 +607,32 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
             ref={uiCanvasRef}
             className="absolute inset-0 w-full h-full block pointer-events-none"
           />
-          {activeStructuredTemplatePreview && structuredTemplatePreviewRect && (
+          {activeStructuredTemplatePreview &&
+            structuredTemplatePreviewRect &&
+            structuredTemplatePreviewGrid && (
             <div
               data-testid="structured-template-preview"
-              className="pointer-events-none absolute font-mono"
+              className="pointer-events-none absolute"
               style={{
                 left: `${structuredTemplatePreviewRect.x}px`,
                 top: `${structuredTemplatePreviewRect.y}px`,
                 width: `${
                   structuredTemplatePreviewRect.width *
-                  activeStructuredTemplatePreview.dragPreview.length
+                  structuredTemplatePreviewGrid.width
                 }px`,
-                height: `${structuredTemplatePreviewRect.height}px`,
-                lineHeight: `${structuredTemplatePreviewRect.height}px`,
-                fontSize: `${FONT_SIZE * zoom}px`,
-                whiteSpace: 'pre',
-                color: STRUCTURED_TEMPLATE_TEXT_COLOR,
-                background: STRUCTURED_TEMPLATE_FALLBACK_COLORS[0],
+                height: `${
+                  structuredTemplatePreviewRect.height *
+                  structuredTemplatePreviewGrid.height
+                }px`,
                 zIndex: 20,
               }}
             >
-              {activeStructuredTemplatePreview.dragPreview}
+              <StructuredTemplatePreviewGrid
+                preview={structuredTemplatePreviewGrid}
+                cellWidth={structuredTemplatePreviewRect.width}
+                cellHeight={structuredTemplatePreviewRect.height}
+                fontSize={FONT_SIZE * zoom}
+              />
             </div>
           )}
           <SelectionFormatToolbar containerSize={size} />

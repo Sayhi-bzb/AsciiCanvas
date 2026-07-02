@@ -2,7 +2,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, createEvent, fireEvent, render, screen } from "@testing-library/react";
 import { AsciiCanvas } from "@/domains/canvas/components/AsciiCanvas";
 import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
-import { STRUCTURED_TEMPLATE_MIME } from "@/domains/canvas/state/helpers/structuredTemplates";
+import { applyFreeformSnapshotToYMaps } from "@/domains/canvas/state/helpers/gridHelpers";
+import {
+  STRUCTURED_TEMPLATE_MIME,
+  setActiveStructuredTemplateDragId,
+} from "@/domains/canvas/state/helpers/structuredTemplates";
 
 vi.mock("@/domains/canvas/components/AsciiCanvas/hooks/useCanvasRenderer", () => ({
   useCanvasRenderer: vi.fn(),
@@ -27,7 +31,9 @@ describe("AsciiCanvas focus management", () => {
 
   afterEach(() => {
     handleDoubleClickMock.mockClear();
+    setActiveStructuredTemplateDragId(null);
     useCanvasStore.setState(initialState, true);
+    applyFreeformSnapshotToYMaps([]);
   });
 
   it("focuses the managed textarea immediately when a selection exists", () => {
@@ -50,6 +56,90 @@ describe("AsciiCanvas focus management", () => {
 
     expect(textarea).not.toBeNull();
     expect(document.activeElement).toBe(textarea);
+  });
+
+  it("focuses the managed textarea for a freeform active cell and writes input there", () => {
+    useCanvasStore.setState({
+      canvasMode: "freeform",
+      textCursor: null,
+      selections: [],
+      grid: new Map(),
+      staticGridSelection: {
+        activeCell: { x: 4, y: 3 },
+        anchorCell: { x: 4, y: 3 },
+        ranges: [],
+      },
+      staticGridEditMode: "navigate",
+    });
+
+    const { container } = render(
+      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+    );
+
+    const textarea = container.querySelector("textarea");
+    expect(textarea).not.toBeNull();
+    expect(document.activeElement).toBe(textarea);
+
+    fireEvent.input(textarea!, { target: { value: "A" } });
+
+    expect(useCanvasStore.getState().grid.get("4,3")).toMatchObject({
+      char: "A",
+    });
+    expect(useCanvasStore.getState().textCursor).toEqual({ x: 5, y: 3 });
+  });
+
+  it("does not steal focus from an external text input", () => {
+    useCanvasStore.setState({
+      canvasMode: "freeform",
+      textCursor: null,
+      selections: [],
+      staticGridSelection: {
+        activeCell: { x: 2, y: 2 },
+        anchorCell: { x: 2, y: 2 },
+        ranges: [],
+      },
+      staticGridEditMode: "navigate",
+    });
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+    input.focus();
+
+    render(<AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />);
+
+    expect(document.activeElement).toBe(input);
+    input.remove();
+  });
+
+  it("refocuses the managed textarea when the freeform input anchor changes", () => {
+    useCanvasStore.setState({
+      canvasMode: "freeform",
+      textCursor: null,
+      selections: [],
+      staticGridSelection: {
+        activeCell: { x: 2, y: 2 },
+        anchorCell: { x: 2, y: 2 },
+        ranges: [],
+      },
+      staticGridEditMode: "navigate",
+    });
+    const input = document.createElement("input");
+    document.body.appendChild(input);
+    input.focus();
+
+    const { container } = render(
+      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+    );
+    const textarea = container.querySelector("textarea");
+    expect(textarea).not.toBeNull();
+    expect(document.activeElement).toBe(input);
+
+    input.blur();
+    act(() => {
+      useCanvasStore.getState().setTextCursor({ x: 6, y: 4 });
+    });
+
+    expect(document.activeElement).toBe(textarea);
+    input.remove();
   });
 
   it("forwards root double clicks to the canvas interaction hook", () => {
@@ -209,9 +299,14 @@ describe("AsciiCanvas focus management", () => {
       top: "38px",
       width: "72px",
       height: "19px",
-      color: "rgb(0, 0, 0)",
-      background: "rgb(219, 234, 254)",
     });
+    expect(preview.style.backgroundColor).toBe("");
+    const previewGrid = preview.querySelector(
+      '[data-testid="structured-template-preview-grid"]'
+    );
+    expect((previewGrid?.firstElementChild as HTMLElement).style.backgroundColor).toBe(
+      "rgb(219, 234, 254)"
+    );
 
     act(() => {
       fireEvent(root, dropEvent);
@@ -237,5 +332,209 @@ describe("AsciiCanvas focus management", () => {
       state.structuredScene.map((node) => node.id)
     );
     expect(state.structuredGridFocus).toBeNull();
+  });
+
+  it("drops a structured badge template onto the canvas", () => {
+    useCanvasStore.setState({
+      canvasMode: "structured",
+      offset: { x: 0, y: 0 },
+      zoom: 1,
+      brushColor: "#334155",
+      structuredScene: [],
+      selectedStructuredNodeIds: [],
+    });
+
+    const dataTransfer = {
+      types: [STRUCTURED_TEMPLATE_MIME],
+      dropEffect: "none",
+      getData: vi.fn((type: string) =>
+        type === STRUCTURED_TEMPLATE_MIME ? "badge" : ""
+      ),
+    };
+    const { container } = render(
+      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+    );
+    const root = container.firstElementChild as HTMLDivElement;
+    const dragOverEvent = createEvent.dragOver(root);
+    Object.defineProperties(dragOverEvent, {
+      dataTransfer: { value: dataTransfer },
+      clientX: { value: 27 },
+      clientY: { value: 57 },
+    });
+    const dropEvent = createEvent.drop(root);
+    Object.defineProperties(dropEvent, {
+      dataTransfer: { value: dataTransfer },
+      clientX: { value: 27 },
+      clientY: { value: 57 },
+    });
+
+    act(() => {
+      fireEvent(root, dragOverEvent);
+    });
+
+    const preview = screen.getByTestId("structured-template-preview");
+    expect(preview.textContent).toBe(" STATUS ");
+    expect(preview).toHaveStyle({
+      left: "27px",
+      top: "57px",
+    });
+    expect(preview.style.backgroundColor).toBe("");
+    const previewGrid = preview.querySelector(
+      '[data-testid="structured-template-preview-grid"]'
+    );
+    expect((previewGrid?.firstElementChild as HTMLElement).style.backgroundColor).toBe(
+      "rgb(220, 252, 231)"
+    );
+
+    act(() => {
+      fireEvent(root, dropEvent);
+    });
+
+    const state = useCanvasStore.getState();
+    expect(dataTransfer.dropEffect).toBe("copy");
+    expect(screen.queryByTestId("structured-template-preview")).not.toBeInTheDocument();
+    expect(state.structuredScene).toHaveLength(2);
+    expect(state.structuredScene[0]).toMatchObject({
+      type: "bg",
+      start: { x: 3, y: 3 },
+      end: { x: 10, y: 3 },
+      style: { color: "#000000", bgColor: "#dcfce7" },
+    });
+    expect(state.structuredScene[1]).toMatchObject({
+      type: "text",
+      position: { x: 4, y: 3 },
+      text: "STATUS",
+      style: { color: "#000000" },
+    });
+    expect(state.selectedStructuredNodeIds).toEqual(
+      state.structuredScene.map((node) => node.id)
+    );
+  });
+
+  it("drops a structured field template onto the canvas", () => {
+    useCanvasStore.setState({
+      canvasMode: "structured",
+      offset: { x: 0, y: 0 },
+      zoom: 1,
+      brushColor: "#334155",
+      structuredScene: [],
+      selectedStructuredNodeIds: [],
+    });
+
+    const dataTransfer = {
+      types: [STRUCTURED_TEMPLATE_MIME],
+      dropEffect: "none",
+      getData: vi.fn((type: string) =>
+        type === STRUCTURED_TEMPLATE_MIME ? "field" : ""
+      ),
+    };
+    const { container } = render(
+      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+    );
+    const root = container.firstElementChild as HTMLDivElement;
+    const dragOverEvent = createEvent.dragOver(root);
+    Object.defineProperties(dragOverEvent, {
+      dataTransfer: { value: dataTransfer },
+      clientX: { value: 18 },
+      clientY: { value: 38 },
+    });
+    const dropEvent = createEvent.drop(root);
+    Object.defineProperties(dropEvent, {
+      dataTransfer: { value: dataTransfer },
+      clientX: { value: 18 },
+      clientY: { value: 38 },
+    });
+
+    act(() => {
+      fireEvent(root, dragOverEvent);
+    });
+
+    const preview = screen.getByTestId("structured-template-preview");
+    expect(preview.textContent).toContain("Label");
+    expect(preview.textContent).toContain("Value");
+    expect(preview).toHaveStyle({
+      left: "18px",
+      top: "38px",
+      width: "144px",
+      height: "76px",
+    });
+
+    act(() => {
+      fireEvent(root, dropEvent);
+    });
+
+    const state = useCanvasStore.getState();
+    expect(dataTransfer.dropEffect).toBe("copy");
+    expect(state.structuredScene).toHaveLength(3);
+    expect(state.structuredScene).toMatchObject([
+      {
+        type: "text",
+        position: { x: 2, y: 2 },
+        text: "Label",
+        style: { color: "#000000" },
+      },
+      {
+        type: "box",
+        start: { x: 2, y: 3 },
+        end: { x: 17, y: 5 },
+        style: { color: "#000000" },
+      },
+      {
+        type: "text",
+        position: { x: 4, y: 4 },
+        text: "Value",
+        style: { color: "#000000" },
+      },
+    ]);
+    expect(state.selectedStructuredNodeIds).toEqual(
+      state.structuredScene.map((node) => node.id)
+    );
+  });
+
+  it("uses the active dragged template when dragover cannot read custom data", () => {
+    useCanvasStore.setState({
+      canvasMode: "structured",
+      offset: { x: 0, y: 0 },
+      zoom: 1,
+      structuredScene: [],
+      selectedStructuredNodeIds: [],
+    });
+    setActiveStructuredTemplateDragId("label");
+
+    const dataTransfer = {
+      types: [STRUCTURED_TEMPLATE_MIME],
+      dropEffect: "none",
+      getData: vi.fn(() => ""),
+    };
+    const { container } = render(
+      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+    );
+    const root = container.firstElementChild as HTMLDivElement;
+    const dragOverEvent = createEvent.dragOver(root);
+    Object.defineProperties(dragOverEvent, {
+      dataTransfer: { value: dataTransfer },
+      clientX: { value: 36 },
+      clientY: { value: 76 },
+    });
+
+    act(() => {
+      fireEvent(root, dragOverEvent);
+    });
+
+    const preview = screen.getByTestId("structured-template-preview");
+    expect(preview.textContent).toBe("Label");
+    expect(preview).toHaveStyle({
+      left: "36px",
+      top: "76px",
+      width: "45px",
+      height: "19px",
+    });
+    expect(preview.style.backgroundColor).toBe("");
+    const previewGrid = preview.querySelector(
+      '[data-testid="structured-template-preview-grid"]'
+    );
+    Array.from(previewGrid?.children ?? []).forEach((child) => {
+      expect((child as HTMLElement).style.backgroundColor).toBe("transparent");
+    });
   });
 });
