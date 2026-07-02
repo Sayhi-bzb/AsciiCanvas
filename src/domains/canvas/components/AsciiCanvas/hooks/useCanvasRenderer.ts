@@ -193,6 +193,7 @@ export const useCanvasRenderer = (
     | "canvasColorPickerTarget"
   >,
   draggingSelection: SelectionArea | null,
+  structuredScenePreview: CanvasState["structuredScene"] | null,
   hoveredLink: CanvasLinkHit | null
 ) => {
   const {
@@ -229,6 +230,7 @@ export const useCanvasRenderer = (
     canvasMode === "freeform" ? staticGridView.selectionAreas : selections;
   const renderedTextCursor =
     canvasMode === "freeform" ? staticGridView.textCursor : textCursor;
+  const renderedStructuredScene = structuredScenePreview ?? structuredScene;
   const traceRoundRect = (
     ctx: CanvasRenderingContext2D,
     x: number,
@@ -541,7 +543,7 @@ export const useCanvasRenderer = (
           );
           const selectedTextNode =
             selectionRange && structuredTextSelection
-              ? structuredScene.find(
+                ? renderedStructuredScene.find(
                   (node) =>
                     node.id === structuredTextSelection.nodeId &&
                     node.type === "text"
@@ -577,7 +579,7 @@ export const useCanvasRenderer = (
 
         if (canvasMode === "structured" && selectedStructuredNodeIds.length > 0) {
           const selectedIds = new Set(selectedStructuredNodeIds);
-          const selectedNodes = structuredScene.filter(
+          const selectedNodes = renderedStructuredScene.filter(
             (node) =>
               selectedIds.has(node.id) &&
               !(
@@ -656,7 +658,7 @@ export const useCanvasRenderer = (
 
           const selectedHandleNode =
             selectedStructuredNodeIds.length === 1
-              ? structuredScene.find(
+              ? renderedStructuredScene.find(
                   (node) => node.id === selectedStructuredNodeIds[0]
                 )
               : null;
@@ -784,6 +786,7 @@ export const useCanvasRenderer = (
     canvasBounds,
     animationTimeline,
     structuredScene,
+    structuredScenePreview,
     selectedStructuredNodeIds,
     structuredContextPoint,
     structuredGridFocus,

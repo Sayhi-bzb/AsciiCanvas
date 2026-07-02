@@ -120,8 +120,6 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
       structuredTextSelection: state.structuredTextSelection,
       setStructuredTextColor: state.setStructuredTextColor,
       applyStructuredScene: state.applyStructuredScene,
-      previewStructuredScene: state.previewStructuredScene,
-      previewStructuredNodeMove: state.previewStructuredNodeMove,
       updateStructuredNode: state.updateStructuredNode,
       activeCanvasHasSavedViewport: state.activeCanvasHasSavedViewport,
     }))

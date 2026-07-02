@@ -221,12 +221,6 @@ export type CanvasState = {
     scene: StructuredNode[],
     history?: CanvasHistoryMode | boolean
   ) => void;
-  previewStructuredScene: (scene: StructuredNode[]) => void;
-  previewStructuredNodeMove: (
-    scene: StructuredNode[],
-    previousNodes: StructuredNode[],
-    nextNodes: StructuredNode[]
-  ) => void;
   getNextStructuredOrder: () => number;
   setBrushChar: (char: string) => void;
   setBrushColor: (color: string) => void;

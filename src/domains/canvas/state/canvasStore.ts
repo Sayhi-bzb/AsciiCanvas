@@ -183,17 +183,6 @@ export const useCanvasStore = create<CanvasState>()(
             ),
           }));
         },
-        previewStructuredScene: (scene) => {
-          set({
-            structuredScene: scene,
-            grid: createMapFromEntries(sceneToGridEntries(scene)),
-          });
-        },
-        previewStructuredNodeMove: (scene, _previousNodes, _nextNodes) => {
-          set({
-            structuredScene: scene,
-          });
-        },
         getNextStructuredOrder: () => {
           const scene = get().structuredScene;
           if (scene.length === 0) return 1;
