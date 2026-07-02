@@ -114,6 +114,9 @@ describe("SidebarRight structured templates", () => {
     expect(group).toHaveClass("p-0");
     expect(button).toHaveClass("items-center", "gap-3");
     expect(screen.queryByRole("button", { name: /safari/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /file tree/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /timeline/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /snippet/i })).not.toBeInTheDocument();
     expect(screen.queryByText("Nerd Icons")).not.toBeInTheDocument();
   });
 
@@ -135,8 +138,14 @@ describe("SidebarRight structured templates", () => {
       "true"
     );
     expect(screen.getByRole("button", { name: /safari/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /file tree/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /timeline/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /snippet/i })).toBeInTheDocument();
     expect(STRUCTURED_PAGE_TEMPLATES.map((template) => template.id)).toEqual([
       "safari",
+      "filetree",
+      "timeline",
+      "snippet",
     ]);
     expect(screen.queryByRole("button", { name: /button/i })).not.toBeInTheDocument();
     expect(screen.queryByText("No templates found")).not.toBeInTheDocument();
@@ -149,6 +158,9 @@ describe("SidebarRight structured templates", () => {
     );
     expect(screen.getByRole("button", { name: /button/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /safari/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /file tree/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /timeline/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /snippet/i })).not.toBeInTheDocument();
   });
 
   it("filters structured components from the main header search", () => {

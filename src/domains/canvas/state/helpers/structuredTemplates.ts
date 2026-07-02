@@ -8,12 +8,12 @@ import { getSplitBoxPoints } from "@/shared/utils/shapes";
 import {
   createStructuredComponentFactory,
   STRUCTURED_COMPONENTS,
-  STRUCTURED_PAGE_TEMPLATE_COMPONENTS,
   STRUCTURED_TEMPLATE_FALLBACK_COLORS,
   STRUCTURED_TEMPLATE_TEXT_COLOR,
   type StructuredTemplateBuildOptions,
   type StructuredTemplateId,
 } from "./structured/components";
+import { STRUCTURED_PAGE_TEMPLATE_COMPONENTS } from "./structured/templates";
 import { normalizeStructuredComponents } from "./snapshotHelpers";
 
 export type { StructuredTemplateId };

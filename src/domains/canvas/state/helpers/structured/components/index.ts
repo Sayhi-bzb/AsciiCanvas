@@ -3,7 +3,6 @@ import { DATA_COMPONENTS } from "./data";
 import { FEEDBACK_COMPONENTS } from "./feedback";
 import { FORM_COMPONENTS } from "./form";
 import { LAYOUT_COMPONENTS } from "./layout";
-import { PAGE_TEMPLATE_COMPONENTS } from "./templates";
 
 export { createStructuredComponentFactory } from "./factory";
 export {
@@ -61,5 +60,3 @@ export const STRUCTURED_COMPONENTS = COMPONENT_ORDER.map((id) => {
   }
   return component;
 });
-
-export const STRUCTURED_PAGE_TEMPLATE_COMPONENTS = PAGE_TEMPLATE_COMPONENTS;

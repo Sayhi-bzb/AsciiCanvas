@@ -112,14 +112,18 @@ export const createStructuredComponentFactory = (
     orderOffset = 0,
     offset: Point = { x: 0, y: 0 },
     style: StructuredNodeStyle = textStyle,
-    role?: string
+    role?: string,
+    axis: "vertical" | "horizontal" = "horizontal"
   ): StructuredLineNode => ({
     id: createStructuredNodeId(),
     type: "line",
     order: options.startOrder + orderOffset,
     start: { x: position.x + offset.x, y: position.y + offset.y },
-    end: { x: position.x + offset.x + width - 1, y: position.y + offset.y },
-    axis: "horizontal",
+    end:
+      axis === "vertical"
+        ? { x: position.x + offset.x, y: position.y + offset.y + width - 1 }
+        : { x: position.x + offset.x + width - 1, y: position.y + offset.y },
+    axis,
     style,
     ...createComponentMetadata(role),
   });

@@ -25,6 +25,9 @@ export type StructuredTemplateId =
   | "tabs"
   | "avatar"
   | "breadcrumb"
+  | "filetree"
+  | "timeline"
+  | "snippet"
   | "calendar"
   | "barChart"
   | "lineChart"
@@ -71,7 +74,8 @@ export type StructuredComponentFactory = {
     orderOffset?: number,
     offset?: Point,
     style?: StructuredNodeStyle,
-    role?: string
+    role?: string,
+    axis?: "vertical" | "horizontal"
   ) => StructuredLineNode;
   createSplitBox: (
     width: number,

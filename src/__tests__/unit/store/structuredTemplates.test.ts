@@ -48,10 +48,16 @@ describe("structuredTemplates", () => {
     ]);
     expect(STRUCTURED_PAGE_TEMPLATES.map((template) => template.id)).toEqual([
       "safari",
+      "filetree",
+      "timeline",
+      "snippet",
     ]);
     expect(STRUCTURED_TEMPLATES.map((template) => template.id)).toEqual([
       ...STRUCTURED_COMPONENT_TEMPLATES.map((template) => template.id),
       "safari",
+      "filetree",
+      "timeline",
+      "snippet",
     ]);
   });
 
@@ -284,6 +290,83 @@ describe("structuredTemplates", () => {
       type: "text",
       text: "BreadcrumbItem / ... / BreadcrumbItem",
     });
+
+    const filetreeNodes = build("filetree");
+    expect(filetreeNodes.slice(0, 6)).toMatchObject([
+      {
+        type: "line",
+        start: { x: 4, y: 8 },
+        end: { x: 4, y: 22 },
+        axis: "vertical",
+        style: { color: "#64748b" },
+      },
+      {
+        type: "line",
+        start: { x: 6, y: 10 },
+        end: { x: 6, y: 19 },
+        axis: "vertical",
+        style: { color: "#64748b" },
+      },
+      {
+        type: "line",
+        start: { x: 8, y: 11 },
+        end: { x: 8, y: 12 },
+        axis: "vertical",
+        style: { color: "#64748b" },
+      },
+      {
+        type: "line",
+        start: { x: 8, y: 14 },
+        end: { x: 8, y: 17 },
+        axis: "vertical",
+        style: { color: "#64748b" },
+      },
+      {
+        type: "line",
+        start: { x: 8, y: 19 },
+        end: { x: 8, y: 19 },
+        axis: "vertical",
+        style: { color: "#64748b" },
+      },
+      {
+        type: "line",
+        start: { x: 10, y: 15 },
+        end: { x: 10, y: 15 },
+        axis: "vertical",
+        style: { color: "#64748b" },
+      },
+    ]);
+    expect(filetreeNodes.slice(6, 9)).toMatchObject([
+      { type: "text", position: { x: 4, y: 7 }, text: " PROJECT-ROOT" },
+      { type: "text", position: { x: 7, y: 8 }, text: "󰉋 node_modules" },
+      { type: "text", position: { x: 6, y: 9 }, text: " src" },
+    ]);
+
+    expect(build("timeline")).toMatchObject([
+      {
+        type: "line",
+        start: { x: 4, y: 8 },
+        end: { x: 4, y: 14 },
+        axis: "vertical",
+        style: { color: "#64748b" },
+      },
+      { type: "text", position: { x: 4, y: 7 }, text: "● Q1" },
+      { type: "text", position: { x: 6, y: 8 }, text: "Jan - Mar" },
+      { type: "text", position: { x: 4, y: 10 }, text: "● Q2" },
+      { type: "text", position: { x: 6, y: 11 }, text: "Apr - Jun" },
+      { type: "text", position: { x: 4, y: 13 }, text: "○ Q3" },
+      { type: "text", position: { x: 6, y: 14 }, text: "Jul - Sep" },
+    ]);
+
+    expect(build("snippet")).toMatchObject([
+      {
+        type: "text",
+        position: { x: 4, y: 7 },
+        text: "npm  pnpm  yarn  bun        ",
+      },
+      { type: "text", position: { x: 4, y: 8 }, text: "▔▔▔" },
+      { type: "text", position: { x: 4, y: 9 }, text: "npm install @xx/xx" },
+    ]);
   });
 
   it("builds calendar with bg containers and selected day styling", () => {
@@ -673,6 +756,63 @@ describe("structuredTemplates", () => {
     expect(breadcrumbPreview.rows[0].map((cell) => cell.char).join("")).toBe(
       "BreadcrumbItem / ... / BreadcrumbItem"
     );
+
+    const filetreePreview = buildStructuredTemplatePreview("filetree");
+    expect(filetreePreview).toMatchObject({ width: 20, height: 16 });
+    expect(
+      filetreePreview.rows.map((row) =>
+        row.map((cell) => cell.char).join("").trimEnd()
+      )
+    ).toEqual([
+      " PROJECT-ROOT",
+      "│  󰉋 node_modules",
+      "│  src",
+      "│ │  app",
+      "│ │ │  layout.tsx",
+      "│ │ │  page.tsx",
+      "│ │  components",
+      "│ │ │  ui",
+      "│ │ │ │  button.tsx",
+      "│ │ │  footer.tsx",
+      "│ │ │  header.tsx",
+      "│ │  lib",
+      "│ │ │  utils.ts",
+      "│  󰉋 public",
+      "│  󰘦 package.json",
+      "│   README.md",
+    ]);
+    expect(filetreePreview.rows[1][0].color).toBe("#64748b");
+    expect(filetreePreview.rows[8][6].color).toBe("#64748b");
+
+    const timelinePreview = buildStructuredTemplatePreview("timeline");
+    expect(timelinePreview).toMatchObject({ width: 11, height: 8 });
+    expect(
+      timelinePreview.rows.map((row) =>
+        row.map((cell) => cell.char).join("").trimEnd()
+      )
+    ).toEqual([
+      "● Q1",
+      "│ Jan - Mar",
+      "│",
+      "● Q2",
+      "│ Apr - Jun",
+      "│",
+      "○ Q3",
+      "│ Jul - Sep",
+    ]);
+    expect(timelinePreview.rows[1][0].color).toBe("#64748b");
+
+    const snippetPreview = buildStructuredTemplatePreview("snippet");
+    expect(snippetPreview).toMatchObject({ width: 29, height: 3 });
+    expect(
+      snippetPreview.rows.map((row) =>
+        row.map((cell) => cell.char).join("").trimEnd()
+      )
+    ).toEqual([
+      "npm  pnpm  yarn  bun        ",
+      "▔▔▔",
+      "npm install @xx/xx",
+    ]);
 
     const calendarPreview = buildStructuredTemplatePreview("calendar");
     expect(calendarPreview).toMatchObject({ width: 26, height: 7 });
