@@ -10,11 +10,6 @@ export const BASIC_COMPONENTS: StructuredComponentDefinition[] = [
     ],
   },
   {
-    id: "label",
-    label: "Label",
-    build: ({ createText }) => [createText("Label")],
-  },
-  {
     id: "badge",
     label: "Badge",
     build: ({ createBg, createText }) => [
@@ -28,16 +23,6 @@ export const BASIC_COMPONENTS: StructuredComponentDefinition[] = [
     id: "switch",
     label: "Switch",
     build: ({ createText }) => [createText("󰨙 Switch")],
-  },
-  {
-    id: "link",
-    label: "Link",
-    build: ({ createText }) => [createText("Link ->")],
-  },
-  {
-    id: "listItem",
-    label: "List item",
-    build: ({ createText }) => [createText("- Item")],
   },
   {
     id: "breadcrumb",

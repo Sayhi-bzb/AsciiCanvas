@@ -23,6 +23,10 @@ import {
   intersectsBounds,
   withPointWithinBounds,
 } from "@/shared/utils/structured";
+import {
+  deleteStructuredSplitBoxSplit,
+  isStructuredSplitBoxLineHandle,
+} from "../helpers/structuredBoxEditing";
 import { clampSelectionToBounds } from "../helpers/animationHelpers";
 import {
   collapseGridSelectionTo,
@@ -116,6 +120,8 @@ export const createSelectionSlice: StateCreator<
       structuredTextSelection: null,
       selectedStructuredNodeIds: [],
       selectedStructuredBoxId: null,
+      selectedStructuredSplitHandle: null,
+      structuredContextPoint: null,
       structuredGridFocus: null,
       staticGridSelection: createGridSelectionState(
         state.staticGridSelection.activeCell
@@ -136,18 +142,45 @@ export const createSelectionSlice: StateCreator<
       canvasMode,
       structuredScene,
       selectedStructuredNodeIds,
+      selectedStructuredSplitHandle,
       applyStructuredScene,
       textCursor,
     } = state;
     const selections = resolveSelectionAreas(state);
     if (canvasMode === "structured") {
       if (structuredScene.length === 0) return;
+      const splitHandle = selectedStructuredSplitHandle?.handle;
+      if (
+        selectedStructuredSplitHandle &&
+        splitHandle &&
+        isStructuredSplitBoxLineHandle(splitHandle)
+      ) {
+        let didUpdate = false;
+        const nextScene = structuredScene.map((node) => {
+          if (
+            node.id !== selectedStructuredSplitHandle.nodeId ||
+            node.type !== "splitBox"
+          ) {
+            return node;
+          }
+          didUpdate = true;
+          return deleteStructuredSplitBoxSplit(
+            node,
+            splitHandle
+          );
+        });
+        if (didUpdate) {
+          applyStructuredScene(nextScene, true);
+          set({ selectedStructuredSplitHandle: null, structuredContextPoint: null });
+        }
+        return;
+      }
       if (selectedStructuredNodeIds.length > 0) {
         const selectedIds = new Set(selectedStructuredNodeIds);
         const nextScene = structuredScene.filter((node) => !selectedIds.has(node.id));
         if (nextScene.length !== structuredScene.length) {
           applyStructuredScene(nextScene, true);
-          set({ selectedStructuredNodeIds: [], selectedStructuredBoxId: null });
+          set({ selectedStructuredNodeIds: [], selectedStructuredBoxId: null, selectedStructuredSplitHandle: null, structuredContextPoint: null });
         }
         return;
       }

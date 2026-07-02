@@ -9,6 +9,7 @@ import { COLOR_PRIMARY_TEXT } from "@/shared/lib/constants";
 import {
   getBoxPoints,
   getCirclePoints,
+  createDefaultSplitBoxRoot,
   getLShapeLinePoints,
   getSplitBoxPoints,
   getStepLinePoints,
@@ -18,6 +19,11 @@ import {
   duplicateStructuredNodes,
   reorderStructuredNodes,
 } from "../helpers/structuredNodeActions";
+import {
+  addStructuredSplitBoxSplit,
+  canSplitStructuredSplitBoxLeaf,
+  getStructuredSplitBoxLeafAtPoint,
+} from "../helpers/structuredBoxEditing";
 import { filterGridPointsToBounds, filterPointsToBounds } from "../helpers/animationHelpers";
 import { cloneTextAttributes } from "@/shared/utils/ansi";
 import { splitGraphemes } from "@/shared/metrics";
@@ -103,6 +109,11 @@ export const createDrawingSlice: StateCreator<
           verticalSplitRatio: 0.36,
           topSplitRatio: 0.25,
           bottomSplitRatio: 0.75,
+          root: createDefaultSplitBoxRoot({
+            verticalSplitRatio: 0.36,
+            topSplitRatio: 0.25,
+            bottomSplitRatio: 0.75,
+          }),
         });
         break;
       case "bg":
@@ -170,11 +181,11 @@ export const createDrawingSlice: StateCreator<
     const { canvasMode, applyStructuredScene } = get();
     if (canvasMode === "structured") {
       applyStructuredScene([], true);
-      set({ scratchLayer: null, selections: [], textCursor: null, editingStructuredTextNodeId: null, structuredTextSelection: null, selectedStructuredNodeIds: [], selectedStructuredBoxId: null });
+      set({ scratchLayer: null, selections: [], textCursor: null, editingStructuredTextNodeId: null, structuredTextSelection: null, selectedStructuredNodeIds: [], selectedStructuredBoxId: null, selectedStructuredSplitHandle: null, structuredContextPoint: null });
       return;
     }
     runCanvasTransaction(() => yMainGrid.clear());
-    set({ scratchLayer: null, selections: [], textCursor: null, editingStructuredTextNodeId: null, structuredTextSelection: null, selectedStructuredNodeIds: [], selectedStructuredBoxId: null });
+    set({ scratchLayer: null, selections: [], textCursor: null, editingStructuredTextNodeId: null, structuredTextSelection: null, selectedStructuredNodeIds: [], selectedStructuredBoxId: null, selectedStructuredSplitHandle: null, structuredContextPoint: null });
   },
 
   erasePoints: (points, shouldSaveHistory = true) => {
@@ -220,6 +231,11 @@ export const createDrawingSlice: StateCreator<
               verticalSplitRatio: 0.36,
               topSplitRatio: 0.25,
               bottomSplitRatio: 0.75,
+              root: createDefaultSplitBoxRoot({
+                verticalSplitRatio: 0.36,
+                topSplitRatio: 0.25,
+                bottomSplitRatio: 0.75,
+              }),
               style: { color: state.brushColor },
             }
         : tool === "bg"
@@ -246,6 +262,8 @@ export const createDrawingSlice: StateCreator<
       scratchLayer: null,
       selectedStructuredNodeIds: [node.id],
       selectedStructuredBoxId: node.type === "box" ? node.id : null,
+      selectedStructuredSplitHandle: null,
+      structuredContextPoint: null,
       structuredGridFocus: null,
       editingStructuredTextNodeId: null,
       structuredTextSelection: null,
@@ -266,6 +284,7 @@ export const createDrawingSlice: StateCreator<
       return {
         selectedStructuredNodeIds: validIds,
         selectedStructuredBoxId: selectedBox?.id ?? null,
+        selectedStructuredSplitHandle: null,
         structuredGridFocus: validIds.length > 0 ? null : state.structuredGridFocus,
         editingStructuredTextNodeId: keepsEditing
           ? state.editingStructuredTextNodeId
@@ -278,11 +297,55 @@ export const createDrawingSlice: StateCreator<
     }),
   setSelectedStructuredBoxId: (id) =>
     set((state) => {
-      if (!id) return { selectedStructuredNodeIds: [], selectedStructuredBoxId: null, editingStructuredTextNodeId: null, structuredTextSelection: null };
+      if (!id) return { selectedStructuredNodeIds: [], selectedStructuredBoxId: null, selectedStructuredSplitHandle: null, structuredContextPoint: null, editingStructuredTextNodeId: null, structuredTextSelection: null };
       const selectedBox = state.structuredScene.find((node) => node.id === id && node.type === "box");
-      if (!selectedBox) return { selectedStructuredNodeIds: [], selectedStructuredBoxId: null, editingStructuredTextNodeId: null, structuredTextSelection: null };
-      return { selectedStructuredNodeIds: [id], selectedStructuredBoxId: id, structuredGridFocus: null, editingStructuredTextNodeId: null, structuredTextSelection: null };
+      if (!selectedBox) return { selectedStructuredNodeIds: [], selectedStructuredBoxId: null, selectedStructuredSplitHandle: null, structuredContextPoint: null, editingStructuredTextNodeId: null, structuredTextSelection: null };
+      return { selectedStructuredNodeIds: [id], selectedStructuredBoxId: id, selectedStructuredSplitHandle: null, structuredContextPoint: null, structuredGridFocus: null, editingStructuredTextNodeId: null, structuredTextSelection: null };
     }),
+  setSelectedStructuredSplitHandle: (handle) =>
+    set((state) => {
+      if (!handle) return { selectedStructuredSplitHandle: null };
+      const node = state.structuredScene.find(
+        (sceneNode) => sceneNode.id === handle.nodeId && sceneNode.type === "splitBox"
+      );
+      if (!node) return { selectedStructuredSplitHandle: null };
+      return {
+        selectedStructuredSplitHandle: handle,
+        selectedStructuredNodeIds: [handle.nodeId],
+        selectedStructuredBoxId: null,
+        structuredGridFocus: null,
+        editingStructuredTextNodeId: null,
+        structuredTextSelection: null,
+      };
+    }),
+
+  splitStructuredSplitBoxLeaf: (nodeId, point, axis) => {
+    const state = get();
+    if (state.canvasMode !== "structured") return false;
+    const target = state.structuredScene.find(
+      (node) => node.id === nodeId && node.type === "splitBox"
+    );
+    if (!target || target.type !== "splitBox") return false;
+    const leaf = getStructuredSplitBoxLeafAtPoint(target, point);
+    if (!leaf || !canSplitStructuredSplitBoxLeaf(leaf, axis)) return false;
+
+    const nextScene = state.structuredScene.map((node) =>
+      node.id === nodeId && node.type === "splitBox"
+        ? addStructuredSplitBoxSplit(node, leaf.id, axis)
+        : node
+    );
+    state.applyStructuredScene(nextScene, true);
+    set({
+      selectedStructuredNodeIds: [nodeId],
+      selectedStructuredBoxId: null,
+      selectedStructuredSplitHandle: null,
+      structuredGridFocus: null,
+      editingStructuredTextNodeId: null,
+      structuredTextSelection: null,
+      textCursor: null,
+    });
+    return true;
+  },
 
   updateStructuredNode: (id, updater, history = "save") => {
     const state = get();
@@ -301,6 +364,7 @@ export const createDrawingSlice: StateCreator<
     set({
       selectedStructuredNodeIds: [id],
       selectedStructuredBoxId: selectedBoxId,
+      selectedStructuredSplitHandle: null,
       structuredGridFocus: null,
     });
   },

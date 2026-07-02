@@ -7,7 +7,7 @@ import {
   SidebarGroupContent,
 } from "@/shared/ui/sidebar";
 import {
-  buildStructuredTemplatePreview,
+  getStructuredTemplatePreview,
   STRUCTURED_TEMPLATE_MIME,
   STRUCTURED_TEMPLATES,
   setActiveStructuredTemplateDragId,
@@ -94,7 +94,7 @@ export function StructuredTemplateLibrary({
                   className="flex h-12 w-24 shrink-0 items-center overflow-hidden"
                 >
                   <StructuredTemplatePreviewGrid
-                    preview={buildStructuredTemplatePreview(template.id)}
+                    preview={getStructuredTemplatePreview(template.id)}
                     cellWidth={5}
                     cellHeight={9}
                     fontSize={8}

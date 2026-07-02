@@ -87,6 +87,20 @@ export const EDITOR_ACTION_META: Record<EditorActionId, ActionMeta> = {
     label: "Copy Structure",
     icon: Copy,
   },
+  "structured-split-horizontal": {
+    id: "structured-split-horizontal",
+    label: "Split Horizontal",
+  },
+  "structured-split-vertical": {
+    id: "structured-split-vertical",
+    label: "Split Vertical",
+  },
+  "structured-delete-divider": {
+    id: "structured-delete-divider",
+    label: "Delete Divider",
+    icon: Trash2,
+    destructive: true,
+  },
 };
 
 // Toolbar Actions
@@ -144,6 +158,9 @@ export const CANVAS_CONTEXT_MENU: ContextMenuEntry[] = [
 
 export const STRUCTURED_CONTEXT_MENU: ContextMenuEntry[] = [
   { type: "action", id: "structured-rename" },
+  { type: "action", id: "structured-split-horizontal" },
+  { type: "action", id: "structured-split-vertical" },
+  { type: "action", id: "structured-delete-divider" },
   { type: "separator" },
   {
     type: "submenu",

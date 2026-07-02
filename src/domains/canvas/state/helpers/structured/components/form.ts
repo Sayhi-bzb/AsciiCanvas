@@ -29,37 +29,29 @@ export const FORM_COMPONENTS: StructuredComponentDefinition[] = [
   {
     id: "textarea",
     label: "Textarea",
-    build: ({ createBox, createText }) => [
-      createBox(18, 5),
-      createText("Multiline", { x: 2, y: 1 }, 1),
-      createText("text...", { x: 2, y: 2 }, 2),
+    build: ({ createBg, createText }) => [
+      createBg(26, 0, 3, { x: 0, y: 3 }, 1, "#eff6ff"),
+      createText("TextArea                 █", { x: 0, y: 0 }, 0, [
+        { start: 25, end: 26, style: { color: "#3b82f6" } },
+      ]),
+      createText("                         │", { x: 0, y: 1 }, 1),
+      createText("Press Ctrl+S to save...  │", { x: 0, y: 2 }, 2, [
+        { start: 0, end: 23, style: { color: "#6b7280" } },
+      ]),
+      createText("󰦨 UTF-8  󰚰 Ln 2, Col 44   ", { x: 0, y: 3 }, 4, undefined, {
+        color: "#2563eb",
+      }),
     ],
   },
   {
-    id: "select",
-    label: "Select",
-    build: ({ createBox, createText }) => [
-      createBox(14, 3),
-      createText("Option", { x: 2, y: 1 }, 1),
-      createText("v", { x: 11, y: 1 }, 2),
-    ],
-  },
-  {
-    id: "field",
-    label: "Field",
-    build: ({ createBox, createText }) => [
-      createText("Label"),
-      createBox(16, 3, 1, { x: 0, y: 1 }),
-      createText("Value", { x: 2, y: 2 }, 2),
-    ],
-  },
-  {
-    id: "formRow",
-    label: "Form row",
-    build: ({ createBox, createText }) => [
-      createText("Label", { x: 0, y: 1 }),
-      createBox(18, 3, 1, { x: 8, y: 0 }),
-      createText("Value", { x: 10, y: 1 }, 2),
+    id: "slider",
+    label: "Slider",
+    build: ({ createText }) => [
+      createText("Slider ────●────────────●───", { x: 0, y: 0 }, 0, [
+        { start: 7, end: 11, style: { color: "#d1d5db" } },
+        { start: 11, end: 25, style: { color: "#3b82f6" } },
+        { start: 25, end: 28, style: { color: "#d1d5db" } },
+      ]),
     ],
   },
 ];

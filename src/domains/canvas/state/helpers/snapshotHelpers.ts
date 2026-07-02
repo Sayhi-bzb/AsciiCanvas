@@ -1,4 +1,4 @@
-import type { GridCell, StructuredNode, StructuredSplitBoxNode } from "@/shared/types";
+import type { GridCell, StructuredNode, StructuredSplitBoxNode, StructuredSplitBoxTreeNode } from "@/shared/types";
 import { COLOR_PRIMARY_TEXT } from "@/shared/lib/constants";
 import { normalizeScene } from "@/shared/utils/structured";
 import {
@@ -7,6 +7,18 @@ import {
   normalizeCellHref,
 } from "@/shared/utils/ansi";
 import { cloneStructuredTextStyleRanges } from "@/shared/utils/structuredTextRanges";
+import { normalizeSplitBoxRoot } from "@/shared/utils/shapes";
+
+const cloneSplitBoxRoot = (
+  root: StructuredSplitBoxTreeNode
+): StructuredSplitBoxTreeNode =>
+  root.type === "leaf"
+    ? { ...root }
+    : {
+        ...root,
+        first: cloneSplitBoxRoot(root.first),
+        second: cloneSplitBoxRoot(root.second),
+      };
 
 export const cloneStructuredNode = (node: StructuredNode): StructuredNode => {
   if (node.type === "text") {
@@ -17,6 +29,21 @@ export const cloneStructuredNode = (node: StructuredNode): StructuredNode => {
       ...(cloneStructuredTextStyleRanges(node.styleRanges)
         ? { styleRanges: cloneStructuredTextStyleRanges(node.styleRanges) }
         : {}),
+    };
+  }
+  if (node.type === "splitBox") {
+    return {
+      ...node,
+      start: { ...node.start },
+      end: { ...node.end },
+      style: { ...node.style },
+      root: cloneSplitBoxRoot(
+        normalizeSplitBoxRoot(node.root, {
+          verticalSplitRatio: node.verticalSplitRatio,
+          topSplitRatio: node.topSplitRatio,
+          bottomSplitRatio: node.bottomSplitRatio,
+        })
+      ),
     };
   }
   return {
@@ -134,6 +161,20 @@ export const toStructuredNode = (value: unknown): StructuredNode | null => {
           typeof splitBox.bottomSplitRatio === "number"
             ? splitBox.bottomSplitRatio
             : 0.75,
+        root: normalizeSplitBoxRoot(splitBox.root, {
+          verticalSplitRatio:
+            typeof splitBox.verticalSplitRatio === "number"
+              ? splitBox.verticalSplitRatio
+              : 0.36,
+          topSplitRatio:
+            typeof splitBox.topSplitRatio === "number"
+              ? splitBox.topSplitRatio
+              : 0.25,
+          bottomSplitRatio:
+            typeof splitBox.bottomSplitRatio === "number"
+              ? splitBox.bottomSplitRatio
+              : 0.75,
+        }),
       });
     }
     if (

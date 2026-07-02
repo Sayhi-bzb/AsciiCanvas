@@ -171,6 +171,7 @@ export const buildStructuredTemplatePreview = (
           verticalSplitRatio: node.verticalSplitRatio,
           topSplitRatio: node.topSplitRatio,
           bottomSplitRatio: node.bottomSplitRatio,
+          root: node.root,
         }).forEach((point) => {
           rows[point.y][point.x] = {
             char: point.char,
@@ -225,4 +226,20 @@ export const buildStructuredTemplatePreview = (
     });
 
   return { rows, width, height };
+};
+
+const structuredTemplatePreviewCache = new Map<
+  StructuredTemplateId,
+  StructuredTemplatePreview
+>();
+
+export const getStructuredTemplatePreview = (
+  templateId: StructuredTemplateId
+): StructuredTemplatePreview => {
+  const cached = structuredTemplatePreviewCache.get(templateId);
+  if (cached) return cached;
+
+  const preview = buildStructuredTemplatePreview(templateId);
+  structuredTemplatePreviewCache.set(templateId, preview);
+  return preview;
 };

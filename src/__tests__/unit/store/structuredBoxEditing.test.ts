@@ -1,13 +1,18 @@
 import { describe, expect, it } from "vitest";
-import type { StructuredBgNode, StructuredBoxNode, StructuredNode } from "@/shared/types";
+import type { StructuredBgNode, StructuredBoxNode, StructuredNode, StructuredSplitBoxNode } from "@/shared/types";
 import {
+  addStructuredSplitBoxSplit,
+  canSplitStructuredSplitBoxLeaf,
+  deleteStructuredSplitBoxSplit,
   findStructuredBoxHit,
   findStructuredNodeHit,
   findStructuredNodeIdsInSelection,
   getStructuredBoxNameEndPoint,
   getStructuredBoxNameStartPoint,
   getStructuredBoxHandleAtPoint,
+  getStructuredSplitBoxGuides,
   getStructuredSplitBoxHandleAtPoint,
+  getStructuredSplitBoxLeafAtPoint,
   isPointOnStructuredBoxBorder,
   moveStructuredBox,
   moveStructuredNode,
@@ -289,7 +294,7 @@ describe("structuredBoxEditing", () => {
   });
 
   it("hits and resizes split boxes as rectangle nodes", () => {
-    const splitBox: StructuredNode = {
+    const splitBox: StructuredSplitBoxNode = {
       id: "split-1",
       type: "splitBox",
       order: 1,
@@ -308,13 +313,13 @@ describe("structuredBoxEditing", () => {
     });
     expect(findStructuredNodeHit([splitBox], { x: 4, y: 2 })).toMatchObject({
       kind: "splitBox",
-      handle: "verticalSplit",
+      handle: "split:split-middle",
     });
     expect(getStructuredSplitBoxHandleAtPoint(splitBox, { x: 5, y: 1 })).toBe(
-      "topSplit"
+      "split:split-top"
     );
     expect(getStructuredSplitBoxHandleAtPoint(splitBox, { x: 5, y: 3 })).toBe(
-      "bottomSplit"
+      "split:split-bottom"
     );
     expect(resizeStructuredSplitBox(splitBox, "e", { x: 12, y: 2 })).toMatchObject({
       type: "splitBox",
@@ -322,19 +327,80 @@ describe("structuredBoxEditing", () => {
       end: { x: 12, y: 4 },
       verticalSplitRatio: 0.36,
     });
-    expect(resizeStructuredSplitBox(splitBox, "verticalSplit", { x: 6, y: 2 })).toMatchObject({
+    expect(resizeStructuredSplitBox(splitBox, "split:split-middle", { x: 6, y: 2 })).toMatchObject({
       verticalSplitRatio: 0.6,
       topSplitRatio: 0.25,
       bottomSplitRatio: 0.75,
     });
-    expect(resizeStructuredSplitBox(splitBox, "topSplit", { x: 5, y: 2 })).toMatchObject({
+    expect(resizeStructuredSplitBox(splitBox, "split:split-top", { x: 5, y: 2 })).toMatchObject({
       topSplitRatio: 0.5,
       bottomSplitRatio: 0.75,
     });
-    expect(resizeStructuredSplitBox(splitBox, "bottomSplit", { x: 5, y: 2 })).toMatchObject({
+    expect(resizeStructuredSplitBox(splitBox, "split:split-bottom", { x: 5, y: 2 })).toMatchObject({
       topSplitRatio: 0.25,
       bottomSplitRatio: 0.5,
     });
+  });
+
+  it("deletes a split box split line without deleting the split box", () => {
+    const splitBox: StructuredSplitBoxNode = {
+      id: "split-1",
+      type: "splitBox",
+      order: 1,
+      start: { x: 0, y: 0 },
+      end: { x: 10, y: 4 },
+      verticalSplitRatio: 0.36,
+      topSplitRatio: 0.25,
+      bottomSplitRatio: 0.75,
+      style: { color: "#000000" },
+    };
+
+    const nextSplitBox = deleteStructuredSplitBoxSplit(
+      splitBox,
+      "split:split-middle"
+    );
+
+    expect(nextSplitBox.type).toBe("splitBox");
+    expect(getStructuredSplitBoxHandleAtPoint(nextSplitBox, { x: 4, y: 2 })).toBeNull();
+    expect(getStructuredSplitBoxHandleAtPoint(nextSplitBox, { x: 5, y: 1 })).toBe(
+      "split:split-top"
+    );
+    expect(getStructuredSplitBoxHandleAtPoint(nextSplitBox, { x: 5, y: 3 })).toBe(
+      "split:split-bottom"
+    );
+  });
+
+  it("adds a split line to the split box leaf at a point", () => {
+    const splitBox: StructuredSplitBoxNode = {
+      id: "split-1",
+      type: "splitBox",
+      order: 1,
+      start: { x: 0, y: 0 },
+      end: { x: 10, y: 8 },
+      verticalSplitRatio: 0.36,
+      topSplitRatio: 0.25,
+      bottomSplitRatio: 0.75,
+      style: { color: "#000000" },
+    };
+
+    const leaf = getStructuredSplitBoxLeafAtPoint(splitBox, { x: 2, y: 4 });
+
+    expect(leaf).not.toBeNull();
+    expect(leaf && canSplitStructuredSplitBoxLeaf(leaf, "horizontal")).toBe(true);
+    const nextSplitBox = addStructuredSplitBoxSplit(
+      splitBox,
+      leaf!.id,
+      "horizontal"
+    );
+    const guides = getStructuredSplitBoxGuides(nextSplitBox);
+
+    expect(guides.handles).toHaveLength(4);
+    expect(guides.handles.some((handle) => handle.id === leaf!.id)).toBe(false);
+    expect(
+      guides.handles.some(
+        (handle) => handle.axis === "horizontal" && handle.id.startsWith("split-")
+      )
+    ).toBe(true);
   });
 });
 

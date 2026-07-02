@@ -51,11 +51,14 @@ function InteractionHarness() {
       selectedStructuredNodeIds: state.selectedStructuredNodeIds,
       setStructuredGridFocus: state.setStructuredGridFocus,
       setSelectedStructuredNodeIds: state.setSelectedStructuredNodeIds,
+      setSelectedStructuredSplitHandle: state.setSelectedStructuredSplitHandle,
       setEditingStructuredTextNodeId: state.setEditingStructuredTextNodeId,
       setStructuredTextSelection: state.setStructuredTextSelection,
       structuredTextSelection: state.structuredTextSelection,
       setStructuredTextColor: state.setStructuredTextColor,
       applyStructuredScene: state.applyStructuredScene,
+      previewStructuredScene: state.previewStructuredScene,
+      previewStructuredNodeMove: state.previewStructuredNodeMove,
       updateStructuredNode: state.updateStructuredNode,
     }))
   );
@@ -261,6 +264,14 @@ describe("structured text interaction", () => {
         delta: [19, 0],
         event: dragEvent(),
       });
+      gestureState.handlers?.onDragEnd?.({
+        xy: [20, 1],
+        event: dragEvent(),
+      });
+      gestureState.handlers?.onDragEnd?.({
+        xy: [20, 1],
+        event: dragEvent(),
+      });
     });
 
     expect(useCanvasStore.getState().textCursor).toEqual({ x: 2, y: 0 });
@@ -442,6 +453,10 @@ describe("structured text interaction", () => {
         delta: [19, 0],
         event: dragEvent(),
       });
+      gestureState.handlers?.onDragEnd?.({
+        xy: [20, 1],
+        event: dragEvent(),
+      });
     });
 
     expect(useCanvasStore.getState().textCursor).toBeNull();
@@ -464,6 +479,18 @@ describe("structured text interaction", () => {
       gestureState.handlers?.onDrag?.({
         xy: [31, 21],
         delta: [20, 0],
+        event: dragEvent(),
+      });
+      gestureState.handlers?.onDragEnd?.({
+        xy: [31, 21],
+        event: dragEvent(),
+      });
+      gestureState.handlers?.onDragEnd?.({
+        xy: [31, 21],
+        event: dragEvent(),
+      });
+      gestureState.handlers?.onDragEnd?.({
+        xy: [31, 21],
         event: dragEvent(),
       });
     });
@@ -554,6 +581,10 @@ describe("structured text interaction", () => {
         delta: [20, 0],
         event: dragEvent(),
       });
+      gestureState.handlers?.onDragEnd?.({
+        xy: [31, 21],
+        event: dragEvent(),
+      });
     });
 
     expect(useCanvasStore.getState().selectedStructuredNodeIds).toEqual([
@@ -584,6 +615,10 @@ describe("structured text interaction", () => {
       gestureState.handlers?.onDrag?.({
         xy: [31, 1],
         delta: [30, 0],
+        event: dragEvent(),
+      });
+      gestureState.handlers?.onDragEnd?.({
+        xy: [31, 1],
         event: dragEvent(),
       });
     });
@@ -661,6 +696,10 @@ describe("structured text interaction", () => {
         delta: [18, 0],
         event: dragEvent(),
       });
+      gestureState.handlers?.onDragEnd?.({
+        xy: [41, 10],
+        event: dragEvent(),
+      });
     });
 
     expect(useCanvasStore.getState().structuredScene[0]).toMatchObject({
@@ -706,6 +745,10 @@ describe("structured text interaction", () => {
       gestureState.handlers?.onDrag?.({
         xy: [41, 10],
         delta: [18, 0],
+        event: dragEvent(),
+      });
+      gestureState.handlers?.onDragEnd?.({
+        xy: [41, 10],
         event: dragEvent(),
       });
     });

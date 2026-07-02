@@ -1,7 +1,11 @@
 import type { NodeBounds, Point, SelectionArea, StructuredBgNode, StructuredBoxNode, StructuredLineNode, StructuredNode, StructuredSplitBoxNode, StructuredTextNode } from "@/shared/types";
 import { getTextCellWidth } from "@/shared/metrics";
 import { getSelectionBounds } from "@/shared/utils/selection";
-import { getLShapeLinePoints } from "@/shared/utils/shapes";
+import {
+  getLShapeLinePoints,
+  layoutSplitBoxTree,
+  normalizeSplitBoxRoot,
+} from "@/shared/utils/shapes";
 import { getStructuredNodeBounds, intersectsBounds, trimTextToColumns, withPointWithinBounds } from "@/shared/utils/structured";
 
 export type StructuredBoxResizeHandle =
@@ -15,11 +19,8 @@ export type StructuredBoxResizeHandle =
   | "w";
 
 export type StructuredLineResizeHandle = "start" | "end";
-export type StructuredSplitBoxHandle =
-  | StructuredBoxResizeHandle
-  | "verticalSplit"
-  | "topSplit"
-  | "bottomSplit";
+export type StructuredSplitBoxSplitHandle = `split:${string}`;
+export type StructuredSplitBoxHandle = StructuredBoxResizeHandle | StructuredSplitBoxSplitHandle;
 
 export type StructuredBoxHit = {
   node: StructuredBoxNode;
@@ -42,6 +43,45 @@ type StructuredRectNode = StructuredBoxNode | StructuredSplitBoxNode | Structure
 
 const clamp = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
+
+export const toStructuredSplitBoxHandle = (
+  splitId: string
+): StructuredSplitBoxSplitHandle => `split:${splitId}`;
+
+export const isStructuredSplitBoxLineHandle = (
+  handle: StructuredSplitBoxHandle | null
+): handle is StructuredSplitBoxSplitHandle =>
+  typeof handle === "string" && handle.startsWith("split:");
+
+export const getStructuredSplitBoxHandleId = (
+  handle: StructuredSplitBoxSplitHandle
+) => handle.slice("split:".length);
+
+const collectStructuredSplitBoxTreeIds = (
+  tree: ReturnType<typeof normalizeSplitBoxRoot>,
+  ids = new Set<string>()
+) => {
+  ids.add(tree.id);
+  if (tree.type === "split") {
+    collectStructuredSplitBoxTreeIds(tree.first, ids);
+    collectStructuredSplitBoxTreeIds(tree.second, ids);
+  }
+  return ids;
+};
+
+const createStructuredSplitBoxTreeId = (
+  root: ReturnType<typeof normalizeSplitBoxRoot>,
+  prefix: string
+) => {
+  const ids = collectStructuredSplitBoxTreeIds(root);
+  let index = ids.size + 1;
+  let candidate = `${prefix}-${index}`;
+  while (ids.has(candidate)) {
+    index += 1;
+    candidate = `${prefix}-${index}`;
+  }
+  return candidate;
+};
 
 export const getStructuredBoxBounds = (node: StructuredBoxNode): NodeBounds =>
   getStructuredNodeBounds(node);
@@ -117,39 +157,12 @@ export const getStructuredBoxHandleAtPoint = (
 
 export const getStructuredSplitBoxGuides = (node: StructuredSplitBoxNode) => {
   const bounds = getStructuredNodeBounds(node);
-  const left = bounds.x;
-  const right = bounds.x + bounds.width - 1;
-  const top = bounds.y;
-  const bottom = bounds.y + bounds.height - 1;
-  const width = bounds.width;
-  const height = bounds.height;
-
-  if (width < 3 || height < 3) {
-    return {
-      verticalX: left,
-      topY: top,
-      bottomY: bottom,
-      bounds,
-    };
-  }
-
-  const verticalX = clamp(
-    left + Math.round((width - 1) * node.verticalSplitRatio),
-    left + 1,
-    right - 1
-  );
-  const topY = clamp(
-    top + Math.round((height - 1) * node.topSplitRatio),
-    top + 1,
-    Math.max(top + 1, bottom - 2)
-  );
-  const bottomY = clamp(
-    top + Math.round((height - 1) * node.bottomSplitRatio),
-    Math.min(bottom - 1, topY + 1),
-    bottom - 1
-  );
-
-  return { verticalX, topY, bottomY, bounds };
+  const root = normalizeSplitBoxRoot(node.root, {
+    verticalSplitRatio: node.verticalSplitRatio,
+    topSplitRatio: node.topSplitRatio,
+    bottomSplitRatio: node.bottomSplitRatio,
+  });
+  return { ...layoutSplitBoxTree(root, bounds), bounds };
 };
 
 export const getStructuredSplitBoxHandleAtPoint = (
@@ -159,24 +172,44 @@ export const getStructuredSplitBoxHandleAtPoint = (
   const rectHandle = getStructuredBoxHandleAtPoint(node, point);
   if (rectHandle) return rectHandle;
 
-  const { verticalX, topY, bottomY, bounds } = getStructuredSplitBoxGuides(node);
-  const left = bounds.x;
-  const right = bounds.x + bounds.width - 1;
-
-  if (point.x === verticalX && point.y > topY && point.y < bottomY) {
-    return "verticalSplit";
-  }
-  if (point.y === topY && point.x > left && point.x < right) {
-    return "topSplit";
-  }
-  if (point.y === bottomY && point.x > left && point.x < right) {
-    return "bottomSplit";
-  }
-  if (point.x === verticalX && point.y >= topY && point.y <= bottomY) {
-    return "verticalSplit";
-  }
+  const { handles } = getStructuredSplitBoxGuides(node);
+  const hit = handles.find(({ axis, bounds }) => {
+    if (axis === "vertical") {
+      return (
+        point.x === bounds.x &&
+        point.y >= bounds.y &&
+        point.y < bounds.y + bounds.height
+      );
+    }
+    return (
+      point.y === bounds.y &&
+      point.x >= bounds.x &&
+      point.x < bounds.x + bounds.width
+    );
+  });
+  if (hit) return toStructuredSplitBoxHandle(hit.id);
   return null;
 };
+
+export const getStructuredSplitBoxLeafAtPoint = (
+  node: StructuredSplitBoxNode,
+  point: Point
+) => {
+  const { leafBounds } = getStructuredSplitBoxGuides(node);
+  return (
+    leafBounds.find(({ bounds }) =>
+      withPointWithinBounds(point, bounds, true)
+    ) ?? null
+  );
+};
+
+export const canSplitStructuredSplitBoxLeaf = (
+  leaf: { bounds: NodeBounds },
+  axis: "horizontal" | "vertical"
+) =>
+  axis === "vertical"
+    ? leaf.bounds.width >= 5
+    : leaf.bounds.height >= 5;
 
 export const isPointInsideStructuredBox = (
   node: StructuredBoxNode,
@@ -340,34 +373,117 @@ export const resizeStructuredSplitBox = (
   handle: StructuredSplitBoxHandle,
   point: Point
 ): StructuredSplitBoxNode => {
-  if (
-    handle !== "verticalSplit" &&
-    handle !== "topSplit" &&
-    handle !== "bottomSplit"
-  ) {
+  if (!isStructuredSplitBoxLineHandle(handle)) {
     return resizeStructuredRect(node, handle, point);
   }
 
-  const { bounds, topY, bottomY } = getStructuredSplitBoxGuides(node);
-  const left = bounds.x;
-  const right = bounds.x + bounds.width - 1;
-  const top = bounds.y;
-  const bottom = bounds.y + bounds.height - 1;
-  const widthDenominator = Math.max(1, bounds.width - 1);
-  const heightDenominator = Math.max(1, bounds.height - 1);
+  const targetId = getStructuredSplitBoxHandleId(handle);
+  const root = normalizeSplitBoxRoot(node.root, {
+    verticalSplitRatio: node.verticalSplitRatio,
+    topSplitRatio: node.topSplitRatio,
+    bottomSplitRatio: node.bottomSplitRatio,
+  });
+  const layout = layoutSplitBoxTree(root, getStructuredNodeBounds(node));
+  const target = layout.handles.find((candidate) => candidate.id === targetId);
+  if (!target) return node;
 
-  if (handle === "verticalSplit") {
-    const x = clamp(point.x, left + 1, right - 1);
-    return { ...node, verticalSplitRatio: (x - left) / widthDenominator };
+  const update = (
+    tree: typeof root
+  ): typeof root => {
+    if (tree.type === "leaf") return tree;
+    if (tree.id === targetId) {
+      const bounds = target.parentBounds;
+      const nextRatio =
+        tree.axis === "vertical"
+          ? (clamp(point.x, bounds.x + 1, bounds.x + bounds.width - 2) -
+              bounds.x) /
+            Math.max(1, bounds.width - 1)
+          : (clamp(point.y, bounds.y + 1, bounds.y + bounds.height - 2) -
+              bounds.y) /
+            Math.max(1, bounds.height - 1);
+      return { ...tree, ratio: clamp(nextRatio, 0.05, 0.95) };
+    }
+    return { ...tree, first: update(tree.first), second: update(tree.second) };
+  };
+
+  const nextRoot = update(root);
+  const nextNode = { ...node, root: nextRoot };
+  if (targetId === "split-middle") {
+    const targetRatio =
+      nextRoot.type === "split" &&
+      nextRoot.second.type === "split" &&
+      nextRoot.second.first.type === "split"
+        ? nextRoot.second.first.ratio
+        : node.verticalSplitRatio;
+    return { ...nextNode, verticalSplitRatio: targetRatio };
   }
-
-  if (handle === "topSplit") {
-    const y = clamp(point.y, top + 1, bottomY - 1);
-    return { ...node, topSplitRatio: (y - top) / heightDenominator };
+  if (targetId === "split-top" && nextRoot.type === "split") {
+    return { ...nextNode, topSplitRatio: nextRoot.ratio };
   }
+  if (
+    targetId === "split-bottom" &&
+    nextRoot.type === "split" &&
+    nextRoot.second.type === "split"
+  ) {
+    return {
+      ...nextNode,
+      bottomSplitRatio:
+        nextRoot.ratio + (1 - nextRoot.ratio) * nextRoot.second.ratio,
+    };
+  }
+  return nextNode;
+};
 
-  const y = clamp(point.y, topY + 1, bottom - 1);
-  return { ...node, bottomSplitRatio: (y - top) / heightDenominator };
+export const deleteStructuredSplitBoxSplit = (
+  node: StructuredSplitBoxNode,
+  handle: StructuredSplitBoxSplitHandle
+): StructuredSplitBoxNode => {
+  const targetId = getStructuredSplitBoxHandleId(handle);
+  const root = normalizeSplitBoxRoot(node.root, {
+    verticalSplitRatio: node.verticalSplitRatio,
+    topSplitRatio: node.topSplitRatio,
+    bottomSplitRatio: node.bottomSplitRatio,
+  });
+  const remove = (tree: typeof root): typeof root => {
+    if (tree.type === "leaf") return tree;
+    if (tree.id === targetId) return { type: "leaf", id: `leaf-${targetId}` };
+    return { ...tree, first: remove(tree.first), second: remove(tree.second) };
+  };
+  return { ...node, root: remove(root) };
+};
+
+export const addStructuredSplitBoxSplit = (
+  node: StructuredSplitBoxNode,
+  leafId: string,
+  axis: "horizontal" | "vertical"
+): StructuredSplitBoxNode => {
+  const root = normalizeSplitBoxRoot(node.root, {
+    verticalSplitRatio: node.verticalSplitRatio,
+    topSplitRatio: node.topSplitRatio,
+    bottomSplitRatio: node.bottomSplitRatio,
+  });
+  const splitId = createStructuredSplitBoxTreeId(root, "split");
+  const nextLeafId = createStructuredSplitBoxTreeId(root, "leaf");
+  let didSplit = false;
+
+  const split = (tree: typeof root): typeof root => {
+    if (tree.type === "split") {
+      return { ...tree, first: split(tree.first), second: split(tree.second) };
+    }
+    if (tree.id !== leafId) return tree;
+    didSplit = true;
+    return {
+      type: "split",
+      id: splitId,
+      axis,
+      ratio: 0.5,
+      first: tree,
+      second: { type: "leaf", id: nextLeafId },
+    };
+  };
+
+  const nextRoot = split(root);
+  return didSplit ? { ...node, root: nextRoot } : node;
 };
 
 export const resizeStructuredBox = (

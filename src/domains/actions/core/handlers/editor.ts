@@ -3,7 +3,12 @@ import { exportStructuredHierarchyText } from "@/domains/export";
 import { runEditorCommand } from "@/domains/actions/adapters/editorCommands";
 import { getFirstGrapheme } from "@/shared/utils/characters";
 import { getTextColumnWidth } from "@/shared/utils/structured";
-import { getStructuredBoxNameEndPoint } from "@/domains/canvas/state/helpers/structuredBoxEditing";
+import {
+  canSplitStructuredSplitBoxLeaf,
+  getStructuredBoxNameEndPoint,
+  getStructuredSplitBoxLeafAtPoint,
+  isStructuredSplitBoxLineHandle,
+} from "@/domains/canvas/state/helpers/structuredBoxEditing";
 import { clipboard, feedback } from "@/shared/services/effects";
 import type { StructuredBoxNode, StructuredTextNode } from "@/shared/types";
 import {
@@ -29,6 +34,47 @@ type FillOptions = { fillChar?: string };
 const hasStructuredSelection = (
   state: ReturnType<typeof useCanvasStore.getState>
 ) => state.canvasMode === "structured" && state.selectedStructuredNodeIds.length > 0;
+
+const getContextSplitBox = (
+  state: ReturnType<typeof useCanvasStore.getState>
+) => {
+  if (
+    state.canvasMode !== "structured" ||
+    state.selectedStructuredNodeIds.length !== 1 ||
+    !state.structuredContextPoint
+  ) {
+    return null;
+  }
+  const selectedId = state.selectedStructuredNodeIds[0];
+  return (
+    state.structuredScene.find(
+      (node) => node.id === selectedId && node.type === "splitBox"
+    ) ?? null
+  );
+};
+
+const canSplitContextSplitBox = (
+  state: ReturnType<typeof useCanvasStore.getState>,
+  axis: "horizontal" | "vertical"
+) => {
+  const splitBox = getContextSplitBox(state);
+  if (!splitBox || splitBox.type !== "splitBox" || !state.structuredContextPoint) {
+    return false;
+  }
+  if (state.selectedStructuredSplitHandle) return false;
+  const leaf = getStructuredSplitBoxLeafAtPoint(
+    splitBox,
+    state.structuredContextPoint
+  );
+  return !!leaf && canSplitStructuredSplitBoxLeaf(leaf, axis);
+};
+
+const hasSelectedStructuredDivider = (
+  state: ReturnType<typeof useCanvasStore.getState>
+) =>
+  state.canvasMode === "structured" &&
+  !!state.selectedStructuredSplitHandle &&
+  isStructuredSplitBoxLineHandle(state.selectedStructuredSplitHandle.handle);
 
 const isStructuredBoxNode = (node: { type: string }): node is StructuredBoxNode =>
   node.type === "box";
@@ -262,6 +308,36 @@ export const editorHandlers: Record<
     });
     return actionSucceeded();
   },
+
+  "structured-split-horizontal": (_options, context): ActionResult => {
+    const point = context.state.structuredContextPoint;
+    const splitBox = getContextSplitBox(context.state);
+    if (!point || !splitBox || splitBox.type !== "splitBox") {
+      return actionFailed("empty-selection");
+    }
+    return context.state.splitStructuredSplitBoxLeaf(splitBox.id, point, "horizontal")
+      ? actionSucceeded()
+      : actionFailed("precondition-failed");
+  },
+
+  "structured-split-vertical": (_options, context): ActionResult => {
+    const point = context.state.structuredContextPoint;
+    const splitBox = getContextSplitBox(context.state);
+    if (!point || !splitBox || splitBox.type !== "splitBox") {
+      return actionFailed("empty-selection");
+    }
+    return context.state.splitStructuredSplitBoxLeaf(splitBox.id, point, "vertical")
+      ? actionSucceeded()
+      : actionFailed("precondition-failed");
+  },
+
+  "structured-delete-divider": (_options, context): ActionResult => {
+    if (!hasSelectedStructuredDivider(context.state)) {
+      return actionFailed("empty-selection");
+    }
+    context.state.deleteSelection();
+    return actionSucceeded();
+  },
 };
 
 // Editor action checkers
@@ -287,6 +363,11 @@ export const editorCheckers: Partial<Record<EditorActionId, (state: ReturnType<t
   "structured-duplicate": hasStructuredSelection,
   "structured-copy-hierarchy": (state) =>
     state.canvasMode === "structured" && state.structuredScene.length > 0,
+  "structured-split-horizontal": (state) =>
+    canSplitContextSplitBox(state, "horizontal"),
+  "structured-split-vertical": (state) =>
+    canSplitContextSplitBox(state, "vertical"),
+  "structured-delete-divider": hasSelectedStructuredDivider,
   "fill-selection-char": (state) =>
     state.canvasMode !== "structured" &&
     state.selections.length > 0 &&

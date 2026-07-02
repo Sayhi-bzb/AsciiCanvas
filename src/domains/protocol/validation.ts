@@ -70,6 +70,20 @@ const isStructuredTextStyleRange = (value: unknown) => {
   );
 };
 
+const isStructuredSplitBoxTreeNode = (value: unknown): boolean => {
+  if (!isObject(value)) return false;
+  if (value.type === "leaf") return typeof value.id === "string";
+  if (value.type !== "split") return false;
+  return (
+    typeof value.id === "string" &&
+    (value.axis === "horizontal" || value.axis === "vertical") &&
+    typeof value.ratio === "number" &&
+    Number.isFinite(value.ratio) &&
+    isStructuredSplitBoxTreeNode(value.first) &&
+    isStructuredSplitBoxTreeNode(value.second)
+  );
+};
+
 const isStructuredNode = (value: unknown): value is AsciiCanvasProtocolNodeV1 => {
   if (!isObject(value)) return false;
   if (typeof value.id !== "string") return false;
@@ -93,7 +107,8 @@ const isStructuredNode = (value: unknown): value is AsciiCanvasProtocolNodeV1 =>
       typeof value.topSplitRatio === "number" &&
       Number.isFinite(value.topSplitRatio) &&
       typeof value.bottomSplitRatio === "number" &&
-      Number.isFinite(value.bottomSplitRatio)
+      Number.isFinite(value.bottomSplitRatio) &&
+      (value.root === undefined || isStructuredSplitBoxTreeNode(value.root))
     );
   }
   if (value.type === "line") {

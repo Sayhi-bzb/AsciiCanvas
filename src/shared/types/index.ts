@@ -114,6 +114,20 @@ export interface StructuredBoxNode extends StructuredNodeBase {
   name?: string;
 }
 
+export type StructuredSplitBoxTreeNode =
+  | {
+      type: "leaf";
+      id: string;
+    }
+  | {
+      type: "split";
+      id: string;
+      axis: "horizontal" | "vertical";
+      ratio: number;
+      first: StructuredSplitBoxTreeNode;
+      second: StructuredSplitBoxTreeNode;
+    };
+
 export interface StructuredSplitBoxNode extends StructuredNodeBase {
   type: "splitBox";
   start: Point;
@@ -121,6 +135,7 @@ export interface StructuredSplitBoxNode extends StructuredNodeBase {
   verticalSplitRatio: number;
   topSplitRatio: number;
   bottomSplitRatio: number;
+  root?: StructuredSplitBoxTreeNode;
 }
 
 export interface StructuredLineNode extends StructuredNodeBase {

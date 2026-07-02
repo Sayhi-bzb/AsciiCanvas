@@ -29,7 +29,6 @@ const COMPONENT_BY_ID = new Map(
 
 const COMPONENT_ORDER = [
   "button",
-  "label",
   "badge",
   "switch",
   "alert",
@@ -40,16 +39,18 @@ const COMPONENT_ORDER = [
   "divider",
   "card",
   "textarea",
-  "select",
-  "link",
-  "listItem",
-  "field",
-  "formRow",
   "status",
   "accordion",
   "avatar",
   "breadcrumb",
   "calendar",
+  "barChart",
+  "lineChart",
+  "table",
+  "pagination",
+  "slider",
+  "progress",
+  "scrollArea",
 ] as const;
 
 export const STRUCTURED_COMPONENTS = COMPONENT_ORDER.map((id) => {

@@ -100,6 +100,7 @@ const cloneStructuredNode = (
         verticalSplitRatio: node.verticalSplitRatio,
         topSplitRatio: node.topSplitRatio,
         bottomSplitRatio: node.bottomSplitRatio,
+        ...(node.root ? { root: node.root } : {}),
         style,
       };
     case "line":

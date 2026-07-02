@@ -189,6 +189,7 @@ export const renderStructuredScene = (scene: StructuredNode[]) => {
         verticalSplitRatio: node.verticalSplitRatio,
         topSplitRatio: node.topSplitRatio,
         bottomSplitRatio: node.bottomSplitRatio,
+        root: node.root,
       });
       points.forEach((point) => {
         placeStyledCharInMap(

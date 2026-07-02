@@ -8,6 +8,7 @@ import type {
   StructuredTextStyleRange,
 } from "@/shared/types";
 import { createStructuredNodeId } from "@/shared/utils/structured";
+import { createDefaultSplitBoxRoot } from "@/shared/utils/shapes";
 import type {
   StructuredComponentFactory,
   StructuredTemplateBuildOptions,
@@ -127,6 +128,7 @@ export const createStructuredComponentFactory = (
     verticalSplitRatio: ratios.verticalSplitRatio,
     topSplitRatio: ratios.topSplitRatio,
     bottomSplitRatio: ratios.bottomSplitRatio,
+    root: createDefaultSplitBoxRoot(ratios),
     style,
   });
 

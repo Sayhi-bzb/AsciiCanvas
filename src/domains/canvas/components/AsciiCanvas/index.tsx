@@ -33,11 +33,14 @@ import {
 import { shouldIgnoreClipboardShortcut } from '@/shared/utils/dom-focus';
 import { gridCellRect } from '@/shared/metrics';
 import { GridManager } from '@/shared/utils/grid';
-import { findStructuredNodeIdAtPoint } from '@/domains/canvas/state/helpers/structuredNodeActions';
 import {
-  buildStructuredTemplatePreview,
+  findStructuredNodeHit,
+  isStructuredSplitBoxLineHandle,
+} from '@/domains/canvas/state/helpers/structuredBoxEditing';
+import {
   buildStructuredTemplateNodes,
   getActiveStructuredTemplateDragId,
+  getStructuredTemplatePreview,
   isStructuredTemplateId,
   setActiveStructuredTemplateDragId,
   STRUCTURED_TEMPLATE_MIME,
@@ -53,6 +56,11 @@ import type { ContextMenuEntry } from '@/domains/actions/core/types';
 
 const KEYBOARD_PAN_STEP = 48;
 
+type StructuredTemplatePreviewState = {
+  templateId: StructuredTemplateId;
+  position: Point;
+};
+
 interface AsciiCanvasProps {
   onUndo: () => void;
   onRedo: () => void;
@@ -66,10 +74,13 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isComposing = useRef(false);
   const [hoveredLink, setHoveredLink] = useState<CanvasLinkHit | null>(null);
-  const [structuredTemplatePreview, setStructuredTemplatePreview] = useState<{
-    templateId: StructuredTemplateId;
-    position: Point;
-  } | null>(null);
+  const [structuredTemplatePreview, setStructuredTemplatePreviewState] =
+    useState<StructuredTemplatePreviewState | null>(null);
+  const structuredTemplatePreviewRef =
+    useRef<StructuredTemplatePreviewState | null>(null);
+  const pendingStructuredTemplatePreviewRef =
+    useRef<StructuredTemplatePreviewState | null>(null);
+  const structuredTemplatePreviewRafRef = useRef<number | null>(null);
 
   const size = useSize(containerRef);
   const interactionStore = useCanvasStore(
@@ -103,11 +114,14 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
       selectedStructuredNodeIds: state.selectedStructuredNodeIds,
       setStructuredGridFocus: state.setStructuredGridFocus,
       setSelectedStructuredNodeIds: state.setSelectedStructuredNodeIds,
+      setSelectedStructuredSplitHandle: state.setSelectedStructuredSplitHandle,
       setEditingStructuredTextNodeId: state.setEditingStructuredTextNodeId,
       setStructuredTextSelection: state.setStructuredTextSelection,
       structuredTextSelection: state.structuredTextSelection,
       setStructuredTextColor: state.setStructuredTextColor,
       applyStructuredScene: state.applyStructuredScene,
+      previewStructuredScene: state.previewStructuredScene,
+      previewStructuredNodeMove: state.previewStructuredNodeMove,
       updateStructuredNode: state.updateStructuredNode,
       activeCanvasHasSavedViewport: state.activeCanvasHasSavedViewport,
     }))
@@ -137,6 +151,7 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
       structuredScene: state.structuredScene,
       selectedStructuredNodeIds: state.selectedStructuredNodeIds,
       selectedStructuredBoxId: state.selectedStructuredBoxId,
+      structuredContextPoint: state.structuredContextPoint,
       structuredGridFocus: state.structuredGridFocus,
       editingStructuredTextNodeId: state.editingStructuredTextNodeId,
       structuredTextSelection: state.structuredTextSelection,
@@ -168,6 +183,7 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
     setStructuredGridFocus,
     selectedStructuredNodeIds,
     setSelectedStructuredNodeIds,
+    setSelectedStructuredSplitHandle,
     setEditingStructuredTextNodeId,
     setStructuredTextSelection,
     structuredScene,
@@ -177,6 +193,7 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
     setHoveredGrid,
     getNextStructuredOrder,
     applyStructuredScene,
+    setStructuredContextPoint,
   } = useCanvasStore(
     useShallow((state) => ({
       textCursor: state.textCursor,
@@ -203,6 +220,7 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
       setStructuredGridFocus: state.setStructuredGridFocus,
       selectedStructuredNodeIds: state.selectedStructuredNodeIds,
       setSelectedStructuredNodeIds: state.setSelectedStructuredNodeIds,
+      setSelectedStructuredSplitHandle: state.setSelectedStructuredSplitHandle,
       setEditingStructuredTextNodeId: state.setEditingStructuredTextNodeId,
       setStructuredTextSelection: state.setStructuredTextSelection,
       structuredScene: state.structuredScene,
@@ -212,6 +230,7 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
       setHoveredGrid: state.setHoveredGrid,
       getNextStructuredOrder: state.getNextStructuredOrder,
       applyStructuredScene: state.applyStructuredScene,
+      setStructuredContextPoint: state.setStructuredContextPoint,
     }))
   );
 
@@ -246,7 +265,7 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
     zoom,
   ]);
 
-  const { draggingSelection, handleDoubleClick } = useCanvasInteraction(
+  const { draggingSelection, structuredMovePreview, handleDoubleClick } = useCanvasInteraction(
     interactionStore,
     containerRef,
     setHoveredLink
@@ -257,6 +276,7 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
     size,
     rendererStore,
     draggingSelection,
+    structuredMovePreview,
     hoveredLink
   );
 
@@ -401,6 +421,59 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
     }
   });
 
+  const cancelStructuredTemplatePreviewFrame = () => {
+    if (structuredTemplatePreviewRafRef.current === null) return;
+    window.cancelAnimationFrame(structuredTemplatePreviewRafRef.current);
+    structuredTemplatePreviewRafRef.current = null;
+  };
+
+  const commitStructuredTemplatePreview = (
+    preview: StructuredTemplatePreviewState | null
+  ) => {
+    pendingStructuredTemplatePreviewRef.current = preview;
+    structuredTemplatePreviewRef.current = preview;
+    setStructuredTemplatePreviewState((current) => {
+      if (
+        current?.templateId === preview?.templateId &&
+        current?.position.x === preview?.position.x &&
+        current?.position.y === preview?.position.y
+      ) {
+        return current;
+      }
+      return preview;
+    });
+  };
+
+  const scheduleStructuredTemplatePreview = (
+    preview: StructuredTemplatePreviewState
+  ) => {
+    const pending = pendingStructuredTemplatePreviewRef.current;
+    if (
+      pending?.templateId === preview.templateId &&
+      pending.position.x === preview.position.x &&
+      pending.position.y === preview.position.y
+    ) {
+      return;
+    }
+
+    pendingStructuredTemplatePreviewRef.current = preview;
+    if (structuredTemplatePreviewRafRef.current !== null) return;
+
+    structuredTemplatePreviewRafRef.current = window.requestAnimationFrame(() => {
+      structuredTemplatePreviewRafRef.current = null;
+      commitStructuredTemplatePreview(
+        pendingStructuredTemplatePreviewRef.current
+      );
+    });
+  };
+
+  const clearStructuredTemplatePreview = () => {
+    cancelStructuredTemplatePreviewFrame();
+    commitStructuredTemplatePreview(null);
+  };
+
+  useEffect(() => () => cancelStructuredTemplatePreviewFrame(), []);
+
   const textareaStyle: React.CSSProperties = useMemo(() => {
     if (!hasManagedTextareaTarget || !size) return { display: 'none' };
     const point = managedTextareaPoint ?? { x: 0, y: 0 };
@@ -437,13 +510,32 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
       offset.y,
       zoom
     );
-    const hitId = findStructuredNodeIdAtPoint(structuredScene, point);
-    if (!hitId) {
+    setStructuredContextPoint(point);
+
+    const hit = findStructuredNodeHit(structuredScene, point);
+    if (!hit) {
+      setSelectedStructuredSplitHandle(null);
       setStructuredGridFocus(point);
       return;
     }
-    if (!selectedStructuredNodeIds.includes(hitId)) {
-      setSelectedStructuredNodeIds([hitId]);
+
+    if (
+      hit.kind === 'splitBox' &&
+      hit.handle &&
+      isStructuredSplitBoxLineHandle(hit.handle)
+    ) {
+      setSelectedStructuredNodeIds([hit.node.id]);
+      setSelectedStructuredSplitHandle({ nodeId: hit.node.id, handle: hit.handle });
+      return;
+    }
+
+    setSelectedStructuredSplitHandle(null);
+    if (hit.kind === 'splitBox') {
+      setSelectedStructuredNodeIds([hit.node.id]);
+      return;
+    }
+    if (!selectedStructuredNodeIds.includes(hit.node.id)) {
+      setSelectedStructuredNodeIds([hit.node.id]);
     }
   };
 
@@ -491,16 +583,7 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
     const position = getStructuredTemplateDragPoint(event);
     if (!templateId || !position) return;
 
-    setStructuredTemplatePreview((preview) => {
-      if (
-        preview?.templateId === templateId &&
-        preview.position.x === position.x &&
-        preview.position.y === position.y
-      ) {
-        return preview;
-      }
-      return { templateId, position };
-    });
+    scheduleStructuredTemplatePreview({ templateId, position });
   };
 
   const handleDragLeave = (event: DragEvent<HTMLDivElement>) => {
@@ -509,26 +592,33 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
     if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) {
       return;
     }
-    setStructuredTemplatePreview(null);
+    clearStructuredTemplatePreview();
   };
 
   const handleDrop = (event: DragEvent<HTMLDivElement>) => {
     if (canvasMode !== 'structured') return;
-    const templateId = event.dataTransfer.getData(STRUCTURED_TEMPLATE_MIME);
-    if (!isStructuredTemplateId(templateId)) {
-      setStructuredTemplatePreview(null);
+    const templateId = getStructuredTemplateDragId(event.dataTransfer);
+    if (!templateId) {
+      clearStructuredTemplatePreview();
       setActiveStructuredTemplateDragId(null);
       return;
     }
 
     event.preventDefault();
+    const latestPreview =
+      pendingStructuredTemplatePreviewRef.current ??
+      structuredTemplatePreviewRef.current;
     const point =
-      structuredTemplatePreview?.templateId === templateId
-        ? structuredTemplatePreview.position
+      latestPreview?.templateId === templateId
+        ? latestPreview.position
         : getStructuredTemplateDragPoint(event);
-    if (!point) return;
+    if (!point) {
+      clearStructuredTemplatePreview();
+      setActiveStructuredTemplateDragId(null);
+      return;
+    }
 
-    setStructuredTemplatePreview(null);
+    clearStructuredTemplatePreview();
     setActiveStructuredTemplateDragId(null);
     const nodes = buildStructuredTemplateNodes(templateId, point, {
       brushColor,
@@ -555,7 +645,7 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
       ? gridCellRect(structuredTemplatePreview.position, { offset, zoom })
       : null;
   const structuredTemplatePreviewGrid = activeStructuredTemplatePreview
-    ? buildStructuredTemplatePreview(activeStructuredTemplatePreview.id)
+    ? getStructuredTemplatePreview(activeStructuredTemplatePreview.id)
     : null;
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

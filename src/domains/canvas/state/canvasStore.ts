@@ -97,6 +97,8 @@ export const useCanvasStore = create<CanvasState>()(
         structuredScene: [],
         selectedStructuredNodeIds: [],
         selectedStructuredBoxId: null,
+        selectedStructuredSplitHandle: null,
+        structuredContextPoint: null,
         structuredGridFocus: null,
         canvasBounds: null,
         animationTimeline: null,
@@ -150,6 +152,15 @@ export const useCanvasStore = create<CanvasState>()(
             selectedStructuredBoxId: state.selectedStructuredBoxId && normalizedScene.some((node) => node.id === state.selectedStructuredBoxId && node.type === "box")
               ? state.selectedStructuredBoxId
               : null,
+            selectedStructuredSplitHandle:
+              state.selectedStructuredSplitHandle &&
+              normalizedScene.some(
+                (node) =>
+                  node.id === state.selectedStructuredSplitHandle?.nodeId &&
+                  node.type === "splitBox"
+              )
+                ? state.selectedStructuredSplitHandle
+                : null,
             editingStructuredTextNodeId:
               state.editingStructuredTextNodeId &&
               normalizedScene.some((node) => node.id === state.editingStructuredTextNodeId && node.type === "text")
@@ -172,6 +183,17 @@ export const useCanvasStore = create<CanvasState>()(
             ),
           }));
         },
+        previewStructuredScene: (scene) => {
+          set({
+            structuredScene: scene,
+            grid: createMapFromEntries(sceneToGridEntries(scene)),
+          });
+        },
+        previewStructuredNodeMove: (scene, _previousNodes, _nextNodes) => {
+          set({
+            structuredScene: scene,
+          });
+        },
         getNextStructuredOrder: () => {
           const scene = get().structuredScene;
           if (scene.length === 0) return 1;
@@ -184,6 +206,8 @@ export const useCanvasStore = create<CanvasState>()(
         setBrushColor: (color) => set({ brushColor: color }),
         setCanvasColorPickerTarget: (target) =>
           set({ canvasColorPickerTarget: target }),
+        setStructuredContextPoint: (point) =>
+          set({ structuredContextPoint: point ? { ...point } : null }),
         setShowGrid: (show) => set({ showGrid: show }),
         setExportShowGrid: (show) => set({ exportShowGrid: show }),
         setHoveredGrid: (pos) => set({ hoveredGrid: pos }),
@@ -194,6 +218,8 @@ export const useCanvasStore = create<CanvasState>()(
               ? {
                   selectedStructuredNodeIds: [],
                   selectedStructuredBoxId: null,
+                  selectedStructuredSplitHandle: null,
+                  structuredContextPoint: null,
                   editingStructuredTextNodeId: null,
                   structuredTextSelection: null,
                   textCursor: null,
@@ -381,6 +407,8 @@ export const useCanvasStore = create<CanvasState>()(
           hState.structuredScene = runtime.nextScene;
           hState.selectedStructuredNodeIds = [];
           hState.selectedStructuredBoxId = null;
+          hState.selectedStructuredSplitHandle = null;
+          hState.structuredContextPoint = null;
           hState.grid = createMapFromEntries(runtime.nextGridEntries);
           hState.tool = runtime.nextTool;
           hState.canvasBounds = runtime.nextBounds;

@@ -16,6 +16,7 @@ import type {
 } from "@/shared/types";
 import type { StructuredTextSelection } from "@/shared/utils/structuredTextRanges";
 import type { GridAddress, GridEditMode, GridRange, GridSelectionState } from "./helpers/staticGridModel";
+import type { StructuredSplitBoxHandle } from "./helpers/structuredBoxEditing";
 import type { CanvasHistoryMode } from "@/shared/lib/yjs-setup";
 
 export type CanvasColorPickerTarget = "char" | "bg";
@@ -52,6 +53,14 @@ export interface DrawingSlice {
   ) => void;
   setSelectedStructuredNodeIds: (ids: string[]) => void;
   setSelectedStructuredBoxId: (id: string | null) => void;
+  setSelectedStructuredSplitHandle: (
+    handle: { nodeId: string; handle: StructuredSplitBoxHandle } | null
+  ) => void;
+  splitStructuredSplitBoxLeaf: (
+    nodeId: string,
+    point: Point,
+    axis: "horizontal" | "vertical"
+  ) => boolean;
   updateStructuredNode: (
     id: string,
     updater: (node: StructuredNode) => StructuredNode,
@@ -188,6 +197,11 @@ export type CanvasState = {
   structuredScene: StructuredNode[];
   selectedStructuredNodeIds: string[];
   selectedStructuredBoxId: string | null;
+  selectedStructuredSplitHandle: {
+    nodeId: string;
+    handle: StructuredSplitBoxHandle;
+  } | null;
+  structuredContextPoint: Point | null;
   structuredGridFocus: Point | null;
   canvasBounds: AnimationCanvasSize | null;
   animationTimeline: AnimationTimeline | null;
@@ -207,10 +221,17 @@ export type CanvasState = {
     scene: StructuredNode[],
     history?: CanvasHistoryMode | boolean
   ) => void;
+  previewStructuredScene: (scene: StructuredNode[]) => void;
+  previewStructuredNodeMove: (
+    scene: StructuredNode[],
+    previousNodes: StructuredNode[],
+    nextNodes: StructuredNode[]
+  ) => void;
   getNextStructuredOrder: () => number;
   setBrushChar: (char: string) => void;
   setBrushColor: (color: string) => void;
   setCanvasColorPickerTarget: (target: CanvasColorPickerTarget | null) => void;
+  setStructuredContextPoint: (point: Point | null) => void;
   setShowGrid: (show: boolean) => void;
   setExportShowGrid: (show: boolean) => void;
   setHoveredGrid: (pos: Point | null) => void;

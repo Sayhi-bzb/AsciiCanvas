@@ -10,7 +10,6 @@ import type {
 
 export type StructuredTemplateId =
   | "button"
-  | "label"
   | "badge"
   | "input"
   | "checkbox"
@@ -18,11 +17,6 @@ export type StructuredTemplateId =
   | "divider"
   | "card"
   | "textarea"
-  | "select"
-  | "link"
-  | "listItem"
-  | "field"
-  | "formRow"
   | "status"
   | "accordion"
   | "switch"
@@ -30,7 +24,14 @@ export type StructuredTemplateId =
   | "tabs"
   | "avatar"
   | "breadcrumb"
-  | "calendar";
+  | "calendar"
+  | "barChart"
+  | "lineChart"
+  | "table"
+  | "pagination"
+  | "slider"
+  | "progress"
+  | "scrollArea";
 
 export type StructuredTemplateBuildOptions = {
   brushColor: string;

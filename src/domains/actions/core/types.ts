@@ -20,7 +20,10 @@ export type EditorActionId =
   | "structured-bring-to-front"
   | "structured-send-to-back"
   | "structured-duplicate"
-  | "structured-copy-hierarchy";
+  | "structured-copy-hierarchy"
+  | "structured-split-horizontal"
+  | "structured-split-vertical"
+  | "structured-delete-divider";
 
 // Toolbar Actions
 export type ToolbarActionId =

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   drawCanvasColorPickerAnchor,
+  getStructuredSplitBoxActiveLeafBounds,
   getStructuredLineHandlePoints,
   getStructuredRectHandlePoints,
 } from "@/domains/canvas/components/AsciiCanvas/hooks/useCanvasRenderer";
@@ -38,6 +39,29 @@ describe("useCanvasRenderer structured rect handles", () => {
       { handle: "start", point: "start" },
       { handle: "end", point: "end" },
     ]);
+  });
+
+  it("resolves the active split box leaf under a grid point", () => {
+    const splitBox = {
+      id: "split-1",
+      type: "splitBox" as const,
+      order: 1,
+      start: { x: 0, y: 0 },
+      end: { x: 10, y: 8 },
+      verticalSplitRatio: 0.36,
+      topSplitRatio: 0.25,
+      bottomSplitRatio: 0.75,
+      style: { color: "#000000" },
+    };
+
+    expect(getStructuredSplitBoxActiveLeafBounds(splitBox, { x: 2, y: 4 })).toEqual({
+      x: 0,
+      y: 2,
+      width: 5,
+      height: 5,
+    });
+    expect(getStructuredSplitBoxActiveLeafBounds(splitBox, { x: 20, y: 20 })).toBeNull();
+    expect(getStructuredSplitBoxActiveLeafBounds(splitBox, null)).toBeNull();
   });
 
   it("draws a high-contrast canvas color picker cell anchor", () => {

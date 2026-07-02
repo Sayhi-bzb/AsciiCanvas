@@ -2,6 +2,7 @@ import type {
   AnimationCanvasSize,
   CanvasMode,
   Point,
+  StructuredSplitBoxTreeNode,
   StructuredTextStyleRange,
   TextAttributes,
 } from "@/shared/types";
@@ -61,6 +62,7 @@ export interface AsciiCanvasProtocolSplitBoxNodeV1
   verticalSplitRatio: number;
   topSplitRatio: number;
   bottomSplitRatio: number;
+  root?: StructuredSplitBoxTreeNode;
 }
 
 export interface AsciiCanvasProtocolLineNodeV1

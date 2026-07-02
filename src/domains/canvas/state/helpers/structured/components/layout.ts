@@ -48,4 +48,33 @@ export const LAYOUT_COMPONENTS: StructuredComponentDefinition[] = [
       }),
     ],
   },
+  {
+    id: "pagination",
+    label: "Pagination",
+    build: ({ createText }) => [
+      createText("< Previous  1  2  3    Next >", { x: 0, y: 0 }, 0, [
+        {
+          start: 17,
+          end: 20,
+          style: {
+            color: "#1d4ed8",
+            bgColor: "#dbeafe",
+            attrs: { bold: true },
+          },
+        },
+      ]),
+    ],
+  },
+  {
+    id: "scrollArea",
+    label: "Scroll area",
+    build: ({ createText }) => [
+      createText("ScrollArea │", { x: 0, y: 0 }, 0),
+      createText("├─Item     █", { x: 0, y: 1 }, 1, [
+        { start: 10, end: 11, style: { color: "#3b82f6" } },
+      ]),
+      createText("├─Item     │", { x: 0, y: 2 }, 2),
+      createText("└─Item     │", { x: 0, y: 3 }, 3),
+    ],
+  },
 ];

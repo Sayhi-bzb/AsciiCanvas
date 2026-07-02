@@ -5,8 +5,8 @@ import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
 import { SidebarProvider } from "@/shared/ui/sidebar";
 import {
   STRUCTURED_TEMPLATES,
-  buildStructuredTemplatePreview,
   getActiveStructuredTemplateDragId,
+  getStructuredTemplatePreview,
   setActiveStructuredTemplateDragId,
 } from "@/domains/canvas/state/helpers/structuredTemplates";
 
@@ -94,7 +94,7 @@ describe("SidebarRight structured templates", () => {
       const preview = item.querySelector(
         '[data-testid="structured-template-preview-grid"]'
       );
-      const expectedPreview = buildStructuredTemplatePreview(template.id);
+      const expectedPreview = getStructuredTemplatePreview(template.id);
       expect(viewport).toHaveClass("h-12", "w-24", "items-center", "overflow-hidden");
       expect(preview?.tagName).toBe("CANVAS");
       expect(preview).toHaveStyle({
@@ -267,5 +267,11 @@ describe("SidebarRight structured templates", () => {
 
     fireEvent.dragEnd(button);
     expect(getActiveStructuredTemplateDragId()).toBeNull();
+  });
+
+  it("reuses cached structured template preview data", () => {
+    expect(getStructuredTemplatePreview("button")).toBe(
+      getStructuredTemplatePreview("button")
+    );
   });
 });

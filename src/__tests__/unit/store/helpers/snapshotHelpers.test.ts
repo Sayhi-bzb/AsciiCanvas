@@ -86,7 +86,8 @@ describe('snapshotHelpers', () => {
       };
       const cloned = cloneStructuredNode(node) as StructuredSplitBoxNode;
 
-      expect(cloned).toEqual(node);
+      expect(cloned).toMatchObject(node);
+      expect(cloned.root).toBeDefined();
       expect(cloned.start).not.toBe(node.start);
       expect(cloned.end).not.toBe(node.end);
       expect(cloned.verticalSplitRatio).toBe(0.36);

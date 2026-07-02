@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { runAction } from "@/domains/actions/core";
 import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
+import {
+  getStructuredSplitBoxGuides,
+  getStructuredSplitBoxHandleAtPoint,
+} from "@/domains/canvas/state/helpers/structuredBoxEditing";
 import { applyFreeformSnapshotToYMaps } from "@/domains/canvas/state/helpers/gridHelpers";
 import { DEFAULT_SESSION_ID } from "@/domains/canvas/state/helpers/storeUtils";
 
@@ -362,6 +367,61 @@ describe("canvas session viewport state", () => {
     expect(state.grid.get("0,0")).toMatchObject({ char: "╭", color: "#334155" });
     expect(state.grid.get("4,1")).toMatchObject({ char: "┬", color: "#334155" });
     expect(state.grid.get("4,3")).toMatchObject({ char: "┴", color: "#334155" });
+  });
+
+  it("deletes a selected structured split box split line without deleting the node", () => {
+    useCanvasStore.getState().createCanvasSession("structured");
+    useCanvasStore.setState({ brushColor: "#334155" });
+
+    useCanvasStore
+      .getState()
+      .commitStructuredShape("splitBox", { x: 0, y: 0 }, { x: 10, y: 4 });
+
+    const splitBox = useCanvasStore.getState().structuredScene[0];
+    expect(splitBox.type).toBe("splitBox");
+    if (splitBox.type !== "splitBox") return;
+
+    useCanvasStore.getState().setSelectedStructuredSplitHandle({
+      nodeId: splitBox.id,
+      handle: "split:split-middle",
+    });
+    useCanvasStore.getState().deleteSelection();
+
+    const state = useCanvasStore.getState();
+    expect(state.structuredScene).toHaveLength(1);
+    expect(state.structuredScene[0].type).toBe("splitBox");
+    expect(state.selectedStructuredSplitHandle).toBeNull();
+    const nextSplitBox = state.structuredScene[0];
+    if (nextSplitBox.type !== "splitBox") return;
+    expect(getStructuredSplitBoxHandleAtPoint(nextSplitBox, { x: 4, y: 2 })).toBeNull();
+  });
+
+  it("splits a structured split box leaf from the context menu action", () => {
+    useCanvasStore.getState().createCanvasSession("structured");
+    useCanvasStore.setState({ brushColor: "#334155" });
+
+    useCanvasStore
+      .getState()
+      .commitStructuredShape("splitBox", { x: 0, y: 0 }, { x: 10, y: 8 });
+
+    const splitBox = useCanvasStore.getState().structuredScene[0];
+    expect(splitBox.type).toBe("splitBox");
+    if (splitBox.type !== "splitBox") return;
+
+    useCanvasStore.getState().setSelectedStructuredNodeIds([splitBox.id]);
+    useCanvasStore.getState().setStructuredContextPoint({ x: 2, y: 4 });
+    const result = runAction("structured-split-horizontal", {
+      source: "context-menu",
+    });
+
+    expect(result.succeeded).toBe(true);
+    const nextSplitBox = useCanvasStore.getState().structuredScene[0];
+    expect(nextSplitBox.type).toBe("splitBox");
+    if (nextSplitBox.type !== "splitBox") return;
+    expect(getStructuredSplitBoxGuides(nextSplitBox).handles).toHaveLength(4);
+    expect(useCanvasStore.getState().selectedStructuredNodeIds).toEqual([
+      splitBox.id,
+    ]);
   });
 
   it("fills freeform background rectangles without erasing existing cells", () => {

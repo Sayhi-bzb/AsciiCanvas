@@ -18,6 +18,21 @@ const handleDoubleClickMock = vi.fn();
 const stripNodeIds = <T extends { id: string }>(nodes: T[]) =>
   nodes.map(({ id: _id, ...node }) => node);
 
+const waitForAnimationFrame = () =>
+  new Promise<void>((resolve) => {
+    window.requestAnimationFrame(() => resolve());
+  });
+
+const fireDragOverAndFlush = async (
+  root: HTMLElement,
+  event: Event
+) => {
+  await act(async () => {
+    fireEvent(root, event);
+    await waitForAnimationFrame();
+  });
+};
+
 vi.mock("@/domains/canvas/components/AsciiCanvas/hooks/useCanvasInteraction", () => ({
   useCanvasInteraction: vi.fn(() => ({
     bind: {},
@@ -321,7 +336,7 @@ describe("AsciiCanvas focus management", () => {
     expect(state.textCursor).toEqual({ x: 5, y: 4 });
   });
 
-  it("drops a structured button template onto the canvas", () => {
+  it("drops a structured button template onto the canvas", async () => {
     useCanvasStore.setState({
       canvasMode: "structured",
       offset: { x: 0, y: 0 },
@@ -356,9 +371,7 @@ describe("AsciiCanvas focus management", () => {
       clientY: { value: 38 },
     });
 
-    act(() => {
-      fireEvent(root, dragOverEvent);
-    });
+    await fireDragOverAndFlush(root, dragOverEvent);
 
     const preview = screen.getByTestId("structured-template-preview");
     expect(preview).toHaveStyle({
@@ -400,7 +413,7 @@ describe("AsciiCanvas focus management", () => {
     expect(state.structuredGridFocus).toBeNull();
   });
 
-  it("drops a structured badge template onto the canvas", () => {
+  it("drops a structured badge template onto the canvas", async () => {
     useCanvasStore.setState({
       canvasMode: "structured",
       offset: { x: 0, y: 0 },
@@ -434,9 +447,7 @@ describe("AsciiCanvas focus management", () => {
       clientY: { value: 57 },
     });
 
-    act(() => {
-      fireEvent(root, dragOverEvent);
-    });
+    await fireDragOverAndFlush(root, dragOverEvent);
 
     const preview = screen.getByTestId("structured-template-preview");
     expect(preview).toHaveStyle({
@@ -469,7 +480,7 @@ describe("AsciiCanvas focus management", () => {
     );
   });
 
-  it("drops a structured field template onto the canvas", () => {
+  it("drops a structured textarea template onto the canvas", async () => {
     useCanvasStore.setState({
       canvasMode: "structured",
       offset: { x: 0, y: 0 },
@@ -483,7 +494,7 @@ describe("AsciiCanvas focus management", () => {
       types: [STRUCTURED_TEMPLATE_MIME],
       dropEffect: "none",
       getData: vi.fn((type: string) =>
-        type === STRUCTURED_TEMPLATE_MIME ? "field" : ""
+        type === STRUCTURED_TEMPLATE_MIME ? "textarea" : ""
       ),
     };
     const { container } = render(
@@ -503,22 +514,20 @@ describe("AsciiCanvas focus management", () => {
       clientY: { value: 38 },
     });
 
-    act(() => {
-      fireEvent(root, dragOverEvent);
-    });
+    await fireDragOverAndFlush(root, dragOverEvent);
 
     const preview = screen.getByTestId("structured-template-preview");
     expect(preview).toHaveStyle({
       left: "18px",
       top: "38px",
-      width: "144px",
-      height: "76px",
+      width: "162px",
+      height: "95px",
     });
     const previewGrid = preview.querySelector(
       '[data-testid="structured-template-preview-grid"]'
     );
     expect(previewGrid?.tagName).toBe("CANVAS");
-    expect(previewGrid).toHaveStyle({ width: "144px", height: "76px" });
+    expect(previewGrid).toHaveStyle({ width: "162px", height: "95px" });
 
     act(() => {
       fireEvent(root, dropEvent);
@@ -526,7 +535,7 @@ describe("AsciiCanvas focus management", () => {
 
     const state = useCanvasStore.getState();
     const expectedNodes = buildStructuredTemplateNodes(
-      "field",
+      "textarea",
       { x: 2, y: 2 },
       { brushColor: "#000000", startOrder: 1 }
     );
@@ -539,7 +548,7 @@ describe("AsciiCanvas focus management", () => {
     );
   });
 
-  it("uses the active dragged template when dragover cannot read custom data", () => {
+  it("uses the active dragged template when dragover cannot read custom data", async () => {
     useCanvasStore.setState({
       canvasMode: "structured",
       offset: { x: 0, y: 0 },
@@ -547,7 +556,7 @@ describe("AsciiCanvas focus management", () => {
       structuredScene: [],
       selectedStructuredNodeIds: [],
     });
-    setActiveStructuredTemplateDragId("label");
+    setActiveStructuredTemplateDragId("badge");
 
     const dataTransfer = {
       types: [STRUCTURED_TEMPLATE_MIME],
@@ -565,15 +574,13 @@ describe("AsciiCanvas focus management", () => {
       clientY: { value: 76 },
     });
 
-    act(() => {
-      fireEvent(root, dragOverEvent);
-    });
+    await fireDragOverAndFlush(root, dragOverEvent);
 
     const preview = screen.getByTestId("structured-template-preview");
     expect(preview).toHaveStyle({
       left: "36px",
       top: "76px",
-      width: "45px",
+      width: "81px",
       height: "19px",
     });
     expect(preview.style.backgroundColor).toBe("");
@@ -581,6 +588,106 @@ describe("AsciiCanvas focus management", () => {
       '[data-testid="structured-template-preview-grid"]'
     );
     expect(previewGrid?.tagName).toBe("CANVAS");
-    expect(previewGrid).toHaveStyle({ width: "45px", height: "19px" });
+    expect(previewGrid).toHaveStyle({ width: "81px", height: "19px" });
+  });
+
+  it("coalesces structured template dragover previews to the latest frame position", async () => {
+    useCanvasStore.setState({
+      canvasMode: "structured",
+      offset: { x: 0, y: 0 },
+      zoom: 1,
+      structuredScene: [],
+      selectedStructuredNodeIds: [],
+    });
+
+    const dataTransfer = {
+      types: [STRUCTURED_TEMPLATE_MIME],
+      dropEffect: "none",
+      getData: vi.fn((type: string) =>
+        type === STRUCTURED_TEMPLATE_MIME ? "button" : ""
+      ),
+    };
+    const { container } = render(
+      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+    );
+    const root = container.firstElementChild as HTMLDivElement;
+    const firstDragOver = createEvent.dragOver(root);
+    Object.defineProperties(firstDragOver, {
+      dataTransfer: { value: dataTransfer },
+      clientX: { value: 18 },
+      clientY: { value: 38 },
+    });
+    const secondDragOver = createEvent.dragOver(root);
+    Object.defineProperties(secondDragOver, {
+      dataTransfer: { value: dataTransfer },
+      clientX: { value: 54 },
+      clientY: { value: 76 },
+    });
+
+    act(() => {
+      fireEvent(root, firstDragOver);
+      fireEvent(root, secondDragOver);
+    });
+    expect(screen.queryByTestId("structured-template-preview")).not.toBeInTheDocument();
+
+    await act(async () => {
+      await waitForAnimationFrame();
+    });
+
+    expect(screen.getByTestId("structured-template-preview")).toHaveStyle({
+      left: "54px",
+      top: "76px",
+    });
+  });
+
+  it("drops at the latest dragover point even before the preview frame flushes", () => {
+    useCanvasStore.setState({
+      canvasMode: "structured",
+      offset: { x: 0, y: 0 },
+      zoom: 1,
+      brushColor: "#334155",
+      structuredScene: [],
+      selectedStructuredNodeIds: [],
+    });
+
+    const dataTransfer = {
+      types: [STRUCTURED_TEMPLATE_MIME],
+      dropEffect: "none",
+      getData: vi.fn((type: string) =>
+        type === STRUCTURED_TEMPLATE_MIME ? "badge" : ""
+      ),
+    };
+    const { container } = render(
+      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+    );
+    const root = container.firstElementChild as HTMLDivElement;
+    const dragOverEvent = createEvent.dragOver(root);
+    Object.defineProperties(dragOverEvent, {
+      dataTransfer: { value: dataTransfer },
+      clientX: { value: 54 },
+      clientY: { value: 76 },
+    });
+    const dropEvent = createEvent.drop(root);
+    Object.defineProperties(dropEvent, {
+      dataTransfer: { value: dataTransfer },
+      clientX: { value: 18 },
+      clientY: { value: 38 },
+    });
+
+    act(() => {
+      fireEvent(root, dragOverEvent);
+      fireEvent(root, dropEvent);
+    });
+
+    const state = useCanvasStore.getState();
+    const expectedNodes = buildStructuredTemplateNodes(
+      "badge",
+      { x: 6, y: 4 },
+      { brushColor: "#334155", startOrder: 1 }
+    );
+    expect(screen.queryByTestId("structured-template-preview")).not.toBeInTheDocument();
+    expect(stripNodeIds(state.structuredScene)).toEqual(
+      stripNodeIds(expectedNodes)
+    );
   });
 });

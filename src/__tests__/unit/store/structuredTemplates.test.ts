@@ -20,7 +20,6 @@ describe("structuredTemplates", () => {
   it("registers the basic structured templates", () => {
     expect(STRUCTURED_TEMPLATES.map((template) => template.id)).toEqual([
       "button",
-      "label",
       "badge",
       "switch",
       "alert",
@@ -31,16 +30,18 @@ describe("structuredTemplates", () => {
       "divider",
       "card",
       "textarea",
-      "select",
-      "link",
-      "listItem",
-      "field",
-      "formRow",
       "status",
       "accordion",
       "avatar",
       "breadcrumb",
       "calendar",
+      "barChart",
+      "lineChart",
+      "table",
+      "pagination",
+      "slider",
+      "progress",
+      "scrollArea",
     ]);
   });
 
@@ -51,8 +52,8 @@ describe("structuredTemplates", () => {
   });
 
   it("tracks the active structured template drag id", () => {
-    setActiveStructuredTemplateDragId("label");
-    expect(getActiveStructuredTemplateDragId()).toBe("label");
+    setActiveStructuredTemplateDragId("button");
+    expect(getActiveStructuredTemplateDragId()).toBe("button");
     setActiveStructuredTemplateDragId(null);
     expect(getActiveStructuredTemplateDragId()).toBeNull();
   });
@@ -78,12 +79,6 @@ describe("structuredTemplates", () => {
   });
 
   it("builds text-only atom templates", () => {
-    expect(build("label")[0]).toMatchObject({
-      type: "text",
-      position: { x: 4, y: 7 },
-      text: "Label",
-      style: { color: "#000000" },
-    });
     expect(build("checkbox")).toMatchObject([
       {
         type: "text",
@@ -118,14 +113,6 @@ describe("structuredTemplates", () => {
         text: "󰄰 radio 3",
       },
     ]);
-    expect(build("link")[0]).toMatchObject({
-      type: "text",
-      text: "Link ->",
-    });
-    expect(build("listItem")[0]).toMatchObject({
-      type: "text",
-      text: "- Item",
-    });
   });
 
   it("builds a badge template without following the brush color", () => {
@@ -284,73 +271,38 @@ describe("structuredTemplates", () => {
   it("builds form atom layout templates", () => {
     expect(build("textarea")).toMatchObject([
       {
-        type: "box",
-        start: { x: 4, y: 7 },
-        end: { x: 21, y: 11 },
+        type: "bg",
+        order: 13,
+        start: { x: 4, y: 10 },
+        end: { x: 29, y: 10 },
+        style: { color: "#000000", bgColor: "#eff6ff" },
       },
       {
         type: "text",
-        position: { x: 6, y: 8 },
-        text: "Multiline",
-      },
-      {
-        type: "text",
-        position: { x: 6, y: 9 },
-        text: "text...",
-      },
-    ]);
-
-    expect(build("select")).toMatchObject([
-      {
-        type: "box",
-        start: { x: 4, y: 7 },
-        end: { x: 17, y: 9 },
-      },
-      {
-        type: "text",
-        position: { x: 6, y: 8 },
-        text: "Option",
-      },
-      {
-        type: "text",
-        position: { x: 15, y: 8 },
-        text: "v",
-      },
-    ]);
-
-    expect(build("field")).toMatchObject([
-      {
-        type: "text",
+        order: 10,
         position: { x: 4, y: 7 },
-        text: "Label",
-      },
-      {
-        type: "box",
-        start: { x: 4, y: 8 },
-        end: { x: 19, y: 10 },
+        text: "TextArea                 █",
+        styleRanges: [{ start: 25, end: 26, style: { color: "#3b82f6" } }],
       },
       {
         type: "text",
-        position: { x: 6, y: 9 },
-        text: "Value",
-      },
-    ]);
-
-    expect(build("formRow")).toMatchObject([
-      {
-        type: "text",
+        order: 11,
         position: { x: 4, y: 8 },
-        text: "Label",
-      },
-      {
-        type: "box",
-        start: { x: 12, y: 7 },
-        end: { x: 29, y: 9 },
+        text: "                         │",
       },
       {
         type: "text",
-        position: { x: 14, y: 8 },
-        text: "Value",
+        order: 12,
+        position: { x: 4, y: 9 },
+        text: "Press Ctrl+S to save...  │",
+        styleRanges: [{ start: 0, end: 23, style: { color: "#6b7280" } }],
+      },
+      {
+        type: "text",
+        order: 14,
+        position: { x: 4, y: 10 },
+        text: "󰦨 UTF-8  󰚰 Ln 2, Col 44   ",
+        style: { color: "#2563eb" },
       },
     ]);
   });
@@ -421,11 +373,6 @@ describe("structuredTemplates", () => {
   });
 
   it("builds previews from each template node structure", () => {
-    const labelPreview = buildStructuredTemplatePreview("label");
-    expect(labelPreview).toMatchObject({ width: 5, height: 1 });
-    expect(labelPreview.rows[0].map((cell) => cell.char).join("")).toBe("Label");
-    expect(labelPreview.rows[0].some((cell) => cell.bgColor)).toBe(false);
-
     const buttonPreview = buildStructuredTemplatePreview("button");
     expect(buttonPreview).toMatchObject({ width: 8, height: 1 });
     expect(buttonPreview.rows[0].map((cell) => cell.char).join("")).toBe(
@@ -502,31 +449,22 @@ describe("structuredTemplates", () => {
     );
 
     const textareaPreview = buildStructuredTemplatePreview("textarea");
-    expect(textareaPreview).toMatchObject({ width: 18, height: 5 });
-    expect(textareaPreview.rows[1].map((cell) => cell.char).join("")).toContain(
-      "Multiline"
+    expect(textareaPreview).toMatchObject({ width: 26, height: 4 });
+    expect(
+      textareaPreview.rows.map((row) => row.map((cell) => cell.char).join(""))
+    ).toEqual([
+      "TextArea                 █",
+      "                         │",
+      "Press Ctrl+S to save...  │",
+      "󰦨 UTF-8  󰚰 Ln 2, Col 44   ",
+    ]);
+    expect(textareaPreview.rows[0][25].color).toBe("#3b82f6");
+    expect(textareaPreview.rows[2][0].color).toBe("#6b7280");
+    expect(textareaPreview.rows[2][25].color).toBe("#000000");
+    expect(textareaPreview.rows[3].every((cell) => cell.bgColor === "#eff6ff")).toBe(
+      true
     );
-    expect(textareaPreview.rows[2].map((cell) => cell.char).join("")).toContain(
-      "text..."
-    );
-
-    const selectPreview = buildStructuredTemplatePreview("select");
-    expect(selectPreview).toMatchObject({ width: 14, height: 3 });
-    expect(selectPreview.rows[1].map((cell) => cell.char).join("")).toContain(
-      "Option"
-    );
-    expect(selectPreview.rows[1].map((cell) => cell.char).join("")).toContain(
-      "v"
-    );
-
-    const fieldPreview = buildStructuredTemplatePreview("field");
-    expect(fieldPreview).toMatchObject({ width: 16, height: 4 });
-    expect(fieldPreview.rows[0].map((cell) => cell.char).join("")).toContain(
-      "Label"
-    );
-    expect(fieldPreview.rows[2].map((cell) => cell.char).join("")).toContain(
-      "Value"
-    );
+    expect(textareaPreview.rows[3][0].color).toBe("#2563eb");
 
     const statusPreview = buildStructuredTemplatePreview("status");
     expect(statusPreview).toMatchObject({ width: 9, height: 4 });
@@ -593,6 +531,109 @@ describe("structuredTemplates", () => {
     expect(calendarPreview.rows[6][23]).toMatchObject({
       color: "#9ca3af",
     });
+  });
+
+  it("builds chart and data display components from demo surfaces", () => {
+    expect(build("barChart").slice(0, 2)).toMatchObject([
+      {
+        type: "text",
+        position: { x: 4, y: 7 },
+        text: "│     █       ",
+        style: { color: "#1f2937" },
+        styleRanges: [{ start: 6, end: 7, style: { color: "#3b82f6" } }],
+      },
+      {
+        type: "text",
+        position: { x: 4, y: 8 },
+        text: "├ ▄   █   ▆   ",
+      },
+    ]);
+
+    const barPreview = buildStructuredTemplatePreview("barChart");
+    expect(
+      barPreview.rows.map((row) => row.map((cell) => cell.char).join(""))
+    ).toEqual([
+      "│     █       ",
+      "├ ▄   █   ▆   ",
+      "│ █ ▇ █ ▃ █ █ ",
+      "└─┴─┴─┴─┴─┴─┴─",
+    ]);
+    expect(barPreview.rows[0][6].color).toBe("#3b82f6");
+
+    const linePreview = buildStructuredTemplatePreview("lineChart");
+    expect(linePreview.rows.map((row) => row.map((cell) => cell.char).join(""))).toEqual([
+      "├         ╭─ ",
+      "│   ╭─╮   │  ",
+      "├ ──╯ │ ╭─╯  ",
+      "│     ╰─╯    ",
+      "└─┴─┴─┴─┴─┴─┴",
+    ]);
+    expect(linePreview.rows[0][10].color).toBe("#ef4444");
+
+    const tableNodes = build("table");
+    expect(tableNodes.slice(0, 2)).toMatchObject([
+      {
+        type: "bg",
+        start: { x: 4, y: 7 },
+        end: { x: 36, y: 7 },
+        style: { color: "#000000", bgColor: "#1f2937" },
+      },
+      {
+        type: "text",
+        position: { x: 4, y: 7 },
+        text: " TableCaption                    ",
+        style: { color: "#ffffff" },
+      },
+    ]);
+
+    const tablePreview = buildStructuredTemplatePreview("table");
+    expect(tablePreview).toMatchObject({ width: 33, height: 6 });
+    expect(
+      tablePreview.rows[0].every((cell) => cell.bgColor === "#1f2937")
+    ).toBe(true);
+    expect(
+      tablePreview.rows[2].every((cell) => cell.bgColor === "#d1d5db")
+    ).toBe(true);
+    expect(tablePreview.rows[0].map((cell) => cell.char).join("")).toContain(
+      "TableCaption"
+    );
+
+    const progressPreview = buildStructuredTemplatePreview("progress");
+    expect(progressPreview.rows[0].map((cell) => cell.char).join("")).toBe(
+      "             70%"
+    );
+    expect(
+      progressPreview.rows[0]
+        .slice(0, 9)
+        .every((cell) => cell.bgColor === "#3b82f6")
+    ).toBe(true);
+    expect(progressPreview.rows[0][13].color).toBe("#3b82f6");
+  });
+
+  it("builds compact interactive surface components", () => {
+    const paginationPreview = buildStructuredTemplatePreview("pagination");
+    expect(paginationPreview.rows[0].map((cell) => cell.char).join("")).toBe(
+      "< Previous  1  2  3    Next >"
+    );
+    expect(paginationPreview.rows[0][17]).toMatchObject({
+      color: "#1d4ed8",
+      bgColor: "#dbeafe",
+      attrs: { bold: true },
+    });
+
+    const sliderPreview = buildStructuredTemplatePreview("slider");
+    expect(sliderPreview.rows[0].map((cell) => cell.char).join("")).toBe(
+      "Slider ────●────────────●───"
+    );
+    expect(sliderPreview.rows[0][11].color).toBe("#3b82f6");
+
+    const scrollAreaPreview = buildStructuredTemplatePreview("scrollArea");
+    expect(
+      scrollAreaPreview.rows.map((row) =>
+        row.map((cell) => cell.char).join("")
+      )
+    ).toEqual(["ScrollArea │", "├─Item     █", "├─Item     │", "└─Item     │"]);
+    expect(scrollAreaPreview.rows[1][10].color).toBe("#3b82f6");
   });
 
   it("returns an empty scene for unsupported ids at runtime", () => {

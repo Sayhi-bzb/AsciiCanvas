@@ -28,6 +28,9 @@ import {
   resizeStructuredRect,
   resizeStructuredLine,
   resizeStructuredSplitBox,
+  getStructuredSplitBoxGuides,
+  getStructuredSplitBoxHandleId,
+  isStructuredSplitBoxLineHandle,
   type StructuredBoxResizeHandle,
   type StructuredLineResizeHandle,
   type StructuredSplitBoxHandle,
@@ -115,16 +118,18 @@ const getStructuredBoxCursor = (handle: StructuredBoxResizeHandle | null) => {
   }
 };
 
-const getStructuredSplitBoxCursor = (handle: StructuredSplitBoxHandle | null) => {
-  switch (handle) {
-    case "verticalSplit":
-      return "ew-resize";
-    case "topSplit":
-    case "bottomSplit":
-      return "ns-resize";
-    default:
-      return getStructuredBoxCursor(handle);
+const getStructuredSplitBoxCursor = (
+  node: Extract<StructuredNode, { type: "splitBox" }>,
+  handle: StructuredSplitBoxHandle | null
+) => {
+  if (handle && isStructuredSplitBoxLineHandle(handle)) {
+    const splitId = getStructuredSplitBoxHandleId(handle);
+    const split = getStructuredSplitBoxGuides(node).handles.find(
+      (candidate) => candidate.id === splitId
+    );
+    return split?.axis === "vertical" ? "ew-resize" : "ns-resize";
   }
+  return getStructuredBoxCursor(handle);
 };
 
 const stripStructuredResizeHandle = (
@@ -143,7 +148,7 @@ const getStructuredHitCursor = (
     case "text":
       return editingTextNodeId === hit.node.id ? "text" : "move";
     case "splitBox":
-      return getStructuredSplitBoxCursor(hit.handle);
+      return getStructuredSplitBoxCursor(hit.node, hit.handle);
     case "box":
     case "bg":
       return getStructuredBoxCursor(hit.handle);
@@ -193,6 +198,7 @@ export const useCanvasInteraction = (
     | "selectedStructuredNodeIds"
     | "setStructuredGridFocus"
     | "setSelectedStructuredNodeIds"
+    | "setSelectedStructuredSplitHandle"
     | "setEditingStructuredTextNodeId"
     | "setStructuredTextSelection"
     | "structuredTextSelection"
@@ -232,6 +238,7 @@ export const useCanvasInteraction = (
     selectedStructuredNodeIds,
     setStructuredGridFocus,
     setSelectedStructuredNodeIds,
+    setSelectedStructuredSplitHandle,
     setEditingStructuredTextNodeId,
     setStructuredTextSelection,
     structuredTextSelection,
@@ -368,6 +375,12 @@ export const useCanvasInteraction = (
   const isPanningRef = useRef(false);
   const queuedOffsetRef = useRef<Point>({ x: 0, y: 0 });
   const queuedOffsetRafRef = useRef<number | null>(null);
+  const queuedZoomRef = useRef<{
+    deltaZoom: number;
+    mouseX: number;
+    mouseY: number;
+  } | null>(null);
+  const queuedZoomRafRef = useRef<number | null>(null);
   const interactionModeRef = useRef<InteractionMode>("idle");
   const lineAxisRef = useRef<"vertical" | "horizontal" | null>(null);
   const structuredNodeDragRef = useRef<{
@@ -376,14 +389,29 @@ export const useCanvasInteraction = (
     selectedNodes: StructuredNode[];
     handle: StructuredBoxResizeHandle | StructuredSplitBoxHandle | StructuredLineResizeHandle | null;
   } | null>(null);
+  const queuedStructuredMoveRef = useRef<{
+    drag: NonNullable<typeof structuredNodeDragRef.current>;
+    delta: Point;
+    scene: StructuredNode[];
+  } | null>(null);
+  const lastStructuredMoveRef = useRef<{
+    drag: NonNullable<typeof structuredNodeDragRef.current>;
+    delta: Point;
+    scene: StructuredNode[];
+  } | null>(null);
+  const queuedStructuredMoveRafRef = useRef<number | null>(null);
   const structuredTextSelectionStartRef = useRef<{
     nodeId: string;
     offset: number;
   } | null>(null);
   const hoveredLinkCandidateRef = useRef<CanvasLinkHit | null>(null);
   const colorPickerClickRef = useRef(false);
-  const [draggingSelection, setDraggingSelection] =
+  const draggingSelectionRef = useRef<SelectionArea | null>(null);
+  const draggingSelectionRafRef = useRef<number | null>(null);
+  const [draggingSelection, setDraggingSelectionState] =
     useState<SelectionArea | null>(null);
+  const [structuredMovePreview, setStructuredMovePreview] =
+    useState<StructuredNode[] | null>(null);
 
   const updateLinkHover = (
     hit: CanvasLinkHit | null,
@@ -402,6 +430,7 @@ export const useCanvasInteraction = (
     lastPlacedGrid.current = null;
     lineAxisRef.current = null;
     structuredNodeDragRef.current = null;
+    lastStructuredMoveRef.current = null;
     structuredTextSelectionStartRef.current = null;
     interactionModeRef.current = "idle";
   };
@@ -470,6 +499,110 @@ export const useCanvasInteraction = (
     });
   };
 
+  const flushDraggingSelection = () => {
+    if (draggingSelectionRafRef.current !== null) {
+      window.cancelAnimationFrame(draggingSelectionRafRef.current);
+      draggingSelectionRafRef.current = null;
+    }
+    setDraggingSelectionState(draggingSelectionRef.current);
+  };
+
+  const setDraggingSelection = (
+    selection: SelectionArea | null,
+    options: { immediate?: boolean } = {}
+  ) => {
+    draggingSelectionRef.current = selection;
+    if (options.immediate) {
+      flushDraggingSelection();
+      return;
+    }
+    if (draggingSelectionRafRef.current !== null) return;
+    draggingSelectionRafRef.current = window.requestAnimationFrame(() => {
+      draggingSelectionRafRef.current = null;
+      setDraggingSelectionState(draggingSelectionRef.current);
+    });
+  };
+
+  const flushQueuedZoom = () => {
+    if (queuedZoomRafRef.current !== null) {
+      window.cancelAnimationFrame(queuedZoomRafRef.current);
+      queuedZoomRafRef.current = null;
+    }
+    const queued = queuedZoomRef.current;
+    if (!queued) return;
+    queuedZoomRef.current = null;
+
+    setZoom((currentZoom: number) => {
+      const nextZoom = Math.max(
+        MIN_ZOOM,
+        Math.min(MAX_ZOOM, currentZoom * queued.deltaZoom)
+      );
+      if (nextZoom === currentZoom) return currentZoom;
+      if (canvasMode !== "animation") {
+        const actualScale = nextZoom / currentZoom;
+        setOffset((prev: Point) => ({
+          x: queued.mouseX - (queued.mouseX - prev.x) * actualScale,
+          y: queued.mouseY - (queued.mouseY - prev.y) * actualScale,
+        }));
+      }
+      return nextZoom;
+    });
+  };
+
+  const queueZoomDelta = (deltaZoom: number, mouseX: number, mouseY: number) => {
+    if (deltaZoom <= 0 || deltaZoom === 1) return;
+    queuedZoomRef.current = queuedZoomRef.current
+      ? {
+          deltaZoom: queuedZoomRef.current.deltaZoom * deltaZoom,
+          mouseX,
+          mouseY,
+        }
+      : { deltaZoom, mouseX, mouseY };
+    if (queuedZoomRafRef.current !== null) return;
+    queuedZoomRafRef.current = window.requestAnimationFrame(() => {
+      queuedZoomRafRef.current = null;
+      flushQueuedZoom();
+    });
+  };
+
+  const flushQueuedStructuredMove = (commit = false) => {
+    if (queuedStructuredMoveRafRef.current !== null) {
+      window.cancelAnimationFrame(queuedStructuredMoveRafRef.current);
+      queuedStructuredMoveRafRef.current = null;
+    }
+    const queued = queuedStructuredMoveRef.current ?? (commit ? lastStructuredMoveRef.current : null);
+    if (!queued) return;
+    queuedStructuredMoveRef.current = null;
+    lastStructuredMoveRef.current = queued;
+    const movingNodes = new Map(
+      queued.drag.selectedNodes.map((node) => [
+        node.id,
+        moveStructuredNode(node, queued.delta),
+      ])
+    );
+    const nextScene = queued.scene.map((node) => movingNodes.get(node.id) ?? node);
+    if (commit) {
+      applyStructuredScene(nextScene, true);
+      setStructuredMovePreview(null);
+    } else {
+      setStructuredMovePreview(nextScene);
+    }
+  };
+
+  const queueStructuredMove = (
+    drag: NonNullable<typeof structuredNodeDragRef.current>,
+    delta: Point,
+    scene: StructuredNode[]
+  ) => {
+    queuedStructuredMoveRef.current = { drag, delta, scene };
+    lastStructuredMoveRef.current = queuedStructuredMoveRef.current;
+    if (queuedStructuredMoveRafRef.current !== null) return;
+    queuedStructuredMoveRafRef.current = window.requestAnimationFrame(() => {
+      queuedStructuredMoveRafRef.current = null;
+      flushQueuedStructuredMove();
+    });
+  };
+
   useEffect(() => {
     const syncModifierState = (event: KeyboardEvent) => {
       updateLinkHover(hoveredLinkCandidateRef.current, event);
@@ -486,6 +619,15 @@ export const useCanvasInteraction = (
     return () => {
       if (queuedOffsetRafRef.current !== null) {
         window.cancelAnimationFrame(queuedOffsetRafRef.current);
+      }
+      if (queuedZoomRafRef.current !== null) {
+        window.cancelAnimationFrame(queuedZoomRafRef.current);
+      }
+      if (draggingSelectionRafRef.current !== null) {
+        window.cancelAnimationFrame(draggingSelectionRafRef.current);
+      }
+      if (queuedStructuredMoveRafRef.current !== null) {
+        window.cancelAnimationFrame(queuedStructuredMoveRafRef.current);
       }
     };
   }, []);
@@ -555,6 +697,7 @@ export const useCanvasInteraction = (
     if (!hit) return false;
     if (hit.kind === "text") {
       setSelectedStructuredNodeIds([hit.node.id]);
+      setSelectedStructuredSplitHandle(null);
       clearSelections();
       setTextCursor(point);
       setEditingStructuredTextNodeId(hit.node.id);
@@ -569,6 +712,7 @@ export const useCanvasInteraction = (
     if (!cursor) return false;
 
     setSelectedStructuredNodeIds([hit.node.id]);
+    setSelectedStructuredSplitHandle(null);
     clearSelections();
     setEditingStructuredTextNodeId(null);
     setStructuredTextSelection(null);
@@ -723,7 +867,8 @@ export const useCanvasInteraction = (
               );
             if (hit) {
               if (hit.kind === "text" && mouseEvent.detail >= 2) {
-                setSelectedStructuredNodeIds([hit.node.id]);
+              setSelectedStructuredNodeIds([hit.node.id]);
+              setSelectedStructuredSplitHandle(null);
                 clearSelections();
                 setDraggingSelection(null);
                 resetDragState();
@@ -739,6 +884,7 @@ export const useCanvasInteraction = (
                 const offset = getStructuredTextOffsetAtPoint(hit.node, start);
                 const caretPoint = getStructuredTextCaretPoint(hit.node, offset);
                 setSelectedStructuredNodeIds([hit.node.id]);
+                setSelectedStructuredSplitHandle(null);
                 clearSelections();
                 setTextCursor(caretPoint);
                 setStructuredTextSelection(null);
@@ -772,6 +918,13 @@ export const useCanvasInteraction = (
               );
 
               setSelectedStructuredNodeIds(dragSelectedIds);
+              setSelectedStructuredSplitHandle(
+                hit.kind === "splitBox" &&
+                  hit.handle &&
+                  isStructuredSplitBoxLineHandle(hit.handle)
+                  ? { nodeId: hit.node.id, handle: hit.handle }
+                  : null
+              );
               setEditingStructuredTextNodeId(null);
               setStructuredTextSelection(null);
               structuredNodeDragRef.current = {
@@ -800,6 +953,7 @@ export const useCanvasInteraction = (
               return;
             }
             setSelectedStructuredNodeIds([]);
+            setSelectedStructuredSplitHandle(null);
             setEditingStructuredTextNodeId(null);
             setStructuredTextSelection(null);
             if (containerRef.current) containerRef.current.style.cursor = "";
@@ -919,17 +1073,8 @@ export const useCanvasInteraction = (
                   x: currentGrid.x - dragStartGrid.current!.x,
                   y: currentGrid.y - dragStartGrid.current!.y,
                 };
-                const movingNodes = new Map(
-                  drag.selectedNodes.map((node) => [
-                    node.id,
-                    moveStructuredNode(node, delta),
-                  ])
-                );
-                applyStructuredScene(
-                  structuredScene.map((node) => movingNodes.get(node.id) ?? node),
-                  "merge"
-                );
-                setSelectedStructuredNodeIds(drag.selectedIds);
+                queueStructuredMove(drag, delta, structuredScene);
+                setSelectedStructuredSplitHandle(null);
               }
               break;
             }
@@ -1034,31 +1179,35 @@ export const useCanvasInteraction = (
         if ((event as MouseEvent).button === 0) {
           switch (interactionModeRef.current) {
             case "selecting":
-              if (draggingSelection) {
+              flushDraggingSelection();
+              if (draggingSelectionRef.current) {
                 if (tool === "fill") {
-                  fillArea(draggingSelection);
+                  fillArea(draggingSelectionRef.current);
                 } else if (tool === "select") {
                   if (canvasMode === "structured") {
                     const selectedIds = findStructuredNodeIdsInSelection(
                       structuredScene,
-                      draggingSelection
+                      draggingSelectionRef.current
                     );
                     if (selectedIds.length > 0) {
                       setSelectedStructuredNodeIds(selectedIds);
+                      setSelectedStructuredSplitHandle(null);
                     } else {
-                      setStructuredGridFocus(draggingSelection.start);
+                      setStructuredGridFocus(draggingSelectionRef.current.start);
                     }
                     clearSelections();
                   } else if (
-                    draggingSelection.start.x === draggingSelection.end.x &&
-                    draggingSelection.start.y === draggingSelection.end.y
+                    draggingSelectionRef.current.start.x ===
+                      draggingSelectionRef.current.end.x &&
+                    draggingSelectionRef.current.start.y ===
+                      draggingSelectionRef.current.end.y
                   ) {
-                    setTextCursor(draggingSelection.start);
+                    setTextCursor(draggingSelectionRef.current.start);
                   } else {
-                    addSelection(draggingSelection);
+                    addSelection(draggingSelectionRef.current);
                   }
                 }
-                setDraggingSelection(null);
+                setDraggingSelection(null, { immediate: true });
               }
               break;
             case "drawing":
@@ -1085,6 +1234,8 @@ export const useCanvasInteraction = (
               }
               break;
             case "structured-node-moving":
+              flushQueuedStructuredMove(true);
+              break;
             case "structured-box-resizing":
             case "structured-splitbox-resizing":
             case "structured-line-resizing":
@@ -1116,6 +1267,7 @@ export const useCanvasInteraction = (
           event.preventDefault();
           clearSelections();
           setSelectedStructuredNodeIds([]);
+          setSelectedStructuredSplitHandle(null);
           setEditingStructuredTextNodeId(null);
           setTextCursor(point);
           if (containerRef.current) containerRef.current.style.cursor = "text";
@@ -1141,22 +1293,7 @@ export const useCanvasInteraction = (
           const mouseY = clientY - rect.top;
           const zoomWeight = 0.002;
           const deltaZoom = 1 - dy * zoomWeight;
-          const oldZoom = zoom;
-          const nextZoom = Math.max(
-            MIN_ZOOM,
-            Math.min(MAX_ZOOM, oldZoom * deltaZoom)
-          );
-
-          if (nextZoom !== oldZoom) {
-            setZoom(() => nextZoom);
-            if (canvasMode !== "animation") {
-              const actualScale = nextZoom / oldZoom;
-              setOffset((prev: Point) => ({
-                x: mouseX - (mouseX - prev.x) * actualScale,
-                y: mouseY - (mouseY - prev.y) * actualScale,
-              }));
-            }
-          }
+          queueZoomDelta(deltaZoom, mouseX, mouseY);
         } else {
           if (canvasMode === "animation") return;
           const wheelEvent = event as WheelEvent;
@@ -1187,6 +1324,6 @@ export const useCanvasInteraction = (
     }
   };
 
-  return { bind, draggingSelection, handleDoubleClick };
+  return { bind, draggingSelection, structuredMovePreview, handleDoubleClick };
 };
 

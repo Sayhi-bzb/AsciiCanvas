@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import {
   BACKGROUND_COLOR,
   COLOR_ORIGIN_MARKER,
@@ -79,15 +79,25 @@ export const getStructuredSplitBoxHandlePoints = (
   handle: StructuredSplitBoxHandle;
   point: Point;
 }> => {
-  const { verticalX, topY, bottomY, bounds } = getStructuredSplitBoxGuides(node);
+  const { handles, bounds } = getStructuredSplitBoxGuides(node);
   const left = bounds.x;
   const right = bounds.x + bounds.width - 1;
   const top = bounds.y;
   const bottom = bounds.y + bounds.height - 1;
   return [
-    { handle: "verticalSplit", point: { x: verticalX, y: Math.round((topY + bottomY) / 2) } },
-    { handle: "topSplit", point: { x: Math.round((left + right) / 2), y: topY } },
-    { handle: "bottomSplit", point: { x: Math.round((left + right) / 2), y: bottomY } },
+    ...handles.map(({ id, axis, bounds: handleBounds }) => ({
+      handle: `split:${id}` as StructuredSplitBoxHandle,
+      point:
+        axis === "vertical"
+          ? {
+              x: handleBounds.x,
+              y: Math.round(handleBounds.y + (handleBounds.height - 1) / 2),
+            }
+          : {
+              x: Math.round(handleBounds.x + (handleBounds.width - 1) / 2),
+              y: handleBounds.y,
+            },
+    })),
     { handle: "nw", point: { x: left, y: top } },
     { handle: "n", point: { x: Math.round((left + right) / 2), y: top } },
     { handle: "ne", point: { x: right, y: top } },
@@ -97,6 +107,21 @@ export const getStructuredSplitBoxHandlePoints = (
     { handle: "sw", point: { x: left, y: bottom } },
     { handle: "w", point: { x: left, y: Math.round((top + bottom) / 2) } },
   ];
+};
+
+export const getStructuredSplitBoxActiveLeafBounds = (
+  node: StructuredSplitBoxNode,
+  point: Point | null
+): NodeBounds | null => {
+  if (!point) return null;
+  const leaf = getStructuredSplitBoxGuides(node).leafBounds.find(
+    ({ bounds }) =>
+      point.x >= bounds.x &&
+      point.x < bounds.x + bounds.width &&
+      point.y >= bounds.y &&
+      point.y < bounds.y + bounds.height
+  );
+  return leaf?.bounds ?? null;
 };
 
 export const drawCanvasColorPickerAnchor = (
@@ -160,6 +185,7 @@ export const useCanvasRenderer = (
     | "canvasBounds"
     | "animationTimeline"
     | "selectedStructuredNodeIds"
+    | "structuredContextPoint"
     | "structuredGridFocus"
     | "structuredScene"
     | "editingStructuredTextNodeId"
@@ -185,6 +211,7 @@ export const useCanvasRenderer = (
     canvasBounds,
     animationTimeline,
     selectedStructuredNodeIds,
+    structuredContextPoint,
     structuredGridFocus,
     structuredScene,
     editingStructuredTextNodeId,
@@ -213,6 +240,17 @@ export const useCanvasRenderer = (
     const safeRadius = Math.max(0, Math.min(radius, width / 2, height / 2));
     ctx.beginPath();
     ctx.roundRect(x, y, width, height, safeRadius);
+  };
+  const baseRenderInputsRef = useRef<unknown[] | null>(null);
+
+  const shouldRenderBaseLayers = (inputs: unknown[]) => {
+    const previous = baseRenderInputsRef.current;
+    const changed =
+      !previous ||
+      previous.length !== inputs.length ||
+      inputs.some((input, index) => input !== previous[index]);
+    if (changed) baseRenderInputsRef.current = inputs;
+    return changed;
   };
 
   const drawLayer = (
@@ -337,10 +375,25 @@ export const useCanvasRenderer = (
             }
           : null;
       const animationGhostLayers = getAnimationGhostLayers();
+      const renderBaseLayers = shouldRenderBaseLayers([
+        layers.bg.current,
+        layers.scratch.current,
+        size.width,
+        size.height,
+        offset,
+        zoom,
+        grid,
+        scratchLayer,
+        showGrid,
+        canvasMode,
+        canvasBounds,
+        animationTimeline,
+        hoveredLink,
+      ]);
 
       const bgCanvas = layers.bg.current;
       const bgCtx = bgCanvas?.getContext("2d", { alpha: false });
-      if (bgCanvas && bgCtx) {
+      if (renderBaseLayers && bgCanvas && bgCtx) {
         prepareCanvasSurface(bgCanvas, bgCtx, size.width, size.height, dpr);
         bgCtx.fillStyle = BACKGROUND_COLOR;
         bgCtx.fillRect(0, 0, size.width, size.height);
@@ -423,7 +476,7 @@ export const useCanvasRenderer = (
 
       const scratchCanvas = layers.scratch.current;
       const scratchCtx = scratchCanvas?.getContext("2d");
-      if (scratchCanvas && scratchCtx) {
+      if (renderBaseLayers && scratchCanvas && scratchCtx) {
         prepareCanvasSurface(scratchCanvas, scratchCtx, size.width, size.height, dpr);
         drawLayer(
           scratchCtx,
@@ -545,6 +598,40 @@ export const useCanvasRenderer = (
             );
             return { pos, width, height };
           };
+          const drawActiveSplitBoxLeaf = (
+            node: StructuredSplitBoxNode,
+            point: Point | null
+          ) => {
+            const activeLeafBounds = getStructuredSplitBoxActiveLeafBounds(
+              node,
+              point
+            );
+            if (!activeLeafBounds) return;
+
+            const pos = gridCellRect(
+              { x: activeLeafBounds.x, y: activeLeafBounds.y },
+              { offset, zoom }
+            );
+            const width = activeLeafBounds.width * pos.width;
+            const height = activeLeafBounds.height * pos.height;
+            uiCtx.save();
+            uiCtx.fillStyle = "rgba(37, 99, 235, 0.06)";
+            uiCtx.strokeStyle = "#2563eb";
+            uiCtx.lineWidth = Math.max(2, Math.round(3 * zoom));
+            uiCtx.fillRect(
+              Math.round(pos.x),
+              Math.round(pos.y),
+              Math.round(width),
+              Math.round(height)
+            );
+            uiCtx.strokeRect(
+              Math.round(pos.x),
+              Math.round(pos.y),
+              Math.round(width),
+              Math.round(height)
+            );
+            uiCtx.restore();
+          };
 
           uiCtx.save();
           uiCtx.strokeStyle = "#2563eb";
@@ -587,6 +674,10 @@ export const useCanvasRenderer = (
             uiCtx.strokeStyle = "#2563eb";
             uiCtx.lineWidth = 1;
             if (selectedHandleNode.type === "splitBox") {
+              drawActiveSplitBoxLeaf(
+                selectedHandleNode,
+                hoveredGrid ?? structuredContextPoint
+              );
               getStructuredSplitBoxHandlePoints(selectedHandleNode).forEach(
                 ({ point }) => {
                   const handlePos = gridCellRect(point, { offset, zoom });
@@ -694,6 +785,7 @@ export const useCanvasRenderer = (
     animationTimeline,
     structuredScene,
     selectedStructuredNodeIds,
+    structuredContextPoint,
     structuredGridFocus,
     editingStructuredTextNodeId,
     structuredTextSelection,
