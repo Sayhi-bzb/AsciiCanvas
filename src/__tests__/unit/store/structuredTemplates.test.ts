@@ -51,6 +51,7 @@ describe("structuredTemplates", () => {
       "filetree",
       "timeline",
       "snippet",
+      "terminal",
     ]);
     expect(STRUCTURED_TEMPLATES.map((template) => template.id)).toEqual([
       ...STRUCTURED_COMPONENT_TEMPLATES.map((template) => template.id),
@@ -58,6 +59,7 @@ describe("structuredTemplates", () => {
       "filetree",
       "timeline",
       "snippet",
+      "terminal",
     ]);
   });
 
@@ -338,7 +340,7 @@ describe("structuredTemplates", () => {
     ]);
     expect(filetreeNodes.slice(6, 9)).toMatchObject([
       { type: "text", position: { x: 4, y: 7 }, text: " PROJECT-ROOT" },
-      { type: "text", position: { x: 7, y: 8 }, text: "󰉋 node_modules" },
+      { type: "text", position: { x: 6, y: 8 }, text: "󰉋 node_modules" },
       { type: "text", position: { x: 6, y: 9 }, text: " src" },
     ]);
 
@@ -366,6 +368,46 @@ describe("structuredTemplates", () => {
       },
       { type: "text", position: { x: 4, y: 8 }, text: "▔▔▔" },
       { type: "text", position: { x: 4, y: 9 }, text: "npm install @xx/xx" },
+    ]);
+
+    expect(build("terminal")).toMatchObject([
+      {
+        type: "splitBox",
+        start: { x: 4, y: 7 },
+        end: { x: 47, y: 16 },
+        root: {
+          type: "split",
+          id: "split-titlebar",
+          axis: "horizontal",
+          first: { type: "leaf", id: "leaf-titlebar" },
+          second: { type: "leaf", id: "leaf-terminal" },
+        },
+      },
+      {
+        type: "text",
+        position: { x: 6, y: 8 },
+        text: "● ● ●",
+        styleRanges: [
+          { start: 0, end: 1, style: { color: "#ff6159" } },
+          { start: 2, end: 3, style: { color: "#ffbd2e" } },
+          { start: 4, end: 5, style: { color: "#28c941" } },
+        ],
+      },
+      { type: "text", position: { x: 6, y: 10 }, text: "$ ls" },
+      {
+        type: "text",
+        position: { x: 6, y: 11 },
+        text: "Documents Downloads Pictures",
+        style: { color: "#3b82f6" },
+      },
+      { type: "text", position: { x: 6, y: 12 }, text: "$ cd Documents" },
+      { type: "text", position: { x: 6, y: 13 }, text: "$ pwd" },
+      {
+        type: "text",
+        position: { x: 6, y: 14 },
+        text: "/home/user/Documents",
+        style: { color: "#28c941" },
+      },
     ]);
   });
 
@@ -765,7 +807,7 @@ describe("structuredTemplates", () => {
       )
     ).toEqual([
       " PROJECT-ROOT",
-      "│  󰉋 node_modules",
+      "│ 󰉋 node_modules",
       "│  src",
       "│ │  app",
       "│ │ │  layout.tsx",
@@ -777,9 +819,9 @@ describe("structuredTemplates", () => {
       "│ │ │  header.tsx",
       "│ │  lib",
       "│ │ │  utils.ts",
-      "│  󰉋 public",
-      "│  󰘦 package.json",
-      "│   README.md",
+      "│ 󰉋 public",
+      "│ 󰘦 package.json",
+      "│  README.md",
     ]);
     expect(filetreePreview.rows[1][0].color).toBe("#64748b");
     expect(filetreePreview.rows[8][6].color).toBe("#64748b");
@@ -813,6 +855,28 @@ describe("structuredTemplates", () => {
       "▔▔▔",
       "npm install @xx/xx",
     ]);
+
+    const terminalPreview = buildStructuredTemplatePreview("terminal");
+    expect(terminalPreview).toMatchObject({ width: 44, height: 10 });
+    expect(
+      terminalPreview.rows.map((row) => row.map((cell) => cell.char).join(""))
+    ).toEqual([
+      "╭──────────────────────────────────────────╮",
+      "│ ● ● ●                                    │",
+      "├──────────────────────────────────────────┤",
+      "│ $ ls                                     │",
+      "│ Documents Downloads Pictures             │",
+      "│ $ cd Documents                           │",
+      "│ $ pwd                                    │",
+      "│ /home/user/Documents                     │",
+      "│                                          │",
+      "╰──────────────────────────────────────────╯",
+    ]);
+    expect(terminalPreview.rows[1][2].color).toBe("#ff6159");
+    expect(terminalPreview.rows[1][4].color).toBe("#ffbd2e");
+    expect(terminalPreview.rows[1][6].color).toBe("#28c941");
+    expect(terminalPreview.rows[4][2].color).toBe("#3b82f6");
+    expect(terminalPreview.rows[7][2].color).toBe("#28c941");
 
     const calendarPreview = buildStructuredTemplatePreview("calendar");
     expect(calendarPreview).toMatchObject({ width: 26, height: 7 });

@@ -3,17 +3,17 @@
 # ASCII Canvas
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![React](https://img.shields.io/badge/Framework-React_18-61DAFB?logo=react)](https://react.dev/)
+[![React](https://img.shields.io/badge/Framework-React_19-61DAFB?logo=react)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/Language-TypeScript-3178C6?logo=typescript)](https://www.typescriptlang.org/)
 [![Collaboration](https://img.shields.io/badge/Sync-Yjs_CRDT-orange?logo=distributed-systems)](https://yjs.dev/)
 [![Deploy](https://img.shields.io/badge/Demo-Live_Preview-22c55e?logo=cloudflare-pages)](https://ascii-canvas.pages.dev/)
 
-> **"大模型时代的原生视觉接口：一个支持 CJK、Nerd Fonts 与全色域的无限 ASCII 画布，旨在成为人类与 AI 的共享白板。"**
-
+> **一个面向自由绘制、结构化 ASCII UI 编排、逐帧 ASCII 动画的 Unicode 网格编辑器。**
 
 <div align="center">
   <img src="public/demo.gif" alt="ASCII Canvas 演示" width="100%" style="border-radius: 6px; border: 1px solid #333; margin: 5px;">
 </div>
+
 <br />
 
 <p align="center">
@@ -22,59 +22,63 @@
 
 <p align="center">
   <a href="https://ascii-canvas.pages.dev/">
-    <img src="https://img.shields.io/badge/✨_在线体验_Demo-点击这里-22c55e?style=for-the-badge&logo=rocket" height="40">
+    <img src="https://img.shields.io/badge/在线体验_Demo-点击这里-22c55e?style=for-the-badge&logo=rocket" height="40">
   </a>
 </p>
 
 ---
 
-## 🛠 核心特性
+## 核心特性
 
-**ASCII Canvas** 是一个高性能、可协作的 ASCII 艺术创作引擎。不同于输出像素（对 LLM 不透明）的传统白板，本引擎渲染的是结构化的、语义清晰的 Unicode 网格。
+**ASCII Canvas** 渲染的是可编辑的 Unicode 网格，而不是对模型不透明的像素图。它既能给人直接阅读，也能保留适合 LLM 理解的文本结构。
 
 目前支持三种会话模式：
 
-- **Freeform**：原始的无限 ASCII 画布，适合自由绘制。
-- **Animation**：固定尺寸、基于时间轴的 ASCII 动画模式。
-- **Structured**：仍在开发中的语义化结构布局模式。
+- **Freeform**：无限 ASCII 画布，适合草图、图表、终端风格界面和自由绘制。
+- **Structured**：语义化结构画布，文本、背景、盒子、分割盒与线条保持为可编辑节点。
+- **Animation**：固定尺寸、基于帧时间轴的 ASCII 动画模式。
 
-### 1. 高性能渲染引擎
+### 1. 结构化画布
 
-- **多层画布架构**：采用背景层、草稿层、UI 层分离的三层架构，在复杂操作下依然保持 60FPS 的丝滑体验。
-- **模式感知视口**：Freeform 使用无限视口，Animation 使用固定镜头与有边界画布。
+- **结构化节点**：使用 `text`、`bg`、`box`、`splitBox`、`line` 组合场景，而不是把内容压成一整块纯文本。
+- **Components 标签页**：拖拽可复用 UI 分子，例如 button、badge、input、card、table、chart、progress、calendar、scroll area。
+- **Templates 标签页**：插入完整场景示例，例如 Safari、File tree、Timeline、Snippet、Terminal。
+- **背景层语义**：`bg` 节点可以作为文字和边框下方的真实背景层，也可以在上层遮挡内容。
+- **分割布局**：`splitBox` 支持可调整区域，适合面板、卡片、终端窗口和复合 UI 草图。
 
-### 2. 智能排版系统
+### 2. 结构化编辑
 
-- **缩进继承**：智能换行逻辑，自动检测并保持上一行的缩进层级。
-- **网格感知 Unicode**：原生支持 **中日韩 (CJK) 字符** 与 **Emoji** 的宽字符占用，同时将 **Nerd Font / PUA 图标** 按单个网格符号放置。
-- **模块化缩进**：专业的 Tab 系统，按 2 个标准网格单位移动光标，对齐更精准。
-- **字符库**：右侧 Library 按 Unicode、Nerd Font、Emoji 与 Box Drawing 分类展示字符，并提供名称/tooltip 辅助识别。
+- **直接操作**：可选择一个或多个结构化节点并整体移动，box、bg、splitBox、line 支持 handle 调整。
+- **文本编辑**：双击结构化 text 进入原位编辑，点击其他位置退出编辑。
+- **选区格式化**：toolbar 可以作用在选中的文本片段，而不只是整段 text 节点。
+- **形状样式**：box、splitBox、line 的字符颜色可以独立控制；`bg` 的背景填充单独控制。
+- **表面与结构复制**：Structured 模式内复制保留结构数据，也可以把选中结构表面粘贴到 Freeform。
 
-### 3. 动画工作流
+### 3. 自由绘制
 
-- **固定画布预设**：支持 `80x25`、`64x64`、`128x128` 等常用尺寸，也支持自定义宽高。
-- **左侧帧栏**：可通过紧凑帧预览新增、复制、删除、拖拽排序与重命名帧。
-- **洋葱皮辅助**：支持邻近帧的 ghost/onion skin 显示，便于逐帧 ASCII 动画绘制。
-- **导出能力**：支持导出轻量 JSON 动画数据、GIF、asciinema `.cast`，以及当前帧 ANSI 文本。
+- **多层渲染**：背景层、草稿层、UI 层分离，保证交互响应。
+- **网格感知 Unicode**：CJK、Emoji、Nerd Font、PUA 图标和 Box Drawing 字符按网格处理。
+- **智能文本流**：换行继承缩进，Tab 按两个网格单位推进。
+- **字符库**：右侧栏浏览 Unicode、Nerd Font、Emoji、Box Drawing 字符。
+- **精确选区**：拖拽矩形区域、`Shift + Click` 锚点选区，并可用输入字符填充选区。
 
-### 4. 分布式协作
+### 4. 动画工作流
 
-- **Yjs CRDT 集成**：基于无冲突复制数据类型 (CRDT)，实现低延迟的实时多人协作编辑。
-- **鲁棒的持久化**：细粒度的撤销/重做 (Undo/Redo) 管理，并支持本地存储同步。
+- **固定画布预设**：支持 `80x25`、`64x64`、`128x128`，也支持自定义尺寸。
+- **左侧帧栏**：新增、复制、删除、排序、重命名帧，并显示紧凑预览。
+- **洋葱皮辅助**：显示相邻帧 ghost，便于逐帧绘制。
+- **导出能力**：导出 JSON、GIF、asciinema `.cast`，或导出当前帧 ANSI 文本。
 
-### 5. 精准编辑与剪贴板
+### 5. 剪贴板、ANSI 与协议
 
-- **锚点框选**：支持 `Shift + Click` 快速创建以锚点为中心的矩形选区。
-- **批量填充**：一键用任意字符填充当前的活跃选区。
-- **上下文枢纽**：专业的右键菜单，支持复制、ANSI 格式复制、剪切、粘贴和删除操作。
-- **ANSI 剪贴板**：可复制/导出 SGR 前景色、背景色与文本属性，也能粘贴标准 ESC ANSI 或 ANSI-like 文本，例如 `[38;2;190;24;93m...`。
-- **终端样式解析**：粘贴支持 8 色、亮色 16 色、256 色与 truecolor SGR 形式，也支持 bold、dim、italic、underline、strikethrough 等文本属性。Reset (`0m`) 会清除前景色、背景色和文本属性。
+- **右键菜单**：复制、ANSI 复制、剪切、粘贴和删除。
+- **ANSI 导入导出**：支持标准 ESC ANSI，也支持 `[38;2;190;24;93m...` 这类 ANSI-like 文本。
+- **终端样式解析**：支持 8 色、亮色 16 色、256 色、truecolor SGR，以及 bold、italic、underline、strikethrough 等属性。
+- **文档协议**：JSON protocol v1 覆盖 Freeform、Structured、Animation 三种会话，作为稳定导入导出格式。
 
 ---
 
 ## 作品展示
-
-
 
 <div align="center">
   <img src="public/Case/Case.webp" width="100%" style="border-radius: 6px; border: 1px solid #333; margin: 5px;" />
@@ -84,17 +88,18 @@
 
 ## 技术栈
 
-- **前端框架**: React 18, TypeScript
-- **状态管理**: Zustand (Slice Pattern)
-- **同步引擎**: Yjs / Y-IndexedDB
-- **手势交互**: @use-gesture/react
-- **动画导出**: JSON 交换格式、浏览器内 GIF 生成、简单 asciinema `.cast` 帧流
-- **终端文本**: SGR 前景/背景、文本属性，以及 ANSI/ANSI-like 导入导出
-- **UI 组件**: Tailwind CSS, Shadcn UI, Radix UI
+- **前端框架**：React 19, TypeScript, Vite 7
+- **状态管理**：Zustand 5，按 slice 拆分 store
+- **样式系统**：Tailwind CSS 4, Radix UI, shadcn/ui 风格基础组件
+- **渲染**：多层 Canvas 2D 渲染，带宽字符网格度量
+- **同步引擎**：Yjs / Y-IndexedDB
+- **手势交互**：@use-gesture/react
+- **动画导出**：JSON、浏览器内 GIF、asciinema `.cast`、ANSI 文本
+- **终端文本**：SGR 前景/背景、文本属性，以及 ANSI/ANSI-like 导入导出
 
 ---
 
-## 🚀 快速开始
+## 快速开始
 
 ### 安装
 
@@ -118,36 +123,39 @@ npm run build
 
 ---
 
-## ⌨️ 快捷键指南
+## 快捷键与工作流
 
-| 操作           | 快捷键         | 说明                                 |
-| :------------- | :------------- | :----------------------------------- |
-| **框选区域**   | `拖拽`         | 传统的矩形区域选择                   |
-| **锚点选区**   | `Shift + 点击` | 创建从上一次点击位置到当前位置的选区 |
-| **批量填充**   | `输入字符`     | 用按下的字符填满当前选区             |
-| **智能换行**   | `Enter`        | 换行并保留上一行的缩进               |
-| **铺设空格**   | `Tab`          | 光标向右移动 2 个网格单位            |
-| **上下文菜单** | `右键点击`     | 唤起复制、ANSI 复制、剪切、粘贴和删除 |
+| 操作 | 快捷键 / 手势 | 说明 |
+| :-- | :-- | :-- |
+| Freeform 选区 | `拖拽` | 选择矩形网格区域 |
+| 锚点选区 | `Shift + 点击` | 从锚点到当前位置创建选区 |
+| 填充选区 | `输入字符` | 用输入字符填充当前选区 |
+| 智能换行 | `Enter` | 换行并继承缩进 |
+| 铺设空格 | `Tab` | 光标向右移动 2 个网格单位 |
+| 上下文菜单 | `右键点击` | 复制、ANSI 复制、剪切、粘贴、删除 |
+| 结构化文本编辑 | `双击` text | 进入结构化文本原位编辑 |
+| 结构化插入 | 从侧栏拖拽 | 将 component 或 template 放入结构化画布 |
 
-粘贴支持纯文本、应用内富剪贴板数据，以及 ANSI/ANSI-like 终端样式文本。动画模式额外提供时间轴播放、逐帧切换、循环、ghost 开关与 JSON/GIF/asciinema `.cast` 导出等 UI 控件。
+粘贴支持纯文本、应用内富剪贴板数据，以及 ANSI/ANSI-like 终端样式文本。动画模式提供逐帧切换、播放、循环、洋葱皮和 JSON/GIF/asciinema `.cast` 导出。
 
 ---
 
-## 🗺 路线图 (Roadmap)
+## 路线图
 
 - [x] 多层 Canvas 渲染引擎
 - [x] 基于 Yjs 的实时协作
 - [x] 智能缩进与 Tab 系统
-- [x] 右键菜单与剪贴板集成
+- [x] 右键菜单与 ANSI 剪贴板
 - [x] 固定尺寸动画模式、时间轴、洋葱皮与导出能力
-- [x] 面向动画帧流的简单 asciinema `.cast` 导入/导出
-- [x] ANSI/ANSI-like 前景色、背景色与文本属性导入导出
-- [ ] **NES (Next Edit Suggestion)**: 基于布局模式的字符预测
-- [ ] **AI Chat 集成**: 通过自然语言生成画布组件
+- [x] 结构化画布：可编辑 text、bg、box、splitBox、line
+- [x] 结构化 Components 与 Templates 模板库
+- [x] 面向 Freeform、Structured、Animation 的 JSON protocol v1
+- [ ] **NES (Next Edit Suggestion)**：基于布局模式的字符预测
+- [ ] **AI Chat 集成**：通过自然语言生成画布组件
 - [ ] 完整 ANSI terminal sequence workspace 与 SVG 导出
 
 ---
 
-## 📄 许可证
+## 许可证
 
 本项目基于 **MIT 许可证** 开源。详情请参阅 [LICENSE](LICENSE) 文件。

@@ -96,7 +96,13 @@ describe("SidebarRight structured templates", () => {
         '[data-testid="structured-template-preview-grid"]'
       );
       const expectedPreview = getStructuredTemplatePreview(template.id);
-      expect(viewport).toHaveClass("h-12", "w-24", "items-center", "overflow-hidden");
+      expect(viewport).toHaveClass(
+        "h-12",
+        "w-24",
+        "items-start",
+        "justify-start",
+        "overflow-hidden"
+      );
       expect(preview?.tagName).toBe("CANVAS");
       expect(preview).toHaveStyle({
         width: `${expectedPreview.width * 5}px`,
@@ -117,6 +123,7 @@ describe("SidebarRight structured templates", () => {
     expect(screen.queryByRole("button", { name: /file tree/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /timeline/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /snippet/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /terminal/i })).not.toBeInTheDocument();
     expect(screen.queryByText("Nerd Icons")).not.toBeInTheDocument();
   });
 
@@ -141,11 +148,13 @@ describe("SidebarRight structured templates", () => {
     expect(screen.getByRole("button", { name: /file tree/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /timeline/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /snippet/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /terminal/i })).toBeInTheDocument();
     expect(STRUCTURED_PAGE_TEMPLATES.map((template) => template.id)).toEqual([
       "safari",
       "filetree",
       "timeline",
       "snippet",
+      "terminal",
     ]);
     expect(screen.queryByRole("button", { name: /button/i })).not.toBeInTheDocument();
     expect(screen.queryByText("No templates found")).not.toBeInTheDocument();
@@ -161,6 +170,7 @@ describe("SidebarRight structured templates", () => {
     expect(screen.queryByRole("button", { name: /file tree/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /timeline/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /snippet/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /terminal/i })).not.toBeInTheDocument();
   });
 
   it("filters structured components from the main header search", () => {

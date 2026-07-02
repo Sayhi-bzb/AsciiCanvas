@@ -13,12 +13,12 @@
 # ASCII Canvas
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![React](https://img.shields.io/badge/Framework-React_18-61DAFB?logo=react)](https://react.dev/)
+[![React](https://img.shields.io/badge/Framework-React_19-61DAFB?logo=react)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/Language-TypeScript-3178C6?logo=typescript)](https://www.typescriptlang.org/)
 [![Collaboration](https://img.shields.io/badge/Sync-Yjs_CRDT-orange?logo=distributed-systems)](https://yjs.dev/)
 [![Deploy](https://img.shields.io/badge/Demo-Live_Preview-22c55e?logo=cloudflare-pages)](https://ascii-canvas.pages.dev/)
 
-> **"The native visual interface for the LLM era: An infinite, multi-byte ASCII canvas designed to be the shared whiteboard for Humans and AI."**
+> **A Unicode grid editor for freeform drawing, structured ASCII UI composition, and frame-based ASCII animation.**
 
 <div align="center">
   <img src="public/demo.gif" alt="ASCII Canvas Demo" width="100%" style="border-radius: 6px; border: 1px solid #333; margin: 5px;">
@@ -32,53 +32,59 @@
 
 <p align="center">
   <a href="https://ascii-canvas.pages.dev/">
-    <img src="https://img.shields.io/badge/✨_Try_Live_Demo-Click_Here-22c55e?style=for-the-badge&logo=rocket" height="40">
+    <img src="https://img.shields.io/badge/Try_Live_Demo-Click_Here-22c55e?style=for-the-badge&logo=rocket" height="40">
   </a>
 </p>
 
 ---
 
-## 🛠 Core Features
+## Core Features
 
-**ASCII Canvas** is a high-performance, collaborative ASCII art creation engine. Unlike traditional whiteboards that output pixels (opaque to LLMs), this engine renders structured, semantic Unicode grids.
+**ASCII Canvas** renders editable Unicode grids instead of opaque pixels. It is built for drawings and UI surfaces that humans can inspect visually and LLMs can still read as text.
 
-It now supports three session modes:
+It supports three session modes:
 
-- **Freeform**: the original infinite ASCII canvas for exploratory drawing.
+- **Freeform**: an infinite ASCII canvas for sketching, diagrams, terminal-style layouts, and exploratory drawing.
+- **Structured**: a semantic canvas where text, backgrounds, boxes, split boxes, and lines stay editable as structured nodes.
 - **Animation**: a fixed-size frame timeline for ASCII motion work.
-- **Structured**: an in-progress layout mode for semantic scene construction.
 
-### 1. High-Performance Rendering
+### 1. Structured Canvas
 
-- **Multi-layer Architecture**: Utilizes three distinct layers (Background, Scratch, and UI) to maintain 60FPS.
-- **Mode-aware Viewports**: Freeform uses an infinite viewport, while Animation uses a fixed camera and bounded canvas.
+- **Structured nodes**: compose scenes from `text`, `bg`, `box`, `splitBox`, and `line` nodes instead of flattening everything into plain text.
+- **Components tab**: drag reusable UI molecules such as buttons, badges, inputs, cards, tables, charts, progress bars, calendars, and scroll areas.
+- **Template tab**: insert full scene examples such as Safari, File tree, Timeline, Snippet, and Terminal.
+- **Layer-aware backgrounds**: `bg` nodes can sit under text and borders as real background layers, or above content when deliberately reordered.
+- **Split layouts**: `splitBox` supports resizable regions for panels, cards, terminals, and compound UI sketches.
 
-### 2. Intelligent Layout Engine
+### 2. Structured Editing
 
-- **Setback Inheritance**: Smart newline logic automatically detects and maintains indentation.
-- **Grid-aware Unicode**: Native support for **CJK characters** and **Emojis** as wide cells, with **Nerd Font / PUA icons** placed as single-grid symbols.
-- **Modular Indentation**: Professional Tab system shifting cursor by 2 grid units.
-- **Character Library**: Browse Unicode, Nerd Font, Emoji, and Box Drawing characters from a dense right sidebar with character names/tooltips.
+- **Direct manipulation**: select one or many structured nodes, move them together, and resize box, background, split box, and line shapes with handles.
+- **Text editing**: double-click structured text to edit it in place; click elsewhere to leave editing mode.
+- **Selection formatting**: apply toolbar changes to selected text ranges instead of only whole text nodes.
+- **Shape styling**: control character color for box, split box, and line strokes; control background fill separately for `bg` layers.
+- **Surface and structure copy**: copy structured data inside Structured mode, or paste selected structured surfaces into Freeform mode.
 
-### 3. Animation Workflow
+### 3. Freeform Drawing
 
-- **Fixed Canvas Presets**: Start animation sessions with common sizes like `80x25`, `64x64`, and `128x128`, or enter custom dimensions.
-- **Frame Sidebar**: Add, duplicate, delete, reorder, and rename frames from a dedicated left sidebar with compact previews.
-- **Onion Skin Playback**: Toggle ghosted neighboring frames for frame-by-frame ASCII animation.
-- **Export Ready**: Export animations as lightweight JSON, GIF, asciinema `.cast`, or ANSI text for the current frame.
+- **Multi-layer rendering**: background, scratch, and UI layers keep interaction responsive.
+- **Grid-aware Unicode**: CJK, Emoji, Nerd Font, PUA icons, and box drawing characters are handled as grid cells.
+- **Smart text flow**: newline indentation and two-cell tab stepping keep text aligned.
+- **Character library**: browse Unicode, Nerd Font, Emoji, and Box Drawing characters from the right sidebar.
+- **Precision selection**: drag rectangular selections, use `Shift + Click` anchor selection, and fill selected areas with typed characters.
 
-### 4. Distributed Collaboration
+### 4. Animation Workflow
 
-- **Yjs CRDT Integration**: Real-time, low-latency collaborative editing.
-- **Robust Persistence**: High-granularity undo/redo management with local storage sync.
+- **Fixed canvas presets**: start sessions with sizes such as `80x25`, `64x64`, and `128x128`, or enter custom dimensions.
+- **Frame sidebar**: add, duplicate, delete, reorder, and rename frames with compact previews.
+- **Onion skin playback**: ghost neighboring frames for frame-by-frame drawing.
+- **Export ready**: export animation data as JSON, GIF, asciinema `.cast`, or ANSI text for the current frame.
 
-### 5. Precision Editing & Clipboard
+### 5. Clipboard, ANSI, And Protocol
 
-- **Anchor Zoning**: `Shift + Click` for rapid rectangular selection.
-- **Mass Fill**: Instantly fill active selections with any character.
-- **Context Hub**: Professional menu for Copy, Copy as ANSI, Cut, Paste, and Delete operations.
-- **ANSI Clipboard**: Copy/export SGR foreground, background, and text attributes, and paste standard ESC ANSI or ANSI-like text such as `[38;2;190;24;93m...`.
-- **Terminal Style Parsing**: Paste supports 8-color, bright 16-color, 256-color, and truecolor SGR forms, plus text attributes like bold, dim, italic, underline, and strikethrough. Reset (`0m`) clears foreground, background, and attributes.
+- **Context menu**: copy, copy as ANSI, cut, paste, and delete from the canvas.
+- **ANSI import/export**: paste standard ESC ANSI or ANSI-like text such as `[38;2;190;24;93m...`.
+- **Terminal style parsing**: supports 8-color, bright 16-color, 256-color, truecolor SGR, and attributes such as bold, italic, underline, and strikethrough.
+- **Document protocol**: JSON protocol v1 covers Freeform, Structured, and Animation sessions for durable import/export.
 
 ---
 
@@ -92,17 +98,18 @@ It now supports three session modes:
 
 ## Tech Stack
 
-- **Frontend**: React 18, TypeScript
-- **State Management**: Zustand (Slice Pattern)
+- **Frontend**: React 19, TypeScript, Vite 7
+- **State Management**: Zustand 5 with slice-based store modules
+- **Styling**: Tailwind CSS 4, Radix UI, shadcn/ui-style primitives
+- **Rendering**: layered Canvas 2D rendering with grid metrics for wide characters
 - **Synchronization**: Yjs / Y-IndexedDB
 - **Gestures**: @use-gesture/react
-- **Animation Export**: JSON exchange format, in-browser GIF generation, and simple asciinema `.cast` frame streams
+- **Animation Export**: JSON, in-browser GIF generation, asciinema `.cast`, and ANSI text
 - **Terminal Text**: SGR foreground/background, text attributes, and ANSI/ANSI-like import/export
-- **UI Components**: Tailwind CSS, Shadcn UI, Radix UI
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Installation
 
@@ -126,36 +133,39 @@ npm run build
 
 ---
 
-## ⌨️ Shortcuts Reference
+## Shortcuts And Workflows
 
-| Action            | Shortcut        | Description                                       |
-| :---------------- | :-------------- | :------------------------------------------------ |
-| **Zoning**        | `Drag`          | Traditional rectangular area selection            |
-| **Anchor Zoning** | `Shift + Click` | Create selection between anchor and current point |
-| **Mass Fill**     | `Char Key`      | Fill active selection with the pressed character  |
-| **Smart Newline** | `Enter`         | New line with inherited indentation               |
-| **Pave Space**    | `Tab`           | Shift cursor right by 2 grid units                |
-| **Context Menu**  | `Right Click`   | Access Copy, Copy as ANSI, Cut, Paste, and Delete |
+| Action | Shortcut / Gesture | Description |
+| :-- | :-- | :-- |
+| Freeform selection | `Drag` | Select a rectangular grid area |
+| Anchor selection | `Shift + Click` | Select from the anchor point to the current point |
+| Fill selection | `Char Key` | Fill active selections with the typed character |
+| Smart newline | `Enter` | Insert a new line with inherited indentation |
+| Pave space | `Tab` | Move the text cursor right by 2 grid units |
+| Context menu | `Right Click` | Copy, copy as ANSI, cut, paste, and delete |
+| Structured text edit | `Double Click` text | Enter in-place structured text editing |
+| Structured insert | Drag from sidebar | Drop components or templates into the structured canvas |
 
-Paste accepts plain text, app-native rich clipboard data, and ANSI/ANSI-like styled terminal text. Animation sessions also expose timeline controls for frame stepping, playback, loop, ghost toggle, and JSON/GIF/asciinema `.cast` export from the animation bar/sidebar UI.
+Paste accepts plain text, app-native rich clipboard data, and ANSI/ANSI-like styled terminal text. Animation sessions expose frame stepping, playback, loop, onion skin, and JSON/GIF/asciinema `.cast` export.
 
 ---
 
-## 🗺 Roadmap
+## Roadmap
 
-- [x] Multi-layer Canvas rendering engine.
+- [x] Multi-layer canvas rendering engine.
 - [x] Real-time collaboration via Yjs.
-- [x] Intelligent Indentation & Tab system.
-- [x] Context Menu & Clipboard integration.
+- [x] Intelligent indentation and tab system.
+- [x] Context menu and ANSI clipboard integration.
 - [x] Fixed-size animation mode with timeline, onion skin, and export.
-- [x] Simple asciinema `.cast` import/export for animation frame streams.
-- [x] ANSI/ANSI-like foreground, background, and text-attribute import/export.
-- [ ] **NES (Next Edit Suggestion)**: Predictive character placement based on layout patterns.
-- [ ] **AI Chat Integration**: Natural language interface for generating canvas components.
+- [x] Structured canvas with editable text, backgrounds, boxes, split boxes, and lines.
+- [x] Structured Components and Templates libraries.
+- [x] JSON protocol v1 for Freeform, Structured, and Animation sessions.
+- [ ] **NES (Next Edit Suggestion)**: predictive character placement based on layout patterns.
+- [ ] **AI Chat Integration**: natural language interface for generating canvas components.
 - [ ] Full ANSI terminal sequence workspace and SVG export support.
 
 ---
 
-## 📄 License
+## License
 
 This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for details.

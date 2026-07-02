@@ -28,6 +28,7 @@ export type StructuredTemplateId =
   | "filetree"
   | "timeline"
   | "snippet"
+  | "terminal"
   | "calendar"
   | "barChart"
   | "lineChart"

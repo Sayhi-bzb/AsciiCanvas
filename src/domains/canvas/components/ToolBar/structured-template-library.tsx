@@ -96,7 +96,7 @@ export function StructuredTemplateLibrary({
               >
                 <div
                   data-testid="structured-template-preview-viewport"
-                  className="flex h-12 w-24 shrink-0 items-center overflow-hidden"
+                  className="flex h-12 w-24 shrink-0 items-start justify-start overflow-hidden"
                 >
                   <StructuredTemplatePreviewGrid
                     preview={getStructuredTemplatePreview(template.id)}
