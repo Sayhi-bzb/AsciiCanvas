@@ -10,6 +10,7 @@ import {
   getStructuredTemplatePreview,
   setActiveStructuredTemplateDragId,
 } from "@/domains/canvas/state/helpers/structuredTemplates";
+import { setUiLanguage } from "@/shared/i18n";
 
 const sortTemplateLabels = <
   T extends { id: string; label: string },
@@ -26,6 +27,7 @@ describe("SidebarRight structured templates", () => {
   const initialState = useCanvasStore.getState();
 
   beforeEach(() => {
+    setUiLanguage("en");
     Object.defineProperty(window, "matchMedia", {
       writable: true,
       value: vi.fn().mockImplementation((query: string) => ({
@@ -43,6 +45,7 @@ describe("SidebarRight structured templates", () => {
 
   afterEach(() => {
     setActiveStructuredTemplateDragId(null);
+    setUiLanguage("en");
     useCanvasStore.setState(initialState, true);
   });
 
@@ -124,6 +127,7 @@ describe("SidebarRight structured templates", () => {
     expect(screen.queryByRole("button", { name: /timeline/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /snippet/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /terminal/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /phone/i })).not.toBeInTheDocument();
     expect(screen.queryByText("Nerd Icons")).not.toBeInTheDocument();
   });
 
@@ -149,12 +153,14 @@ describe("SidebarRight structured templates", () => {
     expect(screen.getByRole("button", { name: /timeline/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /snippet/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /terminal/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /phone/i })).toBeInTheDocument();
     expect(STRUCTURED_PAGE_TEMPLATES.map((template) => template.id)).toEqual([
       "safari",
       "filetree",
       "timeline",
       "snippet",
       "terminal",
+      "phone",
     ]);
     expect(screen.queryByRole("button", { name: /button/i })).not.toBeInTheDocument();
     expect(screen.queryByText("No templates found")).not.toBeInTheDocument();
@@ -171,6 +177,7 @@ describe("SidebarRight structured templates", () => {
     expect(screen.queryByRole("button", { name: /timeline/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /snippet/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /terminal/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /phone/i })).not.toBeInTheDocument();
   });
 
   it("filters structured components from the main header search", () => {
@@ -257,6 +264,27 @@ describe("SidebarRight structured templates", () => {
     ).not.toBeInTheDocument();
     expect(header?.querySelector('[data-slot="sidebar-trigger"]')).toBeInTheDocument();
     expect(screen.queryByRole("tab", { name: "Template" })).not.toBeInTheDocument();
+  });
+
+  it("toggles operation UI labels to Chinese without changing template labels", () => {
+    useCanvasStore.setState({ canvasMode: "structured" });
+
+    render(
+      <SidebarProvider>
+        <SidebarRight />
+      </SidebarProvider>
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "UI language" }));
+
+    expect(screen.getByRole("searchbox", { name: "搜索结构库" })).toHaveAttribute(
+      "placeholder",
+      "搜索"
+    );
+    expect(screen.getByRole("tab", { name: "模板" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "组件" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /button/i })).toBeInTheDocument();
+    expect(window.localStorage.getItem("ascii-canvas-ui-language")).toBe("zh");
   });
 
   it("uses a transparent drag image for structured templates", () => {

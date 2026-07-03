@@ -59,6 +59,8 @@ export type { CanvasState };
 import {
   DEFAULT_SESSION_ID,
   DEFAULT_SESSION_NAME,
+  DEFAULT_STRUCTURED_SESSION_ID,
+  DEFAULT_STRUCTURED_SESSION_NAME,
   DEFAULT_MODE,
   isToolAllowedForMode,
   buildSessionSnapshot,
@@ -66,6 +68,37 @@ import {
   normalizeSessionViewport,
 } from "./helpers/storeUtils";
 import { DEFAULT_DEMO_GRID } from "./helpers/defaultDemo";
+import { buildStructuredTemplate } from "./helpers/structuredTemplates";
+
+const DEFAULT_STRUCTURED_SAFARI_TEMPLATE = buildStructuredTemplate(
+  "safari",
+  { x: 4, y: 2 },
+  {
+    brushColor: COLOR_PRIMARY_TEXT,
+    startOrder: 1,
+  }
+);
+const DEFAULT_STRUCTURED_SAFARI_GRID = sceneToGridEntries(
+  DEFAULT_STRUCTURED_SAFARI_TEMPLATE.nodes
+);
+
+const createDefaultCanvasSessions = (): CanvasSession[] => [
+  {
+    id: DEFAULT_SESSION_ID,
+    name: DEFAULT_SESSION_NAME,
+    mode: DEFAULT_MODE,
+    scene: [],
+    grid: DEFAULT_DEMO_GRID,
+  },
+  {
+    id: DEFAULT_STRUCTURED_SESSION_ID,
+    name: DEFAULT_STRUCTURED_SESSION_NAME,
+    mode: "structured",
+    scene: DEFAULT_STRUCTURED_SAFARI_TEMPLATE.nodes,
+    components: DEFAULT_STRUCTURED_SAFARI_TEMPLATE.components,
+    grid: DEFAULT_STRUCTURED_SAFARI_GRID,
+  },
+];
 
 export const useCanvasStore = create<CanvasState>()(
   persist(
@@ -116,15 +149,7 @@ export const useCanvasStore = create<CanvasState>()(
         animationTimeline: null,
         animationIsPlaying: false,
         animationPlaybackFrameId: null,
-        canvasSessions: [
-          {
-            id: DEFAULT_SESSION_ID,
-            name: DEFAULT_SESSION_NAME,
-            mode: DEFAULT_MODE,
-            scene: [],
-            grid: DEFAULT_DEMO_GRID,
-          },
-        ],
+        canvasSessions: createDefaultCanvasSessions(),
         activeCanvasId: DEFAULT_SESSION_ID,
         activeCanvasHasSavedViewport: false,
         tool: "select",
@@ -409,7 +434,9 @@ export const useCanvasStore = create<CanvasState>()(
           const sessions =
             recoveredSessions.length > 0
               ? recoveredSessions
-              : [
+              : !hasPersistedState
+                ? createDefaultCanvasSessions()
+                : [
                   {
                     id: DEFAULT_SESSION_ID,
                     name: DEFAULT_SESSION_NAME,

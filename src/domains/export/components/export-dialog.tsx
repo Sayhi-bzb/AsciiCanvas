@@ -27,6 +27,7 @@ import {
 } from "@/shared/ui/tooltip";
 import { clipboard, feedback } from "@/shared/services/effects";
 import { cn } from "@/shared/lib/utils";
+import { useUiI18n } from "@/shared/i18n";
 import { ExportPreview } from "./export-preview";
 import { AnimationExportPreview } from "./animation-export-preview";
 import {
@@ -92,6 +93,7 @@ export function ExportDialog({
   exportShowGrid,
   setExportShowGrid,
 }: ExportDialogProps) {
+  const { t } = useUiI18n();
   const shouldExportStructured = canvasMode === "structured";
   const shouldExportAnimation = canvasMode === "animation";
   const [exportFormat, setExportFormat] = useState<ExportFormat>("txt");
@@ -246,8 +248,8 @@ export function ExportDialog({
 
   const copyActiveFormat = async () => {
     if (activeFormat === "gif") {
-      feedback.warning("Copy unavailable", {
-        description: "GIF is save-only in this export panel.",
+      feedback.warning(t("export.copyUnavailable"), {
+        description: t("export.copyUnavailableDescription"),
       });
       return false;
     }
@@ -259,8 +261,8 @@ export function ExportDialog({
         includeColor
       );
       if (!copied) {
-        feedback.error("Copy failed", {
-          description: "Could not write PNG image to clipboard.",
+        feedback.error(t("export.copyFailed"), {
+          description: t("export.copyPngFailedDescription"),
         });
       }
       return copied;
@@ -268,8 +270,10 @@ export function ExportDialog({
 
     const copied = await clipboard.writeText(textExport);
     if (!copied) {
-      feedback.error("Copy failed", {
-        description: `Could not write ${activeFormat.toUpperCase()} export to clipboard.`,
+      feedback.error(t("export.copyFailed"), {
+        description: t("export.copyTextFailedDescription", {
+          format: activeFormat.toUpperCase(),
+        }),
       });
     }
     return copied;
@@ -322,7 +326,9 @@ export function ExportDialog({
             </DialogTrigger>
           </TooltipTrigger>
           <TooltipContent side="left">
-            {shouldExportAnimation ? "Export Animation" : "Export Blueprint"}
+            {shouldExportAnimation
+              ? t("export.tooltip.animation")
+              : t("export.tooltip.blueprint")}
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
@@ -330,7 +336,7 @@ export function ExportDialog({
       <DialogContent className="sm:max-w-xl gap-0 p-0 max-h-[85vh] min-w-0 overflow-hidden border-none shadow-2xl">
         <div className="bg-muted/30 p-5 pb-3">
           <DialogHeader>
-            <DialogTitle className="text-base">Export</DialogTitle>
+            <DialogTitle className="text-base">{t("export.title")}</DialogTitle>
           </DialogHeader>
         </div>
 
@@ -380,13 +386,22 @@ export function ExportDialog({
                     <div className="flex min-w-0 shrink-0 items-center">
                       <div className="max-w-[11rem] text-right text-[10px] font-medium text-muted-foreground">
                         {shouldTruncatePreview && previewState.truncated
-                          ? `Previewing ${previewLineCount} lines · ${previewCharCount}/${charCount} chars`
-                          : `${lineCount} lines · ${charCount} chars`}
+                          ? t("export.previewingStats", {
+                              lines: previewLineCount,
+                              previewChars: previewCharCount,
+                              chars: charCount,
+                            })
+                          : t("export.previewStats", {
+                              lines: lineCount,
+                              chars: charCount,
+                            })}
                       </div>
                     </div>
                   ) : (
                     <div className="text-[10px] font-medium uppercase tracking-[0.24em] text-muted-foreground">
-                      {activeFormat === "gif" ? "save-only" : "preview"}
+                      {activeFormat === "gif"
+                        ? t("export.saveOnly")
+                        : t("export.preview")}
                     </div>
                   )}
                 </div>
@@ -425,7 +440,9 @@ export function ExportDialog({
                       </div>
                       {shouldTruncatePreview && previewState.truncated && (
                         <div className="border-t border-border bg-muted/30 px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-                          Preview truncated. Copy or save for full {activeFormatMeta.label}.
+                          {t("export.truncated", {
+                            format: activeFormatMeta.label,
+                          })}
                         </div>
                       )}
                     </div>
@@ -442,7 +459,7 @@ export function ExportDialog({
               shape="auto"
               icon={Copy}
               whileHover={{ scale: 1 }}
-              label="Copy"
+              label={t("export.copy")}
               disabled={activeFormat === "gif"}
               className="rounded-2xl border border-border bg-muted/20 text-foreground transition-colors hover:bg-accent/45 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-45"
               onAction={copyActiveFormat}
@@ -453,7 +470,7 @@ export function ExportDialog({
               shape="auto"
               icon={saveIcon}
               whileHover={{ scale: 1 }}
-              label="Save"
+              label={t("export.save")}
               className="rounded-2xl border border-border bg-muted/20 text-foreground transition-colors hover:bg-accent/45 hover:text-foreground"
               onAction={saveActiveFormat}
             />
@@ -463,7 +480,7 @@ export function ExportDialog({
             <div className="space-y-2">
               <div className="flex items-center justify-between rounded-lg border border-border bg-muted/40 px-3 py-2">
                 <div className="text-xs font-medium text-muted-foreground">
-                  Color
+                  {t("export.color")}
                 </div>
                 <Button
                   tone={includeColor ? "primary" : "neutral"}
@@ -477,7 +494,7 @@ export function ExportDialog({
               {activeFormat === "png" && (
                 <div className="flex items-center justify-between rounded-lg border border-border bg-muted/40 px-3 py-2">
                   <div className="text-xs font-medium text-muted-foreground">
-                    Grid
+                    {t("export.grid")}
                   </div>
                   <Button
                     tone={exportShowGrid ? "primary" : "neutral"}

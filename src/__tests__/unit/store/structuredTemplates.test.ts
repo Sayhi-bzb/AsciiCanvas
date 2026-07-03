@@ -52,6 +52,7 @@ describe("structuredTemplates", () => {
       "timeline",
       "snippet",
       "terminal",
+      "phone",
     ]);
     expect(STRUCTURED_TEMPLATES.map((template) => template.id)).toEqual([
       ...STRUCTURED_COMPONENT_TEMPLATES.map((template) => template.id),
@@ -60,6 +61,7 @@ describe("structuredTemplates", () => {
       "timeline",
       "snippet",
       "terminal",
+      "phone",
     ]);
   });
 
@@ -407,6 +409,52 @@ describe("structuredTemplates", () => {
         position: { x: 6, y: 14 },
         text: "/home/user/Documents",
         style: { color: "#28c941" },
+      },
+    ]);
+
+    expect(build("phone").slice(0, 8)).toMatchObject([
+      {
+        type: "box",
+        start: { x: 4, y: 7 },
+        end: { x: 29, y: 30 },
+      },
+      {
+        type: "line",
+        start: { x: 5, y: 9 },
+        end: { x: 28, y: 9 },
+        axis: "horizontal",
+      },
+      {
+        type: "line",
+        start: { x: 5, y: 28 },
+        end: { x: 28, y: 28 },
+        axis: "horizontal",
+      },
+      {
+        type: "bg",
+        start: { x: 9, y: 14 },
+        end: { x: 21, y: 14 },
+        style: { color: "#000000", bgColor: "#86efac" },
+      },
+      {
+        type: "text",
+        position: { x: 5, y: 8 },
+        text: "          ━━━━         ",
+      },
+      {
+        type: "text",
+        position: { x: 5, y: 10 },
+        text: " 󰢽      5:25 PM   󰖩    ",
+      },
+      {
+        type: "text",
+        position: { x: 5, y: 12 },
+        text: " Welcome Back  󱠡        ",
+      },
+      {
+        type: "text",
+        position: { x: 5, y: 14 },
+        text: "    24°C   Sunny       ",
       },
     ]);
   });
@@ -877,6 +925,48 @@ describe("structuredTemplates", () => {
     expect(terminalPreview.rows[1][6].color).toBe("#28c941");
     expect(terminalPreview.rows[4][2].color).toBe("#3b82f6");
     expect(terminalPreview.rows[7][2].color).toBe("#28c941");
+
+    const phonePreview = buildStructuredTemplatePreview("phone");
+    expect(phonePreview).toMatchObject({ width: 26, height: 24 });
+    expect(
+      phonePreview.rows.map((row) => row.map((cell) => cell.char).join(""))
+    ).toEqual([
+      "╭────────────────────────╮",
+      "│          ━━━━         │",
+      "│────────────────────────│",
+      "│ 󰢽      5:25 PM   󰖩    │",
+      "│                        │",
+      "│ Welcome Back  󱠡        │",
+      "│                        │",
+      "│    24°C   Sunny       │",
+      "│                        │",
+      "│                        │",
+      "│ °   °             │",
+      "│                        │",
+      "│                        │",
+      "│                   │",
+      "│                        │",
+      "│                        │",
+      "│         󰋾        󰘑  │",
+      "│                        │",
+      "│                        │",
+      "│                        │",
+      "│                     │",
+      "│────────────────────────│",
+      "│          (  )          │",
+      "╰────────────────────────╯",
+    ]);
+    expect(phonePreview.rows[3][22].color).toBe("#eab308");
+    expect(phonePreview.rows[5][16].color).toBe("#eab308");
+    expect(
+      phonePreview.rows[7].slice(5, 18).every((cell) => cell.bgColor === "#86efac")
+    ).toBe(true);
+    expect(phonePreview.rows[7][11].color).toBe("#eab308");
+    expect(phonePreview.rows[10][2].color).toBe("#eab308");
+    expect(phonePreview.rows[10][3].color).toBe("#ef4444");
+    expect(phonePreview.rows[13][2].color).toBe("#10b981");
+    expect(phonePreview.rows[16][12].color).toBe("#ec4899");
+    expect(phonePreview.rows[20][4].color).toBe("#22c55e");
 
     const calendarPreview = buildStructuredTemplatePreview("calendar");
     expect(calendarPreview).toMatchObject({ width: 26, height: 7 });

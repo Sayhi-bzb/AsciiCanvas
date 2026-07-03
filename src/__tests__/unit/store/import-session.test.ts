@@ -25,6 +25,7 @@ describe("importCanvasSession", () => {
   });
 
   it("imports a freeform protocol document into a new active session", () => {
+    const sessionCount = useCanvasStore.getState().canvasSessions.length;
     const session = useCanvasStore.getState().importCanvasSession({
       type: ASCII_CANVAS_DOCUMENT_TYPE,
       version: ASCII_CANVAS_DOCUMENT_VERSION,
@@ -37,7 +38,7 @@ describe("importCanvasSession", () => {
 
     const state = useCanvasStore.getState();
     expect(session.name).toBe("Imported Canvas");
-    expect(state.canvasSessions).toHaveLength(2);
+    expect(state.canvasSessions).toHaveLength(sessionCount + 1);
     expect(state.activeCanvasId).toBe(session.id);
     expect(state.canvasMode).toBe("freeform");
     expect(state.grid.get("0,0")).toEqual({ char: "A", color: "#ff0000" });

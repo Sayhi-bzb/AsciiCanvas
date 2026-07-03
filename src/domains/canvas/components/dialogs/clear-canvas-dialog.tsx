@@ -15,6 +15,7 @@ import {
   AlertDialogTrigger,
 } from "@/shared/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/shared/ui/tooltip";
+import { useUiI18n } from "@/shared/i18n";
 
 type ClearCanvasDialogProps = {
   isCollapsed: boolean;
@@ -31,6 +32,8 @@ export function ClearCanvasDialog({
   description = "This will completely clear the current blueprint.",
   onConfirm,
 }: ClearCanvasDialogProps) {
+  const { t } = useUiI18n();
+
   return (
     <AlertDialog>
       <TooltipProvider>
@@ -59,16 +62,16 @@ export function ClearCanvasDialog({
 
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Issuing a Demolition Order?</AlertDialogTitle>
+          <AlertDialogTitle>{t("clear.title")}</AlertDialogTitle>
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogCancel>{t("dialog.cancel")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            Confirm
+            {t("dialog.confirm")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

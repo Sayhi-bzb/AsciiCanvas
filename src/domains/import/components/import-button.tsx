@@ -11,8 +11,10 @@ import {
   TooltipTrigger,
 } from "@/shared/ui/tooltip";
 import { feedback } from "@/shared/services/effects";
+import { useUiI18n } from "@/shared/i18n";
 
 export function ImportButton() {
+  const { t } = useUiI18n();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const importCanvasSession = useCanvasStore(
     (state) => state.importCanvasSession
@@ -36,15 +38,15 @@ export function ImportButton() {
     try {
       const raw = await file.text();
       const session = importCanvasSession(raw);
-      feedback.success("Import complete", {
-        description: `${session.name} opened in a new session.`,
+      feedback.success(t("import.success"), {
+        description: t("import.successDescription", { name: session.name }),
       });
     } catch (error) {
-      feedback.error("Import failed", {
+      feedback.error(t("import.failed"), {
         description:
           error instanceof Error
             ? error.message
-            : "Could not import the selected file.",
+            : t("import.failedDescription"),
       });
     } finally {
       setIsImporting(false);
@@ -77,7 +79,7 @@ export function ImportButton() {
             </Button>
           </TooltipTrigger>
           <TooltipContent side="left">
-            {isImporting ? "Importing..." : "Import Canvas"}
+            {isImporting ? t("import.importing") : t("import.tooltip")}
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>

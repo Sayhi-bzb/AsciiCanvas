@@ -2,11 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { SessionTabs } from "@/domains/sessions/components/SessionTabs";
 import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
+import { setUiLanguage } from "@/shared/i18n";
 
 describe("SessionTabs auto-hide", () => {
   const initialState = useCanvasStore.getState();
 
   beforeEach(() => {
+    setUiLanguage("en");
     Object.defineProperty(window, "matchMedia", {
       configurable: true,
       writable: true,
@@ -25,6 +27,7 @@ describe("SessionTabs auto-hide", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    setUiLanguage("en");
     useCanvasStore.setState(initialState, true);
   });
 
@@ -184,5 +187,36 @@ describe("SessionTabs auto-hide", () => {
     expect(scroller!.dispatchEvent(wheelEvent)).toBe(false);
     expect(wheelEvent.defaultPrevented).toBe(true);
     expect(scroller!.scrollLeft).toBe(48);
+  });
+
+  it("translates top bar operation UI without translating session names", async () => {
+    setTwoSessions();
+    setUiLanguage("zh");
+
+    render(<SessionTabs />);
+
+    expect(screen.getByRole("button", { name: "展开画布会话" })).toBeInTheDocument();
+    expect(screen.getAllByText("Alpha")).toHaveLength(2);
+
+    fireEvent.click(screen.getByLabelText("新建画布"));
+
+    expect(await screen.findByText("新建自由画布")).toBeInTheDocument();
+    expect(screen.getByText("新建结构化画布")).toBeInTheDocument();
+    expect(screen.getByText("新建动画")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("新建动画"));
+
+    expect(await screen.findByRole("heading", { name: "创建动画会话" })).toBeInTheDocument();
+    expect(screen.getByText("预设")).toBeInTheDocument();
+    expect(screen.getByLabelText("宽度")).toBeInTheDocument();
+    expect(screen.getByLabelText("高度")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "创建动画" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "取消" }));
+    fireEvent.click(screen.getByLabelText("关闭 Beta"));
+
+    expect(await screen.findByRole("heading", { name: "删除这个画布？" })).toBeInTheDocument();
+    expect(screen.getByText("画布“Beta”会从当前会话中关闭并移除。")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "删除" })).toBeInTheDocument();
   });
 });

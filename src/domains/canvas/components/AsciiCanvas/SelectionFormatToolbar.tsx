@@ -32,6 +32,7 @@ import {
   ToggleGroupItem,
   ToggleGroupSeparator,
 } from "@/shared/ui/toggle-group";
+import { useUiI18n } from "@/shared/i18n";
 
 type SelectionFormatToolbarProps = {
   containerSize: { width: number; height: number } | undefined;
@@ -88,6 +89,7 @@ const getBoundsFromNodeBounds = (bounds: NodeBounds) => ({
 export function SelectionFormatToolbar({
   containerSize,
 }: SelectionFormatToolbarProps) {
+  const { t } = useUiI18n();
   const {
     canvasMode,
     grid,
@@ -340,12 +342,12 @@ export function SelectionFormatToolbar({
       >
         <div
           className="inline-flex h-10 items-center gap-1 rounded-md border bg-background p-1 shadow-sm"
-          aria-label="Split box controls"
+          aria-label={t("selection.splitControls")}
         >
           <button
             type="button"
-            aria-label="Split box horizontally"
-            title="Split horizontally"
+            aria-label={t("selection.splitHorizontal")}
+            title={t("selection.splitHorizontalTitle")}
             disabled={!splitBoxModel.canSplitHorizontal || !splitBoxModel.activePoint}
             className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-ring"
             onMouseDown={(event) => event.preventDefault()}
@@ -363,8 +365,8 @@ export function SelectionFormatToolbar({
           <ToggleGroupSeparator />
           <button
             type="button"
-            aria-label="Split box vertically"
-            title="Split vertically"
+            aria-label={t("selection.splitVertical")}
+            title={t("selection.splitVerticalTitle")}
             disabled={!splitBoxModel.canSplitVertical || !splitBoxModel.activePoint}
             className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-ring"
             onMouseDown={(event) => event.preventDefault()}
@@ -382,8 +384,8 @@ export function SelectionFormatToolbar({
           <ToggleGroupSeparator />
           <button
             type="button"
-            aria-label="Apply brush color to selected shape"
-            title={`Apply brush color to selected shape (${brushColor})`}
+            aria-label={t("selection.applyShapeColor")}
+            title={t("selection.applyShapeColorTitle", { color: brushColor })}
             className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring"
             onMouseDown={(event) => event.preventDefault()}
             onClick={() => setStructuredNodeCharColor(brushColor)}
@@ -393,8 +395,8 @@ export function SelectionFormatToolbar({
           <ToggleGroupSeparator />
           <button
             type="button"
-            aria-label="Delete split divider"
-            title="Delete divider"
+            aria-label={t("selection.deleteDivider")}
+            title={t("selection.deleteDividerTitle")}
             disabled={!splitBoxModel.canDeleteDivider}
             className="inline-flex size-8 items-center justify-center rounded-md text-destructive transition-colors outline-none hover:bg-destructive/10 disabled:pointer-events-none disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-ring"
             onMouseDown={(event) => event.preventDefault()}
@@ -419,12 +421,12 @@ export function SelectionFormatToolbar({
       >
         <div
           className="inline-flex h-10 items-center gap-1 rounded-md border bg-background p-1 shadow-sm"
-          aria-label="Shape color controls"
+          aria-label={t("selection.shapeColorControls")}
         >
           <button
             type="button"
-            aria-label="Apply brush color to selected shape"
-            title={`Apply brush color to selected shape (${brushColor})`}
+            aria-label={t("selection.applyShapeColor")}
+            title={t("selection.applyShapeColorTitle", { color: brushColor })}
             className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring"
             onMouseDown={(event) => event.preventDefault()}
             onClick={() => setStructuredNodeCharColor(brushColor)}
@@ -450,7 +452,7 @@ export function SelectionFormatToolbar({
         type="multiple"
         value={textValue}
         variant="outline"
-        aria-label="Selection text formatting"
+        aria-label={t("selection.textFormatting")}
         onValueChange={(nextValue) => {
           const next = new Set(nextValue);
           const attrs = {
@@ -467,17 +469,25 @@ export function SelectionFormatToolbar({
           setSelectionTextAttributes(attrs);
         }}
       >
-        <ToggleGroupItem aria-label="Toggle bold" title="Bold" value="bold">
+        <ToggleGroupItem
+          aria-label={t("selection.toggleBold")}
+          title={t("selection.bold")}
+          value="bold"
+        >
           <BoldIcon className="size-4" />
         </ToggleGroupItem>
         <ToggleGroupSeparator />
-        <ToggleGroupItem aria-label="Toggle italic" title="Italic" value="italic">
+        <ToggleGroupItem
+          aria-label={t("selection.toggleItalic")}
+          title={t("selection.italic")}
+          value="italic"
+        >
           <ItalicIcon className="size-4" />
         </ToggleGroupItem>
         <ToggleGroupSeparator />
         <ToggleGroupItem
-          aria-label="Toggle underline"
-          title="Underline"
+          aria-label={t("selection.toggleUnderline")}
+          title={t("selection.underline")}
           value="underline"
         >
           <UnderlineIcon className="size-4" />
@@ -487,8 +497,8 @@ export function SelectionFormatToolbar({
           <>
             <button
               type="button"
-              aria-label="Apply brush color to selected text"
-              title={`Apply brush color to selected text (${brushColor})`}
+              aria-label={t("selection.applyTextColor")}
+              title={t("selection.applyTextColorTitle", { color: brushColor })}
               className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring"
               onClick={() => setStructuredTextColor(brushColor)}
             >

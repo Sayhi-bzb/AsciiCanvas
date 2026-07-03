@@ -4,7 +4,10 @@ import {
   buildDefaultDemoGrid,
   extractAsciiCodeBlocks,
 } from "@/domains/canvas/state/helpers/defaultDemo";
-import { DEFAULT_SESSION_ID } from "@/domains/canvas/state/helpers/storeUtils";
+import {
+  DEFAULT_SESSION_ID,
+  DEFAULT_STRUCTURED_SESSION_ID,
+} from "@/domains/canvas/state/helpers/storeUtils";
 import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
 import { GridManager } from "@/shared/utils/grid";
 
@@ -64,5 +67,29 @@ describe("default demo canvas", () => {
       color: "#2563eb",
       attrs: { bold: true },
     });
+  });
+
+  it("adds a default structured Safari canvas without activating it", () => {
+    const state = useCanvasStore.getState();
+    const structuredSession = state.canvasSessions.find(
+      (session) => session.id === DEFAULT_STRUCTURED_SESSION_ID
+    );
+
+    expect(state.activeCanvasId).toBe(DEFAULT_SESSION_ID);
+    expect(state.canvasMode).toBe("freeform");
+    expect(state.canvasSessions).toHaveLength(2);
+    expect(structuredSession).toMatchObject({
+      id: DEFAULT_STRUCTURED_SESSION_ID,
+      name: "Canvas 2",
+      mode: "structured",
+    });
+    expect(structuredSession?.scene.some((node) => node.type === "splitBox")).toBe(
+      true
+    );
+    expect(structuredSession?.components?.[0]).toMatchObject({
+      templateId: "safari",
+      label: "Safari",
+    });
+    expect(structuredSession?.grid.length).toBeGreaterThan(0);
   });
 });

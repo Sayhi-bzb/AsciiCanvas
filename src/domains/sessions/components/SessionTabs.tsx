@@ -28,14 +28,52 @@ import {
 } from "@/shared/ui/dialog";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
+import { useUiI18n, type I18nKey } from "@/shared/i18n";
 
 const ANIMATION_SIZE_PRESETS = [
-  { label: "Classic Terminal", width: 80, height: 25 },
-  { label: "Square 64", width: 64, height: 64 },
-  { label: "Poster 128", width: 128, height: 128 },
-];
+  { labelKey: "session.animation.preset.classicTerminal", width: 80, height: 25 },
+  { labelKey: "session.animation.preset.square64", width: 64, height: 64 },
+  { labelKey: "session.animation.preset.poster128", width: 128, height: 128 },
+] satisfies Array<{
+  labelKey: I18nKey;
+  width: number;
+  height: number;
+}>;
+
+const getModeLabelKey = (mode: "freeform" | "structured" | "animation") => {
+  switch (mode) {
+    case "structured":
+      return "session.mode.structured";
+    case "animation":
+      return "session.mode.animation";
+    case "freeform":
+      return "session.mode.freeform";
+  }
+};
+
+const getModeIcon = (mode: "freeform" | "structured" | "animation" | undefined) => {
+  switch (mode) {
+    case "structured":
+      return Box;
+    case "animation":
+      return Clapperboard;
+    default:
+      return Pencil;
+  }
+};
+
+const createOptionMeta = [
+  { mode: "freeform" as const, labelKey: "session.newFreeform", icon: Pencil },
+  { mode: "structured" as const, labelKey: "session.newStructured", icon: Box },
+  { mode: "animation" as const, labelKey: "session.newAnimation", icon: Clapperboard },
+] satisfies Array<{
+  mode: "freeform" | "structured" | "animation";
+  labelKey: I18nKey;
+  icon: typeof Pencil;
+}>;
 
 export function SessionTabs() {
+  const { t } = useUiI18n();
   const {
     canvasSessions,
     activeCanvasId,
@@ -78,7 +116,7 @@ export function SessionTabs() {
   const [isExpanded, setIsExpanded] = useState(false);
   const showExpandedTabs = isExpanded || isPinnedOpen;
   const activeNameLength = Math.min(
-    Array.from(activeSession?.name ?? "Canvas").length,
+    Array.from(activeSession?.name ?? t("session.fallbackName")).length,
     28
   );
   const collapsedSessionTabsWidth = isMobile
@@ -195,12 +233,6 @@ export function SessionTabs() {
     setEditingId(null);
   };
 
-  const createOptions = [
-    { mode: "freeform" as const, label: "New Freeform", icon: Pencil },
-    { mode: "structured" as const, label: "New Structured", icon: Box },
-    { mode: "animation" as const, label: "New Animation", icon: Clapperboard },
-  ];
-
   const commitAnimationCreation = () => {
     const width = Number.parseInt(animationWidth, 10);
     const height = Number.parseInt(animationHeight, 10);
@@ -224,18 +256,10 @@ export function SessionTabs() {
     expandTabsTemporarily();
   };
 
-  const ModeIcon =
-    activeSession?.mode === "structured"
-      ? Box
-      : activeSession?.mode === "animation"
-      ? Clapperboard
-      : Pencil;
-  const modeLabel =
-    activeSession?.mode === "structured"
-      ? "Structured"
-      : activeSession?.mode === "animation"
-      ? "Animation"
-      : "Freeform";
+  const ModeIcon = getModeIcon(activeSession?.mode);
+  const modeLabel = activeSession
+    ? t(getModeLabelKey(activeSession.mode))
+    : t("session.fallbackName");
 
   return (
     <div
@@ -273,14 +297,14 @@ export function SessionTabs() {
                 ? "pointer-events-none -translate-y-1 opacity-0"
                 : "translate-y-0 opacity-100"
             )}
-            title={activeSession ? `${activeSession.name} (${modeLabel})` : "Canvas"}
-            aria-label="Expand canvas sessions"
+            title={activeSession ? `${activeSession.name} (${modeLabel})` : t("session.fallbackName")}
+            aria-label={t("session.expand")}
             aria-hidden={showExpandedTabs}
             tabIndex={showExpandedTabs ? -1 : 0}
           >
             <ModeIcon className="size-3.5 shrink-0 text-muted-foreground" />
             <span className="truncate">
-              {activeSession?.name ?? "Canvas"}
+              {activeSession?.name ?? t("session.fallbackName")}
             </span>
           </button>
 
@@ -296,18 +320,8 @@ export function SessionTabs() {
           >
             {canvasSessions.map((session) => {
               const isActive = session.id === activeCanvasId;
-              const SessionModeIcon =
-                session.mode === "structured"
-                  ? Box
-                  : session.mode === "animation"
-                  ? Clapperboard
-                  : Pencil;
-              const sessionModeLabel =
-                session.mode === "structured"
-                  ? "Structured"
-                  : session.mode === "animation"
-                  ? "Animation"
-                  : "Freeform";
+              const SessionModeIcon = getModeIcon(session.mode);
+              const sessionModeLabel = t(getModeLabelKey(session.mode));
               return (
                 <div
                   key={session.id}
@@ -373,7 +387,7 @@ export function SessionTabs() {
                         ? "text-muted-foreground/55 opacity-65 hover:text-destructive hover:opacity-100 group-hover/tab:opacity-100 group-focus-within/tab:opacity-100"
                         : "text-muted-foreground/40 cursor-not-allowed"
                     )}
-                    aria-label={`Close ${session.name}`}
+                    aria-label={t("session.close", { name: session.name })}
                   >
                     <X className="size-3.5" />
                   </button>
@@ -393,7 +407,7 @@ export function SessionTabs() {
                 "shrink-0 transition-[width,height,background-color] duration-150 ease-out",
                 showExpandedTabs ? "size-7" : "size-7 bg-transparent"
               )}
-              aria-label="Create new canvas"
+              aria-label={t("session.createNew")}
               onClick={expandTabs}
             >
               <Plus className="size-3.5" />
@@ -405,7 +419,7 @@ export function SessionTabs() {
             sideOffset={8}
             className={cn(uiClass.submenuPanel, "w-44 p-1")}
           >
-            {createOptions.map((option) => {
+            {createOptionMeta.map((option) => {
               const Icon = option.icon;
               return (
                 <button
@@ -422,7 +436,7 @@ export function SessionTabs() {
                   className="w-full flex items-center gap-2 h-9 px-2 rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
                 >
                   <Icon className="size-3.5 shrink-0" />
-                  <span className="text-sm font-medium">{option.label}</span>
+                  <span className="text-sm font-medium">{t(option.labelKey)}</span>
                 </button>
               );
             })}
@@ -436,11 +450,10 @@ export function SessionTabs() {
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-base">
                 <Clapperboard className="size-4 text-primary" />
-                Create Animation Session
+                {t("session.animation.title")}
               </DialogTitle>
               <DialogDescription className="text-xs">
-                Fixed bounds, onion-skin playback, and frame-based editing in the
-                same workspace language as the rest of the app.
+                {t("session.animation.description")}
               </DialogDescription>
             </DialogHeader>
           </div>
@@ -448,12 +461,12 @@ export function SessionTabs() {
           <div className="space-y-4 bg-background px-5 py-5">
             <div className="space-y-2">
               <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-                Presets
+                {t("session.animation.presets")}
               </div>
               <div className="grid grid-cols-3 gap-2">
                 {ANIMATION_SIZE_PRESETS.map((preset) => (
                   <button
-                    key={preset.label}
+                    key={preset.labelKey}
                     type="button"
                     onClick={() => {
                       setAnimationWidth(String(preset.width));
@@ -465,7 +478,7 @@ export function SessionTabs() {
                       {preset.width} x {preset.height}
                     </div>
                     <div className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
-                      {preset.label}
+                      {t(preset.labelKey)}
                     </div>
                   </button>
                 ))}
@@ -474,7 +487,7 @@ export function SessionTabs() {
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label htmlFor="animation-width">Width</Label>
+                <Label htmlFor="animation-width">{t("session.animation.width")}</Label>
                 <Input
                   id="animation-width"
                   inputMode="numeric"
@@ -484,7 +497,7 @@ export function SessionTabs() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="animation-height">Height</Label>
+                <Label htmlFor="animation-height">{t("session.animation.height")}</Label>
                 <Input
                   id="animation-height"
                   inputMode="numeric"
@@ -497,27 +510,27 @@ export function SessionTabs() {
 
             <div className="rounded-2xl border border-border bg-muted/25 px-4 py-3">
               <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-                Startup Defaults
+                {t("session.animation.startupDefaults")}
               </div>
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 <div className="rounded-xl border border-border bg-background/80 px-3 py-2">
                   <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                    Playback
+                    {t("session.animation.playback")}
                   </div>
                   <div className="mt-1 text-sm font-semibold text-foreground">10 FPS</div>
                   <div className="mt-1 text-[11px] text-muted-foreground">
-                    Loop enabled by default.
+                    {t("session.animation.loopEnabled")}
                   </div>
                 </div>
                 <div className="rounded-xl border border-border bg-background/80 px-3 py-2">
                   <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                    Onion Skin
+                    {t("session.animation.onionSkin")}
                   </div>
                   <div className="mt-1 text-sm font-semibold text-foreground">
                     2 back / 2 forward
                   </div>
                   <div className="mt-1 text-[11px] text-muted-foreground">
-                    Fade profile: 0.5, 0.3, 0.1
+                    {t("session.animation.fadeProfile")}
                   </div>
                 </div>
               </div>
@@ -528,9 +541,11 @@ export function SessionTabs() {
                 tone="neutral"
                 onClick={() => setAnimationDialogOpen(false)}
               >
-                Cancel
+                {t("dialog.cancel")}
               </Button>
-              <Button onClick={commitAnimationCreation}>Create Animation</Button>
+              <Button onClick={commitAnimationCreation}>
+                {t("session.animation.create")}
+              </Button>
             </div>
           </div>
         </DialogContent>
@@ -544,15 +559,15 @@ export function SessionTabs() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete This Canvas?</AlertDialogTitle>
+            <AlertDialogTitle>{t("session.delete.title")}</AlertDialogTitle>
             <AlertDialogDescription>
               {pendingDeleteSession
-                ? `Canvas "${pendingDeleteSession.name}" will be closed and removed from this session.`
-                : "This canvas will be removed from this session."}
+                ? t("session.delete.description", { name: pendingDeleteSession.name })
+                : t("session.delete.fallbackDescription")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t("dialog.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => {
@@ -561,7 +576,7 @@ export function SessionTabs() {
                 setPendingDeleteId(null);
               }}
             >
-              Delete
+              {t("session.delete.action")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -1,9 +1,12 @@
 "use client";
 
 import {
+  Box,
   CircleHelp,
+  Clipboard,
   Info,
   Keyboard,
+  Layers,
   Maximize,
   Mouse,
   Move,
@@ -19,14 +22,18 @@ import {
 } from "@/shared/ui/dialog";
 import { ScrollArea } from "@/shared/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
+import { useUiI18n } from "@/shared/i18n";
 
 export function HandbookDialog() {
+  const { t } = useUiI18n();
+
   return (
     <Dialog>
       <Tooltip>
         <TooltipTrigger asChild>
           <DialogTrigger asChild>
             <Button
+              aria-label="Open user manual"
               tone="subtle"
               shape="square"
               size="md"
@@ -36,14 +43,14 @@ export function HandbookDialog() {
             </Button>
           </DialogTrigger>
         </TooltipTrigger>
-        <TooltipContent side="left">User Manual</TooltipContent>
+        <TooltipContent side="left">{t("manual.title")}</TooltipContent>
       </Tooltip>
       <DialogContent className="sm:max-w-[500px] p-0 gap-0 overflow-hidden">
         <div className="bg-muted/30 p-5 pb-4 border-b">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Keyboard className="size-5 text-primary" />
-              <span>User Manual</span>
+              <span>{t("manual.title")}</span>
             </DialogTitle>
           </DialogHeader>
         </div>
@@ -51,11 +58,11 @@ export function HandbookDialog() {
           <div className="p-5 space-y-6">
             <section className="space-y-3">
               <h4 className="text-sm font-semibold flex items-center gap-2 text-foreground/80">
-                <Move className="size-4" /> View
+                <Move className="size-4" /> {t("manual.view")}
               </h4>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="bg-muted/50 p-2 rounded-md flex justify-between items-center">
-                  <span>Pan</span>
+                  <span>{t("manual.pan")}</span>
                   <div className="flex gap-1 items-center">
                     <kbd className="bg-background px-1.2 py-0.5 rounded border text-[9px] font-mono shadow-sm">
                       Space
@@ -65,7 +72,7 @@ export function HandbookDialog() {
                   </div>
                 </div>
                 <div className="bg-muted/50 p-2 rounded-md flex justify-between items-center">
-                  <span>Zoom</span>
+                  <span>{t("manual.zoom")}</span>
                   <div className="flex gap-1">
                     <kbd className="bg-background px-1.2 py-0.5 rounded border text-[9px] font-mono shadow-sm">
                       Ctrl
@@ -79,30 +86,22 @@ export function HandbookDialog() {
 
             <section className="space-y-3">
               <h4 className="text-sm font-semibold flex items-center gap-2 text-primary">
-                <Maximize className="size-4" /> Selection
+                <Maximize className="size-4" /> {t("manual.freeform")}
               </h4>
               <div className="bg-primary/5 border border-primary p-3 rounded-lg text-xs space-y-3">
                 <div className="flex justify-between items-start">
                   <div className="space-y-1">
-                    <p className="font-bold text-foreground">Anchor Select</p>
+                    <p className="font-bold text-foreground">{t("manual.selectFill")}</p>
                     <p className="text-muted-foreground">
-                      Click once, then{" "}
-                      <kbd className="font-mono bg-muted px-1 rounded">
-                        Shift + Click
-                      </kbd>{" "}
-                      to select a rectangle.
+                      {t("manual.selectFillDescription")}
                     </p>
                   </div>
                 </div>
                 <div className="flex justify-between items-start border-t border-primary pt-2">
                   <div className="space-y-1">
-                    <p className="font-bold text-foreground">Fill</p>
+                    <p className="font-bold text-foreground">{t("manual.textFlow")}</p>
                     <p className="text-muted-foreground">
-                      Type{" "}
-                      <span className="text-primary font-bold">
-                        any character
-                      </span>{" "}
-                      to fill the current selection.
+                      {t("manual.textFlowDescription")}
                     </p>
                   </div>
                 </div>
@@ -111,51 +110,89 @@ export function HandbookDialog() {
 
             <section className="space-y-3">
               <h4 className="text-sm font-semibold flex items-center gap-2 text-foreground/80">
-                <Type className="size-4" /> Typing
+                <Layers className="size-4" /> {t("manual.structuredCanvas")}
               </h4>
               <div className="space-y-2 text-xs">
                 <div className="flex items-center justify-between py-1.5 border-b border-border">
                   <div className="flex flex-col">
-                    <span className="font-medium">Smart Newline</span>
+                    <span className="font-medium">{t("manual.insert")}</span>
                     <span className="text-[10px] text-muted-foreground">
-                      Keeps the previous indentation
+                      {t("manual.insertDescription")}
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-mono text-muted-foreground">
+                    text/bg/box
+                  </span>
+                </div>
+                <div className="flex items-center justify-between py-1.5 border-b border-border">
+                  <div className="flex flex-col">
+                    <span className="font-medium">{t("manual.move")}</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {t("manual.moveDescription")}
+                    </span>
+                  </div>
+                  <Move className="size-3 text-muted-foreground" />
+                </div>
+                <div className="flex items-center justify-between py-1.5 border-b border-border">
+                  <div className="flex flex-col">
+                    <span className="font-medium">{t("manual.resize")}</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {t("manual.resizeDescription")}
+                    </span>
+                  </div>
+                  <Box className="size-3 text-muted-foreground" />
+                </div>
+              </div>
+            </section>
+
+            <section className="space-y-3">
+              <h4 className="text-sm font-semibold flex items-center gap-2 text-foreground/80">
+                <Type className="size-4" /> {t("manual.structuredEditing")}
+              </h4>
+              <div className="space-y-2 text-xs">
+                <div className="flex items-center justify-between py-1.5 border-b border-border">
+                  <div className="flex flex-col">
+                    <span className="font-medium">{t("manual.textEdit")}</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {t("manual.textEditDescription")}
                     </span>
                   </div>
                   <kbd className="bg-muted px-2 py-0.5 rounded border text-[10px] font-mono">
-                    Enter
+                    Double
                   </kbd>
                 </div>
                 <div className="flex items-center justify-between py-1.5 border-b border-border">
                   <div className="flex flex-col">
-                    <span className="font-medium">Tab</span>
+                    <span className="font-medium">{t("manual.rangeStyle")}</span>
                     <span className="text-[10px] text-muted-foreground">
-                      Moves 2 cells to the right
+                      {t("manual.rangeStyleDescription")}
                     </span>
                   </div>
-                  <kbd className="bg-muted px-2 py-0.5 rounded border text-[10px] font-mono">
-                    Tab
-                  </kbd>
+                  <Type className="size-3 text-muted-foreground" />
                 </div>
                 <div className="flex items-center justify-between py-1.5 border-b border-border">
-                  <span className="text-muted-foreground italic">Undo</span>
-                  <div className="flex gap-1">
-                    <kbd className="bg-muted px-1.5 py-0.5 rounded border text-[10px] font-mono">
-                      Ctrl
-                    </kbd>
-                    <span className="text-muted-foreground">+</span>
-                    <kbd className="bg-muted px-1.5 py-0.5 rounded border text-[10px] font-mono">
-                      Z
-                    </kbd>
+                  <div className="flex flex-col">
+                    <span className="font-medium">{t("manual.shapeStyle")}</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {t("manual.shapeStyleDescription")}
+                    </span>
                   </div>
+                  <Layers className="size-3 text-muted-foreground" />
                 </div>
               </div>
             </section>
 
             <div className="flex gap-2 p-3 rounded-md bg-accent/50 border border-border">
+              <Clipboard className="size-4 text-primary shrink-0" />
+              <p className="text-[11px] leading-relaxed text-muted-foreground">
+                {t("manual.copyNote")}
+              </p>
+            </div>
+
+            <div className="flex gap-2 p-3 rounded-md bg-muted/40 border border-border">
               <Info className="size-4 text-primary shrink-0" />
               <p className="text-[11px] leading-relaxed text-muted-foreground">
-                Use the <span className="font-bold underline">Select tool</span>{" "}
-                to place the cursor. If a selection is active, typing fills it.
+                {t("manual.contextNote")}
               </p>
             </div>
           </div>

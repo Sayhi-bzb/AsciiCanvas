@@ -29,6 +29,7 @@ export type StructuredTemplateId =
   | "timeline"
   | "snippet"
   | "terminal"
+  | "phone"
   | "calendar"
   | "barChart"
   | "lineChart"

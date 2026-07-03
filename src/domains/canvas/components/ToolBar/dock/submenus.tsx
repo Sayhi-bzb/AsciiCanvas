@@ -11,6 +11,7 @@ import { MATERIAL_PRESETS } from "./constants";
 import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
 import type { CanvasColorPickerTarget } from "@/domains/canvas/state/interfaces";
 import { useShallow } from "zustand/react/shallow";
+import { useUiI18n } from "@/shared/i18n";
 
 type SubmenuOptionClass = (active: boolean) => string;
 
@@ -33,6 +34,8 @@ export function BrushSubmenu({
   inputRef,
   submenuOptionClass,
 }: BrushSubmenuProps) {
+  const { t } = useUiI18n();
+
   return (
     <>
       <button
@@ -52,7 +55,7 @@ export function BrushSubmenu({
           <Input
             ref={inputRef}
             className="h-6 w-14 text-center p-0 font-mono text-base font-bold border-none shadow-none ring-0 focus-visible:ring-0 bg-muted/40 hover:bg-muted/60 rounded-sm text-inherit placeholder:text-muted-foreground/50"
-            placeholder="Custom"
+            placeholder={t("input.custom")}
             maxLength={12}
             value={customChar}
             onChange={(e) => {
@@ -218,6 +221,7 @@ export function ColorPickerPanel({
   showCustomInput = true,
   onCanvasPickStarted,
 }: ColorPickerPanelProps) {
+  const { t } = useUiI18n();
   const [customColor, setCustomColor] = useState(value);
   const normalizedCustomColor = normalizeHexColor(customColor);
   const { canvasColorPickerTarget, setCanvasColorPickerTarget } = useCanvasStore(
@@ -245,8 +249,8 @@ export function ColorPickerPanel({
           const isActive = canvasColorPickerTarget === target;
           const label =
             target === "char"
-              ? "Pick char color from canvas"
-              : "Pick BG color from canvas";
+              ? t("color.pickChar")
+              : t("color.pickBg");
           return (
             <button
               key={target}
@@ -262,7 +266,7 @@ export function ColorPickerPanel({
               )}
             >
               <Pipette className="size-3.5" />
-              <span>{target === "char" ? "Char" : "BG"}</span>
+              <span>{target === "char" ? t("color.char") : t("color.bg")}</span>
             </button>
           );
         })}
@@ -273,7 +277,7 @@ export function ColorPickerPanel({
           <button
             key={c}
             type="button"
-            aria-label={`Pick color ${c}`}
+            aria-label={t("color.pick", { color: c })}
             onClick={() => pickColor(c)}
             className={cn(
               "size-7 rounded-md border border-border transition-transform hover:scale-110 active:scale-95 flex items-center justify-center",
@@ -291,7 +295,7 @@ export function ColorPickerPanel({
       <div className="rounded-xl border border-border/80 bg-muted/20 p-2">
         <div className="mb-1.5 flex items-center justify-between px-0.5">
           <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            DIY Grid
+            {t("color.diyGrid")}
           </span>
           <span className="font-mono text-[10px] text-muted-foreground">
             {value}
@@ -302,7 +306,7 @@ export function ColorPickerPanel({
             <button
               key={c}
               type="button"
-              aria-label={`Pick DIY color ${c}`}
+              aria-label={t("color.pickDiy", { color: c })}
               onClick={() => pickColor(c)}
               className={cn(
                 "size-6 rounded-[0.45rem] border border-black/10 shadow-sm transition-transform hover:scale-110 active:scale-95 flex items-center justify-center",
@@ -344,7 +348,7 @@ export function ColorPickerPanel({
             onClick={() => normalizedCustomColor && pickColor(normalizedCustomColor)}
             className="h-8 rounded-lg bg-primary px-2 text-[11px] font-semibold text-primary-foreground transition-opacity disabled:pointer-events-none disabled:opacity-40"
           >
-            Use
+            {t("color.use")}
           </button>
         </div>
       )}

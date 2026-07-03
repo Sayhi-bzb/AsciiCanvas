@@ -1,4 +1,5 @@
 import { FILETREE_TEMPLATE } from "./filetree";
+import { PHONE_TEMPLATE } from "./phone";
 import { SAFARI_TEMPLATE } from "./safari";
 import { SNIPPET_TEMPLATE } from "./snippet";
 import { TERMINAL_TEMPLATE } from "./terminal";
@@ -10,4 +11,5 @@ export const STRUCTURED_PAGE_TEMPLATE_COMPONENTS = [
   TIMELINE_TEMPLATE,
   SNIPPET_TEMPLATE,
   TERMINAL_TEMPLATE,
+  PHONE_TEMPLATE,
 ];

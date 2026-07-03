@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Eye, EyeOff, Github, Target } from "lucide-react";
+import { Eye, EyeOff, Github, Languages, Target } from "lucide-react";
 import { SidebarHeader, SidebarStandard, SidebarTrigger, useSidebar } from "@/shared/ui/sidebar";
 import { CharLibrary, SearchForm, useLibraryStore } from "@/domains/character-library";
 import { StructuredTemplateLibrary } from "./structured-template-library";
@@ -10,7 +10,7 @@ import {
   STRUCTURED_PAGE_TEMPLATES,
 } from "@/domains/canvas/state/helpers/structuredTemplates";
 import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
-import { SIDEBAR_ACTION_META, runSidebarAction } from "@/domains/actions/core";
+import { runSidebarAction } from "@/domains/actions/core";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import { ScrollArea } from "@/shared/ui/scroll-area";
@@ -19,15 +19,16 @@ import { ExportDialog } from "@/domains/export";
 import { ImportButton } from "@/domains/import";
 import { HandbookDialog, ClearCanvasDialog } from "@/domains/canvas/components/dialogs";
 import { useShallow } from "zustand/react/shallow";
+import { useUiI18n } from "@/shared/i18n";
 
 type StructuredSidebarTab = "template" | "components";
 
 const STRUCTURED_SIDEBAR_TABS: Array<{
   id: StructuredSidebarTab;
-  label: string;
+  labelKey: "sidebar.tab.template" | "sidebar.tab.components";
 }> = [
-  { id: "template", label: "Template" },
-  { id: "components", label: "Components" },
+  { id: "template", labelKey: "sidebar.tab.template" },
+  { id: "components", labelKey: "sidebar.tab.components" },
 ];
 
 export function SidebarRight() {
@@ -67,6 +68,7 @@ export function SidebarRight() {
   const { state, isMobile } = useSidebar();
   const isCollapsed = state === "collapsed" && !isMobile;
   const canResetView = canvasMode !== "animation";
+  const { language, t, toggleLanguage } = useUiI18n();
   const [structuredSidebarTab, setStructuredSidebarTab] =
     useState<StructuredSidebarTab>("components");
   const [structuredLibraryQuery, setStructuredLibraryQuery] = useState("");
@@ -95,10 +97,10 @@ export function SidebarRight() {
             (canvasMode === "structured" ? (
               <input
                 type="search"
-                aria-label="Search structured library"
+                aria-label={t("sidebar.search.structured")}
                 value={structuredLibraryQuery}
                 onChange={(event) => setStructuredLibraryQuery(event.target.value)}
-                placeholder="Search"
+                placeholder={t("sidebar.search.placeholder")}
                 className={cn(
                   "h-8 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-xs outline-none",
                   "placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
@@ -161,8 +163,8 @@ export function SidebarRight() {
                   </TooltipTrigger>
                   <TooltipContent side="left">
                     {showGrid
-                      ? "Hide Workspace Grid"
-                      : SIDEBAR_ACTION_META["toggle-grid"].label}
+                      ? t("sidebar.grid.hide")
+                      : t("action.toggleGrid")}
                   </TooltipContent>
                 </Tooltip>
 
@@ -187,7 +189,7 @@ export function SidebarRight() {
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent side="left">
-                      {SIDEBAR_ACTION_META["reset-view"].label}
+                      {t("action.resetView")}
                     </TooltipContent>
                   </Tooltip>
                 )}
@@ -197,11 +199,15 @@ export function SidebarRight() {
                 <ClearCanvasDialog
                   isCollapsed={isCollapsed}
                   iconOnly
-                  label={canvasMode === "animation" ? "Clear Frame" : "Clear Canvas"}
+                  label={
+                    canvasMode === "animation"
+                      ? t("sidebar.clear.frame")
+                      : t("sidebar.clear.canvas")
+                  }
                   description={
                     canvasMode === "animation"
-                      ? "This will completely clear the current animation frame."
-                      : "This will completely clear the current blueprint."
+                      ? t("sidebar.clear.frameDescription")
+                      : t("sidebar.clear.canvasDescription")
                   }
                   onConfirm={clearCanvas}
                 />
@@ -224,12 +230,31 @@ export function SidebarRight() {
                         setOffset,
                       })
                     }
+                    >
+                      <Github className="size-4" />
+                    </Button>
+                  </TooltipTrigger>
+                <TooltipContent side="left">
+                  {t("action.openSourceCode")}
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    tone="subtle"
+                    shape="square"
+                    size="md"
+                    className="size-8 text-muted-foreground"
+                    onClick={toggleLanguage}
+                    aria-label={t("language.switch")}
                   >
-                    <Github className="size-4" />
+                    <Languages className="size-4" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="left">
-                  {SIDEBAR_ACTION_META["open-source-code"].label}
+                  {language === "en"
+                    ? t("language.switchToChinese")
+                    : t("language.switchToEnglish")}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -262,7 +287,7 @@ export function SidebarRight() {
                     )}
                     onClick={() => setStructuredSidebarTab(tab.id)}
                   >
-                    {tab.label}
+                    {t(tab.labelKey)}
                     {isActive && (
                       <span
                         data-testid="structured-sidebar-active-tab-line"
@@ -281,13 +306,13 @@ export function SidebarRight() {
               <StructuredTemplateLibrary
                 templates={STRUCTURED_PAGE_TEMPLATES}
                 query={structuredLibraryQuery}
-                emptyLabel="No templates found"
+                emptyLabel={t("sidebar.empty.templates")}
               />
             ) : (
               <StructuredTemplateLibrary
                 templates={STRUCTURED_COMPONENT_TEMPLATES}
                 query={structuredLibraryQuery}
-                emptyLabel="No components found"
+                emptyLabel={t("sidebar.empty.components")}
               />
             )
           ) : (

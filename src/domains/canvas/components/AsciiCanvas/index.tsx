@@ -55,6 +55,7 @@ import { FONT_SIZE } from '@/shared/lib/constants';
 import type { ContextMenuEntry } from '@/domains/actions/core/types';
 import type { StructuredMovePreview } from './hooks/useCanvasRenderer';
 import { normalizeScene } from '@/shared/utils/structured';
+import { useUiI18n, type I18nKey } from '@/shared/i18n';
 
 const KEYBOARD_PAN_STEP = 48;
 
@@ -69,6 +70,7 @@ interface AsciiCanvasProps {
 }
 
 export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
+  const { t } = useUiI18n();
   const bgCanvasRef = useRef<HTMLCanvasElement>(null);
   const scratchCanvasRef = useRef<HTMLCanvasElement>(null);
   const uiCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -333,6 +335,30 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
     : null;
   const activeContextMenu =
     canvasMode === 'structured' ? STRUCTURED_CONTEXT_MENU : CANVAS_CONTEXT_MENU;
+  const getContextMenuActionLabel = (id: string, fallback: string) => {
+    const labelKeyById: Record<string, I18nKey> = {
+      copy: 'context.copyText',
+      'copy-rich': 'context.copyColor',
+      'copy-ansi': 'context.copyAnsi',
+      cut: 'context.cutZone',
+      paste: 'context.paste',
+      'fill-selection-char': 'context.fillSelection',
+      'snapshot-png': 'context.snapshotPng',
+      'delete-selection': 'context.delete',
+      'structured-rename': 'context.rename',
+      'structured-bring-forward': 'context.bringForward',
+      'structured-send-backward': 'context.sendBackward',
+      'structured-bring-to-front': 'context.bringToFront',
+      'structured-send-to-back': 'context.sendToBack',
+      'structured-duplicate': 'context.duplicate',
+      'structured-copy-hierarchy': 'context.copyStructure',
+      'structured-split-horizontal': 'context.splitHorizontal',
+      'structured-split-vertical': 'context.splitVertical',
+      'structured-delete-divider': 'context.deleteDivider',
+    };
+    const labelKey = labelKeyById[id];
+    return labelKey ? t(labelKey) : fallback;
+  };
   const renderContextMenuEntry = (entry: ContextMenuEntry, index: number) => {
     if (entry.type === 'separator') {
       return <ContextMenuSeparator key={`sep-${index}`} />;
@@ -348,7 +374,7 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
         <ContextMenuSub key={`sub-${entry.label}-${index}`}>
           <ContextMenuSubTrigger disabled={!hasEnabledChild}>
             {Icon && <Icon className="mr-2 size-4" />}
-            <span>{entry.label}</span>
+            <span>{entry.label === 'Layer' ? t('context.layer') : entry.label}</span>
           </ContextMenuSubTrigger>
           <ContextMenuSubContent>
             {entry.children.map((child, childIndex) =>
@@ -377,7 +403,7 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
         disabled={disabled}
       >
         {Icon && <Icon className="mr-2 size-4" />}
-        <span>{meta.label}</span>
+        <span>{getContextMenuActionLabel(entry.id, meta.label)}</span>
         {shortcutLabel && (
           <ContextMenuShortcut>{shortcutLabel}</ContextMenuShortcut>
         )}

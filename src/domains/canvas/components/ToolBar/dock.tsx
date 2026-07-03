@@ -40,6 +40,7 @@ import { MATERIAL_PRESETS, SHAPE_TOOLS } from "./dock/constants";
 import { useShallow } from "zustand/react/shallow";
 import { AnimationTimeline } from "@/domains/animation/components/AnimationTimeline";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useUiI18n } from "@/shared/i18n";
 
 interface ToolbarProps {
   tool: ToolType;
@@ -71,6 +72,7 @@ const STRUCTURED_ACTION_ORDER: ToolbarActionId[] = [
 ];
 
 export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
+  const { t } = useUiI18n();
   const {
     brushChar,
     setBrushChar,
@@ -105,19 +107,19 @@ export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
   const getToolMeta = useCallback((type: ToolType) => {
     switch (type) {
       case "box":
-        return { icon: Square, label: "Box" };
+        return { icon: Square, label: t("shape.box") };
       case "splitBox":
-        return { icon: SquareSplitVertical, label: "Split box" };
+        return { icon: SquareSplitVertical, label: t("shape.splitBox") };
       case "circle":
-        return { icon: CircleIcon, label: "Circle" };
+        return { icon: CircleIcon, label: t("shape.circle") };
       case "line":
-        return { icon: Minus, label: "Line" };
+        return { icon: Minus, label: t("shape.line") };
       case "stepline":
-        return { icon: LineSquiggle, label: "Curve" };
+        return { icon: LineSquiggle, label: t("shape.curve") };
       default:
-        return { icon: Square, label: "Shape" };
+        return { icon: Square, label: t("toolbar.shape") };
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (tool === "pan" && (!isMobile || canvasMode === "animation")) {
@@ -160,15 +162,27 @@ export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
   const navItems = useMemo(() => {
     return visibleActionOrder.map((id) => {
       const meta = TOOLBAR_ACTION_META[id];
+      const labelById: Partial<Record<ToolbarActionId, string>> = {
+        select: t("toolbar.select"),
+        text: t("toolbar.text"),
+        brush: t("toolbar.brush"),
+        "shape-group": t("toolbar.shape"),
+        bg: t("toolbar.background"),
+        fill: t("toolbar.paintCharColor"),
+        eraser: t("toolbar.eraser"),
+        undo: t("toolbar.undo"),
+        color: t("toolbar.color"),
+        pan: t("toolbar.pan"),
+      };
       if (id === "brush") {
-        return { ...meta, label: `Brush (${brushChar})` };
+        return { ...meta, label: t("toolbar.brushWithChar", { char: brushChar }) };
       }
       if (id === "shape-group") {
         return { ...meta, label: activeShapeMeta.label, icon: activeShapeMeta.icon };
       }
-      return meta;
+      return { ...meta, label: labelById[id] ?? meta.label };
     });
-  }, [visibleActionOrder, brushChar, activeShapeMeta]);
+  }, [visibleActionOrder, brushChar, activeShapeMeta, t]);
 
   const activeIndex = useMemo(() => {
     const currentId = resolveActiveToolbarAction(tool, isShapeGroupActive);
