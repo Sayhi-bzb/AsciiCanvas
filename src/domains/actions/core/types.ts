@@ -41,7 +41,6 @@ export type ToolbarActionId =
 // Sidebar Actions
 export type SidebarActionId =
   | "toggle-grid"
-  | "reset-view"
   | "open-source-code";
 
 // Unified Action ID

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Eye, EyeOff, Github, Languages, Target } from "lucide-react";
+import { Eye, EyeOff, Github, Languages } from "lucide-react";
 import { SidebarHeader, SidebarStandard, SidebarTrigger, useSidebar } from "@/shared/ui/sidebar";
 import { CharLibrary, SearchForm, useLibraryStore } from "@/domains/character-library";
 import { StructuredTemplateLibrary } from "./structured-template-library";
@@ -67,7 +67,6 @@ export function SidebarRight() {
   const { fetchLibrary } = useLibraryStore();
   const { state, isMobile } = useSidebar();
   const isCollapsed = state === "collapsed" && !isMobile;
-  const canResetView = canvasMode !== "animation";
   const { language, t, toggleLanguage } = useUiI18n();
   const [structuredSidebarTab, setStructuredSidebarTab] =
     useState<StructuredSidebarTab>("components");
@@ -167,32 +166,6 @@ export function SidebarRight() {
                       : t("action.toggleGrid")}
                   </TooltipContent>
                 </Tooltip>
-
-                {canResetView && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        tone="subtle"
-                        shape="square"
-                        size="md"
-                        className="size-8 text-muted-foreground"
-                        onClick={() =>
-                          runSidebarAction("reset-view", {
-                            showGrid,
-                            setShowGrid,
-                            setZoom,
-                            setOffset,
-                          })
-                        }
-                      >
-                        <Target className="size-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="left">
-                      {t("action.resetView")}
-                    </TooltipContent>
-                  </Tooltip>
-                )}
 
                 <HandbookDialog />
 

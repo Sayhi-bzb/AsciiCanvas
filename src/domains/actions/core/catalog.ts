@@ -138,7 +138,6 @@ export const TOOLBAR_ACTION_META: Record<ToolbarActionId, ActionMeta> = {
 // Sidebar Actions
 export const SIDEBAR_ACTION_META: Record<SidebarActionId, ActionMeta> = {
   "toggle-grid": { id: "toggle-grid", label: "Toggle Grid" },
-  "reset-view": { id: "reset-view", label: "Reset View" },
   "open-source-code": { id: "open-source-code", label: "Open Source Code" },
 };
 

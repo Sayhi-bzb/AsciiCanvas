@@ -28,12 +28,6 @@ export const sidebarHandlers: Record<
     return actionSucceeded();
   },
 
-  "reset-view": (options): ActionResult => {
-    options.setZoom(() => 1);
-    options.setOffset(() => ({ x: 0, y: 0 }));
-    return actionSucceeded();
-  },
-
   "open-source-code": (options): ActionResult => {
     browser.openExternal(options.sourceCodeUrl ?? APP_SOURCE_URL);
     return actionSucceeded();
