@@ -4,7 +4,6 @@ import { useState, type ComponentType, type RefObject } from "react";
 import { Check, Pipette } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { Input } from "@/shared/ui/input";
-import { PALETTE } from "@/shared/lib/constants";
 import type { ToolType } from "@/shared/types";
 import { getFirstGrapheme } from "@/shared/utils/characters";
 import { MATERIAL_PRESETS } from "./constants";
@@ -150,56 +149,77 @@ type ColorPickerPanelProps = {
   onCanvasPickStarted?: () => void;
 };
 
-const DIY_COLOR_GRID = [
-  "#7f1d1d",
-  "#991b1b",
-  "#dc2626",
-  "#f87171",
-  "#831843",
-  "#be185d",
-  "#db2777",
-  "#f9a8d4",
-  "#7c2d12",
-  "#c2410c",
-  "#ea580c",
-  "#fdba74",
-  "#713f12",
-  "#a16207",
-  "#ca8a04",
-  "#fde047",
-  "#14532d",
-  "#15803d",
-  "#16a34a",
-  "#86efac",
-  "#064e3b",
-  "#047857",
-  "#10b981",
-  "#6ee7b7",
-  "#164e63",
-  "#0e7490",
-  "#06b6d4",
-  "#67e8f9",
-  "#1e3a8a",
-  "#2563eb",
-  "#3b82f6",
-  "#93c5fd",
-  "#312e81",
-  "#4f46e5",
-  "#6366f1",
-  "#a5b4fc",
-  "#581c87",
-  "#7e22ce",
-  "#a855f7",
-  "#d8b4fe",
-  "#111827",
-  "#374151",
-  "#6b7280",
-  "#d1d5db",
-  "#0f172a",
-  "#475569",
-  "#94a3b8",
-  "#f8fafc",
+const ANSI_16_COLORS = [
+  "#000000",
+  "#800000",
+  "#008000",
+  "#808000",
+  "#000080",
+  "#800080",
+  "#008080",
+  "#c0c0c0",
+  "#808080",
+  "#ff0000",
+  "#00ff00",
+  "#ffff00",
+  "#0000ff",
+  "#ff00ff",
+  "#00ffff",
+  "#ffffff",
 ];
+
+const PRESET_COLOR_MATRIX = [
+  [
+    "#7f1d1d",
+    "#7c2d12",
+    "#713f12",
+    "#14532d",
+    "#064e3b",
+    "#164e63",
+    "#1e3a8a",
+    "#312e81",
+    "#581c87",
+    "#0f172a",
+  ],
+  [
+    "#dc2626",
+    "#ea580c",
+    "#ca8a04",
+    "#16a34a",
+    "#10b981",
+    "#06b6d4",
+    "#3b82f6",
+    "#6366f1",
+    "#a855f7",
+    "#475569",
+  ],
+  [
+    "#f87171",
+    "#fdba74",
+    "#fde047",
+    "#86efac",
+    "#6ee7b7",
+    "#67e8f9",
+    "#93c5fd",
+    "#a5b4fc",
+    "#d8b4fe",
+    "#94a3b8",
+  ],
+  [
+    "#fee2e2",
+    "#ffedd5",
+    "#fef9c3",
+    "#dcfce7",
+    "#ccfbf1",
+    "#cffafe",
+    "#dbeafe",
+    "#e0e7ff",
+    "#f3e8ff",
+    "#f8fafc",
+  ],
+] as const;
+
+const PRESET_COLORS = PRESET_COLOR_MATRIX.flat();
 
 const normalizeHexColor = (value: string) => {
   const trimmed = value.trim().replace(/^#?/, "#").toLowerCase();
@@ -223,6 +243,7 @@ export function ColorPickerPanel({
 }: ColorPickerPanelProps) {
   const { t } = useUiI18n();
   const [customColor, setCustomColor] = useState(value);
+  const [activePaletteTab, setActivePaletteTab] = useState<"ansi16" | "presets">("ansi16");
   const normalizedCustomColor = normalizeHexColor(customColor);
   const { canvasColorPickerTarget, setCanvasColorPickerTarget } = useCanvasStore(
     useShallow((state) => ({
@@ -241,6 +262,11 @@ export function ColorPickerPanel({
     setCanvasColorPickerTarget(nextTarget);
     if (nextTarget) onCanvasPickStarted?.();
   };
+
+  const visibleColors =
+    activePaletteTab === "ansi16" ? ANSI_16_COLORS : PRESET_COLORS;
+  const colorLabelKey =
+    activePaletteTab === "ansi16" ? "color.pickAnsi" : "color.pickPreset";
 
   return (
     <div className="w-64 space-y-2 p-1.5">
@@ -272,41 +298,53 @@ export function ColorPickerPanel({
         })}
       </div>
 
-      <div className="grid grid-cols-5 gap-1">
-        {PALETTE.map((c) => (
-          <button
-            key={c}
-            type="button"
-            aria-label={t("color.pick", { color: c })}
-            onClick={() => pickColor(c)}
-            className={cn(
-              "size-7 rounded-md border border-border transition-transform hover:scale-110 active:scale-95 flex items-center justify-center",
-              value === c && "ring-2 ring-primary ring-offset-1 ring-offset-popover"
-            )}
-            style={{ backgroundColor: c }}
-          >
-            {value === c && (
-              <Check className="size-3 text-white mix-blend-difference" />
-            )}
-          </button>
-        ))}
-      </div>
-
-      <div className="rounded-xl border border-border/80 bg-muted/20 p-2">
-        <div className="mb-1.5 flex items-center justify-between px-0.5">
-          <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            {t("color.diyGrid")}
-          </span>
+      <div className="space-y-2">
+        <div
+          role="tablist"
+          aria-label={t("color.paletteTabs")}
+          className="grid grid-cols-2 gap-1 rounded-lg bg-muted/35 p-1"
+        >
+          {([
+            { id: "ansi16", label: t("color.ansi16") },
+            { id: "presets", label: t("color.presets") },
+          ] as const).map((tab) => {
+            const isActive = activePaletteTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => setActivePaletteTab(tab.id)}
+                className={cn(
+                  "h-7 rounded-md px-2 text-[11px] font-semibold transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  isActive
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex items-center justify-end px-0.5">
           <span className="font-mono text-[10px] text-muted-foreground">
             {value}
           </span>
         </div>
-        <div className="grid grid-cols-8 gap-1">
-          {DIY_COLOR_GRID.map((c) => (
+        <div
+          data-testid="color-palette-grid"
+          className={cn(
+            "grid gap-1",
+            activePaletteTab === "ansi16" ? "grid-cols-8" : "grid-cols-10"
+          )}
+        >
+          {visibleColors.map((c) => (
             <button
               key={c}
               type="button"
-              aria-label={t("color.pickDiy", { color: c })}
+              aria-label={t(colorLabelKey, { color: c })}
               onClick={() => pickColor(c)}
               className={cn(
                 "size-6 rounded-[0.45rem] border border-black/10 shadow-sm transition-transform hover:scale-110 active:scale-95 flex items-center justify-center",
@@ -323,33 +361,35 @@ export function ColorPickerPanel({
       </div>
 
       {showCustomInput && (
-        <div className="flex items-center gap-2 rounded-xl border border-border/70 bg-background/70 p-1.5">
-          <div
-            className="size-7 shrink-0 rounded-lg border border-border shadow-inner"
-            style={{ backgroundColor: normalizedCustomColor ?? value }}
-          />
-          <Input
-            value={customColor}
-            onChange={(e) => setCustomColor(e.target.value)}
-            onKeyDown={(e) => {
-              e.stopPropagation();
-              if (e.key === "Enter" && normalizedCustomColor) {
-                pickColor(normalizedCustomColor);
-              }
-            }}
-            onClick={(e) => e.stopPropagation()}
-            placeholder="#00ffcc"
-            maxLength={7}
-            className="h-8 flex-1 rounded-lg bg-muted/40 px-2 font-mono text-xs uppercase shadow-none"
-          />
-          <button
-            type="button"
-            disabled={!normalizedCustomColor}
-            onClick={() => normalizedCustomColor && pickColor(normalizedCustomColor)}
-            className="h-8 rounded-lg bg-primary px-2 text-[11px] font-semibold text-primary-foreground transition-opacity disabled:pointer-events-none disabled:opacity-40"
-          >
-            {t("color.use")}
-          </button>
+        <div className="pt-1">
+          <div className="flex items-center gap-2">
+            <div
+              className="size-7 shrink-0 rounded-lg border border-border shadow-inner"
+              style={{ backgroundColor: normalizedCustomColor ?? value }}
+            />
+            <Input
+              value={customColor}
+              onChange={(e) => setCustomColor(e.target.value)}
+              onKeyDown={(e) => {
+                e.stopPropagation();
+                if (e.key === "Enter" && normalizedCustomColor) {
+                  pickColor(normalizedCustomColor);
+                }
+              }}
+              onClick={(e) => e.stopPropagation()}
+              placeholder="#00ffcc"
+              maxLength={7}
+              className="h-8 flex-1 rounded-lg bg-muted/40 px-2 font-mono text-xs uppercase shadow-none"
+            />
+            <button
+              type="button"
+              disabled={!normalizedCustomColor}
+              onClick={() => normalizedCustomColor && pickColor(normalizedCustomColor)}
+              className="h-8 rounded-lg bg-primary px-2 text-[11px] font-semibold text-primary-foreground transition-opacity disabled:pointer-events-none disabled:opacity-40"
+            >
+              {t("color.use")}
+            </button>
+          </div>
         </div>
       )}
     </div>

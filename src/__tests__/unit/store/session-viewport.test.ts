@@ -317,6 +317,44 @@ describe("canvas session viewport state", () => {
     });
   });
 
+  it("pastes wide structured text into freeform without follower cells overwriting it", async () => {
+    useCanvasStore.getState().createCanvasSession("structured");
+    useCanvasStore.getState().applyStructuredScene(
+      [
+        {
+          id: "text-1",
+          type: "text",
+          order: 1,
+          position: { x: 3, y: 4 },
+          text: "你A",
+          style: { color: "#ffffff" },
+        },
+      ],
+      false
+    );
+    useCanvasStore.getState().setSelectedStructuredNodeIds(["text-1"]);
+    const capture = createClipboardEventCapture();
+
+    await useCanvasStore.getState().copySelection({ event: capture.event });
+    useCanvasStore.getState().createCanvasSession("freeform");
+    useCanvasStore.getState().setTextCursor({ x: 0, y: 0 });
+    await useCanvasStore.getState().pasteFromClipboard({
+      eventDataTransfer: dataTransferFromCapture(capture.data),
+    });
+
+    const state = useCanvasStore.getState();
+    expect(state.canvasMode).toBe("freeform");
+    expect(state.grid.get("0,0")).toMatchObject({
+      char: "你",
+      color: "#ffffff",
+    });
+    expect(state.grid.get("1,0")).toBeUndefined();
+    expect(state.grid.get("2,0")).toMatchObject({
+      char: "A",
+      color: "#ffffff",
+    });
+  });
+
   it("creates structured background blocks with the brush color as fill", () => {
     useCanvasStore.getState().createCanvasSession("structured");
     useCanvasStore.setState({ brushColor: "#334155" });

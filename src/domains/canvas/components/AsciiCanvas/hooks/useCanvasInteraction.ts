@@ -901,6 +901,14 @@ export const useCanvasInteraction = (
             if (containerRef.current) containerRef.current.style.cursor = "text";
             return;
           }
+          if (isShapeTool(tool, canvasMode)) {
+            const point = resolveGridPointFromScreen(x, y);
+            setHoveredGrid(point);
+            if (containerRef.current) {
+              containerRef.current.style.cursor = "crosshair";
+            }
+            return;
+          }
           if (tool === "select") {
             const screenPoint = getLocalScreenPoint(x, y);
             const point = resolveGridPointFromScreen(x, y);

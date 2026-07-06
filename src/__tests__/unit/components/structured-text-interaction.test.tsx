@@ -7,6 +7,7 @@ import type { StructuredMovePreview } from "@/domains/canvas/components/AsciiCan
 import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
 import { runUndo } from "@/domains/actions/adapters/shortcutActions";
 import { useShallow } from "zustand/react/shallow";
+import type { ToolType } from "@/shared/types";
 
 const gestureState = vi.hoisted(() => ({
   handlers: null as Record<string, (input: unknown) => void> | null,
@@ -342,6 +343,78 @@ describe("structured text interaction", () => {
     });
 
     expect(getByTestId("canvas-root").style.cursor).toBe("text");
+  });
+
+  it("uses a drawing cursor when hovering with structured shape tools", () => {
+    useCanvasStore.setState({
+      canvasMode: "structured",
+      tool: "box",
+      offset: { x: 0, y: 0 },
+      zoom: 1,
+      hoveredGrid: null,
+    });
+    const { getByTestId } = render(<InteractionHarness />);
+
+    act(() => {
+      gestureState.handlers?.onMove?.({
+        xy: [18, 57],
+        event: new MouseEvent("mousemove", {
+          bubbles: true,
+          cancelable: true,
+        }),
+      });
+    });
+
+    expect(useCanvasStore.getState().hoveredGrid).toEqual({ x: 2, y: 3 });
+    expect(getByTestId("canvas-root").style.cursor).toBe("crosshair");
+  });
+
+  it.each([
+    ["box", "box"],
+    ["splitBox", "splitBox"],
+    ["line", "line"],
+    ["bg", "bg"],
+  ] as const)("creates a structured %s node by dragging", (tool, expectedType) => {
+    useCanvasStore.setState({
+      canvasMode: "structured",
+      tool: tool as ToolType,
+      offset: { x: 0, y: 0 },
+      zoom: 1,
+      brushColor: "#112233",
+      grid: new Map(),
+      structuredScene: [],
+      selectedStructuredNodeIds: [],
+      selectedStructuredSplitHandle: null,
+      structuredContextPoint: null,
+    });
+    render(<InteractionHarness />);
+
+    act(() => {
+      gestureState.handlers?.onDragStart?.({
+        xy: [9, 19],
+        event: dragEvent(),
+      });
+      gestureState.handlers?.onDrag?.({
+        xy: [45, 57],
+        delta: [36, 38],
+        event: dragEvent(),
+      });
+      gestureState.handlers?.onDragEnd?.({
+        xy: [45, 57],
+        event: dragEvent(),
+      });
+    });
+
+    const state = useCanvasStore.getState();
+    expect(state.structuredScene).toHaveLength(1);
+    expect(state.structuredScene[0]).toMatchObject({
+      type: expectedType,
+      start: { x: 1, y: 1 },
+      end: { x: 5, y: 3 },
+    });
+    expect(state.selectedStructuredNodeIds).toEqual([
+      state.structuredScene[0].id,
+    ]);
   });
 
   it("anchors the hovered cell while canvas color picking is active", () => {

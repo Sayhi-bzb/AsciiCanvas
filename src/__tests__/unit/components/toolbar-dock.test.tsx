@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { Toolbar } from "@/domains/canvas/components/ToolBar/dock";
+import { ColorPickerPanel } from "@/domains/canvas/components/ToolBar/dock/submenus";
 import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
 
 vi.mock("@/hooks/use-mobile", () => ({
@@ -95,5 +96,62 @@ describe("Toolbar dock", () => {
     render(<Toolbar tool="text" setTool={setTool} onUndo={vi.fn()} />);
 
     expect(setTool).toHaveBeenCalledWith("select");
+  });
+
+  it("switches between ansi 16 and preset color tabs", () => {
+    const onPick = vi.fn();
+
+    render(<ColorPickerPanel value="#000000" onPick={onPick} />);
+
+    expect(screen.getByRole("tab", { name: "ANSI 16" })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    );
+    expect(screen.getByRole("tab", { name: "ANSI 16" })).toHaveClass(
+      "bg-primary",
+      "text-primary-foreground"
+    );
+    expect(screen.getByRole("tab", { name: "Presets" })).toHaveAttribute(
+      "aria-selected",
+      "false"
+    );
+    expect(screen.queryByText("Hex")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Pick ANSI color #c0c0c0" }));
+    expect(onPick).toHaveBeenCalledWith("#c0c0c0");
+
+    fireEvent.click(screen.getByRole("button", { name: "Pick ANSI color #000080" }));
+    expect(onPick).toHaveBeenCalledWith("#000080");
+    expect(screen.getByTestId("color-palette-grid")).toHaveClass("grid-cols-8");
+
+    fireEvent.click(screen.getByRole("tab", { name: "Presets" }));
+
+    expect(screen.getByRole("tab", { name: "ANSI 16" })).toHaveAttribute(
+      "aria-selected",
+      "false"
+    );
+    expect(screen.getByRole("tab", { name: "Presets" })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    );
+    expect(screen.getByRole("tab", { name: "Presets" })).toHaveClass(
+      "bg-primary",
+      "text-primary-foreground"
+    );
+    expect(screen.getByTestId("color-palette-grid")).toHaveClass("grid-cols-10");
+    fireEvent.click(screen.getByRole("button", { name: "Pick preset color #7f1d1d" }));
+    expect(onPick).toHaveBeenCalledWith("#7f1d1d");
+    fireEvent.click(screen.getByRole("button", { name: "Pick preset color #93c5fd" }));
+    expect(onPick).toHaveBeenCalledWith("#93c5fd");
+  });
+
+  it("normalizes short hex colors before picking", () => {
+    const onPick = vi.fn();
+
+    render(<ColorPickerPanel value="#000000" onPick={onPick} />);
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "#0fc" } });
+    fireEvent.click(screen.getByRole("button", { name: "Use" }));
+
+    expect(onPick).toHaveBeenCalledWith("#00ffcc");
   });
 });

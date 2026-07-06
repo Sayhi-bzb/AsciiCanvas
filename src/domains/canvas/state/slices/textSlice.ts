@@ -22,6 +22,7 @@ import {
 } from "../helpers/animationHelpers";
 import {
   getCellOccupancy,
+  isWideCell,
   splitGraphemes,
 } from "@/shared/metrics";
 import {
@@ -97,6 +98,15 @@ const getNewlineTargetX = (
   }
 
   return Math.min(currentX, indentEndX);
+};
+
+const isWideFollowerRichCell = (
+  cell: { x: number; y: number; char: string },
+  cellsBySourcePoint: Map<string, { char: string }>
+) => {
+  if (cell.char !== " ") return false;
+  const leftCell = cellsBySourcePoint.get(GridManager.toKey(cell.x - 1, cell.y));
+  return !!leftCell && isWideCell(leftCell.char);
 };
 
 const findBoxNameTargetAtCursor = (
@@ -416,8 +426,12 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
     pos = pos || staticGridView.activeCell;
 
     const basePos = pos;
+    const cellsBySourcePoint = new Map(
+      cells.map((cell) => [GridManager.toKey(cell.x, cell.y), cell])
+    );
     runCanvasTransaction(() => {
       cells.forEach((cell) => {
+        if (isWideFollowerRichCell(cell, cellsBySourcePoint)) return;
         const nextPoint = {
           x: basePos.x + cell.x,
           y: basePos.y + cell.y,
