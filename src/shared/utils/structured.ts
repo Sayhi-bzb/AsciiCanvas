@@ -7,6 +7,10 @@ import {
   getTextCellWidth,
   splitGraphemes,
 } from "@/shared/metrics";
+import {
+  createTextLayout,
+  getTextLayoutSurfaceCells,
+} from "@/shared/utils/textLayout";
 
 const placeStyledCharInMap = (
   targetMap: {
@@ -58,8 +62,6 @@ const toBounds = (start: Point, end: Point): NodeBounds => {
 
 const boundsArea = (bounds: NodeBounds) => bounds.width * bounds.height;
 
-const splitLines = (text: string) => text.split("\n");
-
 const getBoxNameTextCapacity = (bounds: NodeBounds) => Math.max(0, bounds.width - 5);
 
 export const getTextColumnWidth = (text: string) => {
@@ -105,13 +107,13 @@ export const getStructuredNodeBounds = (node: StructuredNode): NodeBounds => {
     };
   }
 
-  const lines = splitLines(node.text);
-  const width = Math.max(1, ...lines.map((line) => getTextColumnWidth(line)));
+  const layout = createTextLayout(node.text, node.position);
+  const width = Math.max(1, ...layout.lineWidths);
   return {
     x: node.position.x,
     y: node.position.y,
     width,
-    height: Math.max(1, lines.length),
+    height: Math.max(1, layout.lineWidths.length),
   };
 };
 
@@ -218,24 +220,22 @@ export const renderStructuredScene = (scene: StructuredNode[]) => {
       return;
     }
 
-    const lines = splitLines(node.text);
-    let textOffset = 0;
-    lines.forEach((line, rowIndex) => {
-      let currentX = node.position.x;
-      for (const char of splitGraphemes(line)) {
-        placeStyledCharInMap(
-          grid,
-          bgLayer,
-          visibleForegroundKeys,
-          currentX,
-          node.position.y + rowIndex,
-          char,
-          mergeStructuredTextStyle(node.style, node.styleRanges, textOffset)
-        );
-        currentX += getCellOccupancy(char);
-        textOffset += 1;
-      }
-      if (rowIndex < lines.length - 1) textOffset += 1;
+    getTextLayoutSurfaceCells(
+      createTextLayout(node.text, node.position),
+      (offset) => mergeStructuredTextStyle(node.style, node.styleRanges, offset)
+    ).forEach((cell) => {
+      const key = `${cell.x},${cell.y}`;
+      const bgColor = cell.bgColor ?? bgLayer.get(key);
+      grid.set(
+        key,
+        normalizeCellStyle({
+          char: cell.char,
+          color: cell.color,
+          ...(bgColor ? { bgColor } : {}),
+          ...(cell.attrs ? { attrs: cell.attrs } : {}),
+        })
+      );
+      visibleForegroundKeys.add(key);
     });
   });
 

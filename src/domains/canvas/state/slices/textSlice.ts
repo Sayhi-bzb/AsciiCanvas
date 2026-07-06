@@ -27,6 +27,7 @@ import {
 } from "@/shared/metrics";
 import {
   getStructuredTextCaretPoint,
+  getStructuredTextOffsetAtPoint,
   getStructuredTextSelectionRange,
   normalizeStructuredTextSelection,
   replaceStructuredTextRange as replaceStructuredTextNodeRange,
@@ -322,8 +323,7 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
         return;
       }
 
-      const columnOffset = Math.max(0, cursor.x - existingNode.position.x);
-      const insertAt = toCharIndexByColumn(existingNode.text, columnOffset);
+      const insertAt = getStructuredTextOffsetAtPoint(existingNode, cursor);
       get().replaceStructuredTextRange(
         existingNode.id,
         insertAt,
@@ -448,8 +448,28 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
   },
 
   moveTextCursor: (dx, dy) => {
-    const { textCursor, grid, canvasBounds } = get();
+    const {
+      textCursor,
+      grid,
+      canvasMode,
+      canvasBounds,
+      structuredScene,
+      editingStructuredTextNodeId,
+    } = get();
     if (!textCursor) return;
+    if (canvasMode === "structured" && editingStructuredTextNodeId && dy === 0 && dx !== 0) {
+      const node = structuredScene.find(
+        (sceneNode): sceneNode is StructuredTextNode =>
+          sceneNode.id === editingStructuredTextNodeId && sceneNode.type === "text"
+      );
+      if (node) {
+        const currentOffset = getStructuredTextOffsetAtPoint(node, textCursor);
+        const textLength = splitGraphemes(node.text).length;
+        const nextOffset = Math.max(0, Math.min(textLength, currentOffset + dx));
+        set({ textCursor: getStructuredTextCaretPoint(node, nextOffset) });
+        return;
+      }
+    }
     let newX = textCursor.x;
     const newY = textCursor.y + dy;
     if (dx > 0) {
@@ -526,8 +546,7 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
       );
       if (!existingNode) return;
 
-      const columnOffset = Math.max(0, textCursor.x - existingNode.position.x);
-      const deleteAt = toCharIndexByColumn(existingNode.text, columnOffset) - 1;
+      const deleteAt = getStructuredTextOffsetAtPoint(existingNode, textCursor) - 1;
       if (deleteAt < 0) return;
 
       get().replaceStructuredTextRange(
@@ -579,8 +598,7 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
         editingStructuredTextNodeId
       );
       if (!existingNode) return;
-      const columnOffset = Math.max(0, textCursor.x - existingNode.position.x);
-      const deleteAt = toCharIndexByColumn(existingNode.text, columnOffset);
+      const deleteAt = getStructuredTextOffsetAtPoint(existingNode, textCursor);
       if (deleteAt >= splitGraphemes(existingNode.text).length) return;
       get().replaceStructuredTextRange(
         existingNode.id,
@@ -617,9 +635,39 @@ export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
   },
 
   newlineText: () => {
-    const { textCursor, grid, canvasMode, canvasBounds } = get();
+    const { textCursor, grid, canvasMode, canvasBounds, structuredScene, editingStructuredTextNodeId } = get();
     if (!textCursor) return;
     if (canvasMode === "structured") {
+      const selectedRange = getStructuredTextSelectionRange(
+        get().structuredTextSelection
+      );
+      const selectedNodeId = get().structuredTextSelection?.nodeId;
+      if (selectedRange && selectedNodeId) {
+        get().replaceStructuredTextRange(
+          selectedNodeId,
+          selectedRange.start,
+          selectedRange.end,
+          "\n"
+        );
+        return;
+      }
+
+      const existingNode = findTextNodeAtCursor(
+        structuredScene,
+        textCursor,
+        editingStructuredTextNodeId
+      );
+      if (existingNode) {
+        const insertAt = getStructuredTextOffsetAtPoint(existingNode, textCursor);
+        get().replaceStructuredTextRange(
+          existingNode.id,
+          insertAt,
+          insertAt,
+          "\n"
+        );
+        return;
+      }
+
       set({ textCursor: { x: textCursor.x, y: textCursor.y + 1 } });
       return;
     }

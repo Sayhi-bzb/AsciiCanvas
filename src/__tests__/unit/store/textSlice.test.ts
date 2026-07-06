@@ -383,4 +383,200 @@ describe("textSlice structured box name editing", () => {
     expect(state.textCursor).toEqual({ x: 9, y: 4 });
     expect(state.selectedStructuredNodeIds).toEqual([state.structuredScene[0].id]);
   });
+
+  it("inserts structured text at the clicked offset on a later line", () => {
+    useCanvasStore.setState({
+      canvasMode: "structured",
+      textCursor: { x: 1, y: 1 },
+      editingStructuredTextNodeId: "text-1",
+      selectedStructuredNodeIds: ["text-1"],
+      structuredScene: [
+        {
+          id: "text-1",
+          type: "text",
+          order: 1,
+          position: { x: 0, y: 0 },
+          text: "AB\nCD",
+          style: { color: "#ffffff" },
+        },
+      ],
+    });
+
+    useCanvasStore.getState().writeTextString("!");
+
+    expect(useCanvasStore.getState().structuredScene).toMatchObject([
+      { id: "text-1", text: "AB\nC!D" },
+    ]);
+    expect(useCanvasStore.getState().textCursor).toEqual({ x: 2, y: 1 });
+  });
+
+  it("inserts a newline inside the active structured text node", () => {
+    useCanvasStore.setState({
+      canvasMode: "structured",
+      textCursor: { x: 1, y: 0 },
+      editingStructuredTextNodeId: "text-1",
+      selectedStructuredNodeIds: ["text-1"],
+      structuredScene: [
+        {
+          id: "text-1",
+          type: "text",
+          order: 1,
+          position: { x: 0, y: 0 },
+          text: "AB",
+          style: { color: "#ffffff" },
+        },
+      ],
+    });
+
+    useCanvasStore.getState().newlineText();
+
+    expect(useCanvasStore.getState().structuredScene).toMatchObject([
+      { id: "text-1", text: "A\nB" },
+    ]);
+    expect(useCanvasStore.getState().textCursor).toEqual({ x: 0, y: 1 });
+  });
+
+  it("backspaces structured text by layout offset on later lines", () => {
+    useCanvasStore.setState({
+      canvasMode: "structured",
+      textCursor: { x: 1, y: 1 },
+      editingStructuredTextNodeId: "text-1",
+      selectedStructuredNodeIds: ["text-1"],
+      structuredScene: [
+        {
+          id: "text-1",
+          type: "text",
+          order: 1,
+          position: { x: 0, y: 0 },
+          text: "AB\nCD",
+          style: { color: "#ffffff" },
+        },
+      ],
+    });
+
+    useCanvasStore.getState().backspaceText();
+
+    expect(useCanvasStore.getState().structuredScene).toMatchObject([
+      { id: "text-1", text: "AB\nD" },
+    ]);
+    expect(useCanvasStore.getState().textCursor).toEqual({ x: 0, y: 1 });
+  });
+
+  it("deletes structured text forward by layout offset on later lines", () => {
+    useCanvasStore.setState({
+      canvasMode: "structured",
+      textCursor: { x: 1, y: 1 },
+      editingStructuredTextNodeId: "text-1",
+      selectedStructuredNodeIds: ["text-1"],
+      structuredScene: [
+        {
+          id: "text-1",
+          type: "text",
+          order: 1,
+          position: { x: 0, y: 0 },
+          text: "AB\nCD",
+          style: { color: "#ffffff" },
+        },
+      ],
+    });
+
+    useCanvasStore.getState().deleteTextForward();
+
+    expect(useCanvasStore.getState().structuredScene).toMatchObject([
+      { id: "text-1", text: "AB\nC" },
+    ]);
+    expect(useCanvasStore.getState().textCursor).toEqual({ x: 1, y: 1 });
+  });
+
+  it("inserts structured text after a wide character and moves the caret by width", () => {
+    useCanvasStore.setState({
+      canvasMode: "structured",
+      textCursor: { x: 2, y: 0 },
+      editingStructuredTextNodeId: "text-1",
+      selectedStructuredNodeIds: ["text-1"],
+      structuredScene: [
+        {
+          id: "text-1",
+          type: "text",
+          order: 1,
+          position: { x: 0, y: 0 },
+          text: "你A",
+          style: { color: "#ffffff" },
+        },
+      ],
+    });
+
+    useCanvasStore.getState().writeTextString("!");
+
+    expect(useCanvasStore.getState().structuredScene).toMatchObject([
+      { id: "text-1", text: "你!A" },
+    ]);
+    expect(useCanvasStore.getState().textCursor).toEqual({ x: 3, y: 0 });
+  });
+
+  it("moves left across a structured CJK character by its display width", () => {
+    useCanvasStore.setState({
+      canvasMode: "structured",
+      textCursor: { x: 2, y: 0 },
+      editingStructuredTextNodeId: "text-1",
+      structuredScene: [
+        {
+          id: "text-1",
+          type: "text",
+          order: 1,
+          position: { x: 0, y: 0 },
+          text: "你A",
+          style: { color: "#ffffff" },
+        },
+      ],
+    });
+
+    useCanvasStore.getState().moveTextCursor(-1, 0);
+
+    expect(useCanvasStore.getState().textCursor).toEqual({ x: 0, y: 0 });
+  });
+
+  it("moves right across a structured CJK character by its display width", () => {
+    useCanvasStore.setState({
+      canvasMode: "structured",
+      textCursor: { x: 0, y: 0 },
+      editingStructuredTextNodeId: "text-1",
+      structuredScene: [
+        {
+          id: "text-1",
+          type: "text",
+          order: 1,
+          position: { x: 0, y: 0 },
+          text: "你A",
+          style: { color: "#ffffff" },
+        },
+      ],
+    });
+
+    useCanvasStore.getState().moveTextCursor(1, 0);
+
+    expect(useCanvasStore.getState().textCursor).toEqual({ x: 2, y: 0 });
+  });
+
+  it("moves left from after a structured wide character to its anchor", () => {
+    useCanvasStore.setState({
+      canvasMode: "structured",
+      textCursor: { x: 3, y: 0 },
+      editingStructuredTextNodeId: "text-1",
+      structuredScene: [
+        {
+          id: "text-1",
+          type: "text",
+          order: 1,
+          position: { x: 0, y: 0 },
+          text: "A你B",
+          style: { color: "#ffffff" },
+        },
+      ],
+    });
+
+    useCanvasStore.getState().moveTextCursor(-1, 0);
+
+    expect(useCanvasStore.getState().textCursor).toEqual({ x: 1, y: 0 });
+  });
 });

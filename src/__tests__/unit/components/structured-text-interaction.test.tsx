@@ -289,6 +289,105 @@ describe("structured text interaction", () => {
     expect(useCanvasStore.getState().structuredTextSelection).toBeNull();
   });
 
+  it("places the caret at the text end when double-clicking just after structured text", () => {
+    setStructuredTextScene();
+
+    const { getByTestId } = render(<InteractionHarness />);
+
+    fireEvent.doubleClick(getByTestId("canvas-root"), {
+      clientX: 45,
+      clientY: 1,
+    });
+    useCanvasStore.getState().writeTextString("!");
+
+    expect(useCanvasStore.getState().structuredScene[0]).toMatchObject({
+      id: "text-1",
+      text: "Edit!",
+    });
+    expect(useCanvasStore.getState().textCursor).toEqual({ x: 5, y: 0 });
+  });
+
+  it("inserts text at the clicked middle offset while structured text is editing", () => {
+    setStructuredTextScene({ editing: true });
+    render(<InteractionHarness />);
+
+    act(() => {
+      gestureState.handlers?.onDragStart?.({
+        xy: [18, 1],
+        event: dragEvent(),
+      });
+    });
+    useCanvasStore.getState().writeTextString("!");
+
+    expect(useCanvasStore.getState().structuredScene[0]).toMatchObject({
+      id: "text-1",
+      text: "Ed!it",
+    });
+    expect(useCanvasStore.getState().textCursor).toEqual({ x: 3, y: 0 });
+  });
+
+  it("keeps active text caret targeting above overlapping background nodes", () => {
+    setStructuredTextScene({ editing: true });
+    useCanvasStore.setState({
+      structuredScene: [
+        {
+          id: "text-1",
+          type: "text",
+          order: 1,
+          position: { x: 0, y: 0 },
+          text: "Edit",
+          style: { color: "#ffffff" },
+        },
+        {
+          id: "bg-1",
+          type: "bg",
+          order: 2,
+          start: { x: 0, y: 0 },
+          end: { x: 6, y: 0 },
+          style: { color: "#ffffff", bgColor: "#dbeafe" },
+        },
+      ],
+    });
+    render(<InteractionHarness />);
+
+    act(() => {
+      gestureState.handlers?.onDragStart?.({
+        xy: [18, 1],
+        event: dragEvent(),
+      });
+    });
+    useCanvasStore.getState().writeTextString("!");
+
+    expect(useCanvasStore.getState().editingStructuredTextNodeId).toBe("text-1");
+    expect(useCanvasStore.getState().structuredScene[0]).toMatchObject({
+      id: "text-1",
+      text: "Ed!it",
+    });
+    expect(useCanvasStore.getState().structuredScene[1]).toMatchObject({
+      id: "bg-1",
+      start: { x: 0, y: 0 },
+    });
+  });
+
+  it("keeps structured text editing when clicking just after the text end", () => {
+    setStructuredTextScene({ editing: true });
+    render(<InteractionHarness />);
+
+    act(() => {
+      gestureState.handlers?.onDragStart?.({
+        xy: [45, 1],
+        event: dragEvent(),
+      });
+    });
+    useCanvasStore.getState().writeTextString("!");
+
+    expect(useCanvasStore.getState().editingStructuredTextNodeId).toBe("text-1");
+    expect(useCanvasStore.getState().structuredScene[0]).toMatchObject({
+      id: "text-1",
+      text: "Edit!",
+    });
+  });
+
   it("keeps active structured text editing from turning into a text-node drag", () => {
     setStructuredTextScene({ editing: true });
     render(<InteractionHarness />);

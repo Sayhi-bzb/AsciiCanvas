@@ -6,7 +6,12 @@ import type {
   StructuredTextStyleRange,
   TextAttributes,
 } from "@/shared/types";
-import { getCellOccupancy, splitGraphemes } from "@/shared/metrics";
+import { splitGraphemes } from "@/shared/metrics";
+import {
+  createTextLayout,
+  getTextLayoutCaretPoint,
+  getTextLayoutOffsetAtPoint,
+} from "@/shared/utils/textLayout";
 import { cloneTextAttributes } from "@/shared/utils/ansi";
 
 export type StructuredTextSelection = {
@@ -346,45 +351,17 @@ export const getStructuredTextOffsetAtPoint = (
   node: StructuredTextNode,
   point: Point
 ) => {
-  const lines = node.text.split("\n");
-  const row = Math.max(
-    0,
-    Math.min(lines.length - 1, point.y - node.position.y)
+  return getTextLayoutOffsetAtPoint(
+    createTextLayout(node.text, node.position),
+    point
   );
-  let offset = 0;
-  for (let i = 0; i < row; i++) {
-    offset += splitGraphemes(lines[i]).length + 1;
-  }
-
-  const column = Math.max(0, point.x - node.position.x);
-  let width = 0;
-  const chars = splitGraphemes(lines[row] ?? "");
-  for (let i = 0; i < chars.length; i++) {
-    const charWidth = getCellOccupancy(chars[i]);
-    if (width + charWidth / 2 >= column) return offset + i;
-    width += charWidth;
-  }
-  return offset + chars.length;
 };
 
 export const getStructuredTextCaretPoint = (
   node: StructuredTextNode,
   offset: number
 ): Point => {
-  const chars = splitGraphemes(node.text);
-  const target = Math.max(0, Math.min(chars.length, offset));
-  let x = node.position.x;
-  let y = node.position.y;
-  for (let i = 0; i < target; i++) {
-    const char = chars[i];
-    if (char === "\n") {
-      x = node.position.x;
-      y += 1;
-    } else {
-      x += getCellOccupancy(char);
-    }
-  }
-  return { x, y };
+  return getTextLayoutCaretPoint(createTextLayout(node.text, node.position), offset);
 };
 
 export const getStructuredTextStylesInRange = (

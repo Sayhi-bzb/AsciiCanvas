@@ -25,7 +25,6 @@ import {
   gridCellRect,
   prepareCanvasSurface,
   setTextRenderStyle,
-  splitGraphemes,
 } from "@/shared/metrics";
 import { effectiveCellStyle } from "@/shared/utils/ansi";
 import { getStaticGridViewState } from "@/domains/canvas/state/helpers/staticGridModel";
@@ -36,6 +35,10 @@ import {
 } from "@/domains/canvas/state/helpers/structuredBoxEditing";
 import { getStructuredNodeBounds } from "@/shared/utils/structured";
 import { getStructuredTextSelectionRange } from "@/shared/utils/structuredTextRanges";
+import {
+  createTextLayout,
+  getTextLayoutSelectionRects,
+} from "@/shared/utils/textLayout";
 import type { StructuredBoxResizeHandle, StructuredLineResizeHandle } from "@/domains/canvas/state/helpers/structuredBoxEditing";
 
 export type StructuredMovePreview = {
@@ -586,29 +589,22 @@ export const useCanvasRenderer = (
                 )
               : null;
           if (selectedTextNode?.type === "text") {
-            let currentX = selectedTextNode.position.x;
-            let currentY = selectedTextNode.position.y;
-            splitGraphemes(selectedTextNode.text).forEach((char, index) => {
-              if (char === "\n") {
-                currentX = selectedTextNode.position.x;
-                currentY += 1;
-                return;
-              }
-              const occupancy = getCellOccupancy(char);
-              if (index >= selectionRange!.start && index < selectionRange!.end) {
+            getTextLayoutSelectionRects(
+              createTextLayout(selectedTextNode.text, selectedTextNode.position),
+              selectionRange!.start,
+              selectionRange!.end
+            ).forEach((rect) => {
                 const pos = gridCellRect(
-                  { x: currentX, y: currentY },
+                  rect.point,
                   { offset, zoom }
                 );
                 uiCtx.fillStyle = COLOR_SELECTION_BG;
                 uiCtx.fillRect(
                   Math.round(pos.x),
                   Math.round(pos.y),
-                  Math.round(pos.width * occupancy),
+                  Math.round(pos.width * rect.width),
                   Math.round(pos.height)
                 );
-              }
-              currentX += occupancy;
             });
           }
         }
