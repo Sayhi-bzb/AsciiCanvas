@@ -34,6 +34,7 @@ import {
   effectiveCellStyle,
   isSameTextAttributes,
   parseAnsiHexColor,
+  toAnsi16Color,
   toAnsiTruecolor,
 } from "@/shared/utils/ansi";
 
@@ -398,8 +399,12 @@ const toAnsiStyleSequence = (style: ActiveAnsiStyle) => {
   if (style.attrs?.underline) codes.push("4");
   if (style.attrs?.inverse) codes.push("7");
   if (style.attrs?.strike) codes.push("9");
-  const foreground = style.color ? toAnsiTruecolor(38, style.color) : null;
-  const background = style.bgColor ? toAnsiTruecolor(48, style.bgColor) : null;
+  const foreground = style.color
+    ? toAnsi16Color(38, style.color) ?? toAnsiTruecolor(38, style.color)
+    : null;
+  const background = style.bgColor
+    ? toAnsi16Color(48, style.bgColor) ?? toAnsiTruecolor(48, style.bgColor)
+    : null;
   if (foreground) codes.push(foreground);
   if (background) codes.push(background);
   return codes.length > 0 ? `\u001b[${codes.join(";")}m` : "";

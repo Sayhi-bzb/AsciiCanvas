@@ -47,6 +47,7 @@ describe("structuredTemplates", () => {
       "scrollArea",
     ]);
     expect(STRUCTURED_PAGE_TEMPLATES.map((template) => template.id)).toEqual([
+      "amibios",
       "safari",
       "filetree",
       "timeline",
@@ -56,6 +57,7 @@ describe("structuredTemplates", () => {
     ]);
     expect(STRUCTURED_TEMPLATES.map((template) => template.id)).toEqual([
       ...STRUCTURED_COMPONENT_TEMPLATES.map((template) => template.id),
+      "amibios",
       "safari",
       "filetree",
       "timeline",
@@ -67,6 +69,7 @@ describe("structuredTemplates", () => {
 
   it("validates structured template ids", () => {
     expect(isStructuredTemplateId("badge")).toBe(true);
+    expect(isStructuredTemplateId("amibios")).toBe(true);
     expect(isStructuredTemplateId("unknown")).toBe(false);
     expect(isStructuredTemplateId(null)).toBe(false);
   });
@@ -173,6 +176,48 @@ describe("structuredTemplates", () => {
         expect(node.component?.role.length, template.id).toBeGreaterThan(0);
       });
     });
+  });
+
+  it("builds the AMIBIOS structured page template from ANSI-like source", () => {
+    const { nodes, components } = buildStructuredTemplate(
+      "amibios",
+      { x: 4, y: 7 },
+      { brushColor: "#334155", startOrder: 10 }
+    );
+    const [screen] = nodes;
+
+    expect(nodes).toHaveLength(1);
+    expect(components).toHaveLength(1);
+    expect(components[0]).toMatchObject({
+      templateId: "amibios",
+      label: "AMIBIOS",
+      atomIds: [screen.id],
+      roles: { screen: [screen.id] },
+    });
+    expect(screen).toMatchObject({
+      type: "text",
+      order: 10,
+      position: { x: 4, y: 7 },
+      style: { color: "#c0c0c0", bgColor: "#000080" },
+      component: {
+        templateId: "amibios",
+        role: "screen",
+      },
+    });
+    if (screen.type !== "text") throw new Error("Expected AMIBIOS text node.");
+    expect(screen.text).toContain(
+      "AMIBIOS EASY SETUP UTILITY - VERSION 1.24.2026"
+    );
+    expect(screen.text).toContain("CPU Temperature:   45°C (Normal)");
+    expect(screen.styleRanges?.some((range) => range.style.attrs?.bold)).toBe(
+      true
+    );
+    expect(screen.styleRanges?.some((range) => range.style.attrs?.inverse)).toBe(
+      true
+    );
+    expect(
+      screen.styleRanges?.some((range) => range.style.bgColor === "#000080")
+    ).toBe(true);
   });
 
   it("builds text-only atom templates", () => {

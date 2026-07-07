@@ -35,6 +35,14 @@ const BRIGHT_COLORS = [
   "#ffffff",
 ] as const;
 
+const normalizeAnsiHexColor = (color: string) => {
+  const parsed = parseAnsiHexColor(color);
+  if (!parsed) return null;
+  return `#${toHexByte(parsed.red)}${toHexByte(parsed.green)}${toHexByte(
+    parsed.blue
+  )}`;
+};
+
 export const normalizeTextAttributes = (
   attrs?: Partial<TextAttributes> | null
 ): TextAttributes | undefined => {
@@ -134,6 +142,27 @@ export const toAnsiTruecolor = (prefix: 38 | 48, color: string) => {
   const parsed = parseAnsiHexColor(color);
   if (!parsed) return null;
   return `${prefix};2;${parsed.red};${parsed.green};${parsed.blue}`;
+};
+
+export const toAnsi16Color = (prefix: 38 | 48, color: string) => {
+  const normalized = normalizeAnsiHexColor(color);
+  if (!normalized) return null;
+
+  const basicIndex = BASIC_COLORS.indexOf(
+    normalized as (typeof BASIC_COLORS)[number]
+  );
+  if (basicIndex >= 0) {
+    return String((prefix === 38 ? 30 : 40) + basicIndex);
+  }
+
+  const brightIndex = BRIGHT_COLORS.indexOf(
+    normalized as (typeof BRIGHT_COLORS)[number]
+  );
+  if (brightIndex >= 0) {
+    return String((prefix === 38 ? 90 : 100) + brightIndex);
+  }
+
+  return null;
 };
 
 const colorFrom256 = (index: number) => {

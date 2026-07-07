@@ -511,7 +511,7 @@ describe("export utilities", () => {
     ]);
   });
 
-  it("exports ANSI truecolor runs and merges adjacent cells with the same color", () => {
+  it("exports ANSI16 runs and merges adjacent cells with the same color", () => {
     const grid: GridMap = new Map([
       ["0,0", { char: "A", color: "#ff0000" }],
       ["1,0", { char: "B", color: "#ff0000" }],
@@ -519,7 +519,7 @@ describe("export utilities", () => {
     ]);
 
     expect(exportToAnsi(grid)).toBe(
-      "\u001b[38;2;255;0;0mAB\u001b[0m\u001b[38;2;0;255;0mC\u001b[0m"
+      "\u001b[91mAB\u001b[0m\u001b[92mC\u001b[0m"
     );
   });
 
@@ -567,7 +567,7 @@ describe("export utilities", () => {
       ["1,0", { char: "B", color: "#000000" }],
     ]);
 
-    expect(exportToAnsi(grid)).toBe("\u001b[38;2;255;0;0mA\u001b[0mB");
+    expect(exportToAnsi(grid)).toBe("\u001b[91mA\u001b[0mB");
   });
 
   it("resets to default text when ANSI color returns to default slate", () => {
@@ -576,10 +576,10 @@ describe("export utilities", () => {
       ["1,0", { char: "B", color: "#0f172a" }],
     ]);
 
-    expect(exportToAnsi(grid)).toBe("\u001b[38;2;255;0;0mA\u001b[0mB");
+    expect(exportToAnsi(grid)).toBe("\u001b[91mA\u001b[0mB");
   });
 
-  it("exports selected cells as ANSI truecolor within the selection bounds", () => {
+  it("exports selected ANSI16 cells within the selection bounds", () => {
     const grid: GridMap = new Map([
       ["0,0", { char: "A", color: "#ff0000" }],
       ["1,0", { char: "B", color: "#00ff00" }],
@@ -588,7 +588,7 @@ describe("export utilities", () => {
 
     expect(
       exportSelectionToAnsi(grid, [{ start: { x: 0, y: 0 }, end: { x: 1, y: 0 } }])
-    ).toBe("\u001b[38;2;255;0;0mA\u001b[0m\u001b[38;2;0;255;0mB\u001b[0m");
+    ).toBe("\u001b[91mA\u001b[0m\u001b[92mB\u001b[0m");
   });
 
   it("exports ANSI background and text attributes", () => {
@@ -606,7 +606,7 @@ describe("export utilities", () => {
     ]);
 
     expect(exportToAnsi(grid)).toBe(
-      "\u001b[1;3;4;9;38;2;255;0;0;48;2;0;0;255mA\u001b[0mB"
+      "\u001b[1;3;4;9;91;104mA\u001b[0mB"
     );
   });
 
@@ -690,7 +690,7 @@ describe("export utilities", () => {
     ]);
 
     expect(exportToAnsi(grid)).toBe(
-      "\u001b[7;38;2;0;0;255;48;2;255;0;0mA\u001b[0m"
+      "\u001b[7;94;101mA\u001b[0m"
     );
   });
 
@@ -702,7 +702,7 @@ describe("export utilities", () => {
     ]);
 
     expect(exportToAnsi(grid)).toBe(
-      "]8;;https://example.com\\\u001b[38;2;255;255;255mAB]8;;\\\u001b[0m\u001b[38;2;255;255;255mC\u001b[0m"
+      "]8;;https://example.com\\\u001b[97mAB]8;;\\\u001b[0m\u001b[97mC\u001b[0m"
     );
   });
   it("exports selected ANSI without rich color escapes when color export is disabled", () => {
@@ -763,16 +763,16 @@ describe("export utilities", () => {
 
     expect(
       exportSelectionToAnsi(grid, [{ start: { x: 0, y: 0 }, end: { x: 2, y: 0 } }])
-    ).toBe("\u001b[38;2;255;255;255m你A\u001b[0m");
+    ).toBe("\u001b[97m你A\u001b[0m");
   });
 
-  it("supports short hex ANSI colors and falls back to default text on invalid colors", () => {
+  it("supports short hex ANSI16 colors and falls back to default text on invalid colors", () => {
     const grid: GridMap = new Map([
       ["0,0", { char: "A", color: "#0f0" }],
       ["1,0", { char: "B", color: "oklch(0.7 0.2 120)" }],
     ]);
 
-    expect(exportToAnsi(grid)).toBe("\u001b[38;2;0;255;0mA\u001b[0mB");
+    expect(exportToAnsi(grid)).toBe("\u001b[92mA\u001b[0mB");
   });
 
   it("exports ANSI without escape colors when color export is disabled", () => {
@@ -790,7 +790,7 @@ describe("export utilities", () => {
       ["2,0", { char: "A", color: "#ffffff" }],
     ]);
 
-    expect(exportToAnsi(grid)).toBe("\u001b[38;2;255;255;255m你A\u001b[0m");
+    expect(exportToAnsi(grid)).toBe("\u001b[97m你A\u001b[0m");
   });
 
   it("exports animation frames as fixed-size ANSI output", () => {
@@ -799,7 +799,7 @@ describe("export utilities", () => {
       [["1,0", { char: "@", color: "#ff0000" }]]
     );
 
-    expect(ansi).toBe(" \u001b[38;2;255;0;0m@\u001b[0m \n   ");
+    expect(ansi).toBe(" \u001b[91m@\u001b[0m \n   ");
   });
 
   it("encodes complex GIF pixel streams without corrupting LZW data", async () => {

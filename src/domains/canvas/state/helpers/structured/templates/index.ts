@@ -1,3 +1,4 @@
+import { AMIBIOS_TEMPLATE } from "./amibios";
 import { FILETREE_TEMPLATE } from "./filetree";
 import { PHONE_TEMPLATE } from "./phone";
 import { SAFARI_TEMPLATE } from "./safari";
@@ -6,6 +7,7 @@ import { TERMINAL_TEMPLATE } from "./terminal";
 import { TIMELINE_TEMPLATE } from "./timeline";
 
 export const STRUCTURED_PAGE_TEMPLATE_COMPONENTS = [
+  AMIBIOS_TEMPLATE,
   SAFARI_TEMPLATE,
   FILETREE_TEMPLATE,
   TIMELINE_TEMPLATE,

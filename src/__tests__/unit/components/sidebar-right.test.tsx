@@ -122,6 +122,7 @@ describe("SidebarRight structured templates", () => {
     expect(content).toHaveClass("p-2");
     expect(group).toHaveClass("p-0");
     expect(button).toHaveClass("items-center", "gap-3");
+    expect(screen.queryByRole("button", { name: /amibios/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /safari/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /file tree/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /timeline/i })).not.toBeInTheDocument();
@@ -148,6 +149,7 @@ describe("SidebarRight structured templates", () => {
       "aria-selected",
       "true"
     );
+    expect(screen.getByRole("button", { name: /amibios/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /safari/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /file tree/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /timeline/i })).toBeInTheDocument();
@@ -155,6 +157,7 @@ describe("SidebarRight structured templates", () => {
     expect(screen.getByRole("button", { name: /terminal/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /phone/i })).toBeInTheDocument();
     expect(STRUCTURED_PAGE_TEMPLATES.map((template) => template.id)).toEqual([
+      "amibios",
       "safari",
       "filetree",
       "timeline",
@@ -172,6 +175,7 @@ describe("SidebarRight structured templates", () => {
       "true"
     );
     expect(screen.getByRole("button", { name: /button/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /amibios/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /safari/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /file tree/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /timeline/i })).not.toBeInTheDocument();

@@ -168,7 +168,7 @@ describe("clipboardActions", () => {
     );
 
     expect(payload).toEqual({
-      plain: "[38;2;255;0;0mA[0m[38;2;0;255;0mB[0m",
+      plain: "[91mA[0m[92mB[0m",
       rich: null,
     });
   });
