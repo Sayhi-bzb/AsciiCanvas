@@ -2,9 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 import {
   drawCanvasColorPickerAnchor,
   getStructuredSplitBoxActiveLeafBounds,
+} from "@/domains/canvas/components/AsciiCanvas/hooks/useCanvasRenderer";
+import {
   getStructuredLineHandlePoints,
   getStructuredRectHandlePoints,
-} from "@/domains/canvas/components/AsciiCanvas/hooks/useCanvasRenderer";
+} from "@/domains/canvas/state/helpers/structuredHandleGeometry";
 
 describe("useCanvasRenderer structured rect handles", () => {
   it("returns eight handles for rectangular structured nodes", () => {

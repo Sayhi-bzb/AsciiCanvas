@@ -1,0 +1,72 @@
+import type { CanvasMode, Point, ToolType } from "@/shared/types";
+import type { CanvasLinkHit } from "../core/linkHitTesting";
+import { isShapeTool } from "./dragStartInteraction";
+
+export type CanvasMoveAction =
+  | { type: "none" }
+  | { type: "structured-text-cursor" }
+  | { type: "structured-shape-hover"; point: Point | null }
+  | { type: "structured-select-hover"; cursor: string }
+  | { type: "eraser-hover"; point: Point | null };
+
+export type CanvasMoveDecision =
+  | { type: "color-picker-hover"; point: Point | null }
+  | { type: "canvas-hover"; linkHit: CanvasLinkHit | null; action: CanvasMoveAction };
+
+export const resolveCanvasMoveDecision = ({
+  hasColorPickerTarget,
+  canvasMode,
+  tool,
+  point,
+  linkHit,
+  structuredSelectCursor,
+  eraserHoverPoint,
+}: {
+  hasColorPickerTarget: boolean;
+  canvasMode: CanvasMode;
+  tool: ToolType;
+  point: Point | null;
+  linkHit: CanvasLinkHit | null;
+  structuredSelectCursor: string | null;
+  eraserHoverPoint: Point | null;
+}): CanvasMoveDecision => {
+  if (hasColorPickerTarget) {
+    return { type: "color-picker-hover", point };
+  }
+
+  if (canvasMode === "structured") {
+    if (tool === "text") {
+      return { type: "canvas-hover", linkHit, action: { type: "structured-text-cursor" } };
+    }
+    if (isShapeTool(tool, canvasMode)) {
+      return {
+        type: "canvas-hover",
+        linkHit,
+        action: { type: "structured-shape-hover", point },
+      };
+    }
+    if (tool === "select") {
+      return {
+        type: "canvas-hover",
+        linkHit,
+        action: {
+          type: "structured-select-hover",
+          cursor: structuredSelectCursor ?? "",
+        },
+      };
+    }
+    return { type: "canvas-hover", linkHit, action: { type: "none" } };
+  }
+
+  if (tool === "eraser") {
+    return {
+      type: "canvas-hover",
+      linkHit,
+      action: { type: "eraser-hover", point: eraserHoverPoint },
+    };
+  }
+
+  return { type: "canvas-hover", linkHit, action: { type: "none" } };
+};
+
+

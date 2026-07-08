@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveCanvasLinkHit } from "@/domains/canvas/components/AsciiCanvas/hooks/linkHitTesting";
+import { resolveCanvasLinkHit } from "@/domains/canvas/components/AsciiCanvas/hooks/interaction/core/linkHitTesting";
 import {
   shouldUseCanvasLinkPointer,
   shouldOpenCanvasLink,
@@ -113,3 +113,4 @@ describe("canvas link modifier affordance", () => {
     expect(shouldUseCanvasLinkPointer(null, { ctrlKey: true, metaKey: false })).toBe(false);
   });
 });
+

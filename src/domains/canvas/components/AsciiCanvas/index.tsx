@@ -49,7 +49,7 @@ import {
 } from '@/domains/canvas/state/helpers/structuredTemplates';
 import { getStaticGridViewState } from '@/domains/canvas/state/helpers/staticGridModel';
 import { useShallow } from 'zustand/react/shallow';
-import type { CanvasLinkHit } from './hooks/linkHitTesting';
+import type { CanvasLinkHit } from './hooks/interaction/core/linkHitTesting';
 import type { Point } from '@/shared/types';
 import { FONT_SIZE } from '@/shared/lib/constants';
 import type { ContextMenuEntry } from '@/domains/actions/core/types';
@@ -872,4 +872,5 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
     </ContextMenu>
   );
 };
+
 
