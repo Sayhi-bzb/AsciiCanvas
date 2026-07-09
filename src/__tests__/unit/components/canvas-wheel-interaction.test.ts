@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   createCanvasWheelExecutor,
+  createCanvasWheelHandler,
+  createCanvasWheelRouteHandler,
   executeCanvasWheelDecision,
   resolveCanvasWheelDecision,
   type CanvasWheelExecutor,
@@ -116,5 +118,123 @@ describe("canvas wheel interaction", () => {
     expect(flushOffset).toHaveBeenCalledTimes(1);
     expect(queueZoomDelta).toHaveBeenCalledWith(1.1, 20, 30);
     expect(queueOffsetDelta).toHaveBeenCalledWith(-4, 6);
+  });
+
+  it("creates wheel handlers that resolve zoom decisions", () => {
+    const executor = createExecutor();
+    const preventDefault = vi.fn();
+    const handler = createCanvasWheelHandler({
+      canvasMode: "freeform",
+      executor,
+    });
+
+    handler({
+      isCtrlOrMetaPressed: true,
+      deltaX: 0,
+      deltaY: -100,
+      shiftKey: false,
+      anchor: { x: 20, y: 30 },
+      preventDefault,
+    });
+
+    expect(preventDefault).toHaveBeenCalledTimes(1);
+    expect(executor.flushOffset).toHaveBeenCalledTimes(1);
+    expect(executor.queueZoomDelta).toHaveBeenCalledWith(1.2, 20, 30);
+  });
+
+  it("creates wheel handlers that resolve pan decisions", () => {
+    const executor = createExecutor();
+    const preventDefault = vi.fn();
+    const handler = createCanvasWheelHandler({
+      canvasMode: "structured",
+      executor,
+    });
+
+    handler({
+      isCtrlOrMetaPressed: false,
+      deltaX: 0,
+      deltaY: 8,
+      shiftKey: true,
+      anchor: { x: 0, y: 0 },
+      preventDefault,
+    });
+
+    expect(preventDefault).not.toHaveBeenCalled();
+    expect(executor.queueOffsetDelta).toHaveBeenCalledWith(-8, 0);
+  });
+  it("routes wheel gestures through anchor resolution and event deltas", () => {
+    const handler = vi.fn();
+    const preventDefault = vi.fn();
+    const resolveAnchor = vi.fn(() => ({ x: 20, y: 30 }));
+    const route = createCanvasWheelRouteHandler({ handler });
+
+    route({
+      isCtrlOrMetaPressed: true,
+      gestureDeltaX: 1,
+      gestureDeltaY: 2,
+      eventDeltaX: 3,
+      eventDeltaY: -100,
+      shiftKey: false,
+      origin: { x: 50, y: 60 },
+      preventDefault,
+      resolveAnchor,
+    });
+
+    expect(resolveAnchor).toHaveBeenCalledWith({ x: 50, y: 60 });
+    expect(handler).toHaveBeenCalledWith({
+      isCtrlOrMetaPressed: true,
+      deltaX: 3,
+      deltaY: -100,
+      shiftKey: false,
+      anchor: { x: 20, y: 30 },
+      preventDefault,
+    });
+  });
+
+  it("routes wheel gestures through gesture deltas when event deltas are absent", () => {
+    const handler = vi.fn();
+    const route = createCanvasWheelRouteHandler({ handler });
+
+    route({
+      isCtrlOrMetaPressed: false,
+      gestureDeltaX: 4,
+      gestureDeltaY: -6,
+      shiftKey: true,
+      origin: { x: 50, y: 60 },
+      preventDefault: vi.fn(),
+      resolveAnchor: vi.fn(() => ({ x: 20, y: 30 })),
+    });
+
+    expect(handler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        deltaX: 4,
+        deltaY: -6,
+        shiftKey: true,
+        anchor: { x: 20, y: 30 },
+      })
+    );
+  });
+
+  it("skips wheel handling when the anchor cannot resolve", () => {
+    const handler = vi.fn();
+    const preventDefault = vi.fn();
+    const resolveAnchor = vi.fn(() => null);
+    const route = createCanvasWheelRouteHandler({ handler });
+
+    route({
+      isCtrlOrMetaPressed: true,
+      gestureDeltaX: 1,
+      gestureDeltaY: 2,
+      eventDeltaX: 3,
+      eventDeltaY: -100,
+      shiftKey: false,
+      origin: { x: 50, y: 60 },
+      preventDefault,
+      resolveAnchor,
+    });
+
+    expect(resolveAnchor).toHaveBeenCalledWith({ x: 50, y: 60 });
+    expect(handler).not.toHaveBeenCalled();
+    expect(preventDefault).not.toHaveBeenCalled();
   });
 });

@@ -79,3 +79,24 @@ export const createStructuredEditController = ({
       executor
     ),
 });
+export type StructuredEditRouteHandler = ({
+  clientPoint,
+  shouldIgnore,
+  preventDefault,
+}: {
+  clientPoint: Point;
+  shouldIgnore: () => boolean;
+  preventDefault: () => void;
+}) => boolean;
+
+export const createStructuredEditRouteHandler = ({
+  controller,
+}: {
+  controller: StructuredEditController;
+}): StructuredEditRouteHandler =>
+  ({ clientPoint, shouldIgnore, preventDefault }) => {
+    if (shouldIgnore()) return false;
+    if (!controller.startEdit(clientPoint.x, clientPoint.y)) return false;
+    preventDefault();
+    return true;
+  };

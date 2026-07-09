@@ -73,3 +73,90 @@ export const executeCanvasPinchDecision = (
     })
   );
 };
+export type CanvasPinchHandler = ({
+  canvasMode,
+  pinchStartZoom,
+  scale,
+  currentZoom,
+  anchor,
+  zoomBounds,
+}: {
+  canvasMode: CanvasMode;
+  pinchStartZoom: number;
+  scale: number;
+  currentZoom: number;
+  anchor: Point;
+  zoomBounds: { min: number; max: number };
+}) => void;
+
+export const createCanvasPinchHandler = ({
+  executor,
+}: {
+  executor: CanvasPinchExecutor;
+}): CanvasPinchHandler => ({
+  canvasMode,
+  pinchStartZoom,
+  scale,
+  currentZoom,
+  anchor,
+  zoomBounds,
+}) =>
+  executeCanvasPinchDecision(
+    resolveCanvasPinchDecision({
+      canvasMode,
+      pinchStartZoom,
+      scale,
+      currentZoom,
+      anchor,
+      zoomBounds,
+    }),
+    executor
+  );
+export type CanvasPinchRouteHandler = ({
+  canvasMode,
+  pinchStartZoom,
+  scale,
+  currentZoom,
+  origin,
+  zoomBounds,
+  preventDefault,
+  resolveAnchor,
+}: {
+  canvasMode: CanvasMode;
+  pinchStartZoom: number;
+  scale: number;
+  currentZoom: number;
+  origin: Point;
+  zoomBounds: { min: number; max: number };
+  preventDefault: () => void;
+  resolveAnchor: (origin: Point) => Point | null;
+}) => void;
+
+export const createCanvasPinchRouteHandler = ({
+  handler,
+}: {
+  handler: CanvasPinchHandler;
+}): CanvasPinchRouteHandler =>
+  ({
+    canvasMode,
+    pinchStartZoom,
+    scale,
+    currentZoom,
+    origin,
+    zoomBounds,
+    preventDefault,
+    resolveAnchor,
+  }) => {
+    preventDefault();
+    const anchor = resolveAnchor(origin);
+    if (!anchor) return;
+
+    handler({
+      canvasMode,
+      pinchStartZoom,
+      scale,
+      currentZoom,
+      anchor,
+      zoomBounds,
+    });
+  };

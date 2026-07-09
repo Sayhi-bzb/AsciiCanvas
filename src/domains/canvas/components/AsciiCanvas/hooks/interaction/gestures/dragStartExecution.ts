@@ -1,5 +1,6 @@
 import type { CanvasMode, Point, SelectionArea, ToolType } from "@/shared/types";
 import {
+  resolveDragStartRouteDecision,
   resolveDrawingShapeDragStartDecision,
   resolveSelectionDragStartDecision,
   type DrawingShapeDragStartDecision,
@@ -232,3 +233,179 @@ export const executePrimaryCanvasDragStart = (
     executors.drawingShape
   );
 };
+
+
+export type PrimaryCanvasDragStartHandler = (
+  context: PrimaryCanvasDragStartContext
+) => boolean;
+
+export const createPrimaryCanvasDragStartHandler = ({
+  selection,
+  drawingShape,
+}: {
+  selection: SelectionDragStartExecutor;
+  drawingShape: DrawingShapeDragStartExecutor;
+}): PrimaryCanvasDragStartHandler => (context) =>
+  executePrimaryCanvasDragStart(context, { selection, drawingShape });
+
+export type DragStartRouteHandler = ({
+  canvasMode,
+  tool,
+  button,
+  isCtrlOrMetaPressed,
+  hasColorPickerTarget,
+  hasCanvasRect,
+  screenPoint,
+  executeColorPickerStart,
+  executePrimaryCanvasStart,
+}: {
+  canvasMode: CanvasMode;
+  tool: ToolType;
+  button: number;
+  isCtrlOrMetaPressed: boolean;
+  hasColorPickerTarget: boolean;
+  hasCanvasRect: boolean;
+  screenPoint: Point;
+  executeColorPickerStart: () => boolean;
+  executePrimaryCanvasStart: () => boolean;
+}) => boolean;
+
+export const createDragStartRouteHandler = ({
+  panning,
+}: {
+  panning: PanningDragStartExecutor;
+}): DragStartRouteHandler => ({
+  canvasMode,
+  tool,
+  button,
+  isCtrlOrMetaPressed,
+  hasColorPickerTarget,
+  hasCanvasRect,
+  screenPoint,
+  executeColorPickerStart,
+  executePrimaryCanvasStart,
+}) => {
+  const routeDecision = resolveDragStartRouteDecision({
+    canvasMode,
+    tool,
+    button,
+    isCtrlOrMetaPressed,
+    hasColorPickerTarget,
+    hasCanvasRect,
+  });
+
+  switch (routeDecision.type) {
+    case "color-picker":
+      return executeColorPickerStart();
+    case "pan":
+      executePanningDragStart(screenPoint, panning);
+      return true;
+    case "primary-canvas":
+      return executePrimaryCanvasStart();
+    case "ignore":
+      return false;
+  }
+};
+export type CanvasDragStartRouteAdapter = ({
+  canvasMode,
+  tool,
+  button,
+  isCtrlOrMetaPressed,
+  hasColorPickerTarget,
+  hasCanvasRect,
+  screenPoint,
+  shiftKey,
+  anchorGrid,
+  canvasBounds,
+  brushChar,
+  mouseDetail,
+  preventDefault,
+  resolveGridPoint,
+  resolveLocalPoint,
+}: {
+  canvasMode: CanvasMode;
+  tool: ToolType;
+  button: number;
+  isCtrlOrMetaPressed: boolean;
+  hasColorPickerTarget: boolean;
+  hasCanvasRect: boolean;
+  screenPoint: Point;
+  shiftKey: boolean;
+  anchorGrid: Point | null;
+  canvasBounds: { width: number; height: number } | null;
+  brushChar: string;
+  mouseDetail: number;
+  preventDefault: () => void;
+  resolveGridPoint: (screenPoint: Point) => Point | null;
+  resolveLocalPoint: (screenPoint: Point) => Point | null;
+}) => boolean;
+
+export const createCanvasDragStartRouteAdapter = ({
+  route,
+  colorPicker,
+  primaryCanvas,
+  structuredSelect,
+}: {
+  route: DragStartRouteHandler;
+  colorPicker: (input: {
+    point: Point | null;
+    preventDefault: () => void;
+  }) => boolean;
+  primaryCanvas: PrimaryCanvasDragStartHandler;
+  structuredSelect: (input: {
+    screenPoint: Point | null;
+    start: Point;
+    mouseDetail: number;
+  }) => boolean;
+}): CanvasDragStartRouteAdapter =>
+  ({
+    canvasMode,
+    tool,
+    button,
+    isCtrlOrMetaPressed,
+    hasColorPickerTarget,
+    hasCanvasRect,
+    screenPoint,
+    shiftKey,
+    anchorGrid,
+    canvasBounds,
+    brushChar,
+    mouseDetail,
+    preventDefault,
+    resolveGridPoint,
+    resolveLocalPoint,
+  }) =>
+    route({
+      canvasMode,
+      tool,
+      button,
+      isCtrlOrMetaPressed,
+      hasColorPickerTarget,
+      hasCanvasRect,
+      screenPoint,
+      executeColorPickerStart: () =>
+        colorPicker({
+          point: resolveGridPoint(screenPoint),
+          preventDefault,
+        }),
+      executePrimaryCanvasStart: () => {
+        const start = resolveGridPoint(screenPoint);
+        if (!start) return false;
+
+        return primaryCanvas({
+          start,
+          canvasMode,
+          tool,
+          shiftKey,
+          anchorGrid,
+          canvasBounds,
+          brushChar,
+          executeStructuredSelectStart: () =>
+            structuredSelect({
+              screenPoint: resolveLocalPoint(screenPoint),
+              start,
+              mouseDetail,
+            }),
+        });
+      },
+    });

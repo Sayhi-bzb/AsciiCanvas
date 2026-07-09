@@ -73,7 +73,13 @@ export const resolveDrawingUpdateDecision = ({
     const filteredPoints: Point[] = [];
     let nextLastPlacedGrid = lastPlacedGrid;
     points.forEach((point) => {
-      if (shouldPlaceWideChar({ point, lastPlacedGrid: nextLastPlacedGrid, charWidth })) {
+      if (
+        shouldPlaceWideChar({
+          point,
+          lastPlacedGrid: nextLastPlacedGrid,
+          charWidth,
+        })
+      ) {
         filteredPoints.push(point);
         nextLastPlacedGrid = point;
       }
@@ -97,4 +103,47 @@ export const resolveDrawingUpdateDecision = ({
   }
 
   return { type: "none" };
+};
+
+type MutablePointRef = {
+  current: Point | null;
+};
+
+export type DrawingUpdateExecutor = {
+  addScratchPoints: (points: Array<Point & { char: string }>) => void;
+  erasePoints: (points: Point[]) => void;
+};
+
+export const createDrawingUpdateHandler = ({
+  getTool,
+  getBrushChar,
+  lastGrid,
+  lastPlacedGrid,
+  executor,
+}: {
+  getTool: () => ToolType;
+  getBrushChar: () => string;
+  lastGrid: MutablePointRef;
+  lastPlacedGrid: MutablePointRef;
+  executor: DrawingUpdateExecutor;
+}) => {
+  return (currentGrid: Point) => {
+    const decision = resolveDrawingUpdateDecision({
+      tool: getTool(),
+      brushChar: getBrushChar(),
+      lastGrid: lastGrid.current,
+      currentGrid,
+      lastPlacedGrid: lastPlacedGrid.current,
+    });
+    if (decision.type === "none") return;
+
+    if (decision.type === "scratch" && decision.points.length > 0) {
+      executor.addScratchPoints(decision.points);
+    } else if (decision.type === "erase") {
+      executor.erasePoints(decision.points);
+    }
+
+    lastGrid.current = decision.nextLastGrid;
+    lastPlacedGrid.current = decision.nextLastPlacedGrid;
+  };
 };

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   createStructuredEditController,
+  createStructuredEditRouteHandler,
   executeStructuredEditDecision,
   type StructuredEditExecutor,
 } from "@/domains/canvas/components/AsciiCanvas/hooks/interaction/structured/structuredEditExecution";
@@ -115,5 +116,55 @@ describe("structured edit execution", () => {
 
     expect(controller.startEdit(10, 20)).toBe(false);
     expect(executor.setSelectedStructuredNodeIds).not.toHaveBeenCalled();
+  });
+  it("routes structured edit attempts and prevents default when editing starts", () => {
+    const controller = { startEdit: vi.fn(() => true) };
+    const preventDefault = vi.fn();
+    const route = createStructuredEditRouteHandler({ controller });
+
+    expect(
+      route({
+        clientPoint: { x: 10, y: 20 },
+        shouldIgnore: () => false,
+        preventDefault,
+      })
+    ).toBe(true);
+
+    expect(controller.startEdit).toHaveBeenCalledWith(10, 20);
+    expect(preventDefault).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips structured edit attempts when the route should be ignored", () => {
+    const controller = { startEdit: vi.fn(() => true) };
+    const preventDefault = vi.fn();
+    const route = createStructuredEditRouteHandler({ controller });
+
+    expect(
+      route({
+        clientPoint: { x: 10, y: 20 },
+        shouldIgnore: () => true,
+        preventDefault,
+      })
+    ).toBe(false);
+
+    expect(controller.startEdit).not.toHaveBeenCalled();
+    expect(preventDefault).not.toHaveBeenCalled();
+  });
+
+  it("does not prevent default when no structured edit starts", () => {
+    const controller = { startEdit: vi.fn(() => false) };
+    const preventDefault = vi.fn();
+    const route = createStructuredEditRouteHandler({ controller });
+
+    expect(
+      route({
+        clientPoint: { x: 10, y: 20 },
+        shouldIgnore: () => false,
+        preventDefault,
+      })
+    ).toBe(false);
+
+    expect(controller.startEdit).toHaveBeenCalledWith(10, 20);
+    expect(preventDefault).not.toHaveBeenCalled();
   });
 });

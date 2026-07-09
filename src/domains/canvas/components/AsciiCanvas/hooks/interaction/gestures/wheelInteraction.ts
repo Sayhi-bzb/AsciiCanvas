@@ -93,3 +93,98 @@ export const executeCanvasWheelDecision = (
       break;
   }
 };
+
+export type CanvasWheelHandler = ({
+  isCtrlOrMetaPressed,
+  deltaX,
+  deltaY,
+  shiftKey,
+  anchor,
+  preventDefault,
+}: {
+  isCtrlOrMetaPressed: boolean;
+  deltaX: number;
+  deltaY: number;
+  shiftKey: boolean;
+  anchor: Point;
+  preventDefault: () => void;
+}) => void;
+
+export const createCanvasWheelHandler = ({
+  canvasMode,
+  executor,
+}: {
+  canvasMode: CanvasMode;
+  executor: CanvasWheelExecutor;
+}): CanvasWheelHandler => ({
+  isCtrlOrMetaPressed,
+  deltaX,
+  deltaY,
+  shiftKey,
+  anchor,
+  preventDefault,
+}) =>
+  executeCanvasWheelDecision(
+    resolveCanvasWheelDecision({
+      isCtrlOrMetaPressed,
+      canvasMode,
+      deltaX,
+      deltaY,
+      shiftKey,
+      anchor,
+    }),
+    {
+      ...executor,
+      preventDefault,
+    }
+  );
+export type CanvasWheelRouteHandler = ({
+  isCtrlOrMetaPressed,
+  gestureDeltaX,
+  gestureDeltaY,
+  eventDeltaX,
+  eventDeltaY,
+  shiftKey,
+  origin,
+  preventDefault,
+  resolveAnchor,
+}: {
+  isCtrlOrMetaPressed: boolean;
+  gestureDeltaX: number;
+  gestureDeltaY: number;
+  eventDeltaX?: number;
+  eventDeltaY?: number;
+  shiftKey: boolean;
+  origin: Point;
+  preventDefault: () => void;
+  resolveAnchor: (origin: Point) => Point | null;
+}) => void;
+
+export const createCanvasWheelRouteHandler = ({
+  handler,
+}: {
+  handler: CanvasWheelHandler;
+}): CanvasWheelRouteHandler =>
+  ({
+    isCtrlOrMetaPressed,
+    gestureDeltaX,
+    gestureDeltaY,
+    eventDeltaX,
+    eventDeltaY,
+    shiftKey,
+    origin,
+    preventDefault,
+    resolveAnchor,
+  }) => {
+    const anchor = resolveAnchor(origin);
+    if (!anchor) return;
+
+    handler({
+      isCtrlOrMetaPressed,
+      deltaX: eventDeltaX ?? gestureDeltaX,
+      deltaY: eventDeltaY ?? gestureDeltaY,
+      shiftKey,
+      anchor,
+      preventDefault,
+    });
+  };

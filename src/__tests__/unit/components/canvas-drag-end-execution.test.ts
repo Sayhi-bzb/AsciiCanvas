@@ -3,6 +3,8 @@ import {
   createNonPanningDragEndExecutor,
   createPanningDragEndExecutor,
   createPrimaryDragEndExecutor,
+  createPrimaryDragEndHandler,
+  createDragEndRouteHandler,
   executeNonPanningDragEndCleanup,
   executePanningDragEnd,
   executePrimaryDragEnd,
@@ -317,5 +319,107 @@ describe("drag-end execution", () => {
     expect(selectionPreview.set).toHaveBeenCalledWith(null, { immediate: true });
     expect(structuredPreviewQueue.flushMove).toHaveBeenCalledWith(true);
     expect(structuredPreviewQueue.flushSplitBoxResize).toHaveBeenCalledWith(true);
+  });
+
+  it("creates primary drag-end handlers that resolve selecting commits", () => {
+    const executor = createPrimaryExecutor();
+    const handler = createPrimaryDragEndHandler({ executor });
+
+    expect(
+      handler({
+        mode: "selecting",
+        tool: "select",
+        canvasMode: "freeform",
+        structuredScene: [],
+        dragStart: { x: 1, y: 1 },
+        resolvedEndGrid: { x: 3, y: 3 },
+        axis: null,
+        dragNodeType: null,
+        dragHandle: null,
+        isDividerHandle: (handle) => handle.startsWith("split:"),
+      })
+    ).toBe(true);
+
+    expect(executor.flushSelectionPreview).toHaveBeenCalledTimes(1);
+    expect(executor.addSelection).toHaveBeenCalledWith({
+      start: { x: 1, y: 1 },
+      end: { x: 3, y: 3 },
+    });
+    expect(executor.resetDragState).toHaveBeenCalledTimes(1);
+  });
+
+  it("creates primary drag-end handlers that resolve splitBox divider commits", () => {
+    const executor = createPrimaryExecutor();
+    const handler = createPrimaryDragEndHandler({ executor });
+
+    expect(
+      handler({
+        mode: "structured-splitbox-resizing",
+        tool: "select",
+        canvasMode: "structured",
+        structuredScene: [splitBoxNode],
+        dragStart: { x: 1, y: 1 },
+        resolvedEndGrid: { x: 4, y: 2 },
+        axis: null,
+        dragNodeType: "splitBox",
+        dragHandle: "split:split-middle",
+        isDividerHandle: (handle) => handle.startsWith("split:"),
+      })
+    ).toBe(true);
+
+    expect(executor.flushStructuredSplitBoxResize).toHaveBeenCalledTimes(1);
+    expect(executor.forceHistorySave).not.toHaveBeenCalled();
+    expect(executor.resetDragState).toHaveBeenCalledTimes(1);
+  });
+  it("routes panning drag ends without primary cleanup", () => {
+    const panning = createPanningExecutor();
+    const nonPanning = { setBodyCursor: vi.fn() };
+    const executePrimaryEnd = vi.fn();
+    const handler = createDragEndRouteHandler({ panning, nonPanning });
+
+    handler({
+      mode: "panning",
+      button: 0,
+      executePrimaryEnd,
+    });
+
+    expect(panning.flushOffset).toHaveBeenCalledTimes(1);
+    expect(panning.setIsPanning).toHaveBeenCalledWith(false);
+    expect(executePrimaryEnd).not.toHaveBeenCalled();
+    expect(nonPanning.setBodyCursor).not.toHaveBeenCalled();
+  });
+
+  it("routes primary non-panning drag ends through primary execution and cleanup", () => {
+    const panning = createPanningExecutor();
+    const nonPanning = { setBodyCursor: vi.fn() };
+    const executePrimaryEnd = vi.fn();
+    const handler = createDragEndRouteHandler({ panning, nonPanning });
+
+    handler({
+      mode: "drawing",
+      button: 0,
+      executePrimaryEnd,
+    });
+
+    expect(panning.flushOffset).not.toHaveBeenCalled();
+    expect(executePrimaryEnd).toHaveBeenCalledTimes(1);
+    expect(nonPanning.setBodyCursor).toHaveBeenCalledWith("auto");
+  });
+
+  it("routes non-primary non-panning drag ends through cleanup only", () => {
+    const panning = createPanningExecutor();
+    const nonPanning = { setBodyCursor: vi.fn() };
+    const executePrimaryEnd = vi.fn();
+    const handler = createDragEndRouteHandler({ panning, nonPanning });
+
+    handler({
+      mode: "idle",
+      button: 2,
+      executePrimaryEnd,
+    });
+
+    expect(panning.flushOffset).not.toHaveBeenCalled();
+    expect(executePrimaryEnd).not.toHaveBeenCalled();
+    expect(nonPanning.setBodyCursor).toHaveBeenCalledWith("auto");
   });
 });

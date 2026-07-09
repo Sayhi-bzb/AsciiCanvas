@@ -1,6 +1,6 @@
-import type { Point } from "@/shared/types";
+import type { CanvasMode, Point, ToolType } from "@/shared/types";
 import type { CanvasLinkHit } from "../core/linkHitTesting";
-import type { CanvasMoveDecision } from "./moveInteraction";
+import { resolveCanvasMoveDecision, type CanvasMoveDecision } from "./moveInteraction";
 
 export type CanvasMoveExecutor = {
   updateColorPickerHover: (point: Point | null) => void;
@@ -54,3 +54,109 @@ export const executeCanvasMoveDecision = (
       break;
   }
 };
+
+export type CanvasMoveHandler = ({
+  hasColorPickerTarget,
+  canvasMode,
+  tool,
+  point,
+  linkHit,
+  structuredSelectCursor,
+  eraserHoverPoint,
+  event,
+}: {
+  hasColorPickerTarget: boolean;
+  canvasMode: CanvasMode;
+  tool: ToolType;
+  point: Point | null;
+  linkHit: CanvasLinkHit | null;
+  structuredSelectCursor: string | null;
+  eraserHoverPoint: Point | null;
+  event: Pick<MouseEvent | KeyboardEvent, "ctrlKey" | "metaKey">;
+}) => void;
+
+export const createCanvasMoveHandler = ({
+  executor,
+}: {
+  executor: CanvasMoveExecutor;
+}): CanvasMoveHandler => ({
+  hasColorPickerTarget,
+  canvasMode,
+  tool,
+  point,
+  linkHit,
+  structuredSelectCursor,
+  eraserHoverPoint,
+  event,
+}) =>
+  executeCanvasMoveDecision(
+    resolveCanvasMoveDecision({
+      hasColorPickerTarget,
+      canvasMode,
+      tool,
+      point,
+      linkHit,
+      structuredSelectCursor,
+      eraserHoverPoint,
+    }),
+    executor,
+    event
+  );
+export type CanvasMoveRouteContext = {
+  point: Point | null;
+  linkHit: CanvasLinkHit | null;
+  structuredSelectCursor: string | null;
+  eraserHoverPoint: Point | null;
+};
+
+export type CanvasMoveRouteHandler = ({
+  hasColorPickerTarget,
+  canvasMode,
+  tool,
+  clientPoint,
+  event,
+  resolveMoveContext,
+}: {
+  hasColorPickerTarget: boolean;
+  canvasMode: CanvasMode;
+  tool: ToolType;
+  clientPoint: Point;
+  event: Pick<MouseEvent | KeyboardEvent, "ctrlKey" | "metaKey">;
+  resolveMoveContext: (input: {
+    clientPoint: Point;
+    shouldResolveStructuredSelectCursor: boolean;
+    shouldResolveEraserHoverPoint: boolean;
+  }) => CanvasMoveRouteContext;
+}) => void;
+
+export const createCanvasMoveRouteHandler = ({
+  handler,
+}: {
+  handler: CanvasMoveHandler;
+}): CanvasMoveRouteHandler =>
+  ({
+    hasColorPickerTarget,
+    canvasMode,
+    tool,
+    clientPoint,
+    event,
+    resolveMoveContext,
+  }) => {
+    const moveContext = resolveMoveContext({
+      clientPoint,
+      shouldResolveStructuredSelectCursor:
+        canvasMode === "structured" && tool === "select",
+      shouldResolveEraserHoverPoint: tool === "eraser",
+    });
+
+    handler({
+      hasColorPickerTarget,
+      canvasMode,
+      tool,
+      point: moveContext.point,
+      linkHit: moveContext.linkHit,
+      structuredSelectCursor: moveContext.structuredSelectCursor,
+      eraserHoverPoint: moveContext.eraserHoverPoint,
+      event,
+    });
+  };

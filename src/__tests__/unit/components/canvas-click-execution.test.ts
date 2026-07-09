@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   createCanvasClickExecutor,
   createCanvasClickHandler,
+  createCanvasClickRouteHandler,
   executeCanvasClickDecision,
   type CanvasClickExecutor,
 } from "@/domains/canvas/components/AsciiCanvas/hooks/interaction/gestures/clickExecution";
@@ -157,5 +158,57 @@ describe("canvas click execution", () => {
 
     expect(executor.clearColorPickerClick).toHaveBeenCalledTimes(1);
     expect(executor.preventDefault).toHaveBeenCalledTimes(1);
+  });
+  it("routes click gestures through point and link resolution", () => {
+    const point = { x: 2, y: 3 };
+    const handler = vi.fn(() => true);
+    const preventDefault = vi.fn();
+    const resolveGridPoint = vi.fn(() => point);
+    const resolveLinkHit = vi.fn(() => linkHit);
+    const shouldOpenLink = vi.fn(() => true);
+    const route = createCanvasClickRouteHandler({ handler });
+
+    expect(
+      route({
+        clientPoint: { x: 20, y: 30 },
+        preventDefault,
+        resolveGridPoint,
+        resolveLinkHit,
+        shouldOpenLink,
+      })
+    ).toBe(true);
+
+    expect(resolveGridPoint).toHaveBeenCalledWith({ x: 20, y: 30 });
+    expect(resolveLinkHit).toHaveBeenCalledWith({ x: 20, y: 30 });
+    expect(shouldOpenLink).toHaveBeenCalledTimes(1);
+    expect(handler).toHaveBeenCalledWith({
+      point,
+      linkHit,
+      shouldOpenLink: true,
+      preventDefault,
+    });
+  });
+
+  it("returns false from click routing when the click handler ignores the event", () => {
+    const handler = vi.fn(() => false);
+    const route = createCanvasClickRouteHandler({ handler });
+
+    expect(
+      route({
+        clientPoint: { x: 20, y: 30 },
+        preventDefault: vi.fn(),
+        resolveGridPoint: vi.fn(() => null),
+        resolveLinkHit: vi.fn(() => null),
+        shouldOpenLink: vi.fn(() => false),
+      })
+    ).toBe(false);
+
+    expect(handler).toHaveBeenCalledWith(
+      expect.objectContaining({
+        point: null,
+        linkHit: null,
+        shouldOpenLink: false,
+      })
+    );
   });
 });

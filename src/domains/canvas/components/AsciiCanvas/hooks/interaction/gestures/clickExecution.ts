@@ -130,3 +130,35 @@ export const createCanvasClickHandler = ({
       preventDefault,
     }
   );
+export type CanvasClickRouteHandler = ({
+  clientPoint,
+  preventDefault,
+  resolveGridPoint,
+  resolveLinkHit,
+  shouldOpenLink,
+}: {
+  clientPoint: Point;
+  preventDefault: () => void;
+  resolveGridPoint: (clientPoint: Point) => Point | null;
+  resolveLinkHit: (clientPoint: Point) => CanvasLinkHit | null;
+  shouldOpenLink: () => boolean;
+}) => boolean;
+
+export const createCanvasClickRouteHandler = ({
+  handler,
+}: {
+  handler: CanvasClickHandler;
+}): CanvasClickRouteHandler =>
+  ({
+    clientPoint,
+    preventDefault,
+    resolveGridPoint,
+    resolveLinkHit,
+    shouldOpenLink,
+  }) =>
+    handler({
+      point: resolveGridPoint(clientPoint),
+      linkHit: resolveLinkHit(clientPoint),
+      shouldOpenLink: shouldOpenLink(),
+      preventDefault,
+    });

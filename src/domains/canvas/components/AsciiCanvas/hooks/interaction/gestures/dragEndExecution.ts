@@ -241,3 +241,85 @@ export const createPrimaryDragEndExecutor = ({
     structuredPreviewQueue.flushSplitBoxResize(true),
   resetDragState,
 });
+
+export type PrimaryDragEndHandler = ({
+  mode,
+  tool,
+  canvasMode,
+  structuredScene,
+  dragStart,
+  resolvedEndGrid,
+  axis,
+  dragNodeType,
+  dragHandle,
+  isDividerHandle,
+}: {
+  mode: LegacyInteractionMode;
+  tool: ToolType;
+  canvasMode: CanvasMode;
+  structuredScene: StructuredNode[];
+  dragStart: Point | null;
+  resolvedEndGrid: Point | null;
+  axis: "horizontal" | "vertical" | null;
+  dragNodeType: StructuredNode["type"] | null;
+  dragHandle: string | null;
+  isDividerHandle: (handle: StructuredSplitBoxHandle) => boolean;
+}) => boolean;
+
+export const createPrimaryDragEndHandler = ({
+  executor,
+}: {
+  executor: PrimaryDragEndExecutor;
+}): PrimaryDragEndHandler => ({
+  mode,
+  tool,
+  canvasMode,
+  structuredScene,
+  dragStart,
+  resolvedEndGrid,
+  axis,
+  dragNodeType,
+  dragHandle,
+  isDividerHandle,
+}) =>
+  executePrimaryDragEnd(
+    resolvePrimaryDragEndContext({
+      mode,
+      tool,
+      canvasMode,
+      structuredScene,
+      dragStart,
+      resolvedEndGrid,
+      axis,
+      dragNodeType,
+      dragHandle,
+      isDividerHandle,
+    }),
+    executor
+  );
+export type DragEndRouteHandler = ({
+  mode,
+  button,
+  executePrimaryEnd,
+}: {
+  mode: LegacyInteractionMode;
+  button: number;
+  executePrimaryEnd: () => void;
+}) => void;
+
+export const createDragEndRouteHandler = ({
+  panning,
+  nonPanning,
+}: {
+  panning: PanningDragEndExecutor;
+  nonPanning: NonPanningDragEndExecutor;
+}): DragEndRouteHandler =>
+  ({ mode, button, executePrimaryEnd }) => {
+    if (mode === "panning") {
+      executePanningDragEnd(panning);
+      return;
+    }
+
+    if (button === 0) executePrimaryEnd();
+    executeNonPanningDragEndCleanup(nonPanning);
+  };

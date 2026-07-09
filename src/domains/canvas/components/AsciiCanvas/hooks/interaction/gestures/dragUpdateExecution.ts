@@ -1,13 +1,13 @@
-import type { Point, StructuredNode, ToolType } from "@/shared/types";
+import type { CanvasMode, Point, StructuredNode, ToolType } from "@/shared/types";
 import {
   resizeStructuredLine,
   resizeStructuredRect,
   resizeStructuredSplitBox,
 } from "@/domains/canvas/state/helpers/structuredBoxEditing";
-import type { InteractionEvent } from "../core/interactionMachine";
+import type { InteractionEvent, LegacyInteractionMode } from "../core/interactionMachine";
 import type { StructuredNodeDragPayload } from "../structured/structuredDragStart";
 import type { StructuredPreviewQueueController } from "../structured/structuredPreviewQueueExecution";
-import type { DragUpdateDecision } from "./dragUpdateInteraction";
+import { resolveDragUpdateDecision, type DragUpdateDecision, type StructuredTextSelectionStart } from "./dragUpdateInteraction";
 
 type RefCell<T> = { current: T };
 
@@ -191,3 +191,95 @@ export const createDragUpdateExecutor = ({
   updateScratchForShape,
   setHoveredGrid,
 });
+
+export type DragUpdateHandler = ({
+  mode,
+  tool,
+  canvasMode,
+  dragStart,
+  currentGrid,
+  canvasBounds,
+  drag,
+  structuredScene,
+  textSelectionStart,
+  lineAxis,
+}: {
+  mode: LegacyInteractionMode;
+  tool: ToolType;
+  canvasMode: CanvasMode;
+  dragStart: Point;
+  currentGrid: Point;
+  canvasBounds: { width: number; height: number } | null;
+  drag: StructuredNodeDragPayload | null;
+  structuredScene: StructuredNode[];
+  textSelectionStart: StructuredTextSelectionStart | null;
+  lineAxis: "horizontal" | "vertical" | null;
+}) => void;
+
+export const createDragUpdateHandler = ({
+  executor,
+}: {
+  executor: DragUpdateExecutor;
+}): DragUpdateHandler => ({
+  mode,
+  tool,
+  canvasMode,
+  dragStart,
+  currentGrid,
+  canvasBounds,
+  drag,
+  structuredScene,
+  textSelectionStart,
+  lineAxis,
+}) =>
+  executeDragUpdateDecision(
+    resolveDragUpdateDecision({
+      mode,
+      tool,
+      canvasMode,
+      dragStart,
+      currentGrid,
+      canvasBounds,
+      drag,
+      structuredScene,
+      textSelectionStart,
+      lineAxis,
+    }),
+    executor,
+    {
+      currentGrid,
+      tool,
+      structuredScene,
+      updateEraserHover: tool === "eraser",
+    }
+  );
+export type DragUpdateRouteHandler = ({
+  mode,
+  delta,
+  dragStart,
+  resolveCurrentGrid,
+  executePrimaryUpdate,
+}: {
+  mode: LegacyInteractionMode;
+  delta: Point;
+  dragStart: Point | null;
+  resolveCurrentGrid: () => Point | null;
+  executePrimaryUpdate: (currentGrid: Point, dragStart: Point) => void;
+}) => void;
+
+export const createDragUpdateRouteHandler = ({
+  panning,
+}: {
+  panning: PanningDragUpdateExecutor;
+}): DragUpdateRouteHandler =>
+  ({ mode, delta, dragStart, resolveCurrentGrid, executePrimaryUpdate }) => {
+    if (mode === "panning") {
+      executePanningDragUpdate(delta, panning);
+      return;
+    }
+
+    if (!dragStart) return;
+    const currentGrid = resolveCurrentGrid();
+    if (!currentGrid) return;
+    executePrimaryUpdate(currentGrid, dragStart);
+  };

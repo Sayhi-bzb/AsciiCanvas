@@ -23,75 +23,73 @@ import {
 import {
   createCanvasClickExecutor,
   createCanvasClickHandler,
+  createCanvasClickRouteHandler,
 } from "./interaction/gestures/clickExecution";
 import {
   createColorPickerDragStartExecutor,
   createColorPickerDragStartHandler,
 } from "./interaction/gestures/colorPickerInteraction";
-import { resolveCanvasMoveDecision } from "./interaction/gestures/moveInteraction";
 import {
   createCanvasMoveExecutor,
-  executeCanvasMoveDecision,
+  createCanvasMoveHandler,
+  createCanvasMoveRouteHandler,
 } from "./interaction/gestures/moveExecution";
 import {
   createCanvasPinchExecutor,
-  executeCanvasPinchDecision,
-  resolveCanvasPinchDecision,
+  createCanvasPinchHandler,
+  createCanvasPinchRouteHandler,
 } from "./interaction/gestures/pinchInteraction";
 import {
   createCanvasWheelExecutor,
-  executeCanvasWheelDecision,
-  resolveCanvasWheelDecision,
+  createCanvasWheelHandler,
+  createCanvasWheelRouteHandler,
 } from "./interaction/gestures/wheelInteraction";
 import {
   createNonPanningDragEndExecutor,
   createPanningDragEndExecutor,
   createPrimaryDragEndExecutor,
-  executeNonPanningDragEndCleanup,
-  executePanningDragEnd,
-  executePrimaryDragEnd,
-  resolvePrimaryDragEndContext,
+  createPrimaryDragEndHandler,
+  createDragEndRouteHandler,
 } from "./interaction/gestures/dragEndExecution";
-import { resolveDragUpdateDecision } from "./interaction/gestures/dragUpdateInteraction";
 import {
   createPanningDragUpdateExecutor,
   createDragUpdateExecutor,
-  executeDragUpdateDecision,
-  executePanningDragUpdate,
+  createDragUpdateHandler,
+  createDragUpdateRouteHandler,
 } from "./interaction/gestures/dragUpdateExecution";
 import { createDragResetController } from "./interaction/gestures/dragResetExecution";
 import {
   createStructuredPreviewQueueController,
   type StructuredPreviewQueueController,
 } from "./interaction/structured/structuredPreviewQueueExecution";
-import { resolveDrawingUpdateDecision } from "./interaction/gestures/drawingInteraction";
+import { createDrawingUpdateHandler } from "./interaction/gestures/drawingInteraction";
 import {
   createPanningDragStartExecutor,
+  createDragStartRouteHandler,
+  createCanvasDragStartRouteAdapter,
+  createPrimaryCanvasDragStartHandler,
   createDrawingShapeDragStartExecutor,
   createSelectionDragStartExecutor,
-  executePanningDragStart,
-  executePrimaryCanvasDragStart,
 } from "./interaction/gestures/dragStartExecution";
 import { type StructuredNodeDragPayload } from "./interaction/structured/structuredDragStart";
 import {
   createStructuredSelectStartHandler,
   createStructuredSelectStartExecutor,
 } from "./interaction/structured/structuredSelectExecution";
-import { createStructuredEditController } from "./interaction/structured/structuredEditExecution";
 import {
-  resolveDragStartRouteDecision,
-} from "./interaction/gestures/dragStartInteraction";
+  createStructuredEditController,
+  createStructuredEditRouteHandler,
+} from "./interaction/structured/structuredEditExecution";
 import {
   createHoverInteractionController,
   type HoverInteractionController,
 } from "./interaction/preview/hoverInteractionController";
-import { shouldIgnoreMinimapGesture } from "./interaction/core/gestureGuards";
-import { createCanvasPointerContextResolver } from "./interaction/core/pointerContext";
 import {
-  isFromCanvasUi,
-  isFromMinimap,
-  shouldOpenCanvasLink,
-} from "./interaction/core/hitTesting";
+  shouldIgnoreActiveCanvasGesture,
+  shouldIgnoreCanvasSurfaceGesture,
+} from "./interaction/core/gestureGuards";
+import { createCanvasPointerContextResolver } from "./interaction/core/pointerContext";
+import { shouldOpenCanvasLink } from "./interaction/core/hitTesting";
 export { shouldOpenCanvasLink, shouldUseCanvasLinkPointer } from "./interaction/core/hitTesting";
 import {
   INITIAL_INTERACTION_STATE,
@@ -276,8 +274,8 @@ export const useCanvasInteraction = (
 
 
 
-  const shouldIgnoreMinimapGestureEvent = (event: Event | undefined) =>
-    shouldIgnoreMinimapGesture({
+  const shouldIgnoreActiveGestureEvent = (event: Event | undefined) =>
+    shouldIgnoreActiveCanvasGesture({
       event,
       interactionMode: getInteractionMode(),
       hasDragStartGrid: dragStartGrid.current !== null,
@@ -326,24 +324,17 @@ export const useCanvasInteraction = (
   }, []);
 
   const handleDrawing = useCreation(
-    () => (currentGrid: Point) => {
-      const decision = resolveDrawingUpdateDecision({
-        tool,
-        brushChar,
-        lastGrid: lastGrid.current,
-        currentGrid,
-        lastPlacedGrid: lastPlacedGrid.current,
-      });
-      if (decision.type === "none") return;
-
-      if (decision.type === "scratch" && decision.points.length > 0) {
-        addScratchPoints(decision.points);
-      } else if (decision.type === "erase") {
-        erasePoints(decision.points, false);
-      }
-      lastGrid.current = decision.nextLastGrid;
-      lastPlacedGrid.current = decision.nextLastPlacedGrid;
-    },
+    () =>
+      createDrawingUpdateHandler({
+        getTool: () => tool,
+        getBrushChar: () => brushChar,
+        lastGrid,
+        lastPlacedGrid,
+        executor: {
+          addScratchPoints,
+          erasePoints: (points) => erasePoints(points, false),
+        },
+      }),
     [tool, brushChar, addScratchPoints, erasePoints]
   );
   const { run: throttledDraw } = useThrottleFn(handleDrawing, {
@@ -370,12 +361,18 @@ export const useCanvasInteraction = (
       setCursor: (cursor) => hoverInteraction.setCursor(cursor),
     },
   });
+  const structuredEditRouteHandler = createStructuredEditRouteHandler({
+    controller: structuredEditController,
+  });
   const panningDragStartExecutor = createPanningDragStartExecutor({
     isPanning: isPanningRef,
     dispatchInteraction,
     setBodyCursor: (cursor) => {
       document.body.style.cursor = cursor;
     },
+  });
+  const dragStartRouteHandler = createDragStartRouteHandler({
+    panning: panningDragStartExecutor,
   });
   const selectionDragStartExecutor = createSelectionDragStartExecutor({
     anchorGrid,
@@ -398,6 +395,10 @@ export const useCanvasInteraction = (
     clearStructuredTextSelection: () => setStructuredTextSelection(null),
     addScratchPoint: (point) => addScratchPoints([point]),
     erasePoint: (point) => erasePoints([point], false),
+  });
+  const primaryCanvasDragStartHandler = createPrimaryCanvasDragStartHandler({
+    selection: selectionDragStartExecutor,
+    drawingShape: drawingShapeDragStartExecutor,
   });
   const structuredSelectStartExecutor = createStructuredSelectStartExecutor({
     dragStartGrid,
@@ -438,6 +439,12 @@ export const useCanvasInteraction = (
     updateScratchForShape,
     setHoveredGrid,
   });
+  const dragUpdateHandler = createDragUpdateHandler({
+    executor: dragUpdateExecutor,
+  });
+  const dragUpdateRouteHandler = createDragUpdateRouteHandler({
+    panning: panningDragUpdateExecutor,
+  });
   const nonPanningDragEndExecutor = createNonPanningDragEndExecutor({
     setBodyCursor: (cursor) => {
       document.body.style.cursor = cursor;
@@ -467,9 +474,22 @@ export const useCanvasInteraction = (
     commitStructuredShape,
     resetDragState,
   });
+  const primaryDragEndHandler = createPrimaryDragEndHandler({
+    executor: primaryDragEndExecutor,
+  });
+  const dragEndRouteHandler = createDragEndRouteHandler({
+    panning: panningDragEndExecutor,
+    nonPanning: nonPanningDragEndExecutor,
+  });
   const canvasPinchExecutor = createCanvasPinchExecutor({
     setZoom,
     setOffset,
+  });
+  const canvasPinchHandler = createCanvasPinchHandler({
+    executor: canvasPinchExecutor,
+  });
+  const canvasPinchRouteHandler = createCanvasPinchRouteHandler({
+    handler: canvasPinchHandler,
   });
   const colorPickerDragStartExecutor = createColorPickerDragStartExecutor({
     colorPickerClick: colorPickerClickRef,
@@ -487,6 +507,12 @@ export const useCanvasInteraction = (
       canvasMode === "structured" && !!structuredTextSelection,
     getCell: (point) => grid.get(GridManager.toKey(point.x, point.y)),
     executor: colorPickerDragStartExecutor,
+  });
+  const canvasDragStartRouteAdapter = createCanvasDragStartRouteAdapter({
+    route: dragStartRouteHandler,
+    colorPicker: colorPickerDragStartHandler,
+    primaryCanvas: primaryCanvasDragStartHandler,
+    structuredSelect: structuredSelectStartHandler,
   });
   const canvasClickExecutor = createCanvasClickExecutor({
     colorPickerClick: colorPickerClickRef,
@@ -507,6 +533,9 @@ export const useCanvasInteraction = (
     tool,
     executor: canvasClickExecutor,
   });
+  const canvasClickRouteHandler = createCanvasClickRouteHandler({
+    handler: canvasClickHandler,
+  });
   const canvasMoveExecutor = createCanvasMoveExecutor({
     updateColorPickerHover: (hoverPoint) =>
       hoverInteraction.updateColorPickerHover(hoverPoint),
@@ -515,12 +544,25 @@ export const useCanvasInteraction = (
     setHoveredGrid,
     setCursor: (cursor) => hoverInteraction.setCursor(cursor),
   });
+  const canvasMoveHandler = createCanvasMoveHandler({
+    executor: canvasMoveExecutor,
+  });
+  const canvasMoveRouteHandler = createCanvasMoveRouteHandler({
+    handler: canvasMoveHandler,
+  });
   const canvasWheelExecutor = createCanvasWheelExecutor({
     preventDefault: () => undefined,
     flushOffset: () => viewportInteraction.flushOffset(),
     queueZoomDelta: (deltaZoom, mouseX, mouseY) =>
       viewportInteraction.queueZoomDelta(deltaZoom, mouseX, mouseY),
     queueOffsetDelta: (dx, dy) => viewportInteraction.queueOffsetDelta(dx, dy),
+  });
+  const canvasWheelHandler = createCanvasWheelHandler({
+    canvasMode,
+    executor: canvasWheelExecutor,
+  });
+  const canvasWheelRouteHandler = createCanvasWheelRouteHandler({
+    handler: canvasWheelHandler,
   });
   const pinchStartZoomRef = useRef(zoom);
 
@@ -530,154 +572,103 @@ export const useCanvasInteraction = (
         pinchStartZoomRef.current = zoom;
       },
       onPinch: ({ offset: [scale], origin: [ox, oy], event }) => {
-        event.preventDefault();
-        const anchor = pointerContext.resolveLocalPoint(ox, oy);
-        if (!anchor) return;
-
-        executeCanvasPinchDecision(
-          resolveCanvasPinchDecision({
-            canvasMode,
-            pinchStartZoom: pinchStartZoomRef.current,
-            scale,
-            currentZoom: zoom,
-            anchor,
-            zoomBounds: { min: MIN_ZOOM, max: MAX_ZOOM },
-          }),
-          canvasPinchExecutor
-        );
+        canvasPinchRouteHandler({
+          canvasMode,
+          pinchStartZoom: pinchStartZoomRef.current,
+          scale,
+          currentZoom: zoom,
+          origin: { x: ox, y: oy },
+          zoomBounds: { min: MIN_ZOOM, max: MAX_ZOOM },
+          preventDefault: () => event.preventDefault(),
+          resolveAnchor: (origin) =>
+            pointerContext.resolveLocalPoint(origin.x, origin.y),
+        });
       },
       onPinchEnd: () => {
         // Pinch gesture ended
       },
       onMove: ({ xy: [x, y], event }) => {
-        if (isFromCanvasUi(event)) return;
-        if (isFromMinimap(event)) return;
-        const moveContext = pointerContext.resolveMoveContext({
-          clientX: x,
-          clientY: y,
-          shouldResolveStructuredSelectCursor:
-            canvasMode === "structured" && tool === "select",
-          shouldResolveEraserHoverPoint: tool === "eraser",
-          selectedStructuredNodeIds,
-          structuredScene,
-          editingStructuredTextNodeId,
+        if (shouldIgnoreCanvasSurfaceGesture(event)) return;
+        canvasMoveRouteHandler({
+          hasColorPickerTarget: !!canvasColorPickerTarget,
+          canvasMode,
+          tool,
+          clientPoint: { x, y },
+          event: event as MouseEvent,
+          resolveMoveContext: ({
+            clientPoint,
+            shouldResolveStructuredSelectCursor,
+            shouldResolveEraserHoverPoint,
+          }) =>
+            pointerContext.resolveMoveContext({
+              clientX: clientPoint.x,
+              clientY: clientPoint.y,
+              shouldResolveStructuredSelectCursor,
+              shouldResolveEraserHoverPoint,
+              selectedStructuredNodeIds,
+              structuredScene,
+              editingStructuredTextNodeId,
+            }),
         });
-
-        executeCanvasMoveDecision(
-          resolveCanvasMoveDecision({
-            hasColorPickerTarget: !!canvasColorPickerTarget,
-            canvasMode,
-            tool,
-            point: moveContext.point,
-            linkHit: moveContext.linkHit,
-            structuredSelectCursor: moveContext.structuredSelectCursor,
-            eraserHoverPoint: moveContext.eraserHoverPoint,
-          }),
-          canvasMoveExecutor,
-          event as MouseEvent
-        );
       },
       onDragStart: ({ xy: [x, y], event }) => {
-        if (isFromCanvasUi(event)) return;
-        if (isFromMinimap(event)) return;
+        if (shouldIgnoreCanvasSurfaceGesture(event)) return;
         hoverInteraction.clearLinkHover(event as MouseEvent);
         const mouseEvent = event as MouseEvent;
-        const routeDecision = resolveDragStartRouteDecision({
+        const screenPoint = { x, y };
+        canvasDragStartRouteAdapter({
           canvasMode,
           tool,
           button: mouseEvent.button,
           isCtrlOrMetaPressed: isCtrlOrMeta(mouseEvent),
           hasColorPickerTarget: !!canvasColorPickerTarget,
           hasCanvasRect: pointerContext.hasCanvasRect(),
+          screenPoint,
+          shiftKey: mouseEvent.shiftKey,
+          anchorGrid: anchorGrid.current,
+          canvasBounds,
+          brushChar,
+          mouseDetail: mouseEvent.detail,
+          preventDefault: () => event.preventDefault(),
+          resolveGridPoint: (point) =>
+            pointerContext.resolveGridPoint(point.x, point.y),
+          resolveLocalPoint: (point) =>
+            pointerContext.resolveLocalPoint(point.x, point.y),
         });
-
-        switch (routeDecision.type) {
-          case "color-picker":
-            colorPickerDragStartHandler({
-              point: pointerContext.resolveGridPoint(x, y),
-              preventDefault: () => event.preventDefault(),
-            });
-            return;
-          case "pan":
-            executePanningDragStart({ x, y }, panningDragStartExecutor);
-            return;
-          case "ignore":
-            return;
-          case "primary-canvas":
-            break;
-        }
-
-        const start = pointerContext.resolveGridPoint(x, y);
-        if (!start) return;
-
-        executePrimaryCanvasDragStart(
-          {
-            start,
-            canvasMode,
-            tool,
-            shiftKey: mouseEvent.shiftKey,
-            anchorGrid: anchorGrid.current,
-            canvasBounds,
-            brushChar,
-            executeStructuredSelectStart: () =>
-              structuredSelectStartHandler({
-                screenPoint: pointerContext.resolveLocalPoint(x, y),
-                start,
-                mouseDetail: mouseEvent.detail,
-              }),
-          },
-          {
-            selection: selectionDragStartExecutor,
-            drawingShape: drawingShapeDragStartExecutor,
-          }
-        );
       },
       onDrag: ({ xy: [x, y], delta: [dx, dy], event }) => {
-        if (isFromCanvasUi(event)) return;
-        if (shouldIgnoreMinimapGestureEvent(event)) return;
-        if (getInteractionMode() === "panning") {
-          executePanningDragUpdate({ x: dx, y: dy }, panningDragUpdateExecutor);
-          return;
-        }
-
-        if (dragStartGrid.current) {
-          const currentGrid = pointerContext.resolveGridPoint(x, y);
-          if (!currentGrid) return;
-
-          const dragUpdateDecision = resolveDragUpdateDecision({
-            mode: getInteractionMode(),
-            tool,
-            canvasMode,
-            dragStart: dragStartGrid.current,
-            currentGrid,
-            canvasBounds,
-            drag: structuredNodeDragRef.current,
-            structuredScene,
-            textSelectionStart: structuredTextSelectionStartRef.current,
-            lineAxis: lineAxisRef.current,
-          });
-
-          executeDragUpdateDecision(dragUpdateDecision, dragUpdateExecutor, {
-            currentGrid,
-            tool,
-            structuredScene,
-            updateEraserHover: tool === "eraser",
-          });
-        }
+        if (shouldIgnoreActiveGestureEvent(event)) return;
+        const mode = getInteractionMode();
+        dragUpdateRouteHandler({
+          mode,
+          delta: { x: dx, y: dy },
+          dragStart: dragStartGrid.current,
+          resolveCurrentGrid: () => pointerContext.resolveGridPoint(x, y),
+          executePrimaryUpdate: (currentGrid, dragStart) =>
+            dragUpdateHandler({
+              mode,
+              tool,
+              canvasMode,
+              dragStart,
+              currentGrid,
+              canvasBounds,
+              drag: structuredNodeDragRef.current,
+              structuredScene,
+              textSelectionStart: structuredTextSelectionStartRef.current,
+              lineAxis: lineAxisRef.current,
+            }),
+        });
       },
       onDragEnd: ({ event, xy: [x, y] }) => {
-        if (isFromCanvasUi(event)) return;
-        if (shouldIgnoreMinimapGestureEvent(event)) return;
+        if (shouldIgnoreActiveGestureEvent(event)) return;
         const mode = getInteractionMode();
-        if (mode === "panning") {
-          executePanningDragEnd(panningDragEndExecutor);
-          return;
-        }
-        if ((event as MouseEvent).button === 0) {
-          const drag = structuredNodeDragRef.current;
-          const startGrid = dragStartGrid.current;
-          executePrimaryDragEnd(
-            resolvePrimaryDragEndContext({
+        dragEndRouteHandler({
+          mode,
+          button: (event as MouseEvent).button,
+          executePrimaryEnd: () => {
+            const drag = structuredNodeDragRef.current;
+            const startGrid = dragStartGrid.current;
+            primaryDragEndHandler({
               mode,
               tool,
               canvasMode,
@@ -688,50 +679,38 @@ export const useCanvasInteraction = (
               dragNodeType: drag?.node.type ?? null,
               dragHandle: drag?.handle ?? null,
               isDividerHandle: isStructuredSplitBoxLineHandle,
-            }),
-            primaryDragEndExecutor
-          );
-        }
-        executeNonPanningDragEndCleanup(nonPanningDragEndExecutor);
+            });
+          },
+        });
       },
       onClick: ({ event }) => {
-        if (isFromCanvasUi(event)) return;
-        if (isFromMinimap(event)) return;
+        if (shouldIgnoreCanvasSurfaceGesture(event)) return;
         const mouseEvent = event as MouseEvent;
-        canvasClickHandler({
-          point: pointerContext.resolveGridPoint(
-            mouseEvent.clientX,
-            mouseEvent.clientY
-          ),
-          linkHit: pointerContext.resolveLinkHit(
-            mouseEvent.clientX,
-            mouseEvent.clientY
-          ),
-          shouldOpenLink: shouldOpenCanvasLink(mouseEvent),
+        canvasClickRouteHandler({
+          clientPoint: { x: mouseEvent.clientX, y: mouseEvent.clientY },
           preventDefault: () => event.preventDefault(),
+          resolveGridPoint: (clientPoint) =>
+            pointerContext.resolveGridPoint(clientPoint.x, clientPoint.y),
+          resolveLinkHit: (clientPoint) =>
+            pointerContext.resolveLinkHit(clientPoint.x, clientPoint.y),
+          shouldOpenLink: () => shouldOpenCanvasLink(mouseEvent),
         });
       },
       onWheel: ({ xy: [clientX, clientY], delta: [gestureDeltaX, gestureDeltaY], event }) => {
-        if (isFromCanvasUi(event)) return;
-        if (isFromMinimap(event)) return;
-        const anchor = pointerContext.resolveLocalPoint(clientX, clientY);
-        if (!anchor) return;
-
+        if (shouldIgnoreCanvasSurfaceGesture(event)) return;
         const wheelEvent = event as WheelEvent;
-        executeCanvasWheelDecision(
-          resolveCanvasWheelDecision({
-            isCtrlOrMetaPressed: isCtrlOrMeta(event),
-            canvasMode,
-            deltaX: wheelEvent.deltaX ?? gestureDeltaX,
-            deltaY: wheelEvent.deltaY ?? gestureDeltaY,
-            shiftKey: wheelEvent.shiftKey,
-            anchor,
-          }),
-          {
-            ...canvasWheelExecutor,
-            preventDefault: () => event.preventDefault(),
-          }
-        );
+        canvasWheelRouteHandler({
+          isCtrlOrMetaPressed: isCtrlOrMeta(event),
+          gestureDeltaX,
+          gestureDeltaY,
+          eventDeltaX: wheelEvent.deltaX,
+          eventDeltaY: wheelEvent.deltaY,
+          shiftKey: wheelEvent.shiftKey,
+          origin: { x: clientX, y: clientY },
+          preventDefault: () => event.preventDefault(),
+          resolveAnchor: (origin) =>
+            pointerContext.resolveLocalPoint(origin.x, origin.y),
+        });
       },
     },
     {
@@ -744,11 +723,11 @@ export const useCanvasInteraction = (
   );
 
   const handleDoubleClick = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (isFromCanvasUi(event.nativeEvent)) return;
-    if (isFromMinimap(event.nativeEvent)) return;
-    if (structuredEditController.startEdit(event.clientX, event.clientY)) {
-      event.preventDefault();
-    }
+    structuredEditRouteHandler({
+      clientPoint: { x: event.clientX, y: event.clientY },
+      shouldIgnore: () => shouldIgnoreCanvasSurfaceGesture(event.nativeEvent),
+      preventDefault: () => event.preventDefault(),
+    });
   };
 
   return { bind, draggingSelection, handleDoubleClick };

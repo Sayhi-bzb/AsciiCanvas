@@ -168,23 +168,32 @@ store.
 
 ### Recently Landed
 
-- Drag start, drag update, and drag end behavior now use explicit decision and
-  execution helpers for primary canvas interactions, panning, selection,
-  drawing/shape starts, structured select starts, structured preview queues, and
-  commit cleanup.
+- Drag start, drag update, drag end, and continuous drawing updates now use
+  explicit decision/execution helpers for primary canvas interactions, panning,
+  selection, brush/eraser updates, drawing/shape starts, structured select
+  starts, structured preview queues, and commit cleanup. Drag-start routing,
+  primary canvas drag start, drag-start pointer adaptation, drag-update routing,
+  non-panning drag update, drag-end routing, primary drag end, and
+  brush/eraser update execution are further composed by handlers, so the hook
+  only supplies DOM-derived inputs plus grid/context snapshots for those paths.
 - Click, move, wheel, pinch, and color-picker interactions now have gesture-level
-  decision/execution modules. The hook still supplies DOM event data and
-  pointer-derived context, but no longer owns the detailed side-effect ordering
-  for those paths.
+  decision/execution modules. Click, move, wheel, and pinch are further composed
+  by handlers. Click routing now owns point/link resolution and link-open
+  eligibility adaptation, move routing owns hover-context resolution flags, and
+  wheel/pinch routing own anchor resolution short-circuiting plus event-specific
+  preventDefault/delta adaptation. Shared gesture guards now centralize
+  canvas-UI/minimap filtering, while the hook supplies pointer-derived context
+  and callbacks for those paths.
 - Structured select/edit work has been split into structured modules for hit
-  resolution, drag-start setup, double-click edit attempts, text selection
+  resolution, drag-start setup, double-click edit routing, text selection
   starts, move/resize preview calculations, and structured edit execution.
 
 ### Remaining Work
 
-- Phase 5 is partially started through drawing and shape helpers, but brush,
-  eraser, freeform shape preview, and structured shape creation are not yet fully
-  engine-driven transitions.
+- Phase 5 is partially started through drawing and shape helpers. Brush and
+  eraser update execution now sit behind a handler, while freeform shape
+  preview and structured shape creation are not yet fully engine-driven
+  transitions.
 - Phase 6 is partially started through structured select/edit/move/resize
   helpers, but structured move, rect resize, line resize, splitBox resize, and
   structured text selection are not yet fully represented as explicit engine
@@ -196,6 +205,6 @@ store.
 ### Verification
 
 - Latest focused verification passed: `37` canvas interaction test files and
-  `249` tests.
-- `npx tsc -b` passed after the latest click-handler cleanup.
+  `292` tests.
+- `npx tsc -b` passed after the latest handler cleanup.
 - `git diff --check` reports only CRLF normalization warnings.

@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   createPanningDragStartExecutor,
+  createDragStartRouteHandler,
+  createCanvasDragStartRouteAdapter,
+  createPrimaryCanvasDragStartHandler,
   createDrawingShapeDragStartExecutor,
   createSelectionDragStartExecutor,
   executeDrawingShapeDragStartDecision,
@@ -332,5 +335,290 @@ describe("drag-start execution helpers", () => {
     expect(lineAxis.current).toBeNull();
     expect(addScratchPoint).toHaveBeenCalledWith({ x: 1, y: 2, char: "#" });
     expect(erasePoint).toHaveBeenCalledWith({ x: 3, y: 4 });
+  });
+
+  it("creates drag-start route handlers that execute panning", () => {
+    const panning = {
+      setIsPanning: vi.fn(),
+      dispatchInteraction: vi.fn(),
+      setBodyCursor: vi.fn(),
+    };
+    const handler = createDragStartRouteHandler({ panning });
+    const executeColorPickerStart = vi.fn(() => true);
+    const executePrimaryCanvasStart = vi.fn(() => true);
+
+    expect(
+      handler({
+        canvasMode: "freeform",
+        tool: "pan",
+        button: 0,
+        isCtrlOrMetaPressed: false,
+        hasColorPickerTarget: false,
+        hasCanvasRect: true,
+        screenPoint: { x: 10, y: 20 },
+        executeColorPickerStart,
+        executePrimaryCanvasStart,
+      })
+    ).toBe(true);
+
+    expect(panning.dispatchInteraction).toHaveBeenCalledWith({
+      type: "startPanning",
+      lastScreen: { x: 10, y: 20 },
+    });
+    expect(executeColorPickerStart).not.toHaveBeenCalled();
+    expect(executePrimaryCanvasStart).not.toHaveBeenCalled();
+  });
+
+  it("creates drag-start route handlers that dispatch color picker starts", () => {
+    const panning = {
+      setIsPanning: vi.fn(),
+      dispatchInteraction: vi.fn(),
+      setBodyCursor: vi.fn(),
+    };
+    const handler = createDragStartRouteHandler({ panning });
+    const executeColorPickerStart = vi.fn(() => true);
+    const executePrimaryCanvasStart = vi.fn(() => true);
+
+    expect(
+      handler({
+        canvasMode: "freeform",
+        tool: "select",
+        button: 0,
+        isCtrlOrMetaPressed: false,
+        hasColorPickerTarget: true,
+        hasCanvasRect: true,
+        screenPoint: { x: 10, y: 20 },
+        executeColorPickerStart,
+        executePrimaryCanvasStart,
+      })
+    ).toBe(true);
+
+    expect(executeColorPickerStart).toHaveBeenCalledTimes(1);
+    expect(executePrimaryCanvasStart).not.toHaveBeenCalled();
+    expect(panning.dispatchInteraction).not.toHaveBeenCalled();
+  });
+
+  it("creates drag-start route handlers that dispatch primary starts", () => {
+    const panning = {
+      setIsPanning: vi.fn(),
+      dispatchInteraction: vi.fn(),
+      setBodyCursor: vi.fn(),
+    };
+    const handler = createDragStartRouteHandler({ panning });
+    const executeColorPickerStart = vi.fn(() => true);
+    const executePrimaryCanvasStart = vi.fn(() => true);
+
+    expect(
+      handler({
+        canvasMode: "structured",
+        tool: "select",
+        button: 0,
+        isCtrlOrMetaPressed: false,
+        hasColorPickerTarget: false,
+        hasCanvasRect: true,
+        screenPoint: { x: 10, y: 20 },
+        executeColorPickerStart,
+        executePrimaryCanvasStart,
+      })
+    ).toBe(true);
+
+    expect(executePrimaryCanvasStart).toHaveBeenCalledTimes(1);
+    expect(executeColorPickerStart).not.toHaveBeenCalled();
+    expect(panning.dispatchInteraction).not.toHaveBeenCalled();
+  });
+
+  it("creates primary canvas drag-start handlers that bind executors", () => {
+    const selection = createSelectionExecutor();
+    const drawingShape = createDrawingExecutor();
+    const executeStructuredSelectStart = vi.fn(() => true);
+    const handler = createPrimaryCanvasDragStartHandler({
+      selection,
+      drawingShape,
+    });
+
+    expect(
+      handler({
+        start: { x: 1, y: 2 },
+        canvasMode: "structured",
+        tool: "select",
+        shiftKey: false,
+        anchorGrid: null,
+        canvasBounds: null,
+        brushChar: "#",
+        executeStructuredSelectStart,
+      })
+    ).toBe(true);
+
+    expect(executeStructuredSelectStart).toHaveBeenCalledTimes(1);
+    expect(selection.dispatchInteraction).not.toHaveBeenCalled();
+    expect(drawingShape.dispatchInteraction).not.toHaveBeenCalled();
+  });
+
+  it("creates primary canvas drag-start handlers that fall back to drawing", () => {
+    const selection = createSelectionExecutor();
+    const drawingShape = createDrawingExecutor();
+    const handler = createPrimaryCanvasDragStartHandler({
+      selection,
+      drawingShape,
+    });
+
+    expect(
+      handler({
+        start: { x: 1, y: 2 },
+        canvasMode: "freeform",
+        tool: "brush",
+        shiftKey: false,
+        anchorGrid: null,
+        canvasBounds: null,
+        brushChar: "#",
+        executeStructuredSelectStart: null,
+      })
+    ).toBe(true);
+
+    expect(drawingShape.dispatchInteraction).toHaveBeenCalledWith({
+      type: "startDrawing",
+      tool: "brush",
+      lastGrid: { x: 1, y: 2 },
+    });
+    expect(drawingShape.addScratchPoint).toHaveBeenCalledWith({
+      x: 1,
+      y: 2,
+      char: "#",
+    });
+  });
+  it("creates canvas drag-start adapters that resolve color-picker grid points", () => {
+    const route = vi.fn(({ executeColorPickerStart }) => executeColorPickerStart());
+    const colorPicker = vi.fn(() => true);
+    const primaryCanvas = vi.fn(() => false);
+    const structuredSelect = vi.fn(() => false);
+    const resolveGridPoint = vi.fn(() => ({ x: 1, y: 2 }));
+    const adapter = createCanvasDragStartRouteAdapter({
+      route,
+      colorPicker,
+      primaryCanvas,
+      structuredSelect,
+    });
+    const preventDefault = vi.fn();
+
+    expect(
+      adapter({
+        canvasMode: "freeform",
+        tool: "select",
+        button: 0,
+        isCtrlOrMetaPressed: false,
+        hasColorPickerTarget: true,
+        hasCanvasRect: true,
+        screenPoint: { x: 10, y: 20 },
+        shiftKey: false,
+        anchorGrid: null,
+        canvasBounds: null,
+        brushChar: "#",
+        mouseDetail: 1,
+        preventDefault,
+        resolveGridPoint,
+        resolveLocalPoint: vi.fn(() => null),
+      })
+    ).toBe(true);
+
+    expect(route).toHaveBeenCalledWith(
+      expect.objectContaining({
+        hasColorPickerTarget: true,
+        screenPoint: { x: 10, y: 20 },
+      })
+    );
+    expect(resolveGridPoint).toHaveBeenCalledWith({ x: 10, y: 20 });
+    expect(colorPicker).toHaveBeenCalledWith({
+      point: { x: 1, y: 2 },
+      preventDefault,
+    });
+    expect(primaryCanvas).not.toHaveBeenCalled();
+  });
+
+  it("creates canvas drag-start adapters that skip primary starts without a grid point", () => {
+    const route = vi.fn(({ executePrimaryCanvasStart }) =>
+      executePrimaryCanvasStart()
+    );
+    const primaryCanvas = vi.fn(() => true);
+    const adapter = createCanvasDragStartRouteAdapter({
+      route,
+      colorPicker: vi.fn(() => false),
+      primaryCanvas,
+      structuredSelect: vi.fn(() => false),
+    });
+
+    expect(
+      adapter({
+        canvasMode: "freeform",
+        tool: "brush",
+        button: 0,
+        isCtrlOrMetaPressed: false,
+        hasColorPickerTarget: false,
+        hasCanvasRect: true,
+        screenPoint: { x: 10, y: 20 },
+        shiftKey: false,
+        anchorGrid: null,
+        canvasBounds: null,
+        brushChar: "#",
+        mouseDetail: 1,
+        preventDefault: vi.fn(),
+        resolveGridPoint: vi.fn(() => null),
+        resolveLocalPoint: vi.fn(() => null),
+      })
+    ).toBe(false);
+
+    expect(primaryCanvas).not.toHaveBeenCalled();
+  });
+
+  it("creates canvas drag-start adapters that bridge structured select starts", () => {
+    const route = vi.fn(({ executePrimaryCanvasStart }) =>
+      executePrimaryCanvasStart()
+    );
+    const structuredSelect = vi.fn(() => true);
+    const primaryCanvas = vi.fn((context) =>
+      context.executeStructuredSelectStart?.()
+    );
+    const adapter = createCanvasDragStartRouteAdapter({
+      route,
+      colorPicker: vi.fn(() => false),
+      primaryCanvas,
+      structuredSelect,
+    });
+
+    expect(
+      adapter({
+        canvasMode: "structured",
+        tool: "select",
+        button: 0,
+        isCtrlOrMetaPressed: false,
+        hasColorPickerTarget: false,
+        hasCanvasRect: true,
+        screenPoint: { x: 10, y: 20 },
+        shiftKey: true,
+        anchorGrid: { x: 5, y: 6 },
+        canvasBounds: { width: 80, height: 40 },
+        brushChar: "#",
+        mouseDetail: 2,
+        preventDefault: vi.fn(),
+        resolveGridPoint: vi.fn(() => ({ x: 1, y: 2 })),
+        resolveLocalPoint: vi.fn(() => ({ x: 11, y: 12 })),
+      })
+    ).toBe(true);
+
+    expect(primaryCanvas).toHaveBeenCalledWith(
+      expect.objectContaining({
+        start: { x: 1, y: 2 },
+        canvasMode: "structured",
+        tool: "select",
+        shiftKey: true,
+        anchorGrid: { x: 5, y: 6 },
+        canvasBounds: { width: 80, height: 40 },
+        brushChar: "#",
+      })
+    );
+    expect(structuredSelect).toHaveBeenCalledWith({
+      screenPoint: { x: 11, y: 12 },
+      start: { x: 1, y: 2 },
+      mouseDetail: 2,
+    });
   });
 });

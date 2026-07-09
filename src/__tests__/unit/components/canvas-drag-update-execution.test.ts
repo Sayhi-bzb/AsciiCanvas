@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import {
   createPanningDragUpdateExecutor,
   createDragUpdateExecutor,
+  createDragUpdateHandler,
+  createDragUpdateRouteHandler,
   executeDragUpdateDecision,
   executePanningDragUpdate,
   type DragUpdateExecutor,
@@ -287,5 +289,132 @@ describe("drag-update execution", () => {
       [boxNode]
     );
     expect(lineAxis.current).toBe("horizontal");
+  });
+
+  it("creates drag update handlers that resolve selection previews", () => {
+    const executor = createExecutor();
+    const handler = createDragUpdateHandler({ executor });
+
+    handler({
+      mode: "selecting",
+      tool: "select",
+      canvasMode: "freeform",
+      dragStart: { x: 1, y: 1 },
+      currentGrid: { x: 3, y: 4 },
+      canvasBounds: null,
+      drag: null,
+      structuredScene: [boxNode],
+      textSelectionStart: null,
+      lineAxis: null,
+    });
+
+    expect(executor.dispatchInteraction).toHaveBeenCalledWith({
+      type: "updateSelection",
+      current: { x: 3, y: 4 },
+    });
+    expect(executor.setSelectionPreview).toHaveBeenCalledWith({
+      start: { x: 1, y: 1 },
+      end: { x: 3, y: 4 },
+    });
+  });
+
+  it("creates drag update handlers that preserve eraser hover updates", () => {
+    const executor = createExecutor();
+    const handler = createDragUpdateHandler({ executor });
+
+    handler({
+      mode: "drawing",
+      tool: "eraser",
+      canvasMode: "freeform",
+      dragStart: { x: 1, y: 1 },
+      currentGrid: { x: 3, y: 4 },
+      canvasBounds: null,
+      drag: null,
+      structuredScene: [boxNode],
+      textSelectionStart: null,
+      lineAxis: null,
+    });
+
+    expect(executor.draw).toHaveBeenCalledWith({ x: 3, y: 4 });
+    expect(executor.setHoveredGrid).toHaveBeenCalledWith({ x: 3, y: 4 });
+  });
+  it("routes panning drag updates without resolving grid points", () => {
+    const queueOffsetDelta = vi.fn();
+    const handler = createDragUpdateRouteHandler({
+      panning: createPanningDragUpdateExecutor({ queueOffsetDelta }),
+    });
+    const resolveCurrentGrid = vi.fn(() => ({ x: 2, y: 2 }));
+    const executePrimaryUpdate = vi.fn();
+
+    handler({
+      mode: "panning",
+      delta: { x: 5, y: -2 },
+      dragStart: { x: 1, y: 1 },
+      resolveCurrentGrid,
+      executePrimaryUpdate,
+    });
+
+    expect(queueOffsetDelta).toHaveBeenCalledWith(5, -2);
+    expect(resolveCurrentGrid).not.toHaveBeenCalled();
+    expect(executePrimaryUpdate).not.toHaveBeenCalled();
+  });
+
+  it("skips non-panning drag updates without a drag start", () => {
+    const handler = createDragUpdateRouteHandler({
+      panning: createPanningDragUpdateExecutor({ queueOffsetDelta: vi.fn() }),
+    });
+    const resolveCurrentGrid = vi.fn(() => ({ x: 2, y: 2 }));
+    const executePrimaryUpdate = vi.fn();
+
+    handler({
+      mode: "drawing",
+      delta: { x: 1, y: 1 },
+      dragStart: null,
+      resolveCurrentGrid,
+      executePrimaryUpdate,
+    });
+
+    expect(resolveCurrentGrid).not.toHaveBeenCalled();
+    expect(executePrimaryUpdate).not.toHaveBeenCalled();
+  });
+
+  it("skips non-panning drag updates when the current grid cannot resolve", () => {
+    const handler = createDragUpdateRouteHandler({
+      panning: createPanningDragUpdateExecutor({ queueOffsetDelta: vi.fn() }),
+    });
+    const resolveCurrentGrid = vi.fn(() => null);
+    const executePrimaryUpdate = vi.fn();
+
+    handler({
+      mode: "drawing",
+      delta: { x: 1, y: 1 },
+      dragStart: { x: 1, y: 1 },
+      resolveCurrentGrid,
+      executePrimaryUpdate,
+    });
+
+    expect(resolveCurrentGrid).toHaveBeenCalledTimes(1);
+    expect(executePrimaryUpdate).not.toHaveBeenCalled();
+  });
+
+  it("routes non-panning drag updates through primary execution", () => {
+    const handler = createDragUpdateRouteHandler({
+      panning: createPanningDragUpdateExecutor({ queueOffsetDelta: vi.fn() }),
+    });
+    const currentGrid = { x: 3, y: 4 };
+    const dragStart = { x: 1, y: 1 };
+    const resolveCurrentGrid = vi.fn(() => currentGrid);
+    const executePrimaryUpdate = vi.fn();
+
+    handler({
+      mode: "drawing",
+      delta: { x: 1, y: 1 },
+      dragStart,
+      resolveCurrentGrid,
+      executePrimaryUpdate,
+    });
+
+    expect(resolveCurrentGrid).toHaveBeenCalledTimes(1);
+    expect(executePrimaryUpdate).toHaveBeenCalledWith(currentGrid, dragStart);
   });
 });
