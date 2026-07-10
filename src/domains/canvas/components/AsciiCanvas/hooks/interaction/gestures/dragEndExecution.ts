@@ -6,7 +6,12 @@ import type {
   ToolType,
 } from "@/shared/types";
 import type { StructuredSplitBoxHandle } from "@/domains/canvas/state/helpers/structuredBoxEditing";
-import type { LegacyInteractionMode, InteractionEvent } from "../core/interactionMachine";
+import {
+  getInteractionStart,
+  isPrimaryDragState,
+  type InteractionEvent,
+  type InteractionState,
+} from "../core/interactionMachine";
 import { resolveSelectionCommitDecision } from "../preview/selectionInteraction";
 import { resolveDragEndCommitDecision } from "../commit/commitInteraction";
 import {
@@ -18,11 +23,8 @@ import {
 import type { SelectionPreviewController } from "../preview/selectionPreviewController";
 import type { StructuredPreviewQueueController } from "../structured/structuredPreviewQueueExecution";
 
-type RefCell<T> = { current: T };
-
 export type PanningDragEndExecutor = {
   flushOffset: () => void;
-  setIsPanning: (isPanning: boolean) => void;
   dispatchInteraction: (event: InteractionEvent) => void;
   setBodyCursor: (cursor: string) => void;
   clearLinkHover: () => void;
@@ -51,7 +53,7 @@ export type PrimaryDragEndExecutor = SelectionCommitExecutor &
   };
 
 export type PrimaryDragEndContext = {
-  mode: LegacyInteractionMode;
+  state: InteractionState;
   tool: ToolType;
   canvasMode: CanvasMode;
   structuredScene: StructuredNode[];
@@ -61,32 +63,18 @@ export type PrimaryDragEndContext = {
   splitBoxDividerResize: boolean;
 };
 
-const primaryCommitModes = new Set<LegacyInteractionMode>([
-  "drawing",
-  "shape-preview",
-  "structured-node-moving",
-  "structured-box-resizing",
-  "structured-line-resizing",
-  "structured-splitbox-resizing",
-]);
-
 export const createPanningDragEndExecutor = ({
-  isPanning,
   flushOffset,
   dispatchInteraction,
   setBodyCursor,
   clearLinkHover,
 }: {
-  isPanning: RefCell<boolean>;
   flushOffset: () => void;
   dispatchInteraction: (event: InteractionEvent) => void;
   setBodyCursor: (cursor: string) => void;
   clearLinkHover: () => void;
 }): PanningDragEndExecutor => ({
   flushOffset,
-  setIsPanning: (nextIsPanning) => {
-    isPanning.current = nextIsPanning;
-  },
   dispatchInteraction,
   setBodyCursor,
   clearLinkHover,
@@ -96,7 +84,6 @@ export const executePanningDragEnd = (
   executor: PanningDragEndExecutor
 ): void => {
   executor.flushOffset();
-  executor.setIsPanning(false);
   executor.dispatchInteraction({ type: "reset" });
   executor.setBodyCursor("auto");
   executor.clearLinkHover();
@@ -104,49 +91,52 @@ export const executePanningDragEnd = (
 
 
 export const resolvePrimaryDragEndContext = ({
-  mode,
+  state,
   tool,
   canvasMode,
   structuredScene,
-  dragStart,
   resolvedEndGrid,
-  axis,
-  dragNodeType,
-  dragHandle,
   isDividerHandle,
 }: {
-  mode: LegacyInteractionMode;
+  state: InteractionState;
   tool: ToolType;
   canvasMode: CanvasMode;
   structuredScene: StructuredNode[];
-  dragStart: Point | null;
   resolvedEndGrid: Point | null;
-  axis: "horizontal" | "vertical" | null;
-  dragNodeType: StructuredNode["type"] | null;
-  dragHandle: string | null;
   isDividerHandle: (handle: StructuredSplitBoxHandle) => boolean;
-}): PrimaryDragEndContext => ({
-  mode,
-  tool,
-  canvasMode,
-  structuredScene,
-  dragStart,
-  endGrid: resolvedEndGrid || dragStart || { x: 0, y: 0 },
-  axis,
-  splitBoxDividerResize: isStructuredSplitBoxDividerDrag({
-    nodeType: dragNodeType,
-    handle:
-      dragNodeType === "splitBox"
-        ? (dragHandle as StructuredSplitBoxHandle | null)
-        : null,
-    isDividerHandle,
-  }),
-});
+}): PrimaryDragEndContext => {
+  const dragStart = getInteractionStart(state);
+  const structuredDrag =
+    state.type === "structuredMoving" ||
+    state.type === "structuredRectResizing" ||
+    state.type === "structuredSplitBoxResizing" ||
+    state.type === "structuredSplitBoxResizePending" ||
+    state.type === "structuredLineResizing"
+      ? state.drag
+      : null;
+  return {
+    state,
+    tool,
+    canvasMode,
+    structuredScene,
+    dragStart,
+    endGrid: resolvedEndGrid || dragStart || { x: 0, y: 0 },
+    axis: state.type === "shapePreview" ? state.axis : null,
+    splitBoxDividerResize: isStructuredSplitBoxDividerDrag({
+      nodeType: structuredDrag?.node.type ?? null,
+      handle:
+        structuredDrag?.node.type === "splitBox"
+          ? (structuredDrag.handle as StructuredSplitBoxHandle | null)
+          : null,
+      isDividerHandle,
+    }),
+  };
+};
 export const executePrimaryDragEnd = (
   context: PrimaryDragEndContext,
   executor: PrimaryDragEndExecutor
 ): boolean => {
-  if (context.mode === "selecting") {
+  if (context.state.type === "selecting") {
     executor.flushSelectionPreview();
     executeSelectionCommitDecision(
       resolveSelectionCommitDecision({
@@ -161,13 +151,12 @@ export const executePrimaryDragEnd = (
     return true;
   }
 
-  if (primaryCommitModes.has(context.mode)) {
+  if (isPrimaryDragState(context.state)) {
     executeDragEndCommitDecision(
       resolveDragEndCommitDecision({
-        mode: context.mode,
+        state: context.state,
         tool: context.tool,
         canvasMode: context.canvasMode,
-        hasDragStart: !!context.dragStart,
         isStructuredSplitBoxDividerResize: context.splitBoxDividerResize,
       }),
       executor,
@@ -243,26 +232,18 @@ export const createPrimaryDragEndExecutor = ({
 });
 
 export type PrimaryDragEndHandler = ({
-  mode,
+  state,
   tool,
   canvasMode,
   structuredScene,
-  dragStart,
   resolvedEndGrid,
-  axis,
-  dragNodeType,
-  dragHandle,
   isDividerHandle,
 }: {
-  mode: LegacyInteractionMode;
+  state: InteractionState;
   tool: ToolType;
   canvasMode: CanvasMode;
   structuredScene: StructuredNode[];
-  dragStart: Point | null;
   resolvedEndGrid: Point | null;
-  axis: "horizontal" | "vertical" | null;
-  dragNodeType: StructuredNode["type"] | null;
-  dragHandle: string | null;
   isDividerHandle: (handle: StructuredSplitBoxHandle) => boolean;
 }) => boolean;
 
@@ -271,38 +252,30 @@ export const createPrimaryDragEndHandler = ({
 }: {
   executor: PrimaryDragEndExecutor;
 }): PrimaryDragEndHandler => ({
-  mode,
+  state,
   tool,
   canvasMode,
   structuredScene,
-  dragStart,
   resolvedEndGrid,
-  axis,
-  dragNodeType,
-  dragHandle,
   isDividerHandle,
 }) =>
   executePrimaryDragEnd(
     resolvePrimaryDragEndContext({
-      mode,
+      state,
       tool,
       canvasMode,
       structuredScene,
-      dragStart,
       resolvedEndGrid,
-      axis,
-      dragNodeType,
-      dragHandle,
       isDividerHandle,
     }),
     executor
   );
 export type DragEndRouteHandler = ({
-  mode,
+  state,
   button,
   executePrimaryEnd,
 }: {
-  mode: LegacyInteractionMode;
+  state: InteractionState;
   button: number;
   executePrimaryEnd: () => void;
 }) => void;
@@ -314,8 +287,8 @@ export const createDragEndRouteHandler = ({
   panning: PanningDragEndExecutor;
   nonPanning: NonPanningDragEndExecutor;
 }): DragEndRouteHandler =>
-  ({ mode, button, executePrimaryEnd }) => {
-    if (mode === "panning") {
+  ({ state, button, executePrimaryEnd }) => {
+    if (state.type === "panning") {
       executePanningDragEnd(panning);
       return;
     }

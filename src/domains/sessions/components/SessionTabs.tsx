@@ -311,7 +311,7 @@ export function SessionTabs() {
           <div
             data-session-tabs-scroll="true"
             className={cn(
-              "absolute inset-0 flex min-w-0 items-center gap-1 overflow-x-auto pr-0.5 scrollbar-hide transition-[opacity,transform] duration-150 ease-out",
+              "absolute inset-0 flex min-w-0 items-center gap-1 overflow-x-auto overflow-y-hidden pr-0.5 scrollbar-hide transition-[opacity,transform] duration-150 ease-out",
               showExpandedTabs
                 ? "translate-y-0 opacity-100"
                 : "pointer-events-none translate-y-1 opacity-0"

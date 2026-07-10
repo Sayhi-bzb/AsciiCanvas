@@ -74,30 +74,30 @@ store.
    - Keep existing `structuredBoxEditing` geometry helpers as the source of
      truth for structured node bounds and handles.
 
-3. [started] Add the interaction engine.
+3. [done] Add the interaction engine.
    - Define `InteractionState`, `InteractionEvent`, and `InteractionEffect`.
    - Implement pure transition tests before migrating behavior.
    - Keep the first version small: no XState dependency unless a later phase
      proves the custom reducer is insufficient.
 
-4. [started] Migrate low-risk flows.
+4. [done] Migrate low-risk flows.
    - Move panning, wheel zoom, link hover, color picker hover, and freeform
      selection into the engine.
    - Keep RAF throttling for panning and selection preview.
 
-5. Migrate drawing and shape preview.
+5. [done] Migrate drawing and shape preview.
    - Move brush, eraser, freeform shape preview, and structured shape creation
      into engine-driven transitions.
    - Preserve history behavior: merge during continuous updates and save at
      gesture end.
 
-6. Migrate structured editing.
+6. [done] Migrate structured editing.
    - Move structured node move, rect resize, line resize, splitBox resize, and
      structured text selection into explicit states.
    - Preserve current preview behavior for structured moving and splitBox
      divider resizing.
 
-7. Collapse the old hook.
+7. [done] Collapse the old hook.
    - Leave `useCanvasInteraction` as the React wiring layer.
    - Remove duplicated refs and branch logic once each behavior has an engine
      equivalent.
@@ -117,7 +117,7 @@ store.
 - E2E test representative pointer and keyboard workflows across freeform,
   structured, and animation modes.
 - Run focused Vitest suites after each phase. Before finishing the full
-  refactor, run `npm run test:run` and the relevant Playwright tests.
+  refactor, run `npx vitest run` and the relevant Playwright tests.
 
 ## Acceptance Criteria
 
@@ -154,17 +154,17 @@ store.
 - `useCanvasRenderer` no longer owns interaction handle geometry. Renderer and
   hit testing share the neutral structured handle geometry helper.
 
-### In Progress
+### Completed Refactor
 
-- Phase 3 is started: `interactionMachine.ts` defines typed interaction state
-  and transition events, while `useCanvasInteraction` still uses a legacy adapter
-  for branches that have not fully moved behind engine effects.
-- Phase 4 is mostly implemented for low-risk flows. Panning, wheel/pinch zoom,
-  link hover, color picker hover/start, selection preview, click, move, and drag
-  reset behavior now route through focused interaction helpers and controllers.
-- Commit and preview responsibilities are split out. Selection commits,
-  drag-end commit routing, structured preview queues, hover state, viewport
-  queueing, and RAF coalescing have direct unit-test entry points.
+- Typed interaction state now owns active drawing, shape, selection, structured
+  drag/resize, splitBox pending, and structured text selection context.
+- A single interaction runtime owns active state and the cross-gesture selection
+  anchor. Legacy mode mapping and parallel drag refs are removed.
+- Browser and `@use-gesture/react` event adaptation lives in
+  `interaction/gestures/gestureAdapter.ts`.
+- Commit and preview responsibilities remain isolated behind direct unit-test
+  entry points. RAF queues continue to own high-frequency viewport and
+  structured previews.
 
 ### Recently Landed
 
@@ -188,23 +188,11 @@ store.
   resolution, drag-start setup, double-click edit routing, text selection
   starts, move/resize preview calculations, and structured edit execution.
 
-### Remaining Work
-
-- Phase 5 is partially started through drawing and shape helpers. Brush and
-  eraser update execution now sit behind a handler, while freeform shape
-  preview and structured shape creation are not yet fully engine-driven
-  transitions.
-- Phase 6 is partially started through structured select/edit/move/resize
-  helpers, but structured move, rect resize, line resize, splitBox resize, and
-  structured text selection are not yet fully represented as explicit engine
-  states with effects.
-- Phase 7 is not complete. `useCanvasInteraction` is smaller, but it still owns
-  DOM gesture adaptation, pointer-context assembly, event-specific
-  `preventDefault`, and some decision/execution orchestration.
-
 ### Verification
 
-- Latest focused verification passed: `37` canvas interaction test files and
-  `292` tests.
-- `npx tsc -b` passed after the latest handler cleanup.
-- `git diff --check` reports only CRLF normalization warnings.
+- Focused interaction verification covers typed state, gesture decisions,
+  execution, previews, commits, and structured editing.
+- Playwright covers persisted freeform drawing, structured node movement, and
+  animation drag/frame behavior.
+- Final verification uses `npx vitest run`, `npm run build`, and
+  `npx playwright test e2e/canvas.spec.ts`.

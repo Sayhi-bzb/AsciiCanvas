@@ -1,27 +1,17 @@
-import type { GridMap, Point, StructuredNode } from "@/shared/types";
+import type { Point, StructuredNode } from "@/shared/types";
 import { sceneToGridEntries } from "@/shared/utils/structured";
 import { createMapFromEntries } from "@/domains/canvas/state/helpers/snapshotHelpers";
 import {
   isStructuredSplitBoxLineHandle,
-  type StructuredBoxResizeHandle,
-  type StructuredLineResizeHandle,
   type StructuredNodeHit,
   type StructuredSplitBoxHandle,
 } from "@/domains/canvas/state/helpers/structuredBoxEditing";
-import type { InteractionEvent } from "../core/interactionMachine";
+import type {
+  InteractionEvent,
+  StructuredNodeDragPayload,
+} from "../core/interactionMachine";
 
-export type StructuredNodeDragPayload = {
-  node: StructuredNode;
-  selectedIds: string[];
-  selectedNodes: StructuredNode[];
-  baseScene: StructuredNode[];
-  baseGrid: GridMap;
-  handle:
-    | StructuredBoxResizeHandle
-    | StructuredSplitBoxHandle
-    | StructuredLineResizeHandle
-    | null;
-};
+export type { StructuredNodeDragPayload } from "../core/interactionMachine";
 
 export type StructuredDragStartDecision = {
   selectedIds: string[];
@@ -77,36 +67,35 @@ export const resolveStructuredDragStartDecision = ({
     interactionEvent = {
       type: "startStructuredResizing",
       kind: "splitBoxPending",
-      nodeId: hit.node.id,
-      handle: hit.handle!,
+      anchor: start,
+      drag,
     };
   } else if (isSplitBoxResize) {
     interactionEvent = {
       type: "startStructuredResizing",
       kind: "splitBox",
-      nodeId: hit.node.id,
-      handle: hit.handle!,
+      anchor: start,
+      drag,
     };
   } else if (isRectResize) {
     interactionEvent = {
       type: "startStructuredResizing",
       kind: "rect",
-      nodeId: hit.node.id,
-      handle: hit.handle!,
+      anchor: start,
+      drag,
     };
   } else if (isLineResize) {
     interactionEvent = {
       type: "startStructuredResizing",
       kind: "line",
-      nodeId: hit.node.id,
-      handle: hit.handle!,
+      anchor: start,
+      drag,
     };
   } else {
     interactionEvent = {
       type: "startStructuredMoving",
-      ids: selectedIds,
       anchor: start,
-      baseScene,
+      drag,
     };
   }
 

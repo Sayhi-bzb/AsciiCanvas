@@ -1,6 +1,10 @@
 import type { Point, ToolType } from "@/shared/types";
 import { getCellOccupancy } from "@/shared/metrics";
 import bresenham from "bresenham";
+import type {
+  InteractionEvent,
+  InteractionState,
+} from "../core/interactionMachine";
 
 export type DrawingUpdateDecision =
   | {
@@ -105,35 +109,30 @@ export const resolveDrawingUpdateDecision = ({
   return { type: "none" };
 };
 
-type MutablePointRef = {
-  current: Point | null;
-};
-
 export type DrawingUpdateExecutor = {
   addScratchPoints: (points: Array<Point & { char: string }>) => void;
   erasePoints: (points: Point[]) => void;
+  dispatchInteraction: (event: InteractionEvent) => void;
 };
 
 export const createDrawingUpdateHandler = ({
-  getTool,
   getBrushChar,
-  lastGrid,
-  lastPlacedGrid,
+  getInteractionState,
   executor,
 }: {
-  getTool: () => ToolType;
   getBrushChar: () => string;
-  lastGrid: MutablePointRef;
-  lastPlacedGrid: MutablePointRef;
+  getInteractionState: () => InteractionState;
   executor: DrawingUpdateExecutor;
 }) => {
   return (currentGrid: Point) => {
+    const state = getInteractionState();
+    if (state.type !== "drawing") return;
     const decision = resolveDrawingUpdateDecision({
-      tool: getTool(),
+      tool: state.tool,
       brushChar: getBrushChar(),
-      lastGrid: lastGrid.current,
+      lastGrid: state.lastGrid,
       currentGrid,
-      lastPlacedGrid: lastPlacedGrid.current,
+      lastPlacedGrid: state.lastPlacedGrid,
     });
     if (decision.type === "none") return;
 
@@ -143,7 +142,10 @@ export const createDrawingUpdateHandler = ({
       executor.erasePoints(decision.points);
     }
 
-    lastGrid.current = decision.nextLastGrid;
-    lastPlacedGrid.current = decision.nextLastPlacedGrid;
+    executor.dispatchInteraction({
+      type: "updateDrawing",
+      lastGrid: decision.nextLastGrid,
+      lastPlacedGrid: decision.nextLastPlacedGrid,
+    });
   };
 };

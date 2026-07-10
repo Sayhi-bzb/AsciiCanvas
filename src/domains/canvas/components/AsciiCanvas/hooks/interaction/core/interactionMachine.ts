@@ -1,4 +1,4 @@
-import type { Point, StructuredNode, ToolType } from "@/shared/types";
+import type { GridMap, Point, StructuredNode, ToolType } from "@/shared/types";
 import type {
   StructuredBoxResizeHandle,
   StructuredLineResizeHandle,
@@ -6,60 +6,52 @@ import type {
 } from "@/domains/canvas/state/helpers/structuredBoxEditing";
 
 export type StructuredResizeKind = "rect" | "splitBox" | "line";
-export type LegacyInteractionMode =
-  | "idle"
-  | "panning"
-  | "selecting"
-  | "drawing"
-  | "shape-preview"
-  | "structured-node-moving"
-  | "structured-box-resizing"
-  | "structured-splitbox-resize-pending"
-  | "structured-splitbox-resizing"
-  | "structured-line-resizing"
-  | "structured-text-selecting";
+
+export type StructuredNodeDragPayload = {
+  node: StructuredNode;
+  selectedIds: string[];
+  selectedNodes: StructuredNode[];
+  baseScene: StructuredNode[];
+  baseGrid: GridMap;
+  handle:
+    | StructuredBoxResizeHandle
+    | StructuredSplitBoxHandle
+    | StructuredLineResizeHandle
+    | null;
+};
+
+type StructuredResizeStateBase = {
+  anchor: Point;
+  drag: StructuredNodeDragPayload;
+};
 
 export type InteractionState =
   | { type: "idle" }
   | { type: "panning"; lastScreen: Point }
   | { type: "selecting"; anchor: Point; current: Point }
-  | { type: "drawing"; tool: ToolType; lastGrid: Point }
+  | {
+      type: "drawing";
+      tool: Extract<ToolType, "brush" | "eraser">;
+      start: Point;
+      lastGrid: Point;
+      lastPlacedGrid: Point | null;
+    }
   | {
       type: "shapePreview";
       tool: ToolType;
       start: Point;
       axis: "horizontal" | "vertical" | null;
     }
-  | {
-      type: "structuredMoving";
-      ids: string[];
-      anchor: Point;
-      baseScene: StructuredNode[];
-    }
-  | {
-      type: "structuredRectResizing";
-      nodeId: string;
-      handle: StructuredBoxResizeHandle;
-    }
-  | {
-      type: "structuredSplitBoxResizing";
-      nodeId: string;
-      handle: StructuredSplitBoxHandle;
-    }
-  | {
-      type: "structuredSplitBoxResizePending";
-      nodeId: string;
-      handle: StructuredSplitBoxHandle;
-    }
-  | {
-      type: "structuredLineResizing";
-      nodeId: string;
-      handle: StructuredLineResizeHandle;
-    }
+  | ({ type: "structuredMoving" } & StructuredResizeStateBase)
+  | ({ type: "structuredRectResizing" } & StructuredResizeStateBase)
+  | ({ type: "structuredSplitBoxResizing" } & StructuredResizeStateBase)
+  | ({ type: "structuredSplitBoxResizePending" } & StructuredResizeStateBase)
+  | ({ type: "structuredLineResizing" } & StructuredResizeStateBase)
   | {
       type: "structuredTextSelecting";
       nodeId: string;
       anchorOffset: number;
+      start: Point;
     };
 
 export type InteractionEvent =
@@ -67,8 +59,16 @@ export type InteractionEvent =
   | { type: "startPanning"; lastScreen: Point }
   | { type: "startSelecting"; anchor: Point; current?: Point }
   | { type: "updateSelection"; current: Point }
-  | { type: "startDrawing"; tool: ToolType; lastGrid: Point }
-  | { type: "updateDrawing"; lastGrid: Point }
+  | {
+      type: "startDrawing";
+      tool: Extract<ToolType, "brush" | "eraser">;
+      start: Point;
+    }
+  | {
+      type: "updateDrawing";
+      lastGrid: Point;
+      lastPlacedGrid: Point | null;
+    }
   | {
       type: "startShapePreview";
       tool: ToolType;
@@ -78,23 +78,20 @@ export type InteractionEvent =
   | { type: "setShapePreviewAxis"; axis: "horizontal" | "vertical" | null }
   | {
       type: "startStructuredMoving";
-      ids: string[];
       anchor: Point;
-      baseScene: StructuredNode[];
+      drag: StructuredNodeDragPayload;
     }
   | {
       type: "startStructuredResizing";
       kind: StructuredResizeKind | "splitBoxPending";
-      nodeId: string;
-      handle:
-        | StructuredBoxResizeHandle
-        | StructuredSplitBoxHandle
-        | StructuredLineResizeHandle;
+      anchor: Point;
+      drag: StructuredNodeDragPayload;
     }
   | {
       type: "startStructuredTextSelecting";
       nodeId: string;
       anchorOffset: number;
+      start: Point;
     };
 
 export const INITIAL_INTERACTION_STATE: InteractionState = { type: "idle" };
@@ -122,11 +119,19 @@ export const transitionInteractionState = (
       return {
         type: "drawing",
         tool: event.tool,
-        lastGrid: { ...event.lastGrid },
+        start: { ...event.start },
+        lastGrid: { ...event.start },
+        lastPlacedGrid: { ...event.start },
       };
     case "updateDrawing":
       return state.type === "drawing"
-        ? { ...state, lastGrid: { ...event.lastGrid } }
+        ? {
+            ...state,
+            lastGrid: { ...event.lastGrid },
+            lastPlacedGrid: event.lastPlacedGrid
+              ? { ...event.lastPlacedGrid }
+              : null,
+          }
         : state;
     case "startShapePreview":
       return {
@@ -142,67 +147,53 @@ export const transitionInteractionState = (
     case "startStructuredMoving":
       return {
         type: "structuredMoving",
-        ids: [...event.ids],
         anchor: { ...event.anchor },
-        baseScene: [...event.baseScene],
+        drag: event.drag,
       };
-    case "startStructuredResizing":
+    case "startStructuredResizing": {
+      const base = {
+        anchor: { ...event.anchor },
+        drag: event.drag,
+      };
       if (event.kind === "line") {
-        return {
-          type: "structuredLineResizing",
-          nodeId: event.nodeId,
-          handle: event.handle as StructuredLineResizeHandle,
-        };
+        return { type: "structuredLineResizing", ...base };
       }
       if (event.kind === "splitBox") {
-        return {
-          type: "structuredSplitBoxResizing",
-          nodeId: event.nodeId,
-          handle: event.handle as StructuredSplitBoxHandle,
-        };
+        return { type: "structuredSplitBoxResizing", ...base };
       }
       if (event.kind === "splitBoxPending") {
-        return {
-          type: "structuredSplitBoxResizePending",
-          nodeId: event.nodeId,
-          handle: event.handle as StructuredSplitBoxHandle,
-        };
+        return { type: "structuredSplitBoxResizePending", ...base };
       }
-      return {
-        type: "structuredRectResizing",
-        nodeId: event.nodeId,
-        handle: event.handle as StructuredBoxResizeHandle,
-      };
+      return { type: "structuredRectResizing", ...base };
+    }
     case "startStructuredTextSelecting":
       return {
         type: "structuredTextSelecting",
         nodeId: event.nodeId,
         anchorOffset: event.anchorOffset,
+        start: { ...event.start },
       };
   }
 };
-export const toLegacyInteractionMode = (
-  state: InteractionState
-): LegacyInteractionMode => {
+
+export const getInteractionStart = (state: InteractionState): Point | null => {
   switch (state.type) {
-    case "idle":
-    case "panning":
     case "selecting":
+      return state.anchor;
     case "drawing":
-      return state.type;
     case "shapePreview":
-      return "shape-preview";
-    case "structuredMoving":
-      return "structured-node-moving";
-    case "structuredRectResizing":
-      return "structured-box-resizing";
-    case "structuredSplitBoxResizePending":
-      return "structured-splitbox-resize-pending";
-    case "structuredSplitBoxResizing":
-      return "structured-splitbox-resizing";
-    case "structuredLineResizing":
-      return "structured-line-resizing";
     case "structuredTextSelecting":
-      return "structured-text-selecting";
+      return state.start;
+    case "structuredMoving":
+    case "structuredRectResizing":
+    case "structuredSplitBoxResizing":
+    case "structuredSplitBoxResizePending":
+    case "structuredLineResizing":
+      return state.anchor;
+    default:
+      return null;
   }
 };
+
+export const isPrimaryDragState = (state: InteractionState): boolean =>
+  state.type !== "idle" && state.type !== "panning";

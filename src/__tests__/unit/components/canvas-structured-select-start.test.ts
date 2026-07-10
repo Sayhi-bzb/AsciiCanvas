@@ -100,7 +100,7 @@ describe("structured select start decisions", () => {
     expect(decision.dragStart.selectedIds).toEqual([boxNode.id]);
     expect(decision.dragStart.interactionEvent).toMatchObject({
       type: "startStructuredMoving",
-      ids: [boxNode.id],
+      drag: { selectedIds: [boxNode.id] },
     });
   });
 

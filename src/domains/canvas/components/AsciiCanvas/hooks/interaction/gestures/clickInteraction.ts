@@ -1,6 +1,6 @@
 import type { CanvasMode, Point, ToolType } from "@/shared/types";
 import type { CanvasLinkHit } from "../core/linkHitTesting";
-import type { LegacyInteractionMode } from "../core/interactionMachine";
+import type { InteractionState } from "../core/interactionMachine";
 
 export type CanvasClickDecision =
   | { type: "consume-color-picker-click" }
@@ -18,7 +18,7 @@ export const resolveCanvasClickDecision = ({
   shouldOpenLink,
 }: {
   colorPickerClickPending: boolean;
-  interactionMode: LegacyInteractionMode;
+  interactionMode: InteractionState["type"];
   canvasMode: CanvasMode;
   tool: ToolType;
   point: Point | null;

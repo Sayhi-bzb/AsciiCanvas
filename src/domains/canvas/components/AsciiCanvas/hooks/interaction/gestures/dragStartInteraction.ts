@@ -148,7 +148,7 @@ export const resolveDrawingShapeDragStartDecision = ({
   if (tool === "brush" && canvasMode !== "structured") {
     return {
       type: "drawing",
-      event: { type: "startDrawing", tool, lastGrid: start },
+      event: { type: "startDrawing", tool, start },
       scratchPoint: { ...start, char: brushChar },
     };
   }
@@ -156,7 +156,7 @@ export const resolveDrawingShapeDragStartDecision = ({
   if (tool === "eraser" && canvasMode !== "structured") {
     return {
       type: "drawing",
-      event: { type: "startDrawing", tool, lastGrid: start },
+      event: { type: "startDrawing", tool, start },
       erasePoint: start,
     };
   }

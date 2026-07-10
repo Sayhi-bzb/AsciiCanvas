@@ -8,26 +8,18 @@ import {
 } from "./dragStartInteraction";
 import type { InteractionEvent } from "../core/interactionMachine";
 
-type RefCell<T> = { current: T };
-
 export type PanningDragStartExecutor = {
-  setIsPanning: (isPanning: boolean) => void;
   dispatchInteraction: (event: InteractionEvent) => void;
   setBodyCursor: (cursor: string) => void;
 };
 
 export const createPanningDragStartExecutor = ({
-  isPanning,
   dispatchInteraction,
   setBodyCursor,
 }: {
-  isPanning: RefCell<boolean>;
   dispatchInteraction: (event: InteractionEvent) => void;
   setBodyCursor: (cursor: string) => void;
 }): PanningDragStartExecutor => ({
-  setIsPanning: (nextIsPanning) => {
-    isPanning.current = nextIsPanning;
-  },
   dispatchInteraction,
   setBodyCursor,
 });
@@ -36,7 +28,6 @@ export const executePanningDragStart = (
   lastScreen: Point,
   executor: PanningDragStartExecutor
 ): void => {
-  executor.setIsPanning(true);
   executor.dispatchInteraction({ type: "startPanning", lastScreen });
   executor.setBodyCursor("grabbing");
 };
@@ -44,9 +35,8 @@ export type SelectionDragStartExecutor = {
   dispatchInteraction: (event: InteractionEvent) => void;
   clearInteractionState: () => void;
   clearSelections: () => void;
-  setAnchorGrid: (point: Point) => void;
+  setAnchorGrid: (point: Point | null) => void;
   setSelectionPreview: (selection: SelectionArea) => void;
-  setDragStartGrid: (point: Point) => void;
   clearTextCursor: () => void;
 };
 
@@ -58,28 +48,26 @@ export const executeSelectionDragStartDecision = (
 
   executor.dispatchInteraction({
     type: "startSelecting",
-    anchor: decision.interactionAnchor,
+    anchor: decision.dragStart,
+    current: decision.interactionAnchor,
   });
   if (decision.clearInteractionState) executor.clearInteractionState();
   if (decision.clearExistingSelection) executor.clearSelections();
-  if (decision.nextAnchor) executor.setAnchorGrid(decision.nextAnchor);
+  if (decision.nextAnchor !== null) executor.setAnchorGrid(decision.nextAnchor);
   executor.setSelectionPreview(decision.preview);
-  executor.setDragStartGrid(decision.dragStart);
   executor.clearTextCursor();
   return true;
 };
 
 export const createSelectionDragStartExecutor = ({
-  anchorGrid,
-  dragStartGrid,
+  setAnchorGrid,
   dispatchInteraction,
   clearInteractionState,
   clearSelections,
   setSelectionPreview,
   clearTextCursor,
 }: {
-  anchorGrid: RefCell<Point | null>;
-  dragStartGrid: RefCell<Point | null>;
+  setAnchorGrid: (point: Point | null) => void;
   dispatchInteraction: (event: InteractionEvent) => void;
   clearInteractionState: () => void;
   clearSelections: () => void;
@@ -89,13 +77,8 @@ export const createSelectionDragStartExecutor = ({
   dispatchInteraction,
   clearInteractionState,
   clearSelections,
-  setAnchorGrid: (point) => {
-    anchorGrid.current = point;
-  },
+  setAnchorGrid,
   setSelectionPreview,
-  setDragStartGrid: (point) => {
-    dragStartGrid.current = point;
-  },
   clearTextCursor,
 });
 
@@ -103,11 +86,7 @@ export type DrawingShapeDragStartExecutor = {
   clearInteractionState: () => void;
   clearEditingStructuredTextNode: () => void;
   clearStructuredTextSelection: () => void;
-  setDragStartGrid: (point: Point) => void;
-  setLastGrid: (point: Point) => void;
-  setLastPlacedGrid: (point: Point) => void;
   setAnchorGrid: (point: Point) => void;
-  clearLineAxis: () => void;
   dispatchInteraction: (event: InteractionEvent) => void;
   addScratchPoint: (point: { x: number; y: number; char: string }) => void;
   erasePoint: (point: Point) => void;
@@ -123,11 +102,7 @@ export const executeDrawingShapeDragStartDecision = (
   executor.clearInteractionState();
   executor.clearEditingStructuredTextNode();
   executor.clearStructuredTextSelection();
-  executor.setDragStartGrid(start);
-  executor.setLastGrid(start);
-  executor.setLastPlacedGrid(start);
   executor.setAnchorGrid(start);
-  executor.clearLineAxis();
   executor.dispatchInteraction(decision.event);
 
   if (decision.type === "drawing") {
@@ -139,11 +114,7 @@ export const executeDrawingShapeDragStartDecision = (
 };
 
 export const createDrawingShapeDragStartExecutor = ({
-  dragStartGrid,
-  lastGrid,
-  lastPlacedGrid,
-  anchorGrid,
-  lineAxis,
+  setAnchorGrid,
   dispatchInteraction,
   clearInteractionState,
   clearEditingStructuredTextNode,
@@ -151,11 +122,7 @@ export const createDrawingShapeDragStartExecutor = ({
   addScratchPoint,
   erasePoint,
 }: {
-  dragStartGrid: RefCell<Point | null>;
-  lastGrid: RefCell<Point | null>;
-  lastPlacedGrid: RefCell<Point | null>;
-  anchorGrid: RefCell<Point | null>;
-  lineAxis: RefCell<"vertical" | "horizontal" | null>;
+  setAnchorGrid: (point: Point) => void;
   dispatchInteraction: (event: InteractionEvent) => void;
   clearInteractionState: () => void;
   clearEditingStructuredTextNode: () => void;
@@ -166,21 +133,7 @@ export const createDrawingShapeDragStartExecutor = ({
   clearInteractionState,
   clearEditingStructuredTextNode,
   clearStructuredTextSelection,
-  setDragStartGrid: (point) => {
-    dragStartGrid.current = point;
-  },
-  setLastGrid: (point) => {
-    lastGrid.current = point;
-  },
-  setLastPlacedGrid: (point) => {
-    lastPlacedGrid.current = point;
-  },
-  setAnchorGrid: (point) => {
-    anchorGrid.current = point;
-  },
-  clearLineAxis: () => {
-    lineAxis.current = null;
-  },
+  setAnchorGrid,
   dispatchInteraction,
   addScratchPoint,
   erasePoint,

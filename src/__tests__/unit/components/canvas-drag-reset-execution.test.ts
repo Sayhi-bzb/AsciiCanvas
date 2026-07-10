@@ -7,11 +7,6 @@ import {
 import type { StructuredPreviewQueueController } from "@/domains/canvas/components/AsciiCanvas/hooks/interaction/structured/structuredPreviewQueueExecution";
 
 const createExecutor = (calls: string[]): DragResetExecutor => ({
-  clearDragStartGrid: vi.fn(() => calls.push("clearDragStartGrid")),
-  clearLastGrid: vi.fn(() => calls.push("clearLastGrid")),
-  clearLastPlacedGrid: vi.fn(() => calls.push("clearLastPlacedGrid")),
-  clearLineAxis: vi.fn(() => calls.push("clearLineAxis")),
-  clearStructuredNodeDrag: vi.fn(() => calls.push("clearStructuredNodeDrag")),
   clearStructuredMoveQueueLast: vi.fn(() =>
     calls.push("clearStructuredMoveQueueLast")
   ),
@@ -20,9 +15,6 @@ const createExecutor = (calls: string[]): DragResetExecutor => ({
   ),
   clearStructuredMovePreview: vi.fn(() =>
     calls.push("clearStructuredMovePreview")
-  ),
-  clearStructuredTextSelectionStart: vi.fn(() =>
-    calls.push("clearStructuredTextSelectionStart")
   ),
   dispatchInteraction: vi.fn(() => calls.push("dispatchInteraction")),
 });
@@ -47,30 +39,16 @@ describe("drag reset execution", () => {
     executeDragReset(executor);
 
     expect(calls).toEqual([
-      "clearDragStartGrid",
-      "clearLastGrid",
-      "clearLastPlacedGrid",
-      "clearLineAxis",
-      "clearStructuredNodeDrag",
       "clearStructuredMoveQueueLast",
       "clearStructuredSplitBoxResizeQueueLast",
       "clearStructuredMovePreview",
-      "clearStructuredTextSelectionStart",
       "dispatchInteraction",
     ]);
     expect(executor.dispatchInteraction).toHaveBeenCalledWith({ type: "reset" });
   });
 
-  it("controller clears hook refs and structured preview queue state", () => {
+  it("controller clears structured preview state and resets typed state", () => {
     const calls: string[] = [];
-    const dragStartGrid = { current: { x: 1, y: 2 } };
-    const lastGrid = { current: { x: 3, y: 4 } };
-    const lastPlacedGrid = { current: { x: 5, y: 6 } };
-    const lineAxis = { current: "vertical" as "vertical" | "horizontal" | null };
-    const structuredNodeDrag = { current: null };
-    const structuredTextSelectionStart = {
-      current: { nodeId: "text-1", offset: 2 } as { nodeId: string; offset: number } | null,
-    };
     const structuredPreviewQueue = createStructuredPreviewQueue(calls);
     const clearStructuredMovePreview = vi.fn(() =>
       calls.push("clearStructuredMovePreview")
@@ -78,25 +56,11 @@ describe("drag reset execution", () => {
     const dispatchInteraction = vi.fn(() => calls.push("dispatchInteraction"));
 
     createDragResetController({
-      refs: {
-        dragStartGrid,
-        lastGrid,
-        lastPlacedGrid,
-        lineAxis,
-        structuredNodeDrag,
-        structuredTextSelectionStart,
-      },
       structuredPreviewQueue,
       clearStructuredMovePreview,
       dispatchInteraction,
     }).reset();
 
-    expect(dragStartGrid.current).toBeNull();
-    expect(lastGrid.current).toBeNull();
-    expect(lastPlacedGrid.current).toBeNull();
-    expect(lineAxis.current).toBeNull();
-    expect(structuredNodeDrag.current).toBeNull();
-    expect(structuredTextSelectionStart.current).toBeNull();
     expect(calls).toEqual([
       "clearLastMove",
       "clearLastSplitBoxResize",

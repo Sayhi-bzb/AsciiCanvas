@@ -151,7 +151,7 @@ describe("canvas drag-start interaction decisions", () => {
       })
     ).toEqual({
       type: "drawing",
-      event: { type: "startDrawing", tool: "brush", lastGrid: start },
+      event: { type: "startDrawing", tool: "brush", start },
       scratchPoint: { ...start, char: "#" },
     });
   });
@@ -166,7 +166,7 @@ describe("canvas drag-start interaction decisions", () => {
       })
     ).toEqual({
       type: "drawing",
-      event: { type: "startDrawing", tool: "eraser", lastGrid: start },
+      event: { type: "startDrawing", tool: "eraser", start },
       erasePoint: start,
     });
   });

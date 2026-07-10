@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   INITIAL_INTERACTION_STATE,
-  toLegacyInteractionMode,
+  getInteractionStart,
   transitionInteractionState,
+  type StructuredNodeDragPayload,
 } from "@/domains/canvas/components/AsciiCanvas/hooks/interaction/core/interactionMachine";
+import { createCanvasInteractionRuntime } from "@/domains/canvas/components/AsciiCanvas/hooks/interaction/core/interactionRuntime";
 import type { StructuredBoxNode } from "@/shared/types";
 
 const boxNode: StructuredBoxNode = {
@@ -13,6 +15,15 @@ const boxNode: StructuredBoxNode = {
   start: { x: 0, y: 0 },
   end: { x: 4, y: 2 },
   style: { color: "#ffffff" },
+};
+
+const drag: StructuredNodeDragPayload = {
+  node: boxNode,
+  selectedIds: [boxNode.id],
+  selectedNodes: [boxNode],
+  baseScene: [],
+  baseGrid: new Map(),
+  handle: null,
 };
 
 describe("canvas interaction machine", () => {
@@ -31,10 +42,11 @@ describe("canvas interaction machine", () => {
     );
   });
 
-  it("updates selection only while selecting", () => {
+  it("keeps selection geometry in typed state", () => {
     const selecting = transitionInteractionState(INITIAL_INTERACTION_STATE, {
       type: "startSelecting",
       anchor: { x: 1, y: 2 },
+      current: { x: 2, y: 3 },
     });
 
     expect(
@@ -47,22 +59,31 @@ describe("canvas interaction machine", () => {
       anchor: { x: 1, y: 2 },
       current: { x: 5, y: 6 },
     });
-
-    expect(
-      transitionInteractionState(INITIAL_INTERACTION_STATE, {
-        type: "updateSelection",
-        current: { x: 5, y: 6 },
-      })
-    ).toBe(INITIAL_INTERACTION_STATE);
   });
 
-  it("tracks shape preview axis", () => {
+  it("tracks drawing progress and shape preview axis", () => {
+    const drawing = transitionInteractionState(INITIAL_INTERACTION_STATE, {
+      type: "startDrawing",
+      tool: "brush",
+      start: { x: 0, y: 0 },
+    });
+    expect(
+      transitionInteractionState(drawing, {
+        type: "updateDrawing",
+        lastGrid: { x: 2, y: 0 },
+        lastPlacedGrid: { x: 2, y: 0 },
+      })
+    ).toMatchObject({
+      type: "drawing",
+      lastGrid: { x: 2, y: 0 },
+      lastPlacedGrid: { x: 2, y: 0 },
+    });
+
     const preview = transitionInteractionState(INITIAL_INTERACTION_STATE, {
       type: "startShapePreview",
       tool: "line",
       start: { x: 0, y: 0 },
     });
-
     expect(
       transitionInteractionState(preview, {
         type: "setShapePreviewAxis",
@@ -71,76 +92,59 @@ describe("canvas interaction machine", () => {
     ).toMatchObject({ type: "shapePreview", axis: "vertical" });
   });
 
-  it("creates structured move and resize states", () => {
-    expect(
-      transitionInteractionState(INITIAL_INTERACTION_STATE, {
-        type: "startStructuredMoving",
-        ids: [boxNode.id],
-        anchor: { x: 1, y: 1 },
-        baseScene: [boxNode],
-      })
-    ).toMatchObject({
-      type: "structuredMoving",
-      ids: [boxNode.id],
+  it("keeps structured drag payloads in move and resize states", () => {
+    const moving = transitionInteractionState(INITIAL_INTERACTION_STATE, {
+      type: "startStructuredMoving",
       anchor: { x: 1, y: 1 },
+      drag,
+    });
+    expect(moving).toMatchObject({
+      type: "structuredMoving",
+      anchor: { x: 1, y: 1 },
+      drag,
     });
 
-    expect(
-      transitionInteractionState(INITIAL_INTERACTION_STATE, {
-        type: "startStructuredResizing",
-        kind: "rect",
-        nodeId: boxNode.id,
-        handle: "se",
-      })
-    ).toEqual({
-      type: "structuredRectResizing",
-      nodeId: boxNode.id,
-      handle: "se",
-    });
-
-    expect(
-      transitionInteractionState(INITIAL_INTERACTION_STATE, {
-        type: "startStructuredResizing",
-        kind: "splitBox",
-        nodeId: "split-1",
-        handle: "split:split-middle",
-      })
-    ).toEqual({
-      type: "structuredSplitBoxResizing",
-      nodeId: "split-1",
-      handle: "split:split-middle",
-    });
-  });
-
-
-  it("maps typed states to legacy modes while the hook is migrating", () => {
-    const pending = transitionInteractionState(INITIAL_INTERACTION_STATE, {
+    const resizing = transitionInteractionState(INITIAL_INTERACTION_STATE, {
       type: "startStructuredResizing",
-      kind: "splitBoxPending",
-      nodeId: "split-1",
-      handle: "split:split-middle",
+      kind: "rect",
+      anchor: { x: 4, y: 2 },
+      drag: { ...drag, handle: "se" },
     });
-
-    expect(pending).toEqual({
-      type: "structuredSplitBoxResizePending",
-      nodeId: "split-1",
-      handle: "split:split-middle",
+    expect(resizing).toMatchObject({
+      type: "structuredRectResizing",
+      anchor: { x: 4, y: 2 },
+      drag: { handle: "se" },
     });
-    expect(toLegacyInteractionMode(pending)).toBe(
-      "structured-splitbox-resize-pending"
-    );
+    expect(getInteractionStart(resizing)).toEqual({ x: 4, y: 2 });
   });
-  it("starts structured text selection", () => {
+
+  it("keeps structured text selection anchors in state", () => {
     expect(
       transitionInteractionState(INITIAL_INTERACTION_STATE, {
         type: "startStructuredTextSelecting",
         nodeId: "text-1",
         anchorOffset: 3,
+        start: { x: 2, y: 4 },
       })
     ).toEqual({
       type: "structuredTextSelecting",
       nodeId: "text-1",
       anchorOffset: 3,
+      start: { x: 2, y: 4 },
     });
+  });
+
+  it("owns the cross-gesture selection anchor in one runtime", () => {
+    const runtime = createCanvasInteractionRuntime();
+    runtime.setSelectionAnchor({ x: 3, y: 4 });
+    runtime.dispatch({
+      type: "startSelecting",
+      anchor: { x: 3, y: 4 },
+      current: { x: 5, y: 6 },
+    });
+
+    expect(runtime.getSelectionAnchor()).toEqual({ x: 3, y: 4 });
+    expect(runtime.getState()).toMatchObject({ type: "selecting" });
+    expect(runtime.reset()).toBe(INITIAL_INTERACTION_STATE);
   });
 });

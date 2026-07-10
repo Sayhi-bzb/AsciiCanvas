@@ -788,6 +788,7 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
       <ContextMenuTrigger asChild>
         <div
           ref={containerRef}
+          data-testid="ascii-canvas-surface"
           style={{ touchAction: 'none' }}
           onContextMenu={handleContextMenu}
           onDragOver={handleDragOver}

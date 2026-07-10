@@ -167,6 +167,7 @@ describe("SessionTabs auto-hide", () => {
       '[data-session-tabs-scroll="true"]'
     ) as HTMLElement | null;
     expect(scroller).not.toBeNull();
+    expect(scroller).toHaveClass("overflow-x-auto", "overflow-y-hidden");
 
     Object.defineProperty(scroller!, "clientWidth", {
       configurable: true,

@@ -221,7 +221,11 @@ export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
             isMobile && "scale-90 origin-bottom"
           )}
         >
-          <nav className="relative flex items-center justify-center gap-1">
+          <nav
+            role="toolbar"
+            aria-label="Canvas tools"
+            className="relative flex items-center justify-center gap-1"
+          >
             {navItems.map((item, index) => {
               const isActive = index === activeIndex;
               const Icon = item.icon;

@@ -3,7 +3,7 @@ import {
   createDrawingUpdateHandler,
   resolveDrawingUpdateDecision,
 } from "@/domains/canvas/components/AsciiCanvas/hooks/interaction/gestures/drawingInteraction";
-import type { Point } from "@/shared/types";
+import { createCanvasInteractionRuntime } from "@/domains/canvas/components/AsciiCanvas/hooks/interaction/core/interactionRuntime";
 
 describe("drawing interaction updates", () => {
   it("does nothing without a previous grid point", () => {
@@ -107,17 +107,15 @@ describe("drawing interaction updates", () => {
       nextLastPlacedGrid: { x: 0, y: 0 },
     });
   });
-  it("executes scratch updates and advances drawing refs", () => {
+  it("executes scratch updates and advances typed drawing state", () => {
     const addScratchPoints = vi.fn();
     const erasePoints = vi.fn();
-    const lastGrid: { current: Point | null } = { current: { x: 0, y: 0 } };
-    const lastPlacedGrid: { current: Point | null } = { current: null };
+    const runtime = createCanvasInteractionRuntime();
+    runtime.dispatch({ type: "startDrawing", tool: "brush", start: { x: 0, y: 0 } });
     const handleDrawing = createDrawingUpdateHandler({
-      getTool: () => "brush",
       getBrushChar: () => "A",
-      lastGrid,
-      lastPlacedGrid,
-      executor: { addScratchPoints, erasePoints },
+      getInteractionState: runtime.getState,
+      executor: { addScratchPoints, erasePoints, dispatchInteraction: runtime.dispatch },
     });
 
     handleDrawing({ x: 2, y: 0 });
@@ -128,23 +126,21 @@ describe("drawing interaction updates", () => {
       { x: 2, y: 0, char: "A" },
     ]);
     expect(erasePoints).not.toHaveBeenCalled();
-    expect(lastGrid.current).toEqual({ x: 2, y: 0 });
-    expect(lastPlacedGrid.current).toBeNull();
+    expect(runtime.getState()).toMatchObject({
+      type: "drawing",
+      lastGrid: { x: 2, y: 0 },
+    });
   });
 
-  it("executes erase updates and preserves placement refs", () => {
+  it("executes erase updates and preserves placement state", () => {
     const addScratchPoints = vi.fn();
     const erasePoints = vi.fn();
-    const lastGrid: { current: Point | null } = { current: { x: 0, y: 0 } };
-    const lastPlacedGrid: { current: Point | null } = {
-      current: { x: 0, y: 0 },
-    };
+    const runtime = createCanvasInteractionRuntime();
+    runtime.dispatch({ type: "startDrawing", tool: "eraser", start: { x: 0, y: 0 } });
     const handleDrawing = createDrawingUpdateHandler({
-      getTool: () => "eraser",
       getBrushChar: () => "A",
-      lastGrid,
-      lastPlacedGrid,
-      executor: { addScratchPoints, erasePoints },
+      getInteractionState: runtime.getState,
+      executor: { addScratchPoints, erasePoints, dispatchInteraction: runtime.dispatch },
     });
 
     handleDrawing({ x: 0, y: 2 });
@@ -155,28 +151,27 @@ describe("drawing interaction updates", () => {
       { x: 0, y: 1 },
       { x: 0, y: 2 },
     ]);
-    expect(lastGrid.current).toEqual({ x: 0, y: 2 });
-    expect(lastPlacedGrid.current).toEqual({ x: 0, y: 0 });
+    expect(runtime.getState()).toMatchObject({
+      type: "drawing",
+      lastGrid: { x: 0, y: 2 },
+      lastPlacedGrid: { x: 0, y: 0 },
+    });
   });
 
   it("skips drawing side effects when no update decision is produced", () => {
     const addScratchPoints = vi.fn();
     const erasePoints = vi.fn();
-    const lastGrid: { current: Point | null } = { current: null };
-    const lastPlacedGrid: { current: Point | null } = { current: null };
+    const runtime = createCanvasInteractionRuntime();
     const handleDrawing = createDrawingUpdateHandler({
-      getTool: () => "brush",
       getBrushChar: () => "A",
-      lastGrid,
-      lastPlacedGrid,
-      executor: { addScratchPoints, erasePoints },
+      getInteractionState: runtime.getState,
+      executor: { addScratchPoints, erasePoints, dispatchInteraction: runtime.dispatch },
     });
 
     handleDrawing({ x: 2, y: 0 });
 
     expect(addScratchPoints).not.toHaveBeenCalled();
     expect(erasePoints).not.toHaveBeenCalled();
-    expect(lastGrid.current).toBeNull();
-    expect(lastPlacedGrid.current).toBeNull();
+    expect(runtime.getState()).toEqual({ type: "idle" });
   });
 });

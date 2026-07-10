@@ -33,6 +33,7 @@ describe("structured text caret selection start", () => {
         type: "startStructuredTextSelecting",
         nodeId: textNode.id,
         anchorOffset: 1,
+        start: { x: 4, y: 3 },
       },
     });
   });

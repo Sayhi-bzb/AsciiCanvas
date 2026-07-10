@@ -37,6 +37,7 @@ export const resolveStructuredTextCaretSelectionStart = ({
       type: "startStructuredTextSelecting",
       nodeId: node.id,
       anchorOffset: offset,
+      start: point,
     },
   };
 };

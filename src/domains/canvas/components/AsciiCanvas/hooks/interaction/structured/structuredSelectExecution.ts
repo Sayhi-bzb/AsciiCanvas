@@ -2,17 +2,13 @@ import type { Point, SelectionArea, StructuredNode } from "@/shared/types";
 import type { StructuredTextSelection } from "@/shared/utils/structuredTextRanges";
 import type { StructuredSplitBoxHandle } from "@/domains/canvas/state/helpers/structuredBoxEditing";
 import type { InteractionEvent } from "../core/interactionMachine";
-import type { StructuredNodeDragPayload } from "./structuredDragStart";
 import {
   resolveStructuredTextCaretSelectionStart,
-  type StructuredTextCaretSelectionStart,
 } from "./structuredTextSelectionStart";
 import {
   resolveStructuredSelectStartContext,
   type StructuredSelectStartDecision,
 } from "./structuredSelectStart";
-
-type RefCell<T> = { current: T };
 
 export type StructuredSelectStartExecutor = {
   setSelectedStructuredNodeIds: (ids: string[]) => void;
@@ -29,11 +25,6 @@ export type StructuredSelectStartExecutor = {
   setSelectionPreview: (selection: SelectionArea | null) => void;
   resetDragState: () => void;
   setCursor: (cursor: string) => void;
-  setStructuredNodeDrag: (drag: StructuredNodeDragPayload | null) => void;
-  setDragStartGrid: (point: Point) => void;
-  setStructuredTextSelectionStart: (
-    start: StructuredTextCaretSelectionStart["selectionStart"] | null
-  ) => void;
   dispatchInteraction: (event: InteractionEvent) => void;
 };
 
@@ -62,8 +53,6 @@ export const executeStructuredSelectStartDecision = (
       executor.clearSelections();
       executor.setTextCursor(selection.cursor);
       executor.setStructuredTextSelection(selection.textSelection);
-      executor.setStructuredTextSelectionStart(selection.selectionStart);
-      executor.setDragStartGrid(selection.dragStart);
       executor.dispatchInteraction(selection.interactionEvent);
       executor.setSelectionPreview(null);
       executor.setCursor("text");
@@ -76,8 +65,6 @@ export const executeStructuredSelectStartDecision = (
       executor.setSelectedStructuredSplitHandle(drag.splitHandle);
       executor.setEditingStructuredTextNodeId(null);
       executor.setStructuredTextSelection(null);
-      executor.setStructuredNodeDrag(drag.drag);
-      executor.setDragStartGrid(start);
       executor.dispatchInteraction(drag.interactionEvent);
       executor.setCursor(decision.cursor);
       executor.setTextCursor(null);
@@ -98,9 +85,6 @@ export const executeStructuredSelectStartDecision = (
 };
 
 export const createStructuredSelectStartExecutor = ({
-  dragStartGrid,
-  structuredNodeDrag,
-  structuredTextSelectionStart,
   setSelectedStructuredNodeIds,
   setSelectedStructuredSplitHandle,
   setStructuredContextPoint,
@@ -113,11 +97,6 @@ export const createStructuredSelectStartExecutor = ({
   setCursor,
   dispatchInteraction,
 }: {
-  dragStartGrid: RefCell<Point | null>;
-  structuredNodeDrag: RefCell<StructuredNodeDragPayload | null>;
-  structuredTextSelectionStart: RefCell<
-    StructuredTextCaretSelectionStart["selectionStart"] | null
-  >;
   setSelectedStructuredNodeIds: (ids: string[]) => void;
   setSelectedStructuredSplitHandle: (
     handle: { nodeId: string; handle: StructuredSplitBoxHandle } | null
@@ -144,15 +123,6 @@ export const createStructuredSelectStartExecutor = ({
   setSelectionPreview,
   resetDragState,
   setCursor,
-  setStructuredNodeDrag: (drag) => {
-    structuredNodeDrag.current = drag;
-  },
-  setDragStartGrid: (point) => {
-    dragStartGrid.current = point;
-  },
-  setStructuredTextSelectionStart: (selectionStart) => {
-    structuredTextSelectionStart.current = selectionStart;
-  },
   dispatchInteraction,
 });
 

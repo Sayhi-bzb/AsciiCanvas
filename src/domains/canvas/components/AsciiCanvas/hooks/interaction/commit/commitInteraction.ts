@@ -1,5 +1,5 @@
 import type { CanvasMode, ToolType } from "@/shared/types";
-import type { LegacyInteractionMode } from "../core/interactionMachine";
+import type { InteractionState } from "../core/interactionMachine";
 
 export type DragEndCommitDecision =
   | { type: "none" }
@@ -14,34 +14,31 @@ const isStructuredShapeTool = (tool: ToolType, canvasMode: CanvasMode) =>
   (tool === "box" || tool === "splitBox" || tool === "line" || tool === "bg");
 
 export const resolveDragEndCommitDecision = ({
-  mode,
+  state,
   tool,
   canvasMode,
-  hasDragStart,
   isStructuredSplitBoxDividerResize,
 }: {
-  mode: LegacyInteractionMode;
+  state: InteractionState;
   tool: ToolType;
   canvasMode: CanvasMode;
-  hasDragStart: boolean;
   isStructuredSplitBoxDividerResize: boolean;
 }): DragEndCommitDecision => {
-  switch (mode) {
+  switch (state.type) {
     case "drawing":
-      if (tool === "brush") return { type: "commitScratch" };
-      if (tool === "eraser") return { type: "forceHistorySave" };
+      if (state.tool === "brush") return { type: "commitScratch" };
+      if (state.tool === "eraser") return { type: "forceHistorySave" };
       return { type: "none" };
-    case "shape-preview":
-      if (!hasDragStart) return { type: "none" };
+    case "shapePreview":
       return isStructuredShapeTool(tool, canvasMode)
         ? { type: "commitStructuredShape" }
         : { type: "commitScratch" };
-    case "structured-node-moving":
+    case "structuredMoving":
       return { type: "flushStructuredMove" };
-    case "structured-box-resizing":
-    case "structured-line-resizing":
+    case "structuredRectResizing":
+    case "structuredLineResizing":
       return { type: "forceHistorySave" };
-    case "structured-splitbox-resizing":
+    case "structuredSplitBoxResizing":
       return isStructuredSplitBoxDividerResize
         ? { type: "flushStructuredSplitBoxResize" }
         : { type: "forceHistorySave" };

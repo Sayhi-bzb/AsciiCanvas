@@ -16,7 +16,10 @@ import {
   type StructuredLineResizeHandle,
   type StructuredSplitBoxHandle,
 } from "@/domains/canvas/state/helpers/structuredBoxEditing";
-import type { InteractionEvent, LegacyInteractionMode } from "../core/interactionMachine";
+import type {
+  InteractionEvent,
+  InteractionState,
+} from "../core/interactionMachine";
 import { isShapeTool } from "./dragStartInteraction";
 import type { StructuredNodeDragPayload } from "../structured/structuredDragStart";
 
@@ -147,132 +150,122 @@ export const resolveStructuredTextDragSelection = ({
 };
 
 export const resolveDragUpdateDecision = ({
-  mode,
-  tool,
   canvasMode,
-  dragStart,
   currentGrid,
   canvasBounds,
-  drag,
   structuredScene,
-  textSelectionStart,
-  lineAxis,
+  state,
 }: {
-  mode: LegacyInteractionMode;
-  tool: ToolType;
   canvasMode: CanvasMode;
-  dragStart: Point;
   currentGrid: Point;
   canvasBounds: { width: number; height: number } | null;
-  drag: StructuredNodeDragPayload | null;
   structuredScene: StructuredNode[];
-  textSelectionStart: StructuredTextSelectionStart | null;
-  lineAxis: "horizontal" | "vertical" | null;
+  state: InteractionState;
 }): DragUpdateDecision => {
-  switch (mode) {
+  switch (state.type) {
     case "selecting":
       return {
         type: "selection-preview",
         preview: resolveSelectionDragUpdatePreview({
-          dragStart,
+          dragStart: state.anchor,
           currentGrid,
           canvasMode,
           canvasBounds,
         }),
       };
     case "drawing":
-      return tool === "brush" || tool === "eraser"
+      return state.tool === "brush" || state.tool === "eraser"
         ? { type: "drawing", point: currentGrid }
         : { type: "none" };
-    case "structured-node-moving":
-      return drag
-        ? {
-            type: "structured-move",
-            drag,
-            delta: {
-              x: currentGrid.x - dragStart.x,
-              y: currentGrid.y - dragStart.y,
-            },
-          }
-        : { type: "none" };
-    case "structured-box-resizing":
+    case "structuredMoving":
+      return {
+        type: "structured-move",
+        drag: state.drag,
+        delta: {
+          x: currentGrid.x - state.anchor.x,
+          y: currentGrid.y - state.anchor.y,
+        },
+      };
+    case "structuredRectResizing":
       if (
-        (drag?.node.type === "box" || drag?.node.type === "bg") &&
-        drag.handle
+        (state.drag.node.type === "box" || state.drag.node.type === "bg") &&
+        state.drag.handle
       ) {
         return {
           type: "structured-rect-resize",
-          node: drag.node,
-          handle: drag.handle as StructuredBoxResizeHandle,
+          node: state.drag.node,
+          handle: state.drag.handle as StructuredBoxResizeHandle,
           point: currentGrid,
         };
       }
       return { type: "none" };
-    case "structured-splitbox-resize-pending":
+    case "structuredSplitBoxResizePending":
       if (
-        currentGrid.x === dragStart.x &&
-        currentGrid.y === dragStart.y
+        currentGrid.x === state.anchor.x &&
+        currentGrid.y === state.anchor.y
       ) {
         return { type: "none" };
       }
-      if (drag?.node.type === "splitBox" && drag.handle) {
-        const handle = drag.handle as StructuredSplitBoxHandle;
+      if (state.drag.node.type === "splitBox" && state.drag.handle) {
         return {
           type: "structured-splitbox-begin-divider-resize",
-          drag,
+          drag: state.drag,
           point: currentGrid,
           interactionEvent: {
             type: "startStructuredResizing",
             kind: "splitBox",
-            nodeId: drag.node.id,
-            handle,
+            anchor: state.anchor,
+            drag: state.drag,
           },
         };
       }
       return { type: "none" };
-    case "structured-splitbox-resizing":
-      if (drag?.node.type === "splitBox" && drag.handle) {
-        const handle = drag.handle as StructuredSplitBoxHandle;
+    case "structuredSplitBoxResizing":
+      if (state.drag.node.type === "splitBox" && state.drag.handle) {
+        const handle = state.drag.handle as StructuredSplitBoxHandle;
         if (isStructuredSplitBoxLineHandle(handle)) {
           return {
             type: "structured-splitbox-divider-resize",
-            drag,
+            drag: state.drag,
             point: currentGrid,
           };
         }
         return {
           type: "structured-splitbox-resize",
-          node: drag.node,
+          node: state.drag.node,
           handle,
           point: currentGrid,
         };
       }
       return { type: "none" };
-    case "structured-line-resizing":
-      if (drag?.node.type === "line" && drag.handle) {
+    case "structuredLineResizing":
+      if (state.drag.node.type === "line" && state.drag.handle) {
         return {
           type: "structured-line-resize",
-          node: drag.node,
-          handle: drag.handle as StructuredLineResizeHandle,
+          node: state.drag.node,
+          handle: state.drag.handle as StructuredLineResizeHandle,
           point: currentGrid,
         };
       }
       return { type: "none" };
-    case "structured-text-selecting":
+    case "structuredTextSelecting":
       return (
         resolveStructuredTextDragSelection({
-          selectionStart: textSelectionStart,
+          selectionStart: {
+            nodeId: state.nodeId,
+            offset: state.anchorOffset,
+          },
           currentGrid,
           structuredScene,
         }) ?? { type: "none" }
       );
-    case "shape-preview": {
+    case "shapePreview": {
       const update = resolveShapePreviewUpdate({
-        tool,
+        tool: state.tool,
         canvasMode,
-        dragStart,
+        dragStart: state.start,
         currentGrid,
-        currentAxis: lineAxis,
+        currentAxis: state.axis,
       });
       return update ? { type: "shape-preview", update } : { type: "none" };
     }
