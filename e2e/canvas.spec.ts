@@ -133,6 +133,48 @@ test.describe('Canvas', () => {
     }).toEqual({ x: 2, y: 1 });
   });
 
+  test('keeps structured text input focused after clicking the same caret position', async ({ page }) => {
+    const viewport = { offset: { x: 180, y: 130 }, zoom: 1 };
+    const textNode = {
+      id: 'text-1', type: 'text', order: 1,
+      position: { x: 2, y: 2 }, text: 'Edit',
+      style: { color: '#111827' },
+    };
+    await seedSession(page, {
+      id: 'structured-text-e2e', name: 'Structured Text E2E', mode: 'structured',
+      scene: [textNode], components: [], grid: [], viewport,
+    });
+    const box = await page.getByTestId('ascii-canvas-surface').boundingBox();
+    expect(box).not.toBeNull();
+    const caret = {
+      x: box!.x + viewport.offset.x + 3 * CELL_WIDTH,
+      y: box!.y + viewport.offset.y + 2 * CELL_HEIGHT,
+    };
+
+    await page.mouse.dblclick(caret.x, caret.y);
+    await page.keyboard.type('A');
+    await expect.poll(async () => {
+      const state = await readPersistedState(page);
+      return state.structuredScene.find(
+        (item: { id: string }) => item.id === textNode.id,
+      )?.text as string;
+    }).toContain('A');
+    const afterFirstState = await readPersistedState(page);
+    const afterFirstInput = afterFirstState.structuredScene.find(
+      (item: { id: string }) => item.id === textNode.id,
+    )?.text as string;
+
+    await page.mouse.click(caret.x, caret.y);
+    await page.keyboard.type('B');
+    await expect.poll(async () => {
+      const state = await readPersistedState(page);
+      return state.structuredScene.find(
+        (item: { id: string }) => item.id === textNode.id,
+      )?.text as string;
+    }).toContain('B');
+    expect(afterFirstInput).not.toContain('B');
+  });
+
   test('keeps animation viewport fixed during drag and advances frames', async ({ page }) => {
     const viewport = { offset: { x: 180, y: 130 }, zoom: 1 };
     const frames = [

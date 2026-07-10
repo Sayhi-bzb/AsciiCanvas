@@ -169,6 +169,58 @@ describe("AsciiCanvas focus management", () => {
     input.remove();
   });
 
+  it("refocuses structured text input after clicking the same canvas position", () => {
+    useCanvasStore.setState({
+      canvasMode: "structured",
+      textCursor: { x: 2, y: 0 },
+      editingStructuredTextNodeId: "text-1",
+      selectedStructuredNodeIds: ["text-1"],
+      structuredScene: [
+        {
+          id: "text-1",
+          type: "text",
+          order: 1,
+          position: { x: 0, y: 0 },
+          text: "Edit",
+          style: { color: "#ffffff" },
+        },
+      ],
+    });
+    const { container, getByTestId } = render(
+      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+    );
+    const textarea = container.querySelector("textarea");
+    const focusSink = document.createElement("button");
+    document.body.appendChild(focusSink);
+    focusSink.focus();
+
+    fireEvent.pointerUp(getByTestId("ascii-canvas-surface"));
+
+    expect(document.activeElement).toBe(textarea);
+    focusSink.remove();
+  });
+
+  it("does not reclaim focus from canvas UI controls", () => {
+    useCanvasStore.setState({
+      canvasMode: "structured",
+      textCursor: { x: 2, y: 0 },
+      editingStructuredTextNodeId: "text-1",
+      selectedStructuredNodeIds: ["text-1"],
+    });
+    const { getByTestId } = render(
+      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+    );
+    const canvasSurface = getByTestId("ascii-canvas-surface");
+    const uiButton = document.createElement("button");
+    uiButton.setAttribute("data-canvas-ui", "true");
+    canvasSurface.appendChild(uiButton);
+    uiButton.focus();
+
+    fireEvent.pointerUp(uiButton);
+
+    expect(document.activeElement).toBe(uiButton);
+  });
+
   it("forwards root double clicks to the canvas interaction hook", () => {
     const { container } = render(
       <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />

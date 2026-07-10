@@ -1,4 +1,4 @@
-import { useRef, useMemo, useEffect, useLayoutEffect, useState, type DragEvent } from 'react';
+import { useRef, useMemo, useEffect, useLayoutEffect, useState, useCallback, type DragEvent } from 'react';
 import { useSize, useEventListener } from 'ahooks';
 import { useCanvasStore } from '@/domains/canvas/state/canvasStore';
 import { useCanvasInteraction } from './hooks/useCanvasInteraction';
@@ -31,6 +31,7 @@ import {
   resolveHistoryShortcutCommand,
 } from '@/domains/actions/adapters/editorCommands';
 import { shouldIgnoreClipboardShortcut } from '@/shared/utils/dom-focus';
+import { shouldIgnoreCanvasSurfaceGesture } from './hooks/interaction/core/gestureGuards';
 import { gridCellRect } from '@/shared/metrics';
 import { GridManager } from '@/shared/utils/grid';
 import {
@@ -333,6 +334,20 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
         selectedStructuredNodeIds.join(','),
       ].join(':')
     : null;
+  const focusManagedTextarea = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea || !hasManagedTextareaTarget) return;
+    if (shouldIgnoreClipboardShortcut(document.activeElement, textarea)) return;
+    if (document.activeElement !== textarea) {
+      textarea.focus({ preventScroll: true });
+    }
+  }, [hasManagedTextareaTarget]);
+  const handleCanvasPointerUp = (
+    event: React.PointerEvent<HTMLDivElement>
+  ) => {
+    if (shouldIgnoreCanvasSurfaceGesture(event.nativeEvent)) return;
+    focusManagedTextarea();
+  };
   const activeContextMenu =
     canvasMode === 'structured' ? STRUCTURED_CONTEXT_MENU : CANVAS_CONTEXT_MENU;
   const getContextMenuActionLabel = (id: string, fallback: string) => {
@@ -415,19 +430,14 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
     if (!textarea) return;
 
     if (hasManagedTextareaTarget) {
-      if (shouldIgnoreClipboardShortcut(document.activeElement, textarea)) {
-        return;
-      }
-      if (document.activeElement !== textarea) {
-        textarea.focus({ preventScroll: true });
-      }
+      focusManagedTextarea();
       return;
     }
 
     if (document.activeElement === textarea) {
       textarea.blur();
     }
-  }, [hasManagedTextareaTarget, managedTextareaFocusKey]);
+  }, [focusManagedTextarea, hasManagedTextareaTarget, managedTextareaFocusKey]);
 
   const runManagedAction = (
     actionId: 'copy' | 'cut' | 'paste',
@@ -795,6 +805,7 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
           onDoubleClick={handleDoubleClick}
+          onPointerUp={handleCanvasPointerUp}
           className="relative w-screen h-screen overflow-hidden bg-background touch-none select-none cursor-default"
         >
           <canvas
