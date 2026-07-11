@@ -38,9 +38,9 @@ const controlTone: Record<Tone, string> = {
 };
 
 const controlSize: Record<Size, string> = {
-  sm: "h-8 px-3 text-sm",
-  md: "h-9 px-4 text-sm",
-  lg: "h-10 px-6 text-sm",
+  sm: "h-7 px-2.5 text-xs",
+  md: "h-8 px-3 text-xs",
+  lg: "h-9 px-4 text-xs",
 };
 
 const controlShape: Record<Shape, string> = {
@@ -61,9 +61,9 @@ export const rx = {
       controlTone[tone],
       controlSize[size],
       controlShape[shape],
-      shape === "square" && size === "sm" && "size-8 px-0",
-      shape === "square" && size === "md" && "size-9 px-0",
-      shape === "square" && size === "lg" && "size-10 px-0",
+      shape === "square" && size === "sm" && "size-7 px-0",
+      shape === "square" && size === "md" && "size-8 px-0",
+      shape === "square" && size === "lg" && "size-9 px-0",
       tone === "link" && "h-auto px-0",
       outlined &&
         "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground"
@@ -80,8 +80,8 @@ export const rx = {
   field: ({ density = "default", invalid = false }: FieldOptions = {}) =>
     cn(
       "w-full rounded-md border bg-background transition-colors outline-none",
-      density === "default" && "h-9 px-3 py-2 text-sm",
-      density === "compact" && "h-8 px-2 text-xs",
+      density === "default" && "h-8 px-2.5 py-1.5 text-xs",
+      density === "compact" && "h-7 px-2 py-1 text-[11px]",
       "focus-visible:ring-ring/50 focus-visible:ring-[3px]",
       invalid && "border-destructive aria-invalid:border-destructive"
     ),
@@ -99,10 +99,15 @@ export const rx = {
       tone === "neutral" &&
         "text-sidebar-foreground bg-background hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
       active && "bg-sidebar-accent text-sidebar-accent-foreground font-medium",
-      size === "sm" && "h-7 text-xs",
-      size === "md" && "h-8 text-sm",
-      size === "lg" && "h-12 text-sm",
+      size === "sm" && "h-6 text-[11px]",
+      size === "md" && "h-7 text-xs",
+      size === "lg" && "h-10 text-xs",
       outlined &&
         "shadow-[0_0_0_1px_hsl(var(--sidebar-border))] hover:shadow-[0_0_0_1px_hsl(var(--sidebar-accent))]"
     ),
+
+  panelText: () => "text-xs leading-4",
+  panelLabel: () =>
+    "text-[11px] leading-4 font-medium text-muted-foreground",
+  panelHeading: () => "text-xs leading-4 font-semibold",
 };

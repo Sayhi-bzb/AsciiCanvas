@@ -60,11 +60,18 @@ describe("SessionTabs auto-hide", () => {
 
     render(<SessionTabs />);
     const wrapper = document.querySelector('[data-canvas-ui="true"]') as HTMLElement | null;
+    const shell = document.querySelector(
+      '[data-session-tabs-shell="true"]'
+    ) as HTMLElement | null;
 
     expect(screen.getByRole("button", { name: "Expand canvas sessions" })).toBeInTheDocument();
-    expect(wrapper?.style.width).toBe("var(--session-tabs-width)");
-    expect(wrapper?.style.getPropertyValue("--session-tabs-width")).toContain("clamp(");
-    expect(wrapper?.style.getPropertyValue("--session-tabs-width")).not.toBe("16rem");
+    expect(wrapper).toHaveAttribute("data-session-tabs-lane", "true");
+    expect(wrapper?.style.left).toBe("4rem");
+    expect(wrapper?.style.right).toBe("4rem");
+    expect(shell?.style.width).toBe("min(var(--session-tabs-width), 100%)");
+    expect(shell?.style.maxWidth).toBe("100%");
+    expect(shell?.style.getPropertyValue("--session-tabs-width")).toContain("clamp(");
+    expect(shell?.style.getPropertyValue("--session-tabs-width")).not.toBe("16rem");
     expect(screen.getAllByText("Alpha")).toHaveLength(2);
     expect(screen.getByText("Beta").closest("[aria-hidden]")).toHaveAttribute(
       "aria-hidden",
@@ -77,20 +84,43 @@ describe("SessionTabs auto-hide", () => {
 
     const { container } = render(<SessionTabs />);
     const wrapper = container.querySelector('[data-canvas-ui="true"]') as HTMLElement | null;
-    const shell = container.querySelector('[data-canvas-ui="true"] > div');
+    const shell = container.querySelector(
+      '[data-session-tabs-shell="true"]'
+    ) as HTMLElement | null;
     expect(shell).not.toBeNull();
 
     fireEvent.pointerEnter(shell!);
 
-    const expandedWidth = wrapper?.style.getPropertyValue("--session-tabs-width");
+    const expandedWidth = shell?.style.getPropertyValue("--session-tabs-width");
     expect(expandedWidth).toContain("clamp(");
-    expect(expandedWidth).not.toBe("min(92vw, 820px)");
+    expect(expandedWidth).not.toContain("vw");
+    expect(wrapper?.style.left).toBe("4rem");
     expect(screen.getAllByText("Alpha")).toHaveLength(2);
     expect(screen.getByText("Beta").closest("[aria-hidden]")).toHaveAttribute(
       "aria-hidden",
       "false"
     );
     expect(screen.getByLabelText("Close Alpha")).toBeInTheDocument();
+  });
+
+  it("centers the shell inside custom layout safe areas", () => {
+    setTwoSessions();
+
+    const { container } = render(
+      <SessionTabs leftInset="20.5rem" rightInset="4rem" />
+    );
+    const lane = container.querySelector(
+      '[data-session-tabs-lane="true"]'
+    ) as HTMLElement | null;
+    const shell = container.querySelector(
+      '[data-session-tabs-shell="true"]'
+    ) as HTMLElement | null;
+
+    expect(lane?.style.left).toBe("20.5rem");
+    expect(lane?.style.right).toBe("4rem");
+    expect(lane).toHaveClass("flex", "justify-center");
+    expect(shell?.style.width).toBe("min(var(--session-tabs-width), 100%)");
+    expect(shell?.style.maxWidth).toBe("100%");
   });
 
   it("keeps the full bar expanded while the create menu is open", async () => {

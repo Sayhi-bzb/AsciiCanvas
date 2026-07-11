@@ -91,9 +91,9 @@ export function ActionButton({
           <CurrentIcon className={iconClassName} />
           {size === "full" && label && (
             <div className="flex flex-col items-center">
-              <span className="text-sm font-bold">{label}</span>
+              <span className="text-xs font-semibold">{label}</span>
               {subLabel && (
-                <span className="text-[10px] opacity-60 uppercase tracking-tighter">
+                <span className="text-[11px] leading-4 opacity-60">
                   {subLabel}
                 </span>
               )}

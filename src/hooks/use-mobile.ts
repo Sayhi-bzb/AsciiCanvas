@@ -35,7 +35,9 @@ export function useSidebarAutoCollapseSignal() {
   const previousShouldAutoCollapseSidebar = React.useRef(
     shouldAutoCollapseSidebar
   )
-  const [signal, setSignal] = React.useState(0)
+  const [signal, setSignal] = React.useState(() =>
+    shouldAutoCollapseSidebar ? 1 : 0
+  )
 
   React.useEffect(() => {
     if (!previousShouldAutoCollapseSidebar.current && shouldAutoCollapseSidebar) {

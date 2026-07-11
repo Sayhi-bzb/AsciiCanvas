@@ -51,16 +51,22 @@ const getModeLabelKey = (mode: "freeform" | "structured" | "animation") => {
   }
 };
 
-const getModeIcon = (mode: "freeform" | "structured" | "animation" | undefined) => {
+function SessionModeIcon({
+  mode,
+  className,
+}: {
+  mode: "freeform" | "structured" | "animation" | undefined;
+  className?: string;
+}) {
   switch (mode) {
     case "structured":
-      return Box;
+      return <Box className={className} />;
     case "animation":
-      return Clapperboard;
+      return <Clapperboard className={className} />;
     default:
-      return Pencil;
+      return <Pencil className={className} />;
   }
-};
+}
 
 const createOptionMeta = [
   { mode: "freeform" as const, labelKey: "session.newFreeform", icon: Pencil },
@@ -72,7 +78,13 @@ const createOptionMeta = [
   icon: typeof Pencil;
 }>;
 
-export function SessionTabs() {
+export function SessionTabs({
+  leftInset,
+  rightInset,
+}: {
+  leftInset?: string;
+  rightInset?: string;
+}) {
   const { t } = useUiI18n();
   const {
     canvasSessions,
@@ -129,14 +141,19 @@ export function SessionTabs() {
   const expandedChromeWidthRem =
     canvasSessions.length * (isMobile ? 4.75 : 5.25) + 2.75;
   const expandedSessionTabsWidth = isMobile
-    ? `clamp(13rem, calc(${expandedNameLength}ch + ${expandedChromeWidthRem}rem), min(96vw, 820px))`
-    : `clamp(14rem, calc(${expandedNameLength}ch + ${expandedChromeWidthRem}rem), min(92vw, 820px))`;
+    ? `clamp(13rem, calc(${expandedNameLength}ch + ${expandedChromeWidthRem}rem), 820px)`
+    : `clamp(14rem, calc(${expandedNameLength}ch + ${expandedChromeWidthRem}rem), 820px)`;
   const sessionTabsWidth = showExpandedTabs
     ? expandedSessionTabsWidth
     : collapsedSessionTabsWidth;
   const sessionTabsStyle = {
     "--session-tabs-width": sessionTabsWidth,
-    width: "var(--session-tabs-width)",
+    width: "min(var(--session-tabs-width), 100%)",
+    maxWidth: "100%",
+  } as CSSProperties;
+  const sessionTabsLaneStyle = {
+    left: leftInset ?? (isMobile ? "3.75rem" : "4rem"),
+    right: rightInset ?? (isMobile ? "0.5rem" : "4rem"),
   } as CSSProperties;
 
   const clearCollapseTimer = () => {
@@ -256,7 +273,6 @@ export function SessionTabs() {
     expandTabsTemporarily();
   };
 
-  const ModeIcon = getModeIcon(activeSession?.mode);
   const modeLabel = activeSession
     ? t(getModeLabelKey(activeSession.mode))
     : t("session.fallbackName");
@@ -264,14 +280,17 @@ export function SessionTabs() {
   return (
     <div
       className={cn(
-        "fixed left-1/2 top-3 z-[70] -translate-x-1/2 pointer-events-none transition-[width,top] duration-200 ease-out",
+        "fixed top-3 z-[70] flex justify-center pointer-events-none transition-[left,right,top] duration-200 ease-out",
         isMobile && "top-2"
       )}
-      style={sessionTabsStyle}
+      style={sessionTabsLaneStyle}
       data-canvas-ui="true"
+      data-session-tabs-lane="true"
     >
       <div
         ref={shellRef}
+        style={sessionTabsStyle}
+        data-session-tabs-shell="true"
         onPointerEnter={expandTabs}
         onPointerLeave={collapseTabsSoon}
         onFocusCapture={expandTabs}
@@ -302,7 +321,10 @@ export function SessionTabs() {
             aria-hidden={showExpandedTabs}
             tabIndex={showExpandedTabs ? -1 : 0}
           >
-            <ModeIcon className="size-3.5 shrink-0 text-muted-foreground" />
+            <SessionModeIcon
+              mode={activeSession?.mode}
+              className="size-3.5 shrink-0 text-muted-foreground"
+            />
             <span className="truncate">
               {activeSession?.name ?? t("session.fallbackName")}
             </span>
@@ -320,7 +342,6 @@ export function SessionTabs() {
           >
             {canvasSessions.map((session) => {
               const isActive = session.id === activeCanvasId;
-              const SessionModeIcon = getModeIcon(session.mode);
               const sessionModeLabel = t(getModeLabelKey(session.mode));
               return (
                 <div
@@ -364,6 +385,7 @@ export function SessionTabs() {
                       title={`${session.name} (${sessionModeLabel})`}
                     >
                       <SessionModeIcon
+                        mode={session.mode}
                         className={cn(
                           "size-3.5 shrink-0",
                           isActive ? "text-primary/80" : "text-muted-foreground"
@@ -433,10 +455,10 @@ export function SessionTabs() {
                     }
                     setCreateMenuOpen(false);
                   }}
-                  className="w-full flex items-center gap-2 h-9 px-2 rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+                  className="flex h-7 w-full items-center gap-2 rounded-md px-2 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
                 >
                   <Icon className="size-3.5 shrink-0" />
-                  <span className="text-sm font-medium">{t(option.labelKey)}</span>
+                  <span className="font-medium">{t(option.labelKey)}</span>
                 </button>
               );
             })}
@@ -446,9 +468,9 @@ export function SessionTabs() {
 
       <Dialog open={animationDialogOpen} onOpenChange={setAnimationDialogOpen}>
         <DialogContent className="max-w-md overflow-hidden border-none p-0 shadow-2xl">
-          <div className="border-b bg-muted/30 px-5 py-4">
+          <div className="border-b bg-muted/30 px-4 py-3">
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-base">
+              <DialogTitle className="flex items-center gap-2">
                 <Clapperboard className="size-4 text-primary" />
                 {t("session.animation.title")}
               </DialogTitle>
@@ -458,12 +480,12 @@ export function SessionTabs() {
             </DialogHeader>
           </div>
 
-          <div className="space-y-4 bg-background px-5 py-5">
-            <div className="space-y-2">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+          <div className="space-y-3 bg-background px-4 py-4">
+            <div className="space-y-1.5">
+              <div className="text-[11px] font-medium text-muted-foreground">
                 {t("session.animation.presets")}
               </div>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-1.5">
                 {ANIMATION_SIZE_PRESETS.map((preset) => (
                   <button
                     key={preset.labelKey}
@@ -472,12 +494,12 @@ export function SessionTabs() {
                       setAnimationWidth(String(preset.width));
                       setAnimationHeight(String(preset.height));
                     }}
-                    className="rounded-xl border border-border bg-muted/25 px-3 py-3 text-left transition-colors hover:bg-accent/45"
+                    className="rounded-md border border-border bg-muted/25 px-2.5 py-2 text-left transition-colors hover:bg-accent/45"
                   >
                     <div className="text-[11px] font-semibold text-foreground">
                       {preset.width} x {preset.height}
                     </div>
-                    <div className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
+                    <div className="mt-1 text-[11px] leading-4 text-muted-foreground">
                       {t(preset.labelKey)}
                     </div>
                   </button>
@@ -485,48 +507,46 @@ export function SessionTabs() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
                 <Label htmlFor="animation-width">{t("session.animation.width")}</Label>
                 <Input
                   id="animation-width"
                   inputMode="numeric"
                   value={animationWidth}
                   onChange={(event) => setAnimationWidth(event.target.value)}
-                  className="h-10"
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <Label htmlFor="animation-height">{t("session.animation.height")}</Label>
                 <Input
                   id="animation-height"
                   inputMode="numeric"
                   value={animationHeight}
                   onChange={(event) => setAnimationHeight(event.target.value)}
-                  className="h-10"
                 />
               </div>
             </div>
 
-            <div className="rounded-2xl border border-border bg-muted/25 px-4 py-3">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+            <div className="rounded-lg border border-border bg-muted/25 px-3 py-2.5">
+              <div className="text-[11px] font-medium text-muted-foreground">
                 {t("session.animation.startupDefaults")}
               </div>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-xl border border-border bg-background/80 px-3 py-2">
-                  <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                <div className="rounded-md border border-border bg-background/80 px-2.5 py-2">
+                  <div className="text-[11px] font-medium text-muted-foreground">
                     {t("session.animation.playback")}
                   </div>
-                  <div className="mt-1 text-sm font-semibold text-foreground">10 FPS</div>
+                  <div className="mt-1 text-xs font-semibold text-foreground">10 FPS</div>
                   <div className="mt-1 text-[11px] text-muted-foreground">
                     {t("session.animation.loopEnabled")}
                   </div>
                 </div>
-                <div className="rounded-xl border border-border bg-background/80 px-3 py-2">
-                  <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                <div className="rounded-md border border-border bg-background/80 px-2.5 py-2">
+                  <div className="text-[11px] font-medium text-muted-foreground">
                     {t("session.animation.onionSkin")}
                   </div>
-                  <div className="mt-1 text-sm font-semibold text-foreground">
+                  <div className="mt-1 text-xs font-semibold text-foreground">
                     2 back / 2 forward
                   </div>
                   <div className="mt-1 text-[11px] text-muted-foreground">

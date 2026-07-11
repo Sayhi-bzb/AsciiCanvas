@@ -60,6 +60,10 @@ describe("SidebarRight structured templates", () => {
     const content = container.querySelector('[data-slot="sidebar-content"]');
     const header = container.querySelector('[data-slot="sidebar-header"]');
     const group = container.querySelector('[data-slot="sidebar-group"]');
+    const scrollArea = container.querySelector('[data-slot="scroll-area"]');
+    const scrollViewport = container.querySelector(
+      '[data-slot="scroll-area-viewport"]'
+    );
     const button = screen.getByRole("button", { name: /button/i });
     const search = screen.getByRole("searchbox", {
       name: "Search structured library",
@@ -69,6 +73,10 @@ describe("SidebarRight structured templates", () => {
     expect(header).not.toHaveTextContent("Components");
     expect(header).toContainElement(search);
     expect(content).not.toContainElement(search);
+    expect(content).toHaveClass("min-h-0", "overflow-hidden");
+    expect(content).not.toHaveClass("overflow-y-auto");
+    expect(content?.querySelectorAll('[data-slot="scroll-area"]')).toHaveLength(1);
+    expect(scrollArea).toHaveClass("min-h-0", "overflow-hidden");
     expect(content).toHaveTextContent("Template");
     expect(content).toHaveTextContent("Components");
     expect(screen.getByRole("tab", { name: "Template" })).toHaveAttribute(
@@ -78,6 +86,9 @@ describe("SidebarRight structured templates", () => {
     expect(screen.getByRole("tab", { name: "Components" })).toHaveAttribute(
       "aria-selected",
       "true"
+    );
+    expect(scrollViewport).not.toContainElement(
+      screen.getByRole("tab", { name: "Components" })
     );
     expect(screen.getByTestId("structured-sidebar-active-tab-line")).toBeInTheDocument();
     expect(button).toBeInTheDocument();
@@ -130,6 +141,48 @@ describe("SidebarRight structured templates", () => {
     expect(screen.queryByRole("button", { name: /terminal/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /phone/i })).not.toBeInTheDocument();
     expect(screen.queryByText("Nerd Icons")).not.toBeInTheDocument();
+  });
+
+  it("aligns footer actions and keeps GitHub on the far right", () => {
+    const { container } = render(
+      <SidebarProvider>
+        <SidebarRight />
+      </SidebarProvider>
+    );
+    const actions = screen.getByTestId("sidebar-footer-actions");
+    const github = screen.getByTestId("sidebar-footer-github");
+    const actionButtons = actions.querySelectorAll("button");
+    const githubButton = screen.getByRole("button", {
+      name: "Open Source Code",
+    });
+
+    expect(actions).toHaveClass("grid-cols-6", "gap-1");
+    expect(actionButtons).toHaveLength(6);
+    actionButtons.forEach((button) => expect(button).toHaveClass("size-8"));
+    expect(actions).toContainElement(
+      screen.getByRole("button", { name: "UI language" })
+    );
+    expect(github).toContainElement(githubButton);
+    expect(githubButton).toHaveClass("size-8");
+    expect(
+      actions.compareDocumentPosition(github) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(container.querySelector('[data-slot="sidebar-footer"]')).toContainElement(
+      github
+    );
+  });
+
+  it("stacks footer actions with GitHub last when collapsed", () => {
+    render(
+      <SidebarProvider defaultOpen={false}>
+        <SidebarRight />
+      </SidebarProvider>
+    );
+
+    expect(screen.getByTestId("sidebar-footer-actions")).toHaveClass(
+      "grid-cols-1"
+    );
+    expect(screen.getByTestId("sidebar-footer-github")).toHaveClass("mt-1");
   });
 
   it("switches structured sidebar tabs between templates and components", () => {

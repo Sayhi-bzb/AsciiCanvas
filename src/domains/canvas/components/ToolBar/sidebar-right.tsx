@@ -82,7 +82,10 @@ export function SidebarRight() {
       variant="floating"
       side="right"
       className="pointer-events-auto"
-      contentClassName={canvasMode === "structured" ? "gap-0 p-2" : undefined}
+      contentClassName={cn(
+        "min-h-0 overflow-hidden",
+        canvasMode === "structured" && "gap-0 p-2"
+      )}
       header={
         <SidebarHeader
           className={cn(
@@ -112,14 +115,20 @@ export function SidebarRight() {
         </SidebarHeader>
       }
       footer={
-        <div className={cn("flex w-full flex-col gap-2", isCollapsed && "items-center")}>
+        <TooltipProvider>
           <div
             className={cn(
-              "flex items-center justify-between w-full px-1",
-              isCollapsed && "flex-col gap-2"
+              "flex w-full items-center justify-between px-1",
+              isCollapsed && "flex-col gap-1"
             )}
           >
-            <div className={cn("flex items-center gap-1", isCollapsed && "flex-col")}>
+            <div
+              data-testid="sidebar-footer-actions"
+              className={cn(
+                "grid grid-cols-6 items-center justify-items-center gap-1",
+                isCollapsed && "grid-cols-1"
+              )}
+            >
               <ImportButton />
 
               <ExportDialog
@@ -133,84 +142,62 @@ export function SidebarRight() {
                 setExportShowGrid={setExportShowGrid}
               />
 
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      tone="subtle"
-                      shape="square"
-                      size="md"
-                      className={cn(
-                        "size-8 transition-colors",
-                        showGrid ? "text-primary" : "text-muted-foreground"
-                      )}
-                      onClick={() =>
-                        runSidebarAction("toggle-grid", {
-                          showGrid,
-                          setShowGrid,
-                          setZoom,
-                          setOffset,
-                        })
-                      }
-                    >
-                      {showGrid ? (
-                        <Eye className="size-4" />
-                      ) : (
-                        <EyeOff className="size-4" />
-                      )}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="left">
-                    {showGrid
-                      ? t("sidebar.grid.hide")
-                      : t("action.toggleGrid")}
-                  </TooltipContent>
-                </Tooltip>
-
-                <HandbookDialog />
-
-                <ClearCanvasDialog
-                  isCollapsed={isCollapsed}
-                  iconOnly
-                  label={
-                    canvasMode === "animation"
-                      ? t("sidebar.clear.frame")
-                      : t("sidebar.clear.canvas")
-                  }
-                  description={
-                    canvasMode === "animation"
-                      ? t("sidebar.clear.frameDescription")
-                      : t("sidebar.clear.canvasDescription")
-                  }
-                  onConfirm={clearCanvas}
-                />
-              </TooltipProvider>
-            </div>
-
-            <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
                     tone="subtle"
                     shape="square"
                     size="md"
-                    className="size-8 text-muted-foreground"
+                    className={cn(
+                      "size-8 transition-colors",
+                      showGrid ? "text-primary" : "text-muted-foreground"
+                    )}
                     onClick={() =>
-                      runSidebarAction("open-source-code", {
+                      runSidebarAction("toggle-grid", {
                         showGrid,
                         setShowGrid,
                         setZoom,
                         setOffset,
                       })
                     }
-                    >
-                      <Github className="size-4" />
-                    </Button>
-                  </TooltipTrigger>
+                    aria-label={
+                      showGrid
+                        ? t("sidebar.grid.hide")
+                        : t("action.toggleGrid")
+                    }
+                  >
+                    {showGrid ? (
+                      <Eye className="size-4" />
+                    ) : (
+                      <EyeOff className="size-4" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
                 <TooltipContent side="left">
-                  {t("action.openSourceCode")}
+                  {showGrid
+                    ? t("sidebar.grid.hide")
+                    : t("action.toggleGrid")}
                 </TooltipContent>
               </Tooltip>
+
+              <HandbookDialog />
+
+              <ClearCanvasDialog
+                isCollapsed={isCollapsed}
+                iconOnly
+                label={
+                  canvasMode === "animation"
+                    ? t("sidebar.clear.frame")
+                    : t("sidebar.clear.canvas")
+                }
+                description={
+                  canvasMode === "animation"
+                    ? t("sidebar.clear.frameDescription")
+                    : t("sidebar.clear.canvasDescription")
+                }
+                onConfirm={clearCanvas}
+              />
+
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -230,14 +217,44 @@ export function SidebarRight() {
                     : t("language.switchToEnglish")}
                 </TooltipContent>
               </Tooltip>
-            </TooltipProvider>
+            </div>
+
+            <div
+              data-testid="sidebar-footer-github"
+              className={cn("shrink-0", isCollapsed && "mt-1")}
+            >
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    tone="subtle"
+                    shape="square"
+                    size="md"
+                    className="size-8 text-muted-foreground"
+                    onClick={() =>
+                      runSidebarAction("open-source-code", {
+                        showGrid,
+                        setShowGrid,
+                        setZoom,
+                        setOffset,
+                      })
+                    }
+                    aria-label={t("action.openSourceCode")}
+                  >
+                    <Github className="size-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left">
+                  {t("action.openSourceCode")}
+                </TooltipContent>
+              </Tooltip>
+            </div>
           </div>
-        </div>
+        </TooltipProvider>
       }
     >
-      <div className="flex flex-col h-full">
+      <div className="flex min-h-0 flex-1 flex-col">
         {canvasMode === "structured" && !isCollapsed && (
-          <div className="border-b px-2 pb-2 pt-1">
+          <div className="shrink-0 border-b px-2 pb-2 pt-1">
             <div
               className="flex items-end gap-4"
               role="tablist"
@@ -273,7 +290,7 @@ export function SidebarRight() {
             </div>
           </div>
         )}
-        <ScrollArea className="flex-1">
+        <ScrollArea className="min-h-0 min-w-0 flex-1">
           {canvasMode === "structured" ? (
             structuredSidebarTab === "template" ? (
               <StructuredTemplateLibrary

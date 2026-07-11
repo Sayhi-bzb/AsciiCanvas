@@ -125,7 +125,7 @@ export function ShapeSubmenu({
               {isSubActive && <Check className="size-3.5 stroke-[3]" />}
             </div>
             <meta.icon className="size-4 shrink-0" />
-            <span className="flex-1 text-left text-sm font-medium pr-4 whitespace-nowrap ml-1">
+            <span className="ml-1 flex-1 whitespace-nowrap pr-4 text-left text-xs font-medium">
               {meta.label}
             </span>
           </button>
@@ -329,7 +329,7 @@ export function ColorPickerPanel({
           })}
         </div>
         <div className="flex items-center justify-end px-0.5">
-          <span className="font-mono text-[10px] text-muted-foreground">
+          <span className="font-mono text-[11px] text-muted-foreground">
             {value}
           </span>
         </div>
@@ -379,13 +379,13 @@ export function ColorPickerPanel({
               onClick={(e) => e.stopPropagation()}
               placeholder="#00ffcc"
               maxLength={7}
-              className="h-8 flex-1 rounded-lg bg-muted/40 px-2 font-mono text-xs uppercase shadow-none"
+              className="h-7 flex-1 rounded-md bg-muted/40 px-2 font-mono text-xs uppercase shadow-none"
             />
             <button
               type="button"
               disabled={!normalizedCustomColor}
               onClick={() => normalizedCustomColor && pickColor(normalizedCustomColor)}
-              className="h-8 rounded-lg bg-primary px-2 text-[11px] font-semibold text-primary-foreground transition-opacity disabled:pointer-events-none disabled:opacity-40"
+              className="h-7 rounded-md bg-primary px-2 text-[11px] font-semibold text-primary-foreground transition-opacity disabled:pointer-events-none disabled:opacity-40"
             >
               {t("color.use")}
             </button>

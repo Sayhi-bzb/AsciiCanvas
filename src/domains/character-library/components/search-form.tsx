@@ -37,7 +37,7 @@ export function SearchForm({ className, ...props }: React.ComponentProps<"form">
             <button
               type="button"
               onClick={() => setSearchQuery("")}
-              className="absolute top-1/2 right-2.5 -translate-y-1/2 text-[10px] font-bold text-muted-foreground hover:text-foreground transition-colors"
+              className="absolute top-1/2 right-2.5 -translate-y-1/2 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
             >
               ESC
             </button>

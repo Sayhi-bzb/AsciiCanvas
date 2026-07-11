@@ -7,6 +7,7 @@ import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
+import { ScrollArea } from "@/shared/ui/scroll-area";
 import {
   Popover,
   PopoverContent,
@@ -61,7 +62,7 @@ const createDefaultConfigs = (
   },
 });
 
-const fieldClassName = "h-8 rounded-md border-border bg-background px-2 text-xs";
+const fieldClassName = "h-7 rounded-md border-border bg-background px-2 text-xs";
 
 function NumberField({
   label,
@@ -74,7 +75,7 @@ function NumberField({
 }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+      <Label>
         {label}
       </Label>
       <Input
@@ -98,7 +99,7 @@ function TextField({
 }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+      <Label>
         {label}
       </Label>
       <Input
@@ -121,14 +122,14 @@ function ColorField({
 }) {
   return (
     <div className="space-y-1.5">
-      <Label className="text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+      <Label>
         {label}
       </Label>
       <Popover>
         <PopoverTrigger asChild>
           <button
             type="button"
-            className="flex h-8 w-full items-center gap-2 rounded-md border border-border bg-background px-2 text-left text-xs text-muted-foreground hover:bg-accent/45"
+            className="flex h-7 w-full items-center gap-2 rounded-md border border-border bg-background px-2 text-left text-xs text-muted-foreground hover:bg-accent/45"
           >
             <span
               className="size-4 rounded-full border border-border shadow-sm"
@@ -203,7 +204,7 @@ export function AnimationEffectsPanel() {
             type="button"
             onClick={() => setKind(item)}
             className={cn(
-              "h-9 rounded-lg px-2 text-left text-xs font-semibold transition-colors",
+              "h-8 rounded-md px-2 text-left text-xs font-semibold transition-colors",
               kind === item
                 ? "bg-primary text-primary-foreground"
                 : "bg-muted/35 text-muted-foreground hover:bg-accent/60 hover:text-foreground"
@@ -214,7 +215,8 @@ export function AnimationEffectsPanel() {
         ))}
       </div>
 
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+      <ScrollArea className="min-h-0 flex-1">
+        <div className="space-y-3 pr-1">
         {activeConfig.kind === "spinner" && (
           <>
             <TextField
@@ -252,7 +254,7 @@ export function AnimationEffectsPanel() {
                       : "left-to-right",
                 })
               }
-              className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs text-muted-foreground hover:bg-accent/45"
+              className="h-7 w-full rounded-md border border-border bg-background px-2 text-xs text-muted-foreground hover:bg-accent/45"
             >
               {activeConfig.direction}
             </button>
@@ -272,7 +274,7 @@ export function AnimationEffectsPanel() {
                       : "left-to-right",
                 })
               }
-              className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs text-muted-foreground hover:bg-accent/45"
+              className="h-7 w-full rounded-md border border-border bg-background px-2 text-xs text-muted-foreground hover:bg-accent/45"
             >
               {activeConfig.direction}
             </button>
@@ -286,7 +288,8 @@ export function AnimationEffectsPanel() {
             <NumberField label="Frames" value={activeConfig.frameCount} onChange={(frameCount) => updateConfig({ frameCount })} />
           </>
         )}
-      </div>
+        </div>
+      </ScrollArea>
 
       <div className="space-y-2 border-t border-border pt-3">
         <div className="grid grid-cols-3 gap-1">
@@ -300,7 +303,7 @@ export function AnimationEffectsPanel() {
               type="button"
               onClick={() => setApplyMode(value)}
               className={cn(
-                "h-8 rounded-md text-[11px] font-semibold",
+                "h-7 rounded-md text-[11px] font-medium",
                 applyMode === value
                   ? "bg-primary text-primary-foreground"
                   : "bg-muted/35 text-muted-foreground hover:bg-accent/60"
@@ -314,7 +317,7 @@ export function AnimationEffectsPanel() {
           type="button"
           tone="primary"
           size="md"
-          className="h-10 w-full rounded-lg border border-primary/50 font-semibold shadow-sm shadow-primary/15 transition-transform hover:scale-[1.01] active:scale-[0.99] disabled:transform-none disabled:shadow-none"
+          className="h-9 w-full rounded-md border border-primary/50 font-semibold shadow-sm shadow-primary/15 transition-transform hover:scale-[1.01] active:scale-[0.99] disabled:transform-none disabled:shadow-none"
           onClick={applyFrames}
           disabled={generated.frames.length === 0}
         >

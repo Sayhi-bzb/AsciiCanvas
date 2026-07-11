@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Copy, Download, Film, ImageIcon } from "lucide-react";
+import { useMemo, useState, type KeyboardEvent } from "react";
+import { Copy, Download } from "lucide-react";
 import type {
   AnimationCanvasSize,
   AnimationTimeline,
@@ -52,6 +52,12 @@ type ExportDialogProps = {
   setExportShowGrid: (show: boolean) => void;
 };
 
+type ExportOptionToggleProps = {
+  checked: boolean;
+  label: string;
+  onCheckedChange: () => void;
+};
+
 const PREVIEW_CHAR_LIMIT = 12_000;
 const PREVIEW_LINE_LIMIT = 160;
 
@@ -79,6 +85,38 @@ function createPreviewSnippet(value: string) {
   };
 }
 
+function ExportOptionToggle({
+  checked,
+  label,
+  onCheckedChange,
+}: ExportOptionToggleProps) {
+  return (
+    <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+      <span>{label}</span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        aria-label={label}
+        onClick={onCheckedChange}
+        className={cn(
+          "relative h-5 w-9 shrink-0 rounded-full border transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+          checked
+            ? "border-primary bg-primary"
+            : "border-border bg-muted"
+        )}
+      >
+        <span
+          className={cn(
+            "absolute top-0.5 size-3.5 rounded-full bg-background shadow-sm transition-transform",
+            checked ? "translate-x-[18px]" : "translate-x-0.5"
+          )}
+        />
+      </button>
+    </div>
+  );
+}
+
 export function ExportDialog({
   grid,
   canvasMode,
@@ -99,7 +137,6 @@ export function ExportDialog({
       getAvailableExportFormats(canvasMode).map((definition) => ({
         value: definition.format,
         label: definition.label,
-        subLabel: definition.subLabel,
       })),
     [canvasMode]
   );
@@ -136,14 +173,8 @@ export function ExportDialog({
   );
   const textExport = textResult.ok ? textResult.value.content : "";
   const formatDefinition = getExportFormatDefinition(activeFormat);
-  const isTextPreview = formatDefinition?.artifactKind === "text";
   const supportsColorToggle = formatDefinition?.supportsColor ?? false;
   const shouldTruncatePreview = formatDefinition?.truncatePreview ?? false;
-  const lineCount = useMemo(() => {
-    if (shouldTruncatePreview || !textExport) return 0;
-    return textExport.split("\n").length;
-  }, [shouldTruncatePreview, textExport]);
-  const charCount = textExport.length;
   const activeFormatMeta =
     availableFormats.find((format) => format.value === activeFormat) ??
     availableFormats[0];
@@ -156,11 +187,6 @@ export function ExportDialog({
     }
     return createPreviewSnippet(textExport);
   }, [shouldTruncatePreview, textExport]);
-  const previewLineCount = useMemo(
-    () => (previewState.content ? previewState.content.split("\n").length : 0),
-    [previewState.content]
-  );
-  const previewCharCount = previewState.content.length;
   const previewFallback = useMemo(() => {
     if (activeFormat === "json") {
       return shouldExportAnimation
@@ -186,9 +212,31 @@ export function ExportDialog({
     shouldExportAnimation,
     shouldExportStructured,
   ]);
-  const saveIcon = activeFormat === "gif" ? Film : activeFormat === "png" ? ImageIcon : Download;
   const canShowAnimationPreview =
     shouldExportAnimation && canvasBounds && animationTimeline;
+
+  const handleFormatKeyDown = (
+    event: KeyboardEvent<HTMLButtonElement>,
+    formatIndex: number
+  ) => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
+      return;
+    }
+
+    event.preventDefault();
+    const nextIndex =
+      event.key === "Home"
+        ? 0
+        : event.key === "End"
+        ? availableFormats.length - 1
+        : (formatIndex +
+            (event.key === "ArrowRight" ? 1 : -1) +
+            availableFormats.length) %
+          availableFormats.length;
+    const nextFormat = availableFormats[nextIndex].value;
+    setExportFormat(nextFormat);
+    document.getElementById(`export-format-${nextFormat}`)?.focus();
+  };
 
   const copyActiveFormat = async () => {
     if (!formatDefinition?.supportsClipboard) {
@@ -229,12 +277,17 @@ export function ExportDialog({
   };
 
   return (
-    <Dialog>
-      <TooltipProvider>
+    <TooltipProvider>
+      <Dialog>
         <Tooltip>
           <TooltipTrigger asChild>
             <DialogTrigger asChild>
               <Button
+                aria-label={
+                  shouldExportAnimation
+                    ? t("export.tooltip.animation")
+                    : t("export.tooltip.blueprint")
+                }
                 tone="subtle"
                 shape="square"
                 size="md"
@@ -250,83 +303,92 @@ export function ExportDialog({
               : t("export.tooltip.blueprint")}
           </TooltipContent>
         </Tooltip>
-      </TooltipProvider>
 
-      <DialogContent className="sm:max-w-xl gap-0 p-0 max-h-[85vh] min-w-0 overflow-hidden border-none shadow-2xl">
-        <div className="bg-muted/30 p-5 pb-3">
-          <DialogHeader>
-            <DialogTitle className="text-base">{t("export.title")}</DialogTitle>
-          </DialogHeader>
-        </div>
-
-        <div className="min-h-0 min-w-0 space-y-4 px-5 py-4">
-          <div className="min-w-0 space-y-2">
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {availableFormats.map((format) => (
-                <button
-                  key={format.value}
-                  type="button"
-                  onClick={() => setExportFormat(format.value)}
-                  className={cn(
-                    "rounded-xl border px-3 py-2 text-left transition-colors",
-                    activeFormat === format.value
-                      ? "border-primary/50 bg-primary/10 text-primary shadow-sm"
-                      : "border-border bg-muted/20 text-foreground hover:bg-accent/45"
-                  )}
-                >
-                  <div className="text-xs font-semibold uppercase tracking-[0.24em]">
-                    {format.label}
-                  </div>
-                  <div className="mt-1 text-[11px] text-muted-foreground">
-                    {format.subLabel}
-                  </div>
-                </button>
-              ))}
-            </div>
+        <DialogContent className="sm:max-w-xl gap-0 p-0 max-h-[85vh] min-w-0 overflow-hidden border-none shadow-2xl">
+          <div className="border-b border-border bg-muted/20 px-5 py-4">
+            <DialogHeader>
+              <DialogTitle className="text-base">{t("export.title")}</DialogTitle>
+            </DialogHeader>
           </div>
 
-          <div
-            className={cn(
-              "w-full relative group min-w-0",
-              shouldExportStructured || shouldExportAnimation ? "h-72" : "aspect-video"
-            )}
-          >
-            <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-primary/5 rounded-xl blur opacity-25" />
-            <div className="relative h-full border rounded-xl bg-background overflow-hidden shadow-inner p-3 min-w-0">
-              <div className="flex h-full min-w-0 flex-col gap-3">
-                <div className="flex min-w-0 items-center justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="mt-1 truncate text-sm font-semibold text-foreground">
-                      {activeFormatMeta.label}
-                    </div>
-                  </div>
-
-                  {isTextPreview ? (
-                    <div className="flex min-w-0 shrink-0 items-center">
-                      <div className="max-w-[11rem] text-right text-[10px] font-medium text-muted-foreground">
-                        {shouldTruncatePreview && previewState.truncated
-                          ? t("export.previewingStats", {
-                              lines: previewLineCount,
-                              previewChars: previewCharCount,
-                              chars: charCount,
-                            })
-                          : t("export.previewStats", {
-                              lines: lineCount,
-                              chars: charCount,
-                            })}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-[10px] font-medium uppercase tracking-[0.24em] text-muted-foreground">
-                      {activeFormat === "gif"
-                        ? t("export.saveOnly")
-                        : t("export.preview")}
-                    </div>
+          <div className="min-h-0 min-w-0 space-y-3 px-5 py-4">
+            <div className="flex min-w-0 items-center gap-2 border-b border-border">
+              <div
+                role="tablist"
+                aria-label={t("export.title")}
+                className="flex min-w-0 flex-1 items-end gap-1 overflow-x-auto"
+              >
+              {availableFormats.map((format, formatIndex) => (
+                <button
+                  id={`export-format-${format.value}`}
+                  key={format.value}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeFormat === format.value}
+                  tabIndex={activeFormat === format.value ? 0 : -1}
+                  onClick={() => setExportFormat(format.value)}
+                  onKeyDown={(event) =>
+                    handleFormatKeyDown(event, formatIndex)
+                  }
+                  className={cn(
+                    "relative shrink-0 px-3 py-2 text-xs font-semibold text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
+                    activeFormat === format.value
+                      ? "text-foreground after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:bg-primary"
+                      : ""
                   )}
-                </div>
+                >
+                  {format.label}
+                </button>
+              ))}
+              </div>
 
-                <div className="flex min-h-0 min-w-0 flex-1">
-                  {activeFormat === "gif" && canShowAnimationPreview ? (
+              <div
+                data-testid="export-actions"
+                className="flex shrink-0 items-center gap-1 pb-1"
+              >
+              {formatDefinition?.supportsClipboard && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <ActionButton
+                      tone="subtle"
+                      size="md"
+                      shape="square"
+                      icon={Copy}
+                      aria-label={t("export.copy")}
+                      className="size-8 text-muted-foreground hover:text-foreground"
+                      onAction={copyActiveFormat}
+                    />
+                  </TooltipTrigger>
+                  <TooltipContent>{t("export.copy")}</TooltipContent>
+                </Tooltip>
+              )}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <ActionButton
+                    tone="subtle"
+                    size="md"
+                    shape="square"
+                    icon={Download}
+                    aria-label={t("export.save")}
+                    className="size-8 text-muted-foreground hover:text-foreground"
+                    onAction={saveActiveFormat}
+                  />
+                </TooltipTrigger>
+                <TooltipContent>{t("export.save")}</TooltipContent>
+              </Tooltip>
+              </div>
+            </div>
+
+            <div
+              className={cn(
+                "w-full min-w-0 overflow-hidden rounded-lg border border-border bg-background",
+                shouldExportStructured || shouldExportAnimation
+                  ? "h-72"
+                  : "aspect-video"
+              )}
+            >
+              <div className="flex h-full min-h-0 min-w-0 [&>div]:min-w-0 [&>div]:flex-1 [&>div]:rounded-none [&>div]:border-0">
+                {activeFormat === "gif" && canShowAnimationPreview ? (
                     <AnimationExportPreview
                       size={canvasBounds}
                       timeline={animationTimeline}
@@ -340,7 +402,7 @@ export function ExportDialog({
                         showColor={includeColor}
                       />
                     ) : (
-                      <div className="flex h-full min-h-0 min-w-0 flex-1 rounded-lg border border-border bg-muted/20 p-3">
+                      <div className="flex h-full min-h-0 min-w-0 flex-1 bg-muted/20 p-3">
                         <ExportPreview
                           grid={grid}
                           showColor={includeColor}
@@ -349,10 +411,10 @@ export function ExportDialog({
                       </div>
                     )
                   ) : (
-                    <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border bg-muted/20">
-                      <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden p-2">
+                    <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden bg-muted/20">
+                      <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden p-3">
                         <pre
-                          className="min-h-0 min-w-0 w-0 max-w-full flex-1 overflow-x-auto overflow-y-auto rounded-md bg-background p-2 font-mono text-[10px] leading-relaxed text-foreground whitespace-pre"
+                          className="min-h-0 min-w-0 w-0 max-w-full flex-1 overflow-x-auto overflow-y-auto bg-background p-2 font-mono text-[10px] leading-relaxed text-foreground whitespace-pre"
                         >
                           {previewState.content || previewFallback}
                         </pre>
@@ -365,70 +427,32 @@ export function ExportDialog({
                         </div>
                       )}
                     </div>
-                  )}
-                </div>
+                )}
               </div>
             </div>
-          </div>
 
-          <div className="grid w-full grid-cols-2 gap-2 py-2">
-            <ActionButton
-              tone="neutral"
-              size="full"
-              shape="auto"
-              icon={Copy}
-              whileHover={{ scale: 1 }}
-              label={t("export.copy")}
-              disabled={activeFormat === "gif"}
-              className="rounded-2xl border border-border bg-muted/20 text-foreground transition-colors hover:bg-accent/45 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-45"
-              onAction={copyActiveFormat}
-            />
-            <ActionButton
-              tone="neutral"
-              size="full"
-              shape="auto"
-              icon={saveIcon}
-              whileHover={{ scale: 1 }}
-              label={t("export.save")}
-              className="rounded-2xl border border-border bg-muted/20 text-foreground transition-colors hover:bg-accent/45 hover:text-foreground"
-              onAction={saveActiveFormat}
-            />
-          </div>
-
-          {supportsColorToggle && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between rounded-lg border border-border bg-muted/40 px-3 py-2">
-                <div className="text-xs font-medium text-muted-foreground">
-                  {t("export.color")}
-                </div>
-                <Button
-                  tone={includeColor ? "primary" : "neutral"}
-                  size="sm"
-                  onClick={() => setIncludeColor((prev) => !prev)}
-                  className="h-6 px-2 rounded-md text-[10px] uppercase font-bold"
-                >
-                  {includeColor ? "ON" : "OFF"}
-                </Button>
-              </div>
+            {supportsColorToggle && (
+              <div
+                data-testid="export-options"
+                className="flex min-h-8 flex-wrap items-center justify-end gap-x-5 gap-y-2 border-t border-border pt-3"
+              >
+              <ExportOptionToggle
+                checked={includeColor}
+                label={t("export.color")}
+                onCheckedChange={() => setIncludeColor((prev) => !prev)}
+              />
               {activeFormat === "png" && (
-                <div className="flex items-center justify-between rounded-lg border border-border bg-muted/40 px-3 py-2">
-                  <div className="text-xs font-medium text-muted-foreground">
-                    {t("export.grid")}
-                  </div>
-                  <Button
-                    tone={exportShowGrid ? "primary" : "neutral"}
-                    size="sm"
-                    onClick={() => setExportShowGrid(!exportShowGrid)}
-                    className="h-6 px-2 rounded-md text-[10px] uppercase font-bold"
-                  >
-                    {exportShowGrid ? "ON" : "OFF"}
-                  </Button>
-                </div>
+                <ExportOptionToggle
+                  checked={exportShowGrid}
+                  label={t("export.grid")}
+                  onCheckedChange={() => setExportShowGrid(!exportShowGrid)}
+                />
               )}
-            </div>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </TooltipProvider>
   );
 }

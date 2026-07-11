@@ -70,6 +70,17 @@ function AppContent() {
   );
 
   const sidebarAutoCollapseSignal = useSidebarAutoCollapseSignal();
+  const isMobile = useIsMobile();
+  const topBarLeftInset = isMobile
+    ? "3.75rem"
+    : canvasMode === "animation" && isLeftPanelOpen
+      ? "20.5rem"
+      : "4rem";
+  const topBarRightInset = isMobile
+    ? "0.5rem"
+    : isRightPanelOpen
+      ? "20.5rem"
+      : "4rem";
 
   useEffect(() => {
     if (sidebarAutoCollapseSignal === 0) return;
@@ -126,7 +137,10 @@ function AppContent() {
   return (
     <SidebarProvider className="flex h-full w-full overflow-hidden">
       <SidebarInset className="relative flex flex-1 flex-col overflow-hidden">
-        <SessionTabs />
+        <SessionTabs
+          leftInset={topBarLeftInset}
+          rightInset={topBarRightInset}
+        />
         <AppLayout
           canvas={<AsciiCanvas onUndo={handleUndo} onRedo={handleRedo} />}
         >

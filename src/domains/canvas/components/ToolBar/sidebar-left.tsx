@@ -110,7 +110,7 @@ function FramePreview({
     >
       <canvas ref={canvasRef} className="h-full w-full" />
       {frame.grid.length === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center bg-background/70 text-[9px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+        <div className="absolute inset-0 flex items-center justify-center bg-background/70 text-[11px] font-medium text-muted-foreground">
           Empty
         </div>
       )}
@@ -207,7 +207,7 @@ function FrameRow({
                     onCancelRename();
                   }
                 }}
-                className="h-8 border-none bg-background/90 px-2 text-sm font-semibold shadow-none focus-visible:ring-1"
+                className="h-7 border-none bg-background/90 px-2 text-xs font-semibold shadow-none focus-visible:ring-1"
               />
             </div>
           ) : (
@@ -249,7 +249,7 @@ function FrameRow({
 
               {!isCollapsed && (
                 <div className="ml-2 min-w-0 flex-1 overflow-hidden">
-                  <span className="block truncate text-sm font-semibold">
+                  <span className="block truncate text-xs font-semibold">
                     {frame.name}
                   </span>
                 </div>
@@ -487,6 +487,7 @@ export function SidebarLeft() {
       side="left"
       title="Frames"
       className="pointer-events-auto"
+      contentClassName="min-h-0 overflow-hidden"
       data-canvas-ui="true"
       onPointerDown={stopCanvasUiEvent}
       onMouseDown={stopCanvasUiEvent}
@@ -518,14 +519,14 @@ export function SidebarLeft() {
       }
     >
       {!isCollapsed && (
-        <div className="mb-3 grid grid-cols-2 gap-1">
+        <div className="mb-3 grid shrink-0 grid-cols-2 gap-1">
           {(["frames", "effects"] as const).map((mode) => (
             <button
               key={mode}
               type="button"
               onClick={() => setPanelMode(mode)}
               className={cn(
-                "h-8 rounded-lg text-xs font-semibold capitalize transition-colors",
+                "h-7 rounded-md text-xs font-semibold capitalize transition-colors",
                 panelMode === mode
                   ? "bg-primary text-primary-foreground"
                   : "bg-muted/35 text-muted-foreground hover:bg-accent/60 hover:text-foreground"
@@ -540,7 +541,7 @@ export function SidebarLeft() {
       {panelMode === "effects" && !isCollapsed ? (
         <AnimationEffectsPanel />
       ) : (
-      <ScrollArea className="min-w-0 flex-1">
+      <ScrollArea className="min-h-0 min-w-0 flex-1">
         <Reorder.Group
           as="div"
           axis="y"
@@ -588,7 +589,7 @@ export function SidebarLeft() {
       )}
 
       {!isCollapsed && (
-        <div className="px-1 pt-2 text-[11px] font-medium text-muted-foreground">
+        <div className="shrink-0 px-1 pt-2 text-[11px] font-medium text-muted-foreground">
           {Math.max(activeFrameIndex + 1, 1)} / {animationTimeline.frames.length}
         </div>
       )}

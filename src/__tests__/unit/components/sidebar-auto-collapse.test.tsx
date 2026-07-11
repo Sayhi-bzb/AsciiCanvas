@@ -71,13 +71,13 @@ describe("sidebar auto-collapse media hooks", () => {
     expect(result.current).toBe(false);
   });
 
-  it("does not trigger when initially mounted narrow", () => {
+  it("triggers when initially mounted narrow", () => {
     setViewportWidth(SIDEBAR_AUTO_COLLAPSE_BREAKPOINT - 1);
     mockMatchMedia();
 
     const { result } = renderHook(() => useSidebarAutoCollapseSignal());
 
-    expect(result.current).toBe(0);
+    expect(result.current).toBe(1);
   });
 
   it("triggers once when resizing from wide to narrow", () => {

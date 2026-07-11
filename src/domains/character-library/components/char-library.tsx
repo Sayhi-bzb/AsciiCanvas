@@ -162,7 +162,7 @@ export function CharLibrary() {
             {searchResults.length === 0 && (
               <div className="w-full flex flex-col items-center py-10 text-muted-foreground">
                 <SearchX className="size-8 mb-2 opacity-20" />
-                <p className="text-[10px]">No blueprints found</p>
+                <p className="text-[11px] leading-4">No blueprints found</p>
               </div>
             )}
           </div>
@@ -181,12 +181,12 @@ export function CharLibrary() {
               <p className="text-xs font-semibold text-foreground">
                 Library failed to load
               </p>
-              <p className="break-words text-[10px] leading-4">{error}</p>
+              <p className="break-words text-[11px] leading-4">{error}</p>
             </div>
             <button
               type="button"
               onClick={() => void fetchLibrary()}
-              className="inline-flex h-8 items-center gap-1.5 rounded-md bg-accent px-2.5 text-xs font-medium text-accent-foreground hover:bg-accent/80"
+              className="inline-flex h-7 items-center gap-1.5 rounded-md bg-accent px-2.5 text-xs font-medium text-accent-foreground hover:bg-accent/80"
             >
               <RefreshCcw className="size-3.5" />
               Retry
@@ -201,7 +201,7 @@ export function CharLibrary() {
     return (
       <div className="flex items-center justify-center py-20 text-muted-foreground">
         <Loader2 className="size-5 animate-spin mr-2" />
-        <span className="text-[10px] font-medium tracking-widest uppercase">
+        <span className="text-[11px] font-medium">
           Syncing...
         </span>
       </div>
@@ -215,7 +215,7 @@ export function CharLibrary() {
           <CollapsibleTrigger asChild>
             <SidebarMenuButton>
               <Terminal className="size-4 text-cyan-500" />
-              <span className="font-bold text-xs uppercase tracking-tight">
+              <span className="text-xs font-semibold">
                 Nerd Icons
               </span>
               <ChevronRight className="ml-auto size-4 transition-transform group-data-[state=open]/collapsible:rotate-90" />
@@ -227,7 +227,7 @@ export function CharLibrary() {
                 <Collapsible key={name} className="group/sub">
                   <SidebarMenuItem>
                     <CollapsibleTrigger asChild>
-                      <SidebarMenuButton className="h-7 text-[10px] opacity-70 hover:opacity-100">
+                      <SidebarMenuButton className="h-7 text-[11px] opacity-70 hover:opacity-100">
                         <Folder className="size-3 mr-1" /> {name}
                       </SidebarMenuButton>
                     </CollapsibleTrigger>
@@ -257,7 +257,7 @@ export function CharLibrary() {
           <CollapsibleTrigger asChild>
             <SidebarMenuButton>
               <SquareDashed className="size-4 text-emerald-500" />
-              <span className="font-bold text-xs uppercase tracking-tight">
+              <span className="text-xs font-semibold">
                 Box Drawing
               </span>
               <ChevronRight className="ml-auto size-4 transition-transform group-data-[state=open]/collapsible:rotate-90" />
@@ -269,7 +269,7 @@ export function CharLibrary() {
                 <Collapsible key={name} className="group/sub">
                   <SidebarMenuItem>
                     <CollapsibleTrigger asChild>
-                      <SidebarMenuButton className="h-7 text-[10px] opacity-70 hover:opacity-100">
+                      <SidebarMenuButton className="h-7 text-[11px] opacity-70 hover:opacity-100">
                         <Folder className="size-3 mr-1" /> {name}
                       </SidebarMenuButton>
                     </CollapsibleTrigger>
@@ -299,7 +299,7 @@ export function CharLibrary() {
           <CollapsibleTrigger asChild>
             <SidebarMenuButton>
               <Sparkles className="size-4 text-yellow-500" />
-              <span className="font-bold text-xs uppercase tracking-tight">
+              <span className="text-xs font-semibold">
                 Curated Emoji
               </span>
               <ChevronRight className="ml-auto size-4 transition-transform group-data-[state=open]/collapsible:rotate-90" />
@@ -311,7 +311,7 @@ export function CharLibrary() {
                 <Collapsible key={groupName} className="group/sub">
                   <SidebarMenuItem>
                     <CollapsibleTrigger asChild>
-                      <SidebarMenuButton className="h-7 text-[10px] opacity-70 hover:opacity-100">
+                      <SidebarMenuButton className="h-7 text-[11px] opacity-70 hover:opacity-100">
                         <FolderOpen className="size-3 mr-1" /> {groupName}
                       </SidebarMenuButton>
                     </CollapsibleTrigger>
@@ -325,7 +325,7 @@ export function CharLibrary() {
                             >
                               <SidebarMenuItem>
                                 <CollapsibleTrigger asChild>
-                                  <SidebarMenuButton className="h-6 text-[9px] opacity-60 hover:opacity-100">
+                                  <SidebarMenuButton className="h-6 text-[11px] opacity-60 hover:opacity-100">
                                     <Folder className="size-2.5 mr-1" />{" "}
                                     {subgroupName}
                                   </SidebarMenuButton>
@@ -366,7 +366,7 @@ export function CharLibrary() {
           <CollapsibleTrigger asChild>
             <SidebarMenuButton>
               <Languages className="size-4 text-indigo-500" />
-              <span className="font-bold text-xs uppercase tracking-tight">
+              <span className="text-xs font-semibold">
                 Unicode Blocks
               </span>
               <ChevronRight className="ml-auto size-4 transition-transform group-data-[state=open]/collapsible:rotate-90" />
@@ -375,7 +375,7 @@ export function CharLibrary() {
           <CollapsibleContent>
             <SidebarMenuSub className="mr-0 pr-0">
               {unicodeIsLoading && (
-                <div className="flex items-center gap-2 px-2 py-3 text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
+                <div className="flex items-center gap-2 px-2 py-3 text-[11px] font-medium text-muted-foreground">
                   <Loader2 className="size-3.5 animate-spin" />
                   Loading Unicode...
                 </div>
@@ -383,13 +383,13 @@ export function CharLibrary() {
 
               {unicodeError && !unicodeBlocks && (
                 <div className="flex flex-col gap-2 px-2 py-3 text-muted-foreground">
-                  <p className="break-words text-[10px] leading-4">
+                  <p className="break-words text-[11px] leading-4">
                     {unicodeError}
                   </p>
                   <button
                     type="button"
                     onClick={() => void fetchUnicodeBlocks()}
-                    className="inline-flex h-7 w-fit items-center gap-1.5 rounded-md bg-accent px-2 text-[10px] font-medium text-accent-foreground hover:bg-accent/80"
+                    className="inline-flex h-7 w-fit items-center gap-1.5 rounded-md bg-accent px-2 text-[11px] font-medium text-accent-foreground hover:bg-accent/80"
                   >
                     <RefreshCcw className="size-3" />
                     Retry
@@ -402,7 +402,7 @@ export function CharLibrary() {
                 <Collapsible key={name} className="group/sub">
                   <SidebarMenuItem>
                     <CollapsibleTrigger asChild>
-                      <SidebarMenuButton className="h-7 text-[10px] opacity-70 hover:opacity-100">
+                      <SidebarMenuButton className="h-7 text-[11px] opacity-70 hover:opacity-100">
                         <Folder className="size-3 mr-1" /> {name}
                       </SidebarMenuButton>
                     </CollapsibleTrigger>
