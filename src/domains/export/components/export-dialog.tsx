@@ -12,6 +12,7 @@ import type {
 } from "@/shared/types";
 import { Button } from "@/shared/ui/button";
 import { ActionButton } from "@/shared/ui/action-button";
+import { ScrollArea } from "@/shared/ui/scroll-area";
 import {
   Dialog,
   DialogContent,
@@ -413,11 +414,14 @@ export function ExportDialog({
                   ) : (
                     <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden bg-muted/20">
                       <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden p-3">
-                        <pre
-                          className="min-h-0 min-w-0 w-0 max-w-full flex-1 overflow-x-auto overflow-y-auto bg-background p-2 font-mono text-[10px] leading-relaxed text-foreground whitespace-pre"
+                        <ScrollArea
+                          scrollbars="both"
+                          className="min-h-0 min-w-0 flex-1 bg-background"
                         >
-                          {previewState.content || previewFallback}
-                        </pre>
+                          <pre className="min-h-full min-w-full w-max bg-background p-2 font-mono text-[10px] leading-relaxed text-foreground whitespace-pre">
+                            {previewState.content || previewFallback}
+                          </pre>
+                        </ScrollArea>
                       </div>
                       {shouldTruncatePreview && previewState.truncated && (
                         <div className="border-t border-border bg-muted/30 px-3 py-2 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">

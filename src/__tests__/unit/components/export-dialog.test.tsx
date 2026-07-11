@@ -31,14 +31,15 @@ describe("ExportDialog layout", () => {
   });
 
   const openDialog = (props = defaultProps) => {
-    render(<ExportDialog {...props} />);
+    const result = render(<ExportDialog {...props} />);
     fireEvent.click(
       screen.getByRole("button", { name: /^Export (Blueprint|Animation)$/ })
     );
+    return result;
   };
 
   it("uses a snippet-style format toolbar with shared actions", () => {
-    openDialog();
+    const { baseElement } = openDialog();
 
     const tablist = screen.getByRole("tablist", { name: "Export" });
     const actions = screen.getByTestId("export-actions");
@@ -60,6 +61,14 @@ describe("ExportDialog layout", () => {
     expect(screen.queryByText("plain")).not.toBeInTheDocument();
     expect(screen.queryByText("protocol")).not.toBeInTheDocument();
     expect(screen.queryByText(/lines .* chars/i)).not.toBeInTheDocument();
+
+    const previewScrollArea = baseElement.querySelector(
+      '[data-slot="scroll-area"]'
+    );
+    const preview = previewScrollArea?.querySelector("pre");
+    expect(previewScrollArea).toBeInTheDocument();
+    expect(previewScrollArea).toHaveAttribute("data-scrollbars", "both");
+    expect(preview).not.toHaveClass("overflow-x-auto", "overflow-y-auto");
   });
 
   it("switches formats with tabs and shows only relevant options", () => {
