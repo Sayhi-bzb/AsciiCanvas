@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
-  exportAnimationToCast,
   isLikelyAsciinemaCast,
   parseAsciinemaCast,
 } from "@/domains/cast";
+import { exportAnimationToCast } from "@/domains/export";
 import { normalizeAnimationTimeline } from "@/domains/canvas/state/helpers/animationHelpers";
 
 describe("asciinema cast utilities", () => {

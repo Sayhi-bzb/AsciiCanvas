@@ -5,7 +5,6 @@ import {
   createAnimationFrameId,
 } from "@/domains/canvas/state/helpers/animationHelpers";
 import type { ProtocolImportSnapshot } from "@/domains/protocol";
-import { exportAnimationFrameToAnsi } from "@/domains/export/utils/export";
 import { COLOR_PRIMARY_TEXT } from "@/shared/lib/constants";
 import { getCellOccupancy, splitGraphemes } from "@/shared/metrics";
 import type {
@@ -21,7 +20,6 @@ import {
 } from "@/shared/utils/ansi";
 
 const ASCIINEMA_VERSION = 2;
-const DEFAULT_CAST_TERM = "xterm-256color";
 const DEFAULT_CAST_COLOR = COLOR_PRIMARY_TEXT;
 
 type CastHeader = {
@@ -209,41 +207,4 @@ export const parseAsciinemaCast = (raw: string): ProtocolImportSnapshot => {
     timeline,
     grid: frames[0].grid,
   };
-};
-
-export const exportAnimationToCast = (
-  size: AnimationCanvasSize,
-  timeline: AnimationTimeline,
-  options?: {
-    includeColor?: boolean;
-    timestamp?: number;
-  }
-) => {
-  const fps = Math.max(1, timeline.fps);
-  const header: CastHeader = {
-    version: ASCIINEMA_VERSION,
-    width: size.width,
-    height: size.height,
-    timestamp: options?.timestamp ?? Math.floor(Date.now() / 1000),
-    env: { TERM: DEFAULT_CAST_TERM },
-  };
-  const lines = [JSON.stringify(header)];
-
-  timeline.frames.forEach((frame, index) => {
-    const time = Number((index / fps).toFixed(6));
-    lines.push(
-      JSON.stringify([
-        time,
-        "o",
-        `\r${exportAnimationFrameToAnsi(size, frame.grid, {
-          includeColor: options?.includeColor,
-        })}`,
-      ])
-    );
-  });
-
-  lines.push(
-    JSON.stringify([Number((timeline.frames.length / fps).toFixed(6)), "o", ""])
-  );
-  return `${lines.join("\n")}\n`;
 };

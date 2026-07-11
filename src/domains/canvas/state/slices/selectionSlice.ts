@@ -4,7 +4,8 @@ import { runCanvasTransaction, yMainGrid } from "@/shared/lib/yjs-setup";
 import { GridManager } from "@/shared/utils/grid";
 import { getSelectionBounds } from "@/shared/utils/selection";
 import {
-  copySelectionToPngClipboard,
+  deliverExportClipboard,
+  prepareSelectionPngExport,
 } from "@/domains/export";
 import { placeCharInYMap } from "../utils";
 import { feedback } from "@/shared/services/effects";
@@ -686,7 +687,14 @@ export const createSelectionSlice: StateCreator<
     const selections = resolveSelectionAreas(state);
     if (selections.length === 0) return;
     try {
-      await copySelectionToPngClipboard(grid, selections, withGrid);
+      const prepared = await prepareSelectionPngExport(
+          grid,
+          selections,
+          withGrid
+        );
+        if (!prepared.ok) throw prepared.error;
+        const delivered = await deliverExportClipboard(prepared.value);
+        if (!delivered.ok) throw delivered.error;
       feedback.success("Snapshot Copied", {
         description: withGrid
           ? "Image with grid lines is ready to paste."

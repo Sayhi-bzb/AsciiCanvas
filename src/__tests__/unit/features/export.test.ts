@@ -3,14 +3,14 @@ import {
   buildAnimationExchangeDocument,
   buildProtocolExportDocument,
   exportAnimationFrameToAnsi,
-  exportAnimationToGIF,
+  createAnimationGifBlob,
   exportAnimationToJSON,
   exportProtocolToJSON,
   exportSelectionToAnsi,
   exportSelectionToJSON,
   exportStructuredHierarchyText,
   exportToAnsi,
-} from "@/domains/export/utils/export";
+} from "@/domains/export";
 import { normalizeAnimationTimeline } from "@/domains/canvas/state/helpers/animationHelpers";
 import type { GridMap, StructuredNode } from "@/shared/types";
 
@@ -809,7 +809,6 @@ describe("export utilities", () => {
       frames: [{ id: "f1", name: "Frame 1", grid: [] }],
       currentFrameId: "f1",
     });
-    let exportedBlob: Blob | null = null;
     const originalFonts = document.fonts;
     const loadFont = vi.fn().mockResolvedValue([]);
     let expectedIndices = new Uint8Array();
@@ -842,19 +841,13 @@ describe("export utilities", () => {
           } as ImageData;
         },
       } as unknown as CanvasRenderingContext2D);
-      vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
-      vi.spyOn(URL, "createObjectURL").mockImplementation((blob) => {
-        exportedBlob = blob instanceof Blob ? blob : null;
-        return "blob:ascii-canvas-test";
-      });
-      vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => {});
-
-      await exportAnimationToGIF({ width: 10, height: 10 }, timeline);
+      const blob = await createAnimationGifBlob(
+        { width: 10, height: 10 },
+        timeline
+      );
 
       expect(loadFont).toHaveBeenCalled();
-      expect(exportedBlob).not.toBeNull();
-      const blob = exportedBlob as Blob | null;
-      if (!blob) {
+      expect(blob).not.toBeNull();      if (!blob) {
         throw new Error("GIF export did not produce a blob.");
       }
       const bytes = new Uint8Array(await blob.arrayBuffer());

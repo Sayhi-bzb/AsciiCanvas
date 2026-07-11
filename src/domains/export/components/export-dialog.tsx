@@ -25,23 +25,21 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/shared/ui/tooltip";
-import { clipboard, feedback } from "@/shared/services/effects";
+import { feedback } from "@/shared/services/effects";
 import { cn } from "@/shared/lib/utils";
 import { useUiI18n } from "@/shared/i18n";
 import { ExportPreview } from "./export-preview";
 import { AnimationExportPreview } from "./animation-export-preview";
 import {
-  copyCanvasToPngClipboard,
-  downloadTextFile,
-  exportAnimationFrameToAnsi,
-  exportAnimationToGIF,
-  exportProtocolToJSON,
-  exportStructuredF12Text,
-  exportToAnsi,
-  exportToPNG,
-  exportToString,
-} from "../utils/export";
-import { exportAnimationToCast } from "@/domains/cast";
+  deliverExportClipboard,
+  deliverExportDownload,
+  getAvailableExportFormats,
+  getExportFormatDefinition,
+  prepareExport,
+  prepareTextExport,
+  type ExportContext,
+  type ExportFormat,
+} from "@/domains/export";
 
 type ExportDialogProps = {
   grid: GridMap;
@@ -53,8 +51,6 @@ type ExportDialogProps = {
   exportShowGrid: boolean;
   setExportShowGrid: (show: boolean) => void;
 };
-
-type ExportFormat = "txt" | "json" | "ansi" | "png" | "gif" | "cast";
 
 const PREVIEW_CHAR_LIMIT = 12_000;
 const PREVIEW_LINE_LIMIT = 160;
@@ -100,101 +96,49 @@ export function ExportDialog({
   const [includeColor, setIncludeColor] = useState(true);
   const availableFormats = useMemo(
     () =>
-      shouldExportAnimation
-        ? [
-            { value: "json" as const, label: "JSON", subLabel: "protocol" },
-            { value: "cast" as const, label: "CAST", subLabel: "asciinema" },
-            { value: "gif" as const, label: "GIF", subLabel: "animation" },
-          ]
-        : [
-            { value: "txt" as const, label: "TXT", subLabel: "plain" },
-            { value: "json" as const, label: "JSON", subLabel: "protocol" },
-            { value: "ansi" as const, label: "ANSI", subLabel: "terminal" },
-            { value: "png" as const, label: "PNG", subLabel: "image" },
-          ],
-    [shouldExportAnimation]
+      getAvailableExportFormats(canvasMode).map((definition) => ({
+        value: definition.format,
+        label: definition.label,
+        subLabel: definition.subLabel,
+      })),
+    [canvasMode]
   );
   const activeFormat = availableFormats.some(
     (format) => format.value === exportFormat
   )
     ? exportFormat
     : availableFormats[0].value;
-  const protocolJsonExport = useMemo(
-    () =>
-      canvasMode === "animation" && (!canvasBounds || !animationTimeline)
-        ? ""
-        : exportProtocolToJSON({
-            canvasMode,
-            grid,
-            structuredScene,
-            structuredComponents,
-            canvasBounds,
-            animationTimeline,
-            includeColor,
-          }),
-    [
+  const exportContext = useMemo<ExportContext>(
+    () => ({
       canvasMode,
+      grid,
+      structuredScene,
+      structuredComponents,
       canvasBounds,
       animationTimeline,
       includeColor,
-      structuredScene,
-      structuredComponents,
+      showGrid: exportShowGrid,
+    }),
+    [
+      animationTimeline,
+      canvasBounds,
+      canvasMode,
+      exportShowGrid,
       grid,
+      includeColor,
+      structuredComponents,
+      structuredScene,
     ]
   );
-  const plainTextExport = useMemo(() => exportToString(grid), [grid]);
-  const structuredF12Export = useMemo(
-    () => exportStructuredF12Text(structuredScene, structuredComponents),
-    [structuredScene, structuredComponents]
+  const textResult = useMemo(
+    () => prepareTextExport(exportContext, activeFormat),
+    [activeFormat, exportContext]
   );
-  const ansiExport = useMemo(
-    () =>
-      shouldExportAnimation && canvasBounds
-        ? exportAnimationFrameToAnsi(canvasBounds, Array.from(grid.entries()), {
-            includeColor,
-          })
-        : exportToAnsi(grid, { includeColor }),
-    [shouldExportAnimation, canvasBounds, grid, includeColor]
-  );
-  const castExport = useMemo(
-    () =>
-      shouldExportAnimation && canvasBounds && animationTimeline
-        ? exportAnimationToCast(canvasBounds, animationTimeline, {
-            includeColor,
-          })
-        : "",
-    [animationTimeline, canvasBounds, includeColor, shouldExportAnimation]
-  );
-  const textExport = useMemo(() => {
-    if (activeFormat === "json") return protocolJsonExport;
-    if (activeFormat === "ansi") return ansiExport;
-    if (activeFormat === "cast") return castExport;
-    if (activeFormat === "txt") {
-      return shouldExportStructured ? structuredF12Export : plainTextExport;
-    }
-    return "";
-  }, [
-    activeFormat,
-    ansiExport,
-    castExport,
-    plainTextExport,
-    protocolJsonExport,
-    shouldExportStructured,
-    structuredF12Export,
-  ]);
-  const isTextPreview =
-    activeFormat === "txt" ||
-    activeFormat === "json" ||
-    activeFormat === "ansi" ||
-    activeFormat === "cast";
-  const supportsColorToggle =
-    activeFormat === "json" ||
-    activeFormat === "ansi" ||
-    activeFormat === "cast" ||
-    activeFormat === "png" ||
-    activeFormat === "gif";
-  const shouldTruncatePreview =
-    activeFormat === "json" || activeFormat === "ansi" || activeFormat === "cast";
+  const textExport = textResult.ok ? textResult.value.content : "";
+  const formatDefinition = getExportFormatDefinition(activeFormat);
+  const isTextPreview = formatDefinition?.artifactKind === "text";
+  const supportsColorToggle = formatDefinition?.supportsColor ?? false;
+  const shouldTruncatePreview = formatDefinition?.truncatePreview ?? false;
   const lineCount = useMemo(() => {
     if (shouldTruncatePreview || !textExport) return 0;
     return textExport.split("\n").length;
@@ -247,66 +191,41 @@ export function ExportDialog({
     shouldExportAnimation && canvasBounds && animationTimeline;
 
   const copyActiveFormat = async () => {
-    if (activeFormat === "gif") {
+    if (!formatDefinition?.supportsClipboard) {
       feedback.warning(t("export.copyUnavailable"), {
         description: t("export.copyUnavailableDescription"),
       });
       return false;
     }
 
-    if (activeFormat === "png") {
-      const copied = await copyCanvasToPngClipboard(
-        grid,
-        exportShowGrid,
-        includeColor
-      );
-      if (!copied) {
-        feedback.error(t("export.copyFailed"), {
-          description: t("export.copyPngFailedDescription"),
-        });
-      }
-      return copied;
-    }
-
-    const copied = await clipboard.writeText(textExport);
-    if (!copied) {
+    const prepared = await prepareExport(exportContext, activeFormat);
+    if (!prepared.ok) {
       feedback.error(t("export.copyFailed"), {
         description: t("export.copyTextFailedDescription", {
           format: activeFormat.toUpperCase(),
         }),
       });
+      return false;
     }
-    return copied;
+
+    const delivered = await deliverExportClipboard(prepared.value);
+    if (!delivered.ok) {
+      feedback.error(t("export.copyFailed"), {
+        description:
+          activeFormat === "png"
+            ? t("export.copyPngFailedDescription")
+            : t("export.copyTextFailedDescription", {
+                format: activeFormat.toUpperCase(),
+              }),
+      });
+    }
+    return delivered.ok;
   };
 
   const saveActiveFormat = async () => {
-    switch (activeFormat) {
-      case "txt":
-        return downloadTextFile(
-          `ascii-canvas-${Date.now()}.txt`,
-          textExport,
-          "text/plain;charset=utf-8"
-        );
-      case "json":
-        return downloadTextFile(`ascii-canvas-${Date.now()}.json`, textExport);
-      case "cast":
-        return downloadTextFile(
-          `ascii-animation-${Date.now()}.cast`,
-          textExport,
-          "text/plain;charset=utf-8"
-        );
-      case "ansi":
-        return downloadTextFile(
-          `ascii-canvas-${Date.now()}.ans`,
-          textExport,
-          "text/plain;charset=utf-8"
-        );
-      case "png":
-        return exportToPNG(grid, exportShowGrid, includeColor);
-      case "gif":
-        if (!canvasBounds || !animationTimeline) return false;
-        return exportAnimationToGIF(canvasBounds, animationTimeline, includeColor);
-    }
+    const prepared = await prepareExport(exportContext, activeFormat);
+    if (!prepared.ok) return false;
+    return deliverExportDownload(prepared.value).ok;
   };
 
   return (
