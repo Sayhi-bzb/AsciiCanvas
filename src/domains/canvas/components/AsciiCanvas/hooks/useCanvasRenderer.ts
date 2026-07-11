@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import {
   BACKGROUND_COLOR,
   COLOR_ORIGIN_MARKER,
@@ -7,7 +7,7 @@ import {
   COLOR_TEXT_CURSOR_FG,
   GRID_COLOR,
 } from "@/shared/lib/constants";
-import type { CanvasState } from "@/domains/canvas/state/canvasStore";
+import type { CanvasRenderModel } from "./canvasModels";
 import { GridManager } from "@/shared/utils/grid";
 import type { SelectionArea, GridMap, Point, NodeBounds, StructuredSplitBoxNode, AnimationFrame } from "@/shared/types";
 import type { CanvasLinkHit } from "./interaction/core/linkHitTesting";
@@ -16,8 +16,6 @@ import { createMapFromEntries } from "@/domains/canvas/state/helpers/snapshotHel
 import { getAnimationFrameIndex } from "@/domains/canvas/state/helpers/animationHelpers";
 import {
   DEFAULT_GRID_RENDER_METRICS,
-  drawCellBackground,
-  drawCellText,
   drawGridLines,
   drawTextCell,
   getCellOccupancy,
@@ -26,7 +24,6 @@ import {
   prepareCanvasSurface,
   setTextRenderStyle,
 } from "@/shared/metrics";
-import { effectiveCellStyle } from "@/shared/utils/ansi";
 import { getStaticGridViewState } from "@/domains/canvas/state/helpers/staticGridModel";
 import {
   getStructuredBoxBounds,
@@ -45,6 +42,7 @@ import {
 } from "@/domains/canvas/state/helpers/structuredHandleGeometry";
 
 import type { StructuredMovePreview } from "./interaction/structured/structuredInteractionPreview";
+import { drawGridLayer } from "../rendering/drawGridLayer";
 export type { StructuredMovePreview } from "./interaction/structured/structuredInteractionPreview";
 
 interface LayerRefs {
@@ -112,31 +110,7 @@ export const drawCanvasColorPickerAnchor = (
 export const useCanvasRenderer = (
   layers: LayerRefs,
   size: { width: number; height: number } | undefined,
-  store: Pick<
-    CanvasState,
-    | "offset"
-    | "zoom"
-    | "grid"
-    | "scratchLayer"
-    | "textCursor"
-    | "selections"
-    | "staticGridSelection"
-    | "staticGridEditMode"
-    | "showGrid"
-    | "hoveredGrid"
-    | "tool"
-    | "canvasMode"
-    | "canvasBounds"
-    | "animationTimeline"
-    | "animationPlaybackFrameId"
-    | "selectedStructuredNodeIds"
-    | "structuredContextPoint"
-    | "structuredGridFocus"
-    | "structuredScene"
-    | "editingStructuredTextNodeId"
-    | "structuredTextSelection"
-    | "canvasColorPickerTarget"
-  >,
+  store: CanvasRenderModel,
   draggingSelection: SelectionArea | null,
   structuredMovePreviewRef: React.RefObject<StructuredMovePreview | null>,
   hoveredLink: CanvasLinkHit | null,
@@ -205,55 +179,21 @@ export const useCanvasRenderer = (
     return changed;
   };
 
-  const drawLayer = (
-    ctx: CanvasRenderingContext2D,
-    targetGrid: GridMap | null,
-    viewBounds: ReturnType<typeof GridManager.getViewportGridBounds>,
-    zoom: number,
-    offset: Point,
-    alpha = 1
-  ) => {
-    if (!targetGrid || targetGrid.size === 0) return;
-
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    setTextRenderStyle(ctx, zoom);
-
-    for (let y = viewBounds.startY; y <= viewBounds.endY; y++) {
-      for (let x = viewBounds.startX; x <= viewBounds.endX; x++) {
-        const cell = targetGrid.get(GridManager.toKey(x, y));
-        if (!cell) continue;
-        const style = effectiveCellStyle(cell);
-        if (cell.char === " " && !style.bgColor && !style.attrs) continue;
-
-        const pos = GridManager.gridToScreen(x, y, offset.x, offset.y, zoom);
-        drawCellBackground(ctx, cell, pos.x, pos.y, { zoom });
-      }
-    }
-
-    for (let y = viewBounds.startY; y <= viewBounds.endY; y++) {
-      for (let x = viewBounds.startX; x <= viewBounds.endX; x++) {
-        const cell = targetGrid.get(GridManager.toKey(x, y));
-        if (!cell) continue;
-        const style = effectiveCellStyle(cell);
-        if (cell.char === " " && !style.attrs) continue;
-
-        const pos = GridManager.gridToScreen(x, y, offset.x, offset.y, zoom);
-        drawCellText(ctx, cell, pos.x, pos.y, {
-          zoom,
-          underline:
-            !!cell.href &&
-            !!hoveredLink &&
-            hoveredLink.href === cell.href &&
-            hoveredLink.y === y &&
-            x >= hoveredLink.startX &&
-            x <= hoveredLink.endX,
-        });
-      }
-    }
-    ctx.restore();
-  };
-
+  const drawLayer = useCallback(
+    (
+      ctx: CanvasRenderingContext2D,
+      targetGrid: GridMap | null,
+      viewBounds: ReturnType<typeof GridManager.getViewportGridBounds>,
+      layerZoom: number,
+      layerOffset: Point,
+      alpha = 1
+    ) =>
+      drawGridLayer(ctx, targetGrid, viewBounds, layerZoom, layerOffset, {
+        alpha,
+        hoveredLink,
+      }),
+    [hoveredLink]
+  );
   useEffect(() => {
     const getCachedAnimationFrameGrid = (frame: AnimationFrame) => {
       const cached = animationFrameGridCacheRef.current.get(frame.id);
@@ -784,6 +724,9 @@ export const useCanvasRenderer = (
     hoveredLink,
     structuredMovePreviewRef,
     requestRenderRef,
+    drawLayer,
+    renderedSelections,
+    renderedTextCursor,
   ]);
 };
 

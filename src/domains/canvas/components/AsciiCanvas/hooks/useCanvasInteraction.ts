@@ -4,6 +4,7 @@ import { GridManager } from "@/shared/utils/grid";
 import type { SelectionArea } from "@/shared/types";
 import type { CanvasState } from "@/domains/canvas/state/canvasStore";
 import { forceHistorySave } from "@/shared/lib/yjs-setup";
+import { browser } from "@/shared/services/browser";
 import { MIN_ZOOM, MAX_ZOOM } from "@/shared/lib/constants";
 import { type CanvasLinkHit } from "./interaction/core/linkHitTesting";
 import { type StructuredMovePreview } from "./interaction/structured/structuredInteractionPreview";
@@ -288,16 +289,17 @@ export const useCanvasInteraction = (
       window.removeEventListener("keydown", syncModifierState);
       window.removeEventListener("keyup", syncModifierState);
     };
-  }, []);
+  }, [hoverInteraction]);
 
-  useEffect(() => {
-    return () => {
+  useEffect(
+    () => () => {
       viewportInteraction.cancel();
       structuredPreviewQueue.cancel();
       selectionPreview.cancel();
-    };
-  }, []);
-
+      browser.setBodyCursor("");
+    },
+    [selectionPreview, structuredPreviewQueue, viewportInteraction]
+  );
   const handleDrawing = useCreation(
     () =>
       createDrawingUpdateHandler({
@@ -341,7 +343,7 @@ export const useCanvasInteraction = (
   const panningDragStartExecutor = createPanningDragStartExecutor({
     dispatchInteraction,
     setBodyCursor: (cursor) => {
-      document.body.style.cursor = cursor;
+      browser.setBodyCursor(cursor);
     },
   });
   const dragStartRouteHandler = createDragStartRouteHandler({
@@ -411,14 +413,14 @@ export const useCanvasInteraction = (
   });
   const nonPanningDragEndExecutor = createNonPanningDragEndExecutor({
     setBodyCursor: (cursor) => {
-      document.body.style.cursor = cursor;
+      browser.setBodyCursor(cursor);
     },
   });
   const panningDragEndExecutor = createPanningDragEndExecutor({
     flushOffset: () => viewportInteraction.flushOffset(),
     dispatchInteraction,
     setBodyCursor: (cursor) => {
-      document.body.style.cursor = cursor;
+      browser.setBodyCursor(cursor);
     },
     clearLinkHover: () => hoverInteraction.clearLinkHover(),
   });
