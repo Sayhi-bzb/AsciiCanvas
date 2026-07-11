@@ -6,13 +6,12 @@ import {
   effectiveCellStyle,
   isSameTextAttributes,
   parseAnsiHexColor,
-  toAnsi16Color,
-  toAnsiTruecolor,
+  toShortestAnsiColor,
 } from "@/shared/utils/ansi";
 import { GridManager } from "@/shared/utils/grid";
 import { getSelectionsBoundingBox } from "@/shared/utils/selection";
 
-const ANSI_RESET = "\u001b[0m";
+const ANSI_RESET = "\u001b[m";
 const ANSI_DEFAULT_FOREGROUND_COLORS = new Set([
   "#000000",
   COLOR_PRIMARY_TEXT.toLowerCase(),
@@ -32,10 +31,18 @@ type AnsiPiece = {
 };
 
 type ActiveAnsiStyle = {
-  color: string | null;
-  bgColor: string | null;
+  foreground: string | null;
+  background: string | null;
   attrs?: GridCell["attrs"];
+};
+
+type ActiveAnsiState = ActiveAnsiStyle & {
   href?: string;
+};
+
+const DEFAULT_ANSI_STYLE: ActiveAnsiStyle = {
+  foreground: null,
+  background: null,
 };
 
 const buildAnsiPiecesFromBounds = (
@@ -65,16 +72,22 @@ const buildAnsiPiecesFromBounds = (
   return pieces;
 };
 
-const resolveAnsiPieceStyle = (piece: AnsiPiece): ActiveAnsiStyle => {
-  if (!piece.cell) return { color: null, bgColor: null };
+const resolveAnsiPieceStyle = (piece: AnsiPiece): ActiveAnsiState => {
+  if (!piece.cell) return DEFAULT_ANSI_STYLE;
   const style = effectiveCellStyle(piece.cell);
-  const color =
+  const foregroundColor =
     parseAnsiHexColor(style.color) && !isAnsiDefaultForeground(style.color)
       ? style.color
       : null;
+  const backgroundColor =
+    style.bgColor && parseAnsiHexColor(style.bgColor) ? style.bgColor : null;
   return {
-    color,
-    bgColor: style.bgColor && parseAnsiHexColor(style.bgColor) ? style.bgColor : null,
+    foreground: foregroundColor
+      ? toShortestAnsiColor(38, foregroundColor)
+      : null,
+    background: backgroundColor
+      ? toShortestAnsiColor(48, backgroundColor)
+      : null,
     attrs: style.attrs,
     ...(piece.cell.href ? { href: piece.cell.href } : {}),
   };
@@ -85,10 +98,11 @@ const isAnsiSignificantPiece = (piece: AnsiPiece) => {
   if (!piece.cell) return false;
   const style = resolveAnsiPieceStyle(piece);
   return (
-    !!style.color ||
-    !!style.bgColor ||
+    !!style.background ||
     !!style.href ||
-    !!cloneTextAttributes(style.attrs)
+    !!style.attrs?.underline ||
+    !!style.attrs?.inverse ||
+    !!style.attrs?.strike
   );
 };
 
@@ -102,66 +116,116 @@ const trimTrailingAnsiSpaces = (pieces: AnsiPiece[]) => {
 
 const sameAnsiStyle = (a: ActiveAnsiStyle, b: ActiveAnsiStyle) => {
   return (
-    a.color === b.color &&
-    a.bgColor === b.bgColor &&
-    a.href === b.href &&
+    a.foreground === b.foreground &&
+    a.background === b.background &&
     isSameTextAttributes(a.attrs, b.attrs)
   );
 };
 
-const toAnsiStyleSequence = (style: ActiveAnsiStyle) => {
+const getAnsiStyleCodes = (style: ActiveAnsiStyle) => {
   const codes: string[] = [];
   if (style.attrs?.bold) codes.push("1");
   if (style.attrs?.italic) codes.push("3");
   if (style.attrs?.underline) codes.push("4");
   if (style.attrs?.inverse) codes.push("7");
   if (style.attrs?.strike) codes.push("9");
-  const foreground = style.color
-    ? toAnsi16Color(38, style.color) ?? toAnsiTruecolor(38, style.color)
-    : null;
-  const background = style.bgColor
-    ? toAnsi16Color(48, style.bgColor) ?? toAnsiTruecolor(48, style.bgColor)
-    : null;
-  if (foreground) codes.push(foreground);
-  if (background) codes.push(background);
-  return codes.length > 0 ? `\u001b[${codes.join(";")}m` : "";
+  if (style.foreground) codes.push(style.foreground);
+  if (style.background) codes.push(style.background);
+  return codes;
+};
+
+const toAnsiSequence = (codes: string[]) =>
+  codes.length > 0 ? `\u001b[${codes.join(";")}m` : "";
+
+const getAnsiStyleDiffCodes = (
+  previous: ActiveAnsiStyle,
+  next: ActiveAnsiStyle
+) => {
+  const codes: string[] = [];
+  if (previous.attrs?.bold && !next.attrs?.bold) codes.push("22");
+  if (previous.attrs?.italic && !next.attrs?.italic) codes.push("23");
+  if (previous.attrs?.underline && !next.attrs?.underline) codes.push("24");
+  if (previous.attrs?.inverse && !next.attrs?.inverse) codes.push("27");
+  if (previous.attrs?.strike && !next.attrs?.strike) codes.push("29");
+  if (!previous.attrs?.bold && next.attrs?.bold) codes.push("1");
+  if (!previous.attrs?.italic && next.attrs?.italic) codes.push("3");
+  if (!previous.attrs?.underline && next.attrs?.underline) codes.push("4");
+  if (!previous.attrs?.inverse && next.attrs?.inverse) codes.push("7");
+  if (!previous.attrs?.strike && next.attrs?.strike) codes.push("9");
+  if (previous.foreground !== next.foreground) {
+    codes.push(next.foreground ?? "39");
+  }
+  if (previous.background !== next.background) {
+    codes.push(next.background ?? "49");
+  }
+  return codes;
+};
+
+const toAnsiStyleDiffSequence = (
+  previous: ActiveAnsiStyle,
+  next: ActiveAnsiStyle
+) => {
+  if (sameAnsiStyle(previous, next)) return "";
+
+  const diffCodes = getAnsiStyleDiffCodes(previous, next);
+  const resetCodes = ["0", ...getAnsiStyleCodes(next)];
+  return toAnsiSequence(
+    resetCodes.join(";").length < diffCodes.join(";").length
+      ? resetCodes
+      : diffCodes
+  );
 };
 
 const toHyperlinkSequence = (href: string) => `]8;;${href}\\`;
 const closeHyperlinkSequence = () => "]8;;\\";
 
+const hasVisibleAnsiSpaceStyle = (style: ActiveAnsiState) => {
+  return (
+    !!style.background ||
+    !!style.href ||
+    !!style.attrs?.underline ||
+    !!style.attrs?.inverse ||
+    !!style.attrs?.strike
+  );
+};
+
 const serializeAnsiLine = (pieces: AnsiPiece[]) => {
   if (pieces.length === 0) return "";
 
   let out = "";
-  let activeStyle: ActiveAnsiStyle = { color: null, bgColor: null };
+  let activeStyle = DEFAULT_ANSI_STYLE;
+  let activeHref: string | undefined;
 
   pieces.forEach((piece) => {
-    const nextStyle = resolveAnsiPieceStyle(piece);
-    if (!sameAnsiStyle(activeStyle, nextStyle)) {
-      if (activeStyle.href && activeStyle.href !== nextStyle.href) {
+    const resolvedStyle = resolveAnsiPieceStyle(piece);
+    const isFlexibleSpace =
+      piece.char === " " && !hasVisibleAnsiSpaceStyle(resolvedStyle);
+    const canCarryActiveStyle =
+      !activeHref && !hasVisibleAnsiSpaceStyle(activeStyle);
+    const nextStyle = isFlexibleSpace
+      ? canCarryActiveStyle
+        ? activeStyle
+        : DEFAULT_ANSI_STYLE
+      : resolvedStyle;
+    const nextHref = isFlexibleSpace ? undefined : resolvedStyle.href;
+
+    if (activeHref !== nextHref) {
+      if (activeHref) {
         out += closeHyperlinkSequence();
       }
-      if (!sameAnsiStyle(activeStyle, { color: null, bgColor: null })) {
-        out += ANSI_RESET;
-      }
-      if (nextStyle.href && activeStyle.href !== nextStyle.href) {
-        out += toHyperlinkSequence(nextStyle.href);
-      }
-      out += toAnsiStyleSequence(nextStyle);
-      activeStyle = nextStyle;
     }
-    if (!piece.cell) {
-      out += piece.char;
-      return;
+    out += toAnsiStyleDiffSequence(activeStyle, nextStyle);
+    if (activeHref !== nextHref && nextHref) {
+      out += toHyperlinkSequence(nextHref);
     }
-
     out += piece.char;
+    activeStyle = nextStyle;
+    activeHref = nextHref;
   });
 
-  return sameAnsiStyle(activeStyle, { color: null, bgColor: null })
-    ? out
-    : `${out}${ANSI_RESET}`;
+  if (activeHref) out += closeHyperlinkSequence();
+  if (!sameAnsiStyle(activeStyle, DEFAULT_ANSI_STYLE)) out += ANSI_RESET;
+  return out;
 };
 
 const generateStringFromBounds = (

@@ -183,6 +183,34 @@ const colorFrom256 = (index: number) => {
   )}`;
 };
 
+const ANSI_256_INDEX_BY_COLOR = new Map<string, number>();
+for (let index = 0; index < 256; index += 1) {
+  const color = colorFrom256(index);
+  const current = ANSI_256_INDEX_BY_COLOR.get(color);
+  if (current === undefined || String(index).length < String(current).length) {
+    ANSI_256_INDEX_BY_COLOR.set(color, index);
+  }
+}
+
+export const toAnsi256Color = (prefix: 38 | 48, color: string) => {
+  const normalized = normalizeAnsiHexColor(color);
+  if (!normalized) return null;
+  const index = ANSI_256_INDEX_BY_COLOR.get(normalized);
+  return index === undefined ? null : `${prefix};5;${index}`;
+};
+
+export const toShortestAnsiColor = (prefix: 38 | 48, color: string) => {
+  const candidates = [
+    toAnsi16Color(prefix, color),
+    toAnsi256Color(prefix, color),
+    toAnsiTruecolor(prefix, color),
+  ].filter((candidate): candidate is string => !!candidate);
+
+  return candidates.reduce<string | null>((shortest, candidate) => {
+    return !shortest || candidate.length < shortest.length ? candidate : shortest;
+  }, null);
+};
+
 const cloneStyleState = (style: AnsiStyleState): AnsiStyleState => ({
   color: style.color,
   ...(style.bgColor ? { bgColor: style.bgColor } : {}),

@@ -168,9 +168,64 @@ describe("clipboardActions", () => {
     );
 
     expect(payload).toEqual({
-      plain: "[91mA[0m[92mB[0m",
+      plain: "[91mA[92mB[m",
       rich: null,
     });
+  });
+
+  it("round-trips compact ANSI clipboard style diffs", () => {
+    const payload = buildClipboardPayload(
+      new Map([
+        [
+          "0,0",
+          {
+            char: "A",
+            color: "#ff0000",
+            bgColor: "#0000ff",
+            attrs: { bold: true },
+          },
+        ],
+        ["1,0", { char: "B", color: "#00ff00", bgColor: "#0000ff" }],
+      ]),
+      [{ start: { x: 0, y: 0 }, end: { x: 1, y: 0 } }],
+      null,
+      "#ffffff",
+      "ansi"
+    );
+
+    expect(payload?.plain).toBe("[1;91;104mA[22;92mB[m");
+    expect(parseAnsiClipboardText(payload!.plain, "#ffffff")).toEqual([
+      {
+        x: 0,
+        y: 0,
+        char: "A",
+        color: "#ff0000",
+        bgColor: "#0000ff",
+        attrs: { bold: true },
+      },
+      {
+        x: 1,
+        y: 0,
+        char: "B",
+        color: "#00ff00",
+        bgColor: "#0000ff",
+      },
+    ]);
+  });
+
+  it("round-trips exact ANSI256 clipboard colors", () => {
+    const payload = buildClipboardPayload(
+      new Map([["0,0", { char: "A", color: "#5f87af" }]]),
+      [{ start: { x: 0, y: 0 }, end: { x: 0, y: 0 } }],
+      null,
+      "#ffffff",
+      "ansi"
+    );
+
+    expect(payload?.plain).toBe("[38;5;67mA[m");
+    expect(parseAnsiClipboardText(payload!.plain, "#ffffff")).toEqual([
+      { x: 0, y: 0, char: "A", color: "#5f87af" },
+    ]);
   });
 
   it("preserves trailing background spaces in ANSI clipboard payloads", () => {
@@ -188,7 +243,7 @@ describe("clipboardActions", () => {
     );
 
     expect(payload).toEqual({
-      plain: "[48;2;219;234;254m BUTTON [0m",
+      plain: "[48;2;219;234;254m BUTTON [m",
       rich: null,
     });
   });

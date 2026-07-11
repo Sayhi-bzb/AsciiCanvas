@@ -43,7 +43,7 @@ describe("asciinema cast utilities", () => {
     expect(JSON.parse(lines[1])).toEqual([
       0,
       "o",
-      "\r \u001b[91m@\u001b[0m \n   ",
+      "\r \u001b[91m@ \u001b[m\n   ",
     ]);
     expect(JSON.parse(lines[2])[0]).toBe(0.5);
     expect(JSON.parse(lines[3])).toEqual([1, "o", ""]);

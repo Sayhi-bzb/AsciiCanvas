@@ -519,7 +519,110 @@ describe("export utilities", () => {
     ]);
 
     expect(exportToAnsi(grid)).toBe(
-      "\u001b[91mAB\u001b[0m\u001b[92mC\u001b[0m"
+      "\u001b[91mAB\u001b[92mC\u001b[m"
+    );
+  });
+
+  it("merges adjacent cells with equivalent normalized ANSI colors", () => {
+    const grid: GridMap = new Map([
+      ["0,0", { char: "A", color: "#f00" }],
+      ["1,0", { char: "B", color: "#FF0000" }],
+    ]);
+
+    expect(exportToAnsi(grid)).toBe("\u001b[91mAB\u001b[m");
+  });
+
+  it("emits selective ANSI diffs for changed attributes and colors", () => {
+    const grid: GridMap = new Map([
+      [
+        "0,0",
+        {
+          char: "A",
+          color: "#ff0000",
+          bgColor: "#0000ff",
+          attrs: { bold: true },
+        },
+      ],
+      ["1,0", { char: "B", color: "#00ff00", bgColor: "#0000ff" }],
+    ]);
+
+    expect(exportToAnsi(grid)).toBe(
+      "\u001b[1;91;104mA\u001b[22;92mB\u001b[m"
+    );
+  });
+
+  it("carries invisible foreground style across unstyled spaces", () => {
+    const grid: GridMap = new Map([
+      ["0,0", { char: "A", color: "#ff0000" }],
+      ["2,0", { char: "B", color: "#ff0000" }],
+    ]);
+
+    expect(exportToAnsi(grid)).toBe("\u001b[91mA B\u001b[m");
+  });
+
+  it("carries foreground style across explicit visually empty cells", () => {
+    const grid: GridMap = new Map([
+      ["0,0", { char: "A", color: "#ff0000" }],
+      ["1,0", { char: " ", color: "#000000" }],
+      ["2,0", { char: "B", color: "#ff0000" }],
+    ]);
+
+    expect(exportToAnsi(grid)).toBe("\u001b[91mA B\u001b[m");
+  });
+
+  it("delays invisible leading-space styles and trims invisible trailing spaces", () => {
+    const leadingGrid: GridMap = new Map([
+      ["0,0", { char: " ", color: "#ff0000", attrs: { bold: true } }],
+      ["1,0", { char: "A", color: "#ff0000", attrs: { bold: true } }],
+    ]);
+    const trailingGrid: GridMap = new Map([
+      ["0,0", { char: "A", color: "#ff0000", attrs: { italic: true } }],
+      ["1,0", { char: " ", color: "#ff0000", attrs: { italic: true } }],
+    ]);
+
+    expect(exportToAnsi(leadingGrid)).toBe(" \u001b[1;91mA\u001b[m");
+    expect(exportToAnsi(trailingGrid)).toBe("\u001b[3;91mA\u001b[m");
+  });
+
+  it("does not carry visible background style across unstyled spaces", () => {
+    const grid: GridMap = new Map([
+      ["0,0", { char: "A", color: "#ff0000", bgColor: "#0000ff" }],
+      ["2,0", { char: "B", color: "#ff0000", bgColor: "#0000ff" }],
+    ]);
+
+    expect(exportToAnsi(grid)).toBe(
+      "\u001b[91;104mA\u001b[0m \u001b[91;104mB\u001b[m"
+    );
+  });
+
+  it("does not collapse visibly decorated spaces", () => {
+    const grid: GridMap = new Map([
+      ["0,0", { char: "A", color: "#ff0000", attrs: { underline: true } }],
+      ["1,0", { char: " ", color: "#000000" }],
+      ["2,0", { char: "B", color: "#ff0000", attrs: { underline: true } }],
+    ]);
+
+    expect(exportToAnsi(grid)).toBe(
+      "\u001b[4;91mA\u001b[0m \u001b[4;91mB\u001b[m"
+    );
+  });
+
+  it("uses exact ANSI256 colors when they are shorter than truecolor", () => {
+    const grid: GridMap = new Map([
+      ["0,0", { char: "A", color: "#5f87af" }],
+    ]);
+
+    expect(exportToAnsi(grid)).toBe("\u001b[38;5;67mA\u001b[m");
+  });
+
+  it("keeps ANSI lines self-contained", () => {
+    const grid: GridMap = new Map([
+      ["0,0", { char: "A", color: "#ff0000" }],
+      ["0,1", { char: "B", color: "#ff0000" }],
+    ]);
+
+    expect(exportToAnsi(grid)).toBe(
+      "\u001b[91mA\u001b[m\n\u001b[91mB\u001b[m"
     );
   });
 
@@ -588,7 +691,7 @@ describe("export utilities", () => {
 
     expect(
       exportSelectionToAnsi(grid, [{ start: { x: 0, y: 0 }, end: { x: 1, y: 0 } }])
-    ).toBe("\u001b[91mA\u001b[0m\u001b[92mB\u001b[0m");
+    ).toBe("\u001b[91mA\u001b[92mB\u001b[m");
   });
 
   it("exports ANSI background and text attributes", () => {
@@ -624,7 +727,7 @@ describe("export utilities", () => {
     ]);
 
     expect(exportToAnsi(grid)).toBe(
-      "\u001b[1;4;48;2;239;246;255mA\u001b[0m"
+      "\u001b[1;4;48;2;239;246;255mA\u001b[m"
     );
   });
 
@@ -637,13 +740,13 @@ describe("export utilities", () => {
     );
 
     expect(exportToAnsi(grid)).toBe(
-      "\u001b[48;2;219;234;254m BUTTON \u001b[0m"
+      "\u001b[48;2;219;234;254m BUTTON \u001b[m"
     );
     expect(
       exportSelectionToAnsi(grid, [
         { start: { x: 0, y: 0 }, end: { x: 7, y: 0 } },
       ])
-    ).toBe("\u001b[48;2;219;234;254m BUTTON \u001b[0m");
+    ).toBe("\u001b[48;2;219;234;254m BUTTON \u001b[m");
   });
 
   it("still trims trailing spaces without visible ANSI style", () => {
@@ -690,7 +793,7 @@ describe("export utilities", () => {
     ]);
 
     expect(exportToAnsi(grid)).toBe(
-      "\u001b[7;94;101mA\u001b[0m"
+      "\u001b[7;94;101mA\u001b[m"
     );
   });
 
@@ -702,7 +805,7 @@ describe("export utilities", () => {
     ]);
 
     expect(exportToAnsi(grid)).toBe(
-      "]8;;https://example.com\\\u001b[97mAB]8;;\\\u001b[0m\u001b[97mC\u001b[0m"
+      "\u001b[97m]8;;https://example.com\\AB]8;;\\C\u001b[m"
     );
   });
   it("exports selected ANSI without rich color escapes when color export is disabled", () => {
@@ -763,7 +866,7 @@ describe("export utilities", () => {
 
     expect(
       exportSelectionToAnsi(grid, [{ start: { x: 0, y: 0 }, end: { x: 2, y: 0 } }])
-    ).toBe("\u001b[97m你A\u001b[0m");
+    ).toBe("\u001b[97m你A\u001b[m");
   });
 
   it("supports short hex ANSI16 colors and falls back to default text on invalid colors", () => {
@@ -790,7 +893,7 @@ describe("export utilities", () => {
       ["2,0", { char: "A", color: "#ffffff" }],
     ]);
 
-    expect(exportToAnsi(grid)).toBe("\u001b[97m你A\u001b[0m");
+    expect(exportToAnsi(grid)).toBe("\u001b[97m你A\u001b[m");
   });
 
   it("exports animation frames as fixed-size ANSI output", () => {
@@ -799,7 +902,7 @@ describe("export utilities", () => {
       [["1,0", { char: "@", color: "#ff0000" }]]
     );
 
-    expect(ansi).toBe(" \u001b[91m@\u001b[0m \n   ");
+    expect(ansi).toBe(" \u001b[91m@ \u001b[m\n   ");
   });
 
   it("encodes complex GIF pixel streams without corrupting LZW data", async () => {
