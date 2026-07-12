@@ -211,6 +211,7 @@ describe("SidebarRight structured templates", () => {
     expect(screen.getByRole("button", { name: /phone/i })).toBeInTheDocument();
     expect(STRUCTURED_PAGE_TEMPLATES.map((template) => template.id)).toEqual([
       "amibios",
+      "spotify",
       "safari",
       "filetree",
       "timeline",

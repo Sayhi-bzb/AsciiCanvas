@@ -17,6 +17,7 @@ export type StructuredTemplateId =
   | "divider"
   | "card"
   | "amibios"
+  | "spotify"
   | "safari"
   | "textarea"
   | "status"

@@ -53,6 +53,7 @@ describe("structuredTemplates", () => {
     ]);
     expect(STRUCTURED_PAGE_TEMPLATES.map((template) => template.id)).toEqual([
       "amibios",
+      "spotify",
       "safari",
       "filetree",
       "timeline",
@@ -63,6 +64,7 @@ describe("structuredTemplates", () => {
     expect(STRUCTURED_TEMPLATES.map((template) => template.id)).toEqual([
       ...STRUCTURED_COMPONENT_TEMPLATES.map((template) => template.id),
       "amibios",
+      "spotify",
       "safari",
       "filetree",
       "timeline",
@@ -297,6 +299,94 @@ describe("structuredTemplates", () => {
     expect(structuredExport).toContain('name="systemFields"');
     expect(structuredExport).toContain('name="itemHelp"');
     expect(structuredExport).not.toContain('name="screen"');
+  });
+
+  it("builds the Spotify player as a framed structured component", () => {
+    const { nodes, components } = buildStructuredTemplate(
+      "spotify",
+      { x: 4, y: 7 },
+      { brushColor: "#334155", startOrder: 10 }
+    );
+    const roleByNode = new Map(
+      nodes.map((node) => [node.component?.role, node])
+    );
+    const frame = roleByNode.get("frame");
+
+    expect(nodes).toHaveLength(10);
+    expect(components).toHaveLength(1);
+    expect(components[0]).toMatchObject({
+      templateId: "spotify",
+      label: "Spotify",
+    });
+    expect(Object.keys(components[0].roles)).toEqual([
+      "frame",
+      "header",
+      "nowPlaying",
+      "progress",
+      "controls",
+      "queueHeading",
+      "queueTrack",
+      "listeningStatus",
+    ]);
+    expect(components[0].roles.queueTrack).toHaveLength(3);
+
+    expect(frame).toMatchObject({
+      type: "box",
+      start: { x: 4, y: 7 },
+      end: { x: 49, y: 23 },
+      style: { color: "#00ff00" },
+    });
+    expect(nodes.some((node) => node.type === "bg")).toBe(false);
+
+    const { roots, childrenById } = buildStructuredTree(nodes);
+    expect(roots).toEqual([frame]);
+    expect(childrenById.get(frame?.id ?? "")).toHaveLength(9);
+
+    const grid = renderStructuredScene(nodes);
+    const row = (y: number) =>
+      Array.from(
+        { length: 44 },
+        (_, x) => grid.get(x + 5 + "," + (y + 8))?.char ?? " "
+      ).join("");
+
+    expect(row(0)).toBe("󰓇 Spotify Premium               󰒔 Desktop-PC");
+    expect(row(2)).toBe("            󰝚 Blinding Lights               ");
+    expect(row(3)).toBe("        The Weeknd — After Hours            ");
+    expect(row(5)).toBe("  01:45 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 03:22 ");
+    expect(row(7)).toBe("            󰒝   󰒮   󰐊   󰒭   󰑖               ");
+    expect(row(9)).toBe("Next Up                                     ");
+    expect(row(10)).toBe("  󰎈 Save Your Tears            3:35   󰓏     ");
+    expect(row(11)).toBe("  󰎈 Starboy                    3:50   󰓏     ");
+    expect(row(12)).toBe("  󰎈 Die For You                4:20   󰓏     ");
+    expect(row(14)).toBe("   󰠃  Listening on Living Room Echo  󰓃      ");
+    expect([...grid.values()].every((cell) => !cell.href)).toBe(true);
+    expect(
+      nodes
+        .filter((node) => node.type === "text")
+        .every((node) => node.style.color === "#000000")
+    ).toBe(true);
+
+    const textNodes = nodes.filter((node) => node.type === "text");
+    expect(
+      textNodes.some((node) =>
+        node.styleRanges?.some((range) => range.style.attrs?.bold)
+      )
+    ).toBe(true);
+    expect(
+      textNodes.some((node) =>
+        node.styleRanges?.some((range) => range.style.attrs?.inverse)
+      )
+    ).toBe(true);
+
+    const structuredExport = exportStructuredHierarchyText(
+      nodes,
+      [],
+      components
+    );
+    expect(structuredExport).toContain('template="spotify"');
+    expect(structuredExport).toContain('name="queueTrack"');
+    expect(structuredExport).toContain('name="listeningStatus"');
+    expect(structuredExport).not.toContain("prompt://");
   });
 
   it("builds text-only atom templates", () => {
