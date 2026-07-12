@@ -11,6 +11,11 @@ import {
   setActiveStructuredTemplateDragId,
   type StructuredTemplateId,
 } from "@/domains/canvas/state/helpers/structuredTemplates";
+import { exportStructuredHierarchyText } from "@/domains/export";
+import {
+  buildStructuredTree,
+  renderStructuredScene,
+} from "@/shared/utils/structured";
 
 describe("structuredTemplates", () => {
   const build = (templateId: StructuredTemplateId) =>
@@ -178,46 +183,120 @@ describe("structuredTemplates", () => {
     });
   });
 
-  it("builds the AMIBIOS structured page template from ANSI-like source", () => {
+  it("builds the AMIBIOS page as structured semantic regions", () => {
     const { nodes, components } = buildStructuredTemplate(
       "amibios",
       { x: 4, y: 7 },
       { brushColor: "#334155", startOrder: 10 }
     );
-    const [screen] = nodes;
+    const roleByNode = new Map(
+      nodes.map((node) => [node.component?.role, node])
+    );
+    const frame = roleByNode.get("frame");
+    const screenFill = roleByNode.get("screenFill");
 
-    expect(nodes).toHaveLength(1);
+    expect(nodes).toHaveLength(10);
     expect(components).toHaveLength(1);
     expect(components[0]).toMatchObject({
       templateId: "amibios",
       label: "AMIBIOS",
-      atomIds: [screen.id],
-      roles: { screen: [screen.id] },
     });
-    expect(screen).toMatchObject({
-      type: "text",
+    expect(Object.keys(components[0].roles)).toEqual([
+      "screenFill",
+      "frame",
+      "title",
+      "navigation",
+      "systemFields",
+      "drivePanel",
+      "memoryStatus",
+      "temperatureStatus",
+      "itemHelp",
+      "footer",
+    ]);
+    expect(components[0].roles).not.toHaveProperty("screen");
+
+    expect(screenFill).toMatchObject({
+      type: "bg",
       order: 10,
-      position: { x: 4, y: 7 },
-      style: { color: "#c0c0c0", bgColor: "#000080" },
+      start: { x: 4, y: 7 },
+      end: { x: 84, y: 31 },
       component: {
         templateId: "amibios",
-        role: "screen",
+        role: "screenFill",
       },
     });
-    if (screen.type !== "text") throw new Error("Expected AMIBIOS text node.");
-    expect(screen.text).toContain(
-      "AMIBIOS EASY SETUP UTILITY - VERSION 1.24.2026"
-    );
-    expect(screen.text).toContain("CPU Temperature:   45°C (Normal)");
-    expect(screen.styleRanges?.some((range) => range.style.attrs?.bold)).toBe(
-      true
-    );
-    expect(screen.styleRanges?.some((range) => range.style.attrs?.inverse)).toBe(
+    expect(frame).toMatchObject({
+      type: "splitBox",
+      order: 11,
+      start: { x: 4, y: 7 },
+      end: { x: 84, y: 31 },
+      component: {
+        templateId: "amibios",
+        role: "frame",
+      },
+    });
+
+    const { roots, childrenById } = buildStructuredTree(nodes);
+    expect(roots).toEqual([frame]);
+    expect(childrenById.get(frame?.id ?? "")).toHaveLength(9);
+
+    const textNodes = nodes.filter((node) => node.type === "text");
+    expect(textNodes.some((node) => node.text.includes("AMIBIOS EASY SETUP"))).toBe(
       true
     );
     expect(
-      screen.styleRanges?.some((range) => range.style.bgColor === "#000080")
+      textNodes.some((node) => node.text.includes("CPU Temperature:   45°C"))
     ).toBe(true);
+    expect(
+      textNodes.some((node) =>
+        node.styleRanges?.some((range) => range.style.attrs?.bold)
+      )
+    ).toBe(true);
+    expect(
+      textNodes.some((node) =>
+        node.styleRanges?.some((range) => range.style.attrs?.inverse)
+      )
+    ).toBe(true);
+
+    const grid = renderStructuredScene(nodes);
+    const row = (y: number) =>
+      Array.from(
+        { length: 81 },
+        (_, x) => grid.get(x + 4 + "," + (y + 7))?.char ?? " "
+      ).join("");
+
+    expect(row(0)).toBe(
+      "╭───────────────────────────────────────────────────────────────────────────────╮"
+    );
+    expect(row(1)).toBe(
+      "│   AMIBIOS EASY SETUP UTILITY - VERSION 1.24.2026                              │"
+    );
+    expect(row(3)).toBe(
+      "│  Main      Advanced     Power     Boot     Security     Exit                  │"
+    );
+    expect(row(4)).toBe(
+      "├───────────────────────────────────────┬───────────────────────────────────────┤"
+    );
+    expect(row(22)).toBe(
+      "├───────────────────────────────────────┴───────────────────────────────────────┤"
+    );
+    expect(row(23)).toBe(
+      "│ F1:Help  ↑↓:Select Item  +/-:Change Values  F5:Setup Defaults  F10:Save & Exit│"
+    );
+    expect(row(24)).toBe(
+      "╰───────────────────────────────────────────────────────────────────────────────╯"
+    );
+
+    const structuredExport = exportStructuredHierarchyText(
+      nodes,
+      [],
+      components
+    );
+    expect(structuredExport).toContain('template="amibios"');
+    expect(structuredExport).toContain('name="frame"');
+    expect(structuredExport).toContain('name="systemFields"');
+    expect(structuredExport).toContain('name="itemHelp"');
+    expect(structuredExport).not.toContain('name="screen"');
   });
 
   it("builds text-only atom templates", () => {

@@ -1,5 +1,6 @@
 import type {
   GridCell,
+  StructuredSplitBoxTreeNode,
   StructuredTextRangeStyle,
   StructuredTextStyleRange,
 } from "@/shared/types";
@@ -55,28 +56,35 @@ const stylesEqual = (
   !!left.attrs?.strike === !!right.attrs?.strike &&
   !!left.attrs?.inverse === !!right.attrs?.inverse;
 
-const buildStyledTextFromAnsi = (source: string) => {
-  const cells = parseAnsiTextCells(source, AMIBIOS_BASE_STYLE.color) ?? [];
-  const width = Math.max(...cells.map((cell) => cell.x)) + 1;
-  const height = Math.max(...cells.map((cell) => cell.y)) + 1;
-  const chars = Array.from({ length: height }, () =>
-    Array.from({ length: width }, () => " ")
-  );
-  const styles = Array.from({ length: height }, () =>
-    Array.from({ length: width }, (): StructuredTextRangeStyle | null => null)
-  );
+const AMIBIOS_CELLS =
+  parseAnsiTextCells(AMIBIOS_SOURCE, AMIBIOS_BASE_STYLE.color) ?? [];
+const AMIBIOS_CELL_BY_POINT = new Map(
+  AMIBIOS_CELLS.map((cell) => [cell.x + "," + cell.y, cell])
+);
 
-  cells.forEach((cell) => {
-    chars[cell.y][cell.x] = cell.char;
-    styles[cell.y][cell.x] = styleFromCell(cell);
-  });
+type StyledTextRegion = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
 
+const buildStyledTextRegion = ({
+  x,
+  y,
+  width,
+  height,
+}: StyledTextRegion) => {
   let text = "";
   let offset = 0;
   let activeRange: StructuredTextStyleRange | null = null;
   const styleRanges: StructuredTextStyleRange[] = [];
 
   const pushStyle = (style: StructuredTextRangeStyle) => {
+    if (stylesEqual(style, AMIBIOS_BASE_STYLE)) {
+      activeRange = null;
+      return;
+    }
     if (activeRange && stylesEqual(activeRange.style, style)) {
       activeRange.end = offset + 1;
       return;
@@ -85,34 +93,129 @@ const buildStyledTextFromAnsi = (source: string) => {
     styleRanges.push(activeRange);
   };
 
-  chars.forEach((row, y) => {
-    row.forEach((char, x) => {
+  for (let rowOffset = 0; rowOffset < height; rowOffset += 1) {
+    const row = Array.from({ length: width }, (_, columnOffset) => {
+      const cell = AMIBIOS_CELL_BY_POINT.get(
+        x + columnOffset + "," + (y + rowOffset)
+      );
+      return {
+        char: cell?.char ?? " ",
+        style: cell ? styleFromCell(cell) : AMIBIOS_BASE_STYLE,
+      };
+    });
+    let contentLength = row.length;
+    while (
+      contentLength > 0 &&
+      row[contentLength - 1].char === " " &&
+      stylesEqual(row[contentLength - 1].style, AMIBIOS_BASE_STYLE)
+    ) {
+      contentLength -= 1;
+    }
+
+    row.slice(0, contentLength).forEach(({ char, style }) => {
       text += char;
-      pushStyle(styles[y][x] ?? AMIBIOS_BASE_STYLE);
+      pushStyle(style);
       offset += 1;
     });
-    if (y < chars.length - 1) {
+    activeRange = null;
+    if (rowOffset < height - 1) {
       text += "\n";
       offset += 1;
     }
-  });
+  }
 
   return { text, styleRanges };
 };
 
-const AMIBIOS_TEXT = buildStyledTextFromAnsi(AMIBIOS_SOURCE);
+const createFrameRoot = (): StructuredSplitBoxTreeNode => ({
+  type: "split",
+  id: "split-title",
+  axis: "horizontal",
+  ratio: 2 / 24,
+  first: { type: "leaf", id: "leaf-title" },
+  second: {
+    type: "split",
+    id: "split-navigation",
+    axis: "horizontal",
+    ratio: 2 / 22,
+    first: { type: "leaf", id: "leaf-navigation" },
+    second: {
+      type: "split",
+      id: "split-footer",
+      axis: "horizontal",
+      ratio: 18 / 20,
+      first: {
+        type: "split",
+        id: "split-main",
+        axis: "vertical",
+        ratio: 40 / 80,
+        first: { type: "leaf", id: "leaf-settings" },
+        second: { type: "leaf", id: "leaf-help" },
+      },
+      second: { type: "leaf", id: "leaf-footer" },
+    },
+  },
+});
 
 export const AMIBIOS_TEMPLATE: StructuredComponentDefinition = {
   id: "amibios",
   label: "AMIBIOS",
-  build: ({ createText }) => [
-    createText(
-      AMIBIOS_TEXT.text,
-      { x: 0, y: 0 },
+  build: ({ createBg, createSplitBox, createText }) => {
+    const screenFill = createBg(
+      81,
       0,
-      AMIBIOS_TEXT.styleRanges,
+      0,
+      { x: 0, y: 0 },
+      25,
+      AMIBIOS_BASE_STYLE.bgColor,
+      "screenFill"
+    );
+    const frame = createSplitBox(
+      81,
+      25,
+      1,
+      { x: 0, y: 0 },
+      {
+        verticalSplitRatio: 40 / 80,
+        topSplitRatio: 2 / 24,
+        bottomSplitRatio: 18 / 20,
+      },
       AMIBIOS_BASE_STYLE,
-      "screen"
-    ),
-  ],
+      "frame"
+    );
+    const createRegion = (
+      role: string,
+      region: StyledTextRegion,
+      orderOffset: number
+    ) => {
+      const styledText = buildStyledTextRegion(region);
+      return createText(
+        styledText.text,
+        { x: region.x, y: region.y },
+        orderOffset,
+        styledText.styleRanges.length > 0
+          ? styledText.styleRanges
+          : undefined,
+        AMIBIOS_BASE_STYLE,
+        role
+      );
+    };
+
+    return [
+      screenFill,
+      { ...frame, root: createFrameRoot() },
+      createRegion("title", { x: 1, y: 1, width: 79, height: 1 }, 2),
+      createRegion("navigation", { x: 1, y: 3, width: 79, height: 1 }, 3),
+      createRegion("systemFields", { x: 1, y: 5, width: 39, height: 5 }, 4),
+      createRegion("drivePanel", { x: 1, y: 10, width: 39, height: 6 }, 5),
+      createRegion("memoryStatus", { x: 1, y: 16, width: 39, height: 4 }, 6),
+      createRegion(
+        "temperatureStatus",
+        { x: 1, y: 20, width: 39, height: 2 },
+        7
+      ),
+      createRegion("itemHelp", { x: 41, y: 5, width: 39, height: 17 }, 8),
+      createRegion("footer", { x: 1, y: 23, width: 79, height: 1 }, 9),
+    ];
+  },
 };
