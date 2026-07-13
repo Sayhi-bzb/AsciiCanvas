@@ -1,6 +1,0 @@
-{
-  "branch": "main",
-  "commitSha": "3608e8dba6546d76d6f8ae5d844383c628a3aa24",
-  "startedAt": "2026-04-03T07:49:52.565Z",
-  "description": "Verify animation session creation, timeline controls, onion-skin UI, and animation export in ASCII Canvas"
-}

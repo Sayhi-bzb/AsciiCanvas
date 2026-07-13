@@ -1,10 +1,10 @@
 "use client";
 
-import { Clapperboard, Copy, GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
+import { Copy, GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Reorder, useDragControls } from "motion/react";
 import { useShallow } from "zustand/react/shallow";
-import { SidebarStandard, useSidebar } from "@/shared/ui/sidebar";
+import { useSidebar } from "@/shared/ui/sidebar";
 import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
@@ -288,7 +288,7 @@ function FrameRow({
   );
 }
 
-export function SidebarLeft() {
+export function AnimationSidebarContent() {
   const {
     canvasMode,
     canvasBounds,
@@ -377,10 +377,6 @@ export function SidebarLeft() {
   if (canvasMode !== "animation" || !animationTimeline) {
     return null;
   }
-
-  const stopCanvasUiEvent = (event: { stopPropagation: () => void }) => {
-    event.stopPropagation();
-  };
 
   const selectFrame = (
     frameId: string,
@@ -482,42 +478,7 @@ export function SidebarLeft() {
   };
 
   return (
-    <SidebarStandard
-      variant="floating"
-      side="left"
-      title="Frames"
-      className="pointer-events-auto"
-      contentClassName="min-h-0 overflow-hidden"
-      data-canvas-ui="true"
-      onPointerDown={stopCanvasUiEvent}
-      onMouseDown={stopCanvasUiEvent}
-      onClick={stopCanvasUiEvent}
-      onContextMenu={stopCanvasUiEvent}
-      icon={
-        <div className="flex items-center justify-center rounded-lg bg-accent p-1.5 shrink-0">
-          <Clapperboard className="size-4 text-accent-foreground" />
-        </div>
-      }
-      footer={
-        <div className={cn("w-full", isCollapsed && "flex justify-center")}>
-          <Button
-            type="button"
-            tone="neutral"
-            size="sm"
-            className={cn(
-              "w-full shadow-none",
-              isCollapsed && "size-8 rounded-lg px-0"
-            )}
-            onClick={() => insertAnimationFrame("after")}
-            aria-label="Add frame after current"
-            title="Add frame after current"
-          >
-            <Plus className="size-4" />
-            {!isCollapsed && <span>Add After Current</span>}
-          </Button>
-        </div>
-      }
-    >
+    <div className="flex min-h-0 flex-1 flex-col">
       {!isCollapsed && (
         <div className="mb-3 grid shrink-0 grid-cols-2 gap-1">
           {(["frames", "effects"] as const).map((mode) => (
@@ -541,51 +502,71 @@ export function SidebarLeft() {
       {panelMode === "effects" && !isCollapsed ? (
         <AnimationEffectsPanel />
       ) : (
-      <ScrollArea className="min-h-0 min-w-0 flex-1">
-        <Reorder.Group
-          as="div"
-          axis="y"
-          values={frameOrder}
-          onReorder={reorderAnimationFrames}
-          className="flex w-full max-w-full min-w-0 flex-col gap-2 pr-1 overflow-hidden"
-        >
-          {animationTimeline.frames.map((frame, index) => {
-            const isActive = frame.id === sidebarCurrentFrameId;
-            const isSelected = effectiveSelectedFrameIds.includes(frame.id);
-            const isEditing = frame.id === editingId;
+        <div className="flex min-h-0 flex-1 flex-col">
+          <ScrollArea className="min-h-0 min-w-0 flex-1">
+            <Reorder.Group
+              as="div"
+              axis="y"
+              values={frameOrder}
+              onReorder={reorderAnimationFrames}
+              className="flex w-full max-w-full min-w-0 flex-col gap-2 pr-1 overflow-hidden"
+            >
+              {animationTimeline.frames.map((frame, index) => {
+                const isActive = frame.id === sidebarCurrentFrameId;
+                const isSelected = effectiveSelectedFrameIds.includes(frame.id);
+                const isEditing = frame.id === editingId;
 
-            return (
-              <FrameRow
-                key={frame.id}
-                frame={frame}
-                index={index}
-                size={canvasBounds}
-                isActive={isActive}
-                isSelected={isSelected}
-                isEditing={isEditing}
-                isCollapsed={isCollapsed}
-                editingName={editingName}
-                inputRef={inputRef}
-                canDelete
-                onSelect={(event) => selectFrame(frame.id, event)}
-                onContextSelect={() => selectFrameForContextMenu(frame.id)}
-                onStartRename={() => startRename(frame.id, frame.name)}
-                onEditingNameChange={setEditingName}
-                onCommitRename={commitRename}
-                onCancelRename={cancelRename}
-                onDuplicate={() => duplicateSelectedFrames(frame.id)}
-                onInsertAfter={() => {
-                  selectFrame(frame.id);
-                  insertAnimationFrame("after");
-                  setSelectedFrameIds([]);
-                  setSelectionAnchorFrameId(null);
-                }}
-                onDelete={() => removeSelectedFrames(frame.id)}
-              />
-            );
-          })}
-        </Reorder.Group>
-      </ScrollArea>
+                return (
+                  <FrameRow
+                    key={frame.id}
+                    frame={frame}
+                    index={index}
+                    size={canvasBounds}
+                    isActive={isActive}
+                    isSelected={isSelected}
+                    isEditing={isEditing}
+                    isCollapsed={isCollapsed}
+                    editingName={editingName}
+                    inputRef={inputRef}
+                    canDelete
+                    onSelect={(event) => selectFrame(frame.id, event)}
+                    onContextSelect={() => selectFrameForContextMenu(frame.id)}
+                    onStartRename={() => startRename(frame.id, frame.name)}
+                    onEditingNameChange={setEditingName}
+                    onCommitRename={commitRename}
+                    onCancelRename={cancelRename}
+                    onDuplicate={() => duplicateSelectedFrames(frame.id)}
+                    onInsertAfter={() => {
+                      selectFrame(frame.id);
+                      insertAnimationFrame("after");
+                      setSelectedFrameIds([]);
+                      setSelectionAnchorFrameId(null);
+                    }}
+                    onDelete={() => removeSelectedFrames(frame.id)}
+                  />
+                );
+              })}
+            </Reorder.Group>
+          </ScrollArea>
+
+          <div className={cn("shrink-0 pt-2", isCollapsed && "flex justify-center")}>
+            <Button
+              type="button"
+              tone="neutral"
+              size="sm"
+              className={cn(
+                "w-full shadow-none",
+                isCollapsed && "size-8 rounded-lg px-0"
+              )}
+              onClick={() => insertAnimationFrame("after")}
+              aria-label="Add frame after current"
+              title="Add frame after current"
+            >
+              <Plus className="size-4" />
+              {!isCollapsed && <span>Add After Current</span>}
+            </Button>
+          </div>
+        </div>
       )}
 
       {!isCollapsed && (
@@ -593,6 +574,6 @@ export function SidebarLeft() {
           {Math.max(activeFrameIndex + 1, 1)} / {animationTimeline.frames.length}
         </div>
       )}
-    </SidebarStandard>
+    </div>
   );
 }

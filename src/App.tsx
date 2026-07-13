@@ -21,12 +21,6 @@ const SidebarRight = lazy(() =>
   }))
 );
 
-const SidebarLeft = lazy(() =>
-  import("./components/ToolBar/sidebar-left").then((module) => ({
-    default: module.SidebarLeft,
-  }))
-);
-
 // Mobile sidebar trigger.
 function MobileSidebarTrigger() {
   const isMobile = useIsMobile();
@@ -51,17 +45,11 @@ function MobileSidebarTrigger() {
 }
 
 function AppContent() {
-  const { tool, setTool, canvasMode } = useCanvasStore(
+  const { tool, setTool } = useCanvasStore(
     useShallow((state) => ({
       tool: state.tool,
       setTool: state.setTool,
-      canvasMode: state.canvasMode,
     }))
-  );
-
-  const [isLeftPanelOpen, setIsLeftPanelOpen] = useLocalStorageState<boolean>(
-    "ui-left-panel-status",
-    { defaultValue: true }
   );
 
   const [isRightPanelOpen, setIsRightPanelOpen] = useLocalStorageState<boolean>(
@@ -71,11 +59,7 @@ function AppContent() {
 
   const sidebarAutoCollapseSignal = useSidebarAutoCollapseSignal();
   const isMobile = useIsMobile();
-  const topBarLeftInset = isMobile
-    ? "3.75rem"
-    : canvasMode === "animation" && isLeftPanelOpen
-      ? "20.5rem"
-      : "4rem";
+  const topBarLeftInset = isMobile ? "3.75rem" : "4rem";
   const topBarRightInset = isMobile
     ? "0.5rem"
     : isRightPanelOpen
@@ -84,13 +68,8 @@ function AppContent() {
 
   useEffect(() => {
     if (sidebarAutoCollapseSignal === 0) return;
-    setIsLeftPanelOpen(false);
     setIsRightPanelOpen(false);
-  }, [
-    sidebarAutoCollapseSignal,
-    setIsLeftPanelOpen,
-    setIsRightPanelOpen,
-  ]);
+  }, [sidebarAutoCollapseSignal, setIsRightPanelOpen]);
 
   const handleUndo = () => {
     runUndo();
@@ -150,23 +129,6 @@ function AppContent() {
             onUndo={handleUndo}
           />
         </AppLayout>
-
-        {canvasMode === "animation" && (
-          <div className="absolute top-0 left-0 h-full pointer-events-none z-50">
-            <SidebarProvider
-              open={isLeftPanelOpen}
-              onOpenChange={setIsLeftPanelOpen}
-              className="h-full items-start"
-              style={
-                { "--sidebar-width": "20rem" } as React.CSSProperties
-              }
-            >
-              <Suspense fallback={<div className="w-0" />}>
-                <SidebarLeft />
-              </Suspense>
-            </SidebarProvider>
-          </div>
-        )}
 
         <div className="absolute top-0 right-0 h-full pointer-events-none z-50">
           <SidebarProvider

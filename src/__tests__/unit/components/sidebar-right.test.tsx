@@ -185,6 +185,41 @@ describe("SidebarRight structured templates", () => {
     expect(screen.getByTestId("sidebar-footer-github")).toHaveClass("mt-1");
   });
 
+  it("shows animation frames in the right sidebar without replacing its footer", () => {
+    useCanvasStore.setState({
+      canvasMode: "animation",
+      canvasBounds: { width: 80, height: 25 },
+      animationTimeline: {
+        frames: [{ id: "frame-1", name: "Opening", grid: [] }],
+        currentFrameId: "frame-1",
+        fps: 10,
+        loop: true,
+        onionSkin: {
+          enabled: true,
+          backwardLayers: 2,
+          forwardLayers: 2,
+          opacityFalloff: [0.5, 0.3, 0.1],
+        },
+      },
+    });
+
+    render(
+      <SidebarProvider>
+        <SidebarRight />
+      </SidebarProvider>
+    );
+
+    expect(screen.getByText("Frames", { selector: "span" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "frames" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "effects" })).toBeInTheDocument();
+    expect(screen.getByText("Opening")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Add frame after current" })
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("sidebar-footer-actions")).toBeInTheDocument();
+    expect(screen.queryByText("Nerd Icons")).not.toBeInTheDocument();
+  });
+
   it("switches structured sidebar tabs between templates and components", () => {
     useCanvasStore.setState({ canvasMode: "structured" });
 

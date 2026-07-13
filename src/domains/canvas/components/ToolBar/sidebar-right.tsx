@@ -1,8 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Eye, EyeOff, Github, Languages } from "lucide-react";
-import { SidebarHeader, SidebarStandard, SidebarTrigger, useSidebar } from "@/shared/ui/sidebar";
+import { Clapperboard, Eye, EyeOff, Github, Languages } from "lucide-react";
+import {
+  SidebarHeader,
+  SidebarStandard,
+  SidebarTrigger,
+  useSidebar,
+} from "@/shared/ui/sidebar";
 import { CharLibrary, SearchForm, useLibraryStore } from "@/domains/character-library";
 import { StructuredTemplateLibrary } from "./structured-template-library";
 import {
@@ -20,6 +25,7 @@ import { ImportButton } from "@/domains/import";
 import { HandbookDialog, ClearCanvasDialog } from "@/domains/canvas/components/dialogs";
 import { useShallow } from "zustand/react/shallow";
 import { useUiI18n } from "@/shared/i18n";
+import { AnimationSidebarContent } from "./animation-sidebar-content";
 
 type StructuredSidebarTab = "template" | "components";
 
@@ -73,18 +79,28 @@ export function SidebarRight() {
   const [structuredLibraryQuery, setStructuredLibraryQuery] = useState("");
 
   useEffect(() => {
-    if (canvasMode === "structured") return;
+    if (canvasMode !== "freeform") return;
     fetchLibrary();
   }, [canvasMode, fetchLibrary]);
+
+  const stopCanvasUiEvent = (event: { stopPropagation: () => void }) => {
+    event.stopPropagation();
+  };
 
   return (
     <SidebarStandard
       variant="floating"
       side="right"
       className="pointer-events-auto"
+      data-canvas-ui="true"
+      onPointerDown={stopCanvasUiEvent}
+      onMouseDown={stopCanvasUiEvent}
+      onClick={stopCanvasUiEvent}
+      onContextMenu={stopCanvasUiEvent}
       contentClassName={cn(
         "min-h-0 overflow-hidden",
-        canvasMode === "structured" && "gap-0 p-2"
+        canvasMode === "structured" && "gap-0 p-2",
+        canvasMode === "animation" && "p-2"
       )}
       header={
         <SidebarHeader
@@ -108,6 +124,13 @@ export function SidebarRight() {
                   "placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
                 )}
               />
+            ) : canvasMode === "animation" ? (
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-accent">
+                  <Clapperboard className="size-4 text-accent-foreground" />
+                </div>
+                <span className="truncate text-sm font-semibold">Frames</span>
+              </div>
             ) : (
               <SearchForm className="min-w-0 flex-1" />
             ))}
@@ -252,64 +275,68 @@ export function SidebarRight() {
         </TooltipProvider>
       }
     >
-      <div className="flex min-h-0 flex-1 flex-col">
-        {canvasMode === "structured" && !isCollapsed && (
-          <div className="shrink-0 border-b px-2 pb-2 pt-1">
-            <div
-              className="flex items-end gap-4"
-              role="tablist"
-              aria-label="Structured library sections"
-            >
-              {STRUCTURED_SIDEBAR_TABS.map((tab) => {
-                const isActive = structuredSidebarTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={isActive}
-                    className={cn(
-                      "relative h-7 px-0 text-xs font-medium transition-colors outline-none",
-                      "focus-visible:ring-2 focus-visible:ring-ring/50",
-                      isActive
-                        ? "text-foreground"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                    onClick={() => setStructuredSidebarTab(tab.id)}
-                  >
-                    {t(tab.labelKey)}
-                    {isActive && (
-                      <span
-                        data-testid="structured-sidebar-active-tab-line"
-                        className="absolute inset-x-0 -bottom-px h-px bg-foreground"
-                      />
-                    )}
-                  </button>
-                );
-              })}
+      {canvasMode === "animation" ? (
+        <AnimationSidebarContent />
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col">
+          {canvasMode === "structured" && !isCollapsed && (
+            <div className="shrink-0 border-b px-2 pb-2 pt-1">
+              <div
+                className="flex items-end gap-4"
+                role="tablist"
+                aria-label="Structured library sections"
+              >
+                {STRUCTURED_SIDEBAR_TABS.map((tab) => {
+                  const isActive = structuredSidebarTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={isActive}
+                      className={cn(
+                        "relative h-7 px-0 text-xs font-medium transition-colors outline-none",
+                        "focus-visible:ring-2 focus-visible:ring-ring/50",
+                        isActive
+                          ? "text-foreground"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                      onClick={() => setStructuredSidebarTab(tab.id)}
+                    >
+                      {t(tab.labelKey)}
+                      {isActive && (
+                        <span
+                          data-testid="structured-sidebar-active-tab-line"
+                          className="absolute inset-x-0 -bottom-px h-px bg-foreground"
+                        />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        )}
-        <ScrollArea className="min-h-0 min-w-0 flex-1">
-          {canvasMode === "structured" ? (
-            structuredSidebarTab === "template" ? (
-              <StructuredTemplateLibrary
-                templates={STRUCTURED_PAGE_TEMPLATES}
-                query={structuredLibraryQuery}
-                emptyLabel={t("sidebar.empty.templates")}
-              />
-            ) : (
-              <StructuredTemplateLibrary
-                templates={STRUCTURED_COMPONENT_TEMPLATES}
-                query={structuredLibraryQuery}
-                emptyLabel={t("sidebar.empty.components")}
-              />
-            )
-          ) : (
-            <CharLibrary />
           )}
-        </ScrollArea>
-      </div>
+          <ScrollArea className="min-h-0 min-w-0 flex-1">
+            {canvasMode === "structured" ? (
+              structuredSidebarTab === "template" ? (
+                <StructuredTemplateLibrary
+                  templates={STRUCTURED_PAGE_TEMPLATES}
+                  query={structuredLibraryQuery}
+                  emptyLabel={t("sidebar.empty.templates")}
+                />
+              ) : (
+                <StructuredTemplateLibrary
+                  templates={STRUCTURED_COMPONENT_TEMPLATES}
+                  query={structuredLibraryQuery}
+                  emptyLabel={t("sidebar.empty.components")}
+                />
+              )
+            ) : (
+              <CharLibrary />
+            )}
+          </ScrollArea>
+        </div>
+      )}
     </SidebarStandard>
   );
 }
