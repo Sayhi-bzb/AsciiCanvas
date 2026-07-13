@@ -24,7 +24,12 @@ import type {
 } from "../types";
 
 // Options types for each action
-type UndoRedoOptions = { onUndo?: () => void; onRedo?: () => void };
+type UndoRedoOptions = {
+  onUndo?: () => void;
+  onRedo?: () => void;
+  managedTextarea?: HTMLTextAreaElement | null;
+  source?: ActionSource;
+};
 type ClipboardOptions = {
   clipboardEvent?: ClipboardEvent;
   managedTextarea?: HTMLTextAreaElement | null;
@@ -132,7 +137,8 @@ export const editorHandlers: Record<
   undo: (options, context): ActionResult => {
     const opts = options as UndoRedoOptions;
     const succeeded = runEditorCommand("undo", {
-      source: "keyboard",
+      source: opts.source,
+      managedTextarea: opts.managedTextarea,
       onUndo: opts.onUndo ?? context.onUndo,
     });
     return succeeded ? actionSucceeded() : actionFailed("precondition-failed");
@@ -141,7 +147,8 @@ export const editorHandlers: Record<
   redo: (options, context): ActionResult => {
     const opts = options as UndoRedoOptions;
     const succeeded = runEditorCommand("redo", {
-      source: "keyboard",
+      source: opts.source,
+      managedTextarea: opts.managedTextarea,
       onRedo: opts.onRedo ?? context.onRedo,
     });
     return succeeded ? actionSucceeded() : actionFailed("precondition-failed");

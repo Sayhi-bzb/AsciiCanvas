@@ -101,6 +101,92 @@ describe("editorHandlers clipboard sources", () => {
   });
 });
 
+describe("editor history shortcuts", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("recognizes the supported redo shortcuts", () => {
+    expect(
+      editorCommands.resolveHistoryShortcutCommand({
+        key: "y",
+        ctrlKey: true,
+        metaKey: false,
+        shiftKey: false,
+      })
+    ).toBe("redo");
+    expect(
+      editorCommands.resolveHistoryShortcutCommand({
+        key: "Y",
+        ctrlKey: false,
+        metaKey: true,
+        shiftKey: false,
+      })
+    ).toBe("redo");
+    expect(
+      editorCommands.resolveHistoryShortcutCommand({
+        key: "z",
+        ctrlKey: true,
+        metaKey: false,
+        shiftKey: true,
+      })
+    ).toBe("redo");
+    expect(
+      editorCommands.resolveHistoryShortcutCommand({
+        key: "y",
+        ctrlKey: false,
+        metaKey: false,
+        shiftKey: false,
+      })
+    ).toBeNull();
+  });
+
+  it("forwards managed canvas focus context for undo and redo", () => {
+    const runEditorCommandSpy = vi
+      .spyOn(editorCommands, "runEditorCommand")
+      .mockReturnValue(true);
+    const managedTextarea = document.createElement("textarea");
+    const context = {
+      state: useEditorStore.getState(),
+      setTool: vi.fn(),
+      onUndo: vi.fn(),
+      onRedo: vi.fn(),
+    };
+
+    editorHandlers.undo(
+      {
+        source: "canvas-keydown",
+        managedTextarea,
+      },
+      context
+    );
+    editorHandlers.redo(
+      {
+        source: "canvas-keydown",
+        managedTextarea,
+      },
+      context
+    );
+
+    expect(runEditorCommandSpy).toHaveBeenNthCalledWith(
+      1,
+      "undo",
+      expect.objectContaining({
+        source: "canvas-keydown",
+        managedTextarea,
+      })
+    );
+    expect(runEditorCommandSpy).toHaveBeenNthCalledWith(
+      2,
+      "redo",
+      expect.objectContaining({
+        source: "canvas-keydown",
+        managedTextarea,
+      })
+    );
+  });
+});
+
 describe("editor context menu catalog", () => {
   it("keeps free canvas copy and delete actions focused", () => {
     expect(CANVAS_CONTEXT_MENU).toEqual([

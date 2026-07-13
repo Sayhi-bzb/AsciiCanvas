@@ -88,6 +88,44 @@ describe("AsciiCanvas focus management", () => {
     expect(document.activeElement).toBe(textarea);
   });
 
+  it("runs redo shortcuts from the managed textarea", () => {
+    useEditorStore.setState({
+      selections: [
+        {
+          start: { x: 0, y: 0 },
+          end: { x: 1, y: 1 },
+        },
+      ],
+      textCursor: null,
+      canvasMode: "freeform",
+    });
+    const onRedo = vi.fn();
+    const { container } = render(
+      <AsciiCanvas onUndo={vi.fn()} onRedo={onRedo} />
+    );
+    const textarea = container.querySelector("textarea");
+    expect(textarea).not.toBeNull();
+
+    const ctrlY = createEvent.keyDown(textarea!, {
+      key: "y",
+      ctrlKey: true,
+    });
+    fireEvent(textarea!, ctrlY);
+
+    expect(ctrlY.defaultPrevented).toBe(true);
+    expect(onRedo).toHaveBeenCalledTimes(1);
+
+    const ctrlShiftZ = createEvent.keyDown(textarea!, {
+      key: "z",
+      ctrlKey: true,
+      shiftKey: true,
+    });
+    fireEvent(textarea!, ctrlShiftZ);
+
+    expect(ctrlShiftZ.defaultPrevented).toBe(true);
+    expect(onRedo).toHaveBeenCalledTimes(2);
+  });
+
   it("focuses the managed textarea for a freeform active cell and writes input there", () => {
     useEditorStore.setState({
       canvasMode: "freeform",
