@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createEvent, fireEvent, render, screen } from "@testing-library/react";
 import { SidebarRight } from "@/widgets/toolbar/sidebar-right";
 import { useEditorStore } from "@/domains/canvas/public";
+import { useLibraryStore } from "@/domains/character-library/public";
 import { SidebarProvider } from "@/shared/ui/sidebar";
 import {
   STRUCTURED_COMPONENT_TEMPLATES,
@@ -25,6 +26,7 @@ const sortTemplateLabels = <
 
 describe("SidebarRight structured templates", () => {
   const initialState = useEditorStore.getState();
+  const initialLibraryState = useLibraryStore.getState();
 
   beforeEach(() => {
     setUiLanguage("en");
@@ -47,6 +49,7 @@ describe("SidebarRight structured templates", () => {
     setActiveStructuredTemplateDragId(null);
     setUiLanguage("en");
     useEditorStore.setState(initialState, true);
+    useLibraryStore.setState(initialLibraryState, true);
   });
 
   it("shows structured templates instead of the character library in structured mode", () => {
@@ -156,8 +159,8 @@ describe("SidebarRight structured templates", () => {
       name: "Open Source Code",
     });
 
-    expect(actions).toHaveClass("grid-cols-6", "gap-1");
-    expect(actionButtons).toHaveLength(6);
+    expect(actions).toHaveClass("grid-cols-7", "gap-1");
+    expect(actionButtons).toHaveLength(7);
     actionButtons.forEach((button) => expect(button).toHaveClass("size-8"));
     expect(actions).toContainElement(
       screen.getByRole("button", { name: "UI language" })
@@ -170,6 +173,55 @@ describe("SidebarRight structured templates", () => {
     expect(container.querySelector('[data-slot="sidebar-footer"]')).toContainElement(
       github
     );
+  });
+
+  it("opens minimap as a borderless footer popover and closes it with Escape", () => {
+    useEditorStore.setState({ canvasMode: "freeform" });
+    useLibraryStore.setState({ fetchLibrary: vi.fn() });
+    const contextSpy = vi.spyOn(
+      HTMLCanvasElement.prototype,
+      "getContext"
+    ).mockReturnValue({
+      clearRect: vi.fn(),
+      drawImage: vi.fn(),
+      fillRect: vi.fn(),
+      setTransform: vi.fn(),
+      strokeRect: vi.fn(),
+      imageSmoothingEnabled: true,
+    } as unknown as CanvasRenderingContext2D);
+    const rafSpy = vi
+      .spyOn(window, "requestAnimationFrame")
+      .mockImplementation((callback) => {
+        callback(0);
+        return 1;
+      });
+
+    render(
+      <SidebarProvider>
+        <SidebarRight containerSize={{ width: 1000, height: 700 }} />
+      </SidebarProvider>
+    );
+
+    const trigger = screen.getByRole("button", { name: "Minimap" });
+    expect(trigger).toHaveAttribute("data-state", "closed");
+    fireEvent.click(trigger);
+
+    const canvas = screen.getByLabelText("Canvas minimap");
+    const content = canvas.closest('[data-slot="popover-content"]');
+    expect(content).toHaveClass("border-0", "p-0", "shadow-none");
+    expect(content).not.toHaveTextContent("Overview");
+    expect(
+      screen.queryByRole("button", { name: "Collapse overview panel" })
+    ).not.toBeInTheDocument();
+    expect(trigger).toHaveAttribute("data-state", "open");
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(screen.queryByLabelText("Canvas minimap")).not.toBeInTheDocument();
+    expect(trigger).toHaveAttribute("data-state", "closed");
+
+    contextSpy.mockRestore();
+    rafSpy.mockRestore();
   });
 
   it("stacks footer actions with GitHub last when collapsed", () => {
@@ -217,6 +269,12 @@ describe("SidebarRight structured templates", () => {
       screen.getByRole("button", { name: "Add frame after current" })
     ).toBeInTheDocument();
     expect(screen.getByTestId("sidebar-footer-actions")).toBeInTheDocument();
+    expect(screen.getByTestId("sidebar-footer-actions")).toHaveClass(
+      "grid-cols-6"
+    );
+    expect(
+      screen.queryByRole("button", { name: "Minimap" })
+    ).not.toBeInTheDocument();
     expect(screen.queryByText("Nerd Icons")).not.toBeInTheDocument();
   });
 

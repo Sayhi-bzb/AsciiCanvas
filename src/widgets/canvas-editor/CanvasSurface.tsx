@@ -7,8 +7,6 @@ import {
   type RefObject,
   type TextareaHTMLAttributes,
 } from "react";
-import type { CanvasMode } from "@/domains/sessions/public";
-import { Minimap } from "./Minimap";
 import { SelectionFormatToolbar } from "./SelectionFormatToolbar";
 
 type CanvasSurfaceProps = HTMLAttributes<HTMLDivElement> & {
@@ -16,7 +14,6 @@ type CanvasSurfaceProps = HTMLAttributes<HTMLDivElement> & {
   bgCanvasRef: RefObject<HTMLCanvasElement | null>;
   scratchCanvasRef: RefObject<HTMLCanvasElement | null>;
   uiCanvasRef: RefObject<HTMLCanvasElement | null>;
-  canvasMode: CanvasMode;
   containerSize: { width: number; height: number } | undefined;
   textareaRef: RefObject<HTMLTextAreaElement | null>;
   textareaStyle: CSSProperties;
@@ -36,7 +33,6 @@ export const CanvasSurface = forwardRef<HTMLDivElement, CanvasSurfaceProps>(
       bgCanvasRef,
       scratchCanvasRef,
       uiCanvasRef,
-      canvasMode,
       containerSize,
       textareaRef,
       textareaStyle,
@@ -76,7 +72,6 @@ export const CanvasSurface = forwardRef<HTMLDivElement, CanvasSurfaceProps>(
         />
         {children}
         <SelectionFormatToolbar containerSize={containerSize} />
-        {canvasMode !== "animation" && <Minimap containerSize={containerSize} />}
         <textarea
           ref={textareaRef}
           style={textareaStyle}

@@ -1,29 +1,31 @@
 "use client";
 
-import { Map, PanelLeftClose } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useEditorStore } from "@/domains/canvas/public";
 import { cn } from "@/shared/lib/utils";
-import { uiClass } from "@/shared/styles/components";
 import { DEFAULT_GRID_RENDER_METRICS } from "@/shared/metrics";
-import { Button } from "@/shared/ui/button";
+import { GridManager } from "@/shared/utils/grid";
 import {
-  clampViewportRect,
   computeMinimapMeta,
+  computeMinimapDimensions,
   computeViewportRect,
+  intersectViewportRect,
   isPointInViewport,
   minimapPointToGrid,
 } from "./minimap/geometry";
-import type { MinimapMeta, ViewportRect } from "./minimap/types";
+import type {
+  MinimapDimensions,
+  MinimapMeta,
+  ViewportRect,
+} from "./minimap/types";
 import { useShallow } from "zustand/react/shallow";
 
-const MINIMAP_SIZE = 220;
-const PADDING = 8;
+const MINIMAP_MAX_SIZE = 220;
+const MINIMAP_MIN_SIZE = 96;
+const PADDING = 4;
 const VIEWPORT_HIT_SLOP = 4;
 const DRAG_THRESHOLD = 3;
-const MIN_CONTENT_PIXEL_SIZE = 2;
-const AUTO_COLLAPSE_WIDTH = 900;
-const AUTO_COLLAPSE_HEIGHT = 640;
+const MIN_CONTENT_PIXEL_SIZE = 1;
 
 type MinimapCell = {
   char?: string;
@@ -70,7 +72,6 @@ export const Minimap = ({
   const viewportRectRef = useRef<ViewportRect | null>(null);
   const dragStateRef = useRef<DragState>(EMPTY_DRAG_STATE);
   const suppressClickRef = useRef(false);
-  const [isExpanded, setIsExpanded] = useState(false);
   const [isViewportHovered, setIsViewportHovered] = useState(false);
   const [isDraggingViewport, setIsDraggingViewport] = useState(false);
   const { grid, offset, zoom, setOffset } = useEditorStore(
@@ -81,17 +82,29 @@ export const Minimap = ({
       setOffset: state.setOffset,
     }))
   );
+  const minimapDimensions = useMemo(
+    () =>
+      computeMinimapDimensions(
+        grid,
+        MINIMAP_MAX_SIZE,
+        MINIMAP_MIN_SIZE,
+        PADDING
+      ),
+    [grid]
+  );
 
   const configureCanvasScale = (
     canvas: HTMLCanvasElement,
-    ctx: CanvasRenderingContext2D
+    ctx: CanvasRenderingContext2D,
+    dimensions: MinimapDimensions
   ) => {
     const pixelRatio = Math.max(window.devicePixelRatio || 1, 1);
-    const backingSize = Math.round(MINIMAP_SIZE * pixelRatio);
-    if (canvas.width !== backingSize) canvas.width = backingSize;
-    if (canvas.height !== backingSize) canvas.height = backingSize;
-    canvas.style.width = `${MINIMAP_SIZE}px`;
-    canvas.style.height = `${MINIMAP_SIZE}px`;
+    const backingWidth = Math.round(dimensions.width * pixelRatio);
+    const backingHeight = Math.round(dimensions.height * pixelRatio);
+    if (canvas.width !== backingWidth) canvas.width = backingWidth;
+    if (canvas.height !== backingHeight) canvas.height = backingHeight;
+    canvas.style.width = `${dimensions.width}px`;
+    canvas.style.height = `${dimensions.height}px`;
     ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
     ctx.imageSmoothingEnabled = false;
     return pixelRatio;
@@ -121,16 +134,15 @@ export const Minimap = ({
   };
 
   useEffect(() => {
-    if (!isExpanded) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    configureCanvasScale(canvas, ctx);
+    configureCanvasScale(canvas, ctx, minimapDimensions);
 
     if ((!grid || grid.size === 0) || !containerSize) {
-      ctx.clearRect(0, 0, MINIMAP_SIZE, MINIMAP_SIZE);
+      ctx.clearRect(0, 0, minimapDimensions.width, minimapDimensions.height);
       viewMetaRef.current = null;
       viewportRectRef.current = null;
       return;
@@ -141,53 +153,60 @@ export const Minimap = ({
     baseLayerRef.current = baseCanvas;
     const baseCtx = baseCanvas.getContext("2d");
     if (!baseCtx) return;
-    configureCanvasScale(baseCanvas, baseCtx);
+    configureCanvasScale(baseCanvas, baseCtx, minimapDimensions);
 
-    const meta = computeMinimapMeta(grid, MINIMAP_SIZE, PADDING);
+    const meta = computeMinimapMeta(grid, minimapDimensions, PADDING);
     if (!meta.valid) {
-      ctx.clearRect(0, 0, MINIMAP_SIZE, MINIMAP_SIZE);
+      ctx.clearRect(0, 0, minimapDimensions.width, minimapDimensions.height);
       viewMetaRef.current = null;
       viewportRectRef.current = null;
       return;
     }
 
     const backgroundColor = getCssColor("--background");
-    const borderColor = getCssColor("--border");
-    baseCtx.clearRect(0, 0, MINIMAP_SIZE, MINIMAP_SIZE);
+    baseCtx.clearRect(0, 0, minimapDimensions.width, minimapDimensions.height);
     baseCtx.fillStyle = backgroundColor || "transparent";
-    baseCtx.fillRect(0, 0, MINIMAP_SIZE, MINIMAP_SIZE);
-    baseCtx.strokeStyle = `oklch(from ${borderColor} l c h / 0.55)`;
-    baseCtx.lineWidth = 1;
-    baseCtx.strokeRect(
-      PADDING - 0.5,
-      PADDING - 0.5,
-      meta.contentWidth * meta.scale + 1,
-      meta.contentHeight * meta.scale + 1
-    );
+    baseCtx.fillRect(0, 0, minimapDimensions.width, minimapDimensions.height);
 
-    const pixelSize = Math.max(meta.scale * 0.9, MIN_CONTENT_PIXEL_SIZE);
+    const { cellWidth, cellHeight } = DEFAULT_GRID_RENDER_METRICS;
     grid.forEach((cell, key) => {
       if (!hasVisibleMinimapContent(cell)) return;
       const [x, y] = key.split(",").map(Number);
-      const px = (x - meta.minX) * meta.scale + PADDING;
-      const py = (y - meta.minY) * meta.scale + PADDING;
+      const occupancy = Math.max(GridManager.getCharWidth(cell.char ?? ""), 1);
+      const px =
+        meta.originX + (x - meta.minX) * cellWidth * meta.scale;
+      const py =
+        meta.originY + (y - meta.minY) * cellHeight * meta.scale;
+      const pixelWidth = Math.max(
+        occupancy * cellWidth * meta.scale * 0.9,
+        MIN_CONTENT_PIXEL_SIZE
+      );
+      const pixelHeight = Math.max(
+        cellHeight * meta.scale * 0.9,
+        MIN_CONTENT_PIXEL_SIZE
+      );
       baseCtx.fillStyle = getCellPreviewColor(cell);
-      baseCtx.fillRect(px, py, pixelSize, pixelSize);
+      baseCtx.fillRect(px, py, pixelWidth, pixelHeight);
     });
     viewMetaRef.current = meta;
-  }, [grid, containerSize, isExpanded, getCellPreviewColor, getCssColor]);
+  }, [
+    grid,
+    containerSize,
+    minimapDimensions,
+    getCellPreviewColor,
+    getCssColor,
+  ]);
 
   useEffect(() => {
     let rafId = 0;
     const draw = () => {
-      if (!isExpanded) return;
       const canvas = canvasRef.current;
       if (!canvas || !containerSize) return;
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
-      configureCanvasScale(canvas, ctx);
+      configureCanvasScale(canvas, ctx, minimapDimensions);
 
-      ctx.clearRect(0, 0, MINIMAP_SIZE, MINIMAP_SIZE);
+      ctx.clearRect(0, 0, minimapDimensions.width, minimapDimensions.height);
       if (!grid || grid.size === 0) {
         viewportRectRef.current = null;
         return;
@@ -200,39 +219,46 @@ export const Minimap = ({
       }
 
       const baseCanvas = baseLayerRef.current;
-      if (baseCanvas) ctx.drawImage(baseCanvas, 0, 0, MINIMAP_SIZE, MINIMAP_SIZE);
+      if (baseCanvas) {
+        ctx.drawImage(
+          baseCanvas,
+          0,
+          0,
+          minimapDimensions.width,
+          minimapDimensions.height
+        );
+      }
 
       const mutedColor = getCssColor("--muted-foreground");
       const primaryColor = getCssColor("--primary");
 
-      const viewport = clampViewportRect(
-        computeViewportRect(offset, zoom, containerSize, meta, PADDING),
-        MINIMAP_SIZE
+      const viewport = intersectViewportRect(
+        computeViewportRect(offset, zoom, containerSize, meta),
+        meta.contentRect
       );
       viewportRectRef.current = viewport;
+      if (!viewport) return;
 
       ctx.fillStyle = `oklch(from ${mutedColor} l c h / 0.12)`;
       ctx.fillRect(viewport.x, viewport.y, viewport.width, viewport.height);
 
-      ctx.strokeStyle = `oklch(from ${mutedColor} l c h / 0.9)`;
-      ctx.lineWidth = 3;
-      ctx.strokeRect(viewport.x, viewport.y, viewport.width, viewport.height);
-
       ctx.strokeStyle = primaryColor || mutedColor;
-      ctx.lineWidth = 1;
-      ctx.strokeRect(
-        viewport.x + 1.5,
-        viewport.y + 1.5,
-        Math.max(viewport.width - 3, 1),
-        Math.max(viewport.height - 3, 1)
-      );
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(viewport.x, viewport.y, viewport.width, viewport.height);
     };
 
     rafId = window.requestAnimationFrame(draw);
     return () => {
       window.cancelAnimationFrame(rafId);
     };
-  }, [grid, offset, zoom, containerSize, isExpanded, getCssColor]);
+  }, [
+    grid,
+    offset,
+    zoom,
+    containerSize,
+    minimapDimensions,
+    getCssColor,
+  ]);
 
   const endViewportDrag = useCallback(() => {
     dragStateRef.current = EMPTY_DRAG_STATE;
@@ -291,12 +317,12 @@ export const Minimap = ({
       dragState.lastClientX = e.clientX;
       dragState.lastClientY = e.clientY;
 
-      const dxGrid = deltaX / meta.scale;
-      const dyGrid = deltaY / meta.scale;
+      const dxCanvas = deltaX / meta.scale;
+      const dyCanvas = deltaY / meta.scale;
 
       setOffset((prev) => ({
-        x: prev.x - dxGrid * DEFAULT_GRID_RENDER_METRICS.cellWidth * zoom,
-        y: prev.y - dyGrid * DEFAULT_GRID_RENDER_METRICS.cellHeight * zoom,
+        x: prev.x - dxCanvas * zoom,
+        y: prev.y - dyCanvas * zoom,
       }));
       e.preventDefault();
       return;
@@ -359,7 +385,7 @@ export const Minimap = ({
 
     const point = getCanvasPoint(e);
     if (!point) return;
-    const target = minimapPointToGrid(point, meta, PADDING);
+    const target = minimapPointToGrid(point, meta);
 
     const newOffsetX =
       containerSize.width / 2 - target.x * DEFAULT_GRID_RENDER_METRICS.cellWidth * zoom;
@@ -369,12 +395,6 @@ export const Minimap = ({
     setOffset(() => ({ x: newOffsetX, y: newOffsetY }));
   };
 
-  const isAutoCollapsed =
-    !containerSize ||
-    containerSize.width < AUTO_COLLAPSE_WIDTH ||
-    containerSize.height < AUTO_COLLAPSE_HEIGHT;
-  const isPanelExpanded = isExpanded && !isAutoCollapsed;
-
   const cursorClass = isDraggingViewport
     ? "cursor-grabbing"
     : isViewportHovered
@@ -382,71 +402,25 @@ export const Minimap = ({
     : "cursor-crosshair";
 
   return (
-    <div data-minimap-root="true" className={uiClass.minimapShell}>
-      {!isPanelExpanded ? (
-        <Button
-          type="button"
-          tone="subtle"
-          shape="square"
-          size="md"
-          aria-label="Open overview panel"
-          title="Overview"
-          className={uiClass.minimapToggle}
-          data-testid="overview-panel-toggle"
-          onClick={(event) => {
-            event.stopPropagation();
-            if (!isAutoCollapsed) setIsExpanded(true);
-          }}
-        >
-          <Map className="size-4" />
-        </Button>
-      ) : (
-        <div
-          className={cn(uiClass.minimapPanel, cursorClass)}
-          data-testid="overview-panel"
-        >
-          <div className={uiClass.minimapHeader}>
-            <div className="min-w-0 leading-none">
-              <div className="font-medium text-foreground">Overview</div>
-              <div className="mt-0.5 text-[10px] text-muted-foreground">
-                {grid?.size ?? 0} cells - {Math.round(zoom * 100)}%
-              </div>
-            </div>
-            <Button
-              type="button"
-              tone="subtle"
-              shape="square"
-              size="sm"
-              aria-label="Collapse overview panel"
-              className="size-7 shrink-0 text-muted-foreground"
-              onClick={(event) => {
-                event.stopPropagation();
-                setIsExpanded(false);
-                setIsViewportHovered(false);
-                endViewportDrag();
-              }}
-            >
-              <PanelLeftClose className="size-4" />
-            </Button>
-          </div>
-          <div className={uiClass.minimapCanvasWrap}>
-            <canvas
-              ref={canvasRef}
-              width={MINIMAP_SIZE}
-              height={MINIMAP_SIZE}
-              aria-label="Canvas overview"
-              className={uiClass.minimapCanvas}
-              onPointerDown={handlePointerDown}
-              onPointerMove={handlePointerMove}
-              onPointerUp={handlePointerUp}
-              onPointerCancel={handlePointerCancel}
-              onPointerLeave={handlePointerLeave}
-              onClick={handleMinimapClick}
-            />
-          </div>
-        </div>
-      )}
-    </div>
+    <canvas
+      ref={canvasRef}
+      width={minimapDimensions.width}
+      height={minimapDimensions.height}
+      style={{
+        width: `${minimapDimensions.width}px`,
+        height: `${minimapDimensions.height}px`,
+      }}
+      aria-label="Canvas minimap"
+      data-testid="minimap-canvas"
+      data-minimap-root="true"
+      className={cn("block select-none", cursorClass)}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
+      onPointerLeave={handlePointerLeave}
+      onClick={handleMinimapClick}
+    />
   );
 };
 

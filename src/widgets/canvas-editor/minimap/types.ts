@@ -1,5 +1,10 @@
 import type { Point } from "@/shared/types";
 
+export type MinimapDimensions = {
+  width: number;
+  height: number;
+};
+
 export type MinimapMeta = {
   valid: boolean;
   minX: number;
@@ -9,6 +14,9 @@ export type MinimapMeta = {
   contentWidth: number;
   contentHeight: number;
   scale: number;
+  originX: number;
+  originY: number;
+  contentRect: ViewportRect;
 };
 
 export type ViewportRect = {

@@ -28,9 +28,16 @@ import type { StructuredMovePreview } from './hooks/useCanvasRenderer';
 interface AsciiCanvasProps {
   onUndo: () => void;
   onRedo: () => void;
+  onContainerSizeChange?: (
+    size: { width: number; height: number } | undefined
+  ) => void;
 }
 
-export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
+export const AsciiCanvas = ({
+  onUndo,
+  onRedo,
+  onContainerSizeChange,
+}: AsciiCanvasProps) => {
   const bgCanvasRef = useRef<HTMLCanvasElement>(null);
   const scratchCanvasRef = useRef<HTMLCanvasElement>(null);
   const uiCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -39,6 +46,9 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
   const structuredMovePreviewRef = useRef<StructuredMovePreview | null>(null);
   const requestCanvasRenderRef = useRef<(() => void) | null>(null);
   const size = useSize(containerRef);
+  useEffect(() => {
+    onContainerSizeChange?.(size);
+  }, [onContainerSizeChange, size]);
   const {
     interaction: interactionStore,
     renderer: rendererStore,
@@ -179,7 +189,6 @@ export const AsciiCanvas = ({ onUndo, onRedo }: AsciiCanvasProps) => {
           bgCanvasRef={bgCanvasRef}
           scratchCanvasRef={scratchCanvasRef}
           uiCanvasRef={uiCanvasRef}
-          canvasMode={canvasMode}
           containerSize={size}
           onContextMenu={handleContextMenu}
           {...structuredTemplateDrop.surfaceProps}

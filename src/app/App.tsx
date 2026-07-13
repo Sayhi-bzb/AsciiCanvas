@@ -5,7 +5,7 @@ import { useEditorStore } from "@/domains/canvas/public";
 import { AppLayout } from "./AppLayout";
 import { Toolbar } from "@/widgets/toolbar/dock";
 import { SidebarInset, SidebarProvider, useSidebar } from "@/shared/ui/sidebar";
-import { Suspense, lazy, useEffect } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { runRedo, runUndo } from "@/domains/actions/public";
 import { runAction } from "@/domains/actions/public";
 import { resolveFillHotkeyChar } from "@/domains/actions/public";
@@ -45,6 +45,9 @@ function MobileSidebarTrigger() {
 }
 
 function AppContent() {
+  const [canvasContainerSize, setCanvasContainerSize] = useState<
+    { width: number; height: number } | undefined
+  >();
   const { tool, setTool } = useEditorStore(
     useShallow((state) => ({
       tool: state.tool,
@@ -121,7 +124,13 @@ function AppContent() {
           rightInset={topBarRightInset}
         />
         <AppLayout
-          canvas={<AsciiCanvas onUndo={handleUndo} onRedo={handleRedo} />}
+          canvas={
+            <AsciiCanvas
+              onUndo={handleUndo}
+              onRedo={handleRedo}
+              onContainerSizeChange={setCanvasContainerSize}
+            />
+          }
         >
           <Toolbar
             tool={tool}
@@ -141,7 +150,7 @@ function AppContent() {
           >
             <MobileSidebarTrigger />
             <Suspense fallback={<div className="w-0" />}>
-              <SidebarRight />
+              <SidebarRight containerSize={canvasContainerSize} />
             </Suspense>
           </SidebarProvider>
         </div>

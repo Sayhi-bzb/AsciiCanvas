@@ -1,8 +1,10 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { createEvent, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Minimap } from "@/widgets/canvas-editor/Minimap";
 import { useEditorStore } from "@/domains/canvas/public";
 import { GridManager } from "@/shared/utils/grid";
+
+const initialState = useEditorStore.getState();
 
 const createMockContext = () => ({
   clearRect: vi.fn(),
@@ -13,45 +15,38 @@ const createMockContext = () => ({
   imageSmoothingEnabled: true,
 });
 
-describe("Minimap overview panel", () => {
+describe("Minimap canvas", () => {
   beforeEach(() => {
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(
       createMockContext() as unknown as CanvasRenderingContext2D
     );
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      callback(0);
+      return 1;
+    });
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    useEditorStore.setState(initialState, true);
   });
 
-  it("starts collapsed and expands into the overview panel", () => {
+  it("renders only the interactive minimap canvas", () => {
+    useEditorStore.setState({
+      grid: new Map([
+        [GridManager.toKey(0, 0), { char: "A", color: "#ffffff" }],
+        [GridManager.toKey(9, 9), { char: "B", color: "#ffffff" }],
+      ]),
+    });
     render(<Minimap containerSize={{ width: 1000, height: 700 }} />);
 
-    const toggle = screen.getByTestId("overview-panel-toggle");
-    expect(toggle).toHaveAccessibleName("Open overview panel");
-    expect(screen.queryByTestId("overview-panel")).toBeNull();
-
-    fireEvent.click(toggle);
-
-    const overviewCanvas = screen.getByLabelText("Canvas overview");
-    expect(screen.getByTestId("overview-panel")).toBeInTheDocument();
-    expect(overviewCanvas).toBeInTheDocument();
-    expect(overviewCanvas).toHaveAttribute("width", "220");
-    expect(overviewCanvas).toHaveAttribute("height", "220");
-  });
-
-  it("auto-collapses the overview panel on narrow containers", () => {
-    const { rerender } = render(
-      <Minimap containerSize={{ width: 1000, height: 700 }} />
-    );
-
-    fireEvent.click(screen.getByTestId("overview-panel-toggle"));
-    expect(screen.getByTestId("overview-panel")).toBeInTheDocument();
-
-    rerender(<Minimap containerSize={{ width: 820, height: 700 }} />);
-
-    expect(screen.queryByTestId("overview-panel")).toBeNull();
-    expect(screen.getByTestId("overview-panel-toggle")).toBeInTheDocument();
+    const canvas = screen.getByLabelText("Canvas minimap");
+    expect(canvas).toHaveAttribute("width", "108");
+    expect(canvas).toHaveAttribute("height", "220");
+    expect(screen.queryByText("Overview")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Collapse overview panel" })
+    ).not.toBeInTheDocument();
   });
 
 
@@ -71,16 +66,97 @@ describe("Minimap overview panel", () => {
     });
 
     render(<Minimap containerSize={{ width: 1000, height: 700 }} />);
-    fireEvent.click(screen.getByTestId("overview-panel-toggle"));
 
-    const baseContext = contexts.find((context) =>
-      context.strokeRect.mock.calls.some(
-        ([x, y]) => x === 7.5 && y === 7.5
-      )
+    const baseContext = contexts.find(
+      (context) => context.fillRect.mock.calls.length === 3
     );
 
     expect(baseContext).toBeDefined();
     expect(baseContext?.fillRect).toHaveBeenCalledTimes(3);
+  });
+
+  it("centers the clicked minimap position in the canvas container", () => {
+    useEditorStore.setState({
+      grid: new Map([
+        [GridManager.toKey(0, 0), { char: "A", color: "#ffffff" }],
+        [GridManager.toKey(9, 9), { char: "B", color: "#ffffff" }],
+      ]),
+      offset: { x: 0, y: 0 },
+      zoom: 1,
+    });
+
+    render(<Minimap containerSize={{ width: 1000, height: 700 }} />);
+
+    const canvas = screen.getByLabelText("Canvas minimap");
+    const width = Number(canvas.getAttribute("width"));
+    const height = Number(canvas.getAttribute("height"));
+    vi.spyOn(canvas, "getBoundingClientRect").mockReturnValue({
+      x: 0,
+      y: 0,
+      left: 0,
+      top: 0,
+      right: width,
+      bottom: height,
+      width,
+      height,
+      toJSON: () => ({}),
+    });
+    fireEvent.click(canvas, { clientX: width / 2, clientY: height / 2 });
+
+    expect(useEditorStore.getState().offset.x).toBeCloseTo(455);
+    expect(useEditorStore.getState().offset.y).toBeCloseTo(255);
+  });
+
+  it("drags the viewport using canvas-pixel scale", () => {
+    useEditorStore.setState({
+      grid: new Map([
+        [GridManager.toKey(0, 0), { char: "A", color: "#ffffff" }],
+        [GridManager.toKey(199, 99), { char: "B", color: "#ffffff" }],
+      ]),
+      offset: { x: 0, y: 0 },
+      zoom: 1,
+    });
+
+    render(<Minimap containerSize={{ width: 1000, height: 700 }} />);
+
+    const canvas = screen.getByLabelText("Canvas minimap") as HTMLCanvasElement;
+    const width = Number(canvas.getAttribute("width"));
+    const height = Number(canvas.getAttribute("height"));
+    vi.spyOn(canvas, "getBoundingClientRect").mockReturnValue({
+      x: 0,
+      y: 0,
+      left: 0,
+      top: 0,
+      right: width,
+      bottom: height,
+      width,
+      height,
+      toJSON: () => ({}),
+    });
+    canvas.setPointerCapture = vi.fn();
+    canvas.hasPointerCapture = vi.fn(() => true);
+    canvas.releasePointerCapture = vi.fn();
+
+    const pointerDown = createEvent.pointerDown(canvas);
+    Object.defineProperties(pointerDown, {
+      button: { value: 0 },
+      pointerId: { value: 1 },
+      clientX: { value: 20 },
+      clientY: { value: 20 },
+    });
+    fireEvent(canvas, pointerDown);
+
+    const pointerMove = createEvent.pointerMove(canvas);
+    Object.defineProperties(pointerMove, {
+      pointerId: { value: 1 },
+      clientX: { value: 30 },
+      clientY: { value: 30 },
+    });
+    fireEvent(canvas, pointerMove);
+
+    const expectedDelta = 10 / (212 / 1900);
+    expect(useEditorStore.getState().offset.x).toBeCloseTo(-expectedDelta);
+    expect(useEditorStore.getState().offset.y).toBeCloseTo(-expectedDelta);
   });
 });
 

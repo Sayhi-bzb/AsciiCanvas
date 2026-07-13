@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Clapperboard, Eye, EyeOff, Github, Languages } from "lucide-react";
+import { Clapperboard, Eye, EyeOff, Github, Languages, Map } from "lucide-react";
 import {
   SidebarHeader,
   SidebarStandard,
@@ -28,6 +28,12 @@ import { HandbookDialog, ClearCanvasDialog } from "@/widgets/dialogs";
 import { useShallow } from "zustand/react/shallow";
 import { useUiI18n } from "@/shared/i18n";
 import { AnimationSidebarContent } from "./animation-sidebar-content";
+import { Minimap } from "@/widgets/canvas-editor/Minimap";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/shared/ui/popover";
 
 type StructuredSidebarTab = "template" | "components";
 
@@ -39,7 +45,11 @@ const STRUCTURED_SIDEBAR_TABS: Array<{
   { id: "components", labelKey: "sidebar.tab.components" },
 ];
 
-export function SidebarRight() {
+type SidebarRightProps = {
+  containerSize?: { width: number; height: number };
+};
+
+export function SidebarRight({ containerSize }: SidebarRightProps) {
   const {
     grid,
     canvasMode,
@@ -150,7 +160,8 @@ export function SidebarRight() {
             <div
               data-testid="sidebar-footer-actions"
               className={cn(
-                "grid grid-cols-6 items-center justify-items-center gap-1",
+                "grid items-center justify-items-center gap-1",
+                canvasMode === "animation" ? "grid-cols-6" : "grid-cols-7",
                 isCollapsed && "grid-cols-1"
               )}
             >
@@ -204,6 +215,42 @@ export function SidebarRight() {
                     : t("action.toggleGrid")}
                 </TooltipContent>
               </Tooltip>
+
+              {canvasMode !== "animation" && (
+                <Popover key={`${canvasMode}-${state}`}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="inline-flex">
+                        <PopoverTrigger asChild>
+                          <Button
+                            tone="subtle"
+                            shape="square"
+                            size="md"
+                            className={cn(
+                              "size-8 text-muted-foreground transition-colors",
+                              "data-[state=open]:bg-accent data-[state=open]:text-foreground"
+                            )}
+                            aria-label={t("sidebar.minimap")}
+                          >
+                            <Map className="size-4" />
+                          </Button>
+                        </PopoverTrigger>
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="left">
+                      {t("sidebar.minimap")}
+                    </TooltipContent>
+                  </Tooltip>
+                  <PopoverContent
+                    side="left"
+                    align="end"
+                    sideOffset={8}
+                    className="w-auto overflow-hidden rounded-lg border-0 bg-muted p-0 shadow-none"
+                  >
+                    <Minimap containerSize={containerSize} />
+                  </PopoverContent>
+                </Popover>
+              )}
 
               <HandbookDialog />
 
