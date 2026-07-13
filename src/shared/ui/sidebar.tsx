@@ -5,7 +5,7 @@ import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
 import { PanelLeftIcon } from "lucide-react";
 
-import { useIsMobile } from "@/hooks/use-mobile";
+import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import { rx } from "@/shared/styles/recipes";

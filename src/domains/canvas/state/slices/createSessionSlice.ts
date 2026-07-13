@@ -1,5 +1,10 @@
 import type { StateCreator } from "zustand";
-import type { CanvasSession, CanvasState, SessionSlice } from "../interfaces";
+import type {
+  CanvasImportSnapshot,
+  CanvasSession,
+  CanvasState,
+  SessionSlice,
+} from "../interfaces";
 import {
   buildSessionSnapshot,
   createAnimationSession,
@@ -12,16 +17,11 @@ import {
   resolveNextSessionName,
 } from "../helpers/sessionHelpers";
 import { createMapFromEntries } from "../helpers/snapshotHelpers";
+import { parseCanvasSessionSource } from "../sessionImportPort";
 import {
   applyStructuredSnapshotToYMaps,
   applyFreeformSnapshotToYMaps,
 } from "../helpers/gridHelpers";
-import {
-  parseProtocolDocument,
-  protocolDocumentToSnapshot,
-} from "@/domains/protocol";
-import type { ProtocolImportSnapshot } from "@/domains/protocol";
-import { isLikelyAsciinemaCast, parseAsciinemaCast } from "@/domains/cast";
 
 const getImportedSessionBaseName = (mode: CanvasSession["mode"]) => {
   switch (mode) {
@@ -55,7 +55,7 @@ const resolveImportedSessionName = (
 const createImportedSession = (
   sessionId: string,
   name: string,
-  snapshot: ProtocolImportSnapshot
+  snapshot: CanvasImportSnapshot
 ): CanvasSession => {
   const baseSession = {
     id: sessionId,
@@ -148,10 +148,7 @@ export const createSessionSlice: StateCreator<
       state.activeCanvasId,
       snapshot
     );
-    const importedSnapshot =
-      typeof raw === "string" && isLikelyAsciinemaCast(raw)
-        ? parseAsciinemaCast(raw)
-        : protocolDocumentToSnapshot(parseProtocolDocument(raw));
+    const importedSnapshot = parseCanvasSessionSource(raw);
     const sessionId = createSessionId(sessionsWithSnapshot);
     const sessionName = resolveImportedSessionName(
       sessionsWithSnapshot,

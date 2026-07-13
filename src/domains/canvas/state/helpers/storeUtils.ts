@@ -10,10 +10,9 @@ import type {
 import { sceneToGridEntries } from "@/shared/utils/structured";
 import { MIN_ZOOM, MAX_ZOOM } from "@/shared/lib/constants";
 import { serializeGrid } from "./snapshotHelpers";
-import {
-  normalizeAndCloneScene,
-  normalizeStructuredComponents,
-} from "./snapshotHelpers";
+import { normalizeStructuredComponents } from "@/domains/structured-content/public";
+import { normalizeAndCloneScene } from "./snapshotHelpers";
+
 import {
   createEmptyAnimationFrame,
   createNextAnimationFrameName,
@@ -22,7 +21,7 @@ import {
   normalizeAnimationCanvasSize,
   normalizeAnimationTimeline,
   updateAnimationFrameEntries,
-} from "./animationHelpers";
+} from "@/domains/animation/public";
 import {
   resolveNextSessionName,
   createSessionId,

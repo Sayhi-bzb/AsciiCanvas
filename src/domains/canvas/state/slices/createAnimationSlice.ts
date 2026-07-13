@@ -14,7 +14,7 @@ import {
   cloneAnimationFrame,
   DEFAULT_ANIMATION_SIZE,
   MAX_ANIMATION_FPS,
-} from "../helpers/animationHelpers";
+} from "@/domains/animation/public";
 import { withActiveCanvasSnapshot } from "../helpers/sessionHelpers";
 import { createMapFromEntries, serializeGrid } from "../helpers/snapshotHelpers";
 import { applyFreeformSnapshotToYMaps } from "../helpers/gridHelpers";

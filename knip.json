@@ -1,0 +1,22 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "entry": [
+    "src/app/main.tsx",
+    "scripts/**/*.{mjs,ts}",
+    "e2e/**/*.ts",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "playwright.config.ts",
+    "playwright.perf.config.ts"
+  ],
+  "project": [
+    "src/**/*.{ts,tsx}",
+    "scripts/**/*.{ts,mjs}",
+    "e2e/**/*.ts",
+    "*.config.{ts,js}"
+  ],
+  "ignoreDependencies": [
+    "tailwindcss",
+    "tw-animate-css"
+  ]
+}

@@ -3,7 +3,7 @@ import {
   exportSelectionToJSON,
   exportSelectionToString,
   exportToAnsi,
-} from "@/domains/export";
+} from "@/domains/export/public";
 import { GridManager } from "@/shared/utils/grid";
 import type {
   GridMap,
@@ -15,7 +15,7 @@ import type {
   StructuredTextNode,
   StructuredTextStyleRange,
 } from "@/shared/types";
-import type { RichTextCell } from "@/domains/canvas/state/interfaces";
+import type { RichTextCell } from "@/domains/canvas/public";
 import { clipboard } from "@/shared/services/effects";
 import { cloneTextAttributes } from "@/shared/utils/ansi";
 import { parseAnsiTextCells } from "@/shared/utils/ansiText";
@@ -28,7 +28,7 @@ import {
   getStructuredTextSlice,
   getStructuredTextStyleRangesInRange,
 } from "@/shared/utils/structuredTextRanges";
-import { toStructuredNode } from "@/domains/canvas/state/helpers/snapshotHelpers";
+import { toStructuredNode } from "@/domains/canvas/public";
 
 const MIME_RICH_DATA = "web application/x-ascii-metropolis";
 const DEFAULT_ANSI_PASTE_COLOR = "#ffffff";

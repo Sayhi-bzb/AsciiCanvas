@@ -1,4 +1,4 @@
-import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
+import { useCanvasStore } from "@/domains/canvas/public";
 import {
   actionUnhandled,
 } from "./result";

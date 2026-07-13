@@ -1,0 +1,174 @@
+import type { CanvasMode, Point, SelectionArea, ToolType } from "@/shared/types";
+import {
+  clampSelectionToBounds
+} from "@/domains/animation/public";
+import type { InteractionEvent } from "../core/interactionMachine";
+
+export type ShapeTool = Extract<ToolType, "box" | "splitBox" | "line" | "bg">;
+
+export const isShapeTool = (
+  tool: ToolType,
+  canvasMode: CanvasMode
+): boolean => {
+  if (canvasMode === "structured") {
+    return tool === "box" || tool === "splitBox" || tool === "line" || tool === "bg";
+  }
+  return ["box", "circle", "line", "stepline", "bg"].includes(tool);
+};
+
+export const isSelectionTool = (
+  tool: ToolType,
+  canvasMode: CanvasMode
+): boolean => {
+  if (canvasMode === "structured") return tool === "select";
+  return tool === "select" || tool === "fill";
+};
+
+
+export type DragStartRouteDecision =
+  | { type: "color-picker" }
+  | { type: "pan" }
+  | { type: "primary-canvas" }
+  | { type: "ignore" };
+
+export const resolveDragStartRouteDecision = ({
+  canvasMode,
+  tool,
+  button,
+  isCtrlOrMetaPressed,
+  hasColorPickerTarget,
+  hasCanvasRect,
+}: {
+  canvasMode: CanvasMode;
+  tool: ToolType;
+  button: number;
+  isCtrlOrMetaPressed: boolean;
+  hasColorPickerTarget: boolean;
+  hasCanvasRect: boolean;
+}): DragStartRouteDecision => {
+  if (hasColorPickerTarget && button === 0) return { type: "color-picker" };
+  if (canvasMode !== "animation" && tool === "pan") return { type: "pan" };
+  if (canvasMode !== "animation" && (button === 1 || isCtrlOrMetaPressed)) {
+    return { type: "pan" };
+  }
+  if (button === 0 && hasCanvasRect) return { type: "primary-canvas" };
+  return { type: "ignore" };
+};
+export type SelectionDragStartDecision =
+  | {
+      type: "selection";
+      interactionAnchor: Point;
+      dragStart: Point;
+      preview: SelectionArea;
+      clearExistingSelection: boolean;
+      clearInteractionState: boolean;
+      nextAnchor: Point | null;
+    }
+  | { type: "not-selection" };
+
+export type DrawingShapeDragStartDecision =
+  | {
+      type: "drawing";
+      event: InteractionEvent;
+      scratchPoint?: { x: number; y: number; char: string };
+      erasePoint?: Point;
+    }
+  | {
+      type: "shape-preview";
+      event: InteractionEvent;
+    }
+  | { type: "ignore" };
+
+export const resolveSelectionDragStartDecision = ({
+  tool,
+  canvasMode,
+  start,
+  shiftKey,
+  anchorGrid,
+  canvasBounds,
+}: {
+  tool: ToolType;
+  canvasMode: CanvasMode;
+  start: Point;
+  shiftKey: boolean;
+  anchorGrid: Point | null;
+  canvasBounds: { width: number; height: number } | null;
+}): SelectionDragStartDecision => {
+  if (!isSelectionTool(tool, canvasMode)) return { type: "not-selection" };
+  if (tool === "select" && shiftKey && anchorGrid) {
+    return {
+      type: "selection",
+      interactionAnchor: start,
+      dragStart: { ...anchorGrid },
+      preview: { start: { ...anchorGrid }, end: start },
+      clearExistingSelection: false,
+      clearInteractionState: true,
+      nextAnchor: null,
+    };
+  }
+
+  const nextAnchor = !shiftKey || (tool === "select" && !anchorGrid)
+    ? start
+    : null;
+  const preview =
+    canvasMode === "animation"
+      ? clampSelectionToBounds({ start, end: start }, canvasBounds)
+      : { start, end: start };
+
+  return {
+    type: "selection",
+    interactionAnchor: start,
+    dragStart: start,
+    preview,
+    clearExistingSelection: !shiftKey,
+    clearInteractionState: false,
+    nextAnchor,
+  };
+};
+
+export const resolveDrawingShapeDragStartDecision = ({
+  tool,
+  canvasMode,
+  start,
+  brushChar,
+}: {
+  tool: ToolType;
+  canvasMode: CanvasMode;
+  start: Point;
+  brushChar: string;
+}): DrawingShapeDragStartDecision => {
+  if (
+    canvasMode === "structured" &&
+    tool !== "box" &&
+    tool !== "splitBox" &&
+    tool !== "line" &&
+    tool !== "bg"
+  ) {
+    return { type: "ignore" };
+  }
+
+  if (tool === "brush" && canvasMode !== "structured") {
+    return {
+      type: "drawing",
+      event: { type: "startDrawing", tool, start },
+      scratchPoint: { ...start, char: brushChar },
+    };
+  }
+
+  if (tool === "eraser" && canvasMode !== "structured") {
+    return {
+      type: "drawing",
+      event: { type: "startDrawing", tool, start },
+      erasePoint: start,
+    };
+  }
+
+  if (isShapeTool(tool, canvasMode)) {
+    return {
+      type: "shape-preview",
+      event: { type: "startShapePreview", tool, start },
+    };
+  }
+
+  return { type: "ignore" };
+};

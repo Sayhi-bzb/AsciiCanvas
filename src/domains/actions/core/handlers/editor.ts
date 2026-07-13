@@ -1,5 +1,5 @@
-import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
-import { exportStructuredHierarchyText } from "@/domains/export";
+import { useCanvasStore } from "@/domains/canvas/public";
+import { exportStructuredHierarchyText } from "@/domains/export/public";
 import { runEditorCommand } from "@/domains/actions/adapters/editorCommands";
 import { getFirstGrapheme } from "@/shared/utils/characters";
 import { getTextColumnWidth } from "@/shared/utils/structured";
@@ -8,7 +8,7 @@ import {
   getStructuredBoxNameEndPoint,
   getStructuredSplitBoxLeafAtPoint,
   isStructuredSplitBoxLineHandle,
-} from "@/domains/canvas/state/helpers/structuredBoxEditing";
+} from "@/domains/structured-content/public";
 import { clipboard, feedback } from "@/shared/services/effects";
 import { getStructuredTextSelectionRange } from "@/shared/utils/structuredTextRanges";
 import type { StructuredBoxNode, StructuredTextNode } from "@/shared/types";

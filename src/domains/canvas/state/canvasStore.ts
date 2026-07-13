@@ -40,19 +40,21 @@ import {
 } from "./helpers/sessionHelpers";
 import {
   cloneScene,
-  deriveStructuredComponentsFromScene,
-  normalizeStructuredComponents,
   normalizeAndCloneScene,
   createMapFromEntries,
   normalizeGridEntries,
   toStructuredNode,
 } from "./helpers/snapshotHelpers";
 import {
+  deriveStructuredComponentsFromScene,
+  normalizeStructuredComponents,
+} from "@/domains/structured-content/public";
+import {
   cloneAnimationTimeline,
   getAnimationFrameEntries,
   normalizeAnimationCanvasSize,
   normalizeAnimationTimeline,
-} from "./helpers/animationHelpers";
+} from "@/domains/animation/public";
 
 export type { CanvasState };
 
@@ -68,7 +70,7 @@ import {
   normalizeSessionViewport,
 } from "./helpers/storeUtils";
 import { DEFAULT_DEMO_GRID } from "./helpers/defaultDemo";
-import { buildStructuredTemplate } from "./helpers/structuredTemplates";
+import { buildStructuredTemplate } from "@/domains/structured-content/public";
 
 const DEFAULT_STRUCTURED_SAFARI_TEMPLATE = buildStructuredTemplate(
   "safari",

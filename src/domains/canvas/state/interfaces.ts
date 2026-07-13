@@ -17,8 +17,8 @@ import type {
   ToolType,
 } from "@/shared/types";
 import type { StructuredTextSelection } from "@/shared/utils/structuredTextRanges";
-import type { GridAddress, GridEditMode, GridRange, GridSelectionState } from "./helpers/staticGridModel";
-import type { StructuredSplitBoxHandle } from "./helpers/structuredBoxEditing";
+import type { GridAddress, GridEditMode, GridRange, GridSelectionState } from "@/domains/selection/public";
+import type { StructuredSplitBoxHandle } from "@/domains/structured-content/public";
 import type { CanvasHistoryMode } from "@/shared/lib/yjs-setup";
 
 export type CanvasColorPickerTarget = "char" | "bg";
@@ -158,6 +158,14 @@ export interface CanvasSession {
   viewport?: CanvasViewport;
 }
 
+export type CanvasImportSnapshot = {
+  mode: CanvasMode;
+  scene: StructuredNode[];
+  components: StructuredComponentInstance[];
+  grid: [string, GridCell][];
+  size?: AnimationCanvasSize;
+  timeline?: AnimationTimeline;
+};
 export interface SessionSlice {
   createCanvasSession: (
     mode?: CanvasMode,

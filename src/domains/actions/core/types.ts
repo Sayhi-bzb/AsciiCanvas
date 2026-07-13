@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import type { CanvasState } from "@/domains/canvas/state/interfaces";
+import type { CanvasState } from "@/domains/canvas/public";
 import type { ToolType } from "@/shared/types";
 
 // Editor Actions

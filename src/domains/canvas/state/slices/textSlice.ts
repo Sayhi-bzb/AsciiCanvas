@@ -2,7 +2,7 @@ import type { StateCreator } from "zustand";
 import type { CanvasState, TextSlice } from "../interfaces";
 import { runCanvasTransaction, yMainGrid } from "@/shared/lib/yjs-setup";
 import { GridManager } from "@/shared/utils/grid";
-import { collapseGridSelectionTo, getStaticGridViewState } from "../helpers/staticGridModel";
+import { collapseGridSelectionTo, getStaticGridViewState } from "@/domains/selection/public";
 import { placeCharInYMap, placeStyledCellInYMap } from "../utils";
 import {
   deleteCellAt,
@@ -19,7 +19,7 @@ import {
 import {
   clampPointToBounds,
   isPointWithinBounds,
-} from "../helpers/animationHelpers";
+} from "@/domains/animation/public";
 import {
   getCellOccupancy,
   isWideCell,

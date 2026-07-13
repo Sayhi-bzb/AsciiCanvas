@@ -1,4 +1,6 @@
-import { normalizeStructuredComponents } from "@/domains/canvas/state/helpers/snapshotHelpers";
+import {
+  normalizeStructuredComponents,
+} from "@/domains/structured-content/public";
 import type {
   StructuredComponentInstance,
   StructuredNode,

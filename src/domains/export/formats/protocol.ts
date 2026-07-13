@@ -1,5 +1,5 @@
-import { buildProtocolDocumentFromCanvasState } from "@/domains/protocol";
-import type { AsciiCanvasDocumentV1 } from "@/domains/protocol";
+import { buildProtocolDocumentFromCanvasState } from "@/domains/document/public";
+import type { AsciiCanvasDocumentV1 } from "@/domains/document/public";
 import { COLOR_PRIMARY_TEXT } from "@/shared/lib/constants";
 import type {
   AnimationCanvasSize,

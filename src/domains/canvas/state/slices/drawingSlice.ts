@@ -18,13 +18,13 @@ import { createStructuredNodeId } from "@/shared/utils/structured";
 import {
   duplicateStructuredNodes,
   reorderStructuredNodes,
-} from "../helpers/structuredNodeActions";
+} from "@/domains/structured-content/public";
 import {
   addStructuredSplitBoxSplit,
   canSplitStructuredSplitBoxLeaf,
   getStructuredSplitBoxLeafAtPoint,
-} from "../helpers/structuredBoxEditing";
-import { filterGridPointsToBounds, filterPointsToBounds } from "../helpers/animationHelpers";
+} from "@/domains/structured-content/public";
+import { filterGridPointsToBounds, filterPointsToBounds } from "@/domains/animation/public";
 import { cloneTextAttributes } from "@/shared/utils/ansi";
 import { splitGraphemes } from "@/shared/metrics";
 import {

@@ -9,8 +9,8 @@ import {
   selectionAreasFromGridRanges,
   syncGridSelectionFromLegacy,
   type GridAddress,
-} from "../helpers/staticGridModel";
-import { clampPointToBounds } from "../helpers/animationHelpers";
+} from "@/domains/selection/public";
+import { clampPointToBounds } from "@/domains/animation/public";
 
 const clampStaticAddress = (address: GridAddress, state: CanvasState) =>
   clampPointToBounds(address, state.canvasBounds);

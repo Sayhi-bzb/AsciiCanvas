@@ -1,4 +1,4 @@
-import demoMarkdown from "../../../../../case/demo.md?raw";
+import demoMarkdown from "./default-demo.md?raw";
 import { GridManager } from "@/shared/utils/grid";
 import type { GridCell } from "@/shared/types";
 import { parseAnsiTextCells } from "@/shared/utils/ansiText";

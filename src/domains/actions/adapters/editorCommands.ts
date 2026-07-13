@@ -1,4 +1,4 @@
-import { useCanvasStore } from "@/domains/canvas/state/canvasStore";
+import { useCanvasStore } from "@/domains/canvas/public";
 import { isRedoShortcut, isUndoShortcut, runRedo, runUndo } from "./shortcutActions";
 import type { ActionId, ActionSource } from "@/domains/actions/core/types";
 import {
