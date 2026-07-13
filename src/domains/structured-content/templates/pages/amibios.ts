@@ -1,9 +1,5 @@
-import type {
-  GridCell,
-  StructuredSplitBoxTreeNode,
-  StructuredTextRangeStyle,
-  StructuredTextStyleRange,
-} from "@/shared/types";
+import type { GridCell } from "@/shared/types";
+import type { StructuredSplitBoxTreeNode, StructuredTextRangeStyle, StructuredTextStyleRange } from "@/domains/structured-content/public";
 import { parseAnsiTextCells } from "@/shared/utils/ansiText";
 import type { StructuredComponentDefinition } from "../components/types";
 

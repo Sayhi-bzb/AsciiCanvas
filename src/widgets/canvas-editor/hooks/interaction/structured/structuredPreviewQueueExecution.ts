@@ -1,4 +1,5 @@
-import type { Point, StructuredNode } from "@/shared/types";
+import type { Point } from "@/shared/types";
+import type { StructuredNode } from "@/domains/structured-content/public";
 import {
   buildStructuredMoveCommitScene,
   buildStructuredMovePreview,

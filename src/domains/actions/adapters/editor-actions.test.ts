@@ -6,7 +6,7 @@ import {
   STRUCTURED_CONTEXT_MENU,
 } from "@/domains/actions/public";
 import { editorCheckers, editorHandlers } from "@/domains/actions/core/handlers/editor";
-import { useCanvasStore } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/public";
 import { clipboard } from "@/shared/services/effects";
 
 describe("editorHandlers clipboard sources", () => {
@@ -31,7 +31,7 @@ describe("editorHandlers clipboard sources", () => {
         managedTextarea,
       },
       {
-        state: useCanvasStore.getState(),
+        state: useEditorStore.getState(),
         setTool: vi.fn(),
         onUndo: vi.fn(),
         onRedo: vi.fn(),
@@ -55,7 +55,7 @@ describe("editorHandlers clipboard sources", () => {
       .mockReturnValue(true);
 
     const state = {
-      ...useCanvasStore.getState(),
+      ...useEditorStore.getState(),
       canvasMode: "freeform" as const,
       canCopyOrCut: () => true,
     };
@@ -86,7 +86,7 @@ describe("editorHandlers clipboard sources", () => {
       { source: "context-menu" },
       {
         state: {
-          ...useCanvasStore.getState(),
+          ...useEditorStore.getState(),
           canvasMode: "structured" as const,
           canCopyOrCut: () => true,
         },
@@ -119,7 +119,7 @@ describe("editor context menu catalog", () => {
 });
 
 describe("editorHandlers structured rename", () => {
-  const baseState = useCanvasStore.getState();
+  const baseState = useEditorStore.getState();
 
   it("puts the cursor at the selected box name end", () => {
     const setTextCursor = vi.fn();

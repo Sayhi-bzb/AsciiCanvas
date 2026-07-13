@@ -1,4 +1,5 @@
-import type { CanvasMode, Point } from "@/shared/types";
+import type { Point } from "@/shared/types";
+import type { CanvasMode } from "@/domains/sessions/public";
 import {
   resolveClampedZoom,
   resolveZoomAnchoredOffset,

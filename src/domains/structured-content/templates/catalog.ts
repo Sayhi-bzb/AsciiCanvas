@@ -1,10 +1,7 @@
-import type {
-  StructuredComponentInstance,
-  StructuredNode,
-  TextAttributes,
-} from "@/shared/types";
-import { mergeStructuredTextStyle } from "@/shared/utils/structuredTextRanges";
-import { getSplitBoxPoints } from "@/shared/utils/shapes";
+import type { TextAttributes } from "@/shared/types";
+import type { StructuredComponentInstance, StructuredNode } from "@/domains/structured-content/public";
+import { mergeStructuredTextStyle } from "../model/text-ranges";
+import { getSplitBoxPoints } from "../model/split-box-geometry";
 import {
   createStructuredComponentFactory,
   STRUCTURED_COMPONENTS,

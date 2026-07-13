@@ -5,16 +5,8 @@ import {
   exportToAnsi,
 } from "@/domains/export/public";
 import { GridManager } from "@/shared/utils/grid";
-import type {
-  GridMap,
-  NodeBounds,
-  Point,
-  SelectionArea,
-  StructuredNode,
-  StructuredNodeStyle,
-  StructuredTextNode,
-  StructuredTextStyleRange,
-} from "@/shared/types";
+import type { GridMap, NodeBounds, Point, SelectionArea } from "@/shared/types";
+import type { StructuredNode, StructuredNodeStyle, StructuredTextNode, StructuredTextStyleRange } from "@/domains/structured-content/public";
 import type { RichTextCell } from "@/domains/canvas/public";
 import { clipboard } from "@/shared/services/effects";
 import { cloneTextAttributes } from "@/shared/utils/ansi";
@@ -23,11 +15,11 @@ import {
   buildStructuredTree,
   getStructuredNodeBounds,
   renderStructuredScene,
-} from "@/shared/utils/structured";
+} from "@/domains/structured-content/public";
 import {
   getStructuredTextSlice,
   getStructuredTextStyleRangesInRange,
-} from "@/shared/utils/structuredTextRanges";
+} from "@/domains/structured-content/public";
 import { toStructuredNode } from "@/domains/canvas/public";
 
 const MIME_RICH_DATA = "web application/x-ascii-metropolis";

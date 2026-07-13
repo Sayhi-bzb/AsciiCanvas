@@ -5,7 +5,7 @@ import {
   getTextLayoutOffsetAtPoint,
   getTextLayoutSelectionRects,
   getTextLayoutSurfaceCells,
-} from "@/shared/utils/textLayout";
+} from "@/domains/structured-content/public";
 
 describe("textLayout", () => {
   it("maps ASCII offsets and points", () => {

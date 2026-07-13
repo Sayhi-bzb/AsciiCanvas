@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { Box, Clapperboard, Pencil, Plus, X } from "lucide-react";
-import { useCanvasStore } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/public";
 import { useShallow } from "zustand/react/shallow";
 import { cn } from "@/shared/lib/utils";
 import { uiClass } from "@/shared/styles/components";
@@ -94,7 +94,7 @@ export function SessionTabs({
     switchCanvasSession,
     removeCanvasSession,
     renameCanvasSession,
-  } = useCanvasStore(
+  } = useEditorStore(
     useShallow((state) => ({
       canvasSessions: state.canvasSessions,
       activeCanvasId: state.activeCanvasId,

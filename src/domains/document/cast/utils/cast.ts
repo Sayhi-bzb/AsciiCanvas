@@ -7,11 +7,8 @@ import {
 import type { ProtocolImportSnapshot } from "../../protocol/import";
 import { COLOR_PRIMARY_TEXT } from "@/shared/lib/constants";
 import { getCellOccupancy, splitGraphemes } from "@/shared/metrics";
-import type {
-  AnimationCanvasSize,
-  AnimationTimeline,
-  GridCell,
-} from "@/shared/types";
+import type { GridCell } from "@/shared/types";
+import type { AnimationCanvasSize, AnimationTimeline } from "@/domains/animation/public";
 import { GridManager } from "@/shared/utils/grid";
 import {
   parseSgrSequenceAt,

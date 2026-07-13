@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { AnimationTimeline } from "@/shared/types";
+import type { AnimationTimeline } from "@/domains/animation/public";
 import {
   cloneAnimationFrame,
   clampPointToBounds,

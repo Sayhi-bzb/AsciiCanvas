@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type DragEvent, type RefObject } from "react";
-import type { CanvasMode, Point } from "@/shared/types";
+import type { Point } from "@/shared/types";
+import type { CanvasMode } from "@/domains/sessions/public";
 import { GridManager } from "@/shared/utils/grid";
 import { gridCellRect } from "@/shared/metrics";
-import { normalizeScene } from "@/shared/utils/structured";
+import { normalizeScene } from "@/domains/structured-content/public";
 import {
   buildStructuredTemplate,
   getActiveStructuredTemplateDragId,

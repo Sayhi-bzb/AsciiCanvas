@@ -1,4 +1,5 @@
-import type { Point, SelectionArea, ToolType } from "@/shared/types";
+import type { Point, SelectionArea } from "@/shared/types";
+import type { ToolType } from "@/domains/canvas/public";
 import type { DragEndCommitDecision } from "./commitInteraction";
 import type { SelectionCommitDecision } from "../preview/selectionInteraction";
 

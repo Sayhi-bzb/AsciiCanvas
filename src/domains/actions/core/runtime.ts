@@ -1,4 +1,4 @@
-import { useCanvasStore } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/public";
 import {
   actionUnhandled,
 } from "./result";
@@ -12,7 +12,7 @@ import type {
   SidebarActionId,
   ToolbarActionId,
 } from "./types";
-import type { ToolType } from "@/shared/types";
+import type { ToolType } from "@/domains/canvas/public";
 import {
   editorHandlers,
   editorCheckers,
@@ -55,7 +55,7 @@ export const runAction = <T = unknown>(
 
   // Build full context from options if partial context is provided
   const fullContext: ActionContext = context ?? {
-    state: useCanvasStore.getState(),
+    state: useEditorStore.getState(),
     setTool: (options as Partial<ActionContext>).setTool ?? (() => {}),
     onUndo: (options as Partial<ActionContext>).onUndo ?? (() => {}),
     onRedo: (options as Partial<ActionContext>).onRedo ?? (() => {}),
@@ -67,7 +67,7 @@ export const runAction = <T = unknown>(
 // Check if action can run
 export const canRunAction = (
   actionId: ActionId,
-  state = useCanvasStore.getState()
+  state = useEditorStore.getState()
 ): boolean => {
   const checker = ACTION_CHECKERS[actionId];
   if (checker) {
@@ -83,7 +83,7 @@ export const runEditorAction = <T = unknown>(
   options: T & Partial<Omit<ActionContext, "setTool">>
 ): ActionResult => {
   const fullContext: ActionContext = {
-    state: useCanvasStore.getState(),
+    state: useEditorStore.getState(),
     setTool: () => {}, // No-op for editor actions
     onUndo: options.onUndo ?? (() => {}),
     onRedo: options.onRedo ?? (() => {}),
@@ -97,7 +97,7 @@ export const runToolbarAction = <T = unknown>(
   options: T & Partial<Omit<ActionContext, "onUndo" | "onRedo">>
 ): ActionResult => {
   const fullContext: ActionContext = {
-    state: useCanvasStore.getState(),
+    state: useEditorStore.getState(),
     setTool: ((options as { setTool?: (tool: ToolType) => void }).setTool ?? (() => {})),
     onUndo: () => {},
     onRedo: () => {},
@@ -111,7 +111,7 @@ export const runSidebarAction = <T = unknown>(
   options: T
 ): ActionResult => {
   // Sidebar actions don't need full context
-  const state = useCanvasStore.getState();
+  const state = useEditorStore.getState();
   const context: ActionContext = {
     state,
     setTool: () => {},

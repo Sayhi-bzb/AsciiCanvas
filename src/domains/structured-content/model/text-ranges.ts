@@ -1,17 +1,16 @@
+import type { Point, TextAttributes } from "@/shared/types";
 import type {
-  Point,
   StructuredNodeStyle,
   StructuredTextNode,
   StructuredTextRangeStyle,
   StructuredTextStyleRange,
-  TextAttributes,
-} from "@/shared/types";
+} from "./types";
 import { splitGraphemes } from "@/shared/metrics";
 import {
   createTextLayout,
   getTextLayoutCaretPoint,
   getTextLayoutOffsetAtPoint,
-} from "@/shared/utils/textLayout";
+} from "./text-layout";
 import { cloneTextAttributes } from "@/shared/utils/ansi";
 
 export type StructuredTextSelection = {

@@ -7,11 +7,8 @@ import {
   createStructuredSplitBoxGrid,
 } from "@/widgets/canvas-editor/hooks/interaction/structured/structuredInteractionPreview";
 import { GridManager } from "@/shared/utils/grid";
-import type {
-  GridMap,
-  StructuredBoxNode,
-  StructuredSplitBoxNode,
-} from "@/shared/types";
+import type { GridMap } from "@/shared/types";
+import type { StructuredBoxNode, StructuredSplitBoxNode } from "@/domains/structured-content/public";
 
 const baseGrid: GridMap = new Map([
   [GridManager.toKey(0, 0), { char: "x", color: "#ffffff" }],

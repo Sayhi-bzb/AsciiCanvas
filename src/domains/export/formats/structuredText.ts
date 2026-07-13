@@ -1,15 +1,12 @@
 import {
   normalizeStructuredComponents,
 } from "@/domains/structured-content/public";
-import type {
-  StructuredComponentInstance,
-  StructuredNode,
-} from "@/shared/types";
+import type { StructuredComponentInstance, StructuredNode } from "@/domains/structured-content/public";
 import { cloneTextAttributes } from "@/shared/utils/ansi";
 import {
   buildStructuredTree,
   getStructuredNodeBounds,
-} from "@/shared/utils/structured";
+} from "@/domains/structured-content/public";
 const escapeAttr = (value: string) => {
   return value
     .replaceAll("&", "&amp;")

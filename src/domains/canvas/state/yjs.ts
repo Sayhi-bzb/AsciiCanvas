@@ -1,6 +1,6 @@
 import * as Y from "yjs";
 import type { GridCell } from "@/shared/types";
-import type { StructuredNode } from "@/shared/types";
+import type { StructuredNode } from "@/domains/structured-content/public";
 
 const yDoc = new Y.Doc();
 const HISTORY_IGNORED_ORIGIN = Symbol("canvas-history-ignored");

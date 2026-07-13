@@ -24,8 +24,7 @@ export const uiClass = {
   minimapCanvas:
     "block size-[220px] rounded-lg opacity-100 transition-all active:scale-[0.99]",
   submenuPanel: cn(
-    rx.surface({ kind: "overlay", elevated: true }),
-    "w-auto p-1 flex flex-col gap-0.5 z-50 overflow-hidden min-w-[100px]"
+    "z-50 flex w-auto min-w-[100px] flex-col gap-0.5 overflow-hidden rounded-lg border-0 bg-muted p-[3px] shadow-none"
   ),
 };
 

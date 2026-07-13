@@ -1,12 +1,5 @@
-import type {
-  AnimationCanvasSize,
-  AnimationFrame,
-  AnimationTimeline,
-  GridCell,
-  GridPoint,
-  Point,
-  SelectionArea,
-} from "@/shared/types";
+import type { GridCell, GridPoint, Point, SelectionArea } from "@/shared/types";
+import type { AnimationCanvasSize, AnimationFrame, AnimationTimeline } from "@/domains/animation/public";
 import { DEFAULT_GRID_RENDER_METRICS } from "@/shared/metrics";
 import { cloneTextAttributes } from "@/shared/utils/ansi";
 

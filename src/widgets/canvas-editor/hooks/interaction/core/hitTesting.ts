@@ -1,17 +1,14 @@
-import type {
-  Point,
-  StructuredNode,
-  StructuredTextNode,
-} from "@/shared/types";
+import type { Point } from "@/shared/types";
+import type { StructuredNode, StructuredTextNode } from "@/domains/structured-content/public";
 import { gridCellRect } from "@/shared/metrics";
 import {
   getStructuredNodeBounds,
   getTextColumnWidth,
-} from "@/shared/utils/structured";
+} from "@/domains/structured-content/public";
 import {
   getStructuredTextCaretPoint,
   getStructuredTextOffsetAtPoint,
-} from "@/shared/utils/structuredTextRanges";
+} from "@/domains/structured-content/public";
 import {
   findStructuredNodeHit,
   getStructuredSplitBoxGuides,

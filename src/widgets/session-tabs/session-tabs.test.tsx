@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { SessionTabs } from "@/widgets/session-tabs/SessionTabs";
-import { useCanvasStore } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/public";
 import { setUiLanguage } from "@/shared/i18n";
 
 describe("SessionTabs auto-hide", () => {
-  const initialState = useCanvasStore.getState();
+  const initialState = useEditorStore.getState();
 
   beforeEach(() => {
     setUiLanguage("en");
@@ -28,12 +28,12 @@ describe("SessionTabs auto-hide", () => {
   afterEach(() => {
     vi.useRealTimers();
     setUiLanguage("en");
-    useCanvasStore.setState(initialState, true);
+    useEditorStore.setState(initialState, true);
   });
 
   const setTwoSessions = () => {
     act(() => {
-      useCanvasStore.setState({
+      useEditorStore.setState({
         activeCanvasId: "canvas-a",
         canvasSessions: [
           {
@@ -134,7 +134,7 @@ describe("SessionTabs auto-hide", () => {
       ctrlKey: false,
     });
 
-    expect(useCanvasStore.getState().activeCanvasId).toBe("canvas-b");
+    expect(useEditorStore.getState().activeCanvasId).toBe("canvas-b");
     expect(screen.getByRole("tab", { name: "Beta" })).toHaveAttribute(
       "data-state",
       "active"
@@ -172,12 +172,12 @@ describe("SessionTabs auto-hide", () => {
 
     render(<SessionTabs />);
 
-    const activeCanvasId = useCanvasStore.getState().activeCanvasId;
+    const activeCanvasId = useEditorStore.getState().activeCanvasId;
     fireEvent.click(screen.getByLabelText("Create new canvas"));
 
     expect(await screen.findByText("New Freeform")).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Beta" })).toBeInTheDocument();
-    expect(useCanvasStore.getState().activeCanvasId).toBe(activeCanvasId);
+    expect(useEditorStore.getState().activeCanvasId).toBe(activeCanvasId);
   });
 
   it("collapses after pointer leave delay", () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { resolveStructuredTextCaretSelectionStart } from "@/widgets/canvas-editor/hooks/interaction/structured/structuredTextSelectionStart";
-import type { StructuredTextNode } from "@/shared/types";
+import type { StructuredTextNode } from "@/domains/structured-content/public";
 
 const textNode: StructuredTextNode = {
   id: "text-1",

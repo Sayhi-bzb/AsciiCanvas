@@ -1,5 +1,6 @@
-import type { Point, StructuredNode } from "@/shared/types";
-import { createStructuredNodeId, getStructuredNodeBounds, withPointWithinBounds } from "@/shared/utils/structured";
+import type { Point } from "@/shared/types";
+import type { StructuredNode } from "@/domains/structured-content/public";
+import { createStructuredNodeId, getStructuredNodeBounds, withPointWithinBounds } from "./scene";
 
 export type StructuredLayerDirection = "forward" | "backward" | "front" | "back";
 

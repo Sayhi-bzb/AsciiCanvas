@@ -1,11 +1,11 @@
-import { useCanvasStore } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/public";
 import { isRedoShortcut, isUndoShortcut, runRedo, runUndo } from "./shortcutActions";
 import type { ActionId, ActionSource } from "@/domains/actions/core/types";
 import {
   shouldIgnoreEditorCommandByFocus,
 } from "@/domains/actions/input-arbiter";
 import { getFirstGrapheme } from "@/shared/utils/characters";
-import { getStructuredTextSelectionRange } from "@/shared/utils/structuredTextRanges";
+import { getStructuredTextSelectionRange } from "@/domains/structured-content/public";
 
 type EditorCommand = Extract<
   ActionId,
@@ -37,7 +37,7 @@ export const runEditorCommand = (
   const source = options.source ?? "global-hotkey";
   if (shouldIgnoreEditorCommandByFocus(source, options.managedTextarea)) return false;
 
-  const state = useCanvasStore.getState();
+  const state = useEditorStore.getState();
 
   switch (command) {
     case "undo":

@@ -1,4 +1,6 @@
-import type { CanvasMode, Point, SelectionArea, ToolType } from "@/shared/types";
+import type { Point, SelectionArea } from "@/shared/types";
+import type { CanvasMode } from "@/domains/sessions/public";
+import type { ToolType } from "@/domains/canvas/public";
 import {
   clampSelectionToBounds
 } from "@/domains/animation/public";

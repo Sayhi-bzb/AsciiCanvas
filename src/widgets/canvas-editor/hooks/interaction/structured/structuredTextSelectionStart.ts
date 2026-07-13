@@ -1,8 +1,9 @@
-import type { Point, StructuredTextNode } from "@/shared/types";
+import type { Point } from "@/shared/types";
+import type { StructuredTextNode } from "@/domains/structured-content/public";
 import {
   getStructuredTextCaretPoint,
   getStructuredTextOffsetAtPoint,
-} from "@/shared/utils/structuredTextRanges";
+} from "@/domains/structured-content/public";
 import type { InteractionEvent } from "../core/interactionMachine";
 import type { StructuredTextCaretHit } from "./structuredSelectStart";
 

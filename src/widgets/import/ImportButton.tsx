@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Upload } from "lucide-react";
-import { useCanvasStore } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/public";
 import { Button } from "@/shared/ui/button";
 import {
   Tooltip,
@@ -16,7 +16,7 @@ import { useUiI18n } from "@/shared/i18n";
 export function ImportButton() {
   const { t } = useUiI18n();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const importCanvasSession = useCanvasStore(
+  const importCanvasSession = useEditorStore(
     (state) => state.importCanvasSession
   );
   const [isImporting, setIsImporting] = useState(false);

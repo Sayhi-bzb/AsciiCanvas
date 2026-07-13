@@ -1,5 +1,6 @@
-import type { Point, SelectionArea, StructuredNode } from "@/shared/types";
-import type { StructuredTextSelection } from "@/shared/utils/structuredTextRanges";
+import type { Point, SelectionArea } from "@/shared/types";
+import type { StructuredNode } from "@/domains/structured-content/public";
+import type { StructuredTextSelection } from "@/domains/structured-content/public";
 import type {
   StructuredSplitBoxHandle,
 } from "@/domains/structured-content/public";

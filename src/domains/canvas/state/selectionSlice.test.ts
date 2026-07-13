@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { useCanvasStore } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/public";
 import { applyFreeformSnapshotToYMaps } from "@/domains/canvas/public";
 import { DEFAULT_SESSION_ID } from "@/domains/canvas/state/helpers/storeUtils";
 
-const initialState = useCanvasStore.getState();
+const initialState = useEditorStore.getState();
 
 const resetStore = () => {
-  useCanvasStore.setState(
+  useEditorStore.setState(
     {
       ...initialState,
       grid: new Map(),
@@ -25,7 +25,7 @@ describe("selectionSlice setSelectionTextAttributes", () => {
   });
 
   it("adds attributes to existing selected cells only", () => {
-    useCanvasStore.setState({
+    useEditorStore.setState({
       canvasMode: "freeform",
       selections: [{ start: { x: 0, y: 0 }, end: { x: 2, y: 0 } }],
     });
@@ -34,9 +34,9 @@ describe("selectionSlice setSelectionTextAttributes", () => {
       ["2,0", { char: "B", color: "#ffffff", bgColor: "#111111" }],
     ]);
 
-    useCanvasStore.getState().setSelectionTextAttributes({ bold: true });
+    useEditorStore.getState().setSelectionTextAttributes({ bold: true });
 
-    expect(useCanvasStore.getState().grid).toEqual(
+    expect(useEditorStore.getState().grid).toEqual(
       new Map([
         ["0,0", { char: "A", color: "#ffffff", attrs: { bold: true } }],
         [
@@ -53,16 +53,16 @@ describe("selectionSlice setSelectionTextAttributes", () => {
   });
 
   it("materializes blank selected cells for underline using the brush color", () => {
-    useCanvasStore.setState({
+    useEditorStore.setState({
       canvasMode: "freeform",
       brushColor: "#2563eb",
       selections: [{ start: { x: 0, y: 0 }, end: { x: 1, y: 0 } }],
     });
     applyFreeformSnapshotToYMaps([]);
 
-    useCanvasStore.getState().setSelectionTextAttributes({ underline: true });
+    useEditorStore.getState().setSelectionTextAttributes({ underline: true });
 
-    expect(useCanvasStore.getState().grid).toEqual(
+    expect(useEditorStore.getState().grid).toEqual(
       new Map([
         ["0,0", { char: " ", color: "#2563eb", attrs: { underline: true } }],
         ["1,0", { char: " ", color: "#2563eb", attrs: { underline: true } }],
@@ -71,16 +71,16 @@ describe("selectionSlice setSelectionTextAttributes", () => {
   });
 
   it("materializes blank selected cells for strike using the brush color", () => {
-    useCanvasStore.setState({
+    useEditorStore.setState({
       canvasMode: "freeform",
       brushColor: "#ef4444",
       selections: [{ start: { x: 0, y: 0 }, end: { x: 0, y: 0 } }],
     });
     applyFreeformSnapshotToYMaps([]);
 
-    useCanvasStore.getState().setSelectionTextAttributes({ strike: true });
+    useEditorStore.getState().setSelectionTextAttributes({ strike: true });
 
-    expect(useCanvasStore.getState().grid.get("0,0")).toEqual({
+    expect(useEditorStore.getState().grid.get("0,0")).toEqual({
       char: " ",
       color: "#ef4444",
       attrs: { strike: true },
@@ -88,21 +88,21 @@ describe("selectionSlice setSelectionTextAttributes", () => {
   });
 
   it("does not materialize blank selected cells for bold or italic only", () => {
-    useCanvasStore.setState({
+    useEditorStore.setState({
       canvasMode: "freeform",
       selections: [{ start: { x: 0, y: 0 }, end: { x: 1, y: 0 } }],
     });
     applyFreeformSnapshotToYMaps([]);
 
-    useCanvasStore
+    useEditorStore
       .getState()
       .setSelectionTextAttributes({ bold: true, italic: true });
 
-    expect(useCanvasStore.getState().grid).toEqual(new Map());
+    expect(useEditorStore.getState().grid).toEqual(new Map());
   });
 
   it("removes only toggled attributes and preserves other styling", () => {
-    useCanvasStore.setState({
+    useEditorStore.setState({
       canvasMode: "freeform",
       selections: [{ start: { x: 0, y: 0 }, end: { x: 0, y: 0 } }],
     });
@@ -118,9 +118,9 @@ describe("selectionSlice setSelectionTextAttributes", () => {
       ],
     ]);
 
-    useCanvasStore.getState().setSelectionTextAttributes({ bold: false });
+    useEditorStore.getState().setSelectionTextAttributes({ bold: false });
 
-    expect(useCanvasStore.getState().grid.get("0,0")).toEqual({
+    expect(useEditorStore.getState().grid.get("0,0")).toEqual({
       char: "A",
       color: "#ffffff",
       bgColor: "#111111",
@@ -129,7 +129,7 @@ describe("selectionSlice setSelectionTextAttributes", () => {
   });
 
   it("removes attrs when no text attributes remain", () => {
-    useCanvasStore.setState({
+    useEditorStore.setState({
       canvasMode: "freeform",
       selections: [{ start: { x: 0, y: 0 }, end: { x: 0, y: 0 } }],
     });
@@ -137,16 +137,16 @@ describe("selectionSlice setSelectionTextAttributes", () => {
       ["0,0", { char: "A", color: "#ffffff", attrs: { underline: true } }],
     ]);
 
-    useCanvasStore.getState().setSelectionTextAttributes({ underline: false });
+    useEditorStore.getState().setSelectionTextAttributes({ underline: false });
 
-    expect(useCanvasStore.getState().grid.get("0,0")).toEqual({
+    expect(useEditorStore.getState().grid.get("0,0")).toEqual({
       char: "A",
       color: "#ffffff",
     });
   });
 
   it("deletes materialized blank cells when underline is removed", () => {
-    useCanvasStore.setState({
+    useEditorStore.setState({
       canvasMode: "freeform",
       selections: [{ start: { x: 0, y: 0 }, end: { x: 0, y: 0 } }],
     });
@@ -154,13 +154,13 @@ describe("selectionSlice setSelectionTextAttributes", () => {
       ["0,0", { char: " ", color: "#ffffff", attrs: { underline: true } }],
     ]);
 
-    useCanvasStore.getState().setSelectionTextAttributes({ underline: false });
+    useEditorStore.getState().setSelectionTextAttributes({ underline: false });
 
-    expect(useCanvasStore.getState().grid).toEqual(new Map());
+    expect(useEditorStore.getState().grid).toEqual(new Map());
   });
 
   it("does not update cells in structured mode", () => {
-    useCanvasStore.setState({
+    useEditorStore.setState({
       canvasMode: "structured",
       selections: [{ start: { x: 0, y: 0 }, end: { x: 0, y: 0 } }],
     });
@@ -168,9 +168,9 @@ describe("selectionSlice setSelectionTextAttributes", () => {
       ["0,0", { char: "A", color: "#ffffff" }],
     ]);
 
-    useCanvasStore.getState().setSelectionTextAttributes({ bold: true });
+    useEditorStore.getState().setSelectionTextAttributes({ bold: true });
 
-    expect(useCanvasStore.getState().grid.get("0,0")).toEqual({
+    expect(useEditorStore.getState().grid.get("0,0")).toEqual({
       char: "A",
       color: "#ffffff",
     });
@@ -184,7 +184,7 @@ describe("selectionSlice static grid selection compatibility", () => {
   });
 
   it("fills cells from static grid ranges when legacy selections are empty", () => {
-    useCanvasStore.setState({
+    useEditorStore.setState({
       canvasMode: "freeform",
       brushColor: "#22c55e",
       selections: [],
@@ -196,9 +196,9 @@ describe("selectionSlice static grid selection compatibility", () => {
     });
     applyFreeformSnapshotToYMaps([]);
 
-    useCanvasStore.getState().fillSelectionsWithChar("X");
+    useEditorStore.getState().fillSelectionsWithChar("X");
 
-    expect(useCanvasStore.getState().grid).toEqual(
+    expect(useEditorStore.getState().grid).toEqual(
       new Map([
         ["0,0", { char: "X", color: "#22c55e" }],
         ["1,0", { char: "X", color: "#22c55e" }],
@@ -208,7 +208,7 @@ describe("selectionSlice static grid selection compatibility", () => {
   });
 
   it("styles and materializes cells from static grid ranges when legacy selections are empty", () => {
-    useCanvasStore.setState({
+    useEditorStore.setState({
       canvasMode: "freeform",
       brushColor: "#f8fafc",
       selections: [],
@@ -223,9 +223,9 @@ describe("selectionSlice static grid selection compatibility", () => {
       ["2,0", { char: "B", color: "#ffffff" }],
     ]);
 
-    useCanvasStore.getState().setSelectionBackgroundColor("#0f172a");
+    useEditorStore.getState().setSelectionBackgroundColor("#0f172a");
 
-    expect(useCanvasStore.getState().grid).toEqual(
+    expect(useEditorStore.getState().grid).toEqual(
       new Map([
         ["0,0", { char: "A", color: "#ffffff", bgColor: "#0f172a" }],
         ["1,0", { char: " ", color: "#f8fafc", bgColor: "#0f172a" }],
@@ -240,7 +240,7 @@ describe("selectionSlice setSelectionBackgroundColor", () => {
   });
 
   it("fills background color and materializes empty selected cells", () => {
-    useCanvasStore.setState({
+    useEditorStore.setState({
       canvasMode: "freeform",
       brushColor: "#f8fafc",
       selections: [{ start: { x: 0, y: 0 }, end: { x: 2, y: 0 } }],
@@ -250,9 +250,9 @@ describe("selectionSlice setSelectionBackgroundColor", () => {
       ["2,0", { char: "B", color: "#ffffff", attrs: { bold: true } }],
     ]);
 
-    useCanvasStore.getState().setSelectionBackgroundColor("#2563eb");
+    useEditorStore.getState().setSelectionBackgroundColor("#2563eb");
 
-    expect(useCanvasStore.getState().grid).toEqual(
+    expect(useEditorStore.getState().grid).toEqual(
       new Map([
         ["0,0", { char: "A", color: "#ffffff", bgColor: "#2563eb" }],
         ["1,0", { char: " ", color: "#f8fafc", bgColor: "#2563eb" }],
@@ -270,7 +270,7 @@ describe("selectionSlice setSelectionBackgroundColor", () => {
   });
 
   it("clears background color while preserving foreground and attributes", () => {
-    useCanvasStore.setState({
+    useEditorStore.setState({
       canvasMode: "freeform",
       selections: [{ start: { x: 0, y: 0 }, end: { x: 0, y: 0 } }],
     });
@@ -286,9 +286,9 @@ describe("selectionSlice setSelectionBackgroundColor", () => {
       ],
     ]);
 
-    useCanvasStore.getState().setSelectionBackgroundColor(null);
+    useEditorStore.getState().setSelectionBackgroundColor(null);
 
-    expect(useCanvasStore.getState().grid.get("0,0")).toEqual({
+    expect(useEditorStore.getState().grid.get("0,0")).toEqual({
       char: "A",
       color: "#ffffff",
       attrs: { underline: true },
@@ -296,7 +296,7 @@ describe("selectionSlice setSelectionBackgroundColor", () => {
   });
 
   it("clears background color without materializing empty selected positions", () => {
-    useCanvasStore.setState({
+    useEditorStore.setState({
       canvasMode: "freeform",
       selections: [{ start: { x: 0, y: 0 }, end: { x: 2, y: 0 } }],
     });
@@ -304,9 +304,9 @@ describe("selectionSlice setSelectionBackgroundColor", () => {
       ["1,0", { char: "A", color: "#ffffff", bgColor: "#2563eb" }],
     ]);
 
-    useCanvasStore.getState().setSelectionBackgroundColor(null);
+    useEditorStore.getState().setSelectionBackgroundColor(null);
 
-    expect(useCanvasStore.getState().grid).toEqual(
+    expect(useEditorStore.getState().grid).toEqual(
       new Map([
         ["1,0", { char: "A", color: "#ffffff" }],
       ])
@@ -314,7 +314,7 @@ describe("selectionSlice setSelectionBackgroundColor", () => {
   });
 
   it("deletes materialized blank cells when background color is cleared", () => {
-    useCanvasStore.setState({
+    useEditorStore.setState({
       canvasMode: "freeform",
       selections: [{ start: { x: 0, y: 0 }, end: { x: 0, y: 0 } }],
     });
@@ -322,13 +322,13 @@ describe("selectionSlice setSelectionBackgroundColor", () => {
       ["0,0", { char: " ", color: "#ffffff", bgColor: "#2563eb" }],
     ]);
 
-    useCanvasStore.getState().setSelectionBackgroundColor(null);
+    useEditorStore.getState().setSelectionBackgroundColor(null);
 
-    expect(useCanvasStore.getState().grid).toEqual(new Map());
+    expect(useEditorStore.getState().grid).toEqual(new Map());
   });
 
   it("does not update background color in structured mode", () => {
-    useCanvasStore.setState({
+    useEditorStore.setState({
       canvasMode: "structured",
       selections: [{ start: { x: 0, y: 0 }, end: { x: 0, y: 0 } }],
     });
@@ -336,9 +336,9 @@ describe("selectionSlice setSelectionBackgroundColor", () => {
       ["0,0", { char: "A", color: "#ffffff" }],
     ]);
 
-    useCanvasStore.getState().setSelectionBackgroundColor("#2563eb");
+    useEditorStore.getState().setSelectionBackgroundColor("#2563eb");
 
-    expect(useCanvasStore.getState().grid.get("0,0")).toEqual({
+    expect(useEditorStore.getState().grid.get("0,0")).toEqual({
       char: "A",
       color: "#ffffff",
     });

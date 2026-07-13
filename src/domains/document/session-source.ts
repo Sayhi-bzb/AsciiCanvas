@@ -1,7 +1,7 @@
 import {
   registerCanvasSessionSourceParser,
-  type CanvasImportSnapshot,
 } from "@/domains/canvas/public";
+import type { CanvasImportSnapshot } from "@/domains/sessions/public";
 import { isLikelyAsciinemaCast, parseAsciinemaCast } from "./cast/utils/cast";
 import {
   parseProtocolDocument,

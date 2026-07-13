@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Pause, Play, Repeat } from "lucide-react";
-import type { AnimationCanvasSize, AnimationTimeline, GridCell } from "@/shared/types";
+import type { GridCell } from "@/shared/types";
+import type { AnimationCanvasSize, AnimationTimeline } from "@/domains/animation/public";
 import {
   BACKGROUND_COLOR,
   COLOR_PRIMARY_TEXT,

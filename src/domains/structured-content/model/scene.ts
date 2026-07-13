@@ -1,7 +1,9 @@
-import type { GridCell, NodeBounds, Point, StructuredNode } from "@/shared/types";
+import type { GridCell, NodeBounds, Point } from "@/shared/types";
+import type { StructuredNode } from "./types";
 import { normalizeCellStyle } from "@/shared/utils/ansi";
-import { mergeStructuredTextStyle } from "@/shared/utils/structuredTextRanges";
-import { getBoxPoints, getLShapeLinePoints, getSplitBoxPoints } from "@/shared/utils/shapes";
+import { mergeStructuredTextStyle } from "./text-ranges";
+import { getBoxPoints, getLShapeLinePoints } from "@/shared/utils/shapes";
+import { getSplitBoxPoints } from "./split-box-geometry";
 import {
   getCellOccupancy,
   getTextCellWidth,
@@ -10,7 +12,7 @@ import {
 import {
   createTextLayout,
   getTextLayoutSurfaceCells,
-} from "@/shared/utils/textLayout";
+} from "./text-layout";
 
 const placeStyledCharInMap = (
   targetMap: {

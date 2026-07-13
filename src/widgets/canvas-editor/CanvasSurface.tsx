@@ -7,7 +7,7 @@ import {
   type RefObject,
   type TextareaHTMLAttributes,
 } from "react";
-import type { CanvasMode } from "@/shared/types";
+import type { CanvasMode } from "@/domains/sessions/public";
 import { Minimap } from "./Minimap";
 import { SelectionFormatToolbar } from "./SelectionFormatToolbar";
 

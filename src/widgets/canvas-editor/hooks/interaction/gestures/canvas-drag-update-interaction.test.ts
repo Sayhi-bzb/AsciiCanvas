@@ -5,13 +5,8 @@ import {
   resolveShapePreviewUpdate,
   resolveStructuredTextDragSelection,
 } from "@/widgets/canvas-editor/hooks/interaction/gestures/dragUpdateInteraction";
-import type {
-  GridMap,
-  StructuredBoxNode,
-  StructuredLineNode,
-  StructuredSplitBoxNode,
-  StructuredTextNode,
-} from "@/shared/types";
+import type { GridMap } from "@/shared/types";
+import type { StructuredBoxNode, StructuredLineNode, StructuredSplitBoxNode, StructuredTextNode } from "@/domains/structured-content/public";
 import type { StructuredNodeDragPayload } from "@/widgets/canvas-editor/hooks/interaction/core/interactionMachine";
 
 const boxNode: StructuredBoxNode = {

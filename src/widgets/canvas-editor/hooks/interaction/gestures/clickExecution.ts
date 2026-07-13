@@ -1,4 +1,6 @@
-import type { CanvasMode, Point, ToolType } from "@/shared/types";
+import type { Point } from "@/shared/types";
+import type { CanvasMode } from "@/domains/sessions/public";
+import type { ToolType } from "@/domains/canvas/public";
 import type { CanvasLinkHit } from "../core/linkHitTesting";
 import type { InteractionState } from "../core/interactionMachine";
 import { resolveCanvasClickDecision, type CanvasClickDecision } from "./clickInteraction";

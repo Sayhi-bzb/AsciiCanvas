@@ -10,12 +10,12 @@ import {
 } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 
-import { useCanvasStore } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/public";
 import { gridCellRect } from "@/shared/metrics";
 import type { GridMap, NodeBounds, SelectionArea } from "@/shared/types";
 import { GridManager } from "@/shared/utils/grid";
 import { getSelectionBounds } from "@/shared/utils/selection";
-import { getStructuredNodeBounds } from "@/shared/utils/structured";
+import { getStructuredNodeBounds } from "@/domains/structured-content/public";
 import {
   getStaticGridViewState,
 } from "@/domains/selection/public";
@@ -28,7 +28,7 @@ import {
   getStructuredTextCaretPoint,
   getStructuredTextSelectionRange,
   getStructuredTextStylesInRange,
-} from "@/shared/utils/structuredTextRanges";
+} from "@/domains/structured-content/public";
 import {
   ToggleGroup,
   ToggleGroupItem,
@@ -114,7 +114,7 @@ export function SelectionFormatToolbar({
     setStructuredNodeCharColor,
     splitStructuredSplitBoxLeaf,
     deleteSelection,
-  } = useCanvasStore(
+  } = useEditorStore(
     useShallow((state) => ({
       canvasMode: state.canvasMode,
       grid: state.grid,

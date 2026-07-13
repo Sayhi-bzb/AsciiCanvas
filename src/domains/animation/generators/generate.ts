@@ -1,4 +1,5 @@
-import type { AnimationFrame, GridCell } from "@/shared/types";
+import type { GridCell } from "@/shared/types";
+import type { AnimationFrame } from "@/domains/animation/public";
 import type {
   AnimationGeneratorConfig,
   AnimationGeneratorInput,

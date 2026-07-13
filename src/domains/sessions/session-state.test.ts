@@ -4,8 +4,8 @@ import {
   createSessionId,
   normalizeSessionMode,
   withActiveCanvasSnapshot
-} from '@/domains/canvas/state/helpers/sessionHelpers';
-import type { CanvasSession } from '@/domains/canvas/state/interfaces';
+} from './public';
+import type { CanvasSession } from './public';
 
 describe('sessionHelpers', () => {
   describe('resolveNextSessionName', () => {

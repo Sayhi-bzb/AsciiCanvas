@@ -3,7 +3,7 @@
 import { useEffect, useMemo } from "react";
 import { ChevronLeft, ChevronRight, Pause, Play, Repeat } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
-import { useCanvasStore } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/public";
 import {
   getAnimationFrameDelayMs
 } from "@/domains/animation/public";
@@ -42,7 +42,7 @@ export function AnimationTimeline({
     pauseAnimation,
     stepAnimationFrame,
     tickAnimationPlayback,
-  } = useCanvasStore(
+  } = useEditorStore(
     useShallow((state) => ({
       canvasMode: state.canvasMode,
       animationTimeline: state.animationTimeline,

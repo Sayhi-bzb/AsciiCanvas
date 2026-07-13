@@ -1,15 +1,10 @@
 import { buildProtocolDocumentFromCanvasState } from "@/domains/document/public";
 import type { AsciiCanvasDocumentV1 } from "@/domains/document/public";
 import { COLOR_PRIMARY_TEXT } from "@/shared/lib/constants";
-import type {
-  AnimationCanvasSize,
-  AnimationTimeline,
-  CanvasMode,
-  GridCell,
-  GridMap,
-  StructuredComponentInstance,
-  StructuredNode,
-} from "@/shared/types";
+import type { GridCell, GridMap } from "@/shared/types";
+import type { CanvasMode } from "@/domains/sessions/public";
+import type { StructuredComponentInstance, StructuredNode } from "@/domains/structured-content/public";
+import type { AnimationCanvasSize, AnimationTimeline } from "@/domains/animation/public";
 import { cloneTextAttributes } from "@/shared/utils/ansi";
 
 const MONOCHROME_EXPORT_COLOR = COLOR_PRIMARY_TEXT;

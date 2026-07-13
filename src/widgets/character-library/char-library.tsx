@@ -13,7 +13,7 @@ import {
   FolderOpen,
   SquareDashed,
 } from "lucide-react";
-import { useCanvasStore } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/public";
 import { writeClipboardPayload } from "@/domains/actions/public";
 import { useLibraryStore } from "@/domains/character-library/public";
 import { cn } from "@/shared/lib/utils";
@@ -89,7 +89,7 @@ const CharButton = ({
 };
 
 export function CharLibrary() {
-  const { brushColor } = useCanvasStore(
+  const { brushColor } = useEditorStore(
     useShallow((state) => ({
       brushColor: state.brushColor,
     }))

@@ -1,11 +1,7 @@
-import type {
-  AnimationCanvasSize,
-  AnimationTimeline,
-  CanvasMode,
-  GridMap,
-  StructuredComponentInstance,
-  StructuredNode,
-} from "@/shared/types";
+import type { GridMap } from "@/shared/types";
+import type { CanvasMode } from "@/domains/sessions/public";
+import type { StructuredComponentInstance, StructuredNode } from "@/domains/structured-content/public";
+import type { AnimationCanvasSize, AnimationTimeline } from "@/domains/animation/public";
 
 export type ExportFormat = "txt" | "json" | "ansi" | "png" | "gif" | "cast";
 

@@ -1,4 +1,5 @@
-import type { CanvasMode, ToolType } from "@/shared/types";
+import type { CanvasMode } from "@/domains/sessions/public";
+import type { ToolType } from "@/domains/canvas/public";
 import type { InteractionState } from "../core/interactionMachine";
 
 export type DragEndCommitDecision =

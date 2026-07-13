@@ -1,11 +1,9 @@
 import { useRef, type RefObject } from "react";
 import { useGesture } from "@use-gesture/react";
-import type {
-  AnimationCanvasSize,
-  CanvasMode,
-  StructuredNode,
-  ToolType,
-} from "@/shared/types";
+import type { CanvasMode } from "@/domains/sessions/public";
+import type { ToolType } from "@/domains/canvas/public";
+import type { StructuredNode } from "@/domains/structured-content/public";
+import type { AnimationCanvasSize } from "@/domains/animation/public";
 import { isCtrlOrMeta } from "@/shared/utils/event";
 import { MAX_ZOOM, MIN_ZOOM } from "@/shared/lib/constants";
 import {

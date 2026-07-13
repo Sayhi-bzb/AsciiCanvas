@@ -1,7 +1,7 @@
 import { useKeyPress, useLocalStorageState } from "ahooks";
 import { Library } from "lucide-react";
 import { AsciiCanvas } from "@/widgets/canvas-editor";
-import { useCanvasStore } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/public";
 import { AppLayout } from "./AppLayout";
 import { Toolbar } from "@/widgets/toolbar/dock";
 import { SidebarInset, SidebarProvider, useSidebar } from "@/shared/ui/sidebar";
@@ -45,7 +45,7 @@ function MobileSidebarTrigger() {
 }
 
 function AppContent() {
-  const { tool, setTool } = useCanvasStore(
+  const { tool, setTool } = useEditorStore(
     useShallow((state) => ({
       tool: state.tool,
       setTool: state.setTool,

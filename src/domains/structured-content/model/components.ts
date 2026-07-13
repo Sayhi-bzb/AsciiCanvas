@@ -1,7 +1,4 @@
-import type {
-  StructuredComponentInstance,
-  StructuredNode,
-} from "@/shared/types";
+import type { StructuredComponentInstance, StructuredNode } from "@/domains/structured-content/public";
 const isComponentMetadata = (
   component: unknown
 ): component is NonNullable<StructuredNode["component"]> =>

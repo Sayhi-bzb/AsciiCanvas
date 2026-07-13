@@ -1,0 +1,53 @@
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSub,
+  ContextMenuSubContent,
+  ContextMenuSubTrigger,
+  ContextMenuTrigger,
+} from "./context-menu";
+
+describe("ContextMenu styling", () => {
+  it("uses muted borderless surfaces for root and sub menus", async () => {
+    render(
+      <ContextMenu>
+        <ContextMenuTrigger>Target</ContextMenuTrigger>
+        <ContextMenuContent>
+          <ContextMenuItem>Action</ContextMenuItem>
+          <ContextMenuSub>
+            <ContextMenuSubTrigger>More</ContextMenuSubTrigger>
+            <ContextMenuSubContent>
+              <ContextMenuItem>Nested action</ContextMenuItem>
+            </ContextMenuSubContent>
+          </ContextMenuSub>
+        </ContextMenuContent>
+      </ContextMenu>
+    );
+
+    fireEvent.contextMenu(screen.getByText("Target"));
+
+    const rootMenu = await screen.findByRole("menu");
+    expect(rootMenu).toHaveClass(
+      "bg-muted",
+      "border-0",
+      "shadow-none",
+      "rounded-lg"
+    );
+
+    const subTrigger = screen.getByText("More");
+    subTrigger.focus();
+    fireEvent.keyDown(subTrigger, { key: "ArrowRight" });
+    const menus = await screen.findAllByRole("menu");
+    const subMenu = menus.find((menu) => menu !== rootMenu);
+
+    expect(subMenu).toHaveClass(
+      "bg-muted",
+      "border-0",
+      "shadow-none",
+      "rounded-lg"
+    );
+  });
+});

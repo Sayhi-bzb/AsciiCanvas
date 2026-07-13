@@ -1,4 +1,4 @@
-import type { CanvasMode } from "@/shared/types";
+import type { CanvasMode } from "@/domains/sessions/public";
 import type { ExportFormat } from "./types";
 
 export type ExportFormatDefinition = {

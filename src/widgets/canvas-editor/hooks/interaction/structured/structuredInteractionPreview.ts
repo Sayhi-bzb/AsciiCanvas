@@ -1,7 +1,8 @@
-import type { GridMap, Point, StructuredNode } from "@/shared/types";
+import type { GridMap, Point } from "@/shared/types";
+import type { StructuredNode } from "@/domains/structured-content/public";
 import { GridManager } from "@/shared/utils/grid";
-import { getSplitBoxPoints } from "@/shared/utils/shapes";
-import { sceneToGridEntries } from "@/shared/utils/structured";
+import { getSplitBoxPoints } from "@/domains/structured-content/public";
+import { sceneToGridEntries } from "@/domains/structured-content/public";
 import { createMapFromEntries } from "@/domains/canvas/public";
 import {
   moveStructuredNode,

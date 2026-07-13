@@ -3,15 +3,15 @@ import {
   ASCII_CANVAS_DOCUMENT_TYPE,
   ASCII_CANVAS_DOCUMENT_VERSION,
 } from "@/domains/document/public";
-import { useCanvasStore } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/public";
 import { applyFreeformSnapshotToYMaps } from "@/domains/canvas/public";
 import { DEFAULT_SESSION_ID } from "@/domains/canvas/state/helpers/storeUtils";
 
 describe("importCanvasSession", () => {
-  const initialState = useCanvasStore.getState();
+  const initialState = useEditorStore.getState();
 
   afterEach(() => {
-    useCanvasStore.setState(
+    useEditorStore.setState(
       {
         ...initialState,
         grid: new Map(),
@@ -25,8 +25,8 @@ describe("importCanvasSession", () => {
   });
 
   it("imports a freeform protocol document into a new active session", () => {
-    const sessionCount = useCanvasStore.getState().canvasSessions.length;
-    const session = useCanvasStore.getState().importCanvasSession({
+    const sessionCount = useEditorStore.getState().canvasSessions.length;
+    const session = useEditorStore.getState().importCanvasSession({
       type: ASCII_CANVAS_DOCUMENT_TYPE,
       version: ASCII_CANVAS_DOCUMENT_VERSION,
       mode: "freeform",
@@ -36,7 +36,7 @@ describe("importCanvasSession", () => {
       ],
     });
 
-    const state = useCanvasStore.getState();
+    const state = useEditorStore.getState();
     expect(session.name).toBe("Imported Canvas");
     expect(state.canvasSessions).toHaveLength(sessionCount + 1);
     expect(state.activeCanvasId).toBe(session.id);
@@ -46,7 +46,7 @@ describe("importCanvasSession", () => {
   });
 
   it("imports animation protocol documents with size and timeline metadata", () => {
-    const session = useCanvasStore.getState().importCanvasSession(
+    const session = useEditorStore.getState().importCanvasSession(
       JSON.stringify({
         type: ASCII_CANVAS_DOCUMENT_TYPE,
         version: ASCII_CANVAS_DOCUMENT_VERSION,
@@ -68,7 +68,7 @@ describe("importCanvasSession", () => {
       })
     );
 
-    const state = useCanvasStore.getState();
+    const state = useEditorStore.getState();
     expect(session.mode).toBe("animation");
     expect(state.canvasMode).toBe("animation");
     expect(state.canvasBounds).toEqual({ width: 64, height: 32 });
@@ -80,7 +80,7 @@ describe("importCanvasSession", () => {
   });
 
   it("imports asciinema cast documents as animation sessions", () => {
-    const session = useCanvasStore.getState().importCanvasSession(
+    const session = useEditorStore.getState().importCanvasSession(
       [
         '{"version":2,"width":5,"height":2,"timestamp":1770000000,"env":{"TERM":"xterm-256color"}}',
         '[0,"o","\\r\\u001b[38;2;255;0;0m@\\u001b[0m    \\n     "]',
@@ -90,7 +90,7 @@ describe("importCanvasSession", () => {
       { name: "Imported Cast" }
     );
 
-    const state = useCanvasStore.getState();
+    const state = useEditorStore.getState();
     expect(session.name).toBe("Imported Cast");
     expect(session.mode).toBe("animation");
     expect(state.canvasMode).toBe("animation");
@@ -101,7 +101,7 @@ describe("importCanvasSession", () => {
   });
 
   it("imports structured protocol documents as semantic scenes", () => {
-    const session = useCanvasStore.getState().importCanvasSession({
+    const session = useEditorStore.getState().importCanvasSession({
       type: ASCII_CANVAS_DOCUMENT_TYPE,
       version: ASCII_CANVAS_DOCUMENT_VERSION,
       mode: "structured",
@@ -126,7 +126,7 @@ describe("importCanvasSession", () => {
       ],
     });
 
-    const state = useCanvasStore.getState();
+    const state = useEditorStore.getState();
     expect(session.mode).toBe("structured");
     expect(state.canvasMode).toBe("structured");
     expect(state.structuredScene).toHaveLength(2);
@@ -138,17 +138,17 @@ describe("importCanvasSession", () => {
   });
 
   it("does not mutate sessions when the payload is invalid", () => {
-    const before = useCanvasStore.getState();
+    const before = useEditorStore.getState();
     const activeCanvasId = before.activeCanvasId;
     const sessionCount = before.canvasSessions.length;
 
     expect(() =>
-      useCanvasStore
+      useEditorStore
         .getState()
         .importCanvasSession('{"type":"ascii-canvas-document","version":2}')
     ).toThrow("Invalid ascii-canvas-document payload.");
 
-    const after = useCanvasStore.getState();
+    const after = useEditorStore.getState();
     expect(after.activeCanvasId).toBe(activeCanvasId);
     expect(after.canvasSessions).toHaveLength(sessionCount);
   });

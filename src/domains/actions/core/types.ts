@@ -1,6 +1,6 @@
 import type { ComponentType } from "react";
-import type { CanvasState } from "@/domains/canvas/public";
-import type { ToolType } from "@/shared/types";
+import type { EditorState } from "@/domains/canvas/public";
+import type { ToolType } from "@/domains/canvas/public";
 
 // Editor Actions
 export type EditorActionId =
@@ -74,7 +74,7 @@ export interface ActionResult {
 
 // Action Context
 export interface ActionContext {
-  state: CanvasState;
+  state: EditorState;
   setTool: (tool: ToolType) => void;
   onUndo: () => void;
   onRedo: () => void;
@@ -87,7 +87,7 @@ export type ActionHandler<T = unknown> = (
 ) => ActionResult;
 
 // Action Checker
-export type ActionChecker = (state: CanvasState) => boolean;
+export type ActionChecker = (state: EditorState) => boolean;
 
 // Context Menu Entry
 export type ContextMenuEntry =

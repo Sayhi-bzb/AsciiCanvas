@@ -10,13 +10,20 @@ import {
   yMainGrid,
   yStructuredScene,
   runCanvasTransaction,
-} from "@/shared/lib/yjs-setup";
-import type { CanvasSession, CanvasState } from "./interfaces";
-import type {
-  AnimationCanvasSize,
-  Point,
-  StructuredNode,
-} from "@/shared/types";
+} from "./yjs";
+import type { EditorState } from "./interfaces";
+import {
+  EDITOR_PERSISTENCE_KEY,
+  EDITOR_PERSISTENCE_V1_BACKUP_KEY,
+  EDITOR_PERSISTENCE_VERSION,
+  flattenPersistedEditorState,
+  isPersistedEditorStateV2,
+  migratePersistedStateV1ToV2,
+  type CanvasSession,
+} from "@/domains/sessions/public";
+import type { Point } from "@/shared/types";
+import type { StructuredNode } from "@/domains/structured-content/public";
+import type { AnimationCanvasSize } from "@/domains/animation/public";
 import { normalizeBrushChar } from "@/shared/utils/characters";
 import {
   createDrawingSlice,
@@ -26,7 +33,7 @@ import {
   createAnimationSlice,
   createStaticGridSlice,
 } from "./slices";
-import { sceneToGridEntries } from "@/shared/utils/structured";
+import { sceneToGridEntries } from "@/domains/structured-content/public";
 import {
   rebuildGridFromYMap,
   rebuildSceneFromYMap,
@@ -37,7 +44,7 @@ import {
 import {
   withActiveCanvasSnapshot,
   normalizeSessionMode,
-} from "./helpers/sessionHelpers";
+} from "@/domains/sessions/public";
 import {
   cloneScene,
   normalizeAndCloneScene,
@@ -56,7 +63,7 @@ import {
   normalizeAnimationTimeline,
 } from "@/domains/animation/public";
 
-export type { CanvasState };
+export type { EditorState };
 
 import {
   DEFAULT_SESSION_ID,
@@ -102,7 +109,7 @@ const createDefaultCanvasSessions = (): CanvasSession[] => [
   },
 ];
 
-export const useCanvasStore = create<CanvasState>()(
+export const useEditorStore = create<EditorState>()(
   persist(
     (set, get, ...a) => {
       if (yMainGrid.size === 0 && yStructuredScene.size === 0) {
@@ -293,47 +300,77 @@ export const useCanvasStore = create<CanvasState>()(
       };
     },
     {
-      name: "ascii-canvas-persistence",
+      name: EDITOR_PERSISTENCE_KEY,
+      version: EDITOR_PERSISTENCE_VERSION,
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => {
         const activeSnapshot = buildSessionSnapshot(state);
         return {
-          offset: state.offset,
-          zoom: state.zoom,
-          canvasMode: state.canvasMode,
-          structuredScene: cloneScene(state.structuredScene),
-          structuredComponents: normalizeStructuredComponents(
-            state.structuredComponents,
-            state.structuredScene
-          ),
-          canvasBounds: state.canvasBounds ? { ...state.canvasBounds } : null,
-          animationTimeline: state.animationTimeline
-            ? cloneAnimationTimeline(state.animationTimeline)
-            : null,
-          brushChar: state.brushChar,
-          brushColor: state.brushColor,
-          showGrid: state.showGrid,
-          exportShowGrid: state.exportShowGrid,
-          canvasSessions: withActiveCanvasSnapshot(
-            state.canvasSessions,
-            state.activeCanvasId,
-            activeSnapshot
-          ),
-          activeCanvasId: state.activeCanvasId,
-          grid:
-            state.canvasMode === "structured"
-              ? sceneToGridEntries(state.structuredScene)
-              : Array.from(state.grid.entries()),
-        };
+          schemaVersion: EDITOR_PERSISTENCE_VERSION,
+          workspace: {
+            offset: state.offset,
+            zoom: state.zoom,
+            canvasMode: state.canvasMode,
+            structuredScene: cloneScene(state.structuredScene),
+            structuredComponents: normalizeStructuredComponents(
+              state.structuredComponents,
+              state.structuredScene
+            ),
+            canvasBounds: state.canvasBounds ? { ...state.canvasBounds } : null,
+            animationTimeline: state.animationTimeline
+              ? cloneAnimationTimeline(state.animationTimeline)
+              : null,
+            grid:
+              state.canvasMode === "structured"
+                ? sceneToGridEntries(state.structuredScene)
+                : Array.from(state.grid.entries()),
+          },
+          sessions: {
+            items: withActiveCanvasSnapshot(
+              state.canvasSessions,
+              state.activeCanvasId,
+              activeSnapshot
+            ),
+            activeId: state.activeCanvasId,
+          },
+          preferences: {
+            brushChar: state.brushChar,
+            brushColor: state.brushColor,
+            showGrid: state.showGrid,
+            exportShowGrid: state.exportShowGrid,
+          },
+        } as unknown as Partial<EditorState>;
+      },
+      migrate: (persistedState, persistedVersion) => {
+        if (isPersistedEditorStateV2(persistedState)) return persistedState;
+        if (
+          persistedVersion < EDITOR_PERSISTENCE_VERSION &&
+          typeof localStorage !== "undefined"
+        ) {
+          const raw = localStorage.getItem(EDITOR_PERSISTENCE_KEY);
+          if (raw && !localStorage.getItem(EDITOR_PERSISTENCE_V1_BACKUP_KEY)) {
+            localStorage.setItem(EDITOR_PERSISTENCE_V1_BACKUP_KEY, raw);
+          }
+        }
+        return migratePersistedStateV1ToV2(persistedState);
+      },
+      merge: (persistedState, currentState) => {
+        if (!isPersistedEditorStateV2(persistedState)) return currentState;
+        const flattened = flattenPersistedEditorState(persistedState);
+        return {
+          ...currentState,
+          ...flattened,
+          grid: createMapFromEntries(flattened.grid),
+        } as EditorState;
       },
       onRehydrateStorage: () => {
         const hasPersistedState =
           typeof localStorage !== "undefined" &&
-          localStorage.getItem("ascii-canvas-persistence") !== null;
+          localStorage.getItem(EDITOR_PERSISTENCE_KEY) !== null;
 
         return (hydratedState, error) => {
           if (error || !hydratedState) return;
-          const hState = hydratedState as CanvasState & {
+          const hState = hydratedState as EditorState & {
             canvasSessions?: unknown;
             activeCanvasId?: unknown;
             canvasMode?: unknown;

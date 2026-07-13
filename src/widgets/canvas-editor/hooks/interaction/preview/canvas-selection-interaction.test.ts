@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { resolveSelectionCommitDecision } from "@/widgets/canvas-editor/hooks/interaction/preview/selectionInteraction";
-import type { StructuredBoxNode } from "@/shared/types";
+import type { StructuredBoxNode } from "@/domains/structured-content/public";
 
 const boxNode: StructuredBoxNode = {
   id: "box-1",

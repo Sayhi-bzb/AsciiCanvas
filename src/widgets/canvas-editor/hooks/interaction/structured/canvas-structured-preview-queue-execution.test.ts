@@ -9,11 +9,8 @@ import {
   queueStructuredMovePreview,
   queueStructuredSplitBoxResizePreview,
 } from "@/widgets/canvas-editor/hooks/interaction/structured/structuredPreviewQueueExecution";
-import type {
-  GridMap,
-  StructuredBoxNode,
-  StructuredSplitBoxNode,
-} from "@/shared/types";
+import type { GridMap } from "@/shared/types";
+import type { StructuredBoxNode, StructuredSplitBoxNode } from "@/domains/structured-content/public";
 import type { StructuredNodeDragPayload } from "@/widgets/canvas-editor/hooks/interaction/structured/structuredDragStart";
 
 const baseGrid: GridMap = new Map([

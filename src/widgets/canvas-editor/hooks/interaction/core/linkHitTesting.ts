@@ -1,4 +1,5 @@
-import type { AnimationCanvasSize, GridMap, Point } from "@/shared/types";
+import type { GridMap, Point } from "@/shared/types";
+import type { AnimationCanvasSize } from "@/domains/animation/public";
 import {
   getCellOccupancy } from "@/shared/metrics";
 import { GridManager } from "@/shared/utils/grid";

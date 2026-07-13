@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, createEvent, fireEvent, render, screen } from "@testing-library/react";
 import { AsciiCanvas } from "@/widgets/canvas-editor";
-import { useCanvasStore } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/public";
 import { applyFreeformSnapshotToYMaps } from "@/domains/canvas/public";
 import {
   STRUCTURED_TEMPLATE_MIME,
   buildStructuredTemplateNodes,
   setActiveStructuredTemplateDragId,
 } from "@/domains/structured-content/public";
-import { normalizeScene } from "@/shared/utils/structured";
+import { normalizeScene } from "@/domains/structured-content/public";
 
 vi.mock("@/widgets/canvas-editor/hooks/useCanvasRenderer", () => ({
   useCanvasRenderer: vi.fn(),
@@ -57,17 +57,17 @@ vi.mock("@/widgets/canvas-editor/Minimap", () => ({
 }));
 
 describe("AsciiCanvas focus management", () => {
-  const initialState = useCanvasStore.getState();
+  const initialState = useEditorStore.getState();
 
   afterEach(() => {
     handleDoubleClickMock.mockClear();
     setActiveStructuredTemplateDragId(null);
-    useCanvasStore.setState(initialState, true);
+    useEditorStore.setState(initialState, true);
     applyFreeformSnapshotToYMaps([]);
   });
 
   it("focuses the managed textarea immediately when a selection exists", () => {
-    useCanvasStore.setState({
+    useEditorStore.setState({
       selections: [
         {
           start: { x: 0, y: 0 },
@@ -89,7 +89,7 @@ describe("AsciiCanvas focus management", () => {
   });
 
   it("focuses the managed textarea for a freeform active cell and writes input there", () => {
-    useCanvasStore.setState({
+    useEditorStore.setState({
       canvasMode: "freeform",
       textCursor: null,
       selections: [],
@@ -112,14 +112,14 @@ describe("AsciiCanvas focus management", () => {
 
     fireEvent.input(textarea!, { target: { value: "A" } });
 
-    expect(useCanvasStore.getState().grid.get("4,3")).toMatchObject({
+    expect(useEditorStore.getState().grid.get("4,3")).toMatchObject({
       char: "A",
     });
-    expect(useCanvasStore.getState().textCursor).toEqual({ x: 5, y: 3 });
+    expect(useEditorStore.getState().textCursor).toEqual({ x: 5, y: 3 });
   });
 
   it("does not steal focus from an external text input", () => {
-    useCanvasStore.setState({
+    useEditorStore.setState({
       canvasMode: "freeform",
       textCursor: null,
       selections: [],
@@ -141,7 +141,7 @@ describe("AsciiCanvas focus management", () => {
   });
 
   it("refocuses the managed textarea when the freeform input anchor changes", () => {
-    useCanvasStore.setState({
+    useEditorStore.setState({
       canvasMode: "freeform",
       textCursor: null,
       selections: [],
@@ -165,7 +165,7 @@ describe("AsciiCanvas focus management", () => {
 
     input.blur();
     act(() => {
-      useCanvasStore.getState().setTextCursor({ x: 6, y: 4 });
+      useEditorStore.getState().setTextCursor({ x: 6, y: 4 });
     });
 
     expect(document.activeElement).toBe(textarea);
@@ -173,7 +173,7 @@ describe("AsciiCanvas focus management", () => {
   });
 
   it("refocuses structured text input after clicking the same canvas position", () => {
-    useCanvasStore.setState({
+    useEditorStore.setState({
       canvasMode: "structured",
       textCursor: { x: 2, y: 0 },
       editingStructuredTextNodeId: "text-1",
@@ -204,7 +204,7 @@ describe("AsciiCanvas focus management", () => {
   });
 
   it("does not reclaim focus from canvas UI controls", () => {
-    useCanvasStore.setState({
+    useEditorStore.setState({
       canvasMode: "structured",
       textCursor: { x: 2, y: 0 },
       editingStructuredTextNodeId: "text-1",
@@ -238,7 +238,7 @@ describe("AsciiCanvas focus management", () => {
   });
 
   it("keeps a selected structured box when Delete edits its active name", () => {
-    useCanvasStore.setState({
+    useEditorStore.setState({
       canvasMode: "structured",
       textCursor: { x: 6, y: 2 },
       selectedStructuredNodeIds: ["box-1"],
@@ -265,14 +265,14 @@ describe("AsciiCanvas focus management", () => {
 
     fireEvent.keyDown(textarea!, { key: "Delete" });
 
-    expect(useCanvasStore.getState().structuredScene).toMatchObject([
+    expect(useEditorStore.getState().structuredScene).toMatchObject([
       { id: "box-1", name: "AI" },
     ]);
-    expect(useCanvasStore.getState().selectedStructuredNodeIds).toEqual(["box-1"]);
+    expect(useEditorStore.getState().selectedStructuredNodeIds).toEqual(["box-1"]);
   });
 
   it("renders structured layer actions behind a Layer context submenu", async () => {
-    useCanvasStore.setState({
+    useEditorStore.setState({
       canvasMode: "structured",
       textCursor: null,
       selections: [],
@@ -302,7 +302,7 @@ describe("AsciiCanvas focus management", () => {
     expect(screen.queryByText("Send Backward")).not.toBeInTheDocument();
   });
   it("pans the viewport for ctrl arrow keys without moving the static active cell", () => {
-    useCanvasStore.setState({
+    useEditorStore.setState({
       canvasMode: "freeform",
       offset: { x: 0, y: 0 },
       textCursor: { x: 5, y: 5 },
@@ -323,24 +323,24 @@ describe("AsciiCanvas focus management", () => {
     expect(textarea).not.toBeNull();
 
     fireEvent.keyDown(textarea!, { key: "ArrowLeft", ctrlKey: true });
-    expect(useCanvasStore.getState().offset).toEqual({ x: 48, y: 0 });
+    expect(useEditorStore.getState().offset).toEqual({ x: 48, y: 0 });
 
     fireEvent.keyDown(textarea!, { key: "ArrowRight", ctrlKey: true });
-    expect(useCanvasStore.getState().offset).toEqual({ x: 0, y: 0 });
+    expect(useEditorStore.getState().offset).toEqual({ x: 0, y: 0 });
 
     fireEvent.keyDown(textarea!, { key: "ArrowUp", ctrlKey: true });
-    expect(useCanvasStore.getState().offset).toEqual({ x: 0, y: 48 });
+    expect(useEditorStore.getState().offset).toEqual({ x: 0, y: 48 });
 
     fireEvent.keyDown(textarea!, { key: "ArrowDown", ctrlKey: true });
-    expect(useCanvasStore.getState().offset).toEqual({ x: 0, y: 0 });
-    expect(useCanvasStore.getState().staticGridSelection.activeCell).toEqual({
+    expect(useEditorStore.getState().offset).toEqual({ x: 0, y: 0 });
+    expect(useEditorStore.getState().staticGridSelection.activeCell).toEqual({
       x: 5,
       y: 5,
     });
   });
 
   it("moves and clears structured grid focus from the managed textarea", () => {
-    useCanvasStore.setState({
+    useEditorStore.setState({
       canvasMode: "structured",
       textCursor: null,
       selections: [],
@@ -357,17 +357,17 @@ describe("AsciiCanvas focus management", () => {
     expect(document.activeElement).toBe(textarea);
 
     fireEvent.keyDown(textarea!, { key: "ArrowRight" });
-    expect(useCanvasStore.getState().structuredGridFocus).toEqual({ x: 3, y: 3 });
+    expect(useEditorStore.getState().structuredGridFocus).toEqual({ x: 3, y: 3 });
 
     fireEvent.keyDown(textarea!, { key: "ArrowDown" });
-    expect(useCanvasStore.getState().structuredGridFocus).toEqual({ x: 3, y: 4 });
+    expect(useEditorStore.getState().structuredGridFocus).toEqual({ x: 3, y: 4 });
 
     fireEvent.keyDown(textarea!, { key: "Escape" });
-    expect(useCanvasStore.getState().structuredGridFocus).toBeNull();
+    expect(useEditorStore.getState().structuredGridFocus).toBeNull();
   });
 
   it("creates structured text from managed textarea input at structured grid focus", () => {
-    useCanvasStore.setState({
+    useEditorStore.setState({
       canvasMode: "structured",
       textCursor: null,
       selections: [],
@@ -387,7 +387,7 @@ describe("AsciiCanvas focus management", () => {
 
     fireEvent.input(textarea!, { target: { value: "Go" } });
 
-    const state = useCanvasStore.getState();
+    const state = useEditorStore.getState();
     expect(state.structuredScene).toHaveLength(1);
     expect(state.structuredScene[0]).toMatchObject({
       type: "text",
@@ -400,7 +400,7 @@ describe("AsciiCanvas focus management", () => {
   });
 
   it("drops a structured button template onto the canvas", async () => {
-    useCanvasStore.setState({
+    useEditorStore.setState({
       canvasMode: "structured",
       offset: { x: 0, y: 0 },
       zoom: 1,
@@ -454,7 +454,7 @@ describe("AsciiCanvas focus management", () => {
       fireEvent(root, dropEvent);
     });
 
-    const state = useCanvasStore.getState();
+    const state = useEditorStore.getState();
     expect(dataTransfer.dropEffect).toBe("copy");
     expect(screen.queryByTestId("structured-template-preview")).not.toBeInTheDocument();
     expect(state.structuredScene).toHaveLength(2);
@@ -477,7 +477,7 @@ describe("AsciiCanvas focus management", () => {
   });
 
   it("drops a structured badge template onto the canvas", async () => {
-    useCanvasStore.setState({
+    useEditorStore.setState({
       canvasMode: "structured",
       offset: { x: 0, y: 0 },
       zoom: 1,
@@ -527,7 +527,7 @@ describe("AsciiCanvas focus management", () => {
       fireEvent(root, dropEvent);
     });
 
-    const state = useCanvasStore.getState();
+    const state = useEditorStore.getState();
     const expectedNodes = buildStructuredTemplateNodes(
       "badge",
       { x: 3, y: 3 },
@@ -544,7 +544,7 @@ describe("AsciiCanvas focus management", () => {
   });
 
   it("drops a structured textarea template onto the canvas", async () => {
-    useCanvasStore.setState({
+    useEditorStore.setState({
       canvasMode: "structured",
       offset: { x: 0, y: 0 },
       zoom: 1,
@@ -596,7 +596,7 @@ describe("AsciiCanvas focus management", () => {
       fireEvent(root, dropEvent);
     });
 
-    const state = useCanvasStore.getState();
+    const state = useEditorStore.getState();
     const expectedNodes = normalizeScene(
       buildStructuredTemplateNodes(
         "textarea",
@@ -614,7 +614,7 @@ describe("AsciiCanvas focus management", () => {
   });
 
   it("uses the active dragged template when dragover cannot read custom data", async () => {
-    useCanvasStore.setState({
+    useEditorStore.setState({
       canvasMode: "structured",
       offset: { x: 0, y: 0 },
       zoom: 1,
@@ -657,7 +657,7 @@ describe("AsciiCanvas focus management", () => {
   });
 
   it("coalesces structured template dragover previews to the latest frame position", async () => {
-    useCanvasStore.setState({
+    useEditorStore.setState({
       canvasMode: "structured",
       offset: { x: 0, y: 0 },
       zoom: 1,
@@ -706,7 +706,7 @@ describe("AsciiCanvas focus management", () => {
   });
 
   it("drops at the latest dragover point even before the preview frame flushes", () => {
-    useCanvasStore.setState({
+    useEditorStore.setState({
       canvasMode: "structured",
       offset: { x: 0, y: 0 },
       zoom: 1,
@@ -744,7 +744,7 @@ describe("AsciiCanvas focus management", () => {
       fireEvent(root, dropEvent);
     });
 
-    const state = useCanvasStore.getState();
+    const state = useEditorStore.getState();
     const expectedNodes = buildStructuredTemplateNodes(
       "badge",
       { x: 6, y: 4 },

@@ -5,13 +5,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Reorder, useDragControls } from "motion/react";
 import { useShallow } from "zustand/react/shallow";
 import { useSidebar } from "@/shared/ui/sidebar";
-import { useCanvasStore } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/public";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { ScrollArea } from "@/shared/ui/scroll-area";
 import { AnimationEffectsPanel } from "@/widgets/animation-effects/AnimationEffectsPanel";
 import { cn } from "@/shared/lib/utils";
-import type { AnimationCanvasSize, AnimationFrame, GridCell } from "@/shared/types";
+import type { GridCell } from "@/shared/types";
+import type { AnimationCanvasSize, AnimationFrame } from "@/domains/animation/public";
 import {
   BACKGROUND_COLOR,
 } from "@/shared/lib/constants";
@@ -300,7 +301,7 @@ export function AnimationSidebarContent() {
     duplicateAnimationFrames,
     removeAnimationFrames,
     reorderAnimationFrames,
-  } = useCanvasStore(
+  } = useEditorStore(
     useShallow((state) => ({
       canvasMode: state.canvasMode,
       canvasBounds: state.canvasBounds,

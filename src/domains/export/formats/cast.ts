@@ -1,4 +1,4 @@
-import type { AnimationCanvasSize, AnimationTimeline } from "@/shared/types";
+import type { AnimationCanvasSize, AnimationTimeline } from "@/domains/animation/public";
 import { exportAnimationFrameToAnsi } from "./text";
 
 const ASCIINEMA_VERSION = 2;

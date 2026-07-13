@@ -2,21 +2,21 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { Toolbar } from "@/widgets/toolbar/dock";
 import { ColorPickerPanel } from "@/widgets/toolbar/dock/submenus";
-import { useCanvasStore } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/public";
 
 vi.mock("@/shared/hooks/use-mobile", () => ({
   useIsMobile: () => false,
 }));
 
 describe("Toolbar dock", () => {
-  const initialState = useCanvasStore.getState();
+  const initialState = useEditorStore.getState();
 
   afterEach(() => {
-    useCanvasStore.setState(initialState, true);
+    useEditorStore.setState(initialState, true);
   });
 
   it("hides brush and eraser in freeform mode", () => {
-    useCanvasStore.setState({ canvasMode: "freeform", tool: "select" });
+    useEditorStore.setState({ canvasMode: "freeform", tool: "select" });
 
     render(<Toolbar tool="select" setTool={vi.fn()} onUndo={vi.fn()} />);
 
@@ -32,7 +32,7 @@ describe("Toolbar dock", () => {
   });
 
   it("returns hidden freeform brush tool state to select", () => {
-    useCanvasStore.setState({ canvasMode: "freeform", tool: "brush" });
+    useEditorStore.setState({ canvasMode: "freeform", tool: "brush" });
     const setTool = vi.fn();
 
     render(<Toolbar tool="brush" setTool={setTool} onUndo={vi.fn()} />);
@@ -41,7 +41,7 @@ describe("Toolbar dock", () => {
   });
 
   it("returns hidden freeform eraser tool state to select", () => {
-    useCanvasStore.setState({ canvasMode: "freeform", tool: "eraser" });
+    useEditorStore.setState({ canvasMode: "freeform", tool: "eraser" });
     const setTool = vi.fn();
 
     render(<Toolbar tool="eraser" setTool={setTool} onUndo={vi.fn()} />);
@@ -50,7 +50,7 @@ describe("Toolbar dock", () => {
   });
 
   it("activates background from the first-level freeform dock", () => {
-    useCanvasStore.setState({ canvasMode: "freeform", tool: "select" });
+    useEditorStore.setState({ canvasMode: "freeform", tool: "select" });
     const setTool = vi.fn();
 
     render(<Toolbar tool="select" setTool={setTool} onUndo={vi.fn()} />);
@@ -60,7 +60,7 @@ describe("Toolbar dock", () => {
   });
 
   it("keeps background separate from the shape group active label", () => {
-    useCanvasStore.setState({ canvasMode: "freeform", tool: "bg" });
+    useEditorStore.setState({ canvasMode: "freeform", tool: "bg" });
 
     render(<Toolbar tool="bg" setTool={vi.fn()} onUndo={vi.fn()} />);
 
@@ -69,7 +69,7 @@ describe("Toolbar dock", () => {
   });
 
   it("uses the top bar surface and accent background for the active tool", () => {
-    useCanvasStore.setState({ canvasMode: "freeform", tool: "select" });
+    useEditorStore.setState({ canvasMode: "freeform", tool: "select" });
 
     const { container } = render(
       <Toolbar tool="select" setTool={vi.fn()} onUndo={vi.fn()} />
@@ -88,8 +88,30 @@ describe("Toolbar dock", () => {
     expect(toolbar.querySelector('[style*="translateX"]')).not.toBeInTheDocument();
   });
 
+  it("uses a muted borderless surface for toolbar submenus", async () => {
+    useEditorStore.setState({ canvasMode: "freeform", tool: "select" });
+
+    const { container } = render(
+      <Toolbar tool="select" setTool={vi.fn()} onUndo={vi.fn()} />
+    );
+    const shapeItem = container.querySelector(
+      '[data-toolbar-item="shape-group"]'
+    );
+    const shapeButtons = shapeItem?.querySelectorAll("button") ?? [];
+
+    fireEvent.click(shapeButtons[1]);
+    await screen.findByText("Circle");
+
+    expect(document.querySelector('[data-slot="popover-content"]')).toHaveClass(
+      "bg-muted",
+      "border-0",
+      "shadow-none",
+      "rounded-lg"
+    );
+  });
+
   it("uses accent backgrounds for active animation playback controls", () => {
-    useCanvasStore.setState({
+    useEditorStore.setState({
       canvasMode: "animation",
       tool: "select",
       animationIsPlaying: true,
@@ -120,7 +142,7 @@ describe("Toolbar dock", () => {
   });
 
   it("does not show background in animation mode", () => {
-    useCanvasStore.setState({ canvasMode: "animation", tool: "select" });
+    useEditorStore.setState({ canvasMode: "animation", tool: "select" });
 
     render(<Toolbar tool="select" setTool={vi.fn()} onUndo={vi.fn()} />);
 
@@ -129,7 +151,7 @@ describe("Toolbar dock", () => {
   });
 
   it("hides the explicit text tool in structured mode", () => {
-    useCanvasStore.setState({ canvasMode: "structured", tool: "select" });
+    useEditorStore.setState({ canvasMode: "structured", tool: "select" });
 
     render(<Toolbar tool="select" setTool={vi.fn()} onUndo={vi.fn()} />);
 
@@ -141,7 +163,7 @@ describe("Toolbar dock", () => {
   });
 
   it("returns hidden structured text tool state to select", () => {
-    useCanvasStore.setState({ canvasMode: "structured", tool: "text" });
+    useEditorStore.setState({ canvasMode: "structured", tool: "text" });
     const setTool = vi.fn();
 
     render(<Toolbar tool="text" setTool={setTool} onUndo={vi.fn()} />);
@@ -158,15 +180,37 @@ describe("Toolbar dock", () => {
       "aria-selected",
       "true"
     );
+    expect(screen.getByRole("tablist", { name: "Color palettes" })).toHaveAttribute(
+      "data-orientation",
+      "vertical"
+    );
     expect(screen.getByRole("tab", { name: "ANSI 16" })).toHaveClass(
-      "bg-primary",
-      "text-primary-foreground"
+      "data-[state=active]:bg-accent",
+      "data-[state=active]:text-foreground"
     );
     expect(screen.getByRole("tab", { name: "Presets" })).toHaveAttribute(
       "aria-selected",
       "false"
     );
     expect(screen.queryByText("Hex")).not.toBeInTheDocument();
+
+    const activeColorView = screen.getByRole("tabpanel");
+    expect(activeColorView).toContainElement(screen.getByRole("textbox"));
+    expect(activeColorView).toContainElement(
+      screen.getByRole("button", { name: "Pick color from canvas" })
+    );
+    expect(activeColorView).toContainElement(
+      screen.getByTestId("color-palette-grid")
+    );
+
+    const colorTools = screen.getByRole("textbox").closest(
+      '[data-color-picker-tools="true"]'
+    );
+    const eyedropperTrigger = screen.getByRole("button", {
+      name: "Pick color from canvas",
+    });
+    expect(colorTools).toHaveClass("flex", "items-center");
+    expect(colorTools).toContainElement(eyedropperTrigger);
 
     fireEvent.click(screen.getByRole("button", { name: "Pick ANSI color #c0c0c0" }));
     expect(onPick).toHaveBeenCalledWith("#c0c0c0");
@@ -175,7 +219,9 @@ describe("Toolbar dock", () => {
     expect(onPick).toHaveBeenCalledWith("#000080");
     expect(screen.getByTestId("color-palette-grid")).toHaveClass("grid-cols-8");
 
-    fireEvent.click(screen.getByRole("tab", { name: "Presets" }));
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Presets" }), {
+      button: 0,
+    });
 
     expect(screen.getByRole("tab", { name: "ANSI 16" })).toHaveAttribute(
       "aria-selected",
@@ -186,8 +232,8 @@ describe("Toolbar dock", () => {
       "true"
     );
     expect(screen.getByRole("tab", { name: "Presets" })).toHaveClass(
-      "bg-primary",
-      "text-primary-foreground"
+      "data-[state=active]:bg-accent",
+      "data-[state=active]:text-foreground"
     );
     expect(screen.getByTestId("color-palette-grid")).toHaveClass("grid-cols-10");
     fireEvent.click(screen.getByRole("button", { name: "Pick preset color #7f1d1d" }));
@@ -201,8 +247,57 @@ describe("Toolbar dock", () => {
 
     render(<ColorPickerPanel value="#000000" onPick={onPick} />);
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "#0fc" } });
-    fireEvent.click(screen.getByRole("button", { name: "Use" }));
+    const useButton = screen.getByRole("button", { name: "Use" });
+    expect(useButton).not.toHaveTextContent("Use");
+    expect(useButton.querySelector("svg")).toBeInTheDocument();
+    fireEvent.click(useButton);
 
     expect(onPick).toHaveBeenCalledWith("#00ffcc");
+  });
+
+  it("opens canvas color targets in a borderless popover and retains the active target", () => {
+    render(<ColorPickerPanel value="#000000" onPick={vi.fn()} />);
+
+    const eyedropperTrigger = screen.getByRole("button", {
+      name: "Pick color from canvas",
+    });
+    fireEvent.click(eyedropperTrigger);
+
+    const pickChar = screen.getByRole("button", {
+      name: "Pick char color from canvas",
+    });
+    expect(pickChar.closest('[data-slot="popover-content"]')).toHaveClass(
+      "bg-muted",
+      "border-0",
+      "shadow-none"
+    );
+    fireEvent.click(pickChar);
+
+    expect(
+      screen.queryByRole("button", { name: "Pick char color from canvas" })
+    ).not.toBeInTheDocument();
+    expect(eyedropperTrigger).toHaveAttribute("aria-pressed", "true");
+    expect(eyedropperTrigger).toHaveClass("bg-accent", "text-foreground");
+
+    fireEvent.click(eyedropperTrigger);
+    expect(
+      screen.getByRole("button", { name: "Pick char color from canvas" })
+    ).toHaveClass("bg-accent", "text-foreground");
+  });
+
+  it("hides hex and eyedropper tools in palette-only mode", () => {
+    render(
+      <ColorPickerPanel
+        value="#000000"
+        onPick={vi.fn()}
+        showCustomInput={false}
+      />
+    );
+
+    expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Pick color from canvas" })
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "ANSI 16" })).toBeInTheDocument();
   });
 });

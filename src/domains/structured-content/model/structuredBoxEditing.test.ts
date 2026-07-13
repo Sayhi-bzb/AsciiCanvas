@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { StructuredBgNode, StructuredBoxNode, StructuredNode, StructuredSplitBoxNode } from "@/shared/types";
+import type { StructuredBgNode, StructuredBoxNode, StructuredNode, StructuredSplitBoxNode } from "@/domains/structured-content/public";
 import {
   addStructuredSplitBoxSplit,
   canSplitStructuredSplitBoxLeaf,

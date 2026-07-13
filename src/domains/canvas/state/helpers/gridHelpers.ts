@@ -2,9 +2,10 @@ import {
   runCanvasTransaction,
   yMainGrid,
   yStructuredScene,
-} from "@/shared/lib/yjs-setup";
-import type { GridCell, StructuredNode } from "@/shared/types";
-import { normalizeScene, sceneToGridEntries } from "@/shared/utils/structured";
+} from "../yjs";
+import type { GridCell } from "@/shared/types";
+import type { StructuredNode } from "@/domains/structured-content/public";
+import { normalizeScene, sceneToGridEntries } from "@/domains/structured-content/public";
 import {
   cloneStructuredNode,
   normalizeAndCloneScene,

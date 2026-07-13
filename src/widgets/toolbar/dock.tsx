@@ -10,8 +10,8 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
-import type { ToolType } from "@/shared/types";
-import { useCanvasStore } from "@/domains/canvas/public";
+import type { ToolType } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/public";
 import {
   TOOLBAR_ACTION_META,
   TOOLBAR_ACTION_ORDER,
@@ -52,7 +52,7 @@ const submenuOptionClass = (active: boolean) =>
   cn(
     "w-full flex items-center gap-2 h-9 px-2 rounded-md transition-all outline-none shrink-0",
     active
-      ? "bg-primary text-primary-foreground shadow-sm"
+      ? "bg-accent text-foreground"
       : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
   );
 
@@ -81,7 +81,7 @@ export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
     canvasMode,
     structuredTextSelection,
     setStructuredTextColor,
-  } = useCanvasStore(
+  } = useEditorStore(
     useShallow((state) => ({
       brushChar: state.brushChar,
       setBrushChar: state.setBrushChar,

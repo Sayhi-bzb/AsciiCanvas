@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_GRID_RENDER_METRICS } from "@/shared/metrics";
-import type { CanvasMode, GridMap, Point } from "@/shared/types";
+import type { GridMap, Point } from "@/shared/types";
+import type { CanvasMode } from "@/domains/sessions/public";
 import { createCanvasPointerContextResolver } from "@/widgets/canvas-editor/hooks/interaction/core/pointerContext";
 
 const rect = { left: 10, top: 20 } as DOMRect;

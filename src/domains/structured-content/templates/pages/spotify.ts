@@ -1,8 +1,5 @@
-import type {
-  GridCell,
-  StructuredTextRangeStyle,
-  StructuredTextStyleRange,
-} from "@/shared/types";
+import type { GridCell } from "@/shared/types";
+import type { StructuredTextRangeStyle, StructuredTextStyleRange } from "@/domains/structured-content/public";
 import { parseAnsiTextCells } from "@/shared/utils/ansiText";
 import { STRUCTURED_TEMPLATE_TEXT_COLOR } from "../components/factory";
 import type { StructuredComponentDefinition } from "../components/types";

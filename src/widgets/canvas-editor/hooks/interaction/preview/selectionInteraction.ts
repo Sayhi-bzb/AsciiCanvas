@@ -1,4 +1,7 @@
-import type { CanvasMode, SelectionArea, StructuredNode, ToolType } from "@/shared/types";
+import type { SelectionArea } from "@/shared/types";
+import type { CanvasMode } from "@/domains/sessions/public";
+import type { ToolType } from "@/domains/canvas/public";
+import type { StructuredNode } from "@/domains/structured-content/public";
 import {
   findStructuredNodeIdsInSelection,
 } from "@/domains/structured-content/public";

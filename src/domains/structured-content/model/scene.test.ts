@@ -7,9 +7,10 @@ import {
   intersectsBounds,
   buildStructuredTree,
   createStructuredNodeId
-} from '@/shared/utils/structured';
-import { getSplitBoxPoints } from '@/shared/utils/shapes';
-import type { StructuredNode, NodeBounds } from '@/shared/types';
+} from '@/domains/structured-content/public';
+import { getSplitBoxPoints } from "@/domains/structured-content/public";
+import type { NodeBounds } from "@/shared/types";
+import type { StructuredNode } from "@/domains/structured-content/public";
 
 describe('structured', () => {
   it('builds split box glyph points with connected junctions', () => {

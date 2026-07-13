@@ -1,17 +1,14 @@
-import type {
-  CanvasMode,
-  Point,
-  SelectionArea,
-  StructuredNode,
-  ToolType,
-} from "@/shared/types";
+import type { Point, SelectionArea } from "@/shared/types";
+import type { CanvasMode } from "@/domains/sessions/public";
+import type { ToolType } from "@/domains/canvas/public";
+import type { StructuredNode } from "@/domains/structured-content/public";
 import {
   clampSelectionToBounds
 } from "@/domains/animation/public";
 import {
   getStructuredTextCaretPoint,
   getStructuredTextOffsetAtPoint,
-} from "@/shared/utils/structuredTextRanges";
+} from "@/domains/structured-content/public";
 import {
   isStructuredSplitBoxLineHandle,
   type StructuredBoxResizeHandle,

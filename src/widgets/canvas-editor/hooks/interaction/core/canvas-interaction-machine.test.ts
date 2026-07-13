@@ -6,7 +6,7 @@ import {
   type StructuredNodeDragPayload,
 } from "@/widgets/canvas-editor/hooks/interaction/core/interactionMachine";
 import { createCanvasInteractionRuntime } from "@/widgets/canvas-editor/hooks/interaction/core/interactionRuntime";
-import type { StructuredBoxNode } from "@/shared/types";
+import type { StructuredBoxNode } from "@/domains/structured-content/public";
 
 const boxNode: StructuredBoxNode = {
   id: "box-1",

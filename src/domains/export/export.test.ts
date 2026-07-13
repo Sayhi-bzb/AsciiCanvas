@@ -12,7 +12,8 @@ import {
   exportToAnsi,
 } from "@/domains/export/public";
 import { normalizeAnimationTimeline } from "@/domains/animation/public";
-import type { GridMap, StructuredNode } from "@/shared/types";
+import type { GridMap } from "@/shared/types";
+import type { StructuredNode } from "@/domains/structured-content/public";
 
 const quantizeGifIndex = (red: number, green: number, blue: number) => {
   return ((red & 0xe0) | ((green & 0xe0) >> 3) | (blue >> 6)) & 0xff;

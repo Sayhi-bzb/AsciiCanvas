@@ -1,4 +1,4 @@
-import { undoManager } from "@/shared/lib/yjs-setup";
+import { undoManager } from "@/domains/canvas/public";
 import { isCtrlOrMeta } from "@/shared/utils/event";
 
 export const isUndoShortcut = (

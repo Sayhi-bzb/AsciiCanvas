@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { CharLibrary } from "@/widgets/character-library/char-library";
 import { useLibraryStore } from "@/domains/character-library/public";
-import { useCanvasStore } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/public";
 import { writeClipboardPayload } from "@/domains/actions/public";
 import { feedback } from "@/shared/services/effects";
 import { SidebarProvider } from "@/shared/ui/sidebar";
@@ -19,7 +19,7 @@ vi.mock("@/shared/services/effects", () => ({
 }));
 
 describe("CharLibrary", () => {
-  const initialCanvasState = useCanvasStore.getState();
+  const initialCanvasState = useEditorStore.getState();
   const initialLibraryState = useLibraryStore.getState();
 
   beforeEach(() => {
@@ -40,13 +40,13 @@ describe("CharLibrary", () => {
 
   afterEach(() => {
     vi.clearAllMocks();
-    useCanvasStore.setState(initialCanvasState, true);
+    useEditorStore.setState(initialCanvasState, true);
     useLibraryStore.setState(initialLibraryState, true);
   });
 
   it("copies selected characters to the clipboard instead of activating brush", async () => {
     vi.mocked(writeClipboardPayload).mockResolvedValue(true);
-    useCanvasStore.setState({
+    useEditorStore.setState({
       brushChar: "#",
       brushColor: "#123456",
       tool: "select",
@@ -86,8 +86,8 @@ describe("CharLibrary", () => {
       cells: [{ x: 0, y: 0, char: "★", color: "#123456" }],
     });
     expect(options).toEqual({ withRich: true });
-    expect(useCanvasStore.getState().tool).toBe("select");
-    expect(useCanvasStore.getState().brushChar).toBe("#");
+    expect(useEditorStore.getState().tool).toBe("select");
+    expect(useEditorStore.getState().brushChar).toBe("#");
     expect(feedback.success).toHaveBeenCalledWith("Copied: ★", {
       duration: 600,
       position: "top-right",

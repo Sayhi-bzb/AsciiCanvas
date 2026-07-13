@@ -3,11 +3,15 @@
 import { useState, type ComponentType, type RefObject } from "react";
 import { Check, Pipette } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
+import { uiClass } from "@/shared/styles/components";
+import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
-import type { ToolType } from "@/shared/types";
+import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
+import type { ToolType } from "@/domains/canvas/public";
 import { getFirstGrapheme } from "@/shared/utils/characters";
 import { MATERIAL_PRESETS } from "./constants";
-import { useCanvasStore } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/public";
 import type { CanvasColorPickerTarget } from "@/domains/canvas/public";
 import { useShallow } from "zustand/react/shallow";
 import { useUiI18n } from "@/shared/i18n";
@@ -244,8 +248,9 @@ export function ColorPickerPanel({
   const { t } = useUiI18n();
   const [customColor, setCustomColor] = useState(value);
   const [activePaletteTab, setActivePaletteTab] = useState<"ansi16" | "presets">("ansi16");
+  const [eyedropperOpen, setEyedropperOpen] = useState(false);
   const normalizedCustomColor = normalizeHexColor(customColor);
-  const { canvasColorPickerTarget, setCanvasColorPickerTarget } = useCanvasStore(
+  const { canvasColorPickerTarget, setCanvasColorPickerTarget } = useEditorStore(
     useShallow((state) => ({
       canvasColorPickerTarget: state.canvasColorPickerTarget,
       setCanvasColorPickerTarget: state.setCanvasColorPickerTarget,
@@ -263,136 +268,177 @@ export function ColorPickerPanel({
     if (nextTarget) onCanvasPickStarted?.();
   };
 
-  const visibleColors =
-    activePaletteTab === "ansi16" ? ANSI_16_COLORS : PRESET_COLORS;
-  const colorLabelKey =
-    activePaletteTab === "ansi16" ? "color.pickAnsi" : "color.pickPreset";
+  const paletteTabs = [
+    {
+      id: "ansi16",
+      label: t("color.ansi16"),
+      colors: ANSI_16_COLORS,
+      colorLabelKey: "color.pickAnsi",
+      gridClassName: "grid-cols-8",
+    },
+    {
+      id: "presets",
+      label: t("color.presets"),
+      colors: PRESET_COLORS,
+      colorLabelKey: "color.pickPreset",
+      gridClassName: "grid-cols-10",
+    },
+  ] as const;
 
   return (
-    <div className="w-64 space-y-2 p-1.5">
-      <div className="grid grid-cols-2 gap-1">
-        {(["char", "bg"] as const).map((target) => {
-          const isActive = canvasColorPickerTarget === target;
-          const label =
-            target === "char"
-              ? t("color.pickChar")
-              : t("color.pickBg");
-          return (
-            <button
-              key={target}
-              type="button"
-              aria-label={label}
-              title={label}
-              onClick={() => toggleCanvasColorPicker(target)}
-              className={cn(
-                "flex h-8 items-center justify-center gap-1.5 rounded-lg border px-2 text-[11px] font-medium transition-colors",
-                isActive
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-background/70 text-muted-foreground hover:bg-accent hover:text-foreground"
-              )}
-            >
-              <Pipette className="size-3.5" />
-              <span>{target === "char" ? t("color.char") : t("color.bg")}</span>
-            </button>
-          );
-        })}
-      </div>
+    <Tabs
+      value={activePaletteTab}
+      onValueChange={(tab) =>
+        setActivePaletteTab(tab as "ansi16" | "presets")
+      }
+      orientation="vertical"
+      className="w-[25rem] flex-row items-start gap-2 p-1.5"
+    >
+      <TabsList
+        aria-label={t("color.paletteTabs")}
+        className="w-[4.5rem] shrink-0"
+      >
+        {paletteTabs.map((tab) => (
+          <TabsTrigger
+            key={tab.id}
+            value={tab.id}
+            className="h-8 text-[11px]"
+          >
+            {tab.label}
+          </TabsTrigger>
+        ))}
+      </TabsList>
 
-      <div className="space-y-2">
-        <div
-          role="tablist"
-          aria-label={t("color.paletteTabs")}
-          className="grid grid-cols-2 gap-1 rounded-lg bg-muted/35 p-1"
-        >
-          {([
-            { id: "ansi16", label: t("color.ansi16") },
-            { id: "presets", label: t("color.presets") },
-          ] as const).map((tab) => {
-            const isActive = activePaletteTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                role="tab"
-                aria-selected={isActive}
-                onClick={() => setActivePaletteTab(tab.id)}
-                className={cn(
-                  "h-7 rounded-md px-2 text-[11px] font-semibold transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                  isActive
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
+      <div className="min-w-0 flex-1">
+        {paletteTabs.map((tab) => (
+          <TabsContent key={tab.id} value={tab.id} className="space-y-3">
+            {showCustomInput && (
+              <div
+                data-color-picker-tools="true"
+                className="flex items-center gap-2"
               >
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
-        <div className="flex items-center justify-end px-0.5">
-          <span className="font-mono text-[11px] text-muted-foreground">
-            {value}
-          </span>
-        </div>
-        <div
-          data-testid="color-palette-grid"
-          className={cn(
-            "grid gap-1",
-            activePaletteTab === "ansi16" ? "grid-cols-8" : "grid-cols-10"
-          )}
-        >
-          {visibleColors.map((c) => (
-            <button
-              key={c}
-              type="button"
-              aria-label={t(colorLabelKey, { color: c })}
-              onClick={() => pickColor(c)}
-              className={cn(
-                "size-6 rounded-[0.45rem] border border-black/10 shadow-sm transition-transform hover:scale-110 active:scale-95 flex items-center justify-center",
-                value === c && "ring-2 ring-primary ring-offset-1 ring-offset-popover"
-              )}
-              style={{ backgroundColor: c }}
-            >
-              {value === c && (
-                <Check className="size-3 text-white mix-blend-difference" />
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
+                <div className="flex min-w-0 flex-1 items-center gap-2">
+                  <div
+                    className="size-7 shrink-0 rounded-lg border border-border shadow-inner"
+                    style={{ backgroundColor: normalizedCustomColor ?? value }}
+                  />
+                  <Input
+                    value={customColor}
+                    onChange={(e) => setCustomColor(e.target.value)}
+                    onKeyDown={(e) => {
+                      e.stopPropagation();
+                      if (e.key === "Enter" && normalizedCustomColor) {
+                        pickColor(normalizedCustomColor);
+                      }
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    placeholder="#00ffcc"
+                    maxLength={7}
+                    className="h-7 flex-1 rounded-md bg-muted/40 px-2 font-mono text-xs uppercase shadow-none"
+                  />
+                  <Button
+                    type="button"
+                    tone="primary"
+                    shape="square"
+                    size="sm"
+                    disabled={!normalizedCustomColor}
+                    onClick={() =>
+                      normalizedCustomColor && pickColor(normalizedCustomColor)
+                    }
+                    aria-label={t("color.use")}
+                    title={t("color.use")}
+                    className="size-7 shrink-0"
+                  >
+                    <Check className="size-3.5" />
+                  </Button>
+                </div>
 
-      {showCustomInput && (
-        <div className="pt-1">
-          <div className="flex items-center gap-2">
+                <Popover open={eyedropperOpen} onOpenChange={setEyedropperOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      tone="subtle"
+                      shape="square"
+                      size="sm"
+                      aria-label={t("color.pickFromCanvas")}
+                      title={t("color.pickFromCanvas")}
+                      aria-pressed={canvasColorPickerTarget !== null}
+                      className={cn(
+                        "size-7 shrink-0",
+                        canvasColorPickerTarget !== null &&
+                          "bg-accent text-foreground"
+                      )}
+                    >
+                      <Pipette className="size-3.5" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent
+                    side="bottom"
+                    align="end"
+                    sideOffset={6}
+                    className={cn(uiClass.submenuPanel, "w-36")}
+                  >
+                    {(["char", "bg"] as const).map((target) => {
+                      const isActive = canvasColorPickerTarget === target;
+                      const label =
+                        target === "char"
+                          ? t("color.pickChar")
+                          : t("color.pickBg");
+                      return (
+                        <button
+                          key={target}
+                          type="button"
+                          aria-label={label}
+                          onClick={() => {
+                            toggleCanvasColorPicker(target);
+                            setEyedropperOpen(false);
+                          }}
+                          className={cn(
+                            "flex h-8 w-full items-center gap-2 rounded-md px-2 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+                            isActive && "bg-accent text-foreground"
+                          )}
+                        >
+                          <span className="flex size-3.5 items-center justify-center">
+                            {isActive && <Check className="size-3.5" />}
+                          </span>
+                          <span>
+                            {target === "char" ? t("color.char") : t("color.bg")}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </PopoverContent>
+                </Popover>
+              </div>
+            )}
+
             <div
-              className="size-7 shrink-0 rounded-lg border border-border shadow-inner"
-              style={{ backgroundColor: normalizedCustomColor ?? value }}
-            />
-            <Input
-              value={customColor}
-              onChange={(e) => setCustomColor(e.target.value)}
-              onKeyDown={(e) => {
-                e.stopPropagation();
-                if (e.key === "Enter" && normalizedCustomColor) {
-                  pickColor(normalizedCustomColor);
-                }
-              }}
-              onClick={(e) => e.stopPropagation()}
-              placeholder="#00ffcc"
-              maxLength={7}
-              className="h-7 flex-1 rounded-md bg-muted/40 px-2 font-mono text-xs uppercase shadow-none"
-            />
-            <button
-              type="button"
-              disabled={!normalizedCustomColor}
-              onClick={() => normalizedCustomColor && pickColor(normalizedCustomColor)}
-              className="h-7 rounded-md bg-primary px-2 text-[11px] font-semibold text-primary-foreground transition-opacity disabled:pointer-events-none disabled:opacity-40"
+              data-testid="color-palette-grid"
+              className={cn("grid gap-1", tab.gridClassName)}
             >
-              {t("color.use")}
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
+              {tab.colors.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  aria-label={t(tab.colorLabelKey, { color: c })}
+                  onClick={() => pickColor(c)}
+                  className={cn(
+                    "flex size-6 items-center justify-center rounded-[0.45rem] border border-black/10 shadow-sm transition-transform hover:scale-110 active:scale-95",
+                    value === c &&
+                      "ring-2 ring-primary ring-offset-1 ring-offset-popover"
+                  )}
+                  style={{ backgroundColor: c }}
+                >
+                  {value === c && (
+                    <Check className="size-3 text-white mix-blend-difference" />
+                  )}
+                </button>
+              ))}
+            </div>
+          </TabsContent>
+        ))}
+      </div>
+    </Tabs>
   );
 }
 

@@ -3,10 +3,7 @@ import {
   resolveStructuredSelectStartContext,
   resolveStructuredSelectStartDecision,
 } from "@/widgets/canvas-editor/hooks/interaction/structured/structuredSelectStart";
-import type {
-  StructuredBoxNode,
-  StructuredTextNode,
-} from "@/shared/types";
+import type { StructuredBoxNode, StructuredTextNode } from "@/domains/structured-content/public";
 
 const boxNode: StructuredBoxNode = {
   id: "box-1",

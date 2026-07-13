@@ -1,8 +1,5 @@
-import type {
-  NodeBounds,
-  Point,
-  StructuredSplitBoxNode,
-} from "@/shared/types";
+import type { NodeBounds, Point } from "@/shared/types";
+import type { StructuredSplitBoxNode } from "@/domains/structured-content/public";
 import {
   getStructuredSplitBoxGuides,
   type StructuredBoxResizeHandle,

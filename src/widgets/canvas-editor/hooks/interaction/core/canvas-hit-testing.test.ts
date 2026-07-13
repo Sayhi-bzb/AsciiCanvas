@@ -10,11 +10,7 @@ import {
   resolveStructuredSelectHit as resolveStructuredSelectHover,
 } from "@/widgets/canvas-editor/hooks/interaction/core/hitTesting";
 import { gridCellRect } from "@/shared/metrics";
-import type {
-  StructuredBoxNode,
-  StructuredSplitBoxNode,
-  StructuredTextNode,
-} from "@/shared/types";
+import type { StructuredBoxNode, StructuredSplitBoxNode, StructuredTextNode } from "@/domains/structured-content/public";
 
 const eventWithTarget = (target: EventTarget) =>
   ({ target, composedPath: () => [target] }) as unknown as Event;

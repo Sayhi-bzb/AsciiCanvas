@@ -1,10 +1,12 @@
 import type { StateCreator } from "zustand";
 import type {
+  EditorState,
+} from "../interfaces";
+import type {
   CanvasImportSnapshot,
   CanvasSession,
-  CanvasState,
-  SessionSlice,
-} from "../interfaces";
+  SessionCommands,
+} from "@/domains/sessions/public";
 import {
   buildSessionSnapshot,
   createAnimationSession,
@@ -15,7 +17,7 @@ import {
   normalizeSessionMode,
   createSessionId,
   resolveNextSessionName,
-} from "../helpers/sessionHelpers";
+} from "@/domains/sessions/public";
 import { createMapFromEntries } from "../helpers/snapshotHelpers";
 import { parseCanvasSessionSource } from "../sessionImportPort";
 import {
@@ -78,10 +80,10 @@ const createImportedSession = (
 };
 
 export const createSessionSlice: StateCreator<
-  CanvasState,
+  EditorState,
   [],
   [],
-  SessionSlice
+  SessionCommands
 > = (set, get) => ({
   createCanvasSession: (mode = "freeform", options) => {
     const state = get();

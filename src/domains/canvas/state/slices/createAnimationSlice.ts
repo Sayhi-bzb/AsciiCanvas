@@ -1,6 +1,8 @@
 import type { StateCreator } from "zustand";
-import type { CanvasState, AnimationSlice } from "../interfaces";
-import type { AnimationFrame, AnimationTimeline, AnimationCanvasSize, GridCell } from "@/shared/types";
+import type { EditorState } from "../interfaces";
+import type { AnimationCommands } from "@/domains/animation/public";
+import type { GridCell } from "@/shared/types";
+import type { AnimationFrame, AnimationTimeline, AnimationCanvasSize } from "@/domains/animation/public";
 import {
   cloneAnimationTimeline,
   getAnimationFrameEntries,
@@ -15,15 +17,15 @@ import {
   DEFAULT_ANIMATION_SIZE,
   MAX_ANIMATION_FPS,
 } from "@/domains/animation/public";
-import { withActiveCanvasSnapshot } from "../helpers/sessionHelpers";
+import { withActiveCanvasSnapshot } from "@/domains/sessions/public";
 import { createMapFromEntries, serializeGrid } from "../helpers/snapshotHelpers";
 import { applyFreeformSnapshotToYMaps } from "../helpers/gridHelpers";
 
 export const createAnimationSlice: StateCreator<
-  CanvasState,
+  EditorState,
   [],
   [],
-  AnimationSlice
+  AnimationCommands
 > = (set, get) => {
   const syncAnimationRuntime = (
     timeline: AnimationTimeline,

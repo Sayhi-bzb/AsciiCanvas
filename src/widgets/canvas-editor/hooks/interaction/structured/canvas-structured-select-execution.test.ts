@@ -5,7 +5,7 @@ import {
   type StructuredSelectStartExecutor,
 } from "@/widgets/canvas-editor/hooks/interaction/structured/structuredSelectExecution";
 import { resolveStructuredDragStartDecision } from "@/widgets/canvas-editor/hooks/interaction/structured/structuredDragStart";
-import type { StructuredBoxNode, StructuredTextNode } from "@/shared/types";
+import type { StructuredBoxNode, StructuredTextNode } from "@/domains/structured-content/public";
 
 const textNode: StructuredTextNode = {
   id: "text-1", type: "text", order: 1,

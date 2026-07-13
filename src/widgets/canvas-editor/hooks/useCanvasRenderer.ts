@@ -9,13 +9,12 @@ import {
 } from "@/shared/lib/constants";
 import type { CanvasRenderModel } from "./canvasModels";
 import { GridManager } from "@/shared/utils/grid";
-import type { SelectionArea, GridMap, Point, NodeBounds, StructuredSplitBoxNode, AnimationFrame } from "@/shared/types";
+import type { SelectionArea, GridMap, Point, NodeBounds } from "@/shared/types";
+import type { StructuredSplitBoxNode } from "@/domains/structured-content/public";
+import type { AnimationFrame } from "@/domains/animation/public";
 import type { CanvasLinkHit } from "./interaction/core/linkHitTesting";
 import { getSelectionBounds } from "@/shared/utils/selection";
 import { createMapFromEntries } from "@/domains/canvas/public";
-import {
-  getAnimationFrameIndex
-} from "@/domains/animation/public";
 import {
   DEFAULT_GRID_RENDER_METRICS,
   drawGridLines,
@@ -33,12 +32,12 @@ import {
   getStructuredBoxBounds,
   getStructuredSplitBoxGuides,
 } from "@/domains/structured-content/public";
-import { getStructuredNodeBounds } from "@/shared/utils/structured";
-import { getStructuredTextSelectionRange } from "@/shared/utils/structuredTextRanges";
+import { getStructuredNodeBounds } from "@/domains/structured-content/public";
+import { getStructuredTextSelectionRange } from "@/domains/structured-content/public";
 import {
   createTextLayout,
   getTextLayoutSelectionRects,
-} from "@/shared/utils/textLayout";
+} from "@/domains/structured-content/public";
 import {
   getStructuredLineHandlePoints,
   getStructuredRectHandlePoints,
@@ -47,6 +46,7 @@ import {
 
 import type { StructuredMovePreview } from "./interaction/structured/structuredInteractionPreview";
 import { drawGridLayer } from "../rendering/drawGridLayer";
+import { resolveAnimationGhostLayers } from "../rendering/animation-ghost-layers";
 export type { StructuredMovePreview } from "./interaction/structured/structuredInteractionPreview";
 
 interface LayerRefs {
@@ -210,48 +210,6 @@ export const useCanvasRenderer = (
       return grid;
     };
 
-    const getAnimationGhostLayers = () => {
-      if (
-        canvasMode !== "animation" ||
-        !animationTimeline ||
-        !animationTimeline.onionSkin.enabled
-      ) {
-        return [];
-      }
-
-      const currentIndex = getAnimationFrameIndex(
-        animationTimeline,
-        animationPlaybackFrameId ?? animationTimeline.currentFrameId
-      );
-      if (currentIndex === -1) return [];
-
-      const { backwardLayers, forwardLayers, opacityFalloff } =
-        animationTimeline.onionSkin;
-      const layers: Array<{ grid: GridMap; alpha: number }> = [];
-
-      for (let i = backwardLayers; i >= 1; i--) {
-        const frame = animationTimeline.frames[currentIndex - i];
-        const alpha = opacityFalloff[i - 1] ?? 0;
-        if (!frame || alpha <= 0) continue;
-        layers.push({
-          grid: getCachedAnimationFrameGrid(frame),
-          alpha,
-        });
-      }
-
-      for (let i = 1; i <= forwardLayers; i++) {
-        const frame = animationTimeline.frames[currentIndex + i];
-        const alpha = opacityFalloff[i - 1] ?? 0;
-        if (!frame || alpha <= 0) continue;
-        layers.push({
-          grid: getCachedAnimationFrameGrid(frame),
-          alpha,
-        });
-      }
-
-      return layers;
-    };
-
     const render = () => {
       if (!size || size.width === 0 || size.height === 0) return;
       const structuredMovePreview = structuredMovePreviewRef.current;
@@ -289,7 +247,12 @@ export const useCanvasRenderer = (
               height: canvasBounds.height * sh,
             }
           : null;
-      const animationGhostLayers = getAnimationGhostLayers();
+      const animationGhostLayers = resolveAnimationGhostLayers({
+        canvasMode,
+        timeline: animationTimeline,
+        playbackFrameId: animationPlaybackFrameId,
+        getFrameGrid: getCachedAnimationFrameGrid,
+      });
       const renderBaseLayers = shouldRenderBaseLayers([
         layers.bg.current,
         layers.scratch.current,

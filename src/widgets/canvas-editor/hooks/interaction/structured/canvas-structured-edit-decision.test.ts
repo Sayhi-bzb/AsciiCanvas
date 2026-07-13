@@ -3,7 +3,7 @@ import {
   resolveStructuredEditAttempt,
   resolveStructuredEditDecision,
 } from "@/widgets/canvas-editor/hooks/interaction/structured/structuredEditDecision";
-import type { StructuredBoxNode, StructuredTextNode } from "@/shared/types";
+import type { StructuredBoxNode, StructuredTextNode } from "@/domains/structured-content/public";
 
 const textNode: StructuredTextNode = {
   id: "text-1",

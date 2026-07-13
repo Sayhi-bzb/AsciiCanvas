@@ -1,6 +1,6 @@
-import type { CanvasState } from "@/domains/canvas/public";
+import type { EditorState } from "@/domains/canvas/public";
 
-export type CanvasInteractionModel = Pick<CanvasState,
+export type CanvasInteractionModel = Pick<EditorState,
   | "tool"
   | "canvasMode"
   | "brushChar"
@@ -40,7 +40,7 @@ export type CanvasInteractionModel = Pick<CanvasState,
   | "updateStructuredNode"
 >;
 
-export type CanvasRenderModel = Pick<CanvasState,
+export type CanvasRenderModel = Pick<EditorState,
   | "offset"
   | "zoom"
   | "grid"
@@ -66,7 +66,7 @@ export type CanvasRenderModel = Pick<CanvasState,
   | "canvasColorPickerTarget"
 >;
 
-export type CanvasEditorModel = Pick<CanvasState,
+export type CanvasEditorModel = Pick<EditorState,
   | "textCursor"
   | "staticGridSelection"
   | "staticGridEditMode"

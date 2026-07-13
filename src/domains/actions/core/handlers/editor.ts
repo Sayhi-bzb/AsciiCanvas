@@ -1,8 +1,8 @@
-import { useCanvasStore } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/public";
 import { exportStructuredHierarchyText } from "@/domains/export/public";
 import { runEditorCommand } from "@/domains/actions/adapters/editorCommands";
 import { getFirstGrapheme } from "@/shared/utils/characters";
-import { getTextColumnWidth } from "@/shared/utils/structured";
+import { getTextColumnWidth } from "@/domains/structured-content/public";
 import {
   canSplitStructuredSplitBoxLeaf,
   getStructuredBoxNameEndPoint,
@@ -10,8 +10,8 @@ import {
   isStructuredSplitBoxLineHandle,
 } from "@/domains/structured-content/public";
 import { clipboard, feedback } from "@/shared/services/effects";
-import { getStructuredTextSelectionRange } from "@/shared/utils/structuredTextRanges";
-import type { StructuredBoxNode, StructuredTextNode } from "@/shared/types";
+import { getStructuredTextSelectionRange } from "@/domains/structured-content/public";
+import type { StructuredBoxNode, StructuredTextNode } from "@/domains/structured-content/public";
 import {
   actionFailed,
   actionSucceeded,
@@ -33,11 +33,11 @@ type ClipboardOptions = {
 type FillOptions = { fillChar?: string };
 
 const hasStructuredSelection = (
-  state: ReturnType<typeof useCanvasStore.getState>
+  state: ReturnType<typeof useEditorStore.getState>
 ) => state.canvasMode === "structured" && state.selectedStructuredNodeIds.length > 0;
 
 const getContextSplitBox = (
-  state: ReturnType<typeof useCanvasStore.getState>
+  state: ReturnType<typeof useEditorStore.getState>
 ) => {
   if (
     state.canvasMode !== "structured" ||
@@ -55,7 +55,7 @@ const getContextSplitBox = (
 };
 
 const canSplitContextSplitBox = (
-  state: ReturnType<typeof useCanvasStore.getState>,
+  state: ReturnType<typeof useEditorStore.getState>,
   axis: "horizontal" | "vertical"
 ) => {
   const splitBox = getContextSplitBox(state);
@@ -71,14 +71,14 @@ const canSplitContextSplitBox = (
 };
 
 const hasSelectedStructuredDivider = (
-  state: ReturnType<typeof useCanvasStore.getState>
+  state: ReturnType<typeof useEditorStore.getState>
 ) =>
   state.canvasMode === "structured" &&
   !!state.selectedStructuredSplitHandle &&
   isStructuredSplitBoxLineHandle(state.selectedStructuredSplitHandle.handle);
 
 const hasStructuredTextSelection = (
-  state: ReturnType<typeof useCanvasStore.getState>
+  state: ReturnType<typeof useEditorStore.getState>
 ) =>
   state.canvasMode === "structured" &&
   !!getStructuredTextSelectionRange(state.structuredTextSelection);
@@ -90,7 +90,7 @@ const isStructuredTextNode = (node: { type: string }): node is StructuredTextNod
   node.type === "text";
 
 const getSelectedStructuredBox = (
-  state: ReturnType<typeof useCanvasStore.getState>
+  state: ReturnType<typeof useEditorStore.getState>
 ) => {
   if (state.canvasMode !== "structured" || !state.selectedStructuredBoxId) return null;
   return (
@@ -102,7 +102,7 @@ const getSelectedStructuredBox = (
 };
 
 const getSelectedStructuredEditCursor = (
-  state: ReturnType<typeof useCanvasStore.getState>
+  state: ReturnType<typeof useEditorStore.getState>
 ) => {
   const box = getSelectedStructuredBox(state);
   if (box) return getStructuredBoxNameEndPoint(box);
@@ -120,7 +120,7 @@ const getSelectedStructuredEditCursor = (
 };
 
 // Check if action can run
-const canCopyOrCut = (state: ReturnType<typeof useCanvasStore.getState>): boolean => {
+const canCopyOrCut = (state: ReturnType<typeof useEditorStore.getState>): boolean => {
   return state.canCopyOrCut();
 };
 
@@ -349,7 +349,7 @@ export const editorHandlers: Record<
 };
 
 // Editor action checkers
-export const editorCheckers: Partial<Record<EditorActionId, (state: ReturnType<typeof useCanvasStore.getState>) => boolean>> = {
+export const editorCheckers: Partial<Record<EditorActionId, (state: ReturnType<typeof useEditorStore.getState>) => boolean>> = {
   copy: (state) =>
     state.canvasMode === "structured"
       ? state.structuredScene.length > 0

@@ -4,18 +4,18 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { SelectionFormatToolbar } from "@/widgets/canvas-editor/SelectionFormatToolbar";
 import { STRUCTURED_CONTEXT_MENU } from "@/domains/actions/public";
 import { ColorSubmenu } from "@/widgets/toolbar/dock/submenus";
-import { useCanvasStore } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/public";
 
 describe("SelectionFormatToolbar", () => {
-  const initialState = useCanvasStore.getState();
+  const initialState = useEditorStore.getState();
 
   afterEach(() => {
     vi.restoreAllMocks();
-    useCanvasStore.setState(initialState, true);
+    useEditorStore.setState(initialState, true);
   });
 
   it("formats selected structured text ranges", () => {
-    useCanvasStore.setState({
+    useEditorStore.setState({
       canvasMode: "structured",
       brushColor: "#123456",
       offset: { x: 0, y: 0 },
@@ -41,7 +41,7 @@ describe("SelectionFormatToolbar", () => {
 
     fireEvent.click(screen.getByLabelText("Toggle bold"));
 
-    expect(useCanvasStore.getState().structuredScene[0]).toMatchObject({
+    expect(useEditorStore.getState().structuredScene[0]).toMatchObject({
       id: "text-1",
       text: "Label",
       styleRanges: [
@@ -57,7 +57,7 @@ describe("SelectionFormatToolbar", () => {
   });
 
   it("applies selected structured text color without filling with the brush character", () => {
-    useCanvasStore.setState({
+    useEditorStore.setState({
       canvasMode: "structured",
       brushChar: "\ue203",
       brushColor: "#ef4444",
@@ -84,7 +84,7 @@ describe("SelectionFormatToolbar", () => {
 
     fireEvent.click(screen.getByLabelText("Apply brush color to selected text"));
 
-    expect(useCanvasStore.getState().structuredScene[0]).toMatchObject({
+    expect(useEditorStore.getState().structuredScene[0]).toMatchObject({
       id: "text-1",
       text: "Label",
       styleRanges: [
@@ -98,7 +98,7 @@ describe("SelectionFormatToolbar", () => {
   });
 
   it("applies brush color to selected structured shape chars", () => {
-    useCanvasStore.setState({
+    useEditorStore.setState({
       canvasMode: "structured",
       brushColor: "#22c55e",
       offset: { x: 0, y: 0 },
@@ -123,7 +123,7 @@ describe("SelectionFormatToolbar", () => {
 
     fireEvent.click(screen.getByLabelText("Apply brush color to selected shape"));
 
-    expect(useCanvasStore.getState().structuredScene[0]).toMatchObject({
+    expect(useEditorStore.getState().structuredScene[0]).toMatchObject({
       id: "box-1",
       type: "box",
       style: { color: "#22c55e" },
@@ -131,7 +131,7 @@ describe("SelectionFormatToolbar", () => {
   });
 
   it("splits selected structured split boxes from the floating toolbar", () => {
-    useCanvasStore.setState({
+    useEditorStore.setState({
       canvasMode: "structured",
       offset: { x: 0, y: 0 },
       zoom: 1,
@@ -171,7 +171,7 @@ describe("SelectionFormatToolbar", () => {
 
     fireEvent.click(screen.getByLabelText("Split box horizontally"));
 
-    expect(useCanvasStore.getState().structuredScene[0]).toMatchObject({
+    expect(useEditorStore.getState().structuredScene[0]).toMatchObject({
       id: "split-1",
       type: "splitBox",
       root: {
@@ -183,7 +183,7 @@ describe("SelectionFormatToolbar", () => {
   });
 
   it("disables split buttons without an active split box leaf", () => {
-    useCanvasStore.setState({
+    useEditorStore.setState({
       canvasMode: "structured",
       offset: { x: 0, y: 0 },
       zoom: 1,
@@ -214,7 +214,7 @@ describe("SelectionFormatToolbar", () => {
   });
 
   it("deletes selected split dividers from the floating toolbar", () => {
-    useCanvasStore.setState({
+    useEditorStore.setState({
       canvasMode: "structured",
       offset: { x: 0, y: 0 },
       zoom: 1,
@@ -252,7 +252,7 @@ describe("SelectionFormatToolbar", () => {
 
     fireEvent.click(screen.getByLabelText("Delete split divider"));
 
-    expect(useCanvasStore.getState().structuredScene[0]).toMatchObject({
+    expect(useEditorStore.getState().structuredScene[0]).toMatchObject({
       id: "split-1",
       type: "splitBox",
       root: { type: "leaf", id: "leaf-split-existing" },
@@ -282,7 +282,9 @@ describe("SelectionFormatToolbar", () => {
       />
     );
 
-    fireEvent.click(screen.getByRole("tab", { name: "Presets" }));
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Presets" }), {
+      button: 0,
+    });
     fireEvent.click(screen.getByLabelText("Pick preset color #dc2626"));
 
     expect(picked).toEqual(["#dc2626"]);
@@ -298,9 +300,10 @@ describe("SelectionFormatToolbar", () => {
       />
     );
 
+    fireEvent.click(screen.getByLabelText("Pick color from canvas"));
     fireEvent.click(screen.getByLabelText("Pick char color from canvas"));
 
-    expect(useCanvasStore.getState().canvasColorPickerTarget).toBe("char");
+    expect(useEditorStore.getState().canvasColorPickerTarget).toBe("char");
   });
 
   it("starts canvas background color picking from the color submenu", () => {
@@ -312,13 +315,14 @@ describe("SelectionFormatToolbar", () => {
       />
     );
 
+    fireEvent.click(screen.getByLabelText("Pick color from canvas"));
     fireEvent.click(screen.getByLabelText("Pick BG color from canvas"));
 
-    expect(useCanvasStore.getState().canvasColorPickerTarget).toBe("bg");
+    expect(useEditorStore.getState().canvasColorPickerTarget).toBe("bg");
   });
 
   it("toggles an active canvas color picker target off", () => {
-    useCanvasStore.setState({ canvasColorPickerTarget: "char" });
+    useEditorStore.setState({ canvasColorPickerTarget: "char" });
 
     render(
       <ColorSubmenu
@@ -328,8 +332,9 @@ describe("SelectionFormatToolbar", () => {
       />
     );
 
+    fireEvent.click(screen.getByLabelText("Pick color from canvas"));
     fireEvent.click(screen.getByLabelText("Pick char color from canvas"));
 
-    expect(useCanvasStore.getState().canvasColorPickerTarget).toBeNull();
+    expect(useEditorStore.getState().canvasColorPickerTarget).toBeNull();
   });
 });

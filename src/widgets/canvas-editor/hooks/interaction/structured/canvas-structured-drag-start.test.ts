@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { resolveStructuredDragStartDecision } from "@/widgets/canvas-editor/hooks/interaction/structured/structuredDragStart";
-import type {
-  StructuredBoxNode,
-  StructuredLineNode,
-  StructuredSplitBoxNode,
-  StructuredTextNode,
-} from "@/shared/types";
+import type { StructuredBoxNode, StructuredLineNode, StructuredSplitBoxNode, StructuredTextNode } from "@/domains/structured-content/public";
 
 const boxNode: StructuredBoxNode = {
   id: "box-1",

@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { useCanvasStore } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/public";
 import { applyFreeformSnapshotToYMaps } from "@/domains/canvas/public";
 
-const initialState = useCanvasStore.getState();
+const initialState = useEditorStore.getState();
 
 const resetStore = () => {
-  useCanvasStore.setState(
+  useEditorStore.setState(
     {
       ...initialState,
       canvasMode: "freeform",
@@ -31,77 +31,77 @@ describe("staticGridSlice", () => {
   });
 
   it("moves the active cell and keeps legacy text cursor in sync", () => {
-    useCanvasStore.getState().setStaticGridActiveCell({ x: 4, y: 5 });
-    useCanvasStore.getState().moveStaticGridFocus(1, -2);
+    useEditorStore.getState().setStaticGridActiveCell({ x: 4, y: 5 });
+    useEditorStore.getState().moveStaticGridFocus(1, -2);
 
-    expect(useCanvasStore.getState().staticGridSelection).toEqual({
+    expect(useEditorStore.getState().staticGridSelection).toEqual({
       activeCell: { x: 5, y: 3 },
       anchorCell: { x: 5, y: 3 },
       ranges: [],
     });
-    expect(useCanvasStore.getState().textCursor).toEqual({ x: 5, y: 3 });
-    expect(useCanvasStore.getState().selections).toEqual([]);
+    expect(useEditorStore.getState().textCursor).toEqual({ x: 5, y: 3 });
+    expect(useEditorStore.getState().selections).toEqual([]);
   });
 
   it("extends selection from the anchor and syncs legacy selections", () => {
-    useCanvasStore.getState().setStaticGridActiveCell({ x: 2, y: 2 });
-    useCanvasStore.getState().moveStaticGridFocus(3, 1, { extend: true });
+    useEditorStore.getState().setStaticGridActiveCell({ x: 2, y: 2 });
+    useEditorStore.getState().moveStaticGridFocus(3, 1, { extend: true });
 
-    expect(useCanvasStore.getState().staticGridSelection).toEqual({
+    expect(useEditorStore.getState().staticGridSelection).toEqual({
       activeCell: { x: 5, y: 3 },
       anchorCell: { x: 2, y: 2 },
       ranges: [{ start: { x: 2, y: 2 }, end: { x: 5, y: 3 } }],
     });
-    expect(useCanvasStore.getState().textCursor).toBeNull();
-    expect(useCanvasStore.getState().selections).toEqual([
+    expect(useEditorStore.getState().textCursor).toBeNull();
+    expect(useEditorStore.getState().selections).toEqual([
       { start: { x: 2, y: 2 }, end: { x: 5, y: 3 } },
     ]);
   });
 
   it("extends selection left across repeated shift arrow moves", () => {
-    useCanvasStore.getState().setStaticGridActiveCell({ x: 5, y: 5 });
-    useCanvasStore.getState().moveStaticGridFocus(-1, 0, { extend: true });
-    useCanvasStore.getState().moveStaticGridFocus(-1, 0, { extend: true });
+    useEditorStore.getState().setStaticGridActiveCell({ x: 5, y: 5 });
+    useEditorStore.getState().moveStaticGridFocus(-1, 0, { extend: true });
+    useEditorStore.getState().moveStaticGridFocus(-1, 0, { extend: true });
 
-    expect(useCanvasStore.getState().staticGridSelection).toEqual({
+    expect(useEditorStore.getState().staticGridSelection).toEqual({
       activeCell: { x: 3, y: 5 },
       anchorCell: { x: 5, y: 5 },
       ranges: [{ start: { x: 3, y: 5 }, end: { x: 5, y: 5 } }],
     });
-    expect(useCanvasStore.getState().textCursor).toBeNull();
-    expect(useCanvasStore.getState().selections).toEqual([
+    expect(useEditorStore.getState().textCursor).toBeNull();
+    expect(useEditorStore.getState().selections).toEqual([
       { start: { x: 3, y: 5 }, end: { x: 5, y: 5 } },
     ]);
   });
 
   it("extends selection up across repeated shift arrow moves", () => {
-    useCanvasStore.getState().setStaticGridActiveCell({ x: 5, y: 5 });
-    useCanvasStore.getState().moveStaticGridFocus(0, -1, { extend: true });
-    useCanvasStore.getState().moveStaticGridFocus(0, -1, { extend: true });
+    useEditorStore.getState().setStaticGridActiveCell({ x: 5, y: 5 });
+    useEditorStore.getState().moveStaticGridFocus(0, -1, { extend: true });
+    useEditorStore.getState().moveStaticGridFocus(0, -1, { extend: true });
 
-    expect(useCanvasStore.getState().staticGridSelection).toEqual({
+    expect(useEditorStore.getState().staticGridSelection).toEqual({
       activeCell: { x: 5, y: 3 },
       anchorCell: { x: 5, y: 5 },
       ranges: [{ start: { x: 5, y: 3 }, end: { x: 5, y: 5 } }],
     });
-    expect(useCanvasStore.getState().textCursor).toBeNull();
-    expect(useCanvasStore.getState().selections).toEqual([
+    expect(useEditorStore.getState().textCursor).toBeNull();
+    expect(useEditorStore.getState().selections).toEqual([
       { start: { x: 5, y: 3 }, end: { x: 5, y: 5 } },
     ]);
   });
   it("clears legacy selections without losing the active cell", () => {
-    useCanvasStore.getState().setStaticGridSelectionRange({
+    useEditorStore.getState().setStaticGridSelectionRange({
       start: { x: 1, y: 1 },
       end: { x: 3, y: 4 },
     });
-    useCanvasStore.getState().clearStaticGridSelection();
+    useEditorStore.getState().clearStaticGridSelection();
 
-    expect(useCanvasStore.getState().staticGridSelection).toEqual({
+    expect(useEditorStore.getState().staticGridSelection).toEqual({
       activeCell: { x: 3, y: 4 },
       anchorCell: { x: 3, y: 4 },
       ranges: [],
     });
-    expect(useCanvasStore.getState().textCursor).toBeNull();
-    expect(useCanvasStore.getState().selections).toEqual([]);
+    expect(useEditorStore.getState().textCursor).toBeNull();
+    expect(useEditorStore.getState().selections).toEqual([]);
   });
 });

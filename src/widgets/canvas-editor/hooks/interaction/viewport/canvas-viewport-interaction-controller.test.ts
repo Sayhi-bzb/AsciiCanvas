@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createViewportInteractionController } from "@/widgets/canvas-editor/hooks/interaction/viewport/viewportInteractionController";
-import type { CanvasMode, Point } from "@/shared/types";
+import type { Point } from "@/shared/types";
+import type { CanvasMode } from "@/domains/sessions/public";
 
 const createScheduler = () => {
   let nextId = 1;

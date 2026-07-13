@@ -1,12 +1,10 @@
-import type { NodeBounds, Point, SelectionArea, StructuredBgNode, StructuredBoxNode, StructuredLineNode, StructuredNode, StructuredSplitBoxNode, StructuredTextNode } from "@/shared/types";
+import type { NodeBounds, Point, SelectionArea } from "@/shared/types";
+import type { StructuredBgNode, StructuredBoxNode, StructuredLineNode, StructuredNode, StructuredSplitBoxNode, StructuredTextNode } from "@/domains/structured-content/public";
 import { getTextCellWidth } from "@/shared/metrics";
 import { getSelectionBounds } from "@/shared/utils/selection";
-import {
-  getLShapeLinePoints,
-  layoutSplitBoxTree,
-  normalizeSplitBoxRoot,
-} from "@/shared/utils/shapes";
-import { getStructuredNodeBounds, intersectsBounds, trimTextToColumns, withPointWithinBounds } from "@/shared/utils/structured";
+import { getLShapeLinePoints } from "@/shared/utils/shapes";
+import { layoutSplitBoxTree, normalizeSplitBoxRoot } from "./split-box-geometry";
+import { getStructuredNodeBounds, intersectsBounds, trimTextToColumns, withPointWithinBounds } from "./scene";
 
 export type StructuredBoxResizeHandle =
   | "nw"

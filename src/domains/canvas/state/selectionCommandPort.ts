@@ -1,5 +1,5 @@
 import type { StateCreator } from "zustand";
-import type { CanvasState, SelectionSlice } from "./interfaces";
+import type { EditorState, SelectionSlice } from "./interfaces";
 
 type SelectionCommands = Pick<
   SelectionSlice,
@@ -11,8 +11,8 @@ type SelectionCommands = Pick<
 >;
 
 export type SelectionCommandFactory = (
-  set: Parameters<StateCreator<CanvasState, [], [], SelectionSlice>>[0],
-  get: Parameters<StateCreator<CanvasState, [], [], SelectionSlice>>[1]
+  set: Parameters<StateCreator<EditorState, [], [], SelectionSlice>>[0],
+  get: Parameters<StateCreator<EditorState, [], [], SelectionSlice>>[1]
 ) => SelectionCommands;
 
 const unavailable = async () => {

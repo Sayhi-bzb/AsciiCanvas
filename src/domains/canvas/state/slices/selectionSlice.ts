@@ -1,6 +1,6 @@
 import type { StateCreator } from "zustand";
-import type { CanvasState, SelectionSlice } from "../interfaces";
-import { runCanvasTransaction, yMainGrid } from "@/shared/lib/yjs-setup";
+import type { EditorState, SelectionSlice } from "../interfaces";
+import { runCanvasTransaction, yMainGrid } from "../yjs";
 import { GridManager } from "@/shared/utils/grid";
 import { getSelectionBounds } from "@/shared/utils/selection";
 import { placeCharInYMap } from "../utils";
@@ -9,7 +9,7 @@ import { deleteRect } from "../gridOps";
 import {  getStructuredNodeBounds,
   intersectsBounds,
   withPointWithinBounds,
-} from "@/shared/utils/structured";
+} from "@/domains/structured-content/public";
 import {
   deleteStructuredSplitBoxSplit,
   isStructuredSplitBoxLineHandle,
@@ -24,14 +24,14 @@ import {
 import { getCellOccupancy } from "@/shared/metrics";
 import { cloneTextAttributes } from "@/shared/utils/ansi";
 import { resolveSelectionCommands } from "../selectionCommandPort";
-import { getStructuredTextSelectionRange } from "@/shared/utils/structuredTextRanges";
+import { getStructuredTextSelectionRange } from "@/domains/structured-content/public";
 
-const resolveSelectionAreas = (state: CanvasState) => {
+const resolveSelectionAreas = (state: EditorState) => {
   const staticSelections = getStaticGridSelectionAreas(state.staticGridSelection);
   return staticSelections.length > 0 ? staticSelections : state.selections;
 };
 
-const getActiveStructuredTextSelection = (state: CanvasState) => {
+const getActiveStructuredTextSelection = (state: EditorState) => {
   if (state.canvasMode !== "structured") return null;
   const range = getStructuredTextSelectionRange(state.structuredTextSelection);
   if (!range || !state.structuredTextSelection) return null;
@@ -45,7 +45,7 @@ const getActiveStructuredTextSelection = (state: CanvasState) => {
 };
 
 export const createSelectionSlice: StateCreator<
-  CanvasState,
+  EditorState,
   [],
   [],
   SelectionSlice

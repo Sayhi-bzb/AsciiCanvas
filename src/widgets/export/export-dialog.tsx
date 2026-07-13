@@ -2,14 +2,10 @@
 
 import { useMemo, useState, type KeyboardEvent } from "react";
 import { Copy, Download } from "lucide-react";
-import type {
-  AnimationCanvasSize,
-  AnimationTimeline,
-  CanvasMode,
-  GridMap,
-  StructuredComponentInstance,
-  StructuredNode,
-} from "@/shared/types";
+import type { GridMap } from "@/shared/types";
+import type { CanvasMode } from "@/domains/sessions/public";
+import type { StructuredComponentInstance, StructuredNode } from "@/domains/structured-content/public";
+import type { AnimationCanvasSize, AnimationTimeline } from "@/domains/animation/public";
 import { Button } from "@/shared/ui/button";
 import { ActionButton } from "@/shared/ui/action-button";
 import { ScrollArea } from "@/shared/ui/scroll-area";

@@ -1,5 +1,5 @@
 import type { StateCreator } from "zustand";
-import type { CanvasState, StaticGridSlice } from "../interfaces";
+import type { EditorState, StaticGridSlice } from "../interfaces";
 import {
   collapseGridSelectionTo,
   createStaticGridState,
@@ -12,11 +12,11 @@ import {
 } from "@/domains/selection/public";
 import { clampPointToBounds } from "@/domains/animation/public";
 
-const clampStaticAddress = (address: GridAddress, state: CanvasState) =>
+const clampStaticAddress = (address: GridAddress, state: EditorState) =>
   clampPointToBounds(address, state.canvasBounds);
 
 export const createStaticGridSlice: StateCreator<
-  CanvasState,
+  EditorState,
   [],
   [],
   StaticGridSlice

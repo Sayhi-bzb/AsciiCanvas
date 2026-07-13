@@ -1,10 +1,7 @@
-import type {
-  AnimationCanvasSize,
-  CanvasMode,
-  GridMap,
-  Point,
-  StructuredNode,
-} from "@/shared/types";
+import type { GridMap, Point } from "@/shared/types";
+import type { CanvasMode } from "@/domains/sessions/public";
+import type { StructuredNode } from "@/domains/structured-content/public";
+import type { AnimationCanvasSize } from "@/domains/animation/public";
 import { resolveCanvasLinkHit, type CanvasLinkHit } from "./linkHitTesting";
 import {
   getLocalCanvasPoint,

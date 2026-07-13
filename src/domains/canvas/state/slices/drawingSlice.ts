@@ -1,20 +1,15 @@
 import type { StateCreator } from "zustand";
-import type { CanvasState, DrawingSlice } from "../interfaces";
-import { runCanvasTransaction, yMainGrid } from "@/shared/lib/yjs-setup";
+import type { EditorState, DrawingSlice } from "../interfaces";
+import { runCanvasTransaction, yMainGrid } from "../yjs";
 import { GridManager } from "@/shared/utils/grid";
-import type { GridPoint, StructuredBoxNode, StructuredNode } from "@/shared/types";
+import type { GridPoint } from "@/shared/types";
+import type { StructuredBoxNode, StructuredNode } from "@/domains/structured-content/public";
 import { placeCharInMap, placeCharInYMap } from "../utils";
 import { deleteCellAt } from "../gridOps";
 import { COLOR_PRIMARY_TEXT } from "@/shared/lib/constants";
-import {
-  getBoxPoints,
-  getCirclePoints,
-  createDefaultSplitBoxRoot,
-  getLShapeLinePoints,
-  getSplitBoxPoints,
-  getStepLinePoints,
-} from "@/shared/utils/shapes";
-import { createStructuredNodeId } from "@/shared/utils/structured";
+import { getBoxPoints, getCirclePoints, getLShapeLinePoints, getStepLinePoints } from "@/shared/utils/shapes";
+import { createDefaultSplitBoxRoot, getSplitBoxPoints } from "@/domains/structured-content/public";
+import { createStructuredNodeId } from "@/domains/structured-content/public";
 import {
   duplicateStructuredNodes,
   reorderStructuredNodes,
@@ -30,7 +25,7 @@ import { splitGraphemes } from "@/shared/metrics";
 import {
   getStructuredTextSelectionRange,
   updateStructuredTextStyleRanges,
-} from "@/shared/utils/structuredTextRanges";
+} from "@/domains/structured-content/public";
 
 const getFilledRectPoints = (
   start: { x: number; y: number },
@@ -50,7 +45,7 @@ const getFilledRectPoints = (
 };
 
 export const createDrawingSlice: StateCreator<
-  CanvasState,
+  EditorState,
   [],
   [],
   DrawingSlice

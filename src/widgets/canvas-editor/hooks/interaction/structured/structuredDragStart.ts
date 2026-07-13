@@ -1,5 +1,6 @@
-import type { Point, StructuredNode } from "@/shared/types";
-import { sceneToGridEntries } from "@/shared/utils/structured";
+import type { Point } from "@/shared/types";
+import type { StructuredNode } from "@/domains/structured-content/public";
+import { sceneToGridEntries } from "@/domains/structured-content/public";
 import { createMapFromEntries } from "@/domains/canvas/public";
 import {
   isStructuredSplitBoxLineHandle,

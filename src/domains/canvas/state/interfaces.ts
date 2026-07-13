@@ -1,25 +1,15 @@
-import type {
-  AnimationCanvasSize,
-  AnimationFrame,
-  AnimationTimeline,
-  CanvasMode,
-  GridCell,
-  GridMap,
-  GridPoint,
-  OnionSkinSettings,
-  Point,
-  SelectionArea,
-  StructuredNode,
-  StructuredBoxNode,
-  StructuredComponentInstance,
-  StructuredTextStyleRange,
-  TextAttributes,
-  ToolType,
-} from "@/shared/types";
-import type { StructuredTextSelection } from "@/shared/utils/structuredTextRanges";
+import type { GridMap, GridPoint, Point, SelectionArea, TextAttributes } from "@/shared/types";
+import type { CanvasMode } from "@/domains/sessions/public";
+import type { ToolType } from "../model/tool";
+import type { StructuredNode, StructuredBoxNode, StructuredComponentInstance, StructuredTextStyleRange } from "@/domains/structured-content/public";
+import type { AnimationCanvasSize, AnimationTimeline } from "@/domains/animation/public";
+import type { StructuredTextSelection } from "@/domains/structured-content/public";
 import type { GridAddress, GridEditMode, GridRange, GridSelectionState } from "@/domains/selection/public";
 import type { StructuredSplitBoxHandle } from "@/domains/structured-content/public";
-import type { CanvasHistoryMode } from "@/shared/lib/yjs-setup";
+import type { CanvasSession } from "@/domains/sessions/public";
+import type { SessionCommands } from "@/domains/sessions/public";
+import type { AnimationCommands } from "@/domains/animation/public";
+import type { CanvasHistoryMode } from "./yjs";
 
 export type CanvasColorPickerTarget = "char" | "bg";
 
@@ -141,71 +131,7 @@ export interface SelectionSlice {
   expandSelection: (dx: number, dy: number) => void;
 }
 
-export interface CanvasViewport {
-  offset: Point;
-  zoom: number;
-}
-
-export interface CanvasSession {
-  id: string;
-  name: string;
-  mode: CanvasMode;
-  scene: StructuredNode[];
-  components?: StructuredComponentInstance[];
-  grid: [string, GridCell][];
-  size?: AnimationCanvasSize;
-  timeline?: AnimationTimeline;
-  viewport?: CanvasViewport;
-}
-
-export type CanvasImportSnapshot = {
-  mode: CanvasMode;
-  scene: StructuredNode[];
-  components: StructuredComponentInstance[];
-  grid: [string, GridCell][];
-  size?: AnimationCanvasSize;
-  timeline?: AnimationTimeline;
-};
-export interface SessionSlice {
-  createCanvasSession: (
-    mode?: CanvasMode,
-    options?: { size?: AnimationCanvasSize }
-  ) => void;
-  importCanvasSession: (
-    raw: string | unknown,
-    options?: { name?: string }
-  ) => CanvasSession;
-  switchCanvasSession: (canvasId: string) => void;
-  removeCanvasSession: (canvasId: string) => void;
-  renameCanvasSession: (canvasId: string, nextName: string) => void;
-}
-
-export interface AnimationSlice {
-  setAnimationCurrentFrame: (frameId: string) => void;
-  insertAnimationFrame: (position?: "before" | "after") => void;
-  renameAnimationFrame: (frameId: string, nextName: string) => void;
-  duplicateAnimationFrame: (frameId?: string) => void;
-  duplicateAnimationFrames: (frameIds: string[]) => string[];
-  removeAnimationFrame: (frameId?: string) => void;
-  removeAnimationFrames: (frameIds: string[]) => string[];
-  moveAnimationFrame: (frameId: string, direction: -1 | 1) => void;
-  reorderAnimationFrames: (frameIds: string[]) => void;
-  setAnimationFps: (fps: number) => void;
-  toggleAnimationLoop: () => void;
-  setOnionSkinSettings: (settings: Partial<OnionSkinSettings>) => void;
-  setAnimationCanvasSize: (size: AnimationCanvasSize) => void;
-  applyGeneratedAnimationFrames: (
-    frames: AnimationFrame[],
-    mode: "insert-after-current" | "replace-animation" | "append-to-end",
-    options?: { fps?: number; size?: AnimationCanvasSize }
-  ) => void;
-  playAnimation: () => void;
-  pauseAnimation: () => void;
-  stepAnimationFrame: (direction?: -1 | 1) => void;
-  tickAnimationPlayback: () => void;
-}
-
-export type CanvasState = {
+export type EditorState = {
   offset: Point;
   zoom: number;
   tool: ToolType;
@@ -256,5 +182,5 @@ export type CanvasState = {
   StructuredGridFocusSlice &
   TextSlice &
   SelectionSlice &
-  SessionSlice &
-  AnimationSlice;
+  SessionCommands &
+  AnimationCommands;

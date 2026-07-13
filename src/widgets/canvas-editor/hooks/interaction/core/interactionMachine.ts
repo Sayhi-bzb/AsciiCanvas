@@ -1,4 +1,6 @@
-import type { GridMap, Point, StructuredNode, ToolType } from "@/shared/types";
+import type { GridMap, Point } from "@/shared/types";
+import type { ToolType } from "@/domains/canvas/public";
+import type { StructuredNode } from "@/domains/structured-content/public";
 import type {
   StructuredBoxResizeHandle,
   StructuredLineResizeHandle,

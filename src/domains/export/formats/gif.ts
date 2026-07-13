@@ -3,11 +3,8 @@ import {
   GRID_COLOR,
   COLOR_PRIMARY_TEXT,
 } from "@/shared/lib/constants";
-import type {
-  AnimationCanvasSize,
-  AnimationTimeline,
-  GridCell,
-} from "@/shared/types";
+import type { GridCell } from "@/shared/types";
+import type { AnimationCanvasSize, AnimationTimeline } from "@/domains/animation/public";
 import {
   DEFAULT_GRID_RENDER_METRICS,
   drawGridLines,

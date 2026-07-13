@@ -10,7 +10,7 @@ import {
   type PointerEvent,
 } from "react";
 import { useEventListener } from "ahooks";
-import type { CanvasMode } from "@/shared/types";
+import type { CanvasMode } from "@/domains/sessions/public";
 import { gridCellRect } from "@/shared/metrics";
 import { shouldIgnoreClipboardShortcut } from "@/shared/utils/dom-focus";
 import {

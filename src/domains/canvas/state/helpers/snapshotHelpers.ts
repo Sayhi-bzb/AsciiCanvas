@@ -1,17 +1,14 @@
-import type {
-  GridCell,  StructuredNode,
-  StructuredSplitBoxNode,
-  StructuredSplitBoxTreeNode,
-} from "@/shared/types";
+import type { GridCell } from "@/shared/types";
+import type { StructuredNode, StructuredSplitBoxNode, StructuredSplitBoxTreeNode } from "@/domains/structured-content/public";
 import { COLOR_PRIMARY_TEXT } from "@/shared/lib/constants";
-import { normalizeScene } from "@/shared/utils/structured";
+import { normalizeScene } from "@/domains/structured-content/public";
 import {
   cloneTextAttributes,
   isSameTextAttributes,
   normalizeCellHref,
 } from "@/shared/utils/ansi";
-import { cloneStructuredTextStyleRanges } from "@/shared/utils/structuredTextRanges";
-import { normalizeSplitBoxRoot } from "@/shared/utils/shapes";
+import { cloneStructuredTextStyleRanges } from "@/domains/structured-content/public";
+import { normalizeSplitBoxRoot } from "@/domains/structured-content/public";
 
 const cloneSplitBoxRoot = (
   root: StructuredSplitBoxTreeNode

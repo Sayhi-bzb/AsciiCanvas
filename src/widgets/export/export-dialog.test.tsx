@@ -7,7 +7,7 @@ import {
 } from "@testing-library/react";
 import { ExportDialog } from "@/widgets/export/export-dialog";
 import { setUiLanguage } from "@/shared/i18n";
-import type { CanvasMode } from "@/shared/types";
+import type { CanvasMode } from "@/domains/sessions/public";
 
 const defaultProps = {
   grid: new Map(),

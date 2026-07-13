@@ -1,4 +1,5 @@
-import type { Point, ToolType } from "@/shared/types";
+import type { Point } from "@/shared/types";
+import type { ToolType } from "@/domains/canvas/public";
 import { getCellOccupancy } from "@/shared/metrics";
 import bresenham from "bresenham";
 import type {

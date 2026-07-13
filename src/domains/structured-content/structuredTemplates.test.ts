@@ -15,7 +15,7 @@ import { exportStructuredHierarchyText } from "@/domains/export/public";
 import {
   buildStructuredTree,
   renderStructuredScene,
-} from "@/shared/utils/structured";
+} from "@/domains/structured-content/public";
 
 describe("structuredTemplates", () => {
   const build = (templateId: StructuredTemplateId) =>

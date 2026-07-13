@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createEvent, fireEvent, render, screen } from "@testing-library/react";
 import { SidebarRight } from "@/widgets/toolbar/sidebar-right";
-import { useCanvasStore } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/public";
 import { SidebarProvider } from "@/shared/ui/sidebar";
 import {
   STRUCTURED_COMPONENT_TEMPLATES,
@@ -24,7 +24,7 @@ const sortTemplateLabels = <
   );
 
 describe("SidebarRight structured templates", () => {
-  const initialState = useCanvasStore.getState();
+  const initialState = useEditorStore.getState();
 
   beforeEach(() => {
     setUiLanguage("en");
@@ -46,11 +46,11 @@ describe("SidebarRight structured templates", () => {
   afterEach(() => {
     setActiveStructuredTemplateDragId(null);
     setUiLanguage("en");
-    useCanvasStore.setState(initialState, true);
+    useEditorStore.setState(initialState, true);
   });
 
   it("shows structured templates instead of the character library in structured mode", () => {
-    useCanvasStore.setState({ canvasMode: "structured" });
+    useEditorStore.setState({ canvasMode: "structured" });
 
     const { container } = render(
       <SidebarProvider>
@@ -186,7 +186,7 @@ describe("SidebarRight structured templates", () => {
   });
 
   it("shows animation frames in the right sidebar without replacing its footer", () => {
-    useCanvasStore.setState({
+    useEditorStore.setState({
       canvasMode: "animation",
       canvasBounds: { width: 80, height: 25 },
       animationTimeline: {
@@ -221,7 +221,7 @@ describe("SidebarRight structured templates", () => {
   });
 
   it("switches structured sidebar tabs between templates and components", () => {
-    useCanvasStore.setState({ canvasMode: "structured" });
+    useEditorStore.setState({ canvasMode: "structured" });
 
     render(
       <SidebarProvider>
@@ -274,7 +274,7 @@ describe("SidebarRight structured templates", () => {
   });
 
   it("filters structured components from the main header search", () => {
-    useCanvasStore.setState({ canvasMode: "structured" });
+    useEditorStore.setState({ canvasMode: "structured" });
 
     render(
       <SidebarProvider>
@@ -326,7 +326,7 @@ describe("SidebarRight structured templates", () => {
   });
 
   it("keeps the search header outside structured mode", () => {
-    useCanvasStore.setState({ canvasMode: "freeform" });
+    useEditorStore.setState({ canvasMode: "freeform" });
 
     render(
       <SidebarProvider>
@@ -343,7 +343,7 @@ describe("SidebarRight structured templates", () => {
   });
 
   it("hides structured search when the sidebar is collapsed", () => {
-    useCanvasStore.setState({ canvasMode: "structured" });
+    useEditorStore.setState({ canvasMode: "structured" });
 
     const { container } = render(
       <SidebarProvider defaultOpen={false}>
@@ -360,7 +360,7 @@ describe("SidebarRight structured templates", () => {
   });
 
   it("toggles operation UI labels to Chinese without changing template labels", () => {
-    useCanvasStore.setState({ canvasMode: "structured" });
+    useEditorStore.setState({ canvasMode: "structured" });
 
     render(
       <SidebarProvider>
@@ -381,7 +381,7 @@ describe("SidebarRight structured templates", () => {
   });
 
   it("uses a transparent drag image for structured templates", () => {
-    useCanvasStore.setState({
+    useEditorStore.setState({
       canvasMode: "structured",
       brushColor: "#334155",
     });

@@ -1,6 +1,6 @@
 import type { StateCreator } from "zustand";
-import type { CanvasState, TextSlice } from "../interfaces";
-import { runCanvasTransaction, yMainGrid } from "@/shared/lib/yjs-setup";
+import type { EditorState, TextSlice } from "../interfaces";
+import { runCanvasTransaction, yMainGrid } from "../yjs";
 import { GridManager } from "@/shared/utils/grid";
 import { collapseGridSelectionTo, getStaticGridViewState } from "@/domains/selection/public";
 import { placeCharInYMap, placeStyledCellInYMap } from "../utils";
@@ -8,14 +8,15 @@ import {
   deleteCellAt,
   resolveBackspaceAnchor,
 } from "../gridOps";
-import type { NodeBounds, StructuredBoxNode, StructuredTextNode } from "@/shared/types";
+import type { NodeBounds } from "@/shared/types";
+import type { StructuredBoxNode, StructuredTextNode } from "@/domains/structured-content/public";
 import {
   createStructuredNodeId,
   getTextColumnWidth,
   trimTextToColumns,
   withPointWithinBounds,
   getStructuredNodeBounds,
-} from "@/shared/utils/structured";
+} from "@/domains/structured-content/public";
 import {
   clampPointToBounds,
   isPointWithinBounds,
@@ -31,7 +32,7 @@ import {
   getStructuredTextSelectionRange,
   normalizeStructuredTextSelection,
   replaceStructuredTextRange as replaceStructuredTextNodeRange,
-} from "@/shared/utils/structuredTextRanges";
+} from "@/domains/structured-content/public";
 
 const toCharIndexByColumn = (text: string, columnOffset: number) => {
   if (columnOffset <= 0) return 0;
@@ -46,8 +47,8 @@ const toCharIndexByColumn = (text: string, columnOffset: number) => {
 };
 
 const findTextNodeAtCursor = (
-  scene: CanvasState["structuredScene"],
-  cursor: CanvasState["textCursor"],
+  scene: EditorState["structuredScene"],
+  cursor: EditorState["textCursor"],
   preferredNodeId?: string | null
 ) => {
   if (!cursor) return null;
@@ -73,7 +74,7 @@ const getBoxNameTextStartX = (bounds: NodeBounds) =>
   bounds.x + 3;
 
 const getNewlineTargetX = (
-  grid: CanvasState["grid"],
+  grid: EditorState["grid"],
   currentX: number,
   currentY: number
 ) => {
@@ -111,8 +112,8 @@ const isWideFollowerRichCell = (
 };
 
 const findBoxNameTargetAtCursor = (
-  scene: CanvasState["structuredScene"],
-  cursor: CanvasState["textCursor"]
+  scene: EditorState["structuredScene"],
+  cursor: EditorState["textCursor"]
 ) => {
   if (!cursor) return null;
   const candidates = scene
@@ -132,7 +133,7 @@ const findBoxNameTargetAtCursor = (
   })[0];
 };
 
-export const createTextSlice: StateCreator<CanvasState, [], [], TextSlice> = (
+export const createTextSlice: StateCreator<EditorState, [], [], TextSlice> = (
   set,
   get
 ) => ({

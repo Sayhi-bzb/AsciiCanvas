@@ -1,16 +1,12 @@
-import type {
-  AnimationCanvasSize,
-  AnimationTimeline,
-  CanvasMode,
-  GridMap,
-  StructuredComponentInstance,
-  StructuredNode,
-} from "@/shared/types";
+import type { GridMap } from "@/shared/types";
+import type { CanvasMode } from "@/domains/sessions/public";
+import type { StructuredComponentInstance, StructuredNode } from "@/domains/structured-content/public";
+import type { AnimationCanvasSize, AnimationTimeline } from "@/domains/animation/public";
 import { cloneTextAttributes } from "@/shared/utils/ansi";
 import {
   normalizeStructuredComponents,
 } from "@/domains/structured-content/public";
-import { cloneStructuredTextStyleRanges } from "@/shared/utils/structuredTextRanges";
+import { cloneStructuredTextStyleRanges } from "@/domains/structured-content/public";
 import {
   ASCII_CANVAS_DOCUMENT_TYPE,
   ASCII_CANVAS_DOCUMENT_VERSION,

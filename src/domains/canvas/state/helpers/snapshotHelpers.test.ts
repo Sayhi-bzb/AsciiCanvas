@@ -10,14 +10,8 @@ import {
   isPoint,
   toStructuredNode
 } from '@/domains/canvas/state/helpers/snapshotHelpers';
-import type {
-  StructuredBoxNode,
-  StructuredLineNode,
-  StructuredNode,
-  StructuredSplitBoxNode,
-  StructuredTextNode,
-  GridCell,
-} from '@/shared/types';
+import type { GridCell } from "@/shared/types";
+import type { StructuredBoxNode, StructuredLineNode, StructuredNode, StructuredSplitBoxNode, StructuredTextNode } from "@/domains/structured-content/public";
 
 describe('snapshotHelpers', () => {
   describe('cloneStructuredNode', () => {

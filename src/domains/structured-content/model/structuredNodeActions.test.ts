@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { StructuredNode } from "@/shared/types";
+import type { StructuredNode } from "@/domains/structured-content/public";
 import {
   duplicateStructuredNodes,
   reorderStructuredNodes,

@@ -2,7 +2,7 @@
 
 import { Map, PanelLeftClose } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useCanvasStore } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/public";
 import { cn } from "@/shared/lib/utils";
 import { uiClass } from "@/shared/styles/components";
 import { DEFAULT_GRID_RENDER_METRICS } from "@/shared/metrics";
@@ -73,7 +73,7 @@ export const Minimap = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const [isViewportHovered, setIsViewportHovered] = useState(false);
   const [isDraggingViewport, setIsDraggingViewport] = useState(false);
-  const { grid, offset, zoom, setOffset } = useCanvasStore(
+  const { grid, offset, zoom, setOffset } = useEditorStore(
     useShallow((state) => ({
       grid: state.grid,
       offset: state.offset,

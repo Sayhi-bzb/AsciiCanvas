@@ -1,4 +1,5 @@
-import type { GridCell, Point, StructuredNodeStyle } from "@/shared/types";
+import type { GridCell, Point } from "@/shared/types";
+import type { StructuredNodeStyle } from "./types";
 import { normalizeCellStyle } from "@/shared/utils/ansi";
 import { getCellOccupancy, splitGraphemes } from "@/shared/metrics";
 

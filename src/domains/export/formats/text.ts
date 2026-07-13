@@ -1,6 +1,7 @@
 import { COLOR_PRIMARY_TEXT, EXPORT_PADDING } from "@/shared/lib/constants";
 import { getCellOccupancy } from "@/shared/metrics";
-import type { AnimationCanvasSize, GridCell, GridMap, SelectionArea } from "@/shared/types";
+import type { GridCell, GridMap, SelectionArea } from "@/shared/types";
+import type { AnimationCanvasSize } from "@/domains/animation/public";
 import {
   cloneTextAttributes,
   effectiveCellStyle,

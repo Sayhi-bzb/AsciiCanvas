@@ -1,14 +1,7 @@
-import type {
-  Point,
-  StructuredBoxNode,
-  StructuredLineNode,
-  StructuredNode,
-  StructuredNodeStyle,
-  StructuredSplitBoxNode,
-  StructuredTextStyleRange,
-} from "@/shared/types";
-import { createStructuredNodeId } from "@/shared/utils/structured";
-import { createDefaultSplitBoxRoot } from "@/shared/utils/shapes";
+import type { Point } from "@/shared/types";
+import type { StructuredBoxNode, StructuredLineNode, StructuredNode, StructuredNodeStyle, StructuredSplitBoxNode, StructuredTextStyleRange } from "@/domains/structured-content/public";
+import { createStructuredNodeId } from "../../model/scene";
+import { createDefaultSplitBoxRoot } from "../../model/split-box-geometry";
 import type {
   StructuredComponentFactory,
   StructuredTemplateBuildOptions,

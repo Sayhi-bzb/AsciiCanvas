@@ -5,6 +5,7 @@ import ts from "typescript";
 const SRC_ROOT = path.resolve("src");
 const SOURCE_EXTENSIONS = new Set([".ts", ".tsx"]);
 const SKIPPED_DIRECTORIES = new Set(["__tests__", "test"]);
+const FORBIDDEN_SHARED_DOMAIN_NAME = /^(?:Animation|Structured)/;
 
 function collectSourceFiles(directory) {
   const files = [];
@@ -72,6 +73,20 @@ for (const absolutePath of collectSourceFiles(SRC_ROOT)) {
   );
 
   function inspect(node) {
+    if (sourcePath.startsWith("shared/")) {
+      const isExported = node.modifiers?.some(
+        (modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword
+      );
+      const name = "name" in node && node.name && ts.isIdentifier(node.name)
+        ? node.name.text
+        : null;
+      if (isExported && name && FORBIDDEN_SHARED_DOMAIN_NAME.test(name)) {
+        const location = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+        violations.push(
+          `${sourcePath}:${location.line + 1}: shared may not own domain symbol ${name}`
+        );
+      }
+    }
     let specifier = null;
     if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
       specifier = node.moduleSpecifier.text;

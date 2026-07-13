@@ -15,7 +15,7 @@ import {
 } from "@/domains/actions/public";
 import { getActionShortcutLabel } from "@/domains/actions/public";
 import type { ContextMenuEntry } from "@/domains/actions/public";
-import { useCanvasStore } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/public";
 import { useUiI18n, type I18nKey } from "@/shared/i18n";
 
 const LABEL_KEY_BY_ID: Record<string, I18nKey> = {
@@ -60,7 +60,7 @@ export const CanvasContextMenuContent = ({
       const hasEnabledChild = entry.children.some(
         (child) =>
           child.type === "action" &&
-          canRunAction(child.id, useCanvasStore.getState())
+          canRunAction(child.id, useEditorStore.getState())
       );
       return (
         <ContextMenuSub key={`sub-${entry.label}-${index}`}>
@@ -91,7 +91,7 @@ export const CanvasContextMenuContent = ({
           })
         }
         variant={meta.destructive ? "destructive" : "default"}
-        disabled={!canRunAction(entry.id, useCanvasStore.getState())}
+        disabled={!canRunAction(entry.id, useEditorStore.getState())}
       >
         {Icon && <Icon className="mr-2 size-4" />}
         <span>{labelKey ? t(labelKey) : meta.label}</span>

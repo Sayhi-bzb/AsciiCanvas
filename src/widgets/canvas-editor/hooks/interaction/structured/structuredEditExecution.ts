@@ -1,11 +1,8 @@
-import type {
-  CanvasMode,
-  Point,
-  SelectionArea,
-  StructuredNode,
-  ToolType,
-} from "@/shared/types";
-import type { StructuredTextSelection } from "@/shared/utils/structuredTextRanges";
+import type { Point, SelectionArea } from "@/shared/types";
+import type { CanvasMode } from "@/domains/sessions/public";
+import type { ToolType } from "@/domains/canvas/public";
+import type { StructuredNode } from "@/domains/structured-content/public";
+import type { StructuredTextSelection } from "@/domains/structured-content/public";
 import {
   resolveStructuredEditAttempt,
   type StructuredEditDecision,

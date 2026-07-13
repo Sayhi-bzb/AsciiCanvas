@@ -16,7 +16,7 @@ import {
   STRUCTURED_COMPONENT_TEMPLATES,
   STRUCTURED_PAGE_TEMPLATES,
 } from "@/domains/structured-content/public";
-import { useCanvasStore } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/public";
 import { runSidebarAction } from "@/domains/actions/public";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
@@ -54,7 +54,7 @@ export function SidebarRight() {
     setExportShowGrid,
     setOffset,
     setZoom,
-  } = useCanvasStore(
+  } = useEditorStore(
     useShallow((state) => ({
       grid: state.grid,
       canvasMode: state.canvasMode,

@@ -2,14 +2,11 @@ import {
   getAnimationFrameEntries,
   normalizeAnimationCanvasSize,
   normalizeAnimationTimeline
-} from "@/domains/animation/public";import type {
-  GridCell,
-
-  StructuredNode,
-} from "@/shared/types";
-import type { CanvasImportSnapshot } from "@/domains/canvas/public";
+} from "@/domains/animation/public";import type { GridCell } from "@/shared/types";
+import type { StructuredNode } from "@/domains/structured-content/public";
+import type { CanvasImportSnapshot } from "@/domains/sessions/public";
 import { GridManager } from "@/shared/utils/grid";
-import { sceneToGridEntries } from "@/shared/utils/structured";
+import { sceneToGridEntries } from "@/domains/structured-content/public";
 import type {
   AsciiCanvasAnimationDocumentV1,
   AsciiCanvasDocumentV1,
@@ -20,7 +17,7 @@ import type {
 } from "./types";
 import { isAsciiCanvasDocument } from "./validation";
 import { cloneTextAttributes } from "@/shared/utils/ansi";
-import { cloneStructuredTextStyleRanges } from "@/shared/utils/structuredTextRanges";
+import { cloneStructuredTextStyleRanges } from "@/domains/structured-content/public";
 import {
   normalizeStructuredComponents,
 } from "@/domains/structured-content/public";

@@ -1,12 +1,8 @@
-import type { CanvasSession } from "../interfaces";
-import type {
-  AnimationCanvasSize,
-  AnimationTimeline,
-  CanvasMode,
-  StructuredComponentInstance,
-  StructuredNode,
-  Point,
-} from "@/shared/types";
+import type { CanvasSession } from "./model";
+import type { Point } from "@/shared/types";
+import type { CanvasMode } from "./mode";
+import type { StructuredComponentInstance, StructuredNode } from "@/domains/structured-content/public";
+import type { AnimationCanvasSize, AnimationTimeline } from "@/domains/animation/public";
 
 export const resolveNextSessionName = (sessions: CanvasSession[]) => {
   let maxIndex = 0;

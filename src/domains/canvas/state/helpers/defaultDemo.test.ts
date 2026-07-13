@@ -8,7 +8,7 @@ import {
   DEFAULT_SESSION_ID,
   DEFAULT_STRUCTURED_SESSION_ID,
 } from "@/domains/canvas/state/helpers/storeUtils";
-import { useCanvasStore } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/public";
 import { GridManager } from "@/shared/utils/grid";
 
 describe("default demo canvas", () => {
@@ -50,7 +50,7 @@ describe("default demo canvas", () => {
   });
 
   it("uses case/demo.md as the default first canvas", () => {
-    const state = useCanvasStore.getState();
+    const state = useEditorStore.getState();
     const firstSession = state.canvasSessions.find(
       (session) => session.id === DEFAULT_SESSION_ID
     );
@@ -70,7 +70,7 @@ describe("default demo canvas", () => {
   });
 
   it("adds a default structured Safari canvas without activating it", () => {
-    const state = useCanvasStore.getState();
+    const state = useEditorStore.getState();
     const structuredSession = state.canvasSessions.find(
       (session) => session.id === DEFAULT_STRUCTURED_SESSION_ID
     );

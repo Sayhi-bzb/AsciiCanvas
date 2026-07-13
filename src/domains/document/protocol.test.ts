@@ -12,7 +12,8 @@ import {
   protocolDocumentToSnapshot,
 } from "@/domains/document/public";
 import { normalizeAnimationTimeline } from "@/domains/animation/public";
-import type { GridMap, StructuredNode } from "@/shared/types";
+import type { GridMap } from "@/shared/types";
+import type { StructuredNode } from "@/domains/structured-content/public";
 
 describe("protocol builders", () => {
   it("builds a stable freeform document from a colored sparse grid", () => {

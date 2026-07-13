@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Minimap } from "@/widgets/canvas-editor/Minimap";
-import { useCanvasStore } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/public";
 import { GridManager } from "@/shared/utils/grid";
 
 const createMockContext = () => ({
@@ -61,7 +61,7 @@ describe("Minimap overview panel", () => {
       [GridManager.toKey(1, 0), { char: " ", color: "#000000", bgColor: "#ffffff" }],
       [GridManager.toKey(2, 0), { char: "A", color: "#111111" }],
     ]);
-    useCanvasStore.setState({ grid });
+    useEditorStore.setState({ grid });
 
     const contexts: Array<ReturnType<typeof createMockContext>> = [];
     vi.mocked(HTMLCanvasElement.prototype.getContext).mockImplementation(() => {

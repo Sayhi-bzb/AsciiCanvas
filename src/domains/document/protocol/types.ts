@@ -1,12 +1,7 @@
-import type {
-  AnimationCanvasSize,
-  CanvasMode,
-  Point,
-  StructuredComponentInstance,
-  StructuredSplitBoxTreeNode,
-  StructuredTextStyleRange,
-  TextAttributes,
-} from "@/shared/types";
+import type { Point, TextAttributes } from "@/shared/types";
+import type { CanvasMode } from "@/domains/sessions/public";
+import type { StructuredComponentInstance, StructuredSplitBoxTreeNode, StructuredTextStyleRange } from "@/domains/structured-content/public";
+import type { AnimationCanvasSize } from "@/domains/animation/public";
 
 export const ASCII_CANVAS_DOCUMENT_TYPE = "ascii-canvas-document";
 export const ASCII_CANVAS_DOCUMENT_VERSION = 1;

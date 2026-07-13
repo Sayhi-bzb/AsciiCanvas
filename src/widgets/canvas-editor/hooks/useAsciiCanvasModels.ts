@@ -1,8 +1,8 @@
-import { useCanvasStore } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/public";
 import { useShallow } from "zustand/react/shallow";
 
 export const useAsciiCanvasModels = () => {
-  const interactionStore = useCanvasStore(
+  const interactionStore = useEditorStore(
     useShallow((state) => ({
       tool: state.tool,
       canvasMode: state.canvasMode,
@@ -43,7 +43,7 @@ export const useAsciiCanvasModels = () => {
       updateStructuredNode: state.updateStructuredNode,
     }))
   );
-  const rendererStore = useCanvasStore(
+  const rendererStore = useEditorStore(
     useShallow((state) => ({
       offset: state.offset,
       zoom: state.zoom,
@@ -70,7 +70,7 @@ export const useAsciiCanvasModels = () => {
       canvasColorPickerTarget: state.canvasColorPickerTarget,
     }))
   );
-  const editorStore = useCanvasStore(
+  const editorStore = useEditorStore(
     useShallow((state) => ({
       textCursor: state.textCursor,
       staticGridSelection: state.staticGridSelection,

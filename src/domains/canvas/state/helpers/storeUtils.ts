@@ -1,13 +1,10 @@
-import type { CanvasSession, CanvasState } from "../interfaces";
-import type {
-  AnimationCanvasSize,
-  AnimationTimeline,
-  CanvasMode,
-  StructuredComponentInstance,
-  StructuredNode,
-  ToolType,
-} from "@/shared/types";
-import { sceneToGridEntries } from "@/shared/utils/structured";
+import type { EditorState } from "../interfaces";
+import type { CanvasSession } from "@/domains/sessions/public";
+import type { CanvasMode } from "@/domains/sessions/public";
+import type { ToolType } from "../../model/tool";
+import type { StructuredComponentInstance, StructuredNode } from "@/domains/structured-content/public";
+import type { AnimationCanvasSize, AnimationTimeline } from "@/domains/animation/public";
+import { sceneToGridEntries } from "@/domains/structured-content/public";
 import { MIN_ZOOM, MAX_ZOOM } from "@/shared/lib/constants";
 import { serializeGrid } from "./snapshotHelpers";
 import { normalizeStructuredComponents } from "@/domains/structured-content/public";
@@ -26,7 +23,7 @@ import {
   resolveNextSessionName,
   createSessionId,
   normalizeSessionMode,
-} from "./sessionHelpers";
+} from "@/domains/sessions/public";
 
 export const DEFAULT_SESSION_ID = "canvas-1";
 export const DEFAULT_SESSION_NAME = "Canvas 1";
@@ -67,7 +64,7 @@ export const createDefaultAnimationTimeline = (): AnimationTimeline => {
   });
 };
 
-export const buildSessionSnapshot = (state: CanvasState) => {
+export const buildSessionSnapshot = (state: EditorState) => {
   if (state.canvasMode === "animation") {
     const size = state.canvasBounds ?? DEFAULT_ANIMATION_SIZE;
     const activeGridEntries = serializeGrid(state.grid);
