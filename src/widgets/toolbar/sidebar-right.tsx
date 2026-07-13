@@ -356,7 +356,7 @@ export function SidebarRight({ containerSize }: SidebarRightProps) {
                       {isActive && (
                         <span
                           data-testid="structured-sidebar-active-tab-line"
-                          className="absolute inset-x-0 -bottom-px h-px bg-foreground"
+                          className="absolute inset-x-0 -bottom-0.5 h-0.5 bg-foreground"
                         />
                       )}
                     </button>

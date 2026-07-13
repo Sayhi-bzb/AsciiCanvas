@@ -83,7 +83,12 @@ export function StructuredTemplateLibrary({
           )}
           {sortedTemplates.map((template, index) => (
             <div key={template.id}>
-              {index > 0 && <div className="h-px bg-border" />}
+              {index > 0 && (
+                <div
+                  data-slot="structured-template-separator"
+                  className="h-0.5 bg-border"
+                />
+              )}
               <button
                 type="button"
                 draggable

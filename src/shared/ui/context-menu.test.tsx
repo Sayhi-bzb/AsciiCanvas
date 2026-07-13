@@ -4,6 +4,7 @@ import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
+  ContextMenuSeparator,
   ContextMenuSub,
   ContextMenuSubContent,
   ContextMenuSubTrigger,
@@ -17,6 +18,7 @@ describe("ContextMenu styling", () => {
         <ContextMenuTrigger>Target</ContextMenuTrigger>
         <ContextMenuContent>
           <ContextMenuItem>Action</ContextMenuItem>
+          <ContextMenuSeparator />
           <ContextMenuSub>
             <ContextMenuSubTrigger>More</ContextMenuSubTrigger>
             <ContextMenuSubContent>
@@ -36,6 +38,7 @@ describe("ContextMenu styling", () => {
       "shadow-none",
       "rounded-lg"
     );
+    expect(screen.getByRole("separator")).toHaveClass("h-0.5");
 
     const subTrigger = screen.getByText("More");
     subTrigger.focus();

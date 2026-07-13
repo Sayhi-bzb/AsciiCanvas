@@ -93,13 +93,25 @@ describe("SidebarRight structured templates", () => {
     expect(scrollViewport).not.toContainElement(
       screen.getByRole("tab", { name: "Components" })
     );
-    expect(screen.getByTestId("structured-sidebar-active-tab-line")).toBeInTheDocument();
+    expect(screen.getByTestId("structured-sidebar-active-tab-line")).toHaveClass(
+      "h-0.5",
+      "-bottom-0.5"
+    );
     expect(button).toBeInTheDocument();
     const templateItems = Array.from(
       group?.querySelectorAll('button[draggable="true"]') ?? []
     );
     const sortedTemplates = sortTemplateLabels(STRUCTURED_COMPONENT_TEMPLATES);
     expect(templateItems).toHaveLength(STRUCTURED_COMPONENT_TEMPLATES.length);
+    const templateSeparators = group?.querySelectorAll(
+      '[data-slot="structured-template-separator"]'
+    );
+    expect(templateSeparators).toHaveLength(
+      STRUCTURED_COMPONENT_TEMPLATES.length - 1
+    );
+    templateSeparators?.forEach((separator) =>
+      expect(separator).toHaveClass("h-0.5")
+    );
     const itemLabels = templateItems.map(
       (item) => item.querySelector(":scope > span:last-child")?.textContent
     );
