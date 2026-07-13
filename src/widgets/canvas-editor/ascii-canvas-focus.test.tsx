@@ -19,12 +19,15 @@ const handleDoubleClickMock = vi.fn();
 const stripNodeIds = <T extends { id: string; component?: { instanceId: string } }>(
   nodes: T[]
 ) =>
-  nodes.map(({ id: _id, ...node }) => ({
-    ...node,
-    component: node.component
-      ? { ...node.component, instanceId: "<component-instance>" }
-      : undefined,
-  }));
+  nodes.map(({ id, ...node }) => {
+    void id;
+    return {
+      ...node,
+      component: node.component
+        ? { ...node.component, instanceId: "<component-instance>" }
+        : undefined,
+    };
+  });
 
 const waitForAnimationFrame = () =>
   new Promise<void>((resolve) => {

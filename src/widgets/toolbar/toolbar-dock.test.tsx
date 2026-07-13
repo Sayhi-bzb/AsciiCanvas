@@ -68,6 +68,57 @@ describe("Toolbar dock", () => {
     expect(screen.getByRole("button", { name: "Background" })).toBeInTheDocument();
   });
 
+  it("uses the top bar surface and accent background for the active tool", () => {
+    useCanvasStore.setState({ canvasMode: "freeform", tool: "select" });
+
+    const { container } = render(
+      <Toolbar tool="select" setTool={vi.fn()} onUndo={vi.fn()} />
+    );
+    const toolbar = screen.getByRole("toolbar");
+    const activeItem = container.querySelector(
+      '[data-toolbar-item="select"]'
+    );
+    const inactiveItem = container.querySelector(
+      '[data-toolbar-item="shape-group"]'
+    );
+
+    expect(toolbar.parentElement).toHaveClass("bg-muted", "rounded-lg");
+    expect(activeItem).toHaveClass("bg-accent", "text-foreground");
+    expect(inactiveItem).not.toHaveClass("bg-accent");
+    expect(toolbar.querySelector('[style*="translateX"]')).not.toBeInTheDocument();
+  });
+
+  it("uses accent backgrounds for active animation playback controls", () => {
+    useCanvasStore.setState({
+      canvasMode: "animation",
+      tool: "select",
+      animationIsPlaying: true,
+      animationTimeline: {
+        frames: [{ id: "frame-1", name: "Frame 1", grid: [] }],
+        currentFrameId: "frame-1",
+        fps: 10,
+        loop: true,
+        onionSkin: {
+          enabled: true,
+          backwardLayers: 2,
+          forwardLayers: 2,
+          opacityFalloff: [0.5, 0.3, 0.1],
+        },
+      },
+    });
+
+    render(<Toolbar tool="select" setTool={vi.fn()} onUndo={vi.fn()} />);
+
+    expect(screen.getByRole("button", { name: "Pause animation" })).toHaveClass(
+      "bg-accent",
+      "text-foreground"
+    );
+    expect(screen.getByRole("button", { name: "Toggle animation loop" })).toHaveClass(
+      "bg-accent",
+      "text-foreground"
+    );
+  });
+
   it("does not show background in animation mode", () => {
     useCanvasStore.setState({ canvasMode: "animation", tool: "select" });
 

@@ -261,6 +261,7 @@ export const findStructuredNodeHit = (
   point: Point,
   _selectedNodeIds: string[] = []
 ): StructuredNodeHit | null => {
+  void _selectedNodeIds;
   const ordered = [...scene].sort((a, b) => b.order - a.order);
   for (const node of ordered) {
     if (node.type === "box") {

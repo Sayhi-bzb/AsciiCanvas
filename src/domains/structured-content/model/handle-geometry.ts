@@ -19,6 +19,7 @@ type RectHandlePoint = {
 export const getStructuredRectHandlePoints = (
   _bounds: NodeBounds
 ): RectHandlePoint[] => {
+  void _bounds;
   return [
     { handle: "nw", xRatio: 0, yRatio: 0 },
     { handle: "n", xRatio: 0.5, yRatio: 0 },

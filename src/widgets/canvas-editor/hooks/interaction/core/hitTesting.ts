@@ -330,6 +330,5 @@ export const resolveStructuredSelectHit = ({
   };
 };
 
-export const resolveStructuredSelectHover = resolveStructuredSelectHit;
 
 

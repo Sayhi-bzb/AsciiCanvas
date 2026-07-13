@@ -7,8 +7,7 @@ export const uiClass = {
     "relative flex items-center gap-1.5 p-1.5 rounded-2xl border-primary backdrop-blur-md pointer-events-auto"
   ),
   toolbarShell: cn(
-    rx.surface({ kind: "overlay", elevated: true }),
-    "relative flex items-center gap-1 p-1.5 rounded-2xl backdrop-blur-md border-primary pointer-events-auto"
+    "relative flex items-center gap-1 rounded-lg bg-muted p-[3px] pointer-events-auto"
   ),
   minimapShell: "absolute top-4 left-4 z-[60] select-none pointer-events-auto",
   minimapToggle: cn(

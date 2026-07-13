@@ -15,6 +15,12 @@
     "e2e/**/*.ts",
     "*.config.{ts,js}"
   ],
+  "include": [
+    "files",
+    "dependencies",
+    "unresolved",
+    "duplicates"
+  ],
   "ignoreDependencies": [
     "tailwindcss",
     "tw-animate-css"

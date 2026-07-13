@@ -5,7 +5,7 @@ import {
   CANVAS_CONTEXT_MENU,
   STRUCTURED_CONTEXT_MENU,
 } from "@/domains/actions/public";
-import { editorCheckers, editorHandlers } from "@/domains/actions/public/handlers/editor";
+import { editorCheckers, editorHandlers } from "@/domains/actions/core/handlers/editor";
 import { useCanvasStore } from "@/domains/canvas/public";
 import { clipboard } from "@/shared/services/effects";
 

@@ -7,7 +7,7 @@ import {
   isFromMinimap,
   keepStructuredSplitLineHandle,
   resolveStructuredSelectHit,
-  resolveStructuredSelectHover,
+  resolveStructuredSelectHit as resolveStructuredSelectHover,
 } from "@/widgets/canvas-editor/hooks/interaction/core/hitTesting";
 import { gridCellRect } from "@/shared/metrics";
 import type {

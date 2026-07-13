@@ -12,7 +12,7 @@ import {
   resolveSnappedGridPointFromScreen,
   type CanvasViewport,
 } from "./coordinates";
-import { resolveStructuredSelectHover } from "./hitTesting";
+import { resolveStructuredSelectHit as resolveStructuredSelectHover } from "./hitTesting";
 
 export type CanvasRect = Pick<DOMRect, "left" | "top">;
 

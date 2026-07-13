@@ -123,7 +123,7 @@ export function AnimationTimeline({
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                tone="neutral"
+                tone="subtle"
                 shape="square"
                 size="sm"
                 className="bg-transparent shadow-none hover:bg-accent/45"
@@ -138,12 +138,14 @@ export function AnimationTimeline({
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                tone={animationIsPlaying ? "primary" : "neutral"}
+                tone="subtle"
                 shape="square"
                 size="sm"
                 className={cn(
                   "shadow-none",
-                  !animationIsPlaying && "bg-transparent hover:bg-accent/45"
+                  animationIsPlaying
+                    ? "bg-accent text-foreground"
+                    : "bg-transparent hover:bg-accent/45"
                 )}
                 aria-label={animationIsPlaying ? "Pause animation" : "Play animation"}
                 onClick={() =>
@@ -164,7 +166,7 @@ export function AnimationTimeline({
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                tone="neutral"
+                tone="subtle"
                 shape="square"
                 size="sm"
                 className="bg-transparent shadow-none hover:bg-accent/45"
@@ -179,12 +181,14 @@ export function AnimationTimeline({
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                tone={animationTimeline.loop ? "primary" : "neutral"}
+                tone="subtle"
                 shape="square"
                 size="sm"
                 className={cn(
                   "shadow-none",
-                  !animationTimeline.loop && "bg-transparent hover:bg-accent/45"
+                  animationTimeline.loop
+                    ? "bg-accent text-foreground"
+                    : "bg-transparent hover:bg-accent/45"
                 )}
                 aria-label="Toggle animation loop"
                 onClick={toggleAnimationLoop}

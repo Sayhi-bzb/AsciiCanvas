@@ -100,8 +100,6 @@ export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
     MATERIAL_PRESETS.includes(brushChar) ? "" : brushChar
   );
 
-  const [indicatorStyle, setIndicatorStyle] = useState({ width: 0, left: 0 });
-  const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const isMobile = useIsMobile();
 
   const getToolMeta = useCallback((type: ToolType) => {
@@ -190,34 +188,13 @@ export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
     return idx !== -1 ? idx : 0;
   }, [tool, isShapeGroupActive, navItems]);
 
-  useEffect(() => {
-    const updateIndicator = () => {
-      const activeEl = itemRefs.current[activeIndex];
-      const container = activeEl?.closest("nav");
-      if (activeEl && container) {
-        const rect = activeEl.getBoundingClientRect();
-        const contRect = container.getBoundingClientRect();
-        const width = 20;
-        const left = rect.left - contRect.left + (rect.width - width) / 2;
-        setIndicatorStyle({ width, left });
-      }
-    };
-    updateIndicator();
-    const timer = setTimeout(updateIndicator, 16);
-    window.addEventListener("resize", updateIndicator);
-    return () => {
-      window.removeEventListener("resize", updateIndicator);
-      clearTimeout(timer);
-    };
-  }, [activeIndex]);
-
   return (
     <TooltipProvider delayDuration={200}>
       <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
         <div
           className={cn(
             uiClass.toolbarShell,
-            canvasMode === "animation" && "flex-col items-center gap-2 p-2.5",
+            canvasMode === "animation" && "flex-col items-center gap-1",
             isMobile && "scale-90 origin-bottom"
           )}
         >
@@ -234,19 +211,17 @@ export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
               return (
                 <div
                   key={item.id}
+                  data-toolbar-item={item.id}
                   className={cn(
-                    "relative flex items-center rounded-lg transition-all",
+                    "relative flex items-center rounded-md transition-colors",
                     isActive
-                      ? "text-primary"
+                      ? "bg-accent text-foreground"
                       : "text-muted-foreground hover:text-foreground"
                   )}
                 >
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button
-                        ref={(el) => {
-                          itemRefs.current[index] = el;
-                        }}
                         onClick={() =>
                           runToolbarAction(item.id as ToolbarActionId, {
                             tool,
@@ -338,14 +313,6 @@ export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
               );
             })}
 
-            <div
-              className="absolute bottom-1 left-0 bg-primary rounded-full transition-all duration-300 ease-out pointer-events-none"
-              style={{
-                width: `${indicatorStyle.width}px`,
-                transform: `translateX(${indicatorStyle.left}px)`,
-                height: "2px",
-              }}
-            />
           </nav>
 
           {canvasMode === "animation" && <AnimationTimeline embedded />}

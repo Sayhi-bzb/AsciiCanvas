@@ -11,11 +11,9 @@ import { type StructuredMovePreview } from "./interaction/structured/structuredI
 
 import {
   createViewportInteractionController,
-  type ViewportInteractionController,
 } from "./interaction/viewport/viewportInteractionController";
 import {
   createSelectionPreviewController,
-  type SelectionPreviewController,
 } from "./interaction/preview/selectionPreviewController";
 
 import {
@@ -58,7 +56,6 @@ import {
 import { createDragResetController } from "./interaction/gestures/dragResetExecution";
 import {
   createStructuredPreviewQueueController,
-  type StructuredPreviewQueueController,
 } from "./interaction/structured/structuredPreviewQueueExecution";
 import { createDrawingUpdateHandler } from "./interaction/gestures/drawingInteraction";
 import {
@@ -79,7 +76,6 @@ import {
 } from "./interaction/structured/structuredEditExecution";
 import {
   createHoverInteractionController,
-  type HoverInteractionController,
 } from "./interaction/preview/hoverInteractionController";
 import {
   shouldIgnoreActiveCanvasGesture,
@@ -180,31 +176,23 @@ export const useCanvasInteraction = (
     updateStructuredNode,
   } = store;
 
-  const pointerContext = createCanvasPointerContextResolver({
-    getRect: () => containerRef.current?.getBoundingClientRect(),
-    getViewport: () => ({ offset, zoom }),
-    getGrid: () => grid,
-    getCanvasMode: () => canvasMode,
-    getCanvasBounds: () => canvasBounds,
-  });
+  const pointerContext = useCreation(
+    () =>
+      createCanvasPointerContextResolver({
+        getRect: () => containerRef.current?.getBoundingClientRect(),
+        getViewport: () => ({ offset, zoom }),
+        getGrid: () => grid,
+        getCanvasMode: () => canvasMode,
+        getCanvasBounds: () => canvasBounds,
+      }),
+    [containerRef, offset, zoom, grid, canvasMode, canvasBounds]
+  );
   const canvasModeRef = useRef(canvasMode);
-  canvasModeRef.current = canvasMode;
-  const viewportInteractionRef =
-    useRef<ViewportInteractionController | null>(null);
-  const interactionRuntimeRef = useRef<ReturnType<
-    typeof createCanvasInteractionRuntime
-  > | null>(null);
-  if (!interactionRuntimeRef.current) {
-    interactionRuntimeRef.current = createCanvasInteractionRuntime();
-  }
-  const interactionRuntime = interactionRuntimeRef.current;
-  const structuredPreviewQueueRef =
-    useRef<StructuredPreviewQueueController | null>(null);
-  const hoverInteractionRef =
-    useRef<HoverInteractionController | null>(null);
+  useEffect(() => {
+    canvasModeRef.current = canvasMode;
+  }, [canvasMode]);
+  const interactionRuntime = useCreation(createCanvasInteractionRuntime, []);
   const colorPickerClickRef = useRef(false);
-  const selectionPreviewRef =
-    useRef<SelectionPreviewController | null>(null);
   const fallbackStructuredMovePreviewRef =
     useRef<StructuredMovePreview | null>(null);
   const fallbackRequestRenderRef = useRef<(() => void) | null>(null);
@@ -214,30 +202,32 @@ export const useCanvasInteraction = (
   const [draggingSelection, setDraggingSelectionState] =
     useState<SelectionArea | null>(null);
 
-  if (!hoverInteractionRef.current) {
-    hoverInteractionRef.current = createHoverInteractionController({
-      getContainer: () => containerRef.current,
-      setHoveredLink,
-      setHoveredGrid,
-    });
-  }
-  const hoverInteraction = hoverInteractionRef.current;
-  if (!selectionPreviewRef.current) {
-    selectionPreviewRef.current = createSelectionPreviewController({
-      setPreview: setDraggingSelectionState,
-    });
-  }
-  const selectionPreview = selectionPreviewRef.current;
-
-  if (!viewportInteractionRef.current) {
-    viewportInteractionRef.current = createViewportInteractionController({
-      setOffset,
-      setZoom,
-      getCanvasMode: () => canvasModeRef.current,
-      zoomBounds: { min: MIN_ZOOM, max: MAX_ZOOM },
-    });
-  }
-  const viewportInteraction = viewportInteractionRef.current;
+  const hoverInteraction = useCreation(
+    () =>
+      createHoverInteractionController({
+        getContainer: () => containerRef.current,
+        setHoveredLink,
+        setHoveredGrid,
+      }),
+    [containerRef, setHoveredLink, setHoveredGrid]
+  );
+  const selectionPreview = useCreation(
+    () =>
+      createSelectionPreviewController({
+        setPreview: setDraggingSelectionState,
+      }),
+    []
+  );
+  const viewportInteraction = useCreation(
+    () =>
+      createViewportInteractionController({
+        setOffset,
+        setZoom,
+        getCanvasMode: () => canvasModeRef.current,
+        zoomBounds: { min: MIN_ZOOM, max: MAX_ZOOM },
+      }),
+    [setOffset, setZoom]
+  );
 
   const dispatchInteraction = (event: InteractionEvent) => {
     interactionRuntime.dispatch(event);
@@ -266,19 +256,24 @@ export const useCanvasInteraction = (
       isPanning: getInteractionState().type === "panning",
     });
 
-  if (!structuredPreviewQueueRef.current) {
-    structuredPreviewQueueRef.current = createStructuredPreviewQueueController({
-      setStructuredMovePreview,
-      applyStructuredScene,
-      clearStructuredMovePreview,
-    });
-  }
-  const structuredPreviewQueue = structuredPreviewQueueRef.current;
-  const resetDragState = createDragResetController({
-    structuredPreviewQueue,
-    clearStructuredMovePreview,
-    dispatchInteraction,
-  }).reset;
+  const structuredPreviewQueue = useCreation(
+    () =>
+      createStructuredPreviewQueueController({
+        setStructuredMovePreview,
+        applyStructuredScene,
+        clearStructuredMovePreview,
+      }),
+    [activeRequestRenderRef, activeStructuredMovePreviewRef, applyStructuredScene]
+  );
+  const resetDragState = useCreation(
+    () =>
+      createDragResetController({
+        structuredPreviewQueue,
+        clearStructuredMovePreview,
+        dispatchInteraction,
+      }).reset,
+    [structuredPreviewQueue]
+  );
   useEffect(() => {
     const syncModifierState = (event: KeyboardEvent) => {
       hoverInteraction.syncLinkModifierState(event);
@@ -456,16 +451,27 @@ export const useCanvasInteraction = (
   const canvasPinchRouteHandler = createCanvasPinchRouteHandler({
     handler: canvasPinchHandler,
   });
-  const colorPickerDragStartExecutor = createColorPickerDragStartExecutor({
-    colorPickerClick: colorPickerClickRef,
-    preventDefault: () => undefined,
-    setBrushColor,
-    setStructuredTextColor,
-    clearColorPickerTarget: () => setCanvasColorPickerTarget(null),
-    clearHoveredGrid: () => setHoveredGrid(null),
-    resetDragState,
-    setCursor: (cursor) => hoverInteraction.setCursor(cursor),
-  });
+  const colorPickerDragStartExecutor = useCreation(
+    () =>
+      createColorPickerDragStartExecutor({
+        colorPickerClick: colorPickerClickRef,
+        preventDefault: () => undefined,
+        setBrushColor,
+        setStructuredTextColor,
+        clearColorPickerTarget: () => setCanvasColorPickerTarget(null),
+        clearHoveredGrid: () => setHoveredGrid(null),
+        resetDragState,
+        setCursor: (cursor) => hoverInteraction.setCursor(cursor),
+      }),
+    [
+      hoverInteraction,
+      resetDragState,
+      setBrushColor,
+      setCanvasColorPickerTarget,
+      setHoveredGrid,
+      setStructuredTextColor,
+    ]
+  );
   const colorPickerDragStartHandler = createColorPickerDragStartHandler({
     target: canvasColorPickerTarget,
     isStructuredTextSelectionActive:
@@ -479,25 +485,41 @@ export const useCanvasInteraction = (
     primaryCanvas: primaryCanvasDragStartHandler,
     structuredSelect: structuredSelectStartHandler,
   });
-  const canvasClickExecutor = createCanvasClickExecutor({
-    colorPickerClick: colorPickerClickRef,
-    preventDefault: () => undefined,
-    clearSelections,
-    setSelectedStructuredNodeIds,
-    setSelectedStructuredSplitHandle,
-    setEditingStructuredTextNodeId,
-    setTextCursor,
-    setCursor: (cursor) => hoverInteraction.setCursor(cursor),
-    openLink: (href) => window.open(href, "_blank", "noopener,noreferrer"),
-    setHoveredLink,
-  });
-  const canvasClickHandler = createCanvasClickHandler({
-    getColorPickerClickPending: () => colorPickerClickRef.current,
-    getInteractionMode: () => getInteractionState().type,
-    canvasMode,
-    tool,
-    executor: canvasClickExecutor,
-  });
+  const canvasClickExecutor = useCreation(
+    () =>
+      createCanvasClickExecutor({
+        colorPickerClick: colorPickerClickRef,
+        preventDefault: () => undefined,
+        clearSelections,
+        setSelectedStructuredNodeIds,
+        setSelectedStructuredSplitHandle,
+        setEditingStructuredTextNodeId,
+        setTextCursor,
+        setCursor: (cursor) => hoverInteraction.setCursor(cursor),
+        openLink: (href) => window.open(href, "_blank", "noopener,noreferrer"),
+        setHoveredLink,
+      }),
+    [
+      clearSelections,
+      hoverInteraction,
+      setEditingStructuredTextNodeId,
+      setHoveredLink,
+      setSelectedStructuredNodeIds,
+      setSelectedStructuredSplitHandle,
+      setTextCursor,
+    ]
+  );
+  const canvasClickHandler = useCreation(
+    () =>
+      createCanvasClickHandler({
+        getColorPickerClickPending: () => colorPickerClickRef.current,
+        getInteractionMode: () => getInteractionState().type,
+        canvasMode,
+        tool,
+        executor: canvasClickExecutor,
+      }),
+    [canvasClickExecutor, canvasMode, tool]
+  );
   const canvasClickRouteHandler = createCanvasClickRouteHandler({
     handler: canvasClickHandler,
   });
