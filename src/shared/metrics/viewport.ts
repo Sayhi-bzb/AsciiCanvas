@@ -4,7 +4,7 @@ import {
   type GridRenderMetrics,
 } from "./renderMetrics";
 
-export type ViewportState = {
+type ViewportState = {
   offset: Point;
   zoom: number;
 };

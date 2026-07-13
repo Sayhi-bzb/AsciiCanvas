@@ -6,8 +6,8 @@ import type { AnimationCanvasSize } from "@/domains/animation/public";
 export const ASCII_CANVAS_DOCUMENT_TYPE = "ascii-canvas-document";
 export const ASCII_CANVAS_DOCUMENT_VERSION = 1;
 
-export type AsciiCanvasDocumentType = typeof ASCII_CANVAS_DOCUMENT_TYPE;
-export type AsciiCanvasDocumentVersion = typeof ASCII_CANVAS_DOCUMENT_VERSION;
+type AsciiCanvasDocumentType = typeof ASCII_CANVAS_DOCUMENT_TYPE;
+type AsciiCanvasDocumentVersion = typeof ASCII_CANVAS_DOCUMENT_VERSION;
 
 export interface AsciiCanvasProtocolCellV1 {
   x: number;
@@ -19,24 +19,24 @@ export interface AsciiCanvasProtocolCellV1 {
   href?: string;
 }
 
-export interface AsciiCanvasProtocolPlaybackV1 {
+interface AsciiCanvasProtocolPlaybackV1 {
   fps: number;
   loop: boolean;
 }
 
-export interface AsciiCanvasProtocolFrameV1 {
+interface AsciiCanvasProtocolFrameV1 {
   id: string;
   name: string;
   cells: AsciiCanvasProtocolCellV1[];
 }
 
-export interface AsciiCanvasProtocolStyleV1 {
+interface AsciiCanvasProtocolStyleV1 {
   color: string;
   bgColor?: string;
   attrs?: TextAttributes;
 }
 
-export interface AsciiCanvasProtocolComponentMetadataV1 {
+interface AsciiCanvasProtocolComponentMetadataV1 {
   instanceId: string;
   templateId: string;
   role: string;
@@ -49,7 +49,7 @@ interface AsciiCanvasProtocolNodeBaseV1 {
   component?: AsciiCanvasProtocolComponentMetadataV1;
 }
 
-export interface AsciiCanvasProtocolBoxNodeV1
+interface AsciiCanvasProtocolBoxNodeV1
   extends AsciiCanvasProtocolNodeBaseV1 {
   type: "box";
   start: Point;
@@ -57,7 +57,7 @@ export interface AsciiCanvasProtocolBoxNodeV1
   name?: string;
 }
 
-export interface AsciiCanvasProtocolSplitBoxNodeV1
+interface AsciiCanvasProtocolSplitBoxNodeV1
   extends AsciiCanvasProtocolNodeBaseV1 {
   type: "splitBox";
   start: Point;
@@ -68,7 +68,7 @@ export interface AsciiCanvasProtocolSplitBoxNodeV1
   root?: StructuredSplitBoxTreeNode;
 }
 
-export interface AsciiCanvasProtocolLineNodeV1
+interface AsciiCanvasProtocolLineNodeV1
   extends AsciiCanvasProtocolNodeBaseV1 {
   type: "line";
   start: Point;
@@ -76,14 +76,14 @@ export interface AsciiCanvasProtocolLineNodeV1
   axis: "vertical" | "horizontal";
 }
 
-export interface AsciiCanvasProtocolBgNodeV1
+interface AsciiCanvasProtocolBgNodeV1
   extends AsciiCanvasProtocolNodeBaseV1 {
   type: "bg";
   start: Point;
   end: Point;
 }
 
-export interface AsciiCanvasProtocolTextNodeV1
+interface AsciiCanvasProtocolTextNodeV1
   extends AsciiCanvasProtocolNodeBaseV1 {
   type: "text";
   position: Point;

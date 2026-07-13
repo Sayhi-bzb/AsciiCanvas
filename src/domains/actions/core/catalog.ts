@@ -25,7 +25,7 @@ import {
 import type { ActionMeta, ContextMenuEntry, EditorActionId, ToolbarActionId, SidebarActionId } from "./types";
 
 // Editor Actions
-export const EDITOR_ACTION_META: Record<EditorActionId, ActionMeta> = {
+const EDITOR_ACTION_META: Record<EditorActionId, ActionMeta> = {
   undo: { id: "undo", label: "Undo", shortcut: "⌘Z" },
   redo: { id: "redo", label: "Redo", shortcut: "⌘⇧Z / ⌘Y" },
   copy: { id: "copy", label: "Copy as Text", shortcut: "⌘C", icon: Copy },
@@ -136,7 +136,7 @@ export const TOOLBAR_ACTION_META: Record<ToolbarActionId, ActionMeta> = {
 };
 
 // Sidebar Actions
-export const SIDEBAR_ACTION_META: Record<SidebarActionId, ActionMeta> = {
+const SIDEBAR_ACTION_META: Record<SidebarActionId, ActionMeta> = {
   "toggle-grid": { id: "toggle-grid", label: "Toggle Grid" },
   "open-source-code": { id: "open-source-code", label: "Open Source Code" },
 };

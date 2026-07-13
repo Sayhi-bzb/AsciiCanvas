@@ -8,7 +8,7 @@ export type DragResetExecutor = {
   dispatchInteraction: (event: InteractionEvent) => void;
 };
 
-export type DragResetController = {
+type DragResetController = {
   reset: () => void;
 };
 

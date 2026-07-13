@@ -9,11 +9,7 @@ export {
   STRUCTURED_TEMPLATE_FALLBACK_COLORS,
   STRUCTURED_TEMPLATE_TEXT_COLOR,
 } from "./factory";
-export type {
-  StructuredComponentDefinition,
-  StructuredTemplateBuildOptions,
-  StructuredTemplateId,
-} from "./types";
+export type { StructuredTemplateBuildOptions, StructuredTemplateId } from "./types";
 
 const ALL_COMPONENTS = [
   ...BASIC_COMPONENTS,

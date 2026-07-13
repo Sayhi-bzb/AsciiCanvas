@@ -3,7 +3,7 @@ import type { StructuredNodeStyle } from "./types";
 import { normalizeCellStyle } from "@/shared/utils/ansi";
 import { getCellOccupancy, splitGraphemes } from "@/shared/metrics";
 
-export type TextLayoutRun = {
+type TextLayoutRun = {
   char: string;
   offset: number;
   x: number;
@@ -13,19 +13,19 @@ export type TextLayoutRun = {
   column: number;
 };
 
-export type TextSelectionRect = {
+type TextSelectionRect = {
   point: Point;
   width: number;
 };
 
-export type TextSurfaceCell = GridCell & {
+type TextSurfaceCell = GridCell & {
   x: number;
   y: number;
   offset: number;
   follower?: true;
 };
 
-export type TextLayout = {
+type TextLayout = {
   text: string;
   origin: Point;
   runs: TextLayoutRun[];

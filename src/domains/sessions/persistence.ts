@@ -9,7 +9,7 @@ export const EDITOR_PERSISTENCE_KEY = "ascii-canvas-persistence";
 export const EDITOR_PERSISTENCE_V1_BACKUP_KEY =
   "ascii-canvas-persistence-v1-backup";
 
-export interface PersistedEditorStateV2 {
+interface PersistedEditorStateV2 {
   schemaVersion: 2;
   workspace: {
     offset: Point;

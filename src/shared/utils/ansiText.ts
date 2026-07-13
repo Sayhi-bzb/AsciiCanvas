@@ -8,7 +8,7 @@ import {
 
 const DEFAULT_ANSI_TEXT_COLOR = "#ffffff";
 
-export type AnsiTextCell = GridCell & {
+type AnsiTextCell = GridCell & {
   x: number;
   y: number;
 };

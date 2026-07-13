@@ -57,7 +57,7 @@ export const executeCanvasMoveDecision = (
   }
 };
 
-export type CanvasMoveHandler = ({
+type CanvasMoveHandler = ({
   hasColorPickerTarget,
   canvasMode,
   tool,
@@ -104,7 +104,7 @@ export const createCanvasMoveHandler = ({
     executor,
     event
   );
-export type CanvasMoveRouteContext = {
+type CanvasMoveRouteContext = {
   point: Point | null;
   linkHit: CanvasLinkHit | null;
   structuredSelectCursor: string | null;

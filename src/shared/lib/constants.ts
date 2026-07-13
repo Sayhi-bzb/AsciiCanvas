@@ -28,17 +28,4 @@ export const BOX_CHARS = {
   CROSS: "┼",
 };
 
-export const PALETTE = [
-  "#000000", // Black
-  "#ef4444", // Red
-  "#f97316", // Orange
-  "#eab308", // Yellow
-  "#22c55e", // Green
-  "#06b6d4", // Cyan
-  "#3b82f6", // Blue
-  "#a855f7", // Purple
-  "#ec4899", // Pink
-  "#64748b", // Slate
-];
-
 export const APP_SOURCE_URL = "https://github.com/Sayhi-bzb/ascii-canvas";

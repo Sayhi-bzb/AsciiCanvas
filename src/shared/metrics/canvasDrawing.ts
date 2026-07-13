@@ -166,10 +166,3 @@ export const drawCellText = (
   }
   ctx.restore();
 };
-
-export const getCellTextOffset = (
-  char: string,
-  metrics: GridRenderMetrics = DEFAULT_GRID_RENDER_METRICS
-) => {
-  return getCellOccupancy(char) > 1 ? metrics.cellWidth : metrics.cellWidth / 2;
-};

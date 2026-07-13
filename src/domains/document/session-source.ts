@@ -8,7 +8,7 @@ import {
   protocolDocumentToSnapshot,
 } from "./protocol/import";
 
-export const parseDocumentSessionSource = (
+const parseDocumentSessionSource = (
   raw: string | unknown
 ): CanvasImportSnapshot =>
   typeof raw === "string" && isLikelyAsciinemaCast(raw)

@@ -8,7 +8,6 @@ import type {
   ActionContext,
   ActionHandler,
   ActionId,
-  EditorActionId,
   SidebarActionId,
   ToolbarActionId,
 } from "./types";
@@ -31,16 +30,6 @@ const ACTION_HANDLERS: Record<string, ActionHandler<unknown>> = {
 const ACTION_CHECKERS: Partial<Record<ActionId, ActionChecker>> = {
   ...editorCheckers,
 };
-
-// Type guards
-const isEditorAction = (id: ActionId): id is EditorActionId =>
-  id in editorHandlers;
-
-const isToolbarAction = (id: ActionId): id is ToolbarActionId =>
-  id in toolbarHandlers;
-
-const isSidebarAction = (id: ActionId): id is SidebarActionId =>
-  id in sidebarHandlers;
 
 // Run action
 export const runAction = <T = unknown>(
@@ -77,20 +66,6 @@ export const canRunAction = (
   return actionId in ACTION_HANDLERS;
 };
 
-// Convenience function for editor actions
-export const runEditorAction = <T = unknown>(
-  actionId: EditorActionId,
-  options: T & Partial<Omit<ActionContext, "setTool">>
-): ActionResult => {
-  const fullContext: ActionContext = {
-    state: useEditorStore.getState(),
-    setTool: () => {}, // No-op for editor actions
-    onUndo: options.onUndo ?? (() => {}),
-    onRedo: options.onRedo ?? (() => {}),
-  };
-  return runAction(actionId, options, fullContext);
-};
-
 // Convenience function for toolbar actions
 export const runToolbarAction = <T = unknown>(
   actionId: ToolbarActionId,
@@ -119,15 +94,4 @@ export const runSidebarAction = <T = unknown>(
     onRedo: () => {},
   };
   return runAction(actionId, options as T & Partial<ActionContext>, context);
-};
-
-// Re-export handlers for advanced use cases
-export {
-  editorHandlers,
-  editorCheckers,
-  toolbarHandlers,
-  sidebarHandlers,
-  isEditorAction,
-  isToolbarAction,
-  isSidebarAction,
 };

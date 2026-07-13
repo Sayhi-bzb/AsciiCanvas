@@ -22,12 +22,12 @@ import type {
 import { isShapeTool } from "./dragStartInteraction";
 import type { StructuredNodeDragPayload } from "../structured/structuredDragStart";
 
-export type StructuredTextSelectionStart = {
+type StructuredTextSelectionStart = {
   nodeId: string;
   offset: number;
 };
 
-export type ShapePreviewUpdate = {
+type ShapePreviewUpdate = {
   start: Point;
   end: Point;
   axis: "horizontal" | "vertical" | null;

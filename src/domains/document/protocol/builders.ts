@@ -242,7 +242,7 @@ export const buildProtocolDocument = (
   }
 };
 
-export interface ProtocolCanvasStateSnapshotInput {
+interface ProtocolCanvasStateSnapshotInput {
   canvasMode: CanvasMode;
   grid: GridMap;
   structuredScene: StructuredNode[];

@@ -13,20 +13,20 @@ import {
 } from "../preview/rafPreviewQueue";
 import type { StructuredNodeDragPayload } from "./structuredDragStart";
 
-export type QueuedStructuredMove = {
+type QueuedStructuredMove = {
   drag: StructuredNodeDragPayload;
   delta: Point;
   scene: StructuredNode[];
 };
 
-export type QueuedStructuredSplitBoxResize = {
+type QueuedStructuredSplitBoxResize = {
   drag: StructuredNodeDragPayload;
   point: Point;
   scene: StructuredNode[];
 };
 
-export type StructuredMovePreviewQueue = RafPreviewQueue<QueuedStructuredMove>;
-export type StructuredSplitBoxResizePreviewQueue =
+type StructuredMovePreviewQueue = RafPreviewQueue<QueuedStructuredMove>;
+type StructuredSplitBoxResizePreviewQueue =
   RafPreviewQueue<QueuedStructuredSplitBoxResize>;
 
 export type StructuredPreviewQueueController = {

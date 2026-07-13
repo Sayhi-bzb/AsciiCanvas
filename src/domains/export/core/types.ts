@@ -27,14 +27,14 @@ export type TextExportArtifact = ExportArtifactBase & {
   content: string;
 };
 
-export type BlobExportArtifact = ExportArtifactBase & {
+type BlobExportArtifact = ExportArtifactBase & {
   kind: "blob";
   content: Blob;
 };
 
 export type ExportArtifact = TextExportArtifact | BlobExportArtifact;
 
-export type ExportErrorCode =
+type ExportErrorCode =
   | "unsupported-format"
   | "missing-animation-state"
   | "empty-content"
@@ -44,7 +44,7 @@ export type ExportErrorCode =
   | "clipboard-write-failed"
   | "download-failed";
 
-export type ExportError = {
+type ExportError = {
   code: ExportErrorCode;
   cause?: unknown;
 };

@@ -1,7 +1,7 @@
 import type { Point } from "@/shared/types";
 import type { CanvasMode } from "@/domains/sessions/public";
 
-export type CanvasWheelDecision =
+type CanvasWheelDecision =
   | {
       type: "zoom";
       deltaZoom: number;
@@ -95,7 +95,7 @@ export const executeCanvasWheelDecision = (
   }
 };
 
-export type CanvasWheelHandler = ({
+type CanvasWheelHandler = ({
   isCtrlOrMetaPressed,
   deltaX,
   deltaY,

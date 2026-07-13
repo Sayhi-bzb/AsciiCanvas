@@ -17,10 +17,10 @@ export type StructuredBoxResizeHandle =
   | "w";
 
 export type StructuredLineResizeHandle = "start" | "end";
-export type StructuredSplitBoxSplitHandle = `split:${string}`;
+type StructuredSplitBoxSplitHandle = `split:${string}`;
 export type StructuredSplitBoxHandle = StructuredBoxResizeHandle | StructuredSplitBoxSplitHandle;
 
-export type StructuredBoxHit = {
+type StructuredBoxHit = {
   node: StructuredBoxNode;
   handle: StructuredBoxResizeHandle | null;
 };
@@ -42,7 +42,7 @@ type StructuredRectNode = StructuredBoxNode | StructuredSplitBoxNode | Structure
 const clamp = (value: number, min: number, max: number) =>
   Math.max(min, Math.min(max, value));
 
-export const toStructuredSplitBoxHandle = (
+const toStructuredSplitBoxHandle = (
   splitId: string
 ): StructuredSplitBoxSplitHandle => `split:${splitId}`;
 
@@ -84,7 +84,7 @@ const createStructuredSplitBoxTreeId = (
 export const getStructuredBoxBounds = (node: StructuredBoxNode): NodeBounds =>
   getStructuredNodeBounds(node);
 
-export const getStructuredBoxNameCapacity = (node: StructuredBoxNode) =>
+const getStructuredBoxNameCapacity = (node: StructuredBoxNode) =>
   Math.max(0, getStructuredBoxBounds(node).width - 5);
 
 export const getStructuredBoxNameStartPoint = (
@@ -209,7 +209,7 @@ export const canSplitStructuredSplitBoxLeaf = (
     ? leaf.bounds.width >= 5
     : leaf.bounds.height >= 5;
 
-export const isPointInsideStructuredBox = (
+const isPointInsideStructuredBox = (
   node: StructuredBoxNode,
   point: Point
 ) => {

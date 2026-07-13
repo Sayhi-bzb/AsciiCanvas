@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 
-export type UiLanguage = "en" | "zh";
+type UiLanguage = "en" | "zh";
 
 const STORAGE_KEY = "ascii-canvas-ui-language";
 
@@ -385,11 +385,11 @@ export function setUiLanguage(language: UiLanguage) {
   listeners.forEach((listener) => listener());
 }
 
-export function toggleUiLanguage() {
+function toggleUiLanguage() {
   setUiLanguage(currentLanguage === "en" ? "zh" : "en");
 }
 
-export function translate(
+function translate(
   key: I18nKey,
   params: Record<string, string | number> = {},
   language = currentLanguage

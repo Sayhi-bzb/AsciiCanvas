@@ -17,12 +17,6 @@ export const shouldIgnoreEditorCommandByFocus = (
   return shouldIgnoreClipboardShortcut(document.activeElement, managedTextarea);
 };
 
-export const canRunManagedClipboardCommand = (
-  managedTextarea?: HTMLTextAreaElement | null
-) => {
-  return !shouldIgnoreClipboardShortcut(document.activeElement, managedTextarea);
-};
-
 export const resolveFillHotkeyChar = (
   event: Pick<KeyboardEvent, "ctrlKey" | "metaKey" | "altKey" | "key">
 ) => {

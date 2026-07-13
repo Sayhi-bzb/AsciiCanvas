@@ -129,7 +129,7 @@ export const createStructuredSelectStartExecutor = ({
   dispatchInteraction,
 });
 
-export type StructuredSelectStartHandler = ({
+type StructuredSelectStartHandler = ({
   screenPoint,
   start,
   mouseDetail,

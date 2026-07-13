@@ -8,13 +8,8 @@ export * from "./state/helpers/storeUtils";
 export { registerSelectionCommandFactory } from "./state/selectionCommandPort";
 export type { SelectionCommandFactory } from "./state/selectionCommandPort";
 export { registerCanvasSessionSourceParser } from "./state/sessionImportPort";
-export type { CanvasSessionSourceParser } from "./state/sessionImportPort";
 export type { ToolType } from "./model/tool";
 export {
   forceHistorySave,
-  runCanvasTransaction,
   undoManager,
-  yMainGrid,
-  yStructuredScene,
 } from "./state/yjs";
-export type { CanvasHistoryMode } from "./state/yjs";

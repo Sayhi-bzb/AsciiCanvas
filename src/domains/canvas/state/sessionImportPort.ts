@@ -1,6 +1,6 @@
 import type { CanvasImportSnapshot } from "@/domains/sessions/public";
 
-export type CanvasSessionSourceParser = (
+type CanvasSessionSourceParser = (
   raw: string | unknown
 ) => CanvasImportSnapshot;
 

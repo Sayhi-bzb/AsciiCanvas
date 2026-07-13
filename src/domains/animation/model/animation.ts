@@ -10,7 +10,7 @@ export const DEFAULT_ANIMATION_SIZE: AnimationCanvasSize = {
 
 export const DEFAULT_ANIMATION_FPS = 10;
 export const MAX_ANIMATION_FPS = 60;
-export const DEFAULT_ANIMATION_FRAME_NAME = "Frame";
+const DEFAULT_ANIMATION_FRAME_NAME = "Frame";
 
 export const DEFAULT_ONION_SKIN = {
   enabled: true,
@@ -159,7 +159,7 @@ export const createEmptyAnimationFrame = (
   };
 };
 
-export const normalizeOpacityFalloff = (value: unknown) => {
+const normalizeOpacityFalloff = (value: unknown) => {
   if (!Array.isArray(value)) return [...DEFAULT_ONION_SKIN.opacityFalloff];
   const normalized = value
     .map((entry) => (typeof entry === "number" ? entry : Number.NaN))
@@ -170,7 +170,7 @@ export const normalizeOpacityFalloff = (value: unknown) => {
     : [...DEFAULT_ONION_SKIN.opacityFalloff];
 };
 
-export const normalizeOnionSkinSettings = (
+const normalizeOnionSkinSettings = (
   value: unknown
 ): AnimationTimeline["onionSkin"] => {
   const raw =

@@ -1,8 +1,8 @@
 import type { Point } from "@/shared/types";
 import type { StructuredNode } from "@/domains/structured-content/public";
-import { createStructuredNodeId, getStructuredNodeBounds, withPointWithinBounds } from "./scene";
+import { createStructuredNodeId } from "./scene";
 
-export type StructuredLayerDirection = "forward" | "backward" | "front" | "back";
+type StructuredLayerDirection = "forward" | "backward" | "front" | "back";
 
 const normalizeOrders = (scene: StructuredNode[]) =>
   scene.map((node, index) => ({ ...node, order: index + 1 }));
@@ -72,18 +72,6 @@ const cloneComponentWithRemappedInstance = (
       instanceId,
     },
   };
-};
-
-export const findStructuredNodeIdAtPoint = (
-  scene: StructuredNode[],
-  point: Point
-) => {
-  const ordered = sortByOrder(scene).reverse();
-  return (
-    ordered.find((node) =>
-      withPointWithinBounds(point, getStructuredNodeBounds(node), true)
-    )?.id ?? null
-  );
 };
 
 export const duplicateStructuredNodes = (

@@ -14,10 +14,6 @@ import { STRUCTURED_PAGE_TEMPLATE_COMPONENTS } from "./pages";
 import { normalizeStructuredComponents } from "../model/components";
 
 export type { StructuredTemplateId };
-export {
-  STRUCTURED_TEMPLATE_FALLBACK_COLORS,
-  STRUCTURED_TEMPLATE_TEXT_COLOR,
-};
 
 export const STRUCTURED_TEMPLATE_MIME =
   "application/x-ascii-canvas-structured-template";
@@ -55,7 +51,7 @@ export const setActiveStructuredTemplateDragId = (
 export const getActiveStructuredTemplateDragId = () =>
   activeStructuredTemplateDragId;
 
-export type StructuredTemplatePreviewCell = {
+type StructuredTemplatePreviewCell = {
   char: string;
   color?: string;
   bgColor?: string;
@@ -68,7 +64,7 @@ export type StructuredTemplatePreview = {
   height: number;
 };
 
-export type StructuredTemplateBuildResult = {
+type StructuredTemplateBuildResult = {
   nodes: StructuredNode[];
   components: StructuredComponentInstance[];
 };

@@ -3,7 +3,7 @@ import type { CanvasMode } from "./mode";
 import type { StructuredComponentInstance, StructuredNode } from "@/domains/structured-content/public";
 import type { AnimationCanvasSize, AnimationTimeline } from "@/domains/animation/public";
 
-export interface CanvasViewport {
+interface CanvasViewport {
   offset: Point;
   zoom: number;
 }

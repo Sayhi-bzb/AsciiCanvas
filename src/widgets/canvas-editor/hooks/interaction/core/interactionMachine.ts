@@ -7,7 +7,7 @@ import type {
   StructuredSplitBoxHandle,
 } from "@/domains/structured-content/public";
 
-export type StructuredResizeKind = "rect" | "splitBox" | "line";
+type StructuredResizeKind = "rect" | "splitBox" | "line";
 
 export type StructuredNodeDragPayload = {
   node: StructuredNode;

@@ -7,7 +7,7 @@ import type {
   InteractionState,
 } from "../core/interactionMachine";
 
-export type DrawingUpdateDecision =
+type DrawingUpdateDecision =
   | {
       type: "scratch";
       points: Array<Point & { char: string }>;
@@ -110,7 +110,7 @@ export const resolveDrawingUpdateDecision = ({
   return { type: "none" };
 };
 
-export type DrawingUpdateExecutor = {
+type DrawingUpdateExecutor = {
   addScratchPoints: (points: Array<Point & { char: string }>) => void;
   erasePoints: (points: Point[]) => void;
   dispatchInteraction: (event: InteractionEvent) => void;

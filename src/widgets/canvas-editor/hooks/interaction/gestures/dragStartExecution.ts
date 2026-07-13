@@ -10,7 +10,7 @@ import {
 } from "./dragStartInteraction";
 import type { InteractionEvent } from "../core/interactionMachine";
 
-export type PanningDragStartExecutor = {
+type PanningDragStartExecutor = {
   dispatchInteraction: (event: InteractionEvent) => void;
   setBodyCursor: (cursor: string) => void;
 };
@@ -33,7 +33,7 @@ export const executePanningDragStart = (
   executor.dispatchInteraction({ type: "startPanning", lastScreen });
   executor.setBodyCursor("grabbing");
 };
-export type SelectionDragStartExecutor = {
+type SelectionDragStartExecutor = {
   dispatchInteraction: (event: InteractionEvent) => void;
   clearInteractionState: () => void;
   clearSelections: () => void;
@@ -84,7 +84,7 @@ export const createSelectionDragStartExecutor = ({
   clearTextCursor,
 });
 
-export type DrawingShapeDragStartExecutor = {
+type DrawingShapeDragStartExecutor = {
   clearInteractionState: () => void;
   clearEditingStructuredTextNode: () => void;
   clearStructuredTextSelection: () => void;
@@ -141,7 +141,7 @@ export const createDrawingShapeDragStartExecutor = ({
   erasePoint,
 });
 
-export type PrimaryCanvasDragStartContext = {
+type PrimaryCanvasDragStartContext = {
   start: Point;
   canvasMode: CanvasMode;
   tool: ToolType;
@@ -152,7 +152,7 @@ export type PrimaryCanvasDragStartContext = {
   executeStructuredSelectStart: (() => boolean) | null;
 };
 
-export const executePrimaryCanvasDragStart = (
+const executePrimaryCanvasDragStart = (
   context: PrimaryCanvasDragStartContext,
   executors: {
     selection: SelectionDragStartExecutor;
@@ -190,7 +190,7 @@ export const executePrimaryCanvasDragStart = (
 };
 
 
-export type PrimaryCanvasDragStartHandler = (
+type PrimaryCanvasDragStartHandler = (
   context: PrimaryCanvasDragStartContext
 ) => boolean;
 
@@ -203,7 +203,7 @@ export const createPrimaryCanvasDragStartHandler = ({
 }): PrimaryCanvasDragStartHandler => (context) =>
   executePrimaryCanvasDragStart(context, { selection, drawingShape });
 
-export type DragStartRouteHandler = ({
+type DragStartRouteHandler = ({
   canvasMode,
   tool,
   button,

@@ -292,7 +292,7 @@ export function ColorPickerPanel({
         setActivePaletteTab(tab as "ansi16" | "presets")
       }
       orientation="vertical"
-      className="w-[25rem] flex-row items-start gap-2 p-1.5"
+      className="w-[22rem] flex-row items-start gap-1.5 px-1 py-1.5"
     >
       <TabsList
         aria-label={t("color.paletteTabs")}
@@ -414,7 +414,7 @@ export function ColorPickerPanel({
 
             <div
               data-testid="color-palette-grid"
-              className={cn("grid gap-1", tab.gridClassName)}
+              className={cn("grid gap-0.5", tab.gridClassName)}
             >
               {tab.colors.map((c) => (
                 <button

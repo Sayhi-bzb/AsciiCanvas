@@ -18,7 +18,7 @@ const getDefaultRafScheduler = (): RafScheduler => ({
   cancelAnimationFrame: (handle) => window.cancelAnimationFrame(handle),
 });
 
-export type ViewportInteractionController = {
+type ViewportInteractionController = {
   queueOffsetDelta: (dx: number, dy: number) => void;
   flushOffset: () => void;
   queueZoomDelta: (deltaZoom: number, mouseX: number, mouseY: number) => void;

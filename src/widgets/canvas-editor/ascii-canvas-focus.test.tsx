@@ -366,6 +366,29 @@ describe("AsciiCanvas focus management", () => {
     expect(useEditorStore.getState().structuredGridFocus).toBeNull();
   });
 
+  it("cancels canvas color picking with Escape outside the managed textarea", () => {
+    useEditorStore.setState({
+      canvasColorPickerTarget: "char",
+      hoveredGrid: { x: 4, y: 6 },
+    });
+
+    render(
+      <>
+        <button type="button">Toolbar control</button>
+        <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+      </>
+    );
+
+    const toolbarControl = screen.getByRole("button", {
+      name: "Toolbar control",
+    });
+    toolbarControl.focus();
+    fireEvent.keyDown(toolbarControl, { key: "Escape" });
+
+    expect(useEditorStore.getState().canvasColorPickerTarget).toBeNull();
+    expect(useEditorStore.getState().hoveredGrid).toBeNull();
+  });
+
   it("creates structured text from managed textarea input at structured grid focus", () => {
     useEditorStore.setState({
       canvasMode: "structured",

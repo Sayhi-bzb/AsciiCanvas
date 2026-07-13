@@ -14,12 +14,12 @@ export interface GridSelectionState {
   ranges: GridRange[];
 }
 
-export interface StaticGridState {
+interface StaticGridState {
   selection: GridSelectionState;
   editMode: GridEditMode;
 }
 
-export interface StaticGridViewState {
+interface StaticGridViewState {
   activeCell: GridAddress;
   textCursor: GridAddress | null;
   selectionAreas: SelectionArea[];
@@ -27,7 +27,7 @@ export interface StaticGridViewState {
   isTextEditing: boolean;
 }
 
-export const createGridAddress = (x = 0, y = 0): GridAddress => ({ x, y });
+const createGridAddress = (x = 0, y = 0): GridAddress => ({ x, y });
 
 export const normalizeGridRange = (range: GridRange): GridRange => ({
   start: {
@@ -51,7 +51,7 @@ export const selectionAreaFromGridRange = (range: GridRange): SelectionArea => {
   };
 };
 
-export const gridRangesFromSelectionAreas = (areas: SelectionArea[]) =>
+const gridRangesFromSelectionAreas = (areas: SelectionArea[]) =>
   areas.map(gridRangeFromSelectionArea);
 
 export const selectionAreasFromGridRanges = (ranges: GridRange[]) =>
@@ -59,9 +59,6 @@ export const selectionAreasFromGridRanges = (ranges: GridRange[]) =>
 
 export const getStaticGridSelectionAreas = (state: GridSelectionState) =>
   selectionAreasFromGridRanges(state.ranges);
-
-export const hasStaticGridSelection = (state: GridSelectionState) =>
-  state.ranges.length > 0;
 
 export const getStaticGridViewState = (input: {
   selection: GridSelectionState;

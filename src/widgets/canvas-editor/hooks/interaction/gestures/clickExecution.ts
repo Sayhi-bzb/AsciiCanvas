@@ -87,7 +87,7 @@ export const createCanvasClickExecutor = ({
   setHoveredLink,
 });
 
-export type CanvasClickHandler = ({
+type CanvasClickHandler = ({
   point,
   linkHit,
   shouldOpenLink,

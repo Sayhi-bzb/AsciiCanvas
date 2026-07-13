@@ -30,7 +30,7 @@ export const DEFAULT_SESSION_NAME = "Canvas 1";
 export const DEFAULT_STRUCTURED_SESSION_ID = "canvas-2";
 export const DEFAULT_STRUCTURED_SESSION_NAME = "Canvas 2";
 export const DEFAULT_MODE: CanvasMode = "freeform";
-export const STRUCTURED_ALLOWED_TOOLS: ToolType[] = ["select", "text", "box", "splitBox", "line", "bg"];
+const STRUCTURED_ALLOWED_TOOLS: ToolType[] = ["select", "text", "box", "splitBox", "line", "bg"];
 
 const DEFAULT_VIEWPORT = { offset: { x: 0, y: 0 }, zoom: 1 };
 
@@ -49,11 +49,11 @@ export const isToolAllowedForMode = (tool: ToolType, mode: CanvasMode) => {
   return tool !== "text";
 };
 
-export const getFallbackToolForMode = (mode: CanvasMode): ToolType => {
+const getFallbackToolForMode = (mode: CanvasMode): ToolType => {
   return mode === "structured" ? "select" : "brush";
 };
 
-export const createDefaultAnimationTimeline = (): AnimationTimeline => {
+const createDefaultAnimationTimeline = (): AnimationTimeline => {
   const initialFrame = createEmptyAnimationFrame(
     undefined,
     createNextAnimationFrameName([])

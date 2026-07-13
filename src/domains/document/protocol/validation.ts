@@ -207,10 +207,3 @@ export const isAsciiCanvasDocument = (
 
   return false;
 };
-
-export const isAsciiCanvasDocumentVersion = (
-  value: unknown,
-  version = ASCII_CANVAS_DOCUMENT_VERSION
-) => {
-  return isObject(value) && value.version === version;
-};

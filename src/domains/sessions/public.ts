@@ -1,7 +1,6 @@
 export type {
   CanvasImportSnapshot,
   CanvasSession,
-  CanvasViewport,
 } from "./model";
 export {
   createSessionId,
@@ -17,6 +16,5 @@ export {
   isPersistedEditorStateV2,
   migratePersistedStateV1ToV2,
 } from "./persistence";
-export type { PersistedEditorStateV2 } from "./persistence";
 export type { SessionCommands } from "./commands";
 export type { CanvasMode } from "./mode";

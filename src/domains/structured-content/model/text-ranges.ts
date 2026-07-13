@@ -1,4 +1,4 @@
-import type { Point, TextAttributes } from "@/shared/types";
+import type { Point } from "@/shared/types";
 import type {
   StructuredNodeStyle,
   StructuredTextNode,
@@ -74,7 +74,7 @@ export const cloneStructuredTextStyleRanges = (
   return next.length > 0 ? next : undefined;
 };
 
-export const normalizeStructuredTextStyleRanges = (
+const normalizeStructuredTextStyleRanges = (
   ranges: StructuredTextStyleRange[] | undefined,
   textLength: number
 ) => {
@@ -116,31 +116,6 @@ export const mergeStructuredTextStyle = (
     };
   });
   return style;
-};
-
-export const applyStructuredTextRangeStyle = (
-  node: StructuredTextNode,
-  start: number,
-  end: number,
-  style: StructuredTextRangeStyle
-): StructuredTextNode => {
-  const textLength = splitGraphemes(node.text).length;
-  const rangeStart = Math.max(0, Math.min(textLength, start));
-  const rangeEnd = Math.max(0, Math.min(textLength, end));
-  if (rangeStart >= rangeEnd) return node;
-
-  const styleRange: StructuredTextStyleRange = {
-    start: rangeStart,
-    end: rangeEnd,
-    style: cloneRangeStyle(style),
-  };
-  return {
-    ...node,
-    styleRanges: normalizeStructuredTextStyleRanges(
-      [...(node.styleRanges ?? []), styleRange],
-      textLength
-    ),
-  };
 };
 
 const hasRangeStyle = (style: StructuredTextRangeStyle) =>
@@ -373,15 +348,4 @@ export const getStructuredTextStylesInRange = (
     styles.push(mergeStructuredTextStyle(node.style, node.styleRanges, offset));
   }
   return styles;
-};
-
-export const setTextAttribute = (
-  attrs: TextAttributes | undefined,
-  name: keyof TextAttributes,
-  enabled: boolean
-) => {
-  const next = { ...(attrs ?? {}) };
-  if (enabled) next[name] = true;
-  else delete next[name];
-  return cloneTextAttributes(next);
 };

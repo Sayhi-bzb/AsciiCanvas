@@ -22,7 +22,7 @@ export type StructuredEditExecutor = {
   setCursor: (cursor: string) => void;
 };
 
-export type StructuredEditController = {
+type StructuredEditController = {
   startEdit: (clientX: number, clientY: number) => boolean;
 };
 
@@ -76,7 +76,7 @@ export const createStructuredEditController = ({
       executor
     ),
 });
-export type StructuredEditRouteHandler = ({
+type StructuredEditRouteHandler = ({
   clientPoint,
   shouldIgnore,
   preventDefault,

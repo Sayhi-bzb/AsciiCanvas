@@ -16,17 +16,17 @@ export interface CanvasViewport {
   zoom: number;
 }
 
-export interface CanvasScreenPointInput {
+interface CanvasScreenPointInput {
   clientX: number;
   clientY: number;
   rect: Pick<DOMRect, "left" | "top">;
 }
 
-export interface CanvasGridPointInput extends CanvasScreenPointInput {
+interface CanvasGridPointInput extends CanvasScreenPointInput {
   viewport: CanvasViewport;
 }
 
-export interface CanvasSnappedGridPointInput extends CanvasGridPointInput {
+interface CanvasSnappedGridPointInput extends CanvasGridPointInput {
   grid: GridMap;
   canvasMode: CanvasModeForCoordinates;
   canvasBounds: AnimationCanvasSize | null;
@@ -41,7 +41,7 @@ export const getLocalCanvasPoint = ({
   y: clientY - rect.top,
 });
 
-export const resolveRawGridPointFromScreen = ({
+const resolveRawGridPointFromScreen = ({
   clientX,
   clientY,
   rect,

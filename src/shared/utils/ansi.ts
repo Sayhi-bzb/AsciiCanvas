@@ -7,7 +7,7 @@ export type AnsiStyleState = {
   href?: string;
 };
 
-export type AnsiToken = {
+type AnsiToken = {
   nextIndex: number;
   style: AnsiStyleState;
   changed: boolean;
@@ -43,7 +43,7 @@ const normalizeAnsiHexColor = (color: string) => {
   )}`;
 };
 
-export const normalizeTextAttributes = (
+const normalizeTextAttributes = (
   attrs?: Partial<TextAttributes> | null
 ): TextAttributes | undefined => {
   if (!attrs) return undefined;
@@ -138,13 +138,13 @@ export const parseAnsiHexColor = (value: string) => {
   return null;
 };
 
-export const toAnsiTruecolor = (prefix: 38 | 48, color: string) => {
+const toAnsiTruecolor = (prefix: 38 | 48, color: string) => {
   const parsed = parseAnsiHexColor(color);
   if (!parsed) return null;
   return `${prefix};2;${parsed.red};${parsed.green};${parsed.blue}`;
 };
 
-export const toAnsi16Color = (prefix: 38 | 48, color: string) => {
+const toAnsi16Color = (prefix: 38 | 48, color: string) => {
   const normalized = normalizeAnsiHexColor(color);
   if (!normalized) return null;
 
@@ -192,7 +192,7 @@ for (let index = 0; index < 256; index += 1) {
   }
 }
 
-export const toAnsi256Color = (prefix: 38 | 48, color: string) => {
+const toAnsi256Color = (prefix: 38 | 48, color: string) => {
   const normalized = normalizeAnsiHexColor(color);
   if (!normalized) return null;
   const index = ANSI_256_INDEX_BY_COLOR.get(normalized);
@@ -232,7 +232,7 @@ const setAttr = (
   style.attrs = normalizeTextAttributes(attrs);
 };
 
-export const applySgrCodes = (
+const applySgrCodes = (
   current: AnsiStyleState,
   codes: number[],
   defaultStyle: AnsiStyleState

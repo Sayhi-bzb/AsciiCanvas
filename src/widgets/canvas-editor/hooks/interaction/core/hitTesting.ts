@@ -54,7 +54,7 @@ export const shouldUseCanvasLinkPointer = (
   event: Pick<MouseEvent | KeyboardEvent, "ctrlKey" | "metaKey">
 ) => !!hit && shouldOpenCanvasLink(event);
 
-export const isPointInHandle = (input: {
+const isPointInHandle = (input: {
   point: Point;
   handleCenter: Point;
   zoom: number;
@@ -160,7 +160,7 @@ export const findSelectedStructuredHandleHit = ({
   return null;
 };
 
-export const stripStructuredResizeHandle = (
+const stripStructuredResizeHandle = (
   hit: StructuredNodeHit | null
 ): StructuredNodeHit | null => {
   if (!hit) return null;
@@ -231,7 +231,7 @@ export const getStructuredHitCursor = (
   }
 };
 
-export const getStructuredTextLineEndX = (
+const getStructuredTextLineEndX = (
   node: StructuredTextNode,
   row: number
 ) => {

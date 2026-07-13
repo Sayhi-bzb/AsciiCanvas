@@ -279,7 +279,7 @@ const createStructuredTextNodeFromPaste = (
   ...(styleRanges ? { styleRanges } : {}),
 });
 
-export const createSelectionCommands: SelectionCommandFactory = (set, get) => ({
+const createSelectionCommands: SelectionCommandFactory = (set, get) => ({
   canCopyOrCut: () => {
     const state = get();
     const { textCursor, canvasMode, structuredScene } = state;

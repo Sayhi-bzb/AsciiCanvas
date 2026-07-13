@@ -3,7 +3,7 @@ import type { CanvasColorPickerTarget } from "@/domains/canvas/public";
 
 type RefCell<T> = { current: T };
 
-export type CanvasColorPickDecision =
+type CanvasColorPickDecision =
   | { type: "none" }
   | {
       type: "picked";
@@ -118,7 +118,7 @@ export const executeColorPickerDragStart = (
   return true;
 };
 
-export type ColorPickerDragStartHandler = ({
+type ColorPickerDragStartHandler = ({
   point,
   preventDefault,
 }: {

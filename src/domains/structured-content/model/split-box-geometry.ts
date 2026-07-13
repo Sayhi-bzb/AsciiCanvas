@@ -67,19 +67,19 @@ export const normalizeSplitBoxRoot = (
 ): StructuredSplitBoxTreeNode =>
   isSplitBoxTreeNode(root) ? root : createDefaultSplitBoxRoot(ratios);
 
-export type SplitBoxLineHandle = {
+type SplitBoxLineHandle = {
   id: string;
   axis: "horizontal" | "vertical";
   bounds: NodeBounds;
   parentBounds: NodeBounds;
 };
 
-export type SplitBoxLeafBounds = {
+type SplitBoxLeafBounds = {
   id: string;
   bounds: NodeBounds;
 };
 
-export type SplitBoxLayout = {
+type SplitBoxLayout = {
   leaves: NodeBounds[];
   leafBounds: SplitBoxLeafBounds[];
   handles: SplitBoxLineHandle[];

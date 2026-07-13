@@ -168,6 +168,13 @@ export const useManagedCanvasInput = ({
       e.preventDefault();
     }
   });
+  useEventListener('keydown', (event: globalThis.KeyboardEvent) => {
+    if (event.key !== 'Escape' || !canvasColorPickerTarget) return;
+
+    event.preventDefault();
+    setCanvasColorPickerTarget(null);
+    setHoveredGrid(null);
+  });
 
   const textareaStyle: CSSProperties = useMemo(() => {
     if (!hasManagedTextareaTarget || !size) return { display: 'none' };

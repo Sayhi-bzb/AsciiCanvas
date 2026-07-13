@@ -22,14 +22,14 @@ import {
 import type { SelectionPreviewController } from "../preview/selectionPreviewController";
 import type { StructuredPreviewQueueController } from "../structured/structuredPreviewQueueExecution";
 
-export type PanningDragEndExecutor = {
+type PanningDragEndExecutor = {
   flushOffset: () => void;
   dispatchInteraction: (event: InteractionEvent) => void;
   setBodyCursor: (cursor: string) => void;
   clearLinkHover: () => void;
 };
 
-export type NonPanningDragEndExecutor = {
+type NonPanningDragEndExecutor = {
   setBodyCursor: (cursor: string) => void;
 };
 
@@ -39,7 +39,7 @@ export const createNonPanningDragEndExecutor = ({
   setBodyCursor,
 });
 
-export const executeNonPanningDragEndCleanup = (
+const executeNonPanningDragEndCleanup = (
   executor: NonPanningDragEndExecutor
 ): void => {
   executor.setBodyCursor("auto");
@@ -51,7 +51,7 @@ export type PrimaryDragEndExecutor = SelectionCommitExecutor &
     resetDragState: () => void;
   };
 
-export type PrimaryDragEndContext = {
+type PrimaryDragEndContext = {
   state: InteractionState;
   tool: ToolType;
   canvasMode: CanvasMode;
@@ -173,7 +173,7 @@ export const executePrimaryDragEnd = (
   return false;
 };
 
-export const isStructuredSplitBoxDividerDrag = (input: {
+const isStructuredSplitBoxDividerDrag = (input: {
   nodeType: StructuredNode["type"] | null;
   handle: StructuredSplitBoxHandle | null;
   isDividerHandle: (handle: StructuredSplitBoxHandle) => boolean;

@@ -8,7 +8,7 @@ const isComponentMetadata = (
   typeof (component as { templateId?: unknown }).templateId === "string" &&
   typeof (component as { role?: unknown }).role === "string";
 
-export const cloneStructuredComponent = (
+const cloneStructuredComponent = (
   component: StructuredComponentInstance
 ): StructuredComponentInstance => ({
   id: component.id,

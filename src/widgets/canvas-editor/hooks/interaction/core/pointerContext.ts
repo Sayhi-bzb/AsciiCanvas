@@ -11,7 +11,7 @@ import {
 } from "./coordinates";
 import { resolveStructuredSelectHit as resolveStructuredSelectHover } from "./hitTesting";
 
-export type CanvasRect = Pick<DOMRect, "left" | "top">;
+type CanvasRect = Pick<DOMRect, "left" | "top">;
 
 export type CanvasPointerContextResolver = {
   hasCanvasRect: () => boolean;

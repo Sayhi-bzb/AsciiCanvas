@@ -12,7 +12,7 @@ import type { StructuredNodeDragPayload } from "../structured/structuredDragStar
 import type { StructuredPreviewQueueController } from "../structured/structuredPreviewQueueExecution";
 import { resolveDragUpdateDecision, type DragUpdateDecision } from "./dragUpdateInteraction";
 
-export type PanningDragUpdateExecutor = {
+type PanningDragUpdateExecutor = {
   queueOffsetDelta: (dx: number, dy: number) => void;
 };
 
@@ -22,7 +22,7 @@ export const createPanningDragUpdateExecutor = ({
   queueOffsetDelta,
 });
 
-export const executePanningDragUpdate = (
+const executePanningDragUpdate = (
   delta: Point,
   executor: PanningDragUpdateExecutor
 ): void => {

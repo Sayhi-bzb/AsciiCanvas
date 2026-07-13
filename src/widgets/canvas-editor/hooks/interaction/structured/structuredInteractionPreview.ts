@@ -19,13 +19,13 @@ export type StructuredMovePreview = {
   movingGrid: GridMap;
 };
 
-export type StructuredMovePreviewDrag = {
+type StructuredMovePreviewDrag = {
   selectedNodes: StructuredNode[];
   baseScene: StructuredNode[];
   baseGrid: GridMap;
 };
 
-export type StructuredSplitBoxResizePreviewDrag = {
+type StructuredSplitBoxResizePreviewDrag = {
   node: StructuredNode;
   baseScene: StructuredNode[];
   baseGrid: GridMap;
@@ -56,7 +56,7 @@ export const createStructuredSplitBoxGrid = (
   return grid;
 };
 
-export const getMovedStructuredNodes = (
+const getMovedStructuredNodes = (
   selectedNodes: StructuredNode[],
   delta: Point
 ): Map<string, StructuredNode> =>
@@ -91,7 +91,7 @@ export const buildStructuredMoveCommitScene = (
   return scene.map((node) => movingNodes.get(node.id) ?? node);
 };
 
-export const resizeStructuredSplitBoxForPreview = (
+const resizeStructuredSplitBoxForPreview = (
   drag: StructuredSplitBoxResizePreviewDrag,
   point: Point
 ) => {

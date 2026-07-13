@@ -81,7 +81,7 @@ export interface StaticGridSlice {
   clearStaticGridSelection: () => void;
 }
 
-export interface StructuredGridFocusSlice {
+interface StructuredGridFocusSlice {
   structuredGridFocus: Point | null;
   setStructuredGridFocus: (point: Point | null) => void;
   moveStructuredGridFocus: (dx: number, dy: number) => void;

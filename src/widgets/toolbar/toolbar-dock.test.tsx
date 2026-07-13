@@ -180,9 +180,14 @@ describe("Toolbar dock", () => {
       "aria-selected",
       "true"
     );
-    expect(screen.getByRole("tablist", { name: "Color palettes" })).toHaveAttribute(
-      "data-orientation",
-      "vertical"
+    const paletteTabs = screen.getByRole("tablist", {
+      name: "Color palettes",
+    });
+    expect(paletteTabs).toHaveAttribute("data-orientation", "vertical");
+    expect(paletteTabs.parentElement).toHaveClass(
+      "w-[22rem]",
+      "gap-1.5",
+      "px-1"
     );
     expect(screen.getByRole("tab", { name: "ANSI 16" })).toHaveClass(
       "data-[state=active]:bg-accent",
@@ -217,7 +222,10 @@ describe("Toolbar dock", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Pick ANSI color #000080" }));
     expect(onPick).toHaveBeenCalledWith("#000080");
-    expect(screen.getByTestId("color-palette-grid")).toHaveClass("grid-cols-8");
+    expect(screen.getByTestId("color-palette-grid")).toHaveClass(
+      "grid-cols-8",
+      "gap-0.5"
+    );
 
     fireEvent.mouseDown(screen.getByRole("tab", { name: "Presets" }), {
       button: 0,
@@ -235,7 +243,10 @@ describe("Toolbar dock", () => {
       "data-[state=active]:bg-accent",
       "data-[state=active]:text-foreground"
     );
-    expect(screen.getByTestId("color-palette-grid")).toHaveClass("grid-cols-10");
+    expect(screen.getByTestId("color-palette-grid")).toHaveClass(
+      "grid-cols-10",
+      "gap-0.5"
+    );
     fireEvent.click(screen.getByRole("button", { name: "Pick preset color #7f1d1d" }));
     expect(onPick).toHaveBeenCalledWith("#7f1d1d");
     fireEvent.click(screen.getByRole("button", { name: "Pick preset color #93c5fd" }));

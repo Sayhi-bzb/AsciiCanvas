@@ -7,7 +7,7 @@ import {
 import type { InteractionEvent } from "../core/interactionMachine";
 import type { StructuredTextCaretHit } from "./structuredSelectStart";
 
-export type StructuredTextCaretSelectionStart = {
+type StructuredTextCaretSelectionStart = {
   selectedIds: string[];
   cursor: Point;
   textSelection: null;

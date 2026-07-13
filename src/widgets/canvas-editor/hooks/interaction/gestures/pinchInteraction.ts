@@ -2,7 +2,7 @@ import type { Point } from "@/shared/types";
 import type { CanvasMode } from "@/domains/sessions/public";
 import { resolveZoomAnchoredOffset } from "../core/coordinates";
 
-export type CanvasPinchDecision =
+type CanvasPinchDecision =
   | {
       type: "zoom";
       currentZoom: number;
@@ -43,7 +43,7 @@ export const resolveCanvasPinchDecision = ({
   };
 };
 
-export type CanvasPinchExecutor = {
+type CanvasPinchExecutor = {
   setZoom: (updater: (currentZoom: number) => number) => void;
   setOffset: (updater: (previousOffset: Point) => Point) => void;
 };
@@ -74,7 +74,7 @@ export const executeCanvasPinchDecision = (
     })
   );
 };
-export type CanvasPinchHandler = ({
+type CanvasPinchHandler = ({
   canvasMode,
   pinchStartZoom,
   scale,

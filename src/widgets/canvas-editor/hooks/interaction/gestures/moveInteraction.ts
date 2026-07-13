@@ -4,7 +4,7 @@ import type { ToolType } from "@/domains/canvas/public";
 import type { CanvasLinkHit } from "../core/linkHitTesting";
 import { isShapeTool } from "./dragStartInteraction";
 
-export type CanvasMoveAction =
+type CanvasMoveAction =
   | { type: "none" }
   | { type: "structured-text-cursor" }
   | { type: "structured-shape-hover"; point: Point | null }

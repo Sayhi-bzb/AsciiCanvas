@@ -6,8 +6,6 @@ import {
 } from "@/domains/animation/public";
 import type { InteractionEvent } from "../core/interactionMachine";
 
-export type ShapeTool = Extract<ToolType, "box" | "splitBox" | "line" | "bg">;
-
 export const isShapeTool = (
   tool: ToolType,
   canvasMode: CanvasMode
@@ -27,7 +25,7 @@ export const isSelectionTool = (
 };
 
 
-export type DragStartRouteDecision =
+type DragStartRouteDecision =
   | { type: "color-picker" }
   | { type: "pan" }
   | { type: "primary-canvas" }

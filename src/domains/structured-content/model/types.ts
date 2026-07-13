@@ -18,7 +18,7 @@ export interface StructuredTextStyleRange {
   style: StructuredTextRangeStyle;
 }
 
-export interface StructuredNodeComponentMetadata {
+interface StructuredNodeComponentMetadata {
   instanceId: string;
   templateId: string;
   role: string;

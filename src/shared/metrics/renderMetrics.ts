@@ -5,8 +5,8 @@ import {
 } from "@/shared/lib/constants";
 import { getCellOccupancy } from "./cellOccupancy";
 
-export const RENDER_FONT_FAMILY = "'Maple Mono NF CN', monospace";
-export const RENDER_FONT_SAMPLE = "A@╭你";
+const RENDER_FONT_FAMILY = "'Maple Mono NF CN', monospace";
+const RENDER_FONT_SAMPLE = "A@╭你";
 
 export type GridRenderMetrics = {
   cellWidth: number;

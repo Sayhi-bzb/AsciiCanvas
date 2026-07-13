@@ -19,7 +19,7 @@ export const forceHistorySave = () => {
 
 export type CanvasHistoryMode = "save" | "merge" | "none" | "reset";
 
-export const normalizeCanvasHistoryMode = (
+const normalizeCanvasHistoryMode = (
   history: CanvasHistoryMode | boolean = "save"
 ): CanvasHistoryMode => {
   if (history === true) return "save";
@@ -48,11 +48,4 @@ export const runCanvasTransaction = (
   } else if (mode === "reset") {
     undoManager.clear();
   }
-};
-
-export const transactWithHistory = (
-  fn: () => void,
-  shouldSaveHistory = true
-) => {
-  runCanvasTransaction(fn, shouldSaveHistory);
 };

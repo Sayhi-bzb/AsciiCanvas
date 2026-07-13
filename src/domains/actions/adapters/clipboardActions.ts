@@ -32,13 +32,13 @@ interface ClipboardPayload {
 
 type ClipboardPayloadFormat = "plain" | "ansi";
 
-export interface StructuredClipboardData {
+interface StructuredClipboardData {
   structuredNodes: StructuredNode[];
   surfaceCells: RichTextCell[];
   bounds: NodeBounds;
 }
 
-export interface StructuredTextClipboardData {
+interface StructuredTextClipboardData {
   text: string;
   style: StructuredNodeStyle;
   styleRanges?: StructuredTextStyleRange[];

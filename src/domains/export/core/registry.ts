@@ -1,7 +1,7 @@
 import type { CanvasMode } from "@/domains/sessions/public";
 import type { ExportFormat } from "./types";
 
-export type ExportFormatDefinition = {
+type ExportFormatDefinition = {
   format: ExportFormat;
   label: string;
   subLabel: string;
@@ -14,7 +14,7 @@ export type ExportFormatDefinition = {
 
 const ALL_STATIC_MODES: readonly CanvasMode[] = ["freeform", "structured"];
 
-export const EXPORT_FORMATS: readonly ExportFormatDefinition[] = [
+const EXPORT_FORMATS: readonly ExportFormatDefinition[] = [
   {
     format: "txt",
     label: "TXT",
