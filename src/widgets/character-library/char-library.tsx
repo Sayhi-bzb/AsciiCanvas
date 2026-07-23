@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import {
   ChevronRight,
-  Folder,
   Loader2,
   RefreshCcw,
   SearchX,
@@ -219,7 +218,6 @@ function GroupSection({
           type="button"
           className="flex h-8 w-full items-center gap-2 rounded-md px-2 text-xs text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
         >
-          <Folder className="size-3.5 shrink-0" />
           <span className="truncate">{label}</span>
           <span className="ml-auto text-[10px] tabular-nums">
             {group.entries.length}
