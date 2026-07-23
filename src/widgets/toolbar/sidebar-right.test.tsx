@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  act,
   createEvent,
   fireEvent,
   render,
@@ -84,6 +85,12 @@ describe("SidebarRight structured templates", () => {
     expect(header).not.toHaveTextContent("Components");
     expect(header).not.toHaveClass("border-b");
     expect(footer).not.toHaveClass("border-t");
+    expect(footer).toHaveClass(
+      "transition-[padding]",
+      "duration-200",
+      "ease-linear"
+    );
+    expect(footer).not.toHaveClass("transition-all", "duration-300");
     expect(sidebarInner).toHaveClass(
       "group-data-[variant=floating]:border-0",
       "group-data-[variant=floating]:bg-muted",
@@ -94,13 +101,32 @@ describe("SidebarRight structured templates", () => {
     expect(content).not.toContainElement(search);
     expect(content).toHaveClass("min-h-0", "overflow-hidden");
     expect(content).not.toHaveClass("overflow-y-auto");
+    expect(content).toHaveClass("[scrollbar-gutter:auto]");
+    expect(content).not.toHaveClass("[scrollbar-gutter:stable]");
     expect(content?.querySelectorAll('[data-slot="scroll-area"]')).toHaveLength(1);
     expect(scrollArea).toHaveClass("min-h-0", "overflow-hidden");
     expect(content).toHaveClass("p-0");
-    expect(screen.getByTestId("structured-view-rail-vertical")).toHaveAttribute(
+    const structuredRail = screen.getByTestId("structured-view-rail-vertical");
+    const structuredRailSlot = structuredRail.parentElement;
+    const toggleColumn = screen.getByTestId("sidebar-toggle-column");
+    expect(structuredRail).toHaveAttribute(
       "aria-orientation",
       "vertical"
     );
+    expect(header).toHaveClass(
+      "grid-cols-[minmax(0,1fr)_3rem]",
+      "px-0"
+    );
+    expect(structuredRailSlot?.parentElement).toHaveClass(
+      "grid-cols-[minmax(0,1fr)_3rem]"
+    );
+    expect(structuredRailSlot).toHaveClass(
+      "col-start-2",
+      "row-start-1",
+      "px-[3px]"
+    );
+    expect(toggleColumn).toHaveClass("col-start-2", "row-start-1");
+    expect(scrollArea).toHaveClass("col-start-1", "row-start-1");
     expect(screen.getByRole("tab", { name: "Template" })).toHaveAttribute(
       "aria-selected",
       "false"
@@ -268,6 +294,75 @@ describe("SidebarRight structured templates", () => {
     expect(screen.getByTestId("sidebar-footer-github")).toHaveClass("mt-1");
   });
 
+  it("keeps footer action nodes mounted while changing layouts", () => {
+    vi.useFakeTimers();
+    try {
+      render(
+        <SidebarProvider>
+          <SidebarRight />
+        </SidebarProvider>
+      );
+
+      const footerLayout = screen.getByTestId("sidebar-footer-layout");
+      const actions = screen.getByTestId("sidebar-footer-actions");
+      const expandedButtons = Array.from(actions.querySelectorAll("button"));
+      const minimapButton = screen.getByRole("button", { name: "Minimap" });
+      const githubButton = screen.getByRole("button", {
+        name: "Open Source Code",
+      });
+      const trigger = screen.getByRole("button", { name: "Toggle Sidebar" });
+
+      fireEvent.click(trigger);
+
+      expect(footerLayout).toHaveAttribute("data-layout", "expanded");
+      expect(footerLayout).toHaveClass("opacity-0", "duration-[90ms]");
+      expect(actions).toHaveClass("grid-cols-7");
+
+      fireEvent.click(trigger);
+
+      expect(footerLayout).toHaveAttribute("data-layout", "expanded");
+      expect(footerLayout).toHaveClass("opacity-100", "duration-[110ms]");
+      act(() => vi.advanceTimersByTime(90));
+      expect(actions).toHaveClass("grid-cols-7");
+
+      fireEvent.click(trigger);
+      act(() => vi.advanceTimersByTime(90));
+
+      expect(footerLayout).toHaveAttribute("data-layout", "collapsed");
+      expect(footerLayout).toHaveClass("opacity-100", "duration-[110ms]");
+      expect(actions).toHaveClass("grid-cols-1");
+      const collapsedButtons = Array.from(actions.querySelectorAll("button"));
+      expect(collapsedButtons).toHaveLength(expandedButtons.length);
+      collapsedButtons.forEach((button, index) => {
+        expect(button).toBe(expandedButtons[index]);
+      });
+      expect(screen.getByRole("button", { name: "Minimap" })).toBe(
+        minimapButton
+      );
+      expect(screen.getByRole("button", { name: "Open Source Code" })).toBe(
+        githubButton
+      );
+
+      fireEvent.click(trigger);
+      act(() => vi.advanceTimersByTime(90));
+
+      expect(footerLayout).toHaveAttribute("data-layout", "expanded");
+      expect(actions).toHaveClass("grid-cols-7");
+      const reopenedButtons = Array.from(actions.querySelectorAll("button"));
+      reopenedButtons.forEach((button, index) => {
+        expect(button).toBe(expandedButtons[index]);
+      });
+      expect(screen.getByRole("button", { name: "Minimap" })).toBe(
+        minimapButton
+      );
+      expect(screen.getByRole("button", { name: "Open Source Code" })).toBe(
+        githubButton
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("switches icon-only character views and preserves scoped search", async () => {
     useEditorStore.setState({ canvasMode: "freeform" });
     useLibraryStore.setState({
@@ -289,9 +384,22 @@ describe("SidebarRight structured templates", () => {
     );
 
     const rail = screen.getByTestId("character-view-rail-vertical");
+    const railSlot = rail.parentElement;
+    const scrollArea = railSlot?.parentElement?.querySelector(
+      '[data-slot="scroll-area"]'
+    );
     const tabs = screen.getAllByRole("tab");
     expect(rail).toHaveClass("bg-muted", "p-[3px]");
     expect(rail.parentElement).not.toHaveClass("border-r", "border-b");
+    expect(railSlot?.parentElement).toHaveClass(
+      "grid-cols-[minmax(0,1fr)_3rem]"
+    );
+    expect(railSlot).toHaveClass(
+      "col-start-2",
+      "row-start-1",
+      "px-[3px]"
+    );
+    expect(scrollArea).toHaveClass("col-start-1", "row-start-1");
     expect(tabs.map((tab) => tab.getAttribute("aria-label"))).toEqual([
       "Essentials",
       "Nerd Icons",
@@ -334,17 +442,24 @@ describe("SidebarRight structured templates", () => {
       '[data-slot="sidebar-header"]'
     );
     const trigger = screen.getByRole("button", { name: "Toggle Sidebar" });
+    const railBeforeExpand = screen.getByTestId(
+      "character-view-rail-vertical"
+    );
+    const headerContent = screen.getByTestId("sidebar-header-content");
+    const viewContent = screen.getByTestId("sidebar-view-content");
     expect(header).toHaveClass(
       "h-12",
-      "flex-row",
-      "py-2",
-      "px-[9px]",
-      "transition-[padding]"
+      "grid",
+      "grid-cols-[minmax(0,1fr)_3rem]",
+      "py-0",
+      "px-0"
     );
-    expect(header).not.toHaveClass("py-4", "transition-all");
-    expect(trigger).toHaveClass("ml-auto");
-    expect(screen.getByTestId("character-view-rail-vertical"))
-      .toBeInTheDocument();
+    expect(header).not.toHaveClass("py-4", "transition-all", "flex-row");
+    expect(trigger).not.toHaveClass("ml-auto");
+    expect(headerContent).toHaveAttribute("aria-hidden", "true");
+    expect(headerContent).toHaveAttribute("inert");
+    expect(viewContent).toHaveAttribute("aria-hidden", "true");
+    expect(viewContent).toHaveAttribute("inert");
     expect(
       screen.queryByRole("searchbox", { name: "Search characters" })
     ).not.toBeInTheDocument();
@@ -355,13 +470,26 @@ describe("SidebarRight structured templates", () => {
       "aria-selected",
       "true"
     );
+    expect(screen.getByTestId("character-view-rail-vertical")).toBe(
+      railBeforeExpand
+    );
+    expect(headerContent).not.toHaveAttribute("aria-hidden");
+    expect(headerContent).not.toHaveAttribute("inert");
+    expect(viewContent).not.toHaveAttribute("aria-hidden");
+    expect(viewContent).not.toHaveAttribute("inert");
     expect(screen.getByRole("tabpanel", { name: "Emoji characters" }))
       .toBeInTheDocument();
     expect(screen.getByRole("searchbox", { name: "Search characters" }))
       .toBeInTheDocument();
     expect(header).not.toHaveTextContent("Emoji");
-    expect(header).toHaveClass("h-12", "flex-row", "py-2", "px-3");
-    expect(header).not.toHaveClass("py-4");
+    expect(header).toHaveClass(
+      "h-12",
+      "grid",
+      "grid-cols-[minmax(0,1fr)_3rem]",
+      "py-0",
+      "px-0"
+    );
+    expect(header).not.toHaveClass("py-4", "flex-row");
   });
 
   it("shows animation frames in the right sidebar without replacing its footer", () => {
@@ -382,12 +510,15 @@ describe("SidebarRight structured templates", () => {
       },
     });
 
-    render(
+    const { container } = render(
       <SidebarProvider>
         <SidebarRight />
       </SidebarProvider>
     );
 
+    const content = container.querySelector('[data-slot="sidebar-content"]');
+    expect(content).toHaveClass("[scrollbar-gutter:stable]");
+    expect(content).not.toHaveClass("[scrollbar-gutter:auto]");
     expect(screen.getByText("Frames", { selector: "span" })).toBeInTheDocument();
     const framesTab = screen.getByRole("button", { name: "frames" });
     expect(framesTab).toHaveClass("bg-accent", "text-foreground");
@@ -545,12 +676,16 @@ describe("SidebarRight structured templates", () => {
     );
 
     const header = container.querySelector('[data-slot="sidebar-header"]');
+    const railBeforeExpand = screen.getByTestId(
+      "structured-view-rail-vertical"
+    );
+    const viewContent = screen.getByTestId("sidebar-view-content");
     expect(
       screen.queryByRole("searchbox", { name: "Search structured library" })
     ).not.toBeInTheDocument();
     expect(header?.querySelector('[data-slot="sidebar-trigger"]')).toBeInTheDocument();
-    expect(screen.getByTestId("structured-view-rail-vertical"))
-      .toBeInTheDocument();
+    expect(viewContent).toHaveAttribute("aria-hidden", "true");
+    expect(viewContent).toHaveAttribute("inert");
 
     fireEvent.click(screen.getByRole("tab", { name: "Template" }));
 
@@ -558,6 +693,11 @@ describe("SidebarRight structured templates", () => {
       "aria-selected",
       "true"
     );
+    expect(screen.getByTestId("structured-view-rail-vertical")).toBe(
+      railBeforeExpand
+    );
+    expect(viewContent).not.toHaveAttribute("aria-hidden");
+    expect(viewContent).not.toHaveAttribute("inert");
     expect(screen.getByRole("tabpanel", { name: "Template" }))
       .toBeInTheDocument();
     expect(

@@ -46,6 +46,10 @@ describe("CharLibrary", () => {
         dispatchEvent: vi.fn(),
       })),
     });
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: () => undefined,
+    });
   });
 
   afterEach(() => {
@@ -213,5 +217,114 @@ describe("CharLibrary", () => {
     labels.emoji.forEach(([, , chinese]) =>
       expect(screen.getByText(chinese)).toBeInTheDocument()
     );
+  });
+
+  it("selects Unicode facets through the shared Select control", async () => {
+    const loadUnicodeManifest = vi.fn().mockResolvedValue(undefined);
+    const loadUnicodePage = vi.fn(
+      async (facetType: "block" | "script" | "category", facetId: string) => {
+        useLibraryStore.setState({
+          unicodeFacetType: facetType,
+          unicodeFacetId: facetId,
+        });
+      }
+    );
+    useLibraryStore.setState({
+      unicodeManifest: {
+        schemaVersion: 1,
+        unicodeVersion: "17.0.0",
+        shardSize: 1024,
+        shards: {},
+        nameIndex: "unicode/name-index.json",
+        facets: {
+          block: [
+            {
+              id: "basic-latin",
+              label: "Basic Latin",
+              count: 95,
+              ranges: [[32, 126]],
+            },
+            {
+              id: "greek-coptic",
+              label: "Greek and Coptic",
+              count: 117,
+              ranges: [[880, 1023]],
+            },
+          ],
+          script: [
+            {
+              id: "latin",
+              label: "Latin",
+              count: 1374,
+              ranges: [[65, 90]],
+            },
+            {
+              id: "greek",
+              label: "Greek",
+              count: 518,
+              ranges: [[880, 1023]],
+            },
+          ],
+          category: [
+            {
+              id: "uppercase-letter",
+              label: "Uppercase Letter",
+              count: 1858,
+              ranges: [[65, 90]],
+            },
+          ],
+        },
+      },
+      unicodeStatus: "ready",
+      unicodeError: null,
+      unicodeFacetType: "block",
+      unicodeFacetId: "basic-latin",
+      unicodeResults: [],
+      unicodeOffset: 0,
+      unicodeHasMore: false,
+      loadUnicodeManifest,
+      loadUnicodePage,
+    });
+
+    render(
+      <SidebarProvider>
+        <CharLibrary view="unicode" />
+      </SidebarProvider>
+    );
+
+    const trigger = screen.getByRole("combobox", { name: "Unicode facet" });
+    expect(trigger).toHaveTextContent("Basic Latin (95)");
+
+    act(() => {
+      trigger.focus();
+      fireEvent.keyDown(trigger, { key: "ArrowDown" });
+    });
+    expect(await screen.findByRole("listbox")).toBeInTheDocument();
+
+    act(() => window.dispatchEvent(new Event("blur")));
+    await waitFor(() => {
+      expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+      expect(trigger).toHaveAttribute("aria-expanded", "false");
+    });
+
+    act(() => {
+      trigger.focus();
+      fireEvent.keyDown(trigger, { key: "ArrowDown" });
+    });
+    fireEvent.click(
+      await screen.findByRole("option", {
+        name: "Greek and Coptic (117)",
+      })
+    );
+    await waitFor(() =>
+      expect(loadUnicodePage).toHaveBeenCalledWith("block", "greek-coptic")
+    );
+    expect(trigger).toHaveTextContent("Greek and Coptic (117)");
+
+    fireEvent.click(screen.getByRole("button", { name: "script" }));
+    await waitFor(() =>
+      expect(loadUnicodePage).toHaveBeenCalledWith("script", "latin")
+    );
+    expect(trigger).toHaveTextContent("Latin (1374)");
   });
 });

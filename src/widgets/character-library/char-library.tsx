@@ -27,6 +27,13 @@ import {
   CollapsibleTrigger,
 } from "@/shared/ui/collapsible";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/ui/select";
+import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -351,6 +358,11 @@ function UnicodePane({
     if (first) await loadUnicodePage(value, first.id);
   };
 
+  const selectedFacetId =
+    unicodeFacetType === facetType && unicodeFacetId
+      ? unicodeFacetId
+      : unicodeManifest?.facets[facetType][0]?.id;
+
   return (
     <div className="space-y-2 p-2 pb-10">
       {unicodeStatus === "loading" && (
@@ -382,22 +394,35 @@ function UnicodePane({
               </button>
             ))}
           </div>
-          <select
-            aria-label="Unicode facet"
-            className="h-8 w-full rounded-md border-0 bg-accent/60 px-2 text-[11px] outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-            value={
-              unicodeFacetType === facetType ? unicodeFacetId ?? "" : ""
-            }
-            onChange={(event) =>
-              void loadUnicodePage(facetType, event.target.value)
+          <Select
+            value={selectedFacetId}
+            onValueChange={(value) =>
+              void loadUnicodePage(facetType, value)
             }
           >
-            {unicodeManifest.facets[facetType].map((facet) => (
-              <option key={facet.id} value={facet.id}>
-                {facet.label} ({facet.count})
-              </option>
-            ))}
-          </select>
+            <SelectTrigger
+              aria-label="Unicode facet"
+              size="sm"
+              className="w-full border-0 bg-accent/60 px-2 text-[11px] shadow-none dark:bg-accent/60 dark:hover:bg-accent/80"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent
+              position="popper"
+              align="start"
+              className="max-h-72 w-[var(--radix-select-trigger-width)] border-0"
+            >
+              {unicodeManifest.facets[facetType].map((facet) => (
+                <SelectItem
+                  key={facet.id}
+                  value={facet.id}
+                  className="text-[11px]"
+                >
+                  {facet.label} ({facet.count})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <CharacterGrid
             entries={unicodeResults}
             copiedChar={copiedChar}

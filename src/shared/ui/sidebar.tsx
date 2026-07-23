@@ -580,7 +580,7 @@ function SidebarStandard({
       {footer && (
         <SidebarFooter
           className={cn(
-            "p-2 transition-all duration-300",
+            "p-2 transition-[padding] duration-200 ease-linear",
             isCollapsed && "flex-col items-center gap-y-2 px-0"
           )}
         >
