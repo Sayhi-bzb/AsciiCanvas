@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createEvent, fireEvent, render, screen } from "@testing-library/react";
+import {
+  createEvent,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { SidebarRight } from "@/widgets/toolbar/sidebar-right";
 import { useEditorStore } from "@/domains/canvas/public";
 import { useLibraryStore } from "@/domains/character-library/public";
@@ -62,6 +68,8 @@ describe("SidebarRight structured templates", () => {
     );
     const content = container.querySelector('[data-slot="sidebar-content"]');
     const header = container.querySelector('[data-slot="sidebar-header"]');
+    const footer = container.querySelector('[data-slot="sidebar-footer"]');
+    const sidebarInner = container.querySelector('[data-slot="sidebar-inner"]');
     const group = container.querySelector('[data-slot="sidebar-group"]');
     const scrollArea = container.querySelector('[data-slot="scroll-area"]');
     const scrollViewport = container.querySelector(
@@ -74,7 +82,15 @@ describe("SidebarRight structured templates", () => {
 
     expect(header).not.toHaveTextContent("Template");
     expect(header).not.toHaveTextContent("Components");
+    expect(header).not.toHaveClass("border-b");
+    expect(footer).not.toHaveClass("border-t");
+    expect(sidebarInner).toHaveClass(
+      "group-data-[variant=floating]:border-0",
+      "group-data-[variant=floating]:bg-muted",
+      "group-data-[variant=floating]:shadow-none"
+    );
     expect(header).toContainElement(search);
+    expect(search).toHaveClass("border-0", "bg-accent/60");
     expect(content).not.toContainElement(search);
     expect(content).toHaveClass("min-h-0", "overflow-hidden");
     expect(content).not.toHaveClass("overflow-y-auto");
@@ -93,10 +109,13 @@ describe("SidebarRight structured templates", () => {
     expect(scrollViewport).not.toContainElement(
       screen.getByRole("tab", { name: "Components" })
     );
-    expect(screen.getByTestId("structured-sidebar-active-tab-line")).toHaveClass(
-      "h-0.5",
-      "-bottom-0.5"
+    expect(screen.getByRole("tab", { name: "Components" })).toHaveClass(
+      "bg-accent",
+      "rounded-md"
     );
+    expect(
+      screen.queryByTestId("structured-sidebar-active-tab-line")
+    ).not.toBeInTheDocument();
     expect(button).toBeInTheDocument();
     const templateItems = Array.from(
       group?.querySelectorAll('button[draggable="true"]') ?? []
@@ -106,12 +125,7 @@ describe("SidebarRight structured templates", () => {
     const templateSeparators = group?.querySelectorAll(
       '[data-slot="structured-template-separator"]'
     );
-    expect(templateSeparators).toHaveLength(
-      STRUCTURED_COMPONENT_TEMPLATES.length - 1
-    );
-    templateSeparators?.forEach((separator) =>
-      expect(separator).toHaveClass("h-0.5")
-    );
+    expect(templateSeparators).toHaveLength(0);
     const itemLabels = templateItems.map(
       (item) => item.querySelector(":scope > span:last-child")?.textContent
     );
@@ -138,6 +152,7 @@ describe("SidebarRight structured templates", () => {
         height: `${expectedPreview.height * 9}px`,
       });
       expect(item).toHaveTextContent(template.label);
+      expect(item).toHaveClass("rounded-md");
       expect(item.querySelector(":scope > span:last-child")).not.toHaveClass("font-semibold");
     });
     const buttonIndex = sortedTemplates.findIndex((template) => template.id === "button");
@@ -189,7 +204,7 @@ describe("SidebarRight structured templates", () => {
 
   it("opens minimap as a borderless footer popover and closes it with Escape", () => {
     useEditorStore.setState({ canvasMode: "freeform" });
-    useLibraryStore.setState({ fetchLibrary: vi.fn() });
+    useLibraryStore.setState({ loadMainPacks: vi.fn() });
     const contextSpy = vi.spyOn(
       HTMLCanvasElement.prototype,
       "getContext"
@@ -249,6 +264,101 @@ describe("SidebarRight structured templates", () => {
     expect(screen.getByTestId("sidebar-footer-github")).toHaveClass("mt-1");
   });
 
+  it("switches icon-only character views and preserves scoped search", async () => {
+    useEditorStore.setState({ canvasMode: "freeform" });
+    useLibraryStore.setState({
+      loadMainPacks: vi.fn(),
+      packs: {
+        essentials: [{ id: "ascii", label: "ASCII", entries: [] }],
+        nerd: [{ id: "icons", label: "Icons", entries: [] }],
+        emoji: [{ id: "faces", label: "Faces", entries: [] }],
+      },
+      packStatus: { essentials: "ready", nerd: "ready", emoji: "ready" },
+      searchQueries: { essentials: "", nerd: "", emoji: "" },
+      searchResults: { essentials: [], nerd: [], emoji: [] },
+    });
+
+    render(
+      <SidebarProvider>
+        <SidebarRight />
+      </SidebarProvider>
+    );
+
+    const rail = screen.getByTestId("character-view-rail-vertical");
+    const tabs = screen.getAllByRole("tab");
+    expect(rail).toHaveClass("bg-muted", "p-[3px]");
+    expect(rail.parentElement).not.toHaveClass("border-r", "border-b");
+    expect(tabs.map((tab) => tab.getAttribute("aria-label"))).toEqual([
+      "Essentials",
+      "Nerd Icons",
+      "Emoji",
+      "Unicode",
+    ]);
+    expect(screen.getByRole("tab", { name: "Essentials" })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: "Nerd Icons" }));
+    expect(screen.getByRole("tabpanel", { name: "Nerd Icons characters" }))
+      .toBeInTheDocument();
+    const search = screen.getByRole("searchbox", { name: "Search characters" });
+    fireEvent.change(search, { target: { value: "folder" } });
+    await waitFor(() =>
+      expect(useLibraryStore.getState().searchQueries.nerd).toBe("folder")
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: "Emoji" }));
+    expect(screen.getByRole("searchbox", { name: "Search characters" }))
+      .toHaveValue("");
+    fireEvent.click(screen.getByRole("tab", { name: "Nerd Icons" }));
+    expect(screen.getByRole("searchbox", { name: "Search characters" }))
+      .toHaveValue("folder");
+  });
+
+  it("keeps the character view rail when collapsed and expands selected view", () => {
+    useEditorStore.setState({ canvasMode: "freeform" });
+    useLibraryStore.setState({ loadMainPacks: vi.fn() });
+
+    render(
+      <SidebarProvider defaultOpen={false}>
+        <SidebarRight />
+      </SidebarProvider>
+    );
+
+    const header = document.querySelector(
+      '[data-slot="sidebar-header"]'
+    );
+    const trigger = screen.getByRole("button", { name: "Toggle Sidebar" });
+    expect(header).toHaveClass(
+      "h-12",
+      "flex-row",
+      "py-2",
+      "px-[9px]",
+      "transition-[padding]"
+    );
+    expect(header).not.toHaveClass("py-4", "transition-all");
+    expect(trigger).toHaveClass("ml-auto");
+    expect(screen.getByTestId("character-view-rail-vertical"))
+      .toBeInTheDocument();
+    expect(
+      screen.queryByRole("searchbox", { name: "Search characters" })
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Emoji" }));
+
+    expect(screen.getByRole("tab", { name: "Emoji" })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    );
+    expect(screen.getByRole("tabpanel", { name: "Emoji characters" }))
+      .toBeInTheDocument();
+    expect(screen.getByRole("searchbox", { name: "Search characters" }))
+      .toBeInTheDocument();
+    expect(header).toHaveClass("h-12", "flex-row", "py-2", "px-3");
+    expect(header).not.toHaveClass("py-4");
+  });
+
   it("shows animation frames in the right sidebar without replacing its footer", () => {
     useEditorStore.setState({
       canvasMode: "animation",
@@ -274,9 +384,17 @@ describe("SidebarRight structured templates", () => {
     );
 
     expect(screen.getByText("Frames", { selector: "span" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "frames" })).toBeInTheDocument();
+    const framesTab = screen.getByRole("button", { name: "frames" });
+    expect(framesTab).toHaveClass("bg-accent", "text-foreground");
+    expect(framesTab.parentElement).toHaveClass("bg-muted", "p-[3px]");
     expect(screen.getByRole("button", { name: "effects" })).toBeInTheDocument();
     expect(screen.getByText("Opening")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Select Frame 1: Opening" })
+    ).toHaveClass("bg-accent", "text-foreground");
+    expect(
+      screen.getByRole("button", { name: "Select Frame 1: Opening" })
+    ).not.toHaveClass("ring-1");
     expect(
       screen.getByRole("button", { name: "Add frame after current" })
     ).toBeInTheDocument();

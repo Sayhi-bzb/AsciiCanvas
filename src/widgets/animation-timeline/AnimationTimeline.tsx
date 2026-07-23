@@ -13,7 +13,6 @@ import { Input } from "@/shared/ui/input";
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/shared/ui/tooltip";
 
@@ -117,8 +116,7 @@ export function AnimationTimeline({
   };
 
   const timelineContent = (
-    <TooltipProvider delayDuration={200}>
-      <div className="pointer-events-auto flex flex-wrap items-center justify-center gap-2">
+    <div className="pointer-events-auto flex flex-wrap items-center justify-center gap-2">
         <div className="flex items-center gap-1.5 p-1">
           <Tooltip>
             <TooltipTrigger asChild>
@@ -251,7 +249,6 @@ export function AnimationTimeline({
           />
         </label>
       </div>
-    </TooltipProvider>
   );
 
   if (embedded) {

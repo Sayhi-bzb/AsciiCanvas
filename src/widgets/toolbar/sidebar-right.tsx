@@ -1,7 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Clapperboard, Eye, EyeOff, Github, Languages, Map } from "lucide-react";
+import {
+  Clapperboard,
+  Eye,
+  EyeOff,
+  Github,
+  Languages,
+  Library,
+  Map,
+  Sparkles,
+  Terminal,
+} from "lucide-react";
 import {
   SidebarHeader,
   SidebarStandard,
@@ -10,7 +20,10 @@ import {
 } from "@/shared/ui/sidebar";
 import { CharLibrary } from "@/widgets/character-library/char-library";
 import { SearchForm } from "@/widgets/character-library/search-form";
-import { useLibraryStore } from "@/domains/character-library/public";
+import {
+  useLibraryStore,
+  type CharacterViewId,
+} from "@/domains/character-library/public";
 import { StructuredTemplateLibrary } from "./structured-template-library";
 import {
   STRUCTURED_COMPONENT_TEMPLATES,
@@ -21,7 +34,7 @@ import { runSidebarAction } from "@/domains/actions/public";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import { ScrollArea } from "@/shared/ui/scroll-area";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/shared/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
 import { ExportDialog } from "@/widgets/export/export-dialog";
 import { ImportButton } from "@/widgets/import/ImportButton";
 import { HandbookDialog, ClearCanvasDialog } from "@/widgets/dialogs";
@@ -44,6 +57,70 @@ const STRUCTURED_SIDEBAR_TABS: Array<{
   { id: "template", labelKey: "sidebar.tab.template" },
   { id: "components", labelKey: "sidebar.tab.components" },
 ];
+
+const CHARACTER_VIEWS = [
+  { id: "essentials", label: "Essentials", icon: Library },
+  { id: "nerd", label: "Nerd Icons", icon: Terminal },
+  { id: "emoji", label: "Emoji", icon: Sparkles },
+  { id: "unicode", label: "Unicode", icon: Languages },
+] as const satisfies ReadonlyArray<{
+  id: CharacterViewId;
+  label: string;
+  icon: typeof Library;
+}>;
+
+function CharacterViewRail({
+  activeView,
+  orientation,
+  onSelect,
+}: {
+  activeView: CharacterViewId;
+  orientation: "horizontal" | "vertical";
+  onSelect: (view: CharacterViewId) => void;
+}) {
+  return (
+    <nav
+      role="tablist"
+      aria-label="Character library views"
+      aria-orientation={orientation}
+      data-testid={`character-view-rail-${orientation}`}
+      className={cn(
+        "flex rounded-lg bg-muted p-[3px]",
+        orientation === "vertical"
+          ? "w-full flex-col gap-1"
+          : "w-full items-center gap-1"
+      )}
+    >
+      {CHARACTER_VIEWS.map((view) => {
+        const Icon = view.icon;
+        const isActive = activeView === view.id;
+        return (
+          <Tooltip key={view.id}>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                aria-label={view.label}
+                onClick={() => onSelect(view.id)}
+                className={cn(
+                  "inline-flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50",
+                  orientation === "horizontal" && "flex-1",
+                  isActive && "bg-accent text-foreground"
+                )}
+              >
+                <Icon className="size-4" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side={orientation === "vertical" ? "left" : "bottom"}>
+              {view.label}
+            </TooltipContent>
+          </Tooltip>
+        );
+      })}
+    </nav>
+  );
+}
 
 type SidebarRightProps = {
   containerSize?: { width: number; height: number };
@@ -82,21 +159,40 @@ export function SidebarRight({ containerSize }: SidebarRightProps) {
     }))
   );
 
-  const { fetchLibrary } = useLibraryStore();
-  const { state, isMobile } = useSidebar();
+  const { loadMainPacks, searchUnicode, unicodeSearchLoading } =
+    useLibraryStore(
+      useShallow((library) => ({
+        loadMainPacks: library.loadMainPacks,
+        searchUnicode: library.searchUnicode,
+        unicodeSearchLoading: library.unicodeSearchLoading,
+      }))
+    );
+  const { state, isMobile, setOpen } = useSidebar();
   const isCollapsed = state === "collapsed" && !isMobile;
+  const footerTooltipSide = isCollapsed ? "left" : "top";
   const { language, t, toggleLanguage } = useUiI18n();
   const [structuredSidebarTab, setStructuredSidebarTab] =
     useState<StructuredSidebarTab>("components");
   const [structuredLibraryQuery, setStructuredLibraryQuery] = useState("");
+  const [activeCharacterView, setActiveCharacterView] =
+    useState<CharacterViewId>("essentials");
+  const [unicodeQuery, setUnicodeQuery] = useState("");
+  const activeCharacterViewMeta =
+    CHARACTER_VIEWS.find((view) => view.id === activeCharacterView) ??
+    CHARACTER_VIEWS[0];
 
   useEffect(() => {
     if (canvasMode !== "freeform") return;
-    fetchLibrary();
-  }, [canvasMode, fetchLibrary]);
+    void loadMainPacks();
+  }, [canvasMode, loadMainPacks]);
 
   const stopCanvasUiEvent = (event: { stopPropagation: () => void }) => {
     event.stopPropagation();
+  };
+
+  const selectCharacterView = (view: CharacterViewId) => {
+    setActiveCharacterView(view);
+    if (isCollapsed) setOpen(true);
   };
 
   return (
@@ -111,16 +207,26 @@ export function SidebarRight({ containerSize }: SidebarRightProps) {
       onContextMenu={stopCanvasUiEvent}
       contentClassName={cn(
         "min-h-0 overflow-hidden",
+        canvasMode === "freeform" && "gap-0 p-0",
         canvasMode === "structured" && "gap-0 p-2",
         canvasMode === "animation" && "p-2"
       )}
+      collapsedContent={
+        canvasMode === "freeform" ? (
+          <CharacterViewRail
+            activeView={activeCharacterView}
+            orientation="vertical"
+            onSelect={selectCharacterView}
+          />
+        ) : undefined
+      }
       header={
         <SidebarHeader
           className={cn(
-            "border-b transition-all duration-200",
+            "h-12 shrink-0 flex-row items-center py-2 transition-[padding] duration-200",
             isCollapsed
-              ? "items-center justify-center px-0 py-4"
-              : "flex-row items-center gap-2 px-3 py-2"
+              ? "gap-0 px-[9px]"
+              : "gap-2 px-3"
           )}
         >
           {!isCollapsed &&
@@ -132,7 +238,7 @@ export function SidebarRight({ containerSize }: SidebarRightProps) {
                 onChange={(event) => setStructuredLibraryQuery(event.target.value)}
                 placeholder={t("sidebar.search.placeholder")}
                 className={cn(
-                  "h-8 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-xs outline-none",
+                  "h-8 min-w-0 flex-1 rounded-md border-0 bg-accent/60 px-2 text-xs outline-none",
                   "placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
                 )}
               />
@@ -144,14 +250,25 @@ export function SidebarRight({ containerSize }: SidebarRightProps) {
                 <span className="truncate text-sm font-semibold">Frames</span>
               </div>
             ) : (
-              <SearchForm className="min-w-0 flex-1" />
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                <span className="w-20 shrink-0 truncate text-xs font-semibold">
+                  {activeCharacterViewMeta.label}
+                </span>
+                <SearchForm
+                  view={activeCharacterView}
+                  unicodeQuery={unicodeQuery}
+                  unicodeLoading={unicodeSearchLoading}
+                  onUnicodeQueryChange={setUnicodeQuery}
+                  onUnicodeSubmit={() => void searchUnicode(unicodeQuery)}
+                  className="min-w-0 flex-1"
+                />
+              </div>
             ))}
-          <SidebarTrigger className="size-8 shrink-0" />
+          <SidebarTrigger className="ml-auto size-8 shrink-0" />
         </SidebarHeader>
       }
       footer={
-        <TooltipProvider>
-          <div
+        <div
             className={cn(
               "flex w-full items-center justify-between px-1",
               isCollapsed && "flex-col gap-1"
@@ -165,7 +282,7 @@ export function SidebarRight({ containerSize }: SidebarRightProps) {
                 isCollapsed && "grid-cols-1"
               )}
             >
-              <ImportButton />
+              <ImportButton tooltipSide={footerTooltipSide} />
 
               <ExportDialog
                 grid={grid}
@@ -176,6 +293,7 @@ export function SidebarRight({ containerSize }: SidebarRightProps) {
                 animationTimeline={animationTimeline}
                 exportShowGrid={exportShowGrid}
                 setExportShowGrid={setExportShowGrid}
+                tooltipSide={footerTooltipSide}
               />
 
               <Tooltip>
@@ -209,7 +327,7 @@ export function SidebarRight({ containerSize }: SidebarRightProps) {
                     )}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="left">
+                <TooltipContent side={footerTooltipSide}>
                   {showGrid
                     ? t("sidebar.grid.hide")
                     : t("action.toggleGrid")}
@@ -237,7 +355,7 @@ export function SidebarRight({ containerSize }: SidebarRightProps) {
                         </PopoverTrigger>
                       </span>
                     </TooltipTrigger>
-                    <TooltipContent side="left">
+                    <TooltipContent side={footerTooltipSide}>
                       {t("sidebar.minimap")}
                     </TooltipContent>
                   </Tooltip>
@@ -252,7 +370,7 @@ export function SidebarRight({ containerSize }: SidebarRightProps) {
                 </Popover>
               )}
 
-              <HandbookDialog />
+              <HandbookDialog tooltipSide={footerTooltipSide} />
 
               <ClearCanvasDialog
                 isCollapsed={isCollapsed}
@@ -262,6 +380,7 @@ export function SidebarRight({ containerSize }: SidebarRightProps) {
                     ? t("sidebar.clear.frame")
                     : t("sidebar.clear.canvas")
                 }
+                tooltipSide={footerTooltipSide}
                 description={
                   canvasMode === "animation"
                     ? t("sidebar.clear.frameDescription")
@@ -283,7 +402,7 @@ export function SidebarRight({ containerSize }: SidebarRightProps) {
                     <Languages className="size-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="left">
+                <TooltipContent side={footerTooltipSide}>
                   {language === "en"
                     ? t("language.switchToChinese")
                     : t("language.switchToEnglish")}
@@ -315,23 +434,50 @@ export function SidebarRight({ containerSize }: SidebarRightProps) {
                     <Github className="size-4" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="left">
+                <TooltipContent side={footerTooltipSide}>
                   {t("action.openSourceCode")}
                 </TooltipContent>
               </Tooltip>
             </div>
           </div>
-        </TooltipProvider>
       }
     >
       {canvasMode === "animation" ? (
         <AnimationSidebarContent />
+      ) : canvasMode === "freeform" ? (
+        <div
+          className={cn(
+            "min-h-0 min-w-0 flex-1",
+            isMobile ? "flex flex-col" : "grid grid-cols-[2.75rem_minmax(0,1fr)]"
+          )}
+        >
+          <div
+            className={cn(
+              "shrink-0 p-1",
+              isMobile ? "pb-0" : "pr-0"
+            )}
+          >
+            <CharacterViewRail
+              activeView={activeCharacterView}
+              orientation={isMobile ? "horizontal" : "vertical"}
+              onSelect={selectCharacterView}
+            />
+          </div>
+          <ScrollArea className="min-h-0 min-w-0 flex-1">
+            <div
+              role="tabpanel"
+              aria-label={`${activeCharacterViewMeta.label} characters`}
+            >
+              <CharLibrary view={activeCharacterView} />
+            </div>
+          </ScrollArea>
+        </div>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col">
           {canvasMode === "structured" && !isCollapsed && (
-            <div className="shrink-0 border-b px-2 pb-2 pt-1">
+            <div className="shrink-0 px-2 pb-2 pt-1">
               <div
-                className="flex items-end gap-4"
+                className="flex items-center gap-1 rounded-lg bg-muted p-[3px]"
                 role="tablist"
                 aria-label="Structured library sections"
               >
@@ -344,21 +490,15 @@ export function SidebarRight({ containerSize }: SidebarRightProps) {
                       role="tab"
                       aria-selected={isActive}
                       className={cn(
-                        "relative h-7 px-0 text-xs font-medium transition-colors outline-none",
+                        "h-7 flex-1 rounded-md px-2 text-xs font-medium transition-colors outline-none",
                         "focus-visible:ring-2 focus-visible:ring-ring/50",
                         isActive
-                          ? "text-foreground"
+                          ? "bg-accent text-foreground"
                           : "text-muted-foreground hover:text-foreground"
                       )}
                       onClick={() => setStructuredSidebarTab(tab.id)}
                     >
                       {t(tab.labelKey)}
-                      {isActive && (
-                        <span
-                          data-testid="structured-sidebar-active-tab-line"
-                          className="absolute inset-x-0 -bottom-0.5 h-0.5 bg-foreground"
-                        />
-                      )}
                     </button>
                   );
                 })}
@@ -380,15 +520,10 @@ export function SidebarRight({ containerSize }: SidebarRightProps) {
                   emptyLabel={t("sidebar.empty.components")}
                 />
               )
-            ) : (
-              <CharLibrary />
-            )}
+            ) : null}
           </ScrollArea>
         </div>
       )}
     </SidebarStandard>
   );
 }
-
-
-

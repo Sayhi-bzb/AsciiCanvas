@@ -195,7 +195,13 @@ describe("export utilities", () => {
 
   it("serializes the animation exchange document without editor-only fields", () => {
     const timeline = normalizeAnimationTimeline({
-      frames: [{ id: "f1", name: "Frame 1", grid: [] }],
+      frames: [
+        {
+          id: "f1",
+          name: "Frame 1",
+          grid: [["0,0", { char: "@", color: "#ffffff" }]],
+        },
+      ],
       currentFrameId: "f1",
     });
 
@@ -910,7 +916,13 @@ describe("export utilities", () => {
     const timeline = normalizeAnimationTimeline({
       fps: 1,
       loop: false,
-      frames: [{ id: "f1", name: "Frame 1", grid: [] }],
+      frames: [
+        {
+          id: "f1",
+          name: "Frame 1",
+          grid: [["0,0", { char: "@", color: "#ffffff" }]],
+        },
+      ],
       currentFrameId: "f1",
     });
     const originalFonts = document.fonts;
@@ -927,6 +939,8 @@ describe("export utilities", () => {
 
     try {
       vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
+        save: vi.fn(),
+        restore: vi.fn(),
         clearRect: vi.fn(),
         fillRect: vi.fn(),
         beginPath: vi.fn(),

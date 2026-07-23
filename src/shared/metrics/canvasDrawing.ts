@@ -1,6 +1,7 @@
 import type { GridCell } from "@/shared/types";
 import { effectiveCellStyle } from "@/shared/utils/ansi";
 import { getCellOccupancy } from "./cellOccupancy";
+import { resolveRenderFontRoute } from "./fontRouting";
 import {
   alignCanvasCoordinate,
   DEFAULT_GRID_RENDER_METRICS,
@@ -141,6 +142,7 @@ export const drawCellText = (
   ctx.font = getCanvasFont(metrics, zoom, {
     bold: !!style.attrs?.bold,
     italic: !!style.attrs?.italic,
+    route: resolveRenderFontRoute(cell.char),
   });
   ctx.textBaseline = "middle";
   ctx.textAlign = "center";

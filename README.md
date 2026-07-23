@@ -102,6 +102,8 @@ It supports three session modes:
 - **State Management**: Zustand 5 with slice-based store modules
 - **Styling**: Tailwind CSS 4, Radix UI, shadcn/ui-style primitives
 - **Rendering**: layered Canvas 2D rendering with grid metrics for wide characters
+- **Font routing**: [self-hosted font and Unicode routing](docs/font-unicode-routing.md)
+- **Character catalog**: [curated packs and lazy Unicode explorer](docs/character-library.md)
 - **Synchronization**: Yjs / Y-IndexedDB
 - **Gestures**: @use-gesture/react
 - **Animation Export**: JSON, in-browser GIF generation, asciinema `.cast`, and ANSI text

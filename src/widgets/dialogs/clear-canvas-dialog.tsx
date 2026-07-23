@@ -14,7 +14,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/shared/ui/alert-dialog";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/shared/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  type TooltipContentProps,
+} from "@/shared/ui/tooltip";
 import { useUiI18n } from "@/shared/i18n";
 
 type ClearCanvasDialogProps = {
@@ -22,6 +27,7 @@ type ClearCanvasDialogProps = {
   iconOnly?: boolean;
   label?: string;
   description?: string;
+  tooltipSide?: TooltipContentProps["side"];
   onConfirm: () => void;
 };
 
@@ -30,14 +36,14 @@ export function ClearCanvasDialog({
   iconOnly = false,
   label = "Clear Canvas",
   description = "This will completely clear the current blueprint.",
+  tooltipSide = "left",
   onConfirm,
 }: ClearCanvasDialogProps) {
   const { t } = useUiI18n();
 
   return (
     <AlertDialog>
-      <TooltipProvider>
-        <Tooltip>
+      <Tooltip>
           <TooltipTrigger asChild>
             <AlertDialogTrigger asChild>
               <Button
@@ -56,9 +62,8 @@ export function ClearCanvasDialog({
               </Button>
             </AlertDialogTrigger>
           </TooltipTrigger>
-          {(isCollapsed || iconOnly) && <TooltipContent side="left">{label}</TooltipContent>}
+          {(isCollapsed || iconOnly) && <TooltipContent side={tooltipSide}>{label}</TooltipContent>}
         </Tooltip>
-      </TooltipProvider>
 
       <AlertDialogContent>
         <AlertDialogHeader>

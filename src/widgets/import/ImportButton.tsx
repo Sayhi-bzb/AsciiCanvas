@@ -7,13 +7,17 @@ import { Button } from "@/shared/ui/button";
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
+  type TooltipContentProps,
 } from "@/shared/ui/tooltip";
 import { feedback } from "@/shared/services/effects";
 import { useUiI18n } from "@/shared/i18n";
 
-export function ImportButton() {
+type ImportButtonProps = {
+  tooltipSide?: TooltipContentProps["side"];
+};
+
+export function ImportButton({ tooltipSide = "left" }: ImportButtonProps = {}) {
   const { t } = useUiI18n();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const importCanvasSession = useEditorStore(
@@ -63,8 +67,7 @@ export function ImportButton() {
         onChange={handleFileChange}
       />
 
-      <TooltipProvider>
-        <Tooltip>
+      <Tooltip>
           <TooltipTrigger asChild>
             <Button
               type="button"
@@ -78,11 +81,10 @@ export function ImportButton() {
               <Upload className="size-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent side="left">
+          <TooltipContent side={tooltipSide}>
             {isImporting ? t("import.importing") : t("import.tooltip")}
           </TooltipContent>
         </Tooltip>
-      </TooltipProvider>
     </>
   );
 }

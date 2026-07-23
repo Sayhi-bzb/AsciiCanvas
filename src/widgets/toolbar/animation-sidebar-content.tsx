@@ -165,9 +165,9 @@ function FrameRow({
   const rowClassName = cn(
     "group/frame relative flex w-full min-w-0 items-center rounded-xl px-1.5 py-2 text-left outline-none overflow-hidden",
     isActive
-      ? "bg-primary/12 text-primary ring-1 ring-primary/20"
+      ? "bg-accent text-foreground"
       : isSelected
-      ? "bg-accent/55 text-foreground ring-1 ring-border/80"
+      ? "bg-accent/55 text-foreground"
       : "text-foreground hover:bg-accent/45 focus-visible:bg-accent/45"
   );
   const stopFrameSelectionEvent = (
@@ -481,7 +481,7 @@ export function AnimationSidebarContent() {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {!isCollapsed && (
-        <div className="mb-3 grid shrink-0 grid-cols-2 gap-1">
+        <div className="mb-3 grid shrink-0 grid-cols-2 gap-1 rounded-lg bg-muted p-[3px]">
           {(["frames", "effects"] as const).map((mode) => (
             <button
               key={mode}
@@ -490,8 +490,8 @@ export function AnimationSidebarContent() {
               className={cn(
                 "h-7 rounded-md text-xs font-semibold capitalize transition-colors",
                 panelMode === mode
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted/35 text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+                  ? "bg-accent text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
               )}
             >
               {mode}

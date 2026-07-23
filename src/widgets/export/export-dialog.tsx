@@ -19,8 +19,8 @@ import {
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
+  type TooltipContentProps,
 } from "@/shared/ui/tooltip";
 import { feedback } from "@/shared/services/effects";
 import { cn } from "@/shared/lib/utils";
@@ -47,6 +47,7 @@ type ExportDialogProps = {
   animationTimeline: AnimationTimeline | null;
   exportShowGrid: boolean;
   setExportShowGrid: (show: boolean) => void;
+  tooltipSide?: TooltipContentProps["side"];
 };
 
 type ExportOptionToggleProps = {
@@ -123,6 +124,7 @@ export function ExportDialog({
   animationTimeline,
   exportShowGrid,
   setExportShowGrid,
+  tooltipSide = "left",
 }: ExportDialogProps) {
   const { t } = useUiI18n();
   const shouldExportStructured = canvasMode === "structured";
@@ -274,8 +276,7 @@ export function ExportDialog({
   };
 
   return (
-    <TooltipProvider>
-      <Dialog>
+    <Dialog>
         <Tooltip>
           <TooltipTrigger asChild>
             <DialogTrigger asChild>
@@ -294,7 +295,7 @@ export function ExportDialog({
               </Button>
             </DialogTrigger>
           </TooltipTrigger>
-          <TooltipContent side="left">
+          <TooltipContent side={tooltipSide}>
             {shouldExportAnimation
               ? t("export.tooltip.animation")
               : t("export.tooltip.blueprint")}
@@ -356,7 +357,7 @@ export function ExportDialog({
                       onAction={copyActiveFormat}
                     />
                   </TooltipTrigger>
-                  <TooltipContent>{t("export.copy")}</TooltipContent>
+                  <TooltipContent side="top">{t("export.copy")}</TooltipContent>
                 </Tooltip>
               )}
               <Tooltip>
@@ -371,7 +372,7 @@ export function ExportDialog({
                     onAction={saveActiveFormat}
                   />
                 </TooltipTrigger>
-                <TooltipContent>{t("export.save")}</TooltipContent>
+                <TooltipContent side="top">{t("export.save")}</TooltipContent>
               </Tooltip>
               </div>
             </div>
@@ -453,6 +454,5 @@ export function ExportDialog({
           </div>
         </DialogContent>
       </Dialog>
-    </TooltipProvider>
   );
 }

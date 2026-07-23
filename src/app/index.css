@@ -14,8 +14,9 @@ body,
 }
 
 @theme inline {
-  --font-mono: "Maple Mono NF CN", ui-monospace, SFMono-Regular, Menlo, Monaco,
-    Consolas, "Liberation Mono", "Courier New", monospace;
+  --font-mono: "Maple Mono NF CN", "Noto Sans Symbols 2", ui-monospace,
+    SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+    monospace;
 
   /* 恢复圆角变量的计算，不再强制为0 */
   --radius-sm: calc(var(--radius) - 4px);

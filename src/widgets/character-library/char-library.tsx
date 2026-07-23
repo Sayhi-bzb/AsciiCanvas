@@ -1,46 +1,89 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ChevronRight,
-  Sparkles,
-  Languages,
-  SearchX,
+  Folder,
   Loader2,
   RefreshCcw,
-  Folder,
-  Terminal,
-  FolderOpen,
-  SquareDashed,
+  SearchX,
 } from "lucide-react";
-import { useEditorStore } from "@/domains/canvas/public";
 import { writeClipboardPayload } from "@/domains/actions/public";
-import { useLibraryStore } from "@/domains/character-library/public";
+import { useEditorStore } from "@/domains/canvas/public";
+import {
+  useLibraryStore,
+  type CharacterGroup,
+  type CharacterPackId,
+  type CharacterRecord,
+  type CharacterViewId,
+  type UnicodeFacetType,
+} from "@/domains/character-library/public";
 import { cn } from "@/shared/lib/utils";
+import { getRenderFontFamilyForGrapheme } from "@/shared/metrics";
 import { feedback } from "@/shared/services/effects";
+import { useUiI18n, type I18nKey } from "@/shared/i18n";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/shared/ui/collapsible";
 import {
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-  SidebarMenuSub,
-  SidebarGroup,
-  SidebarGroupLabel,
-  SidebarGroupContent,
-} from "@/shared/ui/sidebar";
-import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/shared/ui/tooltip";
-import { useShallow } from "zustand/react/shallow";
 
-const getCodePointLabel = (char: string) =>
-  Array.from(char)
+const PAGE_SIZE = 240;
+
+const CHARACTER_GROUP_LABEL_KEYS: Record<
+  CharacterPackId,
+  Record<string, I18nKey>
+> = {
+  essentials: {
+    ascii: "character.group.essentials.ascii",
+    lines: "character.group.essentials.lines",
+    arrows: "character.group.essentials.arrows",
+    shapes: "character.group.essentials.shapes",
+    math: "character.group.essentials.math",
+    technical: "character.group.essentials.technical",
+    numbers: "character.group.essentials.numbers",
+    dingbats: "character.group.essentials.dingbats",
+    braille: "character.group.essentials.braille",
+    "common-symbols": "character.group.essentials.common-symbols",
+  },
+  nerd: {
+    "seti-ui-custom": "character.group.nerd.seti-ui-custom",
+    devicons: "character.group.nerd.devicons",
+    "font-awesome": "character.group.nerd.font-awesome",
+    "font-awesome-ext": "character.group.nerd.font-awesome-ext",
+    "material-design": "character.group.nerd.material-design",
+    "weather-icons": "character.group.nerd.weather-icons",
+    octicons: "character.group.nerd.octicons",
+    "powerline-symbols": "character.group.nerd.powerline-symbols",
+    "powerline-extra": "character.group.nerd.powerline-extra",
+    "iec-power": "character.group.nerd.iec-power",
+    "font-logos": "character.group.nerd.font-logos",
+    pomicons: "character.group.nerd.pomicons",
+    codicons: "character.group.nerd.codicons",
+    "progress-indicators": "character.group.nerd.progress-indicators",
+    "heavy-angle-brackets": "character.group.nerd.heavy-angle-brackets",
+  },
+  emoji: {
+    "smileys-emotion": "character.group.emoji.smileys-emotion",
+    "people-body": "character.group.emoji.people-body",
+    component: "character.group.emoji.component",
+    "animals-nature": "character.group.emoji.animals-nature",
+    "food-drink": "character.group.emoji.food-drink",
+    "travel-places": "character.group.emoji.travel-places",
+    activities: "character.group.emoji.activities",
+    objects: "character.group.emoji.objects",
+    symbols: "character.group.emoji.symbols",
+    flags: "character.group.emoji.flags",
+  },
+};
+
+const getCodePointLabel = (grapheme: string) =>
+  Array.from(grapheme)
     .map((part) => {
       const codePoint = part.codePointAt(0);
       return codePoint === undefined
@@ -50,81 +93,357 @@ const getCodePointLabel = (char: string) =>
     .filter(Boolean)
     .join(" ");
 
-const CharButton = ({
-  char,
-  label,
+function CharButton({
+  entry,
   isSelected,
   onClick,
 }: {
-  char: string;
-  label: string;
+  entry: CharacterRecord;
   isSelected: boolean;
-  onClick: (c: string) => void;
-}) => {
-  const codePointLabel = getCodePointLabel(char);
-  const tooltipLabel = codePointLabel ? `${label} · ${codePointLabel}` : label;
+  onClick: (entry: CharacterRecord) => void;
+}) {
+  const codePoints = getCodePointLabel(entry.grapheme);
+  const unavailable = !entry.insertable;
+  const tooltipLabel = `${entry.name} · ${codePoints}${
+    unavailable ? " · metadata only" : ""
+  }`;
+  const preview = entry.category.startsWith("M")
+    ? `◌${entry.grapheme}`
+    : entry.category === "Zs"
+      ? "␠"
+      : entry.grapheme;
 
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <button
+          type="button"
           aria-label={tooltipLabel}
-          title={tooltipLabel}
-          onClick={() => onClick(char)}
+          data-character-codepoints={codePoints}
+          disabled={unavailable}
+          onClick={() => onClick(entry)}
+          style={{ fontFamily: getRenderFontFamilyForGrapheme(entry.grapheme) }}
           className={cn(
-            "inline-flex size-6 shrink-0 items-center justify-center rounded-sm p-0 font-mono text-sm leading-none transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+            "inline-flex size-7 shrink-0 items-center justify-center rounded-md p-0 font-mono text-sm leading-none transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
             isSelected
-              ? "bg-primary text-primary-foreground"
-              : "bg-transparent text-foreground hover:bg-accent hover:text-accent-foreground"
+              ? "bg-accent text-foreground"
+              : "bg-transparent text-foreground hover:bg-accent hover:text-accent-foreground",
+            unavailable && "cursor-not-allowed opacity-35"
           )}
         >
-          {char}
+          {preview}
         </button>
       </TooltipTrigger>
-      <TooltipContent side="left" className="max-w-56">
-        {tooltipLabel}
+      <TooltipContent side="top">
+        <div data-slot="tooltip-title" className="font-medium">
+          {entry.name}
+        </div>
+        <div
+          data-slot="tooltip-meta"
+          className="mt-0.5 font-mono text-[10px] text-background/70"
+        >
+          {codePoints} &middot; {entry.category}
+        </div>
+        {unavailable && (
+          <div
+            data-slot="tooltip-status"
+            className="mt-1 text-[10px] text-background/70"
+          >
+            Metadata only
+          </div>
+        )}
       </TooltipContent>
     </Tooltip>
   );
-};
+}
 
-export function CharLibrary() {
-  const { brushColor } = useEditorStore(
-    useShallow((state) => ({
-      brushColor: state.brushColor,
-    }))
+function CharacterGrid({
+  entries,
+  copiedChar,
+  onSelect,
+  paged = true,
+}: {
+  entries: CharacterRecord[];
+  copiedChar: string | null;
+  onSelect: (entry: CharacterRecord) => void;
+  paged?: boolean;
+}) {
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const visibleEntries = paged ? entries.slice(0, visibleCount) : entries;
+  return (
+    <>
+      <div className="flex flex-wrap gap-0.5 overflow-hidden py-1">
+        {visibleEntries.map((entry) => (
+          <CharButton
+            key={`${entry.id}-${entry.grapheme}`}
+            entry={entry}
+            isSelected={copiedChar === entry.grapheme}
+            onClick={onSelect}
+          />
+        ))}
+      </div>
+      {paged && visibleCount < entries.length && (
+        <button
+          type="button"
+          onClick={() => setVisibleCount((value) => value + PAGE_SIZE)}
+          className="my-1 h-7 rounded-md bg-accent px-2 text-[11px] font-medium text-accent-foreground"
+        >
+          Show more ({Math.min(PAGE_SIZE, entries.length - visibleCount)})
+        </button>
+      )}
+    </>
   );
+}
+
+function GroupSection({
+  pack,
+  group,
+  defaultOpen,
+  copiedChar,
+  onSelect,
+}: {
+  pack: CharacterPackId;
+  group: CharacterGroup;
+  defaultOpen: boolean;
+  copiedChar: string | null;
+  onSelect: (entry: CharacterRecord) => void;
+}) {
+  const { t } = useUiI18n();
+  const labelKey = CHARACTER_GROUP_LABEL_KEYS[pack][group.id];
+  const label = labelKey ? t(labelKey) : group.label;
+
+  return (
+    <Collapsible defaultOpen={defaultOpen} className="group/character-group">
+      <CollapsibleTrigger asChild>
+        <button
+          type="button"
+          className="flex h-8 w-full items-center gap-2 rounded-md px-2 text-xs text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+        >
+          <Folder className="size-3.5 shrink-0" />
+          <span className="truncate">{label}</span>
+          <span className="ml-auto text-[10px] tabular-nums">
+            {group.entries.length}
+          </span>
+          <ChevronRight className="size-3.5 shrink-0 transition-transform group-data-[state=open]/character-group:rotate-90" />
+        </button>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="px-1">
+        <CharacterGrid
+          entries={group.entries}
+          copiedChar={copiedChar}
+          onSelect={onSelect}
+        />
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
+function EmptySearch() {
+  return (
+    <div className="flex flex-col items-center py-12 text-muted-foreground">
+      <SearchX className="mb-2 size-8 opacity-20" />
+      <p className="text-[11px]">No characters found</p>
+    </div>
+  );
+}
+
+function PackPane({
+  pack,
+  copiedChar,
+  onSelect,
+}: {
+  pack: CharacterPackId;
+  copiedChar: string | null;
+  onSelect: (entry: CharacterRecord) => void;
+}) {
+  const groups = useLibraryStore((state) => state.packs[pack]);
+  const status = useLibraryStore((state) => state.packStatus[pack]);
+  const error = useLibraryStore((state) => state.packErrors[pack]);
+  const query = useLibraryStore((state) => state.searchQueries[pack]);
+  const results = useLibraryStore((state) => state.searchResults[pack]);
+  const retryPack = useLibraryStore((state) => state.retryPack);
+
+  if (query.trim()) {
+    return (
+      <div className="p-2 pb-10">
+        <p className="px-1 pb-2 text-[11px] text-muted-foreground">
+          Results ({results.length})
+        </p>
+        {results.length ? (
+          <CharacterGrid
+            entries={results}
+            copiedChar={copiedChar}
+            onSelect={onSelect}
+            paged={false}
+          />
+        ) : (
+          <EmptySearch />
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1 p-2 pb-10">
+      {status === "loading" && (
+        <div className="flex items-center gap-2 px-2 py-3 text-[11px] text-muted-foreground">
+          <Loader2 className="size-3.5 animate-spin" /> Loading characters…
+        </div>
+      )}
+      {error && (
+        <div className="space-y-2 px-2 py-3 text-[11px] text-muted-foreground">
+          <p className="break-words">{error}</p>
+          <button
+            type="button"
+            onClick={() => void retryPack(pack)}
+            className="inline-flex h-7 items-center gap-1 rounded-md bg-accent px-2 text-foreground"
+          >
+            <RefreshCcw className="size-3" /> Retry
+          </button>
+        </div>
+      )}
+      {groups?.map((group, index) => (
+        <GroupSection
+          key={group.id}
+          pack={pack}
+          group={group}
+          defaultOpen={index === 0}
+          copiedChar={copiedChar}
+          onSelect={onSelect}
+        />
+      ))}
+    </div>
+  );
+}
+
+function UnicodePane({
+  copiedChar,
+  onSelect,
+}: {
+  copiedChar: string | null;
+  onSelect: (entry: CharacterRecord) => void;
+}) {
   const {
-    data,
-    isLoading,
-    error,
-    unicodeBlocks,
-    unicodeIsLoading,
+    unicodeManifest,
+    unicodeStatus,
     unicodeError,
-    searchQuery,
-    searchResults,
-    fetchLibrary,
-    fetchUnicodeBlocks,
+    unicodeFacetType,
+    unicodeFacetId,
+    unicodeResults,
+    unicodeOffset,
+    unicodeHasMore,
+    loadUnicodeManifest,
+    loadUnicodePage,
   } = useLibraryStore();
-  const [isUnicodeOpen, setIsUnicodeOpen] = useState(false);
+  const [facetType, setFacetType] = useState<UnicodeFacetType>("block");
+
+  useEffect(() => {
+    void loadUnicodeManifest();
+  }, [loadUnicodeManifest]);
+
+  useEffect(() => {
+    if (!unicodeManifest || unicodeFacetId) return;
+    const first = unicodeManifest.facets[facetType][0];
+    if (first) void loadUnicodePage(facetType, first.id);
+  }, [facetType, loadUnicodePage, unicodeFacetId, unicodeManifest]);
+
+  const selectFacetType = async (value: UnicodeFacetType) => {
+    setFacetType(value);
+    const first = unicodeManifest?.facets[value][0];
+    if (first) await loadUnicodePage(value, first.id);
+  };
+
+  return (
+    <div className="space-y-2 p-2 pb-10">
+      {unicodeStatus === "loading" && (
+        <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+          <Loader2 className="size-3.5 animate-spin" /> Loading index…
+        </div>
+      )}
+      {unicodeError && (
+        <p className="break-words text-[11px] text-destructive">
+          {unicodeError}
+        </p>
+      )}
+      {unicodeManifest && (
+        <>
+          <div className="flex rounded-lg bg-muted p-[3px]">
+            {(["block", "script", "category"] as const).map((type) => (
+              <button
+                key={type}
+                type="button"
+                onClick={() => void selectFacetType(type)}
+                className={cn(
+                  "h-7 flex-1 rounded-md px-1 text-[10px] capitalize transition-colors",
+                  facetType === type
+                    ? "bg-accent text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {type}
+              </button>
+            ))}
+          </div>
+          <select
+            aria-label="Unicode facet"
+            className="h-8 w-full rounded-md border-0 bg-accent/60 px-2 text-[11px] outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            value={
+              unicodeFacetType === facetType ? unicodeFacetId ?? "" : ""
+            }
+            onChange={(event) =>
+              void loadUnicodePage(facetType, event.target.value)
+            }
+          >
+            {unicodeManifest.facets[facetType].map((facet) => (
+              <option key={facet.id} value={facet.id}>
+                {facet.label} ({facet.count})
+              </option>
+            ))}
+          </select>
+          <CharacterGrid
+            entries={unicodeResults}
+            copiedChar={copiedChar}
+            onSelect={onSelect}
+            paged={false}
+          />
+          {unicodeHasMore && unicodeFacetId && (
+            <button
+              type="button"
+              onClick={() =>
+                void loadUnicodePage(
+                  unicodeFacetType,
+                  unicodeFacetId,
+                  unicodeOffset + PAGE_SIZE
+                )
+              }
+              className="h-7 rounded-md bg-accent px-2 text-[11px] font-medium"
+            >
+              Load 240 more
+            </button>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+export function CharLibrary({ view }: { view: CharacterViewId }) {
+  const brushColor = useEditorStore((state) => state.brushColor);
   const [copiedChar, setCopiedChar] = useState<string | null>(null);
 
-  const getCharacterLabel = (char: string) =>
-    data?.characterLabels[char] ?? getCodePointLabel(char) ?? char;
-
-  const handleSelect = async (char: string) => {
+  const handleSelect = async (entry: CharacterRecord) => {
+    if (!entry.insertable) return;
     const copied = await writeClipboardPayload(
       {
-        plain: char,
+        plain: entry.grapheme,
         rich: JSON.stringify({
           type: "ascii-metropolis-zone",
           version: 1,
-          cells: [{ x: 0, y: 0, char, color: brushColor }],
+          cells: [{ x: 0, y: 0, char: entry.grapheme, color: brushColor }],
         }),
       },
       { withRich: true }
     );
-
     if (!copied) {
       feedback.error("Could not copy character.", {
         duration: 1200,
@@ -132,300 +451,16 @@ export function CharLibrary() {
       });
       return;
     }
-
-    setCopiedChar(char);
-    feedback.success(`Copied: ${char}`, { duration: 600, position: "top-right" });
+    setCopiedChar(entry.grapheme);
+    feedback.success(`Copied: ${entry.grapheme}`, {
+      duration: 600,
+      position: "top-right",
+    });
   };
 
-  const handleUnicodeOpenChange = (open: boolean) => {
-    setIsUnicodeOpen(open);
-    if (open) void fetchUnicodeBlocks();
-  };
-
-  if (searchQuery.trim() !== "") {
-    return (
-      <SidebarGroup>
-        <SidebarGroupLabel className="px-4">
-          Results ({searchResults.length})
-        </SidebarGroupLabel>
-        <SidebarGroupContent>
-          <div className="flex flex-wrap gap-0.5 p-2">
-            {searchResults.map((char, idx) => (
-              <CharButton
-                key={`search-${idx}`}
-                char={char}
-                label={getCharacterLabel(char)}
-                isSelected={copiedChar === char}
-                onClick={handleSelect}
-              />
-            ))}
-            {searchResults.length === 0 && (
-              <div className="w-full flex flex-col items-center py-10 text-muted-foreground">
-                <SearchX className="size-8 mb-2 opacity-20" />
-                <p className="text-[11px] leading-4">No blueprints found</p>
-              </div>
-            )}
-          </div>
-        </SidebarGroupContent>
-      </SidebarGroup>
-    );
-  }
-
-  if (error && !data) {
-    return (
-      <SidebarGroup>
-        <SidebarGroupContent>
-          <div className="flex flex-col items-center gap-3 px-3 py-10 text-center text-muted-foreground">
-            <SearchX className="size-8 opacity-25" />
-            <div className="space-y-1">
-              <p className="text-xs font-semibold text-foreground">
-                Library failed to load
-              </p>
-              <p className="break-words text-[11px] leading-4">{error}</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => void fetchLibrary()}
-              className="inline-flex h-7 items-center gap-1.5 rounded-md bg-accent px-2.5 text-xs font-medium text-accent-foreground hover:bg-accent/80"
-            >
-              <RefreshCcw className="size-3.5" />
-              Retry
-            </button>
-          </div>
-        </SidebarGroupContent>
-      </SidebarGroup>
-    );
-  }
-
-  if (isLoading || !data) {
-    return (
-      <div className="flex items-center justify-center py-20 text-muted-foreground">
-        <Loader2 className="size-5 animate-spin mr-2" />
-        <span className="text-[11px] font-medium">
-          Syncing...
-        </span>
-      </div>
-    );
-  }
-
-  return (
-    <SidebarMenu className="px-0 gap-1 pb-10">
-      <Collapsible defaultOpen className="group/collapsible">
-        <SidebarMenuItem>
-          <CollapsibleTrigger asChild>
-            <SidebarMenuButton>
-              <Terminal className="size-4 text-cyan-500" />
-              <span className="text-xs font-semibold">
-                Nerd Icons
-              </span>
-              <ChevronRight className="ml-auto size-4 transition-transform group-data-[state=open]/collapsible:rotate-90" />
-            </SidebarMenuButton>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <SidebarMenuSub className="mr-0 pr-0">
-              {Object.entries(data.nerdfonts).map(([name, items]) => (
-                <Collapsible key={name} className="group/sub">
-                  <SidebarMenuItem>
-                    <CollapsibleTrigger asChild>
-                      <SidebarMenuButton className="h-7 text-[11px] opacity-70 hover:opacity-100">
-                        <Folder className="size-3 mr-1" /> {name}
-                      </SidebarMenuButton>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                      <div className="flex flex-wrap gap-0.5 py-1 pl-0 overflow-hidden">
-                        {items.map((item, idx) => (
-                          <CharButton
-                            key={`${name}-${item.name}-${idx}`}
-                            char={item.char}
-                            label={item.name}
-                            isSelected={copiedChar === item.char}
-                            onClick={handleSelect}
-                          />
-                        ))}
-                      </div>
-                    </CollapsibleContent>
-                  </SidebarMenuItem>
-                </Collapsible>
-              ))}
-            </SidebarMenuSub>
-          </CollapsibleContent>
-        </SidebarMenuItem>
-      </Collapsible>
-
-      <Collapsible defaultOpen className="group/collapsible">
-        <SidebarMenuItem>
-          <CollapsibleTrigger asChild>
-            <SidebarMenuButton>
-              <SquareDashed className="size-4 text-emerald-500" />
-              <span className="text-xs font-semibold">
-                Box Drawing
-              </span>
-              <ChevronRight className="ml-auto size-4 transition-transform group-data-[state=open]/collapsible:rotate-90" />
-            </SidebarMenuButton>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <SidebarMenuSub className="mr-0 pr-0">
-              {Object.entries(data.boxDrawing).map(([name, items]) => (
-                <Collapsible key={name} className="group/sub">
-                  <SidebarMenuItem>
-                    <CollapsibleTrigger asChild>
-                      <SidebarMenuButton className="h-7 text-[11px] opacity-70 hover:opacity-100">
-                        <Folder className="size-3 mr-1" /> {name}
-                      </SidebarMenuButton>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                      <div className="flex flex-wrap gap-0.5 py-1 pl-0 overflow-hidden">
-                        {items.map((item, idx) => (
-                          <CharButton
-                            key={`${name}-${idx}`}
-                            char={item.char}
-                            label={item.name}
-                            isSelected={copiedChar === item.char}
-                            onClick={handleSelect}
-                          />
-                        ))}
-                      </div>
-                    </CollapsibleContent>
-                  </SidebarMenuItem>
-                </Collapsible>
-              ))}
-            </SidebarMenuSub>
-          </CollapsibleContent>
-        </SidebarMenuItem>
-      </Collapsible>
-
-      <Collapsible defaultOpen className="group/collapsible">
-        <SidebarMenuItem>
-          <CollapsibleTrigger asChild>
-            <SidebarMenuButton>
-              <Sparkles className="size-4 text-yellow-500" />
-              <span className="text-xs font-semibold">
-                Curated Emoji
-              </span>
-              <ChevronRight className="ml-auto size-4 transition-transform group-data-[state=open]/collapsible:rotate-90" />
-            </SidebarMenuButton>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <SidebarMenuSub className="mr-0 pr-0">
-              {Object.entries(data.emojis).map(([groupName, subgroups]) => (
-                <Collapsible key={groupName} className="group/sub">
-                  <SidebarMenuItem>
-                    <CollapsibleTrigger asChild>
-                      <SidebarMenuButton className="h-7 text-[11px] opacity-70 hover:opacity-100">
-                        <FolderOpen className="size-3 mr-1" /> {groupName}
-                      </SidebarMenuButton>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                      <SidebarMenuSub className="mr-0 pr-0">
-                        {Object.entries(subgroups).map(
-                          ([subgroupName, items]) => (
-                            <Collapsible
-                              key={subgroupName}
-                              className="group/sub2"
-                            >
-                              <SidebarMenuItem>
-                                <CollapsibleTrigger asChild>
-                                  <SidebarMenuButton className="h-6 text-[11px] opacity-60 hover:opacity-100">
-                                    <Folder className="size-2.5 mr-1" />{" "}
-                                    {subgroupName}
-                                  </SidebarMenuButton>
-                                </CollapsibleTrigger>
-                                <CollapsibleContent>
-                                  <div className="flex flex-wrap gap-0.5 py-1 pl-0 overflow-hidden">
-                                    {items.map((item, idx) => (
-                                      <CharButton
-                                        key={`${subgroupName}-${idx}`}
-                                        char={item.char}
-                                        label={item.name}
-                                        isSelected={copiedChar === item.char}
-                                        onClick={handleSelect}
-                                      />
-                                    ))}
-                                  </div>
-                                </CollapsibleContent>
-                              </SidebarMenuItem>
-                            </Collapsible>
-                          )
-                        )}
-                      </SidebarMenuSub>
-                    </CollapsibleContent>
-                  </SidebarMenuItem>
-                </Collapsible>
-              ))}
-            </SidebarMenuSub>
-          </CollapsibleContent>
-        </SidebarMenuItem>
-      </Collapsible>
-
-      <Collapsible
-        open={isUnicodeOpen}
-        onOpenChange={handleUnicodeOpenChange}
-        className="group/collapsible"
-      >
-        <SidebarMenuItem>
-          <CollapsibleTrigger asChild>
-            <SidebarMenuButton>
-              <Languages className="size-4 text-indigo-500" />
-              <span className="text-xs font-semibold">
-                Unicode Blocks
-              </span>
-              <ChevronRight className="ml-auto size-4 transition-transform group-data-[state=open]/collapsible:rotate-90" />
-            </SidebarMenuButton>
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <SidebarMenuSub className="mr-0 pr-0">
-              {unicodeIsLoading && (
-                <div className="flex items-center gap-2 px-2 py-3 text-[11px] font-medium text-muted-foreground">
-                  <Loader2 className="size-3.5 animate-spin" />
-                  Loading Unicode...
-                </div>
-              )}
-
-              {unicodeError && !unicodeBlocks && (
-                <div className="flex flex-col gap-2 px-2 py-3 text-muted-foreground">
-                  <p className="break-words text-[11px] leading-4">
-                    {unicodeError}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => void fetchUnicodeBlocks()}
-                    className="inline-flex h-7 w-fit items-center gap-1.5 rounded-md bg-accent px-2 text-[11px] font-medium text-accent-foreground hover:bg-accent/80"
-                  >
-                    <RefreshCcw className="size-3" />
-                    Retry
-                  </button>
-                </div>
-              )}
-
-              {unicodeBlocks &&
-                Object.entries(unicodeBlocks).map(([name, items]) => (
-                <Collapsible key={name} className="group/sub">
-                  <SidebarMenuItem>
-                    <CollapsibleTrigger asChild>
-                      <SidebarMenuButton className="h-7 text-[11px] opacity-70 hover:opacity-100">
-                        <Folder className="size-3 mr-1" /> {name}
-                      </SidebarMenuButton>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                      <div className="flex flex-wrap gap-0.5 py-1 pl-0 overflow-hidden">
-                        {items.map((item, idx) => (
-                          <CharButton
-                            key={idx}
-                            char={item.char}
-                            label={item.name}
-                            isSelected={copiedChar === item.char}
-                            onClick={handleSelect}
-                          />
-                        ))}
-                      </div>
-                    </CollapsibleContent>
-                  </SidebarMenuItem>
-                </Collapsible>
-              ))}
-            </SidebarMenuSub>
-          </CollapsibleContent>
-        </SidebarMenuItem>
-      </Collapsible>
-    </SidebarMenu>
+  return view === "unicode" ? (
+    <UnicodePane copiedChar={copiedChar} onSelect={handleSelect} />
+  ) : (
+    <PackPane pack={view} copiedChar={copiedChar} onSelect={handleSelect} />
   );
 }

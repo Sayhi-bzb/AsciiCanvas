@@ -650,6 +650,12 @@ export const useCanvasRenderer = (
     if (requestRenderRef) {
       requestRenderRef.current = scheduleRender;
     }
+    const fonts = document.fonts;
+    const handleFontLoad = () => {
+      baseRenderInputsRef.current = null;
+      scheduleRender();
+    };
+    fonts?.addEventListener("loadingdone", handleFontLoad);
 
     const requestId = requestAnimationFrame(render);
     return () => {
@@ -661,6 +667,7 @@ export const useCanvasRenderer = (
       if (requestRenderRef?.current === scheduleRender) {
         requestRenderRef.current = null;
       }
+      fonts?.removeEventListener("loadingdone", handleFontLoad);
     };
   }, [
     offset,
@@ -696,4 +703,3 @@ export const useCanvasRenderer = (
     renderedTextCursor,
   ]);
 };
-

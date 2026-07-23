@@ -14,6 +14,7 @@ import {
   drawTextCell,
   setTextRenderStyle,
 } from "@/shared/metrics";
+import { useRenderFontRevision } from "@/shared/hooks/use-render-font-revision";
 
 type ExportPreviewProps = {
   grid: GridMap;
@@ -23,6 +24,7 @@ type ExportPreviewProps = {
 
 export function ExportPreview({ grid, showGrid, showColor }: ExportPreviewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const fontRevision = useRenderFontRevision();
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -83,7 +85,7 @@ export function ExportPreview({ grid, showGrid, showColor }: ExportPreviewProps)
       });
     });
     ctx.restore();
-  }, [grid, showColor, showGrid]);
+  }, [fontRevision, grid, showColor, showGrid]);
 
   return <canvas ref={canvasRef} className="w-full h-full rounded-lg" />;
 }

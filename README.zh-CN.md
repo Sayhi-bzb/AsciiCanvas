@@ -92,6 +92,8 @@
 - **状态管理**：Zustand 5，按 slice 拆分 store
 - **样式系统**：Tailwind CSS 4, Radix UI, shadcn/ui 风格基础组件
 - **渲染**：多层 Canvas 2D 渲染，带宽字符网格度量
+- **字体路由**：[自托管字体与 Unicode 路由](docs/font-unicode-routing.md)
+- **字符目录**：[精选字符包与懒加载 Unicode 浏览器](docs/character-library.md)
 - **同步引擎**：Yjs / Y-IndexedDB
 - **手势交互**：@use-gesture/react
 - **动画导出**：JSON、浏览器内 GIF、asciinema `.cast`、ANSI 文本

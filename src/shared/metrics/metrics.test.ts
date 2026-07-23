@@ -4,10 +4,13 @@ import {
   drawCellBackground,
   drawCellText,
   getCellOccupancy,
+  getRenderFontFamily,
   getTextCellWidth,
   gridCellRect,
   gridToScreen,
   isWideCell,
+  loadRenderFonts,
+  resolveRenderFontRoute,
   screenToGrid,
   splitGraphemes,
 } from "@/shared/metrics";
@@ -38,8 +41,55 @@ describe("metrics", () => {
       expect(isWideCell("\ue0b0")).toBe(false);
     });
 
+    it("uses Unicode 17 East Asian width and grapheme-aware emoji width", () => {
+      expect(getCellOccupancy("𠀀")).toBe(2);
+      expect(getCellOccupancy("Ａ")).toBe(2);
+      expect(getCellOccupancy("·")).toBe(1);
+      expect(getCellOccupancy("🇨🇳")).toBe(2);
+      expect(getCellOccupancy("1️⃣")).toBe(2);
+      expect(getCellOccupancy("👩🏽‍💻")).toBe(2);
+    });
+
     it("sums mixed text by grapheme occupancy", () => {
       expect(getTextCellWidth("A你👋")).toBe(5);
+    });
+  });
+
+  describe("font routing", () => {
+    it("routes text and complete emoji graphemes to stable font stacks", () => {
+      expect(resolveRenderFontRoute("A")).toBe("text");
+      expect(resolveRenderFontRoute("╭")).toBe("text");
+      expect(resolveRenderFontRoute("♥")).toBe("text");
+      expect(resolveRenderFontRoute("♥️")).toBe("emoji");
+      expect(resolveRenderFontRoute("🇨🇳")).toBe("emoji");
+      expect(resolveRenderFontRoute("1️⃣")).toBe("emoji");
+      expect(resolveRenderFontRoute("👩🏽‍💻")).toBe("emoji");
+      expect(getRenderFontFamily("text")).toContain("Maple Mono NF CN");
+      expect(getRenderFontFamily("text")).toContain("Noto Sans Symbols 2");
+      expect(getRenderFontFamily("emoji")).toMatch(/^'Noto Emoji'/);
+    });
+
+    it("loads unique actual graphemes by route", async () => {
+      const originalFonts = document.fonts;
+      const load = vi.fn().mockResolvedValue([]);
+      Object.defineProperty(document, "fonts", {
+        configurable: true,
+        value: { load, ready: Promise.resolve([]) },
+      });
+
+      try {
+        await loadRenderFonts(["A", "A", "⟹", "👩🏽‍💻"]);
+        expect(load).toHaveBeenCalledTimes(2);
+        expect(load.mock.calls[0][0]).toContain("Maple Mono NF CN");
+        expect(load.mock.calls[0][1]).toBe("A⟹");
+        expect(load.mock.calls[1][0]).toContain("Noto Emoji");
+        expect(load.mock.calls[1][1]).toBe("👩🏽‍💻");
+      } finally {
+        Object.defineProperty(document, "fonts", {
+          configurable: true,
+          value: originalFonts,
+        });
+      }
     });
   });
 
@@ -69,8 +119,9 @@ describe("metrics", () => {
   });
 
   describe("cell rendering passes", () => {
-    const createContext = () =>
-      ({
+    const createContext = () => {
+      let font = "";
+      return {
         save: vi.fn(),
         restore: vi.fn(),
         fillRect: vi.fn(),
@@ -80,12 +131,18 @@ describe("metrics", () => {
         lineTo: vi.fn(),
         stroke: vi.fn(),
         set fillStyle(_value: string) {},
-        set font(_value: string) {},
+        get font() {
+          return font;
+        },
+        set font(value: string) {
+          font = value;
+        },
         set textBaseline(_value: CanvasTextBaseline) {},
         set textAlign(_value: CanvasTextAlign) {},
         set strokeStyle(_value: string) {},
         set lineWidth(_value: number) {},
-      }) as unknown as CanvasRenderingContext2D;
+      } as unknown as CanvasRenderingContext2D;
+    };
 
     it("keeps background drawing separate from glyph drawing", () => {
       const ctx = createContext();
@@ -118,6 +175,17 @@ describe("metrics", () => {
       expect(ctx.fillRect).not.toHaveBeenCalled();
       expect(ctx.fillText).toHaveBeenCalledTimes(1);
       expect(ctx.stroke).toHaveBeenCalledTimes(2);
+    });
+
+    it("uses the monochrome emoji stack for emoji cells", () => {
+      const textCtx = createContext();
+      const emojiCtx = createContext();
+      drawCellText(textCtx, { char: "A", color: "#ff0000" }, 0, 0);
+      drawCellText(emojiCtx, { char: "👩🏽‍💻", color: "#ff0000" }, 0, 0);
+
+      expect(textCtx.font).toContain("Maple Mono NF CN");
+      expect(textCtx.font).not.toMatch(/^.*Noto Emoji/);
+      expect(emojiCtx.font).toContain("Noto Emoji");
     });
   });
 });

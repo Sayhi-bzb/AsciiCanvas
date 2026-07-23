@@ -1,0 +1,17 @@
+/fonts/*.woff2
+  Cache-Control: public, max-age=31536000, immutable
+
+/fonts/fonts.css
+  Cache-Control: public, max-age=3600, must-revalidate
+
+/fonts/manifest.json
+  Cache-Control: public, max-age=3600, must-revalidate
+
+/data/characters/manifest.json
+  Cache-Control: public, max-age=3600, must-revalidate
+
+/data/characters/packs/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/data/characters/unicode/*
+  Cache-Control: public, max-age=31536000, immutable

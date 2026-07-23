@@ -75,27 +75,21 @@ export function StructuredTemplateLibrary({
   return (
     <SidebarGroup className="p-0">
       <SidebarGroupContent>
-        <div className="flex flex-col">
+        <div className="flex flex-col gap-0.5">
           {sortedTemplates.length === 0 && (
             <div className="px-2 py-4 text-xs text-muted-foreground">
               {emptyLabel}
             </div>
           )}
-          {sortedTemplates.map((template, index) => (
+          {sortedTemplates.map((template) => (
             <div key={template.id}>
-              {index > 0 && (
-                <div
-                  data-slot="structured-template-separator"
-                  className="h-0.5 bg-border"
-                />
-              )}
               <button
                 type="button"
                 draggable
                 onDragStart={handleTemplateDragStart(template)}
                 onDragEnd={() => setActiveStructuredTemplateDragId(null)}
                 className={cn(
-                  "group flex w-full items-center gap-3 bg-transparent px-2 py-1.5 text-left transition-colors",
+                  "group flex w-full items-center gap-3 rounded-md bg-transparent px-2 py-1.5 text-left transition-colors",
                   "hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50"
                 )}
               >

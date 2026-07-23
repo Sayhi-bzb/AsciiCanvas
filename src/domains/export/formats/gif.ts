@@ -10,7 +10,7 @@ import {
   drawGridLines,
   drawTextCell,
   setTextRenderStyle,
-  waitForRenderFont,
+  loadRenderFonts,
 } from "@/shared/metrics";
 
 const MONOCHROME_EXPORT_COLOR = COLOR_PRIMARY_TEXT;
@@ -19,8 +19,6 @@ const GIF_PALETTE_COMPONENTS = 3;
 const resolveExportColor = (color: string, includeColor: boolean) => {
   return includeColor ? color : MONOCHROME_EXPORT_COLOR;
 };
-
-const waitForExportFont = waitForRenderFont;
 
 const renderAnimationFrame = (
   ctx: CanvasRenderingContext2D,
@@ -190,7 +188,11 @@ export const createAnimationGifBlob = async (
   timeline: AnimationTimeline,
   includeColor: boolean = true
 ) => {
-  await waitForExportFont();
+  await loadRenderFonts(
+    timeline.frames.flatMap((frame) =>
+      frame.grid.map(([, cell]) => cell.char)
+    )
+  );
   const { cellWidth, cellHeight } = DEFAULT_GRID_RENDER_METRICS;
   const width = Math.max(1, Math.round(size.width * cellWidth));
   const height = Math.max(1, Math.round(size.height * cellHeight));
@@ -254,4 +256,3 @@ export const createAnimationGifBlob = async (
 
   return new Blob([new Uint8Array(bytes)], { type: "image/gif" });
 };
-

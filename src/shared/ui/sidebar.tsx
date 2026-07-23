@@ -21,7 +21,6 @@ import {
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/shared/ui/tooltip";
 
@@ -122,8 +121,7 @@ function SidebarProvider({
 
   return (
     <SidebarContext.Provider value={contextValue}>
-      <TooltipProvider delayDuration={0}>
-        <div
+      <div
           data-slot="sidebar-wrapper"
           style={
             {
@@ -138,9 +136,8 @@ function SidebarProvider({
           )}
           {...props}
         >
-          {children}
-        </div>
-      </TooltipProvider>
+        {children}
+      </div>
     </SidebarContext.Provider>
   );
 }
@@ -181,7 +178,7 @@ function Sidebar({
           data-sidebar="sidebar"
           data-slot="sidebar"
           data-mobile="true"
-          className="bg-sidebar text-sidebar-foreground w-(--sidebar-width) p-0 [&>button]:hidden"
+          className="bg-muted text-sidebar-foreground w-(--sidebar-width) border-0 p-0 shadow-none [&>button]:hidden"
           style={
             { "--sidebar-width": SIDEBAR_WIDTH_MOBILE } as React.CSSProperties
           }
@@ -234,7 +231,7 @@ function Sidebar({
         <div
           data-sidebar="sidebar"
           data-slot="sidebar-inner"
-          className="bg-sidebar group-data-[variant=floating]:border-sidebar-border flex h-full w-full flex-col group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:shadow-sm overflow-hidden"
+          className="bg-sidebar flex h-full w-full flex-col overflow-hidden group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border-0 group-data-[variant=floating]:bg-muted group-data-[variant=floating]:shadow-none"
         >
           {children}
         </div>
@@ -509,6 +506,7 @@ function SidebarMenuSub({ className, ...props }: React.ComponentProps<"ul">) {
 
 function SidebarStandard({
   children,
+  collapsedContent,
   header,
   icon,
   title,
@@ -517,6 +515,7 @@ function SidebarStandard({
   className,
   ...props
 }: React.ComponentProps<typeof Sidebar> & {
+  collapsedContent?: React.ReactNode;
   header?: React.ReactNode;
   icon?: React.ReactNode;
   title?: string;
@@ -538,7 +537,7 @@ function SidebarStandard({
             "flex py-4 transition-all duration-200",
             isCollapsed
               ? "flex-col items-center justify-center gap-y-4"
-              : "flex-row items-center justify-between px-4 border-b"
+              : "flex-row items-center justify-between px-4"
           )}
         >
           <div className="flex items-center gap-2">
@@ -568,17 +567,20 @@ function SidebarStandard({
       <SidebarContent
         className={cn(
           "gap-2 px-2 py-2 transition-all duration-300",
-          isCollapsed ? "opacity-0 pointer-events-none" : "opacity-100",
+          isCollapsed && !collapsedContent
+            ? "pointer-events-none opacity-0"
+            : "opacity-100",
+          isCollapsed && collapsedContent && "px-1 py-2",
           contentClassName
         )}
       >
-        {children}
+        {isCollapsed && collapsedContent ? collapsedContent : children}
       </SidebarContent>
 
       {footer && (
         <SidebarFooter
           className={cn(
-            "p-2 border-t transition-all duration-300",
+            "p-2 transition-all duration-300",
             isCollapsed && "flex-col items-center gap-y-2 px-0"
           )}
         >
@@ -605,4 +607,3 @@ export {
   SidebarStandard,
   useSidebar,
 };
-

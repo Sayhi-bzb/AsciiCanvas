@@ -22,7 +22,6 @@ import type { ToolbarActionId } from "@/domains/actions/public";
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/shared/ui/tooltip";
 import {
@@ -189,8 +188,7 @@ export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
   }, [tool, isShapeGroupActive, navItems]);
 
   return (
-    <TooltipProvider delayDuration={200}>
-      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
         <div
           className={cn(
             uiClass.toolbarShell,
@@ -318,6 +316,5 @@ export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
           {canvasMode === "animation" && <AnimationTimeline embedded />}
         </div>
       </div>
-    </TooltipProvider>
   );
 }

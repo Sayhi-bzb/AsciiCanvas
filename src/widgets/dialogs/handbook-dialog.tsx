@@ -21,10 +21,21 @@ import {
   DialogTrigger,
 } from "@/shared/ui/dialog";
 import { ScrollArea } from "@/shared/ui/scroll-area";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  type TooltipContentProps,
+} from "@/shared/ui/tooltip";
 import { useUiI18n } from "@/shared/i18n";
 
-export function HandbookDialog() {
+type HandbookDialogProps = {
+  tooltipSide?: TooltipContentProps["side"];
+};
+
+export function HandbookDialog({
+  tooltipSide = "left",
+}: HandbookDialogProps = {}) {
   const { t } = useUiI18n();
 
   return (
@@ -43,7 +54,7 @@ export function HandbookDialog() {
             </Button>
           </DialogTrigger>
         </TooltipTrigger>
-        <TooltipContent side="left">{t("manual.title")}</TooltipContent>
+        <TooltipContent side={tooltipSide}>{t("manual.title")}</TooltipContent>
       </Tooltip>
       <DialogContent className="sm:max-w-[500px] p-0 gap-0 overflow-hidden">
         <div className="bg-muted/30 p-5 pb-4 border-b">

@@ -16,6 +16,7 @@ import {
   drawTextCell,
   setTextRenderStyle,
 } from "@/shared/metrics";
+import { useRenderFontRevision } from "@/shared/hooks/use-render-font-revision";
 
 type AnimationExportPreviewProps = {
   size: AnimationCanvasSize;
@@ -33,6 +34,7 @@ export function AnimationExportPreview({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [frameIndex, setFrameIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
+  const fontRevision = useRenderFontRevision();
 
   const currentFrame = timeline.frames[frameIndex] ?? timeline.frames[0];
   const frameCount = timeline.frames.length;
@@ -118,7 +120,7 @@ export function AnimationExportPreview({
     ctx.lineWidth = 2;
     ctx.strokeRect(0, 0, sourceWidth, sourceHeight);
     ctx.restore();
-  }, [frameMap, showColor, size.height, size.width]);
+  }, [fontRevision, frameMap, showColor, size.height, size.width]);
 
   return (
     <div className="flex h-full flex-col rounded-lg border border-border bg-muted/20 overflow-hidden">

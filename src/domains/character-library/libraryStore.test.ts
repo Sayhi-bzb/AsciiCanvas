@@ -1,134 +1,188 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useLibraryStore } from "@/domains/character-library/public";
+import {
+  useLibraryStore,
+  type CharacterRecord,
+} from "@/domains/character-library/public";
 
-const resetLibraryStore = () => {
-  useLibraryStore.setState({
-    data: null,
-    isLoading: false,
-    error: null,
-    unicodeBlocks: null,
-    unicodeIsLoading: false,
-    unicodeError: null,
-    searchQuery: "",
-    searchResults: [],
-  });
+const record = (
+  grapheme: string,
+  name: string,
+  overrides: Partial<CharacterRecord> = {}
+): CharacterRecord => ({
+  id: `U+${grapheme.codePointAt(0)!.toString(16).toUpperCase().padStart(4, "0")}`,
+  grapheme,
+  name,
+  aliases: [],
+  category: "So",
+  script: "Common",
+  coverage: 1,
+  insertable: true,
+  ...overrides,
+});
+
+const manifest = {
+  schemaVersion: 1,
+  unicodeVersion: "17.0.0",
+  emojiVersion: "17.0",
+  packs: {
+    essentials: "packs/essentials.json",
+    nerd: "packs/nerd.json",
+    emoji: "packs/emoji.json",
+  },
+  unicodeManifest: "unicode/manifest.json",
+  counts: { essentials: 1, nerd: 1, emoji: 1, main: 3, unicode: 1 },
 };
 
-const okJson = (data: unknown) =>
-  new Response(JSON.stringify(data), {
-    status: 200,
-    headers: { "content-type": "application/json" },
-  });
-
-const libraryPayloads: Record<string, unknown> = {
-  entities: { symbols: { star: "*" } },
-  related: {},
-  unicode_blocks: {
-    "Basic Latin": [{ char: "A", name: "LATIN CAPITAL LETTER A" }],
+const payloads: Record<string, unknown> = {
+  "manifest.json": manifest,
+  "packs/essentials.json": {
+    groups: [{ id: "ascii", label: "ASCII", entries: [record("A", "LATIN CAPITAL LETTER A")] }],
   },
-  box_drawing: {
-    "Box Drawing": [
-      { char: "─", name: "BOX DRAWINGS LIGHT HORIZONTAL" },
-    ],
+  "packs/nerd.json": {
+    groups: [{ id: "icons", label: "Icons", entries: [{
+      id: "U+E5FF", grapheme: "", name: "nf-folder",
+    }] }],
   },
-  nerdfonts_enriched: { icons: [{ name: "nf-test", char: "" }] },
-  emojis_enriched: {
-    "Smileys & Emotion": {
-      "face-smiling": [{ name: "grinning face", char: "😀" }],
+  "packs/emoji.json": {
+    groups: [{ id: "faces", label: "Faces", entries: [{
+      id: "U+1F600", grapheme: "😀", name: "grinning face", aliases: ["face-smiling"],
+    }] }],
+  },
+  "unicode/manifest.json": {
+    schemaVersion: 1,
+    unicodeVersion: "17.0.0",
+    shardSize: 1024,
+    shards: { "000": "unicode/shards/000.json" },
+    nameIndex: "unicode/name-index.json",
+    facets: {
+      block: [{ id: "basic-latin", label: "Basic Latin", count: 1, ranges: [[65, 65]] }],
+      script: [{ id: "latin", label: "Latin", count: 1, ranges: [[65, 65]] }],
+      category: [{ id: "lu", label: "Lu", count: 1, ranges: [[65, 65]] }],
     },
   },
+  "unicode/shards/000.json": {
+    records: [record("A", "LATIN CAPITAL LETTER A")],
+  },
+  "unicode/name-index.json": {
+    entries: [[65, "latin capital letter a"]],
+  },
 };
 
-const mockLibraryFetch = (
-  override?: (fileName: string | undefined) => Response | undefined
-) => {
+const mockFetch = (failPath?: string) => {
   const requested: string[] = [];
   vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
-    const fileName = String(input).match(/\/data\/(.+)\.json$/)?.[1];
-    if (fileName) requested.push(fileName);
-    const overridden = override?.(fileName);
-    if (overridden) return overridden;
-    return okJson(libraryPayloads[fileName ?? ""]);
+    const path = String(input).split("/data/characters/")[1];
+    requested.push(path);
+    if (path === failPath) return new Response("failed", { status: 503 });
+    return new Response(JSON.stringify(payloads[path]), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
   });
   return requested;
 };
 
+const resetStore = () => {
+  useLibraryStore.setState({
+    manifest: null,
+    packs: {},
+    packStatus: { essentials: "idle", nerd: "idle", emoji: "idle" },
+    packErrors: {},
+    searchQueries: { essentials: "", nerd: "", emoji: "" },
+    searchResults: { essentials: [], nerd: [], emoji: [] },
+    unicodeManifest: null,
+    unicodeStatus: "idle",
+    unicodeError: null,
+    unicodeFacetType: "block",
+    unicodeFacetId: null,
+    unicodeResults: [],
+    unicodeOffset: 0,
+    unicodeHasMore: false,
+    unicodeSearchLoading: false,
+  });
+};
+
 describe("useLibraryStore", () => {
   beforeEach(() => {
-    resetLibraryStore();
     vi.restoreAllMocks();
+    resetStore();
   });
 
-  it("loads base library data without fetching Unicode blocks", async () => {
-    const requested = mockLibraryFetch();
+  it("loads all main packs and scopes names, aliases, and U+ searches by pack", async () => {
+    mockFetch();
+    await useLibraryStore.getState().loadMainPacks();
 
-    await useLibraryStore.getState().fetchLibrary();
-
-    const state = useLibraryStore.getState();
-    expect(requested).not.toContain("unicode_blocks");
-    expect(state.isLoading).toBe(false);
-    expect(state.error).toBeNull();
-    expect(state.unicodeBlocks).toBeNull();
-    expect(state.data?.characterLabels["─"]).toBe(
-      "BOX DRAWINGS LIGHT HORIZONTAL"
+    expect(useLibraryStore.getState().packStatus).toEqual({
+      essentials: "ready",
+      nerd: "ready",
+      emoji: "ready",
+    });
+    expect(useLibraryStore.getState().packs.nerd?.[0].entries[0]).toEqual(
+      expect.objectContaining({
+        category: "Co",
+        script: "Private_Use",
+        coverage: 1,
+        insertable: true,
+      })
     );
-    expect(state.data?.characterLabels["😀"]).toBe("grinning face");
-    expect(state.data?.characterLabels[""]).toBe("nf-test");
-  });
-
-  it("loads Unicode blocks on demand and merges Unicode labels", async () => {
-    mockLibraryFetch();
-
-    await useLibraryStore.getState().fetchLibrary();
-    await useLibraryStore.getState().fetchUnicodeBlocks();
-
-    const state = useLibraryStore.getState();
-    expect(state.unicodeBlocks?.["Basic Latin"]).toEqual([
-      { char: "A", name: "LATIN CAPITAL LETTER A" },
-    ]);
-    expect(state.unicodeIsLoading).toBe(false);
-    expect(state.unicodeError).toBeNull();
-    expect(state.data?.characterLabels.A).toBe("LATIN CAPITAL LETTER A");
-  });
-
-  it("reports the file name when base data returns HTML", async () => {
-    mockLibraryFetch((fileName) => {
-      if (fileName === "box_drawing") {
-        return new Response("<!DOCTYPE html>", {
-          status: 200,
-          headers: { "content-type": "text/html" },
-        });
-      }
-      return undefined;
+    expect(useLibraryStore.getState().packs.emoji?.[0].entries[0]).toEqual(
+      expect.objectContaining({
+        aliases: ["face-smiling"],
+        category: "Emoji",
+        script: "Common",
+        coverage: 4,
+      })
+    );
+    useLibraryStore.getState().setPackSearchQuery("nerd", "folder");
+    expect(useLibraryStore.getState().searchResults.nerd[0]?.grapheme).toBe("");
+    expect(useLibraryStore.getState().searchResults.emoji).toEqual([]);
+    useLibraryStore.getState().setPackSearchQuery("emoji", "face-smiling");
+    expect(useLibraryStore.getState().searchResults.emoji[0]?.grapheme).toBe("😀");
+    useLibraryStore.getState().setPackSearchQuery("emoji", "U+1F600");
+    expect(useLibraryStore.getState().searchResults.emoji[0]?.grapheme).toBe("😀");
+    expect(useLibraryStore.getState().searchQueries).toEqual({
+      essentials: "",
+      nerd: "folder",
+      emoji: "U+1F600",
     });
-
-    await useLibraryStore.getState().fetchLibrary();
-
-    const state = useLibraryStore.getState();
-    expect(state.data).toBeNull();
-    expect(state.isLoading).toBe(false);
-    expect(state.error).toContain("data/box_drawing.json");
-    expect(state.error).toContain("text/html");
   });
 
-  it("keeps base library data when Unicode loading fails", async () => {
-    mockLibraryFetch((fileName) => {
-      if (fileName === "unicode_blocks") {
-        return new Response("<!DOCTYPE html>", {
-          status: 200,
-          headers: { "content-type": "text/html" },
-        });
-      }
-      return undefined;
+  it("keeps successful packs when one pack fails", async () => {
+    mockFetch("packs/nerd.json");
+    await useLibraryStore.getState().loadMainPacks();
+
+    expect(useLibraryStore.getState().packStatus).toEqual({
+      essentials: "ready",
+      nerd: "error",
+      emoji: "ready",
     });
+    expect(useLibraryStore.getState().packs.essentials).toBeDefined();
+    expect(useLibraryStore.getState().packErrors.nerd).toContain("503");
+  });
 
-    await useLibraryStore.getState().fetchLibrary();
-    await useLibraryStore.getState().fetchUnicodeBlocks();
+  it("loads only the Unicode manifest until a facet page is requested", async () => {
+    const requested = mockFetch();
+    await useLibraryStore.getState().loadMainPacks();
+    await useLibraryStore.getState().loadUnicodeManifest();
 
-    const state = useLibraryStore.getState();
-    expect(state.data).not.toBeNull();
-    expect(state.unicodeBlocks).toBeNull();
-    expect(state.unicodeIsLoading).toBe(false);
-    expect(state.unicodeError).toContain("data/unicode_blocks.json");
+    expect(requested).toContain("unicode/manifest.json");
+    expect(requested).not.toContain("unicode/shards/000.json");
+
+    await useLibraryStore
+      .getState()
+      .loadUnicodePage("block", "basic-latin");
+    expect(requested).toContain("unicode/shards/000.json");
+    expect(useLibraryStore.getState().unicodeResults[0]?.name).toBe(
+      "LATIN CAPITAL LETTER A"
+    );
+  });
+
+  it("loads the Unicode name index only for name search", async () => {
+    const requested = mockFetch();
+    await useLibraryStore.getState().loadMainPacks();
+    await useLibraryStore.getState().searchUnicode("latin capital");
+
+    expect(requested).toContain("unicode/name-index.json");
+    expect(useLibraryStore.getState().unicodeResults[0]?.grapheme).toBe("A");
   });
 });

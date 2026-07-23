@@ -14,7 +14,7 @@ import {
   drawGridLines,
   drawTextCell,
   setTextRenderStyle,
-  waitForRenderFont,
+  loadRenderFonts,
 } from "@/shared/metrics";
 
 const MONOCHROME_EXPORT_COLOR = COLOR_PRIMARY_TEXT;
@@ -22,7 +22,8 @@ const resolveExportColor = (color: string, includeColor: boolean) => {
   return includeColor ? color : MONOCHROME_EXPORT_COLOR;
 };
 
-const waitForExportFont = waitForRenderFont;
+const getGridGraphemes = (grid: GridMap) =>
+  Array.from(grid.values(), (cell) => cell.char);
 export const createSelectionPngBlob = async (
   grid: GridMap,
   selections: SelectionArea[],
@@ -30,7 +31,7 @@ export const createSelectionPngBlob = async (
   includeColor: boolean = true
 ) => {
   if (selections.length === 0) return null;
-  await waitForExportFont();
+  await loadRenderFonts(getGridGraphemes(grid));
 
   const { minX, maxX, minY, maxY } = getSelectionsBoundingBox(selections);
   const padding = 1;
@@ -92,7 +93,7 @@ export const createPngBlobFromGrid = async (
   includeColor: boolean = true
 ) => {
   if (grid.size === 0) return null;
-  await waitForExportFont();
+  await loadRenderFonts(getGridGraphemes(grid));
   const { minX, maxX, minY, maxY } = GridManager.getGridBounds(grid);
   const padding = 2;
   const { cellWidth, cellHeight } = DEFAULT_GRID_RENDER_METRICS;

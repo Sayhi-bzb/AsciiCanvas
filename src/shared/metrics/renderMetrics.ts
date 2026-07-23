@@ -4,9 +4,13 @@ import {
   FONT_SIZE,
 } from "@/shared/lib/constants";
 import { getCellOccupancy } from "./cellOccupancy";
+import {
+  getRenderFontFamily,
+  type RenderFontRoute,
+  resolveRenderFontRoute,
+} from "./fontRouting";
 
-const RENDER_FONT_FAMILY = "'Maple Mono NF CN', monospace";
-const RENDER_FONT_SAMPLE = "A@╭你";
+const RENDER_FONT_FAMILY = getRenderFontFamily("text");
 
 export type GridRenderMetrics = {
   cellWidth: number;
@@ -28,11 +32,17 @@ export const getCanvasFont = (
   options?: {
     bold?: boolean;
     italic?: boolean;
+    route?: RenderFontRoute;
   }
-) =>
-  `${options?.italic ? "italic " : ""}${options?.bold ? "700 " : ""}${
+) => {
+  const fontFamily =
+    options?.route === "emoji"
+      ? getRenderFontFamily("emoji")
+      : metrics.fontFamily;
+  return `${options?.italic ? "italic " : ""}${options?.bold ? "700 " : ""}${
     metrics.fontSize * zoom
-  }px ${metrics.fontFamily}`;
+  }px ${fontFamily}`;
+};
 
 export const getCellPixelSize = (
   zoom: number,
@@ -81,16 +91,28 @@ export const prepareCanvasSurface = (
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 };
 
-export const waitForRenderFont = async () => {
+export const loadRenderFonts = async (graphemes: Iterable<string>) => {
   if (typeof document === "undefined" || !document.fonts) return;
 
   try {
-    await document.fonts.load(
-      getCanvasFont(DEFAULT_GRID_RENDER_METRICS),
-      RENDER_FONT_SAMPLE
+    const samples = new Map<RenderFontRoute, Set<string>>();
+    for (const grapheme of graphemes) {
+      if (!grapheme) continue;
+      const route = resolveRenderFontRoute(grapheme);
+      const routeSamples = samples.get(route) ?? new Set<string>();
+      routeSamples.add(grapheme);
+      samples.set(route, routeSamples);
+    }
+    await Promise.all(
+      Array.from(samples, ([route, routeSamples]) =>
+        document.fonts.load(
+          getCanvasFont(DEFAULT_GRID_RENDER_METRICS, 1, { route }),
+          Array.from(routeSamples).join("")
+        )
+      )
     );
     await document.fonts.ready;
   } catch {
-    // Browser monospace fallback must remain valid if the preferred font fails.
+    // System fallback remains valid when a self-hosted face cannot load.
   }
 };

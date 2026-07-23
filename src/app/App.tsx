@@ -14,6 +14,7 @@ import { useShallow } from "zustand/react/shallow";
 import { SessionTabs } from "@/widgets/session-tabs/SessionTabs";
 import { useIsMobile, useSidebarAutoCollapseSignal } from "@/shared/hooks/use-mobile";
 import { cn } from "@/shared/lib/utils";
+import { TooltipProvider } from "@/shared/ui/tooltip";
 
 const SidebarRight = lazy(() =>
   import("@/widgets/toolbar/sidebar-right").then((module) => ({
@@ -63,11 +64,7 @@ function AppContent() {
   const sidebarAutoCollapseSignal = useSidebarAutoCollapseSignal();
   const isMobile = useIsMobile();
   const topBarLeftInset = isMobile ? "3.75rem" : "4rem";
-  const topBarRightInset = isMobile
-    ? "0.5rem"
-    : isRightPanelOpen
-      ? "20.5rem"
-      : "4rem";
+  const topBarRightInset = isMobile ? "0.5rem" : "4rem";
 
   useEffect(() => {
     if (sidebarAutoCollapseSignal === 0) return;
@@ -145,7 +142,7 @@ function AppContent() {
             onOpenChange={setIsRightPanelOpen}
             className="h-full items-end"
             style={
-              { "--sidebar-width": "20rem" } as React.CSSProperties
+              { "--sidebar-width": "24rem" } as React.CSSProperties
             }
           >
             <MobileSidebarTrigger />
@@ -160,8 +157,10 @@ function AppContent() {
 }
 
 export default function App() {
-  return <AppContent />;
+  return (
+    <TooltipProvider>
+      <AppContent />
+    </TooltipProvider>
+  );
 }
-
-
 

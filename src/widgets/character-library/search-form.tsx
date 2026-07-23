@@ -1,50 +1,116 @@
 "use client";
 
 import * as React from "react";
-import { Search } from "lucide-react";
-import { Label } from "@/shared/ui/label";
+import { Loader2, Search } from "lucide-react";
 import {
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarInput,
-} from "@/shared/ui/sidebar";
-import { useLibraryStore } from "@/domains/character-library/public";
-import { rx } from "@/shared/styles/recipes";
+  useLibraryStore,
+  type CharacterViewId,
+} from "@/domains/character-library/public";
 import { cn } from "@/shared/lib/utils";
+import { rx } from "@/shared/styles/recipes";
 
-export function SearchForm({ className, ...props }: React.ComponentProps<"form">) {
-  const { searchQuery, setSearchQuery } = useLibraryStore();
+type SearchFormProps = Omit<React.ComponentProps<"form">, "onSubmit"> & {
+  view: CharacterViewId;
+  unicodeQuery: string;
+  unicodeLoading: boolean;
+  onUnicodeQueryChange: (query: string) => void;
+  onUnicodeSubmit: () => void;
+};
+
+export function SearchForm({
+  view,
+  unicodeQuery,
+  unicodeLoading,
+  onUnicodeQueryChange,
+  onUnicodeSubmit,
+  className,
+  ...props
+}: SearchFormProps) {
+  const storedQuery = useLibraryStore((state) =>
+    view === "unicode" ? "" : state.searchQueries[view]
+  );
+  const setPackSearchQuery = useLibraryStore(
+    (state) => state.setPackSearchQuery
+  );
+  const [packValue, setPackValue] = React.useState(storedQuery);
+  const isUnicode = view === "unicode";
+  const value = isUnicode ? unicodeQuery : packValue;
+
+  React.useEffect(() => {
+    if (view !== "unicode") setPackValue(storedQuery);
+  }, [storedQuery, view]);
+
+  React.useEffect(() => {
+    if (view === "unicode") return;
+    const timer = window.setTimeout(
+      () => setPackSearchQuery(view, packValue),
+      100
+    );
+    return () => window.clearTimeout(timer);
+  }, [packValue, setPackSearchQuery, view]);
+
+  const clear = () => {
+    if (isUnicode) onUnicodeQueryChange("");
+    else {
+      setPackValue("");
+      setPackSearchQuery(view, "");
+    }
+  };
 
   return (
-    <form className={className} {...props} onSubmit={(e) => e.preventDefault()}>
-      <SidebarGroup className="p-0">
-        <SidebarGroupContent className="relative">
-          <Label htmlFor="search" className="sr-only">
-            Search Blueprint
-          </Label>
-          <SidebarInput
-            id="search"
-            placeholder="Search characters (e.g. 'copy', 'arrow')..."
-            className={cn(
-              rx.field({ density: "default" }),
-              "pl-8 bg-muted/50 focus-visible:bg-background transition-colors shadow-none"
-            )}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 opacity-50 select-none" />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => setSearchQuery("")}
-              className="absolute top-1/2 right-2.5 -translate-y-1/2 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
-            >
-              ESC
-            </button>
+    <form
+      className={cn("relative min-w-0", className)}
+      {...props}
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (isUnicode) onUnicodeSubmit();
+      }}
+    >
+      <label htmlFor="character-view-search" className="sr-only">
+        Search characters
+      </label>
+      <input
+        id="character-view-search"
+        type="search"
+        aria-label="Search characters"
+        placeholder={
+          isUnicode
+            ? "Name, character, or U+ code"
+            : "Search current view"
+        }
+        className={cn(
+          rx.field({ density: "default" }),
+          "h-8 w-full border-0 bg-accent/60 pl-8 pr-10 text-xs shadow-none transition-colors focus-visible:bg-accent"
+        )}
+        value={value}
+        onChange={(event) => {
+          if (isUnicode) onUnicodeQueryChange(event.target.value);
+          else setPackValue(event.target.value);
+        }}
+      />
+      <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+      {isUnicode ? (
+        <button
+          type="submit"
+          aria-label="Search all Unicode"
+          disabled={!value.trim() || unicodeLoading}
+          className="absolute right-1 top-1/2 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-40"
+        >
+          {unicodeLoading ? (
+            <Loader2 className="size-3.5 animate-spin" />
+          ) : (
+            <Search className="size-3.5" />
           )}
-        </SidebarGroupContent>
-      </SidebarGroup>
+        </button>
+      ) : value ? (
+        <button
+          type="button"
+          onClick={clear}
+          className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-medium text-muted-foreground hover:text-foreground"
+        >
+          ESC
+        </button>
+      ) : null}
     </form>
   );
 }
-
