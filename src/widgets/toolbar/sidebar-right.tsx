@@ -2,15 +2,18 @@
 
 import { useEffect, useState } from "react";
 import {
+  Boxes,
   Clapperboard,
   Eye,
   EyeOff,
   Github,
   Languages,
+  LayoutTemplate,
   Library,
   Map,
   Sparkles,
   Terminal,
+  type LucideIcon,
 } from "lucide-react";
 import {
   SidebarHeader,
@@ -53,37 +56,54 @@ type StructuredSidebarTab = "template" | "components";
 const STRUCTURED_SIDEBAR_TABS: Array<{
   id: StructuredSidebarTab;
   labelKey: "sidebar.tab.template" | "sidebar.tab.components";
+  icon: LucideIcon;
 }> = [
-  { id: "template", labelKey: "sidebar.tab.template" },
-  { id: "components", labelKey: "sidebar.tab.components" },
+  {
+    id: "template",
+    labelKey: "sidebar.tab.template",
+    icon: LayoutTemplate,
+  },
+  {
+    id: "components",
+    labelKey: "sidebar.tab.components",
+    icon: Boxes,
+  },
 ];
+
+type SidebarView<ViewId extends string> = {
+  id: ViewId;
+  label: string;
+  icon: LucideIcon;
+};
 
 const CHARACTER_VIEWS = [
   { id: "essentials", label: "Essentials", icon: Library },
   { id: "nerd", label: "Nerd Icons", icon: Terminal },
   { id: "emoji", label: "Emoji", icon: Sparkles },
   { id: "unicode", label: "Unicode", icon: Languages },
-] as const satisfies ReadonlyArray<{
-  id: CharacterViewId;
-  label: string;
-  icon: typeof Library;
-}>;
+] as const satisfies ReadonlyArray<SidebarView<CharacterViewId>>;
 
-function CharacterViewRail({
+function SidebarViewRail<ViewId extends string>({
+  views,
   activeView,
   orientation,
   onSelect,
+  ariaLabel,
+  testIdPrefix,
 }: {
-  activeView: CharacterViewId;
+  views: ReadonlyArray<SidebarView<ViewId>>;
+  activeView: ViewId;
   orientation: "horizontal" | "vertical";
-  onSelect: (view: CharacterViewId) => void;
+  onSelect: (view: ViewId) => void;
+  ariaLabel: string;
+  testIdPrefix: string;
 }) {
   return (
     <nav
       role="tablist"
-      aria-label="Character library views"
+      aria-label={ariaLabel}
       aria-orientation={orientation}
-      data-testid={`character-view-rail-${orientation}`}
+      data-testid={`${testIdPrefix}-view-rail-${orientation}`}
       className={cn(
         "flex rounded-lg bg-muted p-[3px]",
         orientation === "vertical"
@@ -91,7 +111,7 @@ function CharacterViewRail({
           : "w-full items-center gap-1"
       )}
     >
-      {CHARACTER_VIEWS.map((view) => {
+      {views.map((view) => {
         const Icon = view.icon;
         const isActive = activeView === view.id;
         return (
@@ -180,6 +200,14 @@ export function SidebarRight({ containerSize }: SidebarRightProps) {
   const activeCharacterViewMeta =
     CHARACTER_VIEWS.find((view) => view.id === activeCharacterView) ??
     CHARACTER_VIEWS[0];
+  const structuredViews = STRUCTURED_SIDEBAR_TABS.map((view) => ({
+    id: view.id,
+    label: t(view.labelKey),
+    icon: view.icon,
+  }));
+  const activeStructuredViewMeta =
+    structuredViews.find((view) => view.id === structuredSidebarTab) ??
+    structuredViews[0];
 
   useEffect(() => {
     if (canvasMode !== "freeform") return;
@@ -192,6 +220,11 @@ export function SidebarRight({ containerSize }: SidebarRightProps) {
 
   const selectCharacterView = (view: CharacterViewId) => {
     setActiveCharacterView(view);
+    if (isCollapsed) setOpen(true);
+  };
+
+  const selectStructuredView = (view: StructuredSidebarTab) => {
+    setStructuredSidebarTab(view);
     if (isCollapsed) setOpen(true);
   };
 
@@ -208,15 +241,27 @@ export function SidebarRight({ containerSize }: SidebarRightProps) {
       contentClassName={cn(
         "min-h-0 overflow-hidden",
         canvasMode === "freeform" && "gap-0 p-0",
-        canvasMode === "structured" && "gap-0 p-2",
+        canvasMode === "structured" && "gap-0 p-0",
         canvasMode === "animation" && "p-2"
       )}
       collapsedContent={
         canvasMode === "freeform" ? (
-          <CharacterViewRail
+          <SidebarViewRail
+            views={CHARACTER_VIEWS}
             activeView={activeCharacterView}
             orientation="vertical"
             onSelect={selectCharacterView}
+            ariaLabel="Character library views"
+            testIdPrefix="character"
+          />
+        ) : canvasMode === "structured" ? (
+          <SidebarViewRail
+            views={structuredViews}
+            activeView={structuredSidebarTab}
+            orientation="vertical"
+            onSelect={selectStructuredView}
+            ariaLabel="Structured library views"
+            testIdPrefix="structured"
           />
         ) : undefined
       }
@@ -250,19 +295,14 @@ export function SidebarRight({ containerSize }: SidebarRightProps) {
                 <span className="truncate text-sm font-semibold">Frames</span>
               </div>
             ) : (
-              <div className="flex min-w-0 flex-1 items-center gap-2">
-                <span className="w-20 shrink-0 truncate text-xs font-semibold">
-                  {activeCharacterViewMeta.label}
-                </span>
-                <SearchForm
-                  view={activeCharacterView}
-                  unicodeQuery={unicodeQuery}
-                  unicodeLoading={unicodeSearchLoading}
-                  onUnicodeQueryChange={setUnicodeQuery}
-                  onUnicodeSubmit={() => void searchUnicode(unicodeQuery)}
-                  className="min-w-0 flex-1"
-                />
-              </div>
+              <SearchForm
+                view={activeCharacterView}
+                unicodeQuery={unicodeQuery}
+                unicodeLoading={unicodeSearchLoading}
+                onUnicodeQueryChange={setUnicodeQuery}
+                onUnicodeSubmit={() => void searchUnicode(unicodeQuery)}
+                className="min-w-0 flex-1"
+              />
             ))}
           <SidebarTrigger className="ml-auto size-8 shrink-0" />
         </SidebarHeader>
@@ -457,10 +497,13 @@ export function SidebarRight({ containerSize }: SidebarRightProps) {
               isMobile ? "pb-0" : "pr-0"
             )}
           >
-            <CharacterViewRail
+            <SidebarViewRail
+              views={CHARACTER_VIEWS}
               activeView={activeCharacterView}
               orientation={isMobile ? "horizontal" : "vertical"}
               onSelect={selectCharacterView}
+              ariaLabel="Character library views"
+              testIdPrefix="character"
             />
           </div>
           <ScrollArea className="min-h-0 min-w-0 flex-1">
@@ -473,41 +516,34 @@ export function SidebarRight({ containerSize }: SidebarRightProps) {
           </ScrollArea>
         </div>
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col">
-          {canvasMode === "structured" && !isCollapsed && (
-            <div className="shrink-0 px-2 pb-2 pt-1">
-              <div
-                className="flex items-center gap-1 rounded-lg bg-muted p-[3px]"
-                role="tablist"
-                aria-label="Structured library sections"
-              >
-                {STRUCTURED_SIDEBAR_TABS.map((tab) => {
-                  const isActive = structuredSidebarTab === tab.id;
-                  return (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      role="tab"
-                      aria-selected={isActive}
-                      className={cn(
-                        "h-7 flex-1 rounded-md px-2 text-xs font-medium transition-colors outline-none",
-                        "focus-visible:ring-2 focus-visible:ring-ring/50",
-                        isActive
-                          ? "bg-accent text-foreground"
-                          : "text-muted-foreground hover:text-foreground"
-                      )}
-                      onClick={() => setStructuredSidebarTab(tab.id)}
-                    >
-                      {t(tab.labelKey)}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+        <div
+          className={cn(
+            "min-h-0 min-w-0 flex-1",
+            isMobile ? "flex flex-col" : "grid grid-cols-[2.75rem_minmax(0,1fr)]"
           )}
+        >
+          <div
+            className={cn(
+              "shrink-0 p-1",
+              isMobile ? "pb-0" : "pr-0"
+            )}
+          >
+            <SidebarViewRail
+              views={structuredViews}
+              activeView={structuredSidebarTab}
+              orientation={isMobile ? "horizontal" : "vertical"}
+              onSelect={selectStructuredView}
+              ariaLabel="Structured library views"
+              testIdPrefix="structured"
+            />
+          </div>
           <ScrollArea className="min-h-0 min-w-0 flex-1">
-            {canvasMode === "structured" ? (
-              structuredSidebarTab === "template" ? (
+            <div
+              role="tabpanel"
+              aria-label={activeStructuredViewMeta.label}
+              className="p-2"
+            >
+              {structuredSidebarTab === "template" ? (
                 <StructuredTemplateLibrary
                   templates={STRUCTURED_PAGE_TEMPLATES}
                   query={structuredLibraryQuery}
@@ -519,8 +555,8 @@ export function SidebarRight({ containerSize }: SidebarRightProps) {
                   query={structuredLibraryQuery}
                   emptyLabel={t("sidebar.empty.components")}
                 />
-              )
-            ) : null}
+              )}
+            </div>
           </ScrollArea>
         </div>
       )}

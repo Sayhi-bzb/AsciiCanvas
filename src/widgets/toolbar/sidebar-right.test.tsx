@@ -96,8 +96,11 @@ describe("SidebarRight structured templates", () => {
     expect(content).not.toHaveClass("overflow-y-auto");
     expect(content?.querySelectorAll('[data-slot="scroll-area"]')).toHaveLength(1);
     expect(scrollArea).toHaveClass("min-h-0", "overflow-hidden");
-    expect(content).toHaveTextContent("Template");
-    expect(content).toHaveTextContent("Components");
+    expect(content).toHaveClass("p-0");
+    expect(screen.getByTestId("structured-view-rail-vertical")).toHaveAttribute(
+      "aria-orientation",
+      "vertical"
+    );
     expect(screen.getByRole("tab", { name: "Template" })).toHaveAttribute(
       "aria-selected",
       "false"
@@ -106,6 +109,8 @@ describe("SidebarRight structured templates", () => {
       "aria-selected",
       "true"
     );
+    expect(screen.getByRole("tabpanel", { name: "Components" }))
+      .toBeInTheDocument();
     expect(scrollViewport).not.toContainElement(
       screen.getByRole("tab", { name: "Components" })
     );
@@ -160,7 +165,6 @@ describe("SidebarRight structured templates", () => {
       '[data-testid="structured-template-preview-grid"]'
     );
     expect(buttonPreview?.tagName).toBe("CANVAS");
-    expect(content).toHaveClass("p-2");
     expect(group).toHaveClass("p-0");
     expect(button).toHaveClass("items-center", "gap-3");
     expect(screen.queryByRole("button", { name: /amibios/i })).not.toBeInTheDocument();
@@ -355,6 +359,7 @@ describe("SidebarRight structured templates", () => {
       .toBeInTheDocument();
     expect(screen.getByRole("searchbox", { name: "Search characters" }))
       .toBeInTheDocument();
+    expect(header).not.toHaveTextContent("Emoji");
     expect(header).toHaveClass("h-12", "flex-row", "py-2", "px-3");
     expect(header).not.toHaveClass("py-4");
   });
@@ -530,7 +535,7 @@ describe("SidebarRight structured templates", () => {
     expect(screen.queryByText("No templates found")).not.toBeInTheDocument();
   });
 
-  it("hides structured search when the sidebar is collapsed", () => {
+  it("keeps the structured view rail when collapsed and expands selected view", () => {
     useEditorStore.setState({ canvasMode: "structured" });
 
     const { container } = render(
@@ -544,7 +549,20 @@ describe("SidebarRight structured templates", () => {
       screen.queryByRole("searchbox", { name: "Search structured library" })
     ).not.toBeInTheDocument();
     expect(header?.querySelector('[data-slot="sidebar-trigger"]')).toBeInTheDocument();
-    expect(screen.queryByRole("tab", { name: "Template" })).not.toBeInTheDocument();
+    expect(screen.getByTestId("structured-view-rail-vertical"))
+      .toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Template" }));
+
+    expect(screen.getByRole("tab", { name: "Template" })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    );
+    expect(screen.getByRole("tabpanel", { name: "Template" }))
+      .toBeInTheDocument();
+    expect(
+      screen.getByRole("searchbox", { name: "Search structured library" })
+    ).toBeInTheDocument();
   });
 
   it("toggles operation UI labels to Chinese without changing template labels", () => {

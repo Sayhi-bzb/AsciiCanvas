@@ -250,6 +250,70 @@ test.describe('Canvas', () => {
     ).toBeVisible();
   });
 
+  test('uses a left view rail for the structured library and preserves it when collapsed', async ({ page }) => {
+    await seedSession(page, {
+      id: 'structured-sidebar-e2e',
+      name: 'Structured Sidebar E2E',
+      mode: 'structured',
+      scene: [],
+      grid: [],
+      viewport: { offset: { x: 180, y: 130 }, zoom: 1 },
+    });
+
+    const sidebar = page.locator(
+      '[data-slot="sidebar"][data-side="right"]'
+    );
+    const rail = page.getByTestId('structured-view-rail-vertical');
+    await expect(rail).toBeVisible();
+    await expect(page.getByTestId('structured-view-rail-horizontal')).toHaveCount(0);
+    await expect(rail.getByRole('tab')).toHaveCount(2);
+    await expect(rail.getByRole('tab', { name: 'Components' })).toHaveAttribute(
+      'aria-selected',
+      'true'
+    );
+    await expect(page.getByRole('searchbox', { name: 'Search structured library' }))
+      .toBeVisible();
+
+    await rail.getByRole('tab', { name: 'Template' }).click();
+    await expect(page.getByRole('tabpanel', { name: 'Template' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Toggle Sidebar' }).click();
+    await expect(sidebar).toHaveAttribute('data-state', 'collapsed');
+    await expect(page.getByRole('searchbox', { name: 'Search structured library' }))
+      .toHaveCount(0);
+    await expect(page.getByTestId('structured-view-rail-vertical')).toBeVisible();
+
+    await page.getByRole('tab', { name: 'Components' }).click();
+    await expect(sidebar).toHaveAttribute('data-state', 'expanded');
+    await expect(page.getByRole('tabpanel', { name: 'Components' })).toBeVisible();
+  });
+
+  test('uses a horizontal structured view rail in the mobile sheet', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await seedSession(page, {
+      id: 'structured-mobile-sidebar-e2e',
+      name: 'Structured Mobile Sidebar E2E',
+      mode: 'structured',
+      scene: [],
+      grid: [],
+      viewport: { offset: { x: 80, y: 90 }, zoom: 1 },
+    });
+    await page.getByRole('button', { name: 'Open library' }).click();
+
+    const mobileSidebar = page.locator(
+      '[data-slot="sidebar"][data-mobile="true"]'
+    );
+    await expect(
+      mobileSidebar.getByTestId('structured-view-rail-horizontal')
+    ).toBeVisible();
+    await expect(
+      mobileSidebar.getByTestId('structured-view-rail-vertical')
+    ).toHaveCount(0);
+    await expect(
+      mobileSidebar.getByTestId('structured-view-rail-horizontal').getByRole('tab')
+    ).toHaveCount(2);
+  });
+
   test('keeps the top bar centered while the sidebar collapses', async ({ page }) => {
     const lane = page.locator('[data-session-tabs-lane="true"]');
     const sidebar = page.locator(
