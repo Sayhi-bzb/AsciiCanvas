@@ -189,6 +189,10 @@ describe("Toolbar dock", () => {
       "gap-1.5",
       "px-1"
     );
+    const contentFrame = screen.getByTestId("color-picker-content-frame");
+    expect(contentFrame).toHaveClass("h-[8.875rem]");
+    expect(contentFrame).not.toHaveClass("h-[6.375rem]");
+
     expect(screen.getByRole("tab", { name: "ANSI 16" })).toHaveClass(
       "data-[state=active]:bg-accent",
       "data-[state=active]:text-foreground"
@@ -243,6 +247,7 @@ describe("Toolbar dock", () => {
       "data-[state=active]:bg-accent",
       "data-[state=active]:text-foreground"
     );
+    expect(contentFrame).toHaveClass("h-[8.875rem]");
     expect(screen.getByTestId("color-palette-grid")).toHaveClass(
       "grid-cols-10",
       "gap-0.5"
@@ -309,6 +314,9 @@ describe("Toolbar dock", () => {
     expect(
       screen.queryByRole("button", { name: "Pick color from canvas" })
     ).not.toBeInTheDocument();
+    expect(screen.getByTestId("color-picker-content-frame")).toHaveClass(
+      "h-[6.375rem]"
+    );
     expect(screen.getByRole("tab", { name: "ANSI 16" })).toBeInTheDocument();
   });
 });

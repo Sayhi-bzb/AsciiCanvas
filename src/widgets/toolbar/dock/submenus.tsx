@@ -309,7 +309,13 @@ export function ColorPickerPanel({
         ))}
       </TabsList>
 
-      <div className="min-w-0 flex-1">
+      <div
+        data-testid="color-picker-content-frame"
+        className={cn(
+          "min-w-0 flex-1",
+          showCustomInput ? "h-[8.875rem]" : "h-[6.375rem]"
+        )}
+      >
         {paletteTabs.map((tab) => (
           <TabsContent key={tab.id} value={tab.id} className="space-y-3">
             {showCustomInput && (

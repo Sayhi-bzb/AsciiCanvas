@@ -67,6 +67,44 @@ test.describe('Canvas', () => {
     await expect(canvas).toBeVisible();
   });
 
+  test('keeps the color picker bounds stable when switching palette tabs', async ({ page }) => {
+    const colorItem = page.locator('[data-toolbar-item="color"]');
+    await colorItem.locator('button').last().click();
+
+    const paletteTabs = page.getByRole('tablist', { name: 'Color palettes' });
+    const popover = page.locator('[data-slot="popover-content"]').filter({
+      has: paletteTabs,
+    });
+    await expect(popover).toBeVisible();
+    const ansiBounds = await popover.boundingBox();
+    expect(ansiBounds).not.toBeNull();
+
+    await paletteTabs.getByRole('tab', { name: 'Presets' }).click();
+    await expect(
+      paletteTabs.getByRole('tab', { name: 'Presets' })
+    ).toHaveAttribute('aria-selected', 'true');
+    const presetBounds = await popover.boundingBox();
+    expect(presetBounds).not.toBeNull();
+
+    const contentFrame = page.getByTestId('color-picker-content-frame');
+    const frameMetrics = await contentFrame.evaluate((element) => ({
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight,
+    }));
+    expect(frameMetrics.scrollHeight).toBeLessThanOrEqual(
+      frameMetrics.clientHeight
+    );
+
+    expect(Math.abs(presetBounds!.width - ansiBounds!.width))
+      .toBeLessThanOrEqual(1);
+    expect(Math.abs(presetBounds!.height - ansiBounds!.height))
+      .toBeLessThanOrEqual(1);
+    expect(Math.abs(presetBounds!.x - ansiBounds!.x))
+      .toBeLessThanOrEqual(1);
+    expect(Math.abs(presetBounds!.y - ansiBounds!.y))
+      .toBeLessThanOrEqual(1);
+  });
+
   test('self-hosts routed fonts and renders emoji with the canvas color', async ({ page }) => {
     const result = await page.evaluate(async () => {
       const faces = await Promise.all([
