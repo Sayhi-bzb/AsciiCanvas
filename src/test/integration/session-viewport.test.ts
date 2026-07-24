@@ -491,6 +491,101 @@ describe("canvas session viewport state", () => {
     });
   });
 
+  it("preserves target backgrounds and uncovered tail cells on plain paste", async () => {
+    useEditorStore.setState({
+      canvasMode: "freeform",
+      brushColor: "#ffffff",
+      textCursor: null,
+    });
+    applyFreeformSnapshotToYMaps(
+      Array.from(" 3:35").map((char, x) => [
+        `${x},0`,
+        {
+          char,
+          color: x === 0 ? "#ffffff" : "#808080",
+          bgColor: "#000000",
+        },
+      ])
+    );
+    useEditorStore.getState().addSelection({
+      start: { x: 0, y: 0 },
+      end: { x: 4, y: 0 },
+    });
+
+    await useEditorStore.getState().pasteFromClipboard({
+      eventDataTransfer: {
+        getData: (type: string) => (type === "text/plain" ? "Spot" : ""),
+      } as unknown as DataTransfer,
+    });
+
+    expect(
+      Array.from({ length: 5 }, (_, x) =>
+        useEditorStore.getState().grid.get(`${x},0`)
+      )
+    ).toEqual(
+      Array.from("Spot5").map((char, x) => ({
+        char,
+        color: x === 4 ? "#808080" : "#ffffff",
+        bgColor: "#000000",
+      }))
+    );
+  });
+
+  it("preserves each selected background when pasting one plain character", async () => {
+    useEditorStore.setState({
+      canvasMode: "freeform",
+      brushColor: "#ffffff",
+      textCursor: null,
+    });
+    applyFreeformSnapshotToYMaps([
+      ["0,0", { char: "A", color: "#111111", bgColor: "#000000" }],
+      ["1,0", { char: "B", color: "#222222", bgColor: "#0000ff" }],
+    ]);
+    useEditorStore.getState().addSelection({
+      start: { x: 0, y: 0 },
+      end: { x: 1, y: 0 },
+    });
+
+    await useEditorStore.getState().pasteFromClipboard({
+      eventDataTransfer: {
+        getData: (type: string) => (type === "text/plain" ? "X" : ""),
+      } as unknown as DataTransfer,
+    });
+
+    expect(useEditorStore.getState().grid).toEqual(
+      new Map([
+        ["0,0", { char: "X", color: "#ffffff", bgColor: "#000000" }],
+        ["1,0", { char: "X", color: "#ffffff", bgColor: "#0000ff" }],
+      ])
+    );
+  });
+
+  it("inherits target backgrounds for ANSI cells without an explicit background", async () => {
+    useEditorStore.setState({
+      canvasMode: "freeform",
+      brushColor: "#ffffff",
+      textCursor: { x: 0, y: 0 },
+    });
+    applyFreeformSnapshotToYMaps([
+      ["0,0", { char: "A", color: "#ffffff", bgColor: "#000000" }],
+      ["1,0", { char: "B", color: "#ffffff", bgColor: "#000000" }],
+    ]);
+
+    await useEditorStore.getState().pasteFromClipboard({
+      eventDataTransfer: {
+        getData: (type: string) =>
+          type === "text/plain" ? "[91mA[44mB[m" : "",
+      } as unknown as DataTransfer,
+    });
+
+    expect(useEditorStore.getState().grid).toEqual(
+      new Map([
+        ["0,0", { char: "A", color: "#ff0000", bgColor: "#000000" }],
+        ["1,0", { char: "B", color: "#ff0000", bgColor: "#000080" }],
+      ])
+    );
+  });
+
   it("formats selected structured text ranges", () => {
     useEditorStore.getState().createCanvasSession("structured");
     useEditorStore.getState().applyStructuredScene(

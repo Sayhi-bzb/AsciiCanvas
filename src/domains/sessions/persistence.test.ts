@@ -49,15 +49,90 @@ describe("editor persistence migration", () => {
     });
   });
 
-  it("recognizes only the grouped v2 shape", () => {
+  it("requires all render-critical fields in the grouped v2 shape", () => {
     expect(isPersistedEditorStateV2({ schemaVersion: 2 })).toBe(false);
     expect(
       isPersistedEditorStateV2({
         schemaVersion: 2,
-        workspace: {},
-        sessions: {},
-        preferences: {},
+        workspace: {
+          offset: { x: 0, y: 0 },
+          zoom: 1,
+          canvasMode: "freeform",
+          grid: [],
+          structuredScene: [],
+          structuredComponents: [],
+          canvasBounds: null,
+          animationTimeline: null,
+        },
+        sessions: { items: [], activeId: "" },
+        preferences: {
+          brushChar: "#",
+          brushColor: "#fff",
+          showGrid: true,
+          exportShowGrid: false,
+        },
       })
     ).toBe(true);
+    expect(
+      isPersistedEditorStateV2({
+        schemaVersion: 2,
+        workspace: {
+          offset: { x: 0, y: 0 },
+          zoom: 1,
+          canvasMode: "freeform",
+          grid: [],
+          structuredScene: [],
+          structuredComponents: [],
+        },
+        sessions: { activeId: "canvas-1" },
+        preferences: {
+          brushChar: "#",
+          brushColor: "#fff",
+          showGrid: true,
+          exportShowGrid: false,
+        },
+      })
+    ).toBe(false);
+  });
+
+  it("repairs an incomplete grouped v2 payload without dropping workspace data", () => {
+    const grid = [["0,0", { char: "A", color: "#fff" }]] as [
+      string,
+      { char: string; color: string },
+    ][];
+    const migrated = migratePersistedStateV1ToV2({
+      schemaVersion: 2,
+      workspace: {
+        offset: { x: 5, y: 8 },
+        zoom: 1.5,
+        canvasMode: "freeform",
+        grid,
+        structuredScene: [],
+        structuredComponents: [],
+      },
+      sessions: { activeId: "canvas-1" },
+      preferences: {
+        brushChar: "@",
+        brushColor: "#123456",
+        showGrid: false,
+        exportShowGrid: true,
+      },
+    });
+
+    expect(migrated.workspace).toMatchObject({
+      offset: { x: 5, y: 8 },
+      zoom: 1.5,
+      grid,
+    });
+    expect(migrated.sessions).toEqual({
+      items: [],
+      activeId: "canvas-1",
+    });
+    expect(migrated.preferences).toEqual({
+      brushChar: "@",
+      brushColor: "#123456",
+      showGrid: false,
+      exportShowGrid: true,
+    });
   });
 });

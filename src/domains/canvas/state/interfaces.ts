@@ -101,7 +101,11 @@ export interface TextSlice {
     text: string,
     styleRanges?: StructuredTextStyleRange[]
   ) => void;
-  writeTextString: (str: string, startPos?: Point) => void;
+  writeTextString: (
+    str: string,
+    startPos?: Point,
+    options?: { preserveTargetBackground?: boolean }
+  ) => void;
   pasteRichData: (cells: RichTextCell[], startPos?: Point) => void;
   moveTextCursor: (dx: number, dy: number) => void;
   backspaceText: () => void;
@@ -121,7 +125,10 @@ export interface SelectionSlice {
   cutSelection: (options?: { event?: ClipboardEvent }) => Promise<void>;
   pasteFromClipboard: (options?: { eventDataTransfer?: DataTransfer }) => Promise<void>;
   copySelectionAsPng: (withGrid: boolean) => Promise<void>;
-  fillSelectionsWithChar: (char: string) => void;
+  fillSelectionsWithChar: (
+    char: string,
+    options?: { preserveTargetBackground?: boolean }
+  ) => void;
   setSelectionTextAttributes: (
     attrs: Partial<Record<"bold" | "italic" | "underline" | "strike", boolean>>
   ) => void;

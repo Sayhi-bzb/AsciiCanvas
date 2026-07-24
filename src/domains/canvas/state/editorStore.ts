@@ -109,6 +109,188 @@ const createDefaultCanvasSessions = (): CanvasSession[] => [
   },
 ];
 
+type RecoverableEditorState = EditorState & {
+  canvasSessions?: unknown;
+  activeCanvasId?: unknown;
+  canvasMode?: unknown;
+  structuredScene?: unknown;
+  structuredComponents?: unknown;
+};
+
+const recoverPersistedEditorState = (
+  hydratedState: EditorState,
+  hasPersistedState: boolean
+): EditorState => {
+  const hState = { ...hydratedState } as RecoverableEditorState;
+  hState.brushChar = normalizeBrushChar(
+    hState.brushChar,
+    DEFAULT_BRUSH_CHAR
+  );
+  hState.brushColor =
+    typeof hState.brushColor === "string"
+      ? hState.brushColor
+      : COLOR_PRIMARY_TEXT;
+  hState.showGrid =
+    typeof hState.showGrid === "boolean" ? hState.showGrid : true;
+  hState.exportShowGrid =
+    typeof hState.exportShowGrid === "boolean"
+      ? hState.exportShowGrid
+      : false;
+
+  const legacyGridEntries = normalizeGridEntries(hState.grid);
+  const legacyViewport = normalizeSessionViewport({
+    offset: hState.offset as Point,
+    zoom: hState.zoom,
+  });
+  const legacyMode = normalizeSessionMode(hState.canvasMode);
+  const legacyScene = Array.isArray(hState.structuredScene)
+    ? (hState.structuredScene
+        .map((item) => toStructuredNode(item))
+        .filter((item): item is StructuredNode => !!item) as StructuredNode[])
+    : [];
+  const legacyComponents = Array.isArray(hState.structuredComponents)
+    ? normalizeStructuredComponents(
+        hState.structuredComponents as never,
+        legacyScene
+      )
+    : normalizeStructuredComponents(undefined, legacyScene);
+
+  const recoveredSessions: CanvasSession[] = Array.isArray(
+    hState.canvasSessions
+  )
+    ? hState.canvasSessions
+        .map((raw): CanvasSession | null => {
+          if (!raw || typeof raw !== "object") return null;
+          const maybe = raw as Partial<CanvasSession> & {
+            mode?: unknown;
+            scene?: unknown;
+            components?: unknown;
+          };
+          if (typeof maybe.id !== "string") return null;
+          const mode = normalizeSessionMode(maybe.mode);
+          const viewport = normalizeSessionViewport(maybe.viewport);
+          const scene = Array.isArray(maybe.scene)
+            ? maybe.scene
+                .map((item) => toStructuredNode(item))
+                .filter((item): item is StructuredNode => !!item)
+            : [];
+          const components = Array.isArray(maybe.components)
+            ? normalizeStructuredComponents(maybe.components as never, scene)
+            : normalizeStructuredComponents(undefined, scene);
+
+          if (mode === "animation") {
+            const size = normalizeAnimationCanvasSize(
+              maybe.size as Partial<AnimationCanvasSize> | undefined
+            );
+            const timeline = normalizeAnimationTimeline(
+              maybe.timeline,
+              normalizeGridEntries(maybe.grid)
+            );
+            return {
+              id: maybe.id,
+              name:
+                typeof maybe.name === "string" && maybe.name.trim()
+                  ? maybe.name
+                  : "Canvas",
+              mode,
+              scene: [],
+              components: [],
+              grid: getAnimationFrameEntries(
+                timeline,
+                timeline.currentFrameId
+              ),
+              size,
+              timeline,
+              ...(viewport ? { viewport } : {}),
+            } satisfies CanvasSession;
+          }
+
+          return {
+            id: maybe.id,
+            name:
+              typeof maybe.name === "string" && maybe.name.trim()
+                ? maybe.name
+                : "Canvas",
+            mode,
+            scene: normalizeAndCloneScene(scene),
+            components,
+            grid: normalizeGridEntries(maybe.grid),
+            ...(viewport ? { viewport } : {}),
+          } satisfies CanvasSession;
+        })
+        .filter((session): session is CanvasSession => session !== null)
+    : [];
+
+  const sessions =
+    recoveredSessions.length > 0
+      ? recoveredSessions
+      : !hasPersistedState
+        ? createDefaultCanvasSessions()
+        : [
+            {
+              id: DEFAULT_SESSION_ID,
+              name: DEFAULT_SESSION_NAME,
+              mode: legacyMode,
+              scene: normalizeAndCloneScene(legacyScene),
+              components: legacyComponents,
+              grid:
+                !hasPersistedState && legacyGridEntries.length === 0
+                  ? DEFAULT_DEMO_GRID
+                  : legacyGridEntries,
+              ...(legacyViewport ? { viewport: legacyViewport } : {}),
+            },
+          ];
+
+  const activeCanvasId =
+    typeof hState.activeCanvasId === "string" &&
+    sessions.some((session) => session.id === hState.activeCanvasId)
+      ? hState.activeCanvasId
+      : sessions[0].id;
+
+  const sessionsWithActiveViewport = sessions.map((session) =>
+    session.id === activeCanvasId && !session.viewport && legacyViewport
+      ? { ...session, viewport: legacyViewport }
+      : session
+  );
+  const activeSession =
+    sessionsWithActiveViewport.find(
+      (session) => session.id === activeCanvasId
+    ) ?? sessionsWithActiveViewport[0];
+  const currentTool = hState.tool || "select";
+  const runtime = resolveSessionRuntime(activeSession, currentTool);
+
+  hState.canvasSessions = sessionsWithActiveViewport;
+  hState.activeCanvasId = activeCanvasId;
+  hState.canvasMode = runtime.nextMode;
+  hState.structuredScene = runtime.nextScene;
+  hState.structuredComponents = runtime.nextComponents;
+  hState.selectedStructuredNodeIds = [];
+  hState.selectedStructuredBoxId = null;
+  hState.selectedStructuredSplitHandle = null;
+  hState.structuredContextPoint = null;
+  hState.grid = createMapFromEntries(runtime.nextGridEntries);
+  hState.tool = runtime.nextTool;
+  hState.canvasBounds = runtime.nextBounds;
+  hState.animationTimeline = runtime.nextTimeline;
+  hState.offset = runtime.nextOffset;
+  hState.zoom = runtime.nextZoom;
+  hState.activeCanvasHasSavedViewport = runtime.hasSavedViewport;
+  hState.animationIsPlaying = false;
+  hState.animationPlaybackFrameId = null;
+
+  return hState as EditorState;
+};
+
+const syncHydratedStateToYMaps = (hydratedState: EditorState) => {
+  if (hydratedState.canvasMode === "structured") {
+    applyStructuredSnapshotToYMaps(hydratedState.structuredScene);
+  } else {
+    applyFreeformSnapshotToYMaps(
+      Array.from(hydratedState.grid.entries())
+    );
+  }
+};
+
 export const useEditorStore = create<EditorState>()(
   persist(
     (set, get, ...a) => {
@@ -355,183 +537,24 @@ export const useEditorStore = create<EditorState>()(
         return migratePersistedStateV1ToV2(persistedState);
       },
       merge: (persistedState, currentState) => {
-        if (!isPersistedEditorStateV2(persistedState)) return currentState;
-        const flattened = flattenPersistedEditorState(persistedState);
-        return {
+        const normalizedPersistedState = isPersistedEditorStateV2(
+          persistedState
+        )
+          ? persistedState
+          : migratePersistedStateV1ToV2(persistedState);
+        const flattened = flattenPersistedEditorState(
+          normalizedPersistedState
+        );
+        const mergedState = {
           ...currentState,
           ...flattened,
-          grid: createMapFromEntries(flattened.grid),
+          grid: createMapFromEntries(normalizeGridEntries(flattened.grid)),
         } as EditorState;
+        return recoverPersistedEditorState(mergedState, true);
       },
-      onRehydrateStorage: () => {
-        const hasPersistedState =
-          typeof localStorage !== "undefined" &&
-          localStorage.getItem(EDITOR_PERSISTENCE_KEY) !== null;
-
-        return (hydratedState, error) => {
-          if (error || !hydratedState) return;
-          const hState = hydratedState as EditorState & {
-            canvasSessions?: unknown;
-            activeCanvasId?: unknown;
-            canvasMode?: unknown;
-            structuredScene?: unknown;
-            structuredComponents?: unknown;
-          };
-          hState.brushChar = normalizeBrushChar(
-            hState.brushChar,
-            DEFAULT_BRUSH_CHAR
-          );
-
-          const legacyGridEntries = normalizeGridEntries(hState.grid);
-          const legacyViewport = normalizeSessionViewport({
-            offset: hState.offset as Point,
-            zoom: hState.zoom,
-          });
-          const legacyMode = normalizeSessionMode(hState.canvasMode);
-          const legacyScene = Array.isArray(hState.structuredScene)
-            ? (hState.structuredScene
-                .map((item) => toStructuredNode(item))
-                .filter(
-                  (item): item is StructuredNode => !!item
-                ) as StructuredNode[])
-            : [];
-          const legacyComponents = Array.isArray(hState.structuredComponents)
-            ? normalizeStructuredComponents(
-                hState.structuredComponents as never,
-                legacyScene
-              )
-            : normalizeStructuredComponents(undefined, legacyScene);
-
-          const recoveredSessions: CanvasSession[] = Array.isArray(
-            hState.canvasSessions
-          )
-            ? hState.canvasSessions
-                .map((raw): CanvasSession | null => {
-                  if (!raw || typeof raw !== "object") return null;
-                  const maybe = raw as Partial<CanvasSession> & {
-                    mode?: unknown;
-                    scene?: unknown;
-                    components?: unknown;
-                  };
-                  if (typeof maybe.id !== "string") return null;
-                  const mode = normalizeSessionMode(maybe.mode);
-                  const viewport = normalizeSessionViewport(maybe.viewport);
-                  const scene = Array.isArray(maybe.scene)
-                    ? maybe.scene
-                        .map((item) => toStructuredNode(item))
-                        .filter(
-                          (item): item is StructuredNode => !!item
-                        )
-                    : [];
-                  const components = Array.isArray(maybe.components)
-                    ? normalizeStructuredComponents(
-                        maybe.components as never,
-                        scene
-                      )
-                    : normalizeStructuredComponents(undefined, scene);
-
-                  if (mode === "animation") {
-                    const size = normalizeAnimationCanvasSize(
-                      maybe.size as Partial<AnimationCanvasSize> | undefined
-                    );
-                    const timeline = normalizeAnimationTimeline(
-                      maybe.timeline,
-                      normalizeGridEntries(maybe.grid)
-                    );
-                    return {
-                      id: maybe.id,
-                      name:
-                        typeof maybe.name === "string" && maybe.name.trim()
-                          ? maybe.name
-                          : "Canvas",
-                      mode,
-                      scene: [],
-                      components: [],
-                      grid: getAnimationFrameEntries(timeline, timeline.currentFrameId),
-                      size,
-                      timeline,
-                      ...(viewport ? { viewport } : {}),
-                    } satisfies CanvasSession;
-                  }
-
-                  return {
-                    id: maybe.id,
-                    name:
-                      typeof maybe.name === "string" && maybe.name.trim()
-                        ? maybe.name
-                        : "Canvas",
-                    mode,
-                    scene: normalizeAndCloneScene(scene),
-                    components,
-                    grid: normalizeGridEntries(maybe.grid),
-                    ...(viewport ? { viewport } : {}),
-                  } satisfies CanvasSession;
-                })
-                .filter((session): session is CanvasSession => session !== null)
-            : [];
-
-          const sessions =
-            recoveredSessions.length > 0
-              ? recoveredSessions
-              : !hasPersistedState
-                ? createDefaultCanvasSessions()
-                : [
-                  {
-                    id: DEFAULT_SESSION_ID,
-                    name: DEFAULT_SESSION_NAME,
-                    mode: legacyMode,
-                    scene: normalizeAndCloneScene(legacyScene),
-                    components: legacyComponents,
-                    grid:
-                      !hasPersistedState && legacyGridEntries.length === 0
-                        ? DEFAULT_DEMO_GRID
-                        : legacyGridEntries,
-                    ...(legacyViewport ? { viewport: legacyViewport } : {}),
-                  },
-                ];
-
-          const activeCanvasId =
-            typeof hState.activeCanvasId === "string" &&
-            sessions.some((session) => session.id === hState.activeCanvasId)
-              ? hState.activeCanvasId
-              : sessions[0].id;
-
-          const sessionsWithActiveViewport = sessions.map((session) =>
-            session.id === activeCanvasId && !session.viewport && legacyViewport
-              ? { ...session, viewport: legacyViewport }
-              : session
-          );
-          const activeSession =
-            sessionsWithActiveViewport.find((session) => session.id === activeCanvasId) ??
-            sessionsWithActiveViewport[0];
-          const currentTool = hState.tool || "select";
-          const runtime = resolveSessionRuntime(activeSession, currentTool);
-
-          hState.canvasSessions = sessionsWithActiveViewport;
-          hState.activeCanvasId = activeCanvasId;
-          hState.canvasMode = runtime.nextMode;
-          hState.structuredScene = runtime.nextScene;
-          hState.structuredComponents = runtime.nextComponents;
-          hState.selectedStructuredNodeIds = [];
-          hState.selectedStructuredBoxId = null;
-          hState.selectedStructuredSplitHandle = null;
-          hState.structuredContextPoint = null;
-          hState.grid = createMapFromEntries(runtime.nextGridEntries);
-          hState.tool = runtime.nextTool;
-          hState.canvasBounds = runtime.nextBounds;
-          hState.animationTimeline = runtime.nextTimeline;
-          hState.offset = runtime.nextOffset;
-          hState.zoom = runtime.nextZoom;
-          hState.activeCanvasHasSavedViewport = runtime.hasSavedViewport;
-          hState.animationIsPlaying = false;
-          hState.animationPlaybackFrameId = null;
-
-          if (runtime.nextMode === "structured") {
-            applyStructuredSnapshotToYMaps(runtime.nextScene);
-          } else {
-            applyFreeformSnapshotToYMaps(runtime.nextGridEntries);
-          }
-        };
+      onRehydrateStorage: () => (hydratedState, error) => {
+        if (error || !hydratedState) return;
+        syncHydratedStateToYMaps(hydratedState);
       },
     }
   )

@@ -137,6 +137,69 @@ describe("textSlice writeTextString", () => {
     );
     expect(useEditorStore.getState().textCursor).toEqual({ x: 7, y: 7 });
   });
+
+  it("keeps ordinary text input on the existing full-cell replacement policy", () => {
+    setTextState({ textCursor: { x: 0, y: 0 } });
+    applyFreeformSnapshotToYMaps([
+      ["0,0", { char: "A", color: "#ffffff", bgColor: "#000000" }],
+    ]);
+
+    useEditorStore.getState().writeTextString("X");
+
+    expect(useEditorStore.getState().grid.get("0,0")).toEqual({
+      char: "X",
+      color: "#000000",
+    });
+  });
+});
+
+describe("textSlice paste background merging", () => {
+  afterEach(() => {
+    resetStore();
+  });
+
+  it("inherits target backgrounds unless rich cells provide one", () => {
+    setTextState({ textCursor: { x: 0, y: 0 } });
+    applyFreeformSnapshotToYMaps([
+      ["0,0", { char: "A", color: "#ffffff", bgColor: "#000000" }],
+      ["1,0", { char: "B", color: "#ffffff", bgColor: "#000000" }],
+    ]);
+
+    useEditorStore.getState().pasteRichData([
+      { x: 0, y: 0, char: "X", color: "#ff0000" },
+      {
+        x: 1,
+        y: 0,
+        char: "Y",
+        color: "#00ff00",
+        bgColor: "#0000ff",
+      },
+    ]);
+
+    expect(useEditorStore.getState().grid).toEqual(
+      new Map([
+        ["0,0", { char: "X", color: "#ff0000", bgColor: "#000000" }],
+        ["1,0", { char: "Y", color: "#00ff00", bgColor: "#0000ff" }],
+      ])
+    );
+  });
+
+  it("inherits the anchor background when pasting onto a wide follower", () => {
+    setTextState({ textCursor: { x: 1, y: 0 } });
+    applyFreeformSnapshotToYMaps([
+      ["0,0", { char: "你", color: "#ffffff", bgColor: "#000000" }],
+    ]);
+
+    useEditorStore.getState().pasteRichData([
+      { x: 0, y: 0, char: "X", color: "#ff0000" },
+    ]);
+
+    expect(useEditorStore.getState().grid).toEqual(
+      new Map([
+        ["1,0", { char: "X", color: "#ff0000", bgColor: "#000000" }],
+      ])
+    );
+  });
 });
 
 describe("textSlice structured box name editing", () => {

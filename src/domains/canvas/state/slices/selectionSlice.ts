@@ -194,7 +194,7 @@ export const createSelectionSlice: StateCreator<
     resolveSelectionCommands(set, get).pasteFromClipboard(options),
   copySelectionAsPng: (withGrid) =>
     resolveSelectionCommands(set, get).copySelectionAsPng(withGrid),
-  fillSelectionsWithChar: (char) => {
+  fillSelectionsWithChar: (char, options) => {
     const state = get();
     const { brushColor, canvasMode } = state;
     const selections = resolveSelectionAreas(state);
@@ -209,7 +209,14 @@ export const createSelectionSlice: StateCreator<
         for (let y = minY; y <= maxY; y++) {
           for (let x = minX; x <= maxX; x += charWidth) {
             if (x + charWidth - 1 > maxX) break;
-            placeCharInYMap(yMainGrid, x, y, char, brushColor);
+            placeCharInYMap(
+              yMainGrid,
+              x,
+              y,
+              char,
+              brushColor,
+              options
+            );
           }
         }
       });

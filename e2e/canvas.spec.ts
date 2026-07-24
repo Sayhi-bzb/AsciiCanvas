@@ -67,6 +67,47 @@ test.describe('Canvas', () => {
     await expect(canvas).toBeVisible();
   });
 
+  test('recovers an incomplete v2 session payload before the first render', async ({ page }) => {
+    const pageErrors: string[] = [];
+    page.on('pageerror', (error) => pageErrors.push(error.message));
+
+    await page.evaluate((storageKey) => {
+      localStorage.setItem(storageKey, JSON.stringify({
+        state: {
+          schemaVersion: 2,
+          workspace: {
+            offset: { x: 12, y: 8 },
+            zoom: 1.25,
+            canvasMode: 'freeform',
+            grid: [['0,0', { char: 'A', color: '#ffffff' }]],
+            structuredScene: [],
+            structuredComponents: [],
+            canvasBounds: null,
+            animationTimeline: null,
+          },
+          sessions: {
+            activeId: 'canvas-1',
+          },
+          preferences: {
+            brushChar: '#',
+            brushColor: '#ffffff',
+            showGrid: true,
+            exportShowGrid: false,
+          },
+        },
+        version: 2,
+      }));
+    }, STORAGE_KEY);
+
+    await page.reload();
+
+    await expect(page.getByTestId('ascii-canvas-surface')).toBeVisible();
+    await expect(
+      page.getByRole('tab', { name: 'Expand canvas sessions' })
+    ).toBeVisible();
+    expect(pageErrors).toEqual([]);
+  });
+
   test('keeps the color picker bounds stable when switching palette tabs', async ({ page }) => {
     const colorItem = page.locator('[data-toolbar-item="color"]');
     await colorItem.locator('button').last().click();

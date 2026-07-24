@@ -222,7 +222,7 @@ export const createTextSlice: StateCreator<EditorState, [], [], TextSlice> = (
     });
   },
 
-  writeTextString: (str, startPos) => {
+  writeTextString: (str, startPos, options) => {
     const {
       selections,
       staticGridSelection,
@@ -342,7 +342,7 @@ export const createTextSlice: StateCreator<EditorState, [], [], TextSlice> = (
     });
 
     if (staticGridView.hasSelection && str.length === 1) {
-      fillSelectionsWithChar(str);
+      fillSelectionsWithChar(str, options);
       return;
     }
 
@@ -394,7 +394,14 @@ export const createTextSlice: StateCreator<EditorState, [], [], TextSlice> = (
           index += char.length;
           continue;
         }
-        placeCharInYMap(yMainGrid, currentX, currentY, char, brushColor);
+        placeCharInYMap(
+          yMainGrid,
+          currentX,
+          currentY,
+          char,
+          brushColor,
+          options
+        );
         currentX += getCellOccupancy(char);
         index += char.length;
       }
@@ -438,12 +445,19 @@ export const createTextSlice: StateCreator<EditorState, [], [], TextSlice> = (
           y: basePos.y + cell.y,
         };
         if (!isPointWithinBounds(nextPoint, canvasBounds)) return;
-        placeStyledCellInYMap(yMainGrid, nextPoint.x, nextPoint.y, cell.char, {
-          color: cell.color,
-          ...(cell.bgColor ? { bgColor: cell.bgColor } : {}),
-          ...(cell.attrs ? { attrs: cell.attrs } : {}),
-          ...(cell.href ? { href: cell.href } : {}),
-        });
+        placeStyledCellInYMap(
+          yMainGrid,
+          nextPoint.x,
+          nextPoint.y,
+          cell.char,
+          {
+            color: cell.color,
+            ...(cell.bgColor ? { bgColor: cell.bgColor } : {}),
+            ...(cell.attrs ? { attrs: cell.attrs } : {}),
+            ...(cell.href ? { href: cell.href } : {}),
+          },
+          { preserveTargetBackground: true }
+        );
       });
     });
   },

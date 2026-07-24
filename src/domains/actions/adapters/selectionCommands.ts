@@ -516,7 +516,9 @@ const createSelectionCommands: SelectionCommandFactory = (set, get) => ({
     }
 
     if (payload.plainText) {
-      writeTextString(payload.plainText);
+      writeTextString(payload.plainText, undefined, {
+        preserveTargetBackground: true,
+      });
     }
   },
 
