@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 import { SelectionFormatToolbar } from "@/widgets/canvas-editor/SelectionFormatToolbar";
 import { STRUCTURED_CONTEXT_MENU } from "@/domains/actions/public";
@@ -11,10 +11,19 @@ describe("SelectionFormatToolbar", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
     useEditorStore.setState(initialState, true);
   });
 
-  it("formats selected structured text ranges", () => {
+  it("formats selected structured text ranges", async () => {
+    vi.stubGlobal(
+      "ResizeObserver",
+      class ResizeObserverMock {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      }
+    );
     useEditorStore.setState({
       canvasMode: "structured",
       brushColor: "#123456",
@@ -37,9 +46,30 @@ describe("SelectionFormatToolbar", () => {
 
     render(<SelectionFormatToolbar containerSize={{ width: 800, height: 600 }} />);
 
-    expect(screen.getByLabelText("Selection text formatting")).toBeInTheDocument();
+    const toolbar = screen.getByRole("toolbar", {
+      name: "Selection text formatting",
+    });
+    expect(toolbar).toHaveClass(
+      "bg-muted",
+      "border-0",
+      "shadow-none",
+      "rounded-lg",
+      "p-[3px]"
+    );
 
-    fireEvent.click(screen.getByLabelText("Toggle bold"));
+    const boldButton = screen.getByLabelText("Toggle bold");
+    expect(fireEvent.mouseDown(boldButton)).toBe(false);
+    fireEvent.click(boldButton);
+
+    expect(boldButton).toHaveAttribute("data-state", "on");
+    expect(boldButton).toHaveClass("data-[state=on]:bg-accent");
+    expect(boldButton).not.toHaveClass("data-[state=on]:bg-primary");
+
+    act(() => boldButton.focus());
+    fireEvent.keyDown(boldButton, { key: "ArrowRight" });
+    await waitFor(() => {
+      expect(screen.getByLabelText("Toggle italic")).toHaveFocus();
+    });
 
     expect(useEditorStore.getState().structuredScene[0]).toMatchObject({
       id: "text-1",
@@ -119,7 +149,13 @@ describe("SelectionFormatToolbar", () => {
     render(<SelectionFormatToolbar containerSize={{ width: 800, height: 600 }} />);
 
     expect(screen.queryByLabelText("Selection text formatting")).not.toBeInTheDocument();
-    expect(screen.getByLabelText("Shape color controls")).toBeInTheDocument();
+    expect(screen.getByRole("toolbar", { name: "Shape color controls" })).toHaveClass(
+      "bg-muted",
+      "border-0",
+      "shadow-none",
+      "rounded-lg",
+      "p-[3px]"
+    );
 
     fireEvent.click(screen.getByLabelText("Apply brush color to selected shape"));
 
@@ -155,7 +191,14 @@ describe("SelectionFormatToolbar", () => {
 
     render(<SelectionFormatToolbar containerSize={{ width: 800, height: 600 }} />);
 
-    expect(screen.getByLabelText("Split box controls")).toBeInTheDocument();
+    const toolbar = screen.getByRole("toolbar", { name: "Split box controls" });
+    expect(toolbar).toHaveClass(
+      "bg-muted",
+      "border-0",
+      "shadow-none",
+      "rounded-lg",
+      "p-[3px]"
+    );
     expect(
       screen
         .getByLabelText("Split box horizontally")
@@ -169,7 +212,9 @@ describe("SelectionFormatToolbar", () => {
     expect(screen.getByLabelText("Delete split divider")).toBeDisabled();
     expect(screen.getByLabelText("Apply brush color to selected shape")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByLabelText("Split box horizontally"));
+    const splitHorizontal = screen.getByLabelText("Split box horizontally");
+    expect(fireEvent.mouseDown(splitHorizontal)).toBe(false);
+    fireEvent.click(splitHorizontal);
 
     expect(useEditorStore.getState().structuredScene[0]).toMatchObject({
       id: "split-1",

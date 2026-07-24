@@ -1,4 +1,11 @@
-import { useCallback, useMemo } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useMemo,
+  type ComponentProps,
+  type ComponentRef,
+  type MouseEvent,
+} from "react";
 import {
   BoldIcon,
   ItalicIcon,
@@ -32,19 +39,98 @@ import {
 import {
   ToggleGroup,
   ToggleGroupItem,
-  ToggleGroupSeparator,
 } from "@/shared/ui/toggle-group";
+import { Button, buttonVariants } from "@/shared/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/shared/ui/tooltip";
+import { cn } from "@/shared/lib/utils";
+import { uiClass } from "@/shared/styles/components";
 import { useUiI18n } from "@/shared/i18n";
 
 type SelectionFormatToolbarProps = {
   containerSize: { width: number; height: number } | undefined;
 };
 
-const FORMAT_TOOLBAR_WIDTH = 178;
-const SPLIT_TOOLBAR_WIDTH = 138;
-const SHAPE_COLOR_TOOLBAR_WIDTH = 42;
-const TOOLBAR_HEIGHT = 42;
+const TOOLBAR_ACTION_SIZE = 32;
+const TOOLBAR_ACTION_GAP = 4;
+const TOOLBAR_INLINE_PADDING = 6;
+const TOOLBAR_HEIGHT = 38;
 const TOOLBAR_GAP = 8;
+
+const getToolbarWidth = (actionCount: number) =>
+  actionCount * TOOLBAR_ACTION_SIZE +
+  Math.max(0, actionCount - 1) * TOOLBAR_ACTION_GAP +
+  TOOLBAR_INLINE_PADDING;
+
+const selectionToolbarShellClass = cn(
+  uiClass.toolbarShell,
+  "border-0 shadow-none backdrop-blur-none animate-in fade-in duration-[120ms] motion-reduce:animate-none"
+);
+
+const selectionToolbarToggleClass = cn(
+  buttonVariants({ tone: "subtle", shape: "square", size: "md" }),
+  "size-8 data-[state=on]:bg-accent data-[state=on]:text-foreground"
+);
+
+const preserveCanvasFocus = (event: MouseEvent<HTMLElement>) => {
+  event.preventDefault();
+};
+
+const TooltipSafeToggleGroupItem = forwardRef<
+  ComponentRef<typeof ToggleGroupItem>,
+  ComponentProps<typeof ToggleGroupItem> & { "data-state"?: string }
+>(({ "data-state": tooltipState, ...props }, ref) => (
+  <ToggleGroupItem
+    ref={ref}
+    data-tooltip-state={tooltipState}
+    {...props}
+  />
+));
+TooltipSafeToggleGroupItem.displayName = "TooltipSafeToggleGroupItem";
+
+type SelectionToolbarActionProps = Omit<
+  ComponentProps<typeof Button>,
+  "tone" | "shape" | "size"
+> & {
+  tooltip: string;
+};
+
+function SelectionToolbarAction({
+  tooltip,
+  className,
+  disabled,
+  onMouseDown,
+  ...props
+}: SelectionToolbarActionProps) {
+  const button = (
+    <Button
+      tone="subtle"
+      shape="square"
+      size="md"
+      disabled={disabled}
+      className={cn("size-8", className)}
+      onMouseDown={(event) => {
+        preserveCanvasFocus(event);
+        onMouseDown?.(event);
+      }}
+      {...props}
+    />
+  );
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        {disabled ? <span className="inline-flex">{button}</span> : button}
+      </TooltipTrigger>
+      <TooltipContent side="top" className="text-xs">
+        {tooltip}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 
 const getUnionBounds = (selections: SelectionArea[]) => {
   if (selections.length === 0) return null;
@@ -318,15 +404,19 @@ export function SelectionFormatToolbar({
   );
 
   const formatStyle = useMemo(
-    () => getToolbarStyle(formatBounds, FORMAT_TOOLBAR_WIDTH),
-    [formatBounds, getToolbarStyle]
+    () =>
+      getToolbarStyle(
+        formatBounds,
+        getToolbarWidth(canvasMode === "structured" ? 4 : 3)
+      ),
+    [canvasMode, formatBounds, getToolbarStyle]
   );
   const splitStyle = useMemo(
-    () => getToolbarStyle(splitBounds, SPLIT_TOOLBAR_WIDTH),
+    () => getToolbarStyle(splitBounds, getToolbarWidth(4)),
     [getToolbarStyle, splitBounds]
   );
   const shapeStyle = useMemo(
-    () => getToolbarStyle(shapeBounds, SHAPE_COLOR_TOOLBAR_WIDTH),
+    () => getToolbarStyle(shapeBounds, getToolbarWidth(1)),
     [getToolbarStyle, shapeBounds]
   );
 
@@ -343,16 +433,15 @@ export function SelectionFormatToolbar({
         style={{ left: splitStyle.left, top: splitStyle.top }}
       >
         <div
-          className="inline-flex h-10 items-center gap-1 rounded-md border bg-background p-1 shadow-sm"
+          role="toolbar"
+          data-selection-toolbar="true"
+          className={selectionToolbarShellClass}
           aria-label={t("selection.splitControls")}
         >
-          <button
-            type="button"
+          <SelectionToolbarAction
             aria-label={t("selection.splitHorizontal")}
-            title={t("selection.splitHorizontalTitle")}
+            tooltip={t("selection.splitHorizontalTitle")}
             disabled={!splitBoxModel.canSplitHorizontal || !splitBoxModel.activePoint}
-            className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-ring"
-            onMouseDown={(event) => event.preventDefault()}
             onClick={() => {
               if (!splitBoxModel.activePoint || !splitBoxModel.canSplitHorizontal) return;
               splitStructuredSplitBoxLeaf(
@@ -363,15 +452,11 @@ export function SelectionFormatToolbar({
             }}
           >
             <SquareSplitVertical className="size-4" />
-          </button>
-          <ToggleGroupSeparator />
-          <button
-            type="button"
+          </SelectionToolbarAction>
+          <SelectionToolbarAction
             aria-label={t("selection.splitVertical")}
-            title={t("selection.splitVerticalTitle")}
+            tooltip={t("selection.splitVerticalTitle")}
             disabled={!splitBoxModel.canSplitVertical || !splitBoxModel.activePoint}
-            className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-ring"
-            onMouseDown={(event) => event.preventDefault()}
             onClick={() => {
               if (!splitBoxModel.activePoint || !splitBoxModel.canSplitVertical) return;
               splitStructuredSplitBoxLeaf(
@@ -382,33 +467,26 @@ export function SelectionFormatToolbar({
             }}
           >
             <SquareSplitHorizontal className="size-4" />
-          </button>
-          <ToggleGroupSeparator />
-          <button
-            type="button"
+          </SelectionToolbarAction>
+          <SelectionToolbarAction
             aria-label={t("selection.applyShapeColor")}
-            title={t("selection.applyShapeColorTitle", { color: brushColor })}
-            className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring"
-            onMouseDown={(event) => event.preventDefault()}
+            tooltip={t("selection.applyShapeColorTitle", { color: brushColor })}
             onClick={() => setStructuredNodeCharColor(brushColor)}
           >
             <PaletteIcon className="size-4" style={{ color: brushColor }} />
-          </button>
-          <ToggleGroupSeparator />
-          <button
-            type="button"
+          </SelectionToolbarAction>
+          <SelectionToolbarAction
             aria-label={t("selection.deleteDivider")}
-            title={t("selection.deleteDividerTitle")}
+            tooltip={t("selection.deleteDividerTitle")}
             disabled={!splitBoxModel.canDeleteDivider}
-            className="inline-flex size-8 items-center justify-center rounded-md text-destructive transition-colors outline-none hover:bg-destructive/10 disabled:pointer-events-none disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-ring"
-            onMouseDown={(event) => event.preventDefault()}
+            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
             onClick={() => {
               if (!splitBoxModel.canDeleteDivider) return;
               deleteSelection();
             }}
           >
             <Trash2 className="size-4" />
-          </button>
+          </SelectionToolbarAction>
         </div>
       </div>
     );
@@ -422,19 +500,18 @@ export function SelectionFormatToolbar({
         style={{ left: shapeStyle.left, top: shapeStyle.top }}
       >
         <div
-          className="inline-flex h-10 items-center gap-1 rounded-md border bg-background p-1 shadow-sm"
+          role="toolbar"
+          data-selection-toolbar="true"
+          className={selectionToolbarShellClass}
           aria-label={t("selection.shapeColorControls")}
         >
-          <button
-            type="button"
+          <SelectionToolbarAction
             aria-label={t("selection.applyShapeColor")}
-            title={t("selection.applyShapeColorTitle", { color: brushColor })}
-            className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring"
-            onMouseDown={(event) => event.preventDefault()}
+            tooltip={t("selection.applyShapeColorTitle", { color: brushColor })}
             onClick={() => setStructuredNodeCharColor(brushColor)}
           >
             <PaletteIcon className="size-4" style={{ color: brushColor }} />
-          </button>
+          </SelectionToolbarAction>
         </div>
       </div>
     );
@@ -453,7 +530,9 @@ export function SelectionFormatToolbar({
       <ToggleGroup
         type="multiple"
         value={textValue}
-        variant="outline"
+        role="toolbar"
+        data-selection-toolbar="true"
+        className={selectionToolbarShellClass}
         aria-label={t("selection.textFormatting")}
         onValueChange={(nextValue) => {
           const next = new Set(nextValue);
@@ -471,42 +550,59 @@ export function SelectionFormatToolbar({
           setSelectionTextAttributes(attrs);
         }}
       >
-        <ToggleGroupItem
-          aria-label={t("selection.toggleBold")}
-          title={t("selection.bold")}
-          value="bold"
-        >
-          <BoldIcon className="size-4" />
-        </ToggleGroupItem>
-        <ToggleGroupSeparator />
-        <ToggleGroupItem
-          aria-label={t("selection.toggleItalic")}
-          title={t("selection.italic")}
-          value="italic"
-        >
-          <ItalicIcon className="size-4" />
-        </ToggleGroupItem>
-        <ToggleGroupSeparator />
-        <ToggleGroupItem
-          aria-label={t("selection.toggleUnderline")}
-          title={t("selection.underline")}
-          value="underline"
-        >
-          <UnderlineIcon className="size-4" />
-        </ToggleGroupItem>
-        <ToggleGroupSeparator />
-        {canvasMode === "structured" && (
-          <>
-            <button
-              type="button"
-              aria-label={t("selection.applyTextColor")}
-              title={t("selection.applyTextColorTitle", { color: brushColor })}
-              className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring"
-              onClick={() => setStructuredTextColor(brushColor)}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <TooltipSafeToggleGroupItem
+              aria-label={t("selection.toggleBold")}
+              value="bold"
+              className={selectionToolbarToggleClass}
+              onMouseDown={preserveCanvasFocus}
             >
-              <PaletteIcon className="size-4" style={{ color: brushColor }} />
-            </button>
-          </>
+              <BoldIcon className="size-4" />
+            </TooltipSafeToggleGroupItem>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="text-xs">
+            {t("selection.bold")}
+          </TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <TooltipSafeToggleGroupItem
+              aria-label={t("selection.toggleItalic")}
+              value="italic"
+              className={selectionToolbarToggleClass}
+              onMouseDown={preserveCanvasFocus}
+            >
+              <ItalicIcon className="size-4" />
+            </TooltipSafeToggleGroupItem>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="text-xs">
+            {t("selection.italic")}
+          </TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <TooltipSafeToggleGroupItem
+              aria-label={t("selection.toggleUnderline")}
+              value="underline"
+              className={selectionToolbarToggleClass}
+              onMouseDown={preserveCanvasFocus}
+            >
+              <UnderlineIcon className="size-4" />
+            </TooltipSafeToggleGroupItem>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="text-xs">
+            {t("selection.underline")}
+          </TooltipContent>
+        </Tooltip>
+        {canvasMode === "structured" && (
+          <SelectionToolbarAction
+            aria-label={t("selection.applyTextColor")}
+            tooltip={t("selection.applyTextColorTitle", { color: brushColor })}
+            onClick={() => setStructuredTextColor(brushColor)}
+          >
+            <PaletteIcon className="size-4" style={{ color: brushColor }} />
+          </SelectionToolbarAction>
         )}
       </ToggleGroup>
     </div>
