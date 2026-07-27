@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useEffect,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -17,12 +18,16 @@ import {
   getStaticGridViewState,
 } from "@/domains/selection/public";
 import { shouldIgnoreCanvasSurfaceGesture } from "./interaction/core/gestureGuards";
-import { resolveFillHotkeyChar } from "@/domains/actions/public";
-import { resolveHistoryShortcutCommand } from "@/domains/actions/public";
-import { runAction } from "@/domains/actions/public";
+import {
+  resolveActionShortcut,
+  resolveFillHotkeyChar,
+  resolveHistoryShortcutCommand,
+  runAction,
+} from "@/domains/actions/public";
 import type { CanvasEditorModel } from "./canvasModels";
 
 const KEYBOARD_PAN_STEP = 48;
+type ClipboardShortcutAction = 'copy' | 'cut';
 
 type UseManagedCanvasInputOptions = {
   canvasMode: CanvasMode;
@@ -41,6 +46,10 @@ export const useManagedCanvasInput = ({
 }: UseManagedCanvasInputOptions) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isComposing = useRef(false);
+  const pendingClipboardFallbackRef = useRef<{
+    actionId: ClipboardShortcutAction;
+    token: object;
+  } | null>(null);
   const {
     textCursor,
     staticGridSelection,
@@ -143,20 +152,49 @@ export const useManagedCanvasInput = ({
 
   const runManagedAction = (
     actionId: 'copy' | 'cut' | 'paste',
-    e?: ClipboardEvent
+    e?: ClipboardEvent,
+    source: 'canvas-keydown' | 'clipboard-event' | 'context-menu' =
+      e ? 'clipboard-event' : 'context-menu'
   ) => {
     return runAction(actionId, {
-      source: e ? 'clipboard-event' : 'context-menu',
+      source,
       clipboardEvent: e,
       managedTextarea: textareaRef.current,
     });
   };
 
+  const cancelClipboardFallback = (actionId?: ClipboardShortcutAction) => {
+    const pending = pendingClipboardFallbackRef.current;
+    if (!pending || (actionId && pending.actionId !== actionId)) return;
+    pendingClipboardFallbackRef.current = null;
+  };
+
+  const scheduleClipboardFallback = (actionId: ClipboardShortcutAction) => {
+    cancelClipboardFallback();
+    const token = {};
+    pendingClipboardFallbackRef.current = { actionId, token };
+    queueMicrotask(() => {
+      const pending = pendingClipboardFallbackRef.current;
+      if (!pending || pending.token !== token) return;
+      pendingClipboardFallbackRef.current = null;
+      runManagedAction(actionId, undefined, 'canvas-keydown');
+    });
+  };
+
+  useEffect(
+    () => () => {
+      pendingClipboardFallbackRef.current = null;
+    },
+    []
+  );
+
   useEventListener('copy', (e: ClipboardEvent) => {
+    cancelClipboardFallback('copy');
     const result = runManagedAction('copy', e);
     if (result.succeeded) e.preventDefault();
   });
   useEventListener('cut', (e: ClipboardEvent) => {
+    cancelClipboardFallback('cut');
     const result = runManagedAction('cut', e);
     if (result.succeeded || document.activeElement === textareaRef.current) {
       e.preventDefault();
@@ -203,6 +241,13 @@ export const useManagedCanvasInput = ({
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     e.stopPropagation();
     if (isComposing.current) return;
+    const clipboardCommand = resolveActionShortcut(
+      e,
+      ['copy', 'cut'] as const
+    );
+    if (clipboardCommand) {
+      scheduleClipboardFallback(clipboardCommand);
+    }
     const historyCommand = resolveHistoryShortcutCommand(e);
     if (historyCommand) {
       e.preventDefault();

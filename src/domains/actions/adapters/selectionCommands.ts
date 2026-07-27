@@ -394,7 +394,7 @@ const createSelectionCommands: SelectionCommandFactory = (set, get) => ({
 
     const copied = await writeClipboardPayload(payload, {
       event: options?.event,
-      withRich: false,
+      withRich: true,
     });
     if (!copied) return;
 

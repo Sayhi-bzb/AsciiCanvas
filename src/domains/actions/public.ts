@@ -11,7 +11,12 @@ export {
   runToolbarAction,
 } from "./core";
 export type { ContextMenuEntry, ToolbarActionId } from "./core";
-export { getActionShortcutLabel } from "./core/shortcuts";
+export type { ActionShortcutEvent, ShortcutPlatform } from "./core";
+export {
+  getActionShortcutLabel,
+  matchesActionShortcut,
+  resolveActionShortcut,
+} from "./core";
 export {
   resolveHistoryShortcutCommand,
 } from "./adapters/editorCommands";

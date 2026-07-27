@@ -1,5 +1,9 @@
 import { useEditorStore } from "@/domains/canvas/public";
-import { isRedoShortcut, isUndoShortcut, runRedo, runUndo } from "./shortcutActions";
+import { runRedo, runUndo } from "./shortcutActions";
+import {
+  resolveActionShortcut,
+  type ActionShortcutEvent,
+} from "@/domains/actions/core/shortcuts";
 import type { ActionId, ActionSource } from "@/domains/actions/core/types";
 import {
   shouldIgnoreEditorCommandByFocus,
@@ -23,12 +27,9 @@ type RunEditorCommandOptions = {
 };
 
 export const resolveHistoryShortcutCommand = (
-  event: Pick<KeyboardEvent, "ctrlKey" | "metaKey" | "shiftKey" | "key">
-): "undo" | "redo" | null => {
-  if (isUndoShortcut(event)) return "undo";
-  if (isRedoShortcut(event)) return "redo";
-  return null;
-};
+  event: ActionShortcutEvent
+): "undo" | "redo" | null =>
+  resolveActionShortcut(event, ["undo", "redo"] as const);
 
 export const runEditorCommand = (
   command: EditorCommand,
@@ -60,7 +61,7 @@ export const runEditorCommand = (
       if (!state.canCopyOrCut()) return false;
       void state.copySelection({
         event: options.clipboardEvent,
-        rich: command === "copy-rich",
+        rich: command === "copy" || command === "copy-rich",
         ansi: command === "copy-ansi",
       });
       return true;

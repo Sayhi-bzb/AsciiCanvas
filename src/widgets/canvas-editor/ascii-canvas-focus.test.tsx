@@ -9,6 +9,7 @@ import {
   setActiveStructuredTemplateDragId,
 } from "@/domains/structured-content/public";
 import { normalizeScene } from "@/domains/structured-content/public";
+import { clipboard } from "@/shared/services/effects";
 
 vi.mock("@/widgets/canvas-editor/hooks/useCanvasRenderer", () => ({
   useCanvasRenderer: vi.fn(),
@@ -124,6 +125,84 @@ describe("AsciiCanvas focus management", () => {
 
     expect(ctrlShiftZ.defaultPrevented).toBe(true);
     expect(onRedo).toHaveBeenCalledTimes(2);
+  });
+
+  it("falls back to the Clipboard API when Meta+X produces no cut event", async () => {
+    useEditorStore.setState({
+      canvasMode: "freeform",
+      textCursor: null,
+      selections: [{ start: { x: 0, y: 0 }, end: { x: 1, y: 0 } }],
+    });
+    applyFreeformSnapshotToYMaps([
+      ["0,0", { char: "A", color: "#ffffff" }],
+      ["1,0", { char: "B", color: "#ffffff" }],
+    ]);
+    const writeText = vi.spyOn(clipboard, "writeText").mockResolvedValue(true);
+    const { container } = render(
+      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+    );
+    const textarea = container.querySelector("textarea");
+    expect(textarea).not.toBeNull();
+
+    fireEvent.keyDown(textarea!, { key: "x", metaKey: true });
+
+    await vi.waitFor(() => {
+      expect(useEditorStore.getState().grid.size).toBe(0);
+    });
+    expect(writeText).toHaveBeenCalledWith("AB");
+  });
+
+  it("lets a native cut event cancel the keyboard fallback", async () => {
+    useEditorStore.setState({
+      canvasMode: "freeform",
+      textCursor: null,
+      selections: [{ start: { x: 0, y: 0 }, end: { x: 1, y: 0 } }],
+    });
+    applyFreeformSnapshotToYMaps([
+      ["0,0", { char: "A", color: "#ffffff" }],
+      ["1,0", { char: "B", color: "#ffffff" }],
+    ]);
+    const cutSelection = vi.spyOn(useEditorStore.getState(), "cutSelection");
+    const { container } = render(
+      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+    );
+    const textarea = container.querySelector("textarea");
+    expect(textarea).not.toBeNull();
+
+    fireEvent.keyDown(textarea!, { key: "x", metaKey: true });
+    fireEvent.cut(textarea!, {
+      clipboardData: { setData: vi.fn() },
+    });
+
+    await vi.waitFor(() => {
+      expect(useEditorStore.getState().grid.size).toBe(0);
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(cutSelection).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the selection when the fallback clipboard write fails", async () => {
+    useEditorStore.setState({
+      canvasMode: "freeform",
+      textCursor: null,
+      selections: [{ start: { x: 0, y: 0 }, end: { x: 1, y: 0 } }],
+    });
+    applyFreeformSnapshotToYMaps([
+      ["0,0", { char: "A", color: "#ffffff" }],
+      ["1,0", { char: "B", color: "#ffffff" }],
+    ]);
+    vi.spyOn(clipboard, "writeText").mockResolvedValue(false);
+    const { container } = render(
+      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+    );
+    const textarea = container.querySelector("textarea");
+    expect(textarea).not.toBeNull();
+
+    fireEvent.keyDown(textarea!, { key: "x", metaKey: true });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(useEditorStore.getState().grid.size).toBe(2);
+    expect(useEditorStore.getState().selections).toHaveLength(1);
   });
 
   it("focuses the managed textarea for a freeform active cell and writes input there", () => {

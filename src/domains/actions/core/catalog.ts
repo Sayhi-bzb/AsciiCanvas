@@ -26,9 +26,9 @@ import type { ActionMeta, ContextMenuEntry, EditorActionId, ToolbarActionId, Sid
 
 // Editor Actions
 const EDITOR_ACTION_META: Record<EditorActionId, ActionMeta> = {
-  undo: { id: "undo", label: "Undo", shortcut: "⌘Z" },
-  redo: { id: "redo", label: "Redo", shortcut: "⌘⇧Z / ⌘Y" },
-  copy: { id: "copy", label: "Copy as Text", shortcut: "⌘C", icon: Copy },
+  undo: { id: "undo", label: "Undo" },
+  redo: { id: "redo", label: "Redo" },
+  copy: { id: "copy", label: "Copy as Text", icon: Copy },
   "copy-rich": {
     id: "copy-rich",
     label: "Copy with Color",
@@ -39,8 +39,8 @@ const EDITOR_ACTION_META: Record<EditorActionId, ActionMeta> = {
     label: "Copy as ANSI",
     icon: Palette,
   },
-  cut: { id: "cut", label: "Cut Zone", shortcut: "⌘X", icon: Scissors },
-  paste: { id: "paste", label: "Paste Lot", shortcut: "⌘V", icon: Clipboard },
+  cut: { id: "cut", label: "Cut Zone", icon: Scissors },
+  paste: { id: "paste", label: "Paste Lot", icon: Clipboard },
   "fill-selection-char": { id: "fill-selection-char", label: "Fill Selection" },
   "snapshot-png": {
     id: "snapshot-png",
@@ -50,7 +50,6 @@ const EDITOR_ACTION_META: Record<EditorActionId, ActionMeta> = {
   "delete-selection": {
     id: "delete-selection",
     label: "Delete",
-    shortcut: "⌫",
     icon: Trash2,
     destructive: true,
   },

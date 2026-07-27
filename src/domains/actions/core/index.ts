@@ -21,6 +21,13 @@ export {
   runSidebarAction,
 } from "./runtime";
 
+export {
+  getActionShortcutLabel,
+  matchesActionShortcut,
+  resolveActionShortcut,
+} from "./shortcuts";
+export type { ActionShortcutEvent, ShortcutPlatform } from "./shortcuts";
+
 // Handlers (for advanced use cases)
 export {
   resolveActiveToolbarAction,

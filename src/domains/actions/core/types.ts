@@ -49,7 +49,6 @@ export type ActionId = EditorActionId | ToolbarActionId | SidebarActionId;
 export interface ActionMeta {
   id: ActionId;
   label: string;
-  shortcut?: string;
   icon?: ComponentType<{ className?: string }>;
   hasSub?: boolean;
   destructive?: boolean;

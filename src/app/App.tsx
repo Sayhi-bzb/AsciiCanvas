@@ -9,6 +9,7 @@ import { Suspense, lazy, useEffect, useState } from "react";
 import { runRedo, runUndo } from "@/domains/actions/public";
 import { runAction } from "@/domains/actions/public";
 import { resolveFillHotkeyChar } from "@/domains/actions/public";
+import { matchesActionShortcut } from "@/domains/actions/public";
 import { feedback } from "@/shared/services/effects";
 import { useShallow } from "zustand/react/shallow";
 import { SessionTabs } from "@/widgets/session-tabs/SessionTabs";
@@ -89,11 +90,11 @@ function AppContent() {
     if (result.succeeded) event.preventDefault();
   };
 
-  useKeyPress(["meta.z", "ctrl.z"], (e) => {
+  useKeyPress((e) => matchesActionShortcut("undo", e), (e) => {
     runGlobalCommand("undo", e);
   });
 
-  useKeyPress(["meta.shift.z", "ctrl.shift.z", "meta.y", "ctrl.y"], (e) => {
+  useKeyPress((e) => matchesActionShortcut("redo", e), (e) => {
     runGlobalCommand("redo", e);
   });
 
@@ -163,4 +164,3 @@ export default function App() {
     </TooltipProvider>
   );
 }
-

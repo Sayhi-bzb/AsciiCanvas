@@ -1,0 +1,86 @@
+import { expect, test, type Page } from "@playwright/test";
+
+const STORAGE_KEY = "ascii-canvas-persistence";
+const CELL_WIDTH = 9;
+const VIEWPORT = { offset: { x: 180, y: 130 }, zoom: 1 };
+
+const seedFreeformSelection = async (page: Page) => {
+  await page.evaluate(
+    ({ storageKey, viewport }) => {
+      const session = {
+        id: "shortcut-e2e",
+        name: "Shortcut E2E",
+        mode: "freeform",
+        scene: [],
+        grid: [
+          ["0,0", { char: "A", color: "#111827" }],
+          ["1,0", { char: "B", color: "#111827" }],
+        ],
+        viewport,
+      };
+      localStorage.setItem(
+        storageKey,
+        JSON.stringify({
+          state: {
+            offset: viewport.offset,
+            zoom: viewport.zoom,
+            canvasMode: session.mode,
+            structuredScene: [],
+            structuredComponents: [],
+            canvasBounds: null,
+            animationTimeline: null,
+            brushChar: "#",
+            brushColor: "#111827",
+            showGrid: true,
+            exportShowGrid: false,
+            canvasSessions: [session],
+            activeCanvasId: session.id,
+            grid: session.grid,
+          },
+          version: 0,
+        })
+      );
+    },
+    { storageKey: STORAGE_KEY, viewport: VIEWPORT }
+  );
+  await page.reload();
+  const surface = page.getByTestId("ascii-canvas-surface");
+  await expect(surface).toBeVisible();
+  await page.getByRole("button", { name: "Select" }).click();
+  const box = await surface.boundingBox();
+  expect(box).not.toBeNull();
+  const start = {
+    x: box!.x + VIEWPORT.offset.x + 2,
+    y: box!.y + VIEWPORT.offset.y + 8,
+  };
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  await page.mouse.move(start.x + CELL_WIDTH + 4, start.y, { steps: 3 });
+  await page.mouse.up();
+};
+
+const readGrid = (page: Page) =>
+  page.evaluate((storageKey) => {
+    const state = JSON.parse(localStorage.getItem(storageKey)!).state;
+    return state.workspace?.grid ?? state.grid;
+  }, STORAGE_KEY);
+
+test.describe("editor clipboard shortcuts", () => {
+  test.beforeEach(async ({ browserName, context, page }) => {
+    if (browserName === "chromium") {
+      await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    }
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/");
+  });
+
+  for (const shortcut of ["Meta+x", "Control+x"]) {
+    test(`${shortcut} cuts the managed canvas selection`, async ({ page }) => {
+      await seedFreeformSelection(page);
+
+      await page.keyboard.press(shortcut);
+
+      await expect.poll(() => readGrid(page)).toEqual([]);
+    });
+  }
+});
