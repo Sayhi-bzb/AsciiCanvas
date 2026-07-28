@@ -44,6 +44,7 @@ import { ImportButton } from "@/widgets/import/ImportButton";
 import { HandbookDialog, ClearCanvasDialog } from "@/widgets/dialogs";
 import { useShallow } from "zustand/react/shallow";
 import { useUiI18n } from "@/shared/i18n";
+import { uiClass } from "@/shared/styles/components";
 import { AnimationSidebarContent } from "./animation-sidebar-content";
 import { Minimap } from "@/widgets/canvas-editor/Minimap";
 import {
@@ -126,6 +127,7 @@ function SidebarViewRail<ViewId extends string>({
                 onClick={() => onSelect(view.id)}
                 className={cn(
                   "inline-flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50",
+                  uiClass.hostControl,
                   orientation === "horizontal" && "flex-1",
                   isActive && "bg-accent text-foreground"
                 )}

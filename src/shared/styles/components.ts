@@ -9,8 +9,10 @@ export const uiClass = {
   toolbarShell: cn(
     "relative flex items-center gap-1 rounded-lg bg-muted p-[3px] pointer-events-auto"
   ),
+  hostControl: cn(
+    "transition-colors hover:bg-accent hover:text-accent-foreground"
+  ),
   submenuPanel: cn(
     "z-50 flex w-auto min-w-[100px] flex-col gap-0.5 overflow-hidden rounded-lg border-0 bg-muted p-[3px] shadow-none"
   ),
 };
-

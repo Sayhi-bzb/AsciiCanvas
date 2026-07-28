@@ -72,6 +72,7 @@ const selectionToolbarShellClass = cn(
 
 const selectionToolbarToggleClass = cn(
   buttonVariants({ tone: "subtle", shape: "square", size: "md" }),
+  uiClass.hostControl,
   "size-8 data-[state=on]:bg-accent data-[state=on]:text-foreground"
 );
 
@@ -111,7 +112,7 @@ function SelectionToolbarAction({
       shape="square"
       size="md"
       disabled={disabled}
-      className={cn("size-8", className)}
+      className={cn("size-8", uiClass.hostControl, className)}
       onMouseDown={(event) => {
         preserveCanvasFocus(event);
         onMouseDown?.(event);

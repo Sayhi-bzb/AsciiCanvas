@@ -318,7 +318,7 @@ export function SessionTabs({
                     key={session.id}
                     data-session-tab-item={session.id}
                     className={cn(
-                      "flex shrink-0 items-center rounded-md",
+                      "group/session flex shrink-0 items-center rounded-md transition-colors has-[[data-session-close]:hover]:bg-accent",
                       isActive && "bg-accent"
                     )}
                   >
@@ -342,6 +342,10 @@ export function SessionTabs({
                     ) : (
                       <TabsTrigger
                         value={session.id}
+                        className={cn(
+                          uiClass.hostControl,
+                          "group-has-[[data-session-close]:hover]/session:text-foreground"
+                        )}
                         onClick={showExpandedTabs ? undefined : expandTabs}
                         onDoubleClick={() =>
                           startRename(session.id, session.name)
@@ -368,6 +372,7 @@ export function SessionTabs({
 
                     {showExpandedTabs && (
                       <Button
+                        data-session-close="true"
                         tone="subtle"
                         shape="square"
                         size="sm"

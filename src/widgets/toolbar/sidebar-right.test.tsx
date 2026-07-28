@@ -142,7 +142,13 @@ describe("SidebarRight structured templates", () => {
     );
     expect(screen.getByRole("tab", { name: "Components" })).toHaveClass(
       "bg-accent",
-      "rounded-md"
+      "rounded-md",
+      "hover:bg-accent",
+      "hover:text-accent-foreground"
+    );
+    expect(screen.getByRole("tab", { name: "Template" })).toHaveClass(
+      "hover:bg-accent",
+      "hover:text-accent-foreground"
     );
     expect(
       screen.queryByTestId("structured-sidebar-active-tab-line")

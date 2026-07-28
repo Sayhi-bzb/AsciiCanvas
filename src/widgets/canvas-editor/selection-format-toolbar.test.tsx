@@ -58,6 +58,10 @@ describe("SelectionFormatToolbar", () => {
     );
 
     const boldButton = screen.getByLabelText("Toggle bold");
+    expect(boldButton).toHaveClass(
+      "hover:bg-accent",
+      "hover:text-accent-foreground"
+    );
     expect(fireEvent.mouseDown(boldButton)).toBe(false);
     fireEvent.click(boldButton);
 

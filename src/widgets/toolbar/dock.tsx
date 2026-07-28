@@ -211,8 +211,8 @@ export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
                   key={item.id}
                   data-toolbar-item={item.id}
                   className={cn(
-                    "relative flex items-center rounded-md transition-colors",
-                    isActive
+                    "relative flex items-center rounded-md transition-colors has-[[data-toolbar-submenu-trigger]:hover]:bg-accent has-[[data-toolbar-submenu-trigger]:hover]:text-foreground",
+                    isActive || openSubMenuId === item.id
                       ? "bg-accent text-foreground"
                       : "text-muted-foreground hover:text-foreground"
                   )}
@@ -232,8 +232,8 @@ export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
                         aria-label={item.label}
                         className={cn(
                           "flex items-center justify-center h-9 px-3 outline-none rounded-l-lg transition-colors",
+                          uiClass.hostControl,
                           !item.hasSub && "rounded-lg",
-                          !isActive && "hover:bg-muted/50",
                           isColorTab && "px-2"
                         )}
                       >
@@ -259,9 +259,12 @@ export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
                     >
                       <PopoverTrigger asChild>
                         <button
+                          data-toolbar-submenu-trigger="true"
                           className={cn(
-                            "flex items-center justify-center h-9 px-1 border-l border-transparent hover:border-border outline-none rounded-r-lg opacity-30 hover:opacity-100 transition-all",
-                            openSubMenuId === item.id && "bg-muted/50 opacity-100"
+                            "flex items-center justify-center h-9 px-1 outline-none rounded-r-lg opacity-30 hover:opacity-100 transition-all",
+                            uiClass.hostControl,
+                            openSubMenuId === item.id &&
+                              "bg-accent text-foreground opacity-100"
                           )}
                         >
                           <ChevronDown className="size-3" />

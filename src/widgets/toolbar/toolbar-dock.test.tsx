@@ -81,10 +81,32 @@ describe("Toolbar dock", () => {
     const inactiveItem = container.querySelector(
       '[data-toolbar-item="shape-group"]'
     );
+    const inactiveButtons = inactiveItem?.querySelectorAll("button") ?? [];
 
     expect(toolbar.parentElement).toHaveClass("bg-muted", "rounded-lg");
     expect(activeItem).toHaveClass("bg-accent", "text-foreground");
     expect(inactiveItem).not.toHaveClass("bg-accent");
+    expect(inactiveItem).toHaveClass(
+      "has-[[data-toolbar-submenu-trigger]:hover]:bg-accent",
+      "has-[[data-toolbar-submenu-trigger]:hover]:text-foreground"
+    );
+    expect(inactiveButtons[0]).toHaveClass(
+      "hover:bg-accent",
+      "hover:text-accent-foreground"
+    );
+    expect(inactiveButtons[1]).toHaveClass(
+      "hover:bg-accent",
+      "hover:text-accent-foreground"
+    );
+    expect(inactiveButtons[1]).toHaveAttribute(
+      "data-toolbar-submenu-trigger",
+      "true"
+    );
+    expect(inactiveButtons[1]).not.toHaveClass(
+      "border-l",
+      "border-transparent",
+      "hover:border-border"
+    );
     expect(toolbar.querySelector('[style*="translateX"]')).not.toBeInTheDocument();
   });
 
@@ -102,6 +124,7 @@ describe("Toolbar dock", () => {
     fireEvent.click(shapeButtons[1]);
     await screen.findByText("Circle");
 
+    expect(shapeItem).toHaveClass("bg-accent", "text-foreground");
     expect(document.querySelector('[data-slot="popover-content"]')).toHaveClass(
       "bg-muted",
       "border-0",

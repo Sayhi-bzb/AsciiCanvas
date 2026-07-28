@@ -114,6 +114,19 @@ describe("SessionTabs auto-hide", () => {
       "data-state",
       "inactive"
     );
+    expect(screen.getByRole("tab", { name: "Beta" })).toHaveClass(
+      "hover:bg-accent",
+      "hover:text-accent-foreground",
+      "group-has-[[data-session-close]:hover]/session:text-foreground"
+    );
+    expect(screen.getByLabelText("Close Alpha")).toHaveClass(
+      "hover:bg-accent",
+      "hover:text-accent-foreground"
+    );
+    expect(screen.getByLabelText("Close Alpha")).toHaveAttribute(
+      "data-session-close",
+      "true"
+    );
     expect(
       container.querySelector('[data-session-tab-item="canvas-b"]')
     ).not.toHaveClass("bg-accent");
