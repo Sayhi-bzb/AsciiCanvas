@@ -50,6 +50,7 @@ export const useCanvasGestureAdapter = ({
   dragUpdateHandler,
   dragEndRouteHandler,
   primaryDragEndHandler,
+  resetDragState,
   canvasClickRouteHandler,
   canvasWheelRouteHandler,
 }: {
@@ -74,6 +75,7 @@ export const useCanvasGestureAdapter = ({
   dragUpdateHandler: DragUpdateHandler;
   dragEndRouteHandler: DragEndRouteHandler;
   primaryDragEndHandler: PrimaryDragEndHandler;
+  resetDragState: () => void;
   canvasClickRouteHandler: CanvasClickRouteHandler;
   canvasWheelRouteHandler: CanvasWheelRouteHandler;
 }) => {
@@ -164,8 +166,16 @@ export const useCanvasGestureAdapter = ({
             }),
         });
       },
-      onDragEnd: ({ event, xy: [x, y] }) => {
+      onDragEnd: ({ event, xy: [x, y], canceled }) => {
         if (shouldIgnoreActiveGestureEvent(event)) return;
+        if (
+          canceled ||
+          event.type === "pointercancel" ||
+          event.type === "lostpointercapture"
+        ) {
+          resetDragState();
+          return;
+        }
         const state = interactionRuntime.getState();
         dragEndRouteHandler({
           state,
@@ -219,6 +229,7 @@ export const useCanvasGestureAdapter = ({
     {
       target: containerRef,
       eventOptions: { passive: false },
+      drag: { pointer: { capture: true } },
       pinch: { pinchOnWheel: false },
     }
   );

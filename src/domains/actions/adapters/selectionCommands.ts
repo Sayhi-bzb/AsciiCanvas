@@ -394,7 +394,10 @@ const createSelectionCommands: SelectionCommandFactory = (set, get) => ({
 
     const copied = await writeClipboardPayload(payload, {
       event: options?.event,
-      withRich: true,
+      // Native cut events still receive rich data through event.clipboardData.
+      // The direct fallback prioritizes a reliable plain-text write because a
+      // rejected custom ClipboardItem can consume Safari's user activation.
+      withRich: !!options?.event,
     });
     if (!copied) return;
 

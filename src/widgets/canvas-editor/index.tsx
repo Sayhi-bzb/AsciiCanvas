@@ -78,7 +78,7 @@ export const AsciiCanvas = ({
   });
   const {
     textareaRef,
-    onCanvasPointerUp,
+    onCanvasPointerDown,
     textareaStyle,
     textareaProps,
   } = useManagedCanvasInput({
@@ -193,7 +193,7 @@ export const AsciiCanvas = ({
           onContextMenu={handleContextMenu}
           {...structuredTemplateDrop.surfaceProps}
           onDoubleClick={handleDoubleClick}
-          onPointerUp={onCanvasPointerUp}
+          onPointerDown={onCanvasPointerDown}
           textareaRef={textareaRef}
           textareaStyle={textareaStyle}
           textareaProps={textareaProps}
@@ -212,5 +212,4 @@ export const AsciiCanvas = ({
     </ContextMenu>
   );
 };
-
 

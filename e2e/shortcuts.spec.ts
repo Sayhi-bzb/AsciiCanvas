@@ -57,6 +57,7 @@ const seedFreeformSelection = async (page: Page) => {
   await page.mouse.down();
   await page.mouse.move(start.x + CELL_WIDTH + 4, start.y, { steps: 3 });
   await page.mouse.up();
+  await expect(surface.locator("textarea")).toBeFocused();
 };
 
 const readGrid = (page: Page) =>
@@ -83,4 +84,45 @@ test.describe("editor clipboard shortcuts", () => {
       await expect.poll(() => readGrid(page)).toEqual([]);
     });
   }
+
+  test("Meta+x followed by Meta+v restores the cut selection", async ({
+    browserName,
+    page,
+  }) => {
+    test.skip(browserName === "webkit", "Playwright WebKit does not bridge the native system clipboard");
+    await seedFreeformSelection(page);
+
+    await page.keyboard.press("Meta+x");
+    await expect.poll(() => readGrid(page)).toEqual([]);
+
+    await page.keyboard.press("Meta+v");
+    await expect.poll(() => readGrid(page)).toEqual([
+      ["0,0", { char: "A", color: "#111827" }],
+      ["1,0", { char: "B", color: "#111827" }],
+    ]);
+  });
+
+  test("native paste data restores a cut selection", async ({ page }) => {
+    await seedFreeformSelection(page);
+
+    await page.keyboard.press("Meta+x");
+    await expect.poll(() => readGrid(page)).toEqual([]);
+
+    await page.evaluate(() => {
+      const clipboardData = new DataTransfer();
+      clipboardData.setData("text/plain", "AB");
+      const target = document.activeElement ?? document.body;
+      target.dispatchEvent(
+        new ClipboardEvent("paste", {
+          bubbles: true,
+          cancelable: true,
+          clipboardData,
+        })
+      );
+    });
+    await expect.poll(() => readGrid(page)).toEqual([
+      ["0,0", { char: "A", color: "#111827" }],
+      ["1,0", { char: "B", color: "#111827" }],
+    ]);
+  });
 });

@@ -76,18 +76,32 @@ describe("canvas gesture guards", () => {
     ).toBe(false);
   });
 
-  it("always ignores active canvas gestures from UI elements", () => {
+  it("ignores canvas UI gestures before a drag begins", () => {
     const canvasUi = document.createElement("button");
     canvasUi.dataset.canvasUi = "true";
 
     expect(
       shouldIgnoreActiveCanvasGesture({
         event: eventFrom(canvasUi),
-        interactionMode: "drawing",
-        hasDragStartGrid: true,
-        isPanning: true,
+        interactionMode: "idle",
+        hasDragStartGrid: false,
+        isPanning: false,
       })
     ).toBe(true);
+  });
+
+  it("does not discard an active drag retargeted to canvas UI", () => {
+    const canvasUi = document.createElement("button");
+    canvasUi.dataset.canvasUi = "true";
+
+    expect(
+      shouldIgnoreActiveCanvasGesture({
+        event: eventFrom(canvasUi),
+        interactionMode: "selecting",
+        hasDragStartGrid: true,
+        isPanning: false,
+      })
+    ).toBe(false);
   });
 
   it("uses minimap active gesture rules for active canvas gesture guards", () => {

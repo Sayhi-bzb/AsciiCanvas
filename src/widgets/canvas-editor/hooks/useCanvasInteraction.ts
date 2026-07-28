@@ -459,6 +459,7 @@ export const useCanvasInteraction = (
     dragUpdateHandler,
     dragEndRouteHandler,
     primaryDragEndHandler,
+    resetDragState,
     canvasClickRouteHandler,
     canvasWheelRouteHandler,
   });

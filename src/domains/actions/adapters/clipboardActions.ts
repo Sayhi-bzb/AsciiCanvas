@@ -414,19 +414,11 @@ const parseRichClipboardText = (
   }
 };
 
-const readRichClipboardCells = async (
-  eventDataTransfer?: DataTransfer
-): Promise<{
+const readRichClipboardCells = async (): Promise<{
   richCells: RichTextCell[] | null;
   structured: StructuredClipboardData | null;
   structuredText: StructuredTextClipboardData | null;
 } | null> => {
-  if (eventDataTransfer) {
-    const richData = eventDataTransfer.getData(MIME_RICH_DATA);
-    const parsed = parseRichClipboardText(richData);
-    if (parsed) return parsed;
-  }
-
   const items = await clipboard.readItems();
   if (items) {
     for (const item of items) {
@@ -444,7 +436,38 @@ export const readClipboardPayload = async (
   eventDataTransfer?: DataTransfer,
   defaultColor = DEFAULT_ANSI_PASTE_COLOR
 ) => {
-  const richPayload = await readRichClipboardCells(eventDataTransfer);
+  // ClipboardEvent data is only guaranteed to remain readable while the
+  // event is being dispatched. Snapshot every format before the first await.
+  const eventRichText = eventDataTransfer?.getData(MIME_RICH_DATA) ?? "";
+  const eventPlainText = eventDataTransfer?.getData("text/plain") ?? "";
+  const eventRichPayload = parseRichClipboardText(eventRichText);
+  if (eventRichPayload) {
+    return {
+      richCells: eventRichPayload.richCells,
+      structured: eventRichPayload.structured,
+      structuredText: eventRichPayload.structuredText,
+      plainText: eventRichPayload.structuredText?.text ?? null,
+    };
+  }
+
+  if (eventPlainText) {
+    const ansiCells = parseAnsiClipboardText(eventPlainText, defaultColor);
+    return ansiCells
+      ? {
+          richCells: ansiCells,
+          structured: null,
+          structuredText: null,
+          plainText: eventPlainText,
+        }
+      : {
+          richCells: null,
+          structured: null,
+          structuredText: null,
+          plainText: eventPlainText,
+        };
+  }
+
+  const richPayload = await readRichClipboardCells();
   if (richPayload) {
     return {
       richCells: richPayload.richCells,
@@ -452,16 +475,6 @@ export const readClipboardPayload = async (
       structuredText: richPayload.structuredText,
       plainText: richPayload.structuredText?.text ?? null,
     };
-  }
-
-  if (eventDataTransfer) {
-    const text = eventDataTransfer.getData("text/plain");
-    if (text) {
-      const ansiCells = parseAnsiClipboardText(text, defaultColor);
-      return ansiCells
-        ? { richCells: ansiCells, structured: null, structuredText: null, plainText: text }
-        : { richCells: null, structured: null, structuredText: null, plainText: text };
-    }
   }
 
   const text = await clipboard.readText();

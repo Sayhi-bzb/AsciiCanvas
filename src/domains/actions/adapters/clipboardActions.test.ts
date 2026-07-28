@@ -127,6 +127,30 @@ describe("clipboardActions", () => {
     ]);
   });
 
+  it("snapshots plain event data before the clipboard event expires", async () => {
+    let eventIsActive = true;
+    const getData = vi.fn((type: string) => {
+      if (!eventIsActive) return "";
+      return type === "text/plain" ? "AB" : "";
+    });
+
+    const pendingPayload = readClipboardPayload(
+      { getData } as unknown as DataTransfer,
+      "#ffffff"
+    );
+    eventIsActive = false;
+
+    await expect(pendingPayload).resolves.toMatchObject({
+      plainText: "AB",
+      structured: null,
+      structuredText: null,
+    });
+    expect(getData.mock.calls.map(([type]) => type)).toEqual([
+      "web application/x-ascii-metropolis",
+      "text/plain",
+    ]);
+  });
+
   it("writes app-rich clipboard data during native copy events", async () => {
     const setData = vi.fn();
     const preventDefault = vi.fn();

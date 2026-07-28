@@ -11,11 +11,13 @@ import type { ToolType } from "@/domains/canvas/public";
 
 const gestureState = vi.hoisted(() => ({
   handlers: null as Record<string, (input: unknown) => void> | null,
+  config: null as Record<string, unknown> | null,
 }));
 
 vi.mock("@use-gesture/react", () => ({
-  useGesture: vi.fn((handlers) => {
+  useGesture: vi.fn((handlers, config) => {
     gestureState.handlers = handlers;
+    gestureState.config = config;
     return {};
   }),
 }));
@@ -65,7 +67,7 @@ function InteractionHarness() {
       updateStructuredNode: state.updateStructuredNode,
     }))
   );
-  const { handleDoubleClick } = useCanvasInteraction(
+  const { draggingSelection, handleDoubleClick } = useCanvasInteraction(
     store,
     containerRef,
     vi.fn(),
@@ -77,6 +79,9 @@ function InteractionHarness() {
     <div
       ref={containerRef}
       data-testid="canvas-root"
+      data-selection-preview={
+        draggingSelection ? JSON.stringify(draggingSelection) : "none"
+      }
       onDoubleClick={handleDoubleClick}
     />
   );
@@ -87,6 +92,7 @@ describe("structured text interaction", () => {
 
   afterEach(() => {
     gestureState.handlers = null;
+    gestureState.config = null;
     useEditorStore.setState(initialState, true);
   });
 
@@ -268,6 +274,118 @@ describe("structured text interaction", () => {
       cancelable: true,
       detail,
     });
+
+  const dragEventFrom = (target: Element) => {
+    const event = dragEvent();
+    Object.defineProperties(event, {
+      target: { value: target },
+      composedPath: { value: () => [target] },
+    });
+    return event;
+  };
+
+  it("uses pointer capture for canvas drags", () => {
+    setStructuredTextScene();
+    render(<InteractionHarness />);
+
+    expect(gestureState.config).toMatchObject({
+      drag: { pointer: { capture: true } },
+    });
+  });
+
+  it("commits and clears structured marquee selection across repeated drags", () => {
+    setStructuredMixedScene();
+    useEditorStore.setState({ selectedStructuredNodeIds: [] });
+    const { getByTestId } = render(<InteractionHarness />);
+
+    for (let index = 0; index < 20; index += 1) {
+      act(() => {
+        gestureState.handlers?.onDragStart?.({
+          xy: [100, 80],
+          event: dragEvent(),
+        });
+        gestureState.handlers?.onDrag?.({
+          xy: [1, 1],
+          delta: [-99, -79],
+          event: dragEvent(),
+        });
+        gestureState.handlers?.onDragEnd?.({
+          xy: [1, 1],
+          event: dragEvent(),
+        });
+      });
+
+      expect(useEditorStore.getState().selectedStructuredNodeIds).toEqual([
+        "box-1",
+        "text-1",
+      ]);
+      expect(getByTestId("canvas-root")).toHaveAttribute(
+        "data-selection-preview",
+        "none"
+      );
+    }
+  });
+
+  it("finishes an active selection when drag end is retargeted to canvas UI", () => {
+    setStructuredMixedScene();
+    useEditorStore.setState({ selectedStructuredNodeIds: [] });
+    const { getByTestId } = render(<InteractionHarness />);
+    const canvasUi = document.createElement("button");
+    canvasUi.dataset.canvasUi = "true";
+
+    act(() => {
+      gestureState.handlers?.onDragStart?.({
+        xy: [100, 80],
+        event: dragEvent(),
+      });
+      gestureState.handlers?.onDrag?.({
+        xy: [1, 1],
+        delta: [-99, -79],
+        event: dragEvent(),
+      });
+      gestureState.handlers?.onDragEnd?.({
+        xy: [1, 1],
+        event: dragEventFrom(canvasUi),
+      });
+    });
+
+    expect(useEditorStore.getState().selectedStructuredNodeIds).toEqual([
+      "box-1",
+      "text-1",
+    ]);
+    expect(getByTestId("canvas-root")).toHaveAttribute(
+      "data-selection-preview",
+      "none"
+    );
+  });
+
+  it("clears an interrupted marquee without committing it", () => {
+    setStructuredMixedScene();
+    useEditorStore.setState({ selectedStructuredNodeIds: [] });
+    const { getByTestId } = render(<InteractionHarness />);
+
+    act(() => {
+      gestureState.handlers?.onDragStart?.({
+        xy: [100, 80],
+        event: dragEvent(),
+      });
+      gestureState.handlers?.onDrag?.({
+        xy: [1, 1],
+        delta: [-99, -79],
+        event: dragEvent(),
+      });
+      gestureState.handlers?.onDragEnd?.({
+        xy: [1, 1],
+        event: new Event("pointercancel"),
+      });
+    });
+
+    expect(useEditorStore.getState().selectedStructuredNodeIds).toEqual([]);
+    expect(getByTestId("canvas-root")).toHaveAttribute(
+      "data-selection-preview",
+      "none"
+    );
+  });
 
   it("enters text editing when double-clicking selected-mode structured text", () => {
     setStructuredTextScene();

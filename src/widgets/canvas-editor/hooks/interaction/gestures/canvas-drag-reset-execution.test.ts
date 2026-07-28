@@ -5,6 +5,7 @@ import {
   type DragResetExecutor,
 } from "@/widgets/canvas-editor/hooks/interaction/gestures/dragResetExecution";
 import type { StructuredPreviewQueueController } from "@/widgets/canvas-editor/hooks/interaction/structured/structuredPreviewQueueExecution";
+import type { SelectionPreviewController } from "@/widgets/canvas-editor/hooks/interaction/preview/selectionPreviewController";
 
 const createExecutor = (calls: string[]): DragResetExecutor => ({
   clearStructuredMoveQueueLast: vi.fn(() =>
@@ -16,6 +17,7 @@ const createExecutor = (calls: string[]): DragResetExecutor => ({
   clearStructuredMovePreview: vi.fn(() =>
     calls.push("clearStructuredMovePreview")
   ),
+  clearSelectionPreview: vi.fn(() => calls.push("clearSelectionPreview")),
   dispatchInteraction: vi.fn(() => calls.push("dispatchInteraction")),
 });
 
@@ -31,6 +33,13 @@ const createStructuredPreviewQueue = (
   cancel: vi.fn(),
 });
 
+const createSelectionPreview = (calls: string[]): SelectionPreviewController => ({
+  get: vi.fn(() => null),
+  set: vi.fn(() => calls.push("clearSelectionPreview")),
+  flush: vi.fn(),
+  cancel: vi.fn(),
+});
+
 describe("drag reset execution", () => {
   it("clears transient drag state before resetting interaction state", () => {
     const calls: string[] = [];
@@ -42,6 +51,7 @@ describe("drag reset execution", () => {
       "clearStructuredMoveQueueLast",
       "clearStructuredSplitBoxResizeQueueLast",
       "clearStructuredMovePreview",
+      "clearSelectionPreview",
       "dispatchInteraction",
     ]);
     expect(executor.dispatchInteraction).toHaveBeenCalledWith({ type: "reset" });
@@ -50,6 +60,7 @@ describe("drag reset execution", () => {
   it("controller clears structured preview state and resets typed state", () => {
     const calls: string[] = [];
     const structuredPreviewQueue = createStructuredPreviewQueue(calls);
+    const selectionPreview = createSelectionPreview(calls);
     const clearStructuredMovePreview = vi.fn(() =>
       calls.push("clearStructuredMovePreview")
     );
@@ -58,6 +69,7 @@ describe("drag reset execution", () => {
     createDragResetController({
       structuredPreviewQueue,
       clearStructuredMovePreview,
+      selectionPreview,
       dispatchInteraction,
     }).reset();
 
@@ -65,8 +77,12 @@ describe("drag reset execution", () => {
       "clearLastMove",
       "clearLastSplitBoxResize",
       "clearStructuredMovePreview",
+      "clearSelectionPreview",
       "dispatchInteraction",
     ]);
+    expect(selectionPreview.set).toHaveBeenCalledWith(null, {
+      immediate: true,
+    });
     expect(dispatchInteraction).toHaveBeenCalledWith({ type: "reset" });
   });
 });

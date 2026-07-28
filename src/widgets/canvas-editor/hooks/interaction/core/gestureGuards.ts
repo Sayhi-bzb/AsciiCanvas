@@ -29,7 +29,10 @@ export const shouldIgnoreActiveCanvasGesture = ({
   hasDragStartGrid: boolean;
   isPanning: boolean;
 }): boolean =>
-  isFromCanvasUi(event) ||
+  (interactionMode === "idle" &&
+    !hasDragStartGrid &&
+    !isPanning &&
+    isFromCanvasUi(event)) ||
   shouldIgnoreMinimapGesture({
     event,
     interactionMode,

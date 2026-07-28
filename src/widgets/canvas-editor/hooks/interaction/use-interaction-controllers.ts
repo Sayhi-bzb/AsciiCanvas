@@ -125,9 +125,10 @@ export const useInteractionControllers = ({
       createDragResetController({
         structuredPreviewQueue,
         clearStructuredMovePreview,
+        selectionPreview,
         dispatchInteraction,
       }).reset,
-    [structuredPreviewQueue]
+    [selectionPreview, structuredPreviewQueue]
   );
 
   useEffect(() => {

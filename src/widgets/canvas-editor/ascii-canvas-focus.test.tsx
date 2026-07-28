@@ -67,26 +67,64 @@ describe("AsciiCanvas focus management", () => {
     applyFreeformSnapshotToYMaps([]);
   });
 
-  it("focuses the managed textarea immediately when a selection exists", () => {
+  it("claims input focus on pointerdown before selection state changes", () => {
     useEditorStore.setState({
-      selections: [
-        {
-          start: { x: 0, y: 0 },
-          end: { x: 1, y: 1 },
-        },
-      ],
+      selections: [],
       textCursor: null,
       canvasMode: "freeform",
     });
 
-    const { container } = render(
+    const { container, getByTestId } = render(
       <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
     );
 
     const textarea = container.querySelector("textarea");
 
     expect(textarea).not.toBeNull();
+    expect(document.activeElement).not.toBe(textarea);
+
+    const pointerDown = createEvent.pointerDown(
+      getByTestId("ascii-canvas-surface")
+    );
+    fireEvent(getByTestId("ascii-canvas-surface"), pointerDown);
+
+    expect(pointerDown.defaultPrevented).toBe(true);
     expect(document.activeElement).toBe(textarea);
+    expect(textarea).toHaveValue("\u00a0");
+    expect(textarea?.selectionStart).toBe(0);
+    expect(textarea?.selectionEnd).toBe(1);
+  });
+
+  it("handles an ordinary character immediately after selecting the canvas", () => {
+    useEditorStore.setState({
+      canvasMode: "freeform",
+      textCursor: null,
+      selections: [],
+      staticGridSelection: {
+        activeCell: { x: 1, y: 0 },
+        anchorCell: { x: 0, y: 0 },
+        ranges: [{ start: { x: 0, y: 0 }, end: { x: 1, y: 0 } }],
+      },
+      staticGridEditMode: "navigate",
+    });
+    applyFreeformSnapshotToYMaps([
+      ["0,0", { char: "X", color: "#ffffff" }],
+      ["1,0", { char: "Y", color: "#ffffff" }],
+    ]);
+
+    const { container, getByTestId } = render(
+      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+    );
+    const textarea = container.querySelector("textarea");
+    expect(textarea).not.toBeNull();
+
+    fireEvent.pointerDown(getByTestId("ascii-canvas-surface"));
+    const keyDown = createEvent.keyDown(textarea!, { key: "A" });
+    fireEvent(textarea!, keyDown);
+
+    expect(keyDown.defaultPrevented).toBe(true);
+    expect(useEditorStore.getState().grid.get("0,0")?.char).toBe("A");
+    expect(useEditorStore.getState().grid.get("1,0")?.char).toBe("A");
   });
 
   it("runs redo shortcuts from the managed textarea", () => {
@@ -191,7 +229,7 @@ describe("AsciiCanvas focus management", () => {
       ["0,0", { char: "A", color: "#ffffff" }],
       ["1,0", { char: "B", color: "#ffffff" }],
     ]);
-    vi.spyOn(clipboard, "writeText").mockResolvedValue(false);
+    const writeText = vi.spyOn(clipboard, "writeText").mockResolvedValue(false);
     const { container } = render(
       <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
     );
@@ -199,10 +237,79 @@ describe("AsciiCanvas focus management", () => {
     expect(textarea).not.toBeNull();
 
     fireEvent.keyDown(textarea!, { key: "x", metaKey: true });
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await vi.waitFor(() => {
+      expect(writeText).toHaveBeenCalledOnce();
+    });
 
     expect(useEditorStore.getState().grid.size).toBe(2);
     expect(useEditorStore.getState().selections).toHaveLength(1);
+  });
+
+  it("falls back to the Clipboard API when Meta+V produces no paste event", async () => {
+    useEditorStore.setState({
+      canvasMode: "freeform",
+      textCursor: { x: 0, y: 0 },
+      selections: [],
+    });
+    applyFreeformSnapshotToYMaps([]);
+    vi.spyOn(clipboard, "readItems").mockResolvedValue(null);
+    const readText = vi.spyOn(clipboard, "readText").mockResolvedValue("AB");
+    const { container } = render(
+      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+    );
+    const textarea = container.querySelector("textarea");
+    expect(textarea).not.toBeNull();
+
+    fireEvent.keyDown(textarea!, { key: "v", metaKey: true });
+
+    await vi.waitFor(() => {
+      expect(useEditorStore.getState().grid.get("0,0")?.char).toBe("A");
+      expect(useEditorStore.getState().grid.get("1,0")?.char).toBe("B");
+    });
+    expect(readText).toHaveBeenCalledTimes(1);
+  });
+
+  it("suppresses a native paste event that arrives after the fallback", async () => {
+    useEditorStore.setState({
+      canvasMode: "freeform",
+      textCursor: { x: 0, y: 0 },
+      selections: [],
+    });
+    applyFreeformSnapshotToYMaps([]);
+    vi.spyOn(clipboard, "readItems").mockResolvedValue(null);
+    const readText = vi
+      .spyOn(clipboard, "readText")
+      .mockResolvedValue("AB\nCD");
+    readText.mockClear();
+    const { container } = render(
+      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+    );
+    const textarea = container.querySelector("textarea");
+    expect(textarea).not.toBeNull();
+
+    fireEvent.keyDown(textarea!, { key: "v", metaKey: true });
+
+    await vi.waitFor(() => {
+      expect(useEditorStore.getState().grid.get("0,0")?.char).toBe("A");
+      expect(useEditorStore.getState().grid.get("1,0")?.char).toBe("B");
+      expect(useEditorStore.getState().grid.get("0,1")?.char).toBe("C");
+      expect(useEditorStore.getState().grid.get("1,1")?.char).toBe("D");
+    });
+
+    const getData = vi.fn((type: string) =>
+      type === "text/plain" ? "AB\nCD" : ""
+    );
+    const latePaste = createEvent.paste(textarea!, {
+      clipboardData: { getData },
+    });
+    fireEvent(textarea!, latePaste);
+
+    expect(latePaste.defaultPrevented).toBe(true);
+    expect(readText).toHaveBeenCalledOnce();
+    expect(getData).not.toHaveBeenCalled();
+    expect(useEditorStore.getState().grid.size).toBe(4);
+    expect(useEditorStore.getState().grid.has("2,1")).toBe(false);
+    expect(useEditorStore.getState().grid.has("2,2")).toBe(false);
   });
 
   it("focuses the managed textarea for a freeform active cell and writes input there", () => {
@@ -219,12 +326,13 @@ describe("AsciiCanvas focus management", () => {
       staticGridEditMode: "navigate",
     });
 
-    const { container } = render(
+    const { container, getByTestId } = render(
       <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
     );
 
     const textarea = container.querySelector("textarea");
     expect(textarea).not.toBeNull();
+    fireEvent.pointerDown(getByTestId("ascii-canvas-surface"));
     expect(document.activeElement).toBe(textarea);
 
     fireEvent.input(textarea!, { target: { value: "A" } });
@@ -257,7 +365,7 @@ describe("AsciiCanvas focus management", () => {
     input.remove();
   });
 
-  it("refocuses the managed textarea when the freeform input anchor changes", () => {
+  it("preserves the same focused proxy across selection changes", () => {
     useEditorStore.setState({
       canvasMode: "freeform",
       textCursor: null,
@@ -269,27 +377,32 @@ describe("AsciiCanvas focus management", () => {
       },
       staticGridEditMode: "navigate",
     });
-    const input = document.createElement("input");
-    document.body.appendChild(input);
-    input.focus();
 
-    const { container } = render(
+    const { container, getByTestId } = render(
       <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
     );
     const textarea = container.querySelector("textarea");
     expect(textarea).not.toBeNull();
-    expect(document.activeElement).toBe(input);
+    fireEvent.pointerDown(getByTestId("ascii-canvas-surface"));
+    expect(document.activeElement).toBe(textarea);
 
-    input.blur();
     act(() => {
-      useEditorStore.getState().setTextCursor({ x: 6, y: 4 });
+      useEditorStore.setState({
+        selections: [{ start: { x: 1, y: 1 }, end: { x: 3, y: 2 } }],
+        staticGridSelection: {
+          activeCell: { x: 3, y: 2 },
+          anchorCell: { x: 1, y: 1 },
+          ranges: [{ start: { x: 1, y: 1 }, end: { x: 3, y: 2 } }],
+        },
+      });
     });
 
     expect(document.activeElement).toBe(textarea);
-    input.remove();
+    expect(container.querySelector("textarea")).toBe(textarea);
+    expect(textarea).toHaveValue("\u00a0");
   });
 
-  it("refocuses structured text input after clicking the same canvas position", () => {
+  it("claims structured text focus on pointerdown without pointerup refocus", () => {
     useEditorStore.setState({
       canvasMode: "structured",
       textCursor: { x: 2, y: 0 },
@@ -315,7 +428,9 @@ describe("AsciiCanvas focus management", () => {
     focusSink.focus();
 
     fireEvent.pointerUp(getByTestId("ascii-canvas-surface"));
+    expect(document.activeElement).toBe(focusSink);
 
+    fireEvent.pointerDown(getByTestId("ascii-canvas-surface"));
     expect(document.activeElement).toBe(textarea);
     focusSink.remove();
   });
@@ -336,7 +451,7 @@ describe("AsciiCanvas focus management", () => {
     canvasSurface.appendChild(uiButton);
     uiButton.focus();
 
-    fireEvent.pointerUp(uiButton);
+    fireEvent.pointerDown(uiButton);
 
     expect(document.activeElement).toBe(uiButton);
   });
@@ -465,12 +580,13 @@ describe("AsciiCanvas focus management", () => {
       structuredGridFocus: { x: 2, y: 3 },
     });
 
-    const { container } = render(
+    const { container, getByTestId } = render(
       <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
     );
 
     const textarea = container.querySelector("textarea");
     expect(textarea).not.toBeNull();
+    fireEvent.pointerDown(getByTestId("ascii-canvas-surface"));
     expect(document.activeElement).toBe(textarea);
 
     fireEvent.keyDown(textarea!, { key: "ArrowRight" });
@@ -517,14 +633,15 @@ describe("AsciiCanvas focus management", () => {
       brushColor: "#123456",
     });
 
-    const { container } = render(
+    const { container, getByTestId } = render(
       <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
     );
 
     const textarea = container.querySelector("textarea");
     expect(textarea).not.toBeNull();
-    expect(document.activeElement).toBe(textarea);
 
+    fireEvent.pointerDown(getByTestId("ascii-canvas-surface"));
+    expect(document.activeElement).toBe(textarea);
     fireEvent.input(textarea!, { target: { value: "Go" } });
 
     const state = useEditorStore.getState();

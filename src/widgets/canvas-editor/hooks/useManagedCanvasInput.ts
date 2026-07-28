@@ -4,7 +4,9 @@ import {
   useLayoutEffect,
   useMemo,
   useRef,
+  useState,
   type CSSProperties,
+  type ClipboardEvent as ReactClipboardEvent,
   type CompositionEvent,
   type FormEvent,
   type KeyboardEvent,
@@ -13,7 +15,6 @@ import {
 import { useEventListener } from "ahooks";
 import type { CanvasMode } from "@/domains/sessions/public";
 import { gridCellRect } from "@/shared/metrics";
-import { shouldIgnoreClipboardShortcut } from "@/shared/utils/dom-focus";
 import {
   getStaticGridViewState,
 } from "@/domains/selection/public";
@@ -25,9 +26,43 @@ import {
   runAction,
 } from "@/domains/actions/public";
 import type { CanvasEditorModel } from "./canvasModels";
+import {
+  createClipboardShortcutCoordinator,
+  type ClipboardShortcutAction,
+  type ClipboardShortcutTrace,
+} from "./clipboardShortcutCoordinator";
 
 const KEYBOARD_PAN_STEP = 48;
-type ClipboardShortcutAction = 'copy' | 'cut';
+const MANAGED_TEXTAREA_SENTINEL = "\u00a0";
+const CLIPBOARD_DEBUG_STORAGE_KEY = "ascii-canvas.clipboardDebug";
+
+type ManagedActionSource =
+  | 'canvas-keydown'
+  | 'clipboard-event'
+  | 'context-menu';
+
+type RunManagedAction = (
+  actionId: ClipboardShortcutAction,
+  event?: ClipboardEvent,
+  source?: ManagedActionSource
+) => ReturnType<typeof runAction>;
+
+const traceClipboardShortcut = (
+  trace: ClipboardShortcutTrace,
+  canvasOwnsInputFocus: boolean
+) => {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return;
+  try {
+    if (window.localStorage.getItem(CLIPBOARD_DEBUG_STORAGE_KEY) !== '1') return;
+  } catch {
+    return;
+  }
+  console.debug('[AsciiCanvas clipboard]', {
+    ...trace,
+    activeElement: document.activeElement?.tagName ?? null,
+    canvasOwnsInputFocus,
+  });
+};
 
 type UseManagedCanvasInputOptions = {
   canvasMode: CanvasMode;
@@ -46,10 +81,6 @@ export const useManagedCanvasInput = ({
 }: UseManagedCanvasInputOptions) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isComposing = useRef(false);
-  const pendingClipboardFallbackRef = useRef<{
-    actionId: ClipboardShortcutAction;
-    token: object;
-  } | null>(null);
   const {
     textCursor,
     staticGridSelection,
@@ -102,58 +133,79 @@ export const useManagedCanvasInput = ({
   const hasStructuredGridFocus =
     canvasMode === 'structured' && !!structuredGridFocus;
   const hasActiveSelection = activeSelections.length > 0 || hasStructuredSelection;
-  const hasManagedTextareaTarget =
-    !!activeTextCursor ||
-    hasActiveSelection ||
-    hasStructuredGridFocus ||
-    !!freeformStaticCell;
+  const [canvasOwnsInputFocus, setCanvasOwnsInputFocus] = useState(false);
+  const canvasOwnsInputFocusRef = useRef(false);
   const managedTextareaPoint =
     activeTextCursor ??
     structuredGridFocus ??
     activeSelections[0]?.start ??
     freeformStaticCell ??
     null;
-  const managedTextareaFocusKey = hasManagedTextareaTarget
-    ? [
-        canvasMode,
-        managedTextareaPoint?.x ?? 'none',
-        managedTextareaPoint?.y ?? 'none',
-        activeSelections.length,
-        selectedStructuredNodeIds.join(','),
-      ].join(':')
-    : null;
+  const primeManagedTextarea = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea || !canvasOwnsInputFocusRef.current || isComposing.current) {
+      return;
+    }
+    textarea.value = MANAGED_TEXTAREA_SENTINEL;
+    textarea.setSelectionRange(0, MANAGED_TEXTAREA_SENTINEL.length);
+  }, []);
   const focusManagedTextarea = useCallback(() => {
     const textarea = textareaRef.current;
-    if (!textarea || !hasManagedTextareaTarget) return;
-    if (shouldIgnoreClipboardShortcut(document.activeElement, textarea)) return;
+    if (!textarea) return;
+    canvasOwnsInputFocusRef.current = true;
+    setCanvasOwnsInputFocus(true);
     if (document.activeElement !== textarea) {
       textarea.focus({ preventScroll: true });
     }
-  }, [hasManagedTextareaTarget]);
-  const handleCanvasPointerUp = (
+    // Safari does not consistently dispatch cut/copy for an empty editable
+    // target. Keep a selected sentinel so the native clipboard event fires.
+    primeManagedTextarea();
+  }, [primeManagedTextarea]);
+  const releaseManagedTextarea = useCallback(() => {
+    canvasOwnsInputFocusRef.current = false;
+    setCanvasOwnsInputFocus(false);
+  }, []);
+  const handleCanvasPointerDown = (
     event: PointerEvent<HTMLDivElement>
   ) => {
-    if (shouldIgnoreCanvasSurfaceGesture(event.nativeEvent)) return;
+    if (shouldIgnoreCanvasSurfaceGesture(event.nativeEvent)) {
+      releaseManagedTextarea();
+      return;
+    }
+    event.preventDefault();
     focusManagedTextarea();
   };
   useLayoutEffect(() => {
+    if (!canvasOwnsInputFocus) return;
     const textarea = textareaRef.current;
     if (!textarea) return;
-
-    if (hasManagedTextareaTarget) {
-      focusManagedTextarea();
-      return;
+    if (document.activeElement !== textarea) {
+      textarea.focus({ preventScroll: true });
     }
+    primeManagedTextarea();
+  }, [canvasOwnsInputFocus, managedTextareaPoint, primeManagedTextarea]);
 
-    if (document.activeElement === textarea) {
-      textarea.blur();
-    }
-  }, [focusManagedTextarea, hasManagedTextareaTarget, managedTextareaFocusKey]);
+  useEffect(() => {
+    const handleDocumentPointerDown = (event: globalThis.PointerEvent) => {
+      const textarea = textareaRef.current;
+      const surface = textarea?.closest('[data-testid="ascii-canvas-surface"]');
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (surface?.contains(target) && !shouldIgnoreCanvasSurfaceGesture(event)) {
+        return;
+      }
+      releaseManagedTextarea();
+    };
+    document.addEventListener('pointerdown', handleDocumentPointerDown, true);
+    return () => {
+      document.removeEventListener('pointerdown', handleDocumentPointerDown, true);
+    };
+  }, [releaseManagedTextarea]);
 
-  const runManagedAction = (
-    actionId: 'copy' | 'cut' | 'paste',
+  const runManagedAction: RunManagedAction = (
+    actionId,
     e?: ClipboardEvent,
-    source: 'canvas-keydown' | 'clipboard-event' | 'context-menu' =
+    source: ManagedActionSource =
       e ? 'clipboard-event' : 'context-menu'
   ) => {
     return runAction(actionId, {
@@ -162,50 +214,50 @@ export const useManagedCanvasInput = ({
       managedTextarea: textareaRef.current,
     });
   };
-
-  const cancelClipboardFallback = (actionId?: ClipboardShortcutAction) => {
-    const pending = pendingClipboardFallbackRef.current;
-    if (!pending || (actionId && pending.actionId !== actionId)) return;
-    pendingClipboardFallbackRef.current = null;
-  };
-
-  const scheduleClipboardFallback = (actionId: ClipboardShortcutAction) => {
-    cancelClipboardFallback();
-    const token = {};
-    pendingClipboardFallbackRef.current = { actionId, token };
-    queueMicrotask(() => {
-      const pending = pendingClipboardFallbackRef.current;
-      if (!pending || pending.token !== token) return;
-      pendingClipboardFallbackRef.current = null;
-      runManagedAction(actionId, undefined, 'canvas-keydown');
-    });
-  };
-
-  useEffect(
-    () => () => {
-      pendingClipboardFallbackRef.current = null;
-    },
-    []
+  const [clipboardShortcutCoordinator] = useState(() =>
+    createClipboardShortcutCoordinator({})
   );
 
-  useEventListener('copy', (e: ClipboardEvent) => {
-    cancelClipboardFallback('copy');
-    const result = runManagedAction('copy', e);
+  useEffect(() => {
+    clipboardShortcutCoordinator.setFallbackHandler((actionId) => {
+      runManagedAction(actionId, undefined, 'canvas-keydown');
+    });
+    clipboardShortcutCoordinator.setTraceHandler((trace) => {
+      traceClipboardShortcut(trace, canvasOwnsInputFocusRef.current);
+    });
+    return () => {
+      clipboardShortcutCoordinator.dispose();
+    };
+  }, [clipboardShortcutCoordinator]);
+
+  const handleCopy = (e: ReactClipboardEvent<HTMLTextAreaElement>) => {
+    if (clipboardShortcutCoordinator.handleNative('copy') === 'suppress') {
+      e.preventDefault();
+      return;
+    }
+    const result = runManagedAction('copy', e.nativeEvent);
     if (result.succeeded) e.preventDefault();
-  });
-  useEventListener('cut', (e: ClipboardEvent) => {
-    cancelClipboardFallback('cut');
-    const result = runManagedAction('cut', e);
+  };
+  const handleCut = (e: ReactClipboardEvent<HTMLTextAreaElement>) => {
+    if (clipboardShortcutCoordinator.handleNative('cut') === 'suppress') {
+      e.preventDefault();
+      return;
+    }
+    const result = runManagedAction('cut', e.nativeEvent);
     if (result.succeeded || document.activeElement === textareaRef.current) {
       e.preventDefault();
     }
-  });
-  useEventListener('paste', (e: ClipboardEvent) => {
-    const result = runManagedAction('paste', e);
+  };
+  const handlePaste = (e: ReactClipboardEvent<HTMLTextAreaElement>) => {
+    if (clipboardShortcutCoordinator.handleNative('paste') === 'suppress') {
+      e.preventDefault();
+      return;
+    }
+    const result = runManagedAction('paste', e.nativeEvent);
     if (result.succeeded || document.activeElement === textareaRef.current) {
       e.preventDefault();
     }
-  });
+  };
   useEventListener('keydown', (event: globalThis.KeyboardEvent) => {
     if (event.key !== 'Escape' || !canvasColorPickerTarget) return;
 
@@ -215,22 +267,30 @@ export const useManagedCanvasInput = ({
   });
 
   const textareaStyle: CSSProperties = useMemo(() => {
-    if (!hasManagedTextareaTarget || !size) return { display: 'none' };
     const point = managedTextareaPoint ?? { x: 0, y: 0 };
-    const pos = gridCellRect(point, { offset, zoom });
+    const pos = size
+      ? gridCellRect(point, { offset, zoom })
+      : { x: 0, y: 0 };
+    const bounds = size ?? { width: 1, height: 1 };
 
     return {
       position: 'absolute',
-      left: `${pos.x}px`,
-      top: `${pos.y}px`,
-      width: `${Math.max(1, pos.width)}px`,
-      height: `${Math.max(1, pos.height)}px`,
-      opacity: 0,
+      left: `${Math.max(0, Math.min(bounds.width - 1, pos.x))}px`,
+      top: `${Math.max(0, Math.min(bounds.height - 1, pos.y))}px`,
+      width: '1px',
+      height: '1px',
+      opacity: 0.01,
+      color: 'transparent',
+      caretColor: 'transparent',
+      background: 'transparent',
+      border: 0,
+      padding: 0,
+      resize: 'none',
+      overflow: 'hidden',
       pointerEvents: 'none',
-      zIndex: -1,
+      zIndex: 1,
     };
   }, [
-    hasManagedTextareaTarget,
     managedTextareaPoint,
     offset,
     zoom,
@@ -243,10 +303,11 @@ export const useManagedCanvasInput = ({
     if (isComposing.current) return;
     const clipboardCommand = resolveActionShortcut(
       e,
-      ['copy', 'cut'] as const
+      ['copy', 'cut', 'paste'] as const
     );
     if (clipboardCommand) {
-      scheduleClipboardFallback(clipboardCommand);
+      primeManagedTextarea();
+      clipboardShortcutCoordinator.begin(clipboardCommand);
     }
     const historyCommand = resolveHistoryShortcutCommand(e);
     if (historyCommand) {
@@ -342,7 +403,7 @@ export const useManagedCanvasInput = ({
 
   return {
     textareaRef,
-    onCanvasPointerUp: handleCanvasPointerUp,
+    onCanvasPointerDown: handleCanvasPointerDown,
     textareaStyle: textareaStyle as CSSProperties,
     textareaProps: {
       onCompositionStart: () => {
@@ -351,15 +412,29 @@ export const useManagedCanvasInput = ({
       onCompositionEnd: (event: CompositionEvent<HTMLTextAreaElement>) => {
         isComposing.current = false;
         if (event.data) writeTextString(event.data);
-        if (textareaRef.current) textareaRef.current.value = "";
+        primeManagedTextarea();
       },
       onInput: (event: FormEvent<HTMLTextAreaElement>) => {
-        if (!isComposing.current && event.currentTarget.value) {
-          writeTextString(event.currentTarget.value);
-          event.currentTarget.value = "";
+        const value = event.currentTarget.value.replaceAll(
+          MANAGED_TEXTAREA_SENTINEL,
+          ""
+        );
+        if (!isComposing.current) {
+          if (value) {
+            writeTextString(value);
+          }
+          primeManagedTextarea();
         }
       },
       onKeyDown: handleKeyDown,
+      onCopy: handleCopy,
+      onCut: handleCut,
+      onPaste: handlePaste,
+      onBlur: () => {
+        if (document.activeElement !== textareaRef.current) {
+          releaseManagedTextarea();
+        }
+      },
     },
   };
 };
