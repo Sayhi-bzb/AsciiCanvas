@@ -292,7 +292,7 @@ export function AnimationEffectsPanel() {
         </div>
       </ScrollArea>
 
-      <div className="space-y-2 border-t border-border pt-3">
+      <div className="space-y-2 border-t border-accent pt-3">
         <div className="grid grid-cols-3 gap-1">
           {([
             ["insert-after-current", "Insert"],

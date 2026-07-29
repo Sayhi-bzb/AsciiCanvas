@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react';
+import { useCallback, useRef, useEffect, useState } from 'react';
 import { useSize } from 'ahooks';
 import { useCanvasInteraction } from './hooks/useCanvasInteraction';
 import { useCanvasRenderer } from './hooks/useCanvasRenderer';
@@ -9,29 +9,26 @@ import { StructuredTemplatePreviewOverlay } from './StructuredTemplatePreviewOve
 import { useStructuredTemplateDrop } from './hooks/useStructuredTemplateDrop';
 import { useManagedCanvasInput } from './hooks/useManagedCanvasInput';
 import { getCenteredAnimationOffset } from '@/domains/animation/public';
-import {
-  ContextMenu,
-  ContextMenuTrigger,
-} from '@/shared/ui/context-menu';
-import {
-  CANVAS_CONTEXT_MENU,
-  STRUCTURED_CONTEXT_MENU,
-} from '@/domains/actions/public';
+import { ContextMenu, ContextMenuTrigger } from '@/shared/ui/context-menu';
+import { CANVAS_CONTEXT_MENU, STRUCTURED_CONTEXT_MENU } from '@/domains/actions/public';
 import { GridManager } from '@/shared/utils/grid';
 import {
   findStructuredNodeHit,
   isStructuredSplitBoxLineHandle,
-} from "@/domains/structured-content/public";
+} from '@/domains/structured-content/public';
 import type { CanvasLinkHit } from './hooks/interaction/core/linkHitTesting';
 import type { StructuredMovePreview } from './hooks/useCanvasRenderer';
-import type { ToolType } from '@/domains/canvas/public';
+import { useEditorStore, type ToolType } from '@/domains/canvas/public';
+import {
+  applyCanvasViewportPresentation,
+  resetCanvasViewportPresentation,
+  type CanvasViewport,
+} from './hooks/viewportPresentation';
 
 interface AsciiCanvasProps {
   onUndo: () => void;
   onRedo: () => void;
-  onContainerSizeChange?: (
-    size: { width: number; height: number } | undefined
-  ) => void;
+  onContainerSizeChange?: (size: { width: number; height: number } | undefined) => void;
   interactionToolOverride?: ToolType;
 }
 
@@ -45,6 +42,7 @@ export const AsciiCanvas = ({
   const scratchCanvasRef = useRef<HTMLCanvasElement>(null);
   const uiCanvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const viewportLayerRef = useRef<HTMLDivElement>(null);
   const [hoveredLink, setHoveredLink] = useState<CanvasLinkHit | null>(null);
   const structuredMovePreviewRef = useRef<StructuredMovePreview | null>(null);
   const requestCanvasRenderRef = useRef<(() => void) | null>(null);
@@ -79,18 +77,58 @@ export const AsciiCanvas = ({
     setStructuredContextPoint,
     activeCanvasHasSavedViewport,
   } = editorStore;
+  const renderedViewportRef = useRef<CanvasViewport | null>(null);
+
+  const presentViewport = useCallback((presented: CanvasViewport) => {
+    applyCanvasViewportPresentation(
+      viewportLayerRef.current,
+      renderedViewportRef.current,
+      presented
+    );
+  }, []);
+
+  const handleViewportRendered = useCallback(
+    (rendered: CanvasViewport) => {
+      renderedViewportRef.current = {
+        offset: { ...rendered.offset },
+        zoom: rendered.zoom,
+      };
+      const current = useEditorStore.getState();
+      presentViewport({
+        offset: { ...current.offset },
+        zoom: current.zoom,
+      });
+    },
+    [presentViewport]
+  );
+
+  useEffect(() => {
+    const current = useEditorStore.getState();
+    const viewportLayer = viewportLayerRef.current;
+    presentViewport({
+      offset: { ...current.offset },
+      zoom: current.zoom,
+    });
+    const unsubscribe = useEditorStore.subscribe((state, previous) => {
+      if (state.zoom === previous.zoom && state.offset === previous.offset) return;
+      presentViewport({
+        offset: { ...state.offset },
+        zoom: state.zoom,
+      });
+    });
+    return () => {
+      unsubscribe();
+      renderedViewportRef.current = null;
+      resetCanvasViewportPresentation(viewportLayer);
+    };
+  }, [presentViewport]);
 
   const structuredTemplateDrop = useStructuredTemplateDrop({
     canvasMode,
     containerRef,
     model: editorStore,
   });
-  const {
-    textareaRef,
-    onCanvasPointerDown,
-    textareaStyle,
-    textareaProps,
-  } = useManagedCanvasInput({
+  const { textareaRef, onCanvasPointerDown, textareaStyle, textareaProps } = useManagedCanvasInput({
     canvasMode,
     model: editorStore,
     size,
@@ -108,11 +146,7 @@ export const AsciiCanvas = ({
       return;
     }
 
-    const centeredOffset = getCenteredAnimationOffset(
-      interactionCanvasBounds,
-      size,
-      zoom
-    );
+    const centeredOffset = getCenteredAnimationOffset(interactionCanvasBounds, size, zoom);
 
     setCanvasOffset((prev) => {
       if (prev.x === centeredOffset.x && prev.y === centeredOffset.y) {
@@ -144,7 +178,8 @@ export const AsciiCanvas = ({
     draggingSelection,
     structuredMovePreviewRef,
     hoveredLink,
-    requestCanvasRenderRef
+    requestCanvasRenderRef,
+    handleViewportRendered
   );
 
   const activeContextMenu =
@@ -170,11 +205,7 @@ export const AsciiCanvas = ({
       return;
     }
 
-    if (
-      hit.kind === 'splitBox' &&
-      hit.handle &&
-      isStructuredSplitBoxLineHandle(hit.handle)
-    ) {
+    if (hit.kind === 'splitBox' && hit.handle && isStructuredSplitBoxLineHandle(hit.handle)) {
       setSelectedStructuredNodeIds([hit.node.id]);
       setSelectedStructuredSplitHandle({ nodeId: hit.node.id, handle: hit.handle });
       return;
@@ -196,6 +227,7 @@ export const AsciiCanvas = ({
         <CanvasSurface
           containerRef={containerRef}
           bgCanvasRef={bgCanvasRef}
+          viewportLayerRef={viewportLayerRef}
           scratchCanvasRef={scratchCanvasRef}
           uiCanvasRef={uiCanvasRef}
           containerSize={size}
@@ -207,18 +239,11 @@ export const AsciiCanvas = ({
           textareaStyle={textareaStyle}
           textareaProps={textareaProps}
         >
-          <StructuredTemplatePreviewOverlay
-            preview={structuredTemplateDrop.preview}
-            zoom={zoom}
-          />
+          <StructuredTemplatePreviewOverlay preview={structuredTemplateDrop.preview} zoom={zoom} />
         </CanvasSurface>
       </ContextMenuTrigger>
 
-      <CanvasContextMenuContent
-        entries={activeContextMenu}
-        managedTextareaRef={textareaRef}
-      />
+      <CanvasContextMenuContent entries={activeContextMenu} managedTextareaRef={textareaRef} />
     </ContextMenu>
   );
 };
-

@@ -1,8 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useEditorStore } from '@/domains/canvas/public';
+import { runSidebarAction } from '@/domains/actions/public';
 import { useIsMobile } from '@/shared/hooks/use-mobile';
 import { HOST_ICONOLOGY } from '@/shared/icons/iconology';
 import { MAX_ZOOM, MIN_ZOOM } from '@/shared/lib/constants';
@@ -17,6 +18,13 @@ const ZOOM_EPSILON = 0.000001;
 const ZOOM_ANIMATION_DURATION_MS = 280;
 const ZoomOutIcon = HOST_ICONOLOGY.zoomAction.out;
 const ZoomInIcon = HOST_ICONOLOGY.zoomAction.in;
+const GridIcon = HOST_ICONOLOGY.viewportAction.grid;
+const MinimapIcon = HOST_ICONOLOGY.viewportAction.minimap;
+const Minimap = lazy(() =>
+  import('@/widgets/canvas-editor/Minimap').then((module) => ({
+    default: module.Minimap,
+  }))
+);
 
 type ZoomControlProps = {
   containerSize: { width: number; height: number } | undefined;
@@ -25,14 +33,17 @@ type ZoomControlProps = {
 export function ZoomControl({ containerSize }: ZoomControlProps) {
   const isMobile = useIsMobile();
   const { t } = useUiI18n();
-  const { zoom, canvasMode, setOffset, setZoom } = useEditorStore(
+  const { zoom, canvasMode, showGrid, setShowGrid, setOffset, setZoom } = useEditorStore(
     useShallow((state) => ({
       zoom: state.zoom,
       canvasMode: state.canvasMode,
+      showGrid: state.showGrid,
+      setShowGrid: state.setShowGrid,
       setOffset: state.setOffset,
       setZoom: state.setZoom,
     }))
   );
+  const [minimapOpen, setMinimapOpen] = useState(false);
   const zoomAnimationRef = useRef<{
     frameId: number;
     targetZoom: number;
@@ -59,6 +70,12 @@ export function ZoomControl({ containerSize }: ZoomControlProps) {
     },
     [viewportInteraction]
   );
+
+  useEffect(() => {
+    if (canvasMode !== 'animation') return;
+    const frameId = window.requestAnimationFrame(() => setMinimapOpen(false));
+    return () => window.cancelAnimationFrame(frameId);
+  }, [canvasMode]);
 
   const animateZoomTo = useCallback(
     (requestedZoom: number) => {
@@ -129,6 +146,8 @@ export function ZoomControl({ containerSize }: ZoomControlProps) {
   const resetLabel = `${t('zoom.reset')} — ${percentage}%`;
   const isMaxZoom = zoom >= MAX_ZOOM - ZOOM_EPSILON;
   const actionsDisabled = !containerSize;
+  const gridLabel = showGrid ? t('sidebar.grid.hide') : t('action.toggleGrid');
+  const minimapLabel = t('sidebar.minimap');
 
   if (isMobile) return null;
 
@@ -139,6 +158,16 @@ export function ZoomControl({ containerSize }: ZoomControlProps) {
       className="fixed bottom-3 left-3 z-50 flex rounded-lg bg-muted p-[3px] pointer-events-auto"
       aria-label={zoomLabel}
     >
+      {minimapOpen && canvasMode !== 'animation' && (
+        <div
+          data-testid="zoom-minimap"
+          className="absolute bottom-full left-0 z-40 mb-2 w-auto overflow-hidden rounded-lg bg-muted"
+        >
+          <Suspense fallback={<div className="h-[140px] w-[220px] bg-muted" />}>
+            <Minimap containerSize={containerSize} />
+          </Suspense>
+        </div>
+      )}
       <Button
         tone="subtle"
         size="md"
@@ -169,7 +198,7 @@ export function ZoomControl({ containerSize }: ZoomControlProps) {
       <Button
         tone="subtle"
         size="md"
-        className={cn(uiClass.hostIconControl, 'rounded-l-none')}
+        className={cn(uiClass.hostIconControl, 'rounded-none')}
         aria-label={t('zoom.in')}
         title={t('zoom.in')}
         data-testid="zoom-in"
@@ -178,6 +207,48 @@ export function ZoomControl({ containerSize }: ZoomControlProps) {
       >
         <ZoomInIcon />
       </Button>
+      <Button
+        tone="subtle"
+        size="md"
+        className={cn(
+          uiClass.hostIconControl,
+          showGrid && uiClass.hostControlActive,
+          canvasMode === 'animation' ? 'rounded-l-none' : 'rounded-none'
+        )}
+        aria-label={gridLabel}
+        aria-pressed={showGrid}
+        title={gridLabel}
+        data-testid="zoom-grid"
+        onClick={() =>
+          runSidebarAction('toggle-grid', {
+            showGrid,
+            setShowGrid,
+            setZoom,
+            setOffset,
+          })
+        }
+      >
+        <GridIcon />
+      </Button>
+      {canvasMode !== 'animation' && (
+        <Button
+          tone="subtle"
+          size="md"
+          className={cn(
+            uiClass.hostIconControl,
+            minimapOpen && uiClass.hostControlActive,
+            'rounded-l-none'
+          )}
+          aria-label={minimapLabel}
+          aria-pressed={minimapOpen}
+          title={minimapLabel}
+          data-testid="zoom-minimap-toggle"
+          disabled={actionsDisabled}
+          onClick={() => setMinimapOpen((open) => !open)}
+        >
+          <MinimapIcon />
+        </Button>
+      )}
     </div>
   );
 }

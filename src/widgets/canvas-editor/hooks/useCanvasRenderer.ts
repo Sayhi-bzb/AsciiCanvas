@@ -1,19 +1,19 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from 'react';
 import {
   BACKGROUND_COLOR,
   COLOR_SELECTION_BG,
   COLOR_TEXT_CURSOR_BG,
   COLOR_TEXT_CURSOR_FG,
   GRID_COLOR,
-} from "@/shared/lib/constants";
-import type { CanvasRenderModel } from "./canvasModels";
-import { GridManager } from "@/shared/utils/grid";
-import type { SelectionArea, GridMap, Point, NodeBounds } from "@/shared/types";
-import type { StructuredSplitBoxNode } from "@/domains/structured-content/public";
-import type { AnimationFrame } from "@/domains/animation/public";
-import type { CanvasLinkHit } from "./interaction/core/linkHitTesting";
-import { getSelectionBounds } from "@/shared/utils/selection";
-import { createMapFromEntries } from "@/domains/canvas/public";
+} from '@/shared/lib/constants';
+import type { CanvasRenderModel } from './canvasModels';
+import { GridManager } from '@/shared/utils/grid';
+import type { SelectionArea, GridMap, Point, NodeBounds } from '@/shared/types';
+import type { StructuredSplitBoxNode } from '@/domains/structured-content/public';
+import type { AnimationFrame } from '@/domains/animation/public';
+import type { CanvasLinkHit } from './interaction/core/linkHitTesting';
+import { getSelectionBounds } from '@/shared/utils/selection';
+import { createMapFromEntries } from '@/domains/canvas/public';
 import {
   DEFAULT_GRID_RENDER_METRICS,
   drawGridLines,
@@ -23,30 +23,25 @@ import {
   gridCellRect,
   prepareCanvasSurface,
   setTextRenderStyle,
-} from "@/shared/metrics";
-import {
-  getStaticGridViewState,
-} from "@/domains/selection/public";
+} from '@/shared/metrics';
+import { getStaticGridViewState } from '@/domains/selection/public';
 import {
   getStructuredBoxBounds,
   getStructuredSplitBoxGuides,
-} from "@/domains/structured-content/public";
-import { getStructuredNodeBounds } from "@/domains/structured-content/public";
-import { getStructuredTextSelectionRange } from "@/domains/structured-content/public";
-import {
-  createTextLayout,
-  getTextLayoutSelectionRects,
-} from "@/domains/structured-content/public";
+} from '@/domains/structured-content/public';
+import { getStructuredNodeBounds } from '@/domains/structured-content/public';
+import { getStructuredTextSelectionRange } from '@/domains/structured-content/public';
+import { createTextLayout, getTextLayoutSelectionRects } from '@/domains/structured-content/public';
 import {
   getStructuredLineHandlePoints,
   getStructuredRectHandlePoints,
   getStructuredSplitBoxHandlePoints,
-} from "@/domains/structured-content/public";
+} from '@/domains/structured-content/public';
 
-import type { StructuredMovePreview } from "./interaction/structured/structuredInteractionPreview";
-import { drawGridLayer } from "../rendering/drawGridLayer";
-import { resolveAnimationGhostLayers } from "../rendering/animation-ghost-layers";
-export type { StructuredMovePreview } from "./interaction/structured/structuredInteractionPreview";
+import type { StructuredMovePreview } from './interaction/structured/structuredInteractionPreview';
+import { drawGridLayer } from '../rendering/drawGridLayer';
+import { resolveAnimationGhostLayers } from '../rendering/animation-ghost-layers';
+export type { StructuredMovePreview } from './interaction/structured/structuredInteractionPreview';
 
 interface LayerRefs {
   bg: React.RefObject<HTMLCanvasElement | null>;
@@ -84,14 +79,14 @@ export const drawCanvasColorPickerAnchor = (
 
   ctx.save();
   ctx.lineWidth = lineWidth + 2;
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.95)";
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
   ctx.strokeRect(x, y, width, height);
 
   ctx.lineWidth = lineWidth;
-  ctx.strokeStyle = "#111827";
+  ctx.strokeStyle = '#111827';
   ctx.strokeRect(x, y, width, height);
 
-  ctx.strokeStyle = "#f59e0b";
+  ctx.strokeStyle = '#f59e0b';
   ctx.lineWidth = Math.max(2, lineWidth);
   ctx.beginPath();
   ctx.moveTo(x, y + corner);
@@ -117,7 +112,8 @@ export const useCanvasRenderer = (
   draggingSelection: SelectionArea | null,
   structuredMovePreviewRef: React.RefObject<StructuredMovePreview | null>,
   hoveredLink: CanvasLinkHit | null,
-  requestRenderRef?: React.MutableRefObject<(() => void) | null>
+  requestRenderRef?: React.MutableRefObject<(() => void) | null>,
+  onViewportRendered?: (viewport: { offset: Point; zoom: number }) => void
 ) => {
   const {
     offset,
@@ -150,10 +146,8 @@ export const useCanvasRenderer = (
     textCursor,
     selections,
   });
-  const renderedSelections =
-    canvasMode === "freeform" ? staticGridView.selectionAreas : selections;
-  const renderedTextCursor =
-    canvasMode === "freeform" ? staticGridView.textCursor : textCursor;
+  const renderedSelections = canvasMode === 'freeform' ? staticGridView.selectionAreas : selections;
+  const renderedTextCursor = canvasMode === 'freeform' ? staticGridView.textCursor : textCursor;
   const traceRoundRect = (
     ctx: CanvasRenderingContext2D,
     x: number,
@@ -169,7 +163,7 @@ export const useCanvasRenderer = (
   const baseRenderInputsRef = useRef<unknown[] | null>(null);
   const manualRenderRafRef = useRef<number | null>(null);
   const animationFrameGridCacheRef = useRef<
-    Map<string, { entries: AnimationFrame["grid"]; grid: GridMap }>
+    Map<string, { entries: AnimationFrame['grid']; grid: GridMap }>
   >(new Map());
 
   const shouldRenderBaseLayers = (inputs: unknown[]) => {
@@ -213,8 +207,7 @@ export const useCanvasRenderer = (
       if (!size || size.width === 0 || size.height === 0) return;
       const structuredMovePreview = structuredMovePreviewRef.current;
       const renderedGrid = structuredMovePreview?.baseGrid ?? grid;
-      const structuredPreviewMovingGrid =
-        structuredMovePreview?.movingGrid ?? null;
+      const structuredPreviewMovingGrid = structuredMovePreview?.movingGrid ?? null;
       const renderedStructuredScene = structuredMovePreview
         ? [...structuredMovePreview.baseScene, ...structuredMovePreview.movingNodes]
         : structuredScene;
@@ -229,7 +222,7 @@ export const useCanvasRenderer = (
         zoom
       );
       const boundedView =
-        canvasMode === "animation" && canvasBounds
+        canvasMode === 'animation' && canvasBounds
           ? {
               startX: Math.max(0, viewBounds.startX),
               endX: Math.min(canvasBounds.width - 1, viewBounds.endX),
@@ -238,7 +231,7 @@ export const useCanvasRenderer = (
             }
           : viewBounds;
       const animationViewportRect =
-        canvasMode === "animation" && canvasBounds
+        canvasMode === 'animation' && canvasBounds
           ? {
               x: offset.x,
               y: offset.y,
@@ -270,7 +263,7 @@ export const useCanvasRenderer = (
       ]);
 
       const bgCanvas = layers.bg.current;
-      const bgCtx = bgCanvas?.getContext("2d", { alpha: false });
+      const bgCtx = bgCanvas?.getContext('2d', { alpha: false });
       if (renderBaseLayers && bgCanvas && bgCtx) {
         prepareCanvasSurface(bgCanvas, bgCtx, size.width, size.height, dpr);
         bgCtx.fillStyle = BACKGROUND_COLOR;
@@ -292,19 +285,19 @@ export const useCanvasRenderer = (
 
         if (showGrid) {
           const gridStartX =
-            canvasMode === "animation" && canvasBounds
+            canvasMode === 'animation' && canvasBounds
               ? Math.max(0, boundedView.startX)
               : viewBounds.startX;
           const gridEndX =
-            canvasMode === "animation" && canvasBounds
+            canvasMode === 'animation' && canvasBounds
               ? Math.min(canvasBounds.width, boundedView.endX + 1)
               : viewBounds.endX;
           const gridStartY =
-            canvasMode === "animation" && canvasBounds
+            canvasMode === 'animation' && canvasBounds
               ? Math.max(0, boundedView.startY)
               : viewBounds.startY;
           const gridEndY =
-            canvasMode === "animation" && canvasBounds
+            canvasMode === 'animation' && canvasBounds
               ? Math.min(canvasBounds.height, boundedView.endY + 1)
               : viewBounds.endY;
           drawGridLines(bgCtx, {
@@ -326,7 +319,7 @@ export const useCanvasRenderer = (
         drawLayer(
           bgCtx,
           renderedGrid,
-          canvasMode === "animation" ? boundedView : viewBounds,
+          canvasMode === 'animation' ? boundedView : viewBounds,
           zoom,
           offset
         );
@@ -335,10 +328,10 @@ export const useCanvasRenderer = (
           bgCtx.restore();
         }
 
-        if (canvasMode === "animation" && canvasBounds) {
+        if (canvasMode === 'animation' && canvasBounds) {
           const borderPos = GridManager.gridToScreen(0, 0, offset.x, offset.y, zoom);
           const borderRadius = Math.min(16, sw * 0.45, sh * 0.45);
-          bgCtx.strokeStyle = "#000000";
+          bgCtx.strokeStyle = '#000000';
           bgCtx.lineWidth = 2;
           traceRoundRect(
             bgCtx,
@@ -353,20 +346,20 @@ export const useCanvasRenderer = (
       }
 
       const scratchCanvas = layers.scratch.current;
-      const scratchCtx = scratchCanvas?.getContext("2d");
+      const scratchCtx = scratchCanvas?.getContext('2d');
       if (renderBaseLayers && scratchCanvas && scratchCtx) {
         prepareCanvasSurface(scratchCanvas, scratchCtx, size.width, size.height, dpr);
         drawLayer(
           scratchCtx,
           scratchLayer,
-          canvasMode === "animation" ? boundedView : viewBounds,
+          canvasMode === 'animation' ? boundedView : viewBounds,
           zoom,
           offset
         );
       }
 
       const uiCanvas = layers.ui.current;
-      const uiCtx = uiCanvas?.getContext("2d");
+      const uiCtx = uiCanvas?.getContext('2d');
       if (uiCanvas && uiCtx) {
         prepareCanvasSurface(uiCanvas, uiCtx, size.width, size.height, dpr);
 
@@ -384,15 +377,15 @@ export const useCanvasRenderer = (
         renderedSelections.forEach(drawSel);
         if (draggingSelection) drawSel(draggingSelection);
 
-        if (canvasMode === "structured" && structuredPreviewMovingGrid) {
+        if (canvasMode === 'structured' && structuredPreviewMovingGrid) {
           drawLayer(uiCtx, structuredPreviewMovingGrid, viewBounds, zoom, offset);
         }
 
         const drawActiveCellFocus = (point: Point) => {
           const pos = gridCellRect(point, { offset, zoom });
           uiCtx.save();
-          uiCtx.fillStyle = "rgba(37, 99, 235, 0.12)";
-          uiCtx.strokeStyle = "#2563eb";
+          uiCtx.fillStyle = 'rgba(37, 99, 235, 0.12)';
+          uiCtx.strokeStyle = '#2563eb';
           uiCtx.lineWidth = Math.max(1, Math.round(1.5 * zoom));
           uiCtx.fillRect(
             Math.round(pos.x),
@@ -409,7 +402,7 @@ export const useCanvasRenderer = (
           uiCtx.restore();
         };
 
-        if (canvasMode === "structured") {
+        if (canvasMode === 'structured') {
           if (
             structuredGridFocus &&
             !editingStructuredTextNodeId &&
@@ -418,39 +411,32 @@ export const useCanvasRenderer = (
             drawActiveCellFocus(structuredGridFocus);
           }
 
-          const selectionRange = getStructuredTextSelectionRange(
-            structuredTextSelection
-          );
+          const selectionRange = getStructuredTextSelectionRange(structuredTextSelection);
           const selectedTextNode =
             selectionRange && structuredTextSelection
-                ? renderedStructuredScene.find(
-                  (node) =>
-                    node.id === structuredTextSelection.nodeId &&
-                    node.type === "text"
+              ? renderedStructuredScene.find(
+                  (node) => node.id === structuredTextSelection.nodeId && node.type === 'text'
                 )
               : null;
-          if (selectedTextNode?.type === "text") {
+          if (selectedTextNode?.type === 'text') {
             getTextLayoutSelectionRects(
               createTextLayout(selectedTextNode.text, selectedTextNode.position),
               selectionRange!.start,
               selectionRange!.end
             ).forEach((rect) => {
-                const pos = gridCellRect(
-                  rect.point,
-                  { offset, zoom }
-                );
-                uiCtx.fillStyle = COLOR_SELECTION_BG;
-                uiCtx.fillRect(
-                  Math.round(pos.x),
-                  Math.round(pos.y),
-                  Math.round(pos.width * rect.width),
-                  Math.round(pos.height)
-                );
+              const pos = gridCellRect(rect.point, { offset, zoom });
+              uiCtx.fillStyle = COLOR_SELECTION_BG;
+              uiCtx.fillRect(
+                Math.round(pos.x),
+                Math.round(pos.y),
+                Math.round(pos.width * rect.width),
+                Math.round(pos.height)
+              );
             });
           }
         }
 
-        if (canvasMode === "structured" && selectedStructuredNodeIds.length > 0) {
+        if (canvasMode === 'structured' && selectedStructuredNodeIds.length > 0) {
           const selectedIds = new Set(selectedStructuredNodeIds);
           const selectedNodes = renderedStructuredScene.filter(
             (node) =>
@@ -458,7 +444,7 @@ export const useCanvasRenderer = (
               !(
                 editingStructuredTextNodeId &&
                 node.id === editingStructuredTextNodeId &&
-                node.type === "text"
+                node.type === 'text'
               )
           );
           const drawStructuredBounds = (bounds: NodeBounds) => {
@@ -473,14 +459,8 @@ export const useCanvasRenderer = (
             );
             return { pos, width, height };
           };
-          const drawActiveSplitBoxLeaf = (
-            node: StructuredSplitBoxNode,
-            point: Point | null
-          ) => {
-            const activeLeafBounds = getStructuredSplitBoxActiveLeafBounds(
-              node,
-              point
-            );
+          const drawActiveSplitBoxLeaf = (node: StructuredSplitBoxNode, point: Point | null) => {
+            const activeLeafBounds = getStructuredSplitBoxActiveLeafBounds(node, point);
             if (!activeLeafBounds) return;
 
             const pos = gridCellRect(
@@ -490,8 +470,8 @@ export const useCanvasRenderer = (
             const width = activeLeafBounds.width * pos.width;
             const height = activeLeafBounds.height * pos.height;
             uiCtx.save();
-            uiCtx.fillStyle = "rgba(37, 99, 235, 0.06)";
-            uiCtx.strokeStyle = "#2563eb";
+            uiCtx.fillStyle = 'rgba(37, 99, 235, 0.06)';
+            uiCtx.strokeStyle = '#2563eb';
             uiCtx.lineWidth = Math.max(2, Math.round(3 * zoom));
             uiCtx.fillRect(
               Math.round(pos.x),
@@ -509,7 +489,7 @@ export const useCanvasRenderer = (
           };
 
           uiCtx.save();
-          uiCtx.strokeStyle = "#2563eb";
+          uiCtx.strokeStyle = '#2563eb';
           uiCtx.lineWidth = Math.max(1, Math.round(2 * zoom));
           selectedNodes.forEach((node) => drawStructuredBounds(getStructuredNodeBounds(node)));
 
@@ -531,37 +511,27 @@ export const useCanvasRenderer = (
 
           const selectedHandleNode =
             selectedStructuredNodeIds.length === 1
-              ? renderedStructuredScene.find(
-                  (node) => node.id === selectedStructuredNodeIds[0]
-                )
+              ? renderedStructuredScene.find((node) => node.id === selectedStructuredNodeIds[0])
               : null;
           if (
-            selectedHandleNode?.type === "box" ||
-            selectedHandleNode?.type === "splitBox" ||
-            selectedHandleNode?.type === "bg"
+            selectedHandleNode?.type === 'box' ||
+            selectedHandleNode?.type === 'splitBox' ||
+            selectedHandleNode?.type === 'bg'
           ) {
             const bounds =
-              selectedHandleNode.type === "box"
+              selectedHandleNode.type === 'box'
                 ? getStructuredBoxBounds(selectedHandleNode)
                 : getStructuredNodeBounds(selectedHandleNode);
             const { pos, width, height } = drawStructuredBounds(bounds);
-            uiCtx.fillStyle = "#ffffff";
-            uiCtx.strokeStyle = "#2563eb";
+            uiCtx.fillStyle = '#ffffff';
+            uiCtx.strokeStyle = '#2563eb';
             uiCtx.lineWidth = 1;
-            if (selectedHandleNode.type === "splitBox") {
-              drawActiveSplitBoxLeaf(
-                selectedHandleNode,
-                hoveredGrid ?? structuredContextPoint
-              );
-              getStructuredSplitBoxHandlePoints(selectedHandleNode).forEach(
-                ({ point }) => {
-                  const handlePos = gridCellRect(point, { offset, zoom });
-                  drawHandle(
-                    handlePos.x + handlePos.width / 2,
-                    handlePos.y + handlePos.height / 2
-                  );
-                }
-              );
+            if (selectedHandleNode.type === 'splitBox') {
+              drawActiveSplitBoxLeaf(selectedHandleNode, hoveredGrid ?? structuredContextPoint);
+              getStructuredSplitBoxHandlePoints(selectedHandleNode).forEach(({ point }) => {
+                const handlePos = gridCellRect(point, { offset, zoom });
+                drawHandle(handlePos.x + handlePos.width / 2, handlePos.y + handlePos.height / 2);
+              });
             } else {
               getStructuredRectHandlePoints(bounds).forEach(({ xRatio, yRatio }) => {
                 const px = pos.x + width * xRatio;
@@ -569,9 +539,9 @@ export const useCanvasRenderer = (
                 drawHandle(px, py);
               });
             }
-          } else if (selectedHandleNode?.type === "line") {
-            uiCtx.fillStyle = "#ffffff";
-            uiCtx.strokeStyle = "#2563eb";
+          } else if (selectedHandleNode?.type === 'line') {
+            uiCtx.fillStyle = '#ffffff';
+            uiCtx.strokeStyle = '#2563eb';
             uiCtx.lineWidth = 1;
             getStructuredLineHandlePoints().forEach(({ point }) => {
               const endpoint = selectedHandleNode[point];
@@ -582,9 +552,9 @@ export const useCanvasRenderer = (
           uiCtx.restore();
         }
 
-        if (tool === "eraser" && hoveredGrid) {
+        if (tool === 'eraser' && hoveredGrid) {
           const pos = gridCellRect(hoveredGrid, { offset, zoom });
-          uiCtx.fillStyle = "rgba(239, 68, 68, 0.3)";
+          uiCtx.fillStyle = 'rgba(239, 68, 68, 0.3)';
           uiCtx.fillRect(
             Math.round(pos.x),
             Math.round(pos.y),
@@ -595,9 +565,9 @@ export const useCanvasRenderer = (
 
         if (renderedTextCursor) {
           const pos = gridCellRect(renderedTextCursor, { offset, zoom });
-          if (canvasMode === "freeform") {
+          if (canvasMode === 'freeform') {
             drawActiveCellFocus(renderedTextCursor);
-          } else if (canvasMode === "structured" && editingStructuredTextNodeId) {
+          } else if (canvasMode === 'structured' && editingStructuredTextNodeId) {
             uiCtx.fillStyle = COLOR_TEXT_CURSOR_BG;
             uiCtx.fillRect(
               Math.round(pos.x),
@@ -606,7 +576,9 @@ export const useCanvasRenderer = (
               Math.round(pos.height)
             );
           } else {
-            const cell = renderedGrid.get(GridManager.toKey(renderedTextCursor.x, renderedTextCursor.y));
+            const cell = renderedGrid.get(
+              GridManager.toKey(renderedTextCursor.x, renderedTextCursor.y)
+            );
             const occupancy = cell ? getCellOccupancy(cell.char) : 1;
             uiCtx.fillStyle = COLOR_TEXT_CURSOR_BG;
             uiCtx.fillRect(
@@ -629,6 +601,9 @@ export const useCanvasRenderer = (
           drawCanvasColorPickerAnchor(uiCtx, hoveredGrid, { offset, zoom });
         }
       }
+      if (renderBaseLayers) {
+        onViewportRendered?.({ offset: { ...offset }, zoom });
+      }
     };
 
     const scheduleRender = () => {
@@ -646,7 +621,7 @@ export const useCanvasRenderer = (
       baseRenderInputsRef.current = null;
       scheduleRender();
     };
-    fonts?.addEventListener("loadingdone", handleFontLoad);
+    fonts?.addEventListener('loadingdone', handleFontLoad);
 
     const requestId = requestAnimationFrame(render);
     return () => {
@@ -658,7 +633,7 @@ export const useCanvasRenderer = (
       if (requestRenderRef?.current === scheduleRender) {
         requestRenderRef.current = null;
       }
-      fonts?.removeEventListener("loadingdone", handleFontLoad);
+      fonts?.removeEventListener('loadingdone', handleFontLoad);
     };
   }, [
     offset,
@@ -690,6 +665,7 @@ export const useCanvasRenderer = (
     structuredMovePreviewRef,
     requestRenderRef,
     drawLayer,
+    onViewportRendered,
     renderedSelections,
     renderedTextCursor,
   ]);

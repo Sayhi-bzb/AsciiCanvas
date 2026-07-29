@@ -33,11 +33,8 @@ const ImportIcon = HOST_ICONOLOGY.appMenu.import;
 const ExportIcon = HOST_ICONOLOGY.appMenu.export;
 const CopyIcon = HOST_ICONOLOGY.appMenu.copy;
 const HelpIcon = HOST_ICONOLOGY.appMenu.help;
-const PreviewIcon = HOST_ICONOLOGY.appMenu.preview;
-const PreviewOffIcon = HOST_ICONOLOGY.appMenu["preview-off"];
 const GithubIcon = HOST_ICONOLOGY.appMenu.github;
 const LanguageIcon = HOST_ICONOLOGY.appMenu.language;
-const MinimapIcon = HOST_ICONOLOGY.appMenu.minimap;
 const ClearIcon = HOST_ICONOLOGY.appMenu.clear;
 const HandbookDialog = lazy(() =>
   import("@/widgets/dialogs/handbook-dialog").then((module) => ({
@@ -49,17 +46,7 @@ const ClearCanvasDialog = lazy(() =>
     default: module.ClearCanvasDialog,
   }))
 );
-const Minimap = lazy(() =>
-  import("@/widgets/canvas-editor/Minimap").then((module) => ({
-    default: module.Minimap,
-  }))
-);
-
-type AppMenuProps = {
-  containerSize?: { width: number; height: number };
-};
-
-export function AppMenu({ containerSize }: AppMenuProps) {
+export function AppMenu() {
   const {
     grid,
     canvasMode,
@@ -68,10 +55,6 @@ export function AppMenu({ containerSize }: AppMenuProps) {
     canvasBounds,
     animationTimeline,
     clearCanvas,
-    showGrid,
-    setShowGrid,
-    setOffset,
-    setZoom,
   } = useEditorStore(
     useShallow((state) => ({
       grid: state.grid,
@@ -81,10 +64,6 @@ export function AppMenu({ containerSize }: AppMenuProps) {
       canvasBounds: state.canvasBounds,
       animationTimeline: state.animationTimeline,
       clearCanvas: state.clearCanvas,
-      showGrid: state.showGrid,
-      setShowGrid: state.setShowGrid,
-      setOffset: state.setOffset,
-      setZoom: state.setZoom,
     }))
   );
   const { language, setLanguage, t } = useUiI18n();
@@ -96,7 +75,6 @@ export function AppMenu({ containerSize }: AppMenuProps) {
   } = useCanvasImport();
   const [handbookOpen, setHandbookOpen] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
-  const [minimapOpen, setMinimapOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const clearLabel =
     canvasMode === "animation"
@@ -110,12 +88,6 @@ export function AppMenu({ containerSize }: AppMenuProps) {
     canvasMode === "animation"
       ? t("export.tooltip.animation")
       : t("export.tooltip.blueprint");
-  const actionContext = {
-    showGrid,
-    setShowGrid,
-    setZoom,
-    setOffset,
-  };
   const availableExportFormats = useMemo(
     () => getAvailableExportFormats(canvasMode),
     [canvasMode]
@@ -248,26 +220,6 @@ export function AppMenu({ containerSize }: AppMenuProps) {
                     )}
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
-                <DropdownMenuItem
-                  onSelect={(event) => {
-                    event.preventDefault();
-                    runSidebarAction("toggle-grid", actionContext);
-                  }}
-                >
-                  {showGrid ? <PreviewIcon className="text-primary" /> : <PreviewOffIcon />}
-                  {showGrid ? t("sidebar.grid.hide") : t("action.toggleGrid")}
-                </DropdownMenuItem>
-                {canvasMode !== "animation" && (
-                  <DropdownMenuItem
-                    onSelect={(event) => {
-                      event.preventDefault();
-                      setMinimapOpen((open) => !open);
-                    }}
-                  >
-                    <MinimapIcon />
-                    {t("sidebar.minimap")}
-                  </DropdownMenuItem>
-                )}
                 <DropdownMenuItem onSelect={() => setHandbookOpen(true)}>
                   <HelpIcon />
                   {t("manual.title")}
@@ -309,7 +261,7 @@ export function AppMenu({ containerSize }: AppMenuProps) {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onSelect={() =>
-                    runSidebarAction("open-source-code", actionContext)
+                    runSidebarAction("open-source-code", {})
                   }
                 >
                   <GithubIcon />
@@ -317,16 +269,6 @@ export function AppMenu({ containerSize }: AppMenuProps) {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-        {minimapOpen && (
-          <div
-            data-testid="app-menu-minimap"
-            className="absolute left-0 top-10 z-40 w-auto overflow-hidden rounded-lg bg-muted"
-          >
-            <Suspense fallback={<div className="size-48 bg-muted" />}>
-              <Minimap containerSize={containerSize} />
-            </Suspense>
-          </div>
-        )}
       </div>
 
       <Suspense fallback={null}>

@@ -73,6 +73,23 @@ test.describe("App menu", () => {
     await expect(trigger).toBeVisible();
     await expect(page.locator('[data-slot="sidebar-footer"]')).toHaveCount(0);
 
+    const gridControl = page.getByRole("button", {
+      name: "Hide Workspace Grid",
+    });
+    const minimapControl = page.getByRole("button", { name: "Minimap" });
+    await gridControl.click();
+    await expect(
+      page.getByRole("button", { name: "Toggle Grid" })
+    ).toHaveAttribute("aria-pressed", "false");
+    await minimapControl.click();
+    const minimap = page.getByLabel("Canvas minimap");
+    await expect(minimap).toBeVisible();
+    const minimapBox = await minimap.boundingBox();
+    const minimapControlBox = await minimapControl.boundingBox();
+    expect(minimapBox).not.toBeNull();
+    expect(minimapControlBox).not.toBeNull();
+    expect(minimapBox!.y + minimapBox!.height).toBeLessThan(minimapControlBox!.y);
+
     const triggerBox = await trigger.boundingBox();
     const breadcrumbBox = await canvasBreadcrumb.boundingBox();
     expect(triggerBox).not.toBeNull();
@@ -85,23 +102,11 @@ test.describe("App menu", () => {
     await expect(menu.getByRole("menuitem").allTextContents()).resolves.toEqual([
       "Import Canvas",
       "Export Blueprint",
-      "Hide Workspace Grid",
-      "Minimap",
       "User Manual",
       "Clear Canvas",
       "UI language",
       "Open Source Code",
     ]);
-
-    await menu.getByRole("menuitem", { name: "Hide Workspace Grid" }).click();
-    await expect(menu).toBeVisible();
-    await expect(
-      menu.getByRole("menuitem", { name: "Toggle Grid" })
-    ).toBeVisible();
-
-    await menu.getByRole("menuitem", { name: "Minimap" }).click();
-    await expect(menu).toBeVisible();
-    await expect(page.getByLabel("Canvas minimap")).toBeVisible();
 
     await menu.getByRole("menuitem", { name: "Export Blueprint" }).hover();
     const exportMenu = page.getByRole("menu", { name: "Export Blueprint" });
@@ -140,6 +145,7 @@ test.describe("App menu", () => {
 
     const separator = menu.locator('[data-slot="dropdown-menu-separator"]');
     await expect(separator).toHaveCSS("height", "2px");
+    await expect(separator).toHaveClass(/bg-accent/);
 
     await page.mouse.click(700, 500);
     await expect(menuContent).toHaveCount(0);

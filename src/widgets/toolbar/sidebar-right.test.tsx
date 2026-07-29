@@ -369,10 +369,18 @@ describe("SidebarRight structured templates", () => {
     const effectsTab = screen.getByRole("tab", { name: "Effects" });
     expect(framesTab).toHaveAttribute("aria-selected", "true");
     expect(framesTab).toHaveClass("bg-accent", "text-foreground");
-    expect(framesTab.parentElement).toHaveClass("border-b", "p-[3px]");
+    expect(framesTab.parentElement).toHaveClass(
+      "border-b",
+      "border-accent",
+      "p-[3px]"
+    );
 
     const commandBar = screen.getByTestId("animation-frame-command-bar");
-    expect(commandBar).toHaveClass("h-10", "shrink-0");
+    expect(commandBar).toHaveClass(
+      "h-10",
+      "shrink-0",
+      "border-accent"
+    );
     expect(screen.getByText("1 frames")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Add after current" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Duplicate" })).toBeEnabled();

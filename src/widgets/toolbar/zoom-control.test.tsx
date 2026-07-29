@@ -10,6 +10,14 @@ vi.mock('@/shared/hooks/use-mobile', () => ({
   useIsMobile: () => isMobile,
 }));
 
+vi.mock('@/widgets/canvas-editor/Minimap', () => ({
+  Minimap: ({ containerSize }: { containerSize?: { width: number; height: number } }) => (
+    <div data-testid="mock-minimap">
+      {containerSize ? `${containerSize.width}x${containerSize.height}` : 'no-size'}
+    </div>
+  ),
+}));
+
 beforeEach(() => {
   reduceMotion = true;
   vi.stubGlobal(
@@ -38,16 +46,55 @@ describe('ZoomControl', () => {
     const out = screen.getByTestId('zoom-out');
     const reset = screen.getByTestId('zoom-reset');
     const zoomIn = screen.getByTestId('zoom-in');
+    const grid = screen.getByTestId('zoom-grid');
+    const minimap = screen.getByTestId('zoom-minimap-toggle');
 
     expect(host).toHaveClass('fixed', 'bottom-3', 'left-3', 'flex', 'bg-muted');
-    expect(Array.from(host.children)).toEqual([out, reset, zoomIn]);
+    expect(Array.from(host.children)).toEqual([out, reset, zoomIn, grid, minimap]);
     expect(out).toHaveClass('size-8', 'rounded-r-none');
     expect(reset).toHaveClass('h-8', 'min-w-14', 'rounded-none', 'tabular-nums');
-    expect(zoomIn).toHaveClass('size-8', 'rounded-l-none');
+    expect(zoomIn).toHaveClass('size-8', 'rounded-none');
+    expect(grid).toHaveClass('size-8', 'rounded-none');
+    expect(minimap).toHaveClass('size-8', 'rounded-l-none');
     expect(reset).toHaveTextContent('126%');
     expect(reset).toHaveAttribute('aria-label', 'Reset to 100% — 126%');
     expect(screen.queryByTestId('zoom-menu-trigger')).not.toBeInTheDocument();
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+  });
+
+  it('toggles the workspace grid and minimap from the viewport group', async () => {
+    useEditorStore.setState({ canvasMode: 'freeform', showGrid: true });
+    render(<ZoomControl containerSize={{ width: 1000, height: 700 }} />);
+
+    const grid = screen.getByTestId('zoom-grid');
+    const minimap = screen.getByTestId('zoom-minimap-toggle');
+    expect(grid).toHaveAttribute('aria-pressed', 'true');
+    expect(grid).toHaveClass('bg-accent');
+    fireEvent.click(grid);
+    expect(useEditorStore.getState().showGrid).toBe(false);
+    expect(grid).toHaveAttribute('aria-pressed', 'false');
+
+    expect(minimap).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(minimap);
+    expect(minimap).toHaveAttribute('aria-pressed', 'true');
+    expect(await screen.findByTestId('mock-minimap')).toHaveTextContent('1000x700');
+    expect(screen.getByTestId('zoom-minimap')).toHaveClass('absolute', 'bottom-full', 'left-0');
+    fireEvent.click(minimap);
+    expect(screen.queryByTestId('zoom-minimap')).not.toBeInTheDocument();
+  });
+
+  it('hides and closes the minimap in animation mode', async () => {
+    useEditorStore.setState({ canvasMode: 'freeform' });
+    render(<ZoomControl containerSize={{ width: 1000, height: 700 }} />);
+    fireEvent.click(screen.getByTestId('zoom-minimap-toggle'));
+    expect(await screen.findByTestId('zoom-minimap')).toBeInTheDocument();
+
+    act(() => useEditorStore.setState({ canvasMode: 'animation' }));
+    await waitFor(() => {
+      expect(screen.queryByTestId('zoom-minimap-toggle')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('zoom-minimap')).not.toBeInTheDocument();
+    });
+    expect(screen.getByTestId('zoom-grid')).toHaveClass('rounded-l-none');
   });
 
   it('zooms around the canvas center and resets directly when motion is reduced', () => {

@@ -345,7 +345,7 @@ export function CanvasBreadcrumb() {
 
       <Dialog open={animationDialogOpen} onOpenChange={setAnimationDialogOpen}>
         <DialogContent className="max-w-md overflow-hidden border-none p-0 shadow-2xl">
-          <div className="border-b bg-muted/30 px-4 py-3">
+          <div className="border-b border-accent bg-muted/30 px-4 py-3">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <AnimationModeIcon className="size-4 text-primary" />

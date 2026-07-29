@@ -68,7 +68,7 @@ export function HandbookDialog({
         </Tooltip>
       )}
       <DialogContent className="sm:max-w-[500px] p-0 gap-0 overflow-hidden">
-        <div className="bg-muted/30 p-5 pb-4 border-b">
+        <div className="bg-muted/30 p-5 pb-4 border-b border-accent">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Keyboard className="size-5 text-primary" />
@@ -119,7 +119,7 @@ export function HandbookDialog({
                     </p>
                   </div>
                 </div>
-                <div className="flex justify-between items-start border-t border-primary pt-2">
+                <div className="flex justify-between items-start border-t border-accent pt-2">
                   <div className="space-y-1">
                     <p className="font-bold text-foreground">{t("manual.textFlow")}</p>
                     <p className="text-muted-foreground">
@@ -135,7 +135,7 @@ export function HandbookDialog({
                 <Layers className="size-4" /> {t("manual.structuredCanvas")}
               </h4>
               <div className="space-y-2 text-xs">
-                <div className="flex items-center justify-between py-1.5 border-b border-border">
+                <div className="flex items-center justify-between py-1.5 border-b border-accent">
                   <div className="flex flex-col">
                     <span className="font-medium">{t("manual.insert")}</span>
                     <span className="text-[10px] text-muted-foreground">
@@ -146,7 +146,7 @@ export function HandbookDialog({
                     text/bg/box
                   </span>
                 </div>
-                <div className="flex items-center justify-between py-1.5 border-b border-border">
+                <div className="flex items-center justify-between py-1.5 border-b border-accent">
                   <div className="flex flex-col">
                     <span className="font-medium">{t("manual.move")}</span>
                     <span className="text-[10px] text-muted-foreground">
@@ -155,7 +155,7 @@ export function HandbookDialog({
                   </div>
                   <Move className="size-3 text-muted-foreground" />
                 </div>
-                <div className="flex items-center justify-between py-1.5 border-b border-border">
+                <div className="flex items-center justify-between py-1.5 border-b border-accent">
                   <div className="flex flex-col">
                     <span className="font-medium">{t("manual.resize")}</span>
                     <span className="text-[10px] text-muted-foreground">
@@ -172,7 +172,7 @@ export function HandbookDialog({
                 <Type className="size-4" /> {t("manual.structuredEditing")}
               </h4>
               <div className="space-y-2 text-xs">
-                <div className="flex items-center justify-between py-1.5 border-b border-border">
+                <div className="flex items-center justify-between py-1.5 border-b border-accent">
                   <div className="flex flex-col">
                     <span className="font-medium">{t("manual.textEdit")}</span>
                     <span className="text-[10px] text-muted-foreground">
@@ -183,7 +183,7 @@ export function HandbookDialog({
                     Double
                   </kbd>
                 </div>
-                <div className="flex items-center justify-between py-1.5 border-b border-border">
+                <div className="flex items-center justify-between py-1.5 border-b border-accent">
                   <div className="flex flex-col">
                     <span className="font-medium">{t("manual.rangeStyle")}</span>
                     <span className="text-[10px] text-muted-foreground">
@@ -192,7 +192,7 @@ export function HandbookDialog({
                   </div>
                   <Type className="size-3 text-muted-foreground" />
                 </div>
-                <div className="flex items-center justify-between py-1.5 border-b border-border">
+                <div className="flex items-center justify-between py-1.5 border-b border-accent">
                   <div className="flex flex-col">
                     <span className="font-medium">{t("manual.shapeStyle")}</span>
                     <span className="text-[10px] text-muted-foreground">

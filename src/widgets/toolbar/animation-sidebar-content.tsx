@@ -876,7 +876,7 @@ export function AnimationSidebarContent() {
       <div
         role="tablist"
         aria-label={t("animation.sidebar.views")}
-        className="grid shrink-0 grid-cols-2 gap-1 border-b border-border/70 p-[3px]"
+        className="grid shrink-0 grid-cols-2 gap-1 border-b border-accent p-[3px]"
       >
         {(["frames", "effects"] as const).map((mode) => {
           const Icon = sidebarIcons[mode];
@@ -917,7 +917,7 @@ export function AnimationSidebarContent() {
         >
           <div
             data-testid="animation-frame-command-bar"
-            className="flex h-10 shrink-0 items-center justify-between border-b border-border/70 px-2"
+            className="flex h-10 shrink-0 items-center justify-between border-b border-accent px-2"
           >
             <span className="min-w-0 truncate text-[11px] font-medium text-muted-foreground">
               {selectionStatus}

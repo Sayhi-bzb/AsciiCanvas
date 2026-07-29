@@ -164,7 +164,7 @@ function AppContent() {
           data-testid="app-top-bar"
           className="absolute left-3 top-3 z-50 flex min-w-0 items-center gap-1 pointer-events-none"
         >
-          <AppMenu containerSize={canvasContainerSize} />
+          <AppMenu />
           <CanvasBreadcrumb />
         </div>
         <ZoomControl containerSize={canvasContainerSize} />

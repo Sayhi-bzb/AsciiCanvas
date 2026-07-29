@@ -38,7 +38,8 @@ describe("ContextMenu styling", () => {
       "shadow-none",
       "rounded-lg"
     );
-    expect(screen.getByRole("separator")).toHaveClass("h-0.5");
+    expect(screen.getByRole("separator")).toHaveClass("h-0.5", "bg-accent");
+    expect(screen.getByRole("separator")).not.toHaveClass("bg-border");
 
     const subTrigger = screen.getByText("More");
     subTrigger.focus();

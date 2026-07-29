@@ -12,6 +12,7 @@ import {
   Grid2X2,
   GripVertical,
   Menu,
+  Map as MapIcon,
   Minus,
   MoveDown,
   Play,
@@ -58,6 +59,8 @@ describe('Host iconology', () => {
     expect(HOST_ICONOLOGY.shapeTool.box).toBe(Square);
     expect(HOST_ICONOLOGY.zoomAction.out).toBe(Minus);
     expect(HOST_ICONOLOGY.zoomAction.in).toBe(Plus);
+    expect(HOST_ICONOLOGY.viewportAction.grid).toBe(Grid2X2);
+    expect(HOST_ICONOLOGY.viewportAction.minimap).toBe(MapIcon);
     expect(HOST_ICONOLOGY.animationAction.play).toBe(Play);
     expect(HOST_ICONOLOGY.animationSidebar.effects).toBe(Sparkles);
     expect(HOST_ICONOLOGY.animationSidebar.reorder).toBe(GripVertical);

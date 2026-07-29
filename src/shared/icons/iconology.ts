@@ -17,8 +17,6 @@ import {
   CopyPlus,
   Download,
   Eraser,
-  Eye,
-  EyeOff,
   Film,
   Github,
   Grid2X2,
@@ -152,6 +150,10 @@ export const HOST_ICONOLOGY = {
     out: Minus,
     in: Plus,
   } satisfies IconMap<'out' | 'in'>,
+  viewportAction: {
+    grid: Grid2X2,
+    minimap: Map,
+  } satisfies IconMap<'grid' | 'minimap'>,
   selectionAction: {
     bold: Bold,
     italic: Italic,
@@ -215,11 +217,8 @@ export const HOST_ICONOLOGY = {
     export: Download,
     copy: Copy,
     help: CircleHelp,
-    preview: Eye,
-    'preview-off': EyeOff,
     github: Github,
     language: Languages,
-    minimap: Map,
     clear: Trash2,
   } satisfies IconMap<
     | 'trigger'
@@ -227,11 +226,8 @@ export const HOST_ICONOLOGY = {
     | 'export'
     | 'copy'
     | 'help'
-    | 'preview'
-    | 'preview-off'
     | 'github'
     | 'language'
-    | 'minimap'
     | 'clear'
   >,
   sessionAction: {
