@@ -1,107 +1,102 @@
-import {
-  BringToFront,
-  Clipboard,
-  Copy,
-  CopyPlus,
-  Eraser,
-  Hand,
-  Highlighter,
-  Image,
-  Layers,
-  LineSquiggle,
-  MousePointer2,
-  PaintbrushVertical,
-  Palette,
-  Pencil,
-  Scissors,
-  SendToBack,
-  SquareSplitHorizontal,
-  SquareSplitVertical,
-  SquarePen,
-  Trash2,
-  Type,
-  Undo2,
-} from "lucide-react";
-import type { ActionMeta, ContextMenuEntry, EditorActionId, ToolbarActionId, SidebarActionId } from "./types";
+import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
+import type {
+  ActionMeta,
+  ContextMenuEntry,
+  EditorActionId,
+  SidebarActionId,
+  ToolbarActionId,
+} from "./types";
 
 // Editor Actions
 const EDITOR_ACTION_META: Record<EditorActionId, ActionMeta> = {
   undo: { id: "undo", label: "Undo" },
   redo: { id: "redo", label: "Redo" },
-  copy: { id: "copy", label: "Copy as Text", icon: Copy },
+  copy: {
+    id: "copy",
+    label: "Copy as Text",
+    icon: HOST_ICONOLOGY.editorAction.copy,
+  },
   "copy-rich": {
     id: "copy-rich",
     label: "Copy with Color",
-    icon: Palette,
+    icon: HOST_ICONOLOGY.editorAction["copy-rich"],
   },
   "copy-ansi": {
     id: "copy-ansi",
     label: "Copy as ANSI",
-    icon: Palette,
+    icon: HOST_ICONOLOGY.editorAction["copy-ansi"],
   },
-  cut: { id: "cut", label: "Cut Zone", icon: Scissors },
-  paste: { id: "paste", label: "Paste Lot", icon: Clipboard },
+  cut: {
+    id: "cut",
+    label: "Cut Zone",
+    icon: HOST_ICONOLOGY.editorAction.cut,
+  },
+  paste: {
+    id: "paste",
+    label: "Paste Lot",
+    icon: HOST_ICONOLOGY.editorAction.paste,
+  },
   "fill-selection-char": { id: "fill-selection-char", label: "Fill Selection" },
   "snapshot-png": {
     id: "snapshot-png",
     label: "Snapshot (PNG)",
-    icon: Image,
+    icon: HOST_ICONOLOGY.editorAction["snapshot-png"],
   },
   "delete-selection": {
     id: "delete-selection",
     label: "Delete",
-    icon: Trash2,
+    icon: HOST_ICONOLOGY.editorAction["delete-selection"],
     destructive: true,
   },
   "structured-rename": {
     id: "structured-rename",
     label: "Rename",
-    icon: SquarePen,
+    icon: HOST_ICONOLOGY.editorAction["structured-rename"],
   },
   "structured-bring-forward": {
     id: "structured-bring-forward",
     label: "Bring Forward",
-    icon: BringToFront,
+    icon: HOST_ICONOLOGY.editorAction["structured-bring-forward"],
   },
   "structured-send-backward": {
     id: "structured-send-backward",
     label: "Send Backward",
-    icon: SendToBack,
+    icon: HOST_ICONOLOGY.editorAction["structured-send-backward"],
   },
   "structured-bring-to-front": {
     id: "structured-bring-to-front",
     label: "Bring to Front",
-    icon: BringToFront,
+    icon: HOST_ICONOLOGY.editorAction["structured-bring-to-front"],
   },
   "structured-send-to-back": {
     id: "structured-send-to-back",
     label: "Send to Back",
-    icon: SendToBack,
+    icon: HOST_ICONOLOGY.editorAction["structured-send-to-back"],
   },
   "structured-duplicate": {
     id: "structured-duplicate",
     label: "Duplicate",
-    icon: CopyPlus,
+    icon: HOST_ICONOLOGY.editorAction["structured-duplicate"],
   },
   "structured-copy-hierarchy": {
     id: "structured-copy-hierarchy",
     label: "Copy Structure",
-    icon: Copy,
+    icon: HOST_ICONOLOGY.editorAction["structured-copy-hierarchy"],
   },
   "structured-split-horizontal": {
     id: "structured-split-horizontal",
     label: "Split Horizontal",
-    icon: SquareSplitVertical,
+    icon: HOST_ICONOLOGY.editorAction["structured-split-horizontal"],
   },
   "structured-split-vertical": {
     id: "structured-split-vertical",
     label: "Split Vertical",
-    icon: SquareSplitHorizontal,
+    icon: HOST_ICONOLOGY.editorAction["structured-split-vertical"],
   },
   "structured-delete-divider": {
     id: "structured-delete-divider",
     label: "Delete Divider",
-    icon: Trash2,
+    icon: HOST_ICONOLOGY.editorAction["structured-delete-divider"],
     destructive: true,
   },
 };
@@ -117,21 +112,59 @@ export const TOOLBAR_ACTION_ORDER: ToolbarActionId[] = [
 ];
 
 export const TOOLBAR_ACTION_META: Record<ToolbarActionId, ActionMeta> = {
-  select: { id: "select", label: "Select", icon: MousePointer2 },
-  text: { id: "text", label: "Text", icon: Type },
-  brush: { id: "brush", label: "Brush", icon: Pencil, hasSub: true },
+  select: {
+    id: "select",
+    label: "Select",
+    icon: HOST_ICONOLOGY.toolbarAction.select,
+  },
+  text: {
+    id: "text",
+    label: "Text",
+    icon: HOST_ICONOLOGY.toolbarAction.text,
+  },
+  brush: {
+    id: "brush",
+    label: "Brush",
+    icon: HOST_ICONOLOGY.toolbarAction.brush,
+    hasSub: true,
+  },
   "shape-group": {
     id: "shape-group",
     label: "Shape",
-    icon: LineSquiggle,
+    icon: HOST_ICONOLOGY.toolbarAction["shape-group"],
     hasSub: true,
   },
-  bg: { id: "bg", label: "Background", icon: Highlighter },
-  fill: { id: "fill", label: "Paint Char Color", icon: PaintbrushVertical },
-  eraser: { id: "eraser", label: "Eraser", icon: Eraser },
-  undo: { id: "undo", label: "Undo", icon: Undo2 },
-  color: { id: "color", label: "Color", icon: Palette, hasSub: true },
-  pan: { id: "pan", label: "Pan", icon: Hand },
+  bg: {
+    id: "bg",
+    label: "Background",
+    icon: HOST_ICONOLOGY.toolbarAction.bg,
+  },
+  fill: {
+    id: "fill",
+    label: "Paint Char Color",
+    icon: HOST_ICONOLOGY.toolbarAction.fill,
+  },
+  eraser: {
+    id: "eraser",
+    label: "Eraser",
+    icon: HOST_ICONOLOGY.toolbarAction.eraser,
+  },
+  undo: {
+    id: "undo",
+    label: "Undo",
+    icon: HOST_ICONOLOGY.toolbarAction.undo,
+  },
+  color: {
+    id: "color",
+    label: "Color",
+    icon: HOST_ICONOLOGY.toolbarAction.color,
+    hasSub: true,
+  },
+  pan: {
+    id: "pan",
+    label: "Pan",
+    icon: HOST_ICONOLOGY.toolbarAction.pan,
+  },
 };
 
 // Sidebar Actions
@@ -157,13 +190,12 @@ export const CANVAS_CONTEXT_MENU: ContextMenuEntry[] = [
   { type: "action", id: "delete-selection" },
 ];
 
-
 export const STRUCTURED_CONTEXT_MENU: ContextMenuEntry[] = [
   { type: "action", id: "structured-rename" },
   {
     type: "submenu",
     label: "Layer",
-    icon: Layers,
+    icon: HOST_ICONOLOGY.editorAction["structured-layer-menu"],
     children: [
       { type: "action", id: "structured-bring-forward" },
       { type: "action", id: "structured-send-backward" },

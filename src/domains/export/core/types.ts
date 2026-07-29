@@ -3,7 +3,13 @@ import type { CanvasMode } from "@/domains/sessions/public";
 import type { StructuredComponentInstance, StructuredNode } from "@/domains/structured-content/public";
 import type { AnimationCanvasSize, AnimationTimeline } from "@/domains/animation/public";
 
-export type ExportFormat = "txt" | "json" | "ansi" | "png" | "gif" | "cast";
+export type ExportFormat =
+  | "txt"
+  | "ascanvas"
+  | "ansi"
+  | "png"
+  | "gif"
+  | "cast";
 
 export type ExportContext = {
   canvasMode: CanvasMode;

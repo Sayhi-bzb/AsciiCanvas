@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { Box, Clapperboard, Pencil, Plus, X } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { useEditorStore } from "@/domains/canvas/public";
 import { useShallow } from "zustand/react/shallow";
 import { cn } from "@/shared/lib/utils";
@@ -30,6 +30,9 @@ import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
 import { useUiI18n, type I18nKey } from "@/shared/i18n";
 import { Tabs, TabsList, TabsTrigger } from "@/shared/ui/tabs";
+import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
+
+const AnimationModeIcon = HOST_ICONOLOGY.canvasMode.animation;
 
 const ANIMATION_SIZE_PRESETS = [
   { labelKey: "session.animation.preset.classicTerminal", width: 80, height: 25 },
@@ -59,24 +62,30 @@ function SessionModeIcon({
   mode: "freeform" | "structured" | "animation" | undefined;
   className?: string;
 }) {
-  switch (mode) {
-    case "structured":
-      return <Box className={className} />;
-    case "animation":
-      return <Clapperboard className={className} />;
-    default:
-      return <Pencil className={className} />;
-  }
+  const Icon = HOST_ICONOLOGY.canvasMode[mode ?? "freeform"];
+  return <Icon className={className} />;
 }
 
 const createOptionMeta = [
-  { mode: "freeform" as const, labelKey: "session.newFreeform", icon: Pencil },
-  { mode: "structured" as const, labelKey: "session.newStructured", icon: Box },
-  { mode: "animation" as const, labelKey: "session.newAnimation", icon: Clapperboard },
+  {
+    mode: "freeform" as const,
+    labelKey: "session.newFreeform",
+    icon: HOST_ICONOLOGY.canvasMode.freeform,
+  },
+  {
+    mode: "structured" as const,
+    labelKey: "session.newStructured",
+    icon: HOST_ICONOLOGY.canvasMode.structured,
+  },
+  {
+    mode: "animation" as const,
+    labelKey: "session.newAnimation",
+    icon: HOST_ICONOLOGY.canvasMode.animation,
+  },
 ] satisfies Array<{
   mode: "freeform" | "structured" | "animation";
   labelKey: I18nKey;
-  icon: typeof Pencil;
+  icon: (typeof HOST_ICONOLOGY.canvasMode)[keyof typeof HOST_ICONOLOGY.canvasMode];
 }>;
 
 export function SessionTabs({
@@ -445,7 +454,7 @@ export function SessionTabs({
           <div className="border-b bg-muted/30 px-4 py-3">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <Clapperboard className="size-4 text-primary" />
+                <AnimationModeIcon className="size-4 text-primary" />
                 {t("session.animation.title")}
               </DialogTitle>
               <DialogDescription className="text-xs">

@@ -1,6 +1,5 @@
 "use client";
 
-import { Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useEditorStore } from "@/domains/canvas/public";
@@ -21,6 +20,7 @@ import type {
   GeneratedAnimationApplyMode,
 } from "@/domains/animation/public";
 import { generateAnimationFrames } from "@/domains/animation/public";
+import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
 
 const PRESET_LABELS: Record<AnimationGeneratorKind, string> = {
   spinner: "Spinner",
@@ -151,6 +151,7 @@ function ColorField({
 }
 
 export function AnimationEffectsPanel() {
+  const GenerateFramesIcon = HOST_ICONOLOGY.animationAction["generate-frames"];
   const {
     grid,
     brushColor,
@@ -321,7 +322,7 @@ export function AnimationEffectsPanel() {
           onClick={applyFrames}
           disabled={generated.frames.length === 0}
         >
-          <Sparkles className="size-4" />
+          <GenerateFramesIcon className="size-4" />
           Generate {generated.frames.length} Frames
         </Button>
       </div>

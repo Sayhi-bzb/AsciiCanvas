@@ -92,7 +92,7 @@ export const prepareTextExport = (
             "text/plain;charset=utf-8"
           )
         );
-      case "json":
+      case "ascanvas":
         if (
           context.canvasMode === "animation" &&
           (!context.canvasBounds || !context.animationTimeline)
@@ -103,8 +103,8 @@ export const prepareTextExport = (
           textArtifact(
             format,
             exportProtocolToJSON(context),
-            `ascii-canvas-${getTimestamp()}.json`,
-            "application/json;charset=utf-8"
+            `ascii-canvas-${getTimestamp()}.ascanvas`,
+            "application/vnd.ascii-canvas+json;charset=utf-8"
           )
         );
       case "ansi":

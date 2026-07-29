@@ -7,6 +7,10 @@ import {
   type ExportContext,
 } from "@/domains/export/public";
 import { clipboard } from "@/shared/services/effects";
+import {
+  parseProtocolDocument,
+  protocolDocumentToSnapshot,
+} from "@/domains/document/public";
 
 const createContext = (
   overrides: Partial<ExportContext> = {}
@@ -26,10 +30,33 @@ describe("export service", () => {
   it("derives available formats from the session mode", () => {
     expect(
       getAvailableExportFormats("freeform").map(({ format }) => format)
-    ).toEqual(["txt", "json", "ansi", "png"]);
+    ).toEqual(["txt", "ascanvas", "ansi", "png"]);
+    expect(
+      getAvailableExportFormats("structured").map(({ format }) => format)
+    ).toEqual(["txt", "ascanvas", "ansi", "png"]);
     expect(
       getAvailableExportFormats("animation").map(({ format }) => format)
-    ).toEqual(["json", "cast", "gif"]);
+    ).toEqual(["ascanvas", "cast", "gif"]);
+  });
+
+  it("builds a round-trippable AsciiCanvas project artifact", () => {
+    const result = prepareTextExport(createContext(), "ascanvas");
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value).toMatchObject({
+      kind: "text",
+      format: "ascanvas",
+      mimeType: "application/vnd.ascii-canvas+json;charset=utf-8",
+    });
+    expect(result.value.filename).toMatch(/^ascii-canvas-\d+\.ascanvas$/);
+    const snapshot = protocolDocumentToSnapshot(
+      parseProtocolDocument(result.value.content)
+    );
+    expect(snapshot).toMatchObject({
+      mode: "freeform",
+      grid: [["0,0", { char: "A", color: "#ffffff" }]],
+    });
   });
 
   it("builds text artifacts with stable metadata", () => {

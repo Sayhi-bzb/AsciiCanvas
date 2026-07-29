@@ -1,5 +1,4 @@
 import { useKeyPress, useLocalStorageState } from "ahooks";
-import { Library } from "lucide-react";
 import { AsciiCanvas } from "@/widgets/canvas-editor";
 import { useEditorStore } from "@/domains/canvas/public";
 import { AppLayout } from "./AppLayout";
@@ -17,6 +16,7 @@ import { useIsMobile, useSidebarAutoCollapseSignal } from "@/shared/hooks/use-mo
 import { cn } from "@/shared/lib/utils";
 import { TooltipProvider } from "@/shared/ui/tooltip";
 import { AppMenu } from "@/widgets/toolbar/app-menu";
+import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
 
 const SidebarRight = lazy(() =>
   import("@/widgets/toolbar/sidebar-right").then((module) => ({
@@ -26,6 +26,7 @@ const SidebarRight = lazy(() =>
 
 // Mobile sidebar trigger.
 function MobileSidebarTrigger() {
+  const OpenSidebarIcon = HOST_ICONOLOGY.chrome["open-right-sidebar"];
   const isMobile = useIsMobile();
   const { setOpenMobile } = useSidebar();
 
@@ -42,7 +43,7 @@ function MobileSidebarTrigger() {
       )}
       aria-label="Open library"
     >
-      <Library className="size-5" />
+      <OpenSidebarIcon className="size-5" />
     </button>
   );
 }

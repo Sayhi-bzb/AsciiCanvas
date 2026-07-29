@@ -3,7 +3,6 @@
 
 import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
-import { PanelLeftIcon } from "lucide-react";
 
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { cn } from "@/shared/lib/utils";
@@ -23,6 +22,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/shared/ui/tooltip";
+import { SidebarToggleIcon } from "@/shared/icons/iconology";
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state";
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
@@ -253,9 +253,11 @@ function Sidebar({
 function SidebarTrigger({
   className,
   onClick,
+  side = "left",
   ...props
-}: React.ComponentProps<typeof Button>) {
-  const { toggleSidebar } = useSidebar();
+}: React.ComponentProps<typeof Button> & { side?: "left" | "right" }) {
+  const { toggleSidebar, state, isMobile, openMobile } = useSidebar();
+  const isOpen = isMobile ? openMobile : state === "expanded";
   return (
     <Button
       data-sidebar="trigger"
@@ -270,7 +272,7 @@ function SidebarTrigger({
       }}
       {...props}
     >
-      <PanelLeftIcon />
+      <SidebarToggleIcon side={side} isOpen={isOpen} />
       <span className="sr-only">Toggle Sidebar</span>
     </Button>
   );
@@ -524,6 +526,7 @@ function SidebarStandard({
   footer,
   contentClassName,
   className,
+  side = "left",
   ...props
 }: React.ComponentProps<typeof Sidebar> & {
   collapsedContent?: React.ReactNode;
@@ -542,6 +545,7 @@ function SidebarStandard({
 
   return (
     <Sidebar
+      side={side}
       collapsible="icon"
       collapsedAppearance={collapsedAppearance}
       className={cn("z-40", className)}
@@ -575,7 +579,7 @@ function SidebarStandard({
               isCollapsed ? "flex-col-reverse" : "flex-row"
             )}
           >
-            <SidebarTrigger />
+            <SidebarTrigger side={side} />
           </div>
         </SidebarHeader>
       )}

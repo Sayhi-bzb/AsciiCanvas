@@ -1,7 +1,8 @@
 "use client";
 
-import { lazy, Suspense, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import {
+  Copy,
   CircleHelp,
   Download,
   Eye,
@@ -16,29 +17,28 @@ import {
 import { useShallow } from "zustand/react/shallow";
 import { useEditorStore } from "@/domains/canvas/public";
 import { runSidebarAction } from "@/domains/actions/public";
+import {
+  getAvailableExportFormats,
+  type ExportContext,
+} from "@/domains/export/public";
 import { Button } from "@/shared/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
-import {
-  Popover,
-  PopoverAnchor,
-  PopoverContent,
-} from "@/shared/ui/popover";
 import { useUiI18n } from "@/shared/i18n";
 import { cn } from "@/shared/lib/utils";
 import { uiClass } from "@/shared/styles/components";
 import { useCanvasImport } from "@/widgets/import/useCanvasImport";
-
-const ExportDialog = lazy(() =>
-  import("@/widgets/export/export-dialog").then((module) => ({
-    default: module.ExportDialog,
-  }))
-);
+import { useAppMenuExport } from "@/widgets/export/use-app-menu-export";
 const HandbookDialog = lazy(() =>
   import("@/widgets/dialogs/handbook-dialog").then((module) => ({
     default: module.HandbookDialog,
@@ -70,8 +70,6 @@ export function AppMenu({ containerSize }: AppMenuProps) {
     clearCanvas,
     showGrid,
     setShowGrid,
-    exportShowGrid,
-    setExportShowGrid,
     setOffset,
     setZoom,
   } = useEditorStore(
@@ -85,25 +83,21 @@ export function AppMenu({ containerSize }: AppMenuProps) {
       clearCanvas: state.clearCanvas,
       showGrid: state.showGrid,
       setShowGrid: state.setShowGrid,
-      exportShowGrid: state.exportShowGrid,
-      setExportShowGrid: state.setExportShowGrid,
       setOffset: state.setOffset,
       setZoom: state.setZoom,
     }))
   );
-  const { language, t, toggleLanguage } = useUiI18n();
+  const { language, setLanguage, t } = useUiI18n();
   const {
     fileInputRef,
     handleFileChange,
     isImporting,
     openFilePicker,
   } = useCanvasImport();
-  const [exportOpen, setExportOpen] = useState(false);
   const [handbookOpen, setHandbookOpen] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
   const [minimapOpen, setMinimapOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const minimapRequestedRef = useRef(false);
   const clearLabel =
     canvasMode === "animation"
       ? t("sidebar.clear.frame")
@@ -122,27 +116,58 @@ export function AppMenu({ containerSize }: AppMenuProps) {
     setZoom,
     setOffset,
   };
+  const availableExportFormats = useMemo(
+    () => getAvailableExportFormats(canvasMode),
+    [canvasMode]
+  );
+  const exportContext = useMemo<ExportContext>(
+    () => ({
+      canvasMode,
+      grid,
+      structuredScene,
+      structuredComponents,
+      canvasBounds,
+      animationTimeline,
+      includeColor: true,
+      showGrid: false,
+    }),
+    [
+      animationTimeline,
+      canvasBounds,
+      canvasMode,
+      grid,
+      structuredComponents,
+      structuredScene,
+    ]
+  );
+  const exportActions = useAppMenuExport(exportContext);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const closeOnWindowBlur = () => setMenuOpen(false);
+    window.addEventListener("blur", closeOnWindowBlur);
+    return () => window.removeEventListener("blur", closeOnWindowBlur);
+  }, [menuOpen]);
 
   return (
     <>
       <input
         ref={fileInputRef}
         type="file"
-        accept=".json,.cast,application/json,text/plain"
+        accept=".ascanvas,.json,.cast,application/vnd.ascii-canvas+json,application/json,text/plain"
         className="sr-only"
         tabIndex={-1}
         aria-hidden="true"
         onChange={handleFileChange}
       />
 
-      <Popover open={minimapOpen} onOpenChange={setMinimapOpen}>
-        <PopoverAnchor asChild>
-          <div
-            data-canvas-ui="true"
-            data-testid="app-menu-host"
-            className="absolute left-3 top-3 z-50 pointer-events-auto"
-          >
+      <div
+        data-canvas-ui="true"
+        data-testid="app-menu-host"
+        className="absolute left-3 top-3 z-50 pointer-events-auto"
+      >
             <DropdownMenu
+              modal={false}
               open={menuOpen}
               onOpenChange={setMenuOpen}
             >
@@ -164,12 +189,6 @@ export function AppMenu({ containerSize }: AppMenuProps) {
                 side="bottom"
                 align="start"
                 aria-label={t("appMenu.open")}
-                onCloseAutoFocus={(event) => {
-                  if (!minimapRequestedRef.current) return;
-                  event.preventDefault();
-                  minimapRequestedRef.current = false;
-                  setMinimapOpen(true);
-                }}
               >
                 <DropdownMenuItem
                   disabled={isImporting}
@@ -178,20 +197,71 @@ export function AppMenu({ containerSize }: AppMenuProps) {
                   <Upload />
                   {isImporting ? t("import.importing") : t("import.tooltip")}
                 </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => setExportOpen(true)}>
-                  <Download />
-                  {exportLabel}
-                </DropdownMenuItem>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <Download />
+                    {exportLabel}
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent aria-label={exportLabel}>
+                    {availableExportFormats.map((definition) =>
+                      definition.format === "ascanvas" ? (
+                        <DropdownMenuItem
+                          key={definition.format}
+                          onSelect={(event) => {
+                            event.preventDefault();
+                            void exportActions.save(definition.format);
+                          }}
+                        >
+                          {t("appMenu.projectFile")}
+                        </DropdownMenuItem>
+                      ) : (
+                        <DropdownMenuSub key={definition.format}>
+                          <DropdownMenuSubTrigger>
+                            {definition.label}
+                          </DropdownMenuSubTrigger>
+                          <DropdownMenuSubContent
+                            aria-label={definition.label}
+                          >
+                            {definition.supportsClipboard && (
+                              <DropdownMenuItem
+                                onSelect={(event) => {
+                                  event.preventDefault();
+                                  void exportActions.copy(definition.format);
+                                }}
+                              >
+                                <Copy />
+                                {t("export.copy")}
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem
+                              onSelect={(event) => {
+                                event.preventDefault();
+                                void exportActions.save(definition.format);
+                              }}
+                            >
+                              <Download />
+                              {t("export.save")}
+                            </DropdownMenuItem>
+                          </DropdownMenuSubContent>
+                        </DropdownMenuSub>
+                      )
+                    )}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
                 <DropdownMenuItem
-                  onSelect={() => runSidebarAction("toggle-grid", actionContext)}
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    runSidebarAction("toggle-grid", actionContext);
+                  }}
                 >
                   {showGrid ? <Eye className="text-primary" /> : <EyeOff />}
                   {showGrid ? t("sidebar.grid.hide") : t("action.toggleGrid")}
                 </DropdownMenuItem>
                 {canvasMode !== "animation" && (
                   <DropdownMenuItem
-                    onSelect={() => {
-                      minimapRequestedRef.current = true;
+                    onSelect={(event) => {
+                      event.preventDefault();
+                      setMinimapOpen((open) => !open);
                     }}
                   >
                     <Map />
@@ -209,12 +279,33 @@ export function AppMenu({ containerSize }: AppMenuProps) {
                   <Trash2 />
                   {clearLabel}
                 </DropdownMenuItem>
-                <DropdownMenuItem onSelect={toggleLanguage}>
-                  <Languages />
-                  {language === "en"
-                    ? t("language.switchToChinese")
-                    : t("language.switchToEnglish")}
-                </DropdownMenuItem>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <Languages />
+                    {t("language.switch")}
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent aria-label={t("language.switch")}>
+                    <DropdownMenuRadioGroup
+                      value={language}
+                      onValueChange={(value) =>
+                        setLanguage(value as "en" | "zh")
+                      }
+                    >
+                      <DropdownMenuRadioItem
+                        value="en"
+                        onSelect={(event) => event.preventDefault()}
+                      >
+                        {t("appMenu.english")}
+                      </DropdownMenuRadioItem>
+                      <DropdownMenuRadioItem
+                        value="zh"
+                        onSelect={(event) => event.preventDefault()}
+                      >
+                        {t("appMenu.chinese")}
+                      </DropdownMenuRadioItem>
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onSelect={() =>
@@ -226,38 +317,19 @@ export function AppMenu({ containerSize }: AppMenuProps) {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          </div>
-        </PopoverAnchor>
         {minimapOpen && (
-          <PopoverContent
-            side="bottom"
-            align="start"
-            sideOffset={8}
-            className="w-auto overflow-hidden rounded-lg border-0 bg-muted p-0 shadow-none"
+          <div
+            data-testid="app-menu-minimap"
+            className="absolute left-0 top-10 z-40 w-auto overflow-hidden rounded-lg bg-muted"
           >
             <Suspense fallback={<div className="size-48 bg-muted" />}>
               <Minimap containerSize={containerSize} />
             </Suspense>
-          </PopoverContent>
+          </div>
         )}
-      </Popover>
+      </div>
 
       <Suspense fallback={null}>
-        {exportOpen && (
-          <ExportDialog
-            grid={grid}
-            canvasMode={canvasMode}
-            structuredScene={structuredScene}
-            structuredComponents={structuredComponents}
-            canvasBounds={canvasBounds}
-            animationTimeline={animationTimeline}
-            exportShowGrid={exportShowGrid}
-            setExportShowGrid={setExportShowGrid}
-            open={exportOpen}
-            onOpenChange={setExportOpen}
-            trigger={null}
-          />
-        )}
         {handbookOpen && (
           <HandbookDialog
             open={handbookOpen}

@@ -2,7 +2,7 @@
 import * as React from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { HTMLMotionProps } from "motion/react";
-import { CheckIcon } from "lucide-react";
+import { Check } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import {
@@ -39,7 +39,7 @@ export function ActionButton({
   ...props
 }: ActionButtonProps) {
   const [isSuccess, setIsSuccess] = React.useState(false);
-  const CurrentIcon = isSuccess ? CheckIcon : Icon;
+  const CurrentIcon = isSuccess ? Check : Icon;
   const resolvedSize: ButtonSize = size === "full" ? "lg" : size;
   const iconClassName =
     size === "full"

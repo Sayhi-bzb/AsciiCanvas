@@ -26,9 +26,9 @@ const EXPORT_FORMATS: readonly ExportFormatDefinition[] = [
     truncatePreview: false,
   },
   {
-    format: "json",
-    label: "JSON",
-    subLabel: "protocol",
+    format: "ascanvas",
+    label: "AsciiCanvas",
+    subLabel: "project",
     modes: ["freeform", "structured", "animation"],
     artifactKind: "text",
     supportsColor: true,
@@ -78,9 +78,9 @@ const EXPORT_FORMATS: readonly ExportFormatDefinition[] = [
 ] as const;
 
 const FORMAT_ORDER: Record<CanvasMode, readonly ExportFormat[]> = {
-  freeform: ["txt", "json", "ansi", "png"],
-  structured: ["txt", "json", "ansi", "png"],
-  animation: ["json", "cast", "gif"],
+  freeform: ["txt", "ascanvas", "ansi", "png"],
+  structured: ["txt", "ascanvas", "ansi", "png"],
+  animation: ["ascanvas", "cast", "gif"],
 };
 
 export const getAvailableExportFormats = (mode: CanvasMode) =>

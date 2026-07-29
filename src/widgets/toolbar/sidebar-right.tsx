@@ -1,16 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  Boxes,
-  Clapperboard,
-  Languages,
-  LayoutTemplate,
-  Library,
-  Sparkles,
-  Terminal,
-  type LucideIcon,
-} from "lucide-react";
+import { type LucideIcon } from "lucide-react";
 import {
   SidebarHeader,
   SidebarStandard,
@@ -36,6 +27,9 @@ import { useShallow } from "zustand/react/shallow";
 import { useUiI18n } from "@/shared/i18n";
 import { uiClass } from "@/shared/styles/components";
 import { AnimationSidebarContent } from "./animation-sidebar-content";
+import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
+
+const AnimationModeIcon = HOST_ICONOLOGY.canvasMode.animation;
 
 type StructuredSidebarTab = "template" | "components";
 
@@ -47,12 +41,12 @@ const STRUCTURED_SIDEBAR_TABS: Array<{
   {
     id: "template",
     labelKey: "sidebar.tab.template",
-    icon: LayoutTemplate,
+    icon: HOST_ICONOLOGY.structuredView.template,
   },
   {
     id: "components",
     labelKey: "sidebar.tab.components",
-    icon: Boxes,
+    icon: HOST_ICONOLOGY.structuredView.components,
   },
 ];
 
@@ -63,10 +57,10 @@ type SidebarView<ViewId extends string> = {
 };
 
 const CHARACTER_VIEWS = [
-  { id: "essentials", label: "Essentials", icon: Library },
-  { id: "nerd", label: "Nerd Icons", icon: Terminal },
-  { id: "emoji", label: "Emoji", icon: Sparkles },
-  { id: "unicode", label: "Unicode", icon: Languages },
+  { id: "essentials", label: "Essentials", icon: HOST_ICONOLOGY.characterView.essentials },
+  { id: "nerd", label: "Nerd Icons", icon: HOST_ICONOLOGY.characterView.nerd },
+  { id: "emoji", label: "Emoji", icon: HOST_ICONOLOGY.characterView.emoji },
+  { id: "unicode", label: "Unicode", icon: HOST_ICONOLOGY.characterView.unicode },
 ] as const satisfies ReadonlyArray<SidebarView<CharacterViewId>>;
 
 function SidebarViewRail<ViewId extends string>({
@@ -288,7 +282,7 @@ export function SidebarRight() {
     ) : canvasMode === "animation" ? (
       <div className="flex min-w-0 flex-1 items-center gap-2">
         <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-accent">
-          <Clapperboard className="size-4 text-accent-foreground" />
+          <AnimationModeIcon className="size-4 text-accent-foreground" />
         </div>
         <span className="truncate text-sm font-semibold">Frames</span>
       </div>
@@ -353,6 +347,7 @@ export function SidebarRight() {
             )}
           >
             <SidebarTrigger
+              side="right"
               className={cn(
                 "size-8 shrink-0 transition-colors",
                 isCollapsed && "bg-muted text-muted-foreground"
