@@ -12,6 +12,7 @@ import {
   Move,
   Type,
 } from "lucide-react";
+import type { ReactElement } from "react";
 import { Button } from "@/shared/ui/button";
 import {
   Dialog,
@@ -31,16 +32,25 @@ import { useUiI18n } from "@/shared/i18n";
 
 type HandbookDialogProps = {
   tooltipSide?: TooltipContentProps["side"];
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  trigger?: ReactElement | null;
 };
 
 export function HandbookDialog({
   tooltipSide = "left",
+  open,
+  onOpenChange,
+  trigger,
 }: HandbookDialogProps = {}) {
   const { t } = useUiI18n();
 
   return (
-    <Dialog>
-      <Tooltip>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {trigger === null ? null : trigger ? (
+        <DialogTrigger asChild>{trigger}</DialogTrigger>
+      ) : (
+        <Tooltip>
         <TooltipTrigger asChild>
           <DialogTrigger asChild>
             <Button
@@ -55,7 +65,8 @@ export function HandbookDialog({
           </DialogTrigger>
         </TooltipTrigger>
         <TooltipContent side={tooltipSide}>{t("manual.title")}</TooltipContent>
-      </Tooltip>
+        </Tooltip>
+      )}
       <DialogContent className="sm:max-w-[500px] p-0 gap-0 overflow-hidden">
         <div className="bg-muted/30 p-5 pb-4 border-b">
           <DialogHeader>
@@ -212,4 +223,3 @@ export function HandbookDialog({
     </Dialog>
   );
 }
-

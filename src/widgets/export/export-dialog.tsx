@@ -1,6 +1,11 @@
 "use client";
 
-import { useMemo, useState, type KeyboardEvent } from "react";
+import {
+  useMemo,
+  useState,
+  type KeyboardEvent,
+  type ReactElement,
+} from "react";
 import { Copy, Download } from "lucide-react";
 import type { GridMap } from "@/shared/types";
 import type { CanvasMode } from "@/domains/sessions/public";
@@ -48,6 +53,9 @@ type ExportDialogProps = {
   exportShowGrid: boolean;
   setExportShowGrid: (show: boolean) => void;
   tooltipSide?: TooltipContentProps["side"];
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  trigger?: ReactElement | null;
 };
 
 type ExportOptionToggleProps = {
@@ -125,6 +133,9 @@ export function ExportDialog({
   exportShowGrid,
   setExportShowGrid,
   tooltipSide = "left",
+  open,
+  onOpenChange,
+  trigger,
 }: ExportDialogProps) {
   const { t } = useUiI18n();
   const shouldExportStructured = canvasMode === "structured";
@@ -276,7 +287,10 @@ export function ExportDialog({
   };
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {trigger === null ? null : trigger ? (
+        <DialogTrigger asChild>{trigger}</DialogTrigger>
+      ) : (
         <Tooltip>
           <TooltipTrigger asChild>
             <DialogTrigger asChild>
@@ -301,6 +315,7 @@ export function ExportDialog({
               : t("export.tooltip.blueprint")}
           </TooltipContent>
         </Tooltip>
+      )}
 
         <DialogContent className="sm:max-w-xl gap-0 p-0 max-h-[85vh] min-w-0 overflow-hidden border-none shadow-2xl">
           <div className="border-b border-border bg-muted/20 px-5 py-4">

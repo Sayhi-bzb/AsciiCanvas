@@ -146,6 +146,7 @@ function Sidebar({
   side = "left",
   variant = "sidebar",
   collapsible = "offcanvas",
+  collapsedAppearance = "rail",
   className,
   children,
   ...props
@@ -153,6 +154,7 @@ function Sidebar({
   side?: "left" | "right";
   variant?: "sidebar" | "floating" | "inset";
   collapsible?: "offcanvas" | "icon" | "none";
+  collapsedAppearance?: "rail" | "trigger";
 }) {
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
 
@@ -199,6 +201,7 @@ function Sidebar({
       className="group peer text-sidebar-foreground hidden md:block"
       data-state={state}
       data-collapsible={state === "collapsed" ? collapsible : ""}
+      data-collapsed-appearance={collapsedAppearance}
       data-variant={variant}
       data-side={side}
       data-slot="sidebar"
@@ -206,7 +209,7 @@ function Sidebar({
       <div
         data-slot="sidebar-gap"
         className={cn(
-          "relative w-(--sidebar-width) bg-transparent transition-[width] duration-200 ease-linear",
+          "relative w-(--sidebar-width) bg-transparent transition-[width] duration-[280ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
           "group-data-[collapsible=offcanvas]:w-0",
           "group-data-[side=right]:rotate-180",
           variant === "floating" || variant === "inset"
@@ -217,13 +220,15 @@ function Sidebar({
       <div
         data-slot="sidebar-container"
         className={cn(
-          "fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-200 ease-linear md:flex",
+          "fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-[280ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none md:flex",
           side === "left"
             ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
             : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",
           variant === "floating" || variant === "inset"
             ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]"
             : "group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:border-r group-data-[side=right]:border-l",
+          collapsedAppearance === "trigger" &&
+            "group-data-[collapsible=icon]:pointer-events-none",
           className
         )}
         {...props}
@@ -231,7 +236,12 @@ function Sidebar({
         <div
           data-sidebar="sidebar"
           data-slot="sidebar-inner"
-          className="bg-sidebar flex h-full w-full flex-col overflow-hidden group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border-0 group-data-[variant=floating]:bg-muted group-data-[variant=floating]:shadow-none"
+          className={cn(
+            "bg-sidebar flex h-full w-full flex-col overflow-hidden transition-[background-color] duration-200 ease-out motion-reduce:transition-none",
+            "group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border-0 group-data-[variant=floating]:bg-muted group-data-[variant=floating]:shadow-none",
+            collapsedAppearance === "trigger" &&
+              "group-data-[collapsible=icon]:bg-transparent!"
+          )}
         >
           {children}
         </div>
@@ -253,7 +263,7 @@ function SidebarTrigger({
       tone="subtle"
       shape="square"
       size="md"
-      className={cn("size-7", className)}
+      className={cn("pointer-events-auto size-7", className)}
       onClick={(event) => {
         onClick?.(event);
         toggleSidebar();
@@ -507,6 +517,7 @@ function SidebarMenuSub({ className, ...props }: React.ComponentProps<"ul">) {
 function SidebarStandard({
   children,
   collapsedContent,
+  collapsedAppearance = "rail",
   header,
   icon,
   title,
@@ -516,6 +527,7 @@ function SidebarStandard({
   ...props
 }: React.ComponentProps<typeof Sidebar> & {
   collapsedContent?: React.ReactNode;
+  collapsedAppearance?: "rail" | "trigger";
   header?: React.ReactNode;
   icon?: React.ReactNode;
   title?: string;
@@ -524,11 +536,15 @@ function SidebarStandard({
 }) {
   const { state, isMobile } = useSidebar();
   const isCollapsed = state === "collapsed" && !isMobile;
+  const hideContent =
+    isCollapsed &&
+    (collapsedAppearance === "trigger" || collapsedContent === undefined);
 
   return (
     <Sidebar
       collapsible="icon"
-      className={cn("z-40 transition-all duration-200", className)}
+      collapsedAppearance={collapsedAppearance}
+      className={cn("z-40", className)}
       {...props}
     >
       {header ?? (
@@ -565,16 +581,22 @@ function SidebarStandard({
       )}
 
       <SidebarContent
+        aria-hidden={hideContent || undefined}
+        inert={hideContent || undefined}
         className={cn(
-          "gap-2 px-2 py-2 transition-all duration-300",
-          isCollapsed && !collapsedContent
-            ? "pointer-events-none opacity-0"
-            : "opacity-100",
-          isCollapsed && collapsedContent && "px-1 py-2",
+          "gap-2 px-2 py-2 transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none motion-reduce:transform-none",
+          hideContent
+            ? "pointer-events-none translate-x-2 opacity-0"
+            : "translate-x-0 opacity-100",
+          collapsedAppearance === "trigger" && !isCollapsed && "delay-[60ms]",
+          isCollapsed && collapsedAppearance === "rail" && collapsedContent &&
+            "px-1 py-2",
           contentClassName
         )}
       >
-        {isCollapsed && collapsedContent ? collapsedContent : children}
+        {isCollapsed && collapsedAppearance === "rail" && collapsedContent
+          ? collapsedContent
+          : children}
       </SidebarContent>
 
       {footer && (

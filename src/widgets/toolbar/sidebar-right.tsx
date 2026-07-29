@@ -1,17 +1,12 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
-import { useReducedMotion } from "motion/react";
+import { useEffect, useState } from "react";
 import {
   Boxes,
   Clapperboard,
-  Eye,
-  EyeOff,
-  Github,
   Languages,
   LayoutTemplate,
   Library,
-  Map,
   Sparkles,
   Terminal,
   type LucideIcon,
@@ -34,24 +29,13 @@ import {
   STRUCTURED_PAGE_TEMPLATES,
 } from "@/domains/structured-content/public";
 import { useEditorStore } from "@/domains/canvas/public";
-import { runSidebarAction } from "@/domains/actions/public";
 import { cn } from "@/shared/lib/utils";
-import { Button } from "@/shared/ui/button";
 import { ScrollArea } from "@/shared/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
-import { ExportDialog } from "@/widgets/export/export-dialog";
-import { ImportButton } from "@/widgets/import/ImportButton";
-import { HandbookDialog, ClearCanvasDialog } from "@/widgets/dialogs";
 import { useShallow } from "zustand/react/shallow";
 import { useUiI18n } from "@/shared/i18n";
 import { uiClass } from "@/shared/styles/components";
 import { AnimationSidebarContent } from "./animation-sidebar-content";
-import { Minimap } from "@/widgets/canvas-editor/Minimap";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/shared/ui/popover";
 
 type StructuredSidebarTab = "template" | "components";
 
@@ -145,52 +129,8 @@ function SidebarViewRail<ViewId extends string>({
   );
 }
 
-type SidebarRightProps = {
-  containerSize?: { width: number; height: number };
-};
-
-const FOOTER_FADE_OUT_MS = 90;
-
-function SidebarFooterAction({ children }: { children: ReactNode }) {
-  return (
-    <div className="flex size-8 shrink-0 items-center justify-center">
-      {children}
-    </div>
-  );
-}
-
-export function SidebarRight({ containerSize }: SidebarRightProps) {
-  const {
-    grid,
-    canvasMode,
-    structuredScene,
-    structuredComponents,
-    canvasBounds,
-    animationTimeline,
-    clearCanvas,
-    showGrid,
-    setShowGrid,
-    exportShowGrid,
-    setExportShowGrid,
-    setOffset,
-    setZoom,
-  } = useEditorStore(
-    useShallow((state) => ({
-      grid: state.grid,
-      canvasMode: state.canvasMode,
-      structuredScene: state.structuredScene,
-      structuredComponents: state.structuredComponents,
-      canvasBounds: state.canvasBounds,
-      animationTimeline: state.animationTimeline,
-      clearCanvas: state.clearCanvas,
-      showGrid: state.showGrid,
-      setShowGrid: state.setShowGrid,
-      exportShowGrid: state.exportShowGrid,
-      setExportShowGrid: state.setExportShowGrid,
-      setOffset: state.setOffset,
-      setZoom: state.setZoom,
-    }))
-  );
+export function SidebarRight() {
+  const canvasMode = useEditorStore((state) => state.canvasMode);
 
   const { loadMainPacks, searchUnicode, unicodeSearchLoading } =
     useLibraryStore(
@@ -202,22 +142,13 @@ export function SidebarRight({ containerSize }: SidebarRightProps) {
     );
   const { state, isMobile, setOpen } = useSidebar();
   const isCollapsed = state === "collapsed" && !isMobile;
-  const shouldReduceMotion = useReducedMotion();
-  const { language, t, toggleLanguage } = useUiI18n();
+  const { t } = useUiI18n();
   const [structuredSidebarTab, setStructuredSidebarTab] =
     useState<StructuredSidebarTab>("components");
   const [structuredLibraryQuery, setStructuredLibraryQuery] = useState("");
   const [activeCharacterView, setActiveCharacterView] =
     useState<CharacterViewId>("essentials");
   const [unicodeQuery, setUnicodeQuery] = useState("");
-  const [footerLayoutCollapsed, setFooterLayoutCollapsed] =
-    useState(isCollapsed);
-  const footerIsTransitioning = footerLayoutCollapsed !== isCollapsed;
-  const isFooterVisible = shouldReduceMotion || !footerIsTransitioning;
-  const effectiveFooterLayoutCollapsed = shouldReduceMotion
-    ? isCollapsed
-    : footerLayoutCollapsed;
-  const footerTooltipSide = effectiveFooterLayoutCollapsed ? "left" : "top";
   const activeCharacterViewMeta =
     CHARACTER_VIEWS.find((view) => view.id === activeCharacterView) ??
     CHARACTER_VIEWS[0];
@@ -229,19 +160,6 @@ export function SidebarRight({ containerSize }: SidebarRightProps) {
   const activeStructuredViewMeta =
     structuredViews.find((view) => view.id === structuredSidebarTab) ??
     structuredViews[0];
-
-  useEffect(() => {
-    if (!footerIsTransitioning) return;
-
-    const timeout = window.setTimeout(
-      () => {
-        setFooterLayoutCollapsed(isCollapsed);
-      },
-      shouldReduceMotion ? 0 : FOOTER_FADE_OUT_MS
-    );
-
-    return () => window.clearTimeout(timeout);
-  }, [footerIsTransitioning, isCollapsed, shouldReduceMotion]);
 
   useEffect(() => {
     if (canvasMode !== "freeform") return;
@@ -389,6 +307,7 @@ export function SidebarRight({ containerSize }: SidebarRightProps) {
     <SidebarStandard
       variant="floating"
       side="right"
+      collapsedAppearance="trigger"
       className="pointer-events-auto"
       data-canvas-ui="true"
       onPointerDown={stopCanvasUiEvent}
@@ -402,7 +321,6 @@ export function SidebarRight({ containerSize }: SidebarRightProps) {
         canvasMode === "structured" && "gap-0 p-0",
         canvasMode === "animation" && "p-2"
       )}
-      collapsedContent={canvasMode === "animation" ? undefined : sidebarBody}
       header={
         <SidebarHeader
           className={cn(
@@ -417,11 +335,11 @@ export function SidebarRight({ containerSize }: SidebarRightProps) {
             aria-hidden={isCollapsed || undefined}
             inert={isCollapsed || undefined}
             className={cn(
-              "flex min-w-0 flex-1 items-center overflow-hidden transition-opacity duration-200",
+              "flex min-w-0 flex-1 items-center overflow-hidden transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none motion-reduce:transform-none",
               !isMobile && "pl-3 pr-2",
               isCollapsed
-                ? "pointer-events-none opacity-0"
-                : "opacity-100"
+                ? "pointer-events-none translate-x-2 opacity-0"
+                : "translate-x-0 opacity-100 delay-[60ms]"
             )}
           >
             {headerContent}
@@ -430,212 +348,18 @@ export function SidebarRight({ containerSize }: SidebarRightProps) {
             data-testid="sidebar-toggle-column"
             className={cn(
               "flex h-full items-center justify-center",
-              !isMobile && "col-start-2 row-start-1"
+              !isMobile && "col-start-2 row-start-1",
+              isCollapsed && "pointer-events-auto"
             )}
           >
-            <SidebarTrigger className="size-8 shrink-0" />
+            <SidebarTrigger
+              className={cn(
+                "size-8 shrink-0 transition-colors",
+                isCollapsed && "bg-muted text-muted-foreground"
+              )}
+            />
           </div>
         </SidebarHeader>
-      }
-      footer={
-        <div
-          data-testid="sidebar-footer-layout"
-          data-layout={
-            effectiveFooterLayoutCollapsed ? "collapsed" : "expanded"
-          }
-          aria-hidden={!isFooterVisible || undefined}
-          inert={!isFooterVisible || undefined}
-          className={cn(
-            "flex w-full items-center justify-between px-1 transition-opacity ease-linear motion-reduce:transition-none",
-            effectiveFooterLayoutCollapsed && "flex-col gap-1",
-            isFooterVisible
-              ? "opacity-100 duration-[110ms]"
-              : "pointer-events-none opacity-0 duration-[90ms]"
-          )}
-        >
-          <div
-            className={cn(
-              "grid items-center justify-items-center gap-1",
-              canvasMode === "animation" ? "grid-cols-6" : "grid-cols-7",
-              effectiveFooterLayoutCollapsed && "grid-cols-1"
-            )}
-            data-testid="sidebar-footer-actions"
-          >
-              <SidebarFooterAction>
-                <ImportButton tooltipSide={footerTooltipSide} />
-              </SidebarFooterAction>
-
-              <SidebarFooterAction>
-                <ExportDialog
-                  grid={grid}
-                  canvasMode={canvasMode}
-                  structuredScene={structuredScene}
-                  structuredComponents={structuredComponents}
-                  canvasBounds={canvasBounds}
-                  animationTimeline={animationTimeline}
-                  exportShowGrid={exportShowGrid}
-                  setExportShowGrid={setExportShowGrid}
-                  tooltipSide={footerTooltipSide}
-                />
-              </SidebarFooterAction>
-
-              <SidebarFooterAction>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      tone="subtle"
-                      shape="square"
-                      size="md"
-                      className={cn(
-                        "size-8 transition-colors",
-                        showGrid ? "text-primary" : "text-muted-foreground"
-                      )}
-                      onClick={() =>
-                        runSidebarAction("toggle-grid", {
-                          showGrid,
-                          setShowGrid,
-                          setZoom,
-                          setOffset,
-                        })
-                      }
-                      aria-label={
-                        showGrid
-                          ? t("sidebar.grid.hide")
-                          : t("action.toggleGrid")
-                      }
-                    >
-                      {showGrid ? (
-                        <Eye className="size-4" />
-                      ) : (
-                        <EyeOff className="size-4" />
-                      )}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side={footerTooltipSide}>
-                    {showGrid
-                      ? t("sidebar.grid.hide")
-                      : t("action.toggleGrid")}
-                  </TooltipContent>
-                </Tooltip>
-              </SidebarFooterAction>
-
-              {canvasMode !== "animation" && (
-                <SidebarFooterAction>
-                  <Popover key={canvasMode}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="inline-flex">
-                          <PopoverTrigger asChild>
-                            <Button
-                              tone="subtle"
-                              shape="square"
-                              size="md"
-                              className={cn(
-                                "size-8 text-muted-foreground transition-colors",
-                                "data-[state=open]:bg-accent data-[state=open]:text-foreground"
-                              )}
-                              aria-label={t("sidebar.minimap")}
-                            >
-                              <Map className="size-4" />
-                            </Button>
-                          </PopoverTrigger>
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent side={footerTooltipSide}>
-                        {t("sidebar.minimap")}
-                      </TooltipContent>
-                    </Tooltip>
-                    <PopoverContent
-                      side="left"
-                      align="end"
-                      sideOffset={8}
-                      className="w-auto overflow-hidden rounded-lg border-0 bg-muted p-0 shadow-none"
-                    >
-                      <Minimap containerSize={containerSize} />
-                    </PopoverContent>
-                  </Popover>
-                </SidebarFooterAction>
-              )}
-
-              <SidebarFooterAction>
-                <HandbookDialog tooltipSide={footerTooltipSide} />
-              </SidebarFooterAction>
-
-              <SidebarFooterAction>
-                <ClearCanvasDialog
-                  isCollapsed={effectiveFooterLayoutCollapsed}
-                  iconOnly
-                  label={
-                    canvasMode === "animation"
-                      ? t("sidebar.clear.frame")
-                      : t("sidebar.clear.canvas")
-                  }
-                  tooltipSide={footerTooltipSide}
-                  description={
-                    canvasMode === "animation"
-                      ? t("sidebar.clear.frameDescription")
-                      : t("sidebar.clear.canvasDescription")
-                  }
-                  onConfirm={clearCanvas}
-                />
-              </SidebarFooterAction>
-
-              <SidebarFooterAction>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      tone="subtle"
-                      shape="square"
-                      size="md"
-                      className="size-8 text-muted-foreground"
-                      onClick={toggleLanguage}
-                      aria-label={t("language.switch")}
-                    >
-                      <Languages className="size-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side={footerTooltipSide}>
-                    {language === "en"
-                      ? t("language.switchToChinese")
-                      : t("language.switchToEnglish")}
-                  </TooltipContent>
-                </Tooltip>
-              </SidebarFooterAction>
-            </div>
-
-            <div
-              data-testid="sidebar-footer-github"
-              className={cn(
-                "shrink-0",
-                effectiveFooterLayoutCollapsed && "mt-1"
-              )}
-            >
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    tone="subtle"
-                    shape="square"
-                    size="md"
-                    className="size-8 text-muted-foreground"
-                    onClick={() =>
-                      runSidebarAction("open-source-code", {
-                        showGrid,
-                        setShowGrid,
-                        setZoom,
-                        setOffset,
-                      })
-                    }
-                    aria-label={t("action.openSourceCode")}
-                  >
-                    <Github className="size-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side={footerTooltipSide}>
-                  {t("action.openSourceCode")}
-                </TooltipContent>
-              </Tooltip>
-            </div>
-          </div>
       }
     >
       {sidebarBody}

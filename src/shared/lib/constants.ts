@@ -12,7 +12,6 @@ export const COLOR_PRIMARY_TEXT = "#000000";
 export const DEFAULT_BRUSH_CHAR = "#";
 export const COLOR_TEXT_CURSOR_BG = "rgba(0, 0, 0, 0.5)";
 export const COLOR_TEXT_CURSOR_FG = "#ffffff";
-export const COLOR_ORIGIN_MARKER = "red";
 
 export const COLOR_SELECTION_BG = "rgba(0, 0, 0, 0.2)";
 

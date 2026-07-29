@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  act,
   createEvent,
   fireEvent,
   render,
@@ -84,13 +83,7 @@ describe("SidebarRight structured templates", () => {
     expect(header).not.toHaveTextContent("Template");
     expect(header).not.toHaveTextContent("Components");
     expect(header).not.toHaveClass("border-b");
-    expect(footer).not.toHaveClass("border-t");
-    expect(footer).toHaveClass(
-      "transition-[padding]",
-      "duration-200",
-      "ease-linear"
-    );
-    expect(footer).not.toHaveClass("transition-all", "duration-300");
+    expect(footer).toBeNull();
     expect(sidebarInner).toHaveClass(
       "group-data-[variant=floating]:border-0",
       "group-data-[variant=floating]:bg-muted",
@@ -209,164 +202,18 @@ describe("SidebarRight structured templates", () => {
     expect(screen.queryByText("Nerd Icons")).not.toBeInTheDocument();
   });
 
-  it("aligns footer actions and keeps GitHub on the far right", () => {
+  it("does not render the migrated utility footer", () => {
     const { container } = render(
       <SidebarProvider>
         <SidebarRight />
       </SidebarProvider>
     );
-    const actions = screen.getByTestId("sidebar-footer-actions");
-    const github = screen.getByTestId("sidebar-footer-github");
-    const actionButtons = actions.querySelectorAll("button");
-    const githubButton = screen.getByRole("button", {
-      name: "Open Source Code",
-    });
 
-    expect(actions).toHaveClass("grid-cols-7", "gap-1");
-    expect(actionButtons).toHaveLength(7);
-    actionButtons.forEach((button) => expect(button).toHaveClass("size-8"));
-    expect(actions).toContainElement(
-      screen.getByRole("button", { name: "UI language" })
-    );
-    expect(github).toContainElement(githubButton);
-    expect(githubButton).toHaveClass("size-8");
+    expect(container.querySelector('[data-slot="sidebar-footer"]')).toBeNull();
+    expect(screen.queryByTestId("sidebar-footer-actions")).not.toBeInTheDocument();
     expect(
-      actions.compareDocumentPosition(github) & Node.DOCUMENT_POSITION_FOLLOWING
-    ).toBeTruthy();
-    expect(container.querySelector('[data-slot="sidebar-footer"]')).toContainElement(
-      github
-    );
-  });
-
-  it("opens minimap as a borderless footer popover and closes it with Escape", () => {
-    useEditorStore.setState({ canvasMode: "freeform" });
-    useLibraryStore.setState({ loadMainPacks: vi.fn() });
-    const contextSpy = vi.spyOn(
-      HTMLCanvasElement.prototype,
-      "getContext"
-    ).mockReturnValue({
-      clearRect: vi.fn(),
-      drawImage: vi.fn(),
-      fillRect: vi.fn(),
-      setTransform: vi.fn(),
-      strokeRect: vi.fn(),
-      imageSmoothingEnabled: true,
-    } as unknown as CanvasRenderingContext2D);
-    const rafSpy = vi
-      .spyOn(window, "requestAnimationFrame")
-      .mockImplementation((callback) => {
-        callback(0);
-        return 1;
-      });
-
-    render(
-      <SidebarProvider>
-        <SidebarRight containerSize={{ width: 1000, height: 700 }} />
-      </SidebarProvider>
-    );
-
-    const trigger = screen.getByRole("button", { name: "Minimap" });
-    expect(trigger).toHaveAttribute("data-state", "closed");
-    fireEvent.click(trigger);
-
-    const canvas = screen.getByLabelText("Canvas minimap");
-    const content = canvas.closest('[data-slot="popover-content"]');
-    expect(content).toHaveClass("border-0", "p-0", "shadow-none");
-    expect(content).not.toHaveTextContent("Overview");
-    expect(
-      screen.queryByRole("button", { name: "Collapse overview panel" })
+      screen.queryByRole("button", { name: "Open Source Code" })
     ).not.toBeInTheDocument();
-    expect(trigger).toHaveAttribute("data-state", "open");
-
-    fireEvent.keyDown(document, { key: "Escape" });
-
-    expect(screen.queryByLabelText("Canvas minimap")).not.toBeInTheDocument();
-    expect(trigger).toHaveAttribute("data-state", "closed");
-
-    contextSpy.mockRestore();
-    rafSpy.mockRestore();
-  });
-
-  it("stacks footer actions with GitHub last when collapsed", () => {
-    render(
-      <SidebarProvider defaultOpen={false}>
-        <SidebarRight />
-      </SidebarProvider>
-    );
-
-    expect(screen.getByTestId("sidebar-footer-actions")).toHaveClass(
-      "grid-cols-1"
-    );
-    expect(screen.getByTestId("sidebar-footer-github")).toHaveClass("mt-1");
-  });
-
-  it("keeps footer action nodes mounted while changing layouts", () => {
-    vi.useFakeTimers();
-    try {
-      render(
-        <SidebarProvider>
-          <SidebarRight />
-        </SidebarProvider>
-      );
-
-      const footerLayout = screen.getByTestId("sidebar-footer-layout");
-      const actions = screen.getByTestId("sidebar-footer-actions");
-      const expandedButtons = Array.from(actions.querySelectorAll("button"));
-      const minimapButton = screen.getByRole("button", { name: "Minimap" });
-      const githubButton = screen.getByRole("button", {
-        name: "Open Source Code",
-      });
-      const trigger = screen.getByRole("button", { name: "Toggle Sidebar" });
-
-      fireEvent.click(trigger);
-
-      expect(footerLayout).toHaveAttribute("data-layout", "expanded");
-      expect(footerLayout).toHaveClass("opacity-0", "duration-[90ms]");
-      expect(actions).toHaveClass("grid-cols-7");
-
-      fireEvent.click(trigger);
-
-      expect(footerLayout).toHaveAttribute("data-layout", "expanded");
-      expect(footerLayout).toHaveClass("opacity-100", "duration-[110ms]");
-      act(() => vi.advanceTimersByTime(90));
-      expect(actions).toHaveClass("grid-cols-7");
-
-      fireEvent.click(trigger);
-      act(() => vi.advanceTimersByTime(90));
-
-      expect(footerLayout).toHaveAttribute("data-layout", "collapsed");
-      expect(footerLayout).toHaveClass("opacity-100", "duration-[110ms]");
-      expect(actions).toHaveClass("grid-cols-1");
-      const collapsedButtons = Array.from(actions.querySelectorAll("button"));
-      expect(collapsedButtons).toHaveLength(expandedButtons.length);
-      collapsedButtons.forEach((button, index) => {
-        expect(button).toBe(expandedButtons[index]);
-      });
-      expect(screen.getByRole("button", { name: "Minimap" })).toBe(
-        minimapButton
-      );
-      expect(screen.getByRole("button", { name: "Open Source Code" })).toBe(
-        githubButton
-      );
-
-      fireEvent.click(trigger);
-      act(() => vi.advanceTimersByTime(90));
-
-      expect(footerLayout).toHaveAttribute("data-layout", "expanded");
-      expect(actions).toHaveClass("grid-cols-7");
-      const reopenedButtons = Array.from(actions.querySelectorAll("button"));
-      reopenedButtons.forEach((button, index) => {
-        expect(button).toBe(expandedButtons[index]);
-      });
-      expect(screen.getByRole("button", { name: "Minimap" })).toBe(
-        minimapButton
-      );
-      expect(screen.getByRole("button", { name: "Open Source Code" })).toBe(
-        githubButton
-      );
-    } finally {
-      vi.useRealTimers();
-    }
   });
 
   it("switches icon-only character views and preserves scoped search", async () => {
@@ -434,71 +281,60 @@ describe("SidebarRight structured templates", () => {
       .toHaveValue("folder");
   });
 
-  it("keeps the character view rail when collapsed and expands selected view", () => {
+  it("collapses to only the trigger and preserves the selected character view", () => {
     useEditorStore.setState({ canvasMode: "freeform" });
     useLibraryStore.setState({ loadMainPacks: vi.fn() });
 
-    render(
-      <SidebarProvider defaultOpen={false}>
+    const { container } = render(
+      <SidebarProvider>
         <SidebarRight />
       </SidebarProvider>
     );
 
-    const header = document.querySelector(
-      '[data-slot="sidebar-header"]'
-    );
     const trigger = screen.getByRole("button", { name: "Toggle Sidebar" });
-    const railBeforeExpand = screen.getByTestId(
-      "character-view-rail-vertical"
-    );
+    const rail = screen.getByTestId("character-view-rail-vertical");
     const headerContent = screen.getByTestId("sidebar-header-content");
-    const viewContent = screen.getByTestId("sidebar-view-content");
-    expect(header).toHaveClass(
-      "h-12",
-      "grid",
-      "grid-cols-[minmax(0,1fr)_3rem]",
-      "py-0",
-      "px-0"
-    );
-    expect(header).not.toHaveClass("py-4", "transition-all", "flex-row");
-    expect(trigger).not.toHaveClass("ml-auto");
-    expect(headerContent).toHaveAttribute("aria-hidden", "true");
-    expect(headerContent).toHaveAttribute("inert");
-    expect(viewContent).toHaveAttribute("aria-hidden", "true");
-    expect(viewContent).toHaveAttribute("inert");
-    expect(
-      screen.queryByRole("searchbox", { name: "Search characters" })
-    ).not.toBeInTheDocument();
+    const content = container.querySelector('[data-slot="sidebar-content"]');
+    const sidebar = container.querySelector('[data-slot="sidebar"]');
+    const inner = container.querySelector('[data-slot="sidebar-inner"]');
 
     fireEvent.click(screen.getByRole("tab", { name: "Emoji" }));
-
     expect(screen.getByRole("tab", { name: "Emoji" })).toHaveAttribute(
       "aria-selected",
       "true"
     );
-    expect(screen.getByTestId("character-view-rail-vertical")).toBe(
-      railBeforeExpand
+
+    fireEvent.click(trigger);
+
+    expect(sidebar).toHaveAttribute("data-state", "collapsed");
+    expect(sidebar).toHaveAttribute("data-collapsed-appearance", "trigger");
+    expect(content).toHaveAttribute("aria-hidden", "true");
+    expect(content).toHaveAttribute("inert");
+    expect(headerContent).toHaveAttribute("aria-hidden", "true");
+    expect(headerContent).toHaveAttribute("inert");
+    expect(inner).toHaveClass(
+      "group-data-[collapsible=icon]:bg-transparent!"
+    );
+    expect(trigger).toHaveClass("bg-muted", "pointer-events-auto");
+    expect(screen.getAllByRole("button")).toEqual([trigger]);
+    expect(screen.queryByRole("tab", { name: "Emoji" })).not.toBeInTheDocument();
+
+    fireEvent.click(trigger);
+
+    expect(screen.getByTestId("character-view-rail-vertical")).toBe(rail);
+    expect(screen.getByRole("tab", { name: "Emoji" })).toHaveAttribute(
+      "aria-selected",
+      "true"
     );
     expect(headerContent).not.toHaveAttribute("aria-hidden");
     expect(headerContent).not.toHaveAttribute("inert");
-    expect(viewContent).not.toHaveAttribute("aria-hidden");
-    expect(viewContent).not.toHaveAttribute("inert");
     expect(screen.getByRole("tabpanel", { name: "Emoji characters" }))
       .toBeInTheDocument();
     expect(screen.getByRole("searchbox", { name: "Search characters" }))
       .toBeInTheDocument();
-    expect(header).not.toHaveTextContent("Emoji");
-    expect(header).toHaveClass(
-      "h-12",
-      "grid",
-      "grid-cols-[minmax(0,1fr)_3rem]",
-      "py-0",
-      "px-0"
-    );
-    expect(header).not.toHaveClass("py-4", "flex-row");
   });
 
-  it("shows animation frames in the right sidebar without replacing its footer", () => {
+  it("shows animation frames without a sidebar footer", () => {
     useEditorStore.setState({
       canvasMode: "animation",
       canvasBounds: { width: 80, height: 25 },
@@ -540,10 +376,7 @@ describe("SidebarRight structured templates", () => {
     expect(
       screen.getByRole("button", { name: "Add frame after current" })
     ).toBeInTheDocument();
-    expect(screen.getByTestId("sidebar-footer-actions")).toBeInTheDocument();
-    expect(screen.getByTestId("sidebar-footer-actions")).toHaveClass(
-      "grid-cols-6"
-    );
+    expect(container.querySelector('[data-slot="sidebar-footer"]')).toBeNull();
     expect(
       screen.queryByRole("button", { name: "Minimap" })
     ).not.toBeInTheDocument();
@@ -672,38 +505,34 @@ describe("SidebarRight structured templates", () => {
     expect(screen.queryByText("No templates found")).not.toBeInTheDocument();
   });
 
-  it("keeps the structured view rail when collapsed and expands selected view", () => {
+  it("hides structured controls when collapsed and restores their state", () => {
     useEditorStore.setState({ canvasMode: "structured" });
 
     const { container } = render(
-      <SidebarProvider defaultOpen={false}>
+      <SidebarProvider>
         <SidebarRight />
       </SidebarProvider>
     );
 
-    const header = container.querySelector('[data-slot="sidebar-header"]');
-    const railBeforeExpand = screen.getByTestId(
-      "structured-view-rail-vertical"
-    );
-    const viewContent = screen.getByTestId("sidebar-view-content");
-    expect(
-      screen.queryByRole("searchbox", { name: "Search structured library" })
-    ).not.toBeInTheDocument();
-    expect(header?.querySelector('[data-slot="sidebar-trigger"]')).toBeInTheDocument();
-    expect(viewContent).toHaveAttribute("aria-hidden", "true");
-    expect(viewContent).toHaveAttribute("inert");
+    const rail = screen.getByTestId("structured-view-rail-vertical");
+    const trigger = screen.getByRole("button", { name: "Toggle Sidebar" });
+    const content = container.querySelector('[data-slot="sidebar-content"]');
 
     fireEvent.click(screen.getByRole("tab", { name: "Template" }));
+    fireEvent.click(trigger);
 
+    expect(content).toHaveAttribute("aria-hidden", "true");
+    expect(content).toHaveAttribute("inert");
+    expect(screen.getAllByRole("button")).toEqual([trigger]);
+    expect(screen.queryByRole("tab", { name: "Template" })).not.toBeInTheDocument();
+
+    fireEvent.click(trigger);
+
+    expect(screen.getByTestId("structured-view-rail-vertical")).toBe(rail);
     expect(screen.getByRole("tab", { name: "Template" })).toHaveAttribute(
       "aria-selected",
       "true"
     );
-    expect(screen.getByTestId("structured-view-rail-vertical")).toBe(
-      railBeforeExpand
-    );
-    expect(viewContent).not.toHaveAttribute("aria-hidden");
-    expect(viewContent).not.toHaveAttribute("inert");
     expect(screen.getByRole("tabpanel", { name: "Template" }))
       .toBeInTheDocument();
     expect(
@@ -711,16 +540,15 @@ describe("SidebarRight structured templates", () => {
     ).toBeInTheDocument();
   });
 
-  it("toggles operation UI labels to Chinese without changing template labels", () => {
+  it("renders localized operation labels without changing template labels", () => {
     useEditorStore.setState({ canvasMode: "structured" });
+    setUiLanguage("zh");
 
     render(
       <SidebarProvider>
         <SidebarRight />
       </SidebarProvider>
     );
-
-    fireEvent.click(screen.getByRole("button", { name: "UI language" }));
 
     expect(screen.getByRole("searchbox", { name: "搜索结构库" })).toHaveAttribute(
       "placeholder",
@@ -729,7 +557,6 @@ describe("SidebarRight structured templates", () => {
     expect(screen.getByRole("tab", { name: "模板" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "组件" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /button/i })).toBeInTheDocument();
-    expect(window.localStorage.getItem("ascii-canvas-ui-language")).toBe("zh");
   });
 
   it("uses a transparent drag image for structured templates", () => {

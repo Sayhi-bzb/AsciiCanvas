@@ -16,6 +16,7 @@ import { SessionTabs } from "@/widgets/session-tabs/SessionTabs";
 import { useIsMobile, useSidebarAutoCollapseSignal } from "@/shared/hooks/use-mobile";
 import { cn } from "@/shared/lib/utils";
 import { TooltipProvider } from "@/shared/ui/tooltip";
+import { AppMenu } from "@/widgets/toolbar/app-menu";
 
 const SidebarRight = lazy(() =>
   import("@/widgets/toolbar/sidebar-right").then((module) => ({
@@ -117,6 +118,7 @@ function AppContent() {
   return (
     <SidebarProvider className="flex h-full w-full overflow-hidden">
       <SidebarInset className="relative flex flex-1 flex-col overflow-hidden">
+        <AppMenu containerSize={canvasContainerSize} />
         <SessionTabs
           leftInset={topBarLeftInset}
           rightInset={topBarRightInset}
@@ -148,7 +150,7 @@ function AppContent() {
           >
             <MobileSidebarTrigger />
             <Suspense fallback={<div className="w-0" />}>
-              <SidebarRight containerSize={canvasContainerSize} />
+              <SidebarRight />
             </Suspense>
           </SidebarProvider>
         </div>

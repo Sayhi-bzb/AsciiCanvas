@@ -67,6 +67,56 @@ test.describe('Canvas', () => {
     await expect(canvas).toBeVisible();
   });
 
+  test('does not render a red origin marker', async ({ page }) => {
+    const offset = { x: 220, y: 180 };
+
+    for (const mode of ['freeform', 'structured'] as const) {
+      await seedSession(page, {
+        id: `origin-${mode}`,
+        name: `Origin ${mode}`,
+        mode,
+        scene: [],
+        grid: [],
+        viewport: { offset, zoom: 1 },
+      });
+
+      const surface = page.getByTestId('ascii-canvas-surface');
+      const backgroundCanvas = surface.locator('canvas').nth(0);
+      const uiCanvas = surface.locator('canvas').nth(2);
+
+      await expect.poll(() => backgroundCanvas.evaluate((canvas) => {
+        const ctx = canvas.getContext('2d');
+        return ctx?.getImageData(0, 0, 1, 1).data[3] ?? 0;
+      })).toBe(255);
+
+      const redPixels = await uiCanvas.evaluate((canvas, origin) => {
+        const ctx = canvas.getContext('2d');
+        if (!ctx || canvas.clientWidth === 0 || canvas.clientHeight === 0) return -1;
+        const scaleX = canvas.width / canvas.clientWidth;
+        const scaleY = canvas.height / canvas.clientHeight;
+        const width = Math.max(1, Math.round(24 * scaleX));
+        const height = Math.max(1, Math.round(24 * scaleY));
+        const x = Math.max(0, Math.round(origin.x * scaleX - width / 2));
+        const y = Math.max(0, Math.round(origin.y * scaleY - height / 2));
+        const pixels = ctx.getImageData(x, y, width, height).data;
+        let count = 0;
+        for (let index = 0; index < pixels.length; index += 4) {
+          if (
+            pixels[index] > 240 &&
+            pixels[index + 1] < 15 &&
+            pixels[index + 2] < 15 &&
+            pixels[index + 3] > 240
+          ) {
+            count += 1;
+          }
+        }
+        return count;
+      }, offset);
+
+      expect(redPixels).toBe(0);
+    }
+  });
+
   test('recovers an incomplete v2 session payload before the first render', async ({ page }) => {
     const pageErrors: string[] = [];
     page.on('pageerror', (error) => pageErrors.push(error.message));

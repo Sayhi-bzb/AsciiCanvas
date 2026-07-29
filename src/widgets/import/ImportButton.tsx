@@ -1,8 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
 import { Upload } from "lucide-react";
-import { useEditorStore } from "@/domains/canvas/public";
 import { Button } from "@/shared/ui/button";
 import {
   Tooltip,
@@ -10,8 +8,8 @@ import {
   TooltipTrigger,
   type TooltipContentProps,
 } from "@/shared/ui/tooltip";
-import { feedback } from "@/shared/services/effects";
 import { useUiI18n } from "@/shared/i18n";
+import { useCanvasImport } from "./useCanvasImport";
 
 type ImportButtonProps = {
   tooltipSide?: TooltipContentProps["side"];
@@ -19,43 +17,12 @@ type ImportButtonProps = {
 
 export function ImportButton({ tooltipSide = "left" }: ImportButtonProps = {}) {
   const { t } = useUiI18n();
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const importCanvasSession = useEditorStore(
-    (state) => state.importCanvasSession
-  );
-  const [isImporting, setIsImporting] = useState(false);
-
-  const openFilePicker = () => {
-    if (isImporting) return;
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = async (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-
-    if (!file) return;
-
-    setIsImporting(true);
-    try {
-      const raw = await file.text();
-      const session = importCanvasSession(raw);
-      feedback.success(t("import.success"), {
-        description: t("import.successDescription", { name: session.name }),
-      });
-    } catch (error) {
-      feedback.error(t("import.failed"), {
-        description:
-          error instanceof Error
-            ? error.message
-            : t("import.failedDescription"),
-      });
-    } finally {
-      setIsImporting(false);
-    }
-  };
+  const {
+    fileInputRef,
+    handleFileChange,
+    isImporting,
+    openFilePicker,
+  } = useCanvasImport();
 
   return (
     <>
@@ -64,6 +31,8 @@ export function ImportButton({ tooltipSide = "left" }: ImportButtonProps = {}) {
         type="file"
         accept=".json,.cast,application/json,text/plain"
         className="sr-only"
+        tabIndex={-1}
+        aria-hidden="true"
         onChange={handleFileChange}
       />
 

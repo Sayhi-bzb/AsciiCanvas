@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import {
   BACKGROUND_COLOR,
-  COLOR_ORIGIN_MARKER,
   COLOR_SELECTION_BG,
   COLOR_TEXT_CURSOR_BG,
   COLOR_TEXT_CURSOR_FG,
@@ -624,14 +623,6 @@ export const useCanvasRenderer = (
               });
             }
           }
-        }
-
-        if (canvasMode !== "animation" && !editingStructuredTextNodeId) {
-          uiCtx.fillStyle = COLOR_ORIGIN_MARKER;
-          const originX = Math.round(offset.x);
-          const originY = Math.round(offset.y);
-          uiCtx.fillRect(originX - 1, originY - 10, 2, 20);
-          uiCtx.fillRect(originX - 10, originY - 1, 20, 2);
         }
 
         if (canvasColorPickerTarget && hoveredGrid) {

@@ -1,6 +1,7 @@
 "use client";
 
 import { Trash2 } from "lucide-react";
+import type { ReactElement } from "react";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import {
@@ -29,6 +30,9 @@ type ClearCanvasDialogProps = {
   description?: string;
   tooltipSide?: TooltipContentProps["side"];
   onConfirm: () => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  trigger?: ReactElement | null;
 };
 
 export function ClearCanvasDialog({
@@ -38,12 +42,18 @@ export function ClearCanvasDialog({
   description = "This will completely clear the current blueprint.",
   tooltipSide = "left",
   onConfirm,
+  open,
+  onOpenChange,
+  trigger,
 }: ClearCanvasDialogProps) {
   const { t } = useUiI18n();
 
   return (
-    <AlertDialog>
-      <Tooltip>
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      {trigger === null ? null : trigger ? (
+        <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
+      ) : (
+        <Tooltip>
           <TooltipTrigger asChild>
             <AlertDialogTrigger asChild>
               <Button
@@ -64,6 +74,7 @@ export function ClearCanvasDialog({
           </TooltipTrigger>
           {(isCollapsed || iconOnly) && <TooltipContent side={tooltipSide}>{label}</TooltipContent>}
         </Tooltip>
+      )}
 
       <AlertDialogContent>
         <AlertDialogHeader>
@@ -83,4 +94,3 @@ export function ClearCanvasDialog({
     </AlertDialog>
   );
 }
-

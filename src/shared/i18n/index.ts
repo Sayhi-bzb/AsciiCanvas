@@ -7,6 +7,7 @@ const STORAGE_KEY = "ascii-canvas-ui-language";
 const messages = {
   en: {
     "language.switch": "UI language",
+    "appMenu.open": "Open menu",
     "language.switchToEnglish": "Switch to English",
     "language.switchToChinese": "切换到中文",
     "sidebar.tab.template": "Template",
@@ -219,6 +220,7 @@ const messages = {
   },
   zh: {
     "language.switch": "界面语言",
+    "appMenu.open": "打开菜单",
     "language.switchToEnglish": "Switch to English",
     "language.switchToChinese": "切换到中文",
     "sidebar.tab.template": "模板",

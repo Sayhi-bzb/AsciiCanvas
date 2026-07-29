@@ -5,6 +5,8 @@ const STORAGE_KEY = "ascii-canvas-persistence";
 const readHoverStyle = async (control: Locator) => {
   await control.hover();
   await control.page().waitForTimeout(250);
+  await control.hover();
+  await control.page().waitForTimeout(50);
   return control.evaluate((element) => {
     const style = window.getComputedStyle(element);
     return {
