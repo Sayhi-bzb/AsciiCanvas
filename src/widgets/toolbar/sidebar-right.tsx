@@ -282,7 +282,7 @@ export function SidebarRight() {
         <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-accent">
           <AnimationModeIcon className="size-4 text-accent-foreground" />
         </div>
-        <span className="truncate text-sm font-semibold">Frames</span>
+        <span className="truncate text-sm font-semibold">{t("animation.sidebar.title")}</span>
       </div>
     ) : (
       <SearchForm
@@ -311,7 +311,7 @@ export function SidebarRight() {
         canvasMode !== "animation" && "[scrollbar-gutter:auto]",
         canvasMode === "freeform" && "gap-0 p-0",
         canvasMode === "structured" && "gap-0 p-0",
-        canvasMode === "animation" && "p-2"
+        canvasMode === "animation" && "gap-0 p-0"
       )}
       header={
         <SidebarHeader

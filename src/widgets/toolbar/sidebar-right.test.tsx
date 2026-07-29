@@ -5,6 +5,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { SidebarRight } from "@/widgets/toolbar/sidebar-right";
 import { useEditorStore } from "@/domains/canvas/public";
@@ -335,10 +336,11 @@ describe("SidebarRight structured templates", () => {
       .toBeInTheDocument();
   });
 
-  it("shows animation frames without a sidebar footer", () => {
+  it("renders a production animation filmstrip and unloads it when collapsed", () => {
     useEditorStore.setState({
       canvasMode: "animation",
       canvasBounds: { width: 80, height: 25 },
+      animationPlaybackFrameId: null,
       animationTimeline: {
         frames: [{ id: "frame-1", name: "Opening", grid: [] }],
         currentFrameId: "frame-1",
@@ -359,29 +361,115 @@ describe("SidebarRight structured templates", () => {
       </SidebarProvider>
     );
 
-    const content = container.querySelector('[data-slot="sidebar-content"]');
-    expect(content).toHaveClass("[scrollbar-gutter:stable]");
-    expect(content).not.toHaveClass("[scrollbar-gutter:auto]");
-    expect(screen.getByText("Frames", { selector: "span" })).toBeInTheDocument();
-    const framesTab = screen.getByRole("button", { name: "frames" });
+    const content = container.querySelector("[data-slot=sidebar-content]");
+    expect(content).toHaveClass("[scrollbar-gutter:stable]", "gap-0", "p-0");
+    expect(screen.getByText("Animation", { selector: "span" })).toBeInTheDocument();
+
+    const framesTab = screen.getByRole("tab", { name: "Frames" });
+    const effectsTab = screen.getByRole("tab", { name: "Effects" });
+    expect(framesTab).toHaveAttribute("aria-selected", "true");
     expect(framesTab).toHaveClass("bg-accent", "text-foreground");
-    expect(framesTab.parentElement).toHaveClass("bg-muted", "p-[3px]");
-    expect(screen.getByRole("button", { name: "effects" })).toBeInTheDocument();
-    expect(screen.getByText("Opening")).toBeInTheDocument();
+    expect(framesTab.parentElement).toHaveClass("border-b", "p-[3px]");
+
+    const commandBar = screen.getByTestId("animation-frame-command-bar");
+    expect(commandBar).toHaveClass("h-10", "shrink-0");
+    expect(screen.getByText("1 frames")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add after current" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Duplicate" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Rename" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Delete" })).toBeDisabled();
+
+    const frameList = screen.getByRole("list", { name: "Animation frames" });
+    const frame = screen.getByRole("button", {
+      name: "Select Frame 1: Opening",
+    });
+    const frameRow = frame.parentElement;
+    expect(frameList.querySelector(":scope > li")).toContainElement(frameRow);
+    expect(frameRow).toHaveClass("h-14", "grid", "bg-accent");
+    expect(frame).toHaveAttribute("aria-current", "true");
+    expect(frame).toHaveAttribute("aria-pressed", "true");
+    expect(frame.querySelector("canvas")?.parentElement).toHaveClass("h-10", "w-14");
+    expect(screen.queryByText("Add After Current")).not.toBeInTheDocument();
+
+    fireEvent.click(effectsTab);
+    expect(effectsTab).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tabpanel", { name: "Effects" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sweep" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Toggle Sidebar" }));
+    expect(screen.queryByRole("list", { name: "Animation frames" }))
+      .not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "Frames" })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button")).toEqual([
+      screen.getByRole("button", { name: "Toggle Sidebar" }),
+    ]);
+  });
+
+  it("separates current, selected, and playback frame states", () => {
+    useEditorStore.setState({
+      canvasMode: "animation",
+      canvasBounds: { width: 80, height: 25 },
+      animationIsPlaying: true,
+      animationPlaybackFrameId: "frame-2",
+      animationTimeline: {
+        frames: [
+          { id: "frame-1", name: "Opening", grid: [] },
+          { id: "frame-2", name: "Middle", grid: [] },
+          { id: "frame-3", name: "Closing", grid: [] },
+        ],
+        currentFrameId: "frame-1",
+        fps: 10,
+        loop: true,
+        onionSkin: {
+          enabled: true,
+          backwardLayers: 2,
+          forwardLayers: 2,
+          opacityFalloff: [0.5, 0.3, 0.1],
+        },
+      },
+    });
+
+    render(
+      <SidebarProvider>
+        <SidebarRight />
+      </SidebarProvider>
+    );
+
+    const opening = screen.getByRole("button", {
+      name: "Select Frame 1: Opening",
+    });
+    const middle = screen.getByRole("button", {
+      name: "Select Frame 2: Middle",
+    });
+    const openingRow = opening.parentElement;
+    const middleRow = middle.parentElement;
+    expect(openingRow).toHaveAttribute("data-current", "true");
+    expect(openingRow).not.toHaveAttribute("data-playback");
+    expect(middleRow).toHaveAttribute("data-playback", "true");
+    expect(within(middleRow!).getByLabelText("Playback frame")).toBeInTheDocument();
+
+    fireEvent.click(middle, { ctrlKey: true });
+    expect(opening).toHaveAttribute("aria-pressed", "true");
+    expect(middle).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("2 selected")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Rename" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Delete" })).toBeEnabled();
+
+    fireEvent.click(middle);
+    fireEvent.click(screen.getByRole("button", { name: "Rename" }));
+    const input = screen.getByRole("textbox", { name: "Frame name" });
+    fireEvent.change(input, { target: { value: "Middle revised" } });
+    fireEvent.keyDown(input, { key: "Enter" });
     expect(
-      screen.getByRole("button", { name: "Select Frame 1: Opening" })
-    ).toHaveClass("bg-accent", "text-foreground");
-    expect(
-      screen.getByRole("button", { name: "Select Frame 1: Opening" })
-    ).not.toHaveClass("ring-1");
-    expect(
-      screen.getByRole("button", { name: "Add frame after current" })
-    ).toBeInTheDocument();
-    expect(container.querySelector('[data-slot="sidebar-footer"]')).toBeNull();
-    expect(
-      screen.queryByRole("button", { name: "Minimap" })
-    ).not.toBeInTheDocument();
-    expect(screen.queryByText("Nerd Icons")).not.toBeInTheDocument();
+      useEditorStore.getState().animationTimeline?.frames[1].name
+    ).toBe("Middle revised");
+
+    const frameCount =
+      useEditorStore.getState().animationTimeline?.frames.length ?? 0;
+    fireEvent.click(screen.getByRole("button", { name: "Duplicate" }));
+    expect(useEditorStore.getState().animationTimeline?.frames).toHaveLength(
+      frameCount + 1
+    );
   });
 
   it("switches structured sidebar tabs between templates and components", () => {

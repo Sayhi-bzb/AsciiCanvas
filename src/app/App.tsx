@@ -19,6 +19,7 @@ import { AppMenu } from "@/widgets/toolbar/app-menu";
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
 import { getStaticGridViewState } from "@/domains/selection/public";
 import { useHandToolShortcuts } from "./useHandToolShortcuts";
+import { ZoomControl } from "@/widgets/toolbar/zoom-control";
 
 const SidebarRight = lazy(() =>
   import("@/widgets/toolbar/sidebar-right").then((module) => ({
@@ -166,6 +167,7 @@ function AppContent() {
           <AppMenu containerSize={canvasContainerSize} />
           <CanvasBreadcrumb />
         </div>
+        <ZoomControl containerSize={canvasContainerSize} />
         <AppLayout
           canvas={
             <AsciiCanvas

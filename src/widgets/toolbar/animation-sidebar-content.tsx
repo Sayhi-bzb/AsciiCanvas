@@ -1,27 +1,42 @@
 "use client";
 
-import { Copy, GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Reorder, useDragControls } from "motion/react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentType,
+  type CSSProperties,
+} from "react";
+import {
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
+  closestCenter,
+  pointerWithin,
+  useSensor,
+  useSensors,
+  type CollisionDetection,
+  type Announcements,
+  type DragOverEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useShallow } from "zustand/react/shallow";
-import { useSidebar } from "@/shared/ui/sidebar";
 import { useEditorStore } from "@/domains/canvas/public";
+import type { AnimationCanvasSize, AnimationFrame } from "@/domains/animation/public";
+import { useSidebar } from "@/shared/ui/sidebar";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { ScrollArea } from "@/shared/ui/scroll-area";
-import { AnimationEffectsPanel } from "@/widgets/animation-effects/AnimationEffectsPanel";
-import { cn } from "@/shared/lib/utils";
-import type { GridCell } from "@/shared/types";
-import type { AnimationCanvasSize, AnimationFrame } from "@/domains/animation/public";
-import {
-  BACKGROUND_COLOR,
-} from "@/shared/lib/constants";
-import { GridManager } from "@/shared/utils/grid";
-import {
-  DEFAULT_GRID_RENDER_METRICS,
-  drawTextCell,
-  setTextRenderStyle,
-} from "@/shared/metrics";
 import {
   ContextMenu,
   ContextMenuContent,
@@ -29,17 +44,88 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/shared/ui/context-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/shared/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/shared/ui/tooltip";
+import { AnimationEffectsPanel } from "@/widgets/animation-effects/AnimationEffectsPanel";
+import { cn } from "@/shared/lib/utils";
+import { BACKGROUND_COLOR } from "@/shared/lib/constants";
+import { GridManager } from "@/shared/utils/grid";
+import type { GridCell } from "@/shared/types";
+import {
+  DEFAULT_GRID_RENDER_METRICS,
+  drawTextCell,
+  setTextRenderStyle,
+} from "@/shared/metrics";
+import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
+import { uiClass } from "@/shared/styles/components";
+import { useUiI18n } from "@/shared/i18n";
+import {
+  areFrameOrdersEqual,
+  getMovingFrameIds,
+  moveFrameBlock,
+} from "./animation-frame-reorder";
 
-const FRAME_PREVIEW_PADDING = 6;
+const FRAME_PREVIEW_PADDING = 5;
+const sidebarIcons = HOST_ICONOLOGY.animationSidebar;
+
+function AnimationCommandButton({
+  label,
+  icon: Icon,
+  disabled,
+  destructive = false,
+  onClick,
+}: {
+  label: string;
+  icon: ComponentType<{ className?: string }>;
+  disabled?: boolean;
+  destructive?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          tone="subtle"
+          shape="square"
+          size="md"
+          disabled={disabled}
+          aria-label={label}
+          className={cn(
+            uiClass.hostIconControl,
+            destructive &&
+              "text-destructive hover:bg-destructive/10 hover:text-destructive"
+          )}
+          onClick={onClick}
+        >
+          <Icon />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="top">{label}</TooltipContent>
+    </Tooltip>
+  );
+}
 
 function FramePreview({
   frame,
   size,
-  isActive,
+  isCurrent,
+  emptyLabel,
 }: {
   frame: AnimationFrame;
   size: AnimationCanvasSize | null;
-  isActive: boolean;
+  isCurrent: boolean;
+  emptyLabel: string;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const frameMap = useMemo(() => new Map<string, GridCell>(frame.grid), [frame.grid]);
@@ -90,63 +176,43 @@ function FramePreview({
     frameMap.forEach((cell, key) => {
       const [x, y] = key.split(",").map(Number);
       if (!Number.isFinite(x) || !Number.isFinite(y)) return;
-
-      const drawX = x * cellWidth;
-      const drawY = y * cellHeight;
-      drawTextCell(ctx, cell, drawX, drawY);
+      drawTextCell(ctx, cell, x * cellWidth, y * cellHeight);
     });
 
-    ctx.strokeStyle = isActive ? "rgba(37, 99, 235, 0.7)" : "rgba(15, 23, 42, 0.7)";
+    ctx.strokeStyle = isCurrent
+      ? "rgba(37, 99, 235, 0.72)"
+      : "rgba(15, 23, 42, 0.58)";
     ctx.lineWidth = 2;
     ctx.strokeRect(0, 0, sourceWidth, sourceHeight);
     ctx.restore();
-  }, [frameMap, isActive, previewSize]);
+  }, [frameMap, isCurrent, previewSize]);
 
   return (
     <div
       className={cn(
-        "relative h-12 w-16 shrink-0 overflow-hidden rounded-lg border bg-background/80",
-        isActive ? "border-primary/40" : "border-border/70"
+        "relative h-10 w-14 shrink-0 overflow-hidden rounded-md border bg-background/80",
+        isCurrent ? "border-primary/45" : "border-border/70"
       )}
     >
       <canvas ref={canvasRef} className="h-full w-full" />
       {frame.grid.length === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center bg-background/70 text-[11px] font-medium text-muted-foreground">
-          Empty
+        <div className="absolute inset-0 flex items-center justify-center bg-background/75 text-[10px] font-medium text-muted-foreground">
+          {emptyLabel}
         </div>
       )}
     </div>
   );
 }
 
-function FrameRow({
-  frame,
-  index,
-  size,
-  isActive,
-  isSelected,
-  isEditing,
-  isCollapsed,
-  editingName,
-  inputRef,
-  canDelete,
-  onSelect,
-  onContextSelect,
-  onStartRename,
-  onEditingNameChange,
-  onCommitRename,
-  onCancelRename,
-  onInsertAfter,
-  onDuplicate,
-  onDelete,
-}: {
+type FrameRowProps = {
   frame: AnimationFrame;
   index: number;
   size: AnimationCanvasSize | null;
-  isActive: boolean;
+  isCurrent: boolean;
   isSelected: boolean;
+  isPlayback: boolean;
   isEditing: boolean;
-  isCollapsed: boolean;
+  isGroupDragging: boolean;
   editingName: string;
   inputRef: React.RefObject<HTMLInputElement | null>;
   canDelete: boolean;
@@ -159,142 +225,459 @@ function FrameRow({
   onInsertAfter: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
-}) {
-  const dragControls = useDragControls();
-  const frameLabel = `Frame ${index + 1}`;
+};
+
+function SortableFrameRow({
+  frame,
+  index,
+  size,
+  isCurrent,
+  isSelected,
+  isPlayback,
+  isEditing,
+  isGroupDragging,
+  editingName,
+  inputRef,
+  canDelete,
+  onSelect,
+  onContextSelect,
+  onStartRename,
+  onEditingNameChange,
+  onCommitRename,
+  onCancelRename,
+  onInsertAfter,
+  onDuplicate,
+  onDelete,
+}: FrameRowProps) {
+  const { t } = useUiI18n();
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: frame.id, disabled: isEditing });
+  const frameLabel = t("animation.sidebar.frameNumber", { index: index + 1 });
+  const style: CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition:
+      transition ?? "transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1)",
+    zIndex: isDragging ? 1 : undefined,
+  };
   const rowClassName = cn(
-    "group/frame relative flex w-full min-w-0 items-center rounded-xl px-1.5 py-2 text-left outline-none overflow-hidden",
-    isActive
+    "group/frame relative grid h-14 w-full min-w-0 grid-cols-[1.5rem_minmax(0,1fr)_2rem] items-center gap-2 overflow-hidden rounded-md px-1 text-left outline-none transition-[background-color,color,opacity]",
+    isCurrent
       ? "bg-accent text-foreground"
       : isSelected
-      ? "bg-accent/55 text-foreground"
-      : "text-foreground hover:bg-accent/45 focus-visible:bg-accent/45"
+        ? "bg-accent/55 text-foreground"
+        : "text-foreground hover:bg-accent/45 focus-within:bg-accent/45",
+    isGroupDragging && "opacity-45"
   );
-  const stopFrameSelectionEvent = (
-    event: React.MouseEvent | React.PointerEvent
-  ) => {
-    event.stopPropagation();
-    if (event.shiftKey || event.ctrlKey || event.metaKey) {
-      event.preventDefault();
-    }
-  };
+
+  const actionItems = (
+    <>
+      <DropdownMenuItem onSelect={onStartRename}>
+        <sidebarIcons.rename />
+        {t("animation.sidebar.rename")}
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem onSelect={onDuplicate}>
+        <sidebarIcons.duplicate />
+        {t("animation.sidebar.duplicate")}
+      </DropdownMenuItem>
+      <DropdownMenuItem onSelect={onInsertAfter}>
+        <sidebarIcons.add />
+        {t("animation.sidebar.insertAfter")}
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem
+        variant="destructive"
+        disabled={!canDelete}
+        onSelect={onDelete}
+      >
+        <sidebarIcons.delete />
+        {t("animation.sidebar.delete")}
+      </DropdownMenuItem>
+    </>
+  );
 
   return (
-    <Reorder.Item
-      key={frame.id}
-      value={frame.id}
-      dragListener={false}
-      dragControls={dragControls}
-      transition={{ duration: 0 }}
+    <li
+      ref={setNodeRef}
+      style={style}
       className="min-w-0 list-none"
+      data-testid={`animation-frame-item-${frame.id}`}
+      data-dragging={isGroupDragging || undefined}
     >
       <ContextMenu>
         <ContextMenuTrigger asChild>
           {isEditing ? (
             <div className={rowClassName}>
-              <Input
-                ref={inputRef}
-                value={editingName}
-                onChange={(event) => onEditingNameChange(event.target.value)}
-                onBlur={onCommitRename}
-                onClick={(event) => event.stopPropagation()}
-                onPointerDown={(event) => event.stopPropagation()}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    onCommitRename();
-                  } else if (event.key === "Escape") {
-                    event.preventDefault();
-                    onCancelRename();
-                  }
-                }}
-                className="h-7 border-none bg-background/90 px-2 text-xs font-semibold shadow-none focus-visible:ring-1"
-              />
+              {isCurrent && (
+                <span className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-primary" />
+              )}
+              <span aria-hidden className="size-6" />
+              <div className="grid min-w-0 grid-cols-[3.5rem_minmax(0,1fr)] items-center gap-2">
+                <FramePreview
+                  frame={frame}
+                  size={size}
+                  isCurrent={isCurrent}
+                  emptyLabel={t("animation.sidebar.empty")}
+                />
+                <Input
+                  ref={inputRef}
+                  value={editingName}
+                  aria-label={t("animation.sidebar.frameName")}
+                  onChange={(event) => onEditingNameChange(event.target.value)}
+                  onBlur={onCommitRename}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      onCommitRename();
+                    } else if (event.key === "Escape") {
+                      event.preventDefault();
+                      onCancelRename();
+                    }
+                  }}
+                  className="h-7 min-w-0 border-none bg-background/90 px-2 text-xs font-semibold shadow-none focus-visible:ring-1"
+                />
+              </div>
+              <span aria-hidden className="size-8" />
             </div>
           ) : (
             <div
-              role="button"
-              tabIndex={0}
-              aria-current={isActive ? "true" : undefined}
-              aria-selected={isSelected}
-              aria-label={`Select ${frameLabel}: ${frame.name}`}
-              onPointerDown={stopFrameSelectionEvent}
-              onMouseDown={stopFrameSelectionEvent}
-              onClick={onSelect}
+              data-current={isCurrent || undefined}
+              data-playback={isPlayback || undefined}
               onContextMenu={onContextSelect}
-              onDoubleClick={onStartRename}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  onSelect();
-                }
-              }}
               className={rowClassName}
             >
+              {isCurrent && (
+                <span className="absolute inset-y-2 left-0 w-0.5 rounded-full bg-primary" />
+              )}
+
               <button
                 type="button"
-                aria-label={`Reorder ${frame.name}`}
-                title="Drag to reorder"
-                onPointerDown={(event) => {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  dragControls.start(event);
-                }}
+                aria-label={t("animation.sidebar.reorder", { name: frame.name })}
+                title={t("animation.sidebar.reorder", { name: frame.name })}
+                {...attributes}
+                {...listeners}
                 onClick={(event) => event.stopPropagation()}
-                className="mr-1 flex size-6 shrink-0 cursor-grab items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground active:cursor-grabbing"
+                className={cn(
+                  uiClass.hostIconControl,
+                  "size-6 touch-none cursor-grab rounded-md active:cursor-grabbing [&_svg]:size-3.5"
+                )}
               >
-                <GripVertical className="size-3.5" />
+                <sidebarIcons.reorder />
               </button>
 
-              <FramePreview frame={frame} size={size} isActive={isActive} />
+              <button
+                type="button"
+                aria-current={isCurrent ? "true" : undefined}
+                aria-pressed={isSelected}
+                aria-label={t("animation.sidebar.selectFrame", {
+                  frame: frameLabel,
+                  name: frame.name,
+                })}
+                onClick={onSelect}
+                onDoubleClick={onStartRename}
+                className="grid h-full min-w-0 grid-cols-[3.5rem_minmax(0,1fr)] items-center gap-2 rounded-sm text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+              >
+                <div className="relative">
+                  <FramePreview
+                    frame={frame}
+                    size={size}
+                    isCurrent={isCurrent}
+                    emptyLabel={t("animation.sidebar.empty")}
+                  />
+                  {isPlayback && (
+                    <span
+                      aria-label={t("animation.sidebar.playbackFrame")}
+                      className="absolute -left-1 -top-1 flex size-4 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm"
+                    >
+                      <sidebarIcons.playhead className="size-2.5 fill-current" />
+                    </span>
+                  )}
+                </div>
 
-              {!isCollapsed && (
-                <div className="ml-2 min-w-0 flex-1 overflow-hidden">
+                <span className="min-w-0 overflow-hidden">
                   <span className="block truncate text-xs font-semibold">
                     {frame.name}
                   </span>
-                </div>
-              )}
+                  <span className="block truncate text-[10px] text-muted-foreground">
+                    {frameLabel}
+                  </span>
+                </span>
+              </button>
 
+              <DropdownMenu onOpenChange={(open) => open && onContextSelect()}>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label={t("animation.sidebar.frameActions", {
+                      name: frame.name,
+                    })}
+                    className={cn(
+                      uiClass.hostIconControl,
+                      "opacity-0 group-hover/frame:opacity-100 group-focus-within/frame:opacity-100 data-[state=open]:bg-accent data-[state=open]:opacity-100"
+                    )}
+                  >
+                    <sidebarIcons.more />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent side="left" align="start">
+                  {actionItems}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           )}
         </ContextMenuTrigger>
+
         <ContextMenuContent className="min-w-36">
-          <ContextMenuItem onClick={onStartRename}>
-            <Pencil className="size-4" />
-            Rename
+          <ContextMenuItem onSelect={onStartRename}>
+            <sidebarIcons.rename />
+            {t("animation.sidebar.rename")}
           </ContextMenuItem>
           <ContextMenuSeparator />
-          <ContextMenuItem onClick={onDuplicate}>
-            <Copy className="size-4" />
-            Duplicate
+          <ContextMenuItem onSelect={onDuplicate}>
+            <sidebarIcons.duplicate />
+            {t("animation.sidebar.duplicate")}
           </ContextMenuItem>
-          <ContextMenuItem onClick={onInsertAfter}>
-            <Plus className="size-4" />
-            Insert After
+          <ContextMenuItem onSelect={onInsertAfter}>
+            <sidebarIcons.add />
+            {t("animation.sidebar.insertAfter")}
           </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem
             variant="destructive"
             disabled={!canDelete}
-            onClick={onDelete}
+            onSelect={onDelete}
           >
-            <Trash2 className="size-4" />
-            Delete
+            <sidebarIcons.delete />
+            {t("animation.sidebar.delete")}
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
+    </li>
+  );
+}
 
-    </Reorder.Item>
+function AnimationFrameList({
+  frames,
+  selectedFrameIds,
+  onReorder,
+  children,
+}: {
+  frames: AnimationFrame[];
+  selectedFrameIds: string[];
+  onReorder: (frameIds: string[]) => void;
+  children: (
+    frame: AnimationFrame,
+    index: number,
+    isGroupDragging: boolean
+  ) => React.ReactNode;
+}) {
+  const { t } = useUiI18n();
+  const frameOrder = useMemo(() => frames.map((frame) => frame.id), [frames]);
+  const frameMap = useMemo(
+    () => new Map(frames.map((frame) => [frame.id, frame] as const)),
+    [frames]
+  );
+  const [draftOrder, setDraftOrder] = useState(frameOrder);
+  const [activeFrameId, setActiveFrameId] = useState<string | null>(null);
+  const [movingFrameIds, setMovingFrameIds] = useState<string[]>([]);
+  const sourceOrderRef = useRef(frameOrder);
+  const movingFrameIdsRef = useRef<string[]>([]);
+  const draftOrderRef = useRef(frameOrder);
+  const hasValidDropRef = useRef(false);
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 180, tolerance: 6 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const detectFrameCollision: CollisionDetection = (args) => {
+    const stationaryContainers = args.droppableContainers.filter(
+      (container) =>
+        !movingFrameIdsRef.current.includes(String(container.id))
+    );
+    const scopedArgs = {
+      ...args,
+      droppableContainers: stationaryContainers,
+    };
+    const pointerCollisions = pointerWithin(scopedArgs);
+    return pointerCollisions.length > 0
+      ? pointerCollisions
+      : closestCenter(scopedArgs);
+  };
+  const handleDragStart = ({ active }: DragStartEvent) => {
+    const activeId = String(active.id);
+    const nextMovingFrameIds = getMovingFrameIds(
+      frameOrder,
+      selectedFrameIds,
+      activeId
+    );
+    sourceOrderRef.current = frameOrder;
+    movingFrameIdsRef.current = nextMovingFrameIds;
+    setDraftOrder(frameOrder);
+    draftOrderRef.current = frameOrder;
+    hasValidDropRef.current = false;
+    setMovingFrameIds(nextMovingFrameIds);
+    setActiveFrameId(activeId);
+  };
+
+  const handleDragOver = ({ active, over }: DragOverEvent) => {
+    if (!over) return;
+    const overId = String(over.id);
+    if (movingFrameIdsRef.current.includes(overId)) return;
+    const nextOrder = moveFrameBlock(
+      sourceOrderRef.current,
+      movingFrameIdsRef.current,
+      String(active.id),
+      overId
+    );
+    hasValidDropRef.current = true;
+    draftOrderRef.current = nextOrder;
+    setDraftOrder(nextOrder);
+  };
+
+  const finishDrag = (nextOrder: string[]) => {
+    setDraftOrder(nextOrder);
+    setActiveFrameId(null);
+    draftOrderRef.current = nextOrder;
+    setMovingFrameIds([]);
+    movingFrameIdsRef.current = [];
+    hasValidDropRef.current = false;
+  };
+
+  const handleDragEnd = () => {
+    const sourceOrder = sourceOrderRef.current;
+    const nextOrder = hasValidDropRef.current
+      ? draftOrderRef.current
+      : sourceOrder;
+    finishDrag(nextOrder);
+    if (!areFrameOrdersEqual(sourceOrder, nextOrder)) onReorder(nextOrder);
+  };
+
+  const handleDragCancel = () => {
+    finishDrag(sourceOrderRef.current);
+  };
+
+  const activeFrame = activeFrameId ? frameMap.get(activeFrameId) : undefined;
+  const renderOrder = activeFrameId ? draftOrder : frameOrder;
+  const orderedFrames = renderOrder
+    .map((frameId) => frameMap.get(frameId))
+    .filter((frame): frame is AnimationFrame => !!frame);
+  const movingIds = new Set(movingFrameIds);
+  const announceFramePosition = (
+    key:
+      | "animation.sidebar.reorderPickedUp"
+      | "animation.sidebar.reorderMoved"
+      | "animation.sidebar.reorderDropped",
+    frameId: string,
+    order: string[]
+  ) =>
+    t(key, {
+      name: frameMap.get(frameId)?.name ?? frameId,
+      position: Math.max(order.indexOf(frameId) + 1, 1),
+      count: order.length,
+    });
+  const announcements: Announcements = {
+    onDragStart: ({ active }) =>
+      announceFramePosition(
+        "animation.sidebar.reorderPickedUp",
+        String(active.id),
+        sourceOrderRef.current
+      ),
+    onDragOver: ({ active, over }) =>
+      over
+        ? announceFramePosition(
+            "animation.sidebar.reorderMoved",
+            String(active.id),
+            draftOrderRef.current
+          )
+        : undefined,
+    onDragEnd: ({ active }) =>
+      announceFramePosition(
+        "animation.sidebar.reorderDropped",
+        String(active.id),
+        draftOrderRef.current
+      ),
+    onDragCancel: ({ active }) =>
+      t("animation.sidebar.reorderCancelled", {
+        name: frameMap.get(String(active.id))?.name ?? String(active.id),
+      }),
+  };
+
+  return (
+    <DndContext
+      sensors={sensors}
+      accessibility={{
+        announcements,
+        screenReaderInstructions: {
+          draggable: t("animation.sidebar.reorderInstructions"),
+        },
+      }}
+      collisionDetection={detectFrameCollision}
+      autoScroll={{
+        acceleration: 10,
+        threshold: { x: 0.2, y: 0.15 },
+      }}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragEnd={handleDragEnd}
+      onDragCancel={handleDragCancel}
+    >
+      <ScrollArea className="min-h-0 min-w-0 flex-1">
+        <SortableContext
+          items={renderOrder}
+          strategy={verticalListSortingStrategy}
+        >
+          <ul
+            aria-label={t("animation.sidebar.frameList")}
+            className="flex w-full max-w-full min-w-0 flex-col gap-1 p-1"
+          >
+            {orderedFrames.map((frame, index) =>
+              children(frame, index, movingIds.has(frame.id))
+            )}
+          </ul>
+        </SortableContext>
+      </ScrollArea>
+
+      <DragOverlay>
+        {activeFrame ? (
+          <div
+            data-testid="animation-frame-drag-overlay"
+            className="flex h-12 w-52 items-center gap-2 rounded-md border border-primary/35 bg-popover px-2 text-popover-foreground shadow-lg"
+          >
+            <sidebarIcons.reorder className="size-4 shrink-0 text-muted-foreground" />
+            <span className="min-w-0 flex-1 truncate text-xs font-semibold">
+              {activeFrame.name}
+            </span>
+            {movingFrameIds.length > 1 && (
+              <span className="flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-semibold text-primary-foreground">
+                {movingFrameIds.length}
+              </span>
+            )}
+          </div>
+        ) : null}
+      </DragOverlay>
+    </DndContext>
   );
 }
 
 export function AnimationSidebarContent() {
+  const { t } = useUiI18n();
   const {
     canvasMode,
     canvasBounds,
     animationTimeline,
     animationIsPlaying,
+    animationPlaybackFrameId,
     setAnimationCurrentFrame,
     insertAnimationFrame,
     renameAnimationFrame,
@@ -307,6 +690,7 @@ export function AnimationSidebarContent() {
       canvasBounds: state.canvasBounds,
       animationTimeline: state.animationTimeline,
       animationIsPlaying: state.animationIsPlaying,
+      animationPlaybackFrameId: state.animationPlaybackFrameId,
       setAnimationCurrentFrame: state.setAnimationCurrentFrame,
       insertAnimationFrame: state.insertAnimationFrame,
       renameAnimationFrame: state.renameAnimationFrame,
@@ -345,17 +729,6 @@ export function AnimationSidebarContent() {
     return animationTimeline.currentFrameId;
   }, [animationIsPlaying, animationTimeline, pinnedFrameId]);
 
-  const activeFrameIndex = useMemo(() => {
-    if (!animationTimeline) return -1;
-    return animationTimeline.frames.findIndex(
-      (frame) => frame.id === sidebarCurrentFrameId
-    );
-  }, [animationTimeline, sidebarCurrentFrameId]);
-
-  const frameOrder = useMemo(
-    () => animationTimeline?.frames.map((frame) => frame.id) ?? [],
-    [animationTimeline]
-  );
 
   const effectiveSelectedFrameIds = useMemo(() => {
     if (!animationTimeline) return [];
@@ -375,7 +748,7 @@ export function AnimationSidebarContent() {
       : effectiveSelectedFrameIds[0] ?? animationTimeline.currentFrameId;
   }, [animationTimeline, effectiveSelectedFrameIds, selectionAnchorFrameId]);
 
-  if (canvasMode !== "animation" || !animationTimeline) {
+  if (canvasMode !== "animation" || !animationTimeline || isCollapsed) {
     return null;
   }
 
@@ -478,101 +851,164 @@ export function AnimationSidebarContent() {
     setEditingId(null);
   };
 
+  const commandTargetFrameId =
+    effectiveSelectedFrameIds[0] ?? animationTimeline.currentFrameId;
+  const renameTarget =
+    effectiveSelectedFrameIds.length === 1
+      ? animationTimeline.frames.find(
+          (frame) => frame.id === effectiveSelectedFrameIds[0]
+        )
+      : undefined;
+  const canDeleteSelection =
+    effectiveSelectedFrameIds.length > 0 &&
+    effectiveSelectedFrameIds.length < animationTimeline.frames.length;
+  const selectionStatus =
+    effectiveSelectedFrameIds.length > 1
+      ? t("animation.sidebar.selectedCount", {
+          count: effectiveSelectedFrameIds.length,
+        })
+      : t("animation.sidebar.frameCount", {
+          count: animationTimeline.frames.length,
+        });
+
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      {!isCollapsed && (
-        <div className="mb-3 grid shrink-0 grid-cols-2 gap-1 rounded-lg bg-muted p-[3px]">
-          {(["frames", "effects"] as const).map((mode) => (
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div
+        role="tablist"
+        aria-label={t("animation.sidebar.views")}
+        className="grid shrink-0 grid-cols-2 gap-1 border-b border-border/70 p-[3px]"
+      >
+        {(["frames", "effects"] as const).map((mode) => {
+          const Icon = sidebarIcons[mode];
+          const selected = panelMode === mode;
+          return (
             <button
               key={mode}
               type="button"
+              role="tab"
+              aria-selected={selected}
               onClick={() => setPanelMode(mode)}
               className={cn(
-                "h-7 rounded-md text-xs font-semibold capitalize transition-colors",
-                panelMode === mode
-                  ? "bg-accent text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
+                "flex h-8 items-center justify-center gap-1.5 rounded-md px-2 text-xs font-semibold transition-colors outline-none",
+                uiClass.hostControl,
+                selected && uiClass.hostControlActive
               )}
             >
-              {mode}
+              <Icon className="size-4" />
+              {t(`animation.sidebar.${mode}`)}
             </button>
-          ))}
-        </div>
-      )}
+          );
+        })}
+      </div>
 
-      {panelMode === "effects" && !isCollapsed ? (
-        <AnimationEffectsPanel />
+      {panelMode === "effects" ? (
+        <div
+          role="tabpanel"
+          aria-label={t("animation.sidebar.effects")}
+          className="flex min-h-0 flex-1 p-2"
+        >
+          <AnimationEffectsPanel />
+        </div>
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col">
-          <ScrollArea className="min-h-0 min-w-0 flex-1">
-            <Reorder.Group
-              as="div"
-              axis="y"
-              values={frameOrder}
-              onReorder={reorderAnimationFrames}
-              className="flex w-full max-w-full min-w-0 flex-col gap-2 pr-1 overflow-hidden"
-            >
-              {animationTimeline.frames.map((frame, index) => {
-                const isActive = frame.id === sidebarCurrentFrameId;
-                const isSelected = effectiveSelectedFrameIds.includes(frame.id);
-                const isEditing = frame.id === editingId;
-
-                return (
-                  <FrameRow
-                    key={frame.id}
-                    frame={frame}
-                    index={index}
-                    size={canvasBounds}
-                    isActive={isActive}
-                    isSelected={isSelected}
-                    isEditing={isEditing}
-                    isCollapsed={isCollapsed}
-                    editingName={editingName}
-                    inputRef={inputRef}
-                    canDelete
-                    onSelect={(event) => selectFrame(frame.id, event)}
-                    onContextSelect={() => selectFrameForContextMenu(frame.id)}
-                    onStartRename={() => startRename(frame.id, frame.name)}
-                    onEditingNameChange={setEditingName}
-                    onCommitRename={commitRename}
-                    onCancelRename={cancelRename}
-                    onDuplicate={() => duplicateSelectedFrames(frame.id)}
-                    onInsertAfter={() => {
-                      selectFrame(frame.id);
-                      insertAnimationFrame("after");
-                      setSelectedFrameIds([]);
-                      setSelectionAnchorFrameId(null);
-                    }}
-                    onDelete={() => removeSelectedFrames(frame.id)}
-                  />
-                );
-              })}
-            </Reorder.Group>
-          </ScrollArea>
-
-          <div className={cn("shrink-0 pt-2", isCollapsed && "flex justify-center")}>
-            <Button
-              type="button"
-              tone="neutral"
-              size="sm"
-              className={cn(
-                "w-full shadow-none",
-                isCollapsed && "size-8 rounded-lg px-0"
-              )}
-              onClick={() => insertAnimationFrame("after")}
-              aria-label="Add frame after current"
-              title="Add frame after current"
-            >
-              <Plus className="size-4" />
-              {!isCollapsed && <span>Add After Current</span>}
-            </Button>
+        <div
+          role="tabpanel"
+          aria-label={t("animation.sidebar.frames")}
+          className="flex min-h-0 flex-1 flex-col"
+        >
+          <div
+            data-testid="animation-frame-command-bar"
+            className="flex h-10 shrink-0 items-center justify-between border-b border-border/70 px-2"
+          >
+            <span className="min-w-0 truncate text-[11px] font-medium text-muted-foreground">
+              {selectionStatus}
+            </span>
+            <div className="flex shrink-0 items-center gap-0.5">
+              <AnimationCommandButton
+                label={t("animation.sidebar.addAfter")}
+                icon={sidebarIcons.add}
+                onClick={() => {
+                  insertAnimationFrame("after");
+                  setSelectedFrameIds([]);
+                  setSelectionAnchorFrameId(null);
+                }}
+              />
+              <AnimationCommandButton
+                label={t("animation.sidebar.duplicate")}
+                icon={sidebarIcons.duplicate}
+                disabled={!commandTargetFrameId}
+                onClick={() => {
+                  if (commandTargetFrameId) {
+                    duplicateSelectedFrames(commandTargetFrameId);
+                  }
+                }}
+              />
+              <AnimationCommandButton
+                label={t("animation.sidebar.rename")}
+                icon={sidebarIcons.rename}
+                disabled={!renameTarget}
+                onClick={() => {
+                  if (renameTarget) {
+                    startRename(renameTarget.id, renameTarget.name);
+                  }
+                }}
+              />
+              <AnimationCommandButton
+                label={t("animation.sidebar.delete")}
+                icon={sidebarIcons.delete}
+                destructive
+                disabled={!canDeleteSelection || !commandTargetFrameId}
+                onClick={() => {
+                  if (commandTargetFrameId) {
+                    removeSelectedFrames(commandTargetFrameId);
+                  }
+                }}
+              />
+            </div>
           </div>
-        </div>
-      )}
 
-      {!isCollapsed && (
-        <div className="shrink-0 px-1 pt-2 text-[11px] font-medium text-muted-foreground">
-          {Math.max(activeFrameIndex + 1, 1)} / {animationTimeline.frames.length}
+          <AnimationFrameList
+            frames={animationTimeline.frames}
+            selectedFrameIds={effectiveSelectedFrameIds}
+            onReorder={reorderAnimationFrames}
+          >
+            {(frame, index, isGroupDragging) => {
+              const isCurrent = frame.id === sidebarCurrentFrameId;
+              const isSelected = effectiveSelectedFrameIds.includes(frame.id);
+              const isEditing = frame.id === editingId;
+              const actionFrameCount = getActionFrameIds(frame.id).length;
+
+              return (
+                <SortableFrameRow
+                  key={frame.id}
+                  frame={frame}
+                  index={index}
+                  size={canvasBounds}
+                  isCurrent={isCurrent}
+                  isSelected={isSelected}
+                  isPlayback={frame.id === animationPlaybackFrameId}
+                  isEditing={isEditing}
+                  isGroupDragging={isGroupDragging}
+                  editingName={editingName}
+                  inputRef={inputRef}
+                  canDelete={actionFrameCount < animationTimeline.frames.length}
+                  onSelect={(event) => selectFrame(frame.id, event)}
+                  onContextSelect={() => selectFrameForContextMenu(frame.id)}
+                  onStartRename={() => startRename(frame.id, frame.name)}
+                  onEditingNameChange={setEditingName}
+                  onCommitRename={commitRename}
+                  onCancelRename={cancelRename}
+                  onDuplicate={() => duplicateSelectedFrames(frame.id)}
+                  onInsertAfter={() => {
+                    selectFrame(frame.id);
+                    insertAnimationFrame("after");
+                    setSelectedFrameIds([]);
+                    setSelectionAnchorFrameId(null);
+                  }}
+                  onDelete={() => removeSelectedFrames(frame.id)}
+                />
+              );
+            }}
+          </AnimationFrameList>
         </div>
       )}
     </div>
