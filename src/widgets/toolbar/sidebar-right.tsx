@@ -85,10 +85,10 @@ function SidebarViewRail<ViewId extends string>({
       aria-orientation={orientation}
       data-testid={`${testIdPrefix}-view-rail-${orientation}`}
       className={cn(
-        "flex rounded-lg bg-muted p-[3px]",
+        uiClass.iconRail,
         orientation === "vertical"
           ? "w-full flex-col gap-1"
-          : "w-full items-center gap-1"
+          : "w-full items-center justify-center gap-1"
       )}
     >
       {views.map((view) => {
@@ -104,10 +104,8 @@ function SidebarViewRail<ViewId extends string>({
                 aria-label={view.label}
                 onClick={() => onSelect(view.id)}
                 className={cn(
-                  "inline-flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50",
-                  uiClass.hostControl,
-                  orientation === "horizontal" && "flex-1",
-                  isActive && "bg-accent text-foreground"
+                  uiClass.iconRailItem,
+                  isActive && uiClass.hostControlActive
                 )}
               >
                 <Icon className="size-4" />
@@ -346,13 +344,7 @@ export function SidebarRight() {
               isCollapsed && "pointer-events-auto"
             )}
           >
-            <SidebarTrigger
-              side="right"
-              className={cn(
-                "size-8 shrink-0 transition-colors",
-                isCollapsed && "bg-muted text-muted-foreground"
-              )}
-            />
+            <SidebarTrigger side="right" className="shrink-0" />
           </div>
         </SidebarHeader>
       }

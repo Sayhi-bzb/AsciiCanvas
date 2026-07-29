@@ -24,6 +24,7 @@ import {
 } from "@/domains/structured-content/public";
 import type { CanvasLinkHit } from './hooks/interaction/core/linkHitTesting';
 import type { StructuredMovePreview } from './hooks/useCanvasRenderer';
+import type { ToolType } from '@/domains/canvas/public';
 
 interface AsciiCanvasProps {
   onUndo: () => void;
@@ -31,12 +32,14 @@ interface AsciiCanvasProps {
   onContainerSizeChange?: (
     size: { width: number; height: number } | undefined
   ) => void;
+  interactionToolOverride?: ToolType;
 }
 
 export const AsciiCanvas = ({
   onUndo,
   onRedo,
   onContainerSizeChange,
+  interactionToolOverride,
 }: AsciiCanvasProps) => {
   const bgCanvasRef = useRef<HTMLCanvasElement>(null);
   const scratchCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -54,6 +57,12 @@ export const AsciiCanvas = ({
     renderer: rendererStore,
     editor: editorStore,
   } = useAsciiCanvasModels();
+  const interactionModel = interactionToolOverride
+    ? { ...interactionStore, tool: interactionToolOverride }
+    : interactionStore;
+  const rendererModel = interactionToolOverride
+    ? { ...rendererStore, tool: interactionToolOverride }
+    : rendererStore;
   const {
     canvasMode,
     canvasBounds: interactionCanvasBounds,
@@ -121,7 +130,7 @@ export const AsciiCanvas = ({
   ]);
 
   const { draggingSelection, handleDoubleClick } = useCanvasInteraction(
-    interactionStore,
+    interactionModel,
     containerRef,
     setHoveredLink,
     structuredMovePreviewRef,
@@ -131,7 +140,7 @@ export const AsciiCanvas = ({
   useCanvasRenderer(
     { bg: bgCanvasRef, scratch: scratchCanvasRef, ui: uiCanvasRef },
     size,
-    rendererStore,
+    rendererModel,
     draggingSelection,
     structuredMovePreviewRef,
     hoveredLink,

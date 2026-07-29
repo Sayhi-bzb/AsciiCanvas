@@ -1,19 +1,6 @@
 "use client";
 
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
-import {
-  Copy,
-  CircleHelp,
-  Download,
-  Eye,
-  EyeOff,
-  Github,
-  Languages,
-  Map,
-  Menu,
-  Trash2,
-  Upload,
-} from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { useEditorStore } from "@/domains/canvas/public";
 import { runSidebarAction } from "@/domains/actions/public";
@@ -39,6 +26,19 @@ import { cn } from "@/shared/lib/utils";
 import { uiClass } from "@/shared/styles/components";
 import { useCanvasImport } from "@/widgets/import/useCanvasImport";
 import { useAppMenuExport } from "@/widgets/export/use-app-menu-export";
+import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
+
+const AppMenuTriggerIcon = HOST_ICONOLOGY.appMenu.trigger;
+const ImportIcon = HOST_ICONOLOGY.appMenu.import;
+const ExportIcon = HOST_ICONOLOGY.appMenu.export;
+const CopyIcon = HOST_ICONOLOGY.appMenu.copy;
+const HelpIcon = HOST_ICONOLOGY.appMenu.help;
+const PreviewIcon = HOST_ICONOLOGY.appMenu.preview;
+const PreviewOffIcon = HOST_ICONOLOGY.appMenu["preview-off"];
+const GithubIcon = HOST_ICONOLOGY.appMenu.github;
+const LanguageIcon = HOST_ICONOLOGY.appMenu.language;
+const MinimapIcon = HOST_ICONOLOGY.appMenu.minimap;
+const ClearIcon = HOST_ICONOLOGY.appMenu.clear;
 const HandbookDialog = lazy(() =>
   import("@/widgets/dialogs/handbook-dialog").then((module) => ({
     default: module.HandbookDialog,
@@ -164,7 +164,7 @@ export function AppMenu({ containerSize }: AppMenuProps) {
       <div
         data-canvas-ui="true"
         data-testid="app-menu-host"
-        className="absolute left-3 top-3 z-50 pointer-events-auto"
+        className="relative z-50 pointer-events-auto"
       >
             <DropdownMenu
               modal={false}
@@ -177,12 +177,12 @@ export function AppMenu({ containerSize }: AppMenuProps) {
                   shape="square"
                   size="md"
                   className={cn(
-                    "size-8 bg-muted text-muted-foreground data-[state=open]:bg-accent data-[state=open]:text-foreground",
-                    uiClass.hostControl
+                    uiClass.hostIconControl,
+                    "data-[state=open]:bg-accent data-[state=open]:text-foreground"
                   )}
                   aria-label={t("appMenu.open")}
                 >
-                  <Menu className="size-4" />
+                  <AppMenuTriggerIcon className="size-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent
@@ -194,12 +194,12 @@ export function AppMenu({ containerSize }: AppMenuProps) {
                   disabled={isImporting}
                   onSelect={openFilePicker}
                 >
-                  <Upload />
+                  <ImportIcon />
                   {isImporting ? t("import.importing") : t("import.tooltip")}
                 </DropdownMenuItem>
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger>
-                    <Download />
+                    <ExportIcon />
                     {exportLabel}
                   </DropdownMenuSubTrigger>
                   <DropdownMenuSubContent aria-label={exportLabel}>
@@ -229,7 +229,7 @@ export function AppMenu({ containerSize }: AppMenuProps) {
                                   void exportActions.copy(definition.format);
                                 }}
                               >
-                                <Copy />
+                                <CopyIcon />
                                 {t("export.copy")}
                               </DropdownMenuItem>
                             )}
@@ -239,7 +239,7 @@ export function AppMenu({ containerSize }: AppMenuProps) {
                                 void exportActions.save(definition.format);
                               }}
                             >
-                              <Download />
+                              <ExportIcon />
                               {t("export.save")}
                             </DropdownMenuItem>
                           </DropdownMenuSubContent>
@@ -254,7 +254,7 @@ export function AppMenu({ containerSize }: AppMenuProps) {
                     runSidebarAction("toggle-grid", actionContext);
                   }}
                 >
-                  {showGrid ? <Eye className="text-primary" /> : <EyeOff />}
+                  {showGrid ? <PreviewIcon className="text-primary" /> : <PreviewOffIcon />}
                   {showGrid ? t("sidebar.grid.hide") : t("action.toggleGrid")}
                 </DropdownMenuItem>
                 {canvasMode !== "animation" && (
@@ -264,24 +264,24 @@ export function AppMenu({ containerSize }: AppMenuProps) {
                       setMinimapOpen((open) => !open);
                     }}
                   >
-                    <Map />
+                    <MinimapIcon />
                     {t("sidebar.minimap")}
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuItem onSelect={() => setHandbookOpen(true)}>
-                  <CircleHelp />
+                  <HelpIcon />
                   {t("manual.title")}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   variant="destructive"
                   onSelect={() => setClearOpen(true)}
                 >
-                  <Trash2 />
+                  <ClearIcon />
                   {clearLabel}
                 </DropdownMenuItem>
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger>
-                    <Languages />
+                    <LanguageIcon />
                     {t("language.switch")}
                   </DropdownMenuSubTrigger>
                   <DropdownMenuSubContent aria-label={t("language.switch")}>
@@ -312,7 +312,7 @@ export function AppMenu({ containerSize }: AppMenuProps) {
                     runSidebarAction("open-source-code", actionContext)
                   }
                 >
-                  <Github />
+                  <GithubIcon />
                   {t("action.openSourceCode")}
                 </DropdownMenuItem>
               </DropdownMenuContent>

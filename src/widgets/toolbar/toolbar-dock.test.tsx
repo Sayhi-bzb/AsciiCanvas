@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { Toolbar } from "@/widgets/toolbar/dock";
 import { ColorPickerPanel } from "@/widgets/toolbar/dock/submenus";
 import { useEditorStore } from "@/domains/canvas/public";
@@ -13,6 +13,50 @@ describe("Toolbar dock", () => {
 
   afterEach(() => {
     useEditorStore.setState(initialState, true);
+  });
+
+  it("shows Hand first in freeform and selects it persistently", () => {
+    useEditorStore.setState({ canvasMode: "freeform", tool: "select" });
+    const setTool = vi.fn();
+    const { container } = render(
+      <Toolbar tool="select" setTool={setTool} onUndo={vi.fn()} />
+    );
+
+    const items = container.querySelectorAll("[data-toolbar-item]");
+    expect(items[0]).toHaveAttribute("data-toolbar-item", "pan");
+    fireEvent.click(screen.getByRole("button", { name: "Hand" }));
+    expect(setTool).toHaveBeenCalledWith("pan");
+  });
+
+  it("shows Hand first in structured mode", () => {
+    useEditorStore.setState({ canvasMode: "structured", tool: "select" });
+    const { container } = render(
+      <Toolbar tool="select" setTool={vi.fn()} onUndo={vi.fn()} />
+    );
+
+    const items = container.querySelectorAll("[data-toolbar-item]");
+    expect(items[0]).toHaveAttribute("data-toolbar-item", "pan");
+  });
+
+  it("uses the active accent state for Hand", () => {
+    useEditorStore.setState({ canvasMode: "freeform", tool: "pan" });
+    const { container } = render(
+      <Toolbar tool="pan" setTool={vi.fn()} onUndo={vi.fn()} />
+    );
+
+    expect(container.querySelector('[data-toolbar-item="pan"]')).toHaveClass(
+      "bg-accent",
+      "text-foreground"
+    );
+  });
+
+  it("returns Hand to select and hides it in animation mode", () => {
+    useEditorStore.setState({ canvasMode: "animation", tool: "pan" });
+    const setTool = vi.fn();
+    render(<Toolbar tool="pan" setTool={setTool} onUndo={vi.fn()} />);
+
+    expect(setTool).toHaveBeenCalledWith("select");
+    expect(screen.queryByRole("button", { name: "Hand" })).not.toBeInTheDocument();
   });
 
   it("hides brush and eraser in freeform mode", () => {
@@ -91,10 +135,16 @@ describe("Toolbar dock", () => {
       "has-[[data-toolbar-submenu-trigger]:hover]:text-foreground"
     );
     expect(inactiveButtons[0]).toHaveClass(
+      "size-8",
+      "rounded-r-none",
+      "focus-visible:ring-[3px]",
       "hover:bg-accent",
       "hover:text-accent-foreground"
     );
     expect(inactiveButtons[1]).toHaveClass(
+      "size-8",
+      "rounded-l-none",
+      "focus-visible:ring-[3px]",
       "hover:bg-accent",
       "hover:text-accent-foreground"
     );
@@ -110,26 +160,71 @@ describe("Toolbar dock", () => {
     expect(toolbar.querySelector('[style*="translateX"]')).not.toBeInTheDocument();
   });
 
-  it("uses a muted borderless surface for toolbar submenus", async () => {
+  it("uses dropdown menu semantics and styling for shape submenus", async () => {
     useEditorStore.setState({ canvasMode: "freeform", tool: "select" });
+    const setTool = vi.fn();
 
     const { container } = render(
-      <Toolbar tool="select" setTool={vi.fn()} onUndo={vi.fn()} />
+      <Toolbar tool="select" setTool={setTool} onUndo={vi.fn()} />
     );
     const shapeItem = container.querySelector(
       '[data-toolbar-item="shape-group"]'
     );
     const shapeButtons = shapeItem?.querySelectorAll("button") ?? [];
 
-    fireEvent.click(shapeButtons[1]);
-    await screen.findByText("Circle");
+    fireEvent.pointerDown(shapeButtons[1], { button: 0, ctrlKey: false });
+    const circle = await screen.findByRole("menuitemradio", {
+      name: "Circle",
+    });
 
     expect(shapeItem).toHaveClass("bg-accent", "text-foreground");
-    expect(document.querySelector('[data-slot="popover-content"]')).toHaveClass(
+    expect(
+      document.querySelector('[data-slot="dropdown-menu-content"]')
+    ).toHaveClass(
+      "min-w-48",
       "bg-muted",
       "border-0",
       "shadow-none",
       "rounded-lg"
+    );
+    fireEvent.click(circle);
+    expect(setTool).toHaveBeenCalledWith("circle");
+    await waitFor(() =>
+      expect(
+        document.querySelector('[data-slot="dropdown-menu-content"]')
+      ).not.toBeInTheDocument()
+    );
+  });
+
+  it("keeps custom brush input open and closes after preset selection", async () => {
+    useEditorStore.setState({
+      canvasMode: "animation",
+      tool: "select",
+      brushChar: "#",
+    });
+    const setTool = vi.fn();
+    const { container } = render(
+      <Toolbar tool="select" setTool={setTool} onUndo={vi.fn()} />
+    );
+    const brushItem = container.querySelector('[data-toolbar-item="brush"]');
+    const brushButtons = brushItem?.querySelectorAll("button") ?? [];
+
+    fireEvent.pointerDown(brushButtons[1], { button: 0, ctrlKey: false });
+    const customInput = await screen.findByRole("textbox");
+    fireEvent.change(customInput, { target: { value: "A" } });
+
+    expect(useEditorStore.getState().brushChar).toBe("A");
+    expect(
+      document.querySelector('[data-slot="dropdown-menu-content"]')
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("menuitemradio", { name: "*" }));
+    expect(setTool).toHaveBeenCalledWith("brush");
+    expect(useEditorStore.getState().brushChar).toBe("*");
+    await waitFor(() =>
+      expect(
+        document.querySelector('[data-slot="dropdown-menu-content"]')
+      ).not.toBeInTheDocument()
     );
   });
 
@@ -155,12 +250,16 @@ describe("Toolbar dock", () => {
     render(<Toolbar tool="select" setTool={vi.fn()} onUndo={vi.fn()} />);
 
     expect(screen.getByRole("button", { name: "Pause animation" })).toHaveClass(
+      "size-8",
       "bg-accent",
-      "text-foreground"
+      "text-foreground",
+      "focus-visible:ring-[3px]"
     );
     expect(screen.getByRole("button", { name: "Toggle animation loop" })).toHaveClass(
+      "size-8",
       "bg-accent",
-      "text-foreground"
+      "text-foreground",
+      "focus-visible:ring-[3px]"
     );
   });
 
@@ -207,18 +306,44 @@ describe("Toolbar dock", () => {
       name: "Color palettes",
     });
     expect(paletteTabs).toHaveAttribute("data-orientation", "vertical");
+    expect(paletteTabs).toHaveClass(
+      "order-2",
+      "w-fit",
+      "flex-col",
+      "gap-1"
+    );
+    const ansiTab = screen.getByRole("tab", { name: "ANSI 16" });
+    expect(ansiTab).toHaveClass(
+      "size-8",
+      "rounded-lg",
+      "group-data-[orientation=vertical]/tabs:w-8",
+      "group-data-[orientation=vertical]/tabs:justify-center",
+      "hover:bg-accent",
+      "hover:text-accent-foreground",
+      "focus-visible:ring-[3px]",
+      "focus-visible:border-transparent",
+      "focus-visible:outline-0",
+      "focus-visible:outline-transparent",
+      "focus-visible:outline-none",
+      "group-data-[variant=default]/tabs-list:data-[state=active]:shadow-none"
+    );
+    expect(ansiTab).not.toHaveClass("min-w-8");
+    expect(
+      ansiTab.querySelector("svg")
+    ).toBeInTheDocument();
     expect(paletteTabs.parentElement).toHaveClass(
       "w-[22rem]",
       "gap-1.5",
       "px-1"
     );
     const contentFrame = screen.getByTestId("color-picker-content-frame");
+    expect(contentFrame).toHaveClass("order-1");
     expect(contentFrame).toHaveClass("h-[8.875rem]");
     expect(contentFrame).not.toHaveClass("h-[6.375rem]");
 
     expect(screen.getByRole("tab", { name: "ANSI 16" })).toHaveClass(
-      "data-[state=active]:bg-accent",
-      "data-[state=active]:text-foreground"
+      "bg-accent",
+      "text-foreground"
     );
     expect(screen.getByRole("tab", { name: "Presets" })).toHaveAttribute(
       "aria-selected",
@@ -267,8 +392,8 @@ describe("Toolbar dock", () => {
       "true"
     );
     expect(screen.getByRole("tab", { name: "Presets" })).toHaveClass(
-      "data-[state=active]:bg-accent",
-      "data-[state=active]:text-foreground"
+      "bg-accent",
+      "text-foreground"
     );
     expect(contentFrame).toHaveClass("h-[8.875rem]");
     expect(screen.getByTestId("color-palette-grid")).toHaveClass(
@@ -279,6 +404,7 @@ describe("Toolbar dock", () => {
     expect(onPick).toHaveBeenCalledWith("#7f1d1d");
     fireEvent.click(screen.getByRole("button", { name: "Pick preset color #93c5fd" }));
     expect(onPick).toHaveBeenCalledWith("#93c5fd");
+
   });
 
   it("normalizes short hex colors before picking", () => {
@@ -294,33 +420,40 @@ describe("Toolbar dock", () => {
     expect(onPick).toHaveBeenCalledWith("#00ffcc");
   });
 
-  it("opens canvas color targets in a borderless popover and retains the active target", () => {
+  it("opens canvas color targets in a dropdown and retains the active target", async () => {
     render(<ColorPickerPanel value="#000000" onPick={vi.fn()} />);
 
     const eyedropperTrigger = screen.getByRole("button", {
       name: "Pick color from canvas",
     });
-    fireEvent.click(eyedropperTrigger);
+    fireEvent.pointerDown(eyedropperTrigger, { button: 0, ctrlKey: false });
 
-    const pickChar = screen.getByRole("button", {
+    const pickChar = await screen.findByRole("menuitem", {
       name: "Pick char color from canvas",
     });
-    expect(pickChar.closest('[data-slot="popover-content"]')).toHaveClass(
+    expect(pickChar.closest('[data-slot="dropdown-menu-content"]')).toHaveClass(
+      "min-w-36",
       "bg-muted",
       "border-0",
       "shadow-none"
     );
     fireEvent.click(pickChar);
 
-    expect(
-      screen.queryByRole("button", { name: "Pick char color from canvas" })
-    ).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("menuitem", {
+          name: "Pick char color from canvas",
+        })
+      ).not.toBeInTheDocument()
+    );
     expect(eyedropperTrigger).toHaveAttribute("aria-pressed", "true");
     expect(eyedropperTrigger).toHaveClass("bg-accent", "text-foreground");
 
-    fireEvent.click(eyedropperTrigger);
+    fireEvent.pointerDown(eyedropperTrigger, { button: 0, ctrlKey: false });
     expect(
-      screen.getByRole("button", { name: "Pick char color from canvas" })
+      await screen.findByRole("menuitem", {
+        name: "Pick char color from canvas",
+      })
     ).toHaveClass("bg-accent", "text-foreground");
   });
 

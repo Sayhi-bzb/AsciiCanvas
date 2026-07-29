@@ -101,6 +101,7 @@ export const useCanvasGestureAdapter = ({
       },
       onMove: ({ xy: [x, y], event }) => {
         if (shouldIgnoreCanvasSurfaceGesture(event)) return;
+        if (interactionRuntime.getState().type === "panning") return;
         canvasMoveRouteHandler({
           hasColorPickerTarget,
           canvasMode,

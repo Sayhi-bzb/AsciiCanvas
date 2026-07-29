@@ -4,19 +4,21 @@ import { useEditorStore } from "@/domains/canvas/public";
 import { AppLayout } from "./AppLayout";
 import { Toolbar } from "@/widgets/toolbar/dock";
 import { SidebarInset, SidebarProvider, useSidebar } from "@/shared/ui/sidebar";
-import { Suspense, lazy, useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { runRedo, runUndo } from "@/domains/actions/public";
 import { runAction } from "@/domains/actions/public";
 import { resolveFillHotkeyChar } from "@/domains/actions/public";
 import { matchesActionShortcut } from "@/domains/actions/public";
 import { feedback } from "@/shared/services/effects";
 import { useShallow } from "zustand/react/shallow";
-import { SessionTabs } from "@/widgets/session-tabs/SessionTabs";
+import { CanvasBreadcrumb } from "@/widgets/session-tabs/CanvasBreadcrumb";
 import { useIsMobile, useSidebarAutoCollapseSignal } from "@/shared/hooks/use-mobile";
 import { cn } from "@/shared/lib/utils";
 import { TooltipProvider } from "@/shared/ui/tooltip";
 import { AppMenu } from "@/widgets/toolbar/app-menu";
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
+import { getStaticGridViewState } from "@/domains/selection/public";
+import { useHandToolShortcuts } from "./useHandToolShortcuts";
 
 const SidebarRight = lazy(() =>
   import("@/widgets/toolbar/sidebar-right").then((module) => ({
@@ -52,12 +54,50 @@ function AppContent() {
   const [canvasContainerSize, setCanvasContainerSize] = useState<
     { width: number; height: number } | undefined
   >();
-  const { tool, setTool } = useEditorStore(
+  const {
+    tool,
+    setTool,
+    canvasMode,
+    textCursor,
+    staticGridSelection,
+    staticGridEditMode,
+    selections,
+    editingStructuredTextNodeId,
+    structuredTextSelection,
+  } = useEditorStore(
     useShallow((state) => ({
       tool: state.tool,
       setTool: state.setTool,
+      canvasMode: state.canvasMode,
+      textCursor: state.textCursor,
+      staticGridSelection: state.staticGridSelection,
+      staticGridEditMode: state.staticGridEditMode,
+      selections: state.selections,
+      editingStructuredTextNodeId: state.editingStructuredTextNodeId,
+      structuredTextSelection: state.structuredTextSelection,
     }))
   );
+  const staticGridView = useMemo(
+    () =>
+      getStaticGridViewState({
+        selection: staticGridSelection,
+        editMode: staticGridEditMode,
+        textCursor,
+        selections,
+      }),
+    [selections, staticGridEditMode, staticGridSelection, textCursor]
+  );
+  const isCanvasTextEditing =
+    canvasMode === "freeform"
+      ? !!staticGridView.textCursor
+      : !!textCursor ||
+        !!editingStructuredTextNodeId ||
+        !!structuredTextSelection;
+  const isTemporaryPanActive = useHandToolShortcuts({
+    canvasMode,
+    isCanvasTextEditing,
+    setTool,
+  });
 
   const [isRightPanelOpen, setIsRightPanelOpen] = useLocalStorageState<boolean>(
     "ui-right-panel-status",
@@ -65,9 +105,6 @@ function AppContent() {
   );
 
   const sidebarAutoCollapseSignal = useSidebarAutoCollapseSignal();
-  const isMobile = useIsMobile();
-  const topBarLeftInset = isMobile ? "3.75rem" : "4rem";
-  const topBarRightInset = isMobile ? "0.5rem" : "4rem";
 
   useEffect(() => {
     if (sidebarAutoCollapseSignal === 0) return;
@@ -101,8 +138,10 @@ function AppContent() {
   });
 
   useKeyPress(
-    (event) => resolveFillHotkeyChar(event) !== null,
+    (event) =>
+      !event.defaultPrevented && resolveFillHotkeyChar(event) !== null,
     (event) => {
+      if (event.defaultPrevented) return;
       const fillChar = resolveFillHotkeyChar(event);
       if (!fillChar) return;
       const result = runAction("fill-selection-char", {
@@ -119,17 +158,23 @@ function AppContent() {
   return (
     <SidebarProvider className="flex h-full w-full overflow-hidden">
       <SidebarInset className="relative flex flex-1 flex-col overflow-hidden">
-        <AppMenu containerSize={canvasContainerSize} />
-        <SessionTabs
-          leftInset={topBarLeftInset}
-          rightInset={topBarRightInset}
-        />
+        <div
+          data-canvas-ui="true"
+          data-testid="app-top-bar"
+          className="absolute left-3 top-3 z-50 flex min-w-0 items-center gap-1 pointer-events-none"
+        >
+          <AppMenu containerSize={canvasContainerSize} />
+          <CanvasBreadcrumb />
+        </div>
         <AppLayout
           canvas={
             <AsciiCanvas
               onUndo={handleUndo}
               onRedo={handleRedo}
               onContainerSizeChange={setCanvasContainerSize}
+              interactionToolOverride={
+                isTemporaryPanActive ? "pan" : undefined
+              }
             />
           }
         >

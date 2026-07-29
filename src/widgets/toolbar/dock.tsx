@@ -1,14 +1,6 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import {
-  Square,
-  SquareSplitVertical,
-  Minus,
-  LineSquiggle,
-  Circle as CircleIcon,
-  ChevronDown,
-} from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import type { ToolType } from "@/domains/canvas/public";
 import { useEditorStore } from "@/domains/canvas/public";
@@ -29,7 +21,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/shared/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/shared/ui/dropdown-menu";
 import { uiClass } from "@/shared/styles/components";
+import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
+
 import {
   BrushSubmenu,
   ColorSubmenu,
@@ -41,21 +40,16 @@ import { AnimationTimeline } from "@/widgets/animation-timeline/AnimationTimelin
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { useUiI18n } from "@/shared/i18n";
 
+const ToolbarSubmenuIcon = HOST_ICONOLOGY.chrome["toolbar-submenu"];
+
 interface ToolbarProps {
   tool: ToolType;
   setTool: (tool: ToolType) => void;
   onUndo: () => void;
 }
 
-const submenuOptionClass = (active: boolean) =>
-  cn(
-    "w-full flex items-center gap-2 h-9 px-2 rounded-md transition-all outline-none shrink-0",
-    active
-      ? "bg-accent text-foreground"
-      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-  );
-
 const FREEFORM_ACTION_ORDER: ToolbarActionId[] = [
+  "pan",
   "select",
   "shape-group",
   "bg",
@@ -64,6 +58,7 @@ const FREEFORM_ACTION_ORDER: ToolbarActionId[] = [
 ];
 
 const STRUCTURED_ACTION_ORDER: ToolbarActionId[] = [
+  "pan",
   "select",
   "shape-group",
   "bg",
@@ -104,22 +99,22 @@ export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
   const getToolMeta = useCallback((type: ToolType) => {
     switch (type) {
       case "box":
-        return { icon: Square, label: t("shape.box") };
+        return { icon: HOST_ICONOLOGY.shapeTool.box, label: t("shape.box") };
       case "splitBox":
-        return { icon: SquareSplitVertical, label: t("shape.splitBox") };
+        return { icon: HOST_ICONOLOGY.shapeTool.splitBox, label: t("shape.splitBox") };
       case "circle":
-        return { icon: CircleIcon, label: t("shape.circle") };
+        return { icon: HOST_ICONOLOGY.shapeTool.circle, label: t("shape.circle") };
       case "line":
-        return { icon: Minus, label: t("shape.line") };
+        return { icon: HOST_ICONOLOGY.shapeTool.line, label: t("shape.line") };
       case "stepline":
-        return { icon: LineSquiggle, label: t("shape.curve") };
+        return { icon: HOST_ICONOLOGY.shapeTool.stepline, label: t("shape.curve") };
       default:
-        return { icon: Square, label: t("toolbar.shape") };
+        return { icon: HOST_ICONOLOGY.shapeTool.box, label: t("toolbar.shape") };
     }
   }, [t]);
 
   useEffect(() => {
-    if (tool === "pan" && (!isMobile || canvasMode === "animation")) {
+    if (tool === "pan" && canvasMode === "animation") {
       setTool("select");
       return;
     }
@@ -130,7 +125,7 @@ export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
     if (canvasMode === "freeform" && (tool === "brush" || tool === "eraser")) {
       setTool("select");
     }
-  }, [canvasMode, isMobile, setTool, tool]);
+  }, [canvasMode, setTool, tool]);
 
   const visibleActionOrder = useMemo<ToolbarActionId[]>(() => {
     const baseOrder =
@@ -140,9 +135,8 @@ export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
           ? FREEFORM_ACTION_ORDER
           : TOOLBAR_ACTION_ORDER;
 
-    if (!isMobile || canvasMode === "animation") return baseOrder;
-    return ["pan", ...baseOrder];
-  }, [canvasMode, isMobile]);
+    return baseOrder;
+  }, [canvasMode]);
 
   const structuredShapeTools = useMemo<ToolType[]>(() => {
     if (canvasMode === "structured") return ["box", "splitBox", "line"];
@@ -205,15 +199,28 @@ export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
               const isActive = index === activeIndex;
               const Icon = item.icon;
               const isColorTab = item.id === "color";
+              const submenuTrigger = (
+                <button
+                  data-toolbar-submenu-trigger="true"
+                  className={cn(
+                    uiClass.hostIconControl,
+                    "rounded-l-none opacity-30 hover:opacity-100",
+                    openSubMenuId === item.id &&
+                      "bg-accent text-foreground opacity-100"
+                  )}
+                >
+                  <ToolbarSubmenuIcon />
+                </button>
+              );
 
               return (
                 <div
                   key={item.id}
                   data-toolbar-item={item.id}
                   className={cn(
-                    "relative flex items-center rounded-md transition-colors has-[[data-toolbar-submenu-trigger]:hover]:bg-accent has-[[data-toolbar-submenu-trigger]:hover]:text-foreground",
+                    "relative flex items-center rounded-lg transition-colors has-[[data-toolbar-submenu-trigger]:hover]:bg-accent has-[[data-toolbar-submenu-trigger]:hover]:text-foreground",
                     isActive || openSubMenuId === item.id
-                      ? "bg-accent text-foreground"
+                      ? uiClass.hostControlActive
                       : "text-muted-foreground hover:text-foreground"
                   )}
                 >
@@ -231,10 +238,8 @@ export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
                         }
                         aria-label={item.label}
                         className={cn(
-                          "flex items-center justify-center h-9 px-3 outline-none rounded-l-lg transition-colors",
-                          uiClass.hostControl,
-                          !item.hasSub && "rounded-lg",
-                          isColorTab && "px-2"
+                          uiClass.hostIconControl,
+                          item.hasSub && "rounded-r-none"
                         )}
                       >
                         {isColorTab ? (
@@ -243,7 +248,7 @@ export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
                             style={{ backgroundColor: brushColor }}
                           />
                         ) : Icon ? (
-                          <Icon className="size-5" />
+                          <Icon />
                         ) : null}
                       </button>
                     </TooltipTrigger>
@@ -252,64 +257,70 @@ export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
                     </TooltipContent>
                   </Tooltip>
 
-                  {item.hasSub && (
-                    <Popover
-                      open={openSubMenuId === item.id}
-                      onOpenChange={(o) => setOpenSubMenuId(o ? item.id : null)}
-                    >
-                      <PopoverTrigger asChild>
-                        <button
-                          data-toolbar-submenu-trigger="true"
-                          className={cn(
-                            "flex items-center justify-center h-9 px-1 outline-none rounded-r-lg opacity-30 hover:opacity-100 transition-all",
-                            uiClass.hostControl,
-                            openSubMenuId === item.id &&
-                              "bg-accent text-foreground opacity-100"
-                          )}
-                        >
-                          <ChevronDown className="size-3" />
-                        </button>
-                      </PopoverTrigger>
-                      <PopoverContent
-                        side="top"
-                        align={isColorTab ? "end" : "start"}
-                        sideOffset={12}
-                        className={uiClass.submenuPanel}
+                  {item.hasSub &&
+                    (isColorTab ? (
+                      <Popover
+                        open={openSubMenuId === item.id}
+                        onOpenChange={(open) =>
+                          setOpenSubMenuId(open ? item.id : null)
+                        }
                       >
-                        {item.id === "brush" ? (
-                          <BrushSubmenu
-                            brushChar={brushChar}
-                            customChar={customChar}
-                            setCustomChar={setCustomChar}
-                            setBrushChar={setBrushChar}
-                            setTool={setTool}
-                            inputRef={inputRef}
-                            submenuOptionClass={submenuOptionClass}
-                          />
-                        ) : item.id === "color" ? (
+                        <PopoverTrigger asChild>{submenuTrigger}</PopoverTrigger>
+                        <PopoverContent
+                          side="top"
+                          align="end"
+                          sideOffset={12}
+                          className={cn(uiClass.dropdownPanel, "w-auto")}
+                        >
                           <ColorSubmenu
                             brushColor={brushColor}
                             setBrushColor={setBrushColor}
                             applyStructuredTextColor={
-                              canvasMode === "structured" && structuredTextSelection
+                              canvasMode === "structured" &&
+                              structuredTextSelection
                                 ? setStructuredTextColor
                                 : undefined
                             }
                             onPicked={() => setOpenSubMenuId(null)}
                           />
-                        ) : (
-                          <ShapeSubmenu
-                            tool={tool}
-                            shapeTools={structuredShapeTools}
-                            setTool={setTool}
-                            setLastUsedShape={setLastUsedShape}
-                            getToolMeta={getToolMeta}
-                            submenuOptionClass={submenuOptionClass}
-                          />
-                        )}
-                      </PopoverContent>
-                    </Popover>
-                  )}
+                        </PopoverContent>
+                      </Popover>
+                    ) : (
+                      <DropdownMenu
+                        open={openSubMenuId === item.id}
+                        onOpenChange={(open) =>
+                          setOpenSubMenuId(open ? item.id : null)
+                        }
+                      >
+                        <DropdownMenuTrigger asChild>
+                          {submenuTrigger}
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          side="top"
+                          align="start"
+                          sideOffset={12}
+                        >
+                          {item.id === "brush" ? (
+                            <BrushSubmenu
+                              brushChar={brushChar}
+                              customChar={customChar}
+                              setCustomChar={setCustomChar}
+                              setBrushChar={setBrushChar}
+                              setTool={setTool}
+                              inputRef={inputRef}
+                            />
+                          ) : (
+                            <ShapeSubmenu
+                              tool={tool}
+                              shapeTools={structuredShapeTools}
+                              setTool={setTool}
+                              setLastUsedShape={setLastUsedShape}
+                              getToolMeta={getToolMeta}
+                            />
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    ))}
                 </div>
               );
             })}

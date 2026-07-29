@@ -39,6 +39,9 @@ export const executeCanvasMoveDecision = (
   executor.updateLinkHover(decision.linkHit, event);
 
   switch (decision.action.type) {
+    case "pan-hover":
+      executor.setCursor("grab");
+      break;
     case "structured-text-cursor":
       executor.setCursor("text");
       break;

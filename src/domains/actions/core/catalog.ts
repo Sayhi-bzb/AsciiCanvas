@@ -162,7 +162,7 @@ export const TOOLBAR_ACTION_META: Record<ToolbarActionId, ActionMeta> = {
   },
   pan: {
     id: "pan",
-    label: "Pan",
+    label: "Hand",
     icon: HOST_ICONOLOGY.toolbarAction.pan,
   },
 };

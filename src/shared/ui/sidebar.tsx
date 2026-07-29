@@ -8,6 +8,7 @@ import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import { rx } from "@/shared/styles/recipes";
+import { uiClass } from "@/shared/styles/components";
 import type { ItemTone, Size } from "@/shared/styles/tokens";
 import { Input } from "@/shared/ui/input";
 import {
@@ -265,7 +266,7 @@ function SidebarTrigger({
       tone="subtle"
       shape="square"
       size="md"
-      className={cn("pointer-events-auto size-7", className)}
+      className={cn("pointer-events-auto", uiClass.hostIconControl, className)}
       onClick={(event) => {
         onClick?.(event);
         toggleSidebar();

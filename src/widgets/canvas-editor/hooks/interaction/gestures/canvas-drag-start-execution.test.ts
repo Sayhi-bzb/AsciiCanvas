@@ -14,16 +14,16 @@ import {
 describe("canvas drag-start execution", () => {
   it("starts panning through typed interaction state", () => {
     const dispatchInteraction = vi.fn();
-    const setBodyCursor = vi.fn();
+    const setCursor = vi.fn();
     executePanningDragStart(
       { x: 12, y: 24 },
-      createPanningDragStartExecutor({ dispatchInteraction, setBodyCursor })
+      createPanningDragStartExecutor({ dispatchInteraction, setCursor })
     );
     expect(dispatchInteraction).toHaveBeenCalledWith({
       type: "startPanning",
       lastScreen: { x: 12, y: 24 },
     });
-    expect(setBodyCursor).toHaveBeenCalledWith("grabbing");
+    expect(setCursor).toHaveBeenCalledWith("grabbing");
   });
 
   it("starts selection with the effective shift anchor", () => {
@@ -88,7 +88,7 @@ describe("canvas drag-start execution", () => {
     const route = createDragStartRouteHandler({
       panning: createPanningDragStartExecutor({
         dispatchInteraction,
-        setBodyCursor: vi.fn(),
+        setCursor: vi.fn(),
       }),
     });
     const primaryCanvas = createPrimaryCanvasDragStartHandler({

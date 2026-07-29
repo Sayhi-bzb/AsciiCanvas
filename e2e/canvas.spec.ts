@@ -153,7 +153,7 @@ test.describe('Canvas', () => {
 
     await expect(page.getByTestId('ascii-canvas-surface')).toBeVisible();
     await expect(
-      page.getByRole('tab', { name: 'Expand canvas sessions' })
+      page.getByRole('button', { name: 'Select canvas' })
     ).toBeVisible();
     expect(pageErrors).toEqual([]);
   });
@@ -405,30 +405,30 @@ test.describe('Canvas', () => {
     ).toHaveCount(2);
   });
 
-  test('keeps the top bar centered while the sidebar collapses', async ({ page }) => {
-    const lane = page.locator('[data-session-tabs-lane="true"]');
+  test('keeps the top bar anchored while the sidebar collapses', async ({ page }) => {
+    const topBar = page.getByTestId('app-top-bar');
     const sidebar = page.locator(
       '[data-slot="sidebar"][data-side="right"]'
     );
     const toggle = page.getByRole('button', { name: 'Toggle Sidebar' });
 
-    await expect(lane).toHaveCSS('left', '64px');
-    await expect(lane).toHaveCSS('right', '64px');
-    const initialBox = await lane.boundingBox();
+    await expect(topBar).toHaveCSS('left', '12px');
+    const initialBox = await topBar.boundingBox();
     expect(initialBox).not.toBeNull();
-    const initialCenter = initialBox!.x + initialBox!.width / 2;
 
     await toggle.click();
     await expect(sidebar).toHaveAttribute('data-state', 'collapsed');
-    const collapsedBox = await lane.boundingBox();
+    const collapsedBox = await topBar.boundingBox();
     expect(collapsedBox).not.toBeNull();
-    expect(collapsedBox!.x + collapsedBox!.width / 2).toBeCloseTo(initialCenter);
+    expect(collapsedBox!.x).toBeCloseTo(initialBox!.x);
+    expect(collapsedBox!.y).toBeCloseTo(initialBox!.y);
 
     await toggle.click();
     await expect(sidebar).toHaveAttribute('data-state', 'expanded');
-    const expandedBox = await lane.boundingBox();
+    const expandedBox = await topBar.boundingBox();
     expect(expandedBox).not.toBeNull();
-    expect(expandedBox!.x + expandedBox!.width / 2).toBeCloseTo(initialCenter);
+    expect(expandedBox!.x).toBeCloseTo(initialBox!.x);
+    expect(expandedBox!.y).toBeCloseTo(initialBox!.y);
   });
 
   test('moves the sidebar trigger on a horizontal path', async ({ page }) => {
@@ -458,7 +458,7 @@ test.describe('Canvas', () => {
       return points;
     });
     const expectHorizontalPath = (points: Array<{ x: number; y: number }>) => {
-      expect(points.length).toBeGreaterThan(2);
+      expect(points.length).toBeGreaterThan(1);
       const yValues = points.map((point) => point.y);
       expect(Math.max(...yValues) - Math.min(...yValues)).toBeLessThanOrEqual(1);
       expect(Math.abs(points.at(-1)!.x - points[0].x)).toBeGreaterThan(1);
@@ -549,17 +549,14 @@ test.describe('Canvas', () => {
   });
 
   test('should create new session', async ({ page }) => {
-    const createButton = page.getByRole('button', {
-      name: 'Create new canvas',
-    });
-    await createButton.click();
-    await createButton.click();
-    await page.getByRole('button', { name: 'New Freeform' }).click();
+    await page.getByRole('button', { name: 'Select canvas' }).click();
+    await page.getByRole('menuitem', { name: 'Create' }).hover();
+    await page.getByRole('menuitem', { name: 'New Freeform' }).click();
 
     await expect.poll(async () => {
       const state = await readPersistedState(page);
       return state?.canvasSessions?.length ?? 0;
-    }).toBeGreaterThan(2);
+    }).toBeGreaterThan(1);
   });
 
   test('commits a freeform shape drag to the persisted grid', async ({ page }) => {

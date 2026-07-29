@@ -38,6 +38,22 @@ describe("canvas move execution", () => {
     expect(executor.updateLinkHover).not.toHaveBeenCalled();
   });
 
+  it("clears link hover and applies the Hand idle cursor", () => {
+    const executor = createExecutor();
+
+    executeCanvasMoveDecision(
+      {
+        type: "canvas-hover",
+        linkHit: null,
+        action: { type: "pan-hover" },
+      },
+      executor,
+      event
+    );
+
+    expect(executor.updateLinkHover).toHaveBeenCalledWith(null, event);
+    expect(executor.setCursor).toHaveBeenCalledWith("grab");
+  });
   it("updates link hover before structured text cursor actions", () => {
     const executor = createExecutor();
 

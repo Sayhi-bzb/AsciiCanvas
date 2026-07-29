@@ -29,3 +29,7 @@ Apply these rules when writing or editing docs.
 - Use stable vocabulary: one concept gets one name across docs.
 - Do not introduce a new rule, label, or concept when an existing one explains the point.
 - Prefer restrained, minimal, sufficient writing over exhaustive explanation.
+
+# Frontend Host Rules
+
+- [Core host icon controls](docs/host/icon-controls.md)

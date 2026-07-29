@@ -1,6 +1,12 @@
 import { createElement } from "react";
 import {
+  Bold,
   BringToFront,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Circle,
+  CircleHelp,
   Camera,
   CaseSensitive,
   Clapperboard,
@@ -9,13 +15,24 @@ import {
   Component,
   Copy,
   CopyPlus,
+  Download,
   Eraser,
+  Eye,
+  EyeOff,
   Film,
+  Github,
+  Grid2X2,
+  Italic,
   Hand,
   Highlighter,
   LayoutTemplate,
   Layers,
+  Languages,
   LineSquiggle,
+  Map,
+  Menu,
+  Minus,
+  MoreHorizontal,
   MousePointer2,
   MoveDown,
   MoveUp,
@@ -27,16 +44,23 @@ import {
   PanelRightOpen,
   PaintbrushVertical,
   PanelsTopLeft,
+  Pause,
+  Play,
+  Plus,
+  Repeat,
   Pencil,
   Scissors,
   SendToBack,
   Smile,
+  Square,
   SquarePen,
   SquareSplitHorizontal,
   SquareSplitVertical,
   Terminal,
   Trash2,
   Type,
+  Underline,
+  Upload,
   Undo2,
   type LucideIcon,
   type LucideProps,
@@ -122,12 +146,85 @@ export const HOST_ICONOLOGY = {
     | "color"
     | "pan"
   >,
+  selectionAction: {
+    bold: Bold,
+    italic: Italic,
+    underline: Underline,
+    color: Palette,
+    "split-horizontal": SquareSplitVertical,
+    "split-vertical": SquareSplitHorizontal,
+    "delete-divider": Trash2,
+  } satisfies IconMap<
+    | "bold"
+    | "italic"
+    | "underline"
+    | "color"
+    | "split-horizontal"
+    | "split-vertical"
+    | "delete-divider"
+  >,
+  colorPalette: {
+    ansi16: Grid2X2,
+    presets: Palette,
+  } satisfies IconMap<"ansi16" | "presets">,
+  shapeTool: {
+    box: Square,
+    splitBox: SquareSplitVertical,
+    circle: Circle,
+    line: Minus,
+    stepline: LineSquiggle,
+  } satisfies IconMap<"box" | "splitBox" | "circle" | "line" | "stepline">,
   animationAction: {
     "generate-frames": Film,
-  } satisfies IconMap<"generate-frames">,
+    previous: ChevronLeft,
+    next: ChevronRight,
+    play: Play,
+    pause: Pause,
+    loop: Repeat,
+  } satisfies IconMap<
+    | "generate-frames"
+    | "previous"
+    | "next"
+    | "play"
+    | "pause"
+    | "loop"
+  >,
+  appMenu: {
+    trigger: Menu,
+    import: Upload,
+    export: Download,
+    copy: Copy,
+    help: CircleHelp,
+    preview: Eye,
+    "preview-off": EyeOff,
+    github: Github,
+    language: Languages,
+    minimap: Map,
+    clear: Trash2,
+  } satisfies IconMap<
+    | "trigger"
+    | "import"
+    | "export"
+    | "copy"
+    | "help"
+    | "preview"
+    | "preview-off"
+    | "github"
+    | "language"
+    | "minimap"
+    | "clear"
+  >,
+  sessionAction: {
+    expand: ChevronDown,
+    more: MoreHorizontal,
+    rename: Pencil,
+    create: Plus,
+    close: Trash2,
+  } satisfies IconMap<"expand" | "more" | "rename" | "create" | "close">,
   chrome: {
     "open-right-sidebar": PanelRightOpen,
-  } satisfies IconMap<"open-right-sidebar">,
+    "toolbar-submenu": ChevronDown,
+  } satisfies IconMap<"open-right-sidebar" | "toolbar-submenu">,
 } as const;
 
 export function getSidebarToggleIcon(

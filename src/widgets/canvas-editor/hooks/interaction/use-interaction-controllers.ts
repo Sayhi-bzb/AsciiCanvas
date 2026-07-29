@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { useCreation } from "ahooks";
 import type { EditorState } from "@/domains/canvas/public";
 import { MAX_ZOOM, MIN_ZOOM } from "@/shared/lib/constants";
-import { browser } from "@/shared/services/browser";
 import type { SelectionArea } from "@/shared/types";
 import type { CanvasLinkHit } from "./core/linkHitTesting";
 import type { InteractionEvent } from "./core/interactionMachine";
@@ -17,6 +16,7 @@ import { createViewportInteractionController } from "./viewport/viewportInteract
 
 type ControllerStore = Pick<
   EditorState,
+  | "tool"
   | "offset"
   | "zoom"
   | "grid"
@@ -42,6 +42,7 @@ export const useInteractionControllers = ({
   requestRenderRef?: React.MutableRefObject<(() => void) | null>;
 }) => {
   const {
+    tool,
     offset,
     zoom,
     grid,
@@ -142,14 +143,25 @@ export const useInteractionControllers = ({
     };
   }, [hoverInteraction]);
 
+  useEffect(() => {
+    if (interactionRuntime.getState().type !== "panning") {
+      hoverInteraction.setCursor(tool === "pan" ? "grab" : "");
+    }
+  }, [hoverInteraction, interactionRuntime, tool]);
+
   useEffect(
     () => () => {
       viewportInteraction.cancel();
       structuredPreviewQueue.cancel();
       selectionPreview.cancel();
-      browser.setBodyCursor("");
+      hoverInteraction.setCursor("");
     },
-    [selectionPreview, structuredPreviewQueue, viewportInteraction]
+    [
+      hoverInteraction,
+      selectionPreview,
+      structuredPreviewQueue,
+      viewportInteraction,
+    ]
   );
 
   return {

@@ -12,18 +12,18 @@ import type { InteractionEvent } from "../core/interactionMachine";
 
 type PanningDragStartExecutor = {
   dispatchInteraction: (event: InteractionEvent) => void;
-  setBodyCursor: (cursor: string) => void;
+  setCursor: (cursor: string) => void;
 };
 
 export const createPanningDragStartExecutor = ({
   dispatchInteraction,
-  setBodyCursor,
+  setCursor,
 }: {
   dispatchInteraction: (event: InteractionEvent) => void;
-  setBodyCursor: (cursor: string) => void;
+  setCursor: (cursor: string) => void;
 }): PanningDragStartExecutor => ({
   dispatchInteraction,
-  setBodyCursor,
+  setCursor,
 });
 
 export const executePanningDragStart = (
@@ -31,7 +31,7 @@ export const executePanningDragStart = (
   executor: PanningDragStartExecutor
 ): void => {
   executor.dispatchInteraction({ type: "startPanning", lastScreen });
-  executor.setBodyCursor("grabbing");
+  executor.setCursor("grabbing");
 };
 type SelectionDragStartExecutor = {
   dispatchInteraction: (event: InteractionEvent) => void;

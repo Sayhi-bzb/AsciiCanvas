@@ -14,6 +14,28 @@ const browserUserAgent =
 
 const sources = [
   {
+    id: "inter",
+    family: "Inter",
+    version: "google-fonts-v20",
+    cssUrl:
+      "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap",
+    versionMarker: "/inter/v20/",
+    licenseUrl:
+      "https://raw.githubusercontent.com/google/fonts/main/ofl/inter/OFL.txt",
+    headers: { "User-Agent": browserUserAgent },
+  },
+  {
+    id: "noto-sans-sc",
+    family: "Noto Sans SC",
+    version: "google-fonts-v40",
+    cssUrl:
+      "https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600&display=swap",
+    versionMarker: "/notosanssc/v40/",
+    licenseUrl:
+      "https://raw.githubusercontent.com/google/fonts/main/ofl/notosanssc/OFL.txt",
+    headers: { "User-Agent": browserUserAgent },
+  },
+  {
     id: "maple-mono-nf-cn",
     family: "Maple Mono NF CN",
     version: "7.900",
@@ -127,7 +149,10 @@ const vendorAssets = async () => {
     css = css.replaceAll(/src:local\([^)]*\),/g, "src:");
     stylesheets.push(`/* ${source.family} ${source.version} */\n${css.trim()}`);
 
-    const license = await fetchBytes(source.licenseUrl);
+    const rawLicense = await fetchBytes(source.licenseUrl);
+    const license = Buffer.from(
+      rawLicense.toString("utf8").replace(/[ \t]+(?=\r?\n)/g, "")
+    );
     const licensePath = path.posix.join(source.id, "OFL.txt");
     await writeFile(path.join(outputRoot, licensePath), license);
     manifest.assets.push({

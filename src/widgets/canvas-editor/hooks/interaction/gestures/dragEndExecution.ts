@@ -25,24 +25,25 @@ import type { StructuredPreviewQueueController } from "../structured/structuredP
 type PanningDragEndExecutor = {
   flushOffset: () => void;
   dispatchInteraction: (event: InteractionEvent) => void;
-  setBodyCursor: (cursor: string) => void;
+  setCursor: (cursor: string) => void;
+  getIdleCursor: () => string;
   clearLinkHover: () => void;
 };
 
 type NonPanningDragEndExecutor = {
-  setBodyCursor: (cursor: string) => void;
+  setCursor: (cursor: string) => void;
 };
 
 export const createNonPanningDragEndExecutor = ({
-  setBodyCursor,
+  setCursor,
 }: NonPanningDragEndExecutor): NonPanningDragEndExecutor => ({
-  setBodyCursor,
+  setCursor,
 });
 
 const executeNonPanningDragEndCleanup = (
   executor: NonPanningDragEndExecutor
 ): void => {
-  executor.setBodyCursor("auto");
+  executor.setCursor("");
 };
 export type PrimaryDragEndExecutor = SelectionCommitExecutor &
   DragEndCommitExecutor & {
@@ -65,17 +66,20 @@ type PrimaryDragEndContext = {
 export const createPanningDragEndExecutor = ({
   flushOffset,
   dispatchInteraction,
-  setBodyCursor,
+  setCursor,
+  getIdleCursor,
   clearLinkHover,
 }: {
   flushOffset: () => void;
   dispatchInteraction: (event: InteractionEvent) => void;
-  setBodyCursor: (cursor: string) => void;
+  setCursor: (cursor: string) => void;
+  getIdleCursor: () => string;
   clearLinkHover: () => void;
 }): PanningDragEndExecutor => ({
   flushOffset,
   dispatchInteraction,
-  setBodyCursor,
+  setCursor,
+  getIdleCursor,
   clearLinkHover,
 });
 
@@ -84,8 +88,8 @@ export const executePanningDragEnd = (
 ): void => {
   executor.flushOffset();
   executor.dispatchInteraction({ type: "reset" });
-  executor.setBodyCursor("auto");
   executor.clearLinkHover();
+  executor.setCursor(executor.getIdleCursor());
 };
 
 

@@ -300,6 +300,7 @@ export const useManagedCanvasInput = ({
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     e.stopPropagation();
+    if (e.defaultPrevented) return;
     if (isComposing.current) return;
     const clipboardCommand = resolveActionShortcut(
       e,

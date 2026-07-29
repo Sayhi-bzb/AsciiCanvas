@@ -6,6 +6,7 @@ import { isShapeTool } from "./dragStartInteraction";
 
 type CanvasMoveAction =
   | { type: "none" }
+  | { type: "pan-hover" }
   | { type: "structured-text-cursor" }
   | { type: "structured-shape-hover"; point: Point | null }
   | { type: "structured-select-hover"; cursor: string }
@@ -34,6 +35,10 @@ export const resolveCanvasMoveDecision = ({
 }): CanvasMoveDecision => {
   if (hasColorPickerTarget) {
     return { type: "color-picker-hover", point };
+  }
+
+  if (tool === "pan") {
+    return { type: "canvas-hover", linkHit: null, action: { type: "pan-hover" } };
   }
 
   if (canvasMode === "structured") {

@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import { ChevronLeft, ChevronRight, Pause, Play, Repeat } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { useEditorStore } from "@/domains/canvas/public";
 import {
   getAnimationFrameDelayMs
 } from "@/domains/animation/public";
 import { cn } from "@/shared/lib/utils";
+import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
+import { uiClass } from "@/shared/styles/components";
+
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import {
@@ -15,6 +17,12 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/shared/ui/tooltip";
+
+const PreviousFrameIcon = HOST_ICONOLOGY.animationAction.previous;
+const NextFrameIcon = HOST_ICONOLOGY.animationAction.next;
+const PlayIcon = HOST_ICONOLOGY.animationAction.play;
+const PauseIcon = HOST_ICONOLOGY.animationAction.pause;
+const LoopIcon = HOST_ICONOLOGY.animationAction.loop;
 
 const DEFAULT_GHOST_SETTINGS = {
   backwardLayers: 2,
@@ -123,12 +131,12 @@ export function AnimationTimeline({
               <Button
                 tone="subtle"
                 shape="square"
-                size="sm"
-                className="bg-transparent shadow-none hover:bg-accent/45"
+                size="md"
+                className={uiClass.hostIconControl}
                 aria-label="Previous frame"
                 onClick={() => stepAnimationFrame(-1)}
               >
-                <ChevronLeft className="size-4" />
+                <PreviousFrameIcon className="size-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="top">Previous frame</TooltipContent>
@@ -138,12 +146,10 @@ export function AnimationTimeline({
               <Button
                 tone="subtle"
                 shape="square"
-                size="sm"
+                size="md"
                 className={cn(
-                  "shadow-none",
-                  animationIsPlaying
-                    ? "bg-accent text-foreground"
-                    : "bg-transparent hover:bg-accent/45"
+                  uiClass.hostIconControl,
+                  animationIsPlaying && uiClass.hostControlActive
                 )}
                 aria-label={animationIsPlaying ? "Pause animation" : "Play animation"}
                 onClick={() =>
@@ -151,9 +157,9 @@ export function AnimationTimeline({
                 }
               >
                 {animationIsPlaying ? (
-                  <Pause className="size-4" />
+                  <PauseIcon className="size-4" />
                 ) : (
-                  <Play className="size-4" />
+                  <PlayIcon className="size-4" />
                 )}
               </Button>
             </TooltipTrigger>
@@ -166,12 +172,12 @@ export function AnimationTimeline({
               <Button
                 tone="subtle"
                 shape="square"
-                size="sm"
-                className="bg-transparent shadow-none hover:bg-accent/45"
+                size="md"
+                className={uiClass.hostIconControl}
                 aria-label="Next frame"
                 onClick={() => stepAnimationFrame(1)}
               >
-                <ChevronRight className="size-4" />
+                <NextFrameIcon className="size-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="top">Next frame</TooltipContent>
@@ -181,17 +187,15 @@ export function AnimationTimeline({
               <Button
                 tone="subtle"
                 shape="square"
-                size="sm"
+                size="md"
                 className={cn(
-                  "shadow-none",
-                  animationTimeline.loop
-                    ? "bg-accent text-foreground"
-                    : "bg-transparent hover:bg-accent/45"
+                  uiClass.hostIconControl,
+                  animationTimeline.loop && uiClass.hostControlActive
                 )}
                 aria-label="Toggle animation loop"
                 onClick={toggleAnimationLoop}
               >
-                <Repeat className="size-4" />
+                <LoopIcon className="size-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="top">

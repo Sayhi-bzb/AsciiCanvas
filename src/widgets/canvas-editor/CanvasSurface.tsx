@@ -74,6 +74,7 @@ export const CanvasSurface = forwardRef<HTMLDivElement, CanvasSurfaceProps>(
         <SelectionFormatToolbar containerSize={containerSize} />
         <textarea
           ref={textareaRef}
+          data-canvas-managed-input="true"
           style={textareaStyle}
           {...textareaProps}
           autoCapitalize="off"

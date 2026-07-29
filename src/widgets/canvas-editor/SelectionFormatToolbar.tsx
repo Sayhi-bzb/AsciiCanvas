@@ -6,15 +6,6 @@ import {
   type ComponentRef,
   type MouseEvent,
 } from "react";
-import {
-  Bold,
-  Italic,
-  Palette,
-  SquareSplitHorizontal,
-  SquareSplitVertical,
-  Trash2,
-  Underline,
-} from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 
 import { useEditorStore } from "@/domains/canvas/public";
@@ -48,7 +39,17 @@ import {
 } from "@/shared/ui/tooltip";
 import { cn } from "@/shared/lib/utils";
 import { uiClass } from "@/shared/styles/components";
+import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
+
 import { useUiI18n } from "@/shared/i18n";
+
+const BoldIcon = HOST_ICONOLOGY.selectionAction.bold;
+const ItalicIcon = HOST_ICONOLOGY.selectionAction.italic;
+const UnderlineIcon = HOST_ICONOLOGY.selectionAction.underline;
+const SelectionColorIcon = HOST_ICONOLOGY.selectionAction.color;
+const SplitHorizontalIcon = HOST_ICONOLOGY.selectionAction["split-horizontal"];
+const SplitVerticalIcon = HOST_ICONOLOGY.selectionAction["split-vertical"];
+const DeleteDividerIcon = HOST_ICONOLOGY.selectionAction["delete-divider"];
 
 type SelectionFormatToolbarProps = {
   containerSize: { width: number; height: number } | undefined;
@@ -452,7 +453,7 @@ export function SelectionFormatToolbar({
               );
             }}
           >
-            <SquareSplitVertical className="size-4" />
+            <SplitHorizontalIcon className="size-4" />
           </SelectionToolbarAction>
           <SelectionToolbarAction
             aria-label={t("selection.splitVertical")}
@@ -467,14 +468,14 @@ export function SelectionFormatToolbar({
               );
             }}
           >
-            <SquareSplitHorizontal className="size-4" />
+            <SplitVerticalIcon className="size-4" />
           </SelectionToolbarAction>
           <SelectionToolbarAction
             aria-label={t("selection.applyShapeColor")}
             tooltip={t("selection.applyShapeColorTitle", { color: brushColor })}
             onClick={() => setStructuredNodeCharColor(brushColor)}
           >
-            <Palette className="size-4" style={{ color: brushColor }} />
+            <SelectionColorIcon className="size-4" style={{ color: brushColor }} />
           </SelectionToolbarAction>
           <SelectionToolbarAction
             aria-label={t("selection.deleteDivider")}
@@ -486,7 +487,7 @@ export function SelectionFormatToolbar({
               deleteSelection();
             }}
           >
-            <Trash2 className="size-4" />
+            <DeleteDividerIcon className="size-4" />
           </SelectionToolbarAction>
         </div>
       </div>
@@ -511,7 +512,7 @@ export function SelectionFormatToolbar({
             tooltip={t("selection.applyShapeColorTitle", { color: brushColor })}
             onClick={() => setStructuredNodeCharColor(brushColor)}
           >
-            <Palette className="size-4" style={{ color: brushColor }} />
+            <SelectionColorIcon className="size-4" style={{ color: brushColor }} />
           </SelectionToolbarAction>
         </div>
       </div>
@@ -559,7 +560,7 @@ export function SelectionFormatToolbar({
               className={selectionToolbarToggleClass}
               onMouseDown={preserveCanvasFocus}
             >
-              <Bold className="size-4" />
+              <BoldIcon className="size-4" />
             </TooltipSafeToggleGroupItem>
           </TooltipTrigger>
           <TooltipContent side="top" className="text-xs">
@@ -574,7 +575,7 @@ export function SelectionFormatToolbar({
               className={selectionToolbarToggleClass}
               onMouseDown={preserveCanvasFocus}
             >
-              <Italic className="size-4" />
+              <ItalicIcon className="size-4" />
             </TooltipSafeToggleGroupItem>
           </TooltipTrigger>
           <TooltipContent side="top" className="text-xs">
@@ -589,7 +590,7 @@ export function SelectionFormatToolbar({
               className={selectionToolbarToggleClass}
               onMouseDown={preserveCanvasFocus}
             >
-              <Underline className="size-4" />
+              <UnderlineIcon className="size-4" />
             </TooltipSafeToggleGroupItem>
           </TooltipTrigger>
           <TooltipContent side="top" className="text-xs">
@@ -602,7 +603,7 @@ export function SelectionFormatToolbar({
             tooltip={t("selection.applyTextColorTitle", { color: brushColor })}
             onClick={() => setStructuredTextColor(brushColor)}
           >
-            <Palette className="size-4" style={{ color: brushColor }} />
+            <SelectionColorIcon className="size-4" style={{ color: brushColor }} />
           </SelectionToolbarAction>
         )}
       </ToggleGroup>

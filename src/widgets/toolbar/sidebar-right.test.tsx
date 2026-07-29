@@ -135,7 +135,7 @@ describe("SidebarRight structured templates", () => {
     );
     expect(screen.getByRole("tab", { name: "Components" })).toHaveClass(
       "bg-accent",
-      "rounded-md",
+      "rounded-lg",
       "hover:bg-accent",
       "hover:text-accent-foreground"
     );
@@ -315,7 +315,8 @@ describe("SidebarRight structured templates", () => {
     expect(inner).toHaveClass(
       "group-data-[collapsible=icon]:bg-transparent!"
     );
-    expect(trigger).toHaveClass("bg-muted", "pointer-events-auto");
+    expect(trigger).toHaveClass("size-8", "pointer-events-auto");
+    expect(trigger).not.toHaveClass("bg-muted");
     expect(screen.getAllByRole("button")).toEqual([trigger]);
     expect(screen.queryByRole("tab", { name: "Emoji" })).not.toBeInTheDocument();
 

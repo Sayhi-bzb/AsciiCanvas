@@ -69,15 +69,15 @@ test.describe("App menu", () => {
     const menuContent = page.locator(
       '[data-slot="dropdown-menu-content"]'
     );
-    const sessionShell = page.locator('[data-session-tabs-shell="true"]');
+    const canvasBreadcrumb = page.getByRole("button", { name: "Select canvas" });
     await expect(trigger).toBeVisible();
     await expect(page.locator('[data-slot="sidebar-footer"]')).toHaveCount(0);
 
     const triggerBox = await trigger.boundingBox();
-    const sessionBox = await sessionShell.boundingBox();
+    const breadcrumbBox = await canvasBreadcrumb.boundingBox();
     expect(triggerBox).not.toBeNull();
-    expect(sessionBox).not.toBeNull();
-    expect(triggerBox!.x + triggerBox!.width).toBeLessThanOrEqual(sessionBox!.x);
+    expect(breadcrumbBox).not.toBeNull();
+    expect(triggerBox!.x + triggerBox!.width).toBeLessThanOrEqual(breadcrumbBox!.x);
 
     await trigger.click();
     const menu = page.getByRole("menu", { name: "Open menu" });
@@ -231,12 +231,12 @@ test.describe("App menu", () => {
     await seedAnimationSession(page);
 
     const trigger = page.getByRole("button", { name: "Open menu" });
-    const sessionShell = page.locator('[data-session-tabs-shell="true"]');
+    const canvasBreadcrumb = page.getByRole("button", { name: "Select canvas" });
     const triggerBox = await trigger.boundingBox();
-    const sessionBox = await sessionShell.boundingBox();
+    const breadcrumbBox = await canvasBreadcrumb.boundingBox();
     expect(triggerBox).not.toBeNull();
-    expect(sessionBox).not.toBeNull();
-    expect(triggerBox!.x + triggerBox!.width).toBeLessThanOrEqual(sessionBox!.x);
+    expect(breadcrumbBox).not.toBeNull();
+    expect(triggerBox!.x + triggerBox!.width).toBeLessThanOrEqual(breadcrumbBox!.x);
 
     await trigger.click();
     const menu = page.getByRole("menu", { name: "Open menu" });

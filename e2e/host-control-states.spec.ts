@@ -16,6 +16,44 @@ const readHoverStyle = async (control: Locator) => {
   });
 };
 
+const expectHostIconGeometry = async (control: Locator) => {
+  await expect(control).toHaveCSS("width", "32px");
+  await expect(control).toHaveCSS("height", "32px");
+  await expect(control.locator("svg").first()).toHaveCSS("width", "16px");
+  await expect(control.locator("svg").first()).toHaveCSS("height", "16px");
+};
+
+const expectHostFocus = async (control: Locator) => {
+  await control.focus();
+  await control.page().keyboard.press("Shift+Tab");
+  await control.page().keyboard.press("Tab");
+  await expect(control).toBeFocused();
+  await expect(control).toHaveCSS("outline-style", "none");
+  const focusRing = await control.evaluate((element) =>
+    window.getComputedStyle(element).boxShadow
+  );
+  expect(focusRing).not.toBe("none");
+};
+
+const expectIconCentered = async (control: Locator) => {
+  const controlBox = await control.boundingBox();
+  const iconBox = await control.locator("svg").first().boundingBox();
+  expect(controlBox).not.toBeNull();
+  expect(iconBox).not.toBeNull();
+  expect(
+    Math.abs(
+      controlBox!.x + controlBox!.width / 2 -
+        (iconBox!.x + iconBox!.width / 2)
+    )
+  ).toBeLessThan(0.5);
+  expect(
+    Math.abs(
+      controlBox!.y + controlBox!.height / 2 -
+        (iconBox!.y + iconBox!.height / 2)
+    )
+  ).toBeLessThan(0.5);
+};
+
 const seedHostState = async (
   page: Page,
   viewport: { width: number; height: number },
@@ -88,7 +126,7 @@ const seedHostState = async (
   const surface = page.getByTestId("ascii-canvas-surface");
   const box = await surface.boundingBox();
   expect(box).not.toBeNull();
-  await page.getByRole("button", { name: "Select" }).click();
+  await page.getByRole("button", { name: "Select", exact: true }).click();
   await page.mouse.move(box!.x + offset.x + 2, box!.y + offset.y + 8);
   await page.mouse.down();
   await page.mouse.move(box!.x + offset.x + 15, box!.y + offset.y + 8, {
@@ -114,10 +152,13 @@ for (const scenario of [
       name: "Toggle bold",
     });
     await expect(selectionControl).toBeVisible();
+    await expectHostIconGeometry(selectionControl);
+    await expectHostFocus(selectionControl);
     const expectedHover = await readHoverStyle(selectionControl);
     expect(expectedHover.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
 
     const dockControl = page.getByRole("button", { name: "Box" });
+    await expectHostIconGeometry(dockControl);
     await expect(readHoverStyle(dockControl)).resolves.toEqual(expectedHover);
 
     const activeDockItem = page.locator('[data-toolbar-item="select"]');
@@ -126,6 +167,7 @@ for (const scenario of [
     const submenuTrigger = dockItem.locator(
       '[data-toolbar-submenu-trigger="true"]'
     );
+    await expectHostIconGeometry(submenuTrigger);
     const activeDockBackground = await activeDockItem.evaluate(
       (element) => window.getComputedStyle(element).backgroundColor
     );
@@ -134,7 +176,7 @@ for (const scenario of [
     await expect(dockControl).toHaveCSS(
       "color",
       await activeDockItem
-        .getByRole("button", { name: "Select" })
+        .getByRole("button", { name: "Select", exact: true })
         .evaluate((element) => window.getComputedStyle(element).color)
     );
     await expect(adjacentDockItem).not.toHaveCSS(
@@ -142,6 +184,25 @@ for (const scenario of [
       activeDockBackground
     );
     await expect(submenuTrigger).toHaveCSS("border-left-width", "0px");
+
+    const colorDockItem = page.locator('[data-toolbar-item="color"]');
+    await colorDockItem
+      .locator('[data-toolbar-submenu-trigger="true"]')
+      .click();
+    const ansiPaletteTab = page.getByRole("tab", { name: "ANSI 16" });
+    const presetsPaletteTab = page.getByRole("tab", { name: "Presets" });
+    await expectHostIconGeometry(ansiPaletteTab);
+    await expectHostIconGeometry(presetsPaletteTab);
+    await expectIconCentered(ansiPaletteTab);
+    await expectIconCentered(presetsPaletteTab);
+    await expect(ansiPaletteTab).toHaveCSS(
+      "background-color",
+      activeDockBackground
+    );
+    await expect(readHoverStyle(presetsPaletteTab)).resolves.toEqual(
+      expectedHover
+    );
+    await page.keyboard.press("Escape");
 
     const railOrientation =
       scenario.viewport.width < 600 ? "horizontal" : "vertical";
@@ -151,40 +212,51 @@ for (const scenario of [
     const sidebarControl = page
       .getByTestId(`character-view-rail-${railOrientation}`)
       .getByRole("tab", { name: "Nerd Icons" });
+    await expectHostIconGeometry(sidebarControl);
     await expect(readHoverStyle(sidebarControl)).resolves.toEqual(expectedHover);
     if (railOrientation === "horizontal") {
       await page.keyboard.press("Escape");
     }
 
-    const sessionShell = page.locator('[data-session-tabs-shell="true"]');
-    await sessionShell.hover();
-    const sessionControl = page.getByRole("tab", { name: "Beta" });
-    await expect(sessionControl).toBeVisible();
-    await expect(readHoverStyle(sessionControl)).resolves.toEqual(expectedHover);
+    const sidebarToggle = page.getByRole("button", { name: "Toggle Sidebar" });
+    await expectHostIconGeometry(sidebarToggle);
 
-    const activeSessionItem = page.locator(
-      '[data-session-tab-item="host-a"]'
-    );
-    const sessionItem = page.locator('[data-session-tab-item="host-b"]');
-    const adjacentSessionItem = page.locator(
-      '[data-session-tab-item="host-c"]'
-    );
-    const closeControl = sessionItem.locator('[data-session-close="true"]');
-    const activeSessionBackground = await activeSessionItem.evaluate(
-      (element) => window.getComputedStyle(element).backgroundColor
-    );
-    const activeSessionColor = await activeSessionItem
-      .getByRole("tab")
-      .evaluate((element) => window.getComputedStyle(element).color);
-    await closeControl.hover();
+    const appMenuControl = page.getByRole("button", { name: "Open menu" });
+    await expectHostIconGeometry(appMenuControl);
+    await expect(readHoverStyle(appMenuControl)).resolves.toEqual(expectedHover);
+
+    const breadcrumbControl = page.getByRole("button", { name: "Select canvas" });
+    await expect(breadcrumbControl).toHaveCSS("height", "32px");
+    await expect(breadcrumbControl.locator("svg")).toHaveCount(2);
+    for (const breadcrumbIcon of await breadcrumbControl.locator("svg").all()) {
+      await expect(breadcrumbIcon).toHaveCSS("width", "16px");
+      await expect(breadcrumbIcon).toHaveCSS("height", "16px");
+    }
+    await expect(readHoverStyle(breadcrumbControl)).resolves.toEqual(expectedHover);
+    await breadcrumbControl.click();
+
+    const sessionControl = page.getByRole("menuitem", { name: "Beta", exact: true });
+    const sessionItem = page.locator('[data-canvas-session-row="host-b"]');
+    await expect(sessionControl).toBeVisible();
+    await sessionControl.hover();
     await expect(sessionItem).toHaveCSS(
       "background-color",
-      activeSessionBackground
+      activeDockBackground
     );
-    await expect(sessionControl).toHaveCSS("color", activeSessionColor);
+    await expect(sessionControl).toHaveCSS("color", expectedHover.color);
+    const adjacentSessionItem = page.locator(
+      '[data-canvas-session-row="host-c"]'
+    );
+    const manageControl = page.getByRole("menuitem", { name: "Manage Beta" });
+    await manageControl.hover();
+    await expect(sessionItem).toHaveCSS(
+      "background-color",
+      activeDockBackground
+    );
+    await expect(sessionControl).toHaveCSS("color", expectedHover.color);
     await expect(adjacentSessionItem).not.toHaveCSS(
       "background-color",
-      activeSessionBackground
+      activeDockBackground
     );
 
     await page.screenshot({

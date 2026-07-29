@@ -10,8 +10,8 @@ type ShortcutToken =
   | "y"
   | "c"
   | "x"
-  | "v";
-
+  | "v"
+  | "h";
 export type ActionShortcutEvent = Pick<KeyboardEvent, "key"> &
   Partial<
     Pick<
@@ -30,6 +30,7 @@ const ACTION_SHORTCUTS: Partial<
   Record<ActionId, readonly (readonly ShortcutToken[])[]>
 > = {
   undo: [["mod", "z"]],
+  pan: [["shift", "h"]],
   redo: [
     ["mod", "shift", "z"],
     ["mod", "y"],

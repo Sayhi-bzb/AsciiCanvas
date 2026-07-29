@@ -2,7 +2,6 @@ import { useCreation, useThrottleFn } from "ahooks";
 import { GridManager } from "@/shared/utils/grid";
 import type { EditorState } from "@/domains/canvas/public";
 import { forceHistorySave } from "@/domains/canvas/public";
-import { browser } from "@/shared/services/browser";
 import { type CanvasLinkHit } from "./interaction/core/linkHitTesting";
 import { type StructuredMovePreview } from "./interaction/structured/structuredInteractionPreview";
 
@@ -223,9 +222,7 @@ export const useCanvasInteraction = (
   });
   const panningDragStartExecutor = createPanningDragStartExecutor({
     dispatchInteraction,
-    setBodyCursor: (cursor) => {
-      browser.setBodyCursor(cursor);
-    },
+    setCursor: (cursor) => hoverInteraction.setCursor(cursor),
   });
   const dragStartRouteHandler = createDragStartRouteHandler({
     panning: panningDragStartExecutor,
@@ -293,16 +290,13 @@ export const useCanvasInteraction = (
     panning: panningDragUpdateExecutor,
   });
   const nonPanningDragEndExecutor = createNonPanningDragEndExecutor({
-    setBodyCursor: (cursor) => {
-      browser.setBodyCursor(cursor);
-    },
+    setCursor: (cursor) => hoverInteraction.setCursor(cursor),
   });
   const panningDragEndExecutor = createPanningDragEndExecutor({
     flushOffset: () => viewportInteraction.flushOffset(),
     dispatchInteraction,
-    setBodyCursor: (cursor) => {
-      browser.setBodyCursor(cursor);
-    },
+    setCursor: (cursor) => hoverInteraction.setCursor(cursor),
+    getIdleCursor: () => (tool === "pan" ? "grab" : ""),
     clearLinkHover: () => hoverInteraction.clearLinkHover(),
   });
   const primaryDragEndExecutor = createPrimaryDragEndExecutor({

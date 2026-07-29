@@ -60,6 +60,15 @@ describe("action shortcuts", () => {
       )
     ).toBe(false);
   });
+  it("reserves Shift+H for Hand while preserving plain H", () => {
+    expect(
+      matchesActionShortcut("pan", shortcutEvent("H", { shiftKey: true }))
+    ).toBe(true);
+    expect(matchesActionShortcut("pan", shortcutEvent("h"))).toBe(false);
+    expect(getActionShortcutLabel("pan", "mac")).toBe("⇧H");
+    expect(getActionShortcutLabel("pan", "other")).toBe("Shift+H");
+  });
+
 
   it("resolves history actions and both deletion keys", () => {
     expect(

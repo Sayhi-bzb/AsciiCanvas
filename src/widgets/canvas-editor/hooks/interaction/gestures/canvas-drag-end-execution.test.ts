@@ -33,14 +33,15 @@ describe("canvas drag-end execution", () => {
   it("flushes viewport state and resets panning", () => {
     const flushOffset = vi.fn();
     const dispatchInteraction = vi.fn();
-    const setBodyCursor = vi.fn();
+    const setCursor = vi.fn();
     const clearLinkHover = vi.fn();
     executePanningDragEnd(createPanningDragEndExecutor({
-      flushOffset, dispatchInteraction, setBodyCursor, clearLinkHover,
+      flushOffset, dispatchInteraction, setCursor,
+      getIdleCursor: () => "grab", clearLinkHover,
     }));
     expect(flushOffset).toHaveBeenCalled();
     expect(dispatchInteraction).toHaveBeenCalledWith({ type: "reset" });
-    expect(setBodyCursor).toHaveBeenCalledWith("auto");
+    expect(setCursor).toHaveBeenCalledWith("grab");
     expect(clearLinkHover).toHaveBeenCalled();
   });
 
@@ -83,9 +84,10 @@ describe("canvas drag-end execution", () => {
     const flushOffset = vi.fn();
     const route = createDragEndRouteHandler({
       panning: createPanningDragEndExecutor({
-        flushOffset, dispatchInteraction: vi.fn(), setBodyCursor: vi.fn(), clearLinkHover: vi.fn(),
+        flushOffset, dispatchInteraction: vi.fn(), setCursor: vi.fn(),
+        getIdleCursor: () => "", clearLinkHover: vi.fn(),
       }),
-      nonPanning: createNonPanningDragEndExecutor({ setBodyCursor: vi.fn() }),
+      nonPanning: createNonPanningDragEndExecutor({ setCursor: vi.fn() }),
     });
     route({
       state: { type: "panning", lastScreen: { x: 0, y: 0 } },

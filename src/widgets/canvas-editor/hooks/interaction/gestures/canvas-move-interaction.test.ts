@@ -36,6 +36,18 @@ describe("canvas move interaction decisions", () => {
       action: { type: "none" },
     });
   });
+  it("routes Hand hover to grab and suppresses link hover", () => {
+    expect(
+      resolveCanvasMoveDecision({
+        ...baseInput,
+        tool: "pan",
+      })
+    ).toEqual({
+      type: "canvas-hover",
+      linkHit: null,
+      action: { type: "pan-hover" },
+    });
+  });
 
   it("routes structured text hover to a text cursor", () => {
     expect(
