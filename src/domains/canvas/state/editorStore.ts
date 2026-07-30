@@ -9,6 +9,11 @@ import {
 import {
   yMainGrid,
   yStructuredScene,
+  yStructuredComponents,
+  activateCanvasDocument,
+  observeActiveGrid,
+  observeActiveScene,
+  observeActiveComponents,
   runCanvasTransaction,
 } from "./yjs";
 import type { EditorState } from "./interfaces";
@@ -39,7 +44,6 @@ import {
   rebuildSceneFromYMap,
   patchGridByChangedKeys,
   applyFreeformSnapshotToYMaps,
-  applyStructuredSnapshotToYMaps,
 } from "./helpers/gridHelpers";
 import {
   withActiveCanvasSnapshot,
@@ -62,6 +66,7 @@ import {
   normalizeAnimationCanvasSize,
   normalizeAnimationTimeline,
 } from "@/domains/animation/public";
+import { isCollaborationDescriptor } from "@/domains/collaboration/public";
 
 export type { EditorState };
 
@@ -177,6 +182,9 @@ const recoverPersistedEditorState = (
           const components = Array.isArray(maybe.components)
             ? normalizeStructuredComponents(maybe.components as never, scene)
             : normalizeStructuredComponents(undefined, scene);
+          const collaboration = isCollaborationDescriptor(maybe.collaboration)
+            ? maybe.collaboration
+            : undefined;
 
           if (mode === "animation") {
             const size = normalizeAnimationCanvasSize(
@@ -202,6 +210,7 @@ const recoverPersistedEditorState = (
               size,
               timeline,
               ...(viewport ? { viewport } : {}),
+              ...(collaboration ? { collaboration } : {}),
             } satisfies CanvasSession;
           }
 
@@ -216,6 +225,7 @@ const recoverPersistedEditorState = (
             components,
             grid: normalizeGridEntries(maybe.grid),
             ...(viewport ? { viewport } : {}),
+            ...(collaboration ? { collaboration } : {}),
           } satisfies CanvasSession;
         })
         .filter((session): session is CanvasSession => session !== null)
@@ -282,36 +292,60 @@ const recoverPersistedEditorState = (
 };
 
 const syncHydratedStateToYMaps = (hydratedState: EditorState) => {
-  if (hydratedState.canvasMode === "structured") {
-    applyStructuredSnapshotToYMaps(hydratedState.structuredScene);
-  } else {
-    applyFreeformSnapshotToYMaps(
-      Array.from(hydratedState.grid.entries())
-    );
-  }
+  activateCanvasDocument(
+    hydratedState.activeCanvasId,
+    {
+      grid: Array.from(hydratedState.grid.entries()),
+      scene:
+        hydratedState.canvasMode === "structured"
+          ? hydratedState.structuredScene
+          : [],
+      components: hydratedState.structuredComponents,
+    },
+    { replace: true }
+  );
 };
 
 export const useEditorStore = create<EditorState>()(
   persist(
     (set, get, ...a) => {
+      activateCanvasDocument(DEFAULT_SESSION_ID, {
+        grid: DEFAULT_DEMO_GRID,
+        scene: [],
+      });
       if (yMainGrid.size === 0 && yStructuredScene.size === 0) {
         applyFreeformSnapshotToYMaps(DEFAULT_DEMO_GRID);
       }
 
-      yMainGrid.observe((event) => {
+      observeActiveGrid((event) => {
         const currentGrid = get().grid;
         const patchedGrid = patchGridByChangedKeys(currentGrid, event.keysChanged);
         if (patchedGrid) {
-          set({ grid: patchedGrid });
+          set((state) => ({
+            grid: patchedGrid,
+            canvasSessions: state.canvasSessions.map((session) =>
+              session.id === state.activeCanvasId
+                ? { ...session, grid: Array.from(patchedGrid.entries()) }
+                : session
+            ),
+          }));
           return;
         }
 
         if (event.keysChanged.size === 0 && yMainGrid.size !== currentGrid.size) {
-          set({ grid: rebuildGridFromYMap() });
+          const grid = rebuildGridFromYMap();
+          set((state) => ({
+            grid,
+            canvasSessions: state.canvasSessions.map((session) =>
+              session.id === state.activeCanvasId
+                ? { ...session, grid: Array.from(grid.entries()) }
+                : session
+            ),
+          }));
         }
       });
 
-      yStructuredScene.observe(() => {
+      observeActiveScene(() => {
         set((state) => {
           const structuredScene = rebuildSceneFromYMap();
           return {
@@ -319,6 +353,25 @@ export const useEditorStore = create<EditorState>()(
             structuredComponents: normalizeStructuredComponents(
               state.structuredComponents,
               structuredScene
+            ),
+            canvasSessions: state.canvasSessions.map((session) =>
+              session.id === state.activeCanvasId
+                ? { ...session, scene: structuredScene }
+                : session
+            ),
+          };
+        });
+      });
+
+      observeActiveComponents(() => {
+        set((state) => {
+          const structuredComponents = Array.from(yStructuredComponents.values());
+          return {
+            structuredComponents,
+            canvasSessions: state.canvasSessions.map((session) =>
+              session.id === state.activeCanvasId
+                ? { ...session, components: structuredComponents }
+                : session
             ),
           };
         });
@@ -384,6 +437,10 @@ export const useEditorStore = create<EditorState>()(
             yStructuredScene.clear();
             normalizedScene.forEach((node) => {
               yStructuredScene.set(node.id, node);
+            });
+            yStructuredComponents.clear();
+            normalizedComponents.forEach((component) => {
+              yStructuredComponents.set(component.id, component);
             });
             yMainGrid.clear();
             gridEntries.forEach(([key, val]) => yMainGrid.set(key, val));
@@ -537,6 +594,7 @@ export const useEditorStore = create<EditorState>()(
         return migratePersistedStateV1ToV2(persistedState);
       },
       merge: (persistedState, currentState) => {
+        if (!persistedState) return currentState;
         const normalizedPersistedState = isPersistedEditorStateV2(
           persistedState
         )

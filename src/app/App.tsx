@@ -22,6 +22,9 @@ import { useHandToolShortcuts } from "./useHandToolShortcuts";
 import { ZoomControl } from "@/widgets/toolbar/zoom-control";
 import { HelpControl } from "@/widgets/toolbar/help-control";
 import { useUiI18n } from "@/shared/i18n";
+import { useActiveCollaboration } from "./useActiveCollaboration";
+import { CollaborationControl } from "@/widgets/collaboration/CollaborationControl";
+import { RemotePresenceOverlay } from "@/widgets/collaboration/RemotePresenceOverlay";
 
 const SidebarRight = lazy(() =>
   import("@/widgets/toolbar/sidebar-right").then((module) => ({
@@ -55,6 +58,7 @@ function MobileSidebarTrigger() {
 }
 
 function AppContent() {
+  useActiveCollaboration();
   const [canvasContainerSize, setCanvasContainerSize] = useState<
     { width: number; height: number } | undefined
   >();
@@ -169,6 +173,7 @@ function AppContent() {
         >
           <AppMenu />
           <CanvasBreadcrumb />
+          <CollaborationControl />
         </div>
         <ZoomControl containerSize={canvasContainerSize} />
         <AppLayout
@@ -189,6 +194,7 @@ function AppContent() {
             onUndo={handleUndo}
           />
         </AppLayout>
+        <RemotePresenceOverlay />
 
         <div className="absolute top-0 right-0 h-full pointer-events-none z-50">
           <SidebarProvider

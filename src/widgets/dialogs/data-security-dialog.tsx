@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/shared/ui/dialog";
+import { useEditorStore } from "@/domains/canvas/public";
 
 const SecurityIcon = HOST_ICONOLOGY.viewportAction.security;
 
@@ -23,11 +24,24 @@ export function DataSecurityDialog({
   onOpenChange,
 }: DataSecurityDialogProps) {
   const { t } = useUiI18n();
-  const disclosures = [
-    ["local", t("security.local.title"), t("security.local.description")],
-    ["private", t("security.private.title"), t("security.private.description")],
-    ["control", t("security.control.title"), t("security.control.description")],
-  ] as const;
+  const collaboration = useEditorStore((state) =>
+    state.canvasSessions.find((session) => session.id === state.activeCanvasId)?.collaboration
+  );
+  const collaborationDisclosure = collaboration
+    ? collaboration.provider === "p2p"
+      ? [t("security.p2p.title"), t("security.p2p.description")] as const
+      : [t("security.byos.title"), t("security.byos.description")] as const
+    : null;
+  const disclosures = collaborationDisclosure
+    ? [
+        ["local", t("security.local.title"), t("security.local.description")],
+        ["room", collaborationDisclosure[0], collaborationDisclosure[1]],
+      ] as const
+    : [
+        ["local", t("security.local.title"), t("security.local.description")],
+        ["private", t("security.private.title"), t("security.private.description")],
+        ["control", t("security.control.title"), t("security.control.description")],
+      ] as const;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -49,7 +63,7 @@ export function DataSecurityDialog({
             </section>
           ))}
           <p className="text-[11px] leading-4 text-muted-foreground">
-            {t("security.storageNote")}
+            {collaboration ? t("security.collaborationNote") : t("security.storageNote")}
           </p>
         </DialogBody>
       </DialogContent>

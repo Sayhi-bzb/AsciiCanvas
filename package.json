@@ -49,6 +49,10 @@
     "react-dom": "^19.2.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
+    "y-indexeddb": "^9.0.12",
+    "y-protocols": "^1.0.7",
+    "y-webrtc": "^10.3.0",
+    "y-websocket": "^3.0.0",
     "yjs": "^13.6.27",
     "zustand": "^5.0.9"
   },

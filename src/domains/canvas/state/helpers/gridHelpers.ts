@@ -31,7 +31,7 @@ export const rebuildSceneFromYMap = () => {
 export const patchGridByChangedKeys = (
   currentGrid: Map<string, GridCell>,
   keysChanged: Set<string>
-) => {
+): Map<string, GridCell> | null => {
   let nextGrid: Map<string, GridCell> | null = null;
 
   keysChanged.forEach((key) => {

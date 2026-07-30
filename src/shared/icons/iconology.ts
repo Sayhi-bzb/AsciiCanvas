@@ -63,6 +63,7 @@ import {
   Underline,
   Upload,
   Undo2,
+  Users,
   type LucideIcon,
   type LucideProps,
 } from 'lucide-react';
@@ -237,7 +238,8 @@ export const HOST_ICONOLOGY = {
     rename: Pencil,
     create: Plus,
     close: Trash2,
-  } satisfies IconMap<'expand' | 'more' | 'rename' | 'create' | 'close'>,
+    collaboration: Users,
+  } satisfies IconMap<'expand' | 'more' | 'rename' | 'create' | 'close' | 'collaboration'>,
   chrome: {
     'open-right-sidebar': PanelRightOpen,
     'toolbar-submenu': ChevronDown,
