@@ -6,15 +6,18 @@ import {
   TriangleAlert,
 } from "lucide-react"
 import { useTheme } from "next-themes"
+import { useUiI18n } from "@/shared/i18n"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme = "system" } = useTheme()
+  const { t } = useUiI18n()
 
   return (
     <Sonner
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
+      containerAriaLabel={t("notification.region")}
       icons={{
         success: <CircleCheck className="size-4" />,
         info: <Info className="size-4" />,

@@ -736,6 +736,29 @@ describe("SidebarRight structured templates", () => {
     expect(screen.getByRole("button", { name: /button/i })).toBeInTheDocument();
   });
 
+  it("localizes freeform Sidebar Host labels without translating standard terms", () => {
+    useEditorStore.setState({ canvasMode: "freeform" });
+    setUiLanguage("zh");
+
+    render(
+      <SidebarProvider>
+        <SidebarRight />
+      </SidebarProvider>
+    );
+
+    expect(screen.getByRole("tablist", { name: "字符库视图" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "常用" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Nerd Icons" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Emoji" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Unicode" })).toBeInTheDocument();
+    expect(screen.getByRole("tabpanel", { name: "常用字符" })).toBeInTheDocument();
+    expect(screen.getByRole("searchbox", { name: "搜索字符" })).toHaveAttribute(
+      "placeholder",
+      "搜索当前视图"
+    );
+    expect(screen.getByRole("button", { name: "切换侧栏" })).toBeInTheDocument();
+  });
+
   it("uses a transparent drag image for structured templates", () => {
     useEditorStore.setState({
       canvasMode: "structured",

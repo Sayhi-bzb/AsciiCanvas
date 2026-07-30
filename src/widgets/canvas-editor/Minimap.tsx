@@ -12,6 +12,7 @@ import {
 import { useTheme } from "next-themes";
 import { useShallow } from "zustand/react/shallow";
 import { useEditorStore } from "@/domains/canvas/public";
+import { useUiI18n } from "@/shared/i18n";
 import { cn } from "@/shared/lib/utils";
 import { MAX_ZOOM, MIN_ZOOM } from "@/shared/lib/constants";
 import type { Point } from "@/shared/types";
@@ -54,6 +55,7 @@ export const Minimap = ({
   const [isViewportHovered, setIsViewportHovered] = useState(false);
   const [isDraggingViewport, setIsDraggingViewport] = useState(false);
   const { resolvedTheme } = useTheme();
+  const { t } = useUiI18n();
   const {
     grid,
     offset,
@@ -356,7 +358,7 @@ export const Minimap = ({
           height: `${MINIMAP_DIMENSIONS.height}px`,
         }}
         role="img"
-        aria-label="Canvas minimap"
+        aria-label={t("minimap.canvas")}
         data-testid="minimap-canvas"
         className={cn("block touch-none select-none", cursorClass)}
         onDoubleClick={handleDoubleClick}

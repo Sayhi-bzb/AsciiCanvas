@@ -57,11 +57,11 @@ type SidebarView<ViewId extends string> = {
 };
 
 const CHARACTER_VIEWS = [
-  { id: "essentials", label: "Essentials", icon: HOST_ICONOLOGY.characterView.essentials },
-  { id: "nerd", label: "Nerd Icons", icon: HOST_ICONOLOGY.characterView.nerd },
-  { id: "emoji", label: "Emoji", icon: HOST_ICONOLOGY.characterView.emoji },
-  { id: "unicode", label: "Unicode", icon: HOST_ICONOLOGY.characterView.unicode },
-] as const satisfies ReadonlyArray<SidebarView<CharacterViewId>>;
+  { id: "essentials", labelKey: "character.view.essentials", icon: HOST_ICONOLOGY.characterView.essentials },
+  { id: "nerd", labelKey: "character.view.nerd", icon: HOST_ICONOLOGY.characterView.nerd },
+  { id: "emoji", labelKey: "character.view.emoji", icon: HOST_ICONOLOGY.characterView.emoji },
+  { id: "unicode", labelKey: "character.view.unicode", icon: HOST_ICONOLOGY.characterView.unicode },
+] as const;
 
 function SidebarViewRail<ViewId extends string>({
   views,
@@ -141,9 +141,15 @@ export function SidebarRight() {
   const [activeCharacterView, setActiveCharacterView] =
     useState<CharacterViewId>("essentials");
   const [unicodeQuery, setUnicodeQuery] = useState("");
+  const characterViews: ReadonlyArray<SidebarView<CharacterViewId>> =
+    CHARACTER_VIEWS.map((view) => ({
+      id: view.id,
+      label: t(view.labelKey),
+      icon: view.icon,
+    }));
   const activeCharacterViewMeta =
-    CHARACTER_VIEWS.find((view) => view.id === activeCharacterView) ??
-    CHARACTER_VIEWS[0];
+    characterViews.find((view) => view.id === activeCharacterView) ??
+    characterViews[0];
   const structuredViews = STRUCTURED_SIDEBAR_TABS.map((view) => ({
     id: view.id,
     label: t(view.labelKey),
@@ -175,11 +181,11 @@ export function SidebarRight() {
   const viewRail =
     canvasMode === "freeform" ? (
       <SidebarViewRail
-        views={CHARACTER_VIEWS}
+        views={characterViews}
         activeView={activeCharacterView}
         orientation={isMobile ? "horizontal" : "vertical"}
         onSelect={selectCharacterView}
-        ariaLabel="Character library views"
+        ariaLabel={t("sidebar.characterViews")}
         testIdPrefix="character"
       />
     ) : canvasMode === "structured" ? (
@@ -188,7 +194,7 @@ export function SidebarRight() {
         activeView={structuredSidebarTab}
         orientation={isMobile ? "horizontal" : "vertical"}
         onSelect={selectStructuredView}
-        ariaLabel="Structured library views"
+        ariaLabel={t("sidebar.structuredViews")}
         testIdPrefix="structured"
       />
     ) : null;
@@ -197,7 +203,9 @@ export function SidebarRight() {
     canvasMode === "freeform" ? (
       <div
         role="tabpanel"
-        aria-label={`${activeCharacterViewMeta.label} characters`}
+        aria-label={t("sidebar.characterPanel", {
+          name: activeCharacterViewMeta.label,
+        })}
       >
         <CharLibrary view={activeCharacterView} />
       </div>

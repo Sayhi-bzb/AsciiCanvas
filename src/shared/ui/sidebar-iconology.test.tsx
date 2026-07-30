@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { setUiLanguage } from "@/shared/i18n";
 import {
   SidebarProvider,
   SidebarTrigger,
@@ -26,6 +27,8 @@ describe("SidebarTrigger iconology", () => {
     });
   });
 
+  afterEach(() => setUiLanguage("en"));
+
   it("shows close then open for a right Sidebar", () => {
     render(
       <SidebarProvider defaultOpen>
@@ -39,5 +42,16 @@ describe("SidebarTrigger iconology", () => {
     fireEvent.click(trigger);
 
     expect(trigger.querySelector(".lucide-panel-right-open")).toBeTruthy();
+  });
+
+  it("localizes the Sidebar trigger accessible name", () => {
+    setUiLanguage("zh");
+    render(
+      <SidebarProvider defaultOpen>
+        <SidebarTrigger side="right" />
+      </SidebarProvider>
+    );
+
+    expect(screen.getByRole("button", { name: "切换侧栏" })).toBeInTheDocument();
   });
 });

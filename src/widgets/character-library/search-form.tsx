@@ -7,6 +7,7 @@ import {
   type CharacterViewId,
 } from "@/domains/character-library/public";
 import { cn } from "@/shared/lib/utils";
+import { useUiI18n } from "@/shared/i18n";
 import { rx } from "@/shared/styles/recipes";
 
 type SearchFormProps = Omit<React.ComponentProps<"form">, "onSubmit"> & {
@@ -26,6 +27,7 @@ export function SearchForm({
   className,
   ...props
 }: SearchFormProps) {
+  const { t } = useUiI18n();
   const storedQuery = useLibraryStore((state) =>
     view === "unicode" ? "" : state.searchQueries[view]
   );
@@ -67,16 +69,16 @@ export function SearchForm({
       }}
     >
       <label htmlFor="character-view-search" className="sr-only">
-        Search characters
+        {t("character.search.label")}
       </label>
       <input
         id="character-view-search"
         type="search"
-        aria-label="Search characters"
+        aria-label={t("character.search.label")}
         placeholder={
           isUnicode
-            ? "Name, character, or U+ code"
-            : "Search current view"
+            ? t("character.search.unicodePlaceholder")
+            : t("character.search.currentPlaceholder")
         }
         className={cn(
           rx.field({ density: "default" }),
@@ -92,7 +94,7 @@ export function SearchForm({
       {isUnicode ? (
         <button
           type="submit"
-          aria-label="Search all Unicode"
+          aria-label={t("character.search.allUnicode")}
           disabled={!value.trim() || unicodeLoading}
           className="absolute right-1 top-1/2 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-40"
         >
@@ -108,7 +110,7 @@ export function SearchForm({
           onClick={clear}
           className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-medium text-muted-foreground hover:text-foreground"
         >
-          ESC
+          Escape
         </button>
       ) : null}
     </form>

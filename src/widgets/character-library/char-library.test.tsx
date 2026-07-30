@@ -321,10 +321,16 @@ describe("CharLibrary", () => {
     );
     expect(trigger).toHaveTextContent("Greek and Coptic (117)");
 
-    fireEvent.click(screen.getByRole("button", { name: "script" }));
+    fireEvent.click(screen.getByRole("button", { name: "Script" }));
     await waitFor(() =>
       expect(loadUnicodePage).toHaveBeenCalledWith("script", "latin")
     );
     expect(trigger).toHaveTextContent("Latin (1374)");
+
+    act(() => setUiLanguage("zh"));
+    expect(screen.getByRole("combobox", { name: "Unicode 分类" })).toBe(trigger);
+    expect(screen.getByRole("button", { name: "区块" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "文字系统" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "类别" })).toBeInTheDocument();
   });
 });

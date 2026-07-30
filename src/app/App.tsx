@@ -21,6 +21,7 @@ import { getStaticGridViewState } from "@/domains/selection/public";
 import { useHandToolShortcuts } from "./useHandToolShortcuts";
 import { ZoomControl } from "@/widgets/toolbar/zoom-control";
 import { HelpControl } from "@/widgets/toolbar/help-control";
+import { useUiI18n } from "@/shared/i18n";
 
 const SidebarRight = lazy(() =>
   import("@/widgets/toolbar/sidebar-right").then((module) => ({
@@ -33,6 +34,7 @@ function MobileSidebarTrigger() {
   const OpenSidebarIcon = HOST_ICONOLOGY.chrome["open-right-sidebar"];
   const isMobile = useIsMobile();
   const { setOpenMobile } = useSidebar();
+  const { t } = useUiI18n();
 
   if (!isMobile) return null;
 
@@ -45,7 +47,7 @@ function MobileSidebarTrigger() {
         "flex items-center justify-center pointer-events-auto",
         "hover:bg-accent/45 transition-colors"
       )}
-      aria-label="Open library"
+      aria-label={t("sidebar.open")}
     >
       <OpenSidebarIcon className="size-5" />
     </button>

@@ -5,6 +5,7 @@ import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
 
 import { useIsMobile } from "@/shared/hooks/use-mobile";
+import { useUiI18n } from "@/shared/i18n";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import { rx } from "@/shared/styles/recipes";
@@ -154,6 +155,7 @@ function Sidebar({
   collapsedAppearance?: "rail" | "trigger";
 }) {
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
+  const { t } = useUiI18n();
   const isTriggerCollapsed =
     state === "collapsed" && collapsedAppearance === "trigger";
 
@@ -186,8 +188,8 @@ function Sidebar({
           side={side}
         >
           <SheetHeader className="sr-only">
-            <SheetTitle>Sidebar</SheetTitle>
-            <SheetDescription>Displays the mobile sidebar.</SheetDescription>
+            <SheetTitle>{t("sidebar.title")}</SheetTitle>
+            <SheetDescription>{t("sidebar.mobileDescription")}</SheetDescription>
           </SheetHeader>
           <div className="flex h-full w-full flex-col">{children}</div>
         </SheetContent>
@@ -258,6 +260,7 @@ function SidebarTrigger({
   ...props
 }: React.ComponentProps<typeof Button> & { side?: "left" | "right" }) {
   const { toggleSidebar, state, isMobile, openMobile } = useSidebar();
+  const { t } = useUiI18n();
   const isOpen = isMobile ? openMobile : state === "expanded";
   return (
     <Button
@@ -274,7 +277,7 @@ function SidebarTrigger({
       {...props}
     >
       <SidebarToggleIcon side={side} isOpen={isOpen} />
-      <span className="sr-only">Toggle Sidebar</span>
+      <span className="sr-only">{t("sidebar.toggle")}</span>
     </Button>
   );
 }

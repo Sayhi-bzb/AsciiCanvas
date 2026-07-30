@@ -41,6 +41,12 @@ import {
 
 const PAGE_SIZE = 240;
 
+const UNICODE_FACET_LABEL_KEYS: Record<UnicodeFacetType, I18nKey> = {
+  block: "character.unicode.block",
+  script: "character.unicode.script",
+  category: "character.unicode.category",
+};
+
 const CHARACTER_GROUP_LABEL_KEYS: Record<
   CharacterPackId,
   Record<string, I18nKey>
@@ -108,10 +114,11 @@ function CharButton({
   isSelected: boolean;
   onClick: (entry: CharacterRecord) => void;
 }) {
+  const { t } = useUiI18n();
   const codePoints = getCodePointLabel(entry.grapheme);
   const unavailable = !entry.insertable;
   const tooltipLabel = `${entry.name} · ${codePoints}${
-    unavailable ? " · metadata only" : ""
+    unavailable ? ` · ${t("character.metadataOnly")}` : ""
   }`;
   const preview = entry.category.startsWith("M")
     ? `◌${entry.grapheme}`
@@ -155,7 +162,7 @@ function CharButton({
             data-slot="tooltip-status"
             className="mt-1 text-[10px] text-background/70"
           >
-            Metadata only
+            {t("character.metadataOnly")}
           </div>
         )}
       </TooltipContent>
@@ -174,6 +181,7 @@ function CharacterGrid({
   onSelect: (entry: CharacterRecord) => void;
   paged?: boolean;
 }) {
+  const { t } = useUiI18n();
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const visibleEntries = paged ? entries.slice(0, visibleCount) : entries;
   return (
@@ -194,7 +202,9 @@ function CharacterGrid({
           onClick={() => setVisibleCount((value) => value + PAGE_SIZE)}
           className="my-1 h-7 rounded-md bg-accent px-2 text-[11px] font-medium text-accent-foreground"
         >
-          Show more ({Math.min(PAGE_SIZE, entries.length - visibleCount)})
+          {t("character.showMore", {
+            count: Math.min(PAGE_SIZE, entries.length - visibleCount),
+          })}
         </button>
       )}
     </>
@@ -244,10 +254,11 @@ function GroupSection({
 }
 
 function EmptySearch() {
+  const { t } = useUiI18n();
   return (
     <div className="flex flex-col items-center py-12 text-muted-foreground">
       <SearchX className="mb-2 size-8 opacity-20" />
-      <p className="text-[11px]">No characters found</p>
+      <p className="text-[11px]">{t("character.empty")}</p>
     </div>
   );
 }
@@ -261,6 +272,7 @@ function PackPane({
   copiedChar: string | null;
   onSelect: (entry: CharacterRecord) => void;
 }) {
+  const { t } = useUiI18n();
   const groups = useLibraryStore((state) => state.packs[pack]);
   const status = useLibraryStore((state) => state.packStatus[pack]);
   const error = useLibraryStore((state) => state.packErrors[pack]);
@@ -272,7 +284,7 @@ function PackPane({
     return (
       <div className="p-2 pb-10">
         <p className="px-1 pb-2 text-[11px] text-muted-foreground">
-          Results ({results.length})
+          {t("character.results", { count: results.length })}
         </p>
         {results.length ? (
           <CharacterGrid
@@ -292,7 +304,7 @@ function PackPane({
     <div className="space-y-1 p-2 pb-10">
       {status === "loading" && (
         <div className="flex items-center gap-2 px-2 py-3 text-[11px] text-muted-foreground">
-          <Loader2 className="size-3.5 animate-spin" /> Loading characters…
+          <Loader2 className="size-3.5 animate-spin" /> {t("character.loading")}
         </div>
       )}
       {error && (
@@ -303,7 +315,7 @@ function PackPane({
             onClick={() => void retryPack(pack)}
             className="inline-flex h-7 items-center gap-1 rounded-md bg-accent px-2 text-foreground"
           >
-            <RefreshCcw className="size-3" /> Retry
+            <RefreshCcw className="size-3" /> {t("character.retry")}
           </button>
         </div>
       )}
@@ -328,6 +340,7 @@ function UnicodePane({
   copiedChar: string | null;
   onSelect: (entry: CharacterRecord) => void;
 }) {
+  const { t } = useUiI18n();
   const {
     unicodeManifest,
     unicodeStatus,
@@ -367,7 +380,7 @@ function UnicodePane({
     <div className="space-y-2 p-2 pb-10">
       {unicodeStatus === "loading" && (
         <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-          <Loader2 className="size-3.5 animate-spin" /> Loading index…
+          <Loader2 className="size-3.5 animate-spin" /> {t("character.loadingIndex")}
         </div>
       )}
       {unicodeError && (
@@ -390,7 +403,7 @@ function UnicodePane({
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                {type}
+                {t(UNICODE_FACET_LABEL_KEYS[type])}
               </button>
             ))}
           </div>
@@ -401,7 +414,7 @@ function UnicodePane({
             }
           >
             <SelectTrigger
-              aria-label="Unicode facet"
+              aria-label={t("character.unicodeFacet")}
               size="sm"
               className="w-full border-0 bg-accent/60 px-2 text-[11px] shadow-none dark:bg-accent/60 dark:hover:bg-accent/80"
             >
@@ -441,7 +454,7 @@ function UnicodePane({
               }
               className="h-7 rounded-md bg-accent px-2 text-[11px] font-medium"
             >
-              Load 240 more
+              {t("character.loadMore", { count: PAGE_SIZE })}
             </button>
           )}
         </>

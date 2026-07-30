@@ -55,7 +55,7 @@ export function HandbookDialog({
         <TooltipTrigger asChild>
           <DialogTrigger asChild>
             <Button
-              aria-label="Open user manual"
+              aria-label={t("manual.open")}
               tone="subtle"
               shape="square"
               size="md"
@@ -99,7 +99,9 @@ export function HandbookDialog({
                       Ctrl
                     </kbd>
                     <span className="text-muted-foreground text-[10px]">+</span>
-                    <span className="font-mono text-[10px]">Scroll</span>
+                    <span className="font-mono text-[10px]">
+                      {t("manual.scroll")}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -142,7 +144,7 @@ export function HandbookDialog({
                     </span>
                   </div>
                   <span className="text-[10px] font-mono text-muted-foreground">
-                    text/bg/box
+                    {t("manual.insertTypes")}
                   </span>
                 </div>
                 <div className="flex items-center justify-between py-1.5 border-b border-accent">
@@ -179,7 +181,7 @@ export function HandbookDialog({
                     </span>
                   </div>
                   <kbd className="bg-muted px-2 py-0.5 rounded border text-[10px] font-mono">
-                    Double
+                    {t("manual.doubleClick")}
                   </kbd>
                 </div>
                 <div className="flex items-center justify-between py-1.5 border-b border-accent">

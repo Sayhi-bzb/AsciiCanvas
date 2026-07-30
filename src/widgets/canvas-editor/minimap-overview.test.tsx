@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Minimap } from "@/widgets/canvas-editor/Minimap";
 import { useEditorStore } from "@/domains/canvas/public";
 import { GridManager } from "@/shared/utils/grid";
+import { setUiLanguage } from "@/shared/i18n";
 
 const initialState = useEditorStore.getState();
 const pathInstances: MockPath2D[] = [];
@@ -32,6 +33,7 @@ const createMockContext = () => ({
 
 describe("Minimap canvas", () => {
   beforeEach(() => {
+    setUiLanguage("en");
     pathInstances.length = 0;
     vi.stubGlobal("Path2D", MockPath2D);
     vi.stubGlobal(
@@ -51,6 +53,7 @@ describe("Minimap canvas", () => {
   });
 
   afterEach(() => {
+    setUiLanguage("en");
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
     useEditorStore.setState(initialState, true);
@@ -94,6 +97,14 @@ describe("Minimap canvas", () => {
     expect(canvas).toHaveAttribute("width", "220");
     expect(canvas).toHaveAttribute("height", "140");
     expect(canvas).toHaveStyle({ width: "220px", height: "140px" });
+  });
+
+  it("localizes the minimap accessible name", () => {
+    setUiLanguage("zh");
+    seedContent();
+    render(<Minimap containerSize={{ width: 1000, height: 700 }} />);
+
+    expect(screen.getByLabelText("画布小地图")).toBeInTheDocument();
   });
 
   it("reuses page-space paths when only the camera moves", () => {

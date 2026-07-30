@@ -9,6 +9,7 @@ import {
 import { cn } from "@/shared/lib/utils";
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
 import { uiClass } from "@/shared/styles/components";
+import { useUiI18n } from "@/shared/i18n";
 
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
@@ -31,6 +32,7 @@ const DEFAULT_GHOST_SETTINGS = {
 } as const;
 
 export function AnimationTimeline() {
+  const { t } = useUiI18n();
   const {
     canvasMode,
     animationTimeline,
@@ -127,13 +129,15 @@ export function AnimationTimeline() {
                 shape="square"
                 size="md"
                 className={uiClass.hostIconControl}
-                aria-label="Previous frame"
+                aria-label={t("animation.timeline.previousFrame")}
                 onClick={() => stepAnimationFrame(-1)}
               >
                 <PreviousFrameIcon className="size-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="top">Previous frame</TooltipContent>
+            <TooltipContent side="top">
+              {t("animation.timeline.previousFrame")}
+            </TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -145,7 +149,11 @@ export function AnimationTimeline() {
                   uiClass.hostIconControl,
                   animationIsPlaying && uiClass.hostControlActive
                 )}
-                aria-label={animationIsPlaying ? "Pause animation" : "Play animation"}
+                aria-label={
+                  animationIsPlaying
+                    ? t("animation.timeline.pause")
+                    : t("animation.timeline.play")
+                }
                 onClick={() =>
                   animationIsPlaying ? pauseAnimation() : playAnimation()
                 }
@@ -158,7 +166,9 @@ export function AnimationTimeline() {
               </Button>
             </TooltipTrigger>
             <TooltipContent side="top">
-              {animationIsPlaying ? "Pause" : "Play"}
+              {animationIsPlaying
+                ? t("animation.timeline.pause")
+                : t("animation.timeline.play")}
             </TooltipContent>
           </Tooltip>
           <Tooltip>
@@ -168,13 +178,15 @@ export function AnimationTimeline() {
                 shape="square"
                 size="md"
                 className={uiClass.hostIconControl}
-                aria-label="Next frame"
+                aria-label={t("animation.timeline.nextFrame")}
                 onClick={() => stepAnimationFrame(1)}
               >
                 <NextFrameIcon className="size-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="top">Next frame</TooltipContent>
+            <TooltipContent side="top">
+              {t("animation.timeline.nextFrame")}
+            </TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -186,14 +198,16 @@ export function AnimationTimeline() {
                   uiClass.hostIconControl,
                   animationTimeline.loop && uiClass.hostControlActive
                 )}
-                aria-label="Toggle animation loop"
+                aria-label={t("animation.timeline.loopToggle")}
                 onClick={toggleAnimationLoop}
               >
                 <LoopIcon className="size-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="top">
-              {animationTimeline.loop ? "Loop on" : "Loop off"}
+              {animationTimeline.loop
+                ? t("animation.timeline.loopOn")
+                : t("animation.timeline.loopOff")}
             </TooltipContent>
           </Tooltip>
         </div>
@@ -203,8 +217,8 @@ export function AnimationTimeline() {
         </div>
 
         <div className="flex items-center gap-1 p-1">
-          <span className="px-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            Ghost
+          <span className="px-2 text-[10px] font-semibold text-muted-foreground">
+            {t("animation.timeline.onionSkin")}
           </span>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -212,7 +226,7 @@ export function AnimationTimeline() {
                 type="button"
                 role="switch"
                 aria-checked={animationTimeline.onionSkin.enabled}
-                aria-label="Toggle onion skin"
+                aria-label={t("animation.timeline.onionSkinToggle")}
                 onClick={toggleGhost}
                 className={cn(
                   "relative inline-flex h-6 w-10 shrink-0 items-center rounded-full border transition-colors",
@@ -229,7 +243,9 @@ export function AnimationTimeline() {
                 />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="top">Onion skin</TooltipContent>
+            <TooltipContent side="top">
+              {t("animation.timeline.onionSkin")}
+            </TooltipContent>
           </Tooltip>
         </div>
 

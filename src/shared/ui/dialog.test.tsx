@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { setUiLanguage } from "@/shared/i18n";
 import {
   Dialog,
   DialogBody,
@@ -17,8 +18,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/shared/ui/alert-dialog";
+import { Sheet, SheetContent, SheetTitle } from "@/shared/ui/sheet";
 
 describe("dialog visual contract", () => {
+  afterEach(() => setUiLanguage("en"));
+
   it("uses the shared flat shell, sections, and host close control", () => {
     const onOpenChange = vi.fn();
     render(
@@ -92,5 +96,25 @@ describe("dialog visual contract", () => {
     expect(
       content.querySelector('[data-slot="alert-dialog-footer"]')
     ).toHaveClass("border-accent", "bg-accent/25");
+  });
+
+  it("localizes shared Dialog and Sheet close controls", () => {
+    setUiLanguage("zh");
+    render(
+      <>
+        <Dialog open>
+          <DialogContent>
+            <DialogTitle>Dialog</DialogTitle>
+          </DialogContent>
+        </Dialog>
+        <Sheet open>
+          <SheetContent>
+            <SheetTitle>Sheet</SheetTitle>
+          </SheetContent>
+        </Sheet>
+      </>
+    );
+
+    expect(screen.getAllByText("关闭")).toHaveLength(2);
   });
 });

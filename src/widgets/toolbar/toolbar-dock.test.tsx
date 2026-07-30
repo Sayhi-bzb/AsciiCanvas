@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { Toolbar } from "@/widgets/toolbar/dock";
 import { ColorPickerPanel } from "@/widgets/toolbar/dock/submenus";
 import { useEditorStore } from "@/domains/canvas/public";
+import { setUiLanguage } from "@/shared/i18n";
 
 vi.mock("@/shared/hooks/use-mobile", () => ({
   useIsMobile: () => false,
@@ -12,6 +13,7 @@ describe("Toolbar dock", () => {
   const initialState = useEditorStore.getState();
 
   afterEach(() => {
+    act(() => setUiLanguage("en"));
     useEditorStore.setState(initialState, true);
   });
 
@@ -285,6 +287,38 @@ describe("Toolbar dock", () => {
       "text-foreground",
       "focus-visible:ring-[3px]"
     );
+  });
+
+  it("localizes the Tool Dock and animation controls", () => {
+    act(() => setUiLanguage("zh"));
+    useEditorStore.setState({
+      canvasMode: "animation",
+      tool: "select",
+      animationIsPlaying: false,
+      animationTimeline: {
+        frames: [{ id: "frame-1", name: "Frame 1", grid: [] }],
+        currentFrameId: "frame-1",
+        fps: 10,
+        loop: false,
+        onionSkin: {
+          enabled: false,
+          backwardLayers: 2,
+          forwardLayers: 2,
+          opacityFalloff: [0.5, 0.3, 0.1],
+        },
+      },
+    });
+
+    render(<Toolbar tool="select" setTool={vi.fn()} onUndo={vi.fn()} />);
+
+    expect(screen.getByRole("toolbar", { name: "画布工具" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "上一帧" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "播放动画" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "下一帧" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "切换动画循环" })).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "切换洋葱皮" })).toBeInTheDocument();
+    expect(screen.getByText("洋葱皮")).toBeInTheDocument();
+    expect(screen.getByText("FPS")).toBeInTheDocument();
   });
 
   it("does not show background in animation mode", () => {

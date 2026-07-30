@@ -193,7 +193,7 @@ export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
         >
           <nav
             role="toolbar"
-            aria-label="Canvas tools"
+            aria-label={t("toolbar.group")}
             className="relative flex items-center justify-center gap-1"
           >
             {navItems.map((item, index) => {
