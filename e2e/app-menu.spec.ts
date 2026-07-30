@@ -102,7 +102,6 @@ test.describe("App menu", () => {
     await expect(menu.getByRole("menuitem").allTextContents()).resolves.toEqual([
       "Import Canvas",
       "Export Blueprint",
-      "User Manual",
       "Clear Canvas",
       "UI language",
       "Open Source Code",
@@ -154,11 +153,18 @@ test.describe("App menu", () => {
     await page.evaluate(() => window.dispatchEvent(new Event("blur")));
     await expect(menuContent).toHaveCount(0);
 
-    await trigger.click();
-    const reopenedMenu = page.getByRole("menu", { name: "Open menu" });
-    await reopenedMenu.getByRole("menuitem", { name: "User Manual" }).click();
+    const helpControl = page.getByRole("button", { name: "User Manual" });
+    const helpBox = await helpControl.boundingBox();
+    expect(helpBox).not.toBeNull();
+    expect(helpBox!.x + helpBox!.width).toBe(1428);
+    expect(helpBox!.y + helpBox!.height).toBe(888);
+    await expect(page.locator('[data-slot="sidebar-content"]')).toHaveCSS(
+      "padding-bottom",
+      "48px"
+    );
+
+    await helpControl.click();
     await expect(page.getByRole("dialog")).toContainText("User Manual");
-    await expect(menuContent).toHaveCount(0);
     await page.keyboard.press("Escape");
 
     await trigger.click();

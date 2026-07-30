@@ -30,13 +30,7 @@ const DEFAULT_GHOST_SETTINGS = {
   opacityFalloff: [0.5, 0.3],
 } as const;
 
-interface AnimationTimelineProps {
-  embedded?: boolean;
-}
-
-export function AnimationTimeline({
-  embedded = false,
-}: AnimationTimelineProps = {}) {
+export function AnimationTimeline() {
   const {
     canvasMode,
     animationTimeline,
@@ -255,15 +249,5 @@ export function AnimationTimeline({
       </div>
   );
 
-  if (embedded) {
-    return timelineContent;
-  }
-
-  return (
-    <div className="fixed inset-x-0 bottom-20 z-[58] px-4 pointer-events-none">
-      <div className="mx-auto max-w-[min(96vw,1180px)] rounded-[24px] border border-border bg-popover/95 p-2.5 shadow-xl backdrop-blur-md">
-        {timelineContent}
-      </div>
-    </div>
-  );
+  return timelineContent;
 }

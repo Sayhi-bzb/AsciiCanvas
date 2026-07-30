@@ -49,7 +49,15 @@ describe('ZoomControl', () => {
     const grid = screen.getByTestId('zoom-grid');
     const minimap = screen.getByTestId('zoom-minimap-toggle');
 
-    expect(host).toHaveClass('fixed', 'bottom-3', 'left-3', 'flex', 'bg-muted');
+    expect(host).toHaveClass(
+      'fixed',
+      'bottom-3',
+      'left-3',
+      'flex',
+      'bg-muted',
+      'border-0',
+      'shadow-none'
+    );
     expect(Array.from(host.children)).toEqual([out, reset, zoomIn, grid, minimap]);
     expect(out).toHaveClass('size-8', 'rounded-r-none');
     expect(reset).toHaveClass('h-8', 'min-w-14', 'rounded-none', 'tabular-nums');
@@ -78,7 +86,14 @@ describe('ZoomControl', () => {
     fireEvent.click(minimap);
     expect(minimap).toHaveAttribute('aria-pressed', 'true');
     expect(await screen.findByTestId('mock-minimap')).toHaveTextContent('1000x700');
-    expect(screen.getByTestId('zoom-minimap')).toHaveClass('absolute', 'bottom-full', 'left-0');
+    expect(screen.getByTestId('zoom-minimap')).toHaveClass(
+      'absolute',
+      'bottom-full',
+      'left-0',
+      'bg-muted',
+      'border-0',
+      'shadow-none'
+    );
     fireEvent.click(minimap);
     expect(screen.queryByTestId('zoom-minimap')).not.toBeInTheDocument();
   });

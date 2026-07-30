@@ -127,7 +127,13 @@ describe("Toolbar dock", () => {
     );
     const inactiveButtons = inactiveItem?.querySelectorAll("button") ?? [];
 
-    expect(toolbar.parentElement).toHaveClass("bg-muted", "rounded-lg");
+    expect(screen.getByTestId("tool-dock")).toBe(toolbar.parentElement);
+    expect(toolbar.parentElement).toHaveClass(
+      "bg-muted",
+      "rounded-lg",
+      "border-0",
+      "shadow-none"
+    );
     expect(activeItem).toHaveClass("bg-accent", "text-foreground");
     expect(inactiveItem).not.toHaveClass("bg-accent");
     expect(inactiveItem).toHaveClass(

@@ -20,6 +20,7 @@ import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
 import { getStaticGridViewState } from "@/domains/selection/public";
 import { useHandToolShortcuts } from "./useHandToolShortcuts";
 import { ZoomControl } from "@/widgets/toolbar/zoom-control";
+import { HelpControl } from "@/widgets/toolbar/help-control";
 
 const SidebarRight = lazy(() =>
   import("@/widgets/toolbar/sidebar-right").then((module) => ({
@@ -197,6 +198,7 @@ function AppContent() {
             }
           >
             <MobileSidebarTrigger />
+            <HelpControl />
             <Suspense fallback={<div className="w-0" />}>
               <SidebarRight />
             </Suspense>

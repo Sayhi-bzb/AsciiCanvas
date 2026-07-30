@@ -32,15 +32,9 @@ const AppMenuTriggerIcon = HOST_ICONOLOGY.appMenu.trigger;
 const ImportIcon = HOST_ICONOLOGY.appMenu.import;
 const ExportIcon = HOST_ICONOLOGY.appMenu.export;
 const CopyIcon = HOST_ICONOLOGY.appMenu.copy;
-const HelpIcon = HOST_ICONOLOGY.appMenu.help;
 const GithubIcon = HOST_ICONOLOGY.appMenu.github;
 const LanguageIcon = HOST_ICONOLOGY.appMenu.language;
 const ClearIcon = HOST_ICONOLOGY.appMenu.clear;
-const HandbookDialog = lazy(() =>
-  import("@/widgets/dialogs/handbook-dialog").then((module) => ({
-    default: module.HandbookDialog,
-  }))
-);
 const ClearCanvasDialog = lazy(() =>
   import("@/widgets/dialogs/clear-canvas-dialog").then((module) => ({
     default: module.ClearCanvasDialog,
@@ -73,7 +67,6 @@ export function AppMenu() {
     isImporting,
     openFilePicker,
   } = useCanvasImport();
-  const [handbookOpen, setHandbookOpen] = useState(false);
   const [clearOpen, setClearOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const clearLabel =
@@ -220,10 +213,6 @@ export function AppMenu() {
                     )}
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
-                <DropdownMenuItem onSelect={() => setHandbookOpen(true)}>
-                  <HelpIcon />
-                  {t("manual.title")}
-                </DropdownMenuItem>
                 <DropdownMenuItem
                   variant="destructive"
                   onSelect={() => setClearOpen(true)}
@@ -272,13 +261,6 @@ export function AppMenu() {
       </div>
 
       <Suspense fallback={null}>
-        {handbookOpen && (
-          <HandbookDialog
-            open={handbookOpen}
-            onOpenChange={setHandbookOpen}
-            trigger={null}
-          />
-        )}
         {clearOpen && (
           <ClearCanvasDialog
             isCollapsed={false}

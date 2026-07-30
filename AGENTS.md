@@ -33,3 +33,4 @@ Apply these rules when writing or editing docs.
 # Frontend Host Rules
 
 - [Core host icon controls](docs/host/icon-controls.md)
+- [Dialog surfaces](docs/host/dialogs.md)

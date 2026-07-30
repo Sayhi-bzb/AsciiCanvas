@@ -184,6 +184,7 @@ export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
         <div
+          data-testid="tool-dock"
           className={cn(
             uiClass.toolbarShell,
             canvasMode === "animation" && "flex-col items-center gap-1",
@@ -327,7 +328,7 @@ export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
 
           </nav>
 
-          {canvasMode === "animation" && <AnimationTimeline embedded />}
+          {canvasMode === "animation" && <AnimationTimeline />}
         </div>
       </div>
   );

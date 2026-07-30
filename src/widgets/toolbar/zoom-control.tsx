@@ -155,13 +155,16 @@ export function ZoomControl({ containerSize }: ZoomControlProps) {
     <div
       data-canvas-ui="true"
       data-testid="zoom-control"
-      className="fixed bottom-3 left-3 z-50 flex rounded-lg bg-muted p-[3px] pointer-events-auto"
+      className={cn(uiClass.toolbarShell, "fixed bottom-3 left-3 z-50")}
       aria-label={zoomLabel}
     >
       {minimapOpen && canvasMode !== 'animation' && (
         <div
           data-testid="zoom-minimap"
-          className="absolute bottom-full left-0 z-40 mb-2 w-auto overflow-hidden rounded-lg bg-muted"
+          className={cn(
+            uiClass.hostContainer,
+            "absolute bottom-full left-0 z-40 mb-2 w-auto overflow-hidden"
+          )}
         >
           <Suspense fallback={<div className="h-[140px] w-[220px] bg-muted" />}>
             <Minimap containerSize={containerSize} />

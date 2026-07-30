@@ -153,7 +153,8 @@ export const HOST_ICONOLOGY = {
   viewportAction: {
     grid: Grid2X2,
     minimap: Map,
-  } satisfies IconMap<'grid' | 'minimap'>,
+    help: CircleHelp,
+  } satisfies IconMap<'grid' | 'minimap' | 'help'>,
   selectionAction: {
     bold: Bold,
     italic: Italic,
@@ -216,7 +217,6 @@ export const HOST_ICONOLOGY = {
     import: Upload,
     export: Download,
     copy: Copy,
-    help: CircleHelp,
     github: Github,
     language: Languages,
     clear: Trash2,
@@ -225,7 +225,6 @@ export const HOST_ICONOLOGY = {
     | 'import'
     | 'export'
     | 'copy'
-    | 'help'
     | 'github'
     | 'language'
     | 'clear'

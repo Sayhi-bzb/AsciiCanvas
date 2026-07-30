@@ -4,6 +4,7 @@ import {
   BringToFront,
   Camera,
   ChevronDown,
+  CircleHelp,
   CaseSensitive,
   ClipboardPaste,
   Code2,
@@ -61,6 +62,7 @@ describe('Host iconology', () => {
     expect(HOST_ICONOLOGY.zoomAction.in).toBe(Plus);
     expect(HOST_ICONOLOGY.viewportAction.grid).toBe(Grid2X2);
     expect(HOST_ICONOLOGY.viewportAction.minimap).toBe(MapIcon);
+    expect(HOST_ICONOLOGY.viewportAction.help).toBe(CircleHelp);
     expect(HOST_ICONOLOGY.animationAction.play).toBe(Play);
     expect(HOST_ICONOLOGY.animationSidebar.effects).toBe(Sparkles);
     expect(HOST_ICONOLOGY.animationSidebar.reorder).toBe(GripVertical);

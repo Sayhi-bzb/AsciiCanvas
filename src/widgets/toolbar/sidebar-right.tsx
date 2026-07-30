@@ -311,7 +311,8 @@ export function SidebarRight() {
         canvasMode !== "animation" && "[scrollbar-gutter:auto]",
         canvasMode === "freeform" && "gap-0 p-0",
         canvasMode === "structured" && "gap-0 p-0",
-        canvasMode === "animation" && "gap-0 p-0"
+        canvasMode === "animation" && "gap-0 p-0",
+        !isMobile && "pb-12"
       )}
       header={
         <SidebarHeader

@@ -20,8 +20,10 @@ import {
 import { Button } from "@/shared/ui/button";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/shared/ui/dialog";
@@ -344,20 +346,18 @@ export function CanvasBreadcrumb() {
       </DropdownMenu>
 
       <Dialog open={animationDialogOpen} onOpenChange={setAnimationDialogOpen}>
-        <DialogContent className="max-w-md overflow-hidden border-none p-0 shadow-2xl">
-          <div className="border-b border-accent bg-muted/30 px-4 py-3">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <AnimationModeIcon className="size-4 text-primary" />
-                {t("session.animation.title")}
-              </DialogTitle>
-              <DialogDescription className="text-xs">
-                {t("session.animation.description")}
-              </DialogDescription>
-            </DialogHeader>
-          </div>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AnimationModeIcon className="size-4 text-primary" />
+              {t("session.animation.title")}
+            </DialogTitle>
+            <DialogDescription>
+              {t("session.animation.description")}
+            </DialogDescription>
+          </DialogHeader>
 
-          <div className="space-y-3 bg-background px-4 py-4">
+          <DialogBody className="space-y-3">
             <div className="space-y-1.5">
               <div className="text-[11px] font-medium text-muted-foreground">
                 {t("session.animation.presets")}
@@ -371,7 +371,7 @@ export function CanvasBreadcrumb() {
                       setAnimationWidth(String(preset.width));
                       setAnimationHeight(String(preset.height));
                     }}
-                    className="rounded-md border border-border bg-muted/25 px-2.5 py-2 text-left transition-colors hover:bg-accent/45"
+                    className="rounded-md bg-accent/35 px-2.5 py-2 text-left transition-colors outline-none hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50"
                   >
                     <div className="text-[11px] font-semibold text-foreground">
                       {preset.width} x {preset.height}
@@ -405,12 +405,12 @@ export function CanvasBreadcrumb() {
               </div>
             </div>
 
-            <div className="rounded-lg border border-border bg-muted/25 px-3 py-2.5">
+            <div className="rounded-lg bg-accent/35 px-3 py-2.5">
               <div className="text-[11px] font-medium text-muted-foreground">
                 {t("session.animation.startupDefaults")}
               </div>
               <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                <div className="rounded-md border border-border bg-background/80 px-2.5 py-2">
+                <div className="px-0.5 py-1">
                   <div className="text-[11px] font-medium text-muted-foreground">
                     {t("session.animation.playback")}
                   </div>
@@ -419,7 +419,7 @@ export function CanvasBreadcrumb() {
                     {t("session.animation.loopEnabled")}
                   </div>
                 </div>
-                <div className="rounded-md border border-border bg-background/80 px-2.5 py-2">
+                <div className="border-t border-accent px-0.5 pt-3 sm:border-l sm:border-t-0 sm:pl-3 sm:pt-1">
                   <div className="text-[11px] font-medium text-muted-foreground">
                     {t("session.animation.onionSkin")}
                   </div>
@@ -433,15 +433,15 @@ export function CanvasBreadcrumb() {
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2">
-              <Button tone="neutral" onClick={() => setAnimationDialogOpen(false)}>
-                {t("dialog.cancel")}
-              </Button>
-              <Button onClick={commitAnimationCreation}>
-                {t("session.animation.create")}
-              </Button>
-            </div>
-          </div>
+          </DialogBody>
+          <DialogFooter>
+            <Button tone="neutral" onClick={() => setAnimationDialogOpen(false)}>
+              {t("dialog.cancel")}
+            </Button>
+            <Button onClick={commitAnimationCreation}>
+              {t("session.animation.create")}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

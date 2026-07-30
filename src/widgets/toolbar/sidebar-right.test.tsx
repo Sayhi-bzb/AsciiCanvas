@@ -100,12 +100,19 @@ describe("SidebarRight structured templates", () => {
     expect(content?.querySelectorAll('[data-slot="scroll-area"]')).toHaveLength(1);
     expect(scrollArea).toHaveClass("min-h-0", "overflow-hidden");
     expect(content).toHaveClass("p-0");
+    expect(content).toHaveClass("pb-12");
     const structuredRail = screen.getByTestId("structured-view-rail-vertical");
     const structuredRailSlot = structuredRail.parentElement;
     const toggleColumn = screen.getByTestId("sidebar-toggle-column");
     expect(structuredRail).toHaveAttribute(
       "aria-orientation",
       "vertical"
+    );
+    expect(structuredRail).toHaveClass(
+      "bg-muted",
+      "rounded-lg",
+      "border-0",
+      "shadow-none"
     );
     expect(header).toHaveClass(
       "grid-cols-[minmax(0,1fr)_3rem]",

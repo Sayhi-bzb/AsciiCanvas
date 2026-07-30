@@ -9,13 +9,14 @@ This page governs icon behavior in Selection Toolbar, Tool Dock, Sidebar tabs an
 - Icon-only controls are 32 x 32 px with a 16 x 16 px icon. Text-bearing controls such as Breadcrumb are 32 px high with 16 x 16 px icons.
 - Idle background is transparent and idle foreground is muted. Hover uses accent background and accent foreground. Active uses accent background and foreground. Keyboard focus uses the shared 3 px focus-visible ring.
 - Core icon controls are borderless, shadowless, padding-free, and `rounded-lg` unless compound geometry joins adjacent controls.
+- Core Host containers compose `uiClass.hostContainer`: muted color block, `rounded-lg`, borderless, and shadowless. Breadcrumb and standalone controls remain uncontained.
 - A subordinate control associates with its principal control. Hovering or opening a Dock arrow or Top Bar close control activates the principal surface without affecting adjacent controls.
 - Compound principal and subordinate controls remain individually 32 x 32 px, remove their joined inner radii, and render no divider.
 - Every icon-only control has an accessible name. Add a tooltip when the icon meaning is not familiar from platform conventions.
 
 ## Exceptions
 
-Destructive controls, color swatches, the onion-skin switch, the mobile Sidebar FAB, generic dropdown primitives, and menu-row geometry retain their own semantic or primitive styling. Do not use an exception to redefine core host states.
+Destructive controls, color swatches, the onion-skin switch, fields, the mobile Sidebar FAB, and menu-row geometry retain their own semantic or primitive styling. These exceptions do not redefine Host container styling.
 
 ## Verification
 
