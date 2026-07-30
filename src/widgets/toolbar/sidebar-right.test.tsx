@@ -20,9 +20,7 @@ import {
 } from "@/domains/structured-content/public";
 import { setUiLanguage } from "@/shared/i18n";
 
-const sortTemplateLabels = <
-  T extends { id: string; label: string },
->(
+const sortTemplateLabels = <T extends { id: string; label: string }>(
   templates: T[]
 ) =>
   [...templates].sort(
@@ -86,9 +84,9 @@ describe("SidebarRight structured templates", () => {
     expect(header).not.toHaveClass("border-b");
     expect(footer).toBeNull();
     expect(sidebarInner).toHaveClass(
-      "group-data-[variant=floating]:border-0",
-      "group-data-[variant=floating]:bg-muted",
-      "group-data-[variant=floating]:shadow-none"
+      "border-0",
+      "bg-host-surface",
+      "shadow-host"
     );
     expect(header).toContainElement(search);
     expect(search).toHaveClass("border-0", "bg-accent/60");
@@ -97,27 +95,23 @@ describe("SidebarRight structured templates", () => {
     expect(content).not.toHaveClass("overflow-y-auto");
     expect(content).toHaveClass("[scrollbar-gutter:auto]");
     expect(content).not.toHaveClass("[scrollbar-gutter:stable]");
-    expect(content?.querySelectorAll('[data-slot="scroll-area"]')).toHaveLength(1);
+    expect(content?.querySelectorAll('[data-slot="scroll-area"]')).toHaveLength(
+      1
+    );
     expect(scrollArea).toHaveClass("min-h-0", "overflow-hidden");
     expect(content).toHaveClass("p-0");
     expect(content).toHaveClass("pb-12");
     const structuredRail = screen.getByTestId("structured-view-rail-vertical");
     const structuredRailSlot = structuredRail.parentElement;
     const toggleColumn = screen.getByTestId("sidebar-toggle-column");
-    expect(structuredRail).toHaveAttribute(
-      "aria-orientation",
-      "vertical"
-    );
+    expect(structuredRail).toHaveAttribute("aria-orientation", "vertical");
     expect(structuredRail).toHaveClass(
-      "bg-muted",
+      "bg-host-surface",
       "rounded-lg",
       "border-0",
       "shadow-none"
     );
-    expect(header).toHaveClass(
-      "grid-cols-[minmax(0,1fr)_3rem]",
-      "px-0"
-    );
+    expect(header).toHaveClass("grid-cols-[minmax(0,1fr)_3rem]", "px-0");
     expect(structuredRailSlot?.parentElement).toHaveClass(
       "grid-cols-[minmax(0,1fr)_3rem]"
     );
@@ -136,8 +130,9 @@ describe("SidebarRight structured templates", () => {
       "aria-selected",
       "true"
     );
-    expect(screen.getByRole("tabpanel", { name: "Components" }))
-      .toBeInTheDocument();
+    expect(
+      screen.getByRole("tabpanel", { name: "Components" })
+    ).toBeInTheDocument();
     expect(scrollViewport).not.toContainElement(
       screen.getByRole("tab", { name: "Components" })
     );
@@ -167,7 +162,9 @@ describe("SidebarRight structured templates", () => {
     const itemLabels = templateItems.map(
       (item) => item.querySelector(":scope > span:last-child")?.textContent
     );
-    expect(itemLabels).toEqual(sortedTemplates.map((template) => template.label));
+    expect(itemLabels).toEqual(
+      sortedTemplates.map((template) => template.label)
+    );
     sortedTemplates.forEach((template, index) => {
       const item = templateItems[index];
       const viewport = item.querySelector(
@@ -191,22 +188,40 @@ describe("SidebarRight structured templates", () => {
       });
       expect(item).toHaveTextContent(template.label);
       expect(item).toHaveClass("rounded-md");
-      expect(item.querySelector(":scope > span:last-child")).not.toHaveClass("font-semibold");
+      expect(item.querySelector(":scope > span:last-child")).not.toHaveClass(
+        "font-semibold"
+      );
     });
-    const buttonIndex = sortedTemplates.findIndex((template) => template.id === "button");
+    const buttonIndex = sortedTemplates.findIndex(
+      (template) => template.id === "button"
+    );
     const buttonPreview = templateItems[buttonIndex].querySelector(
       '[data-testid="structured-template-preview-grid"]'
     );
     expect(buttonPreview?.tagName).toBe("CANVAS");
     expect(group).toHaveClass("p-0");
     expect(button).toHaveClass("items-center", "gap-3");
-    expect(screen.queryByRole("button", { name: /amibios/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /safari/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /file tree/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /timeline/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /snippet/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /terminal/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /phone/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /amibios/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /safari/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /file tree/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /timeline/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /snippet/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /terminal/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /phone/i })
+    ).not.toBeInTheDocument();
     expect(screen.queryByText("Nerd Icons")).not.toBeInTheDocument();
   });
 
@@ -218,7 +233,9 @@ describe("SidebarRight structured templates", () => {
     );
 
     expect(container.querySelector('[data-slot="sidebar-footer"]')).toBeNull();
-    expect(screen.queryByTestId("sidebar-footer-actions")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("sidebar-footer-actions")
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Open Source Code" })
     ).not.toBeInTheDocument();
@@ -250,16 +267,12 @@ describe("SidebarRight structured templates", () => {
       '[data-slot="scroll-area"]'
     );
     const tabs = screen.getAllByRole("tab");
-    expect(rail).toHaveClass("bg-muted", "p-[3px]");
+    expect(rail).toHaveClass("bg-host-surface", "p-[3px]");
     expect(rail.parentElement).not.toHaveClass("border-r", "border-b");
     expect(railSlot?.parentElement).toHaveClass(
       "grid-cols-[minmax(0,1fr)_3rem]"
     );
-    expect(railSlot).toHaveClass(
-      "col-start-2",
-      "row-start-1",
-      "px-[3px]"
-    );
+    expect(railSlot).toHaveClass("col-start-2", "row-start-1", "px-[3px]");
     expect(scrollArea).toHaveClass("col-start-1", "row-start-1");
     expect(tabs.map((tab) => tab.getAttribute("aria-label"))).toEqual([
       "Essentials",
@@ -273,8 +286,9 @@ describe("SidebarRight structured templates", () => {
     );
 
     fireEvent.click(screen.getByRole("tab", { name: "Nerd Icons" }));
-    expect(screen.getByRole("tabpanel", { name: "Nerd Icons characters" }))
-      .toBeInTheDocument();
+    expect(
+      screen.getByRole("tabpanel", { name: "Nerd Icons characters" })
+    ).toBeInTheDocument();
     const search = screen.getByRole("searchbox", { name: "Search characters" });
     fireEvent.change(search, { target: { value: "folder" } });
     await waitFor(() =>
@@ -282,11 +296,13 @@ describe("SidebarRight structured templates", () => {
     );
 
     fireEvent.click(screen.getByRole("tab", { name: "Emoji" }));
-    expect(screen.getByRole("searchbox", { name: "Search characters" }))
-      .toHaveValue("");
+    expect(
+      screen.getByRole("searchbox", { name: "Search characters" })
+    ).toHaveValue("");
     fireEvent.click(screen.getByRole("tab", { name: "Nerd Icons" }));
-    expect(screen.getByRole("searchbox", { name: "Search characters" }))
-      .toHaveValue("folder");
+    expect(
+      screen.getByRole("searchbox", { name: "Search characters" })
+    ).toHaveValue("folder");
   });
 
   it("collapses to only the trigger and preserves the selected character view", () => {
@@ -320,13 +336,14 @@ describe("SidebarRight structured templates", () => {
     expect(content).toHaveAttribute("inert");
     expect(headerContent).toHaveAttribute("aria-hidden", "true");
     expect(headerContent).toHaveAttribute("inert");
-    expect(inner).toHaveClass(
-      "group-data-[collapsible=icon]:bg-transparent!"
-    );
+    expect(inner).toHaveClass("bg-transparent!", "shadow-none");
+    expect(inner).not.toHaveClass("bg-host-surface", "shadow-host");
     expect(trigger).toHaveClass("size-8", "pointer-events-auto");
     expect(trigger).not.toHaveClass("bg-muted");
     expect(screen.getAllByRole("button")).toEqual([trigger]);
-    expect(screen.queryByRole("tab", { name: "Emoji" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("tab", { name: "Emoji" })
+    ).not.toBeInTheDocument();
 
     fireEvent.click(trigger);
 
@@ -337,10 +354,12 @@ describe("SidebarRight structured templates", () => {
     );
     expect(headerContent).not.toHaveAttribute("aria-hidden");
     expect(headerContent).not.toHaveAttribute("inert");
-    expect(screen.getByRole("tabpanel", { name: "Emoji characters" }))
-      .toBeInTheDocument();
-    expect(screen.getByRole("searchbox", { name: "Search characters" }))
-      .toBeInTheDocument();
+    expect(
+      screen.getByRole("tabpanel", { name: "Emoji characters" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("searchbox", { name: "Search characters" })
+    ).toBeInTheDocument();
   });
 
   it("renders a production animation filmstrip and unloads it when collapsed", () => {
@@ -370,7 +389,9 @@ describe("SidebarRight structured templates", () => {
 
     const content = container.querySelector("[data-slot=sidebar-content]");
     expect(content).toHaveClass("[scrollbar-gutter:stable]", "gap-0", "p-0");
-    expect(screen.getByText("Animation", { selector: "span" })).toBeInTheDocument();
+    expect(
+      screen.getByText("Animation", { selector: "span" })
+    ).toBeInTheDocument();
 
     const framesTab = screen.getByRole("tab", { name: "Frames" });
     const effectsTab = screen.getByRole("tab", { name: "Effects" });
@@ -383,13 +404,11 @@ describe("SidebarRight structured templates", () => {
     );
 
     const commandBar = screen.getByTestId("animation-frame-command-bar");
-    expect(commandBar).toHaveClass(
-      "h-10",
-      "shrink-0",
-      "border-accent"
-    );
+    expect(commandBar).toHaveClass("h-10", "shrink-0", "border-accent");
     expect(screen.getByText("1 frames")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Add after current" })).toBeEnabled();
+    expect(
+      screen.getByRole("button", { name: "Add after current" })
+    ).toBeEnabled();
     expect(screen.getByRole("button", { name: "Duplicate" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Rename" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Delete" })).toBeDisabled();
@@ -403,18 +422,26 @@ describe("SidebarRight structured templates", () => {
     expect(frameRow).toHaveClass("h-14", "grid", "bg-accent");
     expect(frame).toHaveAttribute("aria-current", "true");
     expect(frame).toHaveAttribute("aria-pressed", "true");
-    expect(frame.querySelector("canvas")?.parentElement).toHaveClass("h-10", "w-14");
+    expect(frame.querySelector("canvas")?.parentElement).toHaveClass(
+      "h-10",
+      "w-14"
+    );
     expect(screen.queryByText("Add After Current")).not.toBeInTheDocument();
 
     fireEvent.click(effectsTab);
     expect(effectsTab).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByRole("tabpanel", { name: "Effects" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("tabpanel", { name: "Effects" })
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sweep" })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Toggle Sidebar" }));
-    expect(screen.queryByRole("list", { name: "Animation frames" }))
-      .not.toBeInTheDocument();
-    expect(screen.queryByRole("tab", { name: "Frames" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("list", { name: "Animation frames" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("tab", { name: "Frames" })
+    ).not.toBeInTheDocument();
     expect(screen.getAllByRole("button")).toEqual([
       screen.getByRole("button", { name: "Toggle Sidebar" }),
     ]);
@@ -461,7 +488,9 @@ describe("SidebarRight structured templates", () => {
     expect(openingRow).toHaveAttribute("data-current", "true");
     expect(openingRow).not.toHaveAttribute("data-playback");
     expect(middleRow).toHaveAttribute("data-playback", "true");
-    expect(within(middleRow!).getByLabelText("Playback frame")).toBeInTheDocument();
+    expect(
+      within(middleRow!).getByLabelText("Playback frame")
+    ).toBeInTheDocument();
 
     fireEvent.click(middle, { ctrlKey: true });
     expect(opening).toHaveAttribute("aria-pressed", "true");
@@ -475,9 +504,9 @@ describe("SidebarRight structured templates", () => {
     const input = screen.getByRole("textbox", { name: "Frame name" });
     fireEvent.change(input, { target: { value: "Middle revised" } });
     fireEvent.keyDown(input, { key: "Enter" });
-    expect(
-      useEditorStore.getState().animationTimeline?.frames[1].name
-    ).toBe("Middle revised");
+    expect(useEditorStore.getState().animationTimeline?.frames[1].name).toBe(
+      "Middle revised"
+    );
 
     const frameCount =
       useEditorStore.getState().animationTimeline?.frames.length ?? 0;
@@ -504,12 +533,22 @@ describe("SidebarRight structured templates", () => {
       "aria-selected",
       "true"
     );
-    expect(screen.getByRole("button", { name: /amibios/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /amibios/i })
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /safari/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /file tree/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /timeline/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /snippet/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /terminal/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /file tree/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /timeline/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /snippet/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /terminal/i })
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /phone/i })).toBeInTheDocument();
     expect(STRUCTURED_PAGE_TEMPLATES.map((template) => template.id)).toEqual([
       "amibios",
@@ -521,7 +560,9 @@ describe("SidebarRight structured templates", () => {
       "terminal",
       "phone",
     ]);
-    expect(screen.queryByRole("button", { name: /button/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /button/i })
+    ).not.toBeInTheDocument();
     expect(screen.queryByText("No templates found")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("tab", { name: "Components" }));
@@ -531,13 +572,27 @@ describe("SidebarRight structured templates", () => {
       "true"
     );
     expect(screen.getByRole("button", { name: /button/i })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /amibios/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /safari/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /file tree/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /timeline/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /snippet/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /terminal/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /phone/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /amibios/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /safari/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /file tree/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /timeline/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /snippet/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /terminal/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /phone/i })
+    ).not.toBeInTheDocument();
   });
 
   it("filters structured components from the main header search", () => {
@@ -556,14 +611,18 @@ describe("SidebarRight structured templates", () => {
     fireEvent.change(search, { target: { value: "badge" } });
 
     expect(screen.getByRole("button", { name: /badge/i })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /button/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /button/i })
+    ).not.toBeInTheDocument();
 
     fireEvent.change(search, { target: { value: "accordion" } });
 
     expect(
       screen.getByRole("button", { name: /accordion/i })
     ).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /badge/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /badge/i })
+    ).not.toBeInTheDocument();
 
     fireEvent.change(search, { target: { value: "status" } });
 
@@ -574,18 +633,26 @@ describe("SidebarRight structured templates", () => {
 
     fireEvent.change(search, { target: { value: "calendar" } });
 
-    expect(screen.getByRole("button", { name: /calendar/i })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /status/i })).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /calendar/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /status/i })
+    ).not.toBeInTheDocument();
 
     fireEvent.change(search, { target: { value: "alert" } });
 
     expect(screen.getByRole("button", { name: /alert/i })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /calendar/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /calendar/i })
+    ).not.toBeInTheDocument();
 
     fireEvent.change(search, { target: { value: "switch" } });
 
     expect(screen.getByRole("button", { name: /switch/i })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /alert/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /alert/i })
+    ).not.toBeInTheDocument();
 
     fireEvent.change(search, { target: { value: "missing" } });
 
@@ -601,8 +668,12 @@ describe("SidebarRight structured templates", () => {
       </SidebarProvider>
     );
 
-    expect(screen.queryByRole("tab", { name: "Template" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("tab", { name: "Components" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("tab", { name: "Template" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("tab", { name: "Components" })
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("searchbox", { name: "Search structured library" })
     ).not.toBeInTheDocument();
@@ -628,7 +699,9 @@ describe("SidebarRight structured templates", () => {
     expect(content).toHaveAttribute("aria-hidden", "true");
     expect(content).toHaveAttribute("inert");
     expect(screen.getAllByRole("button")).toEqual([trigger]);
-    expect(screen.queryByRole("tab", { name: "Template" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("tab", { name: "Template" })
+    ).not.toBeInTheDocument();
 
     fireEvent.click(trigger);
 
@@ -637,8 +710,9 @@ describe("SidebarRight structured templates", () => {
       "aria-selected",
       "true"
     );
-    expect(screen.getByRole("tabpanel", { name: "Template" }))
-      .toBeInTheDocument();
+    expect(
+      screen.getByRole("tabpanel", { name: "Template" })
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("searchbox", { name: "Search structured library" })
     ).toBeInTheDocument();
@@ -654,10 +728,9 @@ describe("SidebarRight structured templates", () => {
       </SidebarProvider>
     );
 
-    expect(screen.getByRole("searchbox", { name: "搜索结构库" })).toHaveAttribute(
-      "placeholder",
-      "搜索"
-    );
+    expect(
+      screen.getByRole("searchbox", { name: "搜索结构库" })
+    ).toHaveAttribute("placeholder", "搜索");
     expect(screen.getByRole("tab", { name: "模板" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "组件" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /button/i })).toBeInTheDocument();

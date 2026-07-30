@@ -77,10 +77,7 @@ export function AppMenu() {
     canvasMode === "animation"
       ? t("sidebar.clear.frameDescription")
       : t("sidebar.clear.canvasDescription");
-  const exportLabel =
-    canvasMode === "animation"
-      ? t("export.tooltip.animation")
-      : t("export.tooltip.blueprint");
+  const exportLabel = t("appMenu.export");
   const availableExportFormats = useMemo(
     () => getAvailableExportFormats(canvasMode),
     [canvasMode]
@@ -160,7 +157,7 @@ export function AppMenu() {
                   onSelect={openFilePicker}
                 >
                   <ImportIcon />
-                  {isImporting ? t("import.importing") : t("import.tooltip")}
+                  {isImporting ? t("import.importing") : t("appMenu.import")}
                 </DropdownMenuItem>
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger>
@@ -177,7 +174,7 @@ export function AppMenu() {
                             void exportActions.save(definition.format);
                           }}
                         >
-                          {t("appMenu.projectFile")}
+                          {t("appMenu.project")}
                         </DropdownMenuItem>
                       ) : (
                         <DropdownMenuSub key={definition.format}>
@@ -218,14 +215,14 @@ export function AppMenu() {
                   onSelect={() => setClearOpen(true)}
                 >
                   <ClearIcon />
-                  {clearLabel}
+                  {t("appMenu.clear")}
                 </DropdownMenuItem>
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger>
                     <LanguageIcon />
-                    {t("language.switch")}
+                    {t("appMenu.language")}
                   </DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent aria-label={t("language.switch")}>
+                  <DropdownMenuSubContent aria-label={t("appMenu.language")}>
                     <DropdownMenuRadioGroup
                       value={language}
                       onValueChange={(value) =>
@@ -254,7 +251,7 @@ export function AppMenu() {
                   }
                 >
                   <GithubIcon />
-                  {t("action.openSourceCode")}
+                  {t("appMenu.github")}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

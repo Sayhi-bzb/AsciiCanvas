@@ -24,6 +24,21 @@ vi.mock('@/widgets/dialogs/handbook-dialog', () => ({
     ) : null,
 }));
 
+vi.mock('@/widgets/dialogs/data-security-dialog', () => ({
+  DataSecurityDialog: ({
+    open,
+    onOpenChange,
+  }: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+  }) =>
+    open ? (
+      <div role="dialog" aria-label="Data security">
+        <button onClick={() => onOpenChange(false)}>Close security</button>
+      </div>
+    ) : null,
+}));
+
 describe('HelpControl', () => {
   afterEach(() => {
     isMobile = false;
@@ -39,6 +54,8 @@ describe('HelpControl', () => {
       'right-[calc(24rem+0.75rem)]',
       'right-[4.875rem]'
     );
+    expect(host).toHaveClass('flex', 'gap-1');
+    expect(host.lastElementChild).toBe(screen.getByTestId('help-control'));
   });
 
   it('hides while the mobile Sidebar is open', () => {
@@ -63,6 +80,22 @@ describe('HelpControl', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Close manual' }));
     expect(screen.queryByRole('dialog', { name: 'User Manual' })).not.toBeInTheDocument();
+    expect(control).toHaveAttribute('aria-pressed', 'false');
+    await waitFor(() => expect(control).toHaveFocus());
+  });
+
+  it('opens Data security and returns focus to the Guard control', async () => {
+    render(<HelpControl />);
+    const control = screen.getByRole('button', { name: 'Data security' });
+    expect(control).toHaveAttribute('aria-pressed', 'false');
+
+    fireEvent.click(control);
+    expect(await screen.findByRole('dialog', { name: 'Data security' })).toBeInTheDocument();
+    expect(control).toHaveAttribute('aria-pressed', 'true');
+    expect(control).toHaveClass('bg-accent');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close security' }));
+    expect(screen.queryByRole('dialog', { name: 'Data security' })).not.toBeInTheDocument();
     expect(control).toHaveAttribute('aria-pressed', 'false');
     await waitFor(() => expect(control).toHaveFocus());
   });

@@ -16,7 +16,7 @@ const readHoverStyle = async (control: Locator) => {
   });
 };
 
-const expectHostContainer = async (container: Locator) => {
+const expectHostContainer = async (container: Locator, elevated = true) => {
   await expect(container).toBeVisible();
   await expect(container).toHaveCSS("border-top-width", "0px");
   await expect(container).toHaveCSS("border-right-width", "0px");
@@ -27,6 +27,21 @@ const expectHostContainer = async (container: Locator) => {
     (element) => window.getComputedStyle(element).backgroundColor
   );
   expect(background).not.toBe("rgba(0, 0, 0, 0)");
+  const shadowState = await container.evaluate((element) => {
+    const shadow = window.getComputedStyle(element).boxShadow;
+    const colors = shadow.match(/rgba?\([^)]+\)/g) ?? [];
+    const hasVisibleShadow =
+      shadow !== "none" &&
+      colors.some((color) => {
+        if (!color.startsWith("rgba")) return true;
+        const channels = color.match(/[\d.]+/g) ?? [];
+        return Number(channels[3] ?? 1) > 0;
+      });
+    return { hasVisibleShadow, shadow, className: element.className };
+  });
+  expect(shadowState.hasVisibleShadow, JSON.stringify(shadowState)).toBe(
+    elevated
+  );
 };
 
 const expectHostIconGeometry = async (control: Locator) => {
@@ -42,8 +57,8 @@ const expectHostFocus = async (control: Locator) => {
   await control.page().keyboard.press("Tab");
   await expect(control).toBeFocused();
   await expect(control).toHaveCSS("outline-style", "none");
-  const focusRing = await control.evaluate((element) =>
-    window.getComputedStyle(element).boxShadow
+  const focusRing = await control.evaluate(
+    (element) => window.getComputedStyle(element).boxShadow
   );
   expect(focusRing).not.toBe("none");
 };
@@ -55,13 +70,13 @@ const expectIconCentered = async (control: Locator) => {
   expect(iconBox).not.toBeNull();
   expect(
     Math.abs(
-      controlBox!.x + controlBox!.width / 2 -
-        (iconBox!.x + iconBox!.width / 2)
+      controlBox!.x + controlBox!.width / 2 - (iconBox!.x + iconBox!.width / 2)
     )
   ).toBeLessThan(0.75);
   expect(
     Math.abs(
-      controlBox!.y + controlBox!.height / 2 -
+      controlBox!.y +
+        controlBox!.height / 2 -
         (iconBox!.y + iconBox!.height / 2)
     )
   ).toBeLessThan(0.75);
@@ -151,7 +166,11 @@ const seedHostState = async (
 };
 
 for (const scenario of [
-  { name: "desktop light", viewport: { width: 1440, height: 900 }, dark: false },
+  {
+    name: "desktop light",
+    viewport: { width: 1440, height: 900 },
+    dark: false,
+  },
   { name: "desktop dark", viewport: { width: 1440, height: 900 }, dark: true },
   { name: "mobile light", viewport: { width: 390, height: 844 }, dark: false },
   { name: "mobile dark", viewport: { width: 390, height: 844 }, dark: true },
@@ -230,10 +249,13 @@ for (const scenario of [
       .getByTestId(`character-view-rail-${railOrientation}`)
       .getByRole("tab", { name: "Nerd Icons" });
     await expectHostContainer(
-      page.getByTestId(`character-view-rail-${railOrientation}`)
+      page.getByTestId(`character-view-rail-${railOrientation}`),
+      false
     );
     await expectHostIconGeometry(sidebarControl);
-    await expect(readHoverStyle(sidebarControl)).resolves.toEqual(expectedHover);
+    await expect(readHoverStyle(sidebarControl)).resolves.toEqual(
+      expectedHover
+    );
     if (railOrientation === "horizontal") {
       await page.keyboard.press("Escape");
     }
@@ -242,31 +264,62 @@ for (const scenario of [
     await expectHostIconGeometry(sidebarToggle);
 
     if (scenario.viewport.width >= 600) {
+      const desktopSidebar = page.locator(
+        `[data-slot="sidebar"][data-collapsed-appearance="trigger"]`
+      );
+      const sidebarInner = desktopSidebar.locator(
+        `[data-slot="sidebar-inner"]`
+      );
+      await sidebarToggle.click();
+      await expect(desktopSidebar).toHaveAttribute("data-state", "collapsed");
+      await expect(sidebarInner).toHaveClass(/shadow-none/);
+      await expect(sidebarInner).not.toHaveClass(/shadow-host/);
+      await expect(sidebarInner).toHaveCSS(
+        "background-color",
+        "rgba(0, 0, 0, 0)"
+      );
+      await sidebarToggle.click();
+      await expect(desktopSidebar).toHaveAttribute("data-state", "expanded");
+      await expect(sidebarInner).toHaveClass(/shadow-host/);
+    }
+
+    if (scenario.viewport.width >= 600) {
       await expectHostContainer(page.getByTestId("zoom-control"));
     }
 
     const appMenuControl = page.getByRole("button", { name: "Open menu" });
     await expectHostIconGeometry(appMenuControl);
-    await expect(readHoverStyle(appMenuControl)).resolves.toEqual(expectedHover);
+    await expect(readHoverStyle(appMenuControl)).resolves.toEqual(
+      expectedHover
+    );
 
     const helpControl = page.getByRole("button", { name: "User Manual" });
     await expectHostIconGeometry(helpControl);
     await expect(readHoverStyle(helpControl)).resolves.toEqual(expectedHover);
 
-    const breadcrumbControl = page.getByRole("button", { name: "Select canvas" });
+    const breadcrumbControl = page.getByRole("button", {
+      name: "Select canvas",
+    });
     await expect(breadcrumbControl).toHaveCSS("height", "32px");
     await expect(breadcrumbControl.locator("svg")).toHaveCount(2);
     for (const breadcrumbIcon of await breadcrumbControl.locator("svg").all()) {
       await expect(breadcrumbIcon).toHaveCSS("width", "16px");
       await expect(breadcrumbIcon).toHaveCSS("height", "16px");
     }
-    await expect(readHoverStyle(breadcrumbControl)).resolves.toEqual(expectedHover);
+    await expect(readHoverStyle(breadcrumbControl)).resolves.toEqual(
+      expectedHover
+    );
     await breadcrumbControl.click();
 
-    await expectHostContainer(
-      page.locator('[data-slot="dropdown-menu-content"]').last()
-    );
-    const sessionControl = page.getByRole("menuitem", { name: "Beta", exact: true });
+    const canvasMenu = page
+      .locator('[data-slot="dropdown-menu-content"]')
+      .last();
+    await expectHostContainer(canvasMenu);
+    await expect(canvasMenu).toHaveClass(/shadow-overlay/);
+    const sessionControl = page.getByRole("menuitem", {
+      name: "Beta",
+      exact: true,
+    });
     const sessionItem = page.locator('[data-canvas-session-row="host-b"]');
     await expect(sessionControl).toBeVisible();
     await sessionControl.hover();
@@ -291,7 +344,9 @@ for (const scenario of [
     );
 
     await page.screenshot({
-      path: testInfo.outputPath(`host-controls-${scenario.name.replace(" ", "-")}.png`),
+      path: testInfo.outputPath(
+        `host-controls-${scenario.name.replace(" ", "-")}.png`
+      ),
       fullPage: true,
     });
   });

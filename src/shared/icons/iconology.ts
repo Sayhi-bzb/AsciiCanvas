@@ -50,6 +50,7 @@ import {
   Pencil,
   Scissors,
   SendToBack,
+  ShieldCheck,
   Smile,
   Sparkles,
   Square,
@@ -153,8 +154,9 @@ export const HOST_ICONOLOGY = {
   viewportAction: {
     grid: Grid2X2,
     minimap: Map,
+    security: ShieldCheck,
     help: CircleHelp,
-  } satisfies IconMap<'grid' | 'minimap' | 'help'>,
+  } satisfies IconMap<'grid' | 'minimap' | 'security' | 'help'>,
   selectionAction: {
     bold: Bold,
     italic: Italic,

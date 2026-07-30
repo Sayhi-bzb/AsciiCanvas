@@ -12,7 +12,9 @@ const hostIconControl = cn(
   hostControl
 );
 
-const hostContainer = "rounded-lg border-0 bg-muted shadow-none";
+const hostSurface = "rounded-lg border-0 bg-host-surface";
+const floatingHost = cn(hostSurface, "shadow-host");
+const overlayPanel = "rounded-lg border-0 bg-overlay-surface shadow-overlay";
 
 export const uiClass = {
   dialogOverlay: cn(
@@ -22,7 +24,7 @@ export const uiClass = {
   ),
   dialogShell: cn(
     "fixed left-1/2 top-1/2 z-50 grid w-full max-w-[calc(100%-2rem)]",
-    "-translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-lg border-0 bg-background p-0 shadow-none outline-none sm:max-w-lg",
+    "-translate-x-1/2 -translate-y-1/2 overflow-hidden rounded-lg border-0 bg-dialog-surface p-0 shadow-dialog outline-none sm:max-w-lg",
     "data-[state=open]:animate-in data-[state=closed]:animate-out",
     "data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0",
     "data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95 duration-200"
@@ -37,22 +39,25 @@ export const uiClass = {
   ),
   dialogClose: cn(hostIconControl, "absolute right-2 top-2 z-10"),
   dialogDivider: "border-accent",
-  hostContainer,
+  hostContainer: cn(hostSurface, "shadow-none"),
+  hostSurface,
+  floatingHost,
+  overlayPanel,
   toolbarShell: cn(
-    hostContainer,
+    floatingHost,
     "relative flex items-center gap-1 p-[3px] pointer-events-auto"
   ),
   hostControl,
   hostIconControl,
   hostControlActive: cn("bg-accent text-foreground"),
-  iconRail: cn(hostContainer, "flex p-[3px]"),
+  iconRail: cn(hostSurface, "flex p-[3px] shadow-none"),
   iconRailItem: hostIconControl,
   dropdownPanel: cn(
-    hostContainer,
+    overlayPanel,
     "z-50 min-w-48 overflow-hidden p-[3px] text-popover-foreground outline-none"
   ),
   dropdownSubPanel: cn(
-    hostContainer,
+    overlayPanel,
     "z-50 min-w-36 overflow-hidden p-[3px] text-popover-foreground outline-none"
   ),
   dropdownItem: cn(

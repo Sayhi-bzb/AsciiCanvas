@@ -33,9 +33,9 @@ describe("ContextMenu styling", () => {
 
     const rootMenu = await screen.findByRole("menu");
     expect(rootMenu).toHaveClass(
-      "bg-muted",
+      "bg-overlay-surface",
       "border-0",
-      "shadow-none",
+      "shadow-overlay",
       "rounded-lg"
     );
     expect(screen.getByRole("separator")).toHaveClass("h-0.5", "bg-accent");
@@ -48,9 +48,9 @@ describe("ContextMenu styling", () => {
     const subMenu = menus.find((menu) => menu !== rootMenu);
 
     expect(subMenu).toHaveClass(
-      "bg-muted",
+      "bg-overlay-surface",
       "border-0",
-      "shadow-none",
+      "shadow-overlay",
       "rounded-lg"
     );
   });

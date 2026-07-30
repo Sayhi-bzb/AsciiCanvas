@@ -100,25 +100,25 @@ test.describe("App menu", () => {
     const menu = page.getByRole("menu", { name: "Open menu" });
     await expect(menu).toBeVisible();
     await expect(menu.getByRole("menuitem").allTextContents()).resolves.toEqual([
-      "Import Canvas",
-      "Export Blueprint",
-      "Clear Canvas",
-      "UI language",
-      "Open Source Code",
+      "Import",
+      "Export",
+      "Clear",
+      "Language",
+      "GitHub",
     ]);
 
-    await menu.getByRole("menuitem", { name: "Export Blueprint" }).hover();
-    const exportMenu = page.getByRole("menu", { name: "Export Blueprint" });
+    await menu.getByRole("menuitem", { name: "Export" }).hover();
+    const exportMenu = page.getByRole("menu", { name: "Export" });
     await expect(exportMenu).toBeVisible();
     await expect(exportMenu.getByRole("menuitem").allTextContents()).resolves.toEqual([
       "TXT",
-      "AsciiCanvas File",
+      "AsciiCanvas",
       "ANSI",
       "PNG",
     ]);
     const projectDownload = page.waitForEvent("download");
     await exportMenu
-      .getByRole("menuitem", { name: "AsciiCanvas File" })
+      .getByRole("menuitem", { name: "AsciiCanvas" })
       .click();
     const downloadedProject = await projectDownload;
     expect(downloadedProject.suggestedFilename()).toMatch(
@@ -169,7 +169,7 @@ test.describe("App menu", () => {
 
     await trigger.click();
     const clearMenu = page.getByRole("menu", { name: "Open menu" });
-    await clearMenu.getByRole("menuitem", { name: "Clear Canvas" }).click();
+    await clearMenu.getByRole("menuitem", { name: "Clear" }).click();
     await expect(page.getByRole("alertdialog")).toBeVisible();
     await expect(menuContent).toHaveCount(0);
     await page.getByRole("button", { name: "Cancel" }).click();
@@ -186,7 +186,7 @@ test.describe("App menu", () => {
     const menu = page.getByRole("menu", { name: "Open menu" });
 
     const importChooser = page.waitForEvent("filechooser");
-    await menu.getByRole("menuitem", { name: "Import Canvas" }).click();
+    await menu.getByRole("menuitem", { name: "Import" }).click();
     await importChooser;
     await expect(page.locator('input[type="file"]')).toHaveAttribute(
       "accept",
@@ -199,8 +199,8 @@ test.describe("App menu", () => {
 
     await trigger.click();
     const languageRootMenu = page.getByRole("menu", { name: "Open menu" });
-    await languageRootMenu.getByRole("menuitem", { name: "UI language" }).hover();
-    const languageMenu = page.getByRole("menu", { name: "UI language" });
+    await languageRootMenu.getByRole("menuitem", { name: "Language" }).hover();
+    const languageMenu = page.getByRole("menu", { name: "Language" });
     await expect(
       languageMenu.getByRole("menuitemradio", { name: "English" })
     ).toHaveAttribute("data-state", "checked");
@@ -219,16 +219,16 @@ test.describe("App menu", () => {
     await page.keyboard.press("ArrowDown");
     const keyboardMenu = page.getByRole("menu", { name: "打开菜单" });
     const importItem = keyboardMenu.getByRole("menuitem", {
-      name: "导入画布",
+      name: "导入",
     });
     const exportItem = keyboardMenu.getByRole("menuitem", {
-      name: "导出蓝图",
+      name: "导出",
     });
     await expect(importItem).toBeFocused();
     await page.keyboard.press("ArrowDown");
     await expect(exportItem).toBeFocused();
     await page.keyboard.press("ArrowRight");
-    await expect(page.getByRole("menu", { name: "导出蓝图" })).toBeVisible();
+    await expect(page.getByRole("menu", { name: "导出" })).toBeVisible();
     await page.keyboard.press("Escape");
     await page.keyboard.press("Escape");
     await expect(
@@ -252,17 +252,19 @@ test.describe("App menu", () => {
 
     await trigger.click();
     const menu = page.getByRole("menu", { name: "Open menu" });
-    await expect(
-      menu.getByRole("menuitem", { name: "Export Animation" })
-    ).toBeVisible();
-    await expect(menu.getByRole("menuitem", { name: "Clear Frame" })).toBeVisible();
-    await expect(menu.getByRole("menuitem", { name: "Minimap" })).toHaveCount(0);
+    await expect(menu.getByRole("menuitem").allTextContents()).resolves.toEqual([
+      "Import",
+      "Export",
+      "Clear",
+      "Language",
+      "GitHub",
+    ]);
 
-    await menu.getByRole("menuitem", { name: "Export Animation" }).hover();
-    const exportMenu = page.getByRole("menu", { name: "Export Animation" });
+    await menu.getByRole("menuitem", { name: "Export" }).hover();
+    const exportMenu = page.getByRole("menu", { name: "Export" });
     await expect(exportMenu).toBeVisible();
     await expect(exportMenu.getByRole("menuitem").allTextContents()).resolves.toEqual([
-      "AsciiCanvas File",
+      "AsciiCanvas",
       "CAST",
       "GIF",
     ]);

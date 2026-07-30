@@ -18,11 +18,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/shared/ui/sheet";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/shared/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
 import { SidebarToggleIcon } from "@/shared/icons/iconology";
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state";
@@ -123,20 +119,20 @@ function SidebarProvider({
   return (
     <SidebarContext.Provider value={contextValue}>
       <div
-          data-slot="sidebar-wrapper"
-          style={
-            {
-              "--sidebar-width": SIDEBAR_WIDTH,
-              "--sidebar-width-icon": SIDEBAR_WIDTH_ICON,
-              ...style,
-            } as React.CSSProperties
-          }
-          className={cn(
-            "group/sidebar-wrapper has-data-[variant=inset]:bg-sidebar flex min-h-svh w-full",
-            className
-          )}
-          {...props}
-        >
+        data-slot="sidebar-wrapper"
+        style={
+          {
+            "--sidebar-width": SIDEBAR_WIDTH,
+            "--sidebar-width-icon": SIDEBAR_WIDTH_ICON,
+            ...style,
+          } as React.CSSProperties
+        }
+        className={cn(
+          "group/sidebar-wrapper has-data-[variant=inset]:bg-sidebar flex min-h-svh w-full",
+          className
+        )}
+        {...props}
+      >
         {children}
       </div>
     </SidebarContext.Provider>
@@ -158,6 +154,8 @@ function Sidebar({
   collapsedAppearance?: "rail" | "trigger";
 }) {
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
+  const isTriggerCollapsed =
+    state === "collapsed" && collapsedAppearance === "trigger";
 
   if (collapsible === "none") {
     return (
@@ -181,7 +179,7 @@ function Sidebar({
           data-sidebar="sidebar"
           data-slot="sidebar"
           data-mobile="true"
-          className="bg-muted text-sidebar-foreground w-(--sidebar-width) border-0 p-0 shadow-none [&>button]:hidden"
+          className="text-sidebar-foreground w-(--sidebar-width) p-0 [&>button]:hidden"
           style={
             { "--sidebar-width": SIDEBAR_WIDTH_MOBILE } as React.CSSProperties
           }
@@ -238,10 +236,12 @@ function Sidebar({
           data-sidebar="sidebar"
           data-slot="sidebar-inner"
           className={cn(
-            "bg-sidebar flex h-full w-full flex-col overflow-hidden transition-[background-color] duration-200 ease-out motion-reduce:transition-none",
-            "group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border-0 group-data-[variant=floating]:bg-muted group-data-[variant=floating]:shadow-none",
-            collapsedAppearance === "trigger" &&
-              "group-data-[collapsible=icon]:bg-transparent!"
+            "bg-sidebar flex h-full w-full flex-col overflow-hidden transition-[background-color,box-shadow] duration-200 ease-out motion-reduce:transition-none",
+            variant === "floating" && "rounded-lg border-0",
+            variant === "floating" &&
+              (isTriggerCollapsed
+                ? "bg-transparent! shadow-none"
+                : "bg-host-surface shadow-host")
           )}
         >
           {children}
@@ -594,7 +594,9 @@ function SidebarStandard({
             ? "pointer-events-none translate-x-2 opacity-0"
             : "translate-x-0 opacity-100",
           collapsedAppearance === "trigger" && !isCollapsed && "delay-[60ms]",
-          isCollapsed && collapsedAppearance === "rail" && collapsedContent &&
+          isCollapsed &&
+            collapsedAppearance === "rail" &&
+            collapsedContent &&
             "px-1 py-2",
           contentClassName
         )}

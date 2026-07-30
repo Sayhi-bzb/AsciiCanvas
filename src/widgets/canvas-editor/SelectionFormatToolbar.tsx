@@ -68,7 +68,7 @@ const getToolbarWidth = (actionCount: number) =>
 
 const selectionToolbarShellClass = cn(
   uiClass.toolbarShell,
-  "border-0 shadow-none backdrop-blur-none animate-in fade-in duration-[120ms] motion-reduce:animate-none"
+  "border-0 shadow-host! backdrop-blur-none animate-in fade-in duration-[120ms] motion-reduce:animate-none"
 );
 
 const selectionToolbarToggleClass = cn(

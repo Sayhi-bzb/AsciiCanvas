@@ -56,7 +56,9 @@ describe("Toolbar dock", () => {
     render(<Toolbar tool="pan" setTool={setTool} onUndo={vi.fn()} />);
 
     expect(setTool).toHaveBeenCalledWith("select");
-    expect(screen.queryByRole("button", { name: "Hand" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Hand" })
+    ).not.toBeInTheDocument();
   });
 
   it("hides brush and eraser in freeform mode", () => {
@@ -66,13 +68,25 @@ describe("Toolbar dock", () => {
 
     expect(screen.getByRole("button", { name: "Select" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Box" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Background" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Paint Char Color" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Background" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Paint Char Color" })
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Color" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Brush/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Eraser" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Fill Area" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Undo" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Brush/ })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Eraser" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Fill Area" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Undo" })
+    ).not.toBeInTheDocument();
   });
 
   it("returns hidden freeform brush tool state to select", () => {
@@ -109,7 +123,9 @@ describe("Toolbar dock", () => {
     render(<Toolbar tool="bg" setTool={vi.fn()} onUndo={vi.fn()} />);
 
     expect(screen.getByRole("button", { name: "Box" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Background" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Background" })
+    ).toBeInTheDocument();
   });
 
   it("uses the top bar surface and accent background for the active tool", () => {
@@ -119,9 +135,7 @@ describe("Toolbar dock", () => {
       <Toolbar tool="select" setTool={vi.fn()} onUndo={vi.fn()} />
     );
     const toolbar = screen.getByRole("toolbar");
-    const activeItem = container.querySelector(
-      '[data-toolbar-item="select"]'
-    );
+    const activeItem = container.querySelector('[data-toolbar-item="select"]');
     const inactiveItem = container.querySelector(
       '[data-toolbar-item="shape-group"]'
     );
@@ -129,10 +143,10 @@ describe("Toolbar dock", () => {
 
     expect(screen.getByTestId("tool-dock")).toBe(toolbar.parentElement);
     expect(toolbar.parentElement).toHaveClass(
-      "bg-muted",
+      "bg-host-surface",
       "rounded-lg",
       "border-0",
-      "shadow-none"
+      "shadow-host"
     );
     expect(activeItem).toHaveClass("bg-accent", "text-foreground");
     expect(inactiveItem).not.toHaveClass("bg-accent");
@@ -163,7 +177,9 @@ describe("Toolbar dock", () => {
       "border-transparent",
       "hover:border-border"
     );
-    expect(toolbar.querySelector('[style*="translateX"]')).not.toBeInTheDocument();
+    expect(
+      toolbar.querySelector('[style*="translateX"]')
+    ).not.toBeInTheDocument();
   });
 
   it("uses dropdown menu semantics and styling for shape submenus", async () => {
@@ -188,9 +204,9 @@ describe("Toolbar dock", () => {
       document.querySelector('[data-slot="dropdown-menu-content"]')
     ).toHaveClass(
       "min-w-48",
-      "bg-muted",
+      "bg-overlay-surface",
       "border-0",
-      "shadow-none",
+      "shadow-overlay",
       "rounded-lg"
     );
     fireEvent.click(circle);
@@ -261,7 +277,9 @@ describe("Toolbar dock", () => {
       "text-foreground",
       "focus-visible:ring-[3px]"
     );
-    expect(screen.getByRole("button", { name: "Toggle animation loop" })).toHaveClass(
+    expect(
+      screen.getByRole("button", { name: "Toggle animation loop" })
+    ).toHaveClass(
       "size-8",
       "bg-accent",
       "text-foreground",
@@ -274,8 +292,12 @@ describe("Toolbar dock", () => {
 
     render(<Toolbar tool="select" setTool={vi.fn()} onUndo={vi.fn()} />);
 
-    expect(screen.queryByRole("button", { name: "Background" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Undo" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Background" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Undo" })
+    ).not.toBeInTheDocument();
   });
 
   it("hides the explicit text tool in structured mode", () => {
@@ -285,9 +307,15 @@ describe("Toolbar dock", () => {
 
     expect(screen.getByRole("button", { name: "Select" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Box" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Background" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Undo" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Text" })).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Background" })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Undo" })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Text" })
+    ).not.toBeInTheDocument();
   });
 
   it("returns hidden structured text tool state to select", () => {
@@ -312,12 +340,7 @@ describe("Toolbar dock", () => {
       name: "Color palettes",
     });
     expect(paletteTabs).toHaveAttribute("data-orientation", "vertical");
-    expect(paletteTabs).toHaveClass(
-      "order-2",
-      "w-fit",
-      "flex-col",
-      "gap-1"
-    );
+    expect(paletteTabs).toHaveClass("order-2", "w-fit", "flex-col", "gap-1");
     const ansiTab = screen.getByRole("tab", { name: "ANSI 16" });
     expect(ansiTab).toHaveClass(
       "size-8",
@@ -334,9 +357,7 @@ describe("Toolbar dock", () => {
       "group-data-[variant=default]/tabs-list:data-[state=active]:shadow-none"
     );
     expect(ansiTab).not.toHaveClass("min-w-8");
-    expect(
-      ansiTab.querySelector("svg")
-    ).toBeInTheDocument();
+    expect(ansiTab.querySelector("svg")).toBeInTheDocument();
     expect(paletteTabs.parentElement).toHaveClass(
       "w-[22rem]",
       "gap-1.5",
@@ -366,19 +387,23 @@ describe("Toolbar dock", () => {
       screen.getByTestId("color-palette-grid")
     );
 
-    const colorTools = screen.getByRole("textbox").closest(
-      '[data-color-picker-tools="true"]'
-    );
+    const colorTools = screen
+      .getByRole("textbox")
+      .closest('[data-color-picker-tools="true"]');
     const eyedropperTrigger = screen.getByRole("button", {
       name: "Pick color from canvas",
     });
     expect(colorTools).toHaveClass("flex", "items-center");
     expect(colorTools).toContainElement(eyedropperTrigger);
 
-    fireEvent.click(screen.getByRole("button", { name: "Pick ANSI color #c0c0c0" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Pick ANSI color #c0c0c0" })
+    );
     expect(onPick).toHaveBeenCalledWith("#c0c0c0");
 
-    fireEvent.click(screen.getByRole("button", { name: "Pick ANSI color #000080" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Pick ANSI color #000080" })
+    );
     expect(onPick).toHaveBeenCalledWith("#000080");
     expect(screen.getByTestId("color-palette-grid")).toHaveClass(
       "grid-cols-8",
@@ -406,18 +431,23 @@ describe("Toolbar dock", () => {
       "grid-cols-10",
       "gap-0.5"
     );
-    fireEvent.click(screen.getByRole("button", { name: "Pick preset color #7f1d1d" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Pick preset color #7f1d1d" })
+    );
     expect(onPick).toHaveBeenCalledWith("#7f1d1d");
-    fireEvent.click(screen.getByRole("button", { name: "Pick preset color #93c5fd" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Pick preset color #93c5fd" })
+    );
     expect(onPick).toHaveBeenCalledWith("#93c5fd");
-
   });
 
   it("normalizes short hex colors before picking", () => {
     const onPick = vi.fn();
 
     render(<ColorPickerPanel value="#000000" onPick={onPick} />);
-    fireEvent.change(screen.getByRole("textbox"), { target: { value: "#0fc" } });
+    fireEvent.change(screen.getByRole("textbox"), {
+      target: { value: "#0fc" },
+    });
     const useButton = screen.getByRole("button", { name: "Use" });
     expect(useButton).not.toHaveTextContent("Use");
     expect(useButton.querySelector("svg")).toBeInTheDocument();
@@ -439,9 +469,9 @@ describe("Toolbar dock", () => {
     });
     expect(pickChar.closest('[data-slot="dropdown-menu-content"]')).toHaveClass(
       "min-w-36",
-      "bg-muted",
+      "bg-overlay-surface",
       "border-0",
-      "shadow-none"
+      "shadow-overlay"
     );
     fireEvent.click(pickChar);
 

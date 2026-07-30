@@ -34,12 +34,20 @@ describe("dialog visual contract", () => {
     );
 
     const content = screen.getByRole("dialog");
-    expect(content).toHaveClass("border-0", "shadow-none", "rounded-lg", "p-0");
+    expect(content).toHaveClass(
+      "border-0",
+      "shadow-dialog",
+      "rounded-lg",
+      "p-0"
+    );
     expect(content.querySelector('[data-slot="dialog-header"]')).toHaveClass(
       "border-accent",
       "bg-accent/40"
     );
-    expect(content.querySelector('[data-slot="dialog-body"]')).toHaveClass("px-4", "py-4");
+    expect(content.querySelector('[data-slot="dialog-body"]')).toHaveClass(
+      "px-4",
+      "py-4"
+    );
     expect(content.querySelector('[data-slot="dialog-footer"]')).toHaveClass(
       "border-accent",
       "bg-accent/25"
@@ -72,14 +80,17 @@ describe("dialog visual contract", () => {
     );
 
     const content = screen.getByRole("alertdialog");
-    expect(content).toHaveClass("border-0", "shadow-none", "rounded-lg", "p-0");
-    expect(content.querySelector('[data-slot="alert-dialog-header"]')).toHaveClass(
-      "border-accent",
-      "bg-accent/40"
+    expect(content).toHaveClass(
+      "border-0",
+      "shadow-dialog",
+      "rounded-lg",
+      "p-0"
     );
-    expect(content.querySelector('[data-slot="alert-dialog-footer"]')).toHaveClass(
-      "border-accent",
-      "bg-accent/25"
-    );
+    expect(
+      content.querySelector('[data-slot="alert-dialog-header"]')
+    ).toHaveClass("border-accent", "bg-accent/40");
+    expect(
+      content.querySelector('[data-slot="alert-dialog-footer"]')
+    ).toHaveClass("border-accent", "bg-accent/25");
   });
 });

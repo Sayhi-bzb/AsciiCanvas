@@ -54,9 +54,9 @@ describe('ZoomControl', () => {
       'bottom-3',
       'left-3',
       'flex',
-      'bg-muted',
+      'bg-host-surface',
       'border-0',
-      'shadow-none'
+      'shadow-host'
     );
     expect(Array.from(host.children)).toEqual([out, reset, zoomIn, grid, minimap]);
     expect(out).toHaveClass('size-8', 'rounded-r-none');
@@ -90,9 +90,9 @@ describe('ZoomControl', () => {
       'absolute',
       'bottom-full',
       'left-0',
-      'bg-muted',
+      'bg-host-surface',
       'border-0',
-      'shadow-none'
+      'shadow-host'
     );
     fireEvent.click(minimap);
     expect(screen.queryByTestId('zoom-minimap')).not.toBeInTheDocument();
