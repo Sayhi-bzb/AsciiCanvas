@@ -60,13 +60,15 @@ describe("action shortcuts", () => {
       )
     ).toBe(false);
   });
-  it("reserves Shift+H for Hand while preserving plain H", () => {
+  it("does not reserve printable H for Hand", () => {
     expect(
       matchesActionShortcut("pan", shortcutEvent("H", { shiftKey: true }))
-    ).toBe(true);
+    ).toBe(false);
     expect(matchesActionShortcut("pan", shortcutEvent("h"))).toBe(false);
-    expect(getActionShortcutLabel("pan", "mac")).toBe("⇧H");
-    expect(getActionShortcutLabel("pan", "other")).toBe("Shift+H");
+    expect(getActionShortcutLabel("pan", "mac")).toBeUndefined();
+    expect(getActionShortcutLabel("pan", "other")).toBeUndefined();
+    expect(getActionShortcutLabel("toggle-sidebar", "mac")).toBe("⌘B");
+    expect(getActionShortcutLabel("toggle-sidebar", "other")).toBe("Ctrl+B");
   });
 
 
@@ -86,6 +88,8 @@ describe("action shortcuts", () => {
   });
 
   it("formats labels from the same binding source", () => {
+    expect(getActionShortcutLabel("undo", "mac")).toBe("⌘Z");
+    expect(getActionShortcutLabel("undo", "other")).toBe("Ctrl+Z");
     expect(getActionShortcutLabel("redo", "mac")).toBe("⌘⇧Z / ⌘Y");
     expect(getActionShortcutLabel("redo", "other")).toBe(
       "Ctrl+Shift+Z / Ctrl+Y"

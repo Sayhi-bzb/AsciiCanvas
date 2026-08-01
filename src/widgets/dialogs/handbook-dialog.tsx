@@ -8,11 +8,11 @@ import {
   Keyboard,
   Layers,
   Maximize,
-  Mouse,
   Move,
   Type,
 } from "lucide-react";
 import type { ReactElement } from "react";
+import { getActionShortcutLabel } from "@/domains/actions/public";
 import { Button } from "@/shared/ui/button";
 import {
   Dialog,
@@ -30,6 +30,81 @@ import {
   type TooltipContentProps,
 } from "@/shared/ui/tooltip";
 import { useUiI18n } from "@/shared/i18n";
+import type { I18nKey } from "@/shared/i18n";
+
+const ACTION_SHORTCUT_ROWS = [
+  { actionId: "undo", labelKey: "manual.shortcut.undo" },
+  { actionId: "redo", labelKey: "manual.shortcut.redo" },
+  { actionId: "copy", labelKey: "manual.shortcut.copy" },
+  { actionId: "cut", labelKey: "manual.shortcut.cut" },
+  { actionId: "paste", labelKey: "manual.shortcut.paste" },
+  { actionId: "delete-selection", labelKey: "manual.shortcut.delete" },
+  { actionId: "toggle-sidebar", labelKey: "manual.shortcut.toggleSidebar" },
+] as const satisfies readonly {
+  actionId: Parameters<typeof getActionShortcutLabel>[0];
+  labelKey: I18nKey;
+}[];
+
+const CANVAS_SHORTCUT_ROWS = [
+  {
+    labelKey: "manual.shortcut.dockTools",
+    shortcutKey: "manual.shortcut.keys.dockTools",
+  },
+  {
+    labelKey: "manual.shortcut.temporaryPan",
+    shortcutKey: "manual.shortcut.keys.temporaryPan",
+  },
+  {
+    labelKey: "manual.shortcut.zoom",
+    shortcutKey: "manual.shortcut.keys.zoom",
+  },
+  {
+    labelKey: "manual.shortcut.keyboardPan",
+    shortcutKey: "manual.shortcut.keys.keyboardPan",
+  },
+  {
+    labelKey: "manual.shortcut.move",
+    shortcutKey: "manual.shortcut.keys.move",
+  },
+  {
+    labelKey: "manual.shortcut.extend",
+    shortcutKey: "manual.shortcut.keys.extend",
+  },
+  {
+    labelKey: "manual.shortcut.anchorSelect",
+    shortcutKey: "manual.shortcut.keys.anchorSelect",
+  },
+  {
+    labelKey: "manual.shortcut.newline",
+    shortcutKey: "manual.shortcut.keys.newline",
+  },
+  {
+    labelKey: "manual.shortcut.indent",
+    shortcutKey: "manual.shortcut.keys.indent",
+  },
+  {
+    labelKey: "manual.shortcut.cancel",
+    shortcutKey: "manual.shortcut.keys.cancel",
+  },
+  {
+    labelKey: "manual.shortcut.fillSelection",
+    shortcutKey: "manual.shortcut.keys.fillSelection",
+  },
+] as const satisfies readonly {
+  labelKey: I18nKey;
+  shortcutKey: I18nKey;
+}[];
+
+function ShortcutRow({ label, shortcut }: { label: string; shortcut: string }) {
+  return (
+    <div className="bg-accent/40 p-2 rounded-md flex justify-between items-start gap-3">
+      <span className="font-medium leading-5">{label}</span>
+      <kbd className="bg-background px-1.5 py-0.5 rounded border text-[9px] font-mono text-right leading-4 shrink-0 max-w-[58%]">
+        {shortcut}
+      </kbd>
+    </div>
+  );
+}
 
 type HandbookDialogProps = {
   tooltipSide?: TooltipContentProps["side"];
@@ -79,30 +154,37 @@ export function HandbookDialog({
           <DialogBody className="space-y-6">
             <section className="space-y-3">
               <h4 className="text-sm font-semibold flex items-center gap-2 text-foreground/80">
-                <Move className="size-4" /> {t("manual.view")}
+                <Keyboard className="size-4" /> {t("manual.shortcuts")}
               </h4>
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="bg-accent/40 p-2 rounded-md flex justify-between items-center">
-                  <span>{t("manual.pan")}</span>
-                  <div className="flex gap-1 items-center">
-                    <kbd className="bg-background px-1.2 py-0.5 rounded border text-[9px] font-mono">
-                      Space
-                    </kbd>
-                    <span className="text-muted-foreground text-[10px]">+</span>
-                    <Mouse className="size-3" />
-                  </div>
+              <div className="space-y-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  {t("manual.shortcut.commands")}
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  {ACTION_SHORTCUT_ROWS.map(({ actionId, labelKey }) => {
+                    const shortcut = getActionShortcutLabel(actionId);
+                    return shortcut ? (
+                      <ShortcutRow
+                        key={actionId}
+                        label={t(labelKey)}
+                        shortcut={shortcut}
+                      />
+                    ) : null;
+                  })}
                 </div>
-                <div className="bg-accent/40 p-2 rounded-md flex justify-between items-center">
-                  <span>{t("manual.zoom")}</span>
-                  <div className="flex gap-1">
-                    <kbd className="bg-background px-1.2 py-0.5 rounded border text-[9px] font-mono">
-                      Ctrl
-                    </kbd>
-                    <span className="text-muted-foreground text-[10px]">+</span>
-                    <span className="font-mono text-[10px]">
-                      {t("manual.scroll")}
-                    </span>
-                  </div>
+              </div>
+              <div className="space-y-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  {t("manual.shortcut.canvas")}
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  {CANVAS_SHORTCUT_ROWS.map(({ labelKey, shortcutKey }) => (
+                    <ShortcutRow
+                      key={labelKey}
+                      label={t(labelKey)}
+                      shortcut={t(shortcutKey)}
+                    />
+                  ))}
                 </div>
               </div>
             </section>

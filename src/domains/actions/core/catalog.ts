@@ -9,12 +9,17 @@ import type {
 
 // Editor Actions
 const EDITOR_ACTION_META: Record<EditorActionId, ActionMeta> = {
-  undo: { id: "undo", label: "Undo" },
-  redo: { id: "redo", label: "Redo" },
+  undo: { id: "undo", label: "Undo", shortcuts: [["mod", "z"]] },
+  redo: {
+    id: "redo",
+    label: "Redo",
+    shortcuts: [["mod", "shift", "z"], ["mod", "y"]],
+  },
   copy: {
     id: "copy",
     label: "Copy as Text",
     icon: HOST_ICONOLOGY.editorAction.copy,
+    shortcuts: [["mod", "c"]],
   },
   "copy-rich": {
     id: "copy-rich",
@@ -30,11 +35,13 @@ const EDITOR_ACTION_META: Record<EditorActionId, ActionMeta> = {
     id: "cut",
     label: "Cut Zone",
     icon: HOST_ICONOLOGY.editorAction.cut,
+    shortcuts: [["mod", "x"]],
   },
   paste: {
     id: "paste",
     label: "Paste Lot",
     icon: HOST_ICONOLOGY.editorAction.paste,
+    shortcuts: [["mod", "v"]],
   },
   "fill-selection-char": { id: "fill-selection-char", label: "Fill Selection" },
   "snapshot-png": {
@@ -47,6 +54,7 @@ const EDITOR_ACTION_META: Record<EditorActionId, ActionMeta> = {
     label: "Delete",
     icon: HOST_ICONOLOGY.editorAction["delete-selection"],
     destructive: true,
+    shortcuts: [["backspace"], ["delete"]],
   },
   "structured-rename": {
     id: "structured-rename",
@@ -150,8 +158,7 @@ export const TOOLBAR_ACTION_META: Record<ToolbarActionId, ActionMeta> = {
     icon: HOST_ICONOLOGY.toolbarAction.eraser,
   },
   undo: {
-    id: "undo",
-    label: "Undo",
+    ...EDITOR_ACTION_META.undo,
     icon: HOST_ICONOLOGY.toolbarAction.undo,
   },
   color: {
@@ -170,6 +177,11 @@ export const TOOLBAR_ACTION_META: Record<ToolbarActionId, ActionMeta> = {
 // Sidebar Actions
 const SIDEBAR_ACTION_META: Record<SidebarActionId, ActionMeta> = {
   "toggle-grid": { id: "toggle-grid", label: "Toggle Grid" },
+  "toggle-sidebar": {
+    id: "toggle-sidebar",
+    label: "Toggle Sidebar",
+    shortcuts: [["mod", "b"]],
+  },
   "open-source-code": { id: "open-source-code", label: "Open Source Code" },
 };
 

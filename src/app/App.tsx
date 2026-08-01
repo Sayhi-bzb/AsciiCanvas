@@ -1,13 +1,12 @@
-import { useKeyPress, useLocalStorageState } from "ahooks";
+import { useLocalStorageState } from "ahooks";
 import { AsciiCanvas } from "@/widgets/canvas-editor";
 import { useEditorStore } from "@/domains/canvas/public";
 import { AppLayout } from "./AppLayout";
 import { Toolbar } from "@/widgets/toolbar/dock";
 import { SidebarInset, SidebarProvider, useSidebar } from "@/shared/ui/sidebar";
-import { Suspense, lazy, useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
 import { runRedo, runUndo } from "@/domains/actions/public";
 import { runAction } from "@/domains/actions/public";
-import { resolveFillHotkeyChar } from "@/domains/actions/public";
 import { matchesActionShortcut } from "@/domains/actions/public";
 import { feedback } from "@/shared/services/effects";
 import { useShallow } from "zustand/react/shallow";
@@ -19,9 +18,15 @@ import { AppMenu } from "@/widgets/toolbar/app-menu";
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
 import { getStaticGridViewState } from "@/domains/selection/public";
 import { useHandToolShortcuts } from "./useHandToolShortcuts";
+import { useGlobalShortcutCommands } from "./useGlobalShortcutCommands";
 import { ZoomControl } from "@/widgets/toolbar/zoom-control";
 import { HelpControl } from "@/widgets/toolbar/help-control";
 import { useUiI18n } from "@/shared/i18n";
+import {
+  SHORTCUT_PRIORITY,
+  ShortcutProvider,
+  useShortcutLayer,
+} from "@/shared/shortcuts/dispatcher";
 import { useActiveCollaboration } from "./useActiveCollaboration";
 import { CollaborationControl } from "@/widgets/collaboration/CollaborationControl";
 import { RemotePresenceOverlay } from "@/widgets/collaboration/RemotePresenceOverlay";
@@ -31,6 +36,32 @@ const SidebarRight = lazy(() =>
     default: module.SidebarRight,
   }))
 );
+
+function SidebarShortcutRegistration() {
+  const { toggleSidebar } = useSidebar();
+  useShortcutLayer({
+    id: "right-sidebar",
+    priority: SHORTCUT_PRIORITY.chrome,
+    onKeyDown: (event, context) => {
+      if (
+        context.targetKind === "editable" ||
+        context.targetKind === "managed-canvas" ||
+        context.targetKind === "overlay" ||
+        !matchesActionShortcut("toggle-sidebar", event)
+      ) {
+        return;
+      }
+      const result = runAction("toggle-sidebar", {
+        source: "global-hotkey",
+        toggleSidebar,
+      });
+      return result.succeeded
+        ? { claimed: true, preventDefault: true }
+        : undefined;
+    },
+  });
+  return null;
+}
 
 // Mobile sidebar trigger.
 function MobileSidebarTrigger() {
@@ -72,6 +103,10 @@ function AppContent() {
     selections,
     editingStructuredTextNodeId,
     structuredTextSelection,
+    exitStaticGridTextEdit,
+    setTextCursor,
+    setEditingStructuredTextNodeId,
+    setStructuredTextSelection,
   } = useEditorStore(
     useShallow((state) => ({
       tool: state.tool,
@@ -83,6 +118,10 @@ function AppContent() {
       selections: state.selections,
       editingStructuredTextNodeId: state.editingStructuredTextNodeId,
       structuredTextSelection: state.structuredTextSelection,
+      exitStaticGridTextEdit: state.exitStaticGridTextEdit,
+      setTextCursor: state.setTextCursor,
+      setEditingStructuredTextNodeId: state.setEditingStructuredTextNodeId,
+      setStructuredTextSelection: state.setStructuredTextSelection,
     }))
   );
   const staticGridView = useMemo(
@@ -101,10 +140,20 @@ function AppContent() {
       : !!textCursor ||
         !!editingStructuredTextNodeId ||
         !!structuredTextSelection;
+  const exitCanvasTextEditing = useCallback(() => {
+    exitStaticGridTextEdit();
+    setTextCursor(null);
+    setEditingStructuredTextNodeId(null);
+    setStructuredTextSelection(null);
+  }, [
+    exitStaticGridTextEdit,
+    setEditingStructuredTextNodeId,
+    setStructuredTextSelection,
+    setTextCursor,
+  ]);
   const isTemporaryPanActive = useHandToolShortcuts({
     canvasMode,
     isCanvasTextEditing,
-    setTool,
   });
 
   const [isRightPanelOpen, setIsRightPanelOpen] = useLocalStorageState<boolean>(
@@ -128,40 +177,7 @@ function AppContent() {
     runRedo();
   };
 
-  const runGlobalCommand = (command: "undo" | "redo", event: KeyboardEvent) => {
-    const result = runAction(command, {
-      source: "global-hotkey",
-      onUndo: handleUndo,
-      onRedo: handleRedo,
-    });
-    if (result.succeeded) event.preventDefault();
-  };
-
-  useKeyPress((e) => matchesActionShortcut("undo", e), (e) => {
-    runGlobalCommand("undo", e);
-  });
-
-  useKeyPress((e) => matchesActionShortcut("redo", e), (e) => {
-    runGlobalCommand("redo", e);
-  });
-
-  useKeyPress(
-    (event) =>
-      !event.defaultPrevented && resolveFillHotkeyChar(event) !== null,
-    (event) => {
-      if (event.defaultPrevented) return;
-      const fillChar = resolveFillHotkeyChar(event);
-      if (!fillChar) return;
-      const result = runAction("fill-selection-char", {
-        source: "global-hotkey",
-        fillChar,
-      });
-      if (result.succeeded) event.preventDefault();
-    },
-    {
-      events: ["keydown"],
-    }
-  );
+  useGlobalShortcutCommands({ onUndo: handleUndo, onRedo: handleRedo });
 
   return (
     <SidebarProvider className="flex h-full w-full overflow-hidden">
@@ -192,6 +208,8 @@ function AppContent() {
             tool={tool}
             setTool={setTool}
             onUndo={handleUndo}
+            isCanvasTextEditing={isCanvasTextEditing}
+            onExitCanvasTextEditing={exitCanvasTextEditing}
           />
         </AppLayout>
         <RemotePresenceOverlay />
@@ -205,6 +223,7 @@ function AppContent() {
               { "--sidebar-width": "24rem" } as React.CSSProperties
             }
           >
+            <SidebarShortcutRegistration />
             <MobileSidebarTrigger />
             <HelpControl />
             <Suspense fallback={<div className="w-0" />}>
@@ -219,8 +238,10 @@ function AppContent() {
 
 export default function App() {
   return (
-    <TooltipProvider>
-      <AppContent />
-    </TooltipProvider>
+    <ShortcutProvider>
+      <TooltipProvider>
+        <AppContent />
+      </TooltipProvider>
+    </ShortcutProvider>
   );
 }

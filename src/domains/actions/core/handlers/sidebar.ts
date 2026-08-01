@@ -1,6 +1,7 @@
 import { browser } from "@/shared/services/effects";
 import { APP_SOURCE_URL } from "@/shared/lib/constants";
 import {
+  actionFailed,
   actionSucceeded,
 } from "../result";
 import type {
@@ -16,6 +17,7 @@ type SidebarOptions = {
   setZoom: (updater: (prev: number) => number) => void;
   setOffset: (updater: (prev: { x: number; y: number }) => { x: number; y: number }) => void;
   sourceCodeUrl?: string;
+  toggleSidebar?: () => void;
 };
 
 // Sidebar action handlers
@@ -25,6 +27,12 @@ export const sidebarHandlers: Record<
 > = {
   "toggle-grid": (options): ActionResult => {
     options.setShowGrid(!options.showGrid);
+    return actionSucceeded();
+  },
+
+  "toggle-sidebar": (options): ActionResult => {
+    if (!options.toggleSidebar) return actionFailed("missing-toggle-sidebar");
+    options.toggleSidebar();
     return actionSucceeded();
   },
 

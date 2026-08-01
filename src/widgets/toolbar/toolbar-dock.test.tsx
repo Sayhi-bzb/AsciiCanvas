@@ -1,13 +1,48 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { Toolbar } from "@/widgets/toolbar/dock";
+import type { ComponentProps } from "react";
+import { Toolbar as ToolbarUnderTest } from "@/widgets/toolbar/dock";
 import { ColorPickerPanel } from "@/widgets/toolbar/dock/submenus";
 import { useEditorStore } from "@/domains/canvas/public";
 import { setUiLanguage } from "@/shared/i18n";
+import { ShortcutProvider } from "@/shared/shortcuts/dispatcher";
 
 vi.mock("@/shared/hooks/use-mobile", () => ({
   useIsMobile: () => false,
 }));
+
+vi.stubGlobal(
+  "ResizeObserver",
+  class ResizeObserverMock {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+);
+
+type TestToolbarProps = Omit<
+  ComponentProps<typeof ToolbarUnderTest>,
+  "isCanvasTextEditing" | "onExitCanvasTextEditing"
+> & {
+  isCanvasTextEditing?: boolean;
+  onExitCanvasTextEditing?: () => void;
+};
+
+function Toolbar({
+  isCanvasTextEditing = false,
+  onExitCanvasTextEditing = () => {},
+  ...props
+}: TestToolbarProps) {
+  return (
+    <ShortcutProvider>
+      <ToolbarUnderTest
+        {...props}
+        isCanvasTextEditing={isCanvasTextEditing}
+        onExitCanvasTextEditing={onExitCanvasTextEditing}
+      />
+    </ShortcutProvider>
+  );
+}
 
 describe("Toolbar dock", () => {
   const initialState = useEditorStore.getState();
@@ -28,6 +63,123 @@ describe("Toolbar dock", () => {
     expect(items[0]).toHaveAttribute("data-toolbar-item", "pan");
     fireEvent.click(screen.getByRole("button", { name: "Hand" }));
     expect(setTool).toHaveBeenCalledWith("pan");
+  });
+
+  it("maps Alt+digits to the visible freeform dock order", () => {
+    useEditorStore.setState({ canvasMode: "freeform", tool: "select" });
+    const setTool = vi.fn();
+    render(<Toolbar tool="select" setTool={setTool} onUndo={vi.fn()} />);
+
+    fireEvent.keyDown(window, {
+      key: "¡",
+      code: "Digit1",
+      altKey: true,
+    });
+    fireEvent.keyDown(window, {
+      key: "£",
+      code: "Digit3",
+      altKey: true,
+    });
+
+    expect(setTool).toHaveBeenNthCalledWith(1, "pan");
+    expect(setTool).toHaveBeenNthCalledWith(2, "box");
+    expect(screen.getByRole("button", { name: "Hand" })).toHaveAttribute(
+      "aria-keyshortcuts",
+      "Alt+1"
+    );
+    expect(screen.getByRole("button", { name: "Select" })).toHaveAttribute(
+      "aria-keyshortcuts",
+      "Alt+2"
+    );
+  });
+
+  it("maps Alt+digits to animation tools and opens the color popover", async () => {
+    useEditorStore.setState({ canvasMode: "animation", tool: "select" });
+    const setTool = vi.fn();
+    render(<Toolbar tool="select" setTool={setTool} onUndo={vi.fn()} />);
+
+    fireEvent.keyDown(window, {
+      key: "™",
+      code: "Digit2",
+      altKey: true,
+    });
+    expect(setTool).toHaveBeenCalledWith("brush");
+
+    fireEvent.keyDown(window, {
+      key: "§",
+      code: "Digit6",
+      altKey: true,
+    });
+    expect(
+      await screen.findByRole("tablist", { name: "Color palettes" })
+    ).toBeInTheDocument();
+  });
+
+  it("exits canvas text editing before using a Dock shortcut", () => {
+    useEditorStore.setState({ canvasMode: "freeform", tool: "select" });
+    const setTool = vi.fn();
+    const onExitCanvasTextEditing = vi.fn();
+    const input = document.createElement("input");
+    document.body.append(input);
+    const view = render(
+      <Toolbar
+        tool="select"
+        setTool={setTool}
+        onUndo={vi.fn()}
+        isCanvasTextEditing
+        onExitCanvasTextEditing={onExitCanvasTextEditing}
+      />
+    );
+
+    fireEvent.keyDown(window, {
+      code: "Digit1",
+      altKey: true,
+    });
+    expect(onExitCanvasTextEditing).toHaveBeenCalledOnce();
+    expect(setTool).toHaveBeenCalledWith("pan");
+    expect(onExitCanvasTextEditing.mock.invocationCallOrder[0]).toBeLessThan(
+      setTool.mock.invocationCallOrder[0]
+    );
+
+    view.rerender(
+      <Toolbar
+        tool="select"
+        setTool={setTool}
+        onUndo={vi.fn()}
+        onExitCanvasTextEditing={onExitCanvasTextEditing}
+      />
+    );
+    fireEvent.keyDown(input, {
+      code: "Digit1",
+      altKey: true,
+    });
+    expect(setTool).toHaveBeenCalledTimes(1);
+    expect(onExitCanvasTextEditing).toHaveBeenCalledOnce();
+    input.remove();
+  });
+
+  it("exits canvas text editing before opening the color popover", async () => {
+    useEditorStore.setState({ canvasMode: "freeform", tool: "select" });
+    const onExitCanvasTextEditing = vi.fn();
+    render(
+      <Toolbar
+        tool="select"
+        setTool={vi.fn()}
+        onUndo={vi.fn()}
+        isCanvasTextEditing
+        onExitCanvasTextEditing={onExitCanvasTextEditing}
+      />
+    );
+
+    fireEvent.keyDown(window, {
+      code: "Digit6",
+      altKey: true,
+    });
+
+    expect(onExitCanvasTextEditing).toHaveBeenCalledOnce();
+    expect(
+      await screen.findByRole("tablist", { name: "Color palettes" })
+    ).toBeInTheDocument();
   });
 
   it("shows Hand first in structured mode", () => {

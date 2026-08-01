@@ -1,17 +1,6 @@
-import type { ActionId } from "./types";
+import { ACTION_CATALOG } from "./catalog";
+import type { ActionId, ShortcutToken } from "./types";
 
-type ShortcutToken =
-  | "mod"
-  | "shift"
-  | "alt"
-  | "delete"
-  | "backspace"
-  | "z"
-  | "y"
-  | "c"
-  | "x"
-  | "v"
-  | "h";
 export type ActionShortcutEvent = Pick<KeyboardEvent, "key"> &
   Partial<
     Pick<
@@ -26,20 +15,8 @@ export type ActionShortcutEvent = Pick<KeyboardEvent, "key"> &
     >
   >;
 
-const ACTION_SHORTCUTS: Partial<
-  Record<ActionId, readonly (readonly ShortcutToken[])[]>
-> = {
-  undo: [["mod", "z"]],
-  pan: [["shift", "h"]],
-  redo: [
-    ["mod", "shift", "z"],
-    ["mod", "y"],
-  ],
-  copy: [["mod", "c"]],
-  cut: [["mod", "x"]],
-  paste: [["mod", "v"]],
-  "delete-selection": [["backspace"], ["delete"]],
-};
+const getActionShortcuts = (actionId: ActionId) =>
+  ACTION_CATALOG[actionId]?.shortcuts;
 
 export type ShortcutPlatform = "mac" | "other";
 
@@ -114,7 +91,7 @@ export const matchesActionShortcut = (
   actionId: ActionId,
   event: ActionShortcutEvent
 ) =>
-  ACTION_SHORTCUTS[actionId]?.some((chord) => matchesChord(chord, event)) ??
+  getActionShortcuts(actionId)?.some((chord) => matchesChord(chord, event)) ??
   false;
 
 export const resolveActionShortcut = <T extends ActionId>(
@@ -127,7 +104,7 @@ export const getActionShortcutLabel = (
   actionId: ActionId,
   platform = getShortcutPlatform()
 ) => {
-  const chords = ACTION_SHORTCUTS[actionId];
+  const chords = getActionShortcuts(actionId);
   if (!chords || chords.length === 0) return undefined;
   return chords.map((chord) => formatChord(chord, platform)).join(" / ");
 };

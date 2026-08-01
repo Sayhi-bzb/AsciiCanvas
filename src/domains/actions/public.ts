@@ -10,7 +10,12 @@ export {
   runSidebarAction,
   runToolbarAction,
 } from "./core";
-export type { ContextMenuEntry, ToolbarActionId } from "./core";
+export type {
+  ContextMenuEntry,
+  ShortcutChord,
+  ShortcutToken,
+  ToolbarActionId,
+} from "./core";
 export type { ActionShortcutEvent, ShortcutPlatform } from "./core";
 export {
   getActionShortcutLabel,

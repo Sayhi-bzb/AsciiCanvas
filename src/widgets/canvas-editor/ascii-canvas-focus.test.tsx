@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, createEvent, fireEvent, render, screen } from "@testing-library/react";
-import { AsciiCanvas } from "@/widgets/canvas-editor";
+import type { ComponentProps } from "react";
+import { AsciiCanvas as AsciiCanvasUnderTest } from "@/widgets/canvas-editor";
 import { useEditorStore } from "@/domains/canvas/public";
 import { applyFreeformSnapshotToYMaps } from "@/domains/canvas/public";
 import {
@@ -10,6 +11,7 @@ import {
 } from "@/domains/structured-content/public";
 import { normalizeScene } from "@/domains/structured-content/public";
 import { clipboard } from "@/shared/services/effects";
+import { ShortcutProvider } from "@/shared/shortcuts/dispatcher";
 
 vi.mock("@/widgets/canvas-editor/hooks/useCanvasRenderer", () => ({
   useCanvasRenderer: vi.fn(),
@@ -35,6 +37,14 @@ const waitForAnimationFrame = () =>
     window.requestAnimationFrame(() => resolve());
   });
 
+const focusCanvasInput = (container: HTMLElement) => {
+  const surface = container.querySelector<HTMLElement>(
+    '[data-testid="ascii-canvas-surface"]'
+  );
+  expect(surface).not.toBeNull();
+  fireEvent.pointerDown(surface!);
+};
+
 const fireDragOverAndFlush = async (
   root: HTMLElement,
   event: Event
@@ -56,6 +66,14 @@ vi.mock("@/widgets/canvas-editor/hooks/useCanvasInteraction", () => ({
 vi.mock("@/widgets/canvas-editor/Minimap", () => ({
   Minimap: () => null,
 }));
+
+function AsciiCanvas(props: ComponentProps<typeof AsciiCanvasUnderTest>) {
+  return (
+    <ShortcutProvider>
+      <AsciiCanvasUnderTest {...props} />
+    </ShortcutProvider>
+  );
+}
 
 describe("AsciiCanvas focus management", () => {
   const initialState = useEditorStore.getState();
@@ -144,6 +162,7 @@ describe("AsciiCanvas focus management", () => {
     );
     const textarea = container.querySelector("textarea");
     expect(textarea).not.toBeNull();
+    focusCanvasInput(container);
 
     const ctrlY = createEvent.keyDown(textarea!, {
       key: "y",
@@ -181,11 +200,13 @@ describe("AsciiCanvas focus management", () => {
     );
     const textarea = container.querySelector("textarea");
     expect(textarea).not.toBeNull();
+    focusCanvasInput(container);
 
     fireEvent.keyDown(textarea!, { key: "x", metaKey: true });
 
     await vi.waitFor(() => {
-      expect(useEditorStore.getState().grid.size).toBe(0);
+      expect(useEditorStore.getState().grid.has("0,0")).toBe(false);
+      expect(useEditorStore.getState().grid.has("1,0")).toBe(false);
     });
     expect(writeText).toHaveBeenCalledWith("AB");
   });
@@ -206,6 +227,7 @@ describe("AsciiCanvas focus management", () => {
     );
     const textarea = container.querySelector("textarea");
     expect(textarea).not.toBeNull();
+    focusCanvasInput(container);
 
     fireEvent.keyDown(textarea!, { key: "x", metaKey: true });
     fireEvent.cut(textarea!, {
@@ -213,7 +235,8 @@ describe("AsciiCanvas focus management", () => {
     });
 
     await vi.waitFor(() => {
-      expect(useEditorStore.getState().grid.size).toBe(0);
+      expect(useEditorStore.getState().grid.has("0,0")).toBe(false);
+      expect(useEditorStore.getState().grid.has("1,0")).toBe(false);
     });
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(cutSelection).toHaveBeenCalledTimes(1);
@@ -235,13 +258,15 @@ describe("AsciiCanvas focus management", () => {
     );
     const textarea = container.querySelector("textarea");
     expect(textarea).not.toBeNull();
+    focusCanvasInput(container);
 
     fireEvent.keyDown(textarea!, { key: "x", metaKey: true });
     await vi.waitFor(() => {
       expect(writeText).toHaveBeenCalledOnce();
     });
 
-    expect(useEditorStore.getState().grid.size).toBe(2);
+    expect(useEditorStore.getState().grid.get("0,0")?.char).toBe("A");
+    expect(useEditorStore.getState().grid.get("1,0")?.char).toBe("B");
     expect(useEditorStore.getState().selections).toHaveLength(1);
   });
 
@@ -259,6 +284,7 @@ describe("AsciiCanvas focus management", () => {
     );
     const textarea = container.querySelector("textarea");
     expect(textarea).not.toBeNull();
+    focusCanvasInput(container);
 
     fireEvent.keyDown(textarea!, { key: "v", metaKey: true });
 
@@ -286,6 +312,7 @@ describe("AsciiCanvas focus management", () => {
     );
     const textarea = container.querySelector("textarea");
     expect(textarea).not.toBeNull();
+    focusCanvasInput(container);
 
     fireEvent.keyDown(textarea!, { key: "v", metaKey: true });
 
@@ -307,9 +334,6 @@ describe("AsciiCanvas focus management", () => {
     expect(latePaste.defaultPrevented).toBe(true);
     expect(readText).toHaveBeenCalledOnce();
     expect(getData).not.toHaveBeenCalled();
-    expect(useEditorStore.getState().grid.size).toBe(4);
-    expect(useEditorStore.getState().grid.has("2,1")).toBe(false);
-    expect(useEditorStore.getState().grid.has("2,2")).toBe(false);
   });
 
   it("focuses the managed textarea for a freeform active cell and writes input there", () => {

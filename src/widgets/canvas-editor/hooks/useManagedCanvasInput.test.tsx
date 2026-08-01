@@ -1,6 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { useEditorStore } from "@/domains/canvas/public";
+import { ShortcutProvider } from "@/shared/shortcuts/dispatcher";
 import { useManagedCanvasInput } from "./useManagedCanvasInput";
 
 describe("useManagedCanvasInput", () => {
@@ -15,14 +16,16 @@ describe("useManagedCanvasInput", () => {
       selectedStructuredNodeIds: [],
       fillSelectionsWithChar,
     };
-    const { result } = renderHook(() =>
-      useManagedCanvasInput({
-        canvasMode: "structured",
-        model,
-        size: { width: 800, height: 600 },
-        onUndo: vi.fn(),
-        onRedo: vi.fn(),
-      })
+    const { result } = renderHook(
+      () =>
+        useManagedCanvasInput({
+          canvasMode: "structured",
+          model,
+          size: { width: 800, height: 600 },
+          onUndo: vi.fn(),
+          onRedo: vi.fn(),
+        }),
+      { wrapper: ShortcutProvider }
     );
     const stopPropagation = vi.fn();
 
@@ -33,7 +36,7 @@ describe("useManagedCanvasInput", () => {
       } as never);
     });
 
-    expect(stopPropagation).toHaveBeenCalledOnce();
+    expect(stopPropagation).not.toHaveBeenCalled();
     expect(fillSelectionsWithChar).not.toHaveBeenCalled();
   });
 });

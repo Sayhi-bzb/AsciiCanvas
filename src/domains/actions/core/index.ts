@@ -2,6 +2,8 @@
 export type {
   ToolbarActionId,
   ContextMenuEntry,
+  ShortcutChord,
+  ShortcutToken,
 } from "./types";
 
 // Catalog

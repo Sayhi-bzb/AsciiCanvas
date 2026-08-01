@@ -1,17 +1,15 @@
 import { act, fireEvent, renderHook } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import type { ToolType } from "@/domains/canvas/public";
+import { afterEach, describe, expect, it } from "vitest";
 import type { CanvasMode } from "@/domains/sessions/public";
 import { useHandToolShortcuts } from "./useHandToolShortcuts";
+import { ShortcutProvider } from "@/shared/shortcuts/dispatcher";
 
 const renderHandShortcuts = ({
   canvasMode = "freeform",
   isCanvasTextEditing = false,
-  setTool = vi.fn(),
 }: {
   canvasMode?: CanvasMode;
   isCanvasTextEditing?: boolean;
-  setTool?: (tool: ToolType) => void;
 } = {}) =>
   renderHook(
     (props) => useHandToolShortcuts(props),
@@ -19,8 +17,8 @@ const renderHandShortcuts = ({
       initialProps: {
         canvasMode,
         isCanvasTextEditing,
-        setTool,
       },
+      wrapper: ShortcutProvider,
     }
   );
 
@@ -29,71 +27,62 @@ afterEach(() => {
 });
 
 describe("useHandToolShortcuts", () => {
-  it("temporarily pans with Space without changing the persistent tool", () => {
-    const setTool = vi.fn();
-    const { result } = renderHandShortcuts({ setTool });
+  it("temporarily pans with Space", () => {
+    const { result } = renderHandShortcuts();
 
     fireEvent.keyDown(window, { key: " ", code: "Space" });
     expect(result.current).toBe(true);
-    expect(setTool).not.toHaveBeenCalled();
 
     fireEvent.keyDown(window, { key: " ", code: "Space", repeat: true });
     expect(result.current).toBe(true);
 
     fireEvent.keyUp(window, { key: " ", code: "Space" });
     expect(result.current).toBe(false);
-    expect(setTool).not.toHaveBeenCalled();
   });
 
-  it("selects Hand with Shift+H and preserves plain H", () => {
-    const setTool = vi.fn();
-    renderHandShortcuts({ setTool });
+  it("does not claim printable H shortcuts", () => {
+    renderHandShortcuts();
+    const event = new KeyboardEvent("keydown", {
+      key: "H",
+      code: "KeyH",
+      shiftKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
 
-    fireEvent.keyDown(window, { key: "h" });
-    expect(setTool).not.toHaveBeenCalled();
+    act(() => window.dispatchEvent(event));
 
-    fireEvent.keyDown(window, { key: "H", shiftKey: true });
-    expect(setTool).toHaveBeenCalledOnce();
-    expect(setTool).toHaveBeenCalledWith("pan");
+    expect(event.defaultPrevented).toBe(false);
   });
 
   it("ignores shortcuts in animation mode", () => {
-    const setTool = vi.fn();
     const { result } = renderHandShortcuts({
       canvasMode: "animation",
-      setTool,
     });
 
     fireEvent.keyDown(window, { key: " ", code: "Space" });
-    fireEvent.keyDown(window, { key: "H", shiftKey: true });
 
     expect(result.current).toBe(false);
-    expect(setTool).not.toHaveBeenCalled();
   });
 
   it("ignores external editables", () => {
-    const setTool = vi.fn();
     const input = document.createElement("input");
     const editable = document.createElement("div");
     editable.setAttribute("contenteditable", "");
     document.body.append(input, editable);
-    const { result } = renderHandShortcuts({ setTool });
+    const { result } = renderHandShortcuts();
 
     fireEvent.keyDown(input, { key: " ", code: "Space" });
-    fireEvent.keyDown(input, { key: "H", shiftKey: true });
     fireEvent.keyDown(editable, { key: " ", code: "Space" });
-    fireEvent.keyDown(editable, { key: "H", shiftKey: true });
 
     expect(result.current).toBe(false);
-    expect(setTool).not.toHaveBeenCalled();
   });
 
   it("allows the managed textarea unless canvas text editing is active", () => {
     const textarea = document.createElement("textarea");
     textarea.dataset.canvasManagedInput = "true";
     document.body.append(textarea);
-    const setTool = vi.fn();
-    const { result, rerender } = renderHandShortcuts({ setTool });
+    const { result, rerender } = renderHandShortcuts();
 
     fireEvent.keyDown(textarea, { key: " ", code: "Space" });
     expect(result.current).toBe(true);
@@ -102,13 +91,10 @@ describe("useHandToolShortcuts", () => {
     rerender({
       canvasMode: "freeform",
       isCanvasTextEditing: true,
-      setTool,
     });
     fireEvent.keyDown(textarea, { key: " ", code: "Space" });
-    fireEvent.keyDown(textarea, { key: "H", shiftKey: true });
 
     expect(result.current).toBe(false);
-    expect(setTool).not.toHaveBeenCalled();
   });
 
   it("clears temporary pan on blur and when entering animation", () => {
@@ -123,7 +109,6 @@ describe("useHandToolShortcuts", () => {
     rerender({
       canvasMode: "animation",
       isCanvasTextEditing: false,
-      setTool: vi.fn(),
     });
     expect(result.current).toBe(false);
   });

@@ -13,6 +13,10 @@ import { createSelectionPreviewController } from "./preview/selectionPreviewCont
 import type { StructuredMovePreview } from "./structured/structuredInteractionPreview";
 import { createStructuredPreviewQueueController } from "./structured/structuredPreviewQueueExecution";
 import { createViewportInteractionController } from "./viewport/viewportInteractionController";
+import {
+  SHORTCUT_PRIORITY,
+  useShortcutLayer,
+} from "@/shared/shortcuts/dispatcher";
 
 type ControllerStore = Pick<
   EditorState,
@@ -132,16 +136,18 @@ export const useInteractionControllers = ({
     [selectionPreview, structuredPreviewQueue]
   );
 
-  useEffect(() => {
-    const syncModifierState = (event: KeyboardEvent) =>
+  useShortcutLayer({
+    id: "canvas-modifier-observer",
+    priority: SHORTCUT_PRIORITY.observer,
+    onKeyDown: (event) => {
       hoverInteraction.syncLinkModifierState(event);
-    window.addEventListener("keydown", syncModifierState);
-    window.addEventListener("keyup", syncModifierState);
-    return () => {
-      window.removeEventListener("keydown", syncModifierState);
-      window.removeEventListener("keyup", syncModifierState);
-    };
-  }, [hoverInteraction]);
+      return { claimed: false };
+    },
+    onKeyUp: (event) => {
+      hoverInteraction.syncLinkModifierState(event);
+      return { claimed: false };
+    },
+  });
 
   useEffect(() => {
     if (interactionRuntime.getState().type !== "panning") {

@@ -46,7 +46,10 @@ const seedFreeformSelection = async (page: Page) => {
   await page.reload();
   const surface = page.getByTestId("ascii-canvas-surface");
   await expect(surface).toBeVisible();
-  await page.getByRole("button", { name: "Select" }).click();
+  await page
+    .getByTestId("tool-dock")
+    .getByRole("button", { name: "Select", exact: true })
+    .click();
   const box = await surface.boundingBox();
   expect(box).not.toBeNull();
   const start = {
@@ -84,6 +87,28 @@ test.describe("editor clipboard shortcuts", () => {
       await expect.poll(() => readGrid(page)).toEqual([]);
     });
   }
+
+  test("platform digits select visible Dock tools without reserving Shift+H", async ({
+    page,
+  }, testInfo) => {
+    const dock = page.getByTestId("tool-dock");
+    const handItem = dock.locator('[data-toolbar-item="pan"]');
+    const selectItem = dock.locator('[data-toolbar-item="select"]');
+
+    const dockModifier =
+      testInfo.project.name === "webkit-shortcuts" ? "Control" : "Alt";
+    await page.keyboard.press(`${dockModifier}+1`);
+    await expect(handItem).toHaveClass(/bg-accent/);
+
+    await page.keyboard.press(`${dockModifier}+2`);
+    await expect(selectItem).toHaveClass(/bg-accent/);
+
+    await page.keyboard.press("Shift+H");
+    await expect(selectItem).toHaveClass(/bg-accent/);
+
+    await dock.getByRole("button", { name: "Hand" }).hover();
+    await expect(page.getByRole("tooltip")).toContainText(/(?:Alt\+|⌃)1/);
+  });
 
   test("Meta+x followed by Meta+v restores the cut selection", async ({
     browserName,

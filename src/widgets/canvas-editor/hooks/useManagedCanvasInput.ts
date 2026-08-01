@@ -12,7 +12,6 @@ import {
   type KeyboardEvent,
   type PointerEvent,
 } from "react";
-import { useEventListener } from "ahooks";
 import type { CanvasMode } from "@/domains/sessions/public";
 import { gridCellRect } from "@/shared/metrics";
 import {
@@ -26,6 +25,10 @@ import {
   runAction,
 } from "@/domains/actions/public";
 import type { CanvasEditorModel } from "./canvasModels";
+import {
+  SHORTCUT_PRIORITY,
+  useShortcutLayer,
+} from "@/shared/shortcuts/dispatcher";
 import {
   createClipboardShortcutCoordinator,
   type ClipboardShortcutAction,
@@ -230,6 +233,40 @@ export const useManagedCanvasInput = ({
     };
   }, [clipboardShortcutCoordinator]);
 
+  useShortcutLayer({
+    id: "managed-canvas-commands",
+    priority: SHORTCUT_PRIORITY.managedCanvas,
+    enabled: canvasOwnsInputFocus,
+    onKeyDown: (event, context) => {
+      if (
+        context.targetKind !== "managed-canvas" ||
+        event.target !== textareaRef.current
+      ) {
+        return;
+      }
+      const clipboardCommand = resolveActionShortcut(
+        event,
+        ["copy", "cut", "paste"] as const
+      );
+      if (clipboardCommand) {
+        primeManagedTextarea();
+        clipboardShortcutCoordinator.begin(clipboardCommand);
+        return { claimed: true, preventDefault: false };
+      }
+      const historyCommand = resolveHistoryShortcutCommand(event);
+      if (!historyCommand) return;
+      const result = runAction(historyCommand, {
+        source: "canvas-keydown",
+        managedTextarea: textareaRef.current,
+        onUndo,
+        onRedo,
+      });
+      return result.succeeded
+        ? { claimed: true, preventDefault: true }
+        : undefined;
+    },
+  });
+
   const handleCopy = (e: ReactClipboardEvent<HTMLTextAreaElement>) => {
     if (clipboardShortcutCoordinator.handleNative('copy') === 'suppress') {
       e.preventDefault();
@@ -258,12 +295,22 @@ export const useManagedCanvasInput = ({
       e.preventDefault();
     }
   };
-  useEventListener('keydown', (event: globalThis.KeyboardEvent) => {
-    if (event.key !== 'Escape' || !canvasColorPickerTarget) return;
-
-    event.preventDefault();
-    setCanvasColorPickerTarget(null);
-    setHoveredGrid(null);
+  useShortcutLayer({
+    id: "canvas-color-picker",
+    priority: SHORTCUT_PRIORITY.dynamicCanvasCommand,
+    enabled: !!canvasColorPickerTarget,
+    onKeyDown: (event, context) => {
+      if (
+        event.key !== "Escape" ||
+        context.targetKind === "editable" ||
+        context.targetKind === "overlay"
+      ) {
+        return;
+      }
+      setCanvasColorPickerTarget(null);
+      setHoveredGrid(null);
+      return { claimed: true, preventDefault: true };
+    },
   });
 
   const textareaStyle: CSSProperties = useMemo(() => {
@@ -299,28 +346,8 @@ export const useManagedCanvasInput = ({
 
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    e.stopPropagation();
     if (e.defaultPrevented) return;
     if (isComposing.current) return;
-    const clipboardCommand = resolveActionShortcut(
-      e,
-      ['copy', 'cut', 'paste'] as const
-    );
-    if (clipboardCommand) {
-      primeManagedTextarea();
-      clipboardShortcutCoordinator.begin(clipboardCommand);
-    }
-    const historyCommand = resolveHistoryShortcutCommand(e);
-    if (historyCommand) {
-      e.preventDefault();
-      runAction(historyCommand, {
-        source: 'canvas-keydown',
-        managedTextarea: textareaRef.current,
-        onUndo,
-        onRedo,
-      });
-      return;
-    }
     if (activeTextCursor) {
       if (e.key === 'Backspace') {
         e.preventDefault();

@@ -41,14 +41,32 @@ export type ToolbarActionId =
 // Sidebar Actions
 export type SidebarActionId =
   | "toggle-grid"
+  | "toggle-sidebar"
   | "open-source-code";
 
 // Unified Action ID
 export type ActionId = EditorActionId | ToolbarActionId | SidebarActionId;
 
+export type ShortcutToken =
+  | "mod"
+  | "shift"
+  | "alt"
+  | "delete"
+  | "backspace"
+  | "b"
+  | "z"
+  | "y"
+  | "c"
+  | "x"
+  | "v"
+  | "h";
+
+export type ShortcutChord = readonly ShortcutToken[];
+
 export interface ActionMeta {
   id: ActionId;
   label: string;
+  shortcuts?: readonly ShortcutChord[];
   icon?: ComponentType<{ className?: string }>;
   hasSub?: boolean;
   destructive?: boolean;

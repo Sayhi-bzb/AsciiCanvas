@@ -39,6 +39,15 @@ import { useShallow } from "zustand/react/shallow";
 import { AnimationTimeline } from "@/widgets/animation-timeline/AnimationTimeline";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { useUiI18n } from "@/shared/i18n";
+import {
+  SHORTCUT_PRIORITY,
+  useShortcutLayer,
+} from "@/shared/shortcuts/dispatcher";
+import {
+  getDockShortcutAriaLabel,
+  getDockShortcutLabel,
+  resolveDockShortcutIndex,
+} from "./dock/shortcuts";
 
 const ToolbarSubmenuIcon = HOST_ICONOLOGY.chrome["toolbar-submenu"];
 
@@ -46,6 +55,8 @@ interface ToolbarProps {
   tool: ToolType;
   setTool: (tool: ToolType) => void;
   onUndo: () => void;
+  isCanvasTextEditing: boolean;
+  onExitCanvasTextEditing: () => void;
 }
 
 const FREEFORM_ACTION_ORDER: ToolbarActionId[] = [
@@ -65,7 +76,13 @@ const STRUCTURED_ACTION_ORDER: ToolbarActionId[] = [
   "color",
 ];
 
-export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
+export function Toolbar({
+  tool,
+  setTool,
+  onUndo,
+  isCanvasTextEditing,
+  onExitCanvasTextEditing,
+}: ToolbarProps) {
   const { t } = useUiI18n();
   const {
     brushChar,
@@ -181,6 +198,42 @@ export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
     return idx !== -1 ? idx : 0;
   }, [tool, isShapeGroupActive, navItems]);
 
+  useShortcutLayer({
+    id: "dock-tools",
+    priority: SHORTCUT_PRIORITY.dynamicCanvasCommand,
+    enabled: openSubMenuId === null,
+    onKeyDown: (event, context) => {
+      if (
+        context.targetKind === "editable" ||
+        context.targetKind === "overlay"
+      ) {
+        return;
+      }
+      const shortcutIndex = resolveDockShortcutIndex(event, navItems.length);
+      if (shortcutIndex === null) return;
+      const item = navItems[shortcutIndex];
+      if (!item) return;
+
+      if (isCanvasTextEditing) onExitCanvasTextEditing();
+
+      if (item.id === "color") {
+        setOpenSubMenuId("color");
+        return { claimed: true, preventDefault: true };
+      }
+
+      const result = runToolbarAction(item.id as ToolbarActionId, {
+        tool,
+        isShapeGroupActive,
+        lastUsedShape,
+        setTool,
+        onUndo,
+      });
+      return result.succeeded
+        ? { claimed: true, preventDefault: true }
+        : undefined;
+    },
+  });
+
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
         <div
@@ -200,6 +253,8 @@ export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
               const isActive = index === activeIndex;
               const Icon = item.icon;
               const isColorTab = item.id === "color";
+              const shortcutLabel = getDockShortcutLabel(index);
+              const shortcutAriaLabel = getDockShortcutAriaLabel(index);
               const submenuTrigger = (
                 <button
                   data-toolbar-submenu-trigger="true"
@@ -238,6 +293,7 @@ export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
                           })
                         }
                         aria-label={item.label}
+                        aria-keyshortcuts={shortcutAriaLabel}
                         className={cn(
                           uiClass.hostIconControl,
                           item.hasSub && "rounded-r-none"
@@ -253,8 +309,14 @@ export function Toolbar({ tool, setTool, onUndo }: ToolbarProps) {
                         ) : null}
                       </button>
                     </TooltipTrigger>
-                    <TooltipContent side="top" className="text-xs">
-                      {item.label}
+                    <TooltipContent
+                      side="top"
+                      className="flex items-center gap-2 text-xs"
+                    >
+                      <span>{item.label}</span>
+                      <kbd className="font-mono text-[10px] text-muted-foreground">
+                        {shortcutLabel}
+                      </kbd>
                     </TooltipContent>
                   </Tooltip>
 

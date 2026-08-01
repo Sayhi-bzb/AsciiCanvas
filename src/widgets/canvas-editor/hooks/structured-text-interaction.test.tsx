@@ -8,6 +8,7 @@ import { useEditorStore } from "@/domains/canvas/public";
 import { runUndo } from "@/domains/actions/public";
 import { useShallow } from "zustand/react/shallow";
 import type { ToolType } from "@/domains/canvas/public";
+import { ShortcutProvider } from "@/shared/shortcuts/dispatcher";
 
 const gestureState = vi.hoisted(() => ({
   handlers: null as Record<string, (input: unknown) => void> | null,
@@ -22,7 +23,7 @@ vi.mock("@use-gesture/react", () => ({
   }),
 }));
 
-function InteractionHarness() {
+function InteractionHarnessContent() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const structuredMovePreviewRef = useRef<StructuredMovePreview | null>(null);
   const requestRenderRef = useRef<(() => void) | null>(null);
@@ -84,6 +85,14 @@ function InteractionHarness() {
       }
       onDoubleClick={handleDoubleClick}
     />
+  );
+}
+
+function InteractionHarness() {
+  return (
+    <ShortcutProvider>
+      <InteractionHarnessContent />
+    </ShortcutProvider>
   );
 }
 
