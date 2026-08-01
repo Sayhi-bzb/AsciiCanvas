@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { Toolbar as ToolbarUnderTest } from "@/widgets/toolbar/dock";
-import { ColorPickerPanel } from "@/widgets/toolbar/dock/submenus";
+import { ColorPickerPanel } from "@/widgets/color-picker";
 import { useEditorStore } from "@/domains/canvas/public";
 import { setUiLanguage } from "@/shared/i18n";
 import { ShortcutProvider } from "@/shared/shortcuts/dispatcher";
@@ -110,9 +110,31 @@ describe("Toolbar dock", () => {
       code: "Digit6",
       altKey: true,
     });
+    const colorDialog = await screen.findByRole("dialog", { name: "Color" });
     expect(
-      await screen.findByRole("tablist", { name: "Color palettes" })
+      screen.getByRole("tablist", { name: "Color palettes" })
     ).toBeInTheDocument();
+    await waitFor(() => expect(colorDialog).toHaveFocus());
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
+
+  it("returns focus to the color trigger when its popover closes", async () => {
+    useEditorStore.setState({ canvasMode: "animation", tool: "select" });
+    render(<Toolbar tool="select" setTool={vi.fn()} onUndo={vi.fn()} />);
+
+    const trigger = screen.getByRole("button", {
+      name: "Open Color options",
+    });
+    fireEvent.click(trigger);
+
+    const colorDialog = await screen.findByRole("dialog", { name: "Color" });
+    await waitFor(() => expect(colorDialog).toHaveFocus());
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+
+    fireEvent.keyDown(colorDialog, { key: "Escape" });
+
+    await waitFor(() => expect(colorDialog).not.toBeInTheDocument());
+    expect(trigger).toHaveFocus();
   });
 
   it("exits canvas text editing before using a Dock shortcut", () => {
@@ -526,7 +548,7 @@ describe("Toolbar dock", () => {
       name: "Color palettes",
     });
     expect(paletteTabs).toHaveAttribute("data-orientation", "vertical");
-    expect(paletteTabs).toHaveClass("order-2", "w-fit", "flex-col", "gap-1");
+    expect(paletteTabs).toHaveClass("w-fit", "flex-col", "gap-1");
     const ansiTab = screen.getByRole("tab", { name: "ANSI 16" });
     expect(ansiTab).toHaveClass(
       "size-8",
@@ -550,7 +572,10 @@ describe("Toolbar dock", () => {
       "px-1"
     );
     const contentFrame = screen.getByTestId("color-picker-content-frame");
-    expect(contentFrame).toHaveClass("order-1");
+    expect(
+      contentFrame.compareDocumentPosition(paletteTabs) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).not.toBe(0);
     expect(contentFrame).toHaveClass("h-[8.875rem]");
     expect(contentFrame).not.toHaveClass("h-[6.375rem]");
 

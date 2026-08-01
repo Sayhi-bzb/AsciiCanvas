@@ -9,10 +9,12 @@ import { Label } from "@/shared/ui/label";
 import { ScrollArea } from "@/shared/ui/scroll-area";
 import {
   Popover,
-  PopoverContent,
   PopoverTrigger,
 } from "@/shared/ui/popover";
-import { ColorPickerPanel } from "@/widgets/toolbar/dock/submenus";
+import {
+  ColorPickerPanel,
+  ColorPickerPopoverContent,
+} from "@/widgets/color-picker";
 import { cn } from "@/shared/lib/utils";
 import type {
   AnimationGeneratorConfig,
@@ -138,13 +140,17 @@ function ColorField({
             <span className="truncate">Pick color</span>
           </button>
         </PopoverTrigger>
-        <PopoverContent side="right" align="start" className="w-auto p-0">
+        <ColorPickerPopoverContent
+          side="right"
+          align="start"
+          className="w-auto p-0"
+        >
           <ColorPickerPanel
             value={value}
             onPick={onChange}
             showCustomInput={false}
           />
-        </PopoverContent>
+        </ColorPickerPopoverContent>
       </Popover>
     </div>
   );

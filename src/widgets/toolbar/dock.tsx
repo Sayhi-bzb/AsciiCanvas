@@ -18,7 +18,6 @@ import {
 } from "@/shared/ui/tooltip";
 import {
   Popover,
-  PopoverContent,
   PopoverTrigger,
 } from "@/shared/ui/popover";
 import {
@@ -37,6 +36,7 @@ import {
 import { MATERIAL_PRESETS, SHAPE_TOOLS } from "./dock/constants";
 import { useShallow } from "zustand/react/shallow";
 import { AnimationTimeline } from "@/widgets/animation-timeline/AnimationTimeline";
+import { ColorPickerPopoverContent } from "@/widgets/color-picker";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { useUiI18n } from "@/shared/i18n";
 import {
@@ -258,6 +258,7 @@ export function Toolbar({
               const submenuTrigger = (
                 <button
                   data-toolbar-submenu-trigger="true"
+                  aria-label={t("toolbar.openSubmenu", { label: item.label })}
                   className={cn(
                     uiClass.hostIconControl,
                     "rounded-l-none opacity-30 hover:opacity-100",
@@ -329,7 +330,7 @@ export function Toolbar({
                         }
                       >
                         <PopoverTrigger asChild>{submenuTrigger}</PopoverTrigger>
-                        <PopoverContent
+                        <ColorPickerPopoverContent
                           side="top"
                           align="end"
                           sideOffset={12}
@@ -346,7 +347,7 @@ export function Toolbar({
                             }
                             onPicked={() => setOpenSubMenuId(null)}
                           />
-                        </PopoverContent>
+                        </ColorPickerPopoverContent>
                       </Popover>
                     ) : (
                       <DropdownMenu

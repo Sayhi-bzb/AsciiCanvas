@@ -14,6 +14,7 @@ This page governs icon behavior in Selection Toolbar, Tool Dock, Sidebar tabs an
 - A subordinate control associates with its principal control. Hovering or opening a Dock arrow or Top Bar close control activates the principal surface without affecting adjacent controls.
 - Compound principal and subordinate controls remain individually 32 x 32 px, remove their joined inner radii, and render no divider.
 - Every icon-only control has an accessible name. Add a tooltip when the icon meaning is not familiar from platform conventions.
+- Composite Popovers define initial focus explicitly. DOM order follows visual and keyboard order; opening a Popover must not focus a Tooltip trigger incidentally.
 
 - Dropdown, Popover, Context Menu, and Select surfaces use the medium `shadow-overlay`. Dialog, AlertDialog, Sheet, and mobile Sidebar surfaces use the restrained strongest `shadow-dialog`.
 - Shadows express container elevation only. Icons, embedded rails, fields, swatches, and semantic controls remain shadowless.

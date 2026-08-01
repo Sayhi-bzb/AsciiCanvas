@@ -106,6 +106,13 @@ test.describe("editor clipboard shortcuts", () => {
     await page.keyboard.press("Shift+H");
     await expect(selectItem).toHaveClass(/bg-accent/);
 
+    await page.keyboard.press(`${dockModifier}+6`);
+    const colorDialog = page.getByRole("dialog", { name: "Color" });
+    await expect(colorDialog).toBeFocused();
+    await expect(page.getByRole("tooltip")).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    await expect(colorDialog).toBeHidden();
+
     await dock.getByRole("button", { name: "Hand" }).hover();
     await expect(page.getByRole("tooltip")).toContainText(/(?:Alt\+|⌃)1/);
   });
