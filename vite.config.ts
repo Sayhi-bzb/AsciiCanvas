@@ -29,9 +29,6 @@ export default defineConfig({
           ) {
             return "motion";
           }
-          if (normalizedId.includes("/node_modules/yjs/")) {
-            return "yjs";
-          }
           if (normalizedId.includes("/node_modules/lucide-react/")) {
             return "icons";
           }
