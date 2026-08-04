@@ -4,7 +4,6 @@ import type { GridCell, GridMap, SelectionArea } from "@/shared/types";
 import type { AnimationCanvasSize } from "@/domains/animation/public";
 import {
   cloneTextAttributes,
-  effectiveCellStyle,
   isSameTextAttributes,
   parseAnsiHexColor,
   toShortestAnsiColor,
@@ -75,7 +74,7 @@ const buildAnsiPiecesFromBounds = (
 
 const resolveAnsiPieceStyle = (piece: AnsiPiece): ActiveAnsiState => {
   if (!piece.cell) return DEFAULT_ANSI_STYLE;
-  const style = effectiveCellStyle(piece.cell);
+  const style = piece.cell;
   const foregroundColor =
     parseAnsiHexColor(style.color) && !isAnsiDefaultForeground(style.color)
       ? style.color
@@ -376,4 +375,3 @@ export const exportSelectionToJSON = (
     cells,
   });
 };
-

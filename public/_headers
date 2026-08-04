@@ -7,6 +7,9 @@
 /fonts/manifest.json
   Cache-Control: public, max-age=3600, must-revalidate
 
+/assets/*.woff2
+  Cache-Control: public, max-age=31536000, immutable
+
 /data/characters/manifest.json
   Cache-Control: public, max-age=3600, must-revalidate
 

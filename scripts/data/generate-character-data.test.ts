@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   UNICODE_DATA_VERSION,
   WIDE_EAST_ASIAN_RANGES,
-} from "../../src/shared/metrics/generated/eastAsianWidth";
+} from "../../packages/protocol/src/generated/eastAsianWidth";
 
 const root = path.resolve("public/data/characters");
 const manifest = JSON.parse(

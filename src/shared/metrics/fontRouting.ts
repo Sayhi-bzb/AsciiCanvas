@@ -1,13 +1,9 @@
-export type RenderFontRoute = "text" | "emoji";
+import {
+  ASCII_CANVAS_FONT_PROFILE,
+  type AsciiCanvasFontRoute,
+} from "@ascii-canvas/fonts";
 
-const TEXT_RENDER_FONT_FAMILY =
-  "'Maple Mono NF CN', 'Noto Sans Symbols 2', ui-monospace, " +
-  "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', " +
-  "'Courier New', monospace";
-
-const EMOJI_RENDER_FONT_FAMILY =
-  "'Noto Emoji', 'Noto Sans Symbols 2', 'Maple Mono NF CN', " +
-  "ui-monospace, monospace";
+export type RenderFontRoute = AsciiCanvasFontRoute;
 
 const EMOJI_PRESENTATION = /\p{Emoji_Presentation}/u;
 const EMOJI_MODIFIER = /\p{Emoji_Modifier}/u;
@@ -33,9 +29,7 @@ export const resolveRenderFontRoute = (
 };
 
 export const getRenderFontFamily = (route: RenderFontRoute) =>
-  route === "emoji"
-    ? EMOJI_RENDER_FONT_FAMILY
-    : TEXT_RENDER_FONT_FAMILY;
+  ASCII_CANVAS_FONT_PROFILE.families[route];
 
 export const getRenderFontFamilyForGrapheme = (grapheme: string) =>
   getRenderFontFamily(resolveRenderFontRoute(grapheme));

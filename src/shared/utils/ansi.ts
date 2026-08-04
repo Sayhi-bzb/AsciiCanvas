@@ -1,4 +1,5 @@
 import type { GridCell, TextAttributes } from "@/shared/types";
+import { BACKGROUND_COLOR } from "@/shared/lib/constants";
 
 export type AnsiStyleState = {
   color: string;
@@ -13,7 +14,7 @@ type AnsiToken = {
   changed: boolean;
 };
 
-const DEFAULT_FOREGROUND = "#000000";
+const DEFAULT_BACKGROUND = BACKGROUND_COLOR;
 const BASIC_COLORS = [
   "#000000",
   "#800000",
@@ -103,7 +104,7 @@ export const effectiveCellStyle = (cell: GridCell) => {
     };
   }
   return {
-    color: cell.bgColor ?? DEFAULT_FOREGROUND,
+    color: cell.bgColor ?? DEFAULT_BACKGROUND,
     bgColor: cell.color,
     attrs: cell.attrs,
   };

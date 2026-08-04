@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { parseAsciiCanvasText } from "@ascii-canvas/protocol";
 import {
   buildAnimationExchangeDocument,
   buildProtocolExportDocument,
@@ -786,7 +787,7 @@ describe("export utilities", () => {
     ).toBe("A");
   });
 
-  it("exports inverse ANSI using swapped effective colors", () => {
+  it("exports inverse ANSI using source colors for renderer resolution", () => {
     const grid: GridMap = new Map([
       [
         "0,0",
@@ -799,9 +800,15 @@ describe("export utilities", () => {
       ],
     ]);
 
-    expect(exportToAnsi(grid)).toBe(
-      "\u001b[7;94;101mA\u001b[m"
-    );
+    const ansi = exportToAnsi(grid);
+
+    expect(ansi).toBe("\u001b[7;91;104mA\u001b[m");
+    expect(parseAsciiCanvasText(ansi).cells[0]).toMatchObject({
+      text: "A",
+      color: "#ff0000",
+      bgColor: "#0000ff",
+      attrs: { inverse: true },
+    });
   });
 
   it("exports hyperlink cells as OSC 8-like shorthand", () => {

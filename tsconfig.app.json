@@ -2,7 +2,9 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@ascii-canvas/fonts": ["./packages/fonts/src/index.ts"],
+      "@ascii-canvas/protocol": ["./packages/protocol/src/index.ts"]
     },
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
     "target": "ES2022",

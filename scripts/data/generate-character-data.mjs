@@ -18,9 +18,9 @@ const sourceRoot = path.join(__dirname, "sources");
 const fontsRoot = path.join(repoRoot, "public", "fonts");
 const generatedMetricsDir = path.join(
   repoRoot,
+  "packages",
+  "protocol",
   "src",
-  "shared",
-  "metrics",
   "generated"
 );
 const verifyOnly = process.argv.includes("--verify");

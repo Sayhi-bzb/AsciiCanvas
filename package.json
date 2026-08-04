@@ -3,9 +3,12 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "npm run build -w @ascii-canvas/fonts && npm run build -w @ascii-canvas/protocol && tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "generate:character-data": "node scripts/data/generate-character-data.mjs",
@@ -15,12 +18,16 @@
     "knip": "knip",
     "check-style-api": "node scripts/quality/check-style-api.mjs",
     "test": "vitest",
+    "test:fonts": "npm test -w @ascii-canvas/fonts",
+    "test:protocol": "npm test -w @ascii-canvas/protocol",
     "test:coverage": "vitest --coverage",
     "test:e2e": "playwright test",
     "test:perf": "npm run build && node scripts/performance/run-perf.mjs",
     "check:boundaries": "node scripts/check-domain-boundaries.mjs"
   },
   "dependencies": {
+    "@ascii-canvas/fonts": "*",
+    "@ascii-canvas/protocol": "*",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",

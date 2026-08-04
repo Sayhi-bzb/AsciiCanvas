@@ -38,8 +38,19 @@ export default defineConfig({
     },
   },
   resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-    },
+    alias: [
+      {
+        find: /^@ascii-canvas\/fonts$/,
+        replacement: path.resolve(__dirname, "./packages/fonts/src/index.ts"),
+      },
+      {
+        find: "@ascii-canvas/protocol",
+        replacement: path.resolve(
+          __dirname,
+          "./packages/protocol/src/index.ts"
+        ),
+      },
+      { find: "@", replacement: path.resolve(__dirname, "./src") },
+    ],
   },
 });

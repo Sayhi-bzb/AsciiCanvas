@@ -1,0 +1,27 @@
+{
+  "name": "@ascii-canvas/protocol",
+  "version": "0.1.0",
+  "description": "AsciiCanvas Text Protocol parser and Unicode cell-width rules",
+  "type": "module",
+  "license": "MIT",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "fixtures",
+    "spec",
+    "README.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

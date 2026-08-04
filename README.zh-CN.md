@@ -72,7 +72,8 @@
 ### 5. 剪贴板、ANSI 与协议
 
 - **右键菜单**：复制、ANSI 复制、剪切、粘贴和删除。
-- **ANSI 导入导出**：支持标准 ESC ANSI，也支持 `[38;2;190;24;93m...` 这类 ANSI-like 文本。
+- **ANSI 导入导出**：支持标准 ESC ANSI，也支持 `[38;2;190;24;93m...` 这类 ANSI-like 文本，解释规则见 [AsciiCanvas Text Protocol v1](packages/protocol/spec/v1.md)。
+- **可移植渲染**：使用 [`@ascii-canvas/fonts`](packages/fonts/README.md) 获取默认 renderer font profile 与自托管字形资产。
 - **终端样式解析**：支持 8 色、亮色 16 色、256 色、truecolor SGR，以及 bold、italic、underline、strikethrough 等属性。
 - **文档协议**：JSON protocol v1 覆盖 Freeform、Structured、Animation 三种会话，作为稳定导入导出格式。
 

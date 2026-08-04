@@ -82,7 +82,8 @@ It supports three session modes:
 ### 5. Clipboard, ANSI, And Protocol
 
 - **Context menu**: copy, copy as ANSI, cut, paste, and delete from the canvas.
-- **ANSI import/export**: paste standard ESC ANSI or ANSI-like text such as `[38;2;190;24;93m...`.
+- **ANSI import/export**: paste standard ESC ANSI or ANSI-like text such as `[38;2;190;24;93m...`, interpreted by the [AsciiCanvas Text Protocol v1](packages/protocol/spec/v1.md).
+- **Portable rendering**: use [`@ascii-canvas/fonts`](packages/fonts/README.md) for the default renderer font profile and self-hosted glyph assets.
 - **Terminal style parsing**: supports 8-color, bright 16-color, 256-color, truecolor SGR, and attributes such as bold, italic, underline, and strikethrough.
 - **Document protocol**: JSON protocol v1 covers Freeform, Structured, and Animation sessions for durable import/export.
 

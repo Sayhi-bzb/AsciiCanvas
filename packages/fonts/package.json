@@ -1,0 +1,30 @@
+{
+  "name": "@ascii-canvas/fonts",
+  "version": "0.1.0",
+  "description": "Self-hosted fonts and the default AsciiCanvas renderer font profile",
+  "type": "module",
+  "license": "MIT",
+  "sideEffects": ["./fonts.css"],
+  "files": [
+    "assets",
+    "dist",
+    "fonts.css",
+    "manifest.json",
+    "README.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./fonts.css": "./fonts.css",
+    "./manifest.json": "./manifest.json"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
