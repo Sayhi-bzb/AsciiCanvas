@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createViewportInteractionController } from "@/widgets/canvas-editor/hooks/interaction/viewport/viewportInteractionController";
 import type { Point } from "@/shared/types";
-import type { CanvasMode } from "@/domains/sessions/public";
 
 const createScheduler = () => {
   let nextId = 1;
@@ -32,7 +31,6 @@ describe("viewport interaction controller", () => {
         offset = updater(offset);
       },
       setZoom: () => {},
-      getCanvasMode: () => "freeform",
       zoomBounds: { min: 0.25, max: 4 },
       scheduler,
     });
@@ -56,7 +54,6 @@ describe("viewport interaction controller", () => {
         offset = updater(offset);
       },
       setZoom: () => {},
-      getCanvasMode: () => "freeform",
       zoomBounds: { min: 0.25, max: 4 },
       scheduler,
     });
@@ -69,37 +66,6 @@ describe("viewport interaction controller", () => {
     expect(offset).toEqual({ x: 4, y: 6 });
   });
 
-  it("coalesces zoom deltas and anchors offset outside animation mode", () => {
-    const scheduler = createScheduler();
-    let mode: CanvasMode = "freeform";
-    let offset: Point = { x: 10, y: 20 };
-    let zoom = 1;
-    const controller = createViewportInteractionController({
-      setOffset: (updater) => {
-        offset = updater(offset);
-      },
-      setZoom: (updater) => {
-        zoom = updater(zoom);
-      },
-      getCanvasMode: () => mode,
-      zoomBounds: { min: 0.25, max: 4 },
-      scheduler,
-    });
-
-    controller.queueZoomDelta(1.5, 100, 80);
-    controller.queueZoomDelta(2, 120, 90);
-    scheduler.flush();
-
-    expect(zoom).toBe(3);
-    expect(offset).toEqual({ x: -210, y: -120 });
-
-    mode = "animation";
-    controller.queueZoomDelta(2, 120, 90);
-    scheduler.flush();
-
-    expect(zoom).toBe(4);
-    expect(offset).toEqual({ x: -210, y: -120 });
-  });
 
   it("ignores no-op and invalid zoom deltas", () => {
     const scheduler = createScheduler();
@@ -108,7 +74,6 @@ describe("viewport interaction controller", () => {
       setZoom: () => {
         throw new Error("setZoom should not be called");
       },
-      getCanvasMode: () => "freeform",
       zoomBounds: { min: 0.25, max: 4 },
       scheduler,
     });

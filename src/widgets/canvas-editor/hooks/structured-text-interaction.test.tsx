@@ -52,7 +52,6 @@ function InteractionHarnessContent() {
       updateScratchForShape: state.updateScratchForShape,
       setHoveredGrid: state.setHoveredGrid,
       fillArea: state.fillArea,
-      canvasBounds: state.canvasBounds,
       structuredScene: state.structuredScene,
       editingStructuredTextNodeId: state.editingStructuredTextNodeId,
       selectedStructuredNodeIds: state.selectedStructuredNodeIds,

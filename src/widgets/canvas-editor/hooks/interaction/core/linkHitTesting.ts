@@ -1,14 +1,6 @@
 import type { GridMap, Point } from "@/shared/types";
-import type { AnimationCanvasSize } from "@/domains/animation/public";
-import {
-  getCellOccupancy } from "@/shared/metrics";
+import { getCellOccupancy } from "@/shared/metrics";
 import { GridManager } from "@/shared/utils/grid";
-import {
-  clampPointToBounds
-} from "@/domains/animation/public";
-import {
-  isPointWithinBounds
-} from "@/domains/animation/public";
 
 export interface CanvasLinkHit {
   y: number;
@@ -33,7 +25,12 @@ const resolveLinkedRun = (grid: GridMap, point: Point, href: string) => {
     startX = leftAnchor.x;
   }
 
-  let endX = point.x + getCellOccupancy(grid.get(GridManager.toKey(point.x, point.y))?.char ?? " ") - 1;
+  let endX =
+    point.x +
+    getCellOccupancy(
+      grid.get(GridManager.toKey(point.x, point.y))?.char ?? " "
+    ) -
+    1;
   while (endX < Number.MAX_SAFE_INTEGER) {
     const nextX = endX + 1;
     const width = getLinkedCellWidth(grid, nextX, point.y, href);
@@ -51,8 +48,6 @@ export const resolveCanvasLinkHit = (input: {
   offset: Point;
   zoom: number;
   grid: GridMap;
-  canvasMode: "freeform" | "structured" | "animation";
-  canvasBounds: AnimationCanvasSize | null;
 }): CanvasLinkHit | null => {
   const raw = GridManager.screenToGrid(
     input.clientX - input.rect.left,
@@ -61,20 +56,7 @@ export const resolveCanvasLinkHit = (input: {
     input.offset.y,
     input.zoom
   );
-  if (
-    input.canvasMode === "animation" &&
-    !isPointWithinBounds(raw, input.canvasBounds)
-  ) {
-    return null;
-  }
-
-  const point =
-    input.canvasMode === "animation"
-      ? clampPointToBounds(
-          GridManager.snapToCharStart(raw, input.grid),
-          input.canvasBounds
-        )
-      : GridManager.snapToCharStart(raw, input.grid);
+  const point = GridManager.snapToCharStart(raw, input.grid);
   const cell = input.grid.get(GridManager.toKey(point.x, point.y));
   return cell?.href ? resolveLinkedRun(input.grid, point, cell.href) : null;
 };

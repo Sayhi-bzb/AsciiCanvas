@@ -21,8 +21,6 @@ const seedSession = async (
           canvasMode: seededSession.mode,
           structuredScene: seededSession.scene ?? [],
           structuredComponents: [],
-          canvasBounds: seededSession.size ?? null,
-          animationTimeline: seededSession.timeline ?? null,
           brushChar: '#',
           brushColor: '#111827',
           showGrid: true,
@@ -132,8 +130,6 @@ test.describe('Canvas', () => {
             grid: [['0,0', { char: 'A', color: '#ffffff' }]],
             structuredScene: [],
             structuredComponents: [],
-            canvasBounds: null,
-            animationTimeline: null,
           },
           sessions: {
             activeId: 'canvas-1',
@@ -655,33 +651,4 @@ test.describe('Canvas', () => {
     expect(afterFirstInput).not.toContain('B');
   });
 
-  test('keeps animation viewport fixed during drag and advances frames', async ({ page }) => {
-    const viewport = { offset: { x: 180, y: 130 }, zoom: 1 };
-    const frames = [
-      { id: 'frame-1', name: 'Frame 1', grid: [] },
-      { id: 'frame-2', name: 'Frame 2', grid: [] },
-    ];
-    await seedSession(page, {
-      id: 'animation-e2e', name: 'Animation E2E', mode: 'animation',
-      scene: [], grid: [], size: { width: 20, height: 10 }, viewport,
-      timeline: {
-        frames, currentFrameId: frames[0].id, fps: 12, loop: true,
-        onionSkin: { enabled: true, backwardLayers: 1, forwardLayers: 1, opacityFalloff: [0.5] },
-      },
-    });
-    const box = await page.getByTestId('ascii-canvas-surface').boundingBox();
-    expect(box).not.toBeNull();
-    await page.mouse.move(box!.x + 500, box!.y + 300);
-    await page.mouse.down({ button: 'middle' });
-    await page.mouse.move(box!.x + 560, box!.y + 340);
-    await page.mouse.up({ button: 'middle' });
-
-    const afterDrag = await readPersistedState(page);
-    expect(afterDrag.offset).toEqual(viewport.offset);
-    await page.getByRole('button', { name: 'Next frame' }).click();
-    await expect.poll(async () => {
-      const state = await readPersistedState(page);
-      return state.animationTimeline.currentFrameId;
-    }).toBe('frame-2');
-  });
 });

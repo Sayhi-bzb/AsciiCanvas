@@ -3,27 +3,12 @@ import type { CanvasSession } from "@/domains/sessions/public";
 import type { CanvasMode } from "@/domains/sessions/public";
 import type { ToolType } from "../../model/tool";
 import type { StructuredComponentInstance, StructuredNode } from "@/domains/structured-content/public";
-import type { AnimationCanvasSize, AnimationTimeline } from "@/domains/animation/public";
 import { sceneToGridEntries } from "@/domains/structured-content/public";
 import { MIN_ZOOM, MAX_ZOOM } from "@/shared/lib/constants";
 import { serializeGrid } from "./snapshotHelpers";
 import { normalizeStructuredComponents } from "@/domains/structured-content/public";
 import { normalizeAndCloneScene } from "./snapshotHelpers";
-
-import {
-  createEmptyAnimationFrame,
-  createNextAnimationFrameName,
-  DEFAULT_ANIMATION_SIZE,
-  getAnimationFrameEntries,
-  normalizeAnimationCanvasSize,
-  normalizeAnimationTimeline,
-  updateAnimationFrameEntries,
-} from "@/domains/animation/public";
-import {
-  resolveNextSessionName,
-  createSessionId,
-  normalizeSessionMode,
-} from "@/domains/sessions/public";
+import { normalizeSessionMode } from "@/domains/sessions/public";
 
 export const DEFAULT_SESSION_ID = "canvas-1";
 export const DEFAULT_SESSION_NAME = "Canvas 1";
@@ -45,7 +30,6 @@ export const normalizeSessionViewport = (viewport: CanvasSession["viewport"] | u
 
 export const isToolAllowedForMode = (tool: ToolType, mode: CanvasMode) => {
   if (mode === "structured") return STRUCTURED_ALLOWED_TOOLS.includes(tool);
-  if (mode === "animation") return tool !== "text" && tool !== "bg";
   return tool !== "text";
 };
 
@@ -53,39 +37,7 @@ const getFallbackToolForMode = (mode: CanvasMode): ToolType => {
   return mode === "structured" ? "select" : "brush";
 };
 
-const createDefaultAnimationTimeline = (): AnimationTimeline => {
-  const initialFrame = createEmptyAnimationFrame(
-    undefined,
-    createNextAnimationFrameName([])
-  );
-  return normalizeAnimationTimeline({
-    frames: [initialFrame],
-    currentFrameId: initialFrame.id,
-  });
-};
-
 export const buildSessionSnapshot = (state: EditorState) => {
-  if (state.canvasMode === "animation") {
-    const size = state.canvasBounds ?? DEFAULT_ANIMATION_SIZE;
-    const activeGridEntries = serializeGrid(state.grid);
-    const timeline = state.animationTimeline
-      ? updateAnimationFrameEntries(
-          state.animationTimeline,
-          state.animationTimeline.currentFrameId,
-          activeGridEntries
-        )
-      : normalizeAnimationTimeline(undefined, activeGridEntries);
-    return {
-      mode: "animation" as const,
-      scene: [] as StructuredNode[],
-      components: [] as StructuredComponentInstance[],
-      grid: getAnimationFrameEntries(timeline, timeline.currentFrameId),
-      size,
-      timeline,
-      viewport: { offset: { ...state.offset }, zoom: state.zoom },
-    };
-  }
-
   if (state.canvasMode === "structured") {
     return {
       mode: "structured" as const,
@@ -111,29 +63,6 @@ export const resolveSessionRuntime = (session: CanvasSession, currentTool: ToolT
   const nextOffset = viewport?.offset ?? DEFAULT_VIEWPORT.offset;
   const nextZoom = viewport?.zoom ?? DEFAULT_VIEWPORT.zoom;
 
-  if (nextMode === "animation") {
-    const nextBounds = normalizeAnimationCanvasSize(session.size);
-    const nextTimeline = normalizeAnimationTimeline(session.timeline, session.grid);
-    const nextGridEntries = getAnimationFrameEntries(
-      nextTimeline,
-      nextTimeline.currentFrameId
-    );
-    return {
-      nextMode,
-      nextScene: [] as StructuredNode[],
-      nextComponents: [] as StructuredComponentInstance[],
-      nextGridEntries,
-      nextTool: isToolAllowedForMode(currentTool, nextMode)
-        ? currentTool
-        : getFallbackToolForMode(nextMode),
-      nextBounds,
-      nextTimeline,
-      nextOffset,
-      nextZoom,
-      hasSavedViewport: !!viewport,
-    };
-  }
-
   const nextScene =
     nextMode === "structured" ? normalizeAndCloneScene(session.scene) : [];
   const nextComponents =
@@ -151,27 +80,8 @@ export const resolveSessionRuntime = (session: CanvasSession, currentTool: ToolT
     nextTool: isToolAllowedForMode(currentTool, nextMode)
       ? currentTool
       : getFallbackToolForMode(nextMode),
-    nextBounds: null as AnimationCanvasSize | null,
-    nextTimeline: null as AnimationTimeline | null,
     nextOffset,
     nextZoom,
     hasSavedViewport: !!viewport,
-  };
-};
-
-export const createAnimationSession = (
-  sessions: CanvasSession[],
-  size?: AnimationCanvasSize
-): CanvasSession => {
-  const timeline = createDefaultAnimationTimeline();
-  const normalizedSize = normalizeAnimationCanvasSize(size);
-  return {
-    id: createSessionId(sessions),
-    name: resolveNextSessionName(sessions),
-    mode: "animation",
-    scene: [],
-    grid: getAnimationFrameEntries(timeline, timeline.currentFrameId),
-    size: normalizedSize,
-    timeline,
   };
 };

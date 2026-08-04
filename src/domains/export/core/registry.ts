@@ -29,7 +29,7 @@ const EXPORT_FORMATS: readonly ExportFormatDefinition[] = [
     format: "ascanvas",
     label: "AsciiCanvas",
     subLabel: "project",
-    modes: ["freeform", "structured", "animation"],
+    modes: ["freeform", "structured"],
     artifactKind: "text",
     supportsColor: true,
     supportsClipboard: true,
@@ -55,32 +55,11 @@ const EXPORT_FORMATS: readonly ExportFormatDefinition[] = [
     supportsClipboard: true,
     truncatePreview: false,
   },
-  {
-    format: "gif",
-    label: "GIF",
-    subLabel: "animation",
-    modes: ["animation"],
-    artifactKind: "blob",
-    supportsColor: true,
-    supportsClipboard: false,
-    truncatePreview: false,
-  },
-  {
-    format: "cast",
-    label: "CAST",
-    subLabel: "asciinema",
-    modes: ["animation"],
-    artifactKind: "text",
-    supportsColor: true,
-    supportsClipboard: true,
-    truncatePreview: true,
-  },
 ] as const;
 
 const FORMAT_ORDER: Record<CanvasMode, readonly ExportFormat[]> = {
   freeform: ["txt", "ascanvas", "ansi", "png"],
   structured: ["txt", "ascanvas", "ansi", "png"],
-  animation: ["ascanvas", "cast", "gif"],
 };
 
 export const getAvailableExportFormats = (mode: CanvasMode) =>

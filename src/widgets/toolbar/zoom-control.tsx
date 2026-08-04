@@ -33,10 +33,9 @@ type ZoomControlProps = {
 export function ZoomControl({ containerSize }: ZoomControlProps) {
   const isMobile = useIsMobile();
   const { t } = useUiI18n();
-  const { zoom, canvasMode, showGrid, setShowGrid, setOffset, setZoom } = useEditorStore(
+  const { zoom, showGrid, setShowGrid, setOffset, setZoom } = useEditorStore(
     useShallow((state) => ({
       zoom: state.zoom,
-      canvasMode: state.canvasMode,
       showGrid: state.showGrid,
       setShowGrid: state.setShowGrid,
       setOffset: state.setOffset,
@@ -54,10 +53,9 @@ export function ZoomControl({ containerSize }: ZoomControlProps) {
       createViewportInteractionController({
         setOffset,
         setZoom,
-        getCanvasMode: () => canvasMode,
         zoomBounds: { min: MIN_ZOOM, max: MAX_ZOOM },
       }),
-    [canvasMode, setOffset, setZoom]
+    [setOffset, setZoom]
   );
 
   useEffect(
@@ -70,12 +68,6 @@ export function ZoomControl({ containerSize }: ZoomControlProps) {
     },
     [viewportInteraction]
   );
-
-  useEffect(() => {
-    if (canvasMode !== 'animation') return;
-    const frameId = window.requestAnimationFrame(() => setMinimapOpen(false));
-    return () => window.cancelAnimationFrame(frameId);
-  }, [canvasMode]);
 
   const animateZoomTo = useCallback(
     (requestedZoom: number) => {
@@ -158,7 +150,7 @@ export function ZoomControl({ containerSize }: ZoomControlProps) {
       className={cn(uiClass.toolbarShell, 'fixed bottom-3 left-3 z-50')}
       aria-label={zoomLabel}
     >
-      {minimapOpen && canvasMode !== 'animation' && (
+      {minimapOpen && (
         <div
           data-testid="zoom-minimap"
           className={cn(
@@ -216,7 +208,7 @@ export function ZoomControl({ containerSize }: ZoomControlProps) {
         className={cn(
           uiClass.hostIconControl,
           showGrid && uiClass.hostControlActive,
-          canvasMode === 'animation' ? 'rounded-l-none' : 'rounded-none'
+          'rounded-none'
         )}
         aria-label={gridLabel}
         aria-pressed={showGrid}
@@ -233,7 +225,7 @@ export function ZoomControl({ containerSize }: ZoomControlProps) {
       >
         <GridIcon />
       </Button>
-      {canvasMode !== 'animation' && (
+      {
         <Button
           tone="subtle"
           size="md"
@@ -251,7 +243,7 @@ export function ZoomControl({ containerSize }: ZoomControlProps) {
         >
           <MinimapIcon />
         </Button>
-      )}
+      }
     </div>
   );
 }

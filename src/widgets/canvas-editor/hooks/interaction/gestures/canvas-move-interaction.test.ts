@@ -92,18 +92,5 @@ describe("canvas move interaction decisions", () => {
     });
   });
 
-  it("routes eraser hover using animation-aware hover points", () => {
-    expect(
-      resolveCanvasMoveDecision({
-        ...baseInput,
-        tool: "eraser",
-        eraserHoverPoint: { x: 9, y: 1 },
-      })
-    ).toEqual({
-      type: "canvas-hover",
-      linkHit,
-      action: { type: "eraser-hover", point: { x: 9, y: 1 } },
-    });
-  });
 });
 

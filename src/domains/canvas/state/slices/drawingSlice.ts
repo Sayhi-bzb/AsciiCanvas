@@ -19,7 +19,6 @@ import {
   canSplitStructuredSplitBoxLeaf,
   getStructuredSplitBoxLeafAtPoint,
 } from "@/domains/structured-content/public";
-import { filterGridPointsToBounds, filterPointsToBounds } from "@/domains/animation/public";
 import { cloneTextAttributes } from "@/shared/utils/ansi";
 import { splitGraphemes } from "@/shared/metrics";
 import {
@@ -53,9 +52,9 @@ export const createDrawingSlice: StateCreator<
   scratchLayer: null,
 
   setScratchLayer: (points) => {
-    const { brushColor, canvasBounds } = get();
+    const { brushColor } = get();
     const layer = new Map();
-    filterGridPointsToBounds(points, canvasBounds).forEach((p) => {
+    points.forEach((p) => {
       if (p.bgColor || p.attrs || p.href) {
         layer.set(GridManager.toKey(p.x, p.y), {
           char: p.char,
@@ -72,10 +71,10 @@ export const createDrawingSlice: StateCreator<
   },
 
   addScratchPoints: (points) => {
-    const { brushColor, canvasBounds } = get();
+    const { brushColor } = get();
     set((state) => {
       const layer = new Map(state.scratchLayer || []);
-      filterGridPointsToBounds(points, canvasBounds).forEach((p) => {
+      points.forEach((p) => {
         if (p.bgColor || p.attrs || p.href) {
           layer.set(GridManager.toKey(p.x, p.y), {
             char: p.char,
@@ -130,10 +129,7 @@ export const createDrawingSlice: StateCreator<
         break;
       }
     }
-    const coloredPoints = filterGridPointsToBounds(
-      points.map((p) => ({ ...p, color: p.color || color })),
-      get().canvasBounds
-    );
+    const coloredPoints = points.map((p) => ({ ...p, color: p.color || color }));
     get().setScratchLayer(coloredPoints);
   },
 
@@ -184,12 +180,11 @@ export const createDrawingSlice: StateCreator<
   },
 
   erasePoints: (points, shouldSaveHistory = true) => {
-    const { canvasMode, canvasBounds } = get();
+    const { canvasMode } = get();
     if (canvasMode === "structured") return;
-    const boundedPoints = filterPointsToBounds(points, canvasBounds);
-    if (boundedPoints.length === 0) return;
+    if (points.length === 0) return;
     runCanvasTransaction(() => {
-      boundedPoints.forEach((p) => {
+      points.forEach((p) => {
         deleteCellAt(yMainGrid, p.x, p.y);
       });
     }, shouldSaveHistory);

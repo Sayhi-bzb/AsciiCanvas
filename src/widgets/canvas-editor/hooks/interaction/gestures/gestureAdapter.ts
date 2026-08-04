@@ -3,7 +3,6 @@ import { useGesture } from "@use-gesture/react";
 import type { CanvasMode } from "@/domains/sessions/public";
 import type { ToolType } from "@/domains/canvas/public";
 import type { StructuredNode } from "@/domains/structured-content/public";
-import type { AnimationCanvasSize } from "@/domains/animation/public";
 import { isCtrlOrMeta } from "@/shared/utils/event";
 import { MAX_ZOOM, MIN_ZOOM } from "@/shared/lib/constants";
 import {
@@ -33,7 +32,6 @@ export const useCanvasGestureAdapter = ({
   canvasMode,
   tool,
   brushChar,
-  canvasBounds,
   zoom,
   hasColorPickerTarget,
   selectedStructuredNodeIds,
@@ -58,7 +56,6 @@ export const useCanvasGestureAdapter = ({
   canvasMode: CanvasMode;
   tool: ToolType;
   brushChar: string;
-  canvasBounds: AnimationCanvasSize | null;
   zoom: number;
   hasColorPickerTarget: boolean;
   selectedStructuredNodeIds: string[];
@@ -88,7 +85,6 @@ export const useCanvasGestureAdapter = ({
       },
       onPinch: ({ offset: [scale], origin: [ox, oy], event }) => {
         canvasPinchRouteHandler({
-          canvasMode,
           pinchStartZoom: pinchStartZoomRef.current,
           scale,
           currentZoom: zoom,
@@ -139,7 +135,6 @@ export const useCanvasGestureAdapter = ({
           screenPoint,
           shiftKey: mouseEvent.shiftKey,
           anchorGrid: interactionRuntime.getSelectionAnchor(),
-          canvasBounds,
           brushChar,
           mouseDetail: mouseEvent.detail,
           preventDefault: () => event.preventDefault(),
@@ -162,8 +157,7 @@ export const useCanvasGestureAdapter = ({
               tool,
               canvasMode,
               currentGrid,
-              canvasBounds,
-              structuredScene,
+                  structuredScene,
             }),
         });
       },

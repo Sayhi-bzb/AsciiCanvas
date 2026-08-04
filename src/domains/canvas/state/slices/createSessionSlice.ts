@@ -9,7 +9,6 @@ import type {
 } from "@/domains/sessions/public";
 import {
   buildSessionSnapshot,
-  createAnimationSession,
   resolveSessionRuntime,
 } from "../helpers/storeUtils";
 import {
@@ -28,8 +27,6 @@ import {
 
 const getImportedSessionBaseName = (mode: CanvasSession["mode"]) => {
   switch (mode) {
-    case "animation":
-      return "Imported Animation";
     case "structured":
       return "Imported Structured";
     case "freeform":
@@ -67,15 +64,7 @@ const createImportedSession = (
     scene: snapshot.scene,
     components: snapshot.components,
     grid: snapshot.grid,
-  } satisfies Omit<CanvasSession, "size" | "timeline">;
-
-  if (snapshot.mode === "animation") {
-    return {
-      ...baseSession,
-      size: snapshot.size,
-      timeline: snapshot.timeline,
-    };
-  }
+  } satisfies CanvasSession;
 
   return baseSession;
 };
@@ -86,7 +75,7 @@ export const createSessionSlice: StateCreator<
   [],
   SessionCommands
 > = (set, get) => ({
-  createCanvasSession: (mode = "freeform", options) => {
+  createCanvasSession: (mode = "freeform") => {
     const state = get();
     const snapshot = buildSessionSnapshot(state);
     const sessionsWithSnapshot = withActiveCanvasSnapshot(
@@ -96,10 +85,7 @@ export const createSessionSlice: StateCreator<
     );
 
     const normalizedMode = normalizeSessionMode(mode);
-    const newSession =
-      normalizedMode === "animation"
-        ? createAnimationSession(sessionsWithSnapshot, options?.size)
-        : {
+    const newSession = {
             id: createSessionId(sessionsWithSnapshot),
             name: resolveNextSessionName(sessionsWithSnapshot),
             mode: normalizedMode,
@@ -128,10 +114,6 @@ export const createSessionSlice: StateCreator<
       structuredContextPoint: null,
       grid: createMapFromEntries(runtime.nextGridEntries),
       tool: runtime.nextTool,
-      canvasBounds: runtime.nextBounds,
-      animationTimeline: runtime.nextTimeline,
-      animationIsPlaying: false,
-      animationPlaybackFrameId: null,
       offset: runtime.nextOffset,
       zoom: runtime.nextZoom,
       activeCanvasHasSavedViewport: runtime.hasSavedViewport,
@@ -184,10 +166,6 @@ export const createSessionSlice: StateCreator<
       structuredContextPoint: null,
       grid: createMapFromEntries(runtime.nextGridEntries),
       tool: runtime.nextTool,
-      canvasBounds: runtime.nextBounds,
-      animationTimeline: runtime.nextTimeline,
-      animationIsPlaying: false,
-      animationPlaybackFrameId: null,
       offset: runtime.nextOffset,
       zoom: runtime.nextZoom,
       activeCanvasHasSavedViewport: runtime.hasSavedViewport,
@@ -236,10 +214,6 @@ export const createSessionSlice: StateCreator<
       structuredContextPoint: null,
       grid: createMapFromEntries(runtime.nextGridEntries),
       tool: runtime.nextTool,
-      canvasBounds: runtime.nextBounds,
-      animationTimeline: runtime.nextTimeline,
-      animationIsPlaying: false,
-      animationPlaybackFrameId: null,
       offset: runtime.nextOffset,
       zoom: runtime.nextZoom,
       activeCanvasHasSavedViewport: runtime.hasSavedViewport,
@@ -300,10 +274,6 @@ export const createSessionSlice: StateCreator<
       structuredContextPoint: null,
       grid: createMapFromEntries(runtime.nextGridEntries),
       tool: runtime.nextTool,
-      canvasBounds: runtime.nextBounds,
-      animationTimeline: runtime.nextTimeline,
-      animationIsPlaying: false,
-      animationPlaybackFrameId: null,
       offset: runtime.nextOffset,
       zoom: runtime.nextZoom,
       activeCanvasHasSavedViewport: runtime.hasSavedViewport,
@@ -329,7 +299,7 @@ export const createSessionSlice: StateCreator<
   setCanvasSessionCollaboration: (canvasId, collaboration, options) => {
     const state = get();
     const session = state.canvasSessions.find((item) => item.id === canvasId);
-    if (!session || session.mode === "animation") return;
+    if (!session) return;
 
     const reset = !!collaboration && !!options?.resetDocument;
     if (reset) resetCanvasDocument(canvasId, { grid: [], scene: [] });

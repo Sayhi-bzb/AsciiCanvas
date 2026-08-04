@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   resolveDragUpdateDecision,
-  resolveSelectionDragUpdatePreview,
   resolveShapePreviewUpdate,
   resolveStructuredTextDragSelection,
 } from "@/widgets/canvas-editor/hooks/interaction/gestures/dragUpdateInteraction";
@@ -44,12 +43,6 @@ const makeDrag = (
 });
 
 describe("canvas drag-update interaction decisions", () => {
-  it("builds animation-aware selection previews", () => {
-    expect(resolveSelectionDragUpdatePreview({
-      dragStart: { x: 1, y: 1 }, currentGrid: { x: 8, y: 5 },
-      canvasMode: "animation", canvasBounds: { width: 4, height: 3 },
-    })).toEqual({ start: { x: 1, y: 1 }, end: { x: 3, y: 2 } });
-  });
 
   it("locks line shape previews to the first dominant axis", () => {
     expect(resolveShapePreviewUpdate({
@@ -65,8 +58,7 @@ describe("canvas drag-update interaction decisions", () => {
   it("computes structured move deltas from typed state", () => {
     expect(resolveDragUpdateDecision({
       state: { type: "structuredMoving", anchor: { x: 2, y: 3 }, drag: makeDrag(boxNode) },
-      canvasMode: "structured", currentGrid: { x: 5, y: 1 },
-      canvasBounds: null, structuredScene: [boxNode],
+      canvasMode: "structured", currentGrid: { x: 5, y: 1 }, structuredScene: [boxNode],
     })).toMatchObject({ type: "structured-move", delta: { x: 3, y: -2 } });
   });
 
@@ -77,12 +69,10 @@ describe("canvas drag-update interaction decisions", () => {
       drag: makeDrag(splitBoxNode, "split:split-middle"),
     };
     expect(resolveDragUpdateDecision({
-      state, canvasMode: "structured", currentGrid: { x: 2, y: 2 },
-      canvasBounds: null, structuredScene: [splitBoxNode],
+      state, canvasMode: "structured", currentGrid: { x: 2, y: 2 }, structuredScene: [splitBoxNode],
     })).toEqual({ type: "none" });
     expect(resolveDragUpdateDecision({
-      state, canvasMode: "structured", currentGrid: { x: 3, y: 2 },
-      canvasBounds: null, structuredScene: [splitBoxNode],
+      state, canvasMode: "structured", currentGrid: { x: 3, y: 2 }, structuredScene: [splitBoxNode],
     })).toMatchObject({ type: "structured-splitbox-begin-divider-resize" });
   });
 
@@ -92,16 +82,14 @@ describe("canvas drag-update interaction decisions", () => {
         type: "structuredSplitBoxResizing", anchor: { x: 0, y: 0 },
         drag: makeDrag(splitBoxNode, "split:split-middle"),
       },
-      canvasMode: "structured", currentGrid: { x: 3, y: 2 },
-      canvasBounds: null, structuredScene: [splitBoxNode],
+      canvasMode: "structured", currentGrid: { x: 3, y: 2 }, structuredScene: [splitBoxNode],
     })).toMatchObject({ type: "structured-splitbox-divider-resize" });
     expect(resolveDragUpdateDecision({
       state: {
         type: "structuredSplitBoxResizing", anchor: { x: 0, y: 0 },
         drag: makeDrag(splitBoxNode, "se"),
       },
-      canvasMode: "structured", currentGrid: { x: 3, y: 2 },
-      canvasBounds: null, structuredScene: [splitBoxNode],
+      canvasMode: "structured", currentGrid: { x: 3, y: 2 }, structuredScene: [splitBoxNode],
     })).toMatchObject({ type: "structured-splitbox-resize", handle: "se" });
   });
 

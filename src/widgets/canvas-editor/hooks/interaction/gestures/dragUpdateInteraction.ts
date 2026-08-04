@@ -3,9 +3,6 @@ import type { CanvasMode } from "@/domains/sessions/public";
 import type { ToolType } from "@/domains/canvas/public";
 import type { StructuredNode } from "@/domains/structured-content/public";
 import {
-  clampSelectionToBounds
-} from "@/domains/animation/public";
-import {
   getStructuredTextCaretPoint,
   getStructuredTextOffsetAtPoint,
 } from "@/domains/structured-content/public";
@@ -78,17 +75,10 @@ export type DragUpdateDecision =
 export const resolveSelectionDragUpdatePreview = ({
   dragStart,
   currentGrid,
-  canvasMode,
-  canvasBounds,
 }: {
   dragStart: Point;
   currentGrid: Point;
-  canvasMode: CanvasMode;
-  canvasBounds: { width: number; height: number } | null;
-}): SelectionArea =>
-  canvasMode === "animation"
-    ? clampSelectionToBounds({ start: dragStart, end: currentGrid }, canvasBounds)
-    : { start: dragStart, end: currentGrid };
+}): SelectionArea => ({ start: dragStart, end: currentGrid });
 
 export const resolveShapePreviewUpdate = ({
   tool,
@@ -151,13 +141,11 @@ export const resolveStructuredTextDragSelection = ({
 export const resolveDragUpdateDecision = ({
   canvasMode,
   currentGrid,
-  canvasBounds,
   structuredScene,
   state,
 }: {
   canvasMode: CanvasMode;
   currentGrid: Point;
-  canvasBounds: { width: number; height: number } | null;
   structuredScene: StructuredNode[];
   state: InteractionState;
 }): DragUpdateDecision => {
@@ -168,8 +156,6 @@ export const resolveDragUpdateDecision = ({
         preview: resolveSelectionDragUpdatePreview({
           dragStart: state.anchor,
           currentGrid,
-          canvasMode,
-          canvasBounds,
         }),
       };
     case "drawing":

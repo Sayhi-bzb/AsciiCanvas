@@ -1,7 +1,6 @@
 import type { Point, TextAttributes } from "@/shared/types";
 import type { CanvasMode } from "@/domains/sessions/public";
 import type { StructuredComponentInstance, StructuredSplitBoxTreeNode, StructuredTextStyleRange } from "@/domains/structured-content/public";
-import type { AnimationCanvasSize } from "@/domains/animation/public";
 
 export const ASCII_CANVAS_DOCUMENT_TYPE = "ascii-canvas-document";
 export const ASCII_CANVAS_DOCUMENT_VERSION = 1;
@@ -17,17 +16,6 @@ export interface AsciiCanvasProtocolCellV1 {
   bgColor?: string;
   attrs?: TextAttributes;
   href?: string;
-}
-
-interface AsciiCanvasProtocolPlaybackV1 {
-  fps: number;
-  loop: boolean;
-}
-
-interface AsciiCanvasProtocolFrameV1 {
-  id: string;
-  name: string;
-  cells: AsciiCanvasProtocolCellV1[];
 }
 
 interface AsciiCanvasProtocolStyleV1 {
@@ -109,13 +97,6 @@ export interface AsciiCanvasFreeformDocumentV1
   cells: AsciiCanvasProtocolCellV1[];
 }
 
-export interface AsciiCanvasAnimationDocumentV1
-  extends AsciiCanvasDocumentBaseV1<"animation"> {
-  size: AnimationCanvasSize;
-  playback: AsciiCanvasProtocolPlaybackV1;
-  frames: AsciiCanvasProtocolFrameV1[];
-}
-
 export interface AsciiCanvasStructuredDocumentV1
   extends AsciiCanvasDocumentBaseV1<"structured"> {
   nodes: AsciiCanvasProtocolNodeV1[];
@@ -124,5 +105,4 @@ export interface AsciiCanvasStructuredDocumentV1
 
 export type AsciiCanvasDocumentV1 =
   | AsciiCanvasFreeformDocumentV1
-  | AsciiCanvasAnimationDocumentV1
   | AsciiCanvasStructuredDocumentV1;

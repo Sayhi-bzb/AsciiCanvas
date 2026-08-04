@@ -3,7 +3,6 @@ import {
   isSelectionTool,
   isShapeTool,
   resolveDrawingShapeDragStartDecision,
-  resolveDragStartRouteDecision,
   resolveSelectionDragStartDecision,
 } from "@/widgets/canvas-editor/hooks/interaction/gestures/dragStartInteraction";
 
@@ -26,62 +25,6 @@ describe("canvas drag-start interaction decisions", () => {
     expect(isShapeTool("circle", "structured")).toBe(false);
   });
 
-  it("routes drag starts before grid-specific handling", () => {
-    expect(
-      resolveDragStartRouteDecision({
-        canvasMode: "freeform",
-        tool: "select",
-        button: 0,
-        isCtrlOrMetaPressed: false,
-        hasColorPickerTarget: true,
-        hasCanvasRect: true,
-      })
-    ).toEqual({ type: "color-picker" });
-
-    expect(
-      resolveDragStartRouteDecision({
-        canvasMode: "freeform",
-        tool: "pan",
-        button: 0,
-        isCtrlOrMetaPressed: false,
-        hasColorPickerTarget: false,
-        hasCanvasRect: true,
-      })
-    ).toEqual({ type: "pan" });
-
-    expect(
-      resolveDragStartRouteDecision({
-        canvasMode: "animation",
-        tool: "pan",
-        button: 0,
-        isCtrlOrMetaPressed: false,
-        hasColorPickerTarget: false,
-        hasCanvasRect: true,
-      })
-    ).toEqual({ type: "primary-canvas" });
-
-    expect(
-      resolveDragStartRouteDecision({
-        canvasMode: "freeform",
-        tool: "select",
-        button: 1,
-        isCtrlOrMetaPressed: false,
-        hasColorPickerTarget: false,
-        hasCanvasRect: true,
-      })
-    ).toEqual({ type: "pan" });
-
-    expect(
-      resolveDragStartRouteDecision({
-        canvasMode: "freeform",
-        tool: "select",
-        button: 0,
-        isCtrlOrMetaPressed: false,
-        hasColorPickerTarget: false,
-        hasCanvasRect: false,
-      })
-    ).toEqual({ type: "ignore" });
-  });
   it("starts normal selection and clears the previous freeform selection", () => {
     expect(
       resolveSelectionDragStartDecision({
@@ -90,7 +33,6 @@ describe("canvas drag-start interaction decisions", () => {
         start,
         shiftKey: false,
         anchorGrid: null,
-        canvasBounds: null,
       })
     ).toEqual({
       type: "selection",
@@ -113,7 +55,6 @@ describe("canvas drag-start interaction decisions", () => {
         start,
         shiftKey: true,
         anchorGrid,
-        canvasBounds: null,
       })
     ).toEqual({
       type: "selection",
@@ -126,20 +67,6 @@ describe("canvas drag-start interaction decisions", () => {
     });
   });
 
-  it("clamps animation selection previews to canvas bounds", () => {
-    expect(
-      resolveSelectionDragStartDecision({
-        tool: "select",
-        canvasMode: "animation",
-        start: { x: 9, y: 4 },
-        shiftKey: false,
-        anchorGrid: null,
-        canvasBounds: { width: 5, height: 3 },
-      })
-    ).toMatchObject({
-      preview: { start: { x: 4, y: 2 }, end: { x: 4, y: 2 } },
-    });
-  });
 
   it("starts brush drawing with the first scratch point", () => {
     expect(

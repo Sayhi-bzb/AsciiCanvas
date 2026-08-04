@@ -152,7 +152,6 @@ function AppContent() {
     setTextCursor,
   ]);
   const isTemporaryPanActive = useHandToolShortcuts({
-    canvasMode,
     isCanvasTextEditing,
   });
 

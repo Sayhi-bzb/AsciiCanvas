@@ -47,11 +47,10 @@ export function CollaborationControl() {
   );
   const setCollaboration = useEditorStore((state) => state.setCanvasSessionCollaboration);
   const descriptor = activeSession?.collaboration;
-  const isAnimation = activeSession?.mode === 'animation';
 
   useEffect(() => {
     const incoming = parseCollaborationUrl();
-    if (!incoming || !activeSession || activeSession.mode === 'animation') return;
+    if (!incoming || !activeSession) return;
     if (!sameCollaborationRoom(activeSession.collaboration, incoming)) {
       setCollaboration(activeSession.id, incoming, { resetDocument: true });
     }
@@ -67,7 +66,7 @@ export function CollaborationControl() {
   const statusLabel = useMemo(() => t(STATUS_KEYS[snapshot.status]), [snapshot.status, t]);
 
   const start = (customEndpoint?: string) => {
-    if (!activeSession || isAnimation) return;
+    if (!activeSession) return;
     try {
       const next = createCollaborationDescriptor(customEndpoint);
       setCollaboration(activeSession.id, next);
@@ -135,7 +134,7 @@ export function CollaborationControl() {
               : t('collaboration.title')}
           </span>
           <span className="text-muted-foreground">
-            {isAnimation ? t('collaboration.animation.unavailable') : statusLabel}
+            {statusLabel}
           </span>
         </section>
 
@@ -163,7 +162,6 @@ export function CollaborationControl() {
         {!descriptor ? (
           <>
             <DropdownMenuItem
-              disabled={isAnimation}
               onSelect={(event) => {
                 keepOpen(event);
                 start();
@@ -194,10 +192,10 @@ export function CollaborationControl() {
                   value={endpoint}
                   onChange={(event) => setEndpoint(event.target.value)}
                   placeholder="wss://sync.example.com"
-                  disabled={isAnimation}
+
                   className="min-w-0 flex-1"
                 />
-                <Button type="submit" tone="subtle" disabled={isAnimation || !normalizedEndpoint}>
+                <Button type="submit" tone="subtle" disabled={!normalizedEndpoint}>
                   {t('collaboration.connect')}
                 </Button>
               </div>

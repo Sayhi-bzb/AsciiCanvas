@@ -1,14 +1,9 @@
-import {
-  getAnimationFrameEntries,
-  normalizeAnimationCanvasSize,
-  normalizeAnimationTimeline
-} from "@/domains/animation/public";import type { GridCell } from "@/shared/types";
+import type { GridCell } from "@/shared/types";
 import type { StructuredNode } from "@/domains/structured-content/public";
 import type { CanvasImportSnapshot } from "@/domains/sessions/public";
 import { GridManager } from "@/shared/utils/grid";
 import { sceneToGridEntries } from "@/domains/structured-content/public";
 import type {
-  AsciiCanvasAnimationDocumentV1,
   AsciiCanvasDocumentV1,
   AsciiCanvasFreeformDocumentV1,
   AsciiCanvasProtocolCellV1,
@@ -143,31 +138,6 @@ const importFreeformDocument = (
   };
 };
 
-const importAnimationDocument = (
-  document: AsciiCanvasAnimationDocumentV1
-): ProtocolImportSnapshot => {
-  const size = normalizeAnimationCanvasSize(document.size);
-  const timeline = normalizeAnimationTimeline({
-    currentFrameId: document.frames[0]?.id,
-    fps: document.playback.fps,
-    loop: document.playback.loop,
-    frames: document.frames.map((frame) => ({
-      id: frame.id,
-      name: frame.name,
-      grid: toGridEntries(frame.cells),
-    })),
-  });
-
-  return {
-    mode: "animation",
-    scene: [],
-    components: [],
-    size,
-    timeline,
-    grid: getAnimationFrameEntries(timeline, timeline.currentFrameId),
-  };
-};
-
 const importStructuredDocument = (
   document: AsciiCanvasStructuredDocumentV1
 ): ProtocolImportSnapshot => {
@@ -200,8 +170,6 @@ export const protocolDocumentToSnapshot = (
   switch (document.mode) {
     case "freeform":
       return importFreeformDocument(document);
-    case "animation":
-      return importAnimationDocument(document);
     case "structured":
       return importStructuredDocument(document);
   }

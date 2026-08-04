@@ -1,16 +1,18 @@
 import type { GridCell, Point } from "@/shared/types";
 import type { CanvasMode } from "./mode";
-import type { StructuredComponentInstance, StructuredNode } from "@/domains/structured-content/public";
-import type { AnimationCanvasSize, AnimationTimeline } from "@/domains/animation/public";
+import type {
+  StructuredComponentInstance,
+  StructuredNode,
+} from "@/domains/structured-content/public";
 import type { CanvasSession } from "./model";
 
-export const EDITOR_PERSISTENCE_VERSION = 2;
+export const EDITOR_PERSISTENCE_VERSION = 3;
 export const EDITOR_PERSISTENCE_KEY = "ascii-canvas-persistence";
-export const EDITOR_PERSISTENCE_V1_BACKUP_KEY =
-  "ascii-canvas-persistence-v1-backup";
+export const EDITOR_PERSISTENCE_V2_BACKUP_KEY =
+  "ascii-canvas-persistence-v2-backup";
 
-interface PersistedEditorStateV2 {
-  schemaVersion: 2;
+interface PersistedEditorStateV3 {
+  schemaVersion: 3;
   workspace: {
     offset: Point;
     zoom: number;
@@ -18,8 +20,6 @@ interface PersistedEditorStateV2 {
     grid: [string, GridCell][];
     structuredScene: StructuredNode[];
     structuredComponents: StructuredComponentInstance[];
-    canvasBounds: AnimationCanvasSize | null;
-    animationTimeline: AnimationTimeline | null;
   };
   sessions: {
     items: CanvasSession[];
@@ -44,11 +44,20 @@ const isPoint = (value: unknown): value is Point =>
   Number.isFinite(value.y);
 
 const isCanvasMode = (value: unknown): value is CanvasMode =>
-  value === "freeform" || value === "structured" || value === "animation";
+  value === "freeform" || value === "structured";
 
-export const isPersistedEditorStateV2 = (
+const createBlankSession = (): CanvasSession => ({
+  id: "canvas-1",
+  name: "Canvas 1",
+  mode: "freeform",
+  scene: [],
+  components: [],
+  grid: [],
+});
+
+export const isPersistedEditorStateV3 = (
   value: unknown
-): value is PersistedEditorStateV2 =>
+): value is PersistedEditorStateV3 =>
   isRecord(value) &&
   value.schemaVersion === EDITOR_PERSISTENCE_VERSION &&
   isRecord(value.workspace) &&
@@ -68,56 +77,68 @@ export const isPersistedEditorStateV2 = (
   typeof value.preferences.showGrid === "boolean" &&
   typeof value.preferences.exportShowGrid === "boolean";
 
-export const migratePersistedStateV1ToV2 = (
+export const migratePersistedStateToV3 = (
   value: unknown
-): PersistedEditorStateV2 => {
+): PersistedEditorStateV3 => {
   const state = isRecord(value) ? value : {};
-  const workspace = isRecord(state.workspace) ? state.workspace : state;
-  const sessions = isRecord(state.sessions) ? state.sessions : {};
+  const oldWorkspace = isRecord(state.workspace) ? state.workspace : state;
+  const oldSessions = isRecord(state.sessions) ? state.sessions : {};
   const preferences = isRecord(state.preferences) ? state.preferences : state;
-  const canvasMode = isCanvasMode(workspace.canvasMode)
-    ? workspace.canvasMode
-    : "freeform";
+  const rawItems = Array.isArray(oldSessions.items)
+    ? oldSessions.items
+    : Array.isArray(state.canvasSessions)
+      ? state.canvasSessions
+      : [];
+  const items = rawItems.filter(
+    (item): item is CanvasSession =>
+      isRecord(item) &&
+      typeof item.id === "string" &&
+      isCanvasMode(item.mode)
+  );
+  if (items.length === 0) items.push(createBlankSession());
+
+  const requestedActiveId =
+    typeof oldSessions.activeId === "string"
+      ? oldSessions.activeId
+      : typeof state.activeCanvasId === "string"
+        ? state.activeCanvasId
+        : "";
+  const activeId = items.some((item) => item.id === requestedActiveId)
+    ? requestedActiveId
+    : items[0].id;
+  const activeSession = items.find((item) => item.id === activeId) ?? items[0];
+  const oldWorkspaceMode = isCanvasMode(oldWorkspace.canvasMode)
+    ? oldWorkspace.canvasMode
+    : null;
+  const useWorkspace = oldWorkspaceMode === activeSession.mode;
+  const viewport = activeSession.viewport;
 
   return {
     schemaVersion: EDITOR_PERSISTENCE_VERSION,
     workspace: {
-      offset: isPoint(workspace.offset) ? workspace.offset : { x: 0, y: 0 },
+      offset: useWorkspace && isPoint(oldWorkspace.offset)
+        ? oldWorkspace.offset
+        : viewport?.offset ?? { x: 0, y: 0 },
       zoom:
-        typeof workspace.zoom === "number" && Number.isFinite(workspace.zoom)
-          ? workspace.zoom
-          : 1,
-      canvasMode,
-      grid: Array.isArray(workspace.grid)
-        ? (workspace.grid as [string, GridCell][])
-        : [],
-      structuredScene: Array.isArray(workspace.structuredScene)
-        ? (workspace.structuredScene as StructuredNode[])
-        : [],
+        useWorkspace &&
+        typeof oldWorkspace.zoom === "number" &&
+        Number.isFinite(oldWorkspace.zoom)
+          ? oldWorkspace.zoom
+          : viewport?.zoom ?? 1,
+      canvasMode: activeSession.mode,
+      grid: useWorkspace && Array.isArray(oldWorkspace.grid)
+        ? (oldWorkspace.grid as [string, GridCell][])
+        : activeSession.grid,
+      structuredScene:
+        useWorkspace && Array.isArray(oldWorkspace.structuredScene)
+          ? (oldWorkspace.structuredScene as StructuredNode[])
+          : activeSession.scene,
       structuredComponents:
-        Array.isArray(workspace.structuredComponents)
-          ? (workspace.structuredComponents as StructuredComponentInstance[])
-          : [],
-      canvasBounds: isRecord(workspace.canvasBounds)
-        ? (workspace.canvasBounds as unknown as AnimationCanvasSize)
-        : null,
-      animationTimeline: isRecord(workspace.animationTimeline)
-        ? (workspace.animationTimeline as unknown as AnimationTimeline)
-        : null,
+        useWorkspace && Array.isArray(oldWorkspace.structuredComponents)
+          ? (oldWorkspace.structuredComponents as StructuredComponentInstance[])
+          : activeSession.components ?? [],
     },
-    sessions: {
-      items: Array.isArray(sessions.items)
-        ? (sessions.items as CanvasSession[])
-        : Array.isArray(state.canvasSessions)
-          ? (state.canvasSessions as CanvasSession[])
-          : [],
-      activeId:
-        typeof sessions.activeId === "string"
-          ? sessions.activeId
-          : typeof state.activeCanvasId === "string"
-            ? state.activeCanvasId
-            : "",
-    },
+    sessions: { items, activeId },
     preferences: {
       brushChar:
         typeof preferences.brushChar === "string" ? preferences.brushChar : "#",
@@ -136,7 +157,7 @@ export const migratePersistedStateV1ToV2 = (
 };
 
 export const flattenPersistedEditorState = (
-  value: PersistedEditorStateV2
+  value: PersistedEditorStateV3
 ) => ({
   ...value.workspace,
   canvasSessions: value.sessions.items,

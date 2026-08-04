@@ -17,7 +17,6 @@ const baseInput = (grid: GridMap) => ({
   zoom: 1,
   grid,
   canvasMode: "freeform" as const,
-  canvasBounds: null,
 });
 
 describe("resolveCanvasLinkHit", () => {
@@ -82,20 +81,6 @@ describe("resolveCanvasLinkHit", () => {
     });
   });
 
-  it("returns null outside animation bounds", () => {
-    const grid: GridMap = new Map([
-      ["0,0", { char: "A", color: "#ffffff", href: "https://example.com" }],
-    ]);
-
-    expect(
-      resolveCanvasLinkHit({
-        ...baseInput(grid),
-        clientX: -8,
-        canvasMode: "animation",
-        canvasBounds: { width: 10, height: 10 },
-      })
-    ).toBeNull();
-  });
 });
 describe("canvas link modifier affordance", () => {
   const hit = { y: 0, startX: 0, endX: 2, href: "https://example.com" };

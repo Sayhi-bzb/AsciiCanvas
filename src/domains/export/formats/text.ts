@@ -1,7 +1,6 @@
 import { COLOR_PRIMARY_TEXT, EXPORT_PADDING } from "@/shared/lib/constants";
 import { getCellOccupancy } from "@/shared/metrics";
 import type { GridCell, GridMap, SelectionArea } from "@/shared/types";
-import type { AnimationCanvasSize } from "@/domains/animation/public";
 import {
   cloneTextAttributes,
   isSameTextAttributes,
@@ -310,30 +309,6 @@ export const exportToAnsi = (
   for (let y = minY; y <= maxY; y++) {
     const pieces = trimTrailingAnsiSpaces(
       buildAnsiPiecesFromBounds(grid, minX, maxX, y, options)
-    );
-    lines.push(serializeAnsiLine(pieces));
-  }
-
-  return lines.join("\n");
-};
-
-export const exportAnimationFrameToAnsi = (
-  size: AnimationCanvasSize,
-  frameGrid: [string, GridCell][],
-  options?: {
-    includeColor?: boolean;
-  }
-) => {
-  const grid = new Map(frameGrid);
-  const lines: string[] = [];
-
-  for (let y = 0; y < size.height; y++) {
-    const pieces = buildAnsiPiecesFromBounds(
-      grid,
-      0,
-      size.width - 1,
-      y,
-      options
     );
     lines.push(serializeAnsiLine(pieces));
   }

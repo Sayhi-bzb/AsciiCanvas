@@ -1,5 +1,4 @@
 import type { Point } from "@/shared/types";
-import type { CanvasMode } from "@/domains/sessions/public";
 import {
   resolveClampedZoom,
   resolveZoomAnchoredOffset,
@@ -29,13 +28,11 @@ type ViewportInteractionController = {
 export const createViewportInteractionController = ({
   setOffset,
   setZoom,
-  getCanvasMode,
   zoomBounds,
   scheduler = getDefaultRafScheduler(),
 }: {
   setOffset: OffsetSetter;
   setZoom: ZoomSetter;
-  getCanvasMode: () => CanvasMode;
   zoomBounds: { min: number; max: number };
   scheduler?: RafScheduler;
 }): ViewportInteractionController => {
@@ -92,16 +89,14 @@ export const createViewportInteractionController = ({
         max: zoomBounds.max,
       });
       if (nextZoom === currentZoom) return currentZoom;
-      if (getCanvasMode() !== "animation") {
-        setOffset((previous) =>
-          resolveZoomAnchoredOffset({
-            anchor: { x: queued.mouseX, y: queued.mouseY },
-            previousOffset: previous,
-            currentZoom,
-            nextZoom,
-          })
-        );
-      }
+      setOffset((previous) =>
+        resolveZoomAnchoredOffset({
+          anchor: { x: queued.mouseX, y: queued.mouseY },
+          previousOffset: previous,
+          currentZoom,
+          nextZoom,
+        })
+      );
       return nextZoom;
     });
   };

@@ -1,11 +1,9 @@
 import type { GridMap, Point } from "@/shared/types";
-import type { CanvasMode } from "@/domains/sessions/public";
 import type { StructuredNode } from "@/domains/structured-content/public";
-import type { AnimationCanvasSize } from "@/domains/animation/public";
 import { resolveCanvasLinkHit, type CanvasLinkHit } from "./linkHitTesting";
 import {
   getLocalCanvasPoint,
-  resolveAnimationAwareHoverGridPoint,
+  resolveHoverGridPoint,
   resolveSnappedGridPointFromScreen,
   type CanvasViewport,
 } from "./coordinates";
@@ -18,7 +16,7 @@ export type CanvasPointerContextResolver = {
   resolveLocalPoint: (clientX: number, clientY: number) => Point | null;
   resolveGridPoint: (clientX: number, clientY: number) => Point | null;
   resolveLinkHit: (clientX: number, clientY: number) => CanvasLinkHit | null;
-  resolveAnimationAwareHoverPoint: (
+  resolveHoverPoint: (
     clientX: number,
     clientY: number
   ) => Point | null;
@@ -42,14 +40,10 @@ export const createCanvasPointerContextResolver = ({
   getRect,
   getViewport,
   getGrid,
-  getCanvasMode,
-  getCanvasBounds,
 }: {
   getRect: () => CanvasRect | null | undefined;
   getViewport: () => CanvasViewport;
   getGrid: () => GridMap;
-  getCanvasMode: () => CanvasMode;
-  getCanvasBounds: () => AnimationCanvasSize | null;
 }): CanvasPointerContextResolver => {
   const hasCanvasRect = () => !!getRect();
 
@@ -68,8 +62,6 @@ export const createCanvasPointerContextResolver = ({
       rect,
       viewport: getViewport(),
       grid: getGrid(),
-      canvasMode: getCanvasMode(),
-      canvasBounds: getCanvasBounds(),
     });
   };
 
@@ -84,24 +76,20 @@ export const createCanvasPointerContextResolver = ({
       offset: viewport.offset,
       zoom: viewport.zoom,
       grid: getGrid(),
-      canvasMode: getCanvasMode(),
-      canvasBounds: getCanvasBounds(),
     });
   };
 
-  const resolveAnimationAwareHoverPoint = (
+  const resolveHoverPoint = (
     clientX: number,
     clientY: number
   ) => {
     const rect = getRect();
     if (!rect) return null;
-    return resolveAnimationAwareHoverGridPoint({
+    return resolveHoverGridPoint({
       clientX,
       clientY,
       rect,
       viewport: getViewport(),
-      canvasMode: getCanvasMode(),
-      canvasBounds: getCanvasBounds(),
     });
   };
 
@@ -137,7 +125,7 @@ export const createCanvasPointerContextResolver = ({
         linkHit: resolveLinkHit(clientX, clientY),
         structuredSelectCursor,
         eraserHoverPoint: shouldResolveEraserHoverPoint
-          ? resolveAnimationAwareHoverPoint(clientX, clientY)
+          ? resolveHoverPoint(clientX, clientY)
           : null,
       };
     };
@@ -147,7 +135,7 @@ export const createCanvasPointerContextResolver = ({
     resolveLocalPoint,
     resolveGridPoint,
     resolveLinkHit,
-    resolveAnimationAwareHoverPoint,
+    resolveHoverPoint,
     resolveMoveContext,
   };
 };

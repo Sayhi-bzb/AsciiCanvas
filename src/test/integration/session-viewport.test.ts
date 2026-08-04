@@ -1058,25 +1058,4 @@ describe("canvas session viewport state", () => {
     });
   });
 
-  it("allows freeform bg fill but falls back from unsupported tools per session mode", () => {
-    useEditorStore.getState().createCanvasSession("structured");
-    const structuredSessionId = useEditorStore.getState().activeCanvasId;
-
-    useEditorStore.getState().setTool("text");
-    expect(useEditorStore.getState().tool).toBe("text");
-    useEditorStore.getState().setTool("bg");
-    expect(useEditorStore.getState().tool).toBe("bg");
-
-    useEditorStore.getState().createCanvasSession("freeform");
-    expect(useEditorStore.getState().canvasMode).toBe("freeform");
-    expect(useEditorStore.getState().tool).toBe("bg");
-
-    useEditorStore.getState().createCanvasSession("animation");
-    expect(useEditorStore.getState().canvasMode).toBe("animation");
-    expect(useEditorStore.getState().tool).toBe("brush");
-
-    useEditorStore.getState().switchCanvasSession(structuredSessionId);
-    expect(useEditorStore.getState().canvasMode).toBe("structured");
-    expect(useEditorStore.getState().tool).toBe("select");
-  });
 });

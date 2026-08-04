@@ -6,15 +6,10 @@ export { prepareExport, prepareSelectionPngExport, prepareTextExport } from "./c
 export type { ExportContext, ExportFormat } from "./core/types";
 export { deliverExportClipboard, deliverExportDownload } from "./platform/browserDelivery";
 export {
-  buildAnimationExchangeDocument,
   buildProtocolExportDocument,
-  exportAnimationToJSON,
   exportProtocolToJSON,
 } from "./formats/protocol";
-export { createAnimationGifBlob } from "./formats/gif";
-export { exportAnimationToCast } from "./formats/cast";
 export {
-  exportAnimationFrameToAnsi,
   exportSelectionToAnsi,
   exportSelectionToJSON,
   exportSelectionToString,

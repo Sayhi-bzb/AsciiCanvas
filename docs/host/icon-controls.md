@@ -1,6 +1,6 @@
 # Core Host Icon Controls
 
-This page governs icon behavior in Selection Toolbar, Tool Dock, Sidebar tabs and toggle, App Menu, Breadcrumb, and Animation session bar.
+This page governs icon behavior in Selection Toolbar, Tool Dock, Sidebar tabs and toggle, App Menu, Breadcrumb.
 
 ## Contract
 
@@ -21,7 +21,7 @@ This page governs icon behavior in Selection Toolbar, Tool Dock, Sidebar tabs an
 
 ## Exceptions
 
-Destructive controls, color swatches, the onion-skin switch, fields, the mobile Sidebar FAB, and menu-row geometry retain their own semantic or primitive styling. These exceptions do not redefine Host container styling.
+Destructive controls, color swatches, fields, the mobile Sidebar FAB, and menu-row geometry retain their own semantic or primitive styling. These exceptions do not redefine Host container styling.
 
 ## Verification
 

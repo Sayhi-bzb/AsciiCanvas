@@ -2,7 +2,6 @@ import type { CanvasSession } from "./model";
 import type { Point } from "@/shared/types";
 import type { CanvasMode } from "./mode";
 import type { StructuredComponentInstance, StructuredNode } from "@/domains/structured-content/public";
-import type { AnimationCanvasSize, AnimationTimeline } from "@/domains/animation/public";
 
 export const resolveNextSessionName = (sessions: CanvasSession[]) => {
   let maxIndex = 0;
@@ -30,8 +29,6 @@ type ActiveSnapshot = {
   scene: StructuredNode[];
   components?: StructuredComponentInstance[];
   grid: [string, { char: string; color: string }][];
-  size?: AnimationCanvasSize;
-  timeline?: AnimationTimeline;
   viewport?: { offset: Point; zoom: number };
 };
 
@@ -48,8 +45,6 @@ export const withActiveCanvasSnapshot = (
           scene: snapshot.scene,
           components: snapshot.components,
           grid: snapshot.grid,
-          size: snapshot.mode === "animation" ? snapshot.size : undefined,
-          timeline: snapshot.mode === "animation" ? snapshot.timeline : undefined,
           viewport: snapshot.viewport,
         }
       : session
@@ -58,6 +53,5 @@ export const withActiveCanvasSnapshot = (
 
 export const normalizeSessionMode = (mode: unknown): CanvasMode => {
   if (mode === "structured") return "structured";
-  if (mode === "animation") return "animation";
   return "freeform";
 };

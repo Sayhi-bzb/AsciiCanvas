@@ -20,7 +20,6 @@ describe("canvas wheel interaction", () => {
     expect(
       resolveCanvasWheelDecision({
         isCtrlOrMetaPressed: true,
-        canvasMode: "freeform",
         deltaX: 0,
         deltaY: -100,
         shiftKey: false,
@@ -33,24 +32,11 @@ describe("canvas wheel interaction", () => {
     });
   });
 
-  it("routes normal wheels to pan outside animation mode", () => {
-    expect(
-      resolveCanvasWheelDecision({
-        isCtrlOrMetaPressed: false,
-        canvasMode: "freeform",
-        deltaX: 3,
-        deltaY: -5,
-        shiftKey: false,
-        anchor: { x: 0, y: 0 },
-      })
-    ).toEqual({ type: "pan", delta: { x: -3, y: 5 } });
-  });
 
   it("converts shift vertical wheels into horizontal pan", () => {
     expect(
       resolveCanvasWheelDecision({
         isCtrlOrMetaPressed: false,
-        canvasMode: "structured",
         deltaX: 0,
         deltaY: 8,
         shiftKey: true,
@@ -59,18 +45,6 @@ describe("canvas wheel interaction", () => {
     ).toEqual({ type: "pan", delta: { x: -8, y: 0 } });
   });
 
-  it("ignores non-zoom wheels in animation mode", () => {
-    expect(
-      resolveCanvasWheelDecision({
-        isCtrlOrMetaPressed: false,
-        canvasMode: "animation",
-        deltaX: 0,
-        deltaY: 8,
-        shiftKey: false,
-        anchor: { x: 0, y: 0 },
-      })
-    ).toEqual({ type: "none" });
-  });
 
   it("executes zoom decisions by flushing pan and queueing zoom", () => {
     const executor = createExecutor();
@@ -124,7 +98,6 @@ describe("canvas wheel interaction", () => {
     const executor = createExecutor();
     const preventDefault = vi.fn();
     const handler = createCanvasWheelHandler({
-      canvasMode: "freeform",
       executor,
     });
 
@@ -146,7 +119,6 @@ describe("canvas wheel interaction", () => {
     const executor = createExecutor();
     const preventDefault = vi.fn();
     const handler = createCanvasWheelHandler({
-      canvasMode: "structured",
       executor,
     });
 

@@ -2,13 +2,11 @@ import type { GridMap, GridPoint, Point, SelectionArea, TextAttributes } from "@
 import type { CanvasMode } from "@/domains/sessions/public";
 import type { ToolType } from "../model/tool";
 import type { StructuredNode, StructuredBoxNode, StructuredComponentInstance, StructuredTextStyleRange } from "@/domains/structured-content/public";
-import type { AnimationCanvasSize, AnimationTimeline } from "@/domains/animation/public";
 import type { StructuredTextSelection } from "@/domains/structured-content/public";
 import type { GridAddress, GridEditMode, GridRange, GridSelectionState } from "@/domains/selection/public";
 import type { StructuredSplitBoxHandle } from "@/domains/structured-content/public";
 import type { CanvasSession } from "@/domains/sessions/public";
 import type { SessionCommands } from "@/domains/sessions/public";
-import type { AnimationCommands } from "@/domains/animation/public";
 import type { CanvasHistoryMode } from "./yjs";
 
 export type CanvasColorPickerTarget = "char" | "bg";
@@ -156,10 +154,6 @@ export type EditorState = {
   } | null;
   structuredContextPoint: Point | null;
   structuredGridFocus: Point | null;
-  canvasBounds: AnimationCanvasSize | null;
-  animationTimeline: AnimationTimeline | null;
-  animationIsPlaying: boolean;
-  animationPlaybackFrameId: string | null;
   showGrid: boolean;
   exportShowGrid: boolean;
   hoveredGrid: Point | null;
@@ -189,5 +183,4 @@ export type EditorState = {
   StructuredGridFocusSlice &
   TextSlice &
   SelectionSlice &
-  SessionCommands &
-  AnimationCommands;
+  SessionCommands;

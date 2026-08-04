@@ -1,5 +1,4 @@
 import type { Point } from "@/shared/types";
-import type { CanvasMode } from "@/domains/sessions/public";
 
 type CanvasWheelDecision =
   | {
@@ -15,7 +14,6 @@ type CanvasWheelDecision =
 
 export const resolveCanvasWheelDecision = ({
   isCtrlOrMetaPressed,
-  canvasMode,
   deltaX,
   deltaY,
   shiftKey,
@@ -23,7 +21,6 @@ export const resolveCanvasWheelDecision = ({
   zoomWeight = 0.002,
 }: {
   isCtrlOrMetaPressed: boolean;
-  canvasMode: CanvasMode;
   deltaX: number;
   deltaY: number;
   shiftKey: boolean;
@@ -37,8 +34,6 @@ export const resolveCanvasWheelDecision = ({
       anchor,
     };
   }
-
-  if (canvasMode === "animation") return { type: "none" };
 
   const effectiveDeltaX =
     shiftKey && deltaX === 0 && deltaY !== 0 ? deltaY : deltaX;
@@ -112,10 +107,8 @@ type CanvasWheelHandler = ({
 }) => void;
 
 export const createCanvasWheelHandler = ({
-  canvasMode,
   executor,
 }: {
-  canvasMode: CanvasMode;
   executor: CanvasWheelExecutor;
 }): CanvasWheelHandler => ({
   isCtrlOrMetaPressed,
@@ -128,7 +121,6 @@ export const createCanvasWheelHandler = ({
   executeCanvasWheelDecision(
     resolveCanvasWheelDecision({
       isCtrlOrMetaPressed,
-      canvasMode,
       deltaX,
       deltaY,
       shiftKey,

@@ -18,10 +18,6 @@ import {
   getStructuredNodeBounds,
 } from "@/domains/structured-content/public";
 import {
-  clampPointToBounds,
-  isPointWithinBounds,
-} from "@/domains/animation/public";
-import {
   getCellOccupancy,
   isWideCell,
   splitGraphemes,
@@ -231,7 +227,6 @@ export const createTextSlice: StateCreator<EditorState, [], [], TextSlice> = (
       textCursor,
       brushColor,
       canvasMode,
-      canvasBounds,
       structuredScene,
       applyStructuredScene,
       getNextStructuredOrder,
@@ -352,33 +347,20 @@ export const createTextSlice: StateCreator<EditorState, [], [], TextSlice> = (
 
     const cursor = startPos || textCursor || fallbackSelectionStart || staticGridView.activeCell;
 
-    const boundedCursor = clampPointToBounds(cursor, canvasBounds);
-    let currentX = boundedCursor.x;
-    let currentY = boundedCursor.y;
-    const startX = boundedCursor.x;
+    let currentX = cursor.x;
+    let currentY = cursor.y;
+    const startX = cursor.x;
 
     runCanvasTransaction(() => {
       let index = 0;
       while (index < str.length) {
         if (str[index] === "\r" && str[index + 1] === "\n") {
-          if (
-            canvasBounds &&
-            currentY + 1 >= canvasBounds.height
-          ) {
-            break;
-          }
           currentY++;
           currentX = startX;
           index += 2;
           continue;
         }
         if (str[index] === "\n" || str[index] === "\r") {
-          if (
-            canvasBounds &&
-            currentY + 1 >= canvasBounds.height
-          ) {
-            break;
-          }
           currentY++;
           currentX = startX;
           index += 1;
@@ -386,14 +368,6 @@ export const createTextSlice: StateCreator<EditorState, [], [], TextSlice> = (
         }
 
         const char = splitGraphemes(str.slice(index))[0] ?? str[index];
-        if (!isPointWithinBounds({ x: currentX, y: currentY }, canvasBounds)) {
-          index += char.length;
-          continue;
-        }
-        if (canvasBounds && currentX >= canvasBounds.width) {
-          index += char.length;
-          continue;
-        }
         placeCharInYMap(
           yMainGrid,
           currentX,
@@ -416,7 +390,6 @@ export const createTextSlice: StateCreator<EditorState, [], [], TextSlice> = (
       staticGridSelection,
       staticGridEditMode,
       canvasMode,
-      canvasBounds,
     } = get();
     if (canvasMode === "structured") return;
 
@@ -444,7 +417,6 @@ export const createTextSlice: StateCreator<EditorState, [], [], TextSlice> = (
           x: basePos.x + cell.x,
           y: basePos.y + cell.y,
         };
-        if (!isPointWithinBounds(nextPoint, canvasBounds)) return;
         placeStyledCellInYMap(
           yMainGrid,
           nextPoint.x,
@@ -467,7 +439,6 @@ export const createTextSlice: StateCreator<EditorState, [], [], TextSlice> = (
       textCursor,
       grid,
       canvasMode,
-      canvasBounds,
       structuredScene,
       editingStructuredTextNodeId,
     } = get();
@@ -500,7 +471,7 @@ export const createTextSlice: StateCreator<EditorState, [], [], TextSlice> = (
         newX -= 1;
       }
     }
-    set({ textCursor: clampPointToBounds({ x: newX, y: newY }, canvasBounds) });
+    set({ textCursor: { x: newX, y: newY } });
   },
 
   backspaceText: () => {
@@ -650,7 +621,7 @@ export const createTextSlice: StateCreator<EditorState, [], [], TextSlice> = (
   },
 
   newlineText: () => {
-    const { textCursor, grid, canvasMode, canvasBounds, structuredScene, editingStructuredTextNodeId } = get();
+    const { textCursor, grid, canvasMode, structuredScene, editingStructuredTextNodeId } = get();
     if (!textCursor) return;
     if (canvasMode === "structured") {
       const selectedRange = getStructuredTextSelectionRange(
@@ -691,21 +662,15 @@ export const createTextSlice: StateCreator<EditorState, [], [], TextSlice> = (
     const currentX = textCursor.x;
     const targetX = getNewlineTargetX(grid, currentX, currentY);
     set({
-      textCursor: clampPointToBounds(
-        { x: targetX, y: currentY + 1 },
-        canvasBounds
-      ),
+      textCursor: { x: targetX, y: currentY + 1 },
     });
   },
 
   indentText: () => {
-    const { textCursor, canvasBounds } = get();
+    const { textCursor } = get();
     if (!textCursor) return;
     set({
-      textCursor: clampPointToBounds(
-        { x: textCursor.x + 2, y: textCursor.y },
-        canvasBounds
-      ),
+      textCursor: { x: textCursor.x + 2, y: textCursor.y },
     });
   },
 });

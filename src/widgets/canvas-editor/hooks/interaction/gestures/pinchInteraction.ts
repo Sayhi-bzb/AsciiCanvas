@@ -1,5 +1,4 @@
 import type { Point } from "@/shared/types";
-import type { CanvasMode } from "@/domains/sessions/public";
 import { resolveZoomAnchoredOffset } from "../core/coordinates";
 
 type CanvasPinchDecision =
@@ -13,14 +12,12 @@ type CanvasPinchDecision =
   | { type: "none" };
 
 export const resolveCanvasPinchDecision = ({
-  canvasMode,
   pinchStartZoom,
   scale,
   currentZoom,
   anchor,
   zoomBounds,
 }: {
-  canvasMode: CanvasMode;
   pinchStartZoom: number;
   scale: number;
   currentZoom: number;
@@ -39,7 +36,7 @@ export const resolveCanvasPinchDecision = ({
     currentZoom,
     nextZoom,
     anchor,
-    shouldAnchorOffset: canvasMode !== "animation",
+    shouldAnchorOffset: true,
   };
 };
 
@@ -75,14 +72,12 @@ export const executeCanvasPinchDecision = (
   );
 };
 type CanvasPinchHandler = ({
-  canvasMode,
   pinchStartZoom,
   scale,
   currentZoom,
   anchor,
   zoomBounds,
 }: {
-  canvasMode: CanvasMode;
   pinchStartZoom: number;
   scale: number;
   currentZoom: number;
@@ -95,7 +90,6 @@ export const createCanvasPinchHandler = ({
 }: {
   executor: CanvasPinchExecutor;
 }): CanvasPinchHandler => ({
-  canvasMode,
   pinchStartZoom,
   scale,
   currentZoom,
@@ -104,7 +98,6 @@ export const createCanvasPinchHandler = ({
 }) =>
   executeCanvasPinchDecision(
     resolveCanvasPinchDecision({
-      canvasMode,
       pinchStartZoom,
       scale,
       currentZoom,
@@ -114,7 +107,6 @@ export const createCanvasPinchHandler = ({
     executor
   );
 export type CanvasPinchRouteHandler = ({
-  canvasMode,
   pinchStartZoom,
   scale,
   currentZoom,
@@ -123,7 +115,6 @@ export type CanvasPinchRouteHandler = ({
   preventDefault,
   resolveAnchor,
 }: {
-  canvasMode: CanvasMode;
   pinchStartZoom: number;
   scale: number;
   currentZoom: number;
@@ -139,7 +130,6 @@ export const createCanvasPinchRouteHandler = ({
   handler: CanvasPinchHandler;
 }): CanvasPinchRouteHandler =>
   ({
-    canvasMode,
     pinchStartZoom,
     scale,
     currentZoom,
@@ -153,7 +143,6 @@ export const createCanvasPinchRouteHandler = ({
     if (!anchor) return;
 
     handler({
-      canvasMode,
       pinchStartZoom,
       scale,
       currentZoom,

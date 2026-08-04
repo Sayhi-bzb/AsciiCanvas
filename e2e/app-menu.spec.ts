@@ -1,61 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
-
-const STORAGE_KEY = "ascii-canvas-persistence";
-
-const seedAnimationSession = async (page: Page) => {
-  const offset = { x: 160, y: 120 };
-  const timeline = {
-    frames: [{ id: "frame-1", name: "Frame 1", grid: [] }],
-    currentFrameId: "frame-1",
-    fps: 10,
-    loop: true,
-    onionSkin: {
-      enabled: true,
-      backwardLayers: 2,
-      forwardLayers: 2,
-      opacityFalloff: [0.5, 0.3, 0.1],
-    },
-  };
-  await page.goto("/");
-  await page.evaluate(
-    ({ storageKey, offset, timeline }) => {
-      const session = {
-        id: "app-menu-animation",
-        name: "Animation",
-        mode: "animation",
-        scene: [],
-        grid: [],
-        size: { width: 80, height: 25 },
-        timeline,
-        viewport: { offset, zoom: 1 },
-      };
-      localStorage.setItem(
-        storageKey,
-        JSON.stringify({
-          state: {
-            offset,
-            zoom: 1,
-            canvasMode: "animation",
-            structuredScene: [],
-            structuredComponents: [],
-            canvasBounds: session.size,
-            animationTimeline: timeline,
-            brushChar: "#",
-            brushColor: "#111827",
-            showGrid: true,
-            exportShowGrid: false,
-            canvasSessions: [session],
-            activeCanvasId: session.id,
-            grid: [],
-          },
-          version: 0,
-        })
-      );
-    },
-    { storageKey: STORAGE_KEY, offset, timeline }
-  );
-  await page.reload();
-};
+import { expect, test } from "@playwright/test";
 
 test.describe("App menu", () => {
   test("keeps inline actions open and closes when focus leaves", async ({
@@ -190,7 +133,7 @@ test.describe("App menu", () => {
     await importChooser;
     await expect(page.locator('input[type="file"]')).toHaveAttribute(
       "accept",
-      ".ascanvas,.json,.cast,application/vnd.ascii-canvas+json,application/json,text/plain"
+      ".ascanvas,.json,application/vnd.ascii-canvas+json,application/json,text/plain"
     );
     await page.evaluate(() => window.dispatchEvent(new Event("blur")));
     await expect(
@@ -236,43 +179,4 @@ test.describe("App menu", () => {
     ).toHaveCount(0);
   });
 
-  test("shows animation export formats and makes GIF save-only", async ({
-    page,
-  }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    await seedAnimationSession(page);
-
-    const trigger = page.getByRole("button", { name: "Open menu" });
-    const canvasBreadcrumb = page.getByRole("button", { name: "Select canvas" });
-    const triggerBox = await trigger.boundingBox();
-    const breadcrumbBox = await canvasBreadcrumb.boundingBox();
-    expect(triggerBox).not.toBeNull();
-    expect(breadcrumbBox).not.toBeNull();
-    expect(triggerBox!.x + triggerBox!.width).toBeLessThanOrEqual(breadcrumbBox!.x);
-
-    await trigger.click();
-    const menu = page.getByRole("menu", { name: "Open menu" });
-    await expect(menu.getByRole("menuitem").allTextContents()).resolves.toEqual([
-      "Import",
-      "Export",
-      "Clear",
-      "Language",
-      "GitHub",
-    ]);
-
-    await menu.getByRole("menuitem", { name: "Export" }).hover();
-    const exportMenu = page.getByRole("menu", { name: "Export" });
-    await expect(exportMenu).toBeVisible();
-    await expect(exportMenu.getByRole("menuitem").allTextContents()).resolves.toEqual([
-      "AsciiCanvas",
-      "CAST",
-      "GIF",
-    ]);
-    await exportMenu.getByRole("menuitem", { name: "GIF" }).hover();
-    const gifMenu = page.getByRole("menu", { name: "GIF" });
-    await expect(gifMenu).toBeVisible();
-    await expect(gifMenu.getByRole("menuitem").allTextContents()).resolves.toEqual([
-      "Save",
-    ]);
-  });
 });

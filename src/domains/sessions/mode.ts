@@ -1,1 +1,1 @@
-export type CanvasMode = "freeform" | "structured" | "animation";
+export type CanvasMode = "freeform" | "structured";

@@ -19,23 +19,21 @@ import {
 import type { EditorState } from "./interfaces";
 import {
   EDITOR_PERSISTENCE_KEY,
-  EDITOR_PERSISTENCE_V1_BACKUP_KEY,
+  EDITOR_PERSISTENCE_V2_BACKUP_KEY,
   EDITOR_PERSISTENCE_VERSION,
   flattenPersistedEditorState,
-  isPersistedEditorStateV2,
-  migratePersistedStateV1ToV2,
+  isPersistedEditorStateV3,
+  migratePersistedStateToV3,
   type CanvasSession,
 } from "@/domains/sessions/public";
 import type { Point } from "@/shared/types";
 import type { StructuredNode } from "@/domains/structured-content/public";
-import type { AnimationCanvasSize } from "@/domains/animation/public";
 import { normalizeBrushChar } from "@/shared/utils/characters";
 import {
   createDrawingSlice,
   createTextSlice,
   createSelectionSlice,
   createSessionSlice,
-  createAnimationSlice,
   createStaticGridSlice,
 } from "./slices";
 import { sceneToGridEntries } from "@/domains/structured-content/public";
@@ -59,14 +57,7 @@ import {
 import {
   deriveStructuredComponentsFromScene,
   normalizeStructuredComponents,
-} from "@/domains/structured-content/public";
-import {
-  cloneAnimationTimeline,
-  getAnimationFrameEntries,
-  normalizeAnimationCanvasSize,
-  normalizeAnimationTimeline,
-} from "@/domains/animation/public";
-import { isCollaborationDescriptor } from "@/domains/collaboration/public";
+} from "@/domains/structured-content/public";import { isCollaborationDescriptor } from "@/domains/collaboration/public";
 
 export type { EditorState };
 
@@ -172,6 +163,7 @@ const recoverPersistedEditorState = (
             components?: unknown;
           };
           if (typeof maybe.id !== "string") return null;
+          if ((raw as { mode?: unknown }).mode === "animation") return null;
           const mode = normalizeSessionMode(maybe.mode);
           const viewport = normalizeSessionViewport(maybe.viewport);
           const scene = Array.isArray(maybe.scene)
@@ -185,34 +177,6 @@ const recoverPersistedEditorState = (
           const collaboration = isCollaborationDescriptor(maybe.collaboration)
             ? maybe.collaboration
             : undefined;
-
-          if (mode === "animation") {
-            const size = normalizeAnimationCanvasSize(
-              maybe.size as Partial<AnimationCanvasSize> | undefined
-            );
-            const timeline = normalizeAnimationTimeline(
-              maybe.timeline,
-              normalizeGridEntries(maybe.grid)
-            );
-            return {
-              id: maybe.id,
-              name:
-                typeof maybe.name === "string" && maybe.name.trim()
-                  ? maybe.name
-                  : "Canvas",
-              mode,
-              scene: [],
-              components: [],
-              grid: getAnimationFrameEntries(
-                timeline,
-                timeline.currentFrameId
-              ),
-              size,
-              timeline,
-              ...(viewport ? { viewport } : {}),
-              ...(collaboration ? { collaboration } : {}),
-            } satisfies CanvasSession;
-          }
 
           return {
             id: maybe.id,
@@ -280,13 +244,9 @@ const recoverPersistedEditorState = (
   hState.structuredContextPoint = null;
   hState.grid = createMapFromEntries(runtime.nextGridEntries);
   hState.tool = runtime.nextTool;
-  hState.canvasBounds = runtime.nextBounds;
-  hState.animationTimeline = runtime.nextTimeline;
   hState.offset = runtime.nextOffset;
   hState.zoom = runtime.nextZoom;
   hState.activeCanvasHasSavedViewport = runtime.hasSavedViewport;
-  hState.animationIsPlaying = false;
-  hState.animationPlaybackFrameId = null;
 
   return hState as EditorState;
 };
@@ -389,10 +349,6 @@ export const useEditorStore = create<EditorState>()(
         selectedStructuredSplitHandle: null,
         structuredContextPoint: null,
         structuredGridFocus: null,
-        canvasBounds: null,
-        animationTimeline: null,
-        animationIsPlaying: false,
-        animationPlaybackFrameId: null,
         canvasSessions: createDefaultCanvasSessions(),
         activeCanvasId: DEFAULT_SESSION_ID,
         activeCanvasHasSavedViewport: false,
@@ -530,7 +486,6 @@ export const useEditorStore = create<EditorState>()(
             };
           }),
         ...createSessionSlice(set, get, ...a),
-        ...createAnimationSlice(set, get, ...a),
         ...createStaticGridSlice(set, get, ...a),
 
         ...createDrawingSlice(set, get, ...a),
@@ -555,10 +510,6 @@ export const useEditorStore = create<EditorState>()(
               state.structuredComponents,
               state.structuredScene
             ),
-            canvasBounds: state.canvasBounds ? { ...state.canvasBounds } : null,
-            animationTimeline: state.animationTimeline
-              ? cloneAnimationTimeline(state.animationTimeline)
-              : null,
             grid:
               state.canvasMode === "structured"
                 ? sceneToGridEntries(state.structuredScene)
@@ -581,25 +532,25 @@ export const useEditorStore = create<EditorState>()(
         } as unknown as Partial<EditorState>;
       },
       migrate: (persistedState, persistedVersion) => {
-        if (isPersistedEditorStateV2(persistedState)) return persistedState;
+        if (isPersistedEditorStateV3(persistedState)) return persistedState;
         if (
           persistedVersion < EDITOR_PERSISTENCE_VERSION &&
           typeof localStorage !== "undefined"
         ) {
           const raw = localStorage.getItem(EDITOR_PERSISTENCE_KEY);
-          if (raw && !localStorage.getItem(EDITOR_PERSISTENCE_V1_BACKUP_KEY)) {
-            localStorage.setItem(EDITOR_PERSISTENCE_V1_BACKUP_KEY, raw);
+          if (raw && !localStorage.getItem(EDITOR_PERSISTENCE_V2_BACKUP_KEY)) {
+            localStorage.setItem(EDITOR_PERSISTENCE_V2_BACKUP_KEY, raw);
           }
         }
-        return migratePersistedStateV1ToV2(persistedState);
+        return migratePersistedStateToV3(persistedState);
       },
       merge: (persistedState, currentState) => {
         if (!persistedState) return currentState;
-        const normalizedPersistedState = isPersistedEditorStateV2(
+        const normalizedPersistedState = isPersistedEditorStateV3(
           persistedState
         )
           ? persistedState
-          : migratePersistedStateV1ToV2(persistedState);
+          : migratePersistedStateToV3(persistedState);
         const flattened = flattenPersistedEditorState(
           normalizedPersistedState
         );

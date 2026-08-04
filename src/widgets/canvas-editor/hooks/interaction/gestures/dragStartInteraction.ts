@@ -1,9 +1,6 @@
 import type { Point, SelectionArea } from "@/shared/types";
 import type { CanvasMode } from "@/domains/sessions/public";
 import type { ToolType } from "@/domains/canvas/public";
-import {
-  clampSelectionToBounds
-} from "@/domains/animation/public";
 import type { InteractionEvent } from "../core/interactionMachine";
 
 export const isShapeTool = (
@@ -32,14 +29,12 @@ type DragStartRouteDecision =
   | { type: "ignore" };
 
 export const resolveDragStartRouteDecision = ({
-  canvasMode,
   tool,
   button,
   isCtrlOrMetaPressed,
   hasColorPickerTarget,
   hasCanvasRect,
 }: {
-  canvasMode: CanvasMode;
   tool: ToolType;
   button: number;
   isCtrlOrMetaPressed: boolean;
@@ -47,8 +42,8 @@ export const resolveDragStartRouteDecision = ({
   hasCanvasRect: boolean;
 }): DragStartRouteDecision => {
   if (hasColorPickerTarget && button === 0) return { type: "color-picker" };
-  if (canvasMode !== "animation" && tool === "pan") return { type: "pan" };
-  if (canvasMode !== "animation" && (button === 1 || isCtrlOrMetaPressed)) {
+  if (tool === "pan") return { type: "pan" };
+  if (button === 1 || isCtrlOrMetaPressed) {
     return { type: "pan" };
   }
   if (button === 0 && hasCanvasRect) return { type: "primary-canvas" };
@@ -85,14 +80,12 @@ export const resolveSelectionDragStartDecision = ({
   start,
   shiftKey,
   anchorGrid,
-  canvasBounds,
 }: {
   tool: ToolType;
   canvasMode: CanvasMode;
   start: Point;
   shiftKey: boolean;
   anchorGrid: Point | null;
-  canvasBounds: { width: number; height: number } | null;
 }): SelectionDragStartDecision => {
   if (!isSelectionTool(tool, canvasMode)) return { type: "not-selection" };
   if (tool === "select" && shiftKey && anchorGrid) {
@@ -110,10 +103,7 @@ export const resolveSelectionDragStartDecision = ({
   const nextAnchor = !shiftKey || (tool === "select" && !anchorGrid)
     ? start
     : null;
-  const preview =
-    canvasMode === "animation"
-      ? clampSelectionToBounds({ start, end: start }, canvasBounds)
-      : { start, end: start };
+  const preview = { start, end: start };
 
   return {
     type: "selection",

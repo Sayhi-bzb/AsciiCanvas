@@ -25,7 +25,6 @@ type ControllerStore = Pick<
   | "zoom"
   | "grid"
   | "canvasMode"
-  | "canvasBounds"
   | "setOffset"
   | "setZoom"
   | "setHoveredGrid"
@@ -50,14 +49,11 @@ export const useInteractionControllers = ({
     offset,
     zoom,
     grid,
-    canvasMode,
-    canvasBounds,
     setOffset,
     setZoom,
     setHoveredGrid,
     applyStructuredScene,
   } = store;
-  const canvasModeRef = useRef(canvasMode);
   const colorPickerClickRef = useRef(false);
   const fallbackStructuredMovePreviewRef = useRef<StructuredMovePreview | null>(null);
   const fallbackRequestRenderRef = useRef<(() => void) | null>(null);
@@ -66,20 +62,14 @@ export const useInteractionControllers = ({
   const activeRequestRenderRef = requestRenderRef ?? fallbackRequestRenderRef;
   const [draggingSelection, setDraggingSelection] = useState<SelectionArea | null>(null);
 
-  useEffect(() => {
-    canvasModeRef.current = canvasMode;
-  }, [canvasMode]);
-
   const pointerContext = useCreation(
     () =>
       createCanvasPointerContextResolver({
         getRect: () => containerRef.current?.getBoundingClientRect(),
         getViewport: () => ({ offset, zoom }),
         getGrid: () => grid,
-        getCanvasMode: () => canvasMode,
-        getCanvasBounds: () => canvasBounds,
       }),
-    [containerRef, offset, zoom, grid, canvasMode, canvasBounds]
+    [containerRef, offset, zoom, grid]
   );
   const interactionRuntime = useCreation(createCanvasInteractionRuntime, []);
   const hoverInteraction = useCreation(
@@ -100,7 +90,6 @@ export const useInteractionControllers = ({
       createViewportInteractionController({
         setOffset,
         setZoom,
-        getCanvasMode: () => canvasModeRef.current,
         zoomBounds: { min: MIN_ZOOM, max: MAX_ZOOM },
       }),
     [setOffset, setZoom]

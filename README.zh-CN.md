@@ -8,7 +8,7 @@
 [![Collaboration](https://img.shields.io/badge/Sync-Yjs_CRDT-orange?logo=distributed-systems)](https://yjs.dev/)
 [![Deploy](https://img.shields.io/badge/Demo-Live_Preview-22c55e?logo=cloudflare-pages)](https://ascii-canvas.pages.dev/)
 
-> **一个面向自由绘制、结构化 ASCII UI 编排、逐帧 ASCII 动画的 Unicode 网格编辑器。**
+> **一个面向自由绘制与结构化 ASCII UI 编排的 Unicode 网格编辑器。**
 
 <div align="center">
   <img src="public/demo.gif" alt="ASCII Canvas 演示" width="100%" style="border-radius: 6px; border: 1px solid #333; margin: 5px;">
@@ -32,12 +32,10 @@
 
 **ASCII Canvas** 渲染的是可编辑的 Unicode 网格，而不是对模型不透明的像素图。它既能给人直接阅读，也能保留适合 LLM 理解的文本结构。
 
-目前支持三种会话模式：
+目前支持两种会话模式：
 
 - **Freeform**：无限 ASCII 画布，适合草图、图表、终端风格界面和自由绘制。
 - **Structured**：语义化结构画布，文本、背景、盒子、分割盒与线条保持为可编辑节点。
-- **Animation**：固定尺寸、基于帧时间轴的 ASCII 动画模式。
-
 ### 1. 结构化画布
 
 - **结构化节点**：使用 `text`、`bg`、`box`、`splitBox`、`line` 组合场景，而不是把内容压成一整块纯文本。
@@ -62,20 +60,13 @@
 - **字符库**：右侧栏浏览 Unicode、Nerd Font、Emoji、Box Drawing 字符。
 - **精确选区**：拖拽矩形区域、`Shift + Click` 锚点选区，并可用输入字符填充选区。
 
-### 4. 动画工作流
-
-- **固定画布预设**：支持 `80x25`、`64x64`、`128x128`，也支持自定义尺寸。
-- **左侧帧栏**：新增、复制、删除、排序、重命名帧，并显示紧凑预览。
-- **洋葱皮辅助**：显示相邻帧 ghost，便于逐帧绘制。
-- **导出能力**：导出 JSON、GIF、asciinema `.cast`，或导出当前帧 ANSI 文本。
-
-### 5. 剪贴板、ANSI 与协议
+### 4. 剪贴板、ANSI 与协议
 
 - **右键菜单**：复制、ANSI 复制、剪切、粘贴和删除。
 - **ANSI 导入导出**：支持标准 ESC ANSI，也支持 `[38;2;190;24;93m...` 这类 ANSI-like 文本，解释规则见 [AsciiCanvas Text Protocol v1](packages/protocol/spec/v1.md)。
 - **可移植渲染**：使用 [`@ascii-canvas/fonts`](packages/fonts/README.md) 获取默认 renderer font profile 与自托管字形资产。
 - **终端样式解析**：支持 8 色、亮色 16 色、256 色、truecolor SGR，以及 bold、italic、underline、strikethrough 等属性。
-- **文档协议**：JSON protocol v1 覆盖 Freeform、Structured、Animation 三种会话，作为稳定导入导出格式。
+- **文档协议**：JSON protocol v1 覆盖 Freeform 与 Structured 会话，作为稳定导入导出格式。
 
 ---
 
@@ -97,7 +88,6 @@
 - **字符目录**：[精选字符包与懒加载 Unicode 浏览器](docs/character-library.md)
 - **同步引擎**：Yjs / Y-IndexedDB
 - **手势交互**：@use-gesture/react
-- **动画导出**：JSON、浏览器内 GIF、asciinema `.cast`、ANSI 文本
 - **终端文本**：SGR 前景/背景、文本属性，以及 ANSI/ANSI-like 导入导出
 
 ---
@@ -139,7 +129,7 @@ npm run build
 | 结构化文本编辑 | `双击` text | 进入结构化文本原位编辑 |
 | 结构化插入 | 从侧栏拖拽 | 将 component 或 template 放入结构化画布 |
 
-粘贴支持纯文本、应用内富剪贴板数据，以及 ANSI/ANSI-like 终端样式文本。动画模式提供逐帧切换、播放、循环、洋葱皮和 JSON/GIF/asciinema `.cast` 导出。
+粘贴支持纯文本、应用内富剪贴板数据，以及 ANSI/ANSI-like 终端样式文本。
 
 ---
 
@@ -149,10 +139,9 @@ npm run build
 - [x] 基于 Yjs 的实时协作
 - [x] 智能缩进与 Tab 系统
 - [x] 右键菜单与 ANSI 剪贴板
-- [x] 固定尺寸动画模式、时间轴、洋葱皮与导出能力
 - [x] 结构化画布：可编辑 text、bg、box、splitBox、line
 - [x] 结构化 Components 与 Templates 模板库
-- [x] 面向 Freeform、Structured、Animation 的 JSON protocol v1
+- [x] 面向 Freeform、Structured 的 JSON protocol v1
 - [ ] **NES (Next Edit Suggestion)**：基于布局模式的字符预测
 - [ ] **AI Chat 集成**：通过自然语言生成画布组件
 - [ ] 完整 ANSI terminal sequence workspace 与 SVG 导出

@@ -8,12 +8,7 @@ import {
   selectionAreaFromGridRange,
   selectionAreasFromGridRanges,
   syncGridSelectionFromLegacy,
-  type GridAddress,
 } from "@/domains/selection/public";
-import { clampPointToBounds } from "@/domains/animation/public";
-
-const clampStaticAddress = (address: GridAddress, state: EditorState) =>
-  clampPointToBounds(address, state.canvasBounds);
 
 export const createStaticGridSlice: StateCreator<
   EditorState,
@@ -26,7 +21,7 @@ export const createStaticGridSlice: StateCreator<
 
   setStaticGridActiveCell: (address) => {
     const state = get();
-    const activeCell = clampStaticAddress(address, state);
+    const activeCell = address;
     const selection = collapseGridSelectionTo(
       syncGridSelectionFromLegacy(state.textCursor, state.selections, state.staticGridSelection),
       activeCell
@@ -40,9 +35,8 @@ export const createStaticGridSlice: StateCreator<
   },
 
   setStaticGridSelectionRange: (range) => {
-    const state = get();
-    const start = clampStaticAddress(range.start, state);
-    const end = clampStaticAddress(range.end, state);
+    const start = range.start;
+    const end = range.end;
     const selection = {
       activeCell: end,
       anchorCell: start,
@@ -65,10 +59,7 @@ export const createStaticGridSlice: StateCreator<
           state.selections,
           state.staticGridSelection
         );
-    const activeCell = clampStaticAddress(
-      moveGridAddress(current.activeCell, dx, dy),
-      state
-    );
+    const activeCell = moveGridAddress(current.activeCell, dx, dy);
     const selection = options?.extend
       ? extendGridSelectionTo(current, activeCell)
       : collapseGridSelectionTo(current, activeCell);
@@ -88,7 +79,7 @@ export const createStaticGridSlice: StateCreator<
       state.selections,
       state.staticGridSelection
     );
-    const activeCell = clampStaticAddress(address ?? current.activeCell, state);
+    const activeCell = address ?? current.activeCell;
     set({
       staticGridSelection: collapseGridSelectionTo(current, activeCell),
       staticGridEditMode: "text-edit",

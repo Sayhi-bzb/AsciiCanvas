@@ -6,7 +6,6 @@ import type { ToolType } from "@/domains/canvas/public";
 import { useEditorStore } from "@/domains/canvas/public";
 import {
   TOOLBAR_ACTION_META,
-  TOOLBAR_ACTION_ORDER,
   runToolbarAction,
 } from "@/domains/actions/public";
 import { resolveActiveToolbarAction } from "@/domains/actions/public";
@@ -35,7 +34,6 @@ import {
 } from "./dock/submenus";
 import { MATERIAL_PRESETS, SHAPE_TOOLS } from "./dock/constants";
 import { useShallow } from "zustand/react/shallow";
-import { AnimationTimeline } from "@/widgets/animation-timeline/AnimationTimeline";
 import { ColorPickerPopoverContent } from "@/widgets/color-picker";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { useUiI18n } from "@/shared/i18n";
@@ -131,10 +129,6 @@ export function Toolbar({
   }, [t]);
 
   useEffect(() => {
-    if (tool === "pan" && canvasMode === "animation") {
-      setTool("select");
-      return;
-    }
     if (canvasMode === "structured" && tool === "text") {
       setTool("select");
       return;
@@ -148,16 +142,13 @@ export function Toolbar({
     const baseOrder =
       canvasMode === "structured"
         ? STRUCTURED_ACTION_ORDER
-        : canvasMode === "freeform"
-          ? FREEFORM_ACTION_ORDER
-          : TOOLBAR_ACTION_ORDER;
+        : FREEFORM_ACTION_ORDER;
 
     return baseOrder;
   }, [canvasMode]);
 
   const structuredShapeTools = useMemo<ToolType[]>(() => {
     if (canvasMode === "structured") return ["box", "splitBox", "line"];
-    if (canvasMode === "animation") return ["box", "circle", "line", "stepline"];
     return SHAPE_TOOLS;
   }, [canvasMode]);
   const isShapeGroupActive = structuredShapeTools.includes(tool);
@@ -240,7 +231,6 @@ export function Toolbar({
           data-testid="tool-dock"
           className={cn(
             uiClass.toolbarShell,
-            canvasMode === "animation" && "flex-col items-center gap-1",
             isMobile && "scale-90 origin-bottom"
           )}
         >
@@ -391,7 +381,6 @@ export function Toolbar({
 
           </nav>
 
-          {canvasMode === "animation" && <AnimationTimeline />}
         </div>
       </div>
   );

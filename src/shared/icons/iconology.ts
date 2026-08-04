@@ -3,13 +3,10 @@ import {
   Bold,
   BringToFront,
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   Circle,
   CircleHelp,
   Camera,
   CaseSensitive,
-  Clapperboard,
   ClipboardPaste,
   Code2,
   Component,
@@ -17,10 +14,8 @@ import {
   CopyPlus,
   Download,
   Eraser,
-  Film,
   Github,
   Grid2X2,
-  GripVertical,
   Italic,
   Hand,
   Highlighter,
@@ -43,16 +38,12 @@ import {
   PanelRightOpen,
   PaintbrushVertical,
   PanelsTopLeft,
-  Pause,
-  Play,
   Plus,
-  Repeat,
   Pencil,
   Scissors,
   SendToBack,
   ShieldCheck,
   Smile,
-  Sparkles,
   Square,
   SquarePen,
   SquareSplitHorizontal,
@@ -74,8 +65,7 @@ export const HOST_ICONOLOGY = {
   canvasMode: {
     freeform: Pencil,
     structured: PanelsTopLeft,
-    animation: Clapperboard,
-  } satisfies IconMap<'freeform' | 'structured' | 'animation'>,
+  } satisfies IconMap<'freeform' | 'structured'>,
   characterView: {
     essentials: CaseSensitive,
     nerd: Terminal,
@@ -186,35 +176,6 @@ export const HOST_ICONOLOGY = {
     line: Minus,
     stepline: LineSquiggle,
   } satisfies IconMap<'box' | 'splitBox' | 'circle' | 'line' | 'stepline'>,
-  animationAction: {
-    'generate-frames': Film,
-    previous: ChevronLeft,
-    next: ChevronRight,
-    play: Play,
-    pause: Pause,
-    loop: Repeat,
-  } satisfies IconMap<'generate-frames' | 'previous' | 'next' | 'play' | 'pause' | 'loop'>,
-  animationSidebar: {
-    frames: Film,
-    effects: Sparkles,
-    add: Plus,
-    duplicate: Copy,
-    rename: Pencil,
-    delete: Trash2,
-    more: MoreHorizontal,
-    reorder: GripVertical,
-    playhead: Play,
-  } satisfies IconMap<
-    | 'frames'
-    | 'effects'
-    | 'add'
-    | 'duplicate'
-    | 'rename'
-    | 'delete'
-    | 'more'
-    | 'reorder'
-    | 'playhead'
-  >,
   appMenu: {
     trigger: Menu,
     import: Upload,

@@ -9,7 +9,6 @@ const resetStore = () => {
     {
       ...initialState,
       canvasMode: "freeform",
-      canvasBounds: null,
       grid: new Map(),
       textCursor: null,
       selections: [],

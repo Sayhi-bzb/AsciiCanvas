@@ -1,8 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   deliverExportClipboard,
-  getAvailableExportFormats,
-  prepareExport,
   prepareTextExport,
   type ExportContext,
 } from "@/domains/export/public";
@@ -19,25 +17,12 @@ const createContext = (
   grid: new Map([["0,0", { char: "A", color: "#ffffff" }]]),
   structuredScene: [],
   structuredComponents: [],
-  canvasBounds: null,
-  animationTimeline: null,
   includeColor: true,
   showGrid: false,
   ...overrides,
 });
 
 describe("export service", () => {
-  it("derives available formats from the session mode", () => {
-    expect(
-      getAvailableExportFormats("freeform").map(({ format }) => format)
-    ).toEqual(["txt", "ascanvas", "ansi", "png"]);
-    expect(
-      getAvailableExportFormats("structured").map(({ format }) => format)
-    ).toEqual(["txt", "ascanvas", "ansi", "png"]);
-    expect(
-      getAvailableExportFormats("animation").map(({ format }) => format)
-    ).toEqual(["ascanvas", "cast", "gif"]);
-  });
 
   it("builds a round-trippable AsciiCanvas project artifact", () => {
     const result = prepareTextExport(createContext(), "ascanvas");
@@ -73,17 +58,6 @@ describe("export service", () => {
     expect(result.value.filename).toMatch(/^ascii-canvas-\d+\.txt$/);
   });
 
-  it("returns a typed error when animation state is incomplete", async () => {
-    const result = await prepareExport(
-      createContext({ canvasMode: "animation" }),
-      "gif"
-    );
-
-    expect(result).toEqual({
-      ok: false,
-      error: { code: "missing-animation-state" },
-    });
-  });
 
   it("returns a typed clipboard error instead of throwing", async () => {
     vi.spyOn(clipboard, "writeText").mockResolvedValue(false);

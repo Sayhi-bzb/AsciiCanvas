@@ -18,7 +18,7 @@
 [![Collaboration](https://img.shields.io/badge/Sync-Yjs_CRDT-orange?logo=distributed-systems)](https://yjs.dev/)
 [![Deploy](https://img.shields.io/badge/Demo-Live_Preview-22c55e?logo=cloudflare-pages)](https://ascii-canvas.pages.dev/)
 
-> **A Unicode grid editor for freeform drawing, structured ASCII UI composition, and frame-based ASCII animation.**
+> **A Unicode grid editor for freeform drawing and structured ASCII UI composition.**
 
 <div align="center">
   <img src="public/demo.gif" alt="ASCII Canvas Demo" width="100%" style="border-radius: 6px; border: 1px solid #333; margin: 5px;">
@@ -42,12 +42,10 @@
 
 **ASCII Canvas** renders editable Unicode grids instead of opaque pixels. It is built for drawings and UI surfaces that humans can inspect visually and LLMs can still read as text.
 
-It supports three session modes:
+It supports two session modes:
 
 - **Freeform**: an infinite ASCII canvas for sketching, diagrams, terminal-style layouts, and exploratory drawing.
 - **Structured**: a semantic canvas where text, backgrounds, boxes, split boxes, and lines stay editable as structured nodes.
-- **Animation**: a fixed-size frame timeline for ASCII motion work.
-
 ### 1. Structured Canvas
 
 - **Structured nodes**: compose scenes from `text`, `bg`, `box`, `splitBox`, and `line` nodes instead of flattening everything into plain text.
@@ -72,20 +70,13 @@ It supports three session modes:
 - **Character library**: browse Unicode, Nerd Font, Emoji, and Box Drawing characters from the right sidebar.
 - **Precision selection**: drag rectangular selections, use `Shift + Click` anchor selection, and fill selected areas with typed characters.
 
-### 4. Animation Workflow
-
-- **Fixed canvas presets**: start sessions with sizes such as `80x25`, `64x64`, and `128x128`, or enter custom dimensions.
-- **Frame sidebar**: add, duplicate, delete, reorder, and rename frames with compact previews.
-- **Onion skin playback**: ghost neighboring frames for frame-by-frame drawing.
-- **Export ready**: export animation data as JSON, GIF, asciinema `.cast`, or ANSI text for the current frame.
-
-### 5. Clipboard, ANSI, And Protocol
+### 4. Clipboard, ANSI, And Protocol
 
 - **Context menu**: copy, copy as ANSI, cut, paste, and delete from the canvas.
 - **ANSI import/export**: paste standard ESC ANSI or ANSI-like text such as `[38;2;190;24;93m...`, interpreted by the [AsciiCanvas Text Protocol v1](packages/protocol/spec/v1.md).
 - **Portable rendering**: use [`@ascii-canvas/fonts`](packages/fonts/README.md) for the default renderer font profile and self-hosted glyph assets.
 - **Terminal style parsing**: supports 8-color, bright 16-color, 256-color, truecolor SGR, and attributes such as bold, italic, underline, and strikethrough.
-- **Document protocol**: JSON protocol v1 covers Freeform, Structured, and Animation sessions for durable import/export.
+- **Document protocol**: JSON protocol v1 covers Freeform and Structured sessions for durable import/export.
 
 ---
 
@@ -107,7 +98,6 @@ It supports three session modes:
 - **Character catalog**: [curated packs and lazy Unicode explorer](docs/character-library.md)
 - **Synchronization**: Yjs / Y-IndexedDB
 - **Gestures**: @use-gesture/react
-- **Animation Export**: JSON, in-browser GIF generation, asciinema `.cast`, and ANSI text
 - **Terminal Text**: SGR foreground/background, text attributes, and ANSI/ANSI-like import/export
 
 ---
@@ -149,7 +139,7 @@ npm run build
 | Structured text edit | `Double Click` text | Enter in-place structured text editing |
 | Structured insert | Drag from sidebar | Drop components or templates into the structured canvas |
 
-Paste accepts plain text, app-native rich clipboard data, and ANSI/ANSI-like styled terminal text. Animation sessions expose frame stepping, playback, loop, onion skin, and JSON/GIF/asciinema `.cast` export.
+Paste accepts plain text, app-native rich clipboard data, and ANSI/ANSI-like styled terminal text.
 
 ---
 
@@ -159,10 +149,9 @@ Paste accepts plain text, app-native rich clipboard data, and ANSI/ANSI-like sty
 - [x] Real-time collaboration via Yjs.
 - [x] Intelligent indentation and tab system.
 - [x] Context menu and ANSI clipboard integration.
-- [x] Fixed-size animation mode with timeline, onion skin, and export.
 - [x] Structured canvas with editable text, backgrounds, boxes, split boxes, and lines.
 - [x] Structured Components and Templates libraries.
-- [x] JSON protocol v1 for Freeform, Structured, and Animation sessions.
+- [x] JSON protocol v1 for Freeform and Structured sessions.
 - [ ] **NES (Next Edit Suggestion)**: predictive character placement based on layout patterns.
 - [ ] **AI Chat Integration**: natural language interface for generating canvas components.
 - [ ] Full ANSI terminal sequence workspace and SVG export support.

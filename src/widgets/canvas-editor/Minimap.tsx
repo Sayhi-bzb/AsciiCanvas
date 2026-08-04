@@ -60,7 +60,6 @@ export const Minimap = ({
     grid,
     offset,
     zoom,
-    canvasMode,
     setOffset,
     setZoom,
   } = useEditorStore(
@@ -68,7 +67,6 @@ export const Minimap = ({
       grid: state.grid,
       offset: state.offset,
       zoom: state.zoom,
-      canvasMode: state.canvasMode,
       setOffset: state.setOffset,
       setZoom: state.setZoom,
     }))
@@ -83,10 +81,9 @@ export const Minimap = ({
       createViewportInteractionController({
         setOffset,
         setZoom,
-        getCanvasMode: () => canvasMode,
         zoomBounds: { min: MIN_ZOOM, max: MAX_ZOOM },
       }),
-    [canvasMode, setOffset, setZoom]
+    [setOffset, setZoom]
   );
 
   const removeDragEndListeners = useCallback(() => {
@@ -308,7 +305,6 @@ export const Minimap = ({
     if (!containerSize) return;
     const decision = resolveCanvasWheelDecision({
       isCtrlOrMetaPressed: event.ctrlKey || event.metaKey,
-      canvasMode,
       deltaX: event.deltaX,
       deltaY: event.deltaY,
       shiftKey: event.shiftKey,

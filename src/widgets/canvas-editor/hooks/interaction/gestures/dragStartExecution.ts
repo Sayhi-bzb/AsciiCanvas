@@ -147,7 +147,6 @@ type PrimaryCanvasDragStartContext = {
   tool: ToolType;
   shiftKey: boolean;
   anchorGrid: Point | null;
-  canvasBounds: { width: number; height: number } | null;
   brushChar: string;
   executeStructuredSelectStart: (() => boolean) | null;
 };
@@ -169,7 +168,6 @@ const executePrimaryCanvasDragStart = (
     start: context.start,
     shiftKey: context.shiftKey,
     anchorGrid: context.anchorGrid,
-    canvasBounds: context.canvasBounds,
   });
   if (executeSelectionDragStartDecision(selectionDecision, executors.selection)) {
     return true;
@@ -204,7 +202,6 @@ export const createPrimaryCanvasDragStartHandler = ({
   executePrimaryCanvasDragStart(context, { selection, drawingShape });
 
 type DragStartRouteHandler = ({
-  canvasMode,
   tool,
   button,
   isCtrlOrMetaPressed,
@@ -214,7 +211,6 @@ type DragStartRouteHandler = ({
   executeColorPickerStart,
   executePrimaryCanvasStart,
 }: {
-  canvasMode: CanvasMode;
   tool: ToolType;
   button: number;
   isCtrlOrMetaPressed: boolean;
@@ -230,7 +226,6 @@ export const createDragStartRouteHandler = ({
 }: {
   panning: PanningDragStartExecutor;
 }): DragStartRouteHandler => ({
-  canvasMode,
   tool,
   button,
   isCtrlOrMetaPressed,
@@ -241,7 +236,6 @@ export const createDragStartRouteHandler = ({
   executePrimaryCanvasStart,
 }) => {
   const routeDecision = resolveDragStartRouteDecision({
-    canvasMode,
     tool,
     button,
     isCtrlOrMetaPressed,
@@ -262,7 +256,6 @@ export const createDragStartRouteHandler = ({
   }
 };
 export type CanvasDragStartRouteAdapter = ({
-  canvasMode,
   tool,
   button,
   isCtrlOrMetaPressed,
@@ -271,7 +264,6 @@ export type CanvasDragStartRouteAdapter = ({
   screenPoint,
   shiftKey,
   anchorGrid,
-  canvasBounds,
   brushChar,
   mouseDetail,
   preventDefault,
@@ -287,7 +279,6 @@ export type CanvasDragStartRouteAdapter = ({
   screenPoint: Point;
   shiftKey: boolean;
   anchorGrid: Point | null;
-  canvasBounds: { width: number; height: number } | null;
   brushChar: string;
   mouseDetail: number;
   preventDefault: () => void;
@@ -323,7 +314,6 @@ export const createCanvasDragStartRouteAdapter = ({
     screenPoint,
     shiftKey,
     anchorGrid,
-    canvasBounds,
     brushChar,
     mouseDetail,
     preventDefault,
@@ -331,7 +321,6 @@ export const createCanvasDragStartRouteAdapter = ({
     resolveLocalPoint,
   }) =>
     route({
-      canvasMode,
       tool,
       button,
       isCtrlOrMetaPressed,
@@ -353,7 +342,6 @@ export const createCanvasDragStartRouteAdapter = ({
           tool,
           shiftKey,
           anchorGrid,
-          canvasBounds,
           brushChar,
           executeStructuredSelectStart: () =>
             structuredSelect({

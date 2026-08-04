@@ -37,7 +37,7 @@ describe("HandbookDialog", () => {
     expect(screen.getByText(/Select text inside edit mode/)).toBeInTheDocument();
     expect(screen.getByText(/Toolbar fill controls bg layers/)).toBeInTheDocument();
     expect(screen.getByText(/Structured copy keeps node data/)).toBeInTheDocument();
-    expect(screen.getByText(/Animation mode keeps frame controls/)).toBeInTheDocument();
+    expect(screen.getByText(/Selections and structured nodes expose mode-specific editing actions/)).toBeInTheDocument();
   });
 
   it("localizes the shortcut list in Chinese", () => {

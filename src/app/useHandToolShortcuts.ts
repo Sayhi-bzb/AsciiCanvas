@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { CanvasMode } from "@/domains/sessions/public";
 import {
   SHORTCUT_PRIORITY,
   useShortcutLayer,
@@ -9,10 +8,8 @@ const isSpaceKey = (event: Pick<KeyboardEvent, "code" | "key">) =>
   event.code === "Space" || event.key === " ";
 
 export const useHandToolShortcuts = ({
-  canvasMode,
   isCanvasTextEditing,
 }: {
-  canvasMode: CanvasMode;
   isCanvasTextEditing: boolean;
 }) => {
   const [isTemporaryPanActive, setIsTemporaryPanActive] = useState(false);
@@ -31,7 +28,6 @@ export const useHandToolShortcuts = ({
   useShortcutLayer({
     id: "hand-tool",
     priority: SHORTCUT_PRIORITY.canvasGesture,
-    enabled: canvasMode !== "animation",
     onKeyDown: (event, context) => {
       if (
         context.targetKind === "editable" ||
@@ -73,5 +69,5 @@ export const useHandToolShortcuts = ({
     };
   }, [clearTemporaryPan]);
 
-  return canvasMode === "animation" ? false : isTemporaryPanActive;
+  return isTemporaryPanActive;
 };

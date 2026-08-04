@@ -191,14 +191,12 @@ export type DragUpdateHandler = ({
   tool,
   canvasMode,
   currentGrid,
-  canvasBounds,
   structuredScene,
 }: {
   state: InteractionState;
   tool: ToolType;
   canvasMode: CanvasMode;
   currentGrid: Point;
-  canvasBounds: { width: number; height: number } | null;
   structuredScene: StructuredNode[];
 }) => void;
 
@@ -211,15 +209,13 @@ export const createDragUpdateHandler = ({
   tool,
   canvasMode,
   currentGrid,
-  canvasBounds,
   structuredScene,
 }) =>
   executeDragUpdateDecision(
     resolveDragUpdateDecision({
       canvasMode,
       currentGrid,
-      canvasBounds,
-      structuredScene,
+          structuredScene,
       state,
     }),
     executor,

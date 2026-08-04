@@ -12,7 +12,6 @@ describe("canvas pinch interaction", () => {
   it("resolves clamped pinch zoom from the gesture start zoom", () => {
     expect(
       resolveCanvasPinchDecision({
-        canvasMode: "freeform",
         pinchStartZoom: 2,
         scale: 3,
         currentZoom: 2,
@@ -31,7 +30,6 @@ describe("canvas pinch interaction", () => {
   it("returns none when the pinch would not change zoom", () => {
     expect(
       resolveCanvasPinchDecision({
-        canvasMode: "structured",
         pinchStartZoom: 1,
         scale: 1,
         currentZoom: 1,
@@ -41,26 +39,8 @@ describe("canvas pinch interaction", () => {
     ).toEqual({ type: "none" });
   });
 
-  it("does not anchor offset in animation mode", () => {
-    expect(
-      resolveCanvasPinchDecision({
-        canvasMode: "animation",
-        pinchStartZoom: 1,
-        scale: 2,
-        currentZoom: 1,
-        anchor: { x: 80, y: 60 },
-        zoomBounds: { min: 0.25, max: 4 },
-      })
-    ).toEqual({
-      type: "zoom",
-      currentZoom: 1,
-      nextZoom: 2,
-      anchor: { x: 80, y: 60 },
-      shouldAnchorOffset: false,
-    });
-  });
 
-  it("executes anchored zoom outside animation mode", () => {
+  it("executes anchored zoom", () => {
     let zoom = 1;
     let offset: Point = { x: 10, y: 20 };
 
@@ -86,31 +66,6 @@ describe("canvas pinch interaction", () => {
     expect(offset).toEqual({ x: -80, y: -40 });
   });
 
-  it("executes animation zoom without changing offset", () => {
-    let zoom = 1;
-    let offset: Point = { x: 10, y: 20 };
-
-    executeCanvasPinchDecision(
-      {
-        type: "zoom",
-        currentZoom: 1,
-        nextZoom: 2,
-        anchor: { x: 100, y: 80 },
-        shouldAnchorOffset: false,
-      },
-      {
-        setZoom: (updater) => {
-          zoom = updater(zoom);
-        },
-        setOffset: (updater) => {
-          offset = updater(offset);
-        },
-      }
-    );
-
-    expect(zoom).toBe(2);
-    expect(offset).toEqual({ x: 10, y: 20 });
-  });
 
   it("creates pinch executors that bind viewport callbacks", () => {
     const calls: string[] = [];
@@ -145,7 +100,6 @@ describe("canvas pinch interaction", () => {
     });
 
     handler({
-      canvasMode: "freeform",
       pinchStartZoom: 1,
       scale: 2,
       currentZoom: 1,
@@ -172,7 +126,6 @@ describe("canvas pinch interaction", () => {
     });
 
     handler({
-      canvasMode: "structured",
       pinchStartZoom: 1,
       scale: 1,
       currentZoom: 1,
@@ -190,7 +143,6 @@ describe("canvas pinch interaction", () => {
     const route = createCanvasPinchRouteHandler({ handler });
 
     route({
-      canvasMode: "freeform",
       pinchStartZoom: 1,
       scale: 2,
       currentZoom: 1,
@@ -203,7 +155,6 @@ describe("canvas pinch interaction", () => {
     expect(preventDefault).toHaveBeenCalledTimes(1);
     expect(resolveAnchor).toHaveBeenCalledWith({ x: 30, y: 40 });
     expect(handler).toHaveBeenCalledWith({
-      canvasMode: "freeform",
       pinchStartZoom: 1,
       scale: 2,
       currentZoom: 1,
@@ -219,7 +170,6 @@ describe("canvas pinch interaction", () => {
     const route = createCanvasPinchRouteHandler({ handler });
 
     route({
-      canvasMode: "structured",
       pinchStartZoom: 1,
       scale: 2,
       currentZoom: 1,

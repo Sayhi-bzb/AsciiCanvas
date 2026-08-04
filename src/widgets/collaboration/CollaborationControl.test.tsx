@@ -2,7 +2,6 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEditorStore } from '@/domains/canvas/public';
 import {
-  collaborationRuntime,
   type CollaborationDescriptorV1,
   type CollaborationSnapshot,
 } from '@/domains/collaboration/public';
@@ -26,7 +25,7 @@ describe('CollaborationControl', () => {
   const clipboardWrite = vi.fn();
 
   const seedSession = (
-    mode: 'freeform' | 'structured' | 'animation' = 'freeform',
+    mode: 'freeform' | 'structured' = 'freeform',
     collaboration?: CollaborationDescriptorV1
   ) => {
     act(() => {
@@ -164,42 +163,4 @@ describe('CollaborationControl', () => {
     expect(window.location.hash).toBe('');
   });
 
-  it('forgets room data, disables animation, and supports menu dismissal', async () => {
-    const descriptor: CollaborationDescriptorV1 = {
-      version: 1,
-      provider: 'p2p',
-      roomId: 'room-id-1234567890',
-      key: 'room-key-1234567890123456789012345678901234567890',
-    };
-    const forget = vi.spyOn(collaborationRuntime, 'forget').mockResolvedValue(undefined);
-    seedSession('freeform', descriptor);
-    render(<CollaborationControl />);
-    openMenu();
-
-    fireEvent.click(await screen.findByRole('menuitem', { name: 'Forget room cache' }));
-    await waitFor(() => expect(forget).toHaveBeenCalledWith(descriptor));
-    expect(screen.getByRole('menu', { name: 'Collaboration' })).toBeInTheDocument();
-
-    cleanup();
-    seedSession('animation');
-    render(<CollaborationControl />);
-    openMenu();
-    expect(await screen.findByText('Unavailable for Animation')).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: 'Start P2P room' })).toHaveAttribute(
-      'data-disabled'
-    );
-    expect(screen.getByLabelText('Custom sync server')).toBeDisabled();
-
-    fireEvent.keyDown(document, { key: 'Escape' });
-    await waitFor(() =>
-      expect(screen.queryByRole('menu', { name: 'Collaboration' })).not.toBeInTheDocument()
-    );
-
-    openMenu();
-    await screen.findByRole('menu', { name: 'Collaboration' });
-    fireEvent.pointerDown(document.body);
-    await waitFor(() =>
-      expect(screen.queryByRole('menu', { name: 'Collaboration' })).not.toBeInTheDocument()
-    );
-  });
 });

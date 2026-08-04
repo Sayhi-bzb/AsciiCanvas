@@ -130,8 +130,6 @@ const seedHostState = async (
             canvasMode: "freeform",
             structuredScene: [],
             structuredComponents: [],
-            canvasBounds: null,
-            animationTimeline: null,
             brushChar: "#",
             brushColor: "#111827",
             showGrid: true,

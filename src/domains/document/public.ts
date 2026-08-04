@@ -4,7 +4,6 @@ export {
 } from "./protocol/types";
 export type { AsciiCanvasDocumentV1 } from "./protocol/types";
 export {
-  buildAnimationProtocolDocument,
   buildFreeformProtocolDocument,
   buildProtocolDocument,
   buildProtocolDocumentFromCanvasState,
@@ -15,8 +14,4 @@ export {
   parseProtocolDocument,
   protocolDocumentToSnapshot,
 } from "./protocol/import";
-export {
-  isLikelyAsciinemaCast,
-  parseAsciinemaCast,
-} from "./cast/utils/cast";
 import "./session-source";

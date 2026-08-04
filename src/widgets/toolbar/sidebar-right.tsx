@@ -26,10 +26,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
 import { useShallow } from "zustand/react/shallow";
 import { useUiI18n } from "@/shared/i18n";
 import { uiClass } from "@/shared/styles/components";
-import { AnimationSidebarContent } from "./animation-sidebar-content";
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
-
-const AnimationModeIcon = HOST_ICONOLOGY.canvasMode.animation;
 
 type StructuredSidebarTab = "template" | "components";
 
@@ -231,10 +228,7 @@ export function SidebarRight() {
       </div>
     ) : null;
 
-  const sidebarBody =
-    canvasMode === "animation" ? (
-      <AnimationSidebarContent />
-    ) : (
+  const sidebarBody = (
       <div
         data-testid="sidebar-mode-layout"
         className={cn(
@@ -285,13 +279,6 @@ export function SidebarRight() {
           "placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
         )}
       />
-    ) : canvasMode === "animation" ? (
-      <div className="flex min-w-0 flex-1 items-center gap-2">
-        <div className="flex size-7 shrink-0 items-center justify-center rounded-md bg-accent">
-          <AnimationModeIcon className="size-4 text-accent-foreground" />
-        </div>
-        <span className="truncate text-sm font-semibold">{t("animation.sidebar.title")}</span>
-      </div>
     ) : (
       <SearchForm
         view={activeCharacterView}
@@ -316,10 +303,9 @@ export function SidebarRight() {
       onContextMenu={stopCanvasUiEvent}
       contentClassName={cn(
         "min-h-0 overflow-hidden",
-        canvasMode !== "animation" && "[scrollbar-gutter:auto]",
+        "[scrollbar-gutter:auto]",
         canvasMode === "freeform" && "gap-0 p-0",
         canvasMode === "structured" && "gap-0 p-0",
-        canvasMode === "animation" && "gap-0 p-0",
         !isMobile && "pb-12"
       )}
       header={

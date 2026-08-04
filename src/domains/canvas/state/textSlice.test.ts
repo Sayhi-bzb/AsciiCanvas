@@ -12,12 +12,11 @@ const resetStore = () => {
 
 const setTextState = (
   state: Partial<
-    Pick<EditorState, "grid" | "textCursor" | "canvasMode" | "canvasBounds">
+    Pick<EditorState, "grid" | "textCursor" | "canvasMode">
   >
 ) => {
   useEditorStore.setState({
     canvasMode: "freeform",
-    canvasBounds: null,
     grid: new Map(),
     ...state,
   });
@@ -81,17 +80,6 @@ describe("textSlice newlineText", () => {
     expect(useEditorStore.getState().textCursor).toEqual({ x: 3, y: 1 });
   });
 
-  it("clamps newline movement to animation bounds", () => {
-    setTextState({
-      canvasMode: "animation",
-      canvasBounds: { width: 10, height: 2 },
-      textCursor: { x: 8, y: 1 },
-    });
-
-    useEditorStore.getState().newlineText();
-
-    expect(useEditorStore.getState().textCursor).toEqual({ x: 8, y: 1 });
-  });
 });
 
 describe("textSlice writeTextString", () => {
@@ -118,7 +106,6 @@ describe("textSlice writeTextString", () => {
   it("writes at the static active cell when legacy cursor and selections are empty", () => {
     useEditorStore.setState({
       canvasMode: "freeform",
-      canvasBounds: null,
       grid: new Map(),
       textCursor: null,
       selections: [],

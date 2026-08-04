@@ -78,8 +78,7 @@ describe("canvas drag-update execution", () => {
         type: "drawing", tool: "brush", start: { x: 0, y: 0 },
         lastGrid: { x: 0, y: 0 }, lastPlacedGrid: { x: 0, y: 0 },
       },
-      tool: "brush", canvasMode: "freeform", currentGrid: { x: 2, y: 0 },
-      canvasBounds: null, structuredScene: [],
+      tool: "brush", canvasMode: "freeform", currentGrid: { x: 2, y: 0 }, structuredScene: [],
     });
     expect(executor.draw).toHaveBeenCalledWith({ x: 2, y: 0 });
   });

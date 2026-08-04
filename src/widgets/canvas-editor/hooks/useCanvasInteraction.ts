@@ -95,8 +95,7 @@ export const useCanvasInteraction = (
     | "updateScratchForShape"
     | "setHoveredGrid"
     | "fillArea"
-    | "canvasBounds"
-    | "structuredScene"
+      | "structuredScene"
     | "editingStructuredTextNodeId"
     | "selectedStructuredNodeIds"
     | "setStructuredGridFocus"
@@ -138,7 +137,6 @@ export const useCanvasInteraction = (
     updateScratchForShape,
     setHoveredGrid,
     fillArea,
-    canvasBounds,
     structuredScene,
     editingStructuredTextNodeId,
     selectedStructuredNodeIds,
@@ -425,7 +423,6 @@ export const useCanvasInteraction = (
     queueOffsetDelta: (dx, dy) => viewportInteraction.queueOffsetDelta(dx, dy),
   });
   const canvasWheelHandler = createCanvasWheelHandler({
-    canvasMode,
     executor: canvasWheelExecutor,
   });
   const canvasWheelRouteHandler = createCanvasWheelRouteHandler({
@@ -436,7 +433,6 @@ export const useCanvasInteraction = (
     canvasMode,
     tool,
     brushChar,
-    canvasBounds,
     zoom,
     hasColorPickerTarget: !!canvasColorPickerTarget,
     selectedStructuredNodeIds,

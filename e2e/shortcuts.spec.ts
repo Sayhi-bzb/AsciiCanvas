@@ -27,8 +27,6 @@ const seedFreeformSelection = async (page: Page) => {
             canvasMode: session.mode,
             structuredScene: [],
             structuredComponents: [],
-            canvasBounds: null,
-            animationTimeline: null,
             brushChar: "#",
             brushColor: "#111827",
             showGrid: true,

@@ -113,8 +113,7 @@ describe("canvas drag-start execution", () => {
     expect(adapter({
       canvasMode: "freeform", tool: "brush", button: 0,
       isCtrlOrMetaPressed: false, hasColorPickerTarget: false, hasCanvasRect: true,
-      screenPoint: { x: 100, y: 120 }, shiftKey: false, anchorGrid: null,
-      canvasBounds: null, brushChar: "#", mouseDetail: 1,
+      screenPoint: { x: 100, y: 120 }, shiftKey: false, anchorGrid: null, brushChar: "#", mouseDetail: 1,
       preventDefault: vi.fn(),
       resolveGridPoint: () => ({ x: 2, y: 3 }),
       resolveLocalPoint: () => ({ x: 100, y: 120 }),

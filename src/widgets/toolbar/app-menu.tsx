@@ -46,8 +46,6 @@ export function AppMenu() {
     canvasMode,
     structuredScene,
     structuredComponents,
-    canvasBounds,
-    animationTimeline,
     clearCanvas,
   } = useEditorStore(
     useShallow((state) => ({
@@ -55,8 +53,6 @@ export function AppMenu() {
       canvasMode: state.canvasMode,
       structuredScene: state.structuredScene,
       structuredComponents: state.structuredComponents,
-      canvasBounds: state.canvasBounds,
-      animationTimeline: state.animationTimeline,
       clearCanvas: state.clearCanvas,
     }))
   );
@@ -69,14 +65,8 @@ export function AppMenu() {
   } = useCanvasImport();
   const [clearOpen, setClearOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const clearLabel =
-    canvasMode === "animation"
-      ? t("sidebar.clear.frame")
-      : t("sidebar.clear.canvas");
-  const clearDescription =
-    canvasMode === "animation"
-      ? t("sidebar.clear.frameDescription")
-      : t("sidebar.clear.canvasDescription");
+  const clearLabel = t("sidebar.clear.canvas");
+  const clearDescription = t("sidebar.clear.canvasDescription");
   const exportLabel = t("appMenu.export");
   const availableExportFormats = useMemo(
     () => getAvailableExportFormats(canvasMode),
@@ -88,14 +78,10 @@ export function AppMenu() {
       grid,
       structuredScene,
       structuredComponents,
-      canvasBounds,
-      animationTimeline,
       includeColor: true,
       showGrid: false,
     }),
     [
-      animationTimeline,
-      canvasBounds,
       canvasMode,
       grid,
       structuredComponents,
@@ -116,7 +102,7 @@ export function AppMenu() {
       <input
         ref={fileInputRef}
         type="file"
-        accept=".ascanvas,.json,.cast,application/vnd.ascii-canvas+json,application/json,text/plain"
+        accept=".ascanvas,.json,application/vnd.ascii-canvas+json,application/json,text/plain"
         className="sr-only"
         tabIndex={-1}
         aria-hidden="true"

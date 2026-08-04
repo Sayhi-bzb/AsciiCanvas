@@ -10,16 +10,13 @@ import type { CanvasRenderModel } from './canvasModels';
 import { GridManager } from '@/shared/utils/grid';
 import type { SelectionArea, GridMap, Point, NodeBounds } from '@/shared/types';
 import type { StructuredSplitBoxNode } from '@/domains/structured-content/public';
-import type { AnimationFrame } from '@/domains/animation/public';
 import type { CanvasLinkHit } from './interaction/core/linkHitTesting';
 import { getSelectionBounds } from '@/shared/utils/selection';
-import { createMapFromEntries } from '@/domains/canvas/public';
 import {
   DEFAULT_GRID_RENDER_METRICS,
   drawGridLines,
   drawTextCell,
   getCellOccupancy,
-  getCellPixelSize,
   gridCellRect,
   prepareCanvasSurface,
   setTextRenderStyle,
@@ -40,7 +37,6 @@ import {
 
 import type { StructuredMovePreview } from './interaction/structured/structuredInteractionPreview';
 import { drawGridLayer } from '../rendering/drawGridLayer';
-import { resolveAnimationGhostLayers } from '../rendering/animation-ghost-layers';
 export type { StructuredMovePreview } from './interaction/structured/structuredInteractionPreview';
 
 interface LayerRefs {
@@ -128,9 +124,6 @@ export const useCanvasRenderer = (
     hoveredGrid,
     tool,
     canvasMode,
-    canvasBounds,
-    animationTimeline,
-    animationPlaybackFrameId,
     selectedStructuredNodeIds,
     structuredContextPoint,
     structuredGridFocus,
@@ -148,23 +141,8 @@ export const useCanvasRenderer = (
   });
   const renderedSelections = canvasMode === 'freeform' ? staticGridView.selectionAreas : selections;
   const renderedTextCursor = canvasMode === 'freeform' ? staticGridView.textCursor : textCursor;
-  const traceRoundRect = (
-    ctx: CanvasRenderingContext2D,
-    x: number,
-    y: number,
-    width: number,
-    height: number,
-    radius: number
-  ) => {
-    const safeRadius = Math.max(0, Math.min(radius, width / 2, height / 2));
-    ctx.beginPath();
-    ctx.roundRect(x, y, width, height, safeRadius);
-  };
   const baseRenderInputsRef = useRef<unknown[] | null>(null);
   const manualRenderRafRef = useRef<number | null>(null);
-  const animationFrameGridCacheRef = useRef<
-    Map<string, { entries: AnimationFrame['grid']; grid: GridMap }>
-  >(new Map());
 
   const shouldRenderBaseLayers = (inputs: unknown[]) => {
     const previous = baseRenderInputsRef.current;
@@ -192,17 +170,6 @@ export const useCanvasRenderer = (
     [hoveredLink]
   );
   useEffect(() => {
-    const getCachedAnimationFrameGrid = (frame: AnimationFrame) => {
-      const cached = animationFrameGridCacheRef.current.get(frame.id);
-      if (cached?.entries === frame.grid) return cached.grid;
-      const grid = createMapFromEntries(frame.grid);
-      animationFrameGridCacheRef.current.set(frame.id, {
-        entries: frame.grid,
-        grid,
-      });
-      return grid;
-    };
-
     const render = () => {
       if (!size || size.width === 0 || size.height === 0) return;
       const structuredMovePreview = structuredMovePreviewRef.current;
@@ -213,7 +180,6 @@ export const useCanvasRenderer = (
         : structuredScene;
 
       const dpr = window.devicePixelRatio || 1;
-      const { width: sw, height: sh } = getCellPixelSize(zoom);
       const viewBounds = GridManager.getViewportGridBounds(
         size.width,
         size.height,
@@ -221,30 +187,6 @@ export const useCanvasRenderer = (
         offset.y,
         zoom
       );
-      const boundedView =
-        canvasMode === 'animation' && canvasBounds
-          ? {
-              startX: Math.max(0, viewBounds.startX),
-              endX: Math.min(canvasBounds.width - 1, viewBounds.endX),
-              startY: Math.max(0, viewBounds.startY),
-              endY: Math.min(canvasBounds.height - 1, viewBounds.endY),
-            }
-          : viewBounds;
-      const animationViewportRect =
-        canvasMode === 'animation' && canvasBounds
-          ? {
-              x: offset.x,
-              y: offset.y,
-              width: canvasBounds.width * sw,
-              height: canvasBounds.height * sh,
-            }
-          : null;
-      const animationGhostLayers = resolveAnimationGhostLayers({
-        canvasMode,
-        timeline: animationTimeline,
-        playbackFrameId: animationPlaybackFrameId,
-        getFrameGrid: getCachedAnimationFrameGrid,
-      });
       const renderBaseLayers = shouldRenderBaseLayers([
         layers.bg.current,
         layers.scratch.current,
@@ -256,8 +198,6 @@ export const useCanvasRenderer = (
         scratchLayer,
         showGrid,
         canvasMode,
-        canvasBounds,
-        animationTimeline,
         hoveredLink,
         structuredMovePreview?.baseGrid ?? null,
       ]);
@@ -269,42 +209,12 @@ export const useCanvasRenderer = (
         bgCtx.fillStyle = BACKGROUND_COLOR;
         bgCtx.fillRect(0, 0, size.width, size.height);
 
-        if (animationViewportRect) {
-          const borderRadius = Math.min(16, sw * 0.45, sh * 0.45);
-          bgCtx.save();
-          traceRoundRect(
-            bgCtx,
-            Math.round(animationViewportRect.x),
-            Math.round(animationViewportRect.y),
-            Math.round(animationViewportRect.width),
-            Math.round(animationViewportRect.height),
-            borderRadius
-          );
-          bgCtx.clip();
-        }
-
         if (showGrid) {
-          const gridStartX =
-            canvasMode === 'animation' && canvasBounds
-              ? Math.max(0, boundedView.startX)
-              : viewBounds.startX;
-          const gridEndX =
-            canvasMode === 'animation' && canvasBounds
-              ? Math.min(canvasBounds.width, boundedView.endX + 1)
-              : viewBounds.endX;
-          const gridStartY =
-            canvasMode === 'animation' && canvasBounds
-              ? Math.max(0, boundedView.startY)
-              : viewBounds.startY;
-          const gridEndY =
-            canvasMode === 'animation' && canvasBounds
-              ? Math.min(canvasBounds.height, boundedView.endY + 1)
-              : viewBounds.endY;
           drawGridLines(bgCtx, {
-            startX: gridStartX,
-            endX: gridEndX,
-            startY: gridStartY,
-            endY: gridEndY,
+            startX: viewBounds.startX,
+            endX: viewBounds.endX,
+            startY: viewBounds.startY,
+            endY: viewBounds.endY,
             offsetX: offset.x,
             offsetY: offset.y,
             width: size.width,
@@ -313,36 +223,13 @@ export const useCanvasRenderer = (
             color: GRID_COLOR,
           });
         }
-        animationGhostLayers.forEach((layer) => {
-          drawLayer(bgCtx, layer.grid, boundedView, zoom, offset, layer.alpha);
-        });
         drawLayer(
           bgCtx,
           renderedGrid,
-          canvasMode === 'animation' ? boundedView : viewBounds,
+          viewBounds,
           zoom,
           offset
         );
-
-        if (animationViewportRect) {
-          bgCtx.restore();
-        }
-
-        if (canvasMode === 'animation' && canvasBounds) {
-          const borderPos = GridManager.gridToScreen(0, 0, offset.x, offset.y, zoom);
-          const borderRadius = Math.min(16, sw * 0.45, sh * 0.45);
-          bgCtx.strokeStyle = '#000000';
-          bgCtx.lineWidth = 2;
-          traceRoundRect(
-            bgCtx,
-            Math.round(borderPos.x),
-            Math.round(borderPos.y),
-            Math.round(canvasBounds.width * sw),
-            Math.round(canvasBounds.height * sh),
-            borderRadius
-          );
-          bgCtx.stroke();
-        }
       }
 
       const scratchCanvas = layers.scratch.current;
@@ -352,7 +239,7 @@ export const useCanvasRenderer = (
         drawLayer(
           scratchCtx,
           scratchLayer,
-          canvasMode === 'animation' ? boundedView : viewBounds,
+          viewBounds,
           zoom,
           offset
         );
@@ -650,9 +537,6 @@ export const useCanvasRenderer = (
     hoveredGrid,
     tool,
     canvasMode,
-    canvasBounds,
-    animationTimeline,
-    animationPlaybackFrameId,
     structuredScene,
     selectedStructuredNodeIds,
     structuredContextPoint,

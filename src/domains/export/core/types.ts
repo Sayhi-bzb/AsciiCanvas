@@ -1,23 +1,19 @@
 import type { GridMap } from "@/shared/types";
 import type { CanvasMode } from "@/domains/sessions/public";
 import type { StructuredComponentInstance, StructuredNode } from "@/domains/structured-content/public";
-import type { AnimationCanvasSize, AnimationTimeline } from "@/domains/animation/public";
 
 export type ExportFormat =
   | "txt"
   | "ascanvas"
   | "ansi"
   | "png"
-  | "gif"
-  | "cast";
+ ;
 
 export type ExportContext = {
   canvasMode: CanvasMode;
   grid: GridMap;
   structuredScene: StructuredNode[];
   structuredComponents: StructuredComponentInstance[];
-  canvasBounds: AnimationCanvasSize | null;
-  animationTimeline: AnimationTimeline | null;
   includeColor: boolean;
   showGrid: boolean;
 };
@@ -42,7 +38,6 @@ export type ExportArtifact = TextExportArtifact | BlobExportArtifact;
 
 type ExportErrorCode =
   | "unsupported-format"
-  | "missing-animation-state"
   | "empty-content"
   | "canvas-unavailable"
   | "encoding-failed"

@@ -19,13 +19,6 @@ import {
 } from "@/shared/ui/alert-dialog";
 import { Button } from "@/shared/ui/button";
 import {
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
 } from "@/shared/ui/dialog";
 import {
   DropdownMenu,
@@ -38,24 +31,12 @@ import {
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
 import { Input } from "@/shared/ui/input";
-import { Label } from "@/shared/ui/label";
 
-const AnimationModeIcon = HOST_ICONOLOGY.canvasMode.animation;
 const SessionExpandIcon = HOST_ICONOLOGY.sessionAction.expand;
 const SessionMoreIcon = HOST_ICONOLOGY.sessionAction.more;
 const SessionRenameIcon = HOST_ICONOLOGY.sessionAction.rename;
 const SessionCreateIcon = HOST_ICONOLOGY.sessionAction.create;
 const SessionCloseIcon = HOST_ICONOLOGY.sessionAction.close;
-
-const ANIMATION_SIZE_PRESETS = [
-  { labelKey: "session.animation.preset.classicTerminal", width: 80, height: 25 },
-  { labelKey: "session.animation.preset.square64", width: 64, height: 64 },
-  { labelKey: "session.animation.preset.poster128", width: 128, height: 128 },
-] satisfies Array<{
-  labelKey: I18nKey;
-  width: number;
-  height: number;
-}>;
 
 const createOptionMeta = [
   {
@@ -68,13 +49,8 @@ const createOptionMeta = [
     labelKey: "session.newStructured",
     icon: HOST_ICONOLOGY.canvasMode.structured,
   },
-  {
-    mode: "animation" as const,
-    labelKey: "session.newAnimation",
-    icon: HOST_ICONOLOGY.canvasMode.animation,
-  },
 ] satisfies Array<{
-  mode: "freeform" | "structured" | "animation";
+  mode: "freeform" | "structured";
   labelKey: I18nKey;
   icon: (typeof HOST_ICONOLOGY.canvasMode)[keyof typeof HOST_ICONOLOGY.canvasMode];
 }>;
@@ -105,9 +81,6 @@ export function CanvasBreadcrumb() {
   const [renameName, setRenameName] = useState("");
   const [renameMenuWidth, setRenameMenuWidth] = useState<number | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
-  const [animationDialogOpen, setAnimationDialogOpen] = useState(false);
-  const [animationWidth, setAnimationWidth] = useState("80");
-  const [animationHeight, setAnimationHeight] = useState("25");
 
   const activeSession =
     canvasSessions.find((session) => session.id === activeCanvasId) ??
@@ -142,18 +115,6 @@ export function CanvasBreadcrumb() {
   const cancelRename = () => {
     setRenameTargetId(null);
     setRenameMenuWidth(null);
-  };
-
-  const commitAnimationCreation = () => {
-    const width = Number.parseInt(animationWidth, 10);
-    const height = Number.parseInt(animationHeight, 10);
-    createCanvasSession("animation", {
-      size: {
-        width: Number.isFinite(width) ? width : 80,
-        height: Number.isFinite(height) ? height : 25,
-      },
-    });
-    setAnimationDialogOpen(false);
   };
 
   return (
@@ -326,14 +287,7 @@ export function CanvasBreadcrumb() {
                 return (
                   <DropdownMenuItem
                     key={option.mode}
-                    onSelect={() => {
-                      if (option.mode === "animation") {
-                        setMenuOpen(false);
-                        setAnimationDialogOpen(true);
-                      } else {
-                        createSession(option.mode);
-                      }
-                    }}
+                    onSelect={() => createSession(option.mode)}
                   >
                     <Icon />
                     {t(option.labelKey)}
@@ -344,106 +298,6 @@ export function CanvasBreadcrumb() {
           </DropdownMenuSub>
         </DropdownMenuContent>
       </DropdownMenu>
-
-      <Dialog open={animationDialogOpen} onOpenChange={setAnimationDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <AnimationModeIcon className="size-4 text-primary" />
-              {t("session.animation.title")}
-            </DialogTitle>
-            <DialogDescription>
-              {t("session.animation.description")}
-            </DialogDescription>
-          </DialogHeader>
-
-          <DialogBody className="space-y-3">
-            <div className="space-y-1.5">
-              <div className="text-[11px] font-medium text-muted-foreground">
-                {t("session.animation.presets")}
-              </div>
-              <div className="grid grid-cols-3 gap-1.5">
-                {ANIMATION_SIZE_PRESETS.map((preset) => (
-                  <button
-                    key={preset.labelKey}
-                    type="button"
-                    onClick={() => {
-                      setAnimationWidth(String(preset.width));
-                      setAnimationHeight(String(preset.height));
-                    }}
-                    className="rounded-md bg-accent/35 px-2.5 py-2 text-left transition-colors outline-none hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                  >
-                    <div className="text-[11px] font-semibold text-foreground">
-                      {preset.width} x {preset.height}
-                    </div>
-                    <div className="mt-1 text-[11px] leading-4 text-muted-foreground">
-                      {t(preset.labelKey)}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <Label htmlFor="animation-width">{t("session.animation.width")}</Label>
-                <Input
-                  id="animation-width"
-                  inputMode="numeric"
-                  value={animationWidth}
-                  onChange={(event) => setAnimationWidth(event.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="animation-height">{t("session.animation.height")}</Label>
-                <Input
-                  id="animation-height"
-                  inputMode="numeric"
-                  value={animationHeight}
-                  onChange={(event) => setAnimationHeight(event.target.value)}
-                />
-              </div>
-            </div>
-
-            <div className="rounded-lg bg-accent/35 px-3 py-2.5">
-              <div className="text-[11px] font-medium text-muted-foreground">
-                {t("session.animation.startupDefaults")}
-              </div>
-              <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                <div className="px-0.5 py-1">
-                  <div className="text-[11px] font-medium text-muted-foreground">
-                    {t("session.animation.playback")}
-                  </div>
-                  <div className="mt-1 text-xs font-semibold text-foreground">10 FPS</div>
-                  <div className="mt-1 text-[11px] text-muted-foreground">
-                    {t("session.animation.loopEnabled")}
-                  </div>
-                </div>
-                <div className="border-t border-accent px-0.5 pt-3 sm:border-l sm:border-t-0 sm:pl-3 sm:pt-1">
-                  <div className="text-[11px] font-medium text-muted-foreground">
-                    {t("session.animation.onionSkin")}
-                  </div>
-                  <div className="mt-1 text-xs font-semibold text-foreground">
-                    2 back / 2 forward
-                  </div>
-                  <div className="mt-1 text-[11px] text-muted-foreground">
-                    {t("session.animation.fadeProfile")}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-          </DialogBody>
-          <DialogFooter>
-            <Button tone="neutral" onClick={() => setAnimationDialogOpen(false)}>
-              {t("dialog.cancel")}
-            </Button>
-            <Button onClick={commitAnimationCreation}>
-              {t("session.animation.create")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <AlertDialog
         open={!!pendingDeleteSession}

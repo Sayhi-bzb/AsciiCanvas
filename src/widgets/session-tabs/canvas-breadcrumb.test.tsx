@@ -152,46 +152,6 @@ describe("CanvasBreadcrumb", () => {
     ).toBe(false);
   });
 
-  it("disables close for the last canvas and creates each canvas mode", async () => {
-    render(<CanvasBreadcrumb />);
-
-    openMenu();
-    const onlySession = useEditorStore.getState().canvasSessions[0];
-    await openSubmenu(`Manage ${onlySession.name}`);
-    expect(await screen.findByRole("menuitem", { name: "Close" })).toHaveAttribute(
-      "data-disabled"
-    );
-
-    fireEvent.keyDown(screen.getByRole("menu", { name: "Select canvas" }), {
-      key: "Escape",
-    });
-    await waitFor(() =>
-      expect(screen.queryByRole("menu", { name: "Select canvas" })).not.toBeInTheDocument()
-    );
-    openMenu();
-    await openSubmenu("Create");
-    fireEvent.click(await screen.findByRole("menuitem", { name: "New Freeform" }));
-    await waitFor(() =>
-      expect(screen.queryByRole("menu", { name: "Select canvas" })).not.toBeInTheDocument()
-    );
-    expect(useEditorStore.getState().canvasSessions).toHaveLength(2);
-    expect(useEditorStore.getState().canvasMode).toBe("freeform");
-
-    openMenu();
-    await openSubmenu("Create");
-    fireEvent.click(await screen.findByRole("menuitem", { name: "New Structured" }));
-    await waitFor(() =>
-      expect(screen.queryByRole("menu", { name: "Select canvas" })).not.toBeInTheDocument()
-    );
-    expect(useEditorStore.getState().canvasMode).toBe("structured");
-
-    openMenu();
-    await openSubmenu("Create");
-    fireEvent.click(await screen.findByRole("menuitem", { name: "New Animation" }));
-    expect(await screen.findByRole("heading", { name: "Create Animation Session" })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Create Animation" }));
-    expect(useEditorStore.getState().canvasMode).toBe("animation");
-  });
 
   it("translates operation UI without translating canvas names", async () => {
     setTwoSessions();

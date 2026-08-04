@@ -8,7 +8,6 @@ import { CanvasSurface } from './CanvasSurface';
 import { StructuredTemplatePreviewOverlay } from './StructuredTemplatePreviewOverlay';
 import { useStructuredTemplateDrop } from './hooks/useStructuredTemplateDrop';
 import { useManagedCanvasInput } from './hooks/useManagedCanvasInput';
-import { getCenteredAnimationOffset } from '@/domains/animation/public';
 import { ContextMenu, ContextMenuTrigger } from '@/shared/ui/context-menu';
 import { CANVAS_CONTEXT_MENU, STRUCTURED_CONTEXT_MENU } from '@/domains/actions/public';
 import { GridManager } from '@/shared/utils/grid';
@@ -61,11 +60,7 @@ export const AsciiCanvas = ({
   const rendererModel = interactionToolOverride
     ? { ...rendererStore, tool: interactionToolOverride }
     : rendererStore;
-  const {
-    canvasMode,
-    canvasBounds: interactionCanvasBounds,
-    setOffset: setCanvasOffset,
-  } = interactionStore;
+  const { canvasMode } = interactionStore;
   const {
     offset,
     zoom,
@@ -75,7 +70,6 @@ export const AsciiCanvas = ({
     setSelectedStructuredSplitHandle,
     structuredScene,
     setStructuredContextPoint,
-    activeCanvasHasSavedViewport,
   } = editorStore;
   const renderedViewportRef = useRef<CanvasViewport | null>(null);
 
@@ -135,33 +129,6 @@ export const AsciiCanvas = ({
     onUndo,
     onRedo,
   });
-
-  useEffect(() => {
-    if (
-      canvasMode !== 'animation' ||
-      !interactionCanvasBounds ||
-      !size ||
-      activeCanvasHasSavedViewport
-    ) {
-      return;
-    }
-
-    const centeredOffset = getCenteredAnimationOffset(interactionCanvasBounds, size, zoom);
-
-    setCanvasOffset((prev) => {
-      if (prev.x === centeredOffset.x && prev.y === centeredOffset.y) {
-        return prev;
-      }
-      return centeredOffset;
-    });
-  }, [
-    activeCanvasHasSavedViewport,
-    canvasMode,
-    interactionCanvasBounds,
-    setCanvasOffset,
-    size,
-    zoom,
-  ]);
 
   const { draggingSelection, handleDoubleClick } = useCanvasInteraction(
     interactionModel,

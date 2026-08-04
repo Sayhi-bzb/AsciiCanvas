@@ -45,60 +45,7 @@ describe("importCanvasSession", () => {
     expect(state.grid.get("2,1")).toEqual({ char: "B", color: "#00ff00" });
   });
 
-  it("imports animation protocol documents with size and timeline metadata", () => {
-    const session = useEditorStore.getState().importCanvasSession(
-      JSON.stringify({
-        type: ASCII_CANVAS_DOCUMENT_TYPE,
-        version: ASCII_CANVAS_DOCUMENT_VERSION,
-        mode: "animation",
-        size: { width: 64, height: 32 },
-        playback: { fps: 8, loop: false },
-        frames: [
-          {
-            id: "f1",
-            name: "Idle",
-            cells: [{ x: 1, y: 2, char: "@", color: "#ff0000" }],
-          },
-          {
-            id: "f2",
-            name: "Blink",
-            cells: [{ x: 0, y: 1, char: "*", color: "#00ffcc" }],
-          },
-        ],
-      })
-    );
 
-    const state = useEditorStore.getState();
-    expect(session.mode).toBe("animation");
-    expect(state.canvasMode).toBe("animation");
-    expect(state.canvasBounds).toEqual({ width: 64, height: 32 });
-    expect(state.animationTimeline?.fps).toBe(8);
-    expect(state.animationTimeline?.loop).toBe(false);
-    expect(state.animationTimeline?.frames).toHaveLength(2);
-    expect(state.animationIsPlaying).toBe(false);
-    expect(state.grid.get("1,2")).toEqual({ char: "@", color: "#ff0000" });
-  });
-
-  it("imports asciinema cast documents as animation sessions", () => {
-    const session = useEditorStore.getState().importCanvasSession(
-      [
-        '{"version":2,"width":5,"height":2,"timestamp":1770000000,"env":{"TERM":"xterm-256color"}}',
-        '[0,"o","\\r\\u001b[38;2;255;0;0m@\\u001b[0m    \\n     "]',
-        '[0.25,"o","\\r \\u001b[38;2;0;255;0m*\\u001b[0m   \\n     "]',
-        "",
-      ].join("\n"),
-      { name: "Imported Cast" }
-    );
-
-    const state = useEditorStore.getState();
-    expect(session.name).toBe("Imported Cast");
-    expect(session.mode).toBe("animation");
-    expect(state.canvasMode).toBe("animation");
-    expect(state.canvasBounds).toEqual({ width: 5, height: 2 });
-    expect(state.animationTimeline?.fps).toBe(4);
-    expect(state.animationTimeline?.frames).toHaveLength(2);
-    expect(state.grid.get("0,0")).toEqual({ char: "@", color: "#ff0000" });
-  });
 
   it("imports structured protocol documents as semantic scenes", () => {
     const session = useEditorStore.getState().importCanvasSession({

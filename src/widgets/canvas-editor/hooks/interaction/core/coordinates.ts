@@ -1,15 +1,6 @@
 import type { GridMap, Point } from "@/shared/types";
-import type { AnimationCanvasSize } from "@/domains/animation/public";
 import {
   GridManager } from "@/shared/utils/grid";
-import {
-  clampPointToBounds
-} from "@/domains/animation/public";
-import {
-  isPointWithinBounds
-} from "@/domains/animation/public";
-
-type CanvasModeForCoordinates = "freeform" | "structured" | "animation";
 
 export interface CanvasViewport {
   offset: Point;
@@ -28,8 +19,6 @@ interface CanvasGridPointInput extends CanvasScreenPointInput {
 
 interface CanvasSnappedGridPointInput extends CanvasGridPointInput {
   grid: GridMap;
-  canvasMode: CanvasModeForCoordinates;
-  canvasBounds: AnimationCanvasSize | null;
 }
 
 export const getLocalCanvasPoint = ({
@@ -62,24 +51,14 @@ export const resolveSnappedGridPointFromScreen = (
 ): Point => {
   const raw = resolveRawGridPointFromScreen(input);
   const snapped = GridManager.snapToCharStart(raw, input.grid);
-  return input.canvasMode === "animation"
-    ? clampPointToBounds(snapped, input.canvasBounds)
-    : snapped;
+  return snapped;
 };
 
-export const resolveAnimationAwareHoverGridPoint = (
+export const resolveHoverGridPoint = (
   input: Omit<CanvasSnappedGridPointInput, "grid">
 ): Point | null => {
   const raw = resolveRawGridPointFromScreen(input);
-  if (
-    input.canvasMode === "animation" &&
-    !isPointWithinBounds(raw, input.canvasBounds)
-  ) {
-    return null;
-  }
-  return input.canvasMode === "animation"
-    ? clampPointToBounds(raw, input.canvasBounds)
-    : raw;
+  return raw;
 };
 
 export const resolveClampedZoom = (

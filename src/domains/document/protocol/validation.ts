@@ -172,29 +172,6 @@ export const isAsciiCanvasDocument = (
     return Array.isArray(value.cells) && value.cells.every(isProtocolCell);
   }
 
-  if (value.mode === "animation") {
-    return (
-      isObject(value.size) &&
-      typeof value.size.width === "number" &&
-      Number.isFinite(value.size.width) &&
-      typeof value.size.height === "number" &&
-      Number.isFinite(value.size.height) &&
-      isObject(value.playback) &&
-      typeof value.playback.fps === "number" &&
-      Number.isFinite(value.playback.fps) &&
-      typeof value.playback.loop === "boolean" &&
-      Array.isArray(value.frames) &&
-      value.frames.every(
-        (frame) =>
-          isObject(frame) &&
-          typeof frame.id === "string" &&
-          typeof frame.name === "string" &&
-          Array.isArray(frame.cells) &&
-          frame.cells.every(isProtocolCell)
-      )
-    );
-  }
-
   if (value.mode === "structured") {
     return (
       Array.isArray(value.nodes) &&

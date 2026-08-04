@@ -93,42 +93,12 @@ const makeStructuredScene = () => {
   return scene;
 };
 
-const makeAnimationTimeline = () => {
-  const frames = Array.from({ length: 18 }, (_, frameIndex) => ({
-    id: `frame-${frameIndex}`,
-    name: `Frame ${frameIndex + 1}`,
-    grid: makeGrid(80, 25)
-      .filter((_, index) => index % 4 === frameIndex % 4)
-      .slice(0, 420),
-  }));
-
-  return {
-    frames,
-    currentFrameId: frames[0].id,
-    fps: 24,
-    loop: true,
-    onionSkin: {
-      enabled: true,
-      backwardLayers: 2,
-      forwardLayers: 2,
-      opacityFalloff: [0.5, 0.3],
-    },
-  };
-};
-
 const makePersistedState = (
-  mode: "freeform" | "structured" | "animation"
+  mode: "freeform" | "structured"
 ) => {
   const freeformGrid = makeGrid(180, 90);
   const structuredScene = makeStructuredScene();
-  const animationTimeline = makeAnimationTimeline();
-  const animationGrid = animationTimeline.frames[0].grid;
-  const grid =
-    mode === "animation"
-      ? animationGrid
-      : mode === "structured"
-        ? []
-        : freeformGrid;
+  const grid = mode === "structured" ? [] : freeformGrid;
   const session = {
     id: "perf-session",
     name: "Performance Seed",
@@ -136,9 +106,6 @@ const makePersistedState = (
     scene: mode === "structured" ? structuredScene : [],
     grid,
     viewport: { offset: { x: 180, y: 130 }, zoom: 1 },
-    ...(mode === "animation"
-      ? { size: { width: 80, height: 25 }, timeline: animationTimeline }
-      : {}),
   };
 
   return {
@@ -147,8 +114,6 @@ const makePersistedState = (
       zoom: session.viewport.zoom,
       canvasMode: mode,
       structuredScene: mode === "structured" ? structuredScene : [],
-      canvasBounds: mode === "animation" ? { width: 80, height: 25 } : null,
-      animationTimeline: mode === "animation" ? animationTimeline : null,
       brushChar: "█",
       brushColor: "#111827",
       showGrid: true,
@@ -163,7 +128,7 @@ const makePersistedState = (
 
 const seedCanvas = async (
   page: Page,
-  mode: "freeform" | "structured" | "animation"
+  mode: "freeform" | "structured"
 ) => {
   const persisted = makePersistedState(mode);
   await page.addInitScript(
@@ -177,7 +142,7 @@ const seedCanvas = async (
 
 const openSeededCanvas = async (
   page: Page,
-  mode: "freeform" | "structured" | "animation"
+  mode: "freeform" | "structured"
 ) => {
   const runtimeErrors: string[] = [];
   page.on("console", (message) => {
@@ -433,40 +398,6 @@ test.describe.serial("Performance smoke", () => {
     });
   });
 
-  test("animation playback and frame controls stay smooth", async ({ page }, testInfo) => {
-    await openSeededCanvas(page, "animation");
-
-    const playButton = page.getByRole("button", { name: "Play animation" });
-    await expect(playButton).toBeVisible();
-    const playback = await runSmoothScenario(
-      page,
-      "animation-playback",
-      async () => {
-        await playButton.click();
-        await page.waitForTimeout(SCENARIO_MS);
-        await page.getByRole("button", { name: "Pause animation" }).click();
-      },
-      testInfo
-    );
-    const frameStep = await runSmoothScenario(
-      page,
-      "animation-frame-step",
-      async () => {
-        const next = page.getByRole("button", { name: "Next frame" });
-        for (let i = 0; i < 80; i++) {
-          await next.click();
-          await page.waitForTimeout(INPUT_FRAME_MS);
-        }
-      },
-      testInfo,
-      { ...LIMITS, p95FrameMs: 34 }
-    );
-
-    await testInfo.attach("animation-summary.json", {
-      body: JSON.stringify([playback, frameStep], null, 2),
-      contentType: "application/json",
-    });
-  });
 });
 
 declare global {

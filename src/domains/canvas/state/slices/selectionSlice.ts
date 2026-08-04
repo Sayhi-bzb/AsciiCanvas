@@ -14,7 +14,6 @@ import {
   deleteStructuredSplitBoxSplit,
   isStructuredSplitBoxLineHandle,
 } from "@/domains/structured-content/public";
-import { clampSelectionToBounds } from "@/domains/animation/public";
 import {
   collapseGridSelectionTo,
   createGridSelectionState,
@@ -53,7 +52,7 @@ export const createSelectionSlice: StateCreator<
   selections: [],
   addSelection: (area) =>
     set((s) => {
-      const nextArea = clampSelectionToBounds(area, s.canvasBounds);
+      const nextArea = area;
       const range = gridRangeFromSelectionArea(nextArea);
       return {
         selections: [...s.selections, nextArea],
@@ -339,24 +338,21 @@ export const createSelectionSlice: StateCreator<
   },
 
   moveSelections: (dx, dy) => {
-    const { selections, canvasBounds } = get();
+    const { selections } = get();
     if (selections.length === 0) return;
 
     set({
       selections: selections.map((area) => ({
-        ...clampSelectionToBounds(
-          {
+        ...{
             start: { x: area.start.x + dx, y: area.start.y + dy },
             end: { x: area.end.x + dx, y: area.end.y + dy },
           },
-          canvasBounds
-        ),
       })),
     });
   },
 
   expandSelection: (dx, dy) => {
-    const { selections, canvasBounds } = get();
+    const { selections } = get();
     if (selections.length === 0) return;
 
     // Only expand the last selection (most recent)
@@ -364,13 +360,10 @@ export const createSelectionSlice: StateCreator<
     const lastSelection = selections[lastIndex];
 
     const newSelections = [...selections];
-    newSelections[lastIndex] = clampSelectionToBounds(
-      {
+    newSelections[lastIndex] = {
         start: { ...lastSelection.start },
         end: { x: lastSelection.end.x + dx, y: lastSelection.end.y + dy },
-      },
-      canvasBounds
-    );
+      };
 
     set({ selections: newSelections });
   },

@@ -1,17 +1,11 @@
 import type { GridMap, SelectionArea } from "@/shared/types";
-import { exportAnimationToCast } from "../formats/cast";
 import {
   createPngBlobFromGrid,
   createSelectionPngBlob,
 } from "../formats/raster";
-import { createAnimationGifBlob } from "../formats/gif";
 import { exportProtocolToJSON } from "../formats/protocol";
 import { exportStructuredF12Text } from "../formats/structuredText";
-import {
-  exportAnimationFrameToAnsi,
-  exportToAnsi,
-  exportToString,
-} from "../formats/text";
+import { exportToAnsi, exportToString } from "../formats/text";
 import { getExportFormatDefinition } from "./registry";
 import {
   exportFailed,
@@ -72,7 +66,10 @@ export const prepareTextExport = (
   format: ExportFormat
 ): ExportResult<TextExportArtifact> => {
   const definition = getExportFormatDefinition(format);
-  if (!definition?.modes.includes(context.canvasMode) || definition.artifactKind !== "text") {
+  if (
+    !definition?.modes.includes(context.canvasMode) ||
+    definition.artifactKind !== "text"
+  ) {
     return exportFailed("unsupported-format");
   }
 
@@ -93,12 +90,6 @@ export const prepareTextExport = (
           )
         );
       case "ascanvas":
-        if (
-          context.canvasMode === "animation" &&
-          (!context.canvasBounds || !context.animationTimeline)
-        ) {
-          return exportFailed("missing-animation-state");
-        }
         return exportSucceeded(
           textArtifact(
             format,
@@ -111,35 +102,14 @@ export const prepareTextExport = (
         return exportSucceeded(
           textArtifact(
             format,
-            context.canvasMode === "animation" && context.canvasBounds
-              ? exportAnimationFrameToAnsi(
-                  context.canvasBounds,
-                  Array.from(context.grid.entries()),
-                  { includeColor: context.includeColor }
-                )
-              : exportToAnsi(context.grid, {
-                  includeColor: context.includeColor,
-                }),
+            exportToAnsi(context.grid, {
+              includeColor: context.includeColor,
+            }),
             `ascii-canvas-${getTimestamp()}.ans`,
             "text/plain;charset=utf-8"
           )
         );
-      case "cast":
-        if (!context.canvasBounds || !context.animationTimeline) {
-          return exportFailed("missing-animation-state");
-        }
-        return exportSucceeded(
-          textArtifact(
-            format,
-            exportAnimationToCast(context.canvasBounds, context.animationTimeline, {
-              includeColor: context.includeColor,
-            }),
-            `ascii-animation-${getTimestamp()}.cast`,
-            "text/plain;charset=utf-8"
-          )
-        );
       case "png":
-      case "gif":
         return exportFailed("unsupported-format");
     }
   } catch (cause) {
@@ -152,43 +122,25 @@ export const prepareExport = async (
   format: ExportFormat
 ): Promise<ExportResult<ExportArtifact>> => {
   const textResult = prepareTextExport(context, format);
-  if (textResult.ok || !["png", "gif"].includes(format)) return textResult;
+  if (textResult.ok || format !== "png") return textResult;
 
   try {
-    if (format === "png") {
-      const blob = await createPngBlobFromGrid(
-        context.grid,
-        context.showGrid,
-        context.includeColor
-      );
-      return blob
-        ? exportSucceeded({
-            kind: "blob",
-            format,
-            content: blob,
-            filename: `ascii-city-${getTimestamp()}.png`,
-            mimeType: "image/png",
-          })
-        : exportFailed(context.grid.size === 0 ? "empty-content" : "canvas-unavailable");
-    }
-
-    if (!context.canvasBounds || !context.animationTimeline) {
-      return exportFailed("missing-animation-state");
-    }
-    const blob = await createAnimationGifBlob(
-      context.canvasBounds,
-      context.animationTimeline,
+    const blob = await createPngBlobFromGrid(
+      context.grid,
+      context.showGrid,
       context.includeColor
     );
     return blob
       ? exportSucceeded({
           kind: "blob",
-          format,
+          format: "png",
           content: blob,
-          filename: `ascii-animation-${getTimestamp()}.gif`,
-          mimeType: "image/gif",
+          filename: `ascii-city-${getTimestamp()}.png`,
+          mimeType: "image/png",
         })
-      : exportFailed("canvas-unavailable");
+      : exportFailed(
+          context.grid.size === 0 ? "empty-content" : "canvas-unavailable"
+        );
   } catch (cause) {
     return exportFailed("encoding-failed", cause);
   }

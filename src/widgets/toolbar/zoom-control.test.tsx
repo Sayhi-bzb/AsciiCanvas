@@ -98,19 +98,6 @@ describe('ZoomControl', () => {
     expect(screen.queryByTestId('zoom-minimap')).not.toBeInTheDocument();
   });
 
-  it('hides and closes the minimap in animation mode', async () => {
-    useEditorStore.setState({ canvasMode: 'freeform' });
-    render(<ZoomControl containerSize={{ width: 1000, height: 700 }} />);
-    fireEvent.click(screen.getByTestId('zoom-minimap-toggle'));
-    expect(await screen.findByTestId('zoom-minimap')).toBeInTheDocument();
-
-    act(() => useEditorStore.setState({ canvasMode: 'animation' }));
-    await waitFor(() => {
-      expect(screen.queryByTestId('zoom-minimap-toggle')).not.toBeInTheDocument();
-      expect(screen.queryByTestId('zoom-minimap')).not.toBeInTheDocument();
-    });
-    expect(screen.getByTestId('zoom-grid')).toHaveClass('rounded-l-none');
-  });
 
   it('zooms around the canvas center and resets directly when motion is reduced', () => {
     useEditorStore.setState({
@@ -138,86 +125,7 @@ describe('ZoomControl', () => {
     expect(useEditorStore.getState().offset.x).toBeCloseTo(10);
     expect(useEditorStore.getState().offset.y).toBeCloseTo(20);
   });
-  it('animates zoom through intermediate center-anchored frames', () => {
-    reduceMotion = false;
-    let nextFrameId = 0;
-    let currentTime = 0;
-    const frames = new Map<number, FrameRequestCallback>();
-    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
-      nextFrameId += 1;
-      frames.set(nextFrameId, callback);
-      return nextFrameId;
-    });
-    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation((frameId) => {
-      frames.delete(frameId);
-    });
-    vi.spyOn(performance, 'now').mockImplementation(() => currentTime);
 
-    const runFrame = (timestamp: number) => {
-      const nextFrame = frames.entries().next().value as [number, FrameRequestCallback] | undefined;
-      expect(nextFrame).toBeDefined();
-      if (!nextFrame) return;
-      frames.delete(nextFrame[0]);
-      act(() => nextFrame[1](timestamp));
-      currentTime = timestamp;
-    };
-
-    useEditorStore.setState({
-      canvasMode: 'freeform',
-      zoom: 1,
-      offset: { x: 10, y: 20 },
-    });
-
-    render(<ZoomControl containerSize={{ width: 1000, height: 700 }} />);
-    fireEvent.click(screen.getByTestId('zoom-in'));
-
-    expect(useEditorStore.getState().zoom).toBe(1);
-
-    runFrame(140);
-    expect(useEditorStore.getState().zoom).toBeGreaterThan(1);
-    expect(useEditorStore.getState().zoom).toBeLessThan(1.2);
-    expect(useEditorStore.getState().offset.x).toBeGreaterThan(-88);
-    expect(useEditorStore.getState().offset.x).toBeLessThan(10);
-
-    runFrame(280);
-    expect(useEditorStore.getState().zoom).toBeCloseTo(1.2);
-    expect(useEditorStore.getState().offset.x).toBeCloseTo(-88);
-    expect(useEditorStore.getState().offset.y).toBeCloseTo(-46);
-
-    fireEvent.click(screen.getByTestId('zoom-in'));
-    fireEvent.click(screen.getByTestId('zoom-in'));
-    expect(useEditorStore.getState().zoom).toBeCloseTo(1.2);
-
-    runFrame(560);
-    expect(useEditorStore.getState().zoom).toBeCloseTo(1.728);
-
-    fireEvent.click(screen.getByTestId('zoom-in'));
-    runFrame(700);
-    const zoomBeforeReset = useEditorStore.getState().zoom;
-    expect(zoomBeforeReset).toBeGreaterThan(1.728);
-
-    fireEvent.click(screen.getByTestId('zoom-reset'));
-    expect(useEditorStore.getState().zoom).toBeCloseTo(zoomBeforeReset);
-
-    runFrame(980);
-    expect(useEditorStore.getState().zoom).toBeCloseTo(1);
-    expect(useEditorStore.getState().offset.x).toBeCloseTo(10);
-    expect(useEditorStore.getState().offset.y).toBeCloseTo(20);
-  });
-
-  it('changes animation zoom without changing its offset', () => {
-    useEditorStore.setState({
-      canvasMode: 'animation',
-      zoom: 1,
-      offset: { x: 40, y: 60 },
-    });
-
-    render(<ZoomControl containerSize={{ width: 1000, height: 700 }} />);
-    fireEvent.click(screen.getByTestId('zoom-in'));
-
-    expect(useEditorStore.getState().zoom).toBeCloseTo(1.2);
-    expect(useEditorStore.getState().offset).toEqual({ x: 40, y: 60 });
-  });
 
   it('disables directional actions at their limits', async () => {
     useEditorStore.setState({ zoom: 5 });

@@ -93,49 +93,7 @@ describe("Toolbar dock", () => {
     );
   });
 
-  it("maps Alt+digits to animation tools and opens the color popover", async () => {
-    useEditorStore.setState({ canvasMode: "animation", tool: "select" });
-    const setTool = vi.fn();
-    render(<Toolbar tool="select" setTool={setTool} onUndo={vi.fn()} />);
 
-    fireEvent.keyDown(window, {
-      key: "™",
-      code: "Digit2",
-      altKey: true,
-    });
-    expect(setTool).toHaveBeenCalledWith("brush");
-
-    fireEvent.keyDown(window, {
-      key: "§",
-      code: "Digit6",
-      altKey: true,
-    });
-    const colorDialog = await screen.findByRole("dialog", { name: "Color" });
-    expect(
-      screen.getByRole("tablist", { name: "Color palettes" })
-    ).toBeInTheDocument();
-    await waitFor(() => expect(colorDialog).toHaveFocus());
-    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
-  });
-
-  it("returns focus to the color trigger when its popover closes", async () => {
-    useEditorStore.setState({ canvasMode: "animation", tool: "select" });
-    render(<Toolbar tool="select" setTool={vi.fn()} onUndo={vi.fn()} />);
-
-    const trigger = screen.getByRole("button", {
-      name: "Open Color options",
-    });
-    fireEvent.click(trigger);
-
-    const colorDialog = await screen.findByRole("dialog", { name: "Color" });
-    await waitFor(() => expect(colorDialog).toHaveFocus());
-    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
-
-    fireEvent.keyDown(colorDialog, { key: "Escape" });
-
-    await waitFor(() => expect(colorDialog).not.toBeInTheDocument());
-    expect(trigger).toHaveFocus();
-  });
 
   it("exits canvas text editing before using a Dock shortcut", () => {
     useEditorStore.setState({ canvasMode: "freeform", tool: "select" });
@@ -226,16 +184,6 @@ describe("Toolbar dock", () => {
     );
   });
 
-  it("returns Hand to select and hides it in animation mode", () => {
-    useEditorStore.setState({ canvasMode: "animation", tool: "pan" });
-    const setTool = vi.fn();
-    render(<Toolbar tool="pan" setTool={setTool} onUndo={vi.fn()} />);
-
-    expect(setTool).toHaveBeenCalledWith("select");
-    expect(
-      screen.queryByRole("button", { name: "Hand" })
-    ).not.toBeInTheDocument();
-  });
 
   it("hides brush and eraser in freeform mode", () => {
     useEditorStore.setState({ canvasMode: "freeform", tool: "select" });
@@ -394,119 +342,9 @@ describe("Toolbar dock", () => {
     );
   });
 
-  it("keeps custom brush input open and closes after preset selection", async () => {
-    useEditorStore.setState({
-      canvasMode: "animation",
-      tool: "select",
-      brushChar: "#",
-    });
-    const setTool = vi.fn();
-    const { container } = render(
-      <Toolbar tool="select" setTool={setTool} onUndo={vi.fn()} />
-    );
-    const brushItem = container.querySelector('[data-toolbar-item="brush"]');
-    const brushButtons = brushItem?.querySelectorAll("button") ?? [];
 
-    fireEvent.pointerDown(brushButtons[1], { button: 0, ctrlKey: false });
-    const customInput = await screen.findByRole("textbox");
-    fireEvent.change(customInput, { target: { value: "A" } });
 
-    expect(useEditorStore.getState().brushChar).toBe("A");
-    expect(
-      document.querySelector('[data-slot="dropdown-menu-content"]')
-    ).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("menuitemradio", { name: "*" }));
-    expect(setTool).toHaveBeenCalledWith("brush");
-    expect(useEditorStore.getState().brushChar).toBe("*");
-    await waitFor(() =>
-      expect(
-        document.querySelector('[data-slot="dropdown-menu-content"]')
-      ).not.toBeInTheDocument()
-    );
-  });
-
-  it("uses accent backgrounds for active animation playback controls", () => {
-    useEditorStore.setState({
-      canvasMode: "animation",
-      tool: "select",
-      animationIsPlaying: true,
-      animationTimeline: {
-        frames: [{ id: "frame-1", name: "Frame 1", grid: [] }],
-        currentFrameId: "frame-1",
-        fps: 10,
-        loop: true,
-        onionSkin: {
-          enabled: true,
-          backwardLayers: 2,
-          forwardLayers: 2,
-          opacityFalloff: [0.5, 0.3, 0.1],
-        },
-      },
-    });
-
-    render(<Toolbar tool="select" setTool={vi.fn()} onUndo={vi.fn()} />);
-
-    expect(screen.getByRole("button", { name: "Pause animation" })).toHaveClass(
-      "size-8",
-      "bg-accent",
-      "text-foreground",
-      "focus-visible:ring-[3px]"
-    );
-    expect(
-      screen.getByRole("button", { name: "Toggle animation loop" })
-    ).toHaveClass(
-      "size-8",
-      "bg-accent",
-      "text-foreground",
-      "focus-visible:ring-[3px]"
-    );
-  });
-
-  it("localizes the Tool Dock and animation controls", () => {
-    act(() => setUiLanguage("zh"));
-    useEditorStore.setState({
-      canvasMode: "animation",
-      tool: "select",
-      animationIsPlaying: false,
-      animationTimeline: {
-        frames: [{ id: "frame-1", name: "Frame 1", grid: [] }],
-        currentFrameId: "frame-1",
-        fps: 10,
-        loop: false,
-        onionSkin: {
-          enabled: false,
-          backwardLayers: 2,
-          forwardLayers: 2,
-          opacityFalloff: [0.5, 0.3, 0.1],
-        },
-      },
-    });
-
-    render(<Toolbar tool="select" setTool={vi.fn()} onUndo={vi.fn()} />);
-
-    expect(screen.getByRole("toolbar", { name: "画布工具" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "上一帧" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "播放动画" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "下一帧" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "切换动画循环" })).toBeInTheDocument();
-    expect(screen.getByRole("switch", { name: "切换洋葱皮" })).toBeInTheDocument();
-    expect(screen.getByText("洋葱皮")).toBeInTheDocument();
-    expect(screen.getByText("FPS")).toBeInTheDocument();
-  });
-
-  it("does not show background in animation mode", () => {
-    useEditorStore.setState({ canvasMode: "animation", tool: "select" });
-
-    render(<Toolbar tool="select" setTool={vi.fn()} onUndo={vi.fn()} />);
-
-    expect(
-      screen.queryByRole("button", { name: "Background" })
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Undo" })
-    ).not.toBeInTheDocument();
-  });
 
   it("hides the explicit text tool in structured mode", () => {
     useEditorStore.setState({ canvasMode: "structured", tool: "select" });
