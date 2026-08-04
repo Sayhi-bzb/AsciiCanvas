@@ -81,13 +81,9 @@ jobs:
 
       - name: Publish protocol to npm
         run: npm publish --workspace @ascii-canvas/protocol --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN_BOOTSTRAP }}
 
       - name: Publish fonts to npm
         run: npm publish --workspace @ascii-canvas/fonts --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN_BOOTSTRAP }}
 
       - name: Create GitHub Release
         run: >-
