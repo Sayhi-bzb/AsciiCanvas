@@ -1,6 +1,6 @@
 # @ascii-canvas/fonts
 
-Self-hosted assets and the default renderer font profile for AsciiCanvas output. This package is optional: [`@ascii-canvas/protocol`](../protocol/README.md) remains rendering-neutral.
+Self-hosted assets and the default renderer font profile for AsciiCanvas output. This package is optional: [`@ascii-canvas/protocol`](https://www.npmjs.com/package/@ascii-canvas/protocol) remains rendering-neutral.
 
 ## Install
 

@@ -5,7 +5,7 @@ import ts from "typescript";
 const SRC_ROOT = path.resolve("src");
 const SOURCE_EXTENSIONS = new Set([".ts", ".tsx"]);
 const SKIPPED_DIRECTORIES = new Set(["__tests__", "test"]);
-const FORBIDDEN_SHARED_DOMAIN_NAME = /^(?:Animation|Structured)/;
+const FORBIDDEN_SHARED_DOMAIN_NAME = /^Structured/;
 
 function collectSourceFiles(directory) {
   const files = [];

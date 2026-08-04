@@ -1,4 +1,4 @@
-import { act, createEvent, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, createEvent, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Minimap } from "@/widgets/canvas-editor/Minimap";
 import { useEditorStore } from "@/domains/canvas/public";
@@ -53,6 +53,7 @@ describe("Minimap canvas", () => {
   });
 
   afterEach(() => {
+    cleanup();
     setUiLanguage("en");
     vi.restoreAllMocks();
     vi.unstubAllGlobals();

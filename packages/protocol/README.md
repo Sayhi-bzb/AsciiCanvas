@@ -39,4 +39,4 @@ The default syntax mode is `auto`; use `plain` to disable control parsing or `an
 
 See [`fixtures/v1.json`](./fixtures/v1.json) for portable conformance cases. Parsed links are untrusted and must be sanitized by the renderer.
 
-For AsciiCanvas-compatible glyph coverage, renderers may use the optional [`@ascii-canvas/fonts`](../fonts/README.md) profile.
+For AsciiCanvas-compatible glyph coverage, renderers may use the optional [`@ascii-canvas/fonts`](https://www.npmjs.com/package/@ascii-canvas/fonts) profile.

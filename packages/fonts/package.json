@@ -4,6 +4,21 @@
   "description": "Self-hosted fonts and the default AsciiCanvas renderer font profile",
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Sayhi-bzb/AsciiCanvas.git",
+    "directory": "packages/fonts"
+  },
+  "homepage": "https://github.com/Sayhi-bzb/AsciiCanvas/tree/main/packages/fonts#readme",
+  "bugs": {
+    "url": "https://github.com/Sayhi-bzb/AsciiCanvas/issues"
+  },
+  "keywords": [
+    "ascii",
+    "canvas",
+    "fonts",
+    "unicode"
+  ],
   "sideEffects": ["./fonts.css"],
   "files": [
     "assets",
@@ -23,6 +38,10 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "vitest run --config vitest.config.ts"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "engines": {
     "node": ">=18"

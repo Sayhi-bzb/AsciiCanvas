@@ -4,6 +4,22 @@
   "description": "AsciiCanvas Text Protocol parser and Unicode cell-width rules",
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Sayhi-bzb/AsciiCanvas.git",
+    "directory": "packages/protocol"
+  },
+  "homepage": "https://github.com/Sayhi-bzb/AsciiCanvas/tree/main/packages/protocol#readme",
+  "bugs": {
+    "url": "https://github.com/Sayhi-bzb/AsciiCanvas/issues"
+  },
+  "keywords": [
+    "ansi",
+    "ascii",
+    "parser",
+    "protocol",
+    "unicode"
+  ],
   "sideEffects": false,
   "files": [
     "dist",
@@ -20,6 +36,10 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "vitest run --config vitest.config.ts"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "engines": {
     "node": ">=18"

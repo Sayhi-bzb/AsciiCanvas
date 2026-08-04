@@ -1,0 +1,99 @@
+name: Release packages
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  release:
+    if: github.repository == 'Sayhi-bzb/AsciiCanvas'
+    runs-on: ubuntu-latest
+    environment: npm-production
+
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Set up current npm 11
+        run: npm install --global npm@11
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify unified release version
+        run: node scripts/release/verify-release-version.mjs "$GITHUB_REF_NAME"
+
+      - name: Check package versions are unpublished
+        env:
+          RELEASE_VERSION: ${{ github.ref_name }}
+        run: |
+          version="${RELEASE_VERSION#v}"
+          for package_name in @ascii-canvas/protocol @ascii-canvas/fonts; do
+            if npm view "$package_name@$version" version >/dev/null 2>&1; then
+              echo "Package version already exists: $package_name@$version" >&2
+              exit 1
+            fi
+          done
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Check domain boundaries
+        run: npm run check:boundaries
+
+      - name: Build
+        run: npm run build
+
+      - name: Test application
+        run: npm test -- --run
+
+      - name: Test fonts package
+        run: npm run test:fonts
+
+      - name: Test protocol package
+        run: npm run test:protocol
+
+      - name: Pack release assets
+        run: |
+          mkdir release-assets
+          npm pack --workspace @ascii-canvas/protocol --pack-destination release-assets
+          npm pack --workspace @ascii-canvas/fonts --pack-destination release-assets
+
+      - name: Smoke test packed packages
+        run: >-
+          node scripts/release/smoke-packed-packages.mjs
+          release-assets/ascii-canvas-protocol-${GITHUB_REF_NAME#v}.tgz
+          release-assets/ascii-canvas-fonts-${GITHUB_REF_NAME#v}.tgz
+
+      - name: Publish protocol to npm
+        run: npm publish --workspace @ascii-canvas/protocol --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN_BOOTSTRAP }}
+
+      - name: Publish fonts to npm
+        run: npm publish --workspace @ascii-canvas/fonts --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN_BOOTSTRAP }}
+
+      - name: Create GitHub Release
+        run: >-
+          gh release create "$GITHUB_REF_NAME" release-assets/*.tgz
+          --verify-tag
+          --generate-notes
+          --title "$GITHUB_REF_NAME"
+        env:
+          GH_TOKEN: ${{ github.token }}

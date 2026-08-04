@@ -50,9 +50,9 @@ describe("SelectionFormatToolbar", () => {
       name: "Selection text formatting",
     });
     expect(toolbar).toHaveClass(
-      "bg-muted",
+      "bg-host-surface",
       "border-0",
-      "shadow-none",
+      "shadow-host",
       "rounded-lg",
       "p-[3px]"
     );
@@ -154,9 +154,9 @@ describe("SelectionFormatToolbar", () => {
 
     expect(screen.queryByLabelText("Selection text formatting")).not.toBeInTheDocument();
     expect(screen.getByRole("toolbar", { name: "Shape color controls" })).toHaveClass(
-      "bg-muted",
+      "bg-host-surface",
       "border-0",
-      "shadow-none",
+      "shadow-host",
       "rounded-lg",
       "p-[3px]"
     );
@@ -197,9 +197,9 @@ describe("SelectionFormatToolbar", () => {
 
     const toolbar = screen.getByRole("toolbar", { name: "Split box controls" });
     expect(toolbar).toHaveClass(
-      "bg-muted",
+      "bg-host-surface",
       "border-0",
-      "shadow-none",
+      "shadow-host",
       "rounded-lg",
       "p-[3px]"
     );
@@ -340,7 +340,7 @@ describe("SelectionFormatToolbar", () => {
     expect(applied).toEqual(["#dc2626"]);
   });
 
-  it("starts canvas char color picking from the color submenu", () => {
+  it("starts canvas char color picking from the color submenu", async () => {
     render(
       <ColorSubmenu
         brushColor="#ffffff"
@@ -349,13 +349,13 @@ describe("SelectionFormatToolbar", () => {
       />
     );
 
-    fireEvent.click(screen.getByLabelText("Pick color from canvas"));
-    fireEvent.click(screen.getByLabelText("Pick char color from canvas"));
+    fireEvent.pointerDown(screen.getByLabelText("Pick color from canvas"));
+    fireEvent.click(await screen.findByLabelText("Pick char color from canvas"));
 
     expect(useEditorStore.getState().canvasColorPickerTarget).toBe("char");
   });
 
-  it("starts canvas background color picking from the color submenu", () => {
+  it("starts canvas background color picking from the color submenu", async () => {
     render(
       <ColorSubmenu
         brushColor="#ffffff"
@@ -364,13 +364,13 @@ describe("SelectionFormatToolbar", () => {
       />
     );
 
-    fireEvent.click(screen.getByLabelText("Pick color from canvas"));
-    fireEvent.click(screen.getByLabelText("Pick BG color from canvas"));
+    fireEvent.pointerDown(screen.getByLabelText("Pick color from canvas"));
+    fireEvent.click(await screen.findByLabelText("Pick BG color from canvas"));
 
     expect(useEditorStore.getState().canvasColorPickerTarget).toBe("bg");
   });
 
-  it("toggles an active canvas color picker target off", () => {
+  it("toggles an active canvas color picker target off", async () => {
     useEditorStore.setState({ canvasColorPickerTarget: "char" });
 
     render(
@@ -381,8 +381,8 @@ describe("SelectionFormatToolbar", () => {
       />
     );
 
-    fireEvent.click(screen.getByLabelText("Pick color from canvas"));
-    fireEvent.click(screen.getByLabelText("Pick char color from canvas"));
+    fireEvent.pointerDown(screen.getByLabelText("Pick color from canvas"));
+    fireEvent.click(await screen.findByLabelText("Pick char color from canvas"));
 
     expect(useEditorStore.getState().canvasColorPickerTarget).toBeNull();
   });
