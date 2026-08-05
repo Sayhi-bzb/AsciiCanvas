@@ -24,6 +24,7 @@ import { getCellOccupancy } from "@/shared/metrics";
 import { cloneTextAttributes } from "@/shared/utils/ansi";
 import { resolveSelectionCommands } from "../selectionCommandPort";
 import { getStructuredTextSelectionRange } from "@/domains/structured-content/public";
+import { clampPointToActiveSlide, isPointWithinActiveSlide } from "../slideBounds";
 
 const resolveSelectionAreas = (state: EditorState) => {
   const staticSelections = getStaticGridSelectionAreas(state.staticGridSelection);
@@ -338,17 +339,20 @@ export const createSelectionSlice: StateCreator<
   },
 
   moveSelections: (dx, dy) => {
-    const { selections } = get();
-    if (selections.length === 0) return;
-
-    set({
-      selections: selections.map((area) => ({
-        ...{
-            start: { x: area.start.x + dx, y: area.start.y + dy },
-            end: { x: area.end.x + dx, y: area.end.y + dy },
-          },
-      })),
-    });
+    const state = get();
+    if (state.selections.length === 0) return;
+    const selections = state.selections.map((area) => ({
+      start: { x: area.start.x + dx, y: area.start.y + dy },
+      end: { x: area.end.x + dx, y: area.end.y + dy },
+    }));
+    if (
+      selections.some(
+        (area) =>
+          !isPointWithinActiveSlide(state, area.start) ||
+          !isPointWithinActiveSlide(state, area.end)
+      )
+    ) return;
+    set({ selections });
   },
 
   expandSelection: (dx, dy) => {
@@ -361,9 +365,12 @@ export const createSelectionSlice: StateCreator<
 
     const newSelections = [...selections];
     newSelections[lastIndex] = {
-        start: { ...lastSelection.start },
-        end: { x: lastSelection.end.x + dx, y: lastSelection.end.y + dy },
-      };
+      start: { ...lastSelection.start },
+      end: clampPointToActiveSlide(get(), {
+        x: lastSelection.end.x + dx,
+        y: lastSelection.end.y + dy,
+      }),
+    };
 
     set({ selections: newSelections });
   },

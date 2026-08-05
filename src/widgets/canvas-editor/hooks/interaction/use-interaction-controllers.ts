@@ -29,7 +29,7 @@ type ControllerStore = Pick<
   | "setZoom"
   | "setHoveredGrid"
   | "applyStructuredScene"
->;
+> & { slideDeck?: EditorState["slideDeck"] };
 
 export const useInteractionControllers = ({
   store,
@@ -49,6 +49,8 @@ export const useInteractionControllers = ({
     offset,
     zoom,
     grid,
+    canvasMode,
+    slideDeck,
     setOffset,
     setZoom,
     setHoveredGrid,
@@ -68,8 +70,10 @@ export const useInteractionControllers = ({
         getRect: () => containerRef.current?.getBoundingClientRect(),
         getViewport: () => ({ offset, zoom }),
         getGrid: () => grid,
+        getGridBounds: () =>
+          canvasMode === "slide" && slideDeck ? slideDeck.size : null,
       }),
-    [containerRef, offset, zoom, grid]
+    [containerRef, offset, zoom, grid, canvasMode, slideDeck]
   );
   const interactionRuntime = useCreation(createCanvasInteractionRuntime, []);
   const hoverInteraction = useCreation(

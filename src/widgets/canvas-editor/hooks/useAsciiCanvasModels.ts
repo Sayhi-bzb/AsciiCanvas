@@ -6,6 +6,7 @@ export const useAsciiCanvasModels = () => {
     useShallow((state) => ({
       tool: state.tool,
       canvasMode: state.canvasMode,
+      slideDeck: state.slideDeck,
       brushChar: state.brushChar,
       brushColor: state.brushColor,
       setBrushColor: state.setBrushColor,
@@ -56,6 +57,7 @@ export const useAsciiCanvasModels = () => {
       hoveredGrid: state.hoveredGrid,
       tool: state.tool,
       canvasMode: state.canvasMode,
+      slideDeck: state.slideDeck,
       structuredScene: state.structuredScene,
       selectedStructuredNodeIds: state.selectedStructuredNodeIds,
       selectedStructuredBoxId: state.selectedStructuredBoxId,

@@ -44,6 +44,7 @@ export type ShortcutLayer = {
 
 export const SHORTCUT_PRIORITY = {
   observer: 1_000,
+  presentation: 800,
   managedCanvas: 400,
   dynamicCanvasCommand: 300,
   globalAction: 200,

@@ -1,14 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { Loader2, Search } from "lucide-react";
+import { Loader2, Search, X } from "lucide-react";
 import {
   useLibraryStore,
   type CharacterViewId,
 } from "@/domains/character-library/public";
 import { cn } from "@/shared/lib/utils";
 import { useUiI18n } from "@/shared/i18n";
-import { rx } from "@/shared/styles/recipes";
+import { uiClass } from "@/shared/styles/components";
 
 type SearchFormProps = Omit<React.ComponentProps<"form">, "onSubmit"> & {
   view: CharacterViewId;
@@ -35,6 +35,7 @@ export function SearchForm({
     (state) => state.setPackSearchQuery
   );
   const [packValue, setPackValue] = React.useState(storedQuery);
+  const inputRef = React.useRef<HTMLInputElement>(null);
   const isUnicode = view === "unicode";
   const value = isUnicode ? unicodeQuery : packValue;
 
@@ -72,6 +73,7 @@ export function SearchForm({
         {t("character.search.label")}
       </label>
       <input
+        ref={inputRef}
         id="character-view-search"
         type="search"
         aria-label={t("character.search.label")}
@@ -81,16 +83,36 @@ export function SearchForm({
             : t("character.search.currentPlaceholder")
         }
         className={cn(
-          rx.field({ density: "default" }),
-          "h-8 w-full border-0 bg-accent/60 pl-8 pr-10 text-xs shadow-none transition-colors focus-visible:bg-accent"
+          uiClass.quietInput,
+          "h-8 w-full pl-8 [&::-webkit-search-cancel-button]:hidden",
+          isUnicode ? "pr-16" : "pr-10"
         )}
         value={value}
         onChange={(event) => {
           if (isUnicode) onUnicodeQueryChange(event.target.value);
           else setPackValue(event.target.value);
         }}
+        onKeyDown={(event) => {
+          if (event.key !== "Escape" || !value) return;
+          event.preventDefault();
+          event.stopPropagation();
+          clear();
+        }}
       />
       <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+      {isUnicode && value ? (
+        <button
+          type="button"
+          aria-label={t("search.clear")}
+          onClick={() => {
+            clear();
+            inputRef.current?.focus();
+          }}
+          className="absolute right-8 top-1/2 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        >
+          <X className="size-3.5" />
+        </button>
+      ) : null}
       {isUnicode ? (
         <button
           type="submit"
@@ -107,10 +129,14 @@ export function SearchForm({
       ) : value ? (
         <button
           type="button"
-          onClick={clear}
-          className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-medium text-muted-foreground hover:text-foreground"
+          aria-label={t("search.clear")}
+          onClick={() => {
+            clear();
+            inputRef.current?.focus();
+          }}
+          className="absolute right-1 top-1/2 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
-          Escape
+          <X className="size-3.5" />
         </button>
       ) : null}
     </form>

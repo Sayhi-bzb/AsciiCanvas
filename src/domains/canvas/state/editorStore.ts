@@ -19,14 +19,14 @@ import {
 import type { EditorState } from "./interfaces";
 import {
   EDITOR_PERSISTENCE_KEY,
-  EDITOR_PERSISTENCE_V2_BACKUP_KEY,
+  EDITOR_PERSISTENCE_V3_BACKUP_KEY,
   EDITOR_PERSISTENCE_VERSION,
   flattenPersistedEditorState,
-  isPersistedEditorStateV3,
-  migratePersistedStateToV3,
+  isPersistedEditorStateV4,
+  migratePersistedStateToV4,
   type CanvasSession,
 } from "@/domains/sessions/public";
-import type { Point } from "@/shared/types";
+import type { GridMap, Point } from "@/shared/types";
 import type { StructuredNode } from "@/domains/structured-content/public";
 import { normalizeBrushChar } from "@/shared/utils/characters";
 import {
@@ -35,6 +35,7 @@ import {
   createSelectionSlice,
   createSessionSlice,
   createStaticGridSlice,
+  createSlideSlice,
 } from "./slices";
 import { sceneToGridEntries } from "@/domains/structured-content/public";
 import {
@@ -71,9 +72,11 @@ import {
   buildSessionSnapshot,
   resolveSessionRuntime,
   normalizeSessionViewport,
+  getSessionCanvasDocumentId,
 } from "./helpers/storeUtils";
 import { DEFAULT_DEMO_GRID } from "./helpers/defaultDemo";
 import { buildStructuredTemplate } from "@/domains/structured-content/public";
+import { normalizeSlideDeck, updateSlideGrid } from "@/domains/slides/public";
 
 const DEFAULT_STRUCTURED_SAFARI_TEMPLATE = buildStructuredTemplate(
   "safari",
@@ -111,6 +114,7 @@ type RecoverableEditorState = EditorState & {
   canvasMode?: unknown;
   structuredScene?: unknown;
   structuredComponents?: unknown;
+  slideDeck?: unknown;
 };
 
 const recoverPersistedEditorState = (
@@ -166,6 +170,24 @@ const recoverPersistedEditorState = (
           if ((raw as { mode?: unknown }).mode === "animation") return null;
           const mode = normalizeSessionMode(maybe.mode);
           const viewport = normalizeSessionViewport(maybe.viewport);
+          if (mode === "slide") {
+            return {
+              id: maybe.id,
+              name:
+                typeof maybe.name === "string" && maybe.name.trim()
+                  ? maybe.name
+                  : "Slides",
+              mode: "slide",
+              slideDeck: normalizeSlideDeck(
+                (raw as { slideDeck?: unknown }).slideDeck,
+                `${maybe.id}-slide-1`
+              ),
+              scene: [],
+              components: [],
+              grid: [],
+              ...(viewport ? { viewport } : {}),
+            };
+          }
           const scene = Array.isArray(maybe.scene)
             ? maybe.scene
                 .map((item) => toStructuredNode(item))
@@ -204,7 +226,7 @@ const recoverPersistedEditorState = (
             {
               id: DEFAULT_SESSION_ID,
               name: DEFAULT_SESSION_NAME,
-              mode: legacyMode,
+              mode: legacyMode === "slide" ? "freeform" : legacyMode,
               scene: normalizeAndCloneScene(legacyScene),
               components: legacyComponents,
               grid:
@@ -236,6 +258,7 @@ const recoverPersistedEditorState = (
   hState.canvasSessions = sessionsWithActiveViewport;
   hState.activeCanvasId = activeCanvasId;
   hState.canvasMode = runtime.nextMode;
+  hState.slideDeck = runtime.nextSlideDeck;
   hState.structuredScene = runtime.nextScene;
   hState.structuredComponents = runtime.nextComponents;
   hState.selectedStructuredNodeIds = [];
@@ -252,8 +275,12 @@ const recoverPersistedEditorState = (
 };
 
 const syncHydratedStateToYMaps = (hydratedState: EditorState) => {
+  const activeSession = hydratedState.canvasSessions.find(
+    (session) => session.id === hydratedState.activeCanvasId
+  );
+  if (!activeSession) return;
   activateCanvasDocument(
-    hydratedState.activeCanvasId,
+    getSessionCanvasDocumentId(activeSession, hydratedState.slideDeck),
     {
       grid: Array.from(hydratedState.grid.entries()),
       scene:
@@ -264,6 +291,36 @@ const syncHydratedStateToYMaps = (hydratedState: EditorState) => {
     },
     { replace: true }
   );
+};
+
+const syncObservedGrid = (state: EditorState, grid: GridMap) => {
+  if (state.canvasMode === "slide" && state.slideDeck) {
+    const slideDeck = updateSlideGrid(
+      state.slideDeck,
+      state.slideDeck.activeSlideId,
+      Array.from(grid.entries())
+    );
+    const activeSlide = slideDeck.slides.find(
+      (slide) => slide.id === slideDeck.activeSlideId
+    );
+    return {
+      grid: createMapFromEntries(activeSlide?.grid ?? []),
+      slideDeck,
+      canvasSessions: state.canvasSessions.map((session): CanvasSession =>
+        session.id === state.activeCanvasId && session.mode === "slide"
+          ? { ...session, slideDeck }
+          : session
+      ),
+    };
+  }
+  return {
+    grid,
+    canvasSessions: state.canvasSessions.map((session): CanvasSession =>
+      session.id === state.activeCanvasId && session.mode !== "slide"
+        ? { ...session, grid: Array.from(grid.entries()) }
+        : session
+    ),
+  };
 };
 
 export const useEditorStore = create<EditorState>()(
@@ -281,27 +338,13 @@ export const useEditorStore = create<EditorState>()(
         const currentGrid = get().grid;
         const patchedGrid = patchGridByChangedKeys(currentGrid, event.keysChanged);
         if (patchedGrid) {
-          set((state) => ({
-            grid: patchedGrid,
-            canvasSessions: state.canvasSessions.map((session) =>
-              session.id === state.activeCanvasId
-                ? { ...session, grid: Array.from(patchedGrid.entries()) }
-                : session
-            ),
-          }));
+          set((state) => syncObservedGrid(state, patchedGrid));
           return;
         }
 
         if (event.keysChanged.size === 0 && yMainGrid.size !== currentGrid.size) {
           const grid = rebuildGridFromYMap();
-          set((state) => ({
-            grid,
-            canvasSessions: state.canvasSessions.map((session) =>
-              session.id === state.activeCanvasId
-                ? { ...session, grid: Array.from(grid.entries()) }
-                : session
-            ),
-          }));
+          set((state) => syncObservedGrid(state, grid));
         }
       });
 
@@ -315,7 +358,7 @@ export const useEditorStore = create<EditorState>()(
               structuredScene
             ),
             canvasSessions: state.canvasSessions.map((session) =>
-              session.id === state.activeCanvasId
+              session.id === state.activeCanvasId && session.mode !== "slide"
                 ? { ...session, scene: structuredScene }
                 : session
             ),
@@ -329,7 +372,7 @@ export const useEditorStore = create<EditorState>()(
           return {
             structuredComponents,
             canvasSessions: state.canvasSessions.map((session) =>
-              session.id === state.activeCanvasId
+              session.id === state.activeCanvasId && session.mode !== "slide"
                 ? { ...session, components: structuredComponents }
                 : session
             ),
@@ -434,7 +477,7 @@ export const useEditorStore = create<EditorState>()(
               state.canvasSessions,
               state.activeCanvasId,
               {
-                mode: state.canvasMode,
+                mode: "structured",
                 scene: normalizedScene,
                 components: normalizedComponents,
                 grid: gridEntries,
@@ -487,6 +530,7 @@ export const useEditorStore = create<EditorState>()(
           }),
         ...createSessionSlice(set, get, ...a),
         ...createStaticGridSlice(set, get, ...a),
+        ...createSlideSlice(set, get, ...a),
 
         ...createDrawingSlice(set, get, ...a),
         ...createTextSlice(set, get, ...a),
@@ -532,25 +576,25 @@ export const useEditorStore = create<EditorState>()(
         } as unknown as Partial<EditorState>;
       },
       migrate: (persistedState, persistedVersion) => {
-        if (isPersistedEditorStateV3(persistedState)) return persistedState;
+        if (isPersistedEditorStateV4(persistedState)) return persistedState;
         if (
           persistedVersion < EDITOR_PERSISTENCE_VERSION &&
           typeof localStorage !== "undefined"
         ) {
           const raw = localStorage.getItem(EDITOR_PERSISTENCE_KEY);
-          if (raw && !localStorage.getItem(EDITOR_PERSISTENCE_V2_BACKUP_KEY)) {
-            localStorage.setItem(EDITOR_PERSISTENCE_V2_BACKUP_KEY, raw);
+          if (raw && !localStorage.getItem(EDITOR_PERSISTENCE_V3_BACKUP_KEY)) {
+            localStorage.setItem(EDITOR_PERSISTENCE_V3_BACKUP_KEY, raw);
           }
         }
-        return migratePersistedStateToV3(persistedState);
+        return migratePersistedStateToV4(persistedState);
       },
       merge: (persistedState, currentState) => {
         if (!persistedState) return currentState;
-        const normalizedPersistedState = isPersistedEditorStateV3(
+        const normalizedPersistedState = isPersistedEditorStateV4(
           persistedState
         )
           ? persistedState
-          : migratePersistedStateToV3(persistedState);
+          : migratePersistedStateToV4(persistedState);
         const flattened = flattenPersistedEditorState(
           normalizedPersistedState
         );

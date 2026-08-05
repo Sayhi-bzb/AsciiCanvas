@@ -17,6 +17,7 @@ import { TooltipProvider } from "@/shared/ui/tooltip";
 import { AppMenu } from "@/widgets/toolbar/app-menu";
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
 import { getStaticGridViewState } from "@/domains/selection/public";
+import { isStaticGridMode } from "@/domains/sessions/public";
 import { useHandToolShortcuts } from "./useHandToolShortcuts";
 import { useGlobalShortcutCommands } from "./useGlobalShortcutCommands";
 import { ZoomControl } from "@/widgets/toolbar/zoom-control";
@@ -135,7 +136,7 @@ function AppContent() {
     [selections, staticGridEditMode, staticGridSelection, textCursor]
   );
   const isCanvasTextEditing =
-    canvasMode === "freeform"
+    isStaticGridMode(canvasMode)
       ? !!staticGridView.textCursor
       : !!textCursor ||
         !!editingStructuredTextNodeId ||

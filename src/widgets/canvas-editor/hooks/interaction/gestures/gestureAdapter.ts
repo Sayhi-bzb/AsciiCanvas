@@ -150,7 +150,7 @@ export const useCanvasGestureAdapter = ({
         dragUpdateRouteHandler({
           state,
           delta: { x: dx, y: dy },
-          resolveCurrentGrid: () => pointerContext.resolveGridPoint(x, y),
+          resolveCurrentGrid: () => pointerContext.resolveClampedGridPoint(x, y),
           executePrimaryUpdate: (currentGrid) =>
             dragUpdateHandler({
               state,
@@ -181,7 +181,7 @@ export const useCanvasGestureAdapter = ({
               tool,
               canvasMode,
               structuredScene,
-              resolvedEndGrid: pointerContext.resolveGridPoint(x, y),
+              resolvedEndGrid: pointerContext.resolveClampedGridPoint(x, y),
               isDividerHandle: isStructuredSplitBoxLineHandle,
             });
           },

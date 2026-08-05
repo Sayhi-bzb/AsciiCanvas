@@ -11,6 +11,7 @@ import { useManagedCanvasInput } from './hooks/useManagedCanvasInput';
 import { ContextMenu, ContextMenuTrigger } from '@/shared/ui/context-menu';
 import { CANVAS_CONTEXT_MENU, STRUCTURED_CONTEXT_MENU } from '@/domains/actions/public';
 import { GridManager } from '@/shared/utils/grid';
+import { CELL_HEIGHT, CELL_WIDTH, MAX_ZOOM, MIN_ZOOM } from '@/shared/lib/constants';
 import {
   findStructuredNodeHit,
   isStructuredSplitBoxLineHandle,
@@ -72,6 +73,40 @@ export const AsciiCanvas = ({
     setStructuredContextPoint,
   } = editorStore;
   const renderedViewportRef = useRef<CanvasViewport | null>(null);
+  const fittedSlideSessionsRef = useRef(new Set<string>());
+  const activeCanvasId = useEditorStore((state) => state.activeCanvasId);
+
+  useEffect(() => {
+    const slideDeck = rendererStore.slideDeck;
+    if (canvasMode !== "slide" || !slideDeck || !size || !activeCanvasId) return;
+    if (editorStore.activeCanvasHasSavedViewport || fittedSlideSessionsRef.current.has(activeCanvasId)) {
+      return;
+    }
+    const padding = 48;
+    const availableWidth = Math.max(1, size.width - padding * 2);
+    const availableHeight = Math.max(1, size.height - padding * 2);
+    const nextZoom = Math.max(
+      MIN_ZOOM,
+      Math.min(
+        MAX_ZOOM,
+        availableWidth / (slideDeck.size.columns * CELL_WIDTH),
+        availableHeight / (slideDeck.size.rows * CELL_HEIGHT)
+      )
+    );
+    interactionStore.setZoom(() => nextZoom);
+    interactionStore.setOffset(() => ({
+      x: (size.width - slideDeck.size.columns * CELL_WIDTH * nextZoom) / 2,
+      y: (size.height - slideDeck.size.rows * CELL_HEIGHT * nextZoom) / 2,
+    }));
+    fittedSlideSessionsRef.current.add(activeCanvasId);
+  }, [
+    activeCanvasId,
+    canvasMode,
+    editorStore.activeCanvasHasSavedViewport,
+    interactionStore,
+    rendererStore.slideDeck,
+    size,
+  ]);
 
   const presentViewport = useCallback((presented: CanvasViewport) => {
     applyCanvasViewportPresentation(

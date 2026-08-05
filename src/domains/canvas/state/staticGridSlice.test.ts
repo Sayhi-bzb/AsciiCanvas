@@ -103,4 +103,19 @@ describe("staticGridSlice", () => {
     expect(useEditorStore.getState().textCursor).toBeNull();
     expect(useEditorStore.getState().selections).toEqual([]);
   });
+  it("clamps keyboard navigation to slide bounds", () => {
+    useEditorStore.setState({
+      canvasMode: "slide",
+      slideDeck: {
+        size: { columns: 3, rows: 2 },
+        activeSlideId: "slide-1",
+        slides: [{ id: "slide-1", name: "Slide 1", grid: [] }],
+      },
+    });
+    useEditorStore.getState().setStaticGridActiveCell({ x: 2, y: 1 });
+    useEditorStore.getState().moveStaticGridFocus(1, 1);
+
+    expect(useEditorStore.getState().staticGridSelection.activeCell).toEqual({ x: 2, y: 1 });
+    expect(useEditorStore.getState().textCursor).toEqual({ x: 2, y: 1 });
+  });
 });

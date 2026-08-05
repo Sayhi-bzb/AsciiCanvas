@@ -9,6 +9,7 @@ import {
   selectionAreasFromGridRanges,
   syncGridSelectionFromLegacy,
 } from "@/domains/selection/public";
+import { clampPointToActiveSlide } from "../slideBounds";
 
 export const createStaticGridSlice: StateCreator<
   EditorState,
@@ -21,7 +22,7 @@ export const createStaticGridSlice: StateCreator<
 
   setStaticGridActiveCell: (address) => {
     const state = get();
-    const activeCell = address;
+    const activeCell = clampPointToActiveSlide(state, address);
     const selection = collapseGridSelectionTo(
       syncGridSelectionFromLegacy(state.textCursor, state.selections, state.staticGridSelection),
       activeCell
@@ -35,8 +36,9 @@ export const createStaticGridSlice: StateCreator<
   },
 
   setStaticGridSelectionRange: (range) => {
-    const start = range.start;
-    const end = range.end;
+    const state = get();
+    const start = clampPointToActiveSlide(state, range.start);
+    const end = clampPointToActiveSlide(state, range.end);
     const selection = {
       activeCell: end,
       anchorCell: start,
@@ -59,7 +61,10 @@ export const createStaticGridSlice: StateCreator<
           state.selections,
           state.staticGridSelection
         );
-    const activeCell = moveGridAddress(current.activeCell, dx, dy);
+    const activeCell = clampPointToActiveSlide(
+      state,
+      moveGridAddress(current.activeCell, dx, dy)
+    );
     const selection = options?.extend
       ? extendGridSelectionTo(current, activeCell)
       : collapseGridSelectionTo(current, activeCell);
@@ -79,7 +84,7 @@ export const createStaticGridSlice: StateCreator<
       state.selections,
       state.staticGridSelection
     );
-    const activeCell = address ?? current.activeCell;
+    const activeCell = clampPointToActiveSlide(state, address ?? current.activeCell);
     set({
       staticGridSelection: collapseGridSelectionTo(current, activeCell),
       staticGridEditMode: "text-edit",

@@ -124,6 +124,7 @@ export const useCanvasRenderer = (
     hoveredGrid,
     tool,
     canvasMode,
+    slideDeck,
     selectedStructuredNodeIds,
     structuredContextPoint,
     structuredGridFocus,
@@ -139,8 +140,8 @@ export const useCanvasRenderer = (
     textCursor,
     selections,
   });
-  const renderedSelections = canvasMode === 'freeform' ? staticGridView.selectionAreas : selections;
-  const renderedTextCursor = canvasMode === 'freeform' ? staticGridView.textCursor : textCursor;
+  const renderedSelections = canvasMode !== 'structured' ? staticGridView.selectionAreas : selections;
+  const renderedTextCursor = canvasMode !== 'structured' ? staticGridView.textCursor : textCursor;
   const baseRenderInputsRef = useRef<unknown[] | null>(null);
   const manualRenderRafRef = useRef<number | null>(null);
 
@@ -187,6 +188,26 @@ export const useCanvasRenderer = (
         offset.y,
         zoom
       );
+      const slidePageRect =
+        canvasMode === "slide" && slideDeck
+          ? (() => {
+              const origin = gridCellRect({ x: 0, y: 0 }, { offset, zoom });
+              return {
+                x: origin.x,
+                y: origin.y,
+                width: origin.width * slideDeck.size.columns,
+                height: origin.height * slideDeck.size.rows,
+              };
+            })()
+          : null;
+      const clipToSlidePage = (ctx: CanvasRenderingContext2D) => {
+        if (!slidePageRect) return false;
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(slidePageRect.x, slidePageRect.y, slidePageRect.width, slidePageRect.height);
+        ctx.clip();
+        return true;
+      };
       const renderBaseLayers = shouldRenderBaseLayers([
         layers.bg.current,
         layers.scratch.current,
@@ -198,6 +219,7 @@ export const useCanvasRenderer = (
         scratchLayer,
         showGrid,
         canvasMode,
+        slideDeck,
         hoveredLink,
         structuredMovePreview?.baseGrid ?? null,
       ]);
@@ -206,8 +228,23 @@ export const useCanvasRenderer = (
       const bgCtx = bgCanvas?.getContext('2d', { alpha: false });
       if (renderBaseLayers && bgCanvas && bgCtx) {
         prepareCanvasSurface(bgCanvas, bgCtx, size.width, size.height, dpr);
-        bgCtx.fillStyle = BACKGROUND_COLOR;
+        bgCtx.fillStyle = slidePageRect ? "#e5e7eb" : BACKGROUND_COLOR;
         bgCtx.fillRect(0, 0, size.width, size.height);
+        if (slidePageRect) {
+          bgCtx.save();
+          bgCtx.shadowColor = "rgba(15, 23, 42, 0.18)";
+          bgCtx.shadowBlur = 18;
+          bgCtx.shadowOffsetY = 4;
+          bgCtx.fillStyle = BACKGROUND_COLOR;
+          bgCtx.fillRect(
+            slidePageRect.x,
+            slidePageRect.y,
+            slidePageRect.width,
+            slidePageRect.height
+          );
+          bgCtx.restore();
+          clipToSlidePage(bgCtx);
+        }
 
         if (showGrid) {
           drawGridLines(bgCtx, {
@@ -230,12 +267,14 @@ export const useCanvasRenderer = (
           zoom,
           offset
         );
+        if (slidePageRect) bgCtx.restore();
       }
 
       const scratchCanvas = layers.scratch.current;
       const scratchCtx = scratchCanvas?.getContext('2d');
       if (renderBaseLayers && scratchCanvas && scratchCtx) {
         prepareCanvasSurface(scratchCanvas, scratchCtx, size.width, size.height, dpr);
+        clipToSlidePage(scratchCtx);
         drawLayer(
           scratchCtx,
           scratchLayer,
@@ -243,12 +282,14 @@ export const useCanvasRenderer = (
           zoom,
           offset
         );
+        if (slidePageRect) scratchCtx.restore();
       }
 
       const uiCanvas = layers.ui.current;
       const uiCtx = uiCanvas?.getContext('2d');
       if (uiCanvas && uiCtx) {
         prepareCanvasSurface(uiCanvas, uiCtx, size.width, size.height, dpr);
+        clipToSlidePage(uiCtx);
 
         const drawSel = (area: SelectionArea) => {
           const { minX, minY, maxX, maxY } = getSelectionBounds(area);
@@ -487,6 +528,7 @@ export const useCanvasRenderer = (
         if (canvasColorPickerTarget && hoveredGrid) {
           drawCanvasColorPickerAnchor(uiCtx, hoveredGrid, { offset, zoom });
         }
+        if (slidePageRect) uiCtx.restore();
       }
       if (renderBaseLayers) {
         onViewportRendered?.({ offset: { ...offset }, zoom });
@@ -537,6 +579,7 @@ export const useCanvasRenderer = (
     hoveredGrid,
     tool,
     canvasMode,
+    slideDeck,
     structuredScene,
     selectedStructuredNodeIds,
     structuredContextPoint,

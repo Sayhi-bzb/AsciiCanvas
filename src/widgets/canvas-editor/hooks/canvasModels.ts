@@ -13,6 +13,7 @@ export type CanvasRenderModel = Pick<EditorState,
   | "hoveredGrid"
   | "tool"
   | "canvasMode"
+  | "slideDeck"
   | "structuredScene"
   | "selectedStructuredNodeIds"
   | "selectedStructuredBoxId"

@@ -538,6 +538,25 @@ test.describe('Canvas', () => {
     await expect(tooltip).toHaveAttribute('data-side', 'left');
   });
 
+  test('shows Slides view tooltips after the Sidebar rail delay', async ({ page }) => {
+    await page.getByRole('button', { name: 'Select canvas' }).click();
+    await page.getByRole('menuitem', { name: 'Create' }).hover();
+    await page.getByRole('menuitem', { name: 'New Slides' }).hover();
+    await page.getByRole('menuitem', { name: /Widescreen/ }).click();
+
+    const slidesTab = page
+      .getByTestId('slide-view-rail-vertical')
+      .getByRole('tab', { name: 'Slides' });
+    const tooltip = page.locator('[data-slot="tooltip-content"]');
+
+    await slidesTab.hover();
+    await page.waitForTimeout(200);
+    await expect(tooltip).toHaveCount(0);
+    await expect(tooltip).toBeVisible({ timeout: 500 });
+    await expect(tooltip).toHaveText('Slides');
+    await expect(tooltip).toHaveAttribute('data-side', 'left');
+  });
+
   test('should have toolbar', async ({ page }) => {
     // Toolbar buttons should be visible
     const toolbar = page.locator('[role="toolbar"]').first();

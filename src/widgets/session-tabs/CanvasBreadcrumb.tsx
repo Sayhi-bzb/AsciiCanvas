@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useEditorStore } from "@/domains/canvas/public";
+import { SLIDE_SIZE_PRESETS } from "@/domains/slides/public";
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
 import { useUiI18n, type I18nKey } from "@/shared/i18n";
 import { cn } from "@/shared/lib/utils";
@@ -30,7 +31,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
-import { Input } from "@/shared/ui/input";
+import { InlineRenameInput } from "@/shared/ui/inline-rename-input";
 
 const SessionExpandIcon = HOST_ICONOLOGY.sessionAction.expand;
 const SessionMoreIcon = HOST_ICONOLOGY.sessionAction.more;
@@ -78,7 +79,6 @@ export function CanvasBreadcrumb() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [actionsOpenId, setActionsOpenId] = useState<string | null>(null);
   const [renameTargetId, setRenameTargetId] = useState<string | null>(null);
-  const [renameName, setRenameName] = useState("");
   const [renameMenuWidth, setRenameMenuWidth] = useState<number | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
@@ -97,17 +97,20 @@ export function CanvasBreadcrumb() {
     setMenuOpen(false);
   };
 
-  const openRename = (id: string, name: string) => {
+  const createSlideSession = (size: typeof SLIDE_SIZE_PRESETS[keyof typeof SLIDE_SIZE_PRESETS]) => {
+    createCanvasSession("slide", { slideSize: size });
+    setMenuOpen(false);
+  };
+
+  const openRename = (id: string) => {
     setRenameMenuWidth(menuContentRef.current?.getBoundingClientRect().width ?? null);
     setActionsOpenId(null);
     setRenameTargetId(id);
-    setRenameName(name);
   };
 
-  const commitRename = () => {
+  const commitRename = (name: string) => {
     if (!renameTargetId) return;
-    const nextName = renameName.trim();
-    if (nextName) renameCanvasSession(renameTargetId, nextName);
+    renameCanvasSession(renameTargetId, name);
     setRenameTargetId(null);
     setRenameMenuWidth(null);
   };
@@ -192,24 +195,13 @@ export function CanvasBreadcrumb() {
                     className="flex h-7 min-w-0 flex-1 items-center gap-2 px-2"
                   >
                     <ModeIcon className="size-4 shrink-0" />
-                    <Input
-                      value={renameName}
-                      onChange={(event) => setRenameName(event.target.value)}
-                      onBlur={commitRename}
-                      onFocus={(event) => event.currentTarget.select()}
+                    <InlineRenameInput
+                      value={session.name}
+                      onCommit={commitRename}
+                      onCancel={cancelRename}
                       onPointerDown={(event) => event.stopPropagation()}
                       onClick={(event) => event.stopPropagation()}
-                      onKeyDown={(event) => {
-                        event.stopPropagation();
-                        if (event.key === "Enter") {
-                          event.preventDefault();
-                          commitRename();
-                        } else if (event.key === "Escape") {
-                          event.preventDefault();
-                          cancelRename();
-                        }
-                      }}
-                      className="h-6 min-w-0 flex-1 px-1.5 py-0"
+                      className="flex-1 px-1.5"
                       aria-label={t("session.renameLabel")}
                       autoFocus
                     />
@@ -251,7 +243,7 @@ export function CanvasBreadcrumb() {
                         <DropdownMenuItem
                           onSelect={(event) => {
                             event.preventDefault();
-                            openRename(session.id, session.name);
+                            openRename(session.id);
                           }}
                         >
                           <SessionRenameIcon />
@@ -294,6 +286,20 @@ export function CanvasBreadcrumb() {
                   </DropdownMenuItem>
                 );
               })}
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <SessionCreateIcon />
+                  {t("session.newSlides")}
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent aria-label={t("session.newSlides")}>
+                  <DropdownMenuItem onSelect={() => createSlideSession(SLIDE_SIZE_PRESETS.widescreen)}>
+                    {t("session.slideWidescreen")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => createSlideSession(SLIDE_SIZE_PRESETS.classic)}>
+                    {t("session.slideClassic")}
+                  </DropdownMenuItem>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
         </DropdownMenuContent>

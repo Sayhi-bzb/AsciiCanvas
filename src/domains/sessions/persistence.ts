@@ -5,14 +5,15 @@ import type {
   StructuredNode,
 } from "@/domains/structured-content/public";
 import type { CanvasSession } from "./model";
+import { normalizeSlideDeck } from "@/domains/slides/public";
 
-export const EDITOR_PERSISTENCE_VERSION = 3;
+export const EDITOR_PERSISTENCE_VERSION = 4;
 export const EDITOR_PERSISTENCE_KEY = "ascii-canvas-persistence";
-export const EDITOR_PERSISTENCE_V2_BACKUP_KEY =
-  "ascii-canvas-persistence-v2-backup";
+export const EDITOR_PERSISTENCE_V3_BACKUP_KEY =
+  "ascii-canvas-persistence-v3-backup";
 
-interface PersistedEditorStateV3 {
-  schemaVersion: 3;
+interface PersistedEditorStateV4 {
+  schemaVersion: 4;
   workspace: {
     offset: Point;
     zoom: number;
@@ -44,7 +45,7 @@ const isPoint = (value: unknown): value is Point =>
   Number.isFinite(value.y);
 
 const isCanvasMode = (value: unknown): value is CanvasMode =>
-  value === "freeform" || value === "structured";
+  value === "freeform" || value === "structured" || value === "slide";
 
 const createBlankSession = (): CanvasSession => ({
   id: "canvas-1",
@@ -55,9 +56,9 @@ const createBlankSession = (): CanvasSession => ({
   grid: [],
 });
 
-export const isPersistedEditorStateV3 = (
+export const isPersistedEditorStateV4 = (
   value: unknown
-): value is PersistedEditorStateV3 =>
+): value is PersistedEditorStateV4 =>
   isRecord(value) &&
   value.schemaVersion === EDITOR_PERSISTENCE_VERSION &&
   isRecord(value.workspace) &&
@@ -77,9 +78,9 @@ export const isPersistedEditorStateV3 = (
   typeof value.preferences.showGrid === "boolean" &&
   typeof value.preferences.exportShowGrid === "boolean";
 
-export const migratePersistedStateToV3 = (
+export const migratePersistedStateToV4 = (
   value: unknown
-): PersistedEditorStateV3 => {
+): PersistedEditorStateV4 => {
   const state = isRecord(value) ? value : {};
   const oldWorkspace = isRecord(state.workspace) ? state.workspace : state;
   const oldSessions = isRecord(state.sessions) ? state.sessions : {};
@@ -89,12 +90,33 @@ export const migratePersistedStateToV3 = (
     : Array.isArray(state.canvasSessions)
       ? state.canvasSessions
       : [];
-  const items = rawItems.filter(
-    (item): item is CanvasSession =>
-      isRecord(item) &&
-      typeof item.id === "string" &&
-      isCanvasMode(item.mode)
-  );
+  const items = rawItems.reduce<CanvasSession[]>((normalized, item) => {
+    if (
+      !isRecord(item) ||
+      typeof item.id !== "string" ||
+      !isCanvasMode(item.mode)
+    ) {
+      return normalized;
+    }
+    if (item.mode === "slide") {
+      normalized.push({
+        id: item.id,
+        name: typeof item.name === "string" ? item.name : "Slides",
+        mode: "slide",
+        slideDeck: normalizeSlideDeck(
+          item.slideDeck,
+          `${item.id}-slide-1`
+        ),
+        scene: [],
+        components: [],
+        grid: [],
+        ...(isRecord(item.viewport) ? { viewport: item.viewport as never } : {}),
+      });
+      return normalized;
+    }
+    normalized.push(item as unknown as CanvasSession);
+    return normalized;
+  }, []);
   if (items.length === 0) items.push(createBlankSession());
 
   const requestedActiveId =
@@ -157,7 +179,7 @@ export const migratePersistedStateToV3 = (
 };
 
 export const flattenPersistedEditorState = (
-  value: PersistedEditorStateV3
+  value: PersistedEditorStateV4
 ) => ({
   ...value.workspace,
   canvasSessions: value.sessions.items,

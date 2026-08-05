@@ -9,6 +9,7 @@ import {
 import { useShallow } from "zustand/react/shallow";
 
 import { useEditorStore } from "@/domains/canvas/public";
+import { isStaticGridMode } from "@/domains/sessions/public";
 import { gridCellRect } from "@/shared/metrics";
 import type { GridMap, NodeBounds, SelectionArea } from "@/shared/types";
 import { GridManager } from "@/shared/utils/grid";
@@ -239,7 +240,7 @@ export function SelectionFormatToolbar({
     [staticGridEditMode, staticGridSelection, textCursor, selections]
   );
   const activeSelections =
-    canvasMode === "freeform" ? staticGridView.selectionAreas : selections;
+    isStaticGridMode(canvasMode) ? staticGridView.selectionAreas : selections;
 
   const selectedCells = useMemo(
     () => getSelectedCells(grid, activeSelections),

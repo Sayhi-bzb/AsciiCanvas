@@ -2,25 +2,40 @@ import type { GridCell, Point } from "@/shared/types";
 import type { CanvasMode } from "./mode";
 import type { StructuredComponentInstance, StructuredNode } from "@/domains/structured-content/public";
 import type { CollaborationDescriptorV1 } from "@/domains/collaboration/public";
+import type { SlideDeck } from "@/domains/slides/public";
 
 interface CanvasViewport {
   offset: Point;
   zoom: number;
 }
 
-export interface CanvasSession {
+interface CanvasSessionBase {
   id: string;
   name: string;
-  mode: CanvasMode;
-  scene: StructuredNode[];
-  components?: StructuredComponentInstance[];
-  grid: [string, GridCell][];
   viewport?: CanvasViewport;
   collaboration?: CollaborationDescriptorV1;
 }
 
+export interface StaticCanvasSession extends CanvasSessionBase {
+  mode: Exclude<CanvasMode, "slide">;
+  scene: StructuredNode[];
+  components?: StructuredComponentInstance[];
+  grid: [string, GridCell][];
+}
+
+export interface SlideCanvasSession extends CanvasSessionBase {
+  mode: "slide";
+  slideDeck: SlideDeck;
+  scene: [];
+  components?: [];
+  grid: [];
+  collaboration?: never;
+}
+
+export type CanvasSession = StaticCanvasSession | SlideCanvasSession;
+
 export type CanvasImportSnapshot = {
-  mode: CanvasMode;
+  mode: Exclude<CanvasMode, "slide">;
   scene: StructuredNode[];
   components: StructuredComponentInstance[];
   grid: [string, GridCell][];
