@@ -15,9 +15,7 @@ describe("editorHandlers clipboard sources", () => {
   });
 
   it("forwards clipboard-event source to runEditorCommand", () => {
-    const runEditorCommandSpy = vi
-      .spyOn(editorCommands, "runEditorCommand")
-      .mockReturnValue(true);
+    const runEditorCommandSpy = vi.spyOn(editorCommands, "runEditorCommand").mockReturnValue(true);
 
     const managedTextarea = document.createElement("textarea");
     const clipboardEvent = {
@@ -38,7 +36,7 @@ describe("editorHandlers clipboard sources", () => {
       }
     );
 
-    expect(result.succeeded).toBe(true);
+    expect(result.status).toBe("succeeded");
     expect(runEditorCommandSpy).toHaveBeenCalledWith(
       "paste",
       expect.objectContaining({
@@ -50,9 +48,7 @@ describe("editorHandlers clipboard sources", () => {
   });
 
   it("forwards copy-ansi to runEditorCommand without a shortcut path", () => {
-    const runEditorCommandSpy = vi
-      .spyOn(editorCommands, "runEditorCommand")
-      .mockReturnValue(true);
+    const runEditorCommandSpy = vi.spyOn(editorCommands, "runEditorCommand").mockReturnValue(true);
 
     const state = {
       ...useEditorStore.getState(),
@@ -72,7 +68,7 @@ describe("editorHandlers clipboard sources", () => {
       }
     );
 
-    expect(result.succeeded).toBe(true);
+    expect(result.status).toBe("succeeded");
     expect(runEditorCommandSpy).toHaveBeenCalledWith(
       "copy-ansi",
       expect.objectContaining({
@@ -96,8 +92,102 @@ describe("editorHandlers clipboard sources", () => {
       }
     );
 
-    expect(result.succeeded).toBe(false);
-    expect(result.reason).toBe("not-supported-in-structured");
+    expect(result.status).toBe("rejected");
+    expect("reason" in result ? result.reason : undefined).toBe("not-supported-in-structured");
+  });
+
+  it("reports structured text cut as pending until the clipboard write completes", async () => {
+    const runEditorCommandSpy = vi
+      .spyOn(editorCommands, "runEditorCommand")
+      .mockReturnValue(Promise.resolve({ status: "applied", changed: true } as const));
+    const state = {
+      ...useEditorStore.getState(),
+      canvasMode: "structured" as const,
+      structuredTextSelection: {
+        nodeId: "text-1",
+        anchor: 0,
+        focus: 2,
+      },
+    };
+
+    const result = editorHandlers.cut(
+      { source: "canvas-keydown" },
+      {
+        state,
+        setTool: vi.fn(),
+        onUndo: vi.fn(),
+        onRedo: vi.fn(),
+      }
+    );
+
+    expect(result.status).toBe("pending");
+    if (result.status !== "pending") return;
+    await expect(result.completion).resolves.toEqual({
+      succeeded: true,
+      changed: true,
+    });
+    expect(runEditorCommandSpy).toHaveBeenCalledWith(
+      "cut",
+      expect.objectContaining({ source: "canvas-keydown" })
+    );
+  });
+
+  it("reports structured node cut as pending until the clipboard write completes", async () => {
+    const runEditorCommandSpy = vi
+      .spyOn(editorCommands, "runEditorCommand")
+      .mockReturnValue(Promise.resolve({ status: "applied", changed: true } as const));
+    const state = {
+      ...useEditorStore.getState(),
+      canvasMode: "structured" as const,
+      selectedStructuredNodeIds: ["box-1"],
+      structuredTextSelection: null,
+    };
+
+    const result = editorHandlers.cut(
+      { source: "context-menu" },
+      {
+        state,
+        setTool: vi.fn(),
+        onUndo: vi.fn(),
+        onRedo: vi.fn(),
+      }
+    );
+
+    expect(result.status).toBe("pending");
+    if (result.status !== "pending") return;
+    await expect(result.completion).resolves.toEqual({
+      succeeded: true,
+      changed: true,
+    });
+    expect(runEditorCommandSpy).toHaveBeenCalledWith(
+      "cut",
+      expect.objectContaining({ source: "context-menu" })
+    );
+  });
+
+  it("enables cut for selected structured nodes and rejects an unselected scene", () => {
+    const selectedState = {
+      ...useEditorStore.getState(),
+      canvasMode: "structured" as const,
+      selectedStructuredNodeIds: ["box-1"],
+      structuredTextSelection: null,
+    };
+    expect(editorCheckers.cut?.(selectedState)).toBe(true);
+
+    const runEditorCommandSpy = vi.spyOn(editorCommands, "runEditorCommand");
+    const result = editorHandlers.cut(
+      { source: "context-menu" },
+      {
+        state: { ...selectedState, selectedStructuredNodeIds: [] },
+        setTool: vi.fn(),
+        onUndo: vi.fn(),
+        onRedo: vi.fn(),
+      }
+    );
+
+    expect(result.status).toBe("rejected");
+    expect("reason" in result ? result.reason : undefined).toBe("empty-selection");
+    expect(runEditorCommandSpy).not.toHaveBeenCalled();
   });
 });
 
@@ -142,12 +232,10 @@ describe("editor history shortcuts", () => {
   });
 
   it("forwards managed canvas focus context for undo and redo", () => {
-    const runEditorCommandSpy = vi
-      .spyOn(editorCommands, "runEditorCommand")
-      .mockReturnValue(true);
+    const runEditorCommandSpy = vi.spyOn(editorCommands, "runEditorCommand").mockReturnValue(true);
     const managedTextarea = document.createElement("textarea");
     const context = {
-      state: useEditorStore.getState(),
+      state: { ...useEditorStore.getState(), canUndo: true, canRedo: true },
       setTool: vi.fn(),
       onUndo: vi.fn(),
       onRedo: vi.fn(),
@@ -199,6 +287,10 @@ describe("editor context menu catalog", () => {
     ]);
   });
 
+  it("offers cut for structured node selections", () => {
+    expect(STRUCTURED_CONTEXT_MENU).toContainEqual({ type: "action", id: "cut" });
+  });
+
   it("labels delete plainly in context menus", () => {
     expect(ACTION_CATALOG["delete-selection"].label).toBe("Delete");
   });
@@ -238,7 +330,7 @@ describe("editorHandlers structured rename", () => {
       }
     );
 
-    expect(result.succeeded).toBe(true);
+    expect(result.status).toBe("succeeded");
     expect(setTextCursor).toHaveBeenCalledWith({ x: 8, y: 3 });
   });
 
@@ -271,7 +363,7 @@ describe("editorHandlers structured rename", () => {
       }
     );
 
-    expect(result.succeeded).toBe(false);
+    expect(result.status).toBe("rejected");
     expect(editorCheckers["structured-rename"]?.(state)).toBe(false);
   });
 
@@ -305,7 +397,7 @@ describe("editorHandlers structured rename", () => {
       }
     );
 
-    expect(result.succeeded).toBe(true);
+    expect(result.status).toBe("succeeded");
     expect(setTextCursor).toHaveBeenCalledWith({ x: 8, y: 5 });
     expect(editorCheckers["structured-rename"]?.(state)).toBe(true);
   });
@@ -399,20 +491,22 @@ describe("editorHandlers structured rename", () => {
       }
     );
 
-    expect(result.succeeded).toBe(true);
-    expect(writeTextSpy).toHaveBeenCalledWith([
-      '<canvas',
-      '  mode="structured"',
-      '>',
-      '  <box',
-      '    name="API"',
-      '  >',
-      '    <text',
-      '      value="Hello"',
-      '    />',
-      '  </box>',
-      '</canvas>',
-    ].join("\n"));
+    expect(result.status).toBe("succeeded");
+    expect(writeTextSpy).toHaveBeenCalledWith(
+      [
+        "<canvas",
+        '  mode="structured"',
+        ">",
+        "  <box",
+        '    name="API"',
+        "  >",
+        "    <text",
+        '      value="Hello"',
+        "    />",
+        "  </box>",
+        "</canvas>",
+      ].join("\n")
+    );
     expect(editorCheckers["structured-copy-hierarchy"]?.(state)).toBe(true);
   });
 
@@ -423,4 +517,3 @@ describe("editorHandlers structured rename", () => {
     });
   });
 });
-

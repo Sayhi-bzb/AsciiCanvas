@@ -1,11 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import {
-  MIN_ZOOM,
-  MAX_ZOOM,
-  COLOR_PRIMARY_TEXT,
-  DEFAULT_BRUSH_CHAR,
-} from "@/shared/lib/constants";
+import { MIN_ZOOM, MAX_ZOOM, COLOR_PRIMARY_TEXT, DEFAULT_BRUSH_CHAR } from "@/shared/lib/constants";
 import {
   yMainGrid,
   yStructuredScene,
@@ -15,6 +10,8 @@ import {
   observeActiveScene,
   observeActiveComponents,
   runCanvasTransaction,
+  getCanvasHistoryAvailability,
+  subscribeCanvasHistoryAvailability,
 } from "./yjs";
 import type { EditorState } from "./interfaces";
 import {
@@ -39,15 +36,18 @@ import {
 } from "./slices";
 import { sceneToGridEntries } from "@/domains/structured-content/public";
 import {
+  getStructuredTextCaretPoint,
+  getStructuredTextOffsetAtPoint,
+  normalizeStructuredTextSelection,
+} from "@/domains/structured-content/public";
+import { splitGraphemes } from "@/shared/metrics";
+import {
   rebuildGridFromYMap,
   rebuildSceneFromYMap,
   patchGridByChangedKeys,
   applyFreeformSnapshotToYMaps,
 } from "./helpers/gridHelpers";
-import {
-  withActiveCanvasSnapshot,
-  normalizeSessionMode,
-} from "@/domains/sessions/public";
+import { withActiveCanvasSnapshot, normalizeSessionMode } from "@/domains/sessions/public";
 import {
   cloneScene,
   normalizeAndCloneScene,
@@ -58,7 +58,8 @@ import {
 import {
   deriveStructuredComponentsFromScene,
   normalizeStructuredComponents,
-} from "@/domains/structured-content/public";import { isCollaborationDescriptor } from "@/domains/collaboration/public";
+} from "@/domains/structured-content/public";
+import { isCollaborationDescriptor } from "@/domains/collaboration/public";
 
 export type { EditorState };
 
@@ -86,9 +87,7 @@ const DEFAULT_STRUCTURED_SAFARI_TEMPLATE = buildStructuredTemplate(
     startOrder: 1,
   }
 );
-const DEFAULT_STRUCTURED_SAFARI_GRID = sceneToGridEntries(
-  DEFAULT_STRUCTURED_SAFARI_TEMPLATE.nodes
-);
+const DEFAULT_STRUCTURED_SAFARI_GRID = sceneToGridEntries(DEFAULT_STRUCTURED_SAFARI_TEMPLATE.nodes);
 
 const createDefaultCanvasSessions = (): CanvasSession[] => [
   {
@@ -122,20 +121,12 @@ const recoverPersistedEditorState = (
   hasPersistedState: boolean
 ): EditorState => {
   const hState = { ...hydratedState } as RecoverableEditorState;
-  hState.brushChar = normalizeBrushChar(
-    hState.brushChar,
-    DEFAULT_BRUSH_CHAR
-  );
+  hState.brushChar = normalizeBrushChar(hState.brushChar, DEFAULT_BRUSH_CHAR);
   hState.brushColor =
-    typeof hState.brushColor === "string"
-      ? hState.brushColor
-      : COLOR_PRIMARY_TEXT;
-  hState.showGrid =
-    typeof hState.showGrid === "boolean" ? hState.showGrid : true;
+    typeof hState.brushColor === "string" ? hState.brushColor : COLOR_PRIMARY_TEXT;
+  hState.showGrid = typeof hState.showGrid === "boolean" ? hState.showGrid : true;
   hState.exportShowGrid =
-    typeof hState.exportShowGrid === "boolean"
-      ? hState.exportShowGrid
-      : false;
+    typeof hState.exportShowGrid === "boolean" ? hState.exportShowGrid : false;
 
   const legacyGridEntries = normalizeGridEntries(hState.grid);
   const legacyViewport = normalizeSessionViewport({
@@ -149,15 +140,10 @@ const recoverPersistedEditorState = (
         .filter((item): item is StructuredNode => !!item) as StructuredNode[])
     : [];
   const legacyComponents = Array.isArray(hState.structuredComponents)
-    ? normalizeStructuredComponents(
-        hState.structuredComponents as never,
-        legacyScene
-      )
+    ? normalizeStructuredComponents(hState.structuredComponents as never, legacyScene)
     : normalizeStructuredComponents(undefined, legacyScene);
 
-  const recoveredSessions: CanvasSession[] = Array.isArray(
-    hState.canvasSessions
-  )
+  const recoveredSessions: CanvasSession[] = Array.isArray(hState.canvasSessions)
     ? hState.canvasSessions
         .map((raw): CanvasSession | null => {
           if (!raw || typeof raw !== "object") return null;
@@ -173,10 +159,7 @@ const recoverPersistedEditorState = (
           if (mode === "slide") {
             return {
               id: maybe.id,
-              name:
-                typeof maybe.name === "string" && maybe.name.trim()
-                  ? maybe.name
-                  : "Slides",
+              name: typeof maybe.name === "string" && maybe.name.trim() ? maybe.name : "Slides",
               mode: "slide",
               slideDeck: normalizeSlideDeck(
                 (raw as { slideDeck?: unknown }).slideDeck,
@@ -202,10 +185,7 @@ const recoverPersistedEditorState = (
 
           return {
             id: maybe.id,
-            name:
-              typeof maybe.name === "string" && maybe.name.trim()
-                ? maybe.name
-                : "Canvas",
+            name: typeof maybe.name === "string" && maybe.name.trim() ? maybe.name : "Canvas",
             mode,
             scene: normalizeAndCloneScene(scene),
             components,
@@ -249,9 +229,8 @@ const recoverPersistedEditorState = (
       : session
   );
   const activeSession =
-    sessionsWithActiveViewport.find(
-      (session) => session.id === activeCanvasId
-    ) ?? sessionsWithActiveViewport[0];
+    sessionsWithActiveViewport.find((session) => session.id === activeCanvasId) ??
+    sessionsWithActiveViewport[0];
   const currentTool = hState.tool || "select";
   const runtime = resolveSessionRuntime(activeSession, currentTool);
 
@@ -283,14 +262,72 @@ const syncHydratedStateToYMaps = (hydratedState: EditorState) => {
     getSessionCanvasDocumentId(activeSession, hydratedState.slideDeck),
     {
       grid: Array.from(hydratedState.grid.entries()),
-      scene:
-        hydratedState.canvasMode === "structured"
-          ? hydratedState.structuredScene
-          : [],
+      scene: hydratedState.canvasMode === "structured" ? hydratedState.structuredScene : [],
       components: hydratedState.structuredComponents,
     },
     { replace: true }
   );
+};
+
+const reconcileStructuredInteraction = (state: EditorState, structuredScene: StructuredNode[]) => {
+  const byId = new Map(structuredScene.map((node) => [node.id, node]));
+  const selectedStructuredNodeIds = state.selectedStructuredNodeIds.filter((id) => byId.has(id));
+  const selectedBox = state.selectedStructuredBoxId
+    ? byId.get(state.selectedStructuredBoxId)
+    : null;
+  const selectedSplit = state.selectedStructuredSplitHandle
+    ? byId.get(state.selectedStructuredSplitHandle.nodeId)
+    : null;
+  const editingNode = state.editingStructuredTextNodeId
+    ? byId.get(state.editingStructuredTextNodeId)
+    : null;
+
+  const structuredTextSelection =
+    state.structuredTextSelection && byId.get(state.structuredTextSelection.nodeId)?.type === "text"
+      ? normalizeStructuredTextSelection(
+          state.structuredTextSelection,
+          splitGraphemes(
+            (
+              byId.get(state.structuredTextSelection.nodeId) as Extract<
+                StructuredNode,
+                { type: "text" }
+              >
+            ).text
+          ).length
+        )
+      : null;
+
+  let textCursor = state.textCursor;
+  if (state.editingStructuredTextNodeId && editingNode?.type !== "text") {
+    textCursor = null;
+  } else if (
+    editingNode?.type === "text" &&
+    state.textCursor &&
+    state.editingStructuredTextNodeId
+  ) {
+    const previousNode = state.structuredScene.find(
+      (node) => node.id === state.editingStructuredTextNodeId && node.type === "text"
+    );
+    if (previousNode?.type === "text") {
+      const offset = Math.min(
+        getStructuredTextOffsetAtPoint(previousNode, state.textCursor),
+        splitGraphemes(editingNode.text).length
+      );
+      textCursor = getStructuredTextCaretPoint(editingNode, offset);
+    }
+  }
+
+  return {
+    selectedStructuredNodeIds,
+    selectedStructuredBoxId: selectedBox?.type === "box" ? selectedBox.id : null,
+    selectedStructuredSplitHandle:
+      selectedSplit?.type === "splitBox" ? state.selectedStructuredSplitHandle : null,
+    structuredContextPoint:
+      selectedStructuredNodeIds.length === 1 ? state.structuredContextPoint : null,
+    editingStructuredTextNodeId: editingNode?.type === "text" ? editingNode.id : null,
+    structuredTextSelection,
+    textCursor,
+  };
 };
 
 const syncObservedGrid = (state: EditorState, grid: GridMap) => {
@@ -300,9 +337,7 @@ const syncObservedGrid = (state: EditorState, grid: GridMap) => {
       state.slideDeck.activeSlideId,
       Array.from(grid.entries())
     );
-    const activeSlide = slideDeck.slides.find(
-      (slide) => slide.id === slideDeck.activeSlideId
-    );
+    const activeSlide = slideDeck.slides.find((slide) => slide.id === slideDeck.activeSlideId);
     return {
       grid: createMapFromEntries(activeSlide?.grid ?? []),
       slideDeck,
@@ -353,6 +388,7 @@ export const useEditorStore = create<EditorState>()(
           const structuredScene = rebuildSceneFromYMap();
           return {
             structuredScene,
+            ...reconcileStructuredInteraction(state, structuredScene),
             structuredComponents: normalizeStructuredComponents(
               state.structuredComponents,
               structuredScene
@@ -380,6 +416,8 @@ export const useEditorStore = create<EditorState>()(
         });
       });
 
+      subscribeCanvasHistoryAvailability((availability) => set(availability));
+
       return {
         offset: { x: 0, y: 0 },
         zoom: 1,
@@ -395,6 +433,7 @@ export const useEditorStore = create<EditorState>()(
         canvasSessions: createDefaultCanvasSessions(),
         activeCanvasId: DEFAULT_SESSION_ID,
         activeCanvasHasSavedViewport: false,
+        ...getCanvasHistoryAvailability(),
         tool: "select",
         brushChar: DEFAULT_BRUSH_CHAR,
         brushColor: COLOR_PRIMARY_TEXT,
@@ -403,8 +442,7 @@ export const useEditorStore = create<EditorState>()(
         hoveredGrid: null,
         canvasColorPickerTarget: null,
 
-        setOffset: (updater) =>
-          set((state) => ({ offset: updater(state.offset) })),
+        setOffset: (updater) => set((state) => ({ offset: updater(state.offset) })),
         setZoom: (updater) =>
           set((state) => ({
             zoom: Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, updater(state.zoom))),
@@ -412,21 +450,23 @@ export const useEditorStore = create<EditorState>()(
         setTool: (tool) =>
           set((state) => {
             if (!isToolAllowedForMode(tool, state.canvasMode)) return state;
-            return { tool, textCursor: null, editingStructuredTextNodeId: null, structuredTextSelection: null, hoveredGrid: null };
+            return {
+              tool,
+              textCursor: null,
+              editingStructuredTextNodeId: null,
+              structuredTextSelection: null,
+              hoveredGrid: null,
+            };
           }),
         applyStructuredScene: (scene, history = "save", components) => {
           const normalizedScene = normalizeAndCloneScene(scene);
-          const componentSource =
-            components ??
-            [
-              ...get().structuredComponents,
-              ...deriveStructuredComponentsFromScene(normalizedScene).filter(
-                (component) =>
-                  !get().structuredComponents.some(
-                    (existing) => existing.id === component.id
-                  )
-              ),
-            ];
+          const componentSource = components ?? [
+            ...get().structuredComponents,
+            ...deriveStructuredComponentsFromScene(normalizedScene).filter(
+              (component) =>
+                !get().structuredComponents.some((existing) => existing.id === component.id)
+            ),
+          ];
           const normalizedComponents = normalizeStructuredComponents(
             componentSource,
             normalizedScene
@@ -450,9 +490,13 @@ export const useEditorStore = create<EditorState>()(
             selectedStructuredNodeIds: state.selectedStructuredNodeIds.filter((id) =>
               normalizedScene.some((node) => node.id === id)
             ),
-            selectedStructuredBoxId: state.selectedStructuredBoxId && normalizedScene.some((node) => node.id === state.selectedStructuredBoxId && node.type === "box")
-              ? state.selectedStructuredBoxId
-              : null,
+            selectedStructuredBoxId:
+              state.selectedStructuredBoxId &&
+              normalizedScene.some(
+                (node) => node.id === state.selectedStructuredBoxId && node.type === "box"
+              )
+                ? state.selectedStructuredBoxId
+                : null,
             selectedStructuredSplitHandle:
               state.selectedStructuredSplitHandle &&
               normalizedScene.some(
@@ -464,25 +508,25 @@ export const useEditorStore = create<EditorState>()(
                 : null,
             editingStructuredTextNodeId:
               state.editingStructuredTextNodeId &&
-              normalizedScene.some((node) => node.id === state.editingStructuredTextNodeId && node.type === "text")
+              normalizedScene.some(
+                (node) => node.id === state.editingStructuredTextNodeId && node.type === "text"
+              )
                 ? state.editingStructuredTextNodeId
                 : null,
             structuredTextSelection:
               state.structuredTextSelection &&
-              normalizedScene.some((node) => node.id === state.structuredTextSelection?.nodeId && node.type === "text")
+              normalizedScene.some(
+                (node) => node.id === state.structuredTextSelection?.nodeId && node.type === "text"
+              )
                 ? state.structuredTextSelection
                 : null,
             grid: createMapFromEntries(gridEntries),
-            canvasSessions: withActiveCanvasSnapshot(
-              state.canvasSessions,
-              state.activeCanvasId,
-              {
-                mode: "structured",
-                scene: normalizedScene,
-                components: normalizedComponents,
-                grid: gridEntries,
-              }
-            ),
+            canvasSessions: withActiveCanvasSnapshot(state.canvasSessions, state.activeCanvasId, {
+              mode: "structured",
+              scene: normalizedScene,
+              components: normalizedComponents,
+              grid: gridEntries,
+            }),
           }));
         },
         getNextStructuredOrder: () => {
@@ -495,8 +539,7 @@ export const useEditorStore = create<EditorState>()(
             brushChar: normalizeBrushChar(char, state.brushChar),
           })),
         setBrushColor: (color) => set({ brushColor: color }),
-        setCanvasColorPickerTarget: (target) =>
-          set({ canvasColorPickerTarget: target }),
+        setCanvasColorPickerTarget: (target) => set({ canvasColorPickerTarget: target }),
         setStructuredContextPoint: (point) =>
           set({ structuredContextPoint: point ? { ...point } : null }),
         setShowGrid: (show) => set({ showGrid: show }),
@@ -577,10 +620,7 @@ export const useEditorStore = create<EditorState>()(
       },
       migrate: (persistedState, persistedVersion) => {
         if (isPersistedEditorStateV4(persistedState)) return persistedState;
-        if (
-          persistedVersion < EDITOR_PERSISTENCE_VERSION &&
-          typeof localStorage !== "undefined"
-        ) {
+        if (persistedVersion < EDITOR_PERSISTENCE_VERSION && typeof localStorage !== "undefined") {
           const raw = localStorage.getItem(EDITOR_PERSISTENCE_KEY);
           if (raw && !localStorage.getItem(EDITOR_PERSISTENCE_V3_BACKUP_KEY)) {
             localStorage.setItem(EDITOR_PERSISTENCE_V3_BACKUP_KEY, raw);
@@ -590,14 +630,10 @@ export const useEditorStore = create<EditorState>()(
       },
       merge: (persistedState, currentState) => {
         if (!persistedState) return currentState;
-        const normalizedPersistedState = isPersistedEditorStateV4(
-          persistedState
-        )
+        const normalizedPersistedState = isPersistedEditorStateV4(persistedState)
           ? persistedState
           : migratePersistedStateToV4(persistedState);
-        const flattened = flattenPersistedEditorState(
-          normalizedPersistedState
-        );
+        const flattened = flattenPersistedEditorState(normalizedPersistedState);
         const mergedState = {
           ...currentState,
           ...flattened,

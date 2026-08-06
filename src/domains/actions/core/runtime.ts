@@ -21,8 +21,8 @@ import {
 
 // Combined handlers
 const ACTION_HANDLERS: Record<string, ActionHandler<unknown>> = {
-  ...(editorHandlers as Record<string, ActionHandler<unknown>>),
   ...(toolbarHandlers as Record<string, ActionHandler<unknown>>),
+  ...(editorHandlers as Record<string, ActionHandler<unknown>>),
   ...(sidebarHandlers as Record<string, ActionHandler<unknown>>),
 };
 

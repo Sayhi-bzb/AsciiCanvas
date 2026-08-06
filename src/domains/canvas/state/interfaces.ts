@@ -22,6 +22,17 @@ export interface RichTextCell {
   href?: string;
 }
 
+export type ClipboardCommandResult =
+  | { status: "applied"; changed: boolean }
+  | {
+      status: "noop";
+      reason: "empty-source" | "empty-clipboard" | "unsupported-data";
+    }
+  | {
+      status: "failed";
+      reason: "clipboard-failed" | "stale-target";
+    };
+
 export interface DrawingSlice {
   scratchLayer: GridMap | null;
   setScratchLayer: (points: GridPoint[]) => void;
@@ -130,9 +141,9 @@ export interface SelectionSlice {
   clearInteractionState: () => void;
   canCopyOrCut: () => boolean;
   deleteSelection: () => void;
-  copySelection: (options?: { rich?: boolean; ansi?: boolean; event?: ClipboardEvent }) => Promise<void>;
-  cutSelection: (options?: { event?: ClipboardEvent }) => Promise<void>;
-  pasteFromClipboard: (options?: { eventDataTransfer?: DataTransfer }) => Promise<void>;
+  copySelection: (options?: { rich?: boolean; ansi?: boolean; event?: ClipboardEvent }) => Promise<ClipboardCommandResult>;
+  cutSelection: (options?: { event?: ClipboardEvent }) => Promise<ClipboardCommandResult>;
+  pasteFromClipboard: (options?: { eventDataTransfer?: DataTransfer }) => Promise<ClipboardCommandResult>;
   copySelectionAsPng: (withGrid: boolean) => Promise<void>;
   fillSelectionsWithChar: (
     char: string,
@@ -172,6 +183,8 @@ export type EditorState = {
   canvasSessions: CanvasSession[];
   activeCanvasId: string;
   activeCanvasHasSavedViewport: boolean;
+  canUndo: boolean;
+  canRedo: boolean;
 
   setOffset: (updater: (prev: Point) => Point) => void;
   setZoom: (updater: (prev: number) => number) => void;

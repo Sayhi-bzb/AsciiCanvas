@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, createEvent, fireEvent, render, screen } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { AsciiCanvas as AsciiCanvasUnderTest } from "@/widgets/canvas-editor";
-import { useEditorStore } from "@/domains/canvas/public";
+import { undoManager, useEditorStore } from "@/domains/canvas/public";
 import { applyFreeformSnapshotToYMaps } from "@/domains/canvas/public";
 import {
   STRUCTURED_TEMPLATE_MIME,
@@ -79,6 +79,7 @@ describe("AsciiCanvas focus management", () => {
   const initialState = useEditorStore.getState();
 
   afterEach(() => {
+    vi.restoreAllMocks();
     handleDoubleClickMock.mockClear();
     setActiveStructuredTemplateDragId(null);
     useEditorStore.setState(initialState, true);
@@ -147,6 +148,15 @@ describe("AsciiCanvas focus management", () => {
 
   it("runs redo shortcuts from the managed textarea", () => {
     useEditorStore.setState({
+      textCursor: { x: 0, y: 0 },
+      selections: [],
+      canvasMode: "freeform",
+    });
+    useEditorStore.getState().writeTextString("A");
+    expect(undoManager.undo()).toBe(true);
+    expect(useEditorStore.getState().canRedo).toBe(true);
+
+    useEditorStore.setState({
       selections: [
         {
           start: { x: 0, y: 0 },
@@ -182,6 +192,38 @@ describe("AsciiCanvas focus management", () => {
 
     expect(ctrlShiftZ.defaultPrevented).toBe(true);
     expect(onRedo).toHaveBeenCalledTimes(2);
+  });
+
+  it("cuts selected structured nodes from the managed textarea shortcut", async () => {
+    useEditorStore.getState().createCanvasSession("structured");
+    useEditorStore.getState().applyStructuredScene(
+      [
+        {
+          id: "shortcut-box",
+          type: "box",
+          order: 1,
+          start: { x: 0, y: 0 },
+          end: { x: 4, y: 3 },
+          style: { color: "#ffffff" },
+        },
+      ],
+      false
+    );
+    useEditorStore.getState().setSelectedStructuredNodeIds(["shortcut-box"]);
+    const writeText = vi.spyOn(clipboard, "writeText").mockResolvedValue(true);
+    const { container } = render(
+      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+    );
+    const textarea = container.querySelector("textarea");
+    expect(textarea).not.toBeNull();
+    focusCanvasInput(container);
+
+    fireEvent.keyDown(textarea!, { key: "x", metaKey: true });
+
+    await vi.waitFor(() => {
+      expect(useEditorStore.getState().structuredScene).toEqual([]);
+    });
+    expect(writeText).toHaveBeenCalledTimes(1);
   });
 
   it("falls back to the Clipboard API when Meta+X produces no cut event", async () => {

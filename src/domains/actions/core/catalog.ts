@@ -218,6 +218,7 @@ export const STRUCTURED_CONTEXT_MENU: ContextMenuEntry[] = [
   { type: "separator" },
   { type: "action", id: "structured-duplicate" },
   { type: "action", id: "structured-copy-hierarchy" },
+  { type: "action", id: "cut" },
   { type: "separator" },
   { type: "action", id: "delete-selection" },
 ];

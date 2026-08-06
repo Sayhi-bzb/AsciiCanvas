@@ -21,6 +21,7 @@ import { shouldIgnoreCanvasSurfaceGesture } from "./interaction/core/gestureGuar
 import {
   resolveActionShortcut,
   resolveFillHotkeyChar,
+  isActionAccepted,
   resolveHistoryShortcutCommand,
   runAction,
 } from "@/domains/actions/public";
@@ -261,7 +262,7 @@ export const useManagedCanvasInput = ({
         onUndo,
         onRedo,
       });
-      return result.succeeded
+      return result.status === "succeeded"
         ? { claimed: true, preventDefault: true }
         : undefined;
     },
@@ -273,7 +274,7 @@ export const useManagedCanvasInput = ({
       return;
     }
     const result = runManagedAction('copy', e.nativeEvent);
-    if (result.succeeded) e.preventDefault();
+    if (isActionAccepted(result)) e.preventDefault();
   };
   const handleCut = (e: ReactClipboardEvent<HTMLTextAreaElement>) => {
     if (clipboardShortcutCoordinator.handleNative('cut') === 'suppress') {
@@ -281,7 +282,7 @@ export const useManagedCanvasInput = ({
       return;
     }
     const result = runManagedAction('cut', e.nativeEvent);
-    if (result.succeeded || document.activeElement === textareaRef.current) {
+    if (isActionAccepted(result) || document.activeElement === textareaRef.current) {
       e.preventDefault();
     }
   };
@@ -291,7 +292,7 @@ export const useManagedCanvasInput = ({
       return;
     }
     const result = runManagedAction('paste', e.nativeEvent);
-    if (result.succeeded || document.activeElement === textareaRef.current) {
+    if (isActionAccepted(result) || document.activeElement === textareaRef.current) {
       e.preventDefault();
     }
   };

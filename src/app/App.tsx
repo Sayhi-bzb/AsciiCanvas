@@ -56,7 +56,7 @@ function SidebarShortcutRegistration() {
         source: "global-hotkey",
         toggleSidebar,
       });
-      return result.succeeded
+      return result.status === "succeeded"
         ? { claimed: true, preventDefault: true }
         : undefined;
     },
@@ -169,12 +169,13 @@ function AppContent() {
   }, [sidebarAutoCollapseSignal, setIsRightPanelOpen]);
 
   const handleUndo = () => {
-    runUndo();
-    feedback.dismiss();
+    const changed = runUndo();
+    if (changed) feedback.dismiss();
+    return changed;
   };
 
   const handleRedo = () => {
-    runRedo();
+    return runRedo();
   };
 
   useGlobalShortcutCommands({ onUndo: handleUndo, onRedo: handleRedo });

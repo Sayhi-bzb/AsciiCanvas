@@ -1,6 +1,9 @@
 import * as Y from "yjs";
 import type { GridCell } from "@/shared/types";
-import type { StructuredComponentInstance, StructuredNode } from "@/domains/structured-content/public";
+import type {
+  StructuredComponentInstance,
+  StructuredNode,
+} from "@/domains/structured-content/public";
 
 const LOCAL_ORIGIN = Symbol("canvas-local-origin");
 const HISTORY_IGNORED_ORIGIN = Symbol("canvas-history-ignored");
@@ -24,11 +27,32 @@ const documents = new Map<string, CanvasYDocument>();
 const activeDocumentListeners = new Set<
   (next: CanvasYDocument, previous: CanvasYDocument) => void
 >();
+export type CanvasHistoryAvailability = {
+  canUndo: boolean;
+  canRedo: boolean;
+};
+const historyAvailabilityListeners = new Set<(availability: CanvasHistoryAvailability) => void>();
 
-const createCanvasYDocument = (
-  id: string,
-  seed?: CanvasDocumentSeed
-): CanvasYDocument => {
+export function getCanvasHistoryAvailability(): CanvasHistoryAvailability {
+  return {
+    canUndo: activeDocument.undoManager.undoStack.length > 0,
+    canRedo: activeDocument.undoManager.redoStack.length > 0,
+  };
+}
+
+function emitHistoryAvailability() {
+  const availability = getCanvasHistoryAvailability();
+  historyAvailabilityListeners.forEach((listener) => listener(availability));
+}
+
+export function subscribeCanvasHistoryAvailability(
+  listener: (availability: CanvasHistoryAvailability) => void
+) {
+  historyAvailabilityListeners.add(listener);
+  return () => historyAvailabilityListeners.delete(listener);
+}
+
+const createCanvasYDocument = (id: string, seed?: CanvasDocumentSeed): CanvasYDocument => {
   const doc = new Y.Doc({ guid: id });
   const grid = doc.getMap<GridCell>("main-grid");
   const scene = doc.getMap<StructuredNode>("structured-scene");
@@ -38,14 +62,18 @@ const createCanvasYDocument = (
     trackedOrigins: new Set([LOCAL_ORIGIN]),
   });
   const canvasDocument = { id, doc, grid, scene, components, undoManager };
+  const notifyIfActive = () => {
+    if (canvasDocument === activeDocument) emitHistoryAvailability();
+  };
+  undoManager.on("stack-item-added", notifyIfActive);
+  undoManager.on("stack-item-popped", notifyIfActive);
+  undoManager.on("stack-cleared", notifyIfActive);
+  undoManager.on("stack-item-updated", notifyIfActive);
   if (seed) replaceCanvasDocument(canvasDocument, seed);
   return canvasDocument;
 };
 
-const replaceCanvasDocument = (
-  canvasDocument: CanvasYDocument,
-  seed: CanvasDocumentSeed
-) => {
+const replaceCanvasDocument = (canvasDocument: CanvasYDocument, seed: CanvasDocumentSeed) => {
   canvasDocument.doc.transact(() => {
     canvasDocument.grid.clear();
     canvasDocument.scene.clear();
@@ -107,6 +135,7 @@ export const activateCanvasDocument = (
   if (next !== previous) {
     activeDocumentListeners.forEach((listener) => listener(next, previous));
   }
+  emitHistoryAvailability();
   return next;
 };
 
@@ -126,9 +155,7 @@ export const subscribeActiveCanvasDocument = (
   return () => activeDocumentListeners.delete(listener);
 };
 
-export const observeActiveGrid = (
-  listener: (event: Y.YMapEvent<GridCell>) => void
-) => {
+export const observeActiveGrid = (listener: (event: Y.YMapEvent<GridCell>) => void) => {
   getYMainGrid().observe(listener);
   const unsubscribe = subscribeActiveCanvasDocument((next, previous) => {
     previous.grid.unobserve(listener);
@@ -140,9 +167,7 @@ export const observeActiveGrid = (
   };
 };
 
-export const observeActiveScene = (
-  listener: (event: Y.YMapEvent<StructuredNode>) => void
-) => {
+export const observeActiveScene = (listener: (event: Y.YMapEvent<StructuredNode>) => void) => {
   getYStructuredScene().observe(listener);
   const unsubscribe = subscribeActiveCanvasDocument((next, previous) => {
     previous.scene.unobserve(listener);
@@ -169,8 +194,8 @@ export const observeActiveComponents = (
 };
 
 export const undoManager = {
-  undo: () => activeDocument.undoManager.undo(),
-  redo: () => activeDocument.undoManager.redo(),
+  undo: () => !!activeDocument.undoManager.undo(),
+  redo: () => !!activeDocument.undoManager.redo(),
   clear: () => activeDocument.undoManager.clear(),
   stopCapturing: () => activeDocument.undoManager.stopCapturing(),
 };
@@ -194,10 +219,7 @@ export const runCanvasTransaction = (
   history: CanvasHistoryMode | boolean = "save"
 ) => {
   const mode = normalizeCanvasHistoryMode(history);
-  const origin =
-    mode === "none" || mode === "reset"
-      ? HISTORY_IGNORED_ORIGIN
-      : LOCAL_ORIGIN;
+  const origin = mode === "none" || mode === "reset" ? HISTORY_IGNORED_ORIGIN : LOCAL_ORIGIN;
 
   if (mode === "save" || mode === "reset") {
     forceHistorySave();

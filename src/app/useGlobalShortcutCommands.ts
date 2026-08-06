@@ -38,7 +38,7 @@ export const useGlobalShortcutCommands = ({
           onUndo,
           onRedo,
         });
-        return result.succeeded
+        return result.status === "succeeded"
           ? { claimed: true, preventDefault: true }
           : undefined;
       }
@@ -49,7 +49,7 @@ export const useGlobalShortcutCommands = ({
         source: "global-hotkey",
         fillChar,
       });
-      return result.succeeded
+      return result.status === "succeeded"
         ? { claimed: true, preventDefault: true }
         : undefined;
     },

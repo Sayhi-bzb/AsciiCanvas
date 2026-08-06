@@ -22,6 +22,7 @@ export {
   runToolbarAction,
   runSidebarAction,
 } from "./runtime";
+export { isActionAccepted } from "./result";
 
 export {
   getActionShortcutLabel,

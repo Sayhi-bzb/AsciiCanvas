@@ -1,4 +1,5 @@
 import { useEditorStore } from "@/domains/canvas/public";
+import type { ClipboardCommandResult } from "@/domains/canvas/public";
 import { runRedo, runUndo } from "./shortcutActions";
 import {
   resolveActionShortcut,
@@ -22,8 +23,8 @@ type RunEditorCommandOptions = {
   managedTextarea?: HTMLTextAreaElement | null;
   clipboardEvent?: ClipboardEvent;
   fillChar?: string;
-  onUndo?: () => void;
-  onRedo?: () => void;
+  onUndo?: () => boolean | void;
+  onRedo?: () => boolean | void;
 };
 
 export const resolveHistoryShortcutCommand = (
@@ -34,7 +35,7 @@ export const resolveHistoryShortcutCommand = (
 export const runEditorCommand = (
   command: EditorCommand,
   options: RunEditorCommandOptions = {}
-) => {
+): boolean | Promise<ClipboardCommandResult> => {
   const source = options.source ?? "global-hotkey";
   if (shouldIgnoreEditorCommandByFocus(source, options.managedTextarea)) return false;
 
@@ -42,13 +43,9 @@ export const runEditorCommand = (
 
   switch (command) {
     case "undo":
-      if (options.onUndo) options.onUndo();
-      else runUndo();
-      return true;
+      return options.onUndo ? options.onUndo() !== false : runUndo();
     case "redo":
-      if (options.onRedo) options.onRedo();
-      else runRedo();
-      return true;
+      return options.onRedo ? options.onRedo() !== false : runRedo();
     case "copy":
     case "copy-rich":
     case "copy-ansi":
@@ -59,34 +56,27 @@ export const runEditorCommand = (
         return false;
       }
       if (!state.canCopyOrCut()) return false;
-      void state.copySelection({
+      return state.copySelection({
         event: options.clipboardEvent,
         rich: command === "copy" || command === "copy-rich",
         ansi: command === "copy-ansi",
       });
-      return true;
     case "cut":
       if (state.canvasMode === "structured") {
         const hasStructuredTextSelection = !!getStructuredTextSelectionRange(
           state.structuredTextSelection
         );
-        void state.cutSelection({ event: options.clipboardEvent });
-        return hasStructuredTextSelection;
+        if (!hasStructuredTextSelection && state.selectedStructuredNodeIds.length === 0) {
+          return false;
+        }
+        return state.cutSelection({ event: options.clipboardEvent });
       }
       if (!state.canCopyOrCut()) return false;
-      void state.cutSelection({ event: options.clipboardEvent });
-      return true;
+      return state.cutSelection({ event: options.clipboardEvent });
     case "paste":
-      if (state.canvasMode === "structured") {
-        void state.pasteFromClipboard({
-          eventDataTransfer: options.clipboardEvent?.clipboardData || undefined,
-        });
-        return true;
-      }
-      void state.pasteFromClipboard({
+      return state.pasteFromClipboard({
         eventDataTransfer: options.clipboardEvent?.clipboardData || undefined,
       });
-      return true;
     case "fill-selection-char": {
       if (state.canvasMode === "structured") return false;
       const fillChar = options.fillChar ? getFirstGrapheme(options.fillChar) : "";
