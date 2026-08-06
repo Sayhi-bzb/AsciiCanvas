@@ -9,15 +9,34 @@ import { serializeGrid } from "./snapshotHelpers";
 import { normalizeStructuredComponents } from "@/domains/structured-content/public";
 import { normalizeAndCloneScene } from "./snapshotHelpers";
 import { normalizeSessionMode } from "@/domains/sessions/public";
+import {
+  createSlideDeck,
+  normalizeSlideDeck,
+  updateSlideGrid,
+  type SlideDeck,
+} from "@/domains/slides/public";
 
 export const DEFAULT_SESSION_ID = "canvas-1";
 export const DEFAULT_SESSION_NAME = "Canvas 1";
 export const DEFAULT_STRUCTURED_SESSION_ID = "canvas-2";
 export const DEFAULT_STRUCTURED_SESSION_NAME = "Canvas 2";
-export const DEFAULT_MODE: CanvasMode = "freeform";
+export const DEFAULT_MODE = "freeform" as const satisfies CanvasMode;
 const STRUCTURED_ALLOWED_TOOLS: ToolType[] = ["select", "text", "box", "splitBox", "line", "bg"];
 
 const DEFAULT_VIEWPORT = { offset: { x: 0, y: 0 }, zoom: 1 };
+export const getSlideCanvasDocumentId = (sessionId: string, slideId: string) =>
+  `${sessionId}:slide:${slideId}`;
+
+export const getSessionCanvasDocumentId = (
+  session: CanvasSession,
+  slideDeck?: SlideDeck | null
+) =>
+  session.mode === "slide"
+    ? getSlideCanvasDocumentId(
+        session.id,
+        (slideDeck ?? session.slideDeck).activeSlideId
+      )
+    : session.id;
 
 export const normalizeSessionViewport = (viewport: CanvasSession["viewport"] | undefined) => {
   if (!viewport) return null;
@@ -38,6 +57,20 @@ const getFallbackToolForMode = (mode: CanvasMode): ToolType => {
 };
 
 export const buildSessionSnapshot = (state: EditorState) => {
+  if (state.canvasMode === "slide") {
+    const deck = state.slideDeck ?? createSlideDeck({
+      initialSlideId: `${state.activeCanvasId}-slide-1`,
+    });
+    return {
+      mode: "slide" as const,
+      slideDeck: updateSlideGrid(
+        deck,
+        deck.activeSlideId,
+        serializeGrid(state.grid)
+      ),
+      viewport: { offset: { ...state.offset }, zoom: state.zoom },
+    };
+  }
   if (state.canvasMode === "structured") {
     return {
       mode: "structured" as const,
@@ -63,6 +96,10 @@ export const resolveSessionRuntime = (session: CanvasSession, currentTool: ToolT
   const nextOffset = viewport?.offset ?? DEFAULT_VIEWPORT.offset;
   const nextZoom = viewport?.zoom ?? DEFAULT_VIEWPORT.zoom;
 
+  const nextSlideDeck: SlideDeck | null =
+    nextMode === "slide" && session.mode === "slide"
+      ? normalizeSlideDeck(session.slideDeck, `${session.id}-slide-1`)
+      : null;
   const nextScene =
     nextMode === "structured" ? normalizeAndCloneScene(session.scene) : [];
   const nextComponents =
@@ -70,10 +107,19 @@ export const resolveSessionRuntime = (session: CanvasSession, currentTool: ToolT
       ? normalizeStructuredComponents(session.components, nextScene)
       : [];
   const nextGridEntries =
-    nextMode === "structured" ? sceneToGridEntries(nextScene) : session.grid;
+    nextMode === "structured"
+      ? sceneToGridEntries(nextScene)
+      : nextMode === "slide" && nextSlideDeck
+        ? nextSlideDeck.slides.find(
+            (slide) => slide.id === nextSlideDeck.activeSlideId
+          )?.grid ?? []
+        : session.mode !== "slide"
+          ? session.grid
+          : [];
 
   return {
     nextMode,
+    nextSlideDeck,
     nextScene,
     nextComponents,
     nextGridEntries,

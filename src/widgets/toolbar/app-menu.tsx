@@ -138,6 +138,7 @@ export function AppMenu() {
                 align="start"
                 aria-label={t("appMenu.open")}
               >
+                {canvasMode !== "slide" && (
                 <DropdownMenuItem
                   disabled={isImporting}
                   onSelect={openFilePicker}
@@ -145,6 +146,8 @@ export function AppMenu() {
                   <ImportIcon />
                   {isImporting ? t("import.importing") : t("appMenu.import")}
                 </DropdownMenuItem>
+                )}
+                {availableExportFormats.length > 0 && (
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger>
                     <ExportIcon />
@@ -196,6 +199,7 @@ export function AppMenu() {
                     )}
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
+                )}
                 <DropdownMenuItem
                   variant="destructive"
                   onSelect={() => setClearOpen(true)}

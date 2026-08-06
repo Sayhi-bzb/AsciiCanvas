@@ -219,7 +219,7 @@ export function Toolbar({
         setTool,
         onUndo,
       });
-      return result.succeeded
+      return result.status === "succeeded"
         ? { claimed: true, preventDefault: true }
         : undefined;
     },

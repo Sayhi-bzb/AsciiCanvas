@@ -26,4 +26,18 @@ describe("canvas pointer context resolver", () => {
       rect.top + 1
     )).toEqual({ x: 0, y: 0 });
   });
+
+  it("rejects slide points outside the page and clamps drag endpoints", () => {
+    const resolver = createCanvasPointerContextResolver({
+      getRect: () => rect,
+      getViewport: () => ({ offset: { x: 0, y: 0 }, zoom: 1 }),
+      getGrid: () => new Map(),
+      getGridBounds: () => ({ columns: 2, rows: 2 }),
+    });
+
+    const outsideX = rect.left + DEFAULT_GRID_RENDER_METRICS.cellWidth * 4;
+    const insideY = rect.top + DEFAULT_GRID_RENDER_METRICS.cellHeight;
+    expect(resolver.resolveGridPoint(outsideX, insideY)).toBeNull();
+    expect(resolver.resolveClampedGridPoint(outsideX, insideY)).toEqual({ x: 1, y: 1 });
+  });
 });

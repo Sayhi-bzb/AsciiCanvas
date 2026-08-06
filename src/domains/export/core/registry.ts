@@ -60,6 +60,7 @@ const EXPORT_FORMATS: readonly ExportFormatDefinition[] = [
 const FORMAT_ORDER: Record<CanvasMode, readonly ExportFormat[]> = {
   freeform: ["txt", "ascanvas", "ansi", "png"],
   structured: ["txt", "ascanvas", "ansi", "png"],
+  slide: [],
 };
 
 export const getAvailableExportFormats = (mode: CanvasMode) =>

@@ -11,7 +11,9 @@ import { cn } from '@/shared/lib/utils';
 import { uiClass } from '@/shared/styles/components';
 import { Button } from '@/shared/ui/button';
 import { useUiI18n } from '@/shared/i18n';
+import { feedback } from '@/shared/services/effects';
 import { createViewportInteractionController } from '@/widgets/canvas-editor/hooks/interaction/viewport/viewportInteractionController';
+import { SlidePlaybackOverlay } from './slide-playback';
 
 const ZOOM_STEP = 1.2;
 const ZOOM_EPSILON = 0.000001;
@@ -20,6 +22,7 @@ const ZoomOutIcon = HOST_ICONOLOGY.zoomAction.out;
 const ZoomInIcon = HOST_ICONOLOGY.zoomAction.in;
 const GridIcon = HOST_ICONOLOGY.viewportAction.grid;
 const MinimapIcon = HOST_ICONOLOGY.viewportAction.minimap;
+const PlayIcon = HOST_ICONOLOGY.slideAction.play;
 const Minimap = lazy(() =>
   import('@/widgets/canvas-editor/Minimap').then((module) => ({
     default: module.Minimap,
@@ -33,9 +36,11 @@ type ZoomControlProps = {
 export function ZoomControl({ containerSize }: ZoomControlProps) {
   const isMobile = useIsMobile();
   const { t } = useUiI18n();
-  const { zoom, showGrid, setShowGrid, setOffset, setZoom } = useEditorStore(
+  const { zoom, canvasMode, slideDeck, showGrid, setShowGrid, setOffset, setZoom } = useEditorStore(
     useShallow((state) => ({
       zoom: state.zoom,
+      canvasMode: state.canvasMode,
+      slideDeck: state.slideDeck,
       showGrid: state.showGrid,
       setShowGrid: state.setShowGrid,
       setOffset: state.setOffset,
@@ -43,6 +48,9 @@ export function ZoomControl({ containerSize }: ZoomControlProps) {
     }))
   );
   const [minimapOpen, setMinimapOpen] = useState(false);
+  const [playbackOpen, setPlaybackOpen] = useState(false);
+  const ownsFullscreenRef = useRef(false);
+
   const zoomAnimationRef = useRef<{
     frameId: number;
     targetZoom: number;
@@ -68,6 +76,50 @@ export function ZoomControl({ containerSize }: ZoomControlProps) {
     },
     [viewportInteraction]
   );
+
+  const exitPlayback = useCallback(() => {
+    setPlaybackOpen(false);
+    if (!ownsFullscreenRef.current) return;
+    ownsFullscreenRef.current = false;
+    if (document.fullscreenElement) {
+      void document.exitFullscreen().catch(() => undefined);
+    }
+  }, []);
+
+  const startPlayback = useCallback(() => {
+    if (!slideDeck) return;
+    setPlaybackOpen(true);
+    if (document.fullscreenElement) return;
+    const requestFullscreen = document.documentElement.requestFullscreen;
+    if (!requestFullscreen) {
+      feedback.warning(t('slide.playback.fullscreenUnavailable'));
+      return;
+    }
+    void requestFullscreen
+      .call(document.documentElement)
+      .then(() => {
+        ownsFullscreenRef.current = true;
+      })
+      .catch(() => {
+        feedback.warning(t('slide.playback.fullscreenUnavailable'));
+      });
+  }, [slideDeck, t]);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      if (document.fullscreenElement || !ownsFullscreenRef.current) return;
+      ownsFullscreenRef.current = false;
+      setPlaybackOpen(false);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      if (ownsFullscreenRef.current && document.fullscreenElement) {
+        ownsFullscreenRef.current = false;
+        void document.exitFullscreen().catch(() => undefined);
+      }
+    };
+  }, []);
 
   const animateZoomTo = useCallback(
     (requestedZoom: number) => {
@@ -140,6 +192,7 @@ export function ZoomControl({ containerSize }: ZoomControlProps) {
   const actionsDisabled = !containerSize;
   const gridLabel = showGrid ? t('sidebar.grid.hide') : t('action.toggleGrid');
   const minimapLabel = t('sidebar.minimap');
+  const playbackLabel = t('slide.playback.start');
 
   if (isMobile) return null;
 
@@ -150,7 +203,7 @@ export function ZoomControl({ containerSize }: ZoomControlProps) {
       className={cn(uiClass.toolbarShell, 'fixed bottom-3 left-3 z-50')}
       aria-label={zoomLabel}
     >
-      {minimapOpen && (
+      {canvasMode !== 'slide' && minimapOpen && (
         <div
           data-testid="zoom-minimap"
           className={cn(
@@ -225,7 +278,20 @@ export function ZoomControl({ containerSize }: ZoomControlProps) {
       >
         <GridIcon />
       </Button>
-      {
+      {canvasMode === 'slide' ? (
+        <Button
+          tone="subtle"
+          size="md"
+          className={cn(uiClass.hostIconControl, 'rounded-l-none')}
+          aria-label={playbackLabel}
+          title={playbackLabel}
+          data-testid="zoom-playback"
+          disabled={!slideDeck}
+          onClick={startPlayback}
+        >
+          <PlayIcon />
+        </Button>
+      ) : (
         <Button
           tone="subtle"
           size="md"
@@ -243,7 +309,14 @@ export function ZoomControl({ containerSize }: ZoomControlProps) {
         >
           <MinimapIcon />
         </Button>
-      }
+      )}
+      {playbackOpen && slideDeck && (
+        <SlidePlaybackOverlay
+          deck={slideDeck}
+          initialSlideId={slideDeck.activeSlideId}
+          onExit={exitPlayback}
+        />
+      )}
     </div>
   );
 }

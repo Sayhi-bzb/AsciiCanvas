@@ -8,6 +8,8 @@ import {
   Camera,
   CaseSensitive,
   ClipboardPaste,
+  ChevronLeft,
+  ChevronRight,
   Code2,
   Component,
   Copy,
@@ -32,6 +34,7 @@ import {
   MoveUp,
   Omega,
   Palette,
+  Presentation,
   PanelLeftClose,
   PanelLeftOpen,
   PanelRightClose,
@@ -40,6 +43,7 @@ import {
   PanelsTopLeft,
   Plus,
   Pencil,
+  Play,
   Scissors,
   SendToBack,
   ShieldCheck,
@@ -55,6 +59,7 @@ import {
   Upload,
   Undo2,
   Users,
+  X,
   type LucideIcon,
   type LucideProps,
 } from 'lucide-react';
@@ -65,7 +70,8 @@ export const HOST_ICONOLOGY = {
   canvasMode: {
     freeform: Pencil,
     structured: PanelsTopLeft,
-  } satisfies IconMap<'freeform' | 'structured'>,
+    slide: Presentation,
+  } satisfies IconMap<'freeform' | 'structured' | 'slide'>,
   characterView: {
     essentials: CaseSensitive,
     nerd: Terminal,
@@ -193,6 +199,12 @@ export const HOST_ICONOLOGY = {
     | 'language'
     | 'clear'
   >,
+  slideAction: {
+    play: Play,
+    previous: ChevronLeft,
+    next: ChevronRight,
+    close: X,
+  } satisfies IconMap<'play' | 'previous' | 'next' | 'close'>,
   sessionAction: {
     expand: ChevronDown,
     more: MoreHorizontal,

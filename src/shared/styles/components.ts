@@ -15,6 +15,10 @@ const hostIconControl = cn(
 const hostSurface = "rounded-lg border-0 bg-host-surface";
 const floatingHost = cn(hostSurface, "shadow-host");
 const overlayPanel = "rounded-lg border-0 bg-overlay-surface shadow-overlay";
+const quietInput = cn(
+  "min-w-0 rounded-md border-0 bg-transparent text-xs shadow-none outline-none",
+  "placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring"
+);
 
 export const uiClass = {
   dialogOverlay: cn(
@@ -43,6 +47,7 @@ export const uiClass = {
   hostSurface,
   floatingHost,
   overlayPanel,
+  quietInput,
   toolbarShell: cn(
     floatingHost,
     "relative flex items-center gap-1 p-[3px] pointer-events-auto"

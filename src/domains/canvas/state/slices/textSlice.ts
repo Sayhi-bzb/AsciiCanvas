@@ -29,6 +29,7 @@ import {
   normalizeStructuredTextSelection,
   replaceStructuredTextRange as replaceStructuredTextNodeRange,
 } from "@/domains/structured-content/public";
+import { clampPointToActiveSlide, isPointWithinActiveSlide } from "../slideBounds";
 
 const toCharIndexByColumn = (text: string, columnOffset: number) => {
   if (columnOffset <= 0) return 0;
@@ -137,23 +138,21 @@ export const createTextSlice: StateCreator<EditorState, [], [], TextSlice> = (
   editingStructuredTextNodeId: null,
   structuredTextSelection: null,
   setTextCursor: (pos) =>
-    set((state) => ({
-      textCursor: pos,
-      selections: [],
-      ...(state.canvasMode === "structured" && pos
-        ? { structuredGridFocus: null }
-        : {}),
-      ...(pos ? {} : { editingStructuredTextNodeId: null, structuredTextSelection: null }),
-      ...(pos
-        ? {
-            staticGridSelection: collapseGridSelectionTo(
-              state.staticGridSelection,
-              pos
-            ),
-            staticGridEditMode: "text-edit" as const,
-          }
-        : {}),
-    })),
+    set((state) => {
+      const nextPos = pos ? clampPointToActiveSlide(state, pos) : null;
+      return {
+        textCursor: nextPos,
+        selections: [],
+        ...(state.canvasMode === "structured" && nextPos ? { structuredGridFocus: null } : {}),
+        ...(nextPos ? {} : { editingStructuredTextNodeId: null, structuredTextSelection: null }),
+        ...(nextPos
+          ? {
+              staticGridSelection: collapseGridSelectionTo(state.staticGridSelection, nextPos),
+              staticGridEditMode: "text-edit" as const,
+            }
+          : {}),
+      };
+    }),
   setEditingStructuredTextNodeId: (id) =>
     set((state) => {
       if (!id) return { editingStructuredTextNodeId: null, structuredTextSelection: null };
@@ -368,19 +367,28 @@ export const createTextSlice: StateCreator<EditorState, [], [], TextSlice> = (
         }
 
         const char = splitGraphemes(str.slice(index))[0] ?? str[index];
-        placeCharInYMap(
+        const charWidth = getCellOccupancy(char);
+        const state = get();
+        if (
+          isPointWithinActiveSlide(state, { x: currentX, y: currentY }) &&
+          isPointWithinActiveSlide(state, { x: currentX + charWidth - 1, y: currentY })
+        ) {
+          placeCharInYMap(
           yMainGrid,
           currentX,
           currentY,
           char,
           brushColor,
           options
-        );
-        currentX += getCellOccupancy(char);
+          );
+        }
+        currentX += charWidth;
         index += char.length;
       }
     });
-    set({ textCursor: { x: currentX, y: currentY } });
+    set((state) => ({
+      textCursor: clampPointToActiveSlide(state, { x: currentX, y: currentY }),
+    }));
   },
 
   pasteRichData: (cells, startPos) => {
@@ -471,7 +479,9 @@ export const createTextSlice: StateCreator<EditorState, [], [], TextSlice> = (
         newX -= 1;
       }
     }
-    set({ textCursor: { x: newX, y: newY } });
+    set((state) => ({
+      textCursor: clampPointToActiveSlide(state, { x: newX, y: newY }),
+    }));
   },
 
   backspaceText: () => {

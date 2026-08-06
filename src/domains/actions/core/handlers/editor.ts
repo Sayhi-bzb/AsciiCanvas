@@ -1,4 +1,5 @@
 import { useEditorStore } from "@/domains/canvas/public";
+import type { ClipboardCommandResult } from "@/domains/canvas/public";
 import { exportStructuredHierarchyText } from "@/domains/export/public";
 import { runEditorCommand } from "@/domains/actions/adapters/editorCommands";
 import { getFirstGrapheme } from "@/shared/utils/characters";
@@ -12,21 +13,13 @@ import {
 import { clipboard, feedback } from "@/shared/services/effects";
 import { getStructuredTextSelectionRange } from "@/domains/structured-content/public";
 import type { StructuredBoxNode, StructuredTextNode } from "@/domains/structured-content/public";
-import {
-  actionFailed,
-  actionSucceeded,
-} from "../result";
-import type {
-  ActionHandler,
-  ActionResult,
-  ActionSource,
-  EditorActionId,
-} from "../types";
+import { actionFailed, actionPending, actionSucceeded } from "../result";
+import type { ActionHandler, ActionResult, ActionSource, EditorActionId } from "../types";
 
 // Options types for each action
 type UndoRedoOptions = {
-  onUndo?: () => void;
-  onRedo?: () => void;
+  onUndo?: () => boolean | void;
+  onRedo?: () => boolean | void;
   managedTextarea?: HTMLTextAreaElement | null;
   source?: ActionSource;
 };
@@ -37,13 +30,10 @@ type ClipboardOptions = {
 };
 type FillOptions = { fillChar?: string };
 
-const hasStructuredSelection = (
-  state: ReturnType<typeof useEditorStore.getState>
-) => state.canvasMode === "structured" && state.selectedStructuredNodeIds.length > 0;
+const hasStructuredSelection = (state: ReturnType<typeof useEditorStore.getState>) =>
+  state.canvasMode === "structured" && state.selectedStructuredNodeIds.length > 0;
 
-const getContextSplitBox = (
-  state: ReturnType<typeof useEditorStore.getState>
-) => {
+const getContextSplitBox = (state: ReturnType<typeof useEditorStore.getState>) => {
   if (
     state.canvasMode !== "structured" ||
     state.selectedStructuredNodeIds.length !== 1 ||
@@ -53,9 +43,7 @@ const getContextSplitBox = (
   }
   const selectedId = state.selectedStructuredNodeIds[0];
   return (
-    state.structuredScene.find(
-      (node) => node.id === selectedId && node.type === "splitBox"
-    ) ?? null
+    state.structuredScene.find((node) => node.id === selectedId && node.type === "splitBox") ?? null
   );
 };
 
@@ -68,25 +56,25 @@ const canSplitContextSplitBox = (
     return false;
   }
   if (state.selectedStructuredSplitHandle) return false;
-  const leaf = getStructuredSplitBoxLeafAtPoint(
-    splitBox,
-    state.structuredContextPoint
-  );
+  const leaf = getStructuredSplitBoxLeafAtPoint(splitBox, state.structuredContextPoint);
   return !!leaf && canSplitStructuredSplitBoxLeaf(leaf, axis);
 };
 
-const hasSelectedStructuredDivider = (
-  state: ReturnType<typeof useEditorStore.getState>
-) =>
+const hasSelectedStructuredDivider = (state: ReturnType<typeof useEditorStore.getState>) =>
   state.canvasMode === "structured" &&
   !!state.selectedStructuredSplitHandle &&
   isStructuredSplitBoxLineHandle(state.selectedStructuredSplitHandle.handle);
 
-const hasStructuredTextSelection = (
-  state: ReturnType<typeof useEditorStore.getState>
-) =>
+const hasStructuredTextSelection = (state: ReturnType<typeof useEditorStore.getState>) =>
   state.canvasMode === "structured" &&
   !!getStructuredTextSelectionRange(state.structuredTextSelection);
+
+const hasStructuredCutSource = (
+  state: ReturnType<typeof useEditorStore.getState>
+) =>
+  hasStructuredTextSelection(state) ||
+  (state.canvasMode === "structured" &&
+    state.selectedStructuredNodeIds.length > 0);
 
 const isStructuredBoxNode = (node: { type: string }): node is StructuredBoxNode =>
   node.type === "box";
@@ -94,9 +82,7 @@ const isStructuredBoxNode = (node: { type: string }): node is StructuredBoxNode 
 const isStructuredTextNode = (node: { type: string }): node is StructuredTextNode =>
   node.type === "text";
 
-const getSelectedStructuredBox = (
-  state: ReturnType<typeof useEditorStore.getState>
-) => {
+const getSelectedStructuredBox = (state: ReturnType<typeof useEditorStore.getState>) => {
   if (state.canvasMode !== "structured" || !state.selectedStructuredBoxId) return null;
   return (
     state.structuredScene.find(
@@ -106,16 +92,14 @@ const getSelectedStructuredBox = (
   );
 };
 
-const getSelectedStructuredEditCursor = (
-  state: ReturnType<typeof useEditorStore.getState>
-) => {
+const getSelectedStructuredEditCursor = (state: ReturnType<typeof useEditorStore.getState>) => {
   const box = getSelectedStructuredBox(state);
   if (box) return getStructuredBoxNameEndPoint(box);
-  if (state.canvasMode !== "structured" || state.selectedStructuredNodeIds.length !== 1) return null;
+  if (state.canvasMode !== "structured" || state.selectedStructuredNodeIds.length !== 1)
+    return null;
   const selectedId = state.selectedStructuredNodeIds[0];
   const text = state.structuredScene.find(
-    (node): node is StructuredTextNode =>
-      node.id === selectedId && isStructuredTextNode(node)
+    (node): node is StructuredTextNode => node.id === selectedId && isStructuredTextNode(node)
   );
   if (!text) return null;
   return {
@@ -129,29 +113,50 @@ const canCopyOrCut = (state: ReturnType<typeof useEditorStore.getState>): boolea
   return state.canCopyOrCut();
 };
 
+const resolveClipboardAction = (
+  result: boolean | Promise<ClipboardCommandResult>
+): ActionResult => {
+  if (result === false) return actionFailed("command-failed");
+  if (result === true) return actionSucceeded();
+  return actionPending(
+    result.then((completion) =>
+      completion.status === "applied"
+        ? { succeeded: true as const, changed: completion.changed }
+        : {
+            succeeded: false as const,
+            changed: false as const,
+            reason: completion.reason,
+          }
+    )
+  );
+};
+
 // Editor action handlers
-export const editorHandlers: Record<
-  EditorActionId,
-  ActionHandler<unknown>
-> = {
+export const editorHandlers: Record<EditorActionId, ActionHandler<unknown>> = {
   undo: (options, context): ActionResult => {
     const opts = options as UndoRedoOptions;
+    if (!context.state.canUndo) return actionFailed("precondition-failed");
     const succeeded = runEditorCommand("undo", {
       source: opts.source,
       managedTextarea: opts.managedTextarea,
-      onUndo: opts.onUndo ?? context.onUndo,
+      onUndo: opts.onUndo,
     });
-    return succeeded ? actionSucceeded() : actionFailed("precondition-failed");
+    return typeof succeeded === "boolean" && succeeded
+      ? actionSucceeded()
+      : actionFailed("precondition-failed");
   },
 
   redo: (options, context): ActionResult => {
     const opts = options as UndoRedoOptions;
+    if (!context.state.canRedo) return actionFailed("precondition-failed");
     const succeeded = runEditorCommand("redo", {
       source: opts.source,
       managedTextarea: opts.managedTextarea,
-      onRedo: opts.onRedo ?? context.onRedo,
+      onRedo: opts.onRedo,
     });
-    return succeeded ? actionSucceeded() : actionFailed("precondition-failed");
+    return typeof succeeded === "boolean" && succeeded
+      ? actionSucceeded()
+      : actionFailed("precondition-failed");
   },
 
   copy: (options, context): ActionResult => {
@@ -163,12 +168,13 @@ export const editorHandlers: Record<
     } else if (!canCopyOrCut(context.state)) {
       return actionFailed("empty-selection");
     }
-    const succeeded = runEditorCommand("copy", {
-      source: opts.source ?? "keyboard",
-      clipboardEvent: opts.clipboardEvent,
-      managedTextarea: opts.managedTextarea,
-    });
-    return succeeded ? actionSucceeded() : actionFailed("command-failed");
+    return resolveClipboardAction(
+      runEditorCommand("copy", {
+        source: opts.source ?? "keyboard",
+        clipboardEvent: opts.clipboardEvent,
+        managedTextarea: opts.managedTextarea,
+      })
+    );
   },
 
   "copy-rich": (options, context): ActionResult => {
@@ -179,12 +185,13 @@ export const editorHandlers: Record<
     if (!canCopyOrCut(context.state)) {
       return actionFailed("empty-selection");
     }
-    const succeeded = runEditorCommand("copy-rich", {
-      source: opts.source ?? "keyboard",
-      clipboardEvent: opts.clipboardEvent,
-      managedTextarea: opts.managedTextarea,
-    });
-    return succeeded ? actionSucceeded() : actionFailed("command-failed");
+    return resolveClipboardAction(
+      runEditorCommand("copy-rich", {
+        source: opts.source ?? "keyboard",
+        clipboardEvent: opts.clipboardEvent,
+        managedTextarea: opts.managedTextarea,
+      })
+    );
   },
 
   "copy-ansi": (options, context): ActionResult => {
@@ -195,38 +202,40 @@ export const editorHandlers: Record<
     if (!canCopyOrCut(context.state)) {
       return actionFailed("empty-selection");
     }
-    const succeeded = runEditorCommand("copy-ansi", {
-      source: opts.source ?? "keyboard",
-      clipboardEvent: opts.clipboardEvent,
-      managedTextarea: opts.managedTextarea,
-    });
-    return succeeded ? actionSucceeded() : actionFailed("command-failed");
+    return resolveClipboardAction(
+      runEditorCommand("copy-ansi", {
+        source: opts.source ?? "keyboard",
+        clipboardEvent: opts.clipboardEvent,
+        managedTextarea: opts.managedTextarea,
+      })
+    );
   },
 
   cut: (options, context): ActionResult => {
     const opts = options as ClipboardOptions;
-    if (context.state.canvasMode === "structured") {
-      return actionFailed("not-supported-in-structured");
-    }
-    if (!canCopyOrCut(context.state)) {
-      return actionFailed("empty-selection");
-    }
-    const succeeded = runEditorCommand("cut", {
-      source: opts.source ?? "keyboard",
-      clipboardEvent: opts.clipboardEvent,
-      managedTextarea: opts.managedTextarea,
-    });
-    return succeeded ? actionSucceeded() : actionFailed("command-failed");
+    const unavailable =
+      context.state.canvasMode === "structured"
+        ? !hasStructuredCutSource(context.state)
+        : !canCopyOrCut(context.state);
+    if (unavailable) return actionFailed("empty-selection");
+    return resolveClipboardAction(
+      runEditorCommand("cut", {
+        source: opts.source ?? "keyboard",
+        clipboardEvent: opts.clipboardEvent,
+        managedTextarea: opts.managedTextarea,
+      })
+    );
   },
 
   paste: (options): ActionResult => {
     const opts = options as ClipboardOptions;
-    const succeeded = runEditorCommand("paste", {
-      source: opts.source ?? "keyboard",
-      clipboardEvent: opts.clipboardEvent,
-      managedTextarea: opts.managedTextarea,
-    });
-    return succeeded ? actionSucceeded() : actionFailed("command-failed");
+    return resolveClipboardAction(
+      runEditorCommand("paste", {
+        source: opts.source ?? "keyboard",
+        clipboardEvent: opts.clipboardEvent,
+        managedTextarea: opts.managedTextarea,
+      })
+    );
   },
 
   "fill-selection-char": (options, context): ActionResult => {
@@ -356,22 +365,19 @@ export const editorHandlers: Record<
 };
 
 // Editor action checkers
-export const editorCheckers: Partial<Record<EditorActionId, (state: ReturnType<typeof useEditorStore.getState>) => boolean>> = {
+export const editorCheckers: Partial<
+  Record<EditorActionId, (state: ReturnType<typeof useEditorStore.getState>) => boolean>
+> = {
+  undo: (state) => state.canUndo,
+  redo: (state) => state.canRedo,
   copy: (state) =>
-    state.canvasMode === "structured"
-      ? state.structuredScene.length > 0
-      : state.canCopyOrCut(),
-  "copy-rich": (state) =>
-    state.canvasMode !== "structured" && state.canCopyOrCut(),
-  "copy-ansi": (state) =>
-    state.canvasMode !== "structured" && state.canCopyOrCut(),
+    state.canvasMode === "structured" ? state.structuredScene.length > 0 : state.canCopyOrCut(),
+  "copy-rich": (state) => state.canvasMode !== "structured" && state.canCopyOrCut(),
+  "copy-ansi": (state) => state.canvasMode !== "structured" && state.canCopyOrCut(),
   cut: (state) =>
-    state.canvasMode === "structured"
-      ? hasStructuredTextSelection(state)
-      : state.canCopyOrCut(),
+    state.canvasMode === "structured" ? hasStructuredCutSource(state) : state.canCopyOrCut(),
   "snapshot-png": (state) => state.selections.length > 0,
-  "delete-selection": (state) =>
-    state.selections.length > 0 || hasStructuredSelection(state),
+  "delete-selection": (state) => state.selections.length > 0 || hasStructuredSelection(state),
   "structured-rename": (state) => getSelectedStructuredEditCursor(state) !== null,
   "structured-bring-forward": hasStructuredSelection,
   "structured-send-backward": hasStructuredSelection,
@@ -380,14 +386,9 @@ export const editorCheckers: Partial<Record<EditorActionId, (state: ReturnType<t
   "structured-duplicate": hasStructuredSelection,
   "structured-copy-hierarchy": (state) =>
     state.canvasMode === "structured" && state.structuredScene.length > 0,
-  "structured-split-horizontal": (state) =>
-    canSplitContextSplitBox(state, "horizontal"),
-  "structured-split-vertical": (state) =>
-    canSplitContextSplitBox(state, "vertical"),
+  "structured-split-horizontal": (state) => canSplitContextSplitBox(state, "horizontal"),
+  "structured-split-vertical": (state) => canSplitContextSplitBox(state, "vertical"),
   "structured-delete-divider": hasSelectedStructuredDivider,
   "fill-selection-char": (state) =>
-    state.canvasMode !== "structured" &&
-    state.selections.length > 0 &&
-    state.textCursor === null,
+    state.canvasMode !== "structured" && state.selections.length > 0 && state.textCursor === null,
 };
-

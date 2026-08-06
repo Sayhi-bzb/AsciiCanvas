@@ -70,6 +70,32 @@ describe('ZoomControl', () => {
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });
 
+  it('replaces the minimap with play in slide mode', () => {
+    useEditorStore.setState({
+      canvasMode: 'slide',
+      slideDeck: {
+        size: { columns: 3, rows: 2 },
+        activeSlideId: 'slide-1',
+        slides: [{ id: 'slide-1', name: 'First', grid: [] }],
+      },
+    });
+
+    render(<ZoomControl containerSize={{ width: 1000, height: 700 }} />);
+
+    const host = screen.getByTestId('zoom-control');
+    const play = screen.getByTestId('zoom-playback');
+    expect(screen.queryByTestId('zoom-minimap-toggle')).not.toBeInTheDocument();
+    expect(Array.from(host.children)).toEqual([
+      screen.getByTestId('zoom-out'),
+      screen.getByTestId('zoom-reset'),
+      screen.getByTestId('zoom-in'),
+      screen.getByTestId('zoom-grid'),
+      play,
+    ]);
+    expect(play).toHaveAccessibleName('Play');
+    expect(play).toHaveClass('size-8', 'rounded-l-none');
+  });
+
   it('toggles the workspace grid and minimap from the viewport group', async () => {
     useEditorStore.setState({ canvasMode: 'freeform', showGrid: true });
     render(<ZoomControl containerSize={{ width: 1000, height: 700 }} />);

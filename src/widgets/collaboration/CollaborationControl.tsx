@@ -50,7 +50,7 @@ export function CollaborationControl() {
 
   useEffect(() => {
     const incoming = parseCollaborationUrl();
-    if (!incoming || !activeSession) return;
+    if (!incoming || !activeSession || activeSession.mode === "slide") return;
     if (!sameCollaborationRoom(activeSession.collaboration, incoming)) {
       setCollaboration(activeSession.id, incoming, { resetDocument: true });
     }
@@ -66,7 +66,7 @@ export function CollaborationControl() {
   const statusLabel = useMemo(() => t(STATUS_KEYS[snapshot.status]), [snapshot.status, t]);
 
   const start = (customEndpoint?: string) => {
-    if (!activeSession) return;
+    if (!activeSession || activeSession.mode === "slide") return;
     try {
       const next = createCollaborationDescriptor(customEndpoint);
       setCollaboration(activeSession.id, next);
@@ -96,6 +96,8 @@ export function CollaborationControl() {
 
   const normalizedEndpoint = validateCollaborationEndpoint(endpoint);
   const keepOpen = (event: Event) => event.preventDefault();
+
+  if (activeSession?.mode === "slide") return null;
 
   return (
     <DropdownMenu modal={false} open={open} onOpenChange={setOpen}>

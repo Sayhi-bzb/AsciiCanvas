@@ -1,9 +1,9 @@
 import { undoManager } from "@/domains/canvas/public";
 
 export const runUndo = () => {
-  undoManager.undo();
+  return undoManager.undo();
 };
 
 export const runRedo = () => {
-  undoManager.redo();
+  return undoManager.redo();
 };

@@ -11,6 +11,7 @@ export { registerCanvasSessionSourceParser } from "./state/sessionImportPort";
 export type { ToolType } from "./model/tool";
 export {
   forceHistorySave,
+  getActiveCanvasDocument,
   getCanvasDocument,
   undoManager,
 } from "./state/yjs";

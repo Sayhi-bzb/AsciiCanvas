@@ -108,6 +108,7 @@ describe("CanvasBreadcrumb", () => {
     expect(screen.getByRole("menu", { name: "Select canvas" })).toBeInTheDocument();
     expect(nameInput).toHaveFocus();
     expect(nameInput).toHaveValue("Beta");
+    expect(nameInput).toHaveClass("bg-transparent", "border-0", "shadow-none");
     fireEvent.change(nameInput, { target: { value: "Discarded" } });
     fireEvent.keyDown(nameInput, { key: "Escape" });
     expect(menu.style.width).toBe("");

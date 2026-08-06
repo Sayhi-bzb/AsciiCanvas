@@ -17,6 +17,7 @@ import { TooltipProvider } from "@/shared/ui/tooltip";
 import { AppMenu } from "@/widgets/toolbar/app-menu";
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
 import { getStaticGridViewState } from "@/domains/selection/public";
+import { isStaticGridMode } from "@/domains/sessions/public";
 import { useHandToolShortcuts } from "./useHandToolShortcuts";
 import { useGlobalShortcutCommands } from "./useGlobalShortcutCommands";
 import { ZoomControl } from "@/widgets/toolbar/zoom-control";
@@ -55,7 +56,7 @@ function SidebarShortcutRegistration() {
         source: "global-hotkey",
         toggleSidebar,
       });
-      return result.succeeded
+      return result.status === "succeeded"
         ? { claimed: true, preventDefault: true }
         : undefined;
     },
@@ -135,7 +136,7 @@ function AppContent() {
     [selections, staticGridEditMode, staticGridSelection, textCursor]
   );
   const isCanvasTextEditing =
-    canvasMode === "freeform"
+    isStaticGridMode(canvasMode)
       ? !!staticGridView.textCursor
       : !!textCursor ||
         !!editingStructuredTextNodeId ||
@@ -168,12 +169,13 @@ function AppContent() {
   }, [sidebarAutoCollapseSignal, setIsRightPanelOpen]);
 
   const handleUndo = () => {
-    runUndo();
-    feedback.dismiss();
+    const changed = runUndo();
+    if (changed) feedback.dismiss();
+    return changed;
   };
 
   const handleRedo = () => {
-    runRedo();
+    return runRedo();
   };
 
   useGlobalShortcutCommands({ onUndo: handleUndo, onRedo: handleRedo });

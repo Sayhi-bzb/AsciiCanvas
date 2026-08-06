@@ -82,12 +82,15 @@ export type ActionSource =
   | "global-hotkey"
   | "clipboard-event";
 
-// Action Result
-export interface ActionResult {
-  handled: boolean;
-  succeeded: boolean;
-  reason?: string;
-}
+export type ActionCompletion =
+  | { succeeded: true; changed: boolean; reason?: string }
+  | { succeeded: false; changed: false; reason: string };
+
+export type ActionResult =
+  | { handled: false; status: "unhandled"; reason?: string }
+  | { handled: true; status: "rejected"; reason?: string }
+  | { handled: true; status: "succeeded"; reason?: string }
+  | { handled: true; status: "pending"; completion: Promise<ActionCompletion> };
 
 // Action Context
 export interface ActionContext {

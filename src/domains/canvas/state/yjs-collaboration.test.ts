@@ -3,6 +3,7 @@ import * as Y from "yjs";
 import {
   activateCanvasDocument,
   getCanvasDocument,
+  getCanvasHistoryAvailability,
   runCanvasTransaction,
   undoManager,
 } from "./yjs";
@@ -41,6 +42,35 @@ describe("canvas CRDT collaboration", () => {
     undoManager.undo();
     expect(local.grid.has("0,0")).toBe(false);
     expect(local.grid.get("1,0")).toEqual(cell("R"));
+  });
+
+  it("reports undo and redo availability for the active document", () => {
+    const id = `history-availability-${crypto.randomUUID()}`;
+    activateCanvasDocument(id, { grid: [], scene: [] });
+    const canvasDocument = getCanvasDocument(id)!;
+
+    expect(getCanvasHistoryAvailability()).toEqual({
+      canUndo: false,
+      canRedo: false,
+    });
+
+    runCanvasTransaction(() => canvasDocument.grid.set("0,0", cell("A")));
+    expect(getCanvasHistoryAvailability()).toEqual({
+      canUndo: true,
+      canRedo: false,
+    });
+
+    expect(undoManager.undo()).toBe(true);
+    expect(getCanvasHistoryAvailability()).toEqual({
+      canUndo: false,
+      canRedo: true,
+    });
+
+    expect(undoManager.redo()).toBe(true);
+    expect(getCanvasHistoryAvailability()).toEqual({
+      canUndo: true,
+      canRedo: false,
+    });
   });
 
   it("converges atomic structured-node replacement and deletion", () => {

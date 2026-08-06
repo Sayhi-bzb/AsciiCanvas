@@ -171,7 +171,7 @@ const collectStructuredSubtreeIds = (
   children.forEach((child) => collectStructuredSubtreeIds(child, childrenById, out));
 };
 
-const selectStructuredClipboardNodes = (
+export const selectStructuredClipboardNodes = (
   scene: StructuredNode[],
   selectedNodeIds: string[]
 ) => {
@@ -478,6 +478,15 @@ export const readClipboardPayload = async (
   }
 
   const text = await clipboard.readText();
+  if (text === null) {
+    return {
+      richCells: null,
+      structured: null,
+      structuredText: null,
+      plainText: null,
+      error: "clipboard-failed" as const,
+    };
+  }
   if (text) {
     const ansiCells = parseAnsiClipboardText(text, defaultColor);
     return ansiCells

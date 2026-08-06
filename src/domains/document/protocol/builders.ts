@@ -228,5 +228,7 @@ export const buildProtocolDocumentFromCanvasState = (
         input.structuredScene,
         input.structuredComponents
       );
+    case "slide":
+      throw new Error("Slide deck export is not supported");
   }
 };

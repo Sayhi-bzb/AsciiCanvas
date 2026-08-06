@@ -10,6 +10,8 @@ import type {
 import {
   buildSessionSnapshot,
   resolveSessionRuntime,
+  getSessionCanvasDocumentId,
+  getSlideCanvasDocumentId,
 } from "../helpers/storeUtils";
 import {
   withActiveCanvasSnapshot,
@@ -18,6 +20,7 @@ import {
   resolveNextSessionName,
 } from "@/domains/sessions/public";
 import { createMapFromEntries } from "../helpers/snapshotHelpers";
+import { createSlideDeck } from "@/domains/slides/public";
 import { parseCanvasSessionSource } from "../sessionImportPort";
 import {
   activateCanvasDocument,
@@ -25,7 +28,7 @@ import {
   resetCanvasDocument,
 } from "../yjs";
 
-const getImportedSessionBaseName = (mode: CanvasSession["mode"]) => {
+const getImportedSessionBaseName = (mode: CanvasImportSnapshot["mode"]) => {
   switch (mode) {
     case "structured":
       return "Imported Structured";
@@ -69,13 +72,23 @@ const createImportedSession = (
   return baseSession;
 };
 
+const destroySessionDocuments = (session: CanvasSession) => {
+  if (session.mode === "slide") {
+    session.slideDeck.slides.forEach((slide) =>
+      destroyCanvasDocument(getSlideCanvasDocumentId(session.id, slide.id))
+    );
+    return;
+  }
+  destroyCanvasDocument(session.id);
+};
+
 export const createSessionSlice: StateCreator<
   EditorState,
   [],
   [],
   SessionCommands
 > = (set, get) => ({
-  createCanvasSession: (mode = "freeform") => {
+  createCanvasSession: (mode = "freeform", options) => {
     const state = get();
     const snapshot = buildSessionSnapshot(state);
     const sessionsWithSnapshot = withActiveCanvasSnapshot(
@@ -85,9 +98,24 @@ export const createSessionSlice: StateCreator<
     );
 
     const normalizedMode = normalizeSessionMode(mode);
-    const newSession = {
-            id: createSessionId(sessionsWithSnapshot),
-            name: resolveNextSessionName(sessionsWithSnapshot),
+    const sessionId = createSessionId(sessionsWithSnapshot);
+    const newSession: CanvasSession =
+      normalizedMode === "slide"
+        ? {
+            id: sessionId,
+            name: resolveNextSessionName(sessionsWithSnapshot, normalizedMode),
+            mode: "slide",
+            slideDeck: createSlideDeck({
+              initialSlideId: `${sessionId}-slide-1`,
+              size: options?.slideSize,
+            }),
+            scene: [],
+            components: [],
+            grid: [],
+          }
+        : {
+            id: sessionId,
+            name: resolveNextSessionName(sessionsWithSnapshot, normalizedMode),
             mode: normalizedMode,
             scene: [],
             components: [],
@@ -96,7 +124,7 @@ export const createSessionSlice: StateCreator<
 
     const runtime = resolveSessionRuntime(newSession, state.tool);
 
-    activateCanvasDocument(newSession.id, {
+    activateCanvasDocument(getSessionCanvasDocumentId(newSession, runtime.nextSlideDeck), {
       grid: runtime.nextGridEntries,
       scene: runtime.nextMode === "structured" ? runtime.nextScene : [],
       components: runtime.nextComponents,
@@ -106,6 +134,7 @@ export const createSessionSlice: StateCreator<
       canvasSessions: [...sessionsWithSnapshot, newSession],
       activeCanvasId: newSession.id,
       canvasMode: runtime.nextMode,
+      slideDeck: runtime.nextSlideDeck,
       structuredScene: runtime.nextScene,
       structuredComponents: runtime.nextComponents,
       selectedStructuredNodeIds: [],
@@ -148,7 +177,7 @@ export const createSessionSlice: StateCreator<
     );
     const runtime = resolveSessionRuntime(newSession, state.tool);
 
-    activateCanvasDocument(newSession.id, {
+    activateCanvasDocument(getSessionCanvasDocumentId(newSession, runtime.nextSlideDeck), {
       grid: runtime.nextGridEntries,
       scene: runtime.nextMode === "structured" ? runtime.nextScene : [],
       components: runtime.nextComponents,
@@ -158,6 +187,7 @@ export const createSessionSlice: StateCreator<
       canvasSessions: [...sessionsWithSnapshot, newSession],
       activeCanvasId: newSession.id,
       canvasMode: runtime.nextMode,
+      slideDeck: runtime.nextSlideDeck,
       structuredScene: runtime.nextScene,
       structuredComponents: runtime.nextComponents,
       selectedStructuredNodeIds: [],
@@ -196,7 +226,7 @@ export const createSessionSlice: StateCreator<
 
     const runtime = resolveSessionRuntime(target, state.tool);
 
-    activateCanvasDocument(target.id, {
+    activateCanvasDocument(getSessionCanvasDocumentId(target, runtime.nextSlideDeck), {
       grid: runtime.nextGridEntries,
       scene: runtime.nextMode === "structured" ? runtime.nextScene : [],
       components: runtime.nextComponents,
@@ -206,6 +236,7 @@ export const createSessionSlice: StateCreator<
       canvasSessions: sessionsWithSnapshot,
       activeCanvasId: canvasId,
       canvasMode: runtime.nextMode,
+      slideDeck: runtime.nextSlideDeck,
       structuredScene: runtime.nextScene,
       structuredComponents: runtime.nextComponents,
       selectedStructuredNodeIds: [],
@@ -248,7 +279,8 @@ export const createSessionSlice: StateCreator<
 
     if (canvasId !== state.activeCanvasId) {
       set({ canvasSessions: remaining });
-      destroyCanvasDocument(canvasId);
+      const removedSession = sessionsWithSnapshot[removedIndex];
+      destroySessionDocuments(removedSession);
       return;
     }
 
@@ -256,7 +288,7 @@ export const createSessionSlice: StateCreator<
     const nextSession = remaining[nextIndex];
     const runtime = resolveSessionRuntime(nextSession, state.tool);
 
-    activateCanvasDocument(nextSession.id, {
+    activateCanvasDocument(getSessionCanvasDocumentId(nextSession, runtime.nextSlideDeck), {
       grid: runtime.nextGridEntries,
       scene: runtime.nextMode === "structured" ? runtime.nextScene : [],
       components: runtime.nextComponents,
@@ -266,6 +298,7 @@ export const createSessionSlice: StateCreator<
       canvasSessions: remaining,
       activeCanvasId: nextSession.id,
       canvasMode: runtime.nextMode,
+      slideDeck: runtime.nextSlideDeck,
       structuredScene: runtime.nextScene,
       structuredComponents: runtime.nextComponents,
       selectedStructuredNodeIds: [],
@@ -285,7 +318,7 @@ export const createSessionSlice: StateCreator<
       scratchLayer: null,
     });
 
-    destroyCanvasDocument(canvasId);
+    destroySessionDocuments(sessionsWithSnapshot[removedIndex]);
   },
   renameCanvasSession: (canvasId, nextName) => {
     const name = nextName.trim();
@@ -299,14 +332,14 @@ export const createSessionSlice: StateCreator<
   setCanvasSessionCollaboration: (canvasId, collaboration, options) => {
     const state = get();
     const session = state.canvasSessions.find((item) => item.id === canvasId);
-    if (!session) return;
+    if (!session || session.mode === "slide") return;
 
     const reset = !!collaboration && !!options?.resetDocument;
     if (reset) resetCanvasDocument(canvasId, { grid: [], scene: [] });
 
     set({
       canvasSessions: state.canvasSessions.map((item) =>
-        item.id === canvasId
+        item.mode !== "slide" && item.id === canvasId
           ? {
               ...item,
               collaboration: collaboration ?? undefined,

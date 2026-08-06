@@ -5,6 +5,7 @@ export {
   TOOLBAR_ACTION_META,
   TOOLBAR_ACTION_ORDER,
   canRunAction,
+  isActionAccepted,
   resolveActiveToolbarAction,
   runAction,
   runSidebarAction,

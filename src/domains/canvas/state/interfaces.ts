@@ -8,6 +8,7 @@ import type { StructuredSplitBoxHandle } from "@/domains/structured-content/publ
 import type { CanvasSession } from "@/domains/sessions/public";
 import type { SessionCommands } from "@/domains/sessions/public";
 import type { CanvasHistoryMode } from "./yjs";
+import type { SlideDeck } from "@/domains/slides/public";
 
 export type CanvasColorPickerTarget = "char" | "bg";
 
@@ -20,6 +21,17 @@ export interface RichTextCell {
   attrs?: TextAttributes;
   href?: string;
 }
+
+export type ClipboardCommandResult =
+  | { status: "applied"; changed: boolean }
+  | {
+      status: "noop";
+      reason: "empty-source" | "empty-clipboard" | "unsupported-data";
+    }
+  | {
+      status: "failed";
+      reason: "clipboard-failed" | "stale-target";
+    };
 
 export interface DrawingSlice {
   scratchLayer: GridMap | null;
@@ -66,6 +78,16 @@ export interface DrawingSlice {
   fillStructuredTextSelectionWithChar: (char: string) => void;
   reorderStructuredSelection: (direction: "forward" | "backward" | "front" | "back") => void;
   duplicateStructuredSelection: () => string[];
+}
+
+export interface SlideSlice {
+  slideDeck: SlideDeck | null;
+  addSlide: () => void;
+  duplicateSlide: (slideId: string) => void;
+  removeSlide: (slideId: string) => void;
+  renameSlide: (slideId: string, name: string) => void;
+  moveSlide: (slideId: string, targetIndex: number) => void;
+  activateSlide: (slideId: string) => void;
 }
 
 export interface StaticGridSlice {
@@ -119,9 +141,9 @@ export interface SelectionSlice {
   clearInteractionState: () => void;
   canCopyOrCut: () => boolean;
   deleteSelection: () => void;
-  copySelection: (options?: { rich?: boolean; ansi?: boolean; event?: ClipboardEvent }) => Promise<void>;
-  cutSelection: (options?: { event?: ClipboardEvent }) => Promise<void>;
-  pasteFromClipboard: (options?: { eventDataTransfer?: DataTransfer }) => Promise<void>;
+  copySelection: (options?: { rich?: boolean; ansi?: boolean; event?: ClipboardEvent }) => Promise<ClipboardCommandResult>;
+  cutSelection: (options?: { event?: ClipboardEvent }) => Promise<ClipboardCommandResult>;
+  pasteFromClipboard: (options?: { eventDataTransfer?: DataTransfer }) => Promise<ClipboardCommandResult>;
   copySelectionAsPng: (withGrid: boolean) => Promise<void>;
   fillSelectionsWithChar: (
     char: string,
@@ -161,6 +183,8 @@ export type EditorState = {
   canvasSessions: CanvasSession[];
   activeCanvasId: string;
   activeCanvasHasSavedViewport: boolean;
+  canUndo: boolean;
+  canRedo: boolean;
 
   setOffset: (updater: (prev: Point) => Point) => void;
   setZoom: (updater: (prev: number) => number) => void;
@@ -179,6 +203,7 @@ export type EditorState = {
   setExportShowGrid: (show: boolean) => void;
   setHoveredGrid: (pos: Point | null) => void;
 } & DrawingSlice &
+  SlideSlice &
   StaticGridSlice &
   StructuredGridFocusSlice &
   TextSlice &

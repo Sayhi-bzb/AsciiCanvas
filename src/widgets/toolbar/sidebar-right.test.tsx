@@ -5,6 +5,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { SidebarRight } from "@/widgets/toolbar/sidebar-right";
 import { useEditorStore } from "@/domains/canvas/public";
@@ -88,7 +89,7 @@ describe("SidebarRight structured templates", () => {
       "shadow-host"
     );
     expect(header).toContainElement(search);
-    expect(search).toHaveClass("border-0", "bg-accent/60");
+    expect(search).toHaveClass("border-0", "bg-transparent");
     expect(content).not.toContainElement(search);
     expect(content).toHaveClass("min-h-0", "overflow-hidden");
     expect(content).not.toHaveClass("overflow-y-auto");
@@ -103,6 +104,7 @@ describe("SidebarRight structured templates", () => {
     const structuredRail = screen.getByTestId("structured-view-rail-vertical");
     const structuredRailSlot = structuredRail.parentElement;
     const toggleColumn = screen.getByTestId("sidebar-toggle-column");
+    const headerContent = screen.getByTestId("sidebar-header-content");
     expect(structuredRail).toHaveAttribute("aria-orientation", "vertical");
     expect(structuredRail).toHaveClass(
       "bg-host-surface",
@@ -111,6 +113,7 @@ describe("SidebarRight structured templates", () => {
       "shadow-none"
     );
     expect(header).toHaveClass("grid-cols-[minmax(0,1fr)_3rem]", "px-0");
+    expect(headerContent).toHaveClass("overflow-hidden", "py-px");
     expect(structuredRailSlot?.parentElement).toHaveClass(
       "grid-cols-[minmax(0,1fr)_3rem]"
     );
@@ -299,9 +302,83 @@ describe("SidebarRight structured templates", () => {
       screen.getByRole("searchbox", { name: "Search characters" })
     ).toHaveValue("");
     fireEvent.click(screen.getByRole("tab", { name: "Nerd Icons" }));
+    const restoredSearch = screen.getByRole("searchbox", {
+      name: "Search characters",
+    });
+    expect(restoredSearch).toHaveValue("folder");
+    expect(restoredSearch).toHaveClass(
+      "[&::-webkit-search-cancel-button]:hidden"
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
+    expect(restoredSearch).toHaveValue("");
+    expect(restoredSearch).toHaveFocus();
+
+    fireEvent.change(restoredSearch, { target: { value: "folder" } });
+    fireEvent.keyDown(restoredSearch, { key: "Escape" });
+    expect(restoredSearch).toHaveValue("");
+    expect(restoredSearch).toHaveFocus();
     expect(
-      screen.getByRole("searchbox", { name: "Search characters" })
-    ).toHaveValue("folder");
+      screen.queryByRole("button", { name: "Clear search" })
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Unicode" }));
+    const unicodeSearch = screen.getByRole("searchbox", {
+      name: "Search characters",
+    });
+    fireEvent.change(unicodeSearch, { target: { value: "arrow" } });
+    expect(
+      screen.getByRole("button", { name: "Clear search" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Search all Unicode" })
+    ).toBeInTheDocument();
+    expect(unicodeSearch).toHaveClass("pr-16");
+  });
+
+  it("moves Add slide into the Slides header", () => {
+    useEditorStore.setState({
+      canvasMode: "slide",
+      slideDeck: {
+        size: { columns: 100, rows: 27 },
+        activeSlideId: "slide-1",
+        slides: [{ id: "slide-1", name: "Slide 1", grid: [] }],
+      },
+    });
+
+    render(
+      <SidebarProvider>
+        <SidebarRight />
+      </SidebarProvider>
+    );
+
+    const headerContent = screen.getByTestId("sidebar-header-content");
+    const navigator = screen.getByTestId("slide-navigator");
+    const addSlide = screen.getByRole("button", { name: "Add slide" });
+    const slideViewTabs = within(
+      screen.getByTestId("slide-view-rail-vertical")
+    ).getAllByRole("tab");
+
+    expect(headerContent).toContainElement(addSlide);
+    expect(navigator).not.toContainElement(addSlide);
+    expect(within(headerContent).queryByText("Slides", { exact: true })).not.toBeInTheDocument();
+    expect(slideViewTabs.map((tab) => tab.getAttribute("aria-label"))).toEqual([
+      "Slides",
+      "Essentials",
+      "Nerd Icons",
+      "Emoji",
+      "Unicode",
+    ]);
+    slideViewTabs.forEach((tab) =>
+      expect(tab).toHaveAttribute("data-slot", "tooltip-trigger")
+    );
+
+    fireEvent.click(addSlide);
+
+    expect(useEditorStore.getState().slideDeck?.slides).toHaveLength(2);
+    expect(useEditorStore.getState().slideDeck?.activeSlideId).toBe(
+      useEditorStore.getState().slideDeck?.slides[1].id
+    );
   });
 
   it("collapses to only the trigger and preserves the selected character view", () => {
@@ -454,6 +531,26 @@ describe("SidebarRight structured templates", () => {
     const search = screen.getByRole("searchbox", {
       name: "Search structured library",
     });
+    expect(search).toHaveClass(
+      "bg-transparent",
+      "border-0",
+      "shadow-none",
+      "focus-visible:ring-1"
+    );
+    expect(search).not.toHaveClass("bg-accent/60", "focus-visible:ring-2");
+    expect(search).toHaveClass(
+      "[&::-webkit-search-cancel-button]:hidden"
+    );
+
+    fireEvent.change(search, { target: { value: "badge" } });
+    fireEvent.click(screen.getByRole("button", { name: "Clear search" }));
+    expect(search).toHaveValue("");
+    expect(search).toHaveFocus();
+
+    fireEvent.change(search, { target: { value: "badge" } });
+    fireEvent.keyDown(search, { key: "Escape" });
+    expect(search).toHaveValue("");
+    expect(search).toHaveFocus();
 
     fireEvent.change(search, { target: { value: "badge" } });
 
@@ -599,10 +696,15 @@ describe("SidebarRight structured templates", () => {
     expect(screen.getByRole("tab", { name: "Emoji" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Unicode" })).toBeInTheDocument();
     expect(screen.getByRole("tabpanel", { name: "常用字符" })).toBeInTheDocument();
-    expect(screen.getByRole("searchbox", { name: "搜索字符" })).toHaveAttribute(
-      "placeholder",
-      "搜索当前视图"
+    const search = screen.getByRole("searchbox", { name: "搜索字符" });
+    expect(search).toHaveAttribute("placeholder", "搜索当前视图");
+    expect(search).toHaveClass(
+      "bg-transparent",
+      "border-0",
+      "shadow-none",
+      "focus-visible:ring-1"
     );
+    expect(search).not.toHaveClass("bg-accent/60", "focus-visible:ring-2");
     expect(screen.getByRole("button", { name: "切换侧栏" })).toBeInTheDocument();
   });
 

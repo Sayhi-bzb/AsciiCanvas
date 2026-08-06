@@ -39,3 +39,6 @@ proofshot-artifacts
 merge_code.py
 code_lines_analyzer.py
 .gitnexus
+
+# Local notes
+/note/npm.md

@@ -17,6 +17,8 @@
 [![TypeScript](https://img.shields.io/badge/Language-TypeScript-3178C6?logo=typescript)](https://www.typescriptlang.org/)
 [![Collaboration](https://img.shields.io/badge/Sync-Yjs_CRDT-orange?logo=distributed-systems)](https://yjs.dev/)
 [![Deploy](https://img.shields.io/badge/Demo-Live_Preview-22c55e?logo=cloudflare-pages)](https://ascii-canvas.pages.dev/)
+[![npm: protocol](https://img.shields.io/npm/v/%40ascii-canvas%2Fprotocol?label=%40ascii-canvas%2Fprotocol)](https://www.npmjs.com/package/@ascii-canvas/protocol)
+[![npm: fonts](https://img.shields.io/npm/v/%40ascii-canvas%2Ffonts?label=%40ascii-canvas%2Ffonts)](https://www.npmjs.com/package/@ascii-canvas/fonts)
 
 > **A Unicode grid editor for freeform drawing and structured ASCII UI composition.**
 
@@ -46,6 +48,7 @@ It supports two session modes:
 
 - **Freeform**: an infinite ASCII canvas for sketching, diagrams, terminal-style layouts, and exploratory drawing.
 - **Structured**: a semantic canvas where text, backgrounds, boxes, split boxes, and lines stay editable as structured nodes.
+
 ### 1. Structured Canvas
 
 - **Structured nodes**: compose scenes from `text`, `bg`, `box`, `splitBox`, and `line` nodes instead of flattening everything into plain text.
@@ -76,7 +79,47 @@ It supports two session modes:
 - **ANSI import/export**: paste standard ESC ANSI or ANSI-like text such as `[38;2;190;24;93m...`, interpreted by the [AsciiCanvas Text Protocol v1](packages/protocol/spec/v1.md).
 - **Portable rendering**: use [`@ascii-canvas/fonts`](packages/fonts/README.md) for the default renderer font profile and self-hosted glyph assets.
 - **Terminal style parsing**: supports 8-color, bright 16-color, 256-color, truecolor SGR, and attributes such as bold, italic, underline, and strikethrough.
-- **Document protocol**: JSON protocol v1 covers Freeform and Structured sessions for durable import/export.
+- **App document format**: JSON protocol v1 covers Freeform and Structured sessions for application import/export. It is separate from the public Text Protocol npm package.
+
+---
+
+## Use AsciiCanvas Output
+
+Use [`@ascii-canvas/protocol`](https://www.npmjs.com/package/@ascii-canvas/protocol) when another application needs AsciiCanvas-compatible Unicode and ANSI layout without embedding the editor:
+
+```bash
+npm install @ascii-canvas/protocol
+```
+
+```ts
+import { parseAsciiCanvasText } from "@ascii-canvas/protocol";
+
+const surface = parseAsciiCanvasText(
+  "[38;2;255;0;0m+---+[0m\n| 界 |"
+);
+
+for (const cell of surface.cells) {
+  // Render cell.text at cell.x/cell.y; cell.width is 1 or 2 grid columns.
+}
+```
+
+The parsed cells are rendering-neutral and can drive Canvas, HTML, SVG, terminal, or other surfaces. A renderer owns inherited colors, `inverse` resolution, link sanitization, and actual drawing.
+
+For AsciiCanvas's default glyph coverage, optionally install [`@ascii-canvas/fonts`](https://www.npmjs.com/package/@ascii-canvas/fonts):
+
+```bash
+npm install @ascii-canvas/fonts
+```
+
+```ts
+import "@ascii-canvas/fonts/fonts.css";
+import { ASCII_CANVAS_FONT_PROFILE } from "@ascii-canvas/fonts";
+
+await document.fonts.ready;
+context.font = `16px ${ASCII_CANVAS_FONT_PROFILE.families.text}`;
+```
+
+These packages do not include the React editor, a ready-made renderer, or the app's JSON document format. See the [Text Protocol v1 specification](packages/protocol/spec/v1.md), [normative fixtures](packages/protocol/fixtures/v1.json), [protocol package guide](packages/protocol/README.md), and [font package guide](packages/fonts/README.md).
 
 ---
 
@@ -94,8 +137,8 @@ It supports two session modes:
 - **State Management**: Zustand 5 with slice-based store modules
 - **Styling**: Tailwind CSS 4, Radix UI, shadcn/ui-style primitives
 - **Rendering**: layered Canvas 2D rendering with grid metrics for wide characters
-- **Font routing**: [self-hosted font and Unicode routing](docs/font-unicode-routing.md)
-- **Character catalog**: [curated packs and lazy Unicode explorer](docs/character-library.md)
+- **Font routing**: [self-hosted assets and the default renderer font profile](packages/fonts/README.md)
+- **Character catalog**: curated packs and a lazy Unicode explorer
 - **Synchronization**: Yjs / Y-IndexedDB
 - **Gestures**: @use-gesture/react
 - **Terminal Text**: SGR foreground/background, text attributes, and ANSI/ANSI-like import/export

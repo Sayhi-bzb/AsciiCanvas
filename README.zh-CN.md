@@ -7,6 +7,8 @@
 [![TypeScript](https://img.shields.io/badge/Language-TypeScript-3178C6?logo=typescript)](https://www.typescriptlang.org/)
 [![Collaboration](https://img.shields.io/badge/Sync-Yjs_CRDT-orange?logo=distributed-systems)](https://yjs.dev/)
 [![Deploy](https://img.shields.io/badge/Demo-Live_Preview-22c55e?logo=cloudflare-pages)](https://ascii-canvas.pages.dev/)
+[![npm: protocol](https://img.shields.io/npm/v/%40ascii-canvas%2Fprotocol?label=%40ascii-canvas%2Fprotocol)](https://www.npmjs.com/package/@ascii-canvas/protocol)
+[![npm: fonts](https://img.shields.io/npm/v/%40ascii-canvas%2Ffonts?label=%40ascii-canvas%2Ffonts)](https://www.npmjs.com/package/@ascii-canvas/fonts)
 
 > **一个面向自由绘制与结构化 ASCII UI 编排的 Unicode 网格编辑器。**
 
@@ -36,6 +38,7 @@
 
 - **Freeform**：无限 ASCII 画布，适合草图、图表、终端风格界面和自由绘制。
 - **Structured**：语义化结构画布，文本、背景、盒子、分割盒与线条保持为可编辑节点。
+
 ### 1. 结构化画布
 
 - **结构化节点**：使用 `text`、`bg`、`box`、`splitBox`、`line` 组合场景，而不是把内容压成一整块纯文本。
@@ -66,7 +69,47 @@
 - **ANSI 导入导出**：支持标准 ESC ANSI，也支持 `[38;2;190;24;93m...` 这类 ANSI-like 文本，解释规则见 [AsciiCanvas Text Protocol v1](packages/protocol/spec/v1.md)。
 - **可移植渲染**：使用 [`@ascii-canvas/fonts`](packages/fonts/README.md) 获取默认 renderer font profile 与自托管字形资产。
 - **终端样式解析**：支持 8 色、亮色 16 色、256 色、truecolor SGR，以及 bold、italic、underline、strikethrough 等属性。
-- **文档协议**：JSON protocol v1 覆盖 Freeform 与 Structured 会话，作为稳定导入导出格式。
+- **应用文档格式**：JSON protocol v1 覆盖 Freeform 与 Structured 会话，用于应用导入导出；它与公开的 Text Protocol npm 包相互独立。
+
+---
+
+## 集成 AsciiCanvas 输出
+
+其他应用如需兼容 AsciiCanvas 的 Unicode 与 ANSI 布局，但不需要嵌入编辑器，可以使用 [`@ascii-canvas/protocol`](https://www.npmjs.com/package/@ascii-canvas/protocol)：
+
+```bash
+npm install @ascii-canvas/protocol
+```
+
+```ts
+import { parseAsciiCanvasText } from "@ascii-canvas/protocol";
+
+const surface = parseAsciiCanvasText(
+  "[38;2;255;0;0m+---+[0m\n| 界 |"
+);
+
+for (const cell of surface.cells) {
+  // 在 cell.x/cell.y 绘制 cell.text；cell.width 为 1 或 2 个网格列。
+}
+```
+
+解析后的 cells 与渲染技术无关，可以用于 Canvas、HTML、SVG、终端或其他表面。渲染器负责继承颜色、解析 `inverse`、过滤链接以及实际绘制。
+
+如需 AsciiCanvas 默认字形覆盖，可以额外安装 [`@ascii-canvas/fonts`](https://www.npmjs.com/package/@ascii-canvas/fonts)：
+
+```bash
+npm install @ascii-canvas/fonts
+```
+
+```ts
+import "@ascii-canvas/fonts/fonts.css";
+import { ASCII_CANVAS_FONT_PROFILE } from "@ascii-canvas/fonts";
+
+await document.fonts.ready;
+context.font = `16px ${ASCII_CANVAS_FONT_PROFILE.families.text}`;
+```
+
+这两个包不包含 React 编辑器、现成 renderer 或应用 JSON 文档格式。详细规则见 [Text Protocol v1 规范](packages/protocol/spec/v1.md)、[规范 fixtures](packages/protocol/fixtures/v1.json)、[protocol 包说明](packages/protocol/README.md)和[字体包说明](packages/fonts/README.md)。
 
 ---
 
@@ -84,8 +127,8 @@
 - **状态管理**：Zustand 5，按 slice 拆分 store
 - **样式系统**：Tailwind CSS 4, Radix UI, shadcn/ui 风格基础组件
 - **渲染**：多层 Canvas 2D 渲染，带宽字符网格度量
-- **字体路由**：[自托管字体与 Unicode 路由](docs/font-unicode-routing.md)
-- **字符目录**：[精选字符包与懒加载 Unicode 浏览器](docs/character-library.md)
+- **字体路由**：[自托管资源与默认 renderer font profile](packages/fonts/README.md)
+- **字符目录**：精选字符包与懒加载 Unicode 浏览器
 - **同步引擎**：Yjs / Y-IndexedDB
 - **手势交互**：@use-gesture/react
 - **终端文本**：SGR 前景/背景、文本属性，以及 ANSI/ANSI-like 导入导出
