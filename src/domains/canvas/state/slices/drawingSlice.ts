@@ -7,7 +7,7 @@ import type { StructuredBoxNode, StructuredNode } from "@/domains/structured-con
 import { placeCharInMap, placeCharInYMap } from "../utils";
 import { deleteCellAt } from "../gridOps";
 import { COLOR_PRIMARY_TEXT } from "@/shared/lib/constants";
-import { getBoxPoints, getCirclePoints, getLShapeLinePoints, getStepLinePoints } from "@/shared/utils/shapes";
+import { getArrowLinePoints, getBoxPoints, getCirclePoints, getLShapeLinePoints, getStepLinePoints } from "@/shared/utils/shapes";
 import { createDefaultSplitBoxRoot, getSplitBoxPoints } from "@/domains/structured-content/public";
 import { createStructuredNodeId } from "@/domains/structured-content/public";
 import {
@@ -123,6 +123,11 @@ export const createDrawingSlice: StateCreator<
       case "stepline":
         points = getStepLinePoints(start, end);
         break;
+      case "arrowLine": {
+        const isVerticalFirst = options?.axis === "vertical";
+        points = getArrowLinePoints(start, end, isVerticalFirst);
+        break;
+      }
       case "line": {
         const isVerticalFirst = options?.axis === "vertical";
         points = getLShapeLinePoints(start, end, isVerticalFirst);
@@ -193,7 +198,13 @@ export const createDrawingSlice: StateCreator<
   commitStructuredShape: (tool, start, end, options) => {
     const state = get();
     if (state.canvasMode !== "structured") return;
-    if (tool !== "box" && tool !== "splitBox" && tool !== "line" && tool !== "bg") return;
+    if (
+      tool !== "box" &&
+      tool !== "splitBox" &&
+      tool !== "line" &&
+      tool !== "arrowLine" &&
+      tool !== "bg"
+    ) return;
 
     const axis =
       options?.axis ??
@@ -245,6 +256,7 @@ export const createDrawingSlice: StateCreator<
             end: { ...end },
             axis,
             style: { color: state.brushColor },
+            ...(tool === "arrowLine" ? { endMarker: "arrow" as const } : {}),
           };
 
     state.applyStructuredScene([...state.structuredScene, node], true);

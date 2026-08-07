@@ -8,6 +8,7 @@ export type ToolType =
   | "box"
   | "splitBox"
   | "line"
+  | "arrowLine"
   | "bg"
   | "stepline"
   | "circle";

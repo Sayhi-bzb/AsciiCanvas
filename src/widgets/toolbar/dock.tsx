@@ -121,6 +121,8 @@ export function Toolbar({
         return { icon: HOST_ICONOLOGY.shapeTool.circle, label: t("shape.circle") };
       case "line":
         return { icon: HOST_ICONOLOGY.shapeTool.line, label: t("shape.line") };
+      case "arrowLine":
+        return { icon: HOST_ICONOLOGY.shapeTool.arrowLine, label: t("shape.arrowLine") };
       case "stepline":
         return { icon: HOST_ICONOLOGY.shapeTool.stepline, label: t("shape.curve") };
       default:
@@ -130,6 +132,10 @@ export function Toolbar({
 
   useEffect(() => {
     if (canvasMode === "structured" && tool === "text") {
+      setTool("select");
+      return;
+    }
+    if (canvasMode !== "structured" && tool === "arrowLine") {
       setTool("select");
       return;
     }
@@ -148,14 +154,17 @@ export function Toolbar({
   }, [canvasMode]);
 
   const structuredShapeTools = useMemo<ToolType[]>(() => {
-    if (canvasMode === "structured") return ["box", "splitBox", "line"];
+    if (canvasMode === "structured") return ["box", "splitBox", "line", "arrowLine"];
     return SHAPE_TOOLS;
   }, [canvasMode]);
   const isShapeGroupActive = structuredShapeTools.includes(tool);
+  const availableLastUsedShape = structuredShapeTools.includes(lastUsedShape)
+    ? lastUsedShape
+    : structuredShapeTools[0] ?? "box";
 
   const activeShapeMeta = useMemo(
-    () => getToolMeta(isShapeGroupActive ? tool : lastUsedShape),
-    [isShapeGroupActive, tool, lastUsedShape, getToolMeta]
+    () => getToolMeta(isShapeGroupActive ? tool : availableLastUsedShape),
+    [availableLastUsedShape, getToolMeta, isShapeGroupActive, tool]
   );
 
   const navItems = useMemo(() => {
@@ -215,7 +224,7 @@ export function Toolbar({
       const result = runToolbarAction(item.id as ToolbarActionId, {
         tool,
         isShapeGroupActive,
-        lastUsedShape,
+        lastUsedShape: availableLastUsedShape,
         setTool,
         onUndo,
       });
@@ -278,7 +287,7 @@ export function Toolbar({
                           runToolbarAction(item.id as ToolbarActionId, {
                             tool,
                             isShapeGroupActive,
-                            lastUsedShape,
+                            lastUsedShape: availableLastUsedShape,
                             setTool,
                             onUndo,
                           })

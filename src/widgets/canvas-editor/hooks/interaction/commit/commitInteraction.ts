@@ -12,7 +12,11 @@ export type DragEndCommitDecision =
 
 const isStructuredShapeTool = (tool: ToolType, canvasMode: CanvasMode) =>
   canvasMode === "structured" &&
-  (tool === "box" || tool === "splitBox" || tool === "line" || tool === "bg");
+  (tool === "box" ||
+    tool === "splitBox" ||
+    tool === "line" ||
+    tool === "arrowLine" ||
+    tool === "bg");
 
 export const resolveDragEndCommitDecision = ({
   state,

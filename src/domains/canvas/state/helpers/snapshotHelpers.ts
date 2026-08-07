@@ -200,12 +200,11 @@ export const toStructuredNode = (value: unknown): StructuredNode | null => {
         }),
       });
     }
-    if (
-      raw.type === "line" &&
-      raw.axis !== "horizontal" &&
-      raw.axis !== "vertical"
-    ) {
-      return null;
+    if (raw.type === "line") {
+      const hasValidAxis = raw.axis === "horizontal" || raw.axis === "vertical";
+      const hasValidEndMarker =
+        raw.endMarker === undefined || raw.endMarker === "arrow";
+      if (!hasValidAxis || !hasValidEndMarker) return null;
     }
     return cloneStructuredNode(raw as StructuredNode);
   }

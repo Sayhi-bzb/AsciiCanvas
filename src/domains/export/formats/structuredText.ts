@@ -113,6 +113,7 @@ export const exportStructuredF12Text = (
           ["from", `${node.start.x},${node.start.y}`],
           ["to", `${node.end.x},${node.end.y}`],
           ["axis", node.axis],
+          ...(node.endMarker ? [["endMarker", node.endMarker] as [string, string]] : []),
         ],
         indent,
         true
@@ -232,7 +233,11 @@ export const exportStructuredHierarchyText = (
       emitTag(
         lines,
         "line",
-        [...formatComponentAttrs(node), ["axis", node.axis]],
+        [
+          ...formatComponentAttrs(node),
+          ["axis", node.axis],
+          ...(node.endMarker ? [["endMarker", node.endMarker] as [string, string]] : []),
+        ],
         indent,
         true
       );

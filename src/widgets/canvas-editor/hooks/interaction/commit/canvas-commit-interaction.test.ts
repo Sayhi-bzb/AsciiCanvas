@@ -45,6 +45,11 @@ describe("drag-end commit interaction decisions", () => {
       tool: "splitBox", canvasMode: "structured",
       isStructuredSplitBoxDividerResize: false,
     })).toEqual({ type: "commitStructuredShape" });
+    expect(resolveDragEndCommitDecision({
+      state: { type: "shapePreview", tool: "arrowLine", start: { x: 0, y: 0 }, axis: null },
+      tool: "arrowLine", canvasMode: "structured",
+      isStructuredSplitBoxDividerResize: false,
+    })).toEqual({ type: "commitStructuredShape" });
   });
 
   it("flushes structured move and splitBox divider queues", () => {

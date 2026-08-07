@@ -48,7 +48,7 @@ export interface DrawingSlice {
     options?: { axis?: "vertical" | "horizontal" | null }
   ) => void;
   commitStructuredShape: (
-    tool: "box" | "splitBox" | "line" | "bg",
+    tool: "box" | "splitBox" | "line" | "arrowLine" | "bg",
     start: Point,
     end: Point,
     options?: { axis?: "vertical" | "horizontal" | null }

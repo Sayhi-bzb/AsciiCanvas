@@ -80,6 +80,39 @@ describe('structured', () => {
       expect(entries[0][1]).toHaveProperty('color');
     });
 
+    it('renders optional ASCII arrow markers without changing plain lines', () => {
+      const grid = new Map(sceneToGridEntries([
+        {
+          id: 'arrow',
+          type: 'line',
+          order: 1,
+          start: { x: 0, y: 0 },
+          end: { x: 3, y: 0 },
+          axis: 'horizontal',
+          endMarker: 'arrow',
+          style: { color: '#123456' },
+        },
+        {
+          id: 'plain',
+          type: 'line',
+          order: 2,
+          start: { x: 0, y: 1 },
+          end: { x: 3, y: 1 },
+          axis: 'horizontal',
+          style: { color: '#654321' },
+        },
+      ]));
+
+      expect(grid.get('3,0')).toEqual({
+        char: '>',
+        color: '#123456',
+      });
+      expect(grid.get('3,1')).toEqual({
+        char: '─',
+        color: '#654321',
+      });
+    });
+
     it('should handle empty scene', () => {
       expect(sceneToGridEntries([])).toEqual([]);
     });

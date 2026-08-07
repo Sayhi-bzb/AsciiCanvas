@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  getArrowLinePoints,
   getBoxPoints,
   getLShapeLinePoints,
   getStepLinePoints,
@@ -98,6 +99,35 @@ describe('shapes', () => {
       const points = getLShapeLinePoints({ x: 5, y: 5 }, { x: 5, y: 5 }, true);
       expect(points).toHaveLength(1);
       expect(points[0]).toEqual({ x: 5, y: 5, char: expect.any(String) });
+    });
+  });
+
+  describe('getArrowLinePoints', () => {
+    const endChar = (
+      start: { x: number; y: number },
+      end: { x: number; y: number },
+      isVerticalFirst: boolean
+    ) => {
+      const points = getArrowLinePoints(start, end, isVerticalFirst);
+      return points[points.length - 1]?.char;
+    };
+
+    it('uses ASCII arrowheads for all four terminal directions', () => {
+      expect(endChar({ x: 0, y: 0 }, { x: 3, y: 0 }, false)).toBe('>');
+      expect(endChar({ x: 3, y: 0 }, { x: 0, y: 0 }, false)).toBe('<');
+      expect(endChar({ x: 0, y: 0 }, { x: 0, y: 3 }, true)).toBe('v');
+      expect(endChar({ x: 0, y: 3 }, { x: 0, y: 0 }, true)).toBe('^');
+    });
+
+    it('derives the arrowhead from the terminal segment of either L route', () => {
+      expect(endChar({ x: 0, y: 0 }, { x: 3, y: 3 }, true)).toBe('>');
+      expect(endChar({ x: 0, y: 0 }, { x: 3, y: 3 }, false)).toBe('v');
+    });
+
+    it('uses a deterministic right arrow for a single-cell line', () => {
+      expect(getArrowLinePoints({ x: 5, y: 5 }, { x: 5, y: 5 }, true)).toEqual([
+        { x: 5, y: 5, char: '>' },
+      ]);
     });
   });
 

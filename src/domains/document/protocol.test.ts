@@ -40,4 +40,45 @@ describe("AsciiCanvas document protocol", () => {
     expect(document.nodes).toHaveLength(1);
     expect(protocolDocumentToSnapshot(document).mode).toBe("structured");
   });
+
+  it("round-trips structured arrow line markers", () => {
+    const document = buildStructuredProtocolDocument([
+      {
+        id: "arrow-1",
+        type: "line",
+        order: 1,
+        start: { x: 0, y: 0 },
+        end: { x: 4, y: 0 },
+        axis: "horizontal",
+        endMarker: "arrow",
+        style: { color: "#ffffff" },
+      },
+    ]);
+
+    expect(document.nodes[0]).toMatchObject({ endMarker: "arrow" });
+    expect(protocolDocumentToSnapshot(document).scene[0]).toMatchObject({
+      type: "line",
+      endMarker: "arrow",
+    });
+  });
+
+  it("rejects unknown structured line markers", () => {
+    expect(isAsciiCanvasDocument({
+      type: ASCII_CANVAS_DOCUMENT_TYPE,
+      version: ASCII_CANVAS_DOCUMENT_VERSION,
+      mode: "structured",
+      nodes: [
+        {
+          id: "invalid-line",
+          type: "line",
+          order: 1,
+          start: { x: 0, y: 0 },
+          end: { x: 4, y: 0 },
+          axis: "horizontal",
+          endMarker: "diamond",
+          style: { color: "#ffffff" },
+        },
+      ],
+    })).toBe(false);
+  });
 });

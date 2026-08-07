@@ -18,7 +18,7 @@ export type DragEndCommitExecutor = {
   commitScratch: () => void;
   forceHistorySave: () => void;
   commitStructuredShape: (
-    tool: Extract<ToolType, "box" | "splitBox" | "line" | "bg">,
+    tool: Extract<ToolType, "box" | "splitBox" | "line" | "arrowLine" | "bg">,
     start: Point,
     end: Point,
     options: { axis: "horizontal" | "vertical" | null }
@@ -29,8 +29,12 @@ export type DragEndCommitExecutor = {
 
 const isStructuredShapeTool = (
   tool: ToolType
-): tool is Extract<ToolType, "box" | "splitBox" | "line" | "bg"> =>
-  tool === "box" || tool === "splitBox" || tool === "line" || tool === "bg";
+): tool is Extract<ToolType, "box" | "splitBox" | "line" | "arrowLine" | "bg"> =>
+  tool === "box" ||
+  tool === "splitBox" ||
+  tool === "line" ||
+  tool === "arrowLine" ||
+  tool === "bg";
 
 export const executeSelectionCommitDecision = (
   decision: SelectionCommitDecision,

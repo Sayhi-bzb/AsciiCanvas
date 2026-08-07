@@ -22,6 +22,8 @@ describe("canvas drag-start interaction decisions", () => {
     expect(isShapeTool("stepline", "freeform")).toBe(true);
     expect(isShapeTool("box", "structured")).toBe(true);
     expect(isShapeTool("splitBox", "structured")).toBe(true);
+    expect(isShapeTool("arrowLine", "structured")).toBe(true);
+    expect(isShapeTool("arrowLine", "freeform")).toBe(false);
     expect(isShapeTool("circle", "structured")).toBe(false);
   });
 

@@ -143,7 +143,8 @@ const isStructuredNode = (value: unknown): value is AsciiCanvasProtocolNodeV1 =>
     return (
       isPoint(value.start) &&
       isPoint(value.end) &&
-      (value.axis === "vertical" || value.axis === "horizontal")
+      (value.axis === "vertical" || value.axis === "horizontal") &&
+      (value.endMarker === undefined || value.endMarker === "arrow")
     );
   }
   if (value.type === "bg") {

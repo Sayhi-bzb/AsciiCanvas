@@ -2,7 +2,7 @@ import type { GridCell, NodeBounds, Point } from "@/shared/types";
 import type { StructuredNode } from "./types";
 import { normalizeCellStyle } from "@/shared/utils/ansi";
 import { mergeStructuredTextStyle } from "./text-ranges";
-import { getBoxPoints, getLShapeLinePoints } from "@/shared/utils/shapes";
+import { getArrowLinePoints, getBoxPoints, getLShapeLinePoints } from "@/shared/utils/shapes";
 import { getSplitBoxPoints } from "./split-box-geometry";
 import {
   getCellOccupancy,
@@ -89,7 +89,9 @@ export const getStructuredNodeBounds = (node: StructuredNode): NodeBounds => {
   }
 
   if (node.type === "line") {
-    const points = getLShapeLinePoints(node.start, node.end, node.axis === "vertical");
+    const points = node.endMarker === "arrow"
+      ? getArrowLinePoints(node.start, node.end, node.axis === "vertical")
+      : getLShapeLinePoints(node.start, node.end, node.axis === "vertical");
     if (points.length === 0) return toBounds(node.start, node.end);
     let minX = Infinity;
     let maxX = -Infinity;
@@ -173,7 +175,9 @@ export const renderStructuredScene = (scene: StructuredNode[]) => {
     }
 
     if (node.type === "line") {
-      const points = getLShapeLinePoints(node.start, node.end, node.axis === "vertical");
+      const points = node.endMarker === "arrow"
+        ? getArrowLinePoints(node.start, node.end, node.axis === "vertical")
+        : getLShapeLinePoints(node.start, node.end, node.axis === "vertical");
       points.forEach((point) => {
         placeStyledCharInMap(
           grid,
