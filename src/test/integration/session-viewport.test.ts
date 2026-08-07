@@ -1,14 +1,14 @@
-import "@/domains/actions/public";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { runAction } from "@/domains/actions/public";
-import { undoManager, useEditorStore } from "@/domains/canvas/public";
+import '@/domains/actions/public';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { runAction } from '@/domains/actions/public';
+import { undoManager, useEditorStore } from '@/domains/canvas/public';
 import {
   getStructuredSplitBoxGuides,
   getStructuredSplitBoxHandleAtPoint,
-} from "@/domains/structured-content/public";
-import { applyFreeformSnapshotToYMaps } from "@/domains/canvas/public";
-import { DEFAULT_SESSION_ID } from "@/domains/canvas/state/helpers/storeUtils";
-import { clipboard } from "@/shared/services/effects";
+} from '@/domains/structured-content/public';
+import { applyFreeformSnapshotToYMaps } from '@/domains/canvas/public';
+import { DEFAULT_SESSION_ID } from '@/domains/canvas/state/helpers/storeUtils';
+import { clipboard } from '@/shared/services/effects';
 
 const initialState = useEditorStore.getState();
 
@@ -27,10 +27,10 @@ const createClipboardEventCapture = () => {
 
 const dataTransferFromCapture = (data: Map<string, string>) =>
   ({
-    getData: (type: string) => data.get(type) ?? "",
+    getData: (type: string) => data.get(type) ?? '',
   }) as unknown as DataTransfer;
 
-describe("canvas session viewport state", () => {
+describe('canvas session viewport state', () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
@@ -52,12 +52,12 @@ describe("canvas session viewport state", () => {
     applyFreeformSnapshotToYMaps([]);
   });
 
-  it("saves and restores offset and zoom per canvas session", () => {
+  it('saves and restores offset and zoom per canvas session', () => {
     const store = useEditorStore.getState();
     store.setOffset(() => ({ x: 10, y: 20 }));
     store.setZoom(() => 2);
 
-    store.createCanvasSession("freeform");
+    store.createCanvasSession('freeform');
     const secondCanvasId = useEditorStore.getState().activeCanvasId;
 
     expect(useEditorStore.getState().offset).toEqual({ x: 0, y: 0 });
@@ -80,75 +80,99 @@ describe("canvas session viewport state", () => {
     expect(useEditorStore.getState().zoom).toBe(3);
     expect(useEditorStore.getState().activeCanvasHasSavedViewport).toBe(true);
   });
-  it("creates and activates an empty structured session", () => {
-    useEditorStore.getState().createCanvasSession("structured");
+  it('creates and activates an empty structured session', () => {
+    useEditorStore.getState().createCanvasSession('structured');
 
     const state = useEditorStore.getState();
     const activeSession = state.canvasSessions.find(
       (session) => session.id === state.activeCanvasId
     );
 
-    expect(activeSession?.mode).toBe("structured");
-    expect(state.canvasMode).toBe("structured");
+    expect(activeSession?.mode).toBe('structured');
+    expect(state.canvasMode).toBe('structured');
     expect(state.structuredScene).toEqual([]);
     expect(state.grid.size).toBe(0);
   });
-  it("updates selected structured boxes through the store", () => {
-    useEditorStore.getState().createCanvasSession("structured");
+  it('accepts arrow lines only in structured sessions', () => {
+    useEditorStore.getState().createCanvasSession('structured');
+    useEditorStore.getState().setTool('arrowLine');
+
+    expect(useEditorStore.getState().tool).toBe('arrowLine');
+
+    useEditorStore.getState().createCanvasSession('freeform');
+    const freeformTool = useEditorStore.getState().tool;
+    useEditorStore.getState().setTool('arrowLine');
+
+    expect(useEditorStore.getState().tool).toBe(freeformTool);
+    expect(freeformTool).not.toBe('arrowLine');
+  });
+  it('preserves the arrow line tool between structured sessions', () => {
+    useEditorStore.getState().createCanvasSession('structured');
+    const firstStructuredId = useEditorStore.getState().activeCanvasId;
+    useEditorStore.getState().setTool('arrowLine');
+
+    useEditorStore.getState().createCanvasSession('structured');
+    expect(useEditorStore.getState().tool).toBe('arrowLine');
+
+    useEditorStore.getState().switchCanvasSession(firstStructuredId);
+    expect(useEditorStore.getState().tool).toBe('arrowLine');
+  });
+  it('updates selected structured boxes through the store', () => {
+    useEditorStore.getState().createCanvasSession('structured');
     useEditorStore.getState().applyStructuredScene(
       [
         {
-          id: "box-1",
-          type: "box",
+          id: 'box-1',
+          type: 'box',
           order: 1,
           start: { x: 0, y: 0 },
           end: { x: 2, y: 2 },
-          style: { color: "#ffffff" },
+          style: { color: '#ffffff' },
         },
       ],
       false
     );
 
-    useEditorStore.getState().updateStructuredBox("box-1", (node) => ({
+    useEditorStore.getState().updateStructuredBox('box-1', (node) => ({
       ...node,
       start: { x: 3, y: 4 },
       end: { x: 5, y: 6 },
     }));
 
     const state = useEditorStore.getState();
-    expect(state.selectedStructuredBoxId).toBe("box-1");
+    expect(state.selectedStructuredBoxId).toBe('box-1');
     expect(state.structuredScene[0]).toMatchObject({
       start: { x: 3, y: 4 },
       end: { x: 5, y: 6 },
     });
     expect(state.grid.size).toBeGreaterThan(0);
   });
-  it("deletes selected structured nodes", () => {
-    useEditorStore.getState().createCanvasSession("structured");
+  it('deletes selected structured nodes', () => {
+    useEditorStore.getState().createCanvasSession('structured');
     useEditorStore.getState().applyStructuredScene(
       [
         {
-          id: "box-1",
-          type: "box",
+          id: 'box-1',
+          type: 'box',
           order: 1,
           start: { x: 0, y: 0 },
           end: { x: 2, y: 2 },
-          style: { color: "#ffffff" },
+          style: { color: '#ffffff' },
         },
         {
-          id: "line-1",
-          type: "line",
+          id: 'line-1',
+          type: 'line',
           order: 2,
           start: { x: 4, y: 0 },
           end: { x: 8, y: 0 },
-          axis: "horizontal",
-          style: { color: "#ffffff" },
+          axis: 'horizontal',
+          style: { color: '#ffffff' },
         },
       ],
       false
     );
 
-    useEditorStore.getState().setSelectedStructuredNodeIds(["box-1", "line-1"]);
+    useEditorStore.getState().setSelectedStructuredNodeIds(['box-1', 'line-1']);
     useEditorStore.getState().deleteSelection();
 
     const state = useEditorStore.getState();
@@ -157,8 +181,8 @@ describe("canvas session viewport state", () => {
     expect(state.selectedStructuredBoxId).toBeNull();
   });
 
-  it("tracks structured grid focus independently from structured node selection", () => {
-    useEditorStore.getState().createCanvasSession("structured");
+  it('tracks structured grid focus independently from structured node selection', () => {
+    useEditorStore.getState().createCanvasSession('structured');
 
     useEditorStore.getState().setStructuredGridFocus({ x: 4, y: 5 });
     expect(useEditorStore.getState().structuredGridFocus).toEqual({ x: 4, y: 5 });
@@ -171,39 +195,39 @@ describe("canvas session viewport state", () => {
     expect(useEditorStore.getState().structuredGridFocus).toBeNull();
   });
 
-  it("reorders and duplicates selected structured nodes through the store", () => {
-    useEditorStore.getState().createCanvasSession("structured");
+  it('reorders and duplicates selected structured nodes through the store', () => {
+    useEditorStore.getState().createCanvasSession('structured');
     useEditorStore.getState().applyStructuredScene(
       [
         {
-          id: "box-1",
-          type: "box",
+          id: 'box-1',
+          type: 'box',
           order: 1,
           start: { x: 0, y: 0 },
           end: { x: 2, y: 2 },
-          style: { color: "#ffffff" },
+          style: { color: '#ffffff' },
         },
         {
-          id: "line-1",
-          type: "line",
+          id: 'line-1',
+          type: 'line',
           order: 2,
           start: { x: 4, y: 0 },
           end: { x: 8, y: 0 },
-          axis: "horizontal",
-          style: { color: "#ffffff" },
+          axis: 'horizontal',
+          style: { color: '#ffffff' },
         },
       ],
       false
     );
 
-    useEditorStore.getState().setSelectedStructuredNodeIds(["box-1"]);
-    useEditorStore.getState().reorderStructuredSelection("front");
+    useEditorStore.getState().setSelectedStructuredNodeIds(['box-1']);
+    useEditorStore.getState().reorderStructuredSelection('front');
 
     expect(
       [...useEditorStore.getState().structuredScene]
         .sort((a, b) => a.order - b.order)
         .map((node) => node.id)
-    ).toEqual(["line-1", "box-1"]);
+    ).toEqual(['line-1', 'box-1']);
 
     const duplicatedIds = useEditorStore.getState().duplicateStructuredSelection();
     const state = useEditorStore.getState();
@@ -211,59 +235,59 @@ describe("canvas session viewport state", () => {
     expect(state.selectedStructuredNodeIds).toEqual(duplicatedIds);
     expect(state.structuredScene).toHaveLength(3);
     expect(state.structuredScene.find((node) => node.id === duplicatedIds[0])).toMatchObject({
-      type: "box",
+      type: 'box',
       start: { x: 1, y: 1 },
       end: { x: 3, y: 3 },
     });
   });
 
-  it("clears structured interaction state when observed nodes disappear", () => {
-    useEditorStore.getState().createCanvasSession("structured");
+  it('clears structured interaction state when observed nodes disappear', () => {
+    useEditorStore.getState().createCanvasSession('structured');
     useEditorStore.getState().applyStructuredScene(
       [
         {
-          id: "box-stale",
-          type: "box",
+          id: 'box-stale',
+          type: 'box',
           order: 1,
           start: { x: 0, y: 0 },
           end: { x: 4, y: 4 },
-          style: { color: "#ffffff" },
+          style: { color: '#ffffff' },
         },
         {
-          id: "split-stale",
-          type: "splitBox",
+          id: 'split-stale',
+          type: 'splitBox',
           order: 2,
           start: { x: 6, y: 0 },
           end: { x: 12, y: 4 },
           verticalSplitRatio: 0.5,
           topSplitRatio: 0.25,
           bottomSplitRatio: 0.75,
-          style: { color: "#ffffff" },
+          style: { color: '#ffffff' },
         },
         {
-          id: "text-stale",
-          type: "text",
+          id: 'text-stale',
+          type: 'text',
           order: 3,
           position: { x: 1, y: 1 },
-          text: "Text",
-          style: { color: "#ffffff" },
+          text: 'Text',
+          style: { color: '#ffffff' },
         },
       ],
       false
     );
     useEditorStore
       .getState()
-      .setSelectedStructuredNodeIds(["box-stale", "split-stale", "text-stale"]);
-    useEditorStore.getState().setSelectedStructuredBoxId("box-stale");
+      .setSelectedStructuredNodeIds(['box-stale', 'split-stale', 'text-stale']);
+    useEditorStore.getState().setSelectedStructuredBoxId('box-stale');
     useEditorStore.getState().setSelectedStructuredSplitHandle({
-      nodeId: "split-stale",
-      handle: "split:split-middle",
+      nodeId: 'split-stale',
+      handle: 'split:split-middle',
     });
     useEditorStore.getState().setStructuredContextPoint({ x: 8, y: 2 });
-    useEditorStore.getState().setEditingStructuredTextNodeId("text-stale");
+    useEditorStore.getState().setEditingStructuredTextNodeId('text-stale');
     useEditorStore.getState().setTextCursor({ x: 3, y: 1 });
     useEditorStore.getState().setStructuredTextSelection({
-      nodeId: "text-stale",
+      nodeId: 'text-stale',
       anchor: 1,
       focus: 3,
     });
@@ -281,43 +305,43 @@ describe("canvas session viewport state", () => {
     });
   });
 
-  it("reports undo success only when the active canvas history changes", () => {
-    useEditorStore.setState({ canvasMode: "freeform", selections: [] });
+  it('reports undo success only when the active canvas history changes', () => {
+    useEditorStore.setState({ canvasMode: 'freeform', selections: [] });
     applyFreeformSnapshotToYMaps([]);
-    expect(runAction("undo", { source: "global-hotkey" }).status).toBe("rejected");
+    expect(runAction('undo', { source: 'global-hotkey' }).status).toBe('rejected');
 
     useEditorStore.getState().setTextCursor({ x: 0, y: 0 });
-    useEditorStore.getState().writeTextString("A");
+    useEditorStore.getState().writeTextString('A');
     expect(useEditorStore.getState().canUndo).toBe(true);
-    expect(runAction("undo", { source: "global-hotkey" }).status).toBe("succeeded");
+    expect(runAction('undo', { source: 'global-hotkey' }).status).toBe('succeeded');
     expect(useEditorStore.getState().grid.size).toBe(0);
-    expect(runAction("undo", { source: "global-hotkey" }).status).toBe("rejected");
+    expect(runAction('undo', { source: 'global-hotkey' }).status).toBe('rejected');
   });
 
-  it("copies structured nodes and pastes them back as structured elements", async () => {
-    useEditorStore.getState().createCanvasSession("structured");
+  it('copies structured nodes and pastes them back as structured elements', async () => {
+    useEditorStore.getState().createCanvasSession('structured');
     useEditorStore.getState().applyStructuredScene(
       [
         {
-          id: "box-1",
-          type: "box",
+          id: 'box-1',
+          type: 'box',
           order: 1,
           start: { x: 2, y: 3 },
           end: { x: 6, y: 5 },
-          style: { color: "#ffffff" },
+          style: { color: '#ffffff' },
         },
         {
-          id: "text-1",
-          type: "text",
+          id: 'text-1',
+          type: 'text',
           order: 2,
           position: { x: 3, y: 4 },
-          text: "Hi",
-          style: { color: "#000000" },
+          text: 'Hi',
+          style: { color: '#000000' },
         },
       ],
       false
     );
-    useEditorStore.getState().setSelectedStructuredNodeIds(["box-1", "text-1"]);
+    useEditorStore.getState().setSelectedStructuredNodeIds(['box-1', 'text-1']);
     const capture = createClipboardEventCapture();
 
     await useEditorStore.getState().copySelection({ event: capture.event });
@@ -332,38 +356,38 @@ describe("canvas session viewport state", () => {
     const pasted = state.structuredScene.filter((node) =>
       state.selectedStructuredNodeIds.includes(node.id)
     );
-    expect(pasted.map((node) => node.type)).toEqual(["box", "text"]);
+    expect(pasted.map((node) => node.type)).toEqual(['box', 'text']);
     expect(pasted[0]).toMatchObject({
-      type: "box",
+      type: 'box',
       start: { x: 12, y: 8 },
       end: { x: 16, y: 10 },
     });
     expect(pasted[1]).toMatchObject({
-      type: "text",
+      type: 'text',
       position: { x: 13, y: 9 },
-      text: "Hi",
+      text: 'Hi',
     });
     expect(state.structuredGridFocus).toBeNull();
-    expect(pasted.map((node) => node.id)).not.toContain("box-1");
-    expect(pasted.map((node) => node.id)).not.toContain("text-1");
+    expect(pasted.map((node) => node.id)).not.toContain('box-1');
+    expect(pasted.map((node) => node.id)).not.toContain('text-1');
   });
 
-  it("clears pasted structured selection when undo removes the pasted nodes", async () => {
-    useEditorStore.getState().createCanvasSession("structured");
+  it('clears pasted structured selection when undo removes the pasted nodes', async () => {
+    useEditorStore.getState().createCanvasSession('structured');
     useEditorStore.getState().applyStructuredScene(
       [
         {
-          id: "text-undo-source",
-          type: "text",
+          id: 'text-undo-source',
+          type: 'text',
           order: 1,
           position: { x: 2, y: 3 },
-          text: "Undo",
-          style: { color: "#ffffff" },
+          text: 'Undo',
+          style: { color: '#ffffff' },
         },
       ],
       false
     );
-    useEditorStore.getState().setSelectedStructuredNodeIds(["text-undo-source"]);
+    useEditorStore.getState().setSelectedStructuredNodeIds(['text-undo-source']);
     const capture = createClipboardEventCapture();
 
     await useEditorStore.getState().copySelection({ event: capture.event });
@@ -374,21 +398,21 @@ describe("canvas session viewport state", () => {
 
     const pastedIds = useEditorStore.getState().selectedStructuredNodeIds;
     expect(pastedIds).toHaveLength(1);
-    expect(pastedIds).not.toContain("text-undo-source");
+    expect(pastedIds).not.toContain('text-undo-source');
     expect(undoManager.undo()).toBe(true);
     expect(useEditorStore.getState().structuredScene).toHaveLength(1);
     expect(useEditorStore.getState().selectedStructuredNodeIds).toEqual([]);
   });
 
-  it("does not cut a new target after an asynchronous clipboard write", async () => {
-    useEditorStore.setState({ canvasMode: "freeform", selections: [] });
+  it('does not cut a new target after an asynchronous clipboard write', async () => {
+    useEditorStore.setState({ canvasMode: 'freeform', selections: [] });
     applyFreeformSnapshotToYMaps([
-      ["0,0", { char: "A", color: "#ffffff" }],
-      ["1,0", { char: "B", color: "#ffffff" }],
+      ['0,0', { char: 'A', color: '#ffffff' }],
+      ['1,0', { char: 'B', color: '#ffffff' }],
     ]);
     useEditorStore.getState().setTextCursor({ x: 0, y: 0 });
     let resolveWrite!: (value: boolean) => void;
-    vi.spyOn(clipboard, "writeText").mockImplementation(
+    vi.spyOn(clipboard, 'writeText').mockImplementation(
       () => new Promise((resolve) => (resolveWrite = resolve))
     );
 
@@ -397,260 +421,309 @@ describe("canvas session viewport state", () => {
     resolveWrite(true);
 
     await expect(pendingCut).resolves.toEqual({
-      status: "failed",
-      reason: "stale-target",
+      status: 'failed',
+      reason: 'stale-target',
     });
-    expect(useEditorStore.getState().grid.get("0,0")?.char).toBe("A");
-    expect(useEditorStore.getState().grid.get("1,0")?.char).toBe("B");
+    expect(useEditorStore.getState().grid.get('0,0')?.char).toBe('A');
+    expect(useEditorStore.getState().grid.get('1,0')?.char).toBe('B');
   });
 
-  it("does not paste into a new target after an asynchronous clipboard read", async () => {
-    useEditorStore.setState({ canvasMode: "freeform", selections: [] });
+  it('does not paste into a new target after an asynchronous clipboard read', async () => {
+    useEditorStore.setState({ canvasMode: 'freeform', selections: [] });
     applyFreeformSnapshotToYMaps([
-      ["0,0", { char: "A", color: "#ffffff" }],
-      ["1,0", { char: "B", color: "#ffffff" }],
+      ['0,0', { char: 'A', color: '#ffffff' }],
+      ['1,0', { char: 'B', color: '#ffffff' }],
     ]);
     useEditorStore.getState().setTextCursor({ x: 0, y: 0 });
     let resolveItems!: (value: ClipboardItem[] | null) => void;
-    vi.spyOn(clipboard, "readItems").mockImplementation(
+    vi.spyOn(clipboard, 'readItems').mockImplementation(
       () => new Promise((resolve) => (resolveItems = resolve))
     );
-    vi.spyOn(clipboard, "readText").mockResolvedValue("Z");
+    vi.spyOn(clipboard, 'readText').mockResolvedValue('Z');
 
     const pendingPaste = useEditorStore.getState().pasteFromClipboard();
     useEditorStore.getState().setTextCursor({ x: 1, y: 0 });
     resolveItems(null);
 
     await expect(pendingPaste).resolves.toEqual({
-      status: "failed",
-      reason: "stale-target",
+      status: 'failed',
+      reason: 'stale-target',
     });
-    expect(useEditorStore.getState().grid.get("0,0")?.char).toBe("A");
-    expect(useEditorStore.getState().grid.get("1,0")?.char).toBe("B");
+    expect(useEditorStore.getState().grid.get('0,0')?.char).toBe('A');
+    expect(useEditorStore.getState().grid.get('1,0')?.char).toBe('B');
   });
 
-  it("pastes structured clipboard content into freeform as surface cells", async () => {
-    useEditorStore.getState().createCanvasSession("structured");
+  it('pastes structured clipboard content into freeform as surface cells', async () => {
+    useEditorStore.getState().createCanvasSession('structured');
     useEditorStore.getState().applyStructuredScene(
       [
         {
-          id: "box-1",
-          type: "box",
+          id: 'box-1',
+          type: 'box',
           order: 1,
           start: { x: 2, y: 3 },
           end: { x: 6, y: 5 },
-          style: { color: "#111111" },
+          style: { color: '#111111' },
         },
         {
-          id: "text-1",
-          type: "text",
+          id: 'text-1',
+          type: 'text',
           order: 2,
           position: { x: 3, y: 4 },
-          text: "Hi",
-          style: { color: "#ffffff" },
+          text: 'Hi',
+          style: { color: '#ffffff' },
         },
       ],
       false
     );
-    useEditorStore.getState().setSelectedStructuredNodeIds(["box-1"]);
+    useEditorStore.getState().setSelectedStructuredNodeIds(['box-1']);
     const capture = createClipboardEventCapture();
 
     await useEditorStore.getState().copySelection({ event: capture.event });
-    useEditorStore.getState().createCanvasSession("freeform");
+    useEditorStore.getState().createCanvasSession('freeform');
     useEditorStore.getState().setTextCursor({ x: 0, y: 0 });
     await useEditorStore.getState().pasteFromClipboard({
       eventDataTransfer: dataTransferFromCapture(capture.data),
     });
 
     const state = useEditorStore.getState();
-    expect(state.canvasMode).toBe("freeform");
+    expect(state.canvasMode).toBe('freeform');
     expect(state.structuredScene).toEqual([]);
-    expect(state.grid.get("0,0")).toMatchObject({
-      char: "╭",
-      color: "#111111",
+    expect(state.grid.get('0,0')).toMatchObject({
+      char: '╭',
+      color: '#111111',
     });
-    expect(state.grid.get("1,1")).toMatchObject({
-      char: "H",
-      color: "#ffffff",
+    expect(state.grid.get('1,1')).toMatchObject({
+      char: 'H',
+      color: '#ffffff',
     });
-    expect(state.grid.get("2,1")).toMatchObject({
-      char: "i",
-      color: "#ffffff",
+    expect(state.grid.get('2,1')).toMatchObject({
+      char: 'i',
+      color: '#ffffff',
     });
   });
 
-  it("pastes wide structured text into freeform without follower cells overwriting it", async () => {
-    useEditorStore.getState().createCanvasSession("structured");
+  it('pastes wide structured text into freeform without follower cells overwriting it', async () => {
+    useEditorStore.getState().createCanvasSession('structured');
     useEditorStore.getState().applyStructuredScene(
       [
         {
-          id: "text-1",
-          type: "text",
+          id: 'text-1',
+          type: 'text',
           order: 1,
           position: { x: 3, y: 4 },
-          text: "你A",
-          style: { color: "#ffffff" },
+          text: '你A',
+          style: { color: '#ffffff' },
         },
       ],
       false
     );
-    useEditorStore.getState().setSelectedStructuredNodeIds(["text-1"]);
+    useEditorStore.getState().setSelectedStructuredNodeIds(['text-1']);
     const capture = createClipboardEventCapture();
 
     await useEditorStore.getState().copySelection({ event: capture.event });
-    useEditorStore.getState().createCanvasSession("freeform");
+    useEditorStore.getState().createCanvasSession('freeform');
     useEditorStore.getState().setTextCursor({ x: 0, y: 0 });
     await useEditorStore.getState().pasteFromClipboard({
       eventDataTransfer: dataTransferFromCapture(capture.data),
     });
 
     const state = useEditorStore.getState();
-    expect(state.canvasMode).toBe("freeform");
-    expect(state.grid.get("0,0")).toMatchObject({
-      char: "你",
-      color: "#ffffff",
+    expect(state.canvasMode).toBe('freeform');
+    expect(state.grid.get('0,0')).toMatchObject({
+      char: '你',
+      color: '#ffffff',
     });
-    expect(state.grid.get("1,0")).toBeUndefined();
-    expect(state.grid.get("2,0")).toMatchObject({
-      char: "A",
-      color: "#ffffff",
+    expect(state.grid.get('1,0')).toBeUndefined();
+    expect(state.grid.get('2,0')).toMatchObject({
+      char: 'A',
+      color: '#ffffff',
     });
   });
 
-  it("creates structured background blocks with the brush color as fill", () => {
-    useEditorStore.getState().createCanvasSession("structured");
-    useEditorStore.setState({ brushColor: "#334155" });
+  it('creates structured background blocks with the brush color as fill', () => {
+    useEditorStore.getState().createCanvasSession('structured');
+    useEditorStore.setState({ brushColor: '#334155' });
 
-    useEditorStore.getState().commitStructuredShape("bg", { x: 1, y: 2 }, { x: 3, y: 4 });
+    useEditorStore.getState().commitStructuredShape('bg', { x: 1, y: 2 }, { x: 3, y: 4 });
 
     const state = useEditorStore.getState();
     expect(state.structuredScene[0]).toMatchObject({
-      type: "bg",
+      type: 'bg',
       start: { x: 1, y: 2 },
       end: { x: 3, y: 4 },
-      style: { color: "#000000", bgColor: "#334155" },
+      style: { color: '#000000', bgColor: '#334155' },
     });
     expect(state.selectedStructuredNodeIds).toEqual([state.structuredScene[0].id]);
-    expect(state.grid.get("1,2")).toEqual({
-      char: " ",
-      color: "#000000",
-      bgColor: "#334155",
+    expect(state.grid.get('1,2')).toEqual({
+      char: ' ',
+      color: '#000000',
+      bgColor: '#334155',
     });
-    expect(state.grid.get("3,4")).toEqual({
-      char: " ",
-      color: "#000000",
-      bgColor: "#334155",
+    expect(state.grid.get('3,4')).toEqual({
+      char: ' ',
+      color: '#000000',
+      bgColor: '#334155',
     });
   });
 
-  it("creates split boxes as structured shape nodes", () => {
-    useEditorStore.getState().createCanvasSession("structured");
-    useEditorStore.setState({ brushColor: "#334155" });
+  it('creates, copies, pastes, and restores structured arrow lines', async () => {
+    useEditorStore.getState().createCanvasSession('structured');
+    useEditorStore.setState({ brushColor: '#334155' });
 
-    useEditorStore.getState().commitStructuredShape("splitBox", { x: 0, y: 0 }, { x: 10, y: 4 });
+    useEditorStore
+      .getState()
+      .commitStructuredShape('arrowLine', { x: 0, y: 0 }, { x: 3, y: 0 }, { axis: 'horizontal' });
+
+    const source = useEditorStore.getState().structuredScene[0];
+    expect(source).toMatchObject({
+      type: 'line',
+      start: { x: 0, y: 0 },
+      end: { x: 3, y: 0 },
+      axis: 'horizontal',
+      endMarker: 'arrow',
+      style: { color: '#334155' },
+    });
+    expect(useEditorStore.getState().grid.get('3,0')).toMatchObject({
+      char: '>',
+      color: '#334155',
+    });
+
+    const capture = createClipboardEventCapture();
+    await useEditorStore.getState().copySelection({ event: capture.event });
+    useEditorStore.getState().setStructuredGridFocus({ x: 0, y: 2 });
+    await useEditorStore.getState().pasteFromClipboard({
+      eventDataTransfer: dataTransferFromCapture(capture.data),
+    });
+
+    const pastedId = useEditorStore.getState().selectedStructuredNodeIds[0];
+    expect(
+      useEditorStore.getState().structuredScene.find((node) => node.id === pastedId)
+    ).toMatchObject({
+      type: 'line',
+      start: { x: 0, y: 2 },
+      end: { x: 3, y: 2 },
+      endMarker: 'arrow',
+    });
+    expect(useEditorStore.getState().grid.get('3,2')?.char).toBe('>');
+
+    expect(undoManager.undo()).toBe(true);
+    expect(useEditorStore.getState().structuredScene).toHaveLength(1);
+    expect(undoManager.redo()).toBe(true);
+    expect(useEditorStore.getState().structuredScene).toHaveLength(2);
+    expect(useEditorStore.getState().structuredScene[1]).toMatchObject({
+      endMarker: 'arrow',
+    });
+  });
+
+  it('creates split boxes as structured shape nodes', () => {
+    useEditorStore.getState().createCanvasSession('structured');
+    useEditorStore.setState({ brushColor: '#334155' });
+
+    useEditorStore.getState().commitStructuredShape('splitBox', { x: 0, y: 0 }, { x: 10, y: 4 });
 
     const state = useEditorStore.getState();
     expect(state.structuredScene[0]).toMatchObject({
-      type: "splitBox",
+      type: 'splitBox',
       start: { x: 0, y: 0 },
       end: { x: 10, y: 4 },
       verticalSplitRatio: 0.36,
       topSplitRatio: 0.25,
       bottomSplitRatio: 0.75,
-      style: { color: "#334155" },
+      style: { color: '#334155' },
     });
     expect(state.selectedStructuredNodeIds).toEqual([state.structuredScene[0].id]);
-    expect(state.grid.get("0,0")).toMatchObject({ char: "╭", color: "#334155" });
-    expect(state.grid.get("4,1")).toMatchObject({ char: "┬", color: "#334155" });
-    expect(state.grid.get("4,3")).toMatchObject({ char: "┴", color: "#334155" });
+    expect(state.grid.get('0,0')).toMatchObject({ char: '╭', color: '#334155' });
+    expect(state.grid.get('4,1')).toMatchObject({ char: '┬', color: '#334155' });
+    expect(state.grid.get('4,3')).toMatchObject({ char: '┴', color: '#334155' });
   });
 
-  it("deletes a selected structured split box split line without deleting the node", () => {
-    useEditorStore.getState().createCanvasSession("structured");
-    useEditorStore.setState({ brushColor: "#334155" });
+  it('deletes a selected structured split box split line without deleting the node', () => {
+    useEditorStore.getState().createCanvasSession('structured');
+    useEditorStore.setState({ brushColor: '#334155' });
 
-    useEditorStore.getState().commitStructuredShape("splitBox", { x: 0, y: 0 }, { x: 10, y: 4 });
+    useEditorStore.getState().commitStructuredShape('splitBox', { x: 0, y: 0 }, { x: 10, y: 4 });
 
     const splitBox = useEditorStore.getState().structuredScene[0];
-    expect(splitBox.type).toBe("splitBox");
-    if (splitBox.type !== "splitBox") return;
+    expect(splitBox.type).toBe('splitBox');
+    if (splitBox.type !== 'splitBox') return;
 
     useEditorStore.getState().setSelectedStructuredSplitHandle({
       nodeId: splitBox.id,
-      handle: "split:split-middle",
+      handle: 'split:split-middle',
     });
     useEditorStore.getState().deleteSelection();
 
     const state = useEditorStore.getState();
     expect(state.structuredScene).toHaveLength(1);
-    expect(state.structuredScene[0].type).toBe("splitBox");
+    expect(state.structuredScene[0].type).toBe('splitBox');
     expect(state.selectedStructuredSplitHandle).toBeNull();
     const nextSplitBox = state.structuredScene[0];
-    if (nextSplitBox.type !== "splitBox") return;
+    if (nextSplitBox.type !== 'splitBox') return;
     expect(getStructuredSplitBoxHandleAtPoint(nextSplitBox, { x: 4, y: 2 })).toBeNull();
   });
 
-  it("splits a structured split box leaf from the context menu action", () => {
-    useEditorStore.getState().createCanvasSession("structured");
-    useEditorStore.setState({ brushColor: "#334155" });
+  it('splits a structured split box leaf from the context menu action', () => {
+    useEditorStore.getState().createCanvasSession('structured');
+    useEditorStore.setState({ brushColor: '#334155' });
 
-    useEditorStore.getState().commitStructuredShape("splitBox", { x: 0, y: 0 }, { x: 10, y: 8 });
+    useEditorStore.getState().commitStructuredShape('splitBox', { x: 0, y: 0 }, { x: 10, y: 8 });
 
     const splitBox = useEditorStore.getState().structuredScene[0];
-    expect(splitBox.type).toBe("splitBox");
-    if (splitBox.type !== "splitBox") return;
+    expect(splitBox.type).toBe('splitBox');
+    if (splitBox.type !== 'splitBox') return;
 
     useEditorStore.getState().setSelectedStructuredNodeIds([splitBox.id]);
     useEditorStore.getState().setStructuredContextPoint({ x: 2, y: 4 });
-    const result = runAction("structured-split-horizontal", {
-      source: "context-menu",
+    const result = runAction('structured-split-horizontal', {
+      source: 'context-menu',
     });
 
-    expect(result.status).toBe("succeeded");
+    expect(result.status).toBe('succeeded');
     const nextSplitBox = useEditorStore.getState().structuredScene[0];
-    expect(nextSplitBox.type).toBe("splitBox");
-    if (nextSplitBox.type !== "splitBox") return;
+    expect(nextSplitBox.type).toBe('splitBox');
+    if (nextSplitBox.type !== 'splitBox') return;
     expect(getStructuredSplitBoxGuides(nextSplitBox).handles).toHaveLength(4);
     expect(useEditorStore.getState().selectedStructuredNodeIds).toEqual([splitBox.id]);
   });
 
-  it("fills freeform background rectangles without erasing existing cells", () => {
+  it('fills freeform background rectangles without erasing existing cells', () => {
     useEditorStore.setState({
-      canvasMode: "freeform",
-      brushColor: "#334155",
+      canvasMode: 'freeform',
+      brushColor: '#334155',
     });
-    applyFreeformSnapshotToYMaps([["1,1", { char: "A", color: "#ffffff", attrs: { bold: true } }]]);
+    applyFreeformSnapshotToYMaps([['1,1', { char: 'A', color: '#ffffff', attrs: { bold: true } }]]);
 
-    useEditorStore.getState().updateScratchForShape("bg", { x: 0, y: 0 }, { x: 1, y: 1 });
+    useEditorStore.getState().updateScratchForShape('bg', { x: 0, y: 0 }, { x: 1, y: 1 });
     useEditorStore.getState().commitScratch();
 
     const grid = useEditorStore.getState().grid;
-    expect(grid.get("0,0")).toEqual({
-      char: " ",
-      color: "#000000",
-      bgColor: "#334155",
+    expect(grid.get('0,0')).toEqual({
+      char: ' ',
+      color: '#000000',
+      bgColor: '#334155',
     });
-    expect(grid.get("1,1")).toEqual({
-      char: "A",
-      color: "#ffffff",
-      bgColor: "#334155",
+    expect(grid.get('1,1')).toEqual({
+      char: 'A',
+      color: '#ffffff',
+      bgColor: '#334155',
       attrs: { bold: true },
     });
   });
 
-  it("preserves target backgrounds and uncovered tail cells on plain paste", async () => {
+  it('preserves target backgrounds and uncovered tail cells on plain paste', async () => {
     useEditorStore.setState({
-      canvasMode: "freeform",
-      brushColor: "#ffffff",
+      canvasMode: 'freeform',
+      brushColor: '#ffffff',
       textCursor: null,
     });
     applyFreeformSnapshotToYMaps(
-      Array.from(" 3:35").map((char, x) => [
+      Array.from(' 3:35').map((char, x) => [
         `${x},0`,
         {
           char,
-          color: x === 0 ? "#ffffff" : "#808080",
-          bgColor: "#000000",
+          color: x === 0 ? '#ffffff' : '#808080',
+          bgColor: '#000000',
         },
       ])
     );
@@ -661,30 +734,30 @@ describe("canvas session viewport state", () => {
 
     await useEditorStore.getState().pasteFromClipboard({
       eventDataTransfer: {
-        getData: (type: string) => (type === "text/plain" ? "Spot" : ""),
+        getData: (type: string) => (type === 'text/plain' ? 'Spot' : ''),
       } as unknown as DataTransfer,
     });
 
     expect(
       Array.from({ length: 5 }, (_, x) => useEditorStore.getState().grid.get(`${x},0`))
     ).toEqual(
-      Array.from("Spot5").map((char, x) => ({
+      Array.from('Spot5').map((char, x) => ({
         char,
-        color: x === 4 ? "#808080" : "#ffffff",
-        bgColor: "#000000",
+        color: x === 4 ? '#808080' : '#ffffff',
+        bgColor: '#000000',
       }))
     );
   });
 
-  it("preserves each selected background when pasting one plain character", async () => {
+  it('preserves each selected background when pasting one plain character', async () => {
     useEditorStore.setState({
-      canvasMode: "freeform",
-      brushColor: "#ffffff",
+      canvasMode: 'freeform',
+      brushColor: '#ffffff',
       textCursor: null,
     });
     applyFreeformSnapshotToYMaps([
-      ["0,0", { char: "A", color: "#111111", bgColor: "#000000" }],
-      ["1,0", { char: "B", color: "#222222", bgColor: "#0000ff" }],
+      ['0,0', { char: 'A', color: '#111111', bgColor: '#000000' }],
+      ['1,0', { char: 'B', color: '#222222', bgColor: '#0000ff' }],
     ]);
     useEditorStore.getState().addSelection({
       start: { x: 0, y: 0 },
@@ -693,94 +766,94 @@ describe("canvas session viewport state", () => {
 
     await useEditorStore.getState().pasteFromClipboard({
       eventDataTransfer: {
-        getData: (type: string) => (type === "text/plain" ? "X" : ""),
+        getData: (type: string) => (type === 'text/plain' ? 'X' : ''),
       } as unknown as DataTransfer,
     });
 
     expect(useEditorStore.getState().grid).toEqual(
       new Map([
-        ["0,0", { char: "X", color: "#ffffff", bgColor: "#000000" }],
-        ["1,0", { char: "X", color: "#ffffff", bgColor: "#0000ff" }],
+        ['0,0', { char: 'X', color: '#ffffff', bgColor: '#000000' }],
+        ['1,0', { char: 'X', color: '#ffffff', bgColor: '#0000ff' }],
       ])
     );
   });
 
-  it("inherits target backgrounds for ANSI cells without an explicit background", async () => {
+  it('inherits target backgrounds for ANSI cells without an explicit background', async () => {
     useEditorStore.setState({
-      canvasMode: "freeform",
-      brushColor: "#ffffff",
+      canvasMode: 'freeform',
+      brushColor: '#ffffff',
       textCursor: { x: 0, y: 0 },
     });
     applyFreeformSnapshotToYMaps([
-      ["0,0", { char: "A", color: "#ffffff", bgColor: "#000000" }],
-      ["1,0", { char: "B", color: "#ffffff", bgColor: "#000000" }],
+      ['0,0', { char: 'A', color: '#ffffff', bgColor: '#000000' }],
+      ['1,0', { char: 'B', color: '#ffffff', bgColor: '#000000' }],
     ]);
 
     await useEditorStore.getState().pasteFromClipboard({
       eventDataTransfer: {
-        getData: (type: string) => (type === "text/plain" ? "[91mA[44mB[m" : ""),
+        getData: (type: string) => (type === 'text/plain' ? '[91mA[44mB[m' : ''),
       } as unknown as DataTransfer,
     });
 
     expect(useEditorStore.getState().grid).toEqual(
       new Map([
-        ["0,0", { char: "A", color: "#ff0000", bgColor: "#000000" }],
-        ["1,0", { char: "B", color: "#ff0000", bgColor: "#000080" }],
+        ['0,0', { char: 'A', color: '#ff0000', bgColor: '#000000' }],
+        ['1,0', { char: 'B', color: '#ff0000', bgColor: '#000080' }],
       ])
     );
   });
 
-  it("formats selected structured text ranges", () => {
-    useEditorStore.getState().createCanvasSession("structured");
+  it('formats selected structured text ranges', () => {
+    useEditorStore.getState().createCanvasSession('structured');
     useEditorStore.getState().applyStructuredScene(
       [
         {
-          id: "text-1",
-          type: "text",
+          id: 'text-1',
+          type: 'text',
           order: 1,
           position: { x: 1, y: 2 },
-          text: "Label",
-          style: { color: "#ffffff" },
+          text: 'Label',
+          style: { color: '#ffffff' },
         },
         {
-          id: "text-2",
-          type: "text",
+          id: 'text-2',
+          type: 'text',
           order: 2,
           position: { x: 1, y: 4 },
-          text: "Value",
-          style: { color: "#ffffff", attrs: { italic: true } },
+          text: 'Value',
+          style: { color: '#ffffff', attrs: { italic: true } },
         },
       ],
       false
     );
 
-    useEditorStore.getState().setSelectedStructuredNodeIds(["text-1"]);
-    useEditorStore.getState().setEditingStructuredTextNodeId("text-1");
-    useEditorStore.getState().setStructuredTextSelection({ nodeId: "text-1", anchor: 1, focus: 4 });
+    useEditorStore.getState().setSelectedStructuredNodeIds(['text-1']);
+    useEditorStore.getState().setEditingStructuredTextNodeId('text-1');
+    useEditorStore.getState().setStructuredTextSelection({ nodeId: 'text-1', anchor: 1, focus: 4 });
     useEditorStore.getState().setStructuredTextAttributes({
       bold: true,
       italic: false,
       underline: true,
     });
-    useEditorStore.getState().setStructuredTextBackgroundColor("#123456");
+    useEditorStore.getState().setStructuredTextBackgroundColor('#123456');
 
     expect(useEditorStore.getState().structuredScene).toMatchObject([
       {
-        id: "text-1",
+        id: 'text-1',
         styleRanges: [
           {
             start: 1,
             end: 4,
             style: {
-              bgColor: "#123456",
+              bgColor: '#123456',
               attrs: { bold: true, underline: true },
             },
           },
         ],
       },
       {
-        id: "text-2",
-        style: { color: "#ffffff", attrs: { italic: true } },
+        id: 'text-2',
+        style: { color: '#ffffff', attrs: { italic: true } },
       },
     ]);
 
@@ -791,32 +864,32 @@ describe("canvas session viewport state", () => {
     useEditorStore.getState().setStructuredTextBackgroundColor(null);
 
     expect(useEditorStore.getState().structuredScene[0]).toMatchObject({
-      id: "text-1",
-      style: { color: "#ffffff" },
+      id: 'text-1',
+      style: { color: '#ffffff' },
     });
     const formattedNode = useEditorStore.getState().structuredScene[0];
-    expect(formattedNode.type).toBe("text");
-    if (formattedNode.type === "text") {
+    expect(formattedNode.type).toBe('text');
+    if (formattedNode.type === 'text') {
       expect(formattedNode.styleRanges).toBeUndefined();
     }
   });
 
-  it("colors selected structured text ranges without changing text content", () => {
-    useEditorStore.getState().createCanvasSession("structured");
+  it('colors selected structured text ranges without changing text content', () => {
+    useEditorStore.getState().createCanvasSession('structured');
     useEditorStore.getState().applyStructuredScene(
       [
         {
-          id: "text-1",
-          type: "text",
+          id: 'text-1',
+          type: 'text',
           order: 1,
           position: { x: 1, y: 2 },
-          text: "Label",
-          style: { color: "#ffffff" },
+          text: 'Label',
+          style: { color: '#ffffff' },
           styleRanges: [
             {
               start: 1,
               end: 4,
-              style: { attrs: { bold: true }, bgColor: "#111111" },
+              style: { attrs: { bold: true }, bgColor: '#111111' },
             },
           ],
         },
@@ -825,23 +898,23 @@ describe("canvas session viewport state", () => {
     );
 
     useEditorStore.getState().setStructuredTextSelection({
-      nodeId: "text-1",
+      nodeId: 'text-1',
       anchor: 1,
       focus: 4,
     });
-    useEditorStore.getState().setStructuredTextColor("#ef4444");
-    useEditorStore.getState().setStructuredTextColor("#22c55e");
+    useEditorStore.getState().setStructuredTextColor('#ef4444');
+    useEditorStore.getState().setStructuredTextColor('#22c55e');
 
     expect(useEditorStore.getState().structuredScene[0]).toMatchObject({
-      id: "text-1",
-      text: "Label",
+      id: 'text-1',
+      text: 'Label',
       styleRanges: [
         {
           start: 1,
           end: 4,
           style: {
-            color: "#22c55e",
-            bgColor: "#111111",
+            color: '#22c55e',
+            bgColor: '#111111',
             attrs: { bold: true },
           },
         },
@@ -849,90 +922,90 @@ describe("canvas session viewport state", () => {
     });
   });
 
-  it("does not format mixed structured selections", () => {
-    useEditorStore.getState().createCanvasSession("structured");
+  it('does not format mixed structured selections', () => {
+    useEditorStore.getState().createCanvasSession('structured');
     useEditorStore.getState().applyStructuredScene(
       [
         {
-          id: "text-1",
-          type: "text",
+          id: 'text-1',
+          type: 'text',
           order: 1,
           position: { x: 1, y: 2 },
-          text: "Label",
-          style: { color: "#ffffff" },
+          text: 'Label',
+          style: { color: '#ffffff' },
         },
         {
-          id: "box-1",
-          type: "box",
+          id: 'box-1',
+          type: 'box',
           order: 2,
           start: { x: 0, y: 0 },
           end: { x: 4, y: 4 },
-          style: { color: "#ffffff" },
+          style: { color: '#ffffff' },
         },
       ],
       false
     );
 
-    useEditorStore.getState().setSelectedStructuredNodeIds(["text-1", "box-1"]);
+    useEditorStore.getState().setSelectedStructuredNodeIds(['text-1', 'box-1']);
     useEditorStore.getState().setStructuredTextAttributes({ bold: true });
-    useEditorStore.getState().setStructuredTextBackgroundColor("#123456");
+    useEditorStore.getState().setStructuredTextBackgroundColor('#123456');
 
     expect(useEditorStore.getState().structuredScene[0]).toMatchObject({
-      id: "text-1",
-      style: { color: "#ffffff" },
+      id: 'text-1',
+      style: { color: '#ffffff' },
     });
     expect(useEditorStore.getState().structuredScene[0].style.attrs).toBeUndefined();
     expect(useEditorStore.getState().structuredScene[0].style.bgColor).toBeUndefined();
   });
 
-  it("colors selected structured shape chars without changing text or bg nodes", () => {
-    useEditorStore.getState().createCanvasSession("structured");
+  it('colors selected structured shape chars without changing text or bg nodes', () => {
+    useEditorStore.getState().createCanvasSession('structured');
     useEditorStore.getState().applyStructuredScene(
       [
         {
-          id: "box-1",
-          type: "box",
+          id: 'box-1',
+          type: 'box',
           order: 1,
           start: { x: 0, y: 0 },
           end: { x: 4, y: 4 },
-          style: { color: "#ffffff" },
+          style: { color: '#ffffff' },
         },
         {
-          id: "split-1",
-          type: "splitBox",
+          id: 'split-1',
+          type: 'splitBox',
           order: 2,
           start: { x: 6, y: 0 },
           end: { x: 12, y: 4 },
           verticalSplitRatio: 0.5,
           topSplitRatio: 0.25,
           bottomSplitRatio: 0.75,
-          root: { type: "leaf", id: "leaf-1" },
-          style: { color: "#ffffff" },
+          root: { type: 'leaf', id: 'leaf-1' },
+          style: { color: '#ffffff' },
         },
         {
-          id: "line-1",
-          type: "line",
+          id: 'line-1',
+          type: 'line',
           order: 3,
           start: { x: 0, y: 6 },
           end: { x: 8, y: 6 },
-          axis: "horizontal",
-          style: { color: "#ffffff" },
+          axis: 'horizontal',
+          style: { color: '#ffffff' },
         },
         {
-          id: "text-1",
-          type: "text",
+          id: 'text-1',
+          type: 'text',
           order: 4,
           position: { x: 0, y: 8 },
-          text: "Label",
-          style: { color: "#ffffff" },
+          text: 'Label',
+          style: { color: '#ffffff' },
         },
         {
-          id: "bg-1",
-          type: "bg",
+          id: 'bg-1',
+          type: 'bg',
           order: 5,
           start: { x: 0, y: 10 },
           end: { x: 4, y: 10 },
-          style: { color: "#000000", bgColor: "#ffffff" },
+          style: { color: '#000000', bgColor: '#ffffff' },
         },
       ],
       false
@@ -940,29 +1013,29 @@ describe("canvas session viewport state", () => {
 
     useEditorStore
       .getState()
-      .setSelectedStructuredNodeIds(["box-1", "split-1", "line-1", "text-1", "bg-1"]);
-    useEditorStore.getState().setStructuredNodeCharColor("#22c55e");
+      .setSelectedStructuredNodeIds(['box-1', 'split-1', 'line-1', 'text-1', 'bg-1']);
+    useEditorStore.getState().setStructuredNodeCharColor('#22c55e');
 
     expect(useEditorStore.getState().structuredScene).toMatchObject([
-      { id: "box-1", style: { color: "#22c55e" } },
-      { id: "split-1", style: { color: "#22c55e" } },
-      { id: "line-1", style: { color: "#22c55e" } },
-      { id: "text-1", style: { color: "#ffffff" } },
-      { id: "bg-1", style: { color: "#000000", bgColor: "#ffffff" } },
+      { id: 'box-1', style: { color: '#22c55e' } },
+      { id: 'split-1', style: { color: '#22c55e' } },
+      { id: 'line-1', style: { color: '#22c55e' } },
+      { id: 'text-1', style: { color: '#ffffff' } },
+      { id: 'bg-1', style: { color: '#000000', bgColor: '#ffffff' } },
     ]);
   });
 
-  it("fills selected structured text ranges with the brush character", () => {
-    useEditorStore.getState().createCanvasSession("structured");
+  it('fills selected structured text ranges with the brush character', () => {
+    useEditorStore.getState().createCanvasSession('structured');
     useEditorStore.getState().applyStructuredScene(
       [
         {
-          id: "text-1",
-          type: "text",
+          id: 'text-1',
+          type: 'text',
           order: 1,
           position: { x: 1, y: 2 },
-          text: "Label",
-          style: { color: "#ffffff" },
+          text: 'Label',
+          style: { color: '#ffffff' },
           styleRanges: [
             {
               start: 1,
@@ -976,15 +1049,15 @@ describe("canvas session viewport state", () => {
     );
 
     useEditorStore.getState().setStructuredTextSelection({
-      nodeId: "text-1",
+      nodeId: 'text-1',
       anchor: 1,
       focus: 4,
     });
-    useEditorStore.getState().fillStructuredTextSelectionWithChar("#");
+    useEditorStore.getState().fillStructuredTextSelectionWithChar('#');
 
     expect(useEditorStore.getState().structuredScene[0]).toMatchObject({
-      id: "text-1",
-      text: "L###l",
+      id: 'text-1',
+      text: 'L###l',
       styleRanges: [
         {
           start: 1,
@@ -995,31 +1068,31 @@ describe("canvas session viewport state", () => {
     });
   });
 
-  it("copies selected structured text as plain text and rich text fragment", async () => {
-    useEditorStore.getState().createCanvasSession("structured");
+  it('copies selected structured text as plain text and rich text fragment', async () => {
+    useEditorStore.getState().createCanvasSession('structured');
     useEditorStore.getState().applyStructuredScene(
       [
         {
-          id: "text-1",
-          type: "text",
+          id: 'text-1',
+          type: 'text',
           order: 1,
           position: { x: 1, y: 2 },
-          text: "Hello",
-          style: { color: "#000000" },
+          text: 'Hello',
+          style: { color: '#000000' },
           styleRanges: [
             {
               start: 1,
               end: 4,
-              style: { color: "#ef4444", attrs: { bold: true } },
+              style: { color: '#ef4444', attrs: { bold: true } },
             },
           ],
         },
       ],
       false
     );
-    useEditorStore.getState().setEditingStructuredTextNodeId("text-1");
+    useEditorStore.getState().setEditingStructuredTextNodeId('text-1');
     useEditorStore.getState().setStructuredTextSelection({
-      nodeId: "text-1",
+      nodeId: 'text-1',
       anchor: 1,
       focus: 4,
     });
@@ -1027,159 +1100,159 @@ describe("canvas session viewport state", () => {
     const capture = createClipboardEventCapture();
     await useEditorStore.getState().copySelection({ event: capture.event });
 
-    expect(capture.data.get("text/plain")).toBe("ell");
-    const rich = JSON.parse(capture.data.get("web application/x-ascii-metropolis") ?? "{}");
+    expect(capture.data.get('text/plain')).toBe('ell');
+    const rich = JSON.parse(capture.data.get('web application/x-ascii-metropolis') ?? '{}');
     expect(rich.structuredText).toMatchObject({
-      text: "ell",
-      style: { color: "#000000" },
+      text: 'ell',
+      style: { color: '#000000' },
       styleRanges: [
         {
           start: 0,
           end: 3,
-          style: { color: "#ef4444", attrs: { bold: true } },
+          style: { color: '#ef4444', attrs: { bold: true } },
         },
       ],
     });
     expect(rich.structuredNodes).toEqual([]);
   });
 
-  it("replaces selected structured text when pasting plain text", async () => {
-    useEditorStore.getState().createCanvasSession("structured");
+  it('replaces selected structured text when pasting plain text', async () => {
+    useEditorStore.getState().createCanvasSession('structured');
     useEditorStore.getState().applyStructuredScene(
       [
         {
-          id: "text-1",
-          type: "text",
+          id: 'text-1',
+          type: 'text',
           order: 1,
           position: { x: 1, y: 2 },
-          text: "Hello",
-          style: { color: "#000000" },
+          text: 'Hello',
+          style: { color: '#000000' },
         },
       ],
       false
     );
-    useEditorStore.getState().setEditingStructuredTextNodeId("text-1");
+    useEditorStore.getState().setEditingStructuredTextNodeId('text-1');
     useEditorStore.getState().setTextCursor({ x: 2, y: 2 });
     useEditorStore.getState().setStructuredTextSelection({
-      nodeId: "text-1",
+      nodeId: 'text-1',
       anchor: 1,
       focus: 4,
     });
 
     await useEditorStore.getState().pasteFromClipboard({
       eventDataTransfer: {
-        getData: (type: string) => (type === "text/plain" ? "X" : ""),
+        getData: (type: string) => (type === 'text/plain' ? 'X' : ''),
       } as unknown as DataTransfer,
     });
 
     expect(useEditorStore.getState().structuredScene[0]).toMatchObject({
-      id: "text-1",
-      text: "HXo",
+      id: 'text-1',
+      text: 'HXo',
     });
     expect(useEditorStore.getState().textCursor).toEqual({ x: 3, y: 2 });
     expect(useEditorStore.getState().structuredTextSelection).toBeNull();
   });
 
-  it("creates structured text when pasting external plain text into focused structured canvas", async () => {
-    useEditorStore.getState().createCanvasSession("structured");
+  it('creates structured text when pasting external plain text into focused structured canvas', async () => {
+    useEditorStore.getState().createCanvasSession('structured');
     useEditorStore.getState().setStructuredGridFocus({ x: 4, y: 5 });
 
     await useEditorStore.getState().pasteFromClipboard({
       eventDataTransfer: {
-        getData: (type: string) => (type === "text/plain" ? "A\nB" : ""),
+        getData: (type: string) => (type === 'text/plain' ? 'A\nB' : ''),
       } as unknown as DataTransfer,
     });
 
     expect(useEditorStore.getState().structuredScene).toHaveLength(1);
     expect(useEditorStore.getState().structuredScene[0]).toMatchObject({
-      type: "text",
+      type: 'text',
       position: { x: 4, y: 5 },
-      text: "A\nB",
+      text: 'A\nB',
     });
-    expect(useEditorStore.getState().grid.get("4,5")).toMatchObject({
-      char: "A",
+    expect(useEditorStore.getState().grid.get('4,5')).toMatchObject({
+      char: 'A',
     });
-    expect(useEditorStore.getState().grid.get("4,6")).toMatchObject({
-      char: "B",
+    expect(useEditorStore.getState().grid.get('4,6')).toMatchObject({
+      char: 'B',
     });
   });
 
-  it("creates styled structured text when pasting ANSI text into structured canvas", async () => {
-    useEditorStore.getState().createCanvasSession("structured");
+  it('creates styled structured text when pasting ANSI text into structured canvas', async () => {
+    useEditorStore.getState().createCanvasSession('structured');
     useEditorStore.getState().setStructuredGridFocus({ x: 2, y: 3 });
 
     await useEditorStore.getState().pasteFromClipboard({
       eventDataTransfer: {
-        getData: (type: string) => (type === "text/plain" ? "[38;2;239;68;68mHi[0m" : ""),
+        getData: (type: string) => (type === 'text/plain' ? '[38;2;239;68;68mHi[0m' : ''),
       } as unknown as DataTransfer,
     });
 
     const node = useEditorStore.getState().structuredScene[0];
     expect(node).toMatchObject({
-      type: "text",
+      type: 'text',
       position: { x: 2, y: 3 },
-      text: "Hi",
-      styleRanges: [{ start: 0, end: 2, style: { color: "#ef4444" } }],
+      text: 'Hi',
+      styleRanges: [{ start: 0, end: 2, style: { color: '#ef4444' } }],
     });
   });
 
-  it("creates structured text from free canvas rich cells when pasted into structured canvas", async () => {
-    useEditorStore.getState().createCanvasSession("structured");
+  it('creates structured text from free canvas rich cells when pasted into structured canvas', async () => {
+    useEditorStore.getState().createCanvasSession('structured');
     useEditorStore.getState().setStructuredGridFocus({ x: 1, y: 1 });
 
     await useEditorStore.getState().pasteFromClipboard({
       eventDataTransfer: {
         getData: (type: string) =>
-          type === "web application/x-ascii-metropolis"
+          type === 'web application/x-ascii-metropolis'
             ? JSON.stringify({
-                type: "ascii-metropolis-zone",
+                type: 'ascii-metropolis-zone',
                 version: 1,
                 cells: [
-                  { x: 0, y: 0, char: "A", color: "#111111" },
+                  { x: 0, y: 0, char: 'A', color: '#111111' },
                   {
                     x: 2,
                     y: 0,
-                    char: "B",
-                    color: "#222222",
+                    char: 'B',
+                    color: '#222222',
                     attrs: { bold: true },
                   },
                 ],
               })
-            : "",
+            : '',
       } as unknown as DataTransfer,
     });
 
     expect(useEditorStore.getState().structuredScene).toHaveLength(1);
     expect(useEditorStore.getState().structuredScene[0]).toMatchObject({
-      type: "text",
+      type: 'text',
       position: { x: 1, y: 1 },
-      text: "A B",
+      text: 'A B',
       styleRanges: [
-        { start: 0, end: 1, style: { color: "#111111" } },
-        { start: 2, end: 3, style: { color: "#222222", attrs: { bold: true } } },
+        { start: 0, end: 1, style: { color: '#111111' } },
+        { start: 2, end: 3, style: { color: '#222222', attrs: { bold: true } } },
       ],
     });
   });
 
-  it("cuts selected structured text instead of cutting structured nodes", async () => {
-    useEditorStore.getState().createCanvasSession("structured");
+  it('cuts selected structured text instead of cutting structured nodes', async () => {
+    useEditorStore.getState().createCanvasSession('structured');
     useEditorStore.getState().applyStructuredScene(
       [
         {
-          id: "text-1",
-          type: "text",
+          id: 'text-1',
+          type: 'text',
           order: 1,
           position: { x: 1, y: 2 },
-          text: "Hello",
-          style: { color: "#000000" },
+          text: 'Hello',
+          style: { color: '#000000' },
         },
       ],
       false
     );
-    useEditorStore.getState().setSelectedStructuredNodeIds(["text-1"]);
-    useEditorStore.getState().setEditingStructuredTextNodeId("text-1");
+    useEditorStore.getState().setSelectedStructuredNodeIds(['text-1']);
+    useEditorStore.getState().setEditingStructuredTextNodeId('text-1');
     useEditorStore.getState().setStructuredTextSelection({
-      nodeId: "text-1",
+      nodeId: 'text-1',
       anchor: 1,
       focus: 4,
     });
@@ -1187,61 +1260,60 @@ describe("canvas session viewport state", () => {
     const capture = createClipboardEventCapture();
     await useEditorStore.getState().cutSelection({ event: capture.event });
 
-    expect(capture.data.get("text/plain")).toBe("ell");
+    expect(capture.data.get('text/plain')).toBe('ell');
     expect(useEditorStore.getState().structuredScene).toHaveLength(1);
     expect(useEditorStore.getState().structuredScene[0]).toMatchObject({
-      id: "text-1",
-      text: "Ho",
+      id: 'text-1',
+      text: 'Ho',
     });
   });
 
-  it("cuts a selected structured subtree as one undoable history step", async () => {
-    useEditorStore.getState().createCanvasSession("structured");
+  it('cuts a selected structured subtree as one undoable history step', async () => {
+    useEditorStore.getState().createCanvasSession('structured');
     useEditorStore.getState().applyStructuredScene(
       [
         {
-          id: "parent-box",
-          type: "box",
+          id: 'parent-box',
+          type: 'box',
           order: 1,
           start: { x: 0, y: 0 },
           end: { x: 10, y: 6 },
-          style: { color: "#ffffff" },
+          style: { color: '#ffffff' },
         },
         {
-          id: "child-text",
-          type: "text",
+          id: 'child-text',
+          type: 'text',
           order: 2,
           position: { x: 2, y: 2 },
-          text: "Child",
-          style: { color: "#ffffff" },
+          text: 'Child',
+          style: { color: '#ffffff' },
         },
         {
-          id: "unrelated-box",
-          type: "box",
+          id: 'unrelated-box',
+          type: 'box',
           order: 3,
           start: { x: 20, y: 0 },
           end: { x: 24, y: 3 },
-          style: { color: "#ffffff" },
+          style: { color: '#ffffff' },
         },
       ],
       false
     );
-    useEditorStore.getState().setSelectedStructuredNodeIds(["parent-box"]);
-    useEditorStore.getState().setSelectedStructuredBoxId("parent-box");
+    useEditorStore.getState().setSelectedStructuredNodeIds(['parent-box']);
+    useEditorStore.getState().setSelectedStructuredBoxId('parent-box');
     const capture = createClipboardEventCapture();
 
-    await expect(
-      useEditorStore.getState().cutSelection({ event: capture.event })
-    ).resolves.toEqual({ status: "applied", changed: true });
-
-    const rich = JSON.parse(
-      capture.data.get("web application/x-ascii-metropolis") ?? "{}"
+    await expect(useEditorStore.getState().cutSelection({ event: capture.event })).resolves.toEqual(
+      { status: 'applied', changed: true }
     );
-    expect(
-      rich.structuredNodes.map((node: { id: string }) => node.id)
-    ).toEqual(["parent-box", "child-text"]);
+
+    const rich = JSON.parse(capture.data.get('web application/x-ascii-metropolis') ?? '{}');
+    expect(rich.structuredNodes.map((node: { id: string }) => node.id)).toEqual([
+      'parent-box',
+      'child-text',
+    ]);
     expect(useEditorStore.getState().structuredScene.map((node) => node.id)).toEqual([
-      "unrelated-box",
+      'unrelated-box',
     ]);
     expect(useEditorStore.getState()).toMatchObject({
       selectedStructuredNodeIds: [],
@@ -1250,99 +1322,99 @@ describe("canvas session viewport state", () => {
 
     expect(undoManager.undo()).toBe(true);
     expect(useEditorStore.getState().structuredScene.map((node) => node.id)).toEqual([
-      "parent-box",
-      "child-text",
-      "unrelated-box",
+      'parent-box',
+      'child-text',
+      'unrelated-box',
     ]);
     expect(undoManager.redo()).toBe(true);
     expect(useEditorStore.getState().structuredScene.map((node) => node.id)).toEqual([
-      "unrelated-box",
+      'unrelated-box',
     ]);
 
     useEditorStore.getState().setStructuredGridFocus({ x: 30, y: 10 });
     await useEditorStore.getState().pasteFromClipboard({
       eventDataTransfer: dataTransferFromCapture(capture.data),
     });
-    const pasted = useEditorStore.getState().structuredScene.filter(
-      (node) => node.id !== "unrelated-box"
-    );
-    expect(pasted.map((node) => node.type)).toEqual(["box", "text"]);
-    expect(pasted.map((node) => node.id)).not.toContain("parent-box");
-    expect(pasted.map((node) => node.id)).not.toContain("child-text");
+    const pasted = useEditorStore
+      .getState()
+      .structuredScene.filter((node) => node.id !== 'unrelated-box');
+    expect(pasted.map((node) => node.type)).toEqual(['box', 'text']);
+    expect(pasted.map((node) => node.id)).not.toContain('parent-box');
+    expect(pasted.map((node) => node.id)).not.toContain('child-text');
   });
 
-  it("keeps structured nodes when the clipboard write fails", async () => {
-    useEditorStore.getState().createCanvasSession("structured");
+  it('keeps structured nodes when the clipboard write fails', async () => {
+    useEditorStore.getState().createCanvasSession('structured');
     useEditorStore.getState().applyStructuredScene(
       [
         {
-          id: "box-failure",
-          type: "box",
+          id: 'box-failure',
+          type: 'box',
           order: 1,
           start: { x: 0, y: 0 },
           end: { x: 4, y: 3 },
-          style: { color: "#ffffff" },
+          style: { color: '#ffffff' },
         },
       ],
       false
     );
-    useEditorStore.getState().setSelectedStructuredNodeIds(["box-failure"]);
+    useEditorStore.getState().setSelectedStructuredNodeIds(['box-failure']);
     const canUndoBeforeCut = useEditorStore.getState().canUndo;
-    vi.stubGlobal("ClipboardItem", undefined);
-    vi.spyOn(clipboard, "writeText").mockResolvedValue(false);
+    vi.stubGlobal('ClipboardItem', undefined);
+    vi.spyOn(clipboard, 'writeText').mockResolvedValue(false);
 
     await expect(useEditorStore.getState().cutSelection()).resolves.toEqual({
-      status: "failed",
-      reason: "clipboard-failed",
+      status: 'failed',
+      reason: 'clipboard-failed',
     });
     expect(useEditorStore.getState().structuredScene.map((node) => node.id)).toEqual([
-      "box-failure",
+      'box-failure',
     ]);
     expect(useEditorStore.getState().canUndo).toBe(canUndoBeforeCut);
   });
 
-  it("does not delete a new structured target after an asynchronous clipboard write", async () => {
-    useEditorStore.getState().createCanvasSession("structured");
+  it('does not delete a new structured target after an asynchronous clipboard write', async () => {
+    useEditorStore.getState().createCanvasSession('structured');
     useEditorStore.getState().applyStructuredScene(
       [
         {
-          id: "box-original",
-          type: "box",
+          id: 'box-original',
+          type: 'box',
           order: 1,
           start: { x: 0, y: 0 },
           end: { x: 4, y: 3 },
-          style: { color: "#ffffff" },
+          style: { color: '#ffffff' },
         },
         {
-          id: "box-next",
-          type: "box",
+          id: 'box-next',
+          type: 'box',
           order: 2,
           start: { x: 8, y: 0 },
           end: { x: 12, y: 3 },
-          style: { color: "#ffffff" },
+          style: { color: '#ffffff' },
         },
       ],
       false
     );
-    useEditorStore.getState().setSelectedStructuredNodeIds(["box-original"]);
+    useEditorStore.getState().setSelectedStructuredNodeIds(['box-original']);
     const canUndoBeforeCut = useEditorStore.getState().canUndo;
-    vi.stubGlobal("ClipboardItem", undefined);
+    vi.stubGlobal('ClipboardItem', undefined);
     let resolveWrite!: (value: boolean) => void;
-    vi.spyOn(clipboard, "writeText").mockImplementation(
+    vi.spyOn(clipboard, 'writeText').mockImplementation(
       () => new Promise((resolve) => (resolveWrite = resolve))
     );
 
     const pendingCut = useEditorStore.getState().cutSelection();
-    useEditorStore.getState().setSelectedStructuredNodeIds(["box-next"]);
+    useEditorStore.getState().setSelectedStructuredNodeIds(['box-next']);
     resolveWrite(true);
 
     await expect(pendingCut).resolves.toEqual({
-      status: "failed",
-      reason: "stale-target",
+      status: 'failed',
+      reason: 'stale-target',
     });
     expect(useEditorStore.getState().structuredScene.map((node) => node.id)).toEqual([
-      "box-original",
-      "box-next",
+      'box-original',
+      'box-next',
     ]);
     expect(useEditorStore.getState().canUndo).toBe(canUndoBeforeCut);
   });

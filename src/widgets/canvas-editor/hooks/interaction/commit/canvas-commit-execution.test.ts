@@ -120,4 +120,26 @@ describe("commit execution helpers", () => {
       { axis: "horizontal" }
     );
   });
+
+  it("commits arrow lines through the structured shape executor", () => {
+    const executor = createDragExecutor();
+
+    executeDragEndCommitDecision(
+      { type: "commitStructuredShape" },
+      executor,
+      {
+        tool: "arrowLine",
+        startGrid: { x: 1, y: 2 },
+        endGrid: { x: 3, y: 4 },
+        axis: "vertical",
+      }
+    );
+
+    expect(executor.commitStructuredShape).toHaveBeenCalledWith(
+      "arrowLine",
+      { x: 1, y: 2 },
+      { x: 3, y: 4 },
+      { axis: "vertical" }
+    );
+  });
 });

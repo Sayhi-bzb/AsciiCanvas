@@ -90,6 +90,29 @@ export function getLShapeLinePoints(
   return resolvePointChars(uniquePoints);
 }
 
+export function getArrowLinePoints(
+  start: Point,
+  end: Point,
+  isVerticalFirst: boolean
+): GridPoint[] {
+  const points = getLShapeLinePoints(start, end, isVerticalFirst);
+  if (points.length === 0) return points;
+
+  const previous = points[points.length - 2];
+  let char = ">";
+  if (previous) {
+    const dx = end.x - previous.x;
+    const dy = end.y - previous.y;
+    if (dx < 0) char = "<";
+    else if (dy > 0) char = "v";
+    else if (dy < 0) char = "^";
+  }
+
+  return points.map((point, index) =>
+    index === points.length - 1 ? { ...point, char } : point
+  );
+}
+
 export function getStepLinePoints(start: Point, end: Point): GridPoint[] {
   const points: Point[] = [];
   let x = start.x;

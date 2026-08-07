@@ -72,6 +72,7 @@ export interface StructuredLineNode extends StructuredNodeBase {
   start: Point;
   end: Point;
   axis: "vertical" | "horizontal";
+  endMarker?: "arrow";
 }
 
 export interface StructuredBgNode extends StructuredNodeBase {

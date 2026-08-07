@@ -260,6 +260,7 @@ describe("structuredBoxEditing", () => {
       start: { x: 1, y: 1 },
       end: { x: 4, y: 1 },
       axis: "horizontal" as const,
+      endMarker: "arrow" as const,
       style: { color: "#ffffff" },
     };
 
@@ -267,6 +268,7 @@ describe("structuredBoxEditing", () => {
       start: { x: 1, y: 1 },
       end: { x: 1, y: 8 },
       axis: "vertical",
+      endMarker: "arrow",
     });
   });
   it("resizes the requested side or corner and normalizes reversed coordinates", () => {

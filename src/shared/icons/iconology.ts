@@ -1,5 +1,6 @@
 import { createElement } from 'react';
 import {
+  ArrowRight,
   Bold,
   BringToFront,
   ChevronDown,
@@ -180,8 +181,9 @@ export const HOST_ICONOLOGY = {
     splitBox: SquareSplitVertical,
     circle: Circle,
     line: Minus,
+    arrowLine: ArrowRight,
     stepline: LineSquiggle,
-  } satisfies IconMap<'box' | 'splitBox' | 'circle' | 'line' | 'stepline'>,
+  } satisfies IconMap<'box' | 'splitBox' | 'circle' | 'line' | 'arrowLine' | 'stepline'>,
   appMenu: {
     trigger: Menu,
     import: Upload,

@@ -63,6 +63,7 @@ describe('snapshotHelpers', () => {
         start: { x: 0, y: 0 },
         end: { x: 10, y: 10 },
         axis: 'horizontal',
+        endMarker: 'arrow',
         style: { color: '#000' }
       };
       const cloned = cloneStructuredNode(node) as StructuredLineNode;
@@ -288,12 +289,12 @@ describe('snapshotHelpers', () => {
         start: { x: 0, y: 0 },
         end: { x: 10, y: 10 },
         axis: 'horizontal' as const,
+        endMarker: 'arrow' as const,
         style: { color: '#000' }
       };
       const result = toStructuredNode(raw);
 
-      expect(result).not.toBeNull();
-      expect(result?.type).toBe('line');
+      expect(result).toMatchObject({ type: 'line', endMarker: 'arrow' });
     });
 
     it('should convert valid text node', () => {
@@ -358,6 +359,21 @@ describe('snapshotHelpers', () => {
         axis: 'diagonal', // invalid
         style: { color: '#000' }
       };
+      expect(toStructuredNode(raw)).toBeNull();
+    });
+
+    it('should return null for line with an invalid end marker', () => {
+      const raw = {
+        id: 'line1',
+        type: 'line' as const,
+        order: 1,
+        start: { x: 0, y: 0 },
+        end: { x: 10, y: 10 },
+        axis: 'horizontal' as const,
+        endMarker: 'diamond',
+        style: { color: '#000' }
+      };
+
       expect(toStructuredNode(raw)).toBeNull();
     });
 

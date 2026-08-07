@@ -53,6 +53,10 @@ describe("canvas drag-update interaction decisions", () => {
       tool: "line", canvasMode: "freeform",
       dragStart: { x: 0, y: 0 }, currentGrid: { x: 5, y: 1 }, currentAxis: "vertical",
     })?.axis).toBe("vertical");
+    expect(resolveShapePreviewUpdate({
+      tool: "arrowLine", canvasMode: "structured",
+      dragStart: { x: 0, y: 0 }, currentGrid: { x: 1, y: 4 }, currentAxis: null,
+    })).toMatchObject({ axis: "vertical" });
   });
 
   it("computes structured move deltas from typed state", () => {

@@ -96,6 +96,7 @@ const cloneStructuredProtocolNode = (
         start: { ...node.start },
         end: { ...node.end },
         axis: node.axis,
+        ...(node.endMarker ? { endMarker: node.endMarker } : {}),
         style,
         ...cloneComponentMetadata(node.component),
       };

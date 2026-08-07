@@ -62,6 +62,7 @@ interface AsciiCanvasProtocolLineNodeV1
   start: Point;
   end: Point;
   axis: "vertical" | "horizontal";
+  endMarker?: "arrow";
 }
 
 interface AsciiCanvasProtocolBgNodeV1

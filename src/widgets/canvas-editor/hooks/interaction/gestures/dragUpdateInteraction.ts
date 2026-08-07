@@ -96,7 +96,7 @@ export const resolveShapePreviewUpdate = ({
   if (!isShapeTool(tool, canvasMode)) return null;
 
   let axis = currentAxis;
-  if (tool === "line" && !axis) {
+  if ((tool === "line" || tool === "arrowLine") && !axis) {
     const dx = Math.abs(currentGrid.x - dragStart.x);
     const dy = Math.abs(currentGrid.y - dragStart.y);
     if (dx > 0 || dy > 0) axis = dy > dx ? "vertical" : "horizontal";

@@ -8,7 +8,11 @@ export const isShapeTool = (
   canvasMode: CanvasMode
 ): boolean => {
   if (canvasMode === "structured") {
-    return tool === "box" || tool === "splitBox" || tool === "line" || tool === "bg";
+    return tool === "box" ||
+      tool === "splitBox" ||
+      tool === "line" ||
+      tool === "arrowLine" ||
+      tool === "bg";
   }
   return ["box", "circle", "line", "stepline", "bg"].includes(tool);
 };
@@ -132,6 +136,7 @@ export const resolveDrawingShapeDragStartDecision = ({
     tool !== "box" &&
     tool !== "splitBox" &&
     tool !== "line" &&
+    tool !== "arrowLine" &&
     tool !== "bg"
   ) {
     return { type: "ignore" };

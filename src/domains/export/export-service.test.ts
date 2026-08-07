@@ -58,6 +58,32 @@ describe("export service", () => {
     expect(result.value.filename).toMatch(/^ascii-canvas-\d+\.txt$/);
   });
 
+  it("includes arrow line markers in structured text exports", () => {
+    const result = prepareTextExport(
+      createContext({
+        canvasMode: "structured",
+        grid: new Map(),
+        structuredScene: [
+          {
+            id: "arrow-1",
+            type: "line",
+            order: 1,
+            start: { x: 0, y: 0 },
+            end: { x: 4, y: 0 },
+            axis: "horizontal",
+            endMarker: "arrow",
+            style: { color: "#ffffff" },
+          },
+        ],
+      }),
+      "txt"
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.content).toContain('endMarker="arrow"');
+  });
+
 
   it("returns a typed clipboard error instead of throwing", async () => {
     vi.spyOn(clipboard, "writeText").mockResolvedValue(false);
