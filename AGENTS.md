@@ -33,6 +33,14 @@ Apply these rules when writing or editing docs.
 - Do not introduce a new rule, label, or concept when an existing one explains the point.
 - Prefer restrained, minimal, sufficient writing over exhaustive explanation.
 
+# Documentation Ownership
+
+- `README.md` and `README.zh-CN.md` are the user-facing product entry points.
+- `packages/protocol/README.md` owns protocol installation and API usage.
+- `packages/fonts/README.md` owns font installation and consumption.
+- `package.json` owns scripts, dependencies, and local commands.
+- Do not restate facts already owned by a manifest, specification, source, or test. Link to the owner when navigation is useful.
+
 # Frontend Host Rules
 
 - [Core host icon controls](docs/host/icon-controls.md)
