@@ -111,6 +111,7 @@ type HandbookDialogProps = {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   trigger?: ReactElement | null;
+  onStartTour?: () => void;
 };
 
 export function HandbookDialog({
@@ -118,6 +119,7 @@ export function HandbookDialog({
   open,
   onOpenChange,
   trigger,
+  onStartTour,
 }: HandbookDialogProps = {}) {
   const { t } = useUiI18n();
 
@@ -152,6 +154,16 @@ export function HandbookDialog({
         </DialogHeader>
         <ScrollArea className="max-h-[65vh] overflow-y-auto">
           <DialogBody className="space-y-6">
+            {onStartTour ? (
+              <Button
+                type="button"
+                tone="primary"
+                className="w-full justify-center"
+                onClick={onStartTour}
+              >
+                {t("onboarding.start")}
+              </Button>
+            ) : null}
             <section className="space-y-3">
               <h4 className="text-sm font-semibold flex items-center gap-2 text-foreground/80">
                 <Keyboard className="size-4" /> {t("manual.shortcuts")}

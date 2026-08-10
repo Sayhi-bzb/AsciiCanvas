@@ -20,6 +20,8 @@ describe("InlineRenameInput", () => {
     expect(input).toHaveFocus();
     expect(input).toHaveProperty("selectionStart", 0);
     expect(input).toHaveProperty("selectionEnd", 5);
+    expect(input).toHaveClass("bg-transparent");
+    expect(input).not.toHaveClass("bg-search-surface");
 
     fireEvent.change(input, { target: { value: "  Beta  " } });
     expect(onCommit).not.toHaveBeenCalled();

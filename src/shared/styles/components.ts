@@ -19,6 +19,7 @@ const quietInput = cn(
   "min-w-0 rounded-md border-0 bg-transparent text-xs shadow-none outline-none",
   "placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring"
 );
+const searchInput = cn(quietInput, "bg-search-surface");
 
 export const uiClass = {
   dialogOverlay: cn(
@@ -48,6 +49,7 @@ export const uiClass = {
   floatingHost,
   overlayPanel,
   quietInput,
+  searchInput,
   toolbarShell: cn(
     floatingHost,
     "relative flex items-center gap-1 p-[3px] pointer-events-auto"

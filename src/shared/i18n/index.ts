@@ -137,6 +137,32 @@ const messages = {
     'collaboration.status.error': 'Connection error',
     'manual.title': 'User Manual',
     'manual.open': 'Open user manual',
+    'onboarding.start': 'Start guided tour',
+    'onboarding.next': 'Next',
+    'onboarding.skip': 'Skip this step',
+    'onboarding.done': 'Start creating',
+    'onboarding.progress': '{{current}} / {{total}}',
+    'onboarding.unavailable': 'The guided tour could not start. Try again from Help.',
+    'onboarding.welcome.title': 'Your canvas',
+    'onboarding.welcome.description': 'Create and arrange ASCII content directly on this canvas. Let us set up your first structured example.',
+    'onboarding.appMenu.title': 'App menu',
+    'onboarding.appMenu.description': 'Click the highlighted menu icon at the top left, immediately before the canvas name.',
+    'onboarding.languageMenu.title': 'Language',
+    'onboarding.languageMenu.description': 'Click the highlighted Language item.',
+    'onboarding.languageChoice.title': 'Choose your language',
+    'onboarding.languageChoice.description': 'Select English or 中文. The rest of this tour updates immediately.',
+    'onboarding.canvasSelector.title': 'Canvas modes',
+    'onboarding.canvasSelector.description': 'Click the highlighted canvas name in the top-left bar.',
+    'onboarding.createMenu.title': 'Create a canvas',
+    'onboarding.createMenu.description': 'Click the highlighted New item to see the available canvas modes.',
+    'onboarding.structured.title': 'Structured Canvas',
+    'onboarding.structured.description': 'Create a Structured Canvas for reusable, layered UI components.',
+    'onboarding.template.title': 'Button component',
+    'onboarding.template.description': 'This reusable example is ready to drag into the canvas.',
+    'onboarding.drag.title': 'Drag your first component',
+    'onboarding.drag.description': 'Drag the highlighted Button from the right sidebar and drop it anywhere on the canvas, or skip this step.',
+    'onboarding.complete.title': 'You are ready',
+    'onboarding.complete.description': 'Your Structured Canvas is ready. Anything you dropped is kept, and you can replay this tour from Help.',
     'manual.shortcuts': 'Keyboard Shortcuts',
     'manual.shortcut.commands': 'Common commands',
     'manual.shortcut.canvas': 'Canvas controls',
@@ -465,6 +491,32 @@ const messages = {
     'collaboration.status.error': '连接错误',
     'manual.title': '用户手册',
     'manual.open': '打开用户手册',
+    'onboarding.start': '运行新手引导',
+    'onboarding.next': '下一步',
+    'onboarding.skip': '跳过此步',
+    'onboarding.done': '开始创作',
+    'onboarding.progress': '{{current}} / {{total}}',
+    'onboarding.unavailable': '新手引导暂时无法启动，请从帮助菜单重试。',
+    'onboarding.welcome.title': '你的画布',
+    'onboarding.welcome.description': '你可以直接在这里创建和编排 ASCII 内容。接下来一起搭建第一个结构化示例。',
+    'onboarding.appMenu.title': '应用菜单',
+    'onboarding.appMenu.description': '点击左上角高亮的菜单图标，它就在画布名称左侧。',
+    'onboarding.languageMenu.title': '语言',
+    'onboarding.languageMenu.description': '点击高亮的“语言”选项。',
+    'onboarding.languageChoice.title': '选择语言',
+    'onboarding.languageChoice.description': '选择 English 或中文，后续引导会立即切换。',
+    'onboarding.canvasSelector.title': '画布模式',
+    'onboarding.canvasSelector.description': '点击左上角工具栏中高亮的画布名称。',
+    'onboarding.createMenu.title': '新建画布',
+    'onboarding.createMenu.description': '点击高亮的“新建”，查看可用的画布模式。',
+    'onboarding.structured.title': '结构化画布',
+    'onboarding.structured.description': '创建结构化画布，用可复用、可分层的组件编排内容。',
+    'onboarding.template.title': 'Button 组件',
+    'onboarding.template.description': '这个可复用示例已经可以拖入画布。',
+    'onboarding.drag.title': '拖入第一个组件',
+    'onboarding.drag.description': '把右侧高亮的 Button 拖到画布任意位置；如果设备无法拖拽，也可以跳过此步。',
+    'onboarding.complete.title': '可以开始了',
+    'onboarding.complete.description': '结构化画布已经准备好；你拖入的内容会保留下来，也可以随时从帮助菜单重播引导。',
     'manual.shortcuts': '键盘快捷键',
     'manual.shortcut.commands': '常用命令',
     'manual.shortcut.canvas': '画布操作',
@@ -663,14 +715,57 @@ const messages = {
 
 export type I18nKey = keyof typeof messages.en;
 
-let currentLanguage: UiLanguage = readStoredLanguage();
+let currentLanguage: UiLanguage = readInitialLanguage();
 const listeners = new Set<() => void>();
 
-function readStoredLanguage(): UiLanguage {
-  if (typeof window === 'undefined') return 'en';
-  const stored = window.localStorage.getItem(STORAGE_KEY);
-  return stored === 'zh' || stored === 'en' ? stored : 'en';
+function normalizeSupportedLanguage(language: string | undefined): UiLanguage | null {
+  const normalized = language?.trim().toLowerCase();
+  if (normalized === 'zh' || normalized?.startsWith('zh-')) return 'zh';
+  if (normalized === 'en' || normalized?.startsWith('en-')) return 'en';
+  return null;
 }
+
+function readStoredLanguage(): UiLanguage | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return normalizeSupportedLanguage(
+      window.localStorage.getItem(STORAGE_KEY) ?? undefined
+    );
+  } catch {
+    return null;
+  }
+}
+
+function readPreferredLanguages(): readonly string[] {
+  if (typeof navigator === 'undefined') return [];
+  try {
+    return navigator.languages.length
+      ? navigator.languages
+      : navigator.language
+        ? [navigator.language]
+        : [];
+  } catch {
+    return [];
+  }
+}
+
+function readInitialLanguage(): UiLanguage {
+  const stored = readStoredLanguage();
+  if (stored) return stored;
+  for (const preferred of readPreferredLanguages()) {
+    const supported = normalizeSupportedLanguage(preferred);
+    if (supported) return supported;
+  }
+  return 'en';
+}
+
+function syncDocumentLanguage(language: UiLanguage) {
+  if (typeof document !== 'undefined') {
+    document.documentElement.lang = language === 'zh' ? 'zh-CN' : 'en';
+  }
+}
+
+syncDocumentLanguage(currentLanguage);
 
 function subscribe(listener: () => void) {
   listeners.add(listener);
@@ -685,8 +780,13 @@ function getSnapshot() {
 
 export function setUiLanguage(language: UiLanguage) {
   currentLanguage = language;
+  syncDocumentLanguage(language);
   if (typeof window !== 'undefined') {
-    window.localStorage.setItem(STORAGE_KEY, language);
+    try {
+      window.localStorage.setItem(STORAGE_KEY, language);
+    } catch {
+      // Keep the in-memory preference when browser storage is unavailable.
+    }
   }
   listeners.forEach((listener) => listener());
 }

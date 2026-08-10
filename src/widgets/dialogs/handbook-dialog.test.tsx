@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HandbookDialog } from "@/widgets/dialogs/handbook-dialog";
 import { setUiLanguage } from "@/shared/i18n";
 
@@ -38,6 +38,16 @@ describe("HandbookDialog", () => {
     expect(screen.getByText(/Toolbar fill controls bg layers/)).toBeInTheDocument();
     expect(screen.getByText(/Structured copy keeps node data/)).toBeInTheDocument();
     expect(screen.getByText(/Selections and structured nodes expose mode-specific editing actions/)).toBeInTheDocument();
+  });
+
+  it("offers a desktop guided-tour replay action when supplied", () => {
+    const onStartTour = vi.fn();
+    render(
+      <HandbookDialog open trigger={null} onStartTour={onStartTour} />
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Start guided tour" }));
+    expect(onStartTour).toHaveBeenCalledOnce();
   });
 
   it("localizes the shortcut list in Chinese", () => {

@@ -32,6 +32,7 @@ import {
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
 import { InlineRenameInput } from "@/shared/ui/inline-rename-input";
+import { useOnboardingTour } from "@/widgets/onboarding/onboarding-context";
 
 const SessionExpandIcon = HOST_ICONOLOGY.sessionAction.expand;
 const SessionMoreIcon = HOST_ICONOLOGY.sessionAction.more;
@@ -58,6 +59,7 @@ const createOptionMeta = [
 
 export function CanvasBreadcrumb() {
   const { t } = useUiI18n();
+  const { phase: onboardingPhase } = useOnboardingTour();
   const menuContentRef = useRef<HTMLDivElement>(null);
   const {
     canvasSessions,
@@ -81,6 +83,10 @@ export function CanvasBreadcrumb() {
   const [renameTargetId, setRenameTargetId] = useState<string | null>(null);
   const [renameMenuWidth, setRenameMenuWidth] = useState<number | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const keepCreateMenuOpen =
+    onboardingPhase === "canvas-selector" ||
+    onboardingPhase === "create-menu" ||
+    onboardingPhase === "structured-create";
 
   const activeSession =
     canvasSessions.find((session) => session.id === activeCanvasId) ??
@@ -130,7 +136,7 @@ export function CanvasBreadcrumb() {
         modal={false}
         open={menuOpen}
         onOpenChange={(open) => {
-          setMenuOpen(open);
+          setMenuOpen(keepCreateMenuOpen ? true : open);
           if (!open) {
             setActionsOpenId(null);
             setRenameMenuWidth(null);
@@ -139,6 +145,7 @@ export function CanvasBreadcrumb() {
       >
         <DropdownMenuTrigger asChild>
           <Button
+            data-onboarding-target="canvas-selector"
             tone="subtle"
             size="md"
             className={cn(
@@ -268,8 +275,15 @@ export function CanvasBreadcrumb() {
             );
           })}
           <DropdownMenuSeparator />
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger>
+          <DropdownMenuSub
+            open={
+              onboardingPhase === "create-menu" ||
+              onboardingPhase === "structured-create"
+                ? true
+                : undefined
+            }
+          >
+            <DropdownMenuSubTrigger data-onboarding-target="create-menu">
               <SessionCreateIcon />
               {t("session.createNew")}
             </DropdownMenuSubTrigger>
@@ -279,6 +293,9 @@ export function CanvasBreadcrumb() {
                 return (
                   <DropdownMenuItem
                     key={option.mode}
+                    data-onboarding-target={
+                      option.mode === "structured" ? "create-structured" : undefined
+                    }
                     onSelect={() => createSession(option.mode)}
                   >
                     <Icon />

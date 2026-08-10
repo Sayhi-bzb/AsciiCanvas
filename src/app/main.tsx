@@ -2,10 +2,14 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import "@ascii-canvas/fonts/fonts.css";
 import "./index.css";
-import App from "./App";
+import { captureOnboardingEntryState } from "@/widgets/onboarding/onboarding-model";
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
+captureOnboardingEntryState();
+
+void import("./App").then(({ default: App }) => {
+  ReactDOM.createRoot(document.getElementById("root")!).render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>
+  );
+});

@@ -7,6 +7,7 @@ import { cn } from '@/shared/lib/utils';
 import { uiClass } from '@/shared/styles/components';
 import { Button } from '@/shared/ui/button';
 import { useSidebar } from '@/shared/ui/sidebar';
+import { useOnboardingTour } from '@/widgets/onboarding/onboarding-context';
 
 const HelpIcon = HOST_ICONOLOGY.viewportAction.help;
 const SecurityIcon = HOST_ICONOLOGY.viewportAction.security;
@@ -24,12 +25,18 @@ const HandbookDialog = lazy(() =>
 export function HelpControl() {
   const { isMobile, openMobile } = useSidebar();
   const { t } = useUiI18n();
+  const { canStart: canStartTour, requestStart: requestTourStart } =
+    useOnboardingTour();
   const [securityOpen, setSecurityOpen] = useState(false);
   const [handbookOpen, setHandbookOpen] = useState(false);
   const securityTriggerRef = useRef<HTMLButtonElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const label = t('manual.title');
   const securityLabel = t('security.title');
+  const startTour = () => {
+    setHandbookOpen(false);
+    window.setTimeout(requestTourStart, 0);
+  };
 
   return (
     <>
@@ -94,6 +101,7 @@ export function HelpControl() {
               if (!open) setTimeout(() => triggerRef.current?.focus(), 0);
             }}
             trigger={null}
+            onStartTour={canStartTour ? startTour : undefined}
           />
         )}
       </Suspense>

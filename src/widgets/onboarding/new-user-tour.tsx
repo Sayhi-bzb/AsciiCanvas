@@ -1,0 +1,438 @@
+"use client";
+
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import type { DriveStep, Driver } from "driver.js";
+import { useEditorStore } from "@/domains/canvas/public";
+import { useIsMobile } from "@/shared/hooks/use-mobile";
+import { useUiI18n } from "@/shared/i18n";
+import { feedback } from "@/shared/services/effects";
+
+import {
+  OnboardingTourContext,
+  type OnboardingPhase,
+  type OnboardingTourContextValue,
+} from "./onboarding-context";
+import {
+  ONBOARDING_STORAGE_KEY,
+  hadEditorPersistenceOnEntry,
+  shouldAutoStartOnboarding,
+} from "./onboarding-model";
+
+type OnboardingStatus = "completed" | "dismissed";
+type Translate = ReturnType<typeof useUiI18n>["t"];
+
+const readStorage = (key: string) => {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+};
+
+const writeStatus = (status: OnboardingStatus) => {
+  try {
+    window.localStorage.setItem(ONBOARDING_STORAGE_KEY, status);
+  } catch {
+    // The tour still works when storage is unavailable; it may be offered again.
+  }
+};
+
+const waitForElement = (selector: string, timeout = 5000) =>
+  new Promise<Element>((resolve, reject) => {
+    const existing = document.querySelector(selector);
+    if (existing) {
+      resolve(existing);
+      return;
+    }
+
+    const observer = new MutationObserver(() => {
+      const element = document.querySelector(selector);
+      if (!element) return;
+      window.clearTimeout(timeoutId);
+      observer.disconnect();
+      resolve(element);
+    });
+    const timeoutId = window.setTimeout(() => {
+      observer.disconnect();
+      reject(new Error(`Missing onboarding target: ${selector}`));
+    }, timeout);
+
+    observer.observe(document.body, { childList: true, subtree: true });
+  });
+
+type TourActions = {
+  setPhase: (phase: OnboardingPhase) => void;
+  moveNext: () => void;
+  finish: () => void;
+  captureSessionBaseline: () => void;
+  captureComponentBaseline: () => void;
+};
+
+function buildTourSteps(t: Translate, actions: TourActions): DriveStep[] {
+  const actionStep = (
+    element: string,
+    phase: OnboardingPhase,
+    title: string,
+    description: string,
+    options: Partial<DriveStep> = {}
+  ): DriveStep => ({
+    element,
+    waitForElement: 5000,
+    advanceOnClick: true,
+    onHighlighted: () => actions.setPhase(phase),
+    popover: {
+      title,
+      description,
+      side: "bottom",
+      align: "start",
+      showButtons: ["close"],
+    },
+    ...options,
+  });
+
+  return [
+    {
+      element: '[data-onboarding-target="canvas"]',
+      waitForElement: 5000,
+      onHighlighted: () => actions.setPhase("welcome"),
+      popover: {
+        title: t("onboarding.welcome.title"),
+        description: t("onboarding.welcome.description"),
+        side: "top",
+        align: "center",
+        showButtons: ["next", "close"],
+        onNextClick: actions.moveNext,
+      },
+    },
+    actionStep(
+      '[data-onboarding-target="app-menu"]',
+      "app-menu",
+      t("onboarding.appMenu.title"),
+      t("onboarding.appMenu.description")
+    ),
+    actionStep(
+      '[data-onboarding-target="language-menu"]',
+      "language-menu",
+      t("onboarding.languageMenu.title"),
+      t("onboarding.languageMenu.description"),
+      { popover: {
+        title: t("onboarding.languageMenu.title"),
+        description: t("onboarding.languageMenu.description"),
+        side: "right",
+        align: "start",
+        showButtons: ["close"],
+      } }
+    ),
+    {
+      element: '[data-onboarding-target="language-options"]',
+      waitForElement: 5000,
+      onHighlighted: () => actions.setPhase("language-choice"),
+      popover: {
+        title: t("onboarding.languageChoice.title"),
+        description: t("onboarding.languageChoice.description"),
+        side: "right",
+        align: "start",
+        showButtons: ["close"],
+      },
+    },
+    actionStep(
+      '[data-onboarding-target="canvas-selector"]',
+      "canvas-selector",
+      t("onboarding.canvasSelector.title"),
+      t("onboarding.canvasSelector.description")
+    ),
+    actionStep(
+      '[data-onboarding-target="create-menu"]',
+      "create-menu",
+      t("onboarding.createMenu.title"),
+      t("onboarding.createMenu.description"),
+      { popover: {
+        title: t("onboarding.createMenu.title"),
+        description: t("onboarding.createMenu.description"),
+        side: "right",
+        align: "start",
+        showButtons: ["close"],
+      } }
+    ),
+    actionStep(
+      '[data-onboarding-target="create-structured"]',
+      "structured-create",
+      t("onboarding.structured.title"),
+      t("onboarding.structured.description"),
+      {
+        onHighlighted: () => {
+          actions.captureSessionBaseline();
+          actions.setPhase("structured-create");
+        },
+        popover: {
+          title: t("onboarding.structured.title"),
+          description: t("onboarding.structured.description"),
+          side: "right",
+          align: "start",
+          showButtons: ["close"],
+        },
+      }
+    ),
+    {
+      element: '[data-onboarding-template-id="button"]',
+      waitForElement: 5000,
+      onHighlighted: () => actions.setPhase("template"),
+      popover: {
+        title: t("onboarding.template.title"),
+        description: t("onboarding.template.description"),
+        side: "left",
+        align: "center",
+        showButtons: ["next", "close"],
+        onNextClick: actions.moveNext,
+      },
+    },
+    {
+      element: '[data-onboarding-template-id="button"]',
+      waitForElement: 5000,
+      onHighlighted: () => {
+        actions.captureComponentBaseline();
+        actions.setPhase("drag");
+      },
+      popover: {
+        title: t("onboarding.drag.title"),
+        description: t("onboarding.drag.description"),
+        side: "left",
+        align: "center",
+        showButtons: ["next", "close"],
+        nextBtnText: t("onboarding.skip"),
+        onNextClick: actions.moveNext,
+      },
+    },
+    {
+      onHighlighted: () => actions.setPhase("complete"),
+      popover: {
+        title: t("onboarding.complete.title"),
+        description: t("onboarding.complete.description"),
+        showButtons: ["next", "close"],
+        doneBtnText: t("onboarding.done"),
+        onDoneClick: actions.finish,
+      },
+    },
+  ];
+}
+
+export function OnboardingTourProvider({ children }: { children: ReactNode }) {
+  const isMobile = useIsMobile();
+  const { t } = useUiI18n();
+  const canvasMode = useEditorStore((state) => state.canvasMode);
+  const activeCanvasId = useEditorStore((state) => state.activeCanvasId);
+  const structuredComponentCount = useEditorStore(
+    (state) => state.structuredComponents.length
+  );
+  const [phase, setPhase] = useState<OnboardingPhase>("idle");
+  const driverRef = useRef<Driver | null>(null);
+  const loadingRef = useRef(false);
+  const mountedRef = useRef(true);
+  const tRef = useRef(t);
+  const activeCanvasIdRef = useRef(activeCanvasId);
+  const structuredComponentCountRef = useRef(structuredComponentCount);
+  const sessionBaselineRef = useRef<string | null>(null);
+  const componentBaselineRef = useRef(0);
+  const advancingFromDropRef = useRef(false);
+  const autoStartCheckedRef = useRef(false);
+  const initialHasPersistenceRef = useRef(hadEditorPersistenceOnEntry());
+
+  tRef.current = t;
+  activeCanvasIdRef.current = activeCanvasId;
+  structuredComponentCountRef.current = structuredComponentCount;
+
+  const cleanRuntime = useCallback(() => {
+    driverRef.current = null;
+    loadingRef.current = false;
+    advancingFromDropRef.current = false;
+    document.documentElement.removeAttribute("data-onboarding-phase");
+    if (mountedRef.current) setPhase("idle");
+  }, []);
+
+  const endTour = useCallback(
+    (status: OnboardingStatus) => {
+      writeStatus(status);
+      const currentDriver = driverRef.current;
+      if (currentDriver?.isActive()) currentDriver.destroy();
+      else cleanRuntime();
+    },
+    [cleanRuntime]
+  );
+
+  const createSteps = useCallback(
+    (translate: Translate) =>
+      buildTourSteps(translate, {
+        setPhase,
+        moveNext: () => driverRef.current?.moveNext(),
+        finish: () => endTour("completed"),
+        captureSessionBaseline: () => {
+          sessionBaselineRef.current = activeCanvasIdRef.current;
+        },
+        captureComponentBaseline: () => {
+          componentBaselineRef.current = structuredComponentCountRef.current;
+          advancingFromDropRef.current = false;
+        },
+      }),
+    [endTour]
+  );
+
+  const startTour = useCallback(async () => {
+    if (isMobile || loadingRef.current || driverRef.current?.isActive()) return;
+    loadingRef.current = true;
+
+    try {
+      await waitForElement('[data-onboarding-target="canvas"]');
+      const [{ driver }] = await Promise.all([
+        import("driver.js"),
+        import("driver.js/dist/driver.css"),
+      ]);
+      if (!mountedRef.current) return;
+
+      const driverInstance = driver({
+        animate: true,
+        duration: 300,
+        overlayColor: "#000",
+        overlayOpacity: 0.48,
+        stagePadding: 6,
+        stageRadius: 10,
+        popoverClass: "ascii-canvas-onboarding",
+        popoverOffset: 10,
+        showProgress: true,
+        progressText: tRef.current("onboarding.progress"),
+        nextBtnText: tRef.current("onboarding.next"),
+        doneBtnText: tRef.current("onboarding.done"),
+        allowClose: true,
+        allowScroll: false,
+        allowKeyboardControl: false,
+        overlayClickBehavior: () => undefined,
+        onCloseClick: () => endTour("dismissed"),
+        onDestroyed: cleanRuntime,
+      });
+      driverRef.current = driverInstance;
+      driverInstance.setSteps(createSteps(tRef.current));
+      loadingRef.current = false;
+      driverInstance.drive();
+    } catch (error) {
+      console.error("Failed to start onboarding tour", error);
+      cleanRuntime();
+      feedback.error(tRef.current("onboarding.unavailable"));
+    }
+  }, [cleanRuntime, createSteps, endTour, isMobile]);
+
+  const requestStart = useCallback(() => {
+    void startTour();
+  }, [startTour]);
+
+  const notifyLanguageSelected = useCallback(() => {
+    if (phase !== "language-choice") return;
+    window.setTimeout(() => {
+      const currentDriver = driverRef.current;
+      if (!currentDriver?.isActive()) return;
+      currentDriver.setConfig({
+        ...currentDriver.getConfig(),
+        steps: createSteps(tRef.current),
+        progressText: tRef.current("onboarding.progress"),
+        nextBtnText: tRef.current("onboarding.next"),
+        doneBtnText: tRef.current("onboarding.done"),
+      });
+      currentDriver.moveTo(4);
+    }, 0);
+  }, [createSteps, phase]);
+
+  useEffect(() => {
+    if (
+      phase !== "structured-create" ||
+      canvasMode !== "structured" ||
+      activeCanvasId === sessionBaselineRef.current
+    ) {
+      return;
+    }
+    setPhase("preparing-template");
+  }, [activeCanvasId, canvasMode, phase]);
+
+  useEffect(() => {
+    if (
+      phase !== "drag" ||
+      advancingFromDropRef.current ||
+      structuredComponentCount <= componentBaselineRef.current
+    ) {
+      return;
+    }
+    advancingFromDropRef.current = true;
+    driverRef.current?.moveNext();
+  }, [phase, structuredComponentCount]);
+
+  useEffect(() => {
+    if (phase === "idle") {
+      document.documentElement.removeAttribute("data-onboarding-phase");
+    } else {
+      document.documentElement.setAttribute("data-onboarding-phase", phase);
+    }
+  }, [phase]);
+
+  useEffect(() => {
+    if (phase === "idle") return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      event.stopPropagation();
+      endTour("dismissed");
+    };
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => document.removeEventListener("keydown", onKeyDown, true);
+  }, [endTour, phase]);
+
+  useEffect(() => {
+    if (autoStartCheckedRef.current) return;
+    let cancelled = false;
+    const timeoutId = window.setTimeout(() => {
+      if (cancelled || autoStartCheckedRef.current) return;
+      autoStartCheckedRef.current = true;
+      if (
+        shouldAutoStartOnboarding({
+          isMobile,
+          hasEditorPersistence: initialHasPersistenceRef.current,
+          status: readStorage(ONBOARDING_STORAGE_KEY),
+        })
+      ) {
+        void startTour();
+      }
+    }, 250);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
+  }, [isMobile, startTour]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      document.documentElement.removeAttribute("data-onboarding-phase");
+      driverRef.current?.destroy();
+    };
+  }, []);
+
+  const value = useMemo<OnboardingTourContextValue>(
+    () => ({
+      phase,
+      canStart: !isMobile,
+      requestStart,
+      notifyLanguageSelected,
+    }),
+    [isMobile, notifyLanguageSelected, phase, requestStart]
+  );
+
+  return (
+    <OnboardingTourContext.Provider value={value}>
+      {children}
+    </OnboardingTourContext.Provider>
+  );
+}

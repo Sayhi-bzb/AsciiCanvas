@@ -10,6 +10,17 @@ export default defineConfig({
   use: {
     baseURL: 'http://localhost:5173',
     trace: 'on-first-retry',
+    storageState: {
+      cookies: [],
+      origins: [
+        {
+          origin: 'http://localhost:5173',
+          localStorage: [
+            { name: 'ascii-canvas-onboarding-v1', value: 'dismissed' },
+          ],
+        },
+      ],
+    },
   },
   projects: [
     {

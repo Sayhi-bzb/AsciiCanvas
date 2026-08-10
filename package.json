@@ -43,6 +43,7 @@
     "ahooks": "^3.9.6",
     "bresenham": "^0.0.4",
     "clsx": "^2.1.1",
+    "driver.js": "^1.8.0",
     "immer": "^11.0.1",
     "knip": "^5.73.4",
     "lucide-react": "^0.561.0",
