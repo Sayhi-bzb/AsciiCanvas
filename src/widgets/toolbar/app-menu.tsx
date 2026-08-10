@@ -27,6 +27,7 @@ import { uiClass } from "@/shared/styles/components";
 import { useCanvasImport } from "@/widgets/import/useCanvasImport";
 import { useAppMenuExport } from "@/widgets/export/use-app-menu-export";
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
+import { useOnboardingTour } from "@/widgets/onboarding/onboarding-context";
 
 const AppMenuTriggerIcon = HOST_ICONOLOGY.appMenu.trigger;
 const ImportIcon = HOST_ICONOLOGY.appMenu.import;
@@ -57,6 +58,8 @@ export function AppMenu() {
     }))
   );
   const { language, setLanguage, t } = useUiI18n();
+  const { phase: onboardingPhase, notifyLanguageSelected } =
+    useOnboardingTour();
   const {
     fileInputRef,
     handleFileChange,
@@ -65,6 +68,16 @@ export function AppMenu() {
   } = useCanvasImport();
   const [clearOpen, setClearOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const keepLanguageMenuOpen =
+    onboardingPhase === "app-menu" ||
+    onboardingPhase === "language-menu" ||
+    onboardingPhase === "language-choice";
+  const selectLanguage = (value: "en" | "zh") => {
+    setLanguage(value);
+    if (onboardingPhase !== "language-choice") return;
+    setMenuOpen(false);
+    notifyLanguageSelected();
+  };
   const clearLabel = t("sidebar.clear.canvas");
   const clearDescription = t("sidebar.clear.canvasDescription");
   const exportLabel = t("appMenu.export");
@@ -117,10 +130,13 @@ export function AppMenu() {
             <DropdownMenu
               modal={false}
               open={menuOpen}
-              onOpenChange={setMenuOpen}
+              onOpenChange={(open) =>
+                setMenuOpen(keepLanguageMenuOpen ? true : open)
+              }
             >
               <DropdownMenuTrigger asChild>
                 <Button
+                  data-onboarding-target="app-menu"
                   tone="subtle"
                   shape="square"
                   size="md"
@@ -207,27 +223,40 @@ export function AppMenu() {
                   <ClearIcon />
                   {t("appMenu.clear")}
                 </DropdownMenuItem>
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger>
+                <DropdownMenuSub
+                  open={
+                    onboardingPhase === "language-menu" ||
+                    onboardingPhase === "language-choice"
+                      ? true
+                      : undefined
+                  }
+                >
+                  <DropdownMenuSubTrigger data-onboarding-target="language-menu">
                     <LanguageIcon />
                     {t("appMenu.language")}
                   </DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent aria-label={t("appMenu.language")}>
-                    <DropdownMenuRadioGroup
-                      value={language}
-                      onValueChange={(value) =>
-                        setLanguage(value as "en" | "zh")
-                      }
-                    >
+                  <DropdownMenuSubContent
+                    data-onboarding-target="language-options"
+                    aria-label={t("appMenu.language")}
+                  >
+                    <DropdownMenuRadioGroup value={language}>
                       <DropdownMenuRadioItem
+                        data-onboarding-language="en"
                         value="en"
-                        onSelect={(event) => event.preventDefault()}
+                        onSelect={(event) => {
+                          event.preventDefault();
+                          selectLanguage("en");
+                        }}
                       >
                         {t("appMenu.english")}
                       </DropdownMenuRadioItem>
                       <DropdownMenuRadioItem
+                        data-onboarding-language="zh"
                         value="zh"
-                        onSelect={(event) => event.preventDefault()}
+                        onSelect={(event) => {
+                          event.preventDefault();
+                          selectLanguage("zh");
+                        }}
                       >
                         {t("appMenu.chinese")}
                       </DropdownMenuRadioItem>

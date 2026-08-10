@@ -29,6 +29,7 @@ import { useUiI18n } from "@/shared/i18n";
 import { uiClass } from "@/shared/styles/components";
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
 import { isStaticGridMode } from "@/domains/sessions/public";
+import { useOnboardingTour } from "@/widgets/onboarding/onboarding-context";
 
 type StructuredSidebarTab = "template" | "components";
 type SlideSidebarView = "slides" | CharacterViewId;
@@ -135,6 +136,7 @@ export function SidebarRight() {
   const { state, isMobile, setOpen } = useSidebar();
   const isCollapsed = state === "collapsed" && !isMobile;
   const { t } = useUiI18n();
+  const { phase: onboardingPhase } = useOnboardingTour();
   const [structuredSidebarTab, setStructuredSidebarTab] =
     useState<StructuredSidebarTab>("components");
   const [structuredLibraryQuery, setStructuredLibraryQuery] = useState("");
@@ -170,6 +172,16 @@ export function SidebarRight() {
     if (!isStaticGridMode(canvasMode)) return;
     void loadMainPacks();
   }, [canvasMode, loadMainPacks]);
+
+  useEffect(() => {
+    if (onboardingPhase !== "preparing-template") return;
+    const timeoutId = window.setTimeout(() => {
+      setStructuredSidebarTab("components");
+      setStructuredLibraryQuery("");
+      setOpen(true);
+    }, 0);
+    return () => window.clearTimeout(timeoutId);
+  }, [onboardingPhase, setOpen]);
 
   const stopCanvasUiEvent = (event: { stopPropagation: () => void }) => {
     event.stopPropagation();
@@ -315,7 +327,7 @@ export function SidebarRight() {
           }}
           placeholder={t("sidebar.search.placeholder")}
           className={cn(
-            uiClass.quietInput,
+            uiClass.searchInput,
             "h-8 w-full px-2 pr-9 [&::-webkit-search-cancel-button]:hidden"
           )}
         />

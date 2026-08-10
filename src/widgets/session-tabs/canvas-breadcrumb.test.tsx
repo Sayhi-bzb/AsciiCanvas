@@ -91,6 +91,22 @@ describe("CanvasBreadcrumb", () => {
     expect(screen.queryByRole("menu", { name: "Select canvas" })).not.toBeInTheDocument();
   });
 
+  it("exposes stable onboarding targets for creating a Structured Canvas", async () => {
+    render(<CanvasBreadcrumb />);
+
+    const trigger = screen.getByRole("button", { name: "Select canvas" });
+    expect(trigger).toHaveAttribute("data-onboarding-target", "canvas-selector");
+
+    openMenu();
+    const create = screen.getByRole("menuitem", { name: "Create" });
+    expect(create).toHaveAttribute("data-onboarding-target", "create-menu");
+    await openSubmenu("Create");
+    expect(screen.getByRole("menuitem", { name: "New Structured" })).toHaveAttribute(
+      "data-onboarding-target",
+      "create-structured"
+    );
+  });
+
   it("renames inline and closes a canvas through its row action submenu", async () => {
     setTwoSessions();
     render(<CanvasBreadcrumb />);

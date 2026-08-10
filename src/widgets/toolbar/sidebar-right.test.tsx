@@ -89,7 +89,7 @@ describe("SidebarRight structured templates", () => {
       "shadow-host"
     );
     expect(header).toContainElement(search);
-    expect(search).toHaveClass("border-0", "bg-transparent");
+    expect(search).toHaveClass("border-0", "bg-search-surface");
     expect(content).not.toContainElement(search);
     expect(content).toHaveClass("min-h-0", "overflow-hidden");
     expect(content).not.toHaveClass("overflow-y-auto");
@@ -151,7 +151,7 @@ describe("SidebarRight structured templates", () => {
     expect(
       screen.queryByTestId("structured-sidebar-active-tab-line")
     ).not.toBeInTheDocument();
-    expect(button).toBeInTheDocument();
+    expect(button).toHaveAttribute("data-onboarding-template-id", "button");
     const templateItems = Array.from(
       group?.querySelectorAll('button[draggable="true"]') ?? []
     );
@@ -532,7 +532,7 @@ describe("SidebarRight structured templates", () => {
       name: "Search structured library",
     });
     expect(search).toHaveClass(
-      "bg-transparent",
+      "bg-search-surface",
       "border-0",
       "shadow-none",
       "focus-visible:ring-1"
@@ -699,7 +699,7 @@ describe("SidebarRight structured templates", () => {
     const search = screen.getByRole("searchbox", { name: "搜索字符" });
     expect(search).toHaveAttribute("placeholder", "搜索当前视图");
     expect(search).toHaveClass(
-      "bg-transparent",
+      "bg-search-surface",
       "border-0",
       "shadow-none",
       "focus-visible:ring-1"

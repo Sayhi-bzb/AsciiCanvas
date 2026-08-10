@@ -83,7 +83,7 @@ export function SearchForm({
             : t("character.search.currentPlaceholder")
         }
         className={cn(
-          uiClass.quietInput,
+          uiClass.searchInput,
           "h-8 w-full pl-8 [&::-webkit-search-cancel-button]:hidden",
           isUnicode ? "pr-16" : "pr-10"
         )}

@@ -31,6 +31,7 @@ import {
 import { useActiveCollaboration } from "./useActiveCollaboration";
 import { CollaborationControl } from "@/widgets/collaboration/CollaborationControl";
 import { RemotePresenceOverlay } from "@/widgets/collaboration/RemotePresenceOverlay";
+import { OnboardingTourProvider } from "@/widgets/onboarding/new-user-tour";
 
 const SidebarRight = lazy(() =>
   import("@/widgets/toolbar/sidebar-right").then((module) => ({
@@ -182,7 +183,10 @@ function AppContent() {
 
   return (
     <SidebarProvider className="flex h-full w-full overflow-hidden">
-      <SidebarInset className="relative flex flex-1 flex-col overflow-hidden">
+      <SidebarInset
+        data-onboarding-target="workspace"
+        className="relative flex flex-1 flex-col overflow-hidden"
+      >
         <div
           data-canvas-ui="true"
           data-testid="app-top-bar"
@@ -241,7 +245,9 @@ export default function App() {
   return (
     <ShortcutProvider>
       <TooltipProvider>
-        <AppContent />
+        <OnboardingTourProvider>
+          <AppContent />
+        </OnboardingTourProvider>
       </TooltipProvider>
     </ShortcutProvider>
   );

@@ -84,6 +84,7 @@ export function StructuredTemplateLibrary({
           {sortedTemplates.map((template) => (
             <div key={template.id}>
               <button
+                data-onboarding-template-id={template.id}
                 type="button"
                 draggable
                 onDragStart={handleTemplateDragStart(template)}
