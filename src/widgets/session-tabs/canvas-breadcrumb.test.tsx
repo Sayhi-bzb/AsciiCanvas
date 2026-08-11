@@ -138,7 +138,7 @@ describe("CanvasBreadcrumb", () => {
     fireEvent.click(screen.getByRole("button", { name: "Create slides" }));
 
     await waitFor(() =>
-      expect(useEditorStore.getState().slideDeck?.size).toEqual({ columns: 120, rows: 32 })
+      expect(useEditorStore.getState().slideDeck?.slides[0].size).toEqual({ columns: 120, rows: 32 })
     );
     expect(useEditorStore.getState().canvasMode).toBe("slide");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();

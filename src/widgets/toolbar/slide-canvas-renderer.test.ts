@@ -46,6 +46,7 @@ describe("drawSlideCanvas", () => {
     const slide: Slide = {
       id: "slide-1",
       name: "Complete slide",
+      size: { columns: 100, rows: 27 },
       grid: [
         [
           "0,0",
@@ -105,7 +106,12 @@ describe("drawSlideCanvas", () => {
     expect(
       drawSlideCanvas({
         canvas,
-        slide: { id: "slide-1", name: "Empty", grid: [] },
+        slide: {
+          id: "slide-1",
+          name: "Empty",
+          size: { columns: 80, rows: 24 },
+          grid: [],
+        },
         size: { columns: 80, rows: 24 },
         viewportWidth: 0,
         viewportHeight: 100,

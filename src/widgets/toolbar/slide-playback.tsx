@@ -85,7 +85,7 @@ export function SlidePlaybackOverlay({
       drawSlideCanvas({
         canvas,
         slide,
-        size: deck.size,
+        size: slide.size,
         viewportWidth: host.clientWidth,
         viewportHeight: host.clientHeight,
       });

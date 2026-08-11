@@ -47,6 +47,7 @@ import {
   Play,
   Scissors,
   SendToBack,
+  Settings2,
   ShieldCheck,
   Smile,
   Square,
@@ -206,7 +207,8 @@ export const HOST_ICONOLOGY = {
     previous: ChevronLeft,
     next: ChevronRight,
     close: X,
-  } satisfies IconMap<'play' | 'previous' | 'next' | 'close'>,
+    configure: Settings2,
+  } satisfies IconMap<'play' | 'previous' | 'next' | 'close' | 'configure'>,
   sessionAction: {
     expand: ChevronDown,
     more: MoreHorizontal,

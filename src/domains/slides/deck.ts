@@ -19,6 +19,7 @@ type AddSlideInput = {
   id: string;
   name?: string;
   grid?: ReadonlyArray<readonly [string, GridCell]>;
+  size?: SlideSize;
   afterSlideId?: string;
 };
 
@@ -76,10 +77,10 @@ export const createSlideDeck = ({
   const initialSlide: Slide = {
     id: initialSlideId,
     name: resolveName(initialSlideName, "Slide 1"),
+    size: normalizedSize,
     grid: normalizeSlideGridEntries(initialGrid, normalizedSize),
   };
   return {
-    size: normalizedSize,
     slides: [initialSlide],
     activeSlideId: initialSlide.id,
   };
@@ -90,11 +91,14 @@ export const addSlide = (deck: SlideDeck, input: AddSlideInput): SlideDeck => {
   const afterSlideId = input.afterSlideId ?? deck.activeSlideId;
   const afterIndex = deck.slides.findIndex((slide) => slide.id === afterSlideId);
   if (afterIndex < 0) return deck;
+  const size = input.size ?? deck.slides[afterIndex].size;
+  if (!isValidSlideSize(size)) return deck;
 
   const slide: Slide = {
     id: input.id,
     name: resolveName(input.name, resolveNextSlideName(deck.slides)),
-    grid: normalizeSlideGridEntries(input.grid ?? [], deck.size),
+    size: { ...size },
+    grid: normalizeSlideGridEntries(input.grid ?? [], size),
   };
   const slides = [...deck.slides];
   slides.splice(afterIndex + 1, 0, slide);
@@ -111,6 +115,7 @@ export const duplicateSlide = (
     id: input.id,
     name: input.name,
     grid: source.grid,
+    size: source.size,
     afterSlideId: source.id,
   });
 };
@@ -168,12 +173,49 @@ export const updateSlideGrid = (
   slideId: string,
   grid: ReadonlyArray<readonly [string, GridCell]>
 ): SlideDeck => {
-  if (!hasSlide(deck, slideId)) return deck;
+  const target = deck.slides.find((slide) => slide.id === slideId);
+  if (!target) return deck;
   return {
     ...deck,
     slides: deck.slides.map((slide) =>
       slide.id === slideId
-        ? { ...slide, grid: normalizeSlideGridEntries(grid, deck.size) }
+        ? { ...slide, grid: normalizeSlideGridEntries(grid, target.size) }
+        : slide
+    ),
+  };
+};
+
+export const getSlideResizeCropCount = (
+  slide: Slide,
+  size: SlideSize
+) => {
+  if (!isValidSlideSize(size)) return 0;
+  return slide.grid.length - normalizeSlideGridEntries(slide.grid, size).length;
+};
+
+export const resizeSlide = (
+  deck: SlideDeck,
+  slideId: string,
+  size: SlideSize
+): SlideDeck => {
+  if (!isValidSlideSize(size)) return deck;
+  const target = deck.slides.find((slide) => slide.id === slideId);
+  if (!target) return deck;
+  if (
+    target.size.columns === size.columns &&
+    target.size.rows === size.rows
+  ) {
+    return deck;
+  }
+  return {
+    ...deck,
+    slides: deck.slides.map((slide) =>
+      slide.id === slideId
+        ? {
+            ...slide,
+            size: { ...size },
+            grid: normalizeSlideGridEntries(slide.grid, size),
+          }
         : slide
     ),
   };

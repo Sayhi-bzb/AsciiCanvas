@@ -71,7 +71,11 @@ export const useInteractionControllers = ({
         getViewport: () => ({ offset, zoom }),
         getGrid: () => grid,
         getGridBounds: () =>
-          canvasMode === "slide" && slideDeck ? slideDeck.size : null,
+          canvasMode === "slide" && slideDeck
+            ? slideDeck.slides.find(
+                (slide) => slide.id === slideDeck.activeSlideId
+              )?.size ?? null
+            : null,
       }),
     [containerRef, offset, zoom, grid, canvasMode, slideDeck]
   );

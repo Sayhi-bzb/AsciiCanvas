@@ -1,15 +1,13 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import type { Slide, SlideSize } from "@/domains/slides/public";
+import type { Slide } from "@/domains/slides/public";
 import { drawSlideCanvas } from "./slide-canvas-renderer";
 
 export function SlidePreviewCanvas({
   slide,
-  size,
 }: {
   slide: Slide;
-  size: SlideSize;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -22,7 +20,7 @@ export function SlidePreviewCanvas({
       drawSlideCanvas({
         canvas,
         slide,
-        size,
+        size: slide.size,
         viewportWidth: width,
         viewportHeight: height,
         padding: 0,
@@ -40,7 +38,7 @@ export function SlidePreviewCanvas({
       observer?.disconnect();
       document.fonts?.removeEventListener("loadingdone", render);
     };
-  }, [size, slide]);
+  }, [slide]);
 
   return (
     <canvas

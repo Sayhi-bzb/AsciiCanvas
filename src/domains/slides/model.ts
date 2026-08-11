@@ -10,11 +10,11 @@ export type SlideGridEntry = [string, GridCell];
 export interface Slide {
   id: string;
   name: string;
+  size: SlideSize;
   grid: SlideGridEntry[];
 }
 
 export interface SlideDeck {
-  size: SlideSize;
   slides: Slide[];
   activeSlideId: string;
 }

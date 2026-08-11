@@ -7,12 +7,15 @@ import {
   addSlide,
   createSlideDeck,
   duplicateSlide,
+  getSlideResizeCropCount,
   isSlideCellInBounds,
   isSlidePointInBounds,
   moveSlide,
+  normalizeSlideDeck,
   normalizeSlideGridEntries,
   removeSlide,
   renameSlide,
+  resizeSlide,
   resolveNextSlideName,
   updateSlideGrid,
 } from "./public";
@@ -24,11 +27,17 @@ describe("slide deck model", () => {
     const deck = createDeck();
 
     expect(deck).toEqual({
-      size: { columns: 100, rows: 27 },
-      slides: [{ id: "slide-1", name: "Slide 1", grid: [] }],
+      slides: [
+        {
+          id: "slide-1",
+          name: "Slide 1",
+          size: { columns: 100, rows: 27 },
+          grid: [],
+        },
+      ],
       activeSlideId: "slide-1",
     });
-    expect(deck.size).not.toBe(DEFAULT_SLIDE_SIZE);
+    expect(deck.slides[0].size).not.toBe(DEFAULT_SLIDE_SIZE);
     expect(SLIDE_SIZE_PRESETS.classic).toEqual({ columns: 80, rows: 24 });
   });
 
@@ -64,6 +73,7 @@ describe("slide deck model", () => {
       "slide-2",
     ]);
     expect(third.slides[1].name).toBe("Closing");
+    expect(third.slides[1].size).toEqual(first.slides[0].size);
     expect(third.activeSlideId).toBe("slide-3");
     expect(resolveNextSlideName(third.slides)).toBe("Slide 3");
   });
@@ -99,6 +109,53 @@ describe("slide deck model", () => {
       duplicated.slides[0].grid[0][1]
     );
     expect(duplicated.slides[1].grid[0][1].attrs).not.toBe(attrs);
+    expect(duplicated.slides[1].size).toEqual(source.slides[0].size);
+    expect(duplicated.slides[1].size).not.toBe(source.slides[0].size);
+  });
+
+  it("resizes only the target slide and reports cropped cells", () => {
+    const first = createSlideDeck({
+      initialSlideId: "slide-1",
+      size: { columns: 4, rows: 2 },
+      initialGrid: [
+        ["0,0", { char: "A", color: "#000" }],
+        ["3,1", { char: "B", color: "#000" }],
+      ],
+    });
+    const deck = addSlide(first, {
+      id: "slide-2",
+      size: { columns: 8, rows: 4 },
+    });
+
+    expect(
+      getSlideResizeCropCount(deck.slides[0], { columns: 3, rows: 2 })
+    ).toBe(1);
+    const resized = resizeSlide(deck, "slide-1", { columns: 3, rows: 2 });
+    expect(resized.slides[0]).toMatchObject({
+      size: { columns: 3, rows: 2 },
+      grid: [["0,0", { char: "A", color: "#000" }]],
+    });
+    expect(resized.slides[1].size).toEqual({ columns: 8, rows: 4 });
+  });
+
+  it("migrates a legacy deck size onto every slide", () => {
+    const normalized = normalizeSlideDeck(
+      {
+        size: { columns: 7, rows: 3 },
+        activeSlideId: "slide-2",
+        slides: [
+          { id: "slide-1", name: "First", grid: [] },
+          { id: "slide-2", name: "Second", grid: [] },
+        ],
+      },
+      "fallback"
+    );
+
+    expect(normalized.slides.map((slide) => slide.size)).toEqual([
+      { columns: 7, rows: 3 },
+      { columns: 7, rows: 3 },
+    ]);
+    expect(normalized).not.toHaveProperty("size");
   });
 
   it("keeps at least one slide and chooses the prior active neighbor", () => {

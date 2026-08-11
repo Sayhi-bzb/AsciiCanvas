@@ -73,15 +73,25 @@ export const AsciiCanvas = ({
     setStructuredContextPoint,
   } = editorStore;
   const renderedViewportRef = useRef<CanvasViewport | null>(null);
-  const fittedSlideSessionsRef = useRef(new Set<string>());
+  const lastSlideViewRef = useRef<{
+    sessionId: string;
+    pageKey: string;
+  } | null>(null);
   const activeCanvasId = useEditorStore((state) => state.activeCanvasId);
 
   useEffect(() => {
     const slideDeck = rendererStore.slideDeck;
     if (canvasMode !== "slide" || !slideDeck || !size || !activeCanvasId) return;
-    if (editorStore.activeCanvasHasSavedViewport || fittedSlideSessionsRef.current.has(activeCanvasId)) {
-      return;
-    }
+    const activeSlide = slideDeck.slides.find(
+      (slide) => slide.id === slideDeck.activeSlideId
+    );
+    if (!activeSlide) return;
+    const pageKey = `${activeSlide.id}:${activeSlide.size.columns}x${activeSlide.size.rows}`;
+    const previous = lastSlideViewRef.current;
+    const changedSession = previous?.sessionId !== activeCanvasId;
+    if (!changedSession && previous?.pageKey === pageKey) return;
+    lastSlideViewRef.current = { sessionId: activeCanvasId, pageKey };
+    if (changedSession && editorStore.activeCanvasHasSavedViewport) return;
     const padding = 48;
     const availableWidth = Math.max(1, size.width - padding * 2);
     const availableHeight = Math.max(1, size.height - padding * 2);
@@ -89,16 +99,15 @@ export const AsciiCanvas = ({
       MIN_ZOOM,
       Math.min(
         MAX_ZOOM,
-        availableWidth / (slideDeck.size.columns * CELL_WIDTH),
-        availableHeight / (slideDeck.size.rows * CELL_HEIGHT)
+        availableWidth / (activeSlide.size.columns * CELL_WIDTH),
+        availableHeight / (activeSlide.size.rows * CELL_HEIGHT)
       )
     );
     interactionStore.setZoom(() => nextZoom);
     interactionStore.setOffset(() => ({
-      x: (size.width - slideDeck.size.columns * CELL_WIDTH * nextZoom) / 2,
-      y: (size.height - slideDeck.size.rows * CELL_HEIGHT * nextZoom) / 2,
+      x: (size.width - activeSlide.size.columns * CELL_WIDTH * nextZoom) / 2,
+      y: (size.height - activeSlide.size.rows * CELL_HEIGHT * nextZoom) / 2,
     }));
-    fittedSlideSessionsRef.current.add(activeCanvasId);
   }, [
     activeCanvasId,
     canvasMode,

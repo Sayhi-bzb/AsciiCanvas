@@ -188,15 +188,18 @@ export const useCanvasRenderer = (
         offset.y,
         zoom
       );
+      const activeSlide = slideDeck?.slides.find(
+        (slide) => slide.id === slideDeck.activeSlideId
+      );
       const slidePageRect =
-        canvasMode === "slide" && slideDeck
+        canvasMode === "slide" && activeSlide
           ? (() => {
               const origin = gridCellRect({ x: 0, y: 0 }, { offset, zoom });
               return {
                 x: origin.x,
                 y: origin.y,
-                width: origin.width * slideDeck.size.columns,
-                height: origin.height * slideDeck.size.rows,
+                width: origin.width * activeSlide.size.columns,
+                height: origin.height * activeSlide.size.rows,
               };
             })()
           : null;

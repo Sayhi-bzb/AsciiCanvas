@@ -74,7 +74,12 @@ describe("editor persistence v4", () => {
         mode: "slide",
         slideDeck: {
           activeSlideId: "slide-1",
-          slides: [{ grid: [["0,0", { char: "A", color: "#fff" }]] }],
+          slides: [
+            {
+              size: { columns: 2, rows: 1 },
+              grid: [["0,0", { char: "A", color: "#fff" }]],
+            },
+          ],
         },
       }],
     });

@@ -59,11 +59,15 @@ describe("ZoomControl slide playback", () => {
     useEditorStore.setState({
       canvasMode: "slide",
       slideDeck: {
-        size: { columns: 3, rows: 2 },
         activeSlideId: "slide-2",
         slides: [
-          { id: "slide-1", name: "First", grid: [] },
-          { id: "slide-2", name: "Second", grid: [] },
+          {
+            id: "slide-1",
+            name: "First",
+            size: { columns: 3, rows: 2 },
+            grid: [["2,1", { char: "A", color: "#000" }]],
+          },
+          { id: "slide-2", name: "Second", size: { columns: 3, rows: 2 }, grid: [] },
         ],
       },
     });
@@ -192,6 +196,72 @@ describe("ZoomControl slide playback", () => {
         name: "Reorder Intro, position 2 of 2",
       })
     ).toBeInTheDocument();
+  });
+
+  it("configures only the selected slide and confirms destructive cropping", async () => {
+    render(<SlideNavigator />);
+
+    const configureFirst = screen.getAllByRole("button", {
+      name: "Configure slide size",
+    })[0];
+    fireEvent.click(configureFirst);
+    expect(useEditorStore.getState().slideDeck?.activeSlideId).toBe("slide-2");
+    expect(
+      await screen.findByRole("heading", { name: "Slide size" })
+    ).toBeInTheDocument();
+    const columns = screen.getByRole("spinbutton", { name: "Columns" });
+    const rows = screen.getByRole("spinbutton", { name: "Rows" });
+    expect(columns).toHaveValue(3);
+    expect(rows).toHaveValue(2);
+
+    fireEvent.change(columns, { target: { value: "4" } });
+    fireEvent.change(rows, { target: { value: "3" } });
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    expect(useEditorStore.getState().slideDeck?.slides[0].size).toEqual({
+      columns: 4,
+      rows: 3,
+    });
+    expect(useEditorStore.getState().slideDeck?.slides[1].size).toEqual({
+      columns: 3,
+      rows: 2,
+    });
+
+    fireEvent.click(configureFirst);
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Columns" }), {
+      target: { value: "2" },
+    });
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Rows" }), {
+      target: { value: "1" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+    expect(
+      await screen.findByRole("heading", { name: "Crop slide content?" })
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Affected cells: 1/)).toBeInTheDocument();
+    expect(useEditorStore.getState().slideDeck?.slides[0].size).toEqual({
+      columns: 4,
+      rows: 3,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(useEditorStore.getState().slideDeck?.slides[0].size).toEqual({
+      columns: 4,
+      rows: 3,
+    });
+    fireEvent.click(configureFirst);
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Columns" }), {
+      target: { value: "2" },
+    });
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Rows" }), {
+      target: { value: "1" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Apply" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Crop and apply" }));
+    expect(useEditorStore.getState().slideDeck?.slides[0]).toMatchObject({
+      size: { columns: 2, rows: 1 },
+      grid: [],
+    });
   });
 
   it("exits owned fullscreen from the presentation close control", async () => {

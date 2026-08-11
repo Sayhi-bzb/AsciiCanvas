@@ -8,7 +8,7 @@ import type { StructuredSplitBoxHandle } from "@/domains/structured-content/publ
 import type { CanvasSession } from "@/domains/sessions/public";
 import type { SessionCommands } from "@/domains/sessions/public";
 import type { CanvasHistoryMode } from "./yjs";
-import type { SlideDeck } from "@/domains/slides/public";
+import type { SlideDeck, SlideSize } from "@/domains/slides/public";
 
 export type CanvasColorPickerTarget = "char" | "bg";
 
@@ -88,6 +88,7 @@ export interface SlideSlice {
   renameSlide: (slideId: string, name: string) => void;
   moveSlide: (slideId: string, targetIndex: number) => void;
   activateSlide: (slideId: string) => void;
+  resizeSlide: (slideId: string, size: SlideSize) => void;
 }
 
 export interface StaticGridSlice {

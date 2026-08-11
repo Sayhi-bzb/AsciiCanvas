@@ -30,6 +30,8 @@ type CustomSlideSizeDialogProps = {
   onOpenChange: (open: boolean) => void;
   onConfirm: (size: SlideSize) => void;
   returnFocusRef: RefObject<HTMLButtonElement | null>;
+  mode?: "create" | "resize";
+  initialSize?: SlideSize;
 };
 
 export function CustomSlideSizeDialog({
@@ -37,10 +39,16 @@ export function CustomSlideSizeDialog({
   onOpenChange,
   onConfirm,
   returnFocusRef,
+  mode = "create",
+  initialSize,
 }: CustomSlideSizeDialogProps) {
   const { t } = useUiI18n();
-  const [columns, setColumns] = useState(DEFAULT_COLUMNS);
-  const [rows, setRows] = useState(DEFAULT_ROWS);
+  const [columns, setColumns] = useState(() =>
+    String(initialSize?.columns ?? DEFAULT_COLUMNS)
+  );
+  const [rows, setRows] = useState(() =>
+    String(initialSize?.rows ?? DEFAULT_ROWS)
+  );
   const parsedColumns = parseDimension(columns);
   const parsedRows = parseDimension(rows);
   const isValid = parsedColumns !== null && parsedRows !== null;
@@ -56,9 +64,19 @@ export function CustomSlideSizeDialog({
         }}
       >
         <DialogHeader>
-          <DialogTitle>{t("session.slideCustom.title")}</DialogTitle>
+          <DialogTitle>
+            {t(
+              mode === "resize"
+                ? "session.slideCustom.resizeTitle"
+                : "session.slideCustom.title"
+            )}
+          </DialogTitle>
           <DialogDescription>
-            {t("session.slideCustom.description")}
+            {t(
+              mode === "resize"
+                ? "session.slideCustom.resizeDescription"
+                : "session.slideCustom.description"
+            )}
           </DialogDescription>
         </DialogHeader>
         <form
@@ -123,7 +141,11 @@ export function CustomSlideSizeDialog({
               {t("dialog.cancel")}
             </Button>
             <Button type="submit" disabled={!isValid}>
-              {t("session.slideCustom.create")}
+              {t(
+                mode === "resize"
+                  ? "session.slideCustom.apply"
+                  : "session.slideCustom.create"
+              )}
             </Button>
           </DialogFooter>
         </form>

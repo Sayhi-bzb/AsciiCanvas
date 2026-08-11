@@ -13,10 +13,10 @@ const resolveFence = (source: string) => {
 };
 
 const renderSlide = (
-  slideDeck: SlideDeck,
-  gridEntries: SlideDeck['slides'][number]['grid'],
+  slide: SlideDeck['slides'][number],
   includeColor: boolean
 ) => {
+  const gridEntries = slide.grid;
   const grid = new Map(gridEntries);
   const lastRow = gridEntries.reduce((max, [key]) => {
     const point = GridManager.fromKey(key);
@@ -28,8 +28,8 @@ const renderSlide = (
       {
         start: { x: 0, y: 0 },
         end: {
-          x: slideDeck.size.columns - 1,
-          y: Math.min(lastRow, slideDeck.size.rows - 1),
+          x: slide.size.columns - 1,
+          y: Math.min(lastRow, slide.size.rows - 1),
         },
       },
     ],
@@ -46,14 +46,14 @@ export const exportSlideDeckToMarkdown = (
   const title = escapeFrontMatterValue(options?.title || 'Slides');
   const header = [
     '---',
-    'asciicanvas: slides/v1',
-    `size: ${slideDeck.size.columns}x${slideDeck.size.rows}`,
+    'asciicanvas: slides/v2',
     `title: ${title}`,
     '---',
   ].join('\n');
   const pages = slideDeck.slides.map((slide) => {
-    const { source, fence } = renderSlide(slideDeck, slide.grid, options?.includeColor !== false);
-    return `## ${escapeFrontMatterValue(slide.name)}\n\n${fence}asciicanvas\n${source}\n${fence}`;
+    const { source, fence } = renderSlide(slide, options?.includeColor !== false);
+    const size = `${slide.size.columns}x${slide.size.rows}`;
+    return `## ${escapeFrontMatterValue(slide.name)}\n\n${fence}asciicanvas size=${size}\n${source}\n${fence}`;
   });
   return `${header}\n\n${pages.join('\n\n')}`;
 };

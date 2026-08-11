@@ -8,13 +8,19 @@ import {
   moveSlide as moveDeckSlide,
   removeSlide as removeDeckSlide,
   renameSlide as renameDeckSlide,
+  resizeSlide as resizeDeckSlide,
+  getSlideResizeCropCount,
   updateSlideGrid,
 } from "@/domains/slides/public";
 import type { EditorState, SlideSlice } from "../interfaces";
 import { createStaticGridState } from "@/domains/selection/public";
 import { createMapFromEntries, serializeGrid } from "../helpers/snapshotHelpers";
 import { getSlideCanvasDocumentId } from "../helpers/storeUtils";
-import { activateCanvasDocument, destroyCanvasDocument } from "../yjs";
+import {
+  activateCanvasDocument,
+  destroyCanvasDocument,
+  resetCanvasDocument,
+} from "../yjs";
 
 const syncActiveGrid = (state: EditorState) => {
   if (!state.slideDeck) return null;
@@ -156,6 +162,34 @@ export const createSlideSlice: StateCreator<
       canvasSessions: replaceDeckSession(state, next),
       grid: createMapFromEntries(active.grid),
       ...resetPageInteraction,
+    });
+  },
+
+  resizeSlide: (slideId, size) => {
+    const state = get();
+    const synced = syncActiveGrid(state);
+    if (state.canvasMode !== "slide" || !synced) return;
+    const source = synced.slides.find((slide) => slide.id === slideId);
+    if (!source) return;
+    const cropCount = getSlideResizeCropCount(source, size);
+    const next = resizeDeckSlide(synced, slideId, size);
+    if (next === synced) return;
+    const active = next.slides.find((slide) => slide.id === next.activeSlideId);
+    const resized = next.slides.find((slide) => slide.id === slideId);
+    if (!active || !resized) return;
+
+    if (cropCount > 0) {
+      resetCanvasDocument(
+        getSlideCanvasDocumentId(state.activeCanvasId, resized.id),
+        { grid: resized.grid, scene: [], components: [] }
+      );
+    }
+
+    set({
+      slideDeck: next,
+      canvasSessions: replaceDeckSession(state, next),
+      grid: createMapFromEntries(active.grid),
+      ...(slideId === next.activeSlideId ? resetPageInteraction : {}),
     });
   },
 });

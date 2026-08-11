@@ -1,9 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useEditorStore } from "@/domains/canvas/public";
-import type { Slide } from "@/domains/slides/public";
+import {
+  getSlideResizeCropCount,
+  type Slide,
+  type SlideSize,
+} from "@/domains/slides/public";
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
 import { useUiI18n } from "@/shared/i18n";
 import { cn } from "@/shared/lib/utils";
@@ -24,10 +28,19 @@ import {
   AlertDialogTitle,
 } from "@/shared/ui/alert-dialog";
 import { SlidePreviewCanvas } from "./slide-preview-canvas";
+import { CustomSlideSizeDialog } from "@/widgets/dialogs/custom-slide-size-dialog";
 
 const AddIcon = HOST_ICONOLOGY.sessionAction.create;
 const DuplicateIcon = HOST_ICONOLOGY.editorAction["structured-duplicate"];
 const DeleteIcon = HOST_ICONOLOGY.sessionAction.close;
+const ConfigureIcon = HOST_ICONOLOGY.slideAction.configure;
+
+type PendingResize = {
+  slideId: string;
+  slideName: string;
+  size: SlideSize;
+  cropCount: number;
+};
 
 export function SlideAddButton() {
   const { t } = useUiI18n();
@@ -43,7 +56,7 @@ export function SlideAddButton() {
 
 export function SlideNavigator() {
   const { t } = useUiI18n();
-  const { slideDeck, duplicateSlide, removeSlide, renameSlide, moveSlide, activateSlide } = useEditorStore(
+  const { slideDeck, duplicateSlide, removeSlide, renameSlide, moveSlide, activateSlide, resizeSlide } = useEditorStore(
     useShallow((state) => ({
       slideDeck: state.slideDeck,
       duplicateSlide: state.duplicateSlide,
@@ -51,11 +64,17 @@ export function SlideNavigator() {
       renameSlide: state.renameSlide,
       moveSlide: state.moveSlide,
       activateSlide: state.activateSlide,
+      resizeSlide: state.resizeSlide,
     }))
   );
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [configureSlideId, setConfigureSlideId] = useState<string | null>(null);
+  const [pendingResize, setPendingResize] = useState<PendingResize | null>(null);
+  const configureTriggerRef = useRef<HTMLButtonElement | null>(null);
   if (!slideDeck) return null;
   const pendingSlide = slideDeck.slides.find((slide) => slide.id === pendingDeleteId) ?? null;
+  const configureSlide =
+    slideDeck.slides.find((slide) => slide.id === configureSlideId) ?? null;
   const getReorderAnnouncement = ({
     type,
     item,
@@ -107,18 +126,15 @@ export function SlideNavigator() {
                 )}
                 style={{
                   aspectRatio:
-                    slideDeck.size.columns * 9 +
+                    slide.size.columns * 9 +
                     " / " +
-                    slideDeck.size.rows * 19,
+                    slide.size.rows * 19,
                 }}
                 aria-label={index + 1 + ". " + slide.name}
                 aria-current={active ? "page" : undefined}
                 onClick={() => activateSlide(slide.id)}
               >
-                <SlidePreviewCanvas
-                  slide={slide}
-                  size={slideDeck.size}
-                />
+                <SlidePreviewCanvas slide={slide} />
               </button>
               <div className="mt-1 flex items-center gap-0.5">
                 <InlineRenameInput
@@ -127,6 +143,18 @@ export function SlideNavigator() {
                   className="flex-1"
                   onCommit={(name) => renameSlide(slide.id, name)}
                 />
+                <button
+                  type="button"
+                  className="inline-flex size-6 items-center justify-center rounded hover:bg-accent"
+                  aria-label={t("slide.configure")}
+                  title={t("slide.configure")}
+                  onClick={(event) => {
+                    configureTriggerRef.current = event.currentTarget;
+                    setConfigureSlideId(slide.id);
+                  }}
+                >
+                  <ConfigureIcon className="size-3.5" />
+                </button>
                 <button
                   type="button"
                   className="inline-flex size-6 items-center justify-center rounded hover:bg-accent"
@@ -151,6 +179,68 @@ export function SlideNavigator() {
           );
         }}
       />
+      {configureSlide ? (
+        <CustomSlideSizeDialog
+          open
+          mode="resize"
+          initialSize={configureSlide.size}
+          onOpenChange={(open) => {
+            if (!open) setConfigureSlideId(null);
+          }}
+          onConfirm={(size) => {
+            const cropCount = getSlideResizeCropCount(configureSlide, size);
+            if (cropCount > 0) {
+              setPendingResize({
+                slideId: configureSlide.id,
+                slideName: configureSlide.name,
+                size,
+                cropCount,
+              });
+              setConfigureSlideId(null);
+              return;
+            }
+            resizeSlide(configureSlide.id, size);
+            setConfigureSlideId(null);
+          }}
+          returnFocusRef={configureTriggerRef}
+        />
+      ) : null}
+      <AlertDialog
+        open={!!pendingResize}
+        onOpenChange={(open) => {
+          if (!open) setPendingResize(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("slide.resizeCrop.title")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingResize
+                ? t("slide.resizeCrop.description", {
+                    name: pendingResize.slideName,
+                    columns: pendingResize.size.columns,
+                    rows: pendingResize.size.rows,
+                    count: pendingResize.cropCount,
+                  })
+                : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("dialog.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (pendingResize) {
+                  resizeSlide(pendingResize.slideId, pendingResize.size);
+                }
+                setPendingResize(null);
+              }}
+            >
+              {t("slide.resizeCrop.confirm")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <AlertDialog open={!!pendingSlide} onOpenChange={(open) => !open && setPendingDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>

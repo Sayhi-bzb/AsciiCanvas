@@ -9,11 +9,20 @@ import {
 } from "./slide-playback-model";
 
 const deck: SlideDeck = {
-  size: { columns: 100, rows: 27 },
   activeSlideId: "slide-2",
   slides: [
-    { id: "slide-1", name: "First", grid: [] },
-    { id: "slide-2", name: "Second", grid: [] },
+    {
+      id: "slide-1",
+      name: "First",
+      size: { columns: 100, rows: 27 },
+      grid: [],
+    },
+    {
+      id: "slide-2",
+      name: "Second",
+      size: { columns: 80, rows: 24 },
+      grid: [],
+    },
   ],
 };
 

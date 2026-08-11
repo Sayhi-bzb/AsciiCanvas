@@ -4,7 +4,8 @@ import { GridManager } from '@/shared/utils/grid';
 import { createSlideDeck, addSlide } from './deck';
 import { DEFAULT_SLIDE_SIZE, type SlideDeck, type SlideSize } from './model';
 
-export const SLIDE_MARKDOWN_SIGNATURE = 'slides/v1';
+export const SLIDE_MARKDOWN_SIGNATURE = 'slides/v2';
+const LEGACY_SLIDE_MARKDOWN_SIGNATURE = 'slides/v1';
 
 export type ParsedSlideMarkdown = {
   title?: string;
@@ -30,7 +31,11 @@ const parseFrontMatter = (source: string) => {
     metadata.set(line.slice(0, separator).trim().toLowerCase(), line.slice(separator + 1).trim());
   });
 
-  if (metadata.get('asciicanvas') !== SLIDE_MARKDOWN_SIGNATURE) {
+  const signature = metadata.get('asciicanvas');
+  if (
+    signature !== LEGACY_SLIDE_MARKDOWN_SIGNATURE &&
+    signature !== SLIDE_MARKDOWN_SIGNATURE
+  ) {
     throw new Error('Unsupported AsciiCanvas Slides Markdown version.');
   }
 
@@ -53,6 +58,7 @@ const parseFrontMatter = (source: string) => {
   const title = metadata.get('title')?.trim();
   return {
     bodyLines: lines.slice(endIndex + 1),
+    signature,
     size,
     ...(title ? { title } : {}),
   };
@@ -94,11 +100,28 @@ const toGridEntries = (source: string, syntax: AsciiCanvasTextSyntax) => {
     );
 };
 
-const parseSlideBlocks = (lines: string[]) => {
+const parseSlideSize = (value: string) => {
+  const match = /^(\d+)x(\d+)$/i.exec(value);
+  if (!match) return null;
+  const size = { columns: Number(match[1]), rows: Number(match[2]) };
+  return Number.isSafeInteger(size.columns) &&
+    Number.isSafeInteger(size.rows) &&
+    size.columns > 0 &&
+    size.rows > 0
+    ? size
+    : null;
+};
+
+const parseSlideBlocks = (
+  lines: string[],
+  signature: string,
+  legacySize: SlideSize
+) => {
   const slides: Array<{
     name: string;
     source: string;
     syntax: AsciiCanvasTextSyntax;
+    size: SlideSize;
   }> = [];
   let heading: string | null = null;
 
@@ -109,7 +132,7 @@ const parseSlideBlocks = (lines: string[]) => {
       continue;
     }
 
-    const fenceMatch = /^(?<fence>`{3,}|~{3,})\s*(?<language>[^\s]*)\s*$/.exec(lines[index]);
+    const fenceMatch = /^(?<fence>`{3,}|~{3,})\s*(?<language>[^\s]*)(?<info>.*)$/.exec(lines[index]);
     if (!fenceMatch?.groups) continue;
     const fence = fenceMatch.groups.fence;
     const language = fenceMatch.groups.language.toLowerCase();
@@ -125,11 +148,23 @@ const parseSlideBlocks = (lines: string[]) => {
     }
     if (!closed) throw new Error('Unclosed slide content fence.');
     if (!['asciicanvas', 'text', 'ansi'].includes(language)) continue;
+    const info = fenceMatch.groups.info.trim();
+    const sizeMatch = /^size=(\S+)$/.exec(info);
+    const size =
+      signature === LEGACY_SLIDE_MARKDOWN_SIGNATURE
+        ? legacySize
+        : sizeMatch
+          ? parseSlideSize(sizeMatch[1])
+          : null;
+    if (!size) {
+      throw new Error('Slides v2 requires size=columnsxrows on every slide block.');
+    }
 
     slides.push({
       name: heading || `Slide ${slides.length + 1}`,
       source: content.join('\n'),
       syntax: toSyntax(language),
+      size,
     });
     heading = null;
   }
@@ -141,13 +176,13 @@ const parseSlideBlocks = (lines: string[]) => {
 };
 
 export const parseSlideMarkdown = (source: string): ParsedSlideMarkdown => {
-  const { bodyLines, size, title } = parseFrontMatter(source);
-  const slides = parseSlideBlocks(bodyLines);
+  const { bodyLines, signature, size, title } = parseFrontMatter(source);
+  const slides = parseSlideBlocks(bodyLines, signature, size);
   let slideDeck = createSlideDeck({
     initialSlideId: 'slide-1',
     initialSlideName: slides[0].name,
     initialGrid: toGridEntries(slides[0].source, slides[0].syntax),
-    size,
+    size: slides[0].size,
   });
 
   slides.slice(1).forEach((slide, index) => {
@@ -155,6 +190,7 @@ export const parseSlideMarkdown = (source: string): ParsedSlideMarkdown => {
       id: `slide-${index + 2}`,
       name: slide.name,
       grid: toGridEntries(slide.source, slide.syntax),
+      size: slide.size,
       afterSlideId: slideDeck.slides.at(-1)?.id,
     });
   });

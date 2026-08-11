@@ -341,9 +341,15 @@ describe("SidebarRight structured templates", () => {
     useEditorStore.setState({
       canvasMode: "slide",
       slideDeck: {
-        size: { columns: 100, rows: 27 },
         activeSlideId: "slide-1",
-        slides: [{ id: "slide-1", name: "Slide 1", grid: [] }],
+        slides: [
+          {
+            id: "slide-1",
+            name: "Slide 1",
+            size: { columns: 100, rows: 27 },
+            grid: [],
+          },
+        ],
       },
     });
 

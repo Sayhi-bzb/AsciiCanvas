@@ -11,6 +11,7 @@ describe("host iconology", () => {
       "previous",
       "next",
       "close",
+      "configure",
     ]);
   });
 });

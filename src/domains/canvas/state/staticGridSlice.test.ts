@@ -107,9 +107,15 @@ describe("staticGridSlice", () => {
     useEditorStore.setState({
       canvasMode: "slide",
       slideDeck: {
-        size: { columns: 3, rows: 2 },
         activeSlideId: "slide-1",
-        slides: [{ id: "slide-1", name: "Slide 1", grid: [] }],
+        slides: [
+          {
+            id: "slide-1",
+            name: "Slide 1",
+            size: { columns: 3, rows: 2 },
+            grid: [],
+          },
+        ],
       },
     });
     useEditorStore.getState().setStaticGridActiveCell({ x: 2, y: 1 });

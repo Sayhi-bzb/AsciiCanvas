@@ -12,6 +12,7 @@ vi.mock("./slide-canvas-renderer", () => ({ drawSlideCanvas }));
 const slide: Slide = {
   id: "slide-1",
   name: "Preview",
+  size: { columns: 100, rows: 27 },
   grid: [],
 };
 
@@ -65,9 +66,7 @@ describe("SlidePreviewCanvas", () => {
   });
 
   it("redraws for content, size, element resize, and font changes", () => {
-    const { rerender, unmount } = render(
-      <SlidePreviewCanvas slide={slide} size={{ columns: 100, rows: 27 }} />
-    );
+    const { rerender, unmount } = render(<SlidePreviewCanvas slide={slide} />);
 
     expect(drawSlideCanvas).toHaveBeenLastCalledWith(
       expect.objectContaining({
@@ -86,14 +85,10 @@ describe("SlidePreviewCanvas", () => {
 
     const updatedSlide = {
       ...slide,
+      size: { columns: 80, rows: 24 },
       grid: [["99,26", { char: "A", color: "#000000" }]] as Slide["grid"],
     };
-    rerender(
-      <SlidePreviewCanvas
-        slide={updatedSlide}
-        size={{ columns: 80, rows: 24 }}
-      />
-    );
+    rerender(<SlidePreviewCanvas slide={updatedSlide} />);
     expect(drawSlideCanvas).toHaveBeenCalledTimes(4);
     expect(disconnect).toHaveBeenCalledTimes(1);
 

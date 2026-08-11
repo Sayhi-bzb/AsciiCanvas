@@ -77,4 +77,58 @@ describe("slideSlice", () => {
     ).toBe("Renamed");
     expect(useEditorStore.getState().slideDeck?.slides[0].id).toBe(activeSlideId);
   });
+
+  it("resizes one slide and clears history only when content is cropped", () => {
+    useEditorStore.getState().createCanvasSession("slide", {
+      slideSize: { columns: 4, rows: 2 },
+    });
+    const firstSlideId = useEditorStore.getState().slideDeck!.activeSlideId;
+    runCanvasTransaction(() => {
+      yMainGrid.set("0,0", { char: "A", color: "#000" });
+      yMainGrid.set("3,1", { char: "B", color: "#000" });
+    });
+
+    useEditorStore.getState().resizeSlide(firstSlideId, {
+      columns: 6,
+      rows: 3,
+    });
+    expect(useEditorStore.getState().canUndo).toBe(true);
+    expect(useEditorStore.getState().slideDeck?.slides[0].size).toEqual({
+      columns: 6,
+      rows: 3,
+    });
+
+    useEditorStore.getState().resizeSlide(firstSlideId, {
+      columns: 3,
+      rows: 2,
+    });
+    expect(useEditorStore.getState().grid.has("3,1")).toBe(false);
+    expect(useEditorStore.getState().grid.get("0,0")?.char).toBe("A");
+    expect(useEditorStore.getState().canUndo).toBe(false);
+  });
+
+  it("crops an inactive slide without changing the active page size", () => {
+    useEditorStore.getState().createCanvasSession("slide", {
+      slideSize: { columns: 4, rows: 2 },
+    });
+    const firstSlideId = useEditorStore.getState().slideDeck!.activeSlideId;
+    runCanvasTransaction(() => {
+      yMainGrid.set("3,1", { char: "A", color: "#000" });
+    });
+    useEditorStore.getState().addSlide();
+    const secondSlideId = useEditorStore.getState().slideDeck!.activeSlideId;
+
+    useEditorStore.getState().resizeSlide(firstSlideId, {
+      columns: 3,
+      rows: 2,
+    });
+    expect(
+      useEditorStore.getState().slideDeck?.slides.find(
+        (slide) => slide.id === secondSlideId
+      )?.size
+    ).toEqual({ columns: 4, rows: 2 });
+
+    useEditorStore.getState().activateSlide(firstSlideId);
+    expect(useEditorStore.getState().grid.has("3,1")).toBe(false);
+  });
 });

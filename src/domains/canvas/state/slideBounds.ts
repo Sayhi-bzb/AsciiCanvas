@@ -4,7 +4,11 @@ import type { Point } from "@/shared/types";
 type SlideBoundState = Pick<EditorState, "canvasMode" | "slideDeck">;
 
 export const getActiveSlideSize = (state: SlideBoundState) =>
-  state.canvasMode === "slide" ? state.slideDeck?.size ?? null : null;
+  state.canvasMode === "slide"
+    ? state.slideDeck?.slides.find(
+        (slide) => slide.id === state.slideDeck?.activeSlideId
+      )?.size ?? null
+    : null;
 
 export const isPointWithinActiveSlide = (state: SlideBoundState, point: Point) => {
   const size = getActiveSlideSize(state);

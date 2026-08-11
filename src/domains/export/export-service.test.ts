@@ -92,12 +92,12 @@ describe("export service", () => {
         canvasMode: "slide",
         grid: new Map(),
         slideDeck: {
-          size: { columns: 6, rows: 3 },
           activeSlideId: "slide-1",
           slides: [
             {
               id: "slide-1",
               name: "Intro",
+              size: { columns: 6, rows: 3 },
               grid: [["2,1", { char: "R", color: "#ff0000" }]],
             },
           ],
@@ -115,6 +115,8 @@ describe("export service", () => {
     });
     expect(result.value.filename).toMatch(/^ascii-slides-\d+\.slides\.md$/);
     expect(result.value.content).not.toContain("\u001b");
+    expect(result.value.content).toContain("asciicanvas: slides/v2");
+    expect(result.value.content).toContain("```asciicanvas size=6x3");
 
     const parsed = parseSlideMarkdown(result.value.content);
     expect(parsed.title).toBe("Agent Deck");
