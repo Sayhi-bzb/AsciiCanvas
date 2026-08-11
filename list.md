@@ -35,8 +35,8 @@
 - [x] 配置 `ascii-canvas.pages.dev` 到主域名的 301 重定向，并保留路径和查询参数。
 - [x] 验证旧域名重定向后路径、查询参数和 `#room=` fragment 均保留。
 - [x] 沿用同一 Pages 项目的 Cloudflare Web Analytics 配置。
-- [ ] GitHub 仓库更名后，在 Cloudflare Git 集成中验证仓库连接和 production branch。
-- [x] 完成 commit `6a3ecd4` 的 preview 和 production 部署；旧部署仍可用于回滚。
+- [x] GitHub 仓库更名后验证 Cloudflare Git 集成：repository ID 保持 `1117435862`，`main` push 自动触发 production 部署。
+- [x] 完成 commit `44977bf` 的 preview 和 production 部署；旧部署仍可用于回滚。
 
 ## 2. 网站、SEO 与品牌资产
 
