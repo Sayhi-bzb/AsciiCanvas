@@ -1,26 +1,26 @@
 [English](./README.md) | [简体中文]
 
-# ASCII Canvas
+# CharDesk
 
-> **一块由文本组成、让人看得直观也让 AI 读得自然的视觉画布。**
+> **面向人与 AI 的 Unicode 画布。**
 
-在可编辑的 Unicode 网格上绘制图表、界面与想法。作品对人仍是视觉内容，对语言模型则是可以直接理解的文本。
+CharDesk（原 ASCII Canvas）是一块用于绘制图表、界面与想法的可编辑 Unicode 网格。作品对人仍是视觉内容，对语言模型则是可以直接理解的文本。
 
 <p align="center">
-  <a href="https://ascii-canvas.pages.dev/">
-    <img src="https://img.shields.io/badge/打开_ASCII_Canvas-22c55e?style=for-the-badge" alt="打开 ASCII Canvas">
+  <a href="https://chardesk.com/">
+    <img src="https://img.shields.io/badge/打开_CharDesk-22c55e?style=for-the-badge" alt="打开 CharDesk">
   </a>
 </p>
 
 <div align="center">
-  <img src="public/demo.gif" alt="在 ASCII Canvas 上绘图" width="100%">
+  <img src="public/demo.gif" alt="在 CharDesk 上绘图" width="100%">
 </div>
 
 ## 人与 AI 共享的视觉语言
 
 人可以一眼理解布局，语言模型则天然处理 token 序列。截图虽然连接了两者，却也带来像素噪声、视觉上下文开销，以及多轮交流中难以精准修改的问题。
 
-ASCII Canvas 直接以文本承载视觉信息。你看到的仍是一张图，但它也可以被复制、搜索、版本管理，并以原生文本交给 AI，而不必先变成一张不透明的图片。
+CharDesk 直接以文本承载视觉信息。你看到的仍是一张图，但它也可以被复制、搜索、版本管理，并以原生文本交给 AI，而不必先变成一张不透明的图片。
 
 ```text
 ┌──────────┐       ┌──────────┐
@@ -35,7 +35,7 @@ ASCII Canvas 直接以文本承载视觉信息。你看到的仍是一张图，�
 
 ## 让想法直接变得可见
 
-你可以用 ASCII Canvas 创作：
+你可以用 CharDesk 创作：
 
 - 流程图、架构图和系统关系图；
 - 界面线框图与终端风格原型；
@@ -61,7 +61,7 @@ ASCII Canvas 直接以文本承载视觉信息。你看到的仍是一张图，�
 
 ## 为人与 AI 的往返协作而生
 
-ASCII Canvas 让视觉作品自然进入以文本为主的对话：
+CharDesk 让视觉作品自然进入以文本为主的对话：
 
 1. 在画布上直观地组织或完善想法；
 2. 复制为纯文本或带 ANSI 样式的文本；
@@ -72,26 +72,26 @@ ASCII Canvas 让视觉作品自然进入以文本为主的对话：
 
 ## 文本可以承载更多
 
-ASCII Canvas 在一致的网格中组合 Unicode 符号、中日韩字符、Emoji、Box Drawing、Nerd Font 字形与颜色。它让文字呈现结构和视觉重点，同时保持可选择、可复制、可编辑。
+CharDesk 在一致的网格中组合 Unicode 符号、中日韩字符、Emoji、Box Drawing、Nerd Font 字形与颜色。它让文字呈现结构和视觉重点，同时保持可选择、可复制、可编辑。
 
 <p align="center">
-  <img src="public/Cover.png" alt="ASCII Canvas 中的 Unicode 与 ANSI 作品" width="100%">
+  <img src="public/Cover.png" alt="CharDesk 中的 Unicode 与 ANSI 作品" width="100%">
 </p>
 
 ## 看看它可以成为怎样的作品
 
 <div align="center">
-  <img src="public/Case/Case.webp" alt="使用 ASCII Canvas 创作的示例" width="100%">
+  <img src="public/Case/Case.webp" alt="使用 CharDesk 创作的示例" width="100%">
 </div>
 
 <p align="center">
-  <a href="https://ascii-canvas.pages.dev/"><strong>打开 ASCII Canvas，开始创作 →</strong></a>
+  <a href="https://chardesk.com/"><strong>打开 CharDesk，开始创作 →</strong></a>
 </p>
 
 ## 面向开发者
 
-ASCII Canvas 的输出也可以在编辑器之外使用。文本交换格式见 [`@ascii-canvas/protocol`](packages/protocol/README.md)，兼容字形资源见 [`@ascii-canvas/fonts`](packages/fonts/README.md)。安装方式与 API 由各自的包文档负责。
+CharDesk 的输出也可以在编辑器之外使用。文本交换格式见 [`@ascii-canvas/protocol`](packages/protocol/README.md)，兼容字形资源见 [`@ascii-canvas/fonts`](packages/fonts/README.md)。安装方式与 API 由各自的包文档负责。
 
 ## 许可证
 
-ASCII Canvas 基于 [MIT License](LICENSE) 开源。
+CharDesk 基于 [MIT License](LICENSE) 开源。

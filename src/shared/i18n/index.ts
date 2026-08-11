@@ -12,7 +12,7 @@ const messages = {
     'appMenu.clear': 'Clear',
     'appMenu.language': 'Language',
     'appMenu.github': 'GitHub',
-    'appMenu.project': 'AsciiCanvas',
+    'appMenu.project': 'CharDesk',
     'appMenu.english': 'English',
     'appMenu.chinese': '中文',
     'language.switchToEnglish': 'Switch to English',
@@ -101,7 +101,7 @@ const messages = {
     'security.local.description': 'Canvas content and sessions are stored in this browser.',
     'security.private.title': 'No uploads or analytics',
     'security.private.description':
-      'AsciiCanvas does not upload canvas content or collect usage analytics.',
+      'CharDesk does not upload canvas content or collect usage analytics.',
     'security.control.title': 'You control transfers',
     'security.control.description':
       'Imports, copies, and exports are processed on your device. External links open without attaching your canvas.',
@@ -383,7 +383,7 @@ const messages = {
     'appMenu.clear': '清空',
     'appMenu.language': '语言',
     'appMenu.github': 'GitHub',
-    'appMenu.project': 'AsciiCanvas',
+    'appMenu.project': 'CharDesk',
     'appMenu.english': 'English',
     'appMenu.chinese': '中文',
     'language.switchToEnglish': 'Switch to English',
@@ -471,7 +471,7 @@ const messages = {
     'security.local.title': '本地存储',
     'security.local.description': '画布内容和会话存储在此浏览器中。',
     'security.private.title': '不上传、不分析',
-    'security.private.description': 'AsciiCanvas 不会上传画布内容，也不会收集使用情况分析数据。',
+    'security.private.description': 'CharDesk 不会上传画布内容，也不会收集使用情况分析数据。',
     'security.control.title': '由你控制转移',
     'security.control.description':
       '导入、复制与导出均在设备本地处理；打开外部链接时不会附带画布数据。',

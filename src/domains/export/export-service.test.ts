@@ -35,7 +35,7 @@ describe("export service", () => {
       format: "ascanvas",
       mimeType: "application/vnd.ascii-canvas+json;charset=utf-8",
     });
-    expect(result.value.filename).toMatch(/^ascii-canvas-\d+\.ascanvas$/);
+    expect(result.value.filename).toMatch(/^chardesk-\d+\.ascanvas$/);
     const snapshot = protocolDocumentToSnapshot(
       parseProtocolDocument(result.value.content)
     );
@@ -56,7 +56,7 @@ describe("export service", () => {
       mimeType: "text/plain;charset=utf-8",
     });
     expect(result.value.content).toContain("A");
-    expect(result.value.filename).toMatch(/^ascii-canvas-\d+\.txt$/);
+    expect(result.value.filename).toMatch(/^chardesk-\d+\.txt$/);
   });
 
   it("includes arrow line markers in structured text exports", () => {
@@ -113,7 +113,7 @@ describe("export service", () => {
       format: "md",
       mimeType: "text/markdown;charset=utf-8",
     });
-    expect(result.value.filename).toMatch(/^ascii-slides-\d+\.slides\.md$/);
+    expect(result.value.filename).toMatch(/^chardesk-slides-\d+\.slides\.md$/);
     expect(result.value.content).not.toContain("\u001b");
     expect(result.value.content).toContain("asciicanvas: slides/v2");
     expect(result.value.content).toContain("```asciicanvas size=6x3");

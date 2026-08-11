@@ -27,7 +27,7 @@ const EXPORT_FORMATS: readonly ExportFormatDefinition[] = [
   },
   {
     format: "ascanvas",
-    label: "AsciiCanvas",
+    label: "CharDesk",
     subLabel: "project",
     modes: ["freeform", "structured"],
     artifactKind: "text",

@@ -1,26 +1,26 @@
 [English] | [简体中文](./README.zh-CN.md)
 
-# ASCII Canvas
+# CharDesk
 
-> **A visual canvas made of text, designed for humans to see and AI to understand.**
+> **A Unicode canvas for humans and AI.**
 
-Draw diagrams, interfaces, and ideas on an editable Unicode grid. What you create stays visual for people and readable as text for language models.
+CharDesk, formerly ASCII Canvas, is an editable Unicode grid for drawing diagrams, interfaces, and ideas. What you create stays visual for people and readable as text for language models.
 
 <p align="center">
-  <a href="https://ascii-canvas.pages.dev/">
-    <img src="https://img.shields.io/badge/Open_ASCII_Canvas-22c55e?style=for-the-badge" alt="Open ASCII Canvas">
+  <a href="https://chardesk.com/">
+    <img src="https://img.shields.io/badge/Open_CharDesk-22c55e?style=for-the-badge" alt="Open CharDesk">
   </a>
 </p>
 
 <div align="center">
-  <img src="public/demo.gif" alt="Drawing on ASCII Canvas" width="100%">
+  <img src="public/demo.gif" alt="Drawing on CharDesk" width="100%">
 </div>
 
 ## A shared visual language
 
 People understand layout at a glance. Language models work naturally with token sequences. Screenshots bridge that gap, but they also carry pixel noise, consume visual context, and are difficult to revise precisely across multiple turns.
 
-ASCII Canvas uses text itself as the visual medium. A diagram remains a diagram when you look at it, yet it can still be copied, searched, versioned, and given directly to an AI without becoming an opaque image.
+CharDesk uses text itself as the visual medium. A diagram remains a diagram when you look at it, yet it can still be copied, searched, versioned, and given directly to an AI without becoming an opaque image.
 
 ```text
 ┌──────────────┐       ┌──────────────┐
@@ -35,7 +35,7 @@ ASCII Canvas uses text itself as the visual medium. A diagram remains a diagram 
 
 ## Make ideas visible
 
-Use ASCII Canvas for:
+Use CharDesk for:
 
 - flowcharts, architecture diagrams, and system maps;
 - interface wireframes and terminal-style mockups;
@@ -61,7 +61,7 @@ Arrange a deck as editable text pages, or ask an Agent to generate a `.slides.md
 
 ## Built for the human–AI loop
 
-ASCII Canvas keeps visual work in a form that fits naturally into text conversations:
+CharDesk keeps visual work in a form that fits naturally into text conversations:
 
 1. Compose or refine an idea visually.
 2. Copy it as plain text or ANSI-styled text.
@@ -72,26 +72,26 @@ The application does not require a built-in AI provider. The artifact itself is 
 
 ## Text can carry more than words
 
-ASCII Canvas brings together Unicode symbols, CJK characters, emoji, box drawing, Nerd Font glyphs, and color on a consistent grid. Its visual language can express structure and emphasis while remaining selectable and editable.
+CharDesk brings together Unicode symbols, CJK characters, emoji, box drawing, Nerd Font glyphs, and color on a consistent grid. Its visual language can express structure and emphasis while remaining selectable and editable.
 
 <p align="center">
-  <img src="public/Cover.png" alt="Unicode and ANSI artwork in ASCII Canvas" width="100%">
+  <img src="public/Cover.png" alt="Unicode and ANSI artwork in CharDesk" width="100%">
 </p>
 
 ## See what it can become
 
 <div align="center">
-  <img src="public/Case/Case.webp" alt="Examples created with ASCII Canvas" width="100%">
+  <img src="public/Case/Case.webp" alt="Examples created with CharDesk" width="100%">
 </div>
 
 <p align="center">
-  <a href="https://ascii-canvas.pages.dev/"><strong>Open ASCII Canvas and start creating →</strong></a>
+  <a href="https://chardesk.com/"><strong>Open CharDesk and start creating →</strong></a>
 </p>
 
 ## For builders
 
-ASCII Canvas output can also be consumed outside the editor. See [`@ascii-canvas/protocol`](packages/protocol/README.md) for the text interchange format and [`@ascii-canvas/fonts`](packages/fonts/README.md) for compatible glyph assets. Each package owns its installation and API documentation.
+CharDesk output can also be consumed outside the editor. See [`@ascii-canvas/protocol`](packages/protocol/README.md) for the text interchange format and [`@ascii-canvas/fonts`](packages/fonts/README.md) for compatible glyph assets. Each package owns its installation and API documentation.
 
 ## License
 
-ASCII Canvas is open source under the [MIT License](LICENSE).
+CharDesk is open source under the [MIT License](LICENSE).

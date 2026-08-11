@@ -55,17 +55,17 @@ test.describe("App menu", () => {
     await expect(exportMenu).toBeVisible();
     await expect(exportMenu.getByRole("menuitem").allTextContents()).resolves.toEqual([
       "TXT",
-      "AsciiCanvas",
+      "CharDesk",
       "ANSI",
       "PNG",
     ]);
     const projectDownload = page.waitForEvent("download");
     await exportMenu
-      .getByRole("menuitem", { name: "AsciiCanvas" })
+      .getByRole("menuitem", { name: "CharDesk" })
       .click();
     const downloadedProject = await projectDownload;
     expect(downloadedProject.suggestedFilename()).toMatch(
-      /^ascii-canvas-\d+\.ascanvas$/
+      /^chardesk-\d+\.ascanvas$/
     );
     await expect(menu).toBeVisible();
     await expect(exportMenu).toBeVisible();
@@ -133,7 +133,7 @@ test.describe("App menu", () => {
     await importChooser;
     await expect(page.locator('input[type="file"]')).toHaveAttribute(
       "accept",
-      ".ascanvas,.json,application/vnd.ascii-canvas+json,application/json,text/plain"
+      ".ascanvas,.json,.md,application/vnd.ascii-canvas+json,application/json,text/markdown,text/plain"
     );
     await page.evaluate(() => window.dispatchEvent(new Event("blur")));
     await expect(

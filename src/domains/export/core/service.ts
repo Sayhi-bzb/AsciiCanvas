@@ -51,7 +51,7 @@ export const prepareSelectionPngExport = async (
           kind: "blob",
           format: "png",
           content: blob,
-          filename: `ascii-selection-${getTimestamp()}.png`,
+          filename: `chardesk-selection-${getTimestamp()}.png`,
           mimeType: "image/png",
         })
       : exportFailed(
@@ -86,7 +86,7 @@ export const prepareTextExport = (
                   context.structuredComponents
                 )
               : exportToString(context.grid),
-            `ascii-canvas-${getTimestamp()}.txt`,
+            `chardesk-${getTimestamp()}.txt`,
             "text/plain;charset=utf-8"
           )
         );
@@ -95,7 +95,7 @@ export const prepareTextExport = (
           textArtifact(
             format,
             exportProtocolToJSON(context),
-            `ascii-canvas-${getTimestamp()}.ascanvas`,
+            `chardesk-${getTimestamp()}.ascanvas`,
             "application/vnd.ascii-canvas+json;charset=utf-8"
           )
         );
@@ -106,7 +106,7 @@ export const prepareTextExport = (
             exportToAnsi(context.grid, {
               includeColor: context.includeColor,
             }),
-            `ascii-canvas-${getTimestamp()}.ans`,
+            `chardesk-${getTimestamp()}.ans`,
             "text/plain;charset=utf-8"
           )
         );
@@ -119,7 +119,7 @@ export const prepareTextExport = (
               title: context.documentName,
               includeColor: context.includeColor,
             }),
-            `ascii-slides-${getTimestamp()}.slides.md`,
+            `chardesk-slides-${getTimestamp()}.slides.md`,
             "text/markdown;charset=utf-8"
           )
         );
@@ -149,7 +149,7 @@ export const prepareExport = async (
           kind: "blob",
           format: "png",
           content: blob,
-          filename: `ascii-city-${getTimestamp()}.png`,
+          filename: `chardesk-${getTimestamp()}.png`,
           mimeType: "image/png",
         })
       : exportFailed(

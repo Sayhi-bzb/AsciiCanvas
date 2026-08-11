@@ -801,7 +801,7 @@ describe("structuredTemplates", () => {
       {
         type: "text",
         position: { x: 23, y: 8 },
-        text: "      ascii-canvas.pages.dev     ",
+        text: "          chardesk.com           ",
       },
       {
         type: "text",

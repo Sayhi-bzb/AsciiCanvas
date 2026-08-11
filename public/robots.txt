@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://ascii-canvas.pages.dev/sitemap.xml
+Sitemap: https://chardesk.com/sitemap.xml

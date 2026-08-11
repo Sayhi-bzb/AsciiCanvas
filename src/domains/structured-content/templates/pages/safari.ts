@@ -51,7 +51,7 @@ export const SAFARI_TEMPLATE: StructuredComponentDefinition = {
       ),
       createBg(34, 4, 3, { x: 19, y: 1 }, 1, "#d1d5db", "addressFill"),
       createText(
-        "      ascii-canvas.pages.dev     ",
+        "          chardesk.com           ",
         { x: 19, y: 1 },
         4,
         undefined,
