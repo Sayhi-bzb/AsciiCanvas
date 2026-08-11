@@ -1,4 +1,4 @@
 interface:
-  display_name: 'ASCII Canvas'
-  short_description: 'Authoritative ASCII Canvas format references'
-  default_prompt: 'Use $ascii-canvas to apply the relevant ASCII Canvas format.'
+  display_name: 'CharDesk'
+  short_description: 'Authoritative CharDesk format references'
+  default_prompt: 'Use $ascii-canvas to apply the relevant CharDesk format.'

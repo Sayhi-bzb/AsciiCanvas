@@ -1,6 +1,6 @@
 # @ascii-canvas/protocol
 
-Parser and conformance data for [AsciiCanvas Text Protocol v1](./spec/v1.md). The package converts plain ASCII/Unicode, standard ANSI, and AsciiCanvas ESC-less ANSI into rendering-neutral cells. It contains no DOM or renderer.
+Parser and conformance data for the legacy-compatible [AsciiCanvas Text Protocol v1](./spec/v1.md) used by CharDesk. The package converts plain ASCII/Unicode, standard ANSI, and ESC-less ANSI into rendering-neutral cells. It contains no DOM or renderer.
 
 ## Install
 
@@ -39,4 +39,4 @@ The default syntax mode is `auto`; use `plain` to disable control parsing or `an
 
 See [`fixtures/v1.json`](./fixtures/v1.json) for portable conformance cases. Parsed links are untrusted and must be sanitized by the renderer.
 
-For AsciiCanvas-compatible glyph coverage, renderers may use the optional [`@ascii-canvas/fonts`](https://www.npmjs.com/package/@ascii-canvas/fonts) profile.
+For CharDesk-compatible glyph coverage, renderers may use the optional [`@ascii-canvas/fonts`](https://www.npmjs.com/package/@ascii-canvas/fonts) profile.

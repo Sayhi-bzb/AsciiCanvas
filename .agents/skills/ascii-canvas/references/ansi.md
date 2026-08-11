@@ -1,6 +1,6 @@
 # Canvas 文本语法
 
-真实 ANSI 写法是 `ESC[...m`，即 `\x1b[...m`。ASCII Canvas 省略 ESC 字符：
+真实 ANSI 写法是 `ESC[...m`，即 `\x1b[...m`。CharDesk 省略 ESC 字符：
 
 ```
 [38;2;255;0;0m红色文字[0m
@@ -28,4 +28,4 @@
 [48;2;R;G;Bm         truecolor 背景色
 ```
 
-解析、布局与兼容性规则见 [`AsciiCanvas Text Protocol v1`](../../../../packages/protocol/spec/v1.md)。
+解析、布局与兼容性规则见兼容协议 [`AsciiCanvas Text Protocol v1`](../../../../packages/protocol/spec/v1.md)。

@@ -1,9 +1,9 @@
 ---
 name: ascii-canvas
-description: Authoritative syntax references for ASCII Canvas Unicode and ESC-less ANSI text and `.slides.md` decks. Use when Codex needs to read, write, edit, or review ASCII Canvas content or Slides files.
+description: Authoritative syntax references for CharDesk Unicode and ESC-less ANSI text and `.slides.md` decks. Use when Codex needs to read, write, edit, or review CharDesk content or Slides files.
 ---
 
-# ASCII Canvas formats
+# CharDesk formats
 
 Load only the reference required:
 

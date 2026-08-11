@@ -16,12 +16,12 @@ const parseFrontMatter = (source: string) => {
   const normalized = source.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
   const lines = normalized.split('\n');
   if (lines[0]?.trim() !== '---') {
-    throw new Error('Invalid AsciiCanvas Slides Markdown header.');
+    throw new Error('Invalid CharDesk Slides Markdown header.');
   }
 
   const endIndex = lines.findIndex((line, index) => index > 0 && line.trim() === '---');
   if (endIndex < 0) {
-    throw new Error('Invalid AsciiCanvas Slides Markdown header.');
+    throw new Error('Invalid CharDesk Slides Markdown header.');
   }
 
   const metadata = new Map<string, string>();
@@ -36,7 +36,7 @@ const parseFrontMatter = (source: string) => {
     signature !== LEGACY_SLIDE_MARKDOWN_SIGNATURE &&
     signature !== SLIDE_MARKDOWN_SIGNATURE
   ) {
-    throw new Error('Unsupported AsciiCanvas Slides Markdown version.');
+    throw new Error('Unsupported CharDesk Slides Markdown version.');
   }
 
   const rawSize = metadata.get('size');
@@ -170,7 +170,7 @@ const parseSlideBlocks = (
   }
 
   if (slides.length === 0) {
-    throw new Error('AsciiCanvas Slides Markdown requires at least one slide block.');
+    throw new Error('CharDesk Slides Markdown requires at least one slide block.');
   }
   return slides;
 };

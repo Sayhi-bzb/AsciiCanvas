@@ -27,4 +27,4 @@ export const BOX_CHARS = {
   CROSS: "┼",
 };
 
-export const APP_SOURCE_URL = "https://github.com/Sayhi-bzb/ascii-canvas";
+export const APP_SOURCE_URL = "https://github.com/Sayhi-bzb/CharDesk";

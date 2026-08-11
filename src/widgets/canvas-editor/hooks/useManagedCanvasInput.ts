@@ -61,7 +61,7 @@ const traceClipboardShortcut = (
   } catch {
     return;
   }
-  console.debug('[AsciiCanvas clipboard]', {
+  console.debug('[CharDesk clipboard]', {
     ...trace,
     activeElement: document.activeElement?.tagName ?? null,
     canvasOwnsInputFocus,

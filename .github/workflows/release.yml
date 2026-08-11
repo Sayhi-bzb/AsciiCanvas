@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   release:
-    if: github.repository == 'Sayhi-bzb/AsciiCanvas'
+    if: github.repository == 'Sayhi-bzb/CharDesk'
     runs-on: ubuntu-latest
     environment: npm-production
 

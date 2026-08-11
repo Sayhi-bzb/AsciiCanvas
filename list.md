@@ -9,7 +9,7 @@
 - [ ] 完成商标及同类产品名称检索。
 - [x] 注册 `chardesk.com`，并将 `https://chardesk.com/` 设为唯一正式入口。
 - [ ] 注册常见拼写和防御性域名；统一重定向到主域名。
-- [ ] 确认 GitHub 仓库名 `CharDesk` 或 `chardesk` 可用。
+- [x] 确认并使用 GitHub 仓库名 `Sayhi-bzb/CharDesk`。
 - [ ] 创建或占用 npm scope `@chardesk`，配置所有者、2FA 和 trusted publishing。
 - [ ] 检查社交账号、社区名称和联系邮箱是否需要同步注册。
 - [ ] 确定 Logo、图标、主色、字体和品牌写法规范。
@@ -66,24 +66,25 @@
 
 ## 4. GitHub 与项目文档
 
-- [ ] 将 GitHub 仓库更名为约定的 CharDesk slug。
-- [ ] 更新 GitHub About、Description、Topics、Website 和社交预览图。
-- [ ] 不重新创建或占用旧仓库名，以保留 GitHub 自动重定向。
-- [ ] 更新本地 `origin` remote，并通知已有贡献者更新 clone URL。
+- [x] 将 GitHub 仓库更名为 `Sayhi-bzb/CharDesk`。
+- [x] 更新 GitHub Description、Topics 和 Website。
+- [ ] 在 GitHub Settings 上传新的社交预览图。
+- [x] 不重新创建或占用旧仓库名，以保留 GitHub 自动重定向。
+- [x] 将本地 `origin` 更新为 `https://github.com/Sayhi-bzb/CharDesk.git`；已有贡献者仍建议更新 clone URL。
 - [x] 更新 `README.md` 和 `README.zh-CN.md`：标题、徽章、产品介绍、链接、截图及 alt text。
-- [ ] 更新应用内 `APP_SOURCE_URL`。
-- [ ] 更新两个 npm 包的 repository、homepage 和 bugs URL。
-- [ ] 更新 `.github/workflows/release.yml` 中硬编码的仓库名称。
-- [ ] 检查 Issues、Discussions、模板、外部文档和第三方链接中的旧仓库地址。
-- [ ] 验证旧 GitHub URL、clone、fetch 和 push 的重定向；CI 使用新 URL。
+- [x] 更新应用内 `APP_SOURCE_URL`。
+- [x] 更新两个 npm 包的 repository、homepage 和 bugs URL。
+- [x] 更新 `.github/workflows/release.yml` 中硬编码的仓库名称。
+- [x] 检查仓库内 Issues、Discussions、模板和文档中的旧 GitHub 地址。
+- [x] 验证旧 GitHub URL 301 到新仓库，旧 clone/fetch/push 地址仍可用；release workflow 使用新 URL。
 
 ## 5. npm 包与构建配置
 
 - [ ] 创建 `@chardesk/protocol`。
 - [ ] 创建 `@chardesk/fonts`。
-- [ ] 更新根 `package.json` 的私有包名、workspace 命令和依赖名称。
-- [ ] 更新两个 package manifest 的名称、描述、关键词、仓库地址和文档链接。
-- [ ] 更新 `package-lock.json`。
+- [x] 将根私有 workspace 名改为 `chardesk`；workspace 命令和依赖继续使用兼容包名。
+- [x] 更新两个 package manifest 的品牌描述、仓库地址和文档链接；包名与关键词保持兼容。
+- [x] 更新 `package-lock.json` 的根私有 workspace 名。
 - [ ] 更新 TypeScript、Vite 和 Vitest 中的 `@ascii-canvas/*` alias。
 - [ ] 更新源码、测试、脚本和文档中的包 import。
 - [ ] 更新 release workflow 的版本存在性检查、workspace、`npm pack` 和 `npm publish` 命令。
@@ -109,15 +110,15 @@
 - [x] 新版应用继续读取所有旧格式和旧版本文件。
 - [ ] 如需引入 CharDesk wire-format 标识，设计新的协议版本并提供双读、迁移和回退策略。
 - [x] 将导出文件名改为 `chardesk-<timestamp>.*`，并保持 `.ascanvas` 扩展名兼容。
-- [ ] 更新协议 spec、包 README 和迁移指南，明确“品牌名”和“格式名”的关系。
+- [x] 更新协议 spec 与包 README，明确 CharDesk 品牌继续使用兼容的 AsciiCanvas v1 格式名。
 
 ## 7. Agent Skill 与 Slides 格式
 
 - [ ] 新增或重命名技能入口为 `$chardesk`。
-- [ ] 更新 skill 的 display name、description 和默认 prompt。
-- [ ] 保留 `$ascii-canvas` 兼容入口或提供明确迁移说明。
-- [ ] 更新 skill references 中面向用户的品牌文字。
-- [ ] 保持旧 `asciicanvas` frontmatter 和 fence 可解析。
+- [x] 更新 skill 的 display name、description 和默认 prompt 为 CharDesk。
+- [x] 保留 `$ascii-canvas` 兼容入口和现有目录路径。
+- [x] 更新 skill references 中面向用户的品牌文字。
+- [x] 保持旧 `asciicanvas` frontmatter 和 fence 可解析。
 - [ ] 如新增 `chardesk` fence，确保新旧 fence 产生相同文档模型并补充往返测试。
 
 ## 8. 测试与验收
@@ -129,7 +130,7 @@
 - [ ] 测试旧 localStorage 状态和持久化版本升级。
 - [ ] 测试旧域名手动/自动迁移到新域名，确保作品不会静默丢失。
 - [ ] 测试协作房间链接、身份、IndexedDB 缓存和断线重连。
-- [ ] 对新旧 npm 包分别执行 build、pack、安装和 import smoke test。
+- [x] 对现有兼容 npm 包执行 build 与 `npm pack --dry-run`；新包尚未创建，安装/import smoke test 留待发布批次。
 - [x] 检查 production 与 preview HTML：canonical、OG、Twitter 均指向 `https://chardesk.com/`，无旧域名元数据。
 - [ ] 验证旧 Pages URL、旧 GitHub URL 和旧 npm 包均给出正确的迁移路径。
 - [ ] 在桌面端和移动端检查 CharDesk 名称、Logo、封面及中英文排版。

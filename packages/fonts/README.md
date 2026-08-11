@@ -1,6 +1,6 @@
 # @ascii-canvas/fonts
 
-Self-hosted assets and the default renderer font profile for AsciiCanvas output. This package is optional: [`@ascii-canvas/protocol`](https://www.npmjs.com/package/@ascii-canvas/protocol) remains rendering-neutral.
+Self-hosted assets and the default renderer font profile for CharDesk output. This package is optional: [`@ascii-canvas/protocol`](https://www.npmjs.com/package/@ascii-canvas/protocol) remains rendering-neutral.
 
 ## Install
 
@@ -18,6 +18,6 @@ await document.fonts.ready;
 context.font = `16px ${ASCII_CANVAS_FONT_PROFILE.families.text}`;
 ```
 
-`ascii-canvas/default-v1` routes ordinary text through Maple Mono NF CN and Noto Sans Symbols 2, and emoji presentation through monochrome Noto Emoji first. The source versions are exported in `ASCII_CANVAS_FONT_PROFILE` and recorded with checksums in `manifest.json`.
+The legacy-compatible `ascii-canvas/default-v1` profile routes ordinary text through Maple Mono NF CN and Noto Sans Symbols 2, and emoji presentation through monochrome Noto Emoji first. The source versions are exported in `ASCII_CANVAS_FONT_PROFILE` and recorded with checksums in `manifest.json`.
 
 Font files are distributed under the SIL Open Font License found beside each family in `assets/*/OFL.txt`. Package code is MIT licensed.
