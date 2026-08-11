@@ -34,6 +34,8 @@ const getImportedSessionBaseName = (mode: CanvasImportSnapshot["mode"]) => {
       return "Imported Structured";
     case "freeform":
       return "Imported Canvas";
+    case "slide":
+      return "Imported Slides";
   }
 };
 
@@ -60,6 +62,18 @@ const createImportedSession = (
   name: string,
   snapshot: CanvasImportSnapshot
 ): CanvasSession => {
+  if (snapshot.mode === "slide") {
+    return {
+      id: sessionId,
+      name,
+      mode: "slide",
+      slideDeck: snapshot.slideDeck,
+      scene: [],
+      components: [],
+      grid: [],
+    };
+  }
+
   const baseSession = {
     id: sessionId,
     name,
@@ -168,6 +182,7 @@ export const createSessionSlice: StateCreator<
     const sessionName = resolveImportedSessionName(
       sessionsWithSnapshot,
       options?.name?.trim() ||
+        importedSnapshot.name?.trim() ||
         getImportedSessionBaseName(importedSnapshot.mode)
     );
     const newSession = createImportedSession(

@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Config, DriveStep } from "driver.js";
+import { useEditorStore } from "@/domains/canvas/public";
 import { EDITOR_PERSISTENCE_KEY } from "@/domains/sessions/public";
 import { setUiLanguage } from "@/shared/i18n";
 import { useOnboardingTour } from "./onboarding-context";
@@ -104,7 +105,7 @@ describe("OnboardingTourProvider", () => {
     window.localStorage.clear();
   });
 
-  it("automatically starts a ten-step tour for a new desktop user", async () => {
+  it("automatically starts an eight-step tour for a new desktop user", async () => {
     render(
       <OnboardingTourProvider>
         <TourHarness />
@@ -115,7 +116,41 @@ describe("OnboardingTourProvider", () => {
 
     expect(driverMock.factory).toHaveBeenCalledOnce();
     expect(driverMock.api.drive).toHaveBeenCalledOnce();
-    expect(driverMock.getSteps()).toHaveLength(10);
+    expect(driverMock.getSteps()).toHaveLength(8);
+    expect(driverMock.getSteps()[1].element).toBe(
+      '[data-onboarding-target="character-library"]'
+    );
+    expect(driverMock.getSteps()[0].element).toBeUndefined();
+    expect(
+      driverMock
+        .getSteps()
+        .some((step) =>
+          [
+            '[data-onboarding-target="app-menu"]',
+            '[data-onboarding-target="language-menu"]',
+            '[data-onboarding-target="language-options"]',
+          ].includes(String(step.element))
+        )
+    ).toBe(false);
+  });
+
+  it("omits the freeform character guide outside freeform mode", async () => {
+    useEditorStore.setState({ canvasMode: "structured" });
+    window.localStorage.removeItem(EDITOR_PERSISTENCE_KEY);
+    render(
+      <OnboardingTourProvider>
+        <TourHarness />
+      </OnboardingTourProvider>
+    );
+
+    await flushTourStart();
+
+    expect(driverMock.getSteps()).toHaveLength(7);
+    expect(
+      driverMock
+        .getSteps()
+        .some((step) => step.element === '[data-onboarding-target="character-library"]')
+    ).toBe(false);
   });
 
   it.each([
@@ -177,7 +212,7 @@ describe("OnboardingTourProvider", () => {
       config: driverMock.getConfig(),
       state: {},
       driver: driverMock.api,
-      index: 9,
+      index: driverMock.getSteps().length - 1,
     }));
     expect(window.localStorage.getItem(ONBOARDING_STORAGE_KEY)).toBe("completed");
   });
@@ -213,7 +248,11 @@ describe("OnboardingTourProvider", () => {
     );
     await flushTourStart();
 
-    const dragStep = driverMock.getSteps()[8];
+    const dragStep = driverMock
+      .getSteps()
+      .find((step) => step.popover?.nextBtnText === "Skip this step");
+    expect(dragStep).toBeDefined();
+    if (!dragStep) throw new Error("Drag step missing");
     expect(dragStep.element).toBe('[data-onboarding-template-id="button"]');
     expect(dragStep.popover?.nextBtnText).toBe("Skip this step");
 
@@ -221,7 +260,7 @@ describe("OnboardingTourProvider", () => {
       config: driverMock.getConfig(),
       state: {},
       driver: driverMock.api,
-      index: 8,
+      index: driverMock.getSteps().indexOf(dragStep),
     }));
     expect(document.documentElement).toHaveAttribute(
       "data-onboarding-phase",
@@ -232,7 +271,7 @@ describe("OnboardingTourProvider", () => {
       config: driverMock.getConfig(),
       state: {},
       driver: driverMock.api,
-      index: 8,
+      index: driverMock.getSteps().indexOf(dragStep),
     }));
     expect(driverMock.api.moveNext).toHaveBeenCalledOnce();
   });

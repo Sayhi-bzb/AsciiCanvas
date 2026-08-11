@@ -45,7 +45,7 @@ Use ASCII Canvas for:
 
 No drawing skill is required. Start with shapes and templates, arrange them visually, then copy the result as text whenever you need it elsewhere.
 
-## One canvas, two ways to work
+## One canvas, three ways to work
 
 ### Freeform
 
@@ -54,6 +54,10 @@ Draw directly on an infinite character grid. Place text and symbols anywhere, pa
 ### Structured
 
 Build with editable text, boxes, backgrounds, dividers, lines, and arrows. Move and resize parts without redrawing the whole scene, or begin with reusable interface components and complete templates.
+
+### Slides
+
+Arrange a deck as editable text pages, or ask an Agent to generate a `.slides.md` file and continue editing it visually. See the [Slides file structure](.agents/skills/ascii-canvas/references/slides.md).
 
 ## Built for the human–AI loop
 

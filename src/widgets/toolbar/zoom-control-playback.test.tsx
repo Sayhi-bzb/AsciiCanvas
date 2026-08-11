@@ -133,7 +133,7 @@ describe("ZoomControl slide playback", () => {
 
     expect(screen.queryByRole("button", { name: "Play" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Add slide" })).not.toBeInTheDocument();
-    const slideList = screen.getByRole("list", { name: "Slides" });
+    const slideList = screen.getByRole("list", { name: "Slides, reorderable" });
     expect(slideList.querySelectorAll(":scope > li > span")).toHaveLength(0);
     const firstSlide = screen.getByRole("button", { name: "1. First" });
     const secondSlide = screen.getByRole("button", { name: "2. Second" });
@@ -160,6 +160,33 @@ describe("ZoomControl slide playback", () => {
     expect(useEditorStore.getState().slideDeck?.slides[0].name).toBe("First");
     fireEvent.keyDown(firstNameInput, { key: "Enter" });
     expect(useEditorStore.getState().slideDeck?.slides[0].name).toBe("Intro");
+
+    expect(screen.queryByRole("button", { name: "Move up" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Move down" })).not.toBeInTheDocument();
+    const reorderCard = screen.getByRole("listitem", {
+      name: "Reorder Intro, position 1 of 2",
+    });
+    fireEvent.keyDown(reorderCard, { key: " " });
+    expect(
+      screen.getByRole("listitem", {
+        name: "Reorder Intro, position 1 of 2, grabbed",
+      })
+    ).toBeInTheDocument();
+    fireEvent.keyDown(reorderCard, { key: "ArrowDown" });
+
+    expect(
+      useEditorStore.getState().slideDeck?.slides.map((slide) => slide.name)
+    ).toEqual(["Second", "Intro"]);
+    expect(useEditorStore.getState().slideDeck?.activeSlideId).toBe("slide-1");
+    const movedCard = screen.getByRole("listitem", {
+      name: "Reorder Intro, position 2 of 2, grabbed",
+    });
+    fireEvent.keyDown(movedCard, { key: "Enter" });
+    expect(
+      screen.getByRole("listitem", {
+        name: "Reorder Intro, position 2 of 2",
+      })
+    ).toBeInTheDocument();
   });
 
   it("exits owned fullscreen from the presentation close control", async () => {

@@ -264,6 +264,7 @@ describe("SidebarRight structured templates", () => {
     );
 
     const rail = screen.getByTestId("character-view-rail-vertical");
+    expect(rail).toHaveAttribute("data-onboarding-target", "character-library");
     const railSlot = rail.parentElement;
     const scrollArea = railSlot?.parentElement?.querySelector(
       '[data-slot="scroll-area"]'

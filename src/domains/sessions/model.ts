@@ -34,9 +34,16 @@ export interface SlideCanvasSession extends CanvasSessionBase {
 
 export type CanvasSession = StaticCanvasSession | SlideCanvasSession;
 
-export type CanvasImportSnapshot = {
-  mode: Exclude<CanvasMode, "slide">;
-  scene: StructuredNode[];
-  components: StructuredComponentInstance[];
-  grid: [string, GridCell][];
-};
+export type CanvasImportSnapshot =
+  | {
+      mode: Exclude<CanvasMode, "slide">;
+      scene: StructuredNode[];
+      components: StructuredComponentInstance[];
+      grid: [string, GridCell][];
+      name?: string;
+    }
+  | {
+      mode: "slide";
+      slideDeck: SlideDeck;
+      name?: string;
+    };
