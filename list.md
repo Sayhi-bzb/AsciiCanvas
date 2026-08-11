@@ -33,10 +33,10 @@
 - [ ] 在新域名验证导入旧 `.ascanvas` 文件后能恢复画布和会话。
 - [ ] 为无法自动迁移的数据提供清晰的手动导出、导入说明。
 - [x] 配置 `ascii-canvas.pages.dev` 到主域名的 301 重定向，并保留路径和查询参数。
-- [ ] 验证协作链接中的 `#room=` fragment 在重定向后仍然存在且可以加入房间。
+- [x] 验证旧域名重定向后路径、查询参数和 `#room=` fragment 均保留。
 - [x] 沿用同一 Pages 项目的 Cloudflare Web Analytics 配置。
 - [ ] GitHub 仓库更名后，在 Cloudflare Git 集成中验证仓库连接和 production branch。
-- [ ] 完成一次 preview 和 production 部署，并保留可回滚的旧部署。
+- [x] 完成 commit `6a3ecd4` 的 preview 和 production 部署；旧部署仍可用于回滚。
 
 ## 2. 网站、SEO 与品牌资产
 
@@ -130,7 +130,7 @@
 - [ ] 测试旧域名手动/自动迁移到新域名，确保作品不会静默丢失。
 - [ ] 测试协作房间链接、身份、IndexedDB 缓存和断线重连。
 - [ ] 对新旧 npm 包分别执行 build、pack、安装和 import smoke test。
-- [ ] 部署后检查生产 HTML 中不存在错误的 canonical、OG、Twitter 或旧域名链接。
+- [x] 检查 production 与 preview HTML：canonical、OG、Twitter 均指向 `https://chardesk.com/`，无旧域名元数据。
 - [ ] 验证旧 Pages URL、旧 GitHub URL 和旧 npm 包均给出正确的迁移路径。
 - [ ] 在桌面端和移动端检查 CharDesk 名称、Logo、封面及中英文排版。
 
