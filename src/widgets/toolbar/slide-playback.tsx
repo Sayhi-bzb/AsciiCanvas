@@ -2,79 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import type { Slide, SlideDeck } from "@/domains/slides/public";
+import type { SlideDeck } from "@/domains/slides/public";
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
 import { useUiI18n } from "@/shared/i18n";
-import { CELL_HEIGHT, CELL_WIDTH } from "@/shared/lib/constants";
-import {
-  drawCellBackground,
-  drawCellText,
-  prepareCanvasSurface,
-} from "@/shared/metrics";
 import { SHORTCUT_PRIORITY, useShortcutLayer } from "@/shared/shortcuts/dispatcher";
-import { GridManager } from "@/shared/utils/grid";
 import { Button } from "@/shared/ui/button";
-import { resolveSlidePlaybackIndex, resolveSlidePlaybackLayout } from "./slide-playback-model";
+import { drawSlideCanvas } from "./slide-canvas-renderer";
+import { resolveSlidePlaybackIndex } from "./slide-playback-model";
 
 const PreviousIcon = HOST_ICONOLOGY.slideAction.previous;
 const NextIcon = HOST_ICONOLOGY.slideAction.next;
 const CloseIcon = HOST_ICONOLOGY.slideAction.close;
-
-
-const drawSlide = (
-  canvas: HTMLCanvasElement,
-  slide: Slide,
-  deck: SlideDeck,
-  viewportWidth: number,
-  viewportHeight: number
-) => {
-  const ctx = canvas.getContext("2d");
-  if (!ctx || viewportWidth <= 0 || viewportHeight <= 0) return;
-  const dpr = window.devicePixelRatio || 1;
-  prepareCanvasSurface(canvas, ctx, viewportWidth, viewportHeight, dpr);
-  ctx.fillStyle = "#111827";
-  ctx.fillRect(0, 0, viewportWidth, viewportHeight);
-
-  const layout = resolveSlidePlaybackLayout({
-    viewportWidth,
-    viewportHeight,
-    columns: deck.size.columns,
-    rows: deck.size.rows,
-  });
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(layout.x, layout.y, layout.width, layout.height);
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(layout.x, layout.y, layout.width, layout.height);
-  ctx.clip();
-
-  const cells = slide.grid.map(([key, cell]) => ({
-    ...GridManager.fromKey(key),
-    cell,
-  }));
-  cells.forEach(({ x, y, cell }) => {
-    if (x < 0 || x >= deck.size.columns || y < 0 || y >= deck.size.rows) return;
-    drawCellBackground(
-      ctx,
-      cell,
-      layout.x + x * CELL_WIDTH * layout.zoom,
-      layout.y + y * CELL_HEIGHT * layout.zoom,
-      { zoom: layout.zoom }
-    );
-  });
-  cells.forEach(({ x, y, cell }) => {
-    if (x < 0 || x >= deck.size.columns || y < 0 || y >= deck.size.rows) return;
-    if (cell.char === " " && !cell.attrs) return;
-    drawCellText(
-      ctx,
-      cell,
-      layout.x + x * CELL_WIDTH * layout.zoom,
-      layout.y + y * CELL_HEIGHT * layout.zoom,
-      { zoom: layout.zoom }
-    );
-  });
-  ctx.restore();
-};
 
 export function SlidePlaybackOverlay({
   deck,
@@ -144,7 +82,13 @@ export function SlidePlaybackOverlay({
     const canvas = canvasRef.current;
     if (!host || !canvas || !slide) return;
     const render = () =>
-      drawSlide(canvas, slide, deck, host.clientWidth, host.clientHeight);
+      drawSlideCanvas({
+        canvas,
+        slide,
+        size: deck.size,
+        viewportWidth: host.clientWidth,
+        viewportHeight: host.clientHeight,
+      });
     render();
     const observer =
       typeof ResizeObserver === "undefined" ? null : new ResizeObserver(render);

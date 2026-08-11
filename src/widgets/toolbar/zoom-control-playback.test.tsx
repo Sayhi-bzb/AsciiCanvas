@@ -137,6 +137,11 @@ describe("ZoomControl slide playback", () => {
     expect(slideList.querySelectorAll(":scope > li > span")).toHaveLength(0);
     const firstSlide = screen.getByRole("button", { name: "1. First" });
     const secondSlide = screen.getByRole("button", { name: "2. Second" });
+    expect(firstSlide.querySelector("pre")).not.toBeInTheDocument();
+    expect(firstSlide.querySelector("canvas")).toHaveAttribute(
+      "data-testid",
+      "slide-preview-canvas"
+    );
     expect(firstSlide.parentElement).toHaveClass("border");
     expect(firstSlide.parentElement).not.toHaveClass("border-primary", "ring-1");
     expect(secondSlide.parentElement).toHaveClass("border");

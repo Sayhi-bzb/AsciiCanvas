@@ -1,10 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useEditorStore } from "@/domains/canvas/public";
 import type { Slide } from "@/domains/slides/public";
-import { GridManager } from "@/shared/utils/grid";
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
 import { useUiI18n } from "@/shared/i18n";
 import { cn } from "@/shared/lib/utils";
@@ -24,6 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/shared/ui/alert-dialog";
+import { SlidePreviewCanvas } from "./slide-preview-canvas";
 
 const AddIcon = HOST_ICONOLOGY.sessionAction.create;
 const DuplicateIcon = HOST_ICONOLOGY.editorAction["structured-duplicate"];
@@ -39,21 +39,6 @@ export function SlideAddButton() {
       {t("slide.add")}
     </Button>
   );
-}
-
-function SlidePreview({ slide, columns, rows }: { slide: Slide; columns: number; rows: number }) {
-  const content = useMemo(() => {
-    const previewRows = Math.min(rows, 12);
-    const previewColumns = Math.min(columns, 50);
-    const lines = Array.from({ length: previewRows }, () => Array.from({ length: previewColumns }, () => " "));
-    slide.grid.forEach(([key, cell]) => {
-      const { x, y } = GridManager.fromKey(key);
-      if (x >= 0 && x < previewColumns && y >= 0 && y < previewRows) lines[y][x] = cell.char;
-    });
-    return lines.map((line) => line.join("")).join("\n");
-  }, [columns, rows, slide.grid]);
-
-  return <pre aria-hidden="true" className="pointer-events-none absolute inset-1 overflow-hidden whitespace-pre font-mono text-[3px] leading-[4px] text-foreground">{content}</pre>;
 }
 
 export function SlideNavigator() {
@@ -130,10 +115,9 @@ export function SlideNavigator() {
                 aria-current={active ? "page" : undefined}
                 onClick={() => activateSlide(slide.id)}
               >
-                <SlidePreview
+                <SlidePreviewCanvas
                   slide={slide}
-                  columns={slideDeck.size.columns}
-                  rows={slideDeck.size.rows}
+                  size={slideDeck.size}
                 />
               </button>
               <div className="mt-1 flex items-center gap-0.5">
