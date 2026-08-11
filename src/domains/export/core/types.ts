@@ -1,11 +1,13 @@
 import type { GridMap } from "@/shared/types";
 import type { CanvasMode } from "@/domains/sessions/public";
 import type { StructuredComponentInstance, StructuredNode } from "@/domains/structured-content/public";
+import type { SlideDeck } from "@/domains/slides/public";
 
 export type ExportFormat =
   | "txt"
   | "ascanvas"
   | "ansi"
+  | "md"
   | "png"
  ;
 
@@ -16,6 +18,8 @@ export type ExportContext = {
   structuredComponents: StructuredComponentInstance[];
   includeColor: boolean;
   showGrid: boolean;
+  slideDeck?: SlideDeck | null;
+  documentName?: string;
 };
 
 type ExportArtifactBase = {

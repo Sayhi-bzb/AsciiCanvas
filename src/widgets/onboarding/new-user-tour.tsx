@@ -75,7 +75,11 @@ type TourActions = {
   captureComponentBaseline: () => void;
 };
 
-function buildTourSteps(t: Translate, actions: TourActions): DriveStep[] {
+function buildTourSteps(
+  t: Translate,
+  actions: TourActions,
+  includeCharacterLibrary: boolean
+): DriveStep[] {
   const actionStep = (
     element: string,
     phase: OnboardingPhase,
@@ -99,49 +103,31 @@ function buildTourSteps(t: Translate, actions: TourActions): DriveStep[] {
 
   return [
     {
-      element: '[data-onboarding-target="canvas"]',
-      waitForElement: 5000,
       onHighlighted: () => actions.setPhase("welcome"),
       popover: {
         title: t("onboarding.welcome.title"),
         description: t("onboarding.welcome.description"),
-        side: "top",
-        align: "center",
         showButtons: ["next", "close"],
         onNextClick: actions.moveNext,
       },
     },
-    actionStep(
-      '[data-onboarding-target="app-menu"]',
-      "app-menu",
-      t("onboarding.appMenu.title"),
-      t("onboarding.appMenu.description")
-    ),
-    actionStep(
-      '[data-onboarding-target="language-menu"]',
-      "language-menu",
-      t("onboarding.languageMenu.title"),
-      t("onboarding.languageMenu.description"),
-      { popover: {
-        title: t("onboarding.languageMenu.title"),
-        description: t("onboarding.languageMenu.description"),
-        side: "right",
-        align: "start",
-        showButtons: ["close"],
-      } }
-    ),
-    {
-      element: '[data-onboarding-target="language-options"]',
-      waitForElement: 5000,
-      onHighlighted: () => actions.setPhase("language-choice"),
-      popover: {
-        title: t("onboarding.languageChoice.title"),
-        description: t("onboarding.languageChoice.description"),
-        side: "right",
-        align: "start",
-        showButtons: ["close"],
-      },
-    },
+    ...(includeCharacterLibrary
+      ? [
+          {
+            element: '[data-onboarding-target="character-library"]',
+            waitForElement: 5000,
+            onHighlighted: () => actions.setPhase("character-library"),
+            popover: {
+              title: t("onboarding.characterLibrary.title"),
+              description: t("onboarding.characterLibrary.description"),
+              side: "left" as const,
+              align: "center" as const,
+              showButtons: ["next", "close"] as Array<"next" | "close">,
+              onNextClick: actions.moveNext,
+            },
+          },
+        ]
+      : []),
     actionStep(
       '[data-onboarding-target="canvas-selector"]',
       "canvas-selector",
@@ -279,8 +265,10 @@ export function OnboardingTourProvider({ children }: { children: ReactNode }) {
           componentBaselineRef.current = structuredComponentCountRef.current;
           advancingFromDropRef.current = false;
         },
-      }),
-    [endTour]
+      },
+      canvasMode === "freeform"
+    ),
+    [canvasMode, endTour]
   );
 
   const startTour = useCallback(async () => {
@@ -330,22 +318,6 @@ export function OnboardingTourProvider({ children }: { children: ReactNode }) {
     void startTour();
   }, [startTour]);
 
-  const notifyLanguageSelected = useCallback(() => {
-    if (phase !== "language-choice") return;
-    window.setTimeout(() => {
-      const currentDriver = driverRef.current;
-      if (!currentDriver?.isActive()) return;
-      currentDriver.setConfig({
-        ...currentDriver.getConfig(),
-        steps: createSteps(tRef.current),
-        progressText: tRef.current("onboarding.progress"),
-        nextBtnText: tRef.current("onboarding.next"),
-        doneBtnText: tRef.current("onboarding.done"),
-      });
-      currentDriver.moveTo(4);
-    }, 0);
-  }, [createSteps, phase]);
-
   useEffect(() => {
     if (
       phase !== "structured-create" ||
@@ -368,6 +340,14 @@ export function OnboardingTourProvider({ children }: { children: ReactNode }) {
     advancingFromDropRef.current = true;
     driverRef.current?.moveNext();
   }, [phase, structuredComponentCount]);
+
+  useEffect(() => {
+    if (phase !== "character-library") return;
+    const timeoutId = window.setTimeout(() => {
+      driverRef.current?.refresh();
+    }, 250);
+    return () => window.clearTimeout(timeoutId);
+  }, [phase]);
 
   useEffect(() => {
     if (phase === "idle") {
@@ -425,9 +405,8 @@ export function OnboardingTourProvider({ children }: { children: ReactNode }) {
       phase,
       canStart: !isMobile,
       requestStart,
-      notifyLanguageSelected,
     }),
-    [isMobile, notifyLanguageSelected, phase, requestStart]
+    [isMobile, phase, requestStart]
   );
 
   return (

@@ -84,6 +84,9 @@ function SidebarViewRail<ViewId extends string>({
       role="tablist"
       aria-label={ariaLabel}
       aria-orientation={orientation}
+      data-onboarding-target={
+        testIdPrefix === "character" ? "character-library" : undefined
+      }
       data-testid={`${testIdPrefix}-view-rail-${orientation}`}
       className={cn(
         uiClass.iconRail,
@@ -172,6 +175,11 @@ export function SidebarRight() {
     if (!isStaticGridMode(canvasMode)) return;
     void loadMainPacks();
   }, [canvasMode, loadMainPacks]);
+
+  useEffect(() => {
+    if (onboardingPhase !== "character-library") return;
+    setOpen(true);
+  }, [onboardingPhase, setOpen]);
 
   useEffect(() => {
     if (onboardingPhase !== "preparing-template") return;

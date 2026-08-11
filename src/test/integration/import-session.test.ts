@@ -84,6 +84,38 @@ describe("importCanvasSession", () => {
     expect(state.grid.size).toBeGreaterThan(0);
   });
 
+  it("imports Agent-generated Markdown as a new active Slide Deck", () => {
+    const before = useEditorStore.getState();
+    const session = before.importCanvasSession(
+      [
+        "---",
+        "asciicanvas: slides/v1",
+        "size: 8x3",
+        "title: Agent Deck",
+        "---",
+        "## Intro",
+        "```text",
+        " A",
+        "```",
+        "## Next",
+        "```asciicanvas",
+        "[31mR[0m",
+        "```",
+      ].join("\n")
+    );
+
+    const state = useEditorStore.getState();
+    expect(session).toMatchObject({ mode: "slide", name: "Agent Deck" });
+    expect(state.canvasSessions.some((item) => item.id === before.activeCanvasId)).toBe(true);
+    expect(state.activeCanvasId).toBe(session.id);
+    expect(state.canvasMode).toBe("slide");
+    expect(state.slideDeck?.slides.map((slide) => slide.name)).toEqual([
+      "Intro",
+      "Next",
+    ]);
+    expect(state.grid.get("1,0")).toMatchObject({ char: "A" });
+  });
+
   it("does not mutate sessions when the payload is invalid", () => {
     const before = useEditorStore.getState();
     const activeCanvasId = before.activeCanvasId;

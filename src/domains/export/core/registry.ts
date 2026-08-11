@@ -46,6 +46,16 @@ const EXPORT_FORMATS: readonly ExportFormatDefinition[] = [
     truncatePreview: true,
   },
   {
+    format: "md",
+    label: "Markdown",
+    subLabel: "slides",
+    modes: ["slide"],
+    artifactKind: "text",
+    supportsColor: true,
+    supportsClipboard: true,
+    truncatePreview: true,
+  },
+  {
     format: "png",
     label: "PNG",
     subLabel: "image",
@@ -60,7 +70,7 @@ const EXPORT_FORMATS: readonly ExportFormatDefinition[] = [
 const FORMAT_ORDER: Record<CanvasMode, readonly ExportFormat[]> = {
   freeform: ["txt", "ascanvas", "ansi", "png"],
   structured: ["txt", "ascanvas", "ansi", "png"],
-  slide: [],
+  slide: ["md"],
 };
 
 export const getAvailableExportFormats = (mode: CanvasMode) =>

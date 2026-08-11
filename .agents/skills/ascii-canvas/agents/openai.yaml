@@ -1,0 +1,4 @@
+interface:
+  display_name: 'ASCII Canvas'
+  short_description: 'Authoritative ASCII Canvas format references'
+  default_prompt: 'Use $ascii-canvas to apply the relevant ASCII Canvas format.'

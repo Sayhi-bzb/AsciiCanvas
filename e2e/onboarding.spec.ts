@@ -27,14 +27,54 @@ async function reachDragStep(page: Page, testWrongClicks = false) {
   await page.goto('/');
 
   const popover = page.locator('.ascii-canvas-onboarding');
-  await expect(popover.getByText('Your canvas')).toBeVisible({ timeout: 15_000 });
-  await popover.getByRole('button', { name: 'Next' }).click();
-  await expect(popover.getByText('App menu', { exact: true })).toBeVisible();
-  await page.waitForTimeout(TOUR_TRANSITION_MS);
+  await expect(popover.getByText("Your canvas")).toBeVisible({ timeout: 15_000 });
+  await expect
+    .poll(() => page.evaluate(() => document.documentElement.dataset.onboardingPhase))
+    .toBe("welcome");
+  const welcomeVisual = await page.evaluate(() => {
+    const card = document.querySelector<HTMLElement>(".ascii-canvas-onboarding");
+    const canvas = document.querySelector<HTMLElement>(
+      "[data-onboarding-target=\"canvas\"]",
+    );
+    const dummy = document.querySelector<HTMLElement>("#driver-dummy-element");
+    const overlayPath = document.querySelector<SVGPathElement>(".driver-overlay path");
+    if (!card || !canvas || !dummy || !overlayPath) return null;
+
+    const cardBox = card.getBoundingClientRect();
+    return {
+      canvasActive: canvas.classList.contains("driver-active-element"),
+      dummyActive: dummy.classList.contains("driver-active-element"),
+      overlayFill: getComputedStyle(overlayPath).fill,
+      overlayOpacity: Number(getComputedStyle(overlayPath).opacity),
+      centerOffsetX: Math.abs(
+        cardBox.left + cardBox.width / 2 - window.innerWidth / 2,
+      ),
+      centerOffsetY: Math.abs(
+        cardBox.top + cardBox.height / 2 - window.innerHeight / 2,
+      ),
+      arrowHidden: card.querySelector(".driver-popover-arrow-none") !== null,
+    };
+  });
+  expect(welcomeVisual).not.toBeNull();
+  expect(welcomeVisual!.canvasActive).toBe(false);
+  expect(welcomeVisual!.dummyActive).toBe(true);
+  expect(welcomeVisual!.overlayFill).toBe("rgb(0, 0, 0)");
+  expect(welcomeVisual!.overlayOpacity).toBe(0.48);
+  expect(welcomeVisual!.centerOffsetX).toBeLessThanOrEqual(2);
+  expect(welcomeVisual!.centerOffsetY).toBeLessThanOrEqual(2);
+  expect(welcomeVisual!.arrowHidden).toBe(true);
+
+  await popover.getByRole("button", { name: "Next" }).click();
+  await expect(popover.getByText('Character libraries')).toBeVisible();
+  const characterRail = page.locator(
+    '[data-onboarding-target="character-library"]',
+  );
+  await expect(characterRail).toBeVisible();
+  await expect(characterRail).toHaveClass(/driver-active-element/);
 
   if (testWrongClicks) {
     await page.mouse.click(900, 780);
-    await expect(popover.getByText('App menu', { exact: true })).toBeVisible();
+    await expect(popover.getByText('Character libraries')).toBeVisible();
 
     const zoomInBounds = await page.getByRole('button', { name: 'Zoom in' }).boundingBox();
     expect(zoomInBounds).not.toBeNull();
@@ -42,30 +82,36 @@ async function reachDragStep(page: Page, testWrongClicks = false) {
       zoomInBounds!.x + zoomInBounds!.width / 2,
       zoomInBounds!.y + zoomInBounds!.height / 2,
     );
-    await expect(popover.getByText('App menu', { exact: true })).toBeVisible();
+    await expect(popover.getByText('Character libraries')).toBeVisible();
   }
 
-  await page.locator('[data-onboarding-target="app-menu"]').click();
-  await expect(popover.getByText('Language', { exact: true })).toBeVisible();
-  await page.waitForTimeout(TOUR_TRANSITION_MS);
-  await page.locator('[data-onboarding-target="language-menu"]').click();
-  await expect(popover.getByText('Choose your language')).toBeVisible();
-  await page.waitForTimeout(TOUR_TRANSITION_MS);
-  await page.locator('[data-onboarding-language="zh"]').click();
-
-  await expect(popover.getByText('画布模式')).toBeVisible();
+  const editorStateBeforeLibrary = await page.evaluate(() =>
+    localStorage.getItem('ascii-canvas-persistence'),
+  );
+  await expect(page.getByRole('tab', { name: 'Nerd Icons' })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Emoji' })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Unicode' })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Essentials' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await popover.getByRole('button', { name: 'Next' }).click();
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem('ascii-canvas-persistence')))
+    .toBe(editorStateBeforeLibrary);
+  await expect(popover.getByText('Canvas modes')).toBeVisible();
   await page.waitForTimeout(TOUR_TRANSITION_MS);
   await page.locator('[data-onboarding-target="canvas-selector"]').click();
-  await expect(popover.getByText('新建画布')).toBeVisible();
+  await expect(popover.getByText('Create a canvas')).toBeVisible();
   await page.waitForTimeout(TOUR_TRANSITION_MS);
   await page.locator('[data-onboarding-target="create-menu"]').click();
-  await expect(popover.getByText('结构化画布', { exact: true })).toBeVisible();
+  await expect(popover.getByText('Structured Canvas', { exact: true })).toBeVisible();
   await page.waitForTimeout(TOUR_TRANSITION_MS);
   await page.locator('[data-onboarding-target="create-structured"]').click();
 
-  await expect(popover.getByText('Button 组件')).toBeVisible();
-  await popover.getByRole('button', { name: '下一步' }).click();
-  await expect(popover.getByText('拖入第一个组件')).toBeVisible();
+  await expect(popover.getByText('Button component')).toBeVisible();
+  await popover.getByRole('button', { name: 'Next' }).click();
+  await expect(popover.getByText('Drag your first component')).toBeVisible();
   await page.waitForTimeout(TOUR_TRANSITION_MS);
 
   return popover;
@@ -77,7 +123,7 @@ test('keeps wrong clicks inside the guide and completes a real Button drag', asy
 
   const template = page.locator('[data-onboarding-template-id="button"]');
   const canvas = page.locator("[data-onboarding-target=\"canvas\"]");
-  const footerButton = popover.getByRole("button", { name: "跳过此步" });
+  const footerButton = popover.getByRole("button", { name: "Skip this step" });
   const guideSurface = await page.evaluate(() => {
     const card = document.querySelector<HTMLElement>(".ascii-canvas-onboarding");
     const button = card?.querySelector<HTMLElement>(".driver-popover-footer-btn");
@@ -154,9 +200,9 @@ test('keeps wrong clicks inside the guide and completes a real Button drag', asy
   await page.waitForTimeout(100);
   await page.mouse.up();
 
-  await expect(popover.getByText('可以开始了')).toBeVisible();
+  await expect(popover.getByText('You are ready')).toBeVisible();
   await expect.poll(() => getStructuredComponentCount(page)).toBe(1);
-  await popover.getByRole('button', { name: '开始创作' }).click();
+  await popover.getByRole('button', { name: 'Start creating' }).click();
   await expect(popover).toHaveCount(0);
   await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), ONBOARDING_STORAGE_KEY)).toBe('completed');
 
@@ -169,11 +215,11 @@ test('allows the drag step to be skipped without adding a component', async ({ p
   const popover = await reachDragStep(page);
 
   await expect.poll(() => getStructuredComponentCount(page)).toBe(0);
-  await popover.getByRole('button', { name: '跳过此步' }).click();
-  await expect(popover.getByText('可以开始了')).toBeVisible();
+  await popover.getByRole('button', { name: 'Skip this step' }).click();
+  await expect(popover.getByText('You are ready')).toBeVisible();
   await expect.poll(() => getStructuredComponentCount(page)).toBe(0);
 
-  await popover.getByRole('button', { name: '开始创作' }).click();
+  await popover.getByRole('button', { name: 'Start creating' }).click();
   await expect.poll(() =>
     page.evaluate((key) => localStorage.getItem(key), ONBOARDING_STORAGE_KEY)
   ).toBe('completed');

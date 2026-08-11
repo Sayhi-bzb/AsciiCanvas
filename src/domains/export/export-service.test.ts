@@ -9,6 +9,7 @@ import {
   parseProtocolDocument,
   protocolDocumentToSnapshot,
 } from "@/domains/document/public";
+import { parseSlideMarkdown } from "@/domains/slides/public";
 
 const createContext = (
   overrides: Partial<ExportContext> = {}
@@ -84,6 +85,43 @@ describe("export service", () => {
     expect(result.value.content).toContain('endMarker="arrow"');
   });
 
+
+  it("round-trips positioned ANSI slide content through Markdown", () => {
+    const result = prepareTextExport(
+      createContext({
+        canvasMode: "slide",
+        grid: new Map(),
+        slideDeck: {
+          size: { columns: 6, rows: 3 },
+          activeSlideId: "slide-1",
+          slides: [
+            {
+              id: "slide-1",
+              name: "Intro",
+              grid: [["2,1", { char: "R", color: "#ff0000" }]],
+            },
+          ],
+        },
+        documentName: "Agent Deck",
+      }),
+      "md"
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value).toMatchObject({
+      format: "md",
+      mimeType: "text/markdown;charset=utf-8",
+    });
+    expect(result.value.filename).toMatch(/^ascii-slides-\d+\.slides\.md$/);
+    expect(result.value.content).not.toContain("\u001b");
+
+    const parsed = parseSlideMarkdown(result.value.content);
+    expect(parsed.title).toBe("Agent Deck");
+    expect(parsed.slideDeck.slides[0].grid).toEqual([
+      ["2,1", { char: "R", color: "#ff0000" }],
+    ]);
+  });
 
   it("returns a typed clipboard error instead of throwing", async () => {
     vi.spyOn(clipboard, "writeText").mockResolvedValue(false);

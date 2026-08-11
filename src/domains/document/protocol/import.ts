@@ -32,7 +32,7 @@ const cloneComponentMetadata = (component: StructuredNode["component"]) =>
       }
     : {};
 
-export type ProtocolImportSnapshot = CanvasImportSnapshot;
+export type ProtocolImportSnapshot = Exclude<CanvasImportSnapshot, { mode: "slide" }>;
 
 const toGridEntries = (cells: AsciiCanvasProtocolCellV1[]) => {
   const entries = new Map<string, GridCell>();

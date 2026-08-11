@@ -27,7 +27,6 @@ import { uiClass } from "@/shared/styles/components";
 import { useCanvasImport } from "@/widgets/import/useCanvasImport";
 import { useAppMenuExport } from "@/widgets/export/use-app-menu-export";
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
-import { useOnboardingTour } from "@/widgets/onboarding/onboarding-context";
 
 const AppMenuTriggerIcon = HOST_ICONOLOGY.appMenu.trigger;
 const ImportIcon = HOST_ICONOLOGY.appMenu.import;
@@ -45,21 +44,28 @@ export function AppMenu() {
   const {
     grid,
     canvasMode,
+    slideDeck,
     structuredScene,
     structuredComponents,
+    canvasSessions,
+    activeCanvasId,
     clearCanvas,
   } = useEditorStore(
     useShallow((state) => ({
       grid: state.grid,
       canvasMode: state.canvasMode,
+      slideDeck: state.slideDeck,
       structuredScene: state.structuredScene,
       structuredComponents: state.structuredComponents,
+      canvasSessions: state.canvasSessions,
+      activeCanvasId: state.activeCanvasId,
       clearCanvas: state.clearCanvas,
     }))
   );
+  const documentName = canvasSessions.find(
+    (session) => session.id === activeCanvasId
+  )?.name;
   const { language, setLanguage, t } = useUiI18n();
-  const { phase: onboardingPhase, notifyLanguageSelected } =
-    useOnboardingTour();
   const {
     fileInputRef,
     handleFileChange,
@@ -68,16 +74,7 @@ export function AppMenu() {
   } = useCanvasImport();
   const [clearOpen, setClearOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const keepLanguageMenuOpen =
-    onboardingPhase === "app-menu" ||
-    onboardingPhase === "language-menu" ||
-    onboardingPhase === "language-choice";
-  const selectLanguage = (value: "en" | "zh") => {
-    setLanguage(value);
-    if (onboardingPhase !== "language-choice") return;
-    setMenuOpen(false);
-    notifyLanguageSelected();
-  };
+  const selectLanguage = (value: "en" | "zh") => setLanguage(value);
   const clearLabel = t("sidebar.clear.canvas");
   const clearDescription = t("sidebar.clear.canvasDescription");
   const exportLabel = t("appMenu.export");
@@ -89,6 +86,8 @@ export function AppMenu() {
     () => ({
       canvasMode,
       grid,
+      slideDeck,
+      documentName,
       structuredScene,
       structuredComponents,
       includeColor: true,
@@ -96,7 +95,9 @@ export function AppMenu() {
     }),
     [
       canvasMode,
+      documentName,
       grid,
+      slideDeck,
       structuredComponents,
       structuredScene,
     ]
@@ -115,7 +116,7 @@ export function AppMenu() {
       <input
         ref={fileInputRef}
         type="file"
-        accept=".ascanvas,.json,application/vnd.ascii-canvas+json,application/json,text/plain"
+        accept=".ascanvas,.json,.md,application/vnd.ascii-canvas+json,application/json,text/markdown,text/plain"
         className="sr-only"
         tabIndex={-1}
         aria-hidden="true"
@@ -130,13 +131,10 @@ export function AppMenu() {
             <DropdownMenu
               modal={false}
               open={menuOpen}
-              onOpenChange={(open) =>
-                setMenuOpen(keepLanguageMenuOpen ? true : open)
-              }
+              onOpenChange={setMenuOpen}
             >
               <DropdownMenuTrigger asChild>
                 <Button
-                  data-onboarding-target="app-menu"
                   tone="subtle"
                   shape="square"
                   size="md"
@@ -154,7 +152,6 @@ export function AppMenu() {
                 align="start"
                 aria-label={t("appMenu.open")}
               >
-                {canvasMode !== "slide" && (
                 <DropdownMenuItem
                   disabled={isImporting}
                   onSelect={openFilePicker}
@@ -162,7 +159,6 @@ export function AppMenu() {
                   <ImportIcon />
                   {isImporting ? t("import.importing") : t("appMenu.import")}
                 </DropdownMenuItem>
-                )}
                 {availableExportFormats.length > 0 && (
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger>
@@ -223,25 +219,14 @@ export function AppMenu() {
                   <ClearIcon />
                   {t("appMenu.clear")}
                 </DropdownMenuItem>
-                <DropdownMenuSub
-                  open={
-                    onboardingPhase === "language-menu" ||
-                    onboardingPhase === "language-choice"
-                      ? true
-                      : undefined
-                  }
-                >
-                  <DropdownMenuSubTrigger data-onboarding-target="language-menu">
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
                     <LanguageIcon />
                     {t("appMenu.language")}
                   </DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent
-                    data-onboarding-target="language-options"
-                    aria-label={t("appMenu.language")}
-                  >
+                  <DropdownMenuSubContent aria-label={t("appMenu.language")}>
                     <DropdownMenuRadioGroup value={language}>
                       <DropdownMenuRadioItem
-                        data-onboarding-language="en"
                         value="en"
                         onSelect={(event) => {
                           event.preventDefault();
@@ -251,7 +236,6 @@ export function AppMenu() {
                         {t("appMenu.english")}
                       </DropdownMenuRadioItem>
                       <DropdownMenuRadioItem
-                        data-onboarding-language="zh"
                         value="zh"
                         onSelect={(event) => {
                           event.preventDefault();

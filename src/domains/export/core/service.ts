@@ -6,6 +6,7 @@ import {
 import { exportProtocolToJSON } from "../formats/protocol";
 import { exportStructuredF12Text } from "../formats/structuredText";
 import { exportToAnsi, exportToString } from "../formats/text";
+import { exportSlideDeckToMarkdown } from "../formats/slidesMarkdown";
 import { getExportFormatDefinition } from "./registry";
 import {
   exportFailed,
@@ -107,6 +108,19 @@ export const prepareTextExport = (
             }),
             `ascii-canvas-${getTimestamp()}.ans`,
             "text/plain;charset=utf-8"
+          )
+        );
+      case "md":
+        if (!context.slideDeck) return exportFailed("canvas-unavailable");
+        return exportSucceeded(
+          textArtifact(
+            format,
+            exportSlideDeckToMarkdown(context.slideDeck, {
+              title: context.documentName,
+              includeColor: context.includeColor,
+            }),
+            `ascii-slides-${getTimestamp()}.slides.md`,
+            "text/markdown;charset=utf-8"
           )
         );
       case "png":
