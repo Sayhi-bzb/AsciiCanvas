@@ -1,0 +1,133 @@
+"use client";
+
+import { useState, type RefObject } from "react";
+import type { SlideSize } from "@/domains/slides/public";
+import { useUiI18n } from "@/shared/i18n";
+import { Button } from "@/shared/ui/button";
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/shared/ui/dialog";
+import { Input } from "@/shared/ui/input";
+import { Label } from "@/shared/ui/label";
+
+const DEFAULT_COLUMNS = "100";
+const DEFAULT_ROWS = "27";
+
+const parseDimension = (value: string) => {
+  if (!/^\d+$/.test(value)) return null;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
+};
+
+type CustomSlideSizeDialogProps = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onConfirm: (size: SlideSize) => void;
+  returnFocusRef: RefObject<HTMLButtonElement | null>;
+};
+
+export function CustomSlideSizeDialog({
+  open,
+  onOpenChange,
+  onConfirm,
+  returnFocusRef,
+}: CustomSlideSizeDialogProps) {
+  const { t } = useUiI18n();
+  const [columns, setColumns] = useState(DEFAULT_COLUMNS);
+  const [rows, setRows] = useState(DEFAULT_ROWS);
+  const parsedColumns = parseDimension(columns);
+  const parsedRows = parseDimension(rows);
+  const isValid = parsedColumns !== null && parsedRows !== null;
+  const hasInvalidValue = columns.length === 0 || rows.length === 0 || !isValid;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className="sm:max-w-[360px]"
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          returnFocusRef.current?.focus();
+        }}
+      >
+        <DialogHeader>
+          <DialogTitle>{t("session.slideCustom.title")}</DialogTitle>
+          <DialogDescription>
+            {t("session.slideCustom.description")}
+          </DialogDescription>
+        </DialogHeader>
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (parsedColumns === null || parsedRows === null) return;
+            onConfirm({ columns: parsedColumns, rows: parsedRows });
+          }}
+        >
+          <DialogBody>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="custom-slide-columns">
+                  {t("session.slideCustom.columns")}
+                </Label>
+                <Input
+                  id="custom-slide-columns"
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  step={1}
+                  value={columns}
+                  aria-invalid={parsedColumns === null}
+                  aria-describedby={hasInvalidValue ? "custom-slide-size-error" : undefined}
+                  autoFocus
+                  onChange={(event) => setColumns(event.target.value)}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="custom-slide-rows">
+                  {t("session.slideCustom.rows")}
+                </Label>
+                <Input
+                  id="custom-slide-rows"
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  step={1}
+                  value={rows}
+                  aria-invalid={parsedRows === null}
+                  aria-describedby={hasInvalidValue ? "custom-slide-size-error" : undefined}
+                  onChange={(event) => setRows(event.target.value)}
+                />
+              </div>
+            </div>
+            {hasInvalidValue ? (
+              <p
+                id="custom-slide-size-error"
+                role="alert"
+                className="mt-2 text-[11px] leading-4 text-destructive"
+              >
+                {t("session.slideCustom.invalid")}
+              </p>
+            ) : null}
+          </DialogBody>
+          <DialogFooter>
+            <Button
+              type="button"
+              tone="subtle"
+              onClick={() => onOpenChange(false)}
+            >
+              {t("dialog.cancel")}
+            </Button>
+            <Button type="submit" disabled={!isValid}>
+              {t("session.slideCustom.create")}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}

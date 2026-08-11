@@ -107,6 +107,61 @@ describe("CanvasBreadcrumb", () => {
     );
   });
 
+  it("uses the slide icon and creates a slide deck with a custom size", async () => {
+    render(<CanvasBreadcrumb />);
+
+    const selector = screen.getByRole("button", { name: "Select canvas" });
+    openMenu();
+    await openSubmenu("Create");
+    const slidesTrigger = screen.getByRole("menuitem", { name: "New Slides" });
+    expect(slidesTrigger.querySelector(".lucide-presentation")).toBeInTheDocument();
+
+    await openSubmenu("New Slides");
+    fireEvent.click(screen.getByRole("menuitem", { name: "Custom size…" }));
+
+    expect(await screen.findByRole("heading", { name: "Custom slide size" })).toBeInTheDocument();
+    expect(screen.queryByRole("menu", { name: "Select canvas" })).not.toBeInTheDocument();
+    const columns = screen.getByRole("spinbutton", { name: "Columns" });
+    const rows = screen.getByRole("spinbutton", { name: "Rows" });
+    expect(columns).toHaveValue(100);
+    expect(rows).toHaveValue(27);
+    expect(columns).toHaveFocus();
+
+    fireEvent.change(columns, { target: { value: "" } });
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Enter positive whole numbers for columns and rows."
+    );
+    expect(screen.getByRole("button", { name: "Create slides" })).toBeDisabled();
+
+    fireEvent.change(columns, { target: { value: "120" } });
+    fireEvent.change(rows, { target: { value: "32" } });
+    fireEvent.click(screen.getByRole("button", { name: "Create slides" }));
+
+    await waitFor(() =>
+      expect(useEditorStore.getState().slideDeck?.size).toEqual({ columns: 120, rows: 32 })
+    );
+    expect(useEditorStore.getState().canvasMode).toBe("slide");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(selector).toHaveFocus();
+  });
+
+  it("cancels custom slide creation and returns focus to the canvas selector", async () => {
+    render(<CanvasBreadcrumb />);
+    const selector = screen.getByRole("button", { name: "Select canvas" });
+    const sessionCount = useEditorStore.getState().canvasSessions.length;
+
+    openMenu();
+    await openSubmenu("Create");
+    await openSubmenu("New Slides");
+    fireEvent.click(screen.getByRole("menuitem", { name: "Custom size…" }));
+    await screen.findByRole("dialog");
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(useEditorStore.getState().canvasSessions).toHaveLength(sessionCount);
+    expect(selector).toHaveFocus();
+  });
+
   it("renames inline and closes a canvas through its row action submenu", async () => {
     setTwoSessions();
     render(<CanvasBreadcrumb />);
@@ -184,5 +239,15 @@ describe("CanvasBreadcrumb", () => {
     await openSubmenu("管理 Beta");
     expect(await screen.findByRole("menuitem", { name: "重命名" })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "关闭" })).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
+    fireEvent.pointerDown(screen.getByRole("button", { name: "选择画布" }), {
+      button: 0,
+      ctrlKey: false,
+    });
+    await openSubmenu("新建");
+    await openSubmenu("新建幻灯片");
+    expect(screen.getByRole("menuitem", { name: "自定义大小…" })).toBeInTheDocument();
   });
 });

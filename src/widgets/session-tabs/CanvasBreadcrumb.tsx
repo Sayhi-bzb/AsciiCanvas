@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useEditorStore } from "@/domains/canvas/public";
-import { SLIDE_SIZE_PRESETS } from "@/domains/slides/public";
+import { SLIDE_SIZE_PRESETS, type SlideSize } from "@/domains/slides/public";
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
 import { useUiI18n, type I18nKey } from "@/shared/i18n";
 import { cn } from "@/shared/lib/utils";
@@ -20,8 +20,6 @@ import {
 } from "@/shared/ui/alert-dialog";
 import { Button } from "@/shared/ui/button";
 import {
-} from "@/shared/ui/dialog";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -32,6 +30,7 @@ import {
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
 import { InlineRenameInput } from "@/shared/ui/inline-rename-input";
+import { CustomSlideSizeDialog } from "@/widgets/dialogs/custom-slide-size-dialog";
 import { useOnboardingTour } from "@/widgets/onboarding/onboarding-context";
 
 const SessionExpandIcon = HOST_ICONOLOGY.sessionAction.expand;
@@ -39,6 +38,7 @@ const SessionMoreIcon = HOST_ICONOLOGY.sessionAction.more;
 const SessionRenameIcon = HOST_ICONOLOGY.sessionAction.rename;
 const SessionCreateIcon = HOST_ICONOLOGY.sessionAction.create;
 const SessionCloseIcon = HOST_ICONOLOGY.sessionAction.close;
+const SlideModeIcon = HOST_ICONOLOGY.canvasMode.slide;
 
 const createOptionMeta = [
   {
@@ -60,6 +60,7 @@ const createOptionMeta = [
 export function CanvasBreadcrumb() {
   const { t } = useUiI18n();
   const { phase: onboardingPhase } = useOnboardingTour();
+  const selectorTriggerRef = useRef<HTMLButtonElement>(null);
   const menuContentRef = useRef<HTMLDivElement>(null);
   const {
     canvasSessions,
@@ -83,6 +84,7 @@ export function CanvasBreadcrumb() {
   const [renameTargetId, setRenameTargetId] = useState<string | null>(null);
   const [renameMenuWidth, setRenameMenuWidth] = useState<number | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [customSlideSizeOpen, setCustomSlideSizeOpen] = useState(false);
   const keepCreateMenuOpen =
     onboardingPhase === "canvas-selector" ||
     onboardingPhase === "create-menu" ||
@@ -103,7 +105,7 @@ export function CanvasBreadcrumb() {
     setMenuOpen(false);
   };
 
-  const createSlideSession = (size: typeof SLIDE_SIZE_PRESETS[keyof typeof SLIDE_SIZE_PRESETS]) => {
+  const createSlideSession = (size: SlideSize) => {
     createCanvasSession("slide", { slideSize: size });
     setMenuOpen(false);
   };
@@ -145,6 +147,7 @@ export function CanvasBreadcrumb() {
       >
         <DropdownMenuTrigger asChild>
           <Button
+            ref={selectorTriggerRef}
             data-onboarding-target="canvas-selector"
             tone="subtle"
             size="md"
@@ -173,6 +176,9 @@ export function CanvasBreadcrumb() {
               : { width: renameMenuWidth }
           }
           aria-label={t("session.select")}
+          onCloseAutoFocus={(event) => {
+            if (customSlideSizeOpen) event.preventDefault();
+          }}
           onEscapeKeyDown={(event) => {
             if (!renameTargetId) return;
             event.preventDefault();
@@ -305,7 +311,7 @@ export function CanvasBreadcrumb() {
               })}
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger>
-                  <SessionCreateIcon />
+                  <SlideModeIcon />
                   {t("session.newSlides")}
                 </DropdownMenuSubTrigger>
                 <DropdownMenuSubContent aria-label={t("session.newSlides")}>
@@ -315,12 +321,33 @@ export function CanvasBreadcrumb() {
                   <DropdownMenuItem onSelect={() => createSlideSession(SLIDE_SIZE_PRESETS.classic)}>
                     {t("session.slideClassic")}
                   </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      setMenuOpen(false);
+                      setCustomSlideSizeOpen(true);
+                    }}
+                  >
+                    {t("session.slideCustom.item")}
+                  </DropdownMenuItem>
                 </DropdownMenuSubContent>
               </DropdownMenuSub>
             </DropdownMenuSubContent>
           </DropdownMenuSub>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {customSlideSizeOpen ? (
+        <CustomSlideSizeDialog
+          open={customSlideSizeOpen}
+          onOpenChange={setCustomSlideSizeOpen}
+          onConfirm={(size) => {
+            createSlideSession(size);
+            setCustomSlideSizeOpen(false);
+          }}
+          returnFocusRef={selectorTriggerRef}
+        />
+      ) : null}
 
       <AlertDialog
         open={!!pendingDeleteSession}
