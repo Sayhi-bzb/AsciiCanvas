@@ -33,7 +33,7 @@ const LIMITS = {
 const key = (x: number, y: number) => `${x},${y}`;
 
 const makeGrid = (width: number, height: number): GridEntry[] => {
-  const chars = "ASCII CANVAS PERF ";
+  const chars = "CHARDESK PERF ";
   const entries: GridEntry[] = [];
 
   for (let y = 0; y < height; y++) {

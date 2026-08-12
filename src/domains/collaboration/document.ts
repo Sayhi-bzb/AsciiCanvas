@@ -1,5 +1,5 @@
 import type * as Y from "yjs";
-import type { CollaborationDescriptorV2 } from "./model";
+import type { CollaborationDescriptor } from "./model";
 
 const toBase64Url = (bytes: Uint8Array) => {
   let binary = "";
@@ -8,7 +8,7 @@ const toBase64Url = (bytes: Uint8Array) => {
 };
 
 export const getCollaborationPersistenceName = async (
-  descriptor: CollaborationDescriptorV2
+  descriptor: CollaborationDescriptor
 ) => {
   const identity = JSON.stringify({
     provider: descriptor.provider,
@@ -20,13 +20,18 @@ export const getCollaborationPersistenceName = async (
     "SHA-256",
     new TextEncoder().encode(identity)
   );
-  return `ascii-canvas-room-v2:${toBase64Url(new Uint8Array(digest))}`;
+  const namespace = descriptor.version === 2
+    ? "ascii-canvas-room-v2"
+    : "chardesk-room-v3";
+  return `${namespace}:${toBase64Url(new Uint8Array(digest))}`;
 };
 
-export const getCollaborationRoomName = (descriptor: CollaborationDescriptorV2) =>
-  descriptor.provider === "p2p"
-    ? `asciicanvas-v2-${descriptor.roomId}`
-    : `asciicanvas-v2-${descriptor.roomId}-${descriptor.key}`;
+export const getCollaborationRoomName = (descriptor: CollaborationDescriptor) => {
+  const namespace = descriptor.version === 2 ? "asciicanvas-v2" : "chardesk-v3";
+  return descriptor.provider === "p2p"
+    ? `${namespace}-${descriptor.roomId}`
+    : `${namespace}-${descriptor.roomId}-${descriptor.key}`;
+};
 
 type CollaborationDocumentMigration = {
   id: string;
@@ -39,7 +44,7 @@ type CollaborationDocumentMigration = {
 const DOCUMENT_MIGRATIONS: ReadonlyArray<CollaborationDocumentMigration> = [];
 
 export const ensureCollaborationDocumentMeta = (
-  descriptor: CollaborationDescriptorV2,
+  descriptor: CollaborationDescriptor,
   doc: Y.Doc
 ) => {
   const meta = doc.getMap<unknown>("document-meta");

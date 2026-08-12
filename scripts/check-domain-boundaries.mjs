@@ -79,6 +79,7 @@ for (const absolutePath of collectSourceFiles(SRC_ROOT)) {
     true,
     sourcePath.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS
   );
+  const editorStoreBindings = new Set();
 
   function inspect(node) {
     const isDomainPublicContract = /^domains\/[^/]+\/public\.[tj]sx?$/.test(sourcePath);
@@ -111,6 +112,39 @@ for (const absolutePath of collectSourceFiles(SRC_ROOT)) {
           `${sourcePath}:${location.line + 1}: shared may not own domain symbol ${name}`
         );
       }
+    }
+    if (
+      ts.isImportDeclaration(node) &&
+      ts.isStringLiteral(node.moduleSpecifier) &&
+      node.importClause?.namedBindings &&
+      ts.isNamedImports(node.importClause.namedBindings)
+    ) {
+      const targetPath = resolveImport(absolutePath, node.moduleSpecifier.text);
+      if (
+        targetPath === "domains/canvas/public" ||
+        targetPath === "domains/canvas/state/editorStore"
+      ) {
+        for (const element of node.importClause.namedBindings.elements) {
+          const importedName = element.propertyName?.text ?? element.name.text;
+          if (importedName === "useEditorStore") {
+            editorStoreBindings.add(element.name.text);
+          }
+        }
+      }
+    }
+    if (
+      !isTestFile &&
+      sourcePath !== "domains/canvas/state/editorStore.ts" &&
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      node.expression.name.text === "setState" &&
+      ts.isIdentifier(node.expression.expression) &&
+      editorStoreBindings.has(node.expression.expression.text)
+    ) {
+      const location = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+      violations.push(
+        `${sourcePath}:${location.line + 1}: production code must update editor state through store commands`
+      );
     }
     let specifier = null;
     if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {

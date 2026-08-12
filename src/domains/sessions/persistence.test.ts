@@ -115,4 +115,40 @@ describe("editor persistence v5", () => {
     });
     expect(migrated.sessions.items[0].collaboration).toBeUndefined();
   });
+
+  it("preserves supported V2 and V3 room descriptors without upgrading them", () => {
+    const base = {
+      documentVersion: 2,
+      mode: "freeform",
+      provider: "p2p",
+      roomId: "room-id-1234567890",
+      key: "room-key-1234567890123456789012345678901234567890",
+    } as const;
+    const migrated = migratePersistedStateToV5({
+      sessions: {
+        activeId: "legacy-room",
+        items: [
+          {
+            id: "legacy-room",
+            name: "Legacy room",
+            mode: "freeform",
+            scene: [],
+            grid: [],
+            collaboration: { ...base, version: 2 },
+          },
+          {
+            id: "current-room",
+            name: "Current room",
+            mode: "freeform",
+            scene: [],
+            grid: [],
+            collaboration: { ...base, version: 3 },
+          },
+        ],
+      },
+    });
+
+    expect(migrated.sessions.items.map((session) => session.collaboration?.version))
+      .toEqual([2, 3]);
+  });
 });

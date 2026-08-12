@@ -42,7 +42,7 @@ const seedFreeformSelection = async (page: Page) => {
     { storageKey: STORAGE_KEY, viewport: VIEWPORT }
   );
   await page.reload();
-  const surface = page.getByTestId("ascii-canvas-surface");
+  const surface = page.getByTestId("canvas-editor-surface");
   await expect(surface).toBeVisible();
   await page
     .getByTestId("tool-dock")

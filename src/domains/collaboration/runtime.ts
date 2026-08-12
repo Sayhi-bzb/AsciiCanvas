@@ -15,7 +15,7 @@ import {
 } from "./presence";
 import { sameCollaborationRoom } from "./room-link";
 import type {
-  CollaborationDescriptorV2,
+  CollaborationDescriptor,
   CollaborationIntegrityIssue,
   CollaborationSnapshot,
 } from "./model";
@@ -34,10 +34,10 @@ type NetworkProviderAdapter = {
 };
 
 type CollaborationRuntimeDependencies = {
-  createPersistence: (descriptor: CollaborationDescriptorV2, doc: Y.Doc) => Promise<PersistenceAdapter>;
+  createPersistence: (descriptor: CollaborationDescriptor, doc: Y.Doc) => Promise<PersistenceAdapter>;
   createAwareness: (doc: Y.Doc) => CollaborationAwareness;
   createProvider: (
-    descriptor: CollaborationDescriptorV2,
+    descriptor: CollaborationDescriptor,
     doc: Y.Doc,
     awareness: CollaborationAwareness
   ) => NetworkProviderAdapter;
@@ -82,13 +82,13 @@ class CollaborationSession {
   private metaObserver: (() => void) | null = null;
   private peerCount = 0;
   private disposed = false;
-  readonly descriptor: CollaborationDescriptorV2;
+  readonly descriptor: CollaborationDescriptor;
   private readonly doc: Y.Doc;
   private readonly publish: (patch: Partial<CollaborationSnapshot>) => void;
   private readonly dependencies: CollaborationRuntimeDependencies;
 
   constructor(
-    descriptor: CollaborationDescriptorV2,
+    descriptor: CollaborationDescriptor,
     doc: Y.Doc,
     publish: (patch: Partial<CollaborationSnapshot>) => void,
     dependencies: CollaborationRuntimeDependencies
@@ -277,7 +277,7 @@ export class CollaborationRuntime {
     this.listeners.forEach((listener) => listener());
   }
 
-  async connect(descriptor: CollaborationDescriptorV2, doc: Y.Doc) {
+  async connect(descriptor: CollaborationDescriptor, doc: Y.Doc) {
     const generation = ++this.generation;
     const previousSession = this.session;
     this.session = null;
@@ -329,7 +329,7 @@ export class CollaborationRuntime {
     if (this.generation === generation) this.publish(EMPTY_SNAPSHOT);
   }
 
-  async forget(descriptor: CollaborationDescriptorV2) {
+  async forget(descriptor: CollaborationDescriptor) {
     const isActive = sameCollaborationRoom(this.snapshot.descriptor ?? undefined, descriptor);
     if (isActive && this.session) {
       await this.session.clearPersistence();

@@ -237,7 +237,7 @@ body,
 }
 
 
-.ascii-canvas-onboarding.driver-popover {
+.chardesk-onboarding.driver-popover {
   min-width: 16rem;
   max-width: 20rem;
   border: 0;
@@ -249,25 +249,25 @@ body,
   font-family: var(--font-sans);
 }
 
-.ascii-canvas-onboarding .driver-popover-title {
+.chardesk-onboarding .driver-popover-title {
   color: var(--foreground);
   font-size: 0.875rem;
   font-weight: 600;
   line-height: 1.4;
 }
 
-.ascii-canvas-onboarding .driver-popover-description {
+.chardesk-onboarding .driver-popover-description {
   color: var(--muted-foreground);
   font-size: 0.75rem;
   line-height: 1.5;
 }
 
-.ascii-canvas-onboarding .driver-popover-progress-text {
+.chardesk-onboarding .driver-popover-progress-text {
   color: var(--muted-foreground);
   font-size: 0.6875rem;
 }
 
-.ascii-canvas-onboarding .driver-popover-footer-btn {
+.chardesk-onboarding .driver-popover-footer-btn {
   border: 0;
   border-radius: calc(var(--radius) - 0.25rem);
   background: var(--accent);
@@ -277,21 +277,21 @@ body,
   font-size: 0.75rem;
 }
 
-.ascii-canvas-onboarding .driver-popover-footer-btn:hover {
+.chardesk-onboarding .driver-popover-footer-btn:hover {
   background: color-mix(in oklab, var(--accent) 84%, var(--foreground));
 }
 
-.ascii-canvas-onboarding .driver-popover-footer-btn:focus-visible {
+.chardesk-onboarding .driver-popover-footer-btn:focus-visible {
   background: color-mix(in oklab, var(--accent) 84%, var(--foreground));
   box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 50%, transparent);
 }
 
-.ascii-canvas-onboarding .driver-popover-close-btn {
+.chardesk-onboarding .driver-popover-close-btn {
   color: var(--muted-foreground);
 }
 
-.ascii-canvas-onboarding .driver-popover-close-btn:hover,
-.ascii-canvas-onboarding .driver-popover-close-btn:focus-visible {
+.chardesk-onboarding .driver-popover-close-btn:hover,
+.chardesk-onboarding .driver-popover-close-btn:focus-visible {
   color: var(--foreground);
 }
 

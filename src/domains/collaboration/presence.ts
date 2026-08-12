@@ -1,6 +1,6 @@
 import { getCollaborationIdentity } from "./identity";
 import type {
-  CollaborationDescriptorV2,
+  CollaborationDescriptor,
   CollaborationIntegrityIssue,
   CollaborationPeer,
   CollaborationPresenceSelection,
@@ -23,7 +23,7 @@ const isPoint = (value: unknown): value is { x: number; y: number } => {
 
 const decodeSelection = (
   value: unknown,
-  mode: CollaborationDescriptorV2["mode"]
+  mode: CollaborationDescriptor["mode"]
 ): CollaborationPresenceSelection | undefined => {
   if (!value) return undefined;
   if (value && typeof value === "object" && "mode" in value) {
@@ -64,7 +64,7 @@ const decodeSelection = (
 
 const decodePresence = (
   state: Record<string, unknown>,
-  mode: CollaborationDescriptorV2["mode"]
+  mode: CollaborationDescriptor["mode"]
 ): Omit<CollaborationPresenceV1, "version" | "mode"> | null => {
   const user = state.user;
   if (!user || typeof user !== "object") return null;
@@ -86,7 +86,7 @@ const decodePresence = (
 
 export const readCollaborationPeers = (
   awareness: CollaborationAwareness,
-  mode: CollaborationDescriptorV2["mode"]
+  mode: CollaborationDescriptor["mode"]
 ): { peers: CollaborationPeer[]; issues: CollaborationIntegrityIssue[] } => {
   const peers: CollaborationPeer[] = [];
   const issues: CollaborationIntegrityIssue[] = [];
@@ -111,7 +111,7 @@ export const readCollaborationPeers = (
 };
 
 export const buildCollaborationPresence = (
-  descriptor: CollaborationDescriptorV2,
+  descriptor: CollaborationDescriptor,
   input: { cursor?: { x: number; y: number } | null; selection?: unknown; tool?: string } = {}
 ): CollaborationPresenceV1 => {
   const selection = decodeSelection(input.selection, descriptor.mode);

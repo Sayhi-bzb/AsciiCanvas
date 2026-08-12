@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { useEditorStore } from "@/domains/canvas/public";
 import { GridManager } from "@/shared/utils/grid";
 import { runCanvasTransaction, undoManager, yMainGrid } from "./canvasDocument";
+import { createDocumentInteractionResetPatch } from "./transitions/editorTransitions";
 
 const initialState = useEditorStore.getState();
 
@@ -49,6 +50,79 @@ describe("slideSlice", () => {
 
     expect(Array.from(useEditorStore.getState().grid.keys())).toEqual(["1,0"]);
     expect(useEditorStore.getState().slideDeck?.slides[0].grid).toHaveLength(1);
+  });
+
+  it("clears document interaction for every active page transition", () => {
+    const markDirty = () =>
+      useEditorStore.setState({
+        textCursor: { x: 1, y: 1 },
+        editingStructuredTextNodeId: "stale-text",
+        structuredGridFocus: { x: 2, y: 2 },
+        staticGridEditMode: "text-edit",
+        hoveredGrid: { x: 3, y: 3 },
+        scratchLayer: new Map([
+          ["0,0", { char: "X", color: "#fff" }],
+        ]),
+        canvasColorPickerTarget: "char",
+      });
+    const expectReset = () =>
+      expect(useEditorStore.getState()).toMatchObject(
+        createDocumentInteractionResetPatch()
+      );
+
+    useEditorStore.getState().createCanvasSession("slide", {
+      slideSize: { columns: 4, rows: 2 },
+    });
+    const firstSlideId = useEditorStore.getState().slideDeck!.activeSlideId;
+
+    markDirty();
+    useEditorStore.getState().addSlide();
+    expectReset();
+    const secondSlideId = useEditorStore.getState().slideDeck!.activeSlideId;
+
+    markDirty();
+    useEditorStore.getState().duplicateSlide(secondSlideId);
+    expectReset();
+
+    markDirty();
+    useEditorStore.getState().activateSlide(firstSlideId);
+    expectReset();
+
+    markDirty();
+    useEditorStore.getState().resizeSlide(firstSlideId, {
+      columns: 5,
+      rows: 3,
+    });
+    expectReset();
+
+    markDirty();
+    useEditorStore.getState().removeSlide(firstSlideId);
+    expectReset();
+  });
+
+  it("preserves interaction for deck metadata and inactive page changes", () => {
+    useEditorStore.getState().createCanvasSession("slide", {
+      slideSize: { columns: 4, rows: 2 },
+    });
+    const firstSlideId = useEditorStore.getState().slideDeck!.activeSlideId;
+    useEditorStore.getState().addSlide();
+    const activeSlideId = useEditorStore.getState().slideDeck!.activeSlideId;
+    useEditorStore.setState({
+      hoveredGrid: { x: 2, y: 1 },
+      canvasColorPickerTarget: "bg",
+    });
+
+    useEditorStore.getState().renameSlide(activeSlideId, "Renamed");
+    useEditorStore.getState().moveSlide(activeSlideId, 0);
+    useEditorStore.getState().resizeSlide(firstSlideId, {
+      columns: 3,
+      rows: 2,
+    });
+
+    expect(useEditorStore.getState()).toMatchObject({
+      hoveredGrid: { x: 2, y: 1 },
+      canvasColorPickerTarget: "bg",
+    });
   });
 
   it("keeps deck metadata changes outside the active slide history", () => {

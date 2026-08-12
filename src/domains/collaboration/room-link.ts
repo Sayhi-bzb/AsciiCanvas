@@ -1,7 +1,8 @@
 import {
   COLLABORATION_DOCUMENT_VERSION,
   type CollaborationCanvasMode,
-  type CollaborationDescriptorV2,
+  type CollaborationDescriptor,
+  type CollaborationDescriptorV3,
   type CollaborationLinkParseResult,
 } from "./model";
 
@@ -38,14 +39,14 @@ export const validateCollaborationEndpoint = (value: string) => {
 export const createCollaborationDescriptor = (
   mode: CollaborationCanvasMode,
   endpoint?: string
-): CollaborationDescriptorV2 => {
+): CollaborationDescriptorV3 => {
   const roomId = randomToken(16);
   const key = randomToken(32);
   if (endpoint) {
     const normalizedEndpoint = validateCollaborationEndpoint(endpoint);
     if (!normalizedEndpoint) throw new Error("Invalid collaboration endpoint");
     return {
-      version: 2,
+      version: 3,
       documentVersion: COLLABORATION_DOCUMENT_VERSION,
       mode,
       provider: "websocket",
@@ -55,7 +56,7 @@ export const createCollaborationDescriptor = (
     };
   }
   return {
-    version: 2,
+    version: 3,
     documentVersion: COLLABORATION_DOCUMENT_VERSION,
     mode,
     provider: "p2p",
@@ -66,11 +67,11 @@ export const createCollaborationDescriptor = (
 
 export const isCollaborationDescriptor = (
   value: unknown
-): value is CollaborationDescriptorV2 => {
+): value is CollaborationDescriptor => {
   if (!value || typeof value !== "object") return false;
   const candidate = value as Record<string, unknown>;
   if (
-    candidate.version !== 2 ||
+    (candidate.version !== 2 && candidate.version !== 3) ||
     candidate.documentVersion !== COLLABORATION_DOCUMENT_VERSION ||
     (candidate.mode !== "freeform" && candidate.mode !== "structured") ||
     (candidate.provider !== "p2p" && candidate.provider !== "websocket") ||
@@ -87,7 +88,7 @@ export const isCollaborationDescriptor = (
         validateCollaborationEndpoint(candidate.endpoint) === candidate.endpoint;
 };
 
-const encodeDescriptor = (descriptor: CollaborationDescriptorV2) => {
+const encodeDescriptor = (descriptor: CollaborationDescriptor) => {
   const bytes = new TextEncoder().encode(JSON.stringify(descriptor));
   let binary = "";
   bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
@@ -103,7 +104,7 @@ const decodeDescriptor = (encoded: string): unknown => {
 };
 
 export const buildCollaborationUrl = (
-  descriptor: CollaborationDescriptorV2,
+  descriptor: CollaborationDescriptor,
   baseUrl = window.location.href
 ) => {
   const url = new URL(baseUrl);
@@ -137,11 +138,12 @@ export const parseCollaborationUrl = (
 };
 
 export const sameCollaborationRoom = (
-  left: CollaborationDescriptorV2 | undefined,
-  right: CollaborationDescriptorV2 | null
+  left: CollaborationDescriptor | undefined,
+  right: CollaborationDescriptor | null
 ) =>
   !!left &&
   !!right &&
+  left.version === right.version &&
   left.provider === right.provider &&
   left.roomId === right.roomId &&
   left.key === right.key &&

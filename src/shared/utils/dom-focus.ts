@@ -23,7 +23,7 @@ export const classifyShortcutTarget = (
   );
   if (editable) return "editable";
   if (target.closest('[data-canvas-ui="true"]')) return "canvas-ui";
-  if (target.closest('[data-testid="ascii-canvas-surface"]')) {
+  if (target.closest('[data-testid="canvas-editor-surface"]')) {
     return "canvas-surface";
   }
   return "document";

@@ -7,7 +7,7 @@ export const FORM_COMPONENTS: StructuredComponentDefinition[] = [
     build: ({ createBg, createText }) => [
       createBg(20, 0, 0, { x: 6, y: 0 }, 1, undefined, "fieldFill"),
       createText(
-        "Name: [ Ascii-Canvas |   ]",
+        "Name: [ CharDesk     |   ]",
         { x: 0, y: 0 },
         1,
         undefined,

@@ -63,7 +63,7 @@ export const CanvasSurface = forwardRef<HTMLDivElement, CanvasSurfaceProps>(func
         assignRef(containerRef, node);
         assignRef(forwardedRef, node);
       }}
-      data-testid="ascii-canvas-surface"
+      data-testid="canvas-editor-surface"
       data-onboarding-target="canvas"
       style={{ touchAction: 'none', ...style }}
       className={

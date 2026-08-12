@@ -1,5 +1,5 @@
 import { useLocalStorageState } from "ahooks";
-import { AsciiCanvas } from "@/widgets/canvas-editor";
+import { CanvasEditor } from "@/widgets/canvas-editor";
 import { useEditorStore } from "@/domains/canvas/public";
 import { AppLayout } from "./AppLayout";
 import { Toolbar } from "@/widgets/toolbar/dock";
@@ -224,7 +224,7 @@ function AppContent() {
               inert={isCollaborationReadOnly}
               aria-busy={isCollaborationReadOnly}
             >
-              <AsciiCanvas
+              <CanvasEditor
                 onUndo={handleUndo}
                 onRedo={handleRedo}
                 onContainerSizeChange={setCanvasContainerSize}

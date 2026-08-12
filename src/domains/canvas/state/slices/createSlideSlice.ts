@@ -13,14 +13,14 @@ import {
   updateSlideGrid,
 } from "@/domains/slides/public";
 import type { EditorState, SlideSlice } from "../interfaces";
-import { createStaticGridState } from "@/domains/selection/public";
-import { createMapFromEntries, serializeGrid } from "../helpers/snapshotHelpers";
+import { serializeGrid } from "../helpers/snapshotHelpers";
 import { getSlideCanvasDocumentId } from "../helpers/storeUtils";
 import {
   activateCanvasDocument,
   destroyCanvasDocument,
   resetCanvasDocument,
 } from "../canvasDocument";
+import { createSlideActivationPatch } from "../transitions/editorTransitions";
 
 const syncActiveGrid = (state: EditorState) => {
   if (!state.slideDeck) return null;
@@ -37,15 +37,6 @@ const replaceDeckSession = (state: EditorState, slideDeck: NonNullable<EditorSta
       ? { ...session, slideDeck }
       : session
   );
-
-const resetPageInteraction = {
-  selections: [],
-  textCursor: null,
-  hoveredGrid: null,
-  scratchLayer: null,
-  staticGridSelection: createStaticGridState().selection,
-  staticGridEditMode: "navigate" as const,
-};
 
 const activatePageDocument = (
   sessionId: string,
@@ -74,12 +65,7 @@ export const createSlideSlice: StateCreator<
     const active = next.slides.find((slide) => slide.id === next.activeSlideId);
     if (!active) return;
     activatePageDocument(state.activeCanvasId, active.id, active.grid);
-    set({
-      slideDeck: next,
-      canvasSessions: replaceDeckSession(state, next),
-      grid: createMapFromEntries(active.grid),
-      ...resetPageInteraction,
-    });
+    set(createSlideActivationPatch(state, next, active.grid));
   },
 
   duplicateSlide: (slideId) => {
@@ -94,12 +80,7 @@ export const createSlideSlice: StateCreator<
     const active = next.slides.find((slide) => slide.id === next.activeSlideId);
     if (!active) return;
     activatePageDocument(state.activeCanvasId, active.id, active.grid);
-    set({
-      slideDeck: next,
-      canvasSessions: replaceDeckSession(state, next),
-      grid: createMapFromEntries(active.grid),
-      ...resetPageInteraction,
-    });
+    set(createSlideActivationPatch(state, next, active.grid));
   },
 
   removeSlide: (slideId) => {
@@ -111,12 +92,7 @@ export const createSlideSlice: StateCreator<
     const active = next.slides.find((slide) => slide.id === next.activeSlideId);
     if (!active) return;
     activatePageDocument(state.activeCanvasId, active.id, active.grid);
-    set({
-      slideDeck: next,
-      canvasSessions: replaceDeckSession(state, next),
-      grid: createMapFromEntries(active.grid),
-      ...resetPageInteraction,
-    });
+    set(createSlideActivationPatch(state, next, active.grid));
     destroyCanvasDocument(getSlideCanvasDocumentId(state.activeCanvasId, slideId));
   },
 
@@ -157,12 +133,7 @@ export const createSlideSlice: StateCreator<
     const active = next.slides.find((slide) => slide.id === slideId);
     if (!active) return;
     activatePageDocument(state.activeCanvasId, active.id, active.grid);
-    set({
-      slideDeck: next,
-      canvasSessions: replaceDeckSession(state, next),
-      grid: createMapFromEntries(active.grid),
-      ...resetPageInteraction,
-    });
+    set(createSlideActivationPatch(state, next, active.grid));
   },
 
   resizeSlide: (slideId, size) => {
@@ -185,11 +156,13 @@ export const createSlideSlice: StateCreator<
       );
     }
 
+    if (slideId === next.activeSlideId) {
+      set(createSlideActivationPatch(state, next, active.grid));
+      return;
+    }
     set({
       slideDeck: next,
       canvasSessions: replaceDeckSession(state, next),
-      grid: createMapFromEntries(active.grid),
-      ...(slideId === next.activeSlideId ? resetPageInteraction : {}),
     });
   },
 });

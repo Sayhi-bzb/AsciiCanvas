@@ -2,9 +2,9 @@ export const COLLABORATION_DOCUMENT_VERSION = 2 as const;
 
 export type CollaborationCanvasMode = "freeform" | "structured";
 
-export type CollaborationDescriptorV2 =
+type CollaborationDescriptorForVersion<Version extends 2 | 3> =
   | {
-      version: 2;
+      version: Version;
       documentVersion: typeof COLLABORATION_DOCUMENT_VERSION;
       mode: CollaborationCanvasMode;
       provider: "p2p";
@@ -12,7 +12,7 @@ export type CollaborationDescriptorV2 =
       key: string;
     }
   | {
-      version: 2;
+      version: Version;
       documentVersion: typeof COLLABORATION_DOCUMENT_VERSION;
       mode: CollaborationCanvasMode;
       provider: "websocket";
@@ -21,9 +21,17 @@ export type CollaborationDescriptorV2 =
       endpoint: string;
     };
 
+export type CollaborationDescriptorV2 = CollaborationDescriptorForVersion<2>;
+
+export type CollaborationDescriptorV3 = CollaborationDescriptorForVersion<3>;
+
+export type CollaborationDescriptor =
+  | CollaborationDescriptorV2
+  | CollaborationDescriptorV3;
+
 export type CollaborationLinkParseResult =
   | { status: "none" }
-  | { status: "valid"; descriptor: CollaborationDescriptorV2 }
+  | { status: "valid"; descriptor: CollaborationDescriptor }
   | { status: "unsupported"; version: number | null }
   | { status: "invalid" };
 
@@ -86,7 +94,7 @@ export type CollaborationPeer = {
 };
 
 export type CollaborationSnapshot = {
-  descriptor: CollaborationDescriptorV2 | null;
+  descriptor: CollaborationDescriptor | null;
   documentStatus: CollaborationDocumentStatus;
   connectionStatus: CollaborationConnectionStatus;
   canEdit: boolean;

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, createEvent, fireEvent, render, screen } from "@testing-library/react";
 import type { ComponentProps } from "react";
-import { AsciiCanvas as AsciiCanvasUnderTest } from "@/widgets/canvas-editor";
+import { CanvasEditor as CanvasEditorUnderTest } from "@/widgets/canvas-editor";
 import { undoManager, useEditorStore } from "@/domains/canvas/public";
 import { applyFreeformSnapshotToYMaps } from "@/domains/canvas/public";
 import {
@@ -39,7 +39,7 @@ const waitForAnimationFrame = () =>
 
 const focusCanvasInput = (container: HTMLElement) => {
   const surface = container.querySelector<HTMLElement>(
-    '[data-testid="ascii-canvas-surface"]'
+    '[data-testid="canvas-editor-surface"]'
   );
   expect(surface).not.toBeNull();
   fireEvent.pointerDown(surface!);
@@ -67,15 +67,15 @@ vi.mock("@/widgets/canvas-editor/Minimap", () => ({
   Minimap: () => null,
 }));
 
-function AsciiCanvas(props: ComponentProps<typeof AsciiCanvasUnderTest>) {
+function CanvasEditor(props: ComponentProps<typeof CanvasEditorUnderTest>) {
   return (
     <ShortcutProvider>
-      <AsciiCanvasUnderTest {...props} />
+      <CanvasEditorUnderTest {...props} />
     </ShortcutProvider>
   );
 }
 
-describe("AsciiCanvas focus management", () => {
+describe("CanvasEditor focus management", () => {
   const initialState = useEditorStore.getState();
 
   afterEach(() => {
@@ -94,7 +94,7 @@ describe("AsciiCanvas focus management", () => {
     });
 
     const { container, getByTestId } = render(
-      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+      <CanvasEditor onUndo={vi.fn()} onRedo={vi.fn()} />
     );
 
     const textarea = container.querySelector("textarea");
@@ -103,9 +103,9 @@ describe("AsciiCanvas focus management", () => {
     expect(document.activeElement).not.toBe(textarea);
 
     const pointerDown = createEvent.pointerDown(
-      getByTestId("ascii-canvas-surface")
+      getByTestId("canvas-editor-surface")
     );
-    fireEvent(getByTestId("ascii-canvas-surface"), pointerDown);
+    fireEvent(getByTestId("canvas-editor-surface"), pointerDown);
 
     expect(pointerDown.defaultPrevented).toBe(true);
     expect(document.activeElement).toBe(textarea);
@@ -132,12 +132,12 @@ describe("AsciiCanvas focus management", () => {
     ]);
 
     const { container, getByTestId } = render(
-      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+      <CanvasEditor onUndo={vi.fn()} onRedo={vi.fn()} />
     );
     const textarea = container.querySelector("textarea");
     expect(textarea).not.toBeNull();
 
-    fireEvent.pointerDown(getByTestId("ascii-canvas-surface"));
+    fireEvent.pointerDown(getByTestId("canvas-editor-surface"));
     const keyDown = createEvent.keyDown(textarea!, { key: "A" });
     fireEvent(textarea!, keyDown);
 
@@ -168,7 +168,7 @@ describe("AsciiCanvas focus management", () => {
     });
     const onRedo = vi.fn();
     const { container } = render(
-      <AsciiCanvas onUndo={vi.fn()} onRedo={onRedo} />
+      <CanvasEditor onUndo={vi.fn()} onRedo={onRedo} />
     );
     const textarea = container.querySelector("textarea");
     expect(textarea).not.toBeNull();
@@ -212,7 +212,7 @@ describe("AsciiCanvas focus management", () => {
     useEditorStore.getState().setSelectedStructuredNodeIds(["shortcut-box"]);
     const writeText = vi.spyOn(clipboard, "writeText").mockResolvedValue(true);
     const { container } = render(
-      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+      <CanvasEditor onUndo={vi.fn()} onRedo={vi.fn()} />
     );
     const textarea = container.querySelector("textarea");
     expect(textarea).not.toBeNull();
@@ -238,7 +238,7 @@ describe("AsciiCanvas focus management", () => {
     ]);
     const writeText = vi.spyOn(clipboard, "writeText").mockResolvedValue(true);
     const { container } = render(
-      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+      <CanvasEditor onUndo={vi.fn()} onRedo={vi.fn()} />
     );
     const textarea = container.querySelector("textarea");
     expect(textarea).not.toBeNull();
@@ -265,7 +265,7 @@ describe("AsciiCanvas focus management", () => {
     ]);
     const cutSelection = vi.spyOn(useEditorStore.getState(), "cutSelection");
     const { container } = render(
-      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+      <CanvasEditor onUndo={vi.fn()} onRedo={vi.fn()} />
     );
     const textarea = container.querySelector("textarea");
     expect(textarea).not.toBeNull();
@@ -296,7 +296,7 @@ describe("AsciiCanvas focus management", () => {
     ]);
     const writeText = vi.spyOn(clipboard, "writeText").mockResolvedValue(false);
     const { container } = render(
-      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+      <CanvasEditor onUndo={vi.fn()} onRedo={vi.fn()} />
     );
     const textarea = container.querySelector("textarea");
     expect(textarea).not.toBeNull();
@@ -322,7 +322,7 @@ describe("AsciiCanvas focus management", () => {
     vi.spyOn(clipboard, "readItems").mockResolvedValue(null);
     const readText = vi.spyOn(clipboard, "readText").mockResolvedValue("AB");
     const { container } = render(
-      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+      <CanvasEditor onUndo={vi.fn()} onRedo={vi.fn()} />
     );
     const textarea = container.querySelector("textarea");
     expect(textarea).not.toBeNull();
@@ -350,7 +350,7 @@ describe("AsciiCanvas focus management", () => {
       .mockResolvedValue("AB\nCD");
     readText.mockClear();
     const { container } = render(
-      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+      <CanvasEditor onUndo={vi.fn()} onRedo={vi.fn()} />
     );
     const textarea = container.querySelector("textarea");
     expect(textarea).not.toBeNull();
@@ -393,12 +393,12 @@ describe("AsciiCanvas focus management", () => {
     });
 
     const { container, getByTestId } = render(
-      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+      <CanvasEditor onUndo={vi.fn()} onRedo={vi.fn()} />
     );
 
     const textarea = container.querySelector("textarea");
     expect(textarea).not.toBeNull();
-    fireEvent.pointerDown(getByTestId("ascii-canvas-surface"));
+    fireEvent.pointerDown(getByTestId("canvas-editor-surface"));
     expect(document.activeElement).toBe(textarea);
 
     fireEvent.input(textarea!, { target: { value: "A" } });
@@ -425,7 +425,7 @@ describe("AsciiCanvas focus management", () => {
     document.body.appendChild(input);
     input.focus();
 
-    render(<AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />);
+    render(<CanvasEditor onUndo={vi.fn()} onRedo={vi.fn()} />);
 
     expect(document.activeElement).toBe(input);
     input.remove();
@@ -445,11 +445,11 @@ describe("AsciiCanvas focus management", () => {
     });
 
     const { container, getByTestId } = render(
-      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+      <CanvasEditor onUndo={vi.fn()} onRedo={vi.fn()} />
     );
     const textarea = container.querySelector("textarea");
     expect(textarea).not.toBeNull();
-    fireEvent.pointerDown(getByTestId("ascii-canvas-surface"));
+    fireEvent.pointerDown(getByTestId("canvas-editor-surface"));
     expect(document.activeElement).toBe(textarea);
 
     act(() => {
@@ -486,17 +486,17 @@ describe("AsciiCanvas focus management", () => {
       ],
     });
     const { container, getByTestId } = render(
-      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+      <CanvasEditor onUndo={vi.fn()} onRedo={vi.fn()} />
     );
     const textarea = container.querySelector("textarea");
     const focusSink = document.createElement("button");
     document.body.appendChild(focusSink);
     focusSink.focus();
 
-    fireEvent.pointerUp(getByTestId("ascii-canvas-surface"));
+    fireEvent.pointerUp(getByTestId("canvas-editor-surface"));
     expect(document.activeElement).toBe(focusSink);
 
-    fireEvent.pointerDown(getByTestId("ascii-canvas-surface"));
+    fireEvent.pointerDown(getByTestId("canvas-editor-surface"));
     expect(document.activeElement).toBe(textarea);
     focusSink.remove();
   });
@@ -509,9 +509,9 @@ describe("AsciiCanvas focus management", () => {
       selectedStructuredNodeIds: ["text-1"],
     });
     const { getByTestId } = render(
-      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+      <CanvasEditor onUndo={vi.fn()} onRedo={vi.fn()} />
     );
-    const canvasSurface = getByTestId("ascii-canvas-surface");
+    const canvasSurface = getByTestId("canvas-editor-surface");
     const uiButton = document.createElement("button");
     uiButton.setAttribute("data-canvas-ui", "true");
     canvasSurface.appendChild(uiButton);
@@ -524,7 +524,7 @@ describe("AsciiCanvas focus management", () => {
 
   it("forwards root double clicks to the canvas interaction hook", () => {
     const { container } = render(
-      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+      <CanvasEditor onUndo={vi.fn()} onRedo={vi.fn()} />
     );
 
     const root = container.firstElementChild;
@@ -555,7 +555,7 @@ describe("AsciiCanvas focus management", () => {
     });
 
     const { container } = render(
-      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+      <CanvasEditor onUndo={vi.fn()} onRedo={vi.fn()} />
     );
 
     const textarea = container.querySelector("textarea");
@@ -589,7 +589,7 @@ describe("AsciiCanvas focus management", () => {
     });
 
     const { container } = render(
-      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+      <CanvasEditor onUndo={vi.fn()} onRedo={vi.fn()} />
     );
     const root = container.firstElementChild as HTMLDivElement;
 
@@ -614,7 +614,7 @@ describe("AsciiCanvas focus management", () => {
     });
 
     const { container } = render(
-      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+      <CanvasEditor onUndo={vi.fn()} onRedo={vi.fn()} />
     );
 
     const textarea = container.querySelector("textarea");
@@ -647,12 +647,12 @@ describe("AsciiCanvas focus management", () => {
     });
 
     const { container, getByTestId } = render(
-      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+      <CanvasEditor onUndo={vi.fn()} onRedo={vi.fn()} />
     );
 
     const textarea = container.querySelector("textarea");
     expect(textarea).not.toBeNull();
-    fireEvent.pointerDown(getByTestId("ascii-canvas-surface"));
+    fireEvent.pointerDown(getByTestId("canvas-editor-surface"));
     expect(document.activeElement).toBe(textarea);
 
     fireEvent.keyDown(textarea!, { key: "ArrowRight" });
@@ -674,7 +674,7 @@ describe("AsciiCanvas focus management", () => {
     render(
       <>
         <button type="button">Toolbar control</button>
-        <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+        <CanvasEditor onUndo={vi.fn()} onRedo={vi.fn()} />
       </>
     );
 
@@ -700,13 +700,13 @@ describe("AsciiCanvas focus management", () => {
     });
 
     const { container, getByTestId } = render(
-      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+      <CanvasEditor onUndo={vi.fn()} onRedo={vi.fn()} />
     );
 
     const textarea = container.querySelector("textarea");
     expect(textarea).not.toBeNull();
 
-    fireEvent.pointerDown(getByTestId("ascii-canvas-surface"));
+    fireEvent.pointerDown(getByTestId("canvas-editor-surface"));
     expect(document.activeElement).toBe(textarea);
     fireEvent.input(textarea!, { target: { value: "Go" } });
 
@@ -741,7 +741,7 @@ describe("AsciiCanvas focus management", () => {
       ),
     };
     const { container } = render(
-      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+      <CanvasEditor onUndo={vi.fn()} onRedo={vi.fn()} />
     );
     const root = container.firstElementChild as HTMLDivElement;
     const dragOverEvent = createEvent.dragOver(root);
@@ -817,7 +817,7 @@ describe("AsciiCanvas focus management", () => {
       ),
     };
     const { container } = render(
-      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+      <CanvasEditor onUndo={vi.fn()} onRedo={vi.fn()} />
     );
     const root = container.firstElementChild as HTMLDivElement;
     const dragOverEvent = createEvent.dragOver(root);
@@ -884,7 +884,7 @@ describe("AsciiCanvas focus management", () => {
       ),
     };
     const { container } = render(
-      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+      <CanvasEditor onUndo={vi.fn()} onRedo={vi.fn()} />
     );
     const root = container.firstElementChild as HTMLDivElement;
     const dragOverEvent = createEvent.dragOver(root);
@@ -952,7 +952,7 @@ describe("AsciiCanvas focus management", () => {
       getData: vi.fn(() => ""),
     };
     const { container } = render(
-      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+      <CanvasEditor onUndo={vi.fn()} onRedo={vi.fn()} />
     );
     const root = container.firstElementChild as HTMLDivElement;
     const dragOverEvent = createEvent.dragOver(root);
@@ -996,7 +996,7 @@ describe("AsciiCanvas focus management", () => {
       ),
     };
     const { container } = render(
-      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+      <CanvasEditor onUndo={vi.fn()} onRedo={vi.fn()} />
     );
     const root = container.firstElementChild as HTMLDivElement;
     const firstDragOver = createEvent.dragOver(root);
@@ -1046,7 +1046,7 @@ describe("AsciiCanvas focus management", () => {
       ),
     };
     const { container } = render(
-      <AsciiCanvas onUndo={vi.fn()} onRedo={vi.fn()} />
+      <CanvasEditor onUndo={vi.fn()} onRedo={vi.fn()} />
     );
     const root = container.firstElementChild as HTMLDivElement;
     const dragOverEvent = createEvent.dragOver(root);

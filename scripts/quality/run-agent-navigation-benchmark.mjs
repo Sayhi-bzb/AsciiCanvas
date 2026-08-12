@@ -8,7 +8,7 @@ const symbolKey = (symbol) => `${symbol.filePath}:${symbol.name}`;
 
 const rankImplementationCandidates = (result) => {
   const seen = new Set();
-  return [...(result.process_symbols ?? []), ...(result.definitions ?? [])]
+  return [...(result.definitions ?? []), ...(result.process_symbols ?? [])]
     .filter(
       (symbol) =>
         symbol.filePath?.startsWith("src/") &&

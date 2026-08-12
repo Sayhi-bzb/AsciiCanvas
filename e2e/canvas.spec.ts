@@ -35,7 +35,7 @@ const seedSession = async (
     { storageKey: STORAGE_KEY, seededSession: session },
   );
   await page.reload();
-  await expect(page.getByTestId('ascii-canvas-surface')).toBeVisible();
+  await expect(page.getByTestId('canvas-editor-surface')).toBeVisible();
 };
 
 const readPersistedState = async (
@@ -66,7 +66,7 @@ test.describe('Canvas', () => {
   });
 
   test('keeps overscanned rasters covering the viewport while panning', async ({ page }) => {
-    const surface = page.getByTestId('ascii-canvas-surface');
+    const surface = page.getByTestId('canvas-editor-surface');
     const viewportLayer = page.getByTestId('canvas-viewport-layer');
     const surfaceBox = await surface.boundingBox();
     expect(surfaceBox).not.toBeNull();
@@ -120,7 +120,7 @@ test.describe('Canvas', () => {
   });
 
   test('keeps the world point under an off-center wheel zoom anchor', async ({ page }) => {
-    const surface = page.getByTestId('ascii-canvas-surface');
+    const surface = page.getByTestId('canvas-editor-surface');
     const surfaceBox = await surface.boundingBox();
     expect(surfaceBox).not.toBeNull();
 
@@ -179,7 +179,7 @@ test.describe('Canvas', () => {
         viewport: { offset, zoom: 1 },
       });
 
-      const surface = page.getByTestId('ascii-canvas-surface');
+      const surface = page.getByTestId('canvas-editor-surface');
       const backgroundCanvas = surface.locator('canvas').nth(0);
       const uiCanvas = surface.locator('canvas').nth(2);
 
@@ -248,7 +248,7 @@ test.describe('Canvas', () => {
 
     await page.reload();
 
-    await expect(page.getByTestId('ascii-canvas-surface')).toBeVisible();
+    await expect(page.getByTestId('canvas-editor-surface')).toBeVisible();
     await expect(
       page.getByRole('button', { name: 'Select canvas' })
     ).toBeVisible();
@@ -682,7 +682,7 @@ test.describe('Canvas', () => {
       scene: [], grid: [], viewport,
     });
     await page.getByRole('button', { name: 'Box' }).click();
-    const surface = page.getByTestId('ascii-canvas-surface');
+    const surface = page.getByTestId('canvas-editor-surface');
     const box = await surface.boundingBox();
     expect(box).not.toBeNull();
     const start = {
@@ -711,7 +711,7 @@ test.describe('Canvas', () => {
       id: 'structured-e2e', name: 'Structured E2E', mode: 'structured',
       scene: [node], components: [], grid: [], viewport,
     });
-    const box = await page.getByTestId('ascii-canvas-surface').boundingBox();
+    const box = await page.getByTestId('canvas-editor-surface').boundingBox();
     expect(box).not.toBeNull();
     const start = {
       x: box!.x + viewport.offset.x + 4 * CELL_WIDTH,
@@ -740,7 +740,7 @@ test.describe('Canvas', () => {
       id: 'structured-text-e2e', name: 'Structured Text E2E', mode: 'structured',
       scene: [textNode], components: [], grid: [], viewport,
     });
-    const box = await page.getByTestId('ascii-canvas-surface').boundingBox();
+    const box = await page.getByTestId('canvas-editor-surface').boundingBox();
     expect(box).not.toBeNull();
     const caret = {
       x: box!.x + viewport.offset.x + 3 * CELL_WIDTH,

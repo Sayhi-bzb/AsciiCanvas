@@ -17,7 +17,7 @@ import { STRUCTURED_PAGE_TEMPLATE_COMPONENTS } from "./pages";
 import { normalizeStructuredComponents } from "../model/components";
 
 export const STRUCTURED_TEMPLATE_MIME =
-  "application/x-ascii-canvas-structured-template";
+  "application/x-chardesk-structured-template";
 
 export type StructuredTemplateListItem = {
   id: StructuredTemplateId;

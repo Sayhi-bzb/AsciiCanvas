@@ -1,7 +1,7 @@
 import { useEditorStore } from "@/domains/canvas/public";
 import { useShallow } from "zustand/react/shallow";
 
-export const useAsciiCanvasModels = () => {
+export const useCanvasEditorModels = () => {
   const interactionStore = useEditorStore(
     useShallow((state) => ({
       activeCanvasId: state.activeCanvasId,

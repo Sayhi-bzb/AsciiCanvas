@@ -8,12 +8,13 @@ import {
 } from "./room-link";
 
 describe("collaboration room links", () => {
-  it("keeps the room secret in the URL fragment", () => {
+  it("creates V3 links and keeps the room secret in the URL fragment", () => {
     vi.stubGlobal("crypto", { getRandomValues: (bytes: Uint8Array) => bytes.fill(7) });
     const descriptor = createCollaborationDescriptor("freeform");
     const url = buildCollaborationUrl(descriptor, "https://canvas.test/editor?theme=dark");
     expect(new URL(url).searchParams.has("room")).toBe(false);
     expect(new URL(url).hash).toContain("room=");
+    expect(descriptor.version).toBe(3);
     expect(parseCollaborationUrl(url)).toEqual({ status: "valid", descriptor });
     vi.unstubAllGlobals();
   });
@@ -31,13 +32,29 @@ describe("collaboration room links", () => {
     });
   });
 
-  it("rejects V1 room links without mutating them into V2", () => {
-    const legacy = btoa(JSON.stringify({ version: 1 })).replace(/=+$/g, "");
-    expect(parseCollaborationUrl(`https://canvas.test/#room=${legacy}`)).toEqual({
-      status: "unsupported",
-      version: 1,
-    });
+  it("accepts V2 room links without upgrading them", () => {
+    const descriptor = {
+      version: 2,
+      documentVersion: 2,
+      mode: "freeform",
+      provider: "p2p",
+      roomId: "room-id-1234567890",
+      key: "room-key-1234567890123456789012345678901234567890",
+    } as const;
+    const url = buildCollaborationUrl(descriptor, "https://canvas.test/");
+    expect(parseCollaborationUrl(url)).toEqual({ status: "valid", descriptor });
   });
+
+  it.each([1, 4])(
+    "reports collaboration descriptor version %i as unsupported",
+    (version) => {
+      const encoded = btoa(JSON.stringify({ version })).replace(/=+$/g, "");
+      expect(parseCollaborationUrl(`https://canvas.test/#room=${encoded}`)).toEqual({
+        status: "unsupported",
+        version,
+      });
+    }
+  );
 
   it("treats WebSocket endpoints as part of room identity", () => {
     const first = {
@@ -55,5 +72,17 @@ describe("collaboration room links", () => {
         endpoint: "wss://two.example.com",
       })
     ).toBe(false);
+  });
+
+  it("treats V2 and V3 namespaces as different rooms", () => {
+    const legacy = {
+      version: 2,
+      documentVersion: 2,
+      mode: "freeform",
+      provider: "p2p",
+      roomId: "room-id-1234567890",
+      key: "room-key-1234567890123456789012345678901234567890",
+    } as const;
+    expect(sameCollaborationRoom(legacy, { ...legacy, version: 3 })).toBe(false);
   });
 });

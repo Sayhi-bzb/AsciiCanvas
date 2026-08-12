@@ -721,7 +721,7 @@ describe("structuredTemplates", () => {
       {
         type: "text",
         position: { x: 4, y: 7 },
-        text: "Name: [ Ascii-Canvas |   ]",
+        text: "Name: [ CharDesk     |   ]",
         style: { color: "#000000" },
       },
     ]);
@@ -955,7 +955,7 @@ describe("structuredTemplates", () => {
     const inputPreview = buildStructuredTemplatePreview("input");
     expect(inputPreview).toMatchObject({ width: 26, height: 1 });
     expect(inputPreview.rows[0].map((cell) => cell.char).join("")).toBe(
-      "Name: [ Ascii-Canvas |   ]"
+      "Name: [ CharDesk     |   ]"
     );
     expect(inputPreview.rows[0].slice(0, 6).some((cell) => cell.bgColor)).toBe(
       false

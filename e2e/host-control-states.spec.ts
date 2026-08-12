@@ -149,7 +149,7 @@ const seedHostState = async (
     document.documentElement.classList.toggle("dark", useDarkTheme);
   }, dark);
 
-  const surface = page.getByTestId("ascii-canvas-surface");
+  const surface = page.getByTestId("canvas-editor-surface");
   const box = await surface.boundingBox();
   expect(box).not.toBeNull();
   await page.getByRole("button", { name: "Select", exact: true }).click();

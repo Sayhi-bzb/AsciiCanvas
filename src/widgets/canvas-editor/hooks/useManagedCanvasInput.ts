@@ -38,7 +38,8 @@ import {
 
 const KEYBOARD_PAN_STEP = 48;
 const MANAGED_TEXTAREA_SENTINEL = "\u00a0";
-const CLIPBOARD_DEBUG_STORAGE_KEY = "ascii-canvas.clipboardDebug";
+const CLIPBOARD_DEBUG_STORAGE_KEY = "chardesk.clipboardDebug";
+const LEGACY_CLIPBOARD_DEBUG_STORAGE_KEY = "ascii-canvas.clipboardDebug";
 
 type ManagedActionSource =
   | 'canvas-keydown'
@@ -57,7 +58,10 @@ const traceClipboardShortcut = (
 ) => {
   if (!import.meta.env.DEV || typeof window === 'undefined') return;
   try {
-    if (window.localStorage.getItem(CLIPBOARD_DEBUG_STORAGE_KEY) !== '1') return;
+    const enabled =
+      window.localStorage.getItem(CLIPBOARD_DEBUG_STORAGE_KEY) === '1' ||
+      window.localStorage.getItem(LEGACY_CLIPBOARD_DEBUG_STORAGE_KEY) === '1';
+    if (!enabled) return;
   } catch {
     return;
   }
@@ -194,7 +198,7 @@ export const useManagedCanvasInput = ({
   useEffect(() => {
     const handleDocumentPointerDown = (event: globalThis.PointerEvent) => {
       const textarea = textareaRef.current;
-      const surface = textarea?.closest('[data-testid="ascii-canvas-surface"]');
+      const surface = textarea?.closest('[data-testid="canvas-editor-surface"]');
       const target = event.target;
       if (!(target instanceof Node)) return;
       if (surface?.contains(target) && !shouldIgnoreCanvasSurfaceGesture(event)) {

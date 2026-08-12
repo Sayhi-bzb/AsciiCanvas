@@ -290,7 +290,7 @@ export function OnboardingTourProvider({ children }: { children: ReactNode }) {
         overlayOpacity: 0.48,
         stagePadding: 6,
         stageRadius: 10,
-        popoverClass: "ascii-canvas-onboarding",
+        popoverClass: "chardesk-onboarding",
         popoverOffset: 10,
         showProgress: true,
         progressText: tRef.current("onboarding.progress"),

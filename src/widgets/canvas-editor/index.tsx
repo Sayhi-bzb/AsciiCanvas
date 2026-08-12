@@ -2,7 +2,7 @@ import { useCallback, useRef, useEffect, useMemo, useState } from 'react';
 import { useSize } from 'ahooks';
 import { useCanvasInteraction } from './hooks/useCanvasInteraction';
 import { useCanvasRenderer } from './hooks/useCanvasRenderer';
-import { useAsciiCanvasModels } from './hooks/useAsciiCanvasModels';
+import { useCanvasEditorModels } from './hooks/useCanvasEditorModels';
 import { CanvasContextMenuContent } from './CanvasContextMenuContent';
 import { CanvasSurface } from './CanvasSurface';
 import { StructuredTemplatePreviewOverlay } from './StructuredTemplatePreviewOverlay';
@@ -28,7 +28,7 @@ import { useCanvasEngineRuntime } from './engine/useCanvasEngineRuntime';
 import { CANVAS_FRAME_INVALIDATION } from './engine/FrameScheduler';
 import { resolveCanvasSurfaceGeometry } from './canvasSurfaceGeometry';
 
-interface AsciiCanvasProps {
+interface CanvasEditorProps {
   onUndo: () => void;
   onRedo: () => void;
   onContainerSizeChange?: (size: { width: number; height: number } | undefined) => void;
@@ -36,13 +36,13 @@ interface AsciiCanvasProps {
   enabled?: boolean;
 }
 
-export const AsciiCanvas = ({
+export const CanvasEditor = ({
   onUndo,
   onRedo,
   onContainerSizeChange,
   interactionToolOverride,
   enabled = true,
-}: AsciiCanvasProps) => {
+}: CanvasEditorProps) => {
   const runtime = useCanvasEngineRuntime();
   const bgCanvasRef = useRef<HTMLCanvasElement>(null);
   const scratchCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -64,7 +64,7 @@ export const AsciiCanvas = ({
     interaction: interactionStore,
     renderer: rendererStore,
     editor: editorStore,
-  } = useAsciiCanvasModels();
+  } = useCanvasEditorModels();
   const interactionModel = interactionToolOverride
     ? { ...interactionStore, tool: interactionToolOverride }
     : interactionStore;

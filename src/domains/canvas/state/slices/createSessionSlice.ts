@@ -19,7 +19,6 @@ import {
   createSessionId,
   resolveNextSessionName,
 } from "@/domains/sessions/public";
-import { createMapFromEntries } from "../helpers/snapshotHelpers";
 import { createSlideDeck } from "@/domains/slides/public";
 import { parseCanvasSessionSource } from "../sessionImportPort";
 import {
@@ -29,6 +28,7 @@ import {
   prepareCanvasDocumentForCollaboration,
 } from "../canvasDocument";
 import { sameCollaborationRoom } from "@/domains/collaboration/public";
+import { createSessionActivationPatch } from "../transitions/editorTransitions";
 
 const getImportedSessionBaseName = (mode: CanvasImportSnapshot["mode"]) => {
   switch (mode) {
@@ -98,6 +98,41 @@ const destroySessionDocuments = (session: CanvasSession) => {
   destroyCanvasDocument(session.id);
 };
 
+const activateSessionRuntime = (
+  session: CanvasSession,
+  currentTool: EditorState["tool"]
+) => {
+  const initialRuntime = resolveSessionRuntime(session, currentTool);
+  activateCanvasDocument(
+    getSessionCanvasDocumentId(session, initialRuntime.nextSlideDeck),
+    {
+      grid: initialRuntime.nextGridEntries,
+      scene:
+        initialRuntime.nextMode === "structured"
+          ? initialRuntime.nextScene
+          : [],
+      components: initialRuntime.nextComponents,
+    }
+  );
+
+  if (session.mode === "slide" || !session.collaboration) {
+    return initialRuntime;
+  }
+
+  const collaborativeSeed = getCanvasDocumentSeed(session.id, session.mode);
+  return resolveSessionRuntime(
+    collaborativeSeed
+      ? {
+          ...session,
+          grid: collaborativeSeed.grid,
+          scene: collaborativeSeed.scene,
+          components: collaborativeSeed.components,
+        }
+      : session,
+    currentTool
+  );
+};
+
 export const createSessionSlice: StateCreator<
   EditorState,
   [],
@@ -138,37 +173,14 @@ export const createSessionSlice: StateCreator<
             grid: [],
           };
 
-    const runtime = resolveSessionRuntime(newSession, state.tool);
-
-    activateCanvasDocument(getSessionCanvasDocumentId(newSession, runtime.nextSlideDeck), {
-      grid: runtime.nextGridEntries,
-      scene: runtime.nextMode === "structured" ? runtime.nextScene : [],
-      components: runtime.nextComponents,
-    });
-
-    set({
-      canvasSessions: [...sessionsWithSnapshot, newSession],
-      activeCanvasId: newSession.id,
-      canvasMode: runtime.nextMode,
-      slideDeck: runtime.nextSlideDeck,
-      structuredScene: runtime.nextScene,
-      structuredComponents: runtime.nextComponents,
-      selectedStructuredNodeIds: [],
-      selectedStructuredBoxId: null,
-      selectedStructuredSplitHandle: null,
-      structuredContextPoint: null,
-      grid: createMapFromEntries(runtime.nextGridEntries),
-      tool: runtime.nextTool,
-      offset: runtime.nextOffset,
-      zoom: runtime.nextZoom,
-      activeCanvasHasSavedViewport: runtime.hasSavedViewport,
-      selections: [],
-      textCursor: null,
-      editingStructuredTextNodeId: null,
-      structuredTextSelection: null,
-      hoveredGrid: null,
-      scratchLayer: null,
-    });
+    const runtime = activateSessionRuntime(newSession, state.tool);
+    set(
+      createSessionActivationPatch(
+        [...sessionsWithSnapshot, newSession],
+        newSession.id,
+        runtime
+      )
+    );
 
   },
   importCanvasSession: (raw, options) => {
@@ -192,37 +204,14 @@ export const createSessionSlice: StateCreator<
       sessionName,
       importedSnapshot
     );
-    const runtime = resolveSessionRuntime(newSession, state.tool);
-
-    activateCanvasDocument(getSessionCanvasDocumentId(newSession, runtime.nextSlideDeck), {
-      grid: runtime.nextGridEntries,
-      scene: runtime.nextMode === "structured" ? runtime.nextScene : [],
-      components: runtime.nextComponents,
-    });
-
-    set({
-      canvasSessions: [...sessionsWithSnapshot, newSession],
-      activeCanvasId: newSession.id,
-      canvasMode: runtime.nextMode,
-      slideDeck: runtime.nextSlideDeck,
-      structuredScene: runtime.nextScene,
-      structuredComponents: runtime.nextComponents,
-      selectedStructuredNodeIds: [],
-      selectedStructuredBoxId: null,
-      selectedStructuredSplitHandle: null,
-      structuredContextPoint: null,
-      grid: createMapFromEntries(runtime.nextGridEntries),
-      tool: runtime.nextTool,
-      offset: runtime.nextOffset,
-      zoom: runtime.nextZoom,
-      activeCanvasHasSavedViewport: runtime.hasSavedViewport,
-      selections: [],
-      textCursor: null,
-      editingStructuredTextNodeId: null,
-      structuredTextSelection: null,
-      hoveredGrid: null,
-      scratchLayer: null,
-    });
+    const runtime = activateSessionRuntime(newSession, state.tool);
+    set(
+      createSessionActivationPatch(
+        [...sessionsWithSnapshot, newSession],
+        newSession.id,
+        runtime
+      )
+    );
 
     return newSession;
   },
@@ -241,52 +230,8 @@ export const createSessionSlice: StateCreator<
     );
     if (!target) return;
 
-    const initialRuntime = resolveSessionRuntime(target, state.tool);
-
-    activateCanvasDocument(getSessionCanvasDocumentId(target, initialRuntime.nextSlideDeck), {
-      grid: initialRuntime.nextGridEntries,
-      scene: initialRuntime.nextMode === "structured" ? initialRuntime.nextScene : [],
-      components: initialRuntime.nextComponents,
-    });
-    const collaborativeSeed =
-      target.mode !== "slide" && target.collaboration
-        ? getCanvasDocumentSeed(target.id, target.mode)
-        : null;
-    const runtime = resolveSessionRuntime(
-      collaborativeSeed && target.mode !== "slide"
-        ? {
-            ...target,
-            grid: collaborativeSeed.grid,
-            scene: collaborativeSeed.scene,
-            components: collaborativeSeed.components,
-          }
-        : target,
-      state.tool
-    );
-
-    set({
-      canvasSessions: sessionsWithSnapshot,
-      activeCanvasId: canvasId,
-      canvasMode: runtime.nextMode,
-      slideDeck: runtime.nextSlideDeck,
-      structuredScene: runtime.nextScene,
-      structuredComponents: runtime.nextComponents,
-      selectedStructuredNodeIds: [],
-      selectedStructuredBoxId: null,
-      selectedStructuredSplitHandle: null,
-      structuredContextPoint: null,
-      grid: createMapFromEntries(runtime.nextGridEntries),
-      tool: runtime.nextTool,
-      offset: runtime.nextOffset,
-      zoom: runtime.nextZoom,
-      activeCanvasHasSavedViewport: runtime.hasSavedViewport,
-      selections: [],
-      textCursor: null,
-      editingStructuredTextNodeId: null,
-      structuredTextSelection: null,
-      hoveredGrid: null,
-      scratchLayer: null,
-    });
+    const runtime = activateSessionRuntime(target, state.tool);
+    set(createSessionActivationPatch(sessionsWithSnapshot, canvasId, runtime));
 
   },
   removeCanvasSession: (canvasId) => {
@@ -318,52 +263,8 @@ export const createSessionSlice: StateCreator<
 
     const nextIndex = Math.min(removedIndex, remaining.length - 1);
     const nextSession = remaining[nextIndex];
-    const initialRuntime = resolveSessionRuntime(nextSession, state.tool);
-
-    activateCanvasDocument(getSessionCanvasDocumentId(nextSession, initialRuntime.nextSlideDeck), {
-      grid: initialRuntime.nextGridEntries,
-      scene: initialRuntime.nextMode === "structured" ? initialRuntime.nextScene : [],
-      components: initialRuntime.nextComponents,
-    });
-    const collaborativeSeed =
-      nextSession.mode !== "slide" && nextSession.collaboration
-        ? getCanvasDocumentSeed(nextSession.id, nextSession.mode)
-        : null;
-    const runtime = resolveSessionRuntime(
-      collaborativeSeed && nextSession.mode !== "slide"
-        ? {
-            ...nextSession,
-            grid: collaborativeSeed.grid,
-            scene: collaborativeSeed.scene,
-            components: collaborativeSeed.components,
-          }
-        : nextSession,
-      state.tool
-    );
-
-    set({
-      canvasSessions: remaining,
-      activeCanvasId: nextSession.id,
-      canvasMode: runtime.nextMode,
-      slideDeck: runtime.nextSlideDeck,
-      structuredScene: runtime.nextScene,
-      structuredComponents: runtime.nextComponents,
-      selectedStructuredNodeIds: [],
-      selectedStructuredBoxId: null,
-      selectedStructuredSplitHandle: null,
-      structuredContextPoint: null,
-      grid: createMapFromEntries(runtime.nextGridEntries),
-      tool: runtime.nextTool,
-      offset: runtime.nextOffset,
-      zoom: runtime.nextZoom,
-      activeCanvasHasSavedViewport: runtime.hasSavedViewport,
-      selections: [],
-      textCursor: null,
-      editingStructuredTextNodeId: null,
-      structuredTextSelection: null,
-      hoveredGrid: null,
-      scratchLayer: null,
-    });
+    const runtime = activateSessionRuntime(nextSession, state.tool);
+    set(createSessionActivationPatch(remaining, nextSession.id, runtime));
 
     destroySessionDocuments(sessionsWithSnapshot[removedIndex]);
   },

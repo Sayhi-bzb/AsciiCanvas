@@ -1,6 +1,6 @@
 import type { CanvasMode } from "./mode";
 import type { CanvasSession } from "./model";
-import type { CollaborationDescriptorV2 } from "@/domains/collaboration/public";
+import type { CollaborationDescriptor } from "@/domains/collaboration/public";
 import type { SlideSize } from "@/domains/slides/public";
 
 type CreateCanvasSessionOptions = {
@@ -18,7 +18,7 @@ export interface SessionCommands {
   renameCanvasSession: (canvasId: string, nextName: string) => void;
   setCanvasSessionCollaboration: (
     canvasId: string,
-    collaboration: CollaborationDescriptorV2 | null
+    collaboration: CollaborationDescriptor | null
   ) => void;
-  joinCanvasSessionCollaboration: (collaboration: CollaborationDescriptorV2) => void;
+  joinCanvasSessionCollaboration: (collaboration: CollaborationDescriptor) => void;
 }

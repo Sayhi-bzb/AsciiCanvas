@@ -6,6 +6,7 @@ import {
 import { useEditorStore } from "@/domains/canvas/public";
 import { applyFreeformSnapshotToYMaps } from "@/domains/canvas/public";
 import { DEFAULT_SESSION_ID } from "@/domains/canvas/state/helpers/storeUtils";
+import { createDocumentInteractionResetPatch } from "@/domains/canvas/state/transitions/editorTransitions";
 
 describe("importCanvasSession", () => {
   const initialState = useEditorStore.getState();
@@ -43,6 +44,30 @@ describe("importCanvasSession", () => {
     expect(state.canvasMode).toBe("freeform");
     expect(state.grid.get("0,0")).toEqual({ char: "A", color: "#ff0000" });
     expect(state.grid.get("2,1")).toEqual({ char: "B", color: "#00ff00" });
+  });
+
+  it("clears document interaction when importing a session", () => {
+    useEditorStore.setState({
+      textCursor: { x: 3, y: 4 },
+      structuredGridFocus: { x: 5, y: 6 },
+      staticGridEditMode: "text-edit",
+      hoveredGrid: { x: 7, y: 8 },
+      scratchLayer: new Map([
+        ["0,0", { char: "X", color: "#fff" }],
+      ]),
+      canvasColorPickerTarget: "bg",
+    });
+
+    useEditorStore.getState().importCanvasSession({
+      type: ASCII_CANVAS_DOCUMENT_TYPE,
+      version: ASCII_CANVAS_DOCUMENT_VERSION,
+      mode: "freeform",
+      cells: [],
+    });
+
+    expect(useEditorStore.getState()).toMatchObject(
+      createDocumentInteractionResetPatch()
+    );
   });
 
 

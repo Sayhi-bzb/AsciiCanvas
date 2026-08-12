@@ -26,13 +26,13 @@ async function reachDragStep(page: Page, testWrongClicks = false) {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/');
 
-  const popover = page.locator('.ascii-canvas-onboarding');
+  const popover = page.locator('.chardesk-onboarding');
   await expect(popover.getByText("Your canvas")).toBeVisible({ timeout: 15_000 });
   await expect
     .poll(() => page.evaluate(() => document.documentElement.dataset.onboardingPhase))
     .toBe("welcome");
   const welcomeVisual = await page.evaluate(() => {
-    const card = document.querySelector<HTMLElement>(".ascii-canvas-onboarding");
+    const card = document.querySelector<HTMLElement>(".chardesk-onboarding");
     const canvas = document.querySelector<HTMLElement>(
       "[data-onboarding-target=\"canvas\"]",
     );
@@ -125,7 +125,7 @@ test('keeps wrong clicks inside the guide and completes a real Button drag', asy
   const canvas = page.locator("[data-onboarding-target=\"canvas\"]");
   const footerButton = popover.getByRole("button", { name: "Skip this step" });
   const guideSurface = await page.evaluate(() => {
-    const card = document.querySelector<HTMLElement>(".ascii-canvas-onboarding");
+    const card = document.querySelector<HTMLElement>(".chardesk-onboarding");
     const button = card?.querySelector<HTMLElement>(".driver-popover-footer-btn");
     if (!card || !button) return null;
 
