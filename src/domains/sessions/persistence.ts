@@ -1,19 +1,21 @@
-import type { GridCell, Point } from "@/shared/types";
-import type { CanvasMode } from "./mode";
-import type {
-  StructuredComponentInstance,
-  StructuredNode,
-} from "@/domains/structured-content/public";
-import type { CanvasSession } from "./model";
-import { normalizeSlideDeck } from "@/domains/slides/public";
 import { isCollaborationDescriptor } from "@/domains/collaboration/public";
+import { normalizeSlideDeck } from "@/domains/slides/public";
+import {
+  cloneStructuredNode,
+  decodeStructuredComponents,
+  decodeStructuredNode,
+  normalizeScene,
+  type StructuredComponentInstance,
+  type StructuredNode,
+} from "@/domains/structured-content/public";
+import type { GridCell, Point } from "@/shared/types";
+import { decodeGridEntries } from "@/shared/utils/grid-codec";
+import type { CanvasMode } from "./mode";
+import type { CanvasSession } from "./model";
 
 export const EDITOR_PERSISTENCE_VERSION = 5;
-export const EDITOR_PERSISTENCE_KEY = "ascii-canvas-persistence";
-export const EDITOR_PERSISTENCE_V3_BACKUP_KEY =
-  "ascii-canvas-persistence-v3-backup";
-export const EDITOR_PERSISTENCE_V4_BACKUP_KEY =
-  "ascii-canvas-persistence-v4-backup";
+export const EDITOR_PERSISTENCE_KEY = "chardesk-persistence";
+export const LEGACY_EDITOR_PERSISTENCE_KEY = "ascii-canvas-persistence";
 
 interface PersistedEditorStateV5 {
   schemaVersion: 5;
@@ -40,15 +42,73 @@ interface PersistedEditorStateV5 {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === "object" && !Array.isArray(value);
 
-const isPoint = (value: unknown): value is Point =>
+const decodePoint = (value: unknown): Point | null =>
   isRecord(value) &&
   typeof value.x === "number" &&
   Number.isFinite(value.x) &&
   typeof value.y === "number" &&
-  Number.isFinite(value.y);
+  Number.isFinite(value.y)
+    ? { x: value.x, y: value.y }
+    : null;
 
 const isCanvasMode = (value: unknown): value is CanvasMode =>
   value === "freeform" || value === "structured" || value === "slide";
+
+const decodeViewport = (value: unknown): CanvasSession["viewport"] | undefined => {
+  if (!isRecord(value)) return undefined;
+  const offset = decodePoint(value.offset);
+  return offset && typeof value.zoom === "number" && Number.isFinite(value.zoom)
+    ? { offset, zoom: value.zoom }
+    : undefined;
+};
+
+const decodeScene = (value: unknown): StructuredNode[] =>
+  normalizeScene(
+    (Array.isArray(value) ? value : [])
+      .map(decodeStructuredNode)
+      .filter((node): node is StructuredNode => node !== null)
+      .map(cloneStructuredNode)
+  );
+
+const decodeCanvasSession = (value: unknown): CanvasSession | null => {
+  if (!isRecord(value) || typeof value.id !== "string" || !isCanvasMode(value.mode)) {
+    return null;
+  }
+  const viewport = decodeViewport(value.viewport);
+  if (value.mode === "slide") {
+    return {
+      id: value.id,
+      name:
+        typeof value.name === "string" && value.name.trim()
+          ? value.name
+          : "Slides",
+      mode: "slide",
+      slideDeck: normalizeSlideDeck(value.slideDeck, `${value.id}-slide-1`),
+      scene: [],
+      components: [],
+      grid: [],
+      ...(viewport ? { viewport } : {}),
+    };
+  }
+
+  const scene = decodeScene(value.scene);
+  const collaboration = isCollaborationDescriptor(value.collaboration)
+    ? value.collaboration
+    : undefined;
+  return {
+    id: value.id,
+    name:
+      typeof value.name === "string" && value.name.trim()
+        ? value.name
+        : "Canvas",
+    mode: value.mode,
+    scene,
+    components: decodeStructuredComponents(value.components, scene),
+    grid: decodeGridEntries(value.grid),
+    ...(viewport ? { viewport } : {}),
+    ...(collaboration ? { collaboration } : {}),
+  };
+};
 
 const createBlankSession = (): CanvasSession => ({
   id: "canvas-1",
@@ -59,78 +119,26 @@ const createBlankSession = (): CanvasSession => ({
   grid: [],
 });
 
-export const isPersistedEditorStateV5 = (
-  value: unknown
-): value is PersistedEditorStateV5 =>
-  isRecord(value) &&
-  value.schemaVersion === EDITOR_PERSISTENCE_VERSION &&
-  isRecord(value.workspace) &&
-  isPoint(value.workspace.offset) &&
-  typeof value.workspace.zoom === "number" &&
-  Number.isFinite(value.workspace.zoom) &&
-  isCanvasMode(value.workspace.canvasMode) &&
-  Array.isArray(value.workspace.grid) &&
-  Array.isArray(value.workspace.structuredScene) &&
-  Array.isArray(value.workspace.structuredComponents) &&
-  isRecord(value.sessions) &&
-  Array.isArray(value.sessions.items) &&
-  typeof value.sessions.activeId === "string" &&
-  isRecord(value.preferences) &&
-  typeof value.preferences.brushChar === "string" &&
-  typeof value.preferences.brushColor === "string" &&
-  typeof value.preferences.showGrid === "boolean" &&
-  typeof value.preferences.exportShowGrid === "boolean";
-
-export const migratePersistedStateToV5 = (
+export const decodePersistedEditorState = (
   value: unknown
 ): PersistedEditorStateV5 => {
   const state = isRecord(value) ? value : {};
-  const oldWorkspace = isRecord(state.workspace) ? state.workspace : state;
-  const oldSessions = isRecord(state.sessions) ? state.sessions : {};
+  const workspace = isRecord(state.workspace) ? state.workspace : state;
+  const sessions = isRecord(state.sessions) ? state.sessions : {};
   const preferences = isRecord(state.preferences) ? state.preferences : state;
-  const rawItems = Array.isArray(oldSessions.items)
-    ? oldSessions.items
+  const rawItems = Array.isArray(sessions.items)
+    ? sessions.items
     : Array.isArray(state.canvasSessions)
       ? state.canvasSessions
       : [];
-  const items = rawItems.reduce<CanvasSession[]>((normalized, item) => {
-    if (
-      !isRecord(item) ||
-      typeof item.id !== "string" ||
-      !isCanvasMode(item.mode)
-    ) {
-      return normalized;
-    }
-    if (item.mode === "slide") {
-      normalized.push({
-        id: item.id,
-        name: typeof item.name === "string" ? item.name : "Slides",
-        mode: "slide",
-        slideDeck: normalizeSlideDeck(
-          item.slideDeck,
-          `${item.id}-slide-1`
-        ),
-        scene: [],
-        components: [],
-        grid: [],
-        ...(isRecord(item.viewport) ? { viewport: item.viewport as never } : {}),
-      });
-      return normalized;
-    }
-    const { collaboration: rawCollaboration, ...localSession } = item;
-    normalized.push({
-      ...localSession,
-      ...(isCollaborationDescriptor(rawCollaboration)
-        ? { collaboration: rawCollaboration }
-        : {}),
-    } as unknown as CanvasSession);
-    return normalized;
-  }, []);
+  const items = rawItems
+    .map(decodeCanvasSession)
+    .filter((session): session is CanvasSession => session !== null);
   if (items.length === 0) items.push(createBlankSession());
 
   const requestedActiveId =
-    typeof oldSessions.activeId === "string"
-      ? oldSessions.activeId
+    typeof sessions.activeId === "string"
+      ? sessions.activeId
       : typeof state.activeCanvasId === "string"
         ? state.activeCanvasId
         : "";
@@ -138,36 +146,39 @@ export const migratePersistedStateToV5 = (
     ? requestedActiveId
     : items[0].id;
   const activeSession = items.find((item) => item.id === activeId) ?? items[0];
-  const oldWorkspaceMode = isCanvasMode(oldWorkspace.canvasMode)
-    ? oldWorkspace.canvasMode
+  const workspaceMode = isCanvasMode(workspace.canvasMode)
+    ? workspace.canvasMode
     : null;
-  const useWorkspace = oldWorkspaceMode === activeSession.mode;
+  const useWorkspace = workspaceMode === activeSession.mode;
+  const workspaceScene = decodeScene(workspace.structuredScene);
+  const useWorkspaceGrid = useWorkspace && Array.isArray(workspace.grid);
+  const useWorkspaceScene =
+    useWorkspace && Array.isArray(workspace.structuredScene);
+  const useWorkspaceComponents =
+    useWorkspaceScene && Array.isArray(workspace.structuredComponents);
   const viewport = activeSession.viewport;
 
   return {
     schemaVersion: EDITOR_PERSISTENCE_VERSION,
     workspace: {
-      offset: useWorkspace && isPoint(oldWorkspace.offset)
-        ? oldWorkspace.offset
-        : viewport?.offset ?? { x: 0, y: 0 },
+      offset:
+        (useWorkspace ? decodePoint(workspace.offset) : null) ??
+        viewport?.offset ??
+        { x: 0, y: 0 },
       zoom:
         useWorkspace &&
-        typeof oldWorkspace.zoom === "number" &&
-        Number.isFinite(oldWorkspace.zoom)
-          ? oldWorkspace.zoom
+        typeof workspace.zoom === "number" &&
+        Number.isFinite(workspace.zoom)
+          ? workspace.zoom
           : viewport?.zoom ?? 1,
       canvasMode: activeSession.mode,
-      grid: useWorkspace && Array.isArray(oldWorkspace.grid)
-        ? (oldWorkspace.grid as [string, GridCell][])
+      grid: useWorkspaceGrid
+        ? decodeGridEntries(workspace.grid)
         : activeSession.grid,
-      structuredScene:
-        useWorkspace && Array.isArray(oldWorkspace.structuredScene)
-          ? (oldWorkspace.structuredScene as StructuredNode[])
-          : activeSession.scene,
-      structuredComponents:
-        useWorkspace && Array.isArray(oldWorkspace.structuredComponents)
-          ? (oldWorkspace.structuredComponents as StructuredComponentInstance[])
-          : activeSession.components ?? [],
+      structuredScene: useWorkspaceScene ? workspaceScene : activeSession.scene,
+      structuredComponents: useWorkspaceComponents
+        ? decodeStructuredComponents(workspace.structuredComponents, workspaceScene)
+        : activeSession.components ?? [],
     },
     sessions: { items, activeId },
     preferences: {
@@ -185,6 +196,93 @@ export const migratePersistedStateToV5 = (
           : false,
     },
   };
+};
+
+export const migratePersistedStateToV5 = (value: unknown) =>
+  decodePersistedEditorState(value);
+
+export const isPersistedEditorStateV5 = (
+  value: unknown
+): value is PersistedEditorStateV5 => {
+  if (!isRecord(value) || value.schemaVersion !== EDITOR_PERSISTENCE_VERSION) {
+    return false;
+  }
+  if (!isRecord(value.workspace) || !isRecord(value.sessions) || !isRecord(value.preferences)) {
+    return false;
+  }
+  return (
+    decodePoint(value.workspace.offset) !== null &&
+    typeof value.workspace.zoom === "number" &&
+    Number.isFinite(value.workspace.zoom) &&
+    isCanvasMode(value.workspace.canvasMode) &&
+    Array.isArray(value.workspace.grid) &&
+    Array.isArray(value.workspace.structuredScene) &&
+    Array.isArray(value.workspace.structuredComponents) &&
+    Array.isArray(value.sessions.items) &&
+    value.sessions.items.every((item) => decodeCanvasSession(item) !== null) &&
+    typeof value.sessions.activeId === "string" &&
+    typeof value.preferences.brushChar === "string" &&
+    typeof value.preferences.brushColor === "string" &&
+    typeof value.preferences.showGrid === "boolean" &&
+    typeof value.preferences.exportShowGrid === "boolean"
+  );
+};
+
+const decodePersistedEnvelope = (raw: string | null) => {
+  if (!raw) return null;
+  try {
+    const envelope: unknown = JSON.parse(raw);
+    if (
+      !isRecord(envelope) ||
+      !("state" in envelope) ||
+      !isRecord(envelope.state) ||
+      ("version" in envelope && typeof envelope.version !== "number")
+    ) {
+      return null;
+    }
+    return envelope;
+  } catch {
+    return null;
+  }
+};
+
+const isCurrentPersistedEnvelope = (raw: string | null) => {
+  const envelope = decodePersistedEnvelope(raw);
+  return !!envelope &&
+    envelope.version === EDITOR_PERSISTENCE_VERSION &&
+    isPersistedEditorStateV5(envelope.state);
+};
+
+/** Moves same-origin pre-CharDesk editor data only after a verified V5 write. */
+export const migrateLegacyEditorPersistence = (storage: Storage): boolean => {
+  try {
+    const currentRaw = storage.getItem(EDITOR_PERSISTENCE_KEY);
+    if (isCurrentPersistedEnvelope(currentRaw)) {
+      storage.removeItem(LEGACY_EDITOR_PERSISTENCE_KEY);
+      return true;
+    }
+
+    const legacyEnvelope = decodePersistedEnvelope(
+      storage.getItem(LEGACY_EDITOR_PERSISTENCE_KEY)
+    );
+    if (!legacyEnvelope) return false;
+
+    const migratedState = decodePersistedEditorState(legacyEnvelope.state);
+    storage.setItem(
+      EDITOR_PERSISTENCE_KEY,
+      JSON.stringify({
+        state: migratedState,
+        version: EDITOR_PERSISTENCE_VERSION,
+      })
+    );
+    if (!isCurrentPersistedEnvelope(storage.getItem(EDITOR_PERSISTENCE_KEY))) {
+      return false;
+    }
+    storage.removeItem(LEGACY_EDITOR_PERSISTENCE_KEY);
+    return true;
+  } catch {
+    return false;
+  }
 };
 
 export const flattenPersistedEditorState = (

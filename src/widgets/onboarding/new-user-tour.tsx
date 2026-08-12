@@ -20,25 +20,18 @@ import {
   type OnboardingTourContextValue,
 } from "./onboarding-context";
 import {
-  ONBOARDING_STORAGE_KEY,
   hadEditorPersistenceOnEntry,
+  readOnboardingStatus,
   shouldAutoStartOnboarding,
+  writeOnboardingStatus,
+  type OnboardingStatus,
 } from "./onboarding-model";
 
-type OnboardingStatus = "completed" | "dismissed";
 type Translate = ReturnType<typeof useUiI18n>["t"];
-
-const readStorage = (key: string) => {
-  try {
-    return window.localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-};
 
 const writeStatus = (status: OnboardingStatus) => {
   try {
-    window.localStorage.setItem(ONBOARDING_STORAGE_KEY, status);
+    writeOnboardingStatus(status);
   } catch {
     // The tour still works when storage is unavailable; it may be offered again.
   }
@@ -379,7 +372,7 @@ export function OnboardingTourProvider({ children }: { children: ReactNode }) {
         shouldAutoStartOnboarding({
           isMobile,
           hasEditorPersistence: initialHasPersistenceRef.current,
-          status: readStorage(ONBOARDING_STORAGE_KEY),
+          status: readOnboardingStatus(),
         })
       ) {
         void startTour();

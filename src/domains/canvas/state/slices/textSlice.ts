@@ -1,6 +1,6 @@
 import type { StateCreator } from "zustand";
 import type { EditorState, TextSlice } from "../interfaces";
-import { runCanvasTransaction, yMainGrid } from "../canvasDocument";
+import { mutateCanvasGrid } from "../canvasDocument";
 import { GridManager } from "@/shared/utils/grid";
 import { collapseGridSelectionTo, getStaticGridViewState } from "@/domains/selection/public";
 import { placeCharInYMap, placeStyledCellInYMap } from "../utils";
@@ -350,7 +350,7 @@ export const createTextSlice: StateCreator<EditorState, [], [], TextSlice> = (
     let currentY = cursor.y;
     const startX = cursor.x;
 
-    runCanvasTransaction(() => {
+    mutateCanvasGrid((gridWriter) => {
       let index = 0;
       while (index < str.length) {
         if (str[index] === "\r" && str[index + 1] === "\n") {
@@ -374,7 +374,7 @@ export const createTextSlice: StateCreator<EditorState, [], [], TextSlice> = (
           isPointWithinActiveSlide(state, { x: currentX + charWidth - 1, y: currentY })
         ) {
           placeCharInYMap(
-          yMainGrid,
+          gridWriter,
           currentX,
           currentY,
           char,
@@ -418,7 +418,7 @@ export const createTextSlice: StateCreator<EditorState, [], [], TextSlice> = (
     const cellsBySourcePoint = new Map(
       cells.map((cell) => [GridManager.toKey(cell.x, cell.y), cell])
     );
-    runCanvasTransaction(() => {
+    mutateCanvasGrid((gridWriter) => {
       cells.forEach((cell) => {
         if (isWideFollowerRichCell(cell, cellsBySourcePoint)) return;
         const nextPoint = {
@@ -426,7 +426,7 @@ export const createTextSlice: StateCreator<EditorState, [], [], TextSlice> = (
           y: basePos.y + cell.y,
         };
         placeStyledCellInYMap(
-          yMainGrid,
+          gridWriter,
           nextPoint.x,
           nextPoint.y,
           cell.char,
@@ -554,10 +554,10 @@ export const createTextSlice: StateCreator<EditorState, [], [], TextSlice> = (
       return;
     }
 
-    runCanvasTransaction(() => {
+    mutateCanvasGrid((gridWriter) => {
       const { x, y } = textCursor;
       const deletePos = resolveBackspaceAnchor(grid, x, y);
-      deleteCellAt(yMainGrid, deletePos.x, deletePos.y);
+      deleteCellAt(gridWriter, deletePos.x, deletePos.y);
       set({ textCursor: deletePos });
     });
   },

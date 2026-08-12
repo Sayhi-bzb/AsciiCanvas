@@ -1,4 +1,3 @@
-import * as Y from "yjs";
 import type { GridCell } from "@/shared/types";
 import { writeCell, writeStyledCell } from "@/shared/utils/grid-ops";
 import { styleStateToCell, type AnsiStyleState } from "@/shared/utils/ansi";
@@ -10,7 +9,7 @@ type CellWriteOptions = {
 };
 
 const resolveTargetBackground = (
-  targetGrid: Y.Map<GridCell>,
+  targetGrid: GridWriter,
   x: number,
   y: number
 ) => {
@@ -19,6 +18,12 @@ const resolveTargetBackground = (
 
   const leftCell = targetGrid.get(GridManager.toKey(x - 1, y));
   return leftCell && isWideCell(leftCell.char) ? leftCell.bgColor : undefined;
+};
+
+type GridWriter = {
+  set(key: string, value: GridCell): void;
+  delete(key: string): void;
+  get(key: string): GridCell | undefined;
 };
 
 export const placeCharInMap = (
@@ -36,7 +41,7 @@ export const placeCharInMap = (
 };
 
 export const placeStyledCellInYMap = (
-  targetGrid: Y.Map<GridCell>,
+  targetGrid: GridWriter,
   x: number,
   y: number,
   char: string,
@@ -54,7 +59,7 @@ export const placeStyledCellInYMap = (
 };
 
 export const placeCharInYMap = (
-  targetGrid: Y.Map<GridCell>,
+  targetGrid: GridWriter,
   x: number,
   y: number,
   char: string,

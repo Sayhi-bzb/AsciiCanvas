@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, createEvent, fireEvent, render, screen } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { CanvasEditor as CanvasEditorUnderTest } from "@/widgets/canvas-editor";
-import { undoManager, useEditorStore } from "@/domains/canvas/public";
-import { applyFreeformSnapshotToYMaps } from "@/domains/canvas/public";
+import { undoCanvas, useEditorStore } from "@/domains/canvas/public";
+import { replaceCanvasGrid as applyFreeformSnapshotToYMaps } from "@/domains/canvas/public";
 import {
   STRUCTURED_TEMPLATE_MIME,
   buildStructuredTemplateNodes,
@@ -153,7 +153,7 @@ describe("CanvasEditor focus management", () => {
       canvasMode: "freeform",
     });
     useEditorStore.getState().writeTextString("A");
-    expect(undoManager.undo()).toBe(true);
+    expect(undoCanvas()).toBe(true);
     expect(useEditorStore.getState().canRedo).toBe(true);
 
     useEditorStore.setState({

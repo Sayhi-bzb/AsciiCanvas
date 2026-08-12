@@ -1,12 +1,67 @@
 import { describe, expect, it } from "vitest";
 import {
+  EDITOR_PERSISTENCE_KEY,
   EDITOR_PERSISTENCE_VERSION,
+  LEGACY_EDITOR_PERSISTENCE_KEY,
   flattenPersistedEditorState,
   isPersistedEditorStateV5,
+  migrateLegacyEditorPersistence,
   migratePersistedStateToV5,
 } from "./public";
 
+const createMemoryStorage = (): Storage => {
+  const values = new Map<string, string>();
+  return {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: (key) => values.delete(key),
+    clear: () => values.clear(),
+    key: (index) => [...values.keys()][index] ?? null,
+    get length() {
+      return values.size;
+    },
+  };
+};
+
 describe("editor persistence v5", () => {
+  it("migrates the legacy brand key and removes it only after validation", () => {
+    const storage = createMemoryStorage();
+    storage.setItem(LEGACY_EDITOR_PERSISTENCE_KEY, JSON.stringify({
+      version: 4,
+      state: {
+        workspace: { canvasMode: "freeform" },
+        sessions: {
+          activeId: "legacy",
+          items: [{
+            id: "legacy",
+            name: "Legacy",
+            mode: "freeform",
+            scene: [],
+            grid: [["0,0", { char: "A", color: "#fff" }]],
+          }],
+        },
+      },
+    }));
+
+    expect(migrateLegacyEditorPersistence(storage)).toBe(true);
+    expect(storage.getItem(LEGACY_EDITOR_PERSISTENCE_KEY)).toBeNull();
+    const current = JSON.parse(storage.getItem(EDITOR_PERSISTENCE_KEY)!);
+    expect(current.version).toBe(EDITOR_PERSISTENCE_VERSION);
+    expect(isPersistedEditorStateV5(current.state)).toBe(true);
+    expect(current.state.sessions.items[0].grid).toEqual([
+      ["0,0", { char: "A", color: "#fff" }],
+    ]);
+  });
+
+  it("preserves malformed legacy data when it cannot be migrated", () => {
+    const storage = createMemoryStorage();
+    storage.setItem(LEGACY_EDITOR_PERSISTENCE_KEY, "not-json");
+
+    expect(migrateLegacyEditorPersistence(storage)).toBe(false);
+    expect(storage.getItem(LEGACY_EDITOR_PERSISTENCE_KEY)).toBe("not-json");
+    expect(storage.getItem(EDITOR_PERSISTENCE_KEY)).toBeNull();
+  });
+
   it("drops legacy animation sessions and keeps static sessions", () => {
     const migrated = migratePersistedStateToV5({
       schemaVersion: 2,
@@ -114,6 +169,26 @@ describe("editor persistence v5", () => {
       grid: [["0,0", { char: "A", color: "#fff" }]],
     });
     expect(migrated.sessions.items[0].collaboration).toBeUndefined();
+  });
+
+  it("uses session content when a legacy workspace omits its payload", () => {
+    const migrated = migratePersistedStateToV5({
+      workspace: { canvasMode: "freeform" },
+      sessions: {
+        activeId: "canvas",
+        items: [{
+          id: "canvas",
+          name: "Canvas",
+          mode: "freeform",
+          scene: [],
+          grid: [["0,0", { char: "A", color: "#fff" }]],
+        }],
+      },
+    });
+
+    expect(migrated.workspace.grid).toEqual([
+      ["0,0", { char: "A", color: "#fff" }],
+    ]);
   });
 
   it("preserves supported V2 and V3 room descriptors without upgrading them", () => {

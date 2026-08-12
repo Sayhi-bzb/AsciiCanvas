@@ -1,5 +1,4 @@
 import type { StateCreator } from "zustand";
-import type { GridCell } from "@/shared/types";
 import {
   activateSlide as activateDeckSlide,
   addSlide as addDeckSlide,
@@ -10,44 +9,16 @@ import {
   renameSlide as renameDeckSlide,
   resizeSlide as resizeDeckSlide,
   getSlideResizeCropCount,
-  updateSlideGrid,
 } from "@/domains/slides/public";
 import type { EditorState, SlideSlice } from "../interfaces";
-import { serializeGrid } from "../helpers/snapshotHelpers";
-import { getSlideCanvasDocumentId } from "../helpers/storeUtils";
-import {
-  activateCanvasDocument,
-  destroyCanvasDocument,
-  resetCanvasDocument,
-} from "../canvasDocument";
 import { createSlideActivationPatch } from "../transitions/editorTransitions";
-
-const syncActiveGrid = (state: EditorState) => {
-  if (!state.slideDeck) return null;
-  return updateSlideGrid(
-    state.slideDeck,
-    state.slideDeck.activeSlideId,
-    serializeGrid(state.grid)
-  );
-};
-
-const replaceDeckSession = (state: EditorState, slideDeck: NonNullable<EditorState["slideDeck"]>) =>
-  state.canvasSessions.map((session) =>
-    session.id === state.activeCanvasId && session.mode === "slide"
-      ? { ...session, slideDeck }
-      : session
-  );
-
-const activatePageDocument = (
-  sessionId: string,
-  slideId: string,
-  grid: [string, GridCell][]
-) =>
-  activateCanvasDocument(getSlideCanvasDocumentId(sessionId, slideId), {
-    grid,
-    scene: [],
-    components: [],
-  });
+import {
+  activateSlideEditingBuffer,
+  commitActiveSlideGrid,
+  discardSlideEditingBuffer,
+  replaceSlideDeckSession,
+  resetSlideEditingBuffer,
+} from "../slideEditingBuffer";
 
 export const createSlideSlice: StateCreator<
   EditorState,
@@ -59,18 +30,18 @@ export const createSlideSlice: StateCreator<
 
   addSlide: () => {
     const state = get();
-    const synced = syncActiveGrid(state);
+    const synced = commitActiveSlideGrid(state);
     if (state.canvasMode !== "slide" || !synced) return;
     const next = addDeckSlide(synced, { id: createSlideId(synced.slides) });
     const active = next.slides.find((slide) => slide.id === next.activeSlideId);
     if (!active) return;
-    activatePageDocument(state.activeCanvasId, active.id, active.grid);
+    activateSlideEditingBuffer(state.activeCanvasId, active.id, active.grid);
     set(createSlideActivationPatch(state, next, active.grid));
   },
 
   duplicateSlide: (slideId) => {
     const state = get();
-    const synced = syncActiveGrid(state);
+    const synced = commitActiveSlideGrid(state);
     if (state.canvasMode !== "slide" || !synced) return;
     const next = duplicateDeckSlide(synced, {
       sourceSlideId: slideId,
@@ -79,21 +50,21 @@ export const createSlideSlice: StateCreator<
     if (next === synced) return;
     const active = next.slides.find((slide) => slide.id === next.activeSlideId);
     if (!active) return;
-    activatePageDocument(state.activeCanvasId, active.id, active.grid);
+    activateSlideEditingBuffer(state.activeCanvasId, active.id, active.grid);
     set(createSlideActivationPatch(state, next, active.grid));
   },
 
   removeSlide: (slideId) => {
     const state = get();
-    const synced = syncActiveGrid(state);
+    const synced = commitActiveSlideGrid(state);
     if (state.canvasMode !== "slide" || !synced) return;
     const next = removeDeckSlide(synced, slideId);
     if (next === synced) return;
     const active = next.slides.find((slide) => slide.id === next.activeSlideId);
     if (!active) return;
-    activatePageDocument(state.activeCanvasId, active.id, active.grid);
+    activateSlideEditingBuffer(state.activeCanvasId, active.id, active.grid);
     set(createSlideActivationPatch(state, next, active.grid));
-    destroyCanvasDocument(getSlideCanvasDocumentId(state.activeCanvasId, slideId));
+    discardSlideEditingBuffer(state.activeCanvasId, slideId);
   },
 
   renameSlide: (slideId, name) => {
@@ -103,7 +74,7 @@ export const createSlideSlice: StateCreator<
     if (next === state.slideDeck) return;
     set({
       slideDeck: next,
-      canvasSessions: replaceDeckSession(state, next),
+      canvasSessions: replaceSlideDeckSession(state.canvasSessions, state.activeCanvasId, next),
     });
   },
 
@@ -114,13 +85,13 @@ export const createSlideSlice: StateCreator<
     if (next === state.slideDeck) return;
     set({
       slideDeck: next,
-      canvasSessions: replaceDeckSession(state, next),
+      canvasSessions: replaceSlideDeckSession(state.canvasSessions, state.activeCanvasId, next),
     });
   },
 
   activateSlide: (slideId) => {
     const state = get();
-    const synced = syncActiveGrid(state);
+    const synced = commitActiveSlideGrid(state);
     if (
       state.canvasMode !== "slide" ||
       !synced ||
@@ -132,13 +103,13 @@ export const createSlideSlice: StateCreator<
     if (next === synced) return;
     const active = next.slides.find((slide) => slide.id === slideId);
     if (!active) return;
-    activatePageDocument(state.activeCanvasId, active.id, active.grid);
+    activateSlideEditingBuffer(state.activeCanvasId, active.id, active.grid);
     set(createSlideActivationPatch(state, next, active.grid));
   },
 
   resizeSlide: (slideId, size) => {
     const state = get();
-    const synced = syncActiveGrid(state);
+    const synced = commitActiveSlideGrid(state);
     if (state.canvasMode !== "slide" || !synced) return;
     const source = synced.slides.find((slide) => slide.id === slideId);
     if (!source) return;
@@ -150,10 +121,7 @@ export const createSlideSlice: StateCreator<
     if (!active || !resized) return;
 
     if (cropCount > 0) {
-      resetCanvasDocument(
-        getSlideCanvasDocumentId(state.activeCanvasId, resized.id),
-        { grid: resized.grid, scene: [], components: [] }
-      );
+      resetSlideEditingBuffer(state.activeCanvasId, resized.id, resized.grid);
     }
 
     if (slideId === next.activeSlideId) {
@@ -162,7 +130,7 @@ export const createSlideSlice: StateCreator<
     }
     set({
       slideDeck: next,
-      canvasSessions: replaceDeckSession(state, next),
+      canvasSessions: replaceSlideDeckSession(state.canvasSessions, state.activeCanvasId, next),
     });
   },
 });

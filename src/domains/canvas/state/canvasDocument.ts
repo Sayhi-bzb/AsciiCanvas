@@ -110,7 +110,7 @@ const replaceCanvasDocument = (canvasDocument: CanvasYDocument, seed: CanvasDocu
 let activeDocument = createCanvasYDocument("canvas-initial");
 documents.set(activeDocument.id, activeDocument);
 
-export const getActiveCanvasDocument = () => activeDocument;
+export const getActiveCanvasDocumentId = () => activeDocument.id;
 const getYMainGrid = () => activeDocument.grid;
 const getYStructuredScene = () => activeDocument.scene;
 const getYStructuredComponents = () => activeDocument.components;
@@ -147,6 +147,8 @@ export const yStructuredScene = createActiveTypeProxy(getYStructuredScene);
 export const yStructuredComponents = createActiveTypeProxy(getYStructuredComponents);
 
 export const getCanvasDocument = (id: string) => documents.get(id) ?? null;
+export const getCanvasCollaborationDocument = (id: string) =>
+  documents.get(id)?.doc ?? null;
 
 export const getCanvasDocumentSeed = (
   id: string,
@@ -287,9 +289,13 @@ export const undoManager = {
   stopCapturing: () => activeDocument.undoManager.stopCapturing(),
 };
 
-export const forceHistorySave = () => {
+const forceHistorySave = () => {
   activeDocument.undoManager.stopCapturing();
 };
+
+export const undoCanvas = () => undoManager.undo();
+export const redoCanvas = () => undoManager.redo();
+export const finishCanvasHistoryCapture = () => forceHistorySave();
 
 export type CanvasHistoryCheckpoint = {
   commit: () => void;
@@ -337,6 +343,13 @@ export const beginCanvasHistoryCheckpoint = (): CanvasHistoryCheckpoint => {
 
 export type CanvasHistoryMode = "save" | "merge" | "none" | "reset";
 
+type CanvasGridWriter = {
+  get: (key: string) => GridCell | undefined;
+  set: (key: string, value: GridCell) => void;
+  delete: (key: string) => void;
+  clear: () => void;
+};
+
 const normalizeCanvasHistoryMode = (
   history: CanvasHistoryMode | boolean = "save"
 ): CanvasHistoryMode => {
@@ -364,3 +377,15 @@ export const runCanvasTransaction = (
     activeDocument.undoManager.clear();
   }
 };
+
+export const mutateCanvasGrid = (
+  mutation: (grid: CanvasGridWriter) => void,
+  history: CanvasHistoryMode | boolean = "save"
+) => runCanvasTransaction(() => mutation(activeDocument.grid), history);
+
+export const replaceActiveFreeformGrid = (entries: [string, GridCell][]) =>
+  runCanvasTransaction(() => {
+    activeDocument.scene.clear();
+    activeDocument.grid.clear();
+    entries.forEach(([key, cell]) => activeDocument.grid.set(key, cell));
+  }, "reset");

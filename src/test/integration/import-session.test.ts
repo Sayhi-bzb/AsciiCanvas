@@ -4,7 +4,7 @@ import {
   ASCII_CANVAS_DOCUMENT_VERSION,
 } from "@/domains/document/public";
 import { useEditorStore } from "@/domains/canvas/public";
-import { applyFreeformSnapshotToYMaps } from "@/domains/canvas/public";
+import { applyFreeformSnapshotToYMaps } from "@/domains/canvas/state/helpers/gridHelpers";
 import { DEFAULT_SESSION_ID } from "@/domains/canvas/state/helpers/storeUtils";
 import { createDocumentInteractionResetPatch } from "@/domains/canvas/state/transitions/editorTransitions";
 

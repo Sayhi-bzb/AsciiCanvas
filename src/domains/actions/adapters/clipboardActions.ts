@@ -17,10 +17,10 @@ import {
   renderStructuredScene,
 } from "@/domains/structured-content/public";
 import {
+  decodeStructuredNode,
   getStructuredTextSlice,
   getStructuredTextStyleRangesInRange,
 } from "@/domains/structured-content/public";
-import { toStructuredNode } from "@/domains/canvas/public";
 
 const MIME_RICH_DATA = "web application/x-ascii-metropolis";
 const DEFAULT_ANSI_PASTE_COLOR = "#ffffff";
@@ -381,7 +381,7 @@ const parseRichClipboardText = (
           : null;
       const structuredNodes = Array.isArray(parsed.structuredNodes)
         ? parsed.structuredNodes
-            .map((node) => toStructuredNode(node))
+            .map((node) => decodeStructuredNode(node))
             .filter((node): node is StructuredNode => !!node)
         : [];
       const bounds =

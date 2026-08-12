@@ -1,5 +1,8 @@
 import { useEffect } from "react";
-import { getCanvasDocument, useEditorStore } from "@/domains/canvas/public";
+import {
+  getCanvasCollaborationDocument,
+  useEditorStore,
+} from "@/domains/canvas/public";
 import { collaborationRuntime } from "@/domains/collaboration/public";
 
 export const useActiveCollaboration = () => {
@@ -18,8 +21,8 @@ export const useActiveCollaboration = () => {
       void collaborationRuntime.disconnect();
       return;
     }
-    const canvasDocument = getCanvasDocument(activeCanvasId);
-    if (canvasDocument) void collaborationRuntime.connect(collaboration, canvasDocument.doc);
+    const document = getCanvasCollaborationDocument(activeCanvasId);
+    if (document) void collaborationRuntime.connect(collaboration, document);
     return () => { void collaborationRuntime.disconnect(); };
   }, [activeCanvasId, collaboration]);
 

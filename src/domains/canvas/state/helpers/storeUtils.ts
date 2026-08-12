@@ -18,6 +18,7 @@ import {
   updateSlideGrid,
   type SlideDeck,
 } from '@/domains/slides/public';
+import { getSlideEditingBufferId } from '../slideEditingBuffer';
 
 export const DEFAULT_SESSION_ID = 'canvas-1';
 export const DEFAULT_SESSION_NAME = 'Canvas 1';
@@ -35,15 +36,12 @@ const STRUCTURED_ALLOWED_TOOLS: ToolType[] = [
 ];
 
 const DEFAULT_VIEWPORT = { offset: { x: 0, y: 0 }, zoom: 1 };
-export const getSlideCanvasDocumentId = (sessionId: string, slideId: string) =>
-  `${sessionId}:slide:${slideId}`;
-
 export const getSessionCanvasDocumentId = (session: CanvasSession, slideDeck?: SlideDeck | null) =>
   session.mode === 'slide'
-    ? getSlideCanvasDocumentId(session.id, (slideDeck ?? session.slideDeck).activeSlideId)
+    ? getSlideEditingBufferId(session.id, (slideDeck ?? session.slideDeck).activeSlideId)
     : session.id;
 
-export const normalizeSessionViewport = (viewport: CanvasSession['viewport'] | undefined) => {
+const normalizeSessionViewport = (viewport: CanvasSession['viewport'] | undefined) => {
   if (!viewport) return null;
   const x = Number.isFinite(viewport.offset?.x) ? viewport.offset.x : DEFAULT_VIEWPORT.offset.x;
   const y = Number.isFinite(viewport.offset?.y) ? viewport.offset.y : DEFAULT_VIEWPORT.offset.y;

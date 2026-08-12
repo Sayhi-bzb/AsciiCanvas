@@ -54,17 +54,8 @@ jobs:
             echo "fonts_published=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Lint
-        run: npm run lint
-
-      - name: Check domain boundaries
-        run: npm run check:boundaries
-
-      - name: Build
-        run: npm run build
-
-      - name: Test application
-        run: npm test -- --run
+      - name: Verify repository
+        run: npm run verify
 
       - name: Test fonts package
         run: npm run test:fonts

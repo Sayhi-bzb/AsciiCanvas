@@ -1,12 +1,12 @@
 import '@/domains/actions/public';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { runAction } from '@/domains/actions/public';
-import { undoManager, useEditorStore } from '@/domains/canvas/public';
+import { redoCanvas, undoCanvas, useEditorStore } from '@/domains/canvas/public';
 import {
   getStructuredSplitBoxGuides,
   getStructuredSplitBoxHandleAtPoint,
 } from '@/domains/structured-content/public';
-import { applyFreeformSnapshotToYMaps } from '@/domains/canvas/public';
+import { applyFreeformSnapshotToYMaps } from '@/domains/canvas/state/helpers/gridHelpers';
 import { DEFAULT_SESSION_ID } from '@/domains/canvas/state/helpers/storeUtils';
 import { clipboard } from '@/shared/services/effects';
 
@@ -417,7 +417,7 @@ describe('canvas session viewport state', () => {
     const pastedIds = useEditorStore.getState().selectedStructuredNodeIds;
     expect(pastedIds).toHaveLength(1);
     expect(pastedIds).not.toContain('text-undo-source');
-    expect(undoManager.undo()).toBe(true);
+    expect(undoCanvas()).toBe(true);
     expect(useEditorStore.getState().structuredScene).toHaveLength(1);
     expect(useEditorStore.getState().selectedStructuredNodeIds).toEqual([]);
   });
@@ -625,9 +625,9 @@ describe('canvas session viewport state', () => {
     });
     expect(useEditorStore.getState().grid.get('3,2')?.char).toBe('>');
 
-    expect(undoManager.undo()).toBe(true);
+    expect(undoCanvas()).toBe(true);
     expect(useEditorStore.getState().structuredScene).toHaveLength(1);
-    expect(undoManager.redo()).toBe(true);
+    expect(redoCanvas()).toBe(true);
     expect(useEditorStore.getState().structuredScene).toHaveLength(2);
     expect(useEditorStore.getState().structuredScene[1]).toMatchObject({
       endMarker: 'arrow',
@@ -1338,13 +1338,13 @@ describe('canvas session viewport state', () => {
       selectedStructuredBoxId: null,
     });
 
-    expect(undoManager.undo()).toBe(true);
+    expect(undoCanvas()).toBe(true);
     expect(useEditorStore.getState().structuredScene.map((node) => node.id)).toEqual([
       'parent-box',
       'child-text',
       'unrelated-box',
     ]);
-    expect(undoManager.redo()).toBe(true);
+    expect(redoCanvas()).toBe(true);
     expect(useEditorStore.getState().structuredScene.map((node) => node.id)).toEqual([
       'unrelated-box',
     ]);

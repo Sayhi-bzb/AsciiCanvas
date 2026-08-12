@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-const STORAGE_KEY = "ascii-canvas-persistence";
+const STORAGE_KEY = "chardesk-persistence";
 const CELL_WIDTH = 9;
 const VIEWPORT = { offset: { x: 180, y: 130 }, zoom: 1 };
 

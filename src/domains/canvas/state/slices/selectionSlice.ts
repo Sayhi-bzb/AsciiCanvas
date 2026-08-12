@@ -1,6 +1,6 @@
 import type { StateCreator } from "zustand";
 import type { EditorState, SelectionSlice } from "../interfaces";
-import { runCanvasTransaction, yMainGrid } from "../canvasDocument";
+import { mutateCanvasGrid } from "../canvasDocument";
 import { GridManager } from "@/shared/utils/grid";
 import { getSelectionBounds } from "@/shared/utils/selection";
 import { placeCharInYMap } from "../utils";
@@ -178,10 +178,10 @@ export const createSelectionSlice: StateCreator<
       return;
     }
 
-    runCanvasTransaction(() => {
+    mutateCanvasGrid((grid) => {
       selections.forEach((area) => {
         const { minX, maxX, minY, maxY } = getSelectionBounds(area);
-        deleteRect(yMainGrid, minX, minY, maxX, maxY);
+        deleteRect(grid, minX, minY, maxX, maxY);
       });
     });
   },
@@ -203,14 +203,14 @@ export const createSelectionSlice: StateCreator<
 
     const charWidth = getCellOccupancy(char);
 
-    runCanvasTransaction(() => {
+    mutateCanvasGrid((grid) => {
       selections.forEach((area) => {
         const { minX, maxX, minY, maxY } = getSelectionBounds(area);
         for (let y = minY; y <= maxY; y++) {
           for (let x = minX; x <= maxX; x += charWidth) {
             if (x + charWidth - 1 > maxX) break;
             placeCharInYMap(
-              yMainGrid,
+              grid,
               x,
               y,
               char,
@@ -233,13 +233,13 @@ export const createSelectionSlice: StateCreator<
     const shouldMaterializeBlank =
       attrs.underline === true || attrs.strike === true;
 
-    runCanvasTransaction(() => {
+    mutateCanvasGrid((grid) => {
       selections.forEach((area) => {
         const { minX, maxX, minY, maxY } = getSelectionBounds(area);
         for (let y = minY; y <= maxY; y++) {
           for (let x = minX; x <= maxX; x++) {
             const key = GridManager.toKey(x, y);
-            const existingCell = yMainGrid.get(key) as GridCell | undefined;
+            const existingCell = grid.get(key);
             if (!existingCell && !shouldMaterializeBlank) continue;
 
             const nextAttrs = cloneTextAttributes(existingCell?.attrs) ?? {};
@@ -266,10 +266,10 @@ export const createSelectionSlice: StateCreator<
               !nextCell.bgColor &&
               !cloneTextAttributes(nextCell.attrs)
             ) {
-              yMainGrid.delete(key);
+              grid.delete(key);
               continue;
             }
-            yMainGrid.set(key, nextCell);
+            grid.set(key, nextCell);
           }
         }
       });
@@ -283,13 +283,13 @@ export const createSelectionSlice: StateCreator<
     if (canvasMode === "structured") return;
     if (selections.length === 0) return;
 
-    runCanvasTransaction(() => {
+    mutateCanvasGrid((grid) => {
       selections.forEach((area) => {
         const { minX, maxX, minY, maxY } = getSelectionBounds(area);
         for (let y = minY; y <= maxY; y++) {
           for (let x = minX; x <= maxX; x++) {
             const key = GridManager.toKey(x, y);
-            const existingCell = yMainGrid.get(key) as GridCell | undefined;
+            const existingCell = grid.get(key);
             if (!existingCell && !bgColor) continue;
 
             const nextCell: GridCell = existingCell
@@ -305,10 +305,10 @@ export const createSelectionSlice: StateCreator<
               !nextCell.bgColor &&
               !cloneTextAttributes(nextCell.attrs)
             ) {
-              yMainGrid.delete(key);
+              grid.delete(key);
               continue;
             }
-            yMainGrid.set(key, nextCell);
+            grid.set(key, nextCell);
           }
         }
       });
@@ -320,14 +320,14 @@ export const createSelectionSlice: StateCreator<
     if (canvasMode === "structured") return;
     const { minX, maxX, minY, maxY } = getSelectionBounds(area);
 
-    runCanvasTransaction(() => {
+    mutateCanvasGrid((grid) => {
       for (let y = minY; y <= maxY; y++) {
         for (let x = minX; x <= maxX; x++) {
           const key = GridManager.toKey(x, y);
-          const existingCell = yMainGrid.get(key) as GridCell | undefined;
+          const existingCell = grid.get(key);
 
           if (existingCell) {
-            yMainGrid.set(key, {
+            grid.set(key, {
               ...existingCell,
               char: existingCell.char,
               color: brushColor,

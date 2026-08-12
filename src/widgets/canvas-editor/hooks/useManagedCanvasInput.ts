@@ -39,7 +39,6 @@ import {
 const KEYBOARD_PAN_STEP = 48;
 const MANAGED_TEXTAREA_SENTINEL = "\u00a0";
 const CLIPBOARD_DEBUG_STORAGE_KEY = "chardesk.clipboardDebug";
-const LEGACY_CLIPBOARD_DEBUG_STORAGE_KEY = "ascii-canvas.clipboardDebug";
 
 type ManagedActionSource =
   | 'canvas-keydown'
@@ -59,8 +58,7 @@ const traceClipboardShortcut = (
   if (!import.meta.env.DEV || typeof window === 'undefined') return;
   try {
     const enabled =
-      window.localStorage.getItem(CLIPBOARD_DEBUG_STORAGE_KEY) === '1' ||
-      window.localStorage.getItem(LEGACY_CLIPBOARD_DEBUG_STORAGE_KEY) === '1';
+      window.localStorage.getItem(CLIPBOARD_DEBUG_STORAGE_KEY) === '1';
     if (!enabled) return;
   } catch {
     return;

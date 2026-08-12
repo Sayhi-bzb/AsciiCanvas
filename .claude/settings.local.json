@@ -1,8 +1,6 @@
 {
   "permissions": {
     "allow": [
-      "Bash(cat \"D:\\docs\\ascii-canvas\\ascii-canvas\\public\\sitemap.xml\")",
-      "Bash(cat \"D:\\docs\\ascii-canvas\\ascii-canvas\\index.html\")",
       "Bash(npx gitnexus:*)",
       "mcp__gitnexus__list_repos",
       "mcp__gitnexus__cypher",

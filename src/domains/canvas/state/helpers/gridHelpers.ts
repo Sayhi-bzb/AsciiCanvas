@@ -1,16 +1,16 @@
 import {
-  runCanvasTransaction,
+  replaceActiveFreeformGrid,
   setActiveCanvasIntegrityIssue,
   yMainGrid,
   yStructuredScene,
 } from "../canvasDocument";
 import type { GridCell } from "@/shared/types";
 import type { StructuredNode } from "@/domains/structured-content/public";
-import { normalizeScene } from "@/domains/structured-content/public";
 import {
   cloneStructuredNode,
-  isSameCell,
-} from "./snapshotHelpers";
+  normalizeScene,
+} from "@/domains/structured-content/public";
+import { isSameCell } from "./snapshotHelpers";
 import {
   decodeCollaborativeGridCell,
   decodeCollaborativeStructuredNode,
@@ -74,10 +74,4 @@ export const patchGridByChangedKeys = (
 
 export const applyFreeformSnapshotToYMaps = (
   entries: [string, GridCell][]
-) => {
-  runCanvasTransaction(() => {
-    yStructuredScene.clear();
-    yMainGrid.clear();
-    entries.forEach(([key, val]) => yMainGrid.set(key, val));
-  }, "reset");
-};
+) => replaceActiveFreeformGrid(entries);

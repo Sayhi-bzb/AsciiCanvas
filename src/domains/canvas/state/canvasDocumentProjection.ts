@@ -9,7 +9,6 @@ import {
   sceneToGridEntries,
   type StructuredNode,
 } from "@/domains/structured-content/public";
-import { updateSlideGrid } from "@/domains/slides/public";
 import { splitGraphemes } from "@/shared/metrics";
 import type { GridMap } from "@/shared/types";
 import { decodeCollaborativeStructuredComponent } from "./collaborationSchema";
@@ -30,6 +29,7 @@ import {
   yStructuredComponents,
   yStructuredScene,
 } from "./canvasDocument";
+import { projectSlideEditingBuffer } from "./slideEditingBuffer";
 
 const reconcileStructuredInteraction = (
   state: EditorState,
@@ -97,21 +97,7 @@ const reconcileStructuredInteraction = (
 
 const projectObservedGrid = (state: EditorState, grid: GridMap) => {
   if (state.canvasMode === "slide" && state.slideDeck) {
-    const slideDeck = updateSlideGrid(
-      state.slideDeck,
-      state.slideDeck.activeSlideId,
-      Array.from(grid.entries())
-    );
-    const activeSlide = slideDeck.slides.find((slide) => slide.id === slideDeck.activeSlideId);
-    return {
-      grid: createMapFromEntries(activeSlide?.grid ?? []),
-      slideDeck,
-      canvasSessions: state.canvasSessions.map((session): CanvasSession =>
-        session.id === state.activeCanvasId && session.mode === "slide"
-          ? { ...session, slideDeck }
-          : session
-      ),
-    };
+    return projectSlideEditingBuffer(state, grid) ?? { grid };
   }
   return {
     grid,

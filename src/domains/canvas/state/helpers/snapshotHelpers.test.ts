@@ -1,16 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import {
-  cloneStructuredNode,
   cloneScene,
   normalizeAndCloneScene,
   serializeGrid,
   normalizeGridEntries,
   createMapFromEntries,
   isSameCell,
-  isPoint,
   toStructuredNode
 } from '@/domains/canvas/state/helpers/snapshotHelpers';
 import type { GridCell } from "@/shared/types";
+import { cloneStructuredNode } from "@/domains/structured-content/public";
 import type { StructuredBoxNode, StructuredLineNode, StructuredNode, StructuredSplitBoxNode, StructuredTextNode } from "@/domains/structured-content/public";
 
 describe('snapshotHelpers', () => {
@@ -244,24 +243,6 @@ describe('snapshotHelpers', () => {
       expect(isSameCell(a, undefined)).toBe(false);
       expect(isSameCell(undefined, a)).toBe(false);
       expect(isSameCell(undefined, undefined)).toBe(false);
-    });
-  });
-
-  describe('isPoint', () => {
-    it('should return true for valid point', () => {
-      expect(isPoint({ x: 1, y: 2 })).toBe(true);
-      expect(isPoint({ x: 0, y: 0 })).toBe(true);
-      expect(isPoint({ x: -1, y: -1 })).toBe(true);
-    });
-
-    it('should return false for invalid point', () => {
-      expect(isPoint(null)).toBe(false);
-      expect(isPoint(undefined)).toBe(false);
-      expect(isPoint({})).toBe(false);
-      expect(isPoint({ x: 1 })).toBe(false);
-      expect(isPoint({ y: 2 })).toBe(false);
-      expect(isPoint({ x: '1', y: 2 })).toBe(false);
-      expect(isPoint('not an object')).toBe(false);
     });
   });
 

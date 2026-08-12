@@ -25,7 +25,7 @@ const createContext = (
 
 describe("export service", () => {
 
-  it("builds a round-trippable AsciiCanvas project artifact", () => {
+  it("builds a round-trippable CharDesk project artifact", () => {
     const result = prepareTextExport(createContext(), "ascanvas");
 
     expect(result.ok).toBe(true);

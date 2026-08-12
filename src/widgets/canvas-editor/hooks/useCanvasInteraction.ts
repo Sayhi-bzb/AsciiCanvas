@@ -1,7 +1,7 @@
 import { useCreation, useThrottleFn } from "ahooks";
 import { GridManager } from "@/shared/utils/grid";
 import type { EditorState } from "@/domains/canvas/public";
-import { forceHistorySave } from "@/domains/canvas/public";
+import { finishCanvasHistoryCapture } from "@/domains/canvas/public";
 import { type CanvasLinkHit } from "./interaction/core/linkHitTesting";
 import { type StructuredMovePreview } from "./interaction/structured/structuredInteractionPreview";
 
@@ -314,7 +314,7 @@ export const useCanvasInteraction = (
     addSelection,
     clearSelections,
     commitScratch,
-    forceHistorySave,
+    forceHistorySave: finishCanvasHistoryCapture,
     commitStructuredShape,
     resetDragState,
   });

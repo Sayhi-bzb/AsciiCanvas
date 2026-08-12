@@ -20,6 +20,48 @@ const cloneStructuredComponent = (
   ),
 });
 
+const decodeStringArray = (value: unknown) =>
+  Array.isArray(value) && value.every((item) => typeof item === "string")
+    ? [...value]
+    : null;
+
+export const decodeStructuredComponents = (
+  value: unknown,
+  scene: StructuredNode[]
+): StructuredComponentInstance[] => {
+  if (!Array.isArray(value)) return deriveStructuredComponentsFromScene(scene);
+  const decoded = value.flatMap((item) => {
+    if (!item || typeof item !== "object") return [];
+    const candidate = item as Record<string, unknown>;
+    const atomIds = decodeStringArray(candidate.atomIds);
+    if (
+      typeof candidate.id !== "string" ||
+      typeof candidate.templateId !== "string" ||
+      typeof candidate.label !== "string" ||
+      !atomIds ||
+      !candidate.roles ||
+      typeof candidate.roles !== "object" ||
+      Array.isArray(candidate.roles)
+    ) {
+      return [];
+    }
+    const roles = Object.fromEntries(
+      Object.entries(candidate.roles).flatMap(([role, ids]) => {
+        const decodedIds = decodeStringArray(ids);
+        return decodedIds ? [[role, decodedIds]] : [];
+      })
+    );
+    return [{
+      id: candidate.id,
+      templateId: candidate.templateId,
+      label: candidate.label,
+      atomIds,
+      roles,
+    } satisfies StructuredComponentInstance];
+  });
+  return normalizeStructuredComponents(decoded, scene);
+};
+
 export const deriveStructuredComponentsFromScene = (
   scene: StructuredNode[]
 ): StructuredComponentInstance[] => {

@@ -10,11 +10,12 @@ export {
 } from "./session-state";
 export {
   EDITOR_PERSISTENCE_KEY,
-  EDITOR_PERSISTENCE_V3_BACKUP_KEY,
-  EDITOR_PERSISTENCE_V4_BACKUP_KEY,
   EDITOR_PERSISTENCE_VERSION,
+  LEGACY_EDITOR_PERSISTENCE_KEY,
+  decodePersistedEditorState,
   flattenPersistedEditorState,
   isPersistedEditorStateV5,
+  migrateLegacyEditorPersistence,
   migratePersistedStateToV5,
 } from "./persistence";
 export type { SessionCommands } from "./commands";

@@ -34,7 +34,8 @@ shared <- domains <- widgets <- app
 ## Canonical flows
 
 - Remote collaboration: provider → Yjs document → canvas observers → editor state → widgets.
-- Slide resize: widget intent → canvas slide slice → slides resize rule → active document and session snapshot.
+- Slide editing: deck authority → active Yjs editing buffer → canvas projection → deck and session snapshot.
+- Session recovery: owning domain decoders → sessions version composition → canvas runtime projection.
 - Session persistence: editor snapshot → persistence coordinator → sessions schema → browser storage.
 - Slide preview: slide data → canonical slide canvas renderer → preview or playback surface.
 - Selection command: UI or shortcut → actions command → canvas selection port → editor mutation.

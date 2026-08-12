@@ -51,6 +51,28 @@ describe("persistence coordinator", () => {
     });
   });
 
+  it("treats malformed storage envelopes as absent", () => {
+    const backing = new Map<string, string>([
+      ["invalid-json", "{"],
+      ["missing-state", JSON.stringify({ version: 5 })],
+      ["invalid-version", JSON.stringify({ state: {}, version: "5" })],
+    ]);
+    const storage = createDebouncedLocalStoragePersistStorage<object>(() => ({
+      getItem: (key) => backing.get(key) ?? null,
+      setItem: (key, value) => backing.set(key, value),
+      removeItem: (key) => backing.delete(key),
+      clear: () => backing.clear(),
+      key: (index) => [...backing.keys()][index] ?? null,
+      get length() {
+        return backing.size;
+      },
+    }));
+
+    expect(storage.getItem("invalid-json")).toBeNull();
+    expect(storage.getItem("missing-state")).toBeNull();
+    expect(storage.getItem("invalid-version")).toBeNull();
+  });
+
   it("builds snapshots only after durable state settles", () => {
     vi.useFakeTimers();
     const backing = new Map<string, string>();

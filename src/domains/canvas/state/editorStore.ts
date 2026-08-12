@@ -14,11 +14,10 @@ import {
 import type { EditorState } from "./interfaces";
 import {
   EDITOR_PERSISTENCE_KEY,
-  EDITOR_PERSISTENCE_V3_BACKUP_KEY,
-  EDITOR_PERSISTENCE_V4_BACKUP_KEY,
   EDITOR_PERSISTENCE_VERSION,
   flattenPersistedEditorState,
-  isPersistedEditorStateV5,
+  decodePersistedEditorState,
+  migrateLegacyEditorPersistence,
   migratePersistedStateToV5,
   withActiveCanvasSnapshot,
 } from "@/domains/sessions/public";
@@ -242,37 +241,27 @@ export const useEditorStore = create<EditorState>()(
       name: EDITOR_PERSISTENCE_KEY,
       version: EDITOR_PERSISTENCE_VERSION,
       storage: createDeferredSnapshotPersistStorage({
-        getStorage: () => localStorage,
+        getStorage: () => {
+          migrateLegacyEditorPersistence(localStorage);
+          return localStorage;
+        },
         createSnapshot: createPersistedEditorSnapshot,
         shouldSchedule: shouldScheduleEditorPersistence,
       }),
-      migrate: (persistedState, persistedVersion) => {
-        if (isPersistedEditorStateV5(persistedState)) {
-          return persistedState as unknown as EditorState;
-        }
-        if (persistedVersion < EDITOR_PERSISTENCE_VERSION && typeof localStorage !== "undefined") {
-          const raw = localStorage.getItem(EDITOR_PERSISTENCE_KEY);
-          if (raw && !localStorage.getItem(EDITOR_PERSISTENCE_V3_BACKUP_KEY)) {
-            localStorage.setItem(EDITOR_PERSISTENCE_V3_BACKUP_KEY, raw);
-          }
-          if (persistedVersion === 4 && raw && !localStorage.getItem(EDITOR_PERSISTENCE_V4_BACKUP_KEY)) {
-            localStorage.setItem(EDITOR_PERSISTENCE_V4_BACKUP_KEY, raw);
-          }
-        }
+      migrate: (persistedState) => {
+        // Zustand types migrations as runtime state, while storage owns the V5 DTO.
         return migratePersistedStateToV5(persistedState) as unknown as EditorState;
       },
       merge: (persistedState, currentState) => {
         if (!persistedState) return currentState;
-        const normalizedPersistedState = isPersistedEditorStateV5(persistedState)
-          ? persistedState
-          : migratePersistedStateToV5(persistedState);
+        const normalizedPersistedState = decodePersistedEditorState(persistedState);
         const flattened = flattenPersistedEditorState(normalizedPersistedState);
         const mergedState = {
           ...currentState,
           ...flattened,
           grid: createMapFromEntries(normalizeGridEntries(flattened.grid)),
         } as EditorState;
-        return recoverPersistedEditorState(mergedState, true);
+        return recoverPersistedEditorState(mergedState);
       },
       onRehydrateStorage: () => (hydratedState, error) => {
         if (error || !hydratedState) return;

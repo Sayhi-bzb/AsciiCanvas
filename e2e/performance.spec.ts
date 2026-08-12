@@ -20,7 +20,7 @@ type SmoothMetrics = {
   maxLongTaskMs: number;
 };
 
-const STORAGE_KEY = "ascii-canvas-persistence";
+const STORAGE_KEY = "chardesk-persistence";
 const CELL_WIDTH = 9;
 const CELL_HEIGHT = 19;
 const SCENARIO_MS = 5_000;

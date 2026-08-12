@@ -3,7 +3,7 @@ import type { StructuredNode } from "@/domains/structured-content/public";
 import { GridManager } from "@/shared/utils/grid";
 import { getSplitBoxPoints } from "@/domains/structured-content/public";
 import { sceneToGridEntries } from "@/domains/structured-content/public";
-import { createMapFromEntries } from "@/domains/canvas/public";
+import { createGridMap } from "@/shared/utils/grid-codec";
 import {
   moveStructuredNode,
   resizeStructuredSplitBox,
@@ -78,7 +78,7 @@ export const buildStructuredMovePreview = (
     baseScene: drag.baseScene,
     movingNodes,
     baseGrid: drag.baseGrid,
-    movingGrid: createMapFromEntries(sceneToGridEntries(movingNodes)),
+    movingGrid: createGridMap(sceneToGridEntries(movingNodes)),
   };
 };
 

@@ -9,7 +9,7 @@ test.use({
 
 async function createSlideDeck(page: import("@playwright/test").Page) {
   await page.addInitScript(() => {
-    localStorage.setItem("ascii-canvas-onboarding-v1", "dismissed");
+    localStorage.setItem("chardesk-onboarding-v1", "dismissed");
   });
   await page.goto("/");
   await page.getByRole("button", { name: "Select canvas" }).click();

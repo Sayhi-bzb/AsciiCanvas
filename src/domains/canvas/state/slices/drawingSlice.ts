@@ -1,6 +1,6 @@
 import type { StateCreator } from "zustand";
 import type { EditorState, DrawingSlice } from "../interfaces";
-import { runCanvasTransaction, yMainGrid } from "../canvasDocument";
+import { mutateCanvasGrid } from "../canvasDocument";
 import { GridManager } from "@/shared/utils/grid";
 import type { GridPoint } from "@/shared/types";
 import type { StructuredBoxNode, StructuredNode } from "@/domains/structured-content/public";
@@ -145,19 +145,19 @@ export const createDrawingSlice: StateCreator<
       return;
     }
     if (!scratchLayer || scratchLayer.size === 0) return;
-    runCanvasTransaction(() => {
+    mutateCanvasGrid((grid) => {
       GridManager.iterate(scratchLayer, (cell, x, y) => {
         const key = GridManager.toKey(x, y);
         if (cell.bgColor && cell.char === " ") {
-          const existingCell = yMainGrid.get(key);
-          yMainGrid.set(key, {
+          const existingCell = grid.get(key);
+          grid.set(key, {
             ...(existingCell ?? { char: " ", color: cell.color }),
             bgColor: cell.bgColor,
           });
           return;
         }
         if (cell.bgColor || cell.attrs || cell.href) {
-          yMainGrid.set(key, {
+          grid.set(key, {
             char: cell.char,
             color: cell.color,
             ...(cell.bgColor ? { bgColor: cell.bgColor } : {}),
@@ -166,7 +166,7 @@ export const createDrawingSlice: StateCreator<
           });
           return;
         }
-        placeCharInYMap(yMainGrid, x, y, cell.char, cell.color);
+        placeCharInYMap(grid, x, y, cell.char, cell.color);
       });
     });
     set({ scratchLayer: null });
@@ -180,7 +180,7 @@ export const createDrawingSlice: StateCreator<
       set({ scratchLayer: null, selections: [], textCursor: null, editingStructuredTextNodeId: null, structuredTextSelection: null, selectedStructuredNodeIds: [], selectedStructuredBoxId: null, selectedStructuredSplitHandle: null, structuredContextPoint: null });
       return;
     }
-    runCanvasTransaction(() => yMainGrid.clear());
+    mutateCanvasGrid((grid) => grid.clear());
     set({ scratchLayer: null, selections: [], textCursor: null, editingStructuredTextNodeId: null, structuredTextSelection: null, selectedStructuredNodeIds: [], selectedStructuredBoxId: null, selectedStructuredSplitHandle: null, structuredContextPoint: null });
   },
 
@@ -188,9 +188,9 @@ export const createDrawingSlice: StateCreator<
     const { canvasMode } = get();
     if (canvasMode === "structured") return;
     if (points.length === 0) return;
-    runCanvasTransaction(() => {
+    mutateCanvasGrid((grid) => {
       points.forEach((p) => {
-        deleteCellAt(yMainGrid, p.x, p.y);
+        deleteCellAt(grid, p.x, p.y);
       });
     }, shouldSaveHistory);
   },

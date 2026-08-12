@@ -11,8 +11,8 @@ import {
   buildSessionSnapshot,
   resolveSessionRuntime,
   getSessionCanvasDocumentId,
-  getSlideCanvasDocumentId,
 } from "../helpers/storeUtils";
+import { getSlideEditingBufferId } from "../slideEditingBuffer";
 import {
   withActiveCanvasSnapshot,
   normalizeSessionMode,
@@ -91,7 +91,7 @@ const createImportedSession = (
 const destroySessionDocuments = (session: CanvasSession) => {
   if (session.mode === "slide") {
     session.slideDeck.slides.forEach((slide) =>
-      destroyCanvasDocument(getSlideCanvasDocumentId(session.id, slide.id))
+      destroyCanvasDocument(getSlideEditingBufferId(session.id, slide.id))
     );
     return;
   }

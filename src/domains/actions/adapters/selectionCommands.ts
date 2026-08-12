@@ -1,7 +1,6 @@
 import type { RichTextCell } from "@/domains/canvas/public";
 import {
-  cloneStructuredNode,
-  getActiveCanvasDocument,
+  getActiveCanvasDocumentId,
   registerSelectionCommandFactory,
   type ClipboardCommandResult,
   type EditorState,
@@ -26,7 +25,10 @@ import type {
   StructuredTextNode,
   StructuredTextStyleRange,
 } from "@/domains/structured-content/public";
-import { createStructuredNodeId } from "@/domains/structured-content/public";
+import {
+  cloneStructuredNode,
+  createStructuredNodeId,
+} from "@/domains/structured-content/public";
 import { getCellOccupancy, splitGraphemes } from "@/shared/metrics";
 import { cloneTextAttributes } from "@/shared/utils/ansi";
 import { areJsonValuesEqual } from "@/shared/utils/equality";
@@ -65,7 +67,7 @@ const failed = (
 
 const getClipboardTargetFingerprint = (state: EditorState) =>
   JSON.stringify({
-    documentId: getActiveCanvasDocument().id,
+    documentId: getActiveCanvasDocumentId(),
     canvasMode: state.canvasMode,
     selections: resolveSelectionAreas(state),
     textCursor: state.textCursor,

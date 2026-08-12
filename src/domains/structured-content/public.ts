@@ -30,6 +30,11 @@ export {
   resizeStructuredSplitBox,
 } from "./model/box";
 export {
+  cloneStructuredNode,
+  decodeStructuredNode,
+} from "./model/codec";
+export {
+  decodeStructuredComponents,
   deriveStructuredComponentsFromScene,
   normalizeStructuredComponents,
 } from "./model/components";
@@ -88,7 +93,6 @@ export {
 export {
   createDefaultSplitBoxRoot,
   getSplitBoxPoints,
-  normalizeSplitBoxRoot,
 } from "./model/split-box-geometry";
 export type {
   StructuredTemplateListItem,

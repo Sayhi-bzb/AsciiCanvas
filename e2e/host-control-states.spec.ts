@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-const STORAGE_KEY = "ascii-canvas-persistence";
+const STORAGE_KEY = "chardesk-persistence";
 
 const readHoverStyle = async (control: Locator) => {
   await control.hover();

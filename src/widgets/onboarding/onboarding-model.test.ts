@@ -1,7 +1,21 @@
-import { describe, expect, it } from "vitest";
-import { shouldAutoStartOnboarding } from "./onboarding-model";
+import { beforeEach, describe, expect, it } from "vitest";
+import {
+  ONBOARDING_STORAGE_KEY,
+  readOnboardingStatus,
+  shouldAutoStartOnboarding,
+} from "./onboarding-model";
 
 describe("shouldAutoStartOnboarding", () => {
+  beforeEach(() => window.localStorage.clear());
+
+  it("moves a legacy status to the CharDesk key", () => {
+    window.localStorage.setItem("ascii-canvas-onboarding-v1", "completed");
+
+    expect(readOnboardingStatus()).toBe("completed");
+    expect(window.localStorage.getItem(ONBOARDING_STORAGE_KEY)).toBe("completed");
+    expect(window.localStorage.getItem("ascii-canvas-onboarding-v1")).toBeNull();
+  });
+
   it("starts only for a new desktop user", () => {
     expect(
       shouldAutoStartOnboarding({

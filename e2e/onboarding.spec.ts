@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-const ONBOARDING_STORAGE_KEY = 'ascii-canvas-onboarding-v1';
+const ONBOARDING_STORAGE_KEY = 'chardesk-onboarding-v1';
 const TOUR_TRANSITION_MS = 350;
 
 test.use({
@@ -12,7 +12,7 @@ test.use({
 
 const getStructuredComponentCount = (page: Page) =>
   page.evaluate(() => {
-    const raw = localStorage.getItem('ascii-canvas-persistence');
+    const raw = localStorage.getItem('chardesk-persistence');
     if (!raw) return 0;
     const state = JSON.parse(raw).state;
     return (
@@ -86,7 +86,7 @@ async function reachDragStep(page: Page, testWrongClicks = false) {
   }
 
   const editorStateBeforeLibrary = await page.evaluate(() =>
-    localStorage.getItem('ascii-canvas-persistence'),
+    localStorage.getItem('chardesk-persistence'),
   );
   await expect(page.getByRole('tab', { name: 'Nerd Icons' })).toBeVisible();
   await expect(page.getByRole('tab', { name: 'Emoji' })).toBeVisible();
@@ -97,7 +97,7 @@ async function reachDragStep(page: Page, testWrongClicks = false) {
   );
   await popover.getByRole('button', { name: 'Next' }).click();
   await expect
-    .poll(() => page.evaluate(() => localStorage.getItem('ascii-canvas-persistence')))
+    .poll(() => page.evaluate(() => localStorage.getItem('chardesk-persistence')))
     .toBe(editorStateBeforeLibrary);
   await expect(popover.getByText('Canvas modes')).toBeVisible();
   await page.waitForTimeout(TOUR_TRANSITION_MS);

@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "vite",
     "build": "npm run build -w @chardesk/fonts && npm run build -w @chardesk/protocol && tsc -b && vite build",
+    "typecheck": "tsc -b --pretty false",
     "lint": "eslint .",
     "preview": "vite preview",
     "generate:character-data": "node scripts/data/generate-character-data.mjs",
@@ -24,7 +25,11 @@
     "test:coverage": "vitest --coverage",
     "test:e2e": "playwright test",
     "test:perf": "npm run build && node scripts/performance/run-perf.mjs",
-    "check:boundaries": "node scripts/check-domain-boundaries.mjs"
+    "check:boundaries": "node scripts/check-domain-boundaries.mjs",
+    "check:type-escapes": "node scripts/quality/check-type-escapes.mjs",
+    "check:state-ownership": "node scripts/quality/check-state-ownership.mjs",
+    "check:architecture": "npm run check:boundaries && npm run check:type-escapes && npm run check:state-ownership && npm run check-style-api",
+    "verify": "npm run typecheck && npm run lint && npm run knip && npm run check:architecture && npm test -- --run && npm run build"
   },
   "dependencies": {
     "@chardesk/fonts": "*",

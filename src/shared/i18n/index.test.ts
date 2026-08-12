@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const STORAGE_KEY = 'ascii-canvas-ui-language';
+const STORAGE_KEY = 'chardesk-ui-language';
+const LEGACY_STORAGE_KEY = 'ascii-canvas-ui-language';
 
 const loadI18n = async () => {
   vi.resetModules();
@@ -65,6 +66,17 @@ describe('UI language initialization', () => {
     window.localStorage.setItem(STORAGE_KEY, 'invalid');
     await loadI18n();
     expect(document.documentElement.lang).toBe('zh-CN');
+  });
+
+  it('migrates a legacy stored user choice', async () => {
+    setBrowserLanguages(['en-US']);
+    window.localStorage.setItem(LEGACY_STORAGE_KEY, 'zh');
+
+    await loadI18n();
+
+    expect(document.documentElement.lang).toBe('zh-CN');
+    expect(window.localStorage.getItem(STORAGE_KEY)).toBe('zh');
+    expect(window.localStorage.getItem(LEGACY_STORAGE_KEY)).toBeNull();
   });
 
   it('synchronizes and persists a manual language change', async () => {

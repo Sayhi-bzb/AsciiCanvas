@@ -28,6 +28,8 @@
   - `ascii-canvas-onboarding-v1`
   - `ascii-canvas-ui-language`
   - `ascii-canvas-collaboration-identity`
+- [x] 将当前域名中的编辑器、onboarding、界面语言和协作身份迁移到 `chardesk-*` 键；校验写入成功后删除旧键。
+- [x] 停止生成未被恢复流程读取的 v3/v4 持久化备份；不主动删除浏览器中已有备份。
 - [x] 盘点以 `ascii-canvas-room-v1:*` / `asciicanvas-v1-*` 命名的 IndexedDB 协作缓存。
 - [x] 记录当前决策：不实现旧域名自动数据迁移入口，依靠现有文件导出/导入能力。
 - [ ] 在新域名验证导入旧 `.ascanvas` 文件后能恢复画布和会话。
@@ -122,11 +124,11 @@
 
 ## 8. 测试与验收
 
-- [x] 运行 lint、domain-boundary check、TypeScript build 和完整单元测试（109 个文件、839 项测试通过）。
+- [x] 运行 lint、TypeScript 检查和完整单元测试（129 个文件、925 项测试通过）。
 - [x] 运行品牌相关 Playwright E2E（App Menu 2 项通过），并更新可见品牌与导入格式断言。
 - [ ] 测试新建、保存、刷新、导出和重新导入画布。
 - [ ] 测试旧 `.ascanvas`、JSON、ANSI、Markdown Slides 文件导入。
-- [ ] 测试旧 localStorage 状态和持久化版本升级。
+- [x] 测试旧 localStorage 状态和持久化版本升级，覆盖成功迁移和损坏数据保留。
 - [ ] 测试旧域名手动/自动迁移到新域名，确保作品不会静默丢失。
 - [ ] 测试协作房间链接、身份、IndexedDB 缓存和断线重连。
 - [x] 对 `@chardesk/*@0.2.0` 执行 build、真实 `npm pack` 及隔离安装/import smoke test。

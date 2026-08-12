@@ -2,7 +2,8 @@ import { useSyncExternalStore } from 'react';
 
 type UiLanguage = 'en' | 'zh';
 
-const STORAGE_KEY = 'ascii-canvas-ui-language';
+const STORAGE_KEY = 'chardesk-ui-language';
+const LEGACY_STORAGE_KEY = 'ascii-canvas-ui-language';
 
 const messages = {
   en: {
@@ -764,9 +765,22 @@ function normalizeSupportedLanguage(language: string | undefined): UiLanguage | 
 function readStoredLanguage(): UiLanguage | null {
   if (typeof window === 'undefined') return null;
   try {
-    return normalizeSupportedLanguage(
+    const current = normalizeSupportedLanguage(
       window.localStorage.getItem(STORAGE_KEY) ?? undefined
     );
+    if (current) {
+      window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+      return current;
+    }
+    const legacy = normalizeSupportedLanguage(
+      window.localStorage.getItem(LEGACY_STORAGE_KEY) ?? undefined
+    );
+    if (!legacy) return null;
+    window.localStorage.setItem(STORAGE_KEY, legacy);
+    if (window.localStorage.getItem(STORAGE_KEY) === legacy) {
+      window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+    }
+    return legacy;
   } catch {
     return null;
   }
@@ -820,6 +834,9 @@ export function setUiLanguage(language: UiLanguage) {
   if (typeof window !== 'undefined') {
     try {
       window.localStorage.setItem(STORAGE_KEY, language);
+      if (window.localStorage.getItem(STORAGE_KEY) === language) {
+        window.localStorage.removeItem(LEGACY_STORAGE_KEY);
+      }
     } catch {
       // Keep the in-memory preference when browser storage is unavailable.
     }
