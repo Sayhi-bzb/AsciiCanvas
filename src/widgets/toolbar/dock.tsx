@@ -55,6 +55,7 @@ interface ToolbarProps {
   onUndo: () => void;
   isCanvasTextEditing: boolean;
   onExitCanvasTextEditing: () => void;
+  enabled?: boolean;
 }
 
 const FREEFORM_ACTION_ORDER: ToolbarActionId[] = [
@@ -80,6 +81,7 @@ export function Toolbar({
   onUndo,
   isCanvasTextEditing,
   onExitCanvasTextEditing,
+  enabled = true,
 }: ToolbarProps) {
   const { t } = useUiI18n();
   const {
@@ -201,7 +203,7 @@ export function Toolbar({
   useShortcutLayer({
     id: "dock-tools",
     priority: SHORTCUT_PRIORITY.dynamicCanvasCommand,
-    enabled: openSubMenuId === null,
+    enabled: enabled && openSubMenuId === null,
     onKeyDown: (event, context) => {
       if (
         context.targetKind === "editable" ||

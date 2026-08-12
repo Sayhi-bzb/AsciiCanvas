@@ -10,7 +10,7 @@ import {
   getStructuredTextOffsetAtPoint,
 } from "@/domains/structured-content/public";
 import {
-  findStructuredNodeHit,
+  createStructuredSceneQuery,
   getStructuredSplitBoxGuides,
   getStructuredSplitBoxHandleId,
   isStructuredSplitBoxLineHandle,
@@ -83,8 +83,8 @@ export const findSelectedStructuredHandleHit = ({
   zoom: number;
 }): StructuredNodeHit | null => {
   if (selectedStructuredNodeIds.length !== 1) return null;
-  const node = structuredScene.find(
-    (sceneNode) => sceneNode.id === selectedStructuredNodeIds[0]
+  const node = createStructuredSceneQuery(structuredScene).getNode(
+    selectedStructuredNodeIds[0]
   );
   if (!node) return null;
 
@@ -248,9 +248,9 @@ export const getStructuredTextCaretHit = ({
   structuredScene: StructuredNode[];
   preferredNodeId?: string | null;
 }) => {
-  const textNodes = structuredScene
-    .filter((node): node is StructuredTextNode => node.type === "text")
-    .sort((a, b) => b.order - a.order);
+  const textNodes = createStructuredSceneQuery(
+    structuredScene
+  ).getTextNodesInHitOrder();
   const preferredNode = preferredNodeId
     ? textNodes.find((node) => node.id === preferredNodeId)
     : null;
@@ -316,7 +316,7 @@ export const resolveStructuredSelectHit = ({
         })
       : null;
   const nodeHit = keepStructuredSplitLineHandle(
-    point ? findStructuredNodeHit(structuredScene, point) : null
+    point ? createStructuredSceneQuery(structuredScene).findHit(point) : null
   );
   const hit = handleHit ?? caretHit?.hit ?? nodeHit ?? null;
 
@@ -326,6 +326,4 @@ export const resolveStructuredSelectHit = ({
     cursor: hit ? getStructuredHitCursor(hit, editingStructuredTextNodeId) : "",
   };
 };
-
-
 

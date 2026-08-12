@@ -1,29 +1,38 @@
 import {
   runCanvasTransaction,
+  setActiveCanvasIntegrityIssue,
   yMainGrid,
   yStructuredScene,
 } from "../yjs";
 import type { GridCell } from "@/shared/types";
 import type { StructuredNode } from "@/domains/structured-content/public";
-import { normalizeScene, sceneToGridEntries } from "@/domains/structured-content/public";
+import { normalizeScene } from "@/domains/structured-content/public";
 import {
   cloneStructuredNode,
   normalizeAndCloneScene,
   isSameCell,
 } from "./snapshotHelpers";
+import {
+  decodeCollaborativeGridCell,
+  decodeCollaborativeStructuredNode,
+} from "../collaborationSchema";
 
 export const rebuildGridFromYMap = () => {
   const nextGrid = new Map<string, GridCell>();
   yMainGrid.forEach((value, key) => {
-    nextGrid.set(key, value as GridCell);
+    const decoded = decodeCollaborativeGridCell(key, value);
+    setActiveCanvasIntegrityIssue("main-grid", key, decoded.ok ? null : decoded.issue);
+    if (decoded.ok) nextGrid.set(key, decoded.value);
   });
   return nextGrid;
 };
 
 export const rebuildSceneFromYMap = () => {
   const nextScene: StructuredNode[] = [];
-  yStructuredScene.forEach((value) => {
-    nextScene.push(cloneStructuredNode(value as StructuredNode));
+  yStructuredScene.forEach((value, key) => {
+    const decoded = decodeCollaborativeStructuredNode(key, value);
+    setActiveCanvasIntegrityIssue("structured-scene", key, decoded.ok ? null : decoded.issue);
+    if (decoded.ok) nextScene.push(cloneStructuredNode(decoded.value));
   });
   return normalizeScene(nextScene);
 };
@@ -35,15 +44,26 @@ export const patchGridByChangedKeys = (
   let nextGrid: Map<string, GridCell> | null = null;
 
   keysChanged.forEach((key) => {
-    const nextCell = yMainGrid.get(key) as GridCell | undefined;
+    const rawCell = yMainGrid.get(key);
     const prevCell = currentGrid.get(key);
 
-    if (!nextCell) {
+    if (!rawCell) {
+      setActiveCanvasIntegrityIssue("main-grid", key, null);
       if (!prevCell) return;
       if (!nextGrid) nextGrid = new Map(currentGrid);
       nextGrid.delete(key);
       return;
     }
+
+    const decoded = decodeCollaborativeGridCell(key, rawCell);
+    setActiveCanvasIntegrityIssue("main-grid", key, decoded.ok ? null : decoded.issue);
+    if (!decoded.ok) {
+      if (!prevCell) return;
+      if (!nextGrid) nextGrid = new Map(currentGrid);
+      nextGrid.delete(key);
+      return;
+    }
+    const nextCell = decoded.value;
 
     if (isSameCell(prevCell, nextCell)) return;
     if (!nextGrid) nextGrid = new Map(currentGrid);
@@ -65,13 +85,10 @@ export const applyFreeformSnapshotToYMaps = (
 
 export const applyStructuredSnapshotToYMaps = (scene: StructuredNode[]) => {
   const normalizedScene = normalizeAndCloneScene(scene);
-  const gridEntries = sceneToGridEntries(normalizedScene);
   runCanvasTransaction(() => {
     yStructuredScene.clear();
     normalizedScene.forEach((node) => {
       yStructuredScene.set(node.id, node);
     });
-    yMainGrid.clear();
-    gridEntries.forEach(([key, val]) => yMainGrid.set(key, val));
   }, "reset");
 };

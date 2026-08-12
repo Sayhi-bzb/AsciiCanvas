@@ -4,6 +4,7 @@ import type {
   StructuredComponentInstance,
   StructuredNode,
 } from "@/domains/structured-content/public";
+import type { CollaborationIntegrityIssue } from "@/domains/collaboration/public";
 
 const LOCAL_ORIGIN = Symbol("canvas-local-origin");
 const HISTORY_IGNORED_ORIGIN = Symbol("canvas-history-ignored");
@@ -14,12 +15,30 @@ export type CanvasDocumentSeed = {
   components?: StructuredComponentInstance[];
 };
 
+export const applyYMapValueDiff = <T extends { id: string }>(
+  map: Y.Map<T>,
+  values: T[]
+) => {
+  const nextIds = new Set(values.map((value) => value.id));
+  Array.from(map.keys()).forEach((id) => {
+    if (!nextIds.has(id)) map.delete(id);
+  });
+  values.forEach((value) => {
+    const current = map.get(value.id);
+    if (JSON.stringify(current) !== JSON.stringify(value)) {
+      map.set(value.id, value);
+    }
+  });
+};
+
 export type CanvasYDocument = {
   id: string;
   doc: Y.Doc;
   grid: Y.Map<GridCell>;
   scene: Y.Map<StructuredNode>;
   components: Y.Map<StructuredComponentInstance>;
+  meta: Y.Map<unknown>;
+  integrityIssues: Map<string, CollaborationIntegrityIssue>;
   undoManager: Y.UndoManager;
 };
 
@@ -57,11 +76,13 @@ const createCanvasYDocument = (id: string, seed?: CanvasDocumentSeed): CanvasYDo
   const grid = doc.getMap<GridCell>("main-grid");
   const scene = doc.getMap<StructuredNode>("structured-scene");
   const components = doc.getMap<StructuredComponentInstance>("structured-components");
+  const meta = doc.getMap<unknown>("document-meta");
+  const integrityIssues = new Map<string, CollaborationIntegrityIssue>();
   const undoManager = new Y.UndoManager([grid, scene, components], {
     captureTimeout: 500,
     trackedOrigins: new Set([LOCAL_ORIGIN]),
   });
-  const canvasDocument = { id, doc, grid, scene, components, undoManager };
+  const canvasDocument = { id, doc, grid, scene, components, meta, integrityIssues, undoManager };
   const notifyIfActive = () => {
     if (canvasDocument === activeDocument) emitHistoryAvailability();
   };
@@ -93,6 +114,23 @@ export const getYDoc = () => activeDocument.doc;
 export const getYMainGrid = () => activeDocument.grid;
 export const getYStructuredScene = () => activeDocument.scene;
 export const getYStructuredComponents = () => activeDocument.components;
+export const getYDocumentMeta = () => activeDocument.meta;
+
+const integrityIssueKey = (channel: CollaborationIntegrityIssue["channel"], key: string) =>
+  `${channel}:${key}`;
+
+export const setActiveCanvasIntegrityIssue = (
+  channel: CollaborationIntegrityIssue["channel"],
+  key: string,
+  issue: CollaborationIntegrityIssue | null
+) => {
+  const issueKey = integrityIssueKey(channel, key);
+  if (issue) activeDocument.integrityIssues.set(issueKey, issue);
+  else activeDocument.integrityIssues.delete(issueKey);
+};
+
+export const getActiveCanvasIntegrityIssues = () =>
+  Array.from(activeDocument.integrityIssues.values());
 
 const createActiveTypeProxy = <T extends object>(resolve: () => T): T =>
   new Proxy({} as T, {
@@ -110,6 +148,38 @@ export const yStructuredScene = createActiveTypeProxy(getYStructuredScene);
 export const yStructuredComponents = createActiveTypeProxy(getYStructuredComponents);
 
 export const getCanvasDocument = (id: string) => documents.get(id) ?? null;
+
+export const getCanvasDocumentSeed = (
+  id: string,
+  mode: "freeform" | "structured"
+): CanvasDocumentSeed | null => {
+  const canvasDocument = documents.get(id);
+  if (!canvasDocument) return null;
+  return {
+    grid: mode === "freeform" ? Array.from(canvasDocument.grid.entries()) : [],
+    scene: mode === "structured" ? Array.from(canvasDocument.scene.values()) : [],
+    components:
+      mode === "structured" ? Array.from(canvasDocument.components.values()) : [],
+  };
+};
+
+export const prepareCanvasDocumentForCollaboration = (
+  id: string,
+  mode: "freeform" | "structured"
+) => {
+  const canvasDocument = documents.get(id);
+  if (!canvasDocument) return false;
+  canvasDocument.doc.transact(() => {
+    if (mode === "structured") {
+      canvasDocument.grid.clear();
+    } else {
+      canvasDocument.scene.clear();
+      canvasDocument.components.clear();
+    }
+  }, HISTORY_IGNORED_ORIGIN);
+  canvasDocument.undoManager.clear();
+  return true;
+};
 
 export const resetCanvasDocument = (id: string, seed: CanvasDocumentSeed) => {
   const canvasDocument = documents.get(id);
@@ -135,6 +205,24 @@ export const activateCanvasDocument = (
   if (next !== previous) {
     activeDocumentListeners.forEach((listener) => listener(next, previous));
   }
+  emitHistoryAvailability();
+  return next;
+};
+
+export const initializeCollaborativeCanvasDocument = (
+  id: string,
+  seed: CanvasDocumentSeed = { grid: [], scene: [], components: [] }
+) => {
+  const previous = activeDocument;
+  const existing = documents.get(id);
+  if (existing) {
+    existing.undoManager.destroy();
+    existing.doc.destroy();
+  }
+  const next = createCanvasYDocument(id, seed);
+  documents.set(id, next);
+  activeDocument = next;
+  activeDocumentListeners.forEach((listener) => listener(next, previous));
   emitHistoryAvailability();
   return next;
 };

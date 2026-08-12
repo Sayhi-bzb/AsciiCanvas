@@ -11,13 +11,16 @@ import {
 export const useGlobalShortcutCommands = ({
   onUndo,
   onRedo,
+  enabled = true,
 }: {
   onUndo: () => void;
   onRedo: () => void;
+  enabled?: boolean;
 }) => {
   useShortcutLayer({
     id: "global-editor-commands",
     priority: SHORTCUT_PRIORITY.globalAction,
+    enabled,
     onKeyDown: (event, context) => {
       if (
         context.targetKind === "editable" ||

@@ -2,13 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   EDITOR_PERSISTENCE_VERSION,
   flattenPersistedEditorState,
-  isPersistedEditorStateV4,
-  migratePersistedStateToV4,
+  isPersistedEditorStateV5,
+  migratePersistedStateToV5,
 } from "./public";
 
-describe("editor persistence v4", () => {
+describe("editor persistence v5", () => {
   it("drops legacy animation sessions and keeps static sessions", () => {
-    const migrated = migratePersistedStateToV4({
+    const migrated = migratePersistedStateToV5({
       schemaVersion: 2,
       workspace: { canvasMode: "animation" },
       sessions: {
@@ -22,11 +22,11 @@ describe("editor persistence v4", () => {
     expect(migrated.schemaVersion).toBe(EDITOR_PERSISTENCE_VERSION);
     expect(migrated.sessions.items.map((session) => session.id)).toEqual(["static"]);
     expect(migrated.sessions.activeId).toBe("static");
-    expect(isPersistedEditorStateV4(migrated)).toBe(true);
+    expect(isPersistedEditorStateV5(migrated)).toBe(true);
   });
 
   it("creates a blank freeform session when no static session remains", () => {
-    const migrated = migratePersistedStateToV4({
+    const migrated = migratePersistedStateToV5({
       sessions: {
         activeId: "old-animation",
         items: [{ id: "old-animation", name: "Old", mode: "animation", scene: [], grid: [] }],
@@ -39,7 +39,7 @@ describe("editor persistence v4", () => {
     });
   });
   it("preserves and normalizes slide sessions in v4", () => {
-    const migrated = migratePersistedStateToV4({
+    const migrated = migratePersistedStateToV5({
       schemaVersion: 4,
       workspace: { canvasMode: "slide" },
       sessions: {
@@ -83,5 +83,36 @@ describe("editor persistence v4", () => {
         },
       }],
     });
+  });
+
+  it("keeps V1 session content but drops its unsupported room descriptor", () => {
+    const migrated = migratePersistedStateToV5({
+      schemaVersion: 4,
+      sessions: {
+        activeId: "legacy-room",
+        items: [
+          {
+            id: "legacy-room",
+            name: "Legacy room",
+            mode: "freeform",
+            scene: [],
+            components: [],
+            grid: [["0,0", { char: "A", color: "#fff" }]],
+            collaboration: {
+              version: 1,
+              provider: "p2p",
+              roomId: "room-id-1234567890",
+              key: "room-key-1234567890123456789012345678901234567890",
+            },
+          },
+        ],
+      },
+    });
+
+    expect(migrated.sessions.items[0]).toMatchObject({
+      id: "legacy-room",
+      grid: [["0,0", { char: "A", color: "#fff" }]],
+    });
+    expect(migrated.sessions.items[0].collaboration).toBeUndefined();
   });
 });

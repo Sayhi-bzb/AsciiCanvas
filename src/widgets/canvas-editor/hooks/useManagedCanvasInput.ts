@@ -74,6 +74,7 @@ type UseManagedCanvasInputOptions = {
   size: { width: number; height: number } | undefined;
   onUndo: () => void;
   onRedo: () => void;
+  enabled?: boolean;
 };
 
 export const useManagedCanvasInput = ({
@@ -82,6 +83,7 @@ export const useManagedCanvasInput = ({
   size,
   onUndo,
   onRedo,
+  enabled = true,
 }: UseManagedCanvasInputOptions) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isComposing = useRef(false);
@@ -237,7 +239,7 @@ export const useManagedCanvasInput = ({
   useShortcutLayer({
     id: "managed-canvas-commands",
     priority: SHORTCUT_PRIORITY.managedCanvas,
-    enabled: canvasOwnsInputFocus,
+    enabled: enabled && canvasOwnsInputFocus,
     onKeyDown: (event, context) => {
       if (
         context.targetKind !== "managed-canvas" ||

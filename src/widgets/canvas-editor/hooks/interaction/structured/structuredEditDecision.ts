@@ -3,7 +3,7 @@ import type { CanvasMode } from "@/domains/sessions/public";
 import type { ToolType } from "@/domains/canvas/public";
 import type { StructuredNode } from "@/domains/structured-content/public";
 import {
-  findStructuredNodeHit,
+  createStructuredSceneQuery,
   getStructuredBoxNameEndPoint,
   isPointOnStructuredBoxBorder,
 } from "@/domains/structured-content/public";
@@ -35,6 +35,7 @@ export const resolveStructuredEditDecision = ({
   editingStructuredTextNodeId: string | null;
 }): StructuredEditDecision => {
   if (!point) return { type: "none" };
+  void selectedStructuredNodeIds;
 
   const caretHit = getStructuredTextCaretHit({
     point,
@@ -43,7 +44,7 @@ export const resolveStructuredEditDecision = ({
   });
   const hit =
     caretHit?.hit ??
-    findStructuredNodeHit(structuredScene, point, selectedStructuredNodeIds);
+    createStructuredSceneQuery(structuredScene).findHit(point);
   if (!hit) return { type: "none" };
 
   if (hit.kind === "text") {

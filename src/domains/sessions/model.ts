@@ -1,7 +1,7 @@
 import type { GridCell, Point } from "@/shared/types";
 import type { CanvasMode } from "./mode";
 import type { StructuredComponentInstance, StructuredNode } from "@/domains/structured-content/public";
-import type { CollaborationDescriptorV1 } from "@/domains/collaboration/public";
+import type { CollaborationDescriptorV2 } from "@/domains/collaboration/public";
 import type { SlideDeck } from "@/domains/slides/public";
 
 interface CanvasViewport {
@@ -13,7 +13,7 @@ interface CanvasSessionBase {
   id: string;
   name: string;
   viewport?: CanvasViewport;
-  collaboration?: CollaborationDescriptorV1;
+  collaboration?: CollaborationDescriptorV2;
 }
 
 export interface StaticCanvasSession extends CanvasSessionBase {

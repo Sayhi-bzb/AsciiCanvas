@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   BACKGROUND_COLOR,
   COLOR_SELECTION_BG,
@@ -37,7 +37,21 @@ import {
 
 import type { StructuredMovePreview } from './interaction/structured/structuredInteractionPreview';
 import { drawGridLayer } from '../rendering/drawGridLayer';
+import type { CanvasEngineRuntime } from '../engine/CanvasEngineRuntime';
+import {
+  CANVAS_FRAME_INVALIDATION,
+  type CanvasFrameInvalidation,
+} from '../engine/FrameScheduler';
+import { CanvasRenderManager } from '../engine/CanvasRenderManager';
 export type { StructuredMovePreview } from './interaction/structured/structuredInteractionPreview';
+
+export const haveCanvasRenderInputsChanged = (
+  previous: readonly unknown[] | null,
+  next: readonly unknown[]
+): boolean =>
+  !previous ||
+  previous.length !== next.length ||
+  next.some((input, index) => input !== previous[index]);
 
 interface LayerRefs {
   bg: React.RefObject<HTMLCanvasElement | null>;
@@ -109,7 +123,8 @@ export const useCanvasRenderer = (
   structuredMovePreviewRef: React.RefObject<StructuredMovePreview | null>,
   hoveredLink: CanvasLinkHit | null,
   requestRenderRef?: React.MutableRefObject<(() => void) | null>,
-  onViewportRendered?: (viewport: { offset: Point; zoom: number }) => void
+  onViewportRendered?: (viewport: { offset: Point; zoom: number }) => void,
+  runtime?: CanvasEngineRuntime
 ) => {
   const {
     offset,
@@ -142,18 +157,9 @@ export const useCanvasRenderer = (
   });
   const renderedSelections = canvasMode !== 'structured' ? staticGridView.selectionAreas : selections;
   const renderedTextCursor = canvasMode !== 'structured' ? staticGridView.textCursor : textCursor;
-  const baseRenderInputsRef = useRef<unknown[] | null>(null);
+  const [renderManager] = useState(() => new CanvasRenderManager());
   const manualRenderRafRef = useRef<number | null>(null);
-
-  const shouldRenderBaseLayers = (inputs: unknown[]) => {
-    const previous = baseRenderInputsRef.current;
-    const changed =
-      !previous ||
-      previous.length !== inputs.length ||
-      inputs.some((input, index) => input !== previous[index]);
-    if (changed) baseRenderInputsRef.current = inputs;
-    return changed;
-  };
+  const manualInvalidationRef = useRef<CanvasFrameInvalidation>(0);
 
   const drawLayer = useCallback(
     (
@@ -171,7 +177,7 @@ export const useCanvasRenderer = (
     [hoveredLink]
   );
   useEffect(() => {
-    const render = () => {
+    const render = (invalidation: CanvasFrameInvalidation) => {
       if (!size || size.width === 0 || size.height === 0) return;
       const structuredMovePreview = structuredMovePreviewRef.current;
       const renderedGrid = structuredMovePreview?.baseGrid ?? grid;
@@ -211,25 +217,16 @@ export const useCanvasRenderer = (
         ctx.clip();
         return true;
       };
-      const renderBaseLayers = shouldRenderBaseLayers([
-        layers.bg.current,
-        layers.scratch.current,
-        size.width,
-        size.height,
-        offset,
-        zoom,
-        grid,
-        scratchLayer,
-        showGrid,
-        canvasMode,
-        slideDeck,
-        hoveredLink,
-        structuredMovePreview?.baseGrid ?? null,
-      ]);
+      const renderBackground = CanvasRenderManager.includes(
+        invalidation,
+        'background'
+      );
+      const renderScratch = CanvasRenderManager.includes(invalidation, 'scratch');
+      const renderOverlay = CanvasRenderManager.includes(invalidation, 'overlay');
 
       const bgCanvas = layers.bg.current;
       const bgCtx = bgCanvas?.getContext('2d', { alpha: false });
-      if (renderBaseLayers && bgCanvas && bgCtx) {
+      if (renderBackground && bgCanvas && bgCtx) {
         prepareCanvasSurface(bgCanvas, bgCtx, size.width, size.height, dpr);
         bgCtx.fillStyle = slidePageRect ? "#e5e7eb" : BACKGROUND_COLOR;
         bgCtx.fillRect(0, 0, size.width, size.height);
@@ -275,7 +272,7 @@ export const useCanvasRenderer = (
 
       const scratchCanvas = layers.scratch.current;
       const scratchCtx = scratchCanvas?.getContext('2d');
-      if (renderBaseLayers && scratchCanvas && scratchCtx) {
+      if (renderScratch && scratchCanvas && scratchCtx) {
         prepareCanvasSurface(scratchCanvas, scratchCtx, size.width, size.height, dpr);
         clipToSlidePage(scratchCtx);
         drawLayer(
@@ -290,7 +287,7 @@ export const useCanvasRenderer = (
 
       const uiCanvas = layers.ui.current;
       const uiCtx = uiCanvas?.getContext('2d');
-      if (uiCanvas && uiCtx) {
+      if (renderOverlay && uiCanvas && uiCtx) {
         prepareCanvasSurface(uiCanvas, uiCtx, size.width, size.height, dpr);
         clipToSlidePage(uiCtx);
 
@@ -533,36 +530,97 @@ export const useCanvasRenderer = (
         }
         if (slidePageRect) uiCtx.restore();
       }
-      if (renderBaseLayers) {
+      if (renderBackground || renderScratch) {
         onViewportRendered?.({ offset: { ...offset }, zoom });
       }
     };
 
-    const scheduleRender = () => {
+    const scheduleRender = (invalidation: CanvasFrameInvalidation) => {
+      if (invalidation === 0) return;
+      if (runtime) {
+        runtime.frameScheduler.request(
+          "canvas-renderer",
+          invalidation,
+          (_timestamp, pendingInvalidation) => render(pendingInvalidation)
+        );
+        return;
+      }
+      manualInvalidationRef.current |= invalidation;
       if (manualRenderRafRef.current !== null) return;
       manualRenderRafRef.current = requestAnimationFrame(() => {
         manualRenderRafRef.current = null;
-        render();
+        const pendingInvalidation = manualInvalidationRef.current;
+        manualInvalidationRef.current = 0;
+        render(pendingInvalidation);
       });
     };
+    const structuredMovePreview = structuredMovePreviewRef.current;
+    const sharedViewportInputs = [
+      size?.width,
+      size?.height,
+      offset,
+      zoom,
+      canvasMode,
+      slideDeck,
+    ];
+    const invalidation = renderManager.update({
+      background: [
+        layers.bg.current,
+        ...sharedViewportInputs,
+        grid,
+        showGrid,
+        hoveredLink,
+        structuredMovePreview?.baseGrid ?? null,
+      ],
+      scratch: [
+        layers.scratch.current,
+        ...sharedViewportInputs,
+        scratchLayer,
+      ],
+      overlay: [
+        layers.ui.current,
+        ...sharedViewportInputs,
+        grid,
+        textCursor,
+        selections,
+        staticGridSelection,
+        staticGridEditMode,
+        draggingSelection,
+        hoveredGrid,
+        tool,
+        structuredScene,
+        selectedStructuredNodeIds,
+        structuredContextPoint,
+        structuredGridFocus,
+        editingStructuredTextNodeId,
+        structuredTextSelection,
+        canvasColorPickerTarget,
+        structuredMovePreview?.movingGrid ?? null,
+      ],
+    });
+    const requestManualRender = () =>
+      scheduleRender(
+        CANVAS_FRAME_INVALIDATION.background |
+          CANVAS_FRAME_INVALIDATION.overlay
+      );
     if (requestRenderRef) {
-      requestRenderRef.current = scheduleRender;
+      requestRenderRef.current = requestManualRender;
     }
     const fonts = document.fonts;
     const handleFontLoad = () => {
-      baseRenderInputsRef.current = null;
-      scheduleRender();
+      scheduleRender(renderManager.reset());
     };
     fonts?.addEventListener('loadingdone', handleFontLoad);
 
-    const requestId = requestAnimationFrame(render);
+    scheduleRender(invalidation);
     return () => {
-      cancelAnimationFrame(requestId);
+      runtime?.frameScheduler.cancel("canvas-renderer");
       if (manualRenderRafRef.current !== null) {
         cancelAnimationFrame(manualRenderRafRef.current);
         manualRenderRafRef.current = null;
       }
-      if (requestRenderRef?.current === scheduleRender) {
+      manualInvalidationRef.current = 0;
+      if (requestRenderRef?.current === requestManualRender) {
         requestRenderRef.current = null;
       }
       fonts?.removeEventListener('loadingdone', handleFontLoad);
@@ -598,5 +656,7 @@ export const useCanvasRenderer = (
     onViewportRendered,
     renderedSelections,
     renderedTextCursor,
+    renderManager,
+    runtime,
   ]);
 };

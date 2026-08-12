@@ -1,4 +1,4 @@
-import { useCallback, useRef, useEffect, useState } from 'react';
+import { useCallback, useRef, useEffect, useMemo, useState } from 'react';
 import { useSize } from 'ahooks';
 import { useCanvasInteraction } from './hooks/useCanvasInteraction';
 import { useCanvasRenderer } from './hooks/useCanvasRenderer';
@@ -13,7 +13,7 @@ import { CANVAS_CONTEXT_MENU, STRUCTURED_CONTEXT_MENU } from '@/domains/actions/
 import { GridManager } from '@/shared/utils/grid';
 import { CELL_HEIGHT, CELL_WIDTH, MAX_ZOOM, MIN_ZOOM } from '@/shared/lib/constants';
 import {
-  findStructuredNodeHit,
+  createStructuredSceneQuery,
   isStructuredSplitBoxLineHandle,
 } from '@/domains/structured-content/public';
 import type { CanvasLinkHit } from './hooks/interaction/core/linkHitTesting';
@@ -24,12 +24,15 @@ import {
   resetCanvasViewportPresentation,
   type CanvasViewport,
 } from './hooks/viewportPresentation';
+import { useCanvasEngineRuntime } from './engine/useCanvasEngineRuntime';
+import { CANVAS_FRAME_INVALIDATION } from './engine/FrameScheduler';
 
 interface AsciiCanvasProps {
   onUndo: () => void;
   onRedo: () => void;
   onContainerSizeChange?: (size: { width: number; height: number } | undefined) => void;
   interactionToolOverride?: ToolType;
+  enabled?: boolean;
 }
 
 export const AsciiCanvas = ({
@@ -37,7 +40,9 @@ export const AsciiCanvas = ({
   onRedo,
   onContainerSizeChange,
   interactionToolOverride,
+  enabled = true,
 }: AsciiCanvasProps) => {
+  const runtime = useCanvasEngineRuntime();
   const bgCanvasRef = useRef<HTMLCanvasElement>(null);
   const scratchCanvasRef = useRef<HTMLCanvasElement>(null);
   const uiCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -72,6 +77,10 @@ export const AsciiCanvas = ({
     structuredScene,
     setStructuredContextPoint,
   } = editorStore;
+  const structuredSceneQuery = useMemo(
+    () => createStructuredSceneQuery(structuredScene),
+    [structuredScene]
+  );
   const renderedViewportRef = useRef<CanvasViewport | null>(null);
   const lastSlideViewRef = useRef<{
     sessionId: string;
@@ -143,23 +152,28 @@ export const AsciiCanvas = ({
   useEffect(() => {
     const current = useEditorStore.getState();
     const viewportLayer = viewportLayerRef.current;
-    presentViewport({
-      offset: { ...current.offset },
-      zoom: current.zoom,
-    });
+    const schedulePresentation = (presented: CanvasViewport) => {
+      runtime.frameScheduler.request(
+        'viewport-presentation',
+        CANVAS_FRAME_INVALIDATION.presentation,
+        () => presentViewport(presented)
+      );
+    };
+    schedulePresentation({ offset: { ...current.offset }, zoom: current.zoom });
     const unsubscribe = useEditorStore.subscribe((state, previous) => {
       if (state.zoom === previous.zoom && state.offset === previous.offset) return;
-      presentViewport({
+      schedulePresentation({
         offset: { ...state.offset },
         zoom: state.zoom,
       });
     });
     return () => {
       unsubscribe();
+      runtime.frameScheduler.cancel('viewport-presentation');
       renderedViewportRef.current = null;
       resetCanvasViewportPresentation(viewportLayer);
     };
-  }, [presentViewport]);
+  }, [presentViewport, runtime]);
 
   const structuredTemplateDrop = useStructuredTemplateDrop({
     canvasMode,
@@ -172,6 +186,7 @@ export const AsciiCanvas = ({
     size,
     onUndo,
     onRedo,
+    enabled,
   });
 
   const { draggingSelection, handleDoubleClick } = useCanvasInteraction(
@@ -179,7 +194,8 @@ export const AsciiCanvas = ({
     containerRef,
     setHoveredLink,
     structuredMovePreviewRef,
-    requestCanvasRenderRef
+    requestCanvasRenderRef,
+    runtime
   );
 
   useCanvasRenderer(
@@ -190,7 +206,8 @@ export const AsciiCanvas = ({
     structuredMovePreviewRef,
     hoveredLink,
     requestCanvasRenderRef,
-    handleViewportRendered
+    handleViewportRendered,
+    runtime
   );
 
   const activeContextMenu =
@@ -209,7 +226,7 @@ export const AsciiCanvas = ({
     );
     setStructuredContextPoint(point);
 
-    const hit = findStructuredNodeHit(structuredScene, point);
+    const hit = structuredSceneQuery.findHit(point);
     if (!hit) {
       setSelectedStructuredSplitHandle(null);
       setStructuredGridFocus(point);

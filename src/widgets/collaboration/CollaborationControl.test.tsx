@@ -2,7 +2,8 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEditorStore } from '@/domains/canvas/public';
 import {
-  type CollaborationDescriptorV1,
+  buildCollaborationUrl,
+  type CollaborationDescriptorV2,
   type CollaborationSnapshot,
 } from '@/domains/collaboration/public';
 import { setUiLanguage } from '@/shared/i18n';
@@ -10,10 +11,14 @@ import { CollaborationControl } from './CollaborationControl';
 
 let snapshot: CollaborationSnapshot = {
   descriptor: null,
-  status: 'idle',
+  documentStatus: 'idle',
+  connectionStatus: 'idle',
+  canEdit: true,
   peers: [],
   error: null,
+  errorKind: null,
   hasLocalCopy: false,
+  integrityIssues: [],
 };
 
 vi.mock('./useCollaborationSnapshot', () => ({
@@ -26,7 +31,7 @@ describe('CollaborationControl', () => {
 
   const seedSession = (
     mode: 'freeform' | 'structured' = 'freeform',
-    collaboration?: CollaborationDescriptorV1
+    collaboration?: CollaborationDescriptorV2
   ) => {
     act(() => {
       useEditorStore.setState({
@@ -57,10 +62,14 @@ describe('CollaborationControl', () => {
     setUiLanguage('en');
     snapshot = {
       descriptor: null,
-      status: 'idle',
+      documentStatus: 'idle',
+      connectionStatus: 'idle',
+      canEdit: true,
       peers: [],
       error: null,
+      errorKind: null,
       hasLocalCopy: false,
+      integrityIssues: [],
     };
     clipboardWrite.mockReset();
     Object.defineProperty(navigator, 'clipboard', {
@@ -127,8 +136,10 @@ describe('CollaborationControl', () => {
   });
 
   it('shows room presence and keeps the menu open after leaving', async () => {
-    const descriptor: CollaborationDescriptorV1 = {
-      version: 1,
+    const descriptor: CollaborationDescriptorV2 = {
+      version: 2,
+      documentVersion: 2,
+      mode: "structured",
       provider: 'p2p',
       roomId: 'room-id-1234567890',
       key: 'room-key-1234567890123456789012345678901234567890',
@@ -136,7 +147,9 @@ describe('CollaborationControl', () => {
     seedSession('structured', descriptor);
     snapshot = {
       descriptor,
-      status: 'connected',
+      documentStatus: 'ready',
+      connectionStatus: 'online',
+      canEdit: true,
       peers: [
         {
           clientId: 2,
@@ -146,7 +159,9 @@ describe('CollaborationControl', () => {
         },
       ],
       error: null,
+      errorKind: null,
       hasLocalCopy: true,
+      integrityIssues: [],
     };
     render(<CollaborationControl />);
 
@@ -161,6 +176,47 @@ describe('CollaborationControl', () => {
     expect(screen.getByRole('menuitem', { name: 'Start P2P room' })).toBeInTheDocument();
     expect(useEditorStore.getState().canvasSessions[0].collaboration).toBeUndefined();
     expect(window.location.hash).toBe('');
+  });
+
+  it('opens an incoming room in a dedicated session without clearing the active canvas', async () => {
+    act(() => {
+      useEditorStore.setState({
+        grid: new Map([["0,0", { char: "A", color: "#fff" }]]),
+        canvasSessions: [
+          {
+            id: 'collaboration-canvas',
+            name: 'Local canvas',
+            mode: 'freeform',
+            scene: [],
+            grid: [["0,0", { char: "A", color: "#fff" }]],
+          },
+        ],
+      });
+    });
+    const descriptor: CollaborationDescriptorV2 = {
+      version: 2,
+      documentVersion: 2,
+      mode: 'structured',
+      provider: 'p2p',
+      roomId: 'room-id-1234567890',
+      key: 'room-key-1234567890123456789012345678901234567890',
+    };
+    window.history.replaceState(null, '', buildCollaborationUrl(descriptor));
+
+    render(<CollaborationControl />);
+
+    await waitFor(() => {
+      expect(useEditorStore.getState().canvasSessions).toHaveLength(2);
+    });
+    const state = useEditorStore.getState();
+    const local = state.canvasSessions.find((session) => session.id === 'collaboration-canvas');
+    expect(local?.grid).toEqual([["0,0", { char: "A", color: "#fff" }]]);
+    expect(local?.collaboration).toBeUndefined();
+    expect(state.canvasMode).toBe('structured');
+
+    state.switchCanvasSession('collaboration-canvas');
+    expect(useEditorStore.getState().canvasSessions).toHaveLength(2);
+    expect(useEditorStore.getState().grid.get("0,0")?.char).toBe("A");
   });
 
 });

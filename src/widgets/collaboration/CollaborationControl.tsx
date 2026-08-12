@@ -7,7 +7,6 @@ import {
   collaborationRuntime,
   createCollaborationDescriptor,
   parseCollaborationUrl,
-  sameCollaborationRoom,
   validateCollaborationEndpoint,
 } from '@/domains/collaboration/public';
 import { useCollaborationSnapshot } from './useCollaborationSnapshot';
@@ -27,15 +26,19 @@ import {
 import { Input } from '@/shared/ui/input';
 
 const CollaborationIcon = HOST_ICONOLOGY.sessionAction.collaboration;
-const STATUS_KEYS = {
-  idle: 'collaboration.status.idle',
-  'loading-local': 'collaboration.status.loading-local',
-  connecting: 'collaboration.status.connecting',
-  'waiting-for-peer': 'collaboration.status.waiting-for-peer',
-  connected: 'collaboration.status.connected',
-  offline: 'collaboration.status.offline',
-  error: 'collaboration.status.error',
-} as const;
+const getStatusKey = (snapshot: ReturnType<typeof useCollaborationSnapshot>) => {
+  if (snapshot.documentStatus === 'restoring') return 'collaboration.status.loading-local';
+  if (snapshot.documentStatus === 'incompatible' || snapshot.documentStatus === 'error') {
+    return 'collaboration.status.error';
+  }
+  switch (snapshot.connectionStatus) {
+    case 'connecting': return 'collaboration.status.connecting';
+    case 'waiting-for-peer': return 'collaboration.status.waiting-for-peer';
+    case 'online': return 'collaboration.status.connected';
+    case 'offline': return 'collaboration.status.offline';
+    default: return 'collaboration.status.idle';
+  }
+};
 
 export function CollaborationControl() {
   const { t } = useUiI18n();
@@ -46,15 +49,19 @@ export function CollaborationControl() {
     state.canvasSessions.find((session) => session.id === state.activeCanvasId)
   );
   const setCollaboration = useEditorStore((state) => state.setCanvasSessionCollaboration);
+  const joinCollaboration = useEditorStore((state) => state.joinCanvasSessionCollaboration);
   const descriptor = activeSession?.collaboration;
 
   useEffect(() => {
     const incoming = parseCollaborationUrl();
-    if (!incoming || !activeSession || activeSession.mode === "slide") return;
-    if (!sameCollaborationRoom(activeSession.collaboration, incoming)) {
-      setCollaboration(activeSession.id, incoming, { resetDocument: true });
+    if (incoming.status === "valid") {
+      joinCollaboration(incoming.descriptor);
+    } else if (incoming.status === "unsupported") {
+      feedback.error(t('collaboration.link.unsupported'));
+    } else if (incoming.status === "invalid") {
+      feedback.error(t('collaboration.link.invalid'));
     }
-  }, [activeSession, setCollaboration]);
+  }, [joinCollaboration, t]);
 
   useEffect(() => {
     if (!open) return;
@@ -63,12 +70,15 @@ export function CollaborationControl() {
     return () => window.removeEventListener('blur', closeOnWindowBlur);
   }, [open]);
 
-  const statusLabel = useMemo(() => t(STATUS_KEYS[snapshot.status]), [snapshot.status, t]);
+  const statusLabel = useMemo(
+    () => t(getStatusKey(snapshot)),
+    [snapshot, t]
+  );
 
   const start = (customEndpoint?: string) => {
     if (!activeSession || activeSession.mode === "slide") return;
     try {
-      const next = createCollaborationDescriptor(customEndpoint);
+      const next = createCollaborationDescriptor(activeSession.mode, customEndpoint);
       setCollaboration(activeSession.id, next);
       window.history.replaceState(null, '', buildCollaborationUrl(next));
     } catch {
@@ -145,6 +155,20 @@ export function CollaborationControl() {
             {t('collaboration.participants', {
               count: snapshot.peers.length + 1,
             })}
+          </div>
+        )}
+
+        {snapshot.error && (
+          <div className="px-2 pb-1.5 text-[11px] text-destructive" role="alert">
+            {snapshot.error === 'Incompatible collaboration document'
+              ? t('collaboration.document.incompatible')
+              : snapshot.error}
+          </div>
+        )}
+
+        {snapshot.integrityIssues.length > 0 && (
+          <div className="px-2 pb-1.5 text-[11px] text-destructive" role="status">
+            {snapshot.integrityIssues[0].reason}
           </div>
         )}
 

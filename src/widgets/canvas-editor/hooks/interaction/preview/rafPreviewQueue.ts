@@ -1,4 +1,4 @@
-type RafScheduler = {
+export type RafScheduler = {
   requestAnimationFrame: (callback: FrameRequestCallback) => number;
   cancelAnimationFrame: (handle: number) => void;
 };

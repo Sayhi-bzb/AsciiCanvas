@@ -56,13 +56,13 @@ const makeGrid = (width: number, height: number): GridEntry[] => {
   return entries;
 };
 
-const makeStructuredScene = () => {
+const makeStructuredScene = (nodeCount = 96) => {
   const scene = [];
   let order = 1;
 
-  for (let i = 0; i < 32; i++) {
-    const x = 4 + (i % 4) * 26;
-    const y = 4 + Math.floor(i / 4) * 8;
+  for (let i = 0; scene.length < nodeCount; i++) {
+    const x = 4 + (i % 32) * 26;
+    const y = 4 + Math.floor(i / 32) * 8;
     scene.push({
       id: `bg-${i}`,
       type: "bg",
@@ -71,6 +71,7 @@ const makeStructuredScene = () => {
       end: { x: x + 21, y: y + 5 },
       style: { color: "#111827", bgColor: i % 2 ? "#fef3c7" : "#dbeafe" },
     });
+    if (scene.length >= nodeCount) break;
     scene.push({
       id: `box-${i}`,
       type: "box",
@@ -80,6 +81,7 @@ const makeStructuredScene = () => {
       name: `CARD ${i}`,
       style: { color: "#111827" },
     });
+    if (scene.length >= nodeCount) break;
     scene.push({
       id: `text-${i}`,
       type: "text",
@@ -94,10 +96,11 @@ const makeStructuredScene = () => {
 };
 
 const makePersistedState = (
-  mode: "freeform" | "structured"
+  mode: "freeform" | "structured",
+  options: { structuredNodeCount?: number } = {}
 ) => {
   const freeformGrid = makeGrid(180, 90);
-  const structuredScene = makeStructuredScene();
+  const structuredScene = makeStructuredScene(options.structuredNodeCount);
   const grid = mode === "structured" ? [] : freeformGrid;
   const session = {
     id: "perf-session",
@@ -128,9 +131,10 @@ const makePersistedState = (
 
 const seedCanvas = async (
   page: Page,
-  mode: "freeform" | "structured"
+  mode: "freeform" | "structured",
+  options: { structuredNodeCount?: number } = {}
 ) => {
-  const persisted = makePersistedState(mode);
+  const persisted = makePersistedState(mode, options);
   await page.addInitScript(
     ({ storageKey, value }) => {
       window.localStorage.clear();
@@ -142,7 +146,8 @@ const seedCanvas = async (
 
 const openSeededCanvas = async (
   page: Page,
-  mode: "freeform" | "structured"
+  mode: "freeform" | "structured",
+  options: { structuredNodeCount?: number } = {}
 ) => {
   const runtimeErrors: string[] = [];
   page.on("console", (message) => {
@@ -151,7 +156,7 @@ const openSeededCanvas = async (
   page.on("pageerror", (error) => {
     runtimeErrors.push(error.message);
   });
-  await seedCanvas(page, mode);
+  await seedCanvas(page, mode, options);
   await page.goto("/");
   await page.waitForSelector("canvas", { timeout: 10_000 }).catch((error) => {
     throw new Error(
@@ -294,6 +299,23 @@ const wheelFor = async (
   if (options.ctrl) await page.keyboard.up("Control");
 };
 
+const hoverFor = async (
+  page: Page,
+  options: { durationMs?: number } = {}
+) => {
+  const durationMs = options.durationMs ?? SCENARIO_MS;
+  const startedAt = Date.now();
+  let step = 0;
+  while (Date.now() - startedAt < durationMs) {
+    await page.mouse.move(
+      620 + Math.sin(step / 11) * 420,
+      420 + Math.cos(step / 17) * 280
+    );
+    step += 1;
+    await page.waitForTimeout(INPUT_FRAME_MS);
+  }
+};
+
 test.describe.serial("Performance smoke", () => {
   test("startup resource budget", async ({ page }, testInfo) => {
     await openSeededCanvas(page, "freeform");
@@ -398,6 +420,33 @@ test.describe.serial("Performance smoke", () => {
     });
   });
 
+  test("1k-node structured hover and pan stay smooth", async ({ page }, testInfo) => {
+    await openSeededCanvas(page, "structured", { structuredNodeCount: 1_000 });
+
+    const hover = await runSmoothScenario(
+      page,
+      "structured-1k-hover",
+      () => hoverFor(page),
+      testInfo
+    );
+    const pan = await runSmoothScenario(
+      page,
+      "structured-1k-pan",
+      () =>
+        dragFor(
+          page,
+          { x: 720, y: 450 },
+          { x: 260, y: 120 },
+          { button: "middle" }
+        ),
+      testInfo
+    );
+
+    await testInfo.attach("structured-1k-summary.json", {
+      body: JSON.stringify([hover, pan], null, 2),
+      contentType: "application/json",
+    });
+  });
 });
 
 declare global {

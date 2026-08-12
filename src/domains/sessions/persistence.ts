@@ -6,14 +6,17 @@ import type {
 } from "@/domains/structured-content/public";
 import type { CanvasSession } from "./model";
 import { normalizeSlideDeck } from "@/domains/slides/public";
+import { isCollaborationDescriptor } from "@/domains/collaboration/public";
 
-export const EDITOR_PERSISTENCE_VERSION = 4;
+export const EDITOR_PERSISTENCE_VERSION = 5;
 export const EDITOR_PERSISTENCE_KEY = "ascii-canvas-persistence";
 export const EDITOR_PERSISTENCE_V3_BACKUP_KEY =
   "ascii-canvas-persistence-v3-backup";
+export const EDITOR_PERSISTENCE_V4_BACKUP_KEY =
+  "ascii-canvas-persistence-v4-backup";
 
-interface PersistedEditorStateV4 {
-  schemaVersion: 4;
+interface PersistedEditorStateV5 {
+  schemaVersion: 5;
   workspace: {
     offset: Point;
     zoom: number;
@@ -56,9 +59,9 @@ const createBlankSession = (): CanvasSession => ({
   grid: [],
 });
 
-export const isPersistedEditorStateV4 = (
+export const isPersistedEditorStateV5 = (
   value: unknown
-): value is PersistedEditorStateV4 =>
+): value is PersistedEditorStateV5 =>
   isRecord(value) &&
   value.schemaVersion === EDITOR_PERSISTENCE_VERSION &&
   isRecord(value.workspace) &&
@@ -78,9 +81,9 @@ export const isPersistedEditorStateV4 = (
   typeof value.preferences.showGrid === "boolean" &&
   typeof value.preferences.exportShowGrid === "boolean";
 
-export const migratePersistedStateToV4 = (
+export const migratePersistedStateToV5 = (
   value: unknown
-): PersistedEditorStateV4 => {
+): PersistedEditorStateV5 => {
   const state = isRecord(value) ? value : {};
   const oldWorkspace = isRecord(state.workspace) ? state.workspace : state;
   const oldSessions = isRecord(state.sessions) ? state.sessions : {};
@@ -114,7 +117,13 @@ export const migratePersistedStateToV4 = (
       });
       return normalized;
     }
-    normalized.push(item as unknown as CanvasSession);
+    const { collaboration: rawCollaboration, ...localSession } = item;
+    normalized.push({
+      ...localSession,
+      ...(isCollaborationDescriptor(rawCollaboration)
+        ? { collaboration: rawCollaboration }
+        : {}),
+    } as unknown as CanvasSession);
     return normalized;
   }, []);
   if (items.length === 0) items.push(createBlankSession());
@@ -179,7 +188,7 @@ export const migratePersistedStateToV4 = (
 };
 
 export const flattenPersistedEditorState = (
-  value: PersistedEditorStateV4
+  value: PersistedEditorStateV5
 ) => ({
   ...value.workspace,
   canvasSessions: value.sessions.items,

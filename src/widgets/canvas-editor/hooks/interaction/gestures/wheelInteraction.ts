@@ -83,6 +83,7 @@ export const executeCanvasWheelDecision = (
       );
       break;
     case "pan":
+      executor.preventDefault();
       executor.queueOffsetDelta(decision.delta.x, decision.delta.y);
       break;
     case "none":

@@ -1,26 +1,31 @@
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
+import { persist } from "zustand/middleware";
 import { MIN_ZOOM, MAX_ZOOM, COLOR_PRIMARY_TEXT, DEFAULT_BRUSH_CHAR } from "@/shared/lib/constants";
 import {
   yMainGrid,
   yStructuredScene,
   yStructuredComponents,
   activateCanvasDocument,
+  initializeCollaborativeCanvasDocument,
   observeActiveGrid,
   observeActiveScene,
   observeActiveComponents,
   runCanvasTransaction,
   getCanvasHistoryAvailability,
+  getActiveCanvasIntegrityIssues,
+  setActiveCanvasIntegrityIssue,
   subscribeCanvasHistoryAvailability,
+  applyYMapValueDiff,
 } from "./yjs";
 import type { EditorState } from "./interfaces";
 import {
   EDITOR_PERSISTENCE_KEY,
   EDITOR_PERSISTENCE_V3_BACKUP_KEY,
+  EDITOR_PERSISTENCE_V4_BACKUP_KEY,
   EDITOR_PERSISTENCE_VERSION,
   flattenPersistedEditorState,
-  isPersistedEditorStateV4,
-  migratePersistedStateToV4,
+  isPersistedEditorStateV5,
+  migratePersistedStateToV5,
   type CanvasSession,
 } from "@/domains/sessions/public";
 import type { GridMap, Point } from "@/shared/types";
@@ -60,6 +65,8 @@ import {
   normalizeStructuredComponents,
 } from "@/domains/structured-content/public";
 import { isCollaborationDescriptor } from "@/domains/collaboration/public";
+import { collaborationRuntime } from "@/domains/collaboration/public";
+import { decodeCollaborativeStructuredComponent } from "./collaborationSchema";
 
 export type { EditorState };
 
@@ -78,6 +85,7 @@ import {
 import { DEFAULT_DEMO_GRID } from "./helpers/defaultDemo";
 import { buildStructuredTemplate } from "@/domains/structured-content/public";
 import { normalizeSlideDeck, updateSlideGrid } from "@/domains/slides/public";
+import { createDeferredSnapshotPersistStorage } from "./persistenceCoordinator";
 
 const DEFAULT_STRUCTURED_SAFARI_TEMPLATE = buildStructuredTemplate(
   "safari",
@@ -258,6 +266,10 @@ const syncHydratedStateToYMaps = (hydratedState: EditorState) => {
     (session) => session.id === hydratedState.activeCanvasId
   );
   if (!activeSession) return;
+  if (activeSession.mode !== "slide" && activeSession.collaboration) {
+    initializeCollaborativeCanvasDocument(activeSession.id);
+    return;
+  }
   activateCanvasDocument(
     getSessionCanvasDocumentId(activeSession, hydratedState.slideDeck),
     {
@@ -268,6 +280,74 @@ const syncHydratedStateToYMaps = (hydratedState: EditorState) => {
     { replace: true }
   );
 };
+
+const stripCollaborativeSessionContent = (session: CanvasSession): CanvasSession =>
+  session.mode !== "slide" && session.collaboration
+    ? { ...session, grid: [], scene: [], components: [] }
+    : session;
+
+export const createPersistedEditorSnapshot = (state: EditorState) => {
+  const activeSnapshot = buildSessionSnapshot(state);
+  const activeSession = state.canvasSessions.find(
+    (session) => session.id === state.activeCanvasId
+  );
+  const activeIsCollaborative =
+    activeSession?.mode !== "slide" && !!activeSession?.collaboration;
+  const persistedSessions = withActiveCanvasSnapshot(
+    state.canvasSessions,
+    state.activeCanvasId,
+    activeSnapshot
+  ).map(stripCollaborativeSessionContent);
+  return {
+    schemaVersion: EDITOR_PERSISTENCE_VERSION,
+    workspace: {
+      offset: state.offset,
+      zoom: state.zoom,
+      canvasMode: state.canvasMode,
+      structuredScene: activeIsCollaborative ? [] : cloneScene(state.structuredScene),
+      structuredComponents: activeIsCollaborative
+        ? []
+        : normalizeStructuredComponents(
+            state.structuredComponents,
+            state.structuredScene
+          ),
+      grid: activeIsCollaborative
+        ? []
+        : state.canvasMode === "structured"
+          ? sceneToGridEntries(state.structuredScene)
+          : Array.from(state.grid.entries()),
+    },
+    sessions: {
+      items: persistedSessions,
+      activeId: state.activeCanvasId,
+    },
+    preferences: {
+      brushChar: state.brushChar,
+      brushColor: state.brushColor,
+      showGrid: state.showGrid,
+      exportShowGrid: state.exportShowGrid,
+    },
+  };
+};
+
+const shouldScheduleEditorPersistence = (
+  previous: EditorState | null,
+  next: EditorState
+): boolean =>
+  !previous ||
+  previous.offset !== next.offset ||
+  previous.zoom !== next.zoom ||
+  previous.grid !== next.grid ||
+  previous.canvasMode !== next.canvasMode ||
+  previous.slideDeck !== next.slideDeck ||
+  previous.structuredScene !== next.structuredScene ||
+  previous.structuredComponents !== next.structuredComponents ||
+  previous.canvasSessions !== next.canvasSessions ||
+  previous.activeCanvasId !== next.activeCanvasId ||
+  previous.brushChar !== next.brushChar ||
+  previous.brushColor !== next.brushColor ||
+  previous.showGrid !== next.showGrid ||
+  previous.exportShowGrid !== next.exportShowGrid;
 
 const reconcileStructuredInteraction = (state: EditorState, structuredScene: StructuredNode[]) => {
   const byId = new Map(structuredScene.map((node) => [node.id, node]));
@@ -370,10 +450,12 @@ export const useEditorStore = create<EditorState>()(
       }
 
       observeActiveGrid((event) => {
+        if (get().canvasMode === "structured") return;
         const currentGrid = get().grid;
         const patchedGrid = patchGridByChangedKeys(currentGrid, event.keysChanged);
         if (patchedGrid) {
           set((state) => syncObservedGrid(state, patchedGrid));
+          collaborationRuntime.reportIntegrityIssues(getActiveCanvasIntegrityIssues());
           return;
         }
 
@@ -381,13 +463,22 @@ export const useEditorStore = create<EditorState>()(
           const grid = rebuildGridFromYMap();
           set((state) => syncObservedGrid(state, grid));
         }
+        collaborationRuntime.reportIntegrityIssues(getActiveCanvasIntegrityIssues());
       });
 
-      observeActiveScene(() => {
+      observeActiveScene((event) => {
+        event.keysChanged.forEach((key) => {
+          if (!yStructuredScene.has(key)) {
+            setActiveCanvasIntegrityIssue("structured-scene", key, null);
+          }
+        });
         set((state) => {
+          if (state.canvasMode !== "structured") return state;
           const structuredScene = rebuildSceneFromYMap();
+          const gridEntries = sceneToGridEntries(structuredScene);
           return {
             structuredScene,
+            grid: createMapFromEntries(gridEntries),
             ...reconcileStructuredInteraction(state, structuredScene),
             structuredComponents: normalizeStructuredComponents(
               state.structuredComponents,
@@ -395,16 +486,33 @@ export const useEditorStore = create<EditorState>()(
             ),
             canvasSessions: state.canvasSessions.map((session) =>
               session.id === state.activeCanvasId && session.mode !== "slide"
-                ? { ...session, scene: structuredScene }
+                ? { ...session, scene: structuredScene, grid: gridEntries }
                 : session
             ),
           };
         });
+        collaborationRuntime.reportIntegrityIssues(getActiveCanvasIntegrityIssues());
       });
 
-      observeActiveComponents(() => {
+      observeActiveComponents((event) => {
+        event.keysChanged.forEach((key) => {
+          if (!yStructuredComponents.has(key)) {
+            setActiveCanvasIntegrityIssue("structured-components", key, null);
+          }
+        });
         set((state) => {
-          const structuredComponents = Array.from(yStructuredComponents.values());
+          if (state.canvasMode !== "structured") return state;
+          const structuredComponents = Array.from(yStructuredComponents.entries()).flatMap(
+            ([key, value]) => {
+              const decoded = decodeCollaborativeStructuredComponent(key, value);
+              setActiveCanvasIntegrityIssue(
+                "structured-components",
+                key,
+                decoded.ok ? null : decoded.issue
+              );
+              return decoded.ok ? [decoded.value] : [];
+            }
+          );
           return {
             structuredComponents,
             canvasSessions: state.canvasSessions.map((session) =>
@@ -414,6 +522,7 @@ export const useEditorStore = create<EditorState>()(
             ),
           };
         });
+        collaborationRuntime.reportIntegrityIssues(getActiveCanvasIntegrityIssues());
       });
 
       subscribeCanvasHistoryAvailability((availability) => set(availability));
@@ -473,16 +582,8 @@ export const useEditorStore = create<EditorState>()(
           );
           const gridEntries = sceneToGridEntries(normalizedScene);
           runCanvasTransaction(() => {
-            yStructuredScene.clear();
-            normalizedScene.forEach((node) => {
-              yStructuredScene.set(node.id, node);
-            });
-            yStructuredComponents.clear();
-            normalizedComponents.forEach((component) => {
-              yStructuredComponents.set(component.id, component);
-            });
-            yMainGrid.clear();
-            gridEntries.forEach(([key, val]) => yMainGrid.set(key, val));
+            applyYMapValueDiff(yStructuredScene, normalizedScene);
+            applyYMapValueDiff(yStructuredComponents, normalizedComponents);
           }, history);
           set((state) => ({
             structuredScene: normalizedScene,
@@ -583,56 +684,31 @@ export const useEditorStore = create<EditorState>()(
     {
       name: EDITOR_PERSISTENCE_KEY,
       version: EDITOR_PERSISTENCE_VERSION,
-      storage: createJSONStorage(() => localStorage),
-      partialize: (state) => {
-        const activeSnapshot = buildSessionSnapshot(state);
-        return {
-          schemaVersion: EDITOR_PERSISTENCE_VERSION,
-          workspace: {
-            offset: state.offset,
-            zoom: state.zoom,
-            canvasMode: state.canvasMode,
-            structuredScene: cloneScene(state.structuredScene),
-            structuredComponents: normalizeStructuredComponents(
-              state.structuredComponents,
-              state.structuredScene
-            ),
-            grid:
-              state.canvasMode === "structured"
-                ? sceneToGridEntries(state.structuredScene)
-                : Array.from(state.grid.entries()),
-          },
-          sessions: {
-            items: withActiveCanvasSnapshot(
-              state.canvasSessions,
-              state.activeCanvasId,
-              activeSnapshot
-            ),
-            activeId: state.activeCanvasId,
-          },
-          preferences: {
-            brushChar: state.brushChar,
-            brushColor: state.brushColor,
-            showGrid: state.showGrid,
-            exportShowGrid: state.exportShowGrid,
-          },
-        } as unknown as Partial<EditorState>;
-      },
+      storage: createDeferredSnapshotPersistStorage({
+        getStorage: () => localStorage,
+        createSnapshot: createPersistedEditorSnapshot,
+        shouldSchedule: shouldScheduleEditorPersistence,
+      }),
       migrate: (persistedState, persistedVersion) => {
-        if (isPersistedEditorStateV4(persistedState)) return persistedState;
+        if (isPersistedEditorStateV5(persistedState)) {
+          return persistedState as unknown as EditorState;
+        }
         if (persistedVersion < EDITOR_PERSISTENCE_VERSION && typeof localStorage !== "undefined") {
           const raw = localStorage.getItem(EDITOR_PERSISTENCE_KEY);
           if (raw && !localStorage.getItem(EDITOR_PERSISTENCE_V3_BACKUP_KEY)) {
             localStorage.setItem(EDITOR_PERSISTENCE_V3_BACKUP_KEY, raw);
           }
+          if (persistedVersion === 4 && raw && !localStorage.getItem(EDITOR_PERSISTENCE_V4_BACKUP_KEY)) {
+            localStorage.setItem(EDITOR_PERSISTENCE_V4_BACKUP_KEY, raw);
+          }
         }
-        return migratePersistedStateToV4(persistedState);
+        return migratePersistedStateToV5(persistedState) as unknown as EditorState;
       },
       merge: (persistedState, currentState) => {
         if (!persistedState) return currentState;
-        const normalizedPersistedState = isPersistedEditorStateV4(persistedState)
+        const normalizedPersistedState = isPersistedEditorStateV5(persistedState)
           ? persistedState
-          : migratePersistedStateToV4(persistedState);
+          : migratePersistedStateToV5(persistedState);
         const flattened = flattenPersistedEditorState(normalizedPersistedState);
         const mergedState = {
           ...currentState,

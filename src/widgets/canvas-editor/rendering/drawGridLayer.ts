@@ -30,25 +30,43 @@ export const drawGridLayer = (
   ctx.globalAlpha = alpha;
   setTextRenderStyle(ctx, zoom);
 
+  const visibleCells = [] as Array<{
+    x: number;
+    y: number;
+    cell: NonNullable<ReturnType<GridMap["get"]>>;
+    screenX: number;
+    screenY: number;
+    drawBackground: boolean;
+    drawText: boolean;
+  }>;
   for (let y = viewBounds.startY; y <= viewBounds.endY; y++) {
     for (let x = viewBounds.startX; x <= viewBounds.endX; x++) {
       const cell = grid.get(GridManager.toKey(x, y));
       if (!cell) continue;
       const style = effectiveCellStyle(cell);
-      if (cell.char === " " && !style.bgColor && !style.attrs) continue;
+      const drawBackground = cell.char !== " " || !!style.bgColor || !!style.attrs;
+      const drawText = cell.char !== " " || !!style.attrs;
+      if (!drawBackground && !drawText) continue;
       const pos = GridManager.gridToScreen(x, y, offset.x, offset.y, zoom);
-      drawCellBackground(ctx, cell, pos.x, pos.y, { zoom });
+      visibleCells.push({
+        x,
+        y,
+        cell,
+        screenX: pos.x,
+        screenY: pos.y,
+        drawBackground,
+        drawText,
+      });
     }
   }
 
-  for (let y = viewBounds.startY; y <= viewBounds.endY; y++) {
-    for (let x = viewBounds.startX; x <= viewBounds.endX; x++) {
-      const cell = grid.get(GridManager.toKey(x, y));
-      if (!cell) continue;
-      const style = effectiveCellStyle(cell);
-      if (cell.char === " " && !style.attrs) continue;
-      const pos = GridManager.gridToScreen(x, y, offset.x, offset.y, zoom);
-      drawCellText(ctx, cell, pos.x, pos.y, {
+  visibleCells.forEach(({ cell, screenX, screenY, drawBackground }) => {
+    if (drawBackground) drawCellBackground(ctx, cell, screenX, screenY, { zoom });
+  });
+
+  visibleCells.forEach(({ x, y, cell, screenX, screenY, drawText }) => {
+    if (drawText) {
+      drawCellText(ctx, cell, screenX, screenY, {
         zoom,
         underline:
           !!cell.href &&
@@ -59,6 +77,6 @@ export const drawGridLayer = (
           x <= hoveredLink.endX,
       });
     }
-  }
+  });
   ctx.restore();
 };

@@ -162,11 +162,9 @@ describe("selectionSlice setSelectionTextAttributes", () => {
   it("does not update cells in structured mode", () => {
     useEditorStore.setState({
       canvasMode: "structured",
+      grid: new Map([["0,0", { char: "A", color: "#ffffff" }]]),
       selections: [{ start: { x: 0, y: 0 }, end: { x: 0, y: 0 } }],
     });
-    applyFreeformSnapshotToYMaps([
-      ["0,0", { char: "A", color: "#ffffff" }],
-    ]);
 
     useEditorStore.getState().setSelectionTextAttributes({ bold: true });
 
@@ -330,11 +328,9 @@ describe("selectionSlice setSelectionBackgroundColor", () => {
   it("does not update background color in structured mode", () => {
     useEditorStore.setState({
       canvasMode: "structured",
+      grid: new Map([["0,0", { char: "A", color: "#ffffff" }]]),
       selections: [{ start: { x: 0, y: 0 }, end: { x: 0, y: 0 } }],
     });
-    applyFreeformSnapshotToYMaps([
-      ["0,0", { char: "A", color: "#ffffff" }],
-    ]);
 
     useEditorStore.getState().setSelectionBackgroundColor("#2563eb");
 

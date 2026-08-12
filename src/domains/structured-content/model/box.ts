@@ -260,7 +260,13 @@ export const findStructuredNodeHit = (
   _selectedNodeIds: string[] = []
 ): StructuredNodeHit | null => {
   void _selectedNodeIds;
-  const ordered = [...scene].sort((a, b) => b.order - a.order);
+  return createStructuredSceneQuery(scene).findHit(point);
+};
+
+const findStructuredNodeHitInOrder = (
+  ordered: readonly StructuredNode[],
+  point: Point
+): StructuredNodeHit | null => {
   for (const node of ordered) {
     if (node.type === "box") {
       if (!isPointInsideStructuredBox(node, point)) continue;
@@ -284,24 +290,130 @@ export const findStructuredNodeHit = (
   return null;
 };
 
+/** Query boundary that can later swap its linear scan for a spatial index. */
+export class StructuredSceneQuery {
+  private static readonly SPATIAL_INDEX_THRESHOLD = 256;
+  private static readonly BUCKET_SIZE = 32;
+  private scene: readonly StructuredNode[] = [];
+  private ordered: StructuredNode[] = [];
+  private byId = new Map<string, StructuredNode>();
+  private boundsById = new Map<string, NodeBounds>();
+  private spatialBuckets: Map<string, StructuredNode[]> | null = null;
+
+  constructor(scene: readonly StructuredNode[]) {
+    this.update(scene);
+  }
+
+  update(scene: readonly StructuredNode[]): void {
+    if (scene === this.scene) return;
+    this.scene = scene;
+    this.ordered = [...scene].sort((a, b) => b.order - a.order);
+    this.byId = new Map(scene.map((node) => [node.id, node]));
+    this.boundsById = new Map(
+      scene.map((node) => [node.id, getStructuredNodeBounds(node)])
+    );
+    this.spatialBuckets =
+      scene.length >= StructuredSceneQuery.SPATIAL_INDEX_THRESHOLD
+        ? this.buildSpatialBuckets()
+        : null;
+  }
+
+  getNode(id: string): StructuredNode | null {
+    return this.byId.get(id) ?? null;
+  }
+
+  findHit(point: Point): StructuredNodeHit | null {
+    const candidates = this.spatialBuckets?.get(this.getBucketKey(point));
+    return findStructuredNodeHitInOrder(candidates ?? this.ordered, point);
+  }
+
+  getTextNodesInHitOrder(): StructuredTextNode[] {
+    return this.ordered.filter(
+      (node): node is StructuredTextNode => node.type === "text"
+    );
+  }
+
+  findNodeIdsInSelection(area: SelectionArea): string[] {
+    const { minX, minY, maxX, maxY } = getSelectionBounds(area);
+    const selectionBounds = {
+      x: minX,
+      y: minY,
+      width: maxX - minX + 1,
+      height: maxY - minY + 1,
+    };
+    const candidates = this.getSelectionCandidates(selectionBounds);
+    return candidates
+      .filter((node) =>
+        intersectsBounds(this.boundsById.get(node.id)!, selectionBounds)
+      )
+      .sort((a, b) => a.order - b.order)
+      .map((node) => node.id);
+  }
+
+  private getBucketKey(point: Point): string {
+    const size = StructuredSceneQuery.BUCKET_SIZE;
+    return `${Math.floor(point.x / size)},${Math.floor(point.y / size)}`;
+  }
+
+  private buildSpatialBuckets(): Map<string, StructuredNode[]> {
+    const buckets = new Map<string, StructuredNode[]>();
+    const size = StructuredSceneQuery.BUCKET_SIZE;
+    this.ordered.forEach((node) => {
+      const bounds = this.boundsById.get(node.id)!;
+      const startX = Math.floor(bounds.x / size);
+      const endX = Math.floor((bounds.x + bounds.width - 1) / size);
+      const startY = Math.floor(bounds.y / size);
+      const endY = Math.floor((bounds.y + bounds.height - 1) / size);
+      for (let bucketY = startY; bucketY <= endY; bucketY += 1) {
+        for (let bucketX = startX; bucketX <= endX; bucketX += 1) {
+          const key = `${bucketX},${bucketY}`;
+          const bucket = buckets.get(key);
+          if (bucket) bucket.push(node);
+          else buckets.set(key, [node]);
+        }
+      }
+    });
+    return buckets;
+  }
+
+  private getSelectionCandidates(bounds: NodeBounds): StructuredNode[] {
+    if (!this.spatialBuckets) return [...this.scene];
+    const size = StructuredSceneQuery.BUCKET_SIZE;
+    const startX = Math.floor(bounds.x / size);
+    const endX = Math.floor((bounds.x + bounds.width - 1) / size);
+    const startY = Math.floor(bounds.y / size);
+    const endY = Math.floor((bounds.y + bounds.height - 1) / size);
+    const candidates = new Map<string, StructuredNode>();
+    for (let bucketY = startY; bucketY <= endY; bucketY += 1) {
+      for (let bucketX = startX; bucketX <= endX; bucketX += 1) {
+        this.spatialBuckets.get(`${bucketX},${bucketY}`)?.forEach((node) => {
+          candidates.set(node.id, node);
+        });
+      }
+    }
+    return [...candidates.values()];
+  }
+}
+
+const structuredSceneQueryCache = new WeakMap<
+  readonly StructuredNode[],
+  StructuredSceneQuery
+>();
+
+export const createStructuredSceneQuery = (
+  scene: readonly StructuredNode[]
+): StructuredSceneQuery => {
+  const cached = structuredSceneQueryCache.get(scene);
+  if (cached) return cached;
+  const query = new StructuredSceneQuery(scene);
+  structuredSceneQueryCache.set(scene, query);
+  return query;
+};
+
 export const findStructuredNodeIdsInSelection = (
   scene: StructuredNode[],
   area: SelectionArea
-): string[] => {
-  const { minX, minY, maxX, maxY } = getSelectionBounds(area);
-  const selectionBounds = {
-    x: minX,
-    y: minY,
-    width: maxX - minX + 1,
-    height: maxY - minY + 1,
-  };
-  return scene
-    .filter((node) =>
-      intersectsBounds(getStructuredNodeBounds(node), selectionBounds)
-    )
-    .sort((a, b) => a.order - b.order)
-    .map((node) => node.id);
-};
+): string[] => createStructuredSceneQuery(scene).findNodeIdsInSelection(area);
 
 export const moveStructuredNode = <T extends StructuredNode>(
   node: T,
@@ -490,4 +602,3 @@ export const resizeStructuredBox = (
   handle: StructuredBoxResizeHandle,
   point: Point
 ): StructuredBoxNode => resizeStructuredRect(node, handle, point);
-

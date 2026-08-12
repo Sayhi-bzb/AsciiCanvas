@@ -59,7 +59,7 @@ describe("canvas wheel interaction", () => {
     expect(executor.queueZoomDelta).toHaveBeenCalledWith(1.2, 20, 30);
   });
 
-  it("executes pan decisions without preventing default", () => {
+  it("executes pan decisions by preventing browser navigation", () => {
     const executor = createExecutor();
 
     executeCanvasWheelDecision(
@@ -68,7 +68,7 @@ describe("canvas wheel interaction", () => {
     );
 
     expect(executor.queueOffsetDelta).toHaveBeenCalledWith(-3, 5);
-    expect(executor.preventDefault).not.toHaveBeenCalled();
+    expect(executor.preventDefault).toHaveBeenCalledTimes(1);
   });
 
   it("creates wheel executors that bind viewport callbacks", () => {
@@ -131,7 +131,7 @@ describe("canvas wheel interaction", () => {
       preventDefault,
     });
 
-    expect(preventDefault).not.toHaveBeenCalled();
+    expect(preventDefault).toHaveBeenCalledTimes(1);
     expect(executor.queueOffsetDelta).toHaveBeenCalledWith(-8, 0);
   });
   it("routes wheel gestures through anchor resolution and event deltas", () => {

@@ -12,6 +12,7 @@ import {
   type RafPreviewQueue,
 } from "../preview/rafPreviewQueue";
 import type { StructuredNodeDragPayload } from "./structuredDragStart";
+import type { RafScheduler } from "../preview/rafPreviewQueue";
 
 type QueuedStructuredMove = {
   drag: StructuredNodeDragPayload;
@@ -49,10 +50,13 @@ export type StructuredPreviewQueueController = {
 
 export const createStructuredMovePreviewQueue = ({
   setStructuredMovePreview,
+  scheduler,
 }: {
   setStructuredMovePreview: (preview: StructuredMovePreview) => void;
+  scheduler?: RafScheduler;
 }): StructuredMovePreviewQueue =>
   createRafPreviewQueue({
+    scheduler,
     onFlush: (queued) => {
       setStructuredMovePreview(
         buildStructuredMovePreview(queued.drag, queued.delta)
@@ -62,10 +66,13 @@ export const createStructuredMovePreviewQueue = ({
 
 export const createStructuredSplitBoxResizePreviewQueue = ({
   setStructuredMovePreview,
+  scheduler,
 }: {
   setStructuredMovePreview: (preview: StructuredMovePreview) => void;
+  scheduler?: RafScheduler;
 }): StructuredSplitBoxResizePreviewQueue =>
   createRafPreviewQueue({
+    scheduler,
     onFlush: (queued) => {
       const preview = buildStructuredSplitBoxResizePreview(
         queued.drag,
@@ -144,16 +151,20 @@ export const createStructuredPreviewQueueController = ({
   setStructuredMovePreview,
   applyStructuredScene,
   clearStructuredMovePreview,
+  scheduler,
 }: {
   setStructuredMovePreview: (preview: StructuredMovePreview) => void;
   applyStructuredScene: (scene: StructuredNode[], merge: true) => void;
   clearStructuredMovePreview: () => void;
+  scheduler?: RafScheduler;
 }): StructuredPreviewQueueController => {
   const moveQueue = createStructuredMovePreviewQueue({
     setStructuredMovePreview,
+    scheduler,
   });
   const splitBoxResizeQueue = createStructuredSplitBoxResizePreviewQueue({
     setStructuredMovePreview,
+    scheduler,
   });
 
   return {

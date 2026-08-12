@@ -248,8 +248,17 @@ export const renderStructuredScene = (scene: StructuredNode[]) => {
   return grid;
 };
 
+const sceneGridEntriesCache = new WeakMap<
+  StructuredNode[],
+  Array<[string, GridCell]>
+>();
+
 export const sceneToGridEntries = (scene: StructuredNode[]) => {
-  return Array.from(renderStructuredScene(scene).entries());
+  const cached = sceneGridEntriesCache.get(scene);
+  if (cached) return cached;
+  const entries = Array.from(renderStructuredScene(scene).entries());
+  sceneGridEntriesCache.set(scene, entries);
+  return entries;
 };
 
 export const createStructuredNodeId = () => {

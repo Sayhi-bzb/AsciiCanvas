@@ -1,10 +1,18 @@
 export type {
-  CollaborationDescriptorV1,
+  CollaborationCanvasMode,
+  CollaborationConnectionStatus,
+  CollaborationDescriptorV2,
+  CollaborationDocumentStatus,
+  CollaborationErrorKind,
+  CollaborationIntegrityIssue,
+  CollaborationLinkParseResult,
   CollaborationPeer,
+  CollaborationPresenceSelection,
+  CollaborationPresenceV1,
   CollaborationProviderKind,
   CollaborationSnapshot,
-  CollaborationStatus,
 } from "./model";
+export { COLLABORATION_DOCUMENT_VERSION } from "./model";
 export {
   buildCollaborationUrl,
   createCollaborationDescriptor,
@@ -14,4 +22,8 @@ export {
   validateCollaborationEndpoint,
 } from "./room-link";
 export { getCollaborationIdentity } from "./identity";
-export { collaborationRuntime, CollaborationRuntime } from "./runtime";
+export {
+  collaborationRuntime,
+  CollaborationRuntime,
+  type CollaborationRuntimeDependencies,
+} from "./runtime";

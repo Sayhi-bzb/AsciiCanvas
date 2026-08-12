@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useCreation } from "ahooks";
 import type { EditorState } from "@/domains/canvas/public";
 import { MAX_ZOOM, MIN_ZOOM } from "@/shared/lib/constants";
@@ -17,6 +17,11 @@ import {
   SHORTCUT_PRIORITY,
   useShortcutLayer,
 } from "@/shared/shortcuts/dispatcher";
+import type { CanvasEngineRuntime } from "../../engine/CanvasEngineRuntime";
+import {
+  CANVAS_FRAME_INVALIDATION,
+  createFrameSchedulerRafAdapter,
+} from "../../engine/FrameScheduler";
 
 type ControllerStore = Pick<
   EditorState,
@@ -37,12 +42,14 @@ export const useInteractionControllers = ({
   setHoveredLink,
   structuredMovePreviewRef,
   requestRenderRef,
+  runtime,
 }: {
   store: ControllerStore;
   containerRef: React.RefObject<HTMLDivElement | null>;
   setHoveredLink: (hit: CanvasLinkHit | null) => void;
   structuredMovePreviewRef?: React.MutableRefObject<StructuredMovePreview | null>;
   requestRenderRef?: React.MutableRefObject<(() => void) | null>;
+  runtime?: CanvasEngineRuntime;
 }) => {
   const {
     tool,
@@ -63,21 +70,52 @@ export const useInteractionControllers = ({
     structuredMovePreviewRef ?? fallbackStructuredMovePreviewRef;
   const activeRequestRenderRef = requestRenderRef ?? fallbackRequestRenderRef;
   const [draggingSelection, setDraggingSelection] = useState<SelectionArea | null>(null);
+  const pointerInputsRef = useRef({ offset, zoom, grid, canvasMode, slideDeck });
+  useLayoutEffect(() => {
+    pointerInputsRef.current = { offset, zoom, grid, canvasMode, slideDeck };
+  }, [canvasMode, grid, offset, slideDeck, zoom]);
+  const viewportScheduler = useCreation(
+    () =>
+      runtime
+        ? createFrameSchedulerRafAdapter(
+            runtime.frameScheduler,
+            "viewport-interaction",
+            CANVAS_FRAME_INVALIDATION.presentation
+          )
+        : undefined,
+    [runtime]
+  );
+  const previewScheduler = useCreation(
+    () =>
+      runtime
+        ? createFrameSchedulerRafAdapter(
+            runtime.frameScheduler,
+            "structured-preview",
+            CANVAS_FRAME_INVALIDATION.overlay
+          )
+        : undefined,
+    [runtime]
+  );
 
   const pointerContext = useCreation(
     () =>
       createCanvasPointerContextResolver({
         getRect: () => containerRef.current?.getBoundingClientRect(),
-        getViewport: () => ({ offset, zoom }),
-        getGrid: () => grid,
-        getGridBounds: () =>
-          canvasMode === "slide" && slideDeck
-            ? slideDeck.slides.find(
-                (slide) => slide.id === slideDeck.activeSlideId
+        getViewport: () => ({
+          offset: pointerInputsRef.current.offset,
+          zoom: pointerInputsRef.current.zoom,
+        }),
+        getGrid: () => pointerInputsRef.current.grid,
+        getGridBounds: () => {
+          const current = pointerInputsRef.current;
+          return current.canvasMode === "slide" && current.slideDeck
+            ? current.slideDeck.slides.find(
+                (slide) => slide.id === current.slideDeck?.activeSlideId
               )?.size ?? null
-            : null,
+            : null;
+        },
       }),
-    [containerRef, offset, zoom, grid, canvasMode, slideDeck]
+    [containerRef]
   );
   const interactionRuntime = useCreation(createCanvasInteractionRuntime, []);
   const hoverInteraction = useCreation(
@@ -99,6 +137,7 @@ export const useInteractionControllers = ({
         setOffset,
         setZoom,
         zoomBounds: { min: MIN_ZOOM, max: MAX_ZOOM },
+        scheduler: viewportScheduler,
       }),
     [setOffset, setZoom]
   );
@@ -119,8 +158,14 @@ export const useInteractionControllers = ({
         setStructuredMovePreview,
         applyStructuredScene,
         clearStructuredMovePreview,
+        scheduler: previewScheduler,
       }),
-    [activeRequestRenderRef, activeStructuredMovePreviewRef, applyStructuredScene]
+    [
+      activeRequestRenderRef,
+      activeStructuredMovePreviewRef,
+      applyStructuredScene,
+      previewScheduler,
+    ]
   );
   const resetDragState = useCreation(
     () =>
@@ -152,20 +197,27 @@ export const useInteractionControllers = ({
     }
   }, [hoverInteraction, interactionRuntime, tool]);
 
-  useEffect(
-    () => () => {
-      viewportInteraction.cancel();
-      structuredPreviewQueue.cancel();
-      selectionPreview.cancel();
-      hoverInteraction.setCursor("");
-    },
-    [
-      hoverInteraction,
-      selectionPreview,
-      structuredPreviewQueue,
-      viewportInteraction,
-    ]
-  );
+  useEffect(() => {
+    const manager = {
+      dispose: () => {
+        viewportInteraction.cancel();
+        structuredPreviewQueue.cancel();
+        selectionPreview.cancel();
+        hoverInteraction.setCursor("");
+      },
+    };
+    runtime?.registerManager("interaction", manager);
+    return () => {
+      if (runtime) runtime.unregisterManager("interaction", manager);
+      else manager.dispose();
+    };
+  }, [
+    hoverInteraction,
+    runtime,
+    selectionPreview,
+    structuredPreviewQueue,
+    viewportInteraction,
+  ]);
 
   return {
     colorPickerClickRef,

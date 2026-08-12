@@ -66,6 +66,7 @@ import {
 export { shouldOpenCanvasLink, shouldUseCanvasLinkPointer } from "./interaction/core/hitTesting";
 import { useCanvasGestureAdapter } from "./interaction/gestures/gestureAdapter";
 import { useInteractionControllers } from "./interaction/use-interaction-controllers";
+import type { CanvasEngineRuntime } from "../engine/CanvasEngineRuntime";
 
 
 
@@ -112,7 +113,8 @@ export const useCanvasInteraction = (
   containerRef: React.RefObject<HTMLDivElement | null>,
   setHoveredLink: (hit: CanvasLinkHit | null) => void,
   structuredMovePreviewRef?: React.MutableRefObject<StructuredMovePreview | null>,
-  requestRenderRef?: React.MutableRefObject<(() => void) | null>
+  requestRenderRef?: React.MutableRefObject<(() => void) | null>,
+  runtime?: CanvasEngineRuntime
 ) => {
   const {
     tool,
@@ -169,6 +171,7 @@ export const useCanvasInteraction = (
     setHoveredLink,
     structuredMovePreviewRef,
     requestRenderRef,
+    runtime,
   });
   const shouldIgnoreActiveGestureEvent = (event: Event | undefined) =>
     shouldIgnoreActiveCanvasGesture({

@@ -29,8 +29,11 @@ import {
   useShortcutLayer,
 } from "@/shared/shortcuts/dispatcher";
 import { useActiveCollaboration } from "./useActiveCollaboration";
+import { useHorizontalWheelNavigationGuard } from "./useHorizontalWheelNavigationGuard";
 import { CollaborationControl } from "@/widgets/collaboration/CollaborationControl";
 import { RemotePresenceOverlay } from "@/widgets/collaboration/RemotePresenceOverlay";
+import { useCollaborationSnapshot } from "@/widgets/collaboration/useCollaborationSnapshot";
+import { sameCollaborationRoom } from "@/domains/collaboration/public";
 import { OnboardingTourProvider } from "@/widgets/onboarding/new-user-tour";
 
 const SidebarRight = lazy(() =>
@@ -92,6 +95,18 @@ function MobileSidebarTrigger() {
 
 function AppContent() {
   useActiveCollaboration();
+  useHorizontalWheelNavigationGuard();
+  const collaborationSnapshot = useCollaborationSnapshot();
+  const activeCollaboration = useEditorStore((state) =>
+    state.canvasSessions.find((session) => session.id === state.activeCanvasId)?.collaboration
+  );
+  const isCollaborationReadOnly =
+    !!activeCollaboration &&
+    (!collaborationSnapshot.canEdit ||
+      !sameCollaborationRoom(
+        activeCollaboration,
+        collaborationSnapshot.descriptor
+      ));
   const [canvasContainerSize, setCanvasContainerSize] = useState<
     { width: number; height: number } | undefined
   >();
@@ -179,7 +194,11 @@ function AppContent() {
     return runRedo();
   };
 
-  useGlobalShortcutCommands({ onUndo: handleUndo, onRedo: handleRedo });
+  useGlobalShortcutCommands({
+    onUndo: handleUndo,
+    onRedo: handleRedo,
+    enabled: !isCollaborationReadOnly,
+  });
 
   return (
     <SidebarProvider className="flex h-full w-full overflow-hidden">
@@ -199,23 +218,36 @@ function AppContent() {
         <ZoomControl containerSize={canvasContainerSize} />
         <AppLayout
           canvas={
-            <AsciiCanvas
-              onUndo={handleUndo}
-              onRedo={handleRedo}
-              onContainerSizeChange={setCanvasContainerSize}
-              interactionToolOverride={
-                isTemporaryPanActive ? "pan" : undefined
-              }
-            />
+            <div
+              className="relative h-full w-full"
+              inert={isCollaborationReadOnly}
+              aria-busy={isCollaborationReadOnly}
+            >
+              <AsciiCanvas
+                onUndo={handleUndo}
+                onRedo={handleRedo}
+                onContainerSizeChange={setCanvasContainerSize}
+                interactionToolOverride={
+                  isTemporaryPanActive ? "pan" : undefined
+                }
+                enabled={!isCollaborationReadOnly}
+              />
+              {isCollaborationReadOnly && (
+                <div className="absolute inset-0 z-50 bg-background/20" />
+              )}
+            </div>
           }
         >
-          <Toolbar
-            tool={tool}
-            setTool={setTool}
-            onUndo={handleUndo}
-            isCanvasTextEditing={isCanvasTextEditing}
-            onExitCanvasTextEditing={exitCanvasTextEditing}
-          />
+          <div inert={isCollaborationReadOnly} aria-disabled={isCollaborationReadOnly}>
+            <Toolbar
+              tool={tool}
+              setTool={setTool}
+              onUndo={handleUndo}
+              isCanvasTextEditing={isCanvasTextEditing}
+              onExitCanvasTextEditing={exitCanvasTextEditing}
+              enabled={!isCollaborationReadOnly}
+            />
+          </div>
         </AppLayout>
         <RemotePresenceOverlay />
 

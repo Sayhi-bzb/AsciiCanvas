@@ -25,8 +25,10 @@ import { parseCanvasSessionSource } from "../sessionImportPort";
 import {
   activateCanvasDocument,
   destroyCanvasDocument,
-  resetCanvasDocument,
+  getCanvasDocumentSeed,
+  prepareCanvasDocumentForCollaboration,
 } from "../yjs";
+import { sameCollaborationRoom } from "@/domains/collaboration/public";
 
 const getImportedSessionBaseName = (mode: CanvasImportSnapshot["mode"]) => {
   switch (mode) {
@@ -239,13 +241,28 @@ export const createSessionSlice: StateCreator<
     );
     if (!target) return;
 
-    const runtime = resolveSessionRuntime(target, state.tool);
+    const initialRuntime = resolveSessionRuntime(target, state.tool);
 
-    activateCanvasDocument(getSessionCanvasDocumentId(target, runtime.nextSlideDeck), {
-      grid: runtime.nextGridEntries,
-      scene: runtime.nextMode === "structured" ? runtime.nextScene : [],
-      components: runtime.nextComponents,
+    activateCanvasDocument(getSessionCanvasDocumentId(target, initialRuntime.nextSlideDeck), {
+      grid: initialRuntime.nextGridEntries,
+      scene: initialRuntime.nextMode === "structured" ? initialRuntime.nextScene : [],
+      components: initialRuntime.nextComponents,
     });
+    const collaborativeSeed =
+      target.mode !== "slide" && target.collaboration
+        ? getCanvasDocumentSeed(target.id, target.mode)
+        : null;
+    const runtime = resolveSessionRuntime(
+      collaborativeSeed && target.mode !== "slide"
+        ? {
+            ...target,
+            grid: collaborativeSeed.grid,
+            scene: collaborativeSeed.scene,
+            components: collaborativeSeed.components,
+          }
+        : target,
+      state.tool
+    );
 
     set({
       canvasSessions: sessionsWithSnapshot,
@@ -301,13 +318,28 @@ export const createSessionSlice: StateCreator<
 
     const nextIndex = Math.min(removedIndex, remaining.length - 1);
     const nextSession = remaining[nextIndex];
-    const runtime = resolveSessionRuntime(nextSession, state.tool);
+    const initialRuntime = resolveSessionRuntime(nextSession, state.tool);
 
-    activateCanvasDocument(getSessionCanvasDocumentId(nextSession, runtime.nextSlideDeck), {
-      grid: runtime.nextGridEntries,
-      scene: runtime.nextMode === "structured" ? runtime.nextScene : [],
-      components: runtime.nextComponents,
+    activateCanvasDocument(getSessionCanvasDocumentId(nextSession, initialRuntime.nextSlideDeck), {
+      grid: initialRuntime.nextGridEntries,
+      scene: initialRuntime.nextMode === "structured" ? initialRuntime.nextScene : [],
+      components: initialRuntime.nextComponents,
     });
+    const collaborativeSeed =
+      nextSession.mode !== "slide" && nextSession.collaboration
+        ? getCanvasDocumentSeed(nextSession.id, nextSession.mode)
+        : null;
+    const runtime = resolveSessionRuntime(
+      collaborativeSeed && nextSession.mode !== "slide"
+        ? {
+            ...nextSession,
+            grid: collaborativeSeed.grid,
+            scene: collaborativeSeed.scene,
+            components: collaborativeSeed.components,
+          }
+        : nextSession,
+      state.tool
+    );
 
     set({
       canvasSessions: remaining,
@@ -344,13 +376,14 @@ export const createSessionSlice: StateCreator<
       ),
     }));
   },
-  setCanvasSessionCollaboration: (canvasId, collaboration, options) => {
+  setCanvasSessionCollaboration: (canvasId, collaboration) => {
     const state = get();
     const session = state.canvasSessions.find((item) => item.id === canvasId);
     if (!session || session.mode === "slide") return;
-
-    const reset = !!collaboration && !!options?.resetDocument;
-    if (reset) resetCanvasDocument(canvasId, { grid: [], scene: [] });
+    if (collaboration && collaboration.mode !== session.mode) return;
+    if (collaboration) {
+      prepareCanvasDocumentForCollaboration(canvasId, session.mode);
+    }
 
     set({
       canvasSessions: state.canvasSessions.map((item) =>
@@ -358,19 +391,24 @@ export const createSessionSlice: StateCreator<
           ? {
               ...item,
               collaboration: collaboration ?? undefined,
-              ...(reset ? { grid: [], scene: [], components: [] } : {}),
             }
           : item
       ),
-      ...(reset && canvasId === state.activeCanvasId
-        ? {
-            grid: new Map(),
-            structuredScene: [],
-            structuredComponents: [],
-            selectedStructuredNodeIds: [],
-            selections: [],
-          }
-        : {}),
     });
+  },
+  joinCanvasSessionCollaboration: (collaboration) => {
+    const existing = get().canvasSessions.find(
+      (session) =>
+        session.mode !== "slide" &&
+        sameCollaborationRoom(session.collaboration, collaboration)
+    );
+    if (existing) {
+      get().switchCanvasSession(existing.id);
+      return;
+    }
+
+    get().createCanvasSession(collaboration.mode);
+    const sessionId = get().activeCanvasId;
+    get().setCanvasSessionCollaboration(sessionId, collaboration);
   },
 });

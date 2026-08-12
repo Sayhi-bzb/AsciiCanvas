@@ -1,4 +1,9 @@
-import type { CollaborationDescriptorV1 } from "./model";
+import {
+  COLLABORATION_DOCUMENT_VERSION,
+  type CollaborationCanvasMode,
+  type CollaborationDescriptorV2,
+  type CollaborationLinkParseResult,
+} from "./model";
 
 const ROOM_PARAM = "room";
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]+$/;
@@ -31,25 +36,43 @@ export const validateCollaborationEndpoint = (value: string) => {
 };
 
 export const createCollaborationDescriptor = (
+  mode: CollaborationCanvasMode,
   endpoint?: string
-): CollaborationDescriptorV1 => {
+): CollaborationDescriptorV2 => {
   const roomId = randomToken(16);
   const key = randomToken(32);
   if (endpoint) {
     const normalizedEndpoint = validateCollaborationEndpoint(endpoint);
     if (!normalizedEndpoint) throw new Error("Invalid collaboration endpoint");
-    return { version: 1, provider: "websocket", roomId, key, endpoint: normalizedEndpoint };
+    return {
+      version: 2,
+      documentVersion: COLLABORATION_DOCUMENT_VERSION,
+      mode,
+      provider: "websocket",
+      roomId,
+      key,
+      endpoint: normalizedEndpoint,
+    };
   }
-  return { version: 1, provider: "p2p", roomId, key };
+  return {
+    version: 2,
+    documentVersion: COLLABORATION_DOCUMENT_VERSION,
+    mode,
+    provider: "p2p",
+    roomId,
+    key,
+  };
 };
 
 export const isCollaborationDescriptor = (
   value: unknown
-): value is CollaborationDescriptorV1 => {
+): value is CollaborationDescriptorV2 => {
   if (!value || typeof value !== "object") return false;
   const candidate = value as Record<string, unknown>;
   if (
-    candidate.version !== 1 ||
+    candidate.version !== 2 ||
+    candidate.documentVersion !== COLLABORATION_DOCUMENT_VERSION ||
+    (candidate.mode !== "freeform" && candidate.mode !== "structured") ||
     (candidate.provider !== "p2p" && candidate.provider !== "websocket") ||
     typeof candidate.roomId !== "string" ||
     candidate.roomId.length < 16 ||
@@ -64,7 +87,7 @@ export const isCollaborationDescriptor = (
         validateCollaborationEndpoint(candidate.endpoint) === candidate.endpoint;
 };
 
-const encodeDescriptor = (descriptor: CollaborationDescriptorV1) => {
+const encodeDescriptor = (descriptor: CollaborationDescriptorV2) => {
   const bytes = new TextEncoder().encode(JSON.stringify(descriptor));
   let binary = "";
   bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
@@ -80,7 +103,7 @@ const decodeDescriptor = (encoded: string): unknown => {
 };
 
 export const buildCollaborationUrl = (
-  descriptor: CollaborationDescriptorV1,
+  descriptor: CollaborationDescriptorV2,
   baseUrl = window.location.href
 ) => {
   const url = new URL(baseUrl);
@@ -89,20 +112,40 @@ export const buildCollaborationUrl = (
   return url.toString();
 };
 
-export const parseCollaborationUrl = (urlValue = window.location.href) => {
+export const parseCollaborationUrl = (
+  urlValue = window.location.href
+): CollaborationLinkParseResult => {
   try {
     const url = new URL(urlValue);
     const encoded = new URLSearchParams(url.hash.slice(1)).get(ROOM_PARAM);
-    if (!encoded) return null;
+    if (!encoded) return { status: "none" };
     const descriptor = decodeDescriptor(encoded);
-    return isCollaborationDescriptor(descriptor) ? descriptor : null;
+    if (isCollaborationDescriptor(descriptor)) {
+      return { status: "valid", descriptor };
+    }
+    if (descriptor && typeof descriptor === "object" && "version" in descriptor) {
+      const version = (descriptor as { version?: unknown }).version;
+      return {
+        status: "unsupported",
+        version: typeof version === "number" ? version : null,
+      };
+    }
+    return { status: "invalid" };
   } catch {
-    return null;
+    return { status: "invalid" };
   }
 };
 
 export const sameCollaborationRoom = (
-  left: CollaborationDescriptorV1 | undefined,
-  right: CollaborationDescriptorV1 | null
-) => !!left && !!right && left.provider === right.provider && left.roomId === right.roomId && left.key === right.key;
-
+  left: CollaborationDescriptorV2 | undefined,
+  right: CollaborationDescriptorV2 | null
+) =>
+  !!left &&
+  !!right &&
+  left.provider === right.provider &&
+  left.roomId === right.roomId &&
+  left.key === right.key &&
+  left.mode === right.mode &&
+  left.documentVersion === right.documentVersion &&
+  (left.provider !== "websocket" ||
+    (right.provider === "websocket" && left.endpoint === right.endpoint));
