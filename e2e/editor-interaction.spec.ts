@@ -82,7 +82,7 @@ const readActiveScene = async (page: Page) => {
 
 const readLiveGrid = (page: Page) =>
   page.evaluate<Array<[string, unknown]>>(
-    'import("/src/domains/canvas/public.ts").then(({ getCanvasState }) => Array.from(getCanvasState().grid.entries()))'
+    'import("/src/app/compositionRoot.ts").then(({ getApplicationEditorHost }) => { const canvas = getApplicationEditorHost().canvas; return canvas.documents.getDocumentSeed(canvas.documents.getActiveDocumentId(), "freeform")?.grid ?? []; })'
   );
 
 const gridClientPoint = async (page: Page, point: { x: number; y: number }) => {
@@ -231,8 +231,21 @@ test.describe("editor interaction lifecycle", () => {
       timeout: 15_000,
     });
     await peer.keyboard.press("Escape");
+    await page.getByTestId("collaboration-control").click();
+    await expect(page.getByText("2 participant(s)", { exact: true })).toBeVisible({
+      timeout: 15_000,
+    });
+    await page.keyboard.press("Escape");
+    await expect.poll(() => page.evaluate(
+      'import("/src/app/compositionRoot.ts").then(({ getApplicationEditorHost }) => { const snapshot = getApplicationEditorHost().collaboration.getSnapshot(); return { canEdit: snapshot.canEdit, documentStatus: snapshot.documentStatus, connectionStatus: snapshot.connectionStatus }; })'
+    )).toEqual({
+      canEdit: true,
+      documentStatus: "ready",
+      connectionStatus: "online",
+    });
 
     await drawBox(page, { x: 1, y: 1 }, { x: 4, y: 2 });
+    await expect.poll(async () => (await readLiveGrid(page)).length).toBeGreaterThan(0);
     await expect.poll(async () => (await readLiveGrid(peer)).length, {
       timeout: 15_000,
     }).toBeGreaterThan(0);
