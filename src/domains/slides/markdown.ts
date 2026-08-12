@@ -1,4 +1,4 @@
-import { parseAsciiCanvasText, type AsciiCanvasTextSyntax } from '@ascii-canvas/protocol';
+import { parseCharDeskText, type CharDeskTextSyntax } from '@chardesk/protocol';
 import { COLOR_PRIMARY_TEXT } from '@/shared/lib/constants';
 import { GridManager } from '@/shared/utils/grid';
 import { createSlideDeck, addSlide } from './deck';
@@ -64,14 +64,14 @@ const parseFrontMatter = (source: string) => {
   };
 };
 
-const toSyntax = (language: string): AsciiCanvasTextSyntax => {
+const toSyntax = (language: string): CharDeskTextSyntax => {
   if (language === 'text') return 'plain';
   if (language === 'ansi') return 'ansi';
   return 'auto';
 };
 
-const toGridEntries = (source: string, syntax: AsciiCanvasTextSyntax) => {
-  const parsed = parseAsciiCanvasText(source, {
+const toGridEntries = (source: string, syntax: CharDeskTextSyntax) => {
+  const parsed = parseCharDeskText(source, {
     syntax,
     defaultStyle: { color: COLOR_PRIMARY_TEXT },
   });
@@ -120,7 +120,7 @@ const parseSlideBlocks = (
   const slides: Array<{
     name: string;
     source: string;
-    syntax: AsciiCanvasTextSyntax;
+    syntax: CharDeskTextSyntax;
     size: SlideSize;
   }> = [];
   let heading: string | null = null;

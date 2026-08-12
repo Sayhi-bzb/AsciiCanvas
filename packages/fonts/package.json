@@ -1,12 +1,12 @@
 {
-  "name": "@ascii-canvas/fonts",
-  "version": "0.1.0",
+  "name": "@chardesk/fonts",
+  "version": "0.2.0",
   "description": "Self-hosted fonts and the default CharDesk renderer font profile",
   "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Sayhi-bzb/CharDesk.git",
+    "url": "git+https://github.com/Sayhi-bzb/CharDesk.git",
     "directory": "packages/fonts"
   },
   "homepage": "https://github.com/Sayhi-bzb/CharDesk/tree/main/packages/fonts#readme",

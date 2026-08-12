@@ -11,8 +11,8 @@ if (!match) {
 
 const version = tag.slice(1);
 const packages = [
-  { name: "@ascii-canvas/fonts", path: "packages/fonts" },
-  { name: "@ascii-canvas/protocol", path: "packages/protocol" },
+  { name: "@chardesk/fonts", path: "packages/fonts" },
+  { name: "@chardesk/protocol", path: "packages/protocol" },
 ];
 const lockfile = JSON.parse(fs.readFileSync("package-lock.json", "utf8"));
 

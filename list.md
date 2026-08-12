@@ -1,7 +1,7 @@
 # CharDesk 品牌迁移清单
 
 > 展示名称：`CharDesk`；技术名称与 slug：`chardesk`。
-> 迁移原则：先锁定外部资产，再迁移入口与用户数据，最后调整品牌和发布命名空间。旧协议与旧包保留兼容期。
+> 迁移原则：先锁定外部资产，再迁移入口与用户数据，最后调整品牌和发布命名空间。旧协议数据保持可读，npm 包和公共 API 直接切换到 CharDesk。
 
 ## 0. 品牌与外部资产
 
@@ -80,26 +80,25 @@
 
 ## 5. npm 包与构建配置
 
-- [ ] 创建 `@chardesk/protocol`。
-- [ ] 创建 `@chardesk/fonts`。
-- [x] 将根私有 workspace 名改为 `chardesk`；workspace 命令和依赖继续使用兼容包名。
-- [x] 更新两个 package manifest 的品牌描述、仓库地址和文档链接；包名与关键词保持兼容。
+- [x] 将协议包改名为 `@chardesk/protocol`，版本设为 `0.2.0`；首次发布仍待 npm scope 权限。
+- [x] 将字体包改名为 `@chardesk/fonts`，版本设为 `0.2.0`；首次发布仍待 npm scope 权限。
+- [x] 将根私有 workspace 名改为 `chardesk`，workspace 命令和依赖切换到新包名。
+- [x] 更新两个 package manifest 的品牌描述、仓库地址、文档链接、包名和版本。
 - [x] 更新 `package-lock.json` 的根私有 workspace 名。
-- [ ] 更新 TypeScript、Vite 和 Vitest 中的 `@ascii-canvas/*` alias。
-- [ ] 更新源码、测试、脚本和文档中的包 import。
-- [ ] 更新 release workflow 的版本存在性检查、workspace、`npm pack` 和 `npm publish` 命令。
-- [ ] 更新 release tarball 文件名和 packed-package smoke test。
-- [ ] 先发布并验证 `@chardesk/*` 包，再迁移主应用。
-- [ ] 为 `@ascii-canvas/protocol` 和 `@ascii-canvas/fonts` 发布最终兼容版本。
-- [ ] 旧包保持可安装，并在 README 与安装警告中指向 `@chardesk/*`。
-- [ ] 确认新包稳定后 deprecate 旧包；不要 unpublish。
-- [ ] 验证 npm provenance、README 渲染、exports、类型声明和 CSS/字体资源路径。
+- [x] 更新 TypeScript、Vite 和 Vitest 中的 `@chardesk/*` alias。
+- [x] 更新源码、测试、脚本和文档中的包 import。
+- [x] 更新 release workflow 的版本存在性检查、workspace、`npm pack` 和 `npm publish` 命令。
+- [x] 更新 release tarball 文件名和 packed-package smoke test。
+- [ ] 发布并验证 `@chardesk/*` 包；主应用已按硬切换决策使用新包名。
+- [x] 停止为 `@ascii-canvas/protocol` 和 `@ascii-canvas/fonts` 发布新版本。
+- [ ] 发布新包后 deprecate 旧包并指向 `@chardesk/*`；不要 unpublish。
+- [x] 验证本地发布包的 README、exports、类型声明和 CSS/字体资源路径。
+- [ ] 正式发布后验证 npm provenance 与 README 页面渲染。
 
 ## 6. 公共 API 与协议兼容
 
-- [ ] 在新包中提供 CharDesk 命名的公共导出。
-- [ ] 为现有 `AsciiCanvas*` 类型、`parseAsciiCanvasText` 等 API 制定兼容策略。
-- [ ] 旧 API 如需淘汰，先作为 alias 保留并标记 deprecated，记录移除版本。
+- [x] 在新包中仅提供 CharDesk 命名的公共导出。
+- [x] 按已确认的硬切换决策，将 `AsciiCanvas*`、`parseAsciiCanvasText` 等公共 API 彻底重命名，不提供 aliases。
 - [x] 将以下标识视为 v1 协议，不在首次品牌迁移中直接替换：
   - `.ascanvas`
   - `application/vnd.ascii-canvas+json`
@@ -114,9 +113,9 @@
 
 ## 7. Agent Skill 与 Slides 格式
 
-- [ ] 新增或重命名技能入口为 `$chardesk`。
+- [x] 将技能目录、frontmatter 和默认 prompt 硬切为 `$chardesk`。
 - [x] 更新 skill 的 display name、description 和默认 prompt 为 CharDesk。
-- [x] 保留 `$ascii-canvas` 兼容入口和现有目录路径。
+- [x] 按已确认决策移除 `$ascii-canvas` 技能入口，不保留旧目录兼容层。
 - [x] 更新 skill references 中面向用户的品牌文字。
 - [x] 保持旧 `asciicanvas` frontmatter 和 fence 可解析。
 - [ ] 如新增 `chardesk` fence，确保新旧 fence 产生相同文档模型并补充往返测试。
@@ -130,7 +129,7 @@
 - [ ] 测试旧 localStorage 状态和持久化版本升级。
 - [ ] 测试旧域名手动/自动迁移到新域名，确保作品不会静默丢失。
 - [ ] 测试协作房间链接、身份、IndexedDB 缓存和断线重连。
-- [x] 对现有兼容 npm 包执行 build 与 `npm pack --dry-run`；新包尚未创建，安装/import smoke test 留待发布批次。
+- [x] 对 `@chardesk/*@0.2.0` 执行 build、真实 `npm pack` 及隔离安装/import smoke test。
 - [x] 检查 production 与 preview HTML：canonical、OG、Twitter 均指向 `https://chardesk.com/`，无旧域名元数据。
 - [ ] 验证旧 Pages URL、旧 GitHub URL 和旧 npm 包均给出正确的迁移路径。
 - [ ] 在桌面端和移动端检查 CharDesk 名称、Logo、封面及中英文排版。

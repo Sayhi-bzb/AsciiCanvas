@@ -57,7 +57,7 @@ Build with editable text, boxes, backgrounds, dividers, lines, and arrows. Move 
 
 ### Slides
 
-Arrange a deck as editable text pages, or ask an Agent to generate a `.slides.md` file and continue editing it visually. See the [Slides file structure](.agents/skills/ascii-canvas/references/slides.md).
+Arrange a deck as editable text pages, or ask an Agent to generate a `.slides.md` file and continue editing it visually. See the [Slides file structure](.agents/skills/chardesk/references/slides.md).
 
 ## Built for the human–AI loop
 
@@ -90,7 +90,11 @@ CharDesk brings together Unicode symbols, CJK characters, emoji, box drawing, Ne
 
 ## For builders
 
-CharDesk output can also be consumed outside the editor. See [`@ascii-canvas/protocol`](packages/protocol/README.md) for the text interchange format and [`@ascii-canvas/fonts`](packages/fonts/README.md) for compatible glyph assets. Each package owns its installation and API documentation.
+CharDesk output can also be consumed outside the editor. See [`@chardesk/protocol`](packages/protocol/README.md) for the text interchange format and [`@chardesk/fonts`](packages/fonts/README.md) for compatible glyph assets. Each package owns its installation and API documentation.
+
+## Thanks
+
+Thanks to [LINUX DO](https://linux.do/).
 
 ## License
 

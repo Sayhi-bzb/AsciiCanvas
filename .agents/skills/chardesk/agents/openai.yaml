@@ -1,0 +1,4 @@
+interface:
+  display_name: "CharDesk"
+  short_description: "Authoritative CharDesk format references"
+  default_prompt: "Use $chardesk to apply the relevant CharDesk format."

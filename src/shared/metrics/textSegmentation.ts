@@ -1,4 +1,4 @@
-import { splitGraphemes } from "@ascii-canvas/protocol";
+import { splitGraphemes } from "@chardesk/protocol";
 
 export { splitGraphemes };
 

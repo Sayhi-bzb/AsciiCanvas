@@ -1,5 +1,5 @@
 ---
-name: ascii-canvas
+name: chardesk
 description: Authoritative syntax references for CharDesk Unicode and ESC-less ANSI text and `.slides.md` decks. Use when Codex needs to read, write, edit, or review CharDesk content or Slides files.
 ---
 

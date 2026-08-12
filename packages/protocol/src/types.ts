@@ -1,4 +1,4 @@
-export type AsciiCanvasTextAttributes = {
+export type CharDeskTextAttributes = {
   bold?: true;
   italic?: true;
   underline?: true;
@@ -6,13 +6,13 @@ export type AsciiCanvasTextAttributes = {
   inverse?: true;
 };
 
-export type AsciiCanvasTextStyle = {
+export type CharDeskTextStyle = {
   color?: string;
   bgColor?: string;
-  attrs?: AsciiCanvasTextAttributes;
+  attrs?: CharDeskTextAttributes;
 };
 
-export type AsciiCanvasTextCell = AsciiCanvasTextStyle & {
+export type CharDeskTextCell = CharDeskTextStyle & {
   x: number;
   y: number;
   width: 1 | 2;
@@ -20,33 +20,33 @@ export type AsciiCanvasTextCell = AsciiCanvasTextStyle & {
   href?: string;
 };
 
-export type AsciiCanvasTextDiagnosticCode =
+export type CharDeskTextDiagnosticCode =
   | "malformed-ansi"
   | "unsupported-control"
   | "unsupported-sgr";
 
-export type AsciiCanvasTextDiagnostic = {
-  code: AsciiCanvasTextDiagnosticCode;
+export type CharDeskTextDiagnostic = {
+  code: CharDeskTextDiagnosticCode;
   offset: number;
   length: number;
   message: string;
 };
 
-export type AsciiCanvasTextSyntax = "auto" | "plain" | "ansi";
+export type CharDeskTextSyntax = "auto" | "plain" | "ansi";
 
-export type ParseAsciiCanvasTextOptions = {
-  syntax?: AsciiCanvasTextSyntax;
-  defaultStyle?: AsciiCanvasTextStyle;
+export type ParseCharDeskTextOptions = {
+  syntax?: CharDeskTextSyntax;
+  defaultStyle?: CharDeskTextStyle;
   tabSize?: number;
 };
 
-export type ParsedAsciiCanvasText = {
+export type ParsedCharDeskText = {
   version: 1;
   source: string;
   plainText: string;
   width: number;
   height: number;
-  cells: AsciiCanvasTextCell[];
+  cells: CharDeskTextCell[];
   hasAnsi: boolean;
-  diagnostics: AsciiCanvasTextDiagnostic[];
+  diagnostics: CharDeskTextDiagnostic[];
 };

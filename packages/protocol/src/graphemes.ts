@@ -20,7 +20,7 @@ export const splitGraphemes = (value: string): string[] => {
   if (!value) return [];
   if (!segmenter) {
     throw new Error(
-      "@ascii-canvas/protocol requires Intl.Segmenter for deterministic grapheme parsing."
+      "@chardesk/protocol requires Intl.Segmenter for deterministic grapheme parsing."
     );
   }
   return Array.from(segmenter.segment(value), (part) => part.segment);

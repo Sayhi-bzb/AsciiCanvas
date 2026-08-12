@@ -1,7 +1,7 @@
 import {
   getGraphemeCellWidth,
   getTextCellWidth as getProtocolTextCellWidth,
-} from "@ascii-canvas/protocol";
+} from "@chardesk/protocol";
 
 export const getCellOccupancy = getGraphemeCellWidth;
 

@@ -1,4 +1,4 @@
-import { parseAsciiCanvasText } from "@ascii-canvas/protocol";
+import { parseCharDeskText } from "@chardesk/protocol";
 import type { GridCell } from "@/shared/types";
 
 const DEFAULT_ANSI_TEXT_COLOR = "#ffffff";
@@ -22,7 +22,7 @@ export const parseAnsiTextCells = (
   defaultColor = DEFAULT_ANSI_TEXT_COLOR
 ): AnsiTextCell[] | null => {
   if (!input) return null;
-  const parsed = parseAsciiCanvasText(markdownLinksToOsc8(input), {
+  const parsed = parseCharDeskText(markdownLinksToOsc8(input), {
     defaultStyle: { color: defaultColor },
   });
   if (!parsed.hasAnsi || parsed.cells.length === 0) return null;

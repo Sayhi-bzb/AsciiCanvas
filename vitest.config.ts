@@ -21,11 +21,11 @@ export default defineConfig({
   resolve: {
     alias: [
       {
-        find: /^@ascii-canvas\/fonts$/,
+        find: /^@chardesk\/fonts$/,
         replacement: path.resolve(__dirname, './packages/fonts/src/index.ts')
       },
       {
-        find: '@ascii-canvas/protocol',
+        find: '@chardesk/protocol',
         replacement: path.resolve(
           __dirname,
           './packages/protocol/src/index.ts'

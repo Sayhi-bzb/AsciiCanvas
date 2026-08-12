@@ -2,23 +2,23 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
-  ASCII_CANVAS_TEXT_PROTOCOL_VERSION,
+  CHARDESK_TEXT_PROTOCOL_VERSION,
   getGraphemeCellWidth,
-  parseAsciiCanvasText,
+  parseCharDeskText,
   splitGraphemes,
-  stripAsciiCanvasAnsi,
+  stripCharDeskAnsi,
   UNICODE_DATA_VERSION,
 } from "./index.js";
 import type {
-  ParseAsciiCanvasTextOptions,
-  ParsedAsciiCanvasText,
+  ParseCharDeskTextOptions,
+  ParsedCharDeskText,
 } from "./index.js";
 
 type Fixture = {
   name: string;
   source: string;
-  options?: ParseAsciiCanvasTextOptions;
-  expected: Partial<ParsedAsciiCanvasText>;
+  options?: ParseCharDeskTextOptions;
+  expected: Partial<ParsedCharDeskText>;
 };
 
 const fixtures = JSON.parse(
@@ -28,21 +28,21 @@ const fixtures = JSON.parse(
   )
 ) as Fixture[];
 
-describe("AsciiCanvas Text Protocol v1 conformance", () => {
+describe("CharDesk Text Protocol v1 conformance", () => {
   for (const fixture of fixtures) {
     it(fixture.name, () => {
-      const parsed = parseAsciiCanvasText(fixture.source, fixture.options);
+      const parsed = parseCharDeskText(fixture.source, fixture.options);
       expect(parsed).toMatchObject(fixture.expected);
     });
   }
 
   it("publishes pinned protocol and Unicode versions", () => {
-    expect(ASCII_CANVAS_TEXT_PROTOCOL_VERSION).toBe(1);
+    expect(CHARDESK_TEXT_PROTOCOL_VERSION).toBe(1);
     expect(UNICODE_DATA_VERSION).toBe("17.0.0");
   });
 
   it("supports standard and shorthand SGR color forms", () => {
-    const parsed = parseAsciiCanvasText(
+    const parsed = parseCharDeskText(
       "\u001b[31mA\u001b[48;5;21mB[38;2;1;2;3mC[0mD",
       { defaultStyle: { color: "#abcdef" } }
     );
@@ -56,14 +56,14 @@ describe("AsciiCanvas Text Protocol v1 conformance", () => {
   });
 
   it("keeps ordinary and unknown bracket text literal in auto mode", () => {
-    const parsed = parseAsciiCanvasText("hello [world] [999mA");
+    const parsed = parseCharDeskText("hello [world] [999mA");
 
     expect(parsed.plainText).toBe("hello [world] [999mA");
     expect(parsed.hasAnsi).toBe(false);
   });
 
   it("consumes unknown SGR in ansi mode and reports it", () => {
-    const parsed = parseAsciiCanvasText("[999mA", { syntax: "ansi" });
+    const parsed = parseCharDeskText("[999mA", { syntax: "ansi" });
 
     expect(parsed.plainText).toBe("A");
     expect(parsed.hasAnsi).toBe(true);
@@ -73,7 +73,7 @@ describe("AsciiCanvas Text Protocol v1 conformance", () => {
   });
 
   it("supports shorthand OSC 8 links adjacent to SGR", () => {
-    const parsed = parseAsciiCanvasText(
+    const parsed = parseCharDeskText(
       "]8;;https://example.com[1;38;2;255;255;255m Link ]8;;[0m"
     );
 
@@ -88,7 +88,7 @@ describe("AsciiCanvas Text Protocol v1 conformance", () => {
   });
 
   it("resolves inverse as an attribute without rewriting stored colors", () => {
-    const [cell] = parseAsciiCanvasText(
+    const [cell] = parseCharDeskText(
       "[7;38;2;10;20;30;48;2;40;50;60mA"
     ).cells;
 
@@ -100,19 +100,19 @@ describe("AsciiCanvas Text Protocol v1 conformance", () => {
   });
 
   it("normalizes line endings, expands tabs, and preserves a trailing line", () => {
-    const parsed = parseAsciiCanvasText("A\tB\rC\r\n", { tabSize: 4 });
+    const parsed = parseCharDeskText("A\tB\rC\r\n", { tabSize: 4 });
 
     expect(parsed.plainText).toBe("A   B\nC\n");
     expect(parsed).toMatchObject({ width: 5, height: 3 });
   });
 
   it("returns a zero-sized document for empty or control-only input", () => {
-    expect(parseAsciiCanvasText("")).toMatchObject({
+    expect(parseCharDeskText("")).toMatchObject({
       width: 0,
       height: 0,
       cells: [],
     });
-    expect(parseAsciiCanvasText("\u0001")).toMatchObject({
+    expect(parseCharDeskText("\u0001")).toMatchObject({
       width: 0,
       height: 0,
       cells: [],
@@ -122,7 +122,7 @@ describe("AsciiCanvas Text Protocol v1 conformance", () => {
 
   it("strips style and link controls without losing visible text", () => {
     expect(
-      stripAsciiCanvasAnsi(
+      stripCharDeskAnsi(
         "[31mA[0m ]8;;https://example.com\\B]8;;\\"
       )
     ).toBe("A B");
@@ -136,6 +136,6 @@ describe("AsciiCanvas Text Protocol v1 conformance", () => {
   });
 
   it("rejects invalid tab sizes", () => {
-    expect(() => parseAsciiCanvasText("A", { tabSize: 0 })).toThrow(RangeError);
+    expect(() => parseCharDeskText("A", { tabSize: 0 })).toThrow(RangeError);
   });
 });

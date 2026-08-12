@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import "@ascii-canvas/fonts/fonts.css";
+import "@chardesk/fonts/fonts.css";
 import "./index.css";
 import { captureOnboardingEntryState } from "@/widgets/onboarding/onboarding-model";
 

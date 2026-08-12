@@ -1,9 +1,9 @@
 import {
-  ASCII_CANVAS_FONT_PROFILE,
-  type AsciiCanvasFontRoute,
-} from "@ascii-canvas/fonts";
+  CHARDESK_FONT_PROFILE,
+  type CharDeskFontRoute,
+} from "@chardesk/fonts";
 
-export type RenderFontRoute = AsciiCanvasFontRoute;
+export type RenderFontRoute = CharDeskFontRoute;
 
 const EMOJI_PRESENTATION = /\p{Emoji_Presentation}/u;
 const EMOJI_MODIFIER = /\p{Emoji_Modifier}/u;
@@ -29,7 +29,7 @@ export const resolveRenderFontRoute = (
 };
 
 export const getRenderFontFamily = (route: RenderFontRoute) =>
-  ASCII_CANVAS_FONT_PROFILE.families[route];
+  CHARDESK_FONT_PROFILE.families[route];
 
 export const getRenderFontFamilyForGrapheme = (grapheme: string) =>
   getRenderFontFamily(resolveRenderFontRoute(grapheme));

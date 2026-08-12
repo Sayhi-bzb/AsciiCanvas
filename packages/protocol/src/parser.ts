@@ -1,10 +1,10 @@
 import { getGraphemeCellWidth, splitGraphemes } from "./graphemes.js";
 import type {
-  AsciiCanvasTextAttributes,
-  AsciiCanvasTextDiagnostic,
-  AsciiCanvasTextStyle,
-  ParseAsciiCanvasTextOptions,
-  ParsedAsciiCanvasText,
+  CharDeskTextAttributes,
+  CharDeskTextDiagnostic,
+  CharDeskTextStyle,
+  ParseCharDeskTextOptions,
+  ParsedCharDeskText,
 } from "./types.js";
 
 const BASIC_COLORS = [
@@ -29,7 +29,7 @@ const BRIGHT_COLORS = [
   "#ffffff",
 ] as const;
 
-type ParserStyle = AsciiCanvasTextStyle & { href?: string };
+type ParserStyle = CharDeskTextStyle & { href?: string };
 
 type SgrResult = {
   nextIndex: number;
@@ -43,7 +43,7 @@ type LinkResult = {
   href: string;
 };
 
-const cloneAttrs = (attrs?: AsciiCanvasTextAttributes) =>
+const cloneAttrs = (attrs?: CharDeskTextAttributes) =>
   attrs ? { ...attrs } : undefined;
 
 const cloneStyle = (style: ParserStyle): ParserStyle => ({
@@ -53,12 +53,12 @@ const cloneStyle = (style: ParserStyle): ParserStyle => ({
   ...(style.href ? { href: style.href } : {}),
 });
 
-const normalizeAttrs = (attrs: AsciiCanvasTextAttributes) =>
+const normalizeAttrs = (attrs: CharDeskTextAttributes) =>
   Object.keys(attrs).length > 0 ? attrs : undefined;
 
 const setAttr = (
   style: ParserStyle,
-  name: keyof AsciiCanvasTextAttributes,
+  name: keyof CharDeskTextAttributes,
   enabled: boolean
 ) => {
   const attrs = { ...(style.attrs ?? {}) };
@@ -232,19 +232,19 @@ const parseOsc8At = (
 };
 
 const diagnostic = (
-  diagnostics: AsciiCanvasTextDiagnostic[],
-  code: AsciiCanvasTextDiagnostic["code"],
+  diagnostics: CharDeskTextDiagnostic[],
+  code: CharDeskTextDiagnostic["code"],
   offset: number,
   length: number,
   message: string
 ) => diagnostics.push({ code, offset, length, message });
 
-export const ASCII_CANVAS_TEXT_PROTOCOL_VERSION = 1 as const;
+export const CHARDESK_TEXT_PROTOCOL_VERSION = 1 as const;
 
-export const parseAsciiCanvasText = (
+export const parseCharDeskText = (
   source: string,
-  options: ParseAsciiCanvasTextOptions = {}
-): ParsedAsciiCanvasText => {
+  options: ParseCharDeskTextOptions = {}
+): ParsedCharDeskText => {
   const syntax = options.syntax ?? "auto";
   const tabSize = options.tabSize ?? 4;
   if (!Number.isInteger(tabSize) || tabSize < 1) {
@@ -253,8 +253,8 @@ export const parseAsciiCanvasText = (
 
   const defaults = cloneStyle(options.defaultStyle ?? {});
   let style = cloneStyle(defaults);
-  const cells: ParsedAsciiCanvasText["cells"] = [];
-  const diagnostics: AsciiCanvasTextDiagnostic[] = [];
+  const cells: ParsedCharDeskText["cells"] = [];
+  const diagnostics: CharDeskTextDiagnostic[] = [];
   const plainParts: string[] = [];
   let index = 0;
   let x = 0;
@@ -362,7 +362,7 @@ export const parseAsciiCanvasText = (
 
   width = Math.max(width, x);
   return {
-    version: ASCII_CANVAS_TEXT_PROTOCOL_VERSION,
+    version: CHARDESK_TEXT_PROTOCOL_VERSION,
     source,
     plainText: plainParts.join(""),
     width,
@@ -373,7 +373,7 @@ export const parseAsciiCanvasText = (
   };
 };
 
-export const stripAsciiCanvasAnsi = (
+export const stripCharDeskAnsi = (
   source: string,
-  options?: ParseAsciiCanvasTextOptions
-) => parseAsciiCanvasText(source, options).plainText;
+  options?: ParseCharDeskTextOptions
+) => parseCharDeskText(source, options).plainText;

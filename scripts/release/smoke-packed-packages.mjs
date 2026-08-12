@@ -20,7 +20,7 @@ for (const tarball of [protocolTarball, fontsTarball]) {
 }
 
 const temporaryDirectory = fs.mkdtempSync(
-  path.join(os.tmpdir(), "ascii-canvas-package-smoke-")
+  path.join(os.tmpdir(), "chardesk-package-smoke-")
 );
 const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
 
@@ -44,19 +44,19 @@ try {
 
   const smokeTest = `
     import fs from "node:fs";
-    import { ASCII_CANVAS_FONT_PROFILE } from "@ascii-canvas/fonts";
-    import { parseAsciiCanvasText } from "@ascii-canvas/protocol";
+    import { CHARDESK_FONT_PROFILE } from "@chardesk/fonts";
+    import { parseCharDeskText } from "@chardesk/protocol";
 
-    const parsed = parseAsciiCanvasText("A界");
+    const parsed = parseCharDeskText("A界");
     if (parsed.width !== 3 || parsed.cells.length !== 2) {
       throw new Error("Protocol package returned an unexpected Unicode cell layout");
     }
-    if (!ASCII_CANVAS_FONT_PROFILE?.families?.text) {
+    if (!CHARDESK_FONT_PROFILE?.families?.text) {
       throw new Error("Fonts package did not export its renderer profile");
     }
     for (const relativePath of [
-      "node_modules/@ascii-canvas/fonts/fonts.css",
-      "node_modules/@ascii-canvas/fonts/manifest.json",
+      "node_modules/@chardesk/fonts/fonts.css",
+      "node_modules/@chardesk/fonts/manifest.json",
     ]) {
       if (!fs.existsSync(new URL(relativePath, import.meta.url))) {
         throw new Error(\`Missing published font asset: \${relativePath}\`);

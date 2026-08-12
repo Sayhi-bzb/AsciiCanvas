@@ -37,17 +37,22 @@ jobs:
       - name: Verify unified release version
         run: node scripts/release/verify-release-version.mjs "$GITHUB_REF_NAME"
 
-      - name: Check package versions are unpublished
+      - name: Check package publication status
+        id: package-status
         env:
           RELEASE_VERSION: ${{ github.ref_name }}
         run: |
           version="${RELEASE_VERSION#v}"
-          for package_name in @ascii-canvas/protocol @ascii-canvas/fonts; do
-            if npm view "$package_name@$version" version >/dev/null 2>&1; then
-              echo "Package version already exists: $package_name@$version" >&2
-              exit 1
-            fi
-          done
+          if npm view "@chardesk/protocol@$version" version >/dev/null 2>&1; then
+            echo "protocol_published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "protocol_published=false" >> "$GITHUB_OUTPUT"
+          fi
+          if npm view "@chardesk/fonts@$version" version >/dev/null 2>&1; then
+            echo "fonts_published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "fonts_published=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Lint
         run: npm run lint
@@ -70,26 +75,32 @@ jobs:
       - name: Pack release assets
         run: |
           mkdir release-assets
-          npm pack --workspace @ascii-canvas/protocol --pack-destination release-assets
-          npm pack --workspace @ascii-canvas/fonts --pack-destination release-assets
+          npm pack --workspace @chardesk/protocol --pack-destination release-assets
+          npm pack --workspace @chardesk/fonts --pack-destination release-assets
 
       - name: Smoke test packed packages
         run: >-
           node scripts/release/smoke-packed-packages.mjs
-          release-assets/ascii-canvas-protocol-${GITHUB_REF_NAME#v}.tgz
-          release-assets/ascii-canvas-fonts-${GITHUB_REF_NAME#v}.tgz
+          release-assets/chardesk-protocol-${GITHUB_REF_NAME#v}.tgz
+          release-assets/chardesk-fonts-${GITHUB_REF_NAME#v}.tgz
 
       - name: Publish protocol to npm
-        run: npm publish --workspace @ascii-canvas/protocol --access public --provenance
+        if: steps.package-status.outputs.protocol_published != 'true'
+        run: npm publish --workspace @chardesk/protocol --access public --provenance
 
       - name: Publish fonts to npm
-        run: npm publish --workspace @ascii-canvas/fonts --access public --provenance
+        if: steps.package-status.outputs.fonts_published != 'true'
+        run: npm publish --workspace @chardesk/fonts --access public --provenance
 
       - name: Create GitHub Release
-        run: >-
-          gh release create "$GITHUB_REF_NAME" release-assets/*.tgz
-          --verify-tag
-          --generate-notes
-          --title "$GITHUB_REF_NAME"
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" release-assets/*.tgz --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" release-assets/*.tgz \
+              --verify-tag \
+              --generate-notes \
+              --title "$GITHUB_REF_NAME"
+          fi
         env:
           GH_TOKEN: ${{ github.token }}

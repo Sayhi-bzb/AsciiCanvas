@@ -1,7 +1,7 @@
 export {
-  ASCII_CANVAS_TEXT_PROTOCOL_VERSION,
-  parseAsciiCanvasText,
-  stripAsciiCanvasAnsi,
+  CHARDESK_TEXT_PROTOCOL_VERSION,
+  parseCharDeskText,
+  stripCharDeskAnsi,
 } from "./parser.js";
 export {
   getGraphemeCellWidth,
@@ -10,12 +10,12 @@ export {
   UNICODE_DATA_VERSION,
 } from "./graphemes.js";
 export type {
-  AsciiCanvasTextAttributes,
-  AsciiCanvasTextCell,
-  AsciiCanvasTextDiagnostic,
-  AsciiCanvasTextDiagnosticCode,
-  AsciiCanvasTextStyle,
-  AsciiCanvasTextSyntax,
-  ParseAsciiCanvasTextOptions,
-  ParsedAsciiCanvasText,
+  CharDeskTextAttributes,
+  CharDeskTextCell,
+  CharDeskTextDiagnostic,
+  CharDeskTextDiagnosticCode,
+  CharDeskTextStyle,
+  CharDeskTextSyntax,
+  ParseCharDeskTextOptions,
+  ParsedCharDeskText,
 } from "./types.js";
