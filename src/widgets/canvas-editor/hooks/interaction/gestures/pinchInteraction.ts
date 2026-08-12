@@ -1,87 +1,86 @@
+import type { CanvasViewportState } from "@/domains/canvas/public";
 import type { Point } from "@/shared/types";
-import { resolveZoomAnchoredOffset } from "../core/coordinates";
+
+export type CanvasPinchStart = {
+  viewport: CanvasViewportState;
+  anchor: Point;
+};
 
 type CanvasPinchDecision =
   | {
-      type: "zoom";
-      currentZoom: number;
-      nextZoom: number;
-      anchor: Point;
-      shouldAnchorOffset: boolean;
+      type: "viewport";
+      viewport: CanvasViewportState;
     }
   | { type: "none" };
 
+const pointsEqual = (a: Point, b: Point) => a.x === b.x && a.y === b.y;
+
 export const resolveCanvasPinchDecision = ({
-  pinchStartZoom,
+  pinchStart,
   scale,
-  currentZoom,
-  anchor,
+  currentViewport,
+  currentAnchor,
   zoomBounds,
 }: {
-  pinchStartZoom: number;
+  pinchStart: CanvasPinchStart;
   scale: number;
-  currentZoom: number;
-  anchor: Point;
+  currentViewport: CanvasViewportState;
+  currentAnchor: Point;
   zoomBounds: { min: number; max: number };
 }): CanvasPinchDecision => {
+  if (pinchStart.viewport.zoom <= 0 || !Number.isFinite(scale) || scale <= 0) {
+    return { type: "none" };
+  }
+
   const nextZoom = Math.max(
     zoomBounds.min,
-    Math.min(zoomBounds.max, pinchStartZoom * scale)
+    Math.min(zoomBounds.max, pinchStart.viewport.zoom * scale)
   );
-
-  if (nextZoom === currentZoom) return { type: "none" };
-
-  return {
-    type: "zoom",
-    currentZoom,
-    nextZoom,
-    anchor,
-    shouldAnchorOffset: true,
+  const worldAnchor = {
+    x:
+      (pinchStart.anchor.x - pinchStart.viewport.offset.x) /
+      pinchStart.viewport.zoom,
+    y:
+      (pinchStart.anchor.y - pinchStart.viewport.offset.y) /
+      pinchStart.viewport.zoom,
   };
+  const nextViewport = {
+    offset: {
+      x: currentAnchor.x - worldAnchor.x * nextZoom,
+      y: currentAnchor.y - worldAnchor.y * nextZoom,
+    },
+    zoom: nextZoom,
+  };
+
+  return nextViewport.zoom === currentViewport.zoom &&
+    pointsEqual(nextViewport.offset, currentViewport.offset)
+    ? { type: "none" }
+    : { type: "viewport", viewport: nextViewport };
 };
 
 type CanvasPinchExecutor = {
-  setZoom: (updater: (currentZoom: number) => number) => void;
-  setOffset: (updater: (previousOffset: Point) => Point) => void;
+  setViewport: (
+    updater: (currentViewport: CanvasViewportState) => CanvasViewportState
+  ) => void;
 };
 
 export const createCanvasPinchExecutor = ({
-  setZoom,
-  setOffset,
-}: CanvasPinchExecutor): CanvasPinchExecutor => ({
-  setZoom,
-  setOffset,
-});
+  setViewport,
+}: CanvasPinchExecutor): CanvasPinchExecutor => ({ setViewport });
 
 export const executeCanvasPinchDecision = (
   decision: CanvasPinchDecision,
   executor: CanvasPinchExecutor
 ): void => {
   if (decision.type === "none") return;
-
-  executor.setZoom(() => decision.nextZoom);
-  if (!decision.shouldAnchorOffset) return;
-
-  executor.setOffset((previousOffset) =>
-    resolveZoomAnchoredOffset({
-      anchor: decision.anchor,
-      previousOffset,
-      currentZoom: decision.currentZoom,
-      nextZoom: decision.nextZoom,
-    })
-  );
+  executor.setViewport(() => decision.viewport);
 };
-type CanvasPinchHandler = ({
-  pinchStartZoom,
-  scale,
-  currentZoom,
-  anchor,
-  zoomBounds,
-}: {
-  pinchStartZoom: number;
+
+type CanvasPinchHandler = (input: {
+  pinchStart: CanvasPinchStart;
   scale: number;
-  currentZoom: number;
-  anchor: Point;
+  currentViewport: CanvasViewportState;
+  currentAnchor: Point;
   zoomBounds: { min: number; max: number };
 }) => void;
 
@@ -89,35 +88,13 @@ export const createCanvasPinchHandler = ({
   executor,
 }: {
   executor: CanvasPinchExecutor;
-}): CanvasPinchHandler => ({
-  pinchStartZoom,
-  scale,
-  currentZoom,
-  anchor,
-  zoomBounds,
-}) =>
-  executeCanvasPinchDecision(
-    resolveCanvasPinchDecision({
-      pinchStartZoom,
-      scale,
-      currentZoom,
-      anchor,
-      zoomBounds,
-    }),
-    executor
-  );
-export type CanvasPinchRouteHandler = ({
-  pinchStartZoom,
-  scale,
-  currentZoom,
-  origin,
-  zoomBounds,
-  preventDefault,
-  resolveAnchor,
-}: {
-  pinchStartZoom: number;
+}): CanvasPinchHandler => (input) =>
+  executeCanvasPinchDecision(resolveCanvasPinchDecision(input), executor);
+
+export type CanvasPinchRouteHandler = (input: {
+  pinchStart: CanvasPinchStart;
   scale: number;
-  currentZoom: number;
+  currentViewport: CanvasViewportState;
   origin: Point;
   zoomBounds: { min: number; max: number };
   preventDefault: () => void;
@@ -130,23 +107,23 @@ export const createCanvasPinchRouteHandler = ({
   handler: CanvasPinchHandler;
 }): CanvasPinchRouteHandler =>
   ({
-    pinchStartZoom,
+    pinchStart,
     scale,
-    currentZoom,
+    currentViewport,
     origin,
     zoomBounds,
     preventDefault,
     resolveAnchor,
   }) => {
     preventDefault();
-    const anchor = resolveAnchor(origin);
-    if (!anchor) return;
+    const currentAnchor = resolveAnchor(origin);
+    if (!currentAnchor) return;
 
     handler({
-      pinchStartZoom,
+      pinchStart,
       scale,
-      currentZoom,
-      anchor,
+      currentViewport,
+      currentAnchor,
       zoomBounds,
     });
   };

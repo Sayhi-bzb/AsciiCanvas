@@ -41,6 +41,12 @@ Apply these rules when writing or editing docs.
 - `package.json` owns scripts, dependencies, and local commands.
 - Do not restate facts already owned by a manifest, specification, source, or test. Link to the owner when navigation is useful.
 
+# Architecture Navigation
+
+- [Ownership and dependency direction](docs/architecture/ownership.md)
+- [Agent navigation benchmark](docs/architecture/agent-navigation.md)
+- Treat the ownership map as the authority for business responsibility; confirm implementation details in the linked source and tests.
+
 # Frontend Host Rules
 
 - [Core host icon controls](docs/host/icon-controls.md)

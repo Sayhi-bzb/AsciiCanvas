@@ -1,6 +1,6 @@
 import type { StateCreator } from "zustand";
 import type { EditorState, TextSlice } from "../interfaces";
-import { runCanvasTransaction, yMainGrid } from "../yjs";
+import { runCanvasTransaction, yMainGrid } from "../canvasDocument";
 import { GridManager } from "@/shared/utils/grid";
 import { collapseGridSelectionTo, getStaticGridViewState } from "@/domains/selection/public";
 import { placeCharInYMap, placeStyledCellInYMap } from "../utils";

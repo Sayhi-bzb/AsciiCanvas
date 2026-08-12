@@ -3,7 +3,7 @@ import {
   setActiveCanvasIntegrityIssue,
   yMainGrid,
   yStructuredScene,
-} from "../yjs";
+} from "../canvasDocument";
 import type { GridCell } from "@/shared/types";
 import type { StructuredNode } from "@/domains/structured-content/public";
 import { normalizeScene } from "@/domains/structured-content/public";

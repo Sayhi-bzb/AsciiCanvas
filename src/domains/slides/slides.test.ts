@@ -1,24 +1,26 @@
 import { describe, expect, it } from "vitest";
 import type { GridCell } from "@/shared/types";
 import {
-  DEFAULT_SLIDE_SIZE,
-  SLIDE_SIZE_PRESETS,
   activateSlide,
   addSlide,
   createSlideDeck,
   duplicateSlide,
   getSlideResizeCropCount,
-  isSlideCellInBounds,
-  isSlidePointInBounds,
   moveSlide,
-  normalizeSlideDeck,
-  normalizeSlideGridEntries,
   removeSlide,
   renameSlide,
   resizeSlide,
   resolveNextSlideName,
   updateSlideGrid,
-} from "./public";
+} from "./deck";
+import {
+  isSlideCellInBounds,
+  isSlidePointInBounds,
+  isValidSlideDimension,
+  normalizeSlideGridEntries,
+} from "./grid";
+import { DEFAULT_SLIDE_SIZE, SLIDE_SIZE_PRESETS } from "./model";
+import { normalizeSlideDeck } from "./normalize";
 
 const createDeck = () => createSlideDeck({ initialSlideId: "slide-1" });
 
@@ -51,6 +53,8 @@ describe("slide deck model", () => {
         size: { columns: 0, rows: 24 },
       })
     ).toThrow("positive integer columns and rows");
+    expect(isValidSlideDimension(Number.MAX_SAFE_INTEGER)).toBe(true);
+    expect(isValidSlideDimension(Number.MAX_SAFE_INTEGER + 1)).toBe(false);
   });
 
   it("adds after the active slide, activates it, and resolves names", () => {

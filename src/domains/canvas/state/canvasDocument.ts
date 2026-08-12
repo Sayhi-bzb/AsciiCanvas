@@ -291,6 +291,50 @@ export const forceHistorySave = () => {
   activeDocument.undoManager.stopCapturing();
 };
 
+export type CanvasHistoryCheckpoint = {
+  commit: () => void;
+  cancel: () => void;
+};
+
+/**
+ * Creates a rollback boundary for an imperative canvas interaction.
+ * Only local changes captured after the boundary are reverted on cancel.
+ */
+export const beginCanvasHistoryCheckpoint = (): CanvasHistoryCheckpoint => {
+  const canvasDocument = activeDocument;
+  const manager = canvasDocument.undoManager;
+  manager.stopCapturing();
+  const undoDepth = manager.undoStack.length;
+  let settled = false;
+
+  const finish = () => {
+    manager.stopCapturing();
+    if (canvasDocument === activeDocument) emitHistoryAvailability();
+  };
+
+  return {
+    commit: () => {
+      if (settled) return;
+      settled = true;
+      finish();
+    },
+    cancel: () => {
+      if (settled) return;
+      settled = true;
+      manager.stopCapturing();
+      let rolledBack = false;
+      while (manager.undoStack.length > undoDepth) {
+        if (!manager.undo()) break;
+        rolledBack = true;
+      }
+      // Undoing a canceled interaction creates redo items. They are an
+      // implementation detail of rollback and must not become user history.
+      if (rolledBack) manager.clear(false, true);
+      finish();
+    },
+  };
+};
+
 export type CanvasHistoryMode = "save" | "merge" | "none" | "reset";
 
 const normalizeCanvasHistoryMode = (

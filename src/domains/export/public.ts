@@ -6,7 +6,7 @@ export type { ExportContext, ExportFormat } from "./core/types";
 export { deliverExportClipboard, deliverExportDownload } from "./platform/browserDelivery";
 export {
   buildProtocolExportDocument,
-} from "./formats/protocol";
+} from "./formats/protocolExport";
 export {
   exportSelectionToAnsi,
   exportSelectionToJSON,

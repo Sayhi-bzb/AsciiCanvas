@@ -37,6 +37,7 @@ function InteractionHarnessContent() {
       setCanvasColorPickerTarget: state.setCanvasColorPickerTarget,
       setOffset: state.setOffset,
       setZoom: state.setZoom,
+      setViewport: state.setViewport,
       canvasMode: state.canvasMode,
       addScratchPoints: state.addScratchPoints,
       commitScratch: state.commitScratch,

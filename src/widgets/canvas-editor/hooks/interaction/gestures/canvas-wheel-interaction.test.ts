@@ -4,6 +4,7 @@ import {
   createCanvasWheelHandler,
   createCanvasWheelRouteHandler,
   executeCanvasWheelDecision,
+  getCanvasWheelOrigin,
   resolveCanvasWheelDecision,
   type CanvasWheelExecutor,
 } from "@/widgets/canvas-editor/hooks/interaction/gestures/wheelInteraction";
@@ -16,6 +17,12 @@ const createExecutor = (): CanvasWheelExecutor => ({
 });
 
 describe("canvas wheel interaction", () => {
+  it("reads the zoom origin from the native wheel client coordinates", () => {
+    expect(
+      getCanvasWheelOrigin({ clientX: 640, clientY: 360 } as WheelEvent)
+    ).toEqual({ x: 640, y: 360 });
+  });
+
   it("routes ctrl/meta wheels to anchored zoom", () => {
     expect(
       resolveCanvasWheelDecision({

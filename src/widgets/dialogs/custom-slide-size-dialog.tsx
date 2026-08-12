@@ -1,7 +1,11 @@
 "use client";
 
 import { useState, type RefObject } from "react";
-import type { SlideSize } from "@/domains/slides/public";
+import {
+  isValidSlideDimension,
+  isValidSlideSize,
+  type SlideSize,
+} from "@/domains/slides/public";
 import { useUiI18n } from "@/shared/i18n";
 import { Button } from "@/shared/ui/button";
 import {
@@ -21,8 +25,7 @@ const DEFAULT_ROWS = "27";
 
 const parseDimension = (value: string) => {
   if (!/^\d+$/.test(value)) return null;
-  const parsed = Number(value);
-  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
+  return Number(value);
 };
 
 type CustomSlideSizeDialogProps = {
@@ -51,7 +54,12 @@ export function CustomSlideSizeDialog({
   );
   const parsedColumns = parseDimension(columns);
   const parsedRows = parseDimension(rows);
-  const isValid = parsedColumns !== null && parsedRows !== null;
+  const columnsValid = parsedColumns !== null && isValidSlideDimension(parsedColumns);
+  const rowsValid = parsedRows !== null && isValidSlideDimension(parsedRows);
+  const isValid =
+    columnsValid &&
+    rowsValid &&
+    isValidSlideSize({ columns: parsedColumns, rows: parsedRows });
   const hasInvalidValue = columns.length === 0 || rows.length === 0 || !isValid;
 
   return (
@@ -99,7 +107,7 @@ export function CustomSlideSizeDialog({
                   min={1}
                   step={1}
                   value={columns}
-                  aria-invalid={parsedColumns === null}
+                  aria-invalid={!columnsValid}
                   aria-describedby={hasInvalidValue ? "custom-slide-size-error" : undefined}
                   autoFocus
                   onChange={(event) => setColumns(event.target.value)}
@@ -116,7 +124,7 @@ export function CustomSlideSizeDialog({
                   min={1}
                   step={1}
                   value={rows}
-                  aria-invalid={parsedRows === null}
+                  aria-invalid={!rowsValid}
                   aria-describedby={hasInvalidValue ? "custom-slide-size-error" : undefined}
                   onChange={(event) => setRows(event.target.value)}
                 />

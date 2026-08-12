@@ -7,7 +7,7 @@ import type { GridAddress, GridEditMode, GridRange, GridSelectionState } from "@
 import type { StructuredSplitBoxHandle } from "@/domains/structured-content/public";
 import type { CanvasSession } from "@/domains/sessions/public";
 import type { SessionCommands } from "@/domains/sessions/public";
-import type { CanvasHistoryMode } from "./yjs";
+import type { CanvasHistoryMode } from "./canvasDocument";
 import type { SlideDeck, SlideSize } from "@/domains/slides/public";
 
 export type CanvasColorPickerTarget = "char" | "bg";
@@ -159,6 +159,11 @@ export interface SelectionSlice {
   expandSelection: (dx: number, dy: number) => void;
 }
 
+export type CanvasViewportState = {
+  offset: Point;
+  zoom: number;
+};
+
 export type EditorState = {
   offset: Point;
   zoom: number;
@@ -189,6 +194,7 @@ export type EditorState = {
 
   setOffset: (updater: (prev: Point) => Point) => void;
   setZoom: (updater: (prev: number) => number) => void;
+  setViewport: (updater: (prev: CanvasViewportState) => CanvasViewportState) => void;
   setTool: (tool: ToolType) => void;
   applyStructuredScene: (
     scene: StructuredNode[],

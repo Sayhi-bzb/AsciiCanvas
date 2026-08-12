@@ -6,17 +6,11 @@ import {
   yStructuredScene,
   yStructuredComponents,
   activateCanvasDocument,
-  initializeCollaborativeCanvasDocument,
-  observeActiveGrid,
-  observeActiveScene,
-  observeActiveComponents,
   runCanvasTransaction,
   getCanvasHistoryAvailability,
-  getActiveCanvasIntegrityIssues,
-  setActiveCanvasIntegrityIssue,
   subscribeCanvasHistoryAvailability,
   applyYMapValueDiff,
-} from "./yjs";
+} from "./canvasDocument";
 import type { EditorState } from "./interfaces";
 import {
   EDITOR_PERSISTENCE_KEY,
@@ -26,11 +20,8 @@ import {
   flattenPersistedEditorState,
   isPersistedEditorStateV5,
   migratePersistedStateToV5,
-  type CanvasSession,
+  withActiveCanvasSnapshot,
 } from "@/domains/sessions/public";
-import type { GridMap, Point } from "@/shared/types";
-import type { StructuredNode } from "@/domains/structured-content/public";
-import { normalizeBrushChar } from "@/shared/utils/characters";
 import {
   createDrawingSlice,
   createTextSlice,
@@ -39,404 +30,36 @@ import {
   createStaticGridSlice,
   createSlideSlice,
 } from "./slices";
-import { sceneToGridEntries } from "@/domains/structured-content/public";
+import { applyFreeformSnapshotToYMaps } from "./helpers/gridHelpers";
 import {
-  getStructuredTextCaretPoint,
-  getStructuredTextOffsetAtPoint,
-  normalizeStructuredTextSelection,
-} from "@/domains/structured-content/public";
-import { splitGraphemes } from "@/shared/metrics";
-import {
-  rebuildGridFromYMap,
-  rebuildSceneFromYMap,
-  patchGridByChangedKeys,
-  applyFreeformSnapshotToYMaps,
-} from "./helpers/gridHelpers";
-import { withActiveCanvasSnapshot, normalizeSessionMode } from "@/domains/sessions/public";
-import {
-  cloneScene,
-  normalizeAndCloneScene,
   createMapFromEntries,
+  normalizeAndCloneScene,
   normalizeGridEntries,
-  toStructuredNode,
 } from "./helpers/snapshotHelpers";
 import {
   deriveStructuredComponentsFromScene,
   normalizeStructuredComponents,
+  sceneToGridEntries,
 } from "@/domains/structured-content/public";
-import { isCollaborationDescriptor } from "@/domains/collaboration/public";
-import { collaborationRuntime } from "@/domains/collaboration/public";
-import { decodeCollaborativeStructuredComponent } from "./collaborationSchema";
+import { normalizeBrushChar } from "@/shared/utils/characters";
+import { subscribeRemoteCanvasDocumentProjection } from "./canvasDocumentProjection";
+import {
+  createDefaultCanvasSessions,
+  createPersistedEditorSnapshot,
+  recoverPersistedEditorState,
+  shouldScheduleEditorPersistence,
+  syncHydratedStateToCanvasDocument,
+} from "./editorPersistence";
 
 export type { EditorState };
 
 import {
   DEFAULT_SESSION_ID,
-  DEFAULT_SESSION_NAME,
-  DEFAULT_STRUCTURED_SESSION_ID,
-  DEFAULT_STRUCTURED_SESSION_NAME,
   DEFAULT_MODE,
   isToolAllowedForMode,
-  buildSessionSnapshot,
-  resolveSessionRuntime,
-  normalizeSessionViewport,
-  getSessionCanvasDocumentId,
 } from "./helpers/storeUtils";
 import { DEFAULT_DEMO_GRID } from "./helpers/defaultDemo";
-import { buildStructuredTemplate } from "@/domains/structured-content/public";
-import { normalizeSlideDeck, updateSlideGrid } from "@/domains/slides/public";
 import { createDeferredSnapshotPersistStorage } from "./persistenceCoordinator";
-
-const DEFAULT_STRUCTURED_SAFARI_TEMPLATE = buildStructuredTemplate(
-  "safari",
-  { x: 4, y: 2 },
-  {
-    brushColor: COLOR_PRIMARY_TEXT,
-    startOrder: 1,
-  }
-);
-const DEFAULT_STRUCTURED_SAFARI_GRID = sceneToGridEntries(DEFAULT_STRUCTURED_SAFARI_TEMPLATE.nodes);
-
-const createDefaultCanvasSessions = (): CanvasSession[] => [
-  {
-    id: DEFAULT_SESSION_ID,
-    name: DEFAULT_SESSION_NAME,
-    mode: DEFAULT_MODE,
-    scene: [],
-    grid: DEFAULT_DEMO_GRID,
-  },
-  {
-    id: DEFAULT_STRUCTURED_SESSION_ID,
-    name: DEFAULT_STRUCTURED_SESSION_NAME,
-    mode: "structured",
-    scene: DEFAULT_STRUCTURED_SAFARI_TEMPLATE.nodes,
-    components: DEFAULT_STRUCTURED_SAFARI_TEMPLATE.components,
-    grid: DEFAULT_STRUCTURED_SAFARI_GRID,
-  },
-];
-
-type RecoverableEditorState = EditorState & {
-  canvasSessions?: unknown;
-  activeCanvasId?: unknown;
-  canvasMode?: unknown;
-  structuredScene?: unknown;
-  structuredComponents?: unknown;
-  slideDeck?: unknown;
-};
-
-const recoverPersistedEditorState = (
-  hydratedState: EditorState,
-  hasPersistedState: boolean
-): EditorState => {
-  const hState = { ...hydratedState } as RecoverableEditorState;
-  hState.brushChar = normalizeBrushChar(hState.brushChar, DEFAULT_BRUSH_CHAR);
-  hState.brushColor =
-    typeof hState.brushColor === "string" ? hState.brushColor : COLOR_PRIMARY_TEXT;
-  hState.showGrid = typeof hState.showGrid === "boolean" ? hState.showGrid : true;
-  hState.exportShowGrid =
-    typeof hState.exportShowGrid === "boolean" ? hState.exportShowGrid : false;
-
-  const legacyGridEntries = normalizeGridEntries(hState.grid);
-  const legacyViewport = normalizeSessionViewport({
-    offset: hState.offset as Point,
-    zoom: hState.zoom,
-  });
-  const legacyMode = normalizeSessionMode(hState.canvasMode);
-  const legacyScene = Array.isArray(hState.structuredScene)
-    ? (hState.structuredScene
-        .map((item) => toStructuredNode(item))
-        .filter((item): item is StructuredNode => !!item) as StructuredNode[])
-    : [];
-  const legacyComponents = Array.isArray(hState.structuredComponents)
-    ? normalizeStructuredComponents(hState.structuredComponents as never, legacyScene)
-    : normalizeStructuredComponents(undefined, legacyScene);
-
-  const recoveredSessions: CanvasSession[] = Array.isArray(hState.canvasSessions)
-    ? hState.canvasSessions
-        .map((raw): CanvasSession | null => {
-          if (!raw || typeof raw !== "object") return null;
-          const maybe = raw as Partial<CanvasSession> & {
-            mode?: unknown;
-            scene?: unknown;
-            components?: unknown;
-          };
-          if (typeof maybe.id !== "string") return null;
-          if ((raw as { mode?: unknown }).mode === "animation") return null;
-          const mode = normalizeSessionMode(maybe.mode);
-          const viewport = normalizeSessionViewport(maybe.viewport);
-          if (mode === "slide") {
-            return {
-              id: maybe.id,
-              name: typeof maybe.name === "string" && maybe.name.trim() ? maybe.name : "Slides",
-              mode: "slide",
-              slideDeck: normalizeSlideDeck(
-                (raw as { slideDeck?: unknown }).slideDeck,
-                `${maybe.id}-slide-1`
-              ),
-              scene: [],
-              components: [],
-              grid: [],
-              ...(viewport ? { viewport } : {}),
-            };
-          }
-          const scene = Array.isArray(maybe.scene)
-            ? maybe.scene
-                .map((item) => toStructuredNode(item))
-                .filter((item): item is StructuredNode => !!item)
-            : [];
-          const components = Array.isArray(maybe.components)
-            ? normalizeStructuredComponents(maybe.components as never, scene)
-            : normalizeStructuredComponents(undefined, scene);
-          const collaboration = isCollaborationDescriptor(maybe.collaboration)
-            ? maybe.collaboration
-            : undefined;
-
-          return {
-            id: maybe.id,
-            name: typeof maybe.name === "string" && maybe.name.trim() ? maybe.name : "Canvas",
-            mode,
-            scene: normalizeAndCloneScene(scene),
-            components,
-            grid: normalizeGridEntries(maybe.grid),
-            ...(viewport ? { viewport } : {}),
-            ...(collaboration ? { collaboration } : {}),
-          } satisfies CanvasSession;
-        })
-        .filter((session): session is CanvasSession => session !== null)
-    : [];
-
-  const sessions =
-    recoveredSessions.length > 0
-      ? recoveredSessions
-      : !hasPersistedState
-        ? createDefaultCanvasSessions()
-        : [
-            {
-              id: DEFAULT_SESSION_ID,
-              name: DEFAULT_SESSION_NAME,
-              mode: legacyMode === "slide" ? "freeform" : legacyMode,
-              scene: normalizeAndCloneScene(legacyScene),
-              components: legacyComponents,
-              grid:
-                !hasPersistedState && legacyGridEntries.length === 0
-                  ? DEFAULT_DEMO_GRID
-                  : legacyGridEntries,
-              ...(legacyViewport ? { viewport: legacyViewport } : {}),
-            },
-          ];
-
-  const activeCanvasId =
-    typeof hState.activeCanvasId === "string" &&
-    sessions.some((session) => session.id === hState.activeCanvasId)
-      ? hState.activeCanvasId
-      : sessions[0].id;
-
-  const sessionsWithActiveViewport = sessions.map((session) =>
-    session.id === activeCanvasId && !session.viewport && legacyViewport
-      ? { ...session, viewport: legacyViewport }
-      : session
-  );
-  const activeSession =
-    sessionsWithActiveViewport.find((session) => session.id === activeCanvasId) ??
-    sessionsWithActiveViewport[0];
-  const currentTool = hState.tool || "select";
-  const runtime = resolveSessionRuntime(activeSession, currentTool);
-
-  hState.canvasSessions = sessionsWithActiveViewport;
-  hState.activeCanvasId = activeCanvasId;
-  hState.canvasMode = runtime.nextMode;
-  hState.slideDeck = runtime.nextSlideDeck;
-  hState.structuredScene = runtime.nextScene;
-  hState.structuredComponents = runtime.nextComponents;
-  hState.selectedStructuredNodeIds = [];
-  hState.selectedStructuredBoxId = null;
-  hState.selectedStructuredSplitHandle = null;
-  hState.structuredContextPoint = null;
-  hState.grid = createMapFromEntries(runtime.nextGridEntries);
-  hState.tool = runtime.nextTool;
-  hState.offset = runtime.nextOffset;
-  hState.zoom = runtime.nextZoom;
-  hState.activeCanvasHasSavedViewport = runtime.hasSavedViewport;
-
-  return hState as EditorState;
-};
-
-const syncHydratedStateToYMaps = (hydratedState: EditorState) => {
-  const activeSession = hydratedState.canvasSessions.find(
-    (session) => session.id === hydratedState.activeCanvasId
-  );
-  if (!activeSession) return;
-  if (activeSession.mode !== "slide" && activeSession.collaboration) {
-    initializeCollaborativeCanvasDocument(activeSession.id);
-    return;
-  }
-  activateCanvasDocument(
-    getSessionCanvasDocumentId(activeSession, hydratedState.slideDeck),
-    {
-      grid: Array.from(hydratedState.grid.entries()),
-      scene: hydratedState.canvasMode === "structured" ? hydratedState.structuredScene : [],
-      components: hydratedState.structuredComponents,
-    },
-    { replace: true }
-  );
-};
-
-const stripCollaborativeSessionContent = (session: CanvasSession): CanvasSession =>
-  session.mode !== "slide" && session.collaboration
-    ? { ...session, grid: [], scene: [], components: [] }
-    : session;
-
-export const createPersistedEditorSnapshot = (state: EditorState) => {
-  const activeSnapshot = buildSessionSnapshot(state);
-  const activeSession = state.canvasSessions.find(
-    (session) => session.id === state.activeCanvasId
-  );
-  const activeIsCollaborative =
-    activeSession?.mode !== "slide" && !!activeSession?.collaboration;
-  const persistedSessions = withActiveCanvasSnapshot(
-    state.canvasSessions,
-    state.activeCanvasId,
-    activeSnapshot
-  ).map(stripCollaborativeSessionContent);
-  return {
-    schemaVersion: EDITOR_PERSISTENCE_VERSION,
-    workspace: {
-      offset: state.offset,
-      zoom: state.zoom,
-      canvasMode: state.canvasMode,
-      structuredScene: activeIsCollaborative ? [] : cloneScene(state.structuredScene),
-      structuredComponents: activeIsCollaborative
-        ? []
-        : normalizeStructuredComponents(
-            state.structuredComponents,
-            state.structuredScene
-          ),
-      grid: activeIsCollaborative
-        ? []
-        : state.canvasMode === "structured"
-          ? sceneToGridEntries(state.structuredScene)
-          : Array.from(state.grid.entries()),
-    },
-    sessions: {
-      items: persistedSessions,
-      activeId: state.activeCanvasId,
-    },
-    preferences: {
-      brushChar: state.brushChar,
-      brushColor: state.brushColor,
-      showGrid: state.showGrid,
-      exportShowGrid: state.exportShowGrid,
-    },
-  };
-};
-
-const shouldScheduleEditorPersistence = (
-  previous: EditorState | null,
-  next: EditorState
-): boolean =>
-  !previous ||
-  previous.offset !== next.offset ||
-  previous.zoom !== next.zoom ||
-  previous.grid !== next.grid ||
-  previous.canvasMode !== next.canvasMode ||
-  previous.slideDeck !== next.slideDeck ||
-  previous.structuredScene !== next.structuredScene ||
-  previous.structuredComponents !== next.structuredComponents ||
-  previous.canvasSessions !== next.canvasSessions ||
-  previous.activeCanvasId !== next.activeCanvasId ||
-  previous.brushChar !== next.brushChar ||
-  previous.brushColor !== next.brushColor ||
-  previous.showGrid !== next.showGrid ||
-  previous.exportShowGrid !== next.exportShowGrid;
-
-const reconcileStructuredInteraction = (state: EditorState, structuredScene: StructuredNode[]) => {
-  const byId = new Map(structuredScene.map((node) => [node.id, node]));
-  const selectedStructuredNodeIds = state.selectedStructuredNodeIds.filter((id) => byId.has(id));
-  const selectedBox = state.selectedStructuredBoxId
-    ? byId.get(state.selectedStructuredBoxId)
-    : null;
-  const selectedSplit = state.selectedStructuredSplitHandle
-    ? byId.get(state.selectedStructuredSplitHandle.nodeId)
-    : null;
-  const editingNode = state.editingStructuredTextNodeId
-    ? byId.get(state.editingStructuredTextNodeId)
-    : null;
-
-  const structuredTextSelection =
-    state.structuredTextSelection && byId.get(state.structuredTextSelection.nodeId)?.type === "text"
-      ? normalizeStructuredTextSelection(
-          state.structuredTextSelection,
-          splitGraphemes(
-            (
-              byId.get(state.structuredTextSelection.nodeId) as Extract<
-                StructuredNode,
-                { type: "text" }
-              >
-            ).text
-          ).length
-        )
-      : null;
-
-  let textCursor = state.textCursor;
-  if (state.editingStructuredTextNodeId && editingNode?.type !== "text") {
-    textCursor = null;
-  } else if (
-    editingNode?.type === "text" &&
-    state.textCursor &&
-    state.editingStructuredTextNodeId
-  ) {
-    const previousNode = state.structuredScene.find(
-      (node) => node.id === state.editingStructuredTextNodeId && node.type === "text"
-    );
-    if (previousNode?.type === "text") {
-      const offset = Math.min(
-        getStructuredTextOffsetAtPoint(previousNode, state.textCursor),
-        splitGraphemes(editingNode.text).length
-      );
-      textCursor = getStructuredTextCaretPoint(editingNode, offset);
-    }
-  }
-
-  return {
-    selectedStructuredNodeIds,
-    selectedStructuredBoxId: selectedBox?.type === "box" ? selectedBox.id : null,
-    selectedStructuredSplitHandle:
-      selectedSplit?.type === "splitBox" ? state.selectedStructuredSplitHandle : null,
-    structuredContextPoint:
-      selectedStructuredNodeIds.length === 1 ? state.structuredContextPoint : null,
-    editingStructuredTextNodeId: editingNode?.type === "text" ? editingNode.id : null,
-    structuredTextSelection,
-    textCursor,
-  };
-};
-
-const syncObservedGrid = (state: EditorState, grid: GridMap) => {
-  if (state.canvasMode === "slide" && state.slideDeck) {
-    const slideDeck = updateSlideGrid(
-      state.slideDeck,
-      state.slideDeck.activeSlideId,
-      Array.from(grid.entries())
-    );
-    const activeSlide = slideDeck.slides.find((slide) => slide.id === slideDeck.activeSlideId);
-    return {
-      grid: createMapFromEntries(activeSlide?.grid ?? []),
-      slideDeck,
-      canvasSessions: state.canvasSessions.map((session): CanvasSession =>
-        session.id === state.activeCanvasId && session.mode === "slide"
-          ? { ...session, slideDeck }
-          : session
-      ),
-    };
-  }
-  return {
-    grid,
-    canvasSessions: state.canvasSessions.map((session): CanvasSession =>
-      session.id === state.activeCanvasId && session.mode !== "slide"
-        ? { ...session, grid: Array.from(grid.entries()) }
-        : session
-    ),
-  };
-};
 
 export const useEditorStore = create<EditorState>()(
   persist(
@@ -449,81 +72,7 @@ export const useEditorStore = create<EditorState>()(
         applyFreeformSnapshotToYMaps(DEFAULT_DEMO_GRID);
       }
 
-      observeActiveGrid((event) => {
-        if (get().canvasMode === "structured") return;
-        const currentGrid = get().grid;
-        const patchedGrid = patchGridByChangedKeys(currentGrid, event.keysChanged);
-        if (patchedGrid) {
-          set((state) => syncObservedGrid(state, patchedGrid));
-          collaborationRuntime.reportIntegrityIssues(getActiveCanvasIntegrityIssues());
-          return;
-        }
-
-        if (event.keysChanged.size === 0 && yMainGrid.size !== currentGrid.size) {
-          const grid = rebuildGridFromYMap();
-          set((state) => syncObservedGrid(state, grid));
-        }
-        collaborationRuntime.reportIntegrityIssues(getActiveCanvasIntegrityIssues());
-      });
-
-      observeActiveScene((event) => {
-        event.keysChanged.forEach((key) => {
-          if (!yStructuredScene.has(key)) {
-            setActiveCanvasIntegrityIssue("structured-scene", key, null);
-          }
-        });
-        set((state) => {
-          if (state.canvasMode !== "structured") return state;
-          const structuredScene = rebuildSceneFromYMap();
-          const gridEntries = sceneToGridEntries(structuredScene);
-          return {
-            structuredScene,
-            grid: createMapFromEntries(gridEntries),
-            ...reconcileStructuredInteraction(state, structuredScene),
-            structuredComponents: normalizeStructuredComponents(
-              state.structuredComponents,
-              structuredScene
-            ),
-            canvasSessions: state.canvasSessions.map((session) =>
-              session.id === state.activeCanvasId && session.mode !== "slide"
-                ? { ...session, scene: structuredScene, grid: gridEntries }
-                : session
-            ),
-          };
-        });
-        collaborationRuntime.reportIntegrityIssues(getActiveCanvasIntegrityIssues());
-      });
-
-      observeActiveComponents((event) => {
-        event.keysChanged.forEach((key) => {
-          if (!yStructuredComponents.has(key)) {
-            setActiveCanvasIntegrityIssue("structured-components", key, null);
-          }
-        });
-        set((state) => {
-          if (state.canvasMode !== "structured") return state;
-          const structuredComponents = Array.from(yStructuredComponents.entries()).flatMap(
-            ([key, value]) => {
-              const decoded = decodeCollaborativeStructuredComponent(key, value);
-              setActiveCanvasIntegrityIssue(
-                "structured-components",
-                key,
-                decoded.ok ? null : decoded.issue
-              );
-              return decoded.ok ? [decoded.value] : [];
-            }
-          );
-          return {
-            structuredComponents,
-            canvasSessions: state.canvasSessions.map((session) =>
-              session.id === state.activeCanvasId && session.mode !== "slide"
-                ? { ...session, components: structuredComponents }
-                : session
-            ),
-          };
-        });
-        collaborationRuntime.reportIntegrityIssues(getActiveCanvasIntegrityIssues());
-      });
+      subscribeRemoteCanvasDocumentProjection(set, get);
 
       subscribeCanvasHistoryAvailability((availability) => set(availability));
 
@@ -556,6 +105,14 @@ export const useEditorStore = create<EditorState>()(
           set((state) => ({
             zoom: Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, updater(state.zoom))),
           })),
+        setViewport: (updater) =>
+          set((state) => {
+            const viewport = updater({ offset: state.offset, zoom: state.zoom });
+            return {
+              offset: viewport.offset,
+              zoom: Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, viewport.zoom)),
+            };
+          }),
         setTool: (tool) =>
           set((state) => {
             if (!isToolAllowedForMode(tool, state.canvasMode)) return state;
@@ -719,7 +276,7 @@ export const useEditorStore = create<EditorState>()(
       },
       onRehydrateStorage: () => (hydratedState, error) => {
         if (error || !hydratedState) return;
-        syncHydratedStateToYMaps(hydratedState);
+        syncHydratedStateToCanvasDocument(hydratedState);
       },
     }
   )

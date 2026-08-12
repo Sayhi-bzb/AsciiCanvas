@@ -1,12 +1,12 @@
 import { buildProtocolDocumentFromCanvasState } from "@/domains/document/public";
 import type { AsciiCanvasDocumentV1 } from "@/domains/document/public";
-import { COLOR_PRIMARY_TEXT } from "@/shared/lib/constants";
-import type { GridMap } from "@/shared/types";
 import type { CanvasMode } from "@/domains/sessions/public";
 import type {
   StructuredComponentInstance,
   StructuredNode,
 } from "@/domains/structured-content/public";
+import { COLOR_PRIMARY_TEXT } from "@/shared/lib/constants";
+import type { GridMap } from "@/shared/types";
 
 const MONOCHROME_EXPORT_COLOR = COLOR_PRIMARY_TEXT;
 

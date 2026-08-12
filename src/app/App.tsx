@@ -35,6 +35,7 @@ import { RemotePresenceOverlay } from "@/widgets/collaboration/RemotePresenceOve
 import { useCollaborationSnapshot } from "@/widgets/collaboration/useCollaborationSnapshot";
 import { sameCollaborationRoom } from "@/domains/collaboration/public";
 import { OnboardingTourProvider } from "@/widgets/onboarding/new-user-tour";
+import { CanvasEngineProvider } from "@/widgets/canvas-editor/engine/useCanvasEngineRuntime";
 
 const SidebarRight = lazy(() =>
   import("@/widgets/toolbar/sidebar-right").then((module) => ({
@@ -278,7 +279,9 @@ export default function App() {
     <ShortcutProvider>
       <TooltipProvider>
         <OnboardingTourProvider>
-          <AppContent />
+          <CanvasEngineProvider>
+            <AppContent />
+          </CanvasEngineProvider>
         </OnboardingTourProvider>
       </TooltipProvider>
     </ShortcutProvider>

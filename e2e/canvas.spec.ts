@@ -119,6 +119,53 @@ test.describe('Canvas', () => {
     await page.mouse.up({ button: 'middle' });
   });
 
+  test('keeps the world point under an off-center wheel zoom anchor', async ({ page }) => {
+    const surface = page.getByTestId('ascii-canvas-surface');
+    const surfaceBox = await surface.boundingBox();
+    expect(surfaceBox).not.toBeNull();
+
+    await expect.poll(
+      () => readPersistedState(page),
+      { message: 'canvas viewport should be persisted before zooming' },
+    ).not.toBeNull();
+    const before = await readPersistedState(page);
+    expect(before).not.toBeNull();
+
+    const clientAnchor = {
+      x: Math.round(surfaceBox!.x + surfaceBox!.width * 0.78),
+      y: Math.round(surfaceBox!.y + surfaceBox!.height * 0.31),
+    };
+    const anchor = {
+      x: clientAnchor.x - surfaceBox!.x,
+      y: clientAnchor.y - surfaceBox!.y,
+    };
+    const worldBefore = {
+      x: (anchor.x - before!.offset.x) / before!.zoom,
+      y: (anchor.y - before!.offset.y) / before!.zoom,
+    };
+
+    await surface.dispatchEvent('wheel', {
+      bubbles: true,
+      cancelable: true,
+      clientX: clientAnchor.x,
+      clientY: clientAnchor.y,
+      ctrlKey: true,
+      deltaY: -120,
+    });
+
+    await expect.poll(async () => (await readPersistedState(page))?.zoom)
+      .not.toBe(before!.zoom);
+    const after = await readPersistedState(page);
+    expect(after).not.toBeNull();
+
+    const worldAfter = {
+      x: (anchor.x - after!.offset.x) / after!.zoom,
+      y: (anchor.y - after!.offset.y) / after!.zoom,
+    };
+    expect(worldAfter.x).toBeCloseTo(worldBefore.x, 5);
+    expect(worldAfter.y).toBeCloseTo(worldBefore.y, 5);
+  });
+
   test('does not render a red origin marker', async ({ page }) => {
     const offset = { x: 220, y: 180 };
 

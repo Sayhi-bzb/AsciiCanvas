@@ -4,11 +4,11 @@ import { cloneTextAttributes } from "@/shared/utils/ansi";
 import { GridManager } from "@/shared/utils/grid";
 import type { SlideGridEntry, SlideSize } from "./model";
 
+export const isValidSlideDimension = (value: number) =>
+  Number.isSafeInteger(value) && value > 0;
+
 export const isValidSlideSize = (size: SlideSize) =>
-  Number.isInteger(size.columns) &&
-  size.columns > 0 &&
-  Number.isInteger(size.rows) &&
-  size.rows > 0;
+  isValidSlideDimension(size.columns) && isValidSlideDimension(size.rows);
 
 export const isSlidePointInBounds = (point: Point, size: SlideSize) =>
   Number.isInteger(point.x) &&

@@ -1,0 +1,59 @@
+import { afterEach, describe, expect, it } from "vitest";
+import * as Y from "yjs";
+import { useEditorStore } from "./editorStore";
+import {
+  activateCanvasDocument,
+  getCanvasDocument,
+  runCanvasTransaction,
+} from "./canvasDocument";
+
+const initialState = useEditorStore.getState();
+const cell = (char: string) => ({ char, color: "#000000" });
+
+describe("remote canvas document projection", () => {
+  afterEach(() => {
+    useEditorStore.setState(initialState, true);
+    activateCanvasDocument(
+      initialState.activeCanvasId,
+      {
+        grid: Array.from(initialState.grid.entries()),
+        scene: initialState.structuredScene,
+        components: initialState.structuredComponents,
+      },
+      { replace: true }
+    );
+  });
+
+  it("preserves remote grid content when the local client makes its next edit", () => {
+    const sessionId = `projection-${crypto.randomUUID()}`;
+    useEditorStore.setState({
+      activeCanvasId: sessionId,
+      canvasMode: "freeform",
+      grid: new Map(),
+      canvasSessions: [
+        {
+          id: sessionId,
+          name: "Projection",
+          mode: "freeform",
+          grid: [],
+          scene: [],
+          components: [],
+        },
+      ],
+    });
+    activateCanvasDocument(sessionId, { grid: [], scene: [], components: [] });
+    const local = getCanvasDocument(sessionId)!;
+    const remote = new Y.Doc();
+    remote.getMap("main-grid").set("0,0", cell("R"));
+    remote.getMap("main-grid").set("1,0", cell("S"));
+
+    Y.applyUpdate(local.doc, Y.encodeStateAsUpdate(remote));
+    runCanvasTransaction(() => local.grid.set("2,0", cell("L")));
+
+    expect(Object.fromEntries(useEditorStore.getState().grid)).toEqual({
+      "0,0": cell("R"),
+      "1,0": cell("S"),
+      "2,0": cell("L"),
+    });
+  });
+});

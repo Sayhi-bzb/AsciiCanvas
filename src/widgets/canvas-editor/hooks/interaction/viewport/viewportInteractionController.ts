@@ -1,4 +1,5 @@
 import type { Point } from "@/shared/types";
+import type { CanvasViewportState } from "@/domains/canvas/public";
 import {
   resolveClampedZoom,
   resolveZoomAnchoredOffset,
@@ -10,7 +11,9 @@ type RafScheduler = {
 };
 
 type OffsetSetter = (updater: (previous: Point) => Point) => void;
-type ZoomSetter = (updater: (currentZoom: number) => number) => void;
+type ViewportSetter = (
+  updater: (currentViewport: CanvasViewportState) => CanvasViewportState
+) => void;
 
 const getDefaultRafScheduler = (): RafScheduler => ({
   requestAnimationFrame: (callback) => window.requestAnimationFrame(callback),
@@ -27,24 +30,21 @@ type ViewportInteractionController = {
 
 export const createViewportInteractionController = ({
   setOffset,
-  setZoom,
+  setViewport,
   zoomBounds,
   scheduler = getDefaultRafScheduler(),
 }: {
   setOffset: OffsetSetter;
-  setZoom: ZoomSetter;
+  setViewport: ViewportSetter;
   zoomBounds: { min: number; max: number };
   scheduler?: RafScheduler;
 }): ViewportInteractionController => {
   let queuedOffset: Point = { x: 0, y: 0 };
   let queuedOffsetRaf: number | null = null;
-  let queuedZoom:
-    | {
-        deltaZoom: number;
-        mouseX: number;
-        mouseY: number;
-      }
-    | null = null;
+  let queuedZoom: Array<{
+    deltaZoom: number;
+    anchor: Point;
+  }> = [];
   let queuedZoomRaf: number | null = null;
 
   const flushOffset = () => {
@@ -79,26 +79,28 @@ export const createViewportInteractionController = ({
       scheduler.cancelAnimationFrame(queuedZoomRaf);
       queuedZoomRaf = null;
     }
-    const queued = queuedZoom;
-    if (!queued) return;
-    queuedZoom = null;
+    const samples = queuedZoom;
+    if (samples.length === 0) return;
+    queuedZoom = [];
 
-    setZoom((currentZoom) => {
-      const nextZoom = resolveClampedZoom(currentZoom, queued.deltaZoom, {
-        min: zoomBounds.min,
-        max: zoomBounds.max,
-      });
-      if (nextZoom === currentZoom) return currentZoom;
-      setOffset((previous) =>
-        resolveZoomAnchoredOffset({
-          anchor: { x: queued.mouseX, y: queued.mouseY },
-          previousOffset: previous,
-          currentZoom,
-          nextZoom,
-        })
-      );
-      return nextZoom;
-    });
+    setViewport((currentViewport) =>
+      samples.reduce<CanvasViewportState>((viewport, sample) => {
+        const nextZoom = resolveClampedZoom(viewport.zoom, sample.deltaZoom, {
+          min: zoomBounds.min,
+          max: zoomBounds.max,
+        });
+        if (nextZoom === viewport.zoom) return viewport;
+        return {
+          offset: resolveZoomAnchoredOffset({
+            anchor: sample.anchor,
+            previousOffset: viewport.offset,
+            currentZoom: viewport.zoom,
+            nextZoom,
+          }),
+          zoom: nextZoom,
+        };
+      }, currentViewport)
+    );
   };
 
   const queueZoomDelta = (
@@ -107,13 +109,7 @@ export const createViewportInteractionController = ({
     mouseY: number
   ) => {
     if (deltaZoom <= 0 || deltaZoom === 1) return;
-    queuedZoom = queuedZoom
-      ? {
-          deltaZoom: queuedZoom.deltaZoom * deltaZoom,
-          mouseX,
-          mouseY,
-        }
-      : { deltaZoom, mouseX, mouseY };
+    queuedZoom.push({ deltaZoom, anchor: { x: mouseX, y: mouseY } });
     if (queuedZoomRaf !== null) return;
     queuedZoomRaf = scheduler.requestAnimationFrame(() => {
       queuedZoomRaf = null;
@@ -130,6 +126,8 @@ export const createViewportInteractionController = ({
       scheduler.cancelAnimationFrame(queuedZoomRaf);
       queuedZoomRaf = null;
     }
+    queuedOffset = { x: 0, y: 0 };
+    queuedZoom = [];
   };
 
   return {

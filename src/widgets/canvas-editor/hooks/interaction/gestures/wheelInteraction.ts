@@ -12,6 +12,10 @@ type CanvasWheelDecision =
     }
   | { type: "none" };
 
+export const getCanvasWheelOrigin = (
+  event: Pick<WheelEvent, "clientX" | "clientY">
+): Point => ({ x: event.clientX, y: event.clientY });
+
 export const resolveCanvasWheelDecision = ({
   isCtrlOrMetaPressed,
   deltaX,

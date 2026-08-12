@@ -1,6 +1,6 @@
 import type { StateCreator } from "zustand";
 import type { EditorState, SelectionSlice } from "../interfaces";
-import { runCanvasTransaction, yMainGrid } from "../yjs";
+import { runCanvasTransaction, yMainGrid } from "../canvasDocument";
 import { GridManager } from "@/shared/utils/grid";
 import { getSelectionBounds } from "@/shared/utils/selection";
 import { placeCharInYMap } from "../utils";

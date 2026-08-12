@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import type { CanvasViewportState } from "@/domains/canvas/public";
 import { createViewportInteractionController } from "@/widgets/canvas-editor/hooks/interaction/viewport/viewportInteractionController";
 import type { Point } from "@/shared/types";
 
@@ -30,7 +31,7 @@ describe("viewport interaction controller", () => {
       setOffset: (updater) => {
         offset = updater(offset);
       },
-      setZoom: () => {},
+      setViewport: () => {},
       zoomBounds: { min: 0.25, max: 4 },
       scheduler,
     });
@@ -53,7 +54,7 @@ describe("viewport interaction controller", () => {
       setOffset: (updater) => {
         offset = updater(offset);
       },
-      setZoom: () => {},
+      setViewport: () => {},
       zoomBounds: { min: 0.25, max: 4 },
       scheduler,
     });
@@ -66,14 +67,35 @@ describe("viewport interaction controller", () => {
     expect(offset).toEqual({ x: 4, y: 6 });
   });
 
+  it("applies queued zoom samples in order with one atomic viewport update", () => {
+    const scheduler = createScheduler();
+    let viewport: CanvasViewportState = { offset: { x: 0, y: 0 }, zoom: 1 };
+    const setViewport = vi.fn(
+      (updater: (current: CanvasViewportState) => CanvasViewportState) => {
+        viewport = updater(viewport);
+      }
+    );
+    const controller = createViewportInteractionController({
+      setOffset: () => {},
+      setViewport,
+      zoomBounds: { min: 0.25, max: 4 },
+      scheduler,
+    });
+
+    controller.queueZoomDelta(2, 100, 100);
+    controller.queueZoomDelta(0.5, 200, 100);
+    scheduler.flush();
+
+    expect(setViewport).toHaveBeenCalledTimes(1);
+    expect(viewport).toEqual({ offset: { x: 50, y: 0 }, zoom: 1 });
+  });
 
   it("ignores no-op and invalid zoom deltas", () => {
     const scheduler = createScheduler();
+    const setViewport = vi.fn();
     const controller = createViewportInteractionController({
       setOffset: () => {},
-      setZoom: () => {
-        throw new Error("setZoom should not be called");
-      },
+      setViewport,
       zoomBounds: { min: 0.25, max: 4 },
       scheduler,
     });
@@ -82,5 +104,28 @@ describe("viewport interaction controller", () => {
     controller.queueZoomDelta(0, 0, 0);
 
     expect(scheduler.requestAnimationFrame).not.toHaveBeenCalled();
+    expect(setViewport).not.toHaveBeenCalled();
+  });
+
+  it("drops pending camera input when canceled", () => {
+    const scheduler = createScheduler();
+    const setOffset = vi.fn();
+    const setViewport = vi.fn();
+    const controller = createViewportInteractionController({
+      setOffset,
+      setViewport,
+      zoomBounds: { min: 0.25, max: 4 },
+      scheduler,
+    });
+
+    controller.queueOffsetDelta(5, 6);
+    controller.queueZoomDelta(1.2, 100, 100);
+    controller.cancel();
+    scheduler.flush();
+    controller.flushOffset();
+    controller.flushZoom();
+
+    expect(setOffset).not.toHaveBeenCalled();
+    expect(setViewport).not.toHaveBeenCalled();
   });
 });

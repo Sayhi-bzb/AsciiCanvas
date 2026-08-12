@@ -1,6 +1,6 @@
 'use client';
 
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useEditorStore } from '@/domains/canvas/public';
 import { runSidebarAction } from '@/domains/actions/public';
@@ -12,7 +12,7 @@ import { uiClass } from '@/shared/styles/components';
 import { Button } from '@/shared/ui/button';
 import { useUiI18n } from '@/shared/i18n';
 import { feedback } from '@/shared/services/effects';
-import { createViewportInteractionController } from '@/widgets/canvas-editor/hooks/interaction/viewport/viewportInteractionController';
+import { useCanvasEngineRuntime } from '@/widgets/canvas-editor/engine/useCanvasEngineRuntime';
 import { SlidePlaybackOverlay } from './slide-playback';
 
 const ZOOM_STEP = 1.2;
@@ -36,6 +36,7 @@ type ZoomControlProps = {
 export function ZoomControl({ containerSize }: ZoomControlProps) {
   const isMobile = useIsMobile();
   const { t } = useUiI18n();
+  const runtime = useCanvasEngineRuntime();
   const { zoom, canvasMode, slideDeck, showGrid, setShowGrid, setOffset, setZoom } = useEditorStore(
     useShallow((state) => ({
       zoom: state.zoom,
@@ -51,30 +52,9 @@ export function ZoomControl({ containerSize }: ZoomControlProps) {
   const [playbackOpen, setPlaybackOpen] = useState(false);
   const ownsFullscreenRef = useRef(false);
 
-  const zoomAnimationRef = useRef<{
-    frameId: number;
-    targetZoom: number;
-  } | null>(null);
-
-  const viewportInteraction = useMemo(
-    () =>
-      createViewportInteractionController({
-        setOffset,
-        setZoom,
-        zoomBounds: { min: MIN_ZOOM, max: MAX_ZOOM },
-      }),
-    [setOffset, setZoom]
-  );
-
   useEffect(
-    () => () => {
-      if (zoomAnimationRef.current) {
-        window.cancelAnimationFrame(zoomAnimationRef.current.frameId);
-        zoomAnimationRef.current = null;
-      }
-      viewportInteraction.cancel();
-    },
-    [viewportInteraction]
+    () => () => runtime.camera.cancelAnimation(),
+    [runtime]
   );
 
   const exitPlayback = useCallback(() => {
@@ -124,64 +104,23 @@ export function ZoomControl({ containerSize }: ZoomControlProps) {
   const animateZoomTo = useCallback(
     (requestedZoom: number) => {
       if (!containerSize) return;
-
-      if (zoomAnimationRef.current) {
-        window.cancelAnimationFrame(zoomAnimationRef.current.frameId);
-        zoomAnimationRef.current = null;
-      }
-
-      const startZoom = useEditorStore.getState().zoom;
       const targetZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, requestedZoom));
-      if (Math.abs(targetZoom - startZoom) <= ZOOM_EPSILON) return;
-
-      const applyZoom = (nextZoom: number) => {
-        const currentZoom = useEditorStore.getState().zoom;
-        if (Math.abs(nextZoom - currentZoom) <= ZOOM_EPSILON) return;
-        viewportInteraction.queueZoomDelta(
-          nextZoom / currentZoom,
-          containerSize.width / 2,
-          containerSize.height / 2
-        );
-        viewportInteraction.flushZoom();
-      };
-
-      if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
-        applyZoom(targetZoom);
-        return;
-      }
-
-      const startedAt = performance.now();
-      const tick = (timestamp: number) => {
-        const progress = Math.min(
-          1,
-          Math.max(0, (timestamp - startedAt) / ZOOM_ANIMATION_DURATION_MS)
-        );
-        const easedProgress =
-          progress < 0.5
-            ? 4 * progress * progress * progress
-            : 1 - Math.pow(-2 * progress + 2, 3) / 2;
-        applyZoom(startZoom + (targetZoom - startZoom) * easedProgress);
-
-        if (progress < 1) {
-          const frameId = window.requestAnimationFrame(tick);
-          zoomAnimationRef.current = { frameId, targetZoom };
-        } else {
-          zoomAnimationRef.current = null;
-        }
-      };
-
-      const frameId = window.requestAnimationFrame(tick);
-      zoomAnimationRef.current = { frameId, targetZoom };
+      if (Math.abs(targetZoom - runtime.camera.getViewport().zoom) <= ZOOM_EPSILON) return;
+      runtime.camera.animateZoomTo(
+        targetZoom,
+        { x: containerSize.width / 2, y: containerSize.height / 2 },
+        { duration: ZOOM_ANIMATION_DURATION_MS }
+      );
     },
-    [containerSize, viewportInteraction]
+    [containerSize, runtime]
   );
 
   const applyZoomDelta = useCallback(
     (deltaZoom: number) => {
-      const baseZoom = zoomAnimationRef.current?.targetZoom ?? useEditorStore.getState().zoom;
+      const baseZoom = runtime.camera.getTargetViewport().zoom;
       animateZoomTo(baseZoom * deltaZoom);
     },
-    [animateZoomTo]
+    [animateZoomTo, runtime]
   );
 
   const percentage = Math.round(zoom * 100);

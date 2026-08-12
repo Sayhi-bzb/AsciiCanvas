@@ -3,7 +3,6 @@
 import {
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
@@ -14,11 +13,9 @@ import { useShallow } from "zustand/react/shallow";
 import { useEditorStore } from "@/domains/canvas/public";
 import { useUiI18n } from "@/shared/i18n";
 import { cn } from "@/shared/lib/utils";
-import { MAX_ZOOM, MIN_ZOOM } from "@/shared/lib/constants";
 import type { Point } from "@/shared/types";
 import { resolveCanvasWheelDecision } from "./hooks/interaction/gestures/wheelInteraction";
-import { createViewportInteractionController } from "./hooks/interaction/viewport/viewportInteractionController";
-import { createMinimapCameraAnimator } from "./minimap/cameraAnimation";
+import { useCanvasEngineRuntime } from "./engine/useCanvasEngineRuntime";
 import {
   cameraCenterToOffset,
   expandMinimapRect,
@@ -56,34 +53,13 @@ export const Minimap = ({
   const [isDraggingViewport, setIsDraggingViewport] = useState(false);
   const { resolvedTheme } = useTheme();
   const { t } = useUiI18n();
-  const {
-    grid,
-    offset,
-    zoom,
-    setOffset,
-    setZoom,
-  } = useEditorStore(
+  const runtime = useCanvasEngineRuntime();
+  const { grid, offset, zoom } = useEditorStore(
     useShallow((state) => ({
       grid: state.grid,
       offset: state.offset,
       zoom: state.zoom,
-      setOffset: state.setOffset,
-      setZoom: state.setZoom,
     }))
-  );
-
-  const cameraAnimator = useMemo(
-    () => createMinimapCameraAnimator({ setOffset }),
-    [setOffset]
-  );
-  const viewportInteraction = useMemo(
-    () =>
-      createViewportInteractionController({
-        setOffset,
-        setZoom,
-        zoomBounds: { min: MIN_ZOOM, max: MAX_ZOOM },
-      }),
-    [setOffset, setZoom]
   );
 
   const removeDragEndListeners = useCallback(() => {
@@ -135,11 +111,8 @@ export const Minimap = ({
   }, [endPointerSession]);
 
   useEffect(
-    () => () => {
-      cameraAnimator.cancel();
-      viewportInteraction.cancel();
-    },
-    [cameraAnimator, viewportInteraction]
+    () => () => runtime.camera.cancelAnimation(),
+    [runtime]
   );
 
   useEffect(() => {
@@ -175,12 +148,15 @@ export const Minimap = ({
       if (!containerSize) return;
       const target = cameraCenterToOffset(center, zoom, containerSize);
       if (animated) {
-        cameraAnimator.animateTo(target, CAMERA_ANIMATION_MS);
+        runtime.camera.animateTo(
+          { offset: target, zoom },
+          { duration: CAMERA_ANIMATION_MS }
+        );
       } else {
-        cameraAnimator.jumpTo(target);
+        runtime.camera.setViewport({ offset: target, zoom });
       }
     },
-    [cameraAnimator, containerSize, zoom]
+    [containerSize, runtime, zoom]
   );
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
@@ -317,20 +293,12 @@ export const Minimap = ({
 
     event.preventDefault();
     event.stopPropagation();
-    cameraAnimator.cancel();
     if (decision.type === "pan") {
-      viewportInteraction.queueOffsetDelta(
-        decision.delta.x,
-        decision.delta.y
-      );
+      runtime.camera.queuePan(decision.delta.x, decision.delta.y);
       return;
     }
-    viewportInteraction.flushOffset();
-    viewportInteraction.queueZoomDelta(
-      decision.deltaZoom,
-      decision.anchor.x,
-      decision.anchor.y
-    );
+    runtime.camera.flushPan();
+    runtime.camera.queueZoomAt(decision.deltaZoom, decision.anchor);
   };
 
   const cursorClass = isDraggingViewport

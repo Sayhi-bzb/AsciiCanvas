@@ -1,6 +1,6 @@
 import type { StateCreator } from "zustand";
 import type { EditorState, DrawingSlice } from "../interfaces";
-import { runCanvasTransaction, yMainGrid } from "../yjs";
+import { runCanvasTransaction, yMainGrid } from "../canvasDocument";
 import { GridManager } from "@/shared/utils/grid";
 import type { GridPoint } from "@/shared/types";
 import type { StructuredBoxNode, StructuredNode } from "@/domains/structured-content/public";
@@ -545,4 +545,3 @@ export const createDrawingSlice: StateCreator<
     return duplicatedIds;
   },
 });
-

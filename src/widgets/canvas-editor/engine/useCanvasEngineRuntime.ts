@@ -1,8 +1,27 @@
-import { useEffect, useState } from "react";
+import {
+  createContext,
+  createElement,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
 import { CanvasEngineRuntime } from "./CanvasEngineRuntime";
 
-export const useCanvasEngineRuntime = (): CanvasEngineRuntime => {
+const CanvasEngineContext = createContext<CanvasEngineRuntime | null>(null);
+
+export const CanvasEngineProvider = ({ children }: { children: ReactNode }) => {
   const [runtime] = useState(() => new CanvasEngineRuntime());
   useEffect(() => runtime.acquire(), [runtime]);
-  return runtime;
+  return createElement(CanvasEngineContext.Provider, { value: runtime }, children);
+};
+
+export const useCanvasEngineRuntime = (): CanvasEngineRuntime => {
+  const provided = useContext(CanvasEngineContext);
+  const [fallback] = useState(() => provided ?? new CanvasEngineRuntime());
+  useEffect(() => {
+    if (provided) return;
+    return fallback.acquire();
+  }, [fallback, provided]);
+  return provided ?? fallback;
 };

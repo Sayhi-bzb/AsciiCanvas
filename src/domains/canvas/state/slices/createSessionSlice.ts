@@ -27,7 +27,7 @@ import {
   destroyCanvasDocument,
   getCanvasDocumentSeed,
   prepareCanvasDocumentForCollaboration,
-} from "../yjs";
+} from "../canvasDocument";
 import { sameCollaborationRoom } from "@/domains/collaboration/public";
 
 const getImportedSessionBaseName = (mode: CanvasImportSnapshot["mode"]) => {

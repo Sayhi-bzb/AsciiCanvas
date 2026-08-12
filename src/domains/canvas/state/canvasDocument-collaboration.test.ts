@@ -3,11 +3,12 @@ import * as Y from "yjs";
 import {
   activateCanvasDocument,
   applyYMapValueDiff,
+  beginCanvasHistoryCheckpoint,
   getCanvasDocument,
   getCanvasHistoryAvailability,
   runCanvasTransaction,
   undoManager,
-} from "./yjs";
+} from "./canvasDocument";
 
 const cell = (char: string) => ({ char, color: "#000000" });
 
@@ -83,6 +84,48 @@ describe("canvas CRDT collaboration", () => {
     undoManager.undo();
     expect(local.grid.has("0,0")).toBe(false);
     expect(local.grid.get("1,0")).toEqual(cell("R"));
+  });
+
+  it("rolls back only local changes created after a history checkpoint", () => {
+    const id = `interaction-cancel-${crypto.randomUUID()}`;
+    activateCanvasDocument(id, { grid: [], scene: [] });
+    const local = getCanvasDocument(id)!;
+    const remote = new Y.Doc();
+
+    runCanvasTransaction(() => local.grid.set("0,0", cell("B")));
+    const checkpoint = beginCanvasHistoryCheckpoint();
+    runCanvasTransaction(
+      () => local.grid.set("1,0", cell("L")),
+      "merge"
+    );
+    Y.applyUpdate(remote, Y.encodeStateAsUpdate(local.doc));
+    remote.getMap("main-grid").set("2,0", cell("R"));
+    Y.applyUpdate(local.doc, Y.encodeStateAsUpdate(remote));
+
+    checkpoint.cancel();
+
+    expect(local.grid.get("0,0")).toEqual(cell("B"));
+    expect(local.grid.has("1,0")).toBe(false);
+    expect(local.grid.get("2,0")).toEqual(cell("R"));
+    expect(getCanvasHistoryAvailability()).toEqual({
+      canUndo: true,
+      canRedo: false,
+    });
+  });
+
+  it("commits checkpoint changes as one undo step", () => {
+    const id = `interaction-commit-${crypto.randomUUID()}`;
+    activateCanvasDocument(id, { grid: [], scene: [] });
+    const local = getCanvasDocument(id)!;
+    const checkpoint = beginCanvasHistoryCheckpoint();
+
+    runCanvasTransaction(() => local.grid.set("0,0", cell("A")), "merge");
+    runCanvasTransaction(() => local.grid.set("1,0", cell("B")), "merge");
+    checkpoint.commit();
+
+    expect(undoManager.undo()).toBe(true);
+    expect(local.grid.size).toBe(0);
+    expect(undoManager.undo()).toBe(false);
   });
 
   it("reports undo and redo availability for the active document", () => {

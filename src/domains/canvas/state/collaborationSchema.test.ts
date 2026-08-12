@@ -10,7 +10,7 @@ import {
   activateCanvasDocument,
   getActiveCanvasIntegrityIssues,
   getCanvasDocument,
-} from "./yjs";
+} from "./canvasDocument";
 
 describe("canvas collaboration schema", () => {
   it("declares durable document channels separately from presence", () => {

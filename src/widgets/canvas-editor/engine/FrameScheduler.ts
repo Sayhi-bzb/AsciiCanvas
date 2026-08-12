@@ -61,6 +61,10 @@ export class CanvasFrameScheduler {
     });
   }
 
+  now(): number {
+    return this.port.now();
+  }
+
   cancel(key: string): void {
     this.callbacks.delete(key);
     if (this.callbacks.size !== 0 || this.frameHandle === null) return;

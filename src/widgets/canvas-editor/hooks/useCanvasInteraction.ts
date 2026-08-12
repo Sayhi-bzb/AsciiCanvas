@@ -80,7 +80,7 @@ export const useCanvasInteraction = (
     | "canvasColorPickerTarget"
     | "setCanvasColorPickerTarget"
     | "setOffset"
-    | "setZoom"
+    | "setViewport"
     | "canvasMode"
     | "addScratchPoints"
     | "commitScratch"
@@ -109,7 +109,7 @@ export const useCanvasInteraction = (
     | "setStructuredTextColor"
     | "applyStructuredScene"
     | "updateStructuredNode"
-  >,
+  > & { activeCanvasId?: EditorState["activeCanvasId"] },
   containerRef: React.RefObject<HTMLDivElement | null>,
   setHoveredLink: (hit: CanvasLinkHit | null) => void,
   structuredMovePreviewRef?: React.MutableRefObject<StructuredMovePreview | null>,
@@ -122,8 +122,7 @@ export const useCanvasInteraction = (
     setBrushColor,
     canvasColorPickerTarget,
     setCanvasColorPickerTarget,
-    setOffset,
-    setZoom,
+    setViewport,
     canvasMode,
     addScratchPoints,
     commitScratch,
@@ -154,9 +153,13 @@ export const useCanvasInteraction = (
   } = store;
 
   const {
+    beginInteraction,
+    cancelInteraction,
     colorPickerClickRef,
+    completeInteraction,
     dispatchInteraction,
     draggingSelection,
+    edgeScroll,
     getInteractionState,
     hoverInteraction,
     interactionRuntime,
@@ -323,8 +326,13 @@ export const useCanvasInteraction = (
     nonPanning: nonPanningDragEndExecutor,
   });
   const canvasPinchExecutor = createCanvasPinchExecutor({
-    setZoom,
-    setOffset,
+    setViewport: (updater) => {
+      if (runtime) {
+        runtime.camera.setViewport(updater(runtime.camera.getViewport()));
+      } else {
+        setViewport(updater);
+      }
+    },
   });
   const canvasPinchHandler = createCanvasPinchHandler({
     executor: canvasPinchExecutor,
@@ -431,12 +439,53 @@ export const useCanvasInteraction = (
   const canvasWheelRouteHandler = createCanvasWheelRouteHandler({
     handler: canvasWheelHandler,
   });
+  const updateEdgeScroll = (clientPoint: { x: number; y: number }) => {
+    if (!edgeScroll) return;
+    const isEnabled = () => {
+      const type = getInteractionState().type;
+      return (
+        type === "selecting" ||
+        type === "structuredMoving" ||
+        type === "structuredRectResizing" ||
+        type === "structuredSplitBoxResizing" ||
+        type === "structuredSplitBoxResizePending" ||
+        type === "structuredLineResizing"
+      );
+    };
+    edgeScroll.update({
+      clientPoint,
+      getBounds: () => containerRef.current?.getBoundingClientRect() ?? null,
+      isEnabled,
+      onCameraMove: () => {
+        if (!isEnabled()) return;
+        const state = getInteractionState();
+        const currentGrid = pointerContext.resolveClampedGridPoint(
+          clientPoint.x,
+          clientPoint.y
+        );
+        if (!currentGrid) return;
+        dragUpdateHandler({
+          state,
+          tool,
+          canvasMode,
+          currentGrid,
+          structuredScene,
+        });
+      },
+    });
+  };
   const bind = useCanvasGestureAdapter({
+    beginInteraction,
+    cancelInteraction,
+    completeInteraction,
+    stopEdgeScroll: () => edgeScroll?.stop(),
+    updateEdgeScroll,
     containerRef,
     canvasMode,
     tool,
     brushChar,
     zoom,
+    offset,
     hasColorPickerTarget: !!canvasColorPickerTarget,
     selectedStructuredNodeIds,
     structuredScene,
@@ -452,7 +501,6 @@ export const useCanvasInteraction = (
     dragUpdateHandler,
     dragEndRouteHandler,
     primaryDragEndHandler,
-    resetDragState,
     canvasClickRouteHandler,
     canvasWheelRouteHandler,
   });

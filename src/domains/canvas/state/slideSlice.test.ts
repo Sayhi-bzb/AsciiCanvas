@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { useEditorStore } from "@/domains/canvas/public";
 import { GridManager } from "@/shared/utils/grid";
-import { runCanvasTransaction, undoManager, yMainGrid } from "./yjs";
+import { runCanvasTransaction, undoManager, yMainGrid } from "./canvasDocument";
 
 const initialState = useEditorStore.getState();
 

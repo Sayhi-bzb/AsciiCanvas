@@ -20,7 +20,7 @@ import {
   activateCanvasDocument,
   destroyCanvasDocument,
   resetCanvasDocument,
-} from "../yjs";
+} from "../canvasDocument";
 
 const syncActiveGrid = (state: EditorState) => {
   if (!state.slideDeck) return null;

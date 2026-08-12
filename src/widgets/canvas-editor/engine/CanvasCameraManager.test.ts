@@ -1,0 +1,91 @@
+import { describe, expect, it, vi } from "vitest";
+import type { CanvasViewportState } from "@/domains/canvas/public";
+import { CanvasCameraManager } from "./CanvasCameraManager";
+import { CanvasFrameScheduler } from "./FrameScheduler";
+
+const createHarness = (
+  initial: CanvasViewportState = { offset: { x: 0, y: 0 }, zoom: 1 }
+) => {
+  let frame: FrameRequestCallback | null = null;
+  let viewport = initial;
+  const scheduler = new CanvasFrameScheduler({
+    requestAnimationFrame: vi.fn((callback) => {
+      frame = callback;
+      return 1;
+    }),
+    cancelAnimationFrame: vi.fn(() => {
+      frame = null;
+    }),
+    now: () => 0,
+  });
+  const camera = new CanvasCameraManager(scheduler, {
+    getViewport: () => viewport,
+    setViewport: (updater) => {
+      viewport = updater(viewport);
+    },
+  });
+  const run = (timestamp: number) => {
+    const callback = frame;
+    frame = null;
+    callback?.(timestamp);
+  };
+  return { camera, getViewport: () => viewport, run };
+};
+
+describe("CanvasCameraManager", () => {
+  it("coalesces queued anchored zoom through the shared frame scheduler", () => {
+    const { camera, getViewport, run } = createHarness();
+
+    camera.queueZoomAt(1.25, { x: 100, y: 80 });
+    camera.queueZoomAt(1.2, { x: 100, y: 80 });
+    expect(getViewport()).toEqual({ offset: { x: 0, y: 0 }, zoom: 1 });
+
+    run(16);
+    expect(getViewport()).toEqual({
+      offset: { x: -50, y: -40 },
+      zoom: 1.5,
+    });
+  });
+
+  it("cancels an animation when a direct gesture changes the camera", () => {
+    const { camera, getViewport, run } = createHarness();
+    camera.animateTo(
+      { offset: { x: 200, y: 100 }, zoom: 2 },
+      { duration: 100 }
+    );
+
+    run(0);
+    camera.panBy(10, 20);
+    run(100);
+
+    expect(getViewport()).toEqual({ offset: { x: 10, y: 20 }, zoom: 1 });
+    expect(camera.getTargetViewport()).toEqual(getViewport());
+  });
+
+  it("finishes animations exactly at the requested viewport", () => {
+    const { camera, getViewport, run } = createHarness();
+    const target = { offset: { x: 120, y: -60 }, zoom: 2 };
+    camera.animateTo(target, { duration: 100, easing: (progress) => progress });
+
+    run(50);
+    expect(getViewport()).toEqual({ offset: { x: 60, y: -30 }, zoom: 1.5 });
+    run(100);
+
+    expect(getViewport()).toEqual(target);
+    expect(camera.getTargetViewport()).toEqual(target);
+  });
+
+  it("fits world bounds into the padded viewport", () => {
+    const { camera, getViewport } = createHarness();
+    camera.fitBounds(
+      { x: 100, y: 50, width: 400, height: 200 },
+      { width: 1000, height: 700 },
+      { padding: 100 }
+    );
+
+    expect(getViewport()).toEqual({
+      offset: { x: -100, y: 50 },
+      zoom: 2,
+    });
+  });
+});

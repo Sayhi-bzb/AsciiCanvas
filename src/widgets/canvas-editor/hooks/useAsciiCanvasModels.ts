@@ -4,6 +4,7 @@ import { useShallow } from "zustand/react/shallow";
 export const useAsciiCanvasModels = () => {
   const interactionStore = useEditorStore(
     useShallow((state) => ({
+      activeCanvasId: state.activeCanvasId,
       tool: state.tool,
       canvasMode: state.canvasMode,
       slideDeck: state.slideDeck,
@@ -14,6 +15,7 @@ export const useAsciiCanvasModels = () => {
       setCanvasColorPickerTarget: state.setCanvasColorPickerTarget,
       setOffset: state.setOffset,
       setZoom: state.setZoom,
+      setViewport: state.setViewport,
       addScratchPoints: state.addScratchPoints,
       commitScratch: state.commitScratch,
       commitStructuredShape: state.commitStructuredShape,
@@ -116,4 +118,3 @@ export const useAsciiCanvasModels = () => {
     editor: editorStore,
   };
 };
-

@@ -1,4 +1,9 @@
 import { CanvasFrameScheduler } from "./FrameScheduler";
+import { useEditorStore } from "@/domains/canvas/public";
+import {
+  CanvasCameraManager,
+  type CanvasCameraPort,
+} from "./CanvasCameraManager";
 
 type CanvasEngineManager = {
   dispose: () => void;
@@ -7,13 +12,24 @@ type CanvasEngineManager = {
 /** Internal lifetime boundary for the imperative canvas engine. */
 export class CanvasEngineRuntime {
   readonly frameScheduler: CanvasFrameScheduler;
+  readonly camera: CanvasCameraManager;
   private readonly managers = new Map<string, CanvasEngineManager>();
   private ownerCount = 0;
   private releaseGeneration = 0;
   private disposed = false;
 
-  constructor(frameScheduler = new CanvasFrameScheduler()) {
+  constructor(
+    frameScheduler = new CanvasFrameScheduler(),
+    cameraPort: CanvasCameraPort = {
+      getViewport: () => {
+        const state = useEditorStore.getState();
+        return { offset: state.offset, zoom: state.zoom };
+      },
+      setViewport: (updater) => useEditorStore.getState().setViewport(updater),
+    }
+  ) {
     this.frameScheduler = frameScheduler;
+    this.camera = new CanvasCameraManager(frameScheduler, cameraPort);
   }
 
   /**
@@ -68,6 +84,7 @@ export class CanvasEngineRuntime {
     this.releaseGeneration += 1;
     [...this.managers.values()].reverse().forEach((manager) => manager.dispose());
     this.managers.clear();
+    this.camera.dispose();
     this.frameScheduler.dispose();
   }
 }

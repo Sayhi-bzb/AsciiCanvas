@@ -17,6 +17,7 @@
     "fonts:verify": "node scripts/fonts/vendor-fonts.mjs --verify",
     "knip": "knip",
     "check-style-api": "node scripts/quality/check-style-api.mjs",
+    "check:agent-navigation": "node scripts/quality/run-agent-navigation-benchmark.mjs",
     "test": "vitest",
     "test:fonts": "npm test -w @chardesk/fonts",
     "test:protocol": "npm test -w @chardesk/protocol",

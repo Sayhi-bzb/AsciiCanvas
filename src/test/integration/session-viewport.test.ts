@@ -52,6 +52,24 @@ describe('canvas session viewport state', () => {
     applyFreeformSnapshotToYMaps([]);
   });
 
+  it('commits offset and zoom as one viewport state transition', () => {
+    const snapshots: Array<{ offset: { x: number; y: number }; zoom: number }> = [];
+    const unsubscribe = useEditorStore.subscribe((state, previous) => {
+      if (state.offset === previous.offset && state.zoom === previous.zoom) return;
+      snapshots.push({ offset: state.offset, zoom: state.zoom });
+    });
+
+    useEditorStore.getState().setViewport(() => ({
+      offset: { x: -80, y: -40 },
+      zoom: 2,
+    }));
+    unsubscribe();
+
+    expect(snapshots).toEqual([
+      { offset: { x: -80, y: -40 }, zoom: 2 },
+    ]);
+  });
+
   it('saves and restores offset and zoom per canvas session', () => {
     const store = useEditorStore.getState();
     store.setOffset(() => ({ x: 10, y: 20 }));

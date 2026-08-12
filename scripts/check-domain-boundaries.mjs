@@ -38,7 +38,7 @@ function describeLocation(sourcePath) {
   return { layer: "app", domain: null };
 }
 
-function validateDependency(sourcePath, targetPath) {
+function validateDependency(sourcePath, targetPath, isTestFile) {
   const source = describeLocation(sourcePath);
   const target = describeLocation(targetPath);
 
@@ -50,6 +50,14 @@ function validateDependency(sourcePath, targetPath) {
   }
   if (source.layer === "widgets" && target.layer === "app") {
     return "widgets may not depend on app";
+  }
+  if (
+    !isTestFile &&
+    source.layer === "domains" &&
+    source.domain === target.domain &&
+    targetPath.split("/")[2] === "public"
+  ) {
+    return "a domain must import its owner source directly, not its own public.ts";
   }
   if (target.layer === "domains" && source.domain !== target.domain) {
     const segments = targetPath.split("/");
@@ -73,6 +81,23 @@ for (const absolutePath of collectSourceFiles(SRC_ROOT)) {
   );
 
   function inspect(node) {
+    const isDomainPublicContract = /^domains\/[^/]+\/public\.[tj]sx?$/.test(sourcePath);
+    if (isDomainPublicContract && ts.isImportDeclaration(node)) {
+      const location = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+      violations.push(
+        `${sourcePath}:${location.line + 1}: public contracts may only re-export; composition belongs in app`
+      );
+    }
+    if (
+      isDomainPublicContract &&
+      ts.isExportDeclaration(node) &&
+      !node.exportClause
+    ) {
+      const location = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+      violations.push(
+        `${sourcePath}:${location.line + 1}: public contracts require explicit named exports`
+      );
+    }
     if (sourcePath.startsWith("shared/")) {
       const isExported = node.modifiers?.some(
         (modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword
@@ -114,7 +139,7 @@ for (const absolutePath of collectSourceFiles(SRC_ROOT)) {
           targets.add(targetLocation.domain);
           domainEdges.set(sourceLocation.domain, targets);
         }
-        const reason = validateDependency(sourcePath, targetPath);
+        const reason = validateDependency(sourcePath, targetPath, isTestFile);
         if (reason) {
           const location = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
           violations.push(`${sourcePath}:${location.line + 1} -> ${specifier}: ${reason}`);

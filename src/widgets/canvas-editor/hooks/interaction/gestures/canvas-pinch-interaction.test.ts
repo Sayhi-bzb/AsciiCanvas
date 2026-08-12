@@ -1,186 +1,187 @@
 import { describe, expect, it, vi } from "vitest";
+import type { CanvasViewportState } from "@/domains/canvas/public";
 import {
   createCanvasPinchExecutor,
   createCanvasPinchHandler,
   createCanvasPinchRouteHandler,
   executeCanvasPinchDecision,
   resolveCanvasPinchDecision,
+  type CanvasPinchStart,
 } from "@/widgets/canvas-editor/hooks/interaction/gestures/pinchInteraction";
-import type { Point } from "@/shared/types";
+
+const pinchStart: CanvasPinchStart = {
+  viewport: { offset: { x: 10, y: 20 }, zoom: 1 },
+  anchor: { x: 100, y: 80 },
+};
 
 describe("canvas pinch interaction", () => {
-  it("resolves clamped pinch zoom from the gesture start zoom", () => {
+  it("keeps the initial world anchor fixed while zooming", () => {
     expect(
       resolveCanvasPinchDecision({
-        pinchStartZoom: 2,
-        scale: 3,
-        currentZoom: 2,
-        anchor: { x: 50, y: 40 },
+        pinchStart,
+        scale: 2,
+        currentViewport: pinchStart.viewport,
+        currentAnchor: pinchStart.anchor,
         zoomBounds: { min: 0.25, max: 4 },
       })
     ).toEqual({
-      type: "zoom",
-      currentZoom: 2,
-      nextZoom: 4,
-      anchor: { x: 50, y: 40 },
-      shouldAnchorOffset: true,
+      type: "viewport",
+      viewport: { offset: { x: -80, y: -40 }, zoom: 2 },
     });
   });
 
-  it("returns none when the pinch would not change zoom", () => {
+  it("pans when the pinch center moves without changing scale", () => {
     expect(
       resolveCanvasPinchDecision({
-        pinchStartZoom: 1,
+        pinchStart,
         scale: 1,
-        currentZoom: 1,
-        anchor: { x: 0, y: 0 },
+        currentViewport: pinchStart.viewport,
+        currentAnchor: { x: 130, y: 120 },
+        zoomBounds: { min: 0.25, max: 4 },
+      })
+    ).toEqual({
+      type: "viewport",
+      viewport: { offset: { x: 40, y: 60 }, zoom: 1 },
+    });
+  });
+
+  it("combines pinch-center movement and zoom without incremental drift", () => {
+    expect(
+      resolveCanvasPinchDecision({
+        pinchStart,
+        scale: 2,
+        currentViewport: pinchStart.viewport,
+        currentAnchor: { x: 130, y: 120 },
+        zoomBounds: { min: 0.25, max: 4 },
+      })
+    ).toEqual({
+      type: "viewport",
+      viewport: { offset: { x: -50, y: 0 }, zoom: 2 },
+    });
+  });
+
+  it("uses the clamped zoom when resolving the anchored offset", () => {
+    expect(
+      resolveCanvasPinchDecision({
+        pinchStart: {
+          viewport: { offset: { x: 0, y: 0 }, zoom: 2 },
+          anchor: { x: 50, y: 40 },
+        },
+        scale: 3,
+        currentViewport: { offset: { x: 0, y: 0 }, zoom: 2 },
+        currentAnchor: { x: 50, y: 40 },
+        zoomBounds: { min: 0.25, max: 4 },
+      })
+    ).toEqual({
+      type: "viewport",
+      viewport: { offset: { x: -50, y: -40 }, zoom: 4 },
+    });
+  });
+
+  it("returns none for an unchanged or invalid pinch", () => {
+    expect(
+      resolveCanvasPinchDecision({
+        pinchStart,
+        scale: 1,
+        currentViewport: pinchStart.viewport,
+        currentAnchor: pinchStart.anchor,
+        zoomBounds: { min: 0.25, max: 4 },
+      })
+    ).toEqual({ type: "none" });
+    expect(
+      resolveCanvasPinchDecision({
+        pinchStart,
+        scale: 0,
+        currentViewport: pinchStart.viewport,
+        currentAnchor: pinchStart.anchor,
         zoomBounds: { min: 0.25, max: 4 },
       })
     ).toEqual({ type: "none" });
   });
 
-
-  it("executes anchored zoom", () => {
-    let zoom = 1;
-    let offset: Point = { x: 10, y: 20 };
-
-    executeCanvasPinchDecision(
-      {
-        type: "zoom",
-        currentZoom: 1,
-        nextZoom: 2,
-        anchor: { x: 100, y: 80 },
-        shouldAnchorOffset: true,
-      },
-      {
-        setZoom: (updater) => {
-          zoom = updater(zoom);
-        },
-        setOffset: (updater) => {
-          offset = updater(offset);
-        },
+  it("executes a pinch with one atomic viewport update", () => {
+    let viewport: CanvasViewportState = pinchStart.viewport;
+    const setViewport = vi.fn(
+      (updater: (current: CanvasViewportState) => CanvasViewportState) => {
+        viewport = updater(viewport);
       }
     );
 
-    expect(zoom).toBe(2);
-    expect(offset).toEqual({ x: -80, y: -40 });
+    executeCanvasPinchDecision(
+      {
+        type: "viewport",
+        viewport: { offset: { x: -80, y: -40 }, zoom: 2 },
+      },
+      { setViewport }
+    );
+
+    expect(setViewport).toHaveBeenCalledTimes(1);
+    expect(viewport).toEqual({ offset: { x: -80, y: -40 }, zoom: 2 });
   });
 
-
-  it("creates pinch executors that bind viewport callbacks", () => {
-    const calls: string[] = [];
+  it("creates pinch executors and handlers around the viewport command", () => {
+    let viewport: CanvasViewportState = pinchStart.viewport;
     const executor = createCanvasPinchExecutor({
-      setZoom: (updater) => {
-        calls.push(`zoom:${updater(1)}`);
-      },
-      setOffset: (updater) => {
-        const next = updater({ x: 10, y: 20 });
-        calls.push(`offset:${next.x},${next.y}`);
+      setViewport: (updater) => {
+        viewport = updater(viewport);
       },
     });
-
-    executor.setZoom(() => 2);
-    executor.setOffset((offset) => ({ x: offset.x + 1, y: offset.y + 2 }));
-
-    expect(calls).toEqual(["zoom:2", "offset:11,22"]);
-  });
-
-  it("creates pinch handlers that resolve and execute zoom", () => {
-    let zoom = 1;
-    let offset: Point = { x: 10, y: 20 };
-    const handler = createCanvasPinchHandler({
-      executor: createCanvasPinchExecutor({
-        setZoom: (updater) => {
-          zoom = updater(zoom);
-        },
-        setOffset: (updater) => {
-          offset = updater(offset);
-        },
-      }),
-    });
+    const handler = createCanvasPinchHandler({ executor });
 
     handler({
-      pinchStartZoom: 1,
+      pinchStart,
       scale: 2,
-      currentZoom: 1,
-      anchor: { x: 100, y: 80 },
+      currentViewport: viewport,
+      currentAnchor: pinchStart.anchor,
       zoomBounds: { min: 0.25, max: 4 },
     });
 
-    expect(zoom).toBe(2);
-    expect(offset).toEqual({ x: -80, y: -40 });
+    expect(viewport).toEqual({ offset: { x: -80, y: -40 }, zoom: 2 });
   });
 
-  it("creates pinch handlers that ignore unchanged zoom", () => {
-    let zoom = 1;
-    let offset: Point = { x: 10, y: 20 };
-    const handler = createCanvasPinchHandler({
-      executor: createCanvasPinchExecutor({
-        setZoom: (updater) => {
-          zoom = updater(zoom);
-        },
-        setOffset: (updater) => {
-          offset = updater(offset);
-        },
-      }),
-    });
-
-    handler({
-      pinchStartZoom: 1,
-      scale: 1,
-      currentZoom: 1,
-      anchor: { x: 100, y: 80 },
-      zoomBounds: { min: 0.25, max: 4 },
-    });
-
-    expect(zoom).toBe(1);
-    expect(offset).toEqual({ x: 10, y: 20 });
-  });
-  it("routes pinch gestures through anchor resolution", () => {
+  it("routes the current pinch center through local anchor resolution", () => {
     const handler = vi.fn();
     const preventDefault = vi.fn();
-    const resolveAnchor = vi.fn(() => ({ x: 10, y: 20 }));
+    const resolveAnchor = vi.fn(() => ({ x: 130, y: 120 }));
     const route = createCanvasPinchRouteHandler({ handler });
 
     route({
-      pinchStartZoom: 1,
+      pinchStart,
       scale: 2,
-      currentZoom: 1,
-      origin: { x: 30, y: 40 },
+      currentViewport: pinchStart.viewport,
+      origin: { x: 150, y: 160 },
       zoomBounds: { min: 0.25, max: 4 },
       preventDefault,
       resolveAnchor,
     });
 
     expect(preventDefault).toHaveBeenCalledTimes(1);
-    expect(resolveAnchor).toHaveBeenCalledWith({ x: 30, y: 40 });
+    expect(resolveAnchor).toHaveBeenCalledWith({ x: 150, y: 160 });
     expect(handler).toHaveBeenCalledWith({
-      pinchStartZoom: 1,
+      pinchStart,
       scale: 2,
-      currentZoom: 1,
-      anchor: { x: 10, y: 20 },
+      currentViewport: pinchStart.viewport,
+      currentAnchor: { x: 130, y: 120 },
       zoomBounds: { min: 0.25, max: 4 },
     });
   });
 
-  it("routes pinch gestures without executing zoom when anchor cannot resolve", () => {
+  it("does not execute when the current pinch center cannot resolve", () => {
     const handler = vi.fn();
     const preventDefault = vi.fn();
-    const resolveAnchor = vi.fn(() => null);
     const route = createCanvasPinchRouteHandler({ handler });
 
     route({
-      pinchStartZoom: 1,
+      pinchStart,
       scale: 2,
-      currentZoom: 1,
+      currentViewport: pinchStart.viewport,
       origin: { x: 30, y: 40 },
       zoomBounds: { min: 0.25, max: 4 },
       preventDefault,
-      resolveAnchor,
+      resolveAnchor: vi.fn(() => null),
     });
 
     expect(preventDefault).toHaveBeenCalledTimes(1);
-    expect(resolveAnchor).toHaveBeenCalledWith({ x: 30, y: 40 });
     expect(handler).not.toHaveBeenCalled();
   });
 });

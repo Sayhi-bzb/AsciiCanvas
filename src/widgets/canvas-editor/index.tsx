@@ -11,7 +11,7 @@ import { useManagedCanvasInput } from './hooks/useManagedCanvasInput';
 import { ContextMenu, ContextMenuTrigger } from '@/shared/ui/context-menu';
 import { CANVAS_CONTEXT_MENU, STRUCTURED_CONTEXT_MENU } from '@/domains/actions/public';
 import { GridManager } from '@/shared/utils/grid';
-import { CELL_HEIGHT, CELL_WIDTH, MAX_ZOOM, MIN_ZOOM } from '@/shared/lib/constants';
+import { CELL_HEIGHT, CELL_WIDTH } from '@/shared/lib/constants';
 import {
   createStructuredSceneQuery,
   isStructuredSplitBoxLineHandle,
@@ -106,28 +106,22 @@ export const AsciiCanvas = ({
     if (!changedSession && previous?.pageKey === pageKey) return;
     lastSlideViewRef.current = { sessionId: activeCanvasId, pageKey };
     if (changedSession && editorStore.activeCanvasHasSavedViewport) return;
-    const padding = 48;
-    const availableWidth = Math.max(1, size.width - padding * 2);
-    const availableHeight = Math.max(1, size.height - padding * 2);
-    const nextZoom = Math.max(
-      MIN_ZOOM,
-      Math.min(
-        MAX_ZOOM,
-        availableWidth / (activeSlide.size.columns * CELL_WIDTH),
-        availableHeight / (activeSlide.size.rows * CELL_HEIGHT)
-      )
+    runtime.camera.fitBounds(
+      {
+        x: 0,
+        y: 0,
+        width: activeSlide.size.columns * CELL_WIDTH,
+        height: activeSlide.size.rows * CELL_HEIGHT,
+      },
+      size,
+      { padding: 48 }
     );
-    interactionStore.setZoom(() => nextZoom);
-    interactionStore.setOffset(() => ({
-      x: (size.width - activeSlide.size.columns * CELL_WIDTH * nextZoom) / 2,
-      y: (size.height - activeSlide.size.rows * CELL_HEIGHT * nextZoom) / 2,
-    }));
   }, [
     activeCanvasId,
     canvasMode,
     editorStore.activeCanvasHasSavedViewport,
-    interactionStore,
     rendererStore.slideDeck,
+    runtime,
     size,
   ]);
 

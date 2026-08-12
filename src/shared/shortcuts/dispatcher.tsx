@@ -46,6 +46,7 @@ export const SHORTCUT_PRIORITY = {
   observer: 1_000,
   presentation: 800,
   managedCanvas: 400,
+  canvasInteraction: 350,
   dynamicCanvasCommand: 300,
   globalAction: 200,
   canvasGesture: 100,

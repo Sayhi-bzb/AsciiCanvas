@@ -3,7 +3,7 @@ import {
   createPngBlobFromGrid,
   createSelectionPngBlob,
 } from "../formats/raster";
-import { exportProtocolToJSON } from "../formats/protocol";
+import { exportProtocolToJSON } from "../formats/protocolExport";
 import { exportStructuredF12Text } from "../formats/structuredText";
 import { exportToAnsi, exportToString } from "../formats/text";
 import { exportSlideDeckToMarkdown } from "../formats/slidesMarkdown";

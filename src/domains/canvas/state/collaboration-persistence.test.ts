@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { useEditorStore } from "@/domains/canvas/public";
-import { createPersistedEditorSnapshot } from "./editorStore";
+import { createPersistedEditorSnapshot } from "./editorPersistence";
 import type { CollaborationDescriptorV2 } from "@/domains/collaboration/public";
 
 const initialState = useEditorStore.getState();

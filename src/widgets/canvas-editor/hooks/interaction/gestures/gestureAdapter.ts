@@ -2,6 +2,7 @@ import { useRef, type RefObject } from "react";
 import { useGesture } from "@use-gesture/react";
 import type { CanvasMode } from "@/domains/sessions/public";
 import type { ToolType } from "@/domains/canvas/public";
+import type { CanvasViewportState } from "@/domains/canvas/public";
 import type { StructuredNode } from "@/domains/structured-content/public";
 import { isCtrlOrMeta } from "@/shared/utils/event";
 import { MAX_ZOOM, MIN_ZOOM } from "@/shared/lib/constants";
@@ -11,7 +12,10 @@ import {
 import type { CanvasPointerContextResolver } from "../core/pointerContext";
 import type { CanvasInteractionRuntime } from "../core/interactionRuntime";
 import type { HoverInteractionController } from "../preview/hoverInteractionController";
-import type { CanvasPinchRouteHandler } from "./pinchInteraction";
+import type {
+  CanvasPinchRouteHandler,
+  CanvasPinchStart,
+} from "./pinchInteraction";
 import type { CanvasMoveRouteHandler } from "./moveExecution";
 import type { CanvasDragStartRouteAdapter } from "./dragStartExecution";
 import type {
@@ -23,15 +27,24 @@ import type {
   PrimaryDragEndHandler,
 } from "./dragEndExecution";
 import type { CanvasClickRouteHandler } from "./clickExecution";
-import type { CanvasWheelRouteHandler } from "./wheelInteraction";
+import {
+  getCanvasWheelOrigin,
+  type CanvasWheelRouteHandler,
+} from "./wheelInteraction";
 import { shouldIgnoreCanvasSurfaceGesture } from "../core/gestureGuards";
 import { shouldOpenCanvasLink } from "../core/hitTesting";
 
 export const useCanvasGestureAdapter = ({
+  beginInteraction,
+  cancelInteraction,
+  completeInteraction,
+  stopEdgeScroll,
+  updateEdgeScroll,
   containerRef,
   canvasMode,
   tool,
   brushChar,
+  offset,
   zoom,
   hasColorPickerTarget,
   selectedStructuredNodeIds,
@@ -48,14 +61,19 @@ export const useCanvasGestureAdapter = ({
   dragUpdateHandler,
   dragEndRouteHandler,
   primaryDragEndHandler,
-  resetDragState,
   canvasClickRouteHandler,
   canvasWheelRouteHandler,
 }: {
+  beginInteraction: () => void;
+  cancelInteraction: () => void;
+  completeInteraction: () => void;
+  stopEdgeScroll: () => void;
+  updateEdgeScroll: (clientPoint: { x: number; y: number }) => void;
   containerRef: RefObject<HTMLDivElement | null>;
   canvasMode: CanvasMode;
   tool: ToolType;
   brushChar: string;
+  offset: CanvasViewportState["offset"];
   zoom: number;
   hasColorPickerTarget: boolean;
   selectedStructuredNodeIds: string[];
@@ -72,28 +90,38 @@ export const useCanvasGestureAdapter = ({
   dragUpdateHandler: DragUpdateHandler;
   dragEndRouteHandler: DragEndRouteHandler;
   primaryDragEndHandler: PrimaryDragEndHandler;
-  resetDragState: () => void;
   canvasClickRouteHandler: CanvasClickRouteHandler;
   canvasWheelRouteHandler: CanvasWheelRouteHandler;
 }) => {
-  const pinchStartZoomRef = useRef(zoom);
+  const pinchStartRef = useRef<CanvasPinchStart | null>(null);
 
   return useGesture(
     {
-      onPinchStart: () => {
-        pinchStartZoomRef.current = zoom;
+      onPinchStart: ({ origin: [ox, oy] }) => {
+        const anchor = pointerContext.resolveLocalPoint(ox, oy);
+        pinchStartRef.current = anchor
+          ? {
+              viewport: { offset: { ...offset }, zoom },
+              anchor,
+            }
+          : null;
       },
       onPinch: ({ offset: [scale], origin: [ox, oy], event }) => {
+        const pinchStart = pinchStartRef.current;
+        if (!pinchStart) return;
         canvasPinchRouteHandler({
-          pinchStartZoom: pinchStartZoomRef.current,
+          pinchStart,
           scale,
-          currentZoom: zoom,
+          currentViewport: { offset, zoom },
           origin: { x: ox, y: oy },
           zoomBounds: { min: MIN_ZOOM, max: MAX_ZOOM },
           preventDefault: () => event.preventDefault(),
           resolveAnchor: (origin) =>
             pointerContext.resolveLocalPoint(origin.x, origin.y),
         });
+      },
+      onPinchEnd: () => {
+        pinchStartRef.current = null;
       },
       onMove: ({ xy: [x, y], event }) => {
         if (shouldIgnoreCanvasSurfaceGesture(event)) return;
@@ -122,10 +150,12 @@ export const useCanvasGestureAdapter = ({
       },
       onDragStart: ({ xy: [x, y], event }) => {
         if (shouldIgnoreCanvasSurfaceGesture(event)) return;
+        stopEdgeScroll();
+        beginInteraction();
         hoverInteraction.clearLinkHover(event as MouseEvent);
         const mouseEvent = event as MouseEvent;
         const screenPoint = { x, y };
-        canvasDragStartRouteAdapter({
+        const started = canvasDragStartRouteAdapter({
           canvasMode,
           tool,
           button: mouseEvent.button,
@@ -143,6 +173,7 @@ export const useCanvasGestureAdapter = ({
           resolveLocalPoint: (point) =>
             pointerContext.resolveLocalPoint(point.x, point.y),
         });
+        if (!started) cancelInteraction();
       },
       onDrag: ({ xy: [x, y], delta: [dx, dy], event }) => {
         if (shouldIgnoreActiveGestureEvent(event)) return;
@@ -160,15 +191,20 @@ export const useCanvasGestureAdapter = ({
                   structuredScene,
             }),
         });
+        updateEdgeScroll({ x, y });
       },
       onDragEnd: ({ event, xy: [x, y], canceled }) => {
-        if (shouldIgnoreActiveGestureEvent(event)) return;
+        stopEdgeScroll();
         if (
           canceled ||
           event.type === "pointercancel" ||
           event.type === "lostpointercapture"
         ) {
-          resetDragState();
+          cancelInteraction();
+          return;
+        }
+        if (shouldIgnoreActiveGestureEvent(event)) {
+          cancelInteraction();
           return;
         }
         const state = interactionRuntime.getState();
@@ -186,6 +222,7 @@ export const useCanvasGestureAdapter = ({
             });
           },
         });
+        completeInteraction();
       },
       onClick: ({ event }) => {
         if (shouldIgnoreCanvasSurfaceGesture(event)) return;
@@ -200,11 +237,7 @@ export const useCanvasGestureAdapter = ({
           shouldOpenLink: () => shouldOpenCanvasLink(mouseEvent),
         });
       },
-      onWheel: ({
-        xy: [clientX, clientY],
-        delta: [gestureDeltaX, gestureDeltaY],
-        event,
-      }) => {
+      onWheel: ({ delta: [gestureDeltaX, gestureDeltaY], event }) => {
         if (shouldIgnoreCanvasSurfaceGesture(event)) return;
         const wheelEvent = event as WheelEvent;
         canvasWheelRouteHandler({
@@ -214,7 +247,7 @@ export const useCanvasGestureAdapter = ({
           eventDeltaX: wheelEvent.deltaX,
           eventDeltaY: wheelEvent.deltaY,
           shiftKey: wheelEvent.shiftKey,
-          origin: { x: clientX, y: clientY },
+          origin: getCanvasWheelOrigin(wheelEvent),
           preventDefault: () => event.preventDefault(),
           resolveAnchor: (origin) =>
             pointerContext.resolveLocalPoint(origin.x, origin.y),
