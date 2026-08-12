@@ -3,7 +3,7 @@ import type { CanvasSession } from "./model";
 import type { CollaborationDescriptorV2 } from "@/domains/collaboration/public";
 import type { SlideSize } from "@/domains/slides/public";
 
-export type CreateCanvasSessionOptions = {
+type CreateCanvasSessionOptions = {
   slideSize?: SlideSize;
 };
 

@@ -9,7 +9,6 @@ import type { StructuredNode } from "@/domains/structured-content/public";
 import { normalizeScene } from "@/domains/structured-content/public";
 import {
   cloneStructuredNode,
-  normalizeAndCloneScene,
   isSameCell,
 } from "./snapshotHelpers";
 import {
@@ -80,15 +79,5 @@ export const applyFreeformSnapshotToYMaps = (
     yStructuredScene.clear();
     yMainGrid.clear();
     entries.forEach(([key, val]) => yMainGrid.set(key, val));
-  }, "reset");
-};
-
-export const applyStructuredSnapshotToYMaps = (scene: StructuredNode[]) => {
-  const normalizedScene = normalizeAndCloneScene(scene);
-  runCanvasTransaction(() => {
-    yStructuredScene.clear();
-    normalizedScene.forEach((node) => {
-      yStructuredScene.set(node.id, node);
-    });
   }, "reset");
 };

@@ -32,6 +32,39 @@ describe("StructuredSceneQuery", () => {
     expect(sceneToGridEntries(scene)).toBe(sceneToGridEntries(scene));
   });
 
+  it("invalidates reference caches when a scene array changes in place", () => {
+    const scene: StructuredNode[] = [
+      {
+        id: "first",
+        type: "text",
+        position: { x: 0, y: 0 },
+        text: "A",
+        order: 1,
+        style: { color: "#fff" },
+      },
+    ];
+    const query = createStructuredSceneQuery(scene);
+    const firstEntries = sceneToGridEntries(scene);
+
+    scene.push({
+      id: "second",
+      type: "text",
+      position: { x: 4, y: 0 },
+      text: "B",
+      order: 2,
+      style: { color: "#fff" },
+    });
+
+    expect(createStructuredSceneQuery(scene)).toBe(query);
+    expect(query.getNode("second")?.id).toBe("second");
+    expect(query.findHit({ x: 4, y: 0 })?.node.id).toBe("second");
+    expect(sceneToGridEntries(scene)).not.toBe(firstEntries);
+    expect(sceneToGridEntries(scene)).toContainEqual([
+      "4,0",
+      expect.objectContaining({ char: "B" }),
+    ]);
+  });
+
   it("keeps hit ordering with the large-scene spatial buckets", () => {
     const scene: StructuredNode[] = Array.from({ length: 10_000 }, (_, index) => ({
       id: `text-${index}`,

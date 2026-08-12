@@ -34,7 +34,7 @@ type ClipboardShortcutCoordinatorOptions = {
   onTrace?: (trace: ClipboardShortcutTrace) => void;
 };
 
-export type ClipboardShortcutCoordinator = {
+type ClipboardShortcutCoordinator = {
   begin: (actionId: ClipboardShortcutAction) => void;
   handleNative: (actionId: ClipboardShortcutAction) => 'dispatch' | 'suppress';
   setFallbackHandler: (

@@ -13,7 +13,7 @@ export const CANVAS_COLLABORATION_CHANNELS = {
 
 type CanvasDocumentChannel = CollaborationIntegrityIssue["channel"];
 
-export type CollaborationDecodeResult<T> =
+type CollaborationDecodeResult<T> =
   | { ok: true; value: T }
   | { ok: false; issue: CollaborationIntegrityIssue };
 

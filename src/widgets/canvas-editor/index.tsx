@@ -26,6 +26,7 @@ import {
 } from './hooks/viewportPresentation';
 import { useCanvasEngineRuntime } from './engine/useCanvasEngineRuntime';
 import { CANVAS_FRAME_INVALIDATION } from './engine/FrameScheduler';
+import { resolveCanvasSurfaceGeometry } from './canvasSurfaceGeometry';
 
 interface AsciiCanvasProps {
   onUndo: () => void;
@@ -52,6 +53,10 @@ export const AsciiCanvas = ({
   const structuredMovePreviewRef = useRef<StructuredMovePreview | null>(null);
   const requestCanvasRenderRef = useRef<(() => void) | null>(null);
   const size = useSize(containerRef);
+  const surfaceGeometry = useMemo(
+    () => (size ? resolveCanvasSurfaceGeometry(size) : undefined),
+    [size]
+  );
   useEffect(() => {
     onContainerSizeChange?.(size);
   }, [onContainerSizeChange, size]);
@@ -130,9 +135,16 @@ export const AsciiCanvas = ({
     applyCanvasViewportPresentation(
       viewportLayerRef.current,
       renderedViewportRef.current,
-      presented
+      presented,
+      surfaceGeometry
+        ? {
+            width: surfaceGeometry.viewportWidth,
+            height: surfaceGeometry.viewportHeight,
+            overscan: surfaceGeometry.overscan,
+          }
+        : undefined
     );
-  }, []);
+  }, [surfaceGeometry]);
 
   const handleViewportRendered = useCallback(
     (rendered: CanvasViewport) => {
@@ -201,6 +213,7 @@ export const AsciiCanvas = ({
   useCanvasRenderer(
     { bg: bgCanvasRef, scratch: scratchCanvasRef, ui: uiCanvasRef },
     size,
+    surfaceGeometry,
     rendererModel,
     draggingSelection,
     structuredMovePreviewRef,
@@ -258,6 +271,7 @@ export const AsciiCanvas = ({
           viewportLayerRef={viewportLayerRef}
           scratchCanvasRef={scratchCanvasRef}
           uiCanvasRef={uiCanvasRef}
+          surfaceGeometry={surfaceGeometry}
           containerSize={size}
           onContextMenu={handleContextMenu}
           {...structuredTemplateDrop.surfaceProps}

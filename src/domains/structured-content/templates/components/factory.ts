@@ -1,5 +1,12 @@
 import type { Point } from "@/shared/types";
-import type { StructuredBoxNode, StructuredLineNode, StructuredNode, StructuredNodeStyle, StructuredSplitBoxNode, StructuredTextStyleRange } from "@/domains/structured-content/public";
+import type {
+  StructuredBoxNode,
+  StructuredLineNode,
+  StructuredNode,
+  StructuredNodeStyle,
+  StructuredSplitBoxNode,
+  StructuredTextStyleRange,
+} from "../../model/types";
 import { createStructuredNodeId } from "../../model/scene";
 import { createDefaultSplitBoxRoot } from "../../model/split-box-geometry";
 import type {

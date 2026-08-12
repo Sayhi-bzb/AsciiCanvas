@@ -44,7 +44,7 @@ export const getCanvasFont = (
   }px ${fontFamily}`;
 };
 
-export const getCellPixelSize = (
+const getCellPixelSize = (
   zoom: number,
   metrics: GridRenderMetrics = DEFAULT_GRID_RENDER_METRICS
 ) => ({

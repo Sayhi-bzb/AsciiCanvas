@@ -16,14 +16,14 @@ import {
   type ShortcutTargetKind,
 } from "@/shared/utils/dom-focus";
 
-export type ShortcutPhase = "keydown" | "keyup";
+type ShortcutPhase = "keydown" | "keyup";
 
-export type ShortcutDispatchContext = {
+type ShortcutDispatchContext = {
   phase: ShortcutPhase;
   targetKind: ShortcutTargetKind;
 };
 
-export type ShortcutDispatchResult = {
+type ShortcutDispatchResult = {
   claimed: boolean;
   preventDefault?: boolean;
 };

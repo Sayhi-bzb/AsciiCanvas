@@ -3,7 +3,6 @@ export {
   CANVAS_CONTEXT_MENU,
   STRUCTURED_CONTEXT_MENU,
   TOOLBAR_ACTION_META,
-  TOOLBAR_ACTION_ORDER,
   canRunAction,
   isActionAccepted,
   resolveActiveToolbarAction,
@@ -13,11 +12,8 @@ export {
 } from "./core";
 export type {
   ContextMenuEntry,
-  ShortcutChord,
-  ShortcutToken,
   ToolbarActionId,
 } from "./core";
-export type { ActionShortcutEvent, ShortcutPlatform } from "./core";
 export {
   getActionShortcutLabel,
   matchesActionShortcut,
@@ -35,5 +31,4 @@ export {
   writeClipboardPayload,
 } from "./adapters/clipboardActions";
 export { resolveFillHotkeyChar } from "./input-arbiter";
-
-import "./adapters/selectionCommands";
+export { registerSelectionCommands } from "./adapters/selectionCommands";

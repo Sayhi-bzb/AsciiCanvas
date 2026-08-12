@@ -4,6 +4,5 @@ export {
   type CharacterPackId,
   type CharacterRecord,
   type CharacterViewId,
-  type UnicodeFacet,
   type UnicodeFacetType,
 } from "./stores/useLibraryStore";

@@ -61,7 +61,7 @@ export type ShortcutToken =
   | "v"
   | "h";
 
-export type ShortcutChord = readonly ShortcutToken[];
+type ShortcutChord = readonly ShortcutToken[];
 
 export interface ActionMeta {
   id: ActionId;

@@ -6,9 +6,9 @@ import { cn } from "@/shared/lib/utils"
 import { rx } from "@/shared/styles/recipes"
 import type { Shape, Size, Tone } from "@/shared/styles/tokens"
 
-export type ButtonTone = Tone
-export type ButtonSize = Size
-export type ButtonShape = Shape
+type ButtonTone = Tone
+type ButtonSize = Size
+type ButtonShape = Shape
 
 type ButtonVariantInput = {
   className?: string

@@ -33,7 +33,7 @@ type NetworkProviderAdapter = {
   destroy: () => void;
 };
 
-export type CollaborationRuntimeDependencies = {
+type CollaborationRuntimeDependencies = {
   createPersistence: (descriptor: CollaborationDescriptorV2, doc: Y.Doc) => Promise<PersistenceAdapter>;
   createAwareness: (doc: Y.Doc) => CollaborationAwareness;
   createProvider: (

@@ -188,29 +188,6 @@ export const buildStructuredProtocolDocument = (
   };
 };
 
-type BuildProtocolDocumentByModeInput =
-  | {
-      mode: "freeform";
-      grid: GridMap;
-    }
-
-  | {
-      mode: "structured";
-      scene: StructuredNode[];
-      components?: StructuredComponentInstance[];
-    };
-
-export const buildProtocolDocument = (
-  input: BuildProtocolDocumentByModeInput
-): AsciiCanvasDocumentV1 => {
-  switch (input.mode) {
-    case "freeform":
-      return buildFreeformProtocolDocument(input.grid);
-    case "structured":
-      return buildStructuredProtocolDocument(input.scene, input.components);
-  }
-};
-
 interface ProtocolCanvasStateSnapshotInput {
   canvasMode: CanvasMode;
   grid: GridMap;

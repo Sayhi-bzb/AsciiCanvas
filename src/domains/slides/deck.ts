@@ -1,4 +1,5 @@
 import type { GridCell } from "@/shared/types";
+import { createEntityId } from "@/shared/utils/id";
 import { normalizeSlideGridEntries } from "./grid";
 import {
   DEFAULT_SLIDE_SIZE,
@@ -38,9 +39,7 @@ export const createSlideId = (slides: readonly Slide[]) => {
   const existing = new Set(slides.map((slide) => slide.id));
   let candidate = "";
   do {
-    candidate = `slide-${Date.now().toString(36)}-${Math.random()
-      .toString(36)
-      .slice(2, 7)}`;
+    candidate = createEntityId("slide");
   } while (existing.has(candidate));
   return candidate;
 };

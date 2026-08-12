@@ -1,5 +1,5 @@
 import type { Point } from "@/shared/types";
-import type { StructuredNode } from "@/domains/structured-content/public";
+import type { StructuredNode } from "./types";
 import { createStructuredNodeId } from "./scene";
 
 type StructuredLayerDirection = "forward" | "backward" | "front" | "back";

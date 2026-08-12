@@ -5,11 +5,12 @@ import type {
   StructuredNode,
 } from "@/domains/structured-content/public";
 import type { CollaborationIntegrityIssue } from "@/domains/collaboration/public";
+import { areJsonValuesEqual } from "@/shared/utils/equality";
 
 const LOCAL_ORIGIN = Symbol("canvas-local-origin");
 const HISTORY_IGNORED_ORIGIN = Symbol("canvas-history-ignored");
 
-export type CanvasDocumentSeed = {
+type CanvasDocumentSeed = {
   grid: [string, GridCell][];
   scene: StructuredNode[];
   components?: StructuredComponentInstance[];
@@ -25,13 +26,13 @@ export const applyYMapValueDiff = <T extends { id: string }>(
   });
   values.forEach((value) => {
     const current = map.get(value.id);
-    if (JSON.stringify(current) !== JSON.stringify(value)) {
+    if (!areJsonValuesEqual(current, value)) {
       map.set(value.id, value);
     }
   });
 };
 
-export type CanvasYDocument = {
+type CanvasYDocument = {
   id: string;
   doc: Y.Doc;
   grid: Y.Map<GridCell>;
@@ -46,7 +47,7 @@ const documents = new Map<string, CanvasYDocument>();
 const activeDocumentListeners = new Set<
   (next: CanvasYDocument, previous: CanvasYDocument) => void
 >();
-export type CanvasHistoryAvailability = {
+type CanvasHistoryAvailability = {
   canUndo: boolean;
   canRedo: boolean;
 };
@@ -110,11 +111,9 @@ let activeDocument = createCanvasYDocument("canvas-initial");
 documents.set(activeDocument.id, activeDocument);
 
 export const getActiveCanvasDocument = () => activeDocument;
-export const getYDoc = () => activeDocument.doc;
-export const getYMainGrid = () => activeDocument.grid;
-export const getYStructuredScene = () => activeDocument.scene;
-export const getYStructuredComponents = () => activeDocument.components;
-export const getYDocumentMeta = () => activeDocument.meta;
+const getYMainGrid = () => activeDocument.grid;
+const getYStructuredScene = () => activeDocument.scene;
+const getYStructuredComponents = () => activeDocument.components;
 
 const integrityIssueKey = (channel: CollaborationIntegrityIssue["channel"], key: string) =>
   `${channel}:${key}`;
@@ -236,7 +235,7 @@ export const destroyCanvasDocument = (id: string) => {
   return true;
 };
 
-export const subscribeActiveCanvasDocument = (
+const subscribeActiveCanvasDocument = (
   listener: (next: CanvasYDocument, previous: CanvasYDocument) => void
 ) => {
   activeDocumentListeners.add(listener);

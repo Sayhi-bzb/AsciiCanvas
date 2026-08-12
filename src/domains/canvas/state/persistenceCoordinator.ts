@@ -10,7 +10,7 @@ const defaultTimerPort: TimerPort = {
   clearTimeout: (handle) => clearTimeout(handle),
 };
 
-export type PersistenceCoordinator<T> = {
+type PersistenceCoordinator<T> = {
   schedule: (value: T) => void;
   flush: () => void;
   cancel: () => void;

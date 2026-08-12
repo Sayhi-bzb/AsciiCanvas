@@ -12,7 +12,7 @@ export const CANVAS_FRAME_ALL = Object.values(CANVAS_FRAME_INVALIDATION).reduce(
   0
 );
 
-export type CanvasFrameCallback = (
+type CanvasFrameCallback = (
   timestamp: number,
   invalidation: CanvasFrameInvalidation
 ) => void;
@@ -68,17 +68,6 @@ export class CanvasFrameScheduler {
     this.frameHandle = null;
   }
 
-  flush(key: string): void {
-    const work = this.callbacks.get(key);
-    if (!work) return;
-    this.callbacks.delete(key);
-    if (this.callbacks.size === 0 && this.frameHandle !== null) {
-      this.port.cancelAnimationFrame(this.frameHandle);
-      this.frameHandle = null;
-    }
-    work.callback(this.port.now(), work.invalidation);
-  }
-
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
@@ -96,7 +85,7 @@ export class CanvasFrameScheduler {
   }
 }
 
-export type RafScheduler = {
+type RafScheduler = {
   requestAnimationFrame: (callback: FrameRequestCallback) => number;
   cancelAnimationFrame: (handle: number) => void;
 };

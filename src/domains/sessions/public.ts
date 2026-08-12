@@ -1,8 +1,6 @@
 export type {
   CanvasImportSnapshot,
   CanvasSession,
-  SlideCanvasSession,
-  StaticCanvasSession,
 } from "./model";
 export {
   createSessionId,
@@ -19,6 +17,6 @@ export {
   isPersistedEditorStateV5,
   migratePersistedStateToV5,
 } from "./persistence";
-export type { CreateCanvasSessionOptions, SessionCommands } from "./commands";
-export type { CanvasMode, StaticGridCanvasMode } from "./mode";
+export type { SessionCommands } from "./commands";
+export type { CanvasMode } from "./mode";
 export { isStaticGridMode } from "./mode";

@@ -75,4 +75,3 @@ function InlineRenameInput({
 }
 
 export { InlineRenameInput };
-export type { InlineRenameInputProps };

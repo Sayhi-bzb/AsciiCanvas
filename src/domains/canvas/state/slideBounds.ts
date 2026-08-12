@@ -3,7 +3,7 @@ import type { Point } from "@/shared/types";
 
 type SlideBoundState = Pick<EditorState, "canvasMode" | "slideDeck">;
 
-export const getActiveSlideSize = (state: SlideBoundState) =>
+const getActiveSlideSize = (state: SlideBoundState) =>
   state.canvasMode === "slide"
     ? state.slideDeck?.slides.find(
         (slide) => slide.id === state.slideDeck?.activeSlideId

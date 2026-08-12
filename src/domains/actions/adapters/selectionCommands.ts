@@ -29,6 +29,7 @@ import type {
 import { createStructuredNodeId } from "@/domains/structured-content/public";
 import { getCellOccupancy, splitGraphemes } from "@/shared/metrics";
 import { cloneTextAttributes } from "@/shared/utils/ansi";
+import { areJsonValuesEqual } from "@/shared/utils/equality";
 import {
   getStructuredTextOffsetAtPoint,
   getStructuredTextSelectionRange,
@@ -389,7 +390,7 @@ const createSelectionCommands: SelectionCommandFactory = (set, get) => ({
           : null;
         if (
           getClipboardTargetFingerprint(current) !== targetFingerprint ||
-          JSON.stringify(currentPayload) !== JSON.stringify(payload)
+          !areJsonValuesEqual(currentPayload, payload)
         ) {
           return failed("stale-target");
         }
@@ -431,7 +432,7 @@ const createSelectionCommands: SelectionCommandFactory = (set, get) => ({
       );
       if (
         getClipboardTargetFingerprint(current) !== targetFingerprint ||
-        JSON.stringify(currentPayload) !== JSON.stringify(payload)
+        !areJsonValuesEqual(currentPayload, payload)
       ) {
         return failed("stale-target");
       }
@@ -461,7 +462,7 @@ const createSelectionCommands: SelectionCommandFactory = (set, get) => ({
     );
     if (
       getClipboardTargetFingerprint(current) !== targetFingerprint ||
-      JSON.stringify(currentPayload) !== JSON.stringify(payload)
+      !areJsonValuesEqual(currentPayload, payload)
     ) {
       return failed("stale-target");
     }
@@ -610,4 +611,6 @@ const createSelectionCommands: SelectionCommandFactory = (set, get) => ({
   },
 });
 
-registerSelectionCommandFactory(createSelectionCommands);
+export const registerSelectionCommands = () => {
+  registerSelectionCommandFactory(createSelectionCommands);
+};

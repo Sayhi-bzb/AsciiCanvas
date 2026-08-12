@@ -29,7 +29,7 @@ import {
   TooltipTrigger,
 } from "@/shared/ui/tooltip";
 
-export type ColorPickerPanelProps = {
+type ColorPickerPanelProps = {
   value: string;
   onPick: (color: string) => void;
   showCustomInput?: boolean;

@@ -5,10 +5,16 @@ export type CanvasViewport = {
   zoom: number;
 };
 
-export type CanvasViewportTransform = {
+type CanvasViewportTransform = {
   scale: number;
   translateX: number;
   translateY: number;
+};
+
+type CanvasViewportPresentationBounds = {
+  width: number;
+  height: number;
+  overscan: number;
 };
 
 const TRANSFORM_EPSILON = 0.000001;
@@ -25,6 +31,42 @@ export const resolveCanvasViewportTransform = (
   };
 };
 
+const clamp = (value: number, minimum: number, maximum: number) =>
+  Math.min(maximum, Math.max(minimum, value));
+
+export const constrainCanvasViewportTransform = (
+  transform: CanvasViewportTransform,
+  bounds: CanvasViewportPresentationBounds
+): CanvasViewportTransform | null => {
+  const minimumTranslateX =
+    bounds.width - transform.scale * (bounds.width + bounds.overscan);
+  const maximumTranslateX = transform.scale * bounds.overscan;
+  const minimumTranslateY =
+    bounds.height - transform.scale * (bounds.height + bounds.overscan);
+  const maximumTranslateY = transform.scale * bounds.overscan;
+
+  if (
+    minimumTranslateX > maximumTranslateX ||
+    minimumTranslateY > maximumTranslateY
+  ) {
+    return null;
+  }
+
+  return {
+    scale: transform.scale,
+    translateX: clamp(
+      transform.translateX,
+      minimumTranslateX,
+      maximumTranslateX
+    ),
+    translateY: clamp(
+      transform.translateY,
+      minimumTranslateY,
+      maximumTranslateY
+    ),
+  };
+};
+
 export const resetCanvasViewportPresentation = (layer: HTMLDivElement | null) => {
   if (!layer) return;
   layer.style.transform = 'none';
@@ -33,14 +75,22 @@ export const resetCanvasViewportPresentation = (layer: HTMLDivElement | null) =>
 export const applyCanvasViewportPresentation = (
   layer: HTMLDivElement | null,
   rendered: CanvasViewport | null,
-  presented: CanvasViewport
+  presented: CanvasViewport,
+  bounds?: CanvasViewportPresentationBounds
 ) => {
   if (!layer || !rendered || rendered.zoom <= 0 || presented.zoom <= 0) {
     resetCanvasViewportPresentation(layer);
     return;
   }
 
-  const transform = resolveCanvasViewportTransform(rendered, presented);
+  const requestedTransform = resolveCanvasViewportTransform(rendered, presented);
+  const transform = bounds
+    ? constrainCanvasViewportTransform(requestedTransform, bounds)
+    : requestedTransform;
+  if (!transform) {
+    resetCanvasViewportPresentation(layer);
+    return;
+  }
   const isIdentity =
     Math.abs(transform.scale - 1) <= TRANSFORM_EPSILON &&
     Math.abs(transform.translateX) <= TRANSFORM_EPSILON &&

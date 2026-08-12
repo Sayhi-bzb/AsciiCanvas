@@ -4,7 +4,7 @@ import {
   type CanvasFrameInvalidation,
 } from "./FrameScheduler";
 
-export type CanvasRenderLayer = "background" | "scratch" | "overlay";
+type CanvasRenderLayer = "background" | "scratch" | "overlay";
 
 const LAYER_BITS: Record<CanvasRenderLayer, CanvasFrameInvalidation> = {
   background: CANVAS_FRAME_INVALIDATION.background,

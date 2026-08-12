@@ -1,4 +1,4 @@
-import type { StructuredComponentInstance, StructuredNode } from "@/domains/structured-content/public";
+import type { StructuredComponentInstance, StructuredNode } from "./types";
 const isComponentMetadata = (
   component: unknown
 ): component is NonNullable<StructuredNode["component"]> =>
@@ -78,4 +78,3 @@ export const normalizeStructuredComponents = (
 
   return normalized.map(cloneStructuredComponent);
 };
-

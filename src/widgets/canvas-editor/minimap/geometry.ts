@@ -36,7 +36,7 @@ export const computeVisibleContentBounds = (
   return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
 };
 
-export const computeViewportWorldBounds = (
+const computeViewportWorldBounds = (
   offset: Point,
   zoom: number,
   viewportSize: MinimapDimensions

@@ -8,6 +8,7 @@ import {
   type TextareaHTMLAttributes,
 } from 'react';
 import { SelectionFormatToolbar } from './SelectionFormatToolbar';
+import type { CanvasSurfaceGeometry } from './canvasSurfaceGeometry';
 
 type CanvasSurfaceProps = HTMLAttributes<HTMLDivElement> & {
   containerRef: RefObject<HTMLDivElement | null>;
@@ -15,6 +16,7 @@ type CanvasSurfaceProps = HTMLAttributes<HTMLDivElement> & {
   scratchCanvasRef: RefObject<HTMLCanvasElement | null>;
   uiCanvasRef: RefObject<HTMLCanvasElement | null>;
   viewportLayerRef: RefObject<HTMLDivElement | null>;
+  surfaceGeometry: CanvasSurfaceGeometry | undefined;
   containerSize: { width: number; height: number } | undefined;
   textareaRef: RefObject<HTMLTextAreaElement | null>;
   textareaStyle: CSSProperties;
@@ -34,6 +36,7 @@ export const CanvasSurface = forwardRef<HTMLDivElement, CanvasSurfaceProps>(func
     scratchCanvasRef,
     uiCanvasRef,
     viewportLayerRef,
+    surfaceGeometry,
     containerSize,
     textareaRef,
     textareaStyle,
@@ -45,6 +48,15 @@ export const CanvasSurface = forwardRef<HTMLDivElement, CanvasSurfaceProps>(func
   },
   forwardedRef
 ) {
+  const canvasStyle: CSSProperties = surfaceGeometry
+    ? {
+        left: surfaceGeometry.left,
+        top: surfaceGeometry.top,
+        width: surfaceGeometry.width,
+        height: surfaceGeometry.height,
+      }
+    : { inset: 0, width: '100%', height: '100%' };
+
   return (
     <div
       ref={(node) => {
@@ -67,15 +79,18 @@ export const CanvasSurface = forwardRef<HTMLDivElement, CanvasSurfaceProps>(func
       >
         <canvas
           ref={bgCanvasRef}
-          className="absolute inset-0 w-full h-full block pointer-events-none"
+          className="absolute block pointer-events-none"
+          style={canvasStyle}
         />
         <canvas
           ref={scratchCanvasRef}
-          className="absolute inset-0 w-full h-full block pointer-events-none"
+          className="absolute block pointer-events-none"
+          style={canvasStyle}
         />
         <canvas
           ref={uiCanvasRef}
-          className="absolute inset-0 w-full h-full block pointer-events-none"
+          className="absolute block pointer-events-none"
+          style={canvasStyle}
         />
       </div>
       {children}

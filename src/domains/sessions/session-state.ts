@@ -3,6 +3,7 @@ import type { Point } from "@/shared/types";
 import type { CanvasMode } from "./mode";
 import type { StructuredComponentInstance, StructuredNode } from "@/domains/structured-content/public";
 import type { SlideDeck } from "@/domains/slides/public";
+import { createEntityId } from "@/shared/utils/id";
 
 export const resolveNextSessionName = (
   sessions: CanvasSession[],
@@ -24,10 +25,11 @@ export const resolveNextSessionName = (
 
 export const createSessionId = (sessions: CanvasSession[]) => {
   const existing = new Set(sessions.map((session) => session.id));
-  const next = `canvas-${Date.now().toString(36)}-${Math.random()
-    .toString(36)
-    .slice(2, 7)}`;
-  return existing.has(next) ? `${next}-${Math.random().toString(36).slice(2, 5)}` : next;
+  let candidate = "";
+  do {
+    candidate = createEntityId("canvas");
+  } while (existing.has(candidate));
+  return candidate;
 };
 
 type StaticActiveSnapshot = {

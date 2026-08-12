@@ -223,13 +223,6 @@ export const HOST_ICONOLOGY = {
   } satisfies IconMap<'open-right-sidebar' | 'toolbar-submenu'>,
 } as const;
 
-export function getSidebarToggleIcon(side: 'left' | 'right', isOpen: boolean): LucideIcon {
-  if (side === 'right') {
-    return isOpen ? PanelRightClose : PanelRightOpen;
-  }
-  return isOpen ? PanelLeftClose : PanelLeftOpen;
-}
-
 export function SidebarToggleIcon({
   side,
   isOpen,

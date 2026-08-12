@@ -1,5 +1,12 @@
 import type { NodeBounds, Point, SelectionArea } from "@/shared/types";
-import type { StructuredBgNode, StructuredBoxNode, StructuredLineNode, StructuredNode, StructuredSplitBoxNode, StructuredTextNode } from "@/domains/structured-content/public";
+import type {
+  StructuredBgNode,
+  StructuredBoxNode,
+  StructuredLineNode,
+  StructuredNode,
+  StructuredSplitBoxNode,
+  StructuredTextNode,
+} from "./types";
 import { getTextCellWidth } from "@/shared/metrics";
 import { getSelectionBounds } from "@/shared/utils/selection";
 import { getLShapeLinePoints } from "@/shared/utils/shapes";
@@ -305,15 +312,20 @@ export class StructuredSceneQuery {
   }
 
   update(scene: readonly StructuredNode[]): void {
-    if (scene === this.scene) return;
-    this.scene = scene;
-    this.ordered = [...scene].sort((a, b) => b.order - a.order);
-    this.byId = new Map(scene.map((node) => [node.id, node]));
+    if (
+      scene.length === this.scene.length &&
+      scene.every((node, index) => node === this.scene[index])
+    ) {
+      return;
+    }
+    this.scene = [...scene];
+    this.ordered = [...this.scene].sort((a, b) => b.order - a.order);
+    this.byId = new Map(this.scene.map((node) => [node.id, node]));
     this.boundsById = new Map(
-      scene.map((node) => [node.id, getStructuredNodeBounds(node)])
+      this.scene.map((node) => [node.id, getStructuredNodeBounds(node)])
     );
     this.spatialBuckets =
-      scene.length >= StructuredSceneQuery.SPATIAL_INDEX_THRESHOLD
+      this.scene.length >= StructuredSceneQuery.SPATIAL_INDEX_THRESHOLD
         ? this.buildSpatialBuckets()
         : null;
   }
@@ -404,14 +416,17 @@ export const createStructuredSceneQuery = (
   scene: readonly StructuredNode[]
 ): StructuredSceneQuery => {
   const cached = structuredSceneQueryCache.get(scene);
-  if (cached) return cached;
+  if (cached) {
+    cached.update(scene);
+    return cached;
+  }
   const query = new StructuredSceneQuery(scene);
   structuredSceneQueryCache.set(scene, query);
   return query;
 };
 
 export const findStructuredNodeIdsInSelection = (
-  scene: StructuredNode[],
+  scene: readonly StructuredNode[],
   area: SelectionArea
 ): string[] => createStructuredSceneQuery(scene).findNodeIdsInSelection(area);
 

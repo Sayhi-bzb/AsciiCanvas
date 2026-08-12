@@ -5,7 +5,6 @@ export {
 export type { AsciiCanvasDocumentV1 } from "./protocol/types";
 export {
   buildFreeformProtocolDocument,
-  buildProtocolDocument,
   buildProtocolDocumentFromCanvasState,
   buildStructuredProtocolDocument,
 } from "./protocol/builders";
@@ -14,4 +13,4 @@ export {
   parseProtocolDocument,
   protocolDocumentToSnapshot,
 } from "./protocol/import";
-import "./session-source";
+export { registerDocumentSessionSource } from "./session-source";

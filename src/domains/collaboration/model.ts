@@ -1,5 +1,3 @@
-export type CollaborationProviderKind = "p2p" | "websocket";
-
 export const COLLABORATION_DOCUMENT_VERSION = 2 as const;
 
 export type CollaborationCanvasMode = "freeform" | "structured";
@@ -29,21 +27,21 @@ export type CollaborationLinkParseResult =
   | { status: "unsupported"; version: number | null }
   | { status: "invalid" };
 
-export type CollaborationDocumentStatus =
+type CollaborationDocumentStatus =
   | "idle"
   | "restoring"
   | "ready"
   | "incompatible"
   | "error";
 
-export type CollaborationConnectionStatus =
+type CollaborationConnectionStatus =
   | "idle"
   | "connecting"
   | "waiting-for-peer"
   | "online"
   | "offline";
 
-export type CollaborationErrorKind =
+type CollaborationErrorKind =
   | "persistence"
   | "incompatible-document"
   | "provider"

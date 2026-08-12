@@ -5,7 +5,7 @@ import { styleStateToCell, type AnsiStyleState } from "@/shared/utils/ansi";
 import { GridManager } from "@/shared/utils/grid";
 import { isWideCell } from "@/shared/metrics";
 
-export type CellWriteOptions = {
+type CellWriteOptions = {
   preserveTargetBackground?: boolean;
 };
 

@@ -18,7 +18,7 @@ export type ActionShortcutEvent = Pick<KeyboardEvent, "key"> &
 const getActionShortcuts = (actionId: ActionId) =>
   ACTION_CATALOG[actionId]?.shortcuts;
 
-export type ShortcutPlatform = "mac" | "other";
+type ShortcutPlatform = "mac" | "other";
 
 const getShortcutPlatform = (): ShortcutPlatform => {
   if (typeof navigator === "undefined") return "other";

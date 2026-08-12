@@ -4,10 +4,10 @@ import { GridManager } from '@/shared/utils/grid';
 import { createSlideDeck, addSlide } from './deck';
 import { DEFAULT_SLIDE_SIZE, type SlideDeck, type SlideSize } from './model';
 
-export const SLIDE_MARKDOWN_SIGNATURE = 'slides/v2';
+const SLIDE_MARKDOWN_SIGNATURE = 'slides/v2';
 const LEGACY_SLIDE_MARKDOWN_SIGNATURE = 'slides/v1';
 
-export type ParsedSlideMarkdown = {
+type ParsedSlideMarkdown = {
   title?: string;
   slideDeck: SlideDeck;
 };

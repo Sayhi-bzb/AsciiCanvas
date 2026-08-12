@@ -72,7 +72,7 @@ export type DragUpdateDecision =
   | { type: "shape-preview"; update: ShapePreviewUpdate }
   | { type: "none" };
 
-export const resolveSelectionDragUpdatePreview = ({
+const resolveSelectionDragUpdatePreview = ({
   dragStart,
   currentGrid,
 }: {

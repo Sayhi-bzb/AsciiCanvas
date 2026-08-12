@@ -37,11 +37,4 @@ const ToggleGroupItem = React.forwardRef<
 ));
 ToggleGroupItem.displayName = ToggleGroupPrimitive.Item.displayName;
 
-const ToggleGroupSeparator = ({ className }: { className?: string }) => (
-  <div
-    aria-hidden="true"
-    className={cn("mx-1 h-5 w-px bg-accent", className)}
-  />
-);
-
-export { ToggleGroup, ToggleGroupItem, ToggleGroupSeparator };
+export { ToggleGroup, ToggleGroupItem };

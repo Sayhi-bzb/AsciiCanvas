@@ -1,5 +1,12 @@
 import type { Point } from "@/shared/types";
-import type { StructuredBoxNode, StructuredLineNode, StructuredNode, StructuredNodeStyle, StructuredSplitBoxNode, StructuredTextStyleRange } from "@/domains/structured-content/public";
+import type {
+  StructuredBoxNode,
+  StructuredLineNode,
+  StructuredNode,
+  StructuredNodeStyle,
+  StructuredSplitBoxNode,
+  StructuredTextStyleRange,
+} from "../../model/types";
 
 export type StructuredTemplateId =
   | "button"

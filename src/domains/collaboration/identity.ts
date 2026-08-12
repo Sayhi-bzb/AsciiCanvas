@@ -1,7 +1,7 @@
 const IDENTITY_KEY = "ascii-canvas-collaboration-identity";
 const COLORS = ["#e5484d", "#30a46c", "#3e63dd", "#ab4aba", "#f76b15", "#0d9488"];
 
-export type CollaborationIdentity = { id: string; name: string; color: string };
+type CollaborationIdentity = { id: string; name: string; color: string };
 
 export const getCollaborationIdentity = (): CollaborationIdentity => {
   try {
@@ -17,4 +17,3 @@ export const getCollaborationIdentity = (): CollaborationIdentity => {
   localStorage.setItem(IDENTITY_KEY, JSON.stringify(identity));
   return identity;
 };
-

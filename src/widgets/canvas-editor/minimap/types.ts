@@ -27,8 +27,3 @@ export type MinimapRenderState = {
   zoom: number;
   viewportSize: MinimapDimensions;
 };
-
-export type MinimapCameraAdapter = {
-  setOffset: (updater: (previous: Point) => Point) => void;
-  setZoom: (updater: (previous: number) => number) => void;
-};

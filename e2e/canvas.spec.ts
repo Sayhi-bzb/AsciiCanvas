@@ -65,6 +65,60 @@ test.describe('Canvas', () => {
     await expect(canvas).toBeVisible();
   });
 
+  test('keeps overscanned rasters covering the viewport while panning', async ({ page }) => {
+    const surface = page.getByTestId('ascii-canvas-surface');
+    const viewportLayer = page.getByTestId('canvas-viewport-layer');
+    const surfaceBox = await surface.boundingBox();
+    expect(surfaceBox).not.toBeNull();
+
+    const initialCoverage = await viewportLayer.evaluate((layer) => {
+      const surface = layer.parentElement!;
+      const surfaceRect = surface.getBoundingClientRect();
+      return Array.from(layer.querySelectorAll(':scope > canvas')).map((canvas) => {
+        const rect = canvas.getBoundingClientRect();
+        return {
+          leftGutter: surfaceRect.left - rect.left,
+          topGutter: surfaceRect.top - rect.top,
+          rightGutter: rect.right - surfaceRect.right,
+          bottomGutter: rect.bottom - surfaceRect.bottom,
+        };
+      });
+    });
+    expect(initialCoverage).toEqual([
+      { leftGutter: 128, topGutter: 128, rightGutter: 128, bottomGutter: 128 },
+      { leftGutter: 128, topGutter: 128, rightGutter: 128, bottomGutter: 128 },
+      { leftGutter: 128, topGutter: 128, rightGutter: 128, bottomGutter: 128 },
+    ]);
+
+    const assertCovered = async () => {
+      const covered = await viewportLayer.evaluate((layer) => {
+        const surfaceRect = layer.parentElement!.getBoundingClientRect();
+        return Array.from(layer.querySelectorAll(':scope > canvas')).every((canvas) => {
+          const rect = canvas.getBoundingClientRect();
+          return (
+            rect.left <= surfaceRect.left + 1 &&
+            rect.top <= surfaceRect.top + 1 &&
+            rect.right >= surfaceRect.right - 1 &&
+            rect.bottom >= surfaceRect.bottom - 1
+          );
+        });
+      });
+      expect(covered).toBe(true);
+    };
+
+    const center = {
+      x: surfaceBox!.x + surfaceBox!.width / 2,
+      y: surfaceBox!.y + surfaceBox!.height / 2,
+    };
+    await page.mouse.move(center.x, center.y);
+    await page.mouse.down({ button: 'middle' });
+    await page.mouse.move(center.x + 420, center.y + 260);
+    await assertCovered();
+    await page.mouse.move(center.x - 420, center.y - 260);
+    await assertCovered();
+    await page.mouse.up({ button: 'middle' });
+  });
+
   test('does not render a red origin marker', async ({ page }) => {
     const offset = { x: 220, y: 180 };
 

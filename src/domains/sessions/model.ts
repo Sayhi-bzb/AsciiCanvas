@@ -16,14 +16,14 @@ interface CanvasSessionBase {
   collaboration?: CollaborationDescriptorV2;
 }
 
-export interface StaticCanvasSession extends CanvasSessionBase {
+interface StaticCanvasSession extends CanvasSessionBase {
   mode: Exclude<CanvasMode, "slide">;
   scene: StructuredNode[];
   components?: StructuredComponentInstance[];
   grid: [string, GridCell][];
 }
 
-export interface SlideCanvasSession extends CanvasSessionBase {
+interface SlideCanvasSession extends CanvasSessionBase {
   mode: "slide";
   slideDeck: SlideDeck;
   scene: [];

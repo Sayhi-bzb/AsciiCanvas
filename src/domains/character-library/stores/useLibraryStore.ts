@@ -44,7 +44,7 @@ interface CharacterManifest {
   counts: Record<CharacterPackId | "main" | "unicode", number>;
 }
 
-export interface UnicodeFacet {
+interface UnicodeFacet {
   id: string;
   label: string;
   count: number;

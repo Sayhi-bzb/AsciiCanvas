@@ -26,4 +26,6 @@ const parseDocumentSessionSource = (
   return protocolDocumentToSnapshot(parseProtocolDocument(raw));
 };
 
-registerCanvasSessionSourceParser(parseDocumentSessionSource);
+export const registerDocumentSessionSource = () => {
+  registerCanvasSessionSourceParser(parseDocumentSessionSource);
+};

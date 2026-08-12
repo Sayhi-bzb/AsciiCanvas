@@ -109,16 +109,6 @@ const EDITOR_ACTION_META: Record<EditorActionId, ActionMeta> = {
   },
 };
 
-// Toolbar Actions
-export const TOOLBAR_ACTION_ORDER: ToolbarActionId[] = [
-  "select",
-  "brush",
-  "shape-group",
-  "fill",
-  "eraser",
-  "color",
-];
-
 export const TOOLBAR_ACTION_META: Record<ToolbarActionId, ActionMeta> = {
   select: {
     id: "select",

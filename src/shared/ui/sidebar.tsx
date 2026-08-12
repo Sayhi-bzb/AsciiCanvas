@@ -2,16 +2,12 @@
 "use client";
 
 import * as React from "react";
-import { Slot } from "@radix-ui/react-slot";
-
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { useUiI18n } from "@/shared/i18n";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import { rx } from "@/shared/styles/recipes";
 import { uiClass } from "@/shared/styles/components";
-import type { ItemTone, Size } from "@/shared/styles/tokens";
-import { Input } from "@/shared/ui/input";
 import {
   Sheet,
   SheetContent,
@@ -19,7 +15,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/shared/ui/sheet";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
 import { SidebarToggleIcon } from "@/shared/icons/iconology";
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state";
@@ -281,20 +276,6 @@ function SidebarInset({ className, ...props }: React.ComponentProps<"main">) {
   );
 }
 
-function SidebarInput({
-  className,
-  ...props
-}: React.ComponentProps<typeof Input>) {
-  return (
-    <Input
-      data-slot="sidebar-input"
-      data-sidebar="input"
-      className={cn("bg-background h-8 w-full shadow-none", className)}
-      {...props}
-    />
-  );
-}
-
 function SidebarHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -342,27 +323,6 @@ function SidebarGroup({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
-function SidebarGroupLabel({
-  className,
-  asChild = false,
-  ...props
-}: React.ComponentProps<"div"> & { asChild?: boolean }) {
-  const Comp = asChild ? Slot : "div";
-  return (
-    <Comp
-      data-slot="sidebar-group-label"
-      data-sidebar="group-label"
-      className={cn(
-        rx.panelLabel(),
-        "text-sidebar-foreground/70 ring-sidebar-ring flex h-7 shrink-0 items-center rounded-md px-2 outline-hidden transition-[margin,opacity] duration-200 ease-linear focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0",
-        "group-data-[collapsible=icon]:-mt-8 group-data-[collapsible=icon]:opacity-0",
-        className
-      )}
-      {...props}
-    />
-  );
-}
-
 function SidebarGroupContent({
   className,
   ...props
@@ -372,134 +332,6 @@ function SidebarGroupContent({
       data-slot="sidebar-group-content"
       data-sidebar="group-content"
       className={cn("w-full", rx.panelText(), className)}
-      {...props}
-    />
-  );
-}
-
-function SidebarMenu({ className, ...props }: React.ComponentProps<"ul">) {
-  return (
-    <ul
-      data-slot="sidebar-menu"
-      data-sidebar="menu"
-      className={cn("flex w-full min-w-0 flex-col gap-1", className)}
-      {...props}
-    />
-  );
-}
-
-function SidebarMenuItem({ className, ...props }: React.ComponentProps<"li">) {
-  return (
-    <li
-      data-slot="sidebar-menu-item"
-      data-sidebar="menu-item"
-      className={cn("group/menu-item relative", className)}
-      {...props}
-    />
-  );
-}
-
-type SidebarMenuButtonVariant = "default" | "outline";
-type SidebarMenuButtonSize = "default" | "sm" | "lg";
-
-const normalizeMenuSize = (size: SidebarMenuButtonSize): Size => {
-  if (size === "default") return "md";
-  return size;
-};
-
-const resolveMenuTone = (
-  variant: SidebarMenuButtonVariant,
-  tone?: ItemTone
-): ItemTone => {
-  if (tone) return tone;
-  return variant === "outline" ? "neutral" : "subtle";
-};
-
-const sidebarMenuButtonClasses = ({
-  variant,
-  tone,
-  size,
-  isActive,
-}: {
-  variant: SidebarMenuButtonVariant;
-  tone?: ItemTone;
-  size: SidebarMenuButtonSize;
-  isActive: boolean;
-}) =>
-  cn(
-    "peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left outline-hidden transition-[width,height,padding] disabled:pointer-events-none disabled:opacity-50 group-has-data-[sidebar=menu-action]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:p-2! [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0",
-    rx.item({
-      active: isActive,
-      tone: resolveMenuTone(variant, tone),
-      size: normalizeMenuSize(size),
-      outlined: variant === "outline",
-    }),
-    size === "lg" && "group-data-[collapsible=icon]:p-0!"
-  );
-
-function SidebarMenuButton({
-  asChild = false,
-  isActive = false,
-  variant = "default",
-  size = "default",
-  tone,
-  tooltip,
-  className,
-  ...props
-}: React.ComponentProps<"button"> & {
-  asChild?: boolean;
-  isActive?: boolean;
-  tooltip?: string | React.ComponentProps<typeof TooltipContent>;
-  tone?: ItemTone;
-  variant?: SidebarMenuButtonVariant;
-  size?: SidebarMenuButtonSize;
-}) {
-  const Comp = asChild ? Slot : "button";
-  const { isMobile, state } = useSidebar();
-  const normalizedSize = normalizeMenuSize(size);
-  const button = (
-    <Comp
-      data-slot="sidebar-menu-button"
-      data-sidebar="menu-button"
-      data-size={normalizedSize}
-      data-active={isActive}
-      className={cn(
-        sidebarMenuButtonClasses({
-          variant,
-          tone,
-          size,
-          isActive,
-        }),
-        className
-      )}
-      {...props}
-    />
-  );
-  if (!tooltip) return button;
-  if (typeof tooltip === "string") tooltip = { children: tooltip };
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>{button}</TooltipTrigger>
-      <TooltipContent
-        side="right"
-        align="center"
-        hidden={state !== "collapsed" || isMobile}
-        {...tooltip}
-      />
-    </Tooltip>
-  );
-}
-
-function SidebarMenuSub({ className, ...props }: React.ComponentProps<"ul">) {
-  return (
-    <ul
-      data-slot="sidebar-menu-sub"
-      data-sidebar="menu-sub"
-      className={cn(
-        "border-sidebar-border mx-3.5 flex min-w-0 translate-x-px flex-col gap-1 border-l px-2.5 py-0.5",
-        "group-data-[collapsible=icon]:hidden",
-        className
-      )}
       {...props}
     />
   );
@@ -611,15 +443,9 @@ function SidebarStandard({
 export {
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarInput,
   SidebarInset,
   SidebarHeader,
   SidebarTrigger,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarMenuSub,
   SidebarProvider,
   SidebarStandard,
   useSidebar,

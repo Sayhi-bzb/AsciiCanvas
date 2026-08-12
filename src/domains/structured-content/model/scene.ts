@@ -1,6 +1,7 @@
 import type { GridCell, NodeBounds, Point } from "@/shared/types";
 import type { StructuredNode } from "./types";
 import { normalizeCellStyle } from "@/shared/utils/ansi";
+import { createEntityId } from "@/shared/utils/id";
 import { mergeStructuredTextStyle } from "./text-ranges";
 import { getArrowLinePoints, getBoxPoints, getLShapeLinePoints } from "@/shared/utils/shapes";
 import { getSplitBoxPoints } from "./split-box-geometry";
@@ -132,7 +133,7 @@ const sortForDeterminism = (nodes: StructuredNode[]) => {
   });
 };
 
-export const renderStructuredScene = (scene: StructuredNode[]) => {
+export const renderStructuredScene = (scene: readonly StructuredNode[]) => {
   const grid = new Map<string, GridCell>();
   const bgLayer = new Map<string, string>();
   const visibleForegroundKeys = new Set<string>();
@@ -248,22 +249,31 @@ export const renderStructuredScene = (scene: StructuredNode[]) => {
   return grid;
 };
 
+type SceneGridEntriesCacheEntry = {
+  scene: readonly StructuredNode[];
+  entries: Array<[string, GridCell]>;
+};
+
 const sceneGridEntriesCache = new WeakMap<
-  StructuredNode[],
-  Array<[string, GridCell]>
+  readonly StructuredNode[],
+  SceneGridEntriesCacheEntry
 >();
 
-export const sceneToGridEntries = (scene: StructuredNode[]) => {
+export const sceneToGridEntries = (scene: readonly StructuredNode[]) => {
   const cached = sceneGridEntriesCache.get(scene);
-  if (cached) return cached;
+  if (
+    cached &&
+    cached.scene.length === scene.length &&
+    scene.every((node, index) => node === cached.scene[index])
+  ) {
+    return cached.entries;
+  }
   const entries = Array.from(renderStructuredScene(scene).entries());
-  sceneGridEntriesCache.set(scene, entries);
+  sceneGridEntriesCache.set(scene, { scene: [...scene], entries });
   return entries;
 };
 
-export const createStructuredNodeId = () => {
-  return `node-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
-};
+export const createStructuredNodeId = () => createEntityId("node");
 
 export const containsBounds = (outer: NodeBounds, inner: NodeBounds) => {
   return (

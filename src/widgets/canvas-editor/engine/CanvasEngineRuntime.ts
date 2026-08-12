@@ -1,6 +1,6 @@
 import { CanvasFrameScheduler } from "./FrameScheduler";
 
-export type CanvasEngineManager = {
+type CanvasEngineManager = {
   dispose: () => void;
 };
 

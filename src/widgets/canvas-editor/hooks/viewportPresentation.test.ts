@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   applyCanvasViewportPresentation,
+  constrainCanvasViewportTransform,
   resetCanvasViewportPresentation,
   resolveCanvasViewportTransform,
 } from './viewportPresentation';
@@ -74,5 +75,51 @@ describe('canvas viewport presentation', () => {
     applyCanvasViewportPresentation(layer, null, { offset: { x: 0, y: 0 }, zoom: 1 });
 
     expect(layer.style.transform).toBe('none');
+  });
+
+  it('keeps temporary panning inside the overscan coverage', () => {
+    const constrained = constrainCanvasViewportTransform(
+      { scale: 1, translateX: 400, translateY: -300 },
+      { width: 1000, height: 800, overscan: 128 }
+    );
+
+    expect(constrained).toEqual({
+      scale: 1,
+      translateX: 128,
+      translateY: -128,
+    });
+  });
+
+  it('falls back to the rendered frame when zoom-out exceeds the buffer', () => {
+    expect(
+      constrainCanvasViewportTransform(
+        { scale: 0.7, translateX: 0, translateY: 0 },
+        { width: 1000, height: 800, overscan: 128 }
+      )
+    ).toBeNull();
+
+    const layer = document.createElement('div');
+    layer.style.transform = 'translate3d(10px, 10px, 0)';
+    applyCanvasViewportPresentation(
+      layer,
+      { offset: { x: 0, y: 0 }, zoom: 1 },
+      { offset: { x: 0, y: 0 }, zoom: 0.7 },
+      { width: 1000, height: 800, overscan: 128 }
+    );
+
+    expect(layer.style.transform).toBe('none');
+  });
+
+  it('applies the requested transform while the buffer still covers the viewport', () => {
+    const layer = document.createElement('div');
+
+    applyCanvasViewportPresentation(
+      layer,
+      { offset: { x: 0, y: 0 }, zoom: 1 },
+      { offset: { x: 80, y: -96 }, zoom: 1 },
+      { width: 1000, height: 800, overscan: 128 }
+    );
+
+    expect(layer.style.transform).toBe('translate3d(80px, -96px, 0) scale(1)');
   });
 });

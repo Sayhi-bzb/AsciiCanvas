@@ -31,7 +31,7 @@ const SLOT_SHIFT = {
   ease: [0.22, 1, 0.36, 1],
 } as const;
 
-export type ReorderEventType = "grab" | "move" | "drop" | "cancel";
+type ReorderEventType = "grab" | "move" | "drop" | "cancel";
 
 export type ReorderAnnouncement<Item> = {
   type: ReorderEventType;
@@ -41,7 +41,7 @@ export type ReorderAnnouncement<Item> = {
   total: number;
 };
 
-export type ReorderRenderState = {
+type ReorderRenderState = {
   dragging: boolean;
   grabbed: boolean;
   lifted: boolean;
@@ -64,7 +64,7 @@ type DragData = {
   holdTimer: number | null;
 };
 
-export type ReorderableListProps<Item> = {
+type ReorderableListProps<Item> = {
   items: readonly Item[];
   getId: (item: Item) => string;
   getItemLabel: (

@@ -1,4 +1,4 @@
-export type DockShortcutPlatform = "mac" | "other";
+type DockShortcutPlatform = "mac" | "other";
 
 export type DockShortcutEvent = Pick<KeyboardEvent, "code"> &
   Partial<
@@ -14,7 +14,7 @@ export type DockShortcutEvent = Pick<KeyboardEvent, "code"> &
     >
   >;
 
-export const getDockShortcutPlatform = (): DockShortcutPlatform => {
+const getDockShortcutPlatform = (): DockShortcutPlatform => {
   if (typeof navigator === "undefined") return "other";
   const platform = navigator.platform || navigator.userAgent || "";
   return /mac|iphone|ipad|ipod/i.test(platform) ? "mac" : "other";
