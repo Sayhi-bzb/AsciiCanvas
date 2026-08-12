@@ -2,15 +2,14 @@ import type { Point, SelectionArea } from "@/shared/types";
 import type { CanvasMode } from "@/domains/sessions/public";
 import type { ToolType } from "@/domains/canvas/public";
 import type { StructuredNode } from "@/domains/structured-content/public";
+import type { CanvasInteractionState } from "@/domains/editor/public";
 import type {
   StructuredSplitBoxHandle,
 } from "@/domains/structured-content/public";
 import {
   getInteractionStart,
   isPrimaryDragState,
-  type InteractionEvent,
-  type InteractionState,
-} from "../core/interactionMachine";
+} from "@/domains/editor/public";
 import { resolveSelectionCommitDecision } from "../preview/selectionInteraction";
 import { resolveDragEndCommitDecision } from "../commit/commitInteraction";
 import {
@@ -22,29 +21,6 @@ import {
 import type { SelectionPreviewController } from "../preview/selectionPreviewController";
 import type { StructuredPreviewQueueController } from "../structured/structuredPreviewQueueExecution";
 
-type PanningDragEndExecutor = {
-  flushOffset: () => void;
-  dispatchInteraction: (event: InteractionEvent) => void;
-  setCursor: (cursor: string) => void;
-  getIdleCursor: () => string;
-  clearLinkHover: () => void;
-};
-
-type NonPanningDragEndExecutor = {
-  setCursor: (cursor: string) => void;
-};
-
-export const createNonPanningDragEndExecutor = ({
-  setCursor,
-}: NonPanningDragEndExecutor): NonPanningDragEndExecutor => ({
-  setCursor,
-});
-
-const executeNonPanningDragEndCleanup = (
-  executor: NonPanningDragEndExecutor
-): void => {
-  executor.setCursor("");
-};
 export type PrimaryDragEndExecutor = SelectionCommitExecutor &
   DragEndCommitExecutor & {
     flushSelectionPreview: () => void;
@@ -53,7 +29,7 @@ export type PrimaryDragEndExecutor = SelectionCommitExecutor &
   };
 
 type PrimaryDragEndContext = {
-  state: InteractionState;
+  state: CanvasInteractionState;
   tool: ToolType;
   canvasMode: CanvasMode;
   structuredScene: StructuredNode[];
@@ -63,36 +39,6 @@ type PrimaryDragEndContext = {
   splitBoxDividerResize: boolean;
 };
 
-export const createPanningDragEndExecutor = ({
-  flushOffset,
-  dispatchInteraction,
-  setCursor,
-  getIdleCursor,
-  clearLinkHover,
-}: {
-  flushOffset: () => void;
-  dispatchInteraction: (event: InteractionEvent) => void;
-  setCursor: (cursor: string) => void;
-  getIdleCursor: () => string;
-  clearLinkHover: () => void;
-}): PanningDragEndExecutor => ({
-  flushOffset,
-  dispatchInteraction,
-  setCursor,
-  getIdleCursor,
-  clearLinkHover,
-});
-
-export const executePanningDragEnd = (
-  executor: PanningDragEndExecutor
-): void => {
-  executor.flushOffset();
-  executor.dispatchInteraction({ type: "reset" });
-  executor.clearLinkHover();
-  executor.setCursor(executor.getIdleCursor());
-};
-
-
 export const resolvePrimaryDragEndContext = ({
   state,
   tool,
@@ -101,7 +47,7 @@ export const resolvePrimaryDragEndContext = ({
   resolvedEndGrid,
   isDividerHandle,
 }: {
-  state: InteractionState;
+  state: CanvasInteractionState;
   tool: ToolType;
   canvasMode: CanvasMode;
   structuredScene: StructuredNode[];
@@ -234,7 +180,7 @@ export const createPrimaryDragEndExecutor = ({
   resetDragState,
 });
 
-export type PrimaryDragEndHandler = ({
+type PrimaryDragEndHandler = ({
   state,
   tool,
   canvasMode,
@@ -242,7 +188,7 @@ export type PrimaryDragEndHandler = ({
   resolvedEndGrid,
   isDividerHandle,
 }: {
-  state: InteractionState;
+  state: CanvasInteractionState;
   tool: ToolType;
   canvasMode: CanvasMode;
   structuredScene: StructuredNode[];
@@ -273,29 +219,3 @@ export const createPrimaryDragEndHandler = ({
     }),
     executor
   );
-export type DragEndRouteHandler = ({
-  state,
-  button,
-  executePrimaryEnd,
-}: {
-  state: InteractionState;
-  button: number;
-  executePrimaryEnd: () => void;
-}) => void;
-
-export const createDragEndRouteHandler = ({
-  panning,
-  nonPanning,
-}: {
-  panning: PanningDragEndExecutor;
-  nonPanning: NonPanningDragEndExecutor;
-}): DragEndRouteHandler =>
-  ({ state, button, executePrimaryEnd }) => {
-    if (state.type === "panning") {
-      executePanningDragEnd(panning);
-      return;
-    }
-
-    if (button === 0) executePrimaryEnd();
-    executeNonPanningDragEndCleanup(nonPanning);
-  };

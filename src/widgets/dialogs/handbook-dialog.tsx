@@ -12,7 +12,10 @@ import {
   Type,
 } from "lucide-react";
 import type { ReactElement } from "react";
-import { getActionShortcutLabel } from "@/domains/actions/public";
+import {
+  getAppActionShortcutLabel,
+  getEditorCommandShortcutLabel,
+} from "@/domains/actions/public";
 import { Button } from "@/shared/ui/button";
 import {
   Dialog,
@@ -30,6 +33,7 @@ import {
   type TooltipContentProps,
 } from "@/shared/ui/tooltip";
 import { useUiI18n } from "@/shared/i18n";
+import { useEditor } from "@/domains/editor/public";
 import type { I18nKey } from "@/shared/i18n";
 
 const ACTION_SHORTCUT_ROWS = [
@@ -39,9 +43,8 @@ const ACTION_SHORTCUT_ROWS = [
   { actionId: "cut", labelKey: "manual.shortcut.cut" },
   { actionId: "paste", labelKey: "manual.shortcut.paste" },
   { actionId: "delete-selection", labelKey: "manual.shortcut.delete" },
-  { actionId: "toggle-sidebar", labelKey: "manual.shortcut.toggleSidebar" },
 ] as const satisfies readonly {
-  actionId: Parameters<typeof getActionShortcutLabel>[0];
+  actionId: Parameters<typeof getEditorCommandShortcutLabel>[1];
   labelKey: I18nKey;
 }[];
 
@@ -122,6 +125,7 @@ export function HandbookDialog({
   onStartTour,
 }: HandbookDialogProps = {}) {
   const { t } = useUiI18n();
+  const editor = useEditor();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -174,7 +178,10 @@ export function HandbookDialog({
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                   {ACTION_SHORTCUT_ROWS.map(({ actionId, labelKey }) => {
-                    const shortcut = getActionShortcutLabel(actionId);
+                    const shortcut = getEditorCommandShortcutLabel(
+                      editor.keymap,
+                      actionId
+                    );
                     return shortcut ? (
                       <ShortcutRow
                         key={actionId}
@@ -183,6 +190,10 @@ export function HandbookDialog({
                       />
                     ) : null;
                   })}
+                  <ShortcutRow
+                    label={t("manual.shortcut.toggleSidebar")}
+                    shortcut={getAppActionShortcutLabel("toggle-sidebar") ?? ""}
+                  />
                 </div>
               </div>
               <div className="space-y-2">

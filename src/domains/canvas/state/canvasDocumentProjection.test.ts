@@ -1,11 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import * as Y from "yjs";
-import { useEditorStore } from "./editorStore";
-import {
-  activateCanvasDocument,
-  getCanvasDocument,
-  runCanvasTransaction,
-} from "./canvasDocument";
+import { defaultCanvasDocuments, useEditorStore } from "@/domains/canvas/testing";
 
 const initialState = useEditorStore.getState();
 const cell = (char: string) => ({ char, color: "#000000" });
@@ -21,7 +16,7 @@ const textNode = (id: string, text: string) => ({
 describe("remote canvas document projection", () => {
   afterEach(() => {
     useEditorStore.setState(initialState, true);
-    activateCanvasDocument(
+    defaultCanvasDocuments.activateDocument(
       initialState.activeCanvasId,
       {
         grid: Array.from(initialState.grid.entries()),
@@ -49,14 +44,16 @@ describe("remote canvas document projection", () => {
         },
       ],
     });
-    activateCanvasDocument(sessionId, { grid: [], scene: [], components: [] });
-    const local = getCanvasDocument(sessionId)!;
+    defaultCanvasDocuments.activateDocument(sessionId, { grid: [], scene: [], components: [] });
+    const local = defaultCanvasDocuments.getCollaborationDocument(sessionId)!;
     const remote = new Y.Doc();
     remote.getMap("main-grid").set("0,0", cell("R"));
     remote.getMap("main-grid").set("1,0", cell("S"));
 
-    Y.applyUpdate(local.doc, Y.encodeStateAsUpdate(remote));
-    runCanvasTransaction(() => local.grid.set("2,0", cell("L")));
+    Y.applyUpdate(local, Y.encodeStateAsUpdate(remote));
+    defaultCanvasDocuments.runTransaction(() =>
+      defaultCanvasDocuments.yMainGrid.set("2,0", cell("L"))
+    );
 
     expect(Object.fromEntries(useEditorStore.getState().grid)).toEqual({
       "0,0": cell("R"),
@@ -84,7 +81,7 @@ describe("remote canvas document projection", () => {
         },
       ],
     });
-    activateCanvasDocument(sessionId, { grid: [], scene: [], components: [] });
+    defaultCanvasDocuments.activateDocument(sessionId, { grid: [], scene: [], components: [] });
     let projectionCount = 0;
     const unsubscribe = useEditorStore.subscribe((state, previous) => {
       if (state.structuredScene !== previous.structuredScene) projectionCount += 1;
@@ -119,8 +116,8 @@ describe("remote canvas document projection", () => {
         },
       ],
     });
-    activateCanvasDocument(sessionId, { grid: [], scene: [], components: [] });
-    const local = getCanvasDocument(sessionId)!;
+    defaultCanvasDocuments.activateDocument(sessionId, { grid: [], scene: [], components: [] });
+    const local = defaultCanvasDocuments.getCollaborationDocument(sessionId)!;
     const remote = new Y.Doc();
     remote.getMap("structured-scene").set("remote-text", textNode("remote-text", "Remote"));
     let projectionCount = 0;
@@ -128,7 +125,7 @@ describe("remote canvas document projection", () => {
       if (state.structuredScene !== previous.structuredScene) projectionCount += 1;
     });
 
-    Y.applyUpdate(local.doc, Y.encodeStateAsUpdate(remote));
+    Y.applyUpdate(local, Y.encodeStateAsUpdate(remote));
     unsubscribe();
 
     const state = useEditorStore.getState();

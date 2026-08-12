@@ -1,35 +1,27 @@
-import { ACTION_CATALOG } from "./catalog";
-import { editorRuntime } from "@/domains/editor/public";
-import type { ActionId, ShortcutToken } from "./types";
+import { APP_ACTION_META, EDITOR_COMMAND_META } from "./catalog";
+import type { CanvasEditorRuntime } from "@/domains/editor/public";
+import type { EditorActionId, ShortcutToken, SidebarActionId } from "./types";
 
-export type ActionShortcutEvent = Pick<KeyboardEvent, "key"> &
-  Partial<
-    Pick<
-      KeyboardEvent,
-      | "altKey"
-      | "ctrlKey"
-      | "defaultPrevented"
-      | "isComposing"
-      | "metaKey"
-      | "repeat"
-      | "shiftKey"
-    >
-  >;
+type CanvasEditorKeymap = CanvasEditorRuntime["keymap"];
 
-const getActionShortcuts = (actionId: ActionId) => {
-  const configured = editorRuntime.keymap.getBindings(`action:${actionId}`);
+const getEditorCommandShortcuts = (
+  keymap: CanvasEditorKeymap,
+  commandId: EditorActionId
+) => {
+  const configured = keymap.getBindings(`command:${commandId}`);
   if (configured) {
     return configured.map((shortcut) => shortcut.split("+") as ShortcutToken[]);
   }
-  return ACTION_CATALOG[actionId]?.shortcuts;
+  return EDITOR_COMMAND_META[commandId]?.shortcuts;
 };
 
-export const setActionShortcutOverride = (
-  actionId: ActionId,
+export const setEditorCommandShortcutOverride = (
+  keymap: CanvasEditorKeymap,
+  commandId: EditorActionId,
   shortcuts: readonly (readonly ShortcutToken[])[] | null
 ) =>
-  editorRuntime.keymap.setUserBindings(
-    `action:${actionId}`,
+  keymap.setUserBindings(
+    `command:${commandId}`,
     shortcuts?.map((shortcut) => shortcut.join("+")) ?? null
   );
 
@@ -83,43 +75,21 @@ const formatChord = (
   return platform === "mac" ? tokens.join("") : tokens.join("+");
 };
 
-const matchesChord = (
-  chord: readonly ShortcutToken[],
-  event: ActionShortcutEvent
-) => {
-  if (event.defaultPrevented || event.isComposing || event.repeat) return false;
-
-  const expectsMod = chord.includes("mod");
-  const expectsShift = chord.includes("shift");
-  const expectsAlt = chord.includes("alt");
-  if (Boolean(event.ctrlKey || event.metaKey) !== expectsMod) return false;
-  if (Boolean(event.shiftKey) !== expectsShift) return false;
-  if (Boolean(event.altKey) !== expectsAlt) return false;
-
-  const keyToken = chord.find(
-    (token) => token !== "mod" && token !== "shift" && token !== "alt"
-  );
-  return !!keyToken && event.key.toLowerCase() === keyToken;
-};
-
-export const matchesActionShortcut = (
-  actionId: ActionId,
-  event: ActionShortcutEvent
-) =>
-  getActionShortcuts(actionId)?.some((chord) => matchesChord(chord, event)) ??
-  false;
-
-export const resolveActionShortcut = <T extends ActionId>(
-  event: ActionShortcutEvent,
-  actionIds: readonly T[]
-): T | null =>
-  actionIds.find((actionId) => matchesActionShortcut(actionId, event)) ?? null;
-
-export const getActionShortcutLabel = (
-  actionId: ActionId,
+export const getEditorCommandShortcutLabel = (
+  keymap: CanvasEditorKeymap,
+  commandId: EditorActionId,
   platform = getShortcutPlatform()
 ) => {
-  const chords = getActionShortcuts(actionId);
+  const chords = getEditorCommandShortcuts(keymap, commandId);
   if (!chords || chords.length === 0) return undefined;
+  return chords.map((chord) => formatChord(chord, platform)).join(" / ");
+};
+
+export const getAppActionShortcutLabel = (
+  actionId: SidebarActionId,
+  platform = getShortcutPlatform()
+) => {
+  const chords = APP_ACTION_META[actionId].shortcuts;
+  if (!chords?.length) return undefined;
   return chords.map((chord) => formatChord(chord, platform)).join(" / ");
 };

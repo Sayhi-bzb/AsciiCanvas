@@ -43,7 +43,7 @@ function collect(directory) {
 const violations = [];
 for (const absolute of collect(SRC_ROOT)) {
   const sourcePath = path.relative(SRC_ROOT, absolute).replaceAll("\\", "/");
-  if (/\.(?:test|spec)\.[tj]sx?$/.test(sourcePath)) continue;
+  if (sourcePath.startsWith("test/") || /\.(?:test|spec)\.[tj]sx?$/.test(sourcePath)) continue;
   const sourceText = fs.readFileSync(absolute, "utf8");
   const sourceFile = ts.createSourceFile(
     sourcePath,

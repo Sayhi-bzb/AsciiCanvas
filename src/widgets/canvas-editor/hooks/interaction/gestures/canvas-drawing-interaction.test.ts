@@ -1,9 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
-import {
-  createDrawingUpdateHandler,
-  resolveDrawingUpdateDecision,
-} from "@/widgets/canvas-editor/hooks/interaction/gestures/drawingInteraction";
-import { createCanvasInteractionRuntime } from "@/widgets/canvas-editor/hooks/interaction/core/interactionRuntime";
+import { describe, expect, it } from "vitest";
+import { resolveDrawingUpdateDecision } from "@/widgets/canvas-editor/hooks/interaction/gestures/drawingInteraction";
 
 describe("drawing interaction updates", () => {
   it("does nothing without a previous grid point", () => {
@@ -106,72 +102,5 @@ describe("drawing interaction updates", () => {
       nextLastGrid: { x: 2, y: 0 },
       nextLastPlacedGrid: { x: 0, y: 0 },
     });
-  });
-  it("executes scratch updates and advances typed drawing state", () => {
-    const addScratchPoints = vi.fn();
-    const erasePoints = vi.fn();
-    const runtime = createCanvasInteractionRuntime();
-    runtime.dispatch({ type: "startDrawing", tool: "brush", start: { x: 0, y: 0 } });
-    const handleDrawing = createDrawingUpdateHandler({
-      getBrushChar: () => "A",
-      getInteractionState: runtime.getState,
-      executor: { addScratchPoints, erasePoints, dispatchInteraction: runtime.dispatch },
-    });
-
-    handleDrawing({ x: 2, y: 0 });
-
-    expect(addScratchPoints).toHaveBeenCalledWith([
-      { x: 0, y: 0, char: "A" },
-      { x: 1, y: 0, char: "A" },
-      { x: 2, y: 0, char: "A" },
-    ]);
-    expect(erasePoints).not.toHaveBeenCalled();
-    expect(runtime.getState()).toMatchObject({
-      type: "drawing",
-      lastGrid: { x: 2, y: 0 },
-    });
-  });
-
-  it("executes erase updates and preserves placement state", () => {
-    const addScratchPoints = vi.fn();
-    const erasePoints = vi.fn();
-    const runtime = createCanvasInteractionRuntime();
-    runtime.dispatch({ type: "startDrawing", tool: "eraser", start: { x: 0, y: 0 } });
-    const handleDrawing = createDrawingUpdateHandler({
-      getBrushChar: () => "A",
-      getInteractionState: runtime.getState,
-      executor: { addScratchPoints, erasePoints, dispatchInteraction: runtime.dispatch },
-    });
-
-    handleDrawing({ x: 0, y: 2 });
-
-    expect(addScratchPoints).not.toHaveBeenCalled();
-    expect(erasePoints).toHaveBeenCalledWith([
-      { x: 0, y: 0 },
-      { x: 0, y: 1 },
-      { x: 0, y: 2 },
-    ]);
-    expect(runtime.getState()).toMatchObject({
-      type: "drawing",
-      lastGrid: { x: 0, y: 2 },
-      lastPlacedGrid: { x: 0, y: 0 },
-    });
-  });
-
-  it("skips drawing side effects when no update decision is produced", () => {
-    const addScratchPoints = vi.fn();
-    const erasePoints = vi.fn();
-    const runtime = createCanvasInteractionRuntime();
-    const handleDrawing = createDrawingUpdateHandler({
-      getBrushChar: () => "A",
-      getInteractionState: runtime.getState,
-      executor: { addScratchPoints, erasePoints, dispatchInteraction: runtime.dispatch },
-    });
-
-    handleDrawing({ x: 2, y: 0 });
-
-    expect(addScratchPoints).not.toHaveBeenCalled();
-    expect(erasePoints).not.toHaveBeenCalled();
-    expect(runtime.getState()).toEqual({ type: "idle" });
   });
 });

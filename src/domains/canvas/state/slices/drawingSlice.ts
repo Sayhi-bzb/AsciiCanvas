@@ -1,6 +1,6 @@
 import type { StateCreator } from "zustand";
 import type { EditorState, DrawingSlice } from "../interfaces";
-import { mutateCanvasGrid } from "../canvasDocument";
+import type { CanvasDocumentRegistry } from "../CanvasDocumentRegistry";
 import { GridManager } from "@/shared/utils/grid";
 import type { GridPoint } from "@/shared/types";
 import type { StructuredBoxNode, StructuredNode } from "@/domains/structured-content/public";
@@ -44,12 +44,14 @@ const getFilledRectPoints = (
   return points;
 };
 
-export const createDrawingSlice: StateCreator<
+export const createDrawingSlice = (
+  documents: CanvasDocumentRegistry
+): StateCreator<
   EditorState,
   [],
   [],
   DrawingSlice
-> = (set, get) => ({
+> => (set, get) => ({
   scratchLayer: null,
 
   setScratchLayer: (points) => {
@@ -146,7 +148,7 @@ export const createDrawingSlice: StateCreator<
       return;
     }
     if (!scratchLayer || scratchLayer.size === 0) return;
-    mutateCanvasGrid((grid) => {
+    documents.mutateGrid((grid) => {
       GridManager.iterate(scratchLayer, (cell, x, y) => {
         const key = GridManager.toKey(x, y);
         if (cell.bgColor && cell.char === " ") {
@@ -181,7 +183,7 @@ export const createDrawingSlice: StateCreator<
       set(createDocumentInteractionResetPatch());
       return;
     }
-    mutateCanvasGrid((grid) => grid.clear());
+    documents.mutateGrid((grid) => grid.clear());
     set(createDocumentInteractionResetPatch());
   },
 
@@ -189,7 +191,7 @@ export const createDrawingSlice: StateCreator<
     const { canvasMode } = get();
     if (canvasMode === "structured") return;
     if (points.length === 0) return;
-    mutateCanvasGrid((grid) => {
+    documents.mutateGrid((grid) => {
       points.forEach((p) => {
         deleteCellAt(grid, p.x, p.y);
       });

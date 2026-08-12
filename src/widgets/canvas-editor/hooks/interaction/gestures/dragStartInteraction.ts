@@ -1,7 +1,7 @@
 import type { Point, SelectionArea } from "@/shared/types";
 import type { CanvasMode } from "@/domains/sessions/public";
 import type { ToolType } from "@/domains/canvas/public";
-import type { InteractionEvent } from "../core/interactionMachine";
+import type { CanvasInteractionState } from "@/domains/editor/public";
 
 export const isShapeTool = (
   tool: ToolType,
@@ -68,13 +68,13 @@ export type SelectionDragStartDecision =
 export type DrawingShapeDragStartDecision =
   | {
       type: "drawing";
-      event: InteractionEvent;
+      state: CanvasInteractionState;
       scratchPoint?: { x: number; y: number; char: string };
       erasePoint?: Point;
     }
   | {
       type: "shape-preview";
-      event: InteractionEvent;
+      state: CanvasInteractionState;
     }
   | { type: "ignore" };
 
@@ -145,7 +145,10 @@ export const resolveDrawingShapeDragStartDecision = ({
   if (tool === "brush" && canvasMode !== "structured") {
     return {
       type: "drawing",
-      event: { type: "startDrawing", tool, start },
+      state: {
+        type: "drawing", tool, start,
+        lastGrid: start, lastPlacedGrid: start,
+      },
       scratchPoint: { ...start, char: brushChar },
     };
   }
@@ -153,7 +156,10 @@ export const resolveDrawingShapeDragStartDecision = ({
   if (tool === "eraser" && canvasMode !== "structured") {
     return {
       type: "drawing",
-      event: { type: "startDrawing", tool, start },
+      state: {
+        type: "drawing", tool, start,
+        lastGrid: start, lastPlacedGrid: start,
+      },
       erasePoint: start,
     };
   }
@@ -161,7 +167,7 @@ export const resolveDrawingShapeDragStartDecision = ({
   if (isShapeTool(tool, canvasMode)) {
     return {
       type: "shape-preview",
-      event: { type: "startShapePreview", tool, start },
+      state: { type: "shapePreview", tool, start, axis: null },
     };
   }
 

@@ -1,6 +1,6 @@
 import type { StateCreator } from "zustand";
 import type { EditorState, TextSlice } from "../interfaces";
-import { mutateCanvasGrid } from "../canvasDocument";
+import type { CanvasDocumentRegistry } from "../CanvasDocumentRegistry";
 import { GridManager } from "@/shared/utils/grid";
 import { collapseGridSelectionTo, getStaticGridViewState } from "@/domains/selection/public";
 import { placeCharInYMap, placeStyledCellInYMap } from "../utils";
@@ -130,10 +130,9 @@ const findBoxNameTargetAtCursor = (
   })[0];
 };
 
-export const createTextSlice: StateCreator<EditorState, [], [], TextSlice> = (
-  set,
-  get
-) => ({
+export const createTextSlice = (
+  documents: CanvasDocumentRegistry
+): StateCreator<EditorState, [], [], TextSlice> => (set, get) => ({
   textCursor: null,
   editingStructuredTextNodeId: null,
   structuredTextSelection: null,
@@ -350,7 +349,7 @@ export const createTextSlice: StateCreator<EditorState, [], [], TextSlice> = (
     let currentY = cursor.y;
     const startX = cursor.x;
 
-    mutateCanvasGrid((gridWriter) => {
+    documents.mutateGrid((gridWriter) => {
       let index = 0;
       while (index < str.length) {
         if (str[index] === "\r" && str[index + 1] === "\n") {
@@ -418,7 +417,7 @@ export const createTextSlice: StateCreator<EditorState, [], [], TextSlice> = (
     const cellsBySourcePoint = new Map(
       cells.map((cell) => [GridManager.toKey(cell.x, cell.y), cell])
     );
-    mutateCanvasGrid((gridWriter) => {
+    documents.mutateGrid((gridWriter) => {
       cells.forEach((cell) => {
         if (isWideFollowerRichCell(cell, cellsBySourcePoint)) return;
         const nextPoint = {
@@ -554,7 +553,7 @@ export const createTextSlice: StateCreator<EditorState, [], [], TextSlice> = (
       return;
     }
 
-    mutateCanvasGrid((gridWriter) => {
+    documents.mutateGrid((gridWriter) => {
       const { x, y } = textCursor;
       const deletePos = resolveBackspaceAnchor(grid, x, y);
       deleteCellAt(gridWriter, deletePos.x, deletePos.y);

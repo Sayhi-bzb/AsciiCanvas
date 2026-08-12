@@ -18,7 +18,6 @@ const createExecutor = (calls: string[]): DragResetExecutor => ({
     calls.push("clearStructuredMovePreview")
   ),
   clearSelectionPreview: vi.fn(() => calls.push("clearSelectionPreview")),
-  dispatchInteraction: vi.fn(() => calls.push("dispatchInteraction")),
 });
 
 const createStructuredPreviewQueue = (
@@ -52,9 +51,7 @@ describe("drag reset execution", () => {
       "clearStructuredSplitBoxResizeQueueLast",
       "clearStructuredMovePreview",
       "clearSelectionPreview",
-      "dispatchInteraction",
     ]);
-    expect(executor.dispatchInteraction).toHaveBeenCalledWith({ type: "reset" });
   });
 
   it("controller clears structured preview state and resets typed state", () => {
@@ -64,13 +61,11 @@ describe("drag reset execution", () => {
     const clearStructuredMovePreview = vi.fn(() =>
       calls.push("clearStructuredMovePreview")
     );
-    const dispatchInteraction = vi.fn(() => calls.push("dispatchInteraction"));
 
     createDragResetController({
       structuredPreviewQueue,
       clearStructuredMovePreview,
       selectionPreview,
-      dispatchInteraction,
     }).reset();
 
     expect(calls).toEqual([
@@ -78,11 +73,9 @@ describe("drag reset execution", () => {
       "clearLastSplitBoxResize",
       "clearStructuredMovePreview",
       "clearSelectionPreview",
-      "dispatchInteraction",
     ]);
     expect(selectionPreview.set).toHaveBeenCalledWith(null, {
       immediate: true,
     });
-    expect(dispatchInteraction).toHaveBeenCalledWith({ type: "reset" });
   });
 });

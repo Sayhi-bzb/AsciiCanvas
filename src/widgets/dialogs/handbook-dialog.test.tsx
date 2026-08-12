@@ -1,14 +1,17 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HandbookDialog } from "@/widgets/dialogs/handbook-dialog";
 import { setUiLanguage } from "@/shared/i18n";
+
+const renderHandbook = (dialog: ReactElement = <HandbookDialog />) => render(dialog);
 
 describe("HandbookDialog", () => {
   beforeEach(() => setUiLanguage("en"));
   afterEach(() => setUiLanguage("en"));
 
   it("documents the current freeform and structured workflows", () => {
-    render(<HandbookDialog />);
+    renderHandbook();
 
     fireEvent.click(screen.getByRole("button", { name: "Open user manual" }));
 
@@ -42,7 +45,7 @@ describe("HandbookDialog", () => {
 
   it("offers a desktop guided-tour replay action when supplied", () => {
     const onStartTour = vi.fn();
-    render(
+    renderHandbook(
       <HandbookDialog open trigger={null} onStartTour={onStartTour} />
     );
 
@@ -52,7 +55,7 @@ describe("HandbookDialog", () => {
 
   it("localizes the shortcut list in Chinese", () => {
     setUiLanguage("zh");
-    render(<HandbookDialog />);
+    renderHandbook(<HandbookDialog />);
 
     fireEvent.click(screen.getByRole("button", { name: "打开用户手册" }));
 

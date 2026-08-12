@@ -4,7 +4,7 @@ import {
   getStructuredTextCaretPoint,
   getStructuredTextOffsetAtPoint,
 } from "@/domains/structured-content/public";
-import type { InteractionEvent } from "../core/interactionMachine";
+import type { CanvasInteractionState } from "@/domains/editor/public";
 import type { StructuredTextCaretHit } from "./structuredSelectStart";
 
 type StructuredTextCaretSelectionStart = {
@@ -13,7 +13,7 @@ type StructuredTextCaretSelectionStart = {
   textSelection: null;
   selectionStart: { nodeId: string; offset: number };
   dragStart: Point;
-  interactionEvent: InteractionEvent;
+  state: CanvasInteractionState;
 };
 
 export const resolveStructuredTextCaretSelectionStart = ({
@@ -34,8 +34,8 @@ export const resolveStructuredTextCaretSelectionStart = ({
     textSelection: null,
     selectionStart: { nodeId: node.id, offset },
     dragStart: point,
-    interactionEvent: {
-      type: "startStructuredTextSelecting",
+    state: {
+      type: "structuredTextSelecting",
       nodeId: node.id,
       anchorOffset: offset,
       start: point,

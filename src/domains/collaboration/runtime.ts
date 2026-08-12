@@ -344,4 +344,4 @@ export class CollaborationRuntime {
   }
 }
 
-export const collaborationRuntime = new CollaborationRuntime();
+export const createCollaborationRuntime = () => new CollaborationRuntime();

@@ -112,6 +112,21 @@ describe("EditorRuntime", () => {
     ).toThrow(/already owned by state/);
   });
 
+  it("owns declarative keybindings through the extension lifecycle", () => {
+    const { runtime } = createRuntime();
+    runtime.registerExtension({
+      id: "keybindings",
+      keybindings: [{
+        id: "command:increment",
+        shortcuts: ["Shift+Mod+I"],
+        target: { type: "command", id: "increment" },
+      }],
+    });
+    expect(runtime.keymap.getBindings("command:increment")).toEqual(["mod+shift+i"]);
+    runtime.dispose();
+    expect(runtime.keymap.getBindings("command:increment")).toBeUndefined();
+  });
+
   it("routes events through active tools and disposes their lifecycle", () => {
     const { runtime } = createRuntime();
     let first!: TestTool;

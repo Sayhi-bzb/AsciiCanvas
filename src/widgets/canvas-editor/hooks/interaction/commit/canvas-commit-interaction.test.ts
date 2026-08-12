@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { resolveDragEndCommitDecision } from "@/widgets/canvas-editor/hooks/interaction/commit/commitInteraction";
-import type { InteractionState, StructuredNodeDragPayload } from "@/widgets/canvas-editor/hooks/interaction/core/interactionMachine";
+import type { CanvasInteractionState, StructuredNodeDragPayload } from "@/domains/editor/public";
 
 const drag: StructuredNodeDragPayload = {
   node: {
@@ -16,7 +16,7 @@ const drag: StructuredNodeDragPayload = {
 };
 
 const resolve = (
-  state: InteractionState,
+  state: CanvasInteractionState,
   options: { tool?: "brush" | "eraser" | "box" | "splitBox" | "select"; divider?: boolean } = {}
 ) => resolveDragEndCommitDecision({
   state,

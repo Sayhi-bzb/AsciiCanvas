@@ -1,13 +1,20 @@
 import {
-  canvasCommands,
-  getCanvasState,
-  subscribeCanvasState,
   type CanvasState,
   type ToolType,
 } from "@/domains/canvas/public";
 import { EditorRuntime } from "./core/runtime";
-import { EditorStateNode } from "./core/stateNode";
-import type { EditorExtension, EditorInputEvent } from "./core/types";
+import type {
+  EditorExtension,
+  EditorHistoryPort,
+  EditorStateAdapter,
+  EditorTransactionPort,
+} from "./core/types";
+import {
+  CanvasInteractionPortBinding,
+  CanvasToolStateNode,
+  type CanvasEditorInputEvent,
+  type CanvasInteractionState,
+} from "./canvasToolRuntime";
 
 const BUILT_IN_TOOLS: readonly ToolType[] = [
   "select",
@@ -25,9 +32,12 @@ const BUILT_IN_TOOLS: readonly ToolType[] = [
   "circle",
 ];
 
-class CanvasToolStateNode extends EditorStateNode<CanvasState, EditorInputEvent> {}
-
-export const createCanvasEditorExtension = (): EditorExtension<CanvasState> => ({
+export const createCanvasEditorExtension = (
+  interactionPort: CanvasInteractionPortBinding
+): EditorExtension<
+  CanvasState,
+  CanvasEditorInputEvent
+> => ({
   id: "chardesk.canvas",
   stateScopes: [
     { key: "canvas.content", scope: "document" },
@@ -38,23 +48,36 @@ export const createCanvasEditorExtension = (): EditorExtension<CanvasState> => (
   ],
   tools: BUILT_IN_TOOLS.map((id) => ({
     id,
-    create: (editor, parent) => new CanvasToolStateNode(editor, id, parent),
+    create: (editor, parent) =>
+      new CanvasToolStateNode(editor, id, parent, interactionPort),
   })),
 });
 
-export const editorRuntime = new EditorRuntime<CanvasState>({
-  state: {
-    get: getCanvasState,
-    subscribe: subscribeCanvasState,
-  },
-  history: {
-    undo: canvasCommands.history.undo,
-    redo: canvasCommands.history.redo,
-    beginCheckpoint: canvasCommands.history.beginCheckpoint,
-    finishCapture: canvasCommands.history.finishCapture,
-  },
-  transactions: {
-    run: canvasCommands.history.transact,
-  },
-  onToolChange: (id) => canvasCommands.tools.set(id as ToolType),
-});
+export class CanvasEditorRuntime extends EditorRuntime<
+  CanvasState,
+  CanvasEditorInputEvent
+> {
+  readonly interactionPort = new CanvasInteractionPortBinding();
+
+  getInteractionState = (): CanvasInteractionState => {
+    const current = this.root.getCurrent();
+    return current instanceof CanvasToolStateNode
+      ? current.getInteractionState()
+      : { type: "idle" };
+  };
+}
+
+export type CanvasEditorRuntimePorts = {
+  state: EditorStateAdapter<CanvasState>;
+  history: EditorHistoryPort;
+  transactions: EditorTransactionPort;
+  onToolChange?: (id: ToolType) => void;
+};
+
+export const createCanvasEditorRuntime = (ports: CanvasEditorRuntimePorts) =>
+  new CanvasEditorRuntime({
+    state: ports.state,
+    history: ports.history,
+    transactions: ports.transactions,
+    onToolChange: (id) => ports.onToolChange?.(id as ToolType),
+  });

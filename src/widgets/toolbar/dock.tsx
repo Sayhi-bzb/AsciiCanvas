@@ -3,10 +3,9 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { cn } from "@/shared/lib/utils";
 import type { ToolType } from "@/domains/canvas/public";
-import { canvasCommands, useCanvasState } from "@/domains/canvas/public";
+import { useCanvasRuntime, useCanvasState } from "@/domains/canvas/public";
 import {
   TOOLBAR_ACTION_META,
-  runToolbarAction,
 } from "@/domains/actions/public";
 import { resolveActiveToolbarAction } from "@/domains/actions/public";
 import type { ToolbarActionId } from "@/domains/actions/public";
@@ -83,6 +82,7 @@ export function Toolbar({
   onExitCanvasTextEditing,
   enabled = true,
 }: ToolbarProps) {
+  const canvas = useCanvasRuntime();
   const { t } = useUiI18n();
   const {
     brushChar,
@@ -97,9 +97,9 @@ export function Toolbar({
       structuredTextSelection: state.structuredTextSelection,
     }))
   );
-  const setBrushChar = canvasCommands.preferences.setBrushChar;
-  const setBrushColor = canvasCommands.preferences.setBrushColor;
-  const setStructuredTextColor = canvasCommands.structured.setTextColor;
+  const setBrushChar = canvas.commands.preferences.setBrushChar;
+  const setBrushColor = canvas.commands.preferences.setBrushColor;
+  const setStructuredTextColor = canvas.commands.structured.setTextColor;
   const [lastUsedShape, setLastUsedShape] = useState<ToolType>("box");
   const [openSubMenuId, setOpenSubMenuId] = useState<null | string>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -197,6 +197,20 @@ export function Toolbar({
     return idx !== -1 ? idx : 0;
   }, [tool, isShapeGroupActive, navItems]);
 
+  const activateToolbarItem = useCallback((id: ToolbarActionId) => {
+    if (id === "color") return false;
+    if (id === "undo") {
+      onUndo();
+      return true;
+    }
+    if (id === "shape-group") {
+      setTool(isShapeGroupActive ? tool : availableLastUsedShape);
+      return true;
+    }
+    setTool(id);
+    return true;
+  }, [availableLastUsedShape, isShapeGroupActive, onUndo, setTool, tool]);
+
   useShortcutLayer({
     id: "dock-tools",
     priority: SHORTCUT_PRIORITY.dynamicCanvasCommand,
@@ -220,14 +234,7 @@ export function Toolbar({
         return { claimed: true, preventDefault: true };
       }
 
-      const result = runToolbarAction(item.id as ToolbarActionId, {
-        tool,
-        isShapeGroupActive,
-        lastUsedShape: availableLastUsedShape,
-        setTool,
-        onUndo,
-      });
-      return result.status === "succeeded"
+      return activateToolbarItem(item.id as ToolbarActionId)
         ? { claimed: true, preventDefault: true }
         : undefined;
     },
@@ -282,15 +289,7 @@ export function Toolbar({
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <button
-                        onClick={() =>
-                          runToolbarAction(item.id as ToolbarActionId, {
-                            tool,
-                            isShapeGroupActive,
-                            lastUsedShape: availableLastUsedShape,
-                            setTool,
-                            onUndo,
-                          })
-                        }
+                        onClick={() => activateToolbarItem(item.id as ToolbarActionId)}
                         aria-label={item.label}
                         aria-keyshortcuts={shortcutAriaLabel}
                         className={cn(

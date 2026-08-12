@@ -8,18 +8,18 @@ import {
   type StructuredSplitBoxHandle,
 } from "@/domains/structured-content/public";
 import type {
-  InteractionEvent,
   StructuredNodeDragPayload,
-} from "../core/interactionMachine";
+  CanvasInteractionState,
+} from "@/domains/editor/public";
 
-export type { StructuredNodeDragPayload } from "../core/interactionMachine";
+export type { StructuredNodeDragPayload } from "@/domains/editor/public";
 
 export type StructuredDragStartDecision = {
   selectedIds: string[];
   contextPoint: Point | null;
   splitHandle: { nodeId: string; handle: StructuredSplitBoxHandle } | null;
   drag: StructuredNodeDragPayload;
-  interactionEvent: InteractionEvent;
+  state: CanvasInteractionState;
 };
 
 export const resolveStructuredDragStartDecision = ({
@@ -63,38 +63,34 @@ export const resolveStructuredDragStartDecision = ({
     handle: hit.handle,
   };
 
-  let interactionEvent: InteractionEvent;
+  let state: CanvasInteractionState;
   if (isSplitDividerResize) {
-    interactionEvent = {
-      type: "startStructuredResizing",
-      kind: "splitBoxPending",
+    state = {
+      type: "structuredSplitBoxResizePending",
       anchor: start,
       drag,
     };
   } else if (isSplitBoxResize) {
-    interactionEvent = {
-      type: "startStructuredResizing",
-      kind: "splitBox",
+    state = {
+      type: "structuredSplitBoxResizing",
       anchor: start,
       drag,
     };
   } else if (isRectResize) {
-    interactionEvent = {
-      type: "startStructuredResizing",
-      kind: "rect",
+    state = {
+      type: "structuredRectResizing",
       anchor: start,
       drag,
     };
   } else if (isLineResize) {
-    interactionEvent = {
-      type: "startStructuredResizing",
-      kind: "line",
+    state = {
+      type: "structuredLineResizing",
       anchor: start,
       drag,
     };
   } else {
-    interactionEvent = {
-      type: "startStructuredMoving",
+    state = {
+      type: "structuredMoving",
       anchor: start,
       drag,
     };
@@ -110,6 +106,6 @@ export const resolveStructuredDragStartDecision = ({
         ? { nodeId: hit.node.id, handle: hit.handle }
         : null,
     drag,
-    interactionEvent,
+    state,
   };
 };

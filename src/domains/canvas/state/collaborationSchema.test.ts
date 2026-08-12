@@ -6,11 +6,7 @@ import {
   decodeCollaborativeStructuredNode,
 } from "./collaborationSchema";
 import { rebuildGridFromYMap, rebuildSceneFromYMap } from "./helpers/gridHelpers";
-import {
-  activateCanvasDocument,
-  getActiveCanvasIntegrityIssues,
-  getCanvasDocument,
-} from "./canvasDocument";
+import { CanvasDocumentRegistry } from "./CanvasDocumentRegistry";
 
 describe("canvas collaboration schema", () => {
   it("declares durable document channels separately from presence", () => {
@@ -65,16 +61,16 @@ describe("canvas collaboration schema", () => {
 
   it("keeps invalid remote records out of the editor projection", () => {
     const id = `invalid-collaboration-${crypto.randomUUID()}`;
-    activateCanvasDocument(id, { grid: [], scene: [] });
-    const document = getCanvasDocument(id)!;
-    document.grid.set("bad-key", { char: "A", color: "#fff" });
-    document.scene.set("node-a", { id: "node-b" } as never);
+    const documents = new CanvasDocumentRegistry(id);
+    documents.yMainGrid.set("bad-key", { char: "A", color: "#fff" });
+    documents.yStructuredScene.set("node-a", { id: "node-b" } as never);
 
-    expect(rebuildGridFromYMap()).toEqual(new Map());
-    expect(rebuildSceneFromYMap()).toEqual([]);
-    expect(getActiveCanvasIntegrityIssues()).toEqual([
+    expect(rebuildGridFromYMap(documents)).toEqual(new Map());
+    expect(rebuildSceneFromYMap(documents)).toEqual([]);
+    expect(documents.getIntegrityIssues()).toEqual([
       { channel: "main-grid", key: "bad-key", reason: "Invalid grid coordinate key" },
       { channel: "structured-scene", key: "node-a", reason: "Invalid structured node" },
     ]);
+    documents.dispose();
   });
 });

@@ -1,24 +1,19 @@
-import {
-  matchesActionShortcut,
-  resolveFillHotkeyChar,
-  runAction,
-} from "@/domains/actions/public";
+import { resolveFillHotkeyChar } from "@/domains/actions/public";
+import { useEditor, useEditorShortcutLayer } from "@/domains/editor/public";
 import {
   SHORTCUT_PRIORITY,
   useShortcutLayer,
 } from "@/shared/shortcuts/dispatcher";
 
 export const useGlobalShortcutCommands = ({
-  onUndo,
-  onRedo,
   enabled = true,
 }: {
-  onUndo: () => void;
-  onRedo: () => void;
   enabled?: boolean;
 }) => {
+  const editor = useEditor();
+  useEditorShortcutLayer({ enabled });
   useShortcutLayer({
-    id: "global-editor-commands",
+    id: "global-printable-selection-fill",
     priority: SHORTCUT_PRIORITY.globalAction,
     enabled,
     onKeyDown: (event, context) => {
@@ -30,28 +25,12 @@ export const useGlobalShortcutCommands = ({
         return;
       }
 
-      const historyCommand = matchesActionShortcut("undo", event)
-        ? "undo"
-        : matchesActionShortcut("redo", event)
-          ? "redo"
-          : null;
-      if (historyCommand) {
-        const result = runAction(historyCommand, {
-          source: "global-hotkey",
-          onUndo,
-          onRedo,
-        });
-        return result.status === "succeeded"
-          ? { claimed: true, preventDefault: true }
-          : undefined;
-      }
-
       const fillChar = resolveFillHotkeyChar(event);
       if (!fillChar) return;
-      const result = runAction("fill-selection-char", {
+      const result = editor.commands.execute("fill-selection-char", {
         source: "global-hotkey",
         fillChar,
-      });
+      }, "global-hotkey");
       return result.status === "succeeded"
         ? { claimed: true, preventDefault: true }
         : undefined;

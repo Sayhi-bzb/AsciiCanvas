@@ -80,7 +80,7 @@ describe("canvas drag-start interaction decisions", () => {
       })
     ).toEqual({
       type: "drawing",
-      event: { type: "startDrawing", tool: "brush", start },
+      state: { type: "drawing", tool: "brush", start, lastGrid: start, lastPlacedGrid: start },
       scratchPoint: { ...start, char: "#" },
     });
   });
@@ -95,7 +95,7 @@ describe("canvas drag-start interaction decisions", () => {
       })
     ).toEqual({
       type: "drawing",
-      event: { type: "startDrawing", tool: "eraser", start },
+      state: { type: "drawing", tool: "eraser", start, lastGrid: start, lastPlacedGrid: start },
       erasePoint: start,
     });
   });
@@ -121,7 +121,7 @@ describe("canvas drag-start interaction decisions", () => {
       })
     ).toEqual({
       type: "shape-preview",
-      event: { type: "startShapePreview", tool: "splitBox", start },
+      state: { type: "shapePreview", tool: "splitBox", start, axis: null },
     });
   });
 });

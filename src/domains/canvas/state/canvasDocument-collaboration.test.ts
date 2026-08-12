@@ -1,16 +1,19 @@
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
-import {
-  activateCanvasDocument,
-  applyYMapValueDiff,
-  beginCanvasHistoryCheckpoint,
-  getCanvasDocument,
-  getCanvasHistoryAvailability,
-  runCanvasTransaction,
-  undoManager,
-} from "./canvasDocument";
+import { CanvasDocumentRegistry } from "./CanvasDocumentRegistry";
 
 const cell = (char: string) => ({ char, color: "#000000" });
+const applyYMapValueDiff = <T extends { id: string }>(map: Y.Map<T>, values: T[]) => {
+  const nextIds = new Set(values.map((value) => value.id));
+  Array.from(map.keys()).forEach((id) => {
+    if (!nextIds.has(id)) map.delete(id);
+  });
+  values.forEach((value) => {
+    if (JSON.stringify(map.get(value.id)) !== JSON.stringify(value)) {
+      map.set(value.id, value);
+    }
+  });
+};
 
 describe("canvas CRDT collaboration", () => {
   it("converges independent cell edits", () => {
@@ -72,89 +75,91 @@ describe("canvas CRDT collaboration", () => {
 
   it("keeps remote edits out of local undo history", () => {
     const id = `collaboration-undo-${crypto.randomUUID()}`;
-    activateCanvasDocument(id, { grid: [], scene: [] });
-    const local = getCanvasDocument(id)!;
+    const documents = new CanvasDocumentRegistry(id);
+    const local = documents.getCollaborationDocument(id)!;
     const remote = new Y.Doc();
 
-    runCanvasTransaction(() => local.grid.set("0,0", cell("L")));
-    Y.applyUpdate(remote, Y.encodeStateAsUpdate(local.doc));
+    documents.runTransaction(() => documents.yMainGrid.set("0,0", cell("L")));
+    Y.applyUpdate(remote, Y.encodeStateAsUpdate(local));
     remote.getMap("main-grid").set("1,0", cell("R"));
-    Y.applyUpdate(local.doc, Y.encodeStateAsUpdate(remote));
+    Y.applyUpdate(local, Y.encodeStateAsUpdate(remote));
 
-    undoManager.undo();
-    expect(local.grid.has("0,0")).toBe(false);
-    expect(local.grid.get("1,0")).toEqual(cell("R"));
+    documents.undo();
+    expect(documents.yMainGrid.has("0,0")).toBe(false);
+    expect(documents.yMainGrid.get("1,0")).toEqual(cell("R"));
+    documents.dispose();
   });
 
   it("rolls back only local changes created after a history checkpoint", () => {
     const id = `interaction-cancel-${crypto.randomUUID()}`;
-    activateCanvasDocument(id, { grid: [], scene: [] });
-    const local = getCanvasDocument(id)!;
+    const documents = new CanvasDocumentRegistry(id);
+    const local = documents.getCollaborationDocument(id)!;
     const remote = new Y.Doc();
 
-    runCanvasTransaction(() => local.grid.set("0,0", cell("B")));
-    const checkpoint = beginCanvasHistoryCheckpoint();
-    runCanvasTransaction(
-      () => local.grid.set("1,0", cell("L")),
+    documents.runTransaction(() => documents.yMainGrid.set("0,0", cell("B")));
+    const checkpoint = documents.beginHistoryCheckpoint();
+    documents.runTransaction(
+      () => documents.yMainGrid.set("1,0", cell("L")),
       "merge"
     );
-    Y.applyUpdate(remote, Y.encodeStateAsUpdate(local.doc));
+    Y.applyUpdate(remote, Y.encodeStateAsUpdate(local));
     remote.getMap("main-grid").set("2,0", cell("R"));
-    Y.applyUpdate(local.doc, Y.encodeStateAsUpdate(remote));
+    Y.applyUpdate(local, Y.encodeStateAsUpdate(remote));
 
     checkpoint.cancel();
 
-    expect(local.grid.get("0,0")).toEqual(cell("B"));
-    expect(local.grid.has("1,0")).toBe(false);
-    expect(local.grid.get("2,0")).toEqual(cell("R"));
-    expect(getCanvasHistoryAvailability()).toEqual({
+    expect(documents.yMainGrid.get("0,0")).toEqual(cell("B"));
+    expect(documents.yMainGrid.has("1,0")).toBe(false);
+    expect(documents.yMainGrid.get("2,0")).toEqual(cell("R"));
+    expect(documents.getHistoryAvailability()).toEqual({
       canUndo: true,
       canRedo: false,
     });
+    documents.dispose();
   });
 
   it("commits checkpoint changes as one undo step", () => {
     const id = `interaction-commit-${crypto.randomUUID()}`;
-    activateCanvasDocument(id, { grid: [], scene: [] });
-    const local = getCanvasDocument(id)!;
-    const checkpoint = beginCanvasHistoryCheckpoint();
+    const documents = new CanvasDocumentRegistry(id);
+    const checkpoint = documents.beginHistoryCheckpoint();
 
-    runCanvasTransaction(() => local.grid.set("0,0", cell("A")), "merge");
-    runCanvasTransaction(() => local.grid.set("1,0", cell("B")), "merge");
+    documents.runTransaction(() => documents.yMainGrid.set("0,0", cell("A")), "merge");
+    documents.runTransaction(() => documents.yMainGrid.set("1,0", cell("B")), "merge");
     checkpoint.commit();
 
-    expect(undoManager.undo()).toBe(true);
-    expect(local.grid.size).toBe(0);
-    expect(undoManager.undo()).toBe(false);
+    expect(documents.undo()).toBe(true);
+    expect(documents.yMainGrid.size).toBe(0);
+    expect(documents.undo()).toBe(false);
+    documents.dispose();
   });
 
   it("reports undo and redo availability for the active document", () => {
     const id = `history-availability-${crypto.randomUUID()}`;
-    activateCanvasDocument(id, { grid: [], scene: [] });
-    const canvasDocument = getCanvasDocument(id)!;
+    const documents = new CanvasDocumentRegistry(id);
 
-    expect(getCanvasHistoryAvailability()).toEqual({
+    expect(documents.getHistoryAvailability()).toEqual({
       canUndo: false,
       canRedo: false,
     });
 
-    runCanvasTransaction(() => canvasDocument.grid.set("0,0", cell("A")));
-    expect(getCanvasHistoryAvailability()).toEqual({
+    documents.runTransaction(() => documents.yMainGrid.set("0,0", cell("A")));
+    expect(documents.getHistoryAvailability()).toEqual({
       canUndo: true,
       canRedo: false,
     });
 
-    expect(undoManager.undo()).toBe(true);
-    expect(getCanvasHistoryAvailability()).toEqual({
+    expect(documents.undo()).toBe(true);
+    expect(documents.getHistoryAvailability()).toEqual({
       canUndo: false,
       canRedo: true,
     });
 
-    expect(undoManager.redo()).toBe(true);
-    expect(getCanvasHistoryAvailability()).toEqual({
+    expect(documents.redo()).toBe(true);
+    expect(documents.getHistoryAvailability()).toEqual({
       canUndo: true,
       canRedo: false,
     });
+    documents.dispose();
   });
 
   it("converges atomic structured-node replacement and deletion", () => {

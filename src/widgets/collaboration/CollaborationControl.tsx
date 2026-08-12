@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { canvasCommands, useCanvasState } from '@/domains/canvas/public';
+import { useCanvasRuntime, useCanvasState } from '@/domains/canvas/public';
 import {
   buildCollaborationUrl,
-  collaborationRuntime,
+  useCollaborationRuntime,
   createCollaborationDescriptor,
   parseCollaborationUrl,
   validateCollaborationEndpoint,
@@ -41,6 +41,8 @@ const getStatusKey = (snapshot: ReturnType<typeof useCollaborationSnapshot>) => 
 };
 
 export function CollaborationControl() {
+  const canvas = useCanvasRuntime();
+  const collaborationRuntime = useCollaborationRuntime();
   const { t } = useUiI18n();
   const [open, setOpen] = useState(false);
   const [endpoint, setEndpoint] = useState('');
@@ -48,8 +50,8 @@ export function CollaborationControl() {
   const activeSession = useCanvasState((state) =>
     state.canvasSessions.find((session) => session.id === state.activeCanvasId)
   );
-  const setCollaboration = canvasCommands.sessions.setCollaboration;
-  const joinCollaboration = canvasCommands.sessions.joinCollaboration;
+  const setCollaboration = canvas.commands.sessions.setCollaboration;
+  const joinCollaboration = canvas.commands.sessions.joinCollaboration;
   const descriptor = activeSession?.collaboration;
 
   useEffect(() => {

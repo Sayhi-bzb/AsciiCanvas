@@ -5,7 +5,7 @@ import { useRef } from "react";
 import { useCanvasInteraction } from "@/widgets/canvas-editor/hooks/useCanvasInteraction";
 import type { StructuredMovePreview } from "@/widgets/canvas-editor/hooks/useCanvasRenderer";
 import { useEditorStore } from "@/domains/canvas/testing";
-import { runUndo } from "@/domains/actions/public";
+import { canvasCommands } from "@/domains/canvas/testing";
 import { useShallow } from "zustand/react/shallow";
 import type { ToolType } from "@/domains/canvas/testing";
 import { ShortcutProvider } from "@/shared/shortcuts/dispatcher";
@@ -1062,7 +1062,7 @@ describe("structured text interaction", () => {
     ]);
 
     act(() => {
-      runUndo();
+    canvasCommands.history.undo();
     });
 
     expect(useEditorStore.getState().structuredScene).toMatchObject([

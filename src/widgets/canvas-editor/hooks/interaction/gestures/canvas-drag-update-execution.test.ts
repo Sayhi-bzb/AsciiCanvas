@@ -2,15 +2,13 @@ import { describe, expect, it, vi } from "vitest";
 import {
   createDragUpdateExecutor,
   createDragUpdateHandler,
-  createDragUpdateRouteHandler,
-  createPanningDragUpdateExecutor,
   executeDragUpdateDecision,
 } from "@/widgets/canvas-editor/hooks/interaction/gestures/dragUpdateExecution";
 import type { DragUpdateExecutor } from "@/widgets/canvas-editor/hooks/interaction/gestures/dragUpdateExecution";
 import type { StructuredPreviewQueueController } from "@/widgets/canvas-editor/hooks/interaction/structured/structuredPreviewQueueExecution";
 
 const createExecutor = (): DragUpdateExecutor => ({
-  dispatchInteraction: vi.fn(),
+  setInteractionState: vi.fn(),
   setSelectionPreview: vi.fn(),
   draw: vi.fn(),
   queueStructuredMove: vi.fn(),
@@ -28,10 +26,10 @@ describe("canvas drag-update execution", () => {
     executeDragUpdateDecision(
       { type: "selection-preview", preview: { start: { x: 1, y: 2 }, end: { x: 4, y: 5 } } },
       executor,
-      { currentGrid: { x: 4, y: 5 }, tool: "select", structuredScene: [], updateEraserHover: false }
+      { state: { type: "selecting", anchor: { x: 1, y: 2 }, current: { x: 1, y: 2 } }, currentGrid: { x: 4, y: 5 }, tool: "select", structuredScene: [], updateEraserHover: false }
     );
-    expect(executor.dispatchInteraction).toHaveBeenCalledWith({
-      type: "updateSelection", current: { x: 4, y: 5 },
+    expect(executor.setInteractionState).toHaveBeenCalledWith({
+      type: "selecting", anchor: { x: 1, y: 2 }, current: { x: 4, y: 5 },
     });
     expect(executor.setSelectionPreview).toHaveBeenCalled();
   });
@@ -42,13 +40,13 @@ describe("canvas drag-update execution", () => {
       type: "shape-preview",
       update: {
         start: { x: 0, y: 0 }, end: { x: 1, y: 4 }, axis: "vertical",
-        interactionEvent: { type: "setShapePreviewAxis", axis: "vertical" },
       },
     }, executor, {
+      state: { type: "shapePreview", tool: "line", start: { x: 0, y: 0 }, axis: null },
       currentGrid: { x: 1, y: 4 }, tool: "line", structuredScene: [], updateEraserHover: false,
     });
-    expect(executor.dispatchInteraction).toHaveBeenCalledWith({
-      type: "setShapePreviewAxis", axis: "vertical",
+    expect(executor.setInteractionState).toHaveBeenCalledWith({
+      type: "shapePreview", tool: "line", start: { x: 0, y: 0 }, axis: "vertical",
     });
     expect(executor.updateScratchForShape).toHaveBeenCalledWith(
       "line", { x: 0, y: 0 }, { x: 1, y: 4 }, { axis: "vertical" }
@@ -62,7 +60,7 @@ describe("canvas drag-update execution", () => {
       clearLastMove: vi.fn(), clearLastSplitBoxResize: vi.fn(), cancel: vi.fn(),
     };
     const executor = createDragUpdateExecutor({
-      dispatchInteraction: vi.fn(), setSelectionPreview: vi.fn(), draw: vi.fn(),
+      setInteractionState: vi.fn(), setSelectionPreview: vi.fn(), draw: vi.fn(),
       structuredPreviewQueue: queue, updateStructuredNode: vi.fn(),
       setStructuredTextSelection: vi.fn(), setTextCursor: vi.fn(),
       updateScratchForShape: vi.fn(), setHoveredGrid: vi.fn(),
@@ -81,18 +79,5 @@ describe("canvas drag-update execution", () => {
       tool: "brush", canvasMode: "freeform", currentGrid: { x: 2, y: 0 }, structuredScene: [],
     });
     expect(executor.draw).toHaveBeenCalledWith({ x: 2, y: 0 });
-  });
-
-  it("routes panning without resolving grid coordinates", () => {
-    const queueOffsetDelta = vi.fn();
-    const resolveCurrentGrid = vi.fn();
-    createDragUpdateRouteHandler({
-      panning: createPanningDragUpdateExecutor({ queueOffsetDelta }),
-    })({
-      state: { type: "panning", lastScreen: { x: 0, y: 0 } },
-      delta: { x: 3, y: 4 }, resolveCurrentGrid, executePrimaryUpdate: vi.fn(),
-    });
-    expect(queueOffsetDelta).toHaveBeenCalledWith(3, 4);
-    expect(resolveCurrentGrid).not.toHaveBeenCalled();
   });
 });

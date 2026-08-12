@@ -1,6 +1,11 @@
-import { useCreation, useThrottleFn } from "ahooks";
+import { useCreation } from "ahooks";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { GridManager } from "@/shared/utils/grid";
-import { canvasCommands } from "@/domains/canvas/public";
+import { useCanvasRuntime } from "@/domains/canvas/public";
+import {
+  useEditor,
+  type CanvasInteractionState,
+} from "@/domains/editor/public";
 import { type CanvasLinkHit } from "./interaction/core/linkHitTesting";
 import { type StructuredMovePreview } from "./interaction/structured/structuredInteractionPreview";
 
@@ -29,19 +34,13 @@ import {
   createCanvasWheelRouteHandler,
 } from "./interaction/gestures/wheelInteraction";
 import {
-  createNonPanningDragEndExecutor,
-  createPanningDragEndExecutor,
   createPrimaryDragEndExecutor,
   createPrimaryDragEndHandler,
-  createDragEndRouteHandler,
 } from "./interaction/gestures/dragEndExecution";
 import {
-  createPanningDragUpdateExecutor,
   createDragUpdateExecutor,
   createDragUpdateHandler,
-  createDragUpdateRouteHandler,
 } from "./interaction/gestures/dragUpdateExecution";
-import { createDrawingUpdateHandler } from "./interaction/gestures/drawingInteraction";
 import {
   createPanningDragStartExecutor,
   createDragStartRouteHandler,
@@ -67,6 +66,10 @@ import { useCanvasGestureAdapter } from "./interaction/gestures/gestureAdapter";
 import { useInteractionControllers } from "./interaction/use-interaction-controllers";
 import type { CanvasEngineRuntime } from "../engine/CanvasEngineRuntime";
 import type { useCanvasEditorModels } from "./useCanvasEditorModels";
+import {
+  createCanvasInteractionPort,
+  InteractionStateCapture,
+} from "./interaction/canvasInteractionPort";
 
 
 
@@ -78,6 +81,8 @@ export const useCanvasInteraction = (
   requestRenderRef?: React.MutableRefObject<(() => void) | null>,
   runtime?: CanvasEngineRuntime
 ) => {
+  const canvas = useCanvasRuntime();
+  const editorRuntime = useEditor();
   const {
     tool,
     brushChar,
@@ -117,14 +122,12 @@ export const useCanvasInteraction = (
   const {
     beginInteraction,
     cancelInteraction,
+    cancelInteractionEffects,
     colorPickerClickRef,
     completeInteraction,
-    dispatchInteraction,
     draggingSelection,
     edgeScroll,
-    getInteractionState,
     hoverInteraction,
-    interactionRuntime,
     pointerContext,
     resetDragState,
     selectionPreview,
@@ -137,32 +140,19 @@ export const useCanvasInteraction = (
     structuredMovePreviewRef,
     requestRenderRef,
     runtime,
+    editorRuntime,
   });
   const shouldIgnoreActiveGestureEvent = (event: Event | undefined) =>
     shouldIgnoreActiveCanvasGesture({
       event,
-      interactionMode: getInteractionState().type,
-      hasDragStartGrid: getInteractionState().type !== "idle",
-      isPanning: getInteractionState().type === "panning",
+      interactionMode: editorRuntime.getInteractionState().type,
+      hasDragStartGrid: editorRuntime.getInteractionState().type !== "idle",
+      isPanning: editorRuntime.getInteractionState().type === "panning",
     });
-
-  const handleDrawing = useCreation(
-    () =>
-      createDrawingUpdateHandler({
-        getBrushChar: () => brushChar,
-        getInteractionState,
-        executor: {
-          addScratchPoints,
-          erasePoints: (points) => erasePoints(points, false),
-          dispatchInteraction,
-        },
-      }),
-    [tool, brushChar, addScratchPoints, erasePoints]
-  );
-  const { run: throttledDraw } = useThrottleFn(handleDrawing, {
-    wait: 8,
-    trailing: true,
-  });
+  const interactionCapture = useCreation(() => new InteractionStateCapture(), []);
+  const setInteractionState = (state: CanvasInteractionState) => {
+    interactionCapture.setState(state);
+  };
   const structuredEditController = createStructuredEditController({
     getCanvasMode: () => canvasMode,
     getTool: () => tool,
@@ -187,23 +177,23 @@ export const useCanvasInteraction = (
     controller: structuredEditController,
   });
   const panningDragStartExecutor = createPanningDragStartExecutor({
-    dispatchInteraction,
+    setInteractionState,
     setCursor: (cursor) => hoverInteraction.setCursor(cursor),
   });
   const dragStartRouteHandler = createDragStartRouteHandler({
     panning: panningDragStartExecutor,
   });
   const selectionDragStartExecutor = createSelectionDragStartExecutor({
-    setAnchorGrid: interactionRuntime.setSelectionAnchor,
-    dispatchInteraction,
+    setAnchorGrid: (point) => interactionCapture.setSelectionAnchor(point),
+    setInteractionState,
     clearInteractionState,
     clearSelections,
     setSelectionPreview: (selection) => selectionPreview.set(selection),
     clearTextCursor: () => setTextCursor(null),
   });
   const drawingShapeDragStartExecutor = createDrawingShapeDragStartExecutor({
-    setAnchorGrid: interactionRuntime.setSelectionAnchor,
-    dispatchInteraction,
+    setAnchorGrid: (point) => interactionCapture.setSelectionAnchor(point),
+    setInteractionState,
     clearInteractionState,
     clearEditingStructuredTextNode: () => setEditingStructuredTextNodeId(null),
     clearStructuredTextSelection: () => setStructuredTextSelection(null),
@@ -225,10 +215,7 @@ export const useCanvasInteraction = (
     setSelectionPreview: (selection) => selectionPreview.set(selection),
     resetDragState,
     setCursor: (cursor) => hoverInteraction.setCursor(cursor),
-    dispatchInteraction,
-  });
-  const panningDragUpdateExecutor = createPanningDragUpdateExecutor({
-    queueOffsetDelta: (dx, dy) => viewportInteraction.queueOffsetDelta(dx, dy),
+    setInteractionState,
   });
   const structuredSelectStartHandler = createStructuredSelectStartHandler({
     selectedStructuredNodeIds,
@@ -239,9 +226,9 @@ export const useCanvasInteraction = (
     executor: structuredSelectStartExecutor,
   });
   const dragUpdateExecutor = createDragUpdateExecutor({
-    dispatchInteraction,
+    setInteractionState,
     setSelectionPreview: (selection) => selectionPreview.set(selection),
-    draw: (point) => throttledDraw(point),
+    draw: () => undefined,
     structuredPreviewQueue,
     updateStructuredNode,
     setStructuredTextSelection,
@@ -251,19 +238,6 @@ export const useCanvasInteraction = (
   });
   const dragUpdateHandler = createDragUpdateHandler({
     executor: dragUpdateExecutor,
-  });
-  const dragUpdateRouteHandler = createDragUpdateRouteHandler({
-    panning: panningDragUpdateExecutor,
-  });
-  const nonPanningDragEndExecutor = createNonPanningDragEndExecutor({
-    setCursor: (cursor) => hoverInteraction.setCursor(cursor),
-  });
-  const panningDragEndExecutor = createPanningDragEndExecutor({
-    flushOffset: () => viewportInteraction.flushOffset(),
-    dispatchInteraction,
-    setCursor: (cursor) => hoverInteraction.setCursor(cursor),
-    getIdleCursor: () => (tool === "pan" ? "grab" : ""),
-    clearLinkHover: () => hoverInteraction.clearLinkHover(),
   });
   const primaryDragEndExecutor = createPrimaryDragEndExecutor({
     selectionPreview,
@@ -276,16 +250,12 @@ export const useCanvasInteraction = (
     addSelection,
     clearSelections,
     commitScratch,
-    forceHistorySave: canvasCommands.history.finishCapture,
+    forceHistorySave: canvas.commands.history.finishCapture,
     commitStructuredShape,
     resetDragState,
   });
   const primaryDragEndHandler = createPrimaryDragEndHandler({
     executor: primaryDragEndExecutor,
-  });
-  const dragEndRouteHandler = createDragEndRouteHandler({
-    panning: panningDragEndExecutor,
-    nonPanning: nonPanningDragEndExecutor,
   });
   const canvasPinchExecutor = createCanvasPinchExecutor({
     setViewport: (updater) => {
@@ -364,7 +334,7 @@ export const useCanvasInteraction = (
     () =>
       createCanvasClickHandler({
         getColorPickerClickPending: () => colorPickerClickRef.current,
-        getInteractionMode: () => getInteractionState().type,
+        getInteractionMode: () => editorRuntime.getInteractionState().type,
         canvasMode,
         tool,
         executor: canvasClickExecutor,
@@ -401,10 +371,66 @@ export const useCanvasInteraction = (
   const canvasWheelRouteHandler = createCanvasWheelRouteHandler({
     handler: canvasWheelHandler,
   });
+  const coreInteractionPort = useCreation(
+    () =>
+      createCanvasInteractionPort({
+        capture: interactionCapture,
+        tool,
+        canvasMode,
+        brushChar,
+        structuredScene,
+        pointerContext,
+        dragStart: canvasDragStartRouteAdapter,
+        dragUpdate: dragUpdateHandler,
+        dragEnd: primaryDragEndHandler,
+        beginInteraction,
+        completeInteraction,
+        cancelInteraction: cancelInteractionEffects,
+        queuePan: ({ x, y }) => viewportInteraction.queueOffsetDelta(x, y),
+        flushPan: () => viewportInteraction.flushOffset(),
+        clearLinkHover: () => hoverInteraction.clearLinkHover(),
+        setCursor: (cursor) => hoverInteraction.setCursor(cursor),
+        addScratchPoints,
+        erasePoints: (points) => erasePoints(points, false),
+        setHoveredGrid,
+      }),
+    [
+      addScratchPoints,
+      brushChar,
+      canvasMode,
+      completeInteraction,
+      erasePoints,
+      hoverInteraction,
+      primaryDragEndHandler,
+      setHoveredGrid,
+      structuredScene,
+      tool,
+      viewportInteraction,
+      beginInteraction,
+      cancelInteractionEffects,
+      canvasDragStartRouteAdapter,
+      dragUpdateHandler,
+      pointerContext,
+    ]
+  );
+  const coreInteractionPortRef = useRef(coreInteractionPort);
+  useLayoutEffect(() => {
+    coreInteractionPortRef.current = coreInteractionPort;
+  }, [coreInteractionPort]);
+  useEffect(() => {
+    const unbind = editorRuntime.interactionPort.bindRef(coreInteractionPortRef);
+    return () => {
+      editorRuntime.dispatch({
+        type: "canvas-interaction-cancel",
+        reason: "dispose",
+      });
+      unbind();
+    };
+  }, [editorRuntime]);
   const updateEdgeScroll = (clientPoint: { x: number; y: number }) => {
     if (!edgeScroll) return;
     const isEnabled = () => {
-      const type = getInteractionState().type;
+      const type = editorRuntime.getInteractionState().type;
       return (
         type === "selecting" ||
         type === "structuredMoving" ||
@@ -420,26 +446,21 @@ export const useCanvasInteraction = (
       isEnabled,
       onCameraMove: () => {
         if (!isEnabled()) return;
-        const state = getInteractionState();
         const currentGrid = pointerContext.resolveClampedGridPoint(
           clientPoint.x,
           clientPoint.y
         );
         if (!currentGrid) return;
-        dragUpdateHandler({
-          state,
-          tool,
-          canvasMode,
+        editorRuntime.dispatch({
+          type: "canvas-drag-update",
+          delta: { x: 0, y: 0 },
           currentGrid,
-          structuredScene,
         });
       },
     });
   };
   const bind = useCanvasGestureAdapter({
-    beginInteraction,
     cancelInteraction,
-    completeInteraction,
     stopEdgeScroll: () => edgeScroll?.stop(),
     updateEdgeScroll,
     containerRef,
@@ -453,16 +474,13 @@ export const useCanvasInteraction = (
     structuredScene,
     editingStructuredTextNodeId,
     pointerContext,
-    interactionRuntime,
+    editorRuntime,
+    getInteractionState: editorRuntime.getInteractionState,
     hoverInteraction,
     shouldIgnoreActiveGestureEvent,
     canvasPinchRouteHandler,
     canvasMoveRouteHandler,
     canvasDragStartRouteAdapter,
-    dragUpdateRouteHandler,
-    dragUpdateHandler,
-    dragEndRouteHandler,
-    primaryDragEndHandler,
     canvasClickRouteHandler,
     canvasWheelRouteHandler,
   });

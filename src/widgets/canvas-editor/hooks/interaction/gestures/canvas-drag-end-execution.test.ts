@@ -1,14 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  createDragEndRouteHandler,
-  createNonPanningDragEndExecutor,
-  createPanningDragEndExecutor,
-  executePanningDragEnd,
   executePrimaryDragEnd,
   resolvePrimaryDragEndContext,
   type PrimaryDragEndExecutor,
 } from "@/widgets/canvas-editor/hooks/interaction/gestures/dragEndExecution";
-import type { StructuredNodeDragPayload } from "@/widgets/canvas-editor/hooks/interaction/core/interactionMachine";
+import type { StructuredNodeDragPayload } from "@/domains/editor/public";
 
 const drag: StructuredNodeDragPayload = {
   node: {
@@ -30,21 +26,6 @@ const createPrimaryExecutor = (): PrimaryDragEndExecutor => ({
 });
 
 describe("canvas drag-end execution", () => {
-  it("flushes viewport state and resets panning", () => {
-    const flushOffset = vi.fn();
-    const dispatchInteraction = vi.fn();
-    const setCursor = vi.fn();
-    const clearLinkHover = vi.fn();
-    executePanningDragEnd(createPanningDragEndExecutor({
-      flushOffset, dispatchInteraction, setCursor,
-      getIdleCursor: () => "grab", clearLinkHover,
-    }));
-    expect(flushOffset).toHaveBeenCalled();
-    expect(dispatchInteraction).toHaveBeenCalledWith({ type: "reset" });
-    expect(setCursor).toHaveBeenCalledWith("grab");
-    expect(clearLinkHover).toHaveBeenCalled();
-  });
-
   it("derives shape commit geometry from typed state", () => {
     expect(resolvePrimaryDragEndContext({
       state: { type: "shapePreview", tool: "line", start: { x: 1, y: 2 }, axis: "vertical" },
@@ -77,23 +58,5 @@ describe("canvas drag-end execution", () => {
     }, executor);
     expect(executor.flushStructuredMove).toHaveBeenCalled();
     expect(executor.resetDragState).toHaveBeenCalled();
-  });
-
-  it("routes panning separately from primary drag end", () => {
-    const executePrimaryEnd = vi.fn();
-    const flushOffset = vi.fn();
-    const route = createDragEndRouteHandler({
-      panning: createPanningDragEndExecutor({
-        flushOffset, dispatchInteraction: vi.fn(), setCursor: vi.fn(),
-        getIdleCursor: () => "", clearLinkHover: vi.fn(),
-      }),
-      nonPanning: createNonPanningDragEndExecutor({ setCursor: vi.fn() }),
-    });
-    route({
-      state: { type: "panning", lastScreen: { x: 0, y: 0 } },
-      button: 1, executePrimaryEnd,
-    });
-    expect(flushOffset).toHaveBeenCalled();
-    expect(executePrimaryEnd).not.toHaveBeenCalled();
   });
 });

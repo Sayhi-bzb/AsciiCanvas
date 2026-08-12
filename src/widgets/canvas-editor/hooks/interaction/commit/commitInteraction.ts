@@ -1,6 +1,6 @@
 import type { CanvasMode } from "@/domains/sessions/public";
 import type { ToolType } from "@/domains/canvas/public";
-import type { InteractionState } from "../core/interactionMachine";
+import type { CanvasInteractionState } from "@/domains/editor/public";
 
 export type DragEndCommitDecision =
   | { type: "none" }
@@ -24,7 +24,7 @@ export const resolveDragEndCommitDecision = ({
   canvasMode,
   isStructuredSplitBoxDividerResize,
 }: {
-  state: InteractionState;
+  state: CanvasInteractionState;
   tool: ToolType;
   canvasMode: CanvasMode;
   isStructuredSplitBoxDividerResize: boolean;

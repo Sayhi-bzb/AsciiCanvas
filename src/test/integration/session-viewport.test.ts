@@ -1,16 +1,37 @@
-import '@/domains/actions/public';
+import { createEditorCommandsExtension } from '@/domains/actions/public';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { runAction } from '@/domains/actions/public';
-import { redoCanvas, undoCanvas, useEditorStore } from '@/domains/canvas/testing';
+import {
+  applyFreeformSnapshotToYMaps,
+  redoCanvas,
+  testingCanvasRuntime,
+  undoCanvas,
+  useEditorStore,
+} from '@/domains/canvas/testing';
+import {
+  createCanvasEditorExtension,
+  createCanvasEditorRuntime,
+} from '@/domains/editor/public';
 import {
   getStructuredSplitBoxGuides,
   getStructuredSplitBoxHandleAtPoint,
 } from '@/domains/structured-content/public';
-import { applyFreeformSnapshotToYMaps } from '@/domains/canvas/state/helpers/gridHelpers';
 import { DEFAULT_SESSION_ID } from '@/domains/canvas/state/helpers/storeUtils';
 import { clipboard } from '@/shared/services/effects';
 
 const initialState = useEditorStore.getState();
+const editorRuntime = createCanvasEditorRuntime({
+  state: {
+    get: testingCanvasRuntime.getState,
+    subscribe: testingCanvasRuntime.subscribe,
+  },
+  history: testingCanvasRuntime.commands.history,
+  transactions: { run: testingCanvasRuntime.commands.history.transact },
+  onToolChange: testingCanvasRuntime.commands.tools.set,
+});
+editorRuntime
+  .registerExtension(createCanvasEditorExtension(editorRuntime.interactionPort))
+  .registerExtension(createEditorCommandsExtension(testingCanvasRuntime as never))
+  .start(editorRuntime.getState().tool);
 
 const createClipboardEventCapture = () => {
   const data = new Map<string, string>();
@@ -326,14 +347,14 @@ describe('canvas session viewport state', () => {
   it('reports undo success only when the active canvas history changes', () => {
     useEditorStore.setState({ canvasMode: 'freeform', selections: [] });
     applyFreeformSnapshotToYMaps([]);
-    expect(runAction('undo', { source: 'global-hotkey' }).status).toBe('rejected');
+    expect(editorRuntime.commands.execute('undo', undefined, 'global-hotkey').status).toBe('rejected');
 
     useEditorStore.getState().setTextCursor({ x: 0, y: 0 });
     useEditorStore.getState().writeTextString('A');
     expect(useEditorStore.getState().canUndo).toBe(true);
-    expect(runAction('undo', { source: 'global-hotkey' }).status).toBe('succeeded');
+    expect(editorRuntime.commands.execute('undo', undefined, 'global-hotkey').status).toBe('succeeded');
     expect(useEditorStore.getState().grid.size).toBe(0);
-    expect(runAction('undo', { source: 'global-hotkey' }).status).toBe('rejected');
+    expect(editorRuntime.commands.execute('undo', undefined, 'global-hotkey').status).toBe('rejected');
   });
 
   it('copies structured nodes and pastes them back as structured elements', async () => {
@@ -693,9 +714,9 @@ describe('canvas session viewport state', () => {
 
     useEditorStore.getState().setSelectedStructuredNodeIds([splitBox.id]);
     useEditorStore.getState().setStructuredContextPoint({ x: 2, y: 4 });
-    const result = runAction('structured-split-horizontal', {
+    const result = editorRuntime.commands.execute('structured-split-horizontal', {
       source: 'context-menu',
-    });
+    }, 'context-menu');
 
     expect(result.status).toBe('succeeded');
     const nextSplitBox = useEditorStore.getState().structuredScene[0];

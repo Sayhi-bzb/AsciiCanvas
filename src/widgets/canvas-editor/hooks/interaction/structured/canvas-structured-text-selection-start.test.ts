@@ -29,8 +29,8 @@ describe("structured text caret selection start", () => {
       textSelection: null,
       selectionStart: { nodeId: textNode.id, offset: 1 },
       dragStart: { x: 4, y: 3 },
-      interactionEvent: {
-        type: "startStructuredTextSelecting",
+      state: {
+        type: "structuredTextSelecting",
         nodeId: textNode.id,
         anchorOffset: 1,
         start: { x: 4, y: 3 },
@@ -48,7 +48,7 @@ describe("structured text caret selection start", () => {
     ).toMatchObject({
       cursor: { x: 4, y: 3 },
       selectionStart: { nodeId: textNode.id, offset: 2 },
-      interactionEvent: { anchorOffset: 2 },
+      state: { anchorOffset: 2 },
     });
   });
 });

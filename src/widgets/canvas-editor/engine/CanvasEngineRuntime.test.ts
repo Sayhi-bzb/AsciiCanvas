@@ -2,6 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 import { CanvasEngineRuntime } from "./CanvasEngineRuntime";
 import { CanvasFrameScheduler } from "./FrameScheduler";
 
+const cameraPort = () => ({
+  getViewport: () => ({ offset: { x: 0, y: 0 }, zoom: 1 }),
+  setViewport: vi.fn(),
+});
+
 describe("CanvasEngineRuntime", () => {
   it("owns manager replacement and teardown", () => {
     const scheduler = new CanvasFrameScheduler({
@@ -9,7 +14,7 @@ describe("CanvasEngineRuntime", () => {
       cancelAnimationFrame: vi.fn(),
       now: () => 0,
     });
-    const runtime = new CanvasEngineRuntime(scheduler);
+    const runtime = new CanvasEngineRuntime(cameraPort(), scheduler);
     const first = { dispose: vi.fn() };
     const second = { dispose: vi.fn() };
 
@@ -27,7 +32,7 @@ describe("CanvasEngineRuntime", () => {
       cancelAnimationFrame: vi.fn(),
       now: () => 0,
     });
-    const runtime = new CanvasEngineRuntime(scheduler);
+    const runtime = new CanvasEngineRuntime(cameraPort(), scheduler);
     const manager = { dispose: vi.fn() };
     runtime.registerManager("interaction", manager);
 
@@ -44,7 +49,7 @@ describe("CanvasEngineRuntime", () => {
   });
 
   it("makes owner release idempotent", async () => {
-    const runtime = new CanvasEngineRuntime();
+    const runtime = new CanvasEngineRuntime(cameraPort());
     const manager = { dispose: vi.fn() };
     runtime.registerManager("interaction", manager);
     const release = runtime.acquire();

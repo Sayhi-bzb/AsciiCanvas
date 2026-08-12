@@ -73,4 +73,22 @@ describe("CanvasEdgeScrollManager", () => {
     run(2000);
     expect(camera.panBy).not.toHaveBeenCalled();
   });
+
+  it("can restart after a lifecycle cleanup stops the active session", () => {
+    const { camera, manager, run } = createHarness();
+    const session = {
+      clientPoint: { x: 995, y: 350 },
+      getBounds: () => ({ left: 0, top: 0, width: 1000, height: 700 }),
+      isEnabled: () => true,
+      onCameraMove: vi.fn(),
+    };
+    manager.update(session);
+    manager.stop();
+    manager.update(session);
+
+    run(0);
+    run(EDGE_SCROLL_DELAY_MS + 150);
+
+    expect(camera.panBy).toHaveBeenCalledOnce();
+  });
 });

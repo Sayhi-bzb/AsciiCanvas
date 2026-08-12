@@ -12,10 +12,7 @@ import {
   type StructuredLineResizeHandle,
   type StructuredSplitBoxHandle,
 } from "@/domains/structured-content/public";
-import type {
-  InteractionEvent,
-  InteractionState,
-} from "../core/interactionMachine";
+import type { CanvasInteractionState } from "@/domains/editor/public";
 import { isShapeTool } from "./dragStartInteraction";
 import type { StructuredNodeDragPayload } from "../structured/structuredDragStart";
 
@@ -28,7 +25,6 @@ type ShapePreviewUpdate = {
   start: Point;
   end: Point;
   axis: "horizontal" | "vertical" | null;
-  interactionEvent: InteractionEvent | null;
 };
 
 export type DragUpdateDecision =
@@ -45,7 +41,7 @@ export type DragUpdateDecision =
       type: "structured-splitbox-begin-divider-resize";
       drag: StructuredNodeDragPayload;
       point: Point;
-      interactionEvent: InteractionEvent;
+      nextState: CanvasInteractionState;
     }
   | {
       type: "structured-splitbox-divider-resize";
@@ -106,8 +102,6 @@ export const resolveShapePreviewUpdate = ({
     start: dragStart,
     end: currentGrid,
     axis,
-    interactionEvent:
-      axis !== currentAxis ? { type: "setShapePreviewAxis", axis } : null,
   };
 };
 
@@ -147,7 +141,7 @@ export const resolveDragUpdateDecision = ({
   canvasMode: CanvasMode;
   currentGrid: Point;
   structuredScene: StructuredNode[];
-  state: InteractionState;
+  state: CanvasInteractionState;
 }): DragUpdateDecision => {
   switch (state.type) {
     case "selecting":
@@ -196,9 +190,8 @@ export const resolveDragUpdateDecision = ({
           type: "structured-splitbox-begin-divider-resize",
           drag: state.drag,
           point: currentGrid,
-          interactionEvent: {
-            type: "startStructuredResizing",
-            kind: "splitBox",
+          nextState: {
+            type: "structuredSplitBoxResizing",
             anchor: state.anchor,
             drag: state.drag,
           },

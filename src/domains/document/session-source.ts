@@ -1,6 +1,3 @@
-import {
-  registerCanvasSessionSourceParser,
-} from "@/domains/canvas/public";
 import type { CanvasImportSnapshot } from "@/domains/sessions/public";
 import { parseSlideMarkdown } from "@/domains/slides/public";
 import {
@@ -8,7 +5,7 @@ import {
   charDeskDocumentToSnapshot,
 } from "./protocol/import";
 
-const parseDocumentSessionSource = (
+export const parseDocumentSessionSource = (
   raw: string | unknown
 ): CanvasImportSnapshot => {
   if (
@@ -24,8 +21,4 @@ const parseDocumentSessionSource = (
   }
 
   return charDeskDocumentToSnapshot(parseCharDeskDocument(raw));
-};
-
-export const registerDocumentSessionSource = () => {
-  registerCanvasSessionSourceParser(parseDocumentSessionSource);
 };

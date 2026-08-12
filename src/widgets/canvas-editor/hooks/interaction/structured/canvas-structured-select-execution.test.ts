@@ -27,7 +27,7 @@ const createExecutor = (): StructuredSelectStartExecutor => ({
   setSelectionPreview: vi.fn(),
   resetDragState: vi.fn(),
   setCursor: vi.fn(),
-  dispatchInteraction: vi.fn(),
+  setInteractionState: vi.fn(),
 });
 
 describe("structured select start execution", () => {
@@ -42,8 +42,8 @@ describe("structured select start execution", () => {
         caretPoint: { x: 3, y: 2 },
       },
     }, { x: 3, y: 2 }, executor)).toBe(true);
-    expect(executor.dispatchInteraction).toHaveBeenCalledWith({
-      type: "startStructuredTextSelecting",
+    expect(executor.setInteractionState).toHaveBeenCalledWith({
+      type: "structuredTextSelecting",
       nodeId: textNode.id,
       anchorOffset: 2,
       start: { x: 3, y: 2 },
@@ -62,8 +62,8 @@ describe("structured select start execution", () => {
     expect(executeStructuredSelectStartDecision({
       type: "node-drag", dragStart, cursor: "move",
     }, start, executor)).toBe(true);
-    expect(executor.dispatchInteraction).toHaveBeenCalledWith({
-      type: "startStructuredMoving",
+    expect(executor.setInteractionState).toHaveBeenCalledWith({
+      type: "structuredMoving",
       anchor: start,
       drag: dragStart.drag,
     });
@@ -75,22 +75,22 @@ describe("structured select start execution", () => {
       { type: "clear-empty" }, { x: 8, y: 8 }, executor
     )).toBe(false);
     expect(executor.setSelectedStructuredNodeIds).toHaveBeenCalledWith([]);
-    expect(executor.dispatchInteraction).not.toHaveBeenCalled();
+    expect(executor.setInteractionState).not.toHaveBeenCalled();
   });
 
   it("creates an executor without hook-owned transient refs", () => {
-    const dispatchInteraction = vi.fn();
+    const setInteractionState = vi.fn();
     const executor = createStructuredSelectStartExecutor({
       setSelectedStructuredNodeIds: vi.fn(), setSelectedStructuredSplitHandle: vi.fn(),
       setStructuredContextPoint: vi.fn(), setEditingStructuredTextNodeId: vi.fn(),
       setStructuredTextSelection: vi.fn(), setTextCursor: vi.fn(), clearSelections: vi.fn(),
       setSelectionPreview: vi.fn(), resetDragState: vi.fn(), setCursor: vi.fn(),
-      dispatchInteraction,
+      setInteractionState,
     });
-    executor.dispatchInteraction({
-      type: "startStructuredTextSelecting", nodeId: "text-1", anchorOffset: 0,
+    executor.setInteractionState({
+      type: "structuredTextSelecting", nodeId: "text-1", anchorOffset: 0,
       start: { x: 1, y: 2 },
     });
-    expect(dispatchInteraction).toHaveBeenCalled();
+    expect(setInteractionState).toHaveBeenCalled();
   });
 });

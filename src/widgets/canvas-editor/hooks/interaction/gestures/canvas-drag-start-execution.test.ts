@@ -13,26 +13,25 @@ import {
 
 describe("canvas drag-start execution", () => {
   it("starts panning through typed interaction state", () => {
-    const dispatchInteraction = vi.fn();
+    const setInteractionState = vi.fn();
     const setCursor = vi.fn();
     executePanningDragStart(
       { x: 12, y: 24 },
-      createPanningDragStartExecutor({ dispatchInteraction, setCursor })
+      createPanningDragStartExecutor({ setInteractionState, setCursor })
     );
-    expect(dispatchInteraction).toHaveBeenCalledWith({
-      type: "startPanning",
-      lastScreen: { x: 12, y: 24 },
+    expect(setInteractionState).toHaveBeenCalledWith({
+      type: "panning", lastScreen: { x: 12, y: 24 },
     });
     expect(setCursor).toHaveBeenCalledWith("grabbing");
   });
 
   it("starts selection with the effective shift anchor", () => {
-    const dispatchInteraction = vi.fn();
+    const setInteractionState = vi.fn();
     const setAnchorGrid = vi.fn();
     const setSelectionPreview = vi.fn();
     const executor = createSelectionDragStartExecutor({
       setAnchorGrid,
-      dispatchInteraction,
+      setInteractionState,
       clearInteractionState: vi.fn(),
       clearSelections: vi.fn(),
       setSelectionPreview,
@@ -49,8 +48,8 @@ describe("canvas drag-start execution", () => {
       nextAnchor: null,
     }, executor)).toBe(true);
 
-    expect(dispatchInteraction).toHaveBeenCalledWith({
-      type: "startSelecting",
+    expect(setInteractionState).toHaveBeenCalledWith({
+      type: "selecting",
       anchor: { x: 1, y: 2 },
       current: { x: 5, y: 6 },
     });
@@ -59,11 +58,11 @@ describe("canvas drag-start execution", () => {
   });
 
   it("starts drawing and applies the initial scratch point", () => {
-    const dispatchInteraction = vi.fn();
+    const setInteractionState = vi.fn();
     const addScratchPoint = vi.fn();
     const executor = createDrawingShapeDragStartExecutor({
       setAnchorGrid: vi.fn(),
-      dispatchInteraction,
+      setInteractionState,
       clearInteractionState: vi.fn(),
       clearEditingStructuredTextNode: vi.fn(),
       clearStructuredTextSelection: vi.fn(),
@@ -74,31 +73,31 @@ describe("canvas drag-start execution", () => {
 
     expect(executeDrawingShapeDragStartDecision({
       type: "drawing",
-      event: { type: "startDrawing", tool: "brush", start },
+      state: { type: "drawing", tool: "brush", start, lastGrid: start, lastPlacedGrid: start },
       scratchPoint: { ...start, char: "#" },
     }, start, executor)).toBe(true);
-    expect(dispatchInteraction).toHaveBeenCalledWith({
-      type: "startDrawing", tool: "brush", start,
+    expect(setInteractionState).toHaveBeenCalledWith({
+      type: "drawing", tool: "brush", start, lastGrid: start, lastPlacedGrid: start,
     });
     expect(addScratchPoint).toHaveBeenCalledWith({ ...start, char: "#" });
   });
 
   it("routes normalized primary-canvas input through the adapter", () => {
-    const dispatchInteraction = vi.fn();
+    const setInteractionState = vi.fn();
     const route = createDragStartRouteHandler({
       panning: createPanningDragStartExecutor({
-        dispatchInteraction,
+        setInteractionState,
         setCursor: vi.fn(),
       }),
     });
     const primaryCanvas = createPrimaryCanvasDragStartHandler({
       selection: createSelectionDragStartExecutor({
-        setAnchorGrid: vi.fn(), dispatchInteraction,
+        setAnchorGrid: vi.fn(), setInteractionState,
         clearInteractionState: vi.fn(), clearSelections: vi.fn(),
         setSelectionPreview: vi.fn(), clearTextCursor: vi.fn(),
       }),
       drawingShape: createDrawingShapeDragStartExecutor({
-        setAnchorGrid: vi.fn(), dispatchInteraction,
+        setAnchorGrid: vi.fn(), setInteractionState,
         clearInteractionState: vi.fn(), clearEditingStructuredTextNode: vi.fn(),
         clearStructuredTextSelection: vi.fn(), addScratchPoint: vi.fn(), erasePoint: vi.fn(),
       }),
@@ -118,8 +117,9 @@ describe("canvas drag-start execution", () => {
       resolveGridPoint: () => ({ x: 2, y: 3 }),
       resolveLocalPoint: () => ({ x: 100, y: 120 }),
     })).toBe(true);
-    expect(dispatchInteraction).toHaveBeenCalledWith({
-      type: "startDrawing", tool: "brush", start: { x: 2, y: 3 },
+    expect(setInteractionState).toHaveBeenCalledWith({
+      type: "drawing", tool: "brush", start: { x: 2, y: 3 },
+      lastGrid: { x: 2, y: 3 }, lastPlacedGrid: { x: 2, y: 3 },
     });
   });
 });

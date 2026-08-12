@@ -1,5 +1,6 @@
 import { EditorCommandRegistry } from "./commandRegistry";
 import { EditorKeymap } from "./keymap";
+import type { ShortcutTargetKind } from "@/shared/utils/dom-focus";
 import { EditorRootStateNode } from "./stateNode";
 import { EditorStateScopeRegistry } from "./scopeRegistry";
 import type {
@@ -30,7 +31,11 @@ export class EditorRuntime<State, Event = EditorInputEvent>
   implements EditorCommandHost<State>, Disposable
 {
   readonly commands = new EditorCommandRegistry<State>(this);
-  readonly keymap = new EditorKeymap<{ state: Readonly<State> }>();
+  readonly keymap = new EditorKeymap<{
+    state: Readonly<State>;
+    targetKind: ShortcutTargetKind;
+    phase: "keydown" | "keyup";
+  }>();
   readonly scopes = new EditorStateScopeRegistry();
   readonly history: EditorHistoryPort;
   readonly root: EditorRootStateNode<State, Event>;
@@ -41,6 +46,7 @@ export class EditorRuntime<State, Event = EditorInputEvent>
   readonly #extensions = new Map<string, EditorExtension<State, Event>>();
   readonly #commandDisposers: Array<() => void> = [];
   readonly #scopeDisposers: Array<() => void> = [];
+  readonly #keymapDisposers: Array<() => void> = [];
   readonly #managerFactories: NonNullable<EditorExtension<State>["managers"]>[number][] = [];
   readonly #setupCallbacks: NonNullable<EditorExtension<State, Event>["setup"]>[] = [];
   readonly #lifecycleDisposers: Array<() => void> = [];
@@ -79,8 +85,10 @@ export class EditorRuntime<State, Event = EditorInputEvent>
     const registeredCommands: Array<() => void> = [];
     const registeredScopes: Array<() => void> = [];
     const registeredTools: string[] = [];
+    const registeredKeybindings: Array<() => void> = [];
     const commandDisposerStart = this.#commandDisposers.length;
     const scopeDisposerStart = this.#scopeDisposers.length;
+    const keymapDisposerStart = this.#keymapDisposers.length;
     try {
       for (const command of extension.commands ?? []) {
         const dispose = this.commands.register(extension.id, command);
@@ -91,6 +99,11 @@ export class EditorRuntime<State, Event = EditorInputEvent>
         const dispose = this.scopes.register(extension.id, scope);
         registeredScopes.push(dispose);
         this.#scopeDisposers.push(dispose);
+      }
+      for (const binding of extension.keybindings ?? []) {
+        const dispose = this.keymap.register(extension.id, binding);
+        registeredKeybindings.push(dispose);
+        this.#keymapDisposers.push(dispose);
       }
       for (const tool of extension.tools ?? []) {
         const node = tool.create(this, this.root);
@@ -106,9 +119,11 @@ export class EditorRuntime<State, Event = EditorInputEvent>
     } catch (error) {
       registeredCommands.forEach((dispose) => dispose());
       registeredScopes.forEach((dispose) => dispose());
+      registeredKeybindings.forEach((dispose) => dispose());
       registeredTools.forEach((id) => this.root.removeChild(id));
       this.#commandDisposers.splice(commandDisposerStart);
       this.#scopeDisposers.splice(scopeDisposerStart);
+      this.#keymapDisposers.splice(keymapDisposerStart);
       throw error;
     }
     return this;
@@ -145,7 +160,12 @@ export class EditorRuntime<State, Event = EditorInputEvent>
 
   getCurrentToolId = () => this.root.getCurrent()?.id ?? null;
 
-  getCurrentStatePath = () => this.root.getCurrent()?.getPath() ?? this.root.getPath();
+  getCurrentStatePath = () => {
+    let current = this.root.getCurrent();
+    if (!current) return this.root.getPath();
+    while (current.getCurrent()) current = current.getCurrent()!;
+    return current.getPath();
+  };
 
   dispatch(event: Event) {
     if (!this.#started || this.#disposed) return false;
@@ -159,8 +179,10 @@ export class EditorRuntime<State, Event = EditorInputEvent>
     for (const dispose of this.#lifecycleDisposers.reverse()) dispose();
     for (const dispose of this.#commandDisposers.reverse()) dispose();
     for (const dispose of this.#scopeDisposers.reverse()) dispose();
+    for (const dispose of this.#keymapDisposers.reverse()) dispose();
     this.#lifecycleDisposers.length = 0;
     this.#commandDisposers.length = 0;
     this.#scopeDisposers.length = 0;
+    this.#keymapDisposers.length = 0;
   }
 }

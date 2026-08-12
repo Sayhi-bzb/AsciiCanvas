@@ -1,17 +1,9 @@
-import { create } from "zustand";
+import { create, type StateCreator, type StoreApi, type UseBoundStore } from "zustand";
 import { persist } from "zustand/middleware";
 import { MIN_ZOOM, MAX_ZOOM, COLOR_PRIMARY_TEXT, DEFAULT_BRUSH_CHAR } from "@/shared/lib/constants";
-import {
-  yMainGrid,
-  yStructuredScene,
-  activateCanvasDocument,
-  getCanvasHistoryAvailability,
-  subscribeCanvasHistoryAvailability,
-  replaceStructuredCanvasContent,
-} from "./canvasDocument";
+import { CanvasDocumentRegistry } from "./CanvasDocumentRegistry";
 import type { EditorState } from "./interfaces";
 import {
-  EDITOR_PERSISTENCE_KEY,
   EDITOR_PERSISTENCE_VERSION,
   flattenPersistedEditorState,
   decodePersistedEditorState,
@@ -54,21 +46,56 @@ import {
 import { DEFAULT_DEMO_GRID } from "./helpers/defaultDemo";
 import { createDeferredSnapshotPersistStorage } from "./persistenceCoordinator";
 import { createStructuredGridFocusPatch } from "./transitions/editorTransitions";
+import type { CollaborationIntegrityIssue } from "@/domains/collaboration/public";
+import type { SelectionCommandFactory } from "./selectionCommandPort";
+import type { CanvasSessionSourceParser } from "./sessionImportPort";
 
-export const useEditorStore = create<EditorState>()(
-  persist(
-    (set, get, ...a) => {
-      activateCanvasDocument(DEFAULT_SESSION_ID, {
+export type CanvasStore = UseBoundStore<StoreApi<EditorState>>;
+
+export type CanvasStorePersistence = false | {
+  storage: Storage;
+  key: string;
+  migrateLegacy?: boolean;
+};
+
+type CanvasStoreDependencies = {
+  documents: CanvasDocumentRegistry;
+  selectionCommands: SelectionCommandFactory;
+  parseSessionSource: CanvasSessionSourceParser;
+  reportIntegrityIssues: (issues: CollaborationIntegrityIssue[]) => void;
+  persistence: CanvasStorePersistence;
+};
+
+export const createEditorStore = ({
+  documents,
+  selectionCommands,
+  parseSessionSource,
+  reportIntegrityIssues,
+  persistence,
+}: CanvasStoreDependencies): { store: CanvasStore; dispose: () => void } => {
+  if (persistence && persistence.key.trim().length === 0) {
+    throw new Error("Canvas persistence requires a non-empty instance key");
+  }
+  const disposers: Array<() => void> = [];
+  const stateCreator: StateCreator<EditorState> = (set, get, ...a) => {
+      documents.activateDocument(DEFAULT_SESSION_ID, {
         grid: DEFAULT_DEMO_GRID,
         scene: [],
       });
-      if (yMainGrid.size === 0 && yStructuredScene.size === 0) {
-        applyFreeformSnapshotToYMaps(DEFAULT_DEMO_GRID);
+      if (documents.yMainGrid.size === 0 && documents.yStructuredScene.size === 0) {
+        applyFreeformSnapshotToYMaps(documents, DEFAULT_DEMO_GRID);
       }
 
-      subscribeCanvasDocumentProjection(set, get);
+      disposers.push(subscribeCanvasDocumentProjection(
+        documents,
+        reportIntegrityIssues,
+        set,
+        get
+      ));
 
-      subscribeCanvasHistoryAvailability((availability) => set(availability));
+      disposers.push(documents.subscribeHistoryAvailability(
+        (availability) => set(availability)
+      ));
 
       return {
         offset: { x: 0, y: 0 },
@@ -85,7 +112,7 @@ export const useEditorStore = create<EditorState>()(
         canvasSessions: createDefaultCanvasSessions(),
         activeCanvasId: DEFAULT_SESSION_ID,
         activeCanvasHasSavedViewport: false,
-        ...getCanvasHistoryAvailability(),
+        ...documents.getHistoryAvailability(),
         tool: "select",
         brushChar: DEFAULT_BRUSH_CHAR,
         brushColor: COLOR_PRIMARY_TEXT,
@@ -131,7 +158,7 @@ export const useEditorStore = create<EditorState>()(
             componentSource,
             normalizedScene
           );
-          replaceStructuredCanvasContent(
+          documents.replaceStructuredContent(
             normalizedScene,
             normalizedComponents,
             history
@@ -165,22 +192,25 @@ export const useEditorStore = create<EditorState>()(
               },
             };
           }),
-        ...createSessionSlice(set, get, ...a),
+        ...createSessionSlice(documents, parseSessionSource)(set, get, ...a),
         ...createStaticGridSlice(set, get, ...a),
-        ...createSlideSlice(set, get, ...a),
+        ...createSlideSlice(documents)(set, get, ...a),
 
-        ...createDrawingSlice(set, get, ...a),
-        ...createTextSlice(set, get, ...a),
-        ...createSelectionSlice(set, get, ...a),
+        ...createDrawingSlice(documents)(set, get, ...a),
+        ...createTextSlice(documents)(set, get, ...a),
+        ...createSelectionSlice(documents, selectionCommands)(set, get, ...a),
       };
-    },
-    {
-      name: EDITOR_PERSISTENCE_KEY,
+    };
+  const store = persistence
+    ? create<EditorState>()(persist(stateCreator, {
+      name: persistence.key,
       version: EDITOR_PERSISTENCE_VERSION,
       storage: createDeferredSnapshotPersistStorage({
         getStorage: () => {
-          migrateLegacyEditorPersistence(localStorage);
-          return localStorage;
+          if (persistence.migrateLegacy) {
+            migrateLegacyEditorPersistence(persistence.storage);
+          }
+          return persistence.storage;
         },
         createSnapshot: createPersistedEditorSnapshot,
         shouldSchedule: shouldScheduleEditorPersistence,
@@ -202,8 +232,14 @@ export const useEditorStore = create<EditorState>()(
       },
       onRehydrateStorage: () => (hydratedState, error) => {
         if (error || !hydratedState) return;
-        syncHydratedStateToCanvasDocument(hydratedState);
+        syncHydratedStateToCanvasDocument(documents, hydratedState);
       },
-    }
-  )
-);
+    }))
+    : create<EditorState>()(stateCreator);
+  return {
+    store,
+    dispose: () => {
+      disposers.splice(0).reverse().forEach((dispose) => dispose());
+    },
+  };
+};

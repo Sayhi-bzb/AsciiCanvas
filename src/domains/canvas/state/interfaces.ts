@@ -7,7 +7,7 @@ import type { GridAddress, GridEditMode, GridRange, GridSelectionState } from "@
 import type { StructuredSplitBoxHandle } from "@/domains/structured-content/public";
 import type { CanvasSession } from "@/domains/sessions/public";
 import type { SessionCommands } from "@/domains/sessions/public";
-import type { CanvasHistoryMode } from "./canvasDocument";
+import type { CanvasHistoryMode } from "./CanvasDocumentRegistry";
 import type { SlideDeck, SlideSize } from "@/domains/slides/public";
 
 export type CanvasColorPickerTarget = "char" | "bg";

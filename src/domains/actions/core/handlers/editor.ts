@@ -1,4 +1,3 @@
-import { canvasCommands } from "@/domains/canvas/public";
 import type { CanvasState, ClipboardCommandResult } from "@/domains/canvas/public";
 import { exportStructuredHierarchyText } from "@/domains/export/public";
 import { runEditorCommand } from "@/domains/actions/adapters/editorCommands";
@@ -145,7 +144,7 @@ export const editorHandlers: Record<EditorActionId, ActionHandler<unknown>> = {
   undo: (options, context): ActionResult => {
     const opts = options as UndoRedoOptions;
     if (!context.state.canUndo) return actionFailed("precondition-failed");
-    const succeeded = runEditorCommand("undo", {
+    const succeeded = runEditorCommand(context.canvas, "undo", {
       source: opts.source,
       managedTextarea: opts.managedTextarea,
       onUndo: opts.onUndo,
@@ -158,7 +157,7 @@ export const editorHandlers: Record<EditorActionId, ActionHandler<unknown>> = {
   redo: (options, context): ActionResult => {
     const opts = options as UndoRedoOptions;
     if (!context.state.canRedo) return actionFailed("precondition-failed");
-    const succeeded = runEditorCommand("redo", {
+    const succeeded = runEditorCommand(context.canvas, "redo", {
       source: opts.source,
       managedTextarea: opts.managedTextarea,
       onRedo: opts.onRedo,
@@ -178,7 +177,7 @@ export const editorHandlers: Record<EditorActionId, ActionHandler<unknown>> = {
       return actionFailed("empty-selection");
     }
     return resolveClipboardAction(
-      runEditorCommand("copy", {
+      runEditorCommand(context.canvas, "copy", {
         source: opts.source ?? "keyboard",
         clipboardEvent: opts.clipboardEvent,
         managedTextarea: opts.managedTextarea,
@@ -195,7 +194,7 @@ export const editorHandlers: Record<EditorActionId, ActionHandler<unknown>> = {
       return actionFailed("empty-selection");
     }
     return resolveClipboardAction(
-      runEditorCommand("copy-rich", {
+      runEditorCommand(context.canvas, "copy-rich", {
         source: opts.source ?? "keyboard",
         clipboardEvent: opts.clipboardEvent,
         managedTextarea: opts.managedTextarea,
@@ -212,7 +211,7 @@ export const editorHandlers: Record<EditorActionId, ActionHandler<unknown>> = {
       return actionFailed("empty-selection");
     }
     return resolveClipboardAction(
-      runEditorCommand("copy-ansi", {
+      runEditorCommand(context.canvas, "copy-ansi", {
         source: opts.source ?? "keyboard",
         clipboardEvent: opts.clipboardEvent,
         managedTextarea: opts.managedTextarea,
@@ -228,7 +227,7 @@ export const editorHandlers: Record<EditorActionId, ActionHandler<unknown>> = {
         : !canCopyOrCut(context.state);
     if (unavailable) return actionFailed("empty-selection");
     return resolveClipboardAction(
-      runEditorCommand("cut", {
+      runEditorCommand(context.canvas, "cut", {
         source: opts.source ?? "keyboard",
         clipboardEvent: opts.clipboardEvent,
         managedTextarea: opts.managedTextarea,
@@ -236,10 +235,10 @@ export const editorHandlers: Record<EditorActionId, ActionHandler<unknown>> = {
     );
   },
 
-  paste: (options): ActionResult => {
+  paste: (options, context): ActionResult => {
     const opts = options as ClipboardOptions;
     return resolveClipboardAction(
-      runEditorCommand("paste", {
+      runEditorCommand(context.canvas, "paste", {
         source: opts.source ?? "keyboard",
         clipboardEvent: opts.clipboardEvent,
         managedTextarea: opts.managedTextarea,
@@ -260,7 +259,7 @@ export const editorHandlers: Record<EditorActionId, ActionHandler<unknown>> = {
     if (context.state.selections.length === 0 || hasTextCursor) {
       return actionFailed("no-selection");
     }
-    const succeeded = runEditorCommand("fill-selection-char", {
+    const succeeded = runEditorCommand(context.canvas, "fill-selection-char", {
       source: "keyboard",
       fillChar,
     });
@@ -271,7 +270,7 @@ export const editorHandlers: Record<EditorActionId, ActionHandler<unknown>> = {
     if (context.state.selections.length === 0) {
       return actionFailed("empty-selection");
     }
-    void canvasCommands.selection.copyAsPng(context.state.showGrid);
+    void context.canvas.commands.selection.copyAsPng(context.state.showGrid);
     return actionSucceeded();
   },
 
@@ -279,44 +278,44 @@ export const editorHandlers: Record<EditorActionId, ActionHandler<unknown>> = {
     if (context.state.selections.length === 0 && !hasStructuredSelection(context.state)) {
       return actionFailed("empty-selection");
     }
-    canvasCommands.selection.delete();
+    context.canvas.commands.selection.delete();
     return actionSucceeded();
   },
 
   "structured-rename": (_options, context): ActionResult => {
     const cursor = getSelectedStructuredEditCursor(context.state);
     if (!cursor) return actionFailed("empty-selection");
-    canvasCommands.interaction.setTextCursor(cursor);
+    context.canvas.commands.interaction.setTextCursor(cursor);
     return actionSucceeded();
   },
 
   "structured-bring-forward": (_options, context): ActionResult => {
     if (!hasStructuredSelection(context.state)) return actionFailed("empty-selection");
-    canvasCommands.structured.reorderSelection("forward");
+    context.canvas.commands.structured.reorderSelection("forward");
     return actionSucceeded();
   },
 
   "structured-send-backward": (_options, context): ActionResult => {
     if (!hasStructuredSelection(context.state)) return actionFailed("empty-selection");
-    canvasCommands.structured.reorderSelection("backward");
+    context.canvas.commands.structured.reorderSelection("backward");
     return actionSucceeded();
   },
 
   "structured-bring-to-front": (_options, context): ActionResult => {
     if (!hasStructuredSelection(context.state)) return actionFailed("empty-selection");
-    canvasCommands.structured.reorderSelection("front");
+    context.canvas.commands.structured.reorderSelection("front");
     return actionSucceeded();
   },
 
   "structured-send-to-back": (_options, context): ActionResult => {
     if (!hasStructuredSelection(context.state)) return actionFailed("empty-selection");
-    canvasCommands.structured.reorderSelection("back");
+    context.canvas.commands.structured.reorderSelection("back");
     return actionSucceeded();
   },
 
   "structured-duplicate": (_options, context): ActionResult => {
     if (!hasStructuredSelection(context.state)) return actionFailed("empty-selection");
-    const duplicatedIds = canvasCommands.structured.duplicateSelection();
+    const duplicatedIds = context.canvas.commands.structured.duplicateSelection();
     return duplicatedIds.length > 0 ? actionSucceeded() : actionFailed("empty-selection");
   },
 
@@ -348,7 +347,7 @@ export const editorHandlers: Record<EditorActionId, ActionHandler<unknown>> = {
     if (!point || !splitBox || splitBox.type !== "splitBox") {
       return actionFailed("empty-selection");
     }
-    return canvasCommands.structured.splitLeaf(splitBox.id, point, "horizontal")
+    return context.canvas.commands.structured.splitLeaf(splitBox.id, point, "horizontal")
       ? actionSucceeded()
       : actionFailed("precondition-failed");
   },
@@ -359,7 +358,7 @@ export const editorHandlers: Record<EditorActionId, ActionHandler<unknown>> = {
     if (!point || !splitBox || splitBox.type !== "splitBox") {
       return actionFailed("empty-selection");
     }
-    return canvasCommands.structured.splitLeaf(splitBox.id, point, "vertical")
+    return context.canvas.commands.structured.splitLeaf(splitBox.id, point, "vertical")
       ? actionSucceeded()
       : actionFailed("precondition-failed");
   },
@@ -368,7 +367,7 @@ export const editorHandlers: Record<EditorActionId, ActionHandler<unknown>> = {
     if (!hasSelectedStructuredDivider(context.state)) {
       return actionFailed("empty-selection");
     }
-    canvasCommands.selection.delete();
+    context.canvas.commands.selection.delete();
     return actionSucceeded();
   },
 };

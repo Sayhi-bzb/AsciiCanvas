@@ -13,5 +13,10 @@ export {
   validateCollaborationEndpoint,
 } from "./room-link";
 export {
-  collaborationRuntime,
+  CollaborationRuntime,
+  createCollaborationRuntime,
 } from "./runtime";
+export {
+  CollaborationRuntimeProvider,
+  useCollaborationRuntime,
+} from "./react";

@@ -9,13 +9,11 @@ import {
   ContextMenuSubTrigger,
 } from "@/shared/ui/context-menu";
 import {
-  ACTION_CATALOG,
-  canRunAction,
-  runAction,
+  EDITOR_COMMAND_META,
+  getEditorCommandShortcutLabel,
 } from "@/domains/actions/public";
-import { getActionShortcutLabel } from "@/domains/actions/public";
 import type { ContextMenuEntry } from "@/domains/actions/public";
-import { getCanvasState } from "@/domains/canvas/public";
+import { useEditor } from "@/domains/editor/public";
 import { useUiI18n, type I18nKey } from "@/shared/i18n";
 
 const LABEL_KEY_BY_ID: Record<string, I18nKey> = {
@@ -49,6 +47,7 @@ export const CanvasContextMenuContent = ({
   managedTextareaRef,
 }: CanvasContextMenuContentProps) => {
   const { t } = useUiI18n();
+  const editor = useEditor();
 
   const renderEntry = (entry: ContextMenuEntry, index: number) => {
     if (entry.type === "separator") {
@@ -60,7 +59,7 @@ export const CanvasContextMenuContent = ({
       const hasEnabledChild = entry.children.some(
         (child) =>
           child.type === "action" &&
-          canRunAction(child.id, getCanvasState())
+          editor.commands.canExecute(child.id, undefined, "availability")
       );
       return (
         <ContextMenuSub key={`sub-${entry.label}-${index}`}>
@@ -77,21 +76,25 @@ export const CanvasContextMenuContent = ({
       );
     }
 
-    const meta = ACTION_CATALOG[entry.id];
+    const meta = EDITOR_COMMAND_META[entry.id];
     const Icon = meta.icon;
     const labelKey = LABEL_KEY_BY_ID[entry.id];
-    const shortcutLabel = getActionShortcutLabel(entry.id);
+    const shortcutLabel = getEditorCommandShortcutLabel(editor.keymap, entry.id);
     return (
       <ContextMenuItem
         key={entry.id}
         onClick={() =>
-          runAction(entry.id, {
+          editor.commands.execute(entry.id, {
             source: "context-menu",
             managedTextarea: managedTextareaRef.current,
-          })
+          }, "context-menu")
         }
         variant={meta.destructive ? "destructive" : "default"}
-        disabled={!canRunAction(entry.id, getCanvasState())}
+        disabled={!editor.commands.canExecute(
+          entry.id,
+          undefined,
+          "availability"
+        )}
       >
         {Icon && <Icon className="mr-2 size-4" />}
         <span>{labelKey ? t(labelKey) : meta.label}</span>

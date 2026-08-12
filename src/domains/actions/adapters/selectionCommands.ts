@@ -1,9 +1,7 @@
 import type { RichTextCell } from "@/domains/canvas/public";
-import {
-  canvasQueries,
-  registerSelectionCommandFactory,
-  type ClipboardCommandResult,
-  type SelectionCommandFactory,
+import type {
+  ClipboardCommandResult,
+  SelectionCommandFactory,
 } from "@/domains/canvas/public";
 import { getStaticGridSelectionAreas } from "@/domains/selection/public";
 import {
@@ -66,9 +64,12 @@ const failed = (
   return { status: "failed", reason };
 };
 
-const getClipboardTargetFingerprint = (state: SelectionCommandState) =>
+const getClipboardTargetFingerprint = (
+  getActiveDocumentId: () => string,
+  state: SelectionCommandState
+) =>
   JSON.stringify({
-    documentId: canvasQueries.getActiveDocumentId(),
+    documentId: getActiveDocumentId(),
     canvasMode: state.canvasMode,
     selections: resolveSelectionAreas(state),
     textCursor: state.textCursor,
@@ -313,7 +314,11 @@ const createStructuredTextNodeFromPaste = (
   ...(styleRanges ? { styleRanges } : {}),
 });
 
-const createSelectionCommands: SelectionCommandFactory = (set, get) => ({
+export const createSelectionCommandFactory = ({
+  getActiveDocumentId,
+}: {
+  getActiveDocumentId: () => string;
+}): SelectionCommandFactory => (set, get) => ({
   canCopyOrCut: () => {
     const state = get();
     const { textCursor, canvasMode, structuredScene } = state;
@@ -366,7 +371,7 @@ const createSelectionCommands: SelectionCommandFactory = (set, get) => ({
     const state = get();
     const { grid, textCursor, brushColor, canvasMode } = state;
     const selections = resolveSelectionAreas(state);
-    const targetFingerprint = getClipboardTargetFingerprint(state);
+    const targetFingerprint = getClipboardTargetFingerprint(getActiveDocumentId, state);
     if (canvasMode === "structured") {
       const textSelection = getActiveStructuredTextSelection(state);
       if (textSelection) {
@@ -392,7 +397,7 @@ const createSelectionCommands: SelectionCommandFactory = (set, get) => ({
             )
           : null;
         if (
-          getClipboardTargetFingerprint(current) !== targetFingerprint ||
+          getClipboardTargetFingerprint(getActiveDocumentId, current) !== targetFingerprint ||
           !areJsonValuesEqual(currentPayload, payload)
         ) {
           return failed("stale-target");
@@ -434,7 +439,7 @@ const createSelectionCommands: SelectionCommandFactory = (set, get) => ({
         current.selectedStructuredNodeIds
       );
       if (
-        getClipboardTargetFingerprint(current) !== targetFingerprint ||
+        getClipboardTargetFingerprint(getActiveDocumentId, current) !== targetFingerprint ||
         !areJsonValuesEqual(currentPayload, payload)
       ) {
         return failed("stale-target");
@@ -464,7 +469,7 @@ const createSelectionCommands: SelectionCommandFactory = (set, get) => ({
       current.brushColor
     );
     if (
-      getClipboardTargetFingerprint(current) !== targetFingerprint ||
+      getClipboardTargetFingerprint(getActiveDocumentId, current) !== targetFingerprint ||
       !areJsonValuesEqual(currentPayload, payload)
     ) {
       return failed("stale-target");
@@ -480,11 +485,14 @@ const createSelectionCommands: SelectionCommandFactory = (set, get) => ({
   pasteFromClipboard: async (options) => {
     const initialState = get();
     const { brushColor } = initialState;
-    const targetFingerprint = getClipboardTargetFingerprint(initialState);
+    const targetFingerprint = getClipboardTargetFingerprint(
+      getActiveDocumentId,
+      initialState
+    );
     const payload = await readClipboardPayload(options?.eventDataTransfer, brushColor);
     const state = get();
     if ("error" in payload && payload.error) return failed(payload.error);
-    if (getClipboardTargetFingerprint(state) !== targetFingerprint) {
+    if (getClipboardTargetFingerprint(getActiveDocumentId, state) !== targetFingerprint) {
       return failed("stale-target");
     }
     const { pasteRichData, writeTextString, canvasMode } = state;
@@ -613,7 +621,3 @@ const createSelectionCommands: SelectionCommandFactory = (set, get) => ({
     }
   },
 });
-
-export const registerSelectionCommands = () => {
-  registerSelectionCommandFactory(createSelectionCommands);
-};

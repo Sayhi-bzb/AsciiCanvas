@@ -1,9 +1,4 @@
-import {
-  replaceActiveFreeformGrid,
-  setActiveCanvasIntegrityIssue,
-  yMainGrid,
-  yStructuredScene,
-} from "../canvasDocument";
+import type { CanvasDocumentRegistry } from "../CanvasDocumentRegistry";
 import type { GridCell } from "@/shared/types";
 import type { StructuredNode } from "@/domains/structured-content/public";
 import {
@@ -16,38 +11,39 @@ import {
   decodeCollaborativeStructuredNode,
 } from "../collaborationSchema";
 
-export const rebuildGridFromYMap = () => {
+export const rebuildGridFromYMap = (documents: CanvasDocumentRegistry) => {
   const nextGrid = new Map<string, GridCell>();
-  yMainGrid.forEach((value, key) => {
+  documents.yMainGrid.forEach((value, key) => {
     const decoded = decodeCollaborativeGridCell(key, value);
-    setActiveCanvasIntegrityIssue("main-grid", key, decoded.ok ? null : decoded.issue);
+    documents.setIntegrityIssue("main-grid", key, decoded.ok ? null : decoded.issue);
     if (decoded.ok) nextGrid.set(key, decoded.value);
   });
   return nextGrid;
 };
 
-export const rebuildSceneFromYMap = () => {
+export const rebuildSceneFromYMap = (documents: CanvasDocumentRegistry) => {
   const nextScene: StructuredNode[] = [];
-  yStructuredScene.forEach((value, key) => {
+  documents.yStructuredScene.forEach((value, key) => {
     const decoded = decodeCollaborativeStructuredNode(key, value);
-    setActiveCanvasIntegrityIssue("structured-scene", key, decoded.ok ? null : decoded.issue);
+    documents.setIntegrityIssue("structured-scene", key, decoded.ok ? null : decoded.issue);
     if (decoded.ok) nextScene.push(cloneStructuredNode(decoded.value));
   });
   return normalizeScene(nextScene);
 };
 
 export const patchGridByChangedKeys = (
+  documents: CanvasDocumentRegistry,
   currentGrid: Map<string, GridCell>,
   keysChanged: Set<string>
 ): Map<string, GridCell> | null => {
   let nextGrid: Map<string, GridCell> | null = null;
 
   keysChanged.forEach((key) => {
-    const rawCell = yMainGrid.get(key);
+    const rawCell = documents.yMainGrid.get(key);
     const prevCell = currentGrid.get(key);
 
     if (!rawCell) {
-      setActiveCanvasIntegrityIssue("main-grid", key, null);
+      documents.setIntegrityIssue("main-grid", key, null);
       if (!prevCell) return;
       if (!nextGrid) nextGrid = new Map(currentGrid);
       nextGrid.delete(key);
@@ -55,7 +51,7 @@ export const patchGridByChangedKeys = (
     }
 
     const decoded = decodeCollaborativeGridCell(key, rawCell);
-    setActiveCanvasIntegrityIssue("main-grid", key, decoded.ok ? null : decoded.issue);
+    documents.setIntegrityIssue("main-grid", key, decoded.ok ? null : decoded.issue);
     if (!decoded.ok) {
       if (!prevCell) return;
       if (!nextGrid) nextGrid = new Map(currentGrid);
@@ -73,5 +69,6 @@ export const patchGridByChangedKeys = (
 };
 
 export const applyFreeformSnapshotToYMaps = (
+  documents: CanvasDocumentRegistry,
   entries: [string, GridCell][]
-) => replaceActiveFreeformGrid(entries);
+) => documents.replaceFreeformGrid(entries);

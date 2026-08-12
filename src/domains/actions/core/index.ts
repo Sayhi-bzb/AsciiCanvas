@@ -1,12 +1,16 @@
 // Types
 export type {
+  ActionResult,
+  EditorActionId,
+  EditorCommandId,
   ToolbarActionId,
   ContextMenuEntry,
 } from "./types";
 
 // Catalog
 export {
-  ACTION_CATALOG,
+  APP_ACTION_META,
+  EDITOR_COMMAND_META,
   TOOLBAR_ACTION_META,
   CANVAS_CONTEXT_MENU,
   STRUCTURED_CONTEXT_MENU,
@@ -14,19 +18,16 @@ export {
 
 // Runtime
 export {
-  runAction,
-  canRunAction,
-  runToolbarAction,
-  runSidebarAction,
-  createActionsExtension,
+  createEditorCommands,
+  createEditorCommandsExtension,
 } from "./runtime";
+export type { EditorCommandOptions } from "./runtime";
 export { isActionAccepted } from "./result";
 
 export {
-  getActionShortcutLabel,
-  matchesActionShortcut,
-  resolveActionShortcut,
-  setActionShortcutOverride,
+  getAppActionShortcutLabel,
+  getEditorCommandShortcutLabel,
+  setEditorCommandShortcutOverride,
 } from "./shortcuts";
 
 // Handlers (for advanced use cases)

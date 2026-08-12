@@ -13,4 +13,6 @@ export {
   parseCharDeskDocument,
   charDeskDocumentToSnapshot,
 } from "./protocol/import";
-export { registerDocumentSessionSource } from "./session-source";
+export {
+  parseDocumentSessionSource,
+} from "./session-source";

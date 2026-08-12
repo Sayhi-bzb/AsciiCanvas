@@ -53,11 +53,11 @@ export interface EditorCommandContext<State> {
 
 export interface EditorCommandDefinition<State, Input = void, Data = unknown> {
   id: string;
-  canExecute?: (input: Input, context: EditorCommandContext<State>) => boolean;
-  execute: (
+  canExecute?(input: Input, context: EditorCommandContext<State>): boolean;
+  execute(
     input: Input,
     context: EditorCommandContext<State>
-  ) => EditorCommandResult<Data>;
+  ): EditorCommandResult<Data>;
 }
 
 export type AnyEditorCommandDefinition<State> = EditorCommandDefinition<
@@ -104,6 +104,11 @@ export interface EditorExtension<State, Event = EditorInputEvent> {
   id: string;
   commands?: readonly AnyEditorCommandDefinition<State>[];
   tools?: readonly EditorToolDefinition<State, Event>[];
+  keybindings?: readonly import("./keymap").KeymapEntry<{
+    state: Readonly<State>;
+    targetKind: import("@/shared/utils/dom-focus").ShortcutTargetKind;
+    phase: "keydown" | "keyup";
+  }>[];
   managers?: readonly EditorManagerFactory<State>[];
   stateScopes?: readonly EditorStateScopeDefinition[];
   setup?: (editor: EditorCommandHost<State>) => void | (() => void) | Disposable;

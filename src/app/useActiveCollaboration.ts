@@ -1,11 +1,13 @@
 import { useEffect } from "react";
 import {
-  canvasQueries,
+  useCanvasRuntime,
   useCanvasState,
 } from "@/domains/canvas/public";
-import { collaborationRuntime } from "@/domains/collaboration/public";
+import { useCollaborationRuntime } from "@/domains/collaboration/public";
 
 export const useActiveCollaboration = () => {
+  const canvas = useCanvasRuntime();
+  const collaborationRuntime = useCollaborationRuntime();
   const activeCanvasId = useCanvasState((state) => state.activeCanvasId);
   const collaboration = useCanvasState((state) =>
     state.canvasSessions.find((session) => session.id === state.activeCanvasId)?.collaboration
@@ -21,15 +23,15 @@ export const useActiveCollaboration = () => {
       void collaborationRuntime.disconnect();
       return;
     }
-    const document = canvasQueries.getCollaborationDocument(activeCanvasId);
+    const document = canvas.queries.getCollaborationDocument(activeCanvasId);
     if (document) void collaborationRuntime.connect(collaboration, document);
     return () => { void collaborationRuntime.disconnect(); };
-  }, [activeCanvasId, collaboration]);
+  }, [activeCanvasId, canvas, collaboration, collaborationRuntime]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
       collaborationRuntime.setPresence({ cursor, selection: selections, tool });
     }, 33);
     return () => window.clearTimeout(timer);
-  }, [cursor, selections, tool]);
+  }, [collaborationRuntime, cursor, selections, tool]);
 };

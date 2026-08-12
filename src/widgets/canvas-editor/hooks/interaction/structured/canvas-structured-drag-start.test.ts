@@ -68,8 +68,8 @@ describe("structured drag start decisions", () => {
     expect(decision.drag.baseScene.map((node) => node.id)).toEqual([
       lineNode.id,
     ]);
-    expect(decision.interactionEvent).toMatchObject({
-      type: "startStructuredMoving",
+    expect(decision.state).toMatchObject({
+      type: "structuredMoving",
       drag: { selectedIds: [boxNode.id, secondBoxNode.id] },
     });
   });
@@ -85,9 +85,8 @@ describe("structured drag start decisions", () => {
     expect(decision.selectedIds).toEqual([boxNode.id]);
     expect(decision.contextPoint).toBeNull();
     expect(decision.splitHandle).toBeNull();
-    expect(decision.interactionEvent).toMatchObject({
-      type: "startStructuredResizing",
-      kind: "rect",
+    expect(decision.state).toMatchObject({
+      type: "structuredRectResizing",
       anchor: { x: 5, y: 3 },
       drag: { node: boxNode, handle: "se" },
     });
@@ -110,9 +109,8 @@ describe("structured drag start decisions", () => {
       nodeId: splitBoxNode.id,
       handle: "split:split-middle",
     });
-    expect(decision.interactionEvent).toMatchObject({
-      type: "startStructuredResizing",
-      kind: "splitBoxPending",
+    expect(decision.state).toMatchObject({
+      type: "structuredSplitBoxResizePending",
       anchor: { x: 4, y: 2 },
       drag: { node: splitBoxNode, handle: "split:split-middle" },
     });
@@ -128,8 +126,8 @@ describe("structured drag start decisions", () => {
 
     expect(decision.selectedIds).toEqual([textNode.id]);
     expect(decision.drag.selectedNodes).toEqual([textNode]);
-    expect(decision.interactionEvent).toMatchObject({
-      type: "startStructuredMoving",
+    expect(decision.state).toMatchObject({
+      type: "structuredMoving",
       drag: { selectedIds: [textNode.id] },
     });
   });});

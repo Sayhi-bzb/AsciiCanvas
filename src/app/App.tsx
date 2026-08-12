@@ -1,13 +1,10 @@
 import { useLocalStorageState } from "ahooks";
 import { CanvasEditor } from "@/widgets/canvas-editor";
-import { canvasCommands, useCanvasState } from "@/domains/canvas/public";
+import { useCanvasRuntime, useCanvasState } from "@/domains/canvas/public";
 import { AppLayout } from "./AppLayout";
 import { Toolbar } from "@/widgets/toolbar/dock";
 import { SidebarInset, SidebarProvider, useSidebar } from "@/shared/ui/sidebar";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
-import { runRedo, runUndo } from "@/domains/actions/public";
-import { runAction } from "@/domains/actions/public";
-import { matchesActionShortcut } from "@/domains/actions/public";
 import { feedback } from "@/shared/services/effects";
 import { useShallow } from "zustand/react/shallow";
 import { CanvasBreadcrumb } from "@/widgets/session-tabs/CanvasBreadcrumb";
@@ -36,6 +33,7 @@ import { useCollaborationSnapshot } from "@/widgets/collaboration/useCollaborati
 import { sameCollaborationRoom } from "@/domains/collaboration/public";
 import { OnboardingTourProvider } from "@/widgets/onboarding/new-user-tour";
 import { CanvasEngineProvider } from "@/widgets/canvas-editor/engine/useCanvasEngineRuntime";
+import { useEditor } from "@/domains/editor/public";
 
 const SidebarRight = lazy(() =>
   import("@/widgets/toolbar/sidebar-right").then((module) => ({
@@ -53,17 +51,15 @@ function SidebarShortcutRegistration() {
         context.targetKind === "editable" ||
         context.targetKind === "managed-canvas" ||
         context.targetKind === "overlay" ||
-        !matchesActionShortcut("toggle-sidebar", event)
+        !(event.ctrlKey || event.metaKey) ||
+        event.shiftKey ||
+        event.altKey ||
+        event.key.toLowerCase() !== "b"
       ) {
         return;
       }
-      const result = runAction("toggle-sidebar", {
-        source: "global-hotkey",
-        toggleSidebar,
-      });
-      return result.status === "succeeded"
-        ? { claimed: true, preventDefault: true }
-        : undefined;
+      toggleSidebar();
+      return { claimed: true, preventDefault: true };
     },
   });
   return null;
@@ -132,13 +128,18 @@ function AppContent() {
       structuredTextSelection: state.structuredTextSelection,
     }))
   );
-  const setTool = canvasCommands.tools.set;
-  const exitStaticGridTextEdit = canvasCommands.staticGrid.exitTextEdit;
-  const setTextCursor = canvasCommands.interaction.setTextCursor;
+  const editor = useEditor();
+  const canvas = useCanvasRuntime();
+  const setTool = useCallback(
+    (nextTool: typeof tool) => { editor.setCurrentTool(nextTool); },
+    [editor]
+  );
+  const exitStaticGridTextEdit = canvas.commands.staticGrid.exitTextEdit;
+  const setTextCursor = canvas.commands.interaction.setTextCursor;
   const setEditingStructuredTextNodeId =
-    canvasCommands.interaction.setEditingStructuredTextNodeId;
+    canvas.commands.interaction.setEditingStructuredTextNodeId;
   const setStructuredTextSelection =
-    canvasCommands.interaction.setStructuredTextSelection;
+    canvas.commands.interaction.setStructuredTextSelection;
   const staticGridView = useMemo(
     () =>
       getStaticGridViewState({
@@ -183,18 +184,16 @@ function AppContent() {
   }, [sidebarAutoCollapseSignal, setIsRightPanelOpen]);
 
   const handleUndo = () => {
-    const changed = runUndo();
+    const changed = editor.history.undo();
     if (changed) feedback.dismiss();
     return changed;
   };
 
   const handleRedo = () => {
-    return runRedo();
+    return editor.history.redo();
   };
 
   useGlobalShortcutCommands({
-    onUndo: handleUndo,
-    onRedo: handleRedo,
     enabled: !isCollaborationReadOnly,
   });
 

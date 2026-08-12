@@ -6,7 +6,7 @@ import {
 } from "@/widgets/canvas-editor/hooks/interaction/gestures/dragUpdateInteraction";
 import type { GridMap } from "@/shared/types";
 import type { StructuredBoxNode, StructuredLineNode, StructuredSplitBoxNode, StructuredTextNode } from "@/domains/structured-content/public";
-import type { StructuredNodeDragPayload } from "@/widgets/canvas-editor/hooks/interaction/core/interactionMachine";
+import type { StructuredNodeDragPayload } from "@/domains/editor/public";
 
 const boxNode: StructuredBoxNode = {
   id: "box-1", type: "box", order: 1,

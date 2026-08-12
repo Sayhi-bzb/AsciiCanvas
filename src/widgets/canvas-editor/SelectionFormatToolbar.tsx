@@ -8,7 +8,7 @@ import {
 } from "react";
 import { useShallow } from "zustand/react/shallow";
 
-import { canvasCommands, useCanvasState } from "@/domains/canvas/public";
+import { useCanvasRuntime, useCanvasState } from "@/domains/canvas/public";
 import { isStaticGridMode } from "@/domains/sessions/public";
 import { gridCellRect } from "@/shared/metrics";
 import type { GridMap, NodeBounds, SelectionArea } from "@/shared/types";
@@ -180,6 +180,7 @@ const getBoundsFromNodeBounds = (bounds: NodeBounds) => ({
 export function SelectionFormatToolbar({
   containerSize,
 }: SelectionFormatToolbarProps) {
+  const canvas = useCanvasRuntime();
   const { t } = useUiI18n();
   const {
     canvasMode,
@@ -216,12 +217,12 @@ export function SelectionFormatToolbar({
       brushColor: state.brushColor,
     }))
   );
-  const setSelectionTextAttributes = canvasCommands.selection.setTextAttributes;
-  const setStructuredTextAttributes = canvasCommands.structured.setTextAttributes;
-  const setStructuredTextColor = canvasCommands.structured.setTextColor;
-  const setStructuredNodeCharColor = canvasCommands.structured.setNodeCharColor;
-  const splitStructuredSplitBoxLeaf = canvasCommands.structured.splitLeaf;
-  const deleteSelection = canvasCommands.selection.delete;
+  const setSelectionTextAttributes = canvas.commands.selection.setTextAttributes;
+  const setStructuredTextAttributes = canvas.commands.structured.setTextAttributes;
+  const setStructuredTextColor = canvas.commands.structured.setTextColor;
+  const setStructuredNodeCharColor = canvas.commands.structured.setNodeCharColor;
+  const splitStructuredSplitBoxLeaf = canvas.commands.structured.splitLeaf;
+  const deleteSelection = canvas.commands.selection.delete;
 
   const staticGridView = useMemo(
     () =>

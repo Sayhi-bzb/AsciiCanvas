@@ -8,7 +8,7 @@ import type {
 } from "./types";
 
 // Editor Actions
-const EDITOR_ACTION_META: Record<EditorActionId, ActionMeta> = {
+export const EDITOR_COMMAND_META: Record<EditorActionId, ActionMeta<EditorActionId>> = {
   undo: { id: "undo", label: "Undo", shortcuts: [["mod", "z"]] },
   redo: {
     id: "redo",
@@ -109,7 +109,7 @@ const EDITOR_ACTION_META: Record<EditorActionId, ActionMeta> = {
   },
 };
 
-export const TOOLBAR_ACTION_META: Record<ToolbarActionId, ActionMeta> = {
+export const TOOLBAR_ACTION_META: Record<ToolbarActionId, ActionMeta<ToolbarActionId>> = {
   select: {
     id: "select",
     label: "Select",
@@ -148,7 +148,8 @@ export const TOOLBAR_ACTION_META: Record<ToolbarActionId, ActionMeta> = {
     icon: HOST_ICONOLOGY.toolbarAction.eraser,
   },
   undo: {
-    ...EDITOR_ACTION_META.undo,
+    ...EDITOR_COMMAND_META.undo,
+    id: "undo",
     icon: HOST_ICONOLOGY.toolbarAction.undo,
   },
   color: {
@@ -165,7 +166,7 @@ export const TOOLBAR_ACTION_META: Record<ToolbarActionId, ActionMeta> = {
 };
 
 // Sidebar Actions
-const SIDEBAR_ACTION_META: Record<SidebarActionId, ActionMeta> = {
+export const APP_ACTION_META: Record<SidebarActionId, ActionMeta<SidebarActionId>> = {
   "toggle-grid": { id: "toggle-grid", label: "Toggle Grid" },
   "toggle-sidebar": {
     id: "toggle-sidebar",
@@ -176,12 +177,6 @@ const SIDEBAR_ACTION_META: Record<SidebarActionId, ActionMeta> = {
 };
 
 // Unified Action Catalog
-export const ACTION_CATALOG: Record<string, ActionMeta> = {
-  ...EDITOR_ACTION_META,
-  ...TOOLBAR_ACTION_META,
-  ...SIDEBAR_ACTION_META,
-};
-
 // Context Menu Configuration
 export const CANVAS_CONTEXT_MENU: ContextMenuEntry[] = [
   { type: "action", id: "copy" },

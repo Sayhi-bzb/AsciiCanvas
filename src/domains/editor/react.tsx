@@ -8,20 +8,30 @@ import {
   type ReactNode,
 } from "react";
 import type { CanvasState } from "@/domains/canvas/public";
-import { EditorRuntime } from "./core/runtime";
-import { editorRuntime } from "./runtime";
+import { CanvasEditorRuntime } from "./runtime";
 
-const EditorContext = createContext<EditorRuntime<CanvasState>>(editorRuntime);
+const EditorContext = createContext<CanvasEditorRuntime | null>(null);
+let editorRuntimeFallback: CanvasEditorRuntime | null = null;
+
+export const configureEditorRuntimeFallbackForTesting = (
+  editor: CanvasEditorRuntime | null
+) => {
+  editorRuntimeFallback = editor;
+};
 
 export const EditorProvider = ({
-  editor = editorRuntime,
+  editor,
   children,
 }: {
-  editor?: EditorRuntime<CanvasState>;
+  editor: CanvasEditorRuntime;
   children: ReactNode;
 }) => <EditorContext.Provider value={editor}>{children}</EditorContext.Provider>;
 
-export const useEditor = () => useContext(EditorContext);
+export const useEditor = () => {
+  const editor = useContext(EditorContext) ?? editorRuntimeFallback;
+  if (!editor) throw new Error("useEditor must be used within EditorProvider");
+  return editor;
+};
 
 export const useEditorValue = <Selected,>(
   selector: (state: Readonly<CanvasState>) => Selected,

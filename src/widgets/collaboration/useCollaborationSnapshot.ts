@@ -1,9 +1,11 @@
 import { useSyncExternalStore } from "react";
-import { collaborationRuntime } from "@/domains/collaboration/public";
+import { useCollaborationRuntime } from "@/domains/collaboration/public";
 
-export const useCollaborationSnapshot = () =>
-  useSyncExternalStore(
-    collaborationRuntime.subscribe,
-    collaborationRuntime.getSnapshot,
-    collaborationRuntime.getSnapshot
+export const useCollaborationSnapshot = () => {
+  const collaboration = useCollaborationRuntime();
+  return useSyncExternalStore(
+    collaboration.subscribe,
+    collaboration.getSnapshot,
+    collaboration.getSnapshot
   );
+};

@@ -3,14 +3,16 @@ import { useGesture } from "@use-gesture/react";
 import type { CanvasMode } from "@/domains/sessions/public";
 import type { ToolType } from "@/domains/canvas/public";
 import type { CanvasViewportState } from "@/domains/canvas/public";
+import type { CanvasState } from "@/domains/canvas/public";
+import type {
+  CanvasEditorInputEvent,
+  CanvasInteractionState,
+  EditorRuntime,
+} from "@/domains/editor/public";
 import type { StructuredNode } from "@/domains/structured-content/public";
 import { isCtrlOrMeta } from "@/shared/utils/event";
 import { MAX_ZOOM, MIN_ZOOM } from "@/shared/lib/constants";
-import {
-  isStructuredSplitBoxLineHandle,
-} from "@/domains/structured-content/public";
 import type { CanvasPointerContextResolver } from "../core/pointerContext";
-import type { CanvasInteractionRuntime } from "../core/interactionRuntime";
 import type { HoverInteractionController } from "../preview/hoverInteractionController";
 import type {
   CanvasPinchRouteHandler,
@@ -18,14 +20,6 @@ import type {
 } from "./pinchInteraction";
 import type { CanvasMoveRouteHandler } from "./moveExecution";
 import type { CanvasDragStartRouteAdapter } from "./dragStartExecution";
-import type {
-  DragUpdateHandler,
-  DragUpdateRouteHandler,
-} from "./dragUpdateExecution";
-import type {
-  DragEndRouteHandler,
-  PrimaryDragEndHandler,
-} from "./dragEndExecution";
 import type { CanvasClickRouteHandler } from "./clickExecution";
 import {
   getCanvasWheelOrigin,
@@ -35,9 +29,7 @@ import { shouldIgnoreCanvasSurfaceGesture } from "../core/gestureGuards";
 import { shouldOpenCanvasLink } from "../core/hitTesting";
 
 export const useCanvasGestureAdapter = ({
-  beginInteraction,
   cancelInteraction,
-  completeInteraction,
   stopEdgeScroll,
   updateEdgeScroll,
   containerRef,
@@ -51,22 +43,17 @@ export const useCanvasGestureAdapter = ({
   structuredScene,
   editingStructuredTextNodeId,
   pointerContext,
-  interactionRuntime,
+  editorRuntime,
+  getInteractionState,
   hoverInteraction,
   shouldIgnoreActiveGestureEvent,
   canvasPinchRouteHandler,
   canvasMoveRouteHandler,
   canvasDragStartRouteAdapter,
-  dragUpdateRouteHandler,
-  dragUpdateHandler,
-  dragEndRouteHandler,
-  primaryDragEndHandler,
   canvasClickRouteHandler,
   canvasWheelRouteHandler,
 }: {
-  beginInteraction: () => void;
   cancelInteraction: () => void;
-  completeInteraction: () => void;
   stopEdgeScroll: () => void;
   updateEdgeScroll: (clientPoint: { x: number; y: number }) => void;
   containerRef: RefObject<HTMLDivElement | null>;
@@ -80,16 +67,13 @@ export const useCanvasGestureAdapter = ({
   structuredScene: StructuredNode[];
   editingStructuredTextNodeId: string | null;
   pointerContext: CanvasPointerContextResolver;
-  interactionRuntime: CanvasInteractionRuntime;
+  editorRuntime: EditorRuntime<CanvasState, CanvasEditorInputEvent>;
+  getInteractionState: () => CanvasInteractionState;
   hoverInteraction: HoverInteractionController;
   shouldIgnoreActiveGestureEvent: (event: Event | undefined) => boolean;
   canvasPinchRouteHandler: CanvasPinchRouteHandler;
   canvasMoveRouteHandler: CanvasMoveRouteHandler;
   canvasDragStartRouteAdapter: CanvasDragStartRouteAdapter;
-  dragUpdateRouteHandler: DragUpdateRouteHandler;
-  dragUpdateHandler: DragUpdateHandler;
-  dragEndRouteHandler: DragEndRouteHandler;
-  primaryDragEndHandler: PrimaryDragEndHandler;
   canvasClickRouteHandler: CanvasClickRouteHandler;
   canvasWheelRouteHandler: CanvasWheelRouteHandler;
 }) => {
@@ -125,7 +109,11 @@ export const useCanvasGestureAdapter = ({
       },
       onMove: ({ xy: [x, y], event }) => {
         if (shouldIgnoreCanvasSurfaceGesture(event)) return;
-        if (interactionRuntime.getState().type === "panning") return;
+        if (
+          getInteractionState().type === "panning"
+        ) {
+          return;
+        }
         canvasMoveRouteHandler({
           hasColorPickerTarget,
           canvasMode,
@@ -150,48 +138,57 @@ export const useCanvasGestureAdapter = ({
       },
       onDragStart: ({ xy: [x, y], event }) => {
         if (shouldIgnoreCanvasSurfaceGesture(event)) return;
-        stopEdgeScroll();
-        beginInteraction();
-        hoverInteraction.clearLinkHover(event as MouseEvent);
         const mouseEvent = event as MouseEvent;
-        const screenPoint = { x, y };
-        const started = canvasDragStartRouteAdapter({
-          canvasMode,
-          tool,
-          button: mouseEvent.button,
-          isCtrlOrMetaPressed: isCtrlOrMeta(mouseEvent),
-          hasColorPickerTarget,
-          hasCanvasRect: pointerContext.hasCanvasRect(),
-          screenPoint,
-          shiftKey: mouseEvent.shiftKey,
-          anchorGrid: interactionRuntime.getSelectionAnchor(),
-          brushChar,
-          mouseDetail: mouseEvent.detail,
-          preventDefault: () => event.preventDefault(),
-          resolveGridPoint: (point) =>
-            pointerContext.resolveGridPoint(point.x, point.y),
-          resolveLocalPoint: (point) =>
-            pointerContext.resolveLocalPoint(point.x, point.y),
-        });
-        if (!started) cancelInteraction();
+        stopEdgeScroll();
+        hoverInteraction.clearLinkHover(mouseEvent);
+        if (hasColorPickerTarget) {
+          const started = canvasDragStartRouteAdapter({
+            canvasMode,
+            tool,
+            button: mouseEvent.button,
+            isCtrlOrMetaPressed: isCtrlOrMeta(mouseEvent),
+            hasColorPickerTarget: true,
+            hasCanvasRect: pointerContext.hasCanvasRect(),
+            screenPoint: { x, y },
+            shiftKey: mouseEvent.shiftKey,
+            anchorGrid: null,
+            brushChar,
+            mouseDetail: mouseEvent.detail,
+            preventDefault: () => event.preventDefault(),
+            resolveGridPoint: (point) =>
+              pointerContext.resolveGridPoint(point.x, point.y),
+            resolveLocalPoint: (point) =>
+              pointerContext.resolveLocalPoint(point.x, point.y),
+          });
+          if (!started) cancelInteraction();
+          return;
+        }
+        if (editorRuntime.dispatch({
+            type: "canvas-drag-start",
+            canvasMode,
+            button: mouseEvent.button,
+            isCtrlOrMetaPressed: isCtrlOrMeta(mouseEvent),
+            shiftKey: mouseEvent.shiftKey,
+            detail: mouseEvent.detail,
+            screenPoint: { x, y },
+            gridPoint: pointerContext.resolveGridPoint(x, y),
+            brushChar,
+          })) {
+          event.preventDefault();
+          return;
+        }
+        cancelInteraction();
       },
       onDrag: ({ xy: [x, y], delta: [dx, dy], event }) => {
         if (shouldIgnoreActiveGestureEvent(event)) return;
-        const state = interactionRuntime.getState();
-        dragUpdateRouteHandler({
-          state,
-          delta: { x: dx, y: dy },
-          resolveCurrentGrid: () => pointerContext.resolveClampedGridPoint(x, y),
-          executePrimaryUpdate: (currentGrid) =>
-            dragUpdateHandler({
-              state,
-              tool,
-              canvasMode,
-              currentGrid,
-                  structuredScene,
-            }),
-        });
-        updateEdgeScroll({ x, y });
+        if (editorRuntime.dispatch({
+            type: "canvas-drag-update",
+            delta: { x: dx, y: dy },
+            currentGrid: pointerContext.resolveClampedGridPoint(x, y),
+          })) {
+          updateEdgeScroll({ x, y });
+          return;
+        }
       },
       onDragEnd: ({ event, xy: [x, y], canceled }) => {
         stopEdgeScroll();
@@ -200,29 +197,24 @@ export const useCanvasGestureAdapter = ({
           event.type === "pointercancel" ||
           event.type === "lostpointercapture"
         ) {
-          cancelInteraction();
+          editorRuntime.dispatch({
+            type: "canvas-interaction-cancel",
+            reason: "pointer",
+          });
           return;
         }
         if (shouldIgnoreActiveGestureEvent(event)) {
           cancelInteraction();
           return;
         }
-        const state = interactionRuntime.getState();
-        dragEndRouteHandler({
-          state,
-          button: (event as MouseEvent).button,
-          executePrimaryEnd: () => {
-            primaryDragEndHandler({
-              state,
-              tool,
-              canvasMode,
-              structuredScene,
-              resolvedEndGrid: pointerContext.resolveClampedGridPoint(x, y),
-              isDividerHandle: isStructuredSplitBoxLineHandle,
-            });
-          },
-        });
-        completeInteraction();
+        if (editorRuntime.dispatch({
+            type: "canvas-drag-end",
+            button: (event as MouseEvent).button,
+            endGrid: pointerContext.resolveClampedGridPoint(x, y),
+          })) {
+          return;
+        }
+        cancelInteraction();
       },
       onClick: ({ event }) => {
         if (shouldIgnoreCanvasSurfaceGesture(event)) return;

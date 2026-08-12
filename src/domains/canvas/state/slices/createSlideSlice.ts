@@ -1,4 +1,5 @@
 import type { StateCreator } from "zustand";
+import type { CanvasDocumentRegistry } from "../CanvasDocumentRegistry";
 import {
   activateSlide as activateDeckSlide,
   addSlide as addDeckSlide,
@@ -20,12 +21,14 @@ import {
   resetSlideEditingBuffer,
 } from "../slideEditingBuffer";
 
-export const createSlideSlice: StateCreator<
+export const createSlideSlice = (
+  documents: CanvasDocumentRegistry
+): StateCreator<
   EditorState,
   [],
   [],
   SlideSlice
-> = (set, get) => ({
+> => (set, get) => ({
   slideDeck: null,
 
   addSlide: () => {
@@ -35,7 +38,7 @@ export const createSlideSlice: StateCreator<
     const next = addDeckSlide(synced, { id: createSlideId(synced.slides) });
     const active = next.slides.find((slide) => slide.id === next.activeSlideId);
     if (!active) return;
-    activateSlideEditingBuffer(state.activeCanvasId, active.id, active.grid);
+    activateSlideEditingBuffer(documents, state.activeCanvasId, active.id, active.grid);
     set(createSlideActivationPatch(state, next, active.grid));
   },
 
@@ -50,7 +53,7 @@ export const createSlideSlice: StateCreator<
     if (next === synced) return;
     const active = next.slides.find((slide) => slide.id === next.activeSlideId);
     if (!active) return;
-    activateSlideEditingBuffer(state.activeCanvasId, active.id, active.grid);
+    activateSlideEditingBuffer(documents, state.activeCanvasId, active.id, active.grid);
     set(createSlideActivationPatch(state, next, active.grid));
   },
 
@@ -62,9 +65,9 @@ export const createSlideSlice: StateCreator<
     if (next === synced) return;
     const active = next.slides.find((slide) => slide.id === next.activeSlideId);
     if (!active) return;
-    activateSlideEditingBuffer(state.activeCanvasId, active.id, active.grid);
+    activateSlideEditingBuffer(documents, state.activeCanvasId, active.id, active.grid);
     set(createSlideActivationPatch(state, next, active.grid));
-    discardSlideEditingBuffer(state.activeCanvasId, slideId);
+    discardSlideEditingBuffer(documents, state.activeCanvasId, slideId);
   },
 
   renameSlide: (slideId, name) => {
@@ -103,7 +106,7 @@ export const createSlideSlice: StateCreator<
     if (next === synced) return;
     const active = next.slides.find((slide) => slide.id === slideId);
     if (!active) return;
-    activateSlideEditingBuffer(state.activeCanvasId, active.id, active.grid);
+    activateSlideEditingBuffer(documents, state.activeCanvasId, active.id, active.grid);
     set(createSlideActivationPatch(state, next, active.grid));
   },
 
@@ -121,7 +124,7 @@ export const createSlideSlice: StateCreator<
     if (!active || !resized) return;
 
     if (cropCount > 0) {
-      resetSlideEditingBuffer(state.activeCanvasId, resized.id, resized.grid);
+      resetSlideEditingBuffer(documents, state.activeCanvasId, resized.id, resized.grid);
     }
 
     if (slideId === next.activeSlideId) {

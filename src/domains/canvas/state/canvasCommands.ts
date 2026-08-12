@@ -1,17 +1,8 @@
-import {
-  beginCanvasHistoryCheckpoint,
-  finishCanvasHistoryCapture,
-  getActiveCanvasDocumentId,
-  getCanvasCollaborationDocument,
-  redoCanvas,
-  replaceActiveFreeformGrid,
-  runCanvasTransaction,
-  undoCanvas,
-} from "./canvasDocument";
-import { useEditorStore } from "./editorStore";
+import type { CanvasDocumentRegistry } from "./CanvasDocumentRegistry";
+import type { CanvasStore } from "./editorStore";
 import type { EditorState } from "./interfaces";
 
-const call = <Key extends keyof EditorState>(
+const createCall = (store: CanvasStore) => <Key extends keyof EditorState>(
   key: Key,
   ...args: EditorState[Key] extends (...params: infer Params) => unknown
     ? Params
@@ -20,22 +11,27 @@ const call = <Key extends keyof EditorState>(
   type Result = EditorState[Key] extends (...params: never[]) => infer Return
     ? Return
     : never;
-  const command = useEditorStore.getState()[key] as (...params: typeof args) => Result;
+  const command = store.getState()[key] as (...params: typeof args) => Result;
   if (typeof command !== "function") {
     throw new TypeError(`Canvas command ${String(key)} is not callable`);
   }
   return command(...args);
 };
 
-export const canvasCommands = {
+export const createCanvasCommands = (
+  store: CanvasStore,
+  documents: CanvasDocumentRegistry
+) => {
+const call = createCall(store);
+return {
   history: {
-    undo: () => !!undoCanvas(),
-    redo: () => !!redoCanvas(),
-    beginCheckpoint: beginCanvasHistoryCheckpoint,
-    finishCapture: finishCanvasHistoryCapture,
+    undo: documents.undo,
+    redo: documents.redo,
+    beginCheckpoint: documents.beginHistoryCheckpoint,
+    finishCapture: documents.finishHistoryCapture,
     transact: <Result>(fn: () => Result, history: "save" | "merge" | "none" | "reset" = "save") => {
       let result!: Result;
-      runCanvasTransaction(() => {
+      documents.runTransaction(() => {
         result = fn();
       }, history);
       return result;
@@ -90,7 +86,7 @@ export const canvasCommands = {
     ) => call("setSelectedStructuredSplitHandle", ...args),
   },
   grid: {
-    replace: replaceActiveFreeformGrid,
+    replace: documents.replaceFreeformGrid,
     setScratchLayer: (...args: Parameters<EditorState["setScratchLayer"]>) =>
       call("setScratchLayer", ...args),
     addScratchPoints: (...args: Parameters<EditorState["addScratchPoints"]>) =>
@@ -209,10 +205,14 @@ export const canvasCommands = {
     resize: (...args: Parameters<EditorState["resizeSlide"]>) => call("resizeSlide", ...args),
   },
 } as const;
+};
 
-export const canvasQueries = {
-  canCopyOrCut: () => useEditorStore.getState().canCopyOrCut(),
-  getNextStructuredOrder: () => useEditorStore.getState().getNextStructuredOrder(),
-  getActiveDocumentId: getActiveCanvasDocumentId,
-  getCollaborationDocument: getCanvasCollaborationDocument,
-} as const;
+export const createCanvasQueries = (
+  store: CanvasStore,
+  documents: CanvasDocumentRegistry
+) => ({
+  canCopyOrCut: () => store.getState().canCopyOrCut(),
+  getNextStructuredOrder: () => store.getState().getNextStructuredOrder(),
+  getActiveDocumentId: documents.getActiveDocumentId,
+  getCollaborationDocument: documents.getCollaborationDocument,
+} as const);

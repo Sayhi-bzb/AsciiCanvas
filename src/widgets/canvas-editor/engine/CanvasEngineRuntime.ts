@@ -1,5 +1,4 @@
 import { CanvasFrameScheduler } from "./FrameScheduler";
-import { canvasCommands, getCanvasState } from "@/domains/canvas/public";
 import {
   CanvasCameraManager,
   type CanvasCameraPort,
@@ -19,14 +18,8 @@ export class CanvasEngineRuntime {
   private disposed = false;
 
   constructor(
-    frameScheduler = new CanvasFrameScheduler(),
-    cameraPort: CanvasCameraPort = {
-      getViewport: () => {
-        const state = getCanvasState();
-        return { offset: state.offset, zoom: state.zoom };
-      },
-      setViewport: canvasCommands.viewport.setViewport,
-    }
+    cameraPort: CanvasCameraPort,
+    frameScheduler = new CanvasFrameScheduler()
   ) {
     this.frameScheduler = frameScheduler;
     this.camera = new CanvasCameraManager(frameScheduler, cameraPort);

@@ -1,175 +1,112 @@
-import { getCanvasState } from "@/domains/canvas/public";
+import type { CanvasRuntime, CanvasState } from "@/domains/canvas/public";
 import {
-  editorRuntime,
-  type AnyEditorCommandDefinition,
+  type EditorCommandDefinition,
   type EditorExtension,
 } from "@/domains/editor/public";
 import {
   actionUnhandled,
 } from "./result";
-import type { ActionResult } from "./types";
 import type {
   ActionChecker,
   ActionContext,
   ActionHandler,
-  ActionId,
-  SidebarActionId,
-  ToolbarActionId,
+  ActionSource,
+  EditorActionId,
 } from "./types";
-import type { ToolType } from "@/domains/canvas/public";
-import { ACTION_CATALOG } from "./catalog";
+import { EDITOR_COMMAND_META } from "./catalog";
 import {
   editorHandlers,
   editorCheckers,
-  sidebarHandlers,
-  toolbarHandlers,
 } from "./handlers";
 
-// Combined handlers
-const ACTION_HANDLERS: Record<string, ActionHandler<unknown>> = {
-  ...(toolbarHandlers as Record<string, ActionHandler<unknown>>),
-  ...(editorHandlers as Record<string, ActionHandler<unknown>>),
-  ...(sidebarHandlers as Record<string, ActionHandler<unknown>>),
-};
-
 // Combined checkers
-const ACTION_CHECKERS: Partial<Record<ActionId, ActionChecker>> = {
+const ACTION_CHECKERS: Partial<Record<EditorActionId, ActionChecker>> = {
   ...editorCheckers,
 };
 
-const executeActionHandler = <T = unknown>(
-  actionId: ActionId,
-  options: T & Partial<ActionContext>,
-  context?: ActionContext
-): ActionResult => {
-  const handler = ACTION_HANDLERS[actionId];
-  if (!handler) {
-    return actionUnhandled("unknown-action");
-  }
+const CANVAS_FOCUS_COMMANDS = new Set<EditorActionId>([
+  "copy",
+  "cut",
+  "paste",
+  "delete-selection",
+]);
 
-  // Build full context from options if partial context is provided
-  const fullContext: ActionContext = context ?? {
-    state: getCanvasState(),
-    setTool: (options as Partial<ActionContext>).setTool ?? (() => {}),
-    onUndo: (options as Partial<ActionContext>).onUndo ?? (() => {}),
-    onRedo: (options as Partial<ActionContext>).onRedo ?? (() => {}),
-  };
-
-  return handler(options as T, fullContext);
+export type EditorCommandOptions = {
+  source?: ActionSource;
+  managedTextarea?: HTMLTextAreaElement | null;
+  clipboardEvent?: ClipboardEvent;
+  fillChar?: string;
+  onUndo?: () => boolean | void;
+  onRedo?: () => boolean | void;
 };
 
-export const createActionsExtension = (): EditorExtension<
-  ReturnType<typeof getCanvasState>
-> => ({
-  id: "chardesk.actions",
-  commands: Object.keys(ACTION_HANDLERS).map((actionId) => ({
-    id: actionId as ActionId,
-    canExecute: (_input, { state }) => {
-      const checker = ACTION_CHECKERS[actionId as ActionId];
-      return checker?.(state) ?? true;
-    },
-    execute: (input, { editor, source }) => {
-      const options =
-        input && typeof input === "object"
-          ? (input as Record<string, unknown>)
-          : ({} as Record<string, unknown>);
-      const setTool =
-        typeof options.setTool === "function"
-          ? (options.setTool as (tool: ToolType) => void)
-          : (tool: ToolType) => {
-              editor.setCurrentTool(tool);
-            };
-      const onUndo =
-        typeof options.onUndo === "function"
-          ? (options.onUndo as () => void)
-          : editor.history.undo;
-      const onRedo =
-        typeof options.onRedo === "function"
-          ? (options.onRedo as () => void)
-          : editor.history.redo;
-      return executeActionHandler(actionId as ActionId, {
-        ...options,
-        source: options.source ?? source,
-        setTool,
-        onUndo,
-        onRedo,
-      });
-    },
-  })) as AnyEditorCommandDefinition<ReturnType<typeof getCanvasState>>[],
-  setup: () => {
-    const disposers = Object.values(ACTION_CATALOG).flatMap((action) => {
-      if (!action.shortcuts?.length) return [];
-      return [
-        editorRuntime.keymap.register({
-          id: `action:${action.id}`,
-          shortcuts: action.shortcuts.map((shortcut) => shortcut.join("+")),
-          target: { type: "command", id: action.id },
-        }),
-      ];
-    });
-    return () => disposers.reverse().forEach((dispose) => dispose());
+type EditorCommandDescriptor = EditorCommandDefinition<
+  CanvasState,
+  EditorCommandOptions | void
+>;
+
+const createCommand = (
+  canvas: Pick<CanvasRuntime, "commands" | "queries" | "getState">,
+  id: EditorActionId
+): EditorCommandDescriptor => ({
+  id,
+  canExecute: (_input, { state }) => ACTION_CHECKERS[id]?.(state) ?? true,
+  execute: (input, { editor, source, state }) => {
+    const handler = editorHandlers[id] as ActionHandler<EditorCommandOptions> | undefined;
+    if (!handler) return actionUnhandled("unknown-command");
+    const options = input ?? {};
+    const context: ActionContext = {
+      state: state as CanvasState,
+      canvas,
+      setTool: (tool) => {
+        editor.setCurrentTool(tool);
+      },
+      onUndo: editor.history.undo,
+      onRedo: editor.history.redo,
+    };
+    return handler(
+      { ...options, source: options.source ?? (source as ActionSource) },
+      context
+    );
   },
 });
 
-// Compatibility entry while UI call sites migrate to editorRuntime.commands.
-export const runAction = <T = unknown>(
-  actionId: ActionId,
-  options: T & Partial<ActionContext>,
-  context?: ActionContext
-): ActionResult => {
-  if (!context && editorRuntime.commands.has(actionId)) {
-    const source =
-      options && typeof options === "object" && "source" in options
-        ? String((options as { source?: unknown }).source ?? "api")
-        : "api";
-    return editorRuntime.commands.execute(actionId, options, source);
-  }
-  return executeActionHandler(actionId, options, context);
-};
+export const createEditorCommands = (
+  canvas: Pick<CanvasRuntime, "commands" | "queries" | "getState">
+) =>
+  Object.fromEntries(
+    (Object.keys(EDITOR_COMMAND_META) as EditorActionId[]).map((id) => [
+      id,
+      createCommand(canvas, id),
+    ])
+  ) as Record<EditorActionId, EditorCommandDescriptor>;
 
-// Check if action can run
-export const canRunAction = (
-  actionId: ActionId,
-  state?: ReturnType<typeof getCanvasState>
-): boolean => {
-  if (!state && editorRuntime.commands.has(actionId)) {
-    return editorRuntime.commands.canExecute(actionId, undefined, "availability");
-  }
-  const resolvedState = state ?? getCanvasState();
-  const checker = ACTION_CHECKERS[actionId];
-  if (checker) {
-    return checker(resolvedState);
-  }
-  // Default: allow if handler exists
-  return actionId in ACTION_HANDLERS;
-};
-
-// Convenience function for toolbar actions
-export const runToolbarAction = <T = unknown>(
-  actionId: ToolbarActionId,
-  options: T & Partial<Omit<ActionContext, "onUndo" | "onRedo">>
-): ActionResult => {
-  const fullContext: ActionContext = {
-    state: getCanvasState(),
-    setTool: ((options as { setTool?: (tool: ToolType) => void }).setTool ?? (() => {})),
-    onUndo: () => {},
-    onRedo: () => {},
+export const createEditorCommandsExtension = (
+  canvas: Pick<CanvasRuntime, "commands" | "queries" | "getState">
+): EditorExtension<CanvasState> => {
+  const commands = createEditorCommands(canvas);
+  return {
+  id: "chardesk.editor-commands",
+  commands: Object.values(commands),
+  keybindings: Object.values(EDITOR_COMMAND_META).flatMap((command) =>
+    command.shortcuts?.length
+      ? [{
+          id: `command:${command.id}`,
+          shortcuts: command.shortcuts.map((shortcut) => shortcut.join("+")),
+          target: { type: "command" as const, id: command.id },
+          when: ({ targetKind, state }) =>
+            targetKind !== "editable" &&
+            targetKind !== "overlay" &&
+            targetKind !== "canvas-ui" &&
+            (!CANVAS_FOCUS_COMMANDS.has(command.id) ||
+              targetKind === "managed-canvas" ||
+              targetKind === "canvas-surface") &&
+            (command.id !== "delete-selection" ||
+              (!state.textCursor &&
+                !state.editingStructuredTextNodeId &&
+                !state.structuredTextSelection)),
+        }]
+      : []
+  ),
   };
-  return runAction(actionId, options, fullContext);
-};
-
-// Convenience function for sidebar actions
-export const runSidebarAction = <T = unknown>(
-  actionId: SidebarActionId,
-  options: T
-): ActionResult => {
-  // Sidebar actions don't need full context
-  const state = getCanvasState();
-  const context: ActionContext = {
-    state,
-    setTool: () => {},
-    onUndo: () => {},
-    onRedo: () => {},
-  };
-  return runAction(actionId, options as T & Partial<ActionContext>, context);
 };

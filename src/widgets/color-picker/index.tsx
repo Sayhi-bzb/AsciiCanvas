@@ -6,7 +6,7 @@ import {
   type ComponentProps,
 } from "react";
 import { Check, Pipette } from "lucide-react";
-import { canvasCommands, useCanvasState } from "@/domains/canvas/public";
+import { useCanvasRuntime, useCanvasState } from "@/domains/canvas/public";
 import type { CanvasColorPickerTarget } from "@/domains/canvas/public";
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
 import { useUiI18n } from "@/shared/i18n";
@@ -156,6 +156,7 @@ export function ColorPickerPanel({
   showCustomInput = true,
   onCanvasPickStarted,
 }: ColorPickerPanelProps) {
+  const canvas = useCanvasRuntime();
   const { t } = useUiI18n();
   const [customColor, setCustomColor] = useState(value);
   const [activePaletteTab, setActivePaletteTab] = useState<
@@ -166,7 +167,7 @@ export function ColorPickerPanel({
   const canvasColorPickerTarget = useCanvasState(
     (state) => state.canvasColorPickerTarget
   );
-  const setCanvasColorPickerTarget = canvasCommands.interaction.setColorPickerTarget;
+  const setCanvasColorPickerTarget = canvas.commands.interaction.setColorPickerTarget;
 
   const pickColor = (color: string) => {
     setCustomColor(color);

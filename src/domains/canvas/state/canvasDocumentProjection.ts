@@ -1,5 +1,5 @@
 import type { StoreApi } from "zustand";
-import { collaborationRuntime } from "@/domains/collaboration/public";
+import type { CollaborationIntegrityIssue } from "@/domains/collaboration/public";
 import type { CanvasSession } from "@/domains/sessions/public";
 import {
   normalizeStructuredComponents,
@@ -14,12 +14,7 @@ import {
 } from "./helpers/gridHelpers";
 import { createMapFromEntries } from "./helpers/snapshotHelpers";
 import type { EditorState } from "./interfaces";
-import {
-  getActiveCanvasIntegrityIssues,
-  observeActiveCanvasTransactions,
-  setActiveCanvasIntegrityIssue,
-  yStructuredComponents,
-} from "./canvasDocument";
+import type { CanvasDocumentRegistry } from "./CanvasDocumentRegistry";
 import { projectSlideEditingBuffer } from "./slideEditingBuffer";
 import { reconcileStructuredInteraction } from "./transitions/editorTransitions";
 
@@ -39,37 +34,40 @@ const projectObservedGrid = (state: EditorState, grid: GridMap) => {
 
 /** Projects active Yjs document changes into the editor's derived Zustand state. */
 export const subscribeCanvasDocumentProjection = (
+  documents: CanvasDocumentRegistry,
+  reportIntegrityIssues: (issues: CollaborationIntegrityIssue[]) => void,
   setState: StoreApi<EditorState>["setState"],
   getState: StoreApi<EditorState>["getState"]
 ) => {
-  const reportIntegrityIssues = () =>
-    collaborationRuntime.reportIntegrityIssues(getActiveCanvasIntegrityIssues());
+  const reportCurrentIntegrityIssues = () =>
+    reportIntegrityIssues(documents.getIntegrityIssues());
 
-  const unsubscribe = observeActiveCanvasTransactions((transaction) => {
+  const unsubscribe = documents.observeActiveTransactions((transaction) => {
     const state = getState();
     if (state.canvasMode !== "structured") {
       if (transaction.gridKeysChanged.size === 0) return;
       const patchedGrid = patchGridByChangedKeys(
+        documents,
         state.grid,
         transaction.gridKeysChanged
       );
       setState((current) =>
         projectObservedGrid(
           current,
-          patchedGrid ?? rebuildGridFromYMap()
+          patchedGrid ?? rebuildGridFromYMap(documents)
         )
       );
-      reportIntegrityIssues();
+      reportCurrentIntegrityIssues();
       return;
     }
     if (!transaction.sceneChanged && !transaction.componentsChanged) return;
     setState((current) => {
-      const structuredScene = rebuildSceneFromYMap();
+      const structuredScene = rebuildSceneFromYMap(documents);
       const structuredComponents = normalizeStructuredComponents(
-        Array.from(yStructuredComponents.entries()).flatMap(
+        Array.from(documents.yStructuredComponents.entries()).flatMap(
           ([key, value]) => {
             const decoded = decodeCollaborativeStructuredComponent(key, value);
-            setActiveCanvasIntegrityIssue(
+            documents.setIntegrityIssue(
               "structured-components",
               key,
               decoded.ok ? null : decoded.issue
@@ -97,7 +95,7 @@ export const subscribeCanvasDocumentProjection = (
         ),
       };
     });
-    reportIntegrityIssues();
+    reportCurrentIntegrityIssues();
   });
 
   return unsubscribe;

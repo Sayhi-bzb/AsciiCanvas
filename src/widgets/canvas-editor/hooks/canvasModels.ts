@@ -1,5 +1,7 @@
-import { canvasCommands, canvasQueries } from "@/domains/canvas/public";
-import type { CanvasState } from "@/domains/canvas/public";
+import type { CanvasRuntime, CanvasState } from "@/domains/canvas/public";
+
+type CanvasCommands = CanvasRuntime["commands"];
+type CanvasQueries = CanvasRuntime["queries"];
 
 export type CanvasRenderModel = Pick<CanvasState,
   | "offset"
@@ -40,28 +42,28 @@ export type CanvasEditorModel = Pick<CanvasState,
   | "canvasColorPickerTarget"
   | "activeCanvasHasSavedViewport"
 > & {
-  writeTextString: typeof canvasCommands.text.write;
-  backspaceText: typeof canvasCommands.text.backspace;
-  deleteTextForward: typeof canvasCommands.text.deleteForward;
-  newlineText: typeof canvasCommands.text.newline;
-  indentText: typeof canvasCommands.text.indent;
-  moveTextCursor: typeof canvasCommands.text.moveCursor;
-  moveStaticGridFocus: typeof canvasCommands.staticGrid.moveFocus;
-  moveStructuredGridFocus: typeof canvasCommands.interaction.moveStructuredGridFocus;
-  setTextCursor: typeof canvasCommands.interaction.setTextCursor;
-  setOffset: typeof canvasCommands.viewport.setOffset;
-  moveSelections: typeof canvasCommands.selection.move;
-  expandSelection: typeof canvasCommands.selection.expand;
-  fillSelectionsWithChar: typeof canvasCommands.selection.fillWithChar;
-  clearSelections: typeof canvasCommands.selection.clear;
-  setStructuredGridFocus: typeof canvasCommands.interaction.setStructuredGridFocus;
-  setSelectedStructuredNodeIds: typeof canvasCommands.interaction.setSelectedStructuredNodeIds;
-  setSelectedStructuredSplitHandle: typeof canvasCommands.interaction.setSelectedStructuredSplitHandle;
-  setEditingStructuredTextNodeId: typeof canvasCommands.interaction.setEditingStructuredTextNodeId;
-  setStructuredTextSelection: typeof canvasCommands.interaction.setStructuredTextSelection;
-  setCanvasColorPickerTarget: typeof canvasCommands.interaction.setColorPickerTarget;
-  setHoveredGrid: typeof canvasCommands.interaction.setHoveredGrid;
-  getNextStructuredOrder: typeof canvasQueries.getNextStructuredOrder;
-  applyStructuredScene: typeof canvasCommands.structured.applyScene;
-  setStructuredContextPoint: typeof canvasCommands.interaction.setStructuredContextPoint;
+  writeTextString: CanvasCommands["text"]["write"];
+  backspaceText: CanvasCommands["text"]["backspace"];
+  deleteTextForward: CanvasCommands["text"]["deleteForward"];
+  newlineText: CanvasCommands["text"]["newline"];
+  indentText: CanvasCommands["text"]["indent"];
+  moveTextCursor: CanvasCommands["text"]["moveCursor"];
+  moveStaticGridFocus: CanvasCommands["staticGrid"]["moveFocus"];
+  moveStructuredGridFocus: CanvasCommands["interaction"]["moveStructuredGridFocus"];
+  setTextCursor: CanvasCommands["interaction"]["setTextCursor"];
+  setOffset: CanvasCommands["viewport"]["setOffset"];
+  moveSelections: CanvasCommands["selection"]["move"];
+  expandSelection: CanvasCommands["selection"]["expand"];
+  fillSelectionsWithChar: CanvasCommands["selection"]["fillWithChar"];
+  clearSelections: CanvasCommands["selection"]["clear"];
+  setStructuredGridFocus: CanvasCommands["interaction"]["setStructuredGridFocus"];
+  setSelectedStructuredNodeIds: CanvasCommands["interaction"]["setSelectedStructuredNodeIds"];
+  setSelectedStructuredSplitHandle: CanvasCommands["interaction"]["setSelectedStructuredSplitHandle"];
+  setEditingStructuredTextNodeId: CanvasCommands["interaction"]["setEditingStructuredTextNodeId"];
+  setStructuredTextSelection: CanvasCommands["interaction"]["setStructuredTextSelection"];
+  setCanvasColorPickerTarget: CanvasCommands["interaction"]["setColorPickerTarget"];
+  setHoveredGrid: CanvasCommands["interaction"]["setHoveredGrid"];
+  getNextStructuredOrder: CanvasQueries["getNextStructuredOrder"];
+  applyStructuredScene: CanvasCommands["structured"]["applyScene"];
+  setStructuredContextPoint: CanvasCommands["interaction"]["setStructuredContextPoint"];
 };

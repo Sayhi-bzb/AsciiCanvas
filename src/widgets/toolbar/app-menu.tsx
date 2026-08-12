@@ -2,8 +2,7 @@
 
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { canvasCommands, useCanvasState } from "@/domains/canvas/public";
-import { runSidebarAction } from "@/domains/actions/public";
+import { useCanvasRuntime, useCanvasState } from "@/domains/canvas/public";
 import {
   getAvailableExportFormats,
   type ExportContext,
@@ -27,6 +26,8 @@ import { uiClass } from "@/shared/styles/components";
 import { useCanvasImport } from "@/widgets/import/useCanvasImport";
 import { useAppMenuExport } from "@/widgets/export/use-app-menu-export";
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
+import { browser } from "@/shared/services/effects";
+import { APP_SOURCE_URL } from "@/shared/lib/constants";
 
 const AppMenuTriggerIcon = HOST_ICONOLOGY.appMenu.trigger;
 const ImportIcon = HOST_ICONOLOGY.appMenu.import;
@@ -41,6 +42,7 @@ const ClearCanvasDialog = lazy(() =>
   }))
 );
 export function AppMenu() {
+  const canvas = useCanvasRuntime();
   const {
     grid,
     canvasMode,
@@ -60,7 +62,7 @@ export function AppMenu() {
       activeCanvasId: state.activeCanvasId,
     }))
   );
-  const clearCanvas = canvasCommands.grid.clear;
+  const clearCanvas = canvas.commands.grid.clear;
   const documentName = canvasSessions.find(
     (session) => session.id === activeCanvasId
   )?.name;
@@ -248,9 +250,7 @@ export function AppMenu() {
                 </DropdownMenuSub>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  onSelect={() =>
-                    runSidebarAction("open-source-code", {})
-                  }
+                  onSelect={() => browser.openExternal(APP_SOURCE_URL)}
                 >
                   <GithubIcon />
                   {t("appMenu.github")}

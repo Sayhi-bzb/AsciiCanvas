@@ -19,12 +19,14 @@ import {
 } from "@/domains/selection/public";
 import { shouldIgnoreCanvasSurfaceGesture } from "./interaction/core/gestureGuards";
 import {
-  resolveActionShortcut,
   resolveFillHotkeyChar,
   isActionAccepted,
-  resolveHistoryShortcutCommand,
-  runAction,
 } from "@/domains/actions/public";
+import {
+  resolveEditorKeymapEvent,
+  useEditor,
+} from "@/domains/editor/public";
+import type { ActionResult } from "@/domains/actions/public";
 import type { CanvasEditorModel } from "./canvasModels";
 import {
   SHORTCUT_PRIORITY,
@@ -49,7 +51,7 @@ type RunManagedAction = (
   actionId: ClipboardShortcutAction,
   event?: ClipboardEvent,
   source?: ManagedActionSource
-) => ReturnType<typeof runAction>;
+) => ActionResult;
 
 const traceClipboardShortcut = (
   trace: ClipboardShortcutTrace,
@@ -74,8 +76,8 @@ type UseManagedCanvasInputOptions = {
   canvasMode: CanvasMode;
   model: CanvasEditorModel;
   size: { width: number; height: number } | undefined;
-  onUndo: () => void;
-  onRedo: () => void;
+  onUndo?: () => void;
+  onRedo?: () => void;
   enabled?: boolean;
 };
 
@@ -87,6 +89,7 @@ export const useManagedCanvasInput = ({
   onRedo,
   enabled = true,
 }: UseManagedCanvasInputOptions) => {
+  const editor = useEditor();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isComposing = useRef(false);
   const {
@@ -210,18 +213,19 @@ export const useManagedCanvasInput = ({
     };
   }, [releaseManagedTextarea]);
 
-  const runManagedAction: RunManagedAction = (
-    actionId,
-    e?: ClipboardEvent,
-    source: ManagedActionSource =
-      e ? 'clipboard-event' : 'context-menu'
-  ) => {
-    return runAction(actionId, {
-      source,
-      clipboardEvent: e,
-      managedTextarea: textareaRef.current,
-    });
-  };
+  const runManagedAction: RunManagedAction = useCallback(
+    (
+      actionId,
+      e?: ClipboardEvent,
+      source: ManagedActionSource = e ? 'clipboard-event' : 'context-menu'
+    ) =>
+      editor.commands.execute(actionId, {
+        source,
+        clipboardEvent: e,
+        managedTextarea: textareaRef.current,
+      }, source),
+    [editor]
+  );
   const [clipboardShortcutCoordinator] = useState(() =>
     createClipboardShortcutCoordinator({})
   );
@@ -236,7 +240,7 @@ export const useManagedCanvasInput = ({
     return () => {
       clipboardShortcutCoordinator.dispose();
     };
-  }, [clipboardShortcutCoordinator]);
+  }, [clipboardShortcutCoordinator, runManagedAction]);
 
   useShortcutLayer({
     id: "managed-canvas-commands",
@@ -249,23 +253,32 @@ export const useManagedCanvasInput = ({
       ) {
         return;
       }
-      const clipboardCommand = resolveActionShortcut(
+      const resolution = resolveEditorKeymapEvent(
+        editor,
         event,
-        ["copy", "cut", "paste"] as const
+        context.targetKind
       );
+      const commandId =
+        resolution.type === "match" && resolution.entry.target.type === "command"
+          ? resolution.entry.target.id
+          : null;
+      const clipboardCommand =
+        commandId === "copy" || commandId === "cut" || commandId === "paste"
+          ? commandId
+          : null;
       if (clipboardCommand) {
         primeManagedTextarea();
         clipboardShortcutCoordinator.begin(clipboardCommand);
         return { claimed: true, preventDefault: false };
       }
-      const historyCommand = resolveHistoryShortcutCommand(event);
+      const historyCommand = commandId === "undo" || commandId === "redo" ? commandId : null;
       if (!historyCommand) return;
-      const result = runAction(historyCommand, {
+      const result = editor.commands.execute(historyCommand, {
         source: "canvas-keydown",
         managedTextarea: textareaRef.current,
         onUndo,
         onRedo,
-      });
+      }, "canvas-keydown");
       return result.status === "succeeded"
         ? { claimed: true, preventDefault: true }
         : undefined;
@@ -368,7 +381,7 @@ export const useManagedCanvasInput = ({
 
     if ((e.key === 'Delete' || e.key === 'Backspace') && hasActiveSelection) {
       e.preventDefault();
-      runAction('delete-selection', { source: 'canvas-keydown' });
+      editor.commands.execute('delete-selection', undefined, 'canvas-keydown');
       return;
     }
 

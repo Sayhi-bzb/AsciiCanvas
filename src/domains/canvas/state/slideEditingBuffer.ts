@@ -3,11 +3,7 @@ import { updateSlideGrid, type SlideDeck } from "@/domains/slides/public";
 import type { GridCell, GridMap } from "@/shared/types";
 import { createGridMap } from "@/shared/utils/grid-codec";
 import type { EditorState } from "./interfaces";
-import {
-  activateCanvasDocument,
-  destroyCanvasDocument,
-  resetCanvasDocument,
-} from "./canvasDocument";
+import type { CanvasDocumentRegistry } from "./CanvasDocumentRegistry";
 
 /**
  * A slide deck is durable state. Its active Yjs document is only an editing
@@ -39,29 +35,34 @@ export const replaceSlideDeckSession = (
   );
 
 export const activateSlideEditingBuffer = (
+  documents: CanvasDocumentRegistry,
   sessionId: string,
   slideId: string,
   grid: [string, GridCell][]
 ) =>
-  activateCanvasDocument(getSlideEditingBufferId(sessionId, slideId), {
+  documents.activateDocument(getSlideEditingBufferId(sessionId, slideId), {
     grid,
     scene: [],
     components: [],
   });
 
 export const resetSlideEditingBuffer = (
+  documents: CanvasDocumentRegistry,
   sessionId: string,
   slideId: string,
   grid: [string, GridCell][]
 ) =>
-  resetCanvasDocument(getSlideEditingBufferId(sessionId, slideId), {
+  documents.resetDocument(getSlideEditingBufferId(sessionId, slideId), {
     grid,
     scene: [],
     components: [],
   });
 
-export const discardSlideEditingBuffer = (sessionId: string, slideId: string) =>
-  destroyCanvasDocument(getSlideEditingBufferId(sessionId, slideId));
+export const discardSlideEditingBuffer = (
+  documents: CanvasDocumentRegistry,
+  sessionId: string,
+  slideId: string
+) => documents.destroyDocument(getSlideEditingBufferId(sessionId, slideId));
 
 export const projectSlideEditingBuffer = (
   state: Pick<EditorState, "slideDeck" | "canvasSessions" | "activeCanvasId">,

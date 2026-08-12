@@ -6,12 +6,11 @@ import {
   useState,
 } from "react";
 import { useCreation } from "ahooks";
-import { canvasCommands } from "@/domains/canvas/public";
+import { useCanvasRuntime } from "@/domains/canvas/public";
+import type { CanvasEditorRuntime } from "@/domains/editor/public";
 import { MAX_ZOOM, MIN_ZOOM } from "@/shared/lib/constants";
 import type { SelectionArea } from "@/shared/types";
 import type { CanvasLinkHit } from "./core/linkHitTesting";
-import type { InteractionEvent } from "./core/interactionMachine";
-import { createCanvasInteractionRuntime } from "./core/interactionRuntime";
 import { createCanvasInteractionTransactionController } from "./core/interactionTransaction";
 import { createCanvasPointerContextResolver } from "./core/pointerContext";
 import { createDragResetController } from "./gestures/dragResetExecution";
@@ -55,6 +54,7 @@ export const useInteractionControllers = ({
   structuredMovePreviewRef,
   requestRenderRef,
   runtime,
+  editorRuntime,
 }: {
   store: ControllerStore;
   containerRef: React.RefObject<HTMLDivElement | null>;
@@ -62,7 +62,9 @@ export const useInteractionControllers = ({
   structuredMovePreviewRef?: React.MutableRefObject<StructuredMovePreview | null>;
   requestRenderRef?: React.MutableRefObject<(() => void) | null>;
   runtime?: CanvasEngineRuntime;
+  editorRuntime: CanvasEditorRuntime;
 }) => {
+  const canvas = useCanvasRuntime();
   const {
     tool,
     activeCanvasId,
@@ -129,7 +131,6 @@ export const useInteractionControllers = ({
       }),
     [containerRef]
   );
-  const interactionRuntime = useCreation(createCanvasInteractionRuntime, []);
   const hoverInteraction = useCreation(
     () =>
       createHoverInteractionController({
@@ -164,8 +165,6 @@ export const useInteractionControllers = ({
     },
     [runtime, setOffset, setViewport]
   );
-  const dispatchInteraction = (event: InteractionEvent) => interactionRuntime.dispatch(event);
-  const getInteractionState = () => interactionRuntime.getState();
   const structuredPreview = useCreation(
     () => {
       const clear = () => {
@@ -198,16 +197,15 @@ export const useInteractionControllers = ({
         structuredPreviewQueue,
         clearStructuredMovePreview: structuredPreview.clear,
         selectionPreview,
-        dispatchInteraction,
       }).reset,
     [selectionPreview, structuredPreview, structuredPreviewQueue]
   );
   const interactionTransaction = useCreation(
     () =>
       createCanvasInteractionTransactionController({
-        createCheckpoint: canvasCommands.history.beginCheckpoint,
+        createCheckpoint: canvas.commands.history.beginCheckpoint,
       }),
-    []
+    [canvas]
   );
   const edgeScroll = useCreation(
     () =>
@@ -216,7 +214,7 @@ export const useInteractionControllers = ({
         : null,
     [runtime]
   );
-  const cancelInteraction = useCallback(() => {
+  const cancelInteractionEffects = useCallback(() => {
     edgeScroll?.stop();
     viewportInteraction.cancel();
     interactionTransaction.cancel();
@@ -231,6 +229,19 @@ export const useInteractionControllers = ({
     tool,
     viewportInteraction,
   ]);
+  const cancelInteraction = useCallback((
+    reason: "escape" | "blur" | "hidden" | "pointer" | "identity" = "identity"
+  ) => {
+    if (
+      editorRuntime.dispatch({
+        type: "canvas-interaction-cancel",
+        reason,
+      })
+    ) {
+      return;
+    }
+    cancelInteractionEffects();
+  }, [cancelInteractionEffects, editorRuntime]);
   const beginInteraction = useCallback(() => {
     if (interactionTransaction.hasActive()) cancelInteraction();
     edgeScroll?.stop();
@@ -263,11 +274,12 @@ export const useInteractionControllers = ({
         previous.canvasMode !== nextIdentity.canvasMode ||
         previous.tool !== nextIdentity.tool)
     ) {
-      cancelInteraction();
+      cancelInteraction("identity");
     }
   }, [
     activeCanvasId,
     cancelInteraction,
+    cancelInteractionEffects,
     canvasMode,
     interactionTransaction,
     slideDeck?.activeSlideId,
@@ -299,17 +311,19 @@ export const useInteractionControllers = ({
       ) {
         return { claimed: false };
       }
-      cancelInteraction();
+      cancelInteraction("escape");
       return { claimed: true, preventDefault: true };
     },
   });
 
   useEffect(() => {
     const cancelOnBlur = () => {
-      if (interactionTransaction.hasActive()) cancelInteraction();
+      if (interactionTransaction.hasActive()) cancelInteraction("blur");
     };
     const cancelWhenHidden = () => {
-      if (document.visibilityState === "hidden") cancelOnBlur();
+      if (document.visibilityState === "hidden" && interactionTransaction.hasActive()) {
+        cancelInteraction("hidden");
+      }
     };
     window.addEventListener("blur", cancelOnBlur);
     document.addEventListener("visibilitychange", cancelWhenHidden);
@@ -320,16 +334,14 @@ export const useInteractionControllers = ({
   }, [cancelInteraction, interactionTransaction]);
 
   useEffect(() => {
-    if (interactionRuntime.getState().type !== "panning") {
-      hoverInteraction.setCursor(tool === "pan" ? "grab" : "");
-    }
-  }, [hoverInteraction, interactionRuntime, tool]);
+    hoverInteraction.setCursor(tool === "pan" ? "grab" : "");
+  }, [hoverInteraction, tool]);
 
   useEffect(() => {
     const manager = {
       dispose: () => {
         interactionTransaction.cancel();
-        edgeScroll?.dispose();
+        edgeScroll?.stop();
         viewportInteraction.cancel();
         structuredPreviewQueue.cancel();
         selectionPreview.cancel();
@@ -355,13 +367,11 @@ export const useInteractionControllers = ({
     colorPickerClickRef,
     beginInteraction,
     cancelInteraction,
+    cancelInteractionEffects,
     completeInteraction,
-    dispatchInteraction,
     draggingSelection,
     edgeScroll,
-    getInteractionState,
     hoverInteraction,
-    interactionRuntime,
     pointerContext,
     resetDragState,
     selectionPreview,

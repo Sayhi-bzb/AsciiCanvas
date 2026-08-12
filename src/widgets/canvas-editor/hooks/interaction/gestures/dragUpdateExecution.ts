@@ -2,34 +2,18 @@ import type { Point } from "@/shared/types";
 import type { CanvasMode } from "@/domains/sessions/public";
 import type { ToolType } from "@/domains/canvas/public";
 import type { StructuredNode } from "@/domains/structured-content/public";
+import type { CanvasInteractionState } from "@/domains/editor/public";
 import {
   resizeStructuredLine,
   resizeStructuredRect,
   resizeStructuredSplitBox,
 } from "@/domains/structured-content/public";
-import type { InteractionEvent, InteractionState } from "../core/interactionMachine";
 import type { StructuredNodeDragPayload } from "../structured/structuredDragStart";
 import type { StructuredPreviewQueueController } from "../structured/structuredPreviewQueueExecution";
 import { resolveDragUpdateDecision, type DragUpdateDecision } from "./dragUpdateInteraction";
 
-type PanningDragUpdateExecutor = {
-  queueOffsetDelta: (dx: number, dy: number) => void;
-};
-
-export const createPanningDragUpdateExecutor = ({
-  queueOffsetDelta,
-}: PanningDragUpdateExecutor): PanningDragUpdateExecutor => ({
-  queueOffsetDelta,
-});
-
-const executePanningDragUpdate = (
-  delta: Point,
-  executor: PanningDragUpdateExecutor
-): void => {
-  executor.queueOffsetDelta(delta.x, delta.y);
-};
 export type DragUpdateExecutor = {
-  dispatchInteraction: (event: InteractionEvent) => void;
+  setInteractionState: (state: CanvasInteractionState) => void;
   setSelectionPreview: (selection: Extract<DragUpdateDecision, { type: "selection-preview" }>["preview"]) => void;
   draw: (point: Point) => void;
   queueStructuredMove: (
@@ -64,6 +48,7 @@ export const executeDragUpdateDecision = (
   decision: DragUpdateDecision,
   executor: DragUpdateExecutor,
   context: {
+    state: CanvasInteractionState;
     currentGrid: Point;
     tool: ToolType;
     structuredScene: StructuredNode[];
@@ -72,8 +57,8 @@ export const executeDragUpdateDecision = (
 ): void => {
   switch (decision.type) {
     case "selection-preview":
-      executor.dispatchInteraction({
-        type: "updateSelection",
+      if (context.state.type === "selecting") executor.setInteractionState({
+        ...context.state,
         current: context.currentGrid,
       });
       executor.setSelectionPreview(decision.preview);
@@ -96,7 +81,7 @@ export const executeDragUpdateDecision = (
       );
       break;
     case "structured-splitbox-begin-divider-resize":
-      executor.dispatchInteraction(decision.interactionEvent);
+      executor.setInteractionState(decision.nextState);
       executor.queueStructuredSplitBoxResize(
         decision.drag,
         decision.point,
@@ -134,8 +119,8 @@ export const executeDragUpdateDecision = (
       executor.setTextCursor(decision.cursor);
       break;
     case "shape-preview":
-      if (decision.update.interactionEvent) {
-        executor.dispatchInteraction(decision.update.interactionEvent);
+      if (context.state.type === "shapePreview") {
+        executor.setInteractionState({ ...context.state, axis: decision.update.axis });
       }
       executor.updateScratchForShape(
         context.tool,
@@ -154,7 +139,7 @@ export const executeDragUpdateDecision = (
 };
 
 export const createDragUpdateExecutor = ({
-  dispatchInteraction,
+  setInteractionState,
   setSelectionPreview,
   draw,
   structuredPreviewQueue,
@@ -164,7 +149,7 @@ export const createDragUpdateExecutor = ({
   updateScratchForShape,
   setHoveredGrid,
 }: {
-  dispatchInteraction: (event: InteractionEvent) => void;
+  setInteractionState: (state: CanvasInteractionState) => void;
   setSelectionPreview: DragUpdateExecutor["setSelectionPreview"];
   draw: (point: Point) => void;
   structuredPreviewQueue: StructuredPreviewQueueController;
@@ -174,7 +159,7 @@ export const createDragUpdateExecutor = ({
   updateScratchForShape: DragUpdateExecutor["updateScratchForShape"];
   setHoveredGrid: DragUpdateExecutor["setHoveredGrid"];
 }): DragUpdateExecutor => ({
-  dispatchInteraction,
+  setInteractionState,
   setSelectionPreview,
   draw,
   queueStructuredMove: structuredPreviewQueue.queueMove,
@@ -186,14 +171,14 @@ export const createDragUpdateExecutor = ({
   setHoveredGrid,
 });
 
-export type DragUpdateHandler = ({
+type DragUpdateHandler = ({
   state,
   tool,
   canvasMode,
   currentGrid,
   structuredScene,
 }: {
-  state: InteractionState;
+  state: CanvasInteractionState;
   tool: ToolType;
   canvasMode: CanvasMode;
   currentGrid: Point;
@@ -220,6 +205,7 @@ export const createDragUpdateHandler = ({
     }),
     executor,
     {
+      state,
       currentGrid,
       tool:
         state.type === "drawing" || state.type === "shapePreview"
@@ -230,31 +216,3 @@ export const createDragUpdateHandler = ({
         state.type === "drawing" ? state.tool === "eraser" : tool === "eraser",
     }
   );
-export type DragUpdateRouteHandler = ({
-  state,
-  delta,
-  resolveCurrentGrid,
-  executePrimaryUpdate,
-}: {
-  state: InteractionState;
-  delta: Point;
-  resolveCurrentGrid: () => Point | null;
-  executePrimaryUpdate: (currentGrid: Point) => void;
-}) => void;
-
-export const createDragUpdateRouteHandler = ({
-  panning,
-}: {
-  panning: PanningDragUpdateExecutor;
-}): DragUpdateRouteHandler =>
-  ({ state, delta, resolveCurrentGrid, executePrimaryUpdate }) => {
-    if (state.type === "panning") {
-      executePanningDragUpdate(delta, panning);
-      return;
-    }
-
-    if (state.type === "idle") return;
-    const currentGrid = resolveCurrentGrid();
-    if (!currentGrid) return;
-    executePrimaryUpdate(currentGrid);
-  };

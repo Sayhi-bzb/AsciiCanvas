@@ -4,7 +4,7 @@ import type { StructuredTextSelection } from "@/domains/structured-content/publi
 import type {
   StructuredSplitBoxHandle,
 } from "@/domains/structured-content/public";
-import type { InteractionEvent } from "../core/interactionMachine";
+import type { CanvasInteractionState } from "@/domains/editor/public";
 import {
   resolveStructuredTextCaretSelectionStart,
 } from "./structuredTextSelectionStart";
@@ -28,7 +28,7 @@ export type StructuredSelectStartExecutor = {
   setSelectionPreview: (selection: SelectionArea | null) => void;
   resetDragState: () => void;
   setCursor: (cursor: string) => void;
-  dispatchInteraction: (event: InteractionEvent) => void;
+  setInteractionState: (state: CanvasInteractionState) => void;
 };
 
 export const executeStructuredSelectStartDecision = (
@@ -56,7 +56,7 @@ export const executeStructuredSelectStartDecision = (
       executor.clearSelections();
       executor.setTextCursor(selection.cursor);
       executor.setStructuredTextSelection(selection.textSelection);
-      executor.dispatchInteraction(selection.interactionEvent);
+      executor.setInteractionState(selection.state);
       executor.setSelectionPreview(null);
       executor.setCursor("text");
       return true;
@@ -68,7 +68,7 @@ export const executeStructuredSelectStartDecision = (
       executor.setSelectedStructuredSplitHandle(drag.splitHandle);
       executor.setEditingStructuredTextNodeId(null);
       executor.setStructuredTextSelection(null);
-      executor.dispatchInteraction(drag.interactionEvent);
+      executor.setInteractionState(drag.state);
       executor.setCursor(decision.cursor);
       executor.setTextCursor(null);
       executor.clearSelections();
@@ -98,7 +98,7 @@ export const createStructuredSelectStartExecutor = ({
   setSelectionPreview,
   resetDragState,
   setCursor,
-  dispatchInteraction,
+  setInteractionState,
 }: {
   setSelectedStructuredNodeIds: (ids: string[]) => void;
   setSelectedStructuredSplitHandle: (
@@ -114,7 +114,7 @@ export const createStructuredSelectStartExecutor = ({
   setSelectionPreview: (selection: SelectionArea | null) => void;
   resetDragState: () => void;
   setCursor: (cursor: string) => void;
-  dispatchInteraction: (event: InteractionEvent) => void;
+  setInteractionState: (state: CanvasInteractionState) => void;
 }): StructuredSelectStartExecutor => ({
   setSelectedStructuredNodeIds,
   setSelectedStructuredSplitHandle,
@@ -126,7 +126,7 @@ export const createStructuredSelectStartExecutor = ({
   setSelectionPreview,
   resetDragState,
   setCursor,
-  dispatchInteraction,
+  setInteractionState,
 });
 
 type StructuredSelectStartHandler = ({

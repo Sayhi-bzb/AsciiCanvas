@@ -1,13 +1,16 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
 import * as editorCommands from "@/domains/actions/adapters/editorCommands";
 import {
-  ACTION_CATALOG,
+  EDITOR_COMMAND_META,
   CANVAS_CONTEXT_MENU,
   STRUCTURED_CONTEXT_MENU,
 } from "@/domains/actions/public";
 import { editorCheckers, editorHandlers } from "@/domains/actions/core/handlers/editor";
-import { useEditorStore } from "@/domains/canvas/testing";
-import { canvasCommands } from "@/domains/canvas/public";
+import {
+  canvasCommands,
+  testingCanvasRuntime,
+  useEditorStore,
+} from "@/domains/canvas/testing";
 import { clipboard } from "@/shared/services/effects";
 
 describe("editorHandlers clipboard sources", () => {
@@ -31,6 +34,7 @@ describe("editorHandlers clipboard sources", () => {
       },
       {
         state: useEditorStore.getState(),
+        canvas: testingCanvasRuntime as never,
         setTool: vi.fn(),
         onUndo: vi.fn(),
         onRedo: vi.fn(),
@@ -39,6 +43,7 @@ describe("editorHandlers clipboard sources", () => {
 
     expect(result.status).toBe("succeeded");
     expect(runEditorCommandSpy).toHaveBeenCalledWith(
+      testingCanvasRuntime,
       "paste",
       expect.objectContaining({
         source: "clipboard-event",
@@ -63,6 +68,7 @@ describe("editorHandlers clipboard sources", () => {
       },
       {
         state,
+        canvas: testingCanvasRuntime as never,
         setTool: vi.fn(),
         onUndo: vi.fn(),
         onRedo: vi.fn(),
@@ -71,6 +77,7 @@ describe("editorHandlers clipboard sources", () => {
 
     expect(result.status).toBe("succeeded");
     expect(runEditorCommandSpy).toHaveBeenCalledWith(
+      testingCanvasRuntime,
       "copy-ansi",
       expect.objectContaining({
         source: "context-menu",
@@ -86,6 +93,7 @@ describe("editorHandlers clipboard sources", () => {
           ...useEditorStore.getState(),
           canvasMode: "structured" as const,
         },
+        canvas: testingCanvasRuntime as never,
         setTool: vi.fn(),
         onUndo: vi.fn(),
         onRedo: vi.fn(),
@@ -114,6 +122,7 @@ describe("editorHandlers clipboard sources", () => {
       { source: "canvas-keydown" },
       {
         state,
+        canvas: testingCanvasRuntime as never,
         setTool: vi.fn(),
         onUndo: vi.fn(),
         onRedo: vi.fn(),
@@ -127,6 +136,7 @@ describe("editorHandlers clipboard sources", () => {
       changed: true,
     });
     expect(runEditorCommandSpy).toHaveBeenCalledWith(
+      testingCanvasRuntime,
       "cut",
       expect.objectContaining({ source: "canvas-keydown" })
     );
@@ -147,6 +157,7 @@ describe("editorHandlers clipboard sources", () => {
       { source: "context-menu" },
       {
         state,
+        canvas: testingCanvasRuntime as never,
         setTool: vi.fn(),
         onUndo: vi.fn(),
         onRedo: vi.fn(),
@@ -160,6 +171,7 @@ describe("editorHandlers clipboard sources", () => {
       changed: true,
     });
     expect(runEditorCommandSpy).toHaveBeenCalledWith(
+      testingCanvasRuntime,
       "cut",
       expect.objectContaining({ source: "context-menu" })
     );
@@ -179,6 +191,7 @@ describe("editorHandlers clipboard sources", () => {
       { source: "context-menu" },
       {
         state: { ...selectedState, selectedStructuredNodeIds: [] },
+        canvas: testingCanvasRuntime as never,
         setTool: vi.fn(),
         onUndo: vi.fn(),
         onRedo: vi.fn(),
@@ -191,44 +204,9 @@ describe("editorHandlers clipboard sources", () => {
   });
 });
 
-describe("editor history shortcuts", () => {
+describe("editor history commands", () => {
   afterEach(() => {
     vi.restoreAllMocks();
-  });
-
-  it("recognizes the supported redo shortcuts", () => {
-    expect(
-      editorCommands.resolveHistoryShortcutCommand({
-        key: "y",
-        ctrlKey: true,
-        metaKey: false,
-        shiftKey: false,
-      })
-    ).toBe("redo");
-    expect(
-      editorCommands.resolveHistoryShortcutCommand({
-        key: "Y",
-        ctrlKey: false,
-        metaKey: true,
-        shiftKey: false,
-      })
-    ).toBe("redo");
-    expect(
-      editorCommands.resolveHistoryShortcutCommand({
-        key: "z",
-        ctrlKey: true,
-        metaKey: false,
-        shiftKey: true,
-      })
-    ).toBe("redo");
-    expect(
-      editorCommands.resolveHistoryShortcutCommand({
-        key: "y",
-        ctrlKey: false,
-        metaKey: false,
-        shiftKey: false,
-      })
-    ).toBeNull();
   });
 
   it("forwards managed canvas focus context for undo and redo", () => {
@@ -236,6 +214,7 @@ describe("editor history shortcuts", () => {
     const managedTextarea = document.createElement("textarea");
     const context = {
       state: { ...useEditorStore.getState(), canUndo: true, canRedo: true },
+      canvas: testingCanvasRuntime as never,
       setTool: vi.fn(),
       onUndo: vi.fn(),
       onRedo: vi.fn(),
@@ -258,6 +237,7 @@ describe("editor history shortcuts", () => {
 
     expect(runEditorCommandSpy).toHaveBeenNthCalledWith(
       1,
+      testingCanvasRuntime,
       "undo",
       expect.objectContaining({
         source: "canvas-keydown",
@@ -266,6 +246,7 @@ describe("editor history shortcuts", () => {
     );
     expect(runEditorCommandSpy).toHaveBeenNthCalledWith(
       2,
+      testingCanvasRuntime,
       "redo",
       expect.objectContaining({
         source: "canvas-keydown",
@@ -292,7 +273,7 @@ describe("editor context menu catalog", () => {
   });
 
   it("labels delete plainly in context menus", () => {
-    expect(ACTION_CATALOG["delete-selection"].label).toBe("Delete");
+    expect(EDITOR_COMMAND_META["delete-selection"].label).toBe("Delete");
   });
 });
 
@@ -325,6 +306,7 @@ describe("editorHandlers structured rename", () => {
       { source: "context-menu" },
       {
         state,
+        canvas: testingCanvasRuntime as never,
         setTool: vi.fn(),
         onUndo: vi.fn(),
         onRedo: vi.fn(),
@@ -358,6 +340,7 @@ describe("editorHandlers structured rename", () => {
       { source: "context-menu" },
       {
         state,
+        canvas: testingCanvasRuntime as never,
         setTool: vi.fn(),
         onUndo: vi.fn(),
         onRedo: vi.fn(),
@@ -393,6 +376,7 @@ describe("editorHandlers structured rename", () => {
       { source: "context-menu" },
       {
         state,
+        canvas: testingCanvasRuntime as never,
         setTool: vi.fn(),
         onUndo: vi.fn(),
         onRedo: vi.fn(),
@@ -487,6 +471,7 @@ describe("editorHandlers structured rename", () => {
       { source: "context-menu" },
       {
         state,
+        canvas: testingCanvasRuntime as never,
         setTool: vi.fn(),
         onUndo: vi.fn(),
         onRedo: vi.fn(),

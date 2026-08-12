@@ -26,10 +26,7 @@ import {
   resolveSessionRuntime,
 } from "./helpers/storeUtils";
 import type { EditorState } from "./interfaces";
-import {
-  activateCanvasDocument,
-  initializeCollaborativeCanvasDocument,
-} from "./canvasDocument";
+import type { CanvasDocumentRegistry } from "./CanvasDocumentRegistry";
 
 const DEFAULT_STRUCTURED_SAFARI_TEMPLATE = buildStructuredTemplate(
   "safari",
@@ -101,16 +98,19 @@ export const recoverPersistedEditorState = (
   return state;
 };
 
-export const syncHydratedStateToCanvasDocument = (hydratedState: EditorState) => {
+export const syncHydratedStateToCanvasDocument = (
+  documents: CanvasDocumentRegistry,
+  hydratedState: EditorState
+) => {
   const activeSession = hydratedState.canvasSessions.find(
     (session) => session.id === hydratedState.activeCanvasId
   );
   if (!activeSession) return;
   if (activeSession.mode !== "slide" && activeSession.collaboration) {
-    initializeCollaborativeCanvasDocument(activeSession.id);
+    documents.initializeCollaborativeDocument(activeSession.id);
     return;
   }
-  activateCanvasDocument(
+  documents.activateDocument(
     getSessionCanvasDocumentId(activeSession, hydratedState.slideDeck),
     {
       grid: Array.from(hydratedState.grid.entries()),

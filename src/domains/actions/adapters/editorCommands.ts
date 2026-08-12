@@ -1,14 +1,5 @@
-import {
-  canvasCommands,
-  canvasQueries,
-  getCanvasState,
-} from "@/domains/canvas/public";
+import type { CanvasRuntime } from "@/domains/canvas/public";
 import type { ClipboardCommandResult } from "@/domains/canvas/public";
-import { runRedo, runUndo } from "./shortcutActions";
-import {
-  resolveActionShortcut,
-  type ActionShortcutEvent,
-} from "@/domains/actions/core/shortcuts";
 import type { ActionId, ActionSource } from "@/domains/actions/core/types";
 import {
   shouldIgnoreEditorCommandByFocus,
@@ -31,25 +22,21 @@ type RunEditorCommandOptions = {
   onRedo?: () => boolean | void;
 };
 
-export const resolveHistoryShortcutCommand = (
-  event: ActionShortcutEvent
-): "undo" | "redo" | null =>
-  resolveActionShortcut(event, ["undo", "redo"] as const);
-
 export const runEditorCommand = (
+  canvas: Pick<CanvasRuntime, "commands" | "queries" | "getState">,
   command: EditorCommand,
   options: RunEditorCommandOptions = {}
 ): boolean | Promise<ClipboardCommandResult> => {
   const source = options.source ?? "global-hotkey";
   if (shouldIgnoreEditorCommandByFocus(source, options.managedTextarea)) return false;
 
-  const state = getCanvasState();
+  const state = canvas.getState();
 
   switch (command) {
     case "undo":
-      return options.onUndo ? options.onUndo() !== false : runUndo();
+      return options.onUndo ? options.onUndo() !== false : canvas.commands.history.undo();
     case "redo":
-      return options.onRedo ? options.onRedo() !== false : runRedo();
+      return options.onRedo ? options.onRedo() !== false : canvas.commands.history.redo();
     case "copy":
     case "copy-rich":
     case "copy-ansi":
@@ -59,8 +46,8 @@ export const runEditorCommand = (
       ) {
         return false;
       }
-      if (!canvasQueries.canCopyOrCut()) return false;
-      return canvasCommands.selection.copy({
+      if (!canvas.queries.canCopyOrCut()) return false;
+      return canvas.commands.selection.copy({
         event: options.clipboardEvent,
         rich: command === "copy" || command === "copy-rich",
         ansi: command === "copy-ansi",
@@ -73,12 +60,12 @@ export const runEditorCommand = (
         if (!hasStructuredTextSelection && state.selectedStructuredNodeIds.length === 0) {
           return false;
         }
-        return canvasCommands.selection.cut({ event: options.clipboardEvent });
+        return canvas.commands.selection.cut({ event: options.clipboardEvent });
       }
-      if (!canvasQueries.canCopyOrCut()) return false;
-      return canvasCommands.selection.cut({ event: options.clipboardEvent });
+      if (!canvas.queries.canCopyOrCut()) return false;
+      return canvas.commands.selection.cut({ event: options.clipboardEvent });
     case "paste":
-      return canvasCommands.selection.paste({
+      return canvas.commands.selection.paste({
         eventDataTransfer: options.clipboardEvent?.clipboardData || undefined,
       });
     case "fill-selection-char": {
@@ -89,7 +76,7 @@ export const runEditorCommand = (
       if (selections.length === 0 || textCursor) return false;
       const activeTag = document.activeElement?.tagName.toLowerCase();
       if (activeTag === "input" || activeTag === "textarea") return false;
-      canvasCommands.selection.fillWithChar(fillChar);
+      canvas.commands.selection.fillWithChar(fillChar);
       return true;
     }
     default:

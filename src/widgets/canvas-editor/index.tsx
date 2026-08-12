@@ -19,8 +19,7 @@ import {
 import type { CanvasLinkHit } from './hooks/interaction/core/linkHitTesting';
 import type { StructuredMovePreview } from './hooks/useCanvasRenderer';
 import {
-  getCanvasState,
-  subscribeCanvasState,
+  useCanvasRuntime,
   useCanvasState,
   type ToolType,
 } from '@/domains/canvas/public';
@@ -48,6 +47,7 @@ export const CanvasEditor = ({
   interactionToolOverride,
   enabled = true,
 }: CanvasEditorProps) => {
+  const canvas = useCanvasRuntime();
   const runtime = useCanvasEngineRuntime();
   const bgCanvasRef = useRef<HTMLCanvasElement>(null);
   const scratchCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -151,17 +151,17 @@ export const CanvasEditor = ({
         offset: { ...rendered.offset },
         zoom: rendered.zoom,
       };
-      const current = getCanvasState();
+      const current = canvas.getState();
       presentViewport({
         offset: { ...current.offset },
         zoom: current.zoom,
       });
     },
-    [presentViewport]
+    [canvas, presentViewport]
   );
 
   useEffect(() => {
-    const current = getCanvasState();
+    const current = canvas.getState();
     const viewportLayer = viewportLayerRef.current;
     const schedulePresentation = (presented: CanvasViewport) => {
       runtime.frameScheduler.request(
@@ -171,7 +171,7 @@ export const CanvasEditor = ({
       );
     };
     schedulePresentation({ offset: { ...current.offset }, zoom: current.zoom });
-    const unsubscribe = subscribeCanvasState((state, previous) => {
+    const unsubscribe = canvas.subscribe((state, previous) => {
       if (state.zoom === previous.zoom && state.offset === previous.offset) return;
       schedulePresentation({
         offset: { ...state.offset },
@@ -184,7 +184,7 @@ export const CanvasEditor = ({
       renderedViewportRef.current = null;
       resetCanvasViewportPresentation(viewportLayer);
     };
-  }, [presentViewport, runtime]);
+  }, [canvas, presentViewport, runtime]);
 
   const structuredTemplateDrop = useStructuredTemplateDrop({
     canvasMode,

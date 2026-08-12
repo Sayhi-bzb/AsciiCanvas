@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { EditorState } from "./interfaces";
-import { useEditorStore } from "./editorStore";
-import { applyFreeformSnapshotToYMaps } from "./helpers/gridHelpers";
+import { useEditorStore } from "@/domains/canvas/testing";
+import { applyFreeformSnapshotToYMaps } from "@/domains/canvas/testing";
 import { createDocumentInteractionResetPatch } from "./transitions/editorTransitions";
 
 const initialState = useEditorStore.getState();

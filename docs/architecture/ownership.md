@@ -32,7 +32,7 @@ shared <- domains <- widgets <- app
 - A domain may use another domain only through its `public.ts` contract.
 - A domain uses its own source directly, never its own `public.ts`.
 - `widgets` may coordinate public domain capabilities but may not define domain validation, persistence, or synchronization rules.
-- Cross-domain registration and application-wide side effects belong in the composition root.
+- The composition root constructs domain runtimes with explicit ports and owns application-wide lifecycle and side effects.
 - Canvas consumers read state and invoke grouped commands through `src/domains/canvas/public.ts`; the Zustand store and Yjs maps are private.
 
 ## Canonical flows
@@ -42,6 +42,6 @@ shared <- domains <- widgets <- app
 - Session recovery: owning domain decoders → sessions version composition → canvas runtime projection.
 - Session persistence: editor snapshot → persistence coordinator → sessions schema → browser storage.
 - Slide preview: slide data → canonical slide canvas renderer → preview or playback surface.
-- Selection command: UI or keymap → editor command registry → actions command → canvas selection port → editor mutation.
+- Selection command: DOM dispatcher → editor keymap → command registry → canvas selection port → editor mutation.
 
 Each arrow has one direction. A projection or cache is derived state and must not overwrite its authority without an explicit command.

@@ -2,8 +2,7 @@
 
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { canvasCommands, useCanvasState } from '@/domains/canvas/public';
-import { runSidebarAction } from '@/domains/actions/public';
+import { useCanvasRuntime, useCanvasState } from '@/domains/canvas/public';
 import { useIsMobile } from '@/shared/hooks/use-mobile';
 import { HOST_ICONOLOGY } from '@/shared/icons/iconology';
 import { MAX_ZOOM, MIN_ZOOM } from '@/shared/lib/constants';
@@ -34,6 +33,7 @@ type ZoomControlProps = {
 };
 
 export function ZoomControl({ containerSize }: ZoomControlProps) {
+  const canvas = useCanvasRuntime();
   const isMobile = useIsMobile();
   const { t } = useUiI18n();
   const runtime = useCanvasEngineRuntime();
@@ -45,9 +45,7 @@ export function ZoomControl({ containerSize }: ZoomControlProps) {
       showGrid: state.showGrid,
     }))
   );
-  const setShowGrid = canvasCommands.preferences.setShowGrid;
-  const setOffset = canvasCommands.viewport.setOffset;
-  const setZoom = canvasCommands.viewport.setZoom;
+  const setShowGrid = canvas.commands.preferences.setShowGrid;
   const [minimapOpen, setMinimapOpen] = useState(false);
   const [playbackOpen, setPlaybackOpen] = useState(false);
   const ownsFullscreenRef = useRef(false);
@@ -206,14 +204,7 @@ export function ZoomControl({ containerSize }: ZoomControlProps) {
         aria-pressed={showGrid}
         title={gridLabel}
         data-testid="zoom-grid"
-        onClick={() =>
-          runSidebarAction('toggle-grid', {
-            showGrid,
-            setShowGrid,
-            setZoom,
-            setOffset,
-          })
-        }
+        onClick={() => setShowGrid(!showGrid)}
       >
         <GridIcon />
       </Button>

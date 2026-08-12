@@ -2,7 +2,7 @@ import type { Point } from "@/shared/types";
 import type { CanvasMode } from "@/domains/sessions/public";
 import type { ToolType } from "@/domains/canvas/public";
 import type { CanvasLinkHit } from "../core/linkHitTesting";
-import type { InteractionState } from "../core/interactionMachine";
+import type { CanvasInteractionState } from "@/domains/editor/public";
 
 export type CanvasClickDecision =
   | { type: "consume-color-picker-click" }
@@ -20,7 +20,7 @@ export const resolveCanvasClickDecision = ({
   shouldOpenLink,
 }: {
   colorPickerClickPending: boolean;
-  interactionMode: InteractionState["type"];
+  interactionMode: CanvasInteractionState["type"];
   canvasMode: CanvasMode;
   tool: ToolType;
   point: Point | null;
@@ -38,5 +38,4 @@ export const resolveCanvasClickDecision = ({
     ? { type: "open-link", hit: linkHit }
     : { type: "none" };
 };
-
 

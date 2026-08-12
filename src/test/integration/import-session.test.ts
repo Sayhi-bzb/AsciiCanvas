@@ -3,8 +3,7 @@ import {
   CHARDESK_DOCUMENT_TYPE,
   CHARDESK_DOCUMENT_VERSION,
 } from "@/domains/document/public";
-import { useEditorStore } from "@/domains/canvas/testing";
-import { applyFreeformSnapshotToYMaps } from "@/domains/canvas/state/helpers/gridHelpers";
+import { applyFreeformSnapshotToYMaps, useEditorStore } from "@/domains/canvas/testing";
 import { DEFAULT_SESSION_ID } from "@/domains/canvas/state/helpers/storeUtils";
 import { createDocumentInteractionResetPatch } from "@/domains/canvas/state/transitions/editorTransitions";
 

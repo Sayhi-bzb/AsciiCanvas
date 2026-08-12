@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import type { CanvasState } from "@/domains/canvas/public";
+import type { CanvasRuntime, CanvasState } from "@/domains/canvas/public";
 import type { ToolType } from "@/domains/canvas/public";
 import type {
   EditorCommandCompletion,
@@ -29,6 +29,8 @@ export type EditorActionId =
   | "structured-split-vertical"
   | "structured-delete-divider";
 
+export type EditorCommandId = EditorActionId;
+
 // Toolbar Actions
 export type ToolbarActionId =
   | "select"
@@ -51,24 +53,12 @@ export type SidebarActionId =
 // Unified Action ID
 export type ActionId = EditorActionId | ToolbarActionId | SidebarActionId;
 
-export type ShortcutToken =
-  | "mod"
-  | "shift"
-  | "alt"
-  | "delete"
-  | "backspace"
-  | "b"
-  | "z"
-  | "y"
-  | "c"
-  | "x"
-  | "v"
-  | "h";
+export type ShortcutToken = string;
 
 type ShortcutChord = readonly ShortcutToken[];
 
-export interface ActionMeta {
-  id: ActionId;
+export interface ActionMeta<Id extends ActionId = ActionId> {
+  id: Id;
   label: string;
   shortcuts?: readonly ShortcutChord[];
   icon?: ComponentType<{ className?: string }>;
@@ -93,6 +83,7 @@ export type ActionResult = EditorCommandResult;
 // Action Context
 export interface ActionContext {
   state: CanvasState;
+  canvas: Pick<CanvasRuntime, "commands" | "queries" | "getState">;
   setTool: (tool: ToolType) => void;
   onUndo: () => void;
   onRedo: () => void;

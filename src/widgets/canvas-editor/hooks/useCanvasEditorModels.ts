@@ -1,7 +1,8 @@
-import { canvasCommands, canvasQueries, useCanvasState } from "@/domains/canvas/public";
+import { useCanvasRuntime, useCanvasState } from "@/domains/canvas/public";
 import { useShallow } from "zustand/react/shallow";
 
 export const useCanvasEditorModels = () => {
+  const { commands: canvasCommands, queries: canvasQueries } = useCanvasRuntime();
   const interactionState = useCanvasState(
     useShallow((state) => ({
       activeCanvasId: state.activeCanvasId,

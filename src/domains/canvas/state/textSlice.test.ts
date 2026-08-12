@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { useEditorStore } from "@/domains/canvas/testing";
-import { applyFreeformSnapshotToYMaps } from "./helpers/gridHelpers";
+import { applyFreeformSnapshotToYMaps, useEditorStore } from "@/domains/canvas/testing";
 import type { EditorState } from "@/domains/canvas/state/interfaces";
 
 const initialState = useEditorStore.getState();

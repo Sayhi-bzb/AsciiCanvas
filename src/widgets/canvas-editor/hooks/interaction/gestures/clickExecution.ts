@@ -2,7 +2,7 @@ import type { Point } from "@/shared/types";
 import type { CanvasMode } from "@/domains/sessions/public";
 import type { ToolType } from "@/domains/canvas/public";
 import type { CanvasLinkHit } from "../core/linkHitTesting";
-import type { InteractionState } from "../core/interactionMachine";
+import type { CanvasInteractionState } from "@/domains/editor/public";
 import { resolveCanvasClickDecision, type CanvasClickDecision } from "./clickInteraction";
 
 type RefCell<T> = { current: T };
@@ -107,7 +107,7 @@ export const createCanvasClickHandler = ({
   executor,
 }: {
   getColorPickerClickPending: () => boolean;
-  getInteractionMode: () => InteractionState["type"];
+  getInteractionMode: () => CanvasInteractionState["type"];
   canvasMode: CanvasMode;
   tool: ToolType;
   executor: CanvasClickExecutor;

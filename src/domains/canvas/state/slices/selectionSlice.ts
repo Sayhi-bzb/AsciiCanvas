@@ -1,6 +1,6 @@
 import type { StateCreator } from "zustand";
 import type { EditorState, SelectionSlice } from "../interfaces";
-import { mutateCanvasGrid } from "../canvasDocument";
+import type { CanvasDocumentRegistry } from "../CanvasDocumentRegistry";
 import { GridManager } from "@/shared/utils/grid";
 import { getSelectionBounds } from "@/shared/utils/selection";
 import { placeCharInYMap } from "../utils";
@@ -22,7 +22,7 @@ import {
 } from "@/domains/selection/public";
 import { getCellOccupancy } from "@/shared/metrics";
 import { cloneTextAttributes } from "@/shared/utils/ansi";
-import { resolveSelectionCommands } from "../selectionCommandPort";
+import type { SelectionCommandFactory } from "../selectionCommandPort";
 import { getStructuredTextSelectionRange } from "@/domains/structured-content/public";
 import { clampPointToActiveSlide, isPointWithinActiveSlide } from "../slideBounds";
 
@@ -44,12 +44,15 @@ const getActiveStructuredTextSelection = (state: EditorState) => {
   return { node, range };
 };
 
-export const createSelectionSlice: StateCreator<
+export const createSelectionSlice = (
+  documents: CanvasDocumentRegistry,
+  selectionCommands: SelectionCommandFactory
+): StateCreator<
   EditorState,
   [],
   [],
   SelectionSlice
-> = (set, get) => ({
+> => (set, get) => ({
   selections: [],
   addSelection: (area) =>
     set((s) => {
@@ -92,7 +95,7 @@ export const createSelectionSlice: StateCreator<
       ),
       staticGridEditMode: "navigate" as const,
     })),
-  canCopyOrCut: () => resolveSelectionCommands(set, get).canCopyOrCut(),
+  canCopyOrCut: () => selectionCommands(set, get).canCopyOrCut(),
   deleteSelection: () => {
     const state = get();
     const {
@@ -178,7 +181,7 @@ export const createSelectionSlice: StateCreator<
       return;
     }
 
-    mutateCanvasGrid((grid) => {
+    documents.mutateGrid((grid) => {
       selections.forEach((area) => {
         const { minX, maxX, minY, maxY } = getSelectionBounds(area);
         deleteRect(grid, minX, minY, maxX, maxY);
@@ -187,13 +190,13 @@ export const createSelectionSlice: StateCreator<
   },
 
   copySelection: (options) =>
-    resolveSelectionCommands(set, get).copySelection(options),
+    selectionCommands(set, get).copySelection(options),
   cutSelection: (options) =>
-    resolveSelectionCommands(set, get).cutSelection(options),
+    selectionCommands(set, get).cutSelection(options),
   pasteFromClipboard: (options) =>
-    resolveSelectionCommands(set, get).pasteFromClipboard(options),
+    selectionCommands(set, get).pasteFromClipboard(options),
   copySelectionAsPng: (withGrid) =>
-    resolveSelectionCommands(set, get).copySelectionAsPng(withGrid),
+    selectionCommands(set, get).copySelectionAsPng(withGrid),
   fillSelectionsWithChar: (char, options) => {
     const state = get();
     const { brushColor, canvasMode } = state;
@@ -203,7 +206,7 @@ export const createSelectionSlice: StateCreator<
 
     const charWidth = getCellOccupancy(char);
 
-    mutateCanvasGrid((grid) => {
+    documents.mutateGrid((grid) => {
       selections.forEach((area) => {
         const { minX, maxX, minY, maxY } = getSelectionBounds(area);
         for (let y = minY; y <= maxY; y++) {
@@ -233,7 +236,7 @@ export const createSelectionSlice: StateCreator<
     const shouldMaterializeBlank =
       attrs.underline === true || attrs.strike === true;
 
-    mutateCanvasGrid((grid) => {
+    documents.mutateGrid((grid) => {
       selections.forEach((area) => {
         const { minX, maxX, minY, maxY } = getSelectionBounds(area);
         for (let y = minY; y <= maxY; y++) {
@@ -283,7 +286,7 @@ export const createSelectionSlice: StateCreator<
     if (canvasMode === "structured") return;
     if (selections.length === 0) return;
 
-    mutateCanvasGrid((grid) => {
+    documents.mutateGrid((grid) => {
       selections.forEach((area) => {
         const { minX, maxX, minY, maxY } = getSelectionBounds(area);
         for (let y = minY; y <= maxY; y++) {
@@ -320,7 +323,7 @@ export const createSelectionSlice: StateCreator<
     if (canvasMode === "structured") return;
     const { minX, maxX, minY, maxY } = getSelectionBounds(area);
 
-    mutateCanvasGrid((grid) => {
+    documents.mutateGrid((grid) => {
       for (let y = minY; y <= maxY; y++) {
         for (let x = minX; x <= maxX; x++) {
           const key = GridManager.toKey(x, y);

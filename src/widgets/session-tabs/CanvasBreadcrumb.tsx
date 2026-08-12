@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { canvasCommands, useCanvasState } from "@/domains/canvas/public";
+import { useCanvasRuntime, useCanvasState } from "@/domains/canvas/public";
 import { SLIDE_SIZE_PRESETS, type SlideSize } from "@/domains/slides/public";
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
 import { useUiI18n, type I18nKey } from "@/shared/i18n";
@@ -58,6 +58,7 @@ const createOptionMeta = [
 }>;
 
 export function CanvasBreadcrumb() {
+  const canvas = useCanvasRuntime();
   const { t } = useUiI18n();
   const { phase: onboardingPhase } = useOnboardingTour();
   const selectorTriggerRef = useRef<HTMLButtonElement>(null);
@@ -71,10 +72,10 @@ export function CanvasBreadcrumb() {
       activeCanvasId: state.activeCanvasId,
     }))
   );
-  const createCanvasSession = canvasCommands.sessions.create;
-  const switchCanvasSession = canvasCommands.sessions.switch;
-  const removeCanvasSession = canvasCommands.sessions.remove;
-  const renameCanvasSession = canvasCommands.sessions.rename;
+  const createCanvasSession = canvas.commands.sessions.create;
+  const switchCanvasSession = canvas.commands.sessions.switch;
+  const removeCanvasSession = canvas.commands.sessions.remove;
+  const renameCanvasSession = canvas.commands.sessions.rename;
   const [menuOpen, setMenuOpen] = useState(false);
   const [actionsOpenId, setActionsOpenId] = useState<string | null>(null);
   const [renameTargetId, setRenameTargetId] = useState<string | null>(null);

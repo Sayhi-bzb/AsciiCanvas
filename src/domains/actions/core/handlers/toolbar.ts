@@ -1,25 +1,9 @@
-import {
-  actionFailed,
-  actionSucceeded,
-} from "../result";
-import type {
-  ActionContext,
-  ActionHandler,
-  ActionResult,
-  ToolbarActionId,
-} from "../types";
-
-// Toolbar action options
-type ToolbarOptions = {
-  tool: Parameters<ActionContext["setTool"]>[0];
-  isShapeGroupActive: boolean;
-  lastUsedShape: Parameters<ActionContext["setTool"]>[0];
-  onUndo: () => void;
-};
+import type { ToolType } from "@/domains/canvas/public";
+import type { ToolbarActionId } from "../types";
 
 // Resolve active toolbar action
 export const resolveActiveToolbarAction = (
-  tool: Parameters<ActionContext["setTool"]>[0],
+  tool: ToolType,
   isShapeGroupActive: boolean
 ): ToolbarActionId => {
   if (isShapeGroupActive) return "shape-group";
@@ -35,62 +19,4 @@ export const resolveActiveToolbarAction = (
     return tool;
   }
   return "brush";
-};
-
-// Toolbar action handlers
-export const toolbarHandlers: Record<
-  ToolbarActionId,
-  ActionHandler<ToolbarOptions>
-> = {
-  select: (_options, context): ActionResult => {
-    context.setTool("select");
-    return actionSucceeded();
-  },
-
-  pan: (_options, context): ActionResult => {
-    context.setTool("pan");
-    return actionSucceeded();
-  },
-
-  text: (_options, context): ActionResult => {
-    context.setTool("text");
-    return actionSucceeded();
-  },
-
-  brush: (_options, context): ActionResult => {
-    context.setTool("brush");
-    return actionSucceeded();
-  },
-
-  "shape-group": (options, context): ActionResult => {
-    const newTool = options.isShapeGroupActive
-      ? options.tool
-      : options.lastUsedShape;
-    context.setTool(newTool);
-    return actionSucceeded();
-  },
-
-  bg: (_options, context): ActionResult => {
-    context.setTool("bg");
-    return actionSucceeded();
-  },
-
-  fill: (_options, context): ActionResult => {
-    context.setTool("fill");
-    return actionSucceeded();
-  },
-
-  eraser: (_options, context): ActionResult => {
-    context.setTool("eraser");
-    return actionSucceeded();
-  },
-
-  undo: (options): ActionResult => {
-    options.onUndo();
-    return actionSucceeded();
-  },
-
-  color: (): ActionResult => {
-    return actionFailed("submenu-only");
-  },
 };

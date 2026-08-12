@@ -20,13 +20,8 @@ import {
   resolveNextSessionName,
 } from "@/domains/sessions/public";
 import { createSlideDeck } from "@/domains/slides/public";
-import { parseCanvasSessionSource } from "../sessionImportPort";
-import {
-  activateCanvasDocument,
-  destroyCanvasDocument,
-  getCanvasDocumentSeed,
-  prepareCanvasDocumentForCollaboration,
-} from "../canvasDocument";
+import type { CanvasSessionSourceParser } from "../sessionImportPort";
+import type { CanvasDocumentRegistry } from "../CanvasDocumentRegistry";
 import { sameCollaborationRoom } from "@/domains/collaboration/public";
 import { createSessionActivationPatch } from "../transitions/editorTransitions";
 
@@ -88,22 +83,26 @@ const createImportedSession = (
   return baseSession;
 };
 
-const destroySessionDocuments = (session: CanvasSession) => {
+const destroySessionDocuments = (
+  documents: CanvasDocumentRegistry,
+  session: CanvasSession
+) => {
   if (session.mode === "slide") {
     session.slideDeck.slides.forEach((slide) =>
-      destroyCanvasDocument(getSlideEditingBufferId(session.id, slide.id))
+      documents.destroyDocument(getSlideEditingBufferId(session.id, slide.id))
     );
     return;
   }
-  destroyCanvasDocument(session.id);
+  documents.destroyDocument(session.id);
 };
 
 const activateSessionRuntime = (
+  documents: CanvasDocumentRegistry,
   session: CanvasSession,
   currentTool: EditorState["tool"]
 ) => {
   const initialRuntime = resolveSessionRuntime(session, currentTool);
-  activateCanvasDocument(
+  documents.activateDocument(
     getSessionCanvasDocumentId(session, initialRuntime.nextSlideDeck),
     {
       grid: initialRuntime.nextGridEntries,
@@ -119,7 +118,7 @@ const activateSessionRuntime = (
     return initialRuntime;
   }
 
-  const collaborativeSeed = getCanvasDocumentSeed(session.id, session.mode);
+  const collaborativeSeed = documents.getDocumentSeed(session.id, session.mode);
   return resolveSessionRuntime(
     collaborativeSeed
       ? {
@@ -133,12 +132,15 @@ const activateSessionRuntime = (
   );
 };
 
-export const createSessionSlice: StateCreator<
+export const createSessionSlice = (
+  documents: CanvasDocumentRegistry,
+  parseSessionSource: CanvasSessionSourceParser
+): StateCreator<
   EditorState,
   [],
   [],
   SessionCommands
-> = (set, get) => ({
+> => (set, get) => ({
   createCanvasSession: (mode = "freeform", options) => {
     const state = get();
     const snapshot = buildSessionSnapshot(state);
@@ -173,7 +175,7 @@ export const createSessionSlice: StateCreator<
             grid: [],
           };
 
-    const runtime = activateSessionRuntime(newSession, state.tool);
+    const runtime = activateSessionRuntime(documents, newSession, state.tool);
     set(
       createSessionActivationPatch(
         [...sessionsWithSnapshot, newSession],
@@ -191,7 +193,7 @@ export const createSessionSlice: StateCreator<
       state.activeCanvasId,
       snapshot
     );
-    const importedSnapshot = parseCanvasSessionSource(raw);
+    const importedSnapshot = parseSessionSource(raw);
     const sessionId = createSessionId(sessionsWithSnapshot);
     const sessionName = resolveImportedSessionName(
       sessionsWithSnapshot,
@@ -204,7 +206,7 @@ export const createSessionSlice: StateCreator<
       sessionName,
       importedSnapshot
     );
-    const runtime = activateSessionRuntime(newSession, state.tool);
+    const runtime = activateSessionRuntime(documents, newSession, state.tool);
     set(
       createSessionActivationPatch(
         [...sessionsWithSnapshot, newSession],
@@ -230,7 +232,7 @@ export const createSessionSlice: StateCreator<
     );
     if (!target) return;
 
-    const runtime = activateSessionRuntime(target, state.tool);
+    const runtime = activateSessionRuntime(documents, target, state.tool);
     set(createSessionActivationPatch(sessionsWithSnapshot, canvasId, runtime));
 
   },
@@ -257,16 +259,16 @@ export const createSessionSlice: StateCreator<
     if (canvasId !== state.activeCanvasId) {
       set({ canvasSessions: remaining });
       const removedSession = sessionsWithSnapshot[removedIndex];
-      destroySessionDocuments(removedSession);
+      destroySessionDocuments(documents, removedSession);
       return;
     }
 
     const nextIndex = Math.min(removedIndex, remaining.length - 1);
     const nextSession = remaining[nextIndex];
-    const runtime = activateSessionRuntime(nextSession, state.tool);
+    const runtime = activateSessionRuntime(documents, nextSession, state.tool);
     set(createSessionActivationPatch(remaining, nextSession.id, runtime));
 
-    destroySessionDocuments(sessionsWithSnapshot[removedIndex]);
+    destroySessionDocuments(documents, sessionsWithSnapshot[removedIndex]);
   },
   renameCanvasSession: (canvasId, nextName) => {
     const name = nextName.trim();
@@ -283,7 +285,7 @@ export const createSessionSlice: StateCreator<
     if (!session || session.mode === "slide") return;
     if (collaboration && collaboration.mode !== session.mode) return;
     if (collaboration) {
-      prepareCanvasDocumentForCollaboration(canvasId, session.mode);
+      documents.prepareDocumentForCollaboration(canvasId, session.mode);
     }
 
     set({
