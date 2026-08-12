@@ -10,7 +10,7 @@
 - [x] 注册 `chardesk.com`，并将 `https://chardesk.com/` 设为唯一正式入口。
 - [ ] 注册常见拼写和防御性域名；统一重定向到主域名。
 - [x] 确认并使用 GitHub 仓库名 `Sayhi-bzb/CharDesk`。
-- [ ] 创建或占用 npm scope `@chardesk`，配置所有者、2FA 和 trusted publishing。
+- [x] 创建或占用 npm scope `@chardesk`，配置所有者、2FA 和 GitHub OIDC trusted publishing。
 - [ ] 检查社交账号、社区名称和联系邮箱是否需要同步注册。
 - [ ] 确定 Logo、图标、主色、字体和品牌写法规范。
 
@@ -80,8 +80,8 @@
 
 ## 5. npm 包与构建配置
 
-- [x] 将协议包改名为 `@chardesk/protocol`，版本设为 `0.2.0`；首次发布仍待 npm scope 权限。
-- [x] 将字体包改名为 `@chardesk/fonts`，版本设为 `0.2.0`；首次发布仍待 npm scope 权限。
+- [x] 将协议包改名为 `@chardesk/protocol`，版本设为 `0.2.0` 并完成首次发布。
+- [x] 将字体包改名为 `@chardesk/fonts`，版本设为 `0.2.0` 并完成首次发布。
 - [x] 将根私有 workspace 名改为 `chardesk`，workspace 命令和依赖切换到新包名。
 - [x] 更新两个 package manifest 的品牌描述、仓库地址、文档链接、包名和版本。
 - [x] 更新 `package-lock.json` 的根私有 workspace 名。
@@ -89,11 +89,11 @@
 - [x] 更新源码、测试、脚本和文档中的包 import。
 - [x] 更新 release workflow 的版本存在性检查、workspace、`npm pack` 和 `npm publish` 命令。
 - [x] 更新 release tarball 文件名和 packed-package smoke test。
-- [ ] 发布并验证 `@chardesk/*` 包；主应用已按硬切换决策使用新包名。
+- [x] 发布并验证 `@chardesk/*@0.2.0` 包；主应用已按硬切换决策使用新包名。
 - [x] 停止为 `@ascii-canvas/protocol` 和 `@ascii-canvas/fonts` 发布新版本。
-- [ ] 发布新包后 deprecate 旧包并指向 `@chardesk/*`；不要 unpublish。
+- [x] deprecate 旧包并指向 `@chardesk/*`；保留旧版本且不 unpublish。
 - [x] 验证本地发布包的 README、exports、类型声明和 CSS/字体资源路径。
-- [ ] 正式发布后验证 npm provenance 与 README 页面渲染。
+- [x] 正式发布后验证 npm provenance 与 README 页面渲染。
 
 ## 6. 公共 API 与协议兼容
 
@@ -131,7 +131,7 @@
 - [ ] 测试协作房间链接、身份、IndexedDB 缓存和断线重连。
 - [x] 对 `@chardesk/*@0.2.0` 执行 build、真实 `npm pack` 及隔离安装/import smoke test。
 - [x] 检查 production 与 preview HTML：canonical、OG、Twitter 均指向 `https://chardesk.com/`，无旧域名元数据。
-- [ ] 验证旧 Pages URL、旧 GitHub URL 和旧 npm 包均给出正确的迁移路径。
+- [x] 验证旧 Pages URL、旧 GitHub URL 和旧 npm 包均给出正确的迁移路径。
 - [ ] 在桌面端和移动端检查 CharDesk 名称、Logo、封面及中英文排版。
 
 ## 9. 发布与兼容期
