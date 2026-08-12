@@ -1,32 +1,32 @@
 import { describe, expect, it } from "vitest";
 import {
-  ASCII_CANVAS_DOCUMENT_TYPE,
-  ASCII_CANVAS_DOCUMENT_VERSION,
-  buildFreeformProtocolDocument,
-  buildStructuredProtocolDocument,
-  isAsciiCanvasDocument,
-  protocolDocumentToSnapshot,
+  CHARDESK_DOCUMENT_TYPE,
+  CHARDESK_DOCUMENT_VERSION,
+  buildFreeformCharDeskDocument,
+  buildStructuredCharDeskDocument,
+  isCharDeskDocument,
+  charDeskDocumentToSnapshot,
 } from "@/domains/document/public";
 
-describe("AsciiCanvas document protocol", () => {
+describe("CharDesk document protocol", () => {
   it("round-trips a freeform document", () => {
-    const document = buildFreeformProtocolDocument(
+    const document = buildFreeformCharDeskDocument(
       new Map([["0,0", { char: "A", color: "#ffffff" }]])
     );
     expect(document).toEqual({
-      type: ASCII_CANVAS_DOCUMENT_TYPE,
-      version: ASCII_CANVAS_DOCUMENT_VERSION,
+      type: CHARDESK_DOCUMENT_TYPE,
+      version: CHARDESK_DOCUMENT_VERSION,
       mode: "freeform",
       cells: [{ x: 0, y: 0, char: "A", color: "#ffffff" }],
     });
-    expect(isAsciiCanvasDocument(document)).toBe(true);
-    expect(protocolDocumentToSnapshot(document).grid).toEqual([
+    expect(isCharDeskDocument(document)).toBe(true);
+    expect(charDeskDocumentToSnapshot(document).grid).toEqual([
       ["0,0", { char: "A", color: "#ffffff" }],
     ]);
   });
 
   it("preserves structured nodes", () => {
-    const document = buildStructuredProtocolDocument([
+    const document = buildStructuredCharDeskDocument([
       {
         id: "box-1",
         type: "box",
@@ -38,11 +38,11 @@ describe("AsciiCanvas document protocol", () => {
     ]);
     expect(document.mode).toBe("structured");
     expect(document.nodes).toHaveLength(1);
-    expect(protocolDocumentToSnapshot(document).mode).toBe("structured");
+    expect(charDeskDocumentToSnapshot(document).mode).toBe("structured");
   });
 
   it("round-trips structured arrow line markers", () => {
-    const document = buildStructuredProtocolDocument([
+    const document = buildStructuredCharDeskDocument([
       {
         id: "arrow-1",
         type: "line",
@@ -56,16 +56,16 @@ describe("AsciiCanvas document protocol", () => {
     ]);
 
     expect(document.nodes[0]).toMatchObject({ endMarker: "arrow" });
-    expect(protocolDocumentToSnapshot(document).scene[0]).toMatchObject({
+    expect(charDeskDocumentToSnapshot(document).scene[0]).toMatchObject({
       type: "line",
       endMarker: "arrow",
     });
   });
 
   it("rejects unknown structured line markers", () => {
-    expect(isAsciiCanvasDocument({
-      type: ASCII_CANVAS_DOCUMENT_TYPE,
-      version: ASCII_CANVAS_DOCUMENT_VERSION,
+    expect(isCharDeskDocument({
+      type: CHARDESK_DOCUMENT_TYPE,
+      version: CHARDESK_DOCUMENT_VERSION,
       mode: "structured",
       nodes: [
         {

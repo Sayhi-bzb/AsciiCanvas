@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useEditorStore } from '@/domains/canvas/public';
+import { canvasCommands, useCanvasState } from '@/domains/canvas/public';
 import {
   buildCollaborationUrl,
   collaborationRuntime,
@@ -45,11 +45,11 @@ export function CollaborationControl() {
   const [open, setOpen] = useState(false);
   const [endpoint, setEndpoint] = useState('');
   const snapshot = useCollaborationSnapshot();
-  const activeSession = useEditorStore((state) =>
+  const activeSession = useCanvasState((state) =>
     state.canvasSessions.find((session) => session.id === state.activeCanvasId)
   );
-  const setCollaboration = useEditorStore((state) => state.setCanvasSessionCollaboration);
-  const joinCollaboration = useEditorStore((state) => state.joinCanvasSessionCollaboration);
+  const setCollaboration = canvasCommands.sessions.setCollaboration;
+  const joinCollaboration = canvasCommands.sessions.joinCollaboration;
   const descriptor = activeSession?.collaboration;
 
   useEffect(() => {

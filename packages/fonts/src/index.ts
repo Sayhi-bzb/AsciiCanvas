@@ -1,4 +1,4 @@
-export const CHARDESK_FONT_PROFILE_ID = "ascii-canvas/default-v1";
+export const CHARDESK_FONT_PROFILE_ID = "chardesk/default-v1";
 
 export const CHARDESK_TEXT_FONT_FAMILY =
   "'Maple Mono NF CN', 'Noto Sans Symbols 2', ui-monospace, " +

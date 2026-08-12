@@ -6,7 +6,8 @@ import {
   STRUCTURED_CONTEXT_MENU,
 } from "@/domains/actions/public";
 import { editorCheckers, editorHandlers } from "@/domains/actions/core/handlers/editor";
-import { useEditorStore } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/testing";
+import { canvasCommands } from "@/domains/canvas/public";
 import { clipboard } from "@/shared/services/effects";
 
 describe("editorHandlers clipboard sources", () => {
@@ -53,7 +54,7 @@ describe("editorHandlers clipboard sources", () => {
     const state = {
       ...useEditorStore.getState(),
       canvasMode: "freeform" as const,
-      canCopyOrCut: () => true,
+      textCursor: { x: 0, y: 0 },
     };
 
     const result = editorHandlers["copy-ansi"](
@@ -84,7 +85,6 @@ describe("editorHandlers clipboard sources", () => {
         state: {
           ...useEditorStore.getState(),
           canvasMode: "structured" as const,
-          canCopyOrCut: () => true,
         },
         setTool: vi.fn(),
         onUndo: vi.fn(),
@@ -300,13 +300,14 @@ describe("editorHandlers structured rename", () => {
   const baseState = useEditorStore.getState();
 
   it("puts the cursor at the selected box name end", () => {
-    const setTextCursor = vi.fn();
+    const setTextCursor = vi
+      .spyOn(canvasCommands.interaction, "setTextCursor")
+      .mockImplementation(() => undefined);
     const state = {
       ...baseState,
       canvasMode: "structured" as const,
       selectedStructuredBoxId: "box-1",
       selectedStructuredNodeIds: ["box-1"],
-      setTextCursor,
       structuredScene: [
         {
           id: "box-1",
@@ -368,13 +369,14 @@ describe("editorHandlers structured rename", () => {
   });
 
   it("puts the cursor at the selected text end", () => {
-    const setTextCursor = vi.fn();
+    const setTextCursor = vi
+      .spyOn(canvasCommands.interaction, "setTextCursor")
+      .mockImplementation(() => undefined);
     const state = {
       ...baseState,
       canvasMode: "structured" as const,
       selectedStructuredBoxId: null,
       selectedStructuredNodeIds: ["text-1"],
-      setTextCursor,
       structuredScene: [
         {
           id: "text-1",

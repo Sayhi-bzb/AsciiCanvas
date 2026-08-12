@@ -6,8 +6,8 @@ import {
 } from "@/domains/export/public";
 import { clipboard } from "@/shared/services/effects";
 import {
-  parseProtocolDocument,
-  protocolDocumentToSnapshot,
+  parseCharDeskDocument,
+  charDeskDocumentToSnapshot,
 } from "@/domains/document/public";
 import { parseSlideMarkdown } from "@/domains/slides/public";
 
@@ -26,18 +26,18 @@ const createContext = (
 describe("export service", () => {
 
   it("builds a round-trippable CharDesk project artifact", () => {
-    const result = prepareTextExport(createContext(), "ascanvas");
+    const result = prepareTextExport(createContext(), "chardesk");
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value).toMatchObject({
       kind: "text",
-      format: "ascanvas",
-      mimeType: "application/vnd.ascii-canvas+json;charset=utf-8",
+      format: "chardesk",
+      mimeType: "application/vnd.chardesk+json;charset=utf-8",
     });
-    expect(result.value.filename).toMatch(/^chardesk-\d+\.ascanvas$/);
-    const snapshot = protocolDocumentToSnapshot(
-      parseProtocolDocument(result.value.content)
+    expect(result.value.filename).toMatch(/^chardesk-\d+\.chardesk$/);
+    const snapshot = charDeskDocumentToSnapshot(
+      parseCharDeskDocument(result.value.content)
     );
     expect(snapshot).toMatchObject({
       mode: "freeform",
@@ -115,8 +115,8 @@ describe("export service", () => {
     });
     expect(result.value.filename).toMatch(/^chardesk-slides-\d+\.slides\.md$/);
     expect(result.value.content).not.toContain("\u001b");
-    expect(result.value.content).toContain("asciicanvas: slides/v2");
-    expect(result.value.content).toContain("```asciicanvas size=6x3");
+    expect(result.value.content).toContain("chardesk: slides/v1");
+    expect(result.value.content).toContain("```chardesk size=6x3");
 
     const parsed = parseSlideMarkdown(result.value.content);
     expect(parsed.title).toBe("Agent Deck");

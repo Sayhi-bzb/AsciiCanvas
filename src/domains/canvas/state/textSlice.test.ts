@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { useEditorStore } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/testing";
 import { applyFreeformSnapshotToYMaps } from "./helpers/gridHelpers";
 import type { EditorState } from "@/domains/canvas/state/interfaces";
 

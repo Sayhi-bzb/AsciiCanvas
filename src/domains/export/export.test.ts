@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
-  buildProtocolExportDocument,
+  buildCharDeskExportDocument,
   exportSelectionToString,
   exportToAnsi,
 } from "@/domains/export/public";
 
 describe("export formats", () => {
   it("builds a freeform project document", () => {
-    const document = buildProtocolExportDocument({
+    const document = buildCharDeskExportDocument({
       canvasMode: "freeform",
       grid: new Map([["0,0", { char: "A", color: "#ffffff" }]]),
       structuredScene: [],

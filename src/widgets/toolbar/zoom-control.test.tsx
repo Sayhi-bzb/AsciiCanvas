@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { useEditorStore } from '@/domains/canvas/public';
+import { useEditorStore } from '@/domains/canvas/testing';
 import { ZoomControl } from './zoom-control';
 
 let isMobile = false;

@@ -14,6 +14,22 @@ const FORBIDDEN_PUBLIC_CANVAS_EXPORTS = new Set([
   "getActiveCanvasDocument",
   "getCanvasDocument",
   "undoManager",
+  "useEditorStore",
+  "EditorState",
+]);
+const CONTENT_STATE_FIELDS = new Set([
+  "grid",
+  "structuredScene",
+  "structuredComponents",
+]);
+const CONTENT_STATE_WRITE_OWNERS = new Set([
+  "domains/canvas/state/canvasDocumentProjection.ts",
+  "domains/canvas/state/editorStore.ts",
+]);
+const EDITOR_STORE_IMPORT_OWNERS = new Set([
+  "domains/canvas/state/canvasCommands.ts",
+  "domains/canvas/state/canvasState.ts",
+  "domains/canvas/testing.ts",
 ]);
 
 function collect(directory) {
@@ -40,7 +56,36 @@ for (const absolute of collect(SRC_ROOT)) {
     const location = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
     violations.push(`${sourcePath}:${location.line + 1}: ${message}`);
   }
+  function isInsideStateWrite(node) {
+    let current = node.parent;
+    while (current) {
+      if (ts.isCallExpression(current)) {
+        const callee = current.expression;
+        if (
+          (ts.isIdentifier(callee) && callee.text === "set") ||
+          (ts.isPropertyAccessExpression(callee) && callee.name.text === "setState")
+        ) {
+          return true;
+        }
+      }
+      current = current.parent;
+    }
+    return false;
+  }
   function inspect(node) {
+    if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
+      const moduleName = node.moduleSpecifier.text;
+      if (
+        (moduleName.endsWith("/domains/canvas/state/editorStore") ||
+          moduleName === "./editorStore") &&
+        !EDITOR_STORE_IMPORT_OWNERS.has(sourcePath)
+      ) {
+        report(node, "private editor store import outside the Canvas facade");
+      }
+      if (moduleName.endsWith("/domains/canvas/testing")) {
+        report(node, "Canvas testing API imported by production code");
+      }
+    }
     if (
       sourcePath !== "domains/canvas/state/canvasDocument.ts" &&
       ts.isCallExpression(node) &&
@@ -62,6 +107,15 @@ for (const absolute of collect(SRC_ROOT)) {
           report(element, `low-level canvas export ${element.name.text}`);
         }
       }
+    }
+    if (
+      ts.isPropertyAssignment(node) &&
+      ((ts.isIdentifier(node.name) && CONTENT_STATE_FIELDS.has(node.name.text)) ||
+        (ts.isStringLiteral(node.name) && CONTENT_STATE_FIELDS.has(node.name.text))) &&
+      isInsideStateWrite(node) &&
+      !CONTENT_STATE_WRITE_OWNERS.has(sourcePath)
+    ) {
+      report(node, `canvas content state write outside the document projector`);
     }
     ts.forEachChild(node, inspect);
   }

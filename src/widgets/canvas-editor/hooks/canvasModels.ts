@@ -1,6 +1,7 @@
-import type { EditorState } from "@/domains/canvas/public";
+import { canvasCommands, canvasQueries } from "@/domains/canvas/public";
+import type { CanvasState } from "@/domains/canvas/public";
 
-export type CanvasRenderModel = Pick<EditorState,
+export type CanvasRenderModel = Pick<CanvasState,
   | "offset"
   | "zoom"
   | "grid"
@@ -24,42 +25,43 @@ export type CanvasRenderModel = Pick<EditorState,
   | "canvasColorPickerTarget"
 >;
 
-export type CanvasEditorModel = Pick<EditorState,
+export type CanvasEditorModel = Pick<CanvasState,
   | "textCursor"
   | "staticGridSelection"
   | "staticGridEditMode"
-  | "writeTextString"
-  | "backspaceText"
-  | "deleteTextForward"
-  | "newlineText"
-  | "indentText"
-  | "moveTextCursor"
-  | "moveStaticGridFocus"
-  | "moveStructuredGridFocus"
-  | "setTextCursor"
   | "selections"
   | "offset"
   | "zoom"
-  | "setOffset"
-  | "moveSelections"
-  | "expandSelection"
-  | "fillSelectionsWithChar"
-  | "clearSelections"
   | "structuredGridFocus"
-  | "setStructuredGridFocus"
   | "selectedStructuredNodeIds"
-  | "setSelectedStructuredNodeIds"
-  | "setSelectedStructuredSplitHandle"
-  | "setEditingStructuredTextNodeId"
-  | "setStructuredTextSelection"
   | "structuredScene"
   | "structuredComponents"
   | "brushColor"
   | "canvasColorPickerTarget"
-  | "setCanvasColorPickerTarget"
-  | "setHoveredGrid"
-  | "getNextStructuredOrder"
-  | "applyStructuredScene"
-  | "setStructuredContextPoint"
   | "activeCanvasHasSavedViewport"
->;
+> & {
+  writeTextString: typeof canvasCommands.text.write;
+  backspaceText: typeof canvasCommands.text.backspace;
+  deleteTextForward: typeof canvasCommands.text.deleteForward;
+  newlineText: typeof canvasCommands.text.newline;
+  indentText: typeof canvasCommands.text.indent;
+  moveTextCursor: typeof canvasCommands.text.moveCursor;
+  moveStaticGridFocus: typeof canvasCommands.staticGrid.moveFocus;
+  moveStructuredGridFocus: typeof canvasCommands.interaction.moveStructuredGridFocus;
+  setTextCursor: typeof canvasCommands.interaction.setTextCursor;
+  setOffset: typeof canvasCommands.viewport.setOffset;
+  moveSelections: typeof canvasCommands.selection.move;
+  expandSelection: typeof canvasCommands.selection.expand;
+  fillSelectionsWithChar: typeof canvasCommands.selection.fillWithChar;
+  clearSelections: typeof canvasCommands.selection.clear;
+  setStructuredGridFocus: typeof canvasCommands.interaction.setStructuredGridFocus;
+  setSelectedStructuredNodeIds: typeof canvasCommands.interaction.setSelectedStructuredNodeIds;
+  setSelectedStructuredSplitHandle: typeof canvasCommands.interaction.setSelectedStructuredSplitHandle;
+  setEditingStructuredTextNodeId: typeof canvasCommands.interaction.setEditingStructuredTextNodeId;
+  setStructuredTextSelection: typeof canvasCommands.interaction.setStructuredTextSelection;
+  setCanvasColorPickerTarget: typeof canvasCommands.interaction.setColorPickerTarget;
+  setHoveredGrid: typeof canvasCommands.interaction.setHoveredGrid;
+  getNextStructuredOrder: typeof canvasQueries.getNextStructuredOrder;
+  applyStructuredScene: typeof canvasCommands.structured.applyScene;
+  setStructuredContextPoint: typeof canvasCommands.interaction.setStructuredContextPoint;
+};

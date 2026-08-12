@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { useEditorStore } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/testing";
 import { ShortcutProvider } from "@/shared/shortcuts/dispatcher";
 import { SlideNavigator } from "./slide-navigator";
 import { ZoomControl } from "./zoom-control";

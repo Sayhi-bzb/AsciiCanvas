@@ -1,6 +1,23 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("App menu", () => {
+  test("round-trips a native CharDesk project file", async ({ page }) => {
+    await page.goto("/");
+
+    await page.getByRole("button", { name: "Open menu" }).click();
+    await page.getByRole("menuitem", { name: "Export" }).hover();
+    const downloadPromise = page.waitForEvent("download");
+    await page.getByRole("menuitem", { name: "CharDesk" }).click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toMatch(/^chardesk-\d+\.chardesk$/);
+    const downloadPath = await download.path();
+    expect(downloadPath).not.toBeNull();
+    if (!downloadPath) return;
+
+    await page.locator('input[type="file"]').setInputFiles(downloadPath);
+    await expect(page.getByText("Import complete")).toBeVisible();
+  });
+
   test("keeps inline actions open and closes when focus leaves", async ({
     page,
   }) => {
@@ -65,7 +82,7 @@ test.describe("App menu", () => {
       .click();
     const downloadedProject = await projectDownload;
     expect(downloadedProject.suggestedFilename()).toMatch(
-      /^chardesk-\d+\.ascanvas$/
+      /^chardesk-\d+\.chardesk$/
     );
     await expect(menu).toBeVisible();
     await expect(exportMenu).toBeVisible();
@@ -133,7 +150,7 @@ test.describe("App menu", () => {
     await importChooser;
     await expect(page.locator('input[type="file"]')).toHaveAttribute(
       "accept",
-      ".ascanvas,.json,.md,application/vnd.ascii-canvas+json,application/json,text/markdown,text/plain"
+      ".chardesk,.json,.md,application/vnd.chardesk+json,application/json,text/markdown,text/plain"
     );
     await page.evaluate(() => window.dispatchEvent(new Event("blur")));
     await expect(

@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import type { DriveStep, Driver } from "driver.js";
-import { useEditorStore } from "@/domains/canvas/public";
+import { useCanvasState } from "@/domains/canvas/public";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { useUiI18n } from "@/shared/i18n";
 import { feedback } from "@/shared/services/effects";
@@ -205,9 +205,9 @@ function buildTourSteps(
 export function OnboardingTourProvider({ children }: { children: ReactNode }) {
   const isMobile = useIsMobile();
   const { t } = useUiI18n();
-  const canvasMode = useEditorStore((state) => state.canvasMode);
-  const activeCanvasId = useEditorStore((state) => state.activeCanvasId);
-  const structuredComponentCount = useEditorStore(
+  const canvasMode = useCanvasState((state) => state.canvasMode);
+  const activeCanvasId = useCanvasState((state) => state.activeCanvasId);
+  const structuredComponentCount = useCanvasState(
     (state) => state.structuredComponents.length
   );
   const [phase, setPhase] = useState<OnboardingPhase>("idle");

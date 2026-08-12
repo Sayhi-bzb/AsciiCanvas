@@ -5,7 +5,7 @@ import type { SlideDeck } from "@/domains/slides/public";
 
 export type ExportFormat =
   | "txt"
-  | "ascanvas"
+  | "chardesk"
   | "ansi"
   | "md"
   | "png"

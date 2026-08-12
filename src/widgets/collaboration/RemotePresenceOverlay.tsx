@@ -1,11 +1,11 @@
-import { useEditorStore } from "@/domains/canvas/public";
+import { useCanvasState } from "@/domains/canvas/public";
 import { useCollaborationSnapshot } from "./useCollaborationSnapshot";
 import { CELL_HEIGHT, CELL_WIDTH } from "@/shared/lib/constants";
 
 export function RemotePresenceOverlay() {
   const { peers } = useCollaborationSnapshot();
-  const offset = useEditorStore((state) => state.offset);
-  const zoom = useEditorStore((state) => state.zoom);
+  const offset = useCanvasState((state) => state.offset);
+  const zoom = useCanvasState((state) => state.zoom);
 
   return (
     <div className="pointer-events-none absolute inset-0 z-40 overflow-hidden" aria-hidden="true">

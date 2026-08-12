@@ -216,3 +216,12 @@ export type EditorState = {
   TextSlice &
   SelectionSlice &
   SessionCommands;
+
+type FunctionPropertyKeys<T> = {
+  [Key in keyof T]-?: T[Key] extends (...args: never[]) => unknown
+    ? Key
+    : never;
+}[keyof T];
+
+/** Read-only shape exposed to Canvas consumers. Mutations live in canvasCommands. */
+export type CanvasState = Omit<EditorState, FunctionPropertyKeys<EditorState>>;

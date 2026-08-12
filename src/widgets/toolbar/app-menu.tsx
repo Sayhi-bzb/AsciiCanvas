@@ -2,7 +2,7 @@
 
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
-import { useEditorStore } from "@/domains/canvas/public";
+import { canvasCommands, useCanvasState } from "@/domains/canvas/public";
 import { runSidebarAction } from "@/domains/actions/public";
 import {
   getAvailableExportFormats,
@@ -49,8 +49,7 @@ export function AppMenu() {
     structuredComponents,
     canvasSessions,
     activeCanvasId,
-    clearCanvas,
-  } = useEditorStore(
+  } = useCanvasState(
     useShallow((state) => ({
       grid: state.grid,
       canvasMode: state.canvasMode,
@@ -59,9 +58,9 @@ export function AppMenu() {
       structuredComponents: state.structuredComponents,
       canvasSessions: state.canvasSessions,
       activeCanvasId: state.activeCanvasId,
-      clearCanvas: state.clearCanvas,
     }))
   );
+  const clearCanvas = canvasCommands.grid.clear;
   const documentName = canvasSessions.find(
     (session) => session.id === activeCanvasId
   )?.name;
@@ -116,7 +115,7 @@ export function AppMenu() {
       <input
         ref={fileInputRef}
         type="file"
-        accept=".ascanvas,.json,.md,application/vnd.ascii-canvas+json,application/json,text/markdown,text/plain"
+        accept=".chardesk,.json,.md,application/vnd.chardesk+json,application/json,text/markdown,text/plain"
         className="sr-only"
         tabIndex={-1}
         aria-hidden="true"
@@ -167,7 +166,7 @@ export function AppMenu() {
                   </DropdownMenuSubTrigger>
                   <DropdownMenuSubContent aria-label={exportLabel}>
                     {availableExportFormats.map((definition) =>
-                      definition.format === "ascanvas" ? (
+                      definition.format === "chardesk" ? (
                         <DropdownMenuItem
                           key={definition.format}
                           onSelect={(event) => {

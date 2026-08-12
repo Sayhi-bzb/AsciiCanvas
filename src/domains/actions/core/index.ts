@@ -18,6 +18,7 @@ export {
   canRunAction,
   runToolbarAction,
   runSidebarAction,
+  createActionsExtension,
 } from "./runtime";
 export { isActionAccepted } from "./result";
 
@@ -25,6 +26,7 @@ export {
   getActionShortcutLabel,
   matchesActionShortcut,
   resolveActionShortcut,
+  setActionShortcutOverride,
 } from "./shortcuts";
 
 // Handlers (for advanced use cases)

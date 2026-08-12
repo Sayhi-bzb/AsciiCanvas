@@ -28,4 +28,4 @@
 [48;2;R;G;Bm         truecolor 背景色
 ```
 
-解析、布局与兼容性规则见兼容协议 [`AsciiCanvas Text Protocol v1`](../../../../packages/protocol/spec/v1.md)。
+解析与布局规则见 [`CharDesk Text Protocol v1`](../../../../packages/protocol/spec/v1.md)。

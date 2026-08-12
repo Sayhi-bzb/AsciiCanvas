@@ -1,14 +1,12 @@
 import { useRef, useState, type ChangeEvent } from "react";
-import { useEditorStore } from "@/domains/canvas/public";
+import { canvasCommands } from "@/domains/canvas/public";
 import { feedback } from "@/shared/services/effects";
 import { useUiI18n } from "@/shared/i18n";
 
 export function useCanvasImport() {
   const { t } = useUiI18n();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const importCanvasSession = useEditorStore(
-    (state) => state.importCanvasSession
-  );
+  const importCanvasSession = canvasCommands.sessions.import;
   const [isImporting, setIsImporting] = useState(false);
 
   const openFilePicker = () => {

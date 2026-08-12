@@ -8,7 +8,7 @@ import {
   SearchX,
 } from "lucide-react";
 import { writeClipboardPayload } from "@/domains/actions/public";
-import { useEditorStore } from "@/domains/canvas/public";
+import { useCanvasState } from "@/domains/canvas/public";
 import {
   useLibraryStore,
   type CharacterGroup,
@@ -464,7 +464,7 @@ function UnicodePane({
 }
 
 export function CharLibrary({ view }: { view: CharacterViewId }) {
-  const brushColor = useEditorStore((state) => state.brushColor);
+  const brushColor = useCanvasState((state) => state.brushColor);
   const [copiedChar, setCopiedChar] = useState<string | null>(null);
 
   const handleSelect = async (entry: CharacterRecord) => {

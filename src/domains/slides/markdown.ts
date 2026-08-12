@@ -2,10 +2,9 @@ import { parseCharDeskText, type CharDeskTextSyntax } from '@chardesk/protocol';
 import { COLOR_PRIMARY_TEXT } from '@/shared/lib/constants';
 import { GridManager } from '@/shared/utils/grid';
 import { createSlideDeck, addSlide } from './deck';
-import { DEFAULT_SLIDE_SIZE, type SlideDeck, type SlideSize } from './model';
+import type { SlideDeck, SlideSize } from './model';
 
-const SLIDE_MARKDOWN_SIGNATURE = 'slides/v2';
-const LEGACY_SLIDE_MARKDOWN_SIGNATURE = 'slides/v1';
+const SLIDE_MARKDOWN_SIGNATURE = 'slides/v1';
 
 type ParsedSlideMarkdown = {
   title?: string;
@@ -31,35 +30,14 @@ const parseFrontMatter = (source: string) => {
     metadata.set(line.slice(0, separator).trim().toLowerCase(), line.slice(separator + 1).trim());
   });
 
-  const signature = metadata.get('asciicanvas');
-  if (
-    signature !== LEGACY_SLIDE_MARKDOWN_SIGNATURE &&
-    signature !== SLIDE_MARKDOWN_SIGNATURE
-  ) {
+  const signature = metadata.get('chardesk');
+  if (signature !== SLIDE_MARKDOWN_SIGNATURE) {
     throw new Error('Unsupported CharDesk Slides Markdown version.');
-  }
-
-  const rawSize = metadata.get('size');
-  let size: SlideSize = { ...DEFAULT_SLIDE_SIZE };
-  if (rawSize) {
-    const match = /^(\d+)x(\d+)$/i.exec(rawSize);
-    if (!match) throw new Error('Slide size must use columnsxrows.');
-    size = { columns: Number(match[1]), rows: Number(match[2]) };
-    if (
-      !Number.isSafeInteger(size.columns) ||
-      !Number.isSafeInteger(size.rows) ||
-      size.columns <= 0 ||
-      size.rows <= 0
-    ) {
-      throw new Error('Slide size must use positive integer columns and rows.');
-    }
   }
 
   const title = metadata.get('title')?.trim();
   return {
     bodyLines: lines.slice(endIndex + 1),
-    signature,
-    size,
     ...(title ? { title } : {}),
   };
 };
@@ -113,9 +91,7 @@ const parseSlideSize = (value: string) => {
 };
 
 const parseSlideBlocks = (
-  lines: string[],
-  signature: string,
-  legacySize: SlideSize
+  lines: string[]
 ) => {
   const slides: Array<{
     name: string;
@@ -147,17 +123,12 @@ const parseSlideBlocks = (
       content.push(lines[index]);
     }
     if (!closed) throw new Error('Unclosed slide content fence.');
-    if (!['asciicanvas', 'text', 'ansi'].includes(language)) continue;
+    if (!['chardesk', 'text', 'ansi'].includes(language)) continue;
     const info = fenceMatch.groups.info.trim();
     const sizeMatch = /^size=(\S+)$/.exec(info);
-    const size =
-      signature === LEGACY_SLIDE_MARKDOWN_SIGNATURE
-        ? legacySize
-        : sizeMatch
-          ? parseSlideSize(sizeMatch[1])
-          : null;
+    const size = sizeMatch ? parseSlideSize(sizeMatch[1]) : null;
     if (!size) {
-      throw new Error('Slides v2 requires size=columnsxrows on every slide block.');
+      throw new Error('CharDesk Slides v1 requires size=columnsxrows on every slide block.');
     }
 
     slides.push({
@@ -176,8 +147,8 @@ const parseSlideBlocks = (
 };
 
 export const parseSlideMarkdown = (source: string): ParsedSlideMarkdown => {
-  const { bodyLines, signature, size, title } = parseFrontMatter(source);
-  const slides = parseSlideBlocks(bodyLines, signature, size);
+  const { bodyLines, title } = parseFrontMatter(source);
+  const slides = parseSlideBlocks(bodyLines);
   let slideDeck = createSlideDeck({
     initialSlideId: 'slide-1',
     initialSlideName: slides[0].name,

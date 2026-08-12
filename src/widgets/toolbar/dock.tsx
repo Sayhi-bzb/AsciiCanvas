@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { cn } from "@/shared/lib/utils";
 import type { ToolType } from "@/domains/canvas/public";
-import { useEditorStore } from "@/domains/canvas/public";
+import { canvasCommands, useCanvasState } from "@/domains/canvas/public";
 import {
   TOOLBAR_ACTION_META,
   runToolbarAction,
@@ -86,23 +86,20 @@ export function Toolbar({
   const { t } = useUiI18n();
   const {
     brushChar,
-    setBrushChar,
     brushColor,
-    setBrushColor,
     canvasMode,
     structuredTextSelection,
-    setStructuredTextColor,
-  } = useEditorStore(
+  } = useCanvasState(
     useShallow((state) => ({
       brushChar: state.brushChar,
-      setBrushChar: state.setBrushChar,
       brushColor: state.brushColor,
-      setBrushColor: state.setBrushColor,
       canvasMode: state.canvasMode,
       structuredTextSelection: state.structuredTextSelection,
-      setStructuredTextColor: state.setStructuredTextColor,
     }))
   );
+  const setBrushChar = canvasCommands.preferences.setBrushChar;
+  const setBrushColor = canvasCommands.preferences.setBrushColor;
+  const setStructuredTextColor = canvasCommands.structured.setTextColor;
   const [lastUsedShape, setLastUsedShape] = useState<ToolType>("box");
   const [openSubMenuId, setOpenSubMenuId] = useState<null | string>(null);
   const inputRef = useRef<HTMLInputElement>(null);

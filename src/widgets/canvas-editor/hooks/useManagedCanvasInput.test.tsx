@@ -1,6 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { useEditorStore } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/testing";
 import { ShortcutProvider } from "@/shared/shortcuts/dispatcher";
 import { useManagedCanvasInput } from "./useManagedCanvasInput";
 

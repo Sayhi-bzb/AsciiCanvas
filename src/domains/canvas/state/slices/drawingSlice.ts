@@ -25,6 +25,7 @@ import {
   getStructuredTextSelectionRange,
   updateStructuredTextStyleRanges,
 } from "@/domains/structured-content/public";
+import { createDocumentInteractionResetPatch } from "../transitions/editorTransitions";
 
 const getFilledRectPoints = (
   start: { x: number; y: number },
@@ -177,11 +178,11 @@ export const createDrawingSlice: StateCreator<
     const { canvasMode, applyStructuredScene } = get();
     if (canvasMode === "structured") {
       applyStructuredScene([], true);
-      set({ scratchLayer: null, selections: [], textCursor: null, editingStructuredTextNodeId: null, structuredTextSelection: null, selectedStructuredNodeIds: [], selectedStructuredBoxId: null, selectedStructuredSplitHandle: null, structuredContextPoint: null });
+      set(createDocumentInteractionResetPatch());
       return;
     }
     mutateCanvasGrid((grid) => grid.clear());
-    set({ scratchLayer: null, selections: [], textCursor: null, editingStructuredTextNodeId: null, structuredTextSelection: null, selectedStructuredNodeIds: [], selectedStructuredBoxId: null, selectedStructuredSplitHandle: null, structuredContextPoint: null });
+    set(createDocumentInteractionResetPatch());
   },
 
   erasePoints: (points, shouldSaveHistory = true) => {

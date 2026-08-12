@@ -5,7 +5,7 @@ export { prepareExport, prepareSelectionPngExport, prepareTextExport } from "./c
 export type { ExportContext, ExportFormat } from "./core/types";
 export { deliverExportClipboard, deliverExportDownload } from "./platform/browserDelivery";
 export {
-  buildProtocolExportDocument,
+  buildCharDeskExportDocument,
 } from "./formats/protocolExport";
 export {
   exportSelectionToAnsi,

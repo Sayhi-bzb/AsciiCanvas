@@ -1,6 +1,6 @@
 import { useLocalStorageState } from "ahooks";
 import { CanvasEditor } from "@/widgets/canvas-editor";
-import { useEditorStore } from "@/domains/canvas/public";
+import { canvasCommands, useCanvasState } from "@/domains/canvas/public";
 import { AppLayout } from "./AppLayout";
 import { Toolbar } from "@/widgets/toolbar/dock";
 import { SidebarInset, SidebarProvider, useSidebar } from "@/shared/ui/sidebar";
@@ -98,7 +98,7 @@ function AppContent() {
   useActiveCollaboration();
   useHorizontalWheelNavigationGuard();
   const collaborationSnapshot = useCollaborationSnapshot();
-  const activeCollaboration = useEditorStore((state) =>
+  const activeCollaboration = useCanvasState((state) =>
     state.canvasSessions.find((session) => session.id === state.activeCanvasId)?.collaboration
   );
   const isCollaborationReadOnly =
@@ -113,7 +113,6 @@ function AppContent() {
   >();
   const {
     tool,
-    setTool,
     canvasMode,
     textCursor,
     staticGridSelection,
@@ -121,14 +120,9 @@ function AppContent() {
     selections,
     editingStructuredTextNodeId,
     structuredTextSelection,
-    exitStaticGridTextEdit,
-    setTextCursor,
-    setEditingStructuredTextNodeId,
-    setStructuredTextSelection,
-  } = useEditorStore(
+  } = useCanvasState(
     useShallow((state) => ({
       tool: state.tool,
-      setTool: state.setTool,
       canvasMode: state.canvasMode,
       textCursor: state.textCursor,
       staticGridSelection: state.staticGridSelection,
@@ -136,12 +130,15 @@ function AppContent() {
       selections: state.selections,
       editingStructuredTextNodeId: state.editingStructuredTextNodeId,
       structuredTextSelection: state.structuredTextSelection,
-      exitStaticGridTextEdit: state.exitStaticGridTextEdit,
-      setTextCursor: state.setTextCursor,
-      setEditingStructuredTextNodeId: state.setEditingStructuredTextNodeId,
-      setStructuredTextSelection: state.setStructuredTextSelection,
     }))
   );
+  const setTool = canvasCommands.tools.set;
+  const exitStaticGridTextEdit = canvasCommands.staticGrid.exitTextEdit;
+  const setTextCursor = canvasCommands.interaction.setTextCursor;
+  const setEditingStructuredTextNodeId =
+    canvasCommands.interaction.setEditingStructuredTextNodeId;
+  const setStructuredTextSelection =
+    canvasCommands.interaction.setStructuredTextSelection;
   const staticGridView = useMemo(
     () =>
       getStaticGridViewState({

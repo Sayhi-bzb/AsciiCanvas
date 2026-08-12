@@ -4,6 +4,7 @@ import "@chardesk/fonts/fonts.css";
 import "./index.css";
 import { captureOnboardingEntryState } from "@/widgets/onboarding/onboarding-model";
 import { initializeApplication } from "./compositionRoot";
+import { EditorProvider } from "@/domains/editor/public";
 
 initializeApplication();
 captureOnboardingEntryState();
@@ -11,7 +12,9 @@ captureOnboardingEntryState();
 void import("./App").then(({ default: App }) => {
   ReactDOM.createRoot(document.getElementById("root")!).render(
     <React.StrictMode>
-      <App />
+      <EditorProvider>
+        <App />
+      </EditorProvider>
     </React.StrictMode>
   );
 });

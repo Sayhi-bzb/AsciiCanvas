@@ -16,7 +16,7 @@ export default defineConfig({
         {
           origin: 'http://localhost:5173',
           localStorage: [
-            { name: 'ascii-canvas-onboarding-v1', value: 'dismissed' },
+            { name: 'chardesk-onboarding-v1', value: 'dismissed' },
           ],
         },
       ],

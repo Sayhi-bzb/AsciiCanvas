@@ -4,6 +4,8 @@
     ".": {
       "entry": [
         "src/app/main.tsx",
+        "src/domains/actions/public.ts",
+        "src/domains/editor/public.ts",
         "scripts/**/*.{mjs,ts}",
         "e2e/**/*.ts",
         "vite.config.ts",

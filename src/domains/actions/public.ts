@@ -9,6 +9,7 @@ export {
   runAction,
   runSidebarAction,
   runToolbarAction,
+  createActionsExtension,
 } from "./core";
 export type {
   ContextMenuEntry,
@@ -18,6 +19,7 @@ export {
   getActionShortcutLabel,
   matchesActionShortcut,
   resolveActionShortcut,
+  setActionShortcutOverride,
 } from "./core";
 export {
   resolveHistoryShortcutCommand,

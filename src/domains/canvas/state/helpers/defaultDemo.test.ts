@@ -8,7 +8,7 @@ import {
   DEFAULT_SESSION_ID,
   DEFAULT_STRUCTURED_SESSION_ID,
 } from "@/domains/canvas/state/helpers/storeUtils";
-import { useEditorStore } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/testing";
 import { GridManager } from "@/shared/utils/grid";
 
 describe("default demo canvas", () => {

@@ -61,6 +61,7 @@ function validateDependency(sourcePath, targetPath, isTestFile) {
   }
   if (target.layer === "domains" && source.domain !== target.domain) {
     const segments = targetPath.split("/");
+    if (isTestFile && segments[2] === "testing") return null;
     if (segments[2] !== "public") return "cross-domain imports must use public.ts";
   }
   return null;
@@ -122,6 +123,7 @@ for (const absolutePath of collectSourceFiles(SRC_ROOT)) {
       const targetPath = resolveImport(absolutePath, node.moduleSpecifier.text);
       if (
         targetPath === "domains/canvas/public" ||
+        targetPath === "domains/canvas/testing" ||
         targetPath === "domains/canvas/state/editorStore"
       ) {
         for (const element of node.importClause.namedBindings.elements) {
@@ -130,6 +132,20 @@ for (const absolutePath of collectSourceFiles(SRC_ROOT)) {
             editorStoreBindings.add(element.name.text);
           }
         }
+      }
+    }
+    if (
+      !isTestFile &&
+      sourcePath !== "domains/canvas/state/editorStore.ts" &&
+      sourcePath !== "domains/canvas/state/canvasState.ts" &&
+      sourcePath !== "domains/canvas/state/canvasCommands.ts" &&
+      editorStoreBindings.size > 0
+    ) {
+      const location = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+      if (ts.isImportDeclaration(node)) {
+        violations.push(
+          `${sourcePath}:${location.line + 1}: production code must use canvas state/query/command ports instead of useEditorStore`
+        );
       }
     }
     if (

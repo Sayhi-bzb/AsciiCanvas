@@ -1,26 +1,23 @@
 import { describe, expect, it } from 'vitest';
 import { parseSlideMarkdown } from './markdown';
 
-const createSource = (body: string[], metadata: string[] = ['size: 4x2', 'title: Agent Deck']) =>
-  ['---', 'asciicanvas: slides/v1', ...metadata, '---', ...body].join('\n');
+const createSource = (body: string[], metadata: string[] = ['title: Agent Deck']) =>
+  ['---', 'chardesk: slides/v1', ...metadata, '---', ...body].join('\n');
 
-const createV2Source = (body: string[]) =>
-  ['---', 'asciicanvas: slides/v2', 'title: Agent Deck', '---', ...body].join('\n');
-
-describe('AsciiCanvas Slides Markdown', () => {
+describe('CharDesk Slides Markdown', () => {
   it('parses ordered plain and ANSI slides', () => {
     const result = parseSlideMarkdown(
       createSource([
         '## Intro',
         '',
-        '```text',
+        '```text size=4x2',
         'AB',
         '界',
         '```',
         '',
         '## Color',
         '',
-        '```asciicanvas',
+        '```chardesk size=4x2',
         '[31mR[0m',
         '```',
       ])
@@ -39,7 +36,9 @@ describe('AsciiCanvas Slides Markdown', () => {
   });
 
   it('uses fallback names and clips overflow, including wide boundary cells', () => {
-    const result = parseSlideMarkdown(createSource(['```text', 'ABCDE', 'abc界', 'third', '```']));
+    const result = parseSlideMarkdown(
+      createSource(['```text size=4x2', 'ABCDE', 'abc界', 'third', '```'])
+    );
 
     expect(result.slideDeck.slides[0].name).toBe('Slide 1');
     expect(result.slideDeck.slides[0].grid.map(([key]) => key)).toEqual([
@@ -53,14 +52,9 @@ describe('AsciiCanvas Slides Markdown', () => {
     ]);
   });
 
-  it('defaults a missing size to widescreen', () => {
-    const result = parseSlideMarkdown(createSource(['```text', 'A', '```'], ['title: Default']));
-    expect(result.slideDeck.slides[0].size).toEqual({ columns: 100, rows: 27 });
-  });
-
-  it('parses independent v2 slide sizes', () => {
+  it('parses independent slide sizes', () => {
     const result = parseSlideMarkdown(
-      createV2Source([
+      createSource([
         '## Wide',
         '```text size=100x27',
         'A',
@@ -80,12 +74,13 @@ describe('AsciiCanvas Slides Markdown', () => {
 
   it.each([
     ['missing header', ['```text', 'A', '```'].join('\n')],
-    ['bad version', ['---', 'asciicanvas: slides/v3', '---', '```text', 'A', '```'].join('\n')],
-    ['bad size', createSource(['```text', 'A', '```'], ['size: wide'])],
-    ['missing v2 size', createV2Source(['```text', 'A', '```'])],
-    ['bad v2 size', createV2Source(['```text size=wide', 'A', '```'])],
+    ['bad version', ['---', 'chardesk: slides/v2', '---', '```text size=4x2', 'A', '```'].join('\n')],
+    ['legacy header', ['---', 'asciicanvas: slides/v2', '---', '```text size=4x2', 'A', '```'].join('\n')],
+    ['legacy fence', createSource(['```asciicanvas size=4x2', 'A', '```'])],
+    ['missing size', createSource(['```text', 'A', '```'])],
+    ['bad size', createSource(['```text size=wide', 'A', '```'])],
     ['no slides', createSource(['Nothing here'])],
-    ['open fence', createSource(['```text', 'A'])],
+    ['open fence', createSource(['```text size=4x2', 'A'])],
   ])('rejects %s', (_label, source) => {
     expect(() => parseSlideMarkdown(source)).toThrow();
   });

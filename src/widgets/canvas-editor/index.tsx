@@ -18,7 +18,12 @@ import {
 } from '@/domains/structured-content/public';
 import type { CanvasLinkHit } from './hooks/interaction/core/linkHitTesting';
 import type { StructuredMovePreview } from './hooks/useCanvasRenderer';
-import { useEditorStore, type ToolType } from '@/domains/canvas/public';
+import {
+  getCanvasState,
+  subscribeCanvasState,
+  useCanvasState,
+  type ToolType,
+} from '@/domains/canvas/public';
 import {
   applyCanvasViewportPresentation,
   resetCanvasViewportPresentation,
@@ -91,7 +96,7 @@ export const CanvasEditor = ({
     sessionId: string;
     pageKey: string;
   } | null>(null);
-  const activeCanvasId = useEditorStore((state) => state.activeCanvasId);
+  const activeCanvasId = useCanvasState((state) => state.activeCanvasId);
 
   useEffect(() => {
     const slideDeck = rendererStore.slideDeck;
@@ -146,7 +151,7 @@ export const CanvasEditor = ({
         offset: { ...rendered.offset },
         zoom: rendered.zoom,
       };
-      const current = useEditorStore.getState();
+      const current = getCanvasState();
       presentViewport({
         offset: { ...current.offset },
         zoom: current.zoom,
@@ -156,7 +161,7 @@ export const CanvasEditor = ({
   );
 
   useEffect(() => {
-    const current = useEditorStore.getState();
+    const current = getCanvasState();
     const viewportLayer = viewportLayerRef.current;
     const schedulePresentation = (presented: CanvasViewport) => {
       runtime.frameScheduler.request(
@@ -166,7 +171,7 @@ export const CanvasEditor = ({
       );
     };
     schedulePresentation({ offset: { ...current.offset }, zoom: current.zoom });
-    const unsubscribe = useEditorStore.subscribe((state, previous) => {
+    const unsubscribe = subscribeCanvasState((state, previous) => {
       if (state.zoom === previous.zoom && state.offset === previous.offset) return;
       schedulePresentation({
         offset: { ...state.offset },

@@ -1,5 +1,5 @@
-import { buildProtocolDocumentFromCanvasState } from "@/domains/document/public";
-import type { AsciiCanvasDocumentV1 } from "@/domains/document/public";
+import { buildCharDeskDocumentFromCanvasState } from "@/domains/document/public";
+import type { CharDeskDocumentV1 } from "@/domains/document/public";
 import type { CanvasMode } from "@/domains/sessions/public";
 import type {
   StructuredComponentInstance,
@@ -19,8 +19,8 @@ interface ProtocolExportInput {
 }
 
 const applyMonochromeProtocolColor = (
-  document: AsciiCanvasDocumentV1
-): AsciiCanvasDocumentV1 => {
+  document: CharDeskDocumentV1
+): CharDeskDocumentV1 => {
   switch (document.mode) {
     case "freeform":
       return {
@@ -43,14 +43,14 @@ const applyMonochromeProtocolColor = (
   }
 };
 
-export const buildProtocolExportDocument = ({
+export const buildCharDeskExportDocument = ({
   canvasMode,
   grid,
   structuredScene,
   structuredComponents,
   includeColor = true,
 }: ProtocolExportInput) => {
-  const document = buildProtocolDocumentFromCanvasState({
+  const document = buildCharDeskDocumentFromCanvasState({
     canvasMode,
     grid,
     structuredScene,
@@ -59,5 +59,5 @@ export const buildProtocolExportDocument = ({
   return includeColor ? document : applyMonochromeProtocolColor(document);
 };
 
-export const exportProtocolToJSON = (input: ProtocolExportInput) =>
-  JSON.stringify(buildProtocolExportDocument(input), null, 2);
+export const exportCharDeskDocumentToJSON = (input: ProtocolExportInput) =>
+  JSON.stringify(buildCharDeskExportDocument(input), null, 2);

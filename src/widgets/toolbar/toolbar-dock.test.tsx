@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ComponentProps } from 'react';
 import { Toolbar as ToolbarUnderTest } from '@/widgets/toolbar/dock';
 import { ColorPickerPanel } from '@/widgets/color-picker';
-import { useEditorStore } from '@/domains/canvas/public';
+import { useEditorStore } from '@/domains/canvas/testing';
 import { setUiLanguage } from '@/shared/i18n';
 import { ShortcutProvider } from '@/shared/shortcuts/dispatcher';
 

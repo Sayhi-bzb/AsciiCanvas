@@ -26,7 +26,7 @@ const EXPORT_FORMATS: readonly ExportFormatDefinition[] = [
     truncatePreview: false,
   },
   {
-    format: "ascanvas",
+    format: "chardesk",
     label: "CharDesk",
     subLabel: "project",
     modes: ["freeform", "structured"],
@@ -68,8 +68,8 @@ const EXPORT_FORMATS: readonly ExportFormatDefinition[] = [
 ] as const;
 
 const FORMAT_ORDER: Record<CanvasMode, readonly ExportFormat[]> = {
-  freeform: ["txt", "ascanvas", "ansi", "png"],
-  structured: ["txt", "ascanvas", "ansi", "png"],
+  freeform: ["txt", "chardesk", "ansi", "png"],
+  structured: ["txt", "chardesk", "ansi", "png"],
   slide: ["md"],
 };
 

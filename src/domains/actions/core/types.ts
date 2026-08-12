@@ -1,6 +1,10 @@
 import type { ComponentType } from "react";
-import type { EditorState } from "@/domains/canvas/public";
+import type { CanvasState } from "@/domains/canvas/public";
 import type { ToolType } from "@/domains/canvas/public";
+import type {
+  EditorCommandCompletion,
+  EditorCommandResult,
+} from "@/domains/editor/public";
 
 // Editor Actions
 export type EditorActionId =
@@ -82,19 +86,13 @@ export type ActionSource =
   | "global-hotkey"
   | "clipboard-event";
 
-export type ActionCompletion =
-  | { succeeded: true; changed: boolean; reason?: string }
-  | { succeeded: false; changed: false; reason: string };
+export type ActionCompletion = EditorCommandCompletion;
 
-export type ActionResult =
-  | { handled: false; status: "unhandled"; reason?: string }
-  | { handled: true; status: "rejected"; reason?: string }
-  | { handled: true; status: "succeeded"; reason?: string }
-  | { handled: true; status: "pending"; completion: Promise<ActionCompletion> };
+export type ActionResult = EditorCommandResult;
 
 // Action Context
 export interface ActionContext {
-  state: EditorState;
+  state: CanvasState;
   setTool: (tool: ToolType) => void;
   onUndo: () => void;
   onRedo: () => void;
@@ -107,7 +105,7 @@ export type ActionHandler<T = unknown> = (
 ) => ActionResult;
 
 // Action Checker
-export type ActionChecker = (state: EditorState) => boolean;
+export type ActionChecker = (state: CanvasState) => boolean;
 
 // Context Menu Entry
 export type ContextMenuEntry =

@@ -1,9 +1,8 @@
 import type { RichTextCell } from "@/domains/canvas/public";
 import {
-  getActiveCanvasDocumentId,
+  canvasQueries,
   registerSelectionCommandFactory,
   type ClipboardCommandResult,
-  type EditorState,
   type SelectionCommandFactory,
 } from "@/domains/canvas/public";
 import { getStaticGridSelectionAreas } from "@/domains/selection/public";
@@ -37,7 +36,9 @@ import {
   getStructuredTextSelectionRange,
   mergeStructuredTextStyle,
 } from "@/domains/structured-content/public";
-const resolveSelectionAreas = (state: EditorState) => {
+type SelectionCommandState = ReturnType<Parameters<SelectionCommandFactory>[1]>;
+
+const resolveSelectionAreas = (state: SelectionCommandState) => {
   const staticSelections = getStaticGridSelectionAreas(state.staticGridSelection);
   return staticSelections.length > 0 ? staticSelections : state.selections;
 };
@@ -65,9 +66,9 @@ const failed = (
   return { status: "failed", reason };
 };
 
-const getClipboardTargetFingerprint = (state: EditorState) =>
+const getClipboardTargetFingerprint = (state: SelectionCommandState) =>
   JSON.stringify({
-    documentId: getActiveCanvasDocumentId(),
+    documentId: canvasQueries.getActiveDocumentId(),
     canvasMode: state.canvasMode,
     selections: resolveSelectionAreas(state),
     textCursor: state.textCursor,
@@ -114,11 +115,11 @@ const moveStructuredClipboardNode = (
   };
 };
 
-const resolveStructuredPastePoint = (state: EditorState): Point => {
+const resolveStructuredPastePoint = (state: SelectionCommandState): Point => {
   return state.structuredGridFocus ?? state.textCursor ?? { x: 0, y: 0 };
 };
 
-const getActiveStructuredTextSelection = (state: EditorState) => {
+const getActiveStructuredTextSelection = (state: SelectionCommandState) => {
   if (state.canvasMode !== "structured") return null;
   const range = getStructuredTextSelectionRange(state.structuredTextSelection);
   if (!range || !state.structuredTextSelection) return null;
@@ -130,7 +131,7 @@ const getActiveStructuredTextSelection = (state: EditorState) => {
   return { node, range };
 };
 
-const getStructuredTextPasteTarget = (state: EditorState) => {
+const getStructuredTextPasteTarget = (state: SelectionCommandState) => {
   const selection = getActiveStructuredTextSelection(state);
   if (selection) {
     return {
@@ -298,7 +299,7 @@ const createPastedStructuredTextStyleRanges = (
 };
 
 const createStructuredTextNodeFromPaste = (
-  state: EditorState,
+  state: SelectionCommandState,
   text: string,
   style: StructuredNodeStyle,
   styleRanges?: StructuredTextStyleRange[]

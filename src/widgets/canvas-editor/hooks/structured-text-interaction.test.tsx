@@ -4,10 +4,10 @@ import { useRef } from "react";
 
 import { useCanvasInteraction } from "@/widgets/canvas-editor/hooks/useCanvasInteraction";
 import type { StructuredMovePreview } from "@/widgets/canvas-editor/hooks/useCanvasRenderer";
-import { useEditorStore } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/testing";
 import { runUndo } from "@/domains/actions/public";
 import { useShallow } from "zustand/react/shallow";
-import type { ToolType } from "@/domains/canvas/public";
+import type { ToolType } from "@/domains/canvas/testing";
 import { ShortcutProvider } from "@/shared/shortcuts/dispatcher";
 
 const gestureState = vi.hoisted(() => ({
@@ -29,6 +29,7 @@ function InteractionHarnessContent() {
   const requestRenderRef = useRef<(() => void) | null>(null);
   const store = useEditorStore(
     useShallow((state) => ({
+      activeCanvasId: state.activeCanvasId,
       tool: state.tool,
       brushChar: state.brushChar,
       brushColor: state.brushColor,
@@ -39,6 +40,7 @@ function InteractionHarnessContent() {
       setZoom: state.setZoom,
       setViewport: state.setViewport,
       canvasMode: state.canvasMode,
+      slideDeck: state.slideDeck,
       addScratchPoints: state.addScratchPoints,
       commitScratch: state.commitScratch,
       commitStructuredShape: state.commitStructuredShape,
@@ -127,6 +129,10 @@ describe("structured text interaction", () => {
         },
       ],
     });
+    useEditorStore.getState().applyStructuredScene(
+      useEditorStore.getState().structuredScene,
+      false
+    );
   };
 
   const setStructuredMixedScene = () => {

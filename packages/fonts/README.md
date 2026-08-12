@@ -18,6 +18,6 @@ await document.fonts.ready;
 context.font = `16px ${CHARDESK_FONT_PROFILE.families.text}`;
 ```
 
-The legacy-compatible `ascii-canvas/default-v1` profile routes ordinary text through Maple Mono NF CN and Noto Sans Symbols 2, and emoji presentation through monochrome Noto Emoji first. The source versions are exported in `CHARDESK_FONT_PROFILE` and recorded with checksums in `manifest.json`.
+The `chardesk/default-v1` profile routes ordinary text through Maple Mono NF CN and Noto Sans Symbols 2, and emoji presentation through monochrome Noto Emoji first. The source versions are exported in `CHARDESK_FONT_PROFILE` and recorded with checksums in `manifest.json`.
 
 Font files are distributed under the SIL Open Font License found beside each family in `assets/*/OFL.txt`. Package code is MIT licensed.

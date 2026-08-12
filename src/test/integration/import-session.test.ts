@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
-  ASCII_CANVAS_DOCUMENT_TYPE,
-  ASCII_CANVAS_DOCUMENT_VERSION,
+  CHARDESK_DOCUMENT_TYPE,
+  CHARDESK_DOCUMENT_VERSION,
 } from "@/domains/document/public";
-import { useEditorStore } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/testing";
 import { applyFreeformSnapshotToYMaps } from "@/domains/canvas/state/helpers/gridHelpers";
 import { DEFAULT_SESSION_ID } from "@/domains/canvas/state/helpers/storeUtils";
 import { createDocumentInteractionResetPatch } from "@/domains/canvas/state/transitions/editorTransitions";
@@ -28,8 +28,8 @@ describe("importCanvasSession", () => {
   it("imports a freeform protocol document into a new active session", () => {
     const sessionCount = useEditorStore.getState().canvasSessions.length;
     const session = useEditorStore.getState().importCanvasSession({
-      type: ASCII_CANVAS_DOCUMENT_TYPE,
-      version: ASCII_CANVAS_DOCUMENT_VERSION,
+      type: CHARDESK_DOCUMENT_TYPE,
+      version: CHARDESK_DOCUMENT_VERSION,
       mode: "freeform",
       cells: [
         { x: 2, y: 1, char: "B", color: "#00ff00" },
@@ -59,8 +59,8 @@ describe("importCanvasSession", () => {
     });
 
     useEditorStore.getState().importCanvasSession({
-      type: ASCII_CANVAS_DOCUMENT_TYPE,
-      version: ASCII_CANVAS_DOCUMENT_VERSION,
+      type: CHARDESK_DOCUMENT_TYPE,
+      version: CHARDESK_DOCUMENT_VERSION,
       mode: "freeform",
       cells: [],
     });
@@ -74,8 +74,8 @@ describe("importCanvasSession", () => {
 
   it("imports structured protocol documents as semantic scenes", () => {
     const session = useEditorStore.getState().importCanvasSession({
-      type: ASCII_CANVAS_DOCUMENT_TYPE,
-      version: ASCII_CANVAS_DOCUMENT_VERSION,
+      type: CHARDESK_DOCUMENT_TYPE,
+      version: CHARDESK_DOCUMENT_VERSION,
       mode: "structured",
       nodes: [
         {
@@ -114,16 +114,15 @@ describe("importCanvasSession", () => {
     const session = before.importCanvasSession(
       [
         "---",
-        "asciicanvas: slides/v1",
-        "size: 8x3",
+        "chardesk: slides/v1",
         "title: Agent Deck",
         "---",
         "## Intro",
-        "```text",
+        "```text size=8x3",
         " A",
         "```",
         "## Next",
-        "```asciicanvas",
+        "```chardesk size=8x3",
         "[31mR[0m",
         "```",
       ].join("\n")
@@ -149,8 +148,8 @@ describe("importCanvasSession", () => {
     expect(() =>
       useEditorStore
         .getState()
-        .importCanvasSession('{"type":"ascii-canvas-document","version":2}')
-    ).toThrow("Invalid ascii-canvas-document payload.");
+        .importCanvasSession('{"type":"ascii-canvas-document","version":1}')
+    ).toThrow("Invalid chardesk-document payload.");
 
     const after = useEditorStore.getState();
     expect(after.activeCanvasId).toBe(activeCanvasId);

@@ -6,8 +6,7 @@ import {
   type ComponentProps,
 } from "react";
 import { Check, Pipette } from "lucide-react";
-import { useShallow } from "zustand/react/shallow";
-import { useEditorStore } from "@/domains/canvas/public";
+import { canvasCommands, useCanvasState } from "@/domains/canvas/public";
 import type { CanvasColorPickerTarget } from "@/domains/canvas/public";
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
 import { useUiI18n } from "@/shared/i18n";
@@ -164,12 +163,10 @@ export function ColorPickerPanel({
   >("ansi16");
   const [eyedropperOpen, setEyedropperOpen] = useState(false);
   const normalizedCustomColor = normalizeHexColor(customColor);
-  const { canvasColorPickerTarget, setCanvasColorPickerTarget } = useEditorStore(
-    useShallow((state) => ({
-      canvasColorPickerTarget: state.canvasColorPickerTarget,
-      setCanvasColorPickerTarget: state.setCanvasColorPickerTarget,
-    }))
+  const canvasColorPickerTarget = useCanvasState(
+    (state) => state.canvasColorPickerTarget
   );
+  const setCanvasColorPickerTarget = canvasCommands.interaction.setColorPickerTarget;
 
   const pickColor = (color: string) => {
     setCustomColor(color);

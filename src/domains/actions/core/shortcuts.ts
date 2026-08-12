@@ -1,4 +1,5 @@
 import { ACTION_CATALOG } from "./catalog";
+import { editorRuntime } from "@/domains/editor/public";
 import type { ActionId, ShortcutToken } from "./types";
 
 export type ActionShortcutEvent = Pick<KeyboardEvent, "key"> &
@@ -15,8 +16,22 @@ export type ActionShortcutEvent = Pick<KeyboardEvent, "key"> &
     >
   >;
 
-const getActionShortcuts = (actionId: ActionId) =>
-  ACTION_CATALOG[actionId]?.shortcuts;
+const getActionShortcuts = (actionId: ActionId) => {
+  const configured = editorRuntime.keymap.getBindings(`action:${actionId}`);
+  if (configured) {
+    return configured.map((shortcut) => shortcut.split("+") as ShortcutToken[]);
+  }
+  return ACTION_CATALOG[actionId]?.shortcuts;
+};
+
+export const setActionShortcutOverride = (
+  actionId: ActionId,
+  shortcuts: readonly (readonly ShortcutToken[])[] | null
+) =>
+  editorRuntime.keymap.setUserBindings(
+    `action:${actionId}`,
+    shortcuts?.map((shortcut) => shortcut.join("+")) ?? null
+  );
 
 type ShortcutPlatform = "mac" | "other";
 

@@ -8,7 +8,7 @@ import {
 } from "react";
 import { useShallow } from "zustand/react/shallow";
 
-import { useEditorStore } from "@/domains/canvas/public";
+import { canvasCommands, useCanvasState } from "@/domains/canvas/public";
 import { isStaticGridMode } from "@/domains/sessions/public";
 import { gridCellRect } from "@/shared/metrics";
 import type { GridMap, NodeBounds, SelectionArea } from "@/shared/types";
@@ -197,13 +197,7 @@ export function SelectionFormatToolbar({
     hoveredGrid,
     structuredContextPoint,
     brushColor,
-    setSelectionTextAttributes,
-    setStructuredTextAttributes,
-    setStructuredTextColor,
-    setStructuredNodeCharColor,
-    splitStructuredSplitBoxLeaf,
-    deleteSelection,
-  } = useEditorStore(
+  } = useCanvasState(
     useShallow((state) => ({
       canvasMode: state.canvasMode,
       grid: state.grid,
@@ -220,14 +214,14 @@ export function SelectionFormatToolbar({
       hoveredGrid: state.hoveredGrid,
       structuredContextPoint: state.structuredContextPoint,
       brushColor: state.brushColor,
-      setSelectionTextAttributes: state.setSelectionTextAttributes,
-      setStructuredTextAttributes: state.setStructuredTextAttributes,
-      setStructuredTextColor: state.setStructuredTextColor,
-      setStructuredNodeCharColor: state.setStructuredNodeCharColor,
-      splitStructuredSplitBoxLeaf: state.splitStructuredSplitBoxLeaf,
-      deleteSelection: state.deleteSelection,
     }))
   );
+  const setSelectionTextAttributes = canvasCommands.selection.setTextAttributes;
+  const setStructuredTextAttributes = canvasCommands.structured.setTextAttributes;
+  const setStructuredTextColor = canvasCommands.structured.setTextColor;
+  const setStructuredNodeCharColor = canvasCommands.structured.setNodeCharColor;
+  const splitStructuredSplitBoxLeaf = canvasCommands.structured.splitLeaf;
+  const deleteSelection = canvasCommands.selection.delete;
 
   const staticGridView = useMemo(
     () =>

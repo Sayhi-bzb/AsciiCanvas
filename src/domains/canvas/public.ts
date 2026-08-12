@@ -1,5 +1,10 @@
-export { useEditorStore } from "./state/editorStore";
-export type { EditorState } from "./state/editorStore";
+export {
+  getCanvasState,
+  subscribeCanvasState,
+  useCanvasState,
+} from "./state/canvasState";
+export { canvasCommands, canvasQueries } from "./state/canvasCommands";
+export type { CanvasState } from "./state/interfaces";
 export type {
   CanvasColorPickerTarget,
   CanvasViewportState,
@@ -10,13 +15,4 @@ export { registerSelectionCommandFactory } from "./state/selectionCommandPort";
 export type { SelectionCommandFactory } from "./state/selectionCommandPort";
 export { registerCanvasSessionSourceParser } from "./state/sessionImportPort";
 export type { ToolType } from "./model/tool";
-export {
-  beginCanvasHistoryCheckpoint,
-  finishCanvasHistoryCapture,
-  getActiveCanvasDocumentId,
-  getCanvasCollaborationDocument,
-  redoCanvas,
-  replaceActiveFreeformGrid as replaceCanvasGrid,
-  undoCanvas,
-} from "./state/canvasDocument";
 export type { CanvasHistoryCheckpoint } from "./state/canvasDocument";

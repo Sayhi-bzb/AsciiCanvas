@@ -4,13 +4,13 @@ import type { CanvasImportSnapshot } from "@/domains/sessions/public";
 import { GridManager } from "@/shared/utils/grid";
 import { sceneToGridEntries } from "@/domains/structured-content/public";
 import type {
-  AsciiCanvasDocumentV1,
-  AsciiCanvasFreeformDocumentV1,
-  AsciiCanvasProtocolCellV1,
-  AsciiCanvasProtocolNodeV1,
-  AsciiCanvasStructuredDocumentV1,
+  CharDeskDocumentV1,
+  CharDeskFreeformDocumentV1,
+  CharDeskDocumentCellV1,
+  CharDeskDocumentNodeV1,
+  CharDeskStructuredDocumentV1,
 } from "./types";
-import { isAsciiCanvasDocument } from "./validation";
+import { isCharDeskDocument } from "./validation";
 import { cloneTextAttributes } from "@/shared/utils/ansi";
 import { cloneStructuredTextStyleRanges } from "@/domains/structured-content/public";
 import {
@@ -34,7 +34,7 @@ const cloneComponentMetadata = (component: StructuredNode["component"]) =>
 
 type ProtocolImportSnapshot = Exclude<CanvasImportSnapshot, { mode: "slide" }>;
 
-const toGridEntries = (cells: AsciiCanvasProtocolCellV1[]) => {
+const toGridEntries = (cells: CharDeskDocumentCellV1[]) => {
   const entries = new Map<string, GridCell>();
 
   cells.forEach((cell) => {
@@ -53,7 +53,7 @@ const toGridEntries = (cells: AsciiCanvasProtocolCellV1[]) => {
 };
 
 const cloneStructuredProtocolNode = (
-  node: AsciiCanvasProtocolNodeV1
+  node: CharDeskDocumentNodeV1
 ): StructuredNode => {
   const style = {
     color: node.style.color,
@@ -129,7 +129,7 @@ const cloneStructuredProtocolNode = (
 };
 
 const importFreeformDocument = (
-  document: AsciiCanvasFreeformDocumentV1
+  document: CharDeskFreeformDocumentV1
 ): ProtocolImportSnapshot => {
   return {
     mode: "freeform",
@@ -140,7 +140,7 @@ const importFreeformDocument = (
 };
 
 const importStructuredDocument = (
-  document: AsciiCanvasStructuredDocumentV1
+  document: CharDeskStructuredDocumentV1
 ): ProtocolImportSnapshot => {
   const scene = document.nodes.map(cloneStructuredProtocolNode);
   const components = normalizeStructuredComponents(document.components, scene);
@@ -152,21 +152,21 @@ const importStructuredDocument = (
   };
 };
 
-export const parseProtocolDocument = (
+export const parseCharDeskDocument = (
   raw: string | unknown
-): AsciiCanvasDocumentV1 => {
+): CharDeskDocumentV1 => {
   const parsed =
     typeof raw === "string" ? (JSON.parse(raw) as unknown) : raw;
 
-  if (!isAsciiCanvasDocument(parsed)) {
-    throw new Error("Invalid ascii-canvas-document payload.");
+  if (!isCharDeskDocument(parsed)) {
+    throw new Error("Invalid chardesk-document payload.");
   }
 
   return parsed;
 };
 
-export const protocolDocumentToSnapshot = (
-  document: AsciiCanvasDocumentV1
+export const charDeskDocumentToSnapshot = (
+  document: CharDeskDocumentV1
 ): ProtocolImportSnapshot => {
   switch (document.mode) {
     case "freeform":

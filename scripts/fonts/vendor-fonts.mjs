@@ -18,7 +18,7 @@ const targets = {
   canvas: {
     outputRoot: path.join(repoRoot, "packages", "fonts"),
     assetPrefix: "assets",
-    profileId: "ascii-canvas/default-v1",
+    profileId: "chardesk/default-v1",
   },
 };
 

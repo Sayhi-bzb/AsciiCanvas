@@ -1,7 +1,7 @@
 import { act, cleanup, createEvent, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Minimap } from "@/widgets/canvas-editor/Minimap";
-import { useEditorStore } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/testing";
 import { GridManager } from "@/shared/utils/grid";
 import { setUiLanguage } from "@/shared/i18n";
 

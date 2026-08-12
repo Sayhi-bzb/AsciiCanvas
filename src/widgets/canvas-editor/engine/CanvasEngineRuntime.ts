@@ -1,5 +1,5 @@
 import { CanvasFrameScheduler } from "./FrameScheduler";
-import { useEditorStore } from "@/domains/canvas/public";
+import { canvasCommands, getCanvasState } from "@/domains/canvas/public";
 import {
   CanvasCameraManager,
   type CanvasCameraPort,
@@ -22,10 +22,10 @@ export class CanvasEngineRuntime {
     frameScheduler = new CanvasFrameScheduler(),
     cameraPort: CanvasCameraPort = {
       getViewport: () => {
-        const state = useEditorStore.getState();
+        const state = getCanvasState();
         return { offset: state.offset, zoom: state.zoom };
       },
-      setViewport: (updater) => useEditorStore.getState().setViewport(updater),
+      setViewport: canvasCommands.viewport.setViewport,
     }
   ) {
     this.frameScheduler = frameScheduler;

@@ -4,12 +4,10 @@ import { MIN_ZOOM, MAX_ZOOM, COLOR_PRIMARY_TEXT, DEFAULT_BRUSH_CHAR } from "@/sh
 import {
   yMainGrid,
   yStructuredScene,
-  yStructuredComponents,
   activateCanvasDocument,
-  runCanvasTransaction,
   getCanvasHistoryAvailability,
   subscribeCanvasHistoryAvailability,
-  applyYMapValueDiff,
+  replaceStructuredCanvasContent,
 } from "./canvasDocument";
 import type { EditorState } from "./interfaces";
 import {
@@ -19,7 +17,6 @@ import {
   decodePersistedEditorState,
   migrateLegacyEditorPersistence,
   migratePersistedStateToV5,
-  withActiveCanvasSnapshot,
 } from "@/domains/sessions/public";
 import {
   createDrawingSlice,
@@ -38,10 +35,9 @@ import {
 import {
   deriveStructuredComponentsFromScene,
   normalizeStructuredComponents,
-  sceneToGridEntries,
 } from "@/domains/structured-content/public";
 import { normalizeBrushChar } from "@/shared/utils/characters";
-import { subscribeRemoteCanvasDocumentProjection } from "./canvasDocumentProjection";
+import { subscribeCanvasDocumentProjection } from "./canvasDocumentProjection";
 import {
   createDefaultCanvasSessions,
   createPersistedEditorSnapshot,
@@ -50,8 +46,6 @@ import {
   syncHydratedStateToCanvasDocument,
 } from "./editorPersistence";
 
-export type { EditorState };
-
 import {
   DEFAULT_SESSION_ID,
   DEFAULT_MODE,
@@ -59,6 +53,7 @@ import {
 } from "./helpers/storeUtils";
 import { DEFAULT_DEMO_GRID } from "./helpers/defaultDemo";
 import { createDeferredSnapshotPersistStorage } from "./persistenceCoordinator";
+import { createStructuredGridFocusPatch } from "./transitions/editorTransitions";
 
 export const useEditorStore = create<EditorState>()(
   persist(
@@ -71,7 +66,7 @@ export const useEditorStore = create<EditorState>()(
         applyFreeformSnapshotToYMaps(DEFAULT_DEMO_GRID);
       }
 
-      subscribeRemoteCanvasDocumentProjection(set, get);
+      subscribeCanvasDocumentProjection(set, get);
 
       subscribeCanvasHistoryAvailability((availability) => set(availability));
 
@@ -136,55 +131,11 @@ export const useEditorStore = create<EditorState>()(
             componentSource,
             normalizedScene
           );
-          const gridEntries = sceneToGridEntries(normalizedScene);
-          runCanvasTransaction(() => {
-            applyYMapValueDiff(yStructuredScene, normalizedScene);
-            applyYMapValueDiff(yStructuredComponents, normalizedComponents);
-          }, history);
-          set((state) => ({
-            structuredScene: normalizedScene,
-            structuredComponents: normalizedComponents,
-            selectedStructuredNodeIds: state.selectedStructuredNodeIds.filter((id) =>
-              normalizedScene.some((node) => node.id === id)
-            ),
-            selectedStructuredBoxId:
-              state.selectedStructuredBoxId &&
-              normalizedScene.some(
-                (node) => node.id === state.selectedStructuredBoxId && node.type === "box"
-              )
-                ? state.selectedStructuredBoxId
-                : null,
-            selectedStructuredSplitHandle:
-              state.selectedStructuredSplitHandle &&
-              normalizedScene.some(
-                (node) =>
-                  node.id === state.selectedStructuredSplitHandle?.nodeId &&
-                  node.type === "splitBox"
-              )
-                ? state.selectedStructuredSplitHandle
-                : null,
-            editingStructuredTextNodeId:
-              state.editingStructuredTextNodeId &&
-              normalizedScene.some(
-                (node) => node.id === state.editingStructuredTextNodeId && node.type === "text"
-              )
-                ? state.editingStructuredTextNodeId
-                : null,
-            structuredTextSelection:
-              state.structuredTextSelection &&
-              normalizedScene.some(
-                (node) => node.id === state.structuredTextSelection?.nodeId && node.type === "text"
-              )
-                ? state.structuredTextSelection
-                : null,
-            grid: createMapFromEntries(gridEntries),
-            canvasSessions: withActiveCanvasSnapshot(state.canvasSessions, state.activeCanvasId, {
-              mode: "structured",
-              scene: normalizedScene,
-              components: normalizedComponents,
-              grid: gridEntries,
-            }),
-          }));
+          replaceStructuredCanvasContent(
+            normalizedScene,
+            normalizedComponents,
+            history
+          );
         },
         getNextStructuredOrder: () => {
           const scene = get().structuredScene;
@@ -203,21 +154,7 @@ export const useEditorStore = create<EditorState>()(
         setExportShowGrid: (show) => set({ exportShowGrid: show }),
         setHoveredGrid: (pos) => set({ hoveredGrid: pos }),
         setStructuredGridFocus: (point) =>
-          set({
-            structuredGridFocus: point ? { ...point } : null,
-            ...(point
-              ? {
-                  selectedStructuredNodeIds: [],
-                  selectedStructuredBoxId: null,
-                  selectedStructuredSplitHandle: null,
-                  structuredContextPoint: null,
-                  editingStructuredTextNodeId: null,
-                  structuredTextSelection: null,
-                  textCursor: null,
-                  selections: [],
-                }
-              : {}),
-          }),
+          set(createStructuredGridFocusPatch(point)),
         moveStructuredGridFocus: (dx, dy) =>
           set((state) => {
             const current = state.structuredGridFocus ?? { x: 0, y: 0 };

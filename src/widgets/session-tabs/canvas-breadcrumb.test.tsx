@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { CanvasBreadcrumb } from "@/widgets/session-tabs/CanvasBreadcrumb";
-import { useEditorStore } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/testing";
 import { setUiLanguage } from "@/shared/i18n";
 
 describe("CanvasBreadcrumb", () => {

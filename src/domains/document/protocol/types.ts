@@ -2,13 +2,13 @@ import type { Point, TextAttributes } from "@/shared/types";
 import type { CanvasMode } from "@/domains/sessions/public";
 import type { StructuredComponentInstance, StructuredSplitBoxTreeNode, StructuredTextStyleRange } from "@/domains/structured-content/public";
 
-export const ASCII_CANVAS_DOCUMENT_TYPE = "ascii-canvas-document";
-export const ASCII_CANVAS_DOCUMENT_VERSION = 1;
+export const CHARDESK_DOCUMENT_TYPE = "chardesk-document";
+export const CHARDESK_DOCUMENT_VERSION = 1;
 
-type AsciiCanvasDocumentType = typeof ASCII_CANVAS_DOCUMENT_TYPE;
-type AsciiCanvasDocumentVersion = typeof ASCII_CANVAS_DOCUMENT_VERSION;
+type CharDeskDocumentType = typeof CHARDESK_DOCUMENT_TYPE;
+type CharDeskDocumentVersion = typeof CHARDESK_DOCUMENT_VERSION;
 
-export interface AsciiCanvasProtocolCellV1 {
+export interface CharDeskDocumentCellV1 {
   x: number;
   y: number;
   char: string;
@@ -18,35 +18,35 @@ export interface AsciiCanvasProtocolCellV1 {
   href?: string;
 }
 
-interface AsciiCanvasProtocolStyleV1 {
+interface CharDeskDocumentStyleV1 {
   color: string;
   bgColor?: string;
   attrs?: TextAttributes;
 }
 
-interface AsciiCanvasProtocolComponentMetadataV1 {
+interface CharDeskDocumentComponentMetadataV1 {
   instanceId: string;
   templateId: string;
   role: string;
 }
 
-interface AsciiCanvasProtocolNodeBaseV1 {
+interface CharDeskDocumentNodeBaseV1 {
   id: string;
   order: number;
-  style: AsciiCanvasProtocolStyleV1;
-  component?: AsciiCanvasProtocolComponentMetadataV1;
+  style: CharDeskDocumentStyleV1;
+  component?: CharDeskDocumentComponentMetadataV1;
 }
 
-interface AsciiCanvasProtocolBoxNodeV1
-  extends AsciiCanvasProtocolNodeBaseV1 {
+interface CharDeskDocumentBoxNodeV1
+  extends CharDeskDocumentNodeBaseV1 {
   type: "box";
   start: Point;
   end: Point;
   name?: string;
 }
 
-interface AsciiCanvasProtocolSplitBoxNodeV1
-  extends AsciiCanvasProtocolNodeBaseV1 {
+interface CharDeskDocumentSplitBoxNodeV1
+  extends CharDeskDocumentNodeBaseV1 {
   type: "splitBox";
   start: Point;
   end: Point;
@@ -56,8 +56,8 @@ interface AsciiCanvasProtocolSplitBoxNodeV1
   root?: StructuredSplitBoxTreeNode;
 }
 
-interface AsciiCanvasProtocolLineNodeV1
-  extends AsciiCanvasProtocolNodeBaseV1 {
+interface CharDeskDocumentLineNodeV1
+  extends CharDeskDocumentNodeBaseV1 {
   type: "line";
   start: Point;
   end: Point;
@@ -65,45 +65,45 @@ interface AsciiCanvasProtocolLineNodeV1
   endMarker?: "arrow";
 }
 
-interface AsciiCanvasProtocolBgNodeV1
-  extends AsciiCanvasProtocolNodeBaseV1 {
+interface CharDeskDocumentBgNodeV1
+  extends CharDeskDocumentNodeBaseV1 {
   type: "bg";
   start: Point;
   end: Point;
 }
 
-interface AsciiCanvasProtocolTextNodeV1
-  extends AsciiCanvasProtocolNodeBaseV1 {
+interface CharDeskDocumentTextNodeV1
+  extends CharDeskDocumentNodeBaseV1 {
   type: "text";
   position: Point;
   text: string;
   styleRanges?: StructuredTextStyleRange[];
 }
 
-export type AsciiCanvasProtocolNodeV1 =
-  | AsciiCanvasProtocolBoxNodeV1
-  | AsciiCanvasProtocolSplitBoxNodeV1
-  | AsciiCanvasProtocolLineNodeV1
-  | AsciiCanvasProtocolBgNodeV1
-  | AsciiCanvasProtocolTextNodeV1;
+export type CharDeskDocumentNodeV1 =
+  | CharDeskDocumentBoxNodeV1
+  | CharDeskDocumentSplitBoxNodeV1
+  | CharDeskDocumentLineNodeV1
+  | CharDeskDocumentBgNodeV1
+  | CharDeskDocumentTextNodeV1;
 
-interface AsciiCanvasDocumentBaseV1<TMode extends CanvasMode> {
-  type: AsciiCanvasDocumentType;
-  version: AsciiCanvasDocumentVersion;
+interface CharDeskDocumentBaseV1<TMode extends CanvasMode> {
+  type: CharDeskDocumentType;
+  version: CharDeskDocumentVersion;
   mode: TMode;
 }
 
-export interface AsciiCanvasFreeformDocumentV1
-  extends AsciiCanvasDocumentBaseV1<"freeform"> {
-  cells: AsciiCanvasProtocolCellV1[];
+export interface CharDeskFreeformDocumentV1
+  extends CharDeskDocumentBaseV1<"freeform"> {
+  cells: CharDeskDocumentCellV1[];
 }
 
-export interface AsciiCanvasStructuredDocumentV1
-  extends AsciiCanvasDocumentBaseV1<"structured"> {
-  nodes: AsciiCanvasProtocolNodeV1[];
+export interface CharDeskStructuredDocumentV1
+  extends CharDeskDocumentBaseV1<"structured"> {
+  nodes: CharDeskDocumentNodeV1[];
   components?: StructuredComponentInstance[];
 }
 
-export type AsciiCanvasDocumentV1 =
-  | AsciiCanvasFreeformDocumentV1
-  | AsciiCanvasStructuredDocumentV1;
+export type CharDeskDocumentV1 =
+  | CharDeskFreeformDocumentV1
+  | CharDeskStructuredDocumentV1;

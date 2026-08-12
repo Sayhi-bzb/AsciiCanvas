@@ -27,6 +27,18 @@ const drag: StructuredNodeDragPayload = {
 };
 
 describe("canvas interaction machine", () => {
+  it("projects reducer states into the hierarchical runtime path", () => {
+    const runtime = createCanvasInteractionRuntime();
+    expect(runtime.getStatePath()).toBe("root.idle");
+    runtime.dispatch({
+      type: "startSelecting",
+      anchor: { x: 1, y: 2 },
+    });
+    expect(runtime.getStatePath()).toBe("root.selecting");
+    runtime.reset();
+    expect(runtime.getStatePath()).toBe("root.idle");
+  });
+
   it("starts and resets panning", () => {
     const panning = transitionInteractionState(INITIAL_INTERACTION_STATE, {
       type: "startPanning",

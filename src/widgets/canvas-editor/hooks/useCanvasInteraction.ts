@@ -1,7 +1,6 @@
 import { useCreation, useThrottleFn } from "ahooks";
 import { GridManager } from "@/shared/utils/grid";
-import type { EditorState } from "@/domains/canvas/public";
-import { finishCanvasHistoryCapture } from "@/domains/canvas/public";
+import { canvasCommands } from "@/domains/canvas/public";
 import { type CanvasLinkHit } from "./interaction/core/linkHitTesting";
 import { type StructuredMovePreview } from "./interaction/structured/structuredInteractionPreview";
 
@@ -67,49 +66,12 @@ export { shouldOpenCanvasLink, shouldUseCanvasLinkPointer } from "./interaction/
 import { useCanvasGestureAdapter } from "./interaction/gestures/gestureAdapter";
 import { useInteractionControllers } from "./interaction/use-interaction-controllers";
 import type { CanvasEngineRuntime } from "../engine/CanvasEngineRuntime";
+import type { useCanvasEditorModels } from "./useCanvasEditorModels";
 
 
 
 export const useCanvasInteraction = (
-  store: Pick<
-    EditorState,
-    | "tool"
-    | "brushChar"
-    | "brushColor"
-    | "setBrushColor"
-    | "canvasColorPickerTarget"
-    | "setCanvasColorPickerTarget"
-    | "setOffset"
-    | "setViewport"
-    | "canvasMode"
-    | "addScratchPoints"
-    | "commitScratch"
-    | "commitStructuredShape"
-    | "setTextCursor"
-    | "addSelection"
-    | "clearSelections"
-    | "clearInteractionState"
-    | "erasePoints"
-    | "offset"
-    | "zoom"
-    | "grid"
-    | "updateScratchForShape"
-    | "setHoveredGrid"
-    | "fillArea"
-      | "structuredScene"
-    | "editingStructuredTextNodeId"
-    | "selectedStructuredNodeIds"
-    | "setStructuredGridFocus"
-    | "setStructuredContextPoint"
-    | "setSelectedStructuredNodeIds"
-    | "setSelectedStructuredSplitHandle"
-    | "setEditingStructuredTextNodeId"
-    | "setStructuredTextSelection"
-    | "structuredTextSelection"
-    | "setStructuredTextColor"
-    | "applyStructuredScene"
-    | "updateStructuredNode"
-  > & { activeCanvasId?: EditorState["activeCanvasId"] },
+  store: ReturnType<typeof useCanvasEditorModels>["interaction"],
   containerRef: React.RefObject<HTMLDivElement | null>,
   setHoveredLink: (hit: CanvasLinkHit | null) => void,
   structuredMovePreviewRef?: React.MutableRefObject<StructuredMovePreview | null>,
@@ -314,7 +276,7 @@ export const useCanvasInteraction = (
     addSelection,
     clearSelections,
     commitScratch,
-    forceHistorySave: finishCanvasHistoryCapture,
+    forceHistorySave: canvasCommands.history.finishCapture,
     commitStructuredShape,
     resetDragState,
   });

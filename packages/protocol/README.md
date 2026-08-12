@@ -1,6 +1,6 @@
 # @chardesk/protocol
 
-Parser and conformance data for the legacy-compatible [AsciiCanvas Text Protocol v1](./spec/v1.md) used by CharDesk. The package converts plain ASCII/Unicode, standard ANSI, and ESC-less ANSI into rendering-neutral cells. It contains no DOM or renderer.
+Parser and conformance data for [CharDesk Text Protocol v1](./spec/v1.md). The package converts plain ASCII/Unicode, standard ANSI, and ESC-less ANSI into rendering-neutral cells. It contains no DOM or renderer.
 
 ## Install
 

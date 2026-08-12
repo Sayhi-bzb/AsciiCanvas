@@ -4,8 +4,8 @@ import {
 import type { CanvasImportSnapshot } from "@/domains/sessions/public";
 import { parseSlideMarkdown } from "@/domains/slides/public";
 import {
-  parseProtocolDocument,
-  protocolDocumentToSnapshot,
+  parseCharDeskDocument,
+  charDeskDocumentToSnapshot,
 } from "./protocol/import";
 
 const parseDocumentSessionSource = (
@@ -23,7 +23,7 @@ const parseDocumentSessionSource = (
     };
   }
 
-  return protocolDocumentToSnapshot(parseProtocolDocument(raw));
+  return charDeskDocumentToSnapshot(parseCharDeskDocument(raw));
 };
 
 export const registerDocumentSessionSource = () => {

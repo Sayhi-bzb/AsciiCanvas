@@ -8,7 +8,7 @@ import {
   within,
 } from "@testing-library/react";
 import { SidebarRight } from "@/widgets/toolbar/sidebar-right";
-import { useEditorStore } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/testing";
 import { useLibraryStore } from "@/domains/character-library/public";
 import { SidebarProvider } from "@/shared/ui/sidebar";
 import {

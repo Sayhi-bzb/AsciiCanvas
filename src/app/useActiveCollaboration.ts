@@ -1,27 +1,27 @@
 import { useEffect } from "react";
 import {
-  getCanvasCollaborationDocument,
-  useEditorStore,
+  canvasQueries,
+  useCanvasState,
 } from "@/domains/canvas/public";
 import { collaborationRuntime } from "@/domains/collaboration/public";
 
 export const useActiveCollaboration = () => {
-  const activeCanvasId = useEditorStore((state) => state.activeCanvasId);
-  const collaboration = useEditorStore((state) =>
+  const activeCanvasId = useCanvasState((state) => state.activeCanvasId);
+  const collaboration = useCanvasState((state) =>
     state.canvasSessions.find((session) => session.id === state.activeCanvasId)?.collaboration
   );
-  const cursor = useEditorStore((state) => state.hoveredGrid);
-  const selections = useEditorStore((state) =>
+  const cursor = useCanvasState((state) => state.hoveredGrid);
+  const selections = useCanvasState((state) =>
     state.canvasMode === "structured" ? state.selectedStructuredNodeIds : state.selections
   );
-  const tool = useEditorStore((state) => state.tool);
+  const tool = useCanvasState((state) => state.tool);
 
   useEffect(() => {
     if (!collaboration) {
       void collaborationRuntime.disconnect();
       return;
     }
-    const document = getCanvasCollaborationDocument(activeCanvasId);
+    const document = canvasQueries.getCollaborationDocument(activeCanvasId);
     if (document) void collaborationRuntime.connect(collaboration, document);
     return () => { void collaborationRuntime.disconnect(); };
   }, [activeCanvasId, collaboration]);

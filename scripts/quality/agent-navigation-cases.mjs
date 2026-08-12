@@ -70,7 +70,7 @@ export const AGENT_NAVIGATION_CASES = [
     ownerPrefixes: ["src/domains/document/"],
     anchors: [
       "src/domains/document/session-source.ts:parseDocumentSessionSource",
-      "src/domains/document/protocol/import.ts:protocolDocumentToSnapshot",
+      "src/domains/document/protocol/import.ts:charDeskDocumentToSnapshot",
     ],
   },
   {

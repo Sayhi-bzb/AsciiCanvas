@@ -1,11 +1,11 @@
 import {
-  ASCII_CANVAS_DOCUMENT_TYPE,
-  ASCII_CANVAS_DOCUMENT_VERSION,
+  CHARDESK_DOCUMENT_TYPE,
+  CHARDESK_DOCUMENT_VERSION,
 } from "./types";
 import type {
-  AsciiCanvasDocumentV1,
-  AsciiCanvasProtocolCellV1,
-  AsciiCanvasProtocolNodeV1,
+  CharDeskDocumentV1,
+  CharDeskDocumentCellV1,
+  CharDeskDocumentNodeV1,
 } from "./types";
 
 const isObject = (value: unknown): value is Record<string, unknown> => {
@@ -22,7 +22,7 @@ const isPoint = (value: unknown): value is { x: number; y: number } => {
   );
 };
 
-const isProtocolCell = (value: unknown): value is AsciiCanvasProtocolCellV1 => {
+const isProtocolCell = (value: unknown): value is CharDeskDocumentCellV1 => {
   return (
     isObject(value) &&
     typeof value.char === "string" &&
@@ -111,7 +111,7 @@ const isStructuredSplitBoxTreeNode = (value: unknown): boolean => {
   );
 };
 
-const isStructuredNode = (value: unknown): value is AsciiCanvasProtocolNodeV1 => {
+const isStructuredNode = (value: unknown): value is CharDeskDocumentNodeV1 => {
   if (!isObject(value)) return false;
   if (typeof value.id !== "string") return false;
   if (typeof value.order !== "number" || !Number.isFinite(value.order)) {
@@ -162,12 +162,12 @@ const isStructuredNode = (value: unknown): value is AsciiCanvasProtocolNodeV1 =>
   return false;
 };
 
-export const isAsciiCanvasDocument = (
+export const isCharDeskDocument = (
   value: unknown
-): value is AsciiCanvasDocumentV1 => {
+): value is CharDeskDocumentV1 => {
   if (!isObject(value)) return false;
-  if (value.type !== ASCII_CANVAS_DOCUMENT_TYPE) return false;
-  if (value.version !== ASCII_CANVAS_DOCUMENT_VERSION) return false;
+  if (value.type !== CHARDESK_DOCUMENT_TYPE) return false;
+  if (value.version !== CHARDESK_DOCUMENT_VERSION) return false;
 
   if (value.mode === "freeform") {
     return Array.isArray(value.cells) && value.cells.every(isProtocolCell);

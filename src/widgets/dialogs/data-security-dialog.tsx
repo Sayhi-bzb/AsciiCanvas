@@ -10,7 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/shared/ui/dialog";
-import { useEditorStore } from "@/domains/canvas/public";
+import { useCanvasState } from "@/domains/canvas/public";
 
 const SecurityIcon = HOST_ICONOLOGY.viewportAction.security;
 
@@ -24,7 +24,7 @@ export function DataSecurityDialog({
   onOpenChange,
 }: DataSecurityDialogProps) {
   const { t } = useUiI18n();
-  const collaboration = useEditorStore((state) =>
+  const collaboration = useCanvasState((state) =>
     state.canvasSessions.find((session) => session.id === state.activeCanvasId)?.collaboration
   );
   const collaborationDisclosure = collaboration

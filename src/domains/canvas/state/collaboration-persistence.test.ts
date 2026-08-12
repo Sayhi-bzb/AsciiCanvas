@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { useEditorStore } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/testing";
 import { createPersistedEditorSnapshot } from "./editorPersistence";
 import type { CollaborationDescriptorV2 } from "@/domains/collaboration/public";
 

@@ -1,4 +1,8 @@
-import { useEditorStore } from "@/domains/canvas/public";
+import {
+  canvasCommands,
+  canvasQueries,
+  getCanvasState,
+} from "@/domains/canvas/public";
 import type { ClipboardCommandResult } from "@/domains/canvas/public";
 import { runRedo, runUndo } from "./shortcutActions";
 import {
@@ -39,7 +43,7 @@ export const runEditorCommand = (
   const source = options.source ?? "global-hotkey";
   if (shouldIgnoreEditorCommandByFocus(source, options.managedTextarea)) return false;
 
-  const state = useEditorStore.getState();
+  const state = getCanvasState();
 
   switch (command) {
     case "undo":
@@ -55,8 +59,8 @@ export const runEditorCommand = (
       ) {
         return false;
       }
-      if (!state.canCopyOrCut()) return false;
-      return state.copySelection({
+      if (!canvasQueries.canCopyOrCut()) return false;
+      return canvasCommands.selection.copy({
         event: options.clipboardEvent,
         rich: command === "copy" || command === "copy-rich",
         ansi: command === "copy-ansi",
@@ -69,12 +73,12 @@ export const runEditorCommand = (
         if (!hasStructuredTextSelection && state.selectedStructuredNodeIds.length === 0) {
           return false;
         }
-        return state.cutSelection({ event: options.clipboardEvent });
+        return canvasCommands.selection.cut({ event: options.clipboardEvent });
       }
-      if (!state.canCopyOrCut()) return false;
-      return state.cutSelection({ event: options.clipboardEvent });
+      if (!canvasQueries.canCopyOrCut()) return false;
+      return canvasCommands.selection.cut({ event: options.clipboardEvent });
     case "paste":
-      return state.pasteFromClipboard({
+      return canvasCommands.selection.paste({
         eventDataTransfer: options.clipboardEvent?.clipboardData || undefined,
       });
     case "fill-selection-char": {
@@ -85,7 +89,7 @@ export const runEditorCommand = (
       if (selections.length === 0 || textCursor) return false;
       const activeTag = document.activeElement?.tagName.toLowerCase();
       if (activeTag === "input" || activeTag === "textarea") return false;
-      state.fillSelectionsWithChar(fillChar);
+      canvasCommands.selection.fillWithChar(fillChar);
       return true;
     }
     default:

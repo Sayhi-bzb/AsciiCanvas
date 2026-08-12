@@ -6,10 +6,7 @@ import {
   useState,
 } from "react";
 import { useCreation } from "ahooks";
-import {
-  beginCanvasHistoryCheckpoint,
-  type EditorState,
-} from "@/domains/canvas/public";
+import { canvasCommands } from "@/domains/canvas/public";
 import { MAX_ZOOM, MIN_ZOOM } from "@/shared/lib/constants";
 import type { SelectionArea } from "@/shared/types";
 import type { CanvasLinkHit } from "./core/linkHitTesting";
@@ -33,9 +30,10 @@ import {
   CANVAS_FRAME_INVALIDATION,
   createFrameSchedulerRafAdapter,
 } from "../../engine/FrameScheduler";
+import type { useCanvasEditorModels } from "../useCanvasEditorModels";
 
 type ControllerStore = Pick<
-  EditorState,
+  ReturnType<typeof useCanvasEditorModels>["interaction"],
   | "tool"
   | "offset"
   | "zoom"
@@ -46,8 +44,8 @@ type ControllerStore = Pick<
   | "setHoveredGrid"
   | "applyStructuredScene"
 > & {
-  activeCanvasId?: EditorState["activeCanvasId"];
-  slideDeck?: EditorState["slideDeck"];
+  activeCanvasId?: ReturnType<typeof useCanvasEditorModels>["interaction"]["activeCanvasId"];
+  slideDeck?: ReturnType<typeof useCanvasEditorModels>["interaction"]["slideDeck"];
 };
 
 export const useInteractionControllers = ({
@@ -207,7 +205,7 @@ export const useInteractionControllers = ({
   const interactionTransaction = useCreation(
     () =>
       createCanvasInteractionTransactionController({
-        createCheckpoint: beginCanvasHistoryCheckpoint,
+        createCheckpoint: canvasCommands.history.beginCheckpoint,
       }),
     []
   );

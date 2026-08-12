@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { CharLibrary } from "@/widgets/character-library/char-library";
 import { useLibraryStore } from "@/domains/character-library/public";
-import { useEditorStore } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/testing";
 import { writeClipboardPayload } from "@/domains/actions/public";
 import { feedback } from "@/shared/services/effects";
 import { SidebarProvider } from "@/shared/ui/sidebar";

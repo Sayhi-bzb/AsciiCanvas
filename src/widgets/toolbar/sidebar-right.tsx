@@ -20,7 +20,7 @@ import {
   STRUCTURED_COMPONENT_TEMPLATES,
   STRUCTURED_PAGE_TEMPLATES,
 } from "@/domains/structured-content/public";
-import { useEditorStore } from "@/domains/canvas/public";
+import { useCanvasState } from "@/domains/canvas/public";
 import { cn } from "@/shared/lib/utils";
 import { ScrollArea } from "@/shared/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
@@ -126,7 +126,7 @@ function SidebarViewRail<ViewId extends string>({
 }
 
 export function SidebarRight() {
-  const canvasMode = useEditorStore((state) => state.canvasMode);
+  const canvasMode = useCanvasState((state) => state.canvasMode);
 
   const { loadMainPacks, searchUnicode, unicodeSearchLoading } =
     useLibraryStore(

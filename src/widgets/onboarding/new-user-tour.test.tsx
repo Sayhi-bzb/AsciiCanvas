@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Config, DriveStep } from "driver.js";
-import { useEditorStore } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/testing";
 import { EDITOR_PERSISTENCE_KEY } from "@/domains/sessions/public";
 import { setUiLanguage } from "@/shared/i18n";
 import { useOnboardingTour } from "./onboarding-context";

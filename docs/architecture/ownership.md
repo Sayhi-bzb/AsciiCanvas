@@ -2,6 +2,8 @@
 
 Use this page to choose the first domain to inspect. Public contracts define allowed cross-domain access; source and tests own implementation facts.
 
+The [editor runtime](editor-runtime.md) owns command, tool, manager, and state-scope coordination.
+
 ## Ownership map
 
 | Capability | Owner | Does not own | Primary public entry |
@@ -9,6 +11,7 @@ Use this page to choose the first domain to inspect. Public contracts define all
 | Application assembly | `app` | Business rules or reusable UI | `src/app/compositionRoot.ts` |
 | User commands | `actions` | Editor state or rendering | `src/domains/actions/public.ts` |
 | Editor state and Yjs projection | `canvas` | Provider lifecycle or durable schema | `src/domains/canvas/public.ts` |
+| Editor runtime and extensions | `editor` | Canvas data ownership or product UI metadata | `src/domains/editor/public.ts` |
 | Collaboration connection and presence | `collaboration` | Editor reconciliation or persistence | `src/domains/collaboration/public.ts` |
 | External document parsing and conversion | `document` | Editor state or delivery | `src/domains/document/public.ts` |
 | Export preparation and delivery | `export` | Document parsing or editor state | `src/domains/export/public.ts` |
@@ -30,14 +33,15 @@ shared <- domains <- widgets <- app
 - A domain uses its own source directly, never its own `public.ts`.
 - `widgets` may coordinate public domain capabilities but may not define domain validation, persistence, or synchronization rules.
 - Cross-domain registration and application-wide side effects belong in the composition root.
+- Canvas consumers read state and invoke grouped commands through `src/domains/canvas/public.ts`; the Zustand store and Yjs maps are private.
 
 ## Canonical flows
 
-- Remote collaboration: provider → Yjs document → canvas observers → editor state → widgets.
+- Canvas content: command or provider → one Yjs transaction → canvas projector → editor state → widgets.
 - Slide editing: deck authority → active Yjs editing buffer → canvas projection → deck and session snapshot.
 - Session recovery: owning domain decoders → sessions version composition → canvas runtime projection.
 - Session persistence: editor snapshot → persistence coordinator → sessions schema → browser storage.
 - Slide preview: slide data → canonical slide canvas renderer → preview or playback surface.
-- Selection command: UI or shortcut → actions command → canvas selection port → editor mutation.
+- Selection command: UI or keymap → editor command registry → actions command → canvas selection port → editor mutation.
 
 Each arrow has one direction. A projection or cache is derived state and must not overwrite its authority without an explicit command.

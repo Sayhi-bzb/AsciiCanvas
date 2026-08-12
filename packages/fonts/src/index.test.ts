@@ -9,7 +9,7 @@ import {
 
 describe("default font profile", () => {
   it("keeps its stable id, routes, and pinned source versions together", () => {
-    expect(CHARDESK_FONT_PROFILE.id).toBe("ascii-canvas/default-v1");
+    expect(CHARDESK_FONT_PROFILE.id).toBe("chardesk/default-v1");
     expect(CHARDESK_FONT_PROFILE_ID).toBe(CHARDESK_FONT_PROFILE.id);
     expect(CHARDESK_FONT_PROFILE.families.text).toBe(
       CHARDESK_TEXT_FONT_FAMILY

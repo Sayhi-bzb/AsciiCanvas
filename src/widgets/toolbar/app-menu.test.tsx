@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { useEditorStore } from '@/domains/canvas/public';
+import { useEditorStore } from '@/domains/canvas/testing';
 import { createSlideDeck } from '@/domains/slides/public';
 import { setUiLanguage } from '@/shared/i18n';
 import { AppMenu } from './app-menu';

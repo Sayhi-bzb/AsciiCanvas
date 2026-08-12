@@ -10,7 +10,7 @@ import {
 } from "react";
 import { useTheme } from "next-themes";
 import { useShallow } from "zustand/react/shallow";
-import { useEditorStore } from "@/domains/canvas/public";
+import { useCanvasState } from "@/domains/canvas/public";
 import { useUiI18n } from "@/shared/i18n";
 import { cn } from "@/shared/lib/utils";
 import type { Point } from "@/shared/types";
@@ -54,7 +54,7 @@ export const Minimap = ({
   const { resolvedTheme } = useTheme();
   const { t } = useUiI18n();
   const runtime = useCanvasEngineRuntime();
-  const { grid, offset, zoom } = useEditorStore(
+  const { grid, offset, zoom } = useCanvasState(
     useShallow((state) => ({
       grid: state.grid,
       offset: state.offset,

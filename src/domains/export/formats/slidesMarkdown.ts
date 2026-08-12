@@ -46,14 +46,14 @@ export const exportSlideDeckToMarkdown = (
   const title = escapeFrontMatterValue(options?.title || 'Slides');
   const header = [
     '---',
-    'asciicanvas: slides/v2',
+    'chardesk: slides/v1',
     `title: ${title}`,
     '---',
   ].join('\n');
   const pages = slideDeck.slides.map((slide) => {
     const { source, fence } = renderSlide(slide, options?.includeColor !== false);
     const size = `${slide.size.columns}x${slide.size.rows}`;
-    return `## ${escapeFrontMatterValue(slide.name)}\n\n${fence}asciicanvas size=${size}\n${source}\n${fence}`;
+    return `## ${escapeFrontMatterValue(slide.name)}\n\n${fence}chardesk size=${size}\n${source}\n${fence}`;
   });
   return `${header}\n\n${pages.join('\n\n')}`;
 };

@@ -3,7 +3,7 @@ import {
   createPngBlobFromGrid,
   createSelectionPngBlob,
 } from "../formats/raster";
-import { exportProtocolToJSON } from "../formats/protocolExport";
+import { exportCharDeskDocumentToJSON } from "../formats/protocolExport";
 import { exportStructuredF12Text } from "../formats/structuredText";
 import { exportToAnsi, exportToString } from "../formats/text";
 import { exportSlideDeckToMarkdown } from "../formats/slidesMarkdown";
@@ -90,13 +90,13 @@ export const prepareTextExport = (
             "text/plain;charset=utf-8"
           )
         );
-      case "ascanvas":
+      case "chardesk":
         return exportSucceeded(
           textArtifact(
             format,
-            exportProtocolToJSON(context),
-            `chardesk-${getTimestamp()}.ascanvas`,
-            "application/vnd.ascii-canvas+json;charset=utf-8"
+            exportCharDeskDocumentToJSON(context),
+            `chardesk-${getTimestamp()}.chardesk`,
+            "application/vnd.chardesk+json;charset=utf-8"
           )
         );
       case "ansi":

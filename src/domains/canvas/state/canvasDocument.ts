@@ -51,6 +51,11 @@ type CanvasHistoryAvailability = {
   canUndo: boolean;
   canRedo: boolean;
 };
+type CanvasDocumentTransaction = {
+  gridKeysChanged: Set<string>;
+  sceneChanged: boolean;
+  componentsChanged: boolean;
+};
 const historyAvailabilityListeners = new Set<(availability: CanvasHistoryAvailability) => void>();
 
 export function getCanvasHistoryAvailability(): CanvasHistoryAvailability {
@@ -244,41 +249,55 @@ const subscribeActiveCanvasDocument = (
   return () => activeDocumentListeners.delete(listener);
 };
 
-export const observeActiveGrid = (listener: (event: Y.YMapEvent<GridCell>) => void) => {
-  getYMainGrid().observe(listener);
-  const unsubscribe = subscribeActiveCanvasDocument((next, previous) => {
-    previous.grid.unobserve(listener);
-    next.grid.observe(listener);
-  });
-  return () => {
-    unsubscribe();
-    getYMainGrid().unobserve(listener);
+const getCanvasDocumentTransaction = (
+  canvasDocument: CanvasYDocument,
+  transaction: Y.Transaction
+): CanvasDocumentTransaction => {
+  const gridKeysChanged = new Set<string>();
+  let sceneChanged = false;
+  let componentsChanged = false;
+  for (const [type, keys] of transaction.changed) {
+    if (Object.is(type, canvasDocument.grid)) {
+      keys.forEach((key) => {
+        if (key !== null) gridKeysChanged.add(key);
+      });
+    } else if (Object.is(type, canvasDocument.scene)) {
+      sceneChanged = true;
+    } else if (Object.is(type, canvasDocument.components)) {
+      componentsChanged = true;
+    }
+  }
+  return {
+    gridKeysChanged,
+    sceneChanged,
+    componentsChanged,
   };
 };
 
-export const observeActiveScene = (listener: (event: Y.YMapEvent<StructuredNode>) => void) => {
-  getYStructuredScene().observe(listener);
-  const unsubscribe = subscribeActiveCanvasDocument((next, previous) => {
-    previous.scene.unobserve(listener);
-    next.scene.observe(listener);
-  });
-  return () => {
-    unsubscribe();
-    getYStructuredScene().unobserve(listener);
-  };
-};
-
-export const observeActiveComponents = (
-  listener: (event: Y.YMapEvent<StructuredComponentInstance>) => void
+/** Observes one completed active-document transaction across all content maps. */
+export const observeActiveCanvasTransactions = (
+  listener: (transaction: CanvasDocumentTransaction) => void
 ) => {
-  getYStructuredComponents().observe(listener);
+  let observedDocument = activeDocument;
+  const handleTransaction = (transaction: Y.Transaction) => {
+    const change = getCanvasDocumentTransaction(observedDocument, transaction);
+    if (
+      change.gridKeysChanged.size > 0 ||
+      change.sceneChanged ||
+      change.componentsChanged
+    ) {
+      listener(change);
+    }
+  };
+  observedDocument.doc.on("afterTransaction", handleTransaction);
   const unsubscribe = subscribeActiveCanvasDocument((next, previous) => {
-    previous.components.unobserve(listener);
-    next.components.observe(listener);
+    previous.doc.off("afterTransaction", handleTransaction);
+    observedDocument = next;
+    next.doc.on("afterTransaction", handleTransaction);
   });
   return () => {
     unsubscribe();
-    getYStructuredComponents().unobserve(listener);
+    observedDocument.doc.off("afterTransaction", handleTransaction);
   };
 };
 
@@ -382,6 +401,16 @@ export const mutateCanvasGrid = (
   mutation: (grid: CanvasGridWriter) => void,
   history: CanvasHistoryMode | boolean = "save"
 ) => runCanvasTransaction(() => mutation(activeDocument.grid), history);
+
+export const replaceStructuredCanvasContent = (
+  scene: StructuredNode[],
+  components: StructuredComponentInstance[],
+  history: CanvasHistoryMode | boolean = "save"
+) =>
+  runCanvasTransaction(() => {
+    applyYMapValueDiff(activeDocument.scene, scene);
+    applyYMapValueDiff(activeDocument.components, components);
+  }, history);
 
 export const replaceActiveFreeformGrid = (entries: [string, GridCell][]) =>
   runCanvasTransaction(() => {

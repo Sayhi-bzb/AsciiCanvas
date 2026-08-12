@@ -1,8 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { useShallow } from "zustand/react/shallow";
-import { useEditorStore } from "@/domains/canvas/public";
+import { canvasCommands, useCanvasState } from "@/domains/canvas/public";
 import {
   getSlideResizeCropCount,
   type Slide,
@@ -44,7 +43,7 @@ type PendingResize = {
 
 export function SlideAddButton() {
   const { t } = useUiI18n();
-  const addSlide = useEditorStore((state) => state.addSlide);
+  const addSlide = canvasCommands.slides.add;
 
   return (
     <Button tone="subtle" size="md" className="w-full justify-center gap-2" onClick={addSlide}>
@@ -56,17 +55,13 @@ export function SlideAddButton() {
 
 export function SlideNavigator() {
   const { t } = useUiI18n();
-  const { slideDeck, duplicateSlide, removeSlide, renameSlide, moveSlide, activateSlide, resizeSlide } = useEditorStore(
-    useShallow((state) => ({
-      slideDeck: state.slideDeck,
-      duplicateSlide: state.duplicateSlide,
-      removeSlide: state.removeSlide,
-      renameSlide: state.renameSlide,
-      moveSlide: state.moveSlide,
-      activateSlide: state.activateSlide,
-      resizeSlide: state.resizeSlide,
-    }))
-  );
+  const slideDeck = useCanvasState((state) => state.slideDeck);
+  const duplicateSlide = canvasCommands.slides.duplicate;
+  const removeSlide = canvasCommands.slides.remove;
+  const renameSlide = canvasCommands.slides.rename;
+  const moveSlide = canvasCommands.slides.move;
+  const activateSlide = canvasCommands.slides.activate;
+  const resizeSlide = canvasCommands.slides.resize;
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [configureSlideId, setConfigureSlideId] = useState<string | null>(null);
   const [pendingResize, setPendingResize] = useState<PendingResize | null>(null);

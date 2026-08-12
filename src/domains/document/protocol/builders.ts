@@ -7,15 +7,15 @@ import {
 } from "@/domains/structured-content/public";
 import { cloneStructuredTextStyleRanges } from "@/domains/structured-content/public";
 import {
-  ASCII_CANVAS_DOCUMENT_TYPE,
-  ASCII_CANVAS_DOCUMENT_VERSION,
+  CHARDESK_DOCUMENT_TYPE,
+  CHARDESK_DOCUMENT_VERSION,
 } from "./types";
 import type {
-  AsciiCanvasDocumentV1,
-  AsciiCanvasFreeformDocumentV1,
-  AsciiCanvasProtocolCellV1,
-  AsciiCanvasProtocolNodeV1,
-  AsciiCanvasStructuredDocumentV1,
+  CharDeskDocumentV1,
+  CharDeskFreeformDocumentV1,
+  CharDeskDocumentCellV1,
+  CharDeskDocumentNodeV1,
+  CharDeskStructuredDocumentV1,
 } from "./types";
 
 const assertNever = (value: never): never => {
@@ -33,7 +33,7 @@ const cloneComponentMetadata = (component: StructuredNode["component"]) =>
       }
     : {};
 
-const sortCells = (cells: AsciiCanvasProtocolCellV1[]) => {
+const sortCells = (cells: CharDeskDocumentCellV1[]) => {
   return [...cells].sort((a, b) => {
     if (a.y !== b.y) return a.y - b.y;
     if (a.x !== b.x) return a.x - b.x;
@@ -51,13 +51,13 @@ const gridEntriesToCells = (
         char: string;
         color: string;
         bgColor?: string;
-        attrs?: AsciiCanvasProtocolCellV1["attrs"];
+        attrs?: CharDeskDocumentCellV1["attrs"];
         href?: string;
       },
     ]
   >
 ) => {
-  const cells: AsciiCanvasProtocolCellV1[] = [];
+  const cells: CharDeskDocumentCellV1[] = [];
 
   for (const [key, cell] of entries) {
     const [x, y] = key.split(",").map(Number);
@@ -80,7 +80,7 @@ const gridEntriesToCells = (
 
 const cloneStructuredNode = (
   node: StructuredNode
-): AsciiCanvasProtocolNodeV1 => {
+): CharDeskDocumentNodeV1 => {
   const style = {
     color: node.style.color,
     ...(node.style.bgColor ? { bgColor: node.style.bgColor } : {}),
@@ -161,25 +161,25 @@ const sortStructuredNodes = (nodes: StructuredNode[]) => {
   });
 };
 
-export const buildFreeformProtocolDocument = (
+export const buildFreeformCharDeskDocument = (
   grid: GridMap
-): AsciiCanvasFreeformDocumentV1 => {
+): CharDeskFreeformDocumentV1 => {
   return {
-    type: ASCII_CANVAS_DOCUMENT_TYPE,
-    version: ASCII_CANVAS_DOCUMENT_VERSION,
+    type: CHARDESK_DOCUMENT_TYPE,
+    version: CHARDESK_DOCUMENT_VERSION,
     mode: "freeform",
     cells: gridEntriesToCells(grid.entries()),
   };
 };
 
-export const buildStructuredProtocolDocument = (
+export const buildStructuredCharDeskDocument = (
   scene: StructuredNode[],
   components?: StructuredComponentInstance[]
-): AsciiCanvasStructuredDocumentV1 => {
+): CharDeskStructuredDocumentV1 => {
   const normalizedComponents = normalizeStructuredComponents(components, scene);
   return {
-    type: ASCII_CANVAS_DOCUMENT_TYPE,
-    version: ASCII_CANVAS_DOCUMENT_VERSION,
+    type: CHARDESK_DOCUMENT_TYPE,
+    version: CHARDESK_DOCUMENT_VERSION,
     mode: "structured",
     nodes: sortStructuredNodes(scene).map(cloneStructuredNode),
     ...(normalizedComponents.length > 0
@@ -195,14 +195,14 @@ interface ProtocolCanvasStateSnapshotInput {
   structuredComponents?: StructuredComponentInstance[];
 }
 
-export const buildProtocolDocumentFromCanvasState = (
+export const buildCharDeskDocumentFromCanvasState = (
   input: ProtocolCanvasStateSnapshotInput
-): AsciiCanvasDocumentV1 => {
+): CharDeskDocumentV1 => {
   switch (input.canvasMode) {
     case "freeform":
-      return buildFreeformProtocolDocument(input.grid);
+      return buildFreeformCharDeskDocument(input.grid);
     case "structured":
-      return buildStructuredProtocolDocument(
+      return buildStructuredCharDeskDocument(
         input.structuredScene,
         input.structuredComponents
       );

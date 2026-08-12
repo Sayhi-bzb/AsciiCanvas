@@ -1,7 +1,7 @@
 import '@/domains/actions/public';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { runAction } from '@/domains/actions/public';
-import { redoCanvas, undoCanvas, useEditorStore } from '@/domains/canvas/public';
+import { redoCanvas, undoCanvas, useEditorStore } from '@/domains/canvas/testing';
 import {
   getStructuredSplitBoxGuides,
   getStructuredSplitBoxHandleAtPoint,

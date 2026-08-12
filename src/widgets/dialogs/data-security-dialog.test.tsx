@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { DataSecurityDialog } from "./data-security-dialog";
-import { useEditorStore } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/testing";
 
 describe("DataSecurityDialog", () => {
   it("states the local-first data boundary without overstating offline support", () => {

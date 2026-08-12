@@ -9,6 +9,14 @@ import {
 
 const initialState = useEditorStore.getState();
 const cell = (char: string) => ({ char, color: "#000000" });
+const textNode = (id: string, text: string) => ({
+  id,
+  type: "text" as const,
+  order: 1,
+  position: { x: 2, y: 3 },
+  text,
+  style: { color: "#ffffff" },
+});
 
 describe("remote canvas document projection", () => {
   afterEach(() => {
@@ -55,5 +63,78 @@ describe("remote canvas document projection", () => {
       "1,0": cell("S"),
       "2,0": cell("L"),
     });
+  });
+
+  it("projects one local structured transaction exactly once", () => {
+    const sessionId = `structured-local-${crypto.randomUUID()}`;
+    useEditorStore.setState({
+      activeCanvasId: sessionId,
+      canvasMode: "structured",
+      structuredScene: [],
+      structuredComponents: [],
+      grid: new Map(),
+      canvasSessions: [
+        {
+          id: sessionId,
+          name: "Structured Local",
+          mode: "structured",
+          grid: [],
+          scene: [],
+          components: [],
+        },
+      ],
+    });
+    activateCanvasDocument(sessionId, { grid: [], scene: [], components: [] });
+    let projectionCount = 0;
+    const unsubscribe = useEditorStore.subscribe((state, previous) => {
+      if (state.structuredScene !== previous.structuredScene) projectionCount += 1;
+    });
+
+    useEditorStore.getState().applyStructuredScene([textNode("local-text", "Local")]);
+    unsubscribe();
+
+    const state = useEditorStore.getState();
+    expect(projectionCount).toBe(1);
+    expect(state.structuredScene).toEqual([textNode("local-text", "Local")]);
+    expect(state.grid.get("2,3")?.char).toBe("L");
+    expect(state.canvasSessions[0].scene).toEqual(state.structuredScene);
+  });
+
+  it("projects one remote structured transaction exactly once", () => {
+    const sessionId = `structured-remote-${crypto.randomUUID()}`;
+    useEditorStore.setState({
+      activeCanvasId: sessionId,
+      canvasMode: "structured",
+      structuredScene: [],
+      structuredComponents: [],
+      grid: new Map(),
+      canvasSessions: [
+        {
+          id: sessionId,
+          name: "Structured Remote",
+          mode: "structured",
+          grid: [],
+          scene: [],
+          components: [],
+        },
+      ],
+    });
+    activateCanvasDocument(sessionId, { grid: [], scene: [], components: [] });
+    const local = getCanvasDocument(sessionId)!;
+    const remote = new Y.Doc();
+    remote.getMap("structured-scene").set("remote-text", textNode("remote-text", "Remote"));
+    let projectionCount = 0;
+    const unsubscribe = useEditorStore.subscribe((state, previous) => {
+      if (state.structuredScene !== previous.structuredScene) projectionCount += 1;
+    });
+
+    Y.applyUpdate(local.doc, Y.encodeStateAsUpdate(remote));
+    unsubscribe();
+
+    const state = useEditorStore.getState();
+    expect(projectionCount).toBe(1);
+    expect(state.structuredScene).toEqual([textNode("remote-text", "Remote")]);
+    expect(state.grid.get("2,3")?.char).toBe("R");
+    expect(state.canvasSessions[0].scene).toEqual(state.structuredScene);
   });
 });

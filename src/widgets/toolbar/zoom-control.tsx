@@ -2,7 +2,7 @@
 
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { useEditorStore } from '@/domains/canvas/public';
+import { canvasCommands, useCanvasState } from '@/domains/canvas/public';
 import { runSidebarAction } from '@/domains/actions/public';
 import { useIsMobile } from '@/shared/hooks/use-mobile';
 import { HOST_ICONOLOGY } from '@/shared/icons/iconology';
@@ -37,17 +37,17 @@ export function ZoomControl({ containerSize }: ZoomControlProps) {
   const isMobile = useIsMobile();
   const { t } = useUiI18n();
   const runtime = useCanvasEngineRuntime();
-  const { zoom, canvasMode, slideDeck, showGrid, setShowGrid, setOffset, setZoom } = useEditorStore(
+  const { zoom, canvasMode, slideDeck, showGrid } = useCanvasState(
     useShallow((state) => ({
       zoom: state.zoom,
       canvasMode: state.canvasMode,
       slideDeck: state.slideDeck,
       showGrid: state.showGrid,
-      setShowGrid: state.setShowGrid,
-      setOffset: state.setOffset,
-      setZoom: state.setZoom,
     }))
   );
+  const setShowGrid = canvasCommands.preferences.setShowGrid;
+  const setOffset = canvasCommands.viewport.setOffset;
+  const setZoom = canvasCommands.viewport.setZoom;
   const [minimapOpen, setMinimapOpen] = useState(false);
   const [playbackOpen, setPlaybackOpen] = useState(false);
   const ownsFullscreenRef = useRef(false);

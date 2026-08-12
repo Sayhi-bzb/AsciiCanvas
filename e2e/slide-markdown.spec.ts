@@ -2,16 +2,15 @@ import { expect, test } from '@playwright/test';
 
 const agentDeck = [
   '---',
-  'asciicanvas: slides/v1',
-  'size: 12x4',
+  'chardesk: slides/v1',
   'title: Agent Deck',
   '---',
   '## Intro',
-  '```text',
+  '```text size=12x4',
   '  ASCII',
   '```',
   '## Next',
-  '```asciicanvas',
+  '```chardesk size=12x4',
   '[31mAgent -> Slides[0m',
   '```',
 ].join('\n');

@@ -4,7 +4,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { SelectionFormatToolbar } from "@/widgets/canvas-editor/SelectionFormatToolbar";
 import { STRUCTURED_CONTEXT_MENU } from "@/domains/actions/public";
 import { ColorSubmenu } from "@/widgets/toolbar/dock/submenus";
-import { useEditorStore } from "@/domains/canvas/public";
+import { useEditorStore } from "@/domains/canvas/testing";
 
 describe("SelectionFormatToolbar", () => {
   const initialState = useEditorStore.getState();

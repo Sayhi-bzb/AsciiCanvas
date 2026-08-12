@@ -1,5 +1,5 @@
-import { useEditorStore } from "@/domains/canvas/public";
-import type { ClipboardCommandResult } from "@/domains/canvas/public";
+import { canvasCommands } from "@/domains/canvas/public";
+import type { CanvasState, ClipboardCommandResult } from "@/domains/canvas/public";
 import { exportStructuredHierarchyText } from "@/domains/export/public";
 import { runEditorCommand } from "@/domains/actions/adapters/editorCommands";
 import { getFirstGrapheme } from "@/shared/utils/characters";
@@ -15,6 +15,8 @@ import { getStructuredTextSelectionRange } from "@/domains/structured-content/pu
 import type { StructuredBoxNode, StructuredTextNode } from "@/domains/structured-content/public";
 import { actionFailed, actionPending, actionSucceeded } from "../result";
 import type { ActionHandler, ActionResult, ActionSource, EditorActionId } from "../types";
+import { getStaticGridSelectionAreas } from "@/domains/selection/public";
+import { hasClipboardSource } from "@/domains/actions/adapters/clipboardActions";
 
 // Options types for each action
 type UndoRedoOptions = {
@@ -30,10 +32,10 @@ type ClipboardOptions = {
 };
 type FillOptions = { fillChar?: string };
 
-const hasStructuredSelection = (state: ReturnType<typeof useEditorStore.getState>) =>
+const hasStructuredSelection = (state: CanvasState) =>
   state.canvasMode === "structured" && state.selectedStructuredNodeIds.length > 0;
 
-const getContextSplitBox = (state: ReturnType<typeof useEditorStore.getState>) => {
+const getContextSplitBox = (state: CanvasState) => {
   if (
     state.canvasMode !== "structured" ||
     state.selectedStructuredNodeIds.length !== 1 ||
@@ -48,7 +50,7 @@ const getContextSplitBox = (state: ReturnType<typeof useEditorStore.getState>) =
 };
 
 const canSplitContextSplitBox = (
-  state: ReturnType<typeof useEditorStore.getState>,
+  state: CanvasState,
   axis: "horizontal" | "vertical"
 ) => {
   const splitBox = getContextSplitBox(state);
@@ -60,17 +62,17 @@ const canSplitContextSplitBox = (
   return !!leaf && canSplitStructuredSplitBoxLeaf(leaf, axis);
 };
 
-const hasSelectedStructuredDivider = (state: ReturnType<typeof useEditorStore.getState>) =>
+const hasSelectedStructuredDivider = (state: CanvasState) =>
   state.canvasMode === "structured" &&
   !!state.selectedStructuredSplitHandle &&
   isStructuredSplitBoxLineHandle(state.selectedStructuredSplitHandle.handle);
 
-const hasStructuredTextSelection = (state: ReturnType<typeof useEditorStore.getState>) =>
+const hasStructuredTextSelection = (state: CanvasState) =>
   state.canvasMode === "structured" &&
   !!getStructuredTextSelectionRange(state.structuredTextSelection);
 
 const hasStructuredCutSource = (
-  state: ReturnType<typeof useEditorStore.getState>
+  state: CanvasState
 ) =>
   hasStructuredTextSelection(state) ||
   (state.canvasMode === "structured" &&
@@ -82,7 +84,7 @@ const isStructuredBoxNode = (node: { type: string }): node is StructuredBoxNode 
 const isStructuredTextNode = (node: { type: string }): node is StructuredTextNode =>
   node.type === "text";
 
-const getSelectedStructuredBox = (state: ReturnType<typeof useEditorStore.getState>) => {
+const getSelectedStructuredBox = (state: CanvasState) => {
   if (state.canvasMode !== "structured" || !state.selectedStructuredBoxId) return null;
   return (
     state.structuredScene.find(
@@ -92,7 +94,7 @@ const getSelectedStructuredBox = (state: ReturnType<typeof useEditorStore.getSta
   );
 };
 
-const getSelectedStructuredEditCursor = (state: ReturnType<typeof useEditorStore.getState>) => {
+const getSelectedStructuredEditCursor = (state: CanvasState) => {
   const box = getSelectedStructuredBox(state);
   if (box) return getStructuredBoxNameEndPoint(box);
   if (state.canvasMode !== "structured" || state.selectedStructuredNodeIds.length !== 1)
@@ -109,8 +111,15 @@ const getSelectedStructuredEditCursor = (state: ReturnType<typeof useEditorStore
 };
 
 // Check if action can run
-const canCopyOrCut = (state: ReturnType<typeof useEditorStore.getState>): boolean => {
-  return state.canCopyOrCut();
+const canCopyOrCut = (state: CanvasState): boolean => {
+  if (state.canvasMode === "structured") {
+    return hasStructuredTextSelection(state) || state.structuredScene.length > 0;
+  }
+  const staticSelections = getStaticGridSelectionAreas(state.staticGridSelection);
+  return hasClipboardSource(
+    staticSelections.length > 0 ? staticSelections : state.selections,
+    state.textCursor
+  );
 };
 
 const resolveClipboardAction = (
@@ -262,7 +271,7 @@ export const editorHandlers: Record<EditorActionId, ActionHandler<unknown>> = {
     if (context.state.selections.length === 0) {
       return actionFailed("empty-selection");
     }
-    void context.state.copySelectionAsPng(context.state.showGrid);
+    void canvasCommands.selection.copyAsPng(context.state.showGrid);
     return actionSucceeded();
   },
 
@@ -270,44 +279,44 @@ export const editorHandlers: Record<EditorActionId, ActionHandler<unknown>> = {
     if (context.state.selections.length === 0 && !hasStructuredSelection(context.state)) {
       return actionFailed("empty-selection");
     }
-    context.state.deleteSelection();
+    canvasCommands.selection.delete();
     return actionSucceeded();
   },
 
   "structured-rename": (_options, context): ActionResult => {
     const cursor = getSelectedStructuredEditCursor(context.state);
     if (!cursor) return actionFailed("empty-selection");
-    context.state.setTextCursor(cursor);
+    canvasCommands.interaction.setTextCursor(cursor);
     return actionSucceeded();
   },
 
   "structured-bring-forward": (_options, context): ActionResult => {
     if (!hasStructuredSelection(context.state)) return actionFailed("empty-selection");
-    context.state.reorderStructuredSelection("forward");
+    canvasCommands.structured.reorderSelection("forward");
     return actionSucceeded();
   },
 
   "structured-send-backward": (_options, context): ActionResult => {
     if (!hasStructuredSelection(context.state)) return actionFailed("empty-selection");
-    context.state.reorderStructuredSelection("backward");
+    canvasCommands.structured.reorderSelection("backward");
     return actionSucceeded();
   },
 
   "structured-bring-to-front": (_options, context): ActionResult => {
     if (!hasStructuredSelection(context.state)) return actionFailed("empty-selection");
-    context.state.reorderStructuredSelection("front");
+    canvasCommands.structured.reorderSelection("front");
     return actionSucceeded();
   },
 
   "structured-send-to-back": (_options, context): ActionResult => {
     if (!hasStructuredSelection(context.state)) return actionFailed("empty-selection");
-    context.state.reorderStructuredSelection("back");
+    canvasCommands.structured.reorderSelection("back");
     return actionSucceeded();
   },
 
   "structured-duplicate": (_options, context): ActionResult => {
     if (!hasStructuredSelection(context.state)) return actionFailed("empty-selection");
-    const duplicatedIds = context.state.duplicateStructuredSelection();
+    const duplicatedIds = canvasCommands.structured.duplicateSelection();
     return duplicatedIds.length > 0 ? actionSucceeded() : actionFailed("empty-selection");
   },
 
@@ -339,7 +348,7 @@ export const editorHandlers: Record<EditorActionId, ActionHandler<unknown>> = {
     if (!point || !splitBox || splitBox.type !== "splitBox") {
       return actionFailed("empty-selection");
     }
-    return context.state.splitStructuredSplitBoxLeaf(splitBox.id, point, "horizontal")
+    return canvasCommands.structured.splitLeaf(splitBox.id, point, "horizontal")
       ? actionSucceeded()
       : actionFailed("precondition-failed");
   },
@@ -350,7 +359,7 @@ export const editorHandlers: Record<EditorActionId, ActionHandler<unknown>> = {
     if (!point || !splitBox || splitBox.type !== "splitBox") {
       return actionFailed("empty-selection");
     }
-    return context.state.splitStructuredSplitBoxLeaf(splitBox.id, point, "vertical")
+    return canvasCommands.structured.splitLeaf(splitBox.id, point, "vertical")
       ? actionSucceeded()
       : actionFailed("precondition-failed");
   },
@@ -359,23 +368,21 @@ export const editorHandlers: Record<EditorActionId, ActionHandler<unknown>> = {
     if (!hasSelectedStructuredDivider(context.state)) {
       return actionFailed("empty-selection");
     }
-    context.state.deleteSelection();
+    canvasCommands.selection.delete();
     return actionSucceeded();
   },
 };
 
 // Editor action checkers
-export const editorCheckers: Partial<
-  Record<EditorActionId, (state: ReturnType<typeof useEditorStore.getState>) => boolean>
-> = {
+export const editorCheckers: Partial<Record<EditorActionId, (state: CanvasState) => boolean>> = {
   undo: (state) => state.canUndo,
   redo: (state) => state.canRedo,
   copy: (state) =>
-    state.canvasMode === "structured" ? state.structuredScene.length > 0 : state.canCopyOrCut(),
-  "copy-rich": (state) => state.canvasMode !== "structured" && state.canCopyOrCut(),
-  "copy-ansi": (state) => state.canvasMode !== "structured" && state.canCopyOrCut(),
+    state.canvasMode === "structured" ? state.structuredScene.length > 0 : canCopyOrCut(state),
+  "copy-rich": (state) => state.canvasMode !== "structured" && canCopyOrCut(state),
+  "copy-ansi": (state) => state.canvasMode !== "structured" && canCopyOrCut(state),
   cut: (state) =>
-    state.canvasMode === "structured" ? hasStructuredCutSource(state) : state.canCopyOrCut(),
+    state.canvasMode === "structured" ? hasStructuredCutSource(state) : canCopyOrCut(state),
   "snapshot-png": (state) => state.selections.length > 0,
   "delete-selection": (state) => state.selections.length > 0 || hasStructuredSelection(state),
   "structured-rename": (state) => getSelectedStructuredEditCursor(state) !== null,
