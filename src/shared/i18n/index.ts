@@ -107,9 +107,11 @@ const messages = {
     'security.storageNote':
       "Local storage is not encrypted. Clearing this site's browser data removes saved canvases.",
     'security.p2p.title': 'Peer-to-peer room',
-    'security.p2p.description': 'Updates use encrypted signaling and WebRTC. Each participant keeps a local copy.',
+    'security.p2p.description':
+      'Updates use encrypted signaling and WebRTC. Each participant keeps a local copy.',
     'security.byos.title': 'Sync server',
-    'security.byos.description': 'Updates pass through the WebSocket server, which may retain data.',
+    'security.byos.description':
+      'Updates pass through the WebSocket server, which may retain data.',
     'security.collaborationNote':
       'Anyone with the edit link can edit. Leaving or deleting your local copy cannot erase copies already held by peers.',
     'collaboration.title': 'Collaboration',
@@ -123,7 +125,8 @@ const messages = {
     'collaboration.link.copied': 'Edit link copied',
     'collaboration.link.unsupported': 'This collaboration link uses an unsupported version.',
     'collaboration.link.invalid': 'This collaboration link is invalid.',
-    'collaboration.document.incompatible': 'This room uses an incompatible canvas mode or document version.',
+    'collaboration.document.incompatible':
+      'This room uses an incompatible canvas mode or document version.',
     'collaboration.leave': 'Leave room',
     'collaboration.forget': 'Forget room cache',
     'collaboration.peers': 'Participants',
@@ -175,9 +178,11 @@ const messages = {
     'manual.reference.rangeStyle': 'Format a range',
     'manual.reference.rangeStyleDescription': 'Select text while editing, then use the toolbar.',
     'manual.reference.shapeColor': 'Color shapes',
-    'manual.reference.shapeColorDescription': 'Fill changes backgrounds; character color changes lines and borders.',
+    'manual.reference.shapeColorDescription':
+      'Fill changes backgrounds; character color changes lines and borders.',
     'manual.reference.copy': 'Copy between modes',
-    'manual.reference.copyDescription': 'Structured paste keeps nodes; Freeform paste uses the rendered result.',
+    'manual.reference.copyDescription':
+      'Structured paste keeps nodes; Freeform paste uses the rendered result.',
     'shortcutEditor.customize': 'Customize shortcuts',
     'shortcutEditor.title': 'Keyboard shortcuts',
     'shortcutEditor.add': 'Add shortcut for {command}',
@@ -268,7 +273,8 @@ const messages = {
     'color.pickPreset': 'Pick preset color {color}',
     'color.pickDiy': 'Pick DIY color {color}',
     'color.diyGrid': 'DIY Grid',
-    'color.use': 'Use',
+    'palette.title': 'Palette',
+    'palette.toggle': 'Toggle palette',
     'sidebar.minimap': 'Minimap',
     'minimap.canvas': 'Canvas minimap',
     'input.custom': 'Custom',
@@ -318,13 +324,15 @@ const messages = {
     'slide.duplicate': 'Duplicate',
     'slide.configure': 'Configure slide size',
     'slide.resizeCrop.title': 'Crop slide content?',
-    'slide.resizeCrop.description': 'Resize {name} to {columns} × {rows}. Out-of-bounds cells removed: {count}.',
+    'slide.resizeCrop.description':
+      'Resize {name} to {columns} × {rows}. Out-of-bounds cells removed: {count}.',
     'slide.resizeCrop.confirm': 'Crop and apply',
     'slide.rename': 'Rename',
     'slide.reorder.list': 'Slides, reorderable',
     'slide.reorder.item': 'Reorder {name}, position {current} of {total}',
     'slide.reorder.itemGrabbed': 'Reorder {name}, position {current} of {total}, grabbed',
-    'slide.reorder.grabbed': '{name} grabbed at position {from} of {total}. Use Arrow Up or Arrow Down to move, Space or Enter to drop, and Escape to cancel.',
+    'slide.reorder.grabbed':
+      '{name} grabbed at position {from} of {total}. Use Arrow Up or Arrow Down to move, Space or Enter to drop, and Escape to cancel.',
     'slide.reorder.moved': '{name} moved to position {to} of {total}.',
     'slide.reorder.dropped': '{name} dropped at position {to} of {total}.',
     'slide.reorder.cancelled': 'Reorder cancelled. {name} returned to position {to} of {total}.',
@@ -337,7 +345,8 @@ const messages = {
     'slide.playback.next': 'Next slide',
     'slide.playback.exit': 'Exit presentation',
     'slide.playback.page': '{current} / {total}',
-    'slide.playback.fullscreenUnavailable': 'Fullscreen was unavailable. Playing in this window instead.',
+    'slide.playback.fullscreenUnavailable':
+      'Fullscreen was unavailable. Playing in this window instead.',
     'session.delete.title': 'Delete canvas?',
     'session.delete.description': 'Remove “{name}” from this session.',
     'session.delete.fallbackDescription': 'Remove this canvas from the session.',
@@ -513,7 +522,8 @@ const messages = {
     'manual.reference.shapeColor': '形状颜色',
     'manual.reference.shapeColorDescription': '填充控制背景；字符颜色控制线条和边框。',
     'manual.reference.copy': '跨模式复制',
-    'manual.reference.copyDescription': '粘贴到结构化画布时保留节点；粘贴到自由画布时使用渲染结果。',
+    'manual.reference.copyDescription':
+      '粘贴到结构化画布时保留节点；粘贴到自由画布时使用渲染结果。',
     'shortcutEditor.customize': '自定义快捷键',
     'shortcutEditor.title': '键盘快捷键',
     'shortcutEditor.add': '为{command}添加快捷键',
@@ -604,7 +614,8 @@ const messages = {
     'color.pickPreset': '选择预设颜色 {color}',
     'color.pickDiy': '选择 DIY 颜色 {color}',
     'color.diyGrid': 'DIY 颜色',
-    'color.use': '使用',
+    'palette.title': '调色板',
+    'palette.toggle': '展开或折叠调色板',
     'sidebar.minimap': '小地图',
     'minimap.canvas': '画布小地图',
     'input.custom': '自定义',
@@ -654,13 +665,15 @@ const messages = {
     'slide.duplicate': '复制',
     'slide.configure': '配置幻灯片大小',
     'slide.resizeCrop.title': '裁剪幻灯片内容？',
-    'slide.resizeCrop.description': '将“{name}”调整为 {columns} × {rows}，并删除边界外的 {count} 个单元格。',
+    'slide.resizeCrop.description':
+      '将“{name}”调整为 {columns} × {rows}，并删除边界外的 {count} 个单元格。',
     'slide.resizeCrop.confirm': '裁剪并应用',
     'slide.rename': '重命名',
     'slide.reorder.list': '可排序的幻灯片列表',
     'slide.reorder.item': '调整{name}的顺序，当前位置 {current}/{total}',
     'slide.reorder.itemGrabbed': '调整{name}的顺序，当前位置 {current}/{total}，已抓取',
-    'slide.reorder.grabbed': '已抓取{name}，当前位置 {from}/{total}。使用上下方向键移动，按空格或回车放下，按 Escape 取消。',
+    'slide.reorder.grabbed':
+      '已抓取{name}，当前位置 {from}/{total}。使用上下方向键移动，按空格或回车放下，按 Escape 取消。',
     'slide.reorder.moved': '{name}已移动到第 {to} 位，共 {total} 位。',
     'slide.reorder.dropped': '{name}已放到第 {to} 位，共 {total} 位。',
     'slide.reorder.cancelled': '已取消排序，{name}已返回第 {to} 位，共 {total} 位。',

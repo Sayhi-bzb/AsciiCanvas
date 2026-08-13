@@ -1,133 +1,129 @@
-"use client";
+'use client';
 
-import {
-  useRef,
-  useState,
-  type ComponentProps,
-} from "react";
-import { Check, Pipette } from "lucide-react";
-import { useCanvasRuntime, useCanvasState } from "@/domains/canvas/public";
-import type { CanvasColorPickerTarget } from "@/domains/canvas/public";
-import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
-import { useUiI18n } from "@/shared/i18n";
-import { cn } from "@/shared/lib/utils";
-import { rx } from "@/shared/styles/recipes"
-import { Button } from "@/shared/ui/button";
+import { useEffect, useRef, useState, type ComponentProps } from 'react';
+import { Check, Pipette } from 'lucide-react';
+import { HexColorPicker } from 'react-colorful';
+import { useCanvasRuntime, useCanvasState } from '@/domains/canvas/public';
+import type { CanvasColorPickerTarget } from '@/domains/canvas/public';
+import { HOST_ICONOLOGY } from '@/shared/icons/iconology';
+import { useUiI18n } from '@/shared/i18n';
+import { cn } from '@/shared/lib/utils';
+import { rx } from '@/shared/styles/recipes';
+import { Button } from '@/shared/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/shared/ui/dropdown-menu";
-import { Input } from "@/shared/ui/input";
-import { PopoverContent } from "@/shared/ui/popover";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/shared/ui/tooltip";
+} from '@/shared/ui/dropdown-menu';
+import { Input } from '@/shared/ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip';
 
 type ColorPickerPanelProps = {
   value: string;
   onPick: (color: string) => void;
   showCustomInput?: boolean;
   onCanvasPickStarted?: () => void;
+  className?: string;
+  canvasPickDestination?: 'foreground' | 'background';
 };
 
 type ColorPickerPopoverContentProps = Omit<
   ComponentProps<typeof PopoverContent>,
-  "onOpenAutoFocus" | "ref" | "tabIndex"
+  'onOpenAutoFocus' | 'ref' | 'tabIndex'
 >;
 
 const ANSI_16_COLORS = [
-  "#000000",
-  "#800000",
-  "#008000",
-  "#808000",
-  "#000080",
-  "#800080",
-  "#008080",
-  "#c0c0c0",
-  "#808080",
-  "#ff0000",
-  "#00ff00",
-  "#ffff00",
-  "#0000ff",
-  "#ff00ff",
-  "#00ffff",
-  "#ffffff",
+  '#000000',
+  '#800000',
+  '#008000',
+  '#808000',
+  '#000080',
+  '#800080',
+  '#008080',
+  '#c0c0c0',
+  '#808080',
+  '#ff0000',
+  '#00ff00',
+  '#ffff00',
+  '#0000ff',
+  '#ff00ff',
+  '#00ffff',
+  '#ffffff',
 ];
 
 const PRESET_COLOR_MATRIX = [
   [
-    "#7f1d1d",
-    "#7c2d12",
-    "#713f12",
-    "#14532d",
-    "#064e3b",
-    "#164e63",
-    "#1e3a8a",
-    "#312e81",
-    "#581c87",
-    "#0f172a",
+    '#7f1d1d',
+    '#7c2d12',
+    '#713f12',
+    '#14532d',
+    '#064e3b',
+    '#164e63',
+    '#1e3a8a',
+    '#312e81',
+    '#581c87',
+    '#0f172a',
   ],
   [
-    "#dc2626",
-    "#ea580c",
-    "#ca8a04",
-    "#16a34a",
-    "#10b981",
-    "#06b6d4",
-    "#3b82f6",
-    "#6366f1",
-    "#a855f7",
-    "#475569",
+    '#dc2626',
+    '#ea580c',
+    '#ca8a04',
+    '#16a34a',
+    '#10b981',
+    '#06b6d4',
+    '#3b82f6',
+    '#6366f1',
+    '#a855f7',
+    '#475569',
   ],
   [
-    "#f87171",
-    "#fdba74",
-    "#fde047",
-    "#86efac",
-    "#6ee7b7",
-    "#67e8f9",
-    "#93c5fd",
-    "#a5b4fc",
-    "#d8b4fe",
-    "#94a3b8",
+    '#f87171',
+    '#fdba74',
+    '#fde047',
+    '#86efac',
+    '#6ee7b7',
+    '#67e8f9',
+    '#93c5fd',
+    '#a5b4fc',
+    '#d8b4fe',
+    '#94a3b8',
   ],
   [
-    "#fee2e2",
-    "#ffedd5",
-    "#fef9c3",
-    "#dcfce7",
-    "#ccfbf1",
-    "#cffafe",
-    "#dbeafe",
-    "#e0e7ff",
-    "#f3e8ff",
-    "#f8fafc",
+    '#fee2e2',
+    '#ffedd5',
+    '#fef9c3',
+    '#dcfce7',
+    '#ccfbf1',
+    '#cffafe',
+    '#dbeafe',
+    '#e0e7ff',
+    '#f3e8ff',
+    '#f8fafc',
   ],
 ] as const;
 
 const PRESET_COLORS = PRESET_COLOR_MATRIX.flat();
 
 const normalizeHexColor = (value: string) => {
-  const trimmed = value.trim().replace(/^#?/, "#").toLowerCase();
+  const trimmed = value.trim().replace(/^#?/, '#').toLowerCase();
 
   if (/^#[0-9a-f]{3}$/.test(trimmed)) {
     return `#${trimmed
       .slice(1)
-      .split("")
+      .split('')
       .map((char) => `${char}${char}`)
-      .join("")}`;
+      .join('')}`;
   }
 
   return /^#[0-9a-f]{6}$/.test(trimmed) ? trimmed : null;
 };
 
 export function ColorPickerPopoverContent({
-  "aria-label": ariaLabel,
+  'aria-label': ariaLabel,
   children,
   ...props
 }: ColorPickerPopoverContentProps) {
@@ -139,7 +135,7 @@ export function ColorPickerPopoverContent({
       {...props}
       ref={contentRef}
       tabIndex={-1}
-      aria-label={ariaLabel ?? t("toolbar.color")}
+      aria-label={ariaLabel ?? t('toolbar.color')}
       onOpenAutoFocus={(event) => {
         event.preventDefault();
         contentRef.current?.focus({ preventScroll: true });
@@ -155,26 +151,62 @@ export function ColorPickerPanel({
   onPick,
   showCustomInput = true,
   onCanvasPickStarted,
+  className,
+  canvasPickDestination = 'foreground',
 }: ColorPickerPanelProps) {
   const canvas = useCanvasRuntime();
   const { t } = useUiI18n();
   const [customColor, setCustomColor] = useState(value);
-  const [activePaletteTab, setActivePaletteTab] = useState<
-    "ansi16" | "presets"
-  >("ansi16");
+  const [hexPopoverOpen, setHexPopoverOpen] = useState(false);
+  const [activePaletteTab, setActivePaletteTab] = useState<'ansi16' | 'presets'>('ansi16');
   const [eyedropperOpen, setEyedropperOpen] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const colorToolRef = useRef<HTMLDivElement>(null);
+  const hexInputRef = useRef<HTMLInputElement>(null);
+  const hexCloseHandledRef = useRef(false);
   const normalizedCustomColor = normalizeHexColor(customColor);
-  const canvasColorPickerTarget = useCanvasState(
-    (state) => state.canvasColorPickerTarget
-  );
+  const displayColor = normalizedCustomColor ?? normalizeHexColor(value) ?? '#000000';
+  const canvasColorPickerTarget = useCanvasState((state) => state.canvasColorPickerTarget);
   const setCanvasColorPickerTarget = canvas.commands.interaction.setColorPickerTarget;
+
+  useEffect(() => {
+    setCustomColor(value);
+  }, [value]);
+
+  const cancelCustomColor = () => {
+    if (hexCloseHandledRef.current) return;
+    hexCloseHandledRef.current = true;
+    setCustomColor(value);
+    setHexPopoverOpen(false);
+  };
 
   const pickColor = (color: string) => {
     setCustomColor(color);
+    setHexPopoverOpen(false);
     onPick(color);
   };
 
-  const toggleCanvasColorPicker = (target: CanvasColorPickerTarget) => {
+  const commitCustomColor = () => {
+    if (hexCloseHandledRef.current) return;
+    hexCloseHandledRef.current = true;
+    if (!normalizedCustomColor) {
+      setCustomColor(value);
+      setHexPopoverOpen(false);
+      return;
+    }
+
+    setCustomColor(normalizedCustomColor);
+    setHexPopoverOpen(false);
+    if (normalizedCustomColor !== normalizeHexColor(value)) {
+      onPick(normalizedCustomColor);
+    }
+  };
+
+  const getCanvasColorPickerTarget = (source: 'char' | 'bg'): CanvasColorPickerTarget =>
+    canvasPickDestination === 'background' ? `${source}-to-background` : source;
+
+  const toggleCanvasColorPicker = (source: 'char' | 'bg') => {
+    const target = getCanvasColorPickerTarget(source);
     const nextTarget = canvasColorPickerTarget === target ? null : target;
     setCanvasColorPickerTarget(nextTarget);
     if (nextTarget) onCanvasPickStarted?.();
@@ -182,143 +214,230 @@ export function ColorPickerPanel({
 
   const paletteTabs = [
     {
-      id: "ansi16",
-      label: t("color.ansi16"),
+      id: 'ansi16',
+      label: t('color.ansi16'),
       icon: HOST_ICONOLOGY.colorPalette.ansi16,
       colors: ANSI_16_COLORS,
-      colorLabelKey: "color.pickAnsi",
-      gridClassName: "grid-cols-8",
+      colorLabelKey: 'color.pickAnsi',
+      gridClassName: 'grid-cols-4',
     },
     {
-      id: "presets",
-      label: t("color.presets"),
+      id: 'presets',
+      label: t('color.presets'),
       icon: HOST_ICONOLOGY.colorPalette.presets,
       colors: PRESET_COLORS,
-      colorLabelKey: "color.pickPreset",
-      gridClassName: "grid-cols-10",
+      colorLabelKey: 'color.pickPreset',
+      gridClassName: 'grid-cols-5',
     },
   ] as const;
 
   return (
     <Tabs
+      ref={panelRef}
       value={activePaletteTab}
-      onValueChange={(tab) =>
-        setActivePaletteTab(tab as "ansi16" | "presets")
-      }
-      orientation="vertical"
-      className="w-[22rem] flex-row items-start gap-1.5 px-1 py-1.5"
+      onValueChange={(tab) => {
+        cancelCustomColor();
+        setActivePaletteTab(tab as 'ansi16' | 'presets');
+      }}
+      orientation="horizontal"
+      data-color-picker-panel="true"
+      className={cn('w-40 gap-2 px-1 py-1.5', className)}
     >
-      <div
-        data-testid="color-picker-content-frame"
-        className={cn(
-          "min-w-0 flex-1",
-          showCustomInput ? "h-[8.875rem]" : "h-[6.375rem]"
-        )}
-      >
-        {paletteTabs.map((tab) => (
-          <TabsContent key={tab.id} value={tab.id} className="space-y-3">
-            {showCustomInput && (
-              <div
-                data-color-picker-tools="true"
-                className="flex items-center gap-2"
-              >
-                <div className="flex min-w-0 flex-1 items-center gap-2">
-                  <div
-                    className="size-7 shrink-0 rounded-lg border border-border shadow-inner"
-                    style={{ backgroundColor: normalizedCustomColor ?? value }}
-                  />
-                  <Input
-                    value={customColor}
-                    onChange={(event) => setCustomColor(event.target.value)}
-                    onKeyDown={(event) => {
-                      event.stopPropagation();
-                      if (event.key === "Enter" && normalizedCustomColor) {
-                        pickColor(normalizedCustomColor);
-                      }
-                    }}
-                    onClick={(event) => event.stopPropagation()}
-                    placeholder="#00ffcc"
-                    maxLength={7}
-                    className="h-7 flex-1 rounded-md bg-muted/40 px-2 font-mono text-xs uppercase shadow-none"
-                  />
-                  <Button
-                    type="button"
-                    tone="primary"
-                    shape="square"
-                    size="sm"
-                    disabled={!normalizedCustomColor}
-                    onClick={() =>
-                      normalizedCustomColor && pickColor(normalizedCustomColor)
-                    }
-                    aria-label={t("color.use")}
-                    title={t("color.use")}
-                    className="size-7 shrink-0"
+      <div data-testid="color-picker-header" className="flex items-center justify-between gap-2">
+        <TabsList
+          aria-label={t('color.paletteTabs')}
+          className={cn(rx.iconRail, 'h-fit w-fit shrink-0 flex-row gap-1')}
+        >
+          {paletteTabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <Tooltip key={tab.id}>
+                <TooltipTrigger asChild>
+                  <TabsTrigger
+                    value={tab.id}
+                    aria-label={tab.label}
+                    className={cn(
+                      rx.iconRailItem,
+                      'size-8 flex-none justify-center',
+                      'focus-visible:border-transparent focus-visible:outline-0 focus-visible:outline-transparent focus-visible:outline-none',
+                      'group-data-[variant=default]/tabs-list:data-[state=active]:shadow-none dark:data-[state=active]:border-transparent',
+                      activePaletteTab === tab.id && rx.hostControlActive
+                    )}
                   >
-                    <Check className="size-3.5" />
-                  </Button>
-                </div>
+                    <Icon />
+                  </TabsTrigger>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">{tab.label}</TooltipContent>
+              </Tooltip>
+            );
+          })}
+        </TabsList>
 
-                <DropdownMenu
-                  open={eyedropperOpen}
-                  onOpenChange={setEyedropperOpen}
+        {showCustomInput && (
+          <div data-testid="color-picker-header-actions" className="flex items-center gap-1">
+            <Popover
+              open={hexPopoverOpen}
+              onOpenChange={(open) => {
+                if (open) {
+                  hexCloseHandledRef.current = false;
+                  setCustomColor(value);
+                  setHexPopoverOpen(true);
+                  return;
+                }
+
+                commitCustomColor();
+              }}
+            >
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  tone="subtle"
+                  shape="square"
+                  size="sm"
+                  aria-label={`${t('color.hex')}: ${displayColor}`}
+                  aria-expanded={hexPopoverOpen}
+                  className="size-7 shrink-0"
                 >
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      type="button"
-                      tone="subtle"
-                      shape="square"
-                      size="sm"
-                      aria-label={t("color.pickFromCanvas")}
-                      title={t("color.pickFromCanvas")}
-                      aria-pressed={canvasColorPickerTarget !== null}
-                      className={cn(
-                        "size-7 shrink-0",
-                        canvasColorPickerTarget !== null &&
-                          "bg-accent text-foreground"
-                      )}
-                    >
-                      <Pipette className="size-3.5" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent
-                    side="bottom"
-                    align="end"
-                    sideOffset={6}
-                    className={cn(rx.dropdownSubPanel, "w-36")}
-                  >
-                    {(["char", "bg"] as const).map((target) => {
-                      const isActive = canvasColorPickerTarget === target;
-                      const label =
-                        target === "char"
-                          ? t("color.pickChar")
-                          : t("color.pickBg");
-                      return (
-                        <DropdownMenuItem
-                          key={target}
-                          aria-label={label}
-                          onSelect={() => toggleCanvasColorPicker(target)}
-                          className={cn(
-                            "text-muted-foreground",
-                            isActive && "bg-accent text-foreground"
-                          )}
-                        >
-                          <span className="flex size-3.5 items-center justify-center">
-                            {isActive && <Check className="size-3.5" />}
-                          </span>
-                          <span>
-                            {target === "char" ? t("color.char") : t("color.bg")}
-                          </span>
-                        </DropdownMenuItem>
-                      );
-                    })}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            )}
+                  <span
+                    data-testid="color-value-icon"
+                    aria-hidden="true"
+                    className="size-4 rounded-full border border-border shadow-sm"
+                    style={{ backgroundColor: displayColor }}
+                  />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                ref={colorToolRef}
+                side="right"
+                align="start"
+                sideOffset={6}
+                aria-label={t('color.hex')}
+                className="w-40 space-y-2 p-2"
+                onOpenAutoFocus={(event) => {
+                  event.preventDefault();
+                  hexInputRef.current?.focus({ preventScroll: true });
+                  hexInputRef.current?.select();
+                }}
+                onEscapeKeyDown={(event) => {
+                  event.preventDefault();
+                  cancelCustomColor();
+                }}
+                onInteractOutside={(event) => {
+                  if (
+                    event.target instanceof Node &&
+                    panelRef.current?.contains(event.target)
+                  ) {
+                    cancelCustomColor();
+                    return;
+                  }
+                  commitCustomColor();
+                }}
+              >
+                <HexColorPicker
+                  color={displayColor}
+                  onChange={setCustomColor}
+                  data-testid="visual-color-picker"
+                  className={cn(
+                    '!h-32 !w-full',
+                    '[&_.react-colorful__saturation]:!rounded-md [&_.react-colorful__saturation]:!border-b-0',
+                    '[&_.react-colorful__hue]:!mt-2 [&_.react-colorful__hue]:!h-2 [&_.react-colorful__hue]:!rounded-full',
+                    '[&_.react-colorful__pointer]:!size-3.5 [&_.react-colorful__pointer]:!border-[1.5px]'
+                  )}
+                />
+                <Input
+                  ref={hexInputRef}
+                  aria-label={t('color.hex')}
+                  value={customColor}
+                  onChange={(event) => setCustomColor(event.target.value)}
+                  onBlur={(event) => {
+                    if (
+                      event.relatedTarget instanceof Node &&
+                      colorToolRef.current?.contains(event.relatedTarget)
+                    ) {
+                      return;
+                    }
+                    if (
+                      event.relatedTarget instanceof Node &&
+                      panelRef.current?.contains(event.relatedTarget)
+                    ) {
+                      cancelCustomColor();
+                      return;
+                    }
+                    commitCustomColor();
+                  }}
+                  onKeyDown={(event) => {
+                    event.stopPropagation();
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      commitCustomColor();
+                    }
+                  }}
+                  onClick={(event) => event.stopPropagation()}
+                  placeholder="#00ffcc"
+                  maxLength={7}
+                  className={cn(rx.searchInput, 'h-6 px-1.5 font-mono uppercase')}
+                />
+              </PopoverContent>
+            </Popover>
 
+            <DropdownMenu open={eyedropperOpen} onOpenChange={setEyedropperOpen}>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  tone="subtle"
+                  shape="square"
+                  size="sm"
+                  aria-label={t('color.pickFromCanvas')}
+                  title={t('color.pickFromCanvas')}
+                  aria-pressed={canvasColorPickerTarget !== null}
+                  className={cn(
+                    'size-7 shrink-0',
+                    canvasColorPickerTarget !== null && 'bg-accent text-foreground'
+                  )}
+                >
+                  <Pipette className="size-3.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                side="bottom"
+                align="end"
+                sideOffset={6}
+                className={cn(rx.dropdownSubPanel, 'w-36')}
+              >
+                <DropdownMenuGroup>
+                  {(['char', 'bg'] as const).map((target) => {
+                    const isActive = canvasColorPickerTarget === getCanvasColorPickerTarget(target);
+                    const label = target === 'char' ? t('color.pickChar') : t('color.pickBg');
+                    return (
+                      <DropdownMenuItem
+                        key={target}
+                        aria-label={label}
+                        onSelect={() => toggleCanvasColorPicker(target)}
+                        className={cn(
+                          'text-muted-foreground',
+                          isActive && 'bg-accent text-foreground'
+                        )}
+                      >
+                        <span className="flex size-3.5 items-center justify-center">
+                          {isActive && <Check className="size-3.5" />}
+                        </span>
+                        <span>{target === 'char' ? t('color.char') : t('color.bg')}</span>
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        )}
+      </div>
+
+      <div data-testid="color-picker-content-frame" className="w-full min-w-0">
+        {paletteTabs.map((tab) => (
+          <TabsContent key={tab.id} value={tab.id} className="flex flex-col">
             <div
               data-testid="color-palette-grid"
-              className={cn("grid gap-0.5", tab.gridClassName)}
+              className={cn('grid justify-items-center gap-y-1', tab.gridClassName)}
             >
               {tab.colors.map((color) => (
                 <button
@@ -327,53 +446,25 @@ export function ColorPickerPanel({
                   aria-label={t(tab.colorLabelKey, { color })}
                   onClick={() => pickColor(color)}
                   className={cn(
-                    "flex size-6 items-center justify-center rounded-[0.45rem] border border-black/10 shadow-sm transition-transform hover:scale-110 active:scale-95",
-                    value === color &&
-                      "ring-2 ring-primary ring-offset-1 ring-offset-popover"
+                    'flex size-6 cursor-pointer items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
+                    displayColor === color && 'ring-2 ring-primary'
                   )}
-                  style={{ backgroundColor: color }}
                 >
-                  {value === color && (
-                    <Check className="size-3 text-white mix-blend-difference" />
-                  )}
+                  <span
+                    aria-hidden="true"
+                    className="flex size-[18px] items-center justify-center rounded-full border border-black/10 shadow-sm"
+                    style={{ backgroundColor: color }}
+                  >
+                    {displayColor === color && (
+                      <Check className="size-3 text-white mix-blend-difference" />
+                    )}
+                  </span>
                 </button>
               ))}
             </div>
           </TabsContent>
         ))}
       </div>
-
-      <TabsList
-        aria-label={t("color.paletteTabs")}
-        className={cn(
-          rx.iconRail,
-          "w-fit shrink-0 flex-col gap-1"
-        )}
-      >
-        {paletteTabs.map((tab) => {
-          const Icon = tab.icon;
-          return (
-            <Tooltip key={tab.id}>
-              <TooltipTrigger asChild>
-                <TabsTrigger
-                  value={tab.id}
-                  aria-label={tab.label}
-                  className={cn(
-                    rx.iconRailItem,
-                    "group-data-[orientation=vertical]/tabs:w-8 group-data-[orientation=vertical]/tabs:justify-center",
-                    "focus-visible:border-transparent focus-visible:outline-0 focus-visible:outline-transparent focus-visible:outline-none",
-                    "group-data-[variant=default]/tabs-list:data-[state=active]:shadow-none dark:data-[state=active]:border-transparent",
-                    activePaletteTab === tab.id && rx.hostControlActive
-                  )}
-                >
-                  <Icon className="size-4" />
-                </TabsTrigger>
-              </TooltipTrigger>
-              <TooltipContent side="left">{tab.label}</TooltipContent>
-            </Tooltip>
-          );
-        })}
-      </TabsList>
     </Tabs>
   );
 }

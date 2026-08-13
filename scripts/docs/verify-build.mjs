@@ -45,11 +45,20 @@ JSON.parse(searchData);
 if (!llmsIndex.startsWith("# CharDesk Development Documentation")) {
   throw new Error("llms.txt has an unexpected root heading");
 }
+if (!llmsIndex.includes("/docs/development/architecture/ansi-canvas-protocol")) {
+  throw new Error("llms.txt is missing the LLM–Human Text Protocol");
+}
 if (!llmsFull.includes("/docs/development/architecture/ownership")) {
   throw new Error("llms-full.txt is missing development content");
 }
+if (!llmsFull.includes("/docs/development/architecture/ansi-canvas-protocol")) {
+  throw new Error("llms-full.txt is missing the LLM–Human Text Protocol");
+}
 if (!searchData.includes("/development/architecture/ownership")) {
   throw new Error("The search index is missing development content");
+}
+if (!searchData.includes("/development/architecture/ansi-canvas-protocol")) {
+  throw new Error("The search index is missing the LLM–Human Text Protocol");
 }
 
 const forbiddenRoutes = [

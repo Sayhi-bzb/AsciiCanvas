@@ -196,14 +196,7 @@ export const HOST_ICONOLOGY = {
     shortcuts: Keyboard,
     clear: Trash2,
   } satisfies IconMap<
-    | 'trigger'
-    | 'import'
-    | 'export'
-    | 'copy'
-    | 'github'
-    | 'language'
-    | 'shortcuts'
-    | 'clear'
+    'trigger' | 'import' | 'export' | 'copy' | 'github' | 'language' | 'shortcuts' | 'clear'
   >,
   slideAction: {
     play: Play,

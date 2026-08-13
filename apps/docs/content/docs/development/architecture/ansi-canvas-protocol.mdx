@@ -1,0 +1,30 @@
+---
+title: LLM–Human Text Protocol
+description: ANSI and Unicode text conversion through deterministic Canvas cells.
+---
+
+CharDesk uses one rendering-neutral cell protocol as the text boundary between
+LLMs, humans, and Canvas:
+
+`Unicode + ANSI/ESC-less ANSI -> protocol cells -> Canvas grid -> ANSI output`
+
+The [v1 specification](https://github.com/Sayhi-bzb/CharDesk/blob/main/packages/protocol/spec/v1.md)
+owns syntax, layout, diagnostics, and compatibility. The
+[agent syntax reference](https://github.com/Sayhi-bzb/CharDesk/blob/main/.agents/skills/chardesk/references/ansi.md)
+owns the concise form an LLM should emit.
+
+| Boundary | Project invariant | Authority and evidence |
+| --- | --- | --- |
+| Recognition | `auto` consumes standard ANSI and only supported ESC-less controls, so ordinary bracket text remains visible. `plain` disables controls; `ansi` consumes numeric ESC-less SGR and reports unknown codes. | [`parser.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/packages/protocol/src/parser.ts) and [conformance fixtures](https://github.com/Sayhi-bzb/CharDesk/blob/main/packages/protocol/fixtures/v1.json) |
+| Cell layout | Newlines, tabs, preserved spaces, grapheme boundaries, and Unicode 17 cell width determine stable `(x, y, width)` records. Wide graphemes advance two columns while retaining one editable value. | [`graphemes.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/packages/protocol/src/graphemes.ts) and [`protocol.test.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/packages/protocol/src/protocol.test.ts) |
+| Style state | SGR persists until changed; reset restores caller defaults. Inverse remains an attribute. OSC 8 produces an untrusted `href` that renderers must allowlist. | [Text Protocol v1](https://github.com/Sayhi-bzb/CharDesk/blob/main/packages/protocol/spec/v1.md) |
+| Canvas adaptation | The ANSI clipboard adapter promotes non-empty parsed cells only when controls were consumed. Markdown links are adapted to OSC 8 before parsing; the protocol itself does not recognize Markdown. | [`ansiText.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/shared/utils/ansiText.ts) and [`clipboardActions.test.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/domains/actions/adapters/clipboardActions.test.ts) |
+| ANSI serialization | Grid traversal skips the second column of wide graphemes, emits the shorter reset-or-diff SGR transition, and preserves trailing spaces only when their background, link, or attributes are visible. | [`text.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/domains/export/formats/text.ts) and [`clipboardActions.test.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/domains/actions/adapters/clipboardActions.test.ts) |
+| Exchange forms | ANSI clipboard copy and `.slides.md` remove ESC for LLM-readable text; ANSI export retains ESC. App-rich clipboard data and `.chardesk` are application formats, not this text protocol. | [`clipboardActions.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/domains/actions/adapters/clipboardActions.ts), [`slidesMarkdown.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/domains/export/formats/slidesMarkdown.ts), and [format boundaries](/development/formats-packages) |
+
+Compatibility is semantic, not byte-for-byte: parsing serialized output must
+preserve visible graphemes, cell coordinates, styles, links, and significant
+spaces. Changing those results requires a new protocol version.
+
+Canvas/Yjs ownership, history, and persistence remain owned by
+[State and data flows](/development/architecture/state-flows).

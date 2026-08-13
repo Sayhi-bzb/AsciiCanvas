@@ -25,6 +25,9 @@ const blankCell: GridCell = {
 
 const createPickExecutor = (): CanvasColorPickExecutor => ({
   setBrushColor: vi.fn(),
+  setBrushBackgroundColor: vi.fn(),
+  setSelectionForegroundColor: vi.fn(),
+  setSelectionBackgroundColor: vi.fn(),
   setStructuredTextColor: vi.fn(),
   clearColorPickerTarget: vi.fn(),
   clearHoveredGrid: vi.fn(),
@@ -55,6 +58,8 @@ describe("canvas color picker interaction", () => {
     ).toEqual({
       type: "picked",
       color: "#112233",
+      destination: "foreground",
+      applyFreeformSelection: false,
       applyStructuredTextColor: true,
     });
   });
@@ -87,6 +92,8 @@ describe("canvas color picker interaction", () => {
         {
           type: "picked",
           color: "#112233",
+          destination: "foreground",
+          applyFreeformSelection: false,
           applyStructuredTextColor: true,
         },
         executor
@@ -107,6 +114,8 @@ describe("canvas color picker interaction", () => {
         {
           type: "picked",
           color: "#445566",
+          destination: "foreground",
+          applyFreeformSelection: false,
           applyStructuredTextColor: false,
         },
         executor
@@ -120,6 +129,42 @@ describe("canvas color picker interaction", () => {
     expect(executor.setCursor).toHaveBeenCalledWith("");
   });
 
+  it("routes palette background picks to the background default", () => {
+    const executor = createPickExecutor();
+    const decision = resolveCanvasColorPickDecision({
+      cell,
+      target: "bg-to-background",
+      isStructuredTextSelectionActive: false,
+    });
+
+    expect(decision).toEqual({
+      type: "picked",
+      color: "#445566",
+      destination: "background",
+      applyFreeformSelection: false,
+      applyStructuredTextColor: false,
+    });
+    executeCanvasColorPickDecision(decision, executor);
+    expect(executor.setBrushBackgroundColor).toHaveBeenCalledWith("#445566");
+    expect(executor.setBrushColor).not.toHaveBeenCalled();
+  });
+
+  it("applies eyedropper colors to an active freeform selection", () => {
+    const executor = createPickExecutor();
+    const decision = resolveCanvasColorPickDecision({
+      cell,
+      target: "char-to-background",
+      isStructuredTextSelectionActive: false,
+      isFreeformSelectionActive: true,
+    });
+
+    executeCanvasColorPickDecision(decision, executor);
+    expect(executor.setBrushBackgroundColor).toHaveBeenCalledWith("#112233");
+    expect(executor.setSelectionBackgroundColor).toHaveBeenCalledWith(
+      "#112233"
+    );
+  });
+
   it("does not execute inactive color-picker drag starts", () => {
     const executor = createDragExecutor();
 
@@ -130,6 +175,9 @@ describe("canvas color picker interaction", () => {
   it("creates color-picker drag-start executors that bind refs and callbacks", () => {
     const colorPickerClick = { current: false };
     const setBrushColor = vi.fn();
+    const setBrushBackgroundColor = vi.fn();
+    const setSelectionForegroundColor = vi.fn();
+    const setSelectionBackgroundColor = vi.fn();
     const setStructuredTextColor = vi.fn();
     const clearColorPickerTarget = vi.fn();
     const clearHoveredGrid = vi.fn();
@@ -139,6 +187,9 @@ describe("canvas color picker interaction", () => {
       colorPickerClick,
       preventDefault: vi.fn(),
       setBrushColor,
+      setBrushBackgroundColor,
+      setSelectionForegroundColor,
+      setSelectionBackgroundColor,
       setStructuredTextColor,
       clearColorPickerTarget,
       clearHoveredGrid,
@@ -148,6 +199,9 @@ describe("canvas color picker interaction", () => {
 
     executor.markColorPickerClick();
     executor.setBrushColor("#112233");
+    executor.setBrushBackgroundColor("#334455");
+    executor.setSelectionForegroundColor("#556677");
+    executor.setSelectionBackgroundColor("#778899");
     executor.setStructuredTextColor("#445566");
     executor.clearColorPickerTarget();
     executor.clearHoveredGrid();
@@ -156,6 +210,9 @@ describe("canvas color picker interaction", () => {
 
     expect(colorPickerClick.current).toBe(true);
     expect(setBrushColor).toHaveBeenCalledWith("#112233");
+    expect(setBrushBackgroundColor).toHaveBeenCalledWith("#334455");
+    expect(setSelectionForegroundColor).toHaveBeenCalledWith("#556677");
+    expect(setSelectionBackgroundColor).toHaveBeenCalledWith("#778899");
     expect(setStructuredTextColor).toHaveBeenCalledWith("#445566");
     expect(clearColorPickerTarget).toHaveBeenCalledTimes(1);
     expect(clearHoveredGrid).toHaveBeenCalledTimes(1);

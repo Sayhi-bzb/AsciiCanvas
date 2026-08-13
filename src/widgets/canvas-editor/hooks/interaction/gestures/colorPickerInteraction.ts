@@ -8,6 +8,8 @@ type CanvasColorPickDecision =
   | {
       type: "picked";
       color: string;
+      destination: "foreground" | "background";
+      applyFreeformSelection: boolean;
       applyStructuredTextColor: boolean;
     }
   | { type: "clear-target" };
@@ -17,7 +19,9 @@ export const getCanvasCellPickedColor = (
   target: CanvasColorPickerTarget | null
 ): string | null => {
   if (!cell || !target) return null;
-  if (target === "bg") return cell.bgColor ?? null;
+  if (target === "bg" || target === "bg-to-background") {
+    return cell.bgColor ?? null;
+  }
   return cell.char.trim() ? cell.color : null;
 };
 
@@ -25,10 +29,12 @@ export const resolveCanvasColorPickDecision = ({
   cell,
   target,
   isStructuredTextSelectionActive,
+  isFreeformSelectionActive = false,
 }: {
   cell: GridCell | undefined;
   target: CanvasColorPickerTarget | null;
   isStructuredTextSelectionActive: boolean;
+  isFreeformSelectionActive?: boolean;
 }): CanvasColorPickDecision => {
   if (!target) return { type: "none" };
   const color = getCanvasCellPickedColor(cell, target);
@@ -36,6 +42,10 @@ export const resolveCanvasColorPickDecision = ({
   return {
     type: "picked",
     color,
+    destination: target.endsWith("-to-background")
+      ? "background"
+      : "foreground",
+    applyFreeformSelection: isFreeformSelectionActive,
     applyStructuredTextColor:
       target === "char" && isStructuredTextSelectionActive,
   };
@@ -43,6 +53,9 @@ export const resolveCanvasColorPickDecision = ({
 
 export type CanvasColorPickExecutor = {
   setBrushColor: (color: string) => void;
+  setBrushBackgroundColor: (color: string) => void;
+  setSelectionForegroundColor: (color: string) => void;
+  setSelectionBackgroundColor: (color: string) => void;
   setStructuredTextColor: (color: string) => void;
   clearColorPickerTarget: () => void;
   clearHoveredGrid: () => void;
@@ -55,7 +68,17 @@ export const executeCanvasColorPickDecision = (
   if (decision.type === "none") return false;
 
   if (decision.type === "picked") {
-    executor.setBrushColor(decision.color);
+    if (decision.destination === "background") {
+      executor.setBrushBackgroundColor(decision.color);
+      if (decision.applyFreeformSelection) {
+        executor.setSelectionBackgroundColor(decision.color);
+      }
+    } else {
+      executor.setBrushColor(decision.color);
+      if (decision.applyFreeformSelection) {
+        executor.setSelectionForegroundColor(decision.color);
+      }
+    }
     if (decision.applyStructuredTextColor) {
       executor.setStructuredTextColor(decision.color);
     }
@@ -77,6 +100,9 @@ export const createColorPickerDragStartExecutor = ({
   colorPickerClick,
   preventDefault,
   setBrushColor,
+  setBrushBackgroundColor,
+  setSelectionForegroundColor,
+  setSelectionBackgroundColor,
   setStructuredTextColor,
   clearColorPickerTarget,
   clearHoveredGrid,
@@ -86,6 +112,9 @@ export const createColorPickerDragStartExecutor = ({
   colorPickerClick: RefCell<boolean>;
   preventDefault: () => void;
   setBrushColor: (color: string) => void;
+  setBrushBackgroundColor: (color: string) => void;
+  setSelectionForegroundColor: (color: string) => void;
+  setSelectionBackgroundColor: (color: string) => void;
   setStructuredTextColor: (color: string) => void;
   clearColorPickerTarget: () => void;
   clearHoveredGrid: () => void;
@@ -97,6 +126,9 @@ export const createColorPickerDragStartExecutor = ({
     colorPickerClick.current = true;
   },
   setBrushColor,
+  setBrushBackgroundColor,
+  setSelectionForegroundColor,
+  setSelectionBackgroundColor,
   setStructuredTextColor,
   clearColorPickerTarget,
   clearHoveredGrid,
@@ -129,11 +161,13 @@ type ColorPickerDragStartHandler = ({
 export const createColorPickerDragStartHandler = ({
   target,
   isStructuredTextSelectionActive,
+  isFreeformSelectionActive = false,
   getCell,
   executor,
 }: {
   target: CanvasColorPickerTarget | null;
   isStructuredTextSelectionActive: boolean;
+  isFreeformSelectionActive?: boolean;
   getCell: (point: { x: number; y: number }) => GridCell | undefined;
   executor: ColorPickerDragStartExecutor;
 }): ColorPickerDragStartHandler => ({ point, preventDefault }) => {
@@ -143,6 +177,7 @@ export const createColorPickerDragStartHandler = ({
       cell: getCell(point),
       target,
       isStructuredTextSelectionActive,
+      isFreeformSelectionActive,
     }),
     {
       ...executor,

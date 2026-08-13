@@ -279,6 +279,26 @@ export const createSelectionSlice = (
     });
   },
 
+  setSelectionForegroundColor: (color) => {
+    const state = get();
+    const selections = resolveSelectionAreas(state);
+    if (state.canvasMode === "structured" || selections.length === 0) return;
+
+    documents.mutateGrid((grid) => {
+      selections.forEach((area) => {
+        const { minX, maxX, minY, maxY } = getSelectionBounds(area);
+        for (let y = minY; y <= maxY; y++) {
+          for (let x = minX; x <= maxX; x++) {
+            const key = GridManager.toKey(x, y);
+            const existingCell = grid.get(key);
+            if (!existingCell) continue;
+            grid.set(key, { ...existingCell, color });
+          }
+        }
+      });
+    });
+  },
+
   setSelectionBackgroundColor: (bgColor) => {
     const state = get();
     const { brushColor, canvasMode } = state;

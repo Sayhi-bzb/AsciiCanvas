@@ -25,6 +25,7 @@ describe("collaborative session persistence", () => {
       grid: new Map([["0,0", { char: "A", color: "#fff" }]]),
       structuredScene: [],
       structuredComponents: [],
+      brushBackgroundColor: "#445566",
       canvasSessions: [
         {
           id: "room-session",
@@ -41,10 +42,12 @@ describe("collaborative session persistence", () => {
     const persisted = createPersistedEditorSnapshot(useEditorStore.getState()) as unknown as {
       workspace: { grid: unknown[]; structuredScene: unknown[] };
       sessions: { items: Array<{ grid: unknown[]; scene: unknown[] }> };
+      preferences: { brushBackgroundColor: string };
     };
 
     expect(persisted.workspace.grid).toEqual([]);
     expect(persisted.workspace.structuredScene).toEqual([]);
     expect(persisted.sessions.items[0]).toMatchObject({ grid: [], scene: [] });
+    expect(persisted.preferences.brushBackgroundColor).toBe("#445566");
   });
 });

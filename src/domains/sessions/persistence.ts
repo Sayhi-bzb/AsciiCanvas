@@ -34,6 +34,7 @@ interface PersistedEditorStateV5 {
   preferences: {
     brushChar: string;
     brushColor: string;
+    brushBackgroundColor?: string;
     showGrid: boolean;
     exportShowGrid: boolean;
   };
@@ -188,6 +189,12 @@ export const decodePersistedEditorState = (
         typeof preferences.brushColor === "string"
           ? preferences.brushColor
           : "#000000",
+      brushBackgroundColor:
+        typeof preferences.brushBackgroundColor === "string"
+          ? preferences.brushBackgroundColor
+          : typeof preferences.brushColor === "string"
+            ? preferences.brushColor
+            : "#000000",
       showGrid:
         typeof preferences.showGrid === "boolean" ? preferences.showGrid : true,
       exportShowGrid:
@@ -223,6 +230,8 @@ export const isPersistedEditorStateV5 = (
     typeof value.sessions.activeId === "string" &&
     typeof value.preferences.brushChar === "string" &&
     typeof value.preferences.brushColor === "string" &&
+    (!("brushBackgroundColor" in value.preferences) ||
+      typeof value.preferences.brushBackgroundColor === "string") &&
     typeof value.preferences.showGrid === "boolean" &&
     typeof value.preferences.exportShowGrid === "boolean"
   );

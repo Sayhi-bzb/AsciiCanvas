@@ -8,6 +8,7 @@ const renderLayout = (sidebarOpen: boolean) => (
       sidebarOpen={sidebarOpen}
       canvas={<canvas data-testid="persistent-canvas" />}
       sidebar={<aside data-testid="persistent-sidebar" />}
+      bottomEnd={<div data-testid="bottom-end-control" />}
     />
   </EditorChromeProvider>
 );
@@ -34,6 +35,9 @@ describe("EditorChromeLayout sidebar", () => {
     const expandedRegion = view.container.querySelector(
       '[data-editor-chrome-region="side-end"]'
     );
+    const bottomEndRegion = view.container.querySelector(
+      '[data-editor-chrome-region="bottom-end"]'
+    );
 
     expect(viewport).toHaveClass("size-full");
     expect(expandedRegion).toHaveClass("w-96", "transition-[width]");
@@ -41,6 +45,12 @@ describe("EditorChromeLayout sidebar", () => {
       "data-editor-chrome-reserved",
       "true"
     );
+    expect(
+      expandedRegion &&
+        bottomEndRegion &&
+        expandedRegion.compareDocumentPosition(bottomEndRegion) &
+          Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
 
     view.rerender(renderLayout(false));
 
@@ -57,5 +67,6 @@ describe("EditorChromeLayout sidebar", () => {
       "data-editor-chrome-reserved",
       "false"
     );
+    expect(bottomEndRegion).toHaveClass("editor-chrome-bottom-end");
   });
 });

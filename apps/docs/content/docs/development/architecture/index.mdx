@@ -1,6 +1,6 @@
 ---
 title: Architecture
-description: Ownership, runtime coordination, and authoritative data movement.
+description: Ownership, runtime coordination, authoritative data movement, and algorithm routes.
 ---
 
 Load only the missing decision:
@@ -8,6 +8,8 @@ Load only the missing decision:
 | Question | Route |
 | --- | --- |
 | Which layer or public boundary may own this dependency? | [Ownership and dependency direction](/development/architecture/ownership) |
+| How does LLM- or human-authored ANSI text become editable Canvas cells and return to text? | [LLM–Human Text Protocol](/development/architecture/ansi-canvas-protocol) |
 | Does this belong to command, tool, keymap, extension, or Host coordination? | [Editor runtime](/development/architecture/editor-runtime) |
 | Which state is authoritative, projected, persisted, synchronized, or undoable? | [State and data flows](/development/architecture/state-flows) |
+| Which rule computes text cells, coordinates, rendering, selection, slides, or structured layout? | [Algorithm routes](/development/architecture/algorithms) |
 | Which business capability owns the change? | [Domain reference](/development/domains) |

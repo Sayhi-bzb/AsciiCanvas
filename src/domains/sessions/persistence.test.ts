@@ -24,6 +24,21 @@ const createMemoryStorage = (): Storage => {
 };
 
 describe("editor persistence v5", () => {
+  it("preserves an independent background default and falls back to foreground", () => {
+    const explicit = migratePersistedStateToV5({
+      preferences: {
+        brushColor: "#112233",
+        brushBackgroundColor: "#445566",
+      },
+    });
+    expect(explicit.preferences.brushBackgroundColor).toBe("#445566");
+
+    const legacy = migratePersistedStateToV5({
+      preferences: { brushColor: "#112233" },
+    });
+    expect(legacy.preferences.brushBackgroundColor).toBe("#112233");
+  });
+
   it("migrates the legacy brand key and removes it only after validation", () => {
     const storage = createMemoryStorage();
     storage.setItem(LEGACY_EDITOR_PERSISTENCE_KEY, JSON.stringify({

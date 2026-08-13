@@ -729,7 +729,8 @@ describe('canvas session viewport state', () => {
   it('fills freeform background rectangles without erasing existing cells', () => {
     useEditorStore.setState({
       canvasMode: 'freeform',
-      brushColor: '#334155',
+      brushColor: '#ef4444',
+      brushBackgroundColor: '#334155',
     });
     applyFreeformSnapshotToYMaps([['1,1', { char: 'A', color: '#ffffff', attrs: { bold: true } }]]);
 

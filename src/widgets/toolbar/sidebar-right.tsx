@@ -115,7 +115,7 @@ function SidebarViewRail<ViewId extends string>({
                 <Icon className="size-4" />
               </button>
             </TooltipTrigger>
-            <TooltipContent side={orientation === "vertical" ? "left" : "bottom"}>
+            <TooltipContent side={orientation === "vertical" ? "right" : "bottom"}>
               {view.label}
             </TooltipContent>
           </Tooltip>
@@ -287,7 +287,7 @@ export function SidebarRight() {
           "min-h-0 min-w-0 flex-1 overflow-hidden",
           isMobile
             ? "flex flex-col"
-            : "grid grid-cols-[minmax(0,1fr)_3rem]"
+            : "grid grid-cols-[3rem_minmax(0,1fr)]"
         )}
       >
         <div
@@ -296,7 +296,7 @@ export function SidebarRight() {
             "shrink-0",
             isMobile
               ? "p-1 pb-0"
-              : "col-start-2 row-start-1 px-[3px] py-1"
+              : "col-start-1 row-start-1 px-[3px] py-1"
           )}
         >
           {viewRail}
@@ -307,7 +307,7 @@ export function SidebarRight() {
           inert={isCollapsed || undefined}
           className={cn(
             "min-h-0 min-w-0 flex-1 transition-opacity duration-200",
-            !isMobile && "col-start-1 row-start-1",
+            !isMobile && "col-start-2 row-start-1",
             isCollapsed
               ? "pointer-events-none opacity-0"
               : "opacity-100"
@@ -391,7 +391,7 @@ export function SidebarRight() {
             "h-12 shrink-0 items-center py-0",
             isMobile
               ? "flex flex-row gap-2 px-3"
-              : "grid grid-cols-[minmax(0,1fr)_3rem] gap-0 px-0"
+              : "grid grid-cols-[3rem_minmax(0,1fr)] gap-0 px-0"
           )}
         >
           <div
@@ -400,7 +400,7 @@ export function SidebarRight() {
             inert={isCollapsed || undefined}
             className={cn(
               "flex min-w-0 flex-1 items-center overflow-hidden py-px transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none motion-reduce:transform-none",
-              !isMobile && "pl-3 pr-2",
+              !isMobile && "col-start-2 row-start-1 pl-2 pr-3",
               isCollapsed
                 ? "pointer-events-none translate-x-2 opacity-0"
                 : "translate-x-0 opacity-100 delay-[60ms]"
@@ -412,7 +412,7 @@ export function SidebarRight() {
             data-testid="sidebar-toggle-column"
             className={cn(
               "flex h-full items-center justify-center",
-              !isMobile && "col-start-2 row-start-1",
+              !isMobile && "col-start-1 row-start-1",
               isCollapsed && "pointer-events-auto"
             )}
           >

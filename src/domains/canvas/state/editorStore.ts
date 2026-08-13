@@ -116,6 +116,7 @@ export const createEditorStore = ({
         tool: "select",
         brushChar: DEFAULT_BRUSH_CHAR,
         brushColor: COLOR_PRIMARY_TEXT,
+        brushBackgroundColor: COLOR_PRIMARY_TEXT,
         showGrid: true,
         exportShowGrid: false,
         hoveredGrid: null,
@@ -174,6 +175,8 @@ export const createEditorStore = ({
             brushChar: normalizeBrushChar(char, state.brushChar),
           })),
         setBrushColor: (color) => set({ brushColor: color }),
+        setBrushBackgroundColor: (color) =>
+          set({ brushBackgroundColor: color }),
         setCanvasColorPickerTarget: (target) => set({ canvasColorPickerTarget: target }),
         setStructuredContextPoint: (point) =>
           set({ structuredContextPoint: point ? { ...point } : null }),

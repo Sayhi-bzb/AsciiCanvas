@@ -2,6 +2,7 @@
 
 import type { DragEvent } from "react";
 import { cn } from "@/shared/lib/utils";
+import { rx } from "@/shared/styles/recipes";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -75,42 +76,48 @@ export function StructuredTemplateLibrary({
   return (
     <SidebarGroup className="p-0">
       <SidebarGroupContent>
-        <div className="flex flex-col gap-0.5">
+        <div
+          data-testid="structured-template-grid"
+          className="grid grid-cols-2 gap-1 p-1"
+        >
           {sortedTemplates.length === 0 && (
-            <div className="px-2 py-4 text-xs text-muted-foreground">
+            <div className="col-span-2 px-2 py-4 text-xs text-muted-foreground">
               {emptyLabel}
             </div>
           )}
           {sortedTemplates.map((template) => (
-            <div key={template.id}>
-              <button
-                data-onboarding-template-id={template.id}
-                type="button"
-                draggable
-                onDragStart={handleTemplateDragStart(template)}
-                onDragEnd={() => setActiveStructuredTemplateDragId(null)}
+            <button
+              key={template.id}
+              data-onboarding-template-id={template.id}
+              type="button"
+              draggable
+              onDragStart={handleTemplateDragStart(template)}
+              onDragEnd={() => setActiveStructuredTemplateDragId(null)}
+              className={cn(
+                rx.hostControl,
+                "group flex min-w-0 flex-col items-stretch gap-1 rounded-lg p-1.5 text-center"
+              )}
+            >
+              <div
+                data-testid="structured-template-preview-viewport"
                 className={cn(
-                  "group flex w-full items-center gap-3 rounded-md bg-transparent px-2 py-1.5 text-left transition-colors",
-                  "hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/50"
+                  rx.thumbnailSurface,
+                  "relative aspect-video w-full overflow-hidden"
                 )}
               >
-                <div
-                  data-testid="structured-template-preview-viewport"
-                  className="flex h-12 w-24 shrink-0 items-start justify-start overflow-hidden"
-                >
-                  <StructuredTemplatePreviewGrid
-                    preview={getStructuredTemplatePreview(template.id)}
-                    cellWidth={5}
-                    cellHeight={9}
-                    fontSize={8}
-                    className="text-foreground"
-                  />
-                </div>
-                <span className="min-w-0 flex-1 truncate text-xs text-foreground">
-                  {template.label}
-                </span>
-              </button>
-            </div>
+                <StructuredTemplatePreviewGrid
+                  preview={getStructuredTemplatePreview(template.id)}
+                  cellWidth={5}
+                  cellHeight={9}
+                  fontSize={8}
+                  fit="contain"
+                  className="text-foreground"
+                />
+              </div>
+              <span className="truncate px-1 text-xs text-foreground">
+                {template.label}
+              </span>
+            </button>
           ))}
         </div>
       </SidebarGroupContent>

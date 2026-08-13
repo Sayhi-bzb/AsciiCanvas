@@ -10,7 +10,11 @@ import type { SessionCommands } from "@/domains/sessions/public";
 import type { CanvasHistoryMode } from "./CanvasDocumentRegistry";
 import type { SlideDeck, SlideSize } from "@/domains/slides/public";
 
-export type CanvasColorPickerTarget = "char" | "bg";
+export type CanvasColorPickerTarget =
+  | "char"
+  | "bg"
+  | "char-to-background"
+  | "bg-to-background";
 
 export interface RichTextCell {
   x: number;
@@ -153,6 +157,7 @@ export interface SelectionSlice {
   setSelectionTextAttributes: (
     attrs: Partial<Record<"bold" | "italic" | "underline" | "strike", boolean>>
   ) => void;
+  setSelectionForegroundColor: (color: string) => void;
   setSelectionBackgroundColor: (bgColor: string | null) => void;
   fillArea: (area: SelectionArea) => void;
   moveSelections: (dx: number, dy: number) => void;
@@ -171,6 +176,7 @@ export type EditorState = {
   canvasMode: CanvasMode;
   brushChar: string;
   brushColor: string;
+  brushBackgroundColor: string;
   grid: GridMap;
   structuredScene: StructuredNode[];
   structuredComponents: StructuredComponentInstance[];
@@ -204,6 +210,7 @@ export type EditorState = {
   getNextStructuredOrder: () => number;
   setBrushChar: (char: string) => void;
   setBrushColor: (color: string) => void;
+  setBrushBackgroundColor: (color: string) => void;
   setCanvasColorPickerTarget: (target: CanvasColorPickerTarget | null) => void;
   setStructuredContextPoint: (point: Point | null) => void;
   setShowGrid: (show: boolean) => void;

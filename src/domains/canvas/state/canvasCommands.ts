@@ -51,6 +51,9 @@ return {
       call("setBrushChar", ...args),
     setBrushColor: (...args: Parameters<EditorState["setBrushColor"]>) =>
       call("setBrushColor", ...args),
+    setBrushBackgroundColor: (
+      ...args: Parameters<EditorState["setBrushBackgroundColor"]>
+    ) => call("setBrushBackgroundColor", ...args),
     setShowGrid: (...args: Parameters<EditorState["setShowGrid"]>) =>
       call("setShowGrid", ...args),
     setExportShowGrid: (...args: Parameters<EditorState["setExportShowGrid"]>) =>
@@ -129,6 +132,9 @@ return {
       call("fillSelectionsWithChar", ...args),
     setTextAttributes: (...args: Parameters<EditorState["setSelectionTextAttributes"]>) =>
       call("setSelectionTextAttributes", ...args),
+    setForegroundColor: (
+      ...args: Parameters<EditorState["setSelectionForegroundColor"]>
+    ) => call("setSelectionForegroundColor", ...args),
     setBackgroundColor: (...args: Parameters<EditorState["setSelectionBackgroundColor"]>) =>
       call("setSelectionBackgroundColor", ...args),
     move: (...args: Parameters<EditorState["moveSelections"]>) =>

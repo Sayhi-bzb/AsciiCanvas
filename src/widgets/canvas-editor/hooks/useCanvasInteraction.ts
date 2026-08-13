@@ -87,6 +87,7 @@ export const useCanvasInteraction = (
     tool,
     brushChar,
     setBrushColor,
+    setBrushBackgroundColor,
     canvasColorPickerTarget,
     setCanvasColorPickerTarget,
     setViewport,
@@ -102,6 +103,7 @@ export const useCanvasInteraction = (
     offset,
     zoom,
     grid,
+    selections,
     updateScratchForShape,
     setHoveredGrid,
     fillArea,
@@ -278,6 +280,11 @@ export const useCanvasInteraction = (
         colorPickerClick: colorPickerClickRef,
         preventDefault: () => undefined,
         setBrushColor,
+        setBrushBackgroundColor,
+        setSelectionForegroundColor:
+          canvas.commands.selection.setForegroundColor,
+        setSelectionBackgroundColor:
+          canvas.commands.selection.setBackgroundColor,
         setStructuredTextColor,
         clearColorPickerTarget: () => setCanvasColorPickerTarget(null),
         clearHoveredGrid: () => setHoveredGrid(null),
@@ -286,8 +293,10 @@ export const useCanvasInteraction = (
       }),
     [
       hoverInteraction,
+      canvas,
       resetDragState,
       setBrushColor,
+      setBrushBackgroundColor,
       setCanvasColorPickerTarget,
       setHoveredGrid,
       setStructuredTextColor,
@@ -297,6 +306,8 @@ export const useCanvasInteraction = (
     target: canvasColorPickerTarget,
     isStructuredTextSelectionActive:
       canvasMode === "structured" && !!structuredTextSelection,
+    isFreeformSelectionActive:
+      canvasMode === "freeform" && selections.length > 0,
     getCell: (point) => grid.get(GridManager.toKey(point.x, point.y)),
     executor: colorPickerDragStartExecutor,
   });

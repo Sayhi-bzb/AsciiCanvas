@@ -96,7 +96,12 @@ export const createDrawingSlice = (
 
   updateScratchForShape: (tool, start, end, options) => {
     let points: GridPoint[] = [];
-    const color = get().brushColor;
+    const state = get();
+    const color = state.brushColor;
+    const backgroundColor =
+      state.canvasMode === "freeform"
+        ? state.brushBackgroundColor
+        : state.brushColor;
     switch (tool) {
       case "box":
         points = getBoxPoints(start, end);
@@ -117,7 +122,7 @@ export const createDrawingSlice = (
         points = getFilledRectPoints(start, end).map((point) => ({
           ...point,
           color: COLOR_PRIMARY_TEXT,
-          bgColor: color,
+          bgColor: backgroundColor,
         }));
         break;
       case "circle":

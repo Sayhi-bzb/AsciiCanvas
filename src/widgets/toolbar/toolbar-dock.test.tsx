@@ -141,7 +141,7 @@ describe('Toolbar dock', () => {
     input.remove();
   });
 
-  it('exits canvas text editing before opening the color popover', async () => {
+  it('leaves Alt+6 available for the freeform palette surface', () => {
     useEditorStore.setState({ canvasMode: 'freeform', tool: 'select' });
     const onExitCanvasTextEditing = vi.fn();
     render(
@@ -159,8 +159,8 @@ describe('Toolbar dock', () => {
       altKey: true,
     });
 
-    expect(onExitCanvasTextEditing).toHaveBeenCalledOnce();
-    expect(await screen.findByRole('tablist', { name: 'Color palettes' })).toBeInTheDocument();
+    expect(onExitCanvasTextEditing).not.toHaveBeenCalled();
+    expect(screen.queryByRole('tablist', { name: 'Color palettes' })).not.toBeInTheDocument();
   });
 
   it('shows Hand first in structured mode', () => {
@@ -190,7 +190,7 @@ describe('Toolbar dock', () => {
     expect(screen.getByRole('button', { name: 'Box' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Background' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Paint Char Color' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Color' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Color' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Brush/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Eraser' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Fill Area' })).not.toBeInTheDocument();
@@ -293,13 +293,15 @@ describe('Toolbar dock', () => {
     });
 
     expect(shapeItem).toHaveClass('bg-accent', 'text-foreground');
-    expect(document.querySelector('[data-slot="dropdown-menu-content"]')).toHaveClass(
-      'min-w-48',
+    const shapeMenu = document.querySelector('[data-slot="dropdown-menu-content"]');
+    expect(shapeMenu).toHaveClass(
+      'min-w-40',
       'bg-overlay-surface',
       'border-0',
       'shadow-overlay',
       'rounded-lg'
     );
+    expect(shapeMenu).not.toHaveClass('min-w-48');
     fireEvent.click(circle);
     expect(setTool).toHaveBeenCalledWith('circle');
     await waitFor(() =>
@@ -353,6 +355,7 @@ describe('Toolbar dock', () => {
     expect(screen.getByRole('button', { name: 'Select' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Box' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Background' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Color' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Undo' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Text' })).not.toBeInTheDocument();
   });
@@ -375,14 +378,14 @@ describe('Toolbar dock', () => {
     const paletteTabs = screen.getByRole('tablist', {
       name: 'Color palettes',
     });
-    expect(paletteTabs).toHaveAttribute('data-orientation', 'vertical');
-    expect(paletteTabs).toHaveClass('w-fit', 'flex-col', 'gap-1');
+    expect(paletteTabs).toHaveAttribute('data-orientation', 'horizontal');
+    expect(paletteTabs).toHaveClass('w-fit', 'flex-row', 'gap-1');
     const ansiTab = screen.getByRole('tab', { name: 'ANSI 16' });
     expect(ansiTab).toHaveClass(
       'size-8',
       'rounded-lg',
-      'group-data-[orientation=vertical]/tabs:w-8',
-      'group-data-[orientation=vertical]/tabs:justify-center',
+      'flex-none',
+      'justify-center',
       'hover:bg-accent',
       'hover:text-accent-foreground',
       'focus-visible:ring-[3px]',
@@ -394,13 +397,16 @@ describe('Toolbar dock', () => {
     );
     expect(ansiTab).not.toHaveClass('min-w-8');
     expect(ansiTab.querySelector('svg')).toBeInTheDocument();
-    expect(paletteTabs.parentElement).toHaveClass('w-[22rem]', 'gap-1.5', 'px-1');
+    const pickerPanel = paletteTabs.closest('[data-color-picker-panel="true"]');
+    expect(pickerPanel).toHaveClass('w-40', 'gap-2', 'px-1');
+    const pickerHeader = screen.getByTestId('color-picker-header');
+    expect(pickerHeader).toContainElement(paletteTabs);
     const contentFrame = screen.getByTestId('color-picker-content-frame');
     expect(
-      contentFrame.compareDocumentPosition(paletteTabs) & Node.DOCUMENT_POSITION_FOLLOWING
+      paletteTabs.compareDocumentPosition(contentFrame) & Node.DOCUMENT_POSITION_FOLLOWING
     ).not.toBe(0);
-    expect(contentFrame).toHaveClass('h-[8.875rem]');
-    expect(contentFrame).not.toHaveClass('h-[6.375rem]');
+    expect(contentFrame).toHaveClass('w-full', 'min-w-0');
+    expect(contentFrame).not.toHaveClass('h-[8.875rem]', 'h-[6.375rem]');
 
     expect(screen.getByRole('tab', { name: 'ANSI 16' })).toHaveClass(
       'bg-accent',
@@ -410,25 +416,67 @@ describe('Toolbar dock', () => {
     expect(screen.queryByText('Hex')).not.toBeInTheDocument();
 
     const activeColorView = screen.getByRole('tabpanel');
-    expect(activeColorView).toContainElement(screen.getByRole('textbox'));
-    expect(activeColorView).toContainElement(
-      screen.getByRole('button', { name: 'Pick color from canvas' })
-    );
+    const colorValueTrigger = screen.getByRole('button', { name: 'Hex: #000000' });
+    expect(pickerHeader).toContainElement(colorValueTrigger);
+    expect(activeColorView).not.toContainElement(colorValueTrigger);
+    expect(screen.getByTestId('color-value-icon')).toHaveClass('size-4', 'rounded-full');
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     expect(activeColorView).toContainElement(screen.getByTestId('color-palette-grid'));
 
-    const colorTools = screen.getByRole('textbox').closest('[data-color-picker-tools="true"]');
     const eyedropperTrigger = screen.getByRole('button', {
       name: 'Pick color from canvas',
     });
-    expect(colorTools).toHaveClass('flex', 'items-center');
-    expect(colorTools).toContainElement(eyedropperTrigger);
+    const headerActions = screen.getByTestId('color-picker-header-actions');
+    expect(headerActions).toContainElement(colorValueTrigger);
+    expect(headerActions).toContainElement(eyedropperTrigger);
+    expect(pickerHeader).toContainElement(eyedropperTrigger);
+
+    fireEvent.click(colorValueTrigger);
+    const hexInput = screen.getByRole('textbox', { name: 'Hex' });
+    expect(hexInput).toHaveFocus();
+    const visualColorPicker = screen.getByTestId('visual-color-picker');
+    expect(visualColorPicker).toBeInTheDocument();
+    expect(visualColorPicker.closest('[data-slot="popover-content"]')).toHaveAttribute(
+      'data-side',
+      'right'
+    );
+    expect(visualColorPicker.closest('[data-slot="popover-content"]')).toHaveAttribute(
+      'data-align',
+      'start'
+    );
+    expect(screen.getByRole('slider', { name: 'Color' })).toBeInTheDocument();
+    expect(screen.getByRole('slider', { name: 'Hue' })).toBeInTheDocument();
+    expect(screen.queryByRole('slider', { name: 'Alpha' })).not.toBeInTheDocument();
+    expect(hexInput).toHaveClass(
+      'bg-search-surface',
+      'border-0',
+      'shadow-none',
+      'focus-visible:ring-1'
+    );
+    expect(hexInput).not.toHaveClass('bg-muted/40');
+    expect(screen.queryByRole('button', { name: 'Use' })).not.toBeInTheDocument();
+
+    fireEvent.keyDown(hexInput, { key: 'Escape' });
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Pick ANSI color #c0c0c0' }));
     expect(onPick).toHaveBeenCalledWith('#c0c0c0');
 
     fireEvent.click(screen.getByRole('button', { name: 'Pick ANSI color #000080' }));
     expect(onPick).toHaveBeenCalledWith('#000080');
-    expect(screen.getByTestId('color-palette-grid')).toHaveClass('grid-cols-8', 'gap-0.5');
+    expect(screen.getByTestId('color-palette-grid')).toHaveClass(
+      'grid-cols-4',
+      'justify-items-center',
+      'gap-y-1'
+    );
+    const ansiColor = screen.getByRole('button', { name: 'Pick ANSI color #000080' });
+    expect(ansiColor).toHaveClass('size-6', 'rounded-full', 'cursor-pointer');
+    expect(ansiColor).not.toHaveClass(
+      'transition-transform',
+      'hover:scale-110',
+      'active:scale-95'
+    );
+    expect(ansiColor.firstElementChild).toHaveClass('size-[18px]', 'rounded-full');
 
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'Presets' }), {
       button: 0,
@@ -440,27 +488,130 @@ describe('Toolbar dock', () => {
       'bg-accent',
       'text-foreground'
     );
-    expect(contentFrame).toHaveClass('h-[8.875rem]');
-    expect(screen.getByTestId('color-palette-grid')).toHaveClass('grid-cols-10', 'gap-0.5');
+    expect(contentFrame).not.toHaveClass('h-[8.875rem]', 'h-[6.375rem]');
+    expect(screen.getByTestId('color-palette-grid')).toHaveClass(
+      'grid-cols-5',
+      'justify-items-center',
+      'gap-y-1'
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Pick preset color #7f1d1d' }));
     expect(onPick).toHaveBeenCalledWith('#7f1d1d');
     fireEvent.click(screen.getByRole('button', { name: 'Pick preset color #93c5fd' }));
     expect(onPick).toHaveBeenCalledWith('#93c5fd');
   });
 
-  it('normalizes short hex colors before picking', () => {
+  it('normalizes short hex colors before picking with Enter', () => {
     const onPick = vi.fn();
 
     render(<ColorPickerPanel value="#000000" onPick={onPick} />);
-    fireEvent.change(screen.getByRole('textbox'), {
+    fireEvent.click(screen.getByRole('button', { name: 'Hex: #000000' }));
+    const input = screen.getByRole('textbox', { name: 'Hex' });
+    fireEvent.change(input, {
       target: { value: '#0fc' },
     });
-    const useButton = screen.getByRole('button', { name: 'Use' });
-    expect(useButton).not.toHaveTextContent('Use');
-    expect(useButton.querySelector('svg')).toBeInTheDocument();
-    fireEvent.click(useButton);
+    fireEvent.keyDown(input, { key: 'Enter' });
 
     expect(onPick).toHaveBeenCalledWith('#00ffcc');
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Hex: #00ffcc' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Use' })).not.toBeInTheDocument();
+  });
+
+  it('keeps visual color changes local until the value popover is closed', async () => {
+    const onPick = vi.fn();
+
+    render(<ColorPickerPanel value="#ff0000" onPick={onPick} />);
+    const colorValueTrigger = screen.getByRole('button', { name: 'Hex: #ff0000' });
+    fireEvent.click(colorValueTrigger);
+
+    const colorSlider = screen.getByRole('slider', { name: 'Color' });
+    fireEvent.keyDown(colorSlider, { key: 'ArrowLeft', code: 'ArrowLeft', keyCode: 37 });
+
+    const input = screen.getByRole('textbox', { name: 'Hex' });
+    await waitFor(() => expect(input).not.toHaveValue('#ff0000'));
+    const draftColor = input.getAttribute('value');
+    expect(draftColor).toMatch(/^#[0-9a-f]{6}$/);
+    expect(onPick).not.toHaveBeenCalled();
+
+    fireEvent.click(colorValueTrigger);
+
+    expect(onPick).toHaveBeenCalledTimes(1);
+    expect(onPick).toHaveBeenCalledWith(draftColor);
+    expect(screen.queryByTestId('visual-color-picker')).not.toBeInTheDocument();
+  });
+
+  it('rejects alpha-bearing hex values', () => {
+    const onPick = vi.fn();
+
+    render(<ColorPickerPanel value="#000000" onPick={onPick} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Hex: #000000' }));
+    const input = screen.getByRole('textbox', { name: 'Hex' });
+    expect(input).toHaveAttribute('maxlength', '7');
+
+    fireEvent.change(input, { target: { value: '#11223344' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(onPick).not.toHaveBeenCalled();
+    expect(screen.queryByRole('textbox', { name: 'Hex' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Hex: #000000' })).toBeInTheDocument();
+  });
+
+  it('commits valid hex outside the panel and restores invalid input', () => {
+    const onPick = vi.fn();
+
+    render(<ColorPickerPanel value="#000000" onPick={onPick} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Hex: #000000' }));
+    let input = screen.getByRole('textbox', { name: 'Hex' });
+    fireEvent.change(input, { target: { value: '#123456' } });
+    fireEvent.blur(input, { relatedTarget: document.body });
+    expect(onPick).toHaveBeenCalledWith('#123456');
+    expect(screen.getByRole('button', { name: 'Hex: #123456' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hex: #123456' }));
+    input = screen.getByRole('textbox', { name: 'Hex' });
+    fireEvent.change(input, { target: { value: '#invalid' } });
+    fireEvent.blur(input, { relatedTarget: document.body });
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Hex: #000000' })).toBeInTheDocument();
+    expect(onPick).toHaveBeenCalledTimes(1);
+  });
+
+  it('cancels pending hex while focus moves within the picker', () => {
+    const onPick = vi.fn();
+
+    render(<ColorPickerPanel value="#000000" onPick={onPick} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Hex: #000000' }));
+    const input = screen.getByRole('textbox', { name: 'Hex' });
+    const eyedropperTrigger = screen.getByRole('button', {
+      name: 'Pick color from canvas',
+    });
+    fireEvent.change(input, { target: { value: '#123456' } });
+    fireEvent.blur(input, { relatedTarget: eyedropperTrigger });
+
+    expect(onPick).not.toHaveBeenCalled();
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Hex: #000000' })).toBeInTheDocument();
+  });
+
+  it('closes only the hex popover when Escape is pressed inside the dock color popover', async () => {
+    useEditorStore.setState({ canvasMode: 'structured', tool: 'select' });
+    render(<Toolbar tool="select" setTool={vi.fn()} onUndo={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open Color options' }));
+    expect(
+      await screen.findByRole('tablist', { name: 'Color palettes' })
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /^Hex:/ }));
+    const input = screen.getByRole('textbox', { name: 'Hex' });
+    fireEvent.keyDown(input, { key: 'Escape' });
+
+    expect(screen.queryByRole('textbox', { name: 'Hex' })).not.toBeInTheDocument();
+    expect(screen.getByRole('tablist', { name: 'Color palettes' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Open Color options' })).toHaveAttribute(
+      'data-state',
+      'open'
+    );
   });
 
   it('opens canvas color targets in a dropdown and retains the active target', async () => {
@@ -504,10 +655,14 @@ describe('Toolbar dock', () => {
     render(<ColorPickerPanel value="#000000" onPick={vi.fn()} showCustomInput={false} />);
 
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Hex:/ })).not.toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: 'Pick color from canvas' })
     ).not.toBeInTheDocument();
-    expect(screen.getByTestId('color-picker-content-frame')).toHaveClass('h-[6.375rem]');
+    expect(screen.getByTestId('color-picker-content-frame')).not.toHaveClass(
+      'h-[8.875rem]',
+      'h-[6.375rem]'
+    );
     expect(screen.getByRole('tab', { name: 'ANSI 16' })).toBeInTheDocument();
   });
 });

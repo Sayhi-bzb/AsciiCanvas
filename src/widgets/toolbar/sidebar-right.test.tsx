@@ -57,7 +57,7 @@ describe("SidebarRight structured templates", () => {
     useLibraryStore.setState(initialLibraryState, true);
   });
 
-  it("keeps the header toggle in the same column when collapsed", () => {
+  it("keeps the header toggle aligned with the left rail when collapsed", () => {
     const { container } = render(
       <SidebarProvider defaultOpen>
         <SidebarRight />
@@ -65,12 +65,17 @@ describe("SidebarRight structured templates", () => {
     );
     const toggle = screen.getByRole("button", { name: /toggle sidebar/i });
     const toggleColumn = screen.getByTestId("sidebar-toggle-column");
+    const railColumn = screen.getByTestId("sidebar-view-rail-column");
+
+    expect(toggleColumn).toHaveClass("col-start-1", "row-start-1");
+    expect(railColumn).toHaveClass("col-start-1", "row-start-1");
 
     fireEvent.click(toggle);
 
     expect(screen.getByRole("button", { name: /toggle sidebar/i })).toBe(toggle);
     expect(screen.getByTestId("sidebar-toggle-column")).toBe(toggleColumn);
-    expect(toggleColumn).toHaveClass("col-start-2", "row-start-1");
+    expect(toggleColumn).toHaveClass("col-start-1", "row-start-1");
+    expect(screen.getByTestId("sidebar-view-rail-column")).toBe(railColumn);
     expect(container.querySelector('[data-slot="sidebar"]')).toHaveAttribute(
       "data-state",
       "collapsed"
@@ -136,18 +141,23 @@ describe("SidebarRight structured templates", () => {
       "border-0",
       "shadow-none"
     );
-    expect(header).toHaveClass("grid-cols-[minmax(0,1fr)_3rem]", "px-0");
-    expect(headerContent).toHaveClass("overflow-hidden", "py-px");
+    expect(header).toHaveClass("grid-cols-[3rem_minmax(0,1fr)]", "px-0");
+    expect(headerContent).toHaveClass(
+      "col-start-2",
+      "row-start-1",
+      "overflow-hidden",
+      "py-px"
+    );
     expect(structuredRailSlot?.parentElement).toHaveClass(
-      "grid-cols-[minmax(0,1fr)_3rem]"
+      "grid-cols-[3rem_minmax(0,1fr)]"
     );
     expect(structuredRailSlot).toHaveClass(
-      "col-start-2",
+      "col-start-1",
       "row-start-1",
       "px-[3px]"
     );
-    expect(toggleColumn).toHaveClass("col-start-2", "row-start-1");
-    expect(scrollArea).toHaveClass("col-start-1", "row-start-1");
+    expect(toggleColumn).toHaveClass("col-start-1", "row-start-1");
+    expect(scrollArea).toHaveClass("col-start-2", "row-start-1");
     expect(screen.getByRole("tab", { name: "Template" })).toHaveAttribute(
       "aria-selected",
       "false"
@@ -180,6 +190,8 @@ describe("SidebarRight structured templates", () => {
       group?.querySelectorAll('button[draggable="true"]') ?? []
     );
     const sortedTemplates = sortTemplateLabels(STRUCTURED_COMPONENT_TEMPLATES);
+    const templateGrid = screen.getByTestId("structured-template-grid");
+    expect(templateGrid).toHaveClass("grid", "grid-cols-2", "gap-1", "p-1");
     expect(templateItems).toHaveLength(STRUCTURED_COMPONENT_TEMPLATES.length);
     const templateSeparators = group?.querySelectorAll(
       '[data-slot="structured-template-separator"]'
@@ -199,21 +211,31 @@ describe("SidebarRight structured templates", () => {
       const preview = item.querySelector(
         '[data-testid="structured-template-preview-grid"]'
       );
-      const expectedPreview = getStructuredTemplatePreview(template.id);
       expect(viewport).toHaveClass(
-        "h-12",
-        "w-24",
-        "items-start",
-        "justify-start",
+        "aspect-video",
+        "w-full",
+        "bg-transparent",
+        "border-0",
         "overflow-hidden"
       );
+      expect(viewport).not.toHaveClass(
+        "border",
+        "border-border",
+        "bg-muted/40"
+      );
       expect(preview?.tagName).toBe("CANVAS");
+      expect(preview).toHaveAttribute("data-fit", "contain");
       expect(preview).toHaveStyle({
-        width: `${expectedPreview.width * 5}px`,
-        height: `${expectedPreview.height * 9}px`,
+        width: "100%",
+        height: "100%",
       });
       expect(item).toHaveTextContent(template.label);
-      expect(item).toHaveClass("rounded-md");
+      expect(item).toHaveClass(
+        "flex-col",
+        "items-stretch",
+        "rounded-lg",
+        "text-center"
+      );
       expect(item.querySelector(":scope > span:last-child")).not.toHaveClass(
         "font-semibold"
       );
@@ -226,7 +248,7 @@ describe("SidebarRight structured templates", () => {
     );
     expect(buttonPreview?.tagName).toBe("CANVAS");
     expect(group).toHaveClass("p-0");
-    expect(button).toHaveClass("items-center", "gap-3");
+    expect(button).toHaveClass("flex-col", "items-stretch", "gap-1");
     expect(
       screen.queryByRole("button", { name: /amibios/i })
     ).not.toBeInTheDocument();
@@ -297,10 +319,10 @@ describe("SidebarRight structured templates", () => {
     expect(rail).toHaveClass("bg-host-surface", "p-[3px]");
     expect(rail.parentElement).not.toHaveClass("border-r", "border-b");
     expect(railSlot?.parentElement).toHaveClass(
-      "grid-cols-[minmax(0,1fr)_3rem]"
+      "grid-cols-[3rem_minmax(0,1fr)]"
     );
-    expect(railSlot).toHaveClass("col-start-2", "row-start-1", "px-[3px]");
-    expect(scrollArea).toHaveClass("col-start-1", "row-start-1");
+    expect(railSlot).toHaveClass("col-start-1", "row-start-1", "px-[3px]");
+    expect(scrollArea).toHaveClass("col-start-2", "row-start-1");
     expect(tabs.map((tab) => tab.getAttribute("aria-label"))).toEqual([
       "Essentials",
       "Nerd Icons",

@@ -37,6 +37,7 @@ Useful resources:
 # Architecture Navigation
 
 - [Ownership and dependency direction](apps/docs/content/docs/development/architecture/ownership.mdx)
+- [LLM–Human Text Protocol](apps/docs/content/docs/development/architecture/ansi-canvas-protocol.mdx)
 - [Domain reference](apps/docs/content/docs/development/domains.mdx)
 - [Agent navigation benchmark](apps/docs/content/docs/development/quality.mdx#agent-navigation)
 - Treat the domain reference as the authority for business responsibility and the ownership map as the authority for dependency direction; confirm implementation details in source and tests.

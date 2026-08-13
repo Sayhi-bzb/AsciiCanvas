@@ -266,11 +266,6 @@ export function EditorChromeLayout({
               {bottomCenter}
             </EditorChromeRegion>
           )}
-          {bottomEnd && (
-            <EditorChromeRegion id="bottom-end" slot="bottom-end">
-              {bottomEnd}
-            </EditorChromeRegion>
-          )}
           {persistentSidebar && (
             <EditorChromeRegion
               id="side-end"
@@ -282,6 +277,11 @@ export function EditorChromeLayout({
               )}
             >
               {sidebar}
+            </EditorChromeRegion>
+          )}
+          {bottomEnd && (
+            <EditorChromeRegion id="bottom-end" slot="bottom-end">
+              {bottomEnd}
             </EditorChromeRegion>
           )}
         </div>

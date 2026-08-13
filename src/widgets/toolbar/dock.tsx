@@ -65,7 +65,6 @@ const FREEFORM_ACTION_ORDER: ToolbarActionId[] = [
   "shape-group",
   "bg",
   "fill",
-  "color",
 ];
 
 const STRUCTURED_ACTION_ORDER: ToolbarActionId[] = [
@@ -358,6 +357,9 @@ export function Toolbar({
                           side="top"
                           align="start"
                           sideOffset={12}
+                          className={cn(
+                            item.id === "shape-group" && "min-w-40"
+                          )}
                         >
                           {item.id === "brush" ? (
                             <BrushSubmenu

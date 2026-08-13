@@ -1,53 +1,44 @@
-import { useLocalStorageState } from "ahooks";
-import { CanvasEditor } from "@/widgets/canvas-editor";
-import { useCanvasRuntime, useCanvasState } from "@/domains/canvas/public";
-import { Toolbar } from "@/widgets/toolbar/dock";
-import {
-  SidebarProvider,
-  SidebarTrigger,
-  useSidebar,
-} from "@/shared/ui/sidebar";
-import {
-  Suspense,
-  lazy,
-  useCallback,
-  useMemo,
-  useState,
-} from "react";
-import { feedback } from "@/shared/services/effects";
-import { useShallow } from "zustand/react/shallow";
-import { CanvasBreadcrumb } from "@/widgets/session-tabs/CanvasBreadcrumb";
-import { TooltipProvider } from "@/shared/ui/tooltip";
-import { AppMenu } from "@/widgets/toolbar/app-menu";
-import { getStaticGridViewState } from "@/domains/selection/public";
-import { isStaticGridMode } from "@/domains/sessions/public";
-import { useHandToolShortcuts } from "./useHandToolShortcuts";
-import { useGlobalShortcutCommands } from "./useGlobalShortcutCommands";
-import { ZoomControl } from "@/widgets/toolbar/zoom-control";
-import { HelpControl } from "@/widgets/toolbar/help-control";
+import { useLocalStorageState } from 'ahooks';
+import { CanvasEditor } from '@/widgets/canvas-editor';
+import { useCanvasRuntime, useCanvasState } from '@/domains/canvas/public';
+import { Toolbar } from '@/widgets/toolbar/dock';
+import { SidebarProvider, SidebarTrigger, useSidebar } from '@/shared/ui/sidebar';
+import { Suspense, lazy, useCallback, useMemo, useState } from 'react';
+import { feedback } from '@/shared/services/effects';
+import { useShallow } from 'zustand/react/shallow';
+import { CanvasBreadcrumb } from '@/widgets/session-tabs/CanvasBreadcrumb';
+import { TooltipProvider } from '@/shared/ui/tooltip';
+import { AppMenu } from '@/widgets/toolbar/app-menu';
+import { getStaticGridViewState } from '@/domains/selection/public';
+import { isStaticGridMode } from '@/domains/sessions/public';
+import { useHandToolShortcuts } from './useHandToolShortcuts';
+import { useGlobalShortcutCommands } from './useGlobalShortcutCommands';
+import { ZoomControl } from '@/widgets/toolbar/zoom-control';
+import { HelpControl } from '@/widgets/toolbar/help-control';
 import {
   SHORTCUT_PRIORITY,
   ShortcutProvider,
   useShortcutLayer,
-} from "@/shared/shortcuts/dispatcher";
-import { useActiveCollaboration } from "./useActiveCollaboration";
-import { useHorizontalWheelNavigationGuard } from "./useHorizontalWheelNavigationGuard";
-import { CollaborationControl } from "@/widgets/collaboration/CollaborationControl";
-import { RemotePresenceOverlay } from "@/widgets/collaboration/RemotePresenceOverlay";
-import { useCollaborationSnapshot } from "@/widgets/collaboration/useCollaborationSnapshot";
-import { sameCollaborationRoom } from "@/domains/collaboration/public";
-import { OnboardingTourProvider } from "@/widgets/onboarding/new-user-tour";
-import { CanvasEngineProvider } from "@/widgets/canvas-editor/engine/useCanvasEngineRuntime";
-import { useEditor } from "@/domains/editor/public";
-import { Toaster } from "@/shared/ui/sonner";
+} from '@/shared/shortcuts/dispatcher';
+import { useActiveCollaboration } from './useActiveCollaboration';
+import { useHorizontalWheelNavigationGuard } from './useHorizontalWheelNavigationGuard';
+import { CollaborationControl } from '@/widgets/collaboration/CollaborationControl';
+import { RemotePresenceOverlay } from '@/widgets/collaboration/RemotePresenceOverlay';
+import { useCollaborationSnapshot } from '@/widgets/collaboration/useCollaborationSnapshot';
+import { sameCollaborationRoom } from '@/domains/collaboration/public';
+import { OnboardingTourProvider } from '@/widgets/onboarding/new-user-tour';
+import { CanvasEngineProvider } from '@/widgets/canvas-editor/engine/useCanvasEngineRuntime';
+import { useEditor } from '@/domains/editor/public';
+import { Toaster } from '@/shared/ui/sonner';
+import { FreeformPaletteControl } from '@/widgets/color-picker/freeform-palette';
 import {
   EditorChromeLayout,
   EditorChromeProvider,
   useEditorChromeLayout,
-} from "@/widgets/editor-chrome/public";
+} from '@/widgets/editor-chrome/public';
 
 const SidebarRight = lazy(() =>
-  import("@/widgets/toolbar/sidebar-right").then((module) => ({
+  import('@/widgets/toolbar/sidebar-right').then((module) => ({
     default: module.SidebarRight,
   }))
 );
@@ -55,17 +46,17 @@ const SidebarRight = lazy(() =>
 function SidebarShortcutRegistration() {
   const { toggleSidebar } = useSidebar();
   useShortcutLayer({
-    id: "right-sidebar",
+    id: 'right-sidebar',
     priority: SHORTCUT_PRIORITY.chrome,
     onKeyDown: (event, context) => {
       if (
-        context.targetKind === "editable" ||
-        context.targetKind === "managed-canvas" ||
-        context.targetKind === "overlay" ||
+        context.targetKind === 'editable' ||
+        context.targetKind === 'managed-canvas' ||
+        context.targetKind === 'overlay' ||
         !(event.ctrlKey || event.metaKey) ||
         event.shiftKey ||
         event.altKey ||
-        event.key.toLowerCase() !== "b"
+        event.key.toLowerCase() !== 'b'
       ) {
         return;
       }
@@ -86,18 +77,15 @@ function AppContent() {
   useActiveCollaboration();
   useHorizontalWheelNavigationGuard();
   const collaborationSnapshot = useCollaborationSnapshot();
-  const activeCollaboration = useCanvasState((state) =>
-    state.canvasSessions.find((session) => session.id === state.activeCanvasId)?.collaboration
+  const activeCollaboration = useCanvasState(
+    (state) =>
+      state.canvasSessions.find((session) => session.id === state.activeCanvasId)?.collaboration
   );
   const isCollaborationReadOnly =
     !!activeCollaboration &&
     (!collaborationSnapshot.canEdit ||
-      !sameCollaborationRoom(
-        activeCollaboration,
-        collaborationSnapshot.descriptor
-      ));
-  const { formFactor, sidebarPresentation, viewportFrame } =
-    useEditorChromeLayout();
+      !sameCollaborationRoom(activeCollaboration, collaborationSnapshot.descriptor));
+  const { formFactor, sidebarPresentation, viewportFrame } = useEditorChromeLayout();
   const {
     tool,
     canvasMode,
@@ -122,15 +110,15 @@ function AppContent() {
   const editor = useEditor();
   const canvas = useCanvasRuntime();
   const setTool = useCallback(
-    (nextTool: typeof tool) => { editor.setCurrentTool(nextTool); },
+    (nextTool: typeof tool) => {
+      editor.setCurrentTool(nextTool);
+    },
     [editor]
   );
   const exitStaticGridTextEdit = canvas.commands.staticGrid.exitTextEdit;
   const setTextCursor = canvas.commands.interaction.setTextCursor;
-  const setEditingStructuredTextNodeId =
-    canvas.commands.interaction.setEditingStructuredTextNodeId;
-  const setStructuredTextSelection =
-    canvas.commands.interaction.setStructuredTextSelection;
+  const setEditingStructuredTextNodeId = canvas.commands.interaction.setEditingStructuredTextNodeId;
+  const setStructuredTextSelection = canvas.commands.interaction.setStructuredTextSelection;
   const staticGridView = useMemo(
     () =>
       getStaticGridViewState({
@@ -141,12 +129,9 @@ function AppContent() {
       }),
     [selections, staticGridEditMode, staticGridSelection, textCursor]
   );
-  const isCanvasTextEditing =
-    isStaticGridMode(canvasMode)
-      ? !!staticGridView.textCursor
-      : !!textCursor ||
-        !!editingStructuredTextNodeId ||
-        !!structuredTextSelection;
+  const isCanvasTextEditing = isStaticGridMode(canvasMode)
+    ? !!staticGridView.textCursor
+    : !!textCursor || !!editingStructuredTextNodeId || !!structuredTextSelection;
   const exitCanvasTextEditing = useCallback(() => {
     exitStaticGridTextEdit();
     setTextCursor(null);
@@ -162,31 +147,24 @@ function AppContent() {
     isCanvasTextEditing,
   });
 
-  const [desktopSidebarOpen, setDesktopSidebarOpen] =
-    useLocalStorageState<boolean>(
-    "ui-right-panel-status",
+  const [desktopSidebarOpen, setDesktopSidebarOpen] = useLocalStorageState<boolean>(
+    'ui-right-panel-status',
     { defaultValue: true }
   );
   const [transientSidebar, setTransientSidebar] = useState({
     formFactor,
     open: false,
   });
-  const transientSidebarOpen =
-    transientSidebar.formFactor === formFactor && transientSidebar.open;
+  const transientSidebarOpen = transientSidebar.formFactor === formFactor && transientSidebar.open;
 
   const isRightPanelOpen =
-    formFactor === "desktop"
-      ? desktopSidebarOpen ?? true
-      : transientSidebarOpen;
+    formFactor === 'desktop' ? (desktopSidebarOpen ?? true) : transientSidebarOpen;
   const setIsRightPanelOpen = useCallback(
     (open: boolean) => {
-      if (formFactor === "desktop") setDesktopSidebarOpen(open);
+      if (formFactor === 'desktop') setDesktopSidebarOpen(open);
       else setTransientSidebar({ formFactor, open });
-    }, [
-      formFactor,
-      setDesktopSidebarOpen,
-      setTransientSidebar,
-    ]
+    },
+    [formFactor, setDesktopSidebarOpen, setTransientSidebar]
   );
 
   const handleUndo = () => {
@@ -209,7 +187,7 @@ function AppContent() {
       open={isRightPanelOpen}
       onOpenChange={setIsRightPanelOpen}
       className="size-full overflow-hidden"
-      style={{ "--sidebar-width": "24rem" } as React.CSSProperties}
+      style={{ '--sidebar-width': '24rem' } as React.CSSProperties}
     >
       <SidebarShortcutRegistration />
       <EditorChromeLayout
@@ -220,14 +198,25 @@ function AppContent() {
             data-testid="app-top-bar"
             className="flex min-w-0 items-center gap-1 pointer-events-none"
           >
-            <AppMenu />
+            <div data-testid="app-primary-control-stack" className="relative size-8 flex-none">
+              <AppMenu />
+              <div
+                data-testid="freeform-palette-control-position"
+                className="pointer-events-auto absolute left-0 top-9"
+              >
+                <FreeformPaletteControl
+                  enabled={!isCollaborationReadOnly}
+                  onBeforeOpen={exitCanvasTextEditing}
+                />
+              </div>
+            </div>
             <CanvasBreadcrumb />
             <CollaborationControl />
           </div>
         }
-        topEnd={formFactor === "phone" ? <PhoneSidebarTrigger /> : null}
+        topEnd={formFactor === 'phone' ? <PhoneSidebarTrigger /> : null}
         bottomStart={
-          formFactor === "phone" ? null : (
+          formFactor === 'phone' ? null : (
             <ZoomControl viewportFrame={viewportFrame} formFactor={formFactor} />
           )
         }
@@ -244,19 +233,14 @@ function AppContent() {
             />
           </div>
         }
-        bottomEnd={
-          <HelpControl />
-        }
+        bottomEnd={<HelpControl />}
         sidebar={
           <Suspense fallback={null}>
             <SidebarRight />
           </Suspense>
         }
         canvas={
-          <div
-            data-onboarding-target="workspace"
-            className="relative size-full overflow-hidden"
-          >
+          <div data-onboarding-target="workspace" className="relative size-full overflow-hidden">
             <div
               className="relative h-full w-full"
               inert={isCollaborationReadOnly}
@@ -265,9 +249,7 @@ function AppContent() {
               <CanvasEditor
                 onUndo={handleUndo}
                 onRedo={handleRedo}
-                interactionToolOverride={
-                  isTemporaryPanActive ? "pan" : undefined
-                }
+                interactionToolOverride={isTemporaryPanActive ? 'pan' : undefined}
                 enabled={!isCollaborationReadOnly}
                 viewportFrame={viewportFrame}
               />

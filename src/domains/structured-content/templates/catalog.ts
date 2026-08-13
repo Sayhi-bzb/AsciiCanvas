@@ -1,10 +1,10 @@
-import type { TextAttributes } from "@/shared/types";
+import type { GridCell } from "@/shared/types";
+import { GridManager } from "@/shared/utils/grid";
 import type {
   StructuredComponentInstance,
   StructuredNode,
 } from "../model/types";
-import { mergeStructuredTextStyle } from "../model/text-ranges";
-import { getSplitBoxPoints } from "../model/split-box-geometry";
+import { renderStructuredScene } from "../model/scene";
 import {
   createStructuredComponentFactory,
   STRUCTURED_COMPONENTS,
@@ -52,15 +52,8 @@ export const setActiveStructuredTemplateDragId = (
 export const getActiveStructuredTemplateDragId = () =>
   activeStructuredTemplateDragId;
 
-type StructuredTemplatePreviewCell = {
-  char: string;
-  color?: string;
-  bgColor?: string;
-  attrs?: TextAttributes;
-};
-
 export type StructuredTemplatePreview = {
-  rows: StructuredTemplatePreviewCell[][];
+  rows: GridCell[][];
   width: number;
   height: number;
 };
@@ -114,23 +107,13 @@ export const buildStructuredTemplatePreview = (
 
   if (nodes.length === 0) return { rows: [], width: 0, height: 0 };
 
-  let maxX = 0;
-  let maxY = 0;
-  nodes.forEach((node) => {
-    if (node.type === "text") {
-      node.text.split("\n").forEach((line, rowIndex) => {
-        maxX = Math.max(maxX, node.position.x + Array.from(line).length - 1);
-        maxY = Math.max(maxY, node.position.y + rowIndex);
-      });
-      return;
-    }
-    maxX = Math.max(maxX, node.start.x, node.end.x);
-    maxY = Math.max(maxY, node.start.y, node.end.y);
-  });
+  const grid = renderStructuredScene(nodes);
+  if (grid.size === 0) return { rows: [], width: 0, height: 0 };
 
-  const width = maxX + 1;
-  const height = maxY + 1;
-  const rows: StructuredTemplatePreviewCell[][] = Array.from(
+  const { minX, maxX, minY, maxY } = GridManager.getGridBounds(grid);
+  const width = maxX - minX + 1;
+  const height = maxY - minY + 1;
+  const rows: GridCell[][] = Array.from(
     { length: height },
     () =>
       Array.from({ length: width }, () => ({
@@ -139,128 +122,9 @@ export const buildStructuredTemplatePreview = (
       }))
   );
 
-  nodes
-    .slice()
-    .sort((a, b) => a.order - b.order)
-    .forEach((node) => {
-      if (node.type === "bg") {
-        const minX = Math.min(node.start.x, node.end.x);
-        const maxNodeX = Math.max(node.start.x, node.end.x);
-        const minY = Math.min(node.start.y, node.end.y);
-        const maxNodeY = Math.max(node.start.y, node.end.y);
-        for (let y = minY; y <= maxNodeY; y++) {
-          for (let x = minX; x <= maxNodeX; x++) {
-            rows[y][x] = {
-              ...rows[y][x],
-              bgColor: node.style?.bgColor,
-              color: node.style?.color ?? STRUCTURED_TEMPLATE_TEXT_COLOR,
-            };
-          }
-        }
-        return;
-      }
-
-      if (node.type === "text") {
-        const lines = node.text.split("\n");
-        let textOffset = 0;
-        lines.forEach((line, rowIndex) => {
-          Array.from(line).forEach((char, index) => {
-            const x = node.position.x + index;
-            const y = node.position.y + rowIndex;
-            if (!rows[y]?.[x]) return;
-            const style = mergeStructuredTextStyle(
-              node.style,
-              node.styleRanges,
-              textOffset
-            );
-            rows[y][x] = {
-              ...rows[y][x],
-              char,
-              color: style.color ?? STRUCTURED_TEMPLATE_TEXT_COLOR,
-              bgColor: style.bgColor ?? rows[y][x].bgColor,
-              attrs: style.attrs,
-            };
-            textOffset += 1;
-          });
-          if (rowIndex < lines.length - 1) textOffset += 1;
-        });
-        return;
-      }
-
-      if (node.type === "line") {
-        const minX = Math.min(node.start.x, node.end.x);
-        const maxNodeX = Math.max(node.start.x, node.end.x);
-        const minY = Math.min(node.start.y, node.end.y);
-        const maxNodeY = Math.max(node.start.y, node.end.y);
-        for (let y = minY; y <= maxNodeY; y++) {
-          for (let x = minX; x <= maxNodeX; x++) {
-            rows[y][x] = {
-              char: node.axis === "vertical" ? "│" : "─",
-              color: node.style?.color ?? STRUCTURED_TEMPLATE_TEXT_COLOR,
-            };
-          }
-        }
-        return;
-      }
-
-      if (node.type === "splitBox") {
-        getSplitBoxPoints(node.start, node.end, {
-          verticalSplitRatio: node.verticalSplitRatio,
-          topSplitRatio: node.topSplitRatio,
-          bottomSplitRatio: node.bottomSplitRatio,
-          root: node.root,
-        }).forEach((point) => {
-          rows[point.y][point.x] = {
-            char: point.char,
-            color: node.style?.color ?? STRUCTURED_TEMPLATE_TEXT_COLOR,
-          };
-        });
-        return;
-      }
-
-      if (node.type === "box") {
-        const minX = Math.min(node.start.x, node.end.x);
-        const maxNodeX = Math.max(node.start.x, node.end.x);
-        const minY = Math.min(node.start.y, node.end.y);
-        const maxNodeY = Math.max(node.start.y, node.end.y);
-        for (let y = minY; y <= maxNodeY; y++) {
-          for (let x = minX; x <= maxNodeX; x++) {
-            const isTop = y === minY;
-            const isBottom = y === maxNodeY;
-            const isLeft = x === minX;
-            const isRight = x === maxNodeX;
-            if (!isTop && !isBottom && !isLeft && !isRight) continue;
-            const char =
-              isTop && isLeft
-                ? "╭"
-                : isTop && isRight
-                  ? "╮"
-                  : isBottom && isLeft
-                    ? "╰"
-                    : isBottom && isRight
-                      ? "╯"
-                      : isTop || isBottom
-                        ? "─"
-                        : "│";
-            rows[y][x] = {
-              char,
-              color: node.style?.color ?? STRUCTURED_TEMPLATE_TEXT_COLOR,
-            };
-          }
-        }
-        if (node.name) {
-          const label = ` ${node.name} `;
-          Array.from(label).forEach((char, index) => {
-            const x = minX + 2 + index;
-            if (x >= maxNodeX) return;
-            rows[minY][x] = {
-              char,
-              color: node.style?.color ?? STRUCTURED_TEMPLATE_TEXT_COLOR,
-            };
-          });
-        }
-      }
-    });
+  GridManager.iterate(grid, (cell, x, y) => {
+    rows[y - minY][x - minX] = cell;
+  });
 
   return { rows, width, height };
 };

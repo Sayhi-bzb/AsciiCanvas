@@ -62,6 +62,10 @@ export const recoverPersistedEditorState = (
   state.brushChar = normalizeBrushChar(state.brushChar, DEFAULT_BRUSH_CHAR);
   state.brushColor =
     typeof state.brushColor === "string" ? state.brushColor : COLOR_PRIMARY_TEXT;
+  state.brushBackgroundColor =
+    typeof state.brushBackgroundColor === "string"
+      ? state.brushBackgroundColor
+      : state.brushColor;
   state.showGrid = typeof state.showGrid === "boolean" ? state.showGrid : true;
   state.exportShowGrid =
     typeof state.exportShowGrid === "boolean" ? state.exportShowGrid : false;
@@ -158,6 +162,7 @@ export const createPersistedEditorSnapshot = (state: EditorState) => {
     preferences: {
       brushChar: state.brushChar,
       brushColor: state.brushColor,
+      brushBackgroundColor: state.brushBackgroundColor,
       showGrid: state.showGrid,
       exportShowGrid: state.exportShowGrid,
     },
@@ -180,5 +185,6 @@ export const shouldScheduleEditorPersistence = (
   previous.activeCanvasId !== next.activeCanvasId ||
   previous.brushChar !== next.brushChar ||
   previous.brushColor !== next.brushColor ||
+  previous.brushBackgroundColor !== next.brushBackgroundColor ||
   previous.showGrid !== next.showGrid ||
   previous.exportShowGrid !== next.exportShowGrid;
