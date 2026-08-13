@@ -90,7 +90,7 @@ CharDesk 在一致的网格中组合 Unicode 符号、中日韩字符、Emoji、
 
 ## 面向开发者
 
-CharDesk 的输出也可以在编辑器之外使用。文本交换格式见 [`@chardesk/protocol`](packages/protocol/README.md)，兼容字形资源见 [`@chardesk/fonts`](packages/fonts/README.md)。安装方式与 API 由各自的包文档负责。
+CharDesk 的输出也可以在编辑器之外使用。文本交换格式见 [`@chardesk/protocol`](packages/protocol/README.md)，框架无关的网页渲染见 [`@chardesk/viewer`](packages/viewer/README.md)，兼容字形资源见 [`@chardesk/fonts`](packages/fonts/README.md)。安装方式与 API 由各自的包文档负责。
 
 ## 致谢
 

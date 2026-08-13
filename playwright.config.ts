@@ -1,5 +1,8 @@
 import { defineConfig, devices } from '@playwright/test';
 
+const port = process.env.PLAYWRIGHT_PORT ?? '5173';
+const baseURL = `http://localhost:${port}`;
+
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
@@ -8,13 +11,13 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL,
     trace: 'on-first-retry',
     storageState: {
       cookies: [],
       origins: [
         {
-          origin: 'http://localhost:5173',
+          origin: baseURL,
           localStorage: [
             { name: 'chardesk-onboarding-v1', value: 'dismissed' },
           ],
@@ -32,10 +35,20 @@ export default defineConfig({
       testMatch: /shortcuts\.spec\.ts/,
       use: { ...devices['Desktop Safari'] },
     },
+    {
+      name: 'viewer-webkit',
+      testMatch: /viewer\.spec\.ts/,
+      use: { ...devices['Desktop Safari'] },
+    },
+    {
+      name: 'viewer-firefox',
+      testMatch: /viewer\.spec\.ts/,
+      use: { ...devices['Desktop Firefox'] },
+    },
   ],
   webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:5173',
-    reuseExistingServer: !process.env.CI,
+    command: `npm run dev:app -- --port ${port}`,
+    url: baseURL,
+    reuseExistingServer: !process.env.CI && !process.env.PLAYWRIGHT_PORT,
   },
 });

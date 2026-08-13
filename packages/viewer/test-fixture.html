@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CharDesk Viewer fixture</title>
+    <link rel="stylesheet" href="../fonts/fonts.css" />
+    <style>
+      body { margin: 24px; background: #f3f4f6; }
+      chardesk-viewer { width: 520px; }
+    </style>
+  </head>
+  <body>
+    <chardesk-viewer fit="none" zoom="1">
+      <pre data-chardesk-source>[38;2;220;38;38m┌─────────┐[0m
+[38;2;220;38;38m│[0m Human → LLM [38;2;220;38;38m│[0m
+[38;2;220;38;38m└─────────┘[0m</pre>
+    </chardesk-viewer>
+    <script type="module" src="./src/register.ts"></script>
+  </body>
+</html>

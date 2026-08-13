@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>CharDesk Viewer</title>
+    <link rel="stylesheet" href="../fonts/fonts.css" />
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+        color: light-dark(#111827, #e5e7eb);
+        background: light-dark(#f5f6f8, #0b0c0f);
+      }
+
+      * { box-sizing: border-box; }
+      body { margin: 0; }
+
+      main {
+        width: min(100% - 32px, 960px);
+        margin: 0 auto;
+        padding: clamp(48px, 9vw, 96px) 0;
+      }
+
+      header { max-width: 650px; margin-bottom: 40px; }
+      h1 { margin: 0 0 12px; font-size: clamp(2rem, 5vw, 3.5rem); line-height: 1; letter-spacing: -0.04em; }
+      header p { margin: 0; color: light-dark(#4b5563, #9ca3af); font-size: 1.05rem; line-height: 1.6; }
+
+      .stack { display: grid; gap: 28px; }
+      .example { min-width: 0; }
+      .example-header { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 10px; }
+      h2 { margin: 0; font-size: 0.875rem; font-weight: 600; }
+      .hint { margin: 0; color: light-dark(#6b7280, #9ca3af); font-size: 0.75rem; }
+
+      chardesk-viewer {
+        width: 100%;
+        --chardesk-font-size: 15px;
+        --chardesk-fit-max-font-size: 20px;
+      }
+
+      .passive {
+        --chardesk-border-color: transparent;
+        --chardesk-background: light-dark(#ffffff, #111318);
+      }
+
+      @media (max-width: 520px) {
+        main { width: min(100% - 20px, 960px); padding-top: 36px; }
+        .example-header { align-items: flex-start; flex-direction: column; gap: 4px; }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Text you can see.</h1>
+        <p>
+          CharDesk diagrams stay readable to humans, selectable in the browser,
+          and directly available to language models as text.
+        </p>
+      </header>
+
+      <div class="stack">
+        <section class="example">
+          <div class="example-header">
+            <h2>Interactive code block</h2>
+            <p class="hint">Hover or focus for reading controls</p>
+          </div>
+          <chardesk-viewer aria-label="Human and LLM workflow">
+            <pre data-chardesk-source>┌──────────────────┐      ┌──────────────────┐
+│ [1mHuman intent[22m     │─────▶│ [38;2;37;99;235mShared artifact[39m  │
+└──────────────────┘      └────────┬─────────┘
+                                   │
+                          ┌────────▼─────────┐
+                          │ [38;2;22;163;74mLLM-readable text[39m│
+                          └──────────────────┘</pre>
+          </chardesk-viewer>
+        </section>
+
+        <section class="example">
+          <div class="example-header">
+            <h2>Passive embed</h2>
+            <p class="hint">No controls, same selectable source</p>
+          </div>
+          <chardesk-viewer class="passive" controls="false" interaction="text">
+            <pre data-chardesk-source>┌──────────┐   text   ┌──────────┐
+│ Document │────────▶│  Viewer  │
+└──────────┘          └──────────┘</pre>
+          </chardesk-viewer>
+        </section>
+      </div>
+    </main>
+
+    <script type="module" src="./src/register.ts"></script>
+  </body>
+</html>

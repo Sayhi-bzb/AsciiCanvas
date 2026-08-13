@@ -90,7 +90,7 @@ CharDesk brings together Unicode symbols, CJK characters, emoji, box drawing, Ne
 
 ## For builders
 
-CharDesk output can also be consumed outside the editor. See [`@chardesk/protocol`](packages/protocol/README.md) for the text interchange format and [`@chardesk/fonts`](packages/fonts/README.md) for compatible glyph assets. Each package owns its installation and API documentation.
+CharDesk output can also be consumed outside the editor. See [`@chardesk/protocol`](packages/protocol/README.md) for the text interchange format, [`@chardesk/viewer`](packages/viewer/README.md) for framework-independent web rendering, and [`@chardesk/fonts`](packages/fonts/README.md) for compatible glyph assets. Each package owns its installation and API documentation.
 
 ## Thanks
 
