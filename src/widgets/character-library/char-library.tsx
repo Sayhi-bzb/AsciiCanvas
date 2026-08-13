@@ -5,7 +5,6 @@ import {
   ChevronRight,
   Loader2,
   RefreshCcw,
-  SearchX,
 } from "lucide-react";
 import { writeClipboardPayload } from "@/domains/actions/public";
 import { useCanvasState } from "@/domains/canvas/public";
@@ -256,10 +255,9 @@ function GroupSection({
 function EmptySearch() {
   const { t } = useUiI18n();
   return (
-    <div className="flex flex-col items-center py-12 text-muted-foreground">
-      <SearchX className="mb-2 size-8 opacity-20" />
-      <p className="text-[11px]">{t("character.empty")}</p>
-    </div>
+    <p className="px-2 py-4 text-xs text-muted-foreground">
+      {t("character.empty")}
+    </p>
   );
 }
 

@@ -39,10 +39,11 @@ import {
   TooltipTrigger,
 } from "@/shared/ui/tooltip";
 import { cn } from "@/shared/lib/utils";
-import { uiClass } from "@/shared/styles/components";
+import { rx } from "@/shared/styles/recipes"
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
 
 import { useUiI18n } from "@/shared/i18n";
+import type { EditorViewportFrame } from "@/widgets/editor-chrome/public";
 
 const BoldIcon = HOST_ICONOLOGY.selectionAction.bold;
 const ItalicIcon = HOST_ICONOLOGY.selectionAction.italic;
@@ -54,6 +55,7 @@ const DeleteDividerIcon = HOST_ICONOLOGY.selectionAction["delete-divider"];
 
 type SelectionFormatToolbarProps = {
   containerSize: { width: number; height: number } | undefined;
+  viewportFrame?: EditorViewportFrame;
 };
 
 const TOOLBAR_ACTION_SIZE = 32;
@@ -68,13 +70,13 @@ const getToolbarWidth = (actionCount: number) =>
   TOOLBAR_INLINE_PADDING;
 
 const selectionToolbarShellClass = cn(
-  uiClass.toolbarShell,
+  rx.toolbarShell,
   "border-0 shadow-host! backdrop-blur-none animate-in fade-in duration-[120ms] motion-reduce:animate-none"
 );
 
 const selectionToolbarToggleClass = cn(
   buttonVariants({ tone: "subtle", shape: "square", size: "md" }),
-  uiClass.hostControl,
+  rx.hostControl,
   "size-8 data-[state=on]:bg-accent data-[state=on]:text-foreground"
 );
 
@@ -114,7 +116,7 @@ function SelectionToolbarAction({
       shape="square"
       size="md"
       disabled={disabled}
-      className={cn("size-8", uiClass.hostControl, className)}
+      className={cn("size-8", rx.hostControl, className)}
       onMouseDown={(event) => {
         preserveCanvasFocus(event);
         onMouseDown?.(event);
@@ -179,6 +181,7 @@ const getBoundsFromNodeBounds = (bounds: NodeBounds) => ({
 
 export function SelectionFormatToolbar({
   containerSize,
+  viewportFrame,
 }: SelectionFormatToolbarProps) {
   const canvas = useCanvasRuntime();
   const { t } = useUiI18n();
@@ -383,22 +386,38 @@ export function SelectionFormatToolbar({
       const selectionRight = endRect.x + endRect.width;
       const selectionBottom = endRect.y + endRect.height;
       const selectionCenter = (selectionLeft + selectionRight) / 2;
+      const usableRect = viewportFrame?.usableRect ?? {
+        x: 0,
+        y: 0,
+        width: containerSize.width,
+        height: containerSize.height,
+      };
+      const minLeft = usableRect.x + 8;
+      const maxLeft = Math.max(
+        minLeft,
+        usableRect.x + usableRect.width - toolbarWidth - 8
+      );
       const left = Math.max(
-        8,
-        Math.min(containerSize.width - toolbarWidth - 8, selectionCenter - toolbarWidth / 2)
+        minLeft,
+        Math.min(maxLeft, selectionCenter - toolbarWidth / 2)
       );
       const topCandidate = selectionTop - TOOLBAR_HEIGHT - TOOLBAR_GAP;
+      const minTop = usableRect.y + 8;
+      const maxTop = Math.max(
+        minTop,
+        usableRect.y + usableRect.height - TOOLBAR_HEIGHT - 8
+      );
       const top =
-        topCandidate >= 8
+        topCandidate >= minTop
           ? topCandidate
-          : Math.min(containerSize.height - TOOLBAR_HEIGHT - 8, selectionBottom + TOOLBAR_GAP);
+          : Math.min(maxTop, selectionBottom + TOOLBAR_GAP);
 
       return {
         left,
-        top: Math.max(8, top),
+        top: Math.max(minTop, Math.min(maxTop, top)),
       };
     },
-    [containerSize, offset, zoom]
+    [containerSize, offset, viewportFrame?.usableRect, zoom]
   );
 
   const formatStyle = useMemo(
@@ -427,7 +446,7 @@ export function SelectionFormatToolbar({
     return (
       <div
         data-canvas-ui="true"
-        className="absolute z-40 pointer-events-auto"
+        className="absolute z-(--layer-contextual) pointer-events-auto"
         style={{ left: splitStyle.left, top: splitStyle.top }}
       >
         <div
@@ -494,7 +513,7 @@ export function SelectionFormatToolbar({
     return (
       <div
         data-canvas-ui="true"
-        className="absolute z-40 pointer-events-auto"
+        className="absolute z-(--layer-contextual) pointer-events-auto"
         style={{ left: shapeStyle.left, top: shapeStyle.top }}
       >
         <div
@@ -522,7 +541,7 @@ export function SelectionFormatToolbar({
   return (
     <div
       data-canvas-ui="true"
-      className="absolute z-40 pointer-events-auto"
+      className="absolute z-(--layer-contextual) pointer-events-auto"
       style={{ left: formatStyle.left, top: formatStyle.top }}
     >
       <ToggleGroup

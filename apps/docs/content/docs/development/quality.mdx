@@ -1,0 +1,34 @@
+---
+title: Quality and Verification
+description: Evidence and guardrail routes by changed contract.
+---
+
+| Changed contract | Evidence owner |
+| --- | --- |
+| Domain rule, codec, migration or runtime | Nearest deterministic domain test |
+| Shared UI or widget behavior | Component accessibility, focus and state tests |
+| Browser-visible cross-component flow | Focused `e2e` scenario |
+| Built-application performance | [`scripts/performance/run-perf.mjs`](https://github.com/Sayhi-bzb/CharDesk/blob/main/scripts/performance/run-perf.mjs) |
+| Protocol or font package | Package tests, specifications, fixtures and manifests |
+| Architecture boundary | Owning script in `scripts/quality` or `scripts/check-domain-boundaries.mjs` |
+| Generated character catalogs | `scripts/data/generate-character-data.mjs` verify mode: manifest checksums and catalog/gzip budgets |
+| Vendored fonts | `scripts/fonts/vendor-fonts.mjs` verify mode: pinned sources, checksums and local-only CSS |
+| Documentation route or Agent output | `scripts/docs/verify-build.mjs`: page/resource counts, search and LLM routes, retired routes and internal links |
+
+The root [`package.json`](https://github.com/Sayhi-bzb/CharDesk/blob/main/package.json)
+owns exact commands and verification composition. When a guard rejects a valid
+architecture change, update the authority and guard together; do not add a local bypass.
+
+Route boundary, public-contract and cycle failures to
+[`scripts/check-domain-boundaries.mjs`](https://github.com/Sayhi-bzb/CharDesk/blob/main/scripts/check-domain-boundaries.mjs);
+canvas state authority to `scripts/quality/check-state-ownership.mjs`; assertion
+escapes to `scripts/quality/check-type-escapes.mjs`; style and import tiers to
+`scripts/quality/check-style-api.mjs`; and reachability to `knip.json`.
+
+## Agent navigation
+
+[`scripts/quality/agent-navigation-cases.mjs`](https://github.com/Sayhi-bzb/CharDesk/blob/main/scripts/quality/agent-navigation-cases.mjs)
+owns product questions, expected-owner prefixes and diagnostic anchors. The runner
+reports Top-3 owner recall against a 90% diagnostic target. A miss routes
+investigation to source and AST evidence; graph/source disagreement is an index
+issue.

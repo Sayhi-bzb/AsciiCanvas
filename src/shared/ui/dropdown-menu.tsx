@@ -3,7 +3,7 @@ import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui"
 import { Check, ChevronRight } from "lucide-react"
 
 import { cn } from "@/shared/lib/utils"
-import { uiClass } from "@/shared/styles/components"
+import { rx } from "@/shared/styles/recipes"
 
 function DropdownMenu({
   ...props
@@ -33,7 +33,7 @@ function DropdownMenuContent({
         data-slot="dropdown-menu-content"
         sideOffset={sideOffset}
         className={cn(
-          uiClass.dropdownPanel,
+          rx.dropdownPanel,
           "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
           "data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
           className
@@ -56,7 +56,7 @@ function DropdownMenuItem({
       data-slot="dropdown-menu-item"
       data-variant={variant}
       className={cn(
-        uiClass.dropdownItem,
+        rx.dropdownItem,
         "focus:bg-accent focus:text-accent-foreground data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground",
         "data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
         "data-[variant=destructive]:text-destructive data-[variant=destructive]:focus:bg-destructive/10 data-[variant=destructive]:focus:text-destructive data-[variant=destructive]:data-[highlighted]:bg-destructive/10 data-[variant=destructive]:data-[highlighted]:text-destructive",
@@ -95,7 +95,7 @@ function DropdownMenuSubTrigger({
     <DropdownMenuPrimitive.SubTrigger
       data-slot="dropdown-menu-sub-trigger"
       className={cn(
-        uiClass.dropdownItem,
+        rx.dropdownItem,
         "focus:bg-accent focus:text-accent-foreground data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground",
         "data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
         className
@@ -119,7 +119,7 @@ function DropdownMenuSubContent({
         data-slot="dropdown-menu-sub-content"
         sideOffset={sideOffset}
         className={cn(
-          uiClass.dropdownSubPanel,
+          rx.dropdownSubPanel,
           "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
           "data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2",
           className
@@ -150,7 +150,7 @@ function DropdownMenuRadioItem({
     <DropdownMenuPrimitive.RadioItem
       data-slot="dropdown-menu-radio-item"
       className={cn(
-        uiClass.dropdownItem,
+        rx.dropdownItem,
         "gap-0 pl-8 pr-2",
         "focus:bg-accent focus:text-accent-foreground data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground",
         "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",

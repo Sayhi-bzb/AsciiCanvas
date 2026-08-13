@@ -14,7 +14,7 @@ import { HOST_ICONOLOGY } from '@/shared/icons/iconology';
 import { useUiI18n } from '@/shared/i18n';
 import { cn } from '@/shared/lib/utils';
 import { feedback } from '@/shared/services/effects';
-import { uiClass } from '@/shared/styles/components';
+import { rx } from '@/shared/styles/recipes';
 import { Button } from '@/shared/ui/button';
 import {
   DropdownMenu,
@@ -120,8 +120,8 @@ export function CollaborationControl() {
           size="md"
           className={cn(
             'pointer-events-auto',
-            uiClass.hostIconControl,
-            (open || descriptor) && uiClass.hostControlActive
+            rx.hostIconControl,
+            (open || descriptor) && rx.hostControlActive
           )}
           aria-label={t('collaboration.title')}
           title={t('collaboration.title')}

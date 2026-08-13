@@ -22,11 +22,11 @@ import {
 } from "@/domains/structured-content/public";
 import { useCanvasState } from "@/domains/canvas/public";
 import { cn } from "@/shared/lib/utils";
-import { ScrollArea } from "@/shared/ui/scroll-area";
+import { ContentScrollArea } from "@/shared/ui/content-scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
 import { useShallow } from "zustand/react/shallow";
 import { useUiI18n } from "@/shared/i18n";
-import { uiClass } from "@/shared/styles/components";
+import { rx } from "@/shared/styles/recipes"
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
 import { isStaticGridMode } from "@/domains/sessions/public";
 import { useOnboardingTour } from "@/widgets/onboarding/onboarding-context";
@@ -89,7 +89,7 @@ function SidebarViewRail<ViewId extends string>({
       }
       data-testid={`${testIdPrefix}-view-rail-${orientation}`}
       className={cn(
-        uiClass.iconRail,
+        rx.iconRail,
         orientation === "vertical"
           ? "w-full flex-col gap-1"
           : "w-full items-center justify-center gap-1"
@@ -108,8 +108,8 @@ function SidebarViewRail<ViewId extends string>({
                 aria-label={view.label}
                 onClick={() => onSelect(view.id)}
                 className={cn(
-                  uiClass.iconRailItem,
-                  isActive && uiClass.hostControlActive
+                  rx.iconRailItem,
+                  isActive && rx.hostControlActive
                 )}
               >
                 <Icon className="size-4" />
@@ -301,7 +301,7 @@ export function SidebarRight() {
         >
           {viewRail}
         </div>
-        <ScrollArea
+        <ContentScrollArea
           data-testid="sidebar-view-content"
           aria-hidden={isCollapsed || undefined}
           inert={isCollapsed || undefined}
@@ -314,7 +314,7 @@ export function SidebarRight() {
           )}
         >
           {viewContent}
-        </ScrollArea>
+        </ContentScrollArea>
       </div>
     );
 
@@ -335,7 +335,7 @@ export function SidebarRight() {
           }}
           placeholder={t("sidebar.search.placeholder")}
           className={cn(
-            uiClass.searchInput,
+            rx.searchInput,
             "h-8 w-full px-2 pr-9 [&::-webkit-search-cancel-button]:hidden"
           )}
         />
@@ -371,6 +371,7 @@ export function SidebarRight() {
       variant="floating"
       side="right"
       collapsedAppearance="trigger"
+      contentScroll="none"
       className="pointer-events-auto"
       data-canvas-ui="true"
       onPointerDown={stopCanvasUiEvent}
@@ -379,7 +380,6 @@ export function SidebarRight() {
       onContextMenu={stopCanvasUiEvent}
       contentClassName={cn(
         "min-h-0 overflow-hidden",
-        "[scrollbar-gutter:auto]",
         canvasMode === "freeform" && "gap-0 p-0",
         canvasMode === "structured" && "gap-0 p-0",
         canvasMode === "slide" && "gap-0 p-0",

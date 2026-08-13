@@ -11,6 +11,8 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+apps/docs/build
+apps/docs/.react-router
 *.local
 
 # Test and analysis output

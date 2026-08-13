@@ -25,6 +25,7 @@ import {
   LayoutTemplate,
   Layers,
   Languages,
+  Keyboard,
   LineSquiggle,
   Map,
   Menu,
@@ -192,6 +193,7 @@ export const HOST_ICONOLOGY = {
     copy: Copy,
     github: Github,
     language: Languages,
+    shortcuts: Keyboard,
     clear: Trash2,
   } satisfies IconMap<
     | 'trigger'
@@ -200,6 +202,7 @@ export const HOST_ICONOLOGY = {
     | 'copy'
     | 'github'
     | 'language'
+    | 'shortcuts'
     | 'clear'
   >,
   slideAction: {

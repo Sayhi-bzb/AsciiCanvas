@@ -1,0 +1,34 @@
+---
+title: State and Data Flows
+description: Authority, projection, history, persistence, and synchronization direction.
+---
+
+| Scope | Authority | History | Sync |
+| --- | --- | --- | --- |
+| `document` | Active grid, structured scene, and components in the Yjs document | Local origins | When collaborative |
+| `workspace` | Tool, local interaction, active viewport, and preferences | No | No |
+| `session` | Canvas identity, mode, local snapshot or slide deck, saved viewport, and collaboration descriptor | No | No |
+| `presence` | Remote identity, cursor, transient selection | No | Ephemeral |
+| `derived` | Rendering, minimap, preview projections | No | No |
+
+A projection never writes back to its authority. Only local Yjs origins enter
+undo history. Remote values pass Canvas decoders before projection; invalid records
+stay out of editor state and surface as collaboration integrity issues.
+
+## Canonical flows
+
+- Canvas content: command or provider -> one Yjs transaction -> canvas projector
+  -> editor state -> widgets.
+- Slide activation: deck slide -> active Yjs editing buffer.
+- Slide edit: command -> active Yjs editing buffer -> deck and session snapshot.
+- Local restore: sessions decoder -> canvas recovery adapter -> active Yjs document.
+- Import: document parser -> `CanvasImportSnapshot` -> canvas session command.
+- Session persistence: editor snapshot -> persistence coordinator -> sessions
+  schema -> browser storage.
+- Slide preview: slide data -> canonical slide renderer -> preview or playback.
+- Selection command: DOM dispatcher -> editor keymap -> command registry ->
+  canvas selection port -> Yjs document.
+
+Local sessions persist content snapshots. Collaborative sessions persist only
+their shell and descriptor; room content is restored through collaboration
+persistence, never from the editor snapshot.

@@ -52,4 +52,35 @@ describe("editor keymap persistence", () => {
       hydrateEditorKeymap(keymap, { getItem: () => { throw new Error("blocked"); } })
     ).not.toThrow();
   });
+
+  it("persists an atomic multi-entry update once", () => {
+    const keymap = createKeymap();
+    keymap.register("test", {
+      id: "command:copy",
+      shortcuts: ["mod+c"],
+      target: { type: "command", id: "copy" },
+    });
+    const setItem = vi.fn();
+    connectEditorKeymapPersistence(keymap, {
+      getItem: () => null,
+      setItem,
+    });
+
+    keymap.updateUserBindings({
+      "command:undo": [],
+      "command:copy": ["mod+z"],
+    });
+
+    expect(setItem).toHaveBeenCalledOnce();
+    expect(setItem).toHaveBeenCalledWith(
+      EDITOR_KEYMAP_STORAGE_KEY,
+      JSON.stringify({
+        version: 1,
+        bindings: {
+          "command:undo": [],
+          "command:copy": ["mod+z"],
+        },
+      })
+    );
+  });
 });

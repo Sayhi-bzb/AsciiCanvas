@@ -4,7 +4,7 @@ import { X } from "lucide-react"
 
 import { cn } from "@/shared/lib/utils"
 import { useUiI18n } from "@/shared/i18n"
-import { uiClass } from "@/shared/styles/components"
+import { rx } from "@/shared/styles/recipes"
 
 function Dialog({
   ...props
@@ -31,7 +31,7 @@ function DialogOverlay({
   return (
     <DialogPrimitive.Overlay
       data-slot="dialog-overlay"
-      className={cn(uiClass.dialogOverlay, className)}
+      className={cn(rx.dialogOverlay, className)}
       {...props}
     />
   )
@@ -51,14 +51,14 @@ function DialogContent({
       <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"
-        className={cn(uiClass.dialogShell, className)}
+        className={cn(rx.dialogShell, className)}
         {...props}
       >
         {children}
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="dialog-close"
-            className={uiClass.dialogClose}
+            className={rx.dialogClose}
           >
             <X />
             <span className="sr-only">{t("dialog.close")}</span>
@@ -73,7 +73,7 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="dialog-header"
-      className={cn(uiClass.dialogHeader, className)}
+      className={cn(rx.dialogHeaderWithClose, className)}
       {...props}
     />
   )
@@ -83,7 +83,7 @@ function DialogBody({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="dialog-body"
-      className={cn(uiClass.dialogBody, className)}
+      className={cn(rx.dialogBody, className)}
       {...props}
     />
   )
@@ -93,7 +93,7 @@ function DialogFooter({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="dialog-footer"
-      className={cn(uiClass.dialogFooter, className)}
+      className={cn(rx.dialogFooter, className)}
       {...props}
     />
   )

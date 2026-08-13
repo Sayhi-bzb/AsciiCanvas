@@ -18,6 +18,18 @@ import {
 import { CanvasEngineRuntime } from '@/widgets/canvas-editor/engine/CanvasEngineRuntime';
 import { configureCanvasEngineRuntimeFallbackForTesting } from '@/widgets/canvas-editor/engine/useCanvasEngineRuntime';
 
+if (typeof globalThis.ResizeObserver === 'undefined') {
+  Object.defineProperty(globalThis, 'ResizeObserver', {
+    configurable: true,
+    writable: true,
+    value: class ResizeObserverMock {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  });
+}
+
 initializeCanvasTesting({
   selectionCommands: (documents) => createSelectionCommandFactory({
     getActiveDocumentId: documents.getActiveDocumentId,

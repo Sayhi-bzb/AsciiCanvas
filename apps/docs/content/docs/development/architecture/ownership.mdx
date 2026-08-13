@@ -1,0 +1,24 @@
+---
+title: Ownership and Dependency Direction
+description: Layer responsibility and allowed dependency edges.
+---
+
+```text
+shared <- domains <- widgets <- app
+```
+
+| Layer | Owns | Boundary |
+| --- | --- | --- |
+| `shared` | Domain-neutral primitives | Depends only on `shared` and external packages |
+| `domains` | Business rules and state | Cross-domain access uses the owning domain's `public.ts` |
+| `widgets` | Product interaction and presentation | Coordinates public contracts; owns no domain validation or persistence |
+| `app` | Composition and application lifecycle | Constructs runtimes and application-wide side effects |
+
+A domain reads its own source directly. Its `public.ts` contains explicit named
+re-exports only; composition belongs in `src/app`. Production cross-domain imports
+use the owner's `public.ts`; tests may use its `/testing` entry when present.
+
+Use [domain reference](/development/domains) to select the business owner.
+[The boundary check](https://github.com/Sayhi-bzb/CharDesk/blob/main/scripts/check-domain-boundaries.mjs)
+enforces layer and import direction; [the state ownership check](https://github.com/Sayhi-bzb/CharDesk/blob/main/scripts/quality/check-state-ownership.mjs)
+guards Canvas stores, content projection, and Yjs mutation.

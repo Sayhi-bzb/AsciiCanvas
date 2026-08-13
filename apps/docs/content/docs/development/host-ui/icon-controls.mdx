@@ -1,0 +1,21 @@
+---
+title: Core Host Icon Controls
+description: Icon, geometry, state, and association contract.
+---
+
+- Resolve core Host icons through [`HOST_ICONOLOGY`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/shared/icons/iconology.ts).
+- Apply `rx.hostControl` to text controls, `rx.hostIconControl` to icon-only
+  controls, and `rx.hostControlActive` to active state.
+- Icon controls are 32 by 32 pixels with 16 pixel icons. Text controls are 32 pixels high.
+- Idle is transparent and muted; hover and active use semantic accent tokens;
+  focus uses the shared 3 pixel ring.
+- Core controls are borderless, shadowless, padding-free, and `rounded-lg`
+  unless compound geometry joins controls.
+- A subordinate control associates with its principal control without affecting neighbors.
+- Surface and elevation selection belongs to the [Visual system](/development/host-ui/visual-system).
+
+## Authority and evidence
+
+- Recipes: [`src/shared/styles/recipes.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/shared/styles/recipes.ts)
+- Semantic icon keys: [`iconology.test.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/shared/icons/iconology.test.ts)
+- Rendered geometry, state, association, and focus: [`e2e/host-control-states.spec.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/e2e/host-control-states.spec.ts)

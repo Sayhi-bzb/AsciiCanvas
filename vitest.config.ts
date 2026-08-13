@@ -1,5 +1,5 @@
 import { defineConfig } from 'vitest/config';
-import react from '@vitejs/plugin-react';
+import react from '@vitejs/plugin-react-swc';
 import path from 'path';
 
 export default defineConfig({
@@ -22,16 +22,16 @@ export default defineConfig({
     alias: [
       {
         find: /^@chardesk\/fonts$/,
-        replacement: path.resolve(__dirname, './packages/fonts/src/index.ts')
+        replacement: path.resolve(import.meta.dirname, './packages/fonts/src/index.ts')
       },
       {
         find: '@chardesk/protocol',
         replacement: path.resolve(
-          __dirname,
+          import.meta.dirname,
           './packages/protocol/src/index.ts'
         )
       },
-      { find: '@', replacement: path.resolve(__dirname, './src') }
+      { find: '@', replacement: path.resolve(import.meta.dirname, './src') }
     ]
   }
 });

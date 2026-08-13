@@ -8,7 +8,7 @@ export function RemotePresenceOverlay() {
   const zoom = useCanvasState((state) => state.zoom);
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-40 overflow-hidden" aria-hidden="true">
+    <div className="pointer-events-none absolute inset-0 z-(--layer-presence) overflow-hidden" aria-hidden="true">
       {peers.map((peer) => peer.cursor && (
         <div
           key={peer.clientId}

@@ -85,7 +85,7 @@ export function ClearCanvasDialog({
           <AlertDialogCancel>{t("dialog.cancel")}</AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            tone="danger"
           >
             {t("dialog.confirm")}
           </AlertDialogAction>

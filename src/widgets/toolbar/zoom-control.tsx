@@ -3,16 +3,19 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useCanvasRuntime, useCanvasState } from '@/domains/canvas/public';
-import { useIsMobile } from '@/shared/hooks/use-mobile';
 import { HOST_ICONOLOGY } from '@/shared/icons/iconology';
 import { MAX_ZOOM, MIN_ZOOM } from '@/shared/lib/constants';
 import { cn } from '@/shared/lib/utils';
-import { uiClass } from '@/shared/styles/components';
+import { rx } from '@/shared/styles/recipes';
 import { Button } from '@/shared/ui/button';
 import { useUiI18n } from '@/shared/i18n';
 import { feedback } from '@/shared/services/effects';
 import { useCanvasEngineRuntime } from '@/widgets/canvas-editor/engine/useCanvasEngineRuntime';
 import { SlidePlaybackOverlay } from './slide-playback';
+import type {
+  EditorFormFactor,
+  EditorViewportFrame,
+} from '@/widgets/editor-chrome/public';
 
 const ZOOM_STEP = 1.2;
 const ZOOM_EPSILON = 0.000001;
@@ -29,12 +32,17 @@ const Minimap = lazy(() =>
 );
 
 type ZoomControlProps = {
-  containerSize: { width: number; height: number } | undefined;
+  containerSize?: { width: number; height: number };
+  viewportFrame?: EditorViewportFrame;
+  formFactor?: EditorFormFactor;
 };
 
-export function ZoomControl({ containerSize }: ZoomControlProps) {
+export function ZoomControl({
+  containerSize,
+  viewportFrame,
+  formFactor = 'desktop',
+}: ZoomControlProps) {
   const canvas = useCanvasRuntime();
-  const isMobile = useIsMobile();
   const { t } = useUiI18n();
   const runtime = useCanvasEngineRuntime();
   const { zoom, canvasMode, slideDeck, showGrid } = useCanvasState(
@@ -49,6 +57,9 @@ export function ZoomControl({ containerSize }: ZoomControlProps) {
   const [minimapOpen, setMinimapOpen] = useState(false);
   const [playbackOpen, setPlaybackOpen] = useState(false);
   const ownsFullscreenRef = useRef(false);
+  const viewportSize = viewportFrame
+    ? { width: viewportFrame.width, height: viewportFrame.height }
+    : containerSize;
 
   useEffect(
     () => () => runtime.camera.cancelAnimation(),
@@ -101,16 +112,20 @@ export function ZoomControl({ containerSize }: ZoomControlProps) {
 
   const animateZoomTo = useCallback(
     (requestedZoom: number) => {
-      if (!containerSize) return;
+      const viewportCenter = viewportFrame?.center ??
+        (containerSize
+          ? { x: containerSize.width / 2, y: containerSize.height / 2 }
+          : undefined);
+      if (!viewportCenter) return;
       const targetZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, requestedZoom));
       if (Math.abs(targetZoom - runtime.camera.getViewport().zoom) <= ZOOM_EPSILON) return;
       runtime.camera.animateZoomTo(
         targetZoom,
-        { x: containerSize.width / 2, y: containerSize.height / 2 },
+        viewportCenter,
         { duration: ZOOM_ANIMATION_DURATION_MS }
       );
     },
-    [containerSize, runtime]
+    [containerSize, runtime, viewportFrame]
   );
 
   const applyZoomDelta = useCallback(
@@ -126,37 +141,37 @@ export function ZoomControl({ containerSize }: ZoomControlProps) {
   const isMinZoom = zoom <= MIN_ZOOM + ZOOM_EPSILON;
   const resetLabel = `${t('zoom.reset')} — ${percentage}%`;
   const isMaxZoom = zoom >= MAX_ZOOM - ZOOM_EPSILON;
-  const actionsDisabled = !containerSize;
+  const actionsDisabled = !viewportSize;
   const gridLabel = showGrid ? t('sidebar.grid.hide') : t('action.toggleGrid');
   const minimapLabel = t('sidebar.minimap');
   const playbackLabel = t('slide.playback.start');
 
-  if (isMobile) return null;
+  if (formFactor === 'phone') return null;
 
   return (
     <div
       data-canvas-ui="true"
       data-testid="zoom-control"
-      className={cn(uiClass.toolbarShell, 'fixed bottom-3 left-3 z-50')}
+      className={rx.toolbarShell}
       aria-label={zoomLabel}
     >
       {canvasMode !== 'slide' && minimapOpen && (
         <div
           data-testid="zoom-minimap"
           className={cn(
-            uiClass.floatingHost,
-            'absolute bottom-full left-0 z-40 mb-2 w-auto overflow-hidden'
+            rx.floatingHost,
+            'absolute bottom-full left-0 z-(--layer-popover) mb-2 w-auto overflow-hidden'
           )}
         >
           <Suspense fallback={<div className="h-[140px] w-[220px] bg-muted" />}>
-            <Minimap containerSize={containerSize} />
+            <Minimap containerSize={viewportSize} />
           </Suspense>
         </div>
       )}
       <Button
         tone="subtle"
         size="md"
-        className={cn(uiClass.hostIconControl, 'rounded-r-none')}
+        className={cn(rx.hostIconControl, 'rounded-r-none')}
         aria-label={t('zoom.out')}
         title={t('zoom.out')}
         data-testid="zoom-out"
@@ -169,7 +184,7 @@ export function ZoomControl({ containerSize }: ZoomControlProps) {
         tone="subtle"
         size="md"
         className={cn(
-          uiClass.hostControl,
+          rx.hostControl,
           'h-8 min-w-14 rounded-none border-0 px-2 text-xs tabular-nums shadow-none'
         )}
         aria-label={resetLabel}
@@ -183,7 +198,7 @@ export function ZoomControl({ containerSize }: ZoomControlProps) {
       <Button
         tone="subtle"
         size="md"
-        className={cn(uiClass.hostIconControl, 'rounded-none')}
+        className={cn(rx.hostIconControl, 'rounded-none')}
         aria-label={t('zoom.in')}
         title={t('zoom.in')}
         data-testid="zoom-in"
@@ -196,8 +211,8 @@ export function ZoomControl({ containerSize }: ZoomControlProps) {
         tone="subtle"
         size="md"
         className={cn(
-          uiClass.hostIconControl,
-          showGrid && uiClass.hostControlActive,
+          rx.hostIconControl,
+          showGrid && rx.hostControlActive,
           'rounded-none'
         )}
         aria-label={gridLabel}
@@ -212,7 +227,7 @@ export function ZoomControl({ containerSize }: ZoomControlProps) {
         <Button
           tone="subtle"
           size="md"
-          className={cn(uiClass.hostIconControl, 'rounded-l-none')}
+          className={cn(rx.hostIconControl, 'rounded-l-none')}
           aria-label={playbackLabel}
           title={playbackLabel}
           data-testid="zoom-playback"
@@ -226,8 +241,8 @@ export function ZoomControl({ containerSize }: ZoomControlProps) {
           tone="subtle"
           size="md"
           className={cn(
-            uiClass.hostIconControl,
-            minimapOpen && uiClass.hostControlActive,
+            rx.hostIconControl,
+            minimapOpen && rx.hostControlActive,
             'rounded-l-none'
           )}
           aria-label={minimapLabel}

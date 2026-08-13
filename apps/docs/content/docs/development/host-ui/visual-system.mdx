@@ -1,0 +1,26 @@
+---
+title: Visual System
+description: Token, recipe, primitive, and product composition pipeline.
+---
+
+The visual ownership path has one direction:
+
+`CSS semantic token -> shared rx recipe -> shared UI primitive -> widget composition`
+
+- [`src/app/index.css`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/app/index.css)
+  owns semantic color, surface, elevation, and viewport-layer tokens.
+- [`src/shared/styles/recipes.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/shared/styles/recipes.ts)
+  owns reusable visual and interaction recipes.
+- [`src/shared/ui`](https://github.com/Sayhi-bzb/CharDesk/tree/main/src/shared/ui)
+  owns domain-neutral structure and accessibility; `src/widgets` composes it.
+
+`shadow-host`, `shadow-overlay`, and `shadow-dialog` are the elevation ladder.
+Viewport surfaces use semantic layer tokens; product instances do not assign raw
+overlay tiers or recreate shared surfaces.
+
+## Evidence
+
+- [`scripts/quality/check-style-api.mjs`](https://github.com/Sayhi-bzb/CharDesk/blob/main/scripts/quality/check-style-api.mjs)
+  rejects legacy style APIs and raw viewport overlay tiers.
+- Surface evidence: [`dialog.test.tsx`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/shared/ui/dialog.test.tsx)
+  and [`context-menu.test.tsx`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/shared/ui/context-menu.test.tsx)

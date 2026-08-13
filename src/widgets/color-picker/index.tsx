@@ -11,7 +11,7 @@ import type { CanvasColorPickerTarget } from "@/domains/canvas/public";
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
 import { useUiI18n } from "@/shared/i18n";
 import { cn } from "@/shared/lib/utils";
-import { uiClass } from "@/shared/styles/components";
+import { rx } from "@/shared/styles/recipes"
 import { Button } from "@/shared/ui/button";
 import {
   DropdownMenu,
@@ -284,7 +284,7 @@ export function ColorPickerPanel({
                     side="bottom"
                     align="end"
                     sideOffset={6}
-                    className={cn(uiClass.dropdownSubPanel, "w-36")}
+                    className={cn(rx.dropdownSubPanel, "w-36")}
                   >
                     {(["char", "bg"] as const).map((target) => {
                       const isActive = canvasColorPickerTarget === target;
@@ -346,7 +346,7 @@ export function ColorPickerPanel({
       <TabsList
         aria-label={t("color.paletteTabs")}
         className={cn(
-          uiClass.iconRail,
+          rx.iconRail,
           "w-fit shrink-0 flex-col gap-1"
         )}
       >
@@ -359,11 +359,11 @@ export function ColorPickerPanel({
                   value={tab.id}
                   aria-label={tab.label}
                   className={cn(
-                    uiClass.iconRailItem,
+                    rx.iconRailItem,
                     "group-data-[orientation=vertical]/tabs:w-8 group-data-[orientation=vertical]/tabs:justify-center",
                     "focus-visible:border-transparent focus-visible:outline-0 focus-visible:outline-transparent focus-visible:outline-none",
                     "group-data-[variant=default]/tabs-list:data-[state=active]:shadow-none dark:data-[state=active]:border-transparent",
-                    activePaletteTab === tab.id && uiClass.hostControlActive
+                    activePaletteTab === tab.id && rx.hostControlActive
                   )}
                 >
                   <Icon className="size-4" />

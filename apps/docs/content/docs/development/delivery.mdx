@@ -1,0 +1,20 @@
+---
+title: Delivery
+description: Build, release, and documentation output authorities.
+---
+
+| Concern | Authority |
+| --- | --- |
+| Commands, dependency order and workspace composition | Root [`package.json`](https://github.com/Sayhi-bzb/CharDesk/blob/main/package.json) |
+| Docs prerender and `dist/docs` merge | `apps/docs/react-router.config.ts` and [`scripts/docs/merge-build.mjs`](https://github.com/Sayhi-bzb/CharDesk/blob/main/scripts/docs/merge-build.mjs) |
+| Emitted pages, search and Agent resources | [`scripts/docs/verify-build.mjs`](https://github.com/Sayhi-bzb/CharDesk/blob/main/scripts/docs/verify-build.mjs) |
+| Package version, provenance and publication | [Release workflow](https://github.com/Sayhi-bzb/CharDesk/blob/main/.github/workflows/release.yml) and `scripts/release` |
+
+Development exposes the editor at `/` and proxies Fumadocs at `/docs`; production
+places both under `dist`. Delivery composes outputs but does not own their business
+or wire contracts.
+
+A release tag is stable SemVer shared by both package manifests and their lockfile
+entries. Packed tarballs must pass installation, public export and font asset smoke
+checks before publication. Reruns skip each package version already on npm and
+replace assets on an existing GitHub release.

@@ -2,12 +2,11 @@
 "use client";
 
 import * as React from "react";
-import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { useUiI18n } from "@/shared/i18n";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
+import { ContentScrollArea } from "@/shared/ui/content-scroll-area";
 import { rx } from "@/shared/styles/recipes";
-import { uiClass } from "@/shared/styles/components";
 import {
   Sheet,
   SheetContent,
@@ -23,6 +22,8 @@ const SIDEBAR_WIDTH = "16rem";
 const SIDEBAR_WIDTH_MOBILE = "18rem";
 const SIDEBAR_WIDTH_ICON = "3rem";
 
+type SidebarPresentation = "docked" | "overlay" | "sheet";
+
 type SidebarContextProps = {
   state: "expanded" | "collapsed";
   open: boolean;
@@ -30,6 +31,7 @@ type SidebarContextProps = {
   openMobile: boolean;
   setOpenMobile: (open: boolean) => void;
   isMobile: boolean;
+  presentation: SidebarPresentation;
   toggleSidebar: () => void;
 };
 
@@ -47,6 +49,7 @@ function SidebarProvider({
   defaultOpen = true,
   open: openProp,
   onOpenChange: setOpenProp,
+  presentation = "docked",
   className,
   style,
   children,
@@ -55,8 +58,9 @@ function SidebarProvider({
   defaultOpen?: boolean;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  presentation?: SidebarPresentation;
 }) {
-  const isMobile = useIsMobile();
+  const isMobile = presentation === "sheet";
   const [openMobile, setOpenMobile] = React.useState(false);
   const [_open, _setOpen] = React.useState(defaultOpen);
   const open = openProp ?? _open;
@@ -77,12 +81,6 @@ function SidebarProvider({
     return isMobile ? setOpenMobile((open) => !open) : setOpen((open) => !open);
   }, [isMobile, setOpen, setOpenMobile]);
 
-  React.useEffect(() => {
-    if (!isMobile) return;
-    setOpen(false);
-    setOpenMobile(false);
-  }, [isMobile, setOpen, setOpenMobile]);
-
   const state = open ? "expanded" : "collapsed";
   const contextValue = React.useMemo<SidebarContextProps>(
     () => ({
@@ -93,8 +91,18 @@ function SidebarProvider({
       openMobile,
       setOpenMobile,
       toggleSidebar,
+      presentation,
     }),
-    [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar]
+    [
+      state,
+      open,
+      setOpen,
+      isMobile,
+      openMobile,
+      setOpenMobile,
+      toggleSidebar,
+      presentation,
+    ]
   );
 
   return (
@@ -109,7 +117,7 @@ function SidebarProvider({
           } as React.CSSProperties
         }
         className={cn(
-          "group/sidebar-wrapper has-data-[variant=inset]:bg-sidebar flex min-h-svh w-full",
+          "group/sidebar-wrapper has-data-[variant=inset]:bg-sidebar flex min-h-0 w-full",
           className
         )}
         {...props}
@@ -134,7 +142,7 @@ function Sidebar({
   collapsible?: "offcanvas" | "icon" | "none";
   collapsedAppearance?: "rail" | "trigger";
 }) {
-  const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
+  const { state, openMobile, setOpenMobile, presentation } = useSidebar();
   const { t } = useUiI18n();
   const isTriggerCollapsed =
     state === "collapsed" && collapsedAppearance === "trigger";
@@ -154,7 +162,7 @@ function Sidebar({
     );
   }
 
-  if (isMobile) {
+  if (presentation === "sheet") {
     return (
       <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
         <SheetContent
@@ -179,7 +187,7 @@ function Sidebar({
 
   return (
     <div
-      className="group peer text-sidebar-foreground hidden md:block"
+      className="group peer size-full text-sidebar-foreground"
       data-state={state}
       data-collapsible={state === "collapsed" ? collapsible : ""}
       data-collapsed-appearance={collapsedAppearance}
@@ -190,7 +198,7 @@ function Sidebar({
       <div
         data-slot="sidebar-gap"
         className={cn(
-          "relative w-(--sidebar-width) bg-transparent transition-[width] duration-[280ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+          "hidden",
           "group-data-[collapsible=offcanvas]:w-0",
           "group-data-[side=right]:rotate-180",
           variant === "floating" || variant === "inset"
@@ -201,15 +209,7 @@ function Sidebar({
       <div
         data-slot="sidebar-container"
         className={cn(
-          "fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-[280ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none md:flex",
-          side === "left"
-            ? "left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]"
-            : "right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]",
-          variant === "floating" || variant === "inset"
-            ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]"
-            : "group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:border-r group-data-[side=right]:border-l",
-          collapsedAppearance === "trigger" &&
-            "group-data-[collapsible=icon]:pointer-events-none",
+          "relative flex size-full min-h-0 min-w-0",
           className
         )}
         {...props}
@@ -249,7 +249,7 @@ function SidebarTrigger({
       tone="subtle"
       shape="square"
       size="md"
-      className={cn("pointer-events-auto", uiClass.hostIconControl, className)}
+      className={cn("pointer-events-auto", rx.hostIconControl, className)}
       onClick={(event) => {
         onClick?.(event);
         toggleSidebar();
@@ -259,20 +259,6 @@ function SidebarTrigger({
       <SidebarToggleIcon side={side} isOpen={isOpen} />
       <span className="sr-only">{t("sidebar.toggle")}</span>
     </Button>
-  );
-}
-
-function SidebarInset({ className, ...props }: React.ComponentProps<"main">) {
-  return (
-    <main
-      data-slot="sidebar-inset"
-      className={cn(
-        "bg-background relative flex w-full flex-1 flex-col",
-        "md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow-sm md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-2",
-        className
-      )}
-      {...props}
-    />
   );
 }
 
@@ -298,17 +284,53 @@ function SidebarFooter({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
-function SidebarContent({ className, ...props }: React.ComponentProps<"div">) {
+function SidebarContent({
+  className,
+  children,
+  contentClassName,
+  contentScroll = "shared",
+  ...props
+}: React.ComponentProps<typeof ContentScrollArea> & {
+  contentClassName?: string;
+  contentScroll?: "shared" | "none";
+}) {
+  if (contentScroll === "shared") {
+    return (
+      <ContentScrollArea
+        data-slot="sidebar-content"
+        data-sidebar="content"
+        className={cn(
+          "min-h-0 flex-1 group-data-[collapsible=icon]:[&_[data-slot=scroll-area-scrollbar]]:hidden group-data-[collapsible=icon]:[&_[data-slot=scroll-area-viewport]]:overflow-hidden!",
+          className
+        )}
+        {...props}
+      >
+        <div
+          data-slot="sidebar-scroll-content"
+          className={cn(
+            "flex min-h-full min-w-0 flex-col gap-2",
+            contentClassName
+          )}
+        >
+          {children}
+        </div>
+      </ContentScrollArea>
+    );
+  }
+
   return (
     <div
       data-slot="sidebar-content"
       data-sidebar="content"
       className={cn(
-        "flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable] group-data-[collapsible=icon]:overflow-hidden",
-        className
+        "flex min-h-0 flex-1 flex-col gap-2 overflow-hidden",
+        className,
+        contentClassName
       )}
       {...props}
-    />
+    >
+      {children}
+    </div>
   );
 }
 
@@ -345,6 +367,7 @@ function SidebarStandard({
   icon,
   title,
   footer,
+  contentScroll = "shared",
   contentClassName,
   className,
   side = "left",
@@ -356,6 +379,7 @@ function SidebarStandard({
   icon?: React.ReactNode;
   title?: string;
   footer?: React.ReactNode;
+  contentScroll?: "shared" | "none";
   contentClassName?: string;
 }) {
   const { state, isMobile } = useSidebar();
@@ -363,13 +387,21 @@ function SidebarStandard({
   const hideContent =
     isCollapsed &&
     (collapsedAppearance === "trigger" || collapsedContent === undefined);
+  const bodyClassName = cn(
+    "gap-2 px-2 py-2",
+    isCollapsed &&
+      collapsedAppearance === "rail" &&
+      collapsedContent &&
+      "px-1 py-2",
+    contentClassName
+  );
 
   return (
     <Sidebar
       side={side}
       collapsible="icon"
       collapsedAppearance={collapsedAppearance}
-      className={cn("z-40", className)}
+      className={className}
       {...props}
     >
       {header ?? (
@@ -406,20 +438,18 @@ function SidebarStandard({
       )}
 
       <SidebarContent
+        contentScroll={contentScroll}
         aria-hidden={hideContent || undefined}
         inert={hideContent || undefined}
         className={cn(
-          "gap-2 px-2 py-2 transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none motion-reduce:transform-none",
+          "transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none motion-reduce:transform-none",
           hideContent
             ? "pointer-events-none translate-x-2 opacity-0"
             : "translate-x-0 opacity-100",
           collapsedAppearance === "trigger" && !isCollapsed && "delay-[60ms]",
-          isCollapsed &&
-            collapsedAppearance === "rail" &&
-            collapsedContent &&
-            "px-1 py-2",
-          contentClassName
+          contentScroll === "none" && bodyClassName
         )}
+        contentClassName={contentScroll === "shared" ? bodyClassName : undefined}
       >
         {isCollapsed && collapsedAppearance === "rail" && collapsedContent
           ? collapsedContent
@@ -443,7 +473,6 @@ function SidebarStandard({
 export {
   SidebarGroup,
   SidebarGroupContent,
-  SidebarInset,
   SidebarHeader,
   SidebarTrigger,
   SidebarProvider,

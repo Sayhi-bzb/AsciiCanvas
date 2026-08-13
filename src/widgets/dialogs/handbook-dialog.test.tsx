@@ -10,37 +10,28 @@ describe("HandbookDialog", () => {
   beforeEach(() => setUiLanguage("en"));
   afterEach(() => setUiLanguage("en"));
 
-  it("documents the current freeform and structured workflows", () => {
+  it("presents a compact operation reference", () => {
     renderHandbook();
 
-    fireEvent.click(screen.getByRole("button", { name: "Open user manual" }));
+    fireEvent.click(screen.getByRole("button", { name: "Open help" }));
 
-    expect(screen.getByRole("heading", { name: "User Manual" })).toBeInTheDocument();
-    expect(screen.getByText("Keyboard Shortcuts")).toBeInTheDocument();
-    expect(screen.getByText("Common commands")).toBeInTheDocument();
-    expect(screen.getByText("Canvas controls")).toBeInTheDocument();
-    expect(screen.getByText("Undo")).toBeInTheDocument();
-    expect(screen.getByText(/Ctrl\+Z|⌘Z/)).toBeInTheDocument();
-    expect(screen.getByText("Toggle sidebar")).toBeInTheDocument();
-    expect(screen.getByText(/Ctrl\+B|⌘B/)).toBeInTheDocument();
-    expect(screen.getByText("Choose Dock tool by position")).toBeInTheDocument();
+    const dialog = screen.getByRole("dialog", { name: "Help" });
+    expect(screen.getAllByRole("heading")).toHaveLength(1);
     expect(
-      screen.getByText("Mac: Control+1…Control+N · Windows/Linux: Alt+1…Alt+N")
+      screen.getByRole("button", { name: "Keyboard shortcuts" })
     ).toBeInTheDocument();
-    expect(screen.getByText("Space + Drag")).toBeInTheDocument();
-    expect(screen.getByText("Ctrl/⌘ + Arrow")).toBeInTheDocument();
-    expect(screen.getByText("Escape")).toBeInTheDocument();
-    expect(screen.getByText("Freeform")).toBeInTheDocument();
-    expect(screen.getByText(/rectangular selection/)).toBeInTheDocument();
-    expect(screen.getByText("Structured Canvas")).toBeInTheDocument();
-    expect(screen.getByText(/Template or Components tab/)).toBeInTheDocument();
-    expect(screen.getByText("Text / Background / Box")).toBeInTheDocument();
-    expect(screen.getByText("Structured Editing")).toBeInTheDocument();
-    expect(screen.getByText(/Double-click text to edit in place/)).toBeInTheDocument();
-    expect(screen.getByText(/Select text inside edit mode/)).toBeInTheDocument();
-    expect(screen.getByText(/Toolbar fill controls bg layers/)).toBeInTheDocument();
-    expect(screen.getByText(/Structured copy keeps node data/)).toBeInTheDocument();
-    expect(screen.getByText(/Selections and structured nodes expose mode-specific editing actions/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open full documentation" })).toBeInTheDocument();
+    expect(screen.getByText("Select and fill")).toBeInTheDocument();
+    expect(screen.getByText("Insert components")).toBeInTheDocument();
+    expect(screen.getByText("Edit text")).toBeInTheDocument();
+    expect(screen.getByText("Format a range")).toBeInTheDocument();
+    expect(screen.getByText("Color shapes")).toBeInTheDocument();
+    expect(screen.getByText("Copy between modes")).toBeInTheDocument();
+    expect(dialog.querySelectorAll('[data-slot="help-reference"] dt')).toHaveLength(6);
+    expect(dialog.querySelectorAll('[data-slot="help-reference"] dd')).toHaveLength(6);
+    expect(screen.queryByText("Common commands")).not.toBeInTheDocument();
+    expect(dialog.querySelector('[class*="bg-accent/"]')).not.toBeInTheDocument();
+    expect(dialog.querySelector(".border-accent")).not.toBeInTheDocument();
   });
 
   it("offers a desktop guided-tour replay action when supplied", () => {
@@ -53,23 +44,22 @@ describe("HandbookDialog", () => {
     expect(onStartTour).toHaveBeenCalledOnce();
   });
 
-  it("localizes the shortcut list in Chinese", () => {
+  it("localizes the compact reference in Chinese", () => {
     setUiLanguage("zh");
     renderHandbook(<HandbookDialog />);
 
-    fireEvent.click(screen.getByRole("button", { name: "打开用户手册" }));
+    fireEvent.click(screen.getByRole("button", { name: "打开帮助" }));
 
-    expect(screen.getByRole("heading", { name: "用户手册" })).toBeInTheDocument();
-    expect(screen.getByText("键盘快捷键")).toBeInTheDocument();
-    expect(screen.getByText("常用命令")).toBeInTheDocument();
-    expect(screen.getByText("画布操作")).toBeInTheDocument();
-    expect(screen.getByText("切换侧栏")).toBeInTheDocument();
-    expect(screen.getByText("按位置选择 Dock 工具")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "帮助" })).toBeInTheDocument();
     expect(
-      screen.getByText("Mac：Control+1…Control+N · Windows/Linux：Alt+1…Alt+N")
+      screen.getByRole("button", { name: "键盘快捷键" })
     ).toBeInTheDocument();
-    expect(screen.getByText("Space + 拖拽")).toBeInTheDocument();
-    expect(screen.getByText("Ctrl/⌘ + 方向键")).toBeInTheDocument();
-    expect(screen.getByText("取消或清除选区")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "打开完整文档" })).toBeInTheDocument();
+    expect(screen.getByText("选择与填充")).toBeInTheDocument();
+    expect(screen.getByText("插入组件")).toBeInTheDocument();
+    expect(screen.getByText("编辑文本")).toBeInTheDocument();
+    expect(screen.getByText("格式化范围")).toBeInTheDocument();
+    expect(screen.getByText("形状颜色")).toBeInTheDocument();
+    expect(screen.getByText("跨模式复制")).toBeInTheDocument();
   });
 });

@@ -1,6 +1,11 @@
 export { EditorCommandRegistry } from "./core/commandRegistry";
 export { EditorKeymap } from "./core/keymap";
-export type { KeymapEntry, KeymapTarget } from "./core/keymap";
+export type {
+  EditorKeymapSnapshot,
+  KeymapBindingSnapshot,
+  KeymapEntry,
+  KeymapTarget,
+} from "./core/keymap";
 export type { KeymapResolution, RegisteredKeymapEntry } from "./core/keymap";
 export { normalizeShortcut, shortcutFromKeyboardEvent } from "./core/shortcut";
 export { EditorRuntime } from "./core/runtime";
@@ -44,7 +49,12 @@ export type {
   StructuredNodeDragPayload,
 } from "./canvasToolRuntime";
 export { CanvasInteractionPortBinding } from "./canvasToolRuntime";
-export { EditorProvider, useEditor, useEditorValue } from "./react";
+export {
+  EditorProvider,
+  useEditor,
+  useEditorKeymapSnapshot,
+  useEditorValue,
+} from "./react";
 export {
   executeEditorKeymapEvent,
   resolveEditorKeymapEvent,

@@ -12,7 +12,6 @@ import {
   Dialog,
   DialogBody,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -79,15 +78,9 @@ export function CustomSlideSizeDialog({
                 : "session.slideCustom.title"
             )}
           </DialogTitle>
-          <DialogDescription>
-            {t(
-              mode === "resize"
-                ? "session.slideCustom.resizeDescription"
-                : "session.slideCustom.description"
-            )}
-          </DialogDescription>
         </DialogHeader>
         <form
+          className="contents"
           onSubmit={(event) => {
             event.preventDefault();
             if (parsedColumns === null || parsedRows === null) return;

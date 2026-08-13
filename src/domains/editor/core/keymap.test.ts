@@ -54,4 +54,76 @@ describe("EditorKeymap", () => {
       shortcut: "mod+k",
     });
   });
+
+  it("publishes stable snapshots and applies multi-entry overrides atomically", () => {
+    const keymap = new EditorKeymap();
+    keymap.register("test", {
+      id: "command:undo",
+      shortcuts: ["mod+z"],
+      target: { type: "command", id: "undo" },
+    });
+    keymap.register("test", {
+      id: "command:copy",
+      shortcuts: ["mod+c"],
+      target: { type: "command", id: "copy" },
+    });
+    const initial = keymap.getSnapshot();
+    expect(keymap.getSnapshot()).toBe(initial);
+    expect(initial.entries[0]).toMatchObject({
+      id: "command:undo",
+      defaultShortcuts: ["mod+z"],
+      shortcuts: ["mod+z"],
+      userDefined: false,
+    });
+
+    let notifications = 0;
+    keymap.subscribe(() => notifications++);
+    keymap.updateUserBindings({
+      "command:undo": [],
+      "command:copy": ["Shift+Mod+Z"],
+    });
+
+    expect(notifications).toBe(1);
+    expect(keymap.getSnapshot()).not.toBe(initial);
+    expect(keymap.getSnapshot().entries).toEqual([
+      expect.objectContaining({
+        id: "command:undo",
+        shortcuts: [],
+        userDefined: true,
+      }),
+      expect.objectContaining({
+        id: "command:copy",
+        shortcuts: ["mod+shift+z"],
+        userDefined: true,
+      }),
+    ]);
+
+    keymap.updateUserBindings({
+      "command:undo": [],
+      "command:copy": ["mod+shift+z"],
+    });
+    expect(notifications).toBe(1);
+  });
+
+  it("validates an atomic update before changing any entry", () => {
+    const keymap = new EditorKeymap();
+    keymap.register("test", {
+      id: "command:undo",
+      shortcuts: ["mod+z"],
+      target: { type: "command", id: "undo" },
+    });
+    keymap.register("test", {
+      id: "command:copy",
+      shortcuts: ["mod+c"],
+      target: { type: "command", id: "copy" },
+    });
+
+    expect(() =>
+      keymap.updateUserBindings({
+        "command:undo": ["mod+u"],
+        "command:copy": ["mod"],
+      })
+    ).toThrow("Invalid shortcut mod");
+    expect(keymap.getUserBindings()).toEqual({});
+  });
 });

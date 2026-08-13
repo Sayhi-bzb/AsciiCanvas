@@ -1,41 +1,27 @@
 import * as React from "react"
-import * as ScrollAreaPrimitive from "@radix-ui/react-scroll-area"
+import { ScrollArea as ScrollAreaPrimitive } from "radix-ui"
 
 import { cn } from "@/shared/lib/utils"
-
-type ScrollbarMode = "vertical" | "horizontal" | "both"
 
 function ScrollArea({
   className,
   children,
-  scrollbars = "vertical",
   ...props
-}: React.ComponentProps<typeof ScrollAreaPrimitive.Root> & {
-  scrollbars?: ScrollbarMode
-}) {
-  const showVertical =
-    scrollbars === "vertical" || scrollbars === "both"
-  const showHorizontal =
-    scrollbars === "horizontal" || scrollbars === "both"
-
+}: React.ComponentProps<typeof ScrollAreaPrimitive.Root>) {
   return (
     <ScrollAreaPrimitive.Root
       data-slot="scroll-area"
-      data-scrollbars={scrollbars}
-      className={cn("relative overflow-hidden", className)}
+      className={cn("relative", className)}
       {...props}
     >
       <ScrollAreaPrimitive.Viewport
         data-slot="scroll-area-viewport"
-        className="focus-visible:ring-ring/50 size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:outline-1"
+        className="size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1"
       >
         {children}
       </ScrollAreaPrimitive.Viewport>
-      {showVertical && <ScrollBar orientation="vertical" />}
-      {showHorizontal && <ScrollBar orientation="horizontal" />}
-      {scrollbars === "both" && (
-        <ScrollAreaPrimitive.Corner data-slot="scroll-area-corner" />
-      )}
+      <ScrollBar />
+      <ScrollAreaPrimitive.Corner />
     </ScrollAreaPrimitive.Root>
   )
 }
@@ -61,10 +47,10 @@ function ScrollBar({
     >
       <ScrollAreaPrimitive.ScrollAreaThumb
         data-slot="scroll-area-thumb"
-        className="bg-border relative flex-1 rounded-full"
+        className="relative flex-1 rounded-full bg-border"
       />
     </ScrollAreaPrimitive.ScrollAreaScrollbar>
   )
 }
 
-export { ScrollArea }
+export { ScrollArea, ScrollBar }

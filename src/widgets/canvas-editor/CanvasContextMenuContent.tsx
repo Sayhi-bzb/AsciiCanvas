@@ -13,7 +13,7 @@ import {
   getEditorCommandShortcutLabel,
 } from "@/domains/actions/public";
 import type { ContextMenuEntry } from "@/domains/actions/public";
-import { useEditor } from "@/domains/editor/public";
+import { useEditor, useEditorKeymapSnapshot } from "@/domains/editor/public";
 import { useUiI18n, type I18nKey } from "@/shared/i18n";
 
 const LABEL_KEY_BY_ID: Record<string, I18nKey> = {
@@ -48,6 +48,7 @@ export const CanvasContextMenuContent = ({
 }: CanvasContextMenuContentProps) => {
   const { t } = useUiI18n();
   const editor = useEditor();
+  useEditorKeymapSnapshot();
 
   const renderEntry = (entry: ContextMenuEntry, index: number) => {
     if (entry.type === "separator") {

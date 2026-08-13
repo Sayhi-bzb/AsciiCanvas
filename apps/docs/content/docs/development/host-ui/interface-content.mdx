@@ -1,0 +1,22 @@
+---
+title: Interface Content
+description: Contract for visible Host and widget copy.
+---
+
+- Give a surface one visible title; add description only for a constraint,
+  consequence, safety fact, or non-obvious interaction.
+- Do not restate a label, highlighted target, state, or action in adjacent copy.
+- Keep `canvas`, `session`, `slide`, `selection`, `cut`, and `paste` stable.
+- The shortcut surface owns shortcut guidance; other surfaces link to it.
+- Localize product operation labels together in English and Chinese. User,
+  document, and template labels retain their source value.
+- Brevity does not remove accessible names, destructive consequences, security
+  facts, or screen-reader instructions.
+
+## Authority and evidence
+
+- Catalog and language behavior: [`src/shared/i18n/index.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/shared/i18n/index.ts)
+  and [`index.test.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/shared/i18n/index.test.ts)
+- Shortcut labels: [`editor-shortcut-catalog.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/widgets/dialogs/editor-shortcut-catalog.ts)
+- Required safety and reference content: [`data-security-dialog.test.tsx`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/widgets/dialogs/data-security-dialog.test.tsx)
+  and [`handbook-dialog.test.tsx`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/widgets/dialogs/handbook-dialog.test.tsx)

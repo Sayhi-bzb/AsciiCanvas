@@ -5,6 +5,7 @@ import {
   Dialog,
   DialogBody,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -30,6 +31,7 @@ describe("dialog visual contract", () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Settings</DialogTitle>
+            <DialogDescription>Changes apply to this canvas.</DialogDescription>
           </DialogHeader>
           <DialogBody>Body</DialogBody>
           <DialogFooter>Footer</DialogFooter>
@@ -42,19 +44,20 @@ describe("dialog visual contract", () => {
       "border-0",
       "shadow-dialog",
       "rounded-lg",
-      "p-0"
+      "p-4",
+      "gap-4"
     );
-    expect(content.querySelector('[data-slot="dialog-header"]')).toHaveClass(
-      "border-accent",
-      "bg-accent/40"
-    );
+    const header = content.querySelector('[data-slot="dialog-header"]');
+    expect(header).toHaveClass("pr-12");
+    expect(content).toHaveAccessibleDescription("Changes apply to this canvas.");
+    expect(header).not.toHaveClass("border-b", "border-accent", "bg-accent/40");
     expect(content.querySelector('[data-slot="dialog-body"]')).toHaveClass(
-      "px-4",
-      "py-4"
+      "min-w-0"
     );
-    expect(content.querySelector('[data-slot="dialog-footer"]')).toHaveClass(
-      "border-accent",
-      "bg-accent/25"
+    const footer = content.querySelector('[data-slot="dialog-footer"]');
+    expect(footer).not.toHaveClass("border-t", "border-accent", "bg-accent/25");
+    expect(document.querySelector('[data-slot="dialog-overlay"]')).toHaveClass(
+      "bg-dialog-overlay"
     );
 
     const close = screen.getByRole("button", { name: "Close" });
@@ -77,7 +80,7 @@ describe("dialog visual contract", () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction>Delete</AlertDialogAction>
+            <AlertDialogAction tone="danger">Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -88,14 +91,25 @@ describe("dialog visual contract", () => {
       "border-0",
       "shadow-dialog",
       "rounded-lg",
-      "p-0"
+      "p-4",
+      "gap-4"
+    );
+    const header = content.querySelector('[data-slot="alert-dialog-header"]');
+    expect(header).not.toHaveClass(
+      "pr-12",
+      "border-b",
+      "border-accent",
+      "bg-accent/40"
+    );
+    const footer = content.querySelector('[data-slot="alert-dialog-footer"]');
+    expect(footer).not.toHaveClass("border-t", "border-accent", "bg-accent/25");
+    expect(screen.getByRole("button", { name: "Delete" })).toHaveAttribute(
+      "data-tone",
+      "danger"
     );
     expect(
-      content.querySelector('[data-slot="alert-dialog-header"]')
-    ).toHaveClass("border-accent", "bg-accent/40");
-    expect(
-      content.querySelector('[data-slot="alert-dialog-footer"]')
-    ).toHaveClass("border-accent", "bg-accent/25");
+      document.querySelector('[data-slot="alert-dialog-overlay"]')
+    ).toHaveClass("bg-dialog-overlay");
   });
 
   it("localizes shared Dialog and Sheet close controls", () => {

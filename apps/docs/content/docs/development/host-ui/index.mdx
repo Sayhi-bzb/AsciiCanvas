@@ -1,0 +1,17 @@
+---
+title: Host and UI
+description: Product interaction, composition, and shared presentation contracts.
+---
+
+Load only the contract that owns the changed surface:
+
+| Question | Contract |
+| --- | --- |
+| Form factor, chrome placement, or usable canvas geometry | [Editor Chrome](/development/host-ui/editor-chrome) |
+| Tokens, recipes, primitives, surfaces, or layers | [Visual system](/development/host-ui/visual-system) |
+| Visible product copy or localization | [Interface content](/development/host-ui/interface-content) |
+| Modal composition | [Dialog surfaces](/development/host-ui/dialogs) |
+| Host control geometry, icon, or state | [Core Host icon controls](/development/host-ui/icon-controls) |
+
+Business rules remain with the owning [domain](/development/domains); verification
+routes are selected by the changed contract in [Quality](/development/quality).

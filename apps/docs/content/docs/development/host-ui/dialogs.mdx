@@ -1,0 +1,26 @@
+---
+title: Dialog Surfaces
+description: Contract for Dialog, AlertDialog, Sheet, and modal Host elevation.
+---
+
+- Use shared Dialog section components. Instances may set width but do not
+  redefine shell, spacing, or close geometry.
+- The shell owns spacing and padding. Header, body, and footer add no surface,
+  divider, or elevation.
+- Group content through spacing and typography, not accent panels or cards.
+- AlertDialog shares the surface contract without close-control space.
+  Destructive semantics belong to its confirmation action.
+- Sheet and mobile Sidebar panels retain the modal surface and elevation defined
+  by the [Visual system](/development/host-ui/visual-system).
+- Embedded controls do not add nested shadows.
+
+Close-control geometry belongs to [Core Host icon controls](/development/host-ui/icon-controls).
+
+## Authority and evidence
+
+- Composition: [`recipes.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/shared/styles/recipes.ts),
+  [`dialog.tsx`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/shared/ui/dialog.tsx),
+  [`alert-dialog.tsx`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/shared/ui/alert-dialog.tsx),
+  and [`sheet.tsx`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/shared/ui/sheet.tsx)
+- Shared contract: [`dialog.test.tsx`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/shared/ui/dialog.test.tsx)
+- Mobile Sheet flow: [`e2e/sidebar-collapse.spec.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/e2e/sidebar-collapse.spec.ts)

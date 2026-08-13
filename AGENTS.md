@@ -21,17 +21,11 @@ Useful resources:
 
 # Docs Writing Rules
 
-Apply these rules when writing or editing docs.
-
-- Use high-information wording that locks direction with the fewest sufficient terms.
-- Do not add broad, repeated, or low-marginal words when existing terms already identify the concept.
-- Keep docs orthogonal: one page should own one kind of question.
-- Maintain navigation and context routes so readers and agents load only the context needed for the current task.
-- Keep a single source of truth for each key fact, principle, or decision.
-- Link to the authoritative source instead of restating or rewording the same rule elsewhere.
-- Use stable vocabulary: one concept gets one name across docs.
-- Do not introduce a new rule, label, or concept when an existing one explains the point.
-- Prefer restrained, minimal, sufficient writing over exhaustive explanation.
+- Assume LLMs know general engineering concepts; document only project-specific context.
+- Documentation routes knowledge to its owner; it does not reproduce tutorials or source.
+- One page owns one question, and each fact has one authoritative source.
+- Link authorities and connect decisions, contracts, implementation, and verification.
+- Use stable vocabulary and the fewest sufficient words; remove repetition and low-value explanation.
 
 # Documentation Ownership
 
@@ -39,15 +33,16 @@ Apply these rules when writing or editing docs.
 - `packages/protocol/README.md` owns protocol installation and API usage.
 - `packages/fonts/README.md` owns font installation and consumption.
 - `package.json` owns scripts, dependencies, and local commands.
-- Do not restate facts already owned by a manifest, specification, source, or test. Link to the owner when navigation is useful.
 
 # Architecture Navigation
 
-- [Ownership and dependency direction](docs/architecture/ownership.md)
-- [Agent navigation benchmark](docs/architecture/agent-navigation.md)
-- Treat the ownership map as the authority for business responsibility; confirm implementation details in the linked source and tests.
+- [Ownership and dependency direction](apps/docs/content/docs/development/architecture/ownership.mdx)
+- [Domain reference](apps/docs/content/docs/development/domains.mdx)
+- [Agent navigation benchmark](apps/docs/content/docs/development/quality.mdx#agent-navigation)
+- Treat the domain reference as the authority for business responsibility and the ownership map as the authority for dependency direction; confirm implementation details in source and tests.
 
 # Frontend Host Rules
 
-- [Core host icon controls](docs/host/icon-controls.md)
-- [Dialog surfaces](docs/host/dialogs.md)
+- [Core host icon controls](apps/docs/content/docs/development/host-ui/icon-controls.mdx)
+- [Dialog surfaces](apps/docs/content/docs/development/host-ui/dialogs.mdx)
+- [Interface content](apps/docs/content/docs/development/host-ui/interface-content.mdx)

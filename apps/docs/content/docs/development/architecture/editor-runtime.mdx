@@ -1,0 +1,46 @@
+---
+title: Editor Runtime
+description: UI-independent coordination of editor commands, tools, state, and extensions.
+---
+
+`EditorRuntime` coordinates execution; Canvas, slides, sessions, and collaboration
+retain their state and business ownership.
+
+`createApplicationEditorHost()` creates isolated editor, canvas, Yjs registry,
+and collaboration runtimes. The composition root owns the default host;
+widgets resolve it through explicit providers.
+
+Production widgets receive canvas, editor, and collaboration runtimes through
+providers; fallback injection is test-only. Additional hosts disable persistence
+or use a distinct non-empty storage key.
+
+## Entry direction
+
+```text
+DOM dispatcher -> editor keymap or native adapter -> command/tool -> canvas port -> Yjs document
+```
+
+- Commands own discrete semantic operations; tools own continuous interaction
+  through one hierarchical state tree for freeform and structured drag state.
+- The DOM dispatcher owns focus and layer priority; the keymap owns configurable
+  semantic bindings.
+- Native clipboard events invoke the same commands through adapters.
+- Widgets use provider-bound selectors and commands, never private stores or Yjs maps.
+
+## Extensions
+
+Extensions register before `EditorRuntime.start()`. Extension, command, tool, and
+state-scope IDs have one owner; disposal unwinds lifecycle registrations in reverse order.
+
+Device-local key overrides load after registration and before start, persist
+under `chardesk-editor-keymap-v1`, and never enter document state, collaboration,
+or undo history. App chrome, menu navigation, presentation controls, IME,
+native clipboard events, and hold gestures remain Host adapters.
+
+The contract is application-public without an npm compatibility commitment.
+
+Composition is authoritative in
+[`src/app/compositionRoot.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/app/compositionRoot.ts);
+runtime lifecycle is authoritative in
+[`src/domains/editor/core/runtime.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/domains/editor/core/runtime.ts).
+Use their nearest tests for isolation, ownership, and disposal evidence.

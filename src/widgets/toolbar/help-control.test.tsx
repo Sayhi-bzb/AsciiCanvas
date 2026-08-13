@@ -2,13 +2,6 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { HelpControl } from './help-control';
 
-let isMobile = false;
-let openMobile = false;
-
-vi.mock('@/shared/ui/sidebar', () => ({
-  useSidebar: () => ({ isMobile, openMobile }),
-}));
-
 vi.mock('@/widgets/dialogs/handbook-dialog', () => ({
   HandbookDialog: ({
     open,
@@ -18,8 +11,8 @@ vi.mock('@/widgets/dialogs/handbook-dialog', () => ({
     onOpenChange: (open: boolean) => void;
   }) =>
     open ? (
-      <div role="dialog" aria-label="User Manual">
-        <button onClick={() => onOpenChange(false)}>Close manual</button>
+      <div role="dialog" aria-label="Help">
+        <button onClick={() => onOpenChange(false)}>Close help</button>
       </div>
     ) : null,
 }));
@@ -41,45 +34,29 @@ vi.mock('@/widgets/dialogs/data-security-dialog', () => ({
 
 describe('HelpControl', () => {
   afterEach(() => {
-    isMobile = false;
-    openMobile = false;
     cleanup();
   });
 
-  it('uses the true viewport corner on desktop', () => {
+  it('leaves viewport positioning to the editor chrome slot', () => {
     render(<HelpControl />);
     const host = screen.getByTestId('help-control-host');
-    expect(host).toHaveClass('fixed', 'bottom-3', 'right-3');
-    expect(host).not.toHaveClass(
-      'right-[calc(24rem+0.75rem)]',
-      'right-[4.875rem]'
-    );
+    expect(host).not.toHaveClass('fixed', 'absolute');
     expect(host).toHaveClass('flex', 'gap-1');
     expect(host.lastElementChild).toBe(screen.getByTestId('help-control'));
   });
 
-  it('hides while the mobile Sidebar is open', () => {
-    isMobile = true;
-    const { rerender } = render(<HelpControl />);
-    expect(screen.getByTestId('help-control-host')).toHaveClass('right-3');
-
-    openMobile = true;
-    rerender(<HelpControl />);
-    expect(screen.queryByTestId('help-control-host')).not.toBeInTheDocument();
-  });
-
   it('opens the Handbook and reflects its active state', async () => {
     render(<HelpControl />);
-    const control = screen.getByRole('button', { name: 'User Manual' });
+    const control = screen.getByRole('button', { name: 'Help' });
     expect(control).toHaveAttribute('aria-pressed', 'false');
 
     fireEvent.click(control);
-    expect(await screen.findByRole('dialog', { name: 'User Manual' })).toBeInTheDocument();
+    expect(await screen.findByRole('dialog', { name: 'Help' })).toBeInTheDocument();
     expect(control).toHaveAttribute('aria-pressed', 'true');
     expect(control).toHaveClass('bg-accent');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Close manual' }));
-    expect(screen.queryByRole('dialog', { name: 'User Manual' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Close help' }));
+    expect(screen.queryByRole('dialog', { name: 'Help' })).not.toBeInTheDocument();
     expect(control).toHaveAttribute('aria-pressed', 'false');
     await waitFor(() => expect(control).toHaveFocus());
   });

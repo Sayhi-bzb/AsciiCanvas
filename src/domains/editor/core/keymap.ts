@@ -16,6 +16,21 @@ export type RegisteredKeymapEntry<Context = unknown> = KeymapEntry<Context> & {
   owner: string;
 };
 
+export type KeymapBindingSnapshot = {
+  id: string;
+  owner: string;
+  target: KeymapTarget;
+  defaultShortcuts: readonly string[];
+  shortcuts: readonly string[];
+  userDefined: boolean;
+  priority?: number;
+};
+
+export type EditorKeymapSnapshot = {
+  revision: number;
+  entries: readonly KeymapBindingSnapshot[];
+};
+
 export type KeymapResolution<Context = unknown> =
   | { type: "none" }
   | { type: "match"; entry: RegisteredKeymapEntry<Context> }
@@ -25,6 +40,7 @@ export class EditorKeymap<Context = unknown> {
   readonly #entries = new Map<string, RegisteredKeymapEntry<Context>>();
   readonly #overrides = new Map<string, readonly string[]>();
   readonly #listeners = new Set<() => void>();
+  #snapshot: EditorKeymapSnapshot = { revision: 0, entries: [] };
 
   register(owner: string, entry: KeymapEntry<Context>) {
     if (this.#entries.has(entry.id)) throw new Error(`Keymap entry ${entry.id} already exists`);
@@ -43,17 +59,42 @@ export class EditorKeymap<Context = unknown> {
   }
 
   setUserBindings(entryId: string, shortcuts: readonly string[] | null) {
-    if (!this.#entries.has(entryId)) throw new Error(`Unknown keymap entry ${entryId}`);
-    if (shortcuts === null) this.#overrides.delete(entryId);
-    else {
+    this.updateUserBindings({ [entryId]: shortcuts });
+  }
+
+  updateUserBindings(
+    updates: Readonly<Record<string, readonly string[] | null>>
+  ) {
+    const normalizedUpdates = Object.entries(updates).map(([entryId, shortcuts]) => {
+      if (!this.#entries.has(entryId)) {
+        throw new Error(`Unknown keymap entry ${entryId}`);
+      }
+      if (shortcuts === null) return [entryId, null] as const;
       const normalized = shortcuts.map((shortcut) => {
         const value = normalizeShortcut(shortcut);
         if (!value) throw new Error(`Invalid shortcut ${shortcut}`);
         return value;
       });
-      this.#overrides.set(entryId, [...new Set(normalized)]);
+      return [entryId, [...new Set(normalized)]] as const;
+    });
+
+    let changed = false;
+    for (const [entryId, shortcuts] of normalizedUpdates) {
+      const previous = this.#overrides.get(entryId);
+      if (shortcuts === null) {
+        changed = this.#overrides.delete(entryId) || changed;
+        continue;
+      }
+      if (
+        previous?.length === shortcuts.length &&
+        previous.every((shortcut, index) => shortcut === shortcuts[index])
+      ) {
+        continue;
+      }
+      this.#overrides.set(entryId, shortcuts);
+      changed = true;
     }
-    this.#emit();
+    if (changed) this.#emit();
   }
 
   resetUserBindings() {
@@ -69,6 +110,10 @@ export class EditorKeymap<Context = unknown> {
   subscribe(listener: () => void) {
     this.#listeners.add(listener);
     return () => this.#listeners.delete(listener);
+  }
+
+  getSnapshot() {
+    return this.#snapshot;
   }
 
   has(entryId: string) {
@@ -115,6 +160,18 @@ export class EditorKeymap<Context = unknown> {
   }
 
   #emit() {
+    this.#snapshot = {
+      revision: this.#snapshot.revision + 1,
+      entries: [...this.#entries.values()].map((entry) => ({
+        id: entry.id,
+        owner: entry.owner,
+        target: entry.target,
+        defaultShortcuts: entry.shortcuts,
+        shortcuts: this.#overrides.get(entry.id) ?? entry.shortcuts,
+        userDefined: this.#overrides.has(entry.id),
+        priority: entry.priority,
+      })),
+    };
     this.#listeners.forEach((listener) => listener());
   }
 }

@@ -57,6 +57,26 @@ describe("SidebarRight structured templates", () => {
     useLibraryStore.setState(initialLibraryState, true);
   });
 
+  it("keeps the header toggle in the same column when collapsed", () => {
+    const { container } = render(
+      <SidebarProvider defaultOpen>
+        <SidebarRight />
+      </SidebarProvider>
+    );
+    const toggle = screen.getByRole("button", { name: /toggle sidebar/i });
+    const toggleColumn = screen.getByTestId("sidebar-toggle-column");
+
+    fireEvent.click(toggle);
+
+    expect(screen.getByRole("button", { name: /toggle sidebar/i })).toBe(toggle);
+    expect(screen.getByTestId("sidebar-toggle-column")).toBe(toggleColumn);
+    expect(toggleColumn).toHaveClass("col-start-2", "row-start-1");
+    expect(container.querySelector('[data-slot="sidebar"]')).toHaveAttribute(
+      "data-state",
+      "collapsed"
+    );
+  });
+
   it("shows structured templates instead of the character library in structured mode", () => {
     useEditorStore.setState({ canvasMode: "structured" });
 
@@ -93,12 +113,16 @@ describe("SidebarRight structured templates", () => {
     expect(content).not.toContainElement(search);
     expect(content).toHaveClass("min-h-0", "overflow-hidden");
     expect(content).not.toHaveClass("overflow-y-auto");
-    expect(content).toHaveClass("[scrollbar-gutter:auto]");
+    expect(content).not.toHaveClass("[scrollbar-gutter:auto]");
     expect(content).not.toHaveClass("[scrollbar-gutter:stable]");
     expect(content?.querySelectorAll('[data-slot="scroll-area"]')).toHaveLength(
       1
     );
-    expect(scrollArea).toHaveClass("min-h-0", "overflow-hidden");
+    expect(scrollArea).toHaveClass("min-h-0", "group/content-scroll-area");
+    expect(scrollArea).not.toHaveClass("overflow-hidden");
+    expect(
+      scrollArea?.querySelector('[data-slot="scroll-area-scrollbar"]')
+    ).toBeInTheDocument();
     expect(content).toHaveClass("p-0");
     expect(content).toHaveClass("pb-12");
     const structuredRail = screen.getByTestId("structured-view-rail-vertical");

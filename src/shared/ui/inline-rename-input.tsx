@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { cn } from "@/shared/lib/utils";
-import { uiClass } from "@/shared/styles/components";
+import { rx } from "@/shared/styles/recipes"
 
 type InlineRenameInputProps = Omit<
   React.ComponentProps<"input">,
@@ -69,7 +69,7 @@ function InlineRenameInput({
           onCancel?.();
         }
       }}
-      className={cn(uiClass.quietInput, "h-6 px-1", className)}
+      className={cn(rx.quietInput, "h-6 px-1", className)}
     />
   );
 }

@@ -222,11 +222,23 @@ export class CanvasCameraManager {
   fitBounds(
     bounds: NodeBounds,
     viewportSize: { width: number; height: number },
-    options: { padding?: number; animated?: boolean; duration?: number } = {}
+    options: {
+      padding?: number;
+      animated?: boolean;
+      duration?: number;
+      insets?: { top: number; right: number; bottom: number; left: number };
+    } = {}
   ): void {
     const padding = Math.max(0, options.padding ?? 48);
-    const availableWidth = Math.max(1, viewportSize.width - padding * 2);
-    const availableHeight = Math.max(1, viewportSize.height - padding * 2);
+    const insets = options.insets ?? { top: 0, right: 0, bottom: 0, left: 0 };
+    const availableWidth = Math.max(
+      1,
+      viewportSize.width - insets.left - insets.right - padding * 2
+    );
+    const availableHeight = Math.max(
+      1,
+      viewportSize.height - insets.top - insets.bottom - padding * 2
+    );
     const zoom = clampZoom(
       Math.min(
         availableWidth / Math.max(1, bounds.width),
@@ -236,11 +248,11 @@ export class CanvasCameraManager {
     const target = {
       zoom,
       offset: {
-        x:
-          (viewportSize.width - bounds.width * zoom) / 2 -
+        x: insets.left +
+          (viewportSize.width - insets.left - insets.right - bounds.width * zoom) / 2 -
           bounds.x * zoom,
-        y:
-          (viewportSize.height - bounds.height * zoom) / 2 -
+        y: insets.top +
+          (viewportSize.height - insets.top - insets.bottom - bounds.height * zoom) / 2 -
           bounds.y * zoom,
       },
     };

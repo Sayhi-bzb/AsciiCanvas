@@ -7,7 +7,7 @@ import { SLIDE_SIZE_PRESETS, type SlideSize } from "@/domains/slides/public";
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
 import { useUiI18n, type I18nKey } from "@/shared/i18n";
 import { cn } from "@/shared/lib/utils";
-import { uiClass } from "@/shared/styles/components";
+import { rx } from "@/shared/styles/recipes"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -151,7 +151,7 @@ export function CanvasBreadcrumb() {
             className={cn(
               "max-w-[min(14rem,calc(100vw-5.5rem))] justify-start gap-1.5 bg-transparent px-2",
               "data-[state=open]:bg-accent data-[state=open]:text-accent-foreground",
-              uiClass.hostControl
+              rx.hostControl
             )}
             aria-label={t("session.select")}
             title={activeSession?.name ?? t("session.fallbackName")}
@@ -364,7 +364,7 @@ export function CanvasBreadcrumb() {
           <AlertDialogFooter>
             <AlertDialogCancel>{t("dialog.cancel")}</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              tone="danger"
               onClick={() => {
                 if (!pendingDeleteSession) return;
                 removeCanvasSession(pendingDeleteSession.id);

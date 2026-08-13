@@ -8,12 +8,15 @@ describe("DataSecurityDialog", () => {
     render(<DataSecurityDialog open onOpenChange={vi.fn()} />);
 
     const dialog = screen.getByRole("dialog", { name: "Data security" });
-    expect(dialog).toHaveTextContent("Stored locally");
-    expect(dialog).toHaveTextContent("No uploads or analytics");
-    expect(dialog).toHaveTextContent("You control transfers");
+    expect(dialog).toHaveTextContent("Stored here");
+    expect(dialog).toHaveTextContent("No analytics");
+    expect(dialog).toHaveTextContent("Local transfers");
     expect(dialog).toHaveTextContent("Local storage is not encrypted");
     expect(dialog).not.toHaveTextContent("offline");
     expect(dialog).not.toHaveTextContent("URL");
+    expect(dialog.querySelectorAll("h3")).toHaveLength(0);
+    expect(dialog.querySelector('[class*="bg-accent/"]')).not.toBeInTheDocument();
+    expect(dialog.querySelector(".border-accent")).not.toBeInTheDocument();
   });
 
   it("replaces local-only claims with the active P2P data boundary", () => {
@@ -30,9 +33,9 @@ describe("DataSecurityDialog", () => {
     render(<DataSecurityDialog open onOpenChange={vi.fn()} />);
     const dialog = screen.getByRole("dialog", { name: "Data security" });
     expect(dialog).toHaveTextContent("Peer-to-peer room");
-    expect(dialog).toHaveTextContent("encrypted WebRTC channels");
+    expect(dialog).toHaveTextContent("encrypted signaling and WebRTC");
     expect(dialog).toHaveTextContent("Anyone with the edit link can edit");
-    expect(dialog).not.toHaveTextContent("No uploads or analytics");
+    expect(dialog).not.toHaveTextContent("No analytics");
 
     useEditorStore.getState().setCanvasSessionCollaboration(state.activeCanvasId, null);
   });

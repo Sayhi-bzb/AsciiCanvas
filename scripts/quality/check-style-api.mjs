@@ -26,6 +26,21 @@ const checks = [
     pattern: /<Button(?=[\s>])[\s\S]{0,400}?\bsize\s*=\s*"(icon|icon-sm|icon-lg)"/g,
     allow: [],
   },
+  {
+    name: "No legacy uiClass style API",
+    pattern: /\buiClass\b/g,
+    allow: [],
+  },
+  {
+    name: "No legacy shared style components import",
+    pattern: /["']@\/shared\/styles\/components["']/g,
+    allow: [],
+  },
+  {
+    name: "No raw viewport overlay tiers",
+    pattern: /\bz-(?:40|50|\[100\])\b/g,
+    allow: [],
+  },
 ];
 
 const importPattern =

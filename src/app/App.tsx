@@ -1,25 +1,30 @@
 import { useLocalStorageState } from "ahooks";
 import { CanvasEditor } from "@/widgets/canvas-editor";
 import { useCanvasRuntime, useCanvasState } from "@/domains/canvas/public";
-import { AppLayout } from "./AppLayout";
 import { Toolbar } from "@/widgets/toolbar/dock";
-import { SidebarInset, SidebarProvider, useSidebar } from "@/shared/ui/sidebar";
-import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  SidebarProvider,
+  SidebarTrigger,
+  useSidebar,
+} from "@/shared/ui/sidebar";
+import {
+  Suspense,
+  lazy,
+  useCallback,
+  useMemo,
+  useState,
+} from "react";
 import { feedback } from "@/shared/services/effects";
 import { useShallow } from "zustand/react/shallow";
 import { CanvasBreadcrumb } from "@/widgets/session-tabs/CanvasBreadcrumb";
-import { useIsMobile, useSidebarAutoCollapseSignal } from "@/shared/hooks/use-mobile";
-import { cn } from "@/shared/lib/utils";
 import { TooltipProvider } from "@/shared/ui/tooltip";
 import { AppMenu } from "@/widgets/toolbar/app-menu";
-import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
 import { getStaticGridViewState } from "@/domains/selection/public";
 import { isStaticGridMode } from "@/domains/sessions/public";
 import { useHandToolShortcuts } from "./useHandToolShortcuts";
 import { useGlobalShortcutCommands } from "./useGlobalShortcutCommands";
 import { ZoomControl } from "@/widgets/toolbar/zoom-control";
 import { HelpControl } from "@/widgets/toolbar/help-control";
-import { useUiI18n } from "@/shared/i18n";
 import {
   SHORTCUT_PRIORITY,
   ShortcutProvider,
@@ -34,6 +39,12 @@ import { sameCollaborationRoom } from "@/domains/collaboration/public";
 import { OnboardingTourProvider } from "@/widgets/onboarding/new-user-tour";
 import { CanvasEngineProvider } from "@/widgets/canvas-editor/engine/useCanvasEngineRuntime";
 import { useEditor } from "@/domains/editor/public";
+import { Toaster } from "@/shared/ui/sonner";
+import {
+  EditorChromeLayout,
+  EditorChromeProvider,
+  useEditorChromeLayout,
+} from "@/widgets/editor-chrome/public";
 
 const SidebarRight = lazy(() =>
   import("@/widgets/toolbar/sidebar-right").then((module) => ({
@@ -65,29 +76,10 @@ function SidebarShortcutRegistration() {
   return null;
 }
 
-// Mobile sidebar trigger.
-function MobileSidebarTrigger() {
-  const OpenSidebarIcon = HOST_ICONOLOGY.chrome["open-right-sidebar"];
-  const isMobile = useIsMobile();
-  const { setOpenMobile } = useSidebar();
-  const { t } = useUiI18n();
-
-  if (!isMobile) return null;
-
-  return (
-    <button
-      onClick={() => setOpenMobile(true)}
-      className={cn(
-        "fixed bottom-24 right-4 z-50 size-10 rounded-xl",
-        "bg-popover/95 border border-border shadow-lg",
-        "flex items-center justify-center pointer-events-auto",
-        "hover:bg-accent/45 transition-colors"
-      )}
-      aria-label={t("sidebar.open")}
-    >
-      <OpenSidebarIcon className="size-5" />
-    </button>
-  );
+function PhoneSidebarTrigger() {
+  const { openMobile } = useSidebar();
+  if (openMobile) return null;
+  return <SidebarTrigger side="right" />;
 }
 
 function AppContent() {
@@ -104,9 +96,8 @@ function AppContent() {
         activeCollaboration,
         collaborationSnapshot.descriptor
       ));
-  const [canvasContainerSize, setCanvasContainerSize] = useState<
-    { width: number; height: number } | undefined
-  >();
+  const { formFactor, sidebarPresentation, viewportFrame } =
+    useEditorChromeLayout();
   const {
     tool,
     canvasMode,
@@ -171,17 +162,32 @@ function AppContent() {
     isCanvasTextEditing,
   });
 
-  const [isRightPanelOpen, setIsRightPanelOpen] = useLocalStorageState<boolean>(
+  const [desktopSidebarOpen, setDesktopSidebarOpen] =
+    useLocalStorageState<boolean>(
     "ui-right-panel-status",
     { defaultValue: true }
   );
+  const [transientSidebar, setTransientSidebar] = useState({
+    formFactor,
+    open: false,
+  });
+  const transientSidebarOpen =
+    transientSidebar.formFactor === formFactor && transientSidebar.open;
 
-  const sidebarAutoCollapseSignal = useSidebarAutoCollapseSignal();
-
-  useEffect(() => {
-    if (sidebarAutoCollapseSignal === 0) return;
-    setIsRightPanelOpen(false);
-  }, [sidebarAutoCollapseSignal, setIsRightPanelOpen]);
+  const isRightPanelOpen =
+    formFactor === "desktop"
+      ? desktopSidebarOpen ?? true
+      : transientSidebarOpen;
+  const setIsRightPanelOpen = useCallback(
+    (open: boolean) => {
+      if (formFactor === "desktop") setDesktopSidebarOpen(open);
+      else setTransientSidebar({ formFactor, open });
+    }, [
+      formFactor,
+      setDesktopSidebarOpen,
+      setTransientSidebar,
+    ]
+  );
 
   const handleUndo = () => {
     const changed = editor.history.undo();
@@ -198,43 +204,34 @@ function AppContent() {
   });
 
   return (
-    <SidebarProvider className="flex h-full w-full overflow-hidden">
-      <SidebarInset
-        data-onboarding-target="workspace"
-        className="relative flex flex-1 flex-col overflow-hidden"
-      >
-        <div
-          data-canvas-ui="true"
-          data-testid="app-top-bar"
-          className="absolute left-3 top-3 z-50 flex min-w-0 items-center gap-1 pointer-events-none"
-        >
-          <AppMenu />
-          <CanvasBreadcrumb />
-          <CollaborationControl />
-        </div>
-        <ZoomControl containerSize={canvasContainerSize} />
-        <AppLayout
-          canvas={
-            <div
-              className="relative h-full w-full"
-              inert={isCollaborationReadOnly}
-              aria-busy={isCollaborationReadOnly}
-            >
-              <CanvasEditor
-                onUndo={handleUndo}
-                onRedo={handleRedo}
-                onContainerSizeChange={setCanvasContainerSize}
-                interactionToolOverride={
-                  isTemporaryPanActive ? "pan" : undefined
-                }
-                enabled={!isCollaborationReadOnly}
-              />
-              {isCollaborationReadOnly && (
-                <div className="absolute inset-0 z-50 bg-background/20" />
-              )}
-            </div>
-          }
-        >
+    <SidebarProvider
+      presentation={sidebarPresentation}
+      open={isRightPanelOpen}
+      onOpenChange={setIsRightPanelOpen}
+      className="size-full overflow-hidden"
+      style={{ "--sidebar-width": "24rem" } as React.CSSProperties}
+    >
+      <SidebarShortcutRegistration />
+      <EditorChromeLayout
+        sidebarOpen={isRightPanelOpen}
+        topStart={
+          <div
+            data-canvas-ui="true"
+            data-testid="app-top-bar"
+            className="flex min-w-0 items-center gap-1 pointer-events-none"
+          >
+            <AppMenu />
+            <CanvasBreadcrumb />
+            <CollaborationControl />
+          </div>
+        }
+        topEnd={formFactor === "phone" ? <PhoneSidebarTrigger /> : null}
+        bottomStart={
+          formFactor === "phone" ? null : (
+            <ZoomControl viewportFrame={viewportFrame} formFactor={formFactor} />
+          )
+        }
+        bottomCenter={
           <div inert={isCollaborationReadOnly} aria-disabled={isCollaborationReadOnly}>
             <Toolbar
               tool={tool}
@@ -243,29 +240,46 @@ function AppContent() {
               isCanvasTextEditing={isCanvasTextEditing}
               onExitCanvasTextEditing={exitCanvasTextEditing}
               enabled={!isCollaborationReadOnly}
+              formFactor={formFactor}
             />
           </div>
-        </AppLayout>
-        <RemotePresenceOverlay />
-
-        <div className="absolute top-0 right-0 h-full pointer-events-none z-50">
-          <SidebarProvider
-            open={isRightPanelOpen}
-            onOpenChange={setIsRightPanelOpen}
-            className="h-full items-end"
-            style={
-              { "--sidebar-width": "24rem" } as React.CSSProperties
-            }
+        }
+        bottomEnd={
+          <HelpControl />
+        }
+        sidebar={
+          <Suspense fallback={null}>
+            <SidebarRight />
+          </Suspense>
+        }
+        canvas={
+          <div
+            data-onboarding-target="workspace"
+            className="relative size-full overflow-hidden"
           >
-            <SidebarShortcutRegistration />
-            <MobileSidebarTrigger />
-            <HelpControl />
-            <Suspense fallback={<div className="w-0" />}>
-              <SidebarRight />
-            </Suspense>
-          </SidebarProvider>
-        </div>
-      </SidebarInset>
+            <div
+              className="relative h-full w-full"
+              inert={isCollaborationReadOnly}
+              aria-busy={isCollaborationReadOnly}
+            >
+              <CanvasEditor
+                onUndo={handleUndo}
+                onRedo={handleRedo}
+                interactionToolOverride={
+                  isTemporaryPanActive ? "pan" : undefined
+                }
+                enabled={!isCollaborationReadOnly}
+                viewportFrame={viewportFrame}
+              />
+              <RemotePresenceOverlay />
+              {isCollaborationReadOnly && (
+                <div className="absolute inset-0 z-(--layer-chrome) bg-background/20" />
+              )}
+            </div>
+          </div>
+        }
+      />
+      <Toaster />
     </SidebarProvider>
   );
 }
@@ -276,7 +290,9 @@ export default function App() {
       <TooltipProvider>
         <OnboardingTourProvider>
           <CanvasEngineProvider>
-            <AppContent />
+            <EditorChromeProvider>
+              <AppContent />
+            </EditorChromeProvider>
           </CanvasEngineProvider>
         </OnboardingTourProvider>
       </TooltipProvider>

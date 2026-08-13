@@ -237,7 +237,9 @@ describe("ZoomControl slide playback", () => {
     expect(
       await screen.findByRole("heading", { name: "Crop slide content?" })
     ).toBeInTheDocument();
-    expect(screen.getByText(/Affected cells: 1/)).toBeInTheDocument();
+    expect(screen.getByRole("alertdialog")).toHaveTextContent(
+      "Resize First to 2 × 1. Out-of-bounds cells removed: 1."
+    );
     expect(useEditorStore.getState().slideDeck?.slides[0].size).toEqual({
       columns: 4,
       rows: 3,

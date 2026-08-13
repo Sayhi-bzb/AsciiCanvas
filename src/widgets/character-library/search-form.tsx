@@ -8,7 +8,7 @@ import {
 } from "@/domains/character-library/public";
 import { cn } from "@/shared/lib/utils";
 import { useUiI18n } from "@/shared/i18n";
-import { uiClass } from "@/shared/styles/components";
+import { rx } from "@/shared/styles/recipes"
 
 type SearchFormProps = Omit<React.ComponentProps<"form">, "onSubmit"> & {
   view: CharacterViewId;
@@ -83,7 +83,7 @@ export function SearchForm({
             : t("character.search.currentPlaceholder")
         }
         className={cn(
-          uiClass.searchInput,
+          rx.searchInput,
           "h-8 w-full pl-8 [&::-webkit-search-cancel-button]:hidden",
           isUnicode ? "pr-16" : "pr-10"
         )}

@@ -27,6 +27,17 @@
     "packages/fonts": {
       "entry": ["src/index.ts", "src/**/*.test.ts", "vitest.config.ts"],
       "project": ["src/**/*.ts"]
+    },
+    "apps/docs": {
+      "entry": [
+        "app/root.tsx",
+        "app/routes.ts",
+        "app/routes/*.tsx",
+        "app/routes/*.ts",
+        "react-router.config.ts",
+        "vite.config.ts"
+      ],
+      "project": ["app/**/*.{ts,tsx}", "*.config.ts"]
     }
   },
   "include": [

@@ -1,18 +1,14 @@
 "use client";
 
-import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
 import { useUiI18n } from "@/shared/i18n";
 import {
   Dialog,
   DialogBody,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/shared/ui/dialog";
 import { useCanvasState } from "@/domains/canvas/public";
-
-const SecurityIcon = HOST_ICONOLOGY.viewportAction.security;
 
 type DataSecurityDialogProps = {
   open: boolean;
@@ -47,21 +43,17 @@ export function DataSecurityDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[440px]">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <SecurityIcon className="size-5 text-primary" />
-            <span>{t("security.title")}</span>
-          </DialogTitle>
-          <DialogDescription>{t("security.summary")}</DialogDescription>
+          <DialogTitle>{t("security.title")}</DialogTitle>
         </DialogHeader>
-        <DialogBody className="space-y-3">
-          {disclosures.map(([key, title, description]) => (
-            <section key={key} className="rounded-md bg-accent/40 p-3">
-              <h3 className="text-xs font-semibold text-foreground">{title}</h3>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                {description}
-              </p>
-            </section>
-          ))}
+        <DialogBody className="flex flex-col gap-3">
+          <dl className="grid grid-cols-[7rem_minmax(0,1fr)] gap-x-3 gap-y-2 text-xs">
+            {disclosures.map(([key, title, description]) => (
+              <div key={key} className="contents">
+                <dt className="font-medium text-foreground">{title}</dt>
+                <dd className="leading-5 text-muted-foreground">{description}</dd>
+              </div>
+            ))}
+          </dl>
           <p className="text-[11px] leading-4 text-muted-foreground">
             {collaboration ? t("security.collaborationNote") : t("security.storageNote")}
           </p>

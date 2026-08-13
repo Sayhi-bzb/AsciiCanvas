@@ -225,7 +225,7 @@ export function SlideNavigator() {
           <AlertDialogFooter>
             <AlertDialogCancel>{t("dialog.cancel")}</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              tone="danger"
               onClick={() => {
                 if (pendingResize) {
                   resizeSlide(pendingResize.slideId, pendingResize.size);
@@ -247,7 +247,7 @@ export function SlideNavigator() {
           <AlertDialogFooter>
             <AlertDialogCancel>{t("dialog.cancel")}</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              tone="danger"
               onClick={() => {
                 if (pendingSlide) removeSlide(pendingSlide.id);
                 setPendingDeleteId(null);

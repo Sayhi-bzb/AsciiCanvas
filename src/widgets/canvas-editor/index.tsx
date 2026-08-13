@@ -31,6 +31,7 @@ import {
 import { useCanvasEngineRuntime } from './engine/useCanvasEngineRuntime';
 import { CANVAS_FRAME_INVALIDATION } from './engine/FrameScheduler';
 import { resolveCanvasSurfaceGeometry } from './canvasSurfaceGeometry';
+import type { EditorViewportFrame } from '@/widgets/editor-chrome/public';
 
 interface CanvasEditorProps {
   onUndo: () => void;
@@ -38,6 +39,7 @@ interface CanvasEditorProps {
   onContainerSizeChange?: (size: { width: number; height: number } | undefined) => void;
   interactionToolOverride?: ToolType;
   enabled?: boolean;
+  viewportFrame?: EditorViewportFrame;
 }
 
 export const CanvasEditor = ({
@@ -46,6 +48,7 @@ export const CanvasEditor = ({
   onContainerSizeChange,
   interactionToolOverride,
   enabled = true,
+  viewportFrame,
 }: CanvasEditorProps) => {
   const canvas = useCanvasRuntime();
   const runtime = useCanvasEngineRuntime();
@@ -119,7 +122,7 @@ export const CanvasEditor = ({
         height: activeSlide.size.rows * CELL_HEIGHT,
       },
       size,
-      { padding: 48 }
+      { padding: 48, insets: viewportFrame?.insets }
     );
   }, [
     activeCanvasId,
@@ -128,6 +131,7 @@ export const CanvasEditor = ({
     rendererStore.slideDeck,
     runtime,
     size,
+    viewportFrame?.insets,
   ]);
 
   const presentViewport = useCallback((presented: CanvasViewport) => {
@@ -272,6 +276,7 @@ export const CanvasEditor = ({
           uiCanvasRef={uiCanvasRef}
           surfaceGeometry={surfaceGeometry}
           containerSize={size}
+          viewportFrame={viewportFrame}
           onContextMenu={handleContextMenu}
           {...structuredTemplateDrop.surfaceProps}
           onDoubleClick={handleDoubleClick}

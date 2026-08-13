@@ -9,6 +9,7 @@ import {
 } from 'react';
 import { SelectionFormatToolbar } from './SelectionFormatToolbar';
 import type { CanvasSurfaceGeometry } from './canvasSurfaceGeometry';
+import type { EditorViewportFrame } from '@/widgets/editor-chrome/public';
 
 type CanvasSurfaceProps = HTMLAttributes<HTMLDivElement> & {
   containerRef: RefObject<HTMLDivElement | null>;
@@ -18,6 +19,7 @@ type CanvasSurfaceProps = HTMLAttributes<HTMLDivElement> & {
   viewportLayerRef: RefObject<HTMLDivElement | null>;
   surfaceGeometry: CanvasSurfaceGeometry | undefined;
   containerSize: { width: number; height: number } | undefined;
+  viewportFrame?: EditorViewportFrame;
   textareaRef: RefObject<HTMLTextAreaElement | null>;
   textareaStyle: CSSProperties;
   textareaProps: TextareaHTMLAttributes<HTMLTextAreaElement>;
@@ -38,6 +40,7 @@ export const CanvasSurface = forwardRef<HTMLDivElement, CanvasSurfaceProps>(func
     viewportLayerRef,
     surfaceGeometry,
     containerSize,
+    viewportFrame,
     textareaRef,
     textareaStyle,
     textareaProps,
@@ -68,7 +71,7 @@ export const CanvasSurface = forwardRef<HTMLDivElement, CanvasSurfaceProps>(func
       style={{ touchAction: 'none', ...style }}
       className={
         className ??
-        'relative w-screen h-screen overflow-hidden bg-background touch-none select-none cursor-default'
+        'relative size-full overflow-hidden bg-background touch-none select-none cursor-default'
       }
       {...surfaceProps}
     >
@@ -94,7 +97,10 @@ export const CanvasSurface = forwardRef<HTMLDivElement, CanvasSurfaceProps>(func
         />
       </div>
       {children}
-      <SelectionFormatToolbar containerSize={containerSize} />
+      <SelectionFormatToolbar
+        containerSize={containerSize}
+        viewportFrame={viewportFrame}
+      />
       <textarea
         ref={textareaRef}
         data-canvas-managed-input="true"

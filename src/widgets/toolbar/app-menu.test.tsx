@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { useEditorStore } from '@/domains/canvas/testing';
 import { createSlideDeck } from '@/domains/slides/public';
@@ -48,5 +48,38 @@ describe('AppMenu slide interchange', () => {
 
     expect(await screen.findByRole('menuitem', { name: 'Import' })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: 'Export' })).toBeInTheDocument();
+  });
+
+  it('opens the standalone shortcut dialog and restores menu trigger focus', async () => {
+    act(() => setUiLanguage('en'));
+    render(<AppMenu />);
+    const trigger = screen.getByRole('button', { name: 'Open menu' });
+
+    fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false });
+    fireEvent.click(
+      await screen.findByRole('menuitem', { name: 'Shortcuts' })
+    );
+
+    expect(
+      await screen.findByRole('heading', { name: 'Keyboard shortcuts' })
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    await waitFor(() => expect(trigger).toHaveFocus());
+  });
+
+  it('localizes the shortcut menu item', async () => {
+    act(() => setUiLanguage('zh'));
+    render(<AppMenu />);
+
+    fireEvent.pointerDown(screen.getByRole('button', { name: '打开菜单' }), {
+      button: 0,
+      ctrlKey: false,
+    });
+
+    expect(
+      await screen.findByRole('menuitem', { name: '快捷键' })
+    ).toBeInTheDocument();
   });
 });

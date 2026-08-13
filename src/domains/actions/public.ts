@@ -20,8 +20,11 @@ export type {
 export {
   getAppActionShortcutLabel,
   getEditorCommandShortcutLabel,
+  formatShortcutLabel,
+  getShortcutDisplayTokens,
   setEditorCommandShortcutOverride,
 } from "./core";
+export type { ShortcutPlatform } from "./core";
 export {
   buildClipboardPayload,
   buildStructuredClipboardPayload,

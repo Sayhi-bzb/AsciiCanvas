@@ -216,7 +216,7 @@ describe("CanvasBreadcrumb", () => {
 
     await openSubmenu("Manage Delta");
     fireEvent.click(await screen.findByRole("menuitem", { name: "Close" }));
-    expect(await screen.findByRole("heading", { name: "Delete This Canvas?" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Delete canvas?" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
 
     expect(

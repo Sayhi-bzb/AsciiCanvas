@@ -1,13 +1,45 @@
 import path from "path";
 import tailwindcss from "@tailwindcss/vite";
-import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react-swc";
+import { defineConfig, type Plugin } from "vite";
+
+function docsDevRedirect(): Plugin {
+  return {
+    name: "chardesk-docs-dev-redirect",
+    apply: "serve",
+    enforce: "pre",
+    configureServer(server) {
+      server.middlewares.use((request, response, next) => {
+        const requestUrl = request.url;
+        if (
+          requestUrl !== "/docs" &&
+          !requestUrl?.startsWith("/docs?")
+        ) {
+          next();
+          return;
+        }
+
+        response.statusCode = 307;
+        response.setHeader("Location", `/docs/${requestUrl.slice(5)}`);
+        response.end();
+      });
+    },
+  };
+}
 
 // https://vite.dev/config/
 export default defineConfig({
   // Use relative asset paths by default to avoid blank pages on subpath deploys.
   base: process.env.VITE_BASE_PATH || "./",
-  plugins: [react(), tailwindcss()],
+  plugins: [docsDevRedirect(), react(), tailwindcss()],
+  server: {
+    proxy: {
+      "/docs": {
+        target: "http://127.0.0.1:5174",
+        ws: true,
+      },
+    },
+  },
   build: {
     rollupOptions: {
       output: {
@@ -41,16 +73,16 @@ export default defineConfig({
     alias: [
       {
         find: /^@chardesk\/fonts$/,
-        replacement: path.resolve(__dirname, "./packages/fonts/src/index.ts"),
+        replacement: path.resolve(import.meta.dirname, "./packages/fonts/src/index.ts"),
       },
       {
         find: "@chardesk/protocol",
         replacement: path.resolve(
-          __dirname,
+          import.meta.dirname,
           "./packages/protocol/src/index.ts"
         ),
       },
-      { find: "@", replacement: path.resolve(__dirname, "./src") },
+      { find: "@", replacement: path.resolve(import.meta.dirname, "./src") },
     ],
   },
 });

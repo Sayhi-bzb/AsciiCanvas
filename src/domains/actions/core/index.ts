@@ -27,8 +27,11 @@ export { isActionAccepted } from "./result";
 export {
   getAppActionShortcutLabel,
   getEditorCommandShortcutLabel,
+  formatShortcutLabel,
+  getShortcutDisplayTokens,
   setEditorCommandShortcutOverride,
 } from "./shortcuts";
+export type { ShortcutPlatform } from "./shortcuts";
 
 // Handlers (for advanced use cases)
 export {

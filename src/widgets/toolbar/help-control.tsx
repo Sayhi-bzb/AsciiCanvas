@@ -4,9 +4,8 @@ import { lazy, Suspense, useRef, useState } from 'react';
 import { useUiI18n } from '@/shared/i18n';
 import { HOST_ICONOLOGY } from '@/shared/icons/iconology';
 import { cn } from '@/shared/lib/utils';
-import { uiClass } from '@/shared/styles/components';
+import { rx } from '@/shared/styles/recipes';
 import { Button } from '@/shared/ui/button';
-import { useSidebar } from '@/shared/ui/sidebar';
 import { useOnboardingTour } from '@/widgets/onboarding/onboarding-context';
 
 const HelpIcon = HOST_ICONOLOGY.viewportAction.help;
@@ -23,7 +22,6 @@ const HandbookDialog = lazy(() =>
 );
 
 export function HelpControl() {
-  const { isMobile, openMobile } = useSidebar();
   const { t } = useUiI18n();
   const { canStart: canStartTour, requestStart: requestTourStart } =
     useOnboardingTour();
@@ -40,20 +38,19 @@ export function HelpControl() {
 
   return (
     <>
-      {(!isMobile || !openMobile) && (
-        <div
-          data-canvas-ui="true"
-          data-testid="help-control-host"
-          className="fixed bottom-3 right-3 z-50 flex items-center gap-1 pointer-events-auto"
-        >
+      <div
+        data-canvas-ui="true"
+        data-testid="help-control-host"
+        className="flex items-center gap-1 pointer-events-auto"
+      >
           <Button
             ref={securityTriggerRef}
             tone="subtle"
             shape="square"
             size="md"
             className={cn(
-              uiClass.hostIconControl,
-              securityOpen && uiClass.hostControlActive
+              rx.hostIconControl,
+              securityOpen && rx.hostControlActive
             )}
             aria-label={securityLabel}
             aria-pressed={securityOpen}
@@ -69,8 +66,8 @@ export function HelpControl() {
             shape="square"
             size="md"
             className={cn(
-              uiClass.hostIconControl,
-              handbookOpen && uiClass.hostControlActive
+              rx.hostIconControl,
+              handbookOpen && rx.hostControlActive
             )}
             aria-label={label}
             aria-pressed={handbookOpen}
@@ -80,8 +77,7 @@ export function HelpControl() {
           >
             <HelpIcon />
           </Button>
-        </div>
-      )}
+      </div>
 
       <Suspense fallback={null}>
         {securityOpen && (

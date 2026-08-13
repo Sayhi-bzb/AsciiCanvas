@@ -33,6 +33,16 @@ export const useEditor = () => {
   return editor;
 };
 
+export const useEditorKeymapSnapshot = () => {
+  const editor = useEditor();
+  const subscribe = useCallback(
+    (listener: () => void) => editor.keymap.subscribe(listener),
+    [editor]
+  );
+  const getSnapshot = useCallback(() => editor.keymap.getSnapshot(), [editor]);
+  return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+};
+
 export const useEditorValue = <Selected,>(
   selector: (state: Readonly<CanvasState>) => Selected,
   isEqual: (left: Selected, right: Selected) => boolean = Object.is

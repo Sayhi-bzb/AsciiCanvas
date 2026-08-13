@@ -1,6 +1,6 @@
 "use client";
 
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useCanvasRuntime, useCanvasState } from "@/domains/canvas/public";
 import {
@@ -22,7 +22,7 @@ import {
 } from "@/shared/ui/dropdown-menu";
 import { useUiI18n } from "@/shared/i18n";
 import { cn } from "@/shared/lib/utils";
-import { uiClass } from "@/shared/styles/components";
+import { rx } from "@/shared/styles/recipes"
 import { useCanvasImport } from "@/widgets/import/useCanvasImport";
 import { useAppMenuExport } from "@/widgets/export/use-app-menu-export";
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
@@ -35,10 +35,16 @@ const ExportIcon = HOST_ICONOLOGY.appMenu.export;
 const CopyIcon = HOST_ICONOLOGY.appMenu.copy;
 const GithubIcon = HOST_ICONOLOGY.appMenu.github;
 const LanguageIcon = HOST_ICONOLOGY.appMenu.language;
+const ShortcutsIcon = HOST_ICONOLOGY.appMenu.shortcuts;
 const ClearIcon = HOST_ICONOLOGY.appMenu.clear;
 const ClearCanvasDialog = lazy(() =>
   import("@/widgets/dialogs/clear-canvas-dialog").then((module) => ({
     default: module.ClearCanvasDialog,
+  }))
+);
+const KeyboardShortcutsDialog = lazy(() =>
+  import("@/widgets/dialogs/keyboard-shortcuts-dialog").then((module) => ({
+    default: module.KeyboardShortcutsDialog,
   }))
 );
 export function AppMenu() {
@@ -74,7 +80,9 @@ export function AppMenu() {
     openFilePicker,
   } = useCanvasImport();
   const [clearOpen, setClearOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const selectLanguage = (value: "en" | "zh") => setLanguage(value);
   const clearLabel = t("sidebar.clear.canvas");
   const clearDescription = t("sidebar.clear.canvasDescription");
@@ -127,7 +135,7 @@ export function AppMenu() {
       <div
         data-canvas-ui="true"
         data-testid="app-menu-host"
-        className="relative z-50 pointer-events-auto"
+        className="relative z-(--layer-chrome) pointer-events-auto"
       >
             <DropdownMenu
               modal={false}
@@ -136,11 +144,12 @@ export function AppMenu() {
             >
               <DropdownMenuTrigger asChild>
                 <Button
+                  ref={menuTriggerRef}
                   tone="subtle"
                   shape="square"
                   size="md"
                   className={cn(
-                    uiClass.hostIconControl,
+                    rx.hostIconControl,
                     "data-[state=open]:bg-accent data-[state=open]:text-foreground"
                   )}
                   aria-label={t("appMenu.open")}
@@ -248,6 +257,15 @@ export function AppMenu() {
                     </DropdownMenuRadioGroup>
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
+                <DropdownMenuItem
+                  onSelect={() => {
+                    setMenuOpen(false);
+                    window.setTimeout(() => setShortcutsOpen(true), 0);
+                  }}
+                >
+                  <ShortcutsIcon />
+                  {t("appMenu.shortcuts")}
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onSelect={() => browser.openExternal(APP_SOURCE_URL)}
@@ -268,6 +286,18 @@ export function AppMenu() {
             onConfirm={clearCanvas}
             open={clearOpen}
             onOpenChange={setClearOpen}
+            trigger={null}
+          />
+        )}
+        {shortcutsOpen && (
+          <KeyboardShortcutsDialog
+            open={shortcutsOpen}
+            onOpenChange={(open) => {
+              setShortcutsOpen(open);
+              if (!open) {
+                window.setTimeout(() => menuTriggerRef.current?.focus(), 0);
+              }
+            }}
             trigger={null}
           />
         )}

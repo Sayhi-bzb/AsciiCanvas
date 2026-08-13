@@ -1,0 +1,135 @@
+import { glob, readFile } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const repositoryRoot = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../.."
+);
+const docsContent = path.join(repositoryRoot, "apps/docs/content/docs");
+const docsOutput = path.join(repositoryRoot, "dist/docs");
+
+const contentPages = [];
+for await (const entry of glob("**/*.mdx", { cwd: docsContent })) {
+  contentPages.push(entry);
+}
+const developmentPages = contentPages.filter((entry) =>
+  entry.startsWith("development/")
+);
+
+const htmlPages = [];
+for await (const entry of glob("**/index.html", { cwd: docsOutput })) {
+  htmlPages.push(entry);
+}
+const markdownPages = [];
+for await (const entry of glob("llms.mdx/**/content.md", { cwd: docsOutput })) {
+  markdownPages.push(entry);
+}
+
+if (htmlPages.length !== contentPages.length) {
+  throw new Error(
+    `Expected ${contentPages.length} documentation pages, found ${htmlPages.length}`
+  );
+}
+if (markdownPages.length !== developmentPages.length) {
+  throw new Error(
+    `Expected ${developmentPages.length} Agent Markdown pages, found ${markdownPages.length}`
+  );
+}
+
+const llmsIndex = await readFile(path.join(docsOutput, "llms.txt"), "utf8");
+const llmsFull = await readFile(path.join(docsOutput, "llms-full.txt"), "utf8");
+const searchData = await readFile(path.join(docsOutput, "api/search"), "utf8");
+JSON.parse(searchData);
+
+if (!llmsIndex.startsWith("# CharDesk Development Documentation")) {
+  throw new Error("llms.txt has an unexpected root heading");
+}
+if (!llmsFull.includes("/docs/development/architecture/ownership")) {
+  throw new Error("llms-full.txt is missing development content");
+}
+if (!searchData.includes("/development/architecture/ownership")) {
+  throw new Error("The search index is missing development content");
+}
+
+const forbiddenRoutes = [
+  "getting-started",
+  "canvas-editing",
+  "import-export",
+  "keyboard-shortcuts",
+];
+for (const route of forbiddenRoutes) {
+  if (searchData.includes(route) || llmsIndex.includes(route)) {
+    throw new Error(`Removed user route remains indexed: ${route}`);
+  }
+}
+
+const removedDevelopmentRoutes = [
+  "start-here",
+  "start-here/agent-workflow",
+  "start-here/local-development",
+  "start-here/repository-map",
+  "domains/actions",
+  "domains/canvas",
+  "domains/character-library",
+  "domains/collaboration",
+  "domains/document",
+  "domains/editor",
+  "domains/export",
+  "domains/selection",
+  "domains/sessions",
+  "domains/slides",
+  "domains/structured-content",
+  "formats-packages/fonts",
+  "formats-packages/slides-markdown",
+  "formats-packages/text-protocol",
+  "quality/agent-navigation",
+  "quality/generated-assets",
+  "quality/guardrails",
+  "quality/testing",
+  "delivery/build",
+  "delivery/documentation",
+  "delivery/release",
+];
+for (const route of removedDevelopmentRoutes) {
+  const contentRoute = `development/${route}`;
+  const docsUrl = `/docs/${contentRoute}`;
+  const searchUrl = `/${contentRoute}`;
+  if (
+    htmlPages.includes(`${contentRoute}/index.html`) ||
+    markdownPages.includes(`llms.mdx/${contentRoute}/content.md`) ||
+    llmsIndex.includes(docsUrl) ||
+    llmsFull.includes(docsUrl) ||
+    searchData.includes(searchUrl)
+  ) {
+    throw new Error(`Removed development route remains emitted: ${route}`);
+  }
+}
+
+const internalLinks = new Set();
+for (const entry of htmlPages) {
+  const html = await readFile(path.join(docsOutput, entry), "utf8");
+  if (html.includes("/docs/docs")) {
+    throw new Error(`Duplicated docs prefix in ${entry}`);
+  }
+  for (const match of html.matchAll(/href="(\/docs(?:\/[^"?#]*)?)/g)) {
+    internalLinks.add(match[1]);
+  }
+}
+
+for (const url of internalLinks) {
+  const relative = url.replace(/^\/docs\/?/, "");
+  if (relative.startsWith("@") || relative.startsWith("app/")) continue;
+  const target = relative
+    ? path.join(docsOutput, relative, "index.html")
+    : path.join(docsOutput, "index.html");
+  try {
+    await readFile(target);
+  } catch {
+    throw new Error(`Broken internal documentation link: ${url}`);
+  }
+}
+
+console.log(
+  `Docs verified: ${htmlPages.length} pages, ${markdownPages.length} Agent Markdown resources`
+);

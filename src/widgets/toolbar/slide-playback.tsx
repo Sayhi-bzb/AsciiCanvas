@@ -121,7 +121,7 @@ export function SlidePlaybackOverlay({
       aria-label={t("slide.playback.title")}
       tabIndex={-1}
       data-testid="slide-playback"
-      className="fixed inset-0 z-[100] overflow-hidden bg-slate-900 outline-none"
+      className="fixed inset-0 z-(--layer-presentation) overflow-hidden bg-slate-900 outline-none"
     >
       <canvas
         ref={canvasRef}

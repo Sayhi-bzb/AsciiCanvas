@@ -23,8 +23,9 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
-import { uiClass } from "@/shared/styles/components";
+import { rx } from "@/shared/styles/recipes"
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
+import { Kbd } from "@/shared/ui/kbd";
 
 import {
   BrushSubmenu,
@@ -34,7 +35,6 @@ import {
 import { MATERIAL_PRESETS, SHAPE_TOOLS } from "./dock/constants";
 import { useShallow } from "zustand/react/shallow";
 import { ColorPickerPopoverContent } from "@/widgets/color-picker";
-import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { useUiI18n } from "@/shared/i18n";
 import {
   SHORTCUT_PRIORITY,
@@ -45,6 +45,7 @@ import {
   getDockShortcutLabel,
   resolveDockShortcutIndex,
 } from "./dock/shortcuts";
+import type { EditorFormFactor } from "@/widgets/editor-chrome/public";
 
 const ToolbarSubmenuIcon = HOST_ICONOLOGY.chrome["toolbar-submenu"];
 
@@ -55,6 +56,7 @@ interface ToolbarProps {
   isCanvasTextEditing: boolean;
   onExitCanvasTextEditing: () => void;
   enabled?: boolean;
+  formFactor?: EditorFormFactor;
 }
 
 const FREEFORM_ACTION_ORDER: ToolbarActionId[] = [
@@ -81,6 +83,7 @@ export function Toolbar({
   isCanvasTextEditing,
   onExitCanvasTextEditing,
   enabled = true,
+  formFactor = "desktop",
 }: ToolbarProps) {
   const canvas = useCanvasRuntime();
   const { t } = useUiI18n();
@@ -107,8 +110,6 @@ export function Toolbar({
   const [customChar, setCustomChar] = useState(() =>
     MATERIAL_PRESETS.includes(brushChar) ? "" : brushChar
   );
-
-  const isMobile = useIsMobile();
 
   const getToolMeta = useCallback((type: ToolType) => {
     switch (type) {
@@ -241,14 +242,11 @@ export function Toolbar({
   });
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
-        <div
-          data-testid="tool-dock"
-          className={cn(
-            uiClass.toolbarShell,
-            isMobile && "scale-90 origin-bottom"
-          )}
-        >
+    <div
+      data-testid="tool-dock"
+      data-density={formFactor === "desktop" ? "default" : "compact"}
+      className={rx.toolbarShell}
+    >
           <nav
             role="toolbar"
             aria-label={t("toolbar.group")}
@@ -265,7 +263,7 @@ export function Toolbar({
                   data-toolbar-submenu-trigger="true"
                   aria-label={t("toolbar.openSubmenu", { label: item.label })}
                   className={cn(
-                    uiClass.hostIconControl,
+                    rx.hostIconControl,
                     "rounded-l-none opacity-30 hover:opacity-100",
                     openSubMenuId === item.id &&
                       "bg-accent text-foreground opacity-100"
@@ -282,7 +280,7 @@ export function Toolbar({
                   className={cn(
                     "relative flex items-center rounded-lg transition-colors has-[[data-toolbar-submenu-trigger]:hover]:bg-accent has-[[data-toolbar-submenu-trigger]:hover]:text-foreground",
                     isActive || openSubMenuId === item.id
-                      ? uiClass.hostControlActive
+                      ? rx.hostControlActive
                       : "text-muted-foreground hover:text-foreground"
                   )}
                 >
@@ -293,7 +291,7 @@ export function Toolbar({
                         aria-label={item.label}
                         aria-keyshortcuts={shortcutAriaLabel}
                         className={cn(
-                          uiClass.hostIconControl,
+                          rx.hostIconControl,
                           item.hasSub && "rounded-r-none"
                         )}
                       >
@@ -312,9 +310,9 @@ export function Toolbar({
                       className="flex items-center gap-2 text-xs"
                     >
                       <span>{item.label}</span>
-                      <kbd className="font-mono text-[10px] text-muted-foreground">
+                      <Kbd>
                         {shortcutLabel}
-                      </kbd>
+                      </Kbd>
                     </TooltipContent>
                   </Tooltip>
 
@@ -331,7 +329,7 @@ export function Toolbar({
                           side="top"
                           align="end"
                           sideOffset={12}
-                          className={cn(uiClass.dropdownPanel, "w-auto")}
+                          className={cn(rx.dropdownPanel, "w-auto")}
                         >
                           <ColorSubmenu
                             brushColor={brushColor}
@@ -388,7 +386,6 @@ export function Toolbar({
 
           </nav>
 
-        </div>
       </div>
   );
 }

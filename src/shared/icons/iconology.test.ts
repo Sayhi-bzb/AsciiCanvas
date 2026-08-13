@@ -13,5 +13,6 @@ describe("host iconology", () => {
       "close",
       "configure",
     ]);
+    expect(HOST_ICONOLOGY.appMenu.shortcuts).toBeDefined();
   });
 });

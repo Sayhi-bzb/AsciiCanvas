@@ -25,7 +25,7 @@ export const setEditorCommandShortcutOverride = (
     shortcuts?.map((shortcut) => shortcut.join("+")) ?? null
   );
 
-type ShortcutPlatform = "mac" | "other";
+export type ShortcutPlatform = "mac" | "other";
 
 const getShortcutPlatform = (): ShortcutPlatform => {
   if (typeof navigator === "undefined") return "other";
@@ -67,6 +67,13 @@ const formatToken = (token: ShortcutToken, platform: ShortcutPlatform) => {
   }
 };
 
+export const getShortcutDisplayTokens = (
+  shortcut: string,
+  platform = getShortcutPlatform()
+) => shortcut
+  .split("+")
+  .map((token) => formatToken(token, platform));
+
 const formatChord = (
   chord: readonly ShortcutToken[],
   platform: ShortcutPlatform
@@ -74,6 +81,13 @@ const formatChord = (
   const tokens = chord.map((token) => formatToken(token, platform));
   return platform === "mac" ? tokens.join("") : tokens.join("+");
 };
+
+export const formatShortcutLabel = (
+  shortcut: string,
+  platform = getShortcutPlatform()
+) => getShortcutDisplayTokens(shortcut, platform).join(
+  platform === "mac" ? "" : "+"
+);
 
 export const getEditorCommandShortcutLabel = (
   keymap: CanvasEditorKeymap,

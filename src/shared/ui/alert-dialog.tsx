@@ -2,7 +2,8 @@ import * as React from "react"
 import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog"
 
 import { cn } from "@/shared/lib/utils"
-import { uiClass } from "@/shared/styles/components"
+import { rx } from "@/shared/styles/recipes"
+import type { Tone } from "@/shared/styles/tokens"
 import { buttonVariants } from "@/shared/ui/button"
 
 function AlertDialog({
@@ -34,7 +35,7 @@ function AlertDialogOverlay({
   return (
     <AlertDialogPrimitive.Overlay
       data-slot="alert-dialog-overlay"
-      className={cn(uiClass.dialogOverlay, className)}
+      className={cn(rx.dialogOverlay, className)}
       {...props}
     />
   )
@@ -49,7 +50,7 @@ function AlertDialogContent({
       <AlertDialogOverlay />
       <AlertDialogPrimitive.Content
         data-slot="alert-dialog-content"
-        className={cn(uiClass.dialogShell, className)}
+        className={cn(rx.dialogShell, className)}
         {...props}
       />
     </AlertDialogPortal>
@@ -63,7 +64,7 @@ function AlertDialogHeader({
   return (
     <div
       data-slot="alert-dialog-header"
-      className={cn(uiClass.dialogHeader, className)}
+      className={cn(rx.dialogHeader, className)}
       {...props}
     />
   )
@@ -76,7 +77,7 @@ function AlertDialogFooter({
   return (
     <div
       data-slot="alert-dialog-footer"
-      className={cn(uiClass.dialogFooter, className)}
+      className={cn(rx.dialogFooter, className)}
       {...props}
     />
   )
@@ -110,11 +111,15 @@ function AlertDialogDescription({
 
 function AlertDialogAction({
   className,
+  tone = "primary",
   ...props
-}: React.ComponentProps<typeof AlertDialogPrimitive.Action>) {
+}: React.ComponentProps<typeof AlertDialogPrimitive.Action> & {
+  tone?: Tone
+}) {
   return (
     <AlertDialogPrimitive.Action
-      className={cn(buttonVariants(), className)}
+      data-tone={tone}
+      className={buttonVariants({ tone, className })}
       {...props}
     />
   )

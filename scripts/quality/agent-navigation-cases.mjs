@@ -11,17 +11,17 @@ export const AGENT_NAVIGATION_CASES = [
   },
   {
     id: "collaboration-remote-update",
-    question: "canvas domain remote Yjs document projection into local editor state",
+    question: "Where are remote collaborative document changes validated and projected into local editor state?",
     expectedOwner: "canvas",
     ownerPrefixes: ["src/domains/canvas/"],
     anchors: [
-      "src/domains/canvas/state/canvasDocument.ts:observeActiveScene",
-      "src/domains/canvas/state/editorStore.ts:useEditorStore",
+      "src/domains/canvas/state/canvasDocumentProjection.ts:subscribeCanvasDocumentProjection",
+      "src/domains/canvas/state/CanvasDocumentRegistry.ts:observeActiveTransactions",
     ],
   },
   {
     id: "slide-preview",
-    question: "What renders slide sidebar thumbnails and keeps preview geometry consistent?",
+    question: "Where does the slide navigator render sidebar thumbnails and keep preview geometry consistent with playback?",
     expectedOwner: "widgets",
     ownerPrefixes: ["src/widgets/toolbar/"],
     anchors: [
@@ -31,17 +31,17 @@ export const AGENT_NAVIGATION_CASES = [
   },
   {
     id: "selection-command-registration",
-    question: "actions domain selection commands composition root registration factory",
+    question: "Where do copy, cut, paste and delete selection actions bridge into canvas state?",
     expectedOwner: "actions",
     ownerPrefixes: ["src/domains/actions/", "src/app/compositionRoot.ts"],
     anchors: [
-      "src/domains/actions/adapters/selectionCommands.ts:registerSelectionCommands",
-      "src/domains/canvas/state/selectionCommandPort.ts:registerSelectionCommandFactory",
+      "src/domains/actions/adapters/selectionCommands.ts:createSelectionCommandFactory",
+      "src/app/compositionRoot.ts:createApplicationEditorHost",
     ],
   },
   {
     id: "session-persistence",
-    question: "sessions domain persistence schema migration restore editor adapter",
+    question: "Where does the product migrate persisted sessions from earlier storage schema versions before restoring canvas state?",
     expectedOwner: "sessions",
     ownerPrefixes: [
       "src/domains/sessions/",
@@ -55,7 +55,7 @@ export const AGENT_NAVIGATION_CASES = [
   },
   {
     id: "structured-scene-update",
-    question: "structured-content normalizeScene renderStructuredScene sceneToGridEntries applyStructuredScene",
+    question: "Which capability owns structured node normalization, layout and rendering before a scene is committed to canvas?",
     expectedOwner: "structured-content",
     ownerPrefixes: ["src/domains/structured-content/"],
     anchors: [
@@ -65,7 +65,7 @@ export const AGENT_NAVIGATION_CASES = [
   },
   {
     id: "document-import",
-    question: "document domain external content parse import slides protocol session source",
+    question: "Which capability owns importing the portable CharDesk document envelope, validating its protocol version and converting it to an owner-neutral snapshot?",
     expectedOwner: "document",
     ownerPrefixes: ["src/domains/document/"],
     anchors: [
@@ -79,8 +79,8 @@ export const AGENT_NAVIGATION_CASES = [
     expectedOwner: "canvas",
     ownerPrefixes: ["src/domains/canvas/"],
     anchors: [
-      "src/domains/canvas/state/canvasDocument.ts:undoManager",
-      "src/domains/canvas/state/canvasDocument.ts:beginCanvasHistoryCheckpoint",
+      "src/domains/canvas/state/CanvasDocumentRegistry.ts:undo",
+      "src/domains/canvas/state/CanvasDocumentRegistry.ts:beginHistoryCheckpoint",
     ],
   },
 ];

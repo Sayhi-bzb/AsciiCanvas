@@ -32,26 +32,9 @@ body,
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
 
-  /* 合理规划：通过 Tailwind Theme 从根本上移除各种软效果的值 */
-  --shadow-xs: none;
-  --shadow-sm: none;
-  --shadow-md: none;
-  --shadow-lg: none;
-  --shadow-xl: none;
-  --shadow-2xl: none;
-  --shadow-inner: none;
-  --shadow: none;
   --shadow-host: var(--host-shadow);
   --shadow-overlay: var(--overlay-shadow);
   --shadow-dialog: var(--dialog-shadow);
-
-  --blur-sm: none;
-  --blur-md: none;
-  --blur-lg: none;
-  --blur-xl: none;
-  --blur-2xl: none;
-  --blur-3xl: none;
-  --blur: none;
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -68,6 +51,7 @@ body,
   --color-host-surface: var(--host-surface);
   --color-overlay-surface: var(--overlay-surface);
   --color-dialog-surface: var(--dialog-surface);
+  --color-dialog-overlay: var(--dialog-overlay);
   --color-search-surface: var(--search-surface);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
@@ -110,6 +94,7 @@ body,
   --host-surface: oklch(0.985 0 0);
   --overlay-surface: oklch(1 0 0);
   --dialog-surface: oklch(1 0 0);
+  --dialog-overlay: oklch(0 0 0 / 0.5);
   --search-surface: oklch(0.95 0 0);
   --host-shadow: 0 2px 8px rgb(0 0 0 / 0.12), 0 1px 2px rgb(0 0 0 / 0.06);
   --overlay-shadow: 0 6px 18px rgb(0 0 0 / 0.16), 0 2px 6px rgb(0 0 0 / 0.08);
@@ -154,6 +139,7 @@ body,
   --host-surface: oklch(0.1 0 0);
   --overlay-surface: oklch(0.12 0 0);
   --dialog-surface: oklch(0.1 0 0);
+  --dialog-overlay: oklch(0 0 0 / 0.5);
   --search-surface: oklch(0.15 0 0);
   --host-shadow: 0 3px 10px rgb(0 0 0 / 0.5), 0 1px 3px rgb(0 0 0 / 0.36);
   --overlay-shadow: 0 8px 24px rgb(0 0 0 / 0.62), 0 2px 8px rgb(0 0 0 / 0.42);
@@ -189,51 +175,61 @@ body,
   }
 }
 
-/* 合理规划：通过定制 Tailwind Utilities 来干净地覆盖 */
-@utility border {
-  border-width: 2px;
-}
-@utility border-t {
-  border-top-width: 2px;
-}
-@utility border-b {
-  border-bottom-width: 2px;
-}
-@utility border-l {
-  border-left-width: 2px;
-}
-@utility border-r {
-  border-right-width: 2px;
-}
-@utility border-x {
-  border-left-width: 2px;
-  border-right-width: 2px;
-}
-@utility border-y {
-  border-top-width: 2px;
-  border-bottom-width: 2px;
+:root {
+  --layer-canvas-content: 0;
+  --layer-canvas-interaction: 10;
+  --layer-presence: 20;
+  --layer-contextual: 30;
+  --layer-chrome: 40;
+  --layer-popover: 50;
+  --layer-modal-backdrop: 60;
+  --layer-modal: 70;
+  --layer-toast: 80;
+  --layer-presentation: 90;
 }
 
-@layer utilities {
-  /* 清除遗留的任意值阴影和渐变类名，不影响其他常规属性 */
-  [class*="shadow-["] {
-    box-shadow: none !important;
-  }
-  [class*="backdrop-blur"] {
-    backdrop-filter: none !important;
-  }
-  [class*="bg-gradient"] {
-    background-image: none !important;
-  }
+.chardesk-editor {
+  --editor-chrome-inset: 0.75rem;
+  --editor-safe-top: max(var(--editor-chrome-inset), env(safe-area-inset-top));
+  --editor-safe-right: max(var(--editor-chrome-inset), env(safe-area-inset-right));
+  --editor-safe-bottom: max(var(--editor-chrome-inset), env(safe-area-inset-bottom));
+  --editor-safe-left: max(var(--editor-chrome-inset), env(safe-area-inset-left));
 }
 
-[data-slot="sidebar-gap"] {
-  width: 0 !important;
+.editor-chrome-top-start {
+  top: var(--editor-safe-top);
+  left: var(--editor-safe-left);
 }
 
-[data-slot="sidebar-container"] {
-  position: absolute !important;
-  height: 100% !important;
+.editor-chrome-top-center {
+  top: var(--editor-safe-top);
+  left: 50%;
+}
+
+.editor-chrome-top-end {
+  top: var(--editor-safe-top);
+  right: var(--editor-safe-right);
+}
+
+.editor-chrome-bottom-start {
+  bottom: var(--editor-safe-bottom);
+  left: var(--editor-safe-left);
+}
+
+.editor-chrome-bottom-center {
+  bottom: var(--editor-safe-bottom);
+  left: 50%;
+}
+
+.editor-chrome-bottom-end {
+  right: var(--editor-safe-right);
+  bottom: var(--editor-safe-bottom);
+}
+
+.editor-chrome-side-end {
+  top: var(--editor-safe-top);
+  right: var(--editor-safe-right);
+  bottom: var(--editor-safe-bottom);
 }
 
 

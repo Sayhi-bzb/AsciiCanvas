@@ -37,7 +37,7 @@ describe('ZoomControl', () => {
     vi.unstubAllGlobals();
   });
 
-  it('renders an inline compound control in the lower-left host', () => {
+  it('renders a position-neutral compound control for the chrome slot', () => {
     useEditorStore.setState({ zoom: 1.256 });
 
     render(<ZoomControl containerSize={{ width: 1000, height: 700 }} />);
@@ -50,14 +50,12 @@ describe('ZoomControl', () => {
     const minimap = screen.getByTestId('zoom-minimap-toggle');
 
     expect(host).toHaveClass(
-      'fixed',
-      'bottom-3',
-      'left-3',
       'flex',
       'bg-host-surface',
       'border-0',
       'shadow-host'
     );
+    expect(host).not.toHaveClass('fixed', 'absolute');
     expect(Array.from(host.children)).toEqual([out, reset, zoomIn, grid, minimap]);
     expect(out).toHaveClass('size-8', 'rounded-r-none');
     expect(reset).toHaveClass('h-8', 'min-w-14', 'rounded-none', 'tabular-nums');
@@ -174,9 +172,12 @@ describe('ZoomControl', () => {
   });
 
   it('does not render on mobile', () => {
-    isMobile = true;
-
-    render(<ZoomControl containerSize={{ width: 390, height: 844 }} />);
+    render(
+      <ZoomControl
+        containerSize={{ width: 390, height: 844 }}
+        formFactor="phone"
+      />
+    );
 
     expect(screen.queryByTestId('zoom-control')).not.toBeInTheDocument();
   });

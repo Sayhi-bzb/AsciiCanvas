@@ -1,0 +1,32 @@
+---
+title: Editor Chrome
+description: Editor layout, form factor, viewport, and layer ownership.
+---
+
+`EditorChromeProvider` derives form factor from the editor container, not the
+window. `EditorChromeLayout` places product chrome; widgets provide slot content
+without viewport positioning.
+
+- `desktop` and `compact` keep one right Sidebar shell over a stable Canvas.
+  Its toggle remains in the same header slot while the shell animates between
+  expanded and trigger widths.
+- Only the expanded Sidebar reserves its occupied viewport edge. Sidebar state
+  never resizes or remounts the Canvas.
+- `phone` presents the sidebar as a modal Sheet.
+- Registered chrome regions produce one `EditorViewportFrame`. Regions on the
+  same edge reserve their maximum intrusion, not their sum. Camera fit, zoom
+  anchors, minimap sizing, and contextual controls consume that frame.
+- Viewport layers use the semantic ladder defined in `src/app/index.css`.
+  Shared portal primitives own their layer; product instances do not assign raw
+  overlay z-index values.
+
+Editor Chrome owns presentation geometry only; domain stores remain authoritative
+for document and editor state.
+
+## Authority and evidence
+
+- Contract: [`src/widgets/editor-chrome/public.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/widgets/editor-chrome/public.ts),
+  [`types.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/widgets/editor-chrome/types.ts),
+  and [`EditorChrome.tsx`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/widgets/editor-chrome/EditorChrome.tsx)
+- Geometry: [`editor-chrome.test.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/widgets/editor-chrome/editor-chrome.test.ts)
+- Responsive Sidebar surface: [`e2e/sidebar-collapse.spec.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/e2e/sidebar-collapse.spec.ts)
