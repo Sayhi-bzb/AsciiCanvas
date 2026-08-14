@@ -273,7 +273,9 @@ export function EditorChromeLayout({
               reserve={sidebarOpen}
               className={cn(
                 "overflow-hidden transition-[width] duration-[280ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
-                sidebarOpen ? "w-96" : "w-12"
+                sidebarOpen
+                  ? "w-[var(--sidebar-width,16rem)]"
+                  : "w-[var(--sidebar-width-icon,2.5rem)]"
               )}
             >
               {sidebar}

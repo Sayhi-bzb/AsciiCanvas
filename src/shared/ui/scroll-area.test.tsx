@@ -19,4 +19,19 @@ describe("ScrollArea", () => {
     ).toBeInTheDocument();
     expect(ScrollBar).toBeTypeOf("function");
   });
+
+  it("applies optional layout classes to the viewport and content boundary", () => {
+    const { container } = render(
+      <ScrollArea viewportClassName="overflow-x-hidden" contentClassName="pr-3">
+        <div>Content</div>
+      </ScrollArea>
+    );
+
+    expect(
+      container.querySelector('[data-slot="scroll-area-viewport"]')
+    ).toHaveClass("overflow-x-hidden");
+    expect(
+      container.querySelector('[data-slot="scroll-area-content"]')
+    ).toHaveClass("pr-3");
+  });
 });

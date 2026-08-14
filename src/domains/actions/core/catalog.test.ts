@@ -1,4 +1,10 @@
 import { describe, expect, it } from "vitest";
+import {
+  LayerArrowDown,
+  LayerArrowUp,
+  LayersArrowDown,
+  LayersArrowUp,
+} from "lucide-react";
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
 import { EDITOR_COMMAND_META, STRUCTURED_CONTEXT_MENU } from "./catalog";
 
@@ -10,11 +16,17 @@ describe("action catalog iconology", () => {
     expect(EDITOR_COMMAND_META["copy-ansi"].icon).toBe(
       HOST_ICONOLOGY.editorAction["copy-ansi"]
     );
-    expect(EDITOR_COMMAND_META["structured-bring-forward"].icon).not.toBe(
-      EDITOR_COMMAND_META["structured-bring-to-front"].icon
+    expect(EDITOR_COMMAND_META["structured-bring-forward"].icon).toBe(
+      LayerArrowUp
     );
-    expect(EDITOR_COMMAND_META["structured-send-backward"].icon).not.toBe(
-      EDITOR_COMMAND_META["structured-send-to-back"].icon
+    expect(EDITOR_COMMAND_META["structured-send-backward"].icon).toBe(
+      LayerArrowDown
+    );
+    expect(EDITOR_COMMAND_META["structured-bring-to-front"].icon).toBe(
+      LayersArrowUp
+    );
+    expect(EDITOR_COMMAND_META["structured-send-to-back"].icon).toBe(
+      LayersArrowDown
     );
   });
 

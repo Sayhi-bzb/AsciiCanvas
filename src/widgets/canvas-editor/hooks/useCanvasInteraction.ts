@@ -286,6 +286,8 @@ export const useCanvasInteraction = (
         setSelectionBackgroundColor:
           canvas.commands.selection.setBackgroundColor,
         setStructuredTextColor,
+        setStructuredSelectionPrimaryColor:
+          canvas.commands.structured.setSelectionPrimaryColor,
         clearColorPickerTarget: () => setCanvasColorPickerTarget(null),
         clearHoveredGrid: () => setHoveredGrid(null),
         resetDragState,
@@ -306,6 +308,8 @@ export const useCanvasInteraction = (
     target: canvasColorPickerTarget,
     isStructuredTextSelectionActive:
       canvasMode === "structured" && !!structuredTextSelection,
+    isStructuredNodeSelectionActive:
+      canvasMode === "structured" && selectedStructuredNodeIds.length > 0,
     isFreeformSelectionActive:
       canvasMode === "freeform" && selections.length > 0,
     getCell: (point) => grid.get(GridManager.toKey(point.x, point.y)),

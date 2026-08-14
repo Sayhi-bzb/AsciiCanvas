@@ -48,7 +48,6 @@ import type { EditorViewportFrame } from "@/widgets/editor-chrome/public";
 const BoldIcon = HOST_ICONOLOGY.selectionAction.bold;
 const ItalicIcon = HOST_ICONOLOGY.selectionAction.italic;
 const UnderlineIcon = HOST_ICONOLOGY.selectionAction.underline;
-const SelectionColorIcon = HOST_ICONOLOGY.selectionAction.color;
 const SplitHorizontalIcon = HOST_ICONOLOGY.selectionAction["split-horizontal"];
 const SplitVerticalIcon = HOST_ICONOLOGY.selectionAction["split-vertical"];
 const DeleteDividerIcon = HOST_ICONOLOGY.selectionAction["delete-divider"];
@@ -200,7 +199,6 @@ export function SelectionFormatToolbar({
     selectedStructuredSplitHandle,
     hoveredGrid,
     structuredContextPoint,
-    brushColor,
   } = useCanvasState(
     useShallow((state) => ({
       canvasMode: state.canvasMode,
@@ -217,13 +215,10 @@ export function SelectionFormatToolbar({
       selectedStructuredSplitHandle: state.selectedStructuredSplitHandle,
       hoveredGrid: state.hoveredGrid,
       structuredContextPoint: state.structuredContextPoint,
-      brushColor: state.brushColor,
     }))
   );
   const setSelectionTextAttributes = canvas.commands.selection.setTextAttributes;
   const setStructuredTextAttributes = canvas.commands.structured.setTextAttributes;
-  const setStructuredTextColor = canvas.commands.structured.setTextColor;
-  const setStructuredNodeCharColor = canvas.commands.structured.setNodeCharColor;
   const splitStructuredSplitBoxLeaf = canvas.commands.structured.splitLeaf;
   const deleteSelection = canvas.commands.selection.delete;
 
@@ -318,39 +313,6 @@ export function SelectionFormatToolbar({
     structuredTextSelectionModel,
   ]);
 
-  const shapeColorModel = useMemo(() => {
-    if (canvasMode !== "structured" || structuredTextSelectionModel) return null;
-    const selectedIds = new Set(selectedStructuredNodeIds);
-    const nodes = structuredScene.filter(
-      (node) =>
-        selectedIds.has(node.id) &&
-        (node.type === "box" || node.type === "splitBox" || node.type === "line")
-    );
-    if (nodes.length === 0) return null;
-    const bounds = nodes
-      .map((node) => getBoundsFromNodeBounds(getStructuredNodeBounds(node)))
-      .reduce(
-        (acc, bounds) => ({
-          minX: Math.min(acc.minX, bounds.minX),
-          minY: Math.min(acc.minY, bounds.minY),
-          maxX: Math.max(acc.maxX, bounds.maxX),
-          maxY: Math.max(acc.maxY, bounds.maxY),
-        }),
-        {
-          minX: Number.POSITIVE_INFINITY,
-          minY: Number.POSITIVE_INFINITY,
-          maxX: Number.NEGATIVE_INFINITY,
-          maxY: Number.NEGATIVE_INFINITY,
-        }
-      );
-    return { nodes, bounds };
-  }, [
-    canvasMode,
-    selectedStructuredNodeIds,
-    structuredScene,
-    structuredTextSelectionModel,
-  ]);
-
   const formatBounds = useMemo(() => {
     if (canvasMode === "structured") {
       if (!structuredTextSelectionModel) return null;
@@ -372,7 +334,6 @@ export function SelectionFormatToolbar({
     if (!splitBoxModel) return null;
     return getBoundsFromNodeBounds(getStructuredNodeBounds(splitBoxModel.node));
   }, [splitBoxModel]);
-  const shapeBounds = shapeColorModel?.bounds ?? null;
 
   const getToolbarStyle = useCallback(
     (bounds: ReturnType<typeof getUnionBounds>, toolbarWidth: number) => {
@@ -424,17 +385,13 @@ export function SelectionFormatToolbar({
     () =>
       getToolbarStyle(
         formatBounds,
-        getToolbarWidth(canvasMode === "structured" ? 4 : 3)
+        getToolbarWidth(3)
       ),
-    [canvasMode, formatBounds, getToolbarStyle]
+    [formatBounds, getToolbarStyle]
   );
   const splitStyle = useMemo(
-    () => getToolbarStyle(splitBounds, getToolbarWidth(4)),
+    () => getToolbarStyle(splitBounds, getToolbarWidth(3)),
     [getToolbarStyle, splitBounds]
-  );
-  const shapeStyle = useMemo(
-    () => getToolbarStyle(shapeBounds, getToolbarWidth(1)),
-    [getToolbarStyle, shapeBounds]
   );
 
   const hasFormatTarget =
@@ -486,13 +443,6 @@ export function SelectionFormatToolbar({
             <SplitVerticalIcon className="size-4" />
           </SelectionToolbarAction>
           <SelectionToolbarAction
-            aria-label={t("selection.applyShapeColor")}
-            tooltip={t("selection.applyShapeColorTitle", { color: brushColor })}
-            onClick={() => setStructuredNodeCharColor(brushColor)}
-          >
-            <SelectionColorIcon className="size-4" style={{ color: brushColor }} />
-          </SelectionToolbarAction>
-          <SelectionToolbarAction
             aria-label={t("selection.deleteDivider")}
             tooltip={t("selection.deleteDividerTitle")}
             disabled={!splitBoxModel.canDeleteDivider}
@@ -503,31 +453,6 @@ export function SelectionFormatToolbar({
             }}
           >
             <DeleteDividerIcon className="size-4" />
-          </SelectionToolbarAction>
-        </div>
-      </div>
-    );
-  }
-
-  if (shapeColorModel && shapeStyle && !hasFormatTarget) {
-    return (
-      <div
-        data-canvas-ui="true"
-        className="absolute z-(--layer-contextual) pointer-events-auto"
-        style={{ left: shapeStyle.left, top: shapeStyle.top }}
-      >
-        <div
-          role="toolbar"
-          data-selection-toolbar="true"
-          className={selectionToolbarShellClass}
-          aria-label={t("selection.shapeColorControls")}
-        >
-          <SelectionToolbarAction
-            aria-label={t("selection.applyShapeColor")}
-            tooltip={t("selection.applyShapeColorTitle", { color: brushColor })}
-            onClick={() => setStructuredNodeCharColor(brushColor)}
-          >
-            <SelectionColorIcon className="size-4" style={{ color: brushColor }} />
           </SelectionToolbarAction>
         </div>
       </div>
@@ -612,15 +537,6 @@ export function SelectionFormatToolbar({
             {t("selection.underline")}
           </TooltipContent>
         </Tooltip>
-        {canvasMode === "structured" && (
-          <SelectionToolbarAction
-            aria-label={t("selection.applyTextColor")}
-            tooltip={t("selection.applyTextColorTitle", { color: brushColor })}
-            onClick={() => setStructuredTextColor(brushColor)}
-          >
-            <SelectionColorIcon className="size-4" style={{ color: brushColor }} />
-          </SelectionToolbarAction>
-        )}
       </ToggleGroup>
     </div>
   );

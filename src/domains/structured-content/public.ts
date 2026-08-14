@@ -43,7 +43,11 @@ export {
   getStructuredRectHandlePoints,
   getStructuredSplitBoxHandlePoints,
 } from "./model/handle-geometry";
-export { duplicateStructuredNodes, reorderStructuredNodes } from "./model/node-actions";
+export {
+  canReorderStructuredNodes,
+  duplicateStructuredNodes,
+  reorderStructuredNodes,
+} from "./model/node-actions";
 export {
   buildStructuredTree,
   containsBounds,
@@ -78,6 +82,7 @@ export type {
   StructuredLineNode,
   StructuredNode,
   StructuredNodeStyle,
+  StructuredSelectionStylePatch,
   StructuredSplitBoxNode,
   StructuredSplitBoxTreeNode,
   StructuredTextNode,

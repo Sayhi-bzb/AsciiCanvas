@@ -1,7 +1,7 @@
 import type { EditorState } from '../interfaces';
 import type { CanvasSession } from '@/domains/sessions/public';
 import type { CanvasMode } from '@/domains/sessions/public';
-import type { ToolType } from '../../model/tool';
+import { isToolAllowedForMode, type ToolType } from '../../model/tool';
 import type {
   StructuredComponentInstance,
   StructuredNode,
@@ -25,16 +25,6 @@ export const DEFAULT_SESSION_NAME = 'Canvas 1';
 export const DEFAULT_STRUCTURED_SESSION_ID = 'canvas-2';
 export const DEFAULT_STRUCTURED_SESSION_NAME = 'Canvas 2';
 export const DEFAULT_MODE = 'freeform' as const satisfies CanvasMode;
-const STRUCTURED_ALLOWED_TOOLS: ToolType[] = [
-  'select',
-  'text',
-  'box',
-  'splitBox',
-  'line',
-  'arrowLine',
-  'bg',
-];
-
 const DEFAULT_VIEWPORT = { offset: { x: 0, y: 0 }, zoom: 1 };
 export const getSessionCanvasDocumentId = (session: CanvasSession, slideDeck?: SlideDeck | null) =>
   session.mode === 'slide'
@@ -48,11 +38,6 @@ const normalizeSessionViewport = (viewport: CanvasSession['viewport'] | undefine
   const rawZoom = Number.isFinite(viewport.zoom) ? viewport.zoom : DEFAULT_VIEWPORT.zoom;
   const zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, rawZoom));
   return { offset: { x, y }, zoom };
-};
-
-export const isToolAllowedForMode = (tool: ToolType, mode: CanvasMode) => {
-  if (mode === 'structured') return STRUCTURED_ALLOWED_TOOLS.includes(tool);
-  return tool !== 'text' && tool !== 'arrowLine';
 };
 
 const getFallbackToolForMode = (mode: CanvasMode): ToolType => {

@@ -162,6 +162,12 @@ return {
     ) => call("setStructuredTextBackgroundColor", ...args),
     setNodeCharColor: (...args: Parameters<EditorState["setStructuredNodeCharColor"]>) =>
       call("setStructuredNodeCharColor", ...args),
+    setSelectionPrimaryColor: (
+      ...args: Parameters<EditorState["setStructuredSelectionPrimaryColor"]>
+    ) => call("setStructuredSelectionPrimaryColor", ...args),
+    setSelectionStyle: (
+      ...args: Parameters<EditorState["setStructuredSelectionStyle"]>
+    ) => call("setStructuredSelectionStyle", ...args),
     fillTextSelectionWithChar: (
       ...args: Parameters<EditorState["fillStructuredTextSelectionWithChar"]>
     ) => call("fillStructuredTextSelectionWithChar", ...args),

@@ -50,3 +50,40 @@ export type ParsedCharDeskText = {
   hasAnsi: boolean;
   diagnostics: CharDeskTextDiagnostic[];
 };
+
+export type CharDeskGeometryCell = Pick<
+  CharDeskTextCell,
+  "x" | "y" | "width" | "text"
+>;
+
+export type CharDeskGeometrySnapshot = {
+  version: 1;
+  plainText: string;
+  width: number;
+  height: number;
+  cells: CharDeskGeometryCell[];
+  signature: string;
+  hasAnsi: boolean;
+  diagnostics: CharDeskTextDiagnostic[];
+};
+
+export type CharDeskGeometryMismatch = {
+  code: "plain-text" | "dimensions" | "cell-count" | "cell";
+  message: string;
+  offset?: number;
+  cellIndex?: number;
+  expected?: CharDeskGeometryCell;
+  actual?: CharDeskGeometryCell;
+};
+
+export type CharDeskGeometryComparison = {
+  matches: boolean;
+  expected: CharDeskGeometrySnapshot;
+  actual: CharDeskGeometrySnapshot;
+  mismatch?: CharDeskGeometryMismatch;
+};
+
+export type CompareCharDeskGeometryOptions = {
+  syntax?: CharDeskTextSyntax;
+  tabSize?: number;
+};

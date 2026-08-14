@@ -91,7 +91,7 @@ function SidebarViewRail<ViewId extends string>({
       className={cn(
         rx.iconRail,
         orientation === "vertical"
-          ? "w-full flex-col gap-1"
+          ? "w-full flex-col items-center gap-1"
           : "w-full items-center justify-center gap-1"
       )}
     >
@@ -287,7 +287,7 @@ export function SidebarRight() {
           "min-h-0 min-w-0 flex-1 overflow-hidden",
           isMobile
             ? "flex flex-col"
-            : "grid grid-cols-[3rem_minmax(0,1fr)]"
+            : "grid grid-cols-[var(--sidebar-width-icon)_minmax(0,1fr)]"
         )}
       >
         <div
@@ -296,7 +296,7 @@ export function SidebarRight() {
             "shrink-0",
             isMobile
               ? "p-1 pb-0"
-              : "col-start-1 row-start-1 px-[3px] py-1"
+              : "col-start-1 row-start-1 px-0 py-1"
           )}
         >
           {viewRail}
@@ -305,6 +305,8 @@ export function SidebarRight() {
           data-testid="sidebar-view-content"
           aria-hidden={isCollapsed || undefined}
           inert={isCollapsed || undefined}
+          viewportClassName={!isMobile ? "[&>div]:!block" : undefined}
+          contentClassName={!isMobile ? "min-w-0 pr-1" : undefined}
           className={cn(
             "min-h-0 min-w-0 flex-1 transition-opacity duration-200",
             !isMobile && "col-start-2 row-start-1",
@@ -391,7 +393,7 @@ export function SidebarRight() {
             "h-12 shrink-0 items-center py-0",
             isMobile
               ? "flex flex-row gap-2 px-3"
-              : "grid grid-cols-[3rem_minmax(0,1fr)] gap-0 px-0"
+              : "grid grid-cols-[var(--sidebar-width-icon)_minmax(0,1fr)] gap-0 px-0"
           )}
         >
           <div

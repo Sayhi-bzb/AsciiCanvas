@@ -30,7 +30,7 @@ import { OnboardingTourProvider } from '@/widgets/onboarding/new-user-tour';
 import { CanvasEngineProvider } from '@/widgets/canvas-editor/engine/useCanvasEngineRuntime';
 import { useEditor } from '@/domains/editor/public';
 import { Toaster } from '@/shared/ui/sonner';
-import { FreeformPaletteControl } from '@/widgets/color-picker/freeform-palette';
+import { CanvasInspectorControl } from '@/widgets/canvas-inspector';
 import {
   EditorChromeLayout,
   EditorChromeProvider,
@@ -187,7 +187,6 @@ function AppContent() {
       open={isRightPanelOpen}
       onOpenChange={setIsRightPanelOpen}
       className="size-full overflow-hidden"
-      style={{ '--sidebar-width': '24rem' } as React.CSSProperties}
     >
       <SidebarShortcutRegistration />
       <EditorChromeLayout
@@ -201,11 +200,12 @@ function AppContent() {
             <div data-testid="app-primary-control-stack" className="relative size-8 flex-none">
               <AppMenu />
               <div
-                data-testid="freeform-palette-control-position"
+                data-testid="canvas-properties-control-position"
                 className="pointer-events-auto absolute left-0 top-9"
               >
-                <FreeformPaletteControl
-                  enabled={!isCollaborationReadOnly}
+                <CanvasInspectorControl
+                  formFactor={formFactor}
+                  readOnly={isCollaborationReadOnly}
                   onBeforeOpen={exitCanvasTextEditing}
                 />
               </div>

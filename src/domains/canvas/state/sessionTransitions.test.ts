@@ -75,4 +75,22 @@ describe("session transitions", () => {
     useEditorStore.getState().removeCanvasSession(activeSessionId);
     expectDocumentInteractionReset();
   });
+
+  it("preserves Hand while entering and restoring a structured session", () => {
+    useEditorStore.getState().createCanvasSession("structured");
+    const structuredSessionId = useEditorStore.getState().activeCanvasId;
+
+    useEditorStore.getState().setTool("pan");
+    expect(useEditorStore.getState()).toMatchObject({
+      canvasMode: "structured",
+      tool: "pan",
+    });
+
+    useEditorStore.getState().createCanvasSession("freeform");
+    useEditorStore.getState().switchCanvasSession(structuredSessionId);
+    expect(useEditorStore.getState()).toMatchObject({
+      canvasMode: "structured",
+      tool: "pan",
+    });
+  });
 });

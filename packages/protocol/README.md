@@ -25,6 +25,10 @@ for (const cell of document.cells) {
 
 Use `document.source` when preserving ANSI copy and `document.plainText` or `stripCharDeskAnsi(source)` for plain-text copy.
 
+Use `createCharDeskGeometrySnapshot(plain)` and
+`compareCharDeskGeometry(plain, ansi)` when ANSI may add style but must not alter
+visible text, grapheme boundaries, or cell positions.
+
 ## API
 
 - `parseCharDeskText(source, options?)`
@@ -32,6 +36,8 @@ Use `document.source` when preserving ANSI copy and `document.plainText` or `str
 - `splitGraphemes(text)`
 - `getGraphemeCellWidth(grapheme)`
 - `getTextCellWidth(text)`
+- `createCharDeskGeometrySnapshot(source, options?)`
+- `compareCharDeskGeometry(plainText, ansiText, options?)`
 - `CHARDESK_TEXT_PROTOCOL_VERSION`
 - `UNICODE_DATA_VERSION`
 

@@ -72,6 +72,7 @@ export type ActionSource =
   | "toolbar"
   | "context-menu"
   | "sidebar"
+  | "inspector"
   | "canvas-keydown"
   | "global-hotkey"
   | "clipboard-event";

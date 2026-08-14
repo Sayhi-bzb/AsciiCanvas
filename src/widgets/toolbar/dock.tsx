@@ -2,7 +2,10 @@
 
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { cn } from "@/shared/lib/utils";
-import type { ToolType } from "@/domains/canvas/public";
+import {
+  isToolAllowedForMode,
+  type ToolType,
+} from "@/domains/canvas/public";
 import { useCanvasRuntime, useCanvasState } from "@/domains/canvas/public";
 import {
   TOOLBAR_ACTION_META,
@@ -74,6 +77,16 @@ const STRUCTURED_ACTION_ORDER: ToolbarActionId[] = [
   "bg",
   "color",
 ];
+
+const DIRECT_TOOL_BY_ACTION: Partial<Record<ToolbarActionId, ToolType>> = {
+  pan: "pan",
+  select: "select",
+  text: "text",
+  brush: "brush",
+  bg: "bg",
+  fill: "fill",
+  eraser: "eraser",
+};
 
 export function Toolbar({
   tool,
@@ -149,12 +162,20 @@ export function Toolbar({
         ? STRUCTURED_ACTION_ORDER
         : FREEFORM_ACTION_ORDER;
 
-    return baseOrder;
+    return baseOrder.filter((actionId) => {
+      const directTool = DIRECT_TOOL_BY_ACTION[actionId];
+      return !directTool || isToolAllowedForMode(directTool, canvasMode);
+    });
   }, [canvasMode]);
 
   const structuredShapeTools = useMemo<ToolType[]>(() => {
-    if (canvasMode === "structured") return ["box", "splitBox", "line", "arrowLine"];
-    return SHAPE_TOOLS;
+    const candidates =
+      canvasMode === "structured"
+        ? (["box", "splitBox", "line", "arrowLine"] as ToolType[])
+        : SHAPE_TOOLS;
+    return candidates.filter((shapeTool) =>
+      isToolAllowedForMode(shapeTool, canvasMode)
+    );
   }, [canvasMode]);
   const isShapeGroupActive = structuredShapeTools.includes(tool);
   const availableLastUsedShape = structuredShapeTools.includes(lastUsedShape)

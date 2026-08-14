@@ -99,6 +99,9 @@ describe("SidebarRight structured templates", () => {
     const scrollViewport = container.querySelector(
       '[data-slot="scroll-area-viewport"]'
     );
+    const scrollContent = container.querySelector(
+      '[data-slot="scroll-area-content"]'
+    );
     const button = screen.getByRole("button", { name: /button/i });
     const search = screen.getByRole("searchbox", {
       name: "Search structured library",
@@ -124,6 +127,11 @@ describe("SidebarRight structured templates", () => {
       1
     );
     expect(scrollArea).toHaveClass("min-h-0", "group/content-scroll-area");
+    expect(scrollViewport).toHaveClass("[&>div]:!block");
+    expect(scrollContent).toHaveClass("min-w-0", "pr-1");
+    expect(
+      screen.queryByTestId("sidebar-view-content-inner")
+    ).not.toBeInTheDocument();
     expect(scrollArea).not.toHaveClass("overflow-hidden");
     expect(
       scrollArea?.querySelector('[data-slot="scroll-area-scrollbar"]')
@@ -141,7 +149,10 @@ describe("SidebarRight structured templates", () => {
       "border-0",
       "shadow-none"
     );
-    expect(header).toHaveClass("grid-cols-[3rem_minmax(0,1fr)]", "px-0");
+    expect(header).toHaveClass(
+      "grid-cols-[var(--sidebar-width-icon)_minmax(0,1fr)]",
+      "px-0"
+    );
     expect(headerContent).toHaveClass(
       "col-start-2",
       "row-start-1",
@@ -149,12 +160,12 @@ describe("SidebarRight structured templates", () => {
       "py-px"
     );
     expect(structuredRailSlot?.parentElement).toHaveClass(
-      "grid-cols-[3rem_minmax(0,1fr)]"
+      "grid-cols-[var(--sidebar-width-icon)_minmax(0,1fr)]"
     );
     expect(structuredRailSlot).toHaveClass(
       "col-start-1",
       "row-start-1",
-      "px-[3px]"
+      "px-0"
     );
     expect(toggleColumn).toHaveClass("col-start-1", "row-start-1");
     expect(scrollArea).toHaveClass("col-start-2", "row-start-1");
@@ -191,7 +202,7 @@ describe("SidebarRight structured templates", () => {
     );
     const sortedTemplates = sortTemplateLabels(STRUCTURED_COMPONENT_TEMPLATES);
     const templateGrid = screen.getByTestId("structured-template-grid");
-    expect(templateGrid).toHaveClass("grid", "grid-cols-2", "gap-1", "p-1");
+    expect(templateGrid).toHaveClass("grid", "grid-cols-1", "gap-1", "p-1");
     expect(templateItems).toHaveLength(STRUCTURED_COMPONENT_TEMPLATES.length);
     const templateSeparators = group?.querySelectorAll(
       '[data-slot="structured-template-separator"]'
@@ -317,11 +328,12 @@ describe("SidebarRight structured templates", () => {
     );
     const tabs = screen.getAllByRole("tab");
     expect(rail).toHaveClass("bg-host-surface", "p-[3px]");
+    expect(rail).toHaveClass("items-center");
     expect(rail.parentElement).not.toHaveClass("border-r", "border-b");
     expect(railSlot?.parentElement).toHaveClass(
-      "grid-cols-[3rem_minmax(0,1fr)]"
+      "grid-cols-[var(--sidebar-width-icon)_minmax(0,1fr)]"
     );
-    expect(railSlot).toHaveClass("col-start-1", "row-start-1", "px-[3px]");
+    expect(railSlot).toHaveClass("col-start-1", "row-start-1", "px-0");
     expect(scrollArea).toHaveClass("col-start-2", "row-start-1");
     expect(tabs.map((tab) => tab.getAttribute("aria-label"))).toEqual([
       "Essentials",
@@ -653,7 +665,7 @@ describe("SidebarRight structured templates", () => {
 
     fireEvent.change(search, { target: { value: "missing" } });
 
-    expect(screen.getByText("No components found")).toBeInTheDocument();
+    expect(screen.getByText("No components found")).toHaveClass("col-span-full");
   });
 
   it("keeps the search header outside structured mode", () => {

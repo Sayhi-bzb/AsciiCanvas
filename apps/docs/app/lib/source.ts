@@ -1,5 +1,6 @@
 import { loader } from "fumadocs-core/source";
 import { defineDocs } from "fumadocs-mdx/macro";
+import { docsHeadMarkdown } from "@/lib/docs-head";
 
 export const docs = defineDocs({
   dir: "content/docs",
@@ -39,5 +40,5 @@ export async function getLLMText(
 ) {
   const processed = await page.data.getText("processed");
 
-  return `# ${page.data.title} (${page.url})\n\n${processed}`;
+  return `# ${page.data.title} (${page.url})\n\n${docsHeadMarkdown()}\n\n${processed}`;
 }

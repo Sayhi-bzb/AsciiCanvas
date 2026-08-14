@@ -90,7 +90,7 @@ describe("SelectionFormatToolbar", () => {
     });
   });
 
-  it("applies selected structured text color without filling with the brush character", () => {
+  it("keeps color controls out of the structured text toolbar", () => {
     useEditorStore.setState({
       canvasMode: "structured",
       brushChar: "\ue203",
@@ -116,22 +116,10 @@ describe("SelectionFormatToolbar", () => {
 
     expect(screen.queryByLabelText("Fill with brush character")).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByLabelText("Apply brush color to selected text"));
-
-    expect(useEditorStore.getState().structuredScene[0]).toMatchObject({
-      id: "text-1",
-      text: "Label",
-      styleRanges: [
-        {
-          start: 1,
-          end: 4,
-          style: { color: "#ef4444" },
-        },
-      ],
-    });
+    expect(screen.queryByLabelText("Apply brush color to selected text")).not.toBeInTheDocument();
   });
 
-  it("applies brush color to selected structured shape chars", () => {
+  it("keeps shape color controls out of the floating toolbar", () => {
     useEditorStore.setState({
       canvasMode: "structured",
       brushColor: "#22c55e",
@@ -153,21 +141,7 @@ describe("SelectionFormatToolbar", () => {
     render(<SelectionFormatToolbar containerSize={{ width: 800, height: 600 }} />);
 
     expect(screen.queryByLabelText("Selection text formatting")).not.toBeInTheDocument();
-    expect(screen.getByRole("toolbar", { name: "Shape color controls" })).toHaveClass(
-      "bg-host-surface",
-      "border-0",
-      "shadow-host",
-      "rounded-lg",
-      "p-[3px]"
-    );
-
-    fireEvent.click(screen.getByLabelText("Apply brush color to selected shape"));
-
-    expect(useEditorStore.getState().structuredScene[0]).toMatchObject({
-      id: "box-1",
-      type: "box",
-      style: { color: "#22c55e" },
-    });
+    expect(screen.queryByRole("toolbar", { name: "Shape color controls" })).not.toBeInTheDocument();
   });
 
   it("splits selected structured split boxes from the floating toolbar", () => {
@@ -214,7 +188,7 @@ describe("SelectionFormatToolbar", () => {
         .querySelector(".lucide-square-split-horizontal")
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Delete split divider")).toBeDisabled();
-    expect(screen.getByLabelText("Apply brush color to selected shape")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Apply brush color to selected shape")).not.toBeInTheDocument();
 
     const splitHorizontal = screen.getByLabelText("Split box horizontally");
     expect(fireEvent.mouseDown(splitHorizontal)).toBe(false);

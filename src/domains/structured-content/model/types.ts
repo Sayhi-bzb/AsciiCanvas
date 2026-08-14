@@ -6,6 +6,10 @@ export interface StructuredNodeStyle {
   attrs?: TextAttributes;
 }
 
+export type StructuredSelectionStylePatch = Partial<
+  Pick<StructuredNodeStyle, "color" | "bgColor">
+>;
+
 export interface StructuredTextRangeStyle {
   color?: string;
   bgColor?: string;

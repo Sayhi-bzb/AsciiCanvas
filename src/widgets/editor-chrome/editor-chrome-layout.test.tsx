@@ -40,7 +40,10 @@ describe("EditorChromeLayout sidebar", () => {
     );
 
     expect(viewport).toHaveClass("size-full");
-    expect(expandedRegion).toHaveClass("w-96", "transition-[width]");
+    expect(expandedRegion).toHaveClass(
+      "w-[var(--sidebar-width,16rem)]",
+      "transition-[width]"
+    );
     expect(expandedRegion).toHaveAttribute(
       "data-editor-chrome-reserved",
       "true"
@@ -62,7 +65,10 @@ describe("EditorChromeLayout sidebar", () => {
     expect(viewport).toHaveClass("size-full");
     expect(view.getByTestId("persistent-sidebar")).toBe(sidebar);
     expect(collapsedRegion).toBe(expandedRegion);
-    expect(collapsedRegion).toHaveClass("w-12", "transition-[width]");
+    expect(collapsedRegion).toHaveClass(
+      "w-[var(--sidebar-width-icon,2.5rem)]",
+      "transition-[width]"
+    );
     expect(collapsedRegion).toHaveAttribute(
       "data-editor-chrome-reserved",
       "false"

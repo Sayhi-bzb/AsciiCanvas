@@ -12,5 +12,6 @@ export type {
   RichTextCell,
 } from "./state/interfaces";
 export type { SelectionCommandFactory } from "./state/selectionCommandPort";
+export { isToolAllowedForMode } from "./model/tool";
 export type { ToolType } from "./model/tool";
 export type { CanvasHistoryCheckpoint } from "./state/CanvasDocumentRegistry";

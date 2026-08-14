@@ -1,4 +1,4 @@
 interface:
   display_name: "CharDesk"
-  short_description: "Authoritative CharDesk format references"
-  default_prompt: "Use $chardesk to apply the relevant CharDesk format."
+  short_description: "Author and validate CharDesk text in two phases"
+  default_prompt: "Use $chardesk to create or edit verified CharDesk content."

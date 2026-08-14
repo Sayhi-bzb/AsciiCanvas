@@ -10,6 +10,11 @@ import {
 } from "fumadocs-ui/layouts/docs/page";
 import type { Route } from "./+types/docs";
 import { useMDXComponents } from "@/components/mdx";
+import {
+  DOCS_HEAD,
+  DOCS_HEAD_SHORT,
+  DOCS_HEAD_URL,
+} from "@/lib/docs-head";
 import { baseOptions } from "@/lib/layout";
 import { docs, source } from "@/lib/source";
 
@@ -35,8 +40,19 @@ function Content({ path }: { path: string }) {
     <DocsPage toc={toc}>
       <title>{`${page.title} | CharDesk Docs`}</title>
       <meta name="description" content={page.description} />
+      <meta name="chardesk-docs-head" content={DOCS_HEAD} />
       <DocsTitle>{page.title}</DocsTitle>
       <DocsDescription>{page.description}</DocsDescription>
+      <a
+        data-docs-head={DOCS_HEAD}
+        href={DOCS_HEAD_URL}
+        target="_blank"
+        rel="noreferrer"
+        aria-label={`Documentation reviewed at commit ${DOCS_HEAD}`}
+        className="mt-3 inline-flex w-fit items-center rounded-full border bg-fd-muted px-2 py-0.5 font-mono text-xs text-fd-muted-foreground transition-colors hover:text-fd-foreground"
+      >
+        HEAD {DOCS_HEAD_SHORT}
+      </a>
       <DocsBody>
         <Mdx components={useMDXComponents()} />
       </DocsBody>

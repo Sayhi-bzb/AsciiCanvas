@@ -1,4 +1,11 @@
 {
   "title": "Host and UI",
-  "pages": ["editor-chrome", "visual-system", "interface-content", "dialogs", "icon-controls"]
+  "pages": [
+    "editor-chrome",
+    "canvas-inspector",
+    "visual-system",
+    "interface-content",
+    "dialogs",
+    "icon-controls"
+  ]
 }

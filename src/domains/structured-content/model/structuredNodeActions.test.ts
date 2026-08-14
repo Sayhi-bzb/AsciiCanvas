@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { StructuredNode } from "@/domains/structured-content/public";
 import {
+  canReorderStructuredNodes,
   duplicateStructuredNodes,
   reorderStructuredNodes,
 } from "@/domains/structured-content/public";
@@ -61,6 +62,14 @@ describe("structuredNodeActions", () => {
       "c",
       "a",
     ]);
+  });
+
+  it("reports layer availability at selection boundaries", () => {
+    expect(canReorderStructuredNodes(scene(), ["a"], "forward")).toBe(true);
+    expect(canReorderStructuredNodes(scene(), ["a"], "backward")).toBe(false);
+    expect(canReorderStructuredNodes(scene(), ["c"], "front")).toBe(false);
+    expect(canReorderStructuredNodes(scene(), ["c"], "back")).toBe(true);
+    expect(canReorderStructuredNodes(scene(), ["a", "b", "c"], "front")).toBe(false);
   });
 
   it("duplicates selected nodes with new ids and a default offset", () => {

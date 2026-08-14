@@ -8,6 +8,17 @@ const repositoryRoot = path.resolve(
 );
 const docsContent = path.join(repositoryRoot, "apps/docs/content/docs");
 const docsOutput = path.join(repositoryRoot, "dist/docs");
+const docsHeadMetadata = JSON.parse(
+  await readFile(
+    path.join(repositoryRoot, "apps/docs/content/docs-head.json"),
+    "utf8"
+  )
+);
+const docsHead = docsHeadMetadata.head;
+
+if (typeof docsHead !== "string" || !/^[0-9a-f]{40}$/.test(docsHead)) {
+  throw new Error("Documentation HEAD must be a full lowercase Git commit SHA");
+}
 
 const contentPages = [];
 for await (const entry of glob("**/*.mdx", { cwd: docsContent })) {
@@ -45,8 +56,14 @@ JSON.parse(searchData);
 if (!llmsIndex.startsWith("# CharDesk Development Documentation")) {
   throw new Error("llms.txt has an unexpected root heading");
 }
+if (!llmsIndex.includes(docsHead) || !llmsFull.includes(docsHead)) {
+  throw new Error("LLM indexes are missing the documentation HEAD");
+}
 if (!llmsIndex.includes("/docs/development/architecture/ansi-canvas-protocol")) {
   throw new Error("llms.txt is missing the LLM–Human Text Protocol");
+}
+if (!llmsIndex.includes("/docs/development/host-ui/canvas-inspector")) {
+  throw new Error("llms.txt is missing the Canvas Inspector contract");
 }
 if (!llmsFull.includes("/docs/development/architecture/ownership")) {
   throw new Error("llms-full.txt is missing development content");
@@ -59,6 +76,9 @@ if (!searchData.includes("/development/architecture/ownership")) {
 }
 if (!searchData.includes("/development/architecture/ansi-canvas-protocol")) {
   throw new Error("The search index is missing the LLM–Human Text Protocol");
+}
+if (!searchData.includes("/development/host-ui/canvas-inspector")) {
+  throw new Error("The search index is missing the Canvas Inspector contract");
 }
 
 const forbiddenRoutes = [
@@ -118,11 +138,24 @@ for (const route of removedDevelopmentRoutes) {
 const internalLinks = new Set();
 for (const entry of htmlPages) {
   const html = await readFile(path.join(docsOutput, entry), "utf8");
+  if (
+    !html.includes("chardesk-docs-head") ||
+    !html.includes(`data-docs-head="${docsHead}"`)
+  ) {
+    throw new Error(`Documentation HEAD is missing from ${entry}`);
+  }
   if (html.includes("/docs/docs")) {
     throw new Error(`Duplicated docs prefix in ${entry}`);
   }
   for (const match of html.matchAll(/href="(\/docs(?:\/[^"?#]*)?)/g)) {
     internalLinks.add(match[1]);
+  }
+}
+
+for (const entry of markdownPages) {
+  const markdown = await readFile(path.join(docsOutput, entry), "utf8");
+  if (!markdown.includes(docsHead)) {
+    throw new Error(`Documentation HEAD is missing from ${entry}`);
   }
 }
 
@@ -140,5 +173,5 @@ for (const url of internalLinks) {
 }
 
 console.log(
-  `Docs verified: ${htmlPages.length} pages, ${markdownPages.length} Agent Markdown resources`
+  `Docs verified at ${docsHead.slice(0, 7)}: ${htmlPages.length} pages, ${markdownPages.length} Agent Markdown resources`
 );

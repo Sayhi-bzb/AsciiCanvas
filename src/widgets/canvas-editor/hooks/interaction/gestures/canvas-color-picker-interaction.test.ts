@@ -29,6 +29,7 @@ const createPickExecutor = (): CanvasColorPickExecutor => ({
   setSelectionForegroundColor: vi.fn(),
   setSelectionBackgroundColor: vi.fn(),
   setStructuredTextColor: vi.fn(),
+  setStructuredSelectionPrimaryColor: vi.fn(),
   clearColorPickerTarget: vi.fn(),
   clearHoveredGrid: vi.fn(),
 });
@@ -61,6 +62,25 @@ describe("canvas color picker interaction", () => {
       destination: "foreground",
       applyFreeformSelection: false,
       applyStructuredTextColor: true,
+      applyStructuredSelectionPrimaryColor: false,
+    });
+  });
+
+  it("gives a structured text range precedence over its owning node", () => {
+    expect(
+      resolveCanvasColorPickDecision({
+        cell,
+        target: "char",
+        isStructuredTextSelectionActive: true,
+        isStructuredNodeSelectionActive: true,
+      })
+    ).toEqual({
+      type: "picked",
+      color: "#112233",
+      destination: "foreground",
+      applyFreeformSelection: false,
+      applyStructuredTextColor: true,
+      applyStructuredSelectionPrimaryColor: false,
     });
   });
 
@@ -95,6 +115,7 @@ describe("canvas color picker interaction", () => {
           destination: "foreground",
           applyFreeformSelection: false,
           applyStructuredTextColor: true,
+          applyStructuredSelectionPrimaryColor: false,
         },
         executor
       )
@@ -117,6 +138,7 @@ describe("canvas color picker interaction", () => {
           destination: "foreground",
           applyFreeformSelection: false,
           applyStructuredTextColor: false,
+          applyStructuredSelectionPrimaryColor: false,
         },
         executor
       )
@@ -143,6 +165,7 @@ describe("canvas color picker interaction", () => {
       destination: "background",
       applyFreeformSelection: false,
       applyStructuredTextColor: false,
+      applyStructuredSelectionPrimaryColor: false,
     });
     executeCanvasColorPickDecision(decision, executor);
     expect(executor.setBrushBackgroundColor).toHaveBeenCalledWith("#445566");
@@ -165,6 +188,22 @@ describe("canvas color picker interaction", () => {
     );
   });
 
+  it("applies either sampled source to a structured selection's primary color", () => {
+    const executor = createPickExecutor();
+    const decision = resolveCanvasColorPickDecision({
+      cell,
+      target: "bg",
+      isStructuredTextSelectionActive: false,
+      isStructuredNodeSelectionActive: true,
+    });
+
+    executeCanvasColorPickDecision(decision, executor);
+    expect(executor.setBrushColor).toHaveBeenCalledWith("#445566");
+    expect(executor.setStructuredSelectionPrimaryColor).toHaveBeenCalledWith(
+      "#445566"
+    );
+  });
+
   it("does not execute inactive color-picker drag starts", () => {
     const executor = createDragExecutor();
 
@@ -179,6 +218,7 @@ describe("canvas color picker interaction", () => {
     const setSelectionForegroundColor = vi.fn();
     const setSelectionBackgroundColor = vi.fn();
     const setStructuredTextColor = vi.fn();
+    const setStructuredSelectionPrimaryColor = vi.fn();
     const clearColorPickerTarget = vi.fn();
     const clearHoveredGrid = vi.fn();
     const resetDragState = vi.fn();
@@ -191,6 +231,7 @@ describe("canvas color picker interaction", () => {
       setSelectionForegroundColor,
       setSelectionBackgroundColor,
       setStructuredTextColor,
+      setStructuredSelectionPrimaryColor,
       clearColorPickerTarget,
       clearHoveredGrid,
       resetDragState,
@@ -203,6 +244,7 @@ describe("canvas color picker interaction", () => {
     executor.setSelectionForegroundColor("#556677");
     executor.setSelectionBackgroundColor("#778899");
     executor.setStructuredTextColor("#445566");
+    executor.setStructuredSelectionPrimaryColor("#667788");
     executor.clearColorPickerTarget();
     executor.clearHoveredGrid();
     executor.resetDragState();
@@ -214,6 +256,7 @@ describe("canvas color picker interaction", () => {
     expect(setSelectionForegroundColor).toHaveBeenCalledWith("#556677");
     expect(setSelectionBackgroundColor).toHaveBeenCalledWith("#778899");
     expect(setStructuredTextColor).toHaveBeenCalledWith("#445566");
+    expect(setStructuredSelectionPrimaryColor).toHaveBeenCalledWith("#667788");
     expect(clearColorPickerTarget).toHaveBeenCalledTimes(1);
     expect(clearHoveredGrid).toHaveBeenCalledTimes(1);
     expect(resetDragState).toHaveBeenCalledTimes(1);

@@ -41,8 +41,8 @@ import {
 import {
   DEFAULT_SESSION_ID,
   DEFAULT_MODE,
-  isToolAllowedForMode,
 } from "./helpers/storeUtils";
+import { isToolAllowedForMode } from "../model/tool";
 import { DEFAULT_DEMO_GRID } from "./helpers/defaultDemo";
 import { createDeferredSnapshotPersistStorage } from "./persistenceCoordinator";
 import { createStructuredGridFocusPatch } from "./transitions/editorTransitions";

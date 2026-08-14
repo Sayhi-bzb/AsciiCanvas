@@ -4,6 +4,7 @@ import { runEditorCommand } from "@/domains/actions/adapters/editorCommands";
 import { getFirstGrapheme } from "@/shared/utils/characters";
 import { getTextColumnWidth } from "@/domains/structured-content/public";
 import {
+  canReorderStructuredNodes,
   canSplitStructuredSplitBoxLeaf,
   getStructuredBoxNameEndPoint,
   getStructuredSplitBoxLeafAtPoint,
@@ -33,6 +34,17 @@ type FillOptions = { fillChar?: string };
 
 const hasStructuredSelection = (state: CanvasState) =>
   state.canvasMode === "structured" && state.selectedStructuredNodeIds.length > 0;
+
+const canReorderStructuredSelection = (
+  state: CanvasState,
+  direction: "forward" | "backward" | "front" | "back"
+) =>
+  state.canvasMode === "structured" &&
+  canReorderStructuredNodes(
+    state.structuredScene,
+    state.selectedStructuredNodeIds,
+    direction
+  );
 
 const getContextSplitBox = (state: CanvasState) => {
   if (
@@ -290,25 +302,33 @@ export const editorHandlers: Record<EditorActionId, ActionHandler<unknown>> = {
   },
 
   "structured-bring-forward": (_options, context): ActionResult => {
-    if (!hasStructuredSelection(context.state)) return actionFailed("empty-selection");
+    if (!canReorderStructuredSelection(context.state, "forward")) {
+      return actionFailed("precondition-failed");
+    }
     context.canvas.commands.structured.reorderSelection("forward");
     return actionSucceeded();
   },
 
   "structured-send-backward": (_options, context): ActionResult => {
-    if (!hasStructuredSelection(context.state)) return actionFailed("empty-selection");
+    if (!canReorderStructuredSelection(context.state, "backward")) {
+      return actionFailed("precondition-failed");
+    }
     context.canvas.commands.structured.reorderSelection("backward");
     return actionSucceeded();
   },
 
   "structured-bring-to-front": (_options, context): ActionResult => {
-    if (!hasStructuredSelection(context.state)) return actionFailed("empty-selection");
+    if (!canReorderStructuredSelection(context.state, "front")) {
+      return actionFailed("precondition-failed");
+    }
     context.canvas.commands.structured.reorderSelection("front");
     return actionSucceeded();
   },
 
   "structured-send-to-back": (_options, context): ActionResult => {
-    if (!hasStructuredSelection(context.state)) return actionFailed("empty-selection");
+    if (!canReorderStructuredSelection(context.state, "back")) {
+      return actionFailed("precondition-failed");
+    }
     context.canvas.commands.structured.reorderSelection("back");
     return actionSucceeded();
   },
@@ -385,10 +405,14 @@ export const editorCheckers: Partial<Record<EditorActionId, (state: CanvasState)
   "snapshot-png": (state) => state.selections.length > 0,
   "delete-selection": (state) => state.selections.length > 0 || hasStructuredSelection(state),
   "structured-rename": (state) => getSelectedStructuredEditCursor(state) !== null,
-  "structured-bring-forward": hasStructuredSelection,
-  "structured-send-backward": hasStructuredSelection,
-  "structured-bring-to-front": hasStructuredSelection,
-  "structured-send-to-back": hasStructuredSelection,
+  "structured-bring-forward": (state) =>
+    canReorderStructuredSelection(state, "forward"),
+  "structured-send-backward": (state) =>
+    canReorderStructuredSelection(state, "backward"),
+  "structured-bring-to-front": (state) =>
+    canReorderStructuredSelection(state, "front"),
+  "structured-send-to-back": (state) =>
+    canReorderStructuredSelection(state, "back"),
   "structured-duplicate": hasStructuredSelection,
   "structured-copy-hierarchy": (state) =>
     state.canvasMode === "structured" && state.structuredScene.length > 0,

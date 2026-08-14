@@ -1,7 +1,7 @@
 import type { GridMap, GridPoint, Point, SelectionArea, TextAttributes } from "@/shared/types";
 import type { CanvasMode } from "@/domains/sessions/public";
 import type { ToolType } from "../model/tool";
-import type { StructuredNode, StructuredBoxNode, StructuredComponentInstance, StructuredTextStyleRange } from "@/domains/structured-content/public";
+import type { StructuredNode, StructuredBoxNode, StructuredComponentInstance, StructuredSelectionStylePatch, StructuredTextStyleRange } from "@/domains/structured-content/public";
 import type { StructuredTextSelection } from "@/domains/structured-content/public";
 import type { GridAddress, GridEditMode, GridRange, GridSelectionState } from "@/domains/selection/public";
 import type { StructuredSplitBoxHandle } from "@/domains/structured-content/public";
@@ -79,6 +79,8 @@ export interface DrawingSlice {
   setStructuredTextColor: (color: string) => void;
   setStructuredTextBackgroundColor: (bgColor: string | null) => void;
   setStructuredNodeCharColor: (color: string) => void;
+  setStructuredSelectionPrimaryColor: (color: string) => void;
+  setStructuredSelectionStyle: (patch: StructuredSelectionStylePatch) => void;
   fillStructuredTextSelectionWithChar: (char: string) => void;
   reorderStructuredSelection: (direction: "forward" | "backward" | "front" | "back") => void;
   duplicateStructuredSelection: () => string[];

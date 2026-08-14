@@ -10,6 +10,33 @@ const normalizeOrders = (scene: StructuredNode[]) =>
 const sortByOrder = (scene: StructuredNode[]) =>
   [...scene].sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
 
+export const canReorderStructuredNodes = (
+  scene: StructuredNode[],
+  selectedIds: string[],
+  direction: StructuredLayerDirection
+) => {
+  const selected = new Set(selectedIds);
+  if (selected.size === 0) return false;
+  const ordered = sortByOrder(scene);
+  if (ordered.length < 2 || ordered.every((node) => selected.has(node.id))) {
+    return false;
+  }
+
+  if (direction === "forward" || direction === "front") {
+    return ordered.some(
+      (node, index) =>
+        selected.has(node.id) &&
+        ordered.slice(index + 1).some((candidate) => !selected.has(candidate.id))
+    );
+  }
+
+  return ordered.some(
+    (node, index) =>
+      selected.has(node.id) &&
+      ordered.slice(0, index).some((candidate) => !selected.has(candidate.id))
+  );
+};
+
 export const reorderStructuredNodes = (
   scene: StructuredNode[],
   selectedIds: string[],

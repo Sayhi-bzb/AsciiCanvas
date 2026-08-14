@@ -171,6 +171,20 @@ describe('Toolbar dock', () => {
     expect(items[0]).toHaveAttribute('data-toolbar-item', 'pan');
   });
 
+  it('activates Hand through the structured mode tool policy', () => {
+    useEditorStore.setState({ canvasMode: 'structured', tool: 'select' });
+    render(
+      <Toolbar
+        tool="select"
+        setTool={useEditorStore.getState().setTool}
+        onUndo={vi.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hand' }));
+    expect(useEditorStore.getState().tool).toBe('pan');
+  });
+
   it('uses the active accent state for Hand', () => {
     useEditorStore.setState({ canvasMode: 'freeform', tool: 'pan' });
     const { container } = render(<Toolbar tool="pan" setTool={vi.fn()} onUndo={vi.fn()} />);

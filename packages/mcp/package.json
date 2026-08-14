@@ -1,0 +1,33 @@
+{
+  "name": "@chardesk/mcp",
+  "version": "0.0.0",
+  "description": "Local MCP tools for verified two-phase CharDesk authoring",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "chardesk-canvas": "./dist/cli.js",
+    "chardesk-mcp": "./dist/server.js"
+  },
+  "scripts": {
+    "prebuild": "npm run build -w @chardesk/protocol",
+    "build": "tsc -p tsconfig.json",
+    "pretypecheck": "npm run build -w @chardesk/protocol",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "pretest": "npm run build",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@chardesk/protocol": "*",
+    "@modelcontextprotocol/server": "^2.0.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "^2.0.0",
+    "@types/node": "^24.10.4",
+    "typescript": "~5.9.3",
+    "vitest": "^4.1.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

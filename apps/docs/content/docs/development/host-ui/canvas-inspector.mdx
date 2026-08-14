@@ -1,0 +1,24 @@
+---
+title: Canvas Inspector
+description: Shared color inspection, layer eligibility, and responsive behavior across Canvas modes.
+---
+
+One Canvas Inspector owns the host trigger, floating surface, `Alt+6` shortcut,
+and open state for Freeform and Structured modes. Its trigger always displays the
+active semantic color. It is open by default off phone, collapsed on phone, and
+closes when Hand becomes active. Slide mode does not expose it.
+
+| Mode and target | Mutation boundary |
+| --- | --- |
+| Freeform defaults or selection | The active foreground or Background-tool color updates through Canvas commands |
+| Structured text range | The normalized grapheme range receives the selected color |
+| Structured nodes | One Canvas command applies each node type's semantic primary color as one undoable scene change |
+| Structured layer arrangement | Eligibility and execution share `canReorderStructuredNodes` |
+
+Read-only sessions retain the Inspector for inspection while its mutation controls
+remain inert. The floating surface never reserves Canvas viewport space.
+
+Authority: [`canvas-inspector.tsx`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/widgets/canvas-inspector/canvas-inspector.tsx),
+[`model.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/widgets/canvas-inspector/model.ts),
+and [`tool.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/domains/canvas/model/tool.ts).
+Evidence: their nearest tests and `structuredSelectionStyle.test.ts`.

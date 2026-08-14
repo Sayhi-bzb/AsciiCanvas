@@ -14,6 +14,22 @@ Development exposes the editor at `/` and proxies Fumadocs at `/docs`; productio
 places both under `dist`. Delivery composes outputs but does not own their business
 or wire contracts.
 
+## Documentation freshness
+
+`apps/docs/content/docs-head.json` is the committed source revision against which
+the whole documentation set was last reviewed.
+
+1. Review committed changes after that revision plus the current worktree.
+2. Route affected contracts through [Development](/development); update an owner
+   route when a new contract has no destination.
+3. Leave prose unchanged when implementation changes preserve the documented
+   contract, but still count the page as reviewed.
+4. After affected pages and emitted outputs pass verification, advance `head` to
+   the full SHA of the reviewed commit.
+
+A clean review may advance `head` without a prose change. Never record dirty or
+worktree state, and never advance the baseline automatically during a build.
+
 A release tag is stable SemVer shared by both package manifests and their lockfile
 entries. Packed tarballs must pass installation, public export and font asset smoke
 checks before publication. Reruns skip each package version already on npm and

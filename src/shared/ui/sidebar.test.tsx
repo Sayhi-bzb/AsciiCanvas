@@ -48,6 +48,19 @@ describe("SidebarStandard scrolling", () => {
     ).toHaveClass("px-2", "py-2");
   });
 
+  it("provides the compact desktop sidebar widths", () => {
+    const { container } = render(
+      <SidebarProvider>
+        <SidebarStandard>Content</SidebarStandard>
+      </SidebarProvider>
+    );
+
+    expect(container.querySelector('[data-slot="sidebar-wrapper"]')).toHaveStyle({
+      "--sidebar-width": "16rem",
+      "--sidebar-width-icon": "2.5rem",
+    });
+  });
+
   it("supports composite layouts that own their inner scroll area", () => {
     const { container } = render(
       <SidebarProvider>

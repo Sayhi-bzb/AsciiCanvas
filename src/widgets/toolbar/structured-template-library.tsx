@@ -78,10 +78,10 @@ export function StructuredTemplateLibrary({
       <SidebarGroupContent>
         <div
           data-testid="structured-template-grid"
-          className="grid grid-cols-2 gap-1 p-1"
+          className="grid grid-cols-1 gap-1 p-1"
         >
           {sortedTemplates.length === 0 && (
-            <div className="col-span-2 px-2 py-4 text-xs text-muted-foreground">
+            <div className="col-span-full px-2 py-4 text-xs text-muted-foreground">
               {emptyLabel}
             </div>
           )}

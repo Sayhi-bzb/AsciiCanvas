@@ -503,6 +503,86 @@ export const createDrawingSlice = (
     state.setSelectedStructuredNodeIds(state.selectedStructuredNodeIds);
   },
 
+  setStructuredSelectionPrimaryColor: (color) => {
+    const state = get();
+    if (
+      state.canvasMode !== "structured" ||
+      state.selectedStructuredNodeIds.length === 0
+    ) {
+      return;
+    }
+    const selectedIds = new Set(state.selectedStructuredNodeIds);
+    let didUpdate = false;
+    const nextScene = state.structuredScene.map((node) => {
+      if (!selectedIds.has(node.id)) return node;
+      didUpdate = true;
+      if (node.type === "bg") {
+        return {
+          ...node,
+          style: { ...node.style, bgColor: color },
+        };
+      }
+      const style = { ...node.style, color };
+      if (node.type !== "text" || !node.styleRanges) {
+        return { ...node, style };
+      }
+      return {
+        ...node,
+        style,
+        styleRanges: node.styleRanges.map((range) => ({
+          ...range,
+          style: { ...range.style, color },
+        })),
+      };
+    });
+    if (!didUpdate) return;
+    state.applyStructuredScene(nextScene, true);
+    state.setSelectedStructuredNodeIds(state.selectedStructuredNodeIds);
+  },
+
+  setStructuredSelectionStyle: (patch) => {
+    const state = get();
+    if (
+      state.canvasMode !== "structured" ||
+      state.selectedStructuredNodeIds.length === 0 ||
+      (patch.color === undefined && patch.bgColor === undefined)
+    ) {
+      return;
+    }
+    const selectedIds = new Set(state.selectedStructuredNodeIds);
+    let didUpdate = false;
+    const nextScene = state.structuredScene.map((node) => {
+      if (!selectedIds.has(node.id)) return node;
+      const color = node.type === "bg" ? undefined : patch.color;
+      const bgColor = patch.bgColor;
+      if (color === undefined && bgColor === undefined) return node;
+      didUpdate = true;
+      const style = {
+        ...node.style,
+        ...(color !== undefined ? { color } : {}),
+        ...(bgColor !== undefined ? { bgColor } : {}),
+      };
+      if (node.type !== "text" || !node.styleRanges) {
+        return { ...node, style };
+      }
+      return {
+        ...node,
+        style,
+        styleRanges: node.styleRanges.map((range) => ({
+          ...range,
+          style: {
+            ...range.style,
+            ...(color !== undefined ? { color } : {}),
+            ...(bgColor !== undefined ? { bgColor } : {}),
+          },
+        })),
+      };
+    });
+    if (!didUpdate) return;
+    state.applyStructuredScene(nextScene, true);
+    state.setSelectedStructuredNodeIds(state.selectedStructuredNodeIds);
+  },
+
   fillStructuredTextSelectionWithChar: (char) => {
     const state = get();
     if (state.canvasMode !== "structured" || !state.structuredTextSelection) return;
