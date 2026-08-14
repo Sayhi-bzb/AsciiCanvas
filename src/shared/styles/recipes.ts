@@ -13,6 +13,11 @@ type SurfaceOptions = {
   elevated?: boolean;
 };
 
+type FloatingHostOptions = {
+  appearance?: 'raised' | 'transparent';
+  animated?: boolean;
+};
+
 type FieldOptions = {
   density?: 'compact' | 'default';
   invalid?: boolean;
@@ -38,7 +43,17 @@ const hostIconControl = cn(
 );
 
 const hostSurface = 'rounded-lg border-0 bg-host-surface';
-const floatingHost = cn(hostSurface, 'shadow-host');
+const floatingHost = ({
+  appearance = 'raised',
+  animated = false,
+}: FloatingHostOptions = {}) =>
+  cn(
+    'rounded-lg border-0',
+    appearance === 'raised' && 'bg-host-surface shadow-host',
+    appearance === 'transparent' && 'bg-transparent shadow-none',
+    animated &&
+      'transition-[background-color,box-shadow] duration-200 ease-out motion-reduce:transition-none'
+  );
 const overlayPanel = 'rounded-lg border-0 bg-overlay-surface shadow-overlay';
 const quietInput = cn(
   'min-w-0 rounded-md border-0 bg-transparent text-xs shadow-none outline-none',
@@ -103,7 +118,7 @@ export const rx = {
     'focus-within:[&_[data-slot=scroll-area-scrollbar]]:opacity-100',
     '[&_[data-slot=scroll-area-thumb]]:bg-muted-foreground/25'
   ),
-  toolbarShell: cn(floatingHost, 'relative flex items-center gap-1 p-[3px] pointer-events-auto'),
+  toolbarShell: cn(floatingHost(), 'relative flex items-center gap-1 p-[3px] pointer-events-auto'),
   hostControl,
   hostIconControl,
   hostControlActive: 'bg-accent text-foreground',

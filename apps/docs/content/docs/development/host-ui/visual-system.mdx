@@ -18,6 +18,11 @@ The visual ownership path has one direction:
 Viewport surfaces use semantic layer tokens; product instances do not assign raw
 overlay tiers or recreate shared surfaces.
 
+Persistent Canvas chrome uses the `floatingHost` recipe. Toolbars, Inspector,
+Minimap, and the desktop Sidebar therefore share one borderless host surface,
+radius, and light elevation. Transient portal content continues to use the
+stronger overlay surface.
+
 ## Evidence
 
 - [`scripts/quality/check-style-api.mjs`](https://github.com/Sayhi-bzb/CharDesk/blob/main/scripts/quality/check-style-api.mjs)

@@ -159,7 +159,7 @@ export function ZoomControl({
         <div
           data-testid="zoom-minimap"
           className={cn(
-            rx.floatingHost,
+            rx.floatingHost(),
             'absolute bottom-full left-0 z-(--layer-popover) mb-2 w-auto overflow-hidden'
           )}
         >

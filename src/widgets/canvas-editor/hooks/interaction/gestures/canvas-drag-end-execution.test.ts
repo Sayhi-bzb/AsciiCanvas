@@ -19,7 +19,7 @@ const createPrimaryExecutor = (): PrimaryDragEndExecutor => ({
   getSelectionPreview: vi.fn(() => ({ start: { x: 1, y: 1 }, end: { x: 2, y: 2 } })),
   fillArea: vi.fn(), setSelectedStructuredNodeIds: vi.fn(),
   setSelectedStructuredSplitHandle: vi.fn(), setStructuredGridFocus: vi.fn(),
-  setTextCursor: vi.fn(), addSelection: vi.fn(), clearSelections: vi.fn(),
+  setStaticGridActiveCell: vi.fn(), addSelection: vi.fn(), clearSelections: vi.fn(),
   clearSelectionPreview: vi.fn(), commitScratch: vi.fn(), forceHistorySave: vi.fn(),
   commitStructuredShape: vi.fn(), flushStructuredMove: vi.fn(),
   flushStructuredSplitBoxResize: vi.fn(), resetDragState: vi.fn(),

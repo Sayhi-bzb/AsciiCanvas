@@ -60,7 +60,7 @@ describe("canvas color picker interaction", () => {
       type: "picked",
       color: "#112233",
       destination: "foreground",
-      applyFreeformSelection: false,
+      applyStaticGridSelection: false,
       applyStructuredTextColor: true,
       applyStructuredSelectionPrimaryColor: false,
     });
@@ -78,7 +78,7 @@ describe("canvas color picker interaction", () => {
       type: "picked",
       color: "#112233",
       destination: "foreground",
-      applyFreeformSelection: false,
+      applyStaticGridSelection: false,
       applyStructuredTextColor: true,
       applyStructuredSelectionPrimaryColor: false,
     });
@@ -113,7 +113,7 @@ describe("canvas color picker interaction", () => {
           type: "picked",
           color: "#112233",
           destination: "foreground",
-          applyFreeformSelection: false,
+          applyStaticGridSelection: false,
           applyStructuredTextColor: true,
           applyStructuredSelectionPrimaryColor: false,
         },
@@ -136,7 +136,7 @@ describe("canvas color picker interaction", () => {
           type: "picked",
           color: "#445566",
           destination: "foreground",
-          applyFreeformSelection: false,
+          applyStaticGridSelection: false,
           applyStructuredTextColor: false,
           applyStructuredSelectionPrimaryColor: false,
         },
@@ -163,7 +163,7 @@ describe("canvas color picker interaction", () => {
       type: "picked",
       color: "#445566",
       destination: "background",
-      applyFreeformSelection: false,
+      applyStaticGridSelection: false,
       applyStructuredTextColor: false,
       applyStructuredSelectionPrimaryColor: false,
     });
@@ -172,13 +172,13 @@ describe("canvas color picker interaction", () => {
     expect(executor.setBrushColor).not.toHaveBeenCalled();
   });
 
-  it("applies eyedropper colors to an active freeform selection", () => {
+  it("applies eyedropper colors to an active static-grid selection", () => {
     const executor = createPickExecutor();
     const decision = resolveCanvasColorPickDecision({
       cell,
       target: "char-to-background",
       isStructuredTextSelectionActive: false,
-      isFreeformSelectionActive: true,
+      isStaticGridSelectionActive: true,
     });
 
     executeCanvasColorPickDecision(decision, executor);

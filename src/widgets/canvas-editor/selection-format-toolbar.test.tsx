@@ -3,7 +3,6 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 
 import { SelectionFormatToolbar } from "@/widgets/canvas-editor/SelectionFormatToolbar";
 import { STRUCTURED_CONTEXT_MENU } from "@/domains/actions/public";
-import { ColorSubmenu } from "@/widgets/toolbar/dock/submenus";
 import { useEditorStore } from "@/domains/canvas/testing";
 
 describe("SelectionFormatToolbar", () => {
@@ -292,72 +291,4 @@ describe("SelectionFormatToolbar", () => {
     expect(actionIds).not.toContain("structured-delete-divider");
   });
 
-  it("applies picked colors to the structured text selection callback", () => {
-    const picked: string[] = [];
-    const applied: string[] = [];
-
-    render(
-      <ColorSubmenu
-        brushColor="#ffffff"
-        setBrushColor={(color) => picked.push(color)}
-        applyStructuredTextColor={(color) => applied.push(color)}
-        onPicked={() => {}}
-      />
-    );
-
-    fireEvent.mouseDown(screen.getByRole("tab", { name: "Presets" }), {
-      button: 0,
-    });
-    fireEvent.click(screen.getByLabelText("Pick preset color #dc2626"));
-
-    expect(picked).toEqual(["#dc2626"]);
-    expect(applied).toEqual(["#dc2626"]);
-  });
-
-  it("starts canvas char color picking from the color submenu", async () => {
-    render(
-      <ColorSubmenu
-        brushColor="#ffffff"
-        setBrushColor={() => {}}
-        onPicked={() => {}}
-      />
-    );
-
-    fireEvent.pointerDown(screen.getByLabelText("Pick color from canvas"));
-    fireEvent.click(await screen.findByLabelText("Pick char color from canvas"));
-
-    expect(useEditorStore.getState().canvasColorPickerTarget).toBe("char");
-  });
-
-  it("starts canvas background color picking from the color submenu", async () => {
-    render(
-      <ColorSubmenu
-        brushColor="#ffffff"
-        setBrushColor={() => {}}
-        onPicked={() => {}}
-      />
-    );
-
-    fireEvent.pointerDown(screen.getByLabelText("Pick color from canvas"));
-    fireEvent.click(await screen.findByLabelText("Pick BG color from canvas"));
-
-    expect(useEditorStore.getState().canvasColorPickerTarget).toBe("bg");
-  });
-
-  it("toggles an active canvas color picker target off", async () => {
-    useEditorStore.setState({ canvasColorPickerTarget: "char" });
-
-    render(
-      <ColorSubmenu
-        brushColor="#ffffff"
-        setBrushColor={() => {}}
-        onPicked={() => {}}
-      />
-    );
-
-    fireEvent.pointerDown(screen.getByLabelText("Pick color from canvas"));
-    fireEvent.click(await screen.findByLabelText("Pick char color from canvas"));
-
-    expect(useEditorStore.getState().canvasColorPickerTarget).toBeNull();
-  });
 });

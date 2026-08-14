@@ -41,8 +41,7 @@ export type ToolbarActionId =
   | "bg"
   | "fill"
   | "eraser"
-  | "undo"
-  | "color";
+  | "undo";
 
 // Sidebar Actions
 export type SidebarActionId =

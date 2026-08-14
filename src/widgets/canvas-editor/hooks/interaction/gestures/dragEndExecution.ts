@@ -139,7 +139,7 @@ export const createPrimaryDragEndExecutor = ({
   setSelectedStructuredNodeIds,
   setSelectedStructuredSplitHandle,
   setStructuredGridFocus,
-  setTextCursor,
+  setStaticGridActiveCell,
   addSelection,
   clearSelections,
   commitScratch,
@@ -153,7 +153,7 @@ export const createPrimaryDragEndExecutor = ({
   setSelectedStructuredNodeIds: SelectionCommitExecutor["setSelectedStructuredNodeIds"];
   setSelectedStructuredSplitHandle: SelectionCommitExecutor["setSelectedStructuredSplitHandle"];
   setStructuredGridFocus: SelectionCommitExecutor["setStructuredGridFocus"];
-  setTextCursor: SelectionCommitExecutor["setTextCursor"];
+  setStaticGridActiveCell: SelectionCommitExecutor["setStaticGridActiveCell"];
   addSelection: SelectionCommitExecutor["addSelection"];
   clearSelections: SelectionCommitExecutor["clearSelections"];
   commitScratch: DragEndCommitExecutor["commitScratch"];
@@ -167,7 +167,7 @@ export const createPrimaryDragEndExecutor = ({
   setSelectedStructuredNodeIds,
   setSelectedStructuredSplitHandle,
   setStructuredGridFocus,
-  setTextCursor,
+  setStaticGridActiveCell,
   addSelection,
   clearSelections,
   clearSelectionPreview: () => selectionPreview.set(null, { immediate: true }),

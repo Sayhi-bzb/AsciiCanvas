@@ -160,7 +160,9 @@ export const createSessionActivationPatch = (
   slideDeck: runtime.nextSlideDeck,
   structuredScene: runtime.nextScene,
   structuredComponents: runtime.nextComponents,
-  grid: createMapFromEntries(runtime.nextGridEntries),
+  // Runtime session entries have already crossed the persistence/import decoder.
+  // Avoid decoding and cloning every cell again during an interactive switch.
+  grid: new Map(runtime.nextGridEntries),
   tool: runtime.nextTool,
   offset: runtime.nextOffset,
   zoom: runtime.nextZoom,

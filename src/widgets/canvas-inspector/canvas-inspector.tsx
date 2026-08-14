@@ -7,6 +7,7 @@ import { EDITOR_COMMAND_META } from "@/domains/actions/public";
 import { useCanvasRuntime, useCanvasState } from "@/domains/canvas/public";
 import { useEditor } from "@/domains/editor/public";
 import { useUiI18n } from "@/shared/i18n";
+import { COLOR_PRIMARY_TEXT } from "@/shared/lib/constants";
 import { cn } from "@/shared/lib/utils";
 import {
   SHORTCUT_PRIORITY,
@@ -52,7 +53,7 @@ export function CanvasInspectorControl({
       brushColor: value.brushColor,
       brushBackgroundColor: value.brushBackgroundColor,
       canvasColorPickerTarget: value.canvasColorPickerTarget,
-      hasFreeformSelection: value.selections.length > 0,
+      hasGridSelection: value.selections.length > 0,
       structuredScene: value.structuredScene,
       selectedStructuredNodeIds: value.selectedStructuredNodeIds,
       structuredTextSelection: value.structuredTextSelection,
@@ -65,7 +66,7 @@ export function CanvasInspectorControl({
         tool: state.tool,
         brushColor: state.brushColor,
         brushBackgroundColor: state.brushBackgroundColor,
-        hasFreeformSelection: state.hasFreeformSelection,
+        hasGridSelection: state.hasGridSelection,
         structuredScene: state.structuredScene,
         selectedStructuredNodeIds: state.selectedStructuredNodeIds,
         structuredTextSelection: state.structuredTextSelection,
@@ -74,7 +75,7 @@ export function CanvasInspectorControl({
       state.brushBackgroundColor,
       state.brushColor,
       state.canvasMode,
-      state.hasFreeformSelection,
+      state.hasGridSelection,
       state.selectedStructuredNodeIds,
       state.structuredScene,
       state.structuredTextSelection,
@@ -136,17 +137,17 @@ export function CanvasInspectorControl({
   useShortcutLayer({
     id: "canvas-inspector",
     priority: SHORTCUT_PRIORITY.dynamicCanvasCommand,
-    enabled: model.visible && state.tool !== "pan",
+    enabled: state.tool !== "pan",
     onKeyDown: (event, context) => {
-      if (event.key === "Escape" && (panelOpen || state.canvasColorPickerTarget)) {
-        close();
-        return { claimed: true, preventDefault: true };
-      }
       if (
         context.targetKind === "editable" ||
         context.targetKind === "overlay"
       ) {
         return;
+      }
+      if (event.key === "Escape" && (panelOpen || state.canvasColorPickerTarget)) {
+        close();
+        return { claimed: true, preventDefault: true };
       }
       if (
         event.altKey &&
@@ -162,8 +163,8 @@ export function CanvasInspectorControl({
   });
 
   const applyColor = (color: string) => {
-    if (readOnly || !model.visible) return;
-    if (model.mode === "freeform") {
+    if (readOnly) return;
+    if (model.mode === "grid") {
       if (model.canvasPickDestination === "background") {
         canvas.commands.preferences.setBrushBackgroundColor(color);
         if (model.hasSelection) {
@@ -217,8 +218,6 @@ export function CanvasInspectorControl({
     );
   };
 
-  if (!model.visible) return null;
-
   return (
     <div className="pointer-events-auto relative flex-none">
       <Tooltip>
@@ -250,22 +249,24 @@ export function CanvasInspectorControl({
           data-testid="canvas-inspector-panel"
           aria-label={t("inspector.title")}
           className={cn(
-            rx.floatingHost,
+            rx.floatingHost(),
             "absolute left-[calc(100%+0.5rem)] top-0 w-[min(10rem,calc(100vw-2rem))] overflow-hidden"
           )}
           onPointerDown={(event) => event.stopPropagation()}
         >
           <ContentScrollArea className="max-h-[min(32rem,calc(100vh-5rem))]">
             <div
+              data-testid="canvas-inspector-content"
               inert={readOnly}
               aria-disabled={readOnly}
-              className="flex flex-col gap-2 p-2"
+              className="flex flex-col gap-2 px-1 py-2"
             >
               <ColorPickerPanel
                 value={model.activeColor}
                 onPick={applyColor}
+                defaultColor={COLOR_PRIMARY_TEXT}
                 canvasPickDestination={model.canvasPickDestination}
-                className="w-full"
+                className="w-full px-0"
               />
 
               {model.mode === "structured" &&

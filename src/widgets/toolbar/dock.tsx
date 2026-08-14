@@ -18,10 +18,6 @@ import {
   TooltipTrigger,
 } from "@/shared/ui/tooltip";
 import {
-  Popover,
-  PopoverTrigger,
-} from "@/shared/ui/popover";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuTrigger,
@@ -32,12 +28,10 @@ import { Kbd } from "@/shared/ui/kbd";
 
 import {
   BrushSubmenu,
-  ColorSubmenu,
   ShapeSubmenu,
 } from "./dock/submenus";
 import { MATERIAL_PRESETS, SHAPE_TOOLS } from "./dock/constants";
 import { useShallow } from "zustand/react/shallow";
-import { ColorPickerPopoverContent } from "@/widgets/color-picker";
 import { useUiI18n } from "@/shared/i18n";
 import {
   SHORTCUT_PRIORITY,
@@ -75,7 +69,6 @@ const STRUCTURED_ACTION_ORDER: ToolbarActionId[] = [
   "select",
   "shape-group",
   "bg",
-  "color",
 ];
 
 const DIRECT_TOOL_BY_ACTION: Partial<Record<ToolbarActionId, ToolType>> = {
@@ -101,20 +94,14 @@ export function Toolbar({
   const { t } = useUiI18n();
   const {
     brushChar,
-    brushColor,
     canvasMode,
-    structuredTextSelection,
   } = useCanvasState(
     useShallow((state) => ({
       brushChar: state.brushChar,
-      brushColor: state.brushColor,
       canvasMode: state.canvasMode,
-      structuredTextSelection: state.structuredTextSelection,
     }))
   );
   const setBrushChar = canvas.commands.preferences.setBrushChar;
-  const setBrushColor = canvas.commands.preferences.setBrushColor;
-  const setStructuredTextColor = canvas.commands.structured.setTextColor;
   const [lastUsedShape, setLastUsedShape] = useState<ToolType>("box");
   const [openSubMenuId, setOpenSubMenuId] = useState<null | string>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -199,7 +186,6 @@ export function Toolbar({
         fill: t("toolbar.paintCharColor"),
         eraser: t("toolbar.eraser"),
         undo: t("toolbar.undo"),
-        color: t("toolbar.color"),
         pan: t("toolbar.pan"),
       };
       if (id === "brush") {
@@ -219,7 +205,6 @@ export function Toolbar({
   }, [tool, isShapeGroupActive, navItems]);
 
   const activateToolbarItem = useCallback((id: ToolbarActionId) => {
-    if (id === "color") return false;
     if (id === "undo") {
       onUndo();
       return true;
@@ -250,11 +235,6 @@ export function Toolbar({
 
       if (isCanvasTextEditing) onExitCanvasTextEditing();
 
-      if (item.id === "color") {
-        setOpenSubMenuId("color");
-        return { claimed: true, preventDefault: true };
-      }
-
       return activateToolbarItem(item.id as ToolbarActionId)
         ? { claimed: true, preventDefault: true }
         : undefined;
@@ -275,7 +255,6 @@ export function Toolbar({
             {navItems.map((item, index) => {
               const isActive = index === activeIndex;
               const Icon = item.icon;
-              const isColorTab = item.id === "color";
               const shortcutLabel = getDockShortcutLabel(index);
               const shortcutAriaLabel = getDockShortcutAriaLabel(index);
               const submenuTrigger = (
@@ -315,12 +294,7 @@ export function Toolbar({
                           item.hasSub && "rounded-r-none"
                         )}
                       >
-                        {isColorTab ? (
-                          <div
-                            className="size-5 rounded-full border border-border shadow-sm"
-                            style={{ backgroundColor: brushColor }}
-                          />
-                        ) : Icon ? (
+                        {Icon ? (
                           <Icon />
                         ) : null}
                       </button>
@@ -336,73 +310,45 @@ export function Toolbar({
                     </TooltipContent>
                   </Tooltip>
 
-                  {item.hasSub &&
-                    (isColorTab ? (
-                      <Popover
-                        open={openSubMenuId === item.id}
-                        onOpenChange={(open) =>
-                          setOpenSubMenuId(open ? item.id : null)
-                        }
+                  {item.hasSub && (
+                    <DropdownMenu
+                      open={openSubMenuId === item.id}
+                      onOpenChange={(open) =>
+                        setOpenSubMenuId(open ? item.id : null)
+                      }
+                    >
+                      <DropdownMenuTrigger asChild>
+                        {submenuTrigger}
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent
+                        side="top"
+                        align="start"
+                        sideOffset={12}
+                        className={cn(
+                          item.id === "shape-group" && "min-w-40"
+                        )}
                       >
-                        <PopoverTrigger asChild>{submenuTrigger}</PopoverTrigger>
-                        <ColorPickerPopoverContent
-                          side="top"
-                          align="end"
-                          sideOffset={12}
-                          className={cn(rx.dropdownPanel, "w-auto")}
-                        >
-                          <ColorSubmenu
-                            brushColor={brushColor}
-                            setBrushColor={setBrushColor}
-                            applyStructuredTextColor={
-                              canvasMode === "structured" &&
-                              structuredTextSelection
-                                ? setStructuredTextColor
-                                : undefined
-                            }
-                            onPicked={() => setOpenSubMenuId(null)}
+                        {item.id === "brush" ? (
+                          <BrushSubmenu
+                            brushChar={brushChar}
+                            customChar={customChar}
+                            setCustomChar={setCustomChar}
+                            setBrushChar={setBrushChar}
+                            setTool={setTool}
+                            inputRef={inputRef}
                           />
-                        </ColorPickerPopoverContent>
-                      </Popover>
-                    ) : (
-                      <DropdownMenu
-                        open={openSubMenuId === item.id}
-                        onOpenChange={(open) =>
-                          setOpenSubMenuId(open ? item.id : null)
-                        }
-                      >
-                        <DropdownMenuTrigger asChild>
-                          {submenuTrigger}
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent
-                          side="top"
-                          align="start"
-                          sideOffset={12}
-                          className={cn(
-                            item.id === "shape-group" && "min-w-40"
-                          )}
-                        >
-                          {item.id === "brush" ? (
-                            <BrushSubmenu
-                              brushChar={brushChar}
-                              customChar={customChar}
-                              setCustomChar={setCustomChar}
-                              setBrushChar={setBrushChar}
-                              setTool={setTool}
-                              inputRef={inputRef}
-                            />
-                          ) : (
-                            <ShapeSubmenu
-                              tool={tool}
-                              shapeTools={structuredShapeTools}
-                              setTool={setTool}
-                              setLastUsedShape={setLastUsedShape}
-                              getToolMeta={getToolMeta}
-                            />
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    ))}
+                        ) : (
+                          <ShapeSubmenu
+                            tool={tool}
+                            shapeTools={structuredShapeTools}
+                            setTool={setTool}
+                            setLastUsedShape={setLastUsedShape}
+                            getToolMeta={getToolMeta}
+                          />
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </div>
               );
             })}

@@ -2,6 +2,8 @@ import { useCreation } from "ahooks";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { GridManager } from "@/shared/utils/grid";
 import { useCanvasRuntime } from "@/domains/canvas/public";
+import { isStaticGridMode } from "@/domains/sessions/public";
+import { getStaticGridSelectionAreas } from "@/domains/selection/public";
 import {
   useEditor,
   type CanvasInteractionState,
@@ -96,6 +98,7 @@ export const useCanvasInteraction = (
     commitScratch,
     commitStructuredShape,
     setTextCursor,
+    setStaticGridActiveCell,
     addSelection,
     clearSelections,
     clearInteractionState,
@@ -103,7 +106,7 @@ export const useCanvasInteraction = (
     offset,
     zoom,
     grid,
-    selections,
+    staticGridSelection,
     updateScratchForShape,
     setHoveredGrid,
     fillArea,
@@ -248,7 +251,7 @@ export const useCanvasInteraction = (
     setSelectedStructuredNodeIds,
     setSelectedStructuredSplitHandle,
     setStructuredGridFocus,
-    setTextCursor,
+    setStaticGridActiveCell,
     addSelection,
     clearSelections,
     commitScratch,
@@ -310,8 +313,9 @@ export const useCanvasInteraction = (
       canvasMode === "structured" && !!structuredTextSelection,
     isStructuredNodeSelectionActive:
       canvasMode === "structured" && selectedStructuredNodeIds.length > 0,
-    isFreeformSelectionActive:
-      canvasMode === "freeform" && selections.length > 0,
+    isStaticGridSelectionActive:
+      isStaticGridMode(canvasMode) &&
+      getStaticGridSelectionAreas(staticGridSelection).length > 0,
     getCell: (point) => grid.get(GridManager.toKey(point.x, point.y)),
     executor: colorPickerDragStartExecutor,
   });

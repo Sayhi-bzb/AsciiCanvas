@@ -12,6 +12,8 @@ export const COLOR_PRIMARY_TEXT = "#000000";
 export const DEFAULT_BRUSH_CHAR = "#";
 export const COLOR_TEXT_CURSOR_BG = "rgba(0, 0, 0, 0.5)";
 export const COLOR_TEXT_CURSOR_FG = "#ffffff";
+export const COLOR_ACTIVE_CELL_BG = "rgba(37, 99, 235, 0.12)";
+export const COLOR_ACTIVE_CELL_BORDER = "#2563eb";
 
 export const COLOR_SELECTION_BG = "rgba(0, 0, 0, 0.2)";
 

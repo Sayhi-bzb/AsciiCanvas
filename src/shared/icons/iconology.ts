@@ -38,6 +38,7 @@ import {
   Omega,
   Palette,
   Presentation,
+  RotateCcw,
   PanelLeftClose,
   PanelLeftOpen,
   PanelRightClose,
@@ -133,7 +134,6 @@ export const HOST_ICONOLOGY = {
     fill: PaintbrushVertical,
     eraser: Eraser,
     undo: Undo2,
-    color: Palette,
     pan: Hand,
   } satisfies IconMap<
     | 'select'
@@ -144,7 +144,6 @@ export const HOST_ICONOLOGY = {
     | 'fill'
     | 'eraser'
     | 'undo'
-    | 'color'
     | 'pan'
   >,
   zoomAction: {
@@ -177,7 +176,8 @@ export const HOST_ICONOLOGY = {
   colorPalette: {
     ansi16: Grid2X2,
     presets: Palette,
-  } satisfies IconMap<'ansi16' | 'presets'>,
+    restoreDefault: RotateCcw,
+  } satisfies IconMap<'ansi16' | 'presets' | 'restoreDefault'>,
   shapeTool: {
     box: Square,
     splitBox: SquareSplitVertical,

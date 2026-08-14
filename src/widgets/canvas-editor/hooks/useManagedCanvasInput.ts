@@ -12,7 +12,7 @@ import {
   type KeyboardEvent,
   type PointerEvent,
 } from "react";
-import type { CanvasMode } from "@/domains/sessions/public";
+import { isStaticGridMode, type CanvasMode } from "@/domains/sessions/public";
 import { gridCellRect } from "@/shared/metrics";
 import {
   getStaticGridViewState,
@@ -133,12 +133,10 @@ export const useManagedCanvasInput = ({
       }),
     [staticGridEditMode, staticGridSelection, textCursor, selections]
   );
-  const activeTextCursor =
-    canvasMode === 'freeform' ? staticGridView.textCursor : textCursor;
-  const activeSelections =
-    canvasMode === 'freeform' ? staticGridView.selectionAreas : selections;
-  const freeformStaticCell =
-    canvasMode === 'freeform' ? staticGridView.activeCell : null;
+  const staticGridMode = isStaticGridMode(canvasMode);
+  const activeTextCursor = staticGridMode ? staticGridView.textCursor : textCursor;
+  const activeSelections = staticGridMode ? staticGridView.selectionAreas : selections;
+  const staticGridActiveCell = staticGridMode ? staticGridView.activeCell : null;
   const hasStructuredSelection =
     canvasMode === 'structured' && selectedStructuredNodeIds.length > 0;
   const hasStructuredGridFocus =
@@ -150,7 +148,7 @@ export const useManagedCanvasInput = ({
     activeTextCursor ??
     structuredGridFocus ??
     activeSelections[0]?.start ??
-    freeformStaticCell ??
+    staticGridActiveCell ??
     null;
   const primeManagedTextarea = useCallback(() => {
     const textarea = textareaRef.current;
@@ -408,7 +406,7 @@ export const useManagedCanvasInput = ({
         return;
       }
 
-      if (canvasMode === 'freeform') {
+      if (staticGridMode) {
         moveStaticGridFocus(dx, dy, { extend: e.shiftKey });
       } else if (textCursor) {
         moveTextCursor(dx, dy);

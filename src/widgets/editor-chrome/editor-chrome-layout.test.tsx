@@ -44,6 +44,7 @@ describe("EditorChromeLayout sidebar", () => {
       "w-[var(--sidebar-width,16rem)]",
       "transition-[width]"
     );
+    expect(expandedRegion).not.toHaveClass("overflow-hidden");
     expect(expandedRegion).toHaveAttribute(
       "data-editor-chrome-reserved",
       "true"

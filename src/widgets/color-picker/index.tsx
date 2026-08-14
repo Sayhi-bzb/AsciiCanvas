@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type ComponentProps } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Check, Pipette } from 'lucide-react';
 import { HexColorPicker } from 'react-colorful';
 import { useCanvasRuntime, useCanvasState } from '@/domains/canvas/public';
@@ -25,16 +25,12 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip';
 type ColorPickerPanelProps = {
   value: string;
   onPick: (color: string) => void;
+  defaultColor?: string;
   showCustomInput?: boolean;
   onCanvasPickStarted?: () => void;
   className?: string;
   canvasPickDestination?: 'foreground' | 'background';
 };
-
-type ColorPickerPopoverContentProps = Omit<
-  ComponentProps<typeof PopoverContent>,
-  'onOpenAutoFocus' | 'ref' | 'tabIndex'
->;
 
 const ANSI_16_COLORS = [
   '#000000',
@@ -122,33 +118,10 @@ const normalizeHexColor = (value: string) => {
   return /^#[0-9a-f]{6}$/.test(trimmed) ? trimmed : null;
 };
 
-export function ColorPickerPopoverContent({
-  'aria-label': ariaLabel,
-  children,
-  ...props
-}: ColorPickerPopoverContentProps) {
-  const { t } = useUiI18n();
-  const contentRef = useRef<HTMLDivElement>(null);
-
-  return (
-    <PopoverContent
-      {...props}
-      ref={contentRef}
-      tabIndex={-1}
-      aria-label={ariaLabel ?? t('toolbar.color')}
-      onOpenAutoFocus={(event) => {
-        event.preventDefault();
-        contentRef.current?.focus({ preventScroll: true });
-      }}
-    >
-      {children}
-    </PopoverContent>
-  );
-}
-
 export function ColorPickerPanel({
   value,
   onPick,
+  defaultColor,
   showCustomInput = true,
   onCanvasPickStarted,
   className,
@@ -168,6 +141,7 @@ export function ColorPickerPanel({
   const displayColor = normalizedCustomColor ?? normalizeHexColor(value) ?? '#000000';
   const canvasColorPickerTarget = useCanvasState((state) => state.canvasColorPickerTarget);
   const setCanvasColorPickerTarget = canvas.commands.interaction.setColorPickerTarget;
+  const RestoreDefaultIcon = HOST_ICONOLOGY.colorPalette.restoreDefault;
 
   useEffect(() => {
     setCustomColor(value);
@@ -243,10 +217,10 @@ export function ColorPickerPanel({
       data-color-picker-panel="true"
       className={cn('w-40 gap-2 px-1 py-1.5', className)}
     >
-      <div data-testid="color-picker-header" className="flex items-center justify-between gap-2">
+      <div data-testid="color-picker-header" className="flex items-center justify-between gap-0.5">
         <TabsList
           aria-label={t('color.paletteTabs')}
-          className={cn(rx.iconRail, 'h-fit w-fit shrink-0 flex-row gap-1')}
+          className={cn(rx.iconRail, 'h-fit w-fit shrink-0 flex-row gap-0.5 p-px')}
         >
           {paletteTabs.map((tab) => {
             const Icon = tab.icon;
@@ -258,7 +232,7 @@ export function ColorPickerPanel({
                     aria-label={tab.label}
                     className={cn(
                       rx.iconRailItem,
-                      'size-8 flex-none justify-center',
+                      'size-7 flex-none justify-center',
                       'focus-visible:border-transparent focus-visible:outline-0 focus-visible:outline-transparent focus-visible:outline-none',
                       'group-data-[variant=default]/tabs-list:data-[state=active]:shadow-none dark:data-[state=active]:border-transparent',
                       activePaletteTab === tab.id && rx.hostControlActive
@@ -274,7 +248,7 @@ export function ColorPickerPanel({
         </TabsList>
 
         {showCustomInput && (
-          <div data-testid="color-picker-header-actions" className="flex items-center gap-1">
+          <div data-testid="color-picker-header-actions" className="flex items-center gap-0.5">
             <Popover
               open={hexPopoverOpen}
               onOpenChange={(open) => {
@@ -320,6 +294,7 @@ export function ColorPickerPanel({
                 }}
                 onEscapeKeyDown={(event) => {
                   event.preventDefault();
+                  event.stopPropagation();
                   cancelCustomColor();
                 }}
                 onInteractOutside={(event) => {
@@ -395,7 +370,7 @@ export function ColorPickerPanel({
                     canvasColorPickerTarget !== null && 'bg-accent text-foreground'
                   )}
                 >
-                  <Pipette className="size-3.5" />
+                  <Pipette />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent
@@ -428,6 +403,25 @@ export function ColorPickerPanel({
                 </DropdownMenuGroup>
               </DropdownMenuContent>
             </DropdownMenu>
+
+            {defaultColor && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    tone="subtle"
+                    shape="square"
+                    size="sm"
+                    aria-label={t('color.restoreDefault')}
+                    className="size-7 shrink-0"
+                    onClick={() => pickColor(defaultColor)}
+                  >
+                    <RestoreDefaultIcon />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">{t('color.restoreDefault')}</TooltipContent>
+              </Tooltip>
+            )}
           </div>
         )}
       </div>

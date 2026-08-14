@@ -117,7 +117,10 @@ export const syncHydratedStateToCanvasDocument = (
   documents.activateDocument(
     getSessionCanvasDocumentId(activeSession, hydratedState.slideDeck),
     {
-      grid: Array.from(hydratedState.grid.entries()),
+      grid:
+        hydratedState.canvasMode === "structured"
+          ? []
+          : Array.from(hydratedState.grid.entries()),
       scene:
         hydratedState.canvasMode === "structured" ? hydratedState.structuredScene : [],
       components: hydratedState.structuredComponents,

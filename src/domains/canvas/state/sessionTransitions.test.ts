@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { EditorState } from "./interfaces";
 import { useEditorStore } from "@/domains/canvas/testing";
-import { applyFreeformSnapshotToYMaps } from "@/domains/canvas/testing";
+import {
+  applyFreeformSnapshotToYMaps,
+  defaultCanvasDocuments,
+} from "@/domains/canvas/testing";
 import { createDocumentInteractionResetPatch } from "./transitions/editorTransitions";
 
 const initialState = useEditorStore.getState();
@@ -92,5 +95,76 @@ describe("session transitions", () => {
       canvasMode: "structured",
       tool: "pan",
     });
+  });
+
+  it("reuses the projected structured snapshot and keeps derived grid out of Yjs", () => {
+    const freeformSessionId = useEditorStore.getState().activeCanvasId;
+    useEditorStore.getState().createCanvasSession("structured");
+    const structuredSessionId = useEditorStore.getState().activeCanvasId;
+    useEditorStore.getState().applyStructuredScene([
+      {
+        id: "cached-text",
+        type: "text",
+        order: 1,
+        position: { x: 2, y: 3 },
+        text: "Cached",
+        style: { color: "#111111" },
+      },
+    ]);
+    const projectedSession = useEditorStore
+      .getState()
+      .canvasSessions.find((session) => session.id === structuredSessionId)!;
+
+    useEditorStore.getState().switchCanvasSession(freeformSessionId);
+    useEditorStore.getState().switchCanvasSession(structuredSessionId);
+
+    const restored = useEditorStore.getState();
+    expect(restored.structuredScene).toBe(projectedSession.scene);
+    expect(restored.grid.get("2,3")?.char).toBe("C");
+    expect(
+      defaultCanvasDocuments
+        .getCollaborationDocument(structuredSessionId)
+        ?.getMap("main-grid").size
+    ).toBe(0);
+  });
+
+  it("repairs and retains a missing structured grid cache", () => {
+    const freeformSessionId = useEditorStore.getState().activeCanvasId;
+    const structuredSessionId = `structured-cache-${crypto.randomUUID()}`;
+    useEditorStore.setState((state) => ({
+      canvasSessions: [
+        ...state.canvasSessions,
+        {
+          id: structuredSessionId,
+          name: "Structured Cache",
+          mode: "structured",
+          scene: [
+            {
+              id: "cache-text",
+              type: "text",
+              order: 1,
+              position: { x: 4, y: 5 },
+              text: "Repair",
+              style: { color: "#111111" },
+            },
+          ],
+          components: [],
+          grid: [],
+        },
+      ],
+    }));
+
+    useEditorStore.getState().switchCanvasSession(structuredSessionId);
+    const repaired = useEditorStore
+      .getState()
+      .canvasSessions.find((session) => session.id === structuredSessionId)!;
+    expect(repaired.grid.length).toBeGreaterThan(0);
+
+    useEditorStore.getState().switchCanvasSession(freeformSessionId);
+    useEditorStore.getState().switchCanvasSession(structuredSessionId);
+    const restored = useEditorStore
+      .getState()
+      .canvasSessions.find((session) => session.id === structuredSessionId)!;
+    expect(restored.grid).toBe(repaired.grid);
   });
 });

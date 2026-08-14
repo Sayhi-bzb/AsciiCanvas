@@ -9,8 +9,6 @@ import type {
 import { sceneToGridEntries } from '@/domains/structured-content/public';
 import { MIN_ZOOM, MAX_ZOOM } from '@/shared/lib/constants';
 import { serializeGrid } from './snapshotHelpers';
-import { normalizeStructuredComponents } from '@/domains/structured-content/public';
-import { normalizeAndCloneScene } from './snapshotHelpers';
 import { normalizeSessionMode } from '@/domains/sessions/public';
 import {
   createSlideDeck,
@@ -86,12 +84,18 @@ export const resolveSessionRuntime = (session: CanvasSession, currentTool: ToolT
     nextMode === 'slide' && session.mode === 'slide'
       ? normalizeSlideDeck(session.slideDeck, `${session.id}-slide-1`)
       : null;
-  const nextScene = nextMode === 'structured' ? normalizeAndCloneScene(session.scene) : [];
+  // CanvasSession values are normalized at restore/import boundaries and kept in
+  // sync by the active document projector. Preserve their identities here so a
+  // session switch does not invalidate structured projection caches.
+  const nextScene = nextMode === 'structured' ? session.scene : [];
   const nextComponents =
-    nextMode === 'structured' ? normalizeStructuredComponents(session.components, nextScene) : [];
+    nextMode === 'structured' ? (session.components ?? []) : [];
+  const structuredGrid = session.mode !== 'slide' ? session.grid : [];
   const nextGridEntries =
     nextMode === 'structured'
-      ? sceneToGridEntries(nextScene)
+      ? structuredGrid.length > 0 || nextScene.length === 0
+        ? structuredGrid
+        : sceneToGridEntries(nextScene)
       : nextMode === 'slide' && nextSlideDeck
         ? (nextSlideDeck.slides.find((slide) => slide.id === nextSlideDeck.activeSlideId)?.grid ??
           [])

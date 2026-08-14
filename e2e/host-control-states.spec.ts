@@ -265,20 +265,20 @@ for (const scenario of [
       const desktopSidebar = page.locator(
         `[data-slot="sidebar"][data-collapsed-appearance="trigger"]`
       );
-      const sidebarInner = desktopSidebar.locator(
-        `[data-slot="sidebar-inner"]`
+      const sidebarSurface = desktopSidebar.locator(
+        `[data-slot="sidebar-container"]`
       );
       await sidebarToggle.click();
       await expect(desktopSidebar).toHaveAttribute("data-state", "collapsed");
-      await expect(sidebarInner).toHaveClass(/shadow-none/);
-      await expect(sidebarInner).not.toHaveClass(/shadow-host/);
-      await expect(sidebarInner).toHaveCSS(
+      await expect(sidebarSurface).toHaveClass(/shadow-none/);
+      await expect(sidebarSurface).not.toHaveClass(/shadow-host/);
+      await expect(sidebarSurface).toHaveCSS(
         "background-color",
         "rgba(0, 0, 0, 0)"
       );
       await sidebarToggle.click();
       await expect(desktopSidebar).toHaveAttribute("data-state", "expanded");
-      await expect(sidebarInner).toHaveClass(/shadow-host/);
+      await expect(sidebarSurface).toHaveClass(/shadow-host/);
     }
 
     if (scenario.viewport.width >= 600) {

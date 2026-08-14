@@ -152,12 +152,6 @@ export const TOOLBAR_ACTION_META: Record<ToolbarActionId, ActionMeta<ToolbarActi
     id: "undo",
     icon: HOST_ICONOLOGY.toolbarAction.undo,
   },
-  color: {
-    id: "color",
-    label: "Color",
-    icon: HOST_ICONOLOGY.toolbarAction.color,
-    hasSub: true,
-  },
   pan: {
     id: "pan",
     label: "Hand",

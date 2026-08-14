@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   BACKGROUND_COLOR,
+  COLOR_ACTIVE_CELL_BG,
+  COLOR_ACTIVE_CELL_BORDER,
   COLOR_SELECTION_BG,
   COLOR_TEXT_CURSOR_BG,
   COLOR_TEXT_CURSOR_FG,
   GRID_COLOR,
 } from '@/shared/lib/constants';
+import { isStaticGridMode } from '@/domains/sessions/public';
 import type { CanvasRenderModel } from './canvasModels';
 import { GridManager } from '@/shared/utils/grid';
 import type { SelectionArea, GridMap, Point, NodeBounds } from '@/shared/types';
@@ -116,6 +119,31 @@ export const drawCanvasColorPickerAnchor = (
   ctx.lineTo(x, y + height);
   ctx.lineTo(x, y + height - corner);
   ctx.stroke();
+  ctx.restore();
+};
+
+export const drawActiveCellFocus = (
+  ctx: CanvasRenderingContext2D,
+  point: Point,
+  viewport: { offset: Point; zoom: number }
+) => {
+  const pos = gridCellRect(point, viewport);
+  ctx.save();
+  ctx.fillStyle = COLOR_ACTIVE_CELL_BG;
+  ctx.strokeStyle = COLOR_ACTIVE_CELL_BORDER;
+  ctx.lineWidth = Math.max(1, Math.round(1.5 * viewport.zoom));
+  ctx.fillRect(
+    Math.round(pos.x),
+    Math.round(pos.y),
+    Math.round(pos.width),
+    Math.round(pos.height)
+  );
+  ctx.strokeRect(
+    Math.round(pos.x),
+    Math.round(pos.y),
+    Math.round(pos.width),
+    Math.round(pos.height)
+  );
   ctx.restore();
 };
 
@@ -339,34 +367,16 @@ export const useCanvasRenderer = (
           drawLayer(uiCtx, structuredPreviewMovingGrid, viewBounds, zoom, renderOffset);
         }
 
-        const drawActiveCellFocus = (point: Point) => {
-          const pos = gridCellRect(point, { offset: renderOffset, zoom });
-          uiCtx.save();
-          uiCtx.fillStyle = 'rgba(37, 99, 235, 0.12)';
-          uiCtx.strokeStyle = '#2563eb';
-          uiCtx.lineWidth = Math.max(1, Math.round(1.5 * zoom));
-          uiCtx.fillRect(
-            Math.round(pos.x),
-            Math.round(pos.y),
-            Math.round(pos.width),
-            Math.round(pos.height)
-          );
-          uiCtx.strokeRect(
-            Math.round(pos.x),
-            Math.round(pos.y),
-            Math.round(pos.width),
-            Math.round(pos.height)
-          );
-          uiCtx.restore();
-        };
-
         if (canvasMode === 'structured') {
           if (
             structuredGridFocus &&
             !editingStructuredTextNodeId &&
             selectedStructuredNodeIds.length === 0
           ) {
-            drawActiveCellFocus(structuredGridFocus);
+            drawActiveCellFocus(uiCtx, structuredGridFocus, {
+              offset: renderOffset,
+              zoom,
+            });
           }
 
           const selectionRange = getStructuredTextSelectionRange(structuredTextSelection);
@@ -526,8 +536,11 @@ export const useCanvasRenderer = (
 
         if (renderedTextCursor) {
           const pos = gridCellRect(renderedTextCursor, { offset: renderOffset, zoom });
-          if (canvasMode === 'freeform') {
-            drawActiveCellFocus(renderedTextCursor);
+          if (isStaticGridMode(canvasMode)) {
+            drawActiveCellFocus(uiCtx, renderedTextCursor, {
+              offset: renderOffset,
+              zoom,
+            });
           } else if (canvasMode === 'structured' && editingStructuredTextNodeId) {
             uiCtx.fillStyle = COLOR_TEXT_CURSOR_BG;
             uiCtx.fillRect(

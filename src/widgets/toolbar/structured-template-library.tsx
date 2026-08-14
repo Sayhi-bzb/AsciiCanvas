@@ -1,6 +1,6 @@
 "use client";
 
-import type { DragEvent } from "react";
+import { useEffect, useRef, useState, type DragEvent } from "react";
 import { cn } from "@/shared/lib/utils";
 import { rx } from "@/shared/styles/recipes";
 import {
@@ -54,6 +54,51 @@ const handleTemplateDragStart =
     }
   };
 
+function VisibleStructuredTemplatePreview({
+  templateId,
+}: {
+  templateId: StructuredTemplateId;
+}) {
+  const hostRef = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(
+    () => typeof IntersectionObserver === "undefined"
+  );
+
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host || visible || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((entry) => entry.isIntersecting)) return;
+        setVisible(true);
+        observer.disconnect();
+      },
+      { rootMargin: "160px 0px" }
+    );
+    observer.observe(host);
+    return () => observer.disconnect();
+  }, [visible]);
+
+  return (
+    <div
+      ref={hostRef}
+      data-testid="structured-template-preview-lazy-host"
+      className="size-full"
+    >
+      {visible ? (
+        <StructuredTemplatePreviewGrid
+          preview={getStructuredTemplatePreview(templateId)}
+          cellWidth={5}
+          cellHeight={9}
+          fontSize={8}
+          fit="contain"
+          className="text-foreground"
+        />
+      ) : null}
+    </div>
+  );
+}
+
 type StructuredTemplateLibraryProps = {
   templates?: StructuredTemplateListItem[];
   query?: string;
@@ -105,14 +150,7 @@ export function StructuredTemplateLibrary({
                   "relative aspect-video w-full overflow-hidden"
                 )}
               >
-                <StructuredTemplatePreviewGrid
-                  preview={getStructuredTemplatePreview(template.id)}
-                  cellWidth={5}
-                  cellHeight={9}
-                  fontSize={8}
-                  fit="contain"
-                  className="text-foreground"
-                />
+                <VisibleStructuredTemplatePreview templateId={template.id} />
               </div>
               <span className="truncate px-1 text-xs text-foreground">
                 {template.label}

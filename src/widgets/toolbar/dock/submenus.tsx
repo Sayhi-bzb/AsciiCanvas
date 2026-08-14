@@ -11,7 +11,6 @@ import {
 } from "@/shared/ui/dropdown-menu";
 import { Input } from "@/shared/ui/input";
 import { getFirstGrapheme } from "@/shared/utils/characters";
-import { ColorPickerPanel } from "@/widgets/color-picker";
 import { MATERIAL_PRESETS } from "./constants";
 
 type BrushSubmenuProps = {
@@ -130,31 +129,5 @@ export function ShapeSubmenu({
         );
       })}
     </DropdownMenuRadioGroup>
-  );
-}
-
-type ColorSubmenuProps = {
-  brushColor: string;
-  setBrushColor: (color: string) => void;
-  applyStructuredTextColor?: (color: string) => void;
-  onPicked: () => void;
-};
-
-export function ColorSubmenu({
-  brushColor,
-  setBrushColor,
-  applyStructuredTextColor,
-  onPicked,
-}: ColorSubmenuProps) {
-  return (
-    <ColorPickerPanel
-      value={brushColor}
-      onPick={(color) => {
-        setBrushColor(color);
-        applyStructuredTextColor?.(color);
-        onPicked();
-      }}
-      onCanvasPickStarted={onPicked}
-    />
   );
 }

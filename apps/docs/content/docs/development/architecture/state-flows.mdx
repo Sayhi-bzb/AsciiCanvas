@@ -19,6 +19,9 @@ stay out of editor state and surface as collaboration integrity issues.
 
 - Canvas content: command or provider -> one Yjs transaction -> canvas projector
   -> editor state -> widgets.
+- Session activation: projected session snapshot -> mode-authoritative Yjs map
+  -> one editor-state activation patch. The outgoing session checkpoints only
+  its viewport because content projection is already current.
 - Slide activation: deck slide -> active Yjs editing buffer.
 - Slide edit: command -> active Yjs editing buffer -> deck and session snapshot.
 - Local restore: sessions decoder -> canvas recovery adapter -> active Yjs document.
@@ -32,3 +35,7 @@ stay out of editor state and surface as collaboration integrity issues.
 Local sessions persist content snapshots. Collaborative sessions persist only
 their shell and descriptor; room content is restored through collaboration
 persistence, never from the editor snapshot.
+
+For a local Structured session, scene and components are authoritative. Its
+session grid is a projector-maintained rendering cache; activation may reuse or
+repair that cache, but must not copy it into the Structured Yjs document.

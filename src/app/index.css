@@ -232,7 +232,6 @@ body,
   bottom: var(--editor-safe-bottom);
 }
 
-
 .chardesk-onboarding.driver-popover {
   min-width: 16rem;
   max-width: 20rem;

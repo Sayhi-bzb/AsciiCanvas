@@ -9,9 +9,13 @@ without viewport positioning.
 
 - `desktop` and `compact` keep one right Sidebar shell over a stable Canvas.
   Its toggle remains in the same header slot while the shell animates between
-  expanded and trigger widths.
+  expanded and trigger widths. The shell remains anchored to the right safe
+  edge, so the left-rail toggle moves to the upper-right position on collapse.
 - Only the expanded Sidebar reserves its occupied viewport edge. Sidebar state
   never resizes or remounts the Canvas.
+- The Sidebar region owns width animation and reservation, the Sidebar container
+  owns the host surface and elevation, and its inner layer clips content during
+  collapse. Chrome regions do not clip surface shadows.
 - `phone` presents the sidebar as a modal Sheet.
 - Registered chrome regions produce one `EditorViewportFrame`. Regions on the
   same edge reserve their maximum intrusion, not their sum. Camera fit, zoom

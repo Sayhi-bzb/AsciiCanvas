@@ -57,7 +57,7 @@ const makeGrid = (width: number, height: number): GridEntry[] => {
 };
 
 const makeStructuredScene = (nodeCount = 96) => {
-  const scene = [];
+  const scene: Array<Record<string, unknown>> = [];
   let order = 1;
 
   for (let i = 0; scene.length < nodeCount; i++) {
@@ -129,12 +129,91 @@ const makePersistedState = (
   };
 };
 
+const makeSessionSwitchPersistedState = () => {
+  const freeformGrid = makeGrid(180, 90);
+  const columns = 400;
+  const rows = 150;
+  const structuredGrid: GridEntry[] = [];
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < columns; x++) {
+      structuredGrid.push([
+        key(x, y),
+        { char: " ", color: "#111", bgColor: "#def" },
+      ]);
+    }
+  }
+  const structuredScene = [
+    {
+      id: "large-background",
+      type: "bg",
+      order: 1,
+      start: { x: 0, y: 0 },
+      end: { x: columns - 1, y: rows - 1 },
+      style: { color: "#111", bgColor: "#def" },
+    },
+  ];
+  const sessions = [
+    {
+      id: "freeform-switch-source",
+      name: "Free Canvas 2",
+      mode: "freeform",
+      scene: [],
+      components: [],
+      grid: freeformGrid,
+      viewport: { offset: { x: 180, y: 130 }, zoom: 1 },
+    },
+    {
+      id: "structured-switch-target",
+      name: "Structured Canvas 1",
+      mode: "structured",
+      scene: structuredScene,
+      components: [],
+      grid: structuredGrid,
+      viewport: { offset: { x: 180, y: 130 }, zoom: 1 },
+    },
+  ];
+
+  return {
+    state: {
+      schemaVersion: 5,
+      workspace: {
+        offset: { x: 180, y: 130 },
+        zoom: 1,
+        canvasMode: "freeform",
+        grid: freeformGrid,
+        structuredScene: [],
+        structuredComponents: [],
+      },
+      sessions: { items: sessions, activeId: sessions[0].id },
+      preferences: {
+        brushChar: "█",
+        brushColor: "#111827",
+        brushBackgroundColor: "#000000",
+        showGrid: true,
+        exportShowGrid: false,
+      },
+    },
+    version: 5,
+  };
+};
+
 const seedCanvas = async (
   page: Page,
   mode: "freeform" | "structured",
   options: { structuredNodeCount?: number } = {}
 ) => {
   const persisted = makePersistedState(mode, options);
+  await page.addInitScript(
+    ({ storageKey, value }) => {
+      window.localStorage.clear();
+      window.localStorage.setItem(storageKey, JSON.stringify(value));
+    },
+    { storageKey: STORAGE_KEY, value: persisted }
+  );
+};
+
+const seedSessionSwitch = async (page: Page) => {
+  const persisted = makeSessionSwitchPersistedState();
   await page.addInitScript(
     ({ storageKey, value }) => {
       window.localStorage.clear();
@@ -447,6 +526,69 @@ test.describe.serial("Performance smoke", () => {
       contentType: "application/json",
     });
   });
+
+  test("large cached structured session switches atomically", async ({ page }, testInfo) => {
+    await seedSessionSwitch(page);
+    await page.goto("/");
+    await page.locator("canvas").first().waitFor();
+    await page.getByRole("button", { name: "Select canvas" }).click();
+
+    await page.evaluate(() => {
+      const probe = {
+        startedAt: performance.now(),
+        frames: [] as number[],
+        longTasks: [] as number[],
+        observer: null as PerformanceObserver | null,
+      };
+      let previousFrame = probe.startedAt;
+      const sampleFrame = (now: number) => {
+        probe.frames.push(now - previousFrame);
+        previousFrame = now;
+        if (probe.frames.length < 120) requestAnimationFrame(sampleFrame);
+      };
+      requestAnimationFrame(sampleFrame);
+      try {
+        probe.observer = new PerformanceObserver((list) => {
+          list.getEntries().forEach((entry) => probe.longTasks.push(entry.duration));
+        });
+        probe.observer.observe({ entryTypes: ["longtask"] });
+      } catch {
+        probe.observer = null;
+      }
+      window.__sessionSwitchPerf = probe;
+    });
+
+    await page
+      .getByRole("menuitem", { name: /^Structured Canvas 1$/ })
+      .click();
+    await expect(page.getByRole("button", { name: "Select canvas" })).toContainText(
+      "Structured Canvas 1"
+    );
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+        )
+    );
+    const metrics = await page.evaluate(() => {
+      const probe = window.__sessionSwitchPerf;
+      probe.observer?.disconnect();
+      return {
+        elapsedMs: performance.now() - probe.startedAt,
+        maxFrameMs: Math.max(0, ...probe.frames),
+        maxLongTaskMs: Math.max(0, ...probe.longTasks),
+        longTaskCount: probe.longTasks.length,
+      };
+    });
+
+    await testInfo.attach("session-switch.json", {
+      body: JSON.stringify(metrics, null, 2),
+      contentType: "application/json",
+    });
+    expect(metrics.elapsedMs).toBeLessThanOrEqual(500);
+    expect(metrics.maxFrameMs).toBeLessThanOrEqual(200);
+    expect(metrics.maxLongTaskMs).toBeLessThanOrEqual(200);
+  });
 });
 
 declare global {
@@ -455,6 +597,12 @@ declare global {
       frames: number[];
       longTasks: number[];
       rafId: number;
+      observer: PerformanceObserver | null;
+    };
+    __sessionSwitchPerf: {
+      startedAt: number;
+      frames: number[];
+      longTasks: number[];
       observer: PerformanceObserver | null;
     };
   }

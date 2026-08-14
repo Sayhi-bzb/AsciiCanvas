@@ -637,6 +637,56 @@ describe("CanvasEditor focus management", () => {
     });
   });
 
+  it("uses static-grid keyboard navigation and range extension in slides", () => {
+    useEditorStore.setState({
+      canvasMode: "slide",
+      slideDeck: {
+        activeSlideId: "slide-1",
+        slides: [
+          {
+            id: "slide-1",
+            name: "Slide 1",
+            size: { columns: 3, rows: 2 },
+            grid: [],
+          },
+        ],
+      },
+      textCursor: { x: 1, y: 1 },
+      selections: [],
+      staticGridSelection: {
+        activeCell: { x: 1, y: 1 },
+        anchorCell: { x: 1, y: 1 },
+        ranges: [],
+      },
+      staticGridEditMode: "navigate",
+      structuredGridFocus: null,
+      selectedStructuredNodeIds: [],
+    });
+
+    const { container, getByTestId } = render(
+      <CanvasEditor onUndo={vi.fn()} onRedo={vi.fn()} />
+    );
+    const textarea = container.querySelector("textarea");
+    expect(textarea).not.toBeNull();
+    fireEvent.pointerDown(getByTestId("canvas-editor-surface"));
+
+    fireEvent.keyDown(textarea!, { key: "ArrowRight" });
+    expect(useEditorStore.getState().staticGridSelection.activeCell).toEqual({
+      x: 2,
+      y: 1,
+    });
+    expect(useEditorStore.getState().textCursor).toEqual({ x: 2, y: 1 });
+
+    fireEvent.keyDown(textarea!, { key: "ArrowUp", shiftKey: true });
+    expect(useEditorStore.getState().staticGridSelection).toEqual({
+      activeCell: { x: 2, y: 0 },
+      anchorCell: { x: 2, y: 1 },
+      ranges: [{ start: { x: 2, y: 0 }, end: { x: 2, y: 1 } }],
+    });
+    expect(useEditorStore.getState().textCursor).toBeNull();
+    expect(useEditorStore.getState().structuredGridFocus).toBeNull();
+  });
+
   it("moves and clears structured grid focus from the managed textarea", () => {
     useEditorStore.setState({
       canvasMode: "structured",

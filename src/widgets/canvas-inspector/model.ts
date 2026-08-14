@@ -11,16 +11,13 @@ type StructuredInspectorModel = ReturnType<
 >;
 
 type CanvasInspectorModel =
-  | { visible: false }
   | {
-      visible: true;
-      mode: "freeform";
+      mode: "grid";
       activeColor: string;
       canvasPickDestination: "foreground" | "background";
       hasSelection: boolean;
     }
   | {
-      visible: true;
       mode: "structured";
       activeColor: string;
       canvasPickDestination: "foreground";
@@ -32,7 +29,7 @@ export const deriveCanvasInspectorModel = ({
   tool,
   brushColor,
   brushBackgroundColor,
-  hasFreeformSelection,
+  hasGridSelection,
   structuredScene,
   selectedStructuredNodeIds,
   structuredTextSelection,
@@ -41,21 +38,18 @@ export const deriveCanvasInspectorModel = ({
   tool: ToolType;
   brushColor: string;
   brushBackgroundColor: string;
-  hasFreeformSelection: boolean;
+  hasGridSelection: boolean;
   structuredScene: StructuredNode[];
   selectedStructuredNodeIds: string[];
   structuredTextSelection: StructuredTextSelection | null;
 }): CanvasInspectorModel => {
-  if (canvasMode === "slide") return { visible: false };
-
-  if (canvasMode === "freeform") {
+  if (canvasMode !== "structured") {
     const isBackgroundTool = tool === "bg";
     return {
-      visible: true,
-      mode: "freeform",
+      mode: "grid",
       activeColor: isBackgroundTool ? brushBackgroundColor : brushColor,
       canvasPickDestination: isBackgroundTool ? "background" : "foreground",
-      hasSelection: hasFreeformSelection,
+      hasSelection: hasGridSelection,
     };
   }
 
@@ -66,7 +60,6 @@ export const deriveCanvasInspectorModel = ({
     textSelection: structuredTextSelection,
   });
   return {
-    visible: true,
     mode: "structured",
     activeColor:
       structured.primaryColor.kind === "value" &&

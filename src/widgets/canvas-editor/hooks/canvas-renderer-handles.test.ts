@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  drawActiveCellFocus,
   drawCanvasColorPickerAnchor,
   getStructuredSplitBoxActiveLeafBounds,
 } from "@/widgets/canvas-editor/hooks/useCanvasRenderer";
@@ -9,6 +10,35 @@ import {
 } from "@/domains/structured-content/public";
 
 describe("useCanvasRenderer structured rect handles", () => {
+  it("draws the semantic active-cell fill and border", () => {
+    const styles: { fill?: string; stroke?: string } = {};
+    const ctx = {
+      save: vi.fn(),
+      restore: vi.fn(),
+      fillRect: vi.fn(),
+      strokeRect: vi.fn(),
+      set lineWidth(_value: number) {},
+      set fillStyle(value: string | CanvasGradient | CanvasPattern) {
+        styles.fill = String(value);
+      },
+      set strokeStyle(value: string | CanvasGradient | CanvasPattern) {
+        styles.stroke = String(value);
+      },
+    } as unknown as CanvasRenderingContext2D;
+
+    drawActiveCellFocus(ctx, { x: 2, y: 3 }, {
+      offset: { x: 0, y: 0 },
+      zoom: 1,
+    });
+
+    expect(styles).toEqual({
+      fill: "rgba(37, 99, 235, 0.12)",
+      stroke: "#2563eb",
+    });
+    expect(ctx.fillRect).toHaveBeenCalledWith(18, 57, 9, 19);
+    expect(ctx.strokeRect).toHaveBeenCalledWith(18, 57, 9, 19);
+  });
+
   it("returns eight handles for rectangular structured nodes", () => {
     expect(
       getStructuredRectHandlePoints({ x: 2, y: 3, width: 5, height: 4 })

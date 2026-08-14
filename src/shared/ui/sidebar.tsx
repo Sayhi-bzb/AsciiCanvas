@@ -210,6 +210,11 @@ function Sidebar({
         data-slot="sidebar-container"
         className={cn(
           "relative flex size-full min-h-0 min-w-0",
+          variant === "floating" &&
+            rx.floatingHost({
+              appearance: isTriggerCollapsed ? "transparent" : "raised",
+              animated: true,
+            }),
           className
         )}
         {...props}
@@ -218,12 +223,8 @@ function Sidebar({
           data-sidebar="sidebar"
           data-slot="sidebar-inner"
           className={cn(
-            "bg-sidebar flex h-full w-full flex-col overflow-hidden transition-[background-color,box-shadow] duration-200 ease-out motion-reduce:transition-none",
-            variant === "floating" && "rounded-lg border-0",
-            variant === "floating" &&
-              (isTriggerCollapsed
-                ? "bg-transparent! shadow-none"
-                : "bg-host-surface shadow-host")
+            "flex h-full w-full flex-col overflow-hidden",
+            variant === "floating" ? "rounded-[inherit] bg-transparent" : "bg-sidebar"
           )}
         >
           {children}

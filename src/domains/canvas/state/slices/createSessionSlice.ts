@@ -8,13 +8,11 @@ import type {
   SessionCommands,
 } from "@/domains/sessions/public";
 import {
-  buildSessionSnapshot,
   resolveSessionRuntime,
   getSessionCanvasDocumentId,
 } from "../helpers/storeUtils";
 import { getSlideEditingBufferId } from "../slideEditingBuffer";
 import {
-  withActiveCanvasSnapshot,
   normalizeSessionMode,
   createSessionId,
   resolveNextSessionName,
@@ -96,6 +94,43 @@ const destroySessionDocuments = (
   documents.destroyDocument(session.id);
 };
 
+const checkpointActiveSessionViewport = (
+  state: Pick<EditorState, "canvasSessions" | "activeCanvasId" | "offset" | "zoom">
+): CanvasSession[] =>
+  state.canvasSessions.map((session): CanvasSession => {
+    if (session.id !== state.activeCanvasId) return session;
+    const viewport = {
+      offset: { ...state.offset },
+      zoom: state.zoom,
+    };
+    switch (session.mode) {
+      case "slide":
+        return { ...session, viewport };
+      case "structured":
+        return { ...session, viewport };
+      case "freeform":
+        return { ...session, viewport };
+    }
+  });
+
+const cacheStructuredRuntimeGrid = (
+  sessions: CanvasSession[],
+  target: CanvasSession,
+  runtime: ReturnType<typeof resolveSessionRuntime>
+) => {
+  if (
+    target.mode !== "structured" ||
+    target.grid === runtime.nextGridEntries
+  ) {
+    return sessions;
+  }
+  return sessions.map((session): CanvasSession =>
+    session.id === target.id && session.mode === "structured"
+      ? { ...session, grid: runtime.nextGridEntries }
+      : session
+  );
+};
+
 const activateSessionRuntime = (
   documents: CanvasDocumentRegistry,
   session: CanvasSession,
@@ -105,7 +140,10 @@ const activateSessionRuntime = (
   documents.activateDocument(
     getSessionCanvasDocumentId(session, initialRuntime.nextSlideDeck),
     {
-      grid: initialRuntime.nextGridEntries,
+      grid:
+        initialRuntime.nextMode === "structured"
+          ? []
+          : initialRuntime.nextGridEntries,
       scene:
         initialRuntime.nextMode === "structured"
           ? initialRuntime.nextScene
@@ -143,12 +181,7 @@ export const createSessionSlice = (
 > => (set, get) => ({
   createCanvasSession: (mode = "freeform", options) => {
     const state = get();
-    const snapshot = buildSessionSnapshot(state);
-    const sessionsWithSnapshot = withActiveCanvasSnapshot(
-      state.canvasSessions,
-      state.activeCanvasId,
-      snapshot
-    );
+    const sessionsWithSnapshot = checkpointActiveSessionViewport(state);
 
     const normalizedMode = normalizeSessionMode(mode);
     const sessionId = createSessionId(sessionsWithSnapshot);
@@ -176,9 +209,10 @@ export const createSessionSlice = (
           };
 
     const runtime = activateSessionRuntime(documents, newSession, state.tool);
+    const nextSessions = [...sessionsWithSnapshot, newSession];
     set(
       createSessionActivationPatch(
-        [...sessionsWithSnapshot, newSession],
+        cacheStructuredRuntimeGrid(nextSessions, newSession, runtime),
         newSession.id,
         runtime
       )
@@ -187,12 +221,7 @@ export const createSessionSlice = (
   },
   importCanvasSession: (raw, options) => {
     const state = get();
-    const snapshot = buildSessionSnapshot(state);
-    const sessionsWithSnapshot = withActiveCanvasSnapshot(
-      state.canvasSessions,
-      state.activeCanvasId,
-      snapshot
-    );
+    const sessionsWithSnapshot = checkpointActiveSessionViewport(state);
     const importedSnapshot = parseSessionSource(raw);
     const sessionId = createSessionId(sessionsWithSnapshot);
     const sessionName = resolveImportedSessionName(
@@ -207,9 +236,10 @@ export const createSessionSlice = (
       importedSnapshot
     );
     const runtime = activateSessionRuntime(documents, newSession, state.tool);
+    const nextSessions = [...sessionsWithSnapshot, newSession];
     set(
       createSessionActivationPatch(
-        [...sessionsWithSnapshot, newSession],
+        cacheStructuredRuntimeGrid(nextSessions, newSession, runtime),
         newSession.id,
         runtime
       )
@@ -221,31 +251,27 @@ export const createSessionSlice = (
     const state = get();
     if (canvasId === state.activeCanvasId) return;
 
-    const snapshot = buildSessionSnapshot(state);
-    const sessionsWithSnapshot = withActiveCanvasSnapshot(
-      state.canvasSessions,
-      state.activeCanvasId,
-      snapshot
-    );
+    const sessionsWithSnapshot = checkpointActiveSessionViewport(state);
     const target = sessionsWithSnapshot.find(
       (session) => session.id === canvasId
     );
     if (!target) return;
 
     const runtime = activateSessionRuntime(documents, target, state.tool);
-    set(createSessionActivationPatch(sessionsWithSnapshot, canvasId, runtime));
+    set(
+      createSessionActivationPatch(
+        cacheStructuredRuntimeGrid(sessionsWithSnapshot, target, runtime),
+        canvasId,
+        runtime
+      )
+    );
 
   },
   removeCanvasSession: (canvasId) => {
     const state = get();
     if (state.canvasSessions.length <= 1) return;
 
-    const snapshot = buildSessionSnapshot(state);
-    const sessionsWithSnapshot = withActiveCanvasSnapshot(
-      state.canvasSessions,
-      state.activeCanvasId,
-      snapshot
-    );
+    const sessionsWithSnapshot = checkpointActiveSessionViewport(state);
     const removedIndex = sessionsWithSnapshot.findIndex(
       (session) => session.id === canvasId
     );
@@ -266,7 +292,13 @@ export const createSessionSlice = (
     const nextIndex = Math.min(removedIndex, remaining.length - 1);
     const nextSession = remaining[nextIndex];
     const runtime = activateSessionRuntime(documents, nextSession, state.tool);
-    set(createSessionActivationPatch(remaining, nextSession.id, runtime));
+    set(
+      createSessionActivationPatch(
+        cacheStructuredRuntimeGrid(remaining, nextSession, runtime),
+        nextSession.id,
+        runtime
+      )
+    );
 
     destroySessionDocuments(documents, sessionsWithSnapshot[removedIndex]);
   },

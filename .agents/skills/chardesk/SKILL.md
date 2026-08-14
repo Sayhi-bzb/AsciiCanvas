@@ -11,11 +11,16 @@ Load only the reference required:
 - For `.slides.md` deck structure, read [`references/slides.md`](references/slides.md).
 - For styled Slides content, read the Slides reference first, then the ANSI reference.
 
-For new styled Canvas text, first finalize an ANSI-free plain layout. Then call
-`create_canvas_draft`, observe its canonical text and revision, and call
-`apply_canvas_style` without changing visible text or cell geometry. Retry a
-rejected style at most twice; return the plain draft if validation still fails.
+For new styled Canvas text, finalize the ANSI-free layout first. When
+`create_canvas_draft` and `apply_canvas_style` are exposed, call them directly:
+create the draft, use its canonical text and revision, then apply style without
+changing visible text or cell geometry. After acceptance, persist the returned
+`ansi_text` exactly; do not reconstruct it or append a line break. Do not probe
+for MCP with shell commands.
 
-When the MCP tools are unavailable, create separate plain and ANSI files and run
-`chardesk-canvas validate <plain-file> <ansi-file>`. Treat the references as the
-format owners and the validator as the geometry authority; do not reproduce parser logic.
+A rejected style is repairable, not an unavailable tool. Retry it at most twice;
+return the plain draft if validation still fails. Use the CLI fallback only when
+an MCP tool is absent or its call reports a transport, startup, or unavailable
+error: write separate plain and ANSI files, then run
+`chardesk-canvas validate <plain-file> <ansi-file>`. The validator owns geometry;
+do not reproduce parser or width logic.

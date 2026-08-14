@@ -93,6 +93,7 @@ describe("SidebarRight structured templates", () => {
     const content = container.querySelector('[data-slot="sidebar-content"]');
     const header = container.querySelector('[data-slot="sidebar-header"]');
     const footer = container.querySelector('[data-slot="sidebar-footer"]');
+    const sidebarSurface = container.querySelector('[data-slot="sidebar-container"]');
     const sidebarInner = container.querySelector('[data-slot="sidebar-inner"]');
     const group = container.querySelector('[data-slot="sidebar-group"]');
     const scrollArea = container.querySelector('[data-slot="scroll-area"]');
@@ -111,11 +112,13 @@ describe("SidebarRight structured templates", () => {
     expect(header).not.toHaveTextContent("Components");
     expect(header).not.toHaveClass("border-b");
     expect(footer).toBeNull();
-    expect(sidebarInner).toHaveClass(
+    expect(sidebarSurface).toHaveClass(
       "border-0",
       "bg-host-surface",
       "shadow-host"
     );
+    expect(sidebarInner).toHaveClass("overflow-hidden", "bg-transparent");
+    expect(sidebarInner).not.toHaveClass("shadow-host");
     expect(header).toContainElement(search);
     expect(search).toHaveClass("border-0", "bg-search-surface");
     expect(content).not.toContainElement(search);
@@ -461,6 +464,7 @@ describe("SidebarRight structured templates", () => {
     const headerContent = screen.getByTestId("sidebar-header-content");
     const content = container.querySelector('[data-slot="sidebar-content"]');
     const sidebar = container.querySelector('[data-slot="sidebar"]');
+    const surface = container.querySelector('[data-slot="sidebar-container"]');
     const inner = container.querySelector('[data-slot="sidebar-inner"]');
 
     fireEvent.click(screen.getByRole("tab", { name: "Emoji" }));
@@ -477,8 +481,9 @@ describe("SidebarRight structured templates", () => {
     expect(content).toHaveAttribute("inert");
     expect(headerContent).toHaveAttribute("aria-hidden", "true");
     expect(headerContent).toHaveAttribute("inert");
-    expect(inner).toHaveClass("bg-transparent!", "shadow-none");
-    expect(inner).not.toHaveClass("bg-host-surface", "shadow-host");
+    expect(surface).toHaveClass("bg-transparent", "shadow-none");
+    expect(surface).not.toHaveClass("bg-host-surface", "shadow-host");
+    expect(inner).toHaveClass("overflow-hidden", "bg-transparent");
     expect(trigger).toHaveClass("size-8", "pointer-events-auto");
     expect(trigger).not.toHaveClass("bg-muted");
     expect(screen.getAllByRole("button")).toEqual([trigger]);

@@ -123,4 +123,20 @@ describe("staticGridSlice", () => {
     expect(useEditorStore.getState().staticGridSelection.activeCell).toEqual({ x: 2, y: 1 });
     expect(useEditorStore.getState().textCursor).toEqual({ x: 2, y: 1 });
   });
+
+  it("uses the static-grid background color for slide background shapes", () => {
+    useEditorStore.setState({
+      canvasMode: "slide",
+      brushColor: "#111111",
+      brushBackgroundColor: "#abcdef",
+    });
+
+    useEditorStore
+      .getState()
+      .updateScratchForShape("bg", { x: 0, y: 0 }, { x: 1, y: 0 });
+
+    expect(useEditorStore.getState().scratchLayer?.get("0,0")?.bgColor).toBe(
+      "#abcdef"
+    );
+  });
 });

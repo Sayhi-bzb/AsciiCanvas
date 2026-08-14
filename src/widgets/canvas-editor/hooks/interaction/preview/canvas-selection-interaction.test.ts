@@ -36,18 +36,21 @@ describe("selection interaction commit decisions", () => {
     ).toEqual({ type: "fill", selection });
   });
 
-  it("turns single-cell freeform selections into a text cursor", () => {
-    const selection = { start: { x: 4, y: 7 }, end: { x: 4, y: 7 } };
+  it.each(["freeform", "slide"] as const)(
+    "turns single-cell %s selections into a static-grid active cell",
+    (canvasMode) => {
+      const selection = { start: { x: 4, y: 7 }, end: { x: 4, y: 7 } };
 
-    expect(
-      resolveSelectionCommitDecision({
-        selection,
-        tool: "select",
-        canvasMode: "freeform",
-        structuredScene: [],
-      })
-    ).toEqual({ type: "setTextCursor", point: selection.start });
-  });
+      expect(
+        resolveSelectionCommitDecision({
+          selection,
+          tool: "select",
+          canvasMode,
+          structuredScene: [],
+        })
+      ).toEqual({ type: "setStaticGridActiveCell", point: selection.start });
+    }
+  );
 
   it("keeps multi-cell freeform selections as selection areas", () => {
     const selection = { start: { x: 4, y: 7 }, end: { x: 6, y: 9 } };

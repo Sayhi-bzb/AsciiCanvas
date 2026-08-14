@@ -26,6 +26,7 @@ import {
   updateStructuredTextStyleRanges,
 } from "@/domains/structured-content/public";
 import { createDocumentInteractionResetPatch } from "../transitions/editorTransitions";
+import { isStaticGridMode } from "@/domains/sessions/public";
 
 const getFilledRectPoints = (
   start: { x: number; y: number },
@@ -98,10 +99,9 @@ export const createDrawingSlice = (
     let points: GridPoint[] = [];
     const state = get();
     const color = state.brushColor;
-    const backgroundColor =
-      state.canvasMode === "freeform"
-        ? state.brushBackgroundColor
-        : state.brushColor;
+    const backgroundColor = isStaticGridMode(state.canvasMode)
+      ? state.brushBackgroundColor
+      : state.brushColor;
     switch (tool) {
       case "box":
         points = getBoxPoints(start, end);

@@ -9,7 +9,7 @@ import {
 export type SelectionCommitDecision =
   | { type: "none" }
   | { type: "fill"; selection: SelectionArea }
-  | { type: "setTextCursor"; point: SelectionArea["start"] }
+  | { type: "setStaticGridActiveCell"; point: SelectionArea["start"] }
   | { type: "addSelection"; selection: SelectionArea }
   | { type: "setStructuredSelection"; ids: string[] }
   | { type: "setStructuredGridFocus"; point: SelectionArea["start"] };
@@ -40,6 +40,6 @@ export const resolveSelectionCommitDecision = ({
   }
 
   return isSingleCellSelection(selection)
-    ? { type: "setTextCursor", point: selection.start }
+    ? { type: "setStaticGridActiveCell", point: selection.start }
     : { type: "addSelection", selection };
 };
