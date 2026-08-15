@@ -24,17 +24,22 @@ import {
 } from "@/domains/selection/public";
 import { getCellOccupancy } from "@/shared/metrics";
 import { cloneTextAttributes } from "@/shared/utils/ansi";
+import { resolveGridSlot } from "@/shared/utils/grid-occupancy";
 import type { SelectionCommandFactory } from "../selectionCommandPort";
 import { getStructuredTextSelectionRange } from "@/domains/structured-content/public";
 
 const resolveSelectionAreas = (state: EditorState) => {
-  return getStaticGridSelectionAreas(state.staticGridSelection);
+  return getStaticGridSelectionAreas(state.staticGridSelection, state.grid);
 };
 
 const forEachSelectionSpan = (
   state: EditorState,
   visit: (span: { y: number; minX: number; maxX: number }) => void
-) => forEachGridSelectionSpan(getGridSelectionRanges(state.staticGridSelection), visit);
+) => forEachGridSelectionSpan(
+  getGridSelectionRanges(state.staticGridSelection),
+  visit,
+  state.grid
+);
 
 const isUnstyledBlankCell = (cell: GridCell) =>
   cell.char === " " && !cell.bgColor && !cloneTextAttributes(cell.attrs);
@@ -216,6 +221,7 @@ export const createSelectionSlice = (
     documents.mutateGrid((grid) => {
       forEachSelectionSpan(state, ({ y, minX, maxX }) => {
         for (let x = minX; x <= maxX; x++) {
+          if (resolveGridSlot(grid, { x, y })?.offset === 1) continue;
           const key = GridManager.toKey(x, y);
           const existingCell = grid.get(key);
           if (!existingCell && !shouldMaterializeBlank) continue;
@@ -257,6 +263,7 @@ export const createSelectionSlice = (
     documents.mutateGrid((grid) => {
       forEachSelectionSpan(state, ({ y, minX, maxX }) => {
         for (let x = minX; x <= maxX; x++) {
+          if (resolveGridSlot(grid, { x, y })?.offset === 1) continue;
           const key = GridManager.toKey(x, y);
           const existingCell = grid.get(key);
           if (!existingCell) continue;
@@ -276,6 +283,7 @@ export const createSelectionSlice = (
     documents.mutateGrid((grid) => {
       forEachSelectionSpan(state, ({ y, minX, maxX }) => {
         for (let x = minX; x <= maxX; x++) {
+          if (resolveGridSlot(grid, { x, y })?.offset === 1) continue;
           const key = GridManager.toKey(x, y);
           const existingCell = grid.get(key);
           if (!existingCell && !bgColor) continue;
@@ -304,18 +312,20 @@ export const createSelectionSlice = (
     const { minX, maxX, minY, maxY } = getSelectionBounds(area);
 
     documents.mutateGrid((grid) => {
+      const updated = new Set<string>();
       for (let y = minY; y <= maxY; y++) {
         for (let x = minX; x <= maxX; x++) {
-          const key = GridManager.toKey(x, y);
-          const existingCell = grid.get(key);
+          const slot = resolveGridSlot(grid, { x, y });
+          if (!slot) continue;
+          const key = GridManager.toKey(slot.anchor.x, slot.anchor.y);
+          if (updated.has(key)) continue;
+          updated.add(key);
+          const existingCell = slot.cell;
 
-          if (existingCell) {
-            grid.set(key, {
-              ...existingCell,
-              char: existingCell.char,
-              color: brushColor,
-            });
-          }
+          grid.set(key, {
+            ...existingCell,
+            color: brushColor,
+          });
         }
       }
     });

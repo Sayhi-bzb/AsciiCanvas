@@ -80,6 +80,7 @@ export const useCanvasEditorModels = () => {
   );
   const editorState = useCanvasState(
     useShallow((state) => ({
+      grid: state.grid,
       textCursor: state.textCursor,
       staticGridSelection: state.staticGridSelection,
       staticGridEditMode: state.staticGridEditMode,

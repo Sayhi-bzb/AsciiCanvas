@@ -32,6 +32,20 @@ const mapAnsiCells = (text: string, color: string, y = 0, startX = 0) => {
 };
 
 describe("clipboardActions", () => {
+  it("copies a complete wide character when only its follower is requested", () => {
+    const payload = buildClipboardPayload(
+      new Map([["0,0", { char: "你", color: "#ffffff" }]]),
+      [{ start: { x: 1, y: 0 }, end: { x: 1, y: 0 } }],
+      null,
+      "#ffffff"
+    );
+
+    expect(payload?.plain).toBe("你");
+    expect(JSON.parse(payload!.rich!).cells).toEqual([
+      { x: 0, y: 0, char: "你", color: "#ffffff" },
+    ]);
+  });
+
   it("builds structured clipboard payloads with nodes and normalized surface cells", () => {
     const payload = buildStructuredClipboardPayload(
       [

@@ -167,7 +167,7 @@ const getSelectedCells = (grid: GridMap, ranges: GridRange[]) => {
       const cell = grid.get(GridManager.toKey(x, y));
       if (cell) cells.push(cell);
     }
-  });
+  }, grid);
   return cells;
 };
 
@@ -226,8 +226,9 @@ export function SelectionFormatToolbar({
         selection: staticGridSelection,
         editMode: staticGridEditMode,
         textCursor,
+        grid,
       }),
-    [staticGridEditMode, staticGridSelection, textCursor]
+    [grid, staticGridEditMode, staticGridSelection, textCursor]
   );
   const activeSelections = useMemo(
     () => isStaticGridMode(canvasMode) ? staticGridView.selectionAreas : [],

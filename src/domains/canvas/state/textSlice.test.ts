@@ -51,6 +51,20 @@ describe("textSlice newlineText", () => {
     expect(useEditorStore.getState().textCursor).toEqual({ x: 4, y: 1 });
   });
 
+  it("finds the start of a contiguous row containing wide characters", () => {
+    setTextState({
+      textCursor: { x: 8, y: 0 },
+      grid: new Map([
+        ["4,0", { char: "你", color: "#ffffff" }],
+        ["6,0", { char: "好", color: "#ffffff" }],
+      ]),
+    });
+
+    useEditorStore.getState().newlineText();
+
+    expect(useEditorStore.getState().textCursor).toEqual({ x: 4, y: 1 });
+  });
+
   it("keeps the current column when the cursor is inside indentation", () => {
     setTextState({
       textCursor: { x: 2, y: 0 },

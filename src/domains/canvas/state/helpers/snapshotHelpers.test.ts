@@ -217,6 +217,17 @@ describe('snapshotHelpers', () => {
         ['0,0', { char: 'A', color: '#000000' }]
       ]);
     });
+
+    it('normalizes overlapping wide cells with the right anchor winning', () => {
+      expect(
+        normalizeGridEntries([
+          ['0,0', { char: '你', color: '#111111' }],
+          ['1,0', { char: 'B', color: '#222222' }]
+        ])
+      ).toEqual([
+        ['1,0', { char: 'B', color: '#222222' }]
+      ]);
+    });
   });
 
   describe('isSameCell', () => {

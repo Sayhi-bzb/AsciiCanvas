@@ -11,6 +11,7 @@ export type {
 export {
   forEachGridSelectionSpan,
   getGridSelectionGeometry,
+  getGridSelectionSpans,
 } from "./model/grid-selection-geometry";
 export {
   collapseGridSelectionTo,

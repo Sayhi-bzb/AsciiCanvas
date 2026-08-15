@@ -4,8 +4,12 @@ import {
   exportSelectionToString,
   exportToAnsi,
 } from "@/domains/export/public";
-import { forEachGridSelectionSpan } from "@/domains/selection/public";
+import {
+  forEachGridSelectionSpan,
+  getGridSelectionSpans,
+} from "@/domains/selection/public";
 import { GridManager } from "@/shared/utils/grid";
+import { resolveGridSlot } from "@/shared/utils/grid-occupancy";
 import type { GridMap, NodeBounds, Point, SelectionArea } from "@/shared/types";
 import type { StructuredNode, StructuredNodeStyle, StructuredTextNode, StructuredTextStyleRange } from "@/domains/structured-content/public";
 import type { RichTextCell } from "@/domains/canvas/public";
@@ -85,9 +89,10 @@ const projectGridSelection = (
   forEachGridSelectionSpan(selections, ({ y, minX, maxX }) => {
     for (let x = minX; x <= maxX; x++) {
       const key = GridManager.toKey(x, y);
+      if (resolveGridSlot(grid, { x, y })?.offset === 1) continue;
       projection.set(key, grid.get(key) ?? { char: " ", color: brushColor });
     }
-  });
+  }, grid);
   return projection;
 };
 
@@ -101,21 +106,32 @@ export const buildClipboardPayload = (
   if (!hasClipboardSource(selections, textCursor)) return null;
 
   if (selections.length > 0) {
-    const projectedGrid = projectGridSelection(grid, selections, brushColor);
+    const effectiveSelections = getGridSelectionSpans(selections, grid).map(
+      ({ y, minX, maxX }) => ({
+        start: { x: minX, y },
+        end: { x: maxX, y },
+      })
+    );
+    const projectedGrid = projectGridSelection(
+      grid,
+      effectiveSelections,
+      brushColor
+    );
     return {
       plain:
         format === "ansi"
-          ? toAnsiLikeClipboardText(exportSelectionToAnsi(projectedGrid, selections))
-          : exportSelectionToString(projectedGrid, selections),
+          ? toAnsiLikeClipboardText(exportSelectionToAnsi(projectedGrid, effectiveSelections))
+          : exportSelectionToString(projectedGrid, effectiveSelections),
       rich:
         format === "ansi"
           ? null
-          : exportSelectionToJSON(projectedGrid, selections),
+          : exportSelectionToJSON(projectedGrid, effectiveSelections),
     };
   }
 
   if (!textCursor) return null;
-  const cell = grid.get(GridManager.toKey(textCursor.x, textCursor.y));
+  const slot = resolveGridSlot(grid, textCursor);
+  const cell = slot?.cell;
   const char = cell?.char || " ";
   const singleCellGrid: GridMap = new Map([
     [

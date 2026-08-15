@@ -1,6 +1,7 @@
 import type { GridMap, Point, SelectionArea } from "@/shared/types";
 import { GridManager } from "@/shared/utils/grid";
-import { getGridSelectionGeometry } from "./grid-selection-geometry";
+import { resolveGridAnchor, resolveGridSlot } from "@/shared/utils/grid-occupancy";
+import { getGridSelectionGeometry, getGridSelectionSpans } from "./grid-selection-geometry";
 
 export type GridAddress = Point;
 export type GridEditMode = "navigate" | "text-edit";
@@ -84,7 +85,10 @@ export const getEffectiveGridBounds = (input: {
     maxY = Math.max(maxY, y);
   };
 
-  for (const key of input.grid.keys()) include(GridManager.fromKey(key));
+  GridManager.iterate(input.grid, (cell, x, y) => {
+    include({ x, y });
+    include({ x: x + GridManager.getCharWidth(cell.char) - 1, y });
+  });
   for (const range of input.ranges ?? []) {
     include(range.start);
     include(range.end);
@@ -109,14 +113,8 @@ const getVisibleCellOrigin = (
   grid: GridMap,
   address: GridAddress
 ): GridAddress | null => {
-  const cell = grid.get(GridManager.toKey(address.x, address.y));
-  if (cell?.char.trim()) return { ...address };
-
-  const previous = grid.get(GridManager.toKey(address.x - 1, address.y));
-  if (previous?.char.trim() && GridManager.getCharWidth(previous.char) === 2) {
-    return { x: address.x - 1, y: address.y };
-  }
-  return null;
+  const slot = resolveGridSlot(grid, address);
+  return slot?.cell.char.trim() ? slot.anchor : null;
 };
 
 const getContentNavigationBounds = (input: {
@@ -191,31 +189,38 @@ export const getConnectedGridRange = (
   grid: GridMap,
   origin: GridAddress
 ): GridRange => {
-  const originKey = GridManager.toKey(origin.x, origin.y);
-  if (!grid.has(originKey)) return { start: { ...origin }, end: { ...origin } };
+  const resolvedOrigin = resolveGridSlot(grid, origin);
+  if (!resolvedOrigin) return { start: { ...origin }, end: { ...origin } };
 
   const visited = new Set<string>();
-  const pending = [{ ...origin }];
-  let minX = origin.x;
-  let maxX = origin.x;
-  let minY = origin.y;
-  let maxY = origin.y;
+  const pending = [{ ...resolvedOrigin.anchor }];
+  let minX = resolvedOrigin.anchor.x;
+  let maxX = resolvedOrigin.anchor.x + resolvedOrigin.width - 1;
+  let minY = resolvedOrigin.anchor.y;
+  let maxY = resolvedOrigin.anchor.y;
 
   while (pending.length > 0) {
     const point = pending.pop()!;
-    const key = GridManager.toKey(point.x, point.y);
-    if (visited.has(key) || !grid.has(key)) continue;
+    const slot = resolveGridSlot(grid, point);
+    if (!slot) continue;
+    const key = GridManager.toKey(slot.anchor.x, slot.anchor.y);
+    if (visited.has(key)) continue;
     visited.add(key);
-    minX = Math.min(minX, point.x);
-    maxX = Math.max(maxX, point.x);
-    minY = Math.min(minY, point.y);
-    maxY = Math.max(maxY, point.y);
+    const endX = slot.anchor.x + slot.width - 1;
+    minX = Math.min(minX, slot.anchor.x);
+    maxX = Math.max(maxX, endX);
+    minY = Math.min(minY, slot.anchor.y);
+    maxY = Math.max(maxY, slot.anchor.y);
     pending.push(
-      { x: point.x - 1, y: point.y },
-      { x: point.x + 1, y: point.y },
-      { x: point.x, y: point.y - 1 },
-      { x: point.x, y: point.y + 1 }
+      { x: slot.anchor.x - 1, y: slot.anchor.y },
+      { x: endX + 1, y: slot.anchor.y }
     );
+    for (let x = slot.anchor.x; x <= endX; x++) {
+      pending.push(
+        { x, y: slot.anchor.y - 1 },
+        { x, y: slot.anchor.y + 1 }
+      );
+    }
   }
 
   return { start: { x: minX, y: minY }, end: { x: maxX, y: maxY } };
@@ -240,8 +245,16 @@ export const getGridSelectionRanges = (state: GridSelectionState) => [
   state.primaryRange,
 ];
 
-export const getStaticGridSelectionAreas = (state: GridSelectionState) =>
-  selectionAreasFromGridRanges(getGridSelectionRanges(state));
+export const getStaticGridSelectionAreas = (
+  state: GridSelectionState,
+  grid?: GridMap
+) =>
+  grid
+    ? getGridSelectionSpans(getGridSelectionRanges(state), grid).map((span) => ({
+        start: { x: span.minX, y: span.y },
+        end: { x: span.maxX, y: span.y },
+      }))
+    : selectionAreasFromGridRanges(getGridSelectionRanges(state));
 
 export const hasGridRangeSelection = (state: GridSelectionState) => {
   return state.mode === "range";
@@ -251,18 +264,25 @@ export const getStaticGridViewState = (input: {
   selection: GridSelectionState;
   editMode: GridEditMode;
   textCursor: Point | null;
+  grid?: GridMap;
 }): StaticGridViewState => {
-  const selectionAreas = getStaticGridSelectionAreas(input.selection);
+  const selectionAreas = getStaticGridSelectionAreas(input.selection, input.grid);
   const isTextEditing = input.editMode === "text-edit";
-  const activeCell = isTextEditing && input.textCursor
+  const rawActiveCell = isTextEditing && input.textCursor
     ? { ...input.textCursor }
     : { ...input.selection.activeCell };
+  const activeCell = input.grid
+    ? resolveGridAnchor(input.grid, rawActiveCell)
+    : rawActiveCell;
 
   return {
     activeCell,
     textCursor: isTextEditing ? activeCell : null,
     selectionAreas,
-    selectionGeometry: getGridSelectionGeometry(getGridSelectionRanges(input.selection)),
+    selectionGeometry: getGridSelectionGeometry(
+      getGridSelectionRanges(input.selection),
+      input.grid
+    ),
     hasSelection: !isTextEditing && hasGridRangeSelection(input.selection),
     isTextEditing,
   };

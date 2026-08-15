@@ -4,6 +4,35 @@ import {
   cloneTextAttributes,
   normalizeCellHref,
 } from "@/shared/utils/ansi";
+import { GridManager } from "@/shared/utils/grid";
+import { writeStyledCell } from "@/shared/utils/grid-ops";
+
+export const normalizeGridCellEntries = (entries: [string, GridCell][]) => {
+  const latestByKey = new Map(entries);
+  const sortable: Array<{ key: string; cell: GridCell; x: number; y: number }> = [];
+  const passthrough: [string, GridCell][] = [];
+  latestByKey.forEach((cell, key) => {
+    const coordinates = key.split(",");
+    const isValidKey =
+      coordinates.length === 2 &&
+      coordinates.every((coordinate) => /^-?\d+$/.test(coordinate));
+    const point = GridManager.fromKey(key);
+    if (
+      isValidKey &&
+      typeof cell?.char === "string" &&
+      Number.isSafeInteger(point.x) &&
+      Number.isSafeInteger(point.y)
+    ) {
+      sortable.push({ key, cell, ...point });
+    } else {
+      passthrough.push([key, cell]);
+    }
+  });
+  sortable.sort((left, right) => left.y - right.y || left.x - right.x);
+  const grid = new Map<string, GridCell>();
+  sortable.forEach(({ cell, x, y }) => writeStyledCell(grid, x, y, cell));
+  return [...grid.entries(), ...passthrough];
+};
 
 export const decodeGridEntries = (
   value: unknown,
@@ -11,7 +40,7 @@ export const decodeGridEntries = (
 ): [string, GridCell][] => {
   if (!Array.isArray(value)) return [];
 
-  return value.reduce<[string, GridCell][]>((entries, item) => {
+  const decoded = value.reduce<[string, GridCell][]>((entries, item) => {
     if (!Array.isArray(item) || typeof item[0] !== "string") return entries;
     const [key, rawCell] = item;
     if (typeof rawCell === "string") {
@@ -53,6 +82,7 @@ export const decodeGridEntries = (
     ]);
     return entries;
   }, []);
+  return normalizeGridCellEntries(decoded);
 };
 
 export const createGridMap = (value: unknown) =>

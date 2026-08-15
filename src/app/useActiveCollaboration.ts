@@ -19,12 +19,13 @@ export const useActiveCollaboration = () => {
     (state) => state.selectedStructuredNodeIds
   );
   const staticGridSelection = useCanvasState((state) => state.staticGridSelection);
+  const grid = useCanvasState((state) => state.grid);
   const selections = useMemo(
     () =>
       canvasMode === "structured"
         ? selectedStructuredNodeIds
-        : getStaticGridSelectionAreas(staticGridSelection),
-    [canvasMode, selectedStructuredNodeIds, staticGridSelection]
+        : getStaticGridSelectionAreas(staticGridSelection, grid),
+    [canvasMode, grid, selectedStructuredNodeIds, staticGridSelection]
   );
   const tool = useCanvasState((state) => state.tool);
 

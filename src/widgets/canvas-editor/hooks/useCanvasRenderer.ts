@@ -255,6 +255,7 @@ export const useCanvasRenderer = (
     selection: staticGridSelection,
     editMode: staticGridEditMode,
     textCursor,
+    grid,
   });
   const renderedTextCursor = canvasMode !== 'structured' ? staticGridView.textCursor : textCursor;
   const [renderManager] = useState(() => new CanvasRenderManager());
@@ -419,7 +420,7 @@ export const useCanvasRenderer = (
             ? getGridSelectionGeometry([
                 ...ranges,
                 gridRangeFromSelectionArea(draggingSelection),
-              ])
+              ], grid)
             : staticGridView.selectionGeometry;
           drawGridSelectionGeometry(uiCtx, geometry, {
             offset: renderOffset,
@@ -432,13 +433,6 @@ export const useCanvasRenderer = (
             { offset: renderOffset, zoom }
           );
         }
-        if (canvasMode !== 'structured' && staticGridView.hasSelection) {
-          drawGridActiveCellMarker(uiCtx, staticGridView.activeCell, {
-            offset: renderOffset,
-            zoom,
-          });
-        }
-
         if (canvasMode === 'structured' && structuredPreviewMovingGrid) {
           drawLayer(uiCtx, structuredPreviewMovingGrid, viewBounds, zoom, renderOffset);
         }

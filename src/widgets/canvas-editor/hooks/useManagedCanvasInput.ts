@@ -143,8 +143,9 @@ export const useManagedCanvasInput = ({
         selection: staticGridSelection,
         editMode: staticGridEditMode,
         textCursor,
+        grid: model.grid,
       }),
-    [staticGridEditMode, staticGridSelection, textCursor]
+    [model.grid, staticGridEditMode, staticGridSelection, textCursor]
   );
   const staticGridMode = isStaticGridMode(canvasMode);
   const activeTextCursor = staticGridMode ? staticGridView.textCursor : textCursor;

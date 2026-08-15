@@ -244,6 +244,7 @@ body,
   --layer-contextual: 30;
   --layer-chrome: 40;
   --layer-popover: 50;
+  --layer-drag-preview: 55;
   --layer-modal-backdrop: 60;
   --layer-modal: 70;
   --layer-toast: 80;

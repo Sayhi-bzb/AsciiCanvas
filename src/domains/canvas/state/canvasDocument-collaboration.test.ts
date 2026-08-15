@@ -16,6 +16,25 @@ const applyYMapValueDiff = <T extends { id: string }>(map: Y.Map<T>, values: T[]
 };
 
 describe("canvas CRDT collaboration", () => {
+  it("repairs concurrent anchors that overlap a wide-cell footprint", () => {
+    const id = `wide-overlap-${crypto.randomUUID()}`;
+    const documents = new CanvasDocumentRegistry(id);
+    const local = documents.getCollaborationDocument(id)!;
+    const remote = new Y.Doc();
+    Y.applyUpdate(remote, Y.encodeStateAsUpdate(local));
+
+    remote.transact(() => {
+      remote.getMap("main-grid").set("0,0", cell("你"));
+      remote.getMap("main-grid").set("1,0", cell("B"));
+    });
+    Y.applyUpdate(local, Y.encodeStateAsUpdate(remote));
+
+    expect(documents.yMainGrid.toJSON()).toEqual({ "1,0": cell("B") });
+    Y.applyUpdate(remote, Y.encodeStateAsUpdate(local));
+    expect(remote.getMap("main-grid").toJSON()).toEqual({ "1,0": cell("B") });
+    documents.dispose();
+  });
+
   it("converges independent cell edits", () => {
     const left = new Y.Doc();
     const right = new Y.Doc();

@@ -38,6 +38,30 @@ describe("staticGridSlice", () => {
     expect(useEditorStore.getState().textCursor).toEqual({ x: 5, y: 3 });
   });
 
+  it("anchors either half of a wide cell and moves across it atomically", () => {
+    applyFreeformSnapshotToYMaps([
+      ["2,1", { char: "你", color: "#fff" }],
+      ["4,1", { char: "B", color: "#fff" }],
+    ]);
+
+    useEditorStore.getState().setStaticGridActiveCell({ x: 3, y: 1 });
+    expect(useEditorStore.getState().staticGridSelection.activeCell).toEqual({
+      x: 2,
+      y: 1,
+    });
+
+    useEditorStore.getState().moveStaticGridFocus(1, 0);
+    expect(useEditorStore.getState().staticGridSelection.activeCell).toEqual({
+      x: 4,
+      y: 1,
+    });
+    useEditorStore.getState().moveStaticGridFocus(-1, 0);
+    expect(useEditorStore.getState().staticGridSelection.activeCell).toEqual({
+      x: 2,
+      y: 1,
+    });
+  });
+
   it("extends selection from the anchor", () => {
     useEditorStore.getState().setStaticGridActiveCell({ x: 2, y: 2 });
     useEditorStore.getState().moveStaticGridFocus(3, 1, { extend: true });

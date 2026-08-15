@@ -1,6 +1,10 @@
 import { GridManager } from "@/shared/utils/grid";
 import type { GridCell, GridMap } from "@/shared/types";
-import { isWideCell } from "@/shared/metrics";
+import {
+  getGridCellWidth,
+  getIntersectingGridAnchors,
+  resolveGridSlot,
+} from "@/shared/utils/grid-occupancy";
 
 type GridTarget = {
   set(key: string, value: GridCell): void;
@@ -17,10 +21,6 @@ type WriteResult = {
 type RemoveResult = {
   removedAnchors: number;
   removedFollowers: number;
-};
-
-const getCell = (grid: GridMap, x: number, y: number) => {
-  return grid.get(GridManager.toKey(x, y));
 };
 
 export const writeCell = (
@@ -48,19 +48,14 @@ export const writeStyledCell = (
     };
   }
 
-  const leftKey = GridManager.toKey(x - 1, y);
-  const leftCell = target.get(leftKey);
-  const removedLeftAnchor = !!leftCell && isWideCell(leftCell.char);
-  if (removedLeftAnchor) {
-    target.delete(leftKey);
-  }
-
+  const width = getGridCellWidth(cell);
+  const intersecting = getIntersectingGridAnchors(target, { x, y }, width);
+  const removedLeftAnchor = intersecting.some((anchor) => anchor.x < x);
+  const removedRightFollower = width === 2;
+  intersecting.forEach((anchor) =>
+    target.delete(GridManager.toKey(anchor.x, anchor.y))
+  );
   target.set(GridManager.toKey(x, y), cell);
-
-  const removedRightFollower = isWideCell(char);
-  if (removedRightFollower) {
-    target.delete(GridManager.toKey(x + 1, y));
-  }
 
   return {
     wrote: true,
@@ -74,21 +69,14 @@ export const deleteCellAt = (
   x: number,
   y: number
 ): RemoveResult => {
-  const key = GridManager.toKey(x, y);
-  const cell = target.get(key);
-  if (cell) {
-    target.delete(key);
-    return { removedAnchors: 1, removedFollowers: 0 };
-  }
-
-  const leftKey = GridManager.toKey(x - 1, y);
-  const leftCell = target.get(leftKey);
-  if (leftCell && isWideCell(leftCell.char)) {
-    target.delete(leftKey);
-    return { removedAnchors: 1, removedFollowers: 1 };
-  }
-
-  return { removedAnchors: 0, removedFollowers: 0 };
+  const anchors = getIntersectingGridAnchors(target, { x, y }, 1);
+  if (anchors.length === 0) return { removedAnchors: 0, removedFollowers: 0 };
+  const selectedSlot = resolveGridSlot(target, { x, y });
+  anchors.forEach((anchor) => target.delete(GridManager.toKey(anchor.x, anchor.y)));
+  return {
+    removedAnchors: anchors.length,
+    removedFollowers: selectedSlot?.offset === 1 ? 1 : 0,
+  };
 };
 
 export const deleteRect = (
@@ -117,15 +105,8 @@ export const resolveBackspaceAnchor = (
   cursorX: number,
   cursorY: number
 ) => {
-  const cellAtMinus1 = getCell(grid, cursorX - 1, cursorY);
-  const cellAtMinus2 = getCell(grid, cursorX - 2, cursorY);
-  if (
-    !cellAtMinus1 &&
-    cellAtMinus2 &&
-    isWideCell(cellAtMinus2.char)
-  ) {
-    return { x: cursorX - 2, y: cursorY };
-  }
-
-  return { x: cursorX - 1, y: cursorY };
+  return resolveGridSlot(grid, { x: cursorX - 1, y: cursorY })?.anchor ?? {
+    x: cursorX - 1,
+    y: cursorY,
+  };
 };

@@ -156,6 +156,18 @@ describe("staticGridModel", () => {
     });
   });
 
+  it("connects neighbors through a wide character's follower column", () => {
+    const grid = new Map([
+      ["0,0", { char: "你", color: "#fff" }],
+      ["2,0", { char: "A", color: "#fff" }],
+    ]);
+
+    expect(getConnectedGridRange(grid, { x: 1, y: 0 })).toEqual({
+      start: { x: 0, y: 0 },
+      end: { x: 2, y: 0 },
+    });
+  });
+
   it("moves to edges and creates bounded whole-row and whole-column ranges", () => {
     const state = createGridSelectionState({ x: 3, y: 4 });
     const bounds = { start: { x: -2, y: -1 }, end: { x: 8, y: 9 } };
@@ -271,6 +283,35 @@ describe("staticGridModel", () => {
         edge: "left",
       })
     ).toEqual({ x: 0, y: 0 });
+  });
+
+  it("expands a wide-cell selection per row without widening unrelated rows", () => {
+    const grid = new Map([
+      ["1,0", { char: "你", color: "#fff" }],
+      ["1,1", { char: "A", color: "#fff" }],
+    ]);
+    const view = getStaticGridViewState({
+      selection: {
+        mode: "range",
+        activeCell: { x: 2, y: 1 },
+        anchorCell: { x: 2, y: 0 },
+        primaryRange: { start: { x: 2, y: 0 }, end: { x: 2, y: 1 } },
+        additionalRanges: [],
+      },
+      editMode: "navigate",
+      textCursor: null,
+      grid,
+    });
+
+    expect(view.activeCell).toEqual({ x: 2, y: 1 });
+    expect(view.selectionAreas).toEqual([
+      { start: { x: 1, y: 0 }, end: { x: 2, y: 0 } },
+      { start: { x: 2, y: 1 }, end: { x: 2, y: 1 } },
+    ]);
+    expect(view.selectionGeometry.bounds).toEqual({
+      start: { x: 1, y: 0 },
+      end: { x: 2, y: 1 },
+    });
   });
 
   it("unions overlapping and adjacent ranges into one contour", () => {

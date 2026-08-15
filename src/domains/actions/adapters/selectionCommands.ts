@@ -37,7 +37,7 @@ import {
 type SelectionCommandState = ReturnType<Parameters<SelectionCommandFactory>[1]>;
 
 const resolveSelectionAreas = (state: SelectionCommandState) => {
-  return getStaticGridSelectionAreas(state.staticGridSelection);
+  return getStaticGridSelectionAreas(state.staticGridSelection, state.grid);
 };
 
 const applied = (changed: boolean): ClipboardCommandResult => ({

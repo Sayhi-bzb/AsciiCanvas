@@ -5,6 +5,7 @@ import {
   screenToGrid,
   getViewportGridBounds,
 } from "@/shared/metrics";
+import { resolveGridAnchor } from "@/shared/utils/grid-occupancy";
 
 export const GridManager = {
   screenToGrid(
@@ -61,11 +62,7 @@ export const GridManager = {
   },
 
   snapToCharStart(pos: Point, grid: GridMap): Point {
-    const cellBefore = grid.get(this.toKey(pos.x - 1, pos.y));
-    if (cellBefore && this.isWideChar(cellBefore.char)) {
-      return { ...pos, x: pos.x - 1 };
-    }
-    return pos;
+    return resolveGridAnchor(grid, pos);
   },
 
   getGridBounds(grid: GridMap) {

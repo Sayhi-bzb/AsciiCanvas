@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState, type DragEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type DragEvent as ReactDragEvent,
+} from "react";
+import { createPortal } from "react-dom";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -28,31 +35,124 @@ const sortTemplatesByLabel = <
       a.id.localeCompare(b.id)
   );
 
+const FALLBACK_DRAG_PREVIEW_WIDTH = 160;
+const FALLBACK_DRAG_PREVIEW_HEIGHT = 90;
+
+type StructuredTemplateDragPreview = {
+  templateId: StructuredTemplateId;
+  width: number;
+  height: number;
+  hotspotX: number;
+  hotspotY: number;
+  clientX: number;
+  clientY: number;
+  overCanvas: boolean;
+};
+
+type PendingDragPreviewPosition = {
+  clientX?: number;
+  clientY?: number;
+  overCanvas: boolean;
+};
+
+const clampDragPreviewOffset = (value: number, size: number) =>
+  Math.min(Math.max(value, 0), size);
+
+const resolveDragPreviewCoordinate = (value: number, fallback: number) =>
+  Number.isFinite(value) ? value : fallback;
+
+const setTransparentNativeDragImage = (dataTransfer: DataTransfer) => {
+  const dragImage = document.createElement("div");
+  dragImage.style.position = "fixed";
+  dragImage.style.left = "-1000px";
+  dragImage.style.top = "-1000px";
+  dragImage.style.pointerEvents = "none";
+  dragImage.style.width = "1px";
+  dragImage.style.height = "1px";
+  dragImage.style.opacity = "0";
+  document.body.appendChild(dragImage);
+  dataTransfer.setDragImage(dragImage, 0, 0);
+
+  const cleanup = () => dragImage.remove();
+  if (typeof window.requestAnimationFrame === "function") {
+    window.requestAnimationFrame(cleanup);
+  } else {
+    window.setTimeout(cleanup, 0);
+  }
+};
+
 const handleTemplateDragStart =
-  (template: { id: StructuredTemplateId }) =>
-  (event: DragEvent<HTMLButtonElement>) => {
+  (
+    template: { id: StructuredTemplateId },
+    showDragPreview: (preview: StructuredTemplateDragPreview) => void
+  ) =>
+  (event: ReactDragEvent<HTMLButtonElement>) => {
     event.dataTransfer.effectAllowed = "copy";
     event.dataTransfer.setData(STRUCTURED_TEMPLATE_MIME, template.id);
     setActiveStructuredTemplateDragId(template.id);
 
-    const dragImage = document.createElement("div");
-    dragImage.style.position = "fixed";
-    dragImage.style.left = "-1000px";
-    dragImage.style.top = "-1000px";
-    dragImage.style.pointerEvents = "none";
-    dragImage.style.width = "1px";
-    dragImage.style.height = "1px";
-    dragImage.style.opacity = "0";
-    document.body.appendChild(dragImage);
-    event.dataTransfer.setDragImage(dragImage, 0, 0);
+    const previewElement =
+      event.currentTarget.querySelector<HTMLElement>(
+        '[data-slot="structured-template-preview"]'
+      ) ?? event.currentTarget;
+    const rect = previewElement.getBoundingClientRect();
+    const width = rect.width > 0 ? rect.width : FALLBACK_DRAG_PREVIEW_WIDTH;
+    const height = rect.height > 0 ? rect.height : FALLBACK_DRAG_PREVIEW_HEIGHT;
+    const clientX = resolveDragPreviewCoordinate(
+      event.clientX,
+      rect.left + width / 2
+    );
+    const clientY = resolveDragPreviewCoordinate(
+      event.clientY,
+      rect.top + height / 2
+    );
 
-    const cleanup = () => dragImage.remove();
-    if (typeof window.requestAnimationFrame === "function") {
-      window.requestAnimationFrame(cleanup);
-    } else {
-      window.setTimeout(cleanup, 0);
-    }
+    showDragPreview({
+      templateId: template.id,
+      width,
+      height,
+      hotspotX: clampDragPreviewOffset(clientX - rect.left, width),
+      hotspotY: clampDragPreviewOffset(clientY - rect.top, height),
+      clientX,
+      clientY,
+      overCanvas: false,
+    });
+    setTransparentNativeDragImage(event.dataTransfer);
   };
+
+function StructuredTemplateDragOverlay({
+  preview,
+}: {
+  preview: StructuredTemplateDragPreview | null;
+}) {
+  if (!preview || preview.overCanvas || typeof document === "undefined") {
+    return null;
+  }
+
+  return createPortal(
+    <div
+      data-slot="structured-template-drag-overlay"
+      data-testid="structured-template-drag-overlay"
+      className="pointer-events-none fixed left-0 top-0 z-(--layer-drag-preview) overflow-hidden opacity-80 will-change-transform"
+      style={{
+        width: `${preview.width}px`,
+        height: `${preview.height}px`,
+        transform: `translate3d(${preview.clientX - preview.hotspotX}px, ${preview.clientY - preview.hotspotY}px, 0)`,
+      }}
+      aria-hidden="true"
+    >
+      <StructuredTemplatePreviewGrid
+        preview={getStructuredTemplatePreview(preview.templateId)}
+        cellWidth={5}
+        cellHeight={9}
+        fontSize={8}
+        fit="contain"
+        className="text-foreground"
+      />
+    </div>,
+    document.body
+  );
+}
 
 function VisibleStructuredTemplatePreview({
   templateId,
@@ -110,6 +210,11 @@ export function StructuredTemplateLibrary({
   query = "",
   emptyLabel = "No components found",
 }: StructuredTemplateLibraryProps) {
+  const [dragPreview, setDragPreview] =
+    useState<StructuredTemplateDragPreview | null>(null);
+  const pendingDragPositionRef = useRef<PendingDragPreviewPosition | null>(null);
+  const dragPreviewFrameRef = useRef<number | null>(null);
+  const dragging = dragPreview !== null;
   const normalizedQuery = query.trim().toLowerCase();
   const templates = normalizedQuery
     ? sourceTemplates.filter((template) =>
@@ -118,44 +223,118 @@ export function StructuredTemplateLibrary({
     : sourceTemplates;
   const sortedTemplates = sortTemplatesByLabel(templates);
 
+  const cancelDragPreviewFrame = useCallback(() => {
+    if (dragPreviewFrameRef.current === null) return;
+    window.cancelAnimationFrame(dragPreviewFrameRef.current);
+    dragPreviewFrameRef.current = null;
+  }, []);
+
+  const clearDragPreview = useCallback(() => {
+    cancelDragPreviewFrame();
+    pendingDragPositionRef.current = null;
+    setDragPreview(null);
+  }, [cancelDragPreviewFrame]);
+
+  const finishTemplateDrag = useCallback(() => {
+    clearDragPreview();
+    setActiveStructuredTemplateDragId(null);
+  }, [clearDragPreview]);
+
+  useEffect(() => {
+    if (!dragging) return;
+
+    const handleDocumentDragOver = (event: globalThis.DragEvent) => {
+      const target = event.target;
+      pendingDragPositionRef.current = {
+        clientX: Number.isFinite(event.clientX) ? event.clientX : undefined,
+        clientY: Number.isFinite(event.clientY) ? event.clientY : undefined,
+        overCanvas:
+          target instanceof Element &&
+          target.closest('[data-slot="canvas-surface"]') !== null,
+      };
+      if (dragPreviewFrameRef.current !== null) return;
+      dragPreviewFrameRef.current = window.requestAnimationFrame(() => {
+        dragPreviewFrameRef.current = null;
+        const pending = pendingDragPositionRef.current;
+        if (!pending) return;
+        setDragPreview((current) =>
+          current
+            ? {
+                ...current,
+                clientX: pending.clientX ?? current.clientX,
+                clientY: pending.clientY ?? current.clientY,
+                overCanvas: pending.overCanvas,
+              }
+            : null
+        );
+      });
+    };
+
+    const handleDocumentDrop = () => clearDragPreview();
+    const handleWindowBlur = () => finishTemplateDrag();
+    document.addEventListener("dragover", handleDocumentDragOver, true);
+    document.addEventListener("drop", handleDocumentDrop, true);
+    window.addEventListener("blur", handleWindowBlur);
+    return () => {
+      document.removeEventListener("dragover", handleDocumentDragOver, true);
+      document.removeEventListener("drop", handleDocumentDrop, true);
+      window.removeEventListener("blur", handleWindowBlur);
+    };
+  }, [clearDragPreview, dragging, finishTemplateDrag]);
+
+  useEffect(
+    () => () => {
+      cancelDragPreviewFrame();
+      setActiveStructuredTemplateDragId(null);
+    },
+    [cancelDragPreviewFrame]
+  );
+
   return (
-    <SidebarGroup className="p-0">
-      <SidebarGroupContent>
-        <div
-          data-testid="structured-template-grid"
-          className="grid grid-cols-1 gap-1 p-1"
-        >
-          {sortedTemplates.length === 0 && (
-            <div className="col-span-full px-2 py-4 text-xs text-muted-foreground">
-              {emptyLabel}
-            </div>
-          )}
-          {sortedTemplates.map((template) => (
-            <SelectableItem
-              key={template.id}
-              data-onboarding-template-id={template.id}
-              type="button"
-              orientation="vertical"
-              draggable
-              onDragStart={handleTemplateDragStart(template)}
-              onDragEnd={() => setActiveStructuredTemplateDragId(null)}
-              className="group h-auto min-w-0 items-stretch gap-1 p-1.5 text-center"
-            >
-              <Surface kind="transparent" asChild>
-                <div
-                  data-testid="structured-template-preview-viewport"
-                  className="relative aspect-video w-full overflow-hidden"
-                >
-                  <VisibleStructuredTemplatePreview templateId={template.id} />
-                </div>
-              </Surface>
-              <span className="truncate px-1 text-xs text-foreground">
-                {template.label}
-              </span>
-            </SelectableItem>
-          ))}
-        </div>
-      </SidebarGroupContent>
-    </SidebarGroup>
+    <>
+      <SidebarGroup className="p-0">
+        <SidebarGroupContent>
+          <div
+            data-testid="structured-template-grid"
+            className="grid grid-cols-1 gap-1 p-1"
+          >
+            {sortedTemplates.length === 0 && (
+              <div className="col-span-full px-2 py-4 text-xs text-muted-foreground">
+                {emptyLabel}
+              </div>
+            )}
+            {sortedTemplates.map((template) => (
+              <SelectableItem
+                key={template.id}
+                data-onboarding-template-id={template.id}
+                type="button"
+                orientation="vertical"
+                draggable
+                onDragStart={handleTemplateDragStart(
+                  template,
+                  setDragPreview
+                )}
+                onDragEnd={finishTemplateDrag}
+                className="group h-auto min-w-0 items-stretch gap-1 p-1.5 text-center"
+              >
+                <Surface kind="transparent" asChild>
+                  <div
+                    data-slot="structured-template-preview"
+                    data-testid="structured-template-preview-viewport"
+                    className="relative aspect-video w-full overflow-hidden"
+                  >
+                    <VisibleStructuredTemplatePreview templateId={template.id} />
+                  </div>
+                </Surface>
+                <span className="truncate px-1 text-xs text-foreground">
+                  {template.label}
+                </span>
+              </SelectableItem>
+            ))}
+          </div>
+        </SidebarGroupContent>
+      </SidebarGroup>
+      <StructuredTemplateDragOverlay preview={dragPreview} />
+    </>
   );
 }

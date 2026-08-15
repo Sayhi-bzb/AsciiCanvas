@@ -30,6 +30,8 @@ import {
 } from "@/domains/structured-content/public";
 import { createDocumentInteractionResetPatch } from "../transitions/editorTransitions";
 import { isStaticGridMode } from "@/domains/sessions/public";
+import { writeStyledCell } from "@/shared/utils/grid-ops";
+import { resolveGridSlot } from "@/shared/utils/grid-occupancy";
 
 type StructuredTextStyleUpdater = Parameters<
   typeof updateStructuredTextStyleRanges
@@ -59,7 +61,7 @@ const addPointsToLayer = (
 ) => {
   points.forEach((point) => {
     if (point.bgColor || point.attrs || point.href) {
-      layer.set(GridManager.toKey(point.x, point.y), {
+      writeStyledCell(layer, point.x, point.y, {
         char: point.char,
         color: point.color || brushColor,
         ...(point.bgColor ? { bgColor: point.bgColor } : {}),
@@ -188,17 +190,17 @@ export const createDrawingSlice = (
     if (!scratchLayer || scratchLayer.size === 0) return;
     documents.mutateGrid((grid) => {
       GridManager.iterate(scratchLayer, (cell, x, y) => {
-        const key = GridManager.toKey(x, y);
         if (cell.bgColor && cell.char === " ") {
-          const existingCell = grid.get(key);
-          grid.set(key, {
-            ...(existingCell ?? { char: " ", color: cell.color }),
+          const slot = resolveGridSlot(grid, { x, y });
+          const anchor = slot?.anchor ?? { x, y };
+          writeStyledCell(grid, anchor.x, anchor.y, {
+            ...(slot?.cell ?? { char: " ", color: cell.color }),
             bgColor: cell.bgColor,
           });
           return;
         }
         if (cell.bgColor || cell.attrs || cell.href) {
-          grid.set(key, {
+          writeStyledCell(grid, x, y, {
             char: cell.char,
             color: cell.color,
             ...(cell.bgColor ? { bgColor: cell.bgColor } : {}),

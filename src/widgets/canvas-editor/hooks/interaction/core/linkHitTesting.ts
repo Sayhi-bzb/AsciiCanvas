@@ -1,6 +1,6 @@
 import type { GridMap, Point } from "@/shared/types";
-import { getCellOccupancy } from "@/shared/metrics";
 import { GridManager } from "@/shared/utils/grid";
+import { getGridFootprint } from "@/shared/utils/grid-occupancy";
 
 export interface CanvasLinkHit {
   y: number;
@@ -10,8 +10,10 @@ export interface CanvasLinkHit {
 }
 
 const getLinkedCellWidth = (grid: GridMap, x: number, y: number, href: string) => {
-  const cell = grid.get(GridManager.toKey(x, y));
-  return cell?.href === href ? getCellOccupancy(cell.char) : 0;
+  const footprint = getGridFootprint(grid, { x, y });
+  return footprint?.anchor.x === x && footprint.cell.href === href
+    ? footprint.width
+    : 0;
 };
 
 const resolveLinkedRun = (grid: GridMap, point: Point, href: string) => {
@@ -25,12 +27,7 @@ const resolveLinkedRun = (grid: GridMap, point: Point, href: string) => {
     startX = leftAnchor.x;
   }
 
-  let endX =
-    point.x +
-    getCellOccupancy(
-      grid.get(GridManager.toKey(point.x, point.y))?.char ?? " "
-    ) -
-    1;
+  let endX = getGridFootprint(grid, point)?.end.x ?? point.x;
   while (endX < Number.MAX_SAFE_INTEGER) {
     const nextX = endX + 1;
     const width = getLinkedCellWidth(grid, nextX, point.y, href);
@@ -57,6 +54,8 @@ export const resolveCanvasLinkHit = (input: {
     input.zoom
   );
   const point = GridManager.snapToCharStart(raw, input.grid);
-  const cell = input.grid.get(GridManager.toKey(point.x, point.y));
-  return cell?.href ? resolveLinkedRun(input.grid, point, cell.href) : null;
+  const footprint = getGridFootprint(input.grid, point);
+  return footprint?.cell.href
+    ? resolveLinkedRun(input.grid, footprint.anchor, footprint.cell.href)
+    : null;
 };

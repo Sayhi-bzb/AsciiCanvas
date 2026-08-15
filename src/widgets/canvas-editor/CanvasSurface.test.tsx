@@ -37,6 +37,7 @@ describe('CanvasSurface', () => {
 
     const surface = screen.getByTestId('canvas-editor-surface');
     const layer = screen.getByTestId('canvas-viewport-layer');
+    expect(surface).toHaveAttribute('data-slot', 'canvas-surface');
     expect(surface).toHaveAttribute('data-onboarding-target', 'canvas');
     expect(layer).toHaveClass('absolute', 'inset-0', 'origin-top-left', 'will-change-transform');
     expect(layer.querySelectorAll(':scope > canvas')).toHaveLength(3);

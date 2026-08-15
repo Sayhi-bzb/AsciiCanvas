@@ -778,7 +778,7 @@ describe("SidebarRight structured templates", () => {
     expect(screen.getByRole("button", { name: "切换侧栏" })).toBeInTheDocument();
   });
 
-  it("uses a transparent drag image for structured templates", () => {
+  it("hands the structured drag preview from the sidebar overlay to the canvas", async () => {
     useEditorStore.setState({
       canvasMode: "structured",
       brushColor: "#334155",
@@ -790,13 +790,31 @@ describe("SidebarRight structured templates", () => {
       </SidebarProvider>
     );
     const button = screen.getByRole("button", { name: /button/i });
+    const preview = within(button).getByTestId(
+      "structured-template-preview-viewport"
+    );
+    vi.spyOn(preview, "getBoundingClientRect").mockReturnValue({
+      bottom: 70,
+      height: 50,
+      left: 10,
+      right: 110,
+      top: 20,
+      width: 100,
+      x: 10,
+      y: 20,
+      toJSON: () => ({}),
+    });
     const setDragImage = vi.fn();
     const dragStartEvent = createEvent.dragStart(button);
-    Object.defineProperty(dragStartEvent, "dataTransfer", {
-      value: {
-        effectAllowed: "none",
-        setData: vi.fn(),
-        setDragImage,
+    Object.defineProperties(dragStartEvent, {
+      clientX: { value: 82 },
+      clientY: { value: 64 },
+      dataTransfer: {
+        value: {
+          effectAllowed: "none",
+          setData: vi.fn(),
+          setDragImage,
+        },
       },
     });
 
@@ -804,14 +822,56 @@ describe("SidebarRight structured templates", () => {
 
     expect(getActiveStructuredTemplateDragId()).toBe("button");
     expect(setDragImage).toHaveBeenCalledTimes(1);
-    const dragImage = setDragImage.mock.calls[0][0] as HTMLElement;
-    expect(dragImage.textContent).toBe("");
-    expect(dragImage.style.width).toBe("1px");
-    expect(dragImage.style.height).toBe("1px");
-    expect(dragImage.style.opacity).toBe("0");
+    const nativeDragImage = setDragImage.mock.calls[0][0] as HTMLElement;
+    expect(nativeDragImage.style.width).toBe("1px");
+    expect(nativeDragImage.style.height).toBe("1px");
+    expect(nativeDragImage.style.opacity).toBe("0");
+    expect(preview).toHaveAttribute(
+      "data-slot",
+      "structured-template-preview"
+    );
+    const overlay = screen.getByTestId("structured-template-drag-overlay");
+    expect(overlay).toHaveStyle({
+      width: "100px",
+      height: "50px",
+      transform: "translate3d(10px, 20px, 0)",
+    });
+    expect(overlay.querySelector("canvas")).toBeInTheDocument();
+    expect(overlay).not.toHaveTextContent("Button");
+
+    const canvasSurface = document.createElement("div");
+    canvasSurface.dataset.slot = "canvas-surface";
+    document.body.appendChild(canvasSurface);
+    const canvasDragOver = createEvent.dragOver(canvasSurface);
+    Object.defineProperties(canvasDragOver, {
+      clientX: { value: 240 },
+      clientY: { value: 160 },
+    });
+    fireEvent(canvasSurface, canvasDragOver);
+    await waitFor(() => {
+      expect(
+        screen.queryByTestId("structured-template-drag-overlay")
+      ).not.toBeInTheDocument();
+    });
+
+    const chromeDragOver = createEvent.dragOver(document.body);
+    Object.defineProperties(chromeDragOver, {
+      clientX: { value: 120 },
+      clientY: { value: 90 },
+    });
+    fireEvent(document.body, chromeDragOver);
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("structured-template-drag-overlay")
+      ).toBeInTheDocument();
+    });
+    canvasSurface.remove();
 
     fireEvent.dragEnd(button);
     expect(getActiveStructuredTemplateDragId()).toBeNull();
+    expect(
+      screen.queryByTestId("structured-template-drag-overlay")
+    ).not.toBeInTheDocument();
   });
 
   it("reuses cached structured template preview data", () => {

@@ -6,6 +6,7 @@ import type {
 } from "@/domains/structured-content/public";
 import type { GridCell } from "@/shared/types";
 import { areJsonValuesEqual } from "@/shared/utils/equality";
+import { normalizeGridCellEntries } from "@/shared/utils/grid-codec";
 export type CanvasHistoryMode = "save" | "merge" | "none" | "reset";
 export type CanvasHistoryCheckpoint = {
   commit: () => void;
@@ -342,6 +343,31 @@ export class CanvasDocumentRegistry {
         trackedOrigins: new Set([LOCAL_ORIGIN]),
       }),
     };
+    const repairOverlappingGridCells = (transaction: Y.Transaction) => {
+      let gridChanged = false;
+      for (const type of transaction.changed.keys()) {
+        if (Object.is(type, grid)) gridChanged = true;
+      }
+      if (!gridChanged) return;
+      const normalized = new Map(
+        normalizeGridCellEntries(Array.from(grid.entries()))
+      );
+      const isNormalized =
+        normalized.size === grid.size &&
+        Array.from(normalized.entries()).every(([key, cell]) =>
+          areJsonValuesEqual(grid.get(key), cell)
+        );
+      if (isNormalized) return;
+      doc.transact(() => {
+        Array.from(grid.keys()).forEach((key) => {
+          if (!normalized.has(key)) grid.delete(key);
+        });
+        normalized.forEach((cell, key) => {
+          if (!areJsonValuesEqual(grid.get(key), cell)) grid.set(key, cell);
+        });
+      }, HISTORY_IGNORED_ORIGIN);
+    };
+    doc.on("afterTransaction", repairOverlappingGridCells);
     const notify = () => {
       if (document === this.#active) this.#emitHistory();
     };

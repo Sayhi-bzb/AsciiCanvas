@@ -30,6 +30,7 @@ import {
   replaceStructuredTextRange as replaceStructuredTextNodeRange,
 } from "@/domains/structured-content/public";
 import { clampPointToActiveSlide, isPointWithinActiveSlide } from "../slideBounds";
+import { resolveGridAnchor, resolveGridSlot } from "@/shared/utils/grid-occupancy";
 
 const toCharIndexByColumn = (text: string, columnOffset: number) => {
   if (columnOffset <= 0) return 0;
@@ -75,7 +76,6 @@ const getNewlineTargetX = (
   currentX: number,
   currentY: number
 ) => {
-  const hasCell = (x: number) => grid.has(GridManager.toKey(x, currentY));
   let seedX: number | null = null;
   for (const key of grid.keys()) {
     const point = GridManager.fromKey(key);
@@ -85,7 +85,11 @@ const getNewlineTargetX = (
   if (seedX === null) return currentX;
 
   let runStartX = seedX;
-  while (hasCell(runStartX - 1)) runStartX -= 1;
+  while (true) {
+    const previous = resolveGridSlot(grid, { x: runStartX - 1, y: currentY });
+    if (!previous || previous.anchor.x + previous.width !== runStartX) break;
+    runStartX = previous.anchor.x;
+  }
   return Math.min(currentX, runStartX);
 };
 
@@ -128,7 +132,13 @@ export const createTextSlice = (
   structuredTextSelection: null,
   setTextCursor: (pos) =>
     set((state) => {
-      const nextPos = pos ? clampPointToActiveSlide(state, pos) : null;
+      const resolvedPos =
+        pos && state.canvasMode !== "structured"
+          ? resolveGridAnchor(state.grid, pos)
+          : pos;
+      const nextPos = resolvedPos
+        ? clampPointToActiveSlide(state, resolvedPos)
+        : null;
       return {
         textCursor: nextPos,
         ...(state.canvasMode === "structured" && nextPos ? { structuredGridFocus: null } : {}),
@@ -319,6 +329,7 @@ export const createTextSlice = (
       selection: staticGridSelection,
       editMode: staticGridEditMode,
       textCursor,
+      grid: get().grid,
     });
 
     if (staticGridView.hasSelection && str.length === 1) {
@@ -390,6 +401,7 @@ export const createTextSlice = (
       selection: staticGridSelection,
       editMode: staticGridEditMode,
       textCursor,
+      grid: get().grid,
     });
 
     const basePos =
@@ -452,17 +464,12 @@ export const createTextSlice = (
     let newX = textCursor.x;
     const newY = textCursor.y + dy;
     if (dx > 0) {
-      const cell = grid.get(GridManager.toKey(newX, textCursor.y));
-      newX += getCellOccupancy(cell?.char || " ");
+      const slot = resolveGridSlot(grid, { x: newX, y: textCursor.y });
+      newX = slot ? slot.anchor.x + slot.width : newX + 1;
     } else if (dx < 0) {
-      const leftKey = GridManager.toKey(newX - 1, textCursor.y);
-      const leftCell = grid.get(leftKey);
-      if (!leftCell) {
-        const farLeftCell = grid.get(GridManager.toKey(newX - 2, textCursor.y));
-        newX -= farLeftCell && getCellOccupancy(farLeftCell.char) === 2 ? 2 : 1;
-      } else {
-        newX -= 1;
-      }
+      newX =
+        resolveGridSlot(grid, { x: newX - 1, y: textCursor.y })?.anchor.x ??
+        newX - 1;
     }
     set((state) => ({
       textCursor: clampPointToActiveSlide(state, { x: newX, y: newY }),

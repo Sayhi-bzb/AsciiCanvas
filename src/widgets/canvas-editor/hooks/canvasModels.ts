@@ -27,6 +27,7 @@ export type CanvasRenderModel = Pick<CanvasState,
 >;
 
 export type CanvasEditorModel = Pick<CanvasState,
+  | "grid"
   | "textCursor"
   | "staticGridSelection"
   | "staticGridEditMode"

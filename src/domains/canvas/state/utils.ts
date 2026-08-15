@@ -1,8 +1,7 @@
 import type { GridCell } from "@/shared/types";
 import { writeCell, writeStyledCell } from "@/shared/utils/grid-ops";
 import { styleStateToCell, type AnsiStyleState } from "@/shared/utils/ansi";
-import { GridManager } from "@/shared/utils/grid";
-import { isWideCell } from "@/shared/metrics";
+import { resolveGridSlot } from "@/shared/utils/grid-occupancy";
 
 type CellWriteOptions = {
   preserveTargetBackground?: boolean;
@@ -13,11 +12,7 @@ const resolveTargetBackground = (
   x: number,
   y: number
 ) => {
-  const directCell = targetGrid.get(GridManager.toKey(x, y));
-  if (directCell) return directCell.bgColor;
-
-  const leftCell = targetGrid.get(GridManager.toKey(x - 1, y));
-  return leftCell && isWideCell(leftCell.char) ? leftCell.bgColor : undefined;
+  return resolveGridSlot(targetGrid, { x, y })?.cell.bgColor;
 };
 
 type GridWriter = {

@@ -1,5 +1,6 @@
 import { union, type Polygon } from "polygon-clipping";
-import type { Point } from "@/shared/types";
+import type { GridMap, Point } from "@/shared/types";
+import { getGridFootprint } from "@/shared/utils/grid-occupancy";
 import type { GridBounds, GridRange } from "./static-grid";
 
 export interface GridSelectionGeometry {
@@ -40,11 +41,15 @@ const rangeToPolygon = (range: GridRange): Polygon => {
 };
 
 export const getGridSelectionGeometry = (
-  ranges: GridRange[]
+  ranges: GridRange[],
+  grid?: GridMap
 ): GridSelectionGeometry => {
   if (ranges.length === 0) return { polygons: [], bounds: null };
 
-  const normalized = ranges.map(normalizeRange);
+  const normalized = getGridSelectionSpans(ranges, grid).map(({ y, minX, maxX }) => ({
+    start: { x: minX, y },
+    end: { x: maxX, y },
+  }));
   const minX = Math.min(...normalized.map((range) => range.start.x));
   const minY = Math.min(...normalized.map((range) => range.start.y));
   const maxX = Math.max(...normalized.map((range) => range.end.x));
@@ -60,11 +65,11 @@ export const getGridSelectionGeometry = (
   };
 };
 
-export const forEachGridSelectionSpan = (
+const getRawGridSelectionSpans = (
   ranges: GridRange[],
-  visit: (span: GridSelectionSpan) => void
-) => {
-  if (ranges.length === 0) return;
+): GridSelectionSpan[] => {
+  if (ranges.length === 0) return [];
+  const spans: GridSelectionSpan[] = [];
   const normalized = ranges.map(normalizeRange);
   const minY = Math.min(...normalized.map((range) => range.start.y));
   const maxY = Math.max(...normalized.map((range) => range.end.y));
@@ -82,10 +87,54 @@ export const forEachGridSelectionSpan = (
       if (next.minX <= current.maxX + 1) {
         current = { minX: current.minX, maxX: Math.max(current.maxX, next.maxX) };
       } else {
-        visit({ y, ...current });
+        spans.push({ y, ...current });
         current = next;
       }
     }
-    visit({ y, ...current });
+    spans.push({ y, ...current });
   }
+  return spans;
+};
+
+const mergeRowSpans = (spans: GridSelectionSpan[]) => {
+  const merged: GridSelectionSpan[] = [];
+  const sorted = [...spans].sort(
+    (left, right) => left.y - right.y || left.minX - right.minX || left.maxX - right.maxX
+  );
+  for (const span of sorted) {
+    const previous = merged[merged.length - 1];
+    if (previous && previous.y === span.y && span.minX <= previous.maxX + 1) {
+      previous.maxX = Math.max(previous.maxX, span.maxX);
+    } else {
+      merged.push({ ...span });
+    }
+  }
+  return merged;
+};
+
+export const getGridSelectionSpans = (
+  ranges: GridRange[],
+  grid?: GridMap
+): GridSelectionSpan[] => {
+  const spans = getRawGridSelectionSpans(ranges);
+  if (!grid) return spans;
+  return mergeRowSpans(
+    spans.map((span) => {
+      const left = getGridFootprint(grid, { x: span.minX, y: span.y });
+      const right = getGridFootprint(grid, { x: span.maxX, y: span.y });
+      return {
+        y: span.y,
+        minX: left ? Math.min(span.minX, left.start.x) : span.minX,
+        maxX: right ? Math.max(span.maxX, right.end.x) : span.maxX,
+      };
+    })
+  );
+};
+
+export const forEachGridSelectionSpan = (
+  ranges: GridRange[],
+  visit: (span: GridSelectionSpan) => void,
+  grid?: GridMap
+) => {
+  getGridSelectionSpans(ranges, grid).forEach(visit);
 };

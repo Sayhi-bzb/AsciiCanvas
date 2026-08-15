@@ -92,6 +92,7 @@ function AppContent() {
     textCursor,
     staticGridSelection,
     staticGridEditMode,
+    grid,
     editingStructuredTextNodeId,
     structuredTextSelection,
   } = useCanvasState(
@@ -101,6 +102,7 @@ function AppContent() {
       textCursor: state.textCursor,
       staticGridSelection: state.staticGridSelection,
       staticGridEditMode: state.staticGridEditMode,
+      grid: state.grid,
       editingStructuredTextNodeId: state.editingStructuredTextNodeId,
       structuredTextSelection: state.structuredTextSelection,
     }))
@@ -123,8 +125,9 @@ function AppContent() {
         selection: staticGridSelection,
         editMode: staticGridEditMode,
         textCursor,
+        grid,
       }),
-    [staticGridEditMode, staticGridSelection, textCursor]
+    [grid, staticGridEditMode, staticGridSelection, textCursor]
   );
   const isCanvasTextEditing = isStaticGridMode(canvasMode)
     ? !!staticGridView.textCursor
