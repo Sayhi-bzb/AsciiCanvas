@@ -230,6 +230,32 @@ describe("selectionSlice static grid selection compatibility", () => {
       ])
     );
   });
+
+  it("tiles a styled character pattern and preserves blanks", () => {
+    useEditorStore.setState({ canvasMode: "freeform" });
+    applyFreeformSnapshotToYMaps([
+      ["0,0", { char: "A", color: "#fff", attrs: { bold: true } }],
+      ["1,0", { char: "B", color: "#0ff", bgColor: "#123456" }],
+      ["4,0", { char: "Z", color: "#f00" }],
+    ]);
+
+    useEditorStore.getState().fillStaticGridPattern(
+      { start: { x: 0, y: 0 }, end: { x: 2, y: 0 } },
+      { start: { x: 0, y: 0 }, end: { x: 5, y: 0 } }
+    );
+
+    expect(useEditorStore.getState().grid).toEqual(
+      new Map([
+        ["0,0", { char: "A", color: "#fff", attrs: { bold: true } }],
+        ["1,0", { char: "B", color: "#0ff", bgColor: "#123456" }],
+        ["3,0", { char: "A", color: "#fff", attrs: { bold: true } }],
+        ["4,0", { char: "B", color: "#0ff", bgColor: "#123456" }],
+      ])
+    );
+    expect(useEditorStore.getState().staticGridSelection.ranges).toEqual([
+      { start: { x: 0, y: 0 }, end: { x: 5, y: 0 } },
+    ]);
+  });
 });
 describe("selectionSlice setSelectionBackgroundColor", () => {
   afterEach(() => {

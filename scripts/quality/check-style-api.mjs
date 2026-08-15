@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
+import ts from "typescript";
 
 const ROOT = process.cwd();
 const SRC_DIR = join(ROOT, "src");
@@ -41,6 +42,46 @@ const checks = [
     pattern: /\bz-(?:40|50|\[100\])\b/g,
     allow: [],
   },
+  {
+    name: "No component-local dark theme branches",
+    pattern: /\bdark:/g,
+    productionOnly: true,
+    allow: [],
+  },
+  {
+    name: "No raw Tailwind palette colors",
+    pattern:
+      /\b(?:bg|text|border|ring|fill|stroke)-(?:black|white|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|slate|gray|zinc|neutral|stone)(?:-|\/|\b)/g,
+    productionOnly: true,
+    allow: [],
+  },
+  {
+    name: "No space-x/space-y layout utilities",
+    pattern: /\bspace-[xy]-/g,
+    productionOnly: true,
+    allow: [],
+  },
+  {
+    name: "Widgets must compose semantic surfaces through Surface",
+    pattern:
+      /\b(?:bg-(?:host|overlay|dialog)-surface|shadow-(?:host|overlay|dialog)|rx\.surface)\b/g,
+    file: /^src\/widgets\/.*\.tsx$/,
+    productionOnly: true,
+    allow: [],
+  },
+  {
+    name: "Widgets must consume shared primitives instead of rx recipes",
+    pattern: /["']@\/shared\/styles\/recipes["']/g,
+    file: /^src\/widgets\/.*\.tsx$/,
+    productionOnly: true,
+    allow: [],
+  },
+  {
+    name: "No retired surface and item recipes",
+    pattern:
+      /\brx\.(?:floatingHost|overlayPanel|hostSurface|hostContainer|toolbarShell|iconRail|iconRailItem|hostControl|hostIconControl|hostControlActive|dialogClose|quietInput|searchInput|thumbnailSurface|panelLabel|item)\b/g,
+    allow: [],
+  },
 ];
 
 const importPattern =
@@ -63,6 +104,95 @@ const boundaryChecks = [
     forbiddenImport: /^@\/(?:domains\/[^/]+\/components|shared\/ui)\//,
   },
 ];
+
+const behaviorOwnedComponents = new Set([
+  "Button",
+  "IconButton",
+  "SelectableItem",
+  "SwatchButton",
+  "TabsTrigger",
+  "ToggleGroupItem",
+  "DropdownMenuItem",
+  "DropdownMenuRadioItem",
+  "DropdownMenuSubTrigger",
+  "ContextMenuItem",
+  "ContextMenuSubTrigger",
+  "SelectItem",
+  "SelectTrigger",
+]);
+
+const forbiddenBehaviorClass =
+  /\b(?:bg-(?!transparent\b)|hover:(?:bg|text|ring|border|shadow)-|focus(?:-visible)?:(?:bg|text|ring|border|shadow)-|rounded-(?:none|xs|sm|md|lg|xl|full)|ring-(?:[0-9]|primary|ring)|shadow-(?:none|xs|sm|md|lg|xl)|disabled:opacity-|data-\[(?:state|active|selected)[^\]]*\]:(?:bg|text|ring|border|shadow)-)/;
+
+const getJsxTagName = (node, sourceFile) => node.tagName.getText(sourceFile);
+
+const getJsxAttribute = (node, name) =>
+  node.attributes.properties.find(
+    (attribute) =>
+      ts.isJsxAttribute(attribute) && attribute.name.getText() === name
+  );
+
+const hasPresentationEscape = (node) => {
+  const attribute = getJsxAttribute(node, "data-visual-contract");
+  return Boolean(
+    attribute &&
+      attribute.initializer &&
+      ts.isStringLiteral(attribute.initializer) &&
+      attribute.initializer.text === "presentation"
+  );
+};
+
+const checkWidgetBehaviorOwnership = (content, relFile) => {
+  if (!/^src\/widgets\/.*\.tsx$/.test(relFile)) return;
+  if (/\.(?:test|spec)\.tsx$/.test(relFile)) return;
+
+  const sourceFile = ts.createSourceFile(
+    relFile,
+    content,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX
+  );
+
+  const visit = (node) => {
+    if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
+      const tagName = getJsxTagName(node, sourceFile);
+      const line = sourceFile.getLineAndCharacterOfPosition(node.getStart()).line + 1;
+
+      if (tagName === "button") {
+        violations.push({
+          check: "Widgets must use shared interactive primitives instead of raw buttons",
+          file: relFile,
+          line,
+        });
+      }
+
+      if (behaviorOwnedComponents.has(tagName)) {
+        const className = getJsxAttribute(node, "className");
+        const classText = className?.initializer?.getText(sourceFile) ?? "";
+        const presentationEscape = hasPresentationEscape(node);
+
+        if (presentationEscape && relFile !== "src/widgets/toolbar/slide-playback.tsx") {
+          violations.push({
+            check: "Presentation visual override is confined to slide playback",
+            file: relFile,
+            line,
+          });
+        } else if (!presentationEscape && forbiddenBehaviorClass.test(classText)) {
+          violations.push({
+            check: "Widget className must not override shared interaction behavior",
+            file: relFile,
+            line,
+          });
+        }
+      }
+    }
+
+    ts.forEachChild(node, visit);
+  };
+
+  visit(sourceFile);
+};
 
 const walk = (dir) => {
   const files = [];
@@ -97,6 +227,8 @@ for (const filePath of files) {
   const content = readFileSync(filePath, "utf8");
   const relFile = relative(ROOT, filePath).replace(/\\/g, "/");
   for (const check of checks) {
+    if (check.file && !check.file.test(relFile)) continue;
+    if (check.productionOnly && /\.(?:test|spec)\.[^.]+$/.test(relFile)) continue;
     if (isAllowedPath(filePath, check.allow)) continue;
 
     for (const match of content.matchAll(check.pattern)) {
@@ -122,6 +254,8 @@ for (const filePath of files) {
       });
     }
   }
+
+  checkWidgetBehaviorOwnership(content, relFile);
 }
 
 if (violations.length > 0) {

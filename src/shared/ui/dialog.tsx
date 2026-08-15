@@ -5,6 +5,7 @@ import { X } from "lucide-react"
 import { cn } from "@/shared/lib/utils"
 import { useUiI18n } from "@/shared/i18n"
 import { rx } from "@/shared/styles/recipes"
+import { IconButton } from "@/shared/ui/icon-button"
 
 function Dialog({
   ...props
@@ -56,12 +57,14 @@ function DialogContent({
       >
         {children}
         {showCloseButton && (
-          <DialogPrimitive.Close
-            data-slot="dialog-close"
-            className={rx.dialogClose}
-          >
-            <X />
-            <span className="sr-only">{t("dialog.close")}</span>
+          <DialogPrimitive.Close asChild>
+            <IconButton
+              data-slot="dialog-close"
+              aria-label={t("dialog.close")}
+              className="absolute right-2 top-2 z-10"
+            >
+              <X />
+            </IconButton>
           </DialogPrimitive.Close>
         )}
       </DialogPrimitive.Content>

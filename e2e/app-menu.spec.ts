@@ -110,7 +110,7 @@ test.describe("App menu", () => {
     await page.evaluate(() => window.dispatchEvent(new Event("blur")));
     await expect(menuContent).toHaveCount(0);
 
-    const helpControl = page.getByRole("button", { name: "User Manual" });
+    const helpControl = page.getByRole("button", { name: "Help" });
     const helpBox = await helpControl.boundingBox();
     expect(helpBox).not.toBeNull();
     expect(helpBox!.x + helpBox!.width).toBe(1428);
@@ -121,7 +121,7 @@ test.describe("App menu", () => {
     );
 
     await helpControl.click();
-    await expect(page.getByRole("dialog")).toContainText("User Manual");
+    await expect(page.getByRole("dialog")).toContainText("Help");
     await page.keyboard.press("Escape");
 
     await trigger.click();

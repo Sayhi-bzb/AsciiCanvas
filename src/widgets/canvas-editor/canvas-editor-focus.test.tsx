@@ -11,7 +11,11 @@ import {
 } from "@/domains/structured-content/public";
 import { normalizeScene } from "@/domains/structured-content/public";
 import { clipboard } from "@/shared/services/effects";
-import { ShortcutProvider } from "@/shared/shortcuts/dispatcher";
+import {
+  SHORTCUT_PRIORITY,
+  ShortcutProvider,
+  useShortcutLayer,
+} from "@/shared/shortcuts/dispatcher";
 
 vi.mock("@/widgets/canvas-editor/hooks/useCanvasRenderer", () => ({
   useCanvasRenderer: vi.fn(),
@@ -73,6 +77,24 @@ function CanvasEditor(props: ComponentProps<typeof CanvasEditorUnderTest>) {
       <CanvasEditorUnderTest {...props} />
     </ShortcutProvider>
   );
+}
+
+function ModifiedArrowHijacker({ onClaim }: { onClaim: () => void }) {
+  useShortcutLayer({
+    id: "modified-arrow-hijacker",
+    priority: SHORTCUT_PRIORITY.globalAction,
+    onKeyDown: (event) => {
+      if (
+        !(event.ctrlKey || event.metaKey) ||
+        !event.key.startsWith("Arrow")
+      ) {
+        return;
+      }
+      onClaim();
+      return { claimed: true, preventDefault: true };
+    },
+  });
+  return null;
 }
 
 describe("CanvasEditor focus management", () => {
@@ -599,15 +621,21 @@ describe("CanvasEditor focus management", () => {
     expect(screen.queryByText("Bring Forward")).not.toBeInTheDocument();
     expect(screen.queryByText("Send Backward")).not.toBeInTheDocument();
   });
-  it("pans the viewport for ctrl arrow keys without moving the static active cell", () => {
+  it("uses ctrl or command arrow keys for static-grid content navigation", () => {
     useEditorStore.setState({
       canvasMode: "freeform",
       offset: { x: 0, y: 0 },
-      textCursor: { x: 5, y: 5 },
+      grid: new Map([
+        ["1,5", { char: "A", color: "#fff" }],
+        ["2,5", { char: "B", color: "#fff" }],
+        ["4,5", { char: " ", color: "#fff", bgColor: "#333" }],
+        ["5,5", { char: "C", color: "#fff" }],
+      ]),
+      textCursor: { x: 1, y: 5 },
       selections: [],
       staticGridSelection: {
-        activeCell: { x: 5, y: 5 },
-        anchorCell: { x: 5, y: 5 },
+        activeCell: { x: 1, y: 5 },
+        anchorCell: { x: 1, y: 5 },
         ranges: [],
       },
       staticGridEditMode: "text-edit",
@@ -619,21 +647,111 @@ describe("CanvasEditor focus management", () => {
 
     const textarea = container.querySelector("textarea");
     expect(textarea).not.toBeNull();
-
-    fireEvent.keyDown(textarea!, { key: "ArrowLeft", ctrlKey: true });
-    expect(useEditorStore.getState().offset).toEqual({ x: 48, y: 0 });
+    focusCanvasInput(container);
 
     fireEvent.keyDown(textarea!, { key: "ArrowRight", ctrlKey: true });
+    expect(useEditorStore.getState().staticGridSelection.activeCell).toEqual({
+      x: 2,
+      y: 5,
+    });
+    expect(useEditorStore.getState().staticGridEditMode).toBe("navigate");
     expect(useEditorStore.getState().offset).toEqual({ x: 0, y: 0 });
 
-    fireEvent.keyDown(textarea!, { key: "ArrowUp", ctrlKey: true });
-    expect(useEditorStore.getState().offset).toEqual({ x: 0, y: 48 });
-
-    fireEvent.keyDown(textarea!, { key: "ArrowDown", ctrlKey: true });
-    expect(useEditorStore.getState().offset).toEqual({ x: 0, y: 0 });
+    fireEvent.keyDown(textarea!, { key: "ArrowRight", metaKey: true });
     expect(useEditorStore.getState().staticGridSelection.activeCell).toEqual({
       x: 5,
       y: 5,
+    });
+    expect(useEditorStore.getState().offset).toEqual({ x: 0, y: 0 });
+
+    fireEvent.keyDown(textarea!, {
+      key: "ArrowLeft",
+      ctrlKey: true,
+      shiftKey: true,
+    });
+    expect(useEditorStore.getState().staticGridSelection).toEqual({
+      activeCell: { x: 2, y: 5 },
+      anchorCell: { x: 5, y: 5 },
+      ranges: [{ start: { x: 2, y: 5 }, end: { x: 5, y: 5 } }],
+    });
+  });
+
+  it("claims modified arrows before lower-priority shortcut layers", () => {
+    const hijacker = vi.fn();
+    const targetHandler = vi.fn();
+    useEditorStore.setState({
+      canvasMode: "freeform",
+      offset: { x: 0, y: 0 },
+      grid: new Map([
+        ["1,2", { char: "A", color: "#fff" }],
+        ["4,2", { char: "B", color: "#fff" }],
+      ]),
+      textCursor: { x: 1, y: 2 },
+      selections: [],
+      staticGridSelection: {
+        activeCell: { x: 1, y: 2 },
+        anchorCell: { x: 1, y: 2 },
+        ranges: [],
+      },
+      staticGridEditMode: "navigate",
+    });
+
+    const { container, getByTestId } = render(
+      <ShortcutProvider>
+        <ModifiedArrowHijacker onClaim={hijacker} />
+        <CanvasEditorUnderTest onUndo={vi.fn()} onRedo={vi.fn()} />
+      </ShortcutProvider>
+    );
+    fireEvent.pointerDown(getByTestId("canvas-editor-surface"));
+    const textarea = container.querySelector("textarea")!;
+    textarea.addEventListener("keydown", targetHandler);
+    const event = createEvent.keyDown(textarea, {
+      key: "ArrowRight",
+      metaKey: true,
+    });
+
+    fireEvent(textarea, event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(hijacker).not.toHaveBeenCalled();
+    expect(targetHandler).not.toHaveBeenCalled();
+    expect(useEditorStore.getState().staticGridSelection.activeCell).toEqual({
+      x: 4,
+      y: 2,
+    });
+    expect(useEditorStore.getState().offset).toEqual({ x: 0, y: 0 });
+  });
+
+  it("does not claim modified arrows while canvas input is unfocused", () => {
+    useEditorStore.setState({
+      canvasMode: "freeform",
+      staticGridSelection: {
+        activeCell: { x: 2, y: 2 },
+        anchorCell: { x: 2, y: 2 },
+        ranges: [],
+      },
+      staticGridEditMode: "navigate",
+    });
+
+    const { getByRole } = render(
+      <ShortcutProvider>
+        <button type="button">Outside canvas</button>
+        <CanvasEditorUnderTest onUndo={vi.fn()} onRedo={vi.fn()} />
+      </ShortcutProvider>
+    );
+    const outside = getByRole("button", { name: "Outside canvas" });
+    outside.focus();
+    const event = createEvent.keyDown(outside, {
+      key: "ArrowRight",
+      metaKey: true,
+    });
+
+    fireEvent(outside, event);
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(useEditorStore.getState().staticGridSelection.activeCell).toEqual({
+      x: 2,
+      y: 2,
     });
   });
 
@@ -685,6 +803,92 @@ describe("CanvasEditor focus management", () => {
     });
     expect(useEditorStore.getState().textCursor).toBeNull();
     expect(useEditorStore.getState().structuredGridFocus).toBeNull();
+  });
+
+  it("uses Excel-style navigation keys only in static-grid navigate mode", () => {
+    applyFreeformSnapshotToYMaps([
+      ["0,0", { char: "A", color: "#fff" }],
+      ["4,3", { char: "B", color: "#fff" }],
+    ]);
+    useEditorStore.setState({
+      canvasMode: "freeform",
+      grid: new Map([
+        ["0,0", { char: "A", color: "#fff" }],
+        ["4,3", { char: "B", color: "#fff" }],
+      ]),
+      textCursor: { x: 2, y: 1 },
+      selections: [],
+      staticGridSelection: {
+        activeCell: { x: 2, y: 1 },
+        anchorCell: { x: 2, y: 1 },
+        ranges: [],
+      },
+      staticGridEditMode: "navigate",
+    });
+
+    const { container, getByTestId } = render(
+      <CanvasEditor onUndo={vi.fn()} onRedo={vi.fn()} />
+    );
+    const textarea = container.querySelector("textarea")!;
+    fireEvent.pointerDown(getByTestId("canvas-editor-surface"));
+
+    fireEvent.keyDown(textarea, { key: "Home" });
+    expect(useEditorStore.getState().staticGridSelection.activeCell).toEqual({ x: 0, y: 1 });
+    fireEvent.keyDown(textarea, { key: "End", ctrlKey: true });
+    expect(useEditorStore.getState().staticGridSelection.activeCell).toEqual({ x: 4, y: 3 });
+    fireEvent.keyDown(textarea, { key: "Enter", shiftKey: true });
+    expect(useEditorStore.getState().staticGridSelection.activeCell).toEqual({ x: 4, y: 2 });
+    fireEvent.keyDown(textarea, { key: "Tab", shiftKey: true });
+    expect(useEditorStore.getState().staticGridSelection.activeCell).toEqual({ x: 3, y: 2 });
+  });
+
+  it("selects bounded rows, columns, and two-stage content with keyboard shortcuts", () => {
+    applyFreeformSnapshotToYMaps([
+      ["1,1", { char: "A", color: "#fff" }],
+      ["2,1", { char: "B", color: "#fff" }],
+      ["5,4", { char: "C", color: "#fff" }],
+    ]);
+    useEditorStore.setState({
+      canvasMode: "freeform",
+      grid: new Map([
+        ["1,1", { char: "A", color: "#fff" }],
+        ["2,1", { char: "B", color: "#fff" }],
+        ["5,4", { char: "C", color: "#fff" }],
+      ]),
+      textCursor: { x: 1, y: 1 },
+      selections: [],
+      staticGridSelection: {
+        activeCell: { x: 1, y: 1 },
+        anchorCell: { x: 1, y: 1 },
+        ranges: [],
+      },
+      staticGridEditMode: "navigate",
+    });
+
+    const { container, getByTestId } = render(
+      <CanvasEditor onUndo={vi.fn()} onRedo={vi.fn()} />
+    );
+    const textarea = container.querySelector("textarea")!;
+    fireEvent.pointerDown(getByTestId("canvas-editor-surface"));
+
+    fireEvent.keyDown(textarea, { key: " ", code: "Space", shiftKey: true });
+    expect(useEditorStore.getState().staticGridSelection.ranges).toEqual([
+      { start: { x: 1, y: 1 }, end: { x: 5, y: 1 } },
+    ]);
+    useEditorStore.getState().clearStaticGridSelection();
+    fireEvent.keyDown(textarea, { key: " ", code: "Space", ctrlKey: true });
+    expect(useEditorStore.getState().staticGridSelection.ranges).toEqual([
+      { start: { x: 1, y: 1 }, end: { x: 1, y: 4 } },
+    ]);
+    useEditorStore.getState().clearStaticGridSelection();
+    fireEvent.keyDown(textarea, { key: "a", ctrlKey: true });
+    expect(useEditorStore.getState().staticGridSelection.ranges).toEqual([
+      { start: { x: 1, y: 1 }, end: { x: 2, y: 1 } },
+    ]);
+    fireEvent.keyDown(textarea, { key: "a", ctrlKey: true });
+    expect(useEditorStore.getState().staticGridSelection.ranges).toEqual([
+      { start: { x: 1, y: 1 }, end: { x: 5, y: 4 } },
+    ]);
   });
 
   it("moves and clears structured grid focus from the managed textarea", () => {

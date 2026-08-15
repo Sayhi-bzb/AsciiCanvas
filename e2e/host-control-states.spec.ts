@@ -51,6 +51,13 @@ const expectHostIconGeometry = async (control: Locator) => {
   await expect(control.locator("svg").first()).toHaveCSS("height", "16px");
 };
 
+const expectCompactIconGeometry = async (control: Locator) => {
+  await expect(control).toHaveCSS("width", "28px");
+  await expect(control).toHaveCSS("height", "28px");
+  await expect(control.locator("svg").first()).toHaveCSS("width", "16px");
+  await expect(control.locator("svg").first()).toHaveCSS("height", "16px");
+};
+
 const expectHostFocus = async (control: Locator) => {
   await control.focus();
   await control.page().keyboard.press("Shift+Tab");
@@ -149,6 +156,13 @@ const seedHostState = async (
     document.documentElement.classList.toggle("dark", useDarkTheme);
   }, dark);
 
+  const inspectorControl = page.getByRole("button", {
+    name: "Toggle inspector",
+  });
+  if ((await inspectorControl.getAttribute("aria-expanded")) === "true") {
+    await inspectorControl.click();
+  }
+
   const surface = page.getByTestId("canvas-editor-surface");
   const box = await surface.boundingBox();
   expect(box).not.toBeNull();
@@ -188,7 +202,7 @@ for (const scenario of [
     const expectedHover = await readHoverStyle(selectionControl);
     expect(expectedHover.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
 
-    const dockControl = page.getByRole("button", { name: "Box" });
+    const dockControl = page.getByRole("button", { name: "Box", exact: true });
     await expectHostContainer(page.getByTestId("tool-dock"));
     await expectHostIconGeometry(dockControl);
     await expect(readHoverStyle(dockControl)).resolves.toEqual(expectedHover);
@@ -217,15 +231,14 @@ for (const scenario of [
     );
     await expect(submenuTrigger).toHaveCSS("border-left-width", "0px");
 
-    const colorDockItem = page.locator('[data-toolbar-item="color"]');
-    const colorSubmenuTrigger = colorDockItem.locator(
-      '[data-toolbar-submenu-trigger="true"]'
-    );
-    await colorSubmenuTrigger.click();
+    const inspectorControl = page.getByRole("button", {
+      name: "Toggle inspector",
+    });
+    await inspectorControl.click();
     const ansiPaletteTab = page.getByRole("tab", { name: "ANSI 16" });
     const presetsPaletteTab = page.getByRole("tab", { name: "Presets" });
-    await expectHostIconGeometry(ansiPaletteTab);
-    await expectHostIconGeometry(presetsPaletteTab);
+    await expectCompactIconGeometry(ansiPaletteTab);
+    await expectCompactIconGeometry(presetsPaletteTab);
     await expectIconCentered(ansiPaletteTab);
     await expectIconCentered(presetsPaletteTab);
     await expect(ansiPaletteTab).toHaveCSS(
@@ -235,8 +248,8 @@ for (const scenario of [
     await expect(readHoverStyle(presetsPaletteTab)).resolves.toEqual(
       expectedHover
     );
-    await colorSubmenuTrigger.click({ force: true });
-    await expect(page.locator('[data-slot="popover-content"]')).toBeHidden();
+    await inspectorControl.click();
+    await expect(page.getByTestId("canvas-inspector-panel")).toBeHidden();
 
     const railOrientation =
       scenario.viewport.width < 600 ? "horizontal" : "vertical";
@@ -291,7 +304,7 @@ for (const scenario of [
       expectedHover
     );
 
-    const helpControl = page.getByRole("button", { name: "User Manual" });
+    const helpControl = page.getByRole("button", { name: "Help" });
     await expectHostIconGeometry(helpControl);
     await expect(readHoverStyle(helpControl)).resolves.toEqual(expectedHover);
 

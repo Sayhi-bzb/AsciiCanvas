@@ -321,7 +321,7 @@ describe("CharLibrary", () => {
     );
     expect(trigger).toHaveTextContent("Greek and Coptic (117)");
 
-    fireEvent.click(screen.getByRole("button", { name: "Script" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Script" }));
     await waitFor(() =>
       expect(loadUnicodePage).toHaveBeenCalledWith("script", "latin")
     );
@@ -329,8 +329,8 @@ describe("CharLibrary", () => {
 
     act(() => setUiLanguage("zh"));
     expect(screen.getByRole("combobox", { name: "Unicode 分类" })).toBe(trigger);
-    expect(screen.getByRole("button", { name: "区块" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "文字系统" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "类别" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "区块" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "文字系统" })).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "类别" })).toBeInTheDocument();
   });
 });

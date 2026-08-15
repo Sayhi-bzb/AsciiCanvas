@@ -79,6 +79,36 @@ describe("textSlice newlineText", () => {
     expect(useEditorStore.getState().textCursor).toEqual({ x: 3, y: 1 });
   });
 
+  it("returns to the nearest text run instead of unrelated content on the left", () => {
+    setTextState({
+      textCursor: { x: 15, y: 0 },
+      grid: new Map([
+        ["0,0", { char: "x", color: "#ffffff" }],
+        ["10,0", { char: "h", color: "#ffffff" }],
+        ["11,0", { char: " ", color: "#ffffff" }],
+        ["12,0", { char: "好", color: "#ffffff" }],
+      ]),
+    });
+
+    useEditorStore.getState().newlineText();
+
+    expect(useEditorStore.getState().textCursor).toEqual({ x: 10, y: 1 });
+  });
+
+  it("supports text runs at negative columns", () => {
+    setTextState({
+      textCursor: { x: -1, y: 2 },
+      grid: new Map([
+        ["-4,2", { char: "a", color: "#ffffff" }],
+        ["-3,2", { char: "b", color: "#ffffff" }],
+      ]),
+    });
+
+    useEditorStore.getState().newlineText();
+
+    expect(useEditorStore.getState().textCursor).toEqual({ x: -4, y: 3 });
+  });
+
 });
 
 describe("textSlice writeTextString", () => {

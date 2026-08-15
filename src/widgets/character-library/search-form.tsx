@@ -8,7 +8,8 @@ import {
 } from "@/domains/character-library/public";
 import { cn } from "@/shared/lib/utils";
 import { useUiI18n } from "@/shared/i18n";
-import { rx } from "@/shared/styles/recipes"
+import { Input } from "@/shared/ui/input";
+import { IconButton } from "@/shared/ui/icon-button";
 
 type SearchFormProps = Omit<React.ComponentProps<"form">, "onSubmit"> & {
   view: CharacterViewId;
@@ -72,10 +73,11 @@ export function SearchForm({
       <label htmlFor="character-view-search" className="sr-only">
         {t("character.search.label")}
       </label>
-      <input
+      <Input
         ref={inputRef}
         id="character-view-search"
         type="search"
+        appearance="search"
         aria-label={t("character.search.label")}
         placeholder={
           isUnicode
@@ -83,7 +85,6 @@ export function SearchForm({
             : t("character.search.currentPlaceholder")
         }
         className={cn(
-          rx.searchInput,
           "h-8 w-full pl-8 [&::-webkit-search-cancel-button]:hidden",
           isUnicode ? "pr-16" : "pr-10"
         )}
@@ -101,43 +102,46 @@ export function SearchForm({
       />
       <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
       {isUnicode && value ? (
-        <button
+        <IconButton
           type="button"
+          size="xs"
           aria-label={t("search.clear")}
           onClick={() => {
             clear();
             inputRef.current?.focus();
           }}
-          className="absolute right-8 top-1/2 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className="absolute right-8 top-1/2 -translate-y-1/2"
         >
-          <X className="size-3.5" />
-        </button>
+          <X />
+        </IconButton>
       ) : null}
       {isUnicode ? (
-        <button
+        <IconButton
           type="submit"
+          size="xs"
           aria-label={t("character.search.allUnicode")}
           disabled={!value.trim() || unicodeLoading}
-          className="absolute right-1 top-1/2 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-40"
+          className="absolute right-1 top-1/2 -translate-y-1/2"
         >
           {unicodeLoading ? (
-            <Loader2 className="size-3.5 animate-spin" />
+            <Loader2 className="animate-spin" />
           ) : (
-            <Search className="size-3.5" />
+            <Search />
           )}
-        </button>
+        </IconButton>
       ) : value ? (
-        <button
+        <IconButton
           type="button"
+          size="xs"
           aria-label={t("search.clear")}
           onClick={() => {
             clear();
             inputRef.current?.focus();
           }}
-          className="absolute right-1 top-1/2 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className="absolute right-1 top-1/2 -translate-y-1/2"
         >
-          <X className="size-3.5" />
-        </button>
+          <X />
+        </IconButton>
       ) : null}
     </form>
   );

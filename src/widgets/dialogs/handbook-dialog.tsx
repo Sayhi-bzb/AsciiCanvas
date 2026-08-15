@@ -22,6 +22,7 @@ import { KeyboardShortcutsDialog } from "./keyboard-shortcuts-dialog";
 
 const HELP_REFERENCE = [
   ["manual.reference.select", "manual.reference.selectDescription"],
+  ["manual.reference.gridNavigation", "manual.reference.gridNavigationDescription"],
   ["manual.reference.insert", "manual.reference.insertDescription"],
   ["manual.reference.editText", "manual.reference.editTextDescription"],
   ["manual.reference.rangeStyle", "manual.reference.rangeStyleDescription"],
@@ -59,7 +60,6 @@ export function HandbookDialog({
                 tone="subtle"
                 shape="square"
                 size="md"
-                className="size-8 text-muted-foreground hover:text-primary"
               >
                 <CircleHelp />
               </Button>

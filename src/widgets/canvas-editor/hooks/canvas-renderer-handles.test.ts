@@ -3,6 +3,7 @@ import {
   drawActiveCellFocus,
   drawCanvasColorPickerAnchor,
   getStructuredSplitBoxActiveLeafBounds,
+  resolveStaticGridActiveFocusPoint,
 } from "@/widgets/canvas-editor/hooks/useCanvasRenderer";
 import {
   getStructuredLineHandlePoints,
@@ -37,6 +38,47 @@ describe("useCanvasRenderer structured rect handles", () => {
     });
     expect(ctx.fillRect).toHaveBeenCalledWith(18, 57, 9, 19);
     expect(ctx.strokeRect).toHaveBeenCalledWith(18, 57, 9, 19);
+  });
+
+  it("keeps static-grid active focus separate from the edit cursor", () => {
+    const activeCell = { x: 4, y: 3 };
+
+    expect(
+      resolveStaticGridActiveFocusPoint({
+        canvasMode: "freeform",
+        activeCell,
+        editMode: "navigate",
+        hasSelection: false,
+        textCursor: activeCell,
+      })
+    ).toEqual(activeCell);
+    expect(
+      resolveStaticGridActiveFocusPoint({
+        canvasMode: "slide",
+        activeCell,
+        editMode: "navigate",
+        hasSelection: true,
+        textCursor: null,
+      })
+    ).toEqual(activeCell);
+    expect(
+      resolveStaticGridActiveFocusPoint({
+        canvasMode: "freeform",
+        activeCell,
+        editMode: "navigate",
+        hasSelection: false,
+        textCursor: null,
+      })
+    ).toBeNull();
+    expect(
+      resolveStaticGridActiveFocusPoint({
+        canvasMode: "structured",
+        activeCell,
+        editMode: "text-edit",
+        hasSelection: true,
+        textCursor: activeCell,
+      })
+    ).toBeNull();
   });
 
   it("returns eight handles for rectangular structured nodes", () => {

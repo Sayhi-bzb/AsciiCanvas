@@ -4,6 +4,7 @@ import type { CanvasDocumentRegistry } from "../CanvasDocumentRegistry";
 import { GridManager } from "@/shared/utils/grid";
 import { getSelectionBounds } from "@/shared/utils/selection";
 import { placeCharInYMap } from "../utils";
+import { writeStyledCell } from "@/shared/utils/grid-ops";
 import type { GridCell } from "@/shared/types";
 import { deleteRect } from "../gridOps";
 import {  getStructuredNodeBounds,
@@ -226,6 +227,66 @@ export const createSelectionSlice = (
           }
         }
       });
+    });
+  },
+
+  fillStaticGridPattern: (source, target) => {
+    const state = get();
+    if (state.canvasMode === "structured") return;
+    const sourceBounds = getSelectionBounds(source);
+    const targetBounds = getSelectionBounds(target);
+    const sourceWidth = sourceBounds.maxX - sourceBounds.minX + 1;
+    const sourceHeight = sourceBounds.maxY - sourceBounds.minY + 1;
+    if (sourceWidth <= 0 || sourceHeight <= 0) return;
+
+    const snapshot = new Map<string, GridCell>();
+    for (let y = sourceBounds.minY; y <= sourceBounds.maxY; y++) {
+      for (let x = sourceBounds.minX; x <= sourceBounds.maxX; x++) {
+        const cell = state.grid.get(GridManager.toKey(x, y));
+        if (cell) snapshot.set(GridManager.toKey(x, y), { ...cell, attrs: cloneTextAttributes(cell.attrs) });
+      }
+    }
+
+    documents.mutateGrid((grid) => {
+      deleteRect(
+        grid,
+        targetBounds.minX,
+        targetBounds.minY,
+        targetBounds.maxX,
+        targetBounds.maxY
+      );
+      for (let y = targetBounds.minY; y <= targetBounds.maxY; y++) {
+        for (let x = targetBounds.minX; x <= targetBounds.maxX; x++) {
+          const sourceX =
+            sourceBounds.minX +
+            (((x - sourceBounds.minX) % sourceWidth) + sourceWidth) % sourceWidth;
+          const sourceY =
+            sourceBounds.minY +
+            (((y - sourceBounds.minY) % sourceHeight) + sourceHeight) % sourceHeight;
+          const cell = snapshot.get(GridManager.toKey(sourceX, sourceY));
+          if (!cell) continue;
+          const occupancy = getCellOccupancy(cell.char);
+          if (
+            sourceX + occupancy - 1 > sourceBounds.maxX ||
+            x + occupancy - 1 > targetBounds.maxX
+          ) {
+            continue;
+          }
+          writeStyledCell(grid, x, y, cell);
+        }
+      }
+    });
+
+    const range = gridRangeFromSelectionArea(target);
+    set({
+      staticGridSelection: {
+        activeCell: { ...range.end },
+        anchorCell: { ...range.start },
+        ranges: [range],
+      },
+      staticGridEditMode: "navigate",
+      textCursor: null,
+      selections: [target],
     });
   },
 

@@ -7,7 +7,6 @@ import { SLIDE_SIZE_PRESETS, type SlideSize } from "@/domains/slides/public";
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
 import { useUiI18n, type I18nKey } from "@/shared/i18n";
 import { cn } from "@/shared/lib/utils";
-import { rx } from "@/shared/styles/recipes";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,6 +32,7 @@ import {
 import { InlineRenameInput } from "@/shared/ui/inline-rename-input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
 import { Separator } from "@/shared/ui/separator";
+import { SelectableItem } from "@/shared/ui/selectable-item";
 import { CustomSlideSizeDialog } from "@/widgets/dialogs/custom-slide-size-dialog";
 import { useOnboardingTour } from "@/widgets/onboarding/onboarding-context";
 
@@ -167,9 +167,7 @@ export function CanvasBreadcrumb() {
             tone="subtle"
             size="md"
             className={cn(
-              "max-w-[min(14rem,calc(100vw-5.5rem))] justify-start gap-1.5 bg-transparent px-2",
-              "data-[state=open]:bg-accent data-[state=open]:text-accent-foreground",
-              rx.hostControl
+              "max-w-[min(14rem,calc(100vw-5.5rem))] justify-start gap-1.5 px-2"
             )}
             aria-label={t("session.select")}
             title={activeSession?.name ?? t("session.fallbackName")}
@@ -216,15 +214,15 @@ export function CanvasBreadcrumb() {
               const isActive = session.id === activeCanvasId;
               const isEditing = session.id === renameTargetId;
               return (
-                <div
+                <SelectableItem
+                  asChild
                   key={session.id}
+                  selected={isActive}
                   data-canvas-session-row={session.id}
                   data-active={isActive ? "true" : undefined}
-                  className={cn(
-                    "group/session-row flex min-w-0 items-center rounded-md transition-colors",
-                    isActive && "bg-accent text-accent-foreground"
-                  )}
+                  className="group/session-row flex w-full min-w-0 items-center p-0"
                 >
+                  <div>
                   {isEditing ? (
                     <div className="flex h-7 min-w-0 flex-1 items-center gap-2 px-2">
                       <ModeIcon className="size-4 shrink-0" />
@@ -247,7 +245,7 @@ export function CanvasBreadcrumb() {
                         tone="subtle"
                         size="sm"
                         aria-current={isActive ? "page" : undefined}
-                        className="min-w-0 flex-1 justify-start bg-transparent px-2 hover:bg-accent"
+                        className="min-w-0 flex-1 justify-start px-2"
                         onClick={() => {
                           switchCanvasSession(session.id);
                           closeSelector();
@@ -270,7 +268,7 @@ export function CanvasBreadcrumb() {
                             data-session-actions="true"
                             aria-label={manageLabel}
                             title={manageLabel}
-                            className="size-7 shrink-0 bg-transparent"
+                            className="shrink-0"
                           >
                             <SessionMoreIcon className="size-4" />
                           </Button>
@@ -301,7 +299,8 @@ export function CanvasBreadcrumb() {
                       </DropdownMenu>
                     </>
                   )}
-                </div>
+                  </div>
+                </SelectableItem>
               );
             })}
           </div>

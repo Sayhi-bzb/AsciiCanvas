@@ -26,6 +26,7 @@ type ShortcutDispatchContext = {
 type ShortcutDispatchResult = {
   claimed: boolean;
   preventDefault?: boolean;
+  stopImmediatePropagation?: boolean;
 };
 
 export type ShortcutLayer = {
@@ -103,6 +104,9 @@ export function ShortcutProvider({ children }: { children: ReactNode }) {
         const result = handler?.(event, context);
         if (!result?.claimed) continue;
         if (result.preventDefault) event.preventDefault();
+        if (result.stopImmediatePropagation) {
+          event.stopImmediatePropagation();
+        }
         break;
       }
     };

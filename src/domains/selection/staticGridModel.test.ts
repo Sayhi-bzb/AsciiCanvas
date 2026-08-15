@@ -5,9 +5,16 @@ import {
   extendGridSelectionTo,
   gridRangeFromSelectionArea,
   moveGridAddress,
+  moveGridAddressToContentBoundary,
   normalizeGridRange,
   selectionAreaFromGridRange,
   getStaticGridViewState,
+  getConnectedGridRange,
+  getEffectiveGridBounds,
+  moveGridAddressToEdge,
+  resolveGridFillRange,
+  selectGridColumn,
+  selectGridRow,
 } from "@/domains/selection/public";
 
 describe("staticGridModel", () => {
@@ -65,6 +72,177 @@ describe("staticGridModel", () => {
       selectionAreas: [{ start: { x: 2, y: 2 }, end: { x: 4, y: 2 } }],
       hasSelection: true,
       isTextEditing: false,
+    });
+  });
+
+  it("keeps a legacy cursor hidden while the static grid is navigating", () => {
+    const view = getStaticGridViewState({
+      selection: createGridSelectionState({ x: 4, y: 2 }),
+      editMode: "navigate",
+      textCursor: { x: 9, y: 9 },
+      selections: [],
+    });
+
+    expect(view.activeCell).toEqual({ x: 4, y: 2 });
+    expect(view.textCursor).toBeNull();
+  });
+
+  it("derives effective bounds from negative sparse content and selection", () => {
+    const grid = new Map([
+      ["-4,3", { char: "A", color: "#fff" }],
+      ["2,-2", { char: "B", color: "#fff" }],
+    ]);
+
+    expect(
+      getEffectiveGridBounds({
+        grid,
+        activeCell: { x: 0, y: 0 },
+        ranges: [{ start: { x: 7, y: 1 }, end: { x: 8, y: 2 } }],
+      })
+    ).toEqual({ start: { x: -4, y: -2 }, end: { x: 8, y: 3 } });
+  });
+
+  it("finds a four-way connected content region", () => {
+    const cell = { char: "X", color: "#fff" };
+    const grid = new Map([
+      ["1,1", cell],
+      ["2,1", cell],
+      ["2,2", cell],
+      ["3,3", cell],
+    ]);
+
+    expect(getConnectedGridRange(grid, { x: 1, y: 1 })).toEqual({
+      start: { x: 1, y: 1 },
+      end: { x: 2, y: 2 },
+    });
+  });
+
+  it("moves to edges and creates bounded whole-row and whole-column ranges", () => {
+    const state = createGridSelectionState({ x: 3, y: 4 });
+    const bounds = { start: { x: -2, y: -1 }, end: { x: 8, y: 9 } };
+
+    expect(moveGridAddressToEdge(state.activeCell, "left", bounds)).toEqual({ x: -2, y: 4 });
+    expect(selectGridRow(state, bounds).ranges).toEqual([
+      { start: { x: -2, y: 4 }, end: { x: 8, y: 4 } },
+    ]);
+    expect(selectGridColumn(state, bounds).ranges).toEqual([
+      { start: { x: 3, y: -1 }, end: { x: 3, y: 9 } },
+    ]);
+  });
+
+  it("moves across visible content runs and skips whitespace-only cells", () => {
+    const grid = new Map([
+      ["1,1", { char: "A", color: "#fff" }],
+      ["2,1", { char: "B", color: "#fff" }],
+      ["4,1", { char: " ", color: "#fff", bgColor: "#333" }],
+      ["5,1", { char: "C", color: "#fff" }],
+    ]);
+
+    expect(
+      moveGridAddressToContentBoundary({
+        grid,
+        address: { x: 1, y: 1 },
+        edge: "right",
+      })
+    ).toEqual({ x: 2, y: 1 });
+    expect(
+      moveGridAddressToContentBoundary({
+        grid,
+        address: { x: 2, y: 1 },
+        edge: "right",
+      })
+    ).toEqual({ x: 5, y: 1 });
+    expect(
+      moveGridAddressToContentBoundary({
+        grid,
+        address: { x: 5, y: 1 },
+        edge: "left",
+      })
+    ).toEqual({ x: 2, y: 1 });
+  });
+
+  it("uses fixed boundaries when no content exists in the direction", () => {
+    const grid = new Map([["2,2", { char: "A", color: "#fff" }]]);
+
+    expect(
+      moveGridAddressToContentBoundary({
+        grid,
+        address: { x: 2, y: 2 },
+        edge: "bottom",
+        fixedBounds: { start: { x: 0, y: 0 }, end: { x: 9, y: 7 } },
+      })
+    ).toEqual({ x: 2, y: 7 });
+  });
+
+  it("moves through vertical content runs in both directions", () => {
+    const grid = new Map([
+      ["3,-2", { char: "A", color: "#fff" }],
+      ["3,-1", { char: "B", color: "#fff" }],
+      ["3,4", { char: "C", color: "#fff" }],
+    ]);
+
+    expect(
+      moveGridAddressToContentBoundary({
+        grid,
+        address: { x: 3, y: -2 },
+        edge: "bottom",
+      })
+    ).toEqual({ x: 3, y: -1 });
+    expect(
+      moveGridAddressToContentBoundary({
+        grid,
+        address: { x: 3, y: -1 },
+        edge: "bottom",
+      })
+    ).toEqual({ x: 3, y: 4 });
+    expect(
+      moveGridAddressToContentBoundary({
+        grid,
+        address: { x: 3, y: 4 },
+        edge: "top",
+      })
+    ).toEqual({ x: 3, y: -1 });
+  });
+
+  it("treats both visual columns of a wide character as one content cell", () => {
+    const grid = new Map([
+      ["0,0", { char: "A", color: "#fff" }],
+      ["1,0", { char: "你", color: "#fff" }],
+      ["3,0", { char: "B", color: "#fff" }],
+    ]);
+
+    expect(
+      moveGridAddressToContentBoundary({
+        grid,
+        address: { x: 0, y: 0 },
+        edge: "right",
+      })
+    ).toEqual({ x: 3, y: 0 });
+    expect(
+      moveGridAddressToContentBoundary({
+        grid,
+        address: { x: 1, y: 0 },
+        edge: "right",
+      })
+    ).toEqual({ x: 3, y: 0 });
+    expect(
+      moveGridAddressToContentBoundary({
+        grid,
+        address: { x: 3, y: 0 },
+        edge: "left",
+      })
+    ).toEqual({ x: 0, y: 0 });
+  });
+
+  it("extends fill ranges only along the dominant axis", () => {
+    const source = { start: { x: 2, y: 2 }, end: { x: 4, y: 3 } };
+    expect(resolveGridFillRange(source, { x: 8, y: 4 })).toEqual({
+      start: { x: 2, y: 2 },
+      end: { x: 8, y: 3 },
+    });
+    expect(resolveGridFillRange(source, { x: 1, y: -3 })).toEqual({
+      start: { x: 2, y: -3 },
+      end: { x: 4, y: 3 },
     });
   });
 });

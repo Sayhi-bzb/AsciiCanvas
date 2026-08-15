@@ -63,8 +63,8 @@ describe("dialog visual contract", () => {
     const close = screen.getByRole("button", { name: "Close" });
     expect(close).toHaveClass(
       "size-8",
-      "border-0",
-      "shadow-none",
+      "rounded-lg",
+      "hover:bg-accent",
       "focus-visible:ring-[3px]"
     );
     fireEvent.click(close);
@@ -129,6 +129,6 @@ describe("dialog visual contract", () => {
       </>
     );
 
-    expect(screen.getAllByText("关闭")).toHaveLength(2);
+    expect(document.querySelectorAll('button[aria-label="关闭"]')).toHaveLength(2);
   });
 });

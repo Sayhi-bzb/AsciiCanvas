@@ -23,7 +23,6 @@ body,
     "Maple Mono NF CN", "Noto Sans Symbols 2", ui-monospace, SFMono-Regular, Menlo, Monaco,
     Consolas, "Liberation Mono", "Courier New", monospace;
 
-  /* 恢复圆角变量的计算，不再强制为0 */
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -35,6 +34,8 @@ body,
   --shadow-host: var(--host-shadow);
   --shadow-overlay: var(--overlay-shadow);
   --shadow-dialog: var(--dialog-shadow);
+  --shadow-presentation: var(--presentation-shadow);
+  --shadow-dragged: var(--overlay-shadow);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -53,6 +54,24 @@ body,
   --color-dialog-surface: var(--dialog-surface);
   --color-dialog-overlay: var(--dialog-overlay);
   --color-search-surface: var(--search-surface);
+  --color-presentation-background: var(--presentation-background);
+  --color-presentation-surface: var(--presentation-surface);
+  --color-presentation-foreground: var(--presentation-foreground);
+  --color-presentation-border: var(--presentation-border);
+  --color-presentation-accent: var(--presentation-accent);
+  --color-presentation-separator: var(--presentation-separator);
+  --color-swatch-border: var(--swatch-border);
+  --color-field-surface: var(--field-surface);
+  --color-field-hover: var(--field-hover);
+  --color-invalid-ring: var(--invalid-ring);
+  --color-destructive-muted: var(--destructive-muted);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-tab-active-border: var(--tab-active-border);
+  --color-tooltip-kbd-surface: var(--tooltip-kbd-surface);
+  --color-tooltip-kbd-foreground: var(--tooltip-kbd-foreground);
+  --color-swatch-indicator: var(--swatch-indicator);
+  --color-presence-label-foreground: var(--presence-label-foreground);
+  --color-slide-surface: var(--slide-surface);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
@@ -75,7 +94,6 @@ body,
 }
 
 :root {
-  /* 恢复圆角：线框风格下带圆角会更现代化，不至于太过锐利 */
   --radius: 0.75rem;
 
   /* Stark White background - 高对比度 */
@@ -99,6 +117,25 @@ body,
   --host-shadow: 0 2px 8px rgb(0 0 0 / 0.12), 0 1px 2px rgb(0 0 0 / 0.06);
   --overlay-shadow: 0 6px 18px rgb(0 0 0 / 0.16), 0 2px 6px rgb(0 0 0 / 0.08);
   --dialog-shadow: 0 18px 48px rgb(0 0 0 / 0.22), 0 4px 14px rgb(0 0 0 / 0.12);
+  --presentation-background: oklch(0.208 0.042 265.755);
+  --presentation-surface: oklch(0 0 0 / 0.7);
+  --presentation-foreground: oklch(1 0 0);
+  --presentation-border: oklch(1 0 0 / 0.15);
+  --presentation-accent: oklch(1 0 0 / 0.15);
+  --presentation-separator: oklch(1 0 0 / 0.2);
+  --presentation-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.32), 0 8px 10px -6px rgb(0 0 0 / 0.28);
+  --swatch-border: oklch(0 0 0 / 0.1);
+  --field-surface: transparent;
+  --field-hover: transparent;
+  --invalid-ring: oklch(0.577 0.245 27.325 / 0.2);
+  --destructive-muted: oklch(0.577 0.245 27.325 / 0.1);
+  --destructive-foreground: oklch(1 0 0);
+  --tab-active-border: transparent;
+  --tooltip-kbd-surface: oklch(1 0 0 / 0.2);
+  --tooltip-kbd-foreground: oklch(1 0 0);
+  --swatch-indicator: oklch(1 0 0);
+  --presence-label-foreground: oklch(1 0 0);
+  --slide-surface: oklch(1 0 0);
   --accent: oklch(0.95 0 0);
   --accent-foreground: oklch(0 0 0);
   --destructive: oklch(0.577 0.245 27.325);
@@ -144,6 +181,13 @@ body,
   --host-shadow: 0 3px 10px rgb(0 0 0 / 0.5), 0 1px 3px rgb(0 0 0 / 0.36);
   --overlay-shadow: 0 8px 24px rgb(0 0 0 / 0.62), 0 2px 8px rgb(0 0 0 / 0.42);
   --dialog-shadow: 0 20px 56px rgb(0 0 0 / 0.72), 0 5px 16px rgb(0 0 0 / 0.5);
+  --field-surface: oklch(1 0 0 / 0.3);
+  --field-hover: oklch(1 0 0 / 0.5);
+  --invalid-ring: oklch(0.704 0.191 22.216 / 0.4);
+  --destructive-muted: oklch(0.704 0.191 22.216 / 0.2);
+  --tab-active-border: var(--input);
+  --tooltip-kbd-surface: oklch(0 0 0 / 0.1);
+  --tooltip-kbd-foreground: oklch(0 0 0);
   --accent: oklch(0.15 0 0);
   --accent-foreground: oklch(1 0 0);
   --destructive: oklch(0.704 0.191 22.216);

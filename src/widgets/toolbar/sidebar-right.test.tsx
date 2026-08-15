@@ -247,7 +247,7 @@ describe("SidebarRight structured templates", () => {
       expect(item).toHaveClass(
         "flex-col",
         "items-stretch",
-        "rounded-lg",
+        "rounded-md",
         "text-center"
       );
       expect(item.querySelector(":scope > span:last-child")).not.toHaveClass(

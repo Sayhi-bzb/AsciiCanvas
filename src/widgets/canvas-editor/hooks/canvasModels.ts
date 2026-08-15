@@ -49,6 +49,13 @@ export type CanvasEditorModel = Pick<CanvasState,
   indentText: CanvasCommands["text"]["indent"];
   moveTextCursor: CanvasCommands["text"]["moveCursor"];
   moveStaticGridFocus: CanvasCommands["staticGrid"]["moveFocus"];
+  moveStaticGridFocusToEdge: CanvasCommands["staticGrid"]["moveFocusToEdge"];
+  moveStaticGridFocusToContentBoundary: CanvasCommands["staticGrid"]["moveFocusToContentBoundary"];
+  selectStaticGridAll: CanvasCommands["staticGrid"]["selectAll"];
+  selectStaticGridRow: CanvasCommands["staticGrid"]["selectRow"];
+  selectStaticGridColumn: CanvasCommands["staticGrid"]["selectColumn"];
+  enterStaticGridTextEdit: CanvasCommands["staticGrid"]["enterTextEdit"];
+  exitStaticGridTextEdit: CanvasCommands["staticGrid"]["exitTextEdit"];
   moveStructuredGridFocus: CanvasCommands["interaction"]["moveStructuredGridFocus"];
   setTextCursor: CanvasCommands["interaction"]["setTextCursor"];
   setOffset: CanvasCommands["viewport"]["setOffset"];

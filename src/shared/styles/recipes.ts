@@ -1,84 +1,99 @@
 import { cn } from '@/shared/lib/utils';
-import type { ItemTone, Shape, Size, SurfaceKind, Tone } from './tokens';
+import type {
+  Density,
+  ItemVariant,
+  Shape,
+  Size,
+  SurfaceKind,
+  Tone,
+} from './tokens';
 
 type ControlOptions = {
   tone?: Tone;
   size?: Size;
   shape?: Shape;
   outlined?: boolean;
+  active?: boolean;
+  pressed?: boolean;
+  open?: boolean;
+  destructive?: boolean;
+  joined?: 'start' | 'middle' | 'end';
 };
 
 type SurfaceOptions = {
   kind?: SurfaceKind;
-  elevated?: boolean;
-};
-
-type FloatingHostOptions = {
-  appearance?: 'raised' | 'transparent';
   animated?: boolean;
 };
 
 type FieldOptions = {
-  density?: 'compact' | 'default';
+  density?: Density;
   invalid?: boolean;
+  appearance?: 'default' | 'quiet' | 'search';
 };
 
-type ItemOptions = {
+type MenuItemOptions = {
+  density?: Density;
+  variant?: ItemVariant;
+  selected?: boolean;
+};
+
+type SelectableItemOptions = {
+  density?: Density;
+  orientation?: 'horizontal' | 'vertical';
+  selected?: boolean;
+  muted?: boolean;
+};
+
+type SwatchButtonOptions = {
+  selected?: boolean;
+};
+
+type TabTriggerOptions = {
+  size?: 'default' | 'icon';
   active?: boolean;
-  tone?: ItemTone;
-  size?: Size;
-  outlined?: boolean;
 };
 
-const hostControl = cn(
-  'text-muted-foreground transition-colors outline-none',
-  'hover:bg-accent hover:text-accent-foreground',
-  'focus-visible:ring-ring/50 focus-visible:ring-[3px]'
-);
-
-const hostIconControl = cn(
-  'inline-flex size-8 flex-none items-center justify-center rounded-lg border-0 p-0 shadow-none',
-  '[&_svg]:size-4 [&_svg]:shrink-0',
-  hostControl
-);
-
-const hostSurface = 'rounded-lg border-0 bg-host-surface';
-const floatingHost = ({
-  appearance = 'raised',
-  animated = false,
-}: FloatingHostOptions = {}) =>
+const surface = ({ kind = 'embedded', animated = false }: SurfaceOptions = {}) =>
   cn(
     'rounded-lg border-0',
-    appearance === 'raised' && 'bg-host-surface shadow-host',
-    appearance === 'transparent' && 'bg-transparent shadow-none',
+    kind === 'embedded' && 'bg-host-surface shadow-none',
+    kind === 'floating' && 'bg-host-surface shadow-host',
+    kind === 'overlay' && 'bg-overlay-surface shadow-overlay',
+    kind === 'transparent' && 'bg-transparent shadow-none',
     animated &&
       'transition-[background-color,box-shadow] duration-200 ease-out motion-reduce:transition-none'
   );
-const overlayPanel = 'rounded-lg border-0 bg-overlay-surface shadow-overlay';
-const quietInput = cn(
-  'min-w-0 rounded-md border-0 bg-transparent text-xs shadow-none outline-none',
-  'placeholder:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring'
-);
-const searchInput = cn(quietInput, 'bg-search-surface');
 const dialogHeader = 'relative flex flex-col gap-1.5 text-left';
 
 const controlBase =
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-all outline-none disabled:pointer-events-none disabled:opacity-50 focus-visible:ring-ring/50 focus-visible:ring-[3px] [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4";
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-all outline-none disabled:pointer-events-none disabled:opacity-50 focus-visible:ring-ring/50 focus-visible:ring-[3px] data-[state=open]:bg-accent data-[state=open]:text-accent-foreground data-[state=on]:bg-accent data-[state=on]:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4";
 
 const controlTone: Record<Tone, string> = {
   primary: 'bg-primary text-primary-foreground hover:bg-primary/90',
   neutral: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
-  subtle: 'text-muted-foreground hover:bg-accent hover:text-accent-foreground',
+  subtle: 'bg-transparent text-muted-foreground hover:bg-accent hover:text-accent-foreground',
   danger:
-    'bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40',
+    'bg-destructive text-destructive-foreground hover:bg-destructive/90 focus-visible:ring-invalid-ring',
   link: 'text-primary underline-offset-4 hover:underline bg-transparent',
 };
 
 const controlSize: Record<Size, string> = {
+  xs: 'h-6 px-2 text-[11px]',
   sm: 'h-7 px-2.5 text-xs',
   md: 'h-8 px-3 text-xs',
   lg: 'h-9 px-4 text-xs',
 };
+
+const persistentControlState = 'bg-accent text-foreground';
+
+const menuItemBase = cn(
+  'relative flex cursor-default select-none items-center gap-2 rounded-md px-2 outline-none transition-colors',
+  'focus:bg-accent focus:text-accent-foreground data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground',
+  'data-[state=open]:bg-accent data-[state=open]:text-accent-foreground',
+  'data-[state=checked]:bg-accent data-[state=checked]:text-foreground',
+  'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+  '[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=\'size-\'])]:size-4'
+);
 
 const controlShape: Record<Shape, string> = {
   auto: 'rounded-md',
@@ -103,14 +118,7 @@ export const rx = {
   dialogHeaderWithClose: cn(dialogHeader, 'pr-12'),
   dialogBody: 'min-w-0',
   dialogFooter: cn('flex flex-col-reverse gap-2', 'sm:flex-row sm:justify-end'),
-  dialogClose: cn(hostIconControl, 'absolute right-2 top-2 z-10'),
-  hostContainer: cn(hostSurface, 'shadow-none'),
-  hostSurface,
-  floatingHost,
-  overlayPanel,
-  quietInput,
-  searchInput,
-  thumbnailSurface: 'rounded-lg border-0 bg-transparent',
+  surface,
   contentScrollArea: cn(
     'group/content-scroll-area',
     '[&_[data-slot=scroll-area-scrollbar]]:opacity-0',
@@ -118,28 +126,38 @@ export const rx = {
     'focus-within:[&_[data-slot=scroll-area-scrollbar]]:opacity-100',
     '[&_[data-slot=scroll-area-thumb]]:bg-muted-foreground/25'
   ),
-  toolbarShell: cn(floatingHost(), 'relative flex items-center gap-1 p-[3px] pointer-events-auto'),
-  hostControl,
-  hostIconControl,
-  hostControlActive: 'bg-accent text-foreground',
-  iconRail: cn(hostSurface, 'flex p-[3px] shadow-none'),
-  iconRailItem: hostIconControl,
   dropdownPanel: cn(
-    overlayPanel,
+    surface({ kind: 'overlay' }),
     'z-(--layer-popover) min-w-32 overflow-hidden p-[3px] text-popover-foreground outline-none'
   ),
   dropdownSubPanel: cn(
-    overlayPanel,
+    surface({ kind: 'overlay' }),
     'z-(--layer-popover) min-w-32 overflow-hidden p-[3px] text-popover-foreground outline-none'
   ),
-  dropdownItem: cn(
-    'relative flex cursor-default select-none items-center gap-2 rounded-md px-2 py-1.5 text-xs outline-none transition-colors'
-  ),
+  menuItem: ({
+    density = 'compact',
+    variant = 'default',
+    selected = false,
+  }: MenuItemOptions = {}) =>
+    cn(
+      menuItemBase,
+      density === 'compact' && 'min-h-7 py-1 text-xs',
+      density === 'default' && 'min-h-8 py-1.5 text-sm',
+      selected && persistentControlState,
+      variant === 'destructive' &&
+        'text-destructive focus:bg-destructive-muted focus:text-destructive data-[highlighted]:bg-destructive-muted data-[highlighted]:text-destructive [&_svg]:text-destructive'
+    ),
+  menuSeparator: '-mx-1 my-1 h-px bg-border',
   control: ({
     tone = 'primary',
     size = 'md',
     shape = 'auto',
     outlined = false,
+    active = false,
+    pressed = false,
+    open = false,
+    destructive = false,
+    joined,
   }: ControlOptions = {}) =>
     cn(
       controlBase,
@@ -147,45 +165,83 @@ export const rx = {
       controlSize[size],
       controlShape[shape],
       shape === 'square' && size === 'sm' && 'size-7 px-0',
+      shape === 'square' && size === 'xs' && 'size-6 px-0',
       shape === 'square' && size === 'md' && 'size-8 px-0',
       shape === 'square' && size === 'lg' && 'size-9 px-0',
       tone === 'link' && 'h-auto px-0',
+      (active || pressed || open) && persistentControlState,
+      destructive &&
+        'text-destructive hover:bg-destructive-muted hover:text-destructive',
+      joined === 'start' && 'rounded-r-none',
+      joined === 'middle' && 'rounded-none',
+      joined === 'end' && 'rounded-l-none',
       outlined && 'border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground'
     ),
 
-  surface: ({ kind = 'panel', elevated = false }: SurfaceOptions = {}) =>
+  selectableItem: ({
+    density = 'compact',
+    orientation = 'horizontal',
+    selected = false,
+    muted = false,
+  }: SelectableItemOptions = {}) =>
     cn(
-      kind === 'panel' && 'bg-background border border-border rounded-xl',
-      kind === 'overlay' && 'bg-popover/95 border border-border rounded-xl',
-      kind === 'muted' && 'bg-muted/40 border border-border rounded-lg',
-      elevated && 'shadow-xl'
+      'inline-flex min-w-0 items-center rounded-md bg-transparent outline-none transition-colors',
+      'hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring/50 focus-visible:ring-[3px]',
+      'disabled:pointer-events-none disabled:opacity-50',
+      density === 'compact' && 'min-h-7 gap-1.5 px-2 text-xs',
+      density === 'default' && 'min-h-8 gap-2 px-2.5 text-sm',
+      orientation === 'vertical' && 'flex-col items-stretch',
+      muted ? 'text-muted-foreground' : 'text-foreground',
+      selected && persistentControlState
     ),
 
-  field: ({ density = 'default', invalid = false }: FieldOptions = {}) =>
+  swatchButton: ({ selected = false }: SwatchButtonOptions = {}) =>
     cn(
-      'w-full rounded-md border bg-background transition-colors outline-none',
+      'inline-flex size-6 cursor-pointer items-center justify-center rounded-full bg-transparent outline-none',
+      'focus-visible:ring-ring/50 focus-visible:ring-[3px]',
+      'disabled:pointer-events-none disabled:opacity-50',
+      selected && 'ring-2 ring-primary'
+    ),
+
+  tabsList: ({ variant = 'default' }: { variant?: 'default' | 'line' } = {}) =>
+    cn(
+      'group/tabs-list inline-flex w-fit items-center justify-center rounded-lg p-[3px] text-muted-foreground',
+      'group-data-[orientation=horizontal]/tabs:h-9 group-data-[orientation=vertical]/tabs:h-fit group-data-[orientation=vertical]/tabs:flex-col',
+      variant === 'default' ? 'bg-muted' : 'gap-1 rounded-none bg-transparent'
+    ),
+
+  tabsTrigger: ({ size = 'default', active = false }: TabTriggerOptions = {}) =>
+    cn(
+      'relative inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-transparent px-2 py-1 text-sm font-medium text-muted-foreground transition-all',
+      'hover:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] focus-visible:outline-1 focus-visible:outline-ring',
+      'disabled:pointer-events-none disabled:opacity-50 group-data-[orientation=vertical]/tabs:w-full group-data-[orientation=vertical]/tabs:justify-start',
+      'data-[state=active]:border-tab-active-border data-[state=active]:bg-accent data-[state=active]:text-foreground',
+      'group-data-[variant=default]/tabs-list:data-[state=active]:shadow-sm group-data-[variant=line]/tabs-list:data-[state=active]:border-transparent group-data-[variant=line]/tabs-list:data-[state=active]:bg-transparent group-data-[variant=line]/tabs-list:data-[state=active]:shadow-none',
+      'after:absolute after:bg-foreground after:opacity-0 after:transition-opacity group-data-[orientation=horizontal]/tabs:after:inset-x-0 group-data-[orientation=horizontal]/tabs:after:bottom-[-5px] group-data-[orientation=horizontal]/tabs:after:h-0.5 group-data-[orientation=vertical]/tabs:after:inset-y-0 group-data-[orientation=vertical]/tabs:after:-right-1 group-data-[orientation=vertical]/tabs:after:w-0.5 group-data-[variant=line]/tabs-list:data-[state=active]:after:opacity-100',
+      "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+      size === 'icon' &&
+        'size-7 flex-none justify-center rounded-lg p-0 hover:bg-accent hover:text-accent-foreground focus-visible:border-transparent focus-visible:outline-0 group-data-[variant=default]/tabs-list:data-[state=active]:shadow-none',
+      active && persistentControlState
+    ),
+
+  field: ({
+    density = 'default',
+    invalid = false,
+    appearance = 'default',
+  }: FieldOptions = {}) =>
+    cn(
+      'w-full min-w-0 rounded-md transition-colors outline-none',
       density === 'default' && 'h-8 px-2.5 py-1.5 text-xs',
       density === 'compact' && 'h-7 px-2 py-1 text-[11px]',
-      'focus-visible:ring-ring/50 focus-visible:ring-[3px]',
+      appearance === 'default' &&
+        'border border-input bg-field-surface shadow-xs focus-visible:ring-ring/50 focus-visible:ring-[3px]',
+      appearance === 'quiet' &&
+        'border-0 bg-transparent shadow-none focus-visible:ring-1 focus-visible:ring-ring',
+      appearance === 'search' &&
+        'border-0 bg-search-surface shadow-none focus-visible:ring-1 focus-visible:ring-ring',
       invalid && 'border-destructive aria-invalid:border-destructive'
     ),
 
-  item: ({ active = false, tone = 'subtle', size = 'md', outlined = false }: ItemOptions = {}) =>
-    cn(
-      'transition-colors outline-none focus-visible:ring-2 ring-sidebar-ring',
-      tone === 'subtle' &&
-        'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
-      tone === 'neutral' &&
-        'text-sidebar-foreground bg-background hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
-      active && 'bg-sidebar-accent text-sidebar-accent-foreground font-medium',
-      size === 'sm' && 'h-6 text-[11px]',
-      size === 'md' && 'h-7 text-xs',
-      size === 'lg' && 'h-10 text-xs',
-      outlined &&
-        'shadow-[0_0_0_1px_hsl(var(--sidebar-border))] hover:shadow-[0_0_0_1px_hsl(var(--sidebar-accent))]'
-    ),
-
   panelText: () => 'text-xs leading-4',
-  panelLabel: () => 'text-[11px] leading-4 font-medium text-muted-foreground',
   panelHeading: () => 'text-xs leading-4 font-semibold',
 };

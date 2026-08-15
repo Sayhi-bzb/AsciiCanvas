@@ -6,6 +6,7 @@ import { X } from "lucide-react"
 
 import { cn } from "@/shared/lib/utils"
 import { useUiI18n } from "@/shared/i18n"
+import { IconButton } from "@/shared/ui/icon-button"
 
 function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
   return <SheetPrimitive.Root data-slot="sheet" {...props} />
@@ -23,7 +24,7 @@ function SheetOverlay({
     <SheetPrimitive.Overlay
       data-slot="sheet-overlay"
       className={cn(
-        "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-(--layer-modal-backdrop) bg-black/50",
+        "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-(--layer-modal-backdrop) bg-dialog-overlay",
         className
       )}
       {...props}
@@ -60,9 +61,13 @@ function SheetContent({
         {...props}
       >
         {children}
-        <SheetPrimitive.Close className="ring-offset-background focus:ring-ring data-[state=open]:bg-secondary absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none">
-          <X className="size-4" />
-          <span className="sr-only">{t("dialog.close")}</span>
+        <SheetPrimitive.Close asChild>
+          <IconButton
+            aria-label={t("dialog.close")}
+            className="absolute right-4 top-4"
+          >
+            <X />
+          </IconButton>
         </SheetPrimitive.Close>
       </SheetPrimitive.Content>
     </SheetPortal>

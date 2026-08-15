@@ -4,6 +4,7 @@ import { Check, ChevronRight } from 'lucide-react';
 
 import { cn } from '@/shared/lib/utils';
 import { rx } from '@/shared/styles/recipes';
+import type { Density, ItemVariant } from '@/shared/styles/tokens';
 
 function DropdownMenu({ ...props }: React.ComponentProps<typeof DropdownMenuPrimitive.Root>) {
   return <DropdownMenuPrimitive.Root data-slot="dropdown-menu" {...props} />;
@@ -41,19 +42,21 @@ function DropdownMenuContent({
 function DropdownMenuItem({
   className,
   variant = 'default',
+  density = 'compact',
+  selected = false,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Item> & {
-  variant?: 'default' | 'destructive';
+  variant?: ItemVariant;
+  density?: Density;
+  selected?: boolean;
 }) {
   return (
     <DropdownMenuPrimitive.Item
       data-slot="dropdown-menu-item"
       data-variant={variant}
+      data-selected={selected || undefined}
       className={cn(
-        rx.dropdownItem,
-        'focus:bg-accent focus:text-accent-foreground data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground',
-        'data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
-        'data-[variant=destructive]:text-destructive data-[variant=destructive]:focus:bg-destructive/10 data-[variant=destructive]:focus:text-destructive data-[variant=destructive]:data-[highlighted]:bg-destructive/10 data-[variant=destructive]:data-[highlighted]:text-destructive',
+        rx.menuItem({ density, variant, selected }),
         className
       )}
       {...props}
@@ -72,7 +75,7 @@ function DropdownMenuSeparator({
   return (
     <DropdownMenuPrimitive.Separator
       data-slot="dropdown-menu-separator"
-      className={cn('-mx-1 my-1 h-0.5 bg-accent', className)}
+      className={cn(rx.menuSeparator, className)}
       {...props}
     />
   );
@@ -85,15 +88,16 @@ function DropdownMenuSub({ ...props }: React.ComponentProps<typeof DropdownMenuP
 function DropdownMenuSubTrigger({
   className,
   children,
+  density = 'compact',
   ...props
-}: React.ComponentProps<typeof DropdownMenuPrimitive.SubTrigger>) {
+}: React.ComponentProps<typeof DropdownMenuPrimitive.SubTrigger> & {
+  density?: Density;
+}) {
   return (
     <DropdownMenuPrimitive.SubTrigger
       data-slot="dropdown-menu-sub-trigger"
       className={cn(
-        rx.dropdownItem,
-        'focus:bg-accent focus:text-accent-foreground data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground',
-        'data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
+        rx.menuItem({ density }),
         className
       )}
       {...props}
@@ -136,16 +140,17 @@ function DropdownMenuRadioGroup({
 function DropdownMenuRadioItem({
   className,
   children,
+  density = 'compact',
   ...props
-}: React.ComponentProps<typeof DropdownMenuPrimitive.RadioItem>) {
+}: React.ComponentProps<typeof DropdownMenuPrimitive.RadioItem> & {
+  density?: Density;
+}) {
   return (
     <DropdownMenuPrimitive.RadioItem
       data-slot="dropdown-menu-radio-item"
       className={cn(
-        rx.dropdownItem,
+        rx.menuItem({ density }),
         'gap-0 pl-8 pr-2',
-        'focus:bg-accent focus:text-accent-foreground data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground',
-        'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
         className
       )}
       {...props}

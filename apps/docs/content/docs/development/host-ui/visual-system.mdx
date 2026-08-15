@@ -16,22 +16,51 @@ The visual ownership path has one direction:
 
 `shadow-host`, `shadow-overlay`, and `shadow-dialog` are the elevation ladder.
 Viewport surfaces use semantic layer tokens; product instances do not assign raw
-overlay tiers or recreate shared surfaces.
+overlay tiers or recreate shared surfaces. Presentation, presence, field, and
+swatch colors also have semantic tokens instead of component-local theme branches.
 
-Persistent Canvas chrome uses the `floatingHost` recipe. Toolbars, Inspector,
-Minimap, and the desktop Sidebar therefore share one borderless host surface,
-radius, and light elevation. Transient portal content continues to use the
-stronger overlay surface.
+[`Surface`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/shared/ui/surface.tsx)
+is the product composition boundary. Its `embedded`, `floating`, `overlay`, and
+`transparent` kinds map to the shared surface recipe. Toolbars, Inspector,
+Minimap, and the desktop Sidebar compose `Surface`; transient portal primitives
+consume the same overlay recipe internally.
+
+Widget `className` owns geometry: layout, position, size, scrolling, responsive
+visibility, and content-specific typography. Shared primitives and recipes own
+background, border, radius, elevation, focus, hover, active state, and default
+icon sizing. A widget must express those decisions through typed primitive props
+and must not import `src/shared/styles/recipes.ts` directly.
+
+Interaction state has stable vocabulary:
+
+- `active` identifies the current editor tool or navigation mode.
+- `pressed` identifies a two-state control and owns `aria-pressed`.
+- `open` identifies an expanded panel or transient surface and owns
+  `aria-expanded` when Radix does not provide it.
+- `selected` identifies an item in a collection.
+- `data-state="highlighted|checked|on"` remains owned by the relevant Radix
+  primitive.
+
+`Button`, `IconButton`, `SelectableItem`, `SwatchButton`, `TabsTrigger`, and the
+menu family translate those states into the shared hover, focus, selected,
+disabled, destructive, radius, and density recipes. Widgets do not reproduce
+those states with utility classes. Segmented controls use `joined`; option sets
+use `ToggleGroup`. Presentation playback is the only themed override and marks
+that boundary with `data-visual-contract="presentation"`.
 
 Dropdown primitives own the overlay surface, collision behavior, animation,
 viewport limits, and a compact minimum width. The product instance owns only
-its semantic width. Dropdowns are reserved for command choices and grouped
+its semantic width. Dropdown, Context Menu, and Select items share the same
+compact/default density, radius, highlight, checked, disabled, destructive,
+and separator recipes. Dropdowns are reserved for command choices and grouped
 options; persistent lists, forms, status, and multi-action widgets use a
 Popover with ordinary buttons and dialog focus behavior.
 
 ## Evidence
 
 - [`scripts/quality/check-style-api.mjs`](https://github.com/Sayhi-bzb/CharDesk/blob/main/scripts/quality/check-style-api.mjs)
-  rejects legacy style APIs and raw viewport overlay tiers.
+  rejects legacy recipes, raw palette colors, component-local `dark:` branches,
+  `space-x/y`, raw viewport tiers, raw Widget buttons, Widget-owned interaction
+  states, and Widget-owned shared surfaces.
 - Surface evidence: [`dialog.test.tsx`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/shared/ui/dialog.test.tsx)
   and [`context-menu.test.tsx`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/shared/ui/context-menu.test.tsx)

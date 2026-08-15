@@ -6,7 +6,7 @@ import type {
   StructuredNode,
   StructuredSplitBoxHandle,
 } from "@/domains/structured-content/public";
-import type { GridMap, Point } from "@/shared/types";
+import type { GridMap, Point, SelectionArea } from "@/shared/types";
 import type { EditorCommandHost, EditorInputEvent } from "./core/types";
 import { EditorStateNode } from "./core/stateNode";
 
@@ -31,7 +31,8 @@ type StructuredResizeStateBase = {
 export type CanvasInteractionState =
   | { type: "idle" }
   | { type: "panning"; lastScreen: Point }
-  | { type: "selecting"; anchor: Point; current: Point }
+  | { type: "selecting"; anchor: Point; current: Point; append?: boolean }
+  | { type: "filling"; source: SelectionArea; current: Point }
   | {
       type: "drawing";
       tool: Extract<ToolType, "brush" | "eraser">;
@@ -60,6 +61,7 @@ export type CanvasInteractionState =
 export const getInteractionStart = (state: CanvasInteractionState): Point | null => {
   switch (state.type) {
     case "selecting": return state.anchor;
+    case "filling": return state.source.end;
     case "drawing":
     case "shapePreview": return state.start;
     case "structuredMoving":
@@ -168,6 +170,7 @@ export class CanvasToolStateNode extends EditorStateNode<
       "idle",
       "panning",
       "selecting",
+      "filling",
       "drawing",
       "shapePreview",
       "structuredMoving",

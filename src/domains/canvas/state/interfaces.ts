@@ -103,6 +103,17 @@ export interface StaticGridSlice {
   setStaticGridActiveCell: (address: GridAddress) => void;
   setStaticGridSelectionRange: (range: GridRange) => void;
   moveStaticGridFocus: (dx: number, dy: number, options?: { extend?: boolean }) => void;
+  moveStaticGridFocusToEdge: (
+    edge: "left" | "right" | "top" | "bottom" | "top-left" | "bottom-right",
+    options?: { extend?: boolean }
+  ) => void;
+  moveStaticGridFocusToContentBoundary: (
+    edge: "left" | "right" | "top" | "bottom",
+    options?: { extend?: boolean }
+  ) => void;
+  selectStaticGridAll: () => void;
+  selectStaticGridRow: () => void;
+  selectStaticGridColumn: () => void;
   enterStaticGridTextEdit: (address?: GridAddress) => void;
   exitStaticGridTextEdit: () => void;
   clearStaticGridSelection: () => void;
@@ -156,6 +167,7 @@ export interface SelectionSlice {
     char: string,
     options?: { preserveTargetBackground?: boolean }
   ) => void;
+  fillStaticGridPattern: (source: SelectionArea, target: SelectionArea) => void;
   setSelectionTextAttributes: (
     attrs: Partial<Record<"bold" | "italic" | "underline" | "strike", boolean>>
   ) => void;

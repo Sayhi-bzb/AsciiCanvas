@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { cn } from "@/shared/lib/utils";
 import {
   isToolAllowedForMode,
   type ToolType,
@@ -22,9 +21,10 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
-import { rx } from "@/shared/styles/recipes"
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
 import { Kbd } from "@/shared/ui/kbd";
+import { Button } from "@/shared/ui/button";
+import { Surface } from "@/shared/ui/surface";
 
 import {
   BrushSubmenu,
@@ -242,10 +242,11 @@ export function Toolbar({
   });
 
   return (
-    <div
+    <Surface
       data-testid="tool-dock"
       data-density={formFactor === "desktop" ? "default" : "compact"}
-      className={rx.toolbarShell}
+      kind="floating"
+      className="relative flex items-center gap-1 p-[3px] pointer-events-auto"
     >
           <nav
             role="toolbar"
@@ -258,46 +259,44 @@ export function Toolbar({
               const shortcutLabel = getDockShortcutLabel(index);
               const shortcutAriaLabel = getDockShortcutAriaLabel(index);
               const submenuTrigger = (
-                <button
+                <Button
                   data-toolbar-submenu-trigger="true"
+                  type="button"
+                  tone="subtle"
+                  shape="square"
+                  size="md"
+                  active={isActive || openSubMenuId === item.id}
+                  joined="end"
                   aria-label={t("toolbar.openSubmenu", { label: item.label })}
-                  className={cn(
-                    rx.hostIconControl,
-                    "rounded-l-none opacity-30 hover:opacity-100",
-                    openSubMenuId === item.id &&
-                      "bg-accent text-foreground opacity-100"
-                  )}
+                  className="opacity-30 hover:opacity-100 data-[active=true]:opacity-100"
                 >
                   <ToolbarSubmenuIcon />
-                </button>
+                </Button>
               );
 
               return (
                 <div
                   key={item.id}
                   data-toolbar-item={item.id}
-                  className={cn(
-                    "relative flex items-center rounded-lg transition-colors has-[[data-toolbar-submenu-trigger]:hover]:bg-accent has-[[data-toolbar-submenu-trigger]:hover]:text-foreground",
-                    isActive || openSubMenuId === item.id
-                      ? rx.hostControlActive
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
+                  className="relative flex items-center"
                 >
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <button
+                      <Button
+                        type="button"
+                        tone="subtle"
+                        shape="square"
+                        size="md"
+                        active={isActive || openSubMenuId === item.id}
+                        joined={item.hasSub ? "start" : undefined}
                         onClick={() => activateToolbarItem(item.id as ToolbarActionId)}
                         aria-label={item.label}
                         aria-keyshortcuts={shortcutAriaLabel}
-                        className={cn(
-                          rx.hostIconControl,
-                          item.hasSub && "rounded-r-none"
-                        )}
                       >
                         {Icon ? (
                           <Icon />
                         ) : null}
-                      </button>
+                      </Button>
                     </TooltipTrigger>
                     <TooltipContent
                       side="top"
@@ -354,9 +353,7 @@ export function Toolbar({
                 </div>
               );
             })}
-
           </nav>
-
-      </div>
+    </Surface>
   );
 }

@@ -33,13 +33,13 @@ import {
   ToggleGroupItem,
 } from "@/shared/ui/toggle-group";
 import { Button, buttonVariants } from "@/shared/ui/button";
+import { Surface } from "@/shared/ui/surface";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/shared/ui/tooltip";
 import { cn } from "@/shared/lib/utils";
-import { rx } from "@/shared/styles/recipes"
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
 
 import { useUiI18n } from "@/shared/i18n";
@@ -69,15 +69,15 @@ const getToolbarWidth = (actionCount: number) =>
   TOOLBAR_INLINE_PADDING;
 
 const selectionToolbarShellClass = cn(
-  rx.toolbarShell,
-  "border-0 shadow-host! backdrop-blur-none animate-in fade-in duration-[120ms] motion-reduce:animate-none"
+  "relative flex items-center gap-1 p-[3px] pointer-events-auto",
+  "backdrop-blur-none animate-in fade-in duration-[120ms] motion-reduce:animate-none"
 );
 
-const selectionToolbarToggleClass = cn(
-  buttonVariants({ tone: "subtle", shape: "square", size: "md" }),
-  rx.hostControl,
-  "size-8 data-[state=on]:bg-accent data-[state=on]:text-foreground"
-);
+const selectionToolbarToggleClass = buttonVariants({
+  tone: "subtle",
+  shape: "square",
+  size: "md",
+});
 
 const preserveCanvasFocus = (event: MouseEvent<HTMLElement>) => {
   event.preventDefault();
@@ -115,7 +115,7 @@ function SelectionToolbarAction({
       shape="square"
       size="md"
       disabled={disabled}
-      className={cn("size-8", rx.hostControl, className)}
+      className={cn("size-8", className)}
       onMouseDown={(event) => {
         preserveCanvasFocus(event);
         onMouseDown?.(event);
@@ -406,12 +406,13 @@ export function SelectionFormatToolbar({
         className="absolute z-(--layer-contextual) pointer-events-auto"
         style={{ left: splitStyle.left, top: splitStyle.top }}
       >
-        <div
-          role="toolbar"
-          data-selection-toolbar="true"
-          className={selectionToolbarShellClass}
-          aria-label={t("selection.splitControls")}
-        >
+        <Surface kind="floating" asChild>
+          <div
+            role="toolbar"
+            data-selection-toolbar="true"
+            className={selectionToolbarShellClass}
+            aria-label={t("selection.splitControls")}
+          >
           <SelectionToolbarAction
             aria-label={t("selection.splitHorizontal")}
             tooltip={t("selection.splitHorizontalTitle")}
@@ -446,7 +447,7 @@ export function SelectionFormatToolbar({
             aria-label={t("selection.deleteDivider")}
             tooltip={t("selection.deleteDividerTitle")}
             disabled={!splitBoxModel.canDeleteDivider}
-            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+            destructive
             onClick={() => {
               if (!splitBoxModel.canDeleteDivider) return;
               deleteSelection();
@@ -454,7 +455,8 @@ export function SelectionFormatToolbar({
           >
             <DeleteDividerIcon className="size-4" />
           </SelectionToolbarAction>
-        </div>
+          </div>
+        </Surface>
       </div>
     );
   }
@@ -469,14 +471,15 @@ export function SelectionFormatToolbar({
       className="absolute z-(--layer-contextual) pointer-events-auto"
       style={{ left: formatStyle.left, top: formatStyle.top }}
     >
-      <ToggleGroup
-        type="multiple"
-        value={textValue}
-        role="toolbar"
-        data-selection-toolbar="true"
-        className={selectionToolbarShellClass}
-        aria-label={t("selection.textFormatting")}
-        onValueChange={(nextValue) => {
+      <Surface kind="floating" asChild>
+        <ToggleGroup
+          type="multiple"
+          value={textValue}
+          role="toolbar"
+          data-selection-toolbar="true"
+          className={selectionToolbarShellClass}
+          aria-label={t("selection.textFormatting")}
+          onValueChange={(nextValue) => {
           const next = new Set(nextValue);
           const attrs = {
             bold: next.has("bold"),
@@ -491,7 +494,7 @@ export function SelectionFormatToolbar({
 
           setSelectionTextAttributes(attrs);
         }}
-      >
+        >
         <Tooltip>
           <TooltipTrigger asChild>
             <TooltipSafeToggleGroupItem
@@ -537,7 +540,8 @@ export function SelectionFormatToolbar({
             {t("selection.underline")}
           </TooltipContent>
         </Tooltip>
-      </ToggleGroup>
+        </ToggleGroup>
+      </Surface>
     </div>
   );
 }

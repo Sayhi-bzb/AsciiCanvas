@@ -48,32 +48,32 @@ describe('HelpControl', () => {
   it('opens the Handbook and reflects its active state', async () => {
     render(<HelpControl />);
     const control = screen.getByRole('button', { name: 'Help' });
-    expect(control).toHaveAttribute('aria-pressed', 'false');
+    expect(control).toHaveAttribute('aria-expanded', 'false');
 
     fireEvent.click(control);
     expect(await screen.findByRole('dialog', { name: 'Help' })).toBeInTheDocument();
-    expect(control).toHaveAttribute('aria-pressed', 'true');
+    expect(control).toHaveAttribute('aria-expanded', 'true');
     expect(control).toHaveClass('bg-accent');
 
     fireEvent.click(screen.getByRole('button', { name: 'Close help' }));
     expect(screen.queryByRole('dialog', { name: 'Help' })).not.toBeInTheDocument();
-    expect(control).toHaveAttribute('aria-pressed', 'false');
+    expect(control).toHaveAttribute('aria-expanded', 'false');
     await waitFor(() => expect(control).toHaveFocus());
   });
 
   it('opens Data security and returns focus to the Guard control', async () => {
     render(<HelpControl />);
     const control = screen.getByRole('button', { name: 'Data security' });
-    expect(control).toHaveAttribute('aria-pressed', 'false');
+    expect(control).toHaveAttribute('aria-expanded', 'false');
 
     fireEvent.click(control);
     expect(await screen.findByRole('dialog', { name: 'Data security' })).toBeInTheDocument();
-    expect(control).toHaveAttribute('aria-pressed', 'true');
+    expect(control).toHaveAttribute('aria-expanded', 'true');
     expect(control).toHaveClass('bg-accent');
 
     fireEvent.click(screen.getByRole('button', { name: 'Close security' }));
     expect(screen.queryByRole('dialog', { name: 'Data security' })).not.toBeInTheDocument();
-    expect(control).toHaveAttribute('aria-pressed', 'false');
+    expect(control).toHaveAttribute('aria-expanded', 'false');
     await waitFor(() => expect(control).toHaveFocus());
   });
 });

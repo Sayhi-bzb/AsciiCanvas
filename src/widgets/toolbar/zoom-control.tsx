@@ -5,9 +5,8 @@ import { useShallow } from 'zustand/react/shallow';
 import { useCanvasRuntime, useCanvasState } from '@/domains/canvas/public';
 import { HOST_ICONOLOGY } from '@/shared/icons/iconology';
 import { MAX_ZOOM, MIN_ZOOM } from '@/shared/lib/constants';
-import { cn } from '@/shared/lib/utils';
-import { rx } from '@/shared/styles/recipes';
 import { Button } from '@/shared/ui/button';
+import { Surface } from '@/shared/ui/surface';
 import { useUiI18n } from '@/shared/i18n';
 import { feedback } from '@/shared/services/effects';
 import { useCanvasEngineRuntime } from '@/widgets/canvas-editor/engine/useCanvasEngineRuntime';
@@ -149,29 +148,29 @@ export function ZoomControl({
   if (formFactor === 'phone') return null;
 
   return (
-    <div
+    <Surface
       data-canvas-ui="true"
       data-testid="zoom-control"
-      className={rx.toolbarShell}
+      kind="floating"
+      className="relative flex items-center gap-1 p-[3px] pointer-events-auto"
       aria-label={zoomLabel}
     >
       {canvasMode !== 'slide' && minimapOpen && (
-        <div
+        <Surface
           data-testid="zoom-minimap"
-          className={cn(
-            rx.floatingHost(),
-            'absolute bottom-full left-0 z-(--layer-popover) mb-2 w-auto overflow-hidden'
-          )}
+          kind="floating"
+          className="absolute bottom-full left-0 z-(--layer-popover) mb-2 w-auto overflow-hidden"
         >
           <Suspense fallback={<div className="h-[140px] w-[220px] bg-muted" />}>
             <Minimap containerSize={viewportSize} />
           </Suspense>
-        </div>
+        </Surface>
       )}
       <Button
         tone="subtle"
         size="md"
-        className={cn(rx.hostIconControl, 'rounded-r-none')}
+        shape="square"
+        joined="start"
         aria-label={t('zoom.out')}
         title={t('zoom.out')}
         data-testid="zoom-out"
@@ -183,10 +182,8 @@ export function ZoomControl({
       <Button
         tone="subtle"
         size="md"
-        className={cn(
-          rx.hostControl,
-          'h-8 min-w-14 rounded-none border-0 px-2 text-xs tabular-nums shadow-none'
-        )}
+        joined="middle"
+        className="min-w-14 px-2 tabular-nums"
         aria-label={resetLabel}
         title={resetLabel}
         data-testid="zoom-reset"
@@ -198,7 +195,8 @@ export function ZoomControl({
       <Button
         tone="subtle"
         size="md"
-        className={cn(rx.hostIconControl, 'rounded-none')}
+        shape="square"
+        joined="middle"
         aria-label={t('zoom.in')}
         title={t('zoom.in')}
         data-testid="zoom-in"
@@ -210,13 +208,10 @@ export function ZoomControl({
       <Button
         tone="subtle"
         size="md"
-        className={cn(
-          rx.hostIconControl,
-          showGrid && rx.hostControlActive,
-          'rounded-none'
-        )}
+        shape="square"
+        pressed={showGrid}
+        joined="middle"
         aria-label={gridLabel}
-        aria-pressed={showGrid}
         title={gridLabel}
         data-testid="zoom-grid"
         onClick={() => setShowGrid(!showGrid)}
@@ -227,7 +222,8 @@ export function ZoomControl({
         <Button
           tone="subtle"
           size="md"
-          className={cn(rx.hostIconControl, 'rounded-l-none')}
+          shape="square"
+          joined="end"
           aria-label={playbackLabel}
           title={playbackLabel}
           data-testid="zoom-playback"
@@ -240,13 +236,10 @@ export function ZoomControl({
         <Button
           tone="subtle"
           size="md"
-          className={cn(
-            rx.hostIconControl,
-            minimapOpen && rx.hostControlActive,
-            'rounded-l-none'
-          )}
+          shape="square"
+          pressed={minimapOpen}
+          joined="end"
           aria-label={minimapLabel}
-          aria-pressed={minimapOpen}
           title={minimapLabel}
           data-testid="zoom-minimap-toggle"
           disabled={actionsDisabled}
@@ -262,6 +255,6 @@ export function ZoomControl({
           onExit={exitPlayback}
         />
       )}
-    </div>
+    </Surface>
   );
 }

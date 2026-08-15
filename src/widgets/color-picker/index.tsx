@@ -8,8 +8,8 @@ import type { CanvasColorPickerTarget } from '@/domains/canvas/public';
 import { HOST_ICONOLOGY } from '@/shared/icons/iconology';
 import { useUiI18n } from '@/shared/i18n';
 import { cn } from '@/shared/lib/utils';
-import { rx } from '@/shared/styles/recipes';
 import { Button } from '@/shared/ui/button';
+import { ColorSwatch } from '@/shared/ui/color-swatch';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,6 +19,8 @@ import {
 } from '@/shared/ui/dropdown-menu';
 import { Input } from '@/shared/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
+import { Surface } from '@/shared/ui/surface';
+import { SwatchButton } from '@/shared/ui/swatch-button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip';
 
@@ -218,10 +220,11 @@ export function ColorPickerPanel({
       className={cn('w-40 gap-2 px-1 py-1.5', className)}
     >
       <div data-testid="color-picker-header" className="flex items-center justify-between gap-0.5">
-        <TabsList
-          aria-label={t('color.paletteTabs')}
-          className={cn(rx.iconRail, 'h-fit w-fit shrink-0 flex-row gap-0.5 p-px')}
-        >
+        <Surface kind="embedded" asChild>
+          <TabsList
+            aria-label={t('color.paletteTabs')}
+            className="h-fit w-fit shrink-0 flex-row gap-0.5 p-px"
+          >
           {paletteTabs.map((tab) => {
             const Icon = tab.icon;
             return (
@@ -229,14 +232,9 @@ export function ColorPickerPanel({
                 <TooltipTrigger asChild>
                   <TabsTrigger
                     value={tab.id}
+                    size="icon"
+                    active={activePaletteTab === tab.id}
                     aria-label={tab.label}
-                    className={cn(
-                      rx.iconRailItem,
-                      'size-7 flex-none justify-center',
-                      'focus-visible:border-transparent focus-visible:outline-0 focus-visible:outline-transparent focus-visible:outline-none',
-                      'group-data-[variant=default]/tabs-list:data-[state=active]:shadow-none dark:data-[state=active]:border-transparent',
-                      activePaletteTab === tab.id && rx.hostControlActive
-                    )}
                   >
                     <Icon />
                   </TabsTrigger>
@@ -245,7 +243,8 @@ export function ColorPickerPanel({
               </Tooltip>
             );
           })}
-        </TabsList>
+          </TabsList>
+        </Surface>
 
         {showCustomInput && (
           <div data-testid="color-picker-header-actions" className="flex items-center gap-0.5">
@@ -269,14 +268,15 @@ export function ColorPickerPanel({
                   shape="square"
                   size="sm"
                   aria-label={`${t('color.hex')}: ${displayColor}`}
-                  aria-expanded={hexPopoverOpen}
-                  className="size-7 shrink-0"
+                  open={hexPopoverOpen}
+                  className="shrink-0"
                 >
-                  <span
+                  <ColorSwatch
                     data-testid="color-value-icon"
                     aria-hidden="true"
-                    className="size-4 rounded-full border border-border shadow-sm"
-                    style={{ backgroundColor: displayColor }}
+                    color={displayColor}
+                    shape="circle"
+                    className="size-4"
                   />
                 </Button>
               </PopoverTrigger>
@@ -286,7 +286,7 @@ export function ColorPickerPanel({
                 align="start"
                 sideOffset={6}
                 aria-label={t('color.hex')}
-                className="w-40 space-y-2 p-2"
+                className="flex w-40 flex-col gap-2 p-2"
                 onOpenAutoFocus={(event) => {
                   event.preventDefault();
                   hexInputRef.current?.focus({ preventScroll: true });
@@ -350,7 +350,9 @@ export function ColorPickerPanel({
                   onClick={(event) => event.stopPropagation()}
                   placeholder="#00ffcc"
                   maxLength={7}
-                  className={cn(rx.searchInput, 'h-6 px-1.5 font-mono uppercase')}
+                  appearance="search"
+                  density="compact"
+                  className="h-6 px-1.5 font-mono uppercase"
                 />
               </PopoverContent>
             </Popover>
@@ -364,11 +366,8 @@ export function ColorPickerPanel({
                   size="sm"
                   aria-label={t('color.pickFromCanvas')}
                   title={t('color.pickFromCanvas')}
-                  aria-pressed={canvasColorPickerTarget !== null}
-                  className={cn(
-                    'size-7 shrink-0',
-                    canvasColorPickerTarget !== null && 'bg-accent text-foreground'
-                  )}
+                  pressed={canvasColorPickerTarget !== null}
+                  className="shrink-0"
                 >
                   <Pipette />
                 </Button>
@@ -388,10 +387,7 @@ export function ColorPickerPanel({
                         key={target}
                         aria-label={label}
                         onSelect={() => toggleCanvasColorPicker(target)}
-                        className={cn(
-                          'text-muted-foreground',
-                          isActive && 'bg-accent text-foreground'
-                        )}
+                        selected={isActive}
                       >
                         <span className="flex size-3.5 items-center justify-center">
                           {isActive && <Check className="size-3.5" />}
@@ -434,26 +430,17 @@ export function ColorPickerPanel({
               className={cn('grid justify-items-center gap-y-1', tab.gridClassName)}
             >
               {tab.colors.map((color) => (
-                <button
+                <SwatchButton
                   key={color}
-                  type="button"
+                  color={color}
+                  selected={displayColor === color}
                   aria-label={t(tab.colorLabelKey, { color })}
                   onClick={() => pickColor(color)}
-                  className={cn(
-                    'flex size-6 cursor-pointer items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
-                    displayColor === color && 'ring-2 ring-primary'
-                  )}
                 >
-                  <span
-                    aria-hidden="true"
-                    className="flex size-[18px] items-center justify-center rounded-full border border-black/10 shadow-sm"
-                    style={{ backgroundColor: color }}
-                  >
-                    {displayColor === color && (
-                      <Check className="size-3 text-white mix-blend-difference" />
-                    )}
-                  </span>
-                </button>
+                  {displayColor === color && (
+                    <Check className="size-3 text-swatch-indicator mix-blend-difference" />
+                  )}
+                </SwatchButton>
               ))}
             </div>
           </TabsContent>

@@ -150,17 +150,17 @@ describe("ZoomControl slide playback", () => {
     expect(firstSlide.parentElement).not.toHaveClass("border-primary", "ring-1");
     expect(secondSlide.parentElement).toHaveClass("border");
     expect(secondSlide.parentElement).not.toHaveClass("border-primary", "ring-1");
-    expect(firstSlide).toHaveClass("border-transparent");
-    expect(firstSlide).not.toHaveClass("border-primary");
-    expect(secondSlide).toHaveClass("border-primary");
-    expect(secondSlide).not.toHaveClass("border-transparent");
+    expect(firstSlide).not.toHaveAttribute("data-selected");
+    expect(firstSlide).not.toHaveClass("bg-accent");
+    expect(secondSlide).toHaveAttribute("data-selected", "true");
+    expect(secondSlide).toHaveClass("bg-accent", "text-foreground");
 
     fireEvent.click(firstSlide);
 
-    expect(firstSlide).toHaveClass("border-primary");
-    expect(firstSlide).not.toHaveClass("border-transparent");
-    expect(secondSlide).toHaveClass("border-transparent");
-    expect(secondSlide).not.toHaveClass("border-primary");
+    expect(firstSlide).toHaveAttribute("data-selected", "true");
+    expect(firstSlide).toHaveClass("bg-accent", "text-foreground");
+    expect(secondSlide).not.toHaveAttribute("data-selected");
+    expect(secondSlide).not.toHaveClass("bg-accent");
 
     const firstNameInput = screen.getAllByRole("textbox", { name: "Rename" })[0];
     expect(firstNameInput).toHaveClass("bg-transparent", "border-0", "shadow-none");

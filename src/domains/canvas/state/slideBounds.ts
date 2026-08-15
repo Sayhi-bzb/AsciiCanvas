@@ -1,5 +1,6 @@
 import type { EditorState } from "./interfaces";
 import type { Point } from "@/shared/types";
+import type { GridBounds } from "@/domains/selection/public";
 
 type SlideBoundState = Pick<EditorState, "canvasMode" | "slideDeck">;
 
@@ -9,6 +10,17 @@ const getActiveSlideSize = (state: SlideBoundState) =>
         (slide) => slide.id === state.slideDeck?.activeSlideId
       )?.size ?? null
     : null;
+
+export const getActiveSlideGridBounds = (
+  state: SlideBoundState
+): GridBounds | null => {
+  const size = getActiveSlideSize(state);
+  if (!size) return null;
+  return {
+    start: { x: 0, y: 0 },
+    end: { x: size.columns - 1, y: size.rows - 1 },
+  };
+};
 
 export const isPointWithinActiveSlide = (state: SlideBoundState, point: Point) => {
   const size = getActiveSlideSize(state);

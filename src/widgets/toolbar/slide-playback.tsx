@@ -121,7 +121,7 @@ export function SlidePlaybackOverlay({
       aria-label={t("slide.playback.title")}
       tabIndex={-1}
       data-testid="slide-playback"
-      className="fixed inset-0 z-(--layer-presentation) overflow-hidden bg-slate-900 outline-none"
+      className="fixed inset-0 z-(--layer-presentation) overflow-hidden bg-presentation-background outline-none"
     >
       <canvas
         ref={canvasRef}
@@ -135,13 +135,14 @@ export function SlidePlaybackOverlay({
       />
       <div
         data-canvas-ui="true"
-        className="absolute bottom-5 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-xl border border-white/15 bg-black/70 p-1.5 text-white shadow-2xl backdrop-blur"
+        className="absolute bottom-5 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-xl border border-presentation-border bg-presentation-surface p-1.5 text-presentation-foreground shadow-presentation backdrop-blur"
       >
         <Button
+          data-visual-contract="presentation"
           tone="subtle"
           shape="square"
           size="md"
-          className="text-white hover:bg-white/15 hover:text-white"
+          className="text-presentation-foreground hover:bg-presentation-accent hover:text-presentation-foreground"
           aria-label={t("slide.playback.previous")}
           disabled={isFirst}
           onClick={() => navigate("previous")}
@@ -152,22 +153,24 @@ export function SlidePlaybackOverlay({
           {pageLabel}
         </span>
         <Button
+          data-visual-contract="presentation"
           tone="subtle"
           shape="square"
           size="md"
-          className="text-white hover:bg-white/15 hover:text-white"
+          className="text-presentation-foreground hover:bg-presentation-accent hover:text-presentation-foreground"
           aria-label={t("slide.playback.next")}
           disabled={isLast}
           onClick={() => navigate("next")}
         >
           <NextIcon />
         </Button>
-        <span className="mx-1 h-5 w-px bg-white/20" aria-hidden="true" />
+        <span className="mx-1 h-5 w-px bg-presentation-separator" aria-hidden="true" />
         <Button
+          data-visual-contract="presentation"
           tone="subtle"
           shape="square"
           size="md"
-          className="text-white hover:bg-white/15 hover:text-white"
+          className="text-presentation-foreground hover:bg-presentation-accent hover:text-presentation-foreground"
           aria-label={t("slide.playback.exit")}
           onClick={onExit}
         >

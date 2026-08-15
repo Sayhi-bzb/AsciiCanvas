@@ -37,6 +37,7 @@ export function BrushSubmenu({
     <>
       <DropdownMenuGroup>
         <DropdownMenuItem
+          density="default"
           onSelect={(event) => {
             event.preventDefault();
             if (customChar) {
@@ -45,7 +46,6 @@ export function BrushSubmenu({
             }
             inputRef.current?.focus();
           }}
-          className="h-9"
         >
           <div className="size-3.5 flex items-center justify-center shrink-0">
             {brushChar === customChar && customChar !== "" && (
@@ -54,7 +54,9 @@ export function BrushSubmenu({
           </div>
           <Input
             ref={inputRef}
-            className="h-6 w-14 p-0 text-center font-mono text-base font-bold text-inherit border-none bg-muted/40 shadow-none ring-0 hover:bg-muted/60 focus-visible:ring-0 rounded-sm placeholder:text-muted-foreground/50"
+            density="compact"
+            appearance="search"
+            className="w-14 p-0 text-center font-mono text-base font-bold text-inherit"
             placeholder={t("input.custom")}
             maxLength={12}
             value={customChar}
@@ -78,7 +80,7 @@ export function BrushSubmenu({
         }}
       >
         {MATERIAL_PRESETS.map((char) => (
-          <DropdownMenuRadioItem key={char} value={char} className="h-9">
+          <DropdownMenuRadioItem key={char} value={char} density="default">
             <span className="flex-1 text-center font-mono text-lg font-bold leading-none">
               {char}
             </span>

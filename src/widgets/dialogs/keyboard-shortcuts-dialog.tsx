@@ -240,9 +240,9 @@ export function KeyboardShortcutsDialog({
                                 >
                                   <Button
                                     type="button"
-                                    tone={isRecording ? "primary" : "subtle"}
+                                    tone="subtle"
                                     size="sm"
-                                    aria-pressed={isRecording}
+                                    pressed={isRecording}
                                     aria-label={t("shortcutEditor.edit", {
                                       command: commandLabel,
                                       shortcut: shortcutLabel,

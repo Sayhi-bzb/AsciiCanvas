@@ -202,9 +202,9 @@ describe('Toolbar dock', () => {
 
   it('uses the active accent state for Hand', () => {
     useEditorStore.setState({ canvasMode: 'freeform', tool: 'pan' });
-    const { container } = render(<Toolbar tool="pan" setTool={vi.fn()} onUndo={vi.fn()} />);
+    render(<Toolbar tool="pan" setTool={vi.fn()} onUndo={vi.fn()} />);
 
-    expect(container.querySelector('[data-toolbar-item="pan"]')).toHaveClass(
+    expect(screen.getByRole('button', { name: 'Hand' })).toHaveClass(
       'bg-accent',
       'text-foreground'
     );
@@ -269,6 +269,7 @@ describe('Toolbar dock', () => {
     const { container } = render(<Toolbar tool="select" setTool={vi.fn()} onUndo={vi.fn()} />);
     const toolbar = screen.getByRole('toolbar');
     const activeItem = container.querySelector('[data-toolbar-item="select"]');
+    const activeButton = screen.getByRole('button', { name: 'Select' });
     const inactiveItem = container.querySelector('[data-toolbar-item="shape-group"]');
     const inactiveButtons = inactiveItem?.querySelectorAll('button') ?? [];
 
@@ -279,12 +280,9 @@ describe('Toolbar dock', () => {
       'border-0',
       'shadow-host'
     );
-    expect(activeItem).toHaveClass('bg-accent', 'text-foreground');
+    expect(activeButton).toHaveClass('bg-accent', 'text-foreground');
     expect(inactiveItem).not.toHaveClass('bg-accent');
-    expect(inactiveItem).toHaveClass(
-      'has-[[data-toolbar-submenu-trigger]:hover]:bg-accent',
-      'has-[[data-toolbar-submenu-trigger]:hover]:text-foreground'
-    );
+    expect(activeItem).not.toHaveClass('bg-accent');
     expect(inactiveButtons[0]).toHaveClass(
       'size-8',
       'rounded-r-none',
@@ -321,7 +319,9 @@ describe('Toolbar dock', () => {
       name: 'Circle',
     });
 
-    expect(shapeItem).toHaveClass('bg-accent', 'text-foreground');
+    expect(shapeItem).not.toHaveClass('bg-accent', 'text-foreground');
+    expect(shapeButtons[0]).toHaveClass('bg-accent', 'text-foreground');
+    expect(shapeButtons[1]).toHaveClass('bg-accent', 'text-foreground');
     const shapeMenu = document.querySelector('[data-slot="dropdown-menu-content"]');
     expect(shapeMenu).toHaveClass(
       'w-max',

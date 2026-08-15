@@ -14,6 +14,7 @@ import {
 } from "react";
 import { isStaticGridMode, type CanvasMode } from "@/domains/sessions/public";
 import { gridCellRect } from "@/shared/metrics";
+import { CELL_HEIGHT } from "@/shared/lib/constants";
 import {
   getStaticGridViewState,
 } from "@/domains/selection/public";
@@ -38,7 +39,6 @@ import {
   type ClipboardShortcutTrace,
 } from "./clipboardShortcutCoordinator";
 
-const KEYBOARD_PAN_STEP = 48;
 const MANAGED_TEXTAREA_SENTINEL = "\u00a0";
 const CLIPBOARD_DEBUG_STORAGE_KEY = "chardesk.clipboardDebug";
 
@@ -81,6 +81,17 @@ type UseManagedCanvasInputOptions = {
   enabled?: boolean;
 };
 
+const getModifiedArrowEdge = (
+  event: Pick<globalThis.KeyboardEvent, "ctrlKey" | "key" | "metaKey">
+) => {
+  if (!event.ctrlKey && !event.metaKey) return null;
+  if (event.key === "ArrowLeft") return "left" as const;
+  if (event.key === "ArrowRight") return "right" as const;
+  if (event.key === "ArrowUp") return "top" as const;
+  if (event.key === "ArrowDown") return "bottom" as const;
+  return null;
+};
+
 export const useManagedCanvasInput = ({
   canvasMode,
   model,
@@ -103,12 +114,18 @@ export const useManagedCanvasInput = ({
     indentText,
     moveTextCursor,
     moveStaticGridFocus,
+    moveStaticGridFocusToEdge,
+    moveStaticGridFocusToContentBoundary,
+    selectStaticGridAll,
+    selectStaticGridRow,
+    selectStaticGridColumn,
+    enterStaticGridTextEdit,
+    exitStaticGridTextEdit,
     moveStructuredGridFocus,
     setTextCursor,
     selections,
     offset,
     zoom,
-    setOffset,
     moveSelections,
     expandSelection,
     fillSelectionsWithChar,
@@ -251,6 +268,19 @@ export const useManagedCanvasInput = ({
       ) {
         return;
       }
+      const contentNavigationEdge = staticGridMode
+        ? getModifiedArrowEdge(event)
+        : null;
+      if (contentNavigationEdge) {
+        moveStaticGridFocusToContentBoundary(contentNavigationEdge, {
+          extend: event.shiftKey,
+        });
+        return {
+          claimed: true,
+          preventDefault: true,
+          stopImmediatePropagation: true,
+        };
+      }
       const resolution = resolveEditorKeymapEvent(
         editor,
         event,
@@ -383,31 +413,72 @@ export const useManagedCanvasInput = ({
       return;
     }
 
-    if (e.key === 'Backspace') {
+    const mod = e.ctrlKey || e.metaKey;
+
+    if (staticGridMode && mod && e.key.toLowerCase() === 'a') {
+      e.preventDefault();
+      selectStaticGridAll();
+    } else if (staticGridMode && e.shiftKey && e.code === 'Space' && !mod) {
+      e.preventDefault();
+      selectStaticGridRow();
+    } else if (staticGridMode && e.ctrlKey && e.code === 'Space' && !e.metaKey) {
+      e.preventDefault();
+      selectStaticGridColumn();
+    } else if (staticGridMode && e.key === 'F2') {
+      e.preventDefault();
+      enterStaticGridTextEdit(staticGridActiveCell ?? undefined);
+    } else if (
+      staticGridMode &&
+      staticGridEditMode === 'navigate' &&
+      (e.key === 'Home' || e.key === 'End')
+    ) {
+      e.preventDefault();
+      moveStaticGridFocusToEdge(
+        mod
+          ? e.key === 'Home' ? 'top-left' : 'bottom-right'
+          : e.key === 'Home' ? 'left' : 'right',
+        { extend: e.shiftKey }
+      );
+    } else if (
+      staticGridMode &&
+      staticGridEditMode === 'navigate' &&
+      (e.key === 'PageUp' || e.key === 'PageDown')
+    ) {
+      e.preventDefault();
+      const pageRows = Math.max(
+        1,
+        Math.floor((size?.height ?? CELL_HEIGHT) / (CELL_HEIGHT * zoom)) - 1
+      );
+      moveStaticGridFocus(0, e.key === 'PageUp' ? -pageRows : pageRows, {
+        extend: e.shiftKey,
+      });
+    } else if (e.key === 'Backspace') {
       if (activeTextCursor) {
         e.preventDefault();
         backspaceText();
       }
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      newlineText();
+      if (staticGridMode && staticGridEditMode === 'navigate') {
+        moveStaticGridFocus(0, e.shiftKey ? -1 : 1);
+      } else {
+        newlineText();
+      }
     } else if (e.key === 'Tab') {
       e.preventDefault();
-      indentText();
+      if (staticGridMode && staticGridEditMode === 'navigate') {
+        moveStaticGridFocus(e.shiftKey ? -1 : 1, 0);
+      } else {
+        indentText();
+      }
     } else if (e.key.startsWith('Arrow')) {
       e.preventDefault();
       const dx = e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : 0;
       const dy = e.key === 'ArrowUp' ? -1 : e.key === 'ArrowDown' ? 1 : 0;
-      if (e.ctrlKey || e.metaKey) {
-        setOffset((prev) => ({
-          x: prev.x - dx * KEYBOARD_PAN_STEP,
-          y: prev.y - dy * KEYBOARD_PAN_STEP,
-        }));
-        return;
-      }
-
-      if (staticGridMode) {
+      if (staticGridMode && staticGridEditMode === 'navigate') {
         moveStaticGridFocus(dx, dy, { extend: e.shiftKey });
+      } else if (staticGridMode && activeTextCursor) {
+        moveTextCursor(dx, dy);
       } else if (textCursor) {
         moveTextCursor(dx, dy);
       } else if (!hasStructuredSelection) {
@@ -424,6 +495,8 @@ export const useManagedCanvasInput = ({
       if (canvasColorPickerTarget) {
         setCanvasColorPickerTarget(null);
         setHoveredGrid(null);
+      } else if (staticGridMode && staticGridEditMode === 'text-edit') {
+        exitStaticGridTextEdit();
       } else if (activeTextCursor) {
         setTextCursor(null);
         setEditingStructuredTextNodeId(null);
@@ -455,7 +528,12 @@ export const useManagedCanvasInput = ({
       },
       onCompositionEnd: (event: CompositionEvent<HTMLTextAreaElement>) => {
         isComposing.current = false;
-        if (event.data) writeTextString(event.data);
+        if (event.data) {
+          if (staticGridMode && staticGridEditMode === 'navigate') {
+            enterStaticGridTextEdit(staticGridActiveCell ?? undefined);
+          }
+          writeTextString(event.data);
+        }
         primeManagedTextarea();
       },
       onInput: (event: FormEvent<HTMLTextAreaElement>) => {
@@ -465,6 +543,9 @@ export const useManagedCanvasInput = ({
         );
         if (!isComposing.current) {
           if (value) {
+            if (staticGridMode && staticGridEditMode === 'navigate') {
+              enterStaticGridTextEdit(staticGridActiveCell ?? undefined);
+            }
             writeTextString(value);
           }
           primeManagedTextarea();

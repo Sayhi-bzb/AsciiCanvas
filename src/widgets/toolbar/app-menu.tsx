@@ -22,8 +22,6 @@ import {
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
 import { useUiI18n } from "@/shared/i18n";
-import { cn } from "@/shared/lib/utils";
-import { rx } from "@/shared/styles/recipes"
 import { useCanvasImport } from "@/widgets/import/useCanvasImport";
 import { useAppMenuExport } from "@/widgets/export/use-app-menu-export";
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
@@ -148,10 +146,6 @@ export function AppMenu() {
                   tone="subtle"
                   shape="square"
                   size="md"
-                  className={cn(
-                    rx.hostIconControl,
-                    "data-[state=open]:bg-accent data-[state=open]:text-foreground"
-                  )}
                   aria-label={t("appMenu.open")}
                 >
                   <AppMenuTriggerIcon className="size-4" />

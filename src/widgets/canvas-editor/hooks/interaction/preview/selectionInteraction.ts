@@ -22,11 +22,13 @@ export const resolveSelectionCommitDecision = ({
   tool,
   canvasMode,
   structuredScene,
+  append = false,
 }: {
   selection: SelectionArea | null;
   tool: ToolType;
   canvasMode: CanvasMode;
   structuredScene: StructuredNode[];
+  append?: boolean;
 }): SelectionCommitDecision => {
   if (!selection) return { type: "none" };
   if (tool === "fill") return { type: "fill", selection };
@@ -39,6 +41,7 @@ export const resolveSelectionCommitDecision = ({
       : { type: "setStructuredGridFocus", point: selection.start };
   }
 
+  if (append) return { type: "addSelection", selection };
   return isSingleCellSelection(selection)
     ? { type: "setStaticGridActiveCell", point: selection.start }
     : { type: "addSelection", selection };

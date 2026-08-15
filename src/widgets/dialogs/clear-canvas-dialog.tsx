@@ -58,10 +58,11 @@ export function ClearCanvasDialog({
             <AlertDialogTrigger asChild>
               <Button
                 tone="subtle"
+                destructive
                 shape={isCollapsed || iconOnly ? "square" : "auto"}
                 size={isCollapsed || iconOnly ? "md" : "sm"}
                 className={cn(
-                  "justify-start gap-2 text-destructive hover:bg-destructive/10 transition-colors",
+                  "justify-start gap-2",
                   isCollapsed || iconOnly ? "size-8 justify-center" : "w-full h-8 px-2"
                 )}
               >

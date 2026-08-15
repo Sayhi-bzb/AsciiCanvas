@@ -72,6 +72,39 @@ describe("ShortcutProvider", () => {
     expect(event.defaultPrevented).toBe(true);
   });
 
+  it("keeps exclusive shortcuts from reaching later native or target handlers", () => {
+    const laterWindowHandler = vi.fn();
+    const targetHandler = vi.fn();
+    const view = render(
+      <ShortcutProvider>
+        <RegisteredLayer
+          id="exclusive"
+          priority={10}
+          onKeyDown={() => ({
+            claimed: true,
+            preventDefault: true,
+            stopImmediatePropagation: true,
+          })}
+        />
+        <textarea data-testid="target" onKeyDown={targetHandler} />
+      </ShortcutProvider>
+    );
+    window.addEventListener("keydown", laterWindowHandler, true);
+
+    const target = view.getByTestId("target");
+    const event = new KeyboardEvent("keydown", {
+      key: "ArrowRight",
+      bubbles: true,
+      cancelable: true,
+    });
+    act(() => target.dispatchEvent(event));
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(laterWindowHandler).not.toHaveBeenCalled();
+    expect(targetHandler).not.toHaveBeenCalled();
+    window.removeEventListener("keydown", laterWindowHandler, true);
+  });
+
   it("classifies managed canvas and external editable targets", () => {
     const kinds: string[] = [];
     render(

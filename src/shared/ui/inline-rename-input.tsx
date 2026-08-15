@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { cn } from "@/shared/lib/utils";
-import { rx } from "@/shared/styles/recipes"
+import { Input } from "@/shared/ui/input";
 
 type InlineRenameInputProps = Omit<
   React.ComponentProps<"input">,
@@ -45,9 +45,11 @@ function InlineRenameInput({
   };
 
   return (
-    <input
+    <Input
       {...props}
       data-slot="inline-rename-input"
+      appearance="quiet"
+      density="compact"
       value={draft}
       onChange={(event) => setDraft(event.target.value)}
       onFocus={(event) => {
@@ -69,7 +71,7 @@ function InlineRenameInput({
           onCancel?.();
         }
       }}
-      className={cn(rx.quietInput, "h-6 px-1", className)}
+      className={cn("h-6 px-1", className)}
     />
   );
 }

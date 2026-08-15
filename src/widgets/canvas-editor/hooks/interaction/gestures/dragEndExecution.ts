@@ -93,6 +93,7 @@ export const executePrimaryDragEnd = (
         tool: context.tool,
         canvasMode: context.canvasMode,
         structuredScene: context.structuredScene,
+        append: context.state.append === true,
       }),
       executor
     );

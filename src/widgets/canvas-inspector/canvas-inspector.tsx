@@ -8,14 +8,14 @@ import { useCanvasRuntime, useCanvasState } from "@/domains/canvas/public";
 import { useEditor } from "@/domains/editor/public";
 import { useUiI18n } from "@/shared/i18n";
 import { COLOR_PRIMARY_TEXT } from "@/shared/lib/constants";
-import { cn } from "@/shared/lib/utils";
 import {
   SHORTCUT_PRIORITY,
   useShortcutLayer,
 } from "@/shared/shortcuts/dispatcher";
-import { rx } from "@/shared/styles/recipes";
 import { Button } from "@/shared/ui/button";
 import { ContentScrollArea } from "@/shared/ui/content-scroll-area";
+import { ColorSwatch } from "@/shared/ui/color-swatch";
+import { Surface } from "@/shared/ui/surface";
 import {
   Tooltip,
   TooltipContent,
@@ -222,38 +222,38 @@ export function CanvasInspectorControl({
     <div className="pointer-events-auto relative flex-none">
       <Tooltip>
         <TooltipTrigger asChild>
-          <button
+          <Button
             type="button"
+            tone="subtle"
+            shape="square"
+            size="md"
+            open={panelOpen}
             aria-label={t("inspector.toggle")}
             aria-controls="canvas-inspector-panel"
-            aria-expanded={panelOpen}
             aria-keyshortcuts="Alt+6"
             disabled={state.tool === "pan"}
-            className={cn(rx.hostIconControl, panelOpen && rx.hostControlActive)}
             onClick={() => setOpenState(!panelOpen)}
           >
-            <span
+            <ColorSwatch
               data-testid="canvas-inspector-swatch"
               aria-hidden="true"
-              className="size-5 rounded-[3px] border border-border shadow-sm"
-              style={{ backgroundColor: model.activeColor }}
+              color={model.activeColor}
+              className="size-5"
             />
-          </button>
+          </Button>
         </TooltipTrigger>
         <TooltipContent side="bottom">{t("inspector.title")}</TooltipContent>
       </Tooltip>
 
       {panelOpen && (
-        <section
-          id="canvas-inspector-panel"
-          data-testid="canvas-inspector-panel"
-          aria-label={t("inspector.title")}
-          className={cn(
-            rx.floatingHost(),
-            "absolute left-[calc(100%+0.5rem)] top-0 w-[min(10rem,calc(100vw-2rem))] overflow-hidden"
-          )}
-          onPointerDown={(event) => event.stopPropagation()}
-        >
+        <Surface kind="floating" asChild>
+          <section
+            id="canvas-inspector-panel"
+            data-testid="canvas-inspector-panel"
+            aria-label={t("inspector.title")}
+            className="absolute left-[calc(100%+0.5rem)] top-0 w-[min(10rem,calc(100vw-2rem))] overflow-hidden"
+            onPointerDown={(event) => event.stopPropagation()}
+          >
           <ContentScrollArea className="max-h-[min(32rem,calc(100vh-5rem))]">
             <div
               data-testid="canvas-inspector-content"
@@ -279,7 +279,8 @@ export function CanvasInspectorControl({
                 )}
             </div>
           </ContentScrollArea>
-        </section>
+          </section>
+        </Surface>
       )}
     </div>
   );

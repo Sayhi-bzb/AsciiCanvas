@@ -22,13 +22,14 @@ describe("HandbookDialog", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open full documentation" })).toBeInTheDocument();
     expect(screen.getByText("Select and fill")).toBeInTheDocument();
+    expect(screen.getByText("Navigate the character grid")).toBeInTheDocument();
     expect(screen.getByText("Insert components")).toBeInTheDocument();
     expect(screen.getByText("Edit text")).toBeInTheDocument();
     expect(screen.getByText("Format a range")).toBeInTheDocument();
     expect(screen.getByText("Color shapes")).toBeInTheDocument();
     expect(screen.getByText("Copy between modes")).toBeInTheDocument();
-    expect(dialog.querySelectorAll('[data-slot="help-reference"] dt')).toHaveLength(6);
-    expect(dialog.querySelectorAll('[data-slot="help-reference"] dd')).toHaveLength(6);
+    expect(dialog.querySelectorAll('[data-slot="help-reference"] dt')).toHaveLength(7);
+    expect(dialog.querySelectorAll('[data-slot="help-reference"] dd')).toHaveLength(7);
     expect(screen.queryByText("Common commands")).not.toBeInTheDocument();
     expect(dialog.querySelector('[class*="bg-accent/"]')).not.toBeInTheDocument();
     expect(dialog.querySelector(".border-accent")).not.toBeInTheDocument();

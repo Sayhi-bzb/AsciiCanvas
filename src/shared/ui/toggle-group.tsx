@@ -2,6 +2,8 @@ import * as React from "react";
 import * as ToggleGroupPrimitive from "@radix-ui/react-toggle-group";
 
 import { cn } from "@/shared/lib/utils";
+import { rx } from "@/shared/styles/recipes";
+import type { Size } from "@/shared/styles/tokens";
 
 const ToggleGroup = React.forwardRef<
   React.ElementRef<typeof ToggleGroupPrimitive.Root>,
@@ -13,8 +15,9 @@ const ToggleGroup = React.forwardRef<
     ref={ref}
     data-variant={variant}
     className={cn(
-      "inline-flex items-center rounded-lg border border-border bg-background/95 p-1 shadow-sm backdrop-blur",
-      variant === "outline" && "bg-background/90",
+      rx.surface({ kind: "embedded" }),
+      "inline-flex items-center p-[3px]",
+      variant === "outline" && "border border-border",
       className
     )}
     {...props}
@@ -24,12 +27,15 @@ ToggleGroup.displayName = ToggleGroupPrimitive.Root.displayName;
 
 const ToggleGroupItem = React.forwardRef<
   React.ElementRef<typeof ToggleGroupPrimitive.Item>,
-  React.ComponentPropsWithoutRef<typeof ToggleGroupPrimitive.Item>
->(({ className, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof ToggleGroupPrimitive.Item> & {
+    size?: Size;
+  }
+>(({ className, size = "md", ...props }, ref) => (
   <ToggleGroupPrimitive.Item
     ref={ref}
+    data-size={size}
     className={cn(
-      "inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground",
+      rx.control({ tone: "subtle", shape: "square", size }),
       className
     )}
     {...props}

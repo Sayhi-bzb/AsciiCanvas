@@ -75,28 +75,18 @@ const getNewlineTargetX = (
   currentX: number,
   currentY: number
 ) => {
-  let firstOccupiedX: number | null = null;
-
-  for (const [key, cell] of grid.entries()) {
-    if (!cell || cell.char === " ") continue;
-    const { x, y } = GridManager.fromKey(key);
-    if (y !== currentY) continue;
-    firstOccupiedX =
-      firstOccupiedX === null ? x : Math.min(firstOccupiedX, x);
+  const hasCell = (x: number) => grid.has(GridManager.toKey(x, currentY));
+  let seedX: number | null = null;
+  for (const key of grid.keys()) {
+    const point = GridManager.fromKey(key);
+    if (point.y !== currentY || point.x > currentX) continue;
+    seedX = seedX === null ? point.x : Math.max(seedX, point.x);
   }
+  if (seedX === null) return currentX;
 
-  if (firstOccupiedX === null || currentX <= firstOccupiedX) {
-    return currentX;
-  }
-
-  let indentEndX = firstOccupiedX;
-  for (let x = 0; x < firstOccupiedX; x++) {
-    const cell = grid.get(GridManager.toKey(x, currentY));
-    if (cell && cell.char !== " ") return currentX;
-    indentEndX = x + 1;
-  }
-
-  return Math.min(currentX, indentEndX);
+  let runStartX = seedX;
+  while (hasCell(runStartX - 1)) runStartX -= 1;
+  return Math.min(currentX, runStartX);
 };
 
 const isWideFollowerRichCell = (

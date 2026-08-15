@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState, type DragEvent } from "react";
-import { cn } from "@/shared/lib/utils";
-import { rx } from "@/shared/styles/recipes";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -16,6 +14,8 @@ import {
   type StructuredTemplateId,
 } from "@/domains/structured-content/public";
 import { StructuredTemplatePreviewGrid } from "./structured-template-preview-grid";
+import { SelectableItem } from "@/shared/ui/selectable-item";
+import { Surface } from "@/shared/ui/surface";
 
 const sortTemplatesByLabel = <
   T extends { id: StructuredTemplateId; label: string },
@@ -131,31 +131,28 @@ export function StructuredTemplateLibrary({
             </div>
           )}
           {sortedTemplates.map((template) => (
-            <button
+            <SelectableItem
               key={template.id}
               data-onboarding-template-id={template.id}
               type="button"
+              orientation="vertical"
               draggable
               onDragStart={handleTemplateDragStart(template)}
               onDragEnd={() => setActiveStructuredTemplateDragId(null)}
-              className={cn(
-                rx.hostControl,
-                "group flex min-w-0 flex-col items-stretch gap-1 rounded-lg p-1.5 text-center"
-              )}
+              className="group h-auto min-w-0 items-stretch gap-1 p-1.5 text-center"
             >
-              <div
-                data-testid="structured-template-preview-viewport"
-                className={cn(
-                  rx.thumbnailSurface,
-                  "relative aspect-video w-full overflow-hidden"
-                )}
-              >
-                <VisibleStructuredTemplatePreview templateId={template.id} />
-              </div>
+              <Surface kind="transparent" asChild>
+                <div
+                  data-testid="structured-template-preview-viewport"
+                  className="relative aspect-video w-full overflow-hidden"
+                >
+                  <VisibleStructuredTemplatePreview templateId={template.id} />
+                </div>
+              </Surface>
               <span className="truncate px-1 text-xs text-foreground">
                 {template.label}
               </span>
-            </button>
+            </SelectableItem>
           ))}
         </div>
       </SidebarGroupContent>

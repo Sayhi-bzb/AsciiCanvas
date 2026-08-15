@@ -11,7 +11,9 @@ import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
 import { useUiI18n } from "@/shared/i18n";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
+import { IconButton } from "@/shared/ui/icon-button";
 import { InlineRenameInput } from "@/shared/ui/inline-rename-input";
+import { SelectableItem } from "@/shared/ui/selectable-item";
 import {
   ReorderableList,
   type ReorderAnnouncement,
@@ -97,7 +99,7 @@ export function SlideNavigator() {
         items={slideDeck.slides}
         getId={(slide) => slide.id}
         ariaLabel={t("slide.reorder.list")}
-        className="space-y-2"
+        className="flex flex-col gap-2"
         onMove={moveSlide}
         getItemLabel={(slide, index, total, grabbed) =>
           t(
@@ -112,15 +114,14 @@ export function SlideNavigator() {
             <div
               className={cn(
                 "min-w-0 rounded-md border bg-background p-1 transition-shadow",
-                reorderState.lifted && "shadow-overlay"
+                reorderState.lifted && "shadow-dragged"
               )}
             >
-              <button
+              <SelectableItem
                 type="button"
-                className={cn(
-                  "relative block w-full overflow-hidden rounded-sm border bg-white text-left",
-                  active ? "border-primary" : "border-transparent"
-                )}
+                orientation="vertical"
+                selected={active}
+                className="relative w-full overflow-hidden p-0 text-left"
                 style={{
                   aspectRatio:
                     slide.size.columns * 9 +
@@ -132,7 +133,7 @@ export function SlideNavigator() {
                 onClick={() => activateSlide(slide.id)}
               >
                 <SlidePreviewCanvas slide={slide} />
-              </button>
+              </SelectableItem>
               <div className="mt-1 flex items-center gap-0.5">
                 <InlineRenameInput
                   value={slide.name}
@@ -140,9 +141,9 @@ export function SlideNavigator() {
                   className="flex-1"
                   onCommit={(name) => renameSlide(slide.id, name)}
                 />
-                <button
+                <IconButton
                   type="button"
-                  className="inline-flex size-6 items-center justify-center rounded hover:bg-accent"
+                  size="xs"
                   aria-label={t("slide.configure")}
                   title={t("slide.configure")}
                   onClick={(event) => {
@@ -150,27 +151,28 @@ export function SlideNavigator() {
                     setConfigureSlideId(slide.id);
                   }}
                 >
-                  <ConfigureIcon className="size-3.5" />
-                </button>
-                <button
+                  <ConfigureIcon />
+                </IconButton>
+                <IconButton
                   type="button"
-                  className="inline-flex size-6 items-center justify-center rounded hover:bg-accent"
+                  size="xs"
                   aria-label={t("slide.duplicate")}
                   title={t("slide.duplicate")}
                   onClick={() => duplicateSlide(slide.id)}
                 >
-                  <DuplicateIcon className="size-3.5" />
-                </button>
-                <button
+                  <DuplicateIcon />
+                </IconButton>
+                <IconButton
                   type="button"
-                  className="inline-flex size-6 items-center justify-center rounded hover:bg-accent disabled:opacity-30"
+                  size="xs"
+                  destructive
                   aria-label={t("slide.delete")}
                   title={t("slide.delete")}
                   disabled={slideDeck.slides.length === 1}
                   onClick={() => setPendingDeleteId(slide.id)}
                 >
-                  <DeleteIcon className="size-3.5" />
-                </button>
+                  <DeleteIcon />
+                </IconButton>
               </div>
             </div>
           );

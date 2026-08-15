@@ -32,14 +32,19 @@ describe("ContextMenu styling", () => {
     fireEvent.contextMenu(screen.getByText("Target"));
 
     const rootMenu = await screen.findByRole("menu");
+    expect(screen.getByText("Action")).toHaveClass(
+      "min-h-7",
+      "rounded-md",
+      "px-2",
+      "text-xs"
+    );
     expect(rootMenu).toHaveClass(
       "bg-overlay-surface",
       "border-0",
       "shadow-overlay",
       "rounded-lg"
     );
-    expect(screen.getByRole("separator")).toHaveClass("h-0.5", "bg-accent");
-    expect(screen.getByRole("separator")).not.toHaveClass("bg-border");
+    expect(screen.getByRole("separator")).toHaveClass("h-px", "bg-border");
 
     const subTrigger = screen.getByText("More");
     subTrigger.focus();

@@ -16,7 +16,6 @@ import {
   type CharacterViewId,
   type UnicodeFacetType,
 } from "@/domains/character-library/public";
-import { cn } from "@/shared/lib/utils";
 import { getRenderFontFamilyForGrapheme } from "@/shared/metrics";
 import { feedback } from "@/shared/services/effects";
 import { useUiI18n, type I18nKey } from "@/shared/i18n";
@@ -32,6 +31,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/shared/ui/select";
+import { Button } from "@/shared/ui/button";
+import { SelectableItem } from "@/shared/ui/selectable-item";
+import { ToggleGroup, ToggleGroupItem } from "@/shared/ui/toggle-group";
 import {
   Tooltip,
   TooltipContent,
@@ -128,23 +130,18 @@ function CharButton({
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <button
+        <SelectableItem
           type="button"
+          selected={isSelected}
           aria-label={tooltipLabel}
           data-character-codepoints={codePoints}
           disabled={unavailable}
           onClick={() => onClick(entry)}
           style={{ fontFamily: getRenderFontFamilyForGrapheme(entry.grapheme) }}
-          className={cn(
-            "inline-flex size-7 shrink-0 items-center justify-center rounded-md p-0 font-mono text-sm leading-none transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
-            isSelected
-              ? "bg-accent text-foreground"
-              : "bg-transparent text-foreground hover:bg-accent hover:text-accent-foreground",
-            unavailable && "cursor-not-allowed opacity-35"
-          )}
+          className="size-7 min-h-0 shrink-0 justify-center p-0 font-mono text-sm leading-none"
         >
           {preview}
-        </button>
+        </SelectableItem>
       </TooltipTrigger>
       <TooltipContent side="top">
         <div data-slot="tooltip-title" className="font-medium">
@@ -196,15 +193,17 @@ function CharacterGrid({
         ))}
       </div>
       {paged && visibleCount < entries.length && (
-        <button
+        <Button
           type="button"
+          tone="neutral"
+          size="sm"
           onClick={() => setVisibleCount((value) => value + PAGE_SIZE)}
-          className="my-1 h-7 rounded-md bg-accent px-2 text-[11px] font-medium text-accent-foreground"
+          className="my-1"
         >
           {t("character.showMore", {
             count: Math.min(PAGE_SIZE, entries.length - visibleCount),
           })}
-        </button>
+        </Button>
       )}
     </>
   );
@@ -230,16 +229,18 @@ function GroupSection({
   return (
     <Collapsible defaultOpen={defaultOpen} className="group/character-group">
       <CollapsibleTrigger asChild>
-        <button
+        <SelectableItem
           type="button"
-          className="flex h-8 w-full items-center gap-2 rounded-md px-2 text-xs text-muted-foreground transition-colors outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50"
+          density="default"
+          muted
+          className="w-full justify-start"
         >
           <span className="truncate">{label}</span>
           <span className="ml-auto text-[10px] tabular-nums">
             {group.entries.length}
           </span>
-          <ChevronRight className="size-3.5 shrink-0 transition-transform group-data-[state=open]/character-group:rotate-90" />
-        </button>
+          <ChevronRight className="shrink-0 transition-transform group-data-[state=open]/character-group:rotate-90" />
+        </SelectableItem>
       </CollapsibleTrigger>
       <CollapsibleContent className="px-1">
         <CharacterGrid
@@ -299,22 +300,24 @@ function PackPane({
   }
 
   return (
-    <div className="space-y-1 p-2 pb-10">
+    <div className="flex flex-col gap-1 p-2 pb-10">
       {status === "loading" && (
         <div className="flex items-center gap-2 px-2 py-3 text-[11px] text-muted-foreground">
           <Loader2 className="size-3.5 animate-spin" /> {t("character.loading")}
         </div>
       )}
       {error && (
-        <div className="space-y-2 px-2 py-3 text-[11px] text-muted-foreground">
+        <div className="flex flex-col gap-2 px-2 py-3 text-[11px] text-muted-foreground">
           <p className="break-words">{error}</p>
-          <button
+          <Button
             type="button"
+            tone="neutral"
+            size="sm"
             onClick={() => void retryPack(pack)}
-            className="inline-flex h-7 items-center gap-1 rounded-md bg-accent px-2 text-foreground"
+            className="self-start"
           >
-            <RefreshCcw className="size-3" /> {t("character.retry")}
-          </button>
+            <RefreshCcw /> {t("character.retry")}
+          </Button>
         </div>
       )}
       {groups?.map((group, index) => (
@@ -375,7 +378,7 @@ function UnicodePane({
       : unicodeManifest?.facets[facetType][0]?.id;
 
   return (
-    <div className="space-y-2 p-2 pb-10">
+    <div className="flex flex-col gap-2 p-2 pb-10">
       {unicodeStatus === "loading" && (
         <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
           <Loader2 className="size-3.5 animate-spin" /> {t("character.loadingIndex")}
@@ -388,23 +391,25 @@ function UnicodePane({
       )}
       {unicodeManifest && (
         <>
-          <div className="flex rounded-lg bg-muted p-[3px]">
+          <ToggleGroup
+            type="single"
+            value={facetType}
+            onValueChange={(value) => {
+              if (value) void selectFacetType(value as UnicodeFacetType);
+            }}
+            className="flex w-full"
+          >
             {(["block", "script", "category"] as const).map((type) => (
-              <button
+              <ToggleGroupItem
                 key={type}
-                type="button"
-                onClick={() => void selectFacetType(type)}
-                className={cn(
-                  "h-7 flex-1 rounded-md px-1 text-[10px] capitalize transition-colors",
-                  facetType === type
-                    ? "bg-accent text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
+                value={type}
+                size="sm"
+                className="flex-1 px-1 text-[10px] capitalize"
               >
                 {t(UNICODE_FACET_LABEL_KEYS[type])}
-              </button>
+              </ToggleGroupItem>
             ))}
-          </div>
+          </ToggleGroup>
           <Select
             value={selectedFacetId}
             onValueChange={(value) =>
@@ -414,7 +419,8 @@ function UnicodePane({
             <SelectTrigger
               aria-label={t("character.unicodeFacet")}
               size="sm"
-              className="w-full border-0 bg-accent/60 px-2 text-[11px] shadow-none dark:bg-accent/60 dark:hover:bg-accent/80"
+              appearance="search"
+              className="w-full text-[11px]"
             >
               <SelectValue />
             </SelectTrigger>
@@ -427,7 +433,6 @@ function UnicodePane({
                 <SelectItem
                   key={facet.id}
                   value={facet.id}
-                  className="text-[11px]"
                 >
                   {facet.label} ({facet.count})
                 </SelectItem>
@@ -441,8 +446,10 @@ function UnicodePane({
             paged={false}
           />
           {unicodeHasMore && unicodeFacetId && (
-            <button
+            <Button
               type="button"
+              tone="neutral"
+              size="sm"
               onClick={() =>
                 void loadUnicodePage(
                   unicodeFacetType,
@@ -450,10 +457,9 @@ function UnicodePane({
                   unicodeOffset + PAGE_SIZE
                 )
               }
-              className="h-7 rounded-md bg-accent px-2 text-[11px] font-medium"
             >
               {t("character.loadMore", { count: PAGE_SIZE })}
-            </button>
+            </Button>
           )}
         </>
       )}

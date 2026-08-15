@@ -3,8 +3,6 @@
 import { lazy, Suspense, useRef, useState } from 'react';
 import { useUiI18n } from '@/shared/i18n';
 import { HOST_ICONOLOGY } from '@/shared/icons/iconology';
-import { cn } from '@/shared/lib/utils';
-import { rx } from '@/shared/styles/recipes';
 import { Button } from '@/shared/ui/button';
 import { useOnboardingTour } from '@/widgets/onboarding/onboarding-context';
 
@@ -48,12 +46,8 @@ export function HelpControl() {
             tone="subtle"
             shape="square"
             size="md"
-            className={cn(
-              rx.hostIconControl,
-              securityOpen && rx.hostControlActive
-            )}
+            open={securityOpen}
             aria-label={securityLabel}
-            aria-pressed={securityOpen}
             title={securityLabel}
             data-testid="data-security-control"
             onClick={() => setSecurityOpen(true)}
@@ -65,12 +59,8 @@ export function HelpControl() {
             tone="subtle"
             shape="square"
             size="md"
-            className={cn(
-              rx.hostIconControl,
-              handbookOpen && rx.hostControlActive
-            )}
+            open={handbookOpen}
             aria-label={label}
-            aria-pressed={handbookOpen}
             title={label}
             data-testid="help-control"
             onClick={() => setHandbookOpen(true)}

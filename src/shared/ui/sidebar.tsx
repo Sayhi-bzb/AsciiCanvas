@@ -7,6 +7,7 @@ import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import { ContentScrollArea } from "@/shared/ui/content-scroll-area";
 import { rx } from "@/shared/styles/recipes";
+import { Surface } from "@/shared/ui/surface";
 import {
   Sheet,
   SheetContent,
@@ -206,19 +207,22 @@ function Sidebar({
             : "group-data-[collapsible=icon]:w-(--sidebar-width-icon)"
         )}
       />
-      <div
-        data-slot="sidebar-container"
-        className={cn(
-          "relative flex size-full min-h-0 min-w-0",
-          variant === "floating" &&
-            rx.floatingHost({
-              appearance: isTriggerCollapsed ? "transparent" : "raised",
-              animated: true,
-            }),
-          className
-        )}
-        {...props}
+      <Surface
+        asChild
+        kind={
+          variant !== "floating"
+            ? "transparent"
+            : isTriggerCollapsed
+              ? "transparent"
+              : "floating"
+        }
+        animated={variant === "floating"}
       >
+        <div
+          data-slot="sidebar-container"
+          className={cn("relative flex size-full min-h-0 min-w-0", className)}
+          {...props}
+        >
         <div
           data-sidebar="sidebar"
           data-slot="sidebar-inner"
@@ -229,7 +233,8 @@ function Sidebar({
         >
           {children}
         </div>
-      </div>
+        </div>
+      </Surface>
     </div>
   );
 }
@@ -250,7 +255,7 @@ function SidebarTrigger({
       tone="subtle"
       shape="square"
       size="md"
-      className={cn("pointer-events-auto", rx.hostIconControl, className)}
+      className={cn("pointer-events-auto", className)}
       onClick={(event) => {
         onClick?.(event);
         toggleSidebar();

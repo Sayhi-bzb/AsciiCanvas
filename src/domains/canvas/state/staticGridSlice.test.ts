@@ -124,6 +124,88 @@ describe("staticGridSlice", () => {
     expect(useEditorStore.getState().textCursor).toEqual({ x: 2, y: 1 });
   });
 
+  it("uses content bounds for edge, row, and column navigation in freeform", () => {
+    applyFreeformSnapshotToYMaps([
+      ["-2,-1", { char: "A", color: "#fff" }],
+      ["5,4", { char: "B", color: "#fff" }],
+    ]);
+    useEditorStore.getState().setStaticGridActiveCell({ x: 1, y: 2 });
+
+    useEditorStore.getState().moveStaticGridFocusToEdge("left");
+    expect(useEditorStore.getState().staticGridSelection.activeCell).toEqual({ x: -2, y: 2 });
+    expect(useEditorStore.getState().textCursor).toEqual({ x: -2, y: 2 });
+
+    useEditorStore.getState().selectStaticGridRow();
+    expect(useEditorStore.getState().staticGridSelection.ranges).toEqual([
+      { start: { x: -2, y: 2 }, end: { x: 5, y: 2 } },
+    ]);
+
+    useEditorStore.getState().clearStaticGridSelection();
+    useEditorStore.getState().selectStaticGridColumn();
+    expect(useEditorStore.getState().staticGridSelection.ranges).toEqual([
+      { start: { x: -2, y: -1 }, end: { x: -2, y: 4 } },
+    ]);
+  });
+
+  it("cycles select-all from the connected region to all effective content", () => {
+    applyFreeformSnapshotToYMaps([
+      ["0,0", { char: "A", color: "#fff" }],
+      ["1,0", { char: "B", color: "#fff" }],
+      ["5,5", { char: "C", color: "#fff" }],
+    ]);
+    useEditorStore.getState().setStaticGridActiveCell({ x: 0, y: 0 });
+
+    useEditorStore.getState().selectStaticGridAll();
+    expect(useEditorStore.getState().staticGridSelection.ranges).toEqual([
+      { start: { x: 0, y: 0 }, end: { x: 1, y: 0 } },
+    ]);
+
+    useEditorStore.getState().selectStaticGridAll();
+    expect(useEditorStore.getState().staticGridSelection.ranges).toEqual([
+      { start: { x: 0, y: 0 }, end: { x: 5, y: 5 } },
+    ]);
+  });
+
+  it("keeps the active cell visible when leaving text edit mode", () => {
+    useEditorStore.getState().enterStaticGridTextEdit({ x: 3, y: 2 });
+    useEditorStore.getState().exitStaticGridTextEdit();
+
+    expect(useEditorStore.getState().staticGridEditMode).toBe("navigate");
+    expect(useEditorStore.getState().textCursor).toEqual({ x: 3, y: 2 });
+    expect(useEditorStore.getState().staticGridSelection.activeCell).toEqual({ x: 3, y: 2 });
+  });
+
+  it("jumps to visible content boundaries and extends from the active anchor", () => {
+    applyFreeformSnapshotToYMaps([
+      ["1,1", { char: "A", color: "#fff" }],
+      ["2,1", { char: "B", color: "#fff" }],
+      ["4,1", { char: " ", color: "#fff", bgColor: "#333" }],
+      ["5,1", { char: "C", color: "#fff" }],
+    ]);
+    useEditorStore.getState().enterStaticGridTextEdit({ x: 1, y: 1 });
+
+    useEditorStore.getState().moveStaticGridFocusToContentBoundary("right");
+    expect(useEditorStore.getState()).toMatchObject({
+      staticGridEditMode: "navigate",
+      textCursor: { x: 2, y: 1 },
+      staticGridSelection: {
+        activeCell: { x: 2, y: 1 },
+        anchorCell: { x: 2, y: 1 },
+        ranges: [],
+      },
+    });
+
+    useEditorStore.getState().moveStaticGridFocusToContentBoundary("right", {
+      extend: true,
+    });
+    expect(useEditorStore.getState().staticGridSelection).toEqual({
+      activeCell: { x: 5, y: 1 },
+      anchorCell: { x: 2, y: 1 },
+      ranges: [{ start: { x: 2, y: 1 }, end: { x: 5, y: 1 } }],
+    });
+    expect(useEditorStore.getState().textCursor).toBeNull();
+  });
+
   it("uses the static-grid background color for slide background shapes", () => {
     useEditorStore.setState({
       canvasMode: "slide",

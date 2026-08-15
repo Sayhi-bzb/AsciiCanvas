@@ -12,9 +12,7 @@ import {
 import { useCollaborationSnapshot } from './useCollaborationSnapshot';
 import { HOST_ICONOLOGY } from '@/shared/icons/iconology';
 import { useUiI18n } from '@/shared/i18n';
-import { cn } from '@/shared/lib/utils';
 import { feedback } from '@/shared/services/effects';
-import { rx } from '@/shared/styles/recipes';
 import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
@@ -111,11 +109,9 @@ export function CollaborationControl() {
           tone="subtle"
           shape="square"
           size="md"
-          className={cn(
-            'pointer-events-auto',
-            rx.hostIconControl,
-            (open || descriptor) && rx.hostControlActive
-          )}
+          active={Boolean(descriptor)}
+          open={open}
+          className="pointer-events-auto"
           aria-label={t('collaboration.title')}
           title={t('collaboration.title')}
           data-testid="collaboration-control"
@@ -247,8 +243,9 @@ export function CollaborationControl() {
             <Button
               type="button"
               tone="subtle"
+              destructive
               size="sm"
-              className="w-full justify-start text-destructive hover:bg-destructive/10 hover:text-destructive"
+              className="w-full justify-start"
               onClick={() => void forget()}
             >
               {t('collaboration.forget')}

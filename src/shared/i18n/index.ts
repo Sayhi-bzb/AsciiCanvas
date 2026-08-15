@@ -170,7 +170,11 @@ const messages = {
     'manual.shortcut.paste': 'Paste',
     'manual.shortcut.delete': 'Delete',
     'manual.reference.select': 'Select and fill',
-    'manual.reference.selectDescription': 'Drag to select; type to fill the selection.',
+    'manual.reference.selectDescription':
+      'Drag to select; Mod-drag adds ranges; drag the handle to repeat a pattern.',
+    'manual.reference.gridNavigation': 'Navigate the character grid',
+    'manual.reference.gridNavigationDescription':
+      'Use Arrows, Home/End, Page Up/Down, Enter, and Tab; hold Shift to extend a range.',
     'manual.reference.insert': 'Insert components',
     'manual.reference.insertDescription': 'Drag templates or components from the sidebar.',
     'manual.reference.editText': 'Edit text',
@@ -521,7 +525,11 @@ const messages = {
     'manual.shortcut.paste': '粘贴',
     'manual.shortcut.delete': '删除',
     'manual.reference.select': '选择与填充',
-    'manual.reference.selectDescription': '拖拽创建选区；输入字符填充选区。',
+    'manual.reference.selectDescription':
+      '拖拽创建选区；按住 Ctrl/Cmd 拖拽可追加范围；拖动填充柄可重复图案。',
+    'manual.reference.gridNavigation': '字符网格导航',
+    'manual.reference.gridNavigationDescription':
+      '使用方向键、Home/End、Page Up/Down、Enter 和 Tab；按住 Shift 可扩展选区。',
     'manual.reference.insert': '插入组件',
     'manual.reference.insertDescription': '从侧栏拖入模板或组件。',
     'manual.reference.editText': '编辑文本',

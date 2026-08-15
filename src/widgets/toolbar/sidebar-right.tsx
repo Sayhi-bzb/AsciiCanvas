@@ -23,10 +23,13 @@ import {
 import { useCanvasState } from "@/domains/canvas/public";
 import { cn } from "@/shared/lib/utils";
 import { ContentScrollArea } from "@/shared/ui/content-scroll-area";
+import { Button } from "@/shared/ui/button";
+import { IconButton } from "@/shared/ui/icon-button";
+import { Input } from "@/shared/ui/input";
+import { Surface } from "@/shared/ui/surface";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
 import { useShallow } from "zustand/react/shallow";
 import { useUiI18n } from "@/shared/i18n";
-import { rx } from "@/shared/styles/recipes"
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
 import { isStaticGridMode } from "@/domains/sessions/public";
 import { useOnboardingTour } from "@/widgets/onboarding/onboarding-context";
@@ -80,40 +83,41 @@ function SidebarViewRail<ViewId extends string>({
   testIdPrefix: string;
 }) {
   return (
-    <nav
-      role="tablist"
-      aria-label={ariaLabel}
-      aria-orientation={orientation}
-      data-onboarding-target={
-        testIdPrefix === "character" ? "character-library" : undefined
-      }
-      data-testid={`${testIdPrefix}-view-rail-${orientation}`}
-      className={cn(
-        rx.iconRail,
-        orientation === "vertical"
-          ? "w-full flex-col items-center gap-1"
-          : "w-full items-center justify-center gap-1"
-      )}
-    >
+    <Surface kind="embedded" asChild>
+      <nav
+        role="tablist"
+        aria-label={ariaLabel}
+        aria-orientation={orientation}
+        data-onboarding-target={
+          testIdPrefix === "character" ? "character-library" : undefined
+        }
+        data-testid={`${testIdPrefix}-view-rail-${orientation}`}
+        className={cn(
+          "flex p-[3px]",
+          orientation === "vertical"
+            ? "w-full flex-col items-center gap-1"
+            : "w-full items-center justify-center gap-1"
+        )}
+      >
       {views.map((view) => {
         const Icon = view.icon;
         const isActive = activeView === view.id;
         return (
           <Tooltip key={view.id} delayDuration={300}>
             <TooltipTrigger asChild>
-              <button
+              <Button
                 type="button"
+                tone="subtle"
+                shape="square"
+                size="md"
+                active={isActive}
                 role="tab"
                 aria-selected={isActive}
                 aria-label={view.label}
                 onClick={() => onSelect(view.id)}
-                className={cn(
-                  rx.iconRailItem,
-                  isActive && rx.hostControlActive
-                )}
               >
                 <Icon className="size-4" />
-              </button>
+              </Button>
             </TooltipTrigger>
             <TooltipContent side={orientation === "vertical" ? "right" : "bottom"}>
               {view.label}
@@ -121,7 +125,8 @@ function SidebarViewRail<ViewId extends string>({
           </Tooltip>
         );
       })}
-    </nav>
+      </nav>
+    </Surface>
   );
 }
 
@@ -298,7 +303,7 @@ export function SidebarRight() {
       );
       headerContent = (
         <div className="relative min-w-0 flex-1">
-          <input
+          <Input
             ref={structuredSearchRef}
             type="search"
             aria-label={t("sidebar.search.structured")}
@@ -311,23 +316,24 @@ export function SidebarRight() {
               setStructuredLibraryQuery("");
             }}
             placeholder={t("sidebar.search.placeholder")}
+            appearance="search"
             className={cn(
-              rx.searchInput,
               "h-8 w-full px-2 pr-9 [&::-webkit-search-cancel-button]:hidden"
             )}
           />
           {structuredLibraryQuery ? (
-            <button
+            <IconButton
               type="button"
+              size="xs"
               aria-label={t("search.clear")}
               onClick={() => {
                 setStructuredLibraryQuery("");
                 structuredSearchRef.current?.focus();
               }}
-              className="absolute right-1 top-1/2 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              className="absolute right-1 top-1/2 -translate-y-1/2"
             >
-              <X className="size-3.5" />
-            </button>
+              <X />
+            </IconButton>
           ) : null}
         </div>
       );

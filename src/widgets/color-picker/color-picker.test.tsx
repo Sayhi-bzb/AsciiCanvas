@@ -38,6 +38,8 @@ describe('ColorPickerPanel', () => {
     expect(paletteTabs).toHaveAttribute('data-orientation', 'horizontal');
     expect(paletteTabs).toHaveClass('w-fit', 'flex-row', 'gap-0.5', 'p-px');
     const ansiTab = screen.getByRole('tab', { name: 'ANSI 16' });
+    expect(ansiTab).toHaveAttribute('data-size', 'icon');
+    expect(ansiTab).toHaveAttribute('data-active', 'true');
     expect(ansiTab).toHaveClass(
       'size-7',
       'rounded-lg',
@@ -45,11 +47,6 @@ describe('ColorPickerPanel', () => {
       'justify-center',
       'hover:bg-accent',
       'hover:text-accent-foreground',
-      'focus-visible:ring-[3px]',
-      'focus-visible:border-transparent',
-      'focus-visible:outline-0',
-      'focus-visible:outline-transparent',
-      'focus-visible:outline-none',
       'group-data-[variant=default]/tabs-list:data-[state=active]:shadow-none'
     );
     expect(ansiTab).not.toHaveClass('min-w-8');
