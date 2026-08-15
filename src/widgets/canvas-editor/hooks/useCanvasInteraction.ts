@@ -104,6 +104,7 @@ export const useCanvasInteraction = (
     commitStructuredShape,
     setTextCursor,
     setStaticGridActiveCell,
+    setStaticGridSelectionRange,
     addSelection,
     clearSelections,
     clearInteractionState,
@@ -198,6 +199,8 @@ export const useCanvasInteraction = (
     setInteractionState,
     clearInteractionState,
     clearSelections,
+    setStaticGridSelectionStart: (point) =>
+      setStaticGridSelectionRange({ start: point, end: point }),
     setSelectionPreview: (selection) => selectionPreview.set(selection),
     clearTextCursor: () => setTextCursor(null),
   });
@@ -257,6 +260,7 @@ export const useCanvasInteraction = (
     setSelectedStructuredSplitHandle,
     setStructuredGridFocus,
     setStaticGridActiveCell,
+    setStaticGridSelectionRange,
     addSelection,
     clearSelections,
     commitScratch,

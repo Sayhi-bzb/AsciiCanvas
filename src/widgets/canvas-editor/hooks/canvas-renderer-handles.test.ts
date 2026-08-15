@@ -2,8 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 import {
   drawActiveCellFocus,
   drawCanvasColorPickerAnchor,
+  drawGridActiveCellMarker,
+  drawGridSelectionRange,
   getStructuredSplitBoxActiveLeafBounds,
-  resolveStaticGridActiveFocusPoint,
 } from "@/widgets/canvas-editor/hooks/useCanvasRenderer";
 import {
   getStructuredLineHandlePoints,
@@ -40,45 +41,42 @@ describe("useCanvasRenderer structured rect handles", () => {
     expect(ctx.strokeRect).toHaveBeenCalledWith(18, 57, 9, 19);
   });
 
-  it("keeps static-grid active focus separate from the edit cursor", () => {
-    const activeCell = { x: 4, y: 3 };
+  it("draws the primary range border independently from the active-cell marker", () => {
+    const styles: { stroke?: string; lineWidth?: number } = {};
+    const ctx = {
+      save: vi.fn(),
+      restore: vi.fn(),
+      fillRect: vi.fn(),
+      strokeRect: vi.fn(),
+      set fillStyle(_value: string | CanvasGradient | CanvasPattern) {},
+      set strokeStyle(value: string | CanvasGradient | CanvasPattern) {
+        styles.stroke = String(value);
+      },
+      set lineWidth(value: number) {
+        styles.lineWidth = value;
+      },
+    } as unknown as CanvasRenderingContext2D;
 
-    expect(
-      resolveStaticGridActiveFocusPoint({
-        canvasMode: "freeform",
-        activeCell,
-        editMode: "navigate",
-        hasSelection: false,
-        textCursor: activeCell,
-      })
-    ).toEqual(activeCell);
-    expect(
-      resolveStaticGridActiveFocusPoint({
-        canvasMode: "slide",
-        activeCell,
-        editMode: "navigate",
-        hasSelection: true,
-        textCursor: null,
-      })
-    ).toEqual(activeCell);
-    expect(
-      resolveStaticGridActiveFocusPoint({
-        canvasMode: "freeform",
-        activeCell,
-        editMode: "navigate",
-        hasSelection: false,
-        textCursor: null,
-      })
-    ).toBeNull();
-    expect(
-      resolveStaticGridActiveFocusPoint({
-        canvasMode: "structured",
-        activeCell,
-        editMode: "text-edit",
-        hasSelection: true,
-        textCursor: activeCell,
-      })
-    ).toBeNull();
+    drawGridSelectionRange(
+      ctx,
+      { start: { x: 2, y: 3 }, end: { x: 4, y: 4 } },
+      { offset: { x: 0, y: 0 }, zoom: 1 },
+      "primary"
+    );
+    expect(styles).toEqual({ stroke: "#2563eb", lineWidth: 2 });
+    expect(ctx.fillRect).toHaveBeenCalledWith(18, 57, 27, 38);
+    expect(ctx.strokeRect).toHaveBeenCalledWith(18, 57, 27, 38);
+
+    vi.mocked(ctx.strokeRect).mockClear();
+    drawGridActiveCellMarker(ctx, { x: 4, y: 3 }, {
+      offset: { x: 0, y: 0 },
+      zoom: 1,
+    });
+    expect(styles).toEqual({
+      stroke: "rgba(37, 99, 235, 0.65)",
+      lineWidth: 1,
+    });
+    expect(ctx.strokeRect).toHaveBeenCalledWith(37, 58, 7, 17);
   });
 
   it("returns eight handles for rectangular structured nodes", () => {

@@ -3,6 +3,7 @@ import {
   collapseGridSelectionTo,
   createGridSelectionState,
   extendGridSelectionTo,
+  getGridSelectionRanges,
   gridRangeFromSelectionArea,
   moveGridAddress,
   moveGridAddressToContentBoundary,
@@ -14,6 +15,7 @@ import {
   moveGridAddressToEdge,
   resolveGridFillRange,
   selectGridColumn,
+  selectGridRange,
   selectGridRow,
 } from "@/domains/selection/public";
 
@@ -37,7 +39,7 @@ describe("staticGridModel", () => {
     });
   });
 
-  it("moves and extends active grid selection from an anchor", () => {
+  it("extends a range while keeping the active cell at its anchor", () => {
     const base = createGridSelectionState({ x: 2, y: 2 });
     const moved = collapseGridSelectionTo(base, moveGridAddress(base.activeCell, 1, 0));
     const extended = extendGridSelectionTo(moved, moveGridAddress(moved.activeCell, 0, 2));
@@ -45,13 +47,31 @@ describe("staticGridModel", () => {
     expect(moved).toEqual({
       activeCell: { x: 3, y: 2 },
       anchorCell: { x: 3, y: 2 },
-      ranges: [],
+      primaryRange: { start: { x: 3, y: 2 }, end: { x: 3, y: 2 } },
+      additionalRanges: [],
     });
     expect(extended).toEqual({
-      activeCell: { x: 3, y: 4 },
+      activeCell: { x: 3, y: 2 },
       anchorCell: { x: 3, y: 2 },
-      ranges: [{ start: { x: 3, y: 2 }, end: { x: 3, y: 4 } }],
+      primaryRange: { start: { x: 3, y: 2 }, end: { x: 3, y: 4 } },
+      additionalRanges: [],
     });
+  });
+
+  it("keeps the primary range last and activates it explicitly", () => {
+    const base = createGridSelectionState({ x: 1, y: 1 });
+    const next = selectGridRange(
+      base,
+      { start: { x: 4, y: 3 }, end: { x: 2, y: 2 } },
+      { append: true, activeCell: "start" }
+    );
+
+    expect(getGridSelectionRanges(next)).toEqual([
+      { start: { x: 1, y: 1 }, end: { x: 1, y: 1 } },
+      { start: { x: 2, y: 2 }, end: { x: 4, y: 3 } },
+    ]);
+    expect(next.activeCell).toEqual({ x: 4, y: 3 });
+    expect(next.anchorCell).toEqual({ x: 4, y: 3 });
   });
 
   it("derives freeform view state from static selection before legacy selections", () => {
@@ -59,7 +79,8 @@ describe("staticGridModel", () => {
       selection: {
         activeCell: { x: 4, y: 2 },
         anchorCell: { x: 2, y: 2 },
-        ranges: [{ start: { x: 2, y: 2 }, end: { x: 4, y: 2 } }],
+        primaryRange: { start: { x: 2, y: 2 }, end: { x: 4, y: 2 } },
+        additionalRanges: [],
       },
       editMode: "navigate",
       textCursor: null,
@@ -122,10 +143,10 @@ describe("staticGridModel", () => {
     const bounds = { start: { x: -2, y: -1 }, end: { x: 8, y: 9 } };
 
     expect(moveGridAddressToEdge(state.activeCell, "left", bounds)).toEqual({ x: -2, y: 4 });
-    expect(selectGridRow(state, bounds).ranges).toEqual([
+    expect(getGridSelectionRanges(selectGridRow(state, bounds))).toEqual([
       { start: { x: -2, y: 4 }, end: { x: 8, y: 4 } },
     ]);
-    expect(selectGridColumn(state, bounds).ranges).toEqual([
+    expect(getGridSelectionRanges(selectGridColumn(state, bounds))).toEqual([
       { start: { x: 3, y: -1 }, end: { x: 3, y: 9 } },
     ]);
   });

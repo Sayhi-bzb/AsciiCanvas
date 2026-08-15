@@ -6,6 +6,8 @@ import {
   extendGridSelectionTo,
   getConnectedGridRange,
   getEffectiveGridBounds,
+  getGridSelectionExtent,
+  getGridSelectionRanges,
   gridRangesEqual,
   moveGridAddress,
   moveGridAddressToContentBoundary,
@@ -47,11 +49,11 @@ export const createStaticGridSlice: StateCreator<
     const state = get();
     const start = clampPointToActiveSlide(state, range.start);
     const end = clampPointToActiveSlide(state, range.end);
-    const selection = {
-      activeCell: end,
-      anchorCell: start,
-      ranges: [{ start, end }],
-    };
+    const selection = selectGridRange(
+      state.staticGridSelection,
+      { start, end },
+      { activeCell: "start" }
+    );
     set({
       staticGridSelection: selection,
       staticGridEditMode: "navigate",
@@ -69,19 +71,24 @@ export const createStaticGridSlice: StateCreator<
           state.selections,
           state.staticGridSelection
         );
-    const activeCell = clampPointToActiveSlide(
+    const focusCell = options?.extend
+      ? getGridSelectionExtent(current)
+      : current.activeCell;
+    const nextCell = clampPointToActiveSlide(
       state,
-      moveGridAddress(current.activeCell, dx, dy)
+      moveGridAddress(focusCell, dx, dy)
     );
     const selection = options?.extend
-      ? extendGridSelectionTo(current, activeCell)
-      : collapseGridSelectionTo(current, activeCell);
+      ? extendGridSelectionTo(current, nextCell)
+      : collapseGridSelectionTo(current, nextCell);
 
     set({
       staticGridSelection: selection,
       staticGridEditMode: options?.extend ? "navigate" : state.staticGridEditMode,
-      textCursor: options?.extend ? null : activeCell,
-      selections: options?.extend ? selectionAreasFromGridRanges(selection.ranges) : [],
+      textCursor: options?.extend ? null : nextCell,
+      selections: options?.extend
+        ? selectionAreasFromGridRanges(getGridSelectionRanges(selection))
+        : [],
     });
   },
 
@@ -95,27 +102,30 @@ export const createStaticGridSlice: StateCreator<
     const bounds = getEffectiveGridBounds({
       grid: state.grid,
       activeCell: current.activeCell,
-      ranges: current.ranges,
+      ranges: getGridSelectionRanges(current),
       fixedBounds: getActiveSlideGridBounds(state),
     });
-    let activeCell = current.activeCell;
+    const focusCell = options?.extend
+      ? getGridSelectionExtent(current)
+      : current.activeCell;
+    let nextCell = focusCell;
     if (edge === "top-left") {
-      activeCell = { ...bounds.start };
+      nextCell = { ...bounds.start };
     } else if (edge === "bottom-right") {
-      activeCell = { ...bounds.end };
+      nextCell = { ...bounds.end };
     } else {
-      activeCell = moveGridAddressToEdge(current.activeCell, edge, bounds);
+      nextCell = moveGridAddressToEdge(focusCell, edge, bounds);
     }
-    activeCell = clampPointToActiveSlide(state, activeCell);
+    nextCell = clampPointToActiveSlide(state, nextCell);
     const selection = options?.extend
-      ? extendGridSelectionTo(current, activeCell)
-      : collapseGridSelectionTo(current, activeCell);
+      ? extendGridSelectionTo(current, nextCell)
+      : collapseGridSelectionTo(current, nextCell);
     set({
       staticGridSelection: selection,
       staticGridEditMode: "navigate",
-      textCursor: options?.extend ? null : activeCell,
+      textCursor: options?.extend ? null : nextCell,
       selections: options?.extend
-        ? selectionAreasFromGridRanges(selection.ranges)
+        ? selectionAreasFromGridRanges(getGridSelectionRanges(selection))
         : [],
     });
   },
@@ -127,24 +137,27 @@ export const createStaticGridSlice: StateCreator<
       state.selections,
       state.staticGridSelection
     );
-    const activeCell = clampPointToActiveSlide(
+    const focusCell = options?.extend
+      ? getGridSelectionExtent(current)
+      : current.activeCell;
+    const nextCell = clampPointToActiveSlide(
       state,
       moveGridAddressToContentBoundary({
         grid: state.grid,
-        address: current.activeCell,
+        address: focusCell,
         edge,
         fixedBounds: getActiveSlideGridBounds(state),
       })
     );
     const selection = options?.extend
-      ? extendGridSelectionTo(current, activeCell)
-      : collapseGridSelectionTo(current, activeCell);
+      ? extendGridSelectionTo(current, nextCell)
+      : collapseGridSelectionTo(current, nextCell);
     set({
       staticGridSelection: selection,
       staticGridEditMode: "navigate",
-      textCursor: options?.extend ? null : activeCell,
+      textCursor: options?.extend ? null : nextCell,
       selections: options?.extend
-        ? selectionAreasFromGridRanges(selection.ranges)
+        ? selectionAreasFromGridRanges(getGridSelectionRanges(selection))
         : [],
     });
   },
@@ -159,12 +172,13 @@ export const createStaticGridSlice: StateCreator<
     const bounds = getEffectiveGridBounds({
       grid: state.grid,
       activeCell: current.activeCell,
-      ranges: current.ranges,
+      ranges: getGridSelectionRanges(current),
       fixedBounds: getActiveSlideGridBounds(state),
     });
     const connected = getConnectedGridRange(state.grid, current.activeCell);
     const range =
-      current.ranges.length === 1 && gridRangesEqual(current.ranges[0], connected)
+      current.additionalRanges.length === 0 &&
+      gridRangesEqual(current.primaryRange, connected)
         ? bounds
         : connected;
     const selection = selectGridRange(current, range);
@@ -172,7 +186,7 @@ export const createStaticGridSlice: StateCreator<
       staticGridSelection: selection,
       staticGridEditMode: "navigate",
       textCursor: null,
-      selections: selectionAreasFromGridRanges(selection.ranges),
+      selections: selectionAreasFromGridRanges(getGridSelectionRanges(selection)),
     });
   },
 
@@ -182,7 +196,7 @@ export const createStaticGridSlice: StateCreator<
     const bounds = getEffectiveGridBounds({
       grid: state.grid,
       activeCell: current.activeCell,
-      ranges: current.ranges,
+      ranges: getGridSelectionRanges(current),
       fixedBounds: getActiveSlideGridBounds(state),
     });
     const selection = selectGridRow(current, bounds);
@@ -190,7 +204,7 @@ export const createStaticGridSlice: StateCreator<
       staticGridSelection: selection,
       staticGridEditMode: "navigate",
       textCursor: null,
-      selections: selectionAreasFromGridRanges(selection.ranges),
+      selections: selectionAreasFromGridRanges(getGridSelectionRanges(selection)),
     });
   },
 
@@ -200,7 +214,7 @@ export const createStaticGridSlice: StateCreator<
     const bounds = getEffectiveGridBounds({
       grid: state.grid,
       activeCell: current.activeCell,
-      ranges: current.ranges,
+      ranges: getGridSelectionRanges(current),
       fixedBounds: getActiveSlideGridBounds(state),
     });
     const selection = selectGridColumn(current, bounds);
@@ -208,7 +222,7 @@ export const createStaticGridSlice: StateCreator<
       staticGridSelection: selection,
       staticGridEditMode: "navigate",
       textCursor: null,
-      selections: selectionAreasFromGridRanges(selection.ranges),
+      selections: selectionAreasFromGridRanges(getGridSelectionRanges(selection)),
     });
   },
 

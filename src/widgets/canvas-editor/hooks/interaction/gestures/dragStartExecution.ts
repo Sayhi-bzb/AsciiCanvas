@@ -37,6 +37,7 @@ type SelectionDragStartExecutor = {
   setInteractionState: (state: CanvasInteractionState) => void;
   clearInteractionState: () => void;
   clearSelections: () => void;
+  setStaticGridSelectionStart: (point: Point) => void;
   setAnchorGrid: (point: Point | null) => void;
   setSelectionPreview: (selection: SelectionArea) => void;
   clearTextCursor: () => void;
@@ -55,6 +56,9 @@ export const executeSelectionDragStartDecision = (
   });
   if (decision.clearInteractionState) executor.clearInteractionState();
   if (decision.clearExistingSelection) executor.clearSelections();
+  if (decision.activateStaticGridCell) {
+    executor.setStaticGridSelectionStart(decision.activateStaticGridCell);
+  }
   if (decision.nextAnchor !== null) executor.setAnchorGrid(decision.nextAnchor);
   executor.setSelectionPreview(decision.preview);
   executor.clearTextCursor();
@@ -66,6 +70,7 @@ export const createSelectionDragStartExecutor = ({
   setInteractionState,
   clearInteractionState,
   clearSelections,
+  setStaticGridSelectionStart,
   setSelectionPreview,
   clearTextCursor,
 }: {
@@ -73,12 +78,14 @@ export const createSelectionDragStartExecutor = ({
   setInteractionState: (state: CanvasInteractionState) => void;
   clearInteractionState: () => void;
   clearSelections: () => void;
+  setStaticGridSelectionStart: (point: Point) => void;
   setSelectionPreview: (selection: SelectionArea) => void;
   clearTextCursor: () => void;
 }): SelectionDragStartExecutor => ({
   setInteractionState,
   clearInteractionState,
   clearSelections,
+  setStaticGridSelectionStart,
   setAnchorGrid,
   setSelectionPreview,
   clearTextCursor,

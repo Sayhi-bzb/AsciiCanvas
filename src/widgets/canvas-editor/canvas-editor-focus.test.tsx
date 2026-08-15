@@ -4,6 +4,7 @@ import type { ComponentProps } from "react";
 import { CanvasEditor as CanvasEditorUnderTest } from "@/widgets/canvas-editor";
 import { undoCanvas, useEditorStore } from "@/domains/canvas/testing";
 import { replaceCanvasGrid as applyFreeformSnapshotToYMaps } from "@/domains/canvas/testing";
+import { getGridSelectionRanges } from "@/domains/selection/public";
 import {
   STRUCTURED_TEMPLATE_MIME,
   buildStructuredTemplateNodes,
@@ -144,7 +145,8 @@ describe("CanvasEditor focus management", () => {
       staticGridSelection: {
         activeCell: { x: 1, y: 0 },
         anchorCell: { x: 0, y: 0 },
-        ranges: [{ start: { x: 0, y: 0 }, end: { x: 1, y: 0 } }],
+        primaryRange: { start: { x: 0, y: 0 }, end: { x: 1, y: 0 } },
+        additionalRanges: [],
       },
       staticGridEditMode: "navigate",
     });
@@ -409,7 +411,8 @@ describe("CanvasEditor focus management", () => {
       staticGridSelection: {
         activeCell: { x: 4, y: 3 },
         anchorCell: { x: 4, y: 3 },
-        ranges: [],
+        primaryRange: { start: { x: 4, y: 3 }, end: { x: 4, y: 3 } },
+        additionalRanges: [],
       },
       staticGridEditMode: "navigate",
     });
@@ -439,7 +442,8 @@ describe("CanvasEditor focus management", () => {
       staticGridSelection: {
         activeCell: { x: 2, y: 2 },
         anchorCell: { x: 2, y: 2 },
-        ranges: [],
+        primaryRange: { start: { x: 2, y: 2 }, end: { x: 2, y: 2 } },
+        additionalRanges: [],
       },
       staticGridEditMode: "navigate",
     });
@@ -461,7 +465,8 @@ describe("CanvasEditor focus management", () => {
       staticGridSelection: {
         activeCell: { x: 2, y: 2 },
         anchorCell: { x: 2, y: 2 },
-        ranges: [],
+        primaryRange: { start: { x: 2, y: 2 }, end: { x: 2, y: 2 } },
+        additionalRanges: [],
       },
       staticGridEditMode: "navigate",
     });
@@ -480,7 +485,8 @@ describe("CanvasEditor focus management", () => {
         staticGridSelection: {
           activeCell: { x: 3, y: 2 },
           anchorCell: { x: 1, y: 1 },
-          ranges: [{ start: { x: 1, y: 1 }, end: { x: 3, y: 2 } }],
+          primaryRange: { start: { x: 1, y: 1 }, end: { x: 3, y: 2 } },
+          additionalRanges: [],
         },
       });
     });
@@ -636,7 +642,8 @@ describe("CanvasEditor focus management", () => {
       staticGridSelection: {
         activeCell: { x: 1, y: 5 },
         anchorCell: { x: 1, y: 5 },
-        ranges: [],
+        primaryRange: { start: { x: 1, y: 5 }, end: { x: 1, y: 5 } },
+        additionalRanges: [],
       },
       staticGridEditMode: "text-edit",
     });
@@ -670,9 +677,10 @@ describe("CanvasEditor focus management", () => {
       shiftKey: true,
     });
     expect(useEditorStore.getState().staticGridSelection).toEqual({
-      activeCell: { x: 2, y: 5 },
+      activeCell: { x: 5, y: 5 },
       anchorCell: { x: 5, y: 5 },
-      ranges: [{ start: { x: 2, y: 5 }, end: { x: 5, y: 5 } }],
+      primaryRange: { start: { x: 2, y: 5 }, end: { x: 5, y: 5 } },
+      additionalRanges: [],
     });
   });
 
@@ -691,7 +699,8 @@ describe("CanvasEditor focus management", () => {
       staticGridSelection: {
         activeCell: { x: 1, y: 2 },
         anchorCell: { x: 1, y: 2 },
-        ranges: [],
+        primaryRange: { start: { x: 1, y: 2 }, end: { x: 1, y: 2 } },
+        additionalRanges: [],
       },
       staticGridEditMode: "navigate",
     });
@@ -728,7 +737,8 @@ describe("CanvasEditor focus management", () => {
       staticGridSelection: {
         activeCell: { x: 2, y: 2 },
         anchorCell: { x: 2, y: 2 },
-        ranges: [],
+        primaryRange: { start: { x: 2, y: 2 }, end: { x: 2, y: 2 } },
+        additionalRanges: [],
       },
       staticGridEditMode: "navigate",
     });
@@ -774,7 +784,8 @@ describe("CanvasEditor focus management", () => {
       staticGridSelection: {
         activeCell: { x: 1, y: 1 },
         anchorCell: { x: 1, y: 1 },
-        ranges: [],
+        primaryRange: { start: { x: 1, y: 1 }, end: { x: 1, y: 1 } },
+        additionalRanges: [],
       },
       staticGridEditMode: "navigate",
       structuredGridFocus: null,
@@ -797,9 +808,10 @@ describe("CanvasEditor focus management", () => {
 
     fireEvent.keyDown(textarea!, { key: "ArrowUp", shiftKey: true });
     expect(useEditorStore.getState().staticGridSelection).toEqual({
-      activeCell: { x: 2, y: 0 },
+      activeCell: { x: 2, y: 1 },
       anchorCell: { x: 2, y: 1 },
-      ranges: [{ start: { x: 2, y: 0 }, end: { x: 2, y: 1 } }],
+      primaryRange: { start: { x: 2, y: 0 }, end: { x: 2, y: 1 } },
+      additionalRanges: [],
     });
     expect(useEditorStore.getState().textCursor).toBeNull();
     expect(useEditorStore.getState().structuredGridFocus).toBeNull();
@@ -821,7 +833,8 @@ describe("CanvasEditor focus management", () => {
       staticGridSelection: {
         activeCell: { x: 2, y: 1 },
         anchorCell: { x: 2, y: 1 },
-        ranges: [],
+        primaryRange: { start: { x: 2, y: 1 }, end: { x: 2, y: 1 } },
+        additionalRanges: [],
       },
       staticGridEditMode: "navigate",
     });
@@ -860,7 +873,8 @@ describe("CanvasEditor focus management", () => {
       staticGridSelection: {
         activeCell: { x: 1, y: 1 },
         anchorCell: { x: 1, y: 1 },
-        ranges: [],
+        primaryRange: { start: { x: 1, y: 1 }, end: { x: 1, y: 1 } },
+        additionalRanges: [],
       },
       staticGridEditMode: "navigate",
     });
@@ -872,21 +886,21 @@ describe("CanvasEditor focus management", () => {
     fireEvent.pointerDown(getByTestId("canvas-editor-surface"));
 
     fireEvent.keyDown(textarea, { key: " ", code: "Space", shiftKey: true });
-    expect(useEditorStore.getState().staticGridSelection.ranges).toEqual([
+    expect(getGridSelectionRanges(useEditorStore.getState().staticGridSelection)).toEqual([
       { start: { x: 1, y: 1 }, end: { x: 5, y: 1 } },
     ]);
     useEditorStore.getState().clearStaticGridSelection();
     fireEvent.keyDown(textarea, { key: " ", code: "Space", ctrlKey: true });
-    expect(useEditorStore.getState().staticGridSelection.ranges).toEqual([
+    expect(getGridSelectionRanges(useEditorStore.getState().staticGridSelection)).toEqual([
       { start: { x: 1, y: 1 }, end: { x: 1, y: 4 } },
     ]);
     useEditorStore.getState().clearStaticGridSelection();
     fireEvent.keyDown(textarea, { key: "a", ctrlKey: true });
-    expect(useEditorStore.getState().staticGridSelection.ranges).toEqual([
+    expect(getGridSelectionRanges(useEditorStore.getState().staticGridSelection)).toEqual([
       { start: { x: 1, y: 1 }, end: { x: 2, y: 1 } },
     ]);
     fireEvent.keyDown(textarea, { key: "a", ctrlKey: true });
-    expect(useEditorStore.getState().staticGridSelection.ranges).toEqual([
+    expect(getGridSelectionRanges(useEditorStore.getState().staticGridSelection)).toEqual([
       { start: { x: 1, y: 1 }, end: { x: 5, y: 4 } },
     ]);
   });

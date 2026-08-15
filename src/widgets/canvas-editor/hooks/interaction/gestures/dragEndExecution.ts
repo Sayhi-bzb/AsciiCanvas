@@ -141,6 +141,7 @@ export const createPrimaryDragEndExecutor = ({
   setSelectedStructuredSplitHandle,
   setStructuredGridFocus,
   setStaticGridActiveCell,
+  setStaticGridSelectionRange,
   addSelection,
   clearSelections,
   commitScratch,
@@ -155,6 +156,7 @@ export const createPrimaryDragEndExecutor = ({
   setSelectedStructuredSplitHandle: SelectionCommitExecutor["setSelectedStructuredSplitHandle"];
   setStructuredGridFocus: SelectionCommitExecutor["setStructuredGridFocus"];
   setStaticGridActiveCell: SelectionCommitExecutor["setStaticGridActiveCell"];
+  setStaticGridSelectionRange: SelectionCommitExecutor["setStaticGridSelectionRange"];
   addSelection: SelectionCommitExecutor["addSelection"];
   clearSelections: SelectionCommitExecutor["clearSelections"];
   commitScratch: DragEndCommitExecutor["commitScratch"];
@@ -169,6 +171,7 @@ export const createPrimaryDragEndExecutor = ({
   setSelectedStructuredSplitHandle,
   setStructuredGridFocus,
   setStaticGridActiveCell,
+  setStaticGridSelectionRange,
   addSelection,
   clearSelections,
   clearSelectionPreview: () => selectionPreview.set(null, { immediate: true }),

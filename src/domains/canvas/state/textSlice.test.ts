@@ -132,7 +132,7 @@ describe("textSlice writeTextString", () => {
     expect(useEditorStore.getState().textCursor).toEqual({ x: 4, y: 5 });
   });
 
-  it("writes at the static active cell when legacy cursor and selections are empty", () => {
+  it("fills the formal 1x1 selection at the static active cell", () => {
     useEditorStore.setState({
       canvasMode: "freeform",
       grid: new Map(),
@@ -141,7 +141,8 @@ describe("textSlice writeTextString", () => {
       staticGridSelection: {
         activeCell: { x: 6, y: 7 },
         anchorCell: { x: 6, y: 7 },
-        ranges: [],
+        primaryRange: { start: { x: 6, y: 7 }, end: { x: 6, y: 7 } },
+        additionalRanges: [],
       },
       staticGridEditMode: "navigate",
     });
@@ -151,7 +152,7 @@ describe("textSlice writeTextString", () => {
     expect(useEditorStore.getState().grid).toEqual(
       new Map([["6,7", { char: "A", color: "#000000" }]])
     );
-    expect(useEditorStore.getState().textCursor).toEqual({ x: 7, y: 7 });
+    expect(useEditorStore.getState().textCursor).toBeNull();
   });
 
   it("keeps ordinary text input on the existing full-cell replacement policy", () => {

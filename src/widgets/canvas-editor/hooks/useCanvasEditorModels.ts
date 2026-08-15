@@ -36,6 +36,7 @@ export const useCanvasEditorModels = () => {
     commitStructuredShape: canvasCommands.structured.commitShape,
     setTextCursor: canvasCommands.interaction.setTextCursor,
     setStaticGridActiveCell: canvasCommands.staticGrid.setActiveCell,
+    setStaticGridSelectionRange: canvasCommands.staticGrid.setSelectionRange,
     addSelection: canvasCommands.selection.add,
     clearSelections: canvasCommands.selection.clear,
     clearInteractionState: canvasCommands.selection.clearInteraction,

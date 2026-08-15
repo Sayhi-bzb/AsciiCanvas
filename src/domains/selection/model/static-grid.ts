@@ -16,7 +16,8 @@ export type GridEdge = "left" | "right" | "top" | "bottom";
 export interface GridSelectionState {
   activeCell: GridAddress;
   anchorCell: GridAddress;
-  ranges: GridRange[];
+  primaryRange: GridRange;
+  additionalRanges: GridRange[];
 }
 
 interface StaticGridState {
@@ -33,6 +34,11 @@ interface StaticGridViewState {
 }
 
 const createGridAddress = (x = 0, y = 0): GridAddress => ({ x, y });
+
+const createSingleCellRange = (address: GridAddress): GridRange => ({
+  start: { ...address },
+  end: { ...address },
+});
 
 export const normalizeGridRange = (range: GridRange): GridRange => ({
   start: {
@@ -240,8 +246,13 @@ const gridRangesFromSelectionAreas = (areas: SelectionArea[]) =>
 export const selectionAreasFromGridRanges = (ranges: GridRange[]) =>
   ranges.map(selectionAreaFromGridRange);
 
+export const getGridSelectionRanges = (state: GridSelectionState) => [
+  ...state.additionalRanges,
+  state.primaryRange,
+];
+
 export const getStaticGridSelectionAreas = (state: GridSelectionState) =>
-  selectionAreasFromGridRanges(state.ranges);
+  selectionAreasFromGridRanges(getGridSelectionRanges(state));
 
 export const getStaticGridViewState = (input: {
   selection: GridSelectionState;
@@ -261,7 +272,7 @@ export const getStaticGridViewState = (input: {
     activeCell,
     textCursor: isTextEditing ? activeCell : null,
     selectionAreas: activeSelectionAreas,
-    hasSelection: activeSelectionAreas.length > 0,
+    hasSelection: !isTextEditing && activeSelectionAreas.length > 0,
     isTextEditing,
   };
 };
@@ -276,7 +287,8 @@ export const createGridSelectionState = (
 ): GridSelectionState => ({
   activeCell: { ...activeCell },
   anchorCell: { ...activeCell },
-  ranges: [],
+  primaryRange: createSingleCellRange(activeCell),
+  additionalRanges: [],
 });
 
 export const createStaticGridState = (
@@ -293,28 +305,59 @@ export const collapseGridSelectionTo = (
   ...state,
   activeCell: { ...activeCell },
   anchorCell: { ...activeCell },
-  ranges: [],
+  primaryRange: createSingleCellRange(activeCell),
+  additionalRanges: [],
 });
 
 export const extendGridSelectionTo = (
   state: GridSelectionState,
-  activeCell: GridAddress
+  extentCell: GridAddress
 ): GridSelectionState => ({
   ...state,
-  activeCell: { ...activeCell },
-  ranges: [normalizeGridRange({ start: state.anchorCell, end: activeCell })],
+  primaryRange: normalizeGridRange({ start: state.anchorCell, end: extentCell }),
+  additionalRanges: [],
 });
+
+export const getGridSelectionExtent = (
+  state: GridSelectionState
+): GridAddress => {
+  const range = normalizeGridRange(state.primaryRange);
+  return {
+    x: state.anchorCell.x === range.start.x ? range.end.x : range.start.x,
+    y: state.anchorCell.y === range.start.y ? range.end.y : range.start.y,
+  };
+};
+
+const isGridAddressWithinRange = (
+  address: GridAddress,
+  range: GridRange
+) =>
+  address.x >= range.start.x &&
+  address.x <= range.end.x &&
+  address.y >= range.start.y &&
+  address.y <= range.end.y;
 
 export const selectGridRange = (
   state: GridSelectionState,
   range: GridRange,
-  options?: { append?: boolean }
-): GridSelectionState => ({
-  ...state,
-  ranges: options?.append
-    ? [...state.ranges, normalizeGridRange(range)]
-    : [normalizeGridRange(range)],
-});
+  options?: { append?: boolean; activeCell?: "start" | "preserve" }
+): GridSelectionState => {
+  const primaryRange = normalizeGridRange(range);
+  const requestedActiveCell =
+    options?.activeCell === "start" ? range.start : state.activeCell;
+  const activeCell = isGridAddressWithinRange(requestedActiveCell, primaryRange)
+    ? requestedActiveCell
+    : range.start;
+  return {
+    ...state,
+    activeCell: { ...activeCell },
+    anchorCell: { ...range.start },
+    primaryRange,
+    additionalRanges: options?.append
+      ? [...state.additionalRanges, state.primaryRange]
+      : [],
+  };
+};
 
 export const selectGridRow = (
   state: GridSelectionState,
@@ -384,7 +427,8 @@ export const syncGridSelectionFromLegacy = (
     return {
       activeCell: { ...last.end },
       anchorCell: { ...last.start },
-      ranges,
+      primaryRange: last,
+      additionalRanges: ranges.slice(0, -1),
     };
   }
 

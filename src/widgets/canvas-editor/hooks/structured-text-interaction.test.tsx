@@ -48,6 +48,7 @@ function InteractionHarnessContent() {
       commitStructuredShape: state.commitStructuredShape,
       setTextCursor: state.setTextCursor,
       setStaticGridActiveCell: state.setStaticGridActiveCell,
+      setStaticGridSelectionRange: state.setStaticGridSelectionRange,
       addSelection: state.addSelection,
       clearSelections: state.clearSelections,
       clearInteractionState: state.clearInteractionState,

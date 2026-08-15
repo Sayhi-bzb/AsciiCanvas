@@ -30,9 +30,8 @@ const markDocumentInteractionDirty = () => {
     staticGridSelection: {
       activeCell: { x: 9, y: 9 },
       anchorCell: { x: 8, y: 8 },
-      ranges: [
-        { start: { x: 8, y: 8 }, end: { x: 9, y: 9 } },
-      ],
+      primaryRange: { start: { x: 8, y: 8 }, end: { x: 9, y: 9 } },
+      additionalRanges: [],
     },
     staticGridEditMode: "text-edit",
     hoveredGrid: { x: 10, y: 10 },

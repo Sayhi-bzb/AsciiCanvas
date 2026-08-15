@@ -126,9 +126,10 @@ const canCopyOrCut = (state: CanvasState): boolean => {
   if (state.canvasMode === "structured") {
     return hasStructuredTextSelection(state) || state.structuredScene.length > 0;
   }
-  const staticSelections = getStaticGridSelectionAreas(state.staticGridSelection);
   return hasClipboardSource(
-    staticSelections.length > 0 ? staticSelections : state.selections,
+    state.selections.length > 0
+      ? state.selections
+      : getStaticGridSelectionAreas(state.staticGridSelection),
     state.textCursor
   );
 };

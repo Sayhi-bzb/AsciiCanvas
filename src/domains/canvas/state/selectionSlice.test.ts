@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { applyFreeformSnapshotToYMaps, useEditorStore } from "@/domains/canvas/testing";
+import { getGridSelectionRanges } from "@/domains/selection/public";
 import { DEFAULT_SESSION_ID } from "@/domains/canvas/state/helpers/storeUtils";
 
 const initialState = useEditorStore.getState();
@@ -21,6 +22,24 @@ const resetStore = () => {
 describe("selectionSlice setSelectionTextAttributes", () => {
   afterEach(() => {
     resetStore();
+  });
+
+  it("keeps the old primary range only when a new range is appended", () => {
+    useEditorStore.getState().setStaticGridActiveCell({ x: 1, y: 1 });
+
+    useEditorStore.getState().addSelection({
+      start: { x: 4, y: 3 },
+      end: { x: 2, y: 2 },
+    });
+
+    expect(useEditorStore.getState().staticGridSelection).toEqual({
+      activeCell: { x: 4, y: 3 },
+      anchorCell: { x: 4, y: 3 },
+      primaryRange: { start: { x: 2, y: 2 }, end: { x: 4, y: 3 } },
+      additionalRanges: [
+        { start: { x: 1, y: 1 }, end: { x: 1, y: 1 } },
+      ],
+    });
   });
 
   it("adds attributes to existing selected cells only", () => {
@@ -188,7 +207,8 @@ describe("selectionSlice static grid selection compatibility", () => {
       staticGridSelection: {
         activeCell: { x: 2, y: 0 },
         anchorCell: { x: 0, y: 0 },
-        ranges: [{ start: { x: 0, y: 0 }, end: { x: 2, y: 0 } }],
+        primaryRange: { start: { x: 0, y: 0 }, end: { x: 2, y: 0 } },
+        additionalRanges: [],
       },
     });
     applyFreeformSnapshotToYMaps([]);
@@ -212,7 +232,8 @@ describe("selectionSlice static grid selection compatibility", () => {
       staticGridSelection: {
         activeCell: { x: 2, y: 0 },
         anchorCell: { x: 0, y: 0 },
-        ranges: [{ start: { x: 0, y: 0 }, end: { x: 2, y: 0 } }],
+        primaryRange: { start: { x: 0, y: 0 }, end: { x: 2, y: 0 } },
+        additionalRanges: [],
       },
     });
     applyFreeformSnapshotToYMaps([
@@ -252,7 +273,7 @@ describe("selectionSlice static grid selection compatibility", () => {
         ["4,0", { char: "B", color: "#0ff", bgColor: "#123456" }],
       ])
     );
-    expect(useEditorStore.getState().staticGridSelection.ranges).toEqual([
+    expect(getGridSelectionRanges(useEditorStore.getState().staticGridSelection)).toEqual([
       { start: { x: 0, y: 0 }, end: { x: 5, y: 0 } },
     ]);
   });

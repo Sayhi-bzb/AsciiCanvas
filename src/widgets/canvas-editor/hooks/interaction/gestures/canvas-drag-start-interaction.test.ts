@@ -43,6 +43,7 @@ describe("canvas drag-start interaction decisions", () => {
       preview: { start, end: start },
       clearExistingSelection: true,
       clearInteractionState: false,
+      activateStaticGridCell: start,
       nextAnchor: start,
     });
   });
@@ -65,6 +66,7 @@ describe("canvas drag-start interaction decisions", () => {
       preview: { start: anchorGrid, end: start },
       clearExistingSelection: false,
       clearInteractionState: true,
+      activateStaticGridCell: null,
       nextAnchor: null,
     });
   });

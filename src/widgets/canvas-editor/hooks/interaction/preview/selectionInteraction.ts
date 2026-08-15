@@ -10,6 +10,7 @@ export type SelectionCommitDecision =
   | { type: "none" }
   | { type: "fill"; selection: SelectionArea }
   | { type: "setStaticGridActiveCell"; point: SelectionArea["start"] }
+  | { type: "setStaticGridSelectionRange"; selection: SelectionArea }
   | { type: "addSelection"; selection: SelectionArea }
   | { type: "setStructuredSelection"; ids: string[] }
   | { type: "setStructuredGridFocus"; point: SelectionArea["start"] };
@@ -44,5 +45,5 @@ export const resolveSelectionCommitDecision = ({
   if (append) return { type: "addSelection", selection };
   return isSingleCellSelection(selection)
     ? { type: "setStaticGridActiveCell", point: selection.start }
-    : { type: "addSelection", selection };
+    : { type: "setStaticGridSelectionRange", selection };
 };

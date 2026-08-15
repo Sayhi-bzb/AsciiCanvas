@@ -16,7 +16,8 @@ describe("editor transitions", () => {
       staticGridSelection: {
         activeCell: { x: 0, y: 0 },
         anchorCell: { x: 0, y: 0 },
-        ranges: [],
+        primaryRange: { start: { x: 0, y: 0 }, end: { x: 0, y: 0 } },
+        additionalRanges: [],
       },
       staticGridEditMode: "navigate",
       hoveredGrid: null,
@@ -37,8 +38,11 @@ describe("editor transitions", () => {
     expect(first.staticGridSelection.activeCell).not.toBe(
       second.staticGridSelection.activeCell
     );
-    expect(first.staticGridSelection.ranges).not.toBe(
-      second.staticGridSelection.ranges
+    expect(first.staticGridSelection.primaryRange).not.toBe(
+      second.staticGridSelection.primaryRange
+    );
+    expect(first.staticGridSelection.additionalRanges).not.toBe(
+      second.staticGridSelection.additionalRanges
     );
   });
 });

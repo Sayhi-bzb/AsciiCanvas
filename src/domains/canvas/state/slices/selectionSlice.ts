@@ -7,7 +7,8 @@ import { placeCharInYMap } from "../utils";
 import { writeStyledCell } from "@/shared/utils/grid-ops";
 import type { GridCell } from "@/shared/types";
 import { deleteRect } from "../gridOps";
-import {  getStructuredNodeBounds,
+import {
+  getStructuredNodeBounds,
   intersectsBounds,
   withPointWithinBounds,
 } from "@/domains/structured-content/public";
@@ -20,6 +21,7 @@ import {
   createGridSelectionState,
   gridRangeFromSelectionArea,
   getStaticGridSelectionAreas,
+  selectGridRange,
 } from "@/domains/selection/public";
 import { getCellOccupancy } from "@/shared/metrics";
 import { cloneTextAttributes } from "@/shared/utils/ansi";
@@ -28,8 +30,9 @@ import { getStructuredTextSelectionRange } from "@/domains/structured-content/pu
 import { clampPointToActiveSlide, isPointWithinActiveSlide } from "../slideBounds";
 
 const resolveSelectionAreas = (state: EditorState) => {
-  const staticSelections = getStaticGridSelectionAreas(state.staticGridSelection);
-  return staticSelections.length > 0 ? staticSelections : state.selections;
+  return state.selections.length > 0
+    ? state.selections
+    : getStaticGridSelectionAreas(state.staticGridSelection);
 };
 
 const isUnstyledBlankCell = (cell: GridCell) =>
@@ -61,17 +64,16 @@ export const createSelectionSlice = (
   addSelection: (area) =>
     set((s) => {
       const nextArea = area;
-      const range = gridRangeFromSelectionArea(nextArea);
       return {
         selections: [...s.selections, nextArea],
         textCursor: null,
         editingStructuredTextNodeId: null,
         structuredTextSelection: null,
-        staticGridSelection: {
-          activeCell: { ...range.end },
-          anchorCell: { ...range.start },
-          ranges: [...s.staticGridSelection.ranges, range],
-        },
+        staticGridSelection: selectGridRange(
+          s.staticGridSelection,
+          { start: nextArea.start, end: nextArea.end },
+          { append: true, activeCell: "start" }
+        ),
         staticGridEditMode: "navigate" as const,
       };
     }),
@@ -279,11 +281,9 @@ export const createSelectionSlice = (
 
     const range = gridRangeFromSelectionArea(target);
     set({
-      staticGridSelection: {
-        activeCell: { ...range.end },
-        anchorCell: { ...range.start },
-        ranges: [range],
-      },
+      staticGridSelection: selectGridRange(state.staticGridSelection, range, {
+        activeCell: "start",
+      }),
       staticGridEditMode: "navigate",
       textCursor: null,
       selections: [target],

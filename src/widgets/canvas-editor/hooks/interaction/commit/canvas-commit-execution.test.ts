@@ -12,6 +12,7 @@ const createSelectionExecutor = (): SelectionCommitExecutor => ({
   setSelectedStructuredSplitHandle: vi.fn(),
   setStructuredGridFocus: vi.fn(),
   setStaticGridActiveCell: vi.fn(),
+  setStaticGridSelectionRange: vi.fn(),
   addSelection: vi.fn(),
   clearSelections: vi.fn(),
   clearSelectionPreview: vi.fn(),
@@ -60,6 +61,19 @@ describe("commit execution helpers", () => {
 
     expect(executor.setStaticGridActiveCell).toHaveBeenCalledWith({ x: 4, y: 7 });
     expect(executor.clearSelectionPreview).toHaveBeenCalledTimes(1);
+  });
+
+  it("replaces a static-grid range through its dedicated command", () => {
+    const executor = createSelectionExecutor();
+    const selection = { start: { x: 4, y: 7 }, end: { x: 6, y: 9 } };
+
+    executeSelectionCommitDecision(
+      { type: "setStaticGridSelectionRange", selection },
+      executor
+    );
+
+    expect(executor.setStaticGridSelectionRange).toHaveBeenCalledWith(selection);
+    expect(executor.addSelection).not.toHaveBeenCalled();
   });
 
   it("executes direct drag-end commit effects", () => {

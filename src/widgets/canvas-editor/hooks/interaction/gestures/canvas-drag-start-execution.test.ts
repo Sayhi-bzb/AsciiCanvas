@@ -34,6 +34,7 @@ describe("canvas drag-start execution", () => {
       setInteractionState,
       clearInteractionState: vi.fn(),
       clearSelections: vi.fn(),
+      setStaticGridSelectionStart: vi.fn(),
       setSelectionPreview,
       clearTextCursor: vi.fn(),
     });
@@ -45,6 +46,7 @@ describe("canvas drag-start execution", () => {
       preview: { start: { x: 1, y: 2 }, end: { x: 5, y: 6 } },
       clearExistingSelection: false,
       clearInteractionState: true,
+      activateStaticGridCell: null,
       nextAnchor: null,
     }, executor)).toBe(true);
 
@@ -55,6 +57,33 @@ describe("canvas drag-start execution", () => {
     });
     expect(setAnchorGrid).not.toHaveBeenCalled();
     expect(setSelectionPreview).toHaveBeenCalled();
+  });
+
+  it("activates the pointer origin when ordinary grid selection starts", () => {
+    const setStaticGridSelectionStart = vi.fn();
+    const executor = createSelectionDragStartExecutor({
+      setAnchorGrid: vi.fn(),
+      setInteractionState: vi.fn(),
+      clearInteractionState: vi.fn(),
+      clearSelections: vi.fn(),
+      setStaticGridSelectionStart,
+      setSelectionPreview: vi.fn(),
+      clearTextCursor: vi.fn(),
+    });
+    const start = { x: 4, y: 6 };
+
+    executeSelectionDragStartDecision({
+      type: "selection",
+      interactionAnchor: start,
+      dragStart: start,
+      preview: { start, end: start },
+      clearExistingSelection: true,
+      clearInteractionState: false,
+      activateStaticGridCell: start,
+      nextAnchor: start,
+    }, executor);
+
+    expect(setStaticGridSelectionStart).toHaveBeenCalledWith(start);
   });
 
   it("starts drawing and applies the initial scratch point", () => {
@@ -94,6 +123,7 @@ describe("canvas drag-start execution", () => {
       selection: createSelectionDragStartExecutor({
         setAnchorGrid: vi.fn(), setInteractionState,
         clearInteractionState: vi.fn(), clearSelections: vi.fn(),
+        setStaticGridSelectionStart: vi.fn(),
         setSelectionPreview: vi.fn(), clearTextCursor: vi.fn(),
       }),
       drawingShape: createDrawingShapeDragStartExecutor({

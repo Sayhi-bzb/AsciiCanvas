@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { applyFreeformSnapshotToYMaps, useEditorStore } from "@/domains/canvas/testing";
+import { createGridSelectionState, getGridSelectionRanges } from "@/domains/selection/public";
 
 const initialState = useEditorStore.getState();
 
@@ -11,11 +12,7 @@ const resetStore = () => {
       grid: new Map(),
       textCursor: null,
       selections: [],
-      staticGridSelection: {
-        activeCell: { x: 0, y: 0 },
-        anchorCell: { x: 0, y: 0 },
-        ranges: [],
-      },
+      staticGridSelection: createGridSelectionState(),
       staticGridEditMode: "navigate",
     },
     true
@@ -35,7 +32,8 @@ describe("staticGridSlice", () => {
     expect(useEditorStore.getState().staticGridSelection).toEqual({
       activeCell: { x: 5, y: 3 },
       anchorCell: { x: 5, y: 3 },
-      ranges: [],
+      primaryRange: { start: { x: 5, y: 3 }, end: { x: 5, y: 3 } },
+      additionalRanges: [],
     });
     expect(useEditorStore.getState().textCursor).toEqual({ x: 5, y: 3 });
     expect(useEditorStore.getState().selections).toEqual([]);
@@ -46,14 +44,30 @@ describe("staticGridSlice", () => {
     useEditorStore.getState().moveStaticGridFocus(3, 1, { extend: true });
 
     expect(useEditorStore.getState().staticGridSelection).toEqual({
-      activeCell: { x: 5, y: 3 },
+      activeCell: { x: 2, y: 2 },
       anchorCell: { x: 2, y: 2 },
-      ranges: [{ start: { x: 2, y: 2 }, end: { x: 5, y: 3 } }],
+      primaryRange: { start: { x: 2, y: 2 }, end: { x: 5, y: 3 } },
+      additionalRanges: [],
     });
     expect(useEditorStore.getState().textCursor).toBeNull();
     expect(useEditorStore.getState().selections).toEqual([
       { start: { x: 2, y: 2 }, end: { x: 5, y: 3 } },
     ]);
+  });
+
+  it("replaces the old range and keeps a reverse drag anchored at its start", () => {
+    useEditorStore.getState().setStaticGridActiveCell({ x: 1, y: 1 });
+    useEditorStore.getState().setStaticGridSelectionRange({
+      start: { x: 5, y: 4 },
+      end: { x: 2, y: 3 },
+    });
+
+    expect(useEditorStore.getState().staticGridSelection).toEqual({
+      activeCell: { x: 5, y: 4 },
+      anchorCell: { x: 5, y: 4 },
+      primaryRange: { start: { x: 2, y: 3 }, end: { x: 5, y: 4 } },
+      additionalRanges: [],
+    });
   });
 
   it("extends selection left across repeated shift arrow moves", () => {
@@ -62,9 +76,10 @@ describe("staticGridSlice", () => {
     useEditorStore.getState().moveStaticGridFocus(-1, 0, { extend: true });
 
     expect(useEditorStore.getState().staticGridSelection).toEqual({
-      activeCell: { x: 3, y: 5 },
+      activeCell: { x: 5, y: 5 },
       anchorCell: { x: 5, y: 5 },
-      ranges: [{ start: { x: 3, y: 5 }, end: { x: 5, y: 5 } }],
+      primaryRange: { start: { x: 3, y: 5 }, end: { x: 5, y: 5 } },
+      additionalRanges: [],
     });
     expect(useEditorStore.getState().textCursor).toBeNull();
     expect(useEditorStore.getState().selections).toEqual([
@@ -78,9 +93,10 @@ describe("staticGridSlice", () => {
     useEditorStore.getState().moveStaticGridFocus(0, -1, { extend: true });
 
     expect(useEditorStore.getState().staticGridSelection).toEqual({
-      activeCell: { x: 5, y: 3 },
+      activeCell: { x: 5, y: 5 },
       anchorCell: { x: 5, y: 5 },
-      ranges: [{ start: { x: 5, y: 3 }, end: { x: 5, y: 5 } }],
+      primaryRange: { start: { x: 5, y: 3 }, end: { x: 5, y: 5 } },
+      additionalRanges: [],
     });
     expect(useEditorStore.getState().textCursor).toBeNull();
     expect(useEditorStore.getState().selections).toEqual([
@@ -95,9 +111,10 @@ describe("staticGridSlice", () => {
     useEditorStore.getState().clearStaticGridSelection();
 
     expect(useEditorStore.getState().staticGridSelection).toEqual({
-      activeCell: { x: 3, y: 4 },
-      anchorCell: { x: 3, y: 4 },
-      ranges: [],
+      activeCell: { x: 1, y: 1 },
+      anchorCell: { x: 1, y: 1 },
+      primaryRange: { start: { x: 1, y: 1 }, end: { x: 1, y: 1 } },
+      additionalRanges: [],
     });
     expect(useEditorStore.getState().textCursor).toBeNull();
     expect(useEditorStore.getState().selections).toEqual([]);
@@ -136,13 +153,13 @@ describe("staticGridSlice", () => {
     expect(useEditorStore.getState().textCursor).toEqual({ x: -2, y: 2 });
 
     useEditorStore.getState().selectStaticGridRow();
-    expect(useEditorStore.getState().staticGridSelection.ranges).toEqual([
+    expect(getGridSelectionRanges(useEditorStore.getState().staticGridSelection)).toEqual([
       { start: { x: -2, y: 2 }, end: { x: 5, y: 2 } },
     ]);
 
     useEditorStore.getState().clearStaticGridSelection();
     useEditorStore.getState().selectStaticGridColumn();
-    expect(useEditorStore.getState().staticGridSelection.ranges).toEqual([
+    expect(getGridSelectionRanges(useEditorStore.getState().staticGridSelection)).toEqual([
       { start: { x: -2, y: -1 }, end: { x: -2, y: 4 } },
     ]);
   });
@@ -156,12 +173,12 @@ describe("staticGridSlice", () => {
     useEditorStore.getState().setStaticGridActiveCell({ x: 0, y: 0 });
 
     useEditorStore.getState().selectStaticGridAll();
-    expect(useEditorStore.getState().staticGridSelection.ranges).toEqual([
+    expect(getGridSelectionRanges(useEditorStore.getState().staticGridSelection)).toEqual([
       { start: { x: 0, y: 0 }, end: { x: 1, y: 0 } },
     ]);
 
     useEditorStore.getState().selectStaticGridAll();
-    expect(useEditorStore.getState().staticGridSelection.ranges).toEqual([
+    expect(getGridSelectionRanges(useEditorStore.getState().staticGridSelection)).toEqual([
       { start: { x: 0, y: 0 }, end: { x: 5, y: 5 } },
     ]);
   });
@@ -191,7 +208,8 @@ describe("staticGridSlice", () => {
       staticGridSelection: {
         activeCell: { x: 2, y: 1 },
         anchorCell: { x: 2, y: 1 },
-        ranges: [],
+        primaryRange: { start: { x: 2, y: 1 }, end: { x: 2, y: 1 } },
+        additionalRanges: [],
       },
     });
 
@@ -199,9 +217,10 @@ describe("staticGridSlice", () => {
       extend: true,
     });
     expect(useEditorStore.getState().staticGridSelection).toEqual({
-      activeCell: { x: 5, y: 1 },
+      activeCell: { x: 2, y: 1 },
       anchorCell: { x: 2, y: 1 },
-      ranges: [{ start: { x: 2, y: 1 }, end: { x: 5, y: 1 } }],
+      primaryRange: { start: { x: 2, y: 1 }, end: { x: 5, y: 1 } },
+      additionalRanges: [],
     });
     expect(useEditorStore.getState().textCursor).toBeNull();
   });

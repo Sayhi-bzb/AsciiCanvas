@@ -3,7 +3,9 @@ import {
   BACKGROUND_COLOR,
   COLOR_ACTIVE_CELL_BG,
   COLOR_ACTIVE_CELL_BORDER,
+  COLOR_ACTIVE_CELL_MARKER,
   COLOR_SELECTION_BG,
+  COLOR_SELECTION_BORDER_MUTED,
   COLOR_TEXT_CURSOR_BG,
   COLOR_TEXT_CURSOR_FG,
   GRID_COLOR,
@@ -147,17 +149,52 @@ export const drawActiveCellFocus = (
   ctx.restore();
 };
 
-export const resolveStaticGridActiveFocusPoint = (input: {
-  canvasMode: CanvasRenderModel["canvasMode"];
-  activeCell: Point;
-  editMode: CanvasRenderModel["staticGridEditMode"];
-  hasSelection: boolean;
-  textCursor: Point | null;
-}): Point | null => {
-  if (!isStaticGridMode(input.canvasMode)) return null;
-  return input.textCursor || input.hasSelection || input.editMode === "text-edit"
-    ? input.activeCell
-    : null;
+export const drawGridSelectionRange = (
+  ctx: CanvasRenderingContext2D,
+  area: SelectionArea,
+  viewport: { offset: Point; zoom: number },
+  border: "primary" | "secondary" | null
+) => {
+  const { minX, minY, maxX, maxY } = getSelectionBounds(area);
+  const pos = gridCellRect({ x: minX, y: minY }, viewport);
+  const width = Math.round((maxX - minX + 1) * pos.width);
+  const height = Math.round((maxY - minY + 1) * pos.height);
+  const x = Math.round(pos.x);
+  const y = Math.round(pos.y);
+
+  ctx.save();
+  ctx.fillStyle = COLOR_SELECTION_BG;
+  ctx.fillRect(x, y, width, height);
+  if (border) {
+    ctx.strokeStyle = border === "primary"
+      ? COLOR_ACTIVE_CELL_BORDER
+      : COLOR_SELECTION_BORDER_MUTED;
+    ctx.lineWidth = Math.max(
+      1,
+      Math.round((border === "primary" ? 2 : 1) * viewport.zoom)
+    );
+    ctx.strokeRect(x, y, width, height);
+  }
+  ctx.restore();
+};
+
+export const drawGridActiveCellMarker = (
+  ctx: CanvasRenderingContext2D,
+  point: Point,
+  viewport: { offset: Point; zoom: number }
+) => {
+  const pos = gridCellRect(point, viewport);
+  const inset = Math.max(1, Math.round(viewport.zoom));
+  ctx.save();
+  ctx.strokeStyle = COLOR_ACTIVE_CELL_MARKER;
+  ctx.lineWidth = Math.max(1, Math.round(viewport.zoom));
+  ctx.strokeRect(
+    Math.round(pos.x) + inset,
+    Math.round(pos.y) + inset,
+    Math.max(1, Math.round(pos.width) - inset * 2),
+    Math.max(1, Math.round(pos.height) - inset * 2)
+  );
+  ctx.restore();
 };
 
 export const useCanvasRenderer = (
@@ -203,13 +240,6 @@ export const useCanvasRenderer = (
   });
   const renderedSelections = canvasMode !== 'structured' ? staticGridView.selectionAreas : selections;
   const renderedTextCursor = canvasMode !== 'structured' ? staticGridView.textCursor : textCursor;
-  const renderedStaticGridFocus = resolveStaticGridActiveFocusPoint({
-    canvasMode,
-    activeCell: staticGridView.activeCell,
-    editMode: staticGridEditMode,
-    hasSelection: staticGridView.hasSelection,
-    textCursor,
-  });
   const [renderManager] = useState(() => new CanvasRenderManager());
   const manualRenderRafRef = useRef<number | null>(null);
   const manualInvalidationRef = useRef<CanvasFrameInvalidation>(0);
@@ -366,25 +396,35 @@ export const useCanvasRenderer = (
         );
         clipToSlidePage(uiCtx);
 
-        const drawSel = (area: SelectionArea) => {
-          const { minX, minY, maxX, maxY } = getSelectionBounds(area);
-          const pos = gridCellRect(
-            { x: minX, y: minY },
-            { offset: renderOffset, zoom }
+        renderedSelections.forEach((area, index) => {
+          drawGridSelectionRange(
+            uiCtx,
+            area,
+            { offset: renderOffset, zoom },
+            canvasMode === 'structured'
+              ? null
+              : index === renderedSelections.length - 1
+                ? 'primary'
+                : 'secondary'
           );
-          uiCtx.fillStyle = COLOR_SELECTION_BG;
-          uiCtx.fillRect(
-            Math.round(pos.x),
-            Math.round(pos.y),
-            Math.round((maxX - minX + 1) * pos.width),
-            Math.round((maxY - minY + 1) * pos.height)
+        });
+        if (draggingSelection) {
+          drawGridSelectionRange(
+            uiCtx,
+            draggingSelection,
+            { offset: renderOffset, zoom },
+            canvasMode === 'structured' ? null : 'primary'
           );
-        };
-        renderedSelections.forEach(drawSel);
-        if (draggingSelection) drawSel(draggingSelection);
+        }
         if (canvasMode !== 'structured' && renderedSelections.length > 0) {
           const activeSelection = renderedSelections[renderedSelections.length - 1];
-          const { maxX, maxY } = getSelectionBounds(activeSelection);
+          const { minX, minY, maxX, maxY } = getSelectionBounds(activeSelection);
+          if (minX !== maxX || minY !== maxY) {
+            drawGridActiveCellMarker(uiCtx, staticGridView.activeCell, {
+              offset: renderOffset,
+              zoom,
+            });
+          }
           const handleCell = gridCellRect(
             { x: maxX, y: maxY },
             { offset: renderOffset, zoom }
@@ -573,13 +613,6 @@ export const useCanvasRenderer = (
           );
         }
 
-        if (renderedStaticGridFocus) {
-          drawActiveCellFocus(uiCtx, renderedStaticGridFocus, {
-            offset: renderOffset,
-            zoom,
-          });
-        }
-
         if (renderedTextCursor && !isStaticGridMode(canvasMode)) {
           const pos = gridCellRect(renderedTextCursor, { offset: renderOffset, zoom });
           if (canvasMode === 'structured' && editingStructuredTextNodeId) {
@@ -747,7 +780,7 @@ export const useCanvasRenderer = (
     onViewportRendered,
     renderedSelections,
     renderedTextCursor,
-    renderedStaticGridFocus,
+    staticGridView.activeCell,
     renderManager,
     runtime,
   ]);

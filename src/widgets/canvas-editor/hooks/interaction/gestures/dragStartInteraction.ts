@@ -61,6 +61,7 @@ export type SelectionDragStartDecision =
       preview: SelectionArea;
       clearExistingSelection: boolean;
       clearInteractionState: boolean;
+      activateStaticGridCell: Point | null;
       nextAnchor: Point | null;
     }
   | { type: "not-selection" };
@@ -100,6 +101,7 @@ export const resolveSelectionDragStartDecision = ({
       preview: { start: { ...anchorGrid }, end: start },
       clearExistingSelection: false,
       clearInteractionState: true,
+      activateStaticGridCell: null,
       nextAnchor: null,
     };
   }
@@ -116,6 +118,8 @@ export const resolveSelectionDragStartDecision = ({
     preview,
     clearExistingSelection: !shiftKey,
     clearInteractionState: false,
+    activateStaticGridCell:
+      tool === "select" && canvasMode !== "structured" ? start : null,
     nextAnchor,
   };
 };

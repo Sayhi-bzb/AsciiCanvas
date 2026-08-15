@@ -9,6 +9,7 @@ export type SelectionCommitExecutor = {
   setSelectedStructuredSplitHandle: (handle: null) => void;
   setStructuredGridFocus: (point: Point) => void;
   setStaticGridActiveCell: (point: Point) => void;
+  setStaticGridSelectionRange: (selection: SelectionArea) => void;
   addSelection: (selection: SelectionArea) => void;
   clearSelections: () => void;
   clearSelectionPreview: () => void;
@@ -55,6 +56,9 @@ export const executeSelectionCommitDecision = (
       break;
     case "setStaticGridActiveCell":
       executor.setStaticGridActiveCell(decision.point);
+      break;
+    case "setStaticGridSelectionRange":
+      executor.setStaticGridSelectionRange(decision.selection);
       break;
     case "addSelection":
       executor.addSelection(decision.selection);

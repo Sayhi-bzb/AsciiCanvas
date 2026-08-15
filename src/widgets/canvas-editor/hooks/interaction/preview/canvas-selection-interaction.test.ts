@@ -52,7 +52,7 @@ describe("selection interaction commit decisions", () => {
     }
   );
 
-  it("keeps multi-cell freeform selections as selection areas", () => {
+  it("replaces the primary range for ordinary multi-cell selections", () => {
     const selection = { start: { x: 4, y: 7 }, end: { x: 6, y: 9 } };
 
     expect(
@@ -61,6 +61,20 @@ describe("selection interaction commit decisions", () => {
         tool: "select",
         canvasMode: "freeform",
         structuredScene: [],
+      })
+    ).toEqual({ type: "setStaticGridSelectionRange", selection });
+  });
+
+  it("appends a range only for modifier selections", () => {
+    const selection = { start: { x: 4, y: 7 }, end: { x: 6, y: 9 } };
+
+    expect(
+      resolveSelectionCommitDecision({
+        selection,
+        tool: "select",
+        canvasMode: "freeform",
+        structuredScene: [],
+        append: true,
       })
     ).toEqual({ type: "addSelection", selection });
   });
