@@ -1,84 +1,41 @@
 import { describe, expect, it } from "vitest";
-import {
-  CHARDESK_DOCUMENT_TYPE,
-  CHARDESK_DOCUMENT_VERSION,
-  buildFreeformCharDeskDocument,
-  buildStructuredCharDeskDocument,
-  isCharDeskDocument,
-  charDeskDocumentToSnapshot,
-} from "@/domains/document/public";
+import { parseDocumentSessionSource } from "@/domains/document/public";
 
-describe("CharDesk document protocol", () => {
-  it("round-trips a freeform document", () => {
-    const document = buildFreeformCharDeskDocument(
-      new Map([["0,0", { char: "A", color: "#ffffff" }]])
+describe("CharDesk canvas text", () => {
+  it("imports visible ESC-less ANSI as a freeform canvas", () => {
+    const snapshot = parseDocumentSessionSource(
+      "[1;38;2;255;0;0mA界[0m\n]8;;https://example.com\\B]8;;\\"
     );
-    expect(document).toEqual({
-      type: CHARDESK_DOCUMENT_TYPE,
-      version: CHARDESK_DOCUMENT_VERSION,
+
+    expect(snapshot.mode).toBe("freeform");
+    if (snapshot.mode !== "freeform") return;
+    expect(snapshot.grid).toEqual([
+      ["0,0", { char: "A", color: "#ff0000", attrs: { bold: true } }],
+      ["1,0", { char: "界", color: "#ff0000", attrs: { bold: true } }],
+      ["0,1", { char: "B", color: "#000000", href: "https://example.com" }],
+    ]);
+  });
+
+  it("imports unstyled Unicode with inherited defaults", () => {
+    const snapshot = parseDocumentSessionSource("人🙂");
+    expect(snapshot).toMatchObject({
       mode: "freeform",
-      cells: [{ x: 0, y: 0, char: "A", color: "#ffffff" }],
-    });
-    expect(isCharDeskDocument(document)).toBe(true);
-    expect(charDeskDocumentToSnapshot(document).grid).toEqual([
-      ["0,0", { char: "A", color: "#ffffff" }],
-    ]);
-  });
-
-  it("preserves structured nodes", () => {
-    const document = buildStructuredCharDeskDocument([
-      {
-        id: "box-1",
-        type: "box",
-        order: 1,
-        start: { x: 0, y: 0 },
-        end: { x: 4, y: 2 },
-        style: { color: "#ffffff" },
-      },
-    ]);
-    expect(document.mode).toBe("structured");
-    expect(document.nodes).toHaveLength(1);
-    expect(charDeskDocumentToSnapshot(document).mode).toBe("structured");
-  });
-
-  it("round-trips structured arrow line markers", () => {
-    const document = buildStructuredCharDeskDocument([
-      {
-        id: "arrow-1",
-        type: "line",
-        order: 1,
-        start: { x: 0, y: 0 },
-        end: { x: 4, y: 0 },
-        axis: "horizontal",
-        endMarker: "arrow",
-        style: { color: "#ffffff" },
-      },
-    ]);
-
-    expect(document.nodes[0]).toMatchObject({ endMarker: "arrow" });
-    expect(charDeskDocumentToSnapshot(document).scene[0]).toMatchObject({
-      type: "line",
-      endMarker: "arrow",
-    });
-  });
-
-  it("rejects unknown structured line markers", () => {
-    expect(isCharDeskDocument({
-      type: CHARDESK_DOCUMENT_TYPE,
-      version: CHARDESK_DOCUMENT_VERSION,
-      mode: "structured",
-      nodes: [
-        {
-          id: "invalid-line",
-          type: "line",
-          order: 1,
-          start: { x: 0, y: 0 },
-          end: { x: 4, y: 0 },
-          axis: "horizontal",
-          endMarker: "diamond",
-          style: { color: "#ffffff" },
-        },
+      grid: [
+        ["0,0", { char: "人", color: "#000000" }],
+        ["2,0", { char: "🙂", color: "#000000" }],
       ],
-    })).toBe(false);
+    });
+  });
+
+  it("rejects invisible escapes, malformed controls, and legacy JSON", () => {
+    expect(() => parseDocumentSessionSource("\u001b[31mA\u001b[0m")).toThrow(
+      "visible ESC-less ANSI"
+    );
+    expect(() => parseDocumentSessionSource("A\u0001B")).toThrow(
+      "malformed or unsupported controls"
+    );
+    expect(() => parseDocumentSessionSource(
+      '{"type":"chardesk-document","version":1,"mode":"freeform","cells":[]}'
+    )).toThrow("Legacy JSON");
   });
 });

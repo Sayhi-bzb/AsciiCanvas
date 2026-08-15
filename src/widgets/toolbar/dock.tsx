@@ -324,9 +324,11 @@ export function Toolbar({
                         side="top"
                         align="start"
                         sideOffset={12}
-                        className={cn(
-                          item.id === "shape-group" && "min-w-40"
-                        )}
+                        className={
+                          item.id === "brush"
+                            ? "w-28"
+                            : "w-max min-w-40"
+                        }
                       >
                         {item.id === "brush" ? (
                           <BrushSubmenu

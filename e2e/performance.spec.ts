@@ -559,7 +559,7 @@ test.describe.serial("Performance smoke", () => {
     });
 
     await page
-      .getByRole("menuitem", { name: /^Structured Canvas 1$/ })
+      .getByRole("button", { name: /^Structured Canvas 1$/ })
       .click();
     await expect(page.getByRole("button", { name: "Select canvas" })).toContainText(
       "Structured Canvas 1"

@@ -641,7 +641,7 @@ test.describe('Canvas', () => {
 
   test('shows Slides view tooltips after the Sidebar rail delay', async ({ page }) => {
     await page.getByRole('button', { name: 'Select canvas' }).click();
-    await page.getByRole('menuitem', { name: 'Create' }).hover();
+    await page.getByRole('button', { name: 'Create' }).click();
     await page.getByRole('menuitem', { name: 'New Slides' }).hover();
     await page.getByRole('menuitem', { name: /Widescreen/ }).click();
 
@@ -666,7 +666,7 @@ test.describe('Canvas', () => {
 
   test('should create new session', async ({ page }) => {
     await page.getByRole('button', { name: 'Select canvas' }).click();
-    await page.getByRole('menuitem', { name: 'Create' }).hover();
+    await page.getByRole('button', { name: 'Create' }).click();
     await page.getByRole('menuitem', { name: 'New Freeform' }).click();
 
     await expect.poll(async () => {

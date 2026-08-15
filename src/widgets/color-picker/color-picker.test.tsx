@@ -268,7 +268,8 @@ describe('ColorPickerPanel', () => {
       name: 'Pick char color from canvas',
     });
     expect(pickChar.closest('[data-slot="dropdown-menu-content"]')).toHaveClass(
-      'min-w-36',
+      'w-36',
+      'min-w-32',
       'bg-overlay-surface',
       'border-0',
       'shadow-overlay'

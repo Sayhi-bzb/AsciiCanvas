@@ -1,0 +1,7 @@
+{
+  "id": "background",
+  "artifact": "background-card",
+  "prompt": "Apply a blue background only to OK.",
+  "expected_plain": "[ OK ] Cancel",
+  "required_styles": [{ "text": "OK", "bg_color": "#0000ff" }]
+}

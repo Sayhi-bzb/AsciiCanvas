@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { type LucideIcon, X } from "lucide-react";
 import {
   SidebarHeader,
@@ -170,6 +170,17 @@ export function SidebarRight() {
   const activeStructuredViewMeta =
     structuredViews.find((view) => view.id === structuredSidebarTab) ??
     structuredViews[0];
+  const orientation = isMobile ? "horizontal" : "vertical";
+  const structuredLibrary =
+    structuredSidebarTab === "template"
+      ? {
+          templates: STRUCTURED_PAGE_TEMPLATES,
+          emptyLabel: t("sidebar.empty.templates"),
+        }
+      : {
+          templates: STRUCTURED_COMPONENT_TEMPLATES,
+          emptyLabel: t("sidebar.empty.components"),
+        };
 
   useEffect(() => {
     if (!isStaticGridMode(canvasMode)) return;
@@ -210,156 +221,26 @@ export function SidebarRight() {
     if (isCollapsed) setOpen(true);
   };
 
-  const viewRail =
-    canvasMode === "freeform" ? (
-      <SidebarViewRail
-        views={characterViews}
-        activeView={activeCharacterView}
-        orientation={isMobile ? "horizontal" : "vertical"}
-        onSelect={selectCharacterView}
-        ariaLabel={t("sidebar.characterViews")}
-        testIdPrefix="character"
-      />
-    ) : canvasMode === "structured" ? (
-      <SidebarViewRail
-        views={structuredViews}
-        activeView={structuredSidebarTab}
-        orientation={isMobile ? "horizontal" : "vertical"}
-        onSelect={selectStructuredView}
-        ariaLabel={t("sidebar.structuredViews")}
-        testIdPrefix="structured"
-      />
-    ) : canvasMode === "slide" ? (
-      <SidebarViewRail
-        views={slideViews}
-        activeView={activeSlideView}
-        orientation={isMobile ? "horizontal" : "vertical"}
-        onSelect={selectSlideView}
-        ariaLabel={t("slide.sidebar.title")}
-        testIdPrefix="slide"
-      />
-    ) : null;
-
-  const viewContent =
-    canvasMode === "freeform" ? (
+  function renderCharacterPanel(
+    view: CharacterViewId,
+    label: string
+  ): ReactNode {
+    return (
       <div
         role="tabpanel"
         aria-label={t("sidebar.characterPanel", {
-          name: activeCharacterViewMeta.label,
+          name: label,
         })}
       >
-        <CharLibrary view={activeCharacterView} />
-      </div>
-    ) : canvasMode === "structured" ? (
-      <div
-        role="tabpanel"
-        aria-label={activeStructuredViewMeta.label}
-        className="p-2"
-      >
-        {structuredSidebarTab === "template" ? (
-          <StructuredTemplateLibrary
-            templates={STRUCTURED_PAGE_TEMPLATES}
-            query={structuredLibraryQuery}
-            emptyLabel={t("sidebar.empty.templates")}
-          />
-        ) : (
-          <StructuredTemplateLibrary
-            templates={STRUCTURED_COMPONENT_TEMPLATES}
-            query={structuredLibraryQuery}
-            emptyLabel={t("sidebar.empty.components")}
-          />
-        )}
-      </div>
-    ) : canvasMode === "slide" ? (
-      activeSlideView === "slides" ? (
-        <SlideNavigator />
-      ) : (
-        <div role="tabpanel" aria-label={t("sidebar.characterPanel", { name: slideViews.find((view) => view.id === activeSlideView)?.label ?? "" })}>
-          <CharLibrary view={activeSlideView} />
-        </div>
-      )
-    ) : null;
-
-  const sidebarBody = (
-      <div
-        data-testid="sidebar-mode-layout"
-        className={cn(
-          "min-h-0 min-w-0 flex-1 overflow-hidden",
-          isMobile
-            ? "flex flex-col"
-            : "grid grid-cols-[var(--sidebar-width-icon)_minmax(0,1fr)]"
-        )}
-      >
-        <div
-          data-testid="sidebar-view-rail-column"
-          className={cn(
-            "shrink-0",
-            isMobile
-              ? "p-1 pb-0"
-              : "col-start-1 row-start-1 px-0 py-1"
-          )}
-        >
-          {viewRail}
-        </div>
-        <ContentScrollArea
-          data-testid="sidebar-view-content"
-          aria-hidden={isCollapsed || undefined}
-          inert={isCollapsed || undefined}
-          viewportClassName={!isMobile ? "[&>div]:!block" : undefined}
-          contentClassName={!isMobile ? "min-w-0 pr-1" : undefined}
-          className={cn(
-            "min-h-0 min-w-0 flex-1 transition-opacity duration-200",
-            !isMobile && "col-start-2 row-start-1",
-            isCollapsed
-              ? "pointer-events-none opacity-0"
-              : "opacity-100"
-          )}
-        >
-          {viewContent}
-        </ContentScrollArea>
+        <CharLibrary view={view} />
       </div>
     );
+  }
 
-  const headerContent =
-    canvasMode === "structured" ? (
-      <div className="relative min-w-0 flex-1">
-        <input
-          ref={structuredSearchRef}
-          type="search"
-          aria-label={t("sidebar.search.structured")}
-          value={structuredLibraryQuery}
-          onChange={(event) => setStructuredLibraryQuery(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key !== "Escape" || !structuredLibraryQuery) return;
-            event.preventDefault();
-            event.stopPropagation();
-            setStructuredLibraryQuery("");
-          }}
-          placeholder={t("sidebar.search.placeholder")}
-          className={cn(
-            rx.searchInput,
-            "h-8 w-full px-2 pr-9 [&::-webkit-search-cancel-button]:hidden"
-          )}
-        />
-        {structuredLibraryQuery ? (
-          <button
-            type="button"
-            aria-label={t("search.clear")}
-            onClick={() => {
-              setStructuredLibraryQuery("");
-              structuredSearchRef.current?.focus();
-            }}
-            className="absolute right-1 top-1/2 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          >
-            <X className="size-3.5" />
-          </button>
-        ) : null}
-      </div>
-    ) : canvasMode === "slide" && activeSlideView === "slides" ? (
-      <SlideAddButton />
-    ) : (
+  function renderSearchForm(view: CharacterViewId): ReactNode {
+    return (
       <SearchForm
-        view={canvasMode === "slide" && activeSlideView !== "slides" ? activeSlideView : activeCharacterView}
+        view={view}
         unicodeQuery={unicodeQuery}
         unicodeLoading={unicodeSearchLoading}
         onUnicodeQueryChange={setUnicodeQuery}
@@ -367,6 +248,157 @@ export function SidebarRight() {
         className="min-w-0 flex-1"
       />
     );
+  }
+
+  let viewRail: ReactNode;
+  let viewContent: ReactNode;
+  let headerContent: ReactNode;
+
+  switch (canvasMode) {
+    case "freeform":
+      viewRail = (
+        <SidebarViewRail
+          views={characterViews}
+          activeView={activeCharacterView}
+          orientation={orientation}
+          onSelect={selectCharacterView}
+          ariaLabel={t("sidebar.characterViews")}
+          testIdPrefix="character"
+        />
+      );
+      viewContent = renderCharacterPanel(
+        activeCharacterView,
+        activeCharacterViewMeta.label
+      );
+      headerContent = renderSearchForm(activeCharacterView);
+      break;
+    case "structured":
+      viewRail = (
+        <SidebarViewRail
+          views={structuredViews}
+          activeView={structuredSidebarTab}
+          orientation={orientation}
+          onSelect={selectStructuredView}
+          ariaLabel={t("sidebar.structuredViews")}
+          testIdPrefix="structured"
+        />
+      );
+      viewContent = (
+        <div
+          role="tabpanel"
+          aria-label={activeStructuredViewMeta.label}
+          className="p-2"
+        >
+          <StructuredTemplateLibrary
+            templates={structuredLibrary.templates}
+            query={structuredLibraryQuery}
+            emptyLabel={structuredLibrary.emptyLabel}
+          />
+        </div>
+      );
+      headerContent = (
+        <div className="relative min-w-0 flex-1">
+          <input
+            ref={structuredSearchRef}
+            type="search"
+            aria-label={t("sidebar.search.structured")}
+            value={structuredLibraryQuery}
+            onChange={(event) => setStructuredLibraryQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key !== "Escape" || !structuredLibraryQuery) return;
+              event.preventDefault();
+              event.stopPropagation();
+              setStructuredLibraryQuery("");
+            }}
+            placeholder={t("sidebar.search.placeholder")}
+            className={cn(
+              rx.searchInput,
+              "h-8 w-full px-2 pr-9 [&::-webkit-search-cancel-button]:hidden"
+            )}
+          />
+          {structuredLibraryQuery ? (
+            <button
+              type="button"
+              aria-label={t("search.clear")}
+              onClick={() => {
+                setStructuredLibraryQuery("");
+                structuredSearchRef.current?.focus();
+              }}
+              className="absolute right-1 top-1/2 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <X className="size-3.5" />
+            </button>
+          ) : null}
+        </div>
+      );
+      break;
+    case "slide": {
+      viewRail = (
+        <SidebarViewRail
+          views={slideViews}
+          activeView={activeSlideView}
+          orientation={orientation}
+          onSelect={selectSlideView}
+          ariaLabel={t("slide.sidebar.title")}
+          testIdPrefix="slide"
+        />
+      );
+      if (activeSlideView === "slides") {
+        viewContent = <SlideNavigator />;
+        headerContent = <SlideAddButton />;
+        break;
+      }
+      const activeSlideViewMeta = slideViews.find(
+        (view) => view.id === activeSlideView
+      );
+      viewContent = renderCharacterPanel(
+        activeSlideView,
+        activeSlideViewMeta?.label ?? ""
+      );
+      headerContent = renderSearchForm(activeSlideView);
+      break;
+    }
+  }
+
+  const sidebarBody = (
+    <div
+      data-testid="sidebar-mode-layout"
+      className={cn(
+        "min-h-0 min-w-0 flex-1 overflow-hidden",
+        isMobile
+          ? "flex flex-col"
+          : "grid grid-cols-[var(--sidebar-width-icon)_minmax(0,1fr)]"
+      )}
+    >
+      <div
+        data-testid="sidebar-view-rail-column"
+        className={cn(
+          "shrink-0",
+          isMobile
+            ? "p-1 pb-0"
+            : "col-start-1 row-start-1 px-0 py-1"
+        )}
+      >
+        {viewRail}
+      </div>
+      <ContentScrollArea
+        data-testid="sidebar-view-content"
+        aria-hidden={isCollapsed || undefined}
+        inert={isCollapsed || undefined}
+        viewportClassName={!isMobile ? "[&>div]:!block" : undefined}
+        contentClassName={!isMobile ? "min-w-0 pr-1" : undefined}
+        className={cn(
+          "min-h-0 min-w-0 flex-1 transition-opacity duration-200",
+          !isMobile && "col-start-2 row-start-1",
+          isCollapsed
+            ? "pointer-events-none opacity-0"
+            : "opacity-100"
+        )}
+      >
+        {viewContent}
+      </ContentScrollArea>
+    </div>
+  );
 
   return (
     <SidebarStandard
@@ -381,10 +413,7 @@ export function SidebarRight() {
       onClick={stopCanvasUiEvent}
       onContextMenu={stopCanvasUiEvent}
       contentClassName={cn(
-        "min-h-0 overflow-hidden",
-        canvasMode === "freeform" && "gap-0 p-0",
-        canvasMode === "structured" && "gap-0 p-0",
-        canvasMode === "slide" && "gap-0 p-0",
+        "min-h-0 gap-0 overflow-hidden p-0",
         !isMobile && "pb-12"
       )}
       header={

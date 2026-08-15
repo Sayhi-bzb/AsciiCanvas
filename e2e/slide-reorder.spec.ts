@@ -13,7 +13,7 @@ async function createSlideDeck(page: import("@playwright/test").Page) {
   });
   await page.goto("/");
   await page.getByRole("button", { name: "Select canvas" }).click();
-  await page.getByRole("menuitem", { name: "Create" }).hover();
+  await page.getByRole("button", { name: "Create" }).click();
   await page.getByRole("menuitem", { name: "New Slides" }).hover();
   await page.getByRole("menuitem", { name: "Widescreen · 100 × 27" }).click();
   await expect(page.getByRole("button", { name: "Add slide" })).toBeVisible();

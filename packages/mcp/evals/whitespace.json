@@ -1,0 +1,7 @@
+{
+  "id": "whitespace",
+  "artifact": "whitespace",
+  "prompt": "Preserve empty lines and trailing spaces; style only B red.",
+  "expected_plain": "A  \n\nB ",
+  "required_styles": [{ "text": "B", "color": "#ff0000" }]
+}

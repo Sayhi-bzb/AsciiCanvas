@@ -113,37 +113,7 @@ export const duplicateStructuredNodes = (
   const duplicates = ordered
     .filter((node) => selected.has(node.id))
     .map((node, index): StructuredNode => {
-      if (node.type === "box" || node.type === "splitBox") {
-        return {
-          ...node,
-          id: createStructuredNodeId(),
-          order: highestOrder + index + 1,
-          style: { ...node.style },
-          start: offsetPoint(node.start, offset),
-          end: offsetPoint(node.end, offset),
-          ...cloneComponentWithRemappedInstance(
-            node.component,
-            componentInstanceIdMap
-          ),
-        };
-      }
-
-      if (node.type === "line") {
-        return {
-          ...node,
-          id: createStructuredNodeId(),
-          order: highestOrder + index + 1,
-          style: { ...node.style },
-          start: offsetPoint(node.start, offset),
-          end: offsetPoint(node.end, offset),
-          ...cloneComponentWithRemappedInstance(
-            node.component,
-            componentInstanceIdMap
-          ),
-        };
-      }
-
-      if (node.type === "bg") {
+      if (node.type !== "text") {
         return {
           ...node,
           id: createStructuredNodeId(),

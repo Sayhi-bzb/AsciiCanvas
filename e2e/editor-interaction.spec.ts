@@ -218,7 +218,7 @@ test.describe("editor interaction lifecycle", () => {
     test.slow();
     await seedSession(page, { id: "collaboration-edit", mode: "freeform" });
     await page.getByTestId("collaboration-control").click();
-    await page.getByRole("menuitem", { name: "Start P2P room" }).click();
+    await page.getByRole("button", { name: "Start P2P room" }).click();
     const roomUrl = page.url();
     expect(roomUrl).toContain("room=");
 

@@ -5,6 +5,7 @@ import { Check } from "lucide-react";
 import type { ToolType } from "@/domains/canvas/public";
 import { useUiI18n } from "@/shared/i18n";
 import {
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
@@ -34,39 +35,41 @@ export function BrushSubmenu({
 
   return (
     <>
-      <DropdownMenuItem
-        onSelect={(event) => {
-          event.preventDefault();
-          if (customChar) {
-            setBrushChar(customChar);
-            setTool("brush");
-          }
-          inputRef.current?.focus();
-        }}
-        className="h-9"
-      >
-        <div className="size-3.5 flex items-center justify-center shrink-0">
-          {brushChar === customChar && customChar !== "" && (
-            <Check className="size-3.5 stroke-[3]" />
-          )}
-        </div>
-        <Input
-          ref={inputRef}
-          className="h-6 w-14 p-0 text-center font-mono text-base font-bold text-inherit border-none bg-muted/40 shadow-none ring-0 hover:bg-muted/60 focus-visible:ring-0 rounded-sm placeholder:text-muted-foreground/50"
-          placeholder={t("input.custom")}
-          maxLength={12}
-          value={customChar}
-          onChange={(event) => {
-            const raw = event.target.value;
-            const value = raw ? getFirstGrapheme(raw) : "";
-            setCustomChar(value);
-            if (value) setBrushChar(value);
+      <DropdownMenuGroup>
+        <DropdownMenuItem
+          onSelect={(event) => {
+            event.preventDefault();
+            if (customChar) {
+              setBrushChar(customChar);
+              setTool("brush");
+            }
+            inputRef.current?.focus();
           }}
-          onClick={(event) => event.stopPropagation()}
-          onPointerDown={(event) => event.stopPropagation()}
-          onKeyDown={(event) => event.stopPropagation()}
-        />
-      </DropdownMenuItem>
+          className="h-9"
+        >
+          <div className="size-3.5 flex items-center justify-center shrink-0">
+            {brushChar === customChar && customChar !== "" && (
+              <Check className="size-3.5 stroke-[3]" />
+            )}
+          </div>
+          <Input
+            ref={inputRef}
+            className="h-6 w-14 p-0 text-center font-mono text-base font-bold text-inherit border-none bg-muted/40 shadow-none ring-0 hover:bg-muted/60 focus-visible:ring-0 rounded-sm placeholder:text-muted-foreground/50"
+            placeholder={t("input.custom")}
+            maxLength={12}
+            value={customChar}
+            onChange={(event) => {
+              const raw = event.target.value;
+              const value = raw ? getFirstGrapheme(raw) : "";
+              setCustomChar(value);
+              if (value) setBrushChar(value);
+            }}
+            onClick={(event) => event.stopPropagation()}
+            onPointerDown={(event) => event.stopPropagation()}
+            onKeyDown={(event) => event.stopPropagation()}
+          />
+        </DropdownMenuItem>
+      </DropdownMenuGroup>
       <DropdownMenuRadioGroup
         value={MATERIAL_PRESETS.includes(brushChar) ? brushChar : ""}
         onValueChange={(value) => {

@@ -28,7 +28,7 @@ const EXPORT_FORMATS: readonly ExportFormatDefinition[] = [
   {
     format: "chardesk",
     label: "CharDesk",
-    subLabel: "project",
+    subLabel: "canvas",
     modes: ["freeform", "structured"],
     artifactKind: "text",
     supportsColor: true,

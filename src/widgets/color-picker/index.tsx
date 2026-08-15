@@ -377,7 +377,7 @@ export function ColorPickerPanel({
                 side="bottom"
                 align="end"
                 sideOffset={6}
-                className={cn(rx.dropdownSubPanel, 'w-36')}
+                className="w-36"
               >
                 <DropdownMenuGroup>
                   {(['char', 'bg'] as const).map((target) => {

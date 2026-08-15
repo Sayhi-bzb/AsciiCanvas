@@ -31,6 +31,9 @@ const resolveSelectionAreas = (state: EditorState) => {
   return staticSelections.length > 0 ? staticSelections : state.selections;
 };
 
+const isUnstyledBlankCell = (cell: GridCell) =>
+  cell.char === " " && !cell.bgColor && !cloneTextAttributes(cell.attrs);
+
 const getActiveStructuredTextSelection = (state: EditorState) => {
   if (state.canvasMode !== "structured") return null;
   const range = getStructuredTextSelectionRange(state.structuredTextSelection);
@@ -264,11 +267,7 @@ export const createSelectionSlice = (
             } else {
               delete nextCell.attrs;
             }
-            if (
-              nextCell.char === " " &&
-              !nextCell.bgColor &&
-              !cloneTextAttributes(nextCell.attrs)
-            ) {
+            if (isUnstyledBlankCell(nextCell)) {
               grid.delete(key);
               continue;
             }
@@ -323,11 +322,7 @@ export const createSelectionSlice = (
             } else {
               delete nextCell.bgColor;
             }
-            if (
-              nextCell.char === " " &&
-              !nextCell.bgColor &&
-              !cloneTextAttributes(nextCell.attrs)
-            ) {
+            if (isUnstyledBlankCell(nextCell)) {
               grid.delete(key);
               continue;
             }

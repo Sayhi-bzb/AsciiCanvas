@@ -122,12 +122,7 @@ class CollaborationSession {
         try {
           ensureCollaborationDocumentMeta(this.descriptor, this.doc);
         } catch (error) {
-          this.publish({
-            documentStatus: "incompatible",
-            canEdit: false,
-            errorKind: "incompatible-document",
-            error: error instanceof Error ? error.message : "Incompatible collaboration document",
-          });
+          this.publishIncompatibleDocument(error);
         }
       };
       meta.observe(this.metaObserver);
@@ -166,6 +161,15 @@ class CollaborationSession {
         error: error instanceof Error ? error.message : "Collaboration failed",
       });
     }
+  }
+
+  private publishIncompatibleDocument(error: unknown) {
+    this.publish({
+      documentStatus: "incompatible",
+      canEdit: false,
+      errorKind: "incompatible-document",
+      error: error instanceof Error ? error.message : "Incompatible collaboration document",
+    });
   }
 
   private connectProvider(awareness: CollaborationAwareness) {
@@ -214,12 +218,7 @@ class CollaborationSession {
       try {
         ensureCollaborationDocumentMeta(this.descriptor, this.doc);
       } catch (error) {
-        this.publish({
-          documentStatus: "incompatible",
-          canEdit: false,
-          errorKind: "incompatible-document",
-          error: error instanceof Error ? error.message : "Incompatible collaboration document",
-        });
+        this.publishIncompatibleDocument(error);
       }
     });
   }

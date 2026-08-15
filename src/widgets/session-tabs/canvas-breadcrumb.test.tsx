@@ -55,16 +55,19 @@ describe("CanvasBreadcrumb", () => {
     });
   };
 
-  const openMenu = () => {
-    fireEvent.pointerDown(screen.getByRole("button", { name: "Select canvas" }), {
-      button: 0,
-      ctrlKey: false,
-    });
+  const openPanel = () => {
+    fireEvent.click(screen.getByRole("button", { name: "Select canvas" }));
   };
 
   const openSubmenu = async (name: string) => {
     const trigger = screen.getByRole("menuitem", { name });
     fireEvent.pointerMove(trigger, { pointerType: "mouse" });
+    await waitFor(() => expect(trigger).toHaveAttribute("data-state", "open"));
+  };
+
+  const openDropdown = async (name: string) => {
+    const trigger = screen.getByRole("button", { name });
+    fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false });
     await waitFor(() => expect(trigger).toHaveAttribute("data-state", "open"));
   };
 
@@ -78,17 +81,21 @@ describe("CanvasBreadcrumb", () => {
     expect(trigger).toHaveTextContent("Alpha");
     expect(container.querySelector('[data-canvas-breadcrumb-host="true"]')).toBeInTheDocument();
 
-    openMenu();
-    const alpha = await screen.findByRole("menuitem", { name: /^Alpha$/ });
-    const beta = screen.getByRole("menuitem", { name: /^Beta$/ });
+    openPanel();
+    const panel = await screen.findByRole("dialog", { name: "Select canvas" });
+    const alpha = screen.getByRole("button", { name: /^Alpha$/ });
+    const beta = screen.getByRole("button", { name: /^Beta$/ });
+    expect(panel).toHaveClass("min-w-44", "shadow-overlay");
     expect(alpha).toHaveAttribute("aria-current", "page");
     expect(beta).not.toHaveAttribute("aria-current");
+    expect(alpha).toHaveFocus();
 
     fireEvent.click(beta);
 
     expect(useEditorStore.getState().activeCanvasId).toBe("canvas-b");
     expect(trigger).toHaveTextContent("Beta");
-    expect(screen.queryByRole("menu", { name: "Select canvas" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Select canvas" })).not.toBeInTheDocument();
+    await waitFor(() => expect(trigger).toHaveFocus());
   });
 
   it("exposes stable onboarding targets for creating a Structured Canvas", async () => {
@@ -97,10 +104,10 @@ describe("CanvasBreadcrumb", () => {
     const trigger = screen.getByRole("button", { name: "Select canvas" });
     expect(trigger).toHaveAttribute("data-onboarding-target", "canvas-selector");
 
-    openMenu();
-    const create = screen.getByRole("menuitem", { name: "Create" });
+    openPanel();
+    const create = screen.getByRole("button", { name: "Create" });
     expect(create).toHaveAttribute("data-onboarding-target", "create-menu");
-    await openSubmenu("Create");
+    await openDropdown("Create");
     expect(screen.getByRole("menuitem", { name: "New Structured" })).toHaveAttribute(
       "data-onboarding-target",
       "create-structured"
@@ -111,8 +118,8 @@ describe("CanvasBreadcrumb", () => {
     render(<CanvasBreadcrumb />);
 
     const selector = screen.getByRole("button", { name: "Select canvas" });
-    openMenu();
-    await openSubmenu("Create");
+    openPanel();
+    await openDropdown("Create");
     const slidesTrigger = screen.getByRole("menuitem", { name: "New Slides" });
     expect(slidesTrigger.querySelector(".lucide-presentation")).toBeInTheDocument();
 
@@ -120,7 +127,7 @@ describe("CanvasBreadcrumb", () => {
     fireEvent.click(screen.getByRole("menuitem", { name: "Custom size…" }));
 
     expect(await screen.findByRole("heading", { name: "Custom slide size" })).toBeInTheDocument();
-    expect(screen.queryByRole("menu", { name: "Select canvas" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Select canvas" })).not.toBeInTheDocument();
     const columns = screen.getByRole("spinbutton", { name: "Columns" });
     const rows = screen.getByRole("spinbutton", { name: "Rows" });
     expect(columns).toHaveValue(100);
@@ -150,8 +157,8 @@ describe("CanvasBreadcrumb", () => {
     const selector = screen.getByRole("button", { name: "Select canvas" });
     const sessionCount = useEditorStore.getState().canvasSessions.length;
 
-    openMenu();
-    await openSubmenu("Create");
+    openPanel();
+    await openDropdown("Create");
     await openSubmenu("New Slides");
     fireEvent.click(screen.getByRole("menuitem", { name: "Custom size…" }));
     await screen.findByRole("dialog");
@@ -166,55 +173,55 @@ describe("CanvasBreadcrumb", () => {
     setTwoSessions();
     render(<CanvasBreadcrumb />);
 
-    openMenu();
-    const menu = screen.getByRole("menu", { name: "Select canvas" });
-    vi.spyOn(menu, "getBoundingClientRect").mockReturnValue({
+    openPanel();
+    const panel = screen.getByRole("dialog", { name: "Select canvas" });
+    vi.spyOn(panel, "getBoundingClientRect").mockReturnValue({
       width: 176,
     } as DOMRect);
-    await openSubmenu("Manage Beta");
+    await openDropdown("Manage Beta");
     fireEvent.click(await screen.findByRole("menuitem", { name: "Rename" }));
 
     const nameInput = await screen.findByLabelText("Canvas name");
-    expect(menu.style.width).toBe("176px");
-    expect(screen.getByRole("menu", { name: "Select canvas" })).toBeInTheDocument();
+    expect(panel.style.width).toBe("176px");
+    expect(screen.getByRole("dialog", { name: "Select canvas" })).toBeInTheDocument();
     expect(nameInput).toHaveFocus();
     expect(nameInput).toHaveValue("Beta");
     expect(nameInput).toHaveClass("bg-transparent", "border-0", "shadow-none");
     fireEvent.change(nameInput, { target: { value: "Discarded" } });
     fireEvent.keyDown(nameInput, { key: "Escape" });
-    expect(menu.style.width).toBe("");
-    expect(screen.getByRole("menu", { name: "Select canvas" })).toBeInTheDocument();
+    expect(panel.style.width).toBe("");
+    expect(screen.getByRole("dialog", { name: "Select canvas" })).toBeInTheDocument();
     expect(
       useEditorStore.getState().canvasSessions.find((session) => session.id === "canvas-b")
         ?.name
     ).toBe("Beta");
 
-    await openSubmenu("Manage Beta");
+    await openDropdown("Manage Beta");
     fireEvent.click(await screen.findByRole("menuitem", { name: "Rename" }));
     const renamedInput = await screen.findByLabelText("Canvas name");
-    expect(menu.style.width).toBe("176px");
+    expect(panel.style.width).toBe("176px");
     fireEvent.change(renamedInput, { target: { value: "  Gamma  " } });
     fireEvent.keyDown(renamedInput, { key: "Enter" });
-    expect(menu.style.width).toBe("");
+    expect(panel.style.width).toBe("");
 
     expect(
       useEditorStore.getState().canvasSessions.find((session) => session.id === "canvas-b")
         ?.name
     ).toBe("Gamma");
 
-    await openSubmenu("Manage Gamma");
+    await openDropdown("Manage Gamma");
     fireEvent.click(await screen.findByRole("menuitem", { name: "Rename" }));
     const blurredInput = await screen.findByLabelText("Canvas name");
-    expect(menu.style.width).toBe("176px");
+    expect(panel.style.width).toBe("176px");
     fireEvent.change(blurredInput, { target: { value: "  Delta  " } });
     fireEvent.blur(blurredInput);
-    expect(menu.style.width).toBe("");
+    expect(panel.style.width).toBe("");
     expect(
       useEditorStore.getState().canvasSessions.find((session) => session.id === "canvas-b")
         ?.name
     ).toBe("Delta");
 
-    await openSubmenu("Manage Delta");
+    await openDropdown("Manage Delta");
     fireEvent.click(await screen.findByRole("menuitem", { name: "Close" }));
     expect(await screen.findByRole("heading", { name: "Delete canvas?" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Delete" }));
@@ -231,22 +238,19 @@ describe("CanvasBreadcrumb", () => {
     render(<CanvasBreadcrumb />);
 
     expect(screen.getByRole("button", { name: "选择画布" })).toHaveTextContent("Alpha");
-    fireEvent.pointerDown(screen.getByRole("button", { name: "选择画布" }), {
-      button: 0,
-      ctrlKey: false,
-    });
-    expect(await screen.findByRole("menuitem", { name: /^Beta$/ })).toBeInTheDocument();
-    await openSubmenu("管理 Beta");
+    fireEvent.click(screen.getByRole("button", { name: "选择画布" }));
+    expect(await screen.findByRole("button", { name: /^Beta$/ })).toBeInTheDocument();
+    await openDropdown("管理 Beta");
     expect(await screen.findByRole("menuitem", { name: "重命名" })).toBeInTheDocument();
     expect(screen.getByRole("menuitem", { name: "关闭" })).toBeInTheDocument();
 
     fireEvent.keyDown(document, { key: "Escape" });
-    await waitFor(() => expect(screen.queryByRole("menu")).not.toBeInTheDocument());
-    fireEvent.pointerDown(screen.getByRole("button", { name: "选择画布" }), {
-      button: 0,
-      ctrlKey: false,
-    });
-    await openSubmenu("新建");
+    fireEvent.keyDown(document, { key: "Escape" });
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "选择画布" })).not.toBeInTheDocument()
+    );
+    fireEvent.click(screen.getByRole("button", { name: "选择画布" }));
+    await openDropdown("新建");
     await openSubmenu("新建幻灯片");
     expect(screen.getByRole("menuitem", { name: "自定义大小…" })).toBeInTheDocument();
   });

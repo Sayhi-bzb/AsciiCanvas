@@ -1,9 +1,6 @@
 import type { CanvasImportSnapshot } from "@/domains/sessions/public";
 import { parseSlideMarkdown } from "@/domains/slides/public";
-import {
-  parseCharDeskDocument,
-  charDeskDocumentToSnapshot,
-} from "./protocol/import";
+import { parseCharDeskCanvasSource } from "./protocol/import";
 
 export const parseDocumentSessionSource = (
   raw: string | unknown
@@ -20,5 +17,8 @@ export const parseDocumentSessionSource = (
     };
   }
 
-  return charDeskDocumentToSnapshot(parseCharDeskDocument(raw));
+  if (typeof raw !== "string") {
+    throw new Error("CharDesk source must be text.");
+  }
+  return parseCharDeskCanvasSource(raw);
 };

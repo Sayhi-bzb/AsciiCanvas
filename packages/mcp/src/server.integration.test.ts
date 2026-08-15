@@ -1,10 +1,21 @@
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/client";
 import { StdioClientTransport } from "@modelcontextprotocol/client/stdio";
 import { describe, expect, it } from "vitest";
 
 describe("CharDesk MCP stdio server", () => {
-  it("advertises and completes the two-phase authoring flow", async () => {
+  it("publishes persisted sources with a minimal result", async () => {
+    const root = await mkdtemp(join(process.cwd(), ".mcp-test-"));
+    const plain = join(root, "plain.txt");
+    const styled = join(root, "styled.ans");
+    const output = join(root, "result.chardesk");
+    await Promise.all([
+      writeFile(plain, "A界", "utf8"),
+      writeFile(styled, "[31mA[0m界", "utf8"),
+    ]);
+
     const client = new Client({ name: "chardesk-test", version: "1.0.0" });
     const transport = new StdioClientTransport({
       command: process.execPath,
@@ -14,43 +25,56 @@ describe("CharDesk MCP stdio server", () => {
 
     await client.connect(transport);
     try {
-      expect(client.getInstructions()).toContain("create_canvas_draft");
       const listed = await client.listTools();
-      expect(listed.tools.map(({ name }) => name)).toEqual([
-        "create_canvas_draft",
-        "apply_canvas_style",
-      ]);
-
-      const created = await client.callTool({
-        name: "create_canvas_draft",
-        arguments: { plain_text: "A界" },
-      });
-      expect(created.isError).not.toBe(true);
-      expect(created.structuredContent).toMatchObject({
-        revision: 1,
-        canonical_plain_text: "A界",
-      });
-      const draft = created.structuredContent as {
-        draft_id: string;
-        revision: number;
-      };
-
-      const applied = await client.callTool({
-        name: "apply_canvas_style",
+      expect(listed.tools.map(({ name }) => name)).toEqual(["publish_canvas"]);
+      const published = await client.callTool({
+        name: "publish_canvas",
         arguments: {
-          draft_id: draft.draft_id,
-          revision: draft.revision,
-          ansi_text: "[31mA界[0m",
+          plain_path: relative(process.cwd(), plain),
+          styled_path: relative(process.cwd(), styled),
+          output_path: relative(process.cwd(), output),
         },
       });
-      expect(applied.isError).not.toBe(true);
-      expect(applied.structuredContent).toMatchObject({
-        accepted: true,
-        revision: 2,
-        ansi_text: "[31mA界[0m",
+      expect(published.isError).not.toBe(true);
+      expect(published.structuredContent).toEqual({ status: "accepted" });
+      expect(await readFile(output, "utf8")).toBe("[31mA[0m界");
+    } finally {
+      await client.close();
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("returns a repairable mismatch as a normal tool result", async () => {
+    const root = await mkdtemp(join(process.cwd(), ".mcp-test-"));
+    await Promise.all([
+      writeFile(join(root, "plain.txt"), "A", "utf8"),
+      writeFile(join(root, "styled.ans"), "B", "utf8"),
+    ]);
+    const client = new Client({ name: "chardesk-test", version: "1.0.0" });
+    const transport = new StdioClientTransport({
+      command: process.execPath,
+      args: [fileURLToPath(new URL("../dist/server.js", import.meta.url))],
+      stderr: "pipe",
+    });
+    await client.connect(transport);
+    try {
+      const rejected = await client.callTool({
+        name: "publish_canvas",
+        arguments: {
+          plain_path: relative(process.cwd(), join(root, "plain.txt")),
+          styled_path: relative(process.cwd(), join(root, "styled.ans")),
+          output_path: relative(process.cwd(), join(root, "result.chardesk")),
+        },
+      });
+      expect(rejected.isError).not.toBe(true);
+      expect(rejected.structuredContent).toMatchObject({
+        status: "rejected",
+        code: "geometry-mismatch",
+        retryable: true,
       });
     } finally {
       await client.close();
+      await rm(root, { recursive: true, force: true });
     }
   });
 });

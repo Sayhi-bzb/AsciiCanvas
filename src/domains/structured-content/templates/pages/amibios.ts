@@ -1,11 +1,12 @@
-import type { GridCell } from "@/shared/types";
 import type {
   StructuredSplitBoxTreeNode,
-  StructuredTextRangeStyle,
-  StructuredTextStyleRange,
 } from "../../model/types";
 import { parseAnsiTextCells } from "@/shared/utils/ansiText";
 import type { StructuredComponentDefinition } from "../components/types";
+import {
+  buildStyledTextRegion,
+  type StyledTextRegion,
+} from "./styled-text";
 
 const AMIBIOS_SOURCE = `[37;44m╭───────────────────────────────────────────────────────────────────────────────╮[0m
 [37;44m│   [1mAMIBIOS EASY SETUP UTILITY - VERSION 1.24.2026[22m                              │[0m
@@ -38,94 +39,11 @@ const AMIBIOS_BASE_STYLE = {
   bgColor: "#000080",
 };
 
-const styleFromCell = (cell: Pick<GridCell, "color" | "bgColor" | "attrs">) => ({
-  color: cell.color,
-  ...(cell.bgColor ? { bgColor: cell.bgColor } : {}),
-  ...(cell.attrs ? { attrs: { ...cell.attrs } } : {}),
-});
-
-const stylesEqual = (
-  left: StructuredTextRangeStyle,
-  right: StructuredTextRangeStyle
-) =>
-  left.color === right.color &&
-  left.bgColor === right.bgColor &&
-  !!left.attrs?.bold === !!right.attrs?.bold &&
-  !!left.attrs?.italic === !!right.attrs?.italic &&
-  !!left.attrs?.underline === !!right.attrs?.underline &&
-  !!left.attrs?.strike === !!right.attrs?.strike &&
-  !!left.attrs?.inverse === !!right.attrs?.inverse;
-
 const AMIBIOS_CELLS =
   parseAnsiTextCells(AMIBIOS_SOURCE, AMIBIOS_BASE_STYLE.color) ?? [];
 const AMIBIOS_CELL_BY_POINT = new Map(
   AMIBIOS_CELLS.map((cell) => [cell.x + "," + cell.y, cell])
 );
-
-type StyledTextRegion = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-};
-
-const buildStyledTextRegion = ({
-  x,
-  y,
-  width,
-  height,
-}: StyledTextRegion) => {
-  let text = "";
-  let offset = 0;
-  let activeRange: StructuredTextStyleRange | null = null;
-  const styleRanges: StructuredTextStyleRange[] = [];
-
-  const pushStyle = (style: StructuredTextRangeStyle) => {
-    if (stylesEqual(style, AMIBIOS_BASE_STYLE)) {
-      activeRange = null;
-      return;
-    }
-    if (activeRange && stylesEqual(activeRange.style, style)) {
-      activeRange.end = offset + 1;
-      return;
-    }
-    activeRange = { start: offset, end: offset + 1, style };
-    styleRanges.push(activeRange);
-  };
-
-  for (let rowOffset = 0; rowOffset < height; rowOffset += 1) {
-    const row = Array.from({ length: width }, (_, columnOffset) => {
-      const cell = AMIBIOS_CELL_BY_POINT.get(
-        x + columnOffset + "," + (y + rowOffset)
-      );
-      return {
-        char: cell?.char ?? " ",
-        style: cell ? styleFromCell(cell) : AMIBIOS_BASE_STYLE,
-      };
-    });
-    let contentLength = row.length;
-    while (
-      contentLength > 0 &&
-      row[contentLength - 1].char === " " &&
-      stylesEqual(row[contentLength - 1].style, AMIBIOS_BASE_STYLE)
-    ) {
-      contentLength -= 1;
-    }
-
-    row.slice(0, contentLength).forEach(({ char, style }) => {
-      text += char;
-      pushStyle(style);
-      offset += 1;
-    });
-    activeRange = null;
-    if (rowOffset < height - 1) {
-      text += "\n";
-      offset += 1;
-    }
-  }
-
-  return { text, styleRanges };
-};
 
 const createFrameRoot = (): StructuredSplitBoxTreeNode => ({
   type: "split",
@@ -188,7 +106,11 @@ export const AMIBIOS_TEMPLATE: StructuredComponentDefinition = {
       region: StyledTextRegion,
       orderOffset: number
     ) => {
-      const styledText = buildStyledTextRegion(region);
+      const styledText = buildStyledTextRegion(
+        region,
+        AMIBIOS_CELL_BY_POINT,
+        AMIBIOS_BASE_STYLE
+      );
       return createText(
         styledText.text,
         { x: region.x, y: region.y },

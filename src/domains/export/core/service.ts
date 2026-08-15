@@ -3,9 +3,8 @@ import {
   createPngBlobFromGrid,
   createSelectionPngBlob,
 } from "../formats/raster";
-import { exportCharDeskDocumentToJSON } from "../formats/protocolExport";
 import { exportStructuredF12Text } from "../formats/structuredText";
-import { exportToAnsi, exportToString } from "../formats/text";
+import { exportToAnsi, exportToCharDesk, exportToString } from "../formats/text";
 import { exportSlideDeckToMarkdown } from "../formats/slidesMarkdown";
 import { getExportFormatDefinition } from "./registry";
 import {
@@ -94,9 +93,11 @@ export const prepareTextExport = (
         return exportSucceeded(
           textArtifact(
             format,
-            exportCharDeskDocumentToJSON(context),
+            exportToCharDesk(context.grid, {
+              includeColor: context.includeColor,
+            }),
             `chardesk-${getTimestamp()}.chardesk`,
-            "application/vnd.chardesk+json;charset=utf-8"
+            "text/plain;charset=utf-8"
           )
         );
       case "ansi":

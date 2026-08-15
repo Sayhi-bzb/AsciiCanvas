@@ -90,18 +90,21 @@ export const resolveSessionRuntime = (session: CanvasSession, currentTool: ToolT
   const nextScene = nextMode === 'structured' ? session.scene : [];
   const nextComponents =
     nextMode === 'structured' ? (session.components ?? []) : [];
-  const structuredGrid = session.mode !== 'slide' ? session.grid : [];
-  const nextGridEntries =
-    nextMode === 'structured'
-      ? structuredGrid.length > 0 || nextScene.length === 0
+  let nextGridEntries: CanvasSession['grid'];
+  if (nextMode === 'structured') {
+    const structuredGrid = session.mode !== 'slide' ? session.grid : [];
+    nextGridEntries =
+      structuredGrid.length > 0 || nextScene.length === 0
         ? structuredGrid
-        : sceneToGridEntries(nextScene)
-      : nextMode === 'slide' && nextSlideDeck
-        ? (nextSlideDeck.slides.find((slide) => slide.id === nextSlideDeck.activeSlideId)?.grid ??
-          [])
-        : session.mode !== 'slide'
-          ? session.grid
-          : [];
+        : sceneToGridEntries(nextScene);
+  } else if (nextMode === 'slide' && nextSlideDeck) {
+    nextGridEntries =
+      nextSlideDeck.slides.find(
+        (slide) => slide.id === nextSlideDeck.activeSlideId
+      )?.grid ?? [];
+  } else {
+    nextGridEntries = session.mode !== 'slide' ? session.grid : [];
+  }
 
   return {
     nextMode,

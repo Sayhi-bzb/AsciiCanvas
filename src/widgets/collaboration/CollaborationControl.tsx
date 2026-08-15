@@ -16,14 +16,9 @@ import { cn } from '@/shared/lib/utils';
 import { feedback } from '@/shared/services/effects';
 import { rx } from '@/shared/styles/recipes';
 import { Button } from '@/shared/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/shared/ui/dropdown-menu';
 import { Input } from '@/shared/ui/input';
+import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
+import { Separator } from '@/shared/ui/separator';
 
 const CollaborationIcon = HOST_ICONOLOGY.sessionAction.collaboration;
 const getStatusKey = (snapshot: ReturnType<typeof useCollaborationSnapshot>) => {
@@ -107,13 +102,11 @@ export function CollaborationControl() {
   };
 
   const normalizedEndpoint = validateCollaborationEndpoint(endpoint);
-  const keepOpen = (event: Event) => event.preventDefault();
-
   if (activeSession?.mode === "slide") return null;
 
   return (
-    <DropdownMenu modal={false} open={open} onOpenChange={setOpen}>
-      <DropdownMenuTrigger asChild>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
         <Button
           tone="subtle"
           shape="square"
@@ -129,11 +122,12 @@ export function CollaborationControl() {
         >
           <CollaborationIcon />
         </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
+      </PopoverTrigger>
+      <PopoverContent
         side="bottom"
         align="start"
-        className="w-72"
+        className="w-72 max-w-[calc(100vw-1.5rem)] p-[3px]"
+        role="dialog"
         aria-label={t('collaboration.title')}
       >
         <section
@@ -175,7 +169,7 @@ export function CollaborationControl() {
         )}
 
         {descriptor && snapshot.peers.length > 0 && (
-          <ul className="space-y-1 px-2 pb-1.5" aria-label={t('collaboration.peers')}>
+          <ul className="flex flex-col gap-1 px-2 pb-1.5" aria-label={t('collaboration.peers')}>
             {snapshot.peers.map((peer) => (
               <li key={peer.clientId} className="flex items-center gap-2 text-xs">
                 <span className="size-2 rounded-full" style={{ backgroundColor: peer.color }} />
@@ -185,21 +179,22 @@ export function CollaborationControl() {
           </ul>
         )}
 
-        <DropdownMenuSeparator />
+        <Separator className="my-1" />
 
         {!descriptor ? (
           <>
-            <DropdownMenuItem
-              onSelect={(event) => {
-                keepOpen(event);
-                start();
-              }}
+            <Button
+              type="button"
+              tone="subtle"
+              size="sm"
+              className="w-full justify-start"
+              onClick={() => start()}
             >
               {t('collaboration.start.p2p')}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
+            </Button>
+            <Separator className="my-1" />
             <form
-              className="space-y-1.5 px-2 py-1.5"
+              className="flex flex-col gap-1.5 px-2 py-1.5"
               onSubmit={(event) => {
                 event.preventDefault();
                 if (normalizedEndpoint) start(normalizedEndpoint);
@@ -231,34 +226,36 @@ export function CollaborationControl() {
           </>
         ) : (
           <>
-            <DropdownMenuItem
-              onSelect={(event) => {
-                keepOpen(event);
-                void copyLink();
-              }}
+            <Button
+              type="button"
+              tone="subtle"
+              size="sm"
+              className="w-full justify-start"
+              onClick={() => void copyLink()}
             >
               {t('collaboration.link.copy')}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={(event) => {
-                keepOpen(event);
-                leave();
-              }}
+            </Button>
+            <Button
+              type="button"
+              tone="subtle"
+              size="sm"
+              className="w-full justify-start"
+              onClick={leave}
             >
               {t('collaboration.leave')}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              variant="destructive"
-              onSelect={(event) => {
-                keepOpen(event);
-                void forget();
-              }}
+            </Button>
+            <Button
+              type="button"
+              tone="subtle"
+              size="sm"
+              className="w-full justify-start text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => void forget()}
             >
               {t('collaboration.forget')}
-            </DropdownMenuItem>
+            </Button>
           </>
         )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </PopoverContent>
+    </Popover>
   );
 }

@@ -126,11 +126,11 @@ export const rx = {
   iconRailItem: hostIconControl,
   dropdownPanel: cn(
     overlayPanel,
-    'z-(--layer-popover) min-w-48 overflow-hidden p-[3px] text-popover-foreground outline-none'
+    'z-(--layer-popover) min-w-32 overflow-hidden p-[3px] text-popover-foreground outline-none'
   ),
   dropdownSubPanel: cn(
     overlayPanel,
-    'z-(--layer-popover) min-w-36 overflow-hidden p-[3px] text-popover-foreground outline-none'
+    'z-(--layer-popover) min-w-32 overflow-hidden p-[3px] text-popover-foreground outline-none'
   ),
   dropdownItem: cn(
     'relative flex cursor-default select-none items-center gap-2 rounded-md px-2 py-1.5 text-xs outline-none transition-colors'

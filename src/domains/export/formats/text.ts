@@ -29,6 +29,8 @@ type AnsiPiece = {
   cell: GridCell | null;
 };
 
+type AnsiExportOptions = { includeColor?: boolean };
+
 type ActiveAnsiStyle = {
   foreground: string | null;
   background: string | null;
@@ -49,9 +51,7 @@ const buildAnsiPiecesFromBounds = (
   minX: number,
   maxX: number,
   y: number,
-  options?: {
-    includeColor?: boolean;
-  }
+  options?: AnsiExportOptions
 ) => {
   const pieces: AnsiPiece[] = [];
 
@@ -69,6 +69,24 @@ const buildAnsiPiecesFromBounds = (
   }
 
   return pieces;
+};
+
+const serializeAnsiRows = (
+  grid: GridMap,
+  minX: number,
+  maxX: number,
+  minY: number,
+  maxY: number,
+  options?: AnsiExportOptions
+) => {
+  const lines: string[] = [];
+  for (let y = minY; y <= maxY; y++) {
+    const pieces = trimTrailingAnsiSpaces(
+      buildAnsiPiecesFromBounds(grid, minX, maxX, y, options)
+    );
+    lines.push(serializeAnsiLine(pieces));
+  }
+  return lines.join("\n");
 };
 
 const resolveAnsiPieceStyle = (piece: AnsiPiece): ActiveAnsiState => {
@@ -277,44 +295,27 @@ export const exportSelectionToString = (
 export const exportSelectionToAnsi = (
   grid: GridMap,
   selections: SelectionArea[],
-  options?: {
-    includeColor?: boolean;
-  }
+  options?: AnsiExportOptions
 ) => {
   if (selections.length === 0) return "";
   const { minX, maxX, minY, maxY } = getSelectionsBoundingBox(selections);
-  const lines: string[] = [];
-
-  for (let y = minY; y <= maxY; y++) {
-    const pieces = trimTrailingAnsiSpaces(
-      buildAnsiPiecesFromBounds(grid, minX, maxX, y, options)
-    );
-    lines.push(serializeAnsiLine(pieces));
-  }
-
-  return lines.join("\n");
+  return serializeAnsiRows(grid, minX, maxX, minY, maxY, options);
 };
 
 export const exportToAnsi = (
   grid: GridMap,
-  options?: {
-    includeColor?: boolean;
-  }
+  options?: AnsiExportOptions
 ) => {
   if (grid.size === 0) return "";
 
   const { minX, maxX, minY, maxY } = GridManager.getGridBounds(grid);
-  const lines: string[] = [];
-
-  for (let y = minY; y <= maxY; y++) {
-    const pieces = trimTrailingAnsiSpaces(
-      buildAnsiPiecesFromBounds(grid, minX, maxX, y, options)
-    );
-    lines.push(serializeAnsiLine(pieces));
-  }
-
-  return lines.join("\n");
+  return serializeAnsiRows(grid, minX, maxX, minY, maxY, options);
 };
+
+export const exportToCharDesk = (
+  grid: GridMap,
+  options?: AnsiExportOptions
+) => exportToAnsi(grid, options).replaceAll("\u001b[", "[");
 
 export const exportSelectionToJSON = (
   grid: GridMap,

@@ -1,0 +1,7 @@
+{
+  "id": "cjk-cells",
+  "artifact": "cjk-card",
+  "prompt": "Keep the CJK layout fixed and make 登录 bold green.",
+  "expected_plain": "┌──────┐\n│ 登录 │\n└──────┘",
+  "required_styles": [{ "text": "登录", "color": "#00ff00", "attrs": ["bold"] }]
+}

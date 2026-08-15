@@ -11,6 +11,7 @@ import { Button } from "@/shared/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
@@ -32,7 +33,6 @@ import { APP_SOURCE_URL } from "@/shared/lib/constants";
 const AppMenuTriggerIcon = HOST_ICONOLOGY.appMenu.trigger;
 const ImportIcon = HOST_ICONOLOGY.appMenu.import;
 const ExportIcon = HOST_ICONOLOGY.appMenu.export;
-const CopyIcon = HOST_ICONOLOGY.appMenu.copy;
 const GithubIcon = HOST_ICONOLOGY.appMenu.github;
 const LanguageIcon = HOST_ICONOLOGY.appMenu.language;
 const ShortcutsIcon = HOST_ICONOLOGY.appMenu.shortcuts;
@@ -125,7 +125,7 @@ export function AppMenu() {
       <input
         ref={fileInputRef}
         type="file"
-        accept=".chardesk,.json,.md,application/vnd.chardesk+json,application/json,text/markdown,text/plain"
+        accept=".chardesk,.md,text/markdown,text/plain"
         className="sr-only"
         tabIndex={-1}
         aria-hidden="true"
@@ -160,119 +160,94 @@ export function AppMenu() {
               <DropdownMenuContent
                 side="bottom"
                 align="start"
+                className="w-48"
                 aria-label={t("appMenu.open")}
               >
-                <DropdownMenuItem
-                  disabled={isImporting}
-                  onSelect={openFilePicker}
-                >
-                  <ImportIcon />
-                  {isImporting ? t("import.importing") : t("appMenu.import")}
-                </DropdownMenuItem>
-                {availableExportFormats.length > 0 && (
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger>
-                    <ExportIcon />
-                    {exportLabel}
-                  </DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent aria-label={exportLabel}>
-                    {availableExportFormats.map((definition) =>
-                      definition.format === "chardesk" ? (
-                        <DropdownMenuItem
-                          key={definition.format}
-                          onSelect={(event) => {
-                            event.preventDefault();
-                            void exportActions.save(definition.format);
-                          }}
-                        >
-                          {t("appMenu.project")}
-                        </DropdownMenuItem>
-                      ) : (
-                        <DropdownMenuSub key={definition.format}>
-                          <DropdownMenuSubTrigger>
-                            {definition.label}
-                          </DropdownMenuSubTrigger>
-                          <DropdownMenuSubContent
-                            aria-label={definition.label}
-                          >
-                            {definition.supportsClipboard && (
-                              <DropdownMenuItem
-                                onSelect={(event) => {
-                                  event.preventDefault();
-                                  void exportActions.copy(definition.format);
-                                }}
-                              >
-                                <CopyIcon />
-                                {t("export.copy")}
-                              </DropdownMenuItem>
-                            )}
+                <DropdownMenuGroup>
+                  <DropdownMenuItem
+                    disabled={isImporting}
+                    onSelect={openFilePicker}
+                  >
+                    <ImportIcon />
+                    {isImporting ? t("import.importing") : t("appMenu.import")}
+                  </DropdownMenuItem>
+                  {availableExportFormats.length > 0 && (
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger>
+                        <ExportIcon />
+                        {exportLabel}
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuSubContent className="w-40" aria-label={exportLabel}>
+                        <DropdownMenuGroup>
+                          {availableExportFormats.map((definition) => (
                             <DropdownMenuItem
+                              key={definition.format}
                               onSelect={(event) => {
                                 event.preventDefault();
                                 void exportActions.save(definition.format);
                               }}
                             >
-                              <ExportIcon />
-                              {t("export.save")}
+                              {definition.label}
                             </DropdownMenuItem>
-                          </DropdownMenuSubContent>
-                        </DropdownMenuSub>
-                      )
-                    )}
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
-                )}
-                <DropdownMenuItem
-                  variant="destructive"
-                  onSelect={() => setClearOpen(true)}
-                >
-                  <ClearIcon />
-                  {t("appMenu.clear")}
-                </DropdownMenuItem>
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger>
-                    <LanguageIcon />
-                    {t("appMenu.language")}
-                  </DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent aria-label={t("appMenu.language")}>
-                    <DropdownMenuRadioGroup value={language}>
-                      <DropdownMenuRadioItem
-                        value="en"
-                        onSelect={(event) => {
-                          event.preventDefault();
-                          selectLanguage("en");
-                        }}
-                      >
-                        {t("appMenu.english")}
-                      </DropdownMenuRadioItem>
-                      <DropdownMenuRadioItem
-                        value="zh"
-                        onSelect={(event) => {
-                          event.preventDefault();
-                          selectLanguage("zh");
-                        }}
-                      >
-                        {t("appMenu.chinese")}
-                      </DropdownMenuRadioItem>
-                    </DropdownMenuRadioGroup>
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
-                <DropdownMenuItem
-                  onSelect={() => {
-                    setMenuOpen(false);
-                    window.setTimeout(() => setShortcutsOpen(true), 0);
-                  }}
-                >
-                  <ShortcutsIcon />
-                  {t("appMenu.shortcuts")}
-                </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuGroup>
+                      </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                  )}
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onSelect={() => setClearOpen(true)}
+                  >
+                    <ClearIcon />
+                    {t("appMenu.clear")}
+                  </DropdownMenuItem>
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>
+                      <LanguageIcon />
+                      {t("appMenu.language")}
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent className="w-40" aria-label={t("appMenu.language")}>
+                      <DropdownMenuRadioGroup value={language}>
+                        <DropdownMenuRadioItem
+                          value="en"
+                          onSelect={(event) => {
+                            event.preventDefault();
+                            selectLanguage("en");
+                          }}
+                        >
+                          {t("appMenu.english")}
+                        </DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem
+                          value="zh"
+                          onSelect={(event) => {
+                            event.preventDefault();
+                            selectLanguage("zh");
+                          }}
+                        >
+                          {t("appMenu.chinese")}
+                        </DropdownMenuRadioItem>
+                      </DropdownMenuRadioGroup>
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      setMenuOpen(false);
+                      window.setTimeout(() => setShortcutsOpen(true), 0);
+                    }}
+                  >
+                    <ShortcutsIcon />
+                    {t("appMenu.shortcuts")}
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onSelect={() => browser.openExternal(APP_SOURCE_URL)}
-                >
-                  <GithubIcon />
-                  {t("appMenu.github")}
-                </DropdownMenuItem>
+                <DropdownMenuGroup>
+                  <DropdownMenuItem
+                    onSelect={() => browser.openExternal(APP_SOURCE_URL)}
+                  >
+                    <GithubIcon />
+                    {t("appMenu.github")}
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
               </DropdownMenuContent>
             </DropdownMenu>
       </div>

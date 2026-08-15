@@ -1,0 +1,7 @@
+{
+  "id": "emoji-zwj",
+  "artifact": "emoji-card",
+  "prompt": "Preserve the emoji grapheme and underline only Ready.",
+  "expected_plain": "👩‍💻 Ready",
+  "required_styles": [{ "text": "Ready", "attrs": ["underline"] }]
+}

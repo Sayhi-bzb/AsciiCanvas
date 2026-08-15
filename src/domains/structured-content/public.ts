@@ -63,7 +63,6 @@ export {
 } from "./model/scene";
 export type { StructuredTextSelection } from "./model/text-ranges";
 export {
-  cloneStructuredTextStyleRanges,
   getStructuredTextCaretPoint,
   getStructuredTextOffsetAtPoint,
   getStructuredTextSelectionRange,
@@ -84,7 +83,6 @@ export type {
   StructuredNodeStyle,
   StructuredSelectionStylePatch,
   StructuredSplitBoxNode,
-  StructuredSplitBoxTreeNode,
   StructuredTextNode,
   StructuredTextStyleRange,
 } from "./model/types";

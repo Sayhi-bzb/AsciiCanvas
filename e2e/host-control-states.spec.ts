@@ -309,12 +309,10 @@ for (const scenario of [
     );
     await breadcrumbControl.click();
 
-    const canvasMenu = page
-      .locator('[data-slot="dropdown-menu-content"]')
-      .last();
-    await expectHostContainer(canvasMenu);
-    await expect(canvasMenu).toHaveClass(/shadow-overlay/);
-    const sessionControl = page.getByRole("menuitem", {
+    const canvasPanel = page.getByRole("dialog", { name: "Select canvas" });
+    await expectHostContainer(canvasPanel);
+    await expect(canvasPanel).toHaveClass(/shadow-overlay/);
+    const sessionControl = page.getByRole("button", {
       name: "Beta",
       exact: true,
     });
@@ -329,7 +327,7 @@ for (const scenario of [
     const adjacentSessionItem = page.locator(
       '[data-canvas-session-row="host-c"]'
     );
-    const manageControl = page.getByRole("menuitem", { name: "Manage Beta" });
+    const manageControl = page.getByRole("button", { name: "Manage Beta" });
     await manageControl.hover();
     await expect(sessionItem).toHaveCSS(
       "background-color",

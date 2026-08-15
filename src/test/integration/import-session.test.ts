@@ -1,8 +1,4 @@
 import { afterEach, describe, expect, it } from "vitest";
-import {
-  CHARDESK_DOCUMENT_TYPE,
-  CHARDESK_DOCUMENT_VERSION,
-} from "@/domains/document/public";
 import { applyFreeformSnapshotToYMaps, useEditorStore } from "@/domains/canvas/testing";
 import { DEFAULT_SESSION_ID } from "@/domains/canvas/state/helpers/storeUtils";
 import { createDocumentInteractionResetPatch } from "@/domains/canvas/state/transitions/editorTransitions";
@@ -24,17 +20,11 @@ describe("importCanvasSession", () => {
     applyFreeformSnapshotToYMaps([]);
   });
 
-  it("imports a freeform protocol document into a new active session", () => {
+  it("imports CharDesk text into a new active session", () => {
     const sessionCount = useEditorStore.getState().canvasSessions.length;
-    const session = useEditorStore.getState().importCanvasSession({
-      type: CHARDESK_DOCUMENT_TYPE,
-      version: CHARDESK_DOCUMENT_VERSION,
-      mode: "freeform",
-      cells: [
-        { x: 2, y: 1, char: "B", color: "#00ff00" },
-        { x: 0, y: 0, char: "A", color: "#ff0000" },
-      ],
-    });
+    const session = useEditorStore.getState().importCanvasSession(
+      "[38;2;255;0;0mA[0m  \n  [38;2;0;255;0mB[0m"
+    );
 
     const state = useEditorStore.getState();
     expect(session.name).toBe("Imported Canvas");
@@ -57,57 +47,12 @@ describe("importCanvasSession", () => {
       canvasColorPickerTarget: "bg",
     });
 
-    useEditorStore.getState().importCanvasSession({
-      type: CHARDESK_DOCUMENT_TYPE,
-      version: CHARDESK_DOCUMENT_VERSION,
-      mode: "freeform",
-      cells: [],
-    });
+    useEditorStore.getState().importCanvasSession("");
 
     expect(useEditorStore.getState()).toMatchObject(
       createDocumentInteractionResetPatch()
     );
   });
-
-
-
-  it("imports structured protocol documents as semantic scenes", () => {
-    const session = useEditorStore.getState().importCanvasSession({
-      type: CHARDESK_DOCUMENT_TYPE,
-      version: CHARDESK_DOCUMENT_VERSION,
-      mode: "structured",
-      nodes: [
-        {
-          id: "box-1",
-          type: "box",
-          order: 1,
-          start: { x: 0, y: 0 },
-          end: { x: 3, y: 2 },
-          name: "Box",
-          style: { color: "#111111" },
-        },
-        {
-          id: "text-1",
-          type: "text",
-          order: 2,
-          position: { x: 1, y: 1 },
-          text: "Hi",
-          style: { color: "#ffffff" },
-        },
-      ],
-    });
-
-    const state = useEditorStore.getState();
-    expect(session.mode).toBe("structured");
-    expect(state.canvasMode).toBe("structured");
-    expect(state.structuredScene).toHaveLength(2);
-    expect(state.structuredScene[0]).toMatchObject({
-      id: "box-1",
-      style: { color: "#111111" },
-    });
-    expect(state.grid.size).toBeGreaterThan(0);
-  });
-
   it("imports Agent-generated Markdown as a new active Slide Deck", () => {
     const before = useEditorStore.getState();
     const session = before.importCanvasSession(
@@ -147,8 +92,8 @@ describe("importCanvasSession", () => {
     expect(() =>
       useEditorStore
         .getState()
-        .importCanvasSession('{"type":"ascii-canvas-document","version":1}')
-    ).toThrow("Invalid chardesk-document payload.");
+        .importCanvasSession('{"type":"chardesk-document","version":1}')
+    ).toThrow("Legacy JSON");
 
     const after = useEditorStore.getState();
     expect(after.activeCanvasId).toBe(activeCanvasId);

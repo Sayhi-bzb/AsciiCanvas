@@ -46,8 +46,19 @@ describe('AppMenu slide interchange', () => {
       ctrlKey: false,
     });
 
-    expect(await screen.findByRole('menuitem', { name: 'Import' })).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: 'Export' })).toBeInTheDocument();
+    const importItem = await screen.findByRole('menuitem', { name: 'Import' });
+    expect(importItem.closest('[data-slot="dropdown-menu-content"]')).toHaveClass(
+      'w-48',
+      'min-w-32',
+      'max-h-(--radix-dropdown-menu-content-available-height)'
+    );
+    const exportItem = screen.getByRole('menuitem', { name: 'Export' });
+    fireEvent.pointerMove(exportItem, { pointerType: 'mouse' });
+    await waitFor(() => expect(exportItem).toHaveAttribute('data-state', 'open'));
+    expect(await screen.findByRole('menuitem', { name: 'Markdown' })).not.toHaveAttribute(
+      'aria-haspopup',
+      'menu'
+    );
   });
 
   it('opens the standalone shortcut dialog and restores menu trigger focus', async () => {

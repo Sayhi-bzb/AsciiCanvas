@@ -64,6 +64,7 @@ test.describe("App menu", () => {
       "Export",
       "Clear",
       "Language",
+      "Shortcuts",
       "GitHub",
     ]);
 
@@ -86,21 +87,17 @@ test.describe("App menu", () => {
     );
     await expect(menu).toBeVisible();
     await expect(exportMenu).toBeVisible();
-    await exportMenu.getByRole("menuitem", { name: "TXT" }).hover();
-    const txtMenu = page.getByRole("menu", { name: "TXT" });
-    await expect(txtMenu).toBeVisible();
-    await expect(txtMenu.getByRole("menuitem").allTextContents()).resolves.toEqual([
-      "Copy",
-      "Save",
-    ]);
-    await txtMenu.getByRole("menuitem", { name: "Copy" }).click();
+    const txtItem = exportMenu.getByRole("menuitem", { name: "TXT" });
+    await expect(txtItem).not.toHaveAttribute("aria-haspopup", "menu");
+    const textDownload = page.waitForEvent("download");
+    await txtItem.click();
+    const downloadedText = await textDownload;
+    expect(downloadedText.suggestedFilename()).toMatch(/\.txt$/);
     await expect(menu).toBeVisible();
     await expect(exportMenu).toBeVisible();
-    await expect(txtMenu).toBeVisible();
-    await txtMenu.getByRole("menuitem", { name: "Save" }).click();
-    await expect(menu).toBeVisible();
-    await expect(exportMenu).toBeVisible();
-    await expect(txtMenu).toBeVisible();
+    await expect(page.getByRole("menu", { name: "TXT" })).toHaveCount(0);
+    await expect(page.getByRole("menuitem", { name: "Copy" })).toHaveCount(0);
+    await expect(page.getByRole("menuitem", { name: "Save" })).toHaveCount(0);
 
     const separator = menu.locator('[data-slot="dropdown-menu-separator"]');
     await expect(separator).toHaveCSS("height", "2px");
@@ -150,7 +147,7 @@ test.describe("App menu", () => {
     await importChooser;
     await expect(page.locator('input[type="file"]')).toHaveAttribute(
       "accept",
-      ".chardesk,.json,.md,application/vnd.chardesk+json,application/json,text/markdown,text/plain"
+      ".chardesk,.md,text/markdown,text/plain"
     );
     await page.evaluate(() => window.dispatchEvent(new Event("blur")));
     await expect(

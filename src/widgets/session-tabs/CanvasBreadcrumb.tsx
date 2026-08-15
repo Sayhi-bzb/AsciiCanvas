@@ -7,7 +7,7 @@ import { SLIDE_SIZE_PRESETS, type SlideSize } from "@/domains/slides/public";
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
 import { useUiI18n, type I18nKey } from "@/shared/i18n";
 import { cn } from "@/shared/lib/utils";
-import { rx } from "@/shared/styles/recipes"
+import { rx } from "@/shared/styles/recipes";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,6 +22,7 @@ import { Button } from "@/shared/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuSub,
@@ -30,6 +31,8 @@ import {
   DropdownMenuTrigger,
 } from "@/shared/ui/dropdown-menu";
 import { InlineRenameInput } from "@/shared/ui/inline-rename-input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
+import { Separator } from "@/shared/ui/separator";
 import { CustomSlideSizeDialog } from "@/widgets/dialogs/custom-slide-size-dialog";
 import { useOnboardingTour } from "@/widgets/onboarding/onboarding-context";
 
@@ -62,11 +65,10 @@ export function CanvasBreadcrumb() {
   const { t } = useUiI18n();
   const { phase: onboardingPhase } = useOnboardingTour();
   const selectorTriggerRef = useRef<HTMLButtonElement>(null);
-  const menuContentRef = useRef<HTMLDivElement>(null);
-  const {
-    canvasSessions,
-    activeCanvasId,
-  } = useCanvasState(
+  const panelContentRef = useRef<HTMLDivElement>(null);
+  const activeSessionButtonRef = useRef<HTMLButtonElement>(null);
+  const suppressSelectorFocusRef = useRef(false);
+  const { canvasSessions, activeCanvasId } = useCanvasState(
     useShallow((state) => ({
       canvasSessions: state.canvasSessions,
       activeCanvasId: state.activeCanvasId,
@@ -76,10 +78,11 @@ export function CanvasBreadcrumb() {
   const switchCanvasSession = canvas.commands.sessions.switch;
   const removeCanvasSession = canvas.commands.sessions.remove;
   const renameCanvasSession = canvas.commands.sessions.rename;
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [selectorOpen, setSelectorOpen] = useState(false);
+  const [createMenuOpen, setCreateMenuOpen] = useState(false);
   const [actionsOpenId, setActionsOpenId] = useState<string | null>(null);
   const [renameTargetId, setRenameTargetId] = useState<string | null>(null);
-  const [renameMenuWidth, setRenameMenuWidth] = useState<number | null>(null);
+  const [renamePanelWidth, setRenamePanelWidth] = useState<number | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [customSlideSizeOpen, setCustomSlideSizeOpen] = useState(false);
   const keepCreateMenuOpen =
@@ -88,27 +91,31 @@ export function CanvasBreadcrumb() {
     onboardingPhase === "structured-create";
 
   const activeSession =
-    canvasSessions.find((session) => session.id === activeCanvasId) ??
-    canvasSessions[0];
+    canvasSessions.find((session) => session.id === activeCanvasId) ?? canvasSessions[0];
   const pendingDeleteSession = pendingDeleteId
     ? canvasSessions.find((session) => session.id === pendingDeleteId) ?? null
     : null;
-  const ActiveModeIcon =
-    HOST_ICONOLOGY.canvasMode[activeSession?.mode ?? "freeform"];
+  const ActiveModeIcon = HOST_ICONOLOGY.canvasMode[activeSession?.mode ?? "freeform"];
   const canRemove = canvasSessions.length > 1;
+
+  const closeSelector = () => {
+    setSelectorOpen(false);
+    setCreateMenuOpen(false);
+    setActionsOpenId(null);
+  };
 
   const createSession = (mode: "freeform" | "structured") => {
     createCanvasSession(mode);
-    setMenuOpen(false);
+    closeSelector();
   };
 
   const createSlideSession = (size: SlideSize) => {
     createCanvasSession("slide", { slideSize: size });
-    setMenuOpen(false);
+    closeSelector();
   };
 
   const openRename = (id: string) => {
-    setRenameMenuWidth(menuContentRef.current?.getBoundingClientRect().width ?? null);
+    setRenamePanelWidth(panelContentRef.current?.getBoundingClientRect().width ?? null);
     setActionsOpenId(null);
     setRenameTargetId(id);
   };
@@ -117,12 +124,23 @@ export function CanvasBreadcrumb() {
     if (!renameTargetId) return;
     renameCanvasSession(renameTargetId, name);
     setRenameTargetId(null);
-    setRenameMenuWidth(null);
+    setRenamePanelWidth(null);
   };
 
   const cancelRename = () => {
     setRenameTargetId(null);
-    setRenameMenuWidth(null);
+    setRenamePanelWidth(null);
+  };
+
+  const openModalFromSelector = (openModal: () => void) => {
+    suppressSelectorFocusRef.current = true;
+    closeSelector();
+    openModal();
+  };
+
+  const restoreSelectorFocus = () => {
+    suppressSelectorFocusRef.current = false;
+    window.setTimeout(() => selectorTriggerRef.current?.focus(), 0);
   };
 
   return (
@@ -131,18 +149,18 @@ export function CanvasBreadcrumb() {
       data-canvas-breadcrumb-host="true"
       className="pointer-events-auto min-w-0"
     >
-      <DropdownMenu
-        modal={false}
-        open={menuOpen}
+      <Popover
+        open={selectorOpen}
         onOpenChange={(open) => {
-          setMenuOpen(keepCreateMenuOpen ? true : open);
+          setSelectorOpen(keepCreateMenuOpen ? true : open);
           if (!open) {
+            setCreateMenuOpen(false);
             setActionsOpenId(null);
-            setRenameMenuWidth(null);
+            setRenamePanelWidth(null);
           }
         }}
       >
-        <DropdownMenuTrigger asChild>
+        <PopoverTrigger asChild>
           <Button
             ref={selectorTriggerRef}
             data-onboarding-target="canvas-selector"
@@ -162,19 +180,28 @@ export function CanvasBreadcrumb() {
             </span>
             <SessionExpandIcon className="size-4 shrink-0 opacity-60" />
           </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent
-          ref={menuContentRef}
+        </PopoverTrigger>
+        <PopoverContent
+          ref={panelContentRef}
           align="start"
-          className="w-max min-w-40 max-w-[min(14rem,calc(100vw-1.5rem))]"
-          style={
-            renameMenuWidth === null
-              ? undefined
-              : { width: renameMenuWidth }
-          }
+          className="w-max min-w-44 max-w-[min(14rem,calc(100vw-1.5rem))] p-[3px]"
+          style={renamePanelWidth === null ? undefined : { width: renamePanelWidth }}
+          role="dialog"
           aria-label={t("session.select")}
+          onOpenAutoFocus={(event) => {
+            event.preventDefault();
+            activeSessionButtonRef.current?.focus();
+          }}
           onCloseAutoFocus={(event) => {
-            if (customSlideSizeOpen) event.preventDefault();
+            if (suppressSelectorFocusRef.current) event.preventDefault();
+          }}
+          onInteractOutside={(event) => {
+            if (
+              event.target instanceof Element &&
+              event.target.closest('[data-slot^="dropdown-menu"]')
+            ) {
+              event.preventDefault();
+            }
           }}
           onEscapeKeyDown={(event) => {
             if (!renameTargetId) return;
@@ -182,165 +209,186 @@ export function CanvasBreadcrumb() {
             cancelRename();
           }}
         >
-          {canvasSessions.map((session) => {
-            const ModeIcon = HOST_ICONOLOGY.canvasMode[session.mode];
-            const manageLabel = t("session.manage", { name: session.name });
-            const isActive = session.id === activeCanvasId;
-            const isEditing = session.id === renameTargetId;
-            return (
-              <div
-                key={session.id}
-                role="none"
-                data-canvas-session-row={session.id}
-                data-active={isActive ? "true" : undefined}
-                className={cn(
-                  "group/session-row flex min-w-0 items-center rounded-md transition-colors",
-                  "has-[[data-highlighted]]:bg-accent has-[[data-state=open]]:bg-accent",
-                  isActive && "bg-accent text-accent-foreground"
-                )}
-              >
-                {isEditing ? (
-                  <div
-                    role="none"
-                    className="flex h-7 min-w-0 flex-1 items-center gap-2 px-2"
-                  >
-                    <ModeIcon className="size-4 shrink-0" />
-                    <InlineRenameInput
-                      value={session.name}
-                      onCommit={commitRename}
-                      onCancel={cancelRename}
-                      onPointerDown={(event) => event.stopPropagation()}
-                      onClick={(event) => event.stopPropagation()}
-                      className="flex-1 px-1.5"
-                      aria-label={t("session.renameLabel")}
-                      autoFocus
-                    />
-                  </div>
-                ) : (
-                  <>
-                    <DropdownMenuItem
-                      onSelect={() => {
-                        switchCanvasSession(session.id);
-                        setMenuOpen(false);
-                      }}
-                      aria-current={isActive ? "page" : undefined}
-                      className={cn(
-                        "min-w-0 flex-1 bg-transparent pr-1 focus:bg-transparent data-[highlighted]:bg-transparent",
-                        "group-has-[[data-highlighted]]/session-row:text-accent-foreground group-has-[[data-state=open]]/session-row:text-accent-foreground"
-                      )}
-                    >
+          <div className="flex flex-col gap-0.5">
+            {canvasSessions.map((session) => {
+              const ModeIcon = HOST_ICONOLOGY.canvasMode[session.mode];
+              const manageLabel = t("session.manage", { name: session.name });
+              const isActive = session.id === activeCanvasId;
+              const isEditing = session.id === renameTargetId;
+              return (
+                <div
+                  key={session.id}
+                  data-canvas-session-row={session.id}
+                  data-active={isActive ? "true" : undefined}
+                  className={cn(
+                    "group/session-row flex min-w-0 items-center rounded-md transition-colors",
+                    isActive && "bg-accent text-accent-foreground"
+                  )}
+                >
+                  {isEditing ? (
+                    <div className="flex h-7 min-w-0 flex-1 items-center gap-2 px-2">
                       <ModeIcon className="size-4 shrink-0" />
-                      <span className="truncate">{session.name}</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuSub
-                      open={actionsOpenId === session.id}
-                      onOpenChange={(open) =>
-                        setActionsOpenId(open ? session.id : null)
-                      }
-                    >
-                      <DropdownMenuSubTrigger
-                        data-session-actions="true"
-                        aria-label={manageLabel}
-                        title={manageLabel}
-                        className={cn(
-                          "size-7 shrink-0 justify-center bg-transparent p-0 focus:bg-transparent data-[highlighted]:bg-transparent data-[state=open]:bg-transparent",
-                          "[&>svg:last-child]:hidden group-has-[[data-highlighted]]/session-row:text-accent-foreground group-has-[[data-state=open]]/session-row:text-accent-foreground"
-                        )}
+                      <InlineRenameInput
+                        value={session.name}
+                        onCommit={commitRename}
+                        onCancel={cancelRename}
+                        onPointerDown={(event) => event.stopPropagation()}
+                        onClick={(event) => event.stopPropagation()}
+                        className="flex-1 px-1.5"
+                        aria-label={t("session.renameLabel")}
+                        autoFocus
+                      />
+                    </div>
+                  ) : (
+                    <>
+                      <Button
+                        ref={isActive ? activeSessionButtonRef : undefined}
+                        type="button"
+                        tone="subtle"
+                        size="sm"
+                        aria-current={isActive ? "page" : undefined}
+                        className="min-w-0 flex-1 justify-start bg-transparent px-2 hover:bg-accent"
+                        onClick={() => {
+                          switchCanvasSession(session.id);
+                          closeSelector();
+                        }}
                       >
-                        <SessionMoreIcon className="size-4" />
-                      </DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent aria-label={manageLabel}>
-                        <DropdownMenuItem
-                          onSelect={(event) => {
-                            event.preventDefault();
-                            openRename(session.id);
-                          }}
+                        <ModeIcon className="size-4 shrink-0" />
+                        <span className="truncate">{session.name}</span>
+                      </Button>
+                      <DropdownMenu
+                        modal={false}
+                        open={actionsOpenId === session.id}
+                        onOpenChange={(open) => setActionsOpenId(open ? session.id : null)}
+                      >
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            type="button"
+                            tone="subtle"
+                            shape="square"
+                            size="sm"
+                            data-session-actions="true"
+                            aria-label={manageLabel}
+                            title={manageLabel}
+                            className="size-7 shrink-0 bg-transparent"
+                          >
+                            <SessionMoreIcon className="size-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          side="right"
+                          align="start"
+                          className="w-36"
+                          aria-label={manageLabel}
                         >
-                          <SessionRenameIcon />
-                          {t("session.rename")}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          variant="destructive"
-                          disabled={!canRemove}
-                          onSelect={() => {
-                            setMenuOpen(false);
-                            setPendingDeleteId(session.id);
-                          }}
-                        >
-                          <SessionCloseIcon />
-                          {t("session.closeAction")}
-                        </DropdownMenuItem>
-                      </DropdownMenuSubContent>
-                    </DropdownMenuSub>
-                  </>
-                )}
-              </div>
-            );
-          })}
-          <DropdownMenuSeparator />
-          <DropdownMenuSub
-            open={
-              onboardingPhase === "create-menu" ||
-              onboardingPhase === "structured-create"
-                ? true
-                : undefined
-            }
+                          <DropdownMenuGroup>
+                            <DropdownMenuItem onSelect={() => openRename(session.id)}>
+                              <SessionRenameIcon />
+                              {t("session.rename")}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              variant="destructive"
+                              disabled={!canRemove}
+                              onSelect={() =>
+                                openModalFromSelector(() => setPendingDeleteId(session.id))
+                              }
+                            >
+                              <SessionCloseIcon />
+                              {t("session.closeAction")}
+                            </DropdownMenuItem>
+                          </DropdownMenuGroup>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <Separator className="my-1" />
+
+          <DropdownMenu
+            modal={false}
+            open={keepCreateMenuOpen ? true : createMenuOpen}
+            onOpenChange={(open) => setCreateMenuOpen(keepCreateMenuOpen ? true : open)}
           >
-            <DropdownMenuSubTrigger data-onboarding-target="create-menu">
-              <SessionCreateIcon />
-              {t("session.createNew")}
-            </DropdownMenuSubTrigger>
-            <DropdownMenuSubContent aria-label={t("session.createNew")}>
-              {createOptionMeta.map((option) => {
-                const Icon = option.icon;
-                return (
-                  <DropdownMenuItem
-                    key={option.mode}
-                    data-onboarding-target={
-                      option.mode === "structured" ? "create-structured" : undefined
-                    }
-                    onSelect={() => createSession(option.mode)}
-                  >
-                    <Icon />
-                    {t(option.labelKey)}
-                  </DropdownMenuItem>
-                );
-              })}
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger>
-                  <SlideModeIcon />
-                  {t("session.newSlides")}
-                </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent aria-label={t("session.newSlides")}>
-                  <DropdownMenuItem onSelect={() => createSlideSession(SLIDE_SIZE_PRESETS.widescreen)}>
-                    {t("session.slideWidescreen")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => createSlideSession(SLIDE_SIZE_PRESETS.classic)}>
-                    {t("session.slideClassic")}
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onSelect={() => {
-                      setMenuOpen(false);
-                      setCustomSlideSizeOpen(true);
-                    }}
-                  >
-                    {t("session.slideCustom.item")}
-                  </DropdownMenuItem>
-                </DropdownMenuSubContent>
-              </DropdownMenuSub>
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-        </DropdownMenuContent>
-      </DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                tone="subtle"
+                size="sm"
+                data-onboarding-target="create-menu"
+                className="w-full justify-start bg-transparent px-2"
+              >
+                <SessionCreateIcon />
+                {t("session.createNew")}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-44" aria-label={t("session.createNew")}>
+              <DropdownMenuGroup>
+                {createOptionMeta.map((option) => {
+                  const Icon = option.icon;
+                  return (
+                    <DropdownMenuItem
+                      key={option.mode}
+                      data-onboarding-target={
+                        option.mode === "structured" ? "create-structured" : undefined
+                      }
+                      onSelect={() => createSession(option.mode)}
+                    >
+                      <Icon />
+                      {t(option.labelKey)}
+                    </DropdownMenuItem>
+                  );
+                })}
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <SlideModeIcon />
+                    {t("session.newSlides")}
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-44" aria-label={t("session.newSlides")}>
+                    <DropdownMenuGroup>
+                      <DropdownMenuItem
+                        onSelect={() => createSlideSession(SLIDE_SIZE_PRESETS.widescreen)}
+                      >
+                        {t("session.slideWidescreen")}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onSelect={() => createSlideSession(SLIDE_SIZE_PRESETS.classic)}
+                      >
+                        {t("session.slideClassic")}
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuGroup>
+                      <DropdownMenuItem
+                        onSelect={() =>
+                          openModalFromSelector(() => setCustomSlideSizeOpen(true))
+                        }
+                      >
+                        {t("session.slideCustom.item")}
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+              </DropdownMenuGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </PopoverContent>
+      </Popover>
 
       {customSlideSizeOpen ? (
         <CustomSlideSizeDialog
           open={customSlideSizeOpen}
-          onOpenChange={setCustomSlideSizeOpen}
+          onOpenChange={(open) => {
+            setCustomSlideSizeOpen(open);
+            if (!open) suppressSelectorFocusRef.current = false;
+          }}
           onConfirm={(size) => {
             createSlideSession(size);
             setCustomSlideSizeOpen(false);
+            suppressSelectorFocusRef.current = false;
           }}
           returnFocusRef={selectorTriggerRef}
         />
@@ -349,7 +397,9 @@ export function CanvasBreadcrumb() {
       <AlertDialog
         open={!!pendingDeleteSession}
         onOpenChange={(open) => {
-          if (!open) setPendingDeleteId(null);
+          if (open) return;
+          setPendingDeleteId(null);
+          restoreSelectorFocus();
         }}
       >
         <AlertDialogContent>
@@ -369,6 +419,7 @@ export function CanvasBreadcrumb() {
                 if (!pendingDeleteSession) return;
                 removeCanvasSession(pendingDeleteSession.id);
                 setPendingDeleteId(null);
+                restoreSelectorFocus();
               }}
             >
               {t("session.delete.action")}

@@ -23,6 +23,12 @@ Minimap, and the desktop Sidebar therefore share one borderless host surface,
 radius, and light elevation. Transient portal content continues to use the
 stronger overlay surface.
 
+Dropdown primitives own the overlay surface, collision behavior, animation,
+viewport limits, and a compact minimum width. The product instance owns only
+its semantic width. Dropdowns are reserved for command choices and grouped
+options; persistent lists, forms, status, and multi-action widgets use a
+Popover with ordinary buttons and dialog focus behavior.
+
 ## Evidence
 
 - [`scripts/quality/check-style-api.mjs`](https://github.com/Sayhi-bzb/CharDesk/blob/main/scripts/quality/check-style-api.mjs)

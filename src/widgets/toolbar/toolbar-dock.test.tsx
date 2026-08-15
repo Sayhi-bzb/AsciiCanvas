@@ -324,6 +324,7 @@ describe('Toolbar dock', () => {
     expect(shapeItem).toHaveClass('bg-accent', 'text-foreground');
     const shapeMenu = document.querySelector('[data-slot="dropdown-menu-content"]');
     expect(shapeMenu).toHaveClass(
+      'w-max',
       'min-w-40',
       'bg-overlay-surface',
       'border-0',

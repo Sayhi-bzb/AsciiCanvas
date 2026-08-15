@@ -6,8 +6,7 @@ import {
 } from "@/domains/export/public";
 import { clipboard } from "@/shared/services/effects";
 import {
-  parseCharDeskDocument,
-  charDeskDocumentToSnapshot,
+  parseDocumentSessionSource,
 } from "@/domains/document/public";
 import { parseSlideMarkdown } from "@/domains/slides/public";
 
@@ -25,7 +24,7 @@ const createContext = (
 
 describe("export service", () => {
 
-  it("builds a round-trippable CharDesk project artifact", () => {
+  it("builds a round-trippable CharDesk text artifact", () => {
     const result = prepareTextExport(createContext(), "chardesk");
 
     expect(result.ok).toBe(true);
@@ -33,15 +32,40 @@ describe("export service", () => {
     expect(result.value).toMatchObject({
       kind: "text",
       format: "chardesk",
-      mimeType: "application/vnd.chardesk+json;charset=utf-8",
+      mimeType: "text/plain;charset=utf-8",
     });
     expect(result.value.filename).toMatch(/^chardesk-\d+\.chardesk$/);
-    const snapshot = charDeskDocumentToSnapshot(
-      parseCharDeskDocument(result.value.content)
-    );
+    expect(result.value.content).not.toContain("\u001b");
+    const snapshot = parseDocumentSessionSource(result.value.content);
     expect(snapshot).toMatchObject({
       mode: "freeform",
       grid: [["0,0", { char: "A", color: "#ffffff" }]],
+    });
+  });
+
+  it("flattens structured exports to a freeform visual canvas", () => {
+    const result = prepareTextExport(
+      createContext({
+        canvasMode: "structured",
+        grid: new Map([["0,0", { char: "X", color: "#ff0000" }]]),
+        structuredScene: [{
+          id: "box-1",
+          type: "box",
+          order: 1,
+          start: { x: 0, y: 0 },
+          end: { x: 2, y: 2 },
+          style: { color: "#ff0000" },
+        }],
+      }),
+      "chardesk"
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(parseDocumentSessionSource(result.value.content)).toMatchObject({
+      mode: "freeform",
+      scene: [],
+      grid: [["0,0", { char: "X", color: "#ff0000" }]],
     });
   });
 

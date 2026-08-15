@@ -1,19 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
-  buildCharDeskExportDocument,
   exportSelectionToString,
   exportToAnsi,
+  exportToCharDesk,
 } from "@/domains/export/public";
 
 describe("export formats", () => {
-  it("builds a freeform project document", () => {
-    const document = buildCharDeskExportDocument({
-      canvasMode: "freeform",
-      grid: new Map([["0,0", { char: "A", color: "#ffffff" }]]),
-      structuredScene: [],
-      structuredComponents: [],
-    });
-    expect(document.mode).toBe("freeform");
+  it("exports visible CharDesk controls without ESC", () => {
+    const grid = new Map([["0,0", { char: "A", color: "#ff0000" }]]);
+    expect(exportToCharDesk(grid)).toBe("[91mA[m");
+    expect(exportToAnsi(grid)).toBe("\u001b[91mA\u001b[m");
   });
 
   it("exports static text selections and ANSI text", () => {

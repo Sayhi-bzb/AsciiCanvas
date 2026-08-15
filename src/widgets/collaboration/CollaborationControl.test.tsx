@@ -51,11 +51,8 @@ describe('CollaborationControl', () => {
     });
   };
 
-  const openMenu = () => {
-    fireEvent.pointerDown(screen.getByRole('button', { name: 'Collaboration' }), {
-      button: 0,
-      ctrlKey: false,
-    });
+  const openPanel = () => {
+    fireEvent.click(screen.getByRole('button', { name: 'Collaboration' }));
   };
 
   beforeEach(() => {
@@ -88,36 +85,35 @@ describe('CollaborationControl', () => {
     window.history.replaceState(null, '', '/');
   });
 
-  it('opens a dropdown and keeps it open across P2P room actions', async () => {
+  it('opens a collaboration panel and keeps it open across P2P room actions', async () => {
     render(<CollaborationControl />);
 
-    openMenu();
+    openPanel();
 
-    const menu = await screen.findByRole('menu', { name: 'Collaboration' });
-    expect(menu).toHaveClass('w-72', 'shadow-overlay');
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    const panel = await screen.findByRole('dialog', { name: 'Collaboration' });
+    expect(panel).toHaveClass('w-72', 'shadow-overlay');
     expect(screen.getByLabelText('Custom sync server')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Start P2P room' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start P2P room' }));
 
-    expect(screen.getByRole('menu', { name: 'Collaboration' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Collaboration' })).toBeInTheDocument();
     expect(screen.getByText('P2P')).toBeInTheDocument();
     expect(useEditorStore.getState().canvasSessions[0].collaboration?.provider).toBe('p2p');
     expect(window.location.hash).toContain('room=');
 
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Copy edit link' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Copy edit link' }));
     await waitFor(() => expect(clipboardWrite).toHaveBeenCalledOnce());
-    expect(screen.getByRole('menu', { name: 'Collaboration' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Collaboration' })).toBeInTheDocument();
 
     window.dispatchEvent(new Event('blur'));
     await waitFor(() =>
-      expect(screen.queryByRole('menu', { name: 'Collaboration' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('dialog', { name: 'Collaboration' })).not.toBeInTheDocument()
     );
   });
 
   it('connects to a validated custom server without closing', async () => {
     render(<CollaborationControl />);
-    openMenu();
+    openPanel();
 
     const endpoint = await screen.findByLabelText('Custom sync server');
     fireEvent.change(endpoint, {
@@ -127,7 +123,7 @@ describe('CollaborationControl', () => {
     expect(connect).toBeEnabled();
     fireEvent.click(connect);
 
-    expect(screen.getByRole('menu', { name: 'Collaboration' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Collaboration' })).toBeInTheDocument();
     expect(screen.getByText('BYOS')).toBeInTheDocument();
     expect(useEditorStore.getState().canvasSessions[0].collaboration).toMatchObject({
       provider: 'websocket',
@@ -165,15 +161,15 @@ describe('CollaborationControl', () => {
     };
     render(<CollaborationControl />);
 
-    openMenu();
+    openPanel();
     expect(await screen.findByText('Connected')).toBeInTheDocument();
     expect(screen.getByText('2 participant(s)')).toBeInTheDocument();
     expect(screen.getByText('Remote Peer')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Leave room' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Leave room' }));
 
-    expect(screen.getByRole('menu', { name: 'Collaboration' })).toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: 'Start P2P room' })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Collaboration' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Start P2P room' })).toBeInTheDocument();
     expect(useEditorStore.getState().canvasSessions[0].collaboration).toBeUndefined();
     expect(window.location.hash).toBe('');
   });
