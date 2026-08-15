@@ -115,10 +115,8 @@ describe("CharLibrary", () => {
 
     fireEvent.focus(starButton);
     const tooltip = await screen.findByRole("tooltip");
-    expect(tooltip.parentElement?.querySelector('[data-slot="tooltip-title"]'))
-      .toHaveTextContent("star icon");
-    expect(tooltip.parentElement?.querySelector('[data-slot="tooltip-meta"]'))
-      .toHaveTextContent(/U\+2605.*So/);
+    expect(tooltip).toHaveTextContent("star icon · U+2605");
+    expect(tooltip).not.toHaveTextContent("So");
   });
 
   it("localizes every curated pack directory and falls back to its asset label", () => {

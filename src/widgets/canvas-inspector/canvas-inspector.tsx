@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { useShallow } from "zustand/react/shallow";
 
 import { EDITOR_COMMAND_META } from "@/domains/actions/public";
@@ -19,7 +25,8 @@ import { ColorSwatch } from "@/shared/ui/color-swatch";
 import { Surface } from "@/shared/ui/surface";
 import {
   Tooltip,
-  TooltipContent,
+  TooltipCreateHandle,
+  TooltipPopup,
   TooltipTrigger,
 } from "@/shared/ui/tooltip";
 import { ColorPickerPanel } from "@/widgets/color-picker";
@@ -78,6 +85,10 @@ export function CanvasInspectorControl({
   const canvas = useCanvasRuntime();
   const editor = useEditor();
   const { t } = useUiI18n();
+  const actionTooltipHandle = useMemo(
+    () => TooltipCreateHandle<ReactNode>(),
+    []
+  );
   const state = useCanvasState(
     useShallow((value) => ({
       canvasMode: value.canvasMode,
@@ -246,8 +257,11 @@ export function CanvasInspectorControl({
     const state = textFormatting?.[attribute] ?? "off";
     const Icon = meta.icon;
     return (
-      <Tooltip key={attribute}>
-        <TooltipTrigger asChild>
+      <TooltipTrigger
+        key={attribute}
+        handle={actionTooltipHandle}
+        payload={t(meta.label)}
+        render={
           <Button
             type="button"
             tone="subtle"
@@ -259,18 +273,17 @@ export function CanvasInspectorControl({
             disabled={readOnly || !textFormattingEnabled}
             className="relative"
             onClick={() => setTextAttribute(attribute, state)}
-          >
-            <Icon data-icon="inline-start" />
-            {state === "mixed" && (
-              <span
-                aria-hidden="true"
-                className="absolute bottom-1 h-0.5 w-2 rounded-full bg-current"
-              />
-            )}
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side="bottom">{t(meta.label)}</TooltipContent>
-      </Tooltip>
+          />
+        }
+      >
+        <Icon data-icon="inline-start" />
+        {state === "mixed" && (
+          <span
+            aria-hidden="true"
+            className="absolute bottom-1 h-0.5 w-2 rounded-full bg-current"
+          />
+        )}
+      </TooltipTrigger>
     );
   };
 
@@ -282,8 +295,11 @@ export function CanvasInspectorControl({
       !readOnly &&
       editor.commands.canExecute(id, undefined, "availability");
     return (
-      <Tooltip key={id}>
-        <TooltipTrigger asChild>
+      <TooltipTrigger
+        key={id}
+        handle={actionTooltipHandle}
+        payload={meta.label}
+        render={
           <Button
             type="button"
             tone={meta.destructive ? "danger" : "subtle"}
@@ -292,40 +308,47 @@ export function CanvasInspectorControl({
             aria-label={meta.label}
             disabled={!enabled}
             onClick={() => execute(id)}
-          >
-            {Icon && <Icon />}
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side="bottom">{meta.label}</TooltipContent>
-      </Tooltip>
+          />
+        }
+      >
+        {Icon && <Icon />}
+      </TooltipTrigger>
     );
   };
 
   return (
     <div className="pointer-events-auto relative flex-none">
       <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            type="button"
-            tone="subtle"
-            shape="square"
-            size="md"
-            open={panelOpen}
-            aria-label={t("inspector.toggle")}
-            aria-controls="canvas-inspector-panel"
-            aria-keyshortcuts="Alt+6"
-            disabled={state.tool === "pan"}
-            onClick={() => setOpenState(!panelOpen)}
-          >
-            <ColorSwatch
-              data-testid="canvas-inspector-swatch"
-              aria-hidden="true"
-              color={model.activeColor}
-              className="size-5"
+        <TooltipTrigger
+          render={
+            <Button
+              type="button"
+              tone="subtle"
+              shape="square"
+              size="md"
+              open={panelOpen}
+              aria-label={t("inspector.toggle")}
+              aria-controls="canvas-inspector-panel"
+              aria-keyshortcuts="Alt+6"
+              disabled={state.tool === "pan"}
+              onClick={() => setOpenState(!panelOpen)}
             />
-          </Button>
+          }
+        >
+          <ColorSwatch
+            data-testid="canvas-inspector-swatch"
+            aria-hidden="true"
+            color={model.activeColor}
+            className="size-5"
+          />
         </TooltipTrigger>
-        <TooltipContent side="bottom">{t("inspector.title")}</TooltipContent>
+        <TooltipPopup side="bottom">{t("inspector.title")}</TooltipPopup>
+      </Tooltip>
+
+      <Tooltip handle={actionTooltipHandle}>
+        {({ payload }) => (
+          <TooltipPopup side="bottom">{payload}</TooltipPopup>
+        )}
       </Tooltip>
 
       {panelOpen && (

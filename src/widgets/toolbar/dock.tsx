@@ -1,6 +1,13 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import {
+  useState,
+  useRef,
+  useEffect,
+  useMemo,
+  useCallback,
+  type ReactNode,
+} from "react";
 import {
   isToolAllowedForMode,
   type ToolType,
@@ -13,7 +20,8 @@ import { resolveActiveToolbarAction } from "@/domains/actions/public";
 import type { ToolbarActionId } from "@/domains/actions/public";
 import {
   Tooltip,
-  TooltipContent,
+  TooltipCreateHandle,
+  TooltipPopup,
   TooltipTrigger,
 } from "@/shared/ui/tooltip";
 import {
@@ -104,6 +112,10 @@ export function Toolbar({
   const setBrushChar = canvas.commands.preferences.setBrushChar;
   const [lastUsedShape, setLastUsedShape] = useState<ToolType>("box");
   const [openSubMenuId, setOpenSubMenuId] = useState<null | string>(null);
+  const tooltipHandle = useMemo(
+    () => TooltipCreateHandle<ReactNode>(),
+    []
+  );
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [customChar, setCustomChar] = useState(() =>
@@ -281,8 +293,15 @@ export function Toolbar({
                   data-toolbar-item={item.id}
                   className="relative flex items-center"
                 >
-                  <Tooltip>
-                    <TooltipTrigger asChild>
+                  <TooltipTrigger
+                    handle={tooltipHandle}
+                    payload={
+                      <>
+                        <span>{item.label}</span>
+                        <Kbd>{shortcutLabel}</Kbd>
+                      </>
+                    }
+                    render={
                       <Button
                         type="button"
                         tone="subtle"
@@ -294,22 +313,12 @@ export function Toolbar({
                         onClick={() => activateToolbarItem(item.id as ToolbarActionId)}
                         aria-label={item.label}
                         aria-keyshortcuts={shortcutAriaLabel}
-                      >
-                        {Icon ? (
-                          <Icon />
-                        ) : null}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent
-                      side="top"
-                      className="flex items-center gap-2 text-xs"
-                    >
-                      <span>{item.label}</span>
-                      <Kbd>
-                        {shortcutLabel}
-                      </Kbd>
-                    </TooltipContent>
-                  </Tooltip>
+                      />
+                    }
+                    className="relative after:absolute after:top-0 after:left-full after:h-full after:w-1 after:content-['']"
+                  >
+                    {Icon ? <Icon /> : null}
+                  </TooltipTrigger>
 
                   {item.hasSub && (
                     <DropdownMenu
@@ -355,6 +364,13 @@ export function Toolbar({
                 </div>
               );
             })}
+            <Tooltip handle={tooltipHandle}>
+              {({ payload }) => (
+                <TooltipPopup side="top" className="flex items-center gap-2">
+                  {payload}
+                </TooltipPopup>
+              )}
+            </Tooltip>
           </nav>
     </Surface>
   );

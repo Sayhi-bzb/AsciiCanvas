@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { type LucideIcon, X } from "lucide-react";
 import {
   SidebarHeader,
@@ -27,7 +27,12 @@ import { Button } from "@/shared/ui/button";
 import { IconButton } from "@/shared/ui/icon-button";
 import { Input } from "@/shared/ui/input";
 import { Surface } from "@/shared/ui/surface";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
+import {
+  Tooltip,
+  TooltipCreateHandle,
+  TooltipPopup,
+  TooltipTrigger,
+} from "@/shared/ui/tooltip";
 import { useShallow } from "zustand/react/shallow";
 import { useUiI18n } from "@/shared/i18n";
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
@@ -82,6 +87,11 @@ function SidebarViewRail<ViewId extends string>({
   ariaLabel: string;
   testIdPrefix: string;
 }) {
+  const tooltipHandle = useMemo(
+    () => TooltipCreateHandle<ReactNode>(),
+    []
+  );
+
   return (
     <Surface kind="embedded" asChild>
       <nav
@@ -103,8 +113,11 @@ function SidebarViewRail<ViewId extends string>({
         const Icon = view.icon;
         const isActive = activeView === view.id;
         return (
-          <Tooltip key={view.id} delayDuration={300}>
-            <TooltipTrigger asChild>
+          <TooltipTrigger
+            key={view.id}
+            handle={tooltipHandle}
+            payload={view.label}
+            render={
               <Button
                 type="button"
                 tone="subtle"
@@ -115,16 +128,28 @@ function SidebarViewRail<ViewId extends string>({
                 aria-selected={isActive}
                 aria-label={view.label}
                 onClick={() => onSelect(view.id)}
-              >
-                <Icon />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side={orientation === "vertical" ? "right" : "bottom"}>
-              {view.label}
-            </TooltipContent>
-          </Tooltip>
+              />
+            }
+            className={cn(
+              "relative",
+              orientation === "vertical"
+                ? "after:absolute after:top-0 after:left-full after:h-full after:w-1 after:content-['']"
+                : "after:absolute after:top-full after:left-0 after:h-1 after:w-full after:content-['']"
+            )}
+          >
+            <Icon />
+          </TooltipTrigger>
         );
       })}
+      <Tooltip handle={tooltipHandle}>
+        {({ payload }) => (
+          <TooltipPopup
+            side={orientation === "vertical" ? "right" : "bottom"}
+          >
+            {payload}
+          </TooltipPopup>
+        )}
+      </Tooltip>
       </nav>
     </Surface>
   );

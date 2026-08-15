@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Check, Pipette } from 'lucide-react';
 import { HexColorPicker } from 'react-colorful';
 import { useCanvasRuntime, useCanvasState } from '@/domains/canvas/public';
@@ -10,19 +10,12 @@ import { useUiI18n } from '@/shared/i18n';
 import { cn } from '@/shared/lib/utils';
 import { Button } from '@/shared/ui/button';
 import { ColorSwatch } from '@/shared/ui/color-swatch';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/shared/ui/dropdown-menu';
 import { Input } from '@/shared/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
 import { Surface } from '@/shared/ui/surface';
 import { SwatchButton } from '@/shared/ui/swatch-button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/ui/tooltip';
+import { Tooltip, TooltipCreateHandle, TooltipPopup, TooltipTrigger } from '@/shared/ui/tooltip';
 
 type ColorPickerPanelProps = {
   value: string;
@@ -135,15 +128,20 @@ export function ColorPickerPanel({
   const [hexPopoverOpen, setHexPopoverOpen] = useState(false);
   const [activePaletteTab, setActivePaletteTab] = useState<'ansi16' | 'presets'>('ansi16');
   const [eyedropperOpen, setEyedropperOpen] = useState(false);
+  const tooltipHandle = useMemo(() => TooltipCreateHandle<ReactNode>(), []);
   const panelRef = useRef<HTMLDivElement>(null);
   const colorToolRef = useRef<HTMLDivElement>(null);
   const hexInputRef = useRef<HTMLInputElement>(null);
+  const charPickerButtonRef = useRef<HTMLButtonElement>(null);
+  const bgPickerButtonRef = useRef<HTMLButtonElement>(null);
   const hexCloseHandledRef = useRef(false);
   const normalizedCustomColor = normalizeHexColor(customColor);
   const displayColor = normalizedCustomColor ?? normalizeHexColor(value) ?? '#000000';
   const canvasColorPickerTarget = useCanvasState((state) => state.canvasColorPickerTarget);
   const setCanvasColorPickerTarget = canvas.commands.interaction.setColorPickerTarget;
   const RestoreDefaultIcon = HOST_ICONOLOGY.colorPalette.restoreDefault;
+  const CharacterColorSourceIcon = HOST_ICONOLOGY.toolbarAction.text;
+  const BackgroundColorSourceIcon = HOST_ICONOLOGY.toolbarAction.bg;
 
   useEffect(() => {
     setCustomColor(value);
@@ -185,6 +183,7 @@ export function ColorPickerPanel({
     const target = getCanvasColorPickerTarget(source);
     const nextTarget = canvasColorPickerTarget === target ? null : target;
     setCanvasColorPickerTarget(nextTarget);
+    setEyedropperOpen(false);
     if (nextTarget) onCanvasPickStarted?.();
   };
 
@@ -225,24 +224,26 @@ export function ColorPickerPanel({
             aria-label={t('color.paletteTabs')}
             className="h-fit w-fit shrink-0 flex-row gap-0.5 p-px"
           >
-          {paletteTabs.map((tab) => {
-            const Icon = tab.icon;
-            return (
-              <Tooltip key={tab.id}>
-                <TooltipTrigger asChild>
-                  <TabsTrigger
-                    value={tab.id}
-                    size="icon"
-                    active={activePaletteTab === tab.id}
-                    aria-label={tab.label}
-                  >
-                    <Icon />
-                  </TabsTrigger>
+            {paletteTabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <TooltipTrigger
+                  key={tab.id}
+                  handle={tooltipHandle}
+                  payload={tab.label}
+                  render={
+                    <TabsTrigger
+                      value={tab.id}
+                      size="icon"
+                      active={activePaletteTab === tab.id}
+                      aria-label={tab.label}
+                    />
+                  }
+                >
+                  <Icon />
                 </TooltipTrigger>
-                <TooltipContent side="bottom">{tab.label}</TooltipContent>
-              </Tooltip>
-            );
-          })}
+              );
+            })}
           </TabsList>
         </Surface>
 
@@ -298,10 +299,7 @@ export function ColorPickerPanel({
                   cancelCustomColor();
                 }}
                 onInteractOutside={(event) => {
-                  if (
-                    event.target instanceof Node &&
-                    panelRef.current?.contains(event.target)
-                  ) {
+                  if (event.target instanceof Node && panelRef.current?.contains(event.target)) {
                     cancelCustomColor();
                     return;
                   }
@@ -357,8 +355,8 @@ export function ColorPickerPanel({
               </PopoverContent>
             </Popover>
 
-            <DropdownMenu open={eyedropperOpen} onOpenChange={setEyedropperOpen}>
-              <DropdownMenuTrigger asChild>
+            <Popover open={eyedropperOpen} onOpenChange={setEyedropperOpen}>
+              <PopoverTrigger asChild>
                 <Button
                   type="button"
                   tone="subtle"
@@ -366,43 +364,73 @@ export function ColorPickerPanel({
                   size="sm"
                   aria-label={t('color.pickFromCanvas')}
                   title={t('color.pickFromCanvas')}
+                  open={eyedropperOpen}
                   pressed={canvasColorPickerTarget !== null}
                   className="shrink-0"
                 >
                   <Pipette />
                 </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
+              </PopoverTrigger>
+              <PopoverContent
                 side="bottom"
                 align="end"
                 sideOffset={6}
-                className="w-36"
+                role="toolbar"
+                aria-label={t('color.pickFromCanvas')}
+                className="flex w-fit gap-0.5 p-1"
+                onOpenAutoFocus={(event) => {
+                  event.preventDefault();
+                  const activeButton =
+                    canvasColorPickerTarget === getCanvasColorPickerTarget('bg')
+                      ? bgPickerButtonRef.current
+                      : charPickerButtonRef.current;
+                  activeButton?.focus({ preventScroll: true });
+                }}
               >
-                <DropdownMenuGroup>
-                  {(['char', 'bg'] as const).map((target) => {
-                    const isActive = canvasColorPickerTarget === getCanvasColorPickerTarget(target);
-                    const label = target === 'char' ? t('color.pickChar') : t('color.pickBg');
-                    return (
-                      <DropdownMenuItem
-                        key={target}
-                        aria-label={label}
-                        onSelect={() => toggleCanvasColorPicker(target)}
-                        selected={isActive}
-                      >
-                        <span className="flex size-3.5 items-center justify-center">
-                          {isActive && <Check className="size-3.5" />}
-                        </span>
-                        <span>{target === 'char' ? t('color.char') : t('color.bg')}</span>
-                      </DropdownMenuItem>
-                    );
-                  })}
-                </DropdownMenuGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                <TooltipTrigger
+                  handle={tooltipHandle}
+                  payload={t('color.pickChar')}
+                  render={
+                    <Button
+                      ref={charPickerButtonRef}
+                      type="button"
+                      tone="subtle"
+                      shape="square"
+                      size="sm"
+                      aria-label={t('color.pickChar')}
+                      pressed={canvasColorPickerTarget === getCanvasColorPickerTarget('char')}
+                      onClick={() => toggleCanvasColorPicker('char')}
+                    />
+                  }
+                >
+                  <CharacterColorSourceIcon data-icon="inline-start" />
+                </TooltipTrigger>
+                <TooltipTrigger
+                  handle={tooltipHandle}
+                  payload={t('color.pickBg')}
+                  render={
+                    <Button
+                      ref={bgPickerButtonRef}
+                      type="button"
+                      tone="subtle"
+                      shape="square"
+                      size="sm"
+                      aria-label={t('color.pickBg')}
+                      pressed={canvasColorPickerTarget === getCanvasColorPickerTarget('bg')}
+                      onClick={() => toggleCanvasColorPicker('bg')}
+                    />
+                  }
+                >
+                  <BackgroundColorSourceIcon data-icon="inline-start" />
+                </TooltipTrigger>
+              </PopoverContent>
+            </Popover>
 
             {defaultColor && (
-              <Tooltip>
-                <TooltipTrigger asChild>
+              <TooltipTrigger
+                handle={tooltipHandle}
+                payload={t('color.restoreDefault')}
+                render={
                   <Button
                     type="button"
                     tone="subtle"
@@ -411,12 +439,11 @@ export function ColorPickerPanel({
                     aria-label={t('color.restoreDefault')}
                     className="shrink-0"
                     onClick={() => pickColor(defaultColor)}
-                  >
-                    <RestoreDefaultIcon />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom">{t('color.restoreDefault')}</TooltipContent>
-              </Tooltip>
+                  />
+                }
+              >
+                <RestoreDefaultIcon />
+              </TooltipTrigger>
             )}
           </div>
         )}
@@ -446,6 +473,9 @@ export function ColorPickerPanel({
           </TabsContent>
         ))}
       </div>
+      <Tooltip handle={tooltipHandle}>
+        {({ payload }) => <TooltipPopup side="bottom">{payload}</TooltipPopup>}
+      </Tooltip>
     </Tabs>
   );
 }

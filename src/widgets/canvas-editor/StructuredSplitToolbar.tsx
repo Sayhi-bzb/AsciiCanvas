@@ -21,8 +21,10 @@ import { Button } from "@/shared/ui/button";
 import { Surface } from "@/shared/ui/surface";
 import {
   Tooltip,
-  TooltipContent,
+  TooltipCreateHandle,
+  TooltipPopup,
   TooltipTrigger,
+  type TooltipHandle,
 } from "@/shared/ui/tooltip";
 import type { EditorViewportFrame } from "@/widgets/editor-chrome/public";
 
@@ -53,10 +55,12 @@ type ToolbarActionProps = Omit<
   "tone" | "shape" | "size"
 > & {
   tooltip: string;
+  tooltipHandle: TooltipHandle<string>;
 };
 
 function ToolbarAction({
   tooltip,
+  tooltipHandle,
   disabled,
   onMouseDown,
   ...props
@@ -76,14 +80,11 @@ function ToolbarAction({
   );
 
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        {disabled ? <span className="inline-flex">{button}</span> : button}
-      </TooltipTrigger>
-      <TooltipContent side="top" className="text-xs">
-        {tooltip}
-      </TooltipContent>
-    </Tooltip>
+    <TooltipTrigger
+      handle={tooltipHandle}
+      payload={tooltip}
+      render={disabled ? <span className="inline-flex">{button}</span> : button}
+    />
   );
 }
 
@@ -100,6 +101,7 @@ export function StructuredSplitToolbar({
 }: StructuredSplitToolbarProps) {
   const canvas = useCanvasRuntime();
   const { t } = useUiI18n();
+  const tooltipHandle = useMemo(() => TooltipCreateHandle<string>(), []);
   const {
     canvasMode,
     offset,
@@ -234,6 +236,7 @@ export function StructuredSplitToolbar({
           <ToolbarAction
             aria-label={t("selection.splitHorizontal")}
             tooltip={t("selection.splitHorizontalTitle")}
+            tooltipHandle={tooltipHandle}
             disabled={!model.canSplitHorizontal || !model.activePoint}
             onClick={() => split("horizontal")}
           >
@@ -242,6 +245,7 @@ export function StructuredSplitToolbar({
           <ToolbarAction
             aria-label={t("selection.splitVertical")}
             tooltip={t("selection.splitVerticalTitle")}
+            tooltipHandle={tooltipHandle}
             disabled={!model.canSplitVertical || !model.activePoint}
             onClick={() => split("vertical")}
           >
@@ -250,12 +254,18 @@ export function StructuredSplitToolbar({
           <ToolbarAction
             aria-label={t("selection.deleteDivider")}
             tooltip={t("selection.deleteDividerTitle")}
+            tooltipHandle={tooltipHandle}
             disabled={!model.canDeleteDivider}
             destructive
             onClick={() => canvas.commands.selection.delete()}
           >
             <DeleteDividerIcon data-icon="inline-start" />
           </ToolbarAction>
+          <Tooltip handle={tooltipHandle}>
+            {({ payload }) => (
+              <TooltipPopup side="top">{payload}</TooltipPopup>
+            )}
+          </Tooltip>
         </div>
       </Surface>
     </div>

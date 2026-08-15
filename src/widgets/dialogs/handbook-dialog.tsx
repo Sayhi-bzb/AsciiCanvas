@@ -13,9 +13,9 @@ import {
 } from "@/shared/ui/dialog";
 import {
   Tooltip,
-  TooltipContent,
+  TooltipPopup,
   TooltipTrigger,
-  type TooltipContentProps,
+  type TooltipPopupProps,
 } from "@/shared/ui/tooltip";
 import { useUiI18n, type I18nKey } from "@/shared/i18n";
 import { KeyboardShortcutsDialog } from "./keyboard-shortcuts-dialog";
@@ -31,7 +31,7 @@ const HELP_REFERENCE = [
 ] as const satisfies readonly [I18nKey, I18nKey][];
 
 type HandbookDialogProps = {
-  tooltipSide?: TooltipContentProps["side"];
+  tooltipSide?: TooltipPopupProps["side"];
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   trigger?: ReactElement | null;
@@ -53,19 +53,21 @@ export function HandbookDialog({
         <DialogTrigger asChild>{trigger}</DialogTrigger>
       ) : (
         <Tooltip>
-          <TooltipTrigger asChild>
-            <DialogTrigger asChild>
-              <Button
-                aria-label={t("manual.open")}
-                tone="subtle"
-                shape="square"
-                size="md"
-              >
-                <CircleHelp />
-              </Button>
-            </DialogTrigger>
-          </TooltipTrigger>
-          <TooltipContent side={tooltipSide}>{t("manual.title")}</TooltipContent>
+          <DialogTrigger asChild>
+            <TooltipTrigger
+              render={
+                <Button
+                  aria-label={t("manual.open")}
+                  tone="subtle"
+                  shape="square"
+                  size="md"
+                />
+              }
+            >
+              <CircleHelp />
+            </TooltipTrigger>
+          </DialogTrigger>
+          <TooltipPopup side={tooltipSide}>{t("manual.title")}</TooltipPopup>
         </Tooltip>
       )}
       <DialogContent className="sm:max-w-[440px]">

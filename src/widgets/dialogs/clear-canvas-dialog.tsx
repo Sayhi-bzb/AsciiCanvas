@@ -2,7 +2,6 @@
 
 import { Trash2 } from "lucide-react";
 import type { ReactElement } from "react";
-import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import {
   AlertDialog,
@@ -17,9 +16,9 @@ import {
 } from "@/shared/ui/alert-dialog";
 import {
   Tooltip,
-  TooltipContent,
+  TooltipPopup,
   TooltipTrigger,
-  type TooltipContentProps,
+  type TooltipPopupProps,
 } from "@/shared/ui/tooltip";
 import { useUiI18n } from "@/shared/i18n";
 
@@ -28,7 +27,7 @@ type ClearCanvasDialogProps = {
   iconOnly?: boolean;
   label?: string;
   description?: string;
-  tooltipSide?: TooltipContentProps["side"];
+  tooltipSide?: TooltipPopupProps["side"];
   onConfirm: () => void;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -52,29 +51,37 @@ export function ClearCanvasDialog({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       {trigger === null ? null : trigger ? (
         <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
-      ) : (
+      ) : isCollapsed || iconOnly ? (
         <Tooltip>
-          <TooltipTrigger asChild>
-            <AlertDialogTrigger asChild>
-              <Button
-                tone="subtle"
-                destructive
-                shape={isCollapsed || iconOnly ? "square" : "auto"}
-                size={isCollapsed || iconOnly ? "md" : "sm"}
-                className={cn(
-                  "gap-2",
-                  !(isCollapsed || iconOnly) && "w-full justify-start"
-                )}
-              >
-                <Trash2 />
-                {!isCollapsed && !iconOnly && (
-                  <span className="font-medium text-xs">{label}</span>
-                )}
-              </Button>
-            </AlertDialogTrigger>
-          </TooltipTrigger>
-          {(isCollapsed || iconOnly) && <TooltipContent side={tooltipSide}>{label}</TooltipContent>}
+          <AlertDialogTrigger asChild>
+            <TooltipTrigger
+              render={
+                <Button
+                  tone="subtle"
+                  destructive
+                  shape="square"
+                  size="md"
+                />
+              }
+            >
+              <Trash2 />
+            </TooltipTrigger>
+          </AlertDialogTrigger>
+          <TooltipPopup side={tooltipSide}>{label}</TooltipPopup>
         </Tooltip>
+      ) : (
+        <AlertDialogTrigger asChild>
+          <Button
+            tone="subtle"
+            destructive
+            shape="auto"
+            size="sm"
+            className="w-full justify-start gap-2"
+          >
+            <Trash2 />
+            <span className="font-medium text-xs">{label}</span>
+          </Button>
+        </AlertDialogTrigger>
       )}
 
       <AlertDialogContent>

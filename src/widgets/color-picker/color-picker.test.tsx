@@ -131,11 +131,7 @@ describe('ColorPickerPanel', () => {
     );
     const ansiColor = screen.getByRole('button', { name: 'Pick ANSI color #000080' });
     expect(ansiColor).toHaveClass('size-6', 'rounded-full', 'cursor-pointer');
-    expect(ansiColor).not.toHaveClass(
-      'transition-transform',
-      'hover:scale-110',
-      'active:scale-95'
-    );
+    expect(ansiColor).not.toHaveClass('transition-transform', 'hover:scale-110', 'active:scale-95');
     expect(ansiColor.firstElementChild).toHaveClass('size-[18px]', 'rounded-full');
 
     fireEvent.mouseDown(screen.getByRole('tab', { name: 'Presets' }), {
@@ -253,42 +249,76 @@ describe('ColorPickerPanel', () => {
     expect(screen.getByRole('button', { name: 'Hex: #000000' })).toBeInTheDocument();
   });
 
-  it('opens canvas color targets in a dropdown and retains the active target', async () => {
-    render(<ColorPickerPanel value="#000000" onPick={vi.fn()} />);
+  it('opens canvas color source buttons and retains the active target', async () => {
+    const onCanvasPickStarted = vi.fn();
+    render(
+      <ColorPickerPanel
+        value="#000000"
+        onPick={vi.fn()}
+        onCanvasPickStarted={onCanvasPickStarted}
+      />
+    );
 
     const eyedropperTrigger = screen.getByRole('button', {
       name: 'Pick color from canvas',
     });
-    fireEvent.pointerDown(eyedropperTrigger, { button: 0, ctrlKey: false });
+    fireEvent.click(eyedropperTrigger);
 
-    const pickChar = await screen.findByRole('menuitem', {
-      name: 'Pick char color from canvas',
+    const sourceToolbar = await screen.findByRole('toolbar', {
+      name: 'Pick color from canvas',
     });
-    expect(pickChar.closest('[data-slot="dropdown-menu-content"]')).toHaveClass(
-      'w-36',
-      'min-w-32',
+    expect(sourceToolbar).toHaveClass(
+      'w-fit',
+      'gap-0.5',
+      'p-1',
       'bg-overlay-surface',
       'border-0',
       'shadow-overlay'
     );
+    const pickChar = screen.getByRole('button', { name: 'Pick character color' });
+    const pickBackground = screen.getByRole('button', { name: 'Pick background color' });
+    expect(pickChar).toHaveFocus();
+    expect(pickChar).toHaveClass('size-7');
+    expect(pickBackground).toHaveClass('size-7');
+    expect(pickChar.querySelector('svg')).toBeInTheDocument();
+    expect(pickBackground.querySelector('svg')).toBeInTheDocument();
+    expect(screen.queryByText('Char')).not.toBeInTheDocument();
+    expect(screen.queryByText('BG')).not.toBeInTheDocument();
+
     fireEvent.click(pickChar);
 
     await waitFor(() =>
       expect(
-        screen.queryByRole('menuitem', {
-          name: 'Pick char color from canvas',
+        screen.queryByRole('toolbar', {
+          name: 'Pick color from canvas',
         })
       ).not.toBeInTheDocument()
     );
+    expect(onCanvasPickStarted).toHaveBeenCalledTimes(1);
     expect(eyedropperTrigger).toHaveAttribute('aria-pressed', 'true');
     expect(eyedropperTrigger).toHaveClass('bg-control-pressed-surface', 'text-foreground');
 
-    fireEvent.pointerDown(eyedropperTrigger, { button: 0, ctrlKey: false });
+    fireEvent.click(eyedropperTrigger);
+    const activeChar = await screen.findByRole('button', { name: 'Pick character color' });
+    await waitFor(() => expect(activeChar).toHaveFocus());
+    expect(activeChar).toHaveAttribute('aria-pressed', 'true');
+    expect(activeChar).toHaveClass('bg-control-pressed-surface', 'text-foreground');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pick background color' }));
+    expect(onCanvasPickStarted).toHaveBeenCalledTimes(2);
     expect(
-      await screen.findByRole('menuitem', {
-        name: 'Pick char color from canvas',
-      })
-    ).toHaveClass('bg-control-active-surface', 'text-foreground');
+      screen.queryByRole('toolbar', { name: 'Pick color from canvas' })
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(eyedropperTrigger);
+    const activeBackground = await screen.findByRole('button', {
+      name: 'Pick background color',
+    });
+    expect(activeBackground).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(activeBackground);
+    expect(eyedropperTrigger).toHaveAttribute('aria-pressed', 'false');
+    expect(onCanvasPickStarted).toHaveBeenCalledTimes(2);
   });
 
   it('hides hex and eyedropper tools in palette-only mode', () => {
@@ -306,9 +336,7 @@ describe('ColorPickerPanel', () => {
     expect(
       screen.queryByRole('button', { name: 'Pick color from canvas' })
     ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: 'Restore default color' })
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Restore default color' })).not.toBeInTheDocument();
     expect(screen.getByTestId('color-picker-content-frame')).not.toHaveClass(
       'h-[8.875rem]',
       'h-[6.375rem]'
@@ -326,8 +354,6 @@ describe('ColorPickerPanel', () => {
     expect(onPick).toHaveBeenCalledWith('#000000');
 
     view.rerender(<ColorPickerPanel value="#ff0000" onPick={onPick} />);
-    expect(
-      screen.queryByRole('button', { name: 'Restore default color' })
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Restore default color' })).not.toBeInTheDocument();
   });
 });

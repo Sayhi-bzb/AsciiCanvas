@@ -1,28 +1,39 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import * as React from "react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   Tooltip,
-  TooltipContent,
+  TooltipCreateHandle,
+  TooltipPopup,
   TooltipProvider,
   TooltipTrigger,
 } from "@/shared/ui/tooltip";
 
-const TooltipPair = () => (
-  <TooltipProvider disableHoverableContent>
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button type="button">First trigger</button>
+const TooltipPair = () => {
+  const handle = React.useMemo(() => TooltipCreateHandle<string>(), []);
+
+  return (
+    <TooltipProvider>
+      <TooltipTrigger
+        handle={handle}
+        payload="First tooltip"
+        render={<button type="button" />}
+      >
+        First trigger
       </TooltipTrigger>
-      <TooltipContent>First tooltip</TooltipContent>
-    </Tooltip>
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <button type="button">Second trigger</button>
+      <TooltipTrigger
+        handle={handle}
+        payload="Second tooltip"
+        render={<button type="button" />}
+      >
+        Second trigger
       </TooltipTrigger>
-      <TooltipContent>Second tooltip</TooltipContent>
-    </Tooltip>
-  </TooltipProvider>
-);
+      <Tooltip handle={handle}>
+        {({ payload }) => <TooltipPopup>{payload}</TooltipPopup>}
+      </Tooltip>
+    </TooltipProvider>
+  );
+};
 
 describe("Tooltip", () => {
   beforeAll(() => {
@@ -44,54 +55,46 @@ describe("Tooltip", () => {
     vi.useRealTimers();
   });
 
-  it("delays the first hover and accelerates movement within a group", () => {
-    vi.useFakeTimers();
+  it("shares one popup and switches payload between triggers", () => {
     render(<TooltipPair />);
 
     const first = screen.getByRole("button", { name: "First trigger" });
     const second = screen.getByRole("button", { name: "Second trigger" });
 
-    fireEvent.pointerMove(first, { pointerType: "mouse" });
-    act(() => vi.advanceTimersByTime(499));
-    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
-
-    act(() => vi.advanceTimersByTime(1));
+    fireEvent.focus(first);
     expect(screen.getByRole("tooltip")).toHaveTextContent("First tooltip");
+    expect(screen.getAllByRole("tooltip")).toHaveLength(1);
 
-    fireEvent.pointerLeave(first, { pointerType: "mouse" });
-    fireEvent.pointerMove(second, { pointerType: "mouse" });
+    fireEvent.blur(first);
+    fireEvent.focus(second);
     expect(screen.getByRole("tooltip")).toHaveTextContent("Second tooltip");
+    expect(screen.getAllByRole("tooltip")).toHaveLength(1);
 
-    fireEvent.pointerLeave(second, { pointerType: "mouse" });
-    act(() => vi.advanceTimersByTime(300));
-    fireEvent.pointerMove(first, { pointerType: "mouse" });
+    fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
-
-    act(() => vi.advanceTimersByTime(500));
-    expect(screen.getByRole("tooltip")).toHaveTextContent("First tooltip");
   });
 
-  it("provides bounded multiline content and collision spacing", () => {
+  it("provides the compact popup surface without an arrow", () => {
     render(
       <TooltipProvider>
         <Tooltip open>
-          <TooltipTrigger asChild>
-            <button type="button">Details</button>
+          <TooltipTrigger render={<button type="button" />}>
+            Details
           </TooltipTrigger>
-          <TooltipContent side="top">
-            <span>Title</span>
-            <span>Metadata</span>
-          </TooltipContent>
+          <TooltipPopup side="top">
+            <span>Compact details</span>
+          </TooltipPopup>
         </Tooltip>
       </TooltipProvider>
     );
 
-    const content = document.querySelector('[data-slot="tooltip-content"]');
-    expect(content).toHaveClass(
-      "max-w-72",
-      "text-left",
-      "whitespace-normal",
-      "break-words"
+    const popup = document.querySelector('[data-slot="tooltip-popup"]');
+    expect(popup).toHaveClass(
+      "max-w-56",
+      "px-2",
+      "py-1",
+      "text-[11px]"
     );
+    expect(document.querySelector('[data-slot="tooltip-arrow"]')).toBeNull();
   });
 });

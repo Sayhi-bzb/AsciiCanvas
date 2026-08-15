@@ -498,7 +498,7 @@ describe("SidebarRight structured templates", () => {
     });
   });
 
-  it("moves Add slide into the Slides header", () => {
+  it("moves Add slide into the Slides header", async () => {
     useEditorStore.setState({
       canvasMode: "slide",
       slideDeck: {
@@ -537,9 +537,8 @@ describe("SidebarRight structured templates", () => {
       "Emoji",
       "Unicode",
     ]);
-    slideViewTabs.forEach((tab) =>
-      expect(tab).toHaveAttribute("data-slot", "tooltip-trigger")
-    );
+    fireEvent.focus(slideViewTabs[0]);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("Slides");
 
     fireEvent.click(addSlide);
 

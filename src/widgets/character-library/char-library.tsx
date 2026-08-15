@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ChevronRight,
   Loader2,
@@ -36,8 +36,10 @@ import { SelectableItem } from "@/shared/ui/selectable-item";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import {
   Tooltip,
-  TooltipContent,
+  TooltipCreateHandle,
+  TooltipPopup,
   TooltipTrigger,
+  type TooltipHandle,
 } from "@/shared/ui/tooltip";
 
 const PAGE_SIZE = 240;
@@ -110,10 +112,12 @@ function CharButton({
   entry,
   isSelected,
   onClick,
+  tooltipHandle,
 }: {
   entry: CharacterRecord;
   isSelected: boolean;
   onClick: (entry: CharacterRecord) => void;
+  tooltipHandle: TooltipHandle<string>;
 }) {
   const { t } = useUiI18n();
   const codePoints = getCodePointLabel(entry.grapheme);
@@ -128,8 +132,11 @@ function CharButton({
       : entry.grapheme;
 
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
+    <TooltipTrigger
+      handle={tooltipHandle}
+      payload={`${entry.name} · ${codePoints}`}
+      disabled={unavailable}
+      render={
         <SelectableItem
           type="button"
           selected={isSelected}
@@ -139,30 +146,11 @@ function CharButton({
           onClick={() => onClick(entry)}
           style={{ fontFamily: getRenderFontFamilyForGrapheme(entry.grapheme) }}
           className="size-7 min-h-0 shrink-0 justify-center p-0 font-mono text-sm leading-none"
-        >
-          {preview}
-        </SelectableItem>
-      </TooltipTrigger>
-      <TooltipContent side="top">
-        <div data-slot="tooltip-title" className="font-medium">
-          {entry.name}
-        </div>
-        <div
-          data-slot="tooltip-meta"
-          className="mt-0.5 font-mono text-[10px] text-background/70"
-        >
-          {codePoints} &middot; {entry.category}
-        </div>
-        {unavailable && (
-          <div
-            data-slot="tooltip-status"
-            className="mt-1 text-[10px] text-background/70"
-          >
-            {t("character.metadataOnly")}
-          </div>
-        )}
-      </TooltipContent>
-    </Tooltip>
+        />
+      }
+    >
+      {preview}
+    </TooltipTrigger>
   );
 }
 
@@ -179,6 +167,7 @@ function CharacterGrid({
 }) {
   const { t } = useUiI18n();
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const tooltipHandle = useMemo(() => TooltipCreateHandle<string>(), []);
   const visibleEntries = paged ? entries.slice(0, visibleCount) : entries;
   return (
     <>
@@ -189,9 +178,15 @@ function CharacterGrid({
             entry={entry}
             isSelected={copiedChar === entry.grapheme}
             onClick={onSelect}
+            tooltipHandle={tooltipHandle}
           />
         ))}
       </div>
+      <Tooltip handle={tooltipHandle}>
+        {({ payload }) => (
+          <TooltipPopup side="top">{payload}</TooltipPopup>
+        )}
+      </Tooltip>
       {paged && visibleCount < entries.length && (
         <Button
           type="button"
