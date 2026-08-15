@@ -28,6 +28,17 @@
       "entry": ["src/index.ts", "src/**/*.test.ts", "vitest.config.ts"],
       "project": ["src/**/*.ts"]
     },
+    "packages/blackboard": {
+      "entry": [
+        "src/cli.ts",
+        "src/**/*.test.ts",
+        "client/main.ts",
+        "client/**/*.test.ts",
+        "vite.config.ts",
+        "vitest.config.ts"
+      ],
+      "project": ["src/**/*.ts", "client/**/*.ts", "*.config.ts"]
+    },
     "apps/docs": {
       "entry": [
         "app/root.tsx",

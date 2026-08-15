@@ -219,7 +219,7 @@ describe("CharLibrary", () => {
     );
   });
 
-  it("selects Unicode facets through the shared Select control", async () => {
+  it("selects Unicode views through Tabs and facets through Select", async () => {
     const loadUnicodeManifest = vi.fn().mockResolvedValue(undefined);
     const loadUnicodePage = vi.fn(
       async (facetType: "block" | "script" | "category", facetId: string) => {
@@ -321,7 +321,10 @@ describe("CharLibrary", () => {
     );
     expect(trigger).toHaveTextContent("Greek and Coptic (117)");
 
-    fireEvent.click(screen.getByRole("radio", { name: "Script" }));
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Script" }), {
+      button: 0,
+      ctrlKey: false,
+    });
     await waitFor(() =>
       expect(loadUnicodePage).toHaveBeenCalledWith("script", "latin")
     );
@@ -329,8 +332,8 @@ describe("CharLibrary", () => {
 
     act(() => setUiLanguage("zh"));
     expect(screen.getByRole("combobox", { name: "Unicode 分类" })).toBe(trigger);
-    expect(screen.getByRole("radio", { name: "区块" })).toBeInTheDocument();
-    expect(screen.getByRole("radio", { name: "文字系统" })).toBeInTheDocument();
-    expect(screen.getByRole("radio", { name: "类别" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "区块" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "文字系统" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "类别" })).toBeInTheDocument();
   });
 });

@@ -206,7 +206,6 @@ function AppContent() {
                 <CanvasInspectorControl
                   formFactor={formFactor}
                   readOnly={isCollaborationReadOnly}
-                  onBeforeOpen={exitCanvasTextEditing}
                 />
               </div>
             </div>

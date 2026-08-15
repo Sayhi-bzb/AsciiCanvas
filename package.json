@@ -11,9 +11,9 @@
     "dev": "concurrently --kill-others --success first --names app,docs --prefix-colors cyan,magenta \"npm:dev:app\" \"npm:dev:docs\"",
     "dev:app": "vite --host 127.0.0.1 --port 5173 --strictPort",
     "dev:docs": "npm run dev -w @chardesk/docs",
-    "build": "npm run build -w @chardesk/fonts && npm run build -w @chardesk/protocol && npm run build -w @chardesk/mcp && npm run build -w @chardesk/viewer && tsc -b && vite build && npm run build:docs",
+    "build": "npm run build -w @chardesk/fonts && npm run build -w @chardesk/protocol && npm run build -w @chardesk/viewer && npm run build -w @chardesk/blackboard && tsc -b && vite build && npm run build:docs",
     "build:docs": "npm run build -w @chardesk/docs && node scripts/docs/merge-build.mjs && node scripts/docs/verify-build.mjs",
-    "typecheck": "tsc -b --pretty false && npm run typecheck -w @chardesk/mcp && npm run typecheck -w @chardesk/docs",
+    "typecheck": "tsc -b --pretty false && npm run typecheck -w @chardesk/blackboard && npm run typecheck -w @chardesk/docs",
     "typecheck:docs": "npm run typecheck -w @chardesk/docs",
     "lint": "eslint .",
     "preview": "vite preview",
@@ -26,7 +26,7 @@
     "check:agent-navigation": "node scripts/quality/run-agent-navigation-benchmark.mjs",
     "test": "vitest",
     "test:fonts": "npm test -w @chardesk/fonts",
-    "test:mcp": "npm test -w @chardesk/mcp",
+    "test:blackboard": "npm test -w @chardesk/blackboard",
     "test:protocol": "npm test -w @chardesk/protocol",
     "test:viewer": "npm test -w @chardesk/viewer",
     "test:coverage": "vitest --coverage",
@@ -36,7 +36,7 @@
     "check:type-escapes": "node scripts/quality/check-type-escapes.mjs",
     "check:state-ownership": "node scripts/quality/check-state-ownership.mjs",
     "check:architecture": "npm run check:boundaries && npm run check:type-escapes && npm run check:state-ownership && npm run check-style-api",
-    "verify": "npm run typecheck && npm run lint && npm run knip && npm run check:architecture && npm run test:protocol && npm run test:mcp && npm test -- --run && npm run build"
+    "verify": "npm run typecheck && npm run lint && npm run knip && npm run check:architecture && npm run test:protocol && npm run test:blackboard && npm test -- --run && npm run build"
   },
   "dependencies": {
     "@chardesk/fonts": "*",
@@ -49,7 +49,6 @@
     "@radix-ui/react-popover": "^1.1.15",
     "@radix-ui/react-slot": "^1.2.4",
     "@radix-ui/react-tabs": "^1.1.17",
-    "@radix-ui/react-toggle-group": "^1.1.13",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@use-gesture/react": "^10.3.1",
     "ahooks": "^3.9.6",

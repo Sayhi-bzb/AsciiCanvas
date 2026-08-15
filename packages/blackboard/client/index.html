@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>CharDesk Blackboard</title>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div>
+          <p class="eyebrow">CharDesk</p>
+          <h1>Blackboard</h1>
+        </div>
+        <p id="status" class="status" data-state="waiting" role="status">Waiting for the board</p>
+      </header>
+      <chardesk-viewer id="board" syntax="ansi" fit="width" aria-label="Shared Blackboard"></chardesk-viewer>
+    </main>
+    <script type="module" src="/main.ts"></script>
+  </body>
+</html>

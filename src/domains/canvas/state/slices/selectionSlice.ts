@@ -4,7 +4,7 @@ import type { CanvasDocumentRegistry } from "../CanvasDocumentRegistry";
 import { GridManager } from "@/shared/utils/grid";
 import { getSelectionBounds } from "@/shared/utils/selection";
 import { placeCharInYMap } from "../utils";
-import type { GridCell } from "@/shared/types";
+import type { GridCell, TextAttributes } from "@/shared/types";
 import { deleteRect } from "../gridOps";
 import {
   getStructuredNodeBounds,
@@ -216,7 +216,9 @@ export const createSelectionSlice = (
     if (selections.length === 0) return;
 
     const shouldMaterializeBlank =
-      attrs.underline === true || attrs.strike === true;
+      attrs.underline === true ||
+      attrs.strike === true ||
+      attrs.inverse === true;
 
     documents.mutateGrid((grid) => {
       forEachSelectionSpan(state, ({ y, minX, maxX }) => {
@@ -228,7 +230,7 @@ export const createSelectionSlice = (
 
           const nextAttrs = cloneTextAttributes(existingCell?.attrs) ?? {};
           Object.entries(attrs).forEach(([name, enabled]) => {
-            const attrName = name as "bold" | "italic" | "underline" | "strike";
+            const attrName = name as keyof TextAttributes;
             if (enabled) {
               nextAttrs[attrName] = true;
             } else {

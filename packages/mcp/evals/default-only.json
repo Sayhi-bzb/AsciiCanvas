@@ -1,6 +1,0 @@
-{
-  "id": "default-only",
-  "artifact": "default-card",
-  "prompt": "Create the layout without adding explicit colors.",
-  "expected_plain": "Default colors"
-}

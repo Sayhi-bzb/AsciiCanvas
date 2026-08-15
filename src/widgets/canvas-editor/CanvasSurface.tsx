@@ -7,7 +7,7 @@ import {
   type RefObject,
   type TextareaHTMLAttributes,
 } from 'react';
-import { SelectionFormatToolbar } from './SelectionFormatToolbar';
+import { StructuredSplitToolbar } from './StructuredSplitToolbar';
 import type { CanvasSurfaceGeometry } from './canvasSurfaceGeometry';
 import type { EditorViewportFrame } from '@/widgets/editor-chrome/public';
 
@@ -98,7 +98,7 @@ export const CanvasSurface = forwardRef<HTMLDivElement, CanvasSurfaceProps>(func
         />
       </div>
       {children}
-      <SelectionFormatToolbar
+      <StructuredSplitToolbar
         containerSize={containerSize}
         viewportFrame={viewportFrame}
       />

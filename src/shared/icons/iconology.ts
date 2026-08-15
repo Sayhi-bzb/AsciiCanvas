@@ -12,6 +12,7 @@ import {
   ChevronRight,
   Code2,
   Component,
+  Contrast,
   Copy,
   CopyPlus,
   Download,
@@ -56,6 +57,7 @@ import {
   SquarePen,
   SquareSplitHorizontal,
   SquareSplitVertical,
+  Strikethrough,
   Terminal,
   Trash2,
   Type,
@@ -160,6 +162,8 @@ export const HOST_ICONOLOGY = {
     bold: Bold,
     italic: Italic,
     underline: Underline,
+    strike: Strikethrough,
+    inverse: Contrast,
     color: Palette,
     'split-horizontal': SquareSplitVertical,
     'split-vertical': SquareSplitHorizontal,
@@ -168,6 +172,8 @@ export const HOST_ICONOLOGY = {
     | 'bold'
     | 'italic'
     | 'underline'
+    | 'strike'
+    | 'inverse'
     | 'color'
     | 'split-horizontal'
     | 'split-vertical'

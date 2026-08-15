@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import {
   canvasCommands,
@@ -20,14 +20,12 @@ const selectedCell = selectGridRange(
 function Inspector({
   formFactor = "desktop",
   readOnly = false,
-  onBeforeOpen,
 }: Partial<React.ComponentProps<typeof CanvasInspectorControl>>) {
   return (
     <ShortcutProvider>
       <CanvasInspectorControl
         formFactor={formFactor}
         readOnly={readOnly}
-        onBeforeOpen={onBeforeOpen}
       />
     </ShortcutProvider>
   );
@@ -42,10 +40,12 @@ describe("CanvasInspectorControl", () => {
   });
 
   it("uses one persistent swatch trigger and one global open state", () => {
+    replaceCanvasGrid([]);
     useEditorStore.setState({
       canvasMode: "freeform",
       tool: "select",
       brushColor: "#123456",
+      staticGridSelection: createGridSelectionState({ x: 0, y: 0 }),
     });
     render(<Inspector />);
 
@@ -61,9 +61,17 @@ describe("CanvasInspectorControl", () => {
       "w-[min(10rem,calc(100vw-2rem))]",
       "overflow-hidden"
     );
-    expect(content).toHaveClass("px-1", "py-2");
+    expect(content).toHaveClass("gap-0", "px-1", "py-2");
     expect(content).not.toHaveClass("p-2");
     expect(colorPicker).toHaveClass("w-full", "px-0");
+    expect(
+      screen.getByRole("toolbar", { name: "Selection text formatting" })
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Toggle bold" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Toggle bold" })).toHaveAttribute(
+      "aria-pressed",
+      "false"
+    );
     expect(screen.getAllByTestId("canvas-inspector-panel")).toHaveLength(1);
 
     fireEvent.click(toggle);
@@ -74,6 +82,11 @@ describe("CanvasInspectorControl", () => {
 
     fireEvent.click(toggle);
     expect(screen.getByTestId("canvas-inspector-panel")).toBeVisible();
+    expect(screen.getByRole("toolbar", { name: "Arrange" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Bring Forward" })).toBeDisabled();
+    expect(
+      screen.queryByRole("button", { name: "Toggle bold" })
+    ).not.toBeInTheDocument();
     act(() => useEditorStore.setState({ canvasMode: "freeform" }));
     expect(screen.getByTestId("canvas-inspector-panel")).toBeVisible();
   });
@@ -118,19 +131,51 @@ describe("CanvasInspectorControl", () => {
   });
 
   it("owns Alt+6 and Escape across canvas modes", () => {
-    const onBeforeOpen = vi.fn();
     useEditorStore.setState({ canvasMode: "freeform", tool: "select" });
-    render(<Inspector onBeforeOpen={onBeforeOpen} />);
+    render(<Inspector />);
 
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.queryByTestId("canvas-inspector-panel")).not.toBeInTheDocument();
     fireEvent.keyDown(window, { code: "Digit6", altKey: true });
-    expect(onBeforeOpen).toHaveBeenCalledOnce();
     expect(screen.getByTestId("canvas-inspector-panel")).toBeVisible();
 
     act(() => useEditorStore.setState({ canvasMode: "structured" }));
     fireEvent.keyDown(window, { code: "Digit6", altKey: true });
     expect(screen.queryByTestId("canvas-inspector-panel")).not.toBeInTheDocument();
+  });
+
+  it("preserves a structured text range when opening on phone", () => {
+    useEditorStore.setState({
+      canvasMode: "structured",
+      tool: "select",
+      selectedStructuredNodeIds: ["text-1"],
+      editingStructuredTextNodeId: "text-1",
+      structuredTextSelection: { nodeId: "text-1", anchor: 0, focus: 2 },
+      structuredScene: [
+        {
+          id: "text-1",
+          type: "text",
+          order: 1,
+          position: { x: 0, y: 0 },
+          text: "AB",
+          style: { color: "#ffffff", attrs: { bold: true } },
+        },
+      ],
+    });
+    render(<Inspector formFactor="phone" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Toggle inspector" }));
+
+    expect(useEditorStore.getState().structuredTextSelection).toEqual({
+      nodeId: "text-1",
+      anchor: 0,
+      focus: 2,
+    });
+    expect(screen.getByRole("toolbar", { name: "Arrange" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Bring Forward" })).toBeDisabled();
+    expect(
+      screen.queryByRole("button", { name: "Toggle bold" })
+    ).not.toBeInTheDocument();
   });
 
   it("closes the hex editor with Escape without closing the inspector", () => {
@@ -175,6 +220,98 @@ describe("CanvasInspectorControl", () => {
     fireEvent.click(screen.getByRole("button", { name: "Restore default color" }));
     expect(useEditorStore.getState().brushBackgroundColor).toBe("#000000");
     expect(useEditorStore.getState().grid.get("0,0")?.bgColor).toBe("#000000");
+  });
+
+  it("toggles grid text attributes independently and exposes mixed state", () => {
+    const selectedRow = selectGridRange(
+      createGridSelectionState({ x: 0, y: 0 }),
+      { start: { x: 0, y: 0 }, end: { x: 1, y: 0 } },
+      { activeCell: "start" }
+    );
+    act(() => {
+      replaceCanvasGrid([
+        [
+          "0,0",
+          {
+            char: "A",
+            color: "#ffffff",
+            attrs: { bold: true, strike: true },
+          },
+        ],
+        [
+          "1,0",
+          { char: "B", color: "#ffffff", attrs: { inverse: true } },
+        ],
+      ]);
+      useEditorStore.setState({
+        canvasMode: "freeform",
+        tool: "select",
+        staticGridSelection: selectedRow,
+      });
+    });
+    render(<Inspector />);
+
+    const bold = screen.getByRole("button", { name: "Toggle bold" });
+    const italic = screen.getByRole("button", { name: "Toggle italic" });
+    const strike = screen.getByRole("button", { name: "Toggle strikethrough" });
+    const inverse = screen.getByRole("button", { name: "Toggle inverse" });
+    const footer = screen.getByTestId("canvas-inspector-footer");
+    const toolbar = screen.getByRole("toolbar", {
+      name: "Selection text formatting",
+    });
+    expect(footer).toHaveClass(
+      "flex",
+      "items-center",
+      "justify-between",
+      "gap-0.5",
+      "pb-1.5"
+    );
+    expect(footer).not.toHaveClass("pt-1.5");
+    expect(footer).not.toHaveClass("px-1", "mx-1");
+    expect(toolbar).toHaveAttribute("data-surface-kind", "embedded");
+    expect(toolbar).toHaveClass(
+      "flex",
+      "w-full",
+      "items-center",
+      "justify-between",
+      "gap-0.5",
+      "p-px"
+    );
+    expect(bold).toHaveAttribute("data-size", "sm");
+    expect(bold).toHaveAttribute("aria-pressed", "mixed");
+    expect(italic).toHaveAttribute("aria-pressed", "false");
+    expect(strike).toHaveAttribute("aria-pressed", "mixed");
+    expect(inverse).toHaveAttribute("aria-pressed", "mixed");
+    expect(toolbar.querySelectorAll('button[data-size="sm"]')).toHaveLength(5);
+
+    fireEvent.click(strike);
+    expect(useEditorStore.getState().grid.get("0,0")?.attrs?.strike).toBe(true);
+    expect(useEditorStore.getState().grid.get("1,0")?.attrs).toMatchObject({
+      strike: true,
+      inverse: true,
+    });
+
+    fireEvent.click(inverse);
+    expect(useEditorStore.getState().grid.get("0,0")?.attrs).toMatchObject({
+      bold: true,
+      strike: true,
+      inverse: true,
+    });
+    expect(useEditorStore.getState().grid.get("1,0")?.attrs?.inverse).toBe(true);
+
+    fireEvent.click(italic);
+    expect(useEditorStore.getState().grid.get("0,0")?.attrs).toMatchObject({
+      bold: true,
+      italic: true,
+    });
+    expect(useEditorStore.getState().grid.get("1,0")?.attrs).toMatchObject({
+      italic: true,
+    });
+    expect(useEditorStore.getState().grid.get("1,0")?.attrs?.bold).toBeUndefined();
+
+    fireEvent.click(bold);
+    expect(useEditorStore.getState().grid.get("0,0")?.attrs?.bold).toBe(true);
+    expect(useEditorStore.getState().grid.get("1,0")?.attrs?.bold).toBe(true);
   });
 
   it("applies structured semantic colors and exposes layer arrangement", () => {
@@ -226,7 +363,7 @@ describe("CanvasInspectorControl", () => {
       color: "#000000",
       bgColor: "#000000",
     });
-    expect(screen.getByRole("region", { name: "Arrange" })).toBeInTheDocument();
+    expect(screen.getByRole("toolbar", { name: "Arrange" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Send to Back" })).toBeInTheDocument();
     expect(screen.queryByText("Geometry")).not.toBeInTheDocument();
   });
@@ -312,7 +449,10 @@ describe("CanvasInspectorControl", () => {
 
     expect(screen.getByRole("button", { name: "Toggle inspector" })).toBeVisible();
     expect(screen.getByTestId("canvas-inspector-panel")).toBeVisible();
-    expect(screen.queryByRole("region", { name: "Arrange" })).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("toolbar", { name: "Selection text formatting" })
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("toolbar", { name: "Arrange" })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Pick ANSI color #ff0000" }));
     expect(useEditorStore.getState().brushColor).toBe("#ff0000");
@@ -346,6 +486,30 @@ describe("CanvasInspectorControl", () => {
     fireEvent.click(screen.getByRole("button", { name: "Restore default color" }));
     expect(useEditorStore.getState().brushBackgroundColor).toBe("#000000");
     expect(useEditorStore.getState().grid.get("0,0")?.bgColor).toBe("#000000");
+  });
+
+  it("keeps the Slides formatting row visible without a selection", () => {
+    act(() => {
+      useEditorStore.getState().createCanvasSession("slide", {
+        slideSize: { columns: 4, rows: 2 },
+      });
+      useEditorStore.setState({
+        tool: "select",
+        staticGridSelection: createGridSelectionState({ x: 0, y: 0 }),
+      });
+    });
+    render(<Inspector />);
+
+    expect(
+      screen.getByRole("toolbar", { name: "Selection text formatting" })
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Toggle bold" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Toggle italic" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Toggle underline" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Toggle strikethrough" })
+    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Toggle inverse" })).toBeDisabled();
   });
 
   it("keeps the Slides inspector immutable in read-only sessions", () => {

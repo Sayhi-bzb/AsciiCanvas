@@ -207,10 +207,6 @@ export function SidebarRight() {
     return () => window.clearTimeout(timeoutId);
   }, [onboardingPhase, setOpen]);
 
-  const stopCanvasUiEvent = (event: { stopPropagation: () => void }) => {
-    event.stopPropagation();
-  };
-
   const selectCharacterView = (view: CharacterViewId) => {
     setActiveCharacterView(view);
     if (isCollapsed) setOpen(true);
@@ -414,10 +410,6 @@ export function SidebarRight() {
       contentScroll="none"
       className="pointer-events-auto"
       data-canvas-ui="true"
-      onPointerDown={stopCanvasUiEvent}
-      onMouseDown={stopCanvasUiEvent}
-      onClick={stopCanvasUiEvent}
-      onContextMenu={stopCanvasUiEvent}
       contentClassName={cn(
         "min-h-0 gap-0 overflow-hidden p-0",
         !isMobile && "pb-12"

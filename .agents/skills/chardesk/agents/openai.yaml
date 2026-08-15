@@ -1,4 +1,4 @@
 interface:
   display_name: "CharDesk"
-  short_description: "Author and validate CharDesk text in two phases"
-  default_prompt: "Use $chardesk to create or edit verified CharDesk content."
+  short_description: "Write and validate a shared CharDesk Blackboard"
+  default_prompt: "Use $chardesk to read and locally patch the shared Blackboard."

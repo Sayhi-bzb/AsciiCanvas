@@ -117,6 +117,23 @@ describe("selectionSlice setSelectionTextAttributes", () => {
     });
   });
 
+  it("materializes blank selected cells for inverse without rewriting colors", () => {
+    useEditorStore.setState({
+      canvasMode: "freeform",
+      brushColor: "#22c55e",
+      staticGridSelection: createRangeSelection({ x: 0, y: 0 }, { x: 0, y: 0 }),
+    });
+    applyFreeformSnapshotToYMaps([]);
+
+    useEditorStore.getState().setSelectionTextAttributes({ inverse: true });
+
+    expect(useEditorStore.getState().grid.get("0,0")).toEqual({
+      char: " ",
+      color: "#22c55e",
+      attrs: { inverse: true },
+    });
+  });
+
   it("does not materialize blank selected cells for bold or italic only", () => {
     useEditorStore.setState({
       canvasMode: "freeform",

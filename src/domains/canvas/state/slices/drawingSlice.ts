@@ -2,7 +2,7 @@ import type { StateCreator } from "zustand";
 import type { EditorState, DrawingSlice } from "../interfaces";
 import type { CanvasDocumentRegistry } from "../CanvasDocumentRegistry";
 import { GridManager } from "@/shared/utils/grid";
-import type { GridCell, GridPoint } from "@/shared/types";
+import type { GridCell, GridPoint, TextAttributes } from "@/shared/types";
 import type {
   StructuredBoxNode,
   StructuredNode,
@@ -429,7 +429,7 @@ export const createDrawingSlice = (
     updateSelectedStructuredTextStyle(state, (style) => {
       const nextAttrs = cloneTextAttributes(style.attrs) ?? {};
       Object.entries(attrs).forEach(([name, enabled]) => {
-        const attrName = name as "bold" | "italic" | "underline" | "strike";
+        const attrName = name as keyof TextAttributes;
         if (enabled) {
           nextAttrs[attrName] = true;
         } else {

@@ -22,7 +22,6 @@ playwright-report
 playwright-perf-report
 blob-report
 proofshot-artifacts
-.chardesk/work/
 
 # Temporary files
 .tmp

@@ -1,7 +1,0 @@
-{
-  "id": "link",
-  "artifact": "link-card",
-  "prompt": "Keep the label unchanged and attach the requested OSC 8 link.",
-  "expected_plain": "Docs",
-  "required_styles": [{ "text": "Docs", "href": "https://example.com/docs" }]
-}

@@ -74,7 +74,7 @@ export interface DrawingSlice {
   ) => void;
   updateStructuredBox: (id: string, updater: (node: StructuredBoxNode) => StructuredBoxNode) => void;
   setStructuredTextAttributes: (
-    attrs: Partial<Record<"bold" | "italic" | "underline" | "strike", boolean>>
+    attrs: Partial<Record<keyof TextAttributes, boolean>>
   ) => void;
   setStructuredTextColor: (color: string) => void;
   setStructuredTextBackgroundColor: (bgColor: string | null) => void;
@@ -167,7 +167,7 @@ export interface SelectionSlice {
     options?: { preserveTargetBackground?: boolean }
   ) => void;
   setSelectionTextAttributes: (
-    attrs: Partial<Record<"bold" | "italic" | "underline" | "strike", boolean>>
+    attrs: Partial<Record<keyof TextAttributes, boolean>>
   ) => void;
   setSelectionForegroundColor: (color: string) => void;
   setSelectionBackgroundColor: (bgColor: string | null) => void;

@@ -48,6 +48,18 @@ describe("SidebarRight structured templates", () => {
         dispatchEvent: vi.fn(),
       })),
     });
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: () => undefined,
+    });
+    Object.defineProperty(HTMLElement.prototype, "hasPointerCapture", {
+      configurable: true,
+      value: () => false,
+    });
+    Object.defineProperty(HTMLElement.prototype, "releasePointerCapture", {
+      configurable: true,
+      value: () => undefined,
+    });
   });
 
   afterEach(() => {
@@ -396,6 +408,94 @@ describe("SidebarRight structured templates", () => {
       screen.getByRole("button", { name: "Search all Unicode" })
     ).toBeInTheDocument();
     expect(unicodeSearch).toHaveClass("pr-16");
+  });
+
+  it("closes the Unicode facet Select when its trigger is pressed again", async () => {
+    useEditorStore.setState({ canvasMode: "freeform" });
+    useLibraryStore.setState({
+      loadMainPacks: vi.fn(),
+      loadUnicodeManifest: vi.fn().mockResolvedValue(undefined),
+      loadUnicodePage: vi.fn().mockResolvedValue(undefined),
+      unicodeManifest: {
+        schemaVersion: 1,
+        unicodeVersion: "17.0.0",
+        shardSize: 1024,
+        shards: {},
+        nameIndex: "unicode/name-index.json",
+        facets: {
+          block: [
+            {
+              id: "basic-latin",
+              label: "Basic Latin",
+              count: 95,
+              ranges: [[32, 126]],
+            },
+          ],
+          script: [
+            {
+              id: "latin",
+              label: "Latin",
+              count: 1374,
+              ranges: [[65, 90]],
+            },
+          ],
+          category: [
+            {
+              id: "uppercase-letter",
+              label: "Uppercase Letter",
+              count: 1858,
+              ranges: [[65, 90]],
+            },
+          ],
+        },
+      },
+      unicodeStatus: "ready",
+      unicodeError: null,
+      unicodeFacetType: "block",
+      unicodeFacetId: "basic-latin",
+      unicodeResults: [],
+      unicodeOffset: 0,
+      unicodeHasMore: false,
+    });
+
+    render(
+      <SidebarProvider>
+        <SidebarRight />
+      </SidebarProvider>
+    );
+
+    fireEvent.click(screen.getByRole("tab", { name: "Unicode" }));
+    const trigger = screen.getByRole("combobox", { name: "Unicode facet" });
+
+    fireEvent.keyDown(trigger, { key: "ArrowDown" });
+    expect(await screen.findByRole("listbox")).toBeInTheDocument();
+
+    fireEvent.pointerDown(trigger, {
+      button: 0,
+      ctrlKey: false,
+      pointerId: 1,
+      pointerType: "mouse",
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+      expect(trigger).toHaveAttribute("aria-expanded", "false");
+    });
+
+    fireEvent.keyDown(trigger, { key: "ArrowDown" });
+    expect(await screen.findByRole("listbox")).toBeInTheDocument();
+
+    fireEvent.pointerDown(document.body, {
+      button: 0,
+      ctrlKey: false,
+      pointerId: 2,
+      pointerType: "mouse",
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+      expect(trigger).toHaveAttribute("aria-expanded", "false");
+    });
   });
 
   it("moves Add slide into the Slides header", () => {

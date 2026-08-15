@@ -4,8 +4,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { CanvasSurface } from './CanvasSurface';
 import { resolveCanvasSurfaceGeometry } from './canvasSurfaceGeometry';
 
-vi.mock('./SelectionFormatToolbar', () => ({
-  SelectionFormatToolbar: () => <div data-testid="selection-toolbar" />,
+vi.mock('./StructuredSplitToolbar', () => ({
+  StructuredSplitToolbar: () => <div data-testid="selection-toolbar" />,
 }));
 
 describe('CanvasSurface', () => {

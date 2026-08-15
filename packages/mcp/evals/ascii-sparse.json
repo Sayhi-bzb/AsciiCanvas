@@ -1,7 +1,0 @@
-{
-  "id": "ascii-sparse",
-  "artifact": "ascii-card",
-  "prompt": "Create the specified ASCII card and color only its title cyan.",
-  "expected_plain": "+------+\n| TITLE|\n+------+",
-  "required_styles": [{ "text": "TITLE", "color": "#00ffff" }]
-}

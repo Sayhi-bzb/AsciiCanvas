@@ -1,10 +1,22 @@
 import type { ToolType } from "@/domains/canvas/public";
 import type { CanvasMode } from "@/domains/sessions/public";
+import {
+  forEachGridSelectionSpan,
+  getGridSelectionRanges,
+  hasGridRangeSelection,
+  type GridSelectionState,
+} from "@/domains/selection/public";
 import type {
   StructuredNode,
   StructuredTextSelection,
 } from "@/domains/structured-content/public";
+import type { GridMap } from "@/shared/types";
+import { GridManager } from "@/shared/utils/grid";
 import { deriveStructuredInspectorModel } from "./structured-model";
+import {
+  deriveTextFormattingModel,
+  type TextFormattingModel,
+} from "./text-format-model";
 
 type StructuredInspectorModel = ReturnType<
   typeof deriveStructuredInspectorModel
@@ -16,6 +28,7 @@ type CanvasInspectorModel =
       activeColor: string;
       canvasPickDestination: "foreground" | "background";
       hasSelection: boolean;
+      textFormatting: TextFormattingModel | null;
     }
   | {
       mode: "structured";
@@ -29,7 +42,8 @@ export const deriveCanvasInspectorModel = ({
   tool,
   brushColor,
   brushBackgroundColor,
-  hasGridSelection,
+  grid,
+  staticGridSelection,
   structuredScene,
   selectedStructuredNodeIds,
   structuredTextSelection,
@@ -38,18 +52,31 @@ export const deriveCanvasInspectorModel = ({
   tool: ToolType;
   brushColor: string;
   brushBackgroundColor: string;
-  hasGridSelection: boolean;
+  grid: GridMap;
+  staticGridSelection: GridSelectionState;
   structuredScene: StructuredNode[];
   selectedStructuredNodeIds: string[];
   structuredTextSelection: StructuredTextSelection | null;
 }): CanvasInspectorModel => {
   if (canvasMode !== "structured") {
     const isBackgroundTool = tool === "bg";
+    const selectedCells: Array<NonNullable<ReturnType<GridMap["get"]>>> = [];
+    forEachGridSelectionSpan(
+      getGridSelectionRanges(staticGridSelection),
+      ({ y, minX, maxX }) => {
+        for (let x = minX; x <= maxX; x++) {
+          const cell = grid.get(GridManager.toKey(x, y));
+          if (cell) selectedCells.push(cell);
+        }
+      },
+      grid
+    );
     return {
       mode: "grid",
       activeColor: isBackgroundTool ? brushBackgroundColor : brushColor,
       canvasPickDestination: isBackgroundTool ? "background" : "foreground",
-      hasSelection: hasGridSelection,
+      hasSelection: hasGridRangeSelection(staticGridSelection),
+      textFormatting: deriveTextFormattingModel(selectedCells),
     };
   }
 

@@ -33,7 +33,7 @@ import {
 } from "@/shared/ui/select";
 import { Button } from "@/shared/ui/button";
 import { SelectableItem } from "@/shared/ui/selectable-item";
-import { ToggleGroup, ToggleGroupItem } from "@/shared/ui/toggle-group";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
 import {
   Tooltip,
   TooltipContent,
@@ -390,78 +390,76 @@ function UnicodePane({
         </p>
       )}
       {unicodeManifest && (
-        <>
-          <ToggleGroup
-            type="single"
-            value={facetType}
-            onValueChange={(value) => {
-              if (value) void selectFacetType(value as UnicodeFacetType);
-            }}
-            className="flex w-full"
-          >
+        <Tabs
+          value={facetType}
+          onValueChange={(value) => {
+            void selectFacetType(value as UnicodeFacetType);
+          }}
+          className="gap-2"
+        >
+          <TabsList className="w-full">
             {(["block", "script", "category"] as const).map((type) => (
-              <ToggleGroupItem
+              <TabsTrigger
                 key={type}
                 value={type}
-                size="sm"
+                active={facetType === type}
                 className="flex-1 px-1 text-[10px] capitalize"
               >
                 {t(UNICODE_FACET_LABEL_KEYS[type])}
-              </ToggleGroupItem>
+              </TabsTrigger>
             ))}
-          </ToggleGroup>
-          <Select
-            value={selectedFacetId}
-            onValueChange={(value) =>
-              void loadUnicodePage(facetType, value)
-            }
-          >
-            <SelectTrigger
-              aria-label={t("character.unicodeFacet")}
-              size="sm"
-              appearance="search"
-              className="w-full text-[11px]"
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent
-              position="popper"
-              align="start"
-              className="max-h-72 w-[var(--radix-select-trigger-width)] border-0"
-            >
-              {unicodeManifest.facets[facetType].map((facet) => (
-                <SelectItem
-                  key={facet.id}
-                  value={facet.id}
+            </TabsList>
+            <TabsContent value={facetType} className="flex flex-col gap-2">
+              <Select
+                value={selectedFacetId}
+                onValueChange={(value) =>
+                  void loadUnicodePage(facetType, value)
+                }
+              >
+                <SelectTrigger
+                  aria-label={t("character.unicodeFacet")}
+                  size="sm"
+                  appearance="search"
+                  className="w-full text-[11px]"
                 >
-                  {facet.label} ({facet.count})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <CharacterGrid
-            entries={unicodeResults}
-            copiedChar={copiedChar}
-            onSelect={onSelect}
-            paged={false}
-          />
-          {unicodeHasMore && unicodeFacetId && (
-            <Button
-              type="button"
-              tone="neutral"
-              size="sm"
-              onClick={() =>
-                void loadUnicodePage(
-                  unicodeFacetType,
-                  unicodeFacetId,
-                  unicodeOffset + PAGE_SIZE
-                )
-              }
-            >
-              {t("character.loadMore", { count: PAGE_SIZE })}
-            </Button>
-          )}
-        </>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent
+                  position="popper"
+                  align="start"
+                  className="max-h-72 w-[var(--radix-select-trigger-width)] border-0"
+                >
+                  {unicodeManifest.facets[facetType].map((facet) => (
+                    <SelectItem key={facet.id} value={facet.id}>
+                      {facet.label} ({facet.count})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <CharacterGrid
+                entries={unicodeResults}
+                copiedChar={copiedChar}
+                onSelect={onSelect}
+                paged={false}
+              />
+              {unicodeHasMore && unicodeFacetId && (
+                <Button
+                  type="button"
+                  tone="neutral"
+                  size="sm"
+                  onClick={() =>
+                    void loadUnicodePage(
+                      unicodeFacetType,
+                      unicodeFacetId,
+                      unicodeOffset + PAGE_SIZE
+                    )
+                  }
+                >
+                  {t("character.loadMore", { count: PAGE_SIZE })}
+                </Button>
+              )}
+            </TabsContent>
+        </Tabs>
       )}
     </div>
   );

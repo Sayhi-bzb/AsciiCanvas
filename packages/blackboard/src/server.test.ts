@@ -1,0 +1,72 @@
+import { mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
+import { resolveWorkspaceBoardPath } from "./paths.js";
+import { startBlackboardServer } from "./server.js";
+
+const roots: string[] = [];
+const close: Array<() => Promise<void>> = [];
+
+afterEach(async () => {
+  await Promise.all(close.splice(0).map((stop) => stop()));
+  await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
+});
+
+const fixture = async () => {
+  const root = await mkdtemp(join(tmpdir(), "chardesk-blackboard-server-"));
+  const client = join(root, "client");
+  roots.push(root);
+  await mkdir(client);
+  await writeFile(join(client, "index.html"), "<!doctype html><title>Blackboard</title>");
+  const board = await resolveWorkspaceBoardPath(root, "blackboard.chardesk");
+  const running = await startBlackboardServer({ board, port: 0, clientRoot: client });
+  close.push(running.close);
+  return { root, board, running };
+};
+
+describe("Blackboard Reader", () => {
+  it("serves a missing board, revisions, and unchanged responses", async () => {
+    const { board, running } = await fixture();
+    expect((await fetch(`${running.url}/board`)).status).toBe(404);
+
+    const source = "[1;32m登录[0m 👩‍💻";
+    await writeFile(board.path, source);
+    const current = await fetch(`${running.url}/board`);
+    expect(current.status).toBe(200);
+    expect(current.headers.get("content-type")).toBe("text/plain; charset=utf-8");
+    expect(current.headers.get("etag")).toMatch(/^"[0-9a-f]{64}"$/);
+    expect(await current.text()).toBe(source);
+
+    const unchanged = await fetch(`${running.url}/board`, {
+      headers: { "If-None-Match": current.headers.get("etag")! },
+    });
+    expect(unchanged.status).toBe(304);
+
+    await writeFile(board.path, "[999mcurrent source[0m");
+    const diagnostic = await fetch(`${running.url}/board`, {
+      headers: { "If-None-Match": current.headers.get("etag")! },
+    });
+    expect(diagnostic.status).toBe(200);
+    expect(diagnostic.headers.get("etag")).not.toBe(current.headers.get("etag"));
+    expect(await diagnostic.text()).toBe("[999mcurrent source[0m");
+  });
+
+  it("serves the page and rejects writes and static traversal", async () => {
+    const { running } = await fixture();
+    expect(await (await fetch(running.url)).text()).toContain("Blackboard");
+    expect((await fetch(`${running.url}/board`, { method: "POST" })).status).toBe(405);
+    expect((await fetch(`${running.url}/%2e%2e/package.json`)).status).toBe(404);
+  });
+
+  it("rejects a board symlink that escapes after startup", async () => {
+    const { root, board, running } = await fixture();
+    const outside = await mkdtemp(join(tmpdir(), "chardesk-blackboard-outside-"));
+    roots.push(outside);
+    const target = join(outside, "outside.chardesk");
+    await writeFile(target, "outside");
+    await symlink(target, board.path);
+    expect((await fetch(`${running.url}/board`)).status).toBe(403);
+    expect(root).not.toBe(outside);
+  });
+});
