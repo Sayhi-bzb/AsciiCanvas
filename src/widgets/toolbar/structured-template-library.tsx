@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type DragEvent as ReactDragEvent,
@@ -46,13 +47,13 @@ type StructuredTemplateDragPreview = {
   hotspotY: number;
   clientX: number;
   clientY: number;
-  overCanvas: boolean;
+  overSidebar: boolean;
 };
 
 type PendingDragPreviewPosition = {
   clientX?: number;
   clientY?: number;
-  overCanvas: boolean;
+  overSidebar: boolean;
 };
 
 const clampDragPreviewOffset = (value: number, size: number) =>
@@ -61,71 +62,51 @@ const clampDragPreviewOffset = (value: number, size: number) =>
 const resolveDragPreviewCoordinate = (value: number, fallback: number) =>
   Number.isFinite(value) ? value : fallback;
 
-const setTransparentNativeDragImage = (dataTransfer: DataTransfer) => {
-  const dragImage = document.createElement("div");
-  dragImage.style.position = "fixed";
-  dragImage.style.left = "-1000px";
-  dragImage.style.top = "-1000px";
-  dragImage.style.pointerEvents = "none";
-  dragImage.style.width = "1px";
-  dragImage.style.height = "1px";
-  dragImage.style.opacity = "0";
-  document.body.appendChild(dragImage);
-  dataTransfer.setDragImage(dragImage, 0, 0);
+const handleTemplateDragStart = (
+  event: ReactDragEvent<HTMLButtonElement>,
+  template: { id: StructuredTemplateId },
+  showDragPreview: (preview: StructuredTemplateDragPreview) => void,
+  setNativeDragImage: (dataTransfer: DataTransfer) => void
+) => {
+  event.dataTransfer.effectAllowed = "copy";
+  event.dataTransfer.setData(STRUCTURED_TEMPLATE_MIME, template.id);
+  setActiveStructuredTemplateDragId(template.id);
 
-  const cleanup = () => dragImage.remove();
-  if (typeof window.requestAnimationFrame === "function") {
-    window.requestAnimationFrame(cleanup);
-  } else {
-    window.setTimeout(cleanup, 0);
-  }
+  const previewElement =
+    event.currentTarget.querySelector<HTMLElement>(
+      '[data-slot="structured-template-preview"]'
+    ) ?? event.currentTarget;
+  const rect = previewElement.getBoundingClientRect();
+  const width = rect.width > 0 ? rect.width : FALLBACK_DRAG_PREVIEW_WIDTH;
+  const height = rect.height > 0 ? rect.height : FALLBACK_DRAG_PREVIEW_HEIGHT;
+  const clientX = resolveDragPreviewCoordinate(
+    event.clientX,
+    rect.left + width / 2
+  );
+  const clientY = resolveDragPreviewCoordinate(
+    event.clientY,
+    rect.top + height / 2
+  );
+
+  showDragPreview({
+    templateId: template.id,
+    width,
+    height,
+    hotspotX: clampDragPreviewOffset(clientX - rect.left, width),
+    hotspotY: clampDragPreviewOffset(clientY - rect.top, height),
+    clientX,
+    clientY,
+    overSidebar: true,
+  });
+  setNativeDragImage(event.dataTransfer);
 };
-
-const handleTemplateDragStart =
-  (
-    template: { id: StructuredTemplateId },
-    showDragPreview: (preview: StructuredTemplateDragPreview) => void
-  ) =>
-  (event: ReactDragEvent<HTMLButtonElement>) => {
-    event.dataTransfer.effectAllowed = "copy";
-    event.dataTransfer.setData(STRUCTURED_TEMPLATE_MIME, template.id);
-    setActiveStructuredTemplateDragId(template.id);
-
-    const previewElement =
-      event.currentTarget.querySelector<HTMLElement>(
-        '[data-slot="structured-template-preview"]'
-      ) ?? event.currentTarget;
-    const rect = previewElement.getBoundingClientRect();
-    const width = rect.width > 0 ? rect.width : FALLBACK_DRAG_PREVIEW_WIDTH;
-    const height = rect.height > 0 ? rect.height : FALLBACK_DRAG_PREVIEW_HEIGHT;
-    const clientX = resolveDragPreviewCoordinate(
-      event.clientX,
-      rect.left + width / 2
-    );
-    const clientY = resolveDragPreviewCoordinate(
-      event.clientY,
-      rect.top + height / 2
-    );
-
-    showDragPreview({
-      templateId: template.id,
-      width,
-      height,
-      hotspotX: clampDragPreviewOffset(clientX - rect.left, width),
-      hotspotY: clampDragPreviewOffset(clientY - rect.top, height),
-      clientX,
-      clientY,
-      overCanvas: false,
-    });
-    setTransparentNativeDragImage(event.dataTransfer);
-  };
 
 function StructuredTemplateDragOverlay({
   preview,
 }: {
   preview: StructuredTemplateDragPreview | null;
 }) {
-  if (!preview || preview.overCanvas || typeof document === "undefined") {
+  if (!preview || !preview.overSidebar || typeof document === "undefined") {
     return null;
   }
 
@@ -147,6 +128,7 @@ function StructuredTemplateDragOverlay({
         cellHeight={9}
         fontSize={8}
         fit="contain"
+        mode="characters"
         className="text-foreground"
       />
     </div>,
@@ -214,6 +196,7 @@ export function StructuredTemplateLibrary({
     useState<StructuredTemplateDragPreview | null>(null);
   const pendingDragPositionRef = useRef<PendingDragPreviewPosition | null>(null);
   const dragPreviewFrameRef = useRef<number | null>(null);
+  const nativeDragImageRef = useRef<HTMLCanvasElement | null>(null);
   const dragging = dragPreview !== null;
   const normalizedQuery = query.trim().toLowerCase();
   const templates = normalizedQuery
@@ -227,6 +210,19 @@ export function StructuredTemplateLibrary({
     if (dragPreviewFrameRef.current === null) return;
     window.cancelAnimationFrame(dragPreviewFrameRef.current);
     dragPreviewFrameRef.current = null;
+  }, []);
+
+  useLayoutEffect(() => {
+    const context = nativeDragImageRef.current?.getContext("2d");
+    if (!context) return;
+    context.fillStyle = "rgba(0, 0, 0, 0.01)";
+    context.fillRect(0, 0, 1, 1);
+  }, []);
+
+  const setNativeDragImage = useCallback((dataTransfer: DataTransfer) => {
+    const dragImage = nativeDragImageRef.current;
+    if (!dragImage) return;
+    dataTransfer.setDragImage(dragImage, 0, 0);
   }, []);
 
   const clearDragPreview = useCallback(() => {
@@ -245,13 +241,19 @@ export function StructuredTemplateLibrary({
 
     const handleDocumentDragOver = (event: globalThis.DragEvent) => {
       const target = event.target;
+      const overSidebar =
+        target instanceof Element &&
+        target.closest('[data-slot="sidebar"]') !== null;
       pendingDragPositionRef.current = {
         clientX: Number.isFinite(event.clientX) ? event.clientX : undefined,
         clientY: Number.isFinite(event.clientY) ? event.clientY : undefined,
-        overCanvas:
-          target instanceof Element &&
-          target.closest('[data-slot="canvas-surface"]') !== null,
+        overSidebar,
       };
+      setDragPreview((current) =>
+        current && current.overSidebar !== overSidebar
+          ? { ...current, overSidebar }
+          : current
+      );
       if (dragPreviewFrameRef.current !== null) return;
       dragPreviewFrameRef.current = window.requestAnimationFrame(() => {
         dragPreviewFrameRef.current = null;
@@ -263,7 +265,7 @@ export function StructuredTemplateLibrary({
                 ...current,
                 clientX: pending.clientX ?? current.clientX,
                 clientY: pending.clientY ?? current.clientY,
-                overCanvas: pending.overCanvas,
+                overSidebar: pending.overSidebar,
               }
             : null
         );
@@ -292,6 +294,19 @@ export function StructuredTemplateLibrary({
 
   return (
     <>
+      {typeof document === "undefined"
+        ? null
+        : createPortal(
+            <canvas
+              ref={nativeDragImageRef}
+              data-slot="native-drag-image"
+              width={1}
+              height={1}
+              className="pointer-events-none fixed left-0 top-0 size-px"
+              aria-hidden="true"
+            />,
+            document.body
+          )}
       <SidebarGroup className="p-0">
         <SidebarGroupContent>
           <div
@@ -310,10 +325,14 @@ export function StructuredTemplateLibrary({
                 type="button"
                 orientation="vertical"
                 draggable
-                onDragStart={handleTemplateDragStart(
-                  template,
-                  setDragPreview
-                )}
+                onDragStart={(event) =>
+                  handleTemplateDragStart(
+                    event,
+                    template,
+                    setDragPreview,
+                    setNativeDragImage
+                  )
+                }
                 onDragEnd={finishTemplateDrag}
                 className="group h-auto min-w-0 items-stretch gap-1 p-1.5 text-center"
               >

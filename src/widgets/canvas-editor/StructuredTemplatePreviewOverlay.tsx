@@ -16,13 +16,12 @@ export const StructuredTemplatePreviewOverlay = ({
   return (
     <div
       data-testid="structured-template-preview"
-      className="pointer-events-none absolute"
+      className="pointer-events-none absolute z-(--layer-canvas-interaction)"
       style={{
         left: `${cellRect.x}px`,
         top: `${cellRect.y}px`,
         width: `${cellRect.width * grid.width}px`,
         height: `${cellRect.height * grid.height}px`,
-        zIndex: 20,
       }}
     >
       <StructuredTemplatePreviewGrid
@@ -30,6 +29,7 @@ export const StructuredTemplatePreviewOverlay = ({
         cellWidth={cellRect.width}
         cellHeight={cellRect.height}
         fontSize={FONT_SIZE * zoom}
+        mode="characters"
       />
     </div>
   );

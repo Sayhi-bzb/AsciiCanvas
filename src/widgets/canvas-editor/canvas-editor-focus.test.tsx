@@ -1038,6 +1038,7 @@ describe("CanvasEditor focus management", () => {
       '[data-testid="structured-template-preview-grid"]'
     );
     expect(previewGrid?.tagName).toBe("CANVAS");
+    expect(previewGrid).toHaveAttribute("data-preview-mode", "characters");
     expect(previewGrid).toHaveStyle({ width: "72px", height: "19px" });
 
     act(() => {

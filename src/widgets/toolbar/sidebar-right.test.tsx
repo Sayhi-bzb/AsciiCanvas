@@ -789,6 +789,11 @@ describe("SidebarRight structured templates", () => {
         <SidebarRight />
       </SidebarProvider>
     );
+    const mountedNativeDragImage = document.querySelector<HTMLCanvasElement>(
+      '[data-slot="native-drag-image"]'
+    );
+    expect(mountedNativeDragImage).toBeInTheDocument();
+    expect(mountedNativeDragImage?.parentElement).toBe(document.body);
     const button = screen.getByRole("button", { name: /button/i });
     const preview = within(button).getByTestId(
       "structured-template-preview-viewport"
@@ -823,9 +828,18 @@ describe("SidebarRight structured templates", () => {
     expect(getActiveStructuredTemplateDragId()).toBe("button");
     expect(setDragImage).toHaveBeenCalledTimes(1);
     const nativeDragImage = setDragImage.mock.calls[0][0] as HTMLElement;
-    expect(nativeDragImage.style.width).toBe("1px");
-    expect(nativeDragImage.style.height).toBe("1px");
-    expect(nativeDragImage.style.opacity).toBe("0");
+    expect(nativeDragImage).toBe(mountedNativeDragImage);
+    expect(nativeDragImage.tagName).toBe("CANVAS");
+    expect(nativeDragImage).toHaveAttribute("data-slot", "native-drag-image");
+    expect(nativeDragImage.isConnected).toBe(true);
+    expect(nativeDragImage).toHaveClass(
+      "pointer-events-none",
+      "fixed",
+      "left-0",
+      "top-0",
+      "size-px"
+    );
+    expect(nativeDragImage.style.opacity).toBe("");
     expect(preview).toHaveAttribute(
       "data-slot",
       "structured-template-preview"
@@ -836,7 +850,10 @@ describe("SidebarRight structured templates", () => {
       height: "50px",
       transform: "translate3d(10px, 20px, 0)",
     });
-    expect(overlay.querySelector("canvas")).toBeInTheDocument();
+    expect(overlay.querySelector("canvas")).toHaveAttribute(
+      "data-preview-mode",
+      "characters"
+    );
     expect(overlay).not.toHaveTextContent("Button");
 
     const canvasSurface = document.createElement("div");
@@ -848,11 +865,10 @@ describe("SidebarRight structured templates", () => {
       clientY: { value: 160 },
     });
     fireEvent(canvasSurface, canvasDragOver);
-    await waitFor(() => {
-      expect(
-        screen.queryByTestId("structured-template-drag-overlay")
-      ).not.toBeInTheDocument();
-    });
+    expect(
+      screen.queryByTestId("structured-template-drag-overlay")
+    ).not.toBeInTheDocument();
+    expect(nativeDragImage.isConnected).toBe(true);
 
     const chromeDragOver = createEvent.dragOver(document.body);
     Object.defineProperties(chromeDragOver, {
@@ -860,15 +876,24 @@ describe("SidebarRight structured templates", () => {
       clientY: { value: 90 },
     });
     fireEvent(document.body, chromeDragOver);
-    await waitFor(() => {
-      expect(
-        screen.getByTestId("structured-template-drag-overlay")
-      ).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("structured-template-drag-overlay")
+    ).not.toBeInTheDocument();
+
+    const sidebarDragOver = createEvent.dragOver(button);
+    Object.defineProperties(sidebarDragOver, {
+      clientX: { value: 82 },
+      clientY: { value: 64 },
     });
+    fireEvent(button, sidebarDragOver);
+    expect(
+      screen.getByTestId("structured-template-drag-overlay")
+    ).toBeInTheDocument();
     canvasSurface.remove();
 
     fireEvent.dragEnd(button);
     expect(getActiveStructuredTemplateDragId()).toBeNull();
+    expect(nativeDragImage.isConnected).toBe(true);
     expect(
       screen.queryByTestId("structured-template-drag-overlay")
     ).not.toBeInTheDocument();

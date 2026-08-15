@@ -11,6 +11,7 @@ import {
 import { resolveStructuredTemplatePreviewLayout } from "./structured-template-preview-layout";
 
 type StructuredTemplatePreviewFit = "native" | "contain";
+type StructuredTemplatePreviewMode = "full" | "characters";
 
 type StructuredTemplatePreviewGridProps = {
   preview: StructuredTemplatePreview;
@@ -18,6 +19,7 @@ type StructuredTemplatePreviewGridProps = {
   cellHeight: number;
   fontSize: number;
   fit?: StructuredTemplatePreviewFit;
+  mode?: StructuredTemplatePreviewMode;
   padding?: number;
   maxScale?: number;
   className?: string;
@@ -29,6 +31,7 @@ export function StructuredTemplatePreviewGrid({
   cellHeight,
   fontSize,
   fit = "native",
+  mode = "full",
   padding = 8,
   maxScale = 2,
   className,
@@ -79,17 +82,19 @@ export function StructuredTemplatePreviewGrid({
       };
       const dpr = window.devicePixelRatio || 1;
       prepareCanvasSurface(canvas, ctx, viewport.width, viewport.height, dpr);
-      preview.rows.forEach((row, y) => {
-        row.forEach((cell, x) => {
-          drawCellBackground(
-            ctx,
-            cell,
-            layout.x + x * cellWidth * layout.scale,
-            layout.y + y * cellHeight * layout.scale,
-            { metrics, zoom: layout.scale }
-          );
+      if (mode === "full") {
+        preview.rows.forEach((row, y) => {
+          row.forEach((cell, x) => {
+            drawCellBackground(
+              ctx,
+              cell,
+              layout.x + x * cellWidth * layout.scale,
+              layout.y + y * cellHeight * layout.scale,
+              { metrics, zoom: layout.scale }
+            );
+          });
         });
-      });
+      }
       preview.rows.forEach((row, y) => {
         row.forEach((cell, x) => {
           if (cell.char === " " && !cell.attrs) return;
@@ -127,6 +132,7 @@ export function StructuredTemplatePreviewGrid({
     fontSize,
     height,
     maxScale,
+    mode,
     padding,
     preview,
     width,
@@ -139,6 +145,7 @@ export function StructuredTemplatePreviewGrid({
       ref={canvasRef}
       data-testid="structured-template-preview-grid"
       data-fit={fit}
+      data-preview-mode={mode}
       className={cn("block font-mono", className)}
       style={
         fit === "contain"
