@@ -197,6 +197,55 @@ describe("clipboardActions", () => {
     });
   });
 
+  it("copies only the union mask while preserving relative cell positions", () => {
+    const payload = buildClipboardPayload(
+      new Map([
+        ["0,0", { char: "a", color: "#ffffff" }],
+        ["1,0", { char: "b", color: "#ffffff" }],
+        ["0,1", { char: "c", color: "#ffffff" }],
+        ["1,1", { char: "d", color: "#ffffff" }],
+      ]),
+      [
+        { start: { x: 1, y: 0 }, end: { x: 1, y: 0 } },
+        { start: { x: 0, y: 1 }, end: { x: 0, y: 1 } },
+      ],
+      null,
+      "#000000"
+    );
+
+    expect(payload?.plain).toBe(" b\nc");
+    expect(JSON.parse(payload!.rich!)).toEqual({
+      type: "ascii-metropolis-zone",
+      version: 1,
+      cells: [
+        { x: 1, y: 0, char: "b", color: "#ffffff" },
+        { x: 0, y: 1, char: "c", color: "#ffffff" },
+      ],
+    });
+  });
+
+  it("materializes selected empty cells without materializing holes", () => {
+    const payload = buildClipboardPayload(
+      new Map([["1,0", { char: "X", color: "#ffffff" }]]),
+      [
+        { start: { x: 0, y: 0 }, end: { x: 0, y: 0 } },
+        { start: { x: 2, y: 0 }, end: { x: 2, y: 0 } },
+      ],
+      null,
+      "#123456"
+    );
+
+    expect(payload?.plain).toBe("");
+    expect(JSON.parse(payload!.rich!)).toEqual({
+      type: "ascii-metropolis-zone",
+      version: 1,
+      cells: [
+        { x: 0, y: 0, char: " ", color: "#123456" },
+        { x: 2, y: 0, char: " ", color: "#123456" },
+      ],
+    });
+  });
+
   it("round-trips compact ANSI clipboard style diffs", () => {
     const payload = buildClipboardPayload(
       new Map([

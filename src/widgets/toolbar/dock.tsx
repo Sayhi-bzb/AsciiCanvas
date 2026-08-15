@@ -265,10 +265,11 @@ export function Toolbar({
                   tone="subtle"
                   shape="square"
                   size="md"
-                  active={isActive || openSubMenuId === item.id}
+                  active={isActive}
+                  open={openSubMenuId === item.id}
+                  subordinate
                   joined="end"
                   aria-label={t("toolbar.openSubmenu", { label: item.label })}
-                  className="opacity-30 hover:opacity-100 data-[active=true]:opacity-100"
                 >
                   <ToolbarSubmenuIcon />
                 </Button>
@@ -287,7 +288,8 @@ export function Toolbar({
                         tone="subtle"
                         shape="square"
                         size="md"
-                        active={isActive || openSubMenuId === item.id}
+                        active={isActive}
+                        open={openSubMenuId === item.id}
                         joined={item.hasSub ? "start" : undefined}
                         onClick={() => activateToolbarItem(item.id as ToolbarActionId)}
                         aria-label={item.label}

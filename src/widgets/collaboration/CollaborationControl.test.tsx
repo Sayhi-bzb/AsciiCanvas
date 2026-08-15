@@ -161,7 +161,11 @@ describe('CollaborationControl', () => {
     };
     render(<CollaborationControl />);
 
+    const trigger = screen.getByRole('button', { name: 'Collaboration' });
+    expect(trigger).not.toHaveAttribute('data-active');
+    expect(screen.getByTestId('collaboration-connected-indicator')).toBeInTheDocument();
     openPanel();
+    expect(trigger).toHaveClass('bg-control-open-surface');
     expect(await screen.findByText('Connected')).toBeInTheDocument();
     expect(screen.getByText('2 participant(s)')).toBeInTheDocument();
     expect(screen.getByText('Remote Peer')).toBeInTheDocument();

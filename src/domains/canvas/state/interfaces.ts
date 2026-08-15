@@ -102,6 +102,7 @@ export interface StaticGridSlice {
   staticGridEditMode: GridEditMode;
   setStaticGridActiveCell: (address: GridAddress) => void;
   setStaticGridSelectionRange: (range: GridRange) => void;
+  appendStaticGridSelectionRange: (range: GridRange) => void;
   moveStaticGridFocus: (dx: number, dy: number, options?: { extend?: boolean }) => void;
   moveStaticGridFocusToEdge: (
     edge: "left" | "right" | "top" | "bottom" | "top-left" | "bottom-right",
@@ -153,8 +154,6 @@ export interface TextSlice {
 }
 
 export interface SelectionSlice {
-  selections: SelectionArea[];
-  addSelection: (area: SelectionArea) => void;
   clearSelections: () => void;
   clearInteractionState: () => void;
   canCopyOrCut: () => boolean;
@@ -167,15 +166,12 @@ export interface SelectionSlice {
     char: string,
     options?: { preserveTargetBackground?: boolean }
   ) => void;
-  fillStaticGridPattern: (source: SelectionArea, target: SelectionArea) => void;
   setSelectionTextAttributes: (
     attrs: Partial<Record<"bold" | "italic" | "underline" | "strike", boolean>>
   ) => void;
   setSelectionForegroundColor: (color: string) => void;
   setSelectionBackgroundColor: (bgColor: string | null) => void;
   fillArea: (area: SelectionArea) => void;
-  moveSelections: (dx: number, dy: number) => void;
-  expandSelection: (dx: number, dy: number) => void;
 }
 
 export type CanvasViewportState = {

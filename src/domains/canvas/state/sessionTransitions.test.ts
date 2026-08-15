@@ -11,7 +11,6 @@ const initialState = useEditorStore.getState();
 
 const markDocumentInteractionDirty = () => {
   useEditorStore.setState({
-    selections: [{ start: { x: 1, y: 1 }, end: { x: 2, y: 2 } }],
     textCursor: { x: 3, y: 4 },
     editingStructuredTextNodeId: "text-node",
     structuredTextSelection: {
@@ -28,6 +27,7 @@ const markDocumentInteractionDirty = () => {
     structuredContextPoint: { x: 5, y: 6 },
     structuredGridFocus: { x: 7, y: 8 },
     staticGridSelection: {
+      mode: "range",
       activeCell: { x: 9, y: 9 },
       anchorCell: { x: 8, y: 8 },
       primaryRange: { start: { x: 8, y: 8 }, end: { x: 9, y: 9 } },

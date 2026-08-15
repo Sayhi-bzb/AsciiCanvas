@@ -17,7 +17,6 @@ export const COLOR_ACTIVE_CELL_BORDER = "#2563eb";
 export const COLOR_ACTIVE_CELL_MARKER = "rgba(37, 99, 235, 0.65)";
 
 export const COLOR_SELECTION_BG = "rgba(0, 0, 0, 0.2)";
-export const COLOR_SELECTION_BORDER_MUTED = "rgba(37, 99, 235, 0.45)";
 
 export const EXPORT_PADDING = 1;
 

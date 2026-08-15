@@ -4,6 +4,7 @@ import {
   exportSelectionToString,
   exportToAnsi,
 } from "@/domains/export/public";
+import { forEachGridSelectionSpan } from "@/domains/selection/public";
 import { GridManager } from "@/shared/utils/grid";
 import type { GridMap, NodeBounds, Point, SelectionArea } from "@/shared/types";
 import type { StructuredNode, StructuredNodeStyle, StructuredTextNode, StructuredTextStyleRange } from "@/domains/structured-content/public";
@@ -75,6 +76,21 @@ export const hasClipboardSource = (
   return selections.length > 0 || !!textCursor;
 };
 
+const projectGridSelection = (
+  grid: GridMap,
+  selections: SelectionArea[],
+  brushColor: string
+): GridMap => {
+  const projection: GridMap = new Map();
+  forEachGridSelectionSpan(selections, ({ y, minX, maxX }) => {
+    for (let x = minX; x <= maxX; x++) {
+      const key = GridManager.toKey(x, y);
+      projection.set(key, grid.get(key) ?? { char: " ", color: brushColor });
+    }
+  });
+  return projection;
+};
+
 export const buildClipboardPayload = (
   grid: GridMap,
   selections: SelectionArea[],
@@ -85,12 +101,16 @@ export const buildClipboardPayload = (
   if (!hasClipboardSource(selections, textCursor)) return null;
 
   if (selections.length > 0) {
+    const projectedGrid = projectGridSelection(grid, selections, brushColor);
     return {
       plain:
         format === "ansi"
-          ? toAnsiLikeClipboardText(exportSelectionToAnsi(grid, selections))
-          : exportSelectionToString(grid, selections),
-      rich: format === "ansi" ? null : exportSelectionToJSON(grid, selections),
+          ? toAnsiLikeClipboardText(exportSelectionToAnsi(projectedGrid, selections))
+          : exportSelectionToString(projectedGrid, selections),
+      rich:
+        format === "ansi"
+          ? null
+          : exportSelectionToJSON(projectedGrid, selections),
     };
   }
 

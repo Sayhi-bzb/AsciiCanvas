@@ -3,6 +3,7 @@ import * as PopoverPrimitive from "@radix-ui/react-popover"
 
 import { cn } from "@/shared/lib/utils"
 import { rx } from "@/shared/styles/recipes"
+import type { Density } from "@/shared/styles/tokens"
 
 function Popover({ ...props }: React.ComponentProps<typeof PopoverPrimitive.Root>) {
   return <PopoverPrimitive.Root data-slot="popover" {...props} />
@@ -16,8 +17,11 @@ function PopoverContent({
   className,
   align = "center",
   sideOffset = 4,
+  density = "compact",
   ...props
-}: React.ComponentProps<typeof PopoverPrimitive.Content>) {
+}: React.ComponentProps<typeof PopoverPrimitive.Content> & {
+  density?: Density
+}) {
   return (
     <PopoverPrimitive.Portal>
       <PopoverPrimitive.Content
@@ -26,7 +30,9 @@ function PopoverContent({
         sideOffset={sideOffset}
         className={cn(
           rx.surface({ kind: "overlay" }),
-          "text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-(--layer-popover) w-72 origin-(--radix-popover-content-transform-origin) p-4 outline-hidden",
+          rx.overlayContent({ density }),
+          rx.overlayMotion,
+          "text-popover-foreground data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-(--layer-popover) origin-(--radix-popover-content-transform-origin) outline-hidden",
           className
         )}
         {...props}

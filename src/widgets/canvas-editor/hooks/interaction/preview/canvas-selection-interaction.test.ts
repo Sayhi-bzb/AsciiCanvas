@@ -76,7 +76,7 @@ describe("selection interaction commit decisions", () => {
         structuredScene: [],
         append: true,
       })
-    ).toEqual({ type: "addSelection", selection });
+    ).toEqual({ type: "appendStaticGridSelectionRange", selection });
   });
 
   it("selects structured nodes intersecting the selection", () => {

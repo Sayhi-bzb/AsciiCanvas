@@ -100,7 +100,7 @@ describe('ZoomControl', () => {
     const grid = screen.getByTestId('zoom-grid');
     const minimap = screen.getByTestId('zoom-minimap-toggle');
     expect(grid).toHaveAttribute('aria-pressed', 'true');
-    expect(grid).toHaveClass('bg-accent');
+    expect(grid).toHaveClass('bg-control-pressed-surface');
     fireEvent.click(grid);
     expect(useEditorStore.getState().showGrid).toBe(false);
     expect(grid).toHaveAttribute('aria-pressed', 'false');

@@ -53,7 +53,7 @@ describe('HelpControl', () => {
     fireEvent.click(control);
     expect(await screen.findByRole('dialog', { name: 'Help' })).toBeInTheDocument();
     expect(control).toHaveAttribute('aria-expanded', 'true');
-    expect(control).toHaveClass('bg-accent');
+    expect(control).toHaveClass('bg-control-open-surface');
 
     fireEvent.click(screen.getByRole('button', { name: 'Close help' }));
     expect(screen.queryByRole('dialog', { name: 'Help' })).not.toBeInTheDocument();
@@ -69,7 +69,7 @@ describe('HelpControl', () => {
     fireEvent.click(control);
     expect(await screen.findByRole('dialog', { name: 'Data security' })).toBeInTheDocument();
     expect(control).toHaveAttribute('aria-expanded', 'true');
-    expect(control).toHaveClass('bg-accent');
+    expect(control).toHaveClass('bg-control-open-surface');
 
     fireEvent.click(screen.getByRole('button', { name: 'Close security' }));
     expect(screen.queryByRole('dialog', { name: 'Data security' })).not.toBeInTheDocument();

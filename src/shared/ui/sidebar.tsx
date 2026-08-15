@@ -413,7 +413,7 @@ function SidebarStandard({
       {header ?? (
         <SidebarHeader
           className={cn(
-            "flex py-4 transition-all duration-200",
+            "flex py-4 transition-[padding,gap] duration-[var(--motion-standard)] motion-reduce:transition-none",
             isCollapsed
               ? "flex-col items-center justify-center gap-y-4"
               : "flex-row items-center justify-between px-4"
@@ -425,7 +425,7 @@ function SidebarStandard({
               <span
                 className={cn(
                   rx.panelHeading(),
-                  "whitespace-nowrap animate-in fade-in duration-300"
+                  "whitespace-nowrap animate-in fade-in duration-[var(--motion-standard)] motion-reduce:animate-none"
                 )}
               >
                 {title}
@@ -448,7 +448,7 @@ function SidebarStandard({
         aria-hidden={hideContent || undefined}
         inert={hideContent || undefined}
         className={cn(
-          "transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none motion-reduce:transform-none",
+          "transition-[opacity,transform] duration-[var(--motion-standard)] ease-out motion-reduce:transition-none motion-reduce:transform-none",
           hideContent
             ? "pointer-events-none translate-x-2 opacity-0"
             : "translate-x-0 opacity-100",
@@ -465,7 +465,7 @@ function SidebarStandard({
       {footer && (
         <SidebarFooter
           className={cn(
-            "p-2 transition-[padding] duration-200 ease-linear",
+            "p-2 transition-[padding] duration-[var(--motion-standard)] ease-linear motion-reduce:transition-none",
             isCollapsed && "flex-col items-center gap-y-2 px-0"
           )}
         >

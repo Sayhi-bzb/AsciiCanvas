@@ -15,6 +15,9 @@ The visual ownership path has one direction:
   owns domain-neutral structure and accessibility; `src/widgets` composes it.
 
 `shadow-host`, `shadow-overlay`, and `shadow-dialog` are the elevation ladder.
+`surface`, `control`, and `item` are the radius ladder. Surface and dialog
+shells use 12px; controls, fields, menu items, and selectable items use 6px;
+color swatches remain circular.
 Viewport surfaces use semantic layer tokens; product instances do not assign raw
 overlay tiers or recreate shared surfaces. Presentation, presence, field, and
 swatch colors also have semantic tokens instead of component-local theme branches.
@@ -41,6 +44,12 @@ Interaction state has stable vocabulary:
 - `data-state="highlighted|checked|on"` remains owned by the relevant Radix
   primitive.
 
+Persistent state strength is `active > pressed > open > hover`. Each level has
+its own light and dark semantic surface token. `subordinate` keeps an associated
+control quiet at rest while its recipe restores full opacity for hover and every
+persistent state. Product code does not implement that behavior with opacity
+utilities.
+
 `Button`, `IconButton`, `SelectableItem`, `SwatchButton`, `TabsTrigger`, and the
 menu family translate those states into the shared hover, focus, selected,
 disabled, destructive, radius, and density recipes. Widgets do not reproduce
@@ -50,17 +59,24 @@ that boundary with `data-visual-contract="presentation"`.
 
 Dropdown primitives own the overlay surface, collision behavior, animation,
 viewport limits, and a compact minimum width. The product instance owns only
-its semantic width. Dropdown, Context Menu, and Select items share the same
+its semantic width. Popovers expose `compact` (8px) and `default` (16px)
+content density; editor chrome defaults to compact. Dropdown, Context Menu, and Select items share the same
 compact/default density, radius, highlight, checked, disabled, destructive,
 and separator recipes. Dropdowns are reserved for command choices and grouped
 options; persistent lists, forms, status, and multi-action widgets use a
 Popover with ordinary buttons and dialog focus behavior.
+
+Motion uses three semantic durations: fast 120ms for control feedback,
+standard 180ms for floating surfaces and Sidebar transitions, and slow 240ms
+for modal surfaces. Components transition only the properties they own and
+disable non-essential motion under reduced-motion preferences.
 
 ## Evidence
 
 - [`scripts/quality/check-style-api.mjs`](https://github.com/Sayhi-bzb/CharDesk/blob/main/scripts/quality/check-style-api.mjs)
   rejects legacy recipes, raw palette colors, component-local `dark:` branches,
   `space-x/y`, raw viewport tiers, raw Widget buttons, Widget-owned interaction
-  states, and Widget-owned shared surfaces.
+  states, direct icon sizing, square-control geometry overrides, and Widget-owned
+  shared surfaces.
 - Surface evidence: [`dialog.test.tsx`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/shared/ui/dialog.test.tsx)
   and [`context-menu.test.tsx`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/shared/ui/context-menu.test.tsx)

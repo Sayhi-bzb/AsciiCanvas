@@ -4,6 +4,7 @@ import { drawSlideCanvas } from "./slide-canvas-renderer";
 
 const createCanvas = () => {
   const calls: string[] = [];
+  const textColors: string[] = [];
   let fillStyle = "";
   const ctx = {
     beginPath: vi.fn(),
@@ -12,7 +13,10 @@ const createCanvas = () => {
     fillRect: vi.fn((x: number, y: number, width: number, height: number) => {
       calls.push(`fillRect:${fillStyle}:${x},${y},${width},${height}`);
     }),
-    fillText: vi.fn((text: string) => calls.push(`fillText:${text}`)),
+    fillText: vi.fn((text: string) => {
+      calls.push(`fillText:${text}`);
+      textColors.push(fillStyle);
+    }),
     lineTo: vi.fn(),
     moveTo: vi.fn(),
     rect: vi.fn(),
@@ -37,7 +41,7 @@ const createCanvas = () => {
     height: 0,
     getContext: vi.fn(() => ctx),
   } as unknown as HTMLCanvasElement;
-  return { calls, canvas, ctx };
+  return { calls, canvas, ctx, textColors };
 };
 
 describe("drawSlideCanvas", () => {
@@ -85,6 +89,8 @@ describe("drawSlideCanvas", () => {
     });
     expect(canvas.width).toBe(1800);
     expect(canvas.height).toBe(1026);
+    expect(ctx.fillRect).toHaveBeenCalledTimes(4);
+    expect(ctx.fillRect).toHaveBeenCalledWith(0, 0, 900, 513);
     expect(ctx.fillRect).toHaveBeenCalledWith(0, 0, 18, 19);
     expect(ctx.fillRect).toHaveBeenCalledWith(891, 494, 9, 19);
     expect(ctx.fillText).toHaveBeenCalledWith("A", 896, 504);
@@ -98,6 +104,49 @@ describe("drawSlideCanvas", () => {
     );
     expect(ctx.font).toContain("700");
     expect(ctx.stroke).toHaveBeenCalledTimes(1);
+  });
+
+  it("supports transparent previews and adapts only unbacked default text", () => {
+    const { canvas, ctx, textColors } = createCanvas();
+
+    drawSlideCanvas({
+      canvas,
+      slide: {
+        id: "slide-1",
+        name: "Transparent preview",
+        size: { columns: 4, rows: 1 },
+        grid: [
+          ["0,0", { char: "A", color: "#000000" }],
+          ["1,0", { char: "B", color: "#ff0000" }],
+          [
+            "2,0",
+            { char: "C", color: "#000000", bgColor: "#ffffff" },
+          ],
+          [
+            "3,0",
+            { char: "D", color: "#000000", bgColor: "transparent" },
+          ],
+        ],
+      },
+      size: { columns: 4, rows: 1 },
+      viewportWidth: 36,
+      viewportHeight: 19,
+      padding: 0,
+      backdropColor: null,
+      pageColor: null,
+      defaultTextColor: "#f8fafc",
+      dpr: 1,
+    });
+
+    expect(ctx.fillRect).toHaveBeenCalledTimes(2);
+    expect(ctx.fillRect).toHaveBeenCalledWith(18, 0, 9, 19);
+    expect(ctx.fillRect).toHaveBeenCalledWith(27, 0, 9, 19);
+    expect(textColors).toEqual([
+      "#f8fafc",
+      "#ff0000",
+      "#000000",
+      "#f8fafc",
+    ]);
   });
 
   it("does not draw when the preview has no measurable area", () => {

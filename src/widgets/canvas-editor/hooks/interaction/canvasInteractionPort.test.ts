@@ -92,12 +92,9 @@ describe("CanvasInteractionPort controller", () => {
     expect(dependencies.cancelInteraction).toHaveBeenCalledOnce();
   });
 
-  it("owns fill preview and commit without routing through ordinary selection", () => {
+  it("routes drags through ordinary selection without a fill-handle branch", () => {
     const dependencies = createDependencies();
-    const source = { start: { x: 1, y: 1 }, end: { x: 2, y: 1 } };
-    dependencies.resolveFillStart = vi.fn(() => source);
-    dependencies.updateFillPreview = vi.fn();
-    dependencies.commitFill = vi.fn();
+    dependencies.tool = "select";
     const port = createCanvasInteractionPort(dependencies);
 
     const started = port.start({
@@ -111,17 +108,8 @@ describe("CanvasInteractionPort controller", () => {
       gridPoint: { x: 2, y: 1 },
       brushChar: "#",
     }, null);
-    expect(started?.state).toEqual({ type: "filling", source, current: { x: 2, y: 1 } });
-
-    const next = port.update(started!.state, {
-      type: "canvas-drag-update",
-      delta: { x: 10, y: 0 },
-      currentGrid: { x: 6, y: 1 },
-    });
-    expect(dependencies.updateFillPreview).toHaveBeenCalledWith(source, { x: 6, y: 1 });
-
-    port.complete(next, { x: 6, y: 1 });
-    expect(dependencies.commitFill).toHaveBeenCalledWith(source, { x: 6, y: 1 });
+    expect(dependencies.dragStart).toHaveBeenCalledOnce();
+    expect(started?.state.type).toBe("drawing");
   });
 
   it("starts an appended static-grid range for modifier dragging", () => {

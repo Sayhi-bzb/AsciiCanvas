@@ -20,6 +20,7 @@ type ButtonVariantInput = {
   pressed?: boolean
   open?: boolean
   destructive?: boolean
+  subordinate?: boolean
   joined?: "start" | "middle" | "end"
 }
 
@@ -32,6 +33,7 @@ const resolveButtonStyle = ({
   pressed,
   open,
   destructive,
+  subordinate,
   joined,
 }: Omit<ButtonVariantInput, "className">) => {
   const resolvedTone = tone ?? "primary"
@@ -48,6 +50,7 @@ const resolveButtonStyle = ({
     pressed: pressed ?? false,
     open: open ?? false,
     destructive: destructive ?? false,
+    subordinate: subordinate ?? false,
     joined,
   }
 }
@@ -64,6 +67,7 @@ const buttonVariants = (options: ButtonVariantInput = {}) => {
       pressed: resolved.pressed,
       open: resolved.open,
       destructive: resolved.destructive,
+      subordinate: resolved.subordinate,
       joined: resolved.joined,
     }),
     options.className
@@ -80,6 +84,7 @@ export type ButtonProps = React.ComponentProps<"button"> & {
   pressed?: boolean
   open?: boolean
   destructive?: boolean
+  subordinate?: boolean
   joined?: "start" | "middle" | "end"
 }
 
@@ -93,6 +98,7 @@ function Button({
   pressed,
   open,
   destructive,
+  subordinate,
   joined,
   asChild = false,
   ...props
@@ -107,6 +113,7 @@ function Button({
     pressed,
     open,
     destructive,
+    subordinate,
     joined,
   })
 
@@ -120,6 +127,7 @@ function Button({
       data-pressed={resolved.pressed || undefined}
       data-open={resolved.open || undefined}
       data-destructive={resolved.destructive || undefined}
+      data-subordinate={resolved.subordinate || undefined}
       data-joined={resolved.joined}
       aria-pressed={
         props["aria-pressed"] ??
@@ -137,6 +145,7 @@ function Button({
         pressed,
         open,
         destructive,
+        subordinate,
         joined,
         className,
       })}

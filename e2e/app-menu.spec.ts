@@ -100,8 +100,8 @@ test.describe("App menu", () => {
     await expect(page.getByRole("menuitem", { name: "Save" })).toHaveCount(0);
 
     const separator = menu.locator('[data-slot="dropdown-menu-separator"]');
-    await expect(separator).toHaveCSS("height", "2px");
-    await expect(separator).toHaveClass(/bg-accent/);
+    await expect(separator).toHaveCSS("height", "1px");
+    await expect(separator).toHaveClass(/bg-border/);
 
     await page.mouse.click(700, 500);
     await expect(menuContent).toHaveCount(0);

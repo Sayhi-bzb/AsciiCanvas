@@ -345,7 +345,7 @@ describe('canvas session viewport state', () => {
   });
 
   it('reports undo success only when the active canvas history changes', () => {
-    useEditorStore.setState({ canvasMode: 'freeform', selections: [] });
+    useEditorStore.setState({ canvasMode: 'freeform' });
     applyFreeformSnapshotToYMaps([]);
     expect(editorRuntime.commands.execute('undo', undefined, 'global-hotkey').status).toBe('rejected');
 
@@ -444,7 +444,7 @@ describe('canvas session viewport state', () => {
   });
 
   it('does not cut a new target after an asynchronous clipboard write', async () => {
-    useEditorStore.setState({ canvasMode: 'freeform', selections: [] });
+    useEditorStore.setState({ canvasMode: 'freeform' });
     applyFreeformSnapshotToYMaps([
       ['0,0', { char: 'A', color: '#ffffff' }],
       ['1,0', { char: 'B', color: '#ffffff' }],
@@ -467,8 +467,52 @@ describe('canvas session viewport state', () => {
     expect(useEditorStore.getState().grid.get('1,0')?.char).toBe('B');
   });
 
+  it('cuts only cells inside a disjoint grid selection union', async () => {
+    useEditorStore.setState({
+      canvasMode: 'freeform',
+      textCursor: null,
+      staticGridEditMode: 'navigate',
+      staticGridSelection: {
+        mode: 'range',
+        activeCell: { x: 0, y: 1 },
+        anchorCell: { x: 0, y: 1 },
+        primaryRange: { start: { x: 0, y: 1 }, end: { x: 0, y: 1 } },
+        additionalRanges: [
+          { start: { x: 1, y: 0 }, end: { x: 1, y: 0 } },
+        ],
+      },
+    });
+    applyFreeformSnapshotToYMaps([
+      ['0,0', { char: 'a', color: '#ffffff' }],
+      ['1,0', { char: 'b', color: '#ffffff' }],
+      ['0,1', { char: 'c', color: '#ffffff' }],
+      ['1,1', { char: 'd', color: '#ffffff' }],
+    ]);
+    const capture = createClipboardEventCapture();
+
+    await expect(
+      useEditorStore.getState().cutSelection({ event: capture.event })
+    ).resolves.toEqual({ status: 'applied', changed: true });
+
+    expect(capture.data.get('text/plain')).toBe(' b\nc');
+    expect(
+      JSON.parse(
+        capture.data.get('web application/x-ascii-metropolis') ?? '{}'
+      ).cells
+    ).toEqual([
+      { x: 1, y: 0, char: 'b', color: '#ffffff' },
+      { x: 0, y: 1, char: 'c', color: '#ffffff' },
+    ]);
+    expect(useEditorStore.getState().grid).toEqual(
+      new Map([
+        ['0,0', { char: 'a', color: '#ffffff' }],
+        ['1,1', { char: 'd', color: '#ffffff' }],
+      ])
+    );
+  });
+
   it('does not paste into a new target after an asynchronous clipboard read', async () => {
-    useEditorStore.setState({ canvasMode: 'freeform', selections: [] });
+    useEditorStore.setState({ canvasMode: 'freeform' });
     applyFreeformSnapshotToYMaps([
       ['0,0', { char: 'A', color: '#ffffff' }],
       ['1,0', { char: 'B', color: '#ffffff' }],
@@ -767,7 +811,7 @@ describe('canvas session viewport state', () => {
         },
       ])
     );
-    useEditorStore.getState().addSelection({
+    useEditorStore.getState().appendStaticGridSelectionRange({
       start: { x: 0, y: 0 },
       end: { x: 4, y: 0 },
     });
@@ -799,7 +843,7 @@ describe('canvas session viewport state', () => {
       ['0,0', { char: 'A', color: '#111111', bgColor: '#000000' }],
       ['1,0', { char: 'B', color: '#222222', bgColor: '#0000ff' }],
     ]);
-    useEditorStore.getState().addSelection({
+    useEditorStore.getState().appendStaticGridSelectionRange({
       start: { x: 0, y: 0 },
       end: { x: 1, y: 0 },
     });

@@ -5,7 +5,6 @@ import {
   COLOR_ACTIVE_CELL_BORDER,
   COLOR_ACTIVE_CELL_MARKER,
   COLOR_SELECTION_BG,
-  COLOR_SELECTION_BORDER_MUTED,
   COLOR_TEXT_CURSOR_BG,
   COLOR_TEXT_CURSOR_FG,
   GRID_COLOR,
@@ -26,7 +25,13 @@ import {
   prepareCanvasSurface,
   setTextRenderStyle,
 } from '@/shared/metrics';
-import { getStaticGridViewState } from '@/domains/selection/public';
+import {
+  getGridSelectionGeometry,
+  getGridSelectionRanges,
+  getStaticGridViewState,
+  gridRangeFromSelectionArea,
+  type GridSelectionGeometry,
+} from '@/domains/selection/public';
 import {
   getStructuredBoxBounds,
   getStructuredSplitBoxGuides,
@@ -149,11 +154,10 @@ export const drawActiveCellFocus = (
   ctx.restore();
 };
 
-export const drawGridSelectionRange = (
+const drawGridSelectionPreview = (
   ctx: CanvasRenderingContext2D,
   area: SelectionArea,
-  viewport: { offset: Point; zoom: number },
-  border: "primary" | "secondary" | null
+  viewport: { offset: Point; zoom: number }
 ) => {
   const { minX, minY, maxX, maxY } = getSelectionBounds(area);
   const pos = gridCellRect({ x: minX, y: minY }, viewport);
@@ -165,16 +169,32 @@ export const drawGridSelectionRange = (
   ctx.save();
   ctx.fillStyle = COLOR_SELECTION_BG;
   ctx.fillRect(x, y, width, height);
-  if (border) {
-    ctx.strokeStyle = border === "primary"
-      ? COLOR_ACTIVE_CELL_BORDER
-      : COLOR_SELECTION_BORDER_MUTED;
-    ctx.lineWidth = Math.max(
-      1,
-      Math.round((border === "primary" ? 2 : 1) * viewport.zoom)
-    );
-    ctx.strokeRect(x, y, width, height);
-  }
+  ctx.restore();
+};
+
+export const drawGridSelectionGeometry = (
+  ctx: CanvasRenderingContext2D,
+  geometry: GridSelectionGeometry,
+  viewport: { offset: Point; zoom: number }
+) => {
+  if (geometry.polygons.length === 0) return;
+  ctx.save();
+  ctx.beginPath();
+  geometry.polygons.forEach(({ rings }) => {
+    rings.forEach((ring) => {
+      ring.forEach((point, index) => {
+        const pos = gridCellRect(point, viewport);
+        if (index === 0) ctx.moveTo(Math.round(pos.x), Math.round(pos.y));
+        else ctx.lineTo(Math.round(pos.x), Math.round(pos.y));
+      });
+      ctx.closePath();
+    });
+  });
+  ctx.fillStyle = COLOR_SELECTION_BG;
+  ctx.fill("evenodd");
+  ctx.strokeStyle = COLOR_ACTIVE_CELL_BORDER;
+  ctx.lineWidth = Math.max(1, Math.round(2 * viewport.zoom));
+  ctx.stroke();
   ctx.restore();
 };
 
@@ -215,7 +235,6 @@ export const useCanvasRenderer = (
     grid,
     scratchLayer,
     textCursor,
-    selections,
     staticGridSelection,
     staticGridEditMode,
     showGrid,
@@ -236,9 +255,7 @@ export const useCanvasRenderer = (
     selection: staticGridSelection,
     editMode: staticGridEditMode,
     textCursor,
-    selections,
   });
-  const renderedSelections = canvasMode !== 'structured' ? staticGridView.selectionAreas : selections;
   const renderedTextCursor = canvasMode !== 'structured' ? staticGridView.textCursor : textCursor;
   const [renderManager] = useState(() => new CanvasRenderManager());
   const manualRenderRafRef = useRef<number | null>(null);
@@ -396,50 +413,30 @@ export const useCanvasRenderer = (
         );
         clipToSlidePage(uiCtx);
 
-        renderedSelections.forEach((area, index) => {
-          drawGridSelectionRange(
-            uiCtx,
-            area,
-            { offset: renderOffset, zoom },
-            canvasMode === 'structured'
-              ? null
-              : index === renderedSelections.length - 1
-                ? 'primary'
-                : 'secondary'
-          );
-        });
-        if (draggingSelection) {
-          drawGridSelectionRange(
+        if (canvasMode !== 'structured') {
+          const ranges = getGridSelectionRanges(staticGridSelection);
+          const geometry = draggingSelection
+            ? getGridSelectionGeometry([
+                ...ranges,
+                gridRangeFromSelectionArea(draggingSelection),
+              ])
+            : staticGridView.selectionGeometry;
+          drawGridSelectionGeometry(uiCtx, geometry, {
+            offset: renderOffset,
+            zoom,
+          });
+        } else if (draggingSelection) {
+          drawGridSelectionPreview(
             uiCtx,
             draggingSelection,
-            { offset: renderOffset, zoom },
-            canvasMode === 'structured' ? null : 'primary'
-          );
-        }
-        if (canvasMode !== 'structured' && renderedSelections.length > 0) {
-          const activeSelection = renderedSelections[renderedSelections.length - 1];
-          const { minX, minY, maxX, maxY } = getSelectionBounds(activeSelection);
-          if (minX !== maxX || minY !== maxY) {
-            drawGridActiveCellMarker(uiCtx, staticGridView.activeCell, {
-              offset: renderOffset,
-              zoom,
-            });
-          }
-          const handleCell = gridCellRect(
-            { x: maxX, y: maxY },
             { offset: renderOffset, zoom }
           );
-          const handleSize = Math.max(
-            5,
-            Math.min(9, Math.min(handleCell.width, handleCell.height) / 2)
-          );
-          uiCtx.fillStyle = COLOR_ACTIVE_CELL_BORDER;
-          uiCtx.fillRect(
-            Math.round(handleCell.x + handleCell.width - handleSize),
-            Math.round(handleCell.y + handleCell.height - handleSize),
-            Math.round(handleSize),
-            Math.round(handleSize)
-          );
+        }
+        if (canvasMode !== 'structured' && staticGridView.hasSelection) {
+          drawGridActiveCellMarker(uiCtx, staticGridView.activeCell, {
+            offset: renderOffset,
+            zoom,
+          });
         }
 
         if (canvasMode === 'structured' && structuredPreviewMovingGrid) {
@@ -705,7 +702,6 @@ export const useCanvasRenderer = (
         ...sharedViewportInputs,
         grid,
         textCursor,
-        selections,
         staticGridSelection,
         staticGridEditMode,
         draggingSelection,
@@ -756,7 +752,6 @@ export const useCanvasRenderer = (
     grid,
     scratchLayer,
     textCursor,
-    selections,
     staticGridSelection,
     staticGridEditMode,
     draggingSelection,
@@ -778,9 +773,10 @@ export const useCanvasRenderer = (
     requestRenderRef,
     drawLayer,
     onViewportRendered,
-    renderedSelections,
     renderedTextCursor,
     staticGridView.activeCell,
+    staticGridView.hasSelection,
+    staticGridView.selectionGeometry,
     renderManager,
     runtime,
   ]);

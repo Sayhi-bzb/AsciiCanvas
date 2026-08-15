@@ -3,12 +3,7 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 import { GridManager } from "@/shared/utils/grid";
 import { useCanvasRuntime } from "@/domains/canvas/public";
 import { isStaticGridMode } from "@/domains/sessions/public";
-import {
-  getStaticGridSelectionAreas,
-  resolveGridFillRange,
-  selectionAreaFromGridRange,
-} from "@/domains/selection/public";
-import { gridCellRect } from "@/shared/metrics";
+import { hasGridRangeSelection } from "@/domains/selection/public";
 import {
   useEditor,
   type CanvasInteractionState,
@@ -105,7 +100,7 @@ export const useCanvasInteraction = (
     setTextCursor,
     setStaticGridActiveCell,
     setStaticGridSelectionRange,
-    addSelection,
+    appendStaticGridSelectionRange,
     clearSelections,
     clearInteractionState,
     erasePoints,
@@ -261,7 +256,7 @@ export const useCanvasInteraction = (
     setStructuredGridFocus,
     setStaticGridActiveCell,
     setStaticGridSelectionRange,
-    addSelection,
+    appendStaticGridSelectionRange,
     clearSelections,
     commitScratch,
     forceHistorySave: canvas.commands.history.finishCapture,
@@ -324,7 +319,7 @@ export const useCanvasInteraction = (
       canvasMode === "structured" && selectedStructuredNodeIds.length > 0,
     isStaticGridSelectionActive:
       isStaticGridMode(canvasMode) &&
-      getStaticGridSelectionAreas(staticGridSelection).length > 0,
+      hasGridRangeSelection(staticGridSelection),
     getCell: (point) => grid.get(GridManager.toKey(point.x, point.y)),
     executor: colorPickerDragStartExecutor,
   });
@@ -421,48 +416,6 @@ export const useCanvasInteraction = (
         addScratchPoints,
         erasePoints: (points) => erasePoints(points, false),
         setHoveredGrid,
-        resolveFillStart: (event) => {
-          if (
-            !isStaticGridMode(canvasMode) ||
-            tool !== "select" ||
-            event.button !== 0 ||
-            event.isCtrlOrMetaPressed
-          ) {
-            return null;
-          }
-          const areas = getStaticGridSelectionAreas(staticGridSelection);
-          const source = areas.at(-1);
-          if (!source) return null;
-          const bounds = {
-            x: Math.max(source.start.x, source.end.x),
-            y: Math.max(source.start.y, source.end.y),
-          };
-          const cell = gridCellRect(bounds, { offset, zoom });
-          const local = pointerContext.resolveLocalPoint(
-            event.screenPoint.x,
-            event.screenPoint.y
-          );
-          if (!local) return null;
-          const handleSize = Math.max(5, Math.min(9, Math.min(cell.width, cell.height) / 2));
-          const hit =
-            local.x >= cell.x + cell.width - handleSize &&
-            local.x <= cell.x + cell.width + 2 &&
-            local.y >= cell.y + cell.height - handleSize &&
-            local.y <= cell.y + cell.height + 2;
-          return hit ? source : null;
-        },
-        updateFillPreview: (source, current) => {
-          selectionPreview.set(
-            selectionAreaFromGridRange(resolveGridFillRange(source, current))
-          );
-        },
-        commitFill: (source, current) => {
-          const target = selectionAreaFromGridRange(
-            resolveGridFillRange(source, current)
-          );
-          canvas.commands.selection.fillPattern(source, target);
-          selectionPreview.set(null, { immediate: true });
-        },
         beginAppendSelection: (point) => {
           selectionPreview.set({ start: point, end: point }, { immediate: true });
         },
@@ -510,7 +463,6 @@ export const useCanvasInteraction = (
       const type = editorRuntime.getInteractionState().type;
       return (
         type === "selecting" ||
-        type === "filling" ||
         type === "structuredMoving" ||
         type === "structuredRectResizing" ||
         type === "structuredSplitBoxResizing" ||

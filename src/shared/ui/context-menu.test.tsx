@@ -34,7 +34,7 @@ describe("ContextMenu styling", () => {
     const rootMenu = await screen.findByRole("menu");
     expect(screen.getByText("Action")).toHaveClass(
       "min-h-7",
-      "rounded-md",
+      "rounded-item",
       "px-2",
       "text-xs"
     );
@@ -42,7 +42,7 @@ describe("ContextMenu styling", () => {
       "bg-overlay-surface",
       "border-0",
       "shadow-overlay",
-      "rounded-lg"
+      "rounded-surface"
     );
     expect(screen.getByRole("separator")).toHaveClass("h-px", "bg-border");
 
@@ -56,7 +56,7 @@ describe("ContextMenu styling", () => {
       "bg-overlay-surface",
       "border-0",
       "shadow-overlay",
-      "rounded-lg"
+      "rounded-surface"
     );
   });
 });

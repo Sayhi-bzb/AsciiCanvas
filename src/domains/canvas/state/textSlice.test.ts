@@ -137,8 +137,8 @@ describe("textSlice writeTextString", () => {
       canvasMode: "freeform",
       grid: new Map(),
       textCursor: null,
-      selections: [],
       staticGridSelection: {
+        mode: "range",
         activeCell: { x: 6, y: 7 },
         anchorCell: { x: 6, y: 7 },
         primaryRange: { start: { x: 6, y: 7 }, end: { x: 6, y: 7 } },
@@ -214,6 +214,42 @@ describe("textSlice paste background merging", () => {
     expect(useEditorStore.getState().grid).toEqual(
       new Map([
         ["1,0", { char: "X", color: "#ff0000", bgColor: "#000000" }],
+      ])
+    );
+  });
+
+  it("anchors sparse rich data at the selection union top-left and preserves holes", () => {
+    setTextState({ textCursor: null });
+    useEditorStore.setState({
+      staticGridEditMode: "navigate",
+      staticGridSelection: {
+        mode: "range",
+        activeCell: { x: 5, y: 4 },
+        anchorCell: { x: 5, y: 4 },
+        primaryRange: { start: { x: 5, y: 4 }, end: { x: 6, y: 5 } },
+        additionalRanges: [
+          { start: { x: 2, y: 3 }, end: { x: 2, y: 3 } },
+        ],
+      },
+    });
+    applyFreeformSnapshotToYMaps([
+      ["2,3", { char: "A", color: "#ffffff" }],
+      ["3,3", { char: "B", color: "#ffffff" }],
+      ["2,4", { char: "C", color: "#ffffff" }],
+      ["3,4", { char: "D", color: "#ffffff" }],
+    ]);
+
+    useEditorStore.getState().pasteRichData([
+      { x: 1, y: 0, char: "b", color: "#ff0000" },
+      { x: 0, y: 1, char: "c", color: "#00ff00" },
+    ]);
+
+    expect(useEditorStore.getState().grid).toEqual(
+      new Map([
+        ["2,3", { char: "A", color: "#ffffff" }],
+        ["3,3", { char: "b", color: "#ff0000" }],
+        ["2,4", { char: "c", color: "#00ff00" }],
+        ["3,4", { char: "D", color: "#ffffff" }],
       ])
     );
   });

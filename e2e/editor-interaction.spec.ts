@@ -142,8 +142,8 @@ test.describe("editor interaction lifecycle", () => {
     await page.mouse.up();
 
     await expect(
-      page.getByTestId("tool-dock").locator('[data-toolbar-item="select"]')
-    ).toHaveClass(/bg-accent/);
+      page.getByTestId("tool-dock").getByRole("button", { name: "Select" })
+    ).toHaveClass(/bg-control-active-surface/);
     await expect.poll(() => readActiveGrid(page)).toEqual([]);
   });
 

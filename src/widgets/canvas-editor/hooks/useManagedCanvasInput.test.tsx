@@ -10,9 +10,6 @@ describe("useManagedCanvasInput", () => {
     const model = {
       ...useEditorStore.getState(),
       textCursor: null,
-      selections: [
-        { start: { x: 1, y: 1 }, end: { x: 2, y: 2 } },
-      ],
       selectedStructuredNodeIds: [],
       fillSelectionsWithChar,
     };

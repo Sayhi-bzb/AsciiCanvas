@@ -9,7 +9,6 @@ export type CanvasRenderModel = Pick<CanvasState,
   | "grid"
   | "scratchLayer"
   | "textCursor"
-  | "selections"
   | "staticGridSelection"
   | "staticGridEditMode"
   | "showGrid"
@@ -31,7 +30,6 @@ export type CanvasEditorModel = Pick<CanvasState,
   | "textCursor"
   | "staticGridSelection"
   | "staticGridEditMode"
-  | "selections"
   | "offset"
   | "zoom"
   | "structuredGridFocus"
@@ -59,8 +57,6 @@ export type CanvasEditorModel = Pick<CanvasState,
   moveStructuredGridFocus: CanvasCommands["interaction"]["moveStructuredGridFocus"];
   setTextCursor: CanvasCommands["interaction"]["setTextCursor"];
   setOffset: CanvasCommands["viewport"]["setOffset"];
-  moveSelections: CanvasCommands["selection"]["move"];
-  expandSelection: CanvasCommands["selection"]["expand"];
   fillSelectionsWithChar: CanvasCommands["selection"]["fillWithChar"];
   clearSelections: CanvasCommands["selection"]["clear"];
   setStructuredGridFocus: CanvasCommands["interaction"]["setStructuredGridFocus"];

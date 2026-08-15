@@ -52,7 +52,7 @@ describe("SelectionFormatToolbar", () => {
       "bg-host-surface",
       "border-0",
       "shadow-host",
-      "rounded-lg",
+      "rounded-surface",
       "p-[3px]"
     );
 
@@ -65,7 +65,7 @@ describe("SelectionFormatToolbar", () => {
     fireEvent.click(boldButton);
 
     expect(boldButton).toHaveAttribute("data-state", "on");
-    expect(boldButton).toHaveClass("data-[state=on]:bg-accent");
+    expect(boldButton).toHaveClass("data-[state=on]:bg-control-pressed-surface");
     expect(boldButton).not.toHaveClass("data-[state=on]:bg-primary");
 
     act(() => boldButton.focus());
@@ -173,7 +173,7 @@ describe("SelectionFormatToolbar", () => {
       "bg-host-surface",
       "border-0",
       "shadow-host",
-      "rounded-lg",
+      "rounded-surface",
       "p-[3px]"
     );
     expect(

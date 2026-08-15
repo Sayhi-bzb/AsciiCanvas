@@ -286,7 +286,7 @@ export function ColorPickerPanel({
                 align="start"
                 sideOffset={6}
                 aria-label={t('color.hex')}
-                className="flex w-40 flex-col gap-2 p-2"
+                className="flex w-40 flex-col gap-2"
                 onOpenAutoFocus={(event) => {
                   event.preventDefault();
                   hexInputRef.current?.focus({ preventScroll: true });
@@ -409,7 +409,7 @@ export function ColorPickerPanel({
                     shape="square"
                     size="sm"
                     aria-label={t('color.restoreDefault')}
-                    className="size-7 shrink-0"
+                    className="shrink-0"
                     onClick={() => pickColor(defaultColor)}
                   >
                     <RestoreDefaultIcon />

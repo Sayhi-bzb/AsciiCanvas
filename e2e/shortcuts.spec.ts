@@ -164,19 +164,19 @@ test.describe("editor clipboard shortcuts", () => {
     page,
   }, testInfo) => {
     const dock = page.getByTestId("tool-dock");
-    const handItem = dock.locator('[data-toolbar-item="pan"]');
-    const selectItem = dock.locator('[data-toolbar-item="select"]');
+    const handItem = dock.getByRole("button", { name: "Hand" });
+    const selectItem = dock.getByRole("button", { name: "Select" });
 
     const dockModifier =
       testInfo.project.name === "webkit-shortcuts" ? "Control" : "Alt";
     await page.keyboard.press(`${dockModifier}+1`);
-    await expect(handItem).toHaveClass(/bg-accent/);
+    await expect(handItem).toHaveClass(/bg-control-active-surface/);
 
     await page.keyboard.press(`${dockModifier}+2`);
-    await expect(selectItem).toHaveClass(/bg-accent/);
+    await expect(selectItem).toHaveClass(/bg-control-active-surface/);
 
     await page.keyboard.press("Shift+H");
-    await expect(selectItem).toHaveClass(/bg-accent/);
+    await expect(selectItem).toHaveClass(/bg-control-active-surface/);
 
     await page.keyboard.press(`${dockModifier}+6`);
     const colorDialog = page.getByRole("dialog", { name: "Color" });

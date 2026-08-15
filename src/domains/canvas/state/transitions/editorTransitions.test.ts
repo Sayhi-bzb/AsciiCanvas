@@ -4,7 +4,6 @@ import { createDocumentInteractionResetPatch } from "./editorTransitions";
 describe("editor transitions", () => {
   it("creates a complete document interaction reset", () => {
     expect(createDocumentInteractionResetPatch()).toEqual({
-      selections: [],
       textCursor: null,
       editingStructuredTextNodeId: null,
       structuredTextSelection: null,
@@ -14,6 +13,7 @@ describe("editor transitions", () => {
       structuredContextPoint: null,
       structuredGridFocus: null,
       staticGridSelection: {
+        mode: "cell",
         activeCell: { x: 0, y: 0 },
         anchorCell: { x: 0, y: 0 },
         primaryRange: { start: { x: 0, y: 0 }, end: { x: 0, y: 0 } },
@@ -30,7 +30,6 @@ describe("editor transitions", () => {
     const first = createDocumentInteractionResetPatch();
     const second = createDocumentInteractionResetPatch();
 
-    expect(first.selections).not.toBe(second.selections);
     expect(first.selectedStructuredNodeIds).not.toBe(
       second.selectedStructuredNodeIds
     );

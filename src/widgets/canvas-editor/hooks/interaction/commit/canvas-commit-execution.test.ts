@@ -13,7 +13,7 @@ const createSelectionExecutor = (): SelectionCommitExecutor => ({
   setStructuredGridFocus: vi.fn(),
   setStaticGridActiveCell: vi.fn(),
   setStaticGridSelectionRange: vi.fn(),
-  addSelection: vi.fn(),
+  appendStaticGridSelectionRange: vi.fn(),
   clearSelections: vi.fn(),
   clearSelectionPreview: vi.fn(),
 });
@@ -73,7 +73,7 @@ describe("commit execution helpers", () => {
     );
 
     expect(executor.setStaticGridSelectionRange).toHaveBeenCalledWith(selection);
-    expect(executor.addSelection).not.toHaveBeenCalled();
+    expect(executor.appendStaticGridSelectionRange).not.toHaveBeenCalled();
   });
 
   it("executes direct drag-end commit effects", () => {

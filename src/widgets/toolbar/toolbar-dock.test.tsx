@@ -205,7 +205,7 @@ describe('Toolbar dock', () => {
     render(<Toolbar tool="pan" setTool={vi.fn()} onUndo={vi.fn()} />);
 
     expect(screen.getByRole('button', { name: 'Hand' })).toHaveClass(
-      'bg-accent',
+      'bg-control-active-surface',
       'text-foreground'
     );
   });
@@ -276,24 +276,24 @@ describe('Toolbar dock', () => {
     expect(screen.getByTestId('tool-dock')).toBe(toolbar.parentElement);
     expect(toolbar.parentElement).toHaveClass(
       'bg-host-surface',
-      'rounded-lg',
+      'rounded-surface',
       'border-0',
       'shadow-host'
     );
-    expect(activeButton).toHaveClass('bg-accent', 'text-foreground');
+    expect(activeButton).toHaveClass('bg-control-active-surface', 'text-foreground');
     expect(inactiveItem).not.toHaveClass('bg-accent');
     expect(activeItem).not.toHaveClass('bg-accent');
     expect(inactiveButtons[0]).toHaveClass(
       'size-8',
       'rounded-r-none',
-      'focus-visible:ring-[3px]',
+      'focus-visible:ring-2',
       'hover:bg-accent',
       'hover:text-accent-foreground'
     );
     expect(inactiveButtons[1]).toHaveClass(
       'size-8',
       'rounded-l-none',
-      'focus-visible:ring-[3px]',
+      'focus-visible:ring-2',
       'hover:bg-accent',
       'hover:text-accent-foreground'
     );
@@ -320,8 +320,9 @@ describe('Toolbar dock', () => {
     });
 
     expect(shapeItem).not.toHaveClass('bg-accent', 'text-foreground');
-    expect(shapeButtons[0]).toHaveClass('bg-accent', 'text-foreground');
-    expect(shapeButtons[1]).toHaveClass('bg-accent', 'text-foreground');
+    expect(shapeButtons[0]).toHaveClass('bg-control-open-surface', 'text-foreground');
+    expect(shapeButtons[1]).toHaveClass('bg-control-open-surface', 'text-foreground');
+    expect(shapeButtons[1]).toHaveClass('opacity-40', 'data-[open=true]:opacity-100');
     const shapeMenu = document.querySelector('[data-slot="dropdown-menu-content"]');
     expect(shapeMenu).toHaveClass(
       'w-max',
@@ -329,7 +330,7 @@ describe('Toolbar dock', () => {
       'bg-overlay-surface',
       'border-0',
       'shadow-overlay',
-      'rounded-lg'
+      'rounded-surface'
     );
     expect(shapeMenu).not.toHaveClass('min-w-48');
     fireEvent.click(circle);

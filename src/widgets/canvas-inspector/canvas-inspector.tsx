@@ -7,6 +7,7 @@ import { EDITOR_COMMAND_META } from "@/domains/actions/public";
 import { useCanvasRuntime, useCanvasState } from "@/domains/canvas/public";
 import { useEditor } from "@/domains/editor/public";
 import { useUiI18n } from "@/shared/i18n";
+import { hasGridRangeSelection } from "@/domains/selection/public";
 import { COLOR_PRIMARY_TEXT } from "@/shared/lib/constants";
 import {
   SHORTCUT_PRIORITY,
@@ -53,7 +54,7 @@ export function CanvasInspectorControl({
       brushColor: value.brushColor,
       brushBackgroundColor: value.brushBackgroundColor,
       canvasColorPickerTarget: value.canvasColorPickerTarget,
-      hasGridSelection: value.selections.length > 0,
+      hasGridSelection: hasGridRangeSelection(value.staticGridSelection),
       structuredScene: value.structuredScene,
       selectedStructuredNodeIds: value.selectedStructuredNodeIds,
       structuredTextSelection: value.structuredTextSelection,
@@ -207,7 +208,6 @@ export function CanvasInspectorControl({
             size="sm"
             aria-label={meta.label}
             disabled={!enabled}
-            className="size-7 w-full"
             onClick={() => execute(id)}
           >
             {Icon && <Icon />}

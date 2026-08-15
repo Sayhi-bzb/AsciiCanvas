@@ -148,7 +148,7 @@ describe("SidebarRight structured templates", () => {
     expect(structuredRail).toHaveAttribute("aria-orientation", "vertical");
     expect(structuredRail).toHaveClass(
       "bg-host-surface",
-      "rounded-lg",
+      "rounded-surface",
       "border-0",
       "shadow-none"
     );
@@ -187,8 +187,8 @@ describe("SidebarRight structured templates", () => {
       screen.getByRole("tab", { name: "Components" })
     );
     expect(screen.getByRole("tab", { name: "Components" })).toHaveClass(
-      "bg-accent",
-      "rounded-lg",
+      "bg-control-active-surface",
+      "rounded-control",
       "hover:bg-accent",
       "hover:text-accent-foreground"
     );
@@ -247,7 +247,7 @@ describe("SidebarRight structured templates", () => {
       expect(item).toHaveClass(
         "flex-col",
         "items-stretch",
-        "rounded-md",
+        "rounded-item",
         "text-center"
       );
       expect(item.querySelector(":scope > span:last-child")).not.toHaveClass(

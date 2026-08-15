@@ -172,17 +172,17 @@ export function CanvasBreadcrumb() {
             aria-label={t("session.select")}
             title={activeSession?.name ?? t("session.fallbackName")}
           >
-            <ActiveModeIcon className="size-4 shrink-0" />
+            <ActiveModeIcon />
             <span className="truncate">
               {activeSession?.name ?? t("session.fallbackName")}
             </span>
-            <SessionExpandIcon className="size-4 shrink-0 opacity-60" />
+            <SessionExpandIcon className="opacity-60" />
           </Button>
         </PopoverTrigger>
         <PopoverContent
           ref={panelContentRef}
           align="start"
-          className="w-max min-w-44 max-w-[min(14rem,calc(100vw-1.5rem))] p-[3px]"
+          className="w-max min-w-44 max-w-[min(14rem,calc(100vw-1.5rem))]"
           style={renamePanelWidth === null ? undefined : { width: renamePanelWidth }}
           role="dialog"
           aria-label={t("session.select")}
@@ -251,7 +251,7 @@ export function CanvasBreadcrumb() {
                           closeSelector();
                         }}
                       >
-                        <ModeIcon className="size-4 shrink-0" />
+                        <ModeIcon />
                         <span className="truncate">{session.name}</span>
                       </Button>
                       <DropdownMenu
@@ -270,7 +270,7 @@ export function CanvasBreadcrumb() {
                             title={manageLabel}
                             className="shrink-0"
                           >
-                            <SessionMoreIcon className="size-4" />
+                            <SessionMoreIcon />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent

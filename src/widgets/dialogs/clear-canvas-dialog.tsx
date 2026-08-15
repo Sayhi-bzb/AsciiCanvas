@@ -62,11 +62,11 @@ export function ClearCanvasDialog({
                 shape={isCollapsed || iconOnly ? "square" : "auto"}
                 size={isCollapsed || iconOnly ? "md" : "sm"}
                 className={cn(
-                  "justify-start gap-2",
-                  isCollapsed || iconOnly ? "size-8 justify-center" : "w-full h-8 px-2"
+                  "gap-2",
+                  !(isCollapsed || iconOnly) && "w-full justify-start"
                 )}
               >
-                <Trash2 className="size-4" />
+                <Trash2 />
                 {!isCollapsed && !iconOnly && (
                   <span className="font-medium text-xs">{label}</span>
                 )}

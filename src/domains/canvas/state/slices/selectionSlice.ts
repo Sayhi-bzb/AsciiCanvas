@@ -4,7 +4,6 @@ import type { CanvasDocumentRegistry } from "../CanvasDocumentRegistry";
 import { GridManager } from "@/shared/utils/grid";
 import { getSelectionBounds } from "@/shared/utils/selection";
 import { placeCharInYMap } from "../utils";
-import { writeStyledCell } from "@/shared/utils/grid-ops";
 import type { GridCell } from "@/shared/types";
 import { deleteRect } from "../gridOps";
 import {
@@ -19,21 +18,23 @@ import {
 import {
   collapseGridSelectionTo,
   createGridSelectionState,
-  gridRangeFromSelectionArea,
+  forEachGridSelectionSpan,
+  getGridSelectionRanges,
   getStaticGridSelectionAreas,
-  selectGridRange,
 } from "@/domains/selection/public";
 import { getCellOccupancy } from "@/shared/metrics";
 import { cloneTextAttributes } from "@/shared/utils/ansi";
 import type { SelectionCommandFactory } from "../selectionCommandPort";
 import { getStructuredTextSelectionRange } from "@/domains/structured-content/public";
-import { clampPointToActiveSlide, isPointWithinActiveSlide } from "../slideBounds";
 
 const resolveSelectionAreas = (state: EditorState) => {
-  return state.selections.length > 0
-    ? state.selections
-    : getStaticGridSelectionAreas(state.staticGridSelection);
+  return getStaticGridSelectionAreas(state.staticGridSelection);
 };
+
+const forEachSelectionSpan = (
+  state: EditorState,
+  visit: (span: { y: number; minX: number; maxX: number }) => void
+) => forEachGridSelectionSpan(getGridSelectionRanges(state.staticGridSelection), visit);
 
 const isUnstyledBlankCell = (cell: GridCell) =>
   cell.char === " " && !cell.bgColor && !cloneTextAttributes(cell.attrs);
@@ -60,26 +61,8 @@ export const createSelectionSlice = (
   [],
   SelectionSlice
 > => (set, get) => ({
-  selections: [],
-  addSelection: (area) =>
-    set((s) => {
-      const nextArea = area;
-      return {
-        selections: [...s.selections, nextArea],
-        textCursor: null,
-        editingStructuredTextNodeId: null,
-        structuredTextSelection: null,
-        staticGridSelection: selectGridRange(
-          s.staticGridSelection,
-          { start: nextArea.start, end: nextArea.end },
-          { append: true, activeCell: "start" }
-        ),
-        staticGridEditMode: "navigate" as const,
-      };
-    }),
   clearSelections: () =>
     set((state) => ({
-      selections: [],
       staticGridSelection: collapseGridSelectionTo(
         state.staticGridSelection,
         state.staticGridSelection.activeCell
@@ -87,7 +70,6 @@ export const createSelectionSlice = (
     })),
   clearInteractionState: () =>
     set((state) => ({
-      selections: [],
       textCursor: null,
       editingStructuredTextNodeId: null,
       structuredTextSelection: null,
@@ -188,9 +170,8 @@ export const createSelectionSlice = (
     }
 
     documents.mutateGrid((grid) => {
-      selections.forEach((area) => {
-        const { minX, maxX, minY, maxY } = getSelectionBounds(area);
-        deleteRect(grid, minX, minY, maxX, maxY);
+      forEachSelectionSpan(state, ({ y, minX, maxX }) => {
+        deleteRect(grid, minX, y, maxX, y);
       });
     });
   },
@@ -213,80 +194,12 @@ export const createSelectionSlice = (
     const charWidth = getCellOccupancy(char);
 
     documents.mutateGrid((grid) => {
-      selections.forEach((area) => {
-        const { minX, maxX, minY, maxY } = getSelectionBounds(area);
-        for (let y = minY; y <= maxY; y++) {
-          for (let x = minX; x <= maxX; x += charWidth) {
-            if (x + charWidth - 1 > maxX) break;
-            placeCharInYMap(
-              grid,
-              x,
-              y,
-              char,
-              brushColor,
-              options
-            );
-          }
+      forEachSelectionSpan(state, ({ y, minX, maxX }) => {
+        for (let x = minX; x <= maxX; x += charWidth) {
+          if (x + charWidth - 1 > maxX) break;
+          placeCharInYMap(grid, x, y, char, brushColor, options);
         }
       });
-    });
-  },
-
-  fillStaticGridPattern: (source, target) => {
-    const state = get();
-    if (state.canvasMode === "structured") return;
-    const sourceBounds = getSelectionBounds(source);
-    const targetBounds = getSelectionBounds(target);
-    const sourceWidth = sourceBounds.maxX - sourceBounds.minX + 1;
-    const sourceHeight = sourceBounds.maxY - sourceBounds.minY + 1;
-    if (sourceWidth <= 0 || sourceHeight <= 0) return;
-
-    const snapshot = new Map<string, GridCell>();
-    for (let y = sourceBounds.minY; y <= sourceBounds.maxY; y++) {
-      for (let x = sourceBounds.minX; x <= sourceBounds.maxX; x++) {
-        const cell = state.grid.get(GridManager.toKey(x, y));
-        if (cell) snapshot.set(GridManager.toKey(x, y), { ...cell, attrs: cloneTextAttributes(cell.attrs) });
-      }
-    }
-
-    documents.mutateGrid((grid) => {
-      deleteRect(
-        grid,
-        targetBounds.minX,
-        targetBounds.minY,
-        targetBounds.maxX,
-        targetBounds.maxY
-      );
-      for (let y = targetBounds.minY; y <= targetBounds.maxY; y++) {
-        for (let x = targetBounds.minX; x <= targetBounds.maxX; x++) {
-          const sourceX =
-            sourceBounds.minX +
-            (((x - sourceBounds.minX) % sourceWidth) + sourceWidth) % sourceWidth;
-          const sourceY =
-            sourceBounds.minY +
-            (((y - sourceBounds.minY) % sourceHeight) + sourceHeight) % sourceHeight;
-          const cell = snapshot.get(GridManager.toKey(sourceX, sourceY));
-          if (!cell) continue;
-          const occupancy = getCellOccupancy(cell.char);
-          if (
-            sourceX + occupancy - 1 > sourceBounds.maxX ||
-            x + occupancy - 1 > targetBounds.maxX
-          ) {
-            continue;
-          }
-          writeStyledCell(grid, x, y, cell);
-        }
-      }
-    });
-
-    const range = gridRangeFromSelectionArea(target);
-    set({
-      staticGridSelection: selectGridRange(state.staticGridSelection, range, {
-        activeCell: "start",
-      }),
-      staticGridEditMode: "navigate",
-      textCursor: null,
-      selections: [target],
     });
   },
 
@@ -301,39 +214,36 @@ export const createSelectionSlice = (
       attrs.underline === true || attrs.strike === true;
 
     documents.mutateGrid((grid) => {
-      selections.forEach((area) => {
-        const { minX, maxX, minY, maxY } = getSelectionBounds(area);
-        for (let y = minY; y <= maxY; y++) {
-          for (let x = minX; x <= maxX; x++) {
-            const key = GridManager.toKey(x, y);
-            const existingCell = grid.get(key);
-            if (!existingCell && !shouldMaterializeBlank) continue;
+      forEachSelectionSpan(state, ({ y, minX, maxX }) => {
+        for (let x = minX; x <= maxX; x++) {
+          const key = GridManager.toKey(x, y);
+          const existingCell = grid.get(key);
+          if (!existingCell && !shouldMaterializeBlank) continue;
 
-            const nextAttrs = cloneTextAttributes(existingCell?.attrs) ?? {};
-            Object.entries(attrs).forEach(([name, enabled]) => {
-              const attrName = name as "bold" | "italic" | "underline" | "strike";
-              if (enabled) {
-                nextAttrs[attrName] = true;
-              } else {
-                delete nextAttrs[attrName];
-              }
-            });
-
-            const normalizedAttrs = cloneTextAttributes(nextAttrs);
-            const nextCell: GridCell = existingCell
-              ? { ...existingCell }
-              : { char: " ", color: brushColor };
-            if (normalizedAttrs) {
-              nextCell.attrs = normalizedAttrs;
+          const nextAttrs = cloneTextAttributes(existingCell?.attrs) ?? {};
+          Object.entries(attrs).forEach(([name, enabled]) => {
+            const attrName = name as "bold" | "italic" | "underline" | "strike";
+            if (enabled) {
+              nextAttrs[attrName] = true;
             } else {
-              delete nextCell.attrs;
+              delete nextAttrs[attrName];
             }
-            if (isUnstyledBlankCell(nextCell)) {
-              grid.delete(key);
-              continue;
-            }
-            grid.set(key, nextCell);
+          });
+
+          const normalizedAttrs = cloneTextAttributes(nextAttrs);
+          const nextCell: GridCell = existingCell
+            ? { ...existingCell }
+            : { char: " ", color: brushColor };
+          if (normalizedAttrs) {
+            nextCell.attrs = normalizedAttrs;
+          } else {
+            delete nextCell.attrs;
           }
+          if (isUnstyledBlankCell(nextCell)) {
+            grid.delete(key);
+            continue;
+          }
+          grid.set(key, nextCell);
         }
       });
     });
@@ -345,15 +255,12 @@ export const createSelectionSlice = (
     if (state.canvasMode === "structured" || selections.length === 0) return;
 
     documents.mutateGrid((grid) => {
-      selections.forEach((area) => {
-        const { minX, maxX, minY, maxY } = getSelectionBounds(area);
-        for (let y = minY; y <= maxY; y++) {
-          for (let x = minX; x <= maxX; x++) {
-            const key = GridManager.toKey(x, y);
-            const existingCell = grid.get(key);
-            if (!existingCell) continue;
-            grid.set(key, { ...existingCell, color });
-          }
+      forEachSelectionSpan(state, ({ y, minX, maxX }) => {
+        for (let x = minX; x <= maxX; x++) {
+          const key = GridManager.toKey(x, y);
+          const existingCell = grid.get(key);
+          if (!existingCell) continue;
+          grid.set(key, { ...existingCell, color });
         }
       });
     });
@@ -367,28 +274,25 @@ export const createSelectionSlice = (
     if (selections.length === 0) return;
 
     documents.mutateGrid((grid) => {
-      selections.forEach((area) => {
-        const { minX, maxX, minY, maxY } = getSelectionBounds(area);
-        for (let y = minY; y <= maxY; y++) {
-          for (let x = minX; x <= maxX; x++) {
-            const key = GridManager.toKey(x, y);
-            const existingCell = grid.get(key);
-            if (!existingCell && !bgColor) continue;
+      forEachSelectionSpan(state, ({ y, minX, maxX }) => {
+        for (let x = minX; x <= maxX; x++) {
+          const key = GridManager.toKey(x, y);
+          const existingCell = grid.get(key);
+          if (!existingCell && !bgColor) continue;
 
-            const nextCell: GridCell = existingCell
-              ? { ...existingCell }
-              : { char: " ", color: brushColor };
-            if (bgColor) {
-              nextCell.bgColor = bgColor;
-            } else {
-              delete nextCell.bgColor;
-            }
-            if (isUnstyledBlankCell(nextCell)) {
-              grid.delete(key);
-              continue;
-            }
-            grid.set(key, nextCell);
+          const nextCell: GridCell = existingCell
+            ? { ...existingCell }
+            : { char: " ", color: brushColor };
+          if (bgColor) {
+            nextCell.bgColor = bgColor;
+          } else {
+            delete nextCell.bgColor;
           }
+          if (isUnstyledBlankCell(nextCell)) {
+            grid.delete(key);
+            continue;
+          }
+          grid.set(key, nextCell);
         }
       });
     });
@@ -417,40 +321,4 @@ export const createSelectionSlice = (
     });
   },
 
-  moveSelections: (dx, dy) => {
-    const state = get();
-    if (state.selections.length === 0) return;
-    const selections = state.selections.map((area) => ({
-      start: { x: area.start.x + dx, y: area.start.y + dy },
-      end: { x: area.end.x + dx, y: area.end.y + dy },
-    }));
-    if (
-      selections.some(
-        (area) =>
-          !isPointWithinActiveSlide(state, area.start) ||
-          !isPointWithinActiveSlide(state, area.end)
-      )
-    ) return;
-    set({ selections });
-  },
-
-  expandSelection: (dx, dy) => {
-    const { selections } = get();
-    if (selections.length === 0) return;
-
-    // Only expand the last selection (most recent)
-    const lastIndex = selections.length - 1;
-    const lastSelection = selections[lastIndex];
-
-    const newSelections = [...selections];
-    newSelections[lastIndex] = {
-      start: { ...lastSelection.start },
-      end: clampPointToActiveSlide(get(), {
-        x: lastSelection.end.x + dx,
-        y: lastSelection.end.y + dy,
-      }),
-    };
-
-    set({ selections: newSelections });
-  },
 });

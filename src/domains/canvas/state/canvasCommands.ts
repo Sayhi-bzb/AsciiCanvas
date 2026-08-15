@@ -118,7 +118,6 @@ return {
     indent: () => call("indentText"),
   },
   selection: {
-    add: (...args: Parameters<EditorState["addSelection"]>) => call("addSelection", ...args),
     clear: () => call("clearSelections"),
     clearInteraction: () => call("clearInteractionState"),
     delete: () => call("deleteSelection"),
@@ -130,8 +129,6 @@ return {
       call("copySelectionAsPng", ...args),
     fillWithChar: (...args: Parameters<EditorState["fillSelectionsWithChar"]>) =>
       call("fillSelectionsWithChar", ...args),
-    fillPattern: (...args: Parameters<EditorState["fillStaticGridPattern"]>) =>
-      call("fillStaticGridPattern", ...args),
     setTextAttributes: (...args: Parameters<EditorState["setSelectionTextAttributes"]>) =>
       call("setSelectionTextAttributes", ...args),
     setForegroundColor: (
@@ -139,10 +136,6 @@ return {
     ) => call("setSelectionForegroundColor", ...args),
     setBackgroundColor: (...args: Parameters<EditorState["setSelectionBackgroundColor"]>) =>
       call("setSelectionBackgroundColor", ...args),
-    move: (...args: Parameters<EditorState["moveSelections"]>) =>
-      call("moveSelections", ...args),
-    expand: (...args: Parameters<EditorState["expandSelection"]>) =>
-      call("expandSelection", ...args),
   },
   structured: {
     applyScene: (...args: Parameters<EditorState["applyStructuredScene"]>) =>
@@ -182,6 +175,9 @@ return {
       call("setStaticGridActiveCell", ...args),
     setSelectionRange: (...args: Parameters<EditorState["setStaticGridSelectionRange"]>) =>
       call("setStaticGridSelectionRange", ...args),
+    appendSelectionRange: (
+      ...args: Parameters<EditorState["appendStaticGridSelectionRange"]>
+    ) => call("appendStaticGridSelectionRange", ...args),
     moveFocus: (...args: Parameters<EditorState["moveStaticGridFocus"]>) =>
       call("moveStaticGridFocus", ...args),
     moveFocusToEdge: (...args: Parameters<EditorState["moveStaticGridFocusToEdge"]>) =>

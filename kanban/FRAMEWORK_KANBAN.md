@@ -12,6 +12,8 @@ implementation remain owned by their linked authorities.
 | --- | --- |
 | `Core` | Product behavior that remains without any Agent integration |
 | `Adapter` | Agent- or transport-specific entry point over Core |
+| `Hypothesis` | Product behavior worth testing; not an accepted contract |
+| `Open question` | Product choice that must precede implementation |
 | `Review` | Supported today; ownership or necessity needs a decision |
 | `Candidate` | Possible simplification; no removal decision has been made |
 | `Missing owner` | A consumed concept has no production owner |
@@ -46,6 +48,97 @@ The framework currently expands one invariant into three main files, three
 Agent adapters, six CLI commands, and several instruction surfaces:
 
 > Styling may change style state, but not visible graphemes or cell geometry.
+
+The file workflow above is the current authoring implementation, not the final
+product shape. The working product hypothesis is a shared blackboard.
+
+## Shared Blackboard product hypothesis
+
+```text
+Conversation                         Blackboard
+Human <---------- speech ----------> LLM
+   \                                  /
+    +---------- shared focus --------+
+                     |
+                     v
+              named CharDesk Canvas
+```
+
+Chat carries intent, explanation, questions, and feedback. The Blackboard
+carries spatial structure and the current shared model. A response may report
+an action without reproducing the complete Canvas.
+
+### Physical mapping
+
+| ID | Physical concept | Product concept | Status |
+| --- | --- | --- | --- |
+| `BOARD-01` | Classroom | Chat or project scope | `Hypothesis` |
+| `BOARD-02` | Named blackboard | Stable Canvas identity and current revision | `Hypothesis` |
+| `BOARD-03` | Speech | Conversation response | `Hypothesis` |
+| `BOARD-04` | Chalk | Write capability | `Hypothesis` |
+| `BOARD-05` | Look at the board | Read the current revision | `Hypothesis` |
+| `BOARD-06` | Write or erase locally | Patch the current Canvas | `Hypothesis` |
+| `BOARD-07` | Erase the board | Explicit clear or replacement | `Hypothesis` |
+| `BOARD-08` | Point at a mark | Ephemeral focus or region reference | `Hypothesis` |
+| `BOARD-09` | Photograph the board | Meaningful checkpoint | `Hypothesis` |
+| `BOARD-10` | Photo archive | Git or another durable history | `Hypothesis` |
+
+The Blackboard is the stable metaphor. Teacher, student, and scribe are dynamic
+roles rather than fixed identities:
+
+| Role | Responsibility |
+| --- | --- |
+| Speaker | Expresses intent, explanation, or feedback in Conversation |
+| Writer | Temporarily holds the Chalk and changes the Blackboard |
+| Viewer | Observes the current Blackboard |
+| Facilitator | Chooses the goal, focus, and accepted checkpoint |
+
+Human and LLM may switch roles. An explanatory task may make the LLM a teacher;
+capturing a Human idea may make it a scribe.
+
+### Blackboard Contract draft
+
+```text
+You and the human share one named blackboard.
+Chat is speech; the CharDesk Canvas is the board.
+Look at the current board before taking the chalk.
+Preserve useful marks; patch locally and clear only when explicitly asked.
+Use space and sparse color to express relationships, not decoration.
+After writing, briefly say what changed and point to the relevant area.
+You do not watch the board while idle; read it again on the next turn.
+```
+
+This metaphor may compress workflow guidance by activating familiar Blackboard
+behavior. It does not own storage, concurrency, syntax, or validation. Those
+remain explicit digital contracts.
+
+### Initial product laws
+
+| ID | Law | Status |
+| --- | --- | --- |
+| `BOARD-11` | A Blackboard has a stable identity across turns | `Hypothesis` |
+| `BOARD-12` | A Writer reads the current revision before writing | `Hypothesis` |
+| `BOARD-13` | One turn holds the Chalk; a stale base revision is not silently overwritten | `Hypothesis` |
+| `BOARD-14` | Patch is the default operation; clear is explicit | `Hypothesis` |
+| `BOARD-15` | Human may watch continuously; an idle LLM does not | `Hypothesis` |
+| `BOARD-16` | A Human change reaches the LLM through a later turn or explicit wake action | `Hypothesis` |
+| `BOARD-17` | Git records meaningful checkpoints, not every stroke | `Hypothesis` |
+| `BOARD-18` | Protocol validation, not the metaphor, decides whether content is valid | `Hypothesis` |
+
+### Open product questions
+
+| ID | Question | Why it matters | Status |
+| --- | --- | --- | --- |
+| `BOARD-Q01` | Does a Blackboard belong to one Chat, one Project, or the user? | Defines identity, discovery, and lifetime | `Open question` |
+| `BOARD-Q02` | Is Human read-only first, or can Human and LLM both hold Chalk? | Determines whether conflict handling is needed in the first loop | `Open question` |
+| `BOARD-Q03` | Is current state owned by a file, Yjs room, or service revision? | Determines persistence and transport | `Open question` |
+| `BOARD-Q04` | How does a website observe new revisions? | Determines the local or remote bridge | `Open question` |
+| `BOARD-Q05` | How does Chat point to a Blackboard region? | Connects speech to shared spatial attention | `Open question` |
+| `BOARD-Q06` | Which actions create history or checkpoints? | Separates live state from durable archive | `Open question` |
+| `BOARD-Q07` | Can a Canvas change start a turn, or only appear when a Human prompts? | Defines attention, cost, and autonomy | `Open question` |
+
+No file, Yjs, MCP, Hook, Git, or service choice is implied until these product
+questions are resolved.
 
 ## Platform-owned concepts
 
@@ -179,6 +272,18 @@ than reproduce the workflow.
 Evaluation is evidence for choosing an authoring interface. It is not part of
 the runtime authoring contract.
 
+### Blackboard framing evaluation
+
+| ID | Hypothesis | Comparison | Evidence needed | Status |
+| --- | --- | --- | --- | --- |
+| `BOARD-EVAL-01` | Blackboard framing reduces workflow instruction while improving spatial expression | Technical workflow prompt vs Blackboard Contract | Goal score and Human review | `Hypothesis` |
+| `BOARD-EVAL-02` | A Writer preserves useful marks instead of redrawing the whole board | Same modification tasks under both prompts | Unrelated-cell preservation and patch size | `Hypothesis` |
+| `BOARD-EVAL-03` | Separating speech from board reduces duplicated response content | Same explanatory tasks under both prompts | Response overlap, output tokens, and task success | `Hypothesis` |
+| `BOARD-EVAL-04` | Blackboard roles improve reference and change reporting | Tasks requiring correction of one region | Correct target, focus reference, and first-pass acceptance | `Hypothesis` |
+
+These experiments test the metaphor before storage or synchronization work is
+allowed to harden the product shape.
+
 ## Discussed but absent
 
 | ID | Capability | Status | Consequence |
@@ -206,12 +311,14 @@ contract, consumers, replacement, and verification are known.
 | `OCCAM-07` | `Review` | `publish` validates only when the Agent invokes it | Decide whether artifact validity or process compliance needs enforcement | CLI and absent CI check |
 | `OCCAM-08` | `Candidate` | Hook does not observe nested patching and emits unsupported `suppressOutput` | Remove it, repair it as a Codex-only convenience, or prove a consumer | Hook config, handler, Codex docs |
 | `OCCAM-09` | `Review` | `inspect` and `validate` overlap portions of `seed` and `publish` | Retain only commands justified by Agent traces or external consumers | CLI implementation |
+| `OCCAM-10` | `Review` | The three-file authoring workflow predates the Blackboard product hypothesis | Re-evaluate representations only after the Blackboard contract and first loop are selected | Current shape and `BOARD-Q*` |
 
 ## Decision record
 
 | Date | Item | Decision | Evidence |
 | --- | --- | --- | --- |
 | 2026-08-15 | Baseline | Record the current framework before pruning; no removal approved | Source, tests, GitNexus, and official Agent boundaries |
+| 2026-08-15 | Shared Blackboard | Adopt the Blackboard as a working product hypothesis; storage, writers, observation, and history remain open | `BOARD-01` through `BOARD-Q07` |
 
 ## Update protocol
 

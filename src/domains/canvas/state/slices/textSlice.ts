@@ -131,7 +131,6 @@ export const createTextSlice = (
       const nextPos = pos ? clampPointToActiveSlide(state, pos) : null;
       return {
         textCursor: nextPos,
-        selections: [],
         ...(state.canvasMode === "structured" && nextPos ? { structuredGridFocus: null } : {}),
         ...(nextPos ? {} : { editingStructuredTextNodeId: null, structuredTextSelection: null }),
         ...(nextPos
@@ -208,7 +207,6 @@ export const createTextSlice = (
 
   writeTextString: (str, startPos, options) => {
     const {
-      selections,
       staticGridSelection,
       staticGridEditMode,
       fillSelectionsWithChar,
@@ -321,7 +319,6 @@ export const createTextSlice = (
       selection: staticGridSelection,
       editMode: staticGridEditMode,
       textCursor,
-      selections,
     });
 
     if (staticGridView.hasSelection && str.length === 1) {
@@ -383,7 +380,6 @@ export const createTextSlice = (
   pasteRichData: (cells, startPos) => {
     const {
       textCursor,
-      selections,
       staticGridSelection,
       staticGridEditMode,
       canvasMode,
@@ -394,16 +390,16 @@ export const createTextSlice = (
       selection: staticGridSelection,
       editMode: staticGridEditMode,
       textCursor,
-      selections,
     });
 
-    let pos = startPos || textCursor;
-    if (!pos && staticGridView.hasSelection) {
-      pos = staticGridView.selectionAreas[0].start;
-    }
-    pos = pos || staticGridView.activeCell;
-
-    const basePos = pos;
+    const basePos =
+      startPos ??
+      staticGridView.textCursor ??
+      (staticGridView.hasSelection
+        ? staticGridView.selectionGeometry.bounds?.start
+        : null) ??
+      textCursor ??
+      staticGridView.activeCell;
     const cellsBySourcePoint = new Map(
       cells.map((cell) => [GridManager.toKey(cell.x, cell.y), cell])
     );

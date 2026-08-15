@@ -139,30 +139,70 @@ describe("ZoomControl slide playback", () => {
     expect(screen.queryByRole("button", { name: "Add slide" })).not.toBeInTheDocument();
     const slideList = screen.getByRole("list", { name: "Slides, reorderable" });
     expect(slideList.querySelectorAll(":scope > li > span")).toHaveLength(0);
-    const firstSlide = screen.getByRole("button", { name: "1. First" });
-    const secondSlide = screen.getByRole("button", { name: "2. Second" });
+    const firstSlide = screen.getByRole("button", {
+      name: "Slide 1 of 2: First",
+    });
+    const secondSlide = screen.getByRole("button", {
+      name: "Slide 2 of 2: Second, current",
+    });
     expect(firstSlide.querySelector("pre")).not.toBeInTheDocument();
     expect(firstSlide.querySelector("canvas")).toHaveAttribute(
       "data-testid",
       "slide-preview-canvas"
     );
-    expect(firstSlide.parentElement).toHaveClass("border");
-    expect(firstSlide.parentElement).not.toHaveClass("border-primary", "ring-1");
-    expect(secondSlide.parentElement).toHaveClass("border");
-    expect(secondSlide.parentElement).not.toHaveClass("border-primary", "ring-1");
+    expect(firstSlide.parentElement).not.toHaveClass(
+      "border",
+      "border-primary",
+      "bg-background",
+      "ring-1"
+    );
+    expect(secondSlide.parentElement).not.toHaveClass(
+      "border",
+      "border-primary",
+      "bg-background",
+      "ring-1"
+    );
+    expect(firstSlide.parentElement).not.toHaveAttribute("data-selected");
+    expect(firstSlide.parentElement).not.toHaveClass(
+      "bg-control-active-surface"
+    );
+    expect(secondSlide.parentElement).toHaveAttribute("data-selected", "true");
+    expect(secondSlide.parentElement).toHaveClass(
+      "bg-control-active-surface"
+    );
     expect(firstSlide).not.toHaveAttribute("data-selected");
-    expect(firstSlide).not.toHaveClass("bg-accent");
+    expect(firstSlide).not.toHaveClass("bg-control-active-surface");
     expect(secondSlide).toHaveAttribute("data-selected", "true");
-    expect(secondSlide).toHaveClass("bg-accent", "text-foreground");
+    expect(secondSlide).toHaveClass("bg-control-active-surface", "text-foreground");
 
     fireEvent.click(firstSlide);
 
+    expect(firstSlide.parentElement).toHaveAttribute("data-selected", "true");
+    expect(firstSlide.parentElement).toHaveClass("bg-control-active-surface");
+    expect(secondSlide.parentElement).not.toHaveAttribute("data-selected");
+    expect(secondSlide.parentElement).not.toHaveClass(
+      "bg-control-active-surface"
+    );
     expect(firstSlide).toHaveAttribute("data-selected", "true");
-    expect(firstSlide).toHaveClass("bg-accent", "text-foreground");
+    expect(firstSlide).toHaveClass("bg-control-active-surface", "text-foreground");
     expect(secondSlide).not.toHaveAttribute("data-selected");
-    expect(secondSlide).not.toHaveClass("bg-accent");
+    expect(secondSlide).not.toHaveClass("bg-control-active-surface");
 
-    const firstNameInput = screen.getAllByRole("textbox", { name: "Rename" })[0];
+    expect(
+      screen.getByRole("group", { name: "Actions for First" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Configure slide size for First" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Duplicate First" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Delete First" })
+    ).toBeInTheDocument();
+    const firstNameInput = screen.getByRole("textbox", {
+      name: "Rename First",
+    });
     expect(firstNameInput).toHaveClass("bg-transparent", "border-0", "shadow-none");
     act(() => firstNameInput.focus());
     fireEvent.change(firstNameInput, { target: { value: "  Intro  " } });
@@ -201,9 +241,9 @@ describe("ZoomControl slide playback", () => {
   it("configures only the selected slide and confirms destructive cropping", async () => {
     render(<SlideNavigator />);
 
-    const configureFirst = screen.getAllByRole("button", {
-      name: "Configure slide size",
-    })[0];
+    const configureFirst = screen.getByRole("button", {
+      name: "Configure slide size for First",
+    });
     fireEvent.click(configureFirst);
     expect(useEditorStore.getState().slideDeck?.activeSlideId).toBe("slide-2");
     expect(

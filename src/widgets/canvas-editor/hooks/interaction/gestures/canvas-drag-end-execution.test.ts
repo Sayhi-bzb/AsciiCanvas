@@ -20,7 +20,7 @@ const createPrimaryExecutor = (): PrimaryDragEndExecutor => ({
   fillArea: vi.fn(), setSelectedStructuredNodeIds: vi.fn(),
   setSelectedStructuredSplitHandle: vi.fn(), setStructuredGridFocus: vi.fn(),
   setStaticGridActiveCell: vi.fn(), setStaticGridSelectionRange: vi.fn(),
-  addSelection: vi.fn(), clearSelections: vi.fn(),
+  appendStaticGridSelectionRange: vi.fn(), clearSelections: vi.fn(),
   clearSelectionPreview: vi.fn(), commitScratch: vi.fn(), forceHistorySave: vi.fn(),
   commitStructuredShape: vi.fn(), flushStructuredMove: vi.fn(),
   flushStructuredSplitBoxResize: vi.fn(), resetDragState: vi.fn(),
@@ -46,7 +46,7 @@ describe("canvas drag-end execution", () => {
       splitBoxDividerResize: false,
     }, executor)).toBe(true);
     expect(executor.setStaticGridSelectionRange).toHaveBeenCalled();
-    expect(executor.addSelection).not.toHaveBeenCalled();
+    expect(executor.appendStaticGridSelectionRange).not.toHaveBeenCalled();
     expect(executor.resetDragState).toHaveBeenCalled();
   });
 

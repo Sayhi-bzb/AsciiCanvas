@@ -65,7 +65,7 @@ export const CanvasContextMenuContent = ({
       return (
         <ContextMenuSub key={`sub-${entry.label}-${index}`}>
           <ContextMenuSubTrigger disabled={!hasEnabledChild}>
-            {Icon && <Icon className="mr-2 size-4" />}
+            {Icon && <Icon />}
             <span>
               {entry.label === "Layer" ? t("context.layer") : entry.label}
             </span>
@@ -97,7 +97,7 @@ export const CanvasContextMenuContent = ({
           "availability"
         )}
       >
-        {Icon && <Icon className="mr-2 size-4" />}
+        {Icon && <Icon />}
         <span>{labelKey ? t(labelKey) : meta.label}</span>
         {shortcutLabel && (
           <ContextMenuShortcut>{shortcutLabel}</ContextMenuShortcut>

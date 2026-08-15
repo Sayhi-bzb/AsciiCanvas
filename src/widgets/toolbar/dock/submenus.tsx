@@ -126,7 +126,7 @@ export function ShapeSubmenu({
             value={shapeTool}
             className="gap-2"
           >
-            <meta.icon className="size-4 shrink-0" />
+            <meta.icon />
             <span className="flex-1 whitespace-nowrap pr-4 text-left font-medium">
               {meta.label}
             </span>

@@ -3,9 +3,10 @@ import {
   drawActiveCellFocus,
   drawCanvasColorPickerAnchor,
   drawGridActiveCellMarker,
-  drawGridSelectionRange,
+  drawGridSelectionGeometry,
   getStructuredSplitBoxActiveLeafBounds,
 } from "@/widgets/canvas-editor/hooks/useCanvasRenderer";
+import { getGridSelectionGeometry } from "@/domains/selection/public";
 import {
   getStructuredLineHandlePoints,
   getStructuredRectHandlePoints,
@@ -41,14 +42,12 @@ describe("useCanvasRenderer structured rect handles", () => {
     expect(ctx.strokeRect).toHaveBeenCalledWith(18, 57, 9, 19);
   });
 
-  it("draws the primary range border independently from the active-cell marker", () => {
+  it("draws the active-cell marker independently from the range contour", () => {
     const styles: { stroke?: string; lineWidth?: number } = {};
     const ctx = {
       save: vi.fn(),
       restore: vi.fn(),
-      fillRect: vi.fn(),
       strokeRect: vi.fn(),
-      set fillStyle(_value: string | CanvasGradient | CanvasPattern) {},
       set strokeStyle(value: string | CanvasGradient | CanvasPattern) {
         styles.stroke = String(value);
       },
@@ -57,17 +56,6 @@ describe("useCanvasRenderer structured rect handles", () => {
       },
     } as unknown as CanvasRenderingContext2D;
 
-    drawGridSelectionRange(
-      ctx,
-      { start: { x: 2, y: 3 }, end: { x: 4, y: 4 } },
-      { offset: { x: 0, y: 0 }, zoom: 1 },
-      "primary"
-    );
-    expect(styles).toEqual({ stroke: "#2563eb", lineWidth: 2 });
-    expect(ctx.fillRect).toHaveBeenCalledWith(18, 57, 27, 38);
-    expect(ctx.strokeRect).toHaveBeenCalledWith(18, 57, 27, 38);
-
-    vi.mocked(ctx.strokeRect).mockClear();
     drawGridActiveCellMarker(ctx, { x: 4, y: 3 }, {
       offset: { x: 0, y: 0 },
       zoom: 1,
@@ -77,6 +65,36 @@ describe("useCanvasRenderer structured rect handles", () => {
       lineWidth: 1,
     });
     expect(ctx.strokeRect).toHaveBeenCalledWith(37, 58, 7, 17);
+  });
+
+  it("fills overlapping ranges once and strokes their union contour", () => {
+    const ctx = {
+      save: vi.fn(),
+      restore: vi.fn(),
+      beginPath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      closePath: vi.fn(),
+      fill: vi.fn(),
+      stroke: vi.fn(),
+      set fillStyle(_value: string | CanvasGradient | CanvasPattern) {},
+      set strokeStyle(_value: string | CanvasGradient | CanvasPattern) {},
+      set lineWidth(_value: number) {},
+    } as unknown as CanvasRenderingContext2D;
+    const geometry = getGridSelectionGeometry([
+      { start: { x: 0, y: 0 }, end: { x: 2, y: 1 } },
+      { start: { x: 1, y: 0 }, end: { x: 3, y: 1 } },
+    ]);
+
+    drawGridSelectionGeometry(ctx, geometry, {
+      offset: { x: 0, y: 0 },
+      zoom: 1,
+    });
+
+    expect(ctx.fill).toHaveBeenCalledOnce();
+    expect(ctx.fill).toHaveBeenCalledWith("evenodd");
+    expect(ctx.stroke).toHaveBeenCalledOnce();
+    expect(ctx.closePath).toHaveBeenCalledOnce();
   });
 
   it("returns eight handles for rectangular structured nodes", () => {

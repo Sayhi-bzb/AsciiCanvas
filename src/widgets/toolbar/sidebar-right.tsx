@@ -116,7 +116,7 @@ function SidebarViewRail<ViewId extends string>({
                 aria-label={view.label}
                 onClick={() => onSelect(view.id)}
               >
-                <Icon className="size-4" />
+                <Icon />
               </Button>
             </TooltipTrigger>
             <TooltipContent side={orientation === "vertical" ? "right" : "bottom"}>
@@ -394,7 +394,7 @@ export function SidebarRight() {
         viewportClassName={!isMobile ? "[&>div]:!block" : undefined}
         contentClassName={!isMobile ? "min-w-0 pr-1" : undefined}
         className={cn(
-          "min-h-0 min-w-0 flex-1 transition-opacity duration-200",
+          "min-h-0 min-w-0 flex-1 transition-opacity duration-[var(--motion-standard)] motion-reduce:transition-none",
           !isMobile && "col-start-2 row-start-1",
           isCollapsed
             ? "pointer-events-none opacity-0"
@@ -436,7 +436,7 @@ export function SidebarRight() {
             aria-hidden={isCollapsed || undefined}
             inert={isCollapsed || undefined}
             className={cn(
-              "flex min-w-0 flex-1 items-center overflow-hidden py-px transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none motion-reduce:transform-none",
+              "flex min-w-0 flex-1 items-center overflow-hidden py-px transition-[opacity,transform] duration-[var(--motion-standard)] ease-out motion-reduce:transition-none motion-reduce:transform-none",
               !isMobile && "col-start-2 row-start-1 pl-2 pr-3",
               isCollapsed
                 ? "pointer-events-none translate-x-2 opacity-0"

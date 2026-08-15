@@ -2,7 +2,6 @@ import type { ToolType } from "@/domains/canvas/public";
 import type {
   CanvasInteractionPort,
   CanvasInteractionState,
-  CanvasToolInputEvent,
 } from "@/domains/editor/public";
 import type { CanvasMode } from "@/domains/sessions/public";
 import {
@@ -10,7 +9,7 @@ import {
   type StructuredNode,
   type StructuredSplitBoxHandle,
 } from "@/domains/structured-content/public";
-import type { Point, SelectionArea } from "@/shared/types";
+import type { Point } from "@/shared/types";
 import type { CanvasPointerContextResolver } from "./core/pointerContext";
 import type { CanvasDragStartRouteAdapter } from "./gestures/dragStartExecution";
 import { resolveDrawingUpdateDecision } from "./gestures/drawingInteraction";
@@ -76,11 +75,6 @@ export type CanvasInteractionPortDependencies = {
   addScratchPoints: (points: Array<Point & { char: string }>) => void;
   erasePoints: (points: Point[]) => void;
   setHoveredGrid: (point: Point) => void;
-  resolveFillStart?: (
-    event: Extract<CanvasToolInputEvent, { type: "canvas-drag-start" }>
-  ) => SelectionArea | null;
-  updateFillPreview?: (source: SelectionArea, current: Point) => void;
-  commitFill?: (source: SelectionArea, current: Point) => void;
   beginAppendSelection?: (point: Point) => void;
 };
 
@@ -104,25 +98,12 @@ export const createCanvasInteractionPort = ({
   addScratchPoints,
   erasePoints,
   setHoveredGrid,
-  resolveFillStart,
-  updateFillPreview,
-  commitFill,
   beginAppendSelection,
 }: CanvasInteractionPortDependencies): CanvasInteractionPort => ({
   begin: beginInteraction,
   start: (event, selectionAnchor) => {
     capture.setState({ type: "idle" });
     capture.setSelectionAnchor(selectionAnchor);
-    const fillSource = resolveFillStart?.(event) ?? null;
-    if (fillSource && event.gridPoint) {
-      const state: CanvasInteractionState = {
-        type: "filling",
-        source: fillSource,
-        current: event.gridPoint,
-      };
-      capture.setState(state);
-      return { state, selectionAnchor };
-    }
     if (
       canvasMode !== "structured" &&
       tool === "select" &&
@@ -178,10 +159,6 @@ export const createCanvasInteractionPort = ({
 
     const currentGrid = event.currentGrid;
     if (!currentGrid) return state;
-    if (state.type === "filling") {
-      updateFillPreview?.(state.source, currentGrid);
-      return { ...state, current: currentGrid };
-    }
     if (state.type === "drawing") {
       const decision = resolveDrawingUpdateDecision({
         tool: state.tool,
@@ -209,10 +186,7 @@ export const createCanvasInteractionPort = ({
     return capture.getState();
   },
   complete: (state, endGrid) => {
-    if (state.type === "filling") {
-      commitFill?.(state.source, endGrid ?? state.current);
-      setCursor("");
-    } else if (state.type === "panning") {
+    if (state.type === "panning") {
       flushPan();
       clearLinkHover();
       setCursor(tool === "pan" ? "grab" : "");

@@ -15,7 +15,10 @@ import { getStructuredTextSelectionRange } from "@/domains/structured-content/pu
 import type { StructuredBoxNode, StructuredTextNode } from "@/domains/structured-content/public";
 import { actionFailed, actionPending, actionSucceeded } from "../result";
 import type { ActionHandler, ActionResult, ActionSource, EditorActionId } from "../types";
-import { getStaticGridSelectionAreas } from "@/domains/selection/public";
+import {
+  getStaticGridSelectionAreas,
+  hasGridRangeSelection,
+} from "@/domains/selection/public";
 import { hasClipboardSource } from "@/domains/actions/adapters/clipboardActions";
 
 // Options types for each action
@@ -127,12 +130,13 @@ const canCopyOrCut = (state: CanvasState): boolean => {
     return hasStructuredTextSelection(state) || state.structuredScene.length > 0;
   }
   return hasClipboardSource(
-    state.selections.length > 0
-      ? state.selections
-      : getStaticGridSelectionAreas(state.staticGridSelection),
+    getStaticGridSelectionAreas(state.staticGridSelection),
     state.textCursor
   );
 };
+
+const hasStaticGridRangeSelection = (state: CanvasState) =>
+  state.canvasMode !== "structured" && hasGridRangeSelection(state.staticGridSelection);
 
 const resolveClipboardAction = (
   result: boolean | Promise<ClipboardCommandResult>
@@ -269,7 +273,7 @@ export const editorHandlers: Record<EditorActionId, ActionHandler<unknown>> = {
       return actionFailed("no-fill-char");
     }
     const hasTextCursor = context.state.textCursor !== null;
-    if (context.state.selections.length === 0 || hasTextCursor) {
+    if (!hasStaticGridRangeSelection(context.state) || hasTextCursor) {
       return actionFailed("no-selection");
     }
     const succeeded = runEditorCommand(context.canvas, "fill-selection-char", {
@@ -280,7 +284,7 @@ export const editorHandlers: Record<EditorActionId, ActionHandler<unknown>> = {
   },
 
   "snapshot-png": (_options, context): ActionResult => {
-    if (context.state.selections.length === 0) {
+    if (!hasStaticGridRangeSelection(context.state)) {
       return actionFailed("empty-selection");
     }
     void context.canvas.commands.selection.copyAsPng(context.state.showGrid);
@@ -288,7 +292,7 @@ export const editorHandlers: Record<EditorActionId, ActionHandler<unknown>> = {
   },
 
   "delete-selection": (_options, context): ActionResult => {
-    if (context.state.selections.length === 0 && !hasStructuredSelection(context.state)) {
+    if (!hasStaticGridRangeSelection(context.state) && !hasStructuredSelection(context.state)) {
       return actionFailed("empty-selection");
     }
     context.canvas.commands.selection.delete();
@@ -403,8 +407,9 @@ export const editorCheckers: Partial<Record<EditorActionId, (state: CanvasState)
   "copy-ansi": (state) => state.canvasMode !== "structured" && canCopyOrCut(state),
   cut: (state) =>
     state.canvasMode === "structured" ? hasStructuredCutSource(state) : canCopyOrCut(state),
-  "snapshot-png": (state) => state.selections.length > 0,
-  "delete-selection": (state) => state.selections.length > 0 || hasStructuredSelection(state),
+  "snapshot-png": hasStaticGridRangeSelection,
+  "delete-selection": (state) =>
+    hasStaticGridRangeSelection(state) || hasStructuredSelection(state),
   "structured-rename": (state) => getSelectedStructuredEditCursor(state) !== null,
   "structured-bring-forward": (state) =>
     canReorderStructuredSelection(state, "forward"),
@@ -421,5 +426,5 @@ export const editorCheckers: Partial<Record<EditorActionId, (state: CanvasState)
   "structured-split-vertical": (state) => canSplitContextSplitBox(state, "vertical"),
   "structured-delete-divider": hasSelectedStructuredDivider,
   "fill-selection-char": (state) =>
-    state.canvasMode !== "structured" && state.selections.length > 0 && state.textCursor === null,
+    hasStaticGridRangeSelection(state) && state.textCursor === null,
 };

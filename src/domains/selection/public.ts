@@ -1,20 +1,26 @@
 export type {
   GridAddress,
   GridBounds,
-  GridEdge,
   GridEditMode,
   GridRange,
   GridSelectionState,
 } from "./model/static-grid";
+export type {
+  GridSelectionGeometry,
+} from "./model/grid-selection-geometry";
+export {
+  forEachGridSelectionSpan,
+  getGridSelectionGeometry,
+} from "./model/grid-selection-geometry";
 export {
   collapseGridSelectionTo,
-  clampGridAddressToBounds,
   createGridSelectionState,
   createStaticGridState,
   extendGridSelectionTo,
   getConnectedGridRange,
   getEffectiveGridBounds,
   getGridSelectionExtent,
+  hasGridRangeSelection,
   getStaticGridSelectionAreas,
   getGridSelectionRanges,
   getStaticGridViewState,
@@ -24,11 +30,8 @@ export {
   moveGridAddressToContentBoundary,
   moveGridAddressToEdge,
   normalizeGridRange,
-  resolveGridFillRange,
   selectionAreaFromGridRange,
-  selectionAreasFromGridRanges,
   selectGridColumn,
   selectGridRange,
   selectGridRow,
-  syncGridSelectionFromLegacy,
 } from "./model/static-grid";

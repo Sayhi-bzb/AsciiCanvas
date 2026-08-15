@@ -15,9 +15,6 @@ import {
   selectGridColumn,
   selectGridRange,
   selectGridRow,
-  selectionAreaFromGridRange,
-  selectionAreasFromGridRanges,
-  syncGridSelectionFromLegacy,
 } from "@/domains/selection/public";
 import { clampPointToActiveSlide, getActiveSlideGridBounds } from "../slideBounds";
 
@@ -33,15 +30,11 @@ export const createStaticGridSlice: StateCreator<
   setStaticGridActiveCell: (address) => {
     const state = get();
     const activeCell = clampPointToActiveSlide(state, address);
-    const selection = collapseGridSelectionTo(
-      syncGridSelectionFromLegacy(state.textCursor, state.selections, state.staticGridSelection),
-      activeCell
-    );
+    const selection = collapseGridSelectionTo(state.staticGridSelection, activeCell);
     set({
       staticGridSelection: selection,
       staticGridEditMode: "navigate",
       textCursor: activeCell,
-      selections: [],
     });
   },
 
@@ -58,19 +51,27 @@ export const createStaticGridSlice: StateCreator<
       staticGridSelection: selection,
       staticGridEditMode: "navigate",
       textCursor: null,
-      selections: [selectionAreaFromGridRange({ start, end })],
+    });
+  },
+
+  appendStaticGridSelectionRange: (range) => {
+    const state = get();
+    const start = clampPointToActiveSlide(state, range.start);
+    const end = clampPointToActiveSlide(state, range.end);
+    set({
+      staticGridSelection: selectGridRange(
+        state.staticGridSelection,
+        { start, end },
+        { append: true, activeCell: "start" }
+      ),
+      staticGridEditMode: "navigate",
+      textCursor: null,
     });
   },
 
   moveStaticGridFocus: (dx, dy, options) => {
     const state = get();
-    const current = options?.extend
-      ? state.staticGridSelection
-      : syncGridSelectionFromLegacy(
-          state.textCursor,
-          state.selections,
-          state.staticGridSelection
-        );
+    const current = state.staticGridSelection;
     const focusCell = options?.extend
       ? getGridSelectionExtent(current)
       : current.activeCell;
@@ -86,19 +87,12 @@ export const createStaticGridSlice: StateCreator<
       staticGridSelection: selection,
       staticGridEditMode: options?.extend ? "navigate" : state.staticGridEditMode,
       textCursor: options?.extend ? null : nextCell,
-      selections: options?.extend
-        ? selectionAreasFromGridRanges(getGridSelectionRanges(selection))
-        : [],
     });
   },
 
   moveStaticGridFocusToEdge: (edge, options) => {
     const state = get();
-    const current = syncGridSelectionFromLegacy(
-      state.staticGridEditMode === "text-edit" ? state.textCursor : null,
-      state.selections,
-      state.staticGridSelection
-    );
+    const current = state.staticGridSelection;
     const bounds = getEffectiveGridBounds({
       grid: state.grid,
       activeCell: current.activeCell,
@@ -124,19 +118,12 @@ export const createStaticGridSlice: StateCreator<
       staticGridSelection: selection,
       staticGridEditMode: "navigate",
       textCursor: options?.extend ? null : nextCell,
-      selections: options?.extend
-        ? selectionAreasFromGridRanges(getGridSelectionRanges(selection))
-        : [],
     });
   },
 
   moveStaticGridFocusToContentBoundary: (edge, options) => {
     const state = get();
-    const current = syncGridSelectionFromLegacy(
-      state.staticGridEditMode === "text-edit" ? state.textCursor : null,
-      state.selections,
-      state.staticGridSelection
-    );
+    const current = state.staticGridSelection;
     const focusCell = options?.extend
       ? getGridSelectionExtent(current)
       : current.activeCell;
@@ -156,19 +143,12 @@ export const createStaticGridSlice: StateCreator<
       staticGridSelection: selection,
       staticGridEditMode: "navigate",
       textCursor: options?.extend ? null : nextCell,
-      selections: options?.extend
-        ? selectionAreasFromGridRanges(getGridSelectionRanges(selection))
-        : [],
     });
   },
 
   selectStaticGridAll: () => {
     const state = get();
-    const current = syncGridSelectionFromLegacy(
-      state.staticGridEditMode === "text-edit" ? state.textCursor : null,
-      state.selections,
-      state.staticGridSelection
-    );
+    const current = state.staticGridSelection;
     const bounds = getEffectiveGridBounds({
       grid: state.grid,
       activeCell: current.activeCell,
@@ -186,13 +166,12 @@ export const createStaticGridSlice: StateCreator<
       staticGridSelection: selection,
       staticGridEditMode: "navigate",
       textCursor: null,
-      selections: selectionAreasFromGridRanges(getGridSelectionRanges(selection)),
     });
   },
 
   selectStaticGridRow: () => {
     const state = get();
-    const current = syncGridSelectionFromLegacy(null, state.selections, state.staticGridSelection);
+    const current = state.staticGridSelection;
     const bounds = getEffectiveGridBounds({
       grid: state.grid,
       activeCell: current.activeCell,
@@ -204,13 +183,12 @@ export const createStaticGridSlice: StateCreator<
       staticGridSelection: selection,
       staticGridEditMode: "navigate",
       textCursor: null,
-      selections: selectionAreasFromGridRanges(getGridSelectionRanges(selection)),
     });
   },
 
   selectStaticGridColumn: () => {
     const state = get();
-    const current = syncGridSelectionFromLegacy(null, state.selections, state.staticGridSelection);
+    const current = state.staticGridSelection;
     const bounds = getEffectiveGridBounds({
       grid: state.grid,
       activeCell: current.activeCell,
@@ -222,23 +200,17 @@ export const createStaticGridSlice: StateCreator<
       staticGridSelection: selection,
       staticGridEditMode: "navigate",
       textCursor: null,
-      selections: selectionAreasFromGridRanges(getGridSelectionRanges(selection)),
     });
   },
 
   enterStaticGridTextEdit: (address) => {
     const state = get();
-    const current = syncGridSelectionFromLegacy(
-      state.textCursor,
-      state.selections,
-      state.staticGridSelection
-    );
+    const current = state.staticGridSelection;
     const activeCell = clampPointToActiveSlide(state, address ?? current.activeCell);
     set({
       staticGridSelection: collapseGridSelectionTo(current, activeCell),
       staticGridEditMode: "text-edit",
       textCursor: activeCell,
-      selections: [],
     });
   },
 
@@ -254,7 +226,6 @@ export const createStaticGridSlice: StateCreator<
       staticGridSelection: collapseGridSelectionTo(current, current.activeCell),
       staticGridEditMode: "navigate",
       textCursor: null,
-      selections: [],
     });
   },
 });

@@ -109,20 +109,26 @@ export function CollaborationControl() {
           tone="subtle"
           shape="square"
           size="md"
-          active={Boolean(descriptor)}
           open={open}
-          className="pointer-events-auto"
+          className="pointer-events-auto relative"
           aria-label={t('collaboration.title')}
           title={t('collaboration.title')}
           data-testid="collaboration-control"
         >
           <CollaborationIcon />
+          {descriptor && (
+            <span
+              data-testid="collaboration-connected-indicator"
+              aria-hidden="true"
+              className="absolute right-1 top-1 size-1 rounded-full bg-foreground"
+            />
+          )}
         </Button>
       </PopoverTrigger>
       <PopoverContent
         side="bottom"
         align="start"
-        className="w-72 max-w-[calc(100vw-1.5rem)] p-[3px]"
+        className="w-72 max-w-[calc(100vw-1.5rem)]"
         role="dialog"
         aria-label={t('collaboration.title')}
       >

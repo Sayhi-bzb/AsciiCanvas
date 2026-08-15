@@ -1,9 +1,10 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import {
   useCanvasRuntime,
   useCanvasState,
 } from "@/domains/canvas/public";
 import { useCollaborationRuntime } from "@/domains/collaboration/public";
+import { getStaticGridSelectionAreas } from "@/domains/selection/public";
 
 export const useActiveCollaboration = () => {
   const canvas = useCanvasRuntime();
@@ -13,8 +14,17 @@ export const useActiveCollaboration = () => {
     state.canvasSessions.find((session) => session.id === state.activeCanvasId)?.collaboration
   );
   const cursor = useCanvasState((state) => state.hoveredGrid);
-  const selections = useCanvasState((state) =>
-    state.canvasMode === "structured" ? state.selectedStructuredNodeIds : state.selections
+  const canvasMode = useCanvasState((state) => state.canvasMode);
+  const selectedStructuredNodeIds = useCanvasState(
+    (state) => state.selectedStructuredNodeIds
+  );
+  const staticGridSelection = useCanvasState((state) => state.staticGridSelection);
+  const selections = useMemo(
+    () =>
+      canvasMode === "structured"
+        ? selectedStructuredNodeIds
+        : getStaticGridSelectionAreas(staticGridSelection),
+    [canvasMode, selectedStructuredNodeIds, staticGridSelection]
   );
   const tool = useCanvasState((state) => state.tool);
 

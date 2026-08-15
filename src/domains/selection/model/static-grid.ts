@@ -1,5 +1,6 @@
 import type { GridMap, Point, SelectionArea } from "@/shared/types";
 import { GridManager } from "@/shared/utils/grid";
+import { getGridSelectionGeometry } from "./grid-selection-geometry";
 
 export type GridAddress = Point;
 export type GridEditMode = "navigate" | "text-edit";
@@ -11,9 +12,10 @@ export interface GridRange {
 
 export type GridBounds = GridRange;
 
-export type GridEdge = "left" | "right" | "top" | "bottom";
+type GridEdge = "left" | "right" | "top" | "bottom";
 
 export interface GridSelectionState {
+  mode: "cell" | "range";
   activeCell: GridAddress;
   anchorCell: GridAddress;
   primaryRange: GridRange;
@@ -29,6 +31,7 @@ interface StaticGridViewState {
   activeCell: GridAddress;
   textCursor: GridAddress | null;
   selectionAreas: SelectionArea[];
+  selectionGeometry: import("./grid-selection-geometry").GridSelectionGeometry;
   hasSelection: boolean;
   isTextEditing: boolean;
 }
@@ -60,17 +63,6 @@ export const gridRangesEqual = (left: GridRange, right: GridRange) => {
     a.end.x === b.end.x &&
     a.end.y === b.end.y
   );
-};
-
-export const clampGridAddressToBounds = (
-  address: GridAddress,
-  bounds: GridBounds
-): GridAddress => {
-  const normalized = normalizeGridRange(bounds);
-  return {
-    x: Math.min(normalized.end.x, Math.max(normalized.start.x, address.x)),
-    y: Math.min(normalized.end.y, Math.max(normalized.start.y, address.y)),
-  };
 };
 
 export const getEffectiveGridBounds = (input: {
@@ -240,10 +232,7 @@ export const selectionAreaFromGridRange = (range: GridRange): SelectionArea => {
   };
 };
 
-const gridRangesFromSelectionAreas = (areas: SelectionArea[]) =>
-  areas.map(gridRangeFromSelectionArea);
-
-export const selectionAreasFromGridRanges = (ranges: GridRange[]) =>
+const selectionAreasFromGridRanges = (ranges: GridRange[]) =>
   ranges.map(selectionAreaFromGridRange);
 
 export const getGridSelectionRanges = (state: GridSelectionState) => [
@@ -254,15 +243,16 @@ export const getGridSelectionRanges = (state: GridSelectionState) => [
 export const getStaticGridSelectionAreas = (state: GridSelectionState) =>
   selectionAreasFromGridRanges(getGridSelectionRanges(state));
 
+export const hasGridRangeSelection = (state: GridSelectionState) => {
+  return state.mode === "range";
+};
+
 export const getStaticGridViewState = (input: {
   selection: GridSelectionState;
   editMode: GridEditMode;
   textCursor: Point | null;
-  selections: SelectionArea[];
 }): StaticGridViewState => {
   const selectionAreas = getStaticGridSelectionAreas(input.selection);
-  const activeSelectionAreas =
-    selectionAreas.length > 0 ? selectionAreas : input.selections;
   const isTextEditing = input.editMode === "text-edit";
   const activeCell = isTextEditing && input.textCursor
     ? { ...input.textCursor }
@@ -271,8 +261,9 @@ export const getStaticGridViewState = (input: {
   return {
     activeCell,
     textCursor: isTextEditing ? activeCell : null,
-    selectionAreas: activeSelectionAreas,
-    hasSelection: !isTextEditing && activeSelectionAreas.length > 0,
+    selectionAreas,
+    selectionGeometry: getGridSelectionGeometry(getGridSelectionRanges(input.selection)),
+    hasSelection: !isTextEditing && hasGridRangeSelection(input.selection),
     isTextEditing,
   };
 };
@@ -285,6 +276,7 @@ export const moveGridAddress = (address: GridAddress, dx: number, dy: number): G
 export const createGridSelectionState = (
   activeCell: GridAddress = createGridAddress()
 ): GridSelectionState => ({
+  mode: "cell",
   activeCell: { ...activeCell },
   anchorCell: { ...activeCell },
   primaryRange: createSingleCellRange(activeCell),
@@ -303,6 +295,7 @@ export const collapseGridSelectionTo = (
   activeCell: GridAddress
 ): GridSelectionState => ({
   ...state,
+  mode: "cell",
   activeCell: { ...activeCell },
   anchorCell: { ...activeCell },
   primaryRange: createSingleCellRange(activeCell),
@@ -314,6 +307,7 @@ export const extendGridSelectionTo = (
   extentCell: GridAddress
 ): GridSelectionState => ({
   ...state,
+  mode: "range",
   primaryRange: normalizeGridRange({ start: state.anchorCell, end: extentCell }),
   additionalRanges: [],
 });
@@ -350,11 +344,16 @@ export const selectGridRange = (
     : range.start;
   return {
     ...state,
+    mode: "range",
     activeCell: { ...activeCell },
     anchorCell: { ...range.start },
     primaryRange,
     additionalRanges: options?.append
-      ? [...state.additionalRanges, state.primaryRange]
+      ? [...state.additionalRanges, state.primaryRange].filter(
+          (candidate, index, ranges) =>
+            !gridRangesEqual(candidate, primaryRange) &&
+            ranges.findIndex((range) => gridRangesEqual(range, candidate)) === index
+        )
       : [],
   };
 };
@@ -379,58 +378,4 @@ export const selectGridColumn = (
     start: { x: state.activeCell.x, y: normalized.start.y },
     end: { x: state.activeCell.x, y: normalized.end.y },
   });
-};
-
-export const resolveGridFillRange = (
-  source: GridRange,
-  current: GridAddress
-): GridRange => {
-  const normalized = normalizeGridRange(source);
-  const outsideX =
-    current.x < normalized.start.x
-      ? normalized.start.x - current.x
-      : current.x > normalized.end.x
-        ? current.x - normalized.end.x
-        : 0;
-  const outsideY =
-    current.y < normalized.start.y
-      ? normalized.start.y - current.y
-      : current.y > normalized.end.y
-        ? current.y - normalized.end.y
-        : 0;
-
-  if (outsideX === 0 && outsideY === 0) return normalized;
-  if (outsideX >= outsideY) {
-    return {
-      start: { x: Math.min(normalized.start.x, current.x), y: normalized.start.y },
-      end: { x: Math.max(normalized.end.x, current.x), y: normalized.end.y },
-    };
-  }
-  return {
-    start: { x: normalized.start.x, y: Math.min(normalized.start.y, current.y) },
-    end: { x: normalized.end.x, y: Math.max(normalized.end.y, current.y) },
-  };
-};
-
-export const syncGridSelectionFromLegacy = (
-  textCursor: Point | null,
-  selections: SelectionArea[],
-  fallback: GridSelectionState
-): GridSelectionState => {
-  if (textCursor) {
-    return collapseGridSelectionTo(fallback, textCursor);
-  }
-
-  if (selections.length > 0) {
-    const ranges = gridRangesFromSelectionAreas(selections);
-    const last = ranges[ranges.length - 1];
-    return {
-      activeCell: { ...last.end },
-      anchorCell: { ...last.start },
-      primaryRange: last,
-      additionalRanges: ranges.slice(0, -1),
-    };
-  }
-
-  return fallback;
 };

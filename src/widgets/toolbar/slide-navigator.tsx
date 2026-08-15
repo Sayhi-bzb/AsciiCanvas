@@ -11,6 +11,7 @@ import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
 import { useUiI18n } from "@/shared/i18n";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
+import { CollectionCard } from "@/shared/ui/collection-card";
 import { IconButton } from "@/shared/ui/icon-button";
 import { InlineRenameInput } from "@/shared/ui/inline-rename-input";
 import { SelectableItem } from "@/shared/ui/selectable-item";
@@ -99,7 +100,7 @@ export function SlideNavigator() {
         items={slideDeck.slides}
         getId={(slide) => slide.id}
         ariaLabel={t("slide.reorder.list")}
-        className="flex flex-col gap-2"
+        className="flex flex-col gap-3"
         onMove={moveSlide}
         getItemLabel={(slide, index, total, grabbed) =>
           t(
@@ -111,11 +112,9 @@ export function SlideNavigator() {
         renderItem={(slide, index, reorderState) => {
           const active = slide.id === slideDeck.activeSlideId;
           return (
-            <div
-              className={cn(
-                "min-w-0 rounded-md border bg-background p-1 transition-shadow",
-                reorderState.lifted && "shadow-dragged"
-              )}
+            <CollectionCard
+              selected={active}
+              className={cn(reorderState.lifted && "shadow-dragged")}
             >
               <SelectableItem
                 type="button"
@@ -128,23 +127,34 @@ export function SlideNavigator() {
                     " / " +
                     slide.size.rows * 19,
                 }}
-                aria-label={index + 1 + ". " + slide.name}
+                aria-label={t(
+                  active ? "slide.previewCurrent" : "slide.preview",
+                  {
+                    name: slide.name,
+                    current: index + 1,
+                    total: slideDeck.slides.length,
+                  }
+                )}
                 aria-current={active ? "page" : undefined}
                 onClick={() => activateSlide(slide.id)}
               >
                 <SlidePreviewCanvas slide={slide} />
               </SelectableItem>
-              <div className="mt-1 flex items-center gap-0.5">
+              <div
+                role="group"
+                aria-label={t("slide.actions", { name: slide.name })}
+                className="flex items-center gap-0.5"
+              >
                 <InlineRenameInput
                   value={slide.name}
-                  aria-label={t("slide.rename")}
+                  aria-label={t("slide.renameNamed", { name: slide.name })}
                   className="flex-1"
                   onCommit={(name) => renameSlide(slide.id, name)}
                 />
                 <IconButton
                   type="button"
                   size="xs"
-                  aria-label={t("slide.configure")}
+                  aria-label={t("slide.configureNamed", { name: slide.name })}
                   title={t("slide.configure")}
                   onClick={(event) => {
                     configureTriggerRef.current = event.currentTarget;
@@ -156,7 +166,7 @@ export function SlideNavigator() {
                 <IconButton
                   type="button"
                   size="xs"
-                  aria-label={t("slide.duplicate")}
+                  aria-label={t("slide.duplicateNamed", { name: slide.name })}
                   title={t("slide.duplicate")}
                   onClick={() => duplicateSlide(slide.id)}
                 >
@@ -166,7 +176,7 @@ export function SlideNavigator() {
                   type="button"
                   size="xs"
                   destructive
-                  aria-label={t("slide.delete")}
+                  aria-label={t("slide.deleteNamed", { name: slide.name })}
                   title={t("slide.delete")}
                   disabled={slideDeck.slides.length === 1}
                   onClick={() => setPendingDeleteId(slide.id)}
@@ -174,7 +184,7 @@ export function SlideNavigator() {
                   <DeleteIcon />
                 </IconButton>
               </div>
-            </div>
+            </CollectionCard>
           );
         }}
       />

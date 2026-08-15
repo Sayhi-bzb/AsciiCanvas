@@ -111,7 +111,7 @@ describe("CharLibrary", () => {
       duration: 600,
       position: "top-right",
     });
-    await waitFor(() => expect(starButton).toHaveClass("bg-accent"));
+    await waitFor(() => expect(starButton).toHaveClass("bg-control-active-surface"));
 
     fireEvent.focus(starButton);
     const tooltip = await screen.findByRole("tooltip");

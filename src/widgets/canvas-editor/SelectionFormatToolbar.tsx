@@ -16,7 +16,10 @@ import { GridManager } from "@/shared/utils/grid";
 import { getSelectionBounds } from "@/shared/utils/selection";
 import { getStructuredNodeBounds } from "@/domains/structured-content/public";
 import {
+  forEachGridSelectionSpan,
+  getGridSelectionRanges,
   getStaticGridViewState,
+  type GridRange,
 } from "@/domains/selection/public";
 import {
   canSplitStructuredSplitBoxLeaf,
@@ -70,7 +73,7 @@ const getToolbarWidth = (actionCount: number) =>
 
 const selectionToolbarShellClass = cn(
   "relative flex items-center gap-1 p-[3px] pointer-events-auto",
-  "backdrop-blur-none animate-in fade-in duration-[120ms] motion-reduce:animate-none"
+  "backdrop-blur-none animate-in fade-in duration-[var(--motion-fast)] motion-reduce:animate-none"
 );
 
 const selectionToolbarToggleClass = buttonVariants({
@@ -115,7 +118,7 @@ function SelectionToolbarAction({
       shape="square"
       size="md"
       disabled={disabled}
-      className={cn("size-8", className)}
+      className={className}
       onMouseDown={(event) => {
         preserveCanvasFocus(event);
         onMouseDown?.(event);
@@ -157,17 +160,14 @@ const getUnionBounds = (selections: SelectionArea[]) => {
   );
 };
 
-const getSelectedCells = (grid: GridMap, selections: SelectionArea[]) => {
-  const cells = [];
-  for (const selection of selections) {
-    const { minX, maxX, minY, maxY } = getSelectionBounds(selection);
-    for (let y = minY; y <= maxY; y++) {
-      for (let x = minX; x <= maxX; x++) {
-        const cell = grid.get(GridManager.toKey(x, y));
-        if (cell) cells.push(cell);
-      }
+const getSelectedCells = (grid: GridMap, ranges: GridRange[]) => {
+  const cells: Array<NonNullable<ReturnType<GridMap["get"]>>> = [];
+  forEachGridSelectionSpan(ranges, ({ y, minX, maxX }) => {
+    for (let x = minX; x <= maxX; x++) {
+      const cell = grid.get(GridManager.toKey(x, y));
+      if (cell) cells.push(cell);
     }
-  }
+  });
   return cells;
 };
 
@@ -189,7 +189,6 @@ export function SelectionFormatToolbar({
     grid,
     offset,
     zoom,
-    selections,
     staticGridSelection,
     staticGridEditMode,
     textCursor,
@@ -205,7 +204,6 @@ export function SelectionFormatToolbar({
       grid: state.grid,
       offset: state.offset,
       zoom: state.zoom,
-      selections: state.selections,
       staticGridSelection: state.staticGridSelection,
       staticGridEditMode: state.staticGridEditMode,
       textCursor: state.textCursor,
@@ -228,16 +226,17 @@ export function SelectionFormatToolbar({
         selection: staticGridSelection,
         editMode: staticGridEditMode,
         textCursor,
-        selections,
       }),
-    [staticGridEditMode, staticGridSelection, textCursor, selections]
+    [staticGridEditMode, staticGridSelection, textCursor]
   );
-  const activeSelections =
-    isStaticGridMode(canvasMode) ? staticGridView.selectionAreas : selections;
+  const activeSelections = useMemo(
+    () => isStaticGridMode(canvasMode) ? staticGridView.selectionAreas : [],
+    [canvasMode, staticGridView.selectionAreas]
+  );
 
   const selectedCells = useMemo(
-    () => getSelectedCells(grid, activeSelections),
-    [grid, activeSelections]
+    () => getSelectedCells(grid, getGridSelectionRanges(staticGridSelection)),
+    [grid, staticGridSelection]
   );
 
   const structuredTextSelectionModel = useMemo(() => {
@@ -426,7 +425,7 @@ export function SelectionFormatToolbar({
               );
             }}
           >
-            <SplitHorizontalIcon className="size-4" />
+            <SplitHorizontalIcon />
           </SelectionToolbarAction>
           <SelectionToolbarAction
             aria-label={t("selection.splitVertical")}
@@ -441,7 +440,7 @@ export function SelectionFormatToolbar({
               );
             }}
           >
-            <SplitVerticalIcon className="size-4" />
+            <SplitVerticalIcon />
           </SelectionToolbarAction>
           <SelectionToolbarAction
             aria-label={t("selection.deleteDivider")}
@@ -453,7 +452,7 @@ export function SelectionFormatToolbar({
               deleteSelection();
             }}
           >
-            <DeleteDividerIcon className="size-4" />
+            <DeleteDividerIcon />
           </SelectionToolbarAction>
           </div>
         </Surface>
@@ -503,7 +502,7 @@ export function SelectionFormatToolbar({
               className={selectionToolbarToggleClass}
               onMouseDown={preserveCanvasFocus}
             >
-              <BoldIcon className="size-4" />
+              <BoldIcon />
             </TooltipSafeToggleGroupItem>
           </TooltipTrigger>
           <TooltipContent side="top" className="text-xs">
@@ -518,7 +517,7 @@ export function SelectionFormatToolbar({
               className={selectionToolbarToggleClass}
               onMouseDown={preserveCanvasFocus}
             >
-              <ItalicIcon className="size-4" />
+              <ItalicIcon />
             </TooltipSafeToggleGroupItem>
           </TooltipTrigger>
           <TooltipContent side="top" className="text-xs">
@@ -533,7 +532,7 @@ export function SelectionFormatToolbar({
               className={selectionToolbarToggleClass}
               onMouseDown={preserveCanvasFocus}
             >
-              <UnderlineIcon className="size-4" />
+              <UnderlineIcon />
             </TooltipSafeToggleGroupItem>
           </TooltipTrigger>
           <TooltipContent side="top" className="text-xs">

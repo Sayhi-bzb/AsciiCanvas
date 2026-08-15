@@ -4,7 +4,12 @@ import type { ComponentProps } from "react";
 import { CanvasEditor as CanvasEditorUnderTest } from "@/widgets/canvas-editor";
 import { undoCanvas, useEditorStore } from "@/domains/canvas/testing";
 import { replaceCanvasGrid as applyFreeformSnapshotToYMaps } from "@/domains/canvas/testing";
-import { getGridSelectionRanges } from "@/domains/selection/public";
+import {
+  createGridSelectionState,
+  getGridSelectionRanges,
+  selectGridRange,
+} from "@/domains/selection/public";
+import type { Point } from "@/shared/types";
 import {
   STRUCTURED_TEMPLATE_MIME,
   buildStructuredTemplateNodes,
@@ -23,6 +28,13 @@ vi.mock("@/widgets/canvas-editor/hooks/useCanvasRenderer", () => ({
 }));
 
 const handleDoubleClickMock = vi.fn();
+
+const createRangeSelection = (start: Point, end: Point) =>
+  selectGridRange(
+    createGridSelectionState(start),
+    { start, end },
+    { activeCell: "start" }
+  );
 
 const stripNodeIds = <T extends { id: string; component?: { instanceId: string } }>(
   nodes: T[]
@@ -111,7 +123,6 @@ describe("CanvasEditor focus management", () => {
 
   it("claims input focus on pointerdown before selection state changes", () => {
     useEditorStore.setState({
-      selections: [],
       textCursor: null,
       canvasMode: "freeform",
     });
@@ -141,8 +152,8 @@ describe("CanvasEditor focus management", () => {
     useEditorStore.setState({
       canvasMode: "freeform",
       textCursor: null,
-      selections: [],
       staticGridSelection: {
+        mode: "range",
         activeCell: { x: 1, y: 0 },
         anchorCell: { x: 0, y: 0 },
         primaryRange: { start: { x: 0, y: 0 }, end: { x: 1, y: 0 } },
@@ -173,7 +184,6 @@ describe("CanvasEditor focus management", () => {
   it("runs redo shortcuts from the managed textarea", () => {
     useEditorStore.setState({
       textCursor: { x: 0, y: 0 },
-      selections: [],
       canvasMode: "freeform",
     });
     useEditorStore.getState().writeTextString("A");
@@ -181,12 +191,7 @@ describe("CanvasEditor focus management", () => {
     expect(useEditorStore.getState().canRedo).toBe(true);
 
     useEditorStore.setState({
-      selections: [
-        {
-          start: { x: 0, y: 0 },
-          end: { x: 1, y: 1 },
-        },
-      ],
+      staticGridSelection: createRangeSelection({ x: 0, y: 0 }, { x: 1, y: 1 }),
       textCursor: null,
       canvasMode: "freeform",
     });
@@ -254,7 +259,7 @@ describe("CanvasEditor focus management", () => {
     useEditorStore.setState({
       canvasMode: "freeform",
       textCursor: null,
-      selections: [{ start: { x: 0, y: 0 }, end: { x: 1, y: 0 } }],
+      staticGridSelection: createRangeSelection({ x: 0, y: 0 }, { x: 1, y: 0 }),
     });
     applyFreeformSnapshotToYMaps([
       ["0,0", { char: "A", color: "#ffffff" }],
@@ -281,7 +286,7 @@ describe("CanvasEditor focus management", () => {
     useEditorStore.setState({
       canvasMode: "freeform",
       textCursor: null,
-      selections: [{ start: { x: 0, y: 0 }, end: { x: 1, y: 0 } }],
+      staticGridSelection: createRangeSelection({ x: 0, y: 0 }, { x: 1, y: 0 }),
     });
     applyFreeformSnapshotToYMaps([
       ["0,0", { char: "A", color: "#ffffff" }],
@@ -312,7 +317,7 @@ describe("CanvasEditor focus management", () => {
     useEditorStore.setState({
       canvasMode: "freeform",
       textCursor: null,
-      selections: [{ start: { x: 0, y: 0 }, end: { x: 1, y: 0 } }],
+      staticGridSelection: createRangeSelection({ x: 0, y: 0 }, { x: 1, y: 0 }),
     });
     applyFreeformSnapshotToYMaps([
       ["0,0", { char: "A", color: "#ffffff" }],
@@ -333,14 +338,15 @@ describe("CanvasEditor focus management", () => {
 
     expect(useEditorStore.getState().grid.get("0,0")?.char).toBe("A");
     expect(useEditorStore.getState().grid.get("1,0")?.char).toBe("B");
-    expect(useEditorStore.getState().selections).toHaveLength(1);
+    expect(
+      getGridSelectionRanges(useEditorStore.getState().staticGridSelection)
+    ).toHaveLength(1);
   });
 
   it("falls back to the Clipboard API when Meta+V produces no paste event", async () => {
     useEditorStore.setState({
       canvasMode: "freeform",
       textCursor: { x: 0, y: 0 },
-      selections: [],
     });
     applyFreeformSnapshotToYMaps([]);
     vi.spyOn(clipboard, "readItems").mockResolvedValue(null);
@@ -365,7 +371,6 @@ describe("CanvasEditor focus management", () => {
     useEditorStore.setState({
       canvasMode: "freeform",
       textCursor: { x: 0, y: 0 },
-      selections: [],
     });
     applyFreeformSnapshotToYMaps([]);
     vi.spyOn(clipboard, "readItems").mockResolvedValue(null);
@@ -406,9 +411,9 @@ describe("CanvasEditor focus management", () => {
     useEditorStore.setState({
       canvasMode: "freeform",
       textCursor: null,
-      selections: [],
       grid: new Map(),
       staticGridSelection: {
+        mode: "cell",
         activeCell: { x: 4, y: 3 },
         anchorCell: { x: 4, y: 3 },
         primaryRange: { start: { x: 4, y: 3 }, end: { x: 4, y: 3 } },
@@ -438,8 +443,8 @@ describe("CanvasEditor focus management", () => {
     useEditorStore.setState({
       canvasMode: "freeform",
       textCursor: null,
-      selections: [],
       staticGridSelection: {
+        mode: "cell",
         activeCell: { x: 2, y: 2 },
         anchorCell: { x: 2, y: 2 },
         primaryRange: { start: { x: 2, y: 2 }, end: { x: 2, y: 2 } },
@@ -461,8 +466,8 @@ describe("CanvasEditor focus management", () => {
     useEditorStore.setState({
       canvasMode: "freeform",
       textCursor: null,
-      selections: [],
       staticGridSelection: {
+        mode: "cell",
         activeCell: { x: 2, y: 2 },
         anchorCell: { x: 2, y: 2 },
         primaryRange: { start: { x: 2, y: 2 }, end: { x: 2, y: 2 } },
@@ -481,13 +486,7 @@ describe("CanvasEditor focus management", () => {
 
     act(() => {
       useEditorStore.setState({
-        selections: [{ start: { x: 1, y: 1 }, end: { x: 3, y: 2 } }],
-        staticGridSelection: {
-          activeCell: { x: 3, y: 2 },
-          anchorCell: { x: 1, y: 1 },
-          primaryRange: { start: { x: 1, y: 1 }, end: { x: 3, y: 2 } },
-          additionalRanges: [],
-        },
+        staticGridSelection: createRangeSelection({ x: 1, y: 1 }, { x: 3, y: 2 }),
       });
     });
 
@@ -601,7 +600,6 @@ describe("CanvasEditor focus management", () => {
     useEditorStore.setState({
       canvasMode: "structured",
       textCursor: null,
-      selections: [],
       selectedStructuredNodeIds: ["box-1"],
       selectedStructuredBoxId: "box-1",
       structuredScene: [
@@ -638,8 +636,8 @@ describe("CanvasEditor focus management", () => {
         ["5,5", { char: "C", color: "#fff" }],
       ]),
       textCursor: { x: 1, y: 5 },
-      selections: [],
       staticGridSelection: {
+        mode: "cell",
         activeCell: { x: 1, y: 5 },
         anchorCell: { x: 1, y: 5 },
         primaryRange: { start: { x: 1, y: 5 }, end: { x: 1, y: 5 } },
@@ -677,6 +675,7 @@ describe("CanvasEditor focus management", () => {
       shiftKey: true,
     });
     expect(useEditorStore.getState().staticGridSelection).toEqual({
+      mode: "range",
       activeCell: { x: 5, y: 5 },
       anchorCell: { x: 5, y: 5 },
       primaryRange: { start: { x: 2, y: 5 }, end: { x: 5, y: 5 } },
@@ -695,8 +694,8 @@ describe("CanvasEditor focus management", () => {
         ["4,2", { char: "B", color: "#fff" }],
       ]),
       textCursor: { x: 1, y: 2 },
-      selections: [],
       staticGridSelection: {
+        mode: "cell",
         activeCell: { x: 1, y: 2 },
         anchorCell: { x: 1, y: 2 },
         primaryRange: { start: { x: 1, y: 2 }, end: { x: 1, y: 2 } },
@@ -735,6 +734,7 @@ describe("CanvasEditor focus management", () => {
     useEditorStore.setState({
       canvasMode: "freeform",
       staticGridSelection: {
+        mode: "cell",
         activeCell: { x: 2, y: 2 },
         anchorCell: { x: 2, y: 2 },
         primaryRange: { start: { x: 2, y: 2 }, end: { x: 2, y: 2 } },
@@ -780,8 +780,8 @@ describe("CanvasEditor focus management", () => {
         ],
       },
       textCursor: { x: 1, y: 1 },
-      selections: [],
       staticGridSelection: {
+        mode: "cell",
         activeCell: { x: 1, y: 1 },
         anchorCell: { x: 1, y: 1 },
         primaryRange: { start: { x: 1, y: 1 }, end: { x: 1, y: 1 } },
@@ -808,6 +808,7 @@ describe("CanvasEditor focus management", () => {
 
     fireEvent.keyDown(textarea!, { key: "ArrowUp", shiftKey: true });
     expect(useEditorStore.getState().staticGridSelection).toEqual({
+      mode: "range",
       activeCell: { x: 2, y: 1 },
       anchorCell: { x: 2, y: 1 },
       primaryRange: { start: { x: 2, y: 0 }, end: { x: 2, y: 1 } },
@@ -829,8 +830,8 @@ describe("CanvasEditor focus management", () => {
         ["4,3", { char: "B", color: "#fff" }],
       ]),
       textCursor: { x: 2, y: 1 },
-      selections: [],
       staticGridSelection: {
+        mode: "cell",
         activeCell: { x: 2, y: 1 },
         anchorCell: { x: 2, y: 1 },
         primaryRange: { start: { x: 2, y: 1 }, end: { x: 2, y: 1 } },
@@ -869,8 +870,8 @@ describe("CanvasEditor focus management", () => {
         ["5,4", { char: "C", color: "#fff" }],
       ]),
       textCursor: { x: 1, y: 1 },
-      selections: [],
       staticGridSelection: {
+        mode: "cell",
         activeCell: { x: 1, y: 1 },
         anchorCell: { x: 1, y: 1 },
         primaryRange: { start: { x: 1, y: 1 }, end: { x: 1, y: 1 } },
@@ -909,7 +910,6 @@ describe("CanvasEditor focus management", () => {
     useEditorStore.setState({
       canvasMode: "structured",
       textCursor: null,
-      selections: [],
       selectedStructuredNodeIds: [],
       structuredGridFocus: { x: 2, y: 3 },
     });
@@ -960,7 +960,6 @@ describe("CanvasEditor focus management", () => {
     useEditorStore.setState({
       canvasMode: "structured",
       textCursor: null,
-      selections: [],
       selectedStructuredNodeIds: [],
       structuredScene: [],
       structuredGridFocus: { x: 3, y: 4 },

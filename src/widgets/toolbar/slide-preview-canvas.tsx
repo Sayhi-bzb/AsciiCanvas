@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useTheme } from "next-themes";
 import type { Slide } from "@/domains/slides/public";
+import { COLOR_PRIMARY_TEXT } from "@/shared/lib/constants";
 import { drawSlideCanvas } from "./slide-canvas-renderer";
 
 export function SlidePreviewCanvas({
@@ -10,6 +12,7 @@ export function SlidePreviewCanvas({
   slide: Slide;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const { resolvedTheme } = useTheme();
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -17,6 +20,10 @@ export function SlidePreviewCanvas({
 
     const render = () => {
       const { width, height } = canvas.getBoundingClientRect();
+      const defaultTextColor =
+        getComputedStyle(document.body)
+          .getPropertyValue("--foreground")
+          .trim() || COLOR_PRIMARY_TEXT;
       drawSlideCanvas({
         canvas,
         slide,
@@ -24,7 +31,9 @@ export function SlidePreviewCanvas({
         viewportWidth: width,
         viewportHeight: height,
         padding: 0,
-        backdropColor: "#ffffff",
+        backdropColor: null,
+        pageColor: null,
+        defaultTextColor,
       });
     };
 
@@ -38,7 +47,7 @@ export function SlidePreviewCanvas({
       observer?.disconnect();
       document.fonts?.removeEventListener("loadingdone", render);
     };
-  }, [slide]);
+  }, [resolvedTheme, slide]);
 
   return (
     <canvas

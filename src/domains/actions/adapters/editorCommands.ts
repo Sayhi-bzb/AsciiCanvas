@@ -5,6 +5,7 @@ import {
   shouldIgnoreEditorCommandByFocus,
 } from "@/domains/actions/input-arbiter";
 import { getFirstGrapheme } from "@/shared/utils/characters";
+import { hasGridRangeSelection } from "@/domains/selection/public";
 import { getStructuredTextSelectionRange } from "@/domains/structured-content/public";
 
 type EditorCommand = Extract<
@@ -72,8 +73,7 @@ export const runEditorCommand = (
       if (state.canvasMode === "structured") return false;
       const fillChar = options.fillChar ? getFirstGrapheme(options.fillChar) : "";
       if (!fillChar) return false;
-      const { selections, textCursor } = state;
-      if (selections.length === 0 || textCursor) return false;
+      if (!hasGridRangeSelection(state.staticGridSelection) || state.textCursor) return false;
       const activeTag = document.activeElement?.tagName.toLowerCase();
       if (activeTag === "input" || activeTag === "textarea") return false;
       canvas.commands.selection.fillWithChar(fillChar);

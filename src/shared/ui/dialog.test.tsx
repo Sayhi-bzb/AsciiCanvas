@@ -43,7 +43,7 @@ describe("dialog visual contract", () => {
     expect(content).toHaveClass(
       "border-0",
       "shadow-dialog",
-      "rounded-lg",
+      "rounded-surface",
       "p-4",
       "gap-4"
     );
@@ -63,9 +63,9 @@ describe("dialog visual contract", () => {
     const close = screen.getByRole("button", { name: "Close" });
     expect(close).toHaveClass(
       "size-8",
-      "rounded-lg",
+      "rounded-control",
       "hover:bg-accent",
-      "focus-visible:ring-[3px]"
+      "focus-visible:ring-2"
     );
     fireEvent.click(close);
     expect(onOpenChange).toHaveBeenCalledWith(false);
@@ -90,7 +90,7 @@ describe("dialog visual contract", () => {
     expect(content).toHaveClass(
       "border-0",
       "shadow-dialog",
-      "rounded-lg",
+      "rounded-surface",
       "p-4",
       "gap-4"
     );

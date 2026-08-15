@@ -7,9 +7,15 @@ import {
   useEditorStore,
 } from "@/domains/canvas/testing";
 import { ShortcutProvider } from "@/shared/shortcuts/dispatcher";
+import { createGridSelectionState, selectGridRange } from "@/domains/selection/public";
 import { CanvasInspectorControl } from "./canvas-inspector";
 
 const initialState = useEditorStore.getState();
+const selectedCell = selectGridRange(
+  createGridSelectionState({ x: 0, y: 0 }),
+  { start: { x: 0, y: 0 }, end: { x: 0, y: 0 } },
+  { activeCell: "start" }
+);
 
 function Inspector({
   formFactor = "desktop",
@@ -147,7 +153,7 @@ describe("CanvasInspectorControl", () => {
         tool: "select",
         brushColor: "#111111",
         brushBackgroundColor: "#222222",
-        selections: [{ start: { x: 0, y: 0 }, end: { x: 0, y: 0 } }],
+        staticGridSelection: selectedCell,
       });
     });
     render(<Inspector />);
@@ -298,7 +304,7 @@ describe("CanvasInspectorControl", () => {
         tool: "select",
         brushColor: "#111111",
         brushBackgroundColor: "#222222",
-        selections: [{ start: { x: 0, y: 0 }, end: { x: 0, y: 0 } }],
+        staticGridSelection: selectedCell,
       });
     });
     const firstSlideId = useEditorStore.getState().slideDeck!.activeSlideId;
@@ -319,7 +325,7 @@ describe("CanvasInspectorControl", () => {
       useEditorStore.getState().addSlide();
       replaceCanvasGrid([["0,0", { char: "B", color: "#222222" }]]);
       useEditorStore.setState({
-        selections: [{ start: { x: 0, y: 0 }, end: { x: 0, y: 0 } }],
+        staticGridSelection: selectedCell,
       });
     });
     const secondSlideId = useEditorStore.getState().slideDeck!.activeSlideId;
@@ -351,7 +357,7 @@ describe("CanvasInspectorControl", () => {
       useEditorStore.setState({
         tool: "select",
         brushColor: "#111111",
-        selections: [{ start: { x: 0, y: 0 }, end: { x: 0, y: 0 } }],
+        staticGridSelection: selectedCell,
       });
     });
     render(<Inspector readOnly />);

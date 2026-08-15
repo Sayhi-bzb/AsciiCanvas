@@ -17,7 +17,6 @@ type SessionRuntime = ReturnType<typeof resolveSessionRuntime>;
 
 type DocumentInteractionResetPatch = Pick<
   EditorState,
-  | "selections"
   | "textCursor"
   | "editingStructuredTextNodeId"
   | "structuredTextSelection"
@@ -59,7 +58,6 @@ export const createDocumentInteractionResetPatch =
   (): DocumentInteractionResetPatch => {
     const staticGrid = createStaticGridState();
     return {
-      selections: [],
       textCursor: null,
       editingStructuredTextNodeId: null,
       structuredTextSelection: null,
@@ -89,7 +87,6 @@ export const createStructuredGridFocusPatch = (
         editingStructuredTextNodeId: null,
         structuredTextSelection: null,
         textCursor: null,
-        selections: [],
       }
     : {}),
 });

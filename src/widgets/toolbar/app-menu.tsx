@@ -148,7 +148,7 @@ export function AppMenu() {
                   size="md"
                   aria-label={t("appMenu.open")}
                 >
-                  <AppMenuTriggerIcon className="size-4" />
+                  <AppMenuTriggerIcon />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent

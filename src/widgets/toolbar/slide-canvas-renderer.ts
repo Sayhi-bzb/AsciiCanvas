@@ -1,11 +1,16 @@
 import type { Slide, SlideSize } from "@/domains/slides/public";
-import { CELL_HEIGHT, CELL_WIDTH } from "@/shared/lib/constants";
+import {
+  CELL_HEIGHT,
+  CELL_WIDTH,
+  COLOR_PRIMARY_TEXT,
+} from "@/shared/lib/constants";
 import {
   drawCellBackground,
   drawCellText,
   prepareCanvasSurface,
 } from "@/shared/metrics";
 import { GridManager } from "@/shared/utils/grid";
+import { effectiveCellStyle } from "@/shared/utils/ansi";
 import {
   resolveSlidePlaybackLayout,
   type SlidePlaybackLayout,
@@ -18,7 +23,9 @@ type DrawSlideCanvasOptions = {
   viewportWidth: number;
   viewportHeight: number;
   padding?: number;
-  backdropColor?: string;
+  backdropColor?: string | null;
+  pageColor?: string | null;
+  defaultTextColor?: string;
   dpr?: number;
 };
 
@@ -30,6 +37,8 @@ export const drawSlideCanvas = ({
   viewportHeight,
   padding,
   backdropColor = "#111827",
+  pageColor = "#ffffff",
+  defaultTextColor,
   dpr = typeof window === "undefined" ? 1 : window.devicePixelRatio || 1,
 }: DrawSlideCanvasOptions): SlidePlaybackLayout | null => {
   if (viewportWidth <= 0 || viewportHeight <= 0) return null;
@@ -37,8 +46,10 @@ export const drawSlideCanvas = ({
   if (!ctx) return null;
 
   prepareCanvasSurface(canvas, ctx, viewportWidth, viewportHeight, dpr);
-  ctx.fillStyle = backdropColor;
-  ctx.fillRect(0, 0, viewportWidth, viewportHeight);
+  if (backdropColor !== null) {
+    ctx.fillStyle = backdropColor;
+    ctx.fillRect(0, 0, viewportWidth, viewportHeight);
+  }
 
   const layout = resolveSlidePlaybackLayout({
     viewportWidth,
@@ -47,8 +58,10 @@ export const drawSlideCanvas = ({
     rows: size.rows,
     padding,
   });
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(layout.x, layout.y, layout.width, layout.height);
+  if (pageColor !== null) {
+    ctx.fillStyle = pageColor;
+    ctx.fillRect(layout.x, layout.y, layout.width, layout.height);
+  }
   ctx.save();
   ctx.beginPath();
   ctx.rect(layout.x, layout.y, layout.width, layout.height);
@@ -72,12 +85,19 @@ export const drawSlideCanvas = ({
   }
   for (const { x, y, cell } of cells) {
     if (cell.char === " " && !cell.attrs) continue;
+    const style = effectiveCellStyle(cell);
+    const color =
+      defaultTextColor &&
+      (!style.bgColor || style.bgColor === "transparent") &&
+      style.color.toLowerCase() === COLOR_PRIMARY_TEXT
+        ? defaultTextColor
+        : undefined;
     drawCellText(
       ctx,
       cell,
       layout.x + x * CELL_WIDTH * layout.zoom,
       layout.y + y * CELL_HEIGHT * layout.zoom,
-      { zoom: layout.zoom }
+      { color, zoom: layout.zoom }
     );
   }
 

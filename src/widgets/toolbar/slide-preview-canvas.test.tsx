@@ -53,6 +53,7 @@ describe("SlidePreviewCanvas", () => {
       configurable: true,
       value: fonts,
     });
+    document.body.style.setProperty("--foreground", "#f8fafc");
   });
 
   afterEach(() => {
@@ -63,6 +64,7 @@ describe("SlidePreviewCanvas", () => {
     } else {
       Reflect.deleteProperty(document, "fonts");
     }
+    document.body.style.removeProperty("--foreground");
   });
 
   it("redraws for content, size, element resize, and font changes", () => {
@@ -75,6 +77,9 @@ describe("SlidePreviewCanvas", () => {
         viewportWidth: 180,
         viewportHeight: 103,
         padding: 0,
+        backdropColor: null,
+        pageColor: null,
+        defaultTextColor: "#f8fafc",
       })
     );
     expect(observe).toHaveBeenCalledTimes(1);

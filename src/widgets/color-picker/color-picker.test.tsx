@@ -42,7 +42,7 @@ describe('ColorPickerPanel', () => {
     expect(ansiTab).toHaveAttribute('data-active', 'true');
     expect(ansiTab).toHaveClass(
       'size-7',
-      'rounded-lg',
+      'rounded-control',
       'flex-none',
       'justify-center',
       'hover:bg-accent',
@@ -64,7 +64,7 @@ describe('ColorPickerPanel', () => {
     expect(contentFrame).not.toHaveClass('h-[8.875rem]', 'h-[6.375rem]');
 
     expect(screen.getByRole('tab', { name: 'ANSI 16' })).toHaveClass(
-      'bg-accent',
+      'bg-control-active-surface',
       'text-foreground'
     );
     expect(screen.getByRole('tab', { name: 'Presets' })).toHaveAttribute('aria-selected', 'false');
@@ -145,7 +145,7 @@ describe('ColorPickerPanel', () => {
     expect(screen.getByRole('tab', { name: 'ANSI 16' })).toHaveAttribute('aria-selected', 'false');
     expect(screen.getByRole('tab', { name: 'Presets' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: 'Presets' })).toHaveClass(
-      'bg-accent',
+      'bg-control-active-surface',
       'text-foreground'
     );
     expect(contentFrame).not.toHaveClass('h-[8.875rem]', 'h-[6.375rem]');
@@ -281,14 +281,14 @@ describe('ColorPickerPanel', () => {
       ).not.toBeInTheDocument()
     );
     expect(eyedropperTrigger).toHaveAttribute('aria-pressed', 'true');
-    expect(eyedropperTrigger).toHaveClass('bg-accent', 'text-foreground');
+    expect(eyedropperTrigger).toHaveClass('bg-control-pressed-surface', 'text-foreground');
 
     fireEvent.pointerDown(eyedropperTrigger, { button: 0, ctrlKey: false });
     expect(
       await screen.findByRole('menuitem', {
         name: 'Pick char color from canvas',
       })
-    ).toHaveClass('bg-accent', 'text-foreground');
+    ).toHaveClass('bg-control-active-surface', 'text-foreground');
   });
 
   it('hides hex and eyedropper tools in palette-only mode', () => {

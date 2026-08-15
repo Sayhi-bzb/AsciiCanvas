@@ -122,7 +122,11 @@ const behaviorOwnedComponents = new Set([
 ]);
 
 const forbiddenBehaviorClass =
-  /\b(?:bg-(?!transparent\b)|hover:(?:bg|text|ring|border|shadow)-|focus(?:-visible)?:(?:bg|text|ring|border|shadow)-|rounded-(?:none|xs|sm|md|lg|xl|full)|ring-(?:[0-9]|primary|ring)|shadow-(?:none|xs|sm|md|lg|xl)|disabled:opacity-|data-\[(?:state|active|selected)[^\]]*\]:(?:bg|text|ring|border|shadow)-)/;
+  /\b(?:bg-(?!transparent\b)|hover:(?:bg|text|ring|border|shadow|opacity)-|focus(?:-visible)?:(?:bg|text|ring|border|shadow)-|rounded-(?:none|xs|sm|md|lg|xl|full|control|item|surface|\[)|ring-(?:[0-9]|primary|ring)|shadow-(?:none|xs|sm|md|lg|xl)|transition-all|disabled:opacity-|data-\[(?:state|active|pressed|open|selected)[^\]]*\]:(?:bg|text|ring|border|shadow|opacity)-)/;
+
+const forbiddenSquareGeometryClass =
+  /\b(?:(?:size|h|w)-(?:\d|full|\[)|p[xy]?-(?:\d|\[))/;
+const forbiddenDirectIconClass = /\b(?:size-|m[lr]-)/;
 
 const getJsxTagName = (node, sourceFile) => node.tagName.getText(sourceFile);
 
@@ -131,6 +135,38 @@ const getJsxAttribute = (node, name) =>
     (attribute) =>
       ts.isJsxAttribute(attribute) && attribute.name.getText() === name
   );
+
+const getLiteralAttributeValue = (node, name) => {
+  const attribute = getJsxAttribute(node, name);
+  return attribute?.initializer && ts.isStringLiteral(attribute.initializer)
+    ? attribute.initializer.text
+    : undefined;
+};
+
+const checkDirectIconSizing = (element, sourceFile, relFile, parentTagName) => {
+  if (parentTagName === "SwatchButton") return;
+  const visitChild = (child) => {
+    if (ts.isJsxElement(child)) return;
+    if (ts.isJsxSelfClosingElement(child)) {
+      const childTagName = getJsxTagName(child, sourceFile);
+      if (!/^[A-Z]|\./.test(childTagName)) return;
+      if (childTagName === "ColorSwatch") return;
+      const className = getJsxAttribute(child, "className");
+      const classText = className?.initializer?.getText(sourceFile) ?? "";
+      if (!forbiddenDirectIconClass.test(classText)) return;
+      const line = sourceFile.getLineAndCharacterOfPosition(child.getStart()).line + 1;
+      violations.push({
+        check: "Behavior primitives own direct icon size and spacing",
+        file: relFile,
+        line,
+      });
+      return;
+    }
+    ts.forEachChild(child, visitChild);
+  };
+
+  element.children.forEach(visitChild);
+};
 
 const hasPresentationEscape = (node) => {
   const attribute = getJsxAttribute(node, "data-visual-contract");
@@ -184,6 +220,25 @@ const checkWidgetBehaviorOwnership = (content, relFile) => {
             file: relFile,
             line,
           });
+        }
+
+        const squareControl =
+          tagName === "IconButton" ||
+          (tagName === "Button" && getLiteralAttributeValue(node, "shape") === "square");
+        if (
+          !presentationEscape &&
+          squareControl &&
+          forbiddenSquareGeometryClass.test(classText)
+        ) {
+          violations.push({
+            check: "Square controls own their fixed geometry",
+            file: relFile,
+            line,
+          });
+        }
+
+        if (ts.isJsxElement(node.parent) && node.parent.openingElement === node) {
+          checkDirectIconSizing(node.parent, sourceFile, relFile, tagName);
         }
       }
     }

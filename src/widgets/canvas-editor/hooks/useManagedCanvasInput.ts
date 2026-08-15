@@ -123,11 +123,8 @@ export const useManagedCanvasInput = ({
     exitStaticGridTextEdit,
     moveStructuredGridFocus,
     setTextCursor,
-    selections,
     offset,
     zoom,
-    moveSelections,
-    expandSelection,
     fillSelectionsWithChar,
     clearSelections,
     structuredGridFocus,
@@ -146,13 +143,12 @@ export const useManagedCanvasInput = ({
         selection: staticGridSelection,
         editMode: staticGridEditMode,
         textCursor,
-        selections,
       }),
-    [staticGridEditMode, staticGridSelection, textCursor, selections]
+    [staticGridEditMode, staticGridSelection, textCursor]
   );
   const staticGridMode = isStaticGridMode(canvasMode);
   const activeTextCursor = staticGridMode ? staticGridView.textCursor : textCursor;
-  const activeSelections = staticGridMode ? staticGridView.selectionAreas : selections;
+  const activeSelections = staticGridMode ? staticGridView.selectionAreas : [];
   const staticGridActiveCell = staticGridMode ? staticGridView.activeCell : null;
   const hasStructuredSelection =
     canvasMode === 'structured' && selectedStructuredNodeIds.length > 0;
@@ -483,12 +479,6 @@ export const useManagedCanvasInput = ({
         moveTextCursor(dx, dy);
       } else if (!hasStructuredSelection) {
         moveStructuredGridFocus(dx, dy);
-      } else if (selections.length > 0) {
-        if (e.shiftKey) {
-          expandSelection(dx, dy);
-        } else {
-          moveSelections(dx, dy);
-        }
       }
     } else if (e.key === 'Escape') {
       e.preventDefault();
