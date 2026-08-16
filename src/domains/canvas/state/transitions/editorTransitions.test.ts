@@ -20,6 +20,7 @@ describe("editor transitions", () => {
         additionalRanges: [],
       },
       staticGridEditMode: "navigate",
+      staticGridInputFlow: null,
       hoveredGrid: null,
       scratchLayer: null,
       canvasColorPickerTarget: null,

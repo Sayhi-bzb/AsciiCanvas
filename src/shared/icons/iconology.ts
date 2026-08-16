@@ -1,4 +1,5 @@
 import { createElement } from 'react';
+import { GitHubMarkIcon } from './github-mark-icon';
 import {
   ArrowRight,
   Bold,
@@ -17,7 +18,6 @@ import {
   CopyPlus,
   Download,
   Eraser,
-  GitFork,
   Grid2X2,
   Italic,
   Hand,
@@ -197,7 +197,7 @@ export const HOST_ICONOLOGY = {
     import: Upload,
     export: Download,
     copy: Copy,
-    github: GitFork,
+    github: GitHubMarkIcon,
     language: Languages,
     shortcuts: Keyboard,
     settings: Settings2,

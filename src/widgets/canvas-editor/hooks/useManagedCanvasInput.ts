@@ -415,10 +415,22 @@ export const useManagedCanvasInput = ({
     if (staticGridMode && mod && e.key.toLowerCase() === 'a') {
       e.preventDefault();
       selectStaticGridAll();
-    } else if (staticGridMode && e.shiftKey && e.code === 'Space' && !mod) {
+    } else if (
+      staticGridMode &&
+      staticGridEditMode === 'navigate' &&
+      e.shiftKey &&
+      e.code === 'Space' &&
+      !mod
+    ) {
       e.preventDefault();
       selectStaticGridRow();
-    } else if (staticGridMode && e.ctrlKey && e.code === 'Space' && !e.metaKey) {
+    } else if (
+      staticGridMode &&
+      staticGridEditMode === 'navigate' &&
+      e.ctrlKey &&
+      e.code === 'Space' &&
+      !e.metaKey
+    ) {
       e.preventDefault();
       selectStaticGridColumn();
     } else if (staticGridMode && e.key === 'F2') {
@@ -509,8 +521,13 @@ export const useManagedCanvasInput = ({
     }
   };
 
+  const commitManagedText = (value: string) => {
+    if (value) writeTextString(value);
+  };
+
   return {
     textareaRef,
+    canvasOwnsInputFocus,
     onCanvasPointerDown: handleCanvasPointerDown,
     textareaStyle: textareaStyle as CSSProperties,
     textareaProps: {
@@ -519,12 +536,7 @@ export const useManagedCanvasInput = ({
       },
       onCompositionEnd: (event: CompositionEvent<HTMLTextAreaElement>) => {
         isComposing.current = false;
-        if (event.data) {
-          if (staticGridMode && staticGridEditMode === 'navigate') {
-            enterStaticGridTextEdit(staticGridActiveCell ?? undefined);
-          }
-          writeTextString(event.data);
-        }
+        commitManagedText(event.data);
         primeManagedTextarea();
       },
       onInput: (event: FormEvent<HTMLTextAreaElement>) => {
@@ -533,12 +545,7 @@ export const useManagedCanvasInput = ({
           ""
         );
         if (!isComposing.current) {
-          if (value) {
-            if (staticGridMode && staticGridEditMode === 'navigate') {
-              enterStaticGridTextEdit(staticGridActiveCell ?? undefined);
-            }
-            writeTextString(value);
-          }
+          commitManagedText(value);
           primeManagedTextarea();
         }
       },

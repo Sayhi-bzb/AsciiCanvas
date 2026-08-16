@@ -2,13 +2,19 @@ import type { StateCreator } from "zustand";
 import type { EditorState, TextSlice } from "../interfaces";
 import type { CanvasDocumentRegistry } from "../CanvasDocumentRegistry";
 import { GridManager } from "@/shared/utils/grid";
-import { collapseGridSelectionTo, getStaticGridViewState } from "@/domains/selection/public";
+import {
+  advanceStaticGridInputFlow,
+  advanceStaticGridInputFlowLine,
+  collapseGridSelectionTo,
+  createStaticGridInputFlow,
+  getStaticGridViewState,
+} from "@/domains/selection/public";
 import { placeCharInYMap, placeStyledCellInYMap } from "../utils";
 import {
   deleteCellAt,
   resolveBackspaceAnchor,
 } from "../gridOps";
-import type { NodeBounds } from "@/shared/types";
+import type { NodeBounds, Point } from "@/shared/types";
 import type { StructuredBoxNode, StructuredTextNode } from "@/domains/structured-content/public";
 import {
   createStructuredNodeId,
@@ -29,7 +35,7 @@ import {
   normalizeStructuredTextSelection,
   replaceStructuredTextRange as replaceStructuredTextNodeRange,
 } from "@/domains/structured-content/public";
-import { clampPointToActiveSlide, isPointWithinActiveSlide } from "../slideBounds";
+import { clampPointToActiveSlide, getActiveSlideGridBounds } from "../slideBounds";
 import { resolveGridAnchor, resolveGridSlot } from "@/shared/utils/grid-occupancy";
 
 const toCharIndexByColumn = (text: string, columnOffset: number) => {
@@ -71,27 +77,14 @@ const getBoxNameTextCapacity = (bounds: NodeBounds) =>
 const getBoxNameTextStartX = (bounds: NodeBounds) =>
   bounds.x + 3;
 
-const getNewlineTargetX = (
-  grid: EditorState["grid"],
-  currentX: number,
-  currentY: number
-) => {
-  let seedX: number | null = null;
-  for (const key of grid.keys()) {
-    const point = GridManager.fromKey(key);
-    if (point.y !== currentY || point.x > currentX) continue;
-    seedX = seedX === null ? point.x : Math.max(seedX, point.x);
-  }
-  if (seedX === null) return currentX;
-
-  let runStartX = seedX;
-  while (true) {
-    const previous = resolveGridSlot(grid, { x: runStartX - 1, y: currentY });
-    if (!previous || previous.anchor.x + previous.width !== runStartX) break;
-    runStartX = previous.anchor.x;
-  }
-  return Math.min(currentX, runStartX);
-};
+const createInputFlow = (
+  state: EditorState,
+  address: Point
+) => createStaticGridInputFlow({
+  grid: state.grid,
+  address,
+  bounds: getActiveSlideGridBounds(state),
+});
 
 const isWideFollowerRichCell = (
   cell: { x: number; y: number; char: string },
@@ -147,8 +140,12 @@ export const createTextSlice = (
           ? {
               staticGridSelection: collapseGridSelectionTo(state.staticGridSelection, nextPos),
               staticGridEditMode: "text-edit" as const,
+              staticGridInputFlow:
+                state.canvasMode !== "structured"
+                  ? createInputFlow(state, nextPos)
+                  : null,
             }
-          : {}),
+          : { staticGridInputFlow: null }),
       };
     }),
   setEditingStructuredTextNodeId: (id) =>
@@ -219,6 +216,7 @@ export const createTextSlice = (
     const {
       staticGridSelection,
       staticGridEditMode,
+      staticGridInputFlow,
       fillSelectionsWithChar,
       textCursor,
       brushColor,
@@ -325,6 +323,10 @@ export const createTextSlice = (
       return;
     }
 
+    const normalized = str.replace(/\r\n?/g, "\n");
+    const graphemes = splitGraphemes(normalized);
+    if (graphemes.length === 0) return;
+
     const staticGridView = getStaticGridViewState({
       selection: staticGridSelection,
       editMode: staticGridEditMode,
@@ -332,8 +334,8 @@ export const createTextSlice = (
       grid: get().grid,
     });
 
-    if (staticGridView.hasSelection && str.length === 1) {
-      fillSelectionsWithChar(str, options);
+    if (staticGridView.hasSelection && graphemes.length === 1 && graphemes[0] !== "\n") {
+      fillSelectionsWithChar(graphemes[0], options);
       return;
     }
 
@@ -343,48 +345,45 @@ export const createTextSlice = (
 
     const cursor = startPos || textCursor || fallbackSelectionStart || staticGridView.activeCell;
 
-    let currentX = cursor.x;
-    let currentY = cursor.y;
-    const startX = cursor.x;
+    const state = get();
+    const bounds = getActiveSlideGridBounds(state);
+    let flow =
+      startPos || !staticGridInputFlow
+        ? createInputFlow(state, cursor)
+        : staticGridInputFlow;
+    const writes: Array<{ point: Point; char: string }> = [];
 
-    documents.mutateGrid((gridWriter) => {
-      let index = 0;
-      while (index < str.length) {
-        if (str[index] === "\r" && str[index + 1] === "\n") {
-          currentY++;
-          currentX = startX;
-          index += 2;
-          continue;
-        }
-        if (str[index] === "\n" || str[index] === "\r") {
-          currentY++;
-          currentX = startX;
-          index += 1;
-          continue;
-        }
-
-        const char = splitGraphemes(str.slice(index))[0] ?? str[index];
-        const charWidth = getCellOccupancy(char);
-        const state = get();
-        if (
-          isPointWithinActiveSlide(state, { x: currentX, y: currentY }) &&
-          isPointWithinActiveSlide(state, { x: currentX + charWidth - 1, y: currentY })
-        ) {
-          placeCharInYMap(
-          gridWriter,
-          currentX,
-          currentY,
-          char,
-          brushColor,
-          options
-          );
-        }
-        currentX += charWidth;
-        index += char.length;
+    for (const char of graphemes) {
+      if (char === "\n") {
+        flow = advanceStaticGridInputFlowLine({ flow, bounds });
+      } else {
+        const step = advanceStaticGridInputFlow({
+          flow,
+          width: getCellOccupancy(char),
+          bounds,
+        });
+        flow = step.flow;
+        if (step.writeAt) writes.push({ point: step.writeAt, char });
       }
-    });
-    set((state) => ({
-      textCursor: clampPointToActiveSlide(state, { x: currentX, y: currentY }),
+      if (flow.exhausted) break;
+    }
+
+    if (writes.length === 0 && flow === staticGridInputFlow) return;
+
+    if (writes.length > 0) {
+      documents.mutateGrid((gridWriter) => {
+        writes.forEach(({ point, char }) => {
+          placeCharInYMap(gridWriter, point.x, point.y, char, brushColor, options);
+        });
+      });
+    }
+
+    const activeCell = clampPointToActiveSlide(state, flow.activeCell);
+    set((current) => ({
+      textCursor: activeCell,
+      staticGridSelection: collapseGridSelectionTo(current.staticGridSelection, activeCell),
+      staticGridEditMode: "text-edit",
+      staticGridInputFlow: flow,
     }));
   },
 
@@ -446,6 +445,7 @@ export const createTextSlice = (
       canvasMode,
       structuredScene,
       editingStructuredTextNodeId,
+      staticGridInputFlow,
     } = get();
     if (!textCursor) return;
     if (canvasMode === "structured" && editingStructuredTextNodeId && dy === 0 && dx !== 0) {
@@ -460,6 +460,25 @@ export const createTextSlice = (
         set({ textCursor: getStructuredTextCaretPoint(node, nextOffset) });
         return;
       }
+    }
+    if (canvasMode !== "structured") {
+      const currentPoint = staticGridInputFlow?.activeCell ?? textCursor;
+      let newX = currentPoint.x;
+      const newY = currentPoint.y + dy;
+      if (dx > 0) {
+        const slot = resolveGridSlot(grid, currentPoint);
+        newX = slot ? slot.anchor.x + slot.width + dx - 1 : newX + dx;
+      } else if (dx < 0) {
+        newX = resolveGridSlot(grid, { x: newX - 1, y: currentPoint.y })?.anchor.x ?? newX + dx;
+      }
+      const state = get();
+      const nextCell = clampPointToActiveSlide(state, { x: newX, y: newY });
+      set({
+        textCursor: nextCell,
+        staticGridSelection: collapseGridSelectionTo(state.staticGridSelection, nextCell),
+        staticGridInputFlow: createInputFlow(state, nextCell),
+      });
+      return;
     }
     let newX = textCursor.x;
     const newY = textCursor.y + dy;
@@ -477,7 +496,15 @@ export const createTextSlice = (
   },
 
   backspaceText: () => {
-    const { textCursor, grid, canvasMode, structuredScene, applyStructuredScene, editingStructuredTextNodeId } = get();
+    const {
+      textCursor,
+      grid,
+      canvasMode,
+      structuredScene,
+      applyStructuredScene,
+      editingStructuredTextNodeId,
+      staticGridInputFlow,
+    } = get();
     if (!textCursor) return;
 
     if (canvasMode === "structured") {
@@ -546,12 +573,27 @@ export const createTextSlice = (
       return;
     }
 
+    const flow =
+      staticGridInputFlow ??
+      createInputFlow(get(), textCursor);
+    const backspaceOrigin = flow.exhausted ? flow.activeCell : flow.nextCell;
+    const deletePos =
+      flow.previousCell ?? resolveBackspaceAnchor(grid, backspaceOrigin.x, backspaceOrigin.y);
     documents.mutateGrid((gridWriter) => {
-      const { x, y } = textCursor;
-      const deletePos = resolveBackspaceAnchor(grid, x, y);
       deleteCellAt(gridWriter, deletePos.x, deletePos.y);
-      set({ textCursor: deletePos });
     });
+    const nextFlow = {
+      ...flow,
+      nextCell: { ...deletePos },
+      activeCell: { ...deletePos },
+      previousCell: null,
+      exhausted: false,
+    };
+    set((state) => ({
+      textCursor: deletePos,
+      staticGridSelection: collapseGridSelectionTo(state.staticGridSelection, deletePos),
+      staticGridInputFlow: nextFlow,
+    }));
   },
 
   deleteTextForward: () => {
@@ -623,7 +665,13 @@ export const createTextSlice = (
   },
 
   newlineText: () => {
-    const { textCursor, grid, canvasMode, structuredScene, editingStructuredTextNodeId } = get();
+    const {
+      textCursor,
+      canvasMode,
+      structuredScene,
+      editingStructuredTextNodeId,
+      staticGridInputFlow,
+    } = get();
     if (!textCursor) return;
     if (canvasMode === "structured") {
       const selectedRange = getStructuredTextSelectionRange(
@@ -660,17 +708,38 @@ export const createTextSlice = (
       return;
     }
 
-    const currentY = textCursor.y;
-    const currentX = textCursor.x;
-    const targetX = getNewlineTargetX(grid, currentX, currentY);
+    const state = get();
+    const flow =
+      staticGridInputFlow ??
+      createInputFlow(state, textCursor);
+    const nextFlow = advanceStaticGridInputFlowLine({
+      flow,
+      bounds: getActiveSlideGridBounds(state),
+    });
+    const activeCell = clampPointToActiveSlide(state, nextFlow.activeCell);
     set({
-      textCursor: { x: targetX, y: currentY + 1 },
+      textCursor: activeCell,
+      staticGridSelection: collapseGridSelectionTo(state.staticGridSelection, activeCell),
+      staticGridInputFlow: nextFlow,
     });
   },
 
   indentText: () => {
-    const { textCursor } = get();
+    const state = get();
+    const { textCursor } = state;
     if (!textCursor) return;
+    if (state.canvasMode !== "structured") {
+      const activeCell = clampPointToActiveSlide(state, {
+        x: textCursor.x + 2,
+        y: textCursor.y,
+      });
+      set({
+        textCursor: activeCell,
+        staticGridSelection: collapseGridSelectionTo(state.staticGridSelection, activeCell),
+        staticGridInputFlow: createInputFlow(state, activeCell),
+      });
+      return;
+    }
     set({
       textCursor: { x: textCursor.x + 2, y: textCursor.y },
     });

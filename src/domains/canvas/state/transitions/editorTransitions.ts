@@ -27,6 +27,7 @@ type DocumentInteractionResetPatch = Pick<
   | "structuredGridFocus"
   | "staticGridSelection"
   | "staticGridEditMode"
+  | "staticGridInputFlow"
   | "hoveredGrid"
   | "scratchLayer"
   | "canvasColorPickerTarget"
@@ -68,6 +69,7 @@ export const createDocumentInteractionResetPatch =
       structuredGridFocus: null,
       staticGridSelection: staticGrid.selection,
       staticGridEditMode: staticGrid.editMode,
+      staticGridInputFlow: null,
       hoveredGrid: null,
       scratchLayer: null,
       canvasColorPickerTarget: null,
@@ -87,6 +89,8 @@ export const createStructuredGridFocusPatch = (
         editingStructuredTextNodeId: null,
         structuredTextSelection: null,
         textCursor: null,
+        staticGridEditMode: "navigate" as const,
+        staticGridInputFlow: null,
       }
     : {}),
 });

@@ -29,7 +29,7 @@ import { APP_SOURCE_URL } from "@/shared/lib/constants";
 const AppMenuTriggerIcon = HOST_ICONOLOGY.appMenu.trigger;
 const ImportIcon = HOST_ICONOLOGY.appMenu.import;
 const ExportIcon = HOST_ICONOLOGY.appMenu.export;
-const GithubIcon = HOST_ICONOLOGY.appMenu.github;
+const GitHubIcon = HOST_ICONOLOGY.appMenu.github;
 const SettingsIcon = HOST_ICONOLOGY.appMenu.settings;
 const ClearIcon = HOST_ICONOLOGY.appMenu.clear;
 const ClearCanvasDialog = lazy(() =>
@@ -206,7 +206,7 @@ export function AppMenu() {
                   <DropdownMenuItem
                     onSelect={() => browser.openExternal(APP_SOURCE_URL)}
                   >
-                    <GithubIcon />
+                    <GitHubIcon />
                     {t("appMenu.github")}
                   </DropdownMenuItem>
                 </DropdownMenuGroup>

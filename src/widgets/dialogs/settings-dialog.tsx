@@ -55,6 +55,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   return (
     <Dialog open={open} onOpenChange={changeOpen}>
       <DialogContent
+        showCloseButton={false}
         className="h-[min(34rem,calc(100vh-2rem))] grid-rows-[minmax(0,1fr)] gap-0 sm:max-w-[720px]"
         onEscapeKeyDown={(event) => {
           if (shortcutRecording) event.preventDefault();

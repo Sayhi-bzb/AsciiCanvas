@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, createEvent, fireEvent, render, screen } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { CanvasEditor as CanvasEditorUnderTest } from "@/widgets/canvas-editor";
+import { useCanvasInteraction } from "@/widgets/canvas-editor/hooks/useCanvasInteraction";
 import { undoCanvas, useEditorStore } from "@/domains/canvas/testing";
 import { replaceCanvasGrid as applyFreeformSnapshotToYMaps } from "@/domains/canvas/testing";
 import {
@@ -115,6 +116,7 @@ describe("CanvasEditor focus management", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.mocked(useCanvasInteraction).mockClear();
     handleDoubleClickMock.mockClear();
     setActiveStructuredTemplateDragId(null);
     useEditorStore.setState(initialState, true);
@@ -146,6 +148,39 @@ describe("CanvasEditor focus management", () => {
     expect(textarea).toHaveValue("\u00a0");
     expect(textarea?.selectionStart).toBe(0);
     expect(textarea?.selectionEnd).toBe(1);
+  });
+
+  it("uses Space as a temporary pan override in navigate mode without changing a range", () => {
+    const selection = createRangeSelection({ x: 1, y: 1 }, { x: 4, y: 2 });
+    useEditorStore.setState({
+      canvasMode: "freeform",
+      tool: "select",
+      staticGridSelection: selection,
+      staticGridEditMode: "navigate",
+      textCursor: null,
+    });
+    const { container, getByTestId } = render(
+      <CanvasEditor onUndo={vi.fn()} onRedo={vi.fn()} />
+    );
+    fireEvent.pointerDown(getByTestId("canvas-editor-surface"));
+    const textarea = container.querySelector("textarea")!;
+    const keydown = createEvent.keyDown(textarea, {
+      key: " ",
+      code: "Space",
+    });
+
+    fireEvent(textarea, keydown);
+
+    expect(keydown.defaultPrevented).toBe(true);
+    expect(vi.mocked(useCanvasInteraction).mock.calls.at(-1)?.[0].tool).toBe("pan");
+    expect(useEditorStore.getState().staticGridSelection).toEqual(selection);
+
+    fireEvent.keyDown(textarea, { key: " ", code: "Space", repeat: true });
+    expect(vi.mocked(useCanvasInteraction).mock.calls.at(-1)?.[0].tool).toBe("pan");
+
+    fireEvent.keyUp(textarea, { key: " ", code: "Space" });
+    expect(vi.mocked(useCanvasInteraction).mock.calls.at(-1)?.[0].tool).toBe("select");
+    expect(useEditorStore.getState().staticGridSelection).toEqual(selection);
   });
 
   it("handles an ordinary character immediately after selecting the canvas", () => {
@@ -904,6 +939,42 @@ describe("CanvasEditor focus management", () => {
     expect(getGridSelectionRanges(useEditorStore.getState().staticGridSelection)).toEqual([
       { start: { x: 1, y: 1 }, end: { x: 5, y: 4 } },
     ]);
+  });
+
+  it("keeps Space selection shortcuts out of static-grid text edit", () => {
+    useEditorStore.setState({
+      canvasMode: "freeform",
+      grid: new Map(),
+      textCursor: { x: 2, y: 1 },
+      staticGridSelection: createGridSelectionState({ x: 2, y: 1 }),
+      staticGridEditMode: "text-edit",
+    });
+    const { container, getByTestId } = render(
+      <CanvasEditor onUndo={vi.fn()} onRedo={vi.fn()} />
+    );
+    fireEvent.pointerDown(getByTestId("canvas-editor-surface"));
+    const textarea = container.querySelector("textarea")!;
+    const rowShortcut = createEvent.keyDown(textarea, {
+      key: " ",
+      code: "Space",
+      shiftKey: true,
+    });
+    const columnShortcut = createEvent.keyDown(textarea, {
+      key: " ",
+      code: "Space",
+      ctrlKey: true,
+    });
+
+    fireEvent(textarea, rowShortcut);
+    fireEvent(textarea, columnShortcut);
+
+    expect(rowShortcut.defaultPrevented).toBe(false);
+    expect(columnShortcut.defaultPrevented).toBe(false);
+    expect(useEditorStore.getState().staticGridSelection.mode).toBe("cell");
+
+    fireEvent.input(textarea, { target: { value: " " } });
+    expect(useEditorStore.getState().grid.get("2,1")?.char).toBe(" ");
+    expect(useEditorStore.getState().staticGridSelection.mode).toBe("cell");
   });
 
   it("moves and clears structured grid focus from the managed textarea", () => {

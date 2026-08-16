@@ -11,7 +11,6 @@ import { TooltipProvider } from '@/shared/ui/tooltip';
 import { AppMenu } from '@/widgets/toolbar/app-menu';
 import { getStaticGridViewState } from '@/domains/selection/public';
 import { isStaticGridMode } from '@/domains/sessions/public';
-import { useHandToolShortcuts } from './useHandToolShortcuts';
 import { useGlobalShortcutCommands } from './useGlobalShortcutCommands';
 import { ZoomControl } from '@/widgets/toolbar/zoom-control';
 import { HelpControl } from '@/widgets/toolbar/help-control';
@@ -143,10 +142,6 @@ function AppContent() {
     setStructuredTextSelection,
     setTextCursor,
   ]);
-  const isTemporaryPanActive = useHandToolShortcuts({
-    isCanvasTextEditing,
-  });
-
   const [desktopSidebarOpen, setDesktopSidebarOpen] = useLocalStorageState<boolean>(
     'ui-right-panel-status',
     { defaultValue: true }
@@ -248,7 +243,6 @@ function AppContent() {
               <CanvasEditor
                 onUndo={handleUndo}
                 onRedo={handleRedo}
-                interactionToolOverride={isTemporaryPanActive ? 'pan' : undefined}
                 enabled={!isCollaborationReadOnly}
                 viewportFrame={viewportFrame}
               />

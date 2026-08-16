@@ -49,6 +49,7 @@ function InteractionHarnessContent() {
       commitStructuredShape: state.commitStructuredShape,
       setTextCursor: state.setTextCursor,
       setStaticGridActiveCell: state.setStaticGridActiveCell,
+      enterStaticGridTextEdit: state.enterStaticGridTextEdit,
       setStaticGridSelectionRange: state.setStaticGridSelectionRange,
       appendStaticGridSelectionRange: state.appendStaticGridSelectionRange,
       clearSelections: state.clearSelections,
@@ -437,6 +438,31 @@ describe("structured text interaction", () => {
       "text-1"
     );
     expect(useEditorStore.getState().structuredTextSelection).toBeNull();
+  });
+
+  it("enters static-grid text editing at a wide character anchor on double-click", () => {
+    useEditorStore.setState({
+      canvasMode: "freeform",
+      tool: "select",
+      offset: { x: 0, y: 0 },
+      zoom: 1,
+      grid: new Map([["1,0", { char: "你", color: "#ffffff" }]]),
+      staticGridEditMode: "navigate",
+      textCursor: null,
+    });
+    const { getByTestId } = render(<InteractionHarness />);
+
+    fireEvent.doubleClick(getByTestId("canvas-root"), {
+      clientX: 19,
+      clientY: 1,
+    });
+
+    expect(useEditorStore.getState().staticGridEditMode).toBe("text-edit");
+    expect(useEditorStore.getState().textCursor).toEqual({ x: 1, y: 0 });
+    expect(useEditorStore.getState().staticGridSelection.activeCell).toEqual({
+      x: 1,
+      y: 0,
+    });
   });
 
   it("places the caret at the text end when double-clicking just after structured text", () => {

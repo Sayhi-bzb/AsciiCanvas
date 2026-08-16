@@ -3,7 +3,7 @@ import type { CanvasMode } from "@/domains/sessions/public";
 import type { ToolType } from "../model/tool";
 import type { StructuredNode, StructuredBoxNode, StructuredComponentInstance, StructuredSelectionStylePatch, StructuredTextStyleRange } from "@/domains/structured-content/public";
 import type { StructuredTextSelection } from "@/domains/structured-content/public";
-import type { GridAddress, GridEditMode, GridRange, GridSelectionState } from "@/domains/selection/public";
+import type { GridAddress, GridEditMode, GridRange, GridSelectionState, StaticGridInputFlow } from "@/domains/selection/public";
 import type { StructuredSplitBoxHandle } from "@/domains/structured-content/public";
 import type { CanvasSession } from "@/domains/sessions/public";
 import type { SessionCommands } from "@/domains/sessions/public";
@@ -98,6 +98,7 @@ export interface SlideSlice {
 export interface StaticGridSlice {
   staticGridSelection: GridSelectionState;
   staticGridEditMode: GridEditMode;
+  staticGridInputFlow: StaticGridInputFlow | null;
   setStaticGridActiveCell: (address: GridAddress) => void;
   setStaticGridSelectionRange: (range: GridRange) => void;
   appendStaticGridSelectionRange: (range: GridRange) => void;

@@ -182,6 +182,94 @@ describe("textSlice writeTextString", () => {
       color: "#000000",
     });
   });
+
+  it("advances the active cell by each grapheme's display width", () => {
+    setTextState({ textCursor: { x: 2, y: 1 } });
+
+    useEditorStore.getState().writeTextString("A你 ");
+
+    expect(useEditorStore.getState().grid).toEqual(
+      new Map([
+        ["2,1", { char: "A", color: "#000000" }],
+        ["3,1", { char: "你", color: "#000000" }],
+        ["5,1", { char: " ", color: "#000000" }],
+      ])
+    );
+    expect(useEditorStore.getState().textCursor).toEqual({ x: 6, y: 1 });
+    expect(useEditorStore.getState().staticGridSelection.activeCell).toEqual({ x: 6, y: 1 });
+  });
+
+  it("wraps bounded input to its nonzero line origin without splitting CJK", () => {
+    useEditorStore.getState().createCanvasSession("slide", {
+      slideSize: { columns: 5, rows: 2 },
+    });
+    useEditorStore.getState().enterStaticGridTextEdit({ x: 3, y: 0 });
+
+    useEditorStore.getState().writeTextString("AB你");
+
+    expect(useEditorStore.getState().grid).toEqual(
+      new Map([
+        ["3,0", { char: "A", color: "#000000" }],
+        ["4,0", { char: "B", color: "#000000" }],
+        ["3,1", { char: "你", color: "#000000" }],
+      ])
+    );
+    expect(useEditorStore.getState().textCursor).toEqual({ x: 3, y: 1 });
+    expect(useEditorStore.getState().staticGridInputFlow).toMatchObject({
+      lineOriginX: 3,
+      activeCell: { x: 3, y: 1 },
+      exhausted: true,
+    });
+  });
+
+  it("stores terminal spaces once and lets Backspace resume an exhausted flow", () => {
+    useEditorStore.getState().createCanvasSession("slide", {
+      slideSize: { columns: 1, rows: 1 },
+    });
+    useEditorStore.getState().enterStaticGridTextEdit({ x: 0, y: 0 });
+
+    useEditorStore.getState().writeTextString(" ");
+    const terminalGrid = useEditorStore.getState().grid;
+    const terminalState = useEditorStore.getState();
+    useEditorStore.getState().writeTextString(" ");
+
+    expect(useEditorStore.getState()).toBe(terminalState);
+    expect(useEditorStore.getState().grid).toBe(terminalGrid);
+    expect(useEditorStore.getState().grid.get("0,0")?.char).toBe(" ");
+    expect(useEditorStore.getState().staticGridInputFlow?.exhausted).toBe(true);
+
+    useEditorStore.getState().backspaceText();
+
+    expect(useEditorStore.getState().grid).toEqual(new Map());
+    expect(useEditorStore.getState().textCursor).toEqual({ x: 0, y: 0 });
+    expect(useEditorStore.getState().staticGridInputFlow?.exhausted).toBe(false);
+  });
+
+  it("backspaces the previous row after an automatic wrap", () => {
+    useEditorStore.getState().createCanvasSession("slide", {
+      slideSize: { columns: 3, rows: 2 },
+    });
+    useEditorStore.getState().enterStaticGridTextEdit({ x: 1, y: 0 });
+    useEditorStore.getState().writeTextString("AB");
+
+    useEditorStore.getState().backspaceText();
+
+    expect(useEditorStore.getState().grid).toEqual(
+      new Map([["1,0", { char: "A", color: "#000000" }]])
+    );
+    expect(useEditorStore.getState().textCursor).toEqual({ x: 2, y: 0 });
+  });
+
+  it("keeps the advanced active cell when leaving text edit mode", () => {
+    setTextState({ textCursor: { x: 0, y: 0 } });
+    useEditorStore.getState().writeTextString("AB");
+
+    useEditorStore.getState().exitStaticGridTextEdit();
+
+    expect(useEditorStore.getState().textCursor).toEqual({ x: 2, y: 0 });
+    expect(useEditorStore.getState().staticGridSelection.activeCell).toEqual({ x: 2, y: 0 });
+    expect(useEditorStore.getState().staticGridInputFlow).toBeNull();
+  });
 });
 
 describe("textSlice paste background merging", () => {

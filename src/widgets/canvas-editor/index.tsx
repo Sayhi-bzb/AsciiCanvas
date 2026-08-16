@@ -9,6 +9,7 @@ import { CanvasColorSourceChooser } from './CanvasColorSourceChooser';
 import { StructuredTemplatePreviewOverlay } from './StructuredTemplatePreviewOverlay';
 import { useStructuredTemplateDrop } from './hooks/useStructuredTemplateDrop';
 import { useManagedCanvasInput } from './hooks/useManagedCanvasInput';
+import { useCanvasSpacePan } from './hooks/useCanvasSpacePan';
 import { ContextMenu, ContextMenuTrigger } from '@/shared/ui/context-menu';
 import { CANVAS_CONTEXT_MENU, STRUCTURED_CONTEXT_MENU } from '@/domains/actions/public';
 import { GridManager } from '@/shared/utils/grid';
@@ -22,8 +23,8 @@ import type { StructuredMovePreview } from './hooks/useCanvasRenderer';
 import {
   useCanvasRuntime,
   useCanvasState,
-  type ToolType,
 } from '@/domains/canvas/public';
+import { isStaticGridMode } from '@/domains/sessions/public';
 import {
   applyCanvasViewportPresentation,
   resetCanvasViewportPresentation,
@@ -38,7 +39,6 @@ interface CanvasEditorProps {
   onUndo: () => void;
   onRedo: () => void;
   onContainerSizeChange?: (size: { width: number; height: number } | undefined) => void;
-  interactionToolOverride?: ToolType;
   enabled?: boolean;
   viewportFrame?: EditorViewportFrame;
 }
@@ -47,7 +47,6 @@ export const CanvasEditor = ({
   onUndo,
   onRedo,
   onContainerSizeChange,
-  interactionToolOverride,
   enabled = true,
   viewportFrame,
 }: CanvasEditorProps) => {
@@ -74,12 +73,6 @@ export const CanvasEditor = ({
     renderer: rendererStore,
     editor: editorStore,
   } = useCanvasEditorModels();
-  const interactionModel = interactionToolOverride
-    ? { ...interactionStore, tool: interactionToolOverride }
-    : interactionStore;
-  const rendererModel = interactionToolOverride
-    ? { ...rendererStore, tool: interactionToolOverride }
-    : rendererStore;
   const { canvasMode } = interactionStore;
   const {
     offset,
@@ -196,7 +189,13 @@ export const CanvasEditor = ({
     containerRef,
     model: editorStore,
   });
-  const { textareaRef, onCanvasPointerDown, textareaStyle, textareaProps } = useManagedCanvasInput({
+  const {
+    textareaRef,
+    canvasOwnsInputFocus,
+    onCanvasPointerDown,
+    textareaStyle,
+    textareaProps,
+  } = useManagedCanvasInput({
     canvasMode,
     model: editorStore,
     size,
@@ -204,6 +203,20 @@ export const CanvasEditor = ({
     onRedo,
     enabled,
   });
+  const isCanvasTextEditing = isStaticGridMode(canvasMode)
+    ? editorStore.staticGridEditMode === 'text-edit'
+    : !!rendererStore.textCursor ||
+      !!rendererStore.editingStructuredTextNodeId ||
+      !!rendererStore.structuredTextSelection;
+  const isTemporaryPanActive = useCanvasSpacePan({
+    enabled: enabled && canvasOwnsInputFocus && !isCanvasTextEditing,
+  });
+  const interactionModel = isTemporaryPanActive
+    ? { ...interactionStore, tool: 'pan' as const }
+    : interactionStore;
+  const rendererModel = isTemporaryPanActive
+    ? { ...rendererStore, tool: 'pan' as const }
+    : rendererStore;
 
   const {
     draggingSelection,

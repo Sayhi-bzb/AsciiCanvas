@@ -102,6 +102,7 @@ export const useCanvasInteraction = (
     commitStructuredShape,
     setTextCursor,
     setStaticGridActiveCell,
+    enterStaticGridTextEdit,
     setStaticGridSelectionRange,
     appendStaticGridSelectionRange,
     clearSelections,
@@ -556,6 +557,16 @@ export const useCanvasInteraction = (
   });
 
   const handleDoubleClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (isStaticGridMode(canvasMode)) {
+      if (tool !== "select" || shouldIgnoreCanvasSurfaceGesture(event.nativeEvent)) {
+        return;
+      }
+      const point = pointerContext.resolveGridPoint(event.clientX, event.clientY);
+      if (!point) return;
+      event.preventDefault();
+      enterStaticGridTextEdit(point);
+      return;
+    }
     structuredEditRouteHandler({
       clientPoint: { x: event.clientX, y: event.clientY },
       shouldIgnore: () => shouldIgnoreCanvasSurfaceGesture(event.nativeEvent),

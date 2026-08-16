@@ -125,7 +125,7 @@ test.describe('App menu', () => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('/');
 
-    const trigger = page.getByRole('button', { name: 'Open menu' });
+    const trigger = page.getByTestId('app-menu-host').getByRole('button');
     await trigger.click();
     const menu = page.getByRole('menu', { name: 'Open menu' });
 
@@ -147,6 +147,7 @@ test.describe('App menu', () => {
 
     const settings = page.getByRole('dialog', { name: 'Settings' });
     await expect(settings).toBeVisible();
+    await expect(settings.getByRole('button', { name: 'Close' })).toHaveCount(0);
     await settings.getByRole('combobox', { name: 'Language' }).click();
     const languageOptions = page.getByRole('listbox');
     await expect(languageOptions).toBeVisible();
@@ -155,6 +156,11 @@ test.describe('App menu', () => {
 
     await page.getByRole('button', { name: '快捷键' }).click();
     await expect(page.getByRole('heading', { name: '键盘快捷键' })).toBeVisible();
+
+    const overlay = page.locator('[data-slot="dialog-overlay"]');
+    await overlay.click({ position: { x: 4, y: 4 } });
+    await expect(settings).toBeHidden();
+    await expect(trigger).toBeFocused();
   });
 
   test('switches Settings sections through the phone Select navigation', async ({ page }) => {

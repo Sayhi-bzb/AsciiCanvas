@@ -26,6 +26,8 @@ describe('SettingsDialog', () => {
     const dialog = screen.getByRole('dialog', { name: 'Settings' });
     expect(dialog).toHaveClass('sm:max-w-[720px]', 'grid-rows-[minmax(0,1fr)]', 'gap-0');
     expect(dialog.querySelector('[data-slot="dialog-header"]')).not.toBeInTheDocument();
+    expect(dialog.querySelector('[data-slot="dialog-close"]')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Close' })).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Settings' })).toHaveClass('sr-only');
     expect(dialog.querySelector('[data-slot="settings-navigation-mobile"]')).toHaveClass(
       'md:hidden',

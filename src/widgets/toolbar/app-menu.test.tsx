@@ -59,6 +59,11 @@ describe('AppMenu slide interchange', () => {
       'aria-haspopup',
       'menu'
     );
+    const githubItem = screen.getByRole('menuitem', { name: 'GitHub' });
+    const githubMark = githubItem.querySelector('[data-slot="github-mark-icon"]');
+    expect(githubMark).toHaveAttribute('viewBox', '0 0 98 96');
+    expect(githubMark?.querySelector('path')).toHaveAttribute('fill', 'currentColor');
+    expect(githubItem.querySelector('.lucide-git-fork')).not.toBeInTheDocument();
   });
 
   it('opens settings and restores menu trigger focus', async () => {
@@ -76,7 +81,7 @@ describe('AppMenu slide interchange', () => {
     ).toBeInTheDocument();
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    fireEvent.keyDown(document, { key: 'Escape' });
     await waitFor(() => expect(trigger).toHaveFocus());
   });
 

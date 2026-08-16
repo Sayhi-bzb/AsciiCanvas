@@ -6,6 +6,15 @@ export type {
   GridSelectionState,
 } from "./model/static-grid";
 export type {
+  StaticGridInputFlow,
+  StaticGridInputStep,
+} from "./model/static-grid-input-flow";
+export {
+  advanceStaticGridInputFlow,
+  advanceStaticGridInputFlowLine,
+  createStaticGridInputFlow,
+} from "./model/static-grid-input-flow";
+export type {
   GridSelectionGeometry,
 } from "./model/grid-selection-geometry";
 export {

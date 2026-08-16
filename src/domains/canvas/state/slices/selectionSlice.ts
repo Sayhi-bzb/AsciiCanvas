@@ -87,6 +87,7 @@ export const createSelectionSlice = (
         state.staticGridSelection.activeCell
       ),
       staticGridEditMode: "navigate" as const,
+      staticGridInputFlow: null,
     })),
   canCopyOrCut: () => selectionCommands(set, get).canCopyOrCut(),
   deleteSelection: () => {

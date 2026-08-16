@@ -2,6 +2,7 @@ import type { StateCreator } from "zustand";
 import type { EditorState, StaticGridSlice } from "../interfaces";
 import {
   collapseGridSelectionTo,
+  createStaticGridInputFlow,
   createStaticGridState,
   extendGridSelectionTo,
   getConnectedGridRange,
@@ -24,6 +25,15 @@ const resolveStaticGridAddress = (
   address: { x: number; y: number }
 ) => resolveGridAnchor(state.grid, clampPointToActiveSlide(state, address));
 
+const createInputFlow = (
+  state: EditorState,
+  address: { x: number; y: number }
+) => createStaticGridInputFlow({
+  grid: state.grid,
+  address,
+  bounds: getActiveSlideGridBounds(state),
+});
+
 export const createStaticGridSlice: StateCreator<
   EditorState,
   [],
@@ -32,6 +42,7 @@ export const createStaticGridSlice: StateCreator<
 > = (set, get) => ({
   staticGridSelection: createStaticGridState().selection,
   staticGridEditMode: "navigate",
+  staticGridInputFlow: null,
 
   setStaticGridActiveCell: (address) => {
     const state = get();
@@ -40,6 +51,7 @@ export const createStaticGridSlice: StateCreator<
     set({
       staticGridSelection: selection,
       staticGridEditMode: "navigate",
+      staticGridInputFlow: null,
       textCursor: activeCell,
     });
   },
@@ -56,6 +68,7 @@ export const createStaticGridSlice: StateCreator<
     set({
       staticGridSelection: selection,
       staticGridEditMode: "navigate",
+      staticGridInputFlow: null,
       textCursor: null,
     });
   },
@@ -71,6 +84,7 @@ export const createStaticGridSlice: StateCreator<
         { append: true, activeCell: "start" }
       ),
       staticGridEditMode: "navigate",
+      staticGridInputFlow: null,
       textCursor: null,
     });
   },
@@ -94,6 +108,10 @@ export const createStaticGridSlice: StateCreator<
     set({
       staticGridSelection: selection,
       staticGridEditMode: options?.extend ? "navigate" : state.staticGridEditMode,
+      staticGridInputFlow:
+        !options?.extend && state.staticGridEditMode === "text-edit"
+          ? createInputFlow(state, nextCell)
+          : null,
       textCursor: options?.extend ? null : nextCell,
     });
   },
@@ -125,6 +143,7 @@ export const createStaticGridSlice: StateCreator<
     set({
       staticGridSelection: selection,
       staticGridEditMode: "navigate",
+      staticGridInputFlow: null,
       textCursor: options?.extend ? null : nextCell,
     });
   },
@@ -150,6 +169,7 @@ export const createStaticGridSlice: StateCreator<
     set({
       staticGridSelection: selection,
       staticGridEditMode: "navigate",
+      staticGridInputFlow: null,
       textCursor: options?.extend ? null : nextCell,
     });
   },
@@ -173,6 +193,7 @@ export const createStaticGridSlice: StateCreator<
     set({
       staticGridSelection: selection,
       staticGridEditMode: "navigate",
+      staticGridInputFlow: null,
       textCursor: null,
     });
   },
@@ -190,6 +211,7 @@ export const createStaticGridSlice: StateCreator<
     set({
       staticGridSelection: selection,
       staticGridEditMode: "navigate",
+      staticGridInputFlow: null,
       textCursor: null,
     });
   },
@@ -207,6 +229,7 @@ export const createStaticGridSlice: StateCreator<
     set({
       staticGridSelection: selection,
       staticGridEditMode: "navigate",
+      staticGridInputFlow: null,
       textCursor: null,
     });
   },
@@ -221,13 +244,18 @@ export const createStaticGridSlice: StateCreator<
     set({
       staticGridSelection: collapseGridSelectionTo(current, activeCell),
       staticGridEditMode: "text-edit",
+      staticGridInputFlow: createInputFlow(state, activeCell),
       textCursor: activeCell,
     });
   },
 
   exitStaticGridTextEdit: () => {
     const activeCell = get().staticGridSelection.activeCell;
-    set({ staticGridEditMode: "navigate", textCursor: activeCell });
+    set({
+      staticGridEditMode: "navigate",
+      staticGridInputFlow: null,
+      textCursor: activeCell,
+    });
   },
 
   clearStaticGridSelection: () => {
@@ -236,6 +264,7 @@ export const createStaticGridSlice: StateCreator<
     set({
       staticGridSelection: collapseGridSelectionTo(current, current.activeCell),
       staticGridEditMode: "navigate",
+      staticGridInputFlow: null,
       textCursor: null,
     });
   },
