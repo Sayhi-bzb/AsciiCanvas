@@ -201,8 +201,8 @@ describe("SidebarRight structured templates", () => {
     expect(screen.getByRole("tab", { name: "Components" })).toHaveClass(
       "bg-control-active-surface",
       "rounded-control",
-      "hover:bg-accent",
-      "hover:text-accent-foreground"
+      "hover:bg-control-active-surface",
+      "hover:text-foreground"
     );
     expect(screen.getByRole("tab", { name: "Template" })).toHaveClass(
       "hover:bg-accent",

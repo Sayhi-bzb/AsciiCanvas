@@ -16,6 +16,20 @@ const readHoverStyle = async (control: Locator) => {
   });
 };
 
+const expectPersistentStyleOnHover = async (control: Locator) => {
+  await control.page().mouse.move(0, 0);
+  await control.page().waitForTimeout(150);
+  const persistentStyle = await control.evaluate((element) => {
+    const style = window.getComputedStyle(element);
+    return {
+      backgroundColor: style.backgroundColor,
+      color: style.color,
+    };
+  });
+
+  await expect(readHoverStyle(control)).resolves.toEqual(persistentStyle);
+};
+
 const expectHostContainer = async (container: Locator, elevated = true) => {
   await expect(container).toBeVisible();
   await expect(container).toHaveCSS("border-top-width", "0px");
@@ -201,6 +215,8 @@ for (const scenario of [
     await expectHostFocus(selectionControl);
     const expectedHover = await readHoverStyle(selectionControl);
     expect(expectedHover.backgroundColor).not.toBe("rgba(0, 0, 0, 0)");
+    await selectionControl.click();
+    await expectPersistentStyleOnHover(selectionControl);
 
     const dockControl = page.getByRole("button", { name: "Box", exact: true });
     await expectHostContainer(page.getByTestId("tool-dock"));
@@ -217,6 +233,7 @@ for (const scenario of [
     const activeDockBackground = await activeDockItem.evaluate(
       (element) => window.getComputedStyle(element).backgroundColor
     );
+    await expectPersistentStyleOnHover(activeDockItem);
     await submenuTrigger.hover();
     await expect(dockItem).toHaveCSS("background-color", activeDockBackground);
     await expect(dockControl).toHaveCSS(
@@ -303,6 +320,9 @@ for (const scenario of [
     await expect(readHoverStyle(appMenuControl)).resolves.toEqual(
       expectedHover
     );
+    await appMenuControl.click();
+    await expectPersistentStyleOnHover(appMenuControl);
+    await page.keyboard.press("Escape");
 
     const helpControl = page.getByRole("button", { name: "Help" });
     await expectHostIconGeometry(helpControl);
@@ -358,5 +378,26 @@ for (const scenario of [
       ),
       fullPage: true,
     });
+  });
+
+  test(`Persistent host states survive hover in ${scenario.name}`, async ({
+    page,
+  }) => {
+    await seedHostState(page, scenario.viewport, scenario.dark);
+
+    if (scenario.viewport.width >= 600) {
+      const gridControl = page.getByTestId("zoom-grid");
+      await gridControl.click();
+      await expect(gridControl).toHaveAttribute("aria-pressed", "true");
+      await expectPersistentStyleOnHover(gridControl);
+    }
+
+    const activeTool = page.locator('[data-toolbar-item="select"]');
+    await expectPersistentStyleOnHover(activeTool);
+
+    const appMenuControl = page.getByRole("button", { name: "Open menu" });
+    await appMenuControl.click();
+    await expect(appMenuControl).toHaveAttribute("aria-expanded", "true");
+    await expectPersistentStyleOnHover(appMenuControl);
   });
 }

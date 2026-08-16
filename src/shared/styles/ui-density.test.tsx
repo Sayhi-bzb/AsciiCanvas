@@ -60,7 +60,9 @@ describe("compact UI density", () => {
 
     expect(screen.getByRole("button", { name: "Active tool" })).toHaveClass(
       "bg-control-active-surface",
-      "text-foreground"
+      "text-foreground",
+      "hover:bg-control-active-surface",
+      "hover:text-foreground"
     );
     expect(screen.getByRole("button", { name: "Pressed toggle" }))
       .toHaveClass("bg-control-pressed-surface", "text-foreground");
@@ -75,6 +77,30 @@ describe("compact UI density", () => {
         "bg-control-active-surface",
         "data-[state=open]:bg-control-active-surface"
       );
+  });
+
+  it("keeps the strongest persistent control state during interaction", () => {
+    const active = rx
+      .control({ tone: "subtle", open: true, pressed: true, active: true })
+      .split(/\s+/);
+    const pressed = rx
+      .control({ tone: "subtle", open: true, pressed: true })
+      .split(/\s+/);
+    const open = rx.control({ tone: "subtle", open: true }).split(/\s+/);
+    const destructiveActive = rx.control({
+      tone: "subtle",
+      active: true,
+      destructive: true,
+    }).split(/\s+/);
+
+    expect(active).toContain("hover:bg-control-active-surface");
+    expect(active).not.toContain("hover:bg-control-pressed-surface");
+    expect(active).not.toContain("hover:bg-control-open-surface");
+    expect(pressed).toContain("hover:bg-control-pressed-surface");
+    expect(pressed).not.toContain("hover:bg-control-open-surface");
+    expect(open).toContain("hover:bg-control-open-surface");
+    expect(destructiveActive).toContain("hover:bg-control-active-surface");
+    expect(destructiveActive).toContain("hover:text-destructive");
   });
 
   it("owns icon, selection, swatch, destructive, and joined behavior", () => {
@@ -188,6 +214,15 @@ describe("compact UI density", () => {
     expect(item).toContain("data-[disabled]:cursor-default");
     expect(item).toContain("data-[highlighted]:bg-accent");
     expect(item).toContain("data-[state=checked]:bg-control-pressed-surface");
+    expect(item).toContain(
+      "data-[state=checked]:data-[highlighted]:bg-control-pressed-surface"
+    );
+    expect(rx.menuItem({ selected: true })).toContain(
+      "data-[highlighted]:bg-control-active-surface"
+    );
+    expect(rx.menuItem({ selected: true })).toContain(
+      "data-[state=checked]:data-[highlighted]:bg-control-active-surface"
+    );
     expect(destructiveItem).toContain("bg-destructive-muted");
   });
 
@@ -212,7 +247,12 @@ describe("compact UI density", () => {
   });
 
   it("uses pointer and disabled-default cursors for tabs", () => {
-    expect(rx.tabsTrigger()).toContain("cursor-pointer");
-    expect(rx.tabsTrigger()).toContain("disabled:cursor-default");
+    const tabsTrigger = rx.tabsTrigger();
+
+    expect(tabsTrigger).toContain("cursor-pointer");
+    expect(tabsTrigger).toContain("disabled:cursor-default");
+    expect(tabsTrigger).toContain(
+      "data-[state=active]:hover:bg-control-active-surface"
+    );
   });
 });

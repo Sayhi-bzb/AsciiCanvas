@@ -63,7 +63,7 @@ const surface = ({ kind = 'embedded', animated = false }: SurfaceOptions = {}) =
 const dialogHeader = 'relative flex flex-col gap-1.5 text-left';
 
 const controlBase =
-  "inline-flex cursor-pointer items-center justify-center gap-2 whitespace-nowrap font-medium transition-[color,background-color,opacity,box-shadow] duration-[var(--motion-fast)] outline-none motion-reduce:transition-none disabled:pointer-events-none disabled:cursor-default disabled:opacity-50 focus-visible:ring-ring/50 focus-visible:ring-2 data-[state=open]:bg-control-open-surface data-[state=open]:text-accent-foreground data-[state=on]:bg-control-pressed-surface data-[state=on]:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4";
+  "inline-flex cursor-pointer items-center justify-center gap-2 whitespace-nowrap font-medium transition-[color,background-color,opacity,box-shadow] duration-[var(--motion-fast)] outline-none motion-reduce:transition-none disabled:pointer-events-none disabled:cursor-default disabled:opacity-50 focus-visible:ring-ring/50 focus-visible:ring-2 data-[state=open]:bg-control-open-surface data-[state=open]:text-foreground data-[state=open]:hover:bg-control-open-surface data-[state=open]:hover:text-foreground data-[state=open]:focus:bg-control-open-surface data-[state=open]:focus:text-foreground data-[state=on]:bg-control-pressed-surface data-[state=on]:text-foreground data-[state=on]:hover:bg-control-pressed-surface data-[state=on]:hover:text-foreground data-[state=on]:focus:bg-control-pressed-surface data-[state=on]:focus:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4";
 
 const controlTone: Record<Tone, string> = {
   primary: 'bg-primary text-primary-foreground hover:bg-primary/90',
@@ -81,17 +81,25 @@ const controlSize: Record<Size, string> = {
   lg: 'h-9 px-4 text-xs',
 };
 
-const openControlState = 'bg-control-open-surface text-foreground';
-const pressedControlState =
-  'bg-control-pressed-surface text-foreground data-[state=open]:bg-control-pressed-surface data-[state=open]:text-foreground';
-const activeControlState =
-  'bg-control-active-surface text-foreground data-[state=open]:bg-control-active-surface data-[state=open]:text-foreground';
+const openControlSurface =
+  'bg-control-open-surface hover:bg-control-open-surface focus:bg-control-open-surface data-[highlighted]:bg-control-open-surface';
+const pressedControlSurface =
+  'bg-control-pressed-surface hover:bg-control-pressed-surface focus:bg-control-pressed-surface data-[highlighted]:bg-control-pressed-surface data-[state=open]:bg-control-pressed-surface data-[state=open]:hover:bg-control-pressed-surface data-[state=open]:focus:bg-control-pressed-surface data-[state=open]:data-[highlighted]:bg-control-pressed-surface';
+const activeControlSurface =
+  'bg-control-active-surface hover:bg-control-active-surface focus:bg-control-active-surface data-[highlighted]:bg-control-active-surface data-[state=open]:bg-control-active-surface data-[state=open]:hover:bg-control-active-surface data-[state=open]:focus:bg-control-active-surface data-[state=open]:data-[highlighted]:bg-control-active-surface data-[state=on]:bg-control-active-surface data-[state=on]:hover:bg-control-active-surface data-[state=on]:focus:bg-control-active-surface data-[state=checked]:bg-control-active-surface data-[state=checked]:focus:bg-control-active-surface data-[state=checked]:data-[highlighted]:bg-control-active-surface';
+const persistentControlText =
+  'text-foreground hover:text-foreground focus:text-foreground data-[highlighted]:text-foreground data-[state=open]:text-foreground data-[state=open]:hover:text-foreground data-[state=open]:focus:text-foreground data-[state=open]:data-[highlighted]:text-foreground data-[state=on]:text-foreground data-[state=on]:hover:text-foreground data-[state=on]:focus:text-foreground data-[state=checked]:text-foreground data-[state=checked]:focus:text-foreground data-[state=checked]:data-[highlighted]:text-foreground';
+const destructivePersistentText =
+  'text-destructive hover:text-destructive focus:text-destructive data-[highlighted]:text-destructive data-[state=open]:text-destructive data-[state=open]:hover:text-destructive data-[state=open]:focus:text-destructive data-[state=open]:data-[highlighted]:text-destructive data-[state=on]:text-destructive data-[state=on]:hover:text-destructive data-[state=on]:focus:text-destructive data-[state=checked]:text-destructive data-[state=checked]:focus:text-destructive data-[state=checked]:data-[highlighted]:text-destructive';
+const openControlState = cn(openControlSurface, persistentControlText);
+const pressedControlState = cn(pressedControlSurface, persistentControlText);
+const activeControlState = cn(activeControlSurface, persistentControlText);
 
 const menuItemBase = cn(
   'relative flex cursor-pointer select-none items-center gap-2 rounded-item px-2 outline-none transition-colors duration-[var(--motion-fast)] motion-reduce:transition-none',
   'focus:bg-accent focus:text-accent-foreground data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground',
-  'data-[state=open]:bg-control-open-surface data-[state=open]:text-accent-foreground',
-  'data-[state=checked]:bg-control-pressed-surface data-[state=checked]:text-foreground',
+  'data-[state=open]:bg-control-open-surface data-[state=open]:text-foreground data-[state=open]:focus:bg-control-open-surface data-[state=open]:focus:text-foreground data-[state=open]:data-[highlighted]:bg-control-open-surface data-[state=open]:data-[highlighted]:text-foreground',
+  'data-[state=checked]:bg-control-pressed-surface data-[state=checked]:text-foreground data-[state=checked]:focus:bg-control-pressed-surface data-[state=checked]:focus:text-foreground data-[state=checked]:data-[highlighted]:bg-control-pressed-surface data-[state=checked]:data-[highlighted]:text-foreground',
   'data-[disabled]:pointer-events-none data-[disabled]:cursor-default data-[disabled]:opacity-50',
   "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
 );
@@ -155,9 +163,10 @@ export const rx = {
       menuItemBase,
       density === 'compact' && 'min-h-7 py-1 text-xs',
       density === 'default' && 'min-h-8 py-1.5 text-sm',
-      selected && activeControlState,
       variant === 'destructive' &&
-        'text-destructive focus:bg-destructive-muted focus:text-destructive data-[highlighted]:bg-destructive-muted data-[highlighted]:text-destructive [&_svg]:text-destructive'
+        'text-destructive focus:bg-destructive-muted focus:text-destructive data-[highlighted]:bg-destructive-muted data-[highlighted]:text-destructive [&_svg]:text-destructive',
+      selected && activeControlState,
+      selected && variant === 'destructive' && destructivePersistentText
     ),
   menuSeparator: '-mx-1 my-1 h-px bg-border',
   control: ({
@@ -171,8 +180,16 @@ export const rx = {
     destructive = false,
     subordinate = false,
     joined,
-  }: ControlOptions = {}) =>
-    cn(
+  }: ControlOptions = {}) => {
+    const persistentState = active
+      ? activeControlState
+      : pressed
+        ? pressedControlState
+        : open
+          ? openControlState
+          : undefined;
+
+    return cn(
       controlBase,
       controlTone[tone],
       controlSize[size],
@@ -182,17 +199,17 @@ export const rx = {
       shape === 'square' && size === 'md' && 'size-8 px-0',
       shape === 'square' && size === 'lg' && 'size-9 px-0',
       tone === 'link' && 'h-auto px-0',
-      open && openControlState,
-      pressed && pressedControlState,
-      active && activeControlState,
       subordinate &&
         'opacity-40 hover:opacity-100 data-[active=true]:opacity-100 data-[pressed=true]:opacity-100 data-[open=true]:opacity-100',
       destructive && 'text-destructive hover:bg-destructive-muted hover:text-destructive',
       joined === 'start' && 'rounded-r-none',
       joined === 'middle' && 'rounded-none',
       joined === 'end' && 'rounded-l-none',
-      outlined && 'border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground'
-    ),
+      outlined && 'border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground',
+      persistentState,
+      persistentState && destructive && destructivePersistentText
+    );
+  },
 
   selectableItem: ({
     orientation = 'horizontal',
@@ -236,8 +253,8 @@ export const rx = {
       'relative inline-flex h-[calc(100%-1px)] flex-1 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-control border border-transparent px-2 py-1 text-sm font-medium text-muted-foreground transition-[color,background-color,box-shadow] duration-[var(--motion-fast)] motion-reduce:transition-none',
       'hover:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:outline-1 focus-visible:outline-ring',
       'disabled:pointer-events-none disabled:cursor-default disabled:opacity-50 group-data-[orientation=vertical]/tabs:w-full group-data-[orientation=vertical]/tabs:justify-start',
-      'data-[state=active]:border-tab-active-border data-[state=active]:bg-control-active-surface data-[state=active]:text-foreground',
-      'group-data-[variant=default]/tabs-list:data-[state=active]:shadow-sm group-data-[variant=line]/tabs-list:data-[state=active]:border-transparent group-data-[variant=line]/tabs-list:data-[state=active]:bg-transparent group-data-[variant=line]/tabs-list:data-[state=active]:shadow-none',
+      'data-[state=active]:border-tab-active-border data-[state=active]:bg-control-active-surface data-[state=active]:text-foreground data-[state=active]:hover:bg-control-active-surface data-[state=active]:hover:text-foreground data-[state=active]:focus:bg-control-active-surface data-[state=active]:focus:text-foreground',
+      'group-data-[variant=default]/tabs-list:data-[state=active]:shadow-sm group-data-[variant=line]/tabs-list:data-[state=active]:border-transparent group-data-[variant=line]/tabs-list:data-[state=active]:bg-transparent group-data-[variant=line]/tabs-list:data-[state=active]:hover:bg-transparent group-data-[variant=line]/tabs-list:data-[state=active]:focus:bg-transparent group-data-[variant=line]/tabs-list:data-[state=active]:shadow-none',
       'after:absolute after:bg-foreground after:opacity-0 after:transition-opacity group-data-[orientation=horizontal]/tabs:after:inset-x-0 group-data-[orientation=horizontal]/tabs:after:bottom-[-5px] group-data-[orientation=horizontal]/tabs:after:h-0.5 group-data-[orientation=vertical]/tabs:after:inset-y-0 group-data-[orientation=vertical]/tabs:after:-right-1 group-data-[orientation=vertical]/tabs:after:w-0.5 group-data-[variant=line]/tabs-list:data-[state=active]:after:opacity-100',
       "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
       size === 'icon' &&

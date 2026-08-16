@@ -58,8 +58,9 @@ Interaction state has stable vocabulary:
 Persistent state strength is `active > pressed > open > hover`. Each level has
 its own light and dark semantic surface token. `subordinate` keeps an associated
 control quiet at rest while its recipe restores full opacity for hover and every
-persistent state. Product code does not implement that behavior with opacity
-utilities.
+persistent state. Hover, focus, and Radix highlight never replace a persistent
+surface or its text color. Product code does not implement that behavior with
+opacity utilities.
 
 `Button`, `IconButton`, `SelectableItem`, `SwatchButton`, `TabsTrigger`, and the
 menu family translate those states into shared recipes. `SelectableItem` is a

@@ -45,8 +45,8 @@ describe('ColorPickerPanel', () => {
       'rounded-control',
       'flex-none',
       'justify-center',
-      'hover:bg-accent',
-      'hover:text-accent-foreground',
+      'hover:bg-control-active-surface',
+      'hover:text-foreground',
       'group-data-[variant=default]/tabs-list:data-[state=active]:shadow-none'
     );
     expect(ansiTab).not.toHaveClass('min-w-8');
