@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Check, ChevronRight, Loader2, RefreshCcw, X } from 'lucide-react';
 import { writeClipboardPayload } from '@/domains/actions/public';
 import { useCanvasState } from '@/domains/canvas/public';
@@ -144,16 +144,19 @@ function CharButton({
           data-copy-feedback={feedbackStatus ?? undefined}
           disabled={unavailable}
           onClick={() => onClick(entry)}
-          style={{ fontFamily: getRenderFontFamilyForGrapheme(entry.grapheme) }}
-          className="size-7 min-h-0 shrink-0 justify-center p-0 font-mono text-sm leading-none"
+          className="shrink-0"
         />
       }
     >
       <span className="relative flex size-full items-center justify-center">
         <span
           aria-hidden="true"
+          style={{
+            color: 'var(--character-library-foreground)',
+            fontFamily: getRenderFontFamilyForGrapheme(entry.grapheme),
+          }}
           className={cn(
-            'transition-[opacity,transform] duration-[var(--motion-fast)] ease-out motion-reduce:transition-none',
+            'font-mono text-sm leading-none transition-[opacity,transform] duration-[var(--motion-fast)] ease-out motion-reduce:transition-none',
             feedbackStatus ? 'scale-75 opacity-0' : 'scale-100 opacity-100'
           )}
         >
@@ -517,7 +520,10 @@ export function CharLibrary({ view }: { view: CharacterViewId }) {
   };
 
   return (
-    <>
+    <div
+      className="contents"
+      style={{ '--character-library-foreground': brushColor } as CSSProperties}
+    >
       {view === 'unicode' ? (
         <UnicodePane copyFeedback={copyFeedback} onSelect={handleSelect} />
       ) : (
@@ -530,6 +536,6 @@ export function CharLibrary({ view }: { view: CharacterViewId }) {
             })
           : ''}
       </span>
-    </>
+    </div>
   );
 }

@@ -88,6 +88,14 @@ describe('CharLibrary', () => {
       </SidebarProvider>
     );
     const starButton = screen.getByRole('button', { name: /star icon/i });
+    const starPreview = starButton.querySelector<HTMLElement>('[aria-hidden="true"]');
+    const colorScope = starButton.closest<HTMLElement>('.contents');
+
+    expect(starPreview).toHaveStyle({ color: 'var(--character-library-foreground)' });
+    expect(colorScope).toHaveStyle({ '--character-library-foreground': '#123456' });
+
+    act(() => useEditorStore.setState({ brushColor: '#abcdef' }));
+    expect(colorScope).toHaveStyle({ '--character-library-foreground': '#abcdef' });
 
     fireEvent.click(starButton);
 
@@ -97,7 +105,7 @@ describe('CharLibrary', () => {
     expect(JSON.parse(payload.rich!)).toEqual({
       type: 'ascii-metropolis-zone',
       version: 1,
-      cells: [{ x: 0, y: 0, char: '★', color: '#123456' }],
+      cells: [{ x: 0, y: 0, char: '★', color: '#abcdef' }],
     });
     expect(options).toEqual({ withRich: true });
     expect(useEditorStore.getState().tool).toBe('select');
@@ -105,6 +113,9 @@ describe('CharLibrary', () => {
     await waitFor(() => expect(starButton).toHaveAttribute('data-copy-feedback', 'success'));
     expect(starButton).toHaveClass('bg-control-active-surface');
     expect(starButton.querySelector('.lucide-check')).toHaveClass('opacity-100');
+    expect(starButton.querySelector('.lucide-check')).not.toHaveStyle({
+      color: 'var(--character-library-foreground)',
+    });
     expect(starButton.querySelector('.lucide-x')).toHaveClass('opacity-0');
     expect(screen.getByRole('status')).toHaveTextContent('Copied ★');
 
