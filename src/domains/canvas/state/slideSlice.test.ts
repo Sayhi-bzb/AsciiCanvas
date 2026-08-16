@@ -62,7 +62,7 @@ describe("slideSlice", () => {
         scratchLayer: new Map([
           ["0,0", { char: "X", color: "#fff" }],
         ]),
-        canvasColorPickerTarget: "char",
+        canvasColorPickerTarget: "auto",
       });
     const expectReset = () =>
       expect(useEditorStore.getState()).toMatchObject(
@@ -108,7 +108,7 @@ describe("slideSlice", () => {
     const activeSlideId = useEditorStore.getState().slideDeck!.activeSlideId;
     useEditorStore.setState({
       hoveredGrid: { x: 2, y: 1 },
-      canvasColorPickerTarget: "bg",
+      canvasColorPickerTarget: "auto",
     });
 
     useEditorStore.getState().renameSlide(activeSlideId, "Renamed");
@@ -120,7 +120,7 @@ describe("slideSlice", () => {
 
     expect(useEditorStore.getState()).toMatchObject({
       hoveredGrid: { x: 2, y: 1 },
-      canvasColorPickerTarget: "bg",
+      canvasColorPickerTarget: "auto",
     });
   });
 

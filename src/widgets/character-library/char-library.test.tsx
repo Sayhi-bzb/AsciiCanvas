@@ -91,6 +91,8 @@ describe('CharLibrary', () => {
     const starPreview = starButton.querySelector<HTMLElement>('[aria-hidden="true"]');
     const colorScope = starButton.closest<HTMLElement>('.contents');
 
+    expect(document.querySelector('[data-slot="character-group-header"]')).not.toBeInTheDocument();
+
     expect(starPreview).toHaveStyle({ color: 'var(--character-library-foreground)' });
     expect(colorScope).toHaveStyle({ '--character-library-foreground': '#123456' });
 
@@ -302,7 +304,7 @@ describe('CharLibrary', () => {
       searchResults: { essentials: [], nerd: [], emoji: [] },
     });
 
-    const { rerender } = render(
+    const { container, rerender } = render(
       <SidebarProvider>
         <CharLibrary view="essentials" />
       </SidebarProvider>
@@ -310,7 +312,16 @@ describe('CharLibrary', () => {
     labels.essentials.forEach(([, english]) =>
       expect(screen.getByText(english)).toBeInTheDocument()
     );
-    fireEvent.click(screen.getByText('Lines & Blocks').closest('button')!);
+    const groupTrigger = screen.getByText('Lines & Blocks').closest('button')!;
+    const groupHeader = groupTrigger.closest('[data-slot="character-group-header"]');
+    expect(container.querySelectorAll('[data-slot="character-group-header"]')).toHaveLength(
+      labels.essentials.length + 1
+    );
+    expect(groupHeader).toHaveAttribute('data-surface-kind', 'embedded');
+    expect(groupHeader).toHaveClass('sticky', 'top-0', 'z-10', 'bg-host-surface');
+    expect(groupTrigger).toHaveClass('min-h-7', 'text-xs', 'leading-4');
+    expect(groupTrigger).not.toHaveClass('min-h-8', 'text-sm');
+    fireEvent.click(groupTrigger);
 
     act(() => setUiLanguage('zh'));
     labels.essentials.forEach(([, , chinese]) =>
@@ -411,6 +422,7 @@ describe('CharLibrary', () => {
     );
 
     const trigger = screen.getByRole('combobox', { name: 'Unicode facet' });
+    expect(document.querySelector('[data-slot="character-group-header"]')).not.toBeInTheDocument();
     expect(trigger).toHaveTextContent('Basic Latin (95)');
 
     act(() => {

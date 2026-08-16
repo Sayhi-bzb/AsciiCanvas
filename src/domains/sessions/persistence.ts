@@ -196,7 +196,7 @@ export const decodePersistedEditorState = (
             ? preferences.brushColor
             : "#000000",
       showGrid:
-        typeof preferences.showGrid === "boolean" ? preferences.showGrid : true,
+        typeof preferences.showGrid === "boolean" ? preferences.showGrid : false,
       exportShowGrid:
         typeof preferences.exportShowGrid === "boolean"
           ? preferences.exportShowGrid

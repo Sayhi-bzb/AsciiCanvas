@@ -539,6 +539,19 @@ describe("SidebarRight structured templates", () => {
     ]);
     fireEvent.focus(slideViewTabs[0]);
     expect(await screen.findByRole("tooltip")).toHaveTextContent("Slides");
+    fireEvent.blur(slideViewTabs[0]);
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    const deleteSlide = screen.getByRole("button", { name: "Delete Slide 1" });
+    expect(deleteSlide).toBeDisabled();
+    expect(deleteSlide).not.toHaveAttribute("title");
+    expect(deleteSlide.parentElement).toHaveAttribute("data-base-ui-tooltip-trigger");
+
+    const configureSlide = screen.getByRole("button", {
+      name: "Configure slide size for Slide 1",
+    });
+    fireEvent.focus(configureSlide);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("Configure");
 
     fireEvent.click(addSlide);
 

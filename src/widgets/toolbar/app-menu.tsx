@@ -13,8 +13,6 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
@@ -32,17 +30,16 @@ const AppMenuTriggerIcon = HOST_ICONOLOGY.appMenu.trigger;
 const ImportIcon = HOST_ICONOLOGY.appMenu.import;
 const ExportIcon = HOST_ICONOLOGY.appMenu.export;
 const GithubIcon = HOST_ICONOLOGY.appMenu.github;
-const LanguageIcon = HOST_ICONOLOGY.appMenu.language;
-const ShortcutsIcon = HOST_ICONOLOGY.appMenu.shortcuts;
+const SettingsIcon = HOST_ICONOLOGY.appMenu.settings;
 const ClearIcon = HOST_ICONOLOGY.appMenu.clear;
 const ClearCanvasDialog = lazy(() =>
   import("@/widgets/dialogs/clear-canvas-dialog").then((module) => ({
     default: module.ClearCanvasDialog,
   }))
 );
-const KeyboardShortcutsDialog = lazy(() =>
-  import("@/widgets/dialogs/keyboard-shortcuts-dialog").then((module) => ({
-    default: module.KeyboardShortcutsDialog,
+const SettingsDialog = lazy(() =>
+  import("@/widgets/dialogs/settings-dialog").then((module) => ({
+    default: module.SettingsDialog,
   }))
 );
 export function AppMenu() {
@@ -70,7 +67,7 @@ export function AppMenu() {
   const documentName = canvasSessions.find(
     (session) => session.id === activeCanvasId
   )?.name;
-  const { language, setLanguage, t } = useUiI18n();
+  const { t } = useUiI18n();
   const {
     fileInputRef,
     handleFileChange,
@@ -78,10 +75,9 @@ export function AppMenu() {
     openFilePicker,
   } = useCanvasImport();
   const [clearOpen, setClearOpen] = useState(false);
-  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
-  const selectLanguage = (value: "en" | "zh") => setLanguage(value);
   const clearLabel = t("sidebar.clear.canvas");
   const clearDescription = t("sidebar.clear.canvasDescription");
   const exportLabel = t("appMenu.export");
@@ -195,42 +191,14 @@ export function AppMenu() {
                     <ClearIcon />
                     {t("appMenu.clear")}
                   </DropdownMenuItem>
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger>
-                      <LanguageIcon />
-                      {t("appMenu.language")}
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent className="w-40" aria-label={t("appMenu.language")}>
-                      <DropdownMenuRadioGroup value={language}>
-                        <DropdownMenuRadioItem
-                          value="en"
-                          onSelect={(event) => {
-                            event.preventDefault();
-                            selectLanguage("en");
-                          }}
-                        >
-                          {t("appMenu.english")}
-                        </DropdownMenuRadioItem>
-                        <DropdownMenuRadioItem
-                          value="zh"
-                          onSelect={(event) => {
-                            event.preventDefault();
-                            selectLanguage("zh");
-                          }}
-                        >
-                          {t("appMenu.chinese")}
-                        </DropdownMenuRadioItem>
-                      </DropdownMenuRadioGroup>
-                    </DropdownMenuSubContent>
-                  </DropdownMenuSub>
                   <DropdownMenuItem
                     onSelect={() => {
                       setMenuOpen(false);
-                      window.setTimeout(() => setShortcutsOpen(true), 0);
+                      window.setTimeout(() => setSettingsOpen(true), 0);
                     }}
                   >
-                    <ShortcutsIcon />
-                    {t("appMenu.shortcuts")}
+                    <SettingsIcon />
+                    {t("appMenu.settings")}
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
@@ -258,16 +226,15 @@ export function AppMenu() {
             trigger={null}
           />
         )}
-        {shortcutsOpen && (
-          <KeyboardShortcutsDialog
-            open={shortcutsOpen}
+        {settingsOpen && (
+          <SettingsDialog
+            open={settingsOpen}
             onOpenChange={(open) => {
-              setShortcutsOpen(open);
+              setSettingsOpen(open);
               if (!open) {
                 window.setTimeout(() => menuTriggerRef.current?.focus(), 0);
               }
             }}
-            trigger={null}
           />
         )}
       </Suspense>

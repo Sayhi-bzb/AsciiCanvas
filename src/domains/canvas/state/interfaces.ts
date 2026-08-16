@@ -11,10 +11,8 @@ import type { CanvasHistoryMode } from "./CanvasDocumentRegistry";
 import type { SlideDeck, SlideSize } from "@/domains/slides/public";
 
 export type CanvasColorPickerTarget =
-  | "char"
-  | "bg"
-  | "char-to-background"
-  | "bg-to-background";
+  | "auto"
+  | "auto-to-background";
 
 export interface RichTextCell {
   x: number;

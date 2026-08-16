@@ -24,6 +24,14 @@ const createMemoryStorage = (): Storage => {
 };
 
 describe("editor persistence v5", () => {
+  it("defaults the grid off while preserving an explicit preference", () => {
+    expect(migratePersistedStateToV5({}).preferences.showGrid).toBe(false);
+    expect(
+      migratePersistedStateToV5({ preferences: { showGrid: true } }).preferences
+        .showGrid
+    ).toBe(true);
+  });
+
   it("preserves an independent background default and falls back to foreground", () => {
     const explicit = migratePersistedStateToV5({
       preferences: {

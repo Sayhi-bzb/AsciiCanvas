@@ -127,21 +127,16 @@ export function ColorPickerPanel({
   const [customColor, setCustomColor] = useState(value);
   const [hexPopoverOpen, setHexPopoverOpen] = useState(false);
   const [activePaletteTab, setActivePaletteTab] = useState<'ansi16' | 'presets'>('ansi16');
-  const [eyedropperOpen, setEyedropperOpen] = useState(false);
   const tooltipHandle = useMemo(() => TooltipCreateHandle<ReactNode>(), []);
   const panelRef = useRef<HTMLDivElement>(null);
   const colorToolRef = useRef<HTMLDivElement>(null);
   const hexInputRef = useRef<HTMLInputElement>(null);
-  const charPickerButtonRef = useRef<HTMLButtonElement>(null);
-  const bgPickerButtonRef = useRef<HTMLButtonElement>(null);
   const hexCloseHandledRef = useRef(false);
   const normalizedCustomColor = normalizeHexColor(customColor);
   const displayColor = normalizedCustomColor ?? normalizeHexColor(value) ?? '#000000';
   const canvasColorPickerTarget = useCanvasState((state) => state.canvasColorPickerTarget);
   const setCanvasColorPickerTarget = canvas.commands.interaction.setColorPickerTarget;
   const RestoreDefaultIcon = HOST_ICONOLOGY.colorPalette.restoreDefault;
-  const CharacterColorSourceIcon = HOST_ICONOLOGY.toolbarAction.text;
-  const BackgroundColorSourceIcon = HOST_ICONOLOGY.toolbarAction.bg;
 
   useEffect(() => {
     setCustomColor(value);
@@ -176,14 +171,11 @@ export function ColorPickerPanel({
     }
   };
 
-  const getCanvasColorPickerTarget = (source: 'char' | 'bg'): CanvasColorPickerTarget =>
-    canvasPickDestination === 'background' ? `${source}-to-background` : source;
-
-  const toggleCanvasColorPicker = (source: 'char' | 'bg') => {
-    const target = getCanvasColorPickerTarget(source);
+  const toggleCanvasColorPicker = () => {
+    const target: CanvasColorPickerTarget =
+      canvasPickDestination === 'background' ? 'auto-to-background' : 'auto';
     const nextTarget = canvasColorPickerTarget === target ? null : target;
     setCanvasColorPickerTarget(nextTarget);
-    setEyedropperOpen(false);
     if (nextTarget) onCanvasPickStarted?.();
   };
 
@@ -355,76 +347,24 @@ export function ColorPickerPanel({
               </PopoverContent>
             </Popover>
 
-            <Popover open={eyedropperOpen} onOpenChange={setEyedropperOpen}>
-              <PopoverTrigger asChild>
+            <TooltipTrigger
+              handle={tooltipHandle}
+              payload={t('color.pickFromCanvas')}
+              render={
                 <Button
                   type="button"
                   tone="subtle"
                   shape="square"
                   size="sm"
                   aria-label={t('color.pickFromCanvas')}
-                  title={t('color.pickFromCanvas')}
-                  open={eyedropperOpen}
                   pressed={canvasColorPickerTarget !== null}
                   className="shrink-0"
-                >
-                  <Pipette />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent
-                side="bottom"
-                align="end"
-                sideOffset={6}
-                role="toolbar"
-                aria-label={t('color.pickFromCanvas')}
-                className="flex w-fit gap-0.5 p-1"
-                onOpenAutoFocus={(event) => {
-                  event.preventDefault();
-                  const activeButton =
-                    canvasColorPickerTarget === getCanvasColorPickerTarget('bg')
-                      ? bgPickerButtonRef.current
-                      : charPickerButtonRef.current;
-                  activeButton?.focus({ preventScroll: true });
-                }}
-              >
-                <TooltipTrigger
-                  handle={tooltipHandle}
-                  payload={t('color.pickChar')}
-                  render={
-                    <Button
-                      ref={charPickerButtonRef}
-                      type="button"
-                      tone="subtle"
-                      shape="square"
-                      size="sm"
-                      aria-label={t('color.pickChar')}
-                      pressed={canvasColorPickerTarget === getCanvasColorPickerTarget('char')}
-                      onClick={() => toggleCanvasColorPicker('char')}
-                    />
-                  }
-                >
-                  <CharacterColorSourceIcon data-icon="inline-start" />
-                </TooltipTrigger>
-                <TooltipTrigger
-                  handle={tooltipHandle}
-                  payload={t('color.pickBg')}
-                  render={
-                    <Button
-                      ref={bgPickerButtonRef}
-                      type="button"
-                      tone="subtle"
-                      shape="square"
-                      size="sm"
-                      aria-label={t('color.pickBg')}
-                      pressed={canvasColorPickerTarget === getCanvasColorPickerTarget('bg')}
-                      onClick={() => toggleCanvasColorPicker('bg')}
-                    />
-                  }
-                >
-                  <BackgroundColorSourceIcon data-icon="inline-start" />
-                </TooltipTrigger>
-              </PopoverContent>
-            </Popover>
+                  onClick={toggleCanvasColorPicker}
+                />
+              }
+            >
+              <Pipette />
+            </TooltipTrigger>
 
             {defaultColor && (
               <TooltipTrigger

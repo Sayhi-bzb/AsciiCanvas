@@ -1,6 +1,6 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { setUiLanguage } from "@/shared/i18n";
+import { fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { setUiLanguage } from '@/shared/i18n';
 import {
   Dialog,
   DialogBody,
@@ -9,7 +9,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/shared/ui/dialog";
+} from '@/shared/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,13 +18,28 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/shared/ui/alert-dialog";
-import { Sheet, SheetContent, SheetTitle } from "@/shared/ui/sheet";
+} from '@/shared/ui/alert-dialog';
+import { Sheet, SheetContent, SheetTitle } from '@/shared/ui/sheet';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/shared/ui/select';
 
-describe("dialog visual contract", () => {
-  afterEach(() => setUiLanguage("en"));
+describe('dialog visual contract', () => {
+  beforeAll(() => {
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: vi.fn(),
+    });
+  });
 
-  it("uses the shared flat shell, sections, and host close control", () => {
+  afterEach(() => setUiLanguage('en'));
+
+  it('uses the shared flat shell, sections, and host close control', () => {
     const onOpenChange = vi.fn();
     render(
       <Dialog open onOpenChange={onOpenChange}>
@@ -39,39 +54,29 @@ describe("dialog visual contract", () => {
       </Dialog>
     );
 
-    const content = screen.getByRole("dialog");
-    expect(content).toHaveClass(
-      "border-0",
-      "shadow-dialog",
-      "rounded-surface",
-      "p-4",
-      "gap-4"
-    );
+    const content = screen.getByRole('dialog');
+    expect(content).toHaveClass('border-0', 'shadow-dialog', 'rounded-surface', 'p-4', 'gap-4');
     const header = content.querySelector('[data-slot="dialog-header"]');
-    expect(header).toHaveClass("pr-12");
-    expect(content).toHaveAccessibleDescription("Changes apply to this canvas.");
-    expect(header).not.toHaveClass("border-b", "border-accent", "bg-accent/40");
-    expect(content.querySelector('[data-slot="dialog-body"]')).toHaveClass(
-      "min-w-0"
-    );
+    expect(header).toHaveClass('pr-12');
+    expect(content).toHaveAccessibleDescription('Changes apply to this canvas.');
+    expect(header).not.toHaveClass('border-b', 'border-accent', 'bg-accent/40');
+    expect(content.querySelector('[data-slot="dialog-body"]')).toHaveClass('min-w-0');
     const footer = content.querySelector('[data-slot="dialog-footer"]');
-    expect(footer).not.toHaveClass("border-t", "border-accent", "bg-accent/25");
-    expect(document.querySelector('[data-slot="dialog-overlay"]')).toHaveClass(
-      "bg-dialog-overlay"
-    );
+    expect(footer).not.toHaveClass('border-t', 'border-accent', 'bg-accent/25');
+    expect(document.querySelector('[data-slot="dialog-overlay"]')).toHaveClass('bg-dialog-overlay');
 
-    const close = screen.getByRole("button", { name: "Close" });
+    const close = screen.getByRole('button', { name: 'Close' });
     expect(close).toHaveClass(
-      "size-8",
-      "rounded-control",
-      "hover:bg-accent",
-      "focus-visible:ring-2"
+      'size-8',
+      'rounded-control',
+      'hover:bg-accent',
+      'focus-visible:ring-2'
     );
     fireEvent.click(close);
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
-  it("applies the same shell and sections to alert dialogs", () => {
+  it('applies the same shell and sections to alert dialogs', () => {
     render(
       <AlertDialog open>
         <AlertDialogContent>
@@ -86,34 +91,20 @@ describe("dialog visual contract", () => {
       </AlertDialog>
     );
 
-    const content = screen.getByRole("alertdialog");
-    expect(content).toHaveClass(
-      "border-0",
-      "shadow-dialog",
-      "rounded-surface",
-      "p-4",
-      "gap-4"
-    );
+    const content = screen.getByRole('alertdialog');
+    expect(content).toHaveClass('border-0', 'shadow-dialog', 'rounded-surface', 'p-4', 'gap-4');
     const header = content.querySelector('[data-slot="alert-dialog-header"]');
-    expect(header).not.toHaveClass(
-      "pr-12",
-      "border-b",
-      "border-accent",
-      "bg-accent/40"
-    );
+    expect(header).not.toHaveClass('pr-12', 'border-b', 'border-accent', 'bg-accent/40');
     const footer = content.querySelector('[data-slot="alert-dialog-footer"]');
-    expect(footer).not.toHaveClass("border-t", "border-accent", "bg-accent/25");
-    expect(screen.getByRole("button", { name: "Delete" })).toHaveAttribute(
-      "data-tone",
-      "danger"
+    expect(footer).not.toHaveClass('border-t', 'border-accent', 'bg-accent/25');
+    expect(screen.getByRole('button', { name: 'Delete' })).toHaveAttribute('data-tone', 'danger');
+    expect(document.querySelector('[data-slot="alert-dialog-overlay"]')).toHaveClass(
+      'bg-dialog-overlay'
     );
-    expect(
-      document.querySelector('[data-slot="alert-dialog-overlay"]')
-    ).toHaveClass("bg-dialog-overlay");
   });
 
-  it("localizes shared Dialog and Sheet close controls", () => {
-    setUiLanguage("zh");
+  it('localizes shared Dialog and Sheet close controls', () => {
+    setUiLanguage('zh');
     render(
       <>
         <Dialog open>
@@ -130,5 +121,42 @@ describe("dialog visual contract", () => {
     );
 
     expect(document.querySelectorAll('button[aria-label="关闭"]')).toHaveLength(2);
+  });
+
+  it('elevates portaled Select content declared inside a modal surface', () => {
+    render(
+      <>
+        <Select open value="en">
+          <SelectTrigger aria-label="Page language">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectItem value="en">English</SelectItem>
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+        <Dialog open>
+          <DialogContent>
+            <DialogTitle>Settings</DialogTitle>
+            <Select open value="en">
+              <SelectTrigger aria-label="Dialog language">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  <SelectItem value="en">English</SelectItem>
+                </SelectGroup>
+              </SelectContent>
+            </Select>
+          </DialogContent>
+        </Dialog>
+      </>
+    );
+
+    const contents = document.querySelectorAll('[data-slot="select-content"]');
+    expect(contents).toHaveLength(2);
+    expect(contents[0]).toHaveClass('z-(--layer-popover)');
+    expect(contents[1]).toHaveClass('z-(--layer-modal-popover)');
   });
 });

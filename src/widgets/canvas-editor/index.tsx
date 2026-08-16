@@ -5,6 +5,7 @@ import { useCanvasRenderer } from './hooks/useCanvasRenderer';
 import { useCanvasEditorModels } from './hooks/useCanvasEditorModels';
 import { CanvasContextMenuContent } from './CanvasContextMenuContent';
 import { CanvasSurface } from './CanvasSurface';
+import { CanvasColorSourceChooser } from './CanvasColorSourceChooser';
 import { StructuredTemplatePreviewOverlay } from './StructuredTemplatePreviewOverlay';
 import { useStructuredTemplateDrop } from './hooks/useStructuredTemplateDrop';
 import { useManagedCanvasInput } from './hooks/useManagedCanvasInput';
@@ -204,7 +205,13 @@ export const CanvasEditor = ({
     enabled,
   });
 
-  const { draggingSelection, handleDoubleClick } = useCanvasInteraction(
+  const {
+    draggingSelection,
+    handleDoubleClick,
+    colorSourceChoice,
+    selectColorSource,
+    cancelColorSourceChoice,
+  } = useCanvasInteraction(
     interactionModel,
     containerRef,
     setHoveredLink,
@@ -286,6 +293,15 @@ export const CanvasEditor = ({
           textareaProps={textareaProps}
         >
           <StructuredTemplatePreviewOverlay preview={structuredTemplateDrop.preview} zoom={zoom} />
+          {colorSourceChoice && (
+            <CanvasColorSourceChooser
+              choice={colorSourceChoice}
+              offset={offset}
+              zoom={zoom}
+              onSelect={selectColorSource}
+              onCancel={cancelColorSourceChoice}
+            />
+          )}
         </CanvasSurface>
       </ContextMenuTrigger>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useCanvasRuntime, useCanvasState } from "@/domains/canvas/public";
 import { SLIDE_SIZE_PRESETS, type SlideSize } from "@/domains/slides/public";
@@ -33,6 +33,12 @@ import { InlineRenameInput } from "@/shared/ui/inline-rename-input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
 import { Separator } from "@/shared/ui/separator";
 import { SelectableItem } from "@/shared/ui/selectable-item";
+import {
+  Tooltip,
+  TooltipCreateHandle,
+  TooltipPopup,
+  TooltipTrigger,
+} from "@/shared/ui/tooltip";
 import { CustomSlideSizeDialog } from "@/widgets/dialogs/custom-slide-size-dialog";
 import { useOnboardingTour } from "@/widgets/onboarding/onboarding-context";
 
@@ -68,6 +74,8 @@ export function CanvasBreadcrumb() {
   const panelContentRef = useRef<HTMLDivElement>(null);
   const activeSessionButtonRef = useRef<HTMLButtonElement>(null);
   const suppressSelectorFocusRef = useRef(false);
+  const selectorTooltipHandle = useMemo(() => TooltipCreateHandle<string>(), []);
+  const sessionActionTooltipHandle = useMemo(() => TooltipCreateHandle<string>(), []);
   const { canvasSessions, activeCanvasId } = useCanvasState(
     useShallow((state) => ({
       canvasSessions: state.canvasSessions,
@@ -161,23 +169,28 @@ export function CanvasBreadcrumb() {
         }}
       >
         <PopoverTrigger asChild>
-          <Button
-            ref={selectorTriggerRef}
-            data-onboarding-target="canvas-selector"
-            tone="subtle"
-            size="md"
-            className={cn(
-              "max-w-[min(14rem,calc(100vw-5.5rem))] justify-start gap-1.5 px-2"
-            )}
-            aria-label={t("session.select")}
-            title={activeSession?.name ?? t("session.fallbackName")}
+          <TooltipTrigger
+            handle={selectorTooltipHandle}
+            payload={activeSession?.name ?? t("session.fallbackName")}
+            render={
+              <Button
+                ref={selectorTriggerRef}
+                data-onboarding-target="canvas-selector"
+                tone="subtle"
+                size="md"
+                className={cn(
+                  "max-w-[min(14rem,calc(100vw-5.5rem))] justify-start gap-1.5 px-2"
+                )}
+                aria-label={t("session.select")}
+              />
+            }
           >
             <ActiveModeIcon />
             <span className="truncate">
               {activeSession?.name ?? t("session.fallbackName")}
             </span>
             <SessionExpandIcon className="opacity-60" />
-          </Button>
+          </TooltipTrigger>
         </PopoverTrigger>
         <PopoverContent
           ref={panelContentRef}
@@ -260,18 +273,23 @@ export function CanvasBreadcrumb() {
                         onOpenChange={(open) => setActionsOpenId(open ? session.id : null)}
                       >
                         <DropdownMenuTrigger asChild>
-                          <Button
-                            type="button"
-                            tone="subtle"
-                            shape="square"
-                            size="sm"
-                            data-session-actions="true"
-                            aria-label={manageLabel}
-                            title={manageLabel}
-                            className="shrink-0"
+                          <TooltipTrigger
+                            handle={sessionActionTooltipHandle}
+                            payload={manageLabel}
+                            render={
+                              <Button
+                                type="button"
+                                tone="subtle"
+                                shape="square"
+                                size="sm"
+                                data-session-actions="true"
+                                aria-label={manageLabel}
+                                className="shrink-0"
+                              />
+                            }
                           >
                             <SessionMoreIcon />
-                          </Button>
+                          </TooltipTrigger>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent
                           side="right"
@@ -376,6 +394,13 @@ export function CanvasBreadcrumb() {
           </DropdownMenu>
         </PopoverContent>
       </Popover>
+
+      <Tooltip handle={selectorTooltipHandle}>
+        {({ payload }) => <TooltipPopup side="bottom">{payload}</TooltipPopup>}
+      </Tooltip>
+      <Tooltip handle={sessionActionTooltipHandle}>
+        {({ payload }) => <TooltipPopup side="left">{payload}</TooltipPopup>}
+      </Tooltip>
 
       {customSlideSizeOpen ? (
         <CustomSlideSizeDialog

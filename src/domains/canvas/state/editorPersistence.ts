@@ -66,7 +66,7 @@ export const recoverPersistedEditorState = (
     typeof state.brushBackgroundColor === "string"
       ? state.brushBackgroundColor
       : state.brushColor;
-  state.showGrid = typeof state.showGrid === "boolean" ? state.showGrid : true;
+  state.showGrid = typeof state.showGrid === "boolean" ? state.showGrid : false;
   state.exportShowGrid =
     typeof state.exportShowGrid === "boolean" ? state.exportShowGrid : false;
 

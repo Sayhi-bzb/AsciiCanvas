@@ -79,7 +79,12 @@ describe("CanvasBreadcrumb", () => {
     expect(trigger).toHaveClass("bg-transparent");
     expect(trigger).not.toHaveClass("border", "shadow");
     expect(trigger).toHaveTextContent("Alpha");
+    expect(trigger).not.toHaveAttribute("title");
     expect(container.querySelector('[data-canvas-breadcrumb-host="true"]')).toBeInTheDocument();
+
+    fireEvent.focus(trigger);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("Alpha");
+    fireEvent.blur(trigger);
 
     openPanel();
     const panel = await screen.findByRole("dialog", { name: "Select canvas" });
@@ -89,6 +94,10 @@ describe("CanvasBreadcrumb", () => {
     expect(alpha).toHaveAttribute("aria-current", "page");
     expect(beta).not.toHaveAttribute("aria-current");
     expect(alpha).toHaveFocus();
+    const manageBeta = screen.getByRole("button", { name: "Manage Beta" });
+    expect(manageBeta).not.toHaveAttribute("title");
+    fireEvent.focus(manageBeta);
+    expect(await screen.findByRole("tooltip")).toHaveTextContent("Manage Beta");
 
     fireEvent.click(beta);
 

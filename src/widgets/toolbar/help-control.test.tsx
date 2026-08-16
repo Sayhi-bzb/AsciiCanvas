@@ -37,12 +37,16 @@ describe('HelpControl', () => {
     cleanup();
   });
 
-  it('leaves viewport positioning to the editor chrome slot', () => {
+  it('leaves viewport positioning to the editor chrome slot', async () => {
     render(<HelpControl />);
     const host = screen.getByTestId('help-control-host');
+    const help = screen.getByTestId('help-control');
     expect(host).not.toHaveClass('fixed', 'absolute');
     expect(host).toHaveClass('flex', 'gap-1');
-    expect(host.lastElementChild).toBe(screen.getByTestId('help-control'));
+    expect(host.lastElementChild).toBe(help);
+    expect(help).not.toHaveAttribute('title');
+    fireEvent.focus(help);
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Help');
   });
 
   it('opens the Handbook and reflects its active state', async () => {

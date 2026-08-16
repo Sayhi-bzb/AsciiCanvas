@@ -5,6 +5,7 @@ import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { IconButton } from "@/shared/ui/icon-button";
 import { Label } from "@/shared/ui/label";
+import { Select, SelectTrigger, SelectValue } from "@/shared/ui/select";
 import { SelectableItem } from "@/shared/ui/selectable-item";
 import { Surface } from "@/shared/ui/surface";
 import { SwatchButton } from "@/shared/ui/swatch-button";
@@ -17,6 +18,7 @@ describe("compact UI density", () => {
         <Button size="sm">Small</Button>
         <Button size="md">Medium</Button>
         <Button size="lg">Large</Button>
+        <Button disabled>Disabled</Button>
       </>
     );
 
@@ -35,6 +37,14 @@ describe("compact UI density", () => {
     expect(screen.getByRole("button", { name: "Large" })).toHaveClass(
       "h-9",
       "text-xs"
+    );
+    expect(screen.getByRole("button", { name: "Extra small" })).toHaveClass(
+      "cursor-pointer"
+    );
+    expect(screen.getByRole("button", { name: "Disabled" })).toHaveClass(
+      "cursor-pointer",
+      "disabled:cursor-default",
+      "disabled:pointer-events-none"
     );
   });
 
@@ -84,11 +94,22 @@ describe("compact UI density", () => {
     expect(screen.getByRole("button", { name: "Compact icon" })).toHaveClass("size-6");
     expect(screen.getByRole("button", { name: "Selected row" })).toHaveClass(
       "bg-control-active-surface",
-      "text-foreground"
+      "text-foreground",
+      "cursor-pointer",
+      "min-h-7",
+      "gap-1.5",
+      "px-2",
+      "text-xs",
+      "leading-4"
+    );
+    expect(screen.getByRole("button", { name: "Selected row" })).not.toHaveClass(
+      "min-h-8",
+      "text-sm"
     );
     expect(screen.getByRole("button", { name: "Selected color" })).toHaveClass(
       "ring-2",
-      "ring-primary"
+      "ring-primary",
+      "cursor-pointer"
     );
     expect(screen.getByRole("button", { name: "Destructive segment" })).toHaveClass(
       "rounded-none",
@@ -102,15 +123,35 @@ describe("compact UI density", () => {
     render(
       <>
         <Label htmlFor="density-input">Field label</Label>
-        <Input id="density-input" />
+        <Input id="density-input" disabled />
       </>
     );
 
     expect(screen.getByText("Field label")).toHaveClass(
       "text-[11px]",
-      "leading-4"
+      "leading-4",
+      "peer-disabled:cursor-default"
     );
-    expect(screen.getByLabelText("Field label")).toHaveClass("h-8", "text-xs");
+    expect(screen.getByLabelText("Field label")).toHaveClass(
+      "h-8",
+      "text-xs",
+      "disabled:cursor-default"
+    );
+  });
+
+  it("uses pointer and disabled-default cursors for selects", () => {
+    render(
+      <Select disabled>
+        <SelectTrigger aria-label="Mode">
+          <SelectValue placeholder="Choose mode" />
+        </SelectTrigger>
+      </Select>
+    );
+
+    expect(screen.getByRole("combobox", { name: "Mode" })).toHaveClass(
+      "cursor-pointer",
+      "disabled:cursor-default"
+    );
   });
 
   it("expresses search fields through the input contract", () => {
@@ -143,6 +184,8 @@ describe("compact UI density", () => {
 
     expect(item).toContain("min-h-7");
     expect(item).toContain("rounded-item");
+    expect(item).toContain("cursor-pointer");
+    expect(item).toContain("data-[disabled]:cursor-default");
     expect(item).toContain("data-[highlighted]:bg-accent");
     expect(item).toContain("data-[state=checked]:bg-control-pressed-surface");
     expect(destructiveItem).toContain("bg-destructive-muted");
@@ -166,5 +209,10 @@ describe("compact UI density", () => {
   it("owns compact and default overlay padding", () => {
     expect(rx.overlayContent()).toContain("p-2");
     expect(rx.overlayContent({ density: "default" })).toContain("p-4");
+  });
+
+  it("uses pointer and disabled-default cursors for tabs", () => {
+    expect(rx.tabsTrigger()).toContain("cursor-pointer");
+    expect(rx.tabsTrigger()).toContain("disabled:cursor-default");
   });
 });

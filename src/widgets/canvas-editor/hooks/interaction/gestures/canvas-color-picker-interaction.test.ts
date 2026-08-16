@@ -2,9 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import {
   createColorPickerDragStartHandler,
   createColorPickerDragStartExecutor,
+  chooseCanvasColorSource,
   executeCanvasColorPickDecision,
   executeColorPickerDragStart,
-  getCanvasCellPickedColor,
+  getCanvasCellColorCandidates,
   resolveCanvasColorPickDecision,
   type CanvasColorPickExecutor,
   type ColorPickerDragStartExecutor,
@@ -30,6 +31,7 @@ const createPickExecutor = (): CanvasColorPickExecutor => ({
   setSelectionBackgroundColor: vi.fn(),
   setStructuredTextColor: vi.fn(),
   setStructuredSelectionPrimaryColor: vi.fn(),
+  openColorSourceChooser: vi.fn(),
   clearColorPickerTarget: vi.fn(),
   clearHoveredGrid: vi.fn(),
 });
@@ -43,34 +45,45 @@ const createDragExecutor = (): ColorPickerDragStartExecutor => ({
 });
 
 describe("canvas color picker interaction", () => {
-  it("picks character and background colors from cells", () => {
-    expect(getCanvasCellPickedColor(cell, "char")).toBe("#112233");
-    expect(getCanvasCellPickedColor(cell, "bg")).toBe("#445566");
-    expect(getCanvasCellPickedColor(blankCell, "char")).toBeNull();
-  });
-
-  it("resolves structured text color synchronization", () => {
-    expect(
-      resolveCanvasColorPickDecision({
-        cell,
-        target: "char",
-        isStructuredTextSelectionActive: true,
-      })
-    ).toEqual({
-      type: "picked",
-      color: "#112233",
-      destination: "foreground",
-      applyStaticGridSelection: false,
-      applyStructuredTextColor: true,
-      applyStructuredSelectionPrimaryColor: false,
+  it("finds visible character and background color candidates", () => {
+    expect(getCanvasCellColorCandidates(cell)).toEqual({
+      foreground: "#112233",
+      background: "#445566",
+    });
+    expect(getCanvasCellColorCandidates(blankCell)).toEqual({
+      foreground: null,
+      background: "#445566",
     });
   });
 
-  it("gives a structured text range precedence over its owning node", () => {
+  it("requests a source choice when foreground and background differ", () => {
     expect(
       resolveCanvasColorPickDecision({
         cell,
-        target: "char",
+        point: { x: 2, y: 3 },
+        target: "auto",
+        isStructuredTextSelectionActive: true,
+      })
+    ).toEqual({
+      type: "choose-source",
+      choice: {
+        point: { x: 2, y: 3 },
+        foreground: "#112233",
+        background: "#445566",
+        destination: "foreground",
+        applyStaticGridSelection: false,
+        applyStructuredTextColor: true,
+        applyStructuredSelectionPrimaryColor: false,
+      },
+    });
+  });
+
+  it("picks the only available source and preserves structured selection precedence", () => {
+    expect(
+      resolveCanvasColorPickDecision({
+        cell: { char: "A", color: "#112233" },
+        point: { x: 2, y: 3 },
+        target: "auto",
         isStructuredTextSelectionActive: true,
         isStructuredNodeSelectionActive: true,
       })
@@ -84,20 +97,33 @@ describe("canvas color picker interaction", () => {
     });
   });
 
-  it("clears active color picker target when no color is picked", () => {
+  it("picks matching foreground and background colors without prompting", () => {
+    expect(
+      resolveCanvasColorPickDecision({
+        cell: { char: "A", color: "#112233", bgColor: "#112233" },
+        point: { x: 2, y: 3 },
+        target: "auto",
+        isStructuredTextSelectionActive: false,
+      })
+    ).toMatchObject({ type: "picked", color: "#112233" });
+  });
+
+  it("keeps the active color picker when no color is found", () => {
     expect(
       resolveCanvasColorPickDecision({
         cell: undefined,
-        target: "bg",
+        point: { x: 2, y: 3 },
+        target: "auto",
         isStructuredTextSelectionActive: false,
       })
-    ).toEqual({ type: "clear-target" });
+    ).toEqual({ type: "empty" });
   });
 
   it("ignores inactive color picker decisions", () => {
     expect(
       resolveCanvasColorPickDecision({
         cell,
+        point: { x: 2, y: 3 },
         target: null,
         isStructuredTextSelectionActive: false,
       })
@@ -127,6 +153,28 @@ describe("canvas color picker interaction", () => {
     expect(executor.clearHoveredGrid).toHaveBeenCalledTimes(1);
   });
 
+  it("opens a source chooser and applies the selected candidate", () => {
+    const executor = createPickExecutor();
+    const decision = resolveCanvasColorPickDecision({
+      cell,
+      point: { x: 2, y: 3 },
+      target: "auto",
+      isStructuredTextSelectionActive: false,
+    });
+
+    executeCanvasColorPickDecision(decision, executor);
+    expect(executor.openColorSourceChooser).toHaveBeenCalledTimes(1);
+    expect(executor.setBrushColor).not.toHaveBeenCalled();
+    expect(executor.clearColorPickerTarget).toHaveBeenCalledTimes(1);
+
+    if (decision.type !== "choose-source") throw new Error("Expected source choice");
+    executeCanvasColorPickDecision(
+      chooseCanvasColorSource(decision.choice, "background"),
+      executor
+    );
+    expect(executor.setBrushColor).toHaveBeenCalledWith("#445566");
+  });
+
   it("executes color-picker drag starts", () => {
     const executor = createDragExecutor();
 
@@ -151,11 +199,24 @@ describe("canvas color picker interaction", () => {
     expect(executor.setCursor).toHaveBeenCalledWith("");
   });
 
+  it("consumes empty-cell clicks without ending color-picker mode", () => {
+    const executor = createDragExecutor();
+
+    expect(executeColorPickerDragStart({ type: "empty" }, executor)).toBe(true);
+    expect(executor.preventDefault).toHaveBeenCalledTimes(1);
+    expect(executor.markColorPickerClick).toHaveBeenCalledTimes(1);
+    expect(executor.clearColorPickerTarget).not.toHaveBeenCalled();
+    expect(executor.clearHoveredGrid).not.toHaveBeenCalled();
+    expect(executor.resetDragState).not.toHaveBeenCalled();
+    expect(executor.setCursor).toHaveBeenCalledWith("crosshair");
+  });
+
   it("routes palette background picks to the background default", () => {
     const executor = createPickExecutor();
     const decision = resolveCanvasColorPickDecision({
-      cell,
-      target: "bg-to-background",
+      cell: blankCell,
+      point: { x: 2, y: 3 },
+      target: "auto-to-background",
       isStructuredTextSelectionActive: false,
     });
 
@@ -175,8 +236,9 @@ describe("canvas color picker interaction", () => {
   it("applies eyedropper colors to an active static-grid selection", () => {
     const executor = createPickExecutor();
     const decision = resolveCanvasColorPickDecision({
-      cell,
-      target: "char-to-background",
+      cell: { char: "A", color: "#112233" },
+      point: { x: 2, y: 3 },
+      target: "auto-to-background",
       isStructuredTextSelectionActive: false,
       isStaticGridSelectionActive: true,
     });
@@ -191,8 +253,9 @@ describe("canvas color picker interaction", () => {
   it("applies either sampled source to a structured selection's primary color", () => {
     const executor = createPickExecutor();
     const decision = resolveCanvasColorPickDecision({
-      cell,
-      target: "bg",
+      cell: blankCell,
+      point: { x: 2, y: 3 },
+      target: "auto",
       isStructuredTextSelectionActive: false,
       isStructuredNodeSelectionActive: true,
     });
@@ -219,6 +282,7 @@ describe("canvas color picker interaction", () => {
     const setSelectionBackgroundColor = vi.fn();
     const setStructuredTextColor = vi.fn();
     const setStructuredSelectionPrimaryColor = vi.fn();
+    const openColorSourceChooser = vi.fn();
     const clearColorPickerTarget = vi.fn();
     const clearHoveredGrid = vi.fn();
     const resetDragState = vi.fn();
@@ -232,6 +296,7 @@ describe("canvas color picker interaction", () => {
       setSelectionBackgroundColor,
       setStructuredTextColor,
       setStructuredSelectionPrimaryColor,
+      openColorSourceChooser,
       clearColorPickerTarget,
       clearHoveredGrid,
       resetDragState,
@@ -245,6 +310,15 @@ describe("canvas color picker interaction", () => {
     executor.setSelectionBackgroundColor("#778899");
     executor.setStructuredTextColor("#445566");
     executor.setStructuredSelectionPrimaryColor("#667788");
+    executor.openColorSourceChooser({
+      point: { x: 2, y: 3 },
+      foreground: "#112233",
+      background: "#445566",
+      destination: "foreground",
+      applyStaticGridSelection: false,
+      applyStructuredTextColor: false,
+      applyStructuredSelectionPrimaryColor: false,
+    });
     executor.clearColorPickerTarget();
     executor.clearHoveredGrid();
     executor.resetDragState();
@@ -257,6 +331,7 @@ describe("canvas color picker interaction", () => {
     expect(setSelectionBackgroundColor).toHaveBeenCalledWith("#778899");
     expect(setStructuredTextColor).toHaveBeenCalledWith("#445566");
     expect(setStructuredSelectionPrimaryColor).toHaveBeenCalledWith("#667788");
+    expect(openColorSourceChooser).toHaveBeenCalledTimes(1);
     expect(clearColorPickerTarget).toHaveBeenCalledTimes(1);
     expect(clearHoveredGrid).toHaveBeenCalledTimes(1);
     expect(resetDragState).toHaveBeenCalledTimes(1);
@@ -268,7 +343,7 @@ describe("canvas color picker interaction", () => {
     const getCell = vi.fn(() => cell);
     const preventDefault = vi.fn();
     const handler = createColorPickerDragStartHandler({
-      target: "char",
+      target: "auto",
       isStructuredTextSelectionActive: true,
       getCell,
       executor,
@@ -284,8 +359,8 @@ describe("canvas color picker interaction", () => {
     expect(getCell).toHaveBeenCalledWith({ x: 2, y: 3 });
     expect(preventDefault).toHaveBeenCalledTimes(1);
     expect(executor.markColorPickerClick).toHaveBeenCalledTimes(1);
-    expect(executor.setBrushColor).toHaveBeenCalledWith("#112233");
-    expect(executor.setStructuredTextColor).toHaveBeenCalledWith("#112233");
+    expect(executor.openColorSourceChooser).toHaveBeenCalledTimes(1);
+    expect(executor.setBrushColor).not.toHaveBeenCalled();
     expect(executor.resetDragState).toHaveBeenCalledTimes(1);
   });
 
@@ -293,7 +368,7 @@ describe("canvas color picker interaction", () => {
     const executor = createDragExecutor();
     const getCell = vi.fn(() => cell);
     const handler = createColorPickerDragStartHandler({
-      target: "char",
+      target: "auto",
       isStructuredTextSelectionActive: false,
       getCell,
       executor,

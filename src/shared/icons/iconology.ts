@@ -200,9 +200,18 @@ export const HOST_ICONOLOGY = {
     github: GitFork,
     language: Languages,
     shortcuts: Keyboard,
+    settings: Settings2,
     clear: Trash2,
   } satisfies IconMap<
-    'trigger' | 'import' | 'export' | 'copy' | 'github' | 'language' | 'shortcuts' | 'clear'
+    | 'trigger'
+    | 'import'
+    | 'export'
+    | 'copy'
+    | 'github'
+    | 'language'
+    | 'shortcuts'
+    | 'settings'
+    | 'clear'
   >,
   slideAction: {
     play: Play,

@@ -24,6 +24,7 @@ import { useCanvasState } from "@/domains/canvas/public";
 import { cn } from "@/shared/lib/utils";
 import { ContentScrollArea } from "@/shared/ui/content-scroll-area";
 import { Button } from "@/shared/ui/button";
+import { SurfaceContent } from "@/shared/ui/floating-surface";
 import { IconButton } from "@/shared/ui/icon-button";
 import { Input } from "@/shared/ui/input";
 import { Surface } from "@/shared/ui/surface";
@@ -310,17 +311,16 @@ export function SidebarRight() {
         />
       );
       viewContent = (
-        <div
+        <SurfaceContent
           role="tabpanel"
           aria-label={activeStructuredViewMeta.label}
-          className="p-2"
         >
           <StructuredTemplateLibrary
             templates={structuredLibrary.templates}
             query={structuredLibraryQuery}
             emptyLabel={structuredLibrary.emptyLabel}
           />
-        </div>
+        </SurfaceContent>
       );
       headerContent = (
         <div className="relative min-w-0 flex-1">

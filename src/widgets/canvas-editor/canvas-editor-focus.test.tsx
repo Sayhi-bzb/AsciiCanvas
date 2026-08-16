@@ -935,7 +935,7 @@ describe("CanvasEditor focus management", () => {
 
   it("cancels canvas color picking with Escape outside the managed textarea", () => {
     useEditorStore.setState({
-      canvasColorPickerTarget: "char",
+      canvasColorPickerTarget: "auto",
       hoveredGrid: { x: 4, y: 6 },
     });
 

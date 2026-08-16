@@ -20,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/shared/ui/button';
 import { IconButton } from '@/shared/ui/icon-button';
 import { SelectableItem } from '@/shared/ui/selectable-item';
+import { Surface } from '@/shared/ui/surface';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs';
 import {
   Tooltip,
@@ -252,13 +253,19 @@ function GroupSection({
 
   return (
     <Collapsible defaultOpen={defaultOpen} className="group/character-group">
-      <CollapsibleTrigger asChild>
-        <SelectableItem type="button" density="default" muted className="w-full justify-start">
-          <span className="truncate">{label}</span>
-          <span className="ml-auto text-[10px] tabular-nums">{group.entries.length}</span>
-          <ChevronRight className="shrink-0 transition-transform group-data-[state=open]/character-group:rotate-90" />
-        </SelectableItem>
-      </CollapsibleTrigger>
+      <Surface
+        data-slot="character-group-header"
+        kind="embedded"
+        className="sticky top-0 z-10"
+      >
+        <CollapsibleTrigger asChild>
+          <SelectableItem type="button" muted className="w-full justify-start">
+            <span className="truncate">{label}</span>
+            <span className="ml-auto text-[10px] tabular-nums">{group.entries.length}</span>
+            <ChevronRight className="shrink-0 transition-transform group-data-[state=open]/character-group:rotate-90" />
+          </SelectableItem>
+        </CollapsibleTrigger>
+      </Surface>
       <CollapsibleContent className="px-1">
         <CharacterGrid entries={group.entries} copyFeedback={copyFeedback} onSelect={onSelect} />
       </CollapsibleContent>

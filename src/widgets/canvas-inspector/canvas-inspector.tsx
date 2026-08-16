@@ -22,6 +22,10 @@ import {
 import { Button } from "@/shared/ui/button";
 import { ContentScrollArea } from "@/shared/ui/content-scroll-area";
 import { ColorSwatch } from "@/shared/ui/color-swatch";
+import {
+  FloatingSurface,
+  SurfaceContent,
+} from "@/shared/ui/floating-surface";
 import { Surface } from "@/shared/ui/surface";
 import {
   Tooltip,
@@ -352,20 +356,20 @@ export function CanvasInspectorControl({
       </Tooltip>
 
       {panelOpen && (
-        <Surface kind="floating" asChild>
+        <FloatingSurface variant="panel" asChild>
           <section
             id="canvas-inspector-panel"
             data-testid="canvas-inspector-panel"
             aria-label={t("inspector.title")}
-            className="absolute left-[calc(100%+0.5rem)] top-0 w-[min(10rem,calc(100vw-2rem))] overflow-hidden"
+            className="absolute left-[calc(100%+0.5rem)] top-0 w-[min(10rem,calc(100vw-2rem))]"
             onPointerDown={(event) => event.stopPropagation()}
           >
           <ContentScrollArea className="max-h-[min(32rem,calc(100vh-5rem))]">
-            <div
+            <SurfaceContent
               data-testid="canvas-inspector-content"
               inert={readOnly}
               aria-disabled={readOnly}
-              className="flex flex-col gap-0 px-1 py-2"
+              className="flex flex-col gap-0"
             >
               <ColorPickerPanel
                 value={model.activeColor}
@@ -396,10 +400,10 @@ export function CanvasInspectorControl({
                   </div>
                 </Surface>
               </div>
-            </div>
+            </SurfaceContent>
           </ContentScrollArea>
           </section>
-        </Surface>
+        </FloatingSurface>
       )}
     </div>
   );

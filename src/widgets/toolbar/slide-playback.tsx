@@ -127,7 +127,7 @@ export function SlidePlaybackOverlay({
         ref={canvasRef}
         role="img"
         aria-label={slide.name}
-        className="absolute inset-0 block size-full"
+        className="absolute inset-0 block size-full cursor-pointer"
         onClick={(event) => {
           const rect = event.currentTarget.getBoundingClientRect();
           navigate(event.clientX < rect.left + rect.width / 2 ? "previous" : "next");

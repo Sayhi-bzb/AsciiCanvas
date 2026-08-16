@@ -1,5 +1,5 @@
 import { useCreation } from "ahooks";
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { GridManager } from "@/shared/utils/grid";
 import { useCanvasRuntime } from "@/domains/canvas/public";
 import { isStaticGridMode } from "@/domains/sessions/public";
@@ -19,6 +19,9 @@ import {
 import {
   createColorPickerDragStartExecutor,
   createColorPickerDragStartHandler,
+  chooseCanvasColorSource,
+  executeCanvasColorPickDecision,
+  type CanvasColorSourceChoice,
 } from "./interaction/gestures/colorPickerInteraction";
 import {
   createCanvasMoveExecutor,
@@ -124,6 +127,29 @@ export const useCanvasInteraction = (
     setStructuredTextColor,
     updateStructuredNode,
   } = store;
+  const colorSourceContextKey = `${store.activeCanvasId}:${canvasMode}:${tool}`;
+  const [pendingColorSourceChoice, setPendingColorSourceChoice] = useState<{
+    contextKey: string;
+    choice: CanvasColorSourceChoice;
+  } | null>(null);
+  const colorSourceChoice =
+    !canvasColorPickerTarget &&
+    pendingColorSourceChoice?.contextKey === colorSourceContextKey
+      ? pendingColorSourceChoice.choice
+      : null;
+  const previousColorSourceContextRef = useRef(colorSourceContextKey);
+
+  useEffect(() => {
+    if (previousColorSourceContextRef.current === colorSourceContextKey) return;
+    previousColorSourceContextRef.current = colorSourceContextKey;
+    queueMicrotask(() => {
+      setPendingColorSourceChoice((current) =>
+        current && current.contextKey !== colorSourceContextKey ? null : current
+      );
+    });
+  }, [colorSourceContextKey]);
+
+  const clearColorSourceChoice = () => setPendingColorSourceChoice(null);
 
   const {
     beginInteraction,
@@ -295,6 +321,11 @@ export const useCanvasInteraction = (
         setStructuredTextColor,
         setStructuredSelectionPrimaryColor:
           canvas.commands.structured.setSelectionPrimaryColor,
+        openColorSourceChooser: (choice) =>
+          setPendingColorSourceChoice({
+            contextKey: colorSourceContextKey,
+            choice,
+          }),
         clearColorPickerTarget: () => setCanvasColorPickerTarget(null),
         clearHoveredGrid: () => setHoveredGrid(null),
         resetDragState,
@@ -303,6 +334,7 @@ export const useCanvasInteraction = (
     [
       hoverInteraction,
       canvas,
+      colorSourceContextKey,
       resetDragState,
       setBrushColor,
       setBrushBackgroundColor,
@@ -323,6 +355,14 @@ export const useCanvasInteraction = (
     getCell: (point) => grid.get(GridManager.toKey(point.x, point.y)),
     executor: colorPickerDragStartExecutor,
   });
+  const selectColorSource = (source: "foreground" | "background") => {
+    if (!colorSourceChoice) return;
+    executeCanvasColorPickDecision(
+      chooseCanvasColorSource(colorSourceChoice, source),
+      colorPickerDragStartExecutor
+    );
+    clearColorSourceChoice();
+  };
   const canvasDragStartRouteAdapter = createCanvasDragStartRouteAdapter({
     route: dragStartRouteHandler,
     colorPicker: colorPickerDragStartHandler,
@@ -523,5 +563,12 @@ export const useCanvasInteraction = (
     });
   };
 
-  return { bind, draggingSelection, handleDoubleClick };
+  return {
+    bind,
+    draggingSelection,
+    handleDoubleClick,
+    colorSourceChoice,
+    selectColorSource,
+    cancelColorSourceChoice: clearColorSourceChoice,
+  };
 };

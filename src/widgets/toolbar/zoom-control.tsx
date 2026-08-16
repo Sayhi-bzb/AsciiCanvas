@@ -1,12 +1,28 @@
 'use client';
 
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentProps,
+} from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useCanvasRuntime, useCanvasState } from '@/domains/canvas/public';
 import { HOST_ICONOLOGY } from '@/shared/icons/iconology';
 import { MAX_ZOOM, MIN_ZOOM } from '@/shared/lib/constants';
 import { Button } from '@/shared/ui/button';
-import { Surface } from '@/shared/ui/surface';
+import { FloatingSurface } from '@/shared/ui/floating-surface';
+import {
+  Tooltip,
+  TooltipCreateHandle,
+  TooltipPopup,
+  TooltipTrigger,
+  type TooltipHandle,
+} from '@/shared/ui/tooltip';
 import { useUiI18n } from '@/shared/i18n';
 import { feedback } from '@/shared/services/effects';
 import { useCanvasEngineRuntime } from '@/widgets/canvas-editor/engine/useCanvasEngineRuntime';
@@ -36,6 +52,23 @@ type ZoomControlProps = {
   formFactor?: EditorFormFactor;
 };
 
+type ZoomActionProps = ComponentProps<typeof Button> & {
+  tooltip: string;
+  tooltipHandle: TooltipHandle<string>;
+};
+
+function ZoomAction({ tooltip, tooltipHandle, disabled, ...props }: ZoomActionProps) {
+  const button = <Button disabled={disabled} {...props} />;
+
+  return (
+    <TooltipTrigger
+      handle={tooltipHandle}
+      payload={tooltip}
+      render={disabled ? <span className="inline-flex">{button}</span> : button}
+    />
+  );
+}
+
 export function ZoomControl({
   containerSize,
   viewportFrame,
@@ -56,6 +89,7 @@ export function ZoomControl({
   const [minimapOpen, setMinimapOpen] = useState(false);
   const [playbackOpen, setPlaybackOpen] = useState(false);
   const ownsFullscreenRef = useRef(false);
+  const tooltipHandle = useMemo(() => TooltipCreateHandle<string>(), []);
   const viewportSize = viewportFrame
     ? { width: viewportFrame.width, height: viewportFrame.height }
     : containerSize;
@@ -148,106 +182,114 @@ export function ZoomControl({
   if (formFactor === 'phone') return null;
 
   return (
-    <Surface
+    <FloatingSurface
       data-canvas-ui="true"
       data-testid="zoom-control"
-      kind="floating"
-      className="relative flex items-center gap-1 p-[3px] pointer-events-auto"
+      variant="control-bar"
       aria-label={zoomLabel}
     >
       {canvasMode !== 'slide' && minimapOpen && (
-        <Surface
+        <FloatingSurface
           data-testid="zoom-minimap"
-          kind="floating"
-          className="absolute bottom-full left-0 z-(--layer-popover) mb-2 w-auto overflow-hidden"
+          variant="panel"
+          className="absolute bottom-full left-0 z-(--layer-popover) mb-2 w-auto"
         >
           <Suspense fallback={<div className="h-[140px] w-[220px] bg-muted" />}>
             <Minimap containerSize={viewportSize} />
           </Suspense>
-        </Surface>
+        </FloatingSurface>
       )}
-      <Button
+      <ZoomAction
+        tooltip={t('zoom.out')}
+        tooltipHandle={tooltipHandle}
         tone="subtle"
         size="md"
         shape="square"
         joined="start"
         aria-label={t('zoom.out')}
-        title={t('zoom.out')}
         data-testid="zoom-out"
         disabled={actionsDisabled || isMinZoom}
         onClick={() => applyZoomDelta(1 / ZOOM_STEP)}
       >
         <ZoomOutIcon />
-      </Button>
-      <Button
+      </ZoomAction>
+      <ZoomAction
+        tooltip={resetLabel}
+        tooltipHandle={tooltipHandle}
         tone="subtle"
         size="md"
         joined="middle"
         className="min-w-14 px-2 tabular-nums"
         aria-label={resetLabel}
-        title={resetLabel}
         data-testid="zoom-reset"
         disabled={actionsDisabled}
         onClick={() => animateZoomTo(1)}
       >
         {percentage}%
-      </Button>
-      <Button
+      </ZoomAction>
+      <ZoomAction
+        tooltip={t('zoom.in')}
+        tooltipHandle={tooltipHandle}
         tone="subtle"
         size="md"
         shape="square"
         joined="middle"
         aria-label={t('zoom.in')}
-        title={t('zoom.in')}
         data-testid="zoom-in"
         disabled={actionsDisabled || isMaxZoom}
         onClick={() => applyZoomDelta(ZOOM_STEP)}
       >
         <ZoomInIcon />
-      </Button>
-      <Button
+      </ZoomAction>
+      <ZoomAction
+        tooltip={gridLabel}
+        tooltipHandle={tooltipHandle}
         tone="subtle"
         size="md"
         shape="square"
         pressed={showGrid}
         joined="middle"
         aria-label={gridLabel}
-        title={gridLabel}
         data-testid="zoom-grid"
         onClick={() => setShowGrid(!showGrid)}
       >
         <GridIcon />
-      </Button>
+      </ZoomAction>
       {canvasMode === 'slide' ? (
-        <Button
+        <ZoomAction
+          tooltip={playbackLabel}
+          tooltipHandle={tooltipHandle}
           tone="subtle"
           size="md"
           shape="square"
           joined="end"
           aria-label={playbackLabel}
-          title={playbackLabel}
           data-testid="zoom-playback"
           disabled={!slideDeck}
           onClick={startPlayback}
         >
           <PlayIcon />
-        </Button>
+        </ZoomAction>
       ) : (
-        <Button
+        <ZoomAction
+          tooltip={minimapLabel}
+          tooltipHandle={tooltipHandle}
           tone="subtle"
           size="md"
           shape="square"
           pressed={minimapOpen}
           joined="end"
           aria-label={minimapLabel}
-          title={minimapLabel}
           data-testid="zoom-minimap-toggle"
           disabled={actionsDisabled}
           onClick={() => setMinimapOpen((open) => !open)}
         >
           <MinimapIcon />
-        </Button>
+        </ZoomAction>
       )}
+      <Tooltip handle={tooltipHandle}>
+        {({ payload }) => <TooltipPopup side="top">{payload}</TooltipPopup>}
+      </Tooltip>
       {playbackOpen && slideDeck && (
         <SlidePlaybackOverlay
           deck={slideDeck}
@@ -255,6 +297,6 @@ export function ZoomControl({
           onExit={exitPlayback}
         />
       )}
-    </Surface>
+    </FloatingSurface>
   );
 }

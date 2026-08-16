@@ -1,53 +1,53 @@
-import type { GridCell } from "@/shared/types";
+import type { GridCell, Point } from "@/shared/types";
 import type { CanvasColorPickerTarget } from "@/domains/canvas/public";
 
 type RefCell<T> = { current: T };
 
+type CanvasColorPickApplication = {
+  destination: "foreground" | "background";
+  applyStaticGridSelection: boolean;
+  applyStructuredTextColor: boolean;
+  applyStructuredSelectionPrimaryColor: boolean;
+};
+
+export type CanvasColorSourceChoice = CanvasColorPickApplication & {
+  point: Point;
+  foreground: string;
+  background: string;
+};
+
 type CanvasColorPickDecision =
   | { type: "none" }
-  | {
-      type: "picked";
-      color: string;
-      destination: "foreground" | "background";
-      applyStaticGridSelection: boolean;
-      applyStructuredTextColor: boolean;
-      applyStructuredSelectionPrimaryColor: boolean;
-    }
-  | { type: "clear-target" };
+  | { type: "empty" }
+  | ({ type: "picked"; color: string } & CanvasColorPickApplication)
+  | { type: "choose-source"; choice: CanvasColorSourceChoice };
 
-export const getCanvasCellPickedColor = (
-  cell: GridCell | undefined,
-  target: CanvasColorPickerTarget | null
-): string | null => {
-  if (!cell || !target) return null;
-  if (target === "bg" || target === "bg-to-background") {
-    return cell.bgColor ?? null;
-  }
-  return cell.char.trim() ? cell.color : null;
-};
+export const getCanvasCellColorCandidates = (cell: GridCell | undefined) => ({
+  foreground: cell?.char.trim() && cell.color ? cell.color : null,
+  background: cell?.bgColor || null,
+});
 
 export const resolveCanvasColorPickDecision = ({
   cell,
+  point,
   target,
   isStructuredTextSelectionActive,
   isStructuredNodeSelectionActive = false,
   isStaticGridSelectionActive = false,
 }: {
   cell: GridCell | undefined;
+  point: Point;
   target: CanvasColorPickerTarget | null;
   isStructuredTextSelectionActive: boolean;
   isStructuredNodeSelectionActive?: boolean;
   isStaticGridSelectionActive?: boolean;
 }): CanvasColorPickDecision => {
   if (!target) return { type: "none" };
-  const color = getCanvasCellPickedColor(cell, target);
-  if (!color) return { type: "clear-target" };
+  const candidates = getCanvasCellColorCandidates(cell);
   const destination = target.endsWith("-to-background")
     ? "background"
     : "foreground";
-  return {
-    type: "picked",
-    color,
+  const application: CanvasColorPickApplication = {
     destination,
     applyStaticGridSelection: isStaticGridSelectionActive,
     applyStructuredTextColor:
@@ -57,7 +57,43 @@ export const resolveCanvasColorPickDecision = ({
       !isStructuredTextSelectionActive &&
       isStructuredNodeSelectionActive,
   };
+  const color = candidates.foreground ?? candidates.background;
+
+  if (!color) return { type: "empty" };
+  if (
+    candidates.foreground &&
+    candidates.background &&
+    candidates.foreground !== candidates.background
+  ) {
+    return {
+      type: "choose-source",
+      choice: {
+        point,
+        foreground: candidates.foreground,
+        background: candidates.background,
+        ...application,
+      },
+    };
+  }
+  return {
+    type: "picked",
+    color,
+    ...application,
+  };
 };
+
+export const chooseCanvasColorSource = (
+  choice: CanvasColorSourceChoice,
+  source: "foreground" | "background"
+): CanvasColorPickDecision => ({
+  type: "picked",
+  color: choice[source],
+  destination: choice.destination,
+  applyStaticGridSelection: choice.applyStaticGridSelection,
+  applyStructuredTextColor: choice.applyStructuredTextColor,
+  applyStructuredSelectionPrimaryColor:
+    choice.applyStructuredSelectionPrimaryColor,
+});
 
 export type CanvasColorPickExecutor = {
   setBrushColor: (color: string) => void;
@@ -66,6 +102,7 @@ export type CanvasColorPickExecutor = {
   setSelectionBackgroundColor: (color: string) => void;
   setStructuredTextColor: (color: string) => void;
   setStructuredSelectionPrimaryColor: (color: string) => void;
+  openColorSourceChooser: (choice: CanvasColorSourceChoice) => void;
   clearColorPickerTarget: () => void;
   clearHoveredGrid: () => void;
 };
@@ -75,6 +112,12 @@ export const executeCanvasColorPickDecision = (
   executor: CanvasColorPickExecutor
 ): boolean => {
   if (decision.type === "none") return false;
+
+  if (decision.type === "empty") return true;
+
+  if (decision.type === "choose-source") {
+    executor.openColorSourceChooser(decision.choice);
+  }
 
   if (decision.type === "picked") {
     if (decision.destination === "background") {
@@ -117,6 +160,7 @@ export const createColorPickerDragStartExecutor = ({
   setSelectionBackgroundColor,
   setStructuredTextColor,
   setStructuredSelectionPrimaryColor,
+  openColorSourceChooser,
   clearColorPickerTarget,
   clearHoveredGrid,
   resetDragState,
@@ -130,6 +174,7 @@ export const createColorPickerDragStartExecutor = ({
   setSelectionBackgroundColor: (color: string) => void;
   setStructuredTextColor: (color: string) => void;
   setStructuredSelectionPrimaryColor: (color: string) => void;
+  openColorSourceChooser: (choice: CanvasColorSourceChoice) => void;
   clearColorPickerTarget: () => void;
   clearHoveredGrid: () => void;
   resetDragState: () => void;
@@ -145,6 +190,7 @@ export const createColorPickerDragStartExecutor = ({
   setSelectionBackgroundColor,
   setStructuredTextColor,
   setStructuredSelectionPrimaryColor,
+  openColorSourceChooser,
   clearColorPickerTarget,
   clearHoveredGrid,
   resetDragState,
@@ -160,8 +206,12 @@ export const executeColorPickerDragStart = (
   executor.preventDefault();
   executor.markColorPickerClick();
   executeCanvasColorPickDecision(decision, executor);
-  executor.resetDragState();
-  executor.setCursor("");
+  if (decision.type === "empty") {
+    executor.setCursor("crosshair");
+  } else {
+    executor.resetDragState();
+    executor.setCursor("");
+  }
   return true;
 };
 
@@ -192,6 +242,7 @@ export const createColorPickerDragStartHandler = ({
   return executeColorPickerDragStart(
     resolveCanvasColorPickDecision({
       cell: getCell(point),
+      point,
       target,
       isStructuredTextSelectionActive,
       isStructuredNodeSelectionActive,

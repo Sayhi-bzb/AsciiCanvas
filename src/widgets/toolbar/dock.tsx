@@ -32,7 +32,7 @@ import {
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
 import { Kbd } from "@/shared/ui/kbd";
 import { Button } from "@/shared/ui/button";
-import { Surface } from "@/shared/ui/surface";
+import { FloatingSurface } from "@/shared/ui/floating-surface";
 
 import {
   BrushSubmenu,
@@ -254,11 +254,10 @@ export function Toolbar({
   });
 
   return (
-    <Surface
+    <FloatingSurface
       data-testid="tool-dock"
       data-density={formFactor === "desktop" ? "default" : "compact"}
-      kind="floating"
-      className="relative flex items-center gap-1 p-[3px] pointer-events-auto"
+      variant="control-bar"
     >
           <nav
             role="toolbar"
@@ -372,6 +371,6 @@ export function Toolbar({
               )}
             </Tooltip>
           </nav>
-    </Surface>
+    </FloatingSurface>
   );
 }

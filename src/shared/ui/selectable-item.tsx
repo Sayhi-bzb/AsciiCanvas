@@ -3,11 +3,9 @@ import { Slot } from "@radix-ui/react-slot"
 
 import { cn } from "@/shared/lib/utils"
 import { rx } from "@/shared/styles/recipes"
-import type { Density } from "@/shared/styles/tokens"
 
 type SelectableItemProps = React.ComponentProps<"button"> & {
   asChild?: boolean
-  density?: Density
   orientation?: "horizontal" | "vertical"
   selected?: boolean
   muted?: boolean
@@ -15,7 +13,6 @@ type SelectableItemProps = React.ComponentProps<"button"> & {
 
 function SelectableItem({
   asChild = false,
-  density = "compact",
   orientation = "horizontal",
   selected = false,
   muted = false,
@@ -29,7 +26,7 @@ function SelectableItem({
       data-slot="selectable-item"
       data-selected={selected || undefined}
       className={cn(
-        rx.selectableItem({ density, orientation, selected, muted }),
+        rx.selectableItem({ orientation, selected, muted }),
         className
       )}
       {...props}

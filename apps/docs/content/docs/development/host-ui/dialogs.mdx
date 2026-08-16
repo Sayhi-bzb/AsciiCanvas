@@ -13,6 +13,14 @@ description: Contract for Dialog, AlertDialog, Sheet, and modal Host elevation.
 - Sheet and mobile Sidebar panels retain the modal surface and elevation defined
   by the [Visual system](/development/host-ui/visual-system).
 - Embedded controls do not add nested shadows.
+- Navigation settings use one Dialog with sidebar navigation on desktop,
+  inline horizontal navigation at medium widths, and Select navigation on phones.
+  Navigation does not own a scroll area; long labels truncate within their item.
+- Settings sections render content panels, not nested Dialog shells. Each panel
+  owns its scroll region while the navigation and close control remain visible.
+  The Dialog title is visually hidden; the active section heading is the only
+  visible heading. Settings rows stay single-line and use spacing and hover
+  state instead of decorative separators.
 
 Close-control geometry belongs to [Core Host icon controls](/development/host-ui/icon-controls).
 

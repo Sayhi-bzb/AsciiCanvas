@@ -37,7 +37,7 @@ describe('ZoomControl', () => {
     vi.unstubAllGlobals();
   });
 
-  it('renders a position-neutral compound control for the chrome slot', () => {
+  it('renders a position-neutral compound control for the chrome slot', async () => {
     useEditorStore.setState({ zoom: 1.256 });
 
     render(<ZoomControl containerSize={{ width: 1000, height: 700 }} />);
@@ -64,6 +64,9 @@ describe('ZoomControl', () => {
     expect(minimap).toHaveClass('size-8', 'rounded-l-none');
     expect(reset).toHaveTextContent('126%');
     expect(reset).toHaveAttribute('aria-label', 'Reset to 100% — 126%');
+    expect(reset).not.toHaveAttribute('title');
+    fireEvent.focus(reset);
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Reset to 100% — 126%');
     expect(screen.queryByTestId('zoom-menu-trigger')).not.toBeInTheDocument();
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });

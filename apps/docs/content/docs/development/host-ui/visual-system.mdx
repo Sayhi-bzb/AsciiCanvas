@@ -21,6 +21,9 @@ color swatches remain circular.
 Viewport surfaces use semantic layer tokens; product instances do not assign raw
 overlay tiers or recreate shared surfaces. Presentation, presence, field, and
 swatch colors also have semantic tokens instead of component-local theme branches.
+Portal primitives inherit their layer from the nearest modal surface. Ordinary
+portals stay below modal surfaces; portals declared inside Dialog, AlertDialog,
+or Sheet render above that modal and below toast feedback.
 
 [`Surface`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/shared/ui/surface.tsx)
 is the product composition boundary. Its `embedded`, `floating`, `overlay`, and
@@ -28,11 +31,19 @@ is the product composition boundary. Its `embedded`, `floating`, `overlay`, and
 Minimap, and the desktop Sidebar compose `Surface`; transient portal primitives
 consume the same overlay recipe internally.
 
-Widget `className` owns geometry: layout, position, size, scrolling, responsive
-visibility, and content-specific typography. Shared primitives and recipes own
-background, border, radius, elevation, focus, hover, active state, and default
-icon sizing. A widget must express those decisions through typed primitive props
-and must not import `src/shared/styles/recipes.ts` directly.
+[`FloatingSurface`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/shared/ui/floating-surface.tsx)
+provides two product compositions. `control-bar` contains 32px controls with
+3px shell padding and a 4px gap. `panel` clips its shell and uses
+`SurfaceContent` for compact 8px or default 16px padding; full-bleed media omits
+the content wrapper. Deck is the panel spacing reference, while Zoom and Dock
+are the control-bar density reference.
+
+Shared compositions own repeated shell geometry and content density. Widget
+`className` owns product-specific position, size, scrolling, responsive
+visibility, and typography. Shared primitives and recipes own background,
+border, radius, elevation, focus, hover, active state, and default icon sizing.
+A widget must express those decisions through typed primitive props and must not
+import `src/shared/styles/recipes.ts` directly.
 
 Interaction state has stable vocabulary:
 
@@ -51,11 +62,18 @@ persistent state. Product code does not implement that behavior with opacity
 utilities.
 
 `Button`, `IconButton`, `SelectableItem`, `SwatchButton`, `TabsTrigger`, and the
-menu family translate those states into the shared hover, focus, selected,
-disabled, destructive, radius, and density recipes. Widgets do not reproduce
-those states with utility classes. Segmented controls use `joined`; option sets
-use `ToggleGroup`. Presentation playback is the only themed override and marks
-that boundary with `data-visual-contract="presentation"`.
+menu family translate those states into shared recipes. `SelectableItem` is a
+fixed compact row (12px text, 16px line height, 28px minimum height); Widgets
+may adjust its layout but do not override its typography. Other controls expose
+only their documented size or density options. Segmented controls use `joined`;
+option sets use `ToggleGroup`. Presentation playback is the only themed
+override and marks that boundary with `data-visual-contract="presentation"`.
+
+Enabled activatable controls use the pointer cursor; disabled controls use the
+default cursor. Canvas editing, resizing, color picking, and reordering retain
+their task-specific text, resize, crosshair, move, and grab cursors. Shared
+primitives own control cursors; a Widget only declares a cursor for an
+intentional raw interaction surface such as the Slide playback canvas.
 
 Dropdown primitives own the overlay surface, collision behavior, animation,
 viewport limits, and a compact minimum width. The product instance owns only

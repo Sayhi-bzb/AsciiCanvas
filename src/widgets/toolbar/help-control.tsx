@@ -1,9 +1,15 @@
 'use client';
 
-import { lazy, Suspense, useRef, useState } from 'react';
+import { lazy, Suspense, useMemo, useRef, useState } from 'react';
 import { useUiI18n } from '@/shared/i18n';
 import { HOST_ICONOLOGY } from '@/shared/icons/iconology';
 import { Button } from '@/shared/ui/button';
+import {
+  Tooltip,
+  TooltipCreateHandle,
+  TooltipPopup,
+  TooltipTrigger,
+} from '@/shared/ui/tooltip';
 import { useOnboardingTour } from '@/widgets/onboarding/onboarding-context';
 
 const HelpIcon = HOST_ICONOLOGY.viewportAction.help;
@@ -27,6 +33,7 @@ export function HelpControl() {
   const [handbookOpen, setHandbookOpen] = useState(false);
   const securityTriggerRef = useRef<HTMLButtonElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const tooltipHandle = useMemo(() => TooltipCreateHandle<string>(), []);
   const label = t('manual.title');
   const securityLabel = t('security.title');
   const startTour = () => {
@@ -41,32 +48,45 @@ export function HelpControl() {
         data-testid="help-control-host"
         className="flex items-center gap-1 pointer-events-auto"
       >
-          <Button
-            ref={securityTriggerRef}
-            tone="subtle"
-            shape="square"
-            size="md"
-            open={securityOpen}
-            aria-label={securityLabel}
-            title={securityLabel}
-            data-testid="data-security-control"
-            onClick={() => setSecurityOpen(true)}
-          >
-            <SecurityIcon />
-          </Button>
-          <Button
-            ref={triggerRef}
-            tone="subtle"
-            shape="square"
-            size="md"
-            open={handbookOpen}
-            aria-label={label}
-            title={label}
-            data-testid="help-control"
-            onClick={() => setHandbookOpen(true)}
-          >
-            <HelpIcon />
-          </Button>
+        <TooltipTrigger
+          handle={tooltipHandle}
+          payload={securityLabel}
+          render={
+            <Button
+              ref={securityTriggerRef}
+              tone="subtle"
+              shape="square"
+              size="md"
+              open={securityOpen}
+              aria-label={securityLabel}
+              data-testid="data-security-control"
+              onClick={() => setSecurityOpen(true)}
+            />
+          }
+        >
+          <SecurityIcon />
+        </TooltipTrigger>
+        <TooltipTrigger
+          handle={tooltipHandle}
+          payload={label}
+          render={
+            <Button
+              ref={triggerRef}
+              tone="subtle"
+              shape="square"
+              size="md"
+              open={handbookOpen}
+              aria-label={label}
+              data-testid="help-control"
+              onClick={() => setHandbookOpen(true)}
+            />
+          }
+        >
+          <HelpIcon />
+        </TooltipTrigger>
+        <Tooltip handle={tooltipHandle}>
+          {({ payload }) => <TooltipPopup side="bottom">{payload}</TooltipPopup>}
+        </Tooltip>
       </div>
 
       <Suspense fallback={null}>

@@ -1,5 +1,5 @@
-@import "tailwindcss";
-@import "tw-animate-css";
+@import 'tailwindcss';
+@import 'tw-animate-css';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -16,12 +16,12 @@ body,
 
 @theme inline {
   --font-sans:
-    "Inter", "Noto Sans SC", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    "PingFang SC", "Microsoft YaHei", sans-serif;
+    'Inter', 'Noto Sans SC', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    'PingFang SC', 'Microsoft YaHei', sans-serif;
 
   --font-mono:
-    "Maple Mono NF CN", "Noto Sans Symbols 2", ui-monospace, SFMono-Regular, Menlo, Monaco,
-    Consolas, "Liberation Mono", "Courier New", monospace;
+    'Maple Mono NF CN', 'Noto Sans Symbols 2', ui-monospace, SFMono-Regular, Menlo, Monaco,
+    Consolas, 'Liberation Mono', 'Courier New', monospace;
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -247,6 +247,7 @@ body,
   --layer-drag-preview: 55;
   --layer-modal-backdrop: 60;
   --layer-modal: 70;
+  --layer-modal-popover: 75;
   --layer-toast: 80;
   --layer-presentation: 90;
 }
@@ -353,35 +354,35 @@ body,
   color: var(--foreground);
 }
 
-html[data-onboarding-phase="app-menu"] [data-onboarding-target="app-menu"],
-html[data-onboarding-phase="language-menu"] [data-onboarding-target="language-menu"],
-html[data-onboarding-phase="language-choice"] [data-onboarding-target="language-options"],
-html[data-onboarding-phase="character-library"] [data-onboarding-target="character-library"],
-html[data-onboarding-phase="canvas-selector"] [data-onboarding-target="canvas-selector"],
-html[data-onboarding-phase="create-menu"] [data-onboarding-target="create-menu"],
-html[data-onboarding-phase="structured-create"] [data-onboarding-target="create-structured"] {
+html[data-onboarding-phase='app-menu'] [data-onboarding-target='app-menu'],
+html[data-onboarding-phase='language-menu'] [data-onboarding-target='language-menu'],
+html[data-onboarding-phase='language-choice'] [data-onboarding-target='language-options'],
+html[data-onboarding-phase='character-library'] [data-onboarding-target='character-library'],
+html[data-onboarding-phase='canvas-selector'] [data-onboarding-target='canvas-selector'],
+html[data-onboarding-phase='create-menu'] [data-onboarding-target='create-menu'],
+html[data-onboarding-phase='structured-create'] [data-onboarding-target='create-structured'] {
   background-color: var(--accent);
   color: var(--foreground);
   cursor: pointer;
 }
 
-html[data-onboarding-phase="drag"] .driver-overlay,
-html[data-onboarding-phase="drag"] .driver-overlay path {
+html[data-onboarding-phase='drag'] .driver-overlay,
+html[data-onboarding-phase='drag'] .driver-overlay path {
   pointer-events: none !important;
 }
 
-html[data-onboarding-phase="drag"] .driver-active [data-onboarding-target="canvas"] {
+html[data-onboarding-phase='drag'] .driver-active [data-onboarding-target='canvas'] {
   pointer-events: auto !important;
 }
 
-html[data-onboarding-phase="drag"] [data-onboarding-template-id="button"] {
+html[data-onboarding-phase='drag'] [data-onboarding-template-id='button'] {
   background-color: var(--accent);
   color: var(--foreground);
   cursor: grab;
 }
 
-html[data-onboarding-phase="drag"] [data-onboarding-target="canvas"]::after {
-  content: "";
+html[data-onboarding-phase='drag'] [data-onboarding-target='canvas']::after {
+  content: '';
   position: absolute;
   z-index: 1;
   inset: 0;

@@ -1,53 +1,56 @@
-import * as React from "react"
-import * as ContextMenuPrimitive from "@radix-ui/react-context-menu"
-import { ChevronRight } from "lucide-react"
+import * as React from 'react';
+import * as ContextMenuPrimitive from '@radix-ui/react-context-menu';
+import { ChevronRight } from 'lucide-react';
 
-import { cn } from "@/shared/lib/utils"
-import { rx } from "@/shared/styles/recipes"
-import type { Density, ItemVariant } from "@/shared/styles/tokens"
+import { cn } from '@/shared/lib/utils';
+import { rx } from '@/shared/styles/recipes';
+import type { Density, ItemVariant } from '@/shared/styles/tokens';
+import { usePortalLayer } from '@/shared/ui/portal-layer';
 
 function ContextMenu({ ...props }: React.ComponentProps<typeof ContextMenuPrimitive.Root>) {
-  return <ContextMenuPrimitive.Root data-slot="context-menu" {...props} />
+  return <ContextMenuPrimitive.Root data-slot="context-menu" {...props} />;
 }
 
 function ContextMenuTrigger({
   ...props
 }: React.ComponentProps<typeof ContextMenuPrimitive.Trigger>) {
-  return <ContextMenuPrimitive.Trigger data-slot="context-menu-trigger" {...props} />
+  return <ContextMenuPrimitive.Trigger data-slot="context-menu-trigger" {...props} />;
 }
 
 function ContextMenuContent({
   className,
   ...props
 }: React.ComponentProps<typeof ContextMenuPrimitive.Content>) {
+  const portalLayer = usePortalLayer();
   return (
     <ContextMenuPrimitive.Portal>
       <ContextMenuPrimitive.Content
         data-slot="context-menu-content"
         className={cn(
-          rx.surface({ kind: "overlay" }),
+          rx.surface({ kind: 'overlay' }),
           rx.overlayMotion,
-          "text-popover-foreground data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-(--layer-popover) max-h-(--radix-context-menu-content-available-height) min-w-[8rem] origin-(--radix-context-menu-content-transform-origin) overflow-x-hidden overflow-y-auto p-[3px]",
+          rx.portalLayer({ modal: portalLayer === 'modal' }),
+          'text-popover-foreground data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 max-h-(--radix-context-menu-content-available-height) min-w-[8rem] origin-(--radix-context-menu-content-transform-origin) overflow-x-hidden overflow-y-auto p-[3px]',
           className
         )}
         {...props}
       />
     </ContextMenuPrimitive.Portal>
-  )
+  );
 }
 
 function ContextMenuItem({
   className,
   inset,
-  variant = "default",
-  density = "compact",
+  variant = 'default',
+  density = 'compact',
   selected = false,
   ...props
 }: React.ComponentProps<typeof ContextMenuPrimitive.Item> & {
-  inset?: boolean
-  variant?: ItemVariant
-  density?: Density
-  selected?: boolean
+  inset?: boolean;
+  variant?: ItemVariant;
+  density?: Density;
+  selected?: boolean;
 }) {
   return (
     <ContextMenuPrimitive.Item
@@ -62,7 +65,7 @@ function ContextMenuItem({
       )}
       {...props}
     />
-  )
+  );
 }
 
 function ContextMenuSeparator({
@@ -75,32 +78,32 @@ function ContextMenuSeparator({
       className={cn(rx.menuSeparator, className)}
       {...props}
     />
-  )
+  );
 }
 
-function ContextMenuShortcut({ className, ...props }: React.ComponentProps<"span">) {
+function ContextMenuShortcut({ className, ...props }: React.ComponentProps<'span'>) {
   return (
     <span
       data-slot="context-menu-shortcut"
-      className={cn("text-muted-foreground ml-auto font-mono text-[11px]", className)}
+      className={cn('text-muted-foreground ml-auto font-mono text-[11px]', className)}
       {...props}
     />
-  )
+  );
 }
 
 function ContextMenuSub({ ...props }: React.ComponentProps<typeof ContextMenuPrimitive.Sub>) {
-  return <ContextMenuPrimitive.Sub data-slot="context-menu-sub" {...props} />
+  return <ContextMenuPrimitive.Sub data-slot="context-menu-sub" {...props} />;
 }
 
 function ContextMenuSubTrigger({
   className,
   inset,
   children,
-  density = "compact",
+  density = 'compact',
   ...props
 }: React.ComponentProps<typeof ContextMenuPrimitive.SubTrigger> & {
-  inset?: boolean
-  density?: Density
+  inset?: boolean;
+  density?: Density;
 }) {
   return (
     <ContextMenuPrimitive.SubTrigger
@@ -116,27 +119,29 @@ function ContextMenuSubTrigger({
       {children}
       <ChevronRight className="ml-auto" />
     </ContextMenuPrimitive.SubTrigger>
-  )
+  );
 }
 
 function ContextMenuSubContent({
   className,
   ...props
 }: React.ComponentProps<typeof ContextMenuPrimitive.SubContent>) {
+  const portalLayer = usePortalLayer();
   return (
     <ContextMenuPrimitive.Portal>
       <ContextMenuPrimitive.SubContent
         data-slot="context-menu-sub-content"
         className={cn(
-          rx.surface({ kind: "overlay" }),
+          rx.surface({ kind: 'overlay' }),
           rx.overlayMotion,
-          "text-popover-foreground data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-(--layer-popover) min-w-[8rem] origin-(--radix-context-menu-content-transform-origin) overflow-hidden p-[3px]",
+          rx.portalLayer({ modal: portalLayer === 'modal' }),
+          'text-popover-foreground data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 min-w-[8rem] origin-(--radix-context-menu-content-transform-origin) overflow-hidden p-[3px]',
           className
         )}
         {...props}
       />
     </ContextMenuPrimitive.Portal>
-  )
+  );
 }
 
 export {
@@ -149,4 +154,4 @@ export {
   ContextMenuSub,
   ContextMenuSubContent,
   ContextMenuSubTrigger,
-}
+};

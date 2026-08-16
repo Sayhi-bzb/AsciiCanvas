@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { act, fireEvent, render } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { useRef } from "react";
 
 import { useCanvasInteraction } from "@/widgets/canvas-editor/hooks/useCanvasInteraction";
+import { CanvasColorSourceChooser } from "@/widgets/canvas-editor/CanvasColorSourceChooser";
 import type { StructuredMovePreview } from "@/widgets/canvas-editor/hooks/useCanvasRenderer";
 import { useEditorStore } from "@/domains/canvas/testing";
 import { canvasCommands } from "@/domains/canvas/testing";
@@ -75,7 +76,13 @@ function InteractionHarnessContent() {
       updateStructuredNode: state.updateStructuredNode,
     }))
   );
-  const { draggingSelection, handleDoubleClick } = useCanvasInteraction(
+  const {
+    draggingSelection,
+    handleDoubleClick,
+    colorSourceChoice,
+    selectColorSource,
+    cancelColorSourceChoice,
+  } = useCanvasInteraction(
     store,
     containerRef,
     vi.fn(),
@@ -84,14 +91,25 @@ function InteractionHarnessContent() {
   );
 
   return (
-    <div
-      ref={containerRef}
-      data-testid="canvas-root"
-      data-selection-preview={
-        draggingSelection ? JSON.stringify(draggingSelection) : "none"
-      }
-      onDoubleClick={handleDoubleClick}
-    />
+    <>
+      <div
+        ref={containerRef}
+        data-testid="canvas-root"
+        data-selection-preview={
+          draggingSelection ? JSON.stringify(draggingSelection) : "none"
+        }
+        onDoubleClick={handleDoubleClick}
+      />
+      {colorSourceChoice && (
+        <CanvasColorSourceChooser
+          choice={colorSourceChoice}
+          offset={store.offset}
+          zoom={store.zoom}
+          onSelect={selectColorSource}
+          onCancel={cancelColorSourceChoice}
+        />
+      )}
+    </>
   );
 }
 
@@ -654,7 +672,7 @@ describe("structured text interaction", () => {
       tool: "select",
       offset: { x: 0, y: 0 },
       zoom: 1,
-      canvasColorPickerTarget: "char",
+      canvasColorPickerTarget: "auto",
       hoveredGrid: null,
     });
     const { getByTestId } = render(<InteractionHarness />);
@@ -680,10 +698,10 @@ describe("structured text interaction", () => {
       offset: { x: 0, y: 0 },
       zoom: 1,
       brushColor: "#000000",
-      canvasColorPickerTarget: "char",
+      canvasColorPickerTarget: "auto",
       hoveredGrid: { x: 2, y: 3 },
       grid: new Map([
-        ["2,3", { char: "A", color: "#112233", bgColor: "#445566" }],
+        ["2,3", { char: "A", color: "#112233" }],
       ]),
     });
     render(<InteractionHarness />);
@@ -701,6 +719,42 @@ describe("structured text interaction", () => {
     expect(state.hoveredGrid).toBeNull();
   });
 
+  it("keeps automatic color picking active after an empty cell click", () => {
+    useEditorStore.setState({
+      canvasMode: "freeform",
+      tool: "select",
+      offset: { x: 0, y: 0 },
+      zoom: 1,
+      brushColor: "#000000",
+      canvasColorPickerTarget: "auto",
+      hoveredGrid: { x: 2, y: 3 },
+      grid: new Map(),
+    });
+    const { getByTestId } = render(<InteractionHarness />);
+
+    act(() => {
+      gestureState.handlers?.onMove?.({
+        xy: [18, 57],
+        event: new MouseEvent("mousemove", {
+          bubbles: true,
+          cancelable: true,
+        }),
+      });
+    });
+    act(() => {
+      gestureState.handlers?.onDragStart?.({
+        xy: [18, 57],
+        event: dragEvent(),
+      });
+    });
+
+    const state = useEditorStore.getState();
+    expect(state.brushColor).toBe("#000000");
+    expect(state.canvasColorPickerTarget).toBe("auto");
+    expect(state.hoveredGrid).toEqual({ x: 2, y: 3 });
+    expect(getByTestId("canvas-root").style.cursor).toBe("crosshair");
+  });
+
   it("picks background color from a blank canvas cell", () => {
     useEditorStore.setState({
       canvasMode: "freeform",
@@ -708,7 +762,7 @@ describe("structured text interaction", () => {
       offset: { x: 0, y: 0 },
       zoom: 1,
       brushColor: "#000000",
-      canvasColorPickerTarget: "bg",
+      canvasColorPickerTarget: "auto",
       hoveredGrid: { x: 2, y: 3 },
       grid: new Map([
         ["2,3", { char: " ", color: "#112233", bgColor: "#445566" }],
@@ -727,6 +781,41 @@ describe("structured text interaction", () => {
     expect(state.brushColor).toBe("#445566");
     expect(state.canvasColorPickerTarget).toBeNull();
     expect(state.hoveredGrid).toBeNull();
+  });
+
+  it("asks which source to use when a cell has different foreground and background colors", async () => {
+    useEditorStore.setState({
+      canvasMode: "freeform",
+      tool: "select",
+      offset: { x: 0, y: 0 },
+      zoom: 1,
+      brushColor: "#000000",
+      canvasColorPickerTarget: "auto",
+      hoveredGrid: { x: 2, y: 3 },
+      grid: new Map([
+        ["2,3", { char: "A", color: "#112233", bgColor: "#445566" }],
+      ]),
+    });
+    render(<InteractionHarness />);
+
+    act(() => {
+      gestureState.handlers?.onDragStart?.({
+        xy: [18, 57],
+        event: dragEvent(),
+      });
+    });
+
+    expect(useEditorStore.getState().brushColor).toBe("#000000");
+    expect(useEditorStore.getState().canvasColorPickerTarget).toBeNull();
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "Use cell background color #445566",
+      })
+    );
+    expect(useEditorStore.getState().brushColor).toBe("#445566");
+    expect(
+      screen.queryByRole("toolbar", { name: "Choose a color from this cell" })
+    ).not.toBeInTheDocument();
   });
 
   it("activates a split box leaf focus from a left click", () => {

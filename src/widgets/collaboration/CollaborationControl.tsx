@@ -17,6 +17,7 @@ import { Button } from '@/shared/ui/button';
 import { Input } from '@/shared/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
 import { Separator } from '@/shared/ui/separator';
+import { Tooltip, TooltipPopup, TooltipTrigger } from '@/shared/ui/tooltip';
 
 const CollaborationIcon = HOST_ICONOLOGY.sessionAction.collaboration;
 const getStatusKey = (snapshot: ReturnType<typeof useCollaborationSnapshot>) => {
@@ -104,27 +105,33 @@ export function CollaborationControl() {
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          tone="subtle"
-          shape="square"
-          size="md"
-          open={open}
-          className="pointer-events-auto relative"
-          aria-label={t('collaboration.title')}
-          title={t('collaboration.title')}
-          data-testid="collaboration-control"
-        >
-          <CollaborationIcon />
-          {descriptor && (
-            <span
-              data-testid="collaboration-connected-indicator"
-              aria-hidden="true"
-              className="absolute right-1 top-1 size-1 rounded-full bg-foreground"
-            />
-          )}
-        </Button>
-      </PopoverTrigger>
+      <Tooltip>
+        <PopoverTrigger asChild>
+          <TooltipTrigger
+            render={
+              <Button
+                tone="subtle"
+                shape="square"
+                size="md"
+                open={open}
+                className="pointer-events-auto relative"
+                aria-label={t('collaboration.title')}
+                data-testid="collaboration-control"
+              />
+            }
+          >
+            <CollaborationIcon />
+            {descriptor && (
+              <span
+                data-testid="collaboration-connected-indicator"
+                aria-hidden="true"
+                className="absolute right-1 top-1 size-1 rounded-full bg-foreground"
+              />
+            )}
+          </TooltipTrigger>
+        </PopoverTrigger>
+        <TooltipPopup side="bottom">{t('collaboration.title')}</TooltipPopup>
+      </Tooltip>
       <PopoverContent
         side="bottom"
         align="start"

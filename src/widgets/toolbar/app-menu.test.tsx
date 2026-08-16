@@ -61,18 +61,18 @@ describe('AppMenu slide interchange', () => {
     );
   });
 
-  it('opens the standalone shortcut dialog and restores menu trigger focus', async () => {
+  it('opens settings and restores menu trigger focus', async () => {
     act(() => setUiLanguage('en'));
     render(<AppMenu />);
     const trigger = screen.getByRole('button', { name: 'Open menu' });
 
     fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false });
     fireEvent.click(
-      await screen.findByRole('menuitem', { name: 'Shortcuts' })
+      await screen.findByRole('menuitem', { name: 'Settings' })
     );
 
     expect(
-      await screen.findByRole('heading', { name: 'Keyboard shortcuts' })
+      await screen.findByRole('heading', { name: 'Settings' })
     ).toBeInTheDocument();
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
 
@@ -80,7 +80,7 @@ describe('AppMenu slide interchange', () => {
     await waitFor(() => expect(trigger).toHaveFocus());
   });
 
-  it('localizes the shortcut menu item', async () => {
+  it('localizes the settings menu item', async () => {
     act(() => setUiLanguage('zh'));
     render(<AppMenu />);
 
@@ -90,7 +90,7 @@ describe('AppMenu slide interchange', () => {
     });
 
     expect(
-      await screen.findByRole('menuitem', { name: '快捷键' })
+      await screen.findByRole('menuitem', { name: '设置' })
     ).toBeInTheDocument();
   });
 });

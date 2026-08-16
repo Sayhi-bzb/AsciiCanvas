@@ -345,7 +345,7 @@ export function StructuredTemplateLibrary({
                     <VisibleStructuredTemplatePreview templateId={template.id} />
                   </div>
                 </Surface>
-                <span className="truncate px-1 text-xs text-foreground">
+                <span className="truncate px-1 text-foreground">
                   {template.label}
                 </span>
               </SelectableItem>

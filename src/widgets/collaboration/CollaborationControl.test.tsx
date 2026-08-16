@@ -88,6 +88,12 @@ describe('CollaborationControl', () => {
   it('opens a collaboration panel and keeps it open across P2P room actions', async () => {
     render(<CollaborationControl />);
 
+    const trigger = screen.getByRole('button', { name: 'Collaboration' });
+    expect(trigger).not.toHaveAttribute('title');
+    fireEvent.focus(trigger);
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Collaboration');
+    fireEvent.blur(trigger);
+
     openPanel();
 
     const panel = await screen.findByRole('dialog', { name: 'Collaboration' });

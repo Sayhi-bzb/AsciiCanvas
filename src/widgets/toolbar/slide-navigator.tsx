@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState, type ComponentProps } from "react";
 import { useCanvasRuntime, useCanvasState } from "@/domains/canvas/public";
 import {
   getSlideResizeCropCount,
@@ -12,9 +12,17 @@ import { useUiI18n } from "@/shared/i18n";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import { CollectionCard } from "@/shared/ui/collection-card";
+import { SurfaceContent } from "@/shared/ui/floating-surface";
 import { IconButton } from "@/shared/ui/icon-button";
 import { InlineRenameInput } from "@/shared/ui/inline-rename-input";
 import { SelectableItem } from "@/shared/ui/selectable-item";
+import {
+  Tooltip,
+  TooltipCreateHandle,
+  TooltipPopup,
+  TooltipTrigger,
+  type TooltipHandle,
+} from "@/shared/ui/tooltip";
 import {
   ReorderableList,
   type ReorderAnnouncement,
@@ -44,6 +52,23 @@ type PendingResize = {
   cropCount: number;
 };
 
+type SlideActionProps = ComponentProps<typeof IconButton> & {
+  tooltip: string;
+  tooltipHandle: TooltipHandle<string>;
+};
+
+function SlideAction({ tooltip, tooltipHandle, disabled, ...props }: SlideActionProps) {
+  const button = <IconButton size="xs" disabled={disabled} {...props} />;
+
+  return (
+    <TooltipTrigger
+      handle={tooltipHandle}
+      payload={tooltip}
+      render={disabled ? <span className="inline-flex">{button}</span> : button}
+    />
+  );
+}
+
 export function SlideAddButton() {
   const canvas = useCanvasRuntime();
   const { t } = useUiI18n();
@@ -71,6 +96,7 @@ export function SlideNavigator() {
   const [configureSlideId, setConfigureSlideId] = useState<string | null>(null);
   const [pendingResize, setPendingResize] = useState<PendingResize | null>(null);
   const configureTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const actionTooltipHandle = useMemo(() => TooltipCreateHandle<string>(), []);
   if (!slideDeck) return null;
   const pendingSlide = slideDeck.slides.find((slide) => slide.id === pendingDeleteId) ?? null;
   const configureSlide =
@@ -95,7 +121,7 @@ export function SlideNavigator() {
   };
 
   return (
-    <div className="p-2" data-testid="slide-navigator">
+    <SurfaceContent data-testid="slide-navigator">
       <ReorderableList
         items={slideDeck.slides}
         getId={(slide) => slide.id}
@@ -151,43 +177,46 @@ export function SlideNavigator() {
                   className="flex-1"
                   onCommit={(name) => renameSlide(slide.id, name)}
                 />
-                <IconButton
+                <SlideAction
                   type="button"
-                  size="xs"
+                  tooltip={t("slide.configure")}
+                  tooltipHandle={actionTooltipHandle}
                   aria-label={t("slide.configureNamed", { name: slide.name })}
-                  title={t("slide.configure")}
                   onClick={(event) => {
                     configureTriggerRef.current = event.currentTarget;
                     setConfigureSlideId(slide.id);
                   }}
                 >
                   <ConfigureIcon />
-                </IconButton>
-                <IconButton
+                </SlideAction>
+                <SlideAction
                   type="button"
-                  size="xs"
+                  tooltip={t("slide.duplicate")}
+                  tooltipHandle={actionTooltipHandle}
                   aria-label={t("slide.duplicateNamed", { name: slide.name })}
-                  title={t("slide.duplicate")}
                   onClick={() => duplicateSlide(slide.id)}
                 >
                   <DuplicateIcon />
-                </IconButton>
-                <IconButton
+                </SlideAction>
+                <SlideAction
                   type="button"
-                  size="xs"
+                  tooltip={t("slide.delete")}
+                  tooltipHandle={actionTooltipHandle}
                   destructive
                   aria-label={t("slide.deleteNamed", { name: slide.name })}
-                  title={t("slide.delete")}
                   disabled={slideDeck.slides.length === 1}
                   onClick={() => setPendingDeleteId(slide.id)}
                 >
                   <DeleteIcon />
-                </IconButton>
+                </SlideAction>
               </div>
             </CollectionCard>
           );
         }}
       />
+      <Tooltip handle={actionTooltipHandle}>
+        {({ payload }) => <TooltipPopup side="left">{payload}</TooltipPopup>}
+      </Tooltip>
       {configureSlide ? (
         <CustomSlideSizeDialog
           open
@@ -270,6 +299,6 @@ export function SlideNavigator() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </SurfaceContent>
   );
 }

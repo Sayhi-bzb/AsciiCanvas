@@ -1,12 +1,5 @@
 import { cn } from '@/shared/lib/utils';
-import type {
-  Density,
-  ItemVariant,
-  Shape,
-  Size,
-  SurfaceKind,
-  Tone,
-} from './tokens';
+import type { Density, ItemVariant, Shape, Size, SurfaceKind, Tone } from './tokens';
 
 type ControlOptions = {
   tone?: Tone;
@@ -39,7 +32,6 @@ type MenuItemOptions = {
 };
 
 type SelectableItemOptions = {
-  density?: Density;
   orientation?: 'horizontal' | 'vertical';
   selected?: boolean;
   muted?: boolean;
@@ -71,7 +63,7 @@ const surface = ({ kind = 'embedded', animated = false }: SurfaceOptions = {}) =
 const dialogHeader = 'relative flex flex-col gap-1.5 text-left';
 
 const controlBase =
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-[color,background-color,opacity,box-shadow] duration-[var(--motion-fast)] outline-none motion-reduce:transition-none disabled:pointer-events-none disabled:opacity-50 focus-visible:ring-ring/50 focus-visible:ring-2 data-[state=open]:bg-control-open-surface data-[state=open]:text-accent-foreground data-[state=on]:bg-control-pressed-surface data-[state=on]:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4";
+  "inline-flex cursor-pointer items-center justify-center gap-2 whitespace-nowrap font-medium transition-[color,background-color,opacity,box-shadow] duration-[var(--motion-fast)] outline-none motion-reduce:transition-none disabled:pointer-events-none disabled:cursor-default disabled:opacity-50 focus-visible:ring-ring/50 focus-visible:ring-2 data-[state=open]:bg-control-open-surface data-[state=open]:text-accent-foreground data-[state=on]:bg-control-pressed-surface data-[state=on]:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4";
 
 const controlTone: Record<Tone, string> = {
   primary: 'bg-primary text-primary-foreground hover:bg-primary/90',
@@ -96,12 +88,12 @@ const activeControlState =
   'bg-control-active-surface text-foreground data-[state=open]:bg-control-active-surface data-[state=open]:text-foreground';
 
 const menuItemBase = cn(
-  'relative flex cursor-default select-none items-center gap-2 rounded-item px-2 outline-none transition-colors duration-[var(--motion-fast)] motion-reduce:transition-none',
+  'relative flex cursor-pointer select-none items-center gap-2 rounded-item px-2 outline-none transition-colors duration-[var(--motion-fast)] motion-reduce:transition-none',
   'focus:bg-accent focus:text-accent-foreground data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground',
   'data-[state=open]:bg-control-open-surface data-[state=open]:text-accent-foreground',
   'data-[state=checked]:bg-control-pressed-surface data-[state=checked]:text-foreground',
-  'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
-  '[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=\'size-\'])]:size-4'
+  'data-[disabled]:pointer-events-none data-[disabled]:cursor-default data-[disabled]:opacity-50',
+  "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
 );
 
 const controlShape: Record<Shape, string> = {
@@ -138,12 +130,14 @@ export const rx = {
   ),
   dropdownPanel: cn(
     surface({ kind: 'overlay' }),
-    'z-(--layer-popover) min-w-32 overflow-hidden p-[3px] text-popover-foreground outline-none'
+    'min-w-32 overflow-hidden p-[3px] text-popover-foreground outline-none'
   ),
   dropdownSubPanel: cn(
     surface({ kind: 'overlay' }),
-    'z-(--layer-popover) min-w-32 overflow-hidden p-[3px] text-popover-foreground outline-none'
+    'min-w-32 overflow-hidden p-[3px] text-popover-foreground outline-none'
   ),
+  portalLayer: ({ modal = false }: { modal?: boolean } = {}) =>
+    modal ? 'z-(--layer-modal-popover)' : 'z-(--layer-popover)',
   overlayContent: ({ density = 'compact' }: { density?: Density } = {}) =>
     density === 'compact' ? 'p-2' : 'p-4',
   overlayMotion: cn(
@@ -184,8 +178,7 @@ export const rx = {
       controlSize[size],
       controlShape[shape],
       shape === 'square' && size === 'sm' && 'size-7 px-0',
-      shape === 'square' && size === 'xs' &&
-        "size-6 px-0 [&_svg:not([class*='size-'])]:size-3.5",
+      shape === 'square' && size === 'xs' && "size-6 px-0 [&_svg:not([class*='size-'])]:size-3.5",
       shape === 'square' && size === 'md' && 'size-8 px-0',
       shape === 'square' && size === 'lg' && 'size-9 px-0',
       tone === 'link' && 'h-auto px-0',
@@ -194,8 +187,7 @@ export const rx = {
       active && activeControlState,
       subordinate &&
         'opacity-40 hover:opacity-100 data-[active=true]:opacity-100 data-[pressed=true]:opacity-100 data-[open=true]:opacity-100',
-      destructive &&
-        'text-destructive hover:bg-destructive-muted hover:text-destructive',
+      destructive && 'text-destructive hover:bg-destructive-muted hover:text-destructive',
       joined === 'start' && 'rounded-r-none',
       joined === 'middle' && 'rounded-none',
       joined === 'end' && 'rounded-l-none',
@@ -203,17 +195,15 @@ export const rx = {
     ),
 
   selectableItem: ({
-    density = 'compact',
     orientation = 'horizontal',
     selected = false,
     muted = false,
   }: SelectableItemOptions = {}) =>
     cn(
-      'inline-flex min-w-0 items-center rounded-item bg-transparent outline-none transition-colors duration-[var(--motion-fast)] motion-reduce:transition-none',
+      'inline-flex min-w-0 cursor-pointer items-center rounded-item bg-transparent outline-none transition-colors duration-[var(--motion-fast)] motion-reduce:transition-none',
       'hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring/50 focus-visible:ring-2',
-      'disabled:pointer-events-none disabled:opacity-50',
-      density === 'compact' && 'min-h-7 gap-1.5 px-2 text-xs',
-      density === 'default' && 'min-h-8 gap-2 px-2.5 text-sm',
+      'disabled:pointer-events-none disabled:cursor-default disabled:opacity-50',
+      'min-h-7 gap-1.5 px-2 text-xs leading-4',
       orientation === 'vertical' && 'flex-col items-stretch',
       muted ? 'text-muted-foreground' : 'text-foreground',
       selected && activeControlState
@@ -223,15 +213,14 @@ export const rx = {
     cn(
       'flex min-w-0 flex-col gap-1 rounded-item bg-transparent p-1 transition-[background-color,box-shadow] duration-[var(--motion-fast)] motion-reduce:transition-none',
       'hover:bg-control-open-surface',
-      selected &&
-        'bg-control-active-surface hover:bg-control-active-surface'
+      selected && 'bg-control-active-surface hover:bg-control-active-surface'
     ),
 
   swatchButton: ({ selected = false }: SwatchButtonOptions = {}) =>
     cn(
       'inline-flex size-6 cursor-pointer items-center justify-center rounded-full bg-transparent outline-none',
       'focus-visible:ring-ring/50 focus-visible:ring-2',
-      'disabled:pointer-events-none disabled:opacity-50',
+      'disabled:pointer-events-none disabled:cursor-default disabled:opacity-50',
       selected && 'ring-2 ring-primary'
     ),
 
@@ -244,9 +233,9 @@ export const rx = {
 
   tabsTrigger: ({ size = 'default', active = false }: TabTriggerOptions = {}) =>
     cn(
-      'relative inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-control border border-transparent px-2 py-1 text-sm font-medium text-muted-foreground transition-[color,background-color,box-shadow] duration-[var(--motion-fast)] motion-reduce:transition-none',
+      'relative inline-flex h-[calc(100%-1px)] flex-1 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-control border border-transparent px-2 py-1 text-sm font-medium text-muted-foreground transition-[color,background-color,box-shadow] duration-[var(--motion-fast)] motion-reduce:transition-none',
       'hover:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:outline-1 focus-visible:outline-ring',
-      'disabled:pointer-events-none disabled:opacity-50 group-data-[orientation=vertical]/tabs:w-full group-data-[orientation=vertical]/tabs:justify-start',
+      'disabled:pointer-events-none disabled:cursor-default disabled:opacity-50 group-data-[orientation=vertical]/tabs:w-full group-data-[orientation=vertical]/tabs:justify-start',
       'data-[state=active]:border-tab-active-border data-[state=active]:bg-control-active-surface data-[state=active]:text-foreground',
       'group-data-[variant=default]/tabs-list:data-[state=active]:shadow-sm group-data-[variant=line]/tabs-list:data-[state=active]:border-transparent group-data-[variant=line]/tabs-list:data-[state=active]:bg-transparent group-data-[variant=line]/tabs-list:data-[state=active]:shadow-none',
       'after:absolute after:bg-foreground after:opacity-0 after:transition-opacity group-data-[orientation=horizontal]/tabs:after:inset-x-0 group-data-[orientation=horizontal]/tabs:after:bottom-[-5px] group-data-[orientation=horizontal]/tabs:after:h-0.5 group-data-[orientation=vertical]/tabs:after:inset-y-0 group-data-[orientation=vertical]/tabs:after:-right-1 group-data-[orientation=vertical]/tabs:after:w-0.5 group-data-[variant=line]/tabs-list:data-[state=active]:after:opacity-100',
@@ -256,11 +245,7 @@ export const rx = {
       active && activeControlState
     ),
 
-  field: ({
-    density = 'default',
-    invalid = false,
-    appearance = 'default',
-  }: FieldOptions = {}) =>
+  field: ({ density = 'default', invalid = false, appearance = 'default' }: FieldOptions = {}) =>
     cn(
       'w-full min-w-0 rounded-control transition-colors duration-[var(--motion-fast)] outline-none motion-reduce:transition-none',
       density === 'default' && 'h-8 px-2.5 py-1.5 text-xs',

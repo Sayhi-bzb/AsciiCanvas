@@ -18,7 +18,6 @@ import {
   type TooltipPopupProps,
 } from "@/shared/ui/tooltip";
 import { useUiI18n, type I18nKey } from "@/shared/i18n";
-import { KeyboardShortcutsDialog } from "./keyboard-shortcuts-dialog";
 
 const HELP_REFERENCE = [
   ["manual.reference.select", "manual.reference.selectDescription"],
@@ -81,13 +80,6 @@ export function HandbookDialog({
                 {t("onboarding.start")}
               </Button>
             ) : null}
-            <KeyboardShortcutsDialog
-              trigger={
-                <Button type="button" tone="neutral" outlined>
-                  {t("shortcutEditor.title")}
-                </Button>
-              }
-            />
             <Button asChild tone="neutral" outlined>
               <a href="/docs" target="_blank" rel="noreferrer">
                 {t("manual.fullDocumentation")}

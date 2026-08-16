@@ -5,6 +5,7 @@ import { Check, ChevronRight } from 'lucide-react';
 import { cn } from '@/shared/lib/utils';
 import { rx } from '@/shared/styles/recipes';
 import type { Density, ItemVariant } from '@/shared/styles/tokens';
+import { usePortalLayer } from '@/shared/ui/portal-layer';
 
 function DropdownMenu({ ...props }: React.ComponentProps<typeof DropdownMenuPrimitive.Root>) {
   return <DropdownMenuPrimitive.Root data-slot="dropdown-menu" {...props} />;
@@ -21,6 +22,7 @@ function DropdownMenuContent({
   sideOffset = 8,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Content>) {
+  const portalLayer = usePortalLayer();
   return (
     <DropdownMenuPrimitive.Portal>
       <DropdownMenuPrimitive.Content
@@ -28,6 +30,7 @@ function DropdownMenuContent({
         sideOffset={sideOffset}
         className={cn(
           rx.dropdownPanel,
+          rx.portalLayer({ modal: portalLayer === 'modal' }),
           'max-h-(--radix-dropdown-menu-content-available-height) max-w-(--radix-dropdown-menu-content-available-width) overflow-y-auto',
           rx.overlayMotion,
           'data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2',
@@ -55,10 +58,7 @@ function DropdownMenuItem({
       data-slot="dropdown-menu-item"
       data-variant={variant}
       data-selected={selected || undefined}
-      className={cn(
-        rx.menuItem({ density, variant, selected }),
-        className
-      )}
+      className={cn(rx.menuItem({ density, variant, selected }), className)}
       {...props}
     />
   );
@@ -96,10 +96,7 @@ function DropdownMenuSubTrigger({
   return (
     <DropdownMenuPrimitive.SubTrigger
       data-slot="dropdown-menu-sub-trigger"
-      className={cn(
-        rx.menuItem({ density }),
-        className
-      )}
+      className={cn(rx.menuItem({ density }), className)}
       {...props}
     >
       {children}
@@ -113,6 +110,7 @@ function DropdownMenuSubContent({
   sideOffset = 4,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.SubContent>) {
+  const portalLayer = usePortalLayer();
   return (
     <DropdownMenuPrimitive.Portal>
       <DropdownMenuPrimitive.SubContent
@@ -120,6 +118,7 @@ function DropdownMenuSubContent({
         sideOffset={sideOffset}
         className={cn(
           rx.dropdownSubPanel,
+          rx.portalLayer({ modal: portalLayer === 'modal' }),
           'max-h-(--radix-dropdown-menu-content-available-height) max-w-(--radix-dropdown-menu-content-available-width) overflow-y-auto',
           rx.overlayMotion,
           'data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2',
@@ -148,11 +147,7 @@ function DropdownMenuRadioItem({
   return (
     <DropdownMenuPrimitive.RadioItem
       data-slot="dropdown-menu-radio-item"
-      className={cn(
-        rx.menuItem({ density }),
-        'gap-0 pl-8 pr-2',
-        className
-      )}
+      className={cn(rx.menuItem({ density }), 'gap-0 pl-8 pr-2', className)}
       {...props}
     >
       <span className="absolute left-2 flex size-4 items-center justify-center">

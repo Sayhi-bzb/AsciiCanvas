@@ -400,6 +400,52 @@ test.describe('Canvas', () => {
     await expect(page.getByRole('tab', { name: 'Emoji', exact: true })).toBeVisible();
   });
 
+  test('keeps the current curated character group title at the scroll viewport top', async ({
+    page,
+  }) => {
+    const content = page.getByTestId('sidebar-view-content');
+    const viewport = content.locator('[data-slot="scroll-area-viewport"]');
+    const headers = content.locator('[data-slot="character-group-header"]');
+    const firstHeader = headers.first();
+    const nextHeader = headers.nth(1);
+
+    await expect(firstHeader).toHaveAttribute('data-surface-kind', 'embedded');
+    await expect(firstHeader).toHaveCSS('position', 'sticky');
+    expect(await firstHeader.evaluate((element) => getComputedStyle(element).backgroundColor))
+      .not.toBe('rgba(0, 0, 0, 0)');
+
+    await viewport.evaluate((element) => {
+      element.scrollTop = 200;
+    });
+    await expect.poll(async () => {
+      const [viewportBox, headerBox] = await Promise.all([
+        viewport.boundingBox(),
+        firstHeader.boundingBox(),
+      ]);
+      if (!viewportBox || !headerBox) return Number.POSITIVE_INFINITY;
+      return Math.abs(headerBox.y - viewportBox.y);
+    }).toBeLessThanOrEqual(1);
+
+    await nextHeader.getByRole('button').click();
+    await nextHeader.evaluate((element) => element.scrollIntoView({ block: 'start' }));
+    await expect.poll(async () => {
+      const [viewportBox, headerBox] = await Promise.all([
+        viewport.boundingBox(),
+        nextHeader.boundingBox(),
+      ]);
+      if (!viewportBox || !headerBox) return Number.POSITIVE_INFINITY;
+      return Math.abs(headerBox.y - viewportBox.y);
+    }).toBeLessThanOrEqual(1);
+
+    const [firstBox, nextBox] = await Promise.all([
+      firstHeader.boundingBox(),
+      nextHeader.boundingBox(),
+    ]);
+    expect(firstBox).not.toBeNull();
+    expect(nextBox).not.toBeNull();
+    expect(firstBox!.y).toBeLessThan(nextBox!.y);
+  });
+
   test('uses horizontal character view tabs in the mobile sheet', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.getByRole('button', { name: 'Open library' }).click();

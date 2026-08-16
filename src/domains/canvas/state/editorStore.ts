@@ -117,7 +117,7 @@ export const createEditorStore = ({
         brushChar: DEFAULT_BRUSH_CHAR,
         brushColor: COLOR_PRIMARY_TEXT,
         brushBackgroundColor: COLOR_PRIMARY_TEXT,
-        showGrid: true,
+        showGrid: false,
         exportShowGrid: false,
         hoveredGrid: null,
         canvasColorPickerTarget: null,

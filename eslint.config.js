@@ -20,4 +20,16 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  {
+    files: ['src/**/*.tsx'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "JSXAttribute[name.name='title']",
+          message: 'Native title tooltips are prohibited in the Host UI; use @/shared/ui/tooltip.',
+        },
+      ],
+    },
+  },
 ])

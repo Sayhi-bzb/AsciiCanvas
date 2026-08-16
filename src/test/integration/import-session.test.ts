@@ -44,7 +44,7 @@ describe("importCanvasSession", () => {
       scratchLayer: new Map([
         ["0,0", { char: "X", color: "#fff" }],
       ]),
-      canvasColorPickerTarget: "bg",
+      canvasColorPickerTarget: "auto",
     });
 
     useEditorStore.getState().importCanvasSession("");

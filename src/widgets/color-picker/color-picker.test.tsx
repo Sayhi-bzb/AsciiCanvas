@@ -26,7 +26,7 @@ describe('ColorPickerPanel', () => {
     useEditorStore.setState(initialState, true);
   });
 
-  it('switches between ansi 16 and preset color tabs', () => {
+  it('switches between ansi 16 and preset color tabs', async () => {
     const onPick = vi.fn();
 
     render(<ColorPickerPanel value="#000000" onPick={onPick} defaultColor="#000000" />);
@@ -88,8 +88,14 @@ describe('ColorPickerPanel', () => {
     expect(pickerHeader).toContainElement(eyedropperTrigger);
     expect(colorValueTrigger).toHaveClass('size-7');
     expect(eyedropperTrigger).toHaveClass('size-7');
+    expect(eyedropperTrigger).not.toHaveAttribute('title');
     expect(eyedropperTrigger.querySelector('svg')).not.toHaveClass('size-3.5');
     expect(screen.getByRole('button', { name: 'Restore default color' })).toHaveClass('size-7');
+
+    fireEvent.focus(eyedropperTrigger);
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Pick color from canvas');
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('tooltip')).not.toBeInTheDocument());
 
     fireEvent.click(colorValueTrigger);
     const hexInput = screen.getByRole('textbox', { name: 'Hex' });
@@ -249,9 +255,9 @@ describe('ColorPickerPanel', () => {
     expect(screen.getByRole('button', { name: 'Hex: #000000' })).toBeInTheDocument();
   });
 
-  it('opens canvas color source buttons and retains the active target', async () => {
+  it('toggles automatic canvas color picking for the configured destination', () => {
     const onCanvasPickStarted = vi.fn();
-    render(
+    const { rerender } = render(
       <ColorPickerPanel
         value="#000000"
         onPick={vi.fn()}
@@ -264,60 +270,26 @@ describe('ColorPickerPanel', () => {
     });
     fireEvent.click(eyedropperTrigger);
 
-    const sourceToolbar = await screen.findByRole('toolbar', {
-      name: 'Pick color from canvas',
-    });
-    expect(sourceToolbar).toHaveClass(
-      'w-fit',
-      'gap-0.5',
-      'p-1',
-      'bg-overlay-surface',
-      'border-0',
-      'shadow-overlay'
-    );
-    const pickChar = screen.getByRole('button', { name: 'Pick character color' });
-    const pickBackground = screen.getByRole('button', { name: 'Pick background color' });
-    expect(pickChar).toHaveFocus();
-    expect(pickChar).toHaveClass('size-7');
-    expect(pickBackground).toHaveClass('size-7');
-    expect(pickChar.querySelector('svg')).toBeInTheDocument();
-    expect(pickBackground.querySelector('svg')).toBeInTheDocument();
-    expect(screen.queryByText('Char')).not.toBeInTheDocument();
-    expect(screen.queryByText('BG')).not.toBeInTheDocument();
-
-    fireEvent.click(pickChar);
-
-    await waitFor(() =>
-      expect(
-        screen.queryByRole('toolbar', {
-          name: 'Pick color from canvas',
-        })
-      ).not.toBeInTheDocument()
-    );
     expect(onCanvasPickStarted).toHaveBeenCalledTimes(1);
+    expect(useEditorStore.getState().canvasColorPickerTarget).toBe('auto');
     expect(eyedropperTrigger).toHaveAttribute('aria-pressed', 'true');
     expect(eyedropperTrigger).toHaveClass('bg-control-pressed-surface', 'text-foreground');
 
     fireEvent.click(eyedropperTrigger);
-    const activeChar = await screen.findByRole('button', { name: 'Pick character color' });
-    await waitFor(() => expect(activeChar).toHaveFocus());
-    expect(activeChar).toHaveAttribute('aria-pressed', 'true');
-    expect(activeChar).toHaveClass('bg-control-pressed-surface', 'text-foreground');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Pick background color' }));
-    expect(onCanvasPickStarted).toHaveBeenCalledTimes(2);
-    expect(
-      screen.queryByRole('toolbar', { name: 'Pick color from canvas' })
-    ).not.toBeInTheDocument();
-
-    fireEvent.click(eyedropperTrigger);
-    const activeBackground = await screen.findByRole('button', {
-      name: 'Pick background color',
-    });
-    expect(activeBackground).toHaveAttribute('aria-pressed', 'true');
-
-    fireEvent.click(activeBackground);
+    expect(useEditorStore.getState().canvasColorPickerTarget).toBeNull();
     expect(eyedropperTrigger).toHaveAttribute('aria-pressed', 'false');
+    expect(onCanvasPickStarted).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <ColorPickerPanel
+        value="#000000"
+        onPick={vi.fn()}
+        onCanvasPickStarted={onCanvasPickStarted}
+        canvasPickDestination="background"
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Pick color from canvas' }));
+    expect(useEditorStore.getState().canvasColorPickerTarget).toBe('auto-to-background');
     expect(onCanvasPickStarted).toHaveBeenCalledTimes(2);
   });
 

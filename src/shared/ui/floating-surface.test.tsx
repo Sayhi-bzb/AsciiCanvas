@@ -1,0 +1,55 @@
+import { render, screen } from "@testing-library/react"
+import { describe, expect, it } from "vitest"
+
+import {
+  FloatingSurface,
+  SurfaceContent,
+} from "@/shared/ui/floating-surface"
+
+describe("FloatingSurface", () => {
+  it("provides the shared control-bar geometry", () => {
+    render(<FloatingSurface data-testid="control-bar" variant="control-bar" />)
+
+    expect(screen.getByTestId("control-bar")).toHaveClass(
+      "bg-host-surface",
+      "rounded-surface",
+      "shadow-host",
+      "flex",
+      "gap-1",
+      "p-[3px]"
+    )
+  })
+
+  it("provides a clipped panel shell through asChild", () => {
+    render(
+      <FloatingSurface variant="panel" asChild>
+        <section data-testid="panel" className="w-40" />
+      </FloatingSurface>
+    )
+
+    expect(screen.getByTestId("panel")).toHaveClass(
+      "bg-host-surface",
+      "overflow-hidden",
+      "pointer-events-auto",
+      "w-40"
+    )
+    expect(screen.getByTestId("panel")).toHaveAttribute(
+      "data-floating-variant",
+      "panel"
+    )
+  })
+})
+
+describe("SurfaceContent", () => {
+  it("maps content density to shared panel padding", () => {
+    render(
+      <>
+        <SurfaceContent data-testid="compact" />
+        <SurfaceContent data-testid="default" density="default" />
+      </>
+    )
+
+    expect(screen.getByTestId("compact")).toHaveClass("p-2")
+    expect(screen.getByTestId("default")).toHaveClass("p-4")
+  })
+})

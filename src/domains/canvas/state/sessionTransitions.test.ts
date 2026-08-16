@@ -38,7 +38,7 @@ const markDocumentInteractionDirty = () => {
     scratchLayer: new Map([
       ["0,0", { char: "X", color: "#fff" }],
     ]),
-    canvasColorPickerTarget: "char",
+    canvasColorPickerTarget: "auto",
   } satisfies Partial<EditorState>);
 };
 

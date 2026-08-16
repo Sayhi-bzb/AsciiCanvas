@@ -18,8 +18,8 @@ describe("HandbookDialog", () => {
     const dialog = screen.getByRole("dialog", { name: "Help" });
     expect(screen.getAllByRole("heading")).toHaveLength(1);
     expect(
-      screen.getByRole("button", { name: "Keyboard shortcuts" })
-    ).toBeInTheDocument();
+      screen.queryByRole("button", { name: "Keyboard shortcuts" })
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Open full documentation" })).toBeInTheDocument();
     expect(screen.getByText("Select and fill")).toBeInTheDocument();
     expect(screen.getByText("Navigate the character grid")).toBeInTheDocument();
@@ -53,8 +53,8 @@ describe("HandbookDialog", () => {
 
     expect(screen.getByRole("heading", { name: "帮助" })).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "键盘快捷键" })
-    ).toBeInTheDocument();
+      screen.queryByRole("button", { name: "键盘快捷键" })
+    ).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "打开完整文档" })).toBeInTheDocument();
     expect(screen.getByText("选择与填充")).toBeInTheDocument();
     expect(screen.getByText("插入组件")).toBeInTheDocument();

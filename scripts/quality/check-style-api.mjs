@@ -122,7 +122,10 @@ const behaviorOwnedComponents = new Set([
 ]);
 
 const forbiddenBehaviorClass =
-  /\b(?:bg-(?!transparent\b)|hover:(?:bg|text|ring|border|shadow|opacity)-|focus(?:-visible)?:(?:bg|text|ring|border|shadow)-|rounded-(?:none|xs|sm|md|lg|xl|full|control|item|surface|\[)|ring-(?:[0-9]|primary|ring)|shadow-(?:none|xs|sm|md|lg|xl)|transition-all|disabled:opacity-|data-\[(?:state|active|pressed|open|selected)[^\]]*\]:(?:bg|text|ring|border|shadow|opacity)-)/;
+  /\b(?:bg-(?!transparent\b)|cursor-(?:[a-z-]+|\[)|hover:(?:bg|text|ring|border|shadow|opacity)-|focus(?:-visible)?:(?:bg|text|ring|border|shadow)-|rounded-(?:none|xs|sm|md|lg|xl|full|control|item|surface|\[)|ring-(?:[0-9]|primary|ring)|shadow-(?:none|xs|sm|md|lg|xl)|transition-all|disabled:opacity-|data-\[(?:state|active|pressed|open|selected)[^\]]*\]:(?:bg|text|ring|border|shadow|opacity)-)/;
+
+const forbiddenSelectableItemTypographyClass =
+  /\b(?:text-(?:xs|sm|base|lg|xl|[2-9]xl|\[)|leading-(?:none|tight|snug|normal|relaxed|loose|[3-9]|10|\[)|font-(?:thin|extralight|light|normal|medium|semibold|bold|extrabold|black|\[))/;
 
 const forbiddenSquareGeometryClass =
   /\b(?:(?:size|h|w)-(?:\d|full|\[)|p[xy]?-(?:\d|\[))/;
@@ -203,6 +206,23 @@ const checkWidgetBehaviorOwnership = (content, relFile) => {
         });
       }
 
+      const intrinsicOnClick =
+        /^[a-z]/.test(tagName) &&
+        tagName !== "a" &&
+        tagName !== "button" &&
+        getJsxAttribute(node, "onClick");
+      if (intrinsicOnClick) {
+        const className = getJsxAttribute(node, "className");
+        const classText = className?.initializer?.getText(sourceFile) ?? "";
+        if (!/\bcursor-pointer\b/.test(classText)) {
+          violations.push({
+            check: "Clickable Widget DOM must declare the pointer cursor",
+            file: relFile,
+            line,
+          });
+        }
+      }
+
       if (behaviorOwnedComponents.has(tagName)) {
         const className = getJsxAttribute(node, "className");
         const classText = className?.initializer?.getText(sourceFile) ?? "";
@@ -217,6 +237,18 @@ const checkWidgetBehaviorOwnership = (content, relFile) => {
         } else if (!presentationEscape && forbiddenBehaviorClass.test(classText)) {
           violations.push({
             check: "Widget className must not override shared interaction behavior",
+            file: relFile,
+            line,
+          });
+        }
+
+        if (
+          !presentationEscape &&
+          tagName === "SelectableItem" &&
+          forbiddenSelectableItemTypographyClass.test(classText)
+        ) {
+          violations.push({
+            check: "SelectableItem owns its compact typography",
             file: relFile,
             line,
           });

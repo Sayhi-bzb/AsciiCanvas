@@ -18,7 +18,7 @@ import { cn } from "@/shared/lib/utils";
 import { gridCellRect } from "@/shared/metrics";
 import type { NodeBounds } from "@/shared/types";
 import { Button } from "@/shared/ui/button";
-import { Surface } from "@/shared/ui/surface";
+import { FloatingSurface } from "@/shared/ui/floating-surface";
 import {
   Tooltip,
   TooltipCreateHandle,
@@ -42,7 +42,6 @@ const TOOLBAR_HEIGHT = 38;
 const TOOLBAR_GAP = 8;
 
 const toolbarClassName = cn(
-  "relative flex items-center gap-1 p-[3px] pointer-events-auto",
   "backdrop-blur-none animate-in fade-in duration-[var(--motion-fast)] motion-reduce:animate-none"
 );
 
@@ -226,7 +225,7 @@ export function StructuredSplitToolbar({
       className="absolute z-(--layer-contextual) pointer-events-auto"
       style={style}
     >
-      <Surface kind="floating" asChild>
+      <FloatingSurface variant="control-bar" asChild>
         <div
           role="toolbar"
           data-selection-toolbar="true"
@@ -267,7 +266,7 @@ export function StructuredSplitToolbar({
             )}
           </Tooltip>
         </div>
-      </Surface>
+      </FloatingSurface>
     </div>
   );
 }

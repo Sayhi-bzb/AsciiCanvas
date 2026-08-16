@@ -94,6 +94,7 @@ describe("Slide playback", () => {
       </ShortcutProvider>
     );
     const canvas = screen.getByRole("img", { name: "First" });
+    expect(canvas).toHaveClass("cursor-pointer");
     vi.spyOn(canvas, "getBoundingClientRect").mockReturnValue({
       left: 0,
       top: 0,

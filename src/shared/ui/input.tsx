@@ -23,7 +23,7 @@ function Input({
       data-appearance={appearance}
       className={cn(
         rx.field({ density, appearance }),
-        "file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-xs file:font-medium disabled:cursor-not-allowed",
+        "file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground file:inline-flex file:h-6 file:border-0 file:bg-transparent file:text-xs file:font-medium disabled:cursor-default",
         "aria-invalid:ring-invalid-ring",
         className
       )}
