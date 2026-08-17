@@ -37,3 +37,20 @@ export const parseAnsiTextCells = (
     ...(cell.href ? { href: cell.href } : {}),
   }));
 };
+
+export const parsePlainTextCells = (
+  input: string,
+  defaultColor = DEFAULT_ANSI_TEXT_COLOR
+): AnsiTextCell[] => {
+  if (!input) return [];
+  const parsed = parseCharDeskText(input, {
+    syntax: "plain",
+    defaultStyle: { color: defaultColor },
+  });
+  return parsed.cells.map((cell) => ({
+    x: cell.x,
+    y: cell.y,
+    char: cell.text,
+    color: cell.color ?? defaultColor,
+  }));
+};

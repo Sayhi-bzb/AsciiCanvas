@@ -833,7 +833,7 @@ describe('canvas session viewport state', () => {
     );
   });
 
-  it('preserves each selected background when pasting one plain character', async () => {
+  it('anchors a one-cell plain paste at the selection top-left', async () => {
     useEditorStore.setState({
       canvasMode: 'freeform',
       brushColor: '#ffffff',
@@ -857,9 +857,39 @@ describe('canvas session viewport state', () => {
     expect(useEditorStore.getState().grid).toEqual(
       new Map([
         ['0,0', { char: 'X', color: '#ffffff', bgColor: '#000000' }],
-        ['1,0', { char: 'X', color: '#ffffff', bgColor: '#0000ff' }],
+        ['1,0', { char: 'B', color: '#222222', bgColor: '#0000ff' }],
       ])
     );
+  });
+
+  it('pastes every plain-text row from the same nonzero anchor column', async () => {
+    useEditorStore.setState({
+      canvasMode: 'freeform',
+      brushColor: '#ffffff',
+      textCursor: { x: 20, y: 4 },
+    });
+    applyFreeformSnapshotToYMaps(
+      Array.from('existing').map((char, x) => [
+        `${x},4`,
+        { char, color: '#808080' },
+      ])
+    );
+    const inputFlowBeforePaste = useEditorStore.getState().staticGridInputFlow;
+
+    await useEditorStore.getState().pasteFromClipboard({
+      eventDataTransfer: {
+        getData: (type: string) => (type === 'text/plain' ? 'AB\nCD' : ''),
+      } as unknown as DataTransfer,
+    });
+
+    const state = useEditorStore.getState();
+    expect(state.grid.get('20,4')).toEqual({ char: 'A', color: '#ffffff' });
+    expect(state.grid.get('21,4')).toEqual({ char: 'B', color: '#ffffff' });
+    expect(state.grid.get('20,5')).toEqual({ char: 'C', color: '#ffffff' });
+    expect(state.grid.get('21,5')).toEqual({ char: 'D', color: '#ffffff' });
+    expect(state.grid.get('0,5')).toBeUndefined();
+    expect(state.textCursor).toEqual({ x: 20, y: 4 });
+    expect(state.staticGridInputFlow).toBe(inputFlowBeforePaste);
   });
 
   it('inherits target backgrounds for ANSI cells without an explicit background', async () => {
