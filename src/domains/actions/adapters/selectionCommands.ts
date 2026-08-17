@@ -28,6 +28,7 @@ import {
 } from "@/domains/structured-content/public";
 import { getCellOccupancy, splitGraphemes } from "@/shared/metrics";
 import { cloneTextAttributes } from "@/shared/utils/ansi";
+import { parsePlainTextCells } from "@/shared/utils/ansiText";
 import { areJsonValuesEqual } from "@/shared/utils/equality";
 import {
   getStructuredTextOffsetAtPoint,
@@ -494,7 +495,7 @@ export const createSelectionCommandFactory = ({
     if (getClipboardTargetFingerprint(getActiveDocumentId, state) !== targetFingerprint) {
       return failed("stale-target");
     }
-    const { pasteRichData, writeTextString, canvasMode } = state;
+    const { pasteRichData, canvasMode } = state;
 
     if (canvasMode === "structured") {
       const textTarget = getStructuredTextPasteTarget(state);
@@ -590,9 +591,9 @@ export const createSelectionCommandFactory = ({
     }
 
     if (payload.plainText) {
-      writeTextString(payload.plainText, undefined, {
-        preserveTargetBackground: true,
-      });
+      const cells = parsePlainTextCells(payload.plainText, brushColor);
+      if (cells.length === 0) return noop("empty-clipboard");
+      pasteRichData(cells);
       return applied(true);
     }
     return noop("empty-clipboard");
