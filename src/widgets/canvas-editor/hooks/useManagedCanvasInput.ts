@@ -511,7 +511,7 @@ export const useManagedCanvasInput = ({
       } else if (hasActiveSelection) {
         clearSelections();
       }
-    } else if (activeSelections.length > 0 && !activeTextCursor) {
+    } else if (staticGridView.hasSelection && !activeTextCursor) {
       const fillChar = resolveFillHotkeyChar(e);
       if (!fillChar) return;
 
