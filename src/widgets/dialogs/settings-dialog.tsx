@@ -1,7 +1,6 @@
 'use client';
 
-import { RotateCcw } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useEditorKeymapSnapshot } from '@/domains/editor/public';
 import { useUiI18n } from '@/shared/i18n';
 import { HOST_ICONOLOGY } from '@/shared/icons/iconology';
@@ -44,6 +43,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const [shortcutDirty, setShortcutDirty] = useState(false);
   const [shortcutRecording, setShortcutRecording] = useState(false);
   const [shortcutResettable, setShortcutResettable] = useState(false);
+  const [dirtyAttentionRevision, setDirtyAttentionRevision] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [revealTarget, setRevealTarget] = useState<NonNullable<SettingsTarget['focus']> | null>(
     null
@@ -53,6 +53,10 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     [keymapSnapshot.entries, searchQuery, t]
   );
   const shortcutPanelRef = useRef<KeyboardShortcutsPanelHandle>(null);
+  const shortcutFooterActionsRef = useRef<HTMLDivElement>(null);
+  const saveShortcutButtonRef = useRef<HTMLButtonElement>(null);
+  const dirtyAttentionFrameRef = useRef<number | null>(null);
+  const dirtyAttentionAnimationRef = useRef<Animation | null>(null);
   const navigationItems = [
     {
       value: 'general',
@@ -89,8 +93,50 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     return () => window.removeEventListener('beforeunload', preventUnload);
   }, [open, shortcutDirty]);
 
+  useEffect(
+    () => () => {
+      if (dirtyAttentionFrameRef.current !== null) {
+        cancelAnimationFrame(dirtyAttentionFrameRef.current);
+      }
+      dirtyAttentionAnimationRef.current?.cancel();
+    },
+    []
+  );
+
+  const requestDirtyAttention = useCallback(() => {
+    if (dirtyAttentionFrameRef.current !== null) {
+      cancelAnimationFrame(dirtyAttentionFrameRef.current);
+    }
+    dirtyAttentionFrameRef.current = requestAnimationFrame(() => {
+      dirtyAttentionFrameRef.current = null;
+      saveShortcutButtonRef.current?.focus({ preventScroll: true });
+      dirtyAttentionAnimationRef.current?.cancel();
+      dirtyAttentionAnimationRef.current = null;
+
+      const actions = shortcutFooterActionsRef.current;
+      const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+      if (actions && !reduceMotion && typeof actions.animate === 'function') {
+        dirtyAttentionAnimationRef.current = actions.animate(
+          [
+            { transform: 'translateX(0)' },
+            { transform: 'translateX(-3px)' },
+            { transform: 'translateX(3px)' },
+            { transform: 'translateX(-2px)' },
+            { transform: 'translateX(2px)' },
+            { transform: 'translateX(0)' },
+          ],
+          { duration: 220, easing: 'ease-out' }
+        );
+      }
+      setDirtyAttentionRevision((revision) => revision + 1);
+    });
+  }, []);
+
   const showTarget = (target: SettingsTarget) => {
-    if (section === 'shortcuts' && shortcutDirty) return;
+    if (section === 'shortcuts' && shortcutDirty) {
+      requestDirtyAttention();
+      return;
+    }
     setSearchQuery('');
     setSection(target.section);
     setRevealTarget(target.focus ?? null);
@@ -101,7 +147,10 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       onOpenChange(true);
       return;
     }
-    if (section === 'shortcuts' && shortcutDirty) return;
+    if (section === 'shortcuts' && shortcutDirty) {
+      requestDirtyAttention();
+      return;
+    }
     setSection('general');
     setSearchQuery('');
     setRevealTarget(null);
@@ -127,7 +176,14 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
         showCloseButton={false}
         className="h-[min(34rem,calc(100vh-2rem))] grid-rows-[minmax(0,1fr)] gap-0 sm:max-w-[840px]"
         onEscapeKeyDown={(event) => {
-          if (searchQuery.trim() || shortcutRecording || shortcutDirty) event.preventDefault();
+          if (searchQuery.trim() || shortcutRecording) {
+            event.preventDefault();
+            return;
+          }
+          if (shortcutDirty) {
+            event.preventDefault();
+            requestDirtyAttention();
+          }
         }}
       >
         <DialogTitle className="sr-only">{t('settings.title')}</DialogTitle>
@@ -195,29 +251,23 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
           <DialogFooter className="h-9 min-w-0 flex-row items-center justify-between gap-2 overflow-hidden lg:col-start-2 lg:row-start-2">
             {shortcutDirty ? (
               <>
-                <div className="flex min-w-0 items-center gap-2">
+                <Button
+                  type="button"
+                  tone="subtle"
+                  size="xs"
+                  disabled={shortcutRecording || !shortcutResettable}
+                  onClick={resetShortcuts}
+                >
+                  {t('shortcutEditor.resetAll')}
+                </Button>
+                <div
+                  ref={shortcutFooterActionsRef}
+                  data-slot="settings-shortcut-footer-actions"
+                  className="flex shrink-0 items-center gap-2"
+                >
                   <Button
                     type="button"
-                    tone="subtle"
-                    size="xs"
-                    disabled={shortcutRecording || !shortcutResettable}
-                    onClick={resetShortcuts}
-                  >
-                    <RotateCcw data-icon="inline-start" />
-                    {t('shortcutEditor.resetAll')}
-                  </Button>
-                  <span
-                    role="status"
-                    aria-live="polite"
-                    className="truncate text-xs leading-4 text-muted-foreground"
-                  >
-                    {t('shortcutEditor.unsaved')}
-                  </span>
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <Button
-                    type="button"
-                    tone="subtle"
+                    tone="danger"
                     size="xs"
                     disabled={shortcutRecording}
                     onClick={discardShortcuts}
@@ -225,6 +275,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                     {t('shortcutEditor.discard')}
                   </Button>
                   <Button
+                    ref={saveShortcutButtonRef}
                     type="button"
                     size="xs"
                     disabled={shortcutRecording}
@@ -233,6 +284,13 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                     {t('shortcutEditor.save')}
                   </Button>
                 </div>
+                <span className="sr-only" aria-live="assertive" aria-atomic="true">
+                  {dirtyAttentionRevision > 0 ? (
+                    <span key={dirtyAttentionRevision}>
+                      {t('shortcutEditor.saveBeforeLeaving')}
+                    </span>
+                  ) : null}
+                </span>
               </>
             ) : null}
           </DialogFooter>

@@ -22,6 +22,23 @@ function TooltipProvider({
   );
 }
 
+function Tooltip<Payload>({
+  actionsRef,
+  ...props
+}: TooltipPrimitive.Root.Props<Payload>) {
+  const internalActionsRef = React.useRef<TooltipPrimitive.Root.Actions>(null);
+  const resolvedActionsRef = actionsRef ?? internalActionsRef;
+
+  React.useEffect(() => {
+    const closeTooltip = () => resolvedActionsRef.current?.close();
+
+    document.addEventListener('scroll', closeTooltip, true);
+    return () => document.removeEventListener('scroll', closeTooltip, true);
+  }, [resolvedActionsRef]);
+
+  return <TooltipPrimitive.Root actionsRef={resolvedActionsRef} {...props} />;
+}
+
 type TooltipPositionerProps = React.ComponentProps<typeof TooltipPrimitive.Positioner>;
 type TooltipPrimitivePopupProps = React.ComponentProps<typeof TooltipPrimitive.Popup>;
 
@@ -87,7 +104,6 @@ function TooltipPopup({
   );
 }
 
-const Tooltip = TooltipPrimitive.Root;
 const TooltipTrigger = TooltipPrimitive.Trigger;
 const TooltipCreateHandle = TooltipPrimitive.createHandle;
 type TooltipHandle<Payload> = TooltipPrimitive.Handle<Payload>;

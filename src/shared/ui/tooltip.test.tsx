@@ -97,4 +97,49 @@ describe("Tooltip", () => {
     );
     expect(document.querySelector('[data-slot="tooltip-arrow"]')).toBeNull();
   });
+
+  it("closes an open tooltip when any scroll container moves", () => {
+    render(
+      <TooltipProvider>
+        <div data-testid="scroll-container">
+          <Tooltip>
+            <TooltipTrigger render={<button type="button" />}>
+              Scroll trigger
+            </TooltipTrigger>
+            <TooltipPopup>Scroll details</TooltipPopup>
+          </Tooltip>
+        </div>
+      </TooltipProvider>
+    );
+
+    fireEvent.focus(screen.getByRole("button", { name: "Scroll trigger" }));
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Scroll details");
+
+    fireEvent.scroll(screen.getByTestId("scroll-container"));
+
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
+
+  it("cancels a delayed tooltip when scrolling before it opens", async () => {
+    vi.useFakeTimers();
+
+    render(
+      <TooltipProvider delay={500}>
+        <div data-testid="scroll-container">
+          <Tooltip>
+            <TooltipTrigger render={<button type="button" />}>
+              Delayed trigger
+            </TooltipTrigger>
+            <TooltipPopup>Delayed details</TooltipPopup>
+          </Tooltip>
+        </div>
+      </TooltipProvider>
+    );
+
+    fireEvent.mouseEnter(screen.getByRole("button", { name: "Delayed trigger" }));
+    fireEvent.scroll(screen.getByTestId("scroll-container"));
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
 });

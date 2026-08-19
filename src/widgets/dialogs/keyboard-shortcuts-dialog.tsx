@@ -107,10 +107,7 @@ const createShortcutBindings = (entries: readonly KeymapBindingSnapshot[]): Shor
   Object.fromEntries(
     entries
       .filter((entry) => entry.configurable)
-      .map((entry) => [
-        entry.id,
-        entry.shortcuts.map((sequence) => [...sequence]),
-      ])
+      .map((entry) => [entry.id, entry.shortcuts.map((sequence) => [...sequence])])
   );
 
 const bindingsEqual = (left: ShortcutBindings, right: ShortcutBindings) => {
@@ -122,13 +119,7 @@ export const KeyboardShortcutsPanel = forwardRef<
   KeyboardShortcutsPanelHandle,
   KeyboardShortcutsPanelProps
 >(function KeyboardShortcutsPanel(
-  {
-    revealEntryId,
-    onRevealComplete,
-    onDirtyChange,
-    onRecordingChange,
-    onResettableChange,
-  },
+  { revealEntryId, onRevealComplete, onDirtyChange, onRecordingChange, onResettableChange },
   ref
 ) {
   const { t } = useUiI18n();
@@ -223,11 +214,11 @@ export const KeyboardShortcutsPanel = forwardRef<
     }));
   }, [editableEntries]);
 
-  useImperativeHandle(
-    ref,
-    () => ({ save: saveDraft, discard: discardDraft, reset: resetDraft }),
-    [discardDraft, resetDraft, saveDraft]
-  );
+  useImperativeHandle(ref, () => ({ save: saveDraft, discard: discardDraft, reset: resetDraft }), [
+    discardDraft,
+    resetDraft,
+    saveDraft,
+  ]);
 
   useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange]);
   useEffect(() => onRecordingChange?.(recording !== null), [onRecordingChange, recording]);

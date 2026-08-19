@@ -72,11 +72,18 @@ describe('SettingsDialog', () => {
     expect(dialog.querySelector('[data-slot="settings-layout"]')).toHaveClass(
       'grid',
       'min-w-0',
-      'grid-rows-[auto_minmax(0,1fr)]',
-      'lg:grid-cols-[11rem_minmax(0,1fr)]'
+      'grid-rows-[auto_minmax(0,1fr)_2.25rem]',
+      'lg:grid-cols-[11rem_minmax(0,1fr)]',
+      'lg:grid-rows-[minmax(0,1fr)_2.25rem]'
     );
     expect(dialog.querySelector('[data-slot="settings-content"]')).toHaveClass('min-w-0');
     expect(dialog.querySelector('[data-slot="settings-content"]')).not.toHaveClass('w-full');
+    expect(dialog.querySelector('[data-slot="dialog-footer"]')).toHaveClass(
+      'h-9',
+      'lg:col-start-2',
+      'lg:row-start-2'
+    );
+    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Settings sections' })).toHaveClass(
       'flex-nowrap',
       'lg:flex-col'

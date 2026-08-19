@@ -33,6 +33,33 @@ const renderDialog = (editor: CanvasEditorRuntime, onOpenChange = () => undefine
   return view;
 };
 
+const stubAttentionMotion = (reduceMotion: boolean) => {
+  const animateDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'animate');
+  const matchMediaDescriptor = Object.getOwnPropertyDescriptor(window, 'matchMedia');
+  const animation = { cancel: vi.fn() } as unknown as Animation;
+  const animate = vi.fn(() => animation);
+  Object.defineProperty(HTMLElement.prototype, 'animate', {
+    configurable: true,
+    value: animate,
+  });
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    value: vi.fn(() => ({ matches: reduceMotion }) as MediaQueryList),
+  });
+  return {
+    animate,
+    restore: () => {
+      if (animateDescriptor) {
+        Object.defineProperty(HTMLElement.prototype, 'animate', animateDescriptor);
+      } else {
+        Reflect.deleteProperty(HTMLElement.prototype, 'animate');
+      }
+      if (matchMediaDescriptor) Object.defineProperty(window, 'matchMedia', matchMediaDescriptor);
+      else Reflect.deleteProperty(window, 'matchMedia');
+    },
+  };
+};
+
 describe('KeyboardShortcutsPanel', () => {
   let editor: CanvasEditorRuntime;
 
@@ -72,7 +99,7 @@ describe('KeyboardShortcutsPanel', () => {
     expect(shortcutTable).not.toHaveClass('text-sm');
     expect(shortcutGrid?.querySelector('[data-slot="table-head"]')).toHaveClass('h-8');
     expect(shortcutGrid?.querySelector('[data-slot="table-cell"]')).toHaveClass('h-8');
-    expect(screen.queryByRole('button', { name: 'Reset all' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Reset' })).not.toBeInTheDocument();
     expect(screen.queryByText('Custom')).not.toBeInTheDocument();
     expect(screen.getByRole('searchbox', { name: 'Search settings' })).toBeInTheDocument();
     expect(screen.queryByRole('searchbox', { name: 'Search shortcuts' })).not.toBeInTheDocument();
@@ -94,7 +121,7 @@ describe('KeyboardShortcutsPanel', () => {
     expect(undoKbdGroup?.querySelector('[data-slot="kbd"]')).not.toHaveClass('bg-muted');
   });
 
-  it('persists edits and resets immediately without a save footer', () => {
+  it('keeps edits in a draft and commits or discards them from the dialog footer', () => {
     renderDialog(editor);
 
     const editUndo = screen.getByRole('button', {
@@ -104,22 +131,49 @@ describe('KeyboardShortcutsPanel', () => {
     fireEvent.keyDown(editUndo, { key: 'j', ctrlKey: true });
     fireEvent.keyDown(editUndo, { key: 'Enter' });
 
-    expect(editor.keymap.getBindings('command:undo')).toEqual([['Mod+J']]);
+    expect(editor.keymap.getBindings('command:undo')).toEqual([['Mod+Z']]);
     expect(screen.getByRole('button', { name: /Edit .*J for Undo/ })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
     expect(screen.queryByText('Unsaved changes')).not.toBeInTheDocument();
     expect(screen.queryByText('Custom')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Reset all' })).toBeInTheDocument();
+    const resetAll = screen.getByRole('button', { name: 'Reset' });
+    expect(resetAll.querySelector('svg')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Discard' })).toHaveAttribute('data-tone', 'danger');
+    expect(screen.getByRole('button', { name: 'Save' })).toHaveAttribute('data-tone', 'primary');
+    expect(screen.getByRole('dialog').querySelector('[data-slot="dialog-header"]')).toBeNull();
+    expect(
+      screen.getByRole('dialog').querySelector('[data-slot="settings-content-footer"]')
+    ).toBeNull();
+    expect(screen.getByRole('dialog').querySelector('[data-slot="dialog-footer"]')).toHaveClass(
+      'h-9',
+      'lg:col-start-2'
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
+    expect(editor.keymap.getBindings('command:undo')).toEqual([['Mod+Z']]);
+    expect(screen.getByRole('button', { name: /Edit .*Z for Undo/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
+
+    const editRestoredUndo = screen.getByRole('button', { name: /Edit .* for Undo/ });
+    fireEvent.click(editRestoredUndo);
+    fireEvent.keyDown(editRestoredUndo, { key: 'j', ctrlKey: true });
+    fireEvent.keyDown(editRestoredUndo, { key: 'Enter' });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(editor.keymap.getBindings('command:undo')).toEqual([['Mod+J']]);
+    expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
+
     const resetUndo = screen.getByRole('button', { name: 'Restore defaults for Undo' });
     expect(resetUndo).toHaveAttribute('data-size', 'xs');
     expect(resetUndo).toHaveClass('size-6');
     expect(resetUndo.closest('td')).toHaveClass('h-8', 'p-1');
 
     fireEvent.click(screen.getByRole('button', { name: 'Restore defaults for Undo' }));
-    expect(editor.keymap.getBindings('command:undo')).toEqual([['Mod+Z']]);
+    expect(editor.keymap.getBindings('command:undo')).toEqual([['Mod+J']]);
     expect(
       screen.queryByRole('button', { name: 'Restore defaults for Undo' })
     ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(editor.keymap.getBindings('command:undo')).toEqual([['Mod+Z']]);
   });
 
   it('preserves multiple bindings when one binding is edited', () => {
@@ -133,8 +187,10 @@ describe('KeyboardShortcutsPanel', () => {
     fireEvent.keyDown(redoBindings[0], { key: 'j', ctrlKey: true });
     fireEvent.keyDown(redoBindings[0], { key: 'Enter' });
 
-    expect(editor.keymap.getBindings('command:redo')).toEqual([['Mod+J'], ['Mod+Y']]);
+    expect(editor.keymap.getBindings('command:redo')).toEqual([['Mod+Shift+Z'], ['Mod+Y']]);
     expect(screen.getAllByRole('button', { name: /Edit .* for Redo/ })).toHaveLength(2);
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(editor.keymap.getBindings('command:redo')).toEqual([['Mod+J'], ['Mod+Y']]);
   });
 
   it('offers a compact entry point when a command has no binding', () => {
@@ -158,11 +214,13 @@ describe('KeyboardShortcutsPanel', () => {
     fireEvent.keyDown(setUndo, { key: 'u', altKey: true });
     fireEvent.keyDown(setUndo, { key: 'Enter' });
 
-    expect(editor.keymap.getBindings('command:undo')).toEqual([['Alt+U']]);
+    expect(editor.keymap.getBindings('command:undo')).toEqual([]);
     expect(screen.getByRole('button', { name: /Edit .* for Undo/ })).toHaveAttribute(
       'data-slot',
       'shortcut-binding'
     );
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(editor.keymap.getBindings('command:undo')).toEqual([['Alt+U']]);
   });
 
   it('uses global search to reveal a command without filtering the shortcut page', async () => {
@@ -185,7 +243,7 @@ describe('KeyboardShortcutsPanel', () => {
     expect(screen.getByRole('button', { name: /Edit .* for Undo/ })).toBeInTheDocument();
   });
 
-  it('preserves an auto-saved shortcut when search reveals another shortcut', async () => {
+  it('keeps an unsaved shortcut draft on the current page', async () => {
     renderDialog(editor);
     const editUndo = screen.getByRole('button', { name: /Edit .* for Undo/ });
     fireEvent.click(editUndo);
@@ -201,12 +259,12 @@ describe('KeyboardShortcutsPanel', () => {
       )
     );
 
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /Edit .* for Underline/ })).toHaveFocus();
-    });
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: 'Keyboard shortcuts' })).toBeInTheDocument()
+    );
     expect(screen.queryByText('Unsaved changes')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Edit .*J for Undo/ })).toBeInTheDocument();
-    expect(editor.keymap.getBindings('command:undo')).toEqual([['Mod+J']]);
+    expect(editor.keymap.getBindings('command:undo')).toEqual([['Mod+Z']]);
   });
 
   it('reports a single-stroke shortcut that shadows existing chords', () => {
@@ -217,7 +275,7 @@ describe('KeyboardShortcutsPanel', () => {
     fireEvent.keyDown(editUndo, { key: 'Enter' });
 
     const conflictingUndo = screen.getByRole('button', { name: /Edit .* for Undo.*Overlaps/ });
-    expect(editor.keymap.getBindings('command:undo')).toEqual([['Mod+K']]);
+    expect(editor.keymap.getBindings('command:undo')).toEqual([['Mod+Z']]);
     expect(conflictingUndo).toHaveAttribute('aria-invalid', 'true');
     expect(conflictingUndo.querySelector('[data-slot="kbd"]')).toHaveClass('text-destructive');
     expect(screen.queryByRole('heading', { name: 'Shortcut in use' })).not.toBeInTheDocument();
@@ -252,7 +310,8 @@ describe('KeyboardShortcutsPanel', () => {
       'aria-pressed',
       'false'
     );
-    expect(editor.keymap.getBindings('command:undo')).toEqual([['Mod+J']]);
+    expect(editor.keymap.getBindings('command:undo')).toEqual([['Mod+Z']]);
+    expect(screen.getByRole('button', { name: /Edit .*J for Undo/ })).toBeInTheDocument();
   });
 
   it('cancels an empty recording when focus leaves the binding', () => {
@@ -277,7 +336,7 @@ describe('KeyboardShortcutsPanel', () => {
     fireEvent.keyDown(editUndo, { key: 'j', ctrlKey: true });
     fireEvent.pointerDown(screen.getByRole('columnheader', { name: 'Command' }));
 
-    expect(editor.keymap.getBindings('command:undo')).toEqual([['Mod+J']]);
+    expect(editor.keymap.getBindings('command:undo')).toEqual([['Mod+Z']]);
     expect(screen.getByRole('button', { name: /Edit .*J for Undo/ })).toHaveAttribute(
       'aria-pressed',
       'false'
@@ -328,7 +387,7 @@ describe('KeyboardShortcutsPanel', () => {
       'aria-pressed',
       'false'
     );
-    expect(editor.keymap.getBindings('command:undo')).toEqual([['Mod+J']]);
+    expect(editor.keymap.getBindings('command:undo')).toEqual([['Mod+Z']]);
   });
 
   it('cancels recording when the browser window loses focus', () => {
@@ -343,7 +402,7 @@ describe('KeyboardShortcutsPanel', () => {
     expect(editor.keymap.getBindings('command:undo')).toEqual([['Mod+Z']]);
   });
 
-  it('resets configurable bindings immediately without touching non-configurable overrides', () => {
+  it('resets configurable bindings in the draft without touching non-configurable overrides', () => {
     editor.keymap.register('test', {
       id: 'internal:test',
       label: 'Internal',
@@ -355,11 +414,18 @@ describe('KeyboardShortcutsPanel', () => {
     editor.keymap.setUserBindings('command:undo', [['Mod+J']]);
     renderDialog(editor);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Reset all' }));
+    const editCopy = screen.getByRole('button', { name: /Edit .* for Copy/ });
+    fireEvent.click(editCopy);
+    fireEvent.keyDown(editCopy, { key: 'x', ctrlKey: true });
+    fireEvent.keyDown(editCopy, { key: 'Enter' });
+    fireEvent.click(screen.getByRole('button', { name: 'Reset' }));
 
-    expect(editor.keymap.getBindings('command:undo')).toEqual([['Mod+Z']]);
+    expect(editor.keymap.getBindings('command:undo')).toEqual([['Mod+J']]);
     expect(editor.keymap.getBindings('internal:test')).toEqual([['Alt+Y']]);
     expect(screen.queryByText('Internal')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(editor.keymap.getBindings('command:undo')).toEqual([['Mod+Z']]);
+    expect(editor.keymap.getBindings('internal:test')).toEqual([['Alt+Y']]);
   });
 
   it('saves duplicate bindings and marks every conflicting Kbd invalid', () => {
@@ -373,8 +439,8 @@ describe('KeyboardShortcutsPanel', () => {
     fireEvent.keyDown(editCopy, { key: 'Enter' });
 
     expect(editor.keymap.getBindings('command:undo')).toEqual([['Mod+Z']]);
-    expect(editor.keymap.getBindings('command:copy')).toEqual([['Mod+Z']]);
-    expect(notifications).toBe(1);
+    expect(editor.keymap.getBindings('command:copy')).toEqual([['Mod+C']]);
+    expect(notifications).toBe(0);
     const undoConflict = screen.getByRole('button', { name: /for Undo.*assigned to Copy/ });
     const copyConflict = screen.getByRole('button', { name: /for Copy.*assigned to Undo/ });
     expect(undoConflict).toHaveAttribute('aria-invalid', 'true');
@@ -382,6 +448,9 @@ describe('KeyboardShortcutsPanel', () => {
     expect(undoConflict.querySelector('[data-slot="kbd"]')).toHaveClass('bg-destructive/10');
     expect(copyConflict.querySelector('[data-slot="kbd"]')).toHaveClass('text-destructive');
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(editor.keymap.getBindings('command:copy')).toEqual([['Mod+Z']]);
+    expect(notifications).toBe(1);
   });
 
   it('allows the same shortcut in different scopes', () => {
@@ -410,10 +479,12 @@ describe('KeyboardShortcutsPanel', () => {
     fireEvent.keyDown(editGridUp, { key: 'Enter' });
 
     expect(screen.queryByRole('heading', { name: 'Shortcut in use' })).not.toBeInTheDocument();
-    expect(editor.keymap.getBindings('grid:test-up')).toEqual([['Alt+P']]);
+    expect(editor.keymap.getBindings('grid:test-up')).toEqual([['Alt+G']]);
     expect(screen.getByRole('button', { name: /Edit .* for Grid Up/ })).not.toHaveAttribute(
       'aria-invalid'
     );
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(editor.keymap.getBindings('grid:test-up')).toEqual([['Alt+P']]);
   });
 
   it('records a two-stroke chord', () => {
@@ -424,6 +495,8 @@ describe('KeyboardShortcutsPanel', () => {
     fireEvent.keyDown(editUndo, { key: 'c', ctrlKey: true });
     expect(editor.keymap.getBindings('command:undo')).toEqual([['Mod+Z']]);
     fireEvent.keyDown(editUndo, { key: 'Enter' });
+    expect(editor.keymap.getBindings('command:undo')).toEqual([['Mod+Z']]);
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     expect(editor.keymap.getBindings('command:undo')).toEqual([['Mod+K', 'Mod+C']]);
   });
 
@@ -436,15 +509,18 @@ describe('KeyboardShortcutsPanel', () => {
     fireEvent.keyDown(editUndo, { key: 'Enter' });
 
     expect(screen.queryByText(/Meta Left/i)).not.toBeInTheDocument();
+    expect(editor.keymap.getBindings('command:undo')).toEqual([['Mod+Z']]);
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     expect(editor.keymap.getBindings('command:undo')).toEqual([['Mod+R']]);
   });
 
-  it('leaves through global search without prompting after an auto-saved edit', async () => {
+  it('leaves through global search after the draft is saved', async () => {
     renderDialog(editor);
     const editUndo = screen.getByRole('button', { name: /Edit .* for Undo/ });
     fireEvent.click(editUndo);
     fireEvent.keyDown(editUndo, { key: 'j', ctrlKey: true });
     fireEvent.keyDown(editUndo, { key: 'Enter' });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     const search = screen.getByRole('searchbox', { name: 'Search settings' });
     fireEvent.change(search, { target: { value: 'Language' } });
@@ -461,7 +537,7 @@ describe('KeyboardShortcutsPanel', () => {
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   });
 
-  it('navigates immediately after an auto-saved edit', () => {
+  it('blocks section navigation until the draft is discarded', () => {
     renderDialog(editor);
     const editUndo = screen.getByRole('button', { name: /Edit .* for Undo/ });
     fireEvent.click(editUndo);
@@ -469,12 +545,16 @@ describe('KeyboardShortcutsPanel', () => {
     fireEvent.keyDown(editUndo, { key: 'Enter' });
 
     fireEvent.click(screen.getByRole('button', { name: 'General' }));
-    expect(screen.getByRole('heading', { name: 'General' })).toBeInTheDocument();
-    expect(editor.keymap.getBindings('command:undo')).toEqual([['Mod+J']]);
+    expect(screen.getByRole('heading', { name: 'Keyboard shortcuts' })).toBeInTheDocument();
+    expect(editor.keymap.getBindings('command:undo')).toEqual([['Mod+Z']]);
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
+    fireEvent.click(screen.getByRole('button', { name: 'General' }));
+    expect(screen.getByRole('heading', { name: 'General' })).toBeInTheDocument();
   });
 
-  it('closes immediately after an auto-saved edit', () => {
+  it('blocks closing while dirty and closes after saving', () => {
     const onOpenChange = vi.fn();
     renderDialog(editor, onOpenChange);
     const editUndo = screen.getByRole('button', { name: /Edit .* for Undo/ });
@@ -483,12 +563,58 @@ describe('KeyboardShortcutsPanel', () => {
     fireEvent.keyDown(editUndo, { key: 'Enter' });
 
     fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onOpenChange).not.toHaveBeenCalled();
+    expect(editor.keymap.getBindings('command:undo')).toEqual([['Mod+Z']]);
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    fireEvent.keyDown(document, { key: 'Escape' });
     expect(onOpenChange).toHaveBeenCalledWith(false);
     expect(editor.keymap.getBindings('command:undo')).toEqual([['Mod+J']]);
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
   });
 
-  it('never installs an unsaved-changes browser guard', () => {
+  it('focuses Save and replays the footer nudge for every blocked exit', async () => {
+    const motion = stubAttentionMotion(false);
+    try {
+      const onOpenChange = vi.fn();
+      renderDialog(editor, onOpenChange);
+      const editUndo = screen.getByRole('button', { name: /Edit .* for Undo/ });
+      fireEvent.click(editUndo);
+      fireEvent.keyDown(editUndo, { key: 'j', ctrlKey: true });
+      fireEvent.keyDown(editUndo, { key: 'Enter' });
+
+      fireEvent.keyDown(document, { key: 'Escape' });
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Save' })).toHaveFocus());
+      expect(motion.animate).toHaveBeenCalledTimes(1);
+      expect(
+        screen.getByText('Save or discard changes before leaving settings.').closest('.sr-only')
+      ).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'General' }));
+      await waitFor(() => expect(motion.animate).toHaveBeenCalledTimes(2));
+      expect(onOpenChange).not.toHaveBeenCalled();
+    } finally {
+      motion.restore();
+    }
+  });
+
+  it('focuses Save without animating when reduced motion is requested', async () => {
+    const motion = stubAttentionMotion(true);
+    try {
+      renderDialog(editor);
+      const editUndo = screen.getByRole('button', { name: /Edit .* for Undo/ });
+      fireEvent.click(editUndo);
+      fireEvent.keyDown(editUndo, { key: 'j', ctrlKey: true });
+      fireEvent.keyDown(editUndo, { key: 'Enter' });
+
+      fireEvent.click(screen.getByRole('button', { name: 'General' }));
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Save' })).toHaveFocus());
+      expect(motion.animate).not.toHaveBeenCalled();
+    } finally {
+      motion.restore();
+    }
+  });
+
+  it('installs an unload guard only while the shortcut draft is dirty', () => {
     renderDialog(editor);
     const editUndo = screen.getByRole('button', { name: /Edit .* for Undo/ });
     fireEvent.click(editUndo);
@@ -496,7 +622,25 @@ describe('KeyboardShortcutsPanel', () => {
     fireEvent.keyDown(editUndo, { key: 'Enter' });
     const unload = new Event('beforeunload', { cancelable: true });
     window.dispatchEvent(unload);
-    expect(unload.defaultPrevented).toBe(false);
+    expect(unload.defaultPrevented).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
+    const cleanUnload = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(cleanUnload);
+    expect(cleanUnload.defaultPrevented).toBe(false);
+  });
+
+  it('disables footer actions while recording another shortcut', () => {
+    renderDialog(editor);
+    const editUndo = screen.getByRole('button', { name: /Edit .* for Undo/ });
+    fireEvent.click(editUndo);
+    fireEvent.keyDown(editUndo, { key: 'j', ctrlKey: true });
+    fireEvent.keyDown(editUndo, { key: 'Enter' });
+
+    fireEvent.click(screen.getByRole('button', { name: /Edit .* for Copy/ }));
+    expect(screen.getByRole('button', { name: 'Reset' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Discard' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
   });
 
   it('cancels an empty recording and navigates on an outside click', () => {
