@@ -34,6 +34,7 @@ import {
 import { intersectHostCapabilities } from './editorHostProfile';
 import { useEditorHostProfile } from './useEditorHostProfile';
 import { useBlackboardSource } from './useBlackboardSource';
+import { getAppActionShortcuts } from '@/domains/actions/public';
 
 const SidebarRight = lazy(() =>
   import('@/widgets/toolbar/sidebar-right').then((module) => ({
@@ -57,10 +58,9 @@ function SidebarShortcutRegistration() {
       label: 'Toggle Sidebar',
       category: 'Canvas',
       scope: 'application',
-      shortcuts: ['mod+b'],
+      shortcuts: getAppActionShortcuts('toggle-sidebar'),
       target: { type: 'command', id: 'ui.toggle-sidebar' },
-      when: ({ targetKind }) =>
-        targetKind !== 'editable' && targetKind !== 'managed-canvas' && targetKind !== 'overlay',
+      when: ({ targetKind }) => targetKind !== 'editable' && targetKind !== 'overlay',
     });
     return () => {
       disposeBinding();

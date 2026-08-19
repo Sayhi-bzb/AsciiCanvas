@@ -86,7 +86,15 @@ describe("SidebarStandard scrolling", () => {
     );
 
     const toggle = screen.getByRole("button", { name: /toggle sidebar/i });
+    const surface = container.querySelector('[data-slot="sidebar-container"]');
     expect(toggle.querySelector("svg")).toHaveClass("lucide-panel-right-close");
+    expect(surface).toHaveClass(
+      "h-full",
+      "pointer-events-auto",
+      "transition-[height,background-color,box-shadow]",
+      "duration-[var(--motion-standard)]",
+      "ease-[cubic-bezier(0.22,1,0.36,1)]"
+    );
 
     fireEvent.click(toggle);
 
@@ -96,5 +104,8 @@ describe("SidebarStandard scrolling", () => {
       "data-state",
       "collapsed"
     );
+    expect(container.querySelector('[data-slot="sidebar-container"]')).toBe(surface);
+    expect(surface).toHaveClass("h-12");
+    expect(surface).not.toHaveClass("h-full");
   });
 });

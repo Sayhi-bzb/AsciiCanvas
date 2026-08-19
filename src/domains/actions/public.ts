@@ -19,6 +19,7 @@ export type {
 } from './core';
 export {
   getAppActionShortcutLabel,
+  getAppActionShortcuts,
   getEditorCommandShortcutLabel,
   formatShortcutLabel,
   getShortcutDisplayStrokes,

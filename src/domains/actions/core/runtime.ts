@@ -17,6 +17,7 @@ const ACTION_CHECKERS: Partial<Record<EditorActionId, ActionChecker>> = {
 };
 
 const CANVAS_FOCUS_COMMANDS = new Set<EditorActionId>(['copy', 'cut', 'paste', 'delete-selection']);
+const isFormattingCommand = (id: EditorActionId) => id.startsWith('format-');
 
 export type EditorCommandOptions = {
   source?: ActionSource;
@@ -80,10 +81,16 @@ export const createEditorCommandsExtension = (
     keybindings: Object.values(EDITOR_COMMAND_META).map((command) => ({
       id: `command:${command.id}`,
       label: command.label,
-      category: command.id.startsWith('structured-') ? 'Structured' : 'General',
+      category: command.id.startsWith('structured-')
+        ? 'Structured'
+        : isFormattingCommand(command.id)
+          ? 'Formatting'
+          : 'General',
       scope: command.id.startsWith('structured-') ? 'structured' : 'canvas',
       configurable: true,
-      shortcuts: command.shortcuts?.map((shortcut) => shortcut.join('+')) ?? [],
+      shortcuts: command.shortcuts?.map((shortcut) =>
+        typeof shortcut === 'string' ? shortcut : shortcut.join('+')
+      ) ?? [],
       target: { type: 'command' as const, id: command.id },
       when: ({ targetKind, state }) =>
         targetKind !== 'editable' &&

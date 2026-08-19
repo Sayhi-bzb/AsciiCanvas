@@ -1,5 +1,36 @@
 import { describe, expect, it } from 'vitest';
-import { EditorKeymap } from './keymap';
+import {
+  EditorKeymap,
+  findShortcutConflicts,
+  getShortcutConflictKind,
+  shortcutScopesOverlap,
+} from './keymap';
+
+describe('shortcut conflicts', () => {
+  const entries = [
+    { id: 'sidebar', scope: 'application' as const, shortcuts: [['Mod+K', 'B']] },
+    { id: 'inspector', scope: 'canvas' as const, shortcuts: [['Mod+K', 'P']] },
+    { id: 'grid-up', scope: 'grid' as const, shortcuts: [['Alt+P']] },
+    { id: 'slide-up', scope: 'presentation' as const, shortcuts: [['Alt+P']] },
+  ];
+
+  it('distinguishes exact conflicts from chord-prefix ambiguity', () => {
+    expect(getShortcutConflictKind(['Mod+K'], ['Mod+K', 'B'])).toBe('prefix');
+    expect(getShortcutConflictKind(['Mod+B'], ['Mod+B'])).toBe('exact');
+    expect(getShortcutConflictKind(['Mod+K', 'B'], ['Mod+K', 'P'])).toBeNull();
+  });
+
+  it('only compares shortcuts whose scopes can be active together', () => {
+    expect(shortcutScopesOverlap('application', 'structured')).toBe(true);
+    expect(shortcutScopesOverlap('canvas', 'presentation')).toBe(true);
+    expect(shortcutScopesOverlap('grid', 'presentation')).toBe(false);
+    expect(findShortcutConflicts(entries, 'grid-up', ['Alt+P'])).toEqual([]);
+    expect(findShortcutConflicts(entries, 'inspector', ['Mod+K'])).toEqual([
+      expect.objectContaining({ kind: 'prefix', conflictingEntryId: 'sidebar' }),
+      expect.objectContaining({ kind: 'prefix', conflictingEntryId: 'inspector' }),
+    ]);
+  });
+});
 
 describe('EditorKeymap', () => {
   it('applies overrides and orders contextual matches by priority', () => {

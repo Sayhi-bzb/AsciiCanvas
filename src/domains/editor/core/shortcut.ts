@@ -102,7 +102,16 @@ export const matchesShortcutEvent = (
   event: KeyboardEvent,
   stroke: ShortcutStroke,
   platform: ShortcutPlatform = getPlatform()
-) => matchesKeyboardEvent(event, stroke as Hotkey, platform);
+) => {
+  if (matchesKeyboardEvent(event, stroke as Hotkey, platform)) return true;
+  if (!stroke.includes('Mod+')) return false;
+  const eventPlatform = event.metaKey && !event.ctrlKey
+    ? 'mac'
+    : event.ctrlKey && !event.metaKey
+      ? 'windows'
+      : platform;
+  return eventPlatform !== platform && matchesKeyboardEvent(event, stroke as Hotkey, eventPlatform);
+};
 
 export const formatShortcutStroke = (
   stroke: ShortcutStroke,

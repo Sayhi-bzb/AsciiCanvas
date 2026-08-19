@@ -19,11 +19,13 @@ import {
 import { formatShortcutLabel } from '@/domains/actions/public';
 import {
   shortcutFromKeyboardEvent,
+  findShortcutConflicts,
   shortcutSequenceKey,
   shortcutsEqual,
   useEditor,
   useEditorKeymapSnapshot,
   type KeymapBindingSnapshot,
+  type ShortcutConflict,
   type ShortcutSequence,
 } from '@/domains/editor/public';
 import { SHORTCUT_PRIORITY, useShortcutLayer } from '@/shared/shortcuts/dispatcher';
@@ -41,6 +43,7 @@ import {
 } from '@/shared/ui/alert-dialog';
 import { Button } from '@/shared/ui/button';
 import { IconButton } from '@/shared/ui/icon-button';
+import { Input } from '@/shared/ui/input';
 import { Kbd, KbdGroup } from '@/shared/ui/kbd';
 import { Pressable } from '@/shared/ui/pressable';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table';
@@ -58,12 +61,13 @@ type PendingConflict = {
   targetEntryId: string;
   shortcuts: readonly ShortcutSequence[];
   shortcut: ShortcutSequence;
-  conflictingEntryIds: readonly string[];
+  conflicts: readonly ShortcutConflict[];
 };
 
 type KeyboardShortcutsPanelProps = {
   onDirtyChange?: (dirty: boolean) => void;
   onRecordingChange?: (recording: boolean) => void;
+  onValidityChange?: (valid: boolean) => void;
 };
 
 export type KeyboardShortcutsPanelHandle = {
@@ -136,7 +140,10 @@ const bindingsEqual = (left: ShortcutBindings, right: ShortcutBindings) => {
 export const KeyboardShortcutsPanel = forwardRef<
   KeyboardShortcutsPanelHandle,
   KeyboardShortcutsPanelProps
->(function KeyboardShortcutsPanel({ onDirtyChange, onRecordingChange }, ref) {
+>(function KeyboardShortcutsPanel(
+  { onDirtyChange, onRecordingChange, onValidityChange },
+  ref
+) {
   const { t } = useUiI18n();
   const editor = useEditor();
   const snapshot = useEditorKeymapSnapshot();
@@ -146,6 +153,7 @@ export const KeyboardShortcutsPanel = forwardRef<
   });
   const [recording, setRecording] = useState<RecordingTarget | null>(null);
   const [pendingConflict, setPendingConflict] = useState<PendingConflict | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const dirty = useMemo(
     () => !bindingsEqual(draft.baseline, draft.bindings),
@@ -160,8 +168,9 @@ export const KeyboardShortcutsPanel = forwardRef<
     () => () => {
       onDirtyChange?.(false);
       onRecordingChange?.(false);
+      onValidityChange?.(true);
     },
-    [onDirtyChange, onRecordingChange]
+    [onDirtyChange, onRecordingChange, onValidityChange]
   );
 
   const entriesById = useMemo(
@@ -185,6 +194,27 @@ export const KeyboardShortcutsPanel = forwardRef<
     () => [...entriesById.values()].filter((entry) => entry.configurable),
     [entriesById]
   );
+  const draftConflicts = useMemo(() => {
+    const entries = [...entriesById.values()];
+    const byKey = new Map<string, ShortcutConflict>();
+    for (const entry of entries) {
+      for (const shortcut of entry.shortcuts) {
+        for (const conflict of findShortcutConflicts(entries, entry.id, shortcut)) {
+          const pair = [
+            `${conflict.entryId}:${shortcutSequenceKey(conflict.shortcut)}`,
+            `${conflict.conflictingEntryId}:${shortcutSequenceKey(conflict.conflictingShortcut)}`,
+          ].sort();
+          byKey.set(`${conflict.kind}:${pair.join('|')}`, conflict);
+        }
+      }
+    }
+    return [...byKey.values()];
+  }, [entriesById]);
+  const valid = draftConflicts.length === 0;
+
+  useEffect(() => {
+    onValidityChange?.(valid);
+  }, [onValidityChange, valid]);
   const commitBindings = useCallback(
     (entry: KeymapBindingSnapshot, shortcuts: readonly ShortcutSequence[]) => {
       setDraft((current) => ({
@@ -195,7 +225,20 @@ export const KeyboardShortcutsPanel = forwardRef<
     []
   );
 
+  const resetAllBindings = () => {
+    setDraft((current) => ({
+      ...current,
+      bindings: Object.fromEntries(
+        editableEntries.map((entry) => [
+          entry.id,
+          entry.defaultShortcuts.map((sequence) => [...sequence]),
+        ])
+      ),
+    }));
+  };
+
   const saveDraft = useCallback(() => {
+    if (!valid) return;
     const updates: Record<string, readonly ShortcutSequence[] | null> = {};
     for (const entry of snapshot.entries) {
       if (!entry.configurable) continue;
@@ -212,7 +255,7 @@ export const KeyboardShortcutsPanel = forwardRef<
       ])
     );
     setDraft({ baseline: bindings, bindings });
-  }, [draft, editor, snapshot.entries]);
+  }, [draft, editor, snapshot.entries, valid]);
 
   useImperativeHandle(ref, () => ({ save: saveDraft }), [saveDraft]);
 
@@ -257,24 +300,18 @@ export const KeyboardShortcutsPanel = forwardRef<
     const shortcuts = [...new Map(
       next.map((sequence) => [shortcutSequenceKey(sequence), sequence])
     ).values()];
-    const conflictingEntryIds = editableEntries
-      .filter(
-        (candidate) =>
-          candidate.id !== entry.id &&
-          candidate.scope === entry.scope &&
-          candidate.shortcuts.some((candidateShortcut) =>
-            shortcutsEqual(candidateShortcut, shortcut)
-          )
-      )
-      .map((candidate) => candidate.id);
+    const conflictEntries = [...entriesById.values()].map((candidate) =>
+      candidate.id === entry.id ? { ...candidate, shortcuts } : candidate
+    );
+    const conflicts = findShortcutConflicts(conflictEntries, entry.id, shortcut);
 
     stopRecording();
-    if (conflictingEntryIds.length > 0) {
+    if (conflicts.length > 0) {
       setPendingConflict({
         targetEntryId: entry.id,
         shortcuts,
         shortcut,
-        conflictingEntryIds,
+        conflicts,
       });
       return;
     }
@@ -302,12 +339,6 @@ export const KeyboardShortcutsPanel = forwardRef<
         }
         return { claimed: true, preventDefault: true, stopImmediatePropagation: true };
       }
-      if (event.key === 'Backspace' || event.key === 'Delete') {
-        setRecording((current) =>
-          current ? { ...current, sequence: current.sequence.slice(0, -1) } : null
-        );
-        return { claimed: true, preventDefault: true, stopImmediatePropagation: true };
-      }
       const stroke = shortcutFromKeyboardEvent(event);
       if (stroke && recording.sequence.length < 2) {
         setRecording((current) =>
@@ -323,14 +354,24 @@ export const KeyboardShortcutsPanel = forwardRef<
     const target = entriesById.get(pendingConflict.targetEntryId);
     if (!target) return;
 
-    const updates: Record<string, readonly ShortcutSequence[]> = {
-      [target.id]: pendingConflict.shortcuts,
-    };
-    for (const entryId of pendingConflict.conflictingEntryIds) {
+    const updates: Record<string, readonly ShortcutSequence[]> = {};
+    const conflictsByEntry = new Map<string, ShortcutSequence[]>();
+    for (const conflict of pendingConflict.conflicts) {
+      const sequences = conflictsByEntry.get(conflict.conflictingEntryId) ?? [];
+      sequences.push(conflict.conflictingShortcut);
+      conflictsByEntry.set(conflict.conflictingEntryId, sequences);
+    }
+    updates[target.id] = pendingConflict.shortcuts.filter((shortcut) =>
+      !(conflictsByEntry.get(target.id) ?? []).some((conflict) =>
+        shortcutsEqual(shortcut, conflict)
+      )
+    );
+    for (const [entryId, conflictingShortcuts] of conflictsByEntry) {
+      if (entryId === target.id) continue;
       const entry = entriesById.get(entryId);
       if (!entry) continue;
       const shortcuts = entry.shortcuts.filter(
-        (shortcut) => !shortcutsEqual(shortcut, pendingConflict.shortcut)
+        (shortcut) => !conflictingShortcuts.some((conflict) => shortcutsEqual(shortcut, conflict))
       );
       updates[entry.id] = shortcuts;
     }
@@ -347,9 +388,13 @@ export const KeyboardShortcutsPanel = forwardRef<
     return labelKey ? t(labelKey) : (entry?.label ?? entryId);
   };
 
-  const conflictCommands = pendingConflict?.conflictingEntryIds.map(getCommandLabel).join(', ');
+  const conflictCommands = pendingConflict
+    ? [...new Set(pendingConflict.conflicts.map((conflict) => conflict.conflictingEntryId))]
+        .map(getCommandLabel)
+        .join(', ')
+    : '';
 
-  const getScopeLabel = (scope?: string) => {
+  const getScopeLabel = useCallback((scope?: string) => {
     switch (scope) {
       case 'application':
         return t('shortcutEditor.scope.application');
@@ -364,9 +409,10 @@ export const KeyboardShortcutsPanel = forwardRef<
       default:
         return '—';
     }
-  };
+  }, [t]);
 
   const shortcutRows = useMemo<ShortcutCategoryRow[]>(() => {
+    const query = searchQuery.trim().toLocaleLowerCase();
     const grouped = new Map<ShortcutCategory, ShortcutCommandRow[]>(
       SHORTCUT_CATEGORY_ORDER.map((category) => [category, []])
     );
@@ -374,10 +420,18 @@ export const KeyboardShortcutsPanel = forwardRef<
       const candidateCategory = entry.category ?? '';
       const category = isShortcutCategory(candidateCategory) ? candidateCategory : 'General';
       const labelKey = EDITOR_SHORTCUT_LABEL_KEYS[entry.id];
+      const label = labelKey ? t(labelKey) : (entry.label ?? entry.id);
+      const searchText = [
+        label,
+        category,
+        getScopeLabel(entry.scope),
+        ...entry.shortcuts.map((shortcut) => formatShortcutLabel(shortcut)),
+      ].join(' ').toLocaleLowerCase();
+      if (query && !searchText.includes(query)) continue;
       grouped.get(category)?.push({
         id: entry.id,
         kind: 'command',
-        label: labelKey ? t(labelKey) : (entry.label ?? entry.id),
+        label,
         entry,
       });
     }
@@ -405,7 +459,7 @@ export const KeyboardShortcutsPanel = forwardRef<
           ]
         : [];
     });
-  }, [editableEntries, t]);
+  }, [editableEntries, getScopeLabel, searchQuery, t]);
 
   const shortcutGridColumns = useMemo<ColumnDef<typeof shortcutGridFeatures, ShortcutGridRow>[]>(
     () => [
@@ -441,7 +495,7 @@ export const KeyboardShortcutsPanel = forwardRef<
       </KbdGroup>
     );
 
-  const renderEmptyShortcutControl = (entry: KeymapBindingSnapshot, commandLabel: string) => {
+  const renderAddShortcutControl = (entry: KeymapBindingSnapshot, commandLabel: string) => {
     const isRecording = recording?.entryId === entry.id && recording.index === null;
     return (
       <Tooltip>
@@ -454,6 +508,7 @@ export const KeyboardShortcutsPanel = forwardRef<
               tone="neutral"
               size="xs"
               shape={isRecording ? 'auto' : 'square'}
+              className="ml-auto shrink-0"
               pressed={isRecording}
               aria-label={t('shortcutEditor.setFor', { command: commandLabel })}
               onClick={() => {
@@ -481,7 +536,6 @@ export const KeyboardShortcutsPanel = forwardRef<
 
   const renderShortcutCell = (entry: KeymapBindingSnapshot, commandLabel: string) => (
     <div className="flex min-w-0 flex-nowrap items-center gap-1 overflow-hidden whitespace-nowrap">
-      {entry.shortcuts.length === 0 ? renderEmptyShortcutControl(entry, commandLabel) : null}
       {entry.shortcuts.map((shortcut, index) => {
         const isRecording = recording?.entryId === entry.id && recording.index === index;
         const shortcutLabel = formatShortcutLabel(shortcut);
@@ -520,11 +574,35 @@ export const KeyboardShortcutsPanel = forwardRef<
           </span>
         );
       })}
+      {renderAddShortcutControl(entry, commandLabel)}
     </div>
   );
 
   return (
     <>
+      <div className="flex min-w-0 items-center gap-2 pb-2">
+        <Input
+          type="search"
+          density="compact"
+          appearance="search"
+          value={searchQuery}
+          className="min-w-0 flex-1"
+          aria-label={t('shortcutEditor.search')}
+          placeholder={t('shortcutEditor.searchPlaceholder')}
+          onChange={(event) => setSearchQuery(event.target.value)}
+        />
+        {editableEntries.some((entry) => entry.userDefined) ? (
+          <Button type="button" tone="subtle" size="xs" onClick={resetAllBindings}>
+            <RotateCcw data-icon="inline-start" />
+            {t('shortcutEditor.resetAll')}
+          </Button>
+        ) : null}
+      </div>
+      {!valid ? (
+        <p role="alert" className="pb-2 text-xs leading-4 text-destructive">
+          {t('shortcutEditor.conflict.remaining', { count: draftConflicts.length })}
+        </p>
+      ) : null}
       <div data-slot="shortcut-grid">
         <Table density="compact" rowHover="none" className="min-w-[560px] table-fixed">
           <colgroup>
@@ -639,9 +717,14 @@ export const KeyboardShortcutsPanel = forwardRef<
                 <span className="flex flex-wrap items-center gap-1">
                   <ShortcutKbd shortcut={pendingConflict.shortcut} />
                   <span>
-                    {t('shortcutEditor.conflict.description', {
+                    {t(
+                      pendingConflict.conflicts.some((conflict) => conflict.kind === 'prefix')
+                        ? 'shortcutEditor.conflict.prefixDescription'
+                        : 'shortcutEditor.conflict.description',
+                      {
                       commands: conflictCommands ?? '',
-                    })}
+                      }
+                    )}
                   </span>
                 </span>
               ) : null}

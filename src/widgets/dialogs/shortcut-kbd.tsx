@@ -14,7 +14,7 @@ export function ShortcutKbd({ shortcut, className }: ShortcutKbdProps) {
         <span key={`${stroke.label}-${index}`} className="contents">
           {index > 0 ? (
             <span aria-hidden="true" className="text-muted-foreground">
-              →
+              +
             </span>
           ) : null}
           <Kbd aria-hidden="true">{stroke.label}</Kbd>

@@ -23,6 +23,7 @@ export { isActionAccepted } from './result';
 
 export {
   getAppActionShortcutLabel,
+  getAppActionShortcuts,
   getEditorCommandShortcutLabel,
   formatShortcutLabel,
   getShortcutDisplayStrokes,

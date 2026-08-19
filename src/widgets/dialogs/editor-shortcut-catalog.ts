@@ -8,4 +8,11 @@ export const EDITOR_SHORTCUT_LABEL_KEYS: Readonly<Partial<Record<string, I18nKey
   "command:cut": "manual.shortcut.cut",
   "command:paste": "manual.shortcut.paste",
   "command:delete-selection": "manual.shortcut.delete",
+  "command:format-bold": "selection.bold",
+  "command:format-italic": "selection.italic",
+  "command:format-underline": "selection.underline",
+  "command:format-strike": "selection.strike",
+  "command:format-inverse": "selection.inverse",
+  "command:toggle-sidebar": "sidebar.toggle",
+  "command:toggle-inspector": "inspector.toggle",
 };

@@ -137,17 +137,19 @@ describe("CanvasInspectorControl", () => {
     expect(screen.queryByTestId("canvas-inspector-panel")).not.toBeInTheDocument();
   });
 
-  it("owns Alt+6 and Escape across canvas modes", () => {
+  it("owns the inspector chord and Escape across canvas modes", () => {
     useEditorStore.setState({ canvasMode: "freeform", tool: "select" });
     render(<Inspector />);
 
     fireEvent.keyDown(window, { key: "Escape" });
     expect(screen.queryByTestId("canvas-inspector-panel")).not.toBeInTheDocument();
-    fireEvent.keyDown(window, { code: "Digit6", altKey: true });
+    fireEvent.keyDown(window, { key: "k", ctrlKey: true });
+    fireEvent.keyDown(window, { key: "p" });
     expect(screen.getByTestId("canvas-inspector-panel")).toBeVisible();
 
     act(() => useEditorStore.setState({ canvasMode: "structured" }));
-    fireEvent.keyDown(window, { code: "Digit6", altKey: true });
+    fireEvent.keyDown(window, { key: "k", ctrlKey: true });
+    fireEvent.keyDown(window, { key: "p" });
     expect(screen.queryByTestId("canvas-inspector-panel")).not.toBeInTheDocument();
   });
 

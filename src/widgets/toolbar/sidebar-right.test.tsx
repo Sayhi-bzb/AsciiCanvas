@@ -594,6 +594,11 @@ describe("SidebarRight structured templates", () => {
     expect(headerContent).toHaveAttribute("aria-hidden", "true");
     expect(headerContent).toHaveAttribute("inert");
     expect(surface).toHaveClass("bg-transparent", "shadow-none");
+    expect(surface).toHaveClass(
+      "h-12",
+      "pointer-events-auto",
+      "transition-[height,background-color,box-shadow]"
+    );
     expect(surface).not.toHaveClass("bg-host-surface", "shadow-host");
     expect(inner).toHaveClass("overflow-hidden", "bg-transparent");
     expect(trigger).toHaveClass("size-8", "pointer-events-auto");
@@ -605,6 +610,8 @@ describe("SidebarRight structured templates", () => {
 
     fireEvent.click(trigger);
 
+    expect(surface).toHaveClass("h-full");
+    expect(surface).not.toHaveClass("h-12");
     expect(screen.getByTestId("character-view-rail-vertical")).toBe(rail);
     expect(screen.getByRole("tab", { name: "Emoji" })).toHaveAttribute(
       "aria-selected",

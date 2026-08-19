@@ -121,6 +121,7 @@ describe('Toolbar dock', () => {
     );
 
     fireEvent.keyDown(window, {
+      key: '1',
       code: 'Digit1',
       altKey: true,
     });
@@ -139,6 +140,7 @@ describe('Toolbar dock', () => {
       />
     );
     fireEvent.keyDown(input, {
+      key: '1',
       code: 'Digit1',
       altKey: true,
     });

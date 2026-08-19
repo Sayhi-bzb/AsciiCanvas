@@ -122,7 +122,7 @@ describe("EditorRuntime", () => {
         target: { type: "command", id: "increment" },
       }],
     });
-    expect(runtime.keymap.getBindings("command:increment")).toEqual(["mod+shift+i"]);
+    expect(runtime.keymap.getBindings("command:increment")).toEqual([["Mod+Shift+I"]]);
     runtime.dispose();
     expect(runtime.keymap.getBindings("command:increment")).toBeUndefined();
   });

@@ -8,6 +8,29 @@ import {
 
 export type { ShortcutSequence } from './shortcut';
 
+export type ShortcutScope =
+  | 'application'
+  | 'canvas'
+  | 'grid'
+  | 'presentation'
+  | 'structured';
+
+export type ShortcutConflictKind = 'exact' | 'prefix';
+
+export type ShortcutConflict = {
+  kind: ShortcutConflictKind;
+  entryId: string;
+  shortcut: ShortcutSequence;
+  conflictingEntryId: string;
+  conflictingShortcut: ShortcutSequence;
+};
+
+export type ShortcutConflictEntry = {
+  id: string;
+  scope?: ShortcutScope;
+  shortcuts: readonly ShortcutSequence[];
+};
+
 export type ContextExpression =
   | { key: string; equals: string | boolean }
   | { all: readonly ContextExpression[] }
@@ -22,7 +45,7 @@ export type KeymapEntry<Context = unknown> = {
   target: KeymapTarget;
   label?: string;
   category?: string;
-  scope?: string;
+  scope?: ShortcutScope;
   configurable?: boolean;
   weight?: number;
   /** @deprecated Use weight. */
@@ -43,7 +66,7 @@ export type KeymapBindingSnapshot = {
   target: KeymapTarget;
   label?: string;
   category?: string;
-  scope?: string;
+  scope?: ShortcutScope;
   configurable: boolean;
   defaultShortcuts: readonly ShortcutSequence[];
   shortcuts: readonly ShortcutSequence[];
@@ -106,6 +129,43 @@ const normalizeSequences = (shortcuts: readonly (ShortcutSequence | string)[]) =
 const sequencesEqual = (left: readonly ShortcutSequence[], right: readonly ShortcutSequence[]) =>
   left.length === right.length &&
   left.every((sequence, index) => shortcutsEqual(sequence, right[index]));
+
+const isSequencePrefix = (prefix: ShortcutSequence, sequence: ShortcutSequence) =>
+  prefix.length < sequence.length &&
+  prefix.every((stroke, index) => stroke === sequence[index]);
+
+export const shortcutScopesOverlap = (left?: ShortcutScope, right?: ShortcutScope) => {
+  if (!left || !right || left === right) return true;
+  if (left === 'application' || right === 'application') return true;
+  return left === 'canvas' || right === 'canvas';
+};
+
+export const getShortcutConflictKind = (
+  left: ShortcutSequence,
+  right: ShortcutSequence
+): ShortcutConflictKind | null => {
+  if (shortcutsEqual(left, right)) return 'exact';
+  return isSequencePrefix(left, right) || isSequencePrefix(right, left) ? 'prefix' : null;
+};
+
+export const findShortcutConflicts = (
+  entries: readonly ShortcutConflictEntry[],
+  entryId: string,
+  shortcut: ShortcutSequence
+): ShortcutConflict[] => {
+  const target = entries.find((entry) => entry.id === entryId);
+  if (!target) return [];
+  return entries.flatMap((candidate) => {
+    if (!shortcutScopesOverlap(target.scope, candidate.scope)) return [];
+    return candidate.shortcuts.flatMap((conflictingShortcut) => {
+      const kind = getShortcutConflictKind(shortcut, conflictingShortcut);
+      if (candidate.id === entryId && kind !== 'prefix') return [];
+      return kind
+        ? [{ kind, entryId, shortcut, conflictingEntryId: candidate.id, conflictingShortcut }]
+        : [];
+    });
+  });
+};
 
 export class EditorKeymap<Context = unknown> {
   readonly #entries = new Map<string, RegisteredKeymapEntry<Context>>();

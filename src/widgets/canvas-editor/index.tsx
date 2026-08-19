@@ -103,11 +103,17 @@ export const CanvasEditor = ({
     pageKey: string;
   } | null>(null);
   const activeCanvasId = useCanvasState((state) => state.activeCanvasId);
+  const lastFitContentRevisionRef = useRef(0);
 
   useEffect(() => {
-    if (fitContentRevision <= 0 || !size) return;
+    if (
+      fitContentRevision <= 0 ||
+      fitContentRevision === lastFitContentRevisionRef.current ||
+      !size
+    ) return;
     const bounds = computeVisibleContentBounds(rendererStore.grid);
     if (!bounds) return;
+    lastFitContentRevisionRef.current = fitContentRevision;
     runtime.camera.fitBounds(bounds, size, {
       padding: 48,
       insets: viewportFrame?.insets,

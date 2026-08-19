@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { ShortcutKbd } from './shortcut-kbd';
 
 describe('ShortcutKbd', () => {
-  it('renders keys as Kbd elements and the sequence arrow outside them', () => {
+  it('renders keys as Kbd elements and the sequence plus outside them', () => {
     render(<ShortcutKbd shortcut="arrowup arrowdown" />);
 
     const group = screen.getByLabelText('Up Arrow, then Down Arrow');
@@ -11,7 +11,8 @@ describe('ShortcutKbd', () => {
     expect(group.querySelectorAll('kbd')).toHaveLength(2);
     expect(group.querySelectorAll('kbd')[0]).toHaveTextContent('↑');
     expect(group.querySelectorAll('kbd')[1]).toHaveTextContent('↓');
-    expect(screen.getByText('→').closest('kbd')).toBeNull();
+    expect(screen.getByText('+').closest('kbd')).toBeNull();
+    expect(screen.queryByText('→')).not.toBeInTheDocument();
     expect(group).not.toHaveTextContent(/arrowdown|then|code:/i);
   });
 

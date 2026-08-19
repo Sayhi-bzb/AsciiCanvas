@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -39,7 +40,6 @@ import { deriveCanvasInspectorModel } from "./model";
 import {
   textAttributeNames,
   type TextAttributeName,
-  type TextAttributeState,
 } from "./text-format-model";
 
 type CanvasInspectorControlProps = {
@@ -81,6 +81,14 @@ const actionIds = [
   "structured-bring-forward",
   "structured-bring-to-front",
 ] as const;
+
+const formatActionIds = {
+  bold: "format-bold",
+  italic: "format-italic",
+  underline: "format-underline",
+  strike: "format-strike",
+  inverse: "format-inverse",
+} as const;
 
 export function CanvasInspectorControl({
   formFactor,
@@ -143,6 +151,7 @@ export function CanvasInspectorControl({
       ? panelState.open
       : formFactor !== "phone";
   const panelOpen = open && state.tool !== "pan";
+  const toggleInspectorRef = useRef<() => void>(() => undefined);
 
   if (panelState.tool !== state.tool) {
     setPanelState({
@@ -177,11 +186,36 @@ export function CanvasInspectorControl({
     },
     [canvas, formFactor, state.tool]
   );
+  toggleInspectorRef.current = () => setOpenState(!panelOpen);
 
   useEffect(() => {
     canvas.commands.interaction.setColorPickerTarget(null);
     return () => canvas.commands.interaction.setColorPickerTarget(null);
   }, [canvas, state.canvasMode, state.tool]);
+
+  useEffect(() => {
+    const disposeCommand = editor.commands.register("canvas.inspector", {
+      id: "ui.toggle-inspector",
+      execute: () => {
+        toggleInspectorRef.current();
+        return { handled: true, status: "succeeded" };
+      },
+    });
+    const disposeBinding = editor.keymap.register("canvas.inspector", {
+      id: "command:toggle-inspector",
+      label: "Toggle Inspector",
+      category: "Canvas",
+      scope: "canvas",
+      shortcuts: ["mod+k p"],
+      target: { type: "command", id: "ui.toggle-inspector" },
+      when: ({ targetKind, tool }) =>
+        tool?.id !== "pan" && targetKind !== "editable" && targetKind !== "overlay",
+    });
+    return () => {
+      disposeBinding();
+      disposeCommand();
+    };
+  }, [editor]);
 
   useShortcutLayer({
     id: "canvas-inspector",
@@ -196,16 +230,6 @@ export function CanvasInspectorControl({
       }
       if (event.key === "Escape" && (panelOpen || state.canvasColorPickerTarget)) {
         close();
-        return { claimed: true, preventDefault: true };
-      }
-      if (
-        event.altKey &&
-        !event.ctrlKey &&
-        !event.metaKey &&
-        !event.shiftKey &&
-        event.code === "Digit6"
-      ) {
-        setOpenState(!panelOpen);
         return { claimed: true, preventDefault: true };
       }
     },
@@ -247,13 +271,9 @@ export function CanvasInspectorControl({
   const layerActionsEnabled =
     model.mode === "structured" && model.structured.target === "nodes";
 
-  const setTextAttribute = (
-    attribute: TextAttributeName,
-    currentState: TextAttributeState
-  ) => {
+  const setTextAttribute = (attribute: TextAttributeName) => {
     if (readOnly || !textFormattingEnabled) return;
-    const attrs = { [attribute]: currentState !== "on" };
-    canvas.commands.selection.setTextAttributes(attrs);
+    editor.commands.execute(formatActionIds[attribute], { source: "inspector" }, "inspector");
   };
 
   const renderTextAttribute = (attribute: TextAttributeName) => {
@@ -276,7 +296,7 @@ export function CanvasInspectorControl({
             aria-label={t(meta.toggleLabel)}
             disabled={readOnly || !textFormattingEnabled}
             className="relative"
-            onClick={() => setTextAttribute(attribute, state)}
+            onClick={() => setTextAttribute(attribute)}
           />
         }
       >
@@ -333,7 +353,7 @@ export function CanvasInspectorControl({
               open={panelOpen}
               aria-label={t("inspector.toggle")}
               aria-controls="canvas-inspector-panel"
-              aria-keyshortcuts="Alt+6"
+              aria-keyshortcuts="Meta+K P Control+K P"
               disabled={state.tool === "pan"}
               onClick={() => setOpenState(!panelOpen)}
             />

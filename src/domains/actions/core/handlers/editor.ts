@@ -8,18 +8,29 @@ import {
   canSplitStructuredSplitBoxLeaf,
   getStructuredBoxNameEndPoint,
   getStructuredSplitBoxLeafAtPoint,
+  getStructuredTextStylesInRange,
   isStructuredSplitBoxLineHandle,
 } from "@/domains/structured-content/public";
 import { clipboard, feedback } from "@/shared/services/effects";
 import { getStructuredTextSelectionRange } from "@/domains/structured-content/public";
 import type { StructuredBoxNode, StructuredTextNode } from "@/domains/structured-content/public";
 import { actionFailed, actionPending, actionSucceeded } from "../result";
-import type { ActionHandler, ActionResult, ActionSource, EditorActionId } from "../types";
+import type {
+  ActionContext,
+  ActionHandler,
+  ActionResult,
+  ActionSource,
+  EditorActionId,
+} from "../types";
 import {
+  forEachGridSelectionSpan,
+  getGridSelectionRanges,
   getStaticGridSelectionAreas,
   hasGridRangeSelection,
 } from "@/domains/selection/public";
 import { hasClipboardSource } from "@/domains/actions/adapters/clipboardActions";
+import type { TextAttributes } from "@/shared/types";
+import { GridManager } from "@/shared/utils/grid";
 
 // Options types for each action
 type UndoRedoOptions = {
@@ -34,6 +45,17 @@ type ClipboardOptions = {
   source?: ActionSource;
 };
 type FillOptions = { fillChar?: string };
+
+type FormatActionId = Extract<EditorActionId, `format-${string}`>;
+type TextAttributeName = keyof TextAttributes;
+
+const FORMAT_ATTRIBUTES: Record<FormatActionId, TextAttributeName> = {
+  "format-bold": "bold",
+  "format-italic": "italic",
+  "format-underline": "underline",
+  "format-strike": "strike",
+  "format-inverse": "inverse",
+};
 
 const hasStructuredSelection = (state: CanvasState) =>
   state.canvasMode === "structured" && state.selectedStructuredNodeIds.length > 0;
@@ -137,6 +159,56 @@ const canCopyOrCut = (state: CanvasState): boolean => {
 
 const hasStaticGridRangeSelection = (state: CanvasState) =>
   state.canvasMode !== "structured" && hasGridRangeSelection(state.staticGridSelection);
+
+const getSelectedTextAttributeValues = (
+  state: CanvasState,
+  attribute: TextAttributeName
+): boolean[] => {
+  if (state.canvasMode === "structured") {
+    const range = getStructuredTextSelectionRange(state.structuredTextSelection);
+    const node = range && state.structuredTextSelection
+      ? state.structuredScene.find(
+          (candidate) =>
+            candidate.id === state.structuredTextSelection?.nodeId && candidate.type === "text"
+        )
+      : null;
+    if (!range || node?.type !== "text") return [];
+    return getStructuredTextStylesInRange(node, range.start, range.end).map(
+      (style) => style.attrs?.[attribute] === true
+    );
+  }
+
+  const values: boolean[] = [];
+  forEachGridSelectionSpan(
+    getGridSelectionRanges(state.staticGridSelection),
+    ({ y, minX, maxX }) => {
+      for (let x = minX; x <= maxX; x++) {
+        const cell = state.grid.get(GridManager.toKey(x, y));
+        if (cell) values.push(cell.attrs?.[attribute] === true);
+      }
+    },
+    state.grid
+  );
+  return values;
+};
+
+const canFormatTextSelection = (state: CanvasState) =>
+  getSelectedTextAttributeValues(state, "bold").length > 0;
+
+const toggleTextAttribute = (
+  context: ActionContext,
+  attribute: TextAttributeName
+): ActionResult => {
+  const values = getSelectedTextAttributeValues(context.state, attribute);
+  if (values.length === 0) return actionFailed("empty-selection");
+  const next = !values.every(Boolean);
+  if (context.state.canvasMode === "structured") {
+    context.canvas.commands.structured.setTextAttributes({ [attribute]: next });
+  } else {
+    context.canvas.commands.selection.setTextAttributes({ [attribute]: next });
+  }
+  return actionSucceeded();
+};
 
 const resolveClipboardAction = (
   result: boolean | Promise<ClipboardCommandResult>
@@ -299,6 +371,16 @@ export const editorHandlers: Record<EditorActionId, ActionHandler<unknown>> = {
     return actionSucceeded();
   },
 
+  "format-bold": (_options, context) => toggleTextAttribute(context, FORMAT_ATTRIBUTES["format-bold"]),
+  "format-italic": (_options, context) =>
+    toggleTextAttribute(context, FORMAT_ATTRIBUTES["format-italic"]),
+  "format-underline": (_options, context) =>
+    toggleTextAttribute(context, FORMAT_ATTRIBUTES["format-underline"]),
+  "format-strike": (_options, context) =>
+    toggleTextAttribute(context, FORMAT_ATTRIBUTES["format-strike"]),
+  "format-inverse": (_options, context) =>
+    toggleTextAttribute(context, FORMAT_ATTRIBUTES["format-inverse"]),
+
   "structured-rename": (_options, context): ActionResult => {
     const cursor = getSelectedStructuredEditCursor(context.state);
     if (!cursor) return actionFailed("empty-selection");
@@ -410,6 +492,11 @@ export const editorCheckers: Partial<Record<EditorActionId, (state: CanvasState)
   "snapshot-png": hasStaticGridRangeSelection,
   "delete-selection": (state) =>
     hasStaticGridRangeSelection(state) || hasStructuredSelection(state),
+  "format-bold": canFormatTextSelection,
+  "format-italic": canFormatTextSelection,
+  "format-underline": canFormatTextSelection,
+  "format-strike": canFormatTextSelection,
+  "format-inverse": canFormatTextSelection,
   "structured-rename": (state) => getSelectedStructuredEditCursor(state) !== null,
   "structured-bring-forward": (state) =>
     canReorderStructuredSelection(state, "forward"),

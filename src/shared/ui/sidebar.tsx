@@ -220,19 +220,30 @@ function Sidebar({
       >
         <div
           data-slot="sidebar-container"
-          className={cn("relative flex size-full min-h-0 min-w-0", className)}
+          className={cn(
+            "pointer-events-auto relative flex w-full min-h-0 min-w-0 overflow-hidden",
+            collapsedAppearance === "trigger"
+              ? cn(
+                  "transition-[height,background-color,box-shadow] duration-[var(--motion-standard)] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+                  isTriggerCollapsed ? "h-12" : "h-full"
+                )
+              : "h-full",
+            className
+          )}
           {...props}
         >
-        <div
-          data-sidebar="sidebar"
-          data-slot="sidebar-inner"
-          className={cn(
-            "flex h-full w-full flex-col overflow-hidden",
-            variant === "floating" ? "rounded-[inherit] bg-transparent" : "bg-sidebar"
-          )}
-        >
-          {children}
-        </div>
+          <div
+            data-sidebar="sidebar"
+            data-slot="sidebar-inner"
+            className={cn(
+              "flex h-full w-full flex-col overflow-hidden",
+              variant === "floating"
+                ? "rounded-[inherit] bg-transparent"
+                : "bg-sidebar"
+            )}
+          >
+            {children}
+          </div>
         </div>
       </Surface>
     </div>

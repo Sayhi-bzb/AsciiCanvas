@@ -80,7 +80,13 @@ export const getAppActionShortcutLabel = (
   const chords = APP_ACTION_META[actionId].shortcuts;
   if (!chords?.length) return undefined;
   return chords.map((chord) => {
-    const sequence = normalizeShortcut([chord.join('+')], toEditorPlatform(platform));
-    return sequence ? formatCompact(sequence, platform) : chord.join('+');
+    const shortcut = typeof chord === 'string' ? chord : chord.join('+');
+    const sequence = normalizeShortcut(shortcut, toEditorPlatform(platform));
+    return sequence ? formatCompact(sequence, platform) : shortcut;
   }).join(' / ');
 };
+
+export const getAppActionShortcuts = (actionId: SidebarActionId) =>
+  APP_ACTION_META[actionId].shortcuts?.map((shortcut) =>
+    typeof shortcut === 'string' ? shortcut : shortcut.join('+')
+  ) ?? [];

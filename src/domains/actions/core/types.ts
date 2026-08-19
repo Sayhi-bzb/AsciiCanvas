@@ -18,6 +18,11 @@ export type EditorActionId =
   | "fill-selection-char"
   | "snapshot-png"
   | "delete-selection"
+  | "format-bold"
+  | "format-italic"
+  | "format-underline"
+  | "format-strike"
+  | "format-inverse"
   | "structured-rename"
   | "structured-bring-forward"
   | "structured-send-backward"
@@ -55,11 +60,12 @@ export type ActionId = EditorActionId | ToolbarActionId | SidebarActionId;
 export type ShortcutToken = string;
 
 type ShortcutChord = readonly ShortcutToken[];
+export type ShortcutDefinition = ShortcutChord | string;
 
 export interface ActionMeta<Id extends ActionId = ActionId> {
   id: Id;
   label: string;
-  shortcuts?: readonly ShortcutChord[];
+  shortcuts?: readonly ShortcutDefinition[];
   icon?: ComponentType<{ className?: string }>;
   hasSub?: boolean;
   destructive?: boolean;

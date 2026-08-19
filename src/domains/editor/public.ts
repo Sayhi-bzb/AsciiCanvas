@@ -1,5 +1,10 @@
 export { EditorCommandRegistry } from "./core/commandRegistry";
-export { EditorKeymap } from "./core/keymap";
+export {
+  EditorKeymap,
+  findShortcutConflicts,
+  getShortcutConflictKind,
+  shortcutScopesOverlap,
+} from "./core/keymap";
 export type {
   ContextExpression,
   EditorKeymapSnapshot,
@@ -7,6 +12,10 @@ export type {
   KeymapBindingSnapshot,
   KeymapEntry,
   KeymapTarget,
+  ShortcutConflict,
+  ShortcutConflictEntry,
+  ShortcutConflictKind,
+  ShortcutScope,
   ShortcutSequence,
 } from "./core/keymap";
 export type { KeymapResolution, RegisteredKeymapEntry } from "./core/keymap";

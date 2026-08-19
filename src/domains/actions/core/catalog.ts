@@ -56,6 +56,31 @@ export const EDITOR_COMMAND_META: Record<EditorActionId, ActionMeta<EditorAction
     destructive: true,
     shortcuts: [["backspace"], ["delete"]],
   },
+  "format-bold": {
+    id: "format-bold",
+    label: "Bold",
+    shortcuts: [["mod", "b"]],
+  },
+  "format-italic": {
+    id: "format-italic",
+    label: "Italic",
+    shortcuts: [["mod", "i"]],
+  },
+  "format-underline": {
+    id: "format-underline",
+    label: "Underline",
+    shortcuts: [["mod", "u"]],
+  },
+  "format-strike": {
+    id: "format-strike",
+    label: "Strikethrough",
+    shortcuts: [["mod", "shift", "x"]],
+  },
+  "format-inverse": {
+    id: "format-inverse",
+    label: "Inverse",
+    shortcuts: ["mod+k i"],
+  },
   "structured-rename": {
     id: "structured-rename",
     label: "Rename",
@@ -165,7 +190,7 @@ export const APP_ACTION_META: Record<SidebarActionId, ActionMeta<SidebarActionId
   "toggle-sidebar": {
     id: "toggle-sidebar",
     label: "Toggle Sidebar",
-    shortcuts: [["mod", "b"]],
+    shortcuts: ["mod+k b"],
   },
   "open-source-code": { id: "open-source-code", label: "Open Source Code" },
 };

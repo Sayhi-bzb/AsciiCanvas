@@ -41,6 +41,12 @@ describe('editor shortcut adapter', () => {
       'Alt+1',
       'mac'
     )).toBe(true);
+    expect(matchesShortcutEvent(commandR, 'Mod+R', 'linux')).toBe(true);
+    expect(matchesShortcutEvent(
+      new KeyboardEvent('keydown', { key: 'r', code: 'KeyR', ctrlKey: true }),
+      'Mod+R',
+      'mac'
+    )).toBe(true);
   });
 
   it('migrates supported physical letter and digit codes', () => {

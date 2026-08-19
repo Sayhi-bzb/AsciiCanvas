@@ -48,6 +48,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   const [section, setSection] = useState<SettingsSection>('general');
   const [shortcutDirty, setShortcutDirty] = useState(false);
   const [shortcutRecording, setShortcutRecording] = useState(false);
+  const [shortcutValid, setShortcutValid] = useState(true);
   const [pendingTransition, setPendingTransition] = useState<PendingTransition | null>(null);
   const shortcutPanelRef = useRef<KeyboardShortcutsPanelHandle>(null);
   const navigationItems = [
@@ -112,7 +113,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
   };
 
   const saveAndContinue = () => {
-    if (!pendingTransition) return;
+    if (!pendingTransition || !shortcutValid) return;
     shortcutPanelRef.current?.save();
     finishTransition(pendingTransition);
   };
@@ -186,7 +187,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                       <Button
                         type="button"
                         size="sm"
-                        disabled={shortcutRecording}
+                        disabled={shortcutRecording || !shortcutValid}
                         onClick={saveShortcuts}
                       >
                         {t('shortcutEditor.save')}
@@ -199,6 +200,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                   ref={shortcutPanelRef}
                   onDirtyChange={setShortcutDirty}
                   onRecordingChange={setShortcutRecording}
+                  onValidityChange={setShortcutValid}
                 />
               </SettingsContentSection>
             )}
@@ -224,7 +226,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             <AlertDialogAction tone="danger" onClick={discardAndContinue}>
               {t('shortcutEditor.discard')}
             </AlertDialogAction>
-            <AlertDialogAction onClick={saveAndContinue}>
+            <AlertDialogAction disabled={!shortcutValid} onClick={saveAndContinue}>
               {t('shortcutEditor.save')}
             </AlertDialogAction>
           </AlertDialogFooter>

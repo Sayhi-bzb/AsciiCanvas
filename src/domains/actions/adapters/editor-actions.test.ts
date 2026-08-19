@@ -7,11 +7,13 @@ import {
 } from "@/domains/actions/public";
 import { editorCheckers, editorHandlers } from "@/domains/actions/core/handlers/editor";
 import {
+  applyFreeformSnapshotToYMaps,
   canvasCommands,
   testingCanvasRuntime,
   useEditorStore,
 } from "@/domains/canvas/testing";
 import { clipboard } from "@/shared/services/effects";
+import { createGridSelectionState, selectGridRange } from "@/domains/selection/public";
 
 describe("editorHandlers clipboard sources", () => {
   afterEach(() => {
@@ -201,6 +203,76 @@ describe("editorHandlers clipboard sources", () => {
     expect(result.status).toBe("rejected");
     expect("reason" in result ? result.reason : undefined).toBe("empty-selection");
     expect(runEditorCommandSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("editorHandlers text formatting", () => {
+  const context = () => ({
+    state: useEditorStore.getState(),
+    canvas: testingCanvasRuntime,
+    setTool: vi.fn(),
+    onUndo: vi.fn(),
+    onRedo: vi.fn(),
+  });
+
+  afterEach(() => {
+    canvasCommands.structured.applyScene([], false);
+    useEditorStore.setState({
+      canvasMode: "freeform",
+      selectedStructuredNodeIds: [],
+      structuredTextSelection: null,
+      staticGridSelection: createGridSelectionState(),
+    });
+    applyFreeformSnapshotToYMaps([]);
+  });
+
+  it("normalizes a mixed grid range on the first toggle and clears it on the second", () => {
+    const selection = selectGridRange(
+      createGridSelectionState({ x: 0, y: 0 }),
+      { start: { x: 0, y: 0 }, end: { x: 1, y: 0 } },
+      { activeCell: "start" }
+    );
+    useEditorStore.setState({ canvasMode: "freeform", staticGridSelection: selection });
+    applyFreeformSnapshotToYMaps([
+      ["0,0", { char: "A", color: "#fff", attrs: { bold: true } }],
+      ["1,0", { char: "B", color: "#fff" }],
+    ]);
+
+    expect(editorCheckers["format-bold"]?.(useEditorStore.getState())).toBe(true);
+    expect(editorHandlers["format-bold"]({}, context()).status).toBe("succeeded");
+    expect(useEditorStore.getState().grid.get("0,0")?.attrs?.bold).toBe(true);
+    expect(useEditorStore.getState().grid.get("1,0")?.attrs?.bold).toBe(true);
+
+    editorHandlers["format-bold"]({}, context());
+    expect(useEditorStore.getState().grid.get("0,0")?.attrs?.bold).toBeUndefined();
+    expect(useEditorStore.getState().grid.get("1,0")?.attrs?.bold).toBeUndefined();
+  });
+
+  it("routes structured text formatting through the selected text range", () => {
+    useEditorStore.setState({ canvasMode: "structured" });
+    canvasCommands.structured.applyScene(
+      [
+        {
+          id: "text-1",
+          type: "text",
+          order: 1,
+          position: { x: 0, y: 0 },
+          text: "AB",
+          style: { color: "#fff" },
+        },
+      ],
+      false
+    );
+    useEditorStore.setState({
+      selectedStructuredNodeIds: ["text-1"],
+      structuredTextSelection: { nodeId: "text-1", anchor: 0, focus: 2 },
+    });
+
+    expect(editorHandlers["format-italic"]({}, context()).status).toBe("succeeded");
+    const node = useEditorStore.getState().structuredScene[0];
+    expect(node.type === "text" ? node.styleRanges : []).toEqual([
+      expect.objectContaining({ start: 0, end: 2, style: expect.objectContaining({ attrs: { italic: true } }) }),
+    ]);
   });
 });
 
