@@ -5,6 +5,7 @@ import { Toolbar as ToolbarUnderTest } from '@/widgets/toolbar/dock';
 import { useEditorStore } from '@/domains/canvas/testing';
 import { setUiLanguage } from '@/shared/i18n';
 import { ShortcutProvider } from '@/shared/shortcuts/dispatcher';
+import { useEditorShortcutLayer } from '@/domains/editor/public';
 
 vi.mock('@/shared/hooks/use-mobile', () => ({
   useIsMobile: () => false,
@@ -27,6 +28,11 @@ type TestToolbarProps = Omit<
   onExitCanvasTextEditing?: () => void;
 };
 
+function EditorShortcutTestLayer() {
+  useEditorShortcutLayer();
+  return null;
+}
+
 function Toolbar({
   isCanvasTextEditing = false,
   onExitCanvasTextEditing = () => {},
@@ -34,6 +40,7 @@ function Toolbar({
 }: TestToolbarProps) {
   return (
     <ShortcutProvider>
+      <EditorShortcutTestLayer />
       <ToolbarUnderTest
         {...props}
         isCanvasTextEditing={isCanvasTextEditing}

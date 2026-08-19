@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createEditorCommandsExtension } from '@/domains/actions/public';
 import { getCanvasState, testingCanvasRuntime } from '@/domains/canvas/testing';
 import {
@@ -20,13 +20,13 @@ const createEditor = () => {
   return editor;
 };
 
-const renderDialog = (editor: CanvasEditorRuntime) => {
+const renderDialog = (editor: CanvasEditorRuntime, onOpenChange = () => undefined) => {
   const view = render(
     <EditorProvider editor={editor}>
-      <SettingsDialog open onOpenChange={() => undefined} />
+      <SettingsDialog open onOpenChange={onOpenChange} />
     </EditorProvider>
   );
-  fireEvent.click(screen.getByRole('button', { name: 'Shortcuts' }));
+  fireEvent.click(screen.getByRole('button', { name: /Shortcuts|快捷键/ }));
   return view;
 };
 
@@ -39,66 +39,132 @@ describe('KeyboardShortcutsPanel', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     editor.dispose();
     setUiLanguage('en');
   });
 
-  it('records, removes, and restores command shortcuts reactively', () => {
+  it('renders a dense grouped table with direct Kbd editing targets', () => {
     renderDialog(editor);
 
     const dialog = screen.getByRole('dialog', { name: 'Settings' });
-    expect(screen.getAllByRole('heading')).toHaveLength(2);
-    expect(dialog).toHaveClass('sm:max-w-[720px]');
-    expect(dialog.querySelector('[class*="bg-accent/"]')).not.toBeInTheDocument();
-    expect(dialog.querySelector('.border-accent')).not.toBeInTheDocument();
+    expect(dialog).toHaveClass('sm:max-w-[840px]');
+    expect(screen.getByRole('columnheader', { name: 'Command' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Scope' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Shortcut' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Actions' })).toHaveTextContent('Actions');
+    expect(screen.queryByRole('columnheader', { name: 'Status' })).not.toBeInTheDocument();
     const shortcutList = dialog.querySelector('[data-slot="shortcut-list"]');
-    expect(shortcutList?.querySelectorAll('[data-slot="shortcut-row"]')).toHaveLength(6);
-    expect(shortcutList?.querySelectorAll('[data-slot="separator"]')).toHaveLength(0);
-    expect(shortcutList?.querySelector('[data-slot="shortcut-row"]')).toHaveClass('min-w-max');
+    expect(shortcutList?.querySelectorAll('[data-slot="shortcut-row"]')).toHaveLength(
+      editor.keymap.getSnapshot().entries.filter((entry) => entry.configurable).length
+    );
+    const shortcutGrid = dialog.querySelector('[data-slot="shortcut-grid"]');
+    expect(shortcutGrid?.querySelector('[data-slot="table-container"]')).toHaveClass(
+      'overflow-x-auto'
+    );
+    const shortcutTable = shortcutGrid?.querySelector('table');
+    expect(shortcutTable).toHaveAttribute('data-density', 'compact');
+    expect(shortcutTable).toHaveAttribute('data-row-hover', 'none');
+    expect(shortcutTable).toHaveClass('min-w-[560px]', 'table-fixed', 'text-xs', 'leading-4');
+    expect(shortcutTable).not.toHaveClass('text-sm');
+    expect(shortcutGrid?.querySelector('[data-slot="table-head"]')).toHaveClass('h-8');
+    expect(shortcutGrid?.querySelector('[data-slot="table-cell"]')).toHaveClass('h-8');
     expect(screen.queryByRole('button', { name: 'Reset all' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Edit .* for Undo/ })).toHaveAttribute(
-      'data-tone',
-      'subtle'
-    );
-    expect(screen.getByRole('button', { name: /Remove .* from Undo/ })).toHaveClass(
-      'opacity-0',
-      'group-focus-within/binding:opacity-100'
-    );
+    expect(screen.queryByText('Custom')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Add shortcut/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Remove .* from/ })).not.toBeInTheDocument();
+
+    const editUndo = screen.getByRole('button', { name: /Edit .* for Undo/ });
+    expect(editUndo).toHaveAttribute('data-slot', 'shortcut-binding');
+    expect(editUndo).toHaveClass('focus-visible:ring-inset');
+    expect(editUndo.closest('tr')).toHaveTextContent('Canvas');
+    const undoKbdGroup = editUndo.querySelector('[data-slot="kbd-group"]');
+    expect(undoKbdGroup).toBeInTheDocument();
+    expect(undoKbdGroup?.querySelectorAll('[data-slot="kbd"]')).toHaveLength(1);
+    expect(undoKbdGroup?.querySelector('[data-slot="kbd"]')).toHaveTextContent(/⌘ Z|Ctrl Z/);
+    expect(undoKbdGroup?.querySelector('[data-slot="kbd"]')).toHaveClass('bg-kbd-surface');
+    expect(undoKbdGroup?.querySelector('[data-slot="kbd"]')).not.toHaveClass('bg-muted');
+  });
+
+  it('keeps edits as a local draft and only shows the save footer while dirty', () => {
+    renderDialog(editor);
 
     const editUndo = screen.getByRole('button', {
       name: /Edit .* for Undo/,
     });
     fireEvent.click(editUndo);
     fireEvent.keyDown(editUndo, { key: 'u', ctrlKey: true });
+    fireEvent.keyDown(editUndo, { key: 'Enter' });
 
-    expect(editor.keymap.getBindings('command:undo')).toEqual(['mod+u']);
-    expect(screen.getByRole('button', { name: 'Reset all' })).toBeInTheDocument();
+    expect(editor.keymap.getBindings('command:undo')).toEqual(['mod+z']);
     expect(screen.getByRole('button', { name: /Edit .*U for Undo/ })).toBeInTheDocument();
-    const undoKbdGroup = screen
-      .getAllByLabelText(/Ctrl\+U|⌘U/)
-      .find((element) => element.getAttribute('data-slot') === 'kbd-group');
-    expect(undoKbdGroup).toBeDefined();
-    expect(undoKbdGroup).toHaveAttribute('data-slot', 'kbd-group');
-    expect(undoKbdGroup?.querySelectorAll('[data-slot="kbd"]')).toHaveLength(2);
+    expect(screen.getByRole('status')).toHaveTextContent('Unsaved changes');
+    expect(screen.queryByText('Custom')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Reset all' })).not.toBeInTheDocument();
+    const resetUndo = screen.getByRole('button', { name: 'Restore defaults for Undo' });
+    expect(resetUndo).toHaveAttribute('data-size', 'xs');
+    expect(resetUndo).toHaveClass('size-6');
+    expect(resetUndo.closest('td')).toHaveClass('h-8', 'p-1');
 
-    fireEvent.click(screen.getByRole('button', { name: /Remove .*U from Undo/ }));
-    expect(editor.keymap.getBindings('command:undo')).toEqual([]);
-    expect(screen.getByText('None')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(editor.keymap.getBindings('command:undo')).toEqual(['mod+u']);
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Restore defaults for Undo' }));
+    expect(editor.keymap.getBindings('command:undo')).toEqual(['mod+u']);
+    expect(screen.getByRole('status')).toHaveTextContent('Unsaved changes');
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     expect(editor.keymap.getBindings('command:undo')).toEqual(['mod+z']);
+    expect(
+      screen.queryByRole('button', { name: 'Restore defaults for Undo' })
+    ).not.toBeInTheDocument();
   });
 
-  it('adds a shortcut from the row action', () => {
+  it('preserves multiple bindings when one binding is edited', () => {
     renderDialog(editor);
 
-    const addUndo = screen.getByRole('button', {
-      name: 'Add shortcut for Undo',
-    });
-    fireEvent.click(addUndo);
-    fireEvent.keyDown(addUndo, { key: 'u', altKey: true });
+    expect(editor.keymap.getBindings('command:redo')).toEqual(['mod+shift+z', 'mod+y']);
+    const redoBindings = screen.getAllByRole('button', { name: /Edit .* for Redo/ });
+    expect(redoBindings).toHaveLength(2);
+    expect(redoBindings[0].closest('tr')).toHaveTextContent('/');
+    fireEvent.click(redoBindings[0]);
+    fireEvent.keyDown(redoBindings[0], { key: 'u', ctrlKey: true });
+    fireEvent.keyDown(redoBindings[0], { key: 'Enter' });
 
-    expect(editor.keymap.getBindings('command:undo')).toEqual(['mod+z', 'alt+u']);
+    expect(editor.keymap.getBindings('command:redo')).toEqual(['mod+shift+z', 'mod+y']);
+    expect(screen.getAllByRole('button', { name: /Edit .* for Redo/ })).toHaveLength(2);
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(editor.keymap.getBindings('command:redo')).toEqual(['mod+u', 'mod+y']);
+  });
+
+  it('offers a compact entry point when a command has no binding', () => {
+    editor.keymap.setUserBindings('command:undo', []);
+    renderDialog(editor);
+
+    const setUndo = screen.getByRole('button', { name: 'Set shortcut for Undo' });
+    expect(setUndo).toHaveAttribute('data-tone', 'neutral');
+    expect(setUndo).toHaveAttribute('data-size', 'xs');
+    expect(setUndo).toHaveAttribute('data-shape', 'square');
+    expect(setUndo).toContainElement(setUndo.querySelector('svg'));
+    expect(setUndo).not.toHaveTextContent('Set shortcut');
+    setUndo.focus();
+    fireEvent.click(setUndo);
+    expect(screen.getByRole('button', { name: 'Set shortcut for Undo' })).toBe(setUndo);
+    expect(setUndo).toHaveFocus();
+    expect(setUndo).toHaveAttribute('data-shape', 'auto');
+    expect(setUndo).toHaveAttribute('data-pressed', 'true');
+    expect(setUndo).toHaveClass('data-[pressed=true]:focus-visible:ring-0');
+    expect(setUndo).toHaveTextContent('Press keys…');
+    fireEvent.keyDown(setUndo, { key: 'u', altKey: true });
+    fireEvent.keyDown(setUndo, { key: 'Enter' });
+
+    expect(editor.keymap.getBindings('command:undo')).toEqual([]);
+    expect(screen.getByRole('button', { name: /Edit .* for Undo/ })).toHaveAttribute(
+      'data-slot',
+      'shortcut-binding'
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(editor.keymap.getBindings('command:undo')).toEqual(['alt+u']);
   });
 
   it('cancels recording with Escape', () => {
@@ -107,11 +173,89 @@ describe('KeyboardShortcutsPanel', () => {
 
     fireEvent.click(editUndo);
     expect(editUndo).toHaveAttribute('aria-pressed', 'true');
+    expect(editUndo).toHaveClass('aria-pressed:focus-visible:ring-0');
     fireEvent.keyDown(editUndo, { key: 'Escape' });
 
     expect(editor.keymap.getBindings('command:undo')).toEqual(['mod+z']);
     expect(editUndo).toHaveAttribute('aria-pressed', 'false');
     expect(screen.getByRole('dialog', { name: 'Settings' })).toBeInTheDocument();
+  });
+
+  it('cancels recording when focus leaves the binding', () => {
+    renderDialog(editor);
+    const editUndo = screen.getByRole('button', { name: /Edit .* for Undo/ });
+
+    fireEvent.click(editUndo);
+    fireEvent.blur(editUndo);
+
+    expect(editUndo).toHaveAttribute('aria-pressed', 'false');
+    expect(editor.keymap.getBindings('command:undo')).toEqual(['mod+z']);
+  });
+
+  it('cancels a partial shortcut from outside without a delayed commit', () => {
+    renderDialog(editor);
+    vi.useFakeTimers();
+    const editUndo = screen.getByRole('button', { name: /Edit .* for Undo/ });
+
+    fireEvent.click(editUndo);
+    fireEvent.keyDown(editUndo, { key: 'u', ctrlKey: true });
+    fireEvent.pointerDown(screen.getByRole('columnheader', { name: 'Command' }));
+    act(() => vi.advanceTimersByTime(1_500));
+
+    expect(editor.keymap.getBindings('command:undo')).toEqual(['mod+z']);
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(editUndo).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('cancels recording from a global Escape without closing settings', () => {
+    const onOpenChange = vi.fn();
+    renderDialog(editor, onOpenChange);
+    const editUndo = screen.getByRole('button', { name: /Edit .* for Undo/ });
+
+    fireEvent.click(editUndo);
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    expect(editUndo).toHaveAttribute('aria-pressed', 'false');
+    expect(onOpenChange).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog', { name: 'Settings' })).toBeInTheDocument();
+  });
+
+  it('toggles the active binding or transfers recording to another binding', () => {
+    renderDialog(editor);
+    const editUndo = screen.getByRole('button', { name: /Edit .* for Undo/ });
+    const editCopy = screen.getByRole('button', { name: /Edit .* for Copy/ });
+
+    fireEvent.click(editUndo);
+    fireEvent.click(editUndo);
+    expect(editUndo).toHaveAttribute('aria-pressed', 'false');
+
+    fireEvent.click(editUndo);
+    fireEvent.pointerDown(editCopy);
+    fireEvent.click(editCopy);
+    expect(editUndo).toHaveAttribute('aria-pressed', 'false');
+    expect(editCopy).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('uses unmodified Tab to leave recording instead of binding it', () => {
+    renderDialog(editor);
+    const editUndo = screen.getByRole('button', { name: /Edit .* for Undo/ });
+
+    fireEvent.click(editUndo);
+    fireEvent.keyDown(editUndo, { key: 'Tab' });
+
+    expect(editUndo).toHaveAttribute('aria-pressed', 'false');
+    expect(editor.keymap.getBindings('command:undo')).toEqual(['mod+z']);
+  });
+
+  it('cancels recording when the browser window loses focus', () => {
+    renderDialog(editor);
+    const editUndo = screen.getByRole('button', { name: /Edit .* for Undo/ });
+
+    fireEvent.click(editUndo);
+    fireEvent.blur(window);
+
+    expect(editUndo).toHaveAttribute('aria-pressed', 'false');
+    expect(editor.keymap.getBindings('command:undo')).toEqual(['mod+z']);
   });
 
   it('cancels or atomically confirms a conflicting replacement', () => {
@@ -123,6 +267,7 @@ describe('KeyboardShortcutsPanel', () => {
       const editCopy = screen.getByRole('button', { name: /Edit .* for Copy/ });
       fireEvent.click(editCopy);
       fireEvent.keyDown(editCopy, { key: 'z', ctrlKey: true });
+      fireEvent.keyDown(editCopy, { key: 'Enter' });
     };
 
     recordCopyAsUndo();
@@ -134,21 +279,203 @@ describe('KeyboardShortcutsPanel', () => {
 
     recordCopyAsUndo();
     fireEvent.click(screen.getByRole('button', { name: 'Replace' }));
+    expect(editor.keymap.getBindings('command:undo')).toEqual(['mod+z']);
+    expect(editor.keymap.getBindings('command:copy')).toEqual(['mod+c']);
+    expect(notifications).toBe(0);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     expect(editor.keymap.getBindings('command:undo')).toEqual([]);
     expect(editor.keymap.getBindings('command:copy')).toEqual(['mod+z']);
     expect(notifications).toBe(1);
   });
 
-  it('restores all user bindings', () => {
-    editor.keymap.updateUserBindings({
-      'command:undo': ['mod+u'],
-      'command:copy': [],
+  it('allows the same shortcut in different scopes', () => {
+    editor.keymap.register('test', {
+      id: 'grid:test-up',
+      label: 'Grid Up',
+      category: 'Selection',
+      scope: 'grid',
+      shortcuts: ['alt+g'],
+      target: { type: 'command', id: 'grid.test-up' },
+    });
+    editor.keymap.register('test', {
+      id: 'presentation:test-up',
+      label: 'Previous Slide',
+      category: 'Presentation',
+      scope: 'presentation',
+      shortcuts: ['alt+p'],
+      target: { type: 'command', id: 'presentation.test-up' },
     });
     renderDialog(editor);
-    fireEvent.click(screen.getByRole('button', { name: 'Reset all' }));
 
-    expect(editor.keymap.getUserBindings()).toEqual({});
+    const editGridUp = screen.getByRole('button', { name: /Edit .* for Grid Up/ });
+    expect(editGridUp.closest('tr')).toHaveTextContent('Grid');
+    fireEvent.click(editGridUp);
+    fireEvent.keyDown(editGridUp, { key: 'p', altKey: true });
+    fireEvent.keyDown(editGridUp, { key: 'Enter' });
+
+    expect(screen.queryByRole('heading', { name: 'Shortcut in use' })).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Unsaved changes');
+  });
+
+  it('records a two-stroke chord', () => {
+    renderDialog(editor);
+    const editUndo = screen.getByRole('button', { name: /Edit .* for Undo/ });
+    fireEvent.click(editUndo);
+    fireEvent.keyDown(editUndo, { key: 'k', ctrlKey: true });
+    fireEvent.keyDown(editUndo, { key: 'c', ctrlKey: true });
     expect(editor.keymap.getBindings('command:undo')).toEqual(['mod+z']);
-    expect(editor.keymap.getBindings('command:copy')).toEqual(['mod+c']);
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(editor.keymap.getBindings('command:undo')).toEqual(['mod+k mod+c']);
+  });
+
+  it('prompts before leaving a dirty shortcut draft and supports cancel or discard', () => {
+    renderDialog(editor);
+    const editUndo = screen.getByRole('button', { name: /Edit .* for Undo/ });
+    fireEvent.click(editUndo);
+    fireEvent.keyDown(editUndo, { key: 'u', ctrlKey: true });
+    fireEvent.keyDown(editUndo, { key: 'Enter' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'General' }));
+    expect(screen.getByRole('heading', { name: 'Unsaved shortcut changes' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.getByRole('heading', { name: 'Keyboard shortcuts' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'General' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Discard changes' }));
+    expect(screen.getByRole('heading', { name: 'General' })).toBeInTheDocument();
+    expect(editor.keymap.getBindings('command:undo')).toEqual(['mod+z']);
+  });
+
+  it('saves a dirty shortcut draft before navigating', () => {
+    renderDialog(editor);
+    const editUndo = screen.getByRole('button', { name: /Edit .* for Undo/ });
+    fireEvent.click(editUndo);
+    fireEvent.keyDown(editUndo, { key: 'u', ctrlKey: true });
+    fireEvent.keyDown(editUndo, { key: 'Enter' });
+
+    fireEvent.click(screen.getByRole('button', { name: 'General' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(screen.getByRole('heading', { name: 'General' })).toBeInTheDocument();
+    expect(editor.keymap.getBindings('command:undo')).toEqual(['mod+u']);
+  });
+
+  it('prompts before closing a dirty shortcut draft', () => {
+    const onOpenChange = vi.fn();
+    renderDialog(editor, onOpenChange);
+    const editUndo = screen.getByRole('button', { name: /Edit .* for Undo/ });
+    fireEvent.click(editUndo);
+    fireEvent.keyDown(editUndo, { key: 'u', ctrlKey: true });
+    fireEvent.keyDown(editUndo, { key: 'Enter' });
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onOpenChange).not.toHaveBeenCalled();
+    expect(screen.getByRole('heading', { name: 'Unsaved shortcut changes' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Discard changes' }));
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(editor.keymap.getBindings('command:undo')).toEqual(['mod+z']);
+  });
+
+  it('warns the browser only while the shortcut draft is dirty', () => {
+    renderDialog(editor);
+    const cleanUnload = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(cleanUnload);
+    expect(cleanUnload.defaultPrevented).toBe(false);
+
+    const editUndo = screen.getByRole('button', { name: /Edit .* for Undo/ });
+    fireEvent.click(editUndo);
+    fireEvent.keyDown(editUndo, { key: 'u', ctrlKey: true });
+    fireEvent.keyDown(editUndo, { key: 'Enter' });
+    const dirtyUnload = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(dirtyUnload);
+    expect(dirtyUnload.defaultPrevented).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    const savedUnload = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(savedUnload);
+    expect(savedUnload.defaultPrevented).toBe(false);
+  });
+
+  it('blocks saving while recording and restores navigation after cancellation', () => {
+    renderDialog(editor);
+    const editUndo = screen.getByRole('button', { name: /Edit .* for Undo/ });
+    fireEvent.click(editUndo);
+    fireEvent.keyDown(editUndo, { key: 'u', ctrlKey: true });
+    fireEvent.keyDown(editUndo, { key: 'Enter' });
+
+    const editCopy = screen.getByRole('button', { name: /Edit .* for Copy/ });
+    fireEvent.click(editCopy);
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+
+    const general = screen.getByRole('button', { name: 'General' });
+    fireEvent.pointerDown(general);
+    fireEvent.click(general);
+    expect(screen.getByRole('heading', { name: 'Unsaved shortcut changes' })).toBeInTheDocument();
+  });
+
+  it('groups commands into expandable scenario rows without resetting disclosure state', async () => {
+    renderDialog(editor);
+    const shortcutList = screen
+      .getByRole('columnheader', { name: 'Command' })
+      .closest('table')
+      ?.querySelector('[data-slot="shortcut-list"]');
+    const initialCommandCount = shortcutList?.querySelectorAll('[data-slot="shortcut-row"]').length;
+    const collapseGeneral = screen.getByRole('button', { name: 'Collapse General' });
+    const categoryRow = collapseGeneral.closest('[data-slot="shortcut-category-row"]');
+    const commandRow = shortcutList?.querySelector('[data-slot="shortcut-row"]');
+
+    expect(collapseGeneral).toHaveAttribute('aria-expanded', 'true');
+    expect(collapseGeneral).toHaveTextContent('General');
+    expect(collapseGeneral).toHaveClass('h-8', 'w-full');
+    expect(collapseGeneral.querySelector('span')).toHaveClass('font-semibold');
+    expect(categoryRow).toHaveClass('border-separator');
+    expect(commandRow).toHaveClass('border-separator');
+    expect(commandRow).not.toHaveClass('hover:bg-accent');
+    expect(screen.getAllByText(/commands$/).length).toBeGreaterThan(0);
+    await act(async () => {
+      fireEvent.click(collapseGeneral);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    const expandGeneral = screen.getByRole('button', { name: 'Expand General' });
+    expect(expandGeneral).toHaveAttribute('aria-expanded', 'false');
+    expect(shortcutList?.querySelectorAll('[data-slot="shortcut-row"]').length).toBeLessThan(
+      initialCommandCount ?? 0
+    );
+
+    await act(async () => {
+      editor.keymap.setUserBindings('command:undo', ['mod+u']);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(screen.getByRole('button', { name: 'Expand General' })).toHaveAttribute(
+      'aria-expanded',
+      'false'
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Expand General' }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(screen.getByRole('button', { name: 'Collapse General' })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
+    expect(shortcutList?.querySelectorAll('[data-slot="shortcut-row"]')).toHaveLength(
+      initialCommandCount ?? 0
+    );
+  });
+
+  it('localizes grid headers and categories in Chinese', () => {
+    setUiLanguage('zh');
+    renderDialog(editor);
+
+    expect(screen.getByRole('columnheader', { name: '命令' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: '场景' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: '快捷键' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: '操作' })).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: '状态' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '折叠通用' })).toBeInTheDocument();
   });
 });

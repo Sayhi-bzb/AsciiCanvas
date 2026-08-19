@@ -27,6 +27,18 @@ import {
 } from "./wheelInteraction";
 import { shouldIgnoreCanvasSurfaceGesture } from "../core/gestureGuards";
 import { shouldOpenCanvasLink } from "../core/hitTesting";
+import type { CanvasEditorCapabilities } from "../../../index";
+
+export const resolveCanvasDragTermination = ({
+  canceled,
+  eventType,
+}: {
+  canceled: boolean;
+  eventType: string;
+}): "complete" | "cancel" => {
+  if (canceled || eventType === "pointercancel") return "cancel";
+  return "complete";
+};
 
 export const useCanvasGestureAdapter = ({
   cancelInteraction,
@@ -52,6 +64,7 @@ export const useCanvasGestureAdapter = ({
   canvasDragStartRouteAdapter,
   canvasClickRouteHandler,
   canvasWheelRouteHandler,
+  capabilities,
 }: {
   cancelInteraction: () => void;
   stopEdgeScroll: () => void;
@@ -76,12 +89,14 @@ export const useCanvasGestureAdapter = ({
   canvasDragStartRouteAdapter: CanvasDragStartRouteAdapter;
   canvasClickRouteHandler: CanvasClickRouteHandler;
   canvasWheelRouteHandler: CanvasWheelRouteHandler;
+  capabilities: CanvasEditorCapabilities;
 }) => {
   const pinchStartRef = useRef<CanvasPinchStart | null>(null);
 
   return useGesture(
     {
       onPinchStart: ({ origin: [ox, oy] }) => {
+        if (!capabilities.navigate) return;
         const anchor = pointerContext.resolveLocalPoint(ox, oy);
         pinchStartRef.current = anchor
           ? {
@@ -91,6 +106,7 @@ export const useCanvasGestureAdapter = ({
           : null;
       },
       onPinch: ({ offset: [scale], origin: [ox, oy], event }) => {
+        if (!capabilities.navigate) return;
         const pinchStart = pinchStartRef.current;
         if (!pinchStart) return;
         canvasPinchRouteHandler({
@@ -139,6 +155,12 @@ export const useCanvasGestureAdapter = ({
       onDragStart: ({ xy: [x, y], event }) => {
         if (shouldIgnoreCanvasSurfaceGesture(event)) return;
         const mouseEvent = event as MouseEvent;
+        const canStart = mouseEvent.button === 1 || tool === "pan"
+          ? capabilities.navigate
+          : tool === "select"
+            ? capabilities.select
+            : capabilities.mutateContent;
+        if (!canStart || (hasColorPickerTarget && !capabilities.mutateContent)) return;
         stopEdgeScroll();
         hoverInteraction.clearLinkHover(mouseEvent);
         if (hasColorPickerTarget) {
@@ -192,11 +214,11 @@ export const useCanvasGestureAdapter = ({
       },
       onDragEnd: ({ event, xy: [x, y], canceled }) => {
         stopEdgeScroll();
-        if (
-          canceled ||
-          event.type === "pointercancel" ||
-          event.type === "lostpointercapture"
-        ) {
+        const endGrid = pointerContext.resolveClampedGridPoint(x, y);
+        if (resolveCanvasDragTermination({
+          canceled,
+          eventType: event.type,
+        }) === "cancel") {
           editorRuntime.dispatch({
             type: "canvas-interaction-cancel",
             reason: "pointer",
@@ -208,15 +230,16 @@ export const useCanvasGestureAdapter = ({
           return;
         }
         if (editorRuntime.dispatch({
-            type: "canvas-drag-end",
-            button: (event as MouseEvent).button,
-            endGrid: pointerContext.resolveClampedGridPoint(x, y),
-          })) {
+          type: "canvas-drag-end",
+          button: (event as MouseEvent).button,
+          endGrid,
+        })) {
           return;
         }
         cancelInteraction();
       },
       onClick: ({ event }) => {
+        if (!capabilities.select && !capabilities.navigate) return;
         if (shouldIgnoreCanvasSurfaceGesture(event)) return;
         const mouseEvent = event as MouseEvent;
         canvasClickRouteHandler({
@@ -230,6 +253,7 @@ export const useCanvasGestureAdapter = ({
         });
       },
       onWheel: ({ delta: [gestureDeltaX, gestureDeltaY], event }) => {
+        if (!capabilities.navigate) return;
         if (shouldIgnoreCanvasSurfaceGesture(event)) return;
         const wheelEvent = event as WheelEvent;
         canvasWheelRouteHandler({

@@ -4,6 +4,7 @@ const STORAGE_KEY = "chardesk-persistence";
 const CELL_WIDTH = 9;
 const CELL_HEIGHT = 19;
 const VIEWPORT = { offset: { x: 180, y: 130 }, zoom: 1 };
+const UNDO_SHORTCUT = process.platform === "darwin" ? "Meta+z" : "Control+z";
 
 const seedSession = async (
   page: Page,
@@ -48,6 +49,9 @@ const seedSession = async (
   await expect(page.getByTestId("canvas-editor-surface")).toBeVisible();
   await expect.poll(async () => (await readState(page))?.activeCanvasId)
     .toBe(input.id);
+  await expect.poll(() => page.evaluate(
+    'import("/src/app/compositionRoot.ts").then(({ getApplicationEditorHost }) => getApplicationEditorHost().canvas.getState().canvasMode)'
+  )).toBe(input.mode);
 };
 
 const readState = (page: Page) => page.evaluate((storageKey) => {
@@ -85,6 +89,11 @@ const readLiveGrid = (page: Page) =>
     'import("/src/app/compositionRoot.ts").then(({ getApplicationEditorHost }) => { const canvas = getApplicationEditorHost().canvas; return canvas.documents.getDocumentSeed(canvas.documents.getActiveDocumentId(), "freeform")?.grid ?? []; })'
   );
 
+const readLiveInteraction = (page: Page) =>
+  page.evaluate<{ scratchSize: number; interactionType: string }>(
+    'import("/src/app/compositionRoot.ts").then(({ getApplicationEditorHost }) => { const host = getApplicationEditorHost(); return { scratchSize: host.canvas.getState().scratchLayer?.size ?? 0, interactionType: host.editor.getInteractionState().type }; })'
+  );
+
 const gridClientPoint = async (page: Page, point: { x: number; y: number }) => {
   const box = await page.getByTestId("canvas-editor-surface").boundingBox();
   expect(box).not.toBeNull();
@@ -94,17 +103,33 @@ const gridClientPoint = async (page: Page, point: { x: number; y: number }) => {
   };
 };
 
+const selectCanvasTool = async (page: Page, tool: "box" | "line") => {
+  await page.locator('[data-toolbar-item="shape-group"] [data-toolbar-submenu-trigger="true"]').click();
+  await page.getByRole("menuitemradio", {
+    name: tool === "box" ? "Box" : "Line",
+    exact: true,
+  }).click();
+  await expect(
+    page.locator('[data-toolbar-item="shape-group"] > button').first()
+  ).toHaveAttribute("aria-label", tool === "box" ? "Box" : "Line");
+};
+
 const drawBox = async (
   page: Page,
   startGrid: { x: number; y: number },
   endGrid: { x: number; y: number }
 ) => {
-  await page.getByRole("button", { name: "Box", exact: true }).click();
+  await selectCanvasTool(page, "box");
   const start = await gridClientPoint(page, startGrid);
   const end = await gridClientPoint(page, endGrid);
   await page.mouse.move(start.x, start.y);
   await page.mouse.down();
   await page.mouse.move(end.x, end.y, { steps: 4 });
+  await expect.poll(() => readLiveInteraction(page)).toMatchObject({
+    interactionType: "shapePreview",
+  });
+  await expect.poll(async () => (await readLiveInteraction(page)).scratchSize)
+    .toBeGreaterThan(0);
   await page.mouse.up();
 };
 
@@ -116,9 +141,9 @@ test.describe("editor interaction lifecycle", () => {
 
   test("Escape cancels an active shape transaction", async ({ page }) => {
     await seedSession(page, { id: "cancel-shape", mode: "freeform" });
-    await page.getByRole("button", { name: "Box", exact: true }).click();
-    const start = await gridClientPoint(page, { x: 2, y: 2 });
-    const end = await gridClientPoint(page, { x: 6, y: 4 });
+    await selectCanvasTool(page, "box");
+    const start = await gridClientPoint(page, { x: 2, y: 8 });
+    const end = await gridClientPoint(page, { x: 6, y: 10 });
 
     await page.mouse.move(start.x, start.y);
     await page.mouse.down();
@@ -127,13 +152,17 @@ test.describe("editor interaction lifecycle", () => {
     await page.mouse.up();
 
     await expect.poll(() => readActiveGrid(page)).toEqual([]);
+    await expect.poll(() => readLiveInteraction(page)).toEqual({
+      scratchSize: 0,
+      interactionType: "idle",
+    });
   });
 
   test("tool changes interrupt the active tool without committing its preview", async ({ page }) => {
     await seedSession(page, { id: "switch-tool", mode: "freeform" });
-    await page.getByRole("button", { name: "Box", exact: true }).click();
-    const start = await gridClientPoint(page, { x: 1, y: 1 });
-    const end = await gridClientPoint(page, { x: 5, y: 3 });
+    await selectCanvasTool(page, "box");
+    const start = await gridClientPoint(page, { x: 1, y: 8 });
+    const end = await gridClientPoint(page, { x: 5, y: 10 });
 
     await page.mouse.move(start.x, start.y);
     await page.mouse.down();
@@ -145,6 +174,61 @@ test.describe("editor interaction lifecycle", () => {
       page.getByTestId("tool-dock").getByRole("button", { name: "Select" })
     ).toHaveClass(/bg-control-active-surface/);
     await expect.poll(() => readActiveGrid(page)).toEqual([]);
+    await expect.poll(() => readLiveInteraction(page)).toEqual({
+      scratchSize: 0,
+      interactionType: "idle",
+    });
+  });
+
+  test("undo removes the completed line while preserving the previous box", async ({ page }) => {
+    await seedSession(page, { id: "freeform-shape-undo", mode: "freeform" });
+    await drawBox(page, { x: 1, y: 8 }, { x: 5, y: 10 });
+    await expect.poll(async () => (await readLiveGrid(page)).length)
+      .toBeGreaterThan(0);
+    const boxGrid = await readLiveGrid(page);
+
+    await selectCanvasTool(page, "line");
+    const start = await gridClientPoint(page, { x: 8, y: 8 });
+    const end = await gridClientPoint(page, { x: 12, y: 10 });
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    await page.mouse.move(end.x, end.y, { steps: 4 });
+    await page.mouse.up();
+    await expect.poll(async () => (await readLiveGrid(page)).length)
+      .toBeGreaterThan(boxGrid.length);
+
+    await page.keyboard.press(UNDO_SHORTCUT);
+
+    await expect.poll(() => readLiveGrid(page)).toEqual(boxGrid);
+    await expect.poll(() => readLiveInteraction(page)).toEqual({
+      scratchSize: 0,
+      interactionType: "idle",
+    });
+  });
+
+  test("undo during a line gesture cancels only that gesture", async ({ page }) => {
+    await seedSession(page, { id: "freeform-active-undo", mode: "freeform" });
+    await drawBox(page, { x: 1, y: 8 }, { x: 5, y: 10 });
+    await expect.poll(async () => (await readLiveGrid(page)).length)
+      .toBeGreaterThan(0);
+    const boxGrid = await readLiveGrid(page);
+
+    await selectCanvasTool(page, "line");
+    const start = await gridClientPoint(page, { x: 8, y: 8 });
+    const end = await gridClientPoint(page, { x: 12, y: 10 });
+    await page.mouse.move(start.x, start.y);
+    await page.mouse.down();
+    await page.mouse.move(end.x, end.y, { steps: 4 });
+    await page.keyboard.press(UNDO_SHORTCUT);
+
+    await expect.poll(() => readLiveGrid(page)).toEqual(boxGrid);
+    await expect.poll(() => readLiveInteraction(page)).toEqual({
+      scratchSize: 0,
+      interactionType: "idle",
+    });
+
+    await page.mouse.up();
+    await expect.poll(() => readLiveGrid(page)).toEqual(boxGrid);
   });
 
   test("split-box divider drag crosses pending state and commits the ratio", async ({ page }) => {

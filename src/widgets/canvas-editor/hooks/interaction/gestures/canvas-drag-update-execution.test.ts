@@ -42,11 +42,11 @@ describe("canvas drag-update execution", () => {
         start: { x: 0, y: 0 }, end: { x: 1, y: 4 }, axis: "vertical",
       },
     }, executor, {
-      state: { type: "shapePreview", tool: "line", start: { x: 0, y: 0 }, axis: null },
+      state: { type: "shapePreview", tool: "line", start: { x: 0, y: 0 }, current: { x: 0, y: 0 }, axis: null },
       currentGrid: { x: 1, y: 4 }, tool: "line", structuredScene: [], updateEraserHover: false,
     });
     expect(executor.setInteractionState).toHaveBeenCalledWith({
-      type: "shapePreview", tool: "line", start: { x: 0, y: 0 }, axis: "vertical",
+      type: "shapePreview", tool: "line", start: { x: 0, y: 0 }, current: { x: 1, y: 4 }, axis: "vertical",
     });
     expect(executor.updateScratchForShape).toHaveBeenCalledWith(
       "line", { x: 0, y: 0 }, { x: 1, y: 4 }, { axis: "vertical" }

@@ -70,7 +70,8 @@ describe('dialog visual contract', () => {
       'size-8',
       'rounded-control',
       'hover:bg-accent',
-      'focus-visible:ring-2'
+      'focus-visible:ring-2',
+      'focus-visible:ring-inset'
     );
     fireEvent.click(close);
     expect(onOpenChange).toHaveBeenCalledWith(false);

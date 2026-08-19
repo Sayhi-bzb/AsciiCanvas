@@ -1,6 +1,8 @@
+import { useEffect, useRef } from "react";
 import { useEditor } from "./react";
-import { shortcutFromKeyboardEvent } from "./core/shortcut";
-import type { EditorRuntime } from "./core/runtime";
+import { shortcutsFromKeyboardEvent } from "./core/shortcut";
+import type { EditorRuntime, EditorShortcutContext } from "./core/runtime";
+import type { RegisteredKeymapEntry } from "./core/keymap";
 import type { CanvasState } from "@/domains/canvas/public";
 import type { ShortcutTargetKind } from "@/shared/utils/dom-focus";
 import {
@@ -8,19 +10,60 @@ import {
   useShortcutLayer,
 } from "@/shared/shortcuts/dispatcher";
 
+const createEditorShortcutContext = (
+  editor: EditorRuntime<CanvasState>,
+  targetKind: ShortcutTargetKind,
+  phase: "keydown" | "keyup" = "keydown"
+): EditorShortcutContext<CanvasState> => {
+  const state = editor.getState();
+  return {
+    state,
+    targetKind,
+    phase,
+    target: { kind: targetKind },
+    canvas: {
+      mode: state.canvasMode,
+      readOnly: false,
+      hasTextCursor: state.textCursor !== null,
+    },
+    grid: {
+      editMode: state.staticGridEditMode,
+      hasRange: state.staticGridSelection.mode === "range",
+    },
+    structured: { hasSelection: state.selectedStructuredNodeIds.length > 0 },
+    presentation: { active: false },
+    tool: { id: state.tool },
+  };
+};
+
 export const resolveEditorKeymapEvent = (
   editor: EditorRuntime<CanvasState>,
   event: KeyboardEvent,
   targetKind: ShortcutTargetKind,
   phase: "keydown" | "keyup" = "keydown"
 ) => {
-  const shortcut = shortcutFromKeyboardEvent(event);
-  if (!shortcut) return { type: "none" as const };
-  return editor.keymap.resolveBest(shortcut, {
-    state: editor.getState(),
-    targetKind,
-    phase,
-  });
+  const shortcuts = shortcutsFromKeyboardEvent(event);
+  if (shortcuts.length === 0) return { type: "none" as const };
+  const entry = editor.keymap.resolveCandidates(
+    shortcuts,
+    createEditorShortcutContext(editor, targetKind, phase)
+  )[0];
+  return entry ? { type: "match" as const, entry } : { type: "none" as const };
+};
+
+const executeEntry = (
+  editor: EditorRuntime<CanvasState>,
+  entry: RegisteredKeymapEntry<EditorShortcutContext<CanvasState>>
+) => {
+  if (entry.target.type === "tool") {
+    return editor.setCurrentTool(entry.target.id)
+      ? { type: "executed" as const }
+      : { type: "none" as const };
+  }
+  const result = editor.commands.execute(entry.target.id, undefined, "keyboard");
+  return result.status === "succeeded" || result.status === "pending"
+    ? { type: "executed" as const, result }
+    : { type: "none" as const };
 };
 
 export const executeEditorKeymapEvent = (
@@ -30,28 +73,97 @@ export const executeEditorKeymapEvent = (
 ) => {
   const resolution = resolveEditorKeymapEvent(editor, event, targetKind);
   if (resolution.type !== "match") return resolution;
-  const { target } = resolution.entry;
-  if (target.type === "tool") {
-    return editor.setCurrentTool(target.id)
-      ? { type: "executed" as const }
-      : { type: "none" as const };
+  if (event.repeat && (resolution.entry.repeat ?? "ignore") === "ignore") {
+    return { type: "none" as const };
   }
-  const result = editor.commands.execute(target.id, undefined, "keyboard");
-  return result.status === "succeeded" || result.status === "pending"
-    ? { type: "executed" as const, result }
-    : { type: "none" as const };
+  return executeEntry(editor, resolution.entry);
 };
+
+export class EditorShortcutEngine {
+  readonly #editor: EditorRuntime<CanvasState>;
+  readonly #timeoutMs: number;
+  #pending: readonly string[] | null = null;
+  #timer: ReturnType<typeof setTimeout> | null = null;
+
+  constructor(editor: EditorRuntime<CanvasState>, timeoutMs = 1_500) {
+    this.#editor = editor;
+    this.#timeoutMs = timeoutMs;
+  }
+
+  cancelChord = () => {
+    this.#pending = null;
+    if (this.#timer !== null) clearTimeout(this.#timer);
+    this.#timer = null;
+  };
+
+  dispose = () => this.cancelChord();
+
+  #context(targetKind: ShortcutTargetKind): EditorShortcutContext<CanvasState> {
+    return createEditorShortcutContext(this.#editor, targetKind);
+  }
+
+  #beginChord(prefixes: readonly string[]) {
+    this.cancelChord();
+    this.#pending = prefixes;
+    this.#timer = setTimeout(this.cancelChord, this.#timeoutMs);
+    return { type: "pending" as const };
+  }
+
+  handleKeyDown(event: KeyboardEvent, targetKind: ShortcutTargetKind) {
+    if (event.key === "Escape" && this.#pending) {
+      this.cancelChord();
+      return { type: "cancelled" as const };
+    }
+    const strokes = shortcutsFromKeyboardEvent(event);
+    if (strokes.length === 0) return { type: "none" as const };
+    const context = this.#context(targetKind);
+
+    if (this.#pending) {
+      const sequences = this.#pending.flatMap((prefix) =>
+        strokes.map((stroke) => `${prefix} ${stroke}`));
+      this.cancelChord();
+      const entry = this.#editor.keymap.resolveCandidates(sequences, context)[0];
+      if (entry && (!event.repeat || (entry.repeat ?? "ignore") === "allow")) {
+        return executeEntry(this.#editor, entry);
+      }
+      // A mismatched second stroke starts a fresh root resolution.
+    }
+
+    if (this.#editor.keymap.hasChordPrefix(strokes, context)) {
+      return this.#beginChord(strokes);
+    }
+    const entry = this.#editor.keymap.resolveCandidates(strokes, context)[0];
+    if (!entry || (event.repeat && (entry.repeat ?? "ignore") === "ignore")) {
+      return { type: "none" as const };
+    }
+    return executeEntry(this.#editor, entry);
+  }
+}
 
 export const useEditorShortcutLayer = ({ enabled = true }: { enabled?: boolean } = {}) => {
   const editor = useEditor();
+  const engineRef = useRef<EditorShortcutEngine | null>(null);
+  if (engineRef.current === null) {
+    engineRef.current = new EditorShortcutEngine(editor);
+  }
+  useEffect(() => {
+    const engine = engineRef.current;
+    const cancel = () => engine?.cancelChord();
+    window.addEventListener("blur", cancel);
+    window.addEventListener("compositionstart", cancel);
+    return () => {
+      window.removeEventListener("blur", cancel);
+      window.removeEventListener("compositionstart", cancel);
+      engine?.dispose();
+    };
+  }, []);
   useShortcutLayer({
     id: "editor-keymap",
     priority: SHORTCUT_PRIORITY.globalAction,
     enabled,
     onKeyDown: (event, context) => {
-      if (event.repeat) return;
-      const result = executeEditorKeymapEvent(editor, event, context.targetKind);
-      return result.type === "executed"
+      const result = engineRef.current!.handleKeyDown(event, context.targetKind);
+      return result.type === "executed" || result.type === "pending" || result.type === "cancelled"
         ? { claimed: true, preventDefault: true }
         : undefined;
     },

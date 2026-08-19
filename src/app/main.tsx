@@ -7,20 +7,30 @@ import { getApplicationEditorHost } from "./compositionRoot";
 import { EditorProvider } from "@/domains/editor/public";
 import { CanvasRuntimeProvider } from "@/domains/canvas/public";
 import { CollaborationRuntimeProvider } from "@/domains/collaboration/public";
+import {
+  BLACKBOARD_HOST_PROFILE,
+  EDITOR_HOST_PROFILE,
+} from "./editorHostProfile";
+import { EditorHostProfileProvider } from "./editorHostProfileContext";
 
-const host = getApplicationEditorHost();
-captureOnboardingEntryState();
+const profile = window.location.pathname === "/blackboard"
+  ? BLACKBOARD_HOST_PROFILE
+  : EDITOR_HOST_PROFILE;
+const host = getApplicationEditorHost(profile);
+if (profile.id === "editor") captureOnboardingEntryState();
 
 void import("./App").then(({ default: App }) => {
   ReactDOM.createRoot(document.getElementById("root")!).render(
     <React.StrictMode>
-      <CanvasRuntimeProvider runtime={host.canvas}>
-        <CollaborationRuntimeProvider runtime={host.collaboration}>
-          <EditorProvider editor={host.editor}>
-            <App />
-          </EditorProvider>
-        </CollaborationRuntimeProvider>
-      </CanvasRuntimeProvider>
+      <EditorHostProfileProvider profile={host.profile}>
+        <CanvasRuntimeProvider runtime={host.canvas}>
+          <CollaborationRuntimeProvider runtime={host.collaboration}>
+            <EditorProvider editor={host.editor}>
+              <App />
+            </EditorProvider>
+          </CollaborationRuntimeProvider>
+        </CanvasRuntimeProvider>
+      </EditorHostProfileProvider>
     </React.StrictMode>
   );
 });

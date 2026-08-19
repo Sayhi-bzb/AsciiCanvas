@@ -3,7 +3,7 @@ import { CanvasEditor } from '@/widgets/canvas-editor';
 import { useCanvasRuntime, useCanvasState } from '@/domains/canvas/public';
 import { Toolbar } from '@/widgets/toolbar/dock';
 import { SidebarProvider, SidebarTrigger, useSidebar } from '@/shared/ui/sidebar';
-import { Suspense, lazy, useCallback, useMemo, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
 import { feedback } from '@/shared/services/effects';
 import { useShallow } from 'zustand/react/shallow';
 import { CanvasBreadcrumb } from '@/widgets/session-tabs/CanvasBreadcrumb';
@@ -14,11 +14,7 @@ import { isStaticGridMode } from '@/domains/sessions/public';
 import { useGlobalShortcutCommands } from './useGlobalShortcutCommands';
 import { ZoomControl } from '@/widgets/toolbar/zoom-control';
 import { HelpControl } from '@/widgets/toolbar/help-control';
-import {
-  SHORTCUT_PRIORITY,
-  ShortcutProvider,
-  useShortcutLayer,
-} from '@/shared/shortcuts/dispatcher';
+import { ShortcutProvider } from '@/shared/shortcuts/dispatcher';
 import { useActiveCollaboration } from './useActiveCollaboration';
 import { useHorizontalWheelNavigationGuard } from './useHorizontalWheelNavigationGuard';
 import { CollaborationControl } from '@/widgets/collaboration/CollaborationControl';
@@ -35,6 +31,9 @@ import {
   EditorChromeProvider,
   useEditorChromeLayout,
 } from '@/widgets/editor-chrome/public';
+import { intersectHostCapabilities } from './editorHostProfile';
+import { useEditorHostProfile } from './useEditorHostProfile';
+import { useBlackboardSource } from './useBlackboardSource';
 
 const SidebarRight = lazy(() =>
   import('@/widgets/toolbar/sidebar-right').then((module) => ({
@@ -44,25 +43,30 @@ const SidebarRight = lazy(() =>
 
 function SidebarShortcutRegistration() {
   const { toggleSidebar } = useSidebar();
-  useShortcutLayer({
-    id: 'right-sidebar',
-    priority: SHORTCUT_PRIORITY.chrome,
-    onKeyDown: (event, context) => {
-      if (
-        context.targetKind === 'editable' ||
-        context.targetKind === 'managed-canvas' ||
-        context.targetKind === 'overlay' ||
-        !(event.ctrlKey || event.metaKey) ||
-        event.shiftKey ||
-        event.altKey ||
-        event.key.toLowerCase() !== 'b'
-      ) {
-        return;
-      }
-      toggleSidebar();
-      return { claimed: true, preventDefault: true };
-    },
-  });
+  const editor = useEditor();
+  useEffect(() => {
+    const disposeCommand = editor.commands.register('app.chrome', {
+      id: 'ui.toggle-sidebar',
+      execute: () => {
+        toggleSidebar();
+        return { handled: true, status: 'succeeded' };
+      },
+    });
+    const disposeBinding = editor.keymap.register('app.chrome', {
+      id: 'command:toggle-sidebar',
+      label: 'Toggle Sidebar',
+      category: 'Canvas',
+      scope: 'application',
+      shortcuts: ['mod+b'],
+      target: { type: 'command', id: 'ui.toggle-sidebar' },
+      when: ({ targetKind }) =>
+        targetKind !== 'editable' && targetKind !== 'managed-canvas' && targetKind !== 'overlay',
+    });
+    return () => {
+      disposeBinding();
+      disposeCommand();
+    };
+  }, [editor, toggleSidebar]);
   return null;
 }
 
@@ -73,7 +77,8 @@ function PhoneSidebarTrigger() {
 }
 
 function AppContent() {
-  useActiveCollaboration();
+  const hostProfile = useEditorHostProfile();
+  useActiveCollaboration({ enabled: hostProfile.capabilities.collaborate });
   useHorizontalWheelNavigationGuard();
   const collaborationSnapshot = useCollaborationSnapshot();
   const activeCollaboration = useCanvasState(
@@ -84,6 +89,13 @@ function AppContent() {
     !!activeCollaboration &&
     (!collaborationSnapshot.canEdit ||
       !sameCollaborationRoom(activeCollaboration, collaborationSnapshot.descriptor));
+  const capabilities = intersectHostCapabilities(
+    hostProfile.capabilities,
+    !isCollaborationReadOnly
+  );
+  const blackboardSource = useBlackboardSource({
+    enabled: hostProfile.id === 'blackboard',
+  });
   const { formFactor, sidebarPresentation, viewportFrame } = useEditorChromeLayout();
   const {
     tool,
@@ -173,7 +185,7 @@ function AppContent() {
   };
 
   useGlobalShortcutCommands({
-    enabled: !isCollaborationReadOnly,
+    enabled: capabilities.mutateContent,
   });
 
   return (
@@ -193,19 +205,30 @@ function AppContent() {
             className="flex min-w-0 items-center gap-1 pointer-events-none"
           >
             <div data-testid="app-primary-control-stack" className="relative size-8 flex-none">
-              <AppMenu />
+              <div inert={!capabilities.manageSessions || undefined}>
+                <AppMenu />
+              </div>
               <div
                 data-testid="canvas-properties-control-position"
                 className="pointer-events-auto absolute left-0 top-9"
               >
                 <CanvasInspectorControl
                   formFactor={formFactor}
-                  readOnly={isCollaborationReadOnly}
+                  readOnly={!capabilities.mutateContent}
                 />
               </div>
             </div>
-            <CanvasBreadcrumb />
-            <CollaborationControl />
+            <CanvasBreadcrumb manageSessions={capabilities.manageSessions} />
+            {hostProfile.id === 'blackboard' && (
+              <span
+                data-testid="blackboard-source-status"
+                data-state={blackboardSource.status.state}
+                className="pointer-events-auto truncate px-2 text-xs text-muted-foreground"
+              >
+                {blackboardSource.status.message}
+              </span>
+            )}
+            {capabilities.collaborate && <CollaborationControl />}
           </div>
         }
         topEnd={formFactor === 'phone' ? <PhoneSidebarTrigger /> : null}
@@ -215,14 +238,15 @@ function AppContent() {
           )
         }
         bottomCenter={
-          <div inert={isCollaborationReadOnly} aria-disabled={isCollaborationReadOnly}>
+          <div aria-disabled={!capabilities.mutateContent}>
             <Toolbar
               tool={tool}
               setTool={setTool}
               onUndo={handleUndo}
               isCanvasTextEditing={isCanvasTextEditing}
               onExitCanvasTextEditing={exitCanvasTextEditing}
-              enabled={!isCollaborationReadOnly}
+              enabled={capabilities.navigate || capabilities.select}
+              mutateContent={capabilities.mutateContent}
               formFactor={formFactor}
             />
           </div>
@@ -230,26 +254,22 @@ function AppContent() {
         bottomEnd={<HelpControl />}
         sidebar={
           <Suspense fallback={null}>
-            <SidebarRight />
+            <div inert={!capabilities.mutateContent || undefined}>
+              <SidebarRight />
+            </div>
           </Suspense>
         }
         canvas={
           <div data-onboarding-target="workspace" className="relative size-full overflow-hidden">
-            <div
-              className="relative h-full w-full"
-              inert={isCollaborationReadOnly}
-              aria-busy={isCollaborationReadOnly}
-            >
+            <div className="relative h-full w-full">
               <CanvasEditor
                 onUndo={handleUndo}
                 onRedo={handleRedo}
-                enabled={!isCollaborationReadOnly}
+                capabilities={capabilities}
+                fitContentRevision={blackboardSource.firstFitRevision}
                 viewportFrame={viewportFrame}
               />
-              <RemotePresenceOverlay />
-              {isCollaborationReadOnly && (
-                <div className="absolute inset-0 z-(--layer-chrome) bg-background/20" />
-              )}
+              {capabilities.collaborate && <RemotePresenceOverlay />}
             </div>
           </div>
         }

@@ -58,3 +58,8 @@ export const getDockShortcutLabel = (
   platform === "mac"
     ? `⌃${index + 1}`
     : getDockShortcutAriaLabel(index, platform);
+
+export const getDockShortcutBinding = (
+  index: number,
+  platform = getDockShortcutPlatform()
+) => `${platform === "mac" ? "ctrl" : "alt"}+code:Digit${index + 1}`;

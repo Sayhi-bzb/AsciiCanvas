@@ -9,6 +9,7 @@ import {
 import { ShortcutProvider } from "@/shared/shortcuts/dispatcher";
 import { createGridSelectionState, selectGridRange } from "@/domains/selection/public";
 import { CanvasInspectorControl } from "./canvas-inspector";
+import { useEditorShortcutLayer } from "@/domains/editor/public";
 
 const initialState = useEditorStore.getState();
 const selectedCell = selectGridRange(
@@ -23,12 +24,18 @@ function Inspector({
 }: Partial<React.ComponentProps<typeof CanvasInspectorControl>>) {
   return (
     <ShortcutProvider>
+      <EditorShortcutTestLayer />
       <CanvasInspectorControl
         formFactor={formFactor}
         readOnly={readOnly}
       />
     </ShortcutProvider>
   );
+}
+
+function EditorShortcutTestLayer() {
+  useEditorShortcutLayer();
+  return null;
 }
 
 describe("CanvasInspectorControl", () => {

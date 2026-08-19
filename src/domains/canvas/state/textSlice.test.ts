@@ -355,6 +355,55 @@ describe("textSlice paste background merging", () => {
       ])
     );
   });
+
+  it("selects the actual rich paste footprint including wide cells", () => {
+    setTextState({ textCursor: { x: 4, y: 2 } });
+
+    useEditorStore.getState().pasteRichData(
+      [
+        { x: 0, y: 0, char: "A", color: "#ffffff" },
+        { x: 0, y: 1, char: "你", color: "#ffffff" },
+      ],
+      undefined,
+      { selectResult: true }
+    );
+
+    expect(useEditorStore.getState()).toMatchObject({
+      textCursor: null,
+      staticGridEditMode: "navigate",
+      staticGridInputFlow: null,
+      staticGridSelection: {
+        mode: "range",
+        activeCell: { x: 4, y: 2 },
+        primaryRange: {
+          start: { x: 4, y: 2 },
+          end: { x: 5, y: 3 },
+        },
+      },
+    });
+  });
+
+  it("selects a multiline plain-text paste without changing normal input flow", () => {
+    setTextState({ textCursor: { x: 3, y: 1 } });
+
+    useEditorStore.getState().writeTextString("AB\n你", undefined, {
+      selectResult: true,
+    });
+
+    expect(useEditorStore.getState()).toMatchObject({
+      textCursor: null,
+      staticGridEditMode: "navigate",
+      staticGridInputFlow: null,
+      staticGridSelection: {
+        mode: "range",
+        activeCell: { x: 3, y: 1 },
+        primaryRange: {
+          start: { x: 3, y: 1 },
+          end: { x: 4, y: 2 },
+        },
+      },
+    });
+  });
 });
 
 describe("textSlice structured box name editing", () => {

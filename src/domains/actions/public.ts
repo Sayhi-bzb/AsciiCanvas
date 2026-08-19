@@ -8,7 +8,7 @@ export {
   resolveActiveToolbarAction,
   createEditorCommands,
   createEditorCommandsExtension,
-} from "./core";
+} from './core';
 export type {
   ActionResult,
   EditorActionId,
@@ -16,23 +16,21 @@ export type {
   EditorCommandOptions,
   ContextMenuEntry,
   ToolbarActionId,
-} from "./core";
+} from './core';
 export {
   getAppActionShortcutLabel,
   getEditorCommandShortcutLabel,
   formatShortcutLabel,
-  getShortcutDisplayTokens,
+  getShortcutDisplayStrokes,
   setEditorCommandShortcutOverride,
-} from "./core";
-export type { ShortcutPlatform } from "./core";
+} from './core';
+export type { ShortcutDisplayStroke, ShortcutPlatform } from './core';
 export {
   buildClipboardPayload,
   buildStructuredClipboardPayload,
   parseAnsiClipboardText,
   readClipboardPayload,
   writeClipboardPayload,
-} from "./adapters/clipboardActions";
-export { resolveFillHotkeyChar } from "./input-arbiter";
-export {
-  createSelectionCommandFactory,
-} from "./adapters/selectionCommands";
+} from './adapters/clipboardActions';
+export { resolveFillHotkeyChar } from './input-arbiter';
+export { createSelectionCommandFactory } from './adapters/selectionCommands';

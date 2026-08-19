@@ -6,7 +6,7 @@ import {
 import { useCollaborationRuntime } from "@/domains/collaboration/public";
 import { getStaticGridSelectionAreas } from "@/domains/selection/public";
 
-export const useActiveCollaboration = () => {
+export const useActiveCollaboration = ({ enabled = true }: { enabled?: boolean } = {}) => {
   const canvas = useCanvasRuntime();
   const collaborationRuntime = useCollaborationRuntime();
   const activeCanvasId = useCanvasState((state) => state.activeCanvasId);
@@ -30,6 +30,10 @@ export const useActiveCollaboration = () => {
   const tool = useCanvasState((state) => state.tool);
 
   useEffect(() => {
+    if (!enabled) {
+      void collaborationRuntime.disconnect();
+      return;
+    }
     if (!collaboration) {
       void collaborationRuntime.disconnect();
       return;
@@ -37,12 +41,13 @@ export const useActiveCollaboration = () => {
     const document = canvas.queries.getCollaborationDocument(activeCanvasId);
     if (document) void collaborationRuntime.connect(collaboration, document);
     return () => { void collaborationRuntime.disconnect(); };
-  }, [activeCanvasId, canvas, collaboration, collaborationRuntime]);
+  }, [activeCanvasId, canvas, collaboration, collaborationRuntime, enabled]);
 
   useEffect(() => {
+    if (!enabled) return;
     const timer = window.setTimeout(() => {
       collaborationRuntime.setPresence({ cursor, selection: selections, tool });
     }, 33);
     return () => window.clearTimeout(timer);
-  }, [collaborationRuntime, cursor, selections, tool]);
+  }, [collaborationRuntime, cursor, enabled, selections, tool]);
 };

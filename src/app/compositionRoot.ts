@@ -20,24 +20,35 @@ import {
 } from "@/domains/editor/public";
 import { EDITOR_PERSISTENCE_KEY } from "@/domains/sessions/public";
 import type { CanvasState } from "@/domains/canvas/public";
+import type { CanvasSession } from "@/domains/sessions/public";
+import {
+  EDITOR_HOST_PROFILE,
+  type EditorHostProfile,
+} from "./editorHostProfile";
 
 type KeymapStorage = Pick<Storage, "getItem" | "setItem">;
 
 type ApplicationEditorHostOptions = {
   canvasPersistence?: false | { storage: Storage; key: string; migrateLegacy?: boolean };
   keymapStorage?: KeymapStorage | false;
+  profile?: EditorHostProfile;
+  initialSessions?: readonly CanvasSession[];
 };
 
 export class ApplicationEditorHost {
   readonly canvas: CanvasRuntime;
   readonly collaboration: CollaborationRuntime;
   readonly editor: CanvasEditorRuntime;
+  readonly profile: EditorHostProfile;
   #disposed = false;
 
   constructor({
     canvasPersistence = false,
     keymapStorage = false,
+    profile = EDITOR_HOST_PROFILE,
+    initialSessions,
   }: ApplicationEditorHostOptions = {}) {
+    this.profile = profile;
     this.collaboration = createCollaborationRuntime();
     this.canvas = createCanvasRuntime({
       persistence: canvasPersistence,
@@ -47,6 +58,7 @@ export class ApplicationEditorHost {
       parseSessionSource: parseDocumentSessionSource,
       reportIntegrityIssues: (issues) =>
         this.collaboration.reportIntegrityIssues(issues),
+      initialSessions,
     });
     this.editor = createCanvasEditorRuntime({
       state: { get: this.canvas.getState, subscribe: this.canvas.subscribe },
@@ -81,14 +93,28 @@ export const createApplicationEditorHost = (options?: ApplicationEditorHostOptio
 
 let applicationHost: ApplicationEditorHost | null = null;
 
-export const getApplicationEditorHost = (): ApplicationEditorHost => {
+export const getApplicationEditorHost = (
+  profile: EditorHostProfile = EDITOR_HOST_PROFILE
+): ApplicationEditorHost => {
   if (!applicationHost) {
     const storage = typeof localStorage === "undefined" ? false : localStorage;
+    const isBlackboard = profile.id === "blackboard";
     applicationHost = createApplicationEditorHost({
-      canvasPersistence: storage
+      profile,
+      canvasPersistence: !isBlackboard && storage
         ? { storage, key: EDITOR_PERSISTENCE_KEY, migrateLegacy: true }
         : false,
-      keymapStorage: storage,
+      keymapStorage: isBlackboard ? false : storage,
+      initialSessions: isBlackboard
+        ? [{
+            id: "blackboard-source",
+            name: "Blackboard",
+            mode: "freeform",
+            scene: [],
+            components: [],
+            grid: [],
+          }]
+        : undefined,
     });
   }
   return applicationHost;

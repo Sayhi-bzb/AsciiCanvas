@@ -65,6 +65,14 @@ export class CanvasEditorRuntime extends EditorRuntime<
       ? current.getInteractionState()
       : { type: "idle" };
   };
+
+  cancelActiveInteraction = () => {
+    if (this.getInteractionState().type === "idle") return false;
+    return this.dispatch({
+      type: "canvas-interaction-cancel",
+      reason: "history",
+    });
+  };
 }
 
 export type CanvasEditorRuntimePorts = {
@@ -74,10 +82,26 @@ export type CanvasEditorRuntimePorts = {
   onToolChange?: (id: ToolType) => void;
 };
 
-export const createCanvasEditorRuntime = (ports: CanvasEditorRuntimePorts) =>
-  new CanvasEditorRuntime({
+export const createCanvasEditorRuntime = (ports: CanvasEditorRuntimePorts) => {
+  let runtime: CanvasEditorRuntime | null = null;
+  const history: EditorHistoryPort = {
+    canUndo: () =>
+      runtime?.getInteractionState().type !== "idle" ||
+      (ports.history.canUndo?.() ?? ports.state.get().canUndo),
+    canRedo: () =>
+      runtime?.getInteractionState().type !== "idle" ||
+      (ports.history.canRedo?.() ?? ports.state.get().canRedo),
+    undo: () => runtime?.cancelActiveInteraction() || ports.history.undo(),
+    redo: () => runtime?.cancelActiveInteraction() || ports.history.redo(),
+    beginCheckpoint: ports.history.beginCheckpoint,
+    finishCapture: ports.history.finishCapture,
+  };
+  const editor = new CanvasEditorRuntime({
     state: ports.state,
-    history: ports.history,
+    history,
     transactions: ports.transactions,
     onToolChange: (id) => ports.onToolChange?.(id as ToolType),
   });
+  runtime = editor;
+  return editor;
+};

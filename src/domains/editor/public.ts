@@ -1,14 +1,23 @@
 export { EditorCommandRegistry } from "./core/commandRegistry";
 export { EditorKeymap } from "./core/keymap";
 export type {
+  ContextExpression,
   EditorKeymapSnapshot,
+  KeymapDiagnostics,
   KeymapBindingSnapshot,
   KeymapEntry,
   KeymapTarget,
+  ShortcutSequence,
 } from "./core/keymap";
 export type { KeymapResolution, RegisteredKeymapEntry } from "./core/keymap";
-export { normalizeShortcut, shortcutFromKeyboardEvent } from "./core/shortcut";
+export {
+  getShortcutStrokes,
+  normalizeShortcut,
+  shortcutFromKeyboardEvent,
+  shortcutsFromKeyboardEvent,
+} from "./core/shortcut";
 export { EditorRuntime } from "./core/runtime";
+export type { EditorShortcutContext } from "./core/runtime";
 export { EditorStateScopeRegistry } from "./core/scopeRegistry";
 export type { RegisteredEditorStateScope } from "./core/scopeRegistry";
 export { EditorRootStateNode, EditorStateNode } from "./core/stateNode";
@@ -57,12 +66,14 @@ export {
 } from "./react";
 export {
   executeEditorKeymapEvent,
+  EditorShortcutEngine,
   resolveEditorKeymapEvent,
   useEditorShortcutLayer,
 } from "./keyboard";
 export {
   connectEditorKeymapPersistence,
   EDITOR_KEYMAP_STORAGE_KEY,
+  LEGACY_EDITOR_KEYMAP_STORAGE_KEY,
   hydrateEditorKeymap,
   persistEditorKeymap,
 } from "./keymapPersistence";

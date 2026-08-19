@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { readFile, realpath } from "node:fs/promises";
 import { createServer, type ServerResponse } from "node:http";
-import { extname, isAbsolute, relative, resolve } from "node:path";
+import { basename, extname, isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolveReadableBoardPath, type WorkspaceBoardPath } from "./paths.js";
 
@@ -37,20 +37,28 @@ const isInside = (root: string, candidate: string) => {
   return child === "" || (!child.startsWith("..") && !isAbsolute(child));
 };
 
-const defaultClientRoot = fileURLToPath(new URL("./client", import.meta.url));
+const defaultAppRoot = fileURLToPath(new URL("../../../dist", import.meta.url));
 
 type BlackboardServerOptions = {
   board: WorkspaceBoardPath;
   port?: number;
-  clientRoot?: string;
+  appRoot?: string;
 };
 
 export const startBlackboardServer = async ({
   board,
   port = 7331,
-  clientRoot = defaultClientRoot,
+  appRoot = defaultAppRoot,
 }: BlackboardServerOptions) => {
-  const staticRoot = await realpath(clientRoot);
+  let staticRoot: string;
+  try {
+    staticRoot = await realpath(appRoot);
+    await realpath(resolve(staticRoot, "index.html"));
+  } catch {
+    throw new Error(
+      `CharDesk application build not found at ${appRoot}. Run the main application build first.`
+    );
+  }
   const server = createServer((request, response) => {
     void (async () => {
       if (request.method !== "GET") {
@@ -81,6 +89,7 @@ export const startBlackboardServer = async ({
           ...headers,
           "Content-Length": String(bytes.byteLength),
           "Content-Type": "text/plain; charset=utf-8",
+          "X-CharDesk-Source-Name": basename(board.path),
         });
         return;
       }
@@ -92,7 +101,14 @@ export const startBlackboardServer = async ({
         send(response, 400);
         return;
       }
-      const asset = resolve(staticRoot, decoded === "/" ? "index.html" : `.${decoded}`);
+      if (decoded === "/") {
+        send(response, 307, undefined, { Location: "/blackboard" });
+        return;
+      }
+      const asset = resolve(
+        staticRoot,
+        decoded === "/blackboard" ? "index.html" : `.${decoded}`
+      );
       if (!isInside(staticRoot, asset)) {
         send(response, 404);
         return;
@@ -105,7 +121,9 @@ export const startBlackboardServer = async ({
         }
         const bytes = await readFile(checked);
         send(response, 200, bytes, {
-          "Cache-Control": decoded === "/" ? "no-cache" : "public, max-age=31536000, immutable",
+          "Cache-Control": decoded === "/blackboard"
+            ? "no-cache"
+            : "public, max-age=31536000, immutable",
           "Content-Length": String(bytes.byteLength),
           "Content-Type": contentType(checked),
         });

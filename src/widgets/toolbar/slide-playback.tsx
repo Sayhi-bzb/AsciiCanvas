@@ -1,14 +1,15 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import type { SlideDeck } from "@/domains/slides/public";
-import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
-import { useUiI18n } from "@/shared/i18n";
-import { SHORTCUT_PRIORITY, useShortcutLayer } from "@/shared/shortcuts/dispatcher";
-import { Button } from "@/shared/ui/button";
-import { drawSlideCanvas } from "./slide-canvas-renderer";
-import { resolveSlidePlaybackIndex } from "./slide-playback-model";
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import type { SlideDeck } from '@/domains/slides/public';
+import { useEditor } from '@/domains/editor/public';
+import { HOST_ICONOLOGY } from '@/shared/icons/iconology';
+import { useUiI18n } from '@/shared/i18n';
+import { SHORTCUT_PRIORITY, useShortcutLayer } from '@/shared/shortcuts/dispatcher';
+import { Button } from '@/shared/ui/button';
+import { drawSlideCanvas } from './slide-canvas-renderer';
+import { resolveSlidePlaybackIndex } from './slide-playback-model';
 
 const PreviousIcon = HOST_ICONOLOGY.slideAction.previous;
 const NextIcon = HOST_ICONOLOGY.slideAction.next;
@@ -36,39 +37,55 @@ export function SlidePlaybackOverlay({
   const isLast = slideIndex === deck.slides.length - 1;
 
   const navigate = useCallback(
-    (command: "previous" | "next" | "first" | "last") => {
-      setSlideIndex((current) =>
-        resolveSlidePlaybackIndex(current, command, deck.slides.length)
-      );
+    (command: 'previous' | 'next' | 'first' | 'last') => {
+      setSlideIndex((current) => resolveSlidePlaybackIndex(current, command, deck.slides.length));
     },
     [deck.slides.length]
   );
+  const editor = useEditor();
+
+  useEffect(() => {
+    const definitions = [
+      {
+        id: 'next',
+        label: 'Next Slide',
+        shortcuts: ['arrowright', 'arrowdown', 'pagedown', 'space', 'enter'],
+      },
+      { id: 'previous', label: 'Previous Slide', shortcuts: ['arrowleft', 'arrowup', 'pageup'] },
+      { id: 'first', label: 'First Slide', shortcuts: ['home'] },
+      { id: 'last', label: 'Last Slide', shortcuts: ['end'] },
+    ] as const;
+    const disposers = definitions.flatMap((definition) => {
+      const commandId = `presentation.${definition.id}`;
+      const disposeCommand = editor.commands.register('slide.playback', {
+        id: commandId,
+        execute: () => {
+          navigate(definition.id);
+          return { handled: true, status: 'succeeded' };
+        },
+      });
+      const disposeBinding = editor.keymap.register('slide.playback', {
+        id: `presentation:${definition.id}`,
+        label: definition.label,
+        category: 'Presentation',
+        scope: 'presentation',
+        shortcuts: definition.shortcuts,
+        target: { type: 'command', id: commandId },
+        repeat: 'allow',
+        weight: SHORTCUT_PRIORITY.presentation,
+        when: () => true,
+      });
+      return [disposeBinding, disposeCommand];
+    });
+    return () => disposers.forEach((dispose) => dispose());
+  }, [editor, navigate]);
 
   useShortcutLayer({
-    id: "slide-playback",
+    id: 'slide-playback-exit',
     priority: SHORTCUT_PRIORITY.presentation,
     onKeyDown: (event) => {
-      if (
-        event.key === "ArrowRight" ||
-        event.key === "ArrowDown" ||
-        event.key === "PageDown" ||
-        event.key === " " ||
-        event.key === "Enter"
-      ) {
-        navigate("next");
-      } else if (
-        event.key === "ArrowLeft" ||
-        event.key === "ArrowUp" ||
-        event.key === "PageUp"
-      ) {
-        navigate("previous");
-      } else if (event.key === "Home") {
-        navigate("first");
-      } else if (event.key === "End") {
-        navigate("last");
-      } else if (event.key === "Escape") {
-        onExit();
-      }
+      if (event.key !== 'Escape') return;
+      onExit();
       return { claimed: true, preventDefault: true };
     },
   });
@@ -90,35 +107,34 @@ export function SlidePlaybackOverlay({
         viewportHeight: host.clientHeight,
       });
     render();
-    const observer =
-      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(render);
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(render);
     observer?.observe(host);
-    window.addEventListener("resize", render);
-    document.fonts?.addEventListener("loadingdone", render);
+    window.addEventListener('resize', render);
+    document.fonts?.addEventListener('loadingdone', render);
     return () => {
       observer?.disconnect();
-      window.removeEventListener("resize", render);
-      document.fonts?.removeEventListener("loadingdone", render);
+      window.removeEventListener('resize', render);
+      document.fonts?.removeEventListener('loadingdone', render);
     };
   }, [deck, slide]);
 
   const pageLabel = useMemo(
     () =>
-      t("slide.playback.page", {
+      t('slide.playback.page', {
         current: slideIndex + 1,
         total: deck.slides.length,
       }),
     [deck.slides.length, slideIndex, t]
   );
 
-  if (!slide || typeof document === "undefined") return null;
+  if (!slide || typeof document === 'undefined') return null;
 
   return createPortal(
     <div
       ref={hostRef}
       role="dialog"
       aria-modal="true"
-      aria-label={t("slide.playback.title")}
+      aria-label={t('slide.playback.title')}
       tabIndex={-1}
       data-testid="slide-playback"
       className="fixed inset-0 z-(--layer-presentation) overflow-hidden bg-presentation-background outline-none"
@@ -130,7 +146,7 @@ export function SlidePlaybackOverlay({
         className="absolute inset-0 block size-full cursor-pointer"
         onClick={(event) => {
           const rect = event.currentTarget.getBoundingClientRect();
-          navigate(event.clientX < rect.left + rect.width / 2 ? "previous" : "next");
+          navigate(event.clientX < rect.left + rect.width / 2 ? 'previous' : 'next');
         }}
       />
       <div
@@ -143,9 +159,9 @@ export function SlidePlaybackOverlay({
           shape="square"
           size="md"
           className="text-presentation-foreground hover:bg-presentation-accent hover:text-presentation-foreground"
-          aria-label={t("slide.playback.previous")}
+          aria-label={t('slide.playback.previous')}
           disabled={isFirst}
-          onClick={() => navigate("previous")}
+          onClick={() => navigate('previous')}
         >
           <PreviousIcon />
         </Button>
@@ -158,9 +174,9 @@ export function SlidePlaybackOverlay({
           shape="square"
           size="md"
           className="text-presentation-foreground hover:bg-presentation-accent hover:text-presentation-foreground"
-          aria-label={t("slide.playback.next")}
+          aria-label={t('slide.playback.next')}
           disabled={isLast}
-          onClick={() => navigate("next")}
+          onClick={() => navigate('next')}
         >
           <NextIcon />
         </Button>
@@ -171,7 +187,7 @@ export function SlidePlaybackOverlay({
           shape="square"
           size="md"
           className="text-presentation-foreground hover:bg-presentation-accent hover:text-presentation-foreground"
-          aria-label={t("slide.playback.exit")}
+          aria-label={t('slide.playback.exit')}
           onClick={onExit}
         >
           <CloseIcon />

@@ -10,10 +10,12 @@ Human <----------- speech -----------> Agent
   |                                        |
   | observe                                | read / apply_patch
   v                                        v
-Viewer <-- raw text + ETag -- Reader --> board.chardesk
-  ^                              read-only   source of truth
-  |
-Protocol <---------------- Check
+Blackboard Host <-- raw text + ETag -- Reader --> board.chardesk
+  |                                      read-only   source of truth
+  v
+Canvas runtime --> CanvasEditor --> Human
+  ^
+Protocol <---------------------- Check
 
 Skill ---------------------> Agent behavior
 ```
@@ -39,20 +41,21 @@ Skill ---------------------> Agent behavior
 | --- | --- | --- |
 | Speaker | Expresses intent, explanation, or feedback through Conversation | Human and Agent |
 | Writer | Reads the current Blackboard, then changes it | Agent |
-| Viewer | Observes the current Blackboard | Human |
+| Observer | Navigates, selects, and copies the current Blackboard | Human |
 | Facilitator | Selects the goal, focus, and accepted checkpoint | Human |
 
 ## Nodes
 
 | Node | Owner | Fact |
 | --- | --- | --- |
-| Human | Product participant | Speaks through Conversation and observes through Viewer |
+| Human | Product participant | Speaks through Conversation and observes through the Blackboard Host |
 | Agent | Agent host | Speaks through Conversation and writes through native file tools |
 | Conversation | Agent host | Carries intent, explanation, questions, and change reports |
 | Skill | CharDesk Agent adapter | Constrains Blackboard authoring behavior |
 | Blackboard | CharDesk file format | One named `.chardesk` file is the state authority |
 | Reader | `@chardesk/blackboard` | Stateless, loopback, workspace-scoped, and read-only |
-| Viewer | `@chardesk/viewer` | Presents the current source and protocol diagnostics |
+| Blackboard Host | Main CharDesk application | Projects one external source into a read-only `freeform` session and reuses CanvasEditor |
+| Viewer | `@chardesk/viewer` | Embeddable renderer for IDE, third-party web, and external integration surfaces |
 | Protocol | `@chardesk/protocol` | Owns ESC-less ANSI, Unicode, CJK width, graphemes, and diagnostics |
 | Check | `@chardesk/blackboard` | Delegates single-file acceptance to Protocol |
 | Checkpoint | Blackboard lifecycle | Captures a meaningful Blackboard state for durable history |
@@ -71,12 +74,14 @@ Skill ---------------------> Agent behavior
 | Agent | changes locally with native `apply_patch` | Blackboard |
 | Agent | clears only through explicit replacement | Blackboard |
 | Reader | reads raw source from | Blackboard |
-| Viewer | polls every 500 ms with `GET /board` | Reader |
-| Reader | returns raw text and content `ETag` to | Viewer |
-| Viewer | parses and renders with | Protocol |
+| Blackboard Host | polls every 500 ms with `GET /board` | Reader |
+| Reader | returns raw text and content `ETag` to | Blackboard Host |
+| Blackboard Host | parses with | Protocol |
+| Blackboard Host | projects through | Canvas runtime |
+| Canvas runtime | renders through | CanvasEditor |
 | Check | validates with | Protocol |
 | Check | reads | Blackboard |
-| Human | observes | Viewer |
+| Human | observes, navigates, selects, and copies through | Blackboard Host |
 | Blackboard | may produce | Checkpoint |
 | Checkpoint | enters | Durable history |
 
@@ -94,10 +99,10 @@ Skill ---------------------> Agent behavior
 
 ## Observation states
 
-| Reader result | Viewer relation |
+| Reader result | Blackboard Host relation |
 | --- | --- |
 | `200 text/plain` with `ETag` | Display the current source |
 | `304` | Preserve the current display |
-| `404` | Clear the display, show waiting, and continue polling |
+| `404` | Show waiting before the first revision; otherwise preserve the last display and show source missing |
 | Protocol diagnostics | Display the current parse and a warning |
 | Reader unavailable | Preserve the last display and show disconnected state |

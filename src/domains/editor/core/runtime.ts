@@ -21,6 +21,18 @@ type EditorRuntimeOptions<State> = {
   onToolChange?: (id: string) => void;
 };
 
+export type EditorShortcutContext<State> = {
+  state: Readonly<State>;
+  targetKind: ShortcutTargetKind;
+  phase: "keydown" | "keyup";
+  target?: { kind: ShortcutTargetKind };
+  canvas?: { mode?: string; readOnly?: boolean; hasTextCursor?: boolean };
+  grid?: { editMode?: string; hasRange?: boolean };
+  structured?: { hasSelection?: boolean };
+  presentation?: { active?: boolean };
+  tool?: { id?: string | null };
+};
+
 const toDispose = (value: void | (() => void) | Disposable): (() => void) | null => {
   if (typeof value === "function") return value;
   if (value && typeof value.dispose === "function") return () => value.dispose();
@@ -31,11 +43,7 @@ export class EditorRuntime<State, Event = EditorInputEvent>
   implements EditorCommandHost<State>, Disposable
 {
   readonly commands = new EditorCommandRegistry<State>(this);
-  readonly keymap = new EditorKeymap<{
-    state: Readonly<State>;
-    targetKind: ShortcutTargetKind;
-    phase: "keydown" | "keyup";
-  }>();
+  readonly keymap = new EditorKeymap<EditorShortcutContext<State>>();
   readonly scopes = new EditorStateScopeRegistry();
   readonly history: EditorHistoryPort;
   readonly root: EditorRootStateNode<State, Event>;

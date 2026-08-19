@@ -38,15 +38,15 @@ describe("drag-end commit interaction decisions", () => {
   });
 
   it("commits freeform and structured shape previews through their owners", () => {
-    expect(resolve({ type: "shapePreview", tool: "box", start: { x: 0, y: 0 }, axis: null }, { tool: "box" }))
+    expect(resolve({ type: "shapePreview", tool: "box", start: { x: 0, y: 0 }, current: { x: 0, y: 0 }, axis: null }, { tool: "box" }))
       .toEqual({ type: "commitScratch" });
     expect(resolveDragEndCommitDecision({
-      state: { type: "shapePreview", tool: "splitBox", start: { x: 0, y: 0 }, axis: null },
+      state: { type: "shapePreview", tool: "splitBox", start: { x: 0, y: 0 }, current: { x: 0, y: 0 }, axis: null },
       tool: "splitBox", canvasMode: "structured",
       isStructuredSplitBoxDividerResize: false,
     })).toEqual({ type: "commitStructuredShape" });
     expect(resolveDragEndCommitDecision({
-      state: { type: "shapePreview", tool: "arrowLine", start: { x: 0, y: 0 }, axis: null },
+      state: { type: "shapePreview", tool: "arrowLine", start: { x: 0, y: 0 }, current: { x: 0, y: 0 }, axis: null },
       tool: "arrowLine", canvasMode: "structured",
       isStructuredSplitBoxDividerResize: false,
     })).toEqual({ type: "commitStructuredShape" });

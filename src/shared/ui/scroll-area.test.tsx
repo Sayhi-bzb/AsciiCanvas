@@ -14,7 +14,12 @@ describe('ScrollArea', () => {
     expect(root).toHaveClass('h-20', 'rounded-lg', 'border');
     expect(root).not.toHaveAttribute('data-scrollbars');
     expect(root).not.toHaveAttribute('data-scroll-area');
-    expect(container.querySelector('[data-slot="scroll-area-viewport"]')).toBeInTheDocument();
+    expect(container.querySelector('[data-slot="scroll-area-viewport"]')).toHaveClass(
+      'focus-visible:ring-inset'
+    );
+    expect(container.querySelector('[data-slot="scroll-area-viewport"]')).not.toHaveClass(
+      'focus-visible:outline-1'
+    );
     expect(ScrollBar).toBeTypeOf('function');
   });
 

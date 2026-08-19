@@ -123,7 +123,7 @@ describe("canvas drag-start interaction decisions", () => {
       })
     ).toEqual({
       type: "shape-preview",
-      state: { type: "shapePreview", tool: "splitBox", start, axis: null },
+      state: { type: "shapePreview", tool: "splitBox", start, current: start, axis: null },
     });
   });
 });

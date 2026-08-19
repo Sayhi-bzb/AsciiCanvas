@@ -887,6 +887,46 @@ describe('canvas session viewport state', () => {
     );
   });
 
+  it('copies the complete ANSI payload immediately after pasting it', async () => {
+    useEditorStore.setState({
+      canvasMode: 'freeform',
+      textCursor: { x: 0, y: 0 },
+    });
+
+    await useEditorStore.getState().pasteFromClipboard({
+      eventDataTransfer: {
+        getData: (type: string) =>
+          type === 'text/plain' ? '[101m CapabilitySearch [m' : '',
+      } as unknown as DataTransfer,
+    });
+
+    expect(useEditorStore.getState()).toMatchObject({
+      textCursor: null,
+      staticGridEditMode: 'navigate',
+      staticGridSelection: {
+        mode: 'range',
+        activeCell: { x: 0, y: 0 },
+        primaryRange: {
+          start: { x: 0, y: 0 },
+          end: { x: 17, y: 0 },
+        },
+      },
+    });
+
+    const capture = createClipboardEventCapture();
+    await useEditorStore.getState().copySelection({ event: capture.event });
+    const rich = JSON.parse(
+      capture.data.get('web application/x-ascii-metropolis') ?? '{}'
+    );
+    expect(rich.cells).toHaveLength(18);
+    expect(rich.cells.map((cell: { char: string }) => cell.char).join('')).toBe(
+      ' CapabilitySearch '
+    );
+    expect(
+      rich.cells.every((cell: { bgColor?: string }) => cell.bgColor === '#ff0000')
+    ).toBe(true);
+  });
+
   it('formats selected structured text ranges', () => {
     useEditorStore.getState().createCanvasSession('structured');
     useEditorStore.getState().applyStructuredScene(

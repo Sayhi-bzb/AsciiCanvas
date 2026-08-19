@@ -6,6 +6,10 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "../..");
 const verifyOnly = process.argv.includes("--verify");
+const targetArgument = process.argv.find((argument) =>
+  argument.startsWith("--target=")
+);
+const requestedTarget = targetArgument?.slice("--target=".length);
 const browserUserAgent =
   "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 " +
   "Chrome/138.0.0.0 Safari/537.36";
@@ -21,6 +25,14 @@ const targets = {
     profileId: "chardesk/default-v1",
   },
 };
+
+if (requestedTarget && !Object.hasOwn(targets, requestedTarget)) {
+  throw new Error(`Unknown font target: ${requestedTarget}`);
+}
+
+const targetEntries = Object.entries(targets).filter(
+  ([targetId]) => !requestedTarget || targetId === requestedTarget
+);
 
 const sources = [
   {
@@ -59,6 +71,16 @@ const sources = [
   },
   {
     target: "canvas",
+    id: "maple-mono-nf-cn-bold",
+    family: "Maple Mono NF CN",
+    version: "7.900",
+    cssUrl: "https://fontsapi.zeoseven.com/442/bold/result.css",
+    versionMarker: "VersionString Version 7.900",
+    licenseUrl:
+      "https://raw.githubusercontent.com/subframe7536/maple-font/v7.9/OFL.txt",
+  },
+  {
+    target: "canvas",
     id: "noto-sans-symbols-2",
     family: "Noto Sans Symbols 2",
     version: "google-fonts-v25",
@@ -87,11 +109,20 @@ const sha256 = (content) =>
   createHash("sha256").update(content).digest("hex");
 
 const fetchBytes = async (url, headers) => {
-  const response = await fetch(url, { headers });
-  if (!response.ok) {
-    throw new Error(`Failed to fetch ${url}: ${response.status}`);
+  const attempts = 3;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      const response = await fetch(url, { headers });
+      if (!response.ok) {
+        throw new Error(`Failed to fetch ${url}: ${response.status}`);
+      }
+      return Buffer.from(await response.arrayBuffer());
+    } catch (error) {
+      if (attempt === attempts) throw error;
+      await new Promise((resolve) => setTimeout(resolve, attempt * 250));
+    }
   }
-  return Buffer.from(await response.arrayBuffer());
+  throw new Error(`Failed to fetch ${url}`);
 };
 
 const verifyTarget = async ([targetId, target]) => {
@@ -148,14 +179,14 @@ const verifyTarget = async ([targetId, target]) => {
 };
 
 const verifyAssets = async () => {
-  await Promise.all(Object.entries(targets).map(verifyTarget));
+  await Promise.all(targetEntries.map(verifyTarget));
 };
 
 const vendorAssets = async () => {
   const manifests = new Map();
   const stylesheets = new Map();
 
-  for (const [targetId, target] of Object.entries(targets)) {
+  for (const [targetId, target] of targetEntries) {
     if (targetId === "app-ui") {
       await rm(target.outputRoot, { recursive: true, force: true });
     } else {
@@ -181,6 +212,7 @@ const vendorAssets = async () => {
   }
 
   for (const source of sources) {
+    if (requestedTarget && source.target !== requestedTarget) continue;
     const target = targets[source.target];
     const manifest = manifests.get(source.target);
     const targetStylesheets = stylesheets.get(source.target);
@@ -245,7 +277,7 @@ const vendorAssets = async () => {
     });
   }
 
-  for (const [targetId, target] of Object.entries(targets)) {
+  for (const [targetId, target] of targetEntries) {
     const manifest = manifests.get(targetId);
     const stylesheet = `${stylesheets.get(targetId).join("\n\n")}\n`;
     await writeFile(

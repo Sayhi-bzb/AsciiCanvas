@@ -5,7 +5,7 @@ export type {
   EditorCommandId,
   ToolbarActionId,
   ContextMenuEntry,
-} from "./types";
+} from './types';
 
 // Catalog
 export {
@@ -14,26 +14,21 @@ export {
   TOOLBAR_ACTION_META,
   CANVAS_CONTEXT_MENU,
   STRUCTURED_CONTEXT_MENU,
-} from "./catalog";
+} from './catalog';
 
 // Runtime
-export {
-  createEditorCommands,
-  createEditorCommandsExtension,
-} from "./runtime";
-export type { EditorCommandOptions } from "./runtime";
-export { isActionAccepted } from "./result";
+export { createEditorCommands, createEditorCommandsExtension } from './runtime';
+export type { EditorCommandOptions } from './runtime';
+export { isActionAccepted } from './result';
 
 export {
   getAppActionShortcutLabel,
   getEditorCommandShortcutLabel,
   formatShortcutLabel,
-  getShortcutDisplayTokens,
+  getShortcutDisplayStrokes,
   setEditorCommandShortcutOverride,
-} from "./shortcuts";
-export type { ShortcutPlatform } from "./shortcuts";
+} from './shortcuts';
+export type { ShortcutDisplayStroke, ShortcutPlatform } from './shortcuts';
 
 // Handlers (for advanced use cases)
-export {
-  resolveActiveToolbarAction,
-} from "./handlers";
+export { resolveActiveToolbarAction } from './handlers';

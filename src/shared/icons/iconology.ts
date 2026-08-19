@@ -39,6 +39,7 @@ import {
   Omega,
   Palette,
   Presentation,
+  Sparkles,
   RotateCcw,
   PanelLeftClose,
   PanelLeftOpen,
@@ -77,7 +78,8 @@ export const HOST_ICONOLOGY = {
     freeform: Pencil,
     structured: PanelsTopLeft,
     slide: Presentation,
-  } satisfies IconMap<'freeform' | 'structured' | 'slide'>,
+    ai: Sparkles,
+  } satisfies IconMap<'freeform' | 'structured' | 'slide' | 'ai'>,
   characterView: {
     essentials: CaseSensitive,
     nerd: Terminal,

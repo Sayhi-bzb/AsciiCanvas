@@ -91,23 +91,44 @@ export const prepareCanvasSurface = (
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 };
 
-export const loadRenderFonts = async (graphemes: Iterable<string>) => {
+export type RenderFontSample =
+  | string
+  | { grapheme: string; bold?: boolean; italic?: boolean };
+
+export const loadRenderFonts = async (samplesToLoad: Iterable<RenderFontSample>) => {
   if (typeof document === "undefined" || !document.fonts) return;
 
   try {
-    const samples = new Map<RenderFontRoute, Set<string>>();
-    for (const grapheme of graphemes) {
+    const samples = new Map<
+      string,
+      {
+        route: RenderFontRoute;
+        bold: boolean;
+        italic: boolean;
+        graphemes: Set<string>;
+      }
+    >();
+    for (const sample of samplesToLoad) {
+      const grapheme = typeof sample === "string" ? sample : sample.grapheme;
       if (!grapheme) continue;
       const route = resolveRenderFontRoute(grapheme);
-      const routeSamples = samples.get(route) ?? new Set<string>();
-      routeSamples.add(grapheme);
-      samples.set(route, routeSamples);
+      const bold = typeof sample === "string" ? false : !!sample.bold;
+      const italic = typeof sample === "string" ? false : !!sample.italic;
+      const key = `${route}:${bold ? 1 : 0}:${italic ? 1 : 0}`;
+      const group = samples.get(key) ?? {
+        route,
+        bold,
+        italic,
+        graphemes: new Set<string>(),
+      };
+      group.graphemes.add(grapheme);
+      samples.set(key, group);
     }
     await Promise.all(
-      Array.from(samples, ([route, routeSamples]) =>
+      Array.from(samples.values(), ({ route, bold, italic, graphemes }) =>
         document.fonts.load(
-          getCanvasFont(DEFAULT_GRID_RENDER_METRICS, 1, { route }),
-          Array.from(routeSamples).join("")
+          getCanvasFont(DEFAULT_GRID_RENDER_METRICS, 1, { route, bold, italic }),
+          Array.from(graphemes).join("")
         )
       )
     );

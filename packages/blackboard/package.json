@@ -8,23 +8,19 @@
     "chardesk-blackboard": "./dist/cli.js"
   },
   "scripts": {
-    "prebuild": "npm run build -w @chardesk/fonts && npm run build -w @chardesk/protocol && npm run build -w @chardesk/viewer",
-    "build": "vite build && tsc -p tsconfig.json",
-    "pretypecheck": "npm run build -w @chardesk/fonts && npm run build -w @chardesk/protocol && npm run build -w @chardesk/viewer",
-    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.client.json --noEmit",
+    "prebuild": "npm run build -w @chardesk/protocol",
+    "build": "tsc -p tsconfig.json",
+    "pretypecheck": "npm run build -w @chardesk/protocol",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "pretest": "npm run build",
     "test": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
-    "@chardesk/fonts": "*",
-    "@chardesk/protocol": "*",
-    "@chardesk/viewer": "*"
+    "@chardesk/protocol": "*"
   },
   "devDependencies": {
     "@types/node": "^24.10.4",
-    "jsdom": "^29.0.1",
     "typescript": "~5.9.3",
-    "vite": "^8.2.0",
     "vitest": "^4.1.2"
   },
   "engines": {

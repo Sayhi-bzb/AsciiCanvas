@@ -111,6 +111,82 @@ describe("CanvasToolStateNode", () => {
     expect(second.getInteractionState().type).toBe("panning");
   });
 
+  it("cancels an active interaction before navigating document history", () => {
+    let baseCanUndo = false;
+    const undo = vi.fn(() => true);
+    const redo = vi.fn(() => true);
+    const runtime = createCanvasEditorRuntime({
+      state: {
+        get: () => ({ ...getCanvasState(), canUndo: false, canRedo: false }),
+        subscribe: () => () => undefined,
+      },
+      history: {
+        canUndo: () => baseCanUndo,
+        canRedo: () => false,
+        undo,
+        redo,
+        beginCheckpoint: () => ({ commit: vi.fn(), cancel: vi.fn() }),
+        finishCapture: vi.fn(),
+      },
+      transactions: { run: (fn) => fn() },
+    });
+    const cancel = vi.fn();
+    runtime.interactionPort.bind({
+      begin: vi.fn(),
+      start: vi.fn(() => ({
+        state: {
+          type: "shapePreview" as const,
+          tool: "line" as const,
+          start: { x: 1, y: 1 },
+          current: { x: 1, y: 1 },
+          axis: "horizontal" as const,
+        },
+      })),
+      update: vi.fn((state) => state),
+      complete: vi.fn(),
+      cancel,
+    });
+    runtime.registerExtension(createCanvasEditorExtension(runtime.interactionPort)).start("line");
+    runtime.dispatch({
+      type: "canvas-drag-start",
+      canvasMode: "freeform",
+      button: 0,
+      isCtrlOrMetaPressed: false,
+      shiftKey: false,
+      detail: 1,
+      screenPoint: { x: 10, y: 20 },
+      gridPoint: { x: 1, y: 1 },
+      brushChar: "#",
+    });
+
+    expect(runtime.history.canUndo?.()).toBe(true);
+    expect(runtime.history.undo()).toBe(true);
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(undo).not.toHaveBeenCalled();
+    expect(runtime.getInteractionState().type).toBe("idle");
+
+    baseCanUndo = true;
+    expect(runtime.history.canUndo?.()).toBe(true);
+    expect(runtime.history.undo()).toBe(true);
+    expect(undo).toHaveBeenCalledOnce();
+
+    runtime.dispatch({
+      type: "canvas-drag-start",
+      canvasMode: "freeform",
+      button: 0,
+      isCtrlOrMetaPressed: false,
+      shiftKey: false,
+      detail: 1,
+      screenPoint: { x: 10, y: 20 },
+      gridPoint: { x: 1, y: 1 },
+      brushChar: "#",
+    });
+    expect(runtime.history.canRedo?.()).toBe(true);
+    expect(runtime.history.redo()).toBe(true);
+    expect(cancel).toHaveBeenCalledTimes(2);
+    expect(redo).not.toHaveBeenCalled();
+  });
+
   it("owns the select drag lifecycle and state path", () => {
     const { runtime, port } = createHarness();
     expect(

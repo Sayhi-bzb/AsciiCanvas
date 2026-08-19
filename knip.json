@@ -32,12 +32,9 @@
       "entry": [
         "src/cli.ts",
         "src/**/*.test.ts",
-        "client/main.ts",
-        "client/**/*.test.ts",
-        "vite.config.ts",
         "vitest.config.ts"
       ],
-      "project": ["src/**/*.ts", "client/**/*.ts", "*.config.ts"]
+      "project": ["src/**/*.ts", "*.config.ts"]
     },
     "apps/docs": {
       "entry": [

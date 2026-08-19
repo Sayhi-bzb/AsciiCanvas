@@ -1,129 +1,159 @@
-import { describe, expect, it } from "vitest";
-import { EditorKeymap } from "./keymap";
+import { describe, expect, it } from 'vitest';
+import { EditorKeymap } from './keymap';
 
-describe("EditorKeymap", () => {
-  it("applies overrides and orders contextual matches by priority", () => {
+describe('EditorKeymap', () => {
+  it('applies overrides and orders contextual matches by priority', () => {
     const keymap = new EditorKeymap<{ editing: boolean }>();
-    keymap.register("test", {
-      id: "global.undo",
-      shortcuts: ["mod+z"],
-      target: { type: "command", id: "undo" },
+    keymap.register('test', {
+      id: 'global.undo',
+      shortcuts: ['mod+z'],
+      target: { type: 'command', id: 'undo' },
     });
-    keymap.register("test", {
-      id: "text.undo",
-      shortcuts: ["mod+z"],
-      target: { type: "command", id: "text.undo" },
+    keymap.register('test', {
+      id: 'text.undo',
+      shortcuts: ['mod+z'],
+      target: { type: 'command', id: 'text.undo' },
       priority: 10,
       when: ({ editing }) => editing,
     });
 
-    expect(keymap.resolve("mod+z", { editing: true }).map((entry) => entry.id)).toEqual([
-      "text.undo",
-      "global.undo",
+    expect(keymap.resolve('mod+z', { editing: true }).map((entry) => entry.id)).toEqual([
+      'text.undo',
+      'global.undo',
     ]);
     expect(keymap.getConflicts({ editing: true })).toEqual([
-      { shortcut: "mod+z", entryIds: ["global.undo", "text.undo"] },
+      { shortcut: 'mod+z', entryIds: ['global.undo', 'text.undo'] },
     ]);
-    expect(keymap.resolveBest("mod+z", { editing: true })).toMatchObject({
-      type: "match",
-      entry: { id: "text.undo", owner: "test" },
+    expect(keymap.resolveBest('mod+z', { editing: true })).toMatchObject({
+      type: 'match',
+      entry: { id: 'text.undo', owner: 'test' },
     });
 
-    keymap.setUserBindings("global.undo", ["mod+u"]);
-    expect(keymap.resolve("mod+z", { editing: false })).toEqual([]);
-    expect(keymap.resolve("mod+u", { editing: false })[0]?.target).toEqual({
-      type: "command",
-      id: "undo",
+    keymap.setUserBindings('global.undo', ['mod+u']);
+    expect(keymap.resolve('mod+z', { editing: false })).toEqual([]);
+    expect(keymap.resolve('mod+u', { editing: false })[0]?.target).toEqual({
+      type: 'command',
+      id: 'undo',
     });
   });
 
-  it("does not choose between equal-priority bindings", () => {
+  it('uses registration order for equal-weight bindings and reports shadowing', () => {
     const keymap = new EditorKeymap();
-    keymap.register("one", {
-      id: "one",
-      shortcuts: ["mod+k"],
-      target: { type: "command", id: "one" },
+    keymap.register('one', {
+      id: 'one',
+      shortcuts: ['mod+k'],
+      target: { type: 'command', id: 'one' },
     });
-    keymap.register("two", {
-      id: "two",
-      shortcuts: ["mod+k"],
-      target: { type: "command", id: "two" },
+    keymap.register('two', {
+      id: 'two',
+      shortcuts: ['mod+k'],
+      target: { type: 'command', id: 'two' },
     });
-    expect(keymap.resolveBest("mod+k", undefined)).toMatchObject({
-      type: "conflict",
-      shortcut: "mod+k",
+    expect(keymap.resolveBest('mod+k', undefined)).toMatchObject({
+      type: 'match',
+      entry: { id: 'two' },
+    });
+    expect(keymap.diagnose('mod+k', undefined)).toMatchObject({
+      winner: { id: 'two' },
+      shadowed: [{ id: 'one' }],
     });
   });
 
-  it("publishes stable snapshots and applies multi-entry overrides atomically", () => {
+  it('publishes stable snapshots and applies multi-entry overrides atomically', () => {
     const keymap = new EditorKeymap();
-    keymap.register("test", {
-      id: "command:undo",
-      shortcuts: ["mod+z"],
-      target: { type: "command", id: "undo" },
+    keymap.register('test', {
+      id: 'command:undo',
+      scope: 'canvas',
+      shortcuts: ['mod+z'],
+      target: { type: 'command', id: 'undo' },
     });
-    keymap.register("test", {
-      id: "command:copy",
-      shortcuts: ["mod+c"],
-      target: { type: "command", id: "copy" },
+    keymap.register('test', {
+      id: 'command:copy',
+      shortcuts: ['mod+c'],
+      target: { type: 'command', id: 'copy' },
     });
     const initial = keymap.getSnapshot();
     expect(keymap.getSnapshot()).toBe(initial);
     expect(initial.entries[0]).toMatchObject({
-      id: "command:undo",
-      defaultShortcuts: ["mod+z"],
-      shortcuts: ["mod+z"],
+      id: 'command:undo',
+      scope: 'canvas',
+      defaultShortcuts: ['mod+z'],
+      shortcuts: ['mod+z'],
       userDefined: false,
     });
 
     let notifications = 0;
     keymap.subscribe(() => notifications++);
     keymap.updateUserBindings({
-      "command:undo": [],
-      "command:copy": ["Shift+Mod+Z"],
+      'command:undo': [],
+      'command:copy': ['Shift+Mod+Z'],
     });
 
     expect(notifications).toBe(1);
     expect(keymap.getSnapshot()).not.toBe(initial);
     expect(keymap.getSnapshot().entries).toEqual([
       expect.objectContaining({
-        id: "command:undo",
+        id: 'command:undo',
         shortcuts: [],
         userDefined: true,
       }),
       expect.objectContaining({
-        id: "command:copy",
-        shortcuts: ["mod+shift+z"],
+        id: 'command:copy',
+        shortcuts: ['mod+shift+z'],
         userDefined: true,
       }),
     ]);
 
     keymap.updateUserBindings({
-      "command:undo": [],
-      "command:copy": ["mod+shift+z"],
+      'command:undo': [],
+      'command:copy': ['mod+shift+z'],
     });
     expect(notifications).toBe(1);
   });
 
-  it("validates an atomic update before changing any entry", () => {
+  it('validates an atomic update before changing any entry', () => {
     const keymap = new EditorKeymap();
-    keymap.register("test", {
-      id: "command:undo",
-      shortcuts: ["mod+z"],
-      target: { type: "command", id: "undo" },
+    keymap.register('test', {
+      id: 'command:undo',
+      shortcuts: ['mod+z'],
+      target: { type: 'command', id: 'undo' },
     });
-    keymap.register("test", {
-      id: "command:copy",
-      shortcuts: ["mod+c"],
-      target: { type: "command", id: "copy" },
+    keymap.register('test', {
+      id: 'command:copy',
+      shortcuts: ['mod+c'],
+      target: { type: 'command', id: 'copy' },
     });
 
     expect(() =>
       keymap.updateUserBindings({
-        "command:undo": ["mod+u"],
-        "command:copy": ["mod"],
+        'command:undo': ['mod+u'],
+        'command:copy': ['mod'],
       })
-    ).toThrow("Invalid shortcut mod");
+    ).toThrow('Invalid shortcut mod');
     expect(keymap.getUserBindings()).toEqual({});
+  });
+
+  it('resolves declarative context expressions and chord prefixes', () => {
+    const keymap = new EditorKeymap<{ canvas: { mode: string }; grid: { hasRange: boolean } }>();
+    keymap.register('test', {
+      id: 'contextual',
+      shortcuts: ['mod+k mod+c'],
+      target: { type: 'command', id: 'contextual' },
+      when: {
+        all: [
+          { key: 'canvas.mode', equals: 'freeform' },
+          { not: { key: 'grid.hasRange', equals: false } },
+        ],
+      },
+    });
+    const active = { canvas: { mode: 'freeform' }, grid: { hasRange: true } };
+    expect(keymap.hasChordPrefix(['mod+k'], active)).toBe(true);
+    expect(keymap.resolveBest('mod+k mod+c', active)).toMatchObject({ type: 'match' });
+    expect(
+      keymap.resolveBest('mod+k mod+c', {
+        canvas: { mode: 'structured' },
+        grid: { hasRange: true },
+      })
+    ).toEqual({ type: 'none' });
   });
 });

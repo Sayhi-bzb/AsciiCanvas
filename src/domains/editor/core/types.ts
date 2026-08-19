@@ -25,6 +25,8 @@ export interface EditorHistoryCheckpoint {
 }
 
 export interface EditorHistoryPort {
+  canUndo?: () => boolean;
+  canRedo?: () => boolean;
   undo: () => boolean;
   redo: () => boolean;
   beginCheckpoint: () => EditorHistoryCheckpoint;
@@ -104,11 +106,9 @@ export interface EditorExtension<State, Event = EditorInputEvent> {
   id: string;
   commands?: readonly AnyEditorCommandDefinition<State>[];
   tools?: readonly EditorToolDefinition<State, Event>[];
-  keybindings?: readonly import("./keymap").KeymapEntry<{
-    state: Readonly<State>;
-    targetKind: import("@/shared/utils/dom-focus").ShortcutTargetKind;
-    phase: "keydown" | "keyup";
-  }>[];
+  keybindings?: readonly import("./keymap").KeymapEntry<
+    import("./runtime").EditorShortcutContext<State>
+  >[];
   managers?: readonly EditorManagerFactory<State>[];
   stateScopes?: readonly EditorStateScopeDefinition[];
   setup?: (editor: EditorCommandHost<State>) => void | (() => void) | Disposable;

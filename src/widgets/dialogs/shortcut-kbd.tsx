@@ -1,8 +1,5 @@
-import {
-  formatShortcutLabel,
-  getShortcutDisplayTokens,
-} from "@/domains/actions/public";
-import { Kbd, KbdGroup } from "@/shared/ui/kbd";
+import { formatShortcutLabel, getShortcutDisplayStrokes } from '@/domains/actions/public';
+import { Kbd, KbdGroup } from '@/shared/ui/kbd';
 
 type ShortcutKbdProps = {
   shortcut: string;
@@ -12,8 +9,15 @@ type ShortcutKbdProps = {
 export function ShortcutKbd({ shortcut, className }: ShortcutKbdProps) {
   return (
     <KbdGroup className={className} aria-label={formatShortcutLabel(shortcut)}>
-      {getShortcutDisplayTokens(shortcut).map((token, index) => (
-        <Kbd key={`${token}-${index}`}>{token}</Kbd>
+      {getShortcutDisplayStrokes(shortcut).map((stroke, index) => (
+        <span key={`${stroke.label}-${index}`} className="contents">
+          {index > 0 ? (
+            <span aria-hidden="true" className="text-muted-foreground">
+              →
+            </span>
+          ) : null}
+          <Kbd aria-hidden="true">{stroke.label}</Kbd>
+        </span>
       ))}
     </KbdGroup>
   );

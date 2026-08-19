@@ -25,12 +25,14 @@ type UseStructuredTemplateDropOptions = {
   canvasMode: CanvasMode;
   containerRef: RefObject<HTMLDivElement | null>;
   model: CanvasEditorModel;
+  enabled?: boolean;
 };
 
 export const useStructuredTemplateDrop = ({
   canvasMode,
   containerRef,
   model,
+  enabled = true,
 }: UseStructuredTemplateDropOptions) => {
   const [preview, setPreviewState] =
     useState<StructuredTemplatePreviewState | null>(null);
@@ -110,6 +112,7 @@ export const useStructuredTemplateDrop = ({
   };
 
   const onDragOver = (event: DragEvent<HTMLDivElement>) => {
+    if (!enabled) return;
     if (canvasMode !== "structured" || !hasTemplateData(event.dataTransfer)) {
       return;
     }
@@ -121,6 +124,7 @@ export const useStructuredTemplateDrop = ({
   };
 
   const onDragLeave = (event: DragEvent<HTMLDivElement>) => {
+    if (!enabled) return;
     if (canvasMode !== "structured") return;
     const nextTarget = event.relatedTarget;
     if (nextTarget instanceof Node && event.currentTarget.contains(nextTarget)) {
@@ -130,6 +134,7 @@ export const useStructuredTemplateDrop = ({
   };
 
   const onDrop = (event: DragEvent<HTMLDivElement>) => {
+    if (!enabled) return;
     if (canvasMode !== "structured") return;
     const templateId = getTemplateId(event.dataTransfer);
     if (!templateId) {

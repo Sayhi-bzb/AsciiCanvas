@@ -171,7 +171,7 @@ export const resolveDrawingShapeDragStartDecision = ({
   if (isShapeTool(tool, canvasMode)) {
     return {
       type: "shape-preview",
-      state: { type: "shapePreview", tool, start, axis: null },
+      state: { type: "shapePreview", tool, start, current: start, axis: null },
     };
   }
 

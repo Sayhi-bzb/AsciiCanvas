@@ -51,7 +51,7 @@ try {
     const parsed = parseServe(args);
     const board = await resolveWorkspaceBoardPath(process.cwd(), parsed.board);
     const running = await startBlackboardServer({ board, port: parsed.port });
-    console.log(`Blackboard: ${board.path}\n${running.url}`);
+    console.log(`Blackboard: ${board.path}\n${running.url}/blackboard`);
     const close = () => void running.close().finally(() => process.exit(0));
     process.once("SIGINT", close);
     process.once("SIGTERM", close);

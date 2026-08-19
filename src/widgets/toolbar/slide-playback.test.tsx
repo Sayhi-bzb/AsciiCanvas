@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ShortcutProvider } from "@/shared/shortcuts/dispatcher";
+import { useEditorShortcutLayer } from "@/domains/editor/public";
 import type { SlideDeck } from "@/domains/slides/public";
 import { SlidePlaybackOverlay } from "./slide-playback";
 import {
@@ -25,6 +26,11 @@ const deck: SlideDeck = {
     },
   ],
 };
+
+function EditorShortcutTestLayer() {
+  useEditorShortcutLayer();
+  return null;
+}
 
 describe("Slide playback", () => {
   beforeEach(() => {
@@ -61,6 +67,7 @@ describe("Slide playback", () => {
     const onExit = vi.fn();
     render(
       <ShortcutProvider>
+        <EditorShortcutTestLayer />
         <SlidePlaybackOverlay
           deck={deck}
           initialSlideId="slide-2"

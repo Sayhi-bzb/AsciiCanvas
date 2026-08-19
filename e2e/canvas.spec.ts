@@ -297,6 +297,7 @@ test.describe('Canvas', () => {
     const result = await page.evaluate(async () => {
       const faces = await Promise.all([
         document.fonts.load('24px "Maple Mono NF CN"', 'A╭你'),
+        document.fonts.load('700 24px "Maple Mono NF CN"', 'A╭你'),
         document.fonts.load('24px "Noto Sans Symbols 2"', '⟹◈♪'),
         document.fonts.load('40px "Noto Emoji"', '👩🏽‍💻'),
       ]);
@@ -335,8 +336,9 @@ test.describe('Canvas', () => {
     });
 
     expect(result.loadedFamilies[0]).toContain('Maple Mono NF CN');
-    expect(result.loadedFamilies[1]).toContain('Noto Sans Symbols 2');
-    expect(result.loadedFamilies[2]).toContain('Noto Emoji');
+    expect(result.loadedFamilies[1]).toContain('Maple Mono NF CN');
+    expect(result.loadedFamilies[2]).toContain('Noto Sans Symbols 2');
+    expect(result.loadedFamilies[3]).toContain('Noto Emoji');
     expect(result.painted).toBeGreaterThan(0);
     expect(result.offColor).toBe(0);
     expect(result.externalFontRequests).toEqual([]);

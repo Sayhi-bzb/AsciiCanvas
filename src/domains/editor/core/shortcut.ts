@@ -1,50 +1,94 @@
-const MODIFIERS = new Set(["mod", "shift", "alt"]);
-const NAMED_KEYS = new Set([
-  "backspace",
-  "delete",
-  "enter",
-  "escape",
-  "space",
-  "tab",
-  "arrowup",
-  "arrowdown",
-  "arrowleft",
-  "arrowright",
-  "home",
-  "end",
-  "pageup",
-  "pagedown",
-]);
+import {
+  ALL_KEYS,
+  formatForDisplay,
+  hasNonModifierKey,
+  isModifierKey,
+  matchesKeyboardEvent,
+  normalizeHotkey,
+  normalizeHotkeyFromEvent,
+  normalizeKeyName,
+  validateHotkey,
+  type Hotkey,
+} from '@tanstack/hotkeys';
 
-const normalizeKey = (key: string) => {
-  const normalized = key === " " ? "space" : key.toLowerCase();
-  if (normalized.length === 1 || NAMED_KEYS.has(normalized) || /^f\d{1,2}$/.test(normalized)) {
-    return normalized;
+export type ShortcutStroke = string;
+export type ShortcutSequence = readonly ShortcutStroke[];
+export type ShortcutPlatform = 'mac' | 'windows' | 'linux';
+
+const MAX_SEQUENCE_LENGTH = 2;
+const VALID_KEYS = new Set<string>(ALL_KEYS);
+
+const getPlatform = (): ShortcutPlatform => {
+  if (typeof navigator === 'undefined') return 'linux';
+  const platform = `${navigator.platform ?? ''} ${navigator.userAgent ?? ''}`;
+  if (/mac|iphone|ipad|ipod/i.test(platform)) return 'mac';
+  return /win/i.test(platform) ? 'windows' : 'linux';
+};
+
+const migratePhysicalKey = (stroke: string) =>
+  stroke.replace(/code:(?:Key([A-Z])|Digit([0-9]))/gi, (_match, letter, digit) =>
+    (letter ?? digit).toUpperCase()
+  );
+
+export const normalizeShortcutStroke = (
+  stroke: string,
+  platform: ShortcutPlatform = getPlatform()
+): ShortcutStroke | null => {
+  const candidate = migratePhysicalKey(stroke.trim());
+  if (!candidate || candidate.includes(' ')) return null;
+  const parts = candidate.split('+').map((part) => part.trim()).filter(Boolean);
+  if (parts.length === 0 || new Set(parts.map((part) => part.toLowerCase())).size !== parts.length) {
+    return null;
   }
-  return null;
+  const key = normalizeKeyName(parts.at(-1) ?? '');
+  if (isModifierKey(key) || !VALID_KEYS.has(key as never)) return null;
+  const validation = validateHotkey(candidate);
+  if (!validation.valid || !hasNonModifierKey(candidate, platform)) return null;
+  return normalizeHotkey(candidate, platform);
 };
 
-export const normalizeShortcut = (shortcut: string): string | null => {
-  const tokens = shortcut.toLowerCase().split("+").filter(Boolean);
-  const keyTokens = tokens.filter((token) => !MODIFIERS.has(token));
-  if (keyTokens.length !== 1) return null;
-  const key = normalizeKey(keyTokens[0]);
-  if (!key) return null;
-  const modifiers = ["mod", "shift", "alt"].filter((token) => tokens.includes(token));
-  return [...modifiers, key].join("+");
+/** Converts legacy space-delimited shortcuts and canonical stroke arrays to one sequence shape. */
+export const normalizeShortcut = (
+  shortcut: string | readonly string[],
+  platform: ShortcutPlatform = getPlatform()
+): ShortcutSequence | null => {
+  const strokes = typeof shortcut === 'string'
+    ? shortcut.trim().split(/\s+/).filter(Boolean)
+    : [...shortcut];
+  if (strokes.length === 0 || strokes.length > MAX_SEQUENCE_LENGTH) return null;
+  const normalized = strokes.map((stroke) => normalizeShortcutStroke(stroke, platform));
+  return normalized.every((stroke): stroke is string => stroke !== null) ? normalized : null;
 };
+
+export const shortcutSequenceKey = (sequence: ShortcutSequence) => sequence.join('\u001f');
+
+export const shortcutsEqual = (left: ShortcutSequence, right: ShortcutSequence) =>
+  left.length === right.length && left.every((stroke, index) => stroke === right[index]);
 
 export const shortcutFromKeyboardEvent = (
-  event: Pick<KeyboardEvent, "altKey" | "ctrlKey" | "key" | "metaKey" | "shiftKey">
-) => {
-  const key = normalizeKey(event.key);
-  if (!key || MODIFIERS.has(key)) return null;
-  return [
-    event.ctrlKey || event.metaKey ? "mod" : null,
-    event.shiftKey ? "shift" : null,
-    event.altKey ? "alt" : null,
-    key,
-  ]
-    .filter((token): token is string => token !== null)
-    .join("+");
+  event: KeyboardEvent,
+  platform: ShortcutPlatform = getPlatform()
+): ShortcutStroke | null => {
+  const key = normalizeKeyName(event.key);
+  if (isModifierKey(key)) return null;
+  const stroke = normalizeHotkeyFromEvent(event, platform);
+  return hasNonModifierKey(stroke, platform) ? stroke : null;
 };
+
+export const matchesShortcutEvent = (
+  event: KeyboardEvent,
+  stroke: ShortcutStroke,
+  platform: ShortcutPlatform = getPlatform()
+) => matchesKeyboardEvent(event, stroke as Hotkey, platform);
+
+export const formatShortcutStroke = (
+  stroke: ShortcutStroke,
+  platform: ShortcutPlatform = getPlatform(),
+  useSymbols = true
+) => formatForDisplay(stroke, { platform, useSymbols });
+
+export const formatShortcutSequence = (
+  sequence: ShortcutSequence,
+  platform: ShortcutPlatform = getPlatform(),
+  useSymbols = true
+) => sequence.map((stroke) => formatShortcutStroke(stroke, platform, useSymbols));

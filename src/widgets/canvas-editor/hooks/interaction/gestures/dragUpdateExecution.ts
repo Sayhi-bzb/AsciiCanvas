@@ -120,7 +120,11 @@ export const executeDragUpdateDecision = (
       break;
     case "shape-preview":
       if (context.state.type === "shapePreview") {
-        executor.setInteractionState({ ...context.state, axis: decision.update.axis });
+        executor.setInteractionState({
+          ...context.state,
+          current: decision.update.end,
+          axis: decision.update.axis,
+        });
       }
       executor.updateScratchForShape(
         context.tool,

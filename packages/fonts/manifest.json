@@ -1,7 +1,7 @@
 {
   "target": "canvas",
   "profileId": "chardesk/default-v1",
-  "generatedAt": "2026-08-03T10:17:23.694Z",
+  "generatedAt": "2026-08-17T11:05:01.125Z",
   "sources": [
     {
       "id": "maple-mono-nf-cn",
@@ -9,6 +9,14 @@
       "version": "7.900",
       "stylesheet": "https://fontsapi.zeoseven.com/442/main/result.css",
       "stylesheetSha256": "cfacbd4a4db02d54dc214eb402c05617e5c753269c0e50b6e5f5a92099dde34e",
+      "license": "https://raw.githubusercontent.com/subframe7536/maple-font/v7.9/OFL.txt"
+    },
+    {
+      "id": "maple-mono-nf-cn-bold",
+      "family": "Maple Mono NF CN",
+      "version": "7.900",
+      "stylesheet": "https://fontsapi.zeoseven.com/442/bold/result.css",
+      "stylesheetSha256": "62b43aa9e0f852f022849e42099a5e171d149702b76963514d803fb102ba3a38",
       "license": "https://raw.githubusercontent.com/subframe7536/maple-font/v7.9/OFL.txt"
     },
     {
@@ -29,6 +37,976 @@
     }
   ],
   "assets": [
+    {
+      "path": "assets/maple-mono-nf-cn-bold/016f7ac66f997790.woff2",
+      "size": 108388,
+      "sha256": "e4bcb78c6f023d489c1d3008b11f8afcb7d5dc56d60eca76364e772f28613c78"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/026b3c5fcc83c9d2.woff2",
+      "size": 20992,
+      "sha256": "105ea179e70346dcdb346e2c215c98932c83199710fd1b5b62ed283e61ddf198"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/04fe9f5a51d9a444.woff2",
+      "size": 17868,
+      "sha256": "5a37db4bd266536d0fbfb35b226c6b38aeccc18a2b5daa740b722bbb8cd45fbe"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/0629b722af30de6c.woff2",
+      "size": 60776,
+      "sha256": "f621a118662d062581be9cd12043381383db4c02e152d4926ccef71150c39b27"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/06ab0d3101ab56d9.woff2",
+      "size": 57836,
+      "sha256": "9280f0708a7bba82b2f63e79ba7071cc75b0ff57ae1f8be0245acec0de717831"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/06c352019fb3dc55.woff2",
+      "size": 34180,
+      "sha256": "43d1918b1be1112512a29db4bbd9fe573b3f3257c89b0caab89f3ab9b7f051f5"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/06f29bed099f99ec.woff2",
+      "size": 79488,
+      "sha256": "e9d965590c4318634ea581773019f3c9e90cb07cfc6fa0dba842b2ac4cb51c6b"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/077256420338e929.woff2",
+      "size": 76660,
+      "sha256": "7b0cfd8c4c596e2b49b5d843e763a2e9416c8ea0888d6c6fe0192d5c75a21e5d"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/089ac7de558aca20.woff2",
+      "size": 112088,
+      "sha256": "27471a53bc007728818517456b780b370321af55e8d447cd1a9eb0181b9e64f3"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/0aee3d73a4215db2.woff2",
+      "size": 43176,
+      "sha256": "02be1510ba017b31b701f2de3b959847203a72fcfd72b22b5eee866c85e033db"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/0c618473440e4642.woff2",
+      "size": 100276,
+      "sha256": "f137c3b4051f710b6aa0cb8eb84ad6822e8dd395b7b33d70df37a346f7e856ea"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/0c961ec4ef997f50.woff2",
+      "size": 91712,
+      "sha256": "1cfc264eb02a1514ee34234bb528ec1c8749205dba0dff4b8c5c734114c493ee"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/0db2d32d9ec33340.woff2",
+      "size": 63524,
+      "sha256": "d32d0427d8b2d3748624f856c7483dd536566f758162bdefd563b8e19c2b45f1"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/0dc854208ceef2b1.woff2",
+      "size": 86040,
+      "sha256": "1dcbf95488de2d0b54d5e9650e280b43b898d2fc42acfc1f777992f2c36d4146"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/0dd57d8a97cc3b1e.woff2",
+      "size": 21580,
+      "sha256": "b487dab6fc781484672fa65ba312f7f3abb9fead532fbd7e9d7d5856a5ba347d"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/0fb5a0241bbc2c3f.woff2",
+      "size": 10556,
+      "sha256": "72e959eff496e2c02d65437cf994f704da90696b4df2f1fe81647b8e7ff3cd4b"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/137c2b2bf09335b1.woff2",
+      "size": 18680,
+      "sha256": "830eaa07e91f2191ba79346e93c32d4b4d60d3121f867198ba2cebe1111c5950"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/1479206de0435727.woff2",
+      "size": 38452,
+      "sha256": "41034a05bcc332c0d14839f74e3b513e09ce7eff208b2ad6f2f0d786dddede63"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/16228f9c2d8584fa.woff2",
+      "size": 39684,
+      "sha256": "621f1363ce5ce8223d0995042008b53bb020913889785b2ef432d5144e5fa749"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/162f80da64a904cb.woff2",
+      "size": 7020,
+      "sha256": "19d881f591906d1720c987d8fcc3516445b5532292b21721a7e9533c8588e704"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/18546a8aceaf5a28.woff2",
+      "size": 24248,
+      "sha256": "2c2f39d17838e3d11de27016f62c0563ddf2da4bbd1c9fdde2f106d00d1cec2d"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/1a15fc2c576960fa.woff2",
+      "size": 112780,
+      "sha256": "a098e603f7422153c550187c8d5ace42b65cb13aced244af198d151e993aa4e1"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/1be90c1b8171b10d.woff2",
+      "size": 9376,
+      "sha256": "71121272a55f40be7a90d794fd3210faf46c0eb2f2889df39131b51cdb659fce"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/1bf3ff24ae3a72bb.woff2",
+      "size": 120528,
+      "sha256": "02bce4b2083c4c89851c81afdafc65712dbb867d282ef498730d187cf193fc51"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/1d2a453f0ace50e7.woff2",
+      "size": 103180,
+      "sha256": "705a1e6ab28d1336d5e50d8313fbb48384a63a44f3fab4615b9851a9aa8ba5f7"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/218849ebfada4984.woff2",
+      "size": 58240,
+      "sha256": "be84d3ce42ad129ea7c8a66363cb8099705ac9344854a70917a317729f698464"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/22d3a18c8c8ace60.woff2",
+      "size": 19868,
+      "sha256": "df3bda14656402aa63bacba7318bda2a7fb123e710304b165e9cbf54f51fc62e"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/2384b4248ada179a.woff2",
+      "size": 69220,
+      "sha256": "5ad49d69e94b01cbdedb000e9f241b5708150faa45fc951242878523e4281b4e"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/268e3cd1b1db7360.woff2",
+      "size": 56328,
+      "sha256": "a10e568e4dd7abbcbf18ae1eda1bdbdc343de035e723c3537d3427e4144f819a"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/26f48df1facc122f.woff2",
+      "size": 100224,
+      "sha256": "6bf46f3e9cf6b249a8faf53c0ab2af894bc351d9eede436655aeff2e0abd489e"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/27b780f832f812fa.woff2",
+      "size": 11228,
+      "sha256": "798538ef3e524619cf819b48d013b6c34a039ae45e15c04875c44dcf4184b72f"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/28a2f3211b7fdf07.woff2",
+      "size": 46484,
+      "sha256": "30c8c9119a549aaecafd48d6452abed88933e29754a1d16a0bd27c1f8b219544"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/2994b810f9ceca4e.woff2",
+      "size": 24068,
+      "sha256": "36619480bb926480776a98f06a49f6b38001c2618271d367569cedd8f1840a8a"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/29aee5c4066db507.woff2",
+      "size": 61304,
+      "sha256": "b048a979dc237b08636d737fdb2ef954bdf87b78a8dd2eb0b495b4f73f8c9326"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/2a5135bb8bccb93d.woff2",
+      "size": 83376,
+      "sha256": "8135f7c4c28822a2a82cc415b4db4cb66c2d9b6c9622c2c28d3b04ba1057ebe0"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/2aafbd57ec721a16.woff2",
+      "size": 23888,
+      "sha256": "716ef0ee1612b1437c9e81b76ff7d0daa697fa4bda5f770f144c265fae9cc047"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/2abddef682d68e28.woff2",
+      "size": 18648,
+      "sha256": "ae8744c5a8bf15efa53b33492743079f069755347ab32d09339efd5c130028eb"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/2c75fb2ec20364b0.woff2",
+      "size": 44144,
+      "sha256": "cf1bfba5b54481161084657e8cff1ead23a1be1c42b3efc0f3f5f891b06f865d"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/2e1fd1a3280d9523.woff2",
+      "size": 99308,
+      "sha256": "ab82fea851621daacaca7d3d12167f94b0796bce537a481f9c98da39a6ae98ca"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/2e2b00c33874496b.woff2",
+      "size": 72476,
+      "sha256": "dfa76f3ead6a1d442dabe4513a010828f9c37b13442ea102547ec1c72ae9572c"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/2f5c15cf9a4b62d4.woff2",
+      "size": 20628,
+      "sha256": "b2ff84981c175076f6eb2bb4effddd264b5892f9535a3b040220086416d51bb0"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/2f87a11108580fc0.woff2",
+      "size": 79952,
+      "sha256": "10e1b1a011e1058a9bc5c92102003436281d2648c4d688eac077809c0017ecf8"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/3006fcaf821c27ac.woff2",
+      "size": 59316,
+      "sha256": "5d607b2ff7bab1b8ff5cb21124a19ea0a69ec2f54b057991a991dce9f33fa9ae"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/305d8ee58e765adc.woff2",
+      "size": 65428,
+      "sha256": "b57895d0d8c50b76c2bef0f425d342ec51909b31678a68786be11a162bf12866"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/30c43c85bea53152.woff2",
+      "size": 39652,
+      "sha256": "c079dc37896019e15f02048412592adde7a5a80e8302b7ffbf66ca139362cac9"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/34096c7d1e703d23.woff2",
+      "size": 90928,
+      "sha256": "6357671317a2bf86c0d8940a86784509bd9f045a584a928865c1df719c1b1c7e"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/35f695d0b2d764fc.woff2",
+      "size": 32880,
+      "sha256": "a897dc9eb01e96ca2d1b39773e2ccc7f65d025c4814698a3a0ed822810c15999"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/3633684d2337d64d.woff2",
+      "size": 40184,
+      "sha256": "d216fba4994bb6060878aeaa93e467bb3ca02c4cb0d096ca601d9ec689e61c98"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/36da2106b9deb1b2.woff2",
+      "size": 126960,
+      "sha256": "24f76fd84079559e6771739c45e7174656abc21bfcd5791c972394424d697040"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/37ff0ebcb9df5f00.woff2",
+      "size": 76344,
+      "sha256": "97e5f51051a13c553ecd8017bd145a8b1d0fe5e7b2d90231759f57d7d09e27e4"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/382e7511751efc9f.woff2",
+      "size": 26192,
+      "sha256": "06572862b7475614f9c1ad2cdb9e28be4f751bd1fd349ad29bf4f2ead0c2591e"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/382f0be28754081c.woff2",
+      "size": 89544,
+      "sha256": "338cafd220de3d47c9f323e674319f28282d14c721f6cbdd2e7be0b1b96bb579"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/3b72a63a7a6138df.woff2",
+      "size": 19296,
+      "sha256": "ed3e839ebaebe5fbd0756771600b32642e45d3ec8563d463e18c21061c18f1a5"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/4013f8e46d97dd23.woff2",
+      "size": 67220,
+      "sha256": "9496bc7f534409834ed4c29b3e6cc3648e154ff4e94af90de6d25dcfa0ee89ec"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/4048df5485d51f3a.woff2",
+      "size": 23240,
+      "sha256": "ea799231a24c0d1ef4ca84a66395eaa51b5aafce99236ce36f002c4df6b8e20a"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/41f12e6b886a1c32.woff2",
+      "size": 98804,
+      "sha256": "670b8b6e3f5e54b20eaf77aecd8d02886651c9e42736e23e8efe16569532655e"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/422aaa2deb57c1c5.woff2",
+      "size": 88588,
+      "sha256": "412f34b2cdf6d6241b39599cde784343676dc1e6e44e39bcdce2e9491d00708e"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/433ee4a4bef642b2.woff2",
+      "size": 26060,
+      "sha256": "5ecbf97cdeed2d0ae0fb3ba2799f134a3a542133d06130fcfde51eb28cd23c35"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/43877dd67b2b5f11.woff2",
+      "size": 20576,
+      "sha256": "76e4e4b0b0986a17cfdf3a9174f1a2c781b0c8d518a9486e2fffff4138d52972"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/43e849a6c9f45fb2.woff2",
+      "size": 91248,
+      "sha256": "4107c2942f866937acf484f3ff34b987112133d95307513148ee2a774fbcde3d"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/45fd28d49d718bf2.woff2",
+      "size": 63720,
+      "sha256": "7aa3a0d1acb5577dad343d9730dba9313fcee5876a20976c05159fe7b0b57aa9"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/4670050fc3692aba.woff2",
+      "size": 93488,
+      "sha256": "8d582152ca849ceebbe56a285610721889264944b77848018a56be6d8698f4ec"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/4770dbce6eb5ac62.woff2",
+      "size": 21680,
+      "sha256": "8ddfce786a68bbe47b5d67629b7aac2dd950c283efaabd7cd5b9bee1d6888925"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/4a352e71ccc7865d.woff2",
+      "size": 63028,
+      "sha256": "3cab2687b59f4f4cb315259aa7e9cbca6a3df40cefbd6fe1643b22488916482d"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/4bf32aca0410ca5c.woff2",
+      "size": 116388,
+      "sha256": "fcbcf4a4ee7f131d5441954727e3e1690b29c4257210e1c93d20386202032244"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/4d18cf0aacf8102d.woff2",
+      "size": 5580,
+      "sha256": "81a007465e4833c18c2f1f0fb2e71ff4ca163fe82b01a7d32d2c1e93066d74c1"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/4d7192c5d9085628.woff2",
+      "size": 73636,
+      "sha256": "1836e8dd2aa1eb6de5d948aec2f14dc24b247a1e81297c0c1413cb199a323b6f"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/4e38e9c7941103b2.woff2",
+      "size": 112444,
+      "sha256": "cacbc7ddc62181bb475e5ee9a8dc3063d5cd5cbfdbd9a8f4e2f26d8fcbddac2c"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/4ea654ded7d1e2ed.woff2",
+      "size": 56412,
+      "sha256": "39e7d302377b88f6dc618e6e85e4d50359032456d5165b28699495f1983b5eb5"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/4edc84a31b86dfab.woff2",
+      "size": 96968,
+      "sha256": "511c2115908839b5b0a9186439e0411eab4baca8fce8b2f4162a3ec11f89470e"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/4f0eb5de6aae5375.woff2",
+      "size": 38708,
+      "sha256": "9749de0b920e6d2738773b4349d334daac3492f4fbc3edfe395f28567438b403"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/4fa5df8a7c5cb27c.woff2",
+      "size": 57656,
+      "sha256": "6e9d534dda203b123692a34277f785439aaeb0c83ff8156107a1ce45ec0c4b17"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/5034ee478da92007.woff2",
+      "size": 48364,
+      "sha256": "23e392d2af5224558e69b02406649c8574471a2f48e6c8d5dfac18806a68e446"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/50be972c1ae9f733.woff2",
+      "size": 54816,
+      "sha256": "cda766be210219763300753484dc6d48c974b2b9883bd830ca10494e35d562ec"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/51489fe091ab16f1.woff2",
+      "size": 98036,
+      "sha256": "6720e9e62aded53c91440db01e5441ce9ea38b84af960c1764513bd5769ac6f9"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/522ef2c7ebc4bcad.woff2",
+      "size": 79808,
+      "sha256": "014161937f9e43b48d56573936f47c52b9613362aba45cdcdb3b237c524247e5"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/5356870fa7c726a9.woff2",
+      "size": 18388,
+      "sha256": "5d9c1618ac9eabd34185014f1ac85521634ae162a6b5d8842d4c2bc7c36cd678"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/5378c215d9ac769c.woff2",
+      "size": 81632,
+      "sha256": "d12694b462f268b00b634d2fdf6a037b6ce8a0c9496ac1864857eea6cefa5b9c"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/53b2ca00b22540db.woff2",
+      "size": 66276,
+      "sha256": "2cea0690b7f0fd34805afe3c06e5ffe98ceca569e79308159b1ec40913036dd2"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/544236348f65e20c.woff2",
+      "size": 104984,
+      "sha256": "41e9dd78c58254b98fe855fd7309f20053c9f24b870ee5afc7772404b0313773"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/5a642dfa2c2ac8a1.woff2",
+      "size": 78884,
+      "sha256": "54fbd2eb162ffcf3e3430709d244a4b658c1b0936098c3de56ed56877d7c2e8f"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/5b508f34cd57d25b.woff2",
+      "size": 102532,
+      "sha256": "e11cdea0313946446607547c2ee2b97b881bf00636802c564e5b661652ee03d0"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/5c36d3107544a47a.woff2",
+      "size": 60804,
+      "sha256": "00a9f37d3a0f7841bb93ca15db527fb3dc623ff0c3c1111062c295905c244c60"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/5ce31bc58e100919.woff2",
+      "size": 58248,
+      "sha256": "61a57caaa527377a925f3fd501905b42c8908c0a781ff589eafc3e8d6afa244b"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/5db3f49bf524b699.woff2",
+      "size": 64412,
+      "sha256": "405e523b64b972c1dc16c21996e73a1734144b448b0e87aab52b3409496d776c"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/5f0a9b4be90009a3.woff2",
+      "size": 103264,
+      "sha256": "abdb1d0a28d1ea27e0f6c27a7e50051ba6c42ea80aad2f493e6b526f2046b225"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/60ef9f67857fe62b.woff2",
+      "size": 38992,
+      "sha256": "d9e8d13e778a33ec55a050f83e3b09e62298b9750548179f0ffa46efd40fc77c"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/60fe4b8fdc686e25.woff2",
+      "size": 51592,
+      "sha256": "541cb5f62e9509f0add84ecb52ac00bb19f4a56408b30e411ed858c8d0017d98"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/64a8c58b795e79f8.woff2",
+      "size": 48316,
+      "sha256": "22c57409343c6bc581f4505ab4a8f3a5447b7d2b9ddd48737a4b4045b8e1701a"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/6590c21ea37738fb.woff2",
+      "size": 100572,
+      "sha256": "5fa5f669f93e2ea3c0b7fdfc6121a50aa219f1e107212d0e134f17e14e83711d"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/65bad9a1ee50b481.woff2",
+      "size": 23144,
+      "sha256": "163893203b7bafd342d0b47e1752e9401dfe437b8f481c45cad5a60fe37118ab"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/6631d4747075c557.woff2",
+      "size": 103888,
+      "sha256": "7e7b0f20550e4b3bfb9a516a2479f97c273dbf6046020d0f43958e8752f64d7e"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/6652b31fb3bdb705.woff2",
+      "size": 57404,
+      "sha256": "a70c5b04eb01da5462733207c7027f793b837556ed8fd1e6194b554f02399413"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/669b5ee65db4bea8.woff2",
+      "size": 89396,
+      "sha256": "8f8b554029d3d27e5c32d2d7f8e1b43330ff5d3d22c0a5837e6298508559caae"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/689e02f73257675a.woff2",
+      "size": 9944,
+      "sha256": "ccd0a2c367984794dc730a8a0ada11ee3cd7bb5f1656a3db19cbbcc9111e5c1a"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/6aae5bffcdd9d732.woff2",
+      "size": 80944,
+      "sha256": "ab7076546384883b7f3abaeb8cf92e276a213faa5535c15edd48b388d9ca1323"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/6ac14872644052f1.woff2",
+      "size": 24408,
+      "sha256": "ef4987d217c1c1e63d37073a09f142abe75c7e5e6762ada68a80151a0d6b73fc"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/6ade199790082b1b.woff2",
+      "size": 22100,
+      "sha256": "e829bcc37158422d2147673ee27f9abd64a28a7ff0cb5df400ad1aada494ff9c"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/6d906f62b6fcc849.woff2",
+      "size": 30468,
+      "sha256": "b2382040fd691e93fe53a0ac71be9fb09eddcd17caae9a4e9053ab17f6252726"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/6e16b6b7e8b586d6.woff2",
+      "size": 5756,
+      "sha256": "b10a311351959f589ed4b009d6d2054bde31cf2fcf2df76dcd320b9841f834ae"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/711c728d6f6eade4.woff2",
+      "size": 50932,
+      "sha256": "27813a864e26780aa594af48f69ba70028fb656406aab9ce4a603775d3f98468"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/727310d5f15fe2e7.woff2",
+      "size": 70864,
+      "sha256": "73406105d4a8db9c0ed696eb5bda127eed0beb5ad6e913a5c0bc0d480c1a4f3c"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/7330223e037a80e8.woff2",
+      "size": 80780,
+      "sha256": "56d99ac388f8734b71ff11bcf1efff7066f6f973676ce2018a3bc439e8ced749"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/79e4531b79058b56.woff2",
+      "size": 11068,
+      "sha256": "0231bbc02e637656d3d766a8a5406ae4bc58cd9836e7d3a867db9f3bb5c54b8e"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/7b35254a1c65a2c8.woff2",
+      "size": 90436,
+      "sha256": "acb31eeb5710d2d916d3ff02d85989f100f4b9ae02b9625bfc745d64362fe425"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/7f3724f2fb4d517c.woff2",
+      "size": 79192,
+      "sha256": "c004479f5db1ae00e45274cb9e70c926fe8b3a9679fb4d0b1373edaabc1a2345"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/803e2692c6200371.woff2",
+      "size": 23388,
+      "sha256": "a8638ca1fc909886dbd12194262cb393b6af5796b1b02ba6c4aca25cbe44ac00"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/824bed8c9eb71b65.woff2",
+      "size": 47740,
+      "sha256": "1e7c1b6ac97e2a12a1de6b92df4ebfbd382fdb79eb0c7df4b07d763c5fc95703"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/8518cf3638c71666.woff2",
+      "size": 103156,
+      "sha256": "6045ec12dc1b11d363276be31db8860726b6a368214b82c91b6da08758283dd0"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/854040c97334cfc7.woff2",
+      "size": 45352,
+      "sha256": "64c2447e16936ba96e5687efb397187a64429eb417b82293b69de43689d9caff"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/86bb412ea1989261.woff2",
+      "size": 22624,
+      "sha256": "a371afc1d258aad5aab64dde66d62c3db5a127967fbe81d10b55d3e0b2bed9be"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/89648ac0a14f2e6a.woff2",
+      "size": 57624,
+      "sha256": "d684a6c086a1f328e4e58f820d35efe1da66a3499370ebff0af2e3568a909043"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/8a2162a69fbbe3be.woff2",
+      "size": 65788,
+      "sha256": "e52e629d8cca0a9279ad1bfa8936789c460f2f01682d67065c8d0829dd7194b6"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/8cd009c74d0c3af4.woff2",
+      "size": 10804,
+      "sha256": "9d99caeed1bf651149ac6d3be3c34dca875a479db85788d997a74011c82fb6c6"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/8d2351083d8c83ad.woff2",
+      "size": 25792,
+      "sha256": "84c3c9a739816a3faf558e9b252698e91eaff231cef403b731f56fa1499d10d9"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/91841b9832ec939a.woff2",
+      "size": 95976,
+      "sha256": "70c82fa2d3a3416051a26e5a2284364c3dbb78f09cbe9b316ae11b05f056d6e1"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/9497c71ddb079c5a.woff2",
+      "size": 96448,
+      "sha256": "034b68319792c57327d4f7dbe342a7c54c672d35dbe32d3aef4ef21267df38f2"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/95e80fcf70f7525c.woff2",
+      "size": 59008,
+      "sha256": "999cc414ba7992fe600864ee222b727e427f894e650e5e4848f0678f11325361"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/967b73c269f1b76b.woff2",
+      "size": 106060,
+      "sha256": "5011ad35e906574a1522237bd7c24586c389b289daf5f25101cf5da491adcafb"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/969377f8b7259f99.woff2",
+      "size": 60484,
+      "sha256": "7dd7189a009914b989b94f1dcd9e8bf8ad76f58749b553136d05de2e4fae225c"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/9860388ae475ba9b.woff2",
+      "size": 8784,
+      "sha256": "747347caf7523345b04f0a0d74b3a38dddec370424a3a467a2d23f5a00b75d60"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/99057b9c05268401.woff2",
+      "size": 24524,
+      "sha256": "87cd05950482c3b829d27c996304f51f256eeb4dcec9dfde8b459014b250fe0d"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/99b3bfffb852ad03.woff2",
+      "size": 12428,
+      "sha256": "a996eb69df201d39b9d6ecf2f56ff951615a2093730eb0f4dc234c9245512221"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/9b3a173dad10fe5b.woff2",
+      "size": 50120,
+      "sha256": "c7d7f157e70bfd59012568f8b6bb9a44684d5229165417db5475c2575e841b2c"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/9c8d8aea1970feb2.woff2",
+      "size": 82008,
+      "sha256": "4feb872f7eb948f0708dcf9d8aa3011fb904c7feeaabe579c66f7fca50c7fe15"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/9e2377caafce5dfb.woff2",
+      "size": 8584,
+      "sha256": "1585f3a047e7f4afb2dcc0595301f7248a7ed9b44d3fec892a9fac0699976670"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/9e58341e498f29f2.woff2",
+      "size": 42184,
+      "sha256": "8193267a956e56b3a398ed3d67c4d2a044ed4ba167e6c34ce46ec82d83dfa252"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/9fc71f987911b3d2.woff2",
+      "size": 34012,
+      "sha256": "2c8e940c37fe998fecfdfec5b1e825c16ab53a0ca035975a4b8d42a07e9e220a"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/a2f0bd4c4df62f3d.woff2",
+      "size": 17216,
+      "sha256": "7e0d093006b201fb25f3a9c04798ce2975565290d4fb45e12ad7837a2fe4e9b1"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/a3086949a58af3e4.woff2",
+      "size": 8396,
+      "sha256": "d5e334956b08ac2975abaea7bfd5b6881f38b9fb523ba9986c5ddc9c9cbb61bd"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/a3f054e48e3a5c7e.woff2",
+      "size": 98444,
+      "sha256": "0caa2bfd8d467b7d60497c82ebbbf0cfe45e091651b08d63c913f908951ee09e"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/a533afd6e40f51ee.woff2",
+      "size": 65300,
+      "sha256": "848e6be4f46cc4e672392ddec26f6d0579922541d6b617d9f67fd288d7414304"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/a8515525b990e418.woff2",
+      "size": 24924,
+      "sha256": "936403ac65b2a8aef44cb50d5458c6df9914eb534905bab2a574ee98a710f4ed"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/a8762e976f15cdf5.woff2",
+      "size": 53652,
+      "sha256": "19a146c99cf3adb522eec109d356232dc861cb4378dc72be611677a96eca3104"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/a8862925f3904f21.woff2",
+      "size": 24688,
+      "sha256": "71481e3e4d9330d3c5cc54b117aea94f2987eacebedc2637e903a7835f8fa48b"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/a9451f3b095fcac8.woff2",
+      "size": 36992,
+      "sha256": "f75c9184dfc8a7828a5939bc6b042bf20a7c1469488c0ecf3784607d6e819415"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/af1b72b272763bcc.woff2",
+      "size": 93328,
+      "sha256": "623c3a4a6d3d9dd0f8d9a0527edd2aceb2306921666deb0dee57519732622a0d"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/b2833b7d49fb73f5.woff2",
+      "size": 74444,
+      "sha256": "a39357e86482ea558195308735c296a8db4310676c4eca11ea2548765353f07a"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/b301bb9b94d6e185.woff2",
+      "size": 50796,
+      "sha256": "c15f906430393b2ea0252acbce4f0455e2a7ce8b2ef255b6edb0d4d899544e31"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/b34d745fb9069dd5.woff2",
+      "size": 26960,
+      "sha256": "1513f2bcd3ec1e35b6174e93054231c03a54af665f2b2ced2106907e91dd73df"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/b3f0825ffa61d099.woff2",
+      "size": 11796,
+      "sha256": "d33503d1d5e2ed9426e42e2a72cf00170942e4cd3243fca0995137f06ab11578"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/b64c97f86329202a.woff2",
+      "size": 74492,
+      "sha256": "9ef3acef6c4495d10fd1d20d79bc3de739fe1c904a8812c77c49909e52fd2be7"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/b7733cfca7e922c0.woff2",
+      "size": 23748,
+      "sha256": "409a2e19e75384a69494f7d75c5dfc9338b86ddb3f29539535488467c7617c5d"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/b79ad07f5ba7332b.woff2",
+      "size": 18976,
+      "sha256": "16a508646ea72b8c2fd234888e16d356ae4a4013ac3aec53c1a6ceb28dd388ca"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/b8e57503364ab1b3.woff2",
+      "size": 109552,
+      "sha256": "f0ac7713b6cd0ba89723e846e2fd3a928f88446d7f382c24bcf6daf8a8d66588"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/ba53f776114d6bed.woff2",
+      "size": 106712,
+      "sha256": "cd8c764b7ab80b8a0e0629ba6debd7576272a311ebe4b25a3418aeceeaf2e6b5"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/bc55952fb022e2d0.woff2",
+      "size": 112692,
+      "sha256": "ec70f7b513ce375222f8b3504e2b58bcad0fcca83582b76f1ba9d8856dc53f6e"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/bc93842f0a594897.woff2",
+      "size": 21264,
+      "sha256": "5d82d9fda87795313b8efddf8b77b43a83d050fef06155a67a99ff37659627bf"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/be72e2b0a6452599.woff2",
+      "size": 56980,
+      "sha256": "4c15e3d6d1c0ad7aded137e7c46dd29ced1221091967a13ec3e9ad8dfc30f72b"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/bed7aa0bad2ee2cf.woff2",
+      "size": 29028,
+      "sha256": "87ec7f34f8ab30756f2711022ded528a749fb17a8079fffc2c3322d8283fea59"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/c068bb800494b109.woff2",
+      "size": 37556,
+      "sha256": "f25b3a678a907ac59ada29c12a10c1bf6263a821826e6bb2373170f5967d6962"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/c07aedb6fe6c5eca.woff2",
+      "size": 38788,
+      "sha256": "d2c83566cb122d85f05820721185dfe7be711ed10452ea3a051740a6c7fa7610"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/c0a7aeb000ef61c9.woff2",
+      "size": 96740,
+      "sha256": "926112e0b482feb9e9fce6af6950240ecb7eb850f190c348013e549b7e553ca4"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/c0ff32608ba03660.woff2",
+      "size": 48956,
+      "sha256": "77c443c3138ede1c70b07c0e1d1f890fcf219e41f3dd2f6b9b4e6bb23639c90f"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/c1861c36765750b8.woff2",
+      "size": 84700,
+      "sha256": "1c042763d15211b97e409388b1e87a7da90c38d978ed1b8e524d4b923aa4d759"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/c2e4498fbdee5d45.woff2",
+      "size": 19180,
+      "sha256": "477f28b34d9034a22c959a7d61b001f7381ccb8c93a22bfcf5a778b3f91de2b3"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/c2f01e8f0ca7223d.woff2",
+      "size": 116032,
+      "sha256": "02e150b34b6e31d2a49cb30b1bcbaecb4b9203b334573d37d9bb47d097e8c77d"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/c3ae1840e16ecd0f.woff2",
+      "size": 72592,
+      "sha256": "a112a1a65cd19f551fdc38414e2efb3bf251a5e973a09c2b96237e4a1320e994"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/c6f01b406f5e34e0.woff2",
+      "size": 66636,
+      "sha256": "87094a254f729687ff0ff12ce64e9279ad4292ee885759681dbdc6002fcbfccc"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/d10d8bae2842c7f8.woff2",
+      "size": 10204,
+      "sha256": "c90ab845a9a57b58b008ff483f8c32451be6e9ae52467c38e09f981ba2429064"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/d1c4cf18cf42e816.woff2",
+      "size": 71380,
+      "sha256": "e4022f7331e9c17446235da90959b5c894b0f5bf49525beb2bcb4618a1afa862"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/d28fbcbeee1536db.woff2",
+      "size": 92860,
+      "sha256": "4f66effba776a5340ef41939b102c870b609250ba8064faead738ad2e4772744"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/d2f74972e3e0b1b8.woff2",
+      "size": 27640,
+      "sha256": "2291c0bd88504ca49dbaf3af71538287dd8658c4d3d96bee819344b3db5f161d"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/d679b7fa99e619b8.woff2",
+      "size": 93660,
+      "sha256": "3a5ea9a86692e6d623f79920ca84b814279c133a88aeb97fe8011785822eb7df"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/d68eebf5721f8706.woff2",
+      "size": 10464,
+      "sha256": "c069e54b5faab84d8646a389c2d529935c7f196da19732ef936aec0381403923"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/d83a66b5848029d2.woff2",
+      "size": 57516,
+      "sha256": "a582e831c5030c534230ce8626e30378dee768b97373df7a69b94e8fb5ce0253"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/daf42bf1f6eb40d1.woff2",
+      "size": 44868,
+      "sha256": "637941564b755d4ba083919ce67b9762405bdf23766ec6930050da60beca9e24"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/db41cf152dac51ad.woff2",
+      "size": 8288,
+      "sha256": "78884900ec87075edbef21dfe515074e1cfd4844472427ddc23cdd689a308476"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/dc11cae2aac66dda.woff2",
+      "size": 55156,
+      "sha256": "5b59076a7a48101b9ae2b19a49b944de3b2f9ca80bfa97948a0d7699d82c21cd"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/dfd259c890f2ffdf.woff2",
+      "size": 5368,
+      "sha256": "41630784aeff23181d82580856c29ddf831117f3113660195bbcc95c8b97d057"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/e072755fc296b338.woff2",
+      "size": 76228,
+      "sha256": "48bf6937831c88ef217350b6abfca785f81d3317e0376c49eb58504f3f3c4615"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/e2a891a64c68e0fd.woff2",
+      "size": 29580,
+      "sha256": "870d720464f8b82960a20f786555aedd97304c80b32b5e0047f8434430c4ed4b"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/e339a2d063fc24be.woff2",
+      "size": 47440,
+      "sha256": "d2bdbefcabeb5ca9681153a1c6f0e591dad3360a62623c0d7e0b07d19fd6a5d5"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/e3965ab7c6f03419.woff2",
+      "size": 23884,
+      "sha256": "574e68140ad497574ffcdcc2a0942078fd483b8878c8ab63cbf5d0648d3d0875"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/e644d8ed8e220f1c.woff2",
+      "size": 86996,
+      "sha256": "bc4a07b2b41b75dc96b0aaf71264c9e881da67eb5aad1fa769a1667238cfb0fd"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/e75aafcf6ddd819f.woff2",
+      "size": 21892,
+      "sha256": "f96ca0de49162006db343a6f0f0d9ff5f5b5096f42eca5c83d19def5d7f0a243"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/e7b0854d50bcb508.woff2",
+      "size": 36576,
+      "sha256": "b2c223fbc7fdfe9aedf08d8288ef44ae322bde56ab42fe04d65cbe8d8073a7ae"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/e9754d69b166f697.woff2",
+      "size": 85420,
+      "sha256": "9927596923ef0c164f1905cfdbd3e37963e9e5cd21606ce3637b49da83b2626b"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/ea846a0dcdab2c73.woff2",
+      "size": 30112,
+      "sha256": "444c80dde6016c4449380023acb1773b82ef8451df0e1ebec84d1f1a90e2e0dc"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/ec68dfb0e139b6fd.woff2",
+      "size": 35240,
+      "sha256": "5ea8115fdeb7d4044c8370972d3fcdafe26012356cbbae8629be1a768f14a4bb"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/ed8e5133235a1e4b.woff2",
+      "size": 55136,
+      "sha256": "5c20c056dd307acb9b01fc25a979c6b8683eec7a3511702de4f3a7eff6b0912b"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/ef7381eec131931a.woff2",
+      "size": 65560,
+      "sha256": "bb24119c38a640e1b8f5f3e07bc1da369b828f078b2a7e232e32bad6d6a27c8b"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/efa846387aa8b049.woff2",
+      "size": 59640,
+      "sha256": "d101db871257d354bb353215cbfc625f1df7462b50e219734c1724e046299311"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/efe147c61e04eeb1.woff2",
+      "size": 75788,
+      "sha256": "5dbe88d7457f572cd24b063a564656e59361cc4e1e0c48b7bb50ec754e734f8f"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/f0018de8ec9e4c5d.woff2",
+      "size": 54956,
+      "sha256": "da7ade8b7ca718b9d6ee965a18f3f137d1e6ba5ea49b8e8babfa93682cc67946"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/f0c6709f7b4578a0.woff2",
+      "size": 74416,
+      "sha256": "6ff98f0bd4edf64b8818848a5038ecb84bab784b7831f34f29548ba293d30260"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/f57d120af1ab4450.woff2",
+      "size": 99776,
+      "sha256": "03c95b4e69af28d691026d4f57180e51f21af664cb8effa22a91a77893ab0cd5"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/f74cebb9671166dd.woff2",
+      "size": 7228,
+      "sha256": "a3739dd5d62fedd803710658fea4c89094ae1d22ba224a2188f99a967e124ddf"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/f84b94ef2b07c31a.woff2",
+      "size": 84588,
+      "sha256": "2b3828374721951e19453813302cdc0e5f99da1a3b704c9d2cf0addbd31eac43"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/fa0cc4c466c6f139.woff2",
+      "size": 7024,
+      "sha256": "2b6fb1914154895e92ca78d8db06cf221d44f6836d33c8d4615a094a24eee5e8"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/fd0cd15084ed7d9c.woff2",
+      "size": 85296,
+      "sha256": "dd44787b692f5be05920a54e0727f4126ed176ade001ef9bbc3989b729fd3626"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/fee6c9e79fd52cf4.woff2",
+      "size": 73704,
+      "sha256": "2abcd8ed0c8b3e02df438acedad3046dd18b2216717db9883b32bb56f46460a4"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/ff0a459d070959b1.woff2",
+      "size": 85864,
+      "sha256": "f32b4c6e356e0c1663f64972189993c98f8698d11d7af9a17e028817a1e7c76b"
+    },
+    {
+      "path": "assets/maple-mono-nf-cn-bold/OFL.txt",
+      "size": 4394,
+      "sha256": "eb2d28d2e565a0757e3d64e34ebb452e75a0cad87c0ab3faf4e08ba7596de902"
+    },
     {
       "path": "assets/maple-mono-nf-cn/002566a54bf010e0.woff2",
       "size": 47792,
@@ -1081,8 +2059,8 @@
     },
     {
       "path": "fonts.css",
-      "size": 163522,
-      "sha256": "ded238c1c49cd48792cd75dc61d3f81204b38c55d39bc68d57cf6cfb5cedbfbf"
+      "size": 316155,
+      "sha256": "de62c76a3bad42267b5dfb090532accf82dd20a36189efb0032a4e7026fd00a9"
     }
   ]
 }

@@ -8,6 +8,7 @@ import type { StructuredPreviewQueueController } from "@/widgets/canvas-editor/h
 import type { SelectionPreviewController } from "@/widgets/canvas-editor/hooks/interaction/preview/selectionPreviewController";
 
 const createExecutor = (calls: string[]): DragResetExecutor => ({
+  clearScratch: vi.fn(() => calls.push("clearScratch")),
   clearStructuredMoveQueueLast: vi.fn(() =>
     calls.push("clearStructuredMoveQueueLast")
   ),
@@ -47,6 +48,7 @@ describe("drag reset execution", () => {
     executeDragReset(executor);
 
     expect(calls).toEqual([
+      "clearScratch",
       "clearStructuredMoveQueueLast",
       "clearStructuredSplitBoxResizeQueueLast",
       "clearStructuredMovePreview",
@@ -63,12 +65,14 @@ describe("drag reset execution", () => {
     );
 
     createDragResetController({
+      clearScratch: () => calls.push("clearScratch"),
       structuredPreviewQueue,
       clearStructuredMovePreview,
       selectionPreview,
     }).reset();
 
     expect(calls).toEqual([
+      "clearScratch",
       "clearLastMove",
       "clearLastSplitBoxResize",
       "clearStructuredMovePreview",

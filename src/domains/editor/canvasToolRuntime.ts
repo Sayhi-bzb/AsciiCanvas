@@ -43,6 +43,7 @@ export type CanvasInteractionState =
       type: "shapePreview";
       tool: ToolType;
       start: Point;
+      current: Point;
       axis: "horizontal" | "vertical" | null;
     }
   | ({ type: "structuredMoving" } & StructuredResizeStateBase)
@@ -99,7 +100,14 @@ export type CanvasToolInputEvent =
     }
   | {
       type: "canvas-interaction-cancel";
-      reason: "escape" | "blur" | "hidden" | "pointer" | "identity" | "dispose";
+      reason:
+        | "escape"
+        | "blur"
+        | "hidden"
+        | "pointer"
+        | "identity"
+        | "history"
+        | "dispose";
     };
 
 export type CanvasEditorInputEvent = EditorInputEvent | CanvasToolInputEvent;

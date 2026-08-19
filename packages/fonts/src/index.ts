@@ -22,6 +22,11 @@ export const CHARDESK_FONT_PROFILE = {
       version: "7.900",
     },
     {
+      id: "maple-mono-nf-cn-bold",
+      family: "Maple Mono NF CN",
+      version: "7.900",
+    },
+    {
       id: "noto-sans-symbols-2",
       family: "Noto Sans Symbols 2",
       version: "google-fonts-v25",

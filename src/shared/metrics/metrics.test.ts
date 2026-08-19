@@ -91,6 +91,33 @@ describe("metrics", () => {
         });
       }
     });
+
+    it("loads styled text samples with their requested weight", async () => {
+      const originalFonts = document.fonts;
+      const load = vi.fn().mockResolvedValue([]);
+      Object.defineProperty(document, "fonts", {
+        configurable: true,
+        value: { load, ready: Promise.resolve([]) },
+      });
+
+      try {
+        await loadRenderFonts([
+          { grapheme: "A", bold: true },
+          { grapheme: "B", bold: true },
+          { grapheme: "C" },
+        ]);
+        expect(load).toHaveBeenCalledTimes(2);
+        expect(load.mock.calls[0][0]).toContain("700");
+        expect(load.mock.calls[0][1]).toBe("AB");
+        expect(load.mock.calls[1][0]).not.toContain("700");
+        expect(load.mock.calls[1][1]).toBe("C");
+      } finally {
+        Object.defineProperty(document, "fonts", {
+          configurable: true,
+          value: originalFonts,
+        });
+      }
+    });
   });
 
   describe("viewport conversion", () => {

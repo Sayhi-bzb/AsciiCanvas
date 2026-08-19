@@ -1,27 +1,49 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from 'vitest';
 import {
+  formatShortcutLabel,
   getEditorCommandShortcutLabel,
-  getShortcutDisplayTokens,
-} from "./shortcuts";
-import { createEditorCommandsExtension } from "./runtime";
-import { getCanvasState, testingCanvasRuntime } from "@/domains/canvas/testing";
-import { createCanvasEditorRuntime } from "@/domains/editor/public";
+  getShortcutDisplayStrokes,
+} from './shortcuts';
+import { createEditorCommandsExtension } from './runtime';
+import { getCanvasState, testingCanvasRuntime } from '@/domains/canvas/testing';
+import { createCanvasEditorRuntime } from '@/domains/editor/public';
 
-describe("editor command shortcut labels", () => {
-  it("provides platform display tokens for native Kbd composition", () => {
-    expect(getShortcutDisplayTokens("mod+shift+z", "mac")).toEqual([
-      "⌘",
-      "⇧",
-      "Z",
+describe('editor command shortcut labels', () => {
+  it('combines one key stroke into one platform display label', () => {
+    expect(getShortcutDisplayStrokes('mod+shift+z', 'mac')).toEqual([
+      { label: '⌘ ⇧ Z', accessibleLabel: 'Command+Shift+Z' },
     ]);
-    expect(getShortcutDisplayTokens("mod+shift+z", "other")).toEqual([
-      "Ctrl",
-      "Shift",
-      "Z",
+    expect(getShortcutDisplayStrokes('mod+shift+z', 'other')).toEqual([
+      { label: 'Ctrl Shift Z', accessibleLabel: 'Control+Shift+Z' },
     ]);
   });
 
-  it("formats labels from the registered keymap", () => {
+  it('maps named and physical keys without exposing storage tokens', () => {
+    const labels = [
+      'arrowup',
+      'arrowdown',
+      'code:Digit6',
+      'code:KeyK',
+      'code:BracketLeft',
+      'code:Numpad1',
+      'code:LaunchApp1',
+    ].flatMap((shortcut) =>
+      getShortcutDisplayStrokes(shortcut, 'mac').map((stroke) => stroke.label)
+    );
+
+    expect(labels).toEqual(['↑', '↓', '6', 'K', '[', 'Num 1', 'Launch App1']);
+    expect(labels.join(' ')).not.toMatch(/arrow|code:/i);
+  });
+
+  it('keeps a key sequence as separate strokes and formats an accessible label', () => {
+    expect(getShortcutDisplayStrokes('mod+k mod+c', 'mac')).toEqual([
+      { label: '⌘ K', accessibleLabel: 'Command+K' },
+      { label: '⌘ C', accessibleLabel: 'Command+C' },
+    ]);
+    expect(formatShortcutLabel('mod+k mod+c', 'mac')).toBe('Command+K, then Command+C');
+  });
+
+  it('formats labels from the registered keymap', () => {
     const editor = createCanvasEditorRuntime({
       state: { get: getCanvasState, subscribe: () => () => undefined },
       history: {
@@ -34,15 +56,11 @@ describe("editor command shortcut labels", () => {
     });
     editor.registerExtension(createEditorCommandsExtension(testingCanvasRuntime as never));
 
-    expect(getEditorCommandShortcutLabel(editor.keymap, "undo", "mac")).toBe("⌘Z");
-    expect(getEditorCommandShortcutLabel(editor.keymap, "undo", "other")).toBe("Ctrl+Z");
-    expect(getEditorCommandShortcutLabel(editor.keymap, "redo", "mac")).toBe("⌘⇧Z / ⌘Y");
-    expect(getEditorCommandShortcutLabel(
-      editor.keymap,
-      "delete-selection",
-      "other"
-    )).toBe(
-      "Backspace / Delete"
+    expect(getEditorCommandShortcutLabel(editor.keymap, 'undo', 'mac')).toBe('⌘Z');
+    expect(getEditorCommandShortcutLabel(editor.keymap, 'undo', 'other')).toBe('Ctrl+Z');
+    expect(getEditorCommandShortcutLabel(editor.keymap, 'redo', 'mac')).toBe('⌘⇧Z / ⌘Y');
+    expect(getEditorCommandShortcutLabel(editor.keymap, 'delete-selection', 'other')).toBe(
+      'Backspace / Delete'
     );
   });
 });

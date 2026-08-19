@@ -194,18 +194,19 @@ export const useInteractionControllers = ({
   const resetDragState = useCreation(
     () =>
       createDragResetController({
+        clearScratch: canvas.commands.grid.clearScratch,
         structuredPreviewQueue,
         clearStructuredMovePreview: structuredPreview.clear,
         selectionPreview,
       }).reset,
-    [selectionPreview, structuredPreview, structuredPreviewQueue]
+    [canvas, selectionPreview, structuredPreview, structuredPreviewQueue]
   );
   const interactionTransaction = useCreation(
     () =>
       createCanvasInteractionTransactionController({
-        createCheckpoint: canvas.commands.history.beginCheckpoint,
+        createCheckpoint: editorRuntime.history.beginCheckpoint,
       }),
-    [canvas]
+    [editorRuntime]
   );
   const edgeScroll = useCreation(
     () =>
@@ -257,8 +258,7 @@ export const useInteractionControllers = ({
     canvasMode,
     tool,
   });
-
-  useEffect(() => {
+  useLayoutEffect(() => {
     const nextIdentity = {
       activeCanvasId,
       activeSlideId: slideDeck?.activeSlideId,

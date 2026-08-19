@@ -15,12 +15,12 @@ afterEach(async () => {
 
 const fixture = async () => {
   const root = await mkdtemp(join(tmpdir(), "chardesk-blackboard-server-"));
-  const client = join(root, "client");
+  const client = join(root, "app");
   roots.push(root);
   await mkdir(client);
   await writeFile(join(client, "index.html"), "<!doctype html><title>Blackboard</title>");
   const board = await resolveWorkspaceBoardPath(root, "blackboard.chardesk");
-  const running = await startBlackboardServer({ board, port: 0, clientRoot: client });
+  const running = await startBlackboardServer({ board, port: 0, appRoot: client });
   close.push(running.close);
   return { root, board, running };
 };
@@ -36,6 +36,7 @@ describe("Blackboard Reader", () => {
     expect(current.status).toBe(200);
     expect(current.headers.get("content-type")).toBe("text/plain; charset=utf-8");
     expect(current.headers.get("etag")).toMatch(/^"[0-9a-f]{64}"$/);
+    expect(current.headers.get("x-chardesk-source-name")).toBe("blackboard.chardesk");
     expect(await current.text()).toBe(source);
 
     const unchanged = await fetch(`${running.url}/board`, {
@@ -54,7 +55,10 @@ describe("Blackboard Reader", () => {
 
   it("serves the page and rejects writes and static traversal", async () => {
     const { running } = await fixture();
-    expect(await (await fetch(running.url)).text()).toContain("Blackboard");
+    const rootResponse = await fetch(running.url, { redirect: "manual" });
+    expect(rootResponse.status).toBe(307);
+    expect(rootResponse.headers.get("location")).toBe("/blackboard");
+    expect(await (await fetch(`${running.url}/blackboard`)).text()).toContain("Blackboard");
     expect((await fetch(`${running.url}/board`, { method: "POST" })).status).toBe(405);
     expect((await fetch(`${running.url}/%2e%2e/package.json`)).status).toBe(404);
   });

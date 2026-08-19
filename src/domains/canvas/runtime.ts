@@ -10,6 +10,7 @@ import {
   createCanvasCommands,
   createCanvasQueries,
 } from "./state/canvasCommands";
+import type { CanvasSession } from "@/domains/sessions/public";
 
 type CanvasRuntimeOptions = {
   documents?: CanvasDocumentRegistry;
@@ -17,6 +18,7 @@ type CanvasRuntimeOptions = {
   selectionCommands: SelectionCommandFactory;
   parseSessionSource: CanvasSessionSourceParser;
   reportIntegrityIssues?: (issues: CollaborationIntegrityIssue[]) => void;
+  initialSessions?: readonly CanvasSession[];
 };
 
 export class CanvasRuntime {
@@ -35,6 +37,7 @@ export class CanvasRuntime {
       parseSessionSource: options.parseSessionSource,
       reportIntegrityIssues: options.reportIntegrityIssues ?? (() => undefined),
       persistence: options.persistence,
+      initialSessions: options.initialSessions,
     });
     this.store = storeInstance.store;
     this.#disposeStore = storeInstance.dispose;

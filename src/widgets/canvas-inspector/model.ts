@@ -25,6 +25,7 @@ type StructuredInspectorModel = ReturnType<
 type CanvasInspectorModel =
   | {
       mode: "grid";
+      canvasMode: Exclude<CanvasMode, "structured">;
       activeColor: string;
       canvasPickDestination: "foreground" | "background";
       hasSelection: boolean;
@@ -73,6 +74,7 @@ export const deriveCanvasInspectorModel = ({
     );
     return {
       mode: "grid",
+      canvasMode,
       activeColor: isBackgroundTool ? brushBackgroundColor : brushColor,
       canvasPickDestination: isBackgroundTool ? "background" : "foreground",
       hasSelection: hasGridRangeSelection(staticGridSelection),

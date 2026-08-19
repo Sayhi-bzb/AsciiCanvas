@@ -22,8 +22,12 @@ const resolveExportColor = (color: string, includeColor: boolean) => {
   return includeColor ? color : MONOCHROME_EXPORT_COLOR;
 };
 
-const getGridGraphemes = (grid: GridMap) =>
-  Array.from(grid.values(), (cell) => cell.char);
+const getGridFontSamples = (grid: GridMap) =>
+  Array.from(grid.values(), (cell) => ({
+    grapheme: cell.char,
+    bold: cell.attrs?.bold,
+    italic: cell.attrs?.italic,
+  }));
 export const createSelectionPngBlob = async (
   grid: GridMap,
   selections: SelectionArea[],
@@ -31,7 +35,7 @@ export const createSelectionPngBlob = async (
   includeColor: boolean = true
 ) => {
   if (selections.length === 0) return null;
-  await loadRenderFonts(getGridGraphemes(grid));
+  await loadRenderFonts(getGridFontSamples(grid));
 
   const { minX, maxX, minY, maxY } = getSelectionsBoundingBox(selections);
   const padding = 1;
@@ -93,7 +97,7 @@ export const createPngBlobFromGrid = async (
   includeColor: boolean = true
 ) => {
   if (grid.size === 0) return null;
-  await loadRenderFonts(getGridGraphemes(grid));
+  await loadRenderFonts(getGridFontSamples(grid));
   const { minX, maxX, minY, maxY } = GridManager.getGridBounds(grid);
   const padding = 2;
   const { cellWidth, cellHeight } = DEFAULT_GRID_RENDER_METRICS;

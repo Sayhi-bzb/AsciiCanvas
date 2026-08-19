@@ -63,7 +63,7 @@ const surface = ({ kind = 'embedded', animated = false }: SurfaceOptions = {}) =
 const dialogHeader = 'relative flex flex-col gap-1.5 text-left';
 
 const controlBase =
-  "inline-flex cursor-pointer items-center justify-center gap-2 whitespace-nowrap font-medium transition-[color,background-color,opacity,box-shadow] duration-[var(--motion-fast)] outline-none motion-reduce:transition-none disabled:pointer-events-none disabled:cursor-default disabled:opacity-50 focus-visible:ring-ring/50 focus-visible:ring-2 data-[state=open]:bg-control-open-surface data-[state=open]:text-foreground data-[state=open]:hover:bg-control-open-surface data-[state=open]:hover:text-foreground data-[state=open]:focus:bg-control-open-surface data-[state=open]:focus:text-foreground data-[state=on]:bg-control-pressed-surface data-[state=on]:text-foreground data-[state=on]:hover:bg-control-pressed-surface data-[state=on]:hover:text-foreground data-[state=on]:focus:bg-control-pressed-surface data-[state=on]:focus:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4";
+  "inline-flex cursor-pointer items-center justify-center gap-2 whitespace-nowrap font-medium transition-[color,background-color,opacity,box-shadow] duration-[var(--motion-fast)] outline-none motion-reduce:transition-none disabled:pointer-events-none disabled:cursor-default disabled:opacity-50 focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:ring-inset data-[active=true]:focus-visible:ring-0 data-[pressed=true]:focus-visible:ring-0 data-[open=true]:focus-visible:ring-0 data-[state=open]:focus-visible:ring-0 data-[state=on]:focus-visible:ring-0 data-[state=open]:bg-control-open-surface data-[state=open]:text-foreground data-[state=open]:hover:bg-control-open-surface data-[state=open]:hover:text-foreground data-[state=open]:focus:bg-control-open-surface data-[state=open]:focus:text-foreground data-[state=on]:bg-control-pressed-surface data-[state=on]:text-foreground data-[state=on]:hover:bg-control-pressed-surface data-[state=on]:hover:text-foreground data-[state=on]:focus:bg-control-pressed-surface data-[state=on]:focus:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4";
 
 const controlTone: Record<Tone, string> = {
   primary: 'bg-primary text-primary-foreground hover:bg-primary/90',
@@ -168,7 +168,7 @@ export const rx = {
       selected && activeControlState,
       selected && variant === 'destructive' && destructivePersistentText
     ),
-  menuSeparator: '-mx-1 my-1 h-px bg-border',
+  menuSeparator: '-mx-1 my-1 h-px bg-separator',
   control: ({
     tone = 'primary',
     size = 'md',
@@ -218,7 +218,8 @@ export const rx = {
   }: SelectableItemOptions = {}) =>
     cn(
       'inline-flex min-w-0 cursor-pointer items-center rounded-item bg-transparent outline-none transition-colors duration-[var(--motion-fast)] motion-reduce:transition-none',
-      'hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring/50 focus-visible:ring-2',
+      'hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:ring-inset',
+      'data-[selected=true]:focus-visible:ring-0',
       'disabled:pointer-events-none disabled:cursor-default disabled:opacity-50',
       'min-h-7 gap-1.5 px-2 text-xs leading-4',
       orientation === 'vertical' && 'flex-col items-stretch',
@@ -236,7 +237,7 @@ export const rx = {
   swatchButton: ({ selected = false }: SwatchButtonOptions = {}) =>
     cn(
       'inline-flex size-6 cursor-pointer items-center justify-center rounded-full bg-transparent outline-none',
-      'focus-visible:ring-ring/50 focus-visible:ring-2',
+      'focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:ring-inset',
       'disabled:pointer-events-none disabled:cursor-default disabled:opacity-50',
       selected && 'ring-2 ring-primary'
     ),
@@ -251,7 +252,8 @@ export const rx = {
   tabsTrigger: ({ size = 'default', active = false }: TabTriggerOptions = {}) =>
     cn(
       'relative inline-flex h-[calc(100%-1px)] flex-1 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-control border border-transparent px-2 py-1 text-sm font-medium text-muted-foreground transition-[color,background-color,box-shadow] duration-[var(--motion-fast)] motion-reduce:transition-none',
-      'hover:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:outline-1 focus-visible:outline-ring',
+      'hover:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:ring-inset',
+      'data-[state=active]:focus-visible:ring-0',
       'disabled:pointer-events-none disabled:cursor-default disabled:opacity-50 group-data-[orientation=vertical]/tabs:w-full group-data-[orientation=vertical]/tabs:justify-start',
       'data-[state=active]:border-tab-active-border data-[state=active]:bg-control-active-surface data-[state=active]:text-foreground data-[state=active]:hover:bg-control-active-surface data-[state=active]:hover:text-foreground data-[state=active]:focus:bg-control-active-surface data-[state=active]:focus:text-foreground',
       'group-data-[variant=default]/tabs-list:data-[state=active]:shadow-sm group-data-[variant=line]/tabs-list:data-[state=active]:border-transparent group-data-[variant=line]/tabs-list:data-[state=active]:bg-transparent group-data-[variant=line]/tabs-list:data-[state=active]:hover:bg-transparent group-data-[variant=line]/tabs-list:data-[state=active]:focus:bg-transparent group-data-[variant=line]/tabs-list:data-[state=active]:shadow-none',
@@ -264,7 +266,7 @@ export const rx = {
 
   field: ({ density = 'default', invalid = false, appearance = 'default' }: FieldOptions = {}) =>
     cn(
-      'w-full min-w-0 rounded-control transition-colors duration-[var(--motion-fast)] outline-none motion-reduce:transition-none',
+      'w-full min-w-0 rounded-control transition-colors duration-[var(--motion-fast)] outline-none motion-reduce:transition-none focus-visible:ring-inset',
       density === 'default' && 'h-8 px-2.5 py-1.5 text-xs',
       density === 'compact' && 'h-7 px-2 py-1 text-[11px]',
       appearance === 'default' &&

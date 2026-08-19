@@ -19,6 +19,7 @@ describe("default font profile", () => {
     );
     expect(CHARDESK_FONT_PROFILE.sources.map(({ id }) => id)).toEqual([
       "maple-mono-nf-cn",
+      "maple-mono-nf-cn-bold",
       "noto-sans-symbols-2",
       "noto-emoji",
     ]);
