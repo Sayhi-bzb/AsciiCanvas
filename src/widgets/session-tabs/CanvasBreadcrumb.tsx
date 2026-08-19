@@ -66,7 +66,7 @@ const createOptionMeta = [
   icon: (typeof HOST_ICONOLOGY.canvasMode)[keyof typeof HOST_ICONOLOGY.canvasMode];
 }>;
 
-export function CanvasBreadcrumb() {
+export function CanvasBreadcrumb({ manageSessions = true }: { manageSessions?: boolean }) {
   const canvas = useCanvasRuntime();
   const { t } = useUiI18n();
   const { phase: onboardingPhase } = useOnboardingTour();
@@ -105,6 +105,21 @@ export function CanvasBreadcrumb() {
     : null;
   const ActiveModeIcon = HOST_ICONOLOGY.canvasMode[activeSession?.mode ?? "freeform"];
   const canRemove = canvasSessions.length > 1;
+
+  if (!manageSessions) {
+    return (
+      <div
+        data-canvas-ui="true"
+        data-canvas-breadcrumb-host="true"
+        className="pointer-events-auto flex min-w-0 items-center gap-1.5 px-2 text-sm"
+      >
+        <ActiveModeIcon className="size-4 shrink-0" />
+        <span className="truncate">
+          {activeSession?.name ?? t("session.fallbackName")}
+        </span>
+      </div>
+    );
+  }
 
   const closeSelector = () => {
     setSelectorOpen(false);

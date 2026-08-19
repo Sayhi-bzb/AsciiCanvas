@@ -1,8 +1,9 @@
 import { formatShortcutLabel, getShortcutDisplayStrokes } from '@/domains/actions/public';
+import type { ShortcutSequence } from '@/domains/editor/public';
 import { Kbd, KbdGroup } from '@/shared/ui/kbd';
 
 type ShortcutKbdProps = {
-  shortcut: string;
+  shortcut: ShortcutSequence | string;
   className?: string;
 };
 

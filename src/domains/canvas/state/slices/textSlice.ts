@@ -8,6 +8,7 @@ import {
   collapseGridSelectionTo,
   createStaticGridInputFlow,
   getStaticGridViewState,
+  selectGridRange,
 } from "@/domains/selection/public";
 import { placeCharInYMap, placeStyledCellInYMap } from "../utils";
 import {
@@ -93,6 +94,37 @@ const isWideFollowerRichCell = (
   if (cell.char !== " ") return false;
   const leftCell = cellsBySourcePoint.get(GridManager.toKey(cell.x - 1, cell.y));
   return !!leftCell && isWideCell(leftCell.char);
+};
+
+type WrittenCell = { point: Point; char: string };
+
+const selectWrittenCells = (
+  selection: EditorState["staticGridSelection"],
+  writes: WrittenCell[]
+) => {
+  if (writes.length === 0) return selection;
+  const first = writes[0];
+  let minX = first.point.x;
+  let maxX = first.point.x + getCellOccupancy(first.char) - 1;
+  let minY = first.point.y;
+  let maxY = first.point.y;
+
+  writes.slice(1).forEach(({ point, char }) => {
+    minX = Math.min(minX, point.x);
+    maxX = Math.max(maxX, point.x + getCellOccupancy(char) - 1);
+    minY = Math.min(minY, point.y);
+    maxY = Math.max(maxY, point.y);
+  });
+
+  const start = { x: minX, y: minY };
+  if (minX === maxX && minY === maxY) {
+    return collapseGridSelectionTo(selection, start);
+  }
+  return selectGridRange(
+    selection,
+    { start, end: { x: maxX, y: maxY } },
+    { activeCell: "start" }
+  );
 };
 
 const findBoxNameTargetAtCursor = (
@@ -378,6 +410,16 @@ export const createTextSlice = (
       });
     }
 
+    if (options?.selectResult && canvasMode === "freeform" && writes.length > 0) {
+      set((current) => ({
+        textCursor: null,
+        staticGridSelection: selectWrittenCells(current.staticGridSelection, writes),
+        staticGridEditMode: "navigate",
+        staticGridInputFlow: null,
+      }));
+      return;
+    }
+
     const activeCell = clampPointToActiveSlide(state, flow.activeCell);
     set((current) => ({
       textCursor: activeCell,
@@ -387,7 +429,7 @@ export const createTextSlice = (
     }));
   },
 
-  pasteRichData: (cells, startPos) => {
+  pasteRichData: (cells, startPos, options) => {
     const {
       textCursor,
       staticGridSelection,
@@ -414,6 +456,7 @@ export const createTextSlice = (
     const cellsBySourcePoint = new Map(
       cells.map((cell) => [GridManager.toKey(cell.x, cell.y), cell])
     );
+    const writes: WrittenCell[] = [];
     documents.mutateGrid((gridWriter) => {
       cells.forEach((cell) => {
         if (isWideFollowerRichCell(cell, cellsBySourcePoint)) return;
@@ -421,6 +464,7 @@ export const createTextSlice = (
           x: basePos.x + cell.x,
           y: basePos.y + cell.y,
         };
+        writes.push({ point: nextPoint, char: cell.char });
         placeStyledCellInYMap(
           gridWriter,
           nextPoint.x,
@@ -436,6 +480,14 @@ export const createTextSlice = (
         );
       });
     });
+    if (options?.selectResult && canvasMode === "freeform" && writes.length > 0) {
+      set((current) => ({
+        textCursor: null,
+        staticGridSelection: selectWrittenCells(current.staticGridSelection, writes),
+        staticGridEditMode: "navigate",
+        staticGridInputFlow: null,
+      }));
+    }
   },
 
   moveTextCursor: (dx, dy) => {

@@ -17,21 +17,21 @@ describe('EditorKeymap', () => {
       when: ({ editing }) => editing,
     });
 
-    expect(keymap.resolve('mod+z', { editing: true }).map((entry) => entry.id)).toEqual([
+    expect(keymap.resolve(['mod+z'], { editing: true }).map((entry) => entry.id)).toEqual([
       'text.undo',
       'global.undo',
     ]);
     expect(keymap.getConflicts({ editing: true })).toEqual([
-      { shortcut: 'mod+z', entryIds: ['global.undo', 'text.undo'] },
+      { shortcut: ['Mod+Z'], entryIds: ['global.undo', 'text.undo'] },
     ]);
-    expect(keymap.resolveBest('mod+z', { editing: true })).toMatchObject({
+    expect(keymap.resolveBest(['mod+z'], { editing: true })).toMatchObject({
       type: 'match',
       entry: { id: 'text.undo', owner: 'test' },
     });
 
-    keymap.setUserBindings('global.undo', ['mod+u']);
-    expect(keymap.resolve('mod+z', { editing: false })).toEqual([]);
-    expect(keymap.resolve('mod+u', { editing: false })[0]?.target).toEqual({
+    keymap.setUserBindings('global.undo', [['mod+u']]);
+    expect(keymap.resolve(['mod+z'], { editing: false })).toEqual([]);
+    expect(keymap.resolve(['mod+u'], { editing: false })[0]?.target).toEqual({
       type: 'command',
       id: 'undo',
     });
@@ -49,11 +49,11 @@ describe('EditorKeymap', () => {
       shortcuts: ['mod+k'],
       target: { type: 'command', id: 'two' },
     });
-    expect(keymap.resolveBest('mod+k', undefined)).toMatchObject({
+    expect(keymap.resolveBest(['mod+k'], undefined)).toMatchObject({
       type: 'match',
       entry: { id: 'two' },
     });
-    expect(keymap.diagnose('mod+k', undefined)).toMatchObject({
+    expect(keymap.diagnose(['mod+k'], undefined)).toMatchObject({
       winner: { id: 'two' },
       shadowed: [{ id: 'one' }],
     });
@@ -77,8 +77,8 @@ describe('EditorKeymap', () => {
     expect(initial.entries[0]).toMatchObject({
       id: 'command:undo',
       scope: 'canvas',
-      defaultShortcuts: ['mod+z'],
-      shortcuts: ['mod+z'],
+      defaultShortcuts: [['Mod+Z']],
+      shortcuts: [['Mod+Z']],
       userDefined: false,
     });
 
@@ -86,7 +86,7 @@ describe('EditorKeymap', () => {
     keymap.subscribe(() => notifications++);
     keymap.updateUserBindings({
       'command:undo': [],
-      'command:copy': ['Shift+Mod+Z'],
+      'command:copy': [['Shift+Mod+Z']],
     });
 
     expect(notifications).toBe(1);
@@ -99,14 +99,14 @@ describe('EditorKeymap', () => {
       }),
       expect.objectContaining({
         id: 'command:copy',
-        shortcuts: ['mod+shift+z'],
+        shortcuts: [['Mod+Shift+Z']],
         userDefined: true,
       }),
     ]);
 
     keymap.updateUserBindings({
       'command:undo': [],
-      'command:copy': ['mod+shift+z'],
+      'command:copy': [['mod+shift+z']],
     });
     expect(notifications).toBe(1);
   });
@@ -126,8 +126,8 @@ describe('EditorKeymap', () => {
 
     expect(() =>
       keymap.updateUserBindings({
-        'command:undo': ['mod+u'],
-        'command:copy': ['mod'],
+        'command:undo': [['mod+u']],
+        'command:copy': [['mod']],
       })
     ).toThrow('Invalid shortcut mod');
     expect(keymap.getUserBindings()).toEqual({});
@@ -147,10 +147,9 @@ describe('EditorKeymap', () => {
       },
     });
     const active = { canvas: { mode: 'freeform' }, grid: { hasRange: true } };
-    expect(keymap.hasChordPrefix(['mod+k'], active)).toBe(true);
-    expect(keymap.resolveBest('mod+k mod+c', active)).toMatchObject({ type: 'match' });
+    expect(keymap.resolveBest(['mod+k', 'mod+c'], active)).toMatchObject({ type: 'match' });
     expect(
-      keymap.resolveBest('mod+k mod+c', {
+      keymap.resolveBest(['mod+k', 'mod+c'], {
         canvas: { mode: 'structured' },
         grid: { hasRange: true },
       })

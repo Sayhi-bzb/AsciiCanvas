@@ -25,9 +25,27 @@ const getPlatform = (): ShortcutPlatform => {
   return /win/i.test(platform) ? 'windows' : 'linux';
 };
 
+const PHYSICAL_PUNCTUATION_KEYS: Readonly<Record<string, string>> = {
+  backquote: '`',
+  backslash: '\\',
+  bracketleft: '[',
+  bracketright: ']',
+  comma: ',',
+  equal: '=',
+  intlbackslash: '\\',
+  minus: '-',
+  period: '.',
+  semicolon: ';',
+  slash: '/',
+};
+
 const migratePhysicalKey = (stroke: string) =>
-  stroke.replace(/code:(?:Key([A-Z])|Digit([0-9]))/gi, (_match, letter, digit) =>
-    (letter ?? digit).toUpperCase()
+  stroke.replace(
+    /code:(?:Key([A-Z])|Digit([0-9])|([A-Za-z]+))/gi,
+    (match, letter, digit, physicalKey) =>
+      (letter ?? digit)?.toUpperCase() ??
+      PHYSICAL_PUNCTUATION_KEYS[physicalKey.toLowerCase()] ??
+      match
   );
 
 export const normalizeShortcutStroke = (
@@ -71,8 +89,13 @@ export const shortcutFromKeyboardEvent = (
 ): ShortcutStroke | null => {
   const key = normalizeKeyName(event.key);
   if (isModifierKey(key)) return null;
-  const stroke = normalizeHotkeyFromEvent(event, platform);
-  return hasNonModifierKey(stroke, platform) ? stroke : null;
+  const recordingPlatform = event.metaKey && !event.ctrlKey
+    ? 'mac'
+    : event.ctrlKey && !event.metaKey
+      ? 'windows'
+      : platform;
+  const stroke = normalizeHotkeyFromEvent(event, recordingPlatform);
+  return hasNonModifierKey(stroke, recordingPlatform) ? stroke : null;
 };
 
 export const matchesShortcutEvent = (

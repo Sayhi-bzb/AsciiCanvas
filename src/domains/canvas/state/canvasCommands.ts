@@ -198,6 +198,9 @@ return {
       call("createCanvasSession", ...args),
     import: (...args: Parameters<EditorState["importCanvasSession"]>) =>
       call("importCanvasSession", ...args),
+    replaceSnapshot: (
+      ...args: Parameters<EditorState["replaceCanvasSessionSnapshot"]>
+    ) => call("replaceCanvasSessionSnapshot", ...args),
     switch: (...args: Parameters<EditorState["switchCanvasSession"]>) =>
       call("switchCanvasSession", ...args),
     remove: (...args: Parameters<EditorState["removeCanvasSession"]>) =>

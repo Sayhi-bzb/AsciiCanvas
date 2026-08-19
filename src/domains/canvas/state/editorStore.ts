@@ -18,7 +18,6 @@ import {
   createStaticGridSlice,
   createSlideSlice,
 } from "./slices";
-import { applyFreeformSnapshotToYMaps } from "./helpers/gridHelpers";
 import {
   createMapFromEntries,
   normalizeAndCloneScene,
@@ -39,16 +38,16 @@ import {
 } from "./editorPersistence";
 
 import {
-  DEFAULT_SESSION_ID,
-  DEFAULT_MODE,
+  getSessionCanvasDocumentId,
+  resolveSessionRuntime,
 } from "./helpers/storeUtils";
 import { isToolAllowedForMode } from "../model/tool";
-import { DEFAULT_DEMO_GRID } from "./helpers/defaultDemo";
 import { createDeferredSnapshotPersistStorage } from "./persistenceCoordinator";
 import { createStructuredGridFocusPatch } from "./transitions/editorTransitions";
 import type { CollaborationIntegrityIssue } from "@/domains/collaboration/public";
 import type { SelectionCommandFactory } from "./selectionCommandPort";
 import type { CanvasSessionSourceParser } from "./sessionImportPort";
+import type { CanvasSession } from "@/domains/sessions/public";
 
 export type CanvasStore = UseBoundStore<StoreApi<EditorState>>;
 
@@ -64,6 +63,7 @@ type CanvasStoreDependencies = {
   parseSessionSource: CanvasSessionSourceParser;
   reportIntegrityIssues: (issues: CollaborationIntegrityIssue[]) => void;
   persistence: CanvasStorePersistence;
+  initialSessions?: readonly CanvasSession[];
 };
 
 export const createEditorStore = ({
@@ -72,19 +72,35 @@ export const createEditorStore = ({
   parseSessionSource,
   reportIntegrityIssues,
   persistence,
+  initialSessions: configuredInitialSessions,
 }: CanvasStoreDependencies): { store: CanvasStore; dispose: () => void } => {
   if (persistence && persistence.key.trim().length === 0) {
     throw new Error("Canvas persistence requires a non-empty instance key");
   }
+  if (configuredInitialSessions?.length === 0) {
+    throw new Error("Canvas runtime requires at least one initial session");
+  }
+  const initialSessions = configuredInitialSessions
+    ? configuredInitialSessions.map((session) => structuredClone(session))
+    : createDefaultCanvasSessions();
+  const initialSession = initialSessions[0]!;
+  const initialRuntime = resolveSessionRuntime(initialSession, "select");
   const disposers: Array<() => void> = [];
   const stateCreator: StateCreator<EditorState> = (set, get, ...a) => {
-      documents.activateDocument(DEFAULT_SESSION_ID, {
-        grid: DEFAULT_DEMO_GRID,
-        scene: [],
-      });
-      if (documents.yMainGrid.size === 0 && documents.yStructuredScene.size === 0) {
-        applyFreeformSnapshotToYMaps(documents, DEFAULT_DEMO_GRID);
-      }
+      documents.activateDocument(
+        getSessionCanvasDocumentId(initialSession, initialRuntime.nextSlideDeck),
+        {
+          grid:
+            initialRuntime.nextMode === "structured"
+              ? []
+              : initialRuntime.nextGridEntries,
+          scene:
+            initialRuntime.nextMode === "structured"
+              ? initialRuntime.nextScene
+              : [],
+          components: initialRuntime.nextComponents,
+        }
+      );
 
       disposers.push(subscribeCanvasDocumentProjection(
         documents,
@@ -98,22 +114,22 @@ export const createEditorStore = ({
       ));
 
       return {
-        offset: { x: 0, y: 0 },
-        zoom: 1,
-        grid: createMapFromEntries(DEFAULT_DEMO_GRID),
-        canvasMode: DEFAULT_MODE,
-        structuredScene: [],
-        structuredComponents: [],
+        offset: initialRuntime.nextOffset,
+        zoom: initialRuntime.nextZoom,
+        grid: createMapFromEntries(initialRuntime.nextGridEntries),
+        canvasMode: initialRuntime.nextMode,
+        structuredScene: initialRuntime.nextScene,
+        structuredComponents: initialRuntime.nextComponents,
         selectedStructuredNodeIds: [],
         selectedStructuredBoxId: null,
         selectedStructuredSplitHandle: null,
         structuredContextPoint: null,
         structuredGridFocus: null,
-        canvasSessions: createDefaultCanvasSessions(),
-        activeCanvasId: DEFAULT_SESSION_ID,
-        activeCanvasHasSavedViewport: false,
+        canvasSessions: initialSessions,
+        activeCanvasId: initialSession.id,
+        activeCanvasHasSavedViewport: initialRuntime.hasSavedViewport,
         ...documents.getHistoryAvailability(),
-        tool: "select",
+        tool: initialRuntime.nextTool,
         brushChar: DEFAULT_BRUSH_CHAR,
         brushColor: COLOR_PRIMARY_TEXT,
         brushBackgroundColor: COLOR_PRIMARY_TEXT,

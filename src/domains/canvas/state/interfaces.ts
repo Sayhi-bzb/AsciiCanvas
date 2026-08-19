@@ -142,9 +142,16 @@ export interface TextSlice {
   writeTextString: (
     str: string,
     startPos?: Point,
-    options?: { preserveTargetBackground?: boolean }
+    options?: {
+      preserveTargetBackground?: boolean;
+      selectResult?: boolean;
+    }
   ) => void;
-  pasteRichData: (cells: RichTextCell[], startPos?: Point) => void;
+  pasteRichData: (
+    cells: RichTextCell[],
+    startPos?: Point,
+    options?: { selectResult?: boolean }
+  ) => void;
   moveTextCursor: (dx: number, dy: number) => void;
   backspaceText: () => void;
   deleteTextForward: () => void;

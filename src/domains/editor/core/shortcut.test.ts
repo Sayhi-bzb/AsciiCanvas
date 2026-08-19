@@ -1,54 +1,50 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from 'vitest';
 import {
+  matchesShortcutEvent,
   normalizeShortcut,
   shortcutFromKeyboardEvent,
-  shortcutsFromKeyboardEvent,
-} from "./shortcut";
+} from './shortcut';
 
-describe("editor shortcut normalization", () => {
-  it("normalizes modifier order, named keys, and platform mod keys", () => {
-    expect(normalizeShortcut("Shift+MOD+Z")).toBe("mod+shift+z");
-    expect(normalizeShortcut("Backspace")).toBe("backspace");
-    expect(shortcutFromKeyboardEvent({
-      key: "Z",
-      ctrlKey: false,
-      metaKey: true,
-      shiftKey: true,
-      altKey: false,
-    })).toBe("mod+shift+z");
+describe('editor shortcut adapter', () => {
+  it('normalizes strokes and explicit two-stroke sequences', () => {
+    expect(normalizeShortcut('Shift+MOD+Z')).toEqual(['Mod+Shift+Z']);
+    expect(normalizeShortcut('Backspace')).toEqual(['Backspace']);
+    expect(normalizeShortcut('MOD+K mod+C')).toEqual(['Mod+K', 'Mod+C']);
+    expect(normalizeShortcut(['MOD+K', 'mod+C'])).toEqual(['Mod+K', 'Mod+C']);
   });
 
-  it("rejects incomplete and multi-key chords", () => {
-    expect(normalizeShortcut("mod")).toBeNull();
-    expect(normalizeShortcut("mod+a+b")).toBeNull();
-    expect(shortcutFromKeyboardEvent({
-      key: "Control",
-      ctrlKey: true,
-      metaKey: false,
-      shiftKey: false,
-      altKey: false,
-    })).toBeNull();
+  it('rejects modifier-only, malformed, and overlong shortcuts', () => {
+    expect(normalizeShortcut('mod')).toBeNull();
+    expect(normalizeShortcut('mod+a+b')).toBeNull();
+    expect(normalizeShortcut('mod+k mod+c mod+x')).toBeNull();
   });
 
-  it("normalizes two-stroke chords and exposes logical and physical candidates", () => {
-    expect(normalizeShortcut("MOD+K mod+C")).toBe("mod+k mod+c");
-    expect(normalizeShortcut("mod+k mod+c mod+x")).toBeNull();
-    expect(normalizeShortcut("Alt+code:Digit1")).toBe("alt+code:Digit1");
-    expect(shortcutsFromKeyboardEvent({
-      key: "¡",
-      code: "Digit1",
-      ctrlKey: false,
-      metaKey: false,
-      shiftKey: false,
-      altKey: true,
-    })).toContain("alt+code:Digit1");
-    expect(shortcutsFromKeyboardEvent({
-      key: "k",
-      code: "KeyK",
-      ctrlKey: true,
-      metaKey: false,
-      shiftKey: false,
-      altKey: false,
-    })).toEqual(expect.arrayContaining(["mod+k", "ctrl+k"]));
+  it('never records left or right modifier keys as strokes', () => {
+    expect(shortcutFromKeyboardEvent(new KeyboardEvent('keydown', {
+      key: 'Meta', code: 'MetaLeft', metaKey: true,
+    }))).toBeNull();
+    expect(shortcutFromKeyboardEvent(new KeyboardEvent('keydown', {
+      key: 'Control', code: 'ControlRight', ctrlKey: true,
+    }))).toBeNull();
+  });
+
+  it('records portable Mod and matches physical fallbacks for layouts and dead keys', () => {
+    const commandR = new KeyboardEvent('keydown', { key: 'r', code: 'KeyR', metaKey: true });
+    expect(shortcutFromKeyboardEvent(commandR, 'mac')).toBe('Mod+R');
+    expect(matchesShortcutEvent(
+      new KeyboardEvent('keydown', { key: 'Dead', code: 'KeyE', altKey: true }),
+      'Alt+E',
+      'mac'
+    )).toBe(true);
+    expect(matchesShortcutEvent(
+      new KeyboardEvent('keydown', { key: '¡', code: 'Digit1', altKey: true }),
+      'Alt+1',
+      'mac'
+    )).toBe(true);
+  });
+
+  it('migrates supported physical letter and digit codes', () => {
+    expect(normalizeShortcut('Alt+code:Digit1')).toEqual(['Alt+1']);
+    expect(normalizeShortcut('Mod+code:KeyR')).toEqual(['Mod+R']);
   });
 });

@@ -585,13 +585,16 @@ export const createSelectionCommandFactory = ({
     }
 
     if (payload.richCells) {
-      pasteRichData(payload.richCells);
+      pasteRichData(payload.richCells, undefined, {
+        selectResult: canvasMode === "freeform",
+      });
       return applied(true);
     }
 
     if (payload.plainText) {
       writeTextString(payload.plainText, undefined, {
         preserveTargetBackground: true,
+        selectResult: canvasMode === "freeform",
       });
       return applied(true);
     }

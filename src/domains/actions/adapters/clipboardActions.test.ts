@@ -7,7 +7,6 @@ import {
   writeClipboardPayload,
 } from "@/domains/actions/public";
 import { getCellOccupancy } from "@/shared/metrics";
-import { clipboard } from "@/shared/services/effects";
 
 const ansiThemeSample = `[38;2;148;163;184m╭──────────────────────────╮[0m
 [38;2;148;163;184m│[48;2;239;246;255m [1;38;2;37;99;235m 界面标题[22;38;2;209;213;219m               [0m[38;2;148;163;184m│[38;2;37;99;235m<─[38;2;209;213;219m [1;38;2;37;99;235mPrimary 主色/品牌色[0m
@@ -164,23 +163,6 @@ describe("clipboardActions", () => {
       "web application/x-ascii-metropolis",
       "text/plain",
     ]);
-  });
-
-  it("reads plain text first when the target protocol does not consume rich cells", async () => {
-    const readItems = vi.spyOn(clipboard, "readItems").mockImplementation(
-      () => new Promise(() => {})
-    );
-    const readText = vi.spyOn(clipboard, "readText").mockResolvedValue("**AI**");
-
-    await expect(
-      readClipboardPayload(undefined, "#ffffff", { preferPlainText: true })
-    ).resolves.toMatchObject({
-      plainText: "**AI**",
-      structured: null,
-      structuredText: null,
-    });
-    expect(readText).toHaveBeenCalledOnce();
-    expect(readItems).not.toHaveBeenCalled();
   });
 
   it("writes app-rich clipboard data during native copy events", async () => {

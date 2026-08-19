@@ -29,7 +29,13 @@ const createPrimaryExecutor = (): PrimaryDragEndExecutor => ({
 describe("canvas drag-end execution", () => {
   it("derives shape commit geometry from typed state", () => {
     expect(resolvePrimaryDragEndContext({
-      state: { type: "shapePreview", tool: "line", start: { x: 1, y: 2 }, axis: "vertical" },
+      state: {
+        type: "shapePreview",
+        tool: "line",
+        start: { x: 1, y: 2 },
+        current: { x: 4, y: 8 },
+        axis: "vertical",
+      },
       tool: "line", canvasMode: "freeform", structuredScene: [],
       resolvedEndGrid: { x: 4, y: 8 }, isDividerHandle: () => false,
     })).toMatchObject({

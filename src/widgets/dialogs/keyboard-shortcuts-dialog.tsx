@@ -14,17 +14,19 @@ import {
   useEffect,
   useImperativeHandle,
   useMemo,
-  useRef,
   useState,
-  type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
 import { formatShortcutLabel } from '@/domains/actions/public';
 import {
   shortcutFromKeyboardEvent,
+  shortcutSequenceKey,
+  shortcutsEqual,
   useEditor,
   useEditorKeymapSnapshot,
   type KeymapBindingSnapshot,
+  type ShortcutSequence,
 } from '@/domains/editor/public';
+import { SHORTCUT_PRIORITY, useShortcutLayer } from '@/shared/shortcuts/dispatcher';
 import { useUiI18n } from '@/shared/i18n';
 import { cn } from '@/shared/lib/utils';
 import {
@@ -49,13 +51,13 @@ import { ShortcutKbd } from './shortcut-kbd';
 type RecordingTarget = {
   entryId: string;
   index: number | null;
-  firstStroke?: string;
+  sequence: ShortcutSequence;
 };
 
 type PendingConflict = {
   targetEntryId: string;
-  shortcuts: readonly string[];
-  shortcut: string;
+  shortcuts: readonly ShortcutSequence[];
+  shortcut: ShortcutSequence;
   conflictingEntryIds: readonly string[];
 };
 
@@ -68,7 +70,7 @@ export type KeyboardShortcutsPanelHandle = {
   save: () => void;
 };
 
-type ShortcutBindings = Record<string, readonly string[]>;
+type ShortcutBindings = Record<string, readonly ShortcutSequence[]>;
 
 type ShortcutDraft = {
   baseline: ShortcutBindings;
@@ -112,15 +114,18 @@ const shortcutGridFeatures = tableFeatures({
 const isShortcutCategory = (category: string): category is ShortcutCategory =>
   SHORTCUT_CATEGORY_ORDER.some((candidate) => candidate === category);
 
-const arraysEqual = (left: readonly string[], right: readonly string[]) =>
-  left.length === right.length && left.every((value, index) => value === right[index]);
+const arraysEqual = (left: readonly ShortcutSequence[], right: readonly ShortcutSequence[]) =>
+  left.length === right.length && left.every((value, index) => shortcutsEqual(value, right[index]));
 
-const getOverrideValue = (entry: KeymapBindingSnapshot, shortcuts: readonly string[]) =>
+const getOverrideValue = (entry: KeymapBindingSnapshot, shortcuts: readonly ShortcutSequence[]) =>
   arraysEqual(entry.defaultShortcuts, shortcuts) ? null : shortcuts;
 
 const createShortcutBindings = (entries: readonly KeymapBindingSnapshot[]): ShortcutBindings =>
   Object.fromEntries(
-    entries.filter((entry) => entry.configurable).map((entry) => [entry.id, [...entry.shortcuts]])
+    entries.filter((entry) => entry.configurable).map((entry) => [
+      entry.id,
+      entry.shortcuts.map((sequence) => [...sequence]),
+    ])
   );
 
 const bindingsEqual = (left: ShortcutBindings, right: ShortcutBindings) => {
@@ -224,13 +229,6 @@ export const KeyboardShortcutsPanel = forwardRef<
   useEffect(() => {
     if (!recording) return;
 
-    const cancelOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== 'Escape') return;
-      event.preventDefault();
-      event.stopPropagation();
-      event.stopImmediatePropagation();
-      stopRecording();
-    };
     const cancelOutsideControl = (event: PointerEvent) => {
       const target = event.target;
       if (!(target instanceof Node)) return;
@@ -240,11 +238,9 @@ export const KeyboardShortcutsPanel = forwardRef<
       if (!activeControl?.contains(target)) stopRecording();
     };
 
-    document.addEventListener('keydown', cancelOnEscape, true);
     document.addEventListener('pointerdown', cancelOutsideControl, true);
     window.addEventListener('blur', stopRecording);
     return () => {
-      document.removeEventListener('keydown', cancelOnEscape, true);
       document.removeEventListener('pointerdown', cancelOutsideControl, true);
       window.removeEventListener('blur', stopRecording);
     };
@@ -253,18 +249,22 @@ export const KeyboardShortcutsPanel = forwardRef<
   const finishRecording = (
     entry: KeymapBindingSnapshot,
     index: number | null,
-    shortcut: string
+    shortcut: ShortcutSequence
   ) => {
     const next = [...entry.shortcuts];
     if (index === null) next.push(shortcut);
     else next[index] = shortcut;
-    const shortcuts = [...new Set(next)];
+    const shortcuts = [...new Map(
+      next.map((sequence) => [shortcutSequenceKey(sequence), sequence])
+    ).values()];
     const conflictingEntryIds = editableEntries
       .filter(
         (candidate) =>
           candidate.id !== entry.id &&
           candidate.scope === entry.scope &&
-          candidate.shortcuts.includes(shortcut)
+          candidate.shortcuts.some((candidateShortcut) =>
+            shortcutsEqual(candidateShortcut, shortcut)
+          )
       )
       .map((candidate) => candidate.id);
 
@@ -281,52 +281,57 @@ export const KeyboardShortcutsPanel = forwardRef<
     commitBindings(entry, shortcuts);
   };
 
-  const captureShortcut = (
-    event: ReactKeyboardEvent<HTMLButtonElement>,
-    entry: KeymapBindingSnapshot,
-    index: number | null
-  ) => {
-    if (event.key === 'Tab' && !event.altKey && !event.ctrlKey && !event.metaKey) {
-      stopRecording();
-      return;
-    }
-    event.preventDefault();
-    event.stopPropagation();
-    if (event.key === 'Escape') {
-      stopRecording();
-      return;
-    }
-    if (recording?.firstStroke && event.key === 'Enter') {
-      finishRecording(entry, index, recording.firstStroke);
-      return;
-    }
-
-    const stroke = shortcutFromKeyboardEvent(event.nativeEvent);
-    if (!stroke) return;
-    if (recording?.firstStroke) {
-      finishRecording(entry, index, `${recording.firstStroke} ${stroke}`);
-      return;
-    }
-
-    setRecording({ entryId: entry.id, index, firstStroke: stroke });
-    if (recordingTimer.current) clearTimeout(recordingTimer.current);
-    recordingTimer.current = setTimeout(() => {
-      finishRecording(entry, index, stroke);
-    }, 1_500);
-  };
+  useShortcutLayer({
+    id: 'shortcut-recorder',
+    priority: SHORTCUT_PRIORITY.observer + 1,
+    enabled: recording !== null,
+    onKeyDown: (event) => {
+      if (!recording) return undefined;
+      if (event.key === 'Tab' && !event.altKey && !event.ctrlKey && !event.metaKey) {
+        stopRecording();
+        return undefined;
+      }
+      if (event.key === 'Escape') {
+        stopRecording();
+        return { claimed: true, preventDefault: true, stopImmediatePropagation: true };
+      }
+      if (event.key === 'Enter') {
+        const entry = entriesById.get(recording.entryId);
+        if (entry && recording.sequence.length > 0) {
+          finishRecording(entry, recording.index, recording.sequence);
+        }
+        return { claimed: true, preventDefault: true, stopImmediatePropagation: true };
+      }
+      if (event.key === 'Backspace' || event.key === 'Delete') {
+        setRecording((current) =>
+          current ? { ...current, sequence: current.sequence.slice(0, -1) } : null
+        );
+        return { claimed: true, preventDefault: true, stopImmediatePropagation: true };
+      }
+      const stroke = shortcutFromKeyboardEvent(event);
+      if (stroke && recording.sequence.length < 2) {
+        setRecording((current) =>
+          current ? { ...current, sequence: [...current.sequence, stroke] } : null
+        );
+      }
+      return { claimed: true, preventDefault: true, stopImmediatePropagation: true };
+    },
+  });
 
   const confirmConflictReplacement = () => {
     if (!pendingConflict) return;
     const target = entriesById.get(pendingConflict.targetEntryId);
     if (!target) return;
 
-    const updates: Record<string, readonly string[]> = {
+    const updates: Record<string, readonly ShortcutSequence[]> = {
       [target.id]: pendingConflict.shortcuts,
     };
     for (const entryId of pendingConflict.conflictingEntryIds) {
       const entry = entriesById.get(entryId);
       if (!entry) continue;
-      const shortcuts = entry.shortcuts.filter((shortcut) => shortcut !== pendingConflict.shortcut);
+      const shortcuts = entry.shortcuts.filter(
+        (shortcut) => !shortcutsEqual(shortcut, pendingConflict.shortcut)
+      );
       updates[entry.id] = shortcuts;
     }
     setDraft((current) => ({
@@ -424,10 +429,10 @@ export const KeyboardShortcutsPanel = forwardRef<
     autoResetExpanded: false,
   });
 
-  const renderRecordingState = (firstStroke?: string) =>
-    firstStroke ? (
+  const renderRecordingState = (sequence: ShortcutSequence) =>
+    sequence.length > 0 ? (
       <span className="flex items-center gap-1">
-        <ShortcutKbd shortcut={firstStroke} />
+        <ShortcutKbd shortcut={sequence} />
         <span aria-hidden="true">…</span>
       </span>
     ) : (
@@ -458,14 +463,11 @@ export const KeyboardShortcutsPanel = forwardRef<
               onBlur={() => {
                 if (isRecording) stopRecording();
               }}
-              onKeyDown={(event) => {
-                if (isRecording) captureShortcut(event, entry, null);
-              }}
             />
           }
         >
           {isRecording ? (
-            renderRecordingState(recording.firstStroke)
+            renderRecordingState(recording.sequence)
           ) : (
             <Plus data-icon="inline-start" />
           )}
@@ -508,12 +510,9 @@ export const KeyboardShortcutsPanel = forwardRef<
               onBlur={() => {
                 if (isRecording) stopRecording();
               }}
-              onKeyDown={(event) => {
-                if (isRecording) captureShortcut(event, entry, index);
-              }}
             >
               {isRecording ? (
-                renderRecordingState(recording.firstStroke)
+                renderRecordingState(recording.sequence)
               ) : (
                 <ShortcutKbd shortcut={shortcut} />
               )}

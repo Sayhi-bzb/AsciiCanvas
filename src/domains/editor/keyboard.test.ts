@@ -30,7 +30,7 @@ describe("editor keymap execution", () => {
         },
       ],
     });
-    editor.keymap.setUserBindings("command:test-command", ["mod+u"]);
+    editor.keymap.setUserBindings("command:test-command", [["mod+u"]]);
 
     const oldBinding = new KeyboardEvent("keydown", {
       key: "z",

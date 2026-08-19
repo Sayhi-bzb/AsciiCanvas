@@ -25,13 +25,11 @@ describe('editor command shortcut labels', () => {
       'code:Digit6',
       'code:KeyK',
       'code:BracketLeft',
-      'code:Numpad1',
-      'code:LaunchApp1',
     ].flatMap((shortcut) =>
       getShortcutDisplayStrokes(shortcut, 'mac').map((stroke) => stroke.label)
     );
 
-    expect(labels).toEqual(['↑', '↓', '6', 'K', '[', 'Num 1', 'Launch App1']);
+    expect(labels).toEqual(['↑', '↓', '6', 'K', '[']);
     expect(labels.join(' ')).not.toMatch(/arrow|code:/i);
   });
 

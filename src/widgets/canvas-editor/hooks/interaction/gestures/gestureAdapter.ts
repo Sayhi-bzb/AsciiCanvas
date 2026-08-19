@@ -27,7 +27,7 @@ import {
 } from "./wheelInteraction";
 import { shouldIgnoreCanvasSurfaceGesture } from "../core/gestureGuards";
 import { shouldOpenCanvasLink } from "../core/hitTesting";
-import type { CanvasEditorCapabilities } from "../../../index";
+import type { CanvasEditorCapabilities } from "../../../canvasEditorCapabilities";
 
 export const resolveCanvasDragTermination = ({
   canceled,

@@ -72,6 +72,10 @@ import { useInteractionControllers } from "./interaction/use-interaction-control
 import type { CanvasEngineRuntime } from "../engine/CanvasEngineRuntime";
 import type { useCanvasEditorModels } from "./useCanvasEditorModels";
 import {
+  DEFAULT_CANVAS_EDITOR_CAPABILITIES,
+  type CanvasEditorCapabilities,
+} from "../canvasEditorCapabilities";
+import {
   createCanvasInteractionPort,
   InteractionStateCapture,
 } from "./interaction/canvasInteractionPort";
@@ -84,7 +88,8 @@ export const useCanvasInteraction = (
   setHoveredLink: (hit: CanvasLinkHit | null) => void,
   structuredMovePreviewRef?: React.MutableRefObject<StructuredMovePreview | null>,
   requestRenderRef?: React.MutableRefObject<(() => void) | null>,
-  runtime?: CanvasEngineRuntime
+  runtime?: CanvasEngineRuntime,
+  capabilities: CanvasEditorCapabilities = DEFAULT_CANVAS_EDITOR_CAPABILITIES
 ) => {
   const canvas = useCanvasRuntime();
   const editorRuntime = useEditor();
@@ -554,9 +559,11 @@ export const useCanvasInteraction = (
     canvasDragStartRouteAdapter,
     canvasClickRouteHandler,
     canvasWheelRouteHandler,
+    capabilities,
   });
 
   const handleDoubleClick = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!capabilities.mutateContent) return;
     if (isStaticGridMode(canvasMode)) {
       if (tool !== "select" || shouldIgnoreCanvasSurfaceGesture(event.nativeEvent)) {
         return;

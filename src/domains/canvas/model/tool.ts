@@ -42,7 +42,6 @@ const TOOLS_BY_MODE = {
     "bg",
   ],
   slide: NON_STRUCTURED_TOOLS,
-  ai: ["select", "pan"],
 } as const satisfies Record<CanvasMode, readonly ToolType[]>;
 
 export const isToolAllowedForMode = (

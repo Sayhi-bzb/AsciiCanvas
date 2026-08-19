@@ -1,6 +1,12 @@
-import { normalizeShortcut } from './shortcut';
+import {
+  matchesShortcutEvent,
+  normalizeShortcut,
+  shortcutSequenceKey,
+  shortcutsEqual,
+  type ShortcutSequence,
+} from './shortcut';
 
-export type ShortcutSequence = string;
+export type { ShortcutSequence } from './shortcut';
 
 export type ContextExpression =
   | { key: string; equals: string | boolean }
@@ -12,7 +18,7 @@ export type KeymapTarget = { type: 'command'; id: string } | { type: 'tool'; id:
 
 export type KeymapEntry<Context = unknown> = {
   id: string;
-  shortcuts: readonly ShortcutSequence[];
+  shortcuts: readonly (ShortcutSequence | string)[];
   target: KeymapTarget;
   label?: string;
   category?: string;
@@ -25,7 +31,8 @@ export type KeymapEntry<Context = unknown> = {
   when?: ContextExpression | ((context: Context) => boolean);
 };
 
-export type RegisteredKeymapEntry<Context = unknown> = KeymapEntry<Context> & {
+export type RegisteredKeymapEntry<Context = unknown> = Omit<KeymapEntry<Context>, 'shortcuts'> & {
+  shortcuts: readonly ShortcutSequence[];
   owner: string;
   registrationOrder: number;
 };
@@ -38,8 +45,8 @@ export type KeymapBindingSnapshot = {
   category?: string;
   scope?: string;
   configurable: boolean;
-  defaultShortcuts: readonly string[];
-  shortcuts: readonly string[];
+  defaultShortcuts: readonly ShortcutSequence[];
+  shortcuts: readonly ShortcutSequence[];
   userDefined: boolean;
   weight: number;
   repeat: 'allow' | 'ignore';
@@ -53,10 +60,10 @@ export type EditorKeymapSnapshot = {
 export type KeymapResolution<Context = unknown> =
   | { type: 'none' }
   | { type: 'match'; entry: RegisteredKeymapEntry<Context> }
-  | { type: 'conflict'; shortcut: string; entries: RegisteredKeymapEntry<Context>[] };
+  | { type: 'conflict'; shortcut: ShortcutSequence; entries: RegisteredKeymapEntry<Context>[] };
 
 export type KeymapDiagnostics<Context = unknown> = {
-  shortcut: string;
+  shortcut: ShortcutSequence;
   context: Context;
   candidates: readonly RegisteredKeymapEntry<Context>[];
   winner?: RegisteredKeymapEntry<Context>;
@@ -86,23 +93,33 @@ export const evaluateContextExpression = (
   return !evaluateContextExpression(expression.not, context);
 };
 
+const normalizeSequences = (shortcuts: readonly (ShortcutSequence | string)[]) => {
+  const byKey = new Map<string, ShortcutSequence>();
+  for (const shortcut of shortcuts) {
+    const value = normalizeShortcut(shortcut);
+    if (!value) throw new Error(`Invalid shortcut ${String(shortcut)}`);
+    byKey.set(shortcutSequenceKey(value), value);
+  }
+  return [...byKey.values()];
+};
+
+const sequencesEqual = (left: readonly ShortcutSequence[], right: readonly ShortcutSequence[]) =>
+  left.length === right.length &&
+  left.every((sequence, index) => shortcutsEqual(sequence, right[index]));
+
 export class EditorKeymap<Context = unknown> {
   readonly #entries = new Map<string, RegisteredKeymapEntry<Context>>();
-  readonly #overrides = new Map<string, readonly string[]>();
+  readonly #overrides = new Map<string, readonly ShortcutSequence[]>();
   readonly #listeners = new Set<() => void>();
   #snapshot: EditorKeymapSnapshot = { revision: 0, entries: [] };
   #registrationOrder = 0;
 
   register(owner: string, entry: KeymapEntry<Context>) {
     if (this.#entries.has(entry.id)) throw new Error(`Keymap entry ${entry.id} already exists`);
-    const shortcuts = entry.shortcuts.map((shortcut) => {
-      const value = normalizeShortcut(shortcut);
-      if (!value) throw new Error(`Invalid shortcut ${shortcut}`);
-      return value;
-    });
+    const shortcuts = normalizeSequences(entry.shortcuts);
     this.#entries.set(entry.id, {
       ...entry,
-      shortcuts: [...new Set(shortcuts)],
+      shortcuts,
       owner,
       registrationOrder: this.#registrationOrder++,
     });
@@ -114,19 +131,13 @@ export class EditorKeymap<Context = unknown> {
   }
 
   /** Loads persisted entries, including bindings whose dynamic owner is not mounted yet. */
-  hydrateUserBindings(bindings: Readonly<Record<string, readonly string[]>>) {
+  hydrateUserBindings(bindings: Readonly<Record<string, readonly ShortcutSequence[]>>) {
     let changed = false;
     for (const [entryId, shortcuts] of Object.entries(bindings)) {
-      const normalized = shortcuts.map((shortcut) => {
-        const value = normalizeShortcut(shortcut);
-        if (!value) throw new Error(`Invalid shortcut ${shortcut}`);
-        return value;
-      });
-      const next = [...new Set(normalized)];
+      const next = normalizeSequences(shortcuts);
       const previous = this.#overrides.get(entryId);
       if (
-        previous?.length === next.length &&
-        previous.every((shortcut, index) => shortcut === next[index])
+        previous && sequencesEqual(previous, next)
       )
         continue;
       this.#overrides.set(entryId, next);
@@ -135,20 +146,15 @@ export class EditorKeymap<Context = unknown> {
     if (changed) this.#emit();
   }
 
-  setUserBindings(entryId: string, shortcuts: readonly string[] | null) {
+  setUserBindings(entryId: string, shortcuts: readonly ShortcutSequence[] | null) {
     this.updateUserBindings({ [entryId]: shortcuts });
   }
 
-  updateUserBindings(updates: Readonly<Record<string, readonly string[] | null>>) {
+  updateUserBindings(updates: Readonly<Record<string, readonly ShortcutSequence[] | null>>) {
     const normalizedUpdates = Object.entries(updates).map(([entryId, shortcuts]) => {
       if (!this.#entries.has(entryId)) throw new Error(`Unknown keymap entry ${entryId}`);
       if (shortcuts === null) return [entryId, null] as const;
-      const normalized = shortcuts.map((shortcut) => {
-        const value = normalizeShortcut(shortcut);
-        if (!value) throw new Error(`Invalid shortcut ${shortcut}`);
-        return value;
-      });
-      return [entryId, [...new Set(normalized)]] as const;
+      return [entryId, normalizeSequences(shortcuts)] as const;
     });
 
     let changed = false;
@@ -158,8 +164,7 @@ export class EditorKeymap<Context = unknown> {
         changed = this.#overrides.delete(entryId) || changed;
       } else if (
         !previous ||
-        previous.length !== shortcuts.length ||
-        previous.some((shortcut, index) => shortcut !== shortcuts[index])
+        !sequencesEqual(previous, shortcuts)
       ) {
         this.#overrides.set(entryId, shortcuts);
         changed = true;
@@ -207,16 +212,20 @@ export class EditorKeymap<Context = unknown> {
     (right.weight ?? right.priority ?? 0) - (left.weight ?? left.priority ?? 0) ||
     right.registrationOrder - left.registrationOrder;
 
-  resolve(shortcut: string, context: Context) {
+  resolve(shortcut: ShortcutSequence, context: Context) {
     const normalized = normalizeShortcut(shortcut);
     if (!normalized) return [];
     return [...this.#entries.values()]
-      .filter((entry) => (this.#overrides.get(entry.id) ?? entry.shortcuts).includes(normalized))
+      .filter((entry) =>
+        (this.#overrides.get(entry.id) ?? entry.shortcuts).some((value) =>
+          shortcutsEqual(value, normalized)
+        )
+      )
       .filter((entry) => this.#matchesContext(entry, context))
       .sort(this.#compare);
   }
 
-  resolveCandidates(shortcuts: readonly string[], context: Context) {
+  resolveCandidates(shortcuts: readonly ShortcutSequence[], context: Context) {
     const matches = new Map<string, RegisteredKeymapEntry<Context>>();
     for (const shortcut of shortcuts) {
       for (const entry of this.resolve(shortcut, context)) matches.set(entry.id, entry);
@@ -224,22 +233,34 @@ export class EditorKeymap<Context = unknown> {
     return [...matches.values()].sort(this.#compare);
   }
 
-  hasChordPrefix(prefixes: readonly string[], context: Context) {
-    return [...this.#entries.values()].some(
-      (entry) =>
-        this.#matchesContext(entry, context) &&
-        (this.#overrides.get(entry.id) ?? entry.shortcuts).some((shortcut) =>
-          prefixes.some((prefix) => shortcut.startsWith(`${prefix} `))
+  resolveEvent(event: KeyboardEvent, context: Context) {
+    return [...this.#entries.values()]
+      .filter((entry) => this.#matchesContext(entry, context))
+      .filter((entry) =>
+        (this.#overrides.get(entry.id) ?? entry.shortcuts).some(
+          (sequence) => sequence.length === 1 && matchesShortcutEvent(event, sequence[0])
         )
-    );
+      )
+      .sort(this.#compare);
   }
 
-  resolveBest(shortcut: string, context: Context): KeymapResolution<Context> {
+  getSequenceStarts(event: KeyboardEvent, context: Context) {
+    return [...this.#entries.values()]
+      .flatMap((entry) => {
+        if (!this.#matchesContext(entry, context)) return [];
+        return (this.#overrides.get(entry.id) ?? entry.shortcuts)
+          .filter((sequence) => sequence.length > 1 && matchesShortcutEvent(event, sequence[0]))
+          .map((sequence) => ({ entry, sequence }));
+      })
+      .sort((left, right) => this.#compare(left.entry, right.entry));
+  }
+
+  resolveBest(shortcut: ShortcutSequence, context: Context): KeymapResolution<Context> {
     const first = this.resolve(shortcut, context)[0];
     return first ? { type: 'match', entry: first } : { type: 'none' };
   }
 
-  diagnose(shortcut: string, context: Context): KeymapDiagnostics<Context> {
+  diagnose(shortcut: ShortcutSequence, context: Context): KeymapDiagnostics<Context> {
     const candidates = this.resolve(shortcut, context);
     return {
       shortcut,
@@ -251,16 +272,17 @@ export class EditorKeymap<Context = unknown> {
   }
 
   getConflicts(context: Context) {
-    const byShortcut = new Map<string, string[]>();
+    const byShortcut = new Map<string, { shortcut: ShortcutSequence; entryIds: string[] }>();
     for (const entry of this.#entries.values()) {
       if (!this.#matchesContext(entry, context)) continue;
       for (const shortcut of this.#overrides.get(entry.id) ?? entry.shortcuts) {
-        byShortcut.set(shortcut, [...(byShortcut.get(shortcut) ?? []), entry.id]);
+        const key = shortcutSequenceKey(shortcut);
+        const value = byShortcut.get(key) ?? { shortcut, entryIds: [] };
+        value.entryIds.push(entry.id);
+        byShortcut.set(key, value);
       }
     }
-    return [...byShortcut.entries()]
-      .filter(([, ids]) => ids.length > 1)
-      .map(([shortcut, entryIds]) => ({ shortcut, entryIds }));
+    return [...byShortcut.values()].filter(({ entryIds }) => entryIds.length > 1);
   }
 
   #emit() {

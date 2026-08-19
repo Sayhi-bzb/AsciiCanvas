@@ -34,21 +34,30 @@ import { useCanvasEngineRuntime } from './engine/useCanvasEngineRuntime';
 import { CANVAS_FRAME_INVALIDATION } from './engine/FrameScheduler';
 import { resolveCanvasSurfaceGeometry } from './canvasSurfaceGeometry';
 import type { EditorViewportFrame } from '@/widgets/editor-chrome/public';
+import { computeVisibleContentBounds } from './minimap/geometry';
+import {
+  DEFAULT_CANVAS_EDITOR_CAPABILITIES,
+  type CanvasEditorCapabilities,
+} from './canvasEditorCapabilities';
+
+export type { CanvasEditorCapabilities } from './canvasEditorCapabilities';
 
 interface CanvasEditorProps {
   onUndo: () => void;
   onRedo: () => void;
   onContainerSizeChange?: (size: { width: number; height: number } | undefined) => void;
-  enabled?: boolean;
+  capabilities?: CanvasEditorCapabilities;
   viewportFrame?: EditorViewportFrame;
+  fitContentRevision?: number;
 }
 
 export const CanvasEditor = ({
   onUndo,
   onRedo,
   onContainerSizeChange,
-  enabled = true,
+  capabilities = DEFAULT_CANVAS_EDITOR_CAPABILITIES,
   viewportFrame,
+  fitContentRevision = 0,
 }: CanvasEditorProps) => {
   const canvas = useCanvasRuntime();
   const runtime = useCanvasEngineRuntime();
@@ -94,6 +103,16 @@ export const CanvasEditor = ({
     pageKey: string;
   } | null>(null);
   const activeCanvasId = useCanvasState((state) => state.activeCanvasId);
+
+  useEffect(() => {
+    if (fitContentRevision <= 0 || !size) return;
+    const bounds = computeVisibleContentBounds(rendererStore.grid);
+    if (!bounds) return;
+    runtime.camera.fitBounds(bounds, size, {
+      padding: 48,
+      insets: viewportFrame?.insets,
+    });
+  }, [fitContentRevision, rendererStore.grid, runtime, size, viewportFrame?.insets]);
 
   useEffect(() => {
     const slideDeck = rendererStore.slideDeck;
@@ -188,6 +207,7 @@ export const CanvasEditor = ({
     canvasMode,
     containerRef,
     model: editorStore,
+    enabled: capabilities.mutateContent,
   });
   const {
     textareaRef,
@@ -201,7 +221,8 @@ export const CanvasEditor = ({
     size,
     onUndo,
     onRedo,
-    enabled,
+    enabled: capabilities.copy || capabilities.mutateContent,
+    mutateEnabled: capabilities.mutateContent,
   });
   const isCanvasTextEditing = isStaticGridMode(canvasMode)
     ? editorStore.staticGridEditMode === 'text-edit'
@@ -209,7 +230,7 @@ export const CanvasEditor = ({
       !!rendererStore.editingStructuredTextNodeId ||
       !!rendererStore.structuredTextSelection;
   const isTemporaryPanActive = useCanvasSpacePan({
-    enabled: enabled && canvasOwnsInputFocus && !isCanvasTextEditing,
+    enabled: capabilities.navigate && canvasOwnsInputFocus && !isCanvasTextEditing,
   });
   const interactionModel = isTemporaryPanActive
     ? { ...interactionStore, tool: 'pan' as const }
@@ -230,7 +251,8 @@ export const CanvasEditor = ({
     setHoveredLink,
     structuredMovePreviewRef,
     requestCanvasRenderRef,
-    runtime
+    runtime,
+    capabilities
   );
 
   useCanvasRenderer(
@@ -249,6 +271,10 @@ export const CanvasEditor = ({
   const activeContextMenu =
     canvasMode === 'structured' ? STRUCTURED_CONTEXT_MENU : CANVAS_CONTEXT_MENU;
   const handleContextMenu = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!capabilities.mutateContent) {
+      event.preventDefault();
+      return;
+    }
     if (canvasMode !== 'structured') return;
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return;
@@ -318,7 +344,9 @@ export const CanvasEditor = ({
         </CanvasSurface>
       </ContextMenuTrigger>
 
-      <CanvasContextMenuContent entries={activeContextMenu} managedTextareaRef={textareaRef} />
+      {capabilities.mutateContent && (
+        <CanvasContextMenuContent entries={activeContextMenu} managedTextareaRef={textareaRef} />
+      )}
     </ContextMenu>
   );
 };

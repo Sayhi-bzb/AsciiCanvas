@@ -247,6 +247,59 @@ export const createSessionSlice = (
 
     return newSession;
   },
+  replaceCanvasSessionSnapshot: (sessionId, snapshot, options) => {
+    const state = get();
+    const target = state.canvasSessions.find((session) => session.id === sessionId);
+    if (!target) throw new Error(`Canvas session not found: ${sessionId}`);
+    if (target.mode !== snapshot.mode) {
+      throw new Error(
+        `Canvas snapshot mode ${snapshot.mode} does not match session mode ${target.mode}`
+      );
+    }
+
+    const preservedViewport = options.preserveViewport
+      ? sessionId === state.activeCanvasId
+        ? { offset: { ...state.offset }, zoom: state.zoom }
+        : target.viewport
+      : undefined;
+    const imported = createImportedSession(target.id, target.name, snapshot);
+    const replacement: CanvasSession = imported.mode === "slide"
+      ? {
+          ...imported,
+          ...(preservedViewport ? { viewport: preservedViewport } : {}),
+        }
+      : {
+          ...imported,
+          ...(target.collaboration ? { collaboration: target.collaboration } : {}),
+          ...(preservedViewport ? { viewport: preservedViewport } : {}),
+        };
+    const nextSessions = state.canvasSessions.map((session) =>
+      session.id === sessionId ? replacement : session
+    );
+    const runtime = resolveSessionRuntime(replacement, state.tool);
+
+    if (sessionId !== state.activeCanvasId) {
+      documents.resetDocument(replacement.id, {
+        grid: runtime.nextMode === "structured" ? [] : runtime.nextGridEntries,
+        scene: runtime.nextMode === "structured" ? runtime.nextScene : [],
+        components: runtime.nextComponents,
+      });
+      set({ canvasSessions: nextSessions });
+      return;
+    }
+
+    documents.activateDocument(
+      getSessionCanvasDocumentId(replacement, runtime.nextSlideDeck),
+      {
+        grid: runtime.nextMode === "structured" ? [] : runtime.nextGridEntries,
+        scene: runtime.nextMode === "structured" ? runtime.nextScene : [],
+        components: runtime.nextComponents,
+      },
+      { replace: true }
+    );
+    if (options.resetHistory) documents.clearHistory();
+    set(createSessionActivationPatch(nextSessions, sessionId, runtime));
+  },
   switchCanvasSession: (canvasId) => {
     const state = get();
     if (canvasId === state.activeCanvasId) return;

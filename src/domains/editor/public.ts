@@ -11,11 +11,16 @@ export type {
 } from "./core/keymap";
 export type { KeymapResolution, RegisteredKeymapEntry } from "./core/keymap";
 export {
-  getShortcutStrokes,
+  formatShortcutSequence,
+  formatShortcutStroke,
+  matchesShortcutEvent,
   normalizeShortcut,
+  normalizeShortcutStroke,
   shortcutFromKeyboardEvent,
-  shortcutsFromKeyboardEvent,
+  shortcutSequenceKey,
+  shortcutsEqual,
 } from "./core/shortcut";
+export type { ShortcutPlatform, ShortcutStroke } from "./core/shortcut";
 export { EditorRuntime } from "./core/runtime";
 export type { EditorShortcutContext } from "./core/runtime";
 export { EditorStateScopeRegistry } from "./core/scopeRegistry";
@@ -74,6 +79,7 @@ export {
   connectEditorKeymapPersistence,
   EDITOR_KEYMAP_STORAGE_KEY,
   LEGACY_EDITOR_KEYMAP_STORAGE_KEY,
+  PREVIOUS_EDITOR_KEYMAP_STORAGE_KEY,
   hydrateEditorKeymap,
   persistEditorKeymap,
 } from "./keymapPersistence";

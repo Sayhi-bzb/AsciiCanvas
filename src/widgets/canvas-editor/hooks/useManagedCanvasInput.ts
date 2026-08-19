@@ -79,6 +79,7 @@ type UseManagedCanvasInputOptions = {
   onUndo?: () => void;
   onRedo?: () => void;
   enabled?: boolean;
+  mutateEnabled?: boolean;
 };
 
 const getModifiedArrowEdge = (
@@ -99,6 +100,7 @@ export const useManagedCanvasInput = ({
   onUndo,
   onRedo,
   enabled = true,
+  mutateEnabled = true,
 }: UseManagedCanvasInputOptions) => {
   const editor = useEditor();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -292,12 +294,14 @@ export const useManagedCanvasInput = ({
           ? commandId
           : null;
       if (clipboardCommand) {
+        if (clipboardCommand !== "copy" && !mutateEnabled) return;
         primeManagedTextarea();
         clipboardShortcutCoordinator.begin(clipboardCommand);
         return { claimed: true, preventDefault: false };
       }
       const historyCommand = commandId === "undo" || commandId === "redo" ? commandId : null;
       if (!historyCommand) return;
+      if (!mutateEnabled) return;
       const result = editor.commands.execute(historyCommand, {
         source: "canvas-keydown",
         managedTextarea: textareaRef.current,
@@ -319,6 +323,10 @@ export const useManagedCanvasInput = ({
     if (isActionAccepted(result)) e.preventDefault();
   };
   const handleCut = (e: ReactClipboardEvent<HTMLTextAreaElement>) => {
+    if (!mutateEnabled) {
+      e.preventDefault();
+      return;
+    }
     if (clipboardShortcutCoordinator.handleNative('cut') === 'suppress') {
       e.preventDefault();
       return;
@@ -329,6 +337,10 @@ export const useManagedCanvasInput = ({
     }
   };
   const handlePaste = (e: ReactClipboardEvent<HTMLTextAreaElement>) => {
+    if (!mutateEnabled) {
+      e.preventDefault();
+      return;
+    }
     if (clipboardShortcutCoordinator.handleNative('paste') === 'suppress') {
       e.preventDefault();
       return;
@@ -391,6 +403,10 @@ export const useManagedCanvasInput = ({
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.defaultPrevented) return;
     if (isComposing.current) return;
+    if (!mutateEnabled && (e.key === "Backspace" || e.key === "Delete")) {
+      e.preventDefault();
+      return;
+    }
     if (activeTextCursor) {
       if (e.key === 'Backspace') {
         e.preventDefault();
@@ -433,7 +449,7 @@ export const useManagedCanvasInput = ({
     ) {
       e.preventDefault();
       selectStaticGridColumn();
-    } else if (staticGridMode && e.key === 'F2') {
+    } else if (staticGridMode && e.key === 'F2' && mutateEnabled) {
       e.preventDefault();
       enterStaticGridTextEdit(staticGridActiveCell ?? undefined);
     } else if (
@@ -512,6 +528,7 @@ export const useManagedCanvasInput = ({
         clearSelections();
       }
     } else if (activeSelections.length > 0 && !activeTextCursor) {
+      if (!mutateEnabled) return;
       const fillChar = resolveFillHotkeyChar(e);
       if (!fillChar) return;
 
@@ -522,7 +539,7 @@ export const useManagedCanvasInput = ({
   };
 
   const commitManagedText = (value: string) => {
-    if (value) writeTextString(value);
+    if (mutateEnabled && value) writeTextString(value);
   };
 
   return {
