@@ -1,6 +1,12 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
+@property --chardesk-sidebar-height {
+  syntax: '<length-percentage>';
+  inherits: false;
+  initial-value: 100%;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 html,
@@ -299,7 +305,10 @@ body,
 .editor-chrome-side-end {
   top: var(--editor-safe-top);
   right: var(--editor-safe-right);
-  bottom: var(--editor-safe-bottom);
+  height: min(
+    var(--sidebar-height, 32rem),
+    calc(100% - var(--editor-safe-top) - var(--editor-safe-bottom))
+  );
 }
 
 .chardesk-onboarding.driver-popover {

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   SidebarProvider,
@@ -48,7 +48,7 @@ describe("SidebarStandard scrolling", () => {
     ).toHaveClass("px-2", "py-2");
   });
 
-  it("provides the compact desktop sidebar widths", () => {
+  it("provides the compact desktop sidebar dimensions", () => {
     const { container } = render(
       <SidebarProvider>
         <SidebarStandard>Content</SidebarStandard>
@@ -58,6 +58,8 @@ describe("SidebarStandard scrolling", () => {
     expect(container.querySelector('[data-slot="sidebar-wrapper"]')).toHaveStyle({
       "--sidebar-width": "16rem",
       "--sidebar-width-icon": "2.5rem",
+      "--sidebar-height": "32rem",
+      "--sidebar-height-collapsed": "3rem",
     });
   });
 
@@ -79,19 +81,29 @@ describe("SidebarStandard scrolling", () => {
   it("keeps one toggle in place while switching its sidebar icon", () => {
     const { container } = render(
       <SidebarProvider defaultOpen>
-        <SidebarStandard side="right" collapsedAppearance="trigger">
+        <SidebarStandard
+          side="right"
+          variant="floating"
+          collapsedAppearance="trigger"
+        >
           Content
         </SidebarStandard>
       </SidebarProvider>
     );
 
     const toggle = screen.getByRole("button", { name: /toggle sidebar/i });
-    const surface = container.querySelector('[data-slot="sidebar-container"]');
+    const sidebar = container.querySelector('[data-slot="sidebar"]');
+    const surface = container.querySelector<HTMLElement>(
+      '[data-slot="sidebar-container"]'
+    )!;
+    expect(sidebar).toHaveClass("overflow-visible");
     expect(toggle.querySelector("svg")).toHaveClass("lucide-panel-right-close");
+    expect(surface).toHaveAttribute("data-motion-phase", "expanded");
     expect(surface).toHaveClass(
-      "h-full",
+      "h-[var(--chardesk-sidebar-height)]",
+      "[--chardesk-sidebar-height:100%]",
       "pointer-events-auto",
-      "transition-[height,background-color,box-shadow]",
+      "transition-[--chardesk-sidebar-height,background-color,box-shadow]",
       "duration-[var(--motion-standard)]",
       "ease-[cubic-bezier(0.22,1,0.36,1)]"
     );
@@ -104,8 +116,104 @@ describe("SidebarStandard scrolling", () => {
       "data-state",
       "collapsed"
     );
-    expect(container.querySelector('[data-slot="sidebar-container"]')).toBe(surface);
-    expect(surface).toHaveClass("h-12");
-    expect(surface).not.toHaveClass("h-full");
+    expect(container.querySelector('[data-slot="sidebar-container"]')).toBe(
+      surface
+    );
+    expect(surface).toHaveAttribute("data-motion-phase", "collapsing");
+    expect(surface).toHaveClass(
+      "[--chardesk-sidebar-height:var(--sidebar-height-collapsed)]"
+    );
+    expect(surface).not.toHaveClass("[--chardesk-sidebar-height:100%]");
+    expect(surface).toHaveClass("bg-host-surface", "shadow-host");
+
+    fireEvent.transitionEnd(surface, {
+      propertyName: "--chardesk-sidebar-height",
+    });
+
+    expect(surface).toHaveAttribute("data-motion-phase", "collapsed");
+    expect(surface).toHaveClass("bg-transparent", "shadow-none");
+
+    fireEvent.click(toggle);
+
+    expect(surface).toHaveAttribute("data-motion-phase", "expanding");
+    expect(surface).toHaveClass(
+      "[--chardesk-sidebar-height:100%]",
+      "bg-host-surface",
+      "shadow-host"
+    );
+
+    fireEvent.click(toggle);
+
+    expect(surface).toHaveAttribute("data-motion-phase", "collapsing");
+    expect(surface).toHaveClass(
+      "[--chardesk-sidebar-height:var(--sidebar-height-collapsed)]",
+      "bg-host-surface",
+      "shadow-host"
+    );
+
+    fireEvent.click(toggle);
+    fireEvent.transitionEnd(surface, {
+      propertyName: "--chardesk-sidebar-height",
+    });
+
+    expect(surface).toHaveAttribute("data-motion-phase", "expanded");
+    expect(surface).toHaveClass("[--chardesk-sidebar-height:100%]");
+  });
+
+  it("settles trigger collapse immediately when reduced motion is enabled", () => {
+    vi.mocked(window.matchMedia).mockImplementation((query: string) => ({
+      matches: query === "(prefers-reduced-motion: reduce)",
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+
+    const { container } = render(
+      <SidebarProvider defaultOpen>
+        <SidebarStandard variant="floating" collapsedAppearance="trigger">
+          Content
+        </SidebarStandard>
+      </SidebarProvider>
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /toggle sidebar/i }));
+
+    const surface = container.querySelector('[data-slot="sidebar-container"]');
+    expect(surface).toHaveAttribute("data-motion-phase", "collapsed");
+    expect(surface).toHaveClass(
+      "[--chardesk-sidebar-height:var(--sidebar-height-collapsed)]",
+      "bg-transparent",
+      "shadow-none"
+    );
+  });
+
+  it("settles when the browser omits the height transition event", () => {
+    vi.useFakeTimers();
+    try {
+      const { container } = render(
+        <SidebarProvider defaultOpen>
+          <SidebarStandard variant="floating" collapsedAppearance="trigger">
+            Content
+          </SidebarStandard>
+        </SidebarProvider>
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: /toggle sidebar/i }));
+      const surface = container.querySelector(
+        '[data-slot="sidebar-container"]'
+      );
+      expect(surface).toHaveAttribute("data-motion-phase", "collapsing");
+
+      act(() => vi.advanceTimersByTime(250));
+
+      expect(surface).toHaveAttribute("data-motion-phase", "collapsed");
+      expect(surface).toHaveClass("bg-transparent", "shadow-none");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

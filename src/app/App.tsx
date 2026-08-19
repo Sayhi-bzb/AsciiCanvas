@@ -254,7 +254,10 @@ function AppContent() {
         bottomEnd={<HelpControl />}
         sidebar={
           <Suspense fallback={null}>
-            <div inert={!capabilities.mutateContent || undefined}>
+            <div
+              className="size-full min-h-0 overflow-visible"
+              inert={!capabilities.mutateContent || undefined}
+            >
               <SidebarRight />
             </div>
           </Suspense>

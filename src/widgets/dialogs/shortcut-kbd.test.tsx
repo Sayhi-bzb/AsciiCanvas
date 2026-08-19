@@ -31,4 +31,12 @@ describe('ShortcutKbd', () => {
     expect(group).toHaveTextContent('6');
     expect(group).not.toHaveTextContent(/code:|digit/i);
   });
+
+  it('uses the shared destructive Kbd treatment for conflicts', () => {
+    render(<ShortcutKbd shortcut="mod+z" invalid />);
+
+    const group = screen.getByLabelText(/Command\+Z|Control\+Z/);
+    expect(group).toHaveAttribute('aria-invalid', 'true');
+    expect(group.querySelector('kbd')).toHaveClass('bg-destructive/10', 'text-destructive');
+  });
 });

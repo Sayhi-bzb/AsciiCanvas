@@ -22,8 +22,16 @@ const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
 const SIDEBAR_WIDTH = "16rem";
 const SIDEBAR_WIDTH_MOBILE = "18rem";
 const SIDEBAR_WIDTH_ICON = "2.5rem";
+const SIDEBAR_HEIGHT = "32rem";
+const SIDEBAR_HEIGHT_COLLAPSED = "3rem";
+const SIDEBAR_MOTION_SETTLE_FALLBACK = 250;
 
 type SidebarPresentation = "docked" | "overlay" | "sheet";
+type SidebarMotionPhase =
+  | "collapsed"
+  | "expanding"
+  | "expanded"
+  | "collapsing";
 
 type SidebarContextProps = {
   state: "expanded" | "collapsed";
@@ -114,6 +122,8 @@ function SidebarProvider({
           {
             "--sidebar-width": SIDEBAR_WIDTH,
             "--sidebar-width-icon": SIDEBAR_WIDTH_ICON,
+            "--sidebar-height": SIDEBAR_HEIGHT,
+            "--sidebar-height-collapsed": SIDEBAR_HEIGHT_COLLAPSED,
             ...style,
           } as React.CSSProperties
         }
@@ -145,8 +155,54 @@ function Sidebar({
 }) {
   const { state, openMobile, setOpenMobile, presentation } = useSidebar();
   const { t } = useUiI18n();
+  const callerOnTransitionEnd = props.onTransitionEnd;
+  const reducedMotion =
+    typeof window !== "undefined" &&
+    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
   const isTriggerCollapsed =
     state === "collapsed" && collapsedAppearance === "trigger";
+  const [motionPhase, setMotionPhase] = React.useState<SidebarMotionPhase>(() =>
+    isTriggerCollapsed ? "collapsed" : "expanded"
+  );
+
+  React.useLayoutEffect(() => {
+    const stablePhase = isTriggerCollapsed ? "collapsed" : "expanded";
+    if (collapsedAppearance !== "trigger" || reducedMotion) {
+      setMotionPhase(stablePhase);
+      return;
+    }
+
+    setMotionPhase((currentPhase) => {
+      if (isTriggerCollapsed) {
+        return currentPhase === "collapsed" ? currentPhase : "collapsing";
+      }
+      return currentPhase === "expanded" ? currentPhase : "expanding";
+    });
+  }, [collapsedAppearance, isTriggerCollapsed, reducedMotion]);
+
+  React.useEffect(() => {
+    if (motionPhase === "collapsed" || motionPhase === "expanded") return;
+    const timeoutId = window.setTimeout(() => {
+      setMotionPhase(isTriggerCollapsed ? "collapsed" : "expanded");
+    }, SIDEBAR_MOTION_SETTLE_FALLBACK);
+    return () => window.clearTimeout(timeoutId);
+  }, [isTriggerCollapsed, motionPhase]);
+
+  const surfaceIsCollapsed =
+    collapsedAppearance === "trigger" && motionPhase === "collapsed";
+
+  const handleTransitionEnd: React.TransitionEventHandler<HTMLDivElement> =
+    (event) => {
+      callerOnTransitionEnd?.(event);
+      if (
+        collapsedAppearance !== "trigger" ||
+        event.currentTarget !== event.target ||
+        event.propertyName !== "--chardesk-sidebar-height"
+      ) {
+        return;
+      }
+      setMotionPhase(isTriggerCollapsed ? "collapsed" : "expanded");
+    };
 
   if (collapsible === "none") {
     return (
@@ -188,7 +244,7 @@ function Sidebar({
 
   return (
     <div
-      className="group peer size-full text-sidebar-foreground"
+      className="group peer size-full min-h-0 overflow-visible text-sidebar-foreground"
       data-state={state}
       data-collapsible={state === "collapsed" ? collapsible : ""}
       data-collapsed-appearance={collapsedAppearance}
@@ -212,25 +268,33 @@ function Sidebar({
         kind={
           variant !== "floating"
             ? "transparent"
-            : isTriggerCollapsed
+            : surfaceIsCollapsed
               ? "transparent"
               : "floating"
         }
-        animated={variant === "floating"}
+        animated={
+          variant === "floating" && collapsedAppearance !== "trigger"
+        }
       >
         <div
           data-slot="sidebar-container"
+          data-motion-phase={
+            collapsedAppearance === "trigger" ? motionPhase : undefined
+          }
           className={cn(
             "pointer-events-auto relative flex w-full min-h-0 min-w-0 overflow-hidden",
             collapsedAppearance === "trigger"
               ? cn(
-                  "transition-[height,background-color,box-shadow] duration-[var(--motion-standard)] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
-                  isTriggerCollapsed ? "h-12" : "h-full"
+                  "h-[var(--chardesk-sidebar-height)] transition-[--chardesk-sidebar-height,background-color,box-shadow] duration-[var(--motion-standard)] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+                  isTriggerCollapsed
+                    ? "[--chardesk-sidebar-height:var(--sidebar-height-collapsed)]"
+                    : "[--chardesk-sidebar-height:100%]"
                 )
               : "h-full",
             className
           )}
           {...props}
+          onTransitionEnd={handleTransitionEnd}
         >
           <div
             data-sidebar="sidebar"

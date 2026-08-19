@@ -5,11 +5,16 @@ import { Kbd, KbdGroup } from '@/shared/ui/kbd';
 type ShortcutKbdProps = {
   shortcut: ShortcutSequence | string;
   className?: string;
+  invalid?: boolean;
 };
 
-export function ShortcutKbd({ shortcut, className }: ShortcutKbdProps) {
+export function ShortcutKbd({ shortcut, className, invalid = false }: ShortcutKbdProps) {
   return (
-    <KbdGroup className={className} aria-label={formatShortcutLabel(shortcut)}>
+    <KbdGroup
+      className={className}
+      aria-invalid={invalid || undefined}
+      aria-label={formatShortcutLabel(shortcut)}
+    >
       {getShortcutDisplayStrokes(shortcut).map((stroke, index) => (
         <span key={`${stroke.label}-${index}`} className="contents">
           {index > 0 ? (
@@ -17,7 +22,12 @@ export function ShortcutKbd({ shortcut, className }: ShortcutKbdProps) {
               +
             </span>
           ) : null}
-          <Kbd aria-hidden="true">{stroke.label}</Kbd>
+          <Kbd
+            aria-hidden="true"
+            className={invalid ? 'bg-destructive/10 text-destructive' : undefined}
+          >
+            {stroke.label}
+          </Kbd>
         </span>
       ))}
     </KbdGroup>

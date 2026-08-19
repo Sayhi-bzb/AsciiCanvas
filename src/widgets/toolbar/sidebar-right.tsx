@@ -435,10 +435,7 @@ export function SidebarRight() {
       contentScroll="none"
       className="pointer-events-auto"
       data-canvas-ui="true"
-      contentClassName={cn(
-        "min-h-0 gap-0 overflow-hidden p-0",
-        !isMobile && "pb-12"
-      )}
+      contentClassName="min-h-0 gap-0 overflow-hidden p-0"
       header={
         <SidebarHeader
           className={cn(

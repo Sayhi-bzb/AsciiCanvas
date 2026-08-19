@@ -1,10 +1,39 @@
-import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { formatShortcutLabel } from '@/domains/actions/public';
 import { setUiLanguage } from '@/shared/i18n';
 import { SettingsDialog } from './settings-dialog';
 
+vi.mock('@/domains/editor/public', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/domains/editor/public')>();
+  return {
+    ...actual,
+    useEditorKeymapSnapshot: () => ({
+      revision: 1,
+      entries: [
+        {
+          id: 'command:format-bold',
+          owner: 'test',
+          target: { type: 'command' as const, id: 'format-bold' },
+          label: 'Bold',
+          category: 'Formatting',
+          scope: 'canvas' as const,
+          configurable: true,
+          defaultShortcuts: [['Mod+B']],
+          shortcuts: [['Mod+B']],
+          userDefined: false,
+          weight: 0,
+          repeat: 'ignore' as const,
+        },
+      ],
+    }),
+  };
+});
+
 vi.mock('./keyboard-shortcuts-dialog', () => ({
-  KeyboardShortcutsPanel: () => <div data-testid="shortcut-editor" />,
+  KeyboardShortcutsPanel({ revealEntryId }: { revealEntryId?: string | null }) {
+    return <div data-testid="shortcut-editor" data-reveal-entry-id={revealEntryId ?? ''} />;
+  },
 }));
 
 beforeAll(() => {
@@ -29,6 +58,7 @@ describe('SettingsDialog', () => {
     expect(dialog.querySelector('[data-slot="dialog-close"]')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Close' })).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Settings' })).toHaveClass('sr-only');
+    expect(screen.getByRole('searchbox', { name: 'Search settings' })).toBeInTheDocument();
     expect(dialog.querySelector('[data-slot="settings-navigation-mobile"]')).toHaveClass(
       'md:hidden',
       '[&_svg]:size-[1em]!'
@@ -98,5 +128,76 @@ describe('SettingsDialog', () => {
     expect(screen.getByRole('dialog', { name: '设置' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: '通用' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '快捷键' })).toBeInTheDocument();
+  });
+
+  it('searches settings globally and focuses the selected general control', async () => {
+    render(<SettingsDialog open onOpenChange={vi.fn()} />);
+    const search = screen.getByRole('searchbox', { name: 'Search settings' });
+    fireEvent.change(search, { target: { value: 'English' } });
+
+    const results = screen.getByRole('navigation', { name: 'Settings search results' });
+    const languageResult = within(results).getByRole('button', { name: 'Language' });
+    expect(languageResult).toHaveTextContent(/^Language$/);
+    expect(languageResult).not.toHaveTextContent('English');
+    fireEvent.click(languageResult);
+
+    await waitFor(() => {
+      expect(search).toHaveValue('');
+      expect(screen.getByLabelText('Language')).toHaveFocus();
+    });
+  });
+
+  it('opens a shortcut result and passes its entry to the shortcut panel', async () => {
+    render(<SettingsDialog open onOpenChange={vi.fn()} />);
+    const search = screen.getByRole('searchbox', { name: 'Search settings' });
+    fireEvent.change(search, { target: { value: 'Bold' } });
+
+    const boldResult = within(
+      screen.getByRole('navigation', { name: 'Settings search results' })
+    ).getByRole('button', { name: 'Bold' });
+    expect(boldResult).toHaveTextContent(/^Bold$/);
+    expect(boldResult).not.toHaveTextContent('Formatting');
+    fireEvent.click(boldResult);
+
+    expect(screen.getByRole('heading', { name: 'Keyboard shortcuts' })).toBeInTheDocument();
+    expect(screen.getByTestId('shortcut-editor')).toHaveAttribute(
+      'data-reveal-entry-id',
+      'command:format-bold'
+    );
+    expect(search).toHaveValue('');
+  });
+
+  it('keeps hidden shortcut metadata searchable', () => {
+    render(<SettingsDialog open onOpenChange={vi.fn()} />);
+    const search = screen.getByRole('searchbox', { name: 'Search settings' });
+
+    fireEvent.change(search, { target: { value: 'Formatting' } });
+    expect(
+      within(screen.getByRole('navigation', { name: 'Settings search results' })).getByRole(
+        'button',
+        { name: 'Bold' }
+      )
+    ).toHaveTextContent(/^Bold$/);
+
+    fireEvent.change(search, { target: { value: formatShortcutLabel(['Mod+B']) } });
+    expect(
+      within(screen.getByRole('navigation', { name: 'Settings search results' })).getByRole(
+        'button',
+        { name: 'Bold' }
+      )
+    ).toHaveTextContent(/^Bold$/);
+  });
+
+  it('clears global search with Escape and reports no results accessibly', () => {
+    const onOpenChange = vi.fn();
+    render(<SettingsDialog open onOpenChange={onOpenChange} />);
+    const search = screen.getByRole('searchbox', { name: 'Search settings' });
+    fireEvent.change(search, { target: { value: 'missing setting' } });
+    expect(screen.getByRole('status')).toHaveTextContent('No settings found');
+
+    fireEvent.keyDown(search, { key: 'Escape' });
+    expect(search).toHaveValue('');
+    expect(onOpenChange).not.toHaveBeenCalled();
+    expect(screen.getByRole('navigation', { name: 'Settings sections' })).toBeInTheDocument();
   });
 });
