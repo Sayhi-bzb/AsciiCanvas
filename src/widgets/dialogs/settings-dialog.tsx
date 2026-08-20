@@ -196,9 +196,9 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
         <DialogTitle className="sr-only">{t('settings.title')}</DialogTitle>
         <div
           data-slot="settings-layout"
-          className="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_2.25rem] overflow-hidden lg:grid-cols-[11rem_minmax(0,1fr)] lg:grid-rows-[minmax(0,1fr)_2.25rem] lg:gap-x-4"
+          className="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_2.25rem] overflow-hidden md:grid-cols-[11rem_minmax(0,1fr)] md:grid-rows-[minmax(0,1fr)_2.25rem] md:gap-x-4"
         >
-          <aside className="min-h-0 min-w-0 lg:row-span-2">
+          <aside className="min-h-0 min-w-0 md:row-span-2">
             <SettingsNavigation
               label={t('settings.navigation')}
               items={navigationItems}
@@ -218,7 +218,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
           </aside>
           <div
             data-slot="settings-content"
-            className="flex min-h-0 min-w-0 overflow-hidden p-1 pt-2 lg:col-start-2 lg:row-start-1 lg:pt-1"
+            className="flex min-h-0 min-w-0 overflow-hidden p-1 pt-2 md:col-start-2 md:row-start-1 md:pt-1"
           >
             {section === 'general' ? (
               <SettingsContentSection key="general" heading={t('settings.general')}>
@@ -267,7 +267,7 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               </SettingsContentSection>
             )}
           </div>
-          <DialogFooter className="h-9 min-w-0 flex-row items-center justify-between gap-2 overflow-hidden lg:col-start-2 lg:row-start-2">
+          <DialogFooter className="h-9 min-w-0 flex-row items-center justify-between gap-2 overflow-hidden md:col-start-2 md:row-start-2">
             {shortcutDirty ? (
               <>
                 <Button

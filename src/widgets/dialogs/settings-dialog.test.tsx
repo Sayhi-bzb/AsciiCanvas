@@ -84,18 +84,22 @@ describe('SettingsDialog', () => {
       'grid',
       'min-w-0',
       'grid-rows-[auto_minmax(0,1fr)_2.25rem]',
-      'lg:grid-cols-[11rem_minmax(0,1fr)]',
-      'lg:grid-rows-[minmax(0,1fr)_2.25rem]'
+      'md:grid-cols-[11rem_minmax(0,1fr)]',
+      'md:grid-rows-[minmax(0,1fr)_2.25rem]'
     );
     expect(dialog.querySelector('[data-slot="settings-content"]')).toHaveClass('min-w-0');
     expect(dialog.querySelector('[data-slot="settings-content"]')).not.toHaveClass('w-full');
     expect(dialog.querySelector('[data-slot="dialog-footer"]')).toHaveClass(
       'h-9',
-      'lg:col-start-2',
-      'lg:row-start-2'
+      'md:col-start-2',
+      'md:row-start-2'
     );
     expect(screen.queryByRole('button', { name: 'Save' })).not.toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Settings sections' })).toHaveClass(
+      'flex-col',
+      'gap-1'
+    );
+    expect(screen.getByRole('navigation', { name: 'Settings sections' })).not.toHaveClass(
       'flex-nowrap',
       'lg:flex-col'
     );
@@ -123,7 +127,7 @@ describe('SettingsDialog', () => {
     const shortcutsItem = within(navigation).getByRole('button', {
       name: 'Shortcuts',
     });
-    expect(shortcutsItem).toHaveClass('min-w-0', 'lg:w-full', 'min-h-7', 'text-xs', 'leading-4');
+    expect(shortcutsItem).toHaveClass('w-full', 'min-w-0', 'min-h-7', 'text-xs', 'leading-4');
     expect(shortcutsItem).not.toHaveClass('min-h-8', 'text-sm');
     expect(within(shortcutsItem).getByText('Shortcuts')).toHaveClass('truncate');
   });
@@ -200,21 +204,72 @@ describe('SettingsDialog', () => {
     );
 
     expect(screen.getByText('Syntax')).toBeInTheDocument();
-    const boldColor = screen.getByRole('button', { name: 'Customize color for Bold' });
-    expect(boldColor).toHaveTextContent('Default');
+    const inlineCodeColor = screen.getByRole('button', {
+      name: 'Customize color for Inline code: Default (#0891b2)',
+    });
+    expect(inlineCodeColor).toHaveAttribute('data-color-preview', 'default');
+    expect(inlineCodeColor.querySelector('[data-slot="color-swatch"]')).toHaveStyle({
+      backgroundColor: '#0891b2',
+    });
+
+    const blockquoteColor = screen.getByRole('button', {
+      name: 'Customize color for Blockquotes: Default (#16a34a)',
+    });
+    expect(blockquoteColor.querySelector('[data-slot="color-swatch"]')).toHaveStyle({
+      backgroundColor: '#16a34a',
+    });
+
+    const listColor = screen.getByRole('button', {
+      name: 'Customize color for Lists: Default (#2563eb / Inherited)',
+    });
+    expect(listColor).toHaveAttribute('data-color-preview', 'mixed');
+    expect(listColor.querySelectorAll('[data-color-segment]')).toHaveLength(2);
+    expect(listColor.querySelector('[data-color-segment="#2563eb"]')).toHaveStyle({
+      backgroundColor: '#2563eb',
+    });
+    expect(listColor.querySelector('[data-color-segment="inherited"]')).toHaveClass(
+      'after:bg-muted-foreground'
+    );
+
+    const tableColor = screen.getByRole('button', {
+      name: 'Customize color for Tables: Default (#2563eb / #94a3b8)',
+    });
+    expect(tableColor).toHaveAttribute('data-color-preview', 'mixed');
+    expect(tableColor.querySelector('[data-color-segment="#2563eb"]')).toHaveStyle({
+      backgroundColor: '#2563eb',
+    });
+    expect(tableColor.querySelector('[data-color-segment="#94a3b8"]')).toHaveStyle({
+      backgroundColor: '#94a3b8',
+    });
+
+    const boldColor = screen.getByRole('button', {
+      name: 'Customize color for Bold: Default (Inherited)',
+    });
+    expect(boldColor).toHaveClass('size-6', 'rounded-full');
+    expect(boldColor).toHaveAttribute('data-color-preview', 'inherit');
+    expect(boldColor).toHaveAttribute('data-inherited', 'true');
+    expect(boldColor.querySelector('[data-slot="color-swatch"]')).toHaveClass(
+      'after:bg-muted-foreground'
+    );
     fireEvent.click(boldColor);
     expect(screen.queryByRole('button', { name: 'Pick color from canvas' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Pick ANSI color #800000' }));
 
     expect(runtime.getProfile().markdownColors).toEqual({ strong: '#800000' });
-    expect(screen.getByRole('button', { name: 'Customize color for Bold' })).toHaveTextContent(
-      '#800000'
-    );
+    const customBoldColor = screen.getByRole('button', {
+      name: 'Customize color for Bold: #800000',
+    });
+    const customBoldSwatch = customBoldColor.querySelector('[data-slot="color-swatch"]');
+    expect(customBoldColor).not.toHaveAttribute('data-inherited');
+    expect(customBoldSwatch).not.toHaveClass('after:bg-muted-foreground');
+    expect(customBoldSwatch).toHaveStyle({
+      backgroundColor: '#800000',
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Restore default color' }));
     expect(runtime.getProfile().markdownColors).toEqual({});
-    expect(screen.getByRole('button', { name: 'Customize color for Bold' })).toHaveTextContent(
-      'Default'
-    );
+    expect(
+      screen.getByRole('button', { name: 'Customize color for Bold: Default (Inherited)' })
+    ).toHaveAttribute('data-inherited', 'true');
   });
 
   it('preserves display disclosure state while preferences update', async () => {

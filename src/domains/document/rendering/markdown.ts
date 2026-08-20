@@ -11,6 +11,7 @@ import type {
   MarkdownRenderRule,
   MarkdownRenderColors,
   MarkdownRenderRules,
+  MarkdownRuleColorBehavior,
   TextRenderDiagnostic,
   TextRenderFragment,
 } from "./types";
@@ -21,6 +22,27 @@ export const CODEX_MARKDOWN_COLORS = {
   marker: "#2563eb",
   separator: "#94a3b8",
 } as const;
+
+export const CODEX_MARKDOWN_RULE_COLOR_BEHAVIORS = {
+  strong: { kind: "inherit" },
+  emphasis: { kind: "inherit" },
+  strikethrough: { kind: "inherit" },
+  link: { kind: "fixed", colors: [CODEX_MARKDOWN_COLORS.accent] },
+  heading: { kind: "inherit" },
+  "inline-code": { kind: "fixed", colors: [CODEX_MARKDOWN_COLORS.accent] },
+  blockquote: { kind: "fixed", colors: [CODEX_MARKDOWN_COLORS.blockquote] },
+  list: {
+    kind: "fixed",
+    colors: [CODEX_MARKDOWN_COLORS.marker],
+    includesInherited: true,
+  },
+  "thematic-break": { kind: "inherit" },
+  "code-block": { kind: "syntax" },
+  table: {
+    kind: "fixed",
+    colors: [CODEX_MARKDOWN_COLORS.marker, CODEX_MARKDOWN_COLORS.separator],
+  },
+} as const satisfies Record<MarkdownRenderRuleId, MarkdownRuleColorBehavior>;
 
 type LocatedNode = Node & {
   value?: string;

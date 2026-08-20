@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo } from 'react';
 import {
+  CODEX_MARKDOWN_RULE_COLOR_BEHAVIORS,
   useTextRenderingRuntime,
   useTextRenderProfile,
   type MarkdownColorRuleId,
@@ -9,10 +10,10 @@ import {
   type TextRendererMode,
 } from '@/domains/document/public';
 import { useUiI18n } from '@/shared/i18n';
-import { Button } from '@/shared/ui/button';
-import { ColorSwatch } from '@/shared/ui/color-swatch';
+import { cn } from '@/shared/lib/utils';
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
+import { SwatchButton } from '@/shared/ui/swatch-button';
 import { ColorPickerPanel } from '@/widgets/color-picker';
 import {
   SettingsDataTable,
@@ -26,6 +27,11 @@ type DisplaySettingsPanelProps = {
 };
 
 type DisplaySettingsColumnId = 'setting' | 'value' | 'color';
+
+type MarkdownColorSegment = {
+  color?: string;
+  inherited?: boolean;
+};
 
 type DisplaySetting =
   | { id: 'text-renderer'; kind: 'renderer'; label: 'settings.textRenderer' }
@@ -70,36 +76,72 @@ const blockSettings: readonly DisplaySetting[] = [
 ];
 
 function MarkdownColorControl({
+  ruleId,
   label,
   color,
   onPick,
   onReset,
 }: {
+  ruleId: MarkdownColorRuleId;
   label: string;
   color?: string;
   onPick: (color: string) => void;
   onReset: () => void;
 }) {
   const { t } = useUiI18n();
+  const behavior = CODEX_MARKDOWN_RULE_COLOR_BEHAVIORS[ruleId];
+  const inheritedLabel = t('settings.color.inherited');
+  const includesInherited =
+    behavior.kind === 'fixed' &&
+    'includesInherited' in behavior &&
+    behavior.includesInherited;
+  const segments: MarkdownColorSegment[] = color
+    ? [{ color }]
+    : behavior.kind === 'inherit'
+      ? [{ inherited: true }]
+      : behavior.kind === 'fixed'
+        ? [
+            ...behavior.colors.map((defaultColor) => ({ color: defaultColor })),
+            ...(includesInherited ? [{ inherited: true }] : []),
+          ]
+        : [];
+  const composite = segments.length > 1;
+  const inherited = segments.length === 1 && segments[0]?.inherited === true;
+  const solidColor = !composite && !inherited ? segments[0]?.color : undefined;
+  const defaultValues = behavior.kind === 'fixed'
+    ? [...behavior.colors, ...(includesInherited ? [inheritedLabel] : [])]
+    : [inheritedLabel];
+  const colorLabel = color
+    ?? `${t('settings.color.default')} (${defaultValues.join(' / ')})`;
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button
-          type="button"
-          tone="neutral"
-          size="xs"
-          className="ml-auto max-w-full min-w-0 overflow-hidden"
-          aria-label={t('settings.color.customize', { setting: label })}
-        >
-          {color ? (
-            <>
-              <ColorSwatch aria-hidden="true" color={color} shape="circle" className="size-3.5" />
-              <span className="truncate font-mono">{color}</span>
-            </>
-          ) : (
-            <span className="truncate">{t('settings.color.default')}</span>
+        <SwatchButton
+          color={solidColor ?? 'transparent'}
+          className="ml-auto"
+          swatchClassName={cn(
+            (inherited || composite) && 'relative overflow-hidden shadow-none',
+            inherited &&
+              "after:absolute after:h-px after:w-3 after:-rotate-45 after:bg-muted-foreground after:content-['']"
           )}
-        </Button>
+          data-color-preview={color ? 'custom' : composite ? 'mixed' : inherited ? 'inherit' : 'default'}
+          data-inherited={inherited || undefined}
+          aria-label={`${t('settings.color.customize', { setting: label })}: ${colorLabel}`}
+        >
+          {composite &&
+            segments.map((segment, index) => (
+              <span
+                key={segment.color ?? `inherited-${index}`}
+                data-color-segment={segment.color ?? 'inherited'}
+                className={cn(
+                  'relative h-full min-w-0 flex-1',
+                  segment.inherited &&
+                    "after:absolute after:left-1/2 after:top-1/2 after:h-px after:w-2 after:-translate-x-1/2 after:-translate-y-1/2 after:-rotate-45 after:bg-muted-foreground after:content-['']"
+                )}
+                style={segment.color ? { backgroundColor: segment.color } : undefined}
+              />
+            ))}
+        </SwatchButton>
       </PopoverTrigger>
       <PopoverContent side="right" align="start" className="w-auto p-0">
         <ColorPickerPanel
@@ -236,6 +278,7 @@ export function DisplaySettingsPanel({
               <span className="text-muted-foreground">{t('settings.color.syntax')}</span>
             ) : (
               <MarkdownColorControl
+                ruleId={setting.id}
                 label={t(setting.label)}
                 color={textRenderProfile.markdownColors[setting.id]}
                 onPick={(color) =>

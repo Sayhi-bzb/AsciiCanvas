@@ -13,6 +13,7 @@ export {
   createMarkdownTextRenderPlugin,
   rawTextRenderPlugin,
 } from "./rendering/plugins";
+export { CODEX_MARKDOWN_RULE_COLOR_BEHAVIORS } from "./rendering/markdown";
 export {
   configureTextRenderingRuntimeFallbackForTesting,
   TextRenderingProvider,
@@ -28,6 +29,7 @@ export type {
   MarkdownRenderRuleId,
   MarkdownRenderColors,
   MarkdownRenderRules,
+  MarkdownRuleColorBehavior,
   RenderedTextCell,
   TextRenderPlugin,
   TextDecoderPlugin,

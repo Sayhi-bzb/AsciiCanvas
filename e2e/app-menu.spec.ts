@@ -232,4 +232,47 @@ test.describe('App menu', () => {
     await expect(content).toBeVisible();
     await expectWidthContained(sectionScroll());
   });
+
+  test('switches directly from the compact selector to side navigation at md', async ({ page }) => {
+    await page.setViewportSize({ width: 767, height: 720 });
+    await page.goto('/');
+
+    await page.getByRole('button', { name: 'Open menu' }).click();
+    await page
+      .getByRole('menu', { name: 'Open menu' })
+      .getByRole('menuitem', { name: 'Settings' })
+      .click();
+
+    const settings = page.getByRole('dialog', { name: 'Settings' });
+    const compactNavigation = settings.locator('[data-slot="settings-navigation-mobile"]');
+    const sideNavigation = settings.locator('[data-slot="settings-navigation-inline"]');
+    const content = settings.locator('[data-slot="settings-content"]');
+
+    await expect(compactNavigation).toBeVisible();
+    await expect(sideNavigation).toBeHidden();
+
+    await page.setViewportSize({ width: 768, height: 720 });
+    await expect(compactNavigation).toBeHidden();
+    await expect(sideNavigation).toBeVisible();
+
+    const sideBox = await sideNavigation.boundingBox();
+    const contentBox = await content.boundingBox();
+    expect(sideBox).not.toBeNull();
+    expect(contentBox).not.toBeNull();
+    expect(contentBox!.x).toBeGreaterThan(sideBox!.x + sideBox!.width);
+
+    await sideNavigation.getByRole('button', { name: 'Display' }).click();
+    await expect(settings.getByRole('heading', { name: 'Display' })).toBeVisible();
+    const sectionMetrics = await settings
+      .locator('[data-slot="settings-section-scroll"]')
+      .evaluate((element) => ({
+        clientWidth: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+      }));
+    expect(sectionMetrics.scrollWidth).toBeLessThanOrEqual(sectionMetrics.clientWidth + 1);
+
+    await page.setViewportSize({ width: 1024, height: 720 });
+    await expect(compactNavigation).toBeHidden();
+    await expect(sideNavigation).toBeVisible();
+  });
 });

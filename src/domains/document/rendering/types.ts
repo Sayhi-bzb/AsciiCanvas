@@ -20,6 +20,14 @@ export type MarkdownRenderRuleId =
 export type MarkdownRenderRules = Record<MarkdownRenderRuleId, boolean>;
 export type MarkdownColorRuleId = Exclude<MarkdownRenderRuleId, "code-block">;
 export type MarkdownRenderColors = Partial<Record<MarkdownColorRuleId, string>>;
+export type MarkdownRuleColorBehavior =
+  | { readonly kind: "inherit" }
+  | {
+      readonly kind: "fixed";
+      readonly colors: readonly [string, ...string[]];
+      readonly includesInherited?: boolean;
+    }
+  | { readonly kind: "syntax" };
 
 export type TextRenderProfile = {
   mode: TextRendererMode;

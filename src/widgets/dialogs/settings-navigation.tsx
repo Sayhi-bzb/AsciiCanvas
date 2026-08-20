@@ -132,17 +132,14 @@ export function SettingsNavigation<Value extends string>({
             data-slot="settings-navigation-inline"
             className="hidden min-w-0 px-1 py-2 md:block [&_svg]:size-[1em]!"
           >
-            <nav
-              aria-label={label}
-              className="flex min-w-0 flex-nowrap gap-2 py-1 lg:flex-col lg:gap-1"
-            >
+            <nav aria-label={label} className="flex min-w-0 flex-col gap-1 py-1">
               {items.map(({ icon: Icon, title, value: itemValue }) => (
                 <SelectableItem
                   key={itemValue}
                   type="button"
                   selected={value === itemValue}
                   aria-current={value === itemValue ? 'page' : undefined}
-                  className="min-w-0 justify-start [&_svg]:shrink-0 lg:w-full"
+                  className="w-full min-w-0 justify-start [&_svg]:shrink-0"
                   onClick={() => onValueChange(itemValue)}
                 >
                   <Icon />
