@@ -22,11 +22,6 @@ export const getActiveSlideGridBounds = (
   };
 };
 
-export const isPointWithinActiveSlide = (state: SlideBoundState, point: Point) => {
-  const size = getActiveSlideSize(state);
-  return !size || (point.x >= 0 && point.x < size.columns && point.y >= 0 && point.y < size.rows);
-};
-
 export const clampPointToActiveSlide = (state: SlideBoundState, point: Point): Point => {
   const size = getActiveSlideSize(state);
   if (!size) return point;

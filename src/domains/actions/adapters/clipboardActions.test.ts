@@ -7,6 +7,7 @@ import {
   writeClipboardPayload,
 } from "@/domains/actions/public";
 import { getCellOccupancy } from "@/shared/metrics";
+import { createTextRenderingRuntime } from "@/domains/document/public";
 
 const ansiThemeSample = `[38;2;148;163;184m╭──────────────────────────╮[0m
 [38;2;148;163;184m│[48;2;239;246;255m [1;38;2;37;99;235m 界面标题[22;38;2;209;213;219m               [0m[38;2;148;163;184m│[38;2;37;99;235m<─[38;2;209;213;219m [1;38;2;37;99;235mPrimary 主色/品牌色[0m
@@ -163,6 +164,47 @@ describe("clipboardActions", () => {
       "web application/x-ascii-metropolis",
       "text/plain",
     ]);
+  });
+
+  it("renders external Markdown through the injected text runtime", async () => {
+    const runtime = createTextRenderingRuntime();
+    const payload = await readClipboardPayload(
+      {
+        getData: (type: string) =>
+          type === "text/plain" ? "**粗体** [site](https://example.com)" : "",
+      } as unknown as DataTransfer,
+      "#abcdef",
+      runtime.render
+    );
+
+    expect(payload.plainText).toBe("**粗体** [site](https://example.com)");
+    expect(payload.richCells?.map((cell) => cell.char).join("")).toBe("粗体 site");
+    expect(payload.richCells?.[0]).toMatchObject({
+      x: 0,
+      char: "粗",
+      color: "#abcdef",
+      attrs: { bold: true },
+    });
+    expect(payload.richCells?.find((cell) => cell.char === "s")?.href).toBe(
+      "https://example.com"
+    );
+  });
+
+  it("awaits lazy code highlighting before returning clipboard cells", async () => {
+    const runtime = createTextRenderingRuntime();
+    const payload = await readClipboardPayload(
+      {
+        getData: (type: string) =>
+          type === "text/plain" ? "```js\nconst value = 1\n```" : "",
+      } as unknown as DataTransfer,
+      "#111111",
+      runtime.render
+    );
+
+    expect(payload.richCells?.map((cell) => cell.char).join("")).toBe(
+      "const value = 1"
+    );
+    expect(payload.richCells?.some((cell) => cell.color !== "#111111")).toBe(true);
   });
 
   it("writes app-rich clipboard data during native copy events", async () => {
@@ -424,48 +466,13 @@ describe("clipboardActions", () => {
     ]);
   });
 
-  it("parses Markdown inline links into linked visible label text", () => {
+  it("keeps the ANSI compatibility parser syntax-specific", () => {
     expect(
       parseAnsiClipboardText(
         "前 [启动图形界面](https://example.com/gui) 后",
         "#ffffff"
       )
-    ).toEqual([
-      { x: 0, y: 0, char: "前", color: "#ffffff" },
-      { x: 2, y: 0, char: " ", color: "#ffffff" },
-      { x: 3, y: 0, char: "启", color: "#ffffff", href: "https://example.com/gui" },
-      { x: 5, y: 0, char: "动", color: "#ffffff", href: "https://example.com/gui" },
-      { x: 7, y: 0, char: "图", color: "#ffffff", href: "https://example.com/gui" },
-      { x: 9, y: 0, char: "形", color: "#ffffff", href: "https://example.com/gui" },
-      { x: 11, y: 0, char: "界", color: "#ffffff", href: "https://example.com/gui" },
-      { x: 13, y: 0, char: "面", color: "#ffffff", href: "https://example.com/gui" },
-      { x: 15, y: 0, char: " ", color: "#ffffff" },
-      { x: 16, y: 0, char: "后", color: "#ffffff" },
-    ]);
-  });
-
-  it("parses Markdown URL labels and leaves following text unlinked", () => {
-    expect(
-      parseAnsiClipboardText(
-        "[https://example.com/gui](https://example.com/gui) 启动图形界面",
-        "#ffffff"
-      )
-    ).toEqual([
-      ...Array.from("https://example.com/gui").map((char, x) => ({
-        x,
-        y: 0,
-        char,
-        color: "#ffffff",
-        href: "https://example.com/gui",
-      })),
-      { x: 23, y: 0, char: " ", color: "#ffffff" },
-      { x: 24, y: 0, char: "启", color: "#ffffff" },
-      { x: 26, y: 0, char: "动", color: "#ffffff" },
-      { x: 28, y: 0, char: "图", color: "#ffffff" },
-      { x: 30, y: 0, char: "形", color: "#ffffff" },
-      { x: 32, y: 0, char: "界", color: "#ffffff" },
-      { x: 34, y: 0, char: "面", color: "#ffffff" },
-    ]);
+    ).toBeNull();
   });
 
   it("does not parse malformed Markdown links as rich text", () => {

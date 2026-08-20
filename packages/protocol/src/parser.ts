@@ -1,6 +1,7 @@
 import { getGraphemeCellWidth, splitGraphemes } from "./graphemes.js";
 import type {
   CharDeskTextAttributes,
+  CharDeskAnsiEvidence,
   CharDeskTextDiagnostic,
   CharDeskTextStyle,
   ParseCharDeskTextOptions,
@@ -36,6 +37,7 @@ type SgrResult = {
   style: ParserStyle;
   recognized: boolean;
   unsupportedCodes: number[];
+  evidence: Exclude<CharDeskAnsiEvidence, "none">;
 };
 
 type LinkResult = {
@@ -193,8 +195,15 @@ const parseSgrAt = (
   return {
     nextIndex: bodyEnd + 1,
     ...applied,
+    evidence: escaped || body !== "" ? "explicit" : "ambiguous",
   };
 };
+
+const mergeAnsiEvidence = (
+  current: CharDeskAnsiEvidence,
+  next: Exclude<CharDeskAnsiEvidence, "none">
+): CharDeskAnsiEvidence =>
+  current === "explicit" || next === "explicit" ? "explicit" : "ambiguous";
 
 const parseOsc8At = (
   input: string,
@@ -261,6 +270,7 @@ export const parseCharDeskText = (
   let y = 0;
   let width = 0;
   let hasAnsi = false;
+  let ansiEvidence: CharDeskAnsiEvidence = "none";
   let hasLayout = false;
 
   const pushText = (text: string) => {
@@ -290,6 +300,7 @@ export const parseCharDeskText = (
         if (link.href) style.href = link.href;
         else delete style.href;
         hasAnsi = true;
+        ansiEvidence = "explicit";
         index = link.nextIndex;
         continue;
       }
@@ -305,6 +316,7 @@ export const parseCharDeskText = (
       if (sgr) {
         style = sgr.style;
         hasAnsi = true;
+        ansiEvidence = mergeAnsiEvidence(ansiEvidence, sgr.evidence);
         for (const code of sgr.unsupportedCodes) {
           diagnostic(
             diagnostics,
@@ -369,6 +381,7 @@ export const parseCharDeskText = (
     height: hasLayout ? y + 1 : 0,
     cells,
     hasAnsi,
+    ansiEvidence,
     diagnostics,
   };
 };

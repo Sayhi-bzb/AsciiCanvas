@@ -1,13 +1,6 @@
 'use client';
 
-import {
-  createExpandedRowModel,
-  rowExpandingFeature,
-  tableFeatures,
-  useTable,
-  type ColumnDef,
-} from '@tanstack/react-table';
-import { ChevronRight, Plus, RotateCcw } from 'lucide-react';
+import { Plus, RotateCcw } from 'lucide-react';
 import {
   forwardRef,
   useCallback,
@@ -31,12 +24,10 @@ import {
 } from '@/domains/editor/public';
 import { SHORTCUT_PRIORITY, useShortcutLayer } from '@/shared/shortcuts/dispatcher';
 import { useUiI18n } from '@/shared/i18n';
-import { cn } from '@/shared/lib/utils';
 import { Button } from '@/shared/ui/button';
 import { IconButton } from '@/shared/ui/icon-button';
 import { Kbd, KbdGroup } from '@/shared/ui/kbd';
 import { Pressable } from '@/shared/ui/pressable';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table';
 import { Tooltip, TooltipPopup, TooltipTrigger } from '@/shared/ui/tooltip';
 import {
   SHORTCUT_CATEGORY_ORDER,
@@ -47,6 +38,11 @@ import {
   type ShortcutCategory,
 } from './editor-shortcut-catalog';
 import { ShortcutKbd } from './shortcut-kbd';
+import {
+  SettingsDataTable,
+  type SettingsDataTableColumn,
+  type SettingsDataTableGroup,
+} from './settings-data-table';
 
 type RecordingTarget = {
   entryId: string;
@@ -75,27 +71,13 @@ type ShortcutDraft = {
   bindings: ShortcutBindings;
 };
 
+type ShortcutGridColumnId = 'command' | 'scope' | 'shortcut' | 'actions';
+
 type ShortcutCommandRow = {
   id: string;
-  kind: 'command';
   label: string;
   entry: KeymapBindingSnapshot;
 };
-
-type ShortcutCategoryRow = {
-  id: string;
-  kind: 'category';
-  category: ShortcutCategory;
-  label: string;
-  children: ShortcutCommandRow[];
-};
-
-type ShortcutGridRow = ShortcutCategoryRow | ShortcutCommandRow;
-
-const shortcutGridFeatures = tableFeatures({
-  rowExpandingFeature,
-  expandedRowModel: createExpandedRowModel(),
-});
 
 const arraysEqual = (left: readonly ShortcutSequence[], right: readonly ShortcutSequence[]) =>
   left.length === right.length && left.every((value, index) => shortcutsEqual(value, right[index]));
@@ -131,7 +113,6 @@ export const KeyboardShortcutsPanel = forwardRef<
   });
   const [recording, setRecording] = useState<RecordingTarget | null>(null);
   const recordingRef = useRef<RecordingTarget | null>(null);
-  const shortcutGridRef = useRef<HTMLDivElement>(null);
 
   const entriesById = useMemo(
     () =>
@@ -337,7 +318,7 @@ export const KeyboardShortcutsPanel = forwardRef<
       }
     );
 
-  const shortcutRows = useMemo<ShortcutCategoryRow[]>(() => {
+  const shortcutGroups = useMemo<SettingsDataTableGroup<ShortcutCommandRow>[]>(() => {
     const grouped = new Map<ShortcutCategory, ShortcutCommandRow[]>(
       SHORTCUT_CATEGORY_ORDER.map((category) => [category, []])
     );
@@ -345,7 +326,6 @@ export const KeyboardShortcutsPanel = forwardRef<
       const category = getShortcutCategory(entry.category);
       grouped.get(category)?.push({
         id: entry.id,
-        kind: 'command',
         label: getShortcutCommandLabel(entry, t),
         entry,
       });
@@ -356,59 +336,50 @@ export const KeyboardShortcutsPanel = forwardRef<
       return children.length > 0
         ? [
             {
-              id: `category:${category.toLowerCase()}`,
-              kind: 'category' as const,
-              category,
+              id: category.toLowerCase(),
               label: getShortcutCategoryLabel(category, t),
-              children,
+              items: children,
             },
           ]
         : [];
     });
   }, [editableEntries, t]);
 
-  const shortcutGridColumns = useMemo<ColumnDef<typeof shortcutGridFeatures, ShortcutGridRow>[]>(
+  const shortcutGridColumns = useMemo<SettingsDataTableColumn<ShortcutGridColumnId>[]>(
     () => [
-      { id: 'command', header: t('shortcutEditor.column.command') },
-      { id: 'scope', header: t('shortcutEditor.column.scope') },
+      {
+        id: 'command',
+        header: t('shortcutEditor.column.command'),
+        widthClassName: 'w-[30%]',
+        cellClassName: 'truncate ps-8 text-muted-foreground',
+      },
+      {
+        id: 'scope',
+        header: t('shortcutEditor.column.scope'),
+        widthClassName: 'w-[15%]',
+        cellClassName: 'truncate text-muted-foreground',
+      },
       { id: 'shortcut', header: t('shortcutEditor.column.shortcut') },
-      { id: 'actions', header: t('shortcutEditor.column.actions') },
+      {
+        id: 'actions',
+        header: t('shortcutEditor.column.actions'),
+        widthClassName: 'w-10',
+        headerClassName: 'px-1 text-right',
+        cellClassName: 'p-1 text-right',
+        visuallyHiddenHeader: true,
+      },
     ],
     [t]
   );
 
-  const shortcutTable = useTable({
-    features: shortcutGridFeatures,
-    columns: shortcutGridColumns,
-    data: shortcutRows,
-    getRowId: (row) => row.id,
-    getSubRows: (row) => (row.kind === 'category' ? row.children : undefined),
-    initialState: { expanded: true },
-    // Labels and bindings can rebuild the row data without changing the category tree.
-    // Preserve the user's disclosure state across those reactive updates.
-    autoResetExpanded: false,
-  });
-
-  useEffect(() => {
-    if (!revealEntryId) return;
-    const category = shortcutRows.find((candidate) =>
-      candidate.children.some((child) => child.id === revealEntryId)
-    );
-    if (category) shortcutTable.getRow(category.id, true).toggleExpanded(true);
-
-    const frame = requestAnimationFrame(() => {
-      const row = [
-        ...(shortcutGridRef.current?.querySelectorAll<HTMLElement>('[data-shortcut-entry-id]') ??
-          []),
-      ].find((candidate) => candidate.dataset.shortcutEntryId === revealEntryId);
-      if (typeof row?.scrollIntoView === 'function') {
-        row.scrollIntoView({ block: 'nearest' });
-      }
-      row?.querySelector<HTMLElement>('[data-shortcut-recording-control]')?.focus();
-      onRevealComplete?.();
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [onRevealComplete, revealEntryId, shortcutRows, shortcutTable]);
+  const revealShortcut = useCallback((row: HTMLTableRowElement) => {
+    if (typeof row.scrollIntoView === 'function') {
+      row.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
+    row
+      .querySelector<HTMLElement>('[data-shortcut-recording-control]')
+      ?.focus({ preventScroll: true });
+  }, []);
 
   const renderRecordingState = (sequence: ShortcutSequence) =>
     sequence.length > 0 ? (
@@ -524,106 +495,57 @@ export const KeyboardShortcutsPanel = forwardRef<
   );
 
   return (
-    <>
-      <div ref={shortcutGridRef} data-slot="shortcut-grid">
-        <Table density="compact" rowHover="none" className="min-w-[560px] table-fixed">
-          <colgroup>
-            <col className="w-[32%]" />
-            <col className="w-[16%]" />
-            <col />
-            <col className="w-10" />
-          </colgroup>
-          <TableHeader>
-            {shortcutTable.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead
-                    key={header.id}
-                    scope="col"
-                    className={cn(header.column.id === 'actions' && 'w-10 px-1 text-right')}
-                  >
-                    {header.isPlaceholder ? null : header.column.id === 'actions' ? (
-                      <span className="sr-only">
-                        <shortcutTable.FlexRender header={header} />
-                      </span>
-                    ) : (
-                      <shortcutTable.FlexRender header={header} />
-                    )}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody data-slot="shortcut-list">
-            {shortcutTable.getRowModel().rows.map((row) => {
-              const item = row.original;
-              if (item.kind === 'category') {
-                const expandedLabel = row.getIsExpanded()
-                  ? t('shortcutEditor.category.collapse', { category: item.label })
-                  : t('shortcutEditor.category.expand', { category: item.label });
-                return (
-                  <TableRow key={row.id} data-slot="shortcut-category-row">
-                    <TableCell className="p-0" colSpan={4}>
-                      <Pressable
-                        type="button"
-                        className="flex h-8 w-full items-center gap-2 px-3 text-left"
-                        aria-expanded={row.getIsExpanded()}
-                        aria-label={expandedLabel}
-                        onClick={row.getToggleExpandedHandler()}
-                      >
-                        <ChevronRight
-                          className={cn(
-                            'size-4 transition-transform',
-                            row.getIsExpanded() && 'rotate-90'
-                          )}
-                        />
-                        <span className="font-semibold">{item.label}</span>
-                        <span className="ml-auto text-muted-foreground">
-                          {t('shortcutEditor.category.commandCount', {
-                            count: item.children.length,
-                          })}
-                        </span>
-                      </Pressable>
-                    </TableCell>
-                  </TableRow>
-                );
-              }
-
-              const { entry, label } = item;
-              return (
-                <TableRow key={row.id} data-slot="shortcut-row" data-shortcut-entry-id={entry.id}>
-                  <TableCell className="truncate ps-10 text-muted-foreground">{label}</TableCell>
-                  <TableCell className="truncate text-muted-foreground">
-                    {getShortcutScopeLabel(entry.scope, t)}
-                  </TableCell>
-                  <TableCell>{renderShortcutCell(entry, label)}</TableCell>
-                  <TableCell className="p-1 text-right">
-                    {entry.userDefined ? (
-                      <Tooltip>
-                        <TooltipTrigger
-                          render={
-                            <IconButton
-                              type="button"
-                              size="xs"
-                              aria-label={t('shortcutEditor.reset', { command: label })}
-                              onClick={() => commitBindings(entry, entry.defaultShortcuts)}
-                            />
-                          }
-                        >
-                          <RotateCcw />
-                        </TooltipTrigger>
-                        <TooltipPopup side="left">
-                          {t('shortcutEditor.reset', { command: label })}
-                        </TooltipPopup>
-                      </Tooltip>
-                    ) : null}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </div>
-    </>
+    <SettingsDataTable
+      columns={shortcutGridColumns}
+      groups={shortcutGroups}
+      getItemId={(item) => item.id}
+      getGroupToggleLabel={(group, expanded) =>
+        t(
+          expanded ? 'shortcutEditor.category.collapse' : 'shortcutEditor.category.expand',
+          { category: group.label }
+        )
+      }
+      renderGroupSummary={(group) =>
+        t('shortcutEditor.category.commandCount', { count: group.items.length })
+      }
+      revealItemId={revealEntryId}
+      onRevealItem={revealShortcut}
+      onRevealComplete={onRevealComplete}
+      dataSlot="shortcut-grid"
+      bodyDataSlot="shortcut-list"
+      groupRowDataSlot="shortcut-category-row"
+      getItemRowData={(item) => ({
+        'data-slot': 'shortcut-row',
+        'data-shortcut-entry-id': item.entry.id,
+      })}
+      renderItemCell={({ entry, label }, columnId) => {
+        if (columnId === 'command') return label;
+        if (columnId === 'scope') return getShortcutScopeLabel(entry.scope, t);
+        if (columnId === 'shortcut') return renderShortcutCell(entry, label);
+        return (
+          <>
+            {entry.userDefined ? (
+              <Tooltip>
+                <TooltipTrigger
+                  render={
+                    <IconButton
+                      type="button"
+                      size="xs"
+                      aria-label={t('shortcutEditor.reset', { command: label })}
+                      onClick={() => commitBindings(entry, entry.defaultShortcuts)}
+                    />
+                  }
+                >
+                  <RotateCcw />
+                </TooltipTrigger>
+                <TooltipPopup side="left">
+                  {t('shortcutEditor.reset', { command: label })}
+                </TooltipPopup>
+              </Tooltip>
+            ) : null}
+          </>
+        );
+      }}
+    />
   );
 });

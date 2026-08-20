@@ -3,6 +3,8 @@ export {
   parseCharDeskText,
   stripCharDeskAnsi,
 } from "./parser.js";
+export { layoutCharDeskTextRuns } from "./runs.js";
+export { decodeCharDeskTextRuns } from "./decode.js";
 export {
   getGraphemeCellWidth,
   getTextCellWidth,
@@ -15,6 +17,7 @@ export {
 } from "./geometry.js";
 export type {
   CharDeskGeometryCell,
+  CharDeskAnsiEvidence,
   CharDeskGeometryComparison,
   CharDeskGeometryMismatch,
   CharDeskGeometrySnapshot,
@@ -23,8 +26,11 @@ export type {
   CharDeskTextDiagnostic,
   CharDeskTextDiagnosticCode,
   CharDeskTextStyle,
+  CharDeskTextRun,
   CharDeskTextSyntax,
   CompareCharDeskGeometryOptions,
+  LayoutCharDeskTextRunsOptions,
   ParseCharDeskTextOptions,
   ParsedCharDeskText,
+  DecodedCharDeskTextRuns,
 } from "./types.js";

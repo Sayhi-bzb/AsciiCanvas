@@ -1,0 +1,44 @@
+---
+title: External Text Rendering
+description: Plugin boundary for converting pasted source text into editable Canvas cells.
+---
+
+External plain text crosses one runtime before paste:
+
+`clipboard source -> document text-rendering runtime -> plain text or styled protocol cells -> Canvas command`
+
+[`document/public.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/domains/document/public.ts)
+owns the plugin registry, active profile, persistence, and conversion result. `actions`
+only snapshots clipboard data and passes the result to Canvas. GridMap remains the only
+editable content store; renderer settings affect future paste and never reinterpret existing
+cells.
+
+Rendering has four stages: syntax decode, structural transform, style composition, and cell
+layout. ANSI is a decoder backed by `@chardesk/protocol`; Markdown is a structural transformer
+backed by `remark` and `remark-gfm`; the compositor projects ANSI spans through Markdown source
+ranges; the protocol layout is the only stage that owns grapheme segmentation, CJK width, tabs,
+and coordinates. Shiki code tokens join the same fragment stream and are never serialized
+through ANSI.
+
+Auto composes explicit ANSI and Markdown instead of selecting one renderer for the whole source.
+An ESC-less empty reset (`[m`) is ambiguous evidence and cannot activate ANSI by itself, preventing
+Markdown links beginning with `[m` from losing characters. Standard escapes, OSC 8, and non-empty
+supported SGR are explicit. Forced ANSI still accepts `[m`. When both syntaxes style one range,
+ANSI foreground, background, and OSC 8 href win; text attributes merge; Markdown controls visible
+structure. `TextRenderResult.pipeline` records the applied stages.
+
+Markdown renders Codex-style headings, inline code, links, blockquotes, lists, thematic
+breaks, fenced code, and GFM tables at natural content width. Layout never depends on the
+viewport, zoom, or paste position. Disabled inline rules consume delimiters without styling;
+disabled block rules preserve their source slice. Raw mode preserves all delimiters. Renderer
+results may be asynchronous, and clipboard commands await them before mutating Canvas.
+
+`TextRenderProfile.markdownColors` stores optional foreground overrides by Markdown rule.
+Missing entries preserve the built-in Codex color or inherit the paste foreground. Overrides
+color rule-owned content and decorations; list overrides affect markers, while table overrides
+affect headers and separators. Fenced code remains owned by Shiki token colors. Like every
+renderer setting, color changes affect future paste only because Canvas stores materialized cells.
+
+Verification lives in
+[`runtime.test.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/domains/document/rendering/runtime.test.ts)
+and the clipboard integration tests.

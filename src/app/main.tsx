@@ -7,6 +7,7 @@ import { getApplicationEditorHost } from "./compositionRoot";
 import { EditorProvider } from "@/domains/editor/public";
 import { CanvasRuntimeProvider } from "@/domains/canvas/public";
 import { CollaborationRuntimeProvider } from "@/domains/collaboration/public";
+import { TextRenderingProvider } from "@/domains/document/public";
 import {
   BLACKBOARD_HOST_PROFILE,
   EDITOR_HOST_PROFILE,
@@ -23,13 +24,15 @@ void import("./App").then(({ default: App }) => {
   ReactDOM.createRoot(document.getElementById("root")!).render(
     <React.StrictMode>
       <EditorHostProfileProvider profile={host.profile}>
-        <CanvasRuntimeProvider runtime={host.canvas}>
-          <CollaborationRuntimeProvider runtime={host.collaboration}>
-            <EditorProvider editor={host.editor}>
-              <App />
-            </EditorProvider>
-          </CollaborationRuntimeProvider>
-        </CanvasRuntimeProvider>
+        <TextRenderingProvider runtime={host.textRendering}>
+          <CanvasRuntimeProvider runtime={host.canvas}>
+            <CollaborationRuntimeProvider runtime={host.collaboration}>
+              <EditorProvider editor={host.editor}>
+                <App />
+              </EditorProvider>
+            </CollaborationRuntimeProvider>
+          </CanvasRuntimeProvider>
+        </TextRenderingProvider>
       </EditorHostProfileProvider>
     </React.StrictMode>
   );

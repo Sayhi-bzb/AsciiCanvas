@@ -37,6 +37,10 @@ describe('ShortcutKbd', () => {
 
     const group = screen.getByLabelText(/Command\+Z|Control\+Z/);
     expect(group).toHaveAttribute('aria-invalid', 'true');
-    expect(group.querySelector('kbd')).toHaveClass('bg-destructive/10', 'text-destructive');
+    expect(group.querySelector('kbd')).toHaveAttribute('data-invalid', 'true');
+    expect(group.querySelector('kbd')).toHaveClass(
+      'data-[invalid=true]:bg-error/10',
+      'data-[invalid=true]:text-error'
+    );
   });
 });

@@ -25,6 +25,13 @@ for (const cell of document.cells) {
 
 Use `document.source` when preserving ANSI copy and `document.plainText` or `stripCharDeskAnsi(source)` for plain-text copy.
 
+Use `decodeCharDeskTextRuns(source)` when a higher-level renderer needs ANSI as
+attributed text before another syntax transform. It returns normalized visible
+text, styled runs, diagnostics, and `ansiEvidence`. An `ambiguous` result means
+the only consumed control was an ESC-less empty reset (`[m`); composition
+runtimes can preserve the original source unless another explicit ANSI control
+is present.
+
 Use `createCharDeskGeometrySnapshot(plain)` and
 `compareCharDeskGeometry(plain, ansi)` when ANSI may add style but must not alter
 visible text, grapheme boundaries, or cell positions.
@@ -32,6 +39,8 @@ visible text, grapheme boundaries, or cell positions.
 ## API
 
 - `parseCharDeskText(source, options?)`
+- `decodeCharDeskTextRuns(source, options?)`
+- `layoutCharDeskTextRuns(runs, options?)`
 - `stripCharDeskAnsi(source, options?)`
 - `splitGraphemes(text)`
 - `getGraphemeCellWidth(grapheme)`

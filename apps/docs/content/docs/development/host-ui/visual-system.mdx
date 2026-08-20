@@ -55,6 +55,19 @@ Interaction state has stable vocabulary:
 - `data-state="highlighted|checked|on"` remains owned by the relevant Radix
   primitive.
 
+Operation and health status form a separate visual axis:
+
+- `success` identifies a completed operation or healthy ongoing state.
+- `warning` identifies a degraded state that can continue.
+- `error` identifies a failed operation, invalid state, or lost connection.
+- `neutral` identifies idle, loading, waiting, and ordinary informational state.
+
+Status colors affect result icons and status text, not interaction surfaces.
+Controls express transient outcomes through `feedback`; persistent labels and
+indicators use `StatusText` and `StatusDot`. `active` never means success, and
+`destructive` describes action intent rather than an operation result. Color is
+always paired with an icon, text, or accessible live-region message.
+
 Persistent state strength is `active > pressed > open > hover`. Each level has
 its own light and dark semantic surface token. `subordinate` keeps an associated
 control quiet at rest while its recipe restores full opacity for hover and every

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Check, Pipette } from 'lucide-react';
+import { Pipette } from 'lucide-react';
 import { HexColorPicker } from 'react-colorful';
 import { useCanvasRuntime, useCanvasState } from '@/domains/canvas/public';
 import type { CanvasColorPickerTarget } from '@/domains/canvas/public';
@@ -21,7 +21,9 @@ type ColorPickerPanelProps = {
   value: string;
   onPick: (color: string) => void;
   defaultColor?: string;
+  onReset?: () => void;
   showCustomInput?: boolean;
+  showCanvasPicker?: boolean;
   onCanvasPickStarted?: () => void;
   className?: string;
   canvasPickDestination?: 'foreground' | 'background';
@@ -113,16 +115,59 @@ const normalizeHexColor = (value: string) => {
   return /^#[0-9a-f]{6}$/.test(trimmed) ? trimmed : null;
 };
 
+function CanvasColorPickerAction({
+  destination,
+  onStarted,
+}: {
+  destination: 'foreground' | 'background';
+  onStarted?: () => void;
+}) {
+  const canvas = useCanvasRuntime();
+  const { t } = useUiI18n();
+  const canvasColorPickerTarget = useCanvasState((state) => state.canvasColorPickerTarget);
+  const setCanvasColorPickerTarget = canvas.commands.interaction.setColorPickerTarget;
+  const toggleCanvasColorPicker = () => {
+    const target: CanvasColorPickerTarget =
+      destination === 'background' ? 'auto-to-background' : 'auto';
+    const nextTarget = canvasColorPickerTarget === target ? null : target;
+    setCanvasColorPickerTarget(nextTarget);
+    if (nextTarget) onStarted?.();
+  };
+
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            type="button"
+            tone="subtle"
+            shape="square"
+            size="sm"
+            aria-label={t('color.pickFromCanvas')}
+            pressed={canvasColorPickerTarget !== null}
+            className="shrink-0"
+            onClick={toggleCanvasColorPicker}
+          />
+        }
+      >
+        <Pipette />
+      </TooltipTrigger>
+      <TooltipPopup side="bottom">{t('color.pickFromCanvas')}</TooltipPopup>
+    </Tooltip>
+  );
+}
+
 export function ColorPickerPanel({
   value,
   onPick,
   defaultColor,
+  onReset,
   showCustomInput = true,
+  showCanvasPicker = true,
   onCanvasPickStarted,
   className,
   canvasPickDestination = 'foreground',
 }: ColorPickerPanelProps) {
-  const canvas = useCanvasRuntime();
   const { t } = useUiI18n();
   const [customColor, setCustomColor] = useState(value);
   const [hexPopoverOpen, setHexPopoverOpen] = useState(false);
@@ -133,9 +178,8 @@ export function ColorPickerPanel({
   const hexInputRef = useRef<HTMLInputElement>(null);
   const hexCloseHandledRef = useRef(false);
   const normalizedCustomColor = normalizeHexColor(customColor);
-  const displayColor = normalizedCustomColor ?? normalizeHexColor(value) ?? '#000000';
-  const canvasColorPickerTarget = useCanvasState((state) => state.canvasColorPickerTarget);
-  const setCanvasColorPickerTarget = canvas.commands.interaction.setColorPickerTarget;
+  const normalizedValue = normalizeHexColor(value);
+  const displayColor = normalizedCustomColor ?? normalizedValue ?? '#000000';
   const RestoreDefaultIcon = HOST_ICONOLOGY.colorPalette.restoreDefault;
 
   useEffect(() => {
@@ -169,14 +213,6 @@ export function ColorPickerPanel({
     if (normalizedCustomColor !== normalizeHexColor(value)) {
       onPick(normalizedCustomColor);
     }
-  };
-
-  const toggleCanvasColorPicker = () => {
-    const target: CanvasColorPickerTarget =
-      canvasPickDestination === 'background' ? 'auto-to-background' : 'auto';
-    const nextTarget = canvasColorPickerTarget === target ? null : target;
-    setCanvasColorPickerTarget(nextTarget);
-    if (nextTarget) onCanvasPickStarted?.();
   };
 
   const paletteTabs = [
@@ -347,26 +383,14 @@ export function ColorPickerPanel({
               </PopoverContent>
             </Popover>
 
-            <TooltipTrigger
-              handle={tooltipHandle}
-              payload={t('color.pickFromCanvas')}
-              render={
-                <Button
-                  type="button"
-                  tone="subtle"
-                  shape="square"
-                  size="sm"
-                  aria-label={t('color.pickFromCanvas')}
-                  pressed={canvasColorPickerTarget !== null}
-                  className="shrink-0"
-                  onClick={toggleCanvasColorPicker}
-                />
-              }
-            >
-              <Pipette />
-            </TooltipTrigger>
+            {showCanvasPicker ? (
+              <CanvasColorPickerAction
+                destination={canvasPickDestination}
+                onStarted={onCanvasPickStarted}
+              />
+            ) : null}
 
-            {defaultColor && (
+            {(defaultColor || onReset) && (
               <TooltipTrigger
                 handle={tooltipHandle}
                 payload={t('color.restoreDefault')}
@@ -378,7 +402,10 @@ export function ColorPickerPanel({
                     size="sm"
                     aria-label={t('color.restoreDefault')}
                     className="shrink-0"
-                    onClick={() => pickColor(defaultColor)}
+                    onClick={() => {
+                      if (onReset) onReset();
+                      else if (defaultColor) pickColor(defaultColor);
+                    }}
                   />
                 }
               >
@@ -400,14 +427,10 @@ export function ColorPickerPanel({
                 <SwatchButton
                   key={color}
                   color={color}
-                  selected={displayColor === color}
+                  selected={normalizedValue === color}
                   aria-label={t(tab.colorLabelKey, { color })}
                   onClick={() => pickColor(color)}
-                >
-                  {displayColor === color && (
-                    <Check className="size-3 text-swatch-indicator mix-blend-difference" />
-                  )}
-                </SwatchButton>
+                />
               ))}
             </div>
           </TabsContent>

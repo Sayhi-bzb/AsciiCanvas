@@ -17,7 +17,9 @@ description: Contract for Dialog, AlertDialog, Sheet, and modal Host elevation.
   inline horizontal navigation at medium widths, and Select navigation on phones.
   Navigation does not own a scroll area; long labels truncate within their item.
 - Settings sections render content panels, not nested Dialog shells. Each panel
-  owns its scroll region while the navigation and close control remain visible.
+  owns its vertical scroll region while the navigation and close control remain
+  visible. Settings data tables fit the panel width; cells truncate instead of
+  creating panel-level horizontal scrolling.
   The Dialog title is visually hidden; the active section heading is the only
   visible heading. Settings rows stay single-line and use spacing and hover
   state instead of decorative separators.

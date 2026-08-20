@@ -113,7 +113,8 @@ describe('CharLibrary', () => {
     expect(useEditorStore.getState().tool).toBe('select');
     expect(useEditorStore.getState().brushChar).toBe('#');
     await waitFor(() => expect(starButton).toHaveAttribute('data-copy-feedback', 'success'));
-    expect(starButton).toHaveClass('bg-control-active-surface');
+    expect(starButton).toHaveClass('text-success');
+    expect(starButton).not.toHaveClass('bg-control-active-surface');
     expect(starButton.querySelector('.lucide-check')).toHaveClass('opacity-100');
     expect(starButton.querySelector('.lucide-check')).not.toHaveStyle({
       color: 'var(--character-library-foreground)',
@@ -168,7 +169,7 @@ describe('CharLibrary', () => {
 
     expect(starButton).toHaveAttribute('data-copy-feedback', 'error');
     expect(starButton.querySelector('.lucide-x')).toHaveClass('opacity-100');
-    expect(starButton).toHaveClass('text-destructive');
+    expect(starButton).toHaveClass('text-error');
     expect(screen.getByRole('status')).toHaveTextContent('Could not copy ★');
 
     act(() => vi.advanceTimersByTime(1199));

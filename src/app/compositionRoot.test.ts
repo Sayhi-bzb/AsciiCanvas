@@ -1,7 +1,10 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
+import { DEFAULT_TEXT_RENDER_PROFILE } from "@/domains/document/public";
 import {
   createApplicationEditorHost,
+  getApplicationEditorHost,
+  releaseApplicationEditorHost,
   type ApplicationEditorHost,
 } from "./compositionRoot";
 
@@ -13,10 +16,69 @@ const createHost = () => {
 };
 
 afterEach(async () => {
+  await releaseApplicationEditorHost();
   await Promise.all(hosts.splice(0).map((host) => host.dispose()));
 });
 
 describe("ApplicationEditorHost", () => {
+  it("releases the singleton host idempotently before creating a replacement", async () => {
+    const first = getApplicationEditorHost();
+    const dispose = vi.spyOn(first, "dispose");
+
+    await releaseApplicationEditorHost();
+    await releaseApplicationEditorHost();
+
+    expect(dispose).toHaveBeenCalledOnce();
+    expect(getApplicationEditorHost()).not.toBe(first);
+  });
+
+  it("routes clipboard text through the host rendering profile before Canvas mutation", async () => {
+    const host = createHost();
+    host.canvas.commands.grid.replace([]);
+    host.canvas.commands.interaction.setTextCursor({ x: 0, y: 0 });
+    host.textRendering.setProfile({
+      ...DEFAULT_TEXT_RENDER_PROFILE,
+      mode: "markdown",
+    });
+
+    const result = await host.canvas.commands.selection.paste({
+      eventDataTransfer: {
+        getData: (type: string) =>
+          type === "text/plain" ? "**粗体**" : "",
+      } as unknown as DataTransfer,
+    });
+
+    expect(result).toMatchObject({ status: "applied" });
+    expect(host.canvas.getState().grid.get("0,0")).toMatchObject({
+      char: "粗",
+      attrs: { bold: true },
+    });
+    expect(host.canvas.getState().grid.get("2,0")?.char).toBe("体");
+    expect(host.canvas.getState().grid.has("1,0")).toBe(false);
+  });
+
+  it("persists external inline-code rendering into GridMap cells", async () => {
+    const host = createHost();
+    host.canvas.commands.grid.replace([]);
+    host.canvas.commands.interaction.setTextCursor({ x: 0, y: 0 });
+    host.textRendering.setProfile({
+      ...DEFAULT_TEXT_RENDER_PROFILE,
+      mode: "auto",
+    });
+
+    const result = await host.canvas.commands.selection.paste({
+      eventDataTransfer: {
+        getData: (type: string) => type === "text/plain" ? "`remark`" : "",
+      } as unknown as DataTransfer,
+    });
+
+    expect(result).toMatchObject({ status: "applied" });
+    expect(
+      Array.from(host.canvas.getState().grid.values()).map((cell) => cell.char).join("")
+    ).toBe("remark");
+    expect(host.canvas.getState().grid.get("0,0")?.color).toBe("#0891b2");
+  });
+
   it("accepts a fixed external session without creating demo sessions", () => {
     const host = createApplicationEditorHost({
       initialSessions: [{

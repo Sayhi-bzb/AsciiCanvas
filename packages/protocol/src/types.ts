@@ -12,6 +12,27 @@ export type CharDeskTextStyle = {
   attrs?: CharDeskTextAttributes;
 };
 
+export type CharDeskTextRun = CharDeskTextStyle & {
+  text: string;
+  href?: string;
+};
+
+export type CharDeskAnsiEvidence = "none" | "ambiguous" | "explicit";
+
+export type DecodedCharDeskTextRuns = {
+  source: string;
+  text: string;
+  runs: CharDeskTextRun[];
+  hasAnsi: boolean;
+  ansiEvidence: CharDeskAnsiEvidence;
+  diagnostics: CharDeskTextDiagnostic[];
+};
+
+export type LayoutCharDeskTextRunsOptions = {
+  defaultStyle?: CharDeskTextStyle;
+  tabSize?: number;
+};
+
 export type CharDeskTextCell = CharDeskTextStyle & {
   x: number;
   y: number;
@@ -48,6 +69,7 @@ export type ParsedCharDeskText = {
   height: number;
   cells: CharDeskTextCell[];
   hasAnsi: boolean;
+  ansiEvidence: CharDeskAnsiEvidence;
   diagnostics: CharDeskTextDiagnostic[];
 };
 

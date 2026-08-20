@@ -59,4 +59,23 @@ describe('focus ring placement', () => {
       'aria-pressed:focus-visible:ring-0'
     );
   });
+
+  it('keeps operation feedback orthogonal to interaction surfaces', () => {
+    const activeSuccess = rx.control({ active: true, feedback: 'success' });
+    const selectedError = rx.menuItem({ selected: true, feedback: 'error' });
+
+    expect(activeSuccess).toContain('bg-control-active-surface');
+    expect(activeSuccess).toContain('text-success');
+    expect(activeSuccess).toContain('hover:text-success');
+    expect(selectedError).toContain('bg-control-active-surface');
+    expect(selectedError).toContain('text-error');
+    expect(selectedError).toContain('data-[highlighted]:text-error');
+  });
+
+  it('maps persistent status text and dots through semantic recipes', () => {
+    expect(rx.statusText({ tone: 'success' })).toBe('text-success');
+    expect(rx.statusText({ tone: 'warning' })).toBe('text-warning');
+    expect(rx.statusText({ tone: 'error' })).toBe('text-error');
+    expect(rx.statusDot({ tone: 'success' })).toContain('bg-success');
+  });
 });

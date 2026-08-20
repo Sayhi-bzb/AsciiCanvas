@@ -19,6 +19,7 @@ import {
   KeyboardShortcutsPanel,
   type KeyboardShortcutsPanelHandle,
 } from './keyboard-shortcuts-dialog';
+import { DisplaySettingsPanel } from './display-settings-panel';
 import { SettingsContentSection } from './settings-content-section';
 import { SettingsNavigation } from './settings-navigation';
 import {
@@ -34,6 +35,7 @@ type SettingsDialogProps = {
 };
 
 const GeneralIcon = HOST_ICONOLOGY.appMenu.language;
+const DisplayIcon = HOST_ICONOLOGY.appMenu.display;
 const ShortcutsIcon = HOST_ICONOLOGY.appMenu.shortcuts;
 
 export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
@@ -64,6 +66,11 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
       icon: GeneralIcon,
     },
     {
+      value: 'display',
+      title: t('settings.display'),
+      icon: DisplayIcon,
+    },
+    {
       value: 'shortcuts',
       title: t('appMenu.shortcuts'),
       icon: ShortcutsIcon,
@@ -75,9 +82,9 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
     const frame = requestAnimationFrame(() => {
       const control = document.getElementById('settings-language');
       if (typeof control?.scrollIntoView === 'function') {
-        control.scrollIntoView({ block: 'nearest' });
+        control.scrollIntoView({ block: 'nearest', inline: 'nearest' });
       }
-      control?.focus();
+      control?.focus({ preventScroll: true });
       setRevealTarget(null);
     });
     return () => cancelAnimationFrame(frame);
@@ -214,16 +221,19 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
             className="flex min-h-0 min-w-0 overflow-hidden p-1 pt-2 lg:col-start-2 lg:row-start-1 lg:pt-1"
           >
             {section === 'general' ? (
-              <SettingsContentSection heading={t('settings.general')}>
-                <div className="flex min-w-72 items-center justify-between gap-6 py-2">
-                  <Label htmlFor="settings-language" className="whitespace-nowrap">
+              <SettingsContentSection key="general" heading={t('settings.general')}>
+                <div className="flex min-w-0 items-center justify-between gap-4 py-2">
+                  <Label htmlFor="settings-language" className="min-w-0 truncate">
                     {t('appMenu.language')}
                   </Label>
                   <Select
                     value={language}
                     onValueChange={(value) => setLanguage(value as 'en' | 'zh')}
                   >
-                    <SelectTrigger id="settings-language" className="w-40 shrink-0">
+                    <SelectTrigger
+                      id="settings-language"
+                      className="w-2/5 min-w-24 max-w-40 shrink-0"
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent align="start" position="popper">
@@ -235,8 +245,17 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
                   </Select>
                 </div>
               </SettingsContentSection>
+            ) : section === 'display' ? (
+              <SettingsContentSection key="display" heading={t('settings.display')}>
+                <DisplaySettingsPanel
+                  revealSettingId={
+                    revealTarget?.type === 'text-renderer' ? 'text-renderer' : null
+                  }
+                  onRevealComplete={() => setRevealTarget(null)}
+                />
+              </SettingsContentSection>
             ) : (
-              <SettingsContentSection heading={t('shortcutEditor.title')}>
+              <SettingsContentSection key="shortcuts" heading={t('shortcutEditor.title')}>
                 <KeyboardShortcutsPanel
                   ref={shortcutPanelRef}
                   revealEntryId={revealTarget?.type === 'shortcut' ? revealTarget.entryId : null}

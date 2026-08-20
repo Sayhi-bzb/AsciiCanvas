@@ -20,6 +20,10 @@ body,
   overscroll-behavior-x: none;
 }
 
+[data-visual-contract='presentation'] {
+  --warning: var(--presentation-warning);
+}
+
 @theme inline {
   --font-sans:
     'Inter', 'Noto Sans SC', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI',
@@ -68,11 +72,15 @@ body,
   --color-presentation-foreground: var(--presentation-foreground);
   --color-presentation-border: var(--presentation-border);
   --color-presentation-accent: var(--presentation-accent);
+  --color-presentation-warning: var(--presentation-warning);
   --color-presentation-separator: var(--presentation-separator);
   --color-swatch-border: var(--swatch-border);
   --color-field-surface: var(--field-surface);
   --color-field-hover: var(--field-hover);
   --color-invalid-ring: var(--invalid-ring);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-error: var(--error);
   --color-destructive-muted: var(--destructive-muted);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-tab-active-border: var(--tab-active-border);
@@ -142,12 +150,16 @@ body,
   --presentation-foreground: oklch(1 0 0);
   --presentation-border: oklch(1 0 0 / 0.15);
   --presentation-accent: oklch(1 0 0 / 0.15);
+  --presentation-warning: oklch(0.8 0.16 80);
   --presentation-separator: oklch(1 0 0 / 0.2);
   --presentation-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.32), 0 8px 10px -6px rgb(0 0 0 / 0.28);
   --swatch-border: oklch(0 0 0 / 0.1);
   --field-surface: transparent;
   --field-hover: transparent;
-  --invalid-ring: oklch(0.577 0.245 27.325 / 0.2);
+  --invalid-ring: color-mix(in oklch, var(--error) 20%, transparent);
+  --success: oklch(0.45 0.14 150);
+  --warning: oklch(0.48 0.13 75);
+  --error: var(--destructive);
   --destructive-muted: oklch(0.577 0.245 27.325 / 0.1);
   --destructive-foreground: oklch(1 0 0);
   --tab-active-border: transparent;
@@ -208,7 +220,9 @@ body,
   --dialog-shadow: 0 20px 56px rgb(0 0 0 / 0.72), 0 5px 16px rgb(0 0 0 / 0.5);
   --field-surface: oklch(1 0 0 / 0.3);
   --field-hover: oklch(1 0 0 / 0.5);
-  --invalid-ring: oklch(0.704 0.191 22.216 / 0.4);
+  --invalid-ring: color-mix(in oklch, var(--error) 40%, transparent);
+  --success: oklch(0.72 0.17 150);
+  --warning: oklch(0.8 0.16 80);
   --destructive-muted: oklch(0.704 0.191 22.216 / 0.2);
   --tab-active-border: var(--input);
   --tooltip-kbd-surface: oklch(0 0 0 / 0.1);

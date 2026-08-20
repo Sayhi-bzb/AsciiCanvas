@@ -90,12 +90,17 @@ describe('KeyboardShortcutsPanel', () => {
     );
     const shortcutGrid = dialog.querySelector('[data-slot="shortcut-grid"]');
     expect(shortcutGrid?.querySelector('[data-slot="table-container"]')).toHaveClass(
-      'overflow-x-auto'
+      'overflow-x-hidden'
     );
     const shortcutTable = shortcutGrid?.querySelector('table');
     expect(shortcutTable).toHaveAttribute('data-density', 'compact');
     expect(shortcutTable).toHaveAttribute('data-row-hover', 'none');
-    expect(shortcutTable).toHaveClass('min-w-[560px]', 'table-fixed', 'text-xs', 'leading-4');
+    expect(shortcutTable).toHaveClass('min-w-0', 'table-fixed', 'text-xs', 'leading-4');
+    expect(shortcutTable).not.toHaveClass('min-w-[560px]');
+    expect(shortcutTable?.querySelectorAll('col')).toHaveLength(4);
+    expect(shortcutTable?.querySelectorAll('col')[0]).toHaveClass('w-[30%]');
+    expect(shortcutTable?.querySelectorAll('col')[1]).toHaveClass('w-[15%]');
+    expect(shortcutTable?.querySelectorAll('col')[3]).toHaveClass('w-10');
     expect(shortcutTable).not.toHaveClass('text-sm');
     expect(shortcutGrid?.querySelector('[data-slot="table-head"]')).toHaveClass('h-8');
     expect(shortcutGrid?.querySelector('[data-slot="table-cell"]')).toHaveClass('h-8');
@@ -277,7 +282,10 @@ describe('KeyboardShortcutsPanel', () => {
     const conflictingUndo = screen.getByRole('button', { name: /Edit .* for Undo.*Overlaps/ });
     expect(editor.keymap.getBindings('command:undo')).toEqual([['Mod+Z']]);
     expect(conflictingUndo).toHaveAttribute('aria-invalid', 'true');
-    expect(conflictingUndo.querySelector('[data-slot="kbd"]')).toHaveClass('text-destructive');
+    expect(conflictingUndo.querySelector('[data-slot="kbd"]')).toHaveAttribute(
+      'data-invalid',
+      'true'
+    );
     expect(screen.queryByRole('heading', { name: 'Shortcut in use' })).not.toBeInTheDocument();
   });
 
@@ -445,8 +453,14 @@ describe('KeyboardShortcutsPanel', () => {
     const copyConflict = screen.getByRole('button', { name: /for Copy.*assigned to Undo/ });
     expect(undoConflict).toHaveAttribute('aria-invalid', 'true');
     expect(copyConflict).toHaveAttribute('aria-invalid', 'true');
-    expect(undoConflict.querySelector('[data-slot="kbd"]')).toHaveClass('bg-destructive/10');
-    expect(copyConflict.querySelector('[data-slot="kbd"]')).toHaveClass('text-destructive');
+    expect(undoConflict.querySelector('[data-slot="kbd"]')).toHaveAttribute(
+      'data-invalid',
+      'true'
+    );
+    expect(copyConflict.querySelector('[data-slot="kbd"]')).toHaveAttribute(
+      'data-invalid',
+      'true'
+    );
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
     expect(editor.keymap.getBindings('command:copy')).toEqual([['Mod+Z']]);

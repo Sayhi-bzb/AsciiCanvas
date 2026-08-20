@@ -91,7 +91,7 @@ export const prepareCanvasSurface = (
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 };
 
-export type RenderFontSample =
+type RenderFontSample =
   | string
   | { grapheme: string; bold?: boolean; italic?: boolean };
 

@@ -40,8 +40,6 @@ import {
   type CanvasEditorCapabilities,
 } from './canvasEditorCapabilities';
 
-export type { CanvasEditorCapabilities } from './canvasEditorCapabilities';
-
 interface CanvasEditorProps {
   onUndo: () => void;
   onRedo: () => void;
@@ -64,6 +62,10 @@ export const CanvasEditor = ({
   const bgCanvasRef = useRef<HTMLCanvasElement>(null);
   const scratchCanvasRef = useRef<HTMLCanvasElement>(null);
   const uiCanvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasLayers = useMemo(
+    () => ({ bg: bgCanvasRef, scratch: scratchCanvasRef, ui: uiCanvasRef }),
+    [],
+  );
   const containerRef = useRef<HTMLDivElement>(null);
   const viewportLayerRef = useRef<HTMLDivElement>(null);
   const [hoveredLink, setHoveredLink] = useState<CanvasLinkHit | null>(null);
@@ -262,7 +264,7 @@ export const CanvasEditor = ({
   );
 
   useCanvasRenderer(
-    { bg: bgCanvasRef, scratch: scratchCanvasRef, ui: uiCanvasRef },
+    canvasLayers,
     size,
     surfaceGeometry,
     rendererModel,

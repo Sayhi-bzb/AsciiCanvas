@@ -5,10 +5,6 @@ import { ShortcutProvider } from "@/shared/shortcuts/dispatcher";
 import { SlideNavigator } from "./slide-navigator";
 import { ZoomControl } from "./zoom-control";
 
-const { warning } = vi.hoisted(() => ({ warning: vi.fn() }));
-vi.mock("@/shared/services/effects", () => ({
-  feedback: { warning },
-}));
 vi.mock("@/shared/hooks/use-mobile", () => ({
   useIsMobile: () => false,
 }));
@@ -34,7 +30,6 @@ describe("ZoomControl slide playback", () => {
 
   beforeEach(() => {
     fullscreenElement = null;
-    warning.mockReset();
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
     requestFullscreen = vi.fn(async () => {
       fullscreenElement = document.documentElement;
@@ -128,7 +123,25 @@ describe("ZoomControl slide playback", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Play" }));
-    await waitFor(() => expect(warning).toHaveBeenCalledTimes(1));
+    expect(await screen.findByTestId("slide-playback-warning")).toHaveTextContent(
+      "Fullscreen was unavailable. Playing in this window instead."
+    );
+    expect(screen.getByTestId("slide-playback-warning")).toHaveClass("text-warning");
+    expect(screen.getByTestId("slide-playback")).toBeInTheDocument();
+  });
+
+  it("shows the same inline warning when the Fullscreen API is unavailable", async () => {
+    Reflect.deleteProperty(document.documentElement, "requestFullscreen");
+    render(
+      <ShortcutProvider>
+        <ZoomControl containerSize={{ width: 1000, height: 700 }} />
+      </ShortcutProvider>
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Play" }));
+
+    expect(await screen.findByTestId("slide-playback-warning")).toBeInTheDocument();
+    expect(screen.getByTestId("slide-playback-warning")).toHaveClass("text-warning");
     expect(screen.getByTestId("slide-playback")).toBeInTheDocument();
   });
 

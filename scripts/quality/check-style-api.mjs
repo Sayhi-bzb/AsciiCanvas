@@ -227,6 +227,24 @@ const checkWidgetBehaviorOwnership = (content, relFile) => {
         const className = getJsxAttribute(node, "className");
         const classText = className?.initializer?.getText(sourceFile) ?? "";
         const presentationEscape = hasPresentationEscape(node);
+        const activeText = getJsxAttribute(node, "active")?.initializer?.getText(sourceFile) ?? "";
+        const destructiveText =
+          getJsxAttribute(node, "destructive")?.initializer?.getText(sourceFile) ?? "";
+
+        if (/\bsuccess\b|\bfeedback\b/.test(activeText)) {
+          violations.push({
+            check: "Feedback success must use the feedback prop instead of active",
+            file: relFile,
+            line,
+          });
+        }
+        if (/\berror\b|\bfeedback\b/.test(destructiveText)) {
+          violations.push({
+            check: "Feedback errors must use the feedback prop instead of destructive",
+            file: relFile,
+            line,
+          });
+        }
 
         if (presentationEscape && relFile !== "src/widgets/toolbar/slide-playback.tsx") {
           violations.push({

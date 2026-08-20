@@ -8,11 +8,14 @@ import {
   getShortcutScopeLabel,
 } from './editor-shortcut-catalog';
 
-export type SettingsSection = 'general' | 'shortcuts';
+export type SettingsSection = 'general' | 'display' | 'shortcuts';
 
 export type SettingsTarget = {
   section: SettingsSection;
-  focus?: { type: 'language' } | { type: 'shortcut'; entryId: string };
+  focus?:
+    | { type: 'language' }
+    | { type: 'text-renderer' }
+    | { type: 'shortcut'; entryId: string };
 };
 
 export type SettingsSearchResult = {
@@ -35,6 +38,7 @@ export const getSettingsSearchResults = (
 ) => {
   const generalTitle = t('settings.general');
   const shortcutsTitle = t('appMenu.shortcuts');
+  const displayTitle = t('settings.display');
   const languageTitle = t('appMenu.language');
   const results: SettingsSearchResult[] = [
     {
@@ -57,6 +61,47 @@ export const getSettingsSearchResults = (
         t('appMenu.chinese'),
         'English',
         '中文',
+      ]),
+    },
+    {
+      id: 'section:display',
+      group: 'display',
+      groupTitle: displayTitle,
+      title: displayTitle,
+      target: { section: 'display' },
+      searchText: searchable([
+        displayTitle,
+        t('settings.textRenderer'),
+        t('settings.column.color'),
+        'ANSI',
+        'Markdown',
+        'Raw',
+      ]),
+    },
+    {
+      id: 'setting:text-renderer',
+      group: 'display',
+      groupTitle: displayTitle,
+      title: t('settings.textRenderer'),
+      target: { section: 'display', focus: { type: 'text-renderer' } },
+      searchText: searchable([
+        t('settings.textRenderer'),
+        t('settings.markdownRules'),
+        t('settings.column.color'),
+        t('settings.markdown.strong'),
+        t('settings.markdown.emphasis'),
+        t('settings.markdown.strikethrough'),
+        t('settings.markdown.link'),
+        t('settings.markdown.heading'),
+        t('settings.markdown.inlineCode'),
+        t('settings.markdown.blockquote'),
+        t('settings.markdown.list'),
+        t('settings.markdown.thematicBreak'),
+        t('settings.markdown.codeBlock'),
+        t('settings.markdown.table'),
+        'ANSI',
+        'Markdown',
+        'Raw',
       ]),
     },
     {

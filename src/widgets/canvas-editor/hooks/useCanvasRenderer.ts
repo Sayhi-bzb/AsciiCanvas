@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   BACKGROUND_COLOR,
   COLOR_ACTIVE_CELL_BG,
@@ -58,14 +58,6 @@ import {
   type CanvasSurfaceGeometry,
 } from '../canvasSurfaceGeometry';
 export type { StructuredMovePreview } from './interaction/structured/structuredInteractionPreview';
-
-export const haveCanvasRenderInputsChanged = (
-  previous: readonly unknown[] | null,
-  next: readonly unknown[]
-): boolean =>
-  !previous ||
-  previous.length !== next.length ||
-  next.some((input, index) => input !== previous[index]);
 
 interface LayerRefs {
   bg: React.RefObject<HTMLCanvasElement | null>;
@@ -230,6 +222,7 @@ export const useCanvasRenderer = (
   runtime?: CanvasEngineRuntime
 ) => {
   const {
+    activeCanvasId,
     offset,
     zoom,
     grid,
@@ -251,12 +244,16 @@ export const useCanvasRenderer = (
     canvasColorPickerTarget,
   } = store;
 
-  const staticGridView = getStaticGridViewState({
-    selection: staticGridSelection,
-    editMode: staticGridEditMode,
-    textCursor,
-    grid,
-  });
+  const staticGridView = useMemo(
+    () =>
+      getStaticGridViewState({
+        selection: staticGridSelection,
+        editMode: staticGridEditMode,
+        textCursor,
+        grid,
+      }),
+    [grid, staticGridEditMode, staticGridSelection, textCursor]
+  );
   const renderedTextCursor = canvasMode !== 'structured' ? staticGridView.textCursor : textCursor;
   const [renderManager] = useState(() => new CanvasRenderManager());
   const manualRenderRafRef = useRef<number | null>(null);
@@ -328,6 +325,7 @@ export const useCanvasRenderer = (
       );
       const renderScratch = CanvasRenderManager.includes(invalidation, 'scratch');
       const renderOverlay = CanvasRenderManager.includes(invalidation, 'overlay');
+      let renderedInvalidation = 0;
 
       const bgCanvas = layers.bg.current;
       const bgCtx = bgCanvas?.getContext('2d', { alpha: false });
@@ -379,6 +377,7 @@ export const useCanvasRenderer = (
           renderOffset
         );
         if (slidePageRect) bgCtx.restore();
+        renderedInvalidation |= CANVAS_FRAME_INVALIDATION.background;
       }
 
       const scratchCanvas = layers.scratch.current;
@@ -400,6 +399,7 @@ export const useCanvasRenderer = (
           renderOffset
         );
         if (slidePageRect) scratchCtx.restore();
+        renderedInvalidation |= CANVAS_FRAME_INVALIDATION.scratch;
       }
 
       const uiCanvas = layers.ui.current;
@@ -643,8 +643,13 @@ export const useCanvasRenderer = (
           });
         }
         if (slidePageRect) uiCtx.restore();
+        renderedInvalidation |= CANVAS_FRAME_INVALIDATION.overlay;
       }
-      if (renderBackground || renderScratch) {
+      renderManager.commit(renderedInvalidation);
+      if (
+        CanvasRenderManager.includes(renderedInvalidation, 'background') ||
+        CanvasRenderManager.includes(renderedInvalidation, 'scratch')
+      ) {
         onViewportRendered?.({ offset: { ...offset }, zoom });
       }
     };
@@ -672,6 +677,7 @@ export const useCanvasRenderer = (
     const sharedViewportInputs = [
       size?.width,
       size?.height,
+      activeCanvasId,
       offset,
       zoom,
       canvasMode,
@@ -739,6 +745,7 @@ export const useCanvasRenderer = (
       fonts?.removeEventListener('loadingdone', handleFontLoad);
     };
   }, [
+    activeCanvasId,
     offset,
     zoom,
     size,

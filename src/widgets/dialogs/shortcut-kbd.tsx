@@ -24,7 +24,7 @@ export function ShortcutKbd({ shortcut, className, invalid = false }: ShortcutKb
           ) : null}
           <Kbd
             aria-hidden="true"
-            className={invalid ? 'bg-destructive/10 text-destructive' : undefined}
+            invalid={invalid}
           >
             {stroke.label}
           </Kbd>

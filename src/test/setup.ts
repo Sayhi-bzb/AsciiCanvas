@@ -6,7 +6,11 @@ import {
   testingCanvasRuntime,
 } from '@/domains/canvas/testing';
 import { createSelectionCommandFactory, createEditorCommandsExtension } from '@/domains/actions/public';
-import { parseDocumentSessionSource } from '@/domains/document/public';
+import {
+  configureTextRenderingRuntimeFallbackForTesting,
+  createTextRenderingRuntime,
+  parseDocumentSessionSource,
+} from '@/domains/document/public';
 import { configureCanvasRuntimeFallbackForTesting } from '@/domains/canvas/react';
 import { createCollaborationRuntime } from '@/domains/collaboration/public';
 import { configureCollaborationRuntimeFallbackForTesting } from '@/domains/collaboration/react';
@@ -30,13 +34,17 @@ if (typeof globalThis.ResizeObserver === 'undefined') {
   });
 }
 
+const textRendering = createTextRenderingRuntime();
+
 initializeCanvasTesting({
   selectionCommands: (documents) => createSelectionCommandFactory({
     getActiveDocumentId: documents.getActiveDocumentId,
+    renderClipboardText: textRendering.render,
   }),
   parseSessionSource: parseDocumentSessionSource,
 });
 configureCanvasRuntimeFallbackForTesting(testingCanvasRuntime);
+configureTextRenderingRuntimeFallbackForTesting(textRendering);
 
 const editor = createCanvasEditorRuntime({
   state: {

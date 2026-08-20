@@ -15,10 +15,10 @@ import { GridManager } from "@/shared/utils/grid";
 import { getSelectionsBoundingBox } from "@/shared/utils/selection";
 import { ExportPipelineError } from "../core/types";
 
-export const MAX_RASTER_EDGE = 8192;
-export const MAX_RASTER_PIXELS = 16_777_216;
+const MAX_RASTER_EDGE = 8192;
+const MAX_RASTER_PIXELS = 16_777_216;
 
-export type RasterLayout = {
+type RasterLayout = {
   width: number;
   height: number;
   pixelWidth: number;

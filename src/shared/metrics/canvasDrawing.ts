@@ -10,7 +10,7 @@ import {
   type GridRenderMetrics,
 } from "./renderMetrics";
 
-export type ResolvedCellVisual = {
+type ResolvedCellVisual = {
   char: string;
   color: string;
   bgColor?: string;
@@ -19,7 +19,7 @@ export type ResolvedCellVisual = {
   fontRoute: RenderFontRoute;
 };
 
-export type CanvasCellDrawOptions = {
+type CanvasCellDrawOptions = {
   color?: string;
   underline?: boolean;
   zoom?: number;

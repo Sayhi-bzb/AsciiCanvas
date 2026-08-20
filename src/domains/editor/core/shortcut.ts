@@ -59,7 +59,7 @@ export const normalizeShortcutStroke = (
     return null;
   }
   const key = normalizeKeyName(parts.at(-1) ?? '');
-  if (isModifierKey(key) || !VALID_KEYS.has(key as never)) return null;
+  if (isModifierKey(key) || !VALID_KEYS.has(key)) return null;
   const validation = validateHotkey(candidate);
   if (!validation.valid || !hasNonModifierKey(candidate, platform)) return null;
   return normalizeHotkey(candidate, platform);

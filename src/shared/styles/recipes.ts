@@ -1,5 +1,14 @@
 import { cn } from '@/shared/lib/utils';
-import type { Density, ItemVariant, Shape, Size, SurfaceKind, Tone } from './tokens';
+import type {
+  Density,
+  FeedbackStatus,
+  ItemVariant,
+  Shape,
+  Size,
+  StatusTone,
+  SurfaceKind,
+  Tone,
+} from './tokens';
 
 type ControlOptions = {
   tone?: Tone;
@@ -10,6 +19,7 @@ type ControlOptions = {
   pressed?: boolean;
   open?: boolean;
   destructive?: boolean;
+  feedback?: FeedbackStatus;
   subordinate?: boolean;
   joined?: 'start' | 'middle' | 'end';
 };
@@ -29,6 +39,7 @@ type MenuItemOptions = {
   density?: Density;
   variant?: ItemVariant;
   selected?: boolean;
+  feedback?: FeedbackStatus;
 };
 
 type SelectableItemOptions = {
@@ -91,6 +102,26 @@ const persistentControlText =
   'text-foreground hover:text-foreground focus:text-foreground data-[highlighted]:text-foreground data-[state=open]:text-foreground data-[state=open]:hover:text-foreground data-[state=open]:focus:text-foreground data-[state=open]:data-[highlighted]:text-foreground data-[state=on]:text-foreground data-[state=on]:hover:text-foreground data-[state=on]:focus:text-foreground data-[state=checked]:text-foreground data-[state=checked]:focus:text-foreground data-[state=checked]:data-[highlighted]:text-foreground';
 const destructivePersistentText =
   'text-destructive hover:text-destructive focus:text-destructive data-[highlighted]:text-destructive data-[state=open]:text-destructive data-[state=open]:hover:text-destructive data-[state=open]:focus:text-destructive data-[state=open]:data-[highlighted]:text-destructive data-[state=on]:text-destructive data-[state=on]:hover:text-destructive data-[state=on]:focus:text-destructive data-[state=checked]:text-destructive data-[state=checked]:focus:text-destructive data-[state=checked]:data-[highlighted]:text-destructive';
+const feedbackPersistentText: Record<FeedbackStatus, string> = {
+  success:
+    'text-success hover:text-success focus:text-success data-[highlighted]:text-success data-[state=open]:text-success data-[state=open]:hover:text-success data-[state=open]:focus:text-success data-[state=open]:data-[highlighted]:text-success data-[state=on]:text-success data-[state=on]:hover:text-success data-[state=on]:focus:text-success data-[state=checked]:text-success data-[state=checked]:focus:text-success data-[state=checked]:data-[highlighted]:text-success',
+  warning:
+    'text-warning hover:text-warning focus:text-warning data-[highlighted]:text-warning data-[state=open]:text-warning data-[state=open]:hover:text-warning data-[state=open]:focus:text-warning data-[state=open]:data-[highlighted]:text-warning data-[state=on]:text-warning data-[state=on]:hover:text-warning data-[state=on]:focus:text-warning data-[state=checked]:text-warning data-[state=checked]:focus:text-warning data-[state=checked]:data-[highlighted]:text-warning',
+  error:
+    'text-error hover:text-error focus:text-error data-[highlighted]:text-error data-[state=open]:text-error data-[state=open]:hover:text-error data-[state=open]:focus:text-error data-[state=open]:data-[highlighted]:text-error data-[state=on]:text-error data-[state=on]:hover:text-error data-[state=on]:focus:text-error data-[state=checked]:text-error data-[state=checked]:focus:text-error data-[state=checked]:data-[highlighted]:text-error',
+};
+const statusText: Record<StatusTone, string> = {
+  neutral: 'text-muted-foreground',
+  success: 'text-success',
+  warning: 'text-warning',
+  error: 'text-error',
+};
+const statusDot: Record<StatusTone, string> = {
+  neutral: 'bg-foreground',
+  success: 'bg-success',
+  warning: 'bg-warning',
+  error: 'bg-error',
+};
 const openControlState = cn(openControlSurface, persistentControlText);
 const pressedControlState = cn(pressedControlSurface, persistentControlText);
 const activeControlState = cn(activeControlSurface, persistentControlText);
@@ -158,6 +189,7 @@ export const rx = {
     density = 'compact',
     variant = 'default',
     selected = false,
+    feedback,
   }: MenuItemOptions = {}) =>
     cn(
       menuItemBase,
@@ -166,7 +198,8 @@ export const rx = {
       variant === 'destructive' &&
         'text-destructive focus:bg-destructive-muted focus:text-destructive data-[highlighted]:bg-destructive-muted data-[highlighted]:text-destructive [&_svg]:text-destructive',
       selected && activeControlState,
-      selected && variant === 'destructive' && destructivePersistentText
+      selected && variant === 'destructive' && destructivePersistentText,
+      feedback && feedbackPersistentText[feedback]
     ),
   menuSeparator: '-mx-1 my-1 h-px bg-separator',
   control: ({
@@ -178,6 +211,7 @@ export const rx = {
     pressed = false,
     open = false,
     destructive = false,
+    feedback,
     subordinate = false,
     joined,
   }: ControlOptions = {}) => {
@@ -207,9 +241,14 @@ export const rx = {
       joined === 'end' && 'rounded-l-none',
       outlined && 'border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground',
       persistentState,
-      persistentState && destructive && destructivePersistentText
+      persistentState && destructive && destructivePersistentText,
+      feedback && feedbackPersistentText[feedback]
     );
   },
+
+  statusText: ({ tone = 'neutral' }: { tone?: StatusTone } = {}) => statusText[tone],
+  statusDot: ({ tone = 'neutral' }: { tone?: StatusTone } = {}) =>
+    cn('size-1 shrink-0 rounded-full', statusDot[tone]),
 
   selectableItem: ({
     orientation = 'horizontal',
@@ -275,7 +314,7 @@ export const rx = {
         'border-0 bg-transparent shadow-none focus-visible:ring-1 focus-visible:ring-ring',
       appearance === 'search' &&
         'border-0 bg-search-surface shadow-none focus-visible:ring-1 focus-visible:ring-ring',
-      invalid && 'border-destructive aria-invalid:border-destructive'
+      invalid && 'border-error aria-invalid:border-error'
     ),
 
   panelText: () => 'text-xs leading-4',

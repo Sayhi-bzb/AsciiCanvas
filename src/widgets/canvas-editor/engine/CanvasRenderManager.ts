@@ -20,23 +20,33 @@ const inputsChanged = (
   previous.length !== next.length ||
   next.some((input, index) => input !== previous[index]);
 
-/** Tracks layer dependencies and converts changed inputs to render invalidation. */
+/** Tracks layer dependencies; inputs become current only after their layer is drawn. */
 export class CanvasRenderManager {
-  private readonly inputs = new Map<CanvasRenderLayer, readonly unknown[]>();
+  private readonly committedInputs = new Map<CanvasRenderLayer, readonly unknown[]>();
+  private pendingInputs: Record<CanvasRenderLayer, readonly unknown[]> | null = null;
 
   update(next: Record<CanvasRenderLayer, readonly unknown[]>): CanvasFrameInvalidation {
+    this.pendingInputs = next;
     let invalidation = 0;
     (Object.keys(next) as CanvasRenderLayer[]).forEach((layer) => {
       const inputs = next[layer];
-      if (!inputsChanged(this.inputs.get(layer), inputs)) return;
-      this.inputs.set(layer, inputs);
+      if (!inputsChanged(this.committedInputs.get(layer), inputs)) return;
       invalidation |= LAYER_BITS[layer];
     });
     return invalidation;
   }
 
+  commit(invalidation: CanvasFrameInvalidation): void {
+    const pendingInputs = this.pendingInputs;
+    if (!pendingInputs) return;
+    (Object.keys(pendingInputs) as CanvasRenderLayer[]).forEach((layer) => {
+      if (!CanvasRenderManager.includes(invalidation, layer)) return;
+      this.committedInputs.set(layer, pendingInputs[layer]);
+    });
+  }
+
   reset(): CanvasFrameInvalidation {
-    this.inputs.clear();
+    this.committedInputs.clear();
     return CANVAS_FRAME_ALL;
   }
 

@@ -11,7 +11,7 @@ export interface StaticGridInputFlow {
   exhausted: boolean;
 }
 
-export interface StaticGridInputStep {
+interface StaticGridInputStep {
   flow: StaticGridInputFlow;
   writeAt: GridAddress | null;
 }

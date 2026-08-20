@@ -9,6 +9,7 @@ type TableRowHover = 'highlight' | 'none';
 type TableProps = React.ComponentProps<'table'> & {
   density?: TableDensity;
   rowHover?: TableRowHover;
+  containerClassName?: string;
 };
 
 const TableContext = React.createContext<{
@@ -16,10 +17,19 @@ const TableContext = React.createContext<{
   rowHover: TableRowHover;
 }>({ density: 'default', rowHover: 'highlight' });
 
-function Table({ className, density = 'default', rowHover = 'highlight', ...props }: TableProps) {
+function Table({
+  className,
+  containerClassName,
+  density = 'default',
+  rowHover = 'highlight',
+  ...props
+}: TableProps) {
   return (
     <TableContext.Provider value={{ density, rowHover }}>
-      <div data-slot="table-container" className="relative w-full overflow-x-auto">
+      <div
+        data-slot="table-container"
+        className={cn('relative w-full overflow-x-auto', containerClassName)}
+      >
         <table
           data-slot="table"
           data-density={density}

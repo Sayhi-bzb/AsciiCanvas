@@ -3,7 +3,9 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   CHARDESK_TEXT_PROTOCOL_VERSION,
+  decodeCharDeskTextRuns,
   getGraphemeCellWidth,
+  layoutCharDeskTextRuns,
   parseCharDeskText,
   splitGraphemes,
   stripCharDeskAnsi,
@@ -60,6 +62,34 @@ describe("CharDesk Text Protocol v1 conformance", () => {
 
     expect(parsed.plainText).toBe("hello [world] [999mA");
     expect(parsed.hasAnsi).toBe(false);
+  });
+
+  it("distinguishes ambiguous empty shorthand resets from explicit ANSI", () => {
+    expect(parseCharDeskText("[markdown")).toMatchObject({
+      plainText: "arkdown",
+      hasAnsi: true,
+      ansiEvidence: "ambiguous",
+    });
+    expect(parseCharDeskText("[31mred[0m")).toMatchObject({
+      plainText: "red",
+      hasAnsi: true,
+      ansiEvidence: "explicit",
+    });
+    expect(parseCharDeskText("\u001b[mreset")).toMatchObject({
+      plainText: "reset",
+      ansiEvidence: "explicit",
+    });
+  });
+
+  it("decodes ANSI into styled runs without applying a layout default", () => {
+    expect(decodeCharDeskTextRuns("[31mA界[0m\nB")).toMatchObject({
+      text: "A界\nB",
+      ansiEvidence: "explicit",
+      runs: [
+        { text: "A界", color: "#800000" },
+        { text: "\nB" },
+      ],
+    });
   });
 
   it("consumes unknown SGR in ansi mode and reports it", () => {
@@ -137,5 +167,24 @@ describe("CharDesk Text Protocol v1 conformance", () => {
 
   it("rejects invalid tab sizes", () => {
     expect(() => parseCharDeskText("A", { tabSize: 0 })).toThrow(RangeError);
+  });
+
+  it("lays out styled runs with shared grapheme and tab geometry", () => {
+    const parsed = layoutCharDeskTextRuns(
+      [
+        { text: "A界", attrs: { bold: true } },
+        { text: "\tB\nC", href: "https://example.com" },
+      ],
+      { defaultStyle: { color: "#ffffff" }, tabSize: 4 }
+    );
+
+    expect(parsed).toMatchObject({ plainText: "A界 B\nC", width: 5, height: 2 });
+    expect(parsed.cells).toMatchObject([
+      { x: 0, y: 0, text: "A", color: "#ffffff", attrs: { bold: true } },
+      { x: 1, y: 0, text: "界", width: 2, attrs: { bold: true } },
+      { x: 3, y: 0, text: " ", href: "https://example.com" },
+      { x: 4, y: 0, text: "B", href: "https://example.com" },
+      { x: 0, y: 1, text: "C", href: "https://example.com" },
+    ]);
   });
 });

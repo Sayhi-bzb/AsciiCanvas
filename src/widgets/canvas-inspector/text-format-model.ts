@@ -9,7 +9,7 @@ export const textAttributeNames = [
 ] as const;
 
 export type TextAttributeName = (typeof textAttributeNames)[number];
-export type TextAttributeState = "on" | "off" | "mixed";
+type TextAttributeState = "on" | "off" | "mixed";
 export type TextFormattingModel = Record<TextAttributeName, TextAttributeState>;
 
 type TextStyle = {

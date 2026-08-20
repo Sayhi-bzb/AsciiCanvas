@@ -25,6 +25,8 @@ import { OnboardingTourProvider } from '@/widgets/onboarding/new-user-tour';
 import { CanvasEngineProvider } from '@/widgets/canvas-editor/engine/useCanvasEngineRuntime';
 import { useEditor } from '@/domains/editor/public';
 import { Toaster } from '@/shared/ui/sonner';
+import { StatusText } from '@/shared/ui/status';
+import type { StatusTone } from '@/shared/styles/tokens';
 import { CanvasInspectorControl } from '@/widgets/canvas-inspector';
 import {
   EditorChromeLayout,
@@ -41,6 +43,22 @@ const SidebarRight = lazy(() =>
     default: module.SidebarRight,
   }))
 );
+
+const getBlackboardStatusTone = (
+  state: ReturnType<typeof useBlackboardSource>['status']['state']
+): StatusTone => {
+  switch (state) {
+    case 'current':
+      return 'success';
+    case 'warning':
+    case 'missing':
+      return 'warning';
+    case 'disconnected':
+      return 'error';
+    default:
+      return 'neutral';
+  }
+};
 
 function SidebarShortcutRegistration() {
   const { toggleSidebar } = useSidebar();
@@ -220,13 +238,15 @@ function AppContent() {
             </div>
             <CanvasBreadcrumb manageSessions={capabilities.manageSessions} />
             {hostProfile.id === 'blackboard' && (
-              <span
-                data-testid="blackboard-source-status"
-                data-state={blackboardSource.status.state}
-                className="pointer-events-auto truncate px-2 text-xs text-muted-foreground"
-              >
-                {blackboardSource.status.message}
-              </span>
+              <StatusText tone={getBlackboardStatusTone(blackboardSource.status.state)} asChild>
+                <span
+                  data-testid="blackboard-source-status"
+                  data-state={blackboardSource.status.state}
+                  className="pointer-events-auto truncate px-2 text-xs"
+                >
+                  {blackboardSource.status.message}
+                </span>
+              </StatusText>
             )}
             {capabilities.collaborate && <CollaborationControl />}
           </div>

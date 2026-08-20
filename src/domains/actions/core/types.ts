@@ -60,7 +60,7 @@ export type ActionId = EditorActionId | ToolbarActionId | SidebarActionId;
 export type ShortcutToken = string;
 
 type ShortcutChord = readonly ShortcutToken[];
-export type ShortcutDefinition = ShortcutChord | string;
+type ShortcutDefinition = ShortcutChord | string;
 
 export interface ActionMeta<Id extends ActionId = ActionId> {
   id: Id;

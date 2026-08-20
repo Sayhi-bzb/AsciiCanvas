@@ -7,9 +7,16 @@ import {
 } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useUiI18n } from "@/shared/i18n"
+import { cn } from "@/shared/lib/utils"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 
-const Toaster = ({ ...props }: ToasterProps) => {
+const statusClassNames = {
+  success: "[&_[data-title]]:text-success [&_[data-icon]]:text-success",
+  warning: "[&_[data-title]]:text-warning [&_[data-icon]]:text-warning",
+  error: "[&_[data-title]]:text-error [&_[data-icon]]:text-error",
+} as const
+
+const Toaster = ({ toastOptions, ...props }: ToasterProps) => {
   const { theme = "system" } = useTheme()
   const { t } = useUiI18n()
 
@@ -19,10 +26,10 @@ const Toaster = ({ ...props }: ToasterProps) => {
       className="toaster group"
       containerAriaLabel={t("notification.region")}
       icons={{
-        success: <CircleCheck className="size-4" />,
+        success: <CircleCheck className="size-4 text-success" />,
         info: <Info className="size-4" />,
-        warning: <TriangleAlert className="size-4" />,
-        error: <OctagonX className="size-4" />,
+        warning: <TriangleAlert className="size-4 text-warning" />,
+        error: <OctagonX className="size-4 text-error" />,
         loading: <LoaderCircle className="size-4 animate-spin" />,
       }}
       style={
@@ -33,6 +40,15 @@ const Toaster = ({ ...props }: ToasterProps) => {
           "--border-radius": "var(--radius)",
         } as React.CSSProperties
       }
+      toastOptions={{
+        ...toastOptions,
+        classNames: {
+          ...toastOptions?.classNames,
+          success: cn(statusClassNames.success, toastOptions?.classNames?.success),
+          warning: cn(statusClassNames.warning, toastOptions?.classNames?.warning),
+          error: cn(statusClassNames.error, toastOptions?.classNames?.error),
+        },
+      }}
       {...props}
     />
   )

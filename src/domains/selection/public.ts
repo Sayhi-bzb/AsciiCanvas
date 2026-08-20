@@ -7,7 +7,6 @@ export type {
 } from "./model/static-grid";
 export type {
   StaticGridInputFlow,
-  StaticGridInputStep,
 } from "./model/static-grid-input-flow";
 export {
   advanceStaticGridInputFlow,

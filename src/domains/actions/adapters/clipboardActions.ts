@@ -13,6 +13,10 @@ import { resolveGridSlot } from "@/shared/utils/grid-occupancy";
 import type { GridMap, NodeBounds, Point, SelectionArea } from "@/shared/types";
 import type { StructuredNode, StructuredNodeStyle, StructuredTextNode, StructuredTextStyleRange } from "@/domains/structured-content/public";
 import type { RichTextCell } from "@/domains/canvas/public";
+import {
+  renderTextSource,
+  type TextRenderResult,
+} from "@/domains/document/public";
 import { clipboard } from "@/shared/services/effects";
 import { cloneTextAttributes } from "@/shared/utils/ansi";
 import { parseAnsiTextCells } from "@/shared/utils/ansiText";
@@ -71,7 +75,37 @@ const cloneStructuredNodeStyle = (
     : {}),
 });
 
-export const parseAnsiClipboardText = parseAnsiTextCells;
+/** @deprecated Use the document text-rendering runtime for new clipboard paths. */
+export const parseAnsiClipboardText = (
+  source: string,
+  defaultColor = DEFAULT_ANSI_PASTE_COLOR
+) => parseAnsiTextCells(source, defaultColor);
+
+export type RenderClipboardText = (
+  source: string,
+  defaultColor: string
+) => TextRenderResult | Promise<TextRenderResult>;
+
+const toRenderedClipboardPayload = async (
+  source: string,
+  defaultColor: string,
+  renderText: RenderClipboardText
+) => {
+  const rendered = await renderText(source, defaultColor);
+  return rendered.kind === "styled"
+    ? {
+        richCells: rendered.cells,
+        structured: null,
+        structuredText: null,
+        plainText: source,
+      }
+    : {
+        richCells: null,
+        structured: null,
+        structuredText: null,
+        plainText: rendered.text,
+      };
+};
 
 export const hasClipboardSource = (
   selections: SelectionArea[],
@@ -470,7 +504,8 @@ const readRichClipboardCells = async (): Promise<{
 
 export const readClipboardPayload = async (
   eventDataTransfer?: DataTransfer,
-  defaultColor = DEFAULT_ANSI_PASTE_COLOR
+  defaultColor = DEFAULT_ANSI_PASTE_COLOR,
+  renderText: RenderClipboardText = renderTextSource
 ) => {
   // ClipboardEvent data is only guaranteed to remain readable while the
   // event is being dispatched. Snapshot every format before the first await.
@@ -487,20 +522,7 @@ export const readClipboardPayload = async (
   }
 
   if (eventPlainText) {
-    const ansiCells = parseAnsiClipboardText(eventPlainText, defaultColor);
-    return ansiCells
-      ? {
-          richCells: ansiCells,
-          structured: null,
-          structuredText: null,
-          plainText: eventPlainText,
-        }
-      : {
-          richCells: null,
-          structured: null,
-          structuredText: null,
-          plainText: eventPlainText,
-        };
+    return await toRenderedClipboardPayload(eventPlainText, defaultColor, renderText);
   }
 
   const richPayload = await readRichClipboardCells();
@@ -524,10 +546,7 @@ export const readClipboardPayload = async (
     };
   }
   if (text) {
-    const ansiCells = parseAnsiClipboardText(text, defaultColor);
-    return ansiCells
-      ? { richCells: ansiCells, structured: null, structuredText: null, plainText: text }
-      : { richCells: null, structured: null, structuredText: null, plainText: text };
+    return await toRenderedClipboardPayload(text, defaultColor, renderText);
   }
 
   return { richCells: null, structured: null, structuredText: null, plainText: null };

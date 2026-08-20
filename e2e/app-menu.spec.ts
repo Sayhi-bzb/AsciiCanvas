@@ -181,4 +181,55 @@ test.describe('App menu', () => {
     await sectionOptions.getByRole('option', { name: 'Shortcuts' }).click();
     await expect(settings.getByRole('heading', { name: 'Keyboard shortcuts' })).toBeVisible();
   });
+
+  test('keeps every Settings table column inside the phone content width', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 720 });
+    await page.goto('/');
+
+    await page.getByRole('button', { name: 'Open menu' }).click();
+    await page
+      .getByRole('menu', { name: 'Open menu' })
+      .getByRole('menuitem', { name: 'Settings' })
+      .click();
+
+    const settings = page.getByRole('dialog', { name: 'Settings' });
+    const content = settings.locator('[data-slot="settings-content"]');
+    const sectionScroll = () => settings.locator('[data-slot="settings-section-scroll"]');
+    const expectWidthContained = async (target: ReturnType<typeof sectionScroll>) => {
+      const metrics = await target.evaluate((element) => ({
+        clientWidth: element.clientWidth,
+        scrollLeft: element.scrollLeft,
+        scrollWidth: element.scrollWidth,
+      }));
+      expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth + 1);
+      expect(metrics.scrollLeft).toBe(0);
+    };
+
+    await expectWidthContained(sectionScroll());
+
+    const sectionSelect = settings.getByRole('combobox', { name: 'Settings sections' });
+    await sectionSelect.click();
+    await page.getByRole('listbox').getByRole('option', { name: 'Display' }).click();
+    await expect(settings.getByRole('columnheader', { name: 'Setting' })).toBeVisible();
+    await expect(settings.getByRole('columnheader', { name: 'Value' })).toBeVisible();
+    await expect(settings.getByRole('columnheader', { name: 'Color' })).toBeVisible();
+    await expectWidthContained(sectionScroll());
+    await expectWidthContained(settings.locator('[data-slot="display-settings-grid"]'));
+
+    await sectionSelect.click();
+    await page.getByRole('listbox').getByRole('option', { name: 'Shortcuts' }).click();
+    await expect(settings.getByRole('columnheader', { name: 'Command' })).toBeVisible();
+    await expect(settings.getByRole('columnheader', { name: 'Scope' })).toBeVisible();
+    await expect(settings.getByRole('columnheader', { name: 'Shortcut' })).toBeVisible();
+    await expectWidthContained(sectionScroll());
+    await expectWidthContained(settings.locator('[data-slot="shortcut-grid"]'));
+
+    await settings.getByRole('searchbox', { name: 'Search settings' }).fill('Undo');
+    await settings
+      .getByRole('navigation', { name: 'Settings search results' })
+      .getByRole('button', { name: 'Undo' })
+      .click();
+    await expect(content).toBeVisible();
+    await expectWidthContained(sectionScroll());
+  });
 });

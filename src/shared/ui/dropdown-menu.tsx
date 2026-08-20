@@ -4,7 +4,7 @@ import { Check, ChevronRight } from 'lucide-react';
 
 import { cn } from '@/shared/lib/utils';
 import { rx } from '@/shared/styles/recipes';
-import type { Density, ItemVariant } from '@/shared/styles/tokens';
+import type { Density, FeedbackStatus, ItemVariant } from '@/shared/styles/tokens';
 import { usePortalLayer } from '@/shared/ui/portal-layer';
 
 function DropdownMenu({ ...props }: React.ComponentProps<typeof DropdownMenuPrimitive.Root>) {
@@ -47,18 +47,21 @@ function DropdownMenuItem({
   variant = 'default',
   density = 'compact',
   selected = false,
+  feedback,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Item> & {
   variant?: ItemVariant;
   density?: Density;
   selected?: boolean;
+  feedback?: FeedbackStatus;
 }) {
   return (
     <DropdownMenuPrimitive.Item
       data-slot="dropdown-menu-item"
       data-variant={variant}
       data-selected={selected || undefined}
-      className={cn(rx.menuItem({ density, variant, selected }), className)}
+      data-feedback={feedback}
+      className={cn(rx.menuItem({ density, variant, selected, feedback }), className)}
       {...props}
     />
   );

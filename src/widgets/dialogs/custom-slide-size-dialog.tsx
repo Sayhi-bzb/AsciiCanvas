@@ -18,6 +18,7 @@ import {
 } from "@/shared/ui/dialog";
 import { Input } from "@/shared/ui/input";
 import { Label } from "@/shared/ui/label";
+import { StatusText } from "@/shared/ui/status";
 
 const DEFAULT_COLUMNS = "100";
 const DEFAULT_ROWS = "27";
@@ -124,13 +125,15 @@ export function CustomSlideSizeDialog({
               </div>
             </div>
             {hasInvalidValue ? (
-              <p
-                id="custom-slide-size-error"
-                role="alert"
-                className="mt-2 text-[11px] leading-4 text-destructive"
-              >
-                {t("session.slideCustom.invalid")}
-              </p>
+              <StatusText tone="error" asChild>
+                <p
+                  id="custom-slide-size-error"
+                  role="alert"
+                  className="mt-2 text-[11px] leading-4"
+                >
+                  {t("session.slideCustom.invalid")}
+                </p>
+              </StatusText>
             ) : null}
           </DialogBody>
           <DialogFooter>

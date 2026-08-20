@@ -109,6 +109,11 @@ describe('CollaborationControl', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Copy edit link' }));
     await waitFor(() => expect(clipboardWrite).toHaveBeenCalledOnce());
+    expect(screen.getByRole('button', { name: 'Edit link copied' })).toHaveAttribute(
+      'data-copy-feedback',
+      'success'
+    );
+    expect(screen.getByRole('button', { name: 'Edit link copied' })).toHaveClass('text-success');
     expect(screen.getByRole('dialog', { name: 'Collaboration' })).toBeInTheDocument();
 
     window.dispatchEvent(new Event('blur'));
@@ -123,8 +128,17 @@ describe('CollaborationControl', () => {
 
     const endpoint = await screen.findByLabelText('Custom sync server');
     fireEvent.change(endpoint, {
+      target: { value: 'https://sync.example.com' },
+    });
+    fireEvent.blur(endpoint);
+    expect(endpoint).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByRole('alert')).toHaveTextContent('Enter a secure WebSocket endpoint.');
+
+    fireEvent.change(endpoint, {
       target: { value: 'wss://sync.example.com/' },
     });
+    expect(endpoint).toHaveAttribute('aria-invalid', 'false');
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     const connect = screen.getByRole('button', { name: 'Connect' });
     expect(connect).toBeEnabled();
     fireEvent.click(connect);
@@ -135,6 +149,50 @@ describe('CollaborationControl', () => {
       provider: 'websocket',
       endpoint: 'wss://sync.example.com',
     });
+  });
+
+  it.each([
+    ['invalid', '/#room=e30', 'This collaboration link is invalid.'],
+    [
+      'unsupported',
+      `/#room=${btoa(JSON.stringify({ version: 4 })).replace(/=+$/g, '')}`,
+      'This collaboration link uses an unsupported version.',
+    ],
+  ])('keeps an %s incoming-link error on the collaboration control', async (_, url, message) => {
+    window.history.replaceState(null, '', url);
+    render(<CollaborationControl />);
+
+    expect(screen.queryByRole('dialog', { name: 'Collaboration' })).not.toBeInTheDocument();
+    const trigger = screen.getByRole('button', { name: 'Collaboration' });
+    await waitFor(() => expect(trigger).toHaveAttribute('data-error', 'true'));
+    expect(screen.getByTestId('collaboration-error-indicator')).toBeInTheDocument();
+
+    openPanel();
+    expect(await screen.findByRole('alert')).toHaveTextContent(message);
+  });
+
+  it('shows clipboard failures on the copy-link button', async () => {
+    const descriptor: CollaborationDescriptorV2 = {
+      version: 2,
+      documentVersion: 2,
+      mode: 'freeform',
+      provider: 'p2p',
+      roomId: 'room-id-1234567890',
+      key: 'room-key-1234567890123456789012345678901234567890',
+    };
+    seedSession('freeform', descriptor);
+    clipboardWrite.mockRejectedValue(new Error('denied'));
+    render(<CollaborationControl />);
+    openPanel();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Copy edit link' }));
+
+    const failedButton = await screen.findByRole('button', {
+      name: 'Could not copy edit link',
+    });
+    expect(failedButton).toHaveAttribute('data-copy-feedback', 'error');
+    expect(failedButton).toHaveClass('text-error');
+    expect(failedButton.querySelector('.lucide-x')).toBeInTheDocument();
   });
 
   it('shows room presence and keeps the menu open after leaving', async () => {
@@ -169,10 +227,10 @@ describe('CollaborationControl', () => {
 
     const trigger = screen.getByRole('button', { name: 'Collaboration' });
     expect(trigger).not.toHaveAttribute('data-active');
-    expect(screen.getByTestId('collaboration-connected-indicator')).toBeInTheDocument();
+    expect(screen.getByTestId('collaboration-connected-indicator')).toHaveClass('bg-success');
     openPanel();
     expect(trigger).toHaveClass('bg-control-open-surface');
-    expect(await screen.findByText('Connected')).toBeInTheDocument();
+    expect(await screen.findByText('Connected')).toHaveClass('text-success');
     expect(screen.getByText('2 participant(s)')).toBeInTheDocument();
     expect(screen.getByText('Remote Peer')).toBeInTheDocument();
 
@@ -182,6 +240,38 @@ describe('CollaborationControl', () => {
     expect(screen.getByRole('button', { name: 'Start P2P room' })).toBeInTheDocument();
     expect(useEditorStore.getState().canvasSessions[0].collaboration).toBeUndefined();
     expect(window.location.hash).toBe('');
+  });
+
+  it('distinguishes disconnected state from recoverable integrity warnings', async () => {
+    const descriptor: CollaborationDescriptorV2 = {
+      version: 2,
+      documentVersion: 2,
+      mode: 'freeform',
+      provider: 'p2p',
+      roomId: 'room-id-1234567890',
+      key: 'room-key-1234567890123456789012345678901234567890',
+    };
+    seedSession('freeform', descriptor);
+    snapshot = {
+      descriptor,
+      documentStatus: 'ready',
+      connectionStatus: 'offline',
+      canEdit: true,
+      peers: [],
+      error: null,
+      errorKind: null,
+      hasLocalCopy: true,
+      integrityIssues: [
+        { channel: 'main-grid', key: '1,1', reason: 'Skipped one invalid remote cell.' },
+      ],
+    };
+
+    render(<CollaborationControl />);
+
+    expect(screen.getByTestId('collaboration-connected-indicator')).toHaveClass('bg-error');
+    openPanel();
+    expect(await screen.findByText('Offline')).toHaveClass('text-error');
+    expect(screen.getByText('Skipped one invalid remote cell.')).toHaveClass('text-warning');
   });
 
   it('opens an incoming room in a dedicated session without clearing the active canvas', async () => {

@@ -57,6 +57,7 @@ export const useCanvasEditorModels = () => {
   };
   const rendererStore = useCanvasState(
     useShallow((state) => ({
+      activeCanvasId: state.activeCanvasId,
       offset: state.offset,
       zoom: state.zoom,
       grid: state.grid,

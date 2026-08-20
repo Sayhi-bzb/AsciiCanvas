@@ -10,7 +10,12 @@ import {
   CollaborationRuntime,
   createCollaborationRuntime,
 } from "@/domains/collaboration/public";
-import { parseDocumentSessionSource } from "@/domains/document/public";
+import {
+  createTextRenderingRuntime,
+  parseDocumentSessionSource,
+  type TextRenderingRuntime,
+  type TextRenderingStorage,
+} from "@/domains/document/public";
 import {
   createCanvasEditorExtension,
   createCanvasEditorRuntime,
@@ -31,6 +36,7 @@ type KeymapStorage = Pick<Storage, "getItem" | "setItem">;
 type ApplicationEditorHostOptions = {
   canvasPersistence?: false | { storage: Storage; key: string; migrateLegacy?: boolean };
   keymapStorage?: KeymapStorage | false;
+  textRenderingStorage?: TextRenderingStorage | false;
   profile?: EditorHostProfile;
   initialSessions?: readonly CanvasSession[];
 };
@@ -39,21 +45,25 @@ export class ApplicationEditorHost {
   readonly canvas: CanvasRuntime;
   readonly collaboration: CollaborationRuntime;
   readonly editor: CanvasEditorRuntime;
+  readonly textRendering: TextRenderingRuntime;
   readonly profile: EditorHostProfile;
   #disposed = false;
 
   constructor({
     canvasPersistence = false,
     keymapStorage = false,
+    textRenderingStorage = false,
     profile = EDITOR_HOST_PROFILE,
     initialSessions,
   }: ApplicationEditorHostOptions = {}) {
     this.profile = profile;
     this.collaboration = createCollaborationRuntime();
+    this.textRendering = createTextRenderingRuntime({ storage: textRenderingStorage });
     this.canvas = createCanvasRuntime({
       persistence: canvasPersistence,
       selectionCommands: createSelectionCommandFactory({
         getActiveDocumentId: () => this.canvas.documents.getActiveDocumentId(),
+        renderClipboardText: this.textRendering.render,
       }),
       parseSessionSource: parseDocumentSessionSource,
       reportIntegrityIssues: (issues) =>
@@ -93,6 +103,12 @@ export const createApplicationEditorHost = (options?: ApplicationEditorHostOptio
 
 let applicationHost: ApplicationEditorHost | null = null;
 
+export const releaseApplicationEditorHost = async () => {
+  const host = applicationHost;
+  applicationHost = null;
+  await host?.dispose();
+};
+
 export const getApplicationEditorHost = (
   profile: EditorHostProfile = EDITOR_HOST_PROFILE
 ): ApplicationEditorHost => {
@@ -105,6 +121,7 @@ export const getApplicationEditorHost = (
         ? { storage, key: EDITOR_PERSISTENCE_KEY, migrateLegacy: true }
         : false,
       keymapStorage: isBlackboard ? false : storage,
+      textRenderingStorage: isBlackboard ? false : storage,
       initialSessions: isBlackboard
         ? [{
             id: "blackboard-source",
@@ -119,3 +136,12 @@ export const getApplicationEditorHost = (
   }
   return applicationHost;
 };
+
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => {
+    void releaseApplicationEditorHost();
+  });
+  import.meta.hot.accept(() => {
+    window.location.reload();
+  });
+}

@@ -4,6 +4,7 @@ type CanvasCommands = CanvasRuntime["commands"];
 type CanvasQueries = CanvasRuntime["queries"];
 
 export type CanvasRenderModel = Pick<CanvasState,
+  | "activeCanvasId"
   | "offset"
   | "zoom"
   | "grid"

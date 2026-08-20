@@ -1,13 +1,16 @@
 "use client";
 
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Check, X } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import { useCanvasRuntime, useCanvasState } from "@/domains/canvas/public";
 import {
   getAvailableExportFormats,
   type ExportContext,
+  type ExportFormat,
 } from "@/domains/export/public";
 import { Button } from "@/shared/ui/button";
+import { StatusText } from "@/shared/ui/status";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,8 +24,12 @@ import {
 } from "@/shared/ui/dropdown-menu";
 import { useUiI18n } from "@/shared/i18n";
 import { useCanvasImport } from "@/widgets/import/useCanvasImport";
-import { useAppMenuExport } from "@/widgets/export/use-app-menu-export";
+import {
+  useAppMenuExport,
+  type AppMenuExportErrorCode,
+} from "@/widgets/export/use-app-menu-export";
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
+import { useInPlaceFeedback } from "@/shared/hooks/use-in-place-feedback";
 import { browser } from "@/shared/services/effects";
 import { APP_SOURCE_URL } from "@/shared/lib/constants";
 import { useGitHubStars } from "./use-github-stars";
@@ -34,6 +41,10 @@ const GitHubIcon = HOST_ICONOLOGY.appMenu.github;
 const GitHubStarIcon = HOST_ICONOLOGY.appMenu.githubStar;
 const SettingsIcon = HOST_ICONOLOGY.appMenu.settings;
 const ClearIcon = HOST_ICONOLOGY.appMenu.clear;
+type ExportFeedbackTarget = {
+  format: ExportFormat;
+  errorCode?: AppMenuExportErrorCode;
+};
 const ClearCanvasDialog = lazy(() =>
   import("@/widgets/dialogs/clear-canvas-dialog").then((module) => ({
     default: module.ClearCanvasDialog,
@@ -114,6 +125,19 @@ export function AppMenu() {
     ]
   );
   const exportActions = useAppMenuExport(exportContext);
+  const {
+    feedback: exportFeedback,
+    run: runExportFeedback,
+    clear: clearExportFeedback,
+  } = useInPlaceFeedback<ExportFeedbackTarget>({ errorDurationMs: 4000 });
+  const exportErrorDescription =
+    exportFeedback?.status === "error"
+      ? exportFeedback.target.errorCode === "image-too-large"
+        ? t("export.imageTooLargeDescription")
+        : t("export.saveFailedDescription", {
+            format: exportFeedback.target.format.toUpperCase(),
+          })
+      : null;
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -142,7 +166,10 @@ export function AppMenu() {
             <DropdownMenu
               modal={false}
               open={menuOpen}
-              onOpenChange={setMenuOpen}
+              onOpenChange={(open) => {
+                setMenuOpen(open);
+                if (!open) clearExportFeedback();
+              }}
             >
               <DropdownMenuTrigger asChild>
                 <Button
@@ -180,15 +207,65 @@ export function AppMenu() {
                           {availableExportFormats.map((definition) => (
                             <DropdownMenuItem
                               key={definition.format}
+                              feedback={
+                                exportFeedback?.target.format === definition.format
+                                  ? exportFeedback.status
+                                  : undefined
+                              }
+                              data-export-feedback={
+                                exportFeedback?.target.format === definition.format
+                                  ? exportFeedback.status
+                                  : undefined
+                              }
                               onSelect={(event) => {
                                 event.preventDefault();
-                                void exportActions.save(definition.format);
+                                void runExportFeedback(
+                                  { format: definition.format },
+                                  async () => {
+                                    const result = await exportActions.save(definition.format);
+                                    return result.ok
+                                      ? true
+                                      : {
+                                          success: false,
+                                          target: {
+                                            format: definition.format,
+                                            errorCode: result.errorCode,
+                                          },
+                                        };
+                                  }
+                                );
                               }}
                             >
                               {definition.label}
+                              {exportFeedback?.target.format === definition.format &&
+                              exportFeedback.status === "success" ? (
+                                <span className="ml-auto">
+                                  <Check />
+                                </span>
+                              ) : exportFeedback?.target.format === definition.format &&
+                                exportFeedback.status === "error" ? (
+                                <span className="ml-auto">
+                                  <X />
+                                </span>
+                              ) : null}
                             </DropdownMenuItem>
                           ))}
                         </DropdownMenuGroup>
+                        {exportErrorDescription ? (
+                          <StatusText tone="error" asChild>
+                            <div role="alert" className="px-2 py-1.5 text-[11px] leading-4">
+                              <div className="font-medium">{t("export.saveFailed")}</div>
+                              <div>{exportErrorDescription}</div>
+                            </div>
+                          </StatusText>
+                        ) : null}
+                        <span role="status" className="sr-only">
+                          {exportFeedback?.status === "success"
+                            ? t("export.saved", {
+                                format: exportFeedback.target.format.toUpperCase(),
+                              })
+                            : ""}
+                        </span>
                       </DropdownMenuSubContent>
                     </DropdownMenuSub>
                   )}

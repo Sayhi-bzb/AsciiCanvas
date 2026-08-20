@@ -1,6 +1,10 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { formatShortcutLabel } from '@/domains/actions/public';
+import {
+  createTextRenderingRuntime,
+  TextRenderingProvider,
+} from '@/domains/document/public';
 import { setUiLanguage } from '@/shared/i18n';
 import { SettingsDialog } from './settings-dialog';
 
@@ -43,6 +47,13 @@ beforeAll(() => {
   });
 });
 
+const renderSettings = (onOpenChange = vi.fn()) =>
+  render(
+    <TextRenderingProvider runtime={createTextRenderingRuntime()}>
+      <SettingsDialog open onOpenChange={onOpenChange} />
+    </TextRenderingProvider>
+  );
+
 describe('SettingsDialog', () => {
   afterEach(() => {
     cleanup();
@@ -50,7 +61,7 @@ describe('SettingsDialog', () => {
   });
 
   it('uses compact responsive navigation without a visible dialog header', () => {
-    render(<SettingsDialog open onOpenChange={vi.fn()} />);
+    renderSettings();
 
     const dialog = screen.getByRole('dialog', { name: 'Settings' });
     expect(dialog).toHaveClass('sm:max-w-[840px]', 'grid-rows-[minmax(0,1fr)]', 'gap-0');
@@ -91,11 +102,15 @@ describe('SettingsDialog', () => {
     expect(screen.getByRole('heading', { name: 'General' })).toBeInTheDocument();
     expect(dialog.querySelector('[data-slot="separator"]')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Language')).toHaveClass('shrink-0');
-    expect(screen.getByText('Language', { selector: 'label' })).toHaveClass('whitespace-nowrap');
+    expect(screen.getByText('Language', { selector: 'label' })).toHaveClass('min-w-0', 'truncate');
+    expect(dialog.querySelector('[data-slot="settings-section-scroll"]')).toHaveClass(
+      'overflow-x-hidden',
+      'overflow-y-auto'
+    );
   });
 
   it('switches sections from the desktop navigation', () => {
-    render(<SettingsDialog open onOpenChange={vi.fn()} />);
+    renderSettings();
     const navigation = screen.getByRole('navigation', { name: 'Settings sections' });
 
     fireEvent.click(within(navigation).getByRole('button', { name: 'Shortcuts' }));
@@ -114,7 +129,7 @@ describe('SettingsDialog', () => {
   });
 
   it('switches sections from the mobile Select', async () => {
-    render(<SettingsDialog open onOpenChange={vi.fn()} />);
+    renderSettings();
     const trigger = screen.getByRole('combobox', { name: 'Settings sections' });
 
     trigger.focus();
@@ -124,8 +139,108 @@ describe('SettingsDialog', () => {
     expect(screen.getByRole('heading', { name: 'Keyboard shortcuts' })).toBeInTheDocument();
   });
 
+  it('updates pasted text rendering preferences immediately', async () => {
+    const runtime = createTextRenderingRuntime();
+    render(
+      <TextRenderingProvider runtime={runtime}>
+        <SettingsDialog open onOpenChange={vi.fn()} />
+      </TextRenderingProvider>
+    );
+    const navigation = screen.getByRole('navigation', { name: 'Settings sections' });
+    fireEvent.click(within(navigation).getByRole('button', { name: 'Display' }));
+
+    expect(screen.getByRole('columnheader', { name: 'Setting' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Value' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Color' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Collapse Rendering' })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
+    expect(screen.getByRole('button', { name: 'Collapse Inline' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Collapse Blocks' })).toBeInTheDocument();
+    const displayGrid = screen
+      .getByRole('heading', { name: 'Display' })
+      .parentElement?.querySelector('[data-slot="display-settings-grid"]');
+    expect(displayGrid?.querySelector('table')).toHaveAttribute('data-density', 'compact');
+    expect(displayGrid?.querySelector('table')).toHaveAttribute('data-row-hover', 'none');
+    expect(displayGrid?.querySelector('[data-slot="table-container"]')).toHaveClass(
+      'overflow-x-hidden'
+    );
+    expect(displayGrid?.querySelector('table')).toHaveClass('min-w-0', 'table-fixed');
+    expect(displayGrid?.querySelector('table')).not.toHaveClass(
+      'min-w-[420px]',
+      'min-w-[520px]'
+    );
+    expect(displayGrid?.querySelectorAll('col')).toHaveLength(3);
+
+    const trigger = screen.getByLabelText('Pasted text rendering');
+    trigger.focus();
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+    fireEvent.click(await screen.findByRole('option', { name: 'Raw' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Bold' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Tables' }));
+
+    expect(runtime.getProfile()).toMatchObject({
+      mode: 'raw',
+      markdownRules: { strong: false, table: false },
+    });
+  });
+
+  it('customizes and restores a Markdown rule color without exposing the Canvas picker', () => {
+    const runtime = createTextRenderingRuntime();
+    render(
+      <TextRenderingProvider runtime={runtime}>
+        <SettingsDialog open onOpenChange={vi.fn()} />
+      </TextRenderingProvider>
+    );
+    fireEvent.click(
+      within(screen.getByRole('navigation', { name: 'Settings sections' })).getByRole('button', {
+        name: 'Display',
+      })
+    );
+
+    expect(screen.getByText('Syntax')).toBeInTheDocument();
+    const boldColor = screen.getByRole('button', { name: 'Customize color for Bold' });
+    expect(boldColor).toHaveTextContent('Default');
+    fireEvent.click(boldColor);
+    expect(screen.queryByRole('button', { name: 'Pick color from canvas' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Pick ANSI color #800000' }));
+
+    expect(runtime.getProfile().markdownColors).toEqual({ strong: '#800000' });
+    expect(screen.getByRole('button', { name: 'Customize color for Bold' })).toHaveTextContent(
+      '#800000'
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Restore default color' }));
+    expect(runtime.getProfile().markdownColors).toEqual({});
+    expect(screen.getByRole('button', { name: 'Customize color for Bold' })).toHaveTextContent(
+      'Default'
+    );
+  });
+
+  it('preserves display disclosure state while preferences update', async () => {
+    renderSettings();
+    fireEvent.click(
+      within(screen.getByRole('navigation', { name: 'Settings sections' })).getByRole('button', {
+        name: 'Display',
+      })
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse Inline' }));
+    expect(screen.queryByRole('checkbox', { name: 'Bold' })).not.toBeInTheDocument();
+
+    const trigger = screen.getByLabelText('Pasted text rendering');
+    trigger.focus();
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+    fireEvent.click(await screen.findByRole('option', { name: 'Raw' }));
+
+    expect(screen.getByRole('button', { name: 'Expand Inline' })).toHaveAttribute(
+      'aria-expanded',
+      'false'
+    );
+    expect(screen.queryByRole('checkbox', { name: 'Bold' })).not.toBeInTheDocument();
+  });
+
   it('applies language changes immediately', async () => {
-    render(<SettingsDialog open onOpenChange={vi.fn()} />);
+    renderSettings();
     const trigger = screen.getByLabelText('Language');
 
     trigger.focus();
@@ -138,7 +253,7 @@ describe('SettingsDialog', () => {
   });
 
   it('searches settings globally and focuses the selected general control', async () => {
-    render(<SettingsDialog open onOpenChange={vi.fn()} />);
+    renderSettings();
     const search = screen.getByRole('searchbox', { name: 'Search settings' });
     fireEvent.change(search, { target: { value: 'English' } });
 
@@ -154,8 +269,34 @@ describe('SettingsDialog', () => {
     });
   });
 
+  it('expands and focuses a collapsed display setting selected from global search', async () => {
+    renderSettings();
+    const navigation = screen.getByRole('navigation', { name: 'Settings sections' });
+    fireEvent.click(within(navigation).getByRole('button', { name: 'Display' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse Rendering' }));
+    expect(screen.queryByLabelText('Pasted text rendering')).not.toBeInTheDocument();
+
+    const search = screen.getByRole('searchbox', { name: 'Search settings' });
+    fireEvent.change(search, { target: { value: 'Pasted text rendering' } });
+    fireEvent.click(
+      within(screen.getByRole('navigation', { name: 'Settings search results' })).getByRole(
+        'button',
+        { name: 'Pasted text rendering' }
+      )
+    );
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Pasted text rendering')).toHaveFocus();
+    });
+    expect(screen.getByRole('button', { name: 'Collapse Rendering' })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
+    expect(search).toHaveValue('');
+  });
+
   it('opens a shortcut result and passes its entry to the shortcut panel', async () => {
-    render(<SettingsDialog open onOpenChange={vi.fn()} />);
+    renderSettings();
     const search = screen.getByRole('searchbox', { name: 'Search settings' });
     fireEvent.change(search, { target: { value: 'Bold' } });
 
@@ -175,7 +316,7 @@ describe('SettingsDialog', () => {
   });
 
   it('keeps hidden shortcut metadata searchable', () => {
-    render(<SettingsDialog open onOpenChange={vi.fn()} />);
+    renderSettings();
     const search = screen.getByRole('searchbox', { name: 'Search settings' });
 
     fireEvent.change(search, { target: { value: 'Formatting' } });
@@ -197,7 +338,7 @@ describe('SettingsDialog', () => {
 
   it('clears global search with Escape and reports no results accessibly', () => {
     const onOpenChange = vi.fn();
-    render(<SettingsDialog open onOpenChange={onOpenChange} />);
+    renderSettings(onOpenChange);
     const search = screen.getByRole('searchbox', { name: 'Search settings' });
     fireEvent.change(search, { target: { value: 'missing setting' } });
     expect(screen.getByRole('status')).toHaveTextContent('No settings found');

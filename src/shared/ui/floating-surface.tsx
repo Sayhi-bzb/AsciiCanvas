@@ -51,4 +51,3 @@ function SurfaceContent({
 }
 
 export { FloatingSurface, SurfaceContent }
-export type { FloatingSurfaceProps, FloatingSurfaceVariant, SurfaceContentDensity }

@@ -3,6 +3,7 @@ import { act, createEvent, fireEvent, render, screen } from "@testing-library/re
 import type { ComponentProps } from "react";
 import { CanvasEditor as CanvasEditorUnderTest } from "@/widgets/canvas-editor";
 import { useCanvasInteraction } from "@/widgets/canvas-editor/hooks/useCanvasInteraction";
+import { useCanvasRenderer } from "@/widgets/canvas-editor/hooks/useCanvasRenderer";
 import { undoCanvas, useEditorStore } from "@/domains/canvas/testing";
 import { replaceCanvasGrid as applyFreeformSnapshotToYMaps } from "@/domains/canvas/testing";
 import {
@@ -117,10 +118,37 @@ describe("CanvasEditor focus management", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.mocked(useCanvasInteraction).mockClear();
+    vi.mocked(useCanvasRenderer).mockClear();
     handleDoubleClickMock.mockClear();
     setActiveStructuredTemplateDragId(null);
     useEditorStore.setState(initialState, true);
     applyFreeformSnapshotToYMaps([]);
+  });
+
+  it("keeps canvas layers stable and passes active canvas identity to the renderer", () => {
+    const { rerender } = render(
+      <CanvasEditor onUndo={vi.fn()} onRedo={vi.fn()} />
+    );
+    const initialCall = vi.mocked(useCanvasRenderer).mock.calls.at(-1);
+    const initialLayers = initialCall?.[0];
+
+    expect(initialLayers).toBeDefined();
+    expect(initialCall?.[3].activeCanvasId).toBe(
+      useEditorStore.getState().activeCanvasId
+    );
+
+    rerender(<CanvasEditor onUndo={vi.fn()} onRedo={vi.fn()} />);
+    expect(vi.mocked(useCanvasRenderer).mock.calls.at(-1)?.[0]).toBe(
+      initialLayers
+    );
+
+    act(() => {
+      useEditorStore.setState({ activeCanvasId: "renderer-target-canvas" });
+    });
+
+    const switchedCall = vi.mocked(useCanvasRenderer).mock.calls.at(-1);
+    expect(switchedCall?.[0]).toBe(initialLayers);
+    expect(switchedCall?.[3].activeCanvasId).toBe("renderer-target-canvas");
   });
 
   it("claims input focus on pointerdown before selection state changes", () => {

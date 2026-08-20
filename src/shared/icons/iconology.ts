@@ -33,6 +33,7 @@ import {
   LineSquiggle,
   Map,
   Menu,
+  MonitorCog,
   Minus,
   MoreHorizontal,
   MousePointer2,
@@ -203,6 +204,7 @@ export const HOST_ICONOLOGY = {
     github: GitHubMarkIcon,
     githubStar: Star,
     language: Languages,
+    display: MonitorCog,
     shortcuts: Keyboard,
     settings: Settings2,
     clear: Trash2,
@@ -214,6 +216,7 @@ export const HOST_ICONOLOGY = {
     | 'github'
     | 'githubStar'
     | 'language'
+    | 'display'
     | 'shortcuts'
     | 'settings'
     | 'clear'

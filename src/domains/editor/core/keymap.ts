@@ -102,7 +102,7 @@ const readContextKey = (context: unknown, key: string): unknown =>
       context
     );
 
-export const evaluateContextExpression = (
+const evaluateContextExpression = (
   expression: ContextExpression,
   context: unknown
 ): boolean => {

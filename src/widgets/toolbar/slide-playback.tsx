@@ -2,12 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { TriangleAlert } from 'lucide-react';
 import type { SlideDeck } from '@/domains/slides/public';
 import { useEditor } from '@/domains/editor/public';
 import { HOST_ICONOLOGY } from '@/shared/icons/iconology';
 import { useUiI18n } from '@/shared/i18n';
 import { SHORTCUT_PRIORITY, useShortcutLayer } from '@/shared/shortcuts/dispatcher';
 import { Button } from '@/shared/ui/button';
+import { StatusText } from '@/shared/ui/status';
 import { drawSlideCanvas } from './slide-canvas-renderer';
 import { resolveSlidePlaybackIndex } from './slide-playback-model';
 
@@ -18,10 +20,12 @@ const CloseIcon = HOST_ICONOLOGY.slideAction.close;
 export function SlidePlaybackOverlay({
   deck,
   initialSlideId,
+  warning,
   onExit,
 }: {
   deck: SlideDeck;
   initialSlideId: string;
+  warning?: string | null;
   onExit: () => void;
 }) {
   const { t } = useUiI18n();
@@ -137,6 +141,7 @@ export function SlidePlaybackOverlay({
       aria-label={t('slide.playback.title')}
       tabIndex={-1}
       data-testid="slide-playback"
+      data-visual-contract="presentation"
       className="fixed inset-0 z-(--layer-presentation) overflow-hidden bg-presentation-background outline-none"
     >
       <canvas
@@ -149,6 +154,19 @@ export function SlidePlaybackOverlay({
           navigate(event.clientX < rect.left + rect.width / 2 ? 'previous' : 'next');
         }}
       />
+      {warning ? (
+        <StatusText tone="warning" asChild>
+          <div
+            data-canvas-ui="true"
+            data-testid="slide-playback-warning"
+            role="status"
+            className="pointer-events-none absolute left-1/2 top-5 flex -translate-x-1/2 items-center gap-2 rounded-xl border border-presentation-border bg-presentation-surface px-3 py-2 text-xs shadow-presentation backdrop-blur"
+          >
+            <TriangleAlert className="size-4 shrink-0" aria-hidden="true" />
+            <span>{warning}</span>
+          </div>
+        </StatusText>
+      ) : null}
       <div
         data-canvas-ui="true"
         className="absolute bottom-5 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-xl border border-presentation-border bg-presentation-surface p-1.5 text-presentation-foreground shadow-presentation backdrop-blur"

@@ -4,7 +4,7 @@ import { Slot } from "@radix-ui/react-slot"
 
 import { cn } from "@/shared/lib/utils"
 import { rx } from "@/shared/styles/recipes"
-import type { Shape, Size, Tone } from "@/shared/styles/tokens"
+import type { FeedbackStatus, Shape, Size, Tone } from "@/shared/styles/tokens"
 
 type ButtonTone = Tone
 type ButtonSize = Size
@@ -20,6 +20,7 @@ type ButtonVariantInput = {
   pressed?: boolean
   open?: boolean
   destructive?: boolean
+  feedback?: FeedbackStatus
   subordinate?: boolean
   joined?: "start" | "middle" | "end"
 }
@@ -33,6 +34,7 @@ const resolveButtonStyle = ({
   pressed,
   open,
   destructive,
+  feedback,
   subordinate,
   joined,
 }: Omit<ButtonVariantInput, "className">) => {
@@ -50,6 +52,7 @@ const resolveButtonStyle = ({
     pressed: pressed ?? false,
     open: open ?? false,
     destructive: destructive ?? false,
+    feedback,
     subordinate: subordinate ?? false,
     joined,
   }
@@ -67,6 +70,7 @@ const buttonVariants = (options: ButtonVariantInput = {}) => {
       pressed: resolved.pressed,
       open: resolved.open,
       destructive: resolved.destructive,
+      feedback: resolved.feedback,
       subordinate: resolved.subordinate,
       joined: resolved.joined,
     }),
@@ -84,6 +88,7 @@ export type ButtonProps = React.ComponentProps<"button"> & {
   pressed?: boolean
   open?: boolean
   destructive?: boolean
+  feedback?: FeedbackStatus
   subordinate?: boolean
   joined?: "start" | "middle" | "end"
 }
@@ -98,6 +103,7 @@ function Button({
   pressed,
   open,
   destructive,
+  feedback,
   subordinate,
   joined,
   asChild = false,
@@ -113,6 +119,7 @@ function Button({
     pressed,
     open,
     destructive,
+    feedback,
     subordinate,
     joined,
   })
@@ -127,6 +134,7 @@ function Button({
       data-pressed={resolved.pressed || undefined}
       data-open={resolved.open || undefined}
       data-destructive={resolved.destructive || undefined}
+      data-feedback={resolved.feedback}
       data-subordinate={resolved.subordinate || undefined}
       data-joined={resolved.joined}
       aria-pressed={
@@ -145,6 +153,7 @@ function Button({
         pressed,
         open,
         destructive,
+        feedback,
         subordinate,
         joined,
         className,

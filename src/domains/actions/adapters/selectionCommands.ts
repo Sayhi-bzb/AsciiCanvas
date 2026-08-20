@@ -10,6 +10,7 @@ import {
   buildStructuredTextClipboardPayload,
   hasClipboardSource,
   readClipboardPayload,
+  type RenderClipboardText,
   selectStructuredClipboardNodes,
   writeClipboardPayload,
 } from "./clipboardActions";
@@ -316,8 +317,10 @@ const createStructuredTextNodeFromPaste = (
 
 export const createSelectionCommandFactory = ({
   getActiveDocumentId,
+  renderClipboardText,
 }: {
   getActiveDocumentId: () => string;
+  renderClipboardText: RenderClipboardText;
 }): SelectionCommandFactory => (set, get) => ({
   canCopyOrCut: () => {
     const state = get();
@@ -489,7 +492,11 @@ export const createSelectionCommandFactory = ({
       getActiveDocumentId,
       initialState
     );
-    const payload = await readClipboardPayload(options?.eventDataTransfer, brushColor);
+    const payload = await readClipboardPayload(
+      options?.eventDataTransfer,
+      brushColor,
+      renderClipboardText
+    );
     const state = get();
     if ("error" in payload && payload.error) return failed(payload.error);
     if (getClipboardTargetFingerprint(getActiveDocumentId, state) !== targetFingerprint) {

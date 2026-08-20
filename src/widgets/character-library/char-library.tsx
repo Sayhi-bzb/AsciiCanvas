@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Check, ChevronRight, Loader2, RefreshCcw, X } from 'lucide-react';
 import { writeClipboardPayload } from '@/domains/actions/public';
 import { useCanvasState } from '@/domains/canvas/public';
@@ -13,6 +13,10 @@ import {
   type UnicodeFacetType,
 } from '@/domains/character-library/public';
 import { cn } from '@/shared/lib/utils';
+import {
+  useInPlaceFeedback,
+  type InPlaceFeedback,
+} from '@/shared/hooks/use-in-place-feedback';
 import { getRenderFontFamilyForGrapheme } from '@/shared/metrics';
 import { useUiI18n, type I18nKey } from '@/shared/i18n';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/shared/ui/collapsible';
@@ -21,6 +25,7 @@ import { Button } from '@/shared/ui/button';
 import { IconButton } from '@/shared/ui/icon-button';
 import { SelectableItem } from '@/shared/ui/selectable-item';
 import { Surface } from '@/shared/ui/surface';
+import { StatusText } from '@/shared/ui/status';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs';
 import {
   Tooltip,
@@ -31,14 +36,12 @@ import {
 } from '@/shared/ui/tooltip';
 
 const PAGE_SIZE = 240;
-const COPY_SUCCESS_DURATION_MS = 600;
-const COPY_ERROR_DURATION_MS = 1200;
-
-type CopyFeedback = {
+type CopyFeedbackTarget = {
   entryKey: string;
   grapheme: string;
-  status: 'success' | 'error';
 };
+
+type CopyFeedback = InPlaceFeedback<CopyFeedbackTarget>;
 
 const getCharacterEntryKey = (entry: CharacterRecord) => `${entry.id}-${entry.grapheme}`;
 
@@ -138,8 +141,7 @@ function CharButton({
         <IconButton
           type="button"
           size="sm"
-          active={feedbackStatus === 'success'}
-          destructive={feedbackStatus === 'error'}
+          feedback={feedbackStatus ?? undefined}
           aria-label={actionLabel}
           data-character-codepoints={codePoints}
           data-copy-feedback={feedbackStatus ?? undefined}
@@ -207,7 +209,9 @@ function CharacterGrid({
             key={getCharacterEntryKey(entry)}
             entry={entry}
             feedbackStatus={
-              copyFeedback?.entryKey === getCharacterEntryKey(entry) ? copyFeedback.status : null
+              copyFeedback?.target.entryKey === getCharacterEntryKey(entry)
+                ? copyFeedback.status
+                : null
             }
             onClick={onSelect}
             tooltipHandle={tooltipHandle}
@@ -324,7 +328,9 @@ function PackPane({
       )}
       {error && (
         <div className="flex flex-col gap-2 px-2 py-3 text-[11px] text-muted-foreground">
-          <p className="break-words">{error}</p>
+          <StatusText tone="error" asChild>
+            <p className="break-words">{error}</p>
+          </StatusText>
           <Button
             type="button"
             tone="neutral"
@@ -400,7 +406,11 @@ function UnicodePane({
           <Loader2 className="size-3.5 animate-spin" /> {t('character.loadingIndex')}
         </div>
       )}
-      {unicodeError && <p className="break-words text-[11px] text-destructive">{unicodeError}</p>}
+      {unicodeError && (
+        <StatusText tone="error" asChild>
+          <p className="break-words text-[11px]">{unicodeError}</p>
+        </StatusText>
+      )}
       {unicodeManifest && (
         <Tabs
           value={facetType}
@@ -474,55 +484,28 @@ function UnicodePane({
 export function CharLibrary({ view }: { view: CharacterViewId }) {
   const { t } = useUiI18n();
   const brushColor = useCanvasState((state) => state.brushColor);
-  const [copyFeedback, setCopyFeedback] = useState<CopyFeedback | null>(null);
-  const feedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const copyRequestIdRef = useRef(0);
-
-  useEffect(
-    () => () => {
-      copyRequestIdRef.current += 1;
-      if (feedbackTimeoutRef.current !== null) {
-        clearTimeout(feedbackTimeoutRef.current);
-      }
-    },
-    []
-  );
+  const { feedback: copyFeedback, run: runCopyFeedback } =
+    useInPlaceFeedback<CopyFeedbackTarget>();
 
   const handleSelect = async (entry: CharacterRecord) => {
     if (!entry.insertable) return;
-    const requestId = ++copyRequestIdRef.current;
-    if (feedbackTimeoutRef.current !== null) {
-      clearTimeout(feedbackTimeoutRef.current);
-      feedbackTimeoutRef.current = null;
-    }
-    setCopyFeedback(null);
-
-    const copied = await writeClipboardPayload(
+    await runCopyFeedback(
       {
-        plain: entry.grapheme,
-        rich: JSON.stringify({
-          type: 'ascii-metropolis-zone',
-          version: 1,
-          cells: [{ x: 0, y: 0, char: entry.grapheme, color: brushColor }],
-        }),
+        entryKey: getCharacterEntryKey(entry),
+        grapheme: entry.grapheme,
       },
-      { withRich: true }
-    );
-    if (requestId !== copyRequestIdRef.current) return;
-
-    const status = copied ? 'success' : 'error';
-    const nextFeedback: CopyFeedback = {
-      entryKey: getCharacterEntryKey(entry),
-      grapheme: entry.grapheme,
-      status,
-    };
-    setCopyFeedback(nextFeedback);
-    feedbackTimeoutRef.current = setTimeout(
-      () => {
-        setCopyFeedback((current) => (current === nextFeedback ? null : current));
-        feedbackTimeoutRef.current = null;
-      },
-      copied ? COPY_SUCCESS_DURATION_MS : COPY_ERROR_DURATION_MS
+      () =>
+        writeClipboardPayload(
+          {
+            plain: entry.grapheme,
+            rich: JSON.stringify({
+              type: 'ascii-metropolis-zone',
+              version: 1,
+              cells: [{ x: 0, y: 0, char: entry.grapheme, color: brushColor }],
+            }),
+          },
+          { withRich: true }
+        )
     );
   };
 
@@ -539,7 +522,7 @@ export function CharLibrary({ view }: { view: CharacterViewId }) {
       <span role="status" className="sr-only">
         {copyFeedback
           ? t(copyFeedback.status === 'success' ? 'character.copied' : 'character.copyFailed', {
-              character: copyFeedback.grapheme,
+              character: copyFeedback.target.grapheme,
             })
           : ''}
       </span>

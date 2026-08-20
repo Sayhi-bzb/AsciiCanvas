@@ -32,6 +32,10 @@ describe('ColorPickerPanel', () => {
     render(<ColorPickerPanel value="#000000" onPick={onPick} defaultColor="#000000" />);
 
     expect(screen.getByRole('tab', { name: 'ANSI 16' })).toHaveAttribute('aria-selected', 'true');
+    const activeSwatch = screen.getByRole('button', { name: 'Pick ANSI color #000000' });
+    expect(activeSwatch).toHaveAttribute('aria-pressed', 'true');
+    expect(activeSwatch).toHaveClass('ring-2', 'ring-primary');
+    expect(activeSwatch.querySelector('svg')).not.toBeInTheDocument();
     const paletteTabs = screen.getByRole('tablist', {
       name: 'Color palettes',
     });

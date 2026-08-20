@@ -24,12 +24,9 @@ export function useCanvasImport() {
     setIsImporting(true);
     try {
       const raw = await file.text();
-      const session = importCanvasSession(raw, {
+      importCanvasSession(raw, {
         name: file.name.replace(/\.(?:slides\.md|chardesk|ans|md)$/i, ""),
         sourceName: file.name,
-      });
-      feedback.success(t("import.success"), {
-        description: t("import.successDescription", { name: session.name }),
       });
     } catch (error) {
       feedback.error(t("import.failed"), {
