@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_GRID_RENDER_METRICS,
+  drawCellBatch,
   drawCellBackground,
   drawCellText,
   getCellOccupancy,
@@ -10,6 +11,7 @@ import {
   gridToScreen,
   isWideCell,
   loadRenderFonts,
+  resolveCellVisual,
   resolveRenderFontRoute,
   screenToGrid,
   splitGraphemes,
@@ -186,6 +188,98 @@ describe("metrics", () => {
         DEFAULT_GRID_RENDER_METRICS.cellWidth,
         DEFAULT_GRID_RENDER_METRICS.cellHeight
       );
+    });
+
+    it("resolves inverse colors before any renderer consumes the cell", () => {
+      expect(
+        resolveCellVisual({
+          char: "A",
+          color: "#ff0000",
+          bgColor: "#0000ff",
+          attrs: { inverse: true, bold: true },
+        })
+      ).toMatchObject({
+        color: "#0000ff",
+        bgColor: "#ff0000",
+        attrs: { inverse: true, bold: true },
+        occupancy: 1,
+        fontRoute: "text",
+      });
+    });
+
+    it("draws every background before drawing any glyph", () => {
+      let fillStyle = "";
+      const operations: string[] = [];
+      const ctx = {
+        save: vi.fn(),
+        restore: vi.fn(),
+        fillRect: vi.fn(() => operations.push(`background:${fillStyle}`)),
+        fillText: vi.fn(() => operations.push(`text:${fillStyle}`)),
+        beginPath: vi.fn(),
+        moveTo: vi.fn(),
+        lineTo: vi.fn(),
+        stroke: vi.fn(),
+        set fillStyle(value: string) {
+          fillStyle = value;
+        },
+        set font(_value: string) {},
+        set textBaseline(_value: CanvasTextBaseline) {},
+        set textAlign(_value: CanvasTextAlign) {},
+        set strokeStyle(_value: string) {},
+        set lineWidth(_value: number) {},
+      } as unknown as CanvasRenderingContext2D;
+
+      drawCellBatch(ctx, [
+        { cell: { char: "A", color: "#111", bgColor: "#aaa" }, x: 0, y: 0 },
+        { cell: { char: "B", color: "#222", bgColor: "#bbb" }, x: 9, y: 0 },
+      ]);
+
+      expect(operations).toEqual([
+        "background:#aaa",
+        "background:#bbb",
+        "text:#111",
+        "text:#222",
+      ]);
+    });
+
+    it("uses the effective inverse color for glyphs and decorations", () => {
+      let fillStyle = "";
+      let strokeStyle = "";
+      const ctx = {
+        save: vi.fn(),
+        restore: vi.fn(),
+        fillText: vi.fn(),
+        beginPath: vi.fn(),
+        moveTo: vi.fn(),
+        lineTo: vi.fn(),
+        stroke: vi.fn(),
+        set fillStyle(value: string) {
+          fillStyle = value;
+        },
+        set strokeStyle(value: string) {
+          strokeStyle = value;
+        },
+        set font(_value: string) {},
+        set textBaseline(_value: CanvasTextBaseline) {},
+        set textAlign(_value: CanvasTextAlign) {},
+        set lineWidth(_value: number) {},
+      } as unknown as CanvasRenderingContext2D;
+
+      drawCellText(
+        ctx,
+        {
+          char: "A",
+          color: "#ff0000",
+          bgColor: "#ffffff",
+          attrs: { inverse: true, underline: true, strike: true },
+        },
+        0,
+        0
+      );
+
+      expect(fillStyle).toBe("#ffffff");
+      expect(strokeStyle).toBe("#ffffff");
+      expect(ctx.stroke).toHaveBeenCalledTimes(2);
     });
 
     it("draws text decorations in the text pass without repainting background", () => {

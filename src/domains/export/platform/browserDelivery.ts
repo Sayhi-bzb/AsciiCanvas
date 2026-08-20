@@ -1,18 +1,19 @@
 import { clipboard } from "@/shared/services/effects";
 import {
   exportFailed,
+  exportFailedFromCause,
   exportSucceeded,
   type ExportArtifact,
   type ExportResult,
 } from "../core/types";
 
-export const deliverExportDownload = (
+export const deliverExportDownload = async (
   artifact: ExportArtifact
-): ExportResult<true> => {
+): Promise<ExportResult<true>> => {
   try {
     const blob =
       artifact.kind === "blob"
-        ? artifact.content
+        ? await artifact.content
         : new Blob([artifact.content], { type: artifact.mimeType });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -22,7 +23,7 @@ export const deliverExportDownload = (
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
     return exportSucceeded(true);
   } catch (cause) {
-    return exportFailed("download-failed", cause);
+    return exportFailedFromCause(cause, "download-failed");
   }
 };
 
@@ -30,22 +31,30 @@ export const deliverExportClipboard = async (
   artifact: ExportArtifact
 ): Promise<ExportResult<true>> => {
   try {
-    const copied =
-      artifact.kind === "text"
-        ? await clipboard.writeText(artifact.content)
-        : typeof ClipboardItem === "undefined"
-          ? false
-          : await clipboard.writeItems([
-              new ClipboardItem({ [artifact.mimeType]: artifact.content }),
-            ]);
-    return copied
+    if (artifact.kind === "text") {
+      return (await clipboard.writeText(artifact.content))
+        ? exportSucceeded(true)
+        : exportFailed("clipboard-write-failed");
+    }
+    if (typeof ClipboardItem === "undefined") {
+      return exportFailed("clipboard-unavailable");
+    }
+
+    let contentError: unknown;
+    const content = artifact.content.catch((cause) => {
+      contentError = cause;
+      throw cause;
+    });
+    void content.catch(() => undefined);
+    const written = await clipboard.writeItemsResult([
+      new ClipboardItem({ [artifact.mimeType]: content }),
+    ]);
+    return written.ok
       ? exportSucceeded(true)
-      : exportFailed(
-          typeof ClipboardItem === "undefined" && artifact.kind === "blob"
-            ? "clipboard-unavailable"
-            : "clipboard-write-failed"
-        );
+      : contentError
+        ? exportFailedFromCause(contentError, "encoding-failed")
+        : exportFailed("clipboard-write-failed", written.cause);
   } catch (cause) {
-    return exportFailed("clipboard-write-failed", cause);
+    return exportFailedFromCause(cause, "clipboard-write-failed");
   }
 };

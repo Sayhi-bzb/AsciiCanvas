@@ -1,6 +1,18 @@
 const hasClipboard = () =>
   typeof navigator !== "undefined" && typeof navigator.clipboard !== "undefined";
 
+const writeItemsResult = async (items: ClipboardItem[]) => {
+  if (!hasClipboard() || items.length === 0) {
+    return { ok: false as const, cause: undefined };
+  }
+  try {
+    await navigator.clipboard.write(items);
+    return { ok: true as const };
+  } catch (cause) {
+    return { ok: false as const, cause };
+  }
+};
+
 export const clipboard = {
   async writeText(text: string) {
     if (!hasClipboard()) return false;
@@ -12,14 +24,9 @@ export const clipboard = {
     }
   },
   async writeItems(items: ClipboardItem[]) {
-    if (!hasClipboard() || items.length === 0) return false;
-    try {
-      await navigator.clipboard.write(items);
-      return true;
-    } catch {
-      return false;
-    }
+    return (await writeItemsResult(items)).ok;
   },
+  writeItemsResult,
   async readItems() {
     if (!hasClipboard()) return null;
     try {

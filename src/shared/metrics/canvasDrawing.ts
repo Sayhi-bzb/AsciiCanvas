@@ -1,7 +1,7 @@
 import type { GridCell } from "@/shared/types";
 import { effectiveCellStyle } from "@/shared/utils/ansi";
 import { getCellOccupancy } from "./cellOccupancy";
-import { resolveRenderFontRoute } from "./fontRouting";
+import { resolveRenderFontRoute, type RenderFontRoute } from "./fontRouting";
 import {
   alignCanvasCoordinate,
   DEFAULT_GRID_RENDER_METRICS,
@@ -9,6 +9,43 @@ import {
   getTextCellAnchor,
   type GridRenderMetrics,
 } from "./renderMetrics";
+
+export type ResolvedCellVisual = {
+  char: string;
+  color: string;
+  bgColor?: string;
+  attrs: GridCell["attrs"];
+  occupancy: number;
+  fontRoute: RenderFontRoute;
+};
+
+export type CanvasCellDrawOptions = {
+  color?: string;
+  underline?: boolean;
+  zoom?: number;
+  metrics?: GridRenderMetrics;
+};
+
+export type CanvasCellDrawEntry = {
+  cell: GridCell;
+  x: number;
+  y: number;
+  options?: CanvasCellDrawOptions;
+  drawBackground?: boolean;
+  drawText?: boolean;
+};
+
+export const resolveCellVisual = (cell: GridCell): ResolvedCellVisual => {
+  const style = effectiveCellStyle(cell);
+  return {
+    char: cell.char,
+    color: style.color,
+    bgColor: style.bgColor,
+    attrs: style.attrs,
+    occupancy: getCellOccupancy(cell.char),
+    fontRoute: resolveRenderFontRoute(cell.char),
+  };
+};
 
 export const drawGridLines = (
   ctx: CanvasRenderingContext2D,
@@ -69,97 +106,59 @@ export const setTextRenderStyle = (
   ctx.textAlign = "center";
 };
 
-export const drawTextCell = (
+const drawResolvedCellBackground = (
   ctx: CanvasRenderingContext2D,
-  cell: GridCell,
+  visual: ResolvedCellVisual,
   x: number,
   y: number,
-  options?: {
-    color?: string;
-    underline?: boolean;
-    zoom?: number;
-    metrics?: GridRenderMetrics;
-  }
+  options?: Pick<CanvasCellDrawOptions, "zoom" | "metrics">
 ) => {
+  if (!visual.bgColor) return;
   const zoom = options?.zoom ?? 1;
   const metrics = options?.metrics ?? DEFAULT_GRID_RENDER_METRICS;
-  const style = effectiveCellStyle(cell);
   const cellWidth = metrics.cellWidth * zoom;
   const cellHeight = metrics.cellHeight * zoom;
-  const cellPixelWidth = cellWidth * getCellOccupancy(cell.char);
-
-  if (style.bgColor) {
-    ctx.fillStyle = style.bgColor;
-    ctx.fillRect(x, y, cellPixelWidth, cellHeight);
-  }
-
-  drawCellText(ctx, cell, x, y, options);
-};
-
-export const drawCellBackground = (
-  ctx: CanvasRenderingContext2D,
-  cell: GridCell,
-  x: number,
-  y: number,
-  options?: {
-    zoom?: number;
-    metrics?: GridRenderMetrics;
-  }
-) => {
-  const zoom = options?.zoom ?? 1;
-  const metrics = options?.metrics ?? DEFAULT_GRID_RENDER_METRICS;
-  const style = effectiveCellStyle(cell);
-  if (!style.bgColor) return;
-
-  const cellWidth = metrics.cellWidth * zoom;
-  const cellHeight = metrics.cellHeight * zoom;
-  const cellPixelWidth = cellWidth * getCellOccupancy(cell.char);
-  ctx.fillStyle = style.bgColor;
+  const cellPixelWidth = cellWidth * visual.occupancy;
+  ctx.fillStyle = visual.bgColor;
   ctx.fillRect(x, y, cellPixelWidth, cellHeight);
 };
 
-export const drawCellText = (
+const drawResolvedCellText = (
   ctx: CanvasRenderingContext2D,
-  cell: GridCell,
+  visual: ResolvedCellVisual,
   x: number,
   y: number,
-  options?: {
-    color?: string;
-    underline?: boolean;
-    zoom?: number;
-    metrics?: GridRenderMetrics;
-  }
+  options?: CanvasCellDrawOptions
 ) => {
   const zoom = options?.zoom ?? 1;
   const metrics = options?.metrics ?? DEFAULT_GRID_RENDER_METRICS;
-  const style = effectiveCellStyle(cell);
-  const anchor = getTextCellAnchor(x, y, cell.char, zoom, metrics);
+  const anchor = getTextCellAnchor(x, y, visual.char, zoom, metrics);
   const cellWidth = metrics.cellWidth * zoom;
   const cellHeight = metrics.cellHeight * zoom;
-  const cellPixelWidth = cellWidth * getCellOccupancy(cell.char);
+  const cellPixelWidth = cellWidth * visual.occupancy;
 
   ctx.save();
   ctx.font = getCanvasFont(metrics, zoom, {
-    bold: !!style.attrs?.bold,
-    italic: !!style.attrs?.italic,
-    route: resolveRenderFontRoute(cell.char),
+    bold: !!visual.attrs?.bold,
+    italic: !!visual.attrs?.italic,
+    route: visual.fontRoute,
   });
   ctx.textBaseline = "middle";
   ctx.textAlign = "center";
-  ctx.fillStyle = options?.color ?? style.color;
-  ctx.fillText(cell.char, Math.round(anchor.x), Math.round(anchor.y));
+  ctx.fillStyle = options?.color ?? visual.color;
+  ctx.fillText(visual.char, Math.round(anchor.x), Math.round(anchor.y));
 
   const lineWidth = Math.max(1, Math.round(zoom));
-  ctx.strokeStyle = options?.color ?? style.color;
+  ctx.strokeStyle = options?.color ?? visual.color;
   ctx.lineWidth = lineWidth;
-  if (style.attrs?.underline || options?.underline) {
+  if (visual.attrs?.underline || options?.underline) {
     const underlineY = alignCanvasCoordinate(y + cellHeight * 0.82, lineWidth);
     ctx.beginPath();
     ctx.moveTo(x, underlineY);
     ctx.lineTo(x + cellPixelWidth, underlineY);
     ctx.stroke();
   }
-  if (style.attrs?.strike) {
+  if (visual.attrs?.strike) {
     const strikeY = alignCanvasCoordinate(y + cellHeight * 0.54, lineWidth);
     ctx.beginPath();
     ctx.moveTo(x, strikeY);
@@ -167,4 +166,52 @@ export const drawCellText = (
     ctx.stroke();
   }
   ctx.restore();
+};
+
+export const drawTextCell = (
+  ctx: CanvasRenderingContext2D,
+  cell: GridCell,
+  x: number,
+  y: number,
+  options?: CanvasCellDrawOptions
+) => {
+  const visual = resolveCellVisual(cell);
+  drawResolvedCellBackground(ctx, visual, x, y, options);
+  drawResolvedCellText(ctx, visual, x, y, options);
+};
+
+export const drawCellBackground = (
+  ctx: CanvasRenderingContext2D,
+  cell: GridCell,
+  x: number,
+  y: number,
+  options?: Pick<CanvasCellDrawOptions, "zoom" | "metrics">
+) => {
+  drawResolvedCellBackground(ctx, resolveCellVisual(cell), x, y, options);
+};
+
+export const drawCellText = (
+  ctx: CanvasRenderingContext2D,
+  cell: GridCell,
+  x: number,
+  y: number,
+  options?: CanvasCellDrawOptions
+) => {
+  drawResolvedCellText(ctx, resolveCellVisual(cell), x, y, options);
+};
+
+export const drawCellBatch = (
+  ctx: CanvasRenderingContext2D,
+  entries: readonly CanvasCellDrawEntry[]
+) => {
+  const plan = entries.map((entry) => ({
+    ...entry,
+    visual: resolveCellVisual(entry.cell),
+  }));
+  plan.forEach(({ visual, x, y, options, drawBackground = true }) => {
+    if (drawBackground) drawResolvedCellBackground(ctx, visual, x, y, options);
+  });
+  plan.forEach(({ visual, x, y, options, drawText = true }) => {
+    if (drawText) drawResolvedCellText(ctx, visual, x, y, options);
+  });
 };

@@ -1,5 +1,5 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEditorStore } from '@/domains/canvas/testing';
 import { createSlideDeck } from '@/domains/slides/public';
 import { setUiLanguage } from '@/shared/i18n';
@@ -8,10 +8,19 @@ import { AppMenu } from './app-menu';
 describe('AppMenu slide interchange', () => {
   const initialState = useEditorStore.getState();
 
+  beforeEach(() => {
+    window.localStorage.removeItem('chardesk-github-stars-v1');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ stargazers_count: 1234 }),
+    }));
+  });
+
   afterEach(() => {
     cleanup();
     act(() => setUiLanguage('en'));
     useEditorStore.setState(initialState, true);
+    vi.unstubAllGlobals();
   });
 
   it('offers Markdown import and export while a Slide Deck is active', async () => {
@@ -59,11 +68,15 @@ describe('AppMenu slide interchange', () => {
       'aria-haspopup',
       'menu'
     );
-    const githubItem = screen.getByRole('menuitem', { name: 'GitHub' });
+    const githubItem = screen.getByRole('menuitem', { name: /^GitHub/ });
     const githubMark = githubItem.querySelector('[data-slot="github-mark-icon"]');
     expect(githubMark).toHaveAttribute('viewBox', '0 0 98 96');
     expect(githubMark?.querySelector('path')).toHaveAttribute('fill', 'currentColor');
     expect(githubItem.querySelector('.lucide-git-fork')).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(githubItem).toHaveTextContent('GitHub1,234');
+      expect(githubItem.querySelector('.lucide-star')).toBeInTheDocument();
+    });
   });
 
   it('opens settings and restores menu trigger focus', async () => {

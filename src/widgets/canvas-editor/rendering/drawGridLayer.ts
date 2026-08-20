@@ -2,8 +2,7 @@ import type { GridMap, Point } from "@/shared/types";
 import type { CanvasLinkHit } from "../hooks/interaction/core/linkHitTesting";
 import { GridManager } from "@/shared/utils/grid";
 import {
-  drawCellBackground,
-  drawCellText,
+  drawCellBatch,
   setTextRenderStyle,
 } from "@/shared/metrics";
 import { effectiveCellStyle } from "@/shared/utils/ansi";
@@ -60,13 +59,15 @@ export const drawGridLayer = (
     }
   }
 
-  visibleCells.forEach(({ cell, screenX, screenY, drawBackground }) => {
-    if (drawBackground) drawCellBackground(ctx, cell, screenX, screenY, { zoom });
-  });
-
-  visibleCells.forEach(({ x, y, cell, screenX, screenY, drawText }) => {
-    if (drawText) {
-      drawCellText(ctx, cell, screenX, screenY, {
+  drawCellBatch(
+    ctx,
+    visibleCells.map(({ x, y, cell, screenX, screenY, drawBackground, drawText }) => ({
+      cell,
+      x: screenX,
+      y: screenY,
+      drawBackground,
+      drawText,
+      options: {
         zoom,
         underline:
           !!cell.href &&
@@ -75,8 +76,8 @@ export const drawGridLayer = (
           hoveredLink.y === y &&
           x >= hoveredLink.startX &&
           x <= hoveredLink.endX,
-      });
-    }
-  });
+      },
+    }))
+  );
   ctx.restore();
 };

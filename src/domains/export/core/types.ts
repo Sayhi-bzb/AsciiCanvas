@@ -33,26 +33,39 @@ export type TextExportArtifact = ExportArtifactBase & {
   content: string;
 };
 
-type BlobExportArtifact = ExportArtifactBase & {
+export type BlobExportArtifact = ExportArtifactBase & {
   kind: "blob";
-  content: Blob;
+  content: Promise<Blob>;
 };
 
 export type ExportArtifact = TextExportArtifact | BlobExportArtifact;
 
-type ExportErrorCode =
+export type ExportErrorCode =
   | "unsupported-format"
   | "empty-content"
   | "canvas-unavailable"
+  | "image-too-large"
   | "encoding-failed"
   | "clipboard-unavailable"
   | "clipboard-write-failed"
   | "download-failed";
 
-type ExportError = {
+export type ExportError = {
   code: ExportErrorCode;
   cause?: unknown;
 };
+
+export class ExportPipelineError extends Error {
+  readonly code: ExportErrorCode;
+  readonly cause?: unknown;
+
+  constructor(code: ExportErrorCode, cause?: unknown) {
+    super(code, { cause });
+    this.name = "ExportPipelineError";
+    this.code = code;
+    this.cause = cause;
+  }
+}
 
 export type ExportResult<T> =
   | { ok: true; value: T }
@@ -70,3 +83,11 @@ export const exportFailed = (
   ok: false,
   error: cause === undefined ? { code } : { code, cause },
 });
+
+export const exportFailedFromCause = (
+  cause: unknown,
+  fallback: ExportErrorCode
+): ExportResult<never> =>
+  cause instanceof ExportPipelineError
+    ? exportFailed(cause.code, cause.cause)
+    : exportFailed(fallback, cause);

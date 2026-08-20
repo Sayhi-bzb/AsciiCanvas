@@ -1,9 +1,10 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   deliverExportClipboard,
   prepareTextExport,
   type ExportContext,
 } from "@/domains/export/public";
+import { ExportPipelineError } from "./core/types";
 import { clipboard } from "@/shared/services/effects";
 import {
   parseDocumentSessionSource,
@@ -23,6 +24,10 @@ const createContext = (
 });
 
 describe("export service", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
 
   it("builds a round-trippable CharDesk text artifact", () => {
     const result = prepareTextExport(createContext(), "chardesk");
@@ -159,5 +164,68 @@ describe("export service", () => {
       ok: false,
       error: { code: "clipboard-write-failed" },
     });
+  });
+
+  it("starts a PNG clipboard write before its Blob promise settles", async () => {
+    let clipboardData: Record<string, Blob | Promise<Blob> | string> = {};
+    class ClipboardItemMock {
+      constructor(data: Record<string, Blob | Promise<Blob> | string>) {
+        clipboardData = data;
+      }
+    }
+    vi.stubGlobal("ClipboardItem", ClipboardItemMock);
+
+    let resolveBlob!: (blob: Blob) => void;
+    const content = new Promise<Blob>((resolve) => {
+      resolveBlob = resolve;
+    });
+    const writeItems = vi.spyOn(clipboard, "writeItemsResult").mockImplementation(
+      async () => {
+        await clipboardData["image/png"];
+        return { ok: true as const };
+      }
+    );
+
+    const delivery = deliverExportClipboard({
+      kind: "blob",
+      format: "png",
+      filename: "snapshot.png",
+      mimeType: "image/png",
+      content,
+    });
+
+    expect(writeItems).toHaveBeenCalledOnce();
+    expect(clipboardData["image/png"]).toBeInstanceOf(Promise);
+
+    resolveBlob(new Blob(["png"], { type: "image/png" }));
+    await expect(delivery).resolves.toEqual({ ok: true, value: true });
+  });
+
+  it("preserves a raster failure through the Clipboard promise", async () => {
+    let clipboardData: Record<string, Promise<Blob>> = {};
+    class ClipboardItemMock {
+      constructor(data: Record<string, Promise<Blob>>) {
+        clipboardData = data;
+      }
+    }
+    vi.stubGlobal("ClipboardItem", ClipboardItemMock);
+    vi.spyOn(clipboard, "writeItemsResult").mockImplementation(async () => {
+      try {
+        await clipboardData["image/png"];
+        return { ok: true as const };
+      } catch (cause) {
+        return { ok: false as const, cause };
+      }
+    });
+
+    const result = await deliverExportClipboard({
+      kind: "blob",
+      format: "png",
+      filename: "snapshot.png",
+      mimeType: "image/png",
+      content: Promise.reject(new ExportPipelineError("image-too-large")),
+    });
+
+    expect(result).toEqual({ ok: false, error: { code: "image-too-large" } });
   });
 });

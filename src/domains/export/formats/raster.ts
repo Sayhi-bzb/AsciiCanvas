@@ -1,63 +1,94 @@
 import {
   BACKGROUND_COLOR,
-  GRID_COLOR,
   COLOR_PRIMARY_TEXT,
+  GRID_COLOR,
 } from "@/shared/lib/constants";
-import type {
-  GridMap,
-  SelectionArea,
-} from "@/shared/types";
-import { GridManager } from "@/shared/utils/grid";
-import { getSelectionsBoundingBox } from "@/shared/utils/selection";
 import {
   DEFAULT_GRID_RENDER_METRICS,
+  drawCellBatch,
   drawGridLines,
-  drawTextCell,
-  setTextRenderStyle,
   loadRenderFonts,
+  type CanvasCellDrawEntry,
 } from "@/shared/metrics";
+import type { GridCell, GridMap, SelectionArea } from "@/shared/types";
+import { GridManager } from "@/shared/utils/grid";
+import { getSelectionsBoundingBox } from "@/shared/utils/selection";
+import { ExportPipelineError } from "../core/types";
 
-const MONOCHROME_EXPORT_COLOR = COLOR_PRIMARY_TEXT;
-const resolveExportColor = (color: string, includeColor: boolean) => {
-  return includeColor ? color : MONOCHROME_EXPORT_COLOR;
+export const MAX_RASTER_EDGE = 8192;
+export const MAX_RASTER_PIXELS = 16_777_216;
+
+export type RasterLayout = {
+  width: number;
+  height: number;
+  pixelWidth: number;
+  pixelHeight: number;
+  dpr: 1 | 2;
 };
 
-const getGridFontSamples = (grid: GridMap) =>
-  Array.from(grid.values(), (cell) => ({
-    grapheme: cell.char,
-    bold: cell.attrs?.bold,
-    italic: cell.attrs?.italic,
-  }));
-export const createSelectionPngBlob = async (
-  grid: GridMap,
-  selections: SelectionArea[],
-  showGrid: boolean = true,
-  includeColor: boolean = true
-) => {
-  if (selections.length === 0) return null;
-  await loadRenderFonts(getGridFontSamples(grid));
-
-  const { minX, maxX, minY, maxY } = getSelectionsBoundingBox(selections);
-  const padding = 1;
-
-  const cols = maxX - minX + 1 + padding * 2;
-  const rows = maxY - minY + 1 + padding * 2;
-
+export const resolveRasterLayout = (cols: number, rows: number): RasterLayout => {
   const { cellWidth, cellHeight } = DEFAULT_GRID_RENDER_METRICS;
   const width = cols * cellWidth;
   const height = rows * cellHeight;
 
+  for (const dpr of [2, 1] as const) {
+    const pixelWidth = width * dpr;
+    const pixelHeight = height * dpr;
+    if (
+      Number.isSafeInteger(pixelWidth) &&
+      Number.isSafeInteger(pixelHeight) &&
+      pixelWidth > 0 &&
+      pixelHeight > 0 &&
+      pixelWidth <= MAX_RASTER_EDGE &&
+      pixelHeight <= MAX_RASTER_EDGE &&
+      pixelWidth * pixelHeight <= MAX_RASTER_PIXELS
+    ) {
+      return { width, height, pixelWidth, pixelHeight, dpr };
+    }
+  }
+
+  throw new ExportPipelineError("image-too-large");
+};
+
+const getFontSamples = (cells: Iterable<GridCell>) =>
+  Array.from(cells, (cell) => ({
+    grapheme: cell.char,
+    bold: cell.attrs?.bold,
+    italic: cell.attrs?.italic,
+  }));
+
+const resolveRasterCell = (cell: GridCell, includeColor: boolean): GridCell => {
+  if (includeColor) return cell;
+  if (cell.attrs?.inverse) {
+    return {
+      ...cell,
+      color: COLOR_PRIMARY_TEXT,
+      bgColor: BACKGROUND_COLOR,
+    };
+  }
+  return {
+    ...cell,
+    color: COLOR_PRIMARY_TEXT,
+    bgColor: cell.bgColor ? BACKGROUND_COLOR : undefined,
+  };
+};
+
+const encodePng = (
+  entries: readonly CanvasCellDrawEntry[],
+  cols: number,
+  rows: number,
+  showGrid: boolean
+) => {
+  const layout = resolveRasterLayout(cols, rows);
   const canvas = document.createElement("canvas");
+  canvas.width = layout.pixelWidth;
+  canvas.height = layout.pixelHeight;
   const ctx = canvas.getContext("2d");
-  if (!ctx) return;
+  if (!ctx) throw new ExportPipelineError("canvas-unavailable");
 
-  const dpr = 2;
-  canvas.width = width * dpr;
-  canvas.height = height * dpr;
-  ctx.scale(dpr, dpr);
-
+  ctx.setTransform(layout.dpr, 0, 0, layout.dpr, 0, 0);
   ctx.fillStyle = BACKGROUND_COLOR;
-  ctx.fillRect(0, 0, width, height);
+  ctx.fillRect(0, 0, layout.width, layout.height);
 
   if (showGrid) {
     drawGridLines(ctx, {
@@ -65,83 +96,76 @@ export const createSelectionPngBlob = async (
       endX: cols,
       startY: 0,
       endY: rows,
-      width,
-      height,
-      color: GRID_COLOR,
-    });
-  }
-
-  setTextRenderStyle(ctx);
-
-  for (let y = minY - padding; y <= maxY + padding; y++) {
-    for (let x = minX - padding; x <= maxX + padding; x++) {
-      const cell = grid.get(GridManager.toKey(x, y));
-      if (!cell) continue;
-
-      const drawX = (x - (minX - padding)) * cellWidth;
-      const drawY = (y - (minY - padding)) * cellHeight;
-      drawTextCell(ctx, cell, drawX, drawY, {
-        color: resolveExportColor(cell.color, includeColor),
-      });
-    }
-  }
-
-  return new Promise<Blob | null>((resolve) =>
-    canvas.toBlob(resolve, "image/png", 1.0)
-  );
-};
-
-export const createPngBlobFromGrid = async (
-  grid: GridMap,
-  showGrid: boolean = false,
-  includeColor: boolean = true
-) => {
-  if (grid.size === 0) return null;
-  await loadRenderFonts(getGridFontSamples(grid));
-  const { minX, maxX, minY, maxY } = GridManager.getGridBounds(grid);
-  const padding = 2;
-  const { cellWidth, cellHeight } = DEFAULT_GRID_RENDER_METRICS;
-  const width = (maxX - minX + 1 + padding * 2) * cellWidth;
-  const height = (maxY - minY + 1 + padding * 2) * cellHeight;
-
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return null;
-
-  const dpr = 2;
-  canvas.width = width * dpr;
-  canvas.height = height * dpr;
-  ctx.scale(dpr, dpr);
-
-  ctx.fillStyle = BACKGROUND_COLOR;
-  ctx.fillRect(0, 0, width, height);
-
-  if (showGrid) {
-    const gridWidth = maxX - minX + 1 + padding * 2;
-    const gridHeight = maxY - minY + 1 + padding * 2;
-    drawGridLines(ctx, {
-      startX: 0,
-      endX: gridWidth,
-      startY: 0,
-      endY: gridHeight,
-      width,
-      height,
+      width: layout.width,
+      height: layout.height,
       color: GRID_COLOR,
       lineWidth: 0.5,
     });
   }
 
-  setTextRenderStyle(ctx);
+  drawCellBatch(ctx, entries);
 
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new ExportPipelineError("encoding-failed"));
+    }, "image/png", 1);
+  });
+};
+
+export const createSelectionPngBlob = async (
+  grid: GridMap,
+  selections: SelectionArea[],
+  showGrid = true,
+  includeColor = true
+): Promise<Blob> => {
+  if (selections.length === 0) throw new ExportPipelineError("empty-content");
+  const { minX, maxX, minY, maxY } = getSelectionsBoundingBox(selections);
+  const padding = 1;
+  const startX = minX - padding;
+  const startY = minY - padding;
+  const cols = maxX - minX + 1 + padding * 2;
+  const rows = maxY - minY + 1 + padding * 2;
+  resolveRasterLayout(cols, rows);
+
+  const entries: CanvasCellDrawEntry[] = [];
+  for (let y = startY; y <= maxY + padding; y++) {
+    for (let x = startX; x <= maxX + padding; x++) {
+      const cell = grid.get(GridManager.toKey(x, y));
+      if (!cell) continue;
+      entries.push({
+        cell: resolveRasterCell(cell, includeColor),
+        x: (x - startX) * DEFAULT_GRID_RENDER_METRICS.cellWidth,
+        y: (y - startY) * DEFAULT_GRID_RENDER_METRICS.cellHeight,
+      });
+    }
+  }
+
+  await loadRenderFonts(getFontSamples(entries.map(({ cell }) => cell)));
+  return encodePng(entries, cols, rows, showGrid);
+};
+
+export const createPngBlobFromGrid = async (
+  grid: GridMap,
+  showGrid = false,
+  includeColor = true
+): Promise<Blob> => {
+  if (grid.size === 0) throw new ExportPipelineError("empty-content");
+  const { minX, maxX, minY, maxY } = GridManager.getGridBounds(grid);
+  const padding = 2;
+  const cols = maxX - minX + 1 + padding * 2;
+  const rows = maxY - minY + 1 + padding * 2;
+  resolveRasterLayout(cols, rows);
+
+  const entries: CanvasCellDrawEntry[] = [];
   GridManager.iterate(grid, (cell, x, y) => {
-    const drawX = (x - minX + padding) * cellWidth;
-    const drawY = (y - minY + padding) * cellHeight;
-    drawTextCell(ctx, cell, drawX, drawY, {
-      color: resolveExportColor(cell.color, includeColor),
+    entries.push({
+      cell: resolveRasterCell(cell, includeColor),
+      x: (x - minX + padding) * DEFAULT_GRID_RENDER_METRICS.cellWidth,
+      y: (y - minY + padding) * DEFAULT_GRID_RENDER_METRICS.cellHeight,
     });
   });
 
-  return new Promise<Blob | null>((resolve) =>
-    canvas.toBlob(resolve, "image/png", 1.0)
-  );
+  await loadRenderFonts(getFontSamples(entries.map(({ cell }) => cell)));
+  return encodePng(entries, cols, rows, showGrid);
 };

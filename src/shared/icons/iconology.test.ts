@@ -2,10 +2,19 @@ import { describe, expect, it } from "vitest";
 import { HOST_ICONOLOGY } from "./iconology";
 
 describe("host iconology", () => {
+  it("maps the GitHub star statistic icon", () => {
+    expect(HOST_ICONOLOGY.appMenu.githubStar).toBeDefined();
+  });
+
   it("maps the supported canvas modes", () => {
     expect(HOST_ICONOLOGY.canvasMode.freeform).toBeDefined();
     expect(HOST_ICONOLOGY.canvasMode.structured).toBeDefined();
-    expect(Object.keys(HOST_ICONOLOGY.canvasMode)).toEqual(["freeform", "structured", "slide"]);
+    expect(Object.keys(HOST_ICONOLOGY.canvasMode)).toEqual([
+      "freeform",
+      "structured",
+      "slide",
+      "ai",
+    ]);
     expect(Object.keys(HOST_ICONOLOGY.slideAction)).toEqual([
       "play",
       "previous",

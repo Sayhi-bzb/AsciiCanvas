@@ -25,11 +25,13 @@ import { useAppMenuExport } from "@/widgets/export/use-app-menu-export";
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
 import { browser } from "@/shared/services/effects";
 import { APP_SOURCE_URL } from "@/shared/lib/constants";
+import { useGitHubStars } from "./use-github-stars";
 
 const AppMenuTriggerIcon = HOST_ICONOLOGY.appMenu.trigger;
 const ImportIcon = HOST_ICONOLOGY.appMenu.import;
 const ExportIcon = HOST_ICONOLOGY.appMenu.export;
 const GitHubIcon = HOST_ICONOLOGY.appMenu.github;
+const GitHubStarIcon = HOST_ICONOLOGY.appMenu.githubStar;
 const SettingsIcon = HOST_ICONOLOGY.appMenu.settings;
 const ClearIcon = HOST_ICONOLOGY.appMenu.clear;
 const ClearCanvasDialog = lazy(() =>
@@ -77,6 +79,12 @@ export function AppMenu() {
   const [clearOpen, setClearOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const githubStars = useGitHubStars(APP_SOURCE_URL, menuOpen);
+  const formattedGitHubStars = useMemo(
+    () =>
+      githubStars === null ? null : new Intl.NumberFormat().format(githubStars),
+    [githubStars]
+  );
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const clearLabel = t("sidebar.clear.canvas");
   const clearDescription = t("sidebar.clear.canvasDescription");
@@ -208,6 +216,12 @@ export function AppMenu() {
                   >
                     <GitHubIcon />
                     {t("appMenu.github")}
+                    {formattedGitHubStars !== null && (
+                      <span className="ml-auto flex items-center gap-1 tabular-nums text-muted-foreground">
+                        <GitHubStarIcon />
+                        {formattedGitHubStars}
+                      </span>
+                    )}
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
               </DropdownMenuContent>

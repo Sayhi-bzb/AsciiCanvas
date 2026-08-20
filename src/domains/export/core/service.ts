@@ -9,6 +9,7 @@ import { exportSlideDeckToMarkdown } from "../formats/slidesMarkdown";
 import { getExportFormatDefinition } from "./registry";
 import {
   exportFailed,
+  exportFailedFromCause,
   exportSucceeded,
   type ExportArtifact,
   type ExportContext,
@@ -32,32 +33,23 @@ const textArtifact = (
 
 const getTimestamp = () => Date.now();
 
-export const prepareSelectionPngExport = async (
+export const prepareSelectionPngExport = (
   grid: GridMap,
   selections: SelectionArea[],
   showGrid: boolean,
   includeColor = true
-): Promise<ExportResult<ExportArtifact>> => {
+): ExportResult<ExportArtifact> => {
+  if (selections.length === 0) return exportFailed("empty-content");
   try {
-    const blob = await createSelectionPngBlob(
-      grid,
-      selections,
-      showGrid,
-      includeColor
-    );
-    return blob
-      ? exportSucceeded({
-          kind: "blob",
-          format: "png",
-          content: blob,
-          filename: `chardesk-selection-${getTimestamp()}.png`,
-          mimeType: "image/png",
-        })
-      : exportFailed(
-          selections.length === 0 ? "empty-content" : "canvas-unavailable"
-        );
+    return exportSucceeded({
+      kind: "blob",
+      format: "png",
+      content: createSelectionPngBlob(grid, selections, showGrid, includeColor),
+      filename: `chardesk-selection-${getTimestamp()}.png`,
+      mimeType: "image/png",
+    });
   } catch (cause) {
-    return exportFailed("encoding-failed", cause);
+    return exportFailedFromCause(cause, "encoding-failed");
   }
 };
 
@@ -132,31 +124,27 @@ export const prepareTextExport = (
   }
 };
 
-export const prepareExport = async (
+export const prepareExport = (
   context: ExportContext,
   format: ExportFormat
-): Promise<ExportResult<ExportArtifact>> => {
+): ExportResult<ExportArtifact> => {
   const textResult = prepareTextExport(context, format);
   if (textResult.ok || format !== "png") return textResult;
 
   try {
-    const blob = await createPngBlobFromGrid(
-      context.grid,
-      context.showGrid,
-      context.includeColor
-    );
-    return blob
-      ? exportSucceeded({
-          kind: "blob",
-          format: "png",
-          content: blob,
-          filename: `chardesk-${getTimestamp()}.png`,
-          mimeType: "image/png",
-        })
-      : exportFailed(
-          context.grid.size === 0 ? "empty-content" : "canvas-unavailable"
-        );
+    if (context.grid.size === 0) return exportFailed("empty-content");
+    return exportSucceeded({
+      kind: "blob",
+      format: "png",
+      content: createPngBlobFromGrid(
+        context.grid,
+        context.showGrid,
+        context.includeColor
+      ),
+      filename: `chardesk-${getTimestamp()}.png`,
+      mimeType: "image/png",
+    });
   } catch (cause) {
-    return exportFailed("encoding-failed", cause);
+    return exportFailedFromCause(cause, "encoding-failed");
   }
 };

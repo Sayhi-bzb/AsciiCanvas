@@ -606,20 +606,32 @@ export const createSelectionCommandFactory = ({
     const { grid } = state;
     const selections = resolveSelectionAreas(state);
     if (selections.length === 0) return;
+    const showFailure = (code?: string) => {
+      feedback.error("Snapshot Failed", {
+        description:
+          code === "image-too-large"
+            ? "Selection is too large to copy as one PNG. Reduce the selected area."
+            : "Could not write image to clipboard.",
+      });
+    };
     try {
-      const prepared = await prepareSelectionPngExport(grid, selections, withGrid);
-      if (!prepared.ok) throw prepared.error;
+      const prepared = prepareSelectionPngExport(grid, selections, withGrid);
+      if (!prepared.ok) {
+        showFailure(prepared.error.code);
+        return;
+      }
       const delivered = await deliverExportClipboard(prepared.value);
-      if (!delivered.ok) throw delivered.error;
+      if (!delivered.ok) {
+        showFailure(delivered.error.code);
+        return;
+      }
       feedback.success("Snapshot Copied", {
         description: withGrid
           ? "Image with grid lines is ready to paste."
           : "Image without grid lines is ready to paste.",
       });
     } catch {
-      feedback.error("Snapshot Failed", {
-        description: "Could not write image to clipboard.",
-      });
+      showFailure();
     }
   },
 });

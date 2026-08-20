@@ -58,6 +58,7 @@ import {
   SquarePen,
   SquareSplitHorizontal,
   SquareSplitVertical,
+  Star,
   Strikethrough,
   Terminal,
   Trash2,
@@ -200,6 +201,7 @@ export const HOST_ICONOLOGY = {
     export: Download,
     copy: Copy,
     github: GitHubMarkIcon,
+    githubStar: Star,
     language: Languages,
     shortcuts: Keyboard,
     settings: Settings2,
@@ -210,6 +212,7 @@ export const HOST_ICONOLOGY = {
     | 'export'
     | 'copy'
     | 'github'
+    | 'githubStar'
     | 'language'
     | 'shortcuts'
     | 'settings'
