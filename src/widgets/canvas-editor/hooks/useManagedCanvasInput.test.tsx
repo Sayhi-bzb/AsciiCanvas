@@ -74,15 +74,27 @@ describe("useManagedCanvasInput", () => {
     );
 
     act(() => {
-      result.current.textareaProps.onInput?.({
-        currentTarget: { value: "A" },
-      } as never);
-      result.current.textareaProps.onInput?.({
-        currentTarget: { value: " " },
-      } as never);
-      result.current.textareaProps.onInput?.({
-        currentTarget: { value: "B" },
-      } as never);
+      for (const [key, code] of [
+        ["A", "KeyA"],
+        [" ", "Space"],
+        ["B", "KeyB"],
+      ]) {
+        const preventDefault = vi.fn();
+        result.current.textareaProps.onKeyDown?.({
+          defaultPrevented: false,
+          key,
+          code,
+          preventDefault,
+          ctrlKey: false,
+          metaKey: false,
+          altKey: false,
+          shiftKey: false,
+        } as never);
+        expect(preventDefault).not.toHaveBeenCalled();
+        result.current.textareaProps.onInput?.({
+          currentTarget: { value: key },
+        } as never);
+      }
     });
 
     expect(useEditorStore.getState().grid).toEqual(
@@ -94,6 +106,57 @@ describe("useManagedCanvasInput", () => {
     );
     expect(useEditorStore.getState().textCursor).toEqual({ x: 7, y: 3 });
     expect(useEditorStore.getState().staticGridSelection.activeCell).toEqual({ x: 7, y: 3 });
+  });
+
+  it("keeps printable keydown as direct fill for a freeform range", () => {
+    useEditorStore.setState({
+      canvasMode: "freeform",
+      grid: new Map(),
+      textCursor: null,
+      staticGridSelection: {
+        mode: "range",
+        activeCell: { x: 5, y: 3 },
+        anchorCell: { x: 4, y: 3 },
+        primaryRange: { start: { x: 4, y: 3 }, end: { x: 5, y: 3 } },
+        additionalRanges: [],
+      },
+      staticGridEditMode: "navigate",
+      staticGridInputFlow: null,
+    });
+    const model = { ...useEditorStore.getState() };
+    const { result } = renderHook(
+      () =>
+        useManagedCanvasInput({
+          canvasMode: "freeform",
+          model,
+          size: { width: 800, height: 600 },
+        }),
+      { wrapper: ShortcutProvider }
+    );
+    const preventDefault = vi.fn();
+
+    act(() => {
+      result.current.textareaProps.onKeyDown?.({
+        defaultPrevented: false,
+        key: "X",
+        code: "KeyX",
+        preventDefault,
+        ctrlKey: false,
+        metaKey: false,
+        altKey: false,
+        shiftKey: false,
+      } as never);
+    });
+
+    expect(preventDefault).toHaveBeenCalledOnce();
+    expect(useEditorStore.getState().grid).toEqual(
+      new Map([
+        ["4,3", { char: "X", color: "#000000" }],
+        ["5,3", { char: "X", color: "#000000" }],
+      ])
+    );
+    expect(useEditorStore.getState().staticGridEditMode).toBe("navigate");
+    expect(useEditorStore.getState().staticGridInputFlow).toBeNull();
   });
 
   it("continues the same grid flow when composition is followed by half-width input", () => {
