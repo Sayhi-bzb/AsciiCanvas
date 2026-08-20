@@ -58,7 +58,8 @@ describe('ZoomControl', () => {
     expect(host).not.toHaveClass('fixed', 'absolute');
     expect(Array.from(host.children)).toEqual([out, reset, zoomIn, grid, minimap]);
     expect(out).toHaveClass('size-8', 'rounded-r-none');
-    expect(reset).toHaveClass('h-8', 'min-w-14', 'rounded-none', 'tabular-nums');
+    expect(reset).toHaveClass('h-8', 'w-12', 'rounded-none', 'tabular-nums');
+    expect(reset).not.toHaveClass('min-w-14');
     expect(zoomIn).toHaveClass('size-8', 'rounded-none');
     expect(grid).toHaveClass('size-8', 'rounded-none');
     expect(minimap).toHaveClass('size-8', 'rounded-l-none');
@@ -69,6 +70,22 @@ describe('ZoomControl', () => {
     expect(await screen.findByRole('tooltip')).toHaveTextContent('Reset to 100% — 126%');
     expect(screen.queryByTestId('zoom-menu-trigger')).not.toBeInTheDocument();
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+  });
+
+  it('keeps the zoom number width fixed across the supported range', () => {
+    useEditorStore.setState({ zoom: 0.1 });
+    render(<ZoomControl containerSize={{ width: 1000, height: 700 }} />);
+    const reset = screen.getByTestId('zoom-reset');
+
+    expect(reset).toHaveClass('w-12');
+    expect(reset).toHaveTextContent('10%');
+
+    act(() => useEditorStore.setState({ zoom: 1 }));
+    expect(reset).toHaveTextContent('100%');
+
+    act(() => useEditorStore.setState({ zoom: 5 }));
+    expect(reset).toHaveTextContent('500%');
+    expect(reset).toHaveClass('w-12');
   });
 
   it('replaces the minimap with play in slide mode', () => {

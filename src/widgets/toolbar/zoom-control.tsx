@@ -219,7 +219,7 @@ export function ZoomControl({
         tone="subtle"
         size="md"
         joined="middle"
-        className="min-w-14 px-2 tabular-nums"
+        className="w-12 px-2 tabular-nums"
         aria-label={resetLabel}
         data-testid="zoom-reset"
         disabled={actionsDisabled}
