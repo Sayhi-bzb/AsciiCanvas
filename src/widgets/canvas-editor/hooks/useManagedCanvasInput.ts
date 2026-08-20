@@ -38,6 +38,10 @@ import {
   type ClipboardShortcutAction,
   type ClipboardShortcutTrace,
 } from "./clipboardShortcutCoordinator";
+import {
+  shouldSuppressFinalizedCompositionInput,
+  type FinalizedManagedComposition,
+} from "./managedTextInputSession";
 
 const MANAGED_TEXTAREA_SENTINEL = "\u00a0";
 const CLIPBOARD_DEBUG_STORAGE_KEY = "chardesk.clipboardDebug";
@@ -105,6 +109,7 @@ export const useManagedCanvasInput = ({
   const editor = useEditor();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isComposing = useRef(false);
+  const finalizedCompositionRef = useRef<FinalizedManagedComposition | null>(null);
   const {
     textCursor,
     staticGridSelection,
@@ -401,6 +406,7 @@ export const useManagedCanvasInput = ({
 
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (!isComposing.current) finalizedCompositionRef.current = null;
     if (e.defaultPrevented) return;
     if (isComposing.current) return;
     if (!mutateEnabled && (e.key === "Backspace" || e.key === "Delete")) {
@@ -541,6 +547,8 @@ export const useManagedCanvasInput = ({
   const commitManagedText = (value: string) => {
     if (mutateEnabled && value) writeTextString(value);
   };
+  const readManagedText = (value: string) =>
+    value.replaceAll(MANAGED_TEXTAREA_SENTINEL, "");
 
   return {
     textareaRef,
@@ -550,17 +558,32 @@ export const useManagedCanvasInput = ({
     textareaProps: {
       onCompositionStart: () => {
         isComposing.current = true;
+        finalizedCompositionRef.current = null;
       },
       onCompositionEnd: (event: CompositionEvent<HTMLTextAreaElement>) => {
         isComposing.current = false;
-        commitManagedText(event.data);
+        const value = event.data || readManagedText(event.currentTarget.value);
+        commitManagedText(value);
+        finalizedCompositionRef.current = { value };
         primeManagedTextarea();
       },
       onInput: (event: FormEvent<HTMLTextAreaElement>) => {
-        const value = event.currentTarget.value.replaceAll(
-          MANAGED_TEXTAREA_SENTINEL,
-          ""
-        );
+        const nativeEvent = event.nativeEvent as InputEvent | undefined;
+        const value = nativeEvent?.data ?? readManagedText(event.currentTarget.value);
+        if (shouldSuppressFinalizedCompositionInput(
+          finalizedCompositionRef.current,
+          value,
+          nativeEvent?.inputType
+        )) {
+          finalizedCompositionRef.current = null;
+          primeManagedTextarea();
+          return;
+        }
+        finalizedCompositionRef.current = null;
+        if (nativeEvent?.isComposing) {
+          isComposing.current = true;
+          return;
+        }
         if (!isComposing.current) {
           commitManagedText(value);
           primeManagedTextarea();
@@ -571,6 +594,8 @@ export const useManagedCanvasInput = ({
       onCut: handleCut,
       onPaste: handlePaste,
       onBlur: () => {
+        isComposing.current = false;
+        finalizedCompositionRef.current = null;
         if (document.activeElement !== textareaRef.current) {
           releaseManagedTextarea();
         }
