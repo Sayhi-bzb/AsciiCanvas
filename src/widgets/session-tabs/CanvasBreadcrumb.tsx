@@ -66,7 +66,23 @@ const createOptionMeta = [
   icon: (typeof HOST_ICONOLOGY.canvasMode)[keyof typeof HOST_ICONOLOGY.canvasMode];
 }>;
 
-export function CanvasBreadcrumb({ manageSessions = true }: { manageSessions?: boolean }) {
+type CanvasSessionSelectorProps = {
+  manageSessions?: boolean;
+  selectedSessionId?: string | null;
+  onSelectSession?: (sessionId: string) => void;
+  onActivate?: () => void;
+  onboardingTarget?: boolean;
+  paneActive?: boolean;
+};
+
+export function CanvasSessionSelector({
+  manageSessions = true,
+  selectedSessionId,
+  onSelectSession,
+  onActivate,
+  onboardingTarget = false,
+  paneActive = false,
+}: CanvasSessionSelectorProps) {
   const canvas = useCanvasRuntime();
   const { t } = useUiI18n();
   const { phase: onboardingPhase } = useOnboardingTour();
@@ -98,8 +114,9 @@ export function CanvasBreadcrumb({ manageSessions = true }: { manageSessions?: b
     onboardingPhase === "create-menu" ||
     onboardingPhase === "structured-create";
 
+  const selectedId = selectedSessionId ?? activeCanvasId;
   const activeSession =
-    canvasSessions.find((session) => session.id === activeCanvasId) ?? canvasSessions[0];
+    canvasSessions.find((session) => session.id === selectedId) ?? canvasSessions[0];
   const pendingDeleteSession = pendingDeleteId
     ? canvasSessions.find((session) => session.id === pendingDeleteId) ?? null
     : null;
@@ -128,11 +145,13 @@ export function CanvasBreadcrumb({ manageSessions = true }: { manageSessions?: b
   };
 
   const createSession = (mode: "freeform" | "structured") => {
+    onActivate?.();
     createCanvasSession(mode);
     closeSelector();
   };
 
   const createSlideSession = (size: SlideSize) => {
+    onActivate?.();
     createCanvasSession("slide", { slideSize: size });
     closeSelector();
   };
@@ -175,6 +194,7 @@ export function CanvasBreadcrumb({ manageSessions = true }: { manageSessions?: b
       <Popover
         open={selectorOpen}
         onOpenChange={(open) => {
+          if (open) onActivate?.();
           setSelectorOpen(keepCreateMenuOpen ? true : open);
           if (!open) {
             setCreateMenuOpen(false);
@@ -190,13 +210,16 @@ export function CanvasBreadcrumb({ manageSessions = true }: { manageSessions?: b
             render={
               <Button
                 ref={selectorTriggerRef}
-                data-onboarding-target="canvas-selector"
+                data-onboarding-target={onboardingTarget ? "canvas-selector" : undefined}
+                data-pane-active={paneActive || undefined}
                 tone="subtle"
                 size="md"
+                active={paneActive}
                 className={cn(
                   "max-w-[min(14rem,calc(100vw-5.5rem))] justify-start gap-1.5 px-2"
                 )}
                 aria-label={t("session.select")}
+                aria-current={paneActive ? "true" : undefined}
               />
             }
           >
@@ -239,7 +262,7 @@ export function CanvasBreadcrumb({ manageSessions = true }: { manageSessions?: b
             {canvasSessions.map((session) => {
               const ModeIcon = HOST_ICONOLOGY.canvasMode[session.mode];
               const manageLabel = t("session.manage", { name: session.name });
-              const isActive = session.id === activeCanvasId;
+              const isActive = session.id === selectedId;
               const isEditing = session.id === renameTargetId;
               return (
                 <SelectableItem
@@ -275,7 +298,8 @@ export function CanvasBreadcrumb({ manageSessions = true }: { manageSessions?: b
                         aria-current={isActive ? "page" : undefined}
                         className="min-w-0 flex-1 justify-start px-2"
                         onClick={() => {
-                          switchCanvasSession(session.id);
+                          onActivate?.();
+                          (onSelectSession ?? switchCanvasSession)(session.id);
                           closeSelector();
                         }}
                       >
@@ -467,5 +491,14 @@ export function CanvasBreadcrumb({ manageSessions = true }: { manageSessions?: b
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+export function CanvasBreadcrumb({ manageSessions = true }: { manageSessions?: boolean }) {
+  return (
+    <CanvasSessionSelector
+      manageSessions={manageSessions}
+      onboardingTarget
+    />
   );
 }

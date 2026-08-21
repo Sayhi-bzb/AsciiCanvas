@@ -5,44 +5,18 @@ import {
 } from "@chardesk/protocol";
 import type { Node, Root } from "mdast";
 import type { BundledLanguage } from "shiki";
+import { renderMermaidUnicode } from "./mermaid";
 import type {
-  MarkdownColorRuleId,
+  MarkdownColorSlotId,
   MarkdownRenderRuleId,
   MarkdownRenderRule,
   MarkdownRenderColors,
   MarkdownRenderRules,
-  MarkdownRuleColorBehavior,
+  TextRenderTheme,
+  TextRenderThemeTokenId,
   TextRenderDiagnostic,
   TextRenderFragment,
 } from "./types";
-
-export const CODEX_MARKDOWN_COLORS = {
-  accent: "#0891b2",
-  blockquote: "#16a34a",
-  marker: "#2563eb",
-  separator: "#94a3b8",
-} as const;
-
-export const CODEX_MARKDOWN_RULE_COLOR_BEHAVIORS = {
-  strong: { kind: "inherit" },
-  emphasis: { kind: "inherit" },
-  strikethrough: { kind: "inherit" },
-  link: { kind: "fixed", colors: [CODEX_MARKDOWN_COLORS.accent] },
-  heading: { kind: "inherit" },
-  "inline-code": { kind: "fixed", colors: [CODEX_MARKDOWN_COLORS.accent] },
-  blockquote: { kind: "fixed", colors: [CODEX_MARKDOWN_COLORS.blockquote] },
-  list: {
-    kind: "fixed",
-    colors: [CODEX_MARKDOWN_COLORS.marker],
-    includesInherited: true,
-  },
-  "thematic-break": { kind: "inherit" },
-  "code-block": { kind: "syntax" },
-  table: {
-    kind: "fixed",
-    colors: [CODEX_MARKDOWN_COLORS.marker, CODEX_MARKDOWN_COLORS.separator],
-  },
-} as const satisfies Record<MarkdownRenderRuleId, MarkdownRuleColorBehavior>;
 
 type LocatedNode = Node & {
   value?: string;
@@ -70,6 +44,7 @@ type RenderEnvironment = {
   source: string;
   rules: MarkdownRenderRules;
   colors: MarkdownRenderColors;
+  theme: TextRenderTheme;
   definitions: DefinitionMap;
   diagnostics: TextRenderDiagnostic[];
   recognized: boolean;
@@ -126,10 +101,10 @@ const mergeState = (base: RunState, decoration: RunState): RunState => ({
   ...(decoration.href ?? base.href ? { href: decoration.href ?? base.href } : {}),
 });
 
-const styleLine = (line: StyledLine, state: RunState): StyledLine => {
+const overrideLineStyle = (line: StyledLine, state: RunState): StyledLine => {
   const styled: StyledLine = [];
   line.forEach((run) =>
-    pushRun(styled, run.text, mergeState(state, run), run.origin)
+    pushRun(styled, run.text, mergeState(run, state), run.origin)
   );
   return styled;
 };
@@ -183,15 +158,32 @@ const markRecognized = (environment: RenderEnvironment) => {
   environment.recognized = true;
 };
 
-const ruleColor = (environment: RenderEnvironment, id: MarkdownColorRuleId) =>
+const ruleColor = (environment: RenderEnvironment, id: MarkdownColorSlotId) =>
   environment.colors[id];
+
+const themedColor = (
+  environment: RenderEnvironment,
+  id: MarkdownColorSlotId,
+  token: TextRenderThemeTokenId
+) => ruleColor(environment, id) ?? environment.theme[token];
+
+const FOREGROUND_SLOT_BY_RULE = {
+  strong: "strong.foreground",
+  emphasis: "emphasis.foreground",
+  strikethrough: "strikethrough.foreground",
+  link: "link.foreground",
+  "inline-code": "inline-code.foreground",
+  "thematic-break": "thematic-break.foreground",
+  mermaid: "mermaid.foreground",
+} as const satisfies Partial<Record<MarkdownRenderRuleId, MarkdownColorSlotId>>;
 
 const withRuleColor = (
   environment: RenderEnvironment,
-  id: MarkdownColorRuleId,
+  id: MarkdownRenderRuleId,
   decoration: RunState
 ): RunState => {
-  const color = ruleColor(environment, id);
+  const slot = FOREGROUND_SLOT_BY_RULE[id as keyof typeof FOREGROUND_SLOT_BY_RULE];
+  const color = slot ? ruleColor(environment, slot) : undefined;
   return color ? { ...decoration, color } : decoration;
 };
 
@@ -205,7 +197,7 @@ const inlineRuleState = (
   return environment.rules[id]
     ? mergeState(
         state,
-        id === "code-block" ? decoration : withRuleColor(environment, id, decoration)
+        withRuleColor(environment, id, decoration)
       )
     : state;
 };
@@ -224,9 +216,7 @@ const renderInlineNodes = (
       const next = environment.rules[customRule.id]
         ? mergeState(
             current,
-            customRule.id === "code-block"
-              ? decoration
-              : withRuleColor(environment, customRule.id, decoration)
+            withRuleColor(environment, customRule.id, decoration)
           )
         : current;
       node.children?.forEach((child) => render(child, next));
@@ -266,7 +256,8 @@ const renderInlineNodes = (
         return;
       case "inlineCode": {
         const next = inlineRuleState(environment, "inline-code", current, {
-          color: ruleColor(environment, "inline-code") ?? CODEX_MARKDOWN_COLORS.accent,
+          color: themedColor(environment, "inline-code.foreground", "info"),
+          bgColor: themedColor(environment, "inline-code.background", "surface"),
         });
         const value = node.value ?? "";
         const range = nodeRange(node);
@@ -283,7 +274,7 @@ const renderInlineNodes = (
       }
       case "link": {
         const next = inlineRuleState(environment, "link", current, {
-          color: ruleColor(environment, "link") ?? CODEX_MARKDOWN_COLORS.accent,
+          color: themedColor(environment, "link.foreground", "info"),
           attrs: { underline: true },
           ...(node.url ? { href: node.url } : {}),
         });
@@ -293,7 +284,7 @@ const renderInlineNodes = (
       case "linkReference": {
         const url = environment.definitions.get(node.identifier?.toLowerCase() ?? "");
         const next = inlineRuleState(environment, "link", current, {
-          color: ruleColor(environment, "link") ?? CODEX_MARKDOWN_COLORS.accent,
+          color: themedColor(environment, "link.foreground", "info"),
           attrs: { underline: true },
           ...(url ? { href: url } : {}),
         });
@@ -348,21 +339,21 @@ const renderTable = async (
   if (!environment.rules.table) return rawLines(environment, node, state);
   const rows = node.children ?? [];
   if (rows.length === 0) return [];
-  const tableColor = ruleColor(environment, "table");
+  const headerForeground = themedColor(
+    environment,
+    "table.header.foreground",
+    "accent-foreground"
+  );
+  const headerBackground = themedColor(
+    environment,
+    "table.header.background",
+    "accent"
+  );
+  const separatorColor = themedColor(environment, "table.separator", "muted");
   const alignments = node.align ?? [];
-  const renderedRows = rows.map((row, rowIndex) =>
+  const renderedRows = rows.map((row) =>
     (row.children ?? []).map((cell) => {
-      const lines = linesFromRuns(
-        renderInlineNodes(cell.children ?? [], environment, state)
-      );
-      return rowIndex === 0
-        ? lines.map((line) =>
-            styleLine(line, {
-              color: tableColor ?? CODEX_MARKDOWN_COLORS.marker,
-              attrs: { bold: true },
-            })
-          )
-        : lines;
+      return linesFromRuns(renderInlineNodes(cell.children ?? [], environment, state));
     })
   );
   const columnCount = Math.max(alignments.length, ...renderedRows.map((row) => row.length));
@@ -378,10 +369,10 @@ const renderTable = async (
     const line: StyledLine = [];
     widths.forEach((width, index) => {
       if (index > 0) {
-        pushRun(line, "  ", { color: tableColor ?? CODEX_MARKDOWN_COLORS.separator });
+        pushRun(line, "  ", { color: separatorColor });
       }
       pushRun(line, char.repeat(width + 2), {
-        color: tableColor ?? CODEX_MARKDOWN_COLORS.separator,
+        color: separatorColor,
       });
     });
     return line;
@@ -398,7 +389,14 @@ const renderTable = async (
           width,
           alignments[column]
         );
-        padded.forEach((run) => pushRun(line, run.text, run, run.origin));
+        const cellRuns = rowIndex === 0
+          ? overrideLineStyle(padded, {
+              color: headerForeground,
+              bgColor: headerBackground,
+              attrs: { bold: true },
+            })
+          : padded;
+        cellRuns.forEach((run) => pushRun(line, run.text, run, run.origin));
       });
       output.push(line);
     }
@@ -441,6 +439,37 @@ const renderCodeBlock = async (
         ? { origin: { from: codeStart, to: codeStart + code.length } }
         : {}),
     }]);
+  }
+  if (language.toLowerCase() === "mermaid") {
+    if (!environment.rules.mermaid) {
+      return linesFromRuns([{
+        text: code,
+        ...state,
+        ...(codeStart !== undefined
+          ? { origin: { from: codeStart, to: codeStart + code.length } }
+          : {}),
+      }]);
+    }
+    try {
+      const diagram = await renderMermaidUnicode(code);
+      const color = ruleColor(environment, "mermaid.foreground");
+      return linesFromRuns([{
+        text: diagram,
+        ...state,
+        ...(color ? { color } : {}),
+      }]);
+    } catch (error) {
+      environment.diagnostics.push({
+        code: "markdown-mermaid-render-failed",
+        message: error instanceof Error
+          ? `Could not render Mermaid diagram: ${error.message}`
+          : "Could not render Mermaid diagram.",
+        ...(node.position?.start.offset !== undefined
+          ? { offset: node.position.start.offset }
+          : {}),
+      });
+      return rawLines(environment, node, state);
+    }
   }
   try {
     const { codeToTokens } = await import("shiki");
@@ -528,14 +557,17 @@ const renderBlocks = async (
             : depth === 3
               ? { attrs: { bold: true, italic: true } }
               : { attrs: { italic: true } };
-        const headingState = withRuleColor(environment, "heading", headingAttrs);
+        const headingState = headingAttrs;
+        const markerState = mergeState(state, {
+          color: themedColor(environment, "heading.marker", "accent"),
+        });
         const line: StyledLine = [];
         const marker = `${"#".repeat(depth)} `;
         const start = node.position?.start.offset;
         pushRun(
           line,
           marker,
-          mergeState(state, headingState),
+          markerState,
           start === undefined ? undefined : { from: start, to: start + marker.length }
         );
         renderInlineNodes(node.children ?? [], environment, mergeState(state, headingState))
@@ -549,18 +581,18 @@ const renderBlocks = async (
           lines = raw;
           break;
         }
-        const quoteState = mergeState(state, {
-          color: ruleColor(environment, "blockquote") ?? CODEX_MARKDOWN_COLORS.blockquote,
+        const markerState = mergeState(state, {
+          color: themedColor(environment, "blockquote.marker", "success"),
         });
         const content = await renderBlocks(
           node.children ?? [],
           environment,
-          quoteState,
+          state,
           "source"
         );
         lines = content.map((contentLine) => {
           const line: StyledLine = [];
-          pushRun(line, "> ", quoteState);
+          pushRun(line, "│ ", markerState);
           contentLine.forEach((run) => pushRun(line, run.text, run, run.origin));
           return line;
         });
@@ -577,7 +609,7 @@ const renderBlocks = async (
         break;
       case "thematicBreak": {
         const raw = blockRuleEnabled(environment, "thematic-break", node, state);
-        const color = ruleColor(environment, "thematic-break");
+        const color = ruleColor(environment, "thematic-break.foreground");
         lines = raw ?? [[{ text: "———", ...state, ...(color ? { color } : {}) }]];
         break;
       }
@@ -621,14 +653,26 @@ const renderList = async (
   if (raw) return raw;
   const output: StyledLine[] = [];
   const ordered = node.ordered === true;
-  const customColor = ruleColor(environment, "list");
+  const customColor = ruleColor(environment, "list.marker");
   let index = node.start ?? 1;
   for (const item of node.children ?? []) {
     const baseMarker = ordered ? `${index}. ` : "- ";
-    const task = item.checked === null || item.checked === undefined
+    const isTask = item.checked !== null && item.checked !== undefined;
+    const enhancedTask = isTask && environment.rules["task-list"];
+    const task = !isTask
       ? ""
       : `[${item.checked ? "x" : " "}] `;
-    const marker = `${baseMarker}${task}`;
+    const marker = enhancedTask
+      ? `${item.checked ? "●" : "○"} `
+      : `${baseMarker}${task}`;
+    const taskColor = enhancedTask
+      ? ruleColor(
+          environment,
+          item.checked ? "task-list.checked" : "task-list.unchecked"
+        ) ?? (item.checked
+          ? environment.theme.success
+          : environment.theme.muted)
+      : undefined;
     const indent = " ".repeat(depth * 4);
     let firstContentLine = true;
     for (const child of item.children ?? []) {
@@ -642,11 +686,13 @@ const renderList = async (
         const line: StyledLine = [];
         pushRun(line, indent);
         if (firstContentLine) {
-          pushRun(line, marker, ordered
-            ? { color: customColor ?? CODEX_MARKDOWN_COLORS.marker }
-            : customColor
-              ? mergeState(state, { color: customColor })
-              : state);
+          pushRun(line, marker, enhancedTask
+            ? mergeState(state, { color: taskColor })
+            : ordered
+              ? { color: customColor ?? environment.theme.accent }
+              : customColor
+                ? mergeState(state, { color: customColor })
+                : state);
         } else {
           pushRun(line, " ".repeat(marker.length));
         }
@@ -674,6 +720,7 @@ export const renderCodexMarkdownRuns = async (
   root: Root,
   rules: MarkdownRenderRules,
   colors: MarkdownRenderColors,
+  theme: TextRenderTheme,
   customRules: readonly MarkdownRenderRule[] = []
 ) => {
   const rootNode = root as LocatedNode;
@@ -687,6 +734,7 @@ export const renderCodexMarkdownRuns = async (
     source,
     rules,
     colors,
+    theme,
     definitions,
     diagnostics: [],
     recognized: false,

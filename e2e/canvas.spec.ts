@@ -723,6 +723,138 @@ test.describe('Canvas', () => {
     }).toBeGreaterThan(1);
   });
 
+  test('binds different canvas sessions to split panes and restores them after reopening', async ({
+    page,
+  }) => {
+    const appMenuTrigger = page.getByRole('button', { name: 'Open menu' });
+    await appMenuTrigger.click();
+    await page.getByRole('menuitem', { name: 'Split view' }).click();
+
+    const primary = page.getByTestId('canvas-view-primary');
+    const secondary = page.getByTestId('canvas-view-secondary');
+    const topBar = page.getByTestId('app-top-bar');
+    const resizeHandle = page.getByRole('separator', { name: 'Resize canvas views' });
+    await expect(primary).toBeVisible();
+    await expect(secondary).toBeVisible();
+    await expect(resizeHandle).toHaveClass(/bg-separator/);
+    await expect(resizeHandle).not.toHaveClass(/bg-border/);
+    await expect(topBar.getByTestId('canvas-session-selector-primary')).toBeVisible();
+    await expect(
+      topBar.getByTestId('canvas-session-selector-secondary')
+    ).toHaveCount(0);
+    const primarySelectorTrigger = topBar
+      .getByTestId('canvas-session-selector-primary')
+      .getByRole('button', { name: 'Select canvas' });
+    const secondarySelectorTrigger = secondary.getByRole('button', {
+      name: 'Select canvas',
+    });
+    await expect(primarySelectorTrigger).toHaveAttribute('data-pane-active', 'true');
+    await expect(primarySelectorTrigger).toHaveAttribute('aria-current', 'true');
+    await expect(secondarySelectorTrigger).not.toHaveAttribute('data-pane-active');
+    const primarySessionId = await primary.getAttribute('data-session-id');
+    const menuBounds = await appMenuTrigger.boundingBox();
+    const primarySelectorBounds = await page
+      .getByTestId('canvas-session-selector-primary')
+      .boundingBox();
+    const secondarySelectorBounds = await page
+      .getByTestId('canvas-session-selector-secondary')
+      .boundingBox();
+    const collaborationBounds = await page
+      .getByTestId('collaboration-control')
+      .boundingBox();
+    expect(menuBounds).not.toBeNull();
+    expect(primarySelectorBounds).not.toBeNull();
+    expect(secondarySelectorBounds).not.toBeNull();
+    expect(collaborationBounds).not.toBeNull();
+    expect(primarySelectorBounds!.y).toBeCloseTo(menuBounds!.y, 0);
+    expect(primarySelectorBounds!.x).toBeCloseTo(menuBounds!.x + menuBounds!.width + 4, 0);
+    expect(collaborationBounds!.x).toBeGreaterThanOrEqual(
+      primarySelectorBounds!.x + primarySelectorBounds!.width + 4
+    );
+    expect(secondarySelectorBounds!.y).toBeCloseTo(menuBounds!.y, 0);
+
+    const primaryBoundsBeforeResize = await primary.boundingBox();
+    const resizeBounds = await resizeHandle.boundingBox();
+    expect(primaryBoundsBeforeResize).not.toBeNull();
+    expect(resizeBounds).not.toBeNull();
+    await page.mouse.move(
+      resizeBounds!.x + resizeBounds!.width / 2,
+      resizeBounds!.y + resizeBounds!.height / 2
+    );
+    await page.mouse.down();
+    await page.mouse.move(resizeBounds!.x + 80, resizeBounds!.y + resizeBounds!.height / 2, {
+      steps: 4,
+    });
+    await page.mouse.up();
+    await expect.poll(async () => (await primary.boundingBox())?.width ?? 0).toBeGreaterThan(
+      primaryBoundsBeforeResize!.width + 40
+    );
+    await expect.poll(() =>
+      page.evaluate(() => localStorage.getItem('chardesk-canvas-split-ratio'))
+    ).not.toBeNull();
+
+    await secondarySelectorTrigger.click();
+    await expect(primarySelectorTrigger).not.toHaveAttribute('data-pane-active');
+    await expect(secondarySelectorTrigger).toHaveAttribute('data-pane-active', 'true');
+    await expect(secondarySelectorTrigger).toHaveAttribute('aria-current', 'true');
+    await page.getByRole('button', { name: 'Create' }).click();
+    await page.getByRole('menuitem', { name: 'New Freeform' }).click();
+    await expect(page.getByRole('dialog', { name: 'Select canvas' })).toBeHidden();
+
+    await expect(secondary).not.toHaveAttribute('data-session-id', primarySessionId ?? '');
+    const secondarySessionId = await secondary.getAttribute('data-session-id');
+    expect(secondarySessionId).toBeTruthy();
+
+    await page.setViewportSize({ width: 600, height: 720 });
+    await expect(page.getByTestId('canvas-view-primary')).toHaveCount(0);
+    await expect(topBar.getByTestId('canvas-session-selector-secondary')).toBeVisible();
+    await expect(page.getByTestId('canvas-session-selector-secondary')).toHaveCount(1);
+    await expect(
+      topBar
+        .getByTestId('canvas-session-selector-secondary')
+        .getByRole('button', { name: 'Select canvas' })
+    ).not.toHaveAttribute('data-pane-active');
+
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await expect(primary).toBeVisible();
+    await expect(secondary).toBeVisible();
+    await expect(topBar.getByTestId('canvas-session-selector-primary')).toBeVisible();
+    await expect(secondary.getByTestId('canvas-session-selector-secondary')).toBeVisible();
+    await expect(
+      secondary
+        .getByTestId('canvas-session-selector-secondary')
+        .getByRole('button', { name: 'Select canvas' })
+    ).toHaveAttribute('data-pane-active', 'true');
+
+    await appMenuTrigger.click();
+    await page.getByRole('menuitem', { name: 'Close split view' }).click();
+    await expect(page.getByRole('menuitem', { name: 'Close split view' })).toBeHidden();
+    await expect(appMenuTrigger).toBeFocused();
+    await expect(page.getByTestId('canvas-view-primary')).toHaveCount(0);
+    const singleSelectorBounds = await page
+      .getByTestId('canvas-session-selector-secondary')
+      .boundingBox();
+    expect(singleSelectorBounds).not.toBeNull();
+    expect(singleSelectorBounds!.y).toBeCloseTo(menuBounds!.y, 0);
+    expect(singleSelectorBounds!.x).toBeCloseTo(menuBounds!.x + menuBounds!.width + 4, 0);
+    await expect(
+      page
+        .getByTestId('canvas-session-selector-secondary')
+        .getByRole('button', { name: 'Select canvas' })
+    ).not.toHaveAttribute('data-pane-active');
+
+    await appMenuTrigger.click();
+    await page.getByRole('menuitem', { name: 'Split view' }).click();
+    await expect(page.getByTestId('canvas-view-primary')).toHaveAttribute(
+      'data-session-id',
+      primarySessionId ?? ''
+    );
+    await expect(page.getByTestId('canvas-view-secondary')).toHaveAttribute(
+      'data-session-id',
+      secondarySessionId ?? ''
+    );
+  });
+
   test('commits a freeform shape drag to the persisted grid', async ({ page }) => {
     const viewport = { offset: { x: 180, y: 130 }, zoom: 1 };
     await seedSession(page, {

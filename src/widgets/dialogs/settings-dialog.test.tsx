@@ -160,6 +160,7 @@ describe('SettingsDialog', () => {
       'aria-expanded',
       'true'
     );
+    expect(screen.getByRole('button', { name: 'Collapse Renderer theme' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Collapse Inline' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Collapse Blocks' })).toBeInTheDocument();
     const displayGrid = screen
@@ -204,12 +205,21 @@ describe('SettingsDialog', () => {
     );
 
     expect(screen.getByText('Syntax')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Mermaid diagrams' })).toBeChecked();
+    expect(screen.getByRole('button', {
+      name: 'Customize color for Mermaid diagrams: Default (Inherited)',
+    })).toHaveAttribute('data-inherited', 'true');
     const inlineCodeColor = screen.getByRole('button', {
-      name: 'Customize color for Inline code: Default (#0891b2)',
+      name: 'Customize color for Inline code foreground: Default (#0891b2)',
     });
     expect(inlineCodeColor).toHaveAttribute('data-color-preview', 'default');
     expect(inlineCodeColor.querySelector('[data-slot="color-swatch"]')).toHaveStyle({
       backgroundColor: '#0891b2',
+    });
+    expect(screen.getByRole('button', {
+      name: 'Customize color for Inline code background: Default (#e2e8f0)',
+    }).querySelector('[data-slot="color-swatch"]')).toHaveStyle({
+      backgroundColor: '#e2e8f0',
     });
 
     const blockquoteColor = screen.getByRole('button', {
@@ -231,14 +241,29 @@ describe('SettingsDialog', () => {
       'after:bg-muted-foreground'
     );
 
-    const tableColor = screen.getByRole('button', {
-      name: 'Customize color for Tables: Default (#2563eb / #94a3b8)',
+    expect(screen.getByRole('checkbox', { name: 'Task lists' })).toBeChecked();
+    const uncheckedTaskColor = screen.getByRole('button', {
+      name: 'Customize color for Unchecked tasks: Default (#94a3b8)',
     });
-    expect(tableColor).toHaveAttribute('data-color-preview', 'mixed');
-    expect(tableColor.querySelector('[data-color-segment="#2563eb"]')).toHaveStyle({
+    const checkedTaskColor = screen.getByRole('button', {
+      name: 'Customize color for Checked tasks: Default (#16a34a)',
+    });
+    expect(uncheckedTaskColor.querySelector('[data-slot="color-swatch"]')).toHaveStyle({
+      backgroundColor: '#94a3b8',
+    });
+    expect(checkedTaskColor.querySelector('[data-slot="color-swatch"]')).toHaveStyle({
+      backgroundColor: '#16a34a',
+    });
+
+    const tableHeaderColor = screen.getByRole('button', {
+      name: 'Customize color for Table header background: Default (#2563eb)',
+    });
+    expect(tableHeaderColor.querySelector('[data-slot="color-swatch"]')).toHaveStyle({
       backgroundColor: '#2563eb',
     });
-    expect(tableColor.querySelector('[data-color-segment="#94a3b8"]')).toHaveStyle({
+    expect(screen.getByRole('button', {
+      name: 'Customize color for Table separator: Default (#94a3b8)',
+    }).querySelector('[data-slot="color-swatch"]')).toHaveStyle({
       backgroundColor: '#94a3b8',
     });
 
@@ -255,7 +280,7 @@ describe('SettingsDialog', () => {
     expect(screen.queryByRole('button', { name: 'Pick color from canvas' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Pick ANSI color #800000' }));
 
-    expect(runtime.getProfile().markdownColors).toEqual({ strong: '#800000' });
+    expect(runtime.getProfile().markdownColors).toEqual({ 'strong.foreground': '#800000' });
     const customBoldColor = screen.getByRole('button', {
       name: 'Customize color for Bold: #800000',
     });
@@ -270,6 +295,71 @@ describe('SettingsDialog', () => {
     expect(
       screen.getByRole('button', { name: 'Customize color for Bold: Default (Inherited)' })
     ).toHaveAttribute('data-inherited', 'true');
+  });
+
+  it('customizes a renderer theme token and updates rule defaults', () => {
+    const runtime = createTextRenderingRuntime();
+    render(
+      <TextRenderingProvider runtime={runtime}>
+        <SettingsDialog open onOpenChange={vi.fn()} />
+      </TextRenderingProvider>
+    );
+    fireEvent.click(
+      within(screen.getByRole('navigation', { name: 'Settings sections' })).getByRole('button', {
+        name: 'Display',
+      })
+    );
+
+    fireEvent.click(screen.getByRole('button', {
+      name: 'Customize color for Accent: Default (#2563eb)',
+    }));
+    fireEvent.click(screen.getByRole('button', { name: 'Pick ANSI color #800000' }));
+
+    expect(runtime.getProfile().renderTheme).toEqual({ accent: '#800000' });
+    expect(screen.getByRole('button', {
+      name: 'Customize color for Headings: Default (#800000)',
+    }).querySelector('[data-slot="color-swatch"]')).toHaveStyle({
+      backgroundColor: '#800000',
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Restore default color' }));
+    expect(runtime.getProfile().renderTheme).toEqual({});
+  });
+
+  it('customizes and restores task state colors independently', () => {
+    const runtime = createTextRenderingRuntime();
+    render(
+      <TextRenderingProvider runtime={runtime}>
+        <SettingsDialog open onOpenChange={vi.fn()} />
+      </TextRenderingProvider>
+    );
+    fireEvent.click(
+      within(screen.getByRole('navigation', { name: 'Settings sections' })).getByRole('button', {
+        name: 'Display',
+      })
+    );
+
+    fireEvent.click(screen.getByRole('button', {
+      name: 'Customize color for Unchecked tasks: Default (#94a3b8)',
+    }));
+    fireEvent.click(screen.getByRole('button', { name: 'Pick ANSI color #800000' }));
+    fireEvent.click(screen.getByRole('button', {
+      name: 'Customize color for Checked tasks: Default (#16a34a)',
+    }));
+    fireEvent.click(screen.getByRole('button', { name: 'Pick ANSI color #008000' }));
+
+    expect(runtime.getProfile().markdownColors).toEqual({
+      'task-list.unchecked': '#800000',
+      'task-list.checked': '#008000',
+    });
+
+    fireEvent.click(screen.getByRole('button', {
+      name: 'Customize color for Unchecked tasks: #800000',
+    }));
+    fireEvent.click(screen.getByRole('button', { name: 'Restore default color' }));
+    expect(runtime.getProfile().markdownColors).toEqual({
+      'task-list.checked': '#008000',
+    });
   });
 
   it('preserves display disclosure state while preferences update', async () => {

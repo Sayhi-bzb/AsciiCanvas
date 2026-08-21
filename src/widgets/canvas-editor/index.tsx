@@ -20,10 +20,6 @@ import {
 } from '@/domains/structured-content/public';
 import type { CanvasLinkHit } from './hooks/interaction/core/linkHitTesting';
 import type { StructuredMovePreview } from './hooks/useCanvasRenderer';
-import {
-  useCanvasRuntime,
-  useCanvasState,
-} from '@/domains/canvas/public';
 import { isStaticGridMode } from '@/domains/sessions/public';
 import {
   applyCanvasViewportPresentation,
@@ -31,6 +27,7 @@ import {
   type CanvasViewport,
 } from './hooks/viewportPresentation';
 import { useCanvasEngineRuntime } from './engine/useCanvasEngineRuntime';
+import { useCanvasViewOptional } from './engine/CanvasWorkspace';
 import { CANVAS_FRAME_INVALIDATION } from './engine/FrameScheduler';
 import { resolveCanvasSurfaceGeometry } from './canvasSurfaceGeometry';
 import type { EditorViewportFrame } from '@/widgets/editor-chrome/public';
@@ -47,6 +44,8 @@ interface CanvasEditorProps {
   capabilities?: CanvasEditorCapabilities;
   viewportFrame?: EditorViewportFrame;
   fitContentRevision?: number;
+  active?: boolean;
+  onActivate?: () => void;
 }
 
 export const CanvasEditor = ({
@@ -56,9 +55,14 @@ export const CanvasEditor = ({
   capabilities = DEFAULT_CANVAS_EDITOR_CAPABILITIES,
   viewportFrame,
   fitContentRevision = 0,
+  active = true,
+  onActivate,
 }: CanvasEditorProps) => {
-  const canvas = useCanvasRuntime();
+  const canvasView = useCanvasViewOptional();
+  const subscribeViewport = canvasView?.subscribeViewport;
+  const getViewport = canvasView?.getViewport;
   const runtime = useCanvasEngineRuntime();
+  const effectiveCapabilities = capabilities;
   const bgCanvasRef = useRef<HTMLCanvasElement>(null);
   const scratchCanvasRef = useRef<HTMLCanvasElement>(null);
   const uiCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -104,7 +108,7 @@ export const CanvasEditor = ({
     sessionId: string;
     pageKey: string;
   } | null>(null);
-  const activeCanvasId = useCanvasState((state) => state.activeCanvasId);
+  const activeCanvasId = rendererStore.activeCanvasId;
   const lastFitContentRevisionRef = useRef(0);
 
   useEffect(() => {
@@ -176,17 +180,12 @@ export const CanvasEditor = ({
         offset: { ...rendered.offset },
         zoom: rendered.zoom,
       };
-      const current = canvas.getState();
-      presentViewport({
-        offset: { ...current.offset },
-        zoom: current.zoom,
-      });
+      presentViewport(runtime.camera.getViewport());
     },
-    [canvas, presentViewport]
+    [presentViewport, runtime]
   );
 
   useEffect(() => {
-    const current = canvas.getState();
     const viewportLayer = viewportLayerRef.current;
     const schedulePresentation = (presented: CanvasViewport) => {
       runtime.frameScheduler.request(
@@ -195,27 +194,23 @@ export const CanvasEditor = ({
         () => presentViewport(presented)
       );
     };
-    schedulePresentation({ offset: { ...current.offset }, zoom: current.zoom });
-    const unsubscribe = canvas.subscribe((state, previous) => {
-      if (state.zoom === previous.zoom && state.offset === previous.offset) return;
-      schedulePresentation({
-        offset: { ...state.offset },
-        zoom: state.zoom,
-      });
+    schedulePresentation(runtime.camera.getViewport());
+    const unsubscribe = subscribeViewport?.(() => {
+      if (getViewport) schedulePresentation(getViewport());
     });
     return () => {
-      unsubscribe();
+      unsubscribe?.();
       runtime.frameScheduler.cancel('viewport-presentation');
       renderedViewportRef.current = null;
       resetCanvasViewportPresentation(viewportLayer);
     };
-  }, [canvas, presentViewport, runtime]);
+  }, [getViewport, presentViewport, runtime, subscribeViewport]);
 
   const structuredTemplateDrop = useStructuredTemplateDrop({
     canvasMode,
     containerRef,
     model: editorStore,
-    enabled: capabilities.mutateContent,
+    enabled: effectiveCapabilities.mutateContent,
   });
   const {
     textareaRef,
@@ -229,8 +224,8 @@ export const CanvasEditor = ({
     size,
     onUndo,
     onRedo,
-    enabled: capabilities.copy || capabilities.mutateContent,
-    mutateEnabled: capabilities.mutateContent,
+    enabled: effectiveCapabilities.copy || effectiveCapabilities.mutateContent,
+    mutateEnabled: active && effectiveCapabilities.mutateContent,
   });
   const isCanvasTextEditing = isStaticGridMode(canvasMode)
     ? editorStore.staticGridEditMode === 'text-edit'
@@ -238,7 +233,11 @@ export const CanvasEditor = ({
       !!rendererStore.editingStructuredTextNodeId ||
       !!rendererStore.structuredTextSelection;
   const isTemporaryPanActive = useCanvasSpacePan({
-    enabled: capabilities.navigate && canvasOwnsInputFocus && !isCanvasTextEditing,
+    enabled:
+      active &&
+      effectiveCapabilities.navigate &&
+      canvasOwnsInputFocus &&
+      !isCanvasTextEditing,
   });
   const interactionModel = isTemporaryPanActive
     ? { ...interactionStore, tool: 'pan' as const }
@@ -260,7 +259,7 @@ export const CanvasEditor = ({
     structuredMovePreviewRef,
     requestCanvasRenderRef,
     runtime,
-    capabilities
+    effectiveCapabilities
   );
 
   useCanvasRenderer(
@@ -279,7 +278,7 @@ export const CanvasEditor = ({
   const activeContextMenu =
     canvasMode === 'structured' ? STRUCTURED_CONTEXT_MENU : CANVAS_CONTEXT_MENU;
   const handleContextMenu = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (!capabilities.mutateContent) {
+    if (!effectiveCapabilities.mutateContent) {
       event.preventDefault();
       return;
     }
@@ -332,6 +331,11 @@ export const CanvasEditor = ({
           containerSize={size}
           viewportFrame={viewportFrame}
           onContextMenu={handleContextMenu}
+          onFocusCapture={onActivate}
+          onPointerDownCapture={onActivate}
+          onWheelCapture={onActivate}
+          data-canvas-view-active={active ? 'true' : 'false'}
+          interactionUi={active}
           {...structuredTemplateDrop.surfaceProps}
           onDoubleClick={handleDoubleClick}
           onPointerDown={onCanvasPointerDown}
@@ -352,7 +356,7 @@ export const CanvasEditor = ({
         </CanvasSurface>
       </ContextMenuTrigger>
 
-      {capabilities.mutateContent && (
+      {effectiveCapabilities.mutateContent && (
         <CanvasContextMenuContent entries={activeContextMenu} managedTextareaRef={textareaRef} />
       )}
     </ContextMenu>

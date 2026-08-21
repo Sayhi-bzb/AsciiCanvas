@@ -45,6 +45,12 @@ border, radius, elevation, focus, hover, active state, and default icon sizing.
 A widget must express those decisions through typed primitive props and must not
 import `src/shared/styles/recipes.ts` directly.
 
+`border` is the high-contrast contour for controls and explicit component
+boundaries. Structural dividers use the low-contrast `separator` token: menu
+separators, table rows, and resizable pane boundaries must not render a long
+`border`-colored line. Interaction may strengthen a separator transiently but
+does not replace its resting token.
+
 Interaction state has stable vocabulary:
 
 - `active` identifies the current editor tool or navigation mode.

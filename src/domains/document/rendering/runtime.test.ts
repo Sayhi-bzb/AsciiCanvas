@@ -111,16 +111,19 @@ describe("TextRenderingRuntime", () => {
       "#### H4",
     ]);
     if (result.kind !== "styled") throw new Error("Expected styled headings");
-    expect(result.cells.find((cell) => cell.y === 0)?.attrs).toEqual({
+    expect(result.cells.find((cell) => cell.y === 0 && cell.char === "#")?.color).toBe(
+      "#2563eb"
+    );
+    expect(result.cells.find((cell) => cell.y === 0 && cell.char === "H")?.attrs).toEqual({
       bold: true,
       underline: true,
     });
-    expect(result.cells.find((cell) => cell.y === 2)?.attrs).toEqual({ bold: true });
-    expect(result.cells.find((cell) => cell.y === 4)?.attrs).toEqual({
+    expect(result.cells.find((cell) => cell.y === 2 && cell.char === "H")?.attrs).toEqual({ bold: true });
+    expect(result.cells.find((cell) => cell.y === 4 && cell.char === "H")?.attrs).toEqual({
       bold: true,
       italic: true,
     });
-    expect(result.cells.find((cell) => cell.y === 6)?.attrs).toEqual({ italic: true });
+    expect(result.cells.find((cell) => cell.y === 6 && cell.char === "H")?.attrs).toEqual({ italic: true });
   });
 
   it("renders Codex inline code, compact links, quotes, lists, and rules", async () => {
@@ -131,20 +134,26 @@ describe("TextRenderingRuntime", () => {
     );
 
     expect(rowText(result, 0)).toBe("code docs");
-    expect(rowText(result, 2)).toBe("> quote");
+    expect(rowText(result, 2)).toBe("│ quote");
     expect(rowText(result, 4)).toBe("1. one");
     expect(rowText(result, 5)).toBe("2. two");
     expect(rowText(result, 7)).toBe("———");
     if (result.kind !== "styled") throw new Error("Expected styled Markdown");
     expect(result.cells.find((cell) => cell.char === "c")).toMatchObject({
       color: "#0891b2",
+      bgColor: "#e2e8f0",
     });
     expect(result.cells.find((cell) => cell.href === "https://example.com")).toMatchObject({
       color: "#0891b2",
       href: "https://example.com",
       attrs: { underline: true },
     });
-    expect(result.cells.find((cell) => cell.y === 2)).toMatchObject({ color: "#16a34a" });
+    expect(result.cells.find((cell) => cell.y === 2 && cell.char === "│")).toMatchObject({
+      color: "#16a34a",
+    });
+    expect(result.cells.find((cell) => cell.y === 2 && cell.char === "q")?.color).toBe(
+      "#111111"
+    );
     expect(result.cells.find((cell) => cell.y === 4 && cell.char === "1")).toMatchObject({
       color: "#2563eb",
     });
@@ -155,11 +164,11 @@ describe("TextRenderingRuntime", () => {
     runtime.setProfile({
       ...DEFAULT_TEXT_RENDER_PROFILE,
       markdownColors: {
-        strong: "#ff0000",
-        emphasis: "#00ff00",
-        strikethrough: "#0000ff",
-        link: "#ffff00",
-        "inline-code": "#ff00ff",
+        "strong.foreground": "#ff0000",
+        "emphasis.foreground": "#00ff00",
+        "strikethrough.foreground": "#0000ff",
+        "link.foreground": "#ffff00",
+        "inline-code.foreground": "#ff00ff",
       },
     });
     const result = await runtime.render(
@@ -176,15 +185,42 @@ describe("TextRenderingRuntime", () => {
     expect(colorOf("C")).toBe("#ff00ff");
   });
 
-  it("colors block-owned content and decorations without recoloring list bodies", async () => {
+  it("resolves theme tokens before rule overrides", async () => {
+    const runtime = new TextRenderingRuntime();
+    runtime.setProfile({
+      ...DEFAULT_TEXT_RENDER_PROFILE,
+      renderTheme: {
+        accent: "#112233",
+        info: "#223344",
+        success: "#334455",
+        surface: "#445566",
+      },
+      markdownColors: { "heading.marker": "#abcdef" },
+    });
+    const result = await runtime.render(
+      "# Head\n\n> Quote\n\n`code` [link](https://example.com)",
+      "#111111"
+    );
+
+    if (result.kind !== "styled") throw new Error("Expected styled Markdown");
+    expect(result.cells.find((cell) => cell.y === 0 && cell.char === "#")?.color).toBe("#abcdef");
+    expect(result.cells.find((cell) => cell.y === 2 && cell.char === "│")?.color).toBe("#334455");
+    expect(result.cells.find((cell) => cell.y === 4 && cell.char === "c")).toMatchObject({
+      color: "#223344",
+      bgColor: "#445566",
+    });
+    expect(result.cells.find((cell) => cell.y === 4 && cell.char === "l")?.color).toBe("#223344");
+  });
+
+  it("colors block decorations without recoloring their content", async () => {
     const runtime = new TextRenderingRuntime();
     runtime.setProfile({
       ...DEFAULT_TEXT_RENDER_PROFILE,
       markdownColors: {
-        heading: "#aa0000",
-        blockquote: "#00aa00",
-        list: "#0000aa",
-        "thematic-break": "#aaaa00",
+        "heading.marker": "#aa0000",
+        "blockquote.marker": "#00aa00",
+        "list.marker": "#0000aa",
+        "thematic-break.foreground": "#aaaa00",
       },
     });
     const result = await runtime.render(
@@ -193,24 +229,41 @@ describe("TextRenderingRuntime", () => {
     );
 
     if (result.kind !== "styled") throw new Error("Expected styled Markdown");
-    expect(result.cells.find((cell) => cell.y === 0 && cell.char === "H")?.color).toBe("#aa0000");
-    expect(result.cells.find((cell) => cell.y === 2 && cell.char === "Q")?.color).toBe("#00aa00");
+    expect(result.cells.find((cell) => cell.y === 0 && cell.char === "#")?.color).toBe("#aa0000");
+    expect(result.cells.find((cell) => cell.y === 0 && cell.char === "H")?.color).toBe("#111111");
+    expect(result.cells.find((cell) => cell.y === 2 && cell.char === "│")?.color).toBe("#00aa00");
+    expect(result.cells.find((cell) => cell.y === 2 && cell.char === "Q")?.color).toBe("#111111");
     expect(result.cells.find((cell) => cell.y === 4 && cell.char === "-")?.color).toBe("#0000aa");
     expect(result.cells.find((cell) => cell.y === 4 && cell.char === "I")?.color).toBe("#111111");
     expect(result.cells.find((cell) => cell.y === 6)?.color).toBe("#aaaa00");
   });
 
-  it("uses one table override for headers and separators while preserving body color", async () => {
+  it("styles table headers as a band and keeps separators and body independent", async () => {
     const runtime = new TextRenderingRuntime();
     runtime.setProfile({
       ...DEFAULT_TEXT_RENDER_PROFILE,
-      markdownColors: { table: "#123456" },
+      markdownColors: {
+        "table.header.foreground": "#ffffff",
+        "table.header.background": "#123456",
+        "table.separator": "#654321",
+      },
     });
-    const result = await runtime.render("| Head |\n| --- |\n| Body |", "#111111");
+    const result = await runtime.render(
+      "| Left | Right |\n| --- | --- |\n| Body | Value |",
+      "#111111"
+    );
 
     if (result.kind !== "styled") throw new Error("Expected styled table");
-    expect(result.cells.find((cell) => cell.y === 0 && cell.char === "H")?.color).toBe("#123456");
-    expect(result.cells.find((cell) => cell.y === 1)?.color).toBe("#123456");
+    const header = result.cells.filter((cell) => cell.y === 0);
+    expect(rowText(result, 0)).toBe(" Left    Right ");
+    expect(header.filter((cell) => cell.x < 6 || cell.x >= 8).every((cell) =>
+      cell.color === "#ffffff" && cell.bgColor === "#123456" && cell.attrs?.bold
+    )).toBe(true);
+    expect(header.filter((cell) => cell.x === 6 || cell.x === 7).every((cell) =>
+      cell.char === " " && cell.bgColor === undefined
+    )).toBe(true);
+    expect(rowText(result, 1)).toBe("━━━━━━  ━━━━━━━");
+    expect(result.cells.find((cell) => cell.y === 1)?.color).toBe("#654321");
     expect(result.cells.find((cell) => cell.y === 2 && cell.char === "B")?.color).toBe("#111111");
   });
 
@@ -220,10 +273,78 @@ describe("TextRenderingRuntime", () => {
       "#111111"
     );
 
-    expect(rowText(result, 0)).toBe("> outer");
-    expect(rowText(result, 1)).toBe("> > inner");
+    expect(rowText(result, 0)).toBe("│ outer");
+    expect(rowText(result, 1)).toBe("│ │ inner");
     expect(rowText(result, 3)).toBe("- parent");
     expect(rowText(result, 4)).toBe("    - child");
+  });
+
+  it("renders task list states as compact status markers", async () => {
+    const result = await new TextRenderingRuntime().render(
+      "- [ ] Todo\n- [x] Done\n- Plain",
+      "#111111"
+    );
+
+    expect([0, 1, 2].map((y) => rowText(result, y))).toEqual([
+      "○ Todo",
+      "● Done",
+      "- Plain",
+    ]);
+    if (result.kind !== "styled") throw new Error("Expected styled task list");
+    expect(result.cells.find((cell) => cell.char === "○")).toMatchObject({
+      x: 0,
+      color: "#94a3b8",
+    });
+    expect(result.cells.find((cell) => cell.char === "●")).toMatchObject({
+      x: 0,
+      color: "#16a34a",
+    });
+    expect(result.cells.find((cell) => cell.char === "T")?.color).toBe("#111111");
+    expect(result.cells.find((cell) => cell.char === "D")?.color).toBe("#111111");
+  });
+
+  it("keeps list and task-list rules independently switchable", async () => {
+    const runtime = new TextRenderingRuntime();
+    runtime.setProfile({
+      ...DEFAULT_TEXT_RENDER_PROFILE,
+      markdownRules: {
+        ...DEFAULT_TEXT_RENDER_PROFILE.markdownRules,
+        "task-list": false,
+      },
+    });
+    expect(rowText(await runtime.render("- [ ] Todo", "#fff"), 0)).toBe("- [ ] Todo");
+
+    runtime.setProfile({
+      ...DEFAULT_TEXT_RENDER_PROFILE,
+      markdownRules: {
+        ...DEFAULT_TEXT_RENDER_PROFILE.markdownRules,
+        list: false,
+      },
+    });
+    expect(rowText(await runtime.render("- [ ] **Todo**", "#fff"), 0)).toBe(
+      "- [ ] **Todo**"
+    );
+  });
+
+  it("applies task colors independently and replaces ordered and nested prefixes", async () => {
+    const runtime = new TextRenderingRuntime();
+    runtime.setProfile({
+      ...DEFAULT_TEXT_RENDER_PROFILE,
+      markdownColors: {
+        "task-list.unchecked": "#aa0000",
+        "task-list.checked": "#00aa00",
+      },
+    });
+    const result = await runtime.render(
+      "1. [ ] Parent\n   - [x] Child",
+      "#111111"
+    );
+
+    expect(rowText(result, 0)).toBe("○ Parent");
+    expect(rowText(result, 1)).toBe("    ● Child");
+    if (result.kind !== "styled") throw new Error("Expected styled task list");
+    expect(result.cells.find((cell) => cell.char === "○")?.color).toBe("#aa0000");
+    expect(result.cells.find((cell) => cell.char === "●")?.color).toBe("#00aa00");
   });
 
   it("lays out GFM tables by natural cell width including CJK", async () => {
@@ -252,6 +373,78 @@ describe("TextRenderingRuntime", () => {
     ).toBe(true);
     expect(rowText(fallback, 0)).toBe("value");
     expect(fallback.diagnostics[0]?.code).toBe("markdown-highlight-failed");
+  });
+
+  it("renders fenced Mermaid as a Unicode grid with inherited or custom color", async () => {
+    const runtime = new TextRenderingRuntime();
+    runtime.setProfile({
+      ...DEFAULT_TEXT_RENDER_PROFILE,
+      markdownColors: { "mermaid.foreground": "#123456" },
+    });
+    const result = await runtime.render(
+      "```mermaid\ngraph LR\n  A[开始] --> B[完成]\n```",
+      "#111111"
+    );
+
+    expect(result.renderer).toBe("markdown");
+    expect(textFrom(result)).not.toContain("```");
+    expect(textFrom(result)).not.toContain("\u001b");
+    expect(textFrom(result)).toContain("开始");
+    expect(textFrom(result)).toContain("完成");
+    expect(textFrom(result)).toContain("┌");
+    if (result.kind !== "styled") throw new Error("Expected styled Mermaid");
+    expect(result.cells.every((cell) => cell.color === "#123456")).toBe(true);
+    const start = result.cells.find((cell) => cell.char === "开");
+    expect(result.cells.find((cell) => cell.char === "始")?.x).toBe((start?.x ?? 0) + 2);
+  });
+
+  it("keeps Mermaid independently switchable from fenced code rendering", async () => {
+    const runtime = new TextRenderingRuntime();
+    runtime.setProfile({
+      ...DEFAULT_TEXT_RENDER_PROFILE,
+      markdownRules: {
+        ...DEFAULT_TEXT_RENDER_PROFILE.markdownRules,
+        mermaid: false,
+      },
+    });
+    const source = "```mermaid\ngraph LR\n  A --> B\n```";
+    const disabledMermaid = await runtime.render(source, "#111111");
+
+    expect([0, 1].map((y) => rowText(disabledMermaid, y))).toEqual([
+      "graph LR",
+      "  A --> B",
+    ]);
+    expect(disabledMermaid.diagnostics).toEqual([]);
+
+    runtime.setProfile({
+      ...DEFAULT_TEXT_RENDER_PROFILE,
+      markdownRules: {
+        ...DEFAULT_TEXT_RENDER_PROFILE.markdownRules,
+        "code-block": false,
+      },
+    });
+    const disabledCodeBlocks = await runtime.render(source, "#111111");
+    expect([0, 1, 2, 3].map((y) => rowText(disabledCodeBlocks, y))).toEqual([
+      "```mermaid",
+      "graph LR",
+      "  A --> B",
+      "```",
+    ]);
+  });
+
+  it("preserves the fenced source when Mermaid rendering fails", async () => {
+    const result = await new TextRenderingRuntime().render(
+      "```mermaid\npie\n  title Unsupported\n```",
+      "#111111"
+    );
+
+    expect([0, 1, 2, 3].map((y) => rowText(result, y))).toEqual([
+      "```mermaid",
+      "pie",
+      "  title Unsupported",
+      "```",
+    ]);
+    expect(result.diagnostics[0]?.code).toBe("markdown-mermaid-render-failed");
   });
 
   it("preserves disabled block rules as raw Markdown source", async () => {
@@ -311,16 +504,27 @@ describe("TextRenderingRuntime", () => {
     runtime.setProfile({
       ...DEFAULT_TEXT_RENDER_PROFILE,
       mode: "markdown",
+      renderTheme: {
+        accent: "#AABBCC",
+        info: "invalid",
+      },
       markdownColors: {
-        strong: "#AABBCC",
-        link: "invalid",
+        "strong.foreground": "#AABBCC",
+        "task-list.unchecked": "#123456",
+        "task-list.checked": "#654321",
+        "link.foreground": "invalid",
         ...({ "code-block": "#ff0000" } as Record<string, string>),
       },
     });
 
     expect(new TextRenderingRuntime({ storage }).getProfile()).toMatchObject({
       mode: "markdown",
-      markdownColors: { strong: "#aabbcc" },
+      renderTheme: { accent: "#aabbcc" },
+      markdownColors: {
+        "strong.foreground": "#aabbcc",
+        "task-list.unchecked": "#123456",
+        "task-list.checked": "#654321",
+      },
     });
   });
 
@@ -335,7 +539,31 @@ describe("TextRenderingRuntime", () => {
 
     expect(new TextRenderingRuntime({ storage }).getProfile()).toMatchObject({
       mode: "markdown",
+      markdownRules: { "task-list": true, mermaid: true },
+      renderTheme: {},
       markdownColors: {},
+    });
+  });
+
+  it("migrates legacy Markdown rule colors to semantic slots", () => {
+    const storage = {
+      getItem: () => JSON.stringify({
+        mode: "markdown",
+        markdownRules: DEFAULT_TEXT_RENDER_PROFILE.markdownRules,
+        markdownColors: {
+          heading: "#123456",
+          blockquote: "#234567",
+          table: "#345678",
+        },
+      }),
+      setItem: () => undefined,
+    };
+
+    expect(new TextRenderingRuntime({ storage }).getProfile().markdownColors).toEqual({
+      "heading.marker": "#123456",
+      "blockquote.marker": "#234567",
+      "table.header.background": "#345678",
+      "table.separator": "#345678",
     });
   });
 

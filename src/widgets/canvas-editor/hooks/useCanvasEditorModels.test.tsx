@@ -1,0 +1,114 @@
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it } from 'vitest';
+import { useEditorStore } from '@/domains/canvas/testing';
+import {
+  CanvasViewProvider,
+  CanvasWorkspaceProvider,
+  useCanvasViewOptional,
+  type CanvasViewId,
+} from '../engine/CanvasWorkspace';
+import { useCanvasEditorModels } from './useCanvasEditorModels';
+
+function ModelHarness({ viewId }: { viewId: CanvasViewId }) {
+  const view = useCanvasViewOptional();
+  const models = useCanvasEditorModels();
+  if (!view) return null;
+  const chars = Array.from(models.renderer.grid.values()).map((cell) => cell.char).join('');
+  return (
+    <div>
+      <output data-testid={`${viewId}-model`}>
+        {models.renderer.activeCanvasId}:{models.renderer.canvasMode}:{chars}:
+        {models.renderer.structuredScene.length}:{models.renderer.selectedStructuredNodeIds.length}
+      </output>
+      <button type="button" onClick={() => view.selectSession('canvas-b')}>
+        {`select-${viewId}-b`}
+      </button>
+      <button type="button" onClick={() => view.selectSession('canvas-c')}>
+        {`select-${viewId}-c`}
+      </button>
+      <button type="button" onClick={view.activate}>{`activate-${viewId}`}</button>
+    </div>
+  );
+}
+
+describe('useCanvasEditorModels session binding', () => {
+  const initialState = useEditorStore.getState();
+
+  afterEach(() => {
+    localStorage.clear();
+    useEditorStore.setState(initialState, true);
+  });
+
+  it('renders inactive structured and slide sessions from their snapshots', () => {
+    act(() => {
+      useEditorStore.setState({
+        activeCanvasId: 'canvas-a',
+        canvasMode: 'freeform',
+        grid: new Map([['0,0', { char: 'A', color: '#000000' }]]),
+        selectedStructuredNodeIds: ['global-selection'],
+        canvasSessions: [
+          {
+            id: 'canvas-a',
+            name: 'Alpha',
+            mode: 'freeform',
+            scene: [],
+            grid: [['0,0', { char: 'A', color: '#000000' }]],
+          },
+          {
+            id: 'canvas-b',
+            name: 'Beta',
+            mode: 'structured',
+            scene: [{
+              id: 'text-b',
+              type: 'text',
+              order: 0,
+              position: { x: 0, y: 0 },
+              text: 'B',
+              style: { color: '#000000' },
+            }],
+            grid: [['0,0', { char: 'B', color: '#000000' }]],
+          },
+          {
+            id: 'canvas-c',
+            name: 'Slides',
+            mode: 'slide',
+            scene: [],
+            grid: [],
+            slideDeck: {
+              activeSlideId: 'slide-c',
+              slides: [{
+                id: 'slide-c',
+                name: 'Slide',
+                size: { columns: 10, rows: 5 },
+                grid: [['0,0', { char: 'C', color: '#000000' }]],
+              }],
+            },
+          },
+        ],
+      });
+    });
+
+    render(
+      <CanvasWorkspaceProvider>
+        <CanvasViewProvider viewId="primary">
+          <ModelHarness viewId="primary" />
+        </CanvasViewProvider>
+        <CanvasViewProvider viewId="secondary">
+          <ModelHarness viewId="secondary" />
+        </CanvasViewProvider>
+      </CanvasWorkspaceProvider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'select-secondary-b' }));
+    fireEvent.click(screen.getByRole('button', { name: 'activate-primary' }));
+    expect(screen.getByTestId('secondary-model')).toHaveTextContent(
+      'canvas-b:structured:B:1:0'
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'select-secondary-c' }));
+    fireEvent.click(screen.getByRole('button', { name: 'activate-primary' }));
+    expect(screen.getByTestId('secondary-model')).toHaveTextContent(
+      'canvas-c:slide:C:0:0'
+    );
+  });
+});

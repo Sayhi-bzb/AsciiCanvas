@@ -8,6 +8,7 @@ import {
 } from "react";
 import { CanvasEngineRuntime } from "./CanvasEngineRuntime";
 import { useCanvasRuntime } from "@/domains/canvas/public";
+import { useCanvasViewOptional } from './CanvasWorkspace';
 
 const CanvasEngineContext = createContext<CanvasEngineRuntime | null>(null);
 let canvasEngineRuntimeFallback: CanvasEngineRuntime | null = null;
@@ -32,9 +33,10 @@ export const CanvasEngineProvider = ({ children }: { children: ReactNode }) => {
 };
 
 export const useCanvasEngineRuntime = (): CanvasEngineRuntime => {
+  const view = useCanvasViewOptional();
   const provided = useContext(CanvasEngineContext) ?? canvasEngineRuntimeFallback;
-  if (!provided) {
+  if (!view?.runtime && !provided) {
     throw new Error("useCanvasEngineRuntime must be used within CanvasEngineProvider");
   }
-  return provided;
+  return view?.runtime ?? provided!;
 };

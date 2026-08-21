@@ -13,7 +13,10 @@ export {
   createMarkdownTextRenderPlugin,
   rawTextRenderPlugin,
 } from "./rendering/plugins";
-export { CODEX_MARKDOWN_RULE_COLOR_BEHAVIORS } from "./rendering/markdown";
+export {
+  DEFAULT_TEXT_RENDER_THEME,
+  MARKDOWN_RULE_STYLE_BEHAVIORS,
+} from "./rendering/theme";
 export {
   configureTextRenderingRuntimeFallbackForTesting,
   TextRenderingProvider,
@@ -24,12 +27,13 @@ export type {
   Awaitable,
   AttributedText,
   BuiltInTextRendererId,
-  MarkdownColorRuleId,
+  MarkdownColorSlotId,
+  MarkdownColorDefault,
   MarkdownRenderRule,
   MarkdownRenderRuleId,
   MarkdownRenderColors,
   MarkdownRenderRules,
-  MarkdownRuleColorBehavior,
+  MarkdownRuleStyleBehavior,
   RenderedTextCell,
   TextRenderPlugin,
   TextDecoderPlugin,
@@ -45,4 +49,7 @@ export type {
   TextRendererId,
   TextRendererMode,
   TextRenderingStorage,
+  TextRenderTheme,
+  TextRenderThemeOverrides,
+  TextRenderThemeTokenId,
 } from "./rendering/types";

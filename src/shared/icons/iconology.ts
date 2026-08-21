@@ -200,6 +200,7 @@ export const HOST_ICONOLOGY = {
     trigger: Menu,
     import: Upload,
     export: Download,
+    splitView: SquareSplitHorizontal,
     copy: Copy,
     github: GitHubMarkIcon,
     githubStar: Star,
@@ -212,6 +213,7 @@ export const HOST_ICONOLOGY = {
     | 'trigger'
     | 'import'
     | 'export'
+    | 'splitView'
     | 'copy'
     | 'github'
     | 'githubStar'

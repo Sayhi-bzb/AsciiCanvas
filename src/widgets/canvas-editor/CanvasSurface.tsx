@@ -10,6 +10,7 @@ import {
 import { StructuredSplitToolbar } from './StructuredSplitToolbar';
 import type { CanvasSurfaceGeometry } from './canvasSurfaceGeometry';
 import type { EditorViewportFrame } from '@/widgets/editor-chrome/public';
+import { cn } from '@/shared/lib/utils';
 
 type CanvasSurfaceProps = HTMLAttributes<HTMLDivElement> & {
   containerRef: RefObject<HTMLDivElement | null>;
@@ -24,6 +25,7 @@ type CanvasSurfaceProps = HTMLAttributes<HTMLDivElement> & {
   textareaStyle: CSSProperties;
   textareaProps: TextareaHTMLAttributes<HTMLTextAreaElement>;
   children?: ReactNode;
+  interactionUi?: boolean;
 };
 
 const assignRef = <T,>(ref: Ref<T> | undefined, value: T | null) => {
@@ -45,6 +47,7 @@ export const CanvasSurface = forwardRef<HTMLDivElement, CanvasSurfaceProps>(func
     textareaStyle,
     textareaProps,
     children,
+    interactionUi = true,
     className,
     style,
     ...surfaceProps
@@ -88,20 +91,28 @@ export const CanvasSurface = forwardRef<HTMLDivElement, CanvasSurfaceProps>(func
         />
         <canvas
           ref={scratchCanvasRef}
-          className="absolute block pointer-events-none"
+          className={cn(
+            'absolute block pointer-events-none',
+            !interactionUi && 'opacity-0'
+          )}
           style={canvasStyle}
         />
         <canvas
           ref={uiCanvasRef}
-          className="absolute block pointer-events-none"
+          className={cn(
+            'absolute block pointer-events-none',
+            !interactionUi && 'opacity-60'
+          )}
           style={canvasStyle}
         />
       </div>
       {children}
-      <StructuredSplitToolbar
-        containerSize={containerSize}
-        viewportFrame={viewportFrame}
-      />
+      {interactionUi && (
+        <StructuredSplitToolbar
+          containerSize={containerSize}
+          viewportFrame={viewportFrame}
+        />
+      )}
       <textarea
         ref={textareaRef}
         data-canvas-managed-input="true"

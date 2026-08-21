@@ -8,12 +8,14 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "concurrently --kill-others --success first --names app,docs --prefix-colors cyan,magenta \"npm:dev:app\" \"npm:dev:docs\"",
+    "dev": "concurrently --kill-others --success first --names app,docs,chargraph --prefix-colors cyan,magenta,yellow \"npm:dev:app\" \"npm:dev:docs\" \"npm:dev:chargraph\"",
     "dev:app": "vite --host 127.0.0.1 --port 5173 --strictPort",
     "dev:docs": "npm run dev -w @chardesk/docs",
-    "build": "npm run build -w @chardesk/fonts && npm run build -w @chardesk/protocol && npm run build -w @chardesk/viewer && npm run build -w @chardesk/blackboard && tsc -b && vite build && npm run build:docs",
+    "dev:chargraph": "npm run dev -w @chardesk/chargraph-site",
+    "build": "npm run build -w @chardesk/fonts && npm run build -w @chardesk/protocol && npm run build -w @chardesk/chargraph && npm run build -w @chardesk/viewer && npm run build -w @chardesk/blackboard && tsc -b && vite build && npm run build:docs && npm run build:chargraph",
     "build:docs": "npm run build -w @chardesk/docs && node scripts/docs/merge-build.mjs && node scripts/docs/verify-build.mjs",
-    "typecheck": "tsc -b --pretty false && npm run typecheck -w @chardesk/blackboard && npm run typecheck -w @chardesk/docs",
+    "build:chargraph": "npm run build -w @chardesk/chargraph-site && node scripts/chargraph/merge-build.mjs && node scripts/chargraph/verify-build.mjs",
+    "typecheck": "tsc -b --pretty false && npm run typecheck -w @chardesk/blackboard && npm run typecheck -w @chardesk/docs && npm run typecheck -w @chardesk/chargraph-site",
     "typecheck:docs": "npm run typecheck -w @chardesk/docs",
     "lint": "eslint .",
     "preview": "vite preview",
@@ -27,6 +29,7 @@
     "test": "vitest",
     "test:fonts": "npm test -w @chardesk/fonts",
     "test:blackboard": "npm test -w @chardesk/blackboard",
+    "test:chargraph": "npm test -w @chardesk/chargraph",
     "test:protocol": "npm test -w @chardesk/protocol",
     "test:viewer": "npm test -w @chardesk/viewer",
     "test:coverage": "vitest --coverage",
@@ -36,11 +39,12 @@
     "check:type-escapes": "node scripts/quality/check-type-escapes.mjs",
     "check:state-ownership": "node scripts/quality/check-state-ownership.mjs",
     "check:architecture": "npm run check:boundaries && npm run check:type-escapes && npm run check:state-ownership && npm run check-style-api",
-    "verify": "npm run typecheck && npm run lint && npm run knip && npm run check:architecture && npm run test:protocol && npm run test:blackboard && npm test -- --run && npm run build"
+    "verify": "npm run typecheck && npm run lint && npm run knip && npm run check:architecture && npm run test:protocol && npm run test:chargraph && npm run test:blackboard && npm test -- --run && npm run build"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
     "@chardesk/fonts": "*",
+    "@chardesk/chargraph": "*",
     "@chardesk/protocol": "*",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-collapsible": "^1.1.12",
@@ -68,6 +72,7 @@
     "react": "^19.2.0",
     "react-colorful": "^5.8.0",
     "react-dom": "^19.2.0",
+    "react-resizable-panels": "^4.12.3",
     "remark": "^15.0.1",
     "remark-gfm": "^4.0.1",
     "shiki": "^4.4.3",

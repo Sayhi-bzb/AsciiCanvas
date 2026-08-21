@@ -20,6 +20,18 @@ without viewport positioning.
 - Registered chrome regions produce one `EditorViewportFrame`. Regions on the
   same edge reserve their maximum intrusion, not their sum. Camera fit, zoom
   anchors, minimap sizing, and contextual controls consume that frame.
+- Split view is a device-local horizontal workspace layout. Each pane binds a
+  Canvas and keeps its own camera; the active pane owns editing and shared
+  controls while the other pane renders its session snapshot. The top-start
+  Chrome host owns the primary selector during Split and the visible selector
+  during single-pane rendering; the secondary selector remains pane-local.
+  Host flow, rather than Canvas coordinates, orders the App Menu, hosted
+  selector, status, and collaboration controls. During Split, only the active
+  pane's selector uses the shared active-control surface; single-pane rendering
+  has no redundant pane-focus treatment. Each pane receives a local viewport frame:
+  shared top and bottom insets, and only the outer side inset it touches. Narrow
+  containers suspend the second pane without clearing its binding, camera,
+  stored split preference, or ratio.
 - Viewport layers use the semantic ladder defined in `src/app/index.css`.
   Shared portal primitives own their layer; product instances do not assign raw
   overlay z-index values.

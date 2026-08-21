@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   resolveEditorFormFactor,
+  resolvePaneViewportFrame,
   resolveEditorViewportFrame,
   resolveSidebarPresentation,
 } from "./public";
@@ -45,5 +46,25 @@ describe("editor chrome geometry", () => {
       height: 598,
     });
     expect(frame.center).toEqual({ x: 350, y: 351 });
+  });
+
+  it("projects global chrome onto the pane that touches each outer edge", () => {
+    const frame = resolveEditorViewportFrame(rect(0, 0, 1000, 700), [
+      { edge: "top", rect: rect(0, 0, 1000, 40) },
+      { edge: "left", rect: rect(0, 0, 80, 700) },
+      { edge: "right", rect: rect(760, 0, 240, 700) },
+      { edge: "bottom", rect: rect(0, 660, 1000, 40) },
+    ]);
+
+    expect(resolvePaneViewportFrame(frame, { width: 450, height: 700 }, "start")).toMatchObject({
+      insets: { top: 40, right: 0, bottom: 40, left: 80 },
+      usableRect: { x: 80, y: 40, width: 370, height: 620 },
+      center: { x: 265, y: 350 },
+    });
+    expect(resolvePaneViewportFrame(frame, { width: 550, height: 700 }, "end")).toMatchObject({
+      insets: { top: 40, right: 240, bottom: 40, left: 0 },
+      usableRect: { x: 0, y: 40, width: 310, height: 620 },
+      center: { x: 155, y: 350 },
+    });
   });
 });

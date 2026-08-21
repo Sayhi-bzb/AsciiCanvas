@@ -6,7 +6,7 @@ import { SidebarProvider, SidebarTrigger, useSidebar } from '@/shared/ui/sidebar
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
 import { feedback } from '@/shared/services/effects';
 import { useShallow } from 'zustand/react/shallow';
-import { CanvasBreadcrumb } from '@/widgets/session-tabs/CanvasBreadcrumb';
+import { CanvasSessionSelector } from '@/widgets/session-tabs/CanvasBreadcrumb';
 import { TooltipProvider } from '@/shared/ui/tooltip';
 import { AppMenu } from '@/widgets/toolbar/app-menu';
 import { getStaticGridViewState } from '@/domains/selection/public';
@@ -22,7 +22,14 @@ import { RemotePresenceOverlay } from '@/widgets/collaboration/RemotePresenceOve
 import { useCollaborationSnapshot } from '@/widgets/collaboration/useCollaborationSnapshot';
 import { sameCollaborationRoom } from '@/domains/collaboration/public';
 import { OnboardingTourProvider } from '@/widgets/onboarding/new-user-tour';
-import { CanvasEngineProvider } from '@/widgets/canvas-editor/engine/useCanvasEngineRuntime';
+import {
+  CanvasViewProvider,
+  CanvasWorkspaceProvider,
+  useActiveCanvasView,
+  useCanvasViewOptional,
+  useCanvasWorkspace,
+  type CanvasViewId,
+} from '@/widgets/canvas-editor/engine/CanvasWorkspace';
 import { useEditor } from '@/domains/editor/public';
 import { Toaster } from '@/shared/ui/sonner';
 import { StatusText } from '@/shared/ui/status';
@@ -31,12 +38,21 @@ import { CanvasInspectorControl } from '@/widgets/canvas-inspector';
 import {
   EditorChromeLayout,
   EditorChromeProvider,
+  resolvePaneViewportFrame,
   useEditorChromeLayout,
 } from '@/widgets/editor-chrome/public';
 import { intersectHostCapabilities } from './editorHostProfile';
 import { useEditorHostProfile } from './useEditorHostProfile';
 import { useBlackboardSource } from './useBlackboardSource';
 import { getAppActionShortcuts } from '@/domains/actions/public';
+import {
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+} from '@/shared/ui/resizable';
+import type { CanvasEditorCapabilities } from '@/widgets/canvas-editor/canvasEditorCapabilities';
+import type { EditorViewportFrame } from '@/widgets/editor-chrome/public';
+import { useUiI18n } from '@/shared/i18n';
 
 const SidebarRight = lazy(() =>
   import('@/widgets/toolbar/sidebar-right').then((module) => ({
@@ -94,6 +110,189 @@ function PhoneSidebarTrigger() {
   return <SidebarTrigger side="right" />;
 }
 
+function SplitViewCommandRegistration() {
+  const editor = useEditor();
+  const { splitEnabled, setSplitEnabled } = useCanvasWorkspace();
+  useEffect(() => editor.commands.register('app.chrome', {
+    id: 'ui.toggle-split-view',
+    execute: () => {
+      setSplitEnabled(!splitEnabled);
+      return { handled: true, status: 'succeeded' };
+    },
+  }), [editor, setSplitEnabled, splitEnabled]);
+  return null;
+}
+
+type CanvasPaneProps = {
+  viewId: CanvasViewId;
+  onUndo: () => void;
+  onRedo: () => void;
+  capabilities: CanvasEditorCapabilities;
+  fitContentRevision: number;
+  viewportFrame?: EditorViewportFrame;
+  collaborate: boolean;
+  split: boolean;
+  manageSessions: boolean;
+};
+
+function BoundCanvasSessionSelector({
+  manageSessions,
+  onboardingTarget = false,
+  showPaneActivity = false,
+}: {
+  manageSessions: boolean;
+  onboardingTarget?: boolean;
+  showPaneActivity?: boolean;
+}) {
+  const view = useCanvasViewOptional();
+  if (!view) return null;
+  return (
+    <CanvasSessionSelector
+      manageSessions={manageSessions}
+      selectedSessionId={view.sessionId}
+      onSelectSession={view.selectSession}
+      onActivate={view.activate}
+      onboardingTarget={onboardingTarget}
+      paneActive={showPaneActivity && view.isActive}
+    />
+  );
+}
+
+function HostedCanvasSessionSelector({
+  viewId,
+  manageSessions,
+  showPaneActivity,
+}: {
+  viewId: CanvasViewId;
+  manageSessions: boolean;
+  showPaneActivity: boolean;
+}) {
+  return (
+    <CanvasViewProvider viewId={viewId}>
+      <div
+        data-canvas-ui="true"
+        data-testid={`canvas-session-selector-${viewId}`}
+        className="pointer-events-auto min-w-0 max-w-[min(14rem,calc(100vw-7.75rem))]"
+      >
+        <BoundCanvasSessionSelector
+          manageSessions={manageSessions}
+          onboardingTarget
+          showPaneActivity={showPaneActivity}
+        />
+      </div>
+    </CanvasViewProvider>
+  );
+}
+
+function CanvasPaneContent({
+  onUndo,
+  onRedo,
+  capabilities,
+  fitContentRevision,
+  viewportFrame,
+  collaborate,
+  split,
+  manageSessions,
+}: Omit<CanvasPaneProps, 'viewId'>) {
+  const view = useCanvasViewOptional();
+  const { t } = useUiI18n();
+  if (!view) return null;
+  const paneViewportFrame = viewportFrame && view.containerSize
+    ? resolvePaneViewportFrame(
+        viewportFrame,
+        view.containerSize,
+        split ? (view.viewId === 'primary' ? 'start' : 'end') : 'single'
+      )
+    : viewportFrame;
+  return (
+    <div
+      data-testid={`canvas-view-${view.viewId}`}
+      data-active={view.isActive ? 'true' : 'false'}
+      data-session-id={view.sessionId ?? undefined}
+      aria-label={
+        view.viewId === 'primary' ? t('canvasView.primary') : t('canvasView.secondary')
+      }
+      className="relative size-full overflow-hidden"
+    >
+      <CanvasEditor
+        onUndo={onUndo}
+        onRedo={onRedo}
+        capabilities={capabilities}
+        fitContentRevision={fitContentRevision}
+        viewportFrame={paneViewportFrame}
+        active={view.isActive}
+        onActivate={view.activate}
+        onContainerSizeChange={view.setContainerSize}
+      />
+      {split && view.viewId === 'secondary' ? (
+        <div
+          data-canvas-ui="true"
+          data-testid="canvas-session-selector-secondary"
+          className="pointer-events-auto absolute left-(--editor-chrome-inset) top-(--editor-safe-top) z-(--layer-controls) max-w-[min(14rem,calc(100%-1rem))]"
+        >
+          <BoundCanvasSessionSelector
+            manageSessions={manageSessions}
+            showPaneActivity
+          />
+        </div>
+      ) : null}
+      {collaborate && view.isActive && <RemotePresenceOverlay />}
+    </div>
+  );
+}
+
+function CanvasPane({ viewId, ...props }: CanvasPaneProps) {
+  return (
+    <CanvasViewProvider viewId={viewId}>
+      <CanvasPaneContent {...props} />
+    </CanvasViewProvider>
+  );
+}
+
+function CanvasWorkspaceSurface({
+  renderSplit,
+  ...props
+}: Omit<CanvasPaneProps, 'viewId' | 'split'> & { renderSplit: boolean }) {
+  const workspace = useCanvasWorkspace();
+  const activeView = useActiveCanvasView();
+  const { t } = useUiI18n();
+
+  return (
+    <div
+      data-onboarding-target="workspace"
+      data-split-view={renderSplit ? 'true' : 'false'}
+      className="relative size-full overflow-hidden"
+    >
+      {renderSplit ? (
+        <ResizablePanelGroup
+          id="canvas-split-view"
+          orientation="horizontal"
+          defaultLayout={{
+            primary: workspace.splitRatio,
+            secondary: 100 - workspace.splitRatio,
+          }}
+          resizeTargetMinimumSize={{ fine: 8, coarse: 24 }}
+          onLayoutChanged={(layout, meta) => {
+            if (meta.isUserInteraction && layout.primary != null) {
+              workspace.setSplitRatio(layout.primary);
+            }
+          }}
+        >
+          <ResizablePanel id="primary" minSize="320px">
+            <CanvasPane viewId="primary" split {...props} />
+          </ResizablePanel>
+          <ResizableHandle aria-label={t('canvasView.resize')} />
+          <ResizablePanel id="secondary" minSize="320px">
+            <CanvasPane viewId="secondary" split {...props} />
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      ) : (
+        <CanvasPane viewId={activeView.viewId} split={false} {...props} />
+      )}
+    </div>
+  );
+}
+
 function AppContent() {
   const hostProfile = useEditorHostProfile();
   useActiveCollaboration({ enabled: hostProfile.capabilities.collaborate });
@@ -115,6 +314,11 @@ function AppContent() {
     enabled: hostProfile.id === 'blackboard',
   });
   const { formFactor, sidebarPresentation, viewportFrame } = useEditorChromeLayout();
+  const workspace = useCanvasWorkspace();
+  const activeView = useActiveCanvasView();
+  const renderSplit =
+    workspace.splitEnabled && (viewportFrame.width === 0 || viewportFrame.width >= 640);
+  const hostedSelectorViewId: CanvasViewId = renderSplit ? 'primary' : activeView.viewId;
   const {
     tool,
     canvasMode,
@@ -214,6 +418,7 @@ function AppContent() {
       className="size-full overflow-hidden"
     >
       <SidebarShortcutRegistration />
+      <SplitViewCommandRegistration />
       <EditorChromeLayout
         sidebarOpen={isRightPanelOpen}
         topStart={
@@ -236,7 +441,11 @@ function AppContent() {
                 />
               </div>
             </div>
-            <CanvasBreadcrumb manageSessions={capabilities.manageSessions} />
+            <HostedCanvasSessionSelector
+              viewId={hostedSelectorViewId}
+              manageSessions={capabilities.manageSessions}
+              showPaneActivity={renderSplit}
+            />
             {hostProfile.id === 'blackboard' && (
               <StatusText tone={getBlackboardStatusTone(blackboardSource.status.state)} asChild>
                 <span
@@ -248,7 +457,11 @@ function AppContent() {
                 </span>
               </StatusText>
             )}
-            {capabilities.collaborate && <CollaborationControl />}
+            {capabilities.collaborate && (
+              <div className="flex-none">
+                <CollaborationControl />
+              </div>
+            )}
           </div>
         }
         topEnd={formFactor === 'phone' ? <PhoneSidebarTrigger /> : null}
@@ -283,18 +496,16 @@ function AppContent() {
           </Suspense>
         }
         canvas={
-          <div data-onboarding-target="workspace" className="relative size-full overflow-hidden">
-            <div className="relative h-full w-full">
-              <CanvasEditor
-                onUndo={handleUndo}
-                onRedo={handleRedo}
-                capabilities={capabilities}
-                fitContentRevision={blackboardSource.firstFitRevision}
-                viewportFrame={viewportFrame}
-              />
-              {capabilities.collaborate && <RemotePresenceOverlay />}
-            </div>
-          </div>
+          <CanvasWorkspaceSurface
+            onUndo={handleUndo}
+            onRedo={handleRedo}
+            capabilities={capabilities}
+            fitContentRevision={blackboardSource.firstFitRevision}
+            viewportFrame={viewportFrame}
+            collaborate={capabilities.collaborate}
+            manageSessions={capabilities.manageSessions}
+            renderSplit={renderSplit}
+          />
         }
       />
       <Toaster />
@@ -307,11 +518,11 @@ export default function App() {
     <ShortcutProvider>
       <TooltipProvider>
         <OnboardingTourProvider>
-          <CanvasEngineProvider>
+          <CanvasWorkspaceProvider>
             <EditorChromeProvider>
               <AppContent />
             </EditorChromeProvider>
-          </CanvasEngineProvider>
+          </CanvasWorkspaceProvider>
         </OnboardingTourProvider>
       </TooltipProvider>
     </ShortcutProvider>

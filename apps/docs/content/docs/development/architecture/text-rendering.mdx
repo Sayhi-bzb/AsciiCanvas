@@ -33,11 +33,22 @@ viewport, zoom, or paste position. Disabled inline rules consume delimiters with
 disabled block rules preserve their source slice. Raw mode preserves all delimiters. Renderer
 results may be asynchronous, and clipboard commands await them before mutating Canvas.
 
-`TextRenderProfile.markdownColors` stores optional foreground overrides by Markdown rule.
-Missing entries preserve the built-in Codex color or inherit the paste foreground. Overrides
-color rule-owned content and decorations; list overrides affect markers, while table overrides
-affect headers and separators. Fenced code remains owned by Shiki token colors. Like every
-renderer setting, color changes affect future paste only because Canvas stores materialized cells.
+The independent Mermaid rule converts `mermaid` fenced blocks through the private
+`@chardesk/chargraph/mermaid` plugin into plain Unicode before protocol layout. CharGraph owns
+the pluggable source-to-Unicode contract; the Mermaid plugin owns its vendored text renderers and adapts graphemes to `@chardesk/protocol` cell
+widths; it excludes the upstream SVG, ELK, ANSI, and theme pipelines. It is loaded on demand
+and falls back to the complete fenced source with a diagnostic for unsupported, invalid, or
+oversized input. Disabling Mermaid keeps the inner source as an ordinary code block.
+
+`TextRenderProfile.renderTheme` stores optional semantic token overrides; the resolved Renderer
+Theme is independent from the host UI theme. `markdownColors` stores optional rule-slot overrides.
+Style precedence is explicit ANSI, rule-slot override, Renderer Theme token, then inherited paste
+style. The rule behavior map in `rendering/theme.ts` owns each slot's token or inheritance default.
+Quote and heading colors belong to their markers; inline code owns foreground and background
+slots; table headers own foreground and background slots while separators are independent.
+Fenced code remains owned by Shiki token colors, and Mermaid inherits the paste foreground unless
+overridden. Persisted legacy rule colors migrate to the corresponding slots. Like every renderer
+setting, style changes affect future paste only because Canvas stores materialized cells.
 
 Verification lives in
 [`runtime.test.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/domains/document/rendering/runtime.test.ts)

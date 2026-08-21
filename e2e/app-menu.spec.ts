@@ -59,6 +59,7 @@ test.describe('App menu', () => {
     await expect(menu.getByRole('menuitem').allTextContents()).resolves.toEqual([
       'Import',
       'Export',
+      'Split view',
       'Clear',
       'Settings',
       'GitHub',

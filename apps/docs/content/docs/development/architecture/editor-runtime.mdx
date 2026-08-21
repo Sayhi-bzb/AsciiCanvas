@@ -14,6 +14,14 @@ Production widgets receive canvas, editor, and collaboration runtimes through
 providers; fallback injection is test-only. Additional hosts disable persistence
 or use a distinct non-empty storage key.
 
+`CanvasWorkspaceRuntime` owns one frame scheduler and a registry of canvas view
+runtimes. Each view binds one session and owns its camera-and-size snapshot,
+viewport presentation, hover, and imperative renderer managers. Only the active
+view projects its session into the shared editor, publishes its viewport, and
+owns managed input; inactive views render their bound session snapshot. Pane
+resize preserves the camera's world center. Manager and frame keys are scoped by
+view ID.
+
 ## Entry direction
 
 ```text

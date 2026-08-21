@@ -25,6 +25,20 @@ export default defineConfig({
         replacement: path.resolve(import.meta.dirname, './packages/fonts/src/index.ts')
       },
       {
+        find: /^@chardesk\/chargraph\/mermaid$/,
+        replacement: path.resolve(
+          import.meta.dirname,
+          './packages/chargraph/src/mermaid.ts'
+        )
+      },
+      {
+        find: /^@chardesk\/chargraph$/,
+        replacement: path.resolve(
+          import.meta.dirname,
+          './packages/chargraph/src/index.ts'
+        )
+      },
+      {
         find: '@chardesk/protocol',
         replacement: path.resolve(
           import.meta.dirname,

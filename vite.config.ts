@@ -3,24 +3,24 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react-swc";
 import { defineConfig, type Plugin } from "vite";
 
-function docsDevRedirect(): Plugin {
+function staticSiteDevRedirect(): Plugin {
   return {
-    name: "chardesk-docs-dev-redirect",
+    name: "chardesk-static-site-dev-redirect",
     apply: "serve",
     enforce: "pre",
     configureServer(server) {
       server.middlewares.use((request, response, next) => {
-        const requestUrl = request.url;
-        if (
-          requestUrl !== "/docs" &&
-          !requestUrl?.startsWith("/docs?")
-        ) {
+        const requestUrl = request.url ?? "";
+        const site = ["docs", "chargraph"].find(
+          (name) => requestUrl === `/${name}` || requestUrl.startsWith(`/${name}?`)
+        );
+        if (!site) {
           next();
           return;
         }
 
         response.statusCode = 307;
-        response.setHeader("Location", `/docs/${requestUrl.slice(5)}`);
+        response.setHeader("Location", `/${site}/${requestUrl.slice(site.length + 1)}`);
         response.end();
       });
     },
@@ -31,11 +31,15 @@ function docsDevRedirect(): Plugin {
 export default defineConfig({
   // Use relative asset paths by default to avoid blank pages on subpath deploys.
   base: process.env.VITE_BASE_PATH || "./",
-  plugins: [docsDevRedirect(), react(), tailwindcss()],
+  plugins: [staticSiteDevRedirect(), react(), tailwindcss()],
   server: {
     proxy: {
       "/docs": {
         target: "http://127.0.0.1:5174",
+        ws: true,
+      },
+      "/chargraph": {
+        target: "http://127.0.0.1:5185",
         ws: true,
       },
     },
@@ -74,6 +78,20 @@ export default defineConfig({
       {
         find: /^@chardesk\/fonts$/,
         replacement: path.resolve(import.meta.dirname, "./packages/fonts/src/index.ts"),
+      },
+      {
+        find: /^@chardesk\/chargraph\/mermaid$/,
+        replacement: path.resolve(
+          import.meta.dirname,
+          "./packages/chargraph/src/mermaid.ts"
+        ),
+      },
+      {
+        find: /^@chardesk\/chargraph$/,
+        replacement: path.resolve(
+          import.meta.dirname,
+          "./packages/chargraph/src/index.ts"
+        ),
       },
       {
         find: "@chardesk/protocol",

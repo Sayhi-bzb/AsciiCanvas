@@ -29,6 +29,10 @@
       "entry": ["src/index.ts", "src/**/*.test.ts", "vitest.config.ts"],
       "project": ["src/**/*.ts"]
     },
+    "packages/chargraph": {
+      "entry": ["src/index.ts", "src/mermaid.ts", "src/**/*.test.ts", "vitest.config.ts"],
+      "project": ["src/**/*.ts"]
+    },
     "packages/blackboard": {
       "entry": [
         "src/cli.ts",
@@ -47,6 +51,10 @@
         "vite.config.ts"
       ],
       "project": ["app/**/*.{ts,tsx}", "*.config.ts"]
+    },
+    "apps/chargraph": {
+      "entry": ["src/main.ts", "src/**/*.test.ts", "vite.config.ts", "vitest.config.ts"],
+      "project": ["src/**/*.ts", "*.config.ts"]
     }
   },
   "include": [
@@ -56,6 +64,9 @@
     "exports",
     "types",
     "duplicates"
+  ],
+  "ignore": [
+    "packages/chargraph/src/vendor/**"
   ],
   "ignoreDependencies": [
     "tailwindcss",

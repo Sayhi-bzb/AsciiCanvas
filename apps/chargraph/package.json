@@ -1,0 +1,20 @@
+{
+  "name": "@chardesk/chargraph-site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite --host 127.0.0.1 --port 5185 --strictPort",
+    "test": "vitest run --config vitest.config.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@chardesk/chargraph": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.4",
+    "typescript": "~5.9.3",
+    "vite": "^8.2.0",
+    "vitest": "^4.1.2"
+  }
+}

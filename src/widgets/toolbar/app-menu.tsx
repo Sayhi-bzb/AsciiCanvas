@@ -33,10 +33,12 @@ import { useInPlaceFeedback } from "@/shared/hooks/use-in-place-feedback";
 import { browser } from "@/shared/services/effects";
 import { APP_SOURCE_URL } from "@/shared/lib/constants";
 import { useGitHubStars } from "./use-github-stars";
+import { useCanvasWorkspaceOptional } from "@/widgets/canvas-editor/engine/CanvasWorkspace";
 
 const AppMenuTriggerIcon = HOST_ICONOLOGY.appMenu.trigger;
 const ImportIcon = HOST_ICONOLOGY.appMenu.import;
 const ExportIcon = HOST_ICONOLOGY.appMenu.export;
+const SplitViewIcon = HOST_ICONOLOGY.appMenu.splitView;
 const GitHubIcon = HOST_ICONOLOGY.appMenu.github;
 const GitHubStarIcon = HOST_ICONOLOGY.appMenu.githubStar;
 const SettingsIcon = HOST_ICONOLOGY.appMenu.settings;
@@ -57,6 +59,7 @@ const SettingsDialog = lazy(() =>
 );
 export function AppMenu() {
   const canvas = useCanvasRuntime();
+  const workspace = useCanvasWorkspaceOptional();
   const {
     grid,
     canvasMode,
@@ -268,6 +271,16 @@ export function AppMenu() {
                         </span>
                       </DropdownMenuSubContent>
                     </DropdownMenuSub>
+                  )}
+                  {workspace && (
+                    <DropdownMenuItem
+                      onSelect={() => workspace.setSplitEnabled(!workspace.splitEnabled)}
+                    >
+                      <SplitViewIcon />
+                      {workspace.splitEnabled
+                        ? t("action.closeSplitView")
+                        : t("action.splitView")}
+                    </DropdownMenuItem>
                   )}
                   <DropdownMenuItem
                     variant="destructive"

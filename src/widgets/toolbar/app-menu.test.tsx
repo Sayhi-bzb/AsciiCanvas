@@ -4,12 +4,14 @@ import { useEditorStore } from '@/domains/canvas/testing';
 import { createSlideDeck } from '@/domains/slides/public';
 import { setUiLanguage } from '@/shared/i18n';
 import { AppMenu } from './app-menu';
+import { CanvasWorkspaceProvider } from '@/widgets/canvas-editor/engine/CanvasWorkspace';
 
 describe('AppMenu slide interchange', () => {
   const initialState = useEditorStore.getState();
 
   beforeEach(() => {
     window.localStorage.removeItem('chardesk-github-stars-v1');
+    window.localStorage.removeItem('chardesk-canvas-split-enabled');
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve({ stargazers_count: 1234 }),
@@ -96,6 +98,25 @@ describe('AppMenu slide interchange', () => {
 
     fireEvent.keyDown(document, { key: 'Escape' });
     await waitFor(() => expect(trigger).toHaveFocus());
+  });
+
+  it('toggles split view from the app menu with the horizontal split icon', async () => {
+    act(() => setUiLanguage('en'));
+    render(
+      <CanvasWorkspaceProvider>
+        <AppMenu />
+      </CanvasWorkspaceProvider>
+    );
+
+    const trigger = screen.getByRole('button', { name: 'Open menu' });
+    fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false });
+
+    const splitItem = await screen.findByRole('menuitem', { name: 'Split view' });
+    expect(splitItem.querySelector('.lucide-square-split-horizontal')).toBeInTheDocument();
+    fireEvent.click(splitItem);
+
+    fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false });
+    expect(await screen.findByRole('menuitem', { name: 'Close split view' })).toBeInTheDocument();
   });
 
   it('localizes the settings menu item', async () => {

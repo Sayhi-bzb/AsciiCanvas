@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useEditorStore } from '@/domains/canvas/testing';
 import { ZoomControl } from './zoom-control';
+import { CanvasWorkspaceProvider } from '@/widgets/canvas-editor/engine/CanvasWorkspace';
 
 let isMobile = false;
 let reduceMotion = true;
@@ -141,6 +142,16 @@ describe('ZoomControl', () => {
     expect(screen.queryByTestId('zoom-minimap')).not.toBeInTheDocument();
   });
 
+  it('keeps split view out of the viewport group when a workspace is available', () => {
+    render(
+      <CanvasWorkspaceProvider>
+        <ZoomControl containerSize={{ width: 1000, height: 700 }} />
+      </CanvasWorkspaceProvider>
+    );
+
+    expect(screen.queryByTestId('zoom-split-view')).not.toBeInTheDocument();
+    expect(screen.getByTestId('zoom-minimap-toggle')).toHaveClass('rounded-l-none');
+  });
 
   it('zooms around the canvas center and resets directly when motion is reduced', () => {
     useEditorStore.setState({

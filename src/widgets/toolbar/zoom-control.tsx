@@ -26,11 +26,16 @@ import {
 import { useUiI18n } from '@/shared/i18n';
 import { useInPlaceFeedback } from '@/shared/hooks/use-in-place-feedback';
 import { useCanvasEngineRuntime } from '@/widgets/canvas-editor/engine/useCanvasEngineRuntime';
+import {
+  useCanvasViewOptional,
+  useCanvasWorkspaceOptional,
+} from '@/widgets/canvas-editor/engine/CanvasWorkspace';
 import { SlidePlaybackOverlay } from './slide-playback';
 import type {
   EditorFormFactor,
   EditorViewportFrame,
 } from '@/widgets/editor-chrome/public';
+import { resolvePaneViewportFrame } from '@/widgets/editor-chrome/public';
 
 const ZOOM_STEP = 1.2;
 const ZOOM_EPSILON = 0.000001;
@@ -77,6 +82,8 @@ export function ZoomControl({
   const canvas = useCanvasRuntime();
   const { t } = useUiI18n();
   const runtime = useCanvasEngineRuntime();
+  const workspace = useCanvasWorkspaceOptional();
+  const activeCanvasView = useCanvasViewOptional();
   const { zoom, canvasMode, slideDeck, showGrid } = useCanvasState(
     useShallow((state) => ({
       zoom: state.zoom,
@@ -95,9 +102,20 @@ export function ZoomControl({
   } = useInPlaceFeedback<'fullscreen'>();
   const ownsFullscreenRef = useRef(false);
   const tooltipHandle = useMemo(() => TooltipCreateHandle<string>(), []);
-  const viewportSize = viewportFrame
+  const activeViewportFrame = useMemo(() => {
+    const activeSize = activeCanvasView?.containerSize;
+    if (!viewportFrame || !activeSize) return viewportFrame;
+    return resolvePaneViewportFrame(
+      viewportFrame,
+      activeSize,
+      workspace?.splitEnabled
+        ? activeCanvasView.viewId === 'primary' ? 'start' : 'end'
+        : 'single'
+    );
+  }, [activeCanvasView?.containerSize, activeCanvasView?.viewId, viewportFrame, workspace?.splitEnabled]);
+  const viewportSize = activeCanvasView?.containerSize ?? (viewportFrame
     ? { width: viewportFrame.width, height: viewportFrame.height }
-    : containerSize;
+    : containerSize);
 
   useEffect(
     () => () => runtime.camera.cancelAnimation(),
@@ -152,7 +170,7 @@ export function ZoomControl({
 
   const animateZoomTo = useCallback(
     (requestedZoom: number) => {
-      const viewportCenter = viewportFrame?.center ??
+      const viewportCenter = activeViewportFrame?.center ??
         (containerSize
           ? { x: containerSize.width / 2, y: containerSize.height / 2 }
           : undefined);
@@ -165,7 +183,7 @@ export function ZoomControl({
         { duration: ZOOM_ANIMATION_DURATION_MS }
       );
     },
-    [containerSize, runtime, viewportFrame]
+    [activeViewportFrame, containerSize, runtime]
   );
 
   const applyZoomDelta = useCallback(

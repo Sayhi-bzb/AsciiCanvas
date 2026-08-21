@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { CanvasBreadcrumb } from "@/widgets/session-tabs/CanvasBreadcrumb";
+import {
+  CanvasBreadcrumb,
+  CanvasSessionSelector,
+} from "@/widgets/session-tabs/CanvasBreadcrumb";
 import { useEditorStore } from "@/domains/canvas/testing";
 import { setUiLanguage } from "@/shared/i18n";
 
@@ -105,6 +108,32 @@ describe("CanvasBreadcrumb", () => {
     expect(trigger).toHaveTextContent("Beta");
     expect(screen.queryByRole("dialog", { name: "Select canvas" })).not.toBeInTheDocument();
     await waitFor(() => expect(trigger).toHaveFocus());
+  });
+
+  it("supports a controlled pane binding without changing the global session directly", () => {
+    setTwoSessions();
+    const onActivate = vi.fn();
+    const onSelectSession = vi.fn();
+    render(
+      <CanvasSessionSelector
+        selectedSessionId="canvas-b"
+        onActivate={onActivate}
+        onSelectSession={onSelectSession}
+        paneActive
+      />
+    );
+
+    const trigger = screen.getByRole("button", { name: "Select canvas" });
+    expect(trigger).toHaveTextContent("Beta");
+    expect(trigger).toHaveAttribute("data-pane-active", "true");
+    expect(trigger).toHaveAttribute("data-active", "true");
+    expect(trigger).toHaveAttribute("aria-current", "true");
+    openPanel();
+    expect(onActivate).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: /^Alpha$/ }));
+
+    expect(onSelectSession).toHaveBeenCalledWith("canvas-a");
+    expect(useEditorStore.getState().activeCanvasId).toBe("canvas-a");
   });
 
   it("exposes stable onboarding targets for creating a Structured Canvas", async () => {

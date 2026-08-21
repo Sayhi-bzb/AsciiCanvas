@@ -89,6 +89,47 @@ export class CanvasFrameScheduler {
   }
 }
 
+/** Namespaces subsystem keys while keeping multiple canvas views on one RAF. */
+export class CanvasScopedFrameScheduler extends CanvasFrameScheduler {
+  private readonly parent: CanvasFrameScheduler;
+  private readonly scope: string;
+  private readonly pendingKeys = new Set<string>();
+
+  constructor(parent: CanvasFrameScheduler, scope: string) {
+    super();
+    this.parent = parent;
+    this.scope = scope;
+  }
+
+  override request(
+    key: string,
+    invalidation: CanvasFrameInvalidation,
+    callback: CanvasFrameCallback
+  ): void {
+    const scopedKey = `${this.scope}:${key}`;
+    this.pendingKeys.add(scopedKey);
+    this.parent.request(scopedKey, invalidation, (timestamp, pendingInvalidation) => {
+      this.pendingKeys.delete(scopedKey);
+      callback(timestamp, pendingInvalidation);
+    });
+  }
+
+  override now(): number {
+    return this.parent.now();
+  }
+
+  override cancel(key: string): void {
+    const scopedKey = `${this.scope}:${key}`;
+    this.pendingKeys.delete(scopedKey);
+    this.parent.cancel(scopedKey);
+  }
+
+  override dispose(): void {
+    this.pendingKeys.forEach((key) => this.parent.cancel(key));
+    this.pendingKeys.clear();
+  }
+}
+
 type RafScheduler = {
   requestAnimationFrame: (callback: FrameRequestCallback) => number;
   cancelAnimationFrame: (handle: number) => void;

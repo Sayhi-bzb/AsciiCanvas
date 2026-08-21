@@ -13,24 +13,64 @@ export type MarkdownRenderRuleId =
   | "inline-code"
   | "blockquote"
   | "list"
+  | "task-list"
   | "thematic-break"
   | "code-block"
+  | "mermaid"
   | "table";
 
 export type MarkdownRenderRules = Record<MarkdownRenderRuleId, boolean>;
-export type MarkdownColorRuleId = Exclude<MarkdownRenderRuleId, "code-block">;
-export type MarkdownRenderColors = Partial<Record<MarkdownColorRuleId, string>>;
-export type MarkdownRuleColorBehavior =
+export type MarkdownColorSlotId =
+  | "strong.foreground"
+  | "emphasis.foreground"
+  | "strikethrough.foreground"
+  | "link.foreground"
+  | "heading.marker"
+  | "inline-code.foreground"
+  | "inline-code.background"
+  | "blockquote.marker"
+  | "list.marker"
+  | "task-list.unchecked"
+  | "task-list.checked"
+  | "thematic-break.foreground"
+  | "mermaid.foreground"
+  | "table.header.foreground"
+  | "table.header.background"
+  | "table.separator";
+export type MarkdownRenderColors = Partial<Record<MarkdownColorSlotId, string>>;
+export type TextRenderThemeTokenId =
+  | "foreground"
+  | "background"
+  | "accent"
+  | "accent-foreground"
+  | "info"
+  | "success"
+  | "muted"
+  | "surface"
+  | "surface-foreground";
+export type TextRenderTheme = Record<TextRenderThemeTokenId, string>;
+export type TextRenderThemeOverrides = Partial<TextRenderTheme>;
+export type MarkdownColorDefault =
   | { readonly kind: "inherit" }
+  | { readonly kind: "token"; readonly token: TextRenderThemeTokenId }
   | {
-      readonly kind: "fixed";
-      readonly colors: readonly [string, ...string[]];
+      readonly kind: "mixed";
+      readonly tokens: readonly TextRenderThemeTokenId[];
       readonly includesInherited?: boolean;
-    }
-  | { readonly kind: "syntax" };
+    };
+export type MarkdownRuleStyleBehavior =
+  | { readonly kind: "syntax" }
+  | {
+      readonly kind: "slots";
+      readonly slots: readonly {
+        readonly id: MarkdownColorSlotId;
+        readonly default: MarkdownColorDefault;
+      }[];
+    };
 
 export type TextRenderProfile = {
   mode: TextRendererMode;
+  renderTheme: TextRenderThemeOverrides;
   markdownRules: MarkdownRenderRules;
   markdownColors: MarkdownRenderColors;
 };
@@ -90,6 +130,7 @@ export type TextTransformResult = {
 
 export type TextRenderContext = {
   defaultColor: string;
+  renderTheme: TextRenderTheme;
   markdownRules: MarkdownRenderRules;
   markdownColors: MarkdownRenderColors;
   forced: boolean;

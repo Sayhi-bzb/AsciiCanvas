@@ -33,6 +33,8 @@ export type EditorViewportFrame = {
   center: { x: number; y: number };
 };
 
+export type EditorPanePosition = "single" | "start" | "end";
+
 export const EMPTY_VIEWPORT_FRAME: EditorViewportFrame = {
   width: 0,
   height: 0,
@@ -79,6 +81,38 @@ export const resolveEditorViewportFrame = (
 
   const width = Math.max(0, viewportRect.width);
   const height = Math.max(0, viewportRect.height);
+  const usableWidth = Math.max(0, width - insets.left - insets.right);
+  const usableHeight = Math.max(0, height - insets.top - insets.bottom);
+  return {
+    width,
+    height,
+    insets,
+    usableRect: {
+      x: insets.left,
+      y: insets.top,
+      width: usableWidth,
+      height: usableHeight,
+    },
+    center: {
+      x: insets.left + usableWidth / 2,
+      y: insets.top + usableHeight / 2,
+    },
+  };
+};
+
+export const resolvePaneViewportFrame = (
+  frame: EditorViewportFrame,
+  size: { width: number; height: number },
+  position: EditorPanePosition
+): EditorViewportFrame => {
+  const width = Math.max(0, size.width);
+  const height = Math.max(0, size.height);
+  const insets = {
+    top: Math.min(height, frame.insets.top),
+    right: position === "start" ? 0 : Math.min(width, frame.insets.right),
+    bottom: Math.min(height, frame.insets.bottom),
+    left: position === "end" ? 0 : Math.min(width, frame.insets.left),
+  };
   const usableWidth = Math.max(0, width - insets.left - insets.right);
   const usableHeight = Math.max(0, height - insets.top - insets.bottom);
   return {

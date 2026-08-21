@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "baseUrl": "../..",
+    "paths": {
+      "@chardesk/chargraph": ["packages/chargraph/src/index.ts"],
+      "@chardesk/chargraph/mermaid": ["packages/chargraph/src/mermaid.ts"],
+      "@chardesk/protocol": ["packages/protocol/src/index.ts"]
+    },
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "types": ["node", "vite/client"],
+    "noEmit": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true
+  },
+  "include": ["src", "*.config.ts"]
+}

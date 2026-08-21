@@ -79,6 +79,30 @@ describe("ApplicationEditorHost", () => {
     expect(host.canvas.getState().grid.get("0,0")?.color).toBe("#0891b2");
   });
 
+  it("persists pasted Mermaid diagrams as editable Unicode grid cells", async () => {
+    const host = createHost();
+    host.canvas.commands.grid.replace([]);
+    host.canvas.commands.interaction.setTextCursor({ x: 0, y: 0 });
+    host.textRendering.setProfile({
+      ...DEFAULT_TEXT_RENDER_PROFILE,
+      mode: "markdown",
+    });
+
+    const result = await host.canvas.commands.selection.paste({
+      eventDataTransfer: {
+        getData: (type: string) => type === "text/plain"
+          ? "```mermaid\ngraph LR\n  A --> B\n```"
+          : "",
+      } as unknown as DataTransfer,
+    });
+
+    expect(result).toMatchObject({ status: "applied" });
+    const chars = Array.from(host.canvas.getState().grid.values(), (cell) => cell.char);
+    expect(chars).toContain("┌");
+    expect(chars).toContain("►");
+    expect(chars).not.toContain("`");
+  });
+
   it("accepts a fixed external session without creating demo sessions", () => {
     const host = createApplicationEditorHost({
       initialSessions: [{

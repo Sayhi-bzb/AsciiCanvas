@@ -84,6 +84,7 @@ export const createMarkdownTextRenderPlugin = (
         root,
         context.markdownRules,
         context.markdownColors,
+        context.renderTheme,
         rules
       );
       if (!rendered.recognized) return null;

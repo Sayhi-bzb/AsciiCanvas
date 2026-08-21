@@ -7,7 +7,7 @@ import { layoutCharDeskTextRuns } from "@chardesk/protocol";
 import { composeTextFragments } from "./compositor";
 import type {
   AttributedText,
-  MarkdownColorRuleId,
+  MarkdownColorSlotId,
   MarkdownRenderColors,
   MarkdownRenderRules,
   TextRenderPlugin,
@@ -17,11 +17,13 @@ import type {
   TextRendererId,
   TextRenderingStorage,
 } from "./types";
+import { DEFAULT_TEXT_RENDER_THEME } from "./theme";
 
 export const TEXT_RENDER_PROFILE_STORAGE_KEY = "chardesk-text-render-profile-v1";
 
 export const DEFAULT_TEXT_RENDER_PROFILE: TextRenderProfile = {
   mode: "auto",
+  renderTheme: {},
   markdownColors: {},
   markdownRules: {
     strong: true,
@@ -32,8 +34,10 @@ export const DEFAULT_TEXT_RENDER_PROFILE: TextRenderProfile = {
     "inline-code": true,
     blockquote: true,
     list: true,
+    "task-list": true,
     "thematic-break": true,
     "code-block": true,
+    mermaid: true,
     table: true,
   },
 };
@@ -47,14 +51,49 @@ const MARKDOWN_RULE_IDS = [
   "inline-code",
   "blockquote",
   "list",
+  "task-list",
   "thematic-break",
   "code-block",
+  "mermaid",
   "table",
 ] as const;
 
-const MARKDOWN_COLOR_RULE_IDS = MARKDOWN_RULE_IDS.filter(
-  (id): id is MarkdownColorRuleId => id !== "code-block"
-);
+const MARKDOWN_COLOR_SLOT_IDS = [
+  "strong.foreground",
+  "emphasis.foreground",
+  "strikethrough.foreground",
+  "link.foreground",
+  "heading.marker",
+  "inline-code.foreground",
+  "inline-code.background",
+  "blockquote.marker",
+  "list.marker",
+  "task-list.unchecked",
+  "task-list.checked",
+  "thematic-break.foreground",
+  "mermaid.foreground",
+  "table.header.foreground",
+  "table.header.background",
+  "table.separator",
+] as const satisfies readonly MarkdownColorSlotId[];
+
+const RENDER_THEME_TOKEN_IDS = Object.keys(DEFAULT_TEXT_RENDER_THEME) as Array<
+  keyof typeof DEFAULT_TEXT_RENDER_THEME
+>;
+
+const LEGACY_MARKDOWN_COLOR_SLOTS = {
+  strong: ["strong.foreground"],
+  emphasis: ["emphasis.foreground"],
+  strikethrough: ["strikethrough.foreground"],
+  link: ["link.foreground"],
+  heading: ["heading.marker"],
+  "inline-code": ["inline-code.foreground"],
+  blockquote: ["blockquote.marker"],
+  list: ["list.marker"],
+  "thematic-break": ["thematic-break.foreground"],
+  mermaid: ["mermaid.foreground"],
+  table: ["table.header.background", "table.separator"],
+} as const satisfies Record<string, readonly MarkdownColorSlotId[]>;
 
 const normalizeMarkdownColor = (value: unknown) =>
   typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value)
@@ -83,13 +122,31 @@ const decodeProfile = (
     ])
   ) as MarkdownRenderRules;
   const sourceColors = candidate.markdownColors;
-  const markdownColors = Object.fromEntries(
-    MARKDOWN_COLOR_RULE_IDS.flatMap((id) => {
-      const color = normalizeMarkdownColor(sourceColors?.[id]);
+  const colorEntries = MARKDOWN_COLOR_SLOT_IDS.flatMap((id) => {
+    const color = normalizeMarkdownColor(sourceColors?.[id]);
+    return color ? [[id, color] as const] : [];
+  });
+  Object.entries(LEGACY_MARKDOWN_COLOR_SLOTS).forEach(([legacyId, slots]) => {
+    const color = normalizeMarkdownColor((sourceColors as Record<string, unknown> | undefined)?.[legacyId]);
+    if (!color) return;
+    slots.forEach((slot) => {
+      if (!colorEntries.some(([id]) => id === slot)) colorEntries.push([slot, color]);
+    });
+  });
+  const markdownColors = Object.fromEntries(colorEntries) as MarkdownRenderColors;
+  const sourceTheme = candidate.renderTheme;
+  const renderTheme = Object.fromEntries(
+    RENDER_THEME_TOKEN_IDS.flatMap((id) => {
+      const color = normalizeMarkdownColor(sourceTheme?.[id]);
       return color ? [[id, color]] : [];
     })
-  ) as MarkdownRenderColors;
-  return { mode: mode as TextRenderProfile["mode"], markdownRules, markdownColors };
+  );
+  return {
+    mode: mode as TextRenderProfile["mode"],
+    renderTheme,
+    markdownRules,
+    markdownColors,
+  };
 };
 
 const readProfile = (
@@ -173,6 +230,7 @@ export class TextRenderingRuntime {
 
     const context = {
       defaultColor,
+      renderTheme: { ...DEFAULT_TEXT_RENDER_THEME, ...profile.renderTheme },
       markdownRules: profile.markdownRules,
       markdownColors: profile.markdownColors,
       forced: profile.mode !== "auto",
