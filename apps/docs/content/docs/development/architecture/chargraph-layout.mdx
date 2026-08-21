@@ -1,0 +1,35 @@
+---
+title: CharGraph layout
+description: Ownership and constraints for source-to-cell graph layout.
+---
+
+# CharGraph layout
+
+CharGraph routes diagrams by coordinate model, not Mermaid diagram name:
+
+| Model | Diagrams | Layout owner |
+| --- | --- | --- |
+| Directed relationships | Flow and State; later Class and ER | ELK Layered |
+| Time sequence | Sequence | Participant columns and message rows |
+| Cartesian data | XY | Axis and data-coordinate projection |
+
+The directed-graph pipeline is:
+
+`Mermaid AST -> LayoutGraph -> ELK Layered -> integer cell projection -> CharScene`
+
+`LayoutGraph` owns measured rectangular nodes, containment, labels, directed
+edges, and rank constraints. It does not own Unicode glyphs, rounded corners,
+line styles, or UML markers. ELK owns layering, ordering, crossings, ports, and
+orthogonal bends. Cell projection owns integer coordinates and rejects
+diagonal routes, node overlap, and routes through node interiors. CharScene
+alone owns glyph composition.
+
+For a feasible layout, priorities are ordered rather than mixed into unstable
+weights: direction, crossings, bends, Manhattan edge length, area, then stable
+source order. Diagram-specific placement exceptions do not belong in the
+shared layout engine; add an adapter or use the correct coordinate model.
+
+Flow and State rendering is asynchronous because browser layout runs in a
+worker. Worker-less runtimes use the same ELK adapter inline. A layout or
+projection failure returns the existing Mermaid diagnostic fallback; the old
+placement algorithm is not a fallback path.

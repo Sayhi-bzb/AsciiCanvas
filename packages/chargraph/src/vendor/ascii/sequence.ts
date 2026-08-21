@@ -15,6 +15,8 @@ import type { SequenceDiagram, Block } from '../sequence/types.js'
 import type { Canvas, AsciiConfig, RoleCanvas, CharRole } from './types.js'
 import { mkCanvas, mkRoleCanvas, canvasToString, increaseSize, increaseRoleCanvasSize, setRole } from './canvas.js'
 import { splitLines, maxLineWidth, lineCount } from './multiline-utils.js'
+import { BoxConnection, glyphForBoxConnections, glyphForBoxCorner } from './box-drawing.js'
+import { CharScene } from './scene.js'
 
 /** Classify a box-drawing character as 'border' or 'text'. */
 function classifyBoxChar(ch: string): CharRole {
@@ -36,16 +38,17 @@ export function renderSequenceAscii(text: string, config: AsciiConfig): string {
   const useAscii = config.useAscii
 
   // Box-drawing characters
-  const H = useAscii ? '-' : '─'
-  const V = useAscii ? '|' : '│'
-  const TL = useAscii ? '+' : '┌'
-  const TR = useAscii ? '+' : '┐'
-  const BL = useAscii ? '+' : '└'
-  const BR = useAscii ? '+' : '┘'
-  const JT = useAscii ? '+' : '┬' // top junction on lifeline
-  const JB = useAscii ? '+' : '┴' // bottom junction on lifeline
-  const JL = useAscii ? '+' : '├' // left junction
-  const JR = useAscii ? '+' : '┤' // right junction
+  const glyph = (mask: number) => glyphForBoxConnections(mask, { useAscii })
+  const H = glyph(BoxConnection.left | BoxConnection.right)
+  const V = glyph(BoxConnection.up | BoxConnection.down)
+  const TL = glyphForBoxCorner(BoxConnection.right | BoxConnection.down, { useAscii })
+  const TR = glyphForBoxCorner(BoxConnection.down | BoxConnection.left, { useAscii })
+  const BL = glyphForBoxCorner(BoxConnection.up | BoxConnection.right, { useAscii })
+  const BR = glyphForBoxCorner(BoxConnection.up | BoxConnection.left, { useAscii })
+  const JT = glyph(BoxConnection.right | BoxConnection.down | BoxConnection.left)
+  const JB = glyph(BoxConnection.up | BoxConnection.right | BoxConnection.left)
+  const JL = glyph(BoxConnection.up | BoxConnection.right | BoxConnection.down)
+  const JR = glyph(BoxConnection.up | BoxConnection.down | BoxConnection.left)
 
   // ---- LAYOUT: compute lifeline X positions ----
 
@@ -209,13 +212,16 @@ export function renderSequenceAscii(text: string, config: AsciiConfig): string {
 
   const canvas = mkCanvas(totalW, totalH - 1)
   const rc = mkRoleCanvas(totalW, totalH - 1)
+  const scene = new CharScene(totalW + 1, totalH, useAscii)
+  let currentOwner = 'sequence'
 
   /** Set a character on the canvas and track its role. */
   function setC(x: number, y: number, ch: string, role: CharRole): void {
-    if (x >= 0 && x < canvas.length && y >= 0 && y < (canvas[0]?.length ?? 0)) {
-      canvas[x]![y] = ch
-      setRole(rc, x, y, role)
-    }
+    if (x < 0 || y < 0) return
+    scene.write(x, y, ch, role, {
+      owner: currentOwner,
+      reserve: role === 'text',
+    })
   }
 
   // ---- DRAW: helper to place a bordered actor box (supports multi-line labels) ----
@@ -255,6 +261,7 @@ export function renderSequenceAscii(text: string, config: AsciiConfig): string {
   // ---- DRAW: lifelines ----
 
   for (let i = 0; i < diagram.actors.length; i++) {
+    currentOwner = `lifeline:${diagram.actors[i]!.id}`
     const x = llX[i]!
     for (let y = actorBoxH; y <= footerY; y++) {
       setC(x, y, V, 'line')
@@ -265,6 +272,7 @@ export function renderSequenceAscii(text: string, config: AsciiConfig): string {
 
   for (let i = 0; i < diagram.actors.length; i++) {
     const actor = diagram.actors[i]!
+    currentOwner = `actor:${actor.id}`
     drawActorBox(llX[i]!, 0, actor.label)
     drawActorBox(llX[i]!, footerY, actor.label)
 
@@ -279,14 +287,13 @@ export function renderSequenceAscii(text: string, config: AsciiConfig): string {
 
   for (let m = 0; m < diagram.messages.length; m++) {
     const msg = diagram.messages[m]!
+    currentOwner = `message:${m}`
     const fi = actorIdx.get(msg.from)!
     const ti = actorIdx.get(msg.to)!
     const fromX = llX[fi]!
     const toX = llX[ti]!
     const isSelf = fi === ti
     const isDashed = msg.lineStyle === 'dashed'
-    const isFilled = msg.arrowHead === 'filled'
-
     // Arrow line character (solid vs dashed)
     const lineChar = isDashed ? (useAscii ? '.' : '╌') : H
 
@@ -294,7 +301,7 @@ export function renderSequenceAscii(text: string, config: AsciiConfig): string {
       // Self-message: 3-row loop to the right of the lifeline
       //   ├──┐           (row 0 = msgArrowY)
       //   │  │ Label     (row 1)
-      //   │◄─┘           (row 2)
+      //   │<─┘           (row 2)
       const y0 = msgArrowY[m]!
       const loopW = Math.max(4, 4)
 
@@ -311,8 +318,7 @@ export function renderSequenceAscii(text: string, config: AsciiConfig): string {
       }
 
       // Row 2: arrow-back + horizontal + bottom-right corner
-      const arrowChar = isFilled ? (useAscii ? '<' : '◀') : (useAscii ? '<' : '◁')
-      setC(fromX, y0 + 2, arrowChar, 'arrow')
+      setC(fromX, y0 + 2, '<', 'arrow')
       for (let x = fromX + 1; x < fromX + loopW; x++) setC(x, y0 + 2, lineChar, 'line')
       setC(fromX + loopW, y0 + 2, useAscii ? '+' : '┘', 'corner')
     } else {
@@ -337,14 +343,14 @@ export function renderSequenceAscii(text: string, config: AsciiConfig): string {
 
       // Draw arrow line
       if (leftToRight) {
-        for (let x = fromX + 1; x < toX; x++) setC(x, arrowY, lineChar, 'line')
-        // Arrowhead at destination
-        const ah = isFilled ? (useAscii ? '>' : '▶') : (useAscii ? '>' : '▷')
-        setC(toX, arrowY, ah, 'arrow')
+        setC(fromX, arrowY, JL, 'junction')
+        for (let x = fromX + 1; x < toX - 1; x++) setC(x, arrowY, lineChar, 'line')
+        // Keep the target lifeline visible: the marker occupies the adjacent cell.
+        setC(toX - 1, arrowY, '>', 'arrow')
       } else {
-        for (let x = toX + 1; x < fromX; x++) setC(x, arrowY, lineChar, 'line')
-        const ah = isFilled ? (useAscii ? '<' : '◀') : (useAscii ? '<' : '◁')
-        setC(toX, arrowY, ah, 'arrow')
+        setC(fromX, arrowY, JR, 'junction')
+        for (let x = toX + 2; x < fromX; x++) setC(x, arrowY, lineChar, 'line')
+        setC(toX + 1, arrowY, '<', 'arrow')
       }
     }
   }
@@ -353,6 +359,7 @@ export function renderSequenceAscii(text: string, config: AsciiConfig): string {
 
   for (let b = 0; b < diagram.blocks.length; b++) {
     const block = diagram.blocks[b]!
+    currentOwner = `block:${b}`
     const topY = blockStartY.get(b)
     const botY = blockEndY.get(b)
     if (topY === undefined || botY === undefined) continue
@@ -404,7 +411,7 @@ export function renderSequenceAscii(text: string, config: AsciiConfig): string {
       if (dY === undefined) continue
       const dashChar = isDashedH()
       setC(bLeft, dY, JL, 'junction')
-      for (let x = bLeft + 1; x < bRight; x++) setC(x, dY, dashChar, 'line')
+      for (let x = bLeft + 1; x < bRight; x++) setC(x, dY, dashChar, 'border')
       setC(bRight, dY, JR, 'junction')
       // Divider label
       const dLabel = block.dividers[d]!.label
@@ -419,31 +426,35 @@ export function renderSequenceAscii(text: string, config: AsciiConfig): string {
 
   // ---- DRAW: notes ----
 
-  for (const np of notePositions) {
+  for (const [noteIndex, np] of notePositions.entries()) {
+    currentOwner = `note:${noteIndex}`
     // Ensure canvas is big enough
     increaseSize(canvas, np.x + np.width, np.y + np.height)
     increaseRoleCanvasSize(rc, np.x + np.width, np.y + np.height)
-    // Top border
-    setC(np.x, np.y, TL, 'border')
-    for (let x = 1; x < np.width - 1; x++) setC(np.x + x, np.y, H, 'border')
-    setC(np.x + np.width - 1, np.y, TR, 'border')
-    // Content rows
+    // Reserve the note rectangle so lifelines do not leak through its interior.
+    for (let x = np.x + 1; x < np.x + np.width - 1; x++) {
+      for (let y = np.y + 1; y < np.y + np.height - 1; y++) setC(x, y, ' ', 'text')
+    }
+    scene.add({
+      kind: 'box',
+      owner: currentOwner,
+      x: np.x,
+      y: np.y,
+      width: np.width,
+      height: np.height,
+    })
     for (let l = 0; l < np.lines.length; l++) {
       const ly = np.y + 1 + l
-      setC(np.x, ly, V, 'border')
-      setC(np.x + np.width - 1, ly, V, 'border')
-      for (let i = 0; i < np.lines[l]!.length; i++) {
-        setC(np.x + 2 + i, ly, np.lines[l]![i]!, 'text')
-      }
+      scene.add({
+        kind: 'label',
+        owner: currentOwner,
+        at: { x: np.x + 2, y: ly },
+        text: np.lines[l]!,
+      })
     }
-    // Bottom border
-    const by = np.y + np.height - 1
-    setC(np.x, by, BL, 'border')
-    for (let x = 1; x < np.width - 1; x++) setC(np.x + x, by, H, 'border')
-    setC(np.x + np.width - 1, by, BR, 'border')
   }
 
-  return canvasToString(canvas)
+  return canvasToString(scene.compose().canvas)
 
   // ---- Helper: dashed horizontal character ----
   function isDashedH(): string {

@@ -396,19 +396,10 @@ export function createMapping(graph: AsciiGraph): void {
   const dir = graph.config.graphDirection
   const highestPositionPerLevel: number[] = new Array(100).fill(0)
 
-  // Identify root nodes — nodes that aren't the target of any edge
-  const nodesFound = new Set<string>()
-  const initialRoots: AsciiNode[] = []
-
-  for (const node of graph.nodes) {
-    if (!nodesFound.has(node.name)) {
-      initialRoots.push(node)
-    }
-    nodesFound.add(node.name)
-    for (const child of getChildren(graph, node)) {
-      nodesFound.add(child.name)
-    }
-  }
+  // Root identity is graph semantics, not declaration order.
+  const incoming = new Set(graph.edges.map(edge => edge.to.name))
+  const initialRoots = graph.nodes.filter(node => !incoming.has(node.name))
+  if (initialRoots.length === 0 && graph.nodes[0]) initialRoots.push(graph.nodes[0])
 
   // Filter out subgraph nodes that have incoming edges from external sources.
   // This handles the case where subgraph is declared before external nodes
@@ -521,8 +512,18 @@ export function createMapping(graph: AsciiGraph): void {
         placedCount++
       }
     }
-    // Safety: break if no progress made (handles disconnected nodes)
-    if (placedCount === prevCount) break
+    // Start a new weak/cyclic component deterministically when no placed node
+    // can reach the remaining nodes.
+    if (placedCount === prevCount) {
+      const nextRoot = graph.nodes.find(node => node.gridCoord === null)
+      if (!nextRoot) break
+      const requested: GridCoord = dir === 'LR'
+        ? { x: 0, y: highestPositionPerLevel[0]! }
+        : { x: highestPositionPerLevel[0]!, y: 0 }
+      reserveSpotInGrid(graph, nextRoot, requested)
+      highestPositionPerLevel[0] = highestPositionPerLevel[0]! + 4
+      placedCount++
+    }
   }
 
   // Compute column widths and row heights
@@ -554,6 +555,15 @@ export function createMapping(graph: AsciiGraph): void {
   // Convert grid coords → drawing coords and generate box drawings
   for (const node of graph.nodes) {
     node.drawingCoord = gridToDrawingCoord(graph, node.gridCoord!)
+    if (node.shape === 'state-start' || node.shape === 'state-end') {
+      const gc = node.gridCoord!
+      const allocatedWidth =
+        (graph.columnWidth.get(gc.x) ?? 0) + (graph.columnWidth.get(gc.x + 1) ?? 0)
+      const allocatedHeight =
+        (graph.rowHeight.get(gc.y) ?? 0) + (graph.rowHeight.get(gc.y + 1) ?? 0)
+      node.drawingCoord.x += Math.floor((allocatedWidth + 1) / 2)
+      node.drawingCoord.y += Math.floor(allocatedHeight / 2)
+    }
     node.drawing = drawBox(node, graph)
   }
 

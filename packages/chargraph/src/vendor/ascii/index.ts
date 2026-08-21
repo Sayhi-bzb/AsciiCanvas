@@ -6,7 +6,7 @@
 // No external dependencies — pure TypeScript.
 //
 // Supported diagram types:
-//   - Flowcharts (graph TD / flowchart LR) — grid-based layout with A* pathfinding
+//   - Flowcharts and state diagrams — ELK Layered projected onto Unicode cells
 //   - State diagrams (stateDiagram-v2) — same pipeline as flowcharts
 //   - Sequence diagrams (sequenceDiagram) — column-based timeline layout
 //   - Class diagrams (classDiagram) — level-based UML layout
@@ -18,10 +18,7 @@
 // ============================================================================
 
 import { parseMermaid } from '../parser.js'
-import { convertToAsciiGraph } from './converter.js'
-import { createMapping } from './grid.js'
-import { drawGraph } from './draw.js'
-import { canvasToString, flipCanvasVertically, flipRoleCanvasVertically } from './canvas.js'
+import { renderLayeredMermaid } from '../../layout/mermaid.js'
 import { renderSequenceAscii } from './sequence.js'
 import { renderClassAscii } from './class-diagram.js'
 import { renderErAscii } from './er-diagram.js'
@@ -58,7 +55,7 @@ function detectDiagramType(text: string): 'flowchart' | 'sequence' | 'class' | '
 /**
  * Render Mermaid diagram text to an ASCII/Unicode string.
  *
- * Synchronous — no async layout engine needed (unlike the SVG renderer).
+ * Flow and state diagrams are asynchronous because ELK runs in a browser worker.
  * Auto-detects diagram type from the header line and dispatches to
  * the appropriate renderer.
  *
@@ -81,7 +78,7 @@ function detectDiagramType(text: string): 'flowchart' | 'sequence' | 'class' | '
  * // +---+     +---+     +---+
  * ```
  */
-export function renderMermaidASCII(
+export async function renderMermaidASCII(
   text: string,
   options: AsciiRenderOptions = {},
 ): string {
@@ -113,27 +110,11 @@ export function renderMermaidASCII(
       // Flowchart + state diagram pipeline (original)
       const parsed = parseMermaid(text)
 
-      // Normalize direction for grid layout.
-      // BT is laid out as TD then flipped vertically after drawing.
-      // RL is treated as LR (full RL support not yet implemented).
-      if (parsed.direction === 'LR' || parsed.direction === 'RL') {
-        config.graphDirection = 'LR'
-      } else {
-        config.graphDirection = 'TD'
-      }
-
-      const graph = convertToAsciiGraph(parsed, config)
-      createMapping(graph)
-      drawGraph(graph)
-
-      // BT: flip the finished canvas vertically so the flow runs bottom→top.
-      // The grid layout ran as TD; flipping + character remapping produces BT.
-      if (parsed.direction === 'BT') {
-        flipCanvasVertically(graph.canvas)
-        flipRoleCanvasVertically(graph.roleCanvas)
-      }
-
-      return canvasToString(graph.canvas)
+      return renderLayeredMermaid(parsed, {
+        ...config,
+        paddingX: options.paddingX ?? 4,
+        paddingY: options.paddingY ?? 2,
+      })
     }
   }
 }

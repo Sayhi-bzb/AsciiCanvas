@@ -22,6 +22,25 @@ const getStructuredComponentCount = (page: Page) =>
     );
   });
 
+test('restarts the guide from the app menu without a Help dialog', async ({ page }) => {
+  await page.addInitScript((storageKey) => {
+    localStorage.setItem(storageKey, 'completed');
+  }, ONBOARDING_STORAGE_KEY);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/');
+
+  await expect(page.locator('.chardesk-onboarding')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Help' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Data security' })).toBeVisible();
+
+  await page.getByRole('button', { name: 'Open menu' }).click();
+  await page.getByRole('menuitem', { name: 'Guide' }).click();
+
+  const popover = page.getByRole('dialog', { name: 'Create on the canvas' });
+  await expect(popover).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('menu')).toHaveCount(0);
+});
+
 async function reachDragStep(page: Page, testWrongClicks = false) {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto('/');

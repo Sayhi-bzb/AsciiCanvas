@@ -36,11 +36,16 @@ import { browser } from "@/shared/services/effects";
 import { APP_SOURCE_URL } from "@/shared/lib/constants";
 import { useGitHubStars } from "./use-github-stars";
 import { useCanvasWorkspaceOptional } from "@/widgets/canvas-editor/engine/CanvasWorkspace";
+import { useOnboardingTour } from "@/widgets/onboarding/onboarding-context";
+import { useEditorPresentation } from "@/widgets/editor-chrome/public";
 
 const AppMenuTriggerIcon = HOST_ICONOLOGY.appMenu.trigger;
 const ImportIcon = HOST_ICONOLOGY.appMenu.import;
 const ExportIcon = HOST_ICONOLOGY.appMenu.export;
 const SplitViewIcon = HOST_ICONOLOGY.appMenu.splitView;
+const ZenModeIcon = HOST_ICONOLOGY.appMenu.zenMode;
+const GuideIcon = HOST_ICONOLOGY.appMenu.guide;
+const DocumentationIcon = HOST_ICONOLOGY.appMenu.documentation;
 const GitHubIcon = HOST_ICONOLOGY.appMenu.github;
 const GitHubStarIcon = HOST_ICONOLOGY.appMenu.githubStar;
 const SettingsIcon = HOST_ICONOLOGY.appMenu.settings;
@@ -59,9 +64,12 @@ const SettingsDialog = lazy(() =>
     default: module.SettingsDialog,
   }))
 );
+
 export function AppMenu() {
   const canvas = useCanvasRuntime();
   const workspace = useCanvasWorkspaceOptional();
+  const { mode, setMode } = useEditorPresentation();
+  const zenMode = mode === "zen";
   const {
     grid,
     canvasMode,
@@ -86,6 +94,8 @@ export function AppMenu() {
     (session) => session.id === activeCanvasId
   )?.name;
   const { t } = useUiI18n();
+  const { canStart: canStartTour, requestStart: requestTourStart } =
+    useOnboardingTour();
   const {
     fileInputRef,
     handleFileChange,
@@ -169,6 +179,7 @@ export function AppMenu() {
         className="relative z-(--layer-chrome) pointer-events-auto"
       >
             <DropdownMenu
+              key={mode}
               modal={false}
               open={menuOpen}
               onOpenChange={(open) => {
@@ -276,7 +287,13 @@ export function AppMenu() {
                   )}
                   {workspace && (
                     <DropdownMenuItem
-                      onSelect={() => workspace.setSplitEnabled(!workspace.splitEnabled)}
+                      onSelect={() => {
+                        setMenuOpen(false);
+                        window.setTimeout(
+                          () => workspace.setSplitEnabled(!workspace.splitEnabled),
+                          0
+                        );
+                      }}
                     >
                       <SplitViewIcon />
                       {workspace.splitEnabled
@@ -284,6 +301,18 @@ export function AppMenu() {
                         : t("action.splitView")}
                     </DropdownMenuItem>
                   )}
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      setMenuOpen(false);
+                      window.setTimeout(
+                        () => setMode(zenMode ? "standard" : "zen"),
+                        0
+                      );
+                    }}
+                  >
+                    <ZenModeIcon />
+                    {t(zenMode ? "appMenu.exitZenMode" : "appMenu.zenMode")}
+                  </DropdownMenuItem>
                   <DropdownMenuItem
                     variant="destructive"
                     onSelect={() => setClearOpen(true)}
@@ -303,6 +332,23 @@ export function AppMenu() {
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
+                  <DropdownMenuItem
+                    disabled={!canStartTour}
+                    onSelect={() => {
+                      setMenuOpen(false);
+                      if (zenMode) setMode("standard");
+                      window.setTimeout(requestTourStart, 0);
+                    }}
+                  >
+                    <GuideIcon />
+                    {t("appMenu.guide")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={() => browser.openExternal("/docs")}
+                  >
+                    <DocumentationIcon />
+                    {t("appMenu.documentation")}
+                  </DropdownMenuItem>
                   <DropdownMenuItem
                     onSelect={() => browser.openExternal(APP_SOURCE_URL)}
                   >

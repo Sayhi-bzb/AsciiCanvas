@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { CanvasColorSourceChooser } from "./CanvasColorSourceChooser";
 import { setUiLanguage } from "@/shared/i18n";
+import { EditorPresentationProvider } from "@/widgets/editor-chrome/public";
 
 vi.stubGlobal(
   "ResizeObserver",
@@ -84,5 +85,22 @@ describe("CanvasColorSourceChooser", () => {
     });
     fireEvent.keyDown(toolbar, { key: "Escape" });
     await waitFor(() => expect(onCancel).toHaveBeenCalledTimes(1));
+  });
+
+  it("does not render the contextual chooser in Zen Mode", () => {
+    render(
+      <EditorPresentationProvider initialMode="zen">
+        <CanvasColorSourceChooser
+          choice={choice}
+          offset={{ x: 0, y: 0 }}
+          zoom={1}
+          onSelect={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      </EditorPresentationProvider>
+    );
+
+    expect(screen.queryByTestId("canvas-color-source-anchor")).not.toBeInTheDocument();
+    expect(screen.queryByRole("toolbar")).not.toBeInTheDocument();
   });
 });

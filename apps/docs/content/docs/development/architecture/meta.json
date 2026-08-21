@@ -1,4 +1,4 @@
 {
   "title": "Architecture",
-  "pages": ["ownership", "ansi-canvas-protocol", "text-rendering", "editor-runtime", "state-flows", "algorithms"]
+  "pages": ["ownership", "ansi-canvas-protocol", "text-rendering", "editor-runtime", "state-flows", "algorithms", "chargraph-layout"]
 }

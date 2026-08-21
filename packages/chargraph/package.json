@@ -9,6 +9,7 @@
   "files": [
     "dist",
     "LICENSE.beautiful-mermaid",
+    "LICENSE.marked-terminal",
     "UPSTREAM.md"
   ],
   "exports": {
@@ -19,6 +20,10 @@
     "./mermaid": {
       "types": "./dist/mermaid.d.ts",
       "import": "./dist/mermaid.js"
+    },
+    "./markdown": {
+      "types": "./dist/markdown-default.d.ts",
+      "import": "./dist/markdown-default.js"
     }
   },
   "scripts": {
@@ -26,7 +31,10 @@
     "test": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
-    "@chardesk/protocol": "*"
+    "@chardesk/protocol": "*",
+    "elkjs": "^0.11.1",
+    "marked": "^16.4.1",
+    "shiki": "^4.4.3"
   },
   "engines": {
     "node": ">=18"

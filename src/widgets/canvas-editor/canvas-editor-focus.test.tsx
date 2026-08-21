@@ -30,6 +30,7 @@ vi.mock("@/widgets/canvas-editor/hooks/useCanvasRenderer", () => ({
 }));
 
 const handleDoubleClickMock = vi.fn();
+const activateInteractionOwnerMock = vi.fn(() => false);
 
 const createRangeSelection = (start: Point, end: Point) =>
   selectGridRange(
@@ -77,6 +78,7 @@ const fireDragOverAndFlush = async (
 vi.mock("@/widgets/canvas-editor/hooks/useCanvasInteraction", () => ({
   useCanvasInteraction: vi.fn(() => ({
     bind: {},
+    activateInteractionOwner: activateInteractionOwnerMock,
     draggingSelection: null,
     handleDoubleClick: handleDoubleClickMock,
   })),
@@ -120,6 +122,7 @@ describe("CanvasEditor focus management", () => {
     vi.mocked(useCanvasInteraction).mockClear();
     vi.mocked(useCanvasRenderer).mockClear();
     handleDoubleClickMock.mockClear();
+    activateInteractionOwnerMock.mockClear();
     setActiveStructuredTemplateDragId(null);
     useEditorStore.setState(initialState, true);
     applyFreeformSnapshotToYMaps([]);
@@ -176,6 +179,29 @@ describe("CanvasEditor focus management", () => {
     expect(textarea).toHaveValue("\u00a0");
     expect(textarea?.selectionStart).toBe(0);
     expect(textarea?.selectionEnd).toBe(1);
+  });
+
+  it("activates the pane interaction owner before switching its session", () => {
+    const order: string[] = [];
+    activateInteractionOwnerMock.mockImplementation(() => {
+      order.push("port");
+      return true;
+    });
+    const onActivate = vi.fn(() => order.push("session"));
+    const { getByTestId } = render(
+      <CanvasEditor
+        active={false}
+        onActivate={onActivate}
+        onUndo={vi.fn()}
+        onRedo={vi.fn()}
+      />
+    );
+
+    fireEvent.pointerDown(getByTestId("canvas-editor-surface"));
+
+    expect(order.slice(0, 2)).toEqual(["port", "session"]);
+    expect(activateInteractionOwnerMock).toHaveBeenCalledTimes(2);
+    expect(onActivate).toHaveBeenCalledTimes(2);
   });
 
   it("uses Space as a temporary pan override in navigate mode without changing a range", () => {

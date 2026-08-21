@@ -8,6 +8,7 @@
 // shapes visually distinguishable.
 
 import type { AsciiNodeShape } from '../types.js'
+import { BoxConnection, glyphForBoxCorner } from '../box-drawing.js'
 
 /**
  * Corner characters for a shape in both Unicode and ASCII modes.
@@ -42,7 +43,12 @@ export interface ShapeCorners {
 export const SHAPE_CORNERS: Record<AsciiNodeShape, ShapeCorners> = {
   // Standard rectangular shapes
   rectangle: {
-    unicode: { tl: '┌', tr: '┐', bl: '└', br: '┘' },
+    unicode: {
+      tl: glyphForBoxCorner(BoxConnection.right | BoxConnection.down),
+      tr: glyphForBoxCorner(BoxConnection.down | BoxConnection.left),
+      bl: glyphForBoxCorner(BoxConnection.up | BoxConnection.right),
+      br: glyphForBoxCorner(BoxConnection.up | BoxConnection.left),
+    },
     ascii: { tl: '+', tr: '+', bl: '+', br: '+' },
   },
   rounded: {

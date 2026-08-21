@@ -18,6 +18,7 @@ import type { Canvas, AsciiConfig, RoleCanvas, CharRole } from './types.js'
 import { mkCanvas, mkRoleCanvas, canvasToString, increaseSize, increaseRoleCanvasSize, setRole } from './canvas.js'
 import { drawMultiBox } from './draw.js'
 import { splitLines } from './multiline-utils.js'
+import { CharScene } from './scene.js'
 
 /** Classify a character from a box drawing as 'border' or 'text'. */
 function classifyBoxChar(ch: string): CharRole {
@@ -296,17 +297,21 @@ export function renderClassAscii(text: string, config: AsciiConfig): string {
 
   const canvas = mkCanvas(totalW - 1, totalH - 1)
   const rc = mkRoleCanvas(totalW - 1, totalH - 1)
+  const scene = new CharScene(totalW, totalH, useAscii)
+  let currentOwner = 'class-diagram'
 
   /** Set a character on the canvas and track its role. */
   function setC(x: number, y: number, ch: string, role: CharRole): void {
-    if (x >= 0 && x < canvas.length && y >= 0 && y < (canvas[0]?.length ?? 0)) {
-      canvas[x]![y] = ch
-      setRole(rc, x, y, role)
-    }
+    if (x < 0 || y < 0) return
+    scene.write(x, y, ch, role, {
+      owner: currentOwner,
+      reserve: role === 'text',
+    })
   }
 
   // --- Draw class boxes ---
   for (const p of placed.values()) {
+    currentOwner = `class:${p.cls.id}`
     const boxCanvas = drawMultiBox(p.sections, useAscii)
     // Copy box onto main canvas at (p.x, p.y) with role tracking
     for (let bx = 0; bx < boxCanvas.length; bx++) {
@@ -316,7 +321,8 @@ export function renderClassAscii(text: string, config: AsciiConfig): string {
           const cx = p.x + bx
           const cy = p.y + by
           if (cx < totalW && cy < totalH) {
-            setC(cx, cy, ch, classifyBoxChar(ch))
+            const isInteriorText = bx > 0 && bx < boxCanvas.length - 1 && ch !== '─' && ch !== '-'
+            setC(cx, cy, ch, isInteriorText ? 'text' : classifyBoxChar(ch))
           }
         }
       }
@@ -389,13 +395,50 @@ export function renderClassAscii(text: string, config: AsciiConfig): string {
     return totalW + 2
   }
 
+  // Allocate independent attachment ports before routing. Reusing the center
+  // port made unrelated relationships collapse into a single visual trunk.
+  const endpointX = new Map<string, number>()
+  const endpointGroups = new Map<string, Array<{ relIndex: number; end: 'from' | 'to'; otherX: number }>>()
+
+  const sideFor = (node: PlacedClass, other: PlacedClass): 'top' | 'bottom' => {
+    if (node.y > other.y + other.height - 1) return 'top'
+    return 'bottom'
+  }
+
+  diagram.relationships.forEach((rel, relIndex) => {
+    const from = placed.get(rel.from)
+    const to = placed.get(rel.to)
+    if (!from || !to) return
+    const fromKey = `${rel.from}:${sideFor(from, to)}`
+    const toKey = `${rel.to}:${sideFor(to, from)}`
+    const fromGroup = endpointGroups.get(fromKey) ?? []
+    const toGroup = endpointGroups.get(toKey) ?? []
+    fromGroup.push({ relIndex, end: 'from', otherX: to.x + Math.floor(to.width / 2) })
+    toGroup.push({ relIndex, end: 'to', otherX: from.x + Math.floor(from.width / 2) })
+    endpointGroups.set(fromKey, fromGroup)
+    endpointGroups.set(toKey, toGroup)
+  })
+
+  for (const [key, endpoints] of endpointGroups) {
+    const classId = key.slice(0, key.lastIndexOf(':'))
+    const node = placed.get(classId)!
+    endpoints.sort((a, b) => a.otherX - b.otherX || a.relIndex - b.relIndex)
+    const left = node.x + Math.min(2, Math.max(1, node.width - 2))
+    const right = node.x + Math.max(node.width - 3, 1)
+    endpoints.forEach((endpoint, index) => {
+      const ratio = endpoints.length === 1 ? 0.5 : index / (endpoints.length - 1)
+      endpointX.set(`${endpoint.relIndex}:${endpoint.end}`, Math.round(left + (right - left) * ratio))
+    })
+  }
+
   // --- Draw relationship lines ---
   const H = useAscii ? '-' : '─'
   const V = useAscii ? '|' : '│'
   const dashH = useAscii ? '.' : '╌'
   const dashV = useAscii ? ':' : '┊'
 
-  for (const rel of diagram.relationships) {
+  for (const [relIndex, rel] of diagram.relationships.entries()) {
+    currentOwner = `relationship:${relIndex}`
     const fromP = placed.get(rel.from)
     const toP = placed.get(rel.to)
     if (!fromP || !toP) continue
@@ -408,9 +451,9 @@ export function renderClassAscii(text: string, config: AsciiConfig): string {
     const excludeIds = new Set([rel.from, rel.to])
 
     // Connection points: center-bottom of source → center-top of target
-    const fromCX = fromP.x + Math.floor(fromP.width / 2)
+    const fromCX = endpointX.get(`${relIndex}:from`) ?? fromP.x + Math.floor(fromP.width / 2)
     const fromBY = fromP.y + fromP.height - 1
-    const toCX = toP.x + Math.floor(toP.width / 2)
+    const toCX = endpointX.get(`${relIndex}:to`) ?? toP.x + Math.floor(toP.width / 2)
     const toTY = toP.y
 
     // Route: Manhattan routing with collision avoidance
@@ -437,7 +480,7 @@ export function renderClassAscii(text: string, config: AsciiConfig): string {
         // 1. Horizontal from source center to route column
         const lx1 = Math.min(fromCX, routeX)
         const rx1 = Math.max(fromCX, routeX)
-        for (let x = lx1; x <= rx1; x++) {
+        for (let x = lx1 + 1; x < rx1; x++) {
           setC(x, exitY, lineH, 'line')
         }
         if (!useAscii && exitY < (canvas[0]?.length ?? 0)) {
@@ -451,7 +494,7 @@ export function renderClassAscii(text: string, config: AsciiConfig): string {
         }
 
         // 2. Vertical at routeX from exit to entry
-        for (let y = exitY + 1; y <= entryY; y++) {
+        for (let y = exitY + 1; y < entryY; y++) {
           setC(routeX, y, lineV, 'line')
         }
 
@@ -459,7 +502,7 @@ export function renderClassAscii(text: string, config: AsciiConfig): string {
         if (routeX !== toCX) {
           const lx2 = Math.min(routeX, toCX)
           const rx2 = Math.max(routeX, toCX)
-          for (let x = lx2; x <= rx2; x++) {
+          for (let x = lx2 + 1; x < rx2; x++) {
             setC(x, entryY, lineH, 'line')
           }
           if (!useAscii && entryY < (canvas[0]?.length ?? 0)) {
@@ -489,7 +532,7 @@ export function renderClassAscii(text: string, config: AsciiConfig): string {
         const midY = fromBY + Math.floor((toTY - fromBY) / 2)
 
         // 1. Vertical from source bottom to midY
-        for (let y = fromBY + 1; y <= midY; y++) {
+        for (let y = fromBY + 1; y < midY; y++) {
           setC(fromCX, y, lineV, 'line')
         }
 
@@ -497,7 +540,7 @@ export function renderClassAscii(text: string, config: AsciiConfig): string {
         if (fromCX !== toCX && midY < (canvas[0]?.length ?? 0)) {
           const lx = Math.min(fromCX, toCX)
           const rx = Math.max(fromCX, toCX)
-          for (let x = lx; x <= rx; x++) {
+          for (let x = lx + 1; x < rx; x++) {
             setC(x, midY, lineH, 'line')
           }
           if (!useAscii) {
@@ -525,14 +568,14 @@ export function renderClassAscii(text: string, config: AsciiConfig): string {
       const toBY = toP.y + toP.height - 1
       const midY = toBY + Math.floor((fromTY - toBY) / 2)
 
-      for (let y = fromTY - 1; y >= midY; y--) {
+      for (let y = fromTY - 1; y > midY; y--) {
         setC(fromCX, y, lineV, 'line')
       }
 
       if (fromCX !== toCX) {
         const lx = Math.min(fromCX, toCX)
         const rx = Math.max(fromCX, toCX)
-        for (let x = lx; x <= rx; x++) {
+        for (let x = lx + 1; x < rx; x++) {
           setC(x, midY, lineH, 'line')
         }
         if (!useAscii && midY >= 0 && midY < totalH) {
@@ -569,15 +612,17 @@ export function renderClassAscii(text: string, config: AsciiConfig): string {
       increaseRoleCanvasSize(rc, totalW, detourY + 1)
 
       // Vertical down from source
-      for (let y = fromBY + 1; y <= detourY; y++) {
+      for (let y = fromBY + 1; y < detourY; y++) {
         setC(fromCX, y, lineV, 'line')
       }
       // Horizontal
       const lx = Math.min(fromCX, toCX)
       const rx = Math.max(fromCX, toCX)
-      for (let x = lx; x <= rx; x++) {
+      for (let x = lx + 1; x < rx; x++) {
         setC(x, detourY, lineH, 'line')
       }
+      setC(fromCX, detourY, fromCX < toCX ? '└' : '┘', 'corner')
+      setC(toCX, detourY, fromCX < toCX ? '┘' : '└', 'corner')
       // Vertical up to target
       for (let y = detourY - 1; y >= toP.y + toP.height; y--) {
         setC(toCX, y, lineV, 'line')
@@ -611,14 +656,15 @@ export function renderClassAscii(text: string, config: AsciiConfig): string {
       let idealMidX: number
 
       if (fromBY < toTY) {
-        // Target below source: place in gap between source bottom and target top
+        // Target below source: place beside the source lane. Labels reserve
+        // their own cells; they no longer erase the relationship path.
         baseMidY = Math.floor((fromBY + 1 + toTY - 1) / 2)
-        idealMidX = Math.floor((fromCX + toCX) / 2)
+        idealMidX = fromCX + 1 + Math.floor(maxLabelWidth / 2)
       } else if (toP.y + toP.height - 1 < fromP.y) {
-        // Target above source: place in gap between target bottom and source top
+        // Target above source: use the same lane-relative label contract.
         const toBY = toP.y + toP.height - 1
         baseMidY = Math.floor((toBY + 1 + fromP.y - 1) / 2)
-        idealMidX = Math.floor((fromCX + toCX) / 2)
+        idealMidX = fromCX + 1 + Math.floor(maxLabelWidth / 2)
       } else {
         // Same level: place label at midpoint of the detour line
         baseMidY = Math.max(fromBY, toP.y + toP.height - 1) + 2
@@ -695,5 +741,5 @@ export function renderClassAscii(text: string, config: AsciiConfig): string {
     }
   }
 
-  return canvasToString(canvas)
+  return canvasToString(scene.compose().canvas)
 }

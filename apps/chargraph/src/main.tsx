@@ -8,7 +8,11 @@ import {
   defineCharDeskViewer,
 } from "@chardesk/viewer";
 import { Button, Separator, Surface } from "@chardesk/ui";
-import { CHARGRAPH_EXAMPLES, renderExample } from "./examples";
+import {
+  CHARGRAPH_EXAMPLES,
+  type CharGraphExampleLevel,
+  renderExample,
+} from "./examples";
 
 if (!document.querySelector("link[data-chardesk-fonts]")) {
   const fontStylesheet = document.createElement("link");
@@ -22,11 +26,30 @@ defineCharDeskViewer();
 
 interface RenderedExample {
   readonly id: string;
+  readonly level: CharGraphExampleLevel;
+  readonly number: number;
   readonly name: string;
   readonly summary: string;
   readonly source: string;
   readonly output: string;
 }
+
+const EXAMPLE_GROUPS: readonly {
+  level: CharGraphExampleLevel;
+  title: string;
+  description: string;
+}[] = [
+  {
+    level: "basic",
+    title: "基础案例",
+    description: "覆盖六种支持类型的核心语法。",
+  },
+  {
+    level: "advanced",
+    title: "进阶案例",
+    description: "组合更复杂的结构、关系与图表表达。",
+  },
+];
 
 function UnicodeViewer({ source, label }: { source: string; label: string }) {
   const viewerRef = useRef<CharDeskViewerElement>(null);
@@ -84,8 +107,9 @@ function App() {
     let active = true;
 
     void Promise.all(
-      CHARGRAPH_EXAMPLES.map(async (example) => ({
+      CHARGRAPH_EXAMPLES.map(async (example, index) => ({
         ...example,
+        number: index + 1,
         output: await renderExample(example),
       }))
     ).then((rendered) => {
@@ -149,25 +173,59 @@ function App() {
             </p>
           </div>
 
-          <div className="flex flex-col">
-            {examples.map((example, index) => (
-              <article key={example.id} id={example.id} className="flex flex-col gap-8 py-12">
-                <Separator />
-                <div className="grid grid-cols-[2.5rem_minmax(0,1fr)] gap-4 sm:grid-cols-[4rem_minmax(0,1fr)]">
-                  <span className="pt-1 font-mono text-xs text-muted-foreground">
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                  <div className="flex flex-col gap-2">
-                    <h3 className="text-2xl font-semibold tracking-tight">{example.name}</h3>
-                    <p className="leading-7 text-muted-foreground">{example.summary}</p>
+          <div className="flex flex-col gap-20">
+            {EXAMPLE_GROUPS.map((group) => {
+              const groupExamples = examples.filter(
+                (example) => example.level === group.level
+              );
+
+              return (
+                <section
+                  key={group.level}
+                  className="flex flex-col gap-8"
+                  aria-labelledby={`examples-${group.level}`}
+                >
+                  <div className="flex max-w-3xl flex-col gap-2">
+                    <h3
+                      id={`examples-${group.level}`}
+                      className="text-2xl font-semibold tracking-tight"
+                    >
+                      {group.title}
+                    </h3>
+                    <p className="leading-7 text-muted-foreground">{group.description}</p>
                   </div>
-                </div>
-                <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)]">
-                  <CodePanel label="RAW / MERMAID" value={example.source} />
-                  <OutputPanel label={`${example.name} Unicode 输出`} value={example.output} />
-                </div>
-              </article>
-            ))}
+                  <div className="flex flex-col">
+                    {groupExamples.map((example) => (
+                      <article
+                        key={example.id}
+                        id={example.id}
+                        className="flex flex-col gap-8 py-12"
+                      >
+                        <Separator />
+                        <div className="grid grid-cols-[2.5rem_minmax(0,1fr)] gap-4 sm:grid-cols-[4rem_minmax(0,1fr)]">
+                          <span className="pt-1 font-mono text-xs text-muted-foreground">
+                            {String(example.number).padStart(2, "0")}
+                          </span>
+                          <div className="flex flex-col gap-2">
+                            <h4 className="text-2xl font-semibold tracking-tight">
+                              {example.name}
+                            </h4>
+                            <p className="leading-7 text-muted-foreground">{example.summary}</p>
+                          </div>
+                        </div>
+                        <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)]">
+                          <CodePanel label="RAW / MERMAID" value={example.source} />
+                          <OutputPanel
+                            label={`${example.name} Unicode 输出`}
+                            value={example.output}
+                          />
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
           </div>
         </section>
       </main>

@@ -14,11 +14,12 @@ editable content store; renderer settings affect future paste and never reinterp
 cells.
 
 Rendering has four stages: syntax decode, structural transform, style composition, and cell
-layout. ANSI is a decoder backed by `@chardesk/protocol`; Markdown is a structural transformer
-backed by `remark` and `remark-gfm`; the compositor projects ANSI spans through Markdown source
-ranges; the protocol layout is the only stage that owns grapheme segmentation, CJK width, tabs,
-and coordinates. Shiki code tokens join the same fragment stream and are never serialized
-through ANSI.
+layout. ANSI is a decoder backed by `@chardesk/protocol`; Markdown delegates parsing and character
+layout to `@chardesk/chargraph/markdown`. CharGraph renderers return styled fragments with source
+origins and diagnostics. The compositor projects explicit ANSI spans through those origins before
+protocol layout, which remains the only stage that owns grapheme segmentation, CJK width, tabs,
+and coordinates. ANSI/OSC8 serialization is an explicit CharGraph output boundary for CLI or copy,
+not an internal intermediate representation.
 
 Auto composes explicit ANSI and Markdown instead of selecting one renderer for the whole source.
 An ESC-less empty reset (`[m`) is ambiguous evidence and cannot activate ANSI by itself, preventing
@@ -33,12 +34,16 @@ viewport, zoom, or paste position. Disabled inline rules consume delimiters with
 disabled block rules preserve their source slice. Raw mode preserves all delimiters. Renderer
 results may be asynchronous, and clipboard commands await them before mutating Canvas.
 
-The independent Mermaid rule converts `mermaid` fenced blocks through the private
-`@chardesk/chargraph/mermaid` plugin into plain Unicode before protocol layout. CharGraph owns
-the pluggable source-to-Unicode contract; the Mermaid plugin owns its vendored text renderers and adapts graphemes to `@chardesk/protocol` cell
-widths; it excludes the upstream SVG, ELK, ANSI, and theme pipelines. It is loaded on demand
-and falls back to the complete fenced source with a diagnostic for unsupported, invalid, or
-oversized input. Disabling Mermaid keeps the inner source as an ordinary code block.
+CharGraph owns the browser-safe Markdown core adapted from `marked-terminal`, Shiki code
+highlighting, and the independent Mermaid source-to-Unicode renderer. Markdown syntax extensions
+may contribute `marked` tokenizers and transform tokens or fenced languages into the same fragment
+IR; the default Markdown entry injects Mermaid through that contract, while the core has no Mermaid
+dependency. Unsupported, invalid, or oversized Mermaid input falls back to the complete fenced
+source with a diagnostic; disabling Mermaid keeps the inner source as an ordinary code block.
+Neither renderer imports terminal capability detection or Node polyfills. Markdown consumes
+`marked` tokens through a character renderer rather than its HTML renderer. Unsupported images and
+raw HTML preserve their original source with a diagnostic; generated HTML cannot leak into Canvas
+output.
 
 `TextRenderProfile.renderTheme` stores optional semantic token overrides; the resolved Renderer
 Theme is independent from the host UI theme. `markdownColors` stores optional rule-slot overrides.
@@ -52,4 +57,4 @@ setting, style changes affect future paste only because Canvas stores materializ
 
 Verification lives in
 [`runtime.test.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/domains/document/rendering/runtime.test.ts)
-and the clipboard integration tests.
+and `packages/chargraph/src/markdown.test.ts`, plus the clipboard integration tests.

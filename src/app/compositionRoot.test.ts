@@ -98,8 +98,8 @@ describe("ApplicationEditorHost", () => {
 
     expect(result).toMatchObject({ status: "applied" });
     const chars = Array.from(host.canvas.getState().grid.values(), (cell) => cell.char);
-    expect(chars).toContain("┌");
-    expect(chars).toContain("►");
+    expect(chars).toContain("╭");
+    expect(chars).toContain(">");
     expect(chars).not.toContain("`");
   });
 

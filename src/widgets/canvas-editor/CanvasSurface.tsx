@@ -9,7 +9,7 @@ import {
 } from 'react';
 import { StructuredSplitToolbar } from './StructuredSplitToolbar';
 import type { CanvasSurfaceGeometry } from './canvasSurfaceGeometry';
-import type { EditorViewportFrame } from '@/widgets/editor-chrome/public';
+import { EditorWidget, type EditorViewportFrame } from '@/widgets/editor-chrome/public';
 import { cn } from '@chardesk/ui';
 
 type CanvasSurfaceProps = HTMLAttributes<HTMLDivElement> & {
@@ -108,10 +108,12 @@ export const CanvasSurface = forwardRef<HTMLDivElement, CanvasSurfaceProps>(func
       </div>
       {children}
       {interactionUi && (
-        <StructuredSplitToolbar
-          containerSize={containerSize}
-          viewportFrame={viewportFrame}
-        />
+        <EditorWidget role="contextual">
+          <StructuredSplitToolbar
+            containerSize={containerSize}
+            viewportFrame={viewportFrame}
+          />
+        </EditorWidget>
       )}
       <textarea
         ref={textareaRef}

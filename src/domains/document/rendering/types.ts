@@ -1,5 +1,6 @@
+import type { CharGraphFragment } from "@chardesk/chargraph";
 import type { CharDeskTextStyle } from "@chardesk/protocol";
-import type { GridCell, TextAttributes } from "@/shared/types";
+import type { GridCell } from "@/shared/types";
 
 export type BuiltInTextRendererId = "raw" | "ansi" | "markdown";
 export type TextRendererId = string;
@@ -113,10 +114,7 @@ export type AttributedText = {
   diagnostics: TextRenderDiagnostic[];
 };
 
-export type TextRenderFragment = TextStyle & {
-  text: string;
-  origin?: { from: number; to: number };
-};
+export type TextRenderFragment = CharGraphFragment;
 
 export type TextDecodeResult = AttributedText & {
   evidence: "none" | "ambiguous" | "explicit";
@@ -161,16 +159,5 @@ export interface TextTransformerPlugin {
 }
 
 export type TextRenderPlugin = TextDecoderPlugin | TextTransformerPlugin;
-
-export type MarkdownRuleDecoration = {
-  attrs?: Partial<Record<keyof TextAttributes, true>>;
-  href?: string;
-};
-
-export interface MarkdownRenderRule {
-  readonly id: MarkdownRenderRuleId;
-  readonly nodeTypes: readonly string[];
-  decorate(node: unknown): MarkdownRuleDecoration;
-}
 
 export type TextRenderingStorage = Pick<Storage, "getItem" | "setItem">;

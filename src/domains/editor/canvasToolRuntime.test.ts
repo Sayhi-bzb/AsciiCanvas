@@ -59,6 +59,89 @@ const createHarness = (initialTool: "select" | "brush" = "select") => {
 };
 
 describe("CanvasToolStateNode", () => {
+  it("routes a shared runtime to the explicitly active interaction owner", () => {
+    const binding = new CanvasInteractionPortBinding();
+    const primary = {
+      begin: vi.fn(),
+      start: vi.fn(() => null),
+      update: vi.fn((state) => state),
+      complete: vi.fn(),
+      cancel: vi.fn(),
+    } satisfies CanvasInteractionPort;
+    const secondary = {
+      ...primary,
+      begin: vi.fn(),
+    } satisfies CanvasInteractionPort;
+    const primaryRef = { current: primary };
+    const secondaryRef = { current: secondary };
+
+    const unregisterPrimary = binding.registerRef("primary", primaryRef);
+    const unregisterSecondary = binding.registerRef("secondary", secondaryRef);
+
+    expect(binding.get()).toBe(primary);
+    expect(binding.activate("secondary")).toBe(true);
+    expect(binding.get()).toBe(secondary);
+    expect(binding.activate("missing")).toBe(false);
+    expect(binding.get()).toBe(secondary);
+
+    unregisterPrimary();
+    expect(binding.get()).toBe(secondary);
+    unregisterSecondary();
+    expect(binding.get()).toBeNull();
+  });
+
+  it("cancels the previous owner before activating another pane", () => {
+    const runtime = createCanvasEditorRuntime({
+      state: { get: getCanvasState, subscribe: () => () => undefined },
+      history: {
+        undo: () => false,
+        redo: () => false,
+        beginCheckpoint: () => ({ commit: vi.fn(), cancel: vi.fn() }),
+        finishCapture: vi.fn(),
+      },
+      transactions: { run: <Result,>(fn: () => Result) => fn() },
+    });
+    const primaryPort = {
+      begin: vi.fn(),
+      start: vi.fn(() => ({
+        state: {
+          type: "selecting" as const,
+          anchor: { x: 1, y: 1 },
+          current: { x: 1, y: 1 },
+        },
+      })),
+      update: vi.fn((state) => state),
+      complete: vi.fn(),
+      cancel: vi.fn(),
+    } satisfies CanvasInteractionPort;
+    const secondaryPort = {
+      ...primaryPort,
+      start: vi.fn(() => null),
+      cancel: vi.fn(),
+    } satisfies CanvasInteractionPort;
+    runtime.interactionPort.registerRef("primary", { current: primaryPort });
+    runtime.interactionPort.registerRef("secondary", { current: secondaryPort });
+    runtime.registerExtension(createCanvasEditorExtension(runtime.interactionPort)).start("select");
+    runtime.dispatch({
+      type: "canvas-drag-start",
+      canvasMode: "structured",
+      button: 0,
+      isCtrlOrMetaPressed: false,
+      shiftKey: false,
+      detail: 1,
+      screenPoint: { x: 10, y: 20 },
+      gridPoint: { x: 1, y: 1 },
+      brushChar: "#",
+    });
+
+    expect(runtime.getInteractionState().type).toBe("selecting");
+    expect(runtime.activateInteractionOwner("secondary")).toBe(true);
+    expect(primaryPort.cancel).toHaveBeenCalledOnce();
+    expect(secondaryPort.cancel).not.toHaveBeenCalled();
+    expect(runtime.getInteractionState().type).toBe("idle");
+    expect(runtime.interactionPort.isActive("secondary")).toBe(true);
+  });
+
   it("creates isolated runtime interaction ports", () => {
     const ports = {
       state: { get: getCanvasState, subscribe: () => () => undefined },

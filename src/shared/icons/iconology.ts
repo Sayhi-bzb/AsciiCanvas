@@ -1,10 +1,10 @@
 import { GitHubMarkIcon } from './github-mark-icon';
 import {
   ArrowRight,
+  BookOpen,
   Bold,
   ChevronDown,
   Circle,
-  CircleHelp,
   Camera,
   CaseSensitive,
   ClipboardPaste,
@@ -12,11 +12,13 @@ import {
   ChevronRight,
   Code2,
   Component,
+  Compass,
   Contrast,
   Copy,
   CopyPlus,
   Download,
   Eraser,
+  Focus,
   Grid2X2,
   Italic,
   Hand,
@@ -155,8 +157,7 @@ export const HOST_ICONOLOGY = {
     grid: Grid2X2,
     minimap: Map,
     security: ShieldCheck,
-    help: CircleHelp,
-  } satisfies IconMap<'grid' | 'minimap' | 'security' | 'help'>,
+  } satisfies IconMap<'grid' | 'minimap' | 'security'>,
   selectionAction: {
     bold: Bold,
     italic: Italic,
@@ -196,6 +197,9 @@ export const HOST_ICONOLOGY = {
     import: Upload,
     export: Download,
     splitView: SquareSplitHorizontal,
+    zenMode: Focus,
+    guide: Compass,
+    documentation: BookOpen,
     copy: Copy,
     github: GitHubMarkIcon,
     githubStar: Star,
@@ -209,6 +213,9 @@ export const HOST_ICONOLOGY = {
     | 'import'
     | 'export'
     | 'splitView'
+    | 'zenMode'
+    | 'guide'
+    | 'documentation'
     | 'copy'
     | 'github'
     | 'githubStar'

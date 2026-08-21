@@ -1,4 +1,4 @@
-import { useCallback, useRef, useEffect, useMemo, useState } from 'react';
+import { useCallback, useRef, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useSize } from 'ahooks';
 import { useCanvasInteraction } from './hooks/useCanvasInteraction';
 import { useCanvasRenderer } from './hooks/useCanvasRenderer';
@@ -247,6 +247,7 @@ export const CanvasEditor = ({
     : rendererStore;
 
   const {
+    activateInteractionOwner = () => false,
     draggingSelection,
     handleDoubleClick,
     colorSourceChoice,
@@ -259,8 +260,18 @@ export const CanvasEditor = ({
     structuredMovePreviewRef,
     requestCanvasRenderRef,
     runtime,
-    effectiveCapabilities
+    effectiveCapabilities,
+    canvasView?.viewId ?? 'single'
   );
+
+  const activateCanvas = useCallback(() => {
+    activateInteractionOwner();
+    onActivate?.();
+  }, [activateInteractionOwner, onActivate]);
+
+  useLayoutEffect(() => {
+    if (active) activateInteractionOwner();
+  }, [active, activateInteractionOwner]);
 
   useCanvasRenderer(
     canvasLayers,
@@ -331,9 +342,9 @@ export const CanvasEditor = ({
           containerSize={size}
           viewportFrame={viewportFrame}
           onContextMenu={handleContextMenu}
-          onFocusCapture={onActivate}
-          onPointerDownCapture={onActivate}
-          onWheelCapture={onActivate}
+          onFocusCapture={activateCanvas}
+          onPointerDownCapture={activateCanvas}
+          onWheelCapture={activateCanvas}
           data-canvas-view-active={active ? 'true' : 'false'}
           interactionUi={active}
           {...structuredTemplateDrop.surfaceProps}

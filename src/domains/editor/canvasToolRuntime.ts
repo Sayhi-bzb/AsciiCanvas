@@ -129,6 +129,8 @@ export interface CanvasInteractionPort {
 export class CanvasInteractionPortBinding {
   #port: CanvasInteractionPort | null = null;
   #portRef: { current: CanvasInteractionPort } | null = null;
+  #ownerRefs = new Map<string, { current: CanvasInteractionPort }>();
+  #activeOwnerId: string | null = null;
 
   bind(port: CanvasInteractionPort) {
     this.#port = port;
@@ -146,7 +148,32 @@ export class CanvasInteractionPortBinding {
     };
   }
 
+  registerRef(ownerId: string, portRef: { current: CanvasInteractionPort }) {
+    this.#ownerRefs.set(ownerId, portRef);
+    this.#activeOwnerId ??= ownerId;
+    return () => {
+      if (this.#ownerRefs.get(ownerId) !== portRef) return;
+      this.#ownerRefs.delete(ownerId);
+      if (this.#activeOwnerId === ownerId) this.#activeOwnerId = null;
+    };
+  }
+
+  activate(ownerId: string) {
+    if (!this.#ownerRefs.has(ownerId)) return false;
+    const changed = this.#activeOwnerId !== ownerId;
+    this.#activeOwnerId = ownerId;
+    return changed;
+  }
+
+  isActive(ownerId: string) {
+    return this.#activeOwnerId === ownerId;
+  }
+
   get() {
+    if (this.#activeOwnerId) {
+      const activePort = this.#ownerRefs.get(this.#activeOwnerId)?.current;
+      if (activePort) return activePort;
+    }
     return this.#portRef?.current ?? this.#port;
   }
 }

@@ -8,6 +8,7 @@
 // ============================================================================
 
 import type { Canvas, DrawingCoord, RoleCanvas, CharRole } from './types.js'
+import { isBoxDrawingGlyph, mergeBoxDrawingGlyphs } from './box-drawing.js'
 
 /**
  * Create a blank canvas filled with spaces.
@@ -169,13 +170,8 @@ export function increaseSize(canvas: Canvas, newX: number, newY: number): Canvas
 // Junction merging — Unicode box-drawing character compositing
 // ============================================================================
 
-/** All Unicode box-drawing characters that participate in junction merging. */
-const JUNCTION_CHARS = new Set([
-  '─', '│', '┌', '┐', '└', '┘', '├', '┤', '┬', '┴', '┼', '╴', '╵', '╶', '╷',
-])
-
 export function isJunctionChar(c: string): boolean {
-  return JUNCTION_CHARS.has(c)
+  return isBoxDrawingGlyph(c)
 }
 
 /** Check if a character is alphanumeric (part of a label). */
@@ -188,21 +184,8 @@ function isAlphanumeric(c: string): boolean {
  * resolve them to the correct combined junction.
  * E.g., '─' overlapping '│' becomes '┼'.
  */
-const JUNCTION_MAP: Record<string, Record<string, string>> = {
-  '─': { '│': '┼', '┌': '┬', '┐': '┬', '└': '┴', '┘': '┴', '├': '┼', '┤': '┼', '┬': '┬', '┴': '┴' },
-  '│': { '─': '┼', '┌': '├', '┐': '┤', '└': '├', '┘': '┤', '├': '├', '┤': '┤', '┬': '┼', '┴': '┼' },
-  '┌': { '─': '┬', '│': '├', '┐': '┬', '└': '├', '┘': '┼', '├': '├', '┤': '┼', '┬': '┬', '┴': '┼' },
-  '┐': { '─': '┬', '│': '┤', '┌': '┬', '└': '┼', '┘': '┤', '├': '┼', '┤': '┤', '┬': '┬', '┴': '┼' },
-  '└': { '─': '┴', '│': '├', '┌': '├', '┐': '┼', '┘': '┴', '├': '├', '┤': '┼', '┬': '┼', '┴': '┴' },
-  '┘': { '─': '┴', '│': '┤', '┌': '┼', '┐': '┤', '└': '┴', '├': '┼', '┤': '┤', '┬': '┼', '┴': '┴' },
-  '├': { '─': '┼', '│': '├', '┌': '├', '┐': '┼', '└': '├', '┘': '┼', '┤': '┼', '┬': '┼', '┴': '┼' },
-  '┤': { '─': '┼', '│': '┤', '┌': '┼', '┐': '┤', '└': '┼', '┘': '┤', '├': '┼', '┬': '┼', '┴': '┼' },
-  '┬': { '─': '┬', '│': '┼', '┌': '┬', '┐': '┬', '└': '┼', '┘': '┼', '├': '┼', '┤': '┼', '┴': '┼' },
-  '┴': { '─': '┴', '│': '┼', '┌': '┼', '┐': '┼', '└': '┴', '┘': '┴', '├': '┼', '┤': '┼', '┬': '┼' },
-}
-
 export function mergeJunctions(c1: string, c2: string): string {
-  return JUNCTION_MAP[c1]?.[c2] ?? c1
+  return mergeBoxDrawingGlyphs(c1, c2) ?? c1
 }
 
 // ============================================================================
@@ -228,38 +211,30 @@ export function mergeCanvases(
   }
 
   const merged = mkCanvas(maxX, maxY)
-
-  // Copy base
   for (let x = 0; x <= maxX; x++) {
     for (let y = 0; y <= maxY; y++) {
-      if (x < base.length && y < base[0]!.length) {
-        merged[x]![y] = base[x]![y]!
-      }
+      if (x < base.length && y < base[0]!.length) merged[x]![y] = base[x]![y]!
     }
   }
 
-  // Apply overlays
   for (const overlay of overlays) {
     for (let x = 0; x < overlay.length; x++) {
       for (let y = 0; y < overlay[0]!.length; y++) {
         const c = overlay[x]![y]!
-        if (c !== ' ') {
-          const mx = x + offset.x
-          const my = y + offset.y
-          const current = merged[mx]![my]!
-          if (!useAscii && isJunctionChar(c) && isJunctionChar(current)) {
-            merged[mx]![my] = mergeJunctions(current, c)
-          } else if (isAlphanumeric(current) && isAlphanumeric(c)) {
-            // Don't overwrite existing label text with new label text
-            // This prevents label collisions (first label wins)
-          } else {
-            merged[mx]![my] = c
-          }
+        if (c === ' ') continue
+        const mx = x + offset.x
+        const my = y + offset.y
+        const current = merged[mx]![my]!
+        if (!useAscii && isJunctionChar(c) && isJunctionChar(current)) {
+          merged[mx]![my] = mergeJunctions(current, c)
+        } else if (isAlphanumeric(current) && isAlphanumeric(c)) {
+          // First label wins when two independently routed labels collide.
+        } else {
+          merged[mx]![my] = c
         }
       }
     }
   }
-
   return merged
 }
 

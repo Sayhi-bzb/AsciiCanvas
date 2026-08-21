@@ -20,7 +20,9 @@ viewport presentation, hover, and imperative renderer managers. Only the active
 view projects its session into the shared editor, publishes its viewport, and
 owns managed input; inactive views render their bound session snapshot. Pane
 resize preserves the camera's world center. Manager and frame keys are scoped by
-view ID.
+view ID. Canvas interaction ports are also registered by view ID; capture-phase
+activation selects the port before the workspace switches session, so the first
+gesture is routed through the same pane that received it.
 
 ## Entry direction
 

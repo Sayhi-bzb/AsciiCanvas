@@ -15,6 +15,7 @@ import {
 import type { ContextMenuEntry } from "@/domains/actions/public";
 import { useEditor, useEditorKeymapSnapshot } from "@/domains/editor/public";
 import { useUiI18n, type I18nKey } from "@/shared/i18n";
+import { EditorWidget } from "@/widgets/editor-chrome/public";
 
 const LABEL_KEY_BY_ID: Record<string, I18nKey> = {
   copy: "context.copyText",
@@ -107,8 +108,10 @@ export const CanvasContextMenuContent = ({
   };
 
   return (
-    <ContextMenuContent className="w-56">
-      {entries.map(renderEntry)}
-    </ContextMenuContent>
+    <EditorWidget role="contextual">
+      <ContextMenuContent className="w-56">
+        {entries.map(renderEntry)}
+      </ContextMenuContent>
+    </EditorWidget>
   );
 };

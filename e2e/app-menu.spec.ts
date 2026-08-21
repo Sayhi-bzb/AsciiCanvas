@@ -1,6 +1,12 @@
 import { expect, test } from '@playwright/test';
 
 test.describe('App menu', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('chardesk-onboarding-v1', 'completed');
+    });
+  });
+
   test('round-trips a native CharDesk project file', async ({ page }) => {
     await page.goto('/');
 
@@ -29,15 +35,11 @@ test.describe('App menu', () => {
     await expect(trigger).toBeVisible();
     await expect(page.locator('[data-slot="sidebar-footer"]')).toHaveCount(0);
 
-    const gridControl = page.getByRole('button', {
-      name: 'Hide Workspace Grid',
-    });
+    const gridControl = page.getByTestId('zoom-grid');
     const minimapControl = page.getByRole('button', { name: 'Minimap' });
+    await expect(gridControl).toHaveAttribute('aria-pressed', 'false');
     await gridControl.click();
-    await expect(page.getByRole('button', { name: 'Toggle Grid' })).toHaveAttribute(
-      'aria-pressed',
-      'false'
-    );
+    await expect(gridControl).toHaveAttribute('aria-pressed', 'true');
     await minimapControl.click();
     const minimap = page.getByLabel('Canvas minimap');
     await expect(minimap).toBeVisible();
@@ -60,8 +62,11 @@ test.describe('App menu', () => {
       'Import',
       'Export',
       'Split view',
+      'Zen Mode',
       'Clear',
       'Settings',
+      'Guide',
+      'Documentation',
       'GitHub',
     ]);
 
@@ -93,8 +98,8 @@ test.describe('App menu', () => {
     await expect(page.getByRole('menuitem', { name: 'Save' })).toHaveCount(0);
 
     const separator = menu.locator('[data-slot="dropdown-menu-separator"]');
-    await expect(separator).toHaveCSS('height', '1px');
-    await expect(separator).toHaveClass(/bg-border/);
+    await expect(separator).toHaveCSS('height', '2px');
+    await expect(separator).toHaveClass(/rounded-full/, /bg-separator/);
 
     await page.mouse.click(700, 500);
     await expect(menuContent).toHaveCount(0);
@@ -103,15 +108,15 @@ test.describe('App menu', () => {
     await page.evaluate(() => window.dispatchEvent(new Event('blur')));
     await expect(menuContent).toHaveCount(0);
 
-    const helpControl = page.getByRole('button', { name: 'Help' });
-    const helpBox = await helpControl.boundingBox();
-    expect(helpBox).not.toBeNull();
-    expect(helpBox!.x + helpBox!.width).toBe(1428);
-    expect(helpBox!.y + helpBox!.height).toBe(888);
+    const securityControl = page.getByRole('button', { name: 'Data security' });
+    const securityBox = await securityControl.boundingBox();
+    expect(securityBox).not.toBeNull();
+    expect(securityBox!.x + securityBox!.width).toBe(1428);
+    expect(securityBox!.y + securityBox!.height).toBe(888);
     await expect(page.locator('[data-slot="sidebar-content"]')).toHaveCSS('padding-bottom', '48px');
 
-    await helpControl.click();
-    await expect(page.getByRole('dialog')).toContainText('Help');
+    await securityControl.click();
+    await expect(page.getByRole('dialog')).toContainText('Data security');
     await page.keyboard.press('Escape');
 
     await trigger.click();
@@ -120,6 +125,65 @@ test.describe('App menu', () => {
     await expect(page.getByRole('alertdialog')).toBeVisible();
     await expect(menuContent).toHaveCount(0);
     await page.getByRole('button', { name: 'Cancel' }).click();
+  });
+
+  test('hides every split-pane widget in Zen Mode and restores pane state', async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('chardesk-canvas-split-enabled', 'true');
+    });
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/');
+
+    const trigger = page.getByRole('button', { name: 'Open menu' });
+    const sideRegion = page.locator('[data-editor-chrome-region="side-end"]');
+    await expect(page.getByRole('button', { name: 'Select canvas' })).toHaveCount(2);
+    await expect(page.getByRole('button', { name: 'Toggle inspector' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Zoom out' })).toBeVisible();
+    await expect(page.getByRole('toolbar', { name: 'Canvas tools' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Data security' })).toBeVisible();
+    await expect(sideRegion).toBeVisible();
+
+    const primaryView = page.getByTestId('canvas-view-primary');
+    const secondaryView = page.getByTestId('canvas-view-secondary');
+    const primarySelector = page.getByTestId('canvas-session-selector-primary');
+    const secondarySelector = page.getByTestId('canvas-session-selector-secondary');
+    await expect(primaryView).toBeVisible();
+    await expect(secondaryView).toBeVisible();
+    await expect(primarySelector).toBeVisible();
+    await expect(secondarySelector).toBeVisible();
+    const primarySessionId = await primaryView.getAttribute('data-session-id');
+    const secondarySessionId = await secondaryView.getAttribute('data-session-id');
+
+    await trigger.click();
+    await page.getByRole('menuitem', { name: 'Zen Mode' }).click();
+
+    await expect(trigger).toBeVisible();
+    await expect(primarySelector).toHaveCount(0);
+    await expect(secondarySelector).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Toggle inspector' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Zoom out' })).toHaveCount(0);
+    await expect(page.getByRole('toolbar', { name: 'Canvas tools' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Data security' })).toHaveCount(0);
+    await expect(sideRegion).toHaveCount(0);
+    await expect(primaryView).toBeVisible();
+    await expect(secondaryView).toBeVisible();
+    await expect(page.getByRole('separator', { name: 'Resize canvas views' })).toBeVisible();
+    await expect(page.getByTestId('app-top-bar')).toHaveAttribute('data-zen-mode', 'true');
+
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    await trigger.click();
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    await page.getByRole('menuitem', { name: 'Exit Zen Mode' }).click();
+
+    await expect(primarySelector).toBeVisible();
+    await expect(secondarySelector).toBeVisible();
+    await expect(primaryView).toHaveAttribute('data-session-id', primarySessionId ?? '');
+    await expect(secondaryView).toHaveAttribute('data-session-id', secondarySessionId ?? '');
+    await expect(page.getByRole('button', { name: 'Toggle inspector' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Zoom out' })).toBeVisible();
+    await expect(page.getByRole('toolbar', { name: 'Canvas tools' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Data security' })).toBeVisible();
+    await expect(sideRegion).toBeVisible();
   });
 
   test('auto-detects imports and exposes language and shortcuts in Settings', async ({ page }) => {

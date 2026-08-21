@@ -15,6 +15,8 @@
 import { parseXYChart } from '../xychart/parser.js'
 import type { XYChart } from '../xychart/types.js'
 import type { AsciiConfig, CharRole, Canvas, RoleCanvas } from './types.js'
+import { BoxConnection, glyphForBoxConnections } from './box-drawing.js'
+import { composeLegacyCanvas } from './scene.js'
 
 // ============================================================================
 // Constants
@@ -25,11 +27,13 @@ const PLOT_HEIGHT = 20
 
 // Unicode box-drawing characters
 const UNI = {
-  hLine: '─',
-  vLine: '│',
-  origin: '┼',
-  yTick: '┤',
-  xTick: '┬',
+  hLine: glyphForBoxConnections(BoxConnection.left | BoxConnection.right),
+  vLine: glyphForBoxConnections(BoxConnection.up | BoxConnection.down),
+  origin: glyphForBoxConnections(
+    BoxConnection.up | BoxConnection.right | BoxConnection.down | BoxConnection.left
+  ),
+  yTick: glyphForBoxConnections(BoxConnection.up | BoxConnection.down | BoxConnection.left),
+  xTick: glyphForBoxConnections(BoxConnection.right | BoxConnection.down | BoxConnection.left),
   bar: '█',
   grid: '·',
   cornerTL: '╭',  // top-left: down+right
@@ -240,7 +244,7 @@ function renderVertical(
     drawStaircaseLine(canvas, roles, entry.data, bandCenter, valueToRow, plotTop, plotH, plotLeft, bandW * dataCount, ch, hexColors, hexColor)
   }
 
-  return canvasToString(canvas)
+  return canvasToString(composeLegacyCanvas(canvas, ch === ASC))
 }
 
 // ============================================================================
@@ -383,7 +387,7 @@ function renderHorizontal(
     drawHorizontalStaircaseLine(canvas, roles, entry.data, bandMid, valueToCol, plotTop, plotH, plotLeft, plotW, ch, hexColors, hexColor)
   }
 
-  return canvasToString(canvas)
+  return canvasToString(composeLegacyCanvas(canvas, ch === ASC))
 }
 
 // ============================================================================

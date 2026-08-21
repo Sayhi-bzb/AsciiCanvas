@@ -17,6 +17,11 @@ without viewport positioning.
   owns the host surface and elevation, and its inner layer clips content during
   collapse. Chrome regions do not clip surface shadows.
 - `phone` presents the sidebar as a modal Sheet.
+- `EditorPresentationProvider` owns transient presentation mode. Widgets declare
+  one role at their local render boundary: `essential`, `host`, `pane`, or
+  `contextual`. Zen Mode keeps essential widgets, suppresses the other roles,
+  and preserves Sidebar, Split, Canvas, tool, and selection state without
+  requesting browser fullscreen.
 - Registered chrome regions produce one `EditorViewportFrame`. Regions on the
   same edge reserve their maximum intrusion, not their sum. Camera fit, zoom
   anchors, minimap sizing, and contextual controls consume that frame.
@@ -42,7 +47,9 @@ for document and editor state.
 ## Authority and evidence
 
 - Contract: [`src/widgets/editor-chrome/public.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/widgets/editor-chrome/public.ts),
+  [`EditorPresentation.tsx`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/widgets/editor-chrome/EditorPresentation.tsx),
   [`types.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/widgets/editor-chrome/types.ts),
   and [`EditorChrome.tsx`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/widgets/editor-chrome/EditorChrome.tsx)
 - Geometry: [`editor-chrome.test.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/widgets/editor-chrome/editor-chrome.test.ts)
 - Responsive Sidebar surface: [`e2e/sidebar-collapse.spec.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/e2e/sidebar-collapse.spec.ts)
+- Zen Mode: [`e2e/app-menu.spec.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/e2e/app-menu.spec.ts)

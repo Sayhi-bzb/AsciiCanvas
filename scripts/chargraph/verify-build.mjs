@@ -31,6 +31,7 @@ for (const expected of [
   "flowchart LR",
   "sequenceDiagram",
   "xychart-beta",
+  "刷新会话",
   "/fonts/fonts.css",
 ]) {
   if (!bundledSource.includes(expected)) {

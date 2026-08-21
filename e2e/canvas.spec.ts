@@ -53,6 +53,16 @@ const readPersistedState = async (
   };
 }, STORAGE_KEY);
 
+const readLiveCanvasState = (page: Page) =>
+  page.evaluate<{
+    activeCanvasId: string;
+    canvasMode: string;
+    structuredGridFocus: { x: number; y: number } | null;
+    sessions: Array<{ id: string; name: string; mode: string }>;
+  }>(
+    'import("/src/app/compositionRoot.ts").then(({ getApplicationEditorHost }) => { const state = getApplicationEditorHost().canvas.getState(); return { activeCanvasId: state.activeCanvasId, canvasMode: state.canvasMode, structuredGridFocus: state.structuredGridFocus, sessions: state.canvasSessions.map(({ id, name, mode }) => ({ id, name, mode })) }; })'
+  );
+
 test.describe('Canvas', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
@@ -855,6 +865,88 @@ test.describe('Canvas', () => {
       'data-session-id',
       secondarySessionId ?? ''
     );
+  });
+
+  test('routes the first cell interaction to the active pane in a mixed-mode split', async ({
+    page,
+  }) => {
+    await page.getByRole('button', { name: 'Select canvas' }).click();
+    await page.getByRole('button', { name: 'Create' }).click();
+    await page.getByRole('menuitem', { name: 'New Structured' }).click();
+    const structuredState = await readLiveCanvasState(page);
+    const structuredSession = structuredState.sessions.find(
+      (session) => session.id === structuredState.activeCanvasId
+    );
+    expect(structuredSession).toBeTruthy();
+    await expect(page.getByRole('dialog', { name: 'Select canvas' })).toBeHidden();
+    await page.waitForTimeout(300);
+
+    const appMenuTrigger = page.getByRole('button', { name: 'Open menu' });
+    await appMenuTrigger.click();
+    const splitViewItem = page.getByRole('menuitem', { name: 'Split view' });
+    await expect(splitViewItem).toBeVisible();
+    await splitViewItem.click();
+    const primary = page.getByTestId('canvas-view-primary');
+    const secondary = page.getByTestId('canvas-view-secondary');
+    const primarySelector = page
+      .getByTestId('app-top-bar')
+      .getByTestId('canvas-session-selector-primary');
+    const secondarySelector = secondary.getByTestId('canvas-session-selector-secondary');
+
+    await secondarySelector.getByRole('button', { name: 'Select canvas' }).click();
+    await page.getByRole('button', { name: 'Create' }).click();
+    await page.getByRole('menuitem', { name: 'New Freeform' }).click();
+    const freeformState = await readLiveCanvasState(page);
+    const freeformSession = freeformState.sessions.find(
+      (session) => session.id === freeformState.activeCanvasId
+    );
+    expect(freeformSession).toBeTruthy();
+
+    const clickPaneCell = async (pane: typeof primary) => {
+      const surface = pane.getByTestId('canvas-editor-surface');
+      const bounds = await surface.boundingBox();
+      expect(bounds).not.toBeNull();
+      await page.mouse.click(
+        bounds!.x + bounds!.width / 2,
+        bounds!.y + bounds!.height / 2
+      );
+    };
+
+    await clickPaneCell(primary);
+    await expect.poll(() => readLiveCanvasState(page)).toMatchObject({
+      activeCanvasId: structuredSession!.id,
+      canvasMode: 'structured',
+      structuredGridFocus: expect.objectContaining({
+        x: expect.any(Number),
+        y: expect.any(Number),
+      }),
+    });
+
+    await primarySelector.getByRole('button', { name: 'Select canvas' }).click();
+    await page
+      .locator('[role="dialog"][data-state="open"]')
+      .getByRole('button', { name: freeformSession!.name, exact: true })
+      .click();
+    await secondarySelector.getByRole('button', { name: 'Select canvas' }).click();
+    await page
+      .locator('[role="dialog"][data-state="open"]')
+      .getByRole('button', { name: structuredSession!.name, exact: true })
+      .click();
+
+    await clickPaneCell(primary);
+    await expect.poll(() => readLiveCanvasState(page)).toMatchObject({
+      activeCanvasId: freeformSession!.id,
+      canvasMode: 'freeform',
+    });
+    await clickPaneCell(secondary);
+    await expect.poll(() => readLiveCanvasState(page)).toMatchObject({
+      activeCanvasId: structuredSession!.id,
+      canvasMode: 'structured',
+      structuredGridFocus: expect.objectContaining({
+        x: expect.any(Number),
+        y: expect.any(Number),
+      }),
+    });
   });
 
   test('commits a freeform shape drag to the persisted grid', async ({ page }) => {

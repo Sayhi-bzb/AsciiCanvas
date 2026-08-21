@@ -1,4 +1,4 @@
-import { renderCharGraph } from "@chardesk/chargraph";
+import { getCharGraphText, renderCharGraph } from "@chardesk/chargraph";
 
 const MAX_MERMAID_SOURCE_LENGTH = 20_000;
 const MAX_MERMAID_SOURCE_LINES = 400;
@@ -16,7 +16,11 @@ export const renderMermaidUnicode = async (source: string): Promise<string> => {
   }
 
   const { mermaidRenderer } = await import("@chardesk/chargraph/mermaid");
-  return renderCharGraph(source, mermaidRenderer, {
+  const rendered = await renderCharGraph(source, mermaidRenderer, {
     characterSet: "unicode",
   });
+  if (rendered.diagnostics[0]) {
+    throw new Error(rendered.diagnostics[0].message);
+  }
+  return getCharGraphText(rendered);
 };

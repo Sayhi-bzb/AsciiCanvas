@@ -58,6 +58,33 @@ describe("TextRenderingRuntime", () => {
     expect(result.cells.every((cell) => cell.attrs?.bold)).toBe(true);
   });
 
+  it("maps explicit ANSI to the matching repeated Markdown source range", async () => {
+    const result = await new TextRenderingRuntime().render(
+      "foo **[31mfoo[0m** foo",
+      "#111111"
+    );
+
+    expect(textFrom(result)).toBe("foo foo foo");
+    if (result.kind !== "styled") throw new Error("Expected composed cells");
+    expect(result.cells.filter((cell) => cell.x >= 4 && cell.x <= 6).every(
+      (cell) => cell.color === "#800000"
+    )).toBe(true);
+    expect(result.cells.filter((cell) => cell.x < 4 || cell.x > 6).every(
+      (cell) => cell.color === "#111111"
+    )).toBe(true);
+  });
+
+  it("renders Markdown hard breaks as grid newlines without HTML leakage", async () => {
+    const result = await new TextRenderingRuntime().render(
+      "*First*  \n_Second_",
+      "#111111"
+    );
+
+    expect(rowText(result, 0)).toBe("First");
+    expect(rowText(result, 1)).toBe("Second");
+    expect(textFrom(result)).not.toContain("<br>");
+  });
+
   it("keeps explicit OSC 8 links over Markdown link destinations", async () => {
     const result = await new TextRenderingRuntime().render(
       "]8;;https://ansi.example\\[label](https://markdown.example)]8;;\\",
@@ -84,7 +111,7 @@ describe("TextRenderingRuntime", () => {
     expect(textFrom(await runtime.render("[mplain", "#fff"))).toBe("plain");
   });
 
-  it("uses remark-gfm to render supported inline Markdown", async () => {
+  it("uses marked GFM to render supported inline Markdown", async () => {
     const runtime = new TextRenderingRuntime();
     const result = await runtime.render("**粗体** [link](https://example.com) ~~gone~~", "#fff");
 
@@ -391,7 +418,7 @@ describe("TextRenderingRuntime", () => {
     expect(textFrom(result)).not.toContain("\u001b");
     expect(textFrom(result)).toContain("开始");
     expect(textFrom(result)).toContain("完成");
-    expect(textFrom(result)).toContain("┌");
+    expect(textFrom(result)).toContain("╭");
     if (result.kind !== "styled") throw new Error("Expected styled Mermaid");
     expect(result.cells.every((cell) => cell.color === "#123456")).toBe(true);
     const start = result.cells.find((cell) => cell.char === "开");

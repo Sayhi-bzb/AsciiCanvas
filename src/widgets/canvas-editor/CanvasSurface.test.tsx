@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { CanvasSurface } from './CanvasSurface';
 import { resolveCanvasSurfaceGeometry } from './canvasSurfaceGeometry';
+import { EditorPresentationProvider } from '@/widgets/editor-chrome/public';
 
 vi.mock('./StructuredSplitToolbar', () => ({
   StructuredSplitToolbar: () => <div data-testid="selection-toolbar" />,
@@ -55,5 +56,27 @@ describe('CanvasSurface', () => {
     expect(layer).not.toContainElement(screen.getByTestId('content-overlay'));
     expect(layer).not.toContainElement(screen.getByTestId('selection-toolbar'));
     expect(layer).not.toContainElement(screen.getByRole('textbox'));
+  });
+
+  it('keeps the canvas input but hides contextual overlays in Zen Mode', () => {
+    render(
+      <EditorPresentationProvider initialMode="zen">
+        <CanvasSurface
+          containerRef={createRef<HTMLDivElement>()}
+          viewportLayerRef={createRef<HTMLDivElement>()}
+          bgCanvasRef={createRef<HTMLCanvasElement>()}
+          scratchCanvasRef={createRef<HTMLCanvasElement>()}
+          uiCanvasRef={createRef<HTMLCanvasElement>()}
+          surfaceGeometry={undefined}
+          containerSize={{ width: 800, height: 600 }}
+          textareaRef={createRef<HTMLTextAreaElement>()}
+          textareaStyle={{}}
+          textareaProps={{ 'aria-label': 'Canvas input' }}
+        />
+      </EditorPresentationProvider>
+    );
+
+    expect(screen.queryByTestId('selection-toolbar')).not.toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'Canvas input' })).toBeInTheDocument();
   });
 });

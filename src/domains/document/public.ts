@@ -29,7 +29,6 @@ export type {
   BuiltInTextRendererId,
   MarkdownColorSlotId,
   MarkdownColorDefault,
-  MarkdownRenderRule,
   MarkdownRenderRuleId,
   MarkdownRenderColors,
   MarkdownRenderRules,

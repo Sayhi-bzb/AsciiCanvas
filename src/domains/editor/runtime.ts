@@ -73,6 +73,17 @@ export class CanvasEditorRuntime extends EditorRuntime<
       reason: "history",
     });
   };
+
+  activateInteractionOwner = (ownerId: string) => {
+    if (this.interactionPort.isActive(ownerId)) return false;
+    if (this.getInteractionState().type !== "idle") {
+      this.dispatch({
+        type: "canvas-interaction-cancel",
+        reason: "identity",
+      });
+    }
+    return this.interactionPort.activate(ownerId);
+  };
 }
 
 export type CanvasEditorRuntimePorts = {

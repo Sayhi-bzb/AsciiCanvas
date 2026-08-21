@@ -1,5 +1,5 @@
 import { useCreation } from "ahooks";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { GridManager } from "@/shared/utils/grid";
 import { useCanvasRuntime } from "@/domains/canvas/public";
 import { isStaticGridMode } from "@/domains/sessions/public";
@@ -89,7 +89,8 @@ export const useCanvasInteraction = (
   structuredMovePreviewRef?: React.MutableRefObject<StructuredMovePreview | null>,
   requestRenderRef?: React.MutableRefObject<(() => void) | null>,
   runtime?: CanvasEngineRuntime,
-  capabilities: CanvasEditorCapabilities = DEFAULT_CANVAS_EDITOR_CAPABILITIES
+  capabilities: CanvasEditorCapabilities = DEFAULT_CANVAS_EDITOR_CAPABILITIES,
+  interactionOwnerId = "single"
 ) => {
   const canvas = useCanvasRuntime();
   const editorRuntime = useEditor();
@@ -493,16 +494,21 @@ export const useCanvasInteraction = (
   useLayoutEffect(() => {
     coreInteractionPortRef.current = coreInteractionPort;
   }, [coreInteractionPort]);
-  useEffect(() => {
-    const unbind = editorRuntime.interactionPort.bindRef(coreInteractionPortRef);
+  useLayoutEffect(() => {
+    const unregister = editorRuntime.interactionPort.registerRef(
+      interactionOwnerId,
+      coreInteractionPortRef
+    );
     return () => {
-      editorRuntime.dispatch({
-        type: "canvas-interaction-cancel",
-        reason: "dispose",
-      });
-      unbind();
+      if (editorRuntime.interactionPort.isActive(interactionOwnerId)) {
+        editorRuntime.dispatch({
+          type: "canvas-interaction-cancel",
+          reason: "dispose",
+        });
+      }
+      unregister();
     };
-  }, [editorRuntime]);
+  }, [editorRuntime, interactionOwnerId]);
   const updateEdgeScroll = (clientPoint: { x: number; y: number }) => {
     if (!edgeScroll) return;
     const isEnabled = () => {
@@ -580,9 +586,14 @@ export const useCanvasInteraction = (
       preventDefault: () => event.preventDefault(),
     });
   };
+  const activateInteractionOwner = useCallback(
+    () => editorRuntime.activateInteractionOwner(interactionOwnerId),
+    [editorRuntime, interactionOwnerId]
+  );
 
   return {
     bind,
+    activateInteractionOwner,
     draggingSelection,
     handleDoubleClick,
     colorSourceChoice,

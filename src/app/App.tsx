@@ -25,7 +25,7 @@ import { getStaticGridViewState } from '@/domains/selection/public';
 import { isStaticGridMode } from '@/domains/sessions/public';
 import { useGlobalShortcutCommands } from './useGlobalShortcutCommands';
 import { ZoomControl } from '@/widgets/toolbar/zoom-control';
-import { HelpControl } from '@/widgets/toolbar/help-control';
+import { SecurityControl } from '@/widgets/toolbar/security-control';
 import { ShortcutProvider } from '@/shared/shortcuts/dispatcher';
 import { useActiveCollaboration } from './useActiveCollaboration';
 import { useHorizontalWheelNavigationGuard } from './useHorizontalWheelNavigationGuard';
@@ -50,8 +50,11 @@ import { CanvasInspectorControl } from '@/widgets/canvas-inspector';
 import {
   EditorChromeLayout,
   EditorChromeProvider,
+  EditorPresentationProvider,
+  EditorWidget,
   resolvePaneViewportFrame,
   useEditorChromeLayout,
+  useEditorPresentation,
 } from '@/widgets/editor-chrome/public';
 import { intersectHostCapabilities } from './editorHostProfile';
 import { useEditorHostProfile } from './useEditorHostProfile';
@@ -235,16 +238,18 @@ function CanvasPaneContent({
         onContainerSizeChange={view.setContainerSize}
       />
       {split && view.viewId === 'secondary' ? (
-        <div
-          data-canvas-ui="true"
-          data-testid="canvas-session-selector-secondary"
-          className="pointer-events-auto absolute left-(--editor-chrome-inset) top-(--editor-safe-top) z-(--layer-controls) max-w-[min(14rem,calc(100%-1rem))]"
-        >
-          <BoundCanvasSessionSelector
-            manageSessions={manageSessions}
-            showPaneActivity
-          />
-        </div>
+        <EditorWidget role="pane">
+          <div
+            data-canvas-ui="true"
+            data-testid="canvas-session-selector-secondary"
+            className="pointer-events-auto absolute left-(--editor-chrome-inset) top-(--editor-safe-top) z-(--layer-controls) max-w-[min(14rem,calc(100%-1rem))]"
+          >
+            <BoundCanvasSessionSelector
+              manageSessions={manageSessions}
+              showPaneActivity
+            />
+          </div>
+        </EditorWidget>
       ) : null}
       {collaborate && view.isActive && <RemotePresenceOverlay />}
     </div>
@@ -324,6 +329,9 @@ function AppContent() {
     enabled: hostProfile.id === 'blackboard',
   });
   const { formFactor, sidebarPresentation, viewportFrame } = useEditorChromeLayout();
+  const { mode, isWidgetVisible } = useEditorPresentation();
+  const zenMode = mode === 'zen';
+  const showHostWidgets = isWidgetVisible('host');
   const workspace = useCanvasWorkspace();
   const activeView = useActiveCanvasView();
   const renderSplit =
@@ -430,33 +438,40 @@ function AppContent() {
       <SidebarShortcutRegistration />
       <SplitViewCommandRegistration />
       <EditorChromeLayout
-        sidebarOpen={isRightPanelOpen}
+        sidebarOpen={showHostWidgets && isRightPanelOpen}
         topStart={
           <div
             data-canvas-ui="true"
             data-testid="app-top-bar"
+            data-zen-mode={zenMode ? 'true' : 'false'}
             className="flex min-w-0 items-center gap-1 pointer-events-none"
           >
             <div data-testid="app-primary-control-stack" className="relative size-8 flex-none">
               <div inert={!capabilities.manageSessions || undefined}>
-                <AppMenu />
+                <EditorWidget role="essential">
+                  <AppMenu />
+                </EditorWidget>
               </div>
-              <div
-                data-testid="canvas-properties-control-position"
-                className="pointer-events-auto absolute left-0 top-9"
-              >
-                <CanvasInspectorControl
-                  formFactor={formFactor}
-                  readOnly={!capabilities.mutateContent}
-                />
-              </div>
+              <EditorWidget role="host">
+                <div
+                  data-testid="canvas-properties-control-position"
+                  className="pointer-events-auto absolute left-0 top-9"
+                >
+                  <CanvasInspectorControl
+                    formFactor={formFactor}
+                    readOnly={!capabilities.mutateContent}
+                  />
+                </div>
+              </EditorWidget>
             </div>
-            <HostedCanvasSessionSelector
-              viewId={hostedSelectorViewId}
-              manageSessions={capabilities.manageSessions}
-              showPaneActivity={renderSplit}
-            />
-            {hostProfile.id === 'blackboard' && (
+            <EditorWidget role="host">
+              <HostedCanvasSessionSelector
+                viewId={hostedSelectorViewId}
+                manageSessions={capabilities.manageSessions}
+                showPaneActivity={renderSplit}
+              />
+            </EditorWidget>
+            {showHostWidgets && hostProfile.id === 'blackboard' && (
               <StatusText tone={getBlackboardStatusTone(blackboardSource.status.state)} asChild>
                 <span
                   data-testid="blackboard-source-status"
@@ -467,20 +482,20 @@ function AppContent() {
                 </span>
               </StatusText>
             )}
-            {capabilities.collaborate && (
+            {showHostWidgets && capabilities.collaborate && (
               <div className="flex-none">
                 <CollaborationControl />
               </div>
             )}
           </div>
         }
-        topEnd={formFactor === 'phone' ? <PhoneSidebarTrigger /> : null}
+        topEnd={showHostWidgets && formFactor === 'phone' ? <PhoneSidebarTrigger /> : null}
         bottomStart={
-          formFactor === 'phone' ? null : (
+          !showHostWidgets || formFactor === 'phone' ? null : (
             <ZoomControl viewportFrame={viewportFrame} formFactor={formFactor} />
           )
         }
-        bottomCenter={
+        bottomCenter={!showHostWidgets ? null : (
           <div aria-disabled={!capabilities.mutateContent}>
             <Toolbar
               tool={tool}
@@ -493,9 +508,9 @@ function AppContent() {
               formFactor={formFactor}
             />
           </div>
-        }
-        bottomEnd={<HelpControl />}
-        sidebar={
+        )}
+        bottomEnd={!showHostWidgets ? null : <SecurityControl />}
+        sidebar={!showHostWidgets ? null : (
           <Suspense fallback={null}>
             <div
               className="size-full min-h-0 overflow-visible"
@@ -504,7 +519,7 @@ function AppContent() {
               <SidebarRight />
             </div>
           </Suspense>
-        }
+        )}
         canvas={
           <CanvasWorkspaceSurface
             onUndo={handleUndo}
@@ -541,11 +556,13 @@ export default function App() {
       <ShortcutProvider>
         <TooltipProvider>
           <OnboardingTourProvider>
-            <CanvasWorkspaceProvider>
-              <EditorChromeProvider>
-                <AppContent />
-              </EditorChromeProvider>
-            </CanvasWorkspaceProvider>
+            <EditorPresentationProvider>
+              <CanvasWorkspaceProvider>
+                <EditorChromeProvider>
+                  <AppContent />
+                </EditorChromeProvider>
+              </CanvasWorkspaceProvider>
+            </EditorPresentationProvider>
           </OnboardingTourProvider>
         </TooltipProvider>
       </ShortcutProvider>

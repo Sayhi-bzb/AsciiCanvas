@@ -21,7 +21,8 @@ import { determineDirection, dirEquals } from './edge-routing.js'
 import { gridToDrawingCoord, lineToDrawing } from './grid.js'
 import { splitLines } from './multiline-utils.js'
 import { getCorners } from './shapes/corners.js'
-import { getShapeAttachmentPoint } from './shapes/index.js'
+import { getShapeAttachmentPoint, renderShape } from './shapes/index.js'
+import { BoxConnection, glyphForBoxConnections, glyphForBoxCorner } from './box-drawing.js'
 
 // ============================================================================
 // Node drawing — renders a node using shape-aware rendering
@@ -38,6 +39,12 @@ import { getShapeAttachmentPoint } from './shapes/index.js'
  * within the grid cell dimensions to ensure proper vertical alignment.
  */
 export function drawNode(node: AsciiNode, graph: AsciiGraph): Canvas {
+  if (node.shape === 'state-start' || node.shape === 'state-end') {
+    return renderShape(node.shape, node.displayLabel, {
+      useAscii: graph.config.useAscii,
+      padding: graph.config.boxBorderPadding,
+    })
+  }
   // All shapes use grid-determined dimensions to fill their allocated space.
   // This ensures consistent sizing across nodes and eliminates gaps between
   // nodes and subgraph borders. All shapes are rectangles with distinctive
@@ -163,14 +170,15 @@ export function drawMultiBox(
   const boxHeight = totalLines + numDividers + 2 // +2 for top/bottom border
 
   // Box-drawing characters
-  const hLine = useAscii ? '-' : '─'
-  const vLine = useAscii ? '|' : '│'
-  const tl = useAscii ? '+' : '┌'
-  const tr = useAscii ? '+' : '┐'
-  const bl = useAscii ? '+' : '└'
-  const br = useAscii ? '+' : '┘'
-  const divL = useAscii ? '+' : '├'
-  const divR = useAscii ? '+' : '┤'
+  const glyph = (mask: number) => glyphForBoxConnections(mask, { useAscii })
+  const hLine = glyph(BoxConnection.left | BoxConnection.right)
+  const vLine = glyph(BoxConnection.up | BoxConnection.down)
+  const tl = glyphForBoxCorner(BoxConnection.right | BoxConnection.down, { useAscii })
+  const tr = glyphForBoxCorner(BoxConnection.down | BoxConnection.left, { useAscii })
+  const bl = glyphForBoxCorner(BoxConnection.up | BoxConnection.right, { useAscii })
+  const br = glyphForBoxCorner(BoxConnection.up | BoxConnection.left, { useAscii })
+  const divL = glyph(BoxConnection.up | BoxConnection.right | BoxConnection.down)
+  const divR = glyph(BoxConnection.up | BoxConnection.down | BoxConnection.left)
 
   const canvas = mkCanvas(boxWidth - 1, boxHeight - 1)
 
@@ -507,18 +515,42 @@ function drawBoxStart(
   const from = firstLine[0]!
   const dir = determineDirection(path[0]!, path[1]!)
 
-  if (dirEquals(dir, Up)) canvas[from.x]![from.y + 1] = '┴'
-  else if (dirEquals(dir, Down)) canvas[from.x]![from.y - 1] = '┬'
-  else if (dirEquals(dir, Left)) canvas[from.x + 1]![from.y] = '┤'
-  else if (dirEquals(dir, Right)) canvas[from.x - 1]![from.y] = '├'
+  if (dirEquals(dir, Up)) {
+    canvas[from.x]![from.y + 1] = glyphForBoxConnections(
+      BoxConnection.up | BoxConnection.right | BoxConnection.left
+    )
+  } else if (dirEquals(dir, Down)) {
+    canvas[from.x]![from.y - 1] = glyphForBoxConnections(
+      BoxConnection.right | BoxConnection.down | BoxConnection.left
+    )
+  } else if (dirEquals(dir, Left)) {
+    canvas[from.x + 1]![from.y] = glyphForBoxConnections(
+      BoxConnection.up | BoxConnection.down | BoxConnection.left
+    )
+  } else if (dirEquals(dir, Right)) {
+    canvas[from.x - 1]![from.y] = glyphForBoxConnections(
+      BoxConnection.up | BoxConnection.right | BoxConnection.down
+    )
+  }
 
   return canvas
 }
 
 /**
  * Draw the arrowhead at the end of an edge path.
- * Uses triangular Unicode symbols (▲▼◄►) or ASCII symbols (^v<>).
+ * Uses compact angle symbols (^v<>) with both Unicode and ASCII line sets.
  */
+function getDirectionalArrowChar(dir: Direction, fallbackDir: Direction = Middle): string {
+  if (dirEquals(dir, Up)) return '^'
+  if (dirEquals(dir, Down)) return 'v'
+  if (dirEquals(dir, Left)) return '<'
+  if (dirEquals(dir, Right)) return '>'
+  if (dirEquals(dir, UpperLeft) || dirEquals(dir, LowerLeft)) return '<'
+  if (dirEquals(dir, UpperRight) || dirEquals(dir, LowerRight)) return '>'
+  if (!dirEquals(fallbackDir, Middle)) return getDirectionalArrowChar(fallbackDir)
+  return '*'
+}
+
 function drawArrowHead(
   graph: AsciiGraph,
   lastLine: DrawingCoord[],
@@ -532,44 +564,7 @@ function drawArrowHead(
   let dir = determineDirection(from, lastPos)
   if (lastLine.length === 1 || dirEquals(dir, Middle)) dir = fallbackDir
 
-  let char: string
-
-  if (!graph.config.useAscii) {
-    if (dirEquals(dir, Up)) char = '▲'
-    else if (dirEquals(dir, Down)) char = '▼'
-    else if (dirEquals(dir, Left)) char = '◄'
-    else if (dirEquals(dir, Right)) char = '►'
-    else if (dirEquals(dir, UpperRight)) char = '◥'
-    else if (dirEquals(dir, UpperLeft)) char = '◤'
-    else if (dirEquals(dir, LowerRight)) char = '◢'
-    else if (dirEquals(dir, LowerLeft)) char = '◣'
-    else {
-      // Fallback
-      if (dirEquals(fallbackDir, Up)) char = '▲'
-      else if (dirEquals(fallbackDir, Down)) char = '▼'
-      else if (dirEquals(fallbackDir, Left)) char = '◄'
-      else if (dirEquals(fallbackDir, Right)) char = '►'
-      else if (dirEquals(fallbackDir, UpperRight)) char = '◥'
-      else if (dirEquals(fallbackDir, UpperLeft)) char = '◤'
-      else if (dirEquals(fallbackDir, LowerRight)) char = '◢'
-      else if (dirEquals(fallbackDir, LowerLeft)) char = '◣'
-      else char = '●'
-    }
-  } else {
-    if (dirEquals(dir, Up)) char = '^'
-    else if (dirEquals(dir, Down)) char = 'v'
-    else if (dirEquals(dir, Left)) char = '<'
-    else if (dirEquals(dir, Right)) char = '>'
-    else {
-      if (dirEquals(fallbackDir, Up)) char = '^'
-      else if (dirEquals(fallbackDir, Down)) char = 'v'
-      else if (dirEquals(fallbackDir, Left)) char = '<'
-      else if (dirEquals(fallbackDir, Right)) char = '>'
-      else char = '*'
-    }
-  }
-
-  canvas[lastPos.x]![lastPos.y] = char
+  canvas[lastPos.x]![lastPos.y] = getDirectionalArrowChar(dir, fallbackDir)
   return canvas
 }
 
@@ -698,6 +693,9 @@ function getNodeAttachmentPoint(
   node: AsciiNode,
   dir: Direction,
 ): DrawingCoord {
+  if (node.shape === 'state-start' || node.shape === 'state-end') {
+    return node.drawingCoord!
+  }
   const gc = node.gridCoord!
 
   // Calculate actual drawn dimensions from grid (matching drawBoxWithGridDimensions)
@@ -817,10 +815,23 @@ function drawBundledEdgeSegment(
     const dir = determineDirection(edge.pathToJunction[0]!, edge.pathToJunction[1]!)
 
     if (!useAscii) {
-      if (dirEquals(dir, Up)) boxStartCanvas[firstPoint.x]![firstPoint.y] = '┴'
-      else if (dirEquals(dir, Down)) boxStartCanvas[firstPoint.x]![firstPoint.y] = '┬'
-      else if (dirEquals(dir, Left)) boxStartCanvas[firstPoint.x]![firstPoint.y] = '┤'
-      else if (dirEquals(dir, Right)) boxStartCanvas[firstPoint.x]![firstPoint.y] = '├'
+      if (dirEquals(dir, Up)) {
+        boxStartCanvas[firstPoint.x]![firstPoint.y] = glyphForBoxConnections(
+          BoxConnection.up | BoxConnection.right | BoxConnection.left
+        )
+      } else if (dirEquals(dir, Down)) {
+        boxStartCanvas[firstPoint.x]![firstPoint.y] = glyphForBoxConnections(
+          BoxConnection.right | BoxConnection.down | BoxConnection.left
+        )
+      } else if (dirEquals(dir, Left)) {
+        boxStartCanvas[firstPoint.x]![firstPoint.y] = glyphForBoxConnections(
+          BoxConnection.up | BoxConnection.down | BoxConnection.left
+        )
+      } else if (dirEquals(dir, Right)) {
+        boxStartCanvas[firstPoint.x]![firstPoint.y] = glyphForBoxConnections(
+          BoxConnection.up | BoxConnection.right | BoxConnection.down
+        )
+      }
     }
   }
 
@@ -931,23 +942,7 @@ function drawBundleArrowhead(graph: AsciiGraph, bundle: EdgeBundle): Canvas {
   if (graphDir === 'TD') dc.y -= 1
   else dc.x -= 1
 
-  // Draw arrowhead
-  let char: string
-  if (!graph.config.useAscii) {
-    if (dirEquals(dir, Up)) char = '▲'
-    else if (dirEquals(dir, Down)) char = '▼'
-    else if (dirEquals(dir, Left)) char = '◄'
-    else if (dirEquals(dir, Right)) char = '►'
-    else char = '▼'  // default
-  } else {
-    if (dirEquals(dir, Up)) char = '^'
-    else if (dirEquals(dir, Down)) char = 'v'
-    else if (dirEquals(dir, Left)) char = '<'
-    else if (dirEquals(dir, Right)) char = '>'
-    else char = 'v'  // default
-  }
-
-  canvas[dc.x]![dc.y] = char
+  canvas[dc.x]![dc.y] = getDirectionalArrowChar(dir, Down)
   return canvas
 }
 
@@ -973,23 +968,7 @@ function drawBundledEdgeArrowhead(graph: AsciiGraph, edge: AsciiEdge): Canvas {
   if (graphDir === 'TD') dc.y -= 1
   else dc.x -= 1
 
-  // Draw arrowhead
-  let char: string
-  if (!graph.config.useAscii) {
-    if (dirEquals(dir, Up)) char = '▲'
-    else if (dirEquals(dir, Down)) char = '▼'
-    else if (dirEquals(dir, Left)) char = '◄'
-    else if (dirEquals(dir, Right)) char = '►'
-    else char = '▼'  // default
-  } else {
-    if (dirEquals(dir, Up)) char = '^'
-    else if (dirEquals(dir, Down)) char = 'v'
-    else if (dirEquals(dir, Left)) char = '<'
-    else if (dirEquals(dir, Right)) char = '>'
-    else char = 'v'  // default
-  }
-
-  canvas[dc.x]![dc.y] = char
+  canvas[dc.x]![dc.y] = getDirectionalArrowChar(dir, Down)
   return canvas
 }
 
@@ -1059,39 +1038,12 @@ function drawJunctionCharacter(graph: AsciiGraph, bundle: EdgeBundle): Canvas {
     }
   }
 
-  // Select character based on connected directions
-  let char: string
-  if (!useAscii) {
-    if (hasUp && hasDown && hasLeft && hasRight) {
-      char = '┼'  // cross - all 4 directions
-    } else if (hasDown && hasLeft && hasRight && !hasUp) {
-      char = '┬'  // T pointing down
-    } else if (hasUp && hasLeft && hasRight && !hasDown) {
-      char = '┴'  // T pointing up
-    } else if (hasUp && hasDown && hasRight && !hasLeft) {
-      char = '├'  // T pointing right
-    } else if (hasUp && hasDown && hasLeft && !hasRight) {
-      char = '┤'  // T pointing left
-    } else if (hasLeft && hasRight) {
-      char = '─'  // horizontal only
-    } else if (hasUp && hasDown) {
-      char = '│'  // vertical only
-    } else if (hasDown && hasRight) {
-      char = '┌'  // corner
-    } else if (hasDown && hasLeft) {
-      char = '┐'
-    } else if (hasUp && hasRight) {
-      char = '└'
-    } else if (hasUp && hasLeft) {
-      char = '┘'
-    } else {
-      char = '┼'  // fallback
-    }
-  } else {
-    char = '+'
-  }
-
-  canvas[dc.x]![dc.y] = char
+  const mask =
+    (hasUp ? BoxConnection.up : 0) |
+    (hasRight ? BoxConnection.right : 0) |
+    (hasDown ? BoxConnection.down : 0) |
+    (hasLeft ? BoxConnection.left : 0)
+  canvas[dc.x]![dc.y] = glyphForBoxConnections(mask, { useAscii })
   return canvas
 }
 
@@ -1114,10 +1066,10 @@ export function drawSubgraphBox(sg: AsciiSubgraph, graph: AsciiGraph): Canvas {
     for (let x = from.x + 1; x < to.x; x++) canvas[x]![to.y] = '─'
     for (let y = from.y + 1; y < to.y; y++) canvas[from.x]![y] = '│'
     for (let y = from.y + 1; y < to.y; y++) canvas[to.x]![y] = '│'
-    canvas[from.x]![from.y] = '┌'
-    canvas[to.x]![from.y] = '┐'
-    canvas[from.x]![to.y] = '└'
-    canvas[to.x]![to.y] = '┘'
+    canvas[from.x]![from.y] = glyphForBoxCorner(BoxConnection.right | BoxConnection.down)
+    canvas[to.x]![from.y] = glyphForBoxCorner(BoxConnection.down | BoxConnection.left)
+    canvas[from.x]![to.y] = glyphForBoxCorner(BoxConnection.up | BoxConnection.right)
+    canvas[to.x]![to.y] = glyphForBoxCorner(BoxConnection.up | BoxConnection.left)
   } else {
     for (let x = from.x + 1; x < to.x; x++) canvas[x]![from.y] = '-'
     for (let x = from.x + 1; x < to.x; x++) canvas[x]![to.y] = '-'

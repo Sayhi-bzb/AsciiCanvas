@@ -16,6 +16,7 @@ import type { Canvas, AsciiConfig, RoleCanvas, CharRole } from './types.js'
 import { mkCanvas, mkRoleCanvas, canvasToString, increaseSize, increaseRoleCanvasSize, setRole } from './canvas.js'
 import { drawMultiBox } from './draw.js'
 import { splitLines } from './multiline-utils.js'
+import { CharScene } from './scene.js'
 
 /** Classify a character from a box drawing as 'border' or 'text'. */
 function classifyBoxChar(ch: string): CharRole {
@@ -255,17 +256,21 @@ export function renderErAscii(text: string, config: AsciiConfig): string {
 
   const canvas = mkCanvas(totalW - 1, totalH - 1)
   const rc = mkRoleCanvas(totalW - 1, totalH - 1)
+  const scene = new CharScene(totalW, totalH, useAscii)
+  let currentOwner = 'er-diagram'
 
   /** Set a character on the canvas and track its role. */
   function setC(x: number, y: number, ch: string, role: CharRole): void {
-    if (x >= 0 && x < canvas.length && y >= 0 && y < (canvas[0]?.length ?? 0)) {
-      canvas[x]![y] = ch
-      setRole(rc, x, y, role)
-    }
+    if (x < 0 || y < 0) return
+    scene.write(x, y, ch, role, {
+      owner: currentOwner,
+      reserve: role === 'text',
+    })
   }
 
   // --- Draw entity boxes ---
   for (const p of placed.values()) {
+    currentOwner = `entity:${p.entity.id}`
     const boxCanvas = drawMultiBox(p.sections, useAscii)
     for (let bx = 0; bx < boxCanvas.length; bx++) {
       for (let by = 0; by < boxCanvas[0]!.length; by++) {
@@ -274,7 +279,8 @@ export function renderErAscii(text: string, config: AsciiConfig): string {
           const cx = p.x + bx
           const cy = p.y + by
           if (cx < totalW && cy < totalH) {
-            setC(cx, cy, ch, classifyBoxChar(ch))
+            const isInteriorText = bx > 0 && bx < boxCanvas.length - 1 && ch !== '─' && ch !== '-'
+            setC(cx, cy, ch, isInteriorText ? 'text' : classifyBoxChar(ch))
           }
         }
       }
@@ -287,7 +293,8 @@ export function renderErAscii(text: string, config: AsciiConfig): string {
   const dashH = useAscii ? '.' : '╌'
   const dashV = useAscii ? ':' : '┊'
 
-  for (const rel of diagram.relationships) {
+  for (const [relIndex, rel] of diagram.relationships.entries()) {
+    currentOwner = `er-relationship:${relIndex}`
     const e1 = placed.get(rel.entity1)
     const e2 = placed.get(rel.entity2)
     if (!e1 || !e2) continue
@@ -369,25 +376,27 @@ export function renderErAscii(text: string, config: AsciiConfig): string {
       const endY = lower.y - 1
       const lineX = upper.x + Math.floor(upper.width / 2)
 
-      // Vertical line
-      for (let y = startY; y <= endY; y++) {
-        setC(lineX, y, lineV, 'line')
-      }
-
       // If horizontal offset needed, add a horizontal segment
       const lowerCX = lower.x + Math.floor(lower.width / 2)
       if (lineX !== lowerCX) {
         const midY = Math.floor((startY + endY) / 2)
+        for (let y = startY; y < midY; y++) setC(lineX, y, lineV, 'line')
         // Horizontal segment at midY
         const lx = Math.min(lineX, lowerCX)
         const rx = Math.max(lineX, lowerCX)
-        for (let x = lx; x <= rx; x++) {
+        for (let x = lx + 1; x < rx; x++) {
           setC(x, midY, lineH, 'line')
         }
         // Vertical from midY to lower entity
         for (let y = midY + 1; y <= endY; y++) {
           setC(lowerCX, y, lineV, 'line')
         }
+        if (!useAscii) {
+          setC(lineX, midY, lineX < lowerCX ? '└' : '┘', 'corner')
+          setC(lowerCX, midY, lineX < lowerCX ? '┐' : '┌', 'corner')
+        }
+      } else {
+        for (let y = startY; y <= endY; y++) setC(lineX, y, lineV, 'line')
       }
 
       // Crow's foot markers (vertical direction)
@@ -432,5 +441,5 @@ export function renderErAscii(text: string, config: AsciiConfig): string {
     }
   }
 
-  return canvasToString(canvas)
+  return canvasToString(scene.compose().canvas)
 }

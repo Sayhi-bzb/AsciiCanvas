@@ -3,8 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEditorStore } from '@/domains/canvas/testing';
 import { createSlideDeck } from '@/domains/slides/public';
 import { setUiLanguage } from '@/shared/i18n';
+import { browser } from '@/shared/services/effects';
 import { AppMenu } from './app-menu';
 import { CanvasWorkspaceProvider } from '@/widgets/canvas-editor/engine/CanvasWorkspace';
+import { OnboardingTourContext } from '@/widgets/onboarding/onboarding-context';
+import { EditorPresentationProvider } from '@/widgets/editor-chrome/public';
 
 describe('AppMenu slide interchange', () => {
   const initialState = useEditorStore.getState();
@@ -22,6 +25,7 @@ describe('AppMenu slide interchange', () => {
     cleanup();
     act(() => setUiLanguage('en'));
     useEditorStore.setState(initialState, true);
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
 
@@ -115,8 +119,56 @@ describe('AppMenu slide interchange', () => {
     expect(splitItem.querySelector('.lucide-square-split-horizontal')).toBeInTheDocument();
     fireEvent.click(splitItem);
 
+    await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
     fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false });
     expect(await screen.findByRole('menuitem', { name: 'Close split view' })).toBeInTheDocument();
+  });
+
+  it('starts the guide after closing the menu and opens documentation externally', async () => {
+    act(() => setUiLanguage('en'));
+    const requestStart = vi.fn();
+    const openExternal = vi.spyOn(browser, 'openExternal').mockReturnValue(null);
+    render(
+      <OnboardingTourContext.Provider
+        value={{ phase: 'idle', canStart: true, requestStart }}
+      >
+        <AppMenu />
+      </OnboardingTourContext.Provider>
+    );
+
+    const trigger = screen.getByRole('button', { name: 'Open menu' });
+    fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false });
+
+    const guideItem = await screen.findByRole('menuitem', { name: 'Guide' });
+    expect(guideItem.querySelector('.lucide-compass')).toBeInTheDocument();
+    fireEvent.click(guideItem);
+
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    await waitFor(() => expect(requestStart).toHaveBeenCalledOnce());
+
+    fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false });
+    const documentationItem = await screen.findByRole('menuitem', {
+      name: 'Documentation',
+    });
+    expect(documentationItem.querySelector('.lucide-book-open')).toBeInTheDocument();
+    fireEvent.click(documentationItem);
+
+    expect(openExternal).toHaveBeenCalledWith('/docs');
+  });
+
+  it('disables the guide when onboarding is unavailable', async () => {
+    act(() => setUiLanguage('en'));
+    render(<AppMenu />);
+
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Open menu' }), {
+      button: 0,
+      ctrlKey: false,
+    });
+
+    expect(await screen.findByRole('menuitem', { name: 'Guide' })).toHaveAttribute(
+      'aria-disabled',
+      'true'
+    );
   });
 
   it('localizes the settings menu item', async () => {
@@ -131,5 +183,65 @@ describe('AppMenu slide interchange', () => {
     expect(
       await screen.findByRole('menuitem', { name: '设置' })
     ).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: '引导' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: '文档' })).toBeInTheDocument();
+  });
+
+  it('toggles Zen Mode and uses an explicit exit label', async () => {
+    act(() => setUiLanguage('en'));
+    render(
+      <EditorPresentationProvider>
+        <AppMenu />
+      </EditorPresentationProvider>
+    );
+
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Open menu' }), {
+      button: 0,
+      ctrlKey: false,
+    });
+    const enterItem = await screen.findByRole('menuitem', { name: 'Zen Mode' });
+    expect(enterItem.querySelector('.lucide-focus')).toBeInTheDocument();
+    fireEvent.click(enterItem);
+
+    await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Open menu' }), {
+      button: 0,
+      ctrlKey: false,
+    });
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Exit Zen Mode' }));
+
+    await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Open menu' }), {
+      button: 0,
+      ctrlKey: false,
+    });
+    expect(await screen.findByRole('menuitem', { name: 'Zen Mode' })).toBeInTheDocument();
+  });
+
+  it('exits Zen Mode before starting the guide', async () => {
+    act(() => setUiLanguage('en'));
+    const requestStart = vi.fn();
+    render(
+      <EditorPresentationProvider initialMode="zen">
+        <OnboardingTourContext.Provider
+          value={{ phase: 'idle', canStart: true, requestStart }}
+        >
+          <AppMenu />
+        </OnboardingTourContext.Provider>
+      </EditorPresentationProvider>
+    );
+
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Open menu' }), {
+      button: 0,
+      ctrlKey: false,
+    });
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Guide' }));
+
+    await waitFor(() => expect(requestStart).toHaveBeenCalledOnce());
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Open menu' }), {
+      button: 0,
+      ctrlKey: false,
+    });
+    expect(await screen.findByRole('menuitem', { name: 'Zen Mode' })).toBeInTheDocument();
   });
 });
