@@ -8,7 +8,9 @@
       "@chardesk/chargraph/mermaid": ["./packages/chargraph/src/mermaid.ts"],
       "@chardesk/protocol": ["./packages/protocol/src/index.ts"],
       "@chardesk/ui": ["./packages/ui/src/index.ts"],
-      "@chardesk/ui/styles": ["./packages/ui/src/styles.ts"]
+      "@chardesk/ui/styles": ["./packages/ui/src/styles.ts"],
+      "@chardesk/ui/components/*": ["./packages/ui/src/*"],
+      "@chardesk/ui/lib/*": ["./packages/ui/src/*"]
     },
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
     "target": "ES2022",

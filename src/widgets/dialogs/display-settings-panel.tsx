@@ -14,11 +14,26 @@ import {
   type TextRendererMode,
 } from '@/domains/document/public';
 import { useUiI18n } from '@/shared/i18n';
-import { cn } from '@/shared/lib/utils';
-import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
-import { SwatchButton } from '@/shared/ui/swatch-button';
-import { Tooltip, TooltipPopup, TooltipTrigger } from '@/shared/ui/tooltip';
+import {
+  cn,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  SwatchButton,
+  Tooltip,
+  TooltipPopup,
+  TooltipTrigger,
+} from '@chardesk/ui';
+
+
+
+
 import { ColorPickerPanel } from '@/widgets/color-picker';
 import {
   SettingsDataTable,

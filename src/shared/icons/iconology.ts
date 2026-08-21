@@ -1,4 +1,3 @@
-import { createElement } from 'react';
 import { GitHubMarkIcon } from './github-mark-icon';
 import {
   ArrowRight,
@@ -42,9 +41,6 @@ import {
   Presentation,
   Sparkles,
   RotateCcw,
-  PanelLeftClose,
-  PanelLeftOpen,
-  PanelRightClose,
   PanelRightOpen,
   PaintbrushVertical,
   PanelsTopLeft,
@@ -70,7 +66,6 @@ import {
   Users,
   X,
   type LucideIcon,
-  type LucideProps,
 } from 'lucide-react';
 
 type IconMap<Key extends string> = Record<Key, LucideIcon>;
@@ -243,17 +238,3 @@ export const HOST_ICONOLOGY = {
     'toolbar-submenu': ChevronDown,
   } satisfies IconMap<'open-right-sidebar' | 'toolbar-submenu'>,
 } as const;
-
-export function SidebarToggleIcon({
-  side,
-  isOpen,
-  ...props
-}: LucideProps & {
-  side: 'left' | 'right';
-  isOpen: boolean;
-}) {
-  if (side === 'right') {
-    return isOpen ? createElement(PanelRightClose, props) : createElement(PanelRightOpen, props);
-  }
-  return isOpen ? createElement(PanelLeftClose, props) : createElement(PanelLeftOpen, props);
-}

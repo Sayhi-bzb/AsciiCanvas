@@ -3,13 +3,8 @@
 import { lazy, Suspense, useMemo, useRef, useState } from 'react';
 import { useUiI18n } from '@/shared/i18n';
 import { HOST_ICONOLOGY } from '@/shared/icons/iconology';
-import { Button } from '@/shared/ui/button';
-import {
-  Tooltip,
-  TooltipCreateHandle,
-  TooltipPopup,
-  TooltipTrigger,
-} from '@/shared/ui/tooltip';
+import { Button, Tooltip, TooltipCreateHandle, TooltipPopup, TooltipTrigger } from '@chardesk/ui';
+
 import { useOnboardingTour } from '@/widgets/onboarding/onboarding-context';
 
 const HelpIcon = HOST_ICONOLOGY.viewportAction.help;

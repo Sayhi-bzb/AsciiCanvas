@@ -5,6 +5,7 @@ import ts from "typescript";
 const ROOT = process.cwd();
 const SRC_DIR = join(ROOT, "src");
 const CHARGRAPH_SRC_DIR = join(ROOT, "apps", "chargraph", "src");
+const UI_SRC_DIR = join(ROOT, "packages", "ui", "src");
 const TARGET_EXTENSIONS = new Set([".ts", ".tsx"]);
 
 const checks = [
@@ -36,6 +37,11 @@ const checks = [
   {
     name: "No legacy shared style components import",
     pattern: /["']@\/shared\/styles\/components["']/g,
+    allow: [],
+  },
+  {
+    name: "No app-local shared UI compatibility imports",
+    pattern: /["']@\/shared\/(?:ui|styles|lib\/utils)(?:\/|["'])/g,
     allow: [],
   },
   {
@@ -89,6 +95,11 @@ const importPattern =
   /\b(?:import|export)\b(?:[\s\S]*?\bfrom\s*)?["']([^"']+)["']/g;
 
 const boundaryChecks = [
+  {
+    name: "@chardesk/ui must not import application code",
+    file: /^packages\/ui\/src\//,
+    forbiddenImport: /^@\//,
+  },
   {
     name: "shared must not import domains",
     file: /^src\/shared\//,
@@ -327,7 +338,7 @@ const isAllowedPath = (filePath, allowList) => {
 };
 
 const violations = [];
-const files = [...walk(SRC_DIR), ...walk(CHARGRAPH_SRC_DIR)];
+const files = [...walk(SRC_DIR), ...walk(CHARGRAPH_SRC_DIR), ...walk(UI_SRC_DIR)];
 
 for (const filePath of files) {
   const content = readFileSync(filePath, "utf8");

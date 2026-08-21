@@ -4,13 +4,9 @@ import type { CanvasColorSourceChoice } from "./hooks/interaction/gestures/color
 import { gridCellRect } from "@/shared/metrics";
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
 import { useUiI18n } from "@/shared/i18n";
-import { Button } from "@/shared/ui/button";
-import { ColorSwatch } from "@/shared/ui/color-swatch";
-import {
-  Popover,
-  PopoverAnchor,
-  PopoverContent,
-} from "@/shared/ui/popover";
+import { Button, ColorSwatch, Popover, PopoverAnchor, PopoverContent } from "@chardesk/ui";
+
+
 
 type CanvasColorSourceChooserProps = {
   choice: CanvasColorSourceChoice;

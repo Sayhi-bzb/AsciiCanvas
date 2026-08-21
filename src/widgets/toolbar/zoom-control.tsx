@@ -14,15 +14,17 @@ import { useShallow } from 'zustand/react/shallow';
 import { useCanvasRuntime, useCanvasState } from '@/domains/canvas/public';
 import { HOST_ICONOLOGY } from '@/shared/icons/iconology';
 import { MAX_ZOOM, MIN_ZOOM } from '@/shared/lib/constants';
-import { Button } from '@/shared/ui/button';
-import { FloatingSurface } from '@/shared/ui/floating-surface';
 import {
+  Button,
+  FloatingSurface,
   Tooltip,
   TooltipCreateHandle,
   TooltipPopup,
   TooltipTrigger,
   type TooltipHandle,
-} from '@/shared/ui/tooltip';
+} from '@chardesk/ui';
+
+
 import { useUiI18n } from '@/shared/i18n';
 import { useInPlaceFeedback } from '@/shared/hooks/use-in-place-feedback';
 import { useCanvasEngineRuntime } from '@/widgets/canvas-editor/engine/useCanvasEngineRuntime';

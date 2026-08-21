@@ -5,7 +5,7 @@
   "tsx": true,
   "tailwind": {
     "config": "",
-    "css": "src/app/index.css",
+    "css": "packages/ui/theme.css",
     "baseColor": "neutral",
     "cssVariables": true,
     "prefix": ""
@@ -13,8 +13,8 @@
   "iconLibrary": "lucide",
   "aliases": {
     "components": "@/components",
-    "utils": "@/shared/lib/utils",
-    "ui": "@/shared/ui",
+    "utils": "@chardesk/ui/lib/utils",
+    "ui": "@chardesk/ui/components",
     "lib": "@/lib",
     "hooks": "@/hooks"
   },

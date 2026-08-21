@@ -12,28 +12,46 @@ import {
   type CharacterViewId,
   type UnicodeFacetType,
 } from '@/domains/character-library/public';
-import { cn } from '@/shared/lib/utils';
+import {
+  cn,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Button,
+  IconButton,
+  SelectableItem,
+  Surface,
+  StatusText,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  Tooltip,
+  TooltipCreateHandle,
+  TooltipPopup,
+  TooltipTrigger,
+  type TooltipHandle,
+} from '@chardesk/ui';
 import {
   useInPlaceFeedback,
   type InPlaceFeedback,
 } from '@/shared/hooks/use-in-place-feedback';
 import { getRenderFontFamilyForGrapheme } from '@/shared/metrics';
 import { useUiI18n, type I18nKey } from '@/shared/i18n';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/shared/ui/collapsible';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/shared/ui/select';
-import { Button } from '@/shared/ui/button';
-import { IconButton } from '@/shared/ui/icon-button';
-import { SelectableItem } from '@/shared/ui/selectable-item';
-import { Surface } from '@/shared/ui/surface';
-import { StatusText } from '@/shared/ui/status';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs';
-import {
-  Tooltip,
-  TooltipCreateHandle,
-  TooltipPopup,
-  TooltipTrigger,
-  type TooltipHandle,
-} from '@/shared/ui/tooltip';
+
+
+
+
+
+
+
+
+
 
 const PAGE_SIZE = 240;
 type CopyFeedbackTarget = {

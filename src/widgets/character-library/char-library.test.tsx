@@ -4,7 +4,7 @@ import { CharLibrary } from '@/widgets/character-library/char-library';
 import { useLibraryStore } from '@/domains/character-library/public';
 import { useEditorStore } from '@/domains/canvas/testing';
 import { writeClipboardPayload } from '@/domains/actions/public';
-import { SidebarProvider } from '@/shared/ui/sidebar';
+import { SidebarProvider } from '@chardesk/ui';
 import { setUiLanguage } from '@/shared/i18n';
 
 vi.mock('@/domains/actions/public', () => ({

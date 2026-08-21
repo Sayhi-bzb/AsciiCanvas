@@ -4,6 +4,11 @@
     "lib": ["ES2022", "DOM"],
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
+    "baseUrl": ".",
+    "paths": {
+      "@chardesk/ui/components/*": ["src/*"],
+      "@chardesk/ui/lib/*": ["src/*"]
+    },
     "jsx": "react-jsx",
     "strict": true,
     "declaration": true,
@@ -15,5 +20,6 @@
     "verbatimModuleSyntax": true,
     "skipLibCheck": true
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx"]
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
 }

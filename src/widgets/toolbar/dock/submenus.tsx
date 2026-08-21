@@ -9,8 +9,9 @@ import {
   DropdownMenuItem,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
-} from "@/shared/ui/dropdown-menu";
-import { Input } from "@/shared/ui/input";
+  Input,
+} from "@chardesk/ui";
+
 import { getFirstGrapheme } from "@/shared/utils/characters";
 import { MATERIAL_PRESETS } from "./constants";
 

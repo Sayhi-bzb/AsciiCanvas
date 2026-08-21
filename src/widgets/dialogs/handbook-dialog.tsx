@@ -2,21 +2,21 @@
 
 import { CircleHelp } from "lucide-react";
 import type { ReactElement } from "react";
-import { Button } from "@/shared/ui/button";
 import {
+  Button,
   Dialog,
   DialogBody,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/shared/ui/dialog";
-import {
   Tooltip,
   TooltipPopup,
   TooltipTrigger,
   type TooltipPopupProps,
-} from "@/shared/ui/tooltip";
+} from "@chardesk/ui";
+
+
 import { useUiI18n, type I18nKey } from "@/shared/i18n";
 
 const HELP_REFERENCE = [

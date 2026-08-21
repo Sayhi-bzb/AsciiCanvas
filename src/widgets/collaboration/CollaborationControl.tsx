@@ -15,13 +15,26 @@ import { HOST_ICONOLOGY } from '@/shared/icons/iconology';
 import { useInPlaceFeedback } from '@/shared/hooks/use-in-place-feedback';
 import { useUiI18n, type I18nKey } from '@/shared/i18n';
 import { clipboard } from '@/shared/services/effects';
-import { Button } from '@/shared/ui/button';
-import { Input } from '@/shared/ui/input';
-import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
-import { Separator } from '@/shared/ui/separator';
-import { StatusDot, StatusText } from '@/shared/ui/status';
-import { Tooltip, TooltipPopup, TooltipTrigger } from '@/shared/ui/tooltip';
-import type { StatusTone } from '@/shared/styles/tokens';
+import {
+  Button,
+  Input,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  Separator,
+  StatusDot,
+  StatusText,
+  Tooltip,
+  TooltipPopup,
+  TooltipTrigger,
+  type StatusTone,
+} from '@chardesk/ui';
+
+
+
+
+
+
 
 const CollaborationIcon = HOST_ICONOLOGY.sessionAction.collaboration;
 const CopyIcon = HOST_ICONOLOGY.editorAction.copy;

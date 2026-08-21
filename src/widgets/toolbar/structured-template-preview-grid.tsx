@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { StructuredTemplatePreview } from "@/domains/structured-content/public";
-import { cn } from "@/shared/lib/utils";
+import { cn } from "@chardesk/ui";
 import {
   DEFAULT_GRID_RENDER_METRICS,
   drawCellBackground,

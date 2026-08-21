@@ -736,7 +736,9 @@ test.describe('Canvas', () => {
     const resizeHandle = page.getByRole('separator', { name: 'Resize canvas views' });
     await expect(primary).toBeVisible();
     await expect(secondary).toBeVisible();
+    await expect(resizeHandle).toHaveClass(/w-0\.5/);
     await expect(resizeHandle).toHaveClass(/bg-separator/);
+    await expect(resizeHandle).not.toHaveClass(/rounded-full/);
     await expect(resizeHandle).not.toHaveClass(/bg-border/);
     await expect(topBar.getByTestId('canvas-session-selector-primary')).toBeVisible();
     await expect(

@@ -24,11 +24,20 @@ import {
 } from '@/domains/editor/public';
 import { SHORTCUT_PRIORITY, useShortcutLayer } from '@/shared/shortcuts/dispatcher';
 import { useUiI18n } from '@/shared/i18n';
-import { Button } from '@/shared/ui/button';
-import { IconButton } from '@/shared/ui/icon-button';
-import { Kbd, KbdGroup } from '@/shared/ui/kbd';
-import { Pressable } from '@/shared/ui/pressable';
-import { Tooltip, TooltipPopup, TooltipTrigger } from '@/shared/ui/tooltip';
+import {
+  Button,
+  IconButton,
+  Kbd,
+  KbdGroup,
+  Pressable,
+  Tooltip,
+  TooltipPopup,
+  TooltipTrigger,
+} from '@chardesk/ui';
+
+
+
+
 import {
   SHORTCUT_CATEGORY_ORDER,
   getShortcutCategory,

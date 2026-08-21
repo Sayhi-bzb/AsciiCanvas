@@ -7,7 +7,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@/shared/ui/dialog";
+} from "@chardesk/ui";
 import { useCanvasState } from "@/domains/canvas/public";
 
 type DataSecurityDialogProps = {

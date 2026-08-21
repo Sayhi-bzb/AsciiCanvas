@@ -6,8 +6,8 @@ import { useCanvasRuntime, useCanvasState } from "@/domains/canvas/public";
 import { SLIDE_SIZE_PRESETS, type SlideSize } from "@/domains/slides/public";
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
 import { useUiI18n, type I18nKey } from "@/shared/i18n";
-import { cn } from "@/shared/lib/utils";
 import {
+  cn,
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -16,9 +16,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/shared/ui/alert-dialog";
-import { Button } from "@/shared/ui/button";
-import {
+  Button,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
@@ -28,17 +26,25 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-} from "@/shared/ui/dropdown-menu";
-import { InlineRenameInput } from "@/shared/ui/inline-rename-input";
-import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
-import { Separator } from "@/shared/ui/separator";
-import { SelectableItem } from "@/shared/ui/selectable-item";
-import {
+  InlineRenameInput,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  Separator,
+  SelectableItem,
   Tooltip,
   TooltipCreateHandle,
   TooltipPopup,
   TooltipTrigger,
-} from "@/shared/ui/tooltip";
+} from "@chardesk/ui";
+
+
+
+
+
+
+
+
 import { CustomSlideSizeDialog } from "@/widgets/dialogs/custom-slide-size-dialog";
 import { useOnboardingTour } from "@/widgets/onboarding/onboarding-context";
 

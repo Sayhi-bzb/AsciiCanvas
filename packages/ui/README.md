@@ -12,6 +12,8 @@ states.
 import { Button, Separator, Surface } from "@chardesk/ui";
 ```
 
-`@chardesk/ui/styles` is infrastructure-only and exists for the main app's
-compatibility layer. Product code should consume primitives from the package
-root.
+`@chardesk/ui/styles` is infrastructure-only and remains as a compatibility
+export. Product code consumes primitives from the package root.
+
+Run shadcn commands from the repository root. The root and package
+`components.json` files route UI components and utilities into this workspace.

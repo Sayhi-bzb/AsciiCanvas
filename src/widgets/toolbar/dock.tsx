@@ -6,12 +6,23 @@ import { useCanvasRuntime, useCanvasState } from '@/domains/canvas/public';
 import { TOOLBAR_ACTION_META } from '@/domains/actions/public';
 import { resolveActiveToolbarAction } from '@/domains/actions/public';
 import type { ToolbarActionId } from '@/domains/actions/public';
-import { Tooltip, TooltipCreateHandle, TooltipPopup, TooltipTrigger } from '@/shared/ui/tooltip';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/shared/ui/dropdown-menu';
+import {
+  Tooltip,
+  TooltipCreateHandle,
+  TooltipPopup,
+  TooltipTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+  Kbd,
+  Button,
+  FloatingSurface,
+} from '@chardesk/ui';
+
 import { HOST_ICONOLOGY } from '@/shared/icons/iconology';
-import { Kbd } from '@/shared/ui/kbd';
-import { Button } from '@/shared/ui/button';
-import { FloatingSurface } from '@/shared/ui/floating-surface';
+
+
+
 
 import { BrushSubmenu, ShapeSubmenu } from './dock/submenus';
 import { MATERIAL_PRESETS, SHAPE_TOOLS } from './dock/constants';

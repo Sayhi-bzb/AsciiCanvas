@@ -78,6 +78,9 @@ describe("Slide playback", () => {
 
     expect(screen.getByRole("img", { name: "Second" })).toBeInTheDocument();
     expect(screen.getByText("2 / 2")).toBeInTheDocument();
+    expect(
+      document.querySelector('[data-slot="slide-playback-separator"]')
+    ).toHaveClass("w-0.5", "rounded-full", "bg-presentation-separator");
 
     fireEvent.keyDown(window, { key: "ArrowLeft" });
     expect(screen.getByRole("img", { name: "First" })).toBeInTheDocument();

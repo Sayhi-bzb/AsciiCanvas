@@ -7,15 +7,33 @@ import { useCanvasRuntime, useCanvasState } from '@/domains/canvas/public';
 import type { CanvasColorPickerTarget } from '@/domains/canvas/public';
 import { HOST_ICONOLOGY } from '@/shared/icons/iconology';
 import { useUiI18n } from '@/shared/i18n';
-import { cn } from '@/shared/lib/utils';
-import { Button } from '@/shared/ui/button';
-import { ColorSwatch } from '@/shared/ui/color-swatch';
-import { Input } from '@/shared/ui/input';
-import { Popover, PopoverContent, PopoverTrigger } from '@/shared/ui/popover';
-import { Surface } from '@/shared/ui/surface';
-import { SwatchButton } from '@/shared/ui/swatch-button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/shared/ui/tabs';
-import { Tooltip, TooltipCreateHandle, TooltipPopup, TooltipTrigger } from '@/shared/ui/tooltip';
+import {
+  cn,
+  Button,
+  ColorSwatch,
+  Input,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  Surface,
+  SwatchButton,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  Tooltip,
+  TooltipCreateHandle,
+  TooltipPopup,
+  TooltipTrigger,
+} from '@chardesk/ui';
+
+
+
+
+
+
+
+
 
 type ColorPickerPanelProps = {
   value: string;

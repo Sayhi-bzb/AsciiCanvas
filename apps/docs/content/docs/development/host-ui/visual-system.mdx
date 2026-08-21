@@ -5,14 +5,15 @@ description: Token, recipe, primitive, and product composition pipeline.
 
 The visual ownership path has one direction:
 
-`CSS semantic token -> shared rx recipe -> shared UI primitive -> widget composition`
+`@chardesk/ui theme -> shared rx recipe -> shared UI primitive -> product composition`
 
-- [`src/app/index.css`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/app/index.css)
+- [`packages/ui/theme.css`](https://github.com/Sayhi-bzb/CharDesk/blob/main/packages/ui/theme.css)
   owns semantic color, surface, elevation, and viewport-layer tokens.
-- [`src/shared/styles/recipes.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/shared/styles/recipes.ts)
+- [`packages/ui/src/recipes.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/packages/ui/src/recipes.ts)
   owns reusable visual and interaction recipes.
-- [`src/shared/ui`](https://github.com/Sayhi-bzb/CharDesk/tree/main/src/shared/ui)
-  owns domain-neutral structure and accessibility; `src/widgets` composes it.
+- [`packages/ui/src`](https://github.com/Sayhi-bzb/CharDesk/tree/main/packages/ui/src)
+  owns every domain-neutral primitive and composition. Products consume the
+  package root; they do not maintain an application-local primitive layer.
 
 `shadow-host`, `shadow-overlay`, and `shadow-dialog` are the elevation ladder.
 `surface`, `control`, and `item` are the radius ladder. Surface and dialog
@@ -25,13 +26,13 @@ Portal primitives inherit their layer from the nearest modal surface. Ordinary
 portals stay below modal surfaces; portals declared inside Dialog, AlertDialog,
 or Sheet render above that modal and below toast feedback.
 
-[`Surface`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/shared/ui/surface.tsx)
+[`Surface`](https://github.com/Sayhi-bzb/CharDesk/blob/main/packages/ui/src/surface.tsx)
 is the product composition boundary. Its `embedded`, `floating`, `overlay`, and
 `transparent` kinds map to the shared surface recipe. Toolbars, Inspector,
 Minimap, and the desktop Sidebar compose `Surface`; transient portal primitives
 consume the same overlay recipe internally.
 
-[`FloatingSurface`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/shared/ui/floating-surface.tsx)
+[`FloatingSurface`](https://github.com/Sayhi-bzb/CharDesk/blob/main/packages/ui/src/floating-surface.tsx)
 provides two product compositions. `control-bar` contains 32px controls with
 3px shell padding and a 4px gap. `panel` clips its shell and uses
 `SurfaceContent` for compact 8px or default 16px padding; full-bleed media omits
@@ -43,13 +44,15 @@ Shared compositions own repeated shell geometry and content density. Widget
 visibility, and typography. Shared primitives and recipes own background,
 border, radius, elevation, focus, hover, active state, and default icon sizing.
 A widget must express those decisions through typed primitive props and must not
-import `src/shared/styles/recipes.ts` directly.
+import `@chardesk/ui/styles` or its compatibility recipe path directly.
 
 `border` is the high-contrast contour for controls and explicit component
-boundaries. Structural dividers use the low-contrast `separator` token: menu
-separators, table rows, and resizable pane boundaries must not render a long
-`border`-colored line. Interaction may strengthen a separator transiently but
-does not replace its resting token.
+boundaries. The `separator` token owns structural-divider color, while the
+primitive or recipe owns geometry. Static separators, including menus and the
+presentation toolbar, are 2px and rounded. Resizable pane boundaries are 2px
+and straight; table and data-grid row boundaries remain 1px and straight.
+Interaction may strengthen a separator transiently but does not replace its
+resting token.
 
 Interaction state has stable vocabulary:
 
@@ -116,5 +119,5 @@ disable non-essential motion under reduced-motion preferences.
   `space-x/y`, raw viewport tiers, raw Widget buttons, Widget-owned interaction
   states, direct icon sizing, square-control geometry overrides, and Widget-owned
   shared surfaces.
-- Surface evidence: [`dialog.test.tsx`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/shared/ui/dialog.test.tsx)
-  and [`context-menu.test.tsx`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/shared/ui/context-menu.test.tsx)
+- Surface evidence: [`dialog.test.tsx`](https://github.com/Sayhi-bzb/CharDesk/blob/main/packages/ui/src/dialog.test.tsx)
+  and [`context-menu.test.tsx`](https://github.com/Sayhi-bzb/CharDesk/blob/main/packages/ui/src/context-menu.test.tsx)

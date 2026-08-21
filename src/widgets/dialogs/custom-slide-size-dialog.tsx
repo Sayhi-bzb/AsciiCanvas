@@ -7,18 +7,22 @@ import {
   type SlideSize,
 } from "@/domains/slides/public";
 import { useUiI18n } from "@/shared/i18n";
-import { Button } from "@/shared/ui/button";
 import {
+  Button,
   Dialog,
   DialogBody,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/shared/ui/dialog";
-import { Input } from "@/shared/ui/input";
-import { Label } from "@/shared/ui/label";
-import { StatusText } from "@/shared/ui/status";
+  Input,
+  Label,
+  StatusText,
+} from "@chardesk/ui";
+
+
+
+
 
 const DEFAULT_COLUMNS = "100";
 const DEFAULT_ROWS = "27";

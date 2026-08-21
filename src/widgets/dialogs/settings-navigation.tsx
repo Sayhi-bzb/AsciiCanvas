@@ -7,9 +7,11 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/shared/ui/select';
-import { SelectableItem } from '@/shared/ui/selectable-item';
-import { Input } from '@/shared/ui/input';
+  SelectableItem,
+  Input,
+} from '@chardesk/ui';
+
+
 import type { SettingsSearchResult } from './settings-search';
 
 type SettingsNavigationItem<Value extends string> = {

@@ -1,6 +1,6 @@
 import { formatShortcutLabel, getShortcutDisplayStrokes } from '@/domains/actions/public';
 import type { ShortcutSequence } from '@/domains/editor/public';
-import { Kbd, KbdGroup } from '@/shared/ui/kbd';
+import { Kbd, KbdGroup } from '@chardesk/ui';
 
 type ShortcutKbdProps = {
   shortcut: ShortcutSequence | string;

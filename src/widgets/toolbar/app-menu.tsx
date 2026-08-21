@@ -9,9 +9,9 @@ import {
   type ExportContext,
   type ExportFormat,
 } from "@/domains/export/public";
-import { Button } from "@/shared/ui/button";
-import { StatusText } from "@/shared/ui/status";
 import {
+  Button,
+  StatusText,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
@@ -21,7 +21,9 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-} from "@/shared/ui/dropdown-menu";
+} from "@chardesk/ui";
+
+
 import { useUiI18n } from "@/shared/i18n";
 import { useCanvasImport } from "@/widgets/import/useCanvasImport";
 import {

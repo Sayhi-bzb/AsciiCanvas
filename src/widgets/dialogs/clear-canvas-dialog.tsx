@@ -2,8 +2,8 @@
 
 import { Trash2 } from "lucide-react";
 import type { ReactElement } from "react";
-import { Button } from "@/shared/ui/button";
 import {
+  Button,
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -13,13 +13,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/shared/ui/alert-dialog";
-import {
   Tooltip,
   TooltipPopup,
   TooltipTrigger,
   type TooltipPopupProps,
-} from "@/shared/ui/tooltip";
+} from "@chardesk/ui";
+
+
 import { useUiI18n } from "@/shared/i18n";
 
 type ClearCanvasDialogProps = {

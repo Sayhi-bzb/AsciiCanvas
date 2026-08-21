@@ -4,17 +4,23 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useEditorKeymapSnapshot } from '@/domains/editor/public';
 import { useUiI18n } from '@/shared/i18n';
 import { HOST_ICONOLOGY } from '@/shared/icons/iconology';
-import { Button } from '@/shared/ui/button';
-import { Dialog, DialogContent, DialogFooter, DialogTitle } from '@/shared/ui/dialog';
-import { Label } from '@/shared/ui/label';
 import {
+  Button,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogTitle,
+  Label,
   Select,
   SelectContent,
   SelectGroup,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/shared/ui/select';
+} from '@chardesk/ui';
+
+
+
 import {
   KeyboardShortcutsPanel,
   type KeyboardShortcutsPanelHandle,

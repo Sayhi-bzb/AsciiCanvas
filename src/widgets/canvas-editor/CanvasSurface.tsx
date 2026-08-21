@@ -10,7 +10,7 @@ import {
 import { StructuredSplitToolbar } from './StructuredSplitToolbar';
 import type { CanvasSurfaceGeometry } from './canvasSurfaceGeometry';
 import type { EditorViewportFrame } from '@/widgets/editor-chrome/public';
-import { cn } from '@/shared/lib/utils';
+import { cn } from '@chardesk/ui';
 
 type CanvasSurfaceProps = HTMLAttributes<HTMLDivElement> & {
   containerRef: RefObject<HTMLDivElement | null>;

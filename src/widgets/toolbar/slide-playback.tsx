@@ -8,8 +8,8 @@ import { useEditor } from '@/domains/editor/public';
 import { HOST_ICONOLOGY } from '@/shared/icons/iconology';
 import { useUiI18n } from '@/shared/i18n';
 import { SHORTCUT_PRIORITY, useShortcutLayer } from '@/shared/shortcuts/dispatcher';
-import { Button } from '@/shared/ui/button';
-import { StatusText } from '@/shared/ui/status';
+import { Button, StatusText } from '@chardesk/ui';
+
 import { drawSlideCanvas } from './slide-canvas-renderer';
 import { resolveSlidePlaybackIndex } from './slide-playback-model';
 
@@ -198,7 +198,11 @@ export function SlidePlaybackOverlay({
         >
           <NextIcon />
         </Button>
-        <span className="mx-1 h-5 w-px bg-presentation-separator" aria-hidden="true" />
+        <span
+          data-slot="slide-playback-separator"
+          className="mx-1 h-5 w-0.5 rounded-full bg-presentation-separator"
+          aria-hidden="true"
+        />
         <Button
           data-visual-contract="presentation"
           tone="subtle"

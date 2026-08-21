@@ -7,7 +7,7 @@ import {
   ContextMenuSub,
   ContextMenuSubContent,
   ContextMenuSubTrigger,
-} from "@/shared/ui/context-menu";
+} from "@chardesk/ui";
 import {
   EDITOR_COMMAND_META,
   getEditorCommandShortcutLabel,

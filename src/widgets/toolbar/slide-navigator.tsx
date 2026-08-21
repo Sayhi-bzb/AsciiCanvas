@@ -9,25 +9,21 @@ import {
 } from "@/domains/slides/public";
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
 import { useUiI18n } from "@/shared/i18n";
-import { cn } from "@/shared/lib/utils";
-import { Button } from "@/shared/ui/button";
-import { CollectionCard } from "@/shared/ui/collection-card";
-import { SurfaceContent } from "@/shared/ui/floating-surface";
-import { IconButton } from "@/shared/ui/icon-button";
-import { InlineRenameInput } from "@/shared/ui/inline-rename-input";
-import { SelectableItem } from "@/shared/ui/selectable-item";
 import {
+  cn,
+  Button,
+  CollectionCard,
+  SurfaceContent,
+  IconButton,
+  InlineRenameInput,
+  SelectableItem,
   Tooltip,
   TooltipCreateHandle,
   TooltipPopup,
   TooltipTrigger,
   type TooltipHandle,
-} from "@/shared/ui/tooltip";
-import {
   ReorderableList,
   type ReorderAnnouncement,
-} from "@/shared/ui/reorderable-list";
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -36,7 +32,16 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/shared/ui/alert-dialog";
+} from "@chardesk/ui";
+
+
+
+
+
+
+
+
+
 import { SlidePreviewCanvas } from "./slide-preview-canvas";
 import { CustomSlideSizeDialog } from "@/widgets/dialogs/custom-slide-size-dialog";
 

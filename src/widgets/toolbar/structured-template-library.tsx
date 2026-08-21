@@ -9,10 +9,7 @@ import {
   type DragEvent as ReactDragEvent,
 } from "react";
 import { createPortal } from "react-dom";
-import {
-  SidebarGroup,
-  SidebarGroupContent,
-} from "@/shared/ui/sidebar";
+import { SidebarGroup, SidebarGroupContent, SelectableItem, Surface } from "@chardesk/ui";
 import {
   getStructuredTemplatePreview,
   STRUCTURED_TEMPLATE_MIME,
@@ -22,8 +19,8 @@ import {
   type StructuredTemplateId,
 } from "@/domains/structured-content/public";
 import { StructuredTemplatePreviewGrid } from "./structured-template-preview-grid";
-import { SelectableItem } from "@/shared/ui/selectable-item";
-import { Surface } from "@/shared/ui/surface";
+
+
 
 const sortTemplatesByLabel = <
   T extends { id: StructuredTemplateId; label: string },

@@ -2,12 +2,24 @@ import { useLocalStorageState } from 'ahooks';
 import { CanvasEditor } from '@/widgets/canvas-editor';
 import { useCanvasRuntime, useCanvasState } from '@/domains/canvas/public';
 import { Toolbar } from '@/widgets/toolbar/dock';
-import { SidebarProvider, SidebarTrigger, useSidebar } from '@/shared/ui/sidebar';
+import {
+  SidebarProvider,
+  SidebarTrigger,
+  useSidebar,
+  TooltipProvider,
+  Toaster,
+  StatusText,
+  type StatusTone,
+  ResizableHandle,
+  ResizablePanel,
+  ResizablePanelGroup,
+  UiProvider,
+} from '@chardesk/ui';
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react';
 import { feedback } from '@/shared/services/effects';
 import { useShallow } from 'zustand/react/shallow';
 import { CanvasSessionSelector } from '@/widgets/session-tabs/CanvasBreadcrumb';
-import { TooltipProvider } from '@/shared/ui/tooltip';
+
 import { AppMenu } from '@/widgets/toolbar/app-menu';
 import { getStaticGridViewState } from '@/domains/selection/public';
 import { isStaticGridMode } from '@/domains/sessions/public';
@@ -31,9 +43,9 @@ import {
   type CanvasViewId,
 } from '@/widgets/canvas-editor/engine/CanvasWorkspace';
 import { useEditor } from '@/domains/editor/public';
-import { Toaster } from '@/shared/ui/sonner';
-import { StatusText } from '@/shared/ui/status';
-import type { StatusTone } from '@/shared/styles/tokens';
+
+
+
 import { CanvasInspectorControl } from '@/widgets/canvas-inspector';
 import {
   EditorChromeLayout,
@@ -45,14 +57,11 @@ import { intersectHostCapabilities } from './editorHostProfile';
 import { useEditorHostProfile } from './useEditorHostProfile';
 import { useBlackboardSource } from './useBlackboardSource';
 import { getAppActionShortcuts } from '@/domains/actions/public';
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from '@/shared/ui/resizable';
+
 import type { CanvasEditorCapabilities } from '@/widgets/canvas-editor/canvasEditorCapabilities';
 import type { EditorViewportFrame } from '@/widgets/editor-chrome/public';
 import { useUiI18n } from '@/shared/i18n';
+
 
 const SidebarRight = lazy(() =>
   import('@/widgets/toolbar/sidebar-right').then((module) => ({
@@ -106,8 +115,9 @@ function SidebarShortcutRegistration() {
 
 function PhoneSidebarTrigger() {
   const { openMobile } = useSidebar();
+  const { t } = useUiI18n();
   if (openMobile) return null;
-  return <SidebarTrigger side="right" />;
+  return <SidebarTrigger side="right" aria-label={t('sidebar.toggle')} />;
 }
 
 function SplitViewCommandRegistration() {
@@ -514,17 +524,31 @@ function AppContent() {
 }
 
 export default function App() {
+  const { t } = useUiI18n();
+  const uiMessages = useMemo(
+    () => ({
+      dialogClose: t('dialog.close'),
+      notificationRegion: t('notification.region'),
+      sidebarTitle: t('sidebar.title'),
+      sidebarMobileDescription: t('sidebar.mobileDescription'),
+      sidebarToggle: t('sidebar.toggle'),
+    }),
+    [t]
+  );
+
   return (
-    <ShortcutProvider>
-      <TooltipProvider>
-        <OnboardingTourProvider>
-          <CanvasWorkspaceProvider>
-            <EditorChromeProvider>
-              <AppContent />
-            </EditorChromeProvider>
-          </CanvasWorkspaceProvider>
-        </OnboardingTourProvider>
-      </TooltipProvider>
-    </ShortcutProvider>
+    <UiProvider messages={uiMessages}>
+      <ShortcutProvider>
+        <TooltipProvider>
+          <OnboardingTourProvider>
+            <CanvasWorkspaceProvider>
+              <EditorChromeProvider>
+                <AppContent />
+              </EditorChromeProvider>
+            </CanvasWorkspaceProvider>
+          </OnboardingTourProvider>
+        </TooltipProvider>
+      </ShortcutProvider>
+    </UiProvider>
   );
 }

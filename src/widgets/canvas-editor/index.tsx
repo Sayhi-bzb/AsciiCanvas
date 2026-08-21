@@ -10,7 +10,7 @@ import { StructuredTemplatePreviewOverlay } from './StructuredTemplatePreviewOve
 import { useStructuredTemplateDrop } from './hooks/useStructuredTemplateDrop';
 import { useManagedCanvasInput } from './hooks/useManagedCanvasInput';
 import { useCanvasSpacePan } from './hooks/useCanvasSpacePan';
-import { ContextMenu, ContextMenuTrigger } from '@/shared/ui/context-menu';
+import { ContextMenu, ContextMenuTrigger } from '@chardesk/ui';
 import { CANVAS_CONTEXT_MENU, STRUCTURED_CONTEXT_MENU } from '@/domains/actions/public';
 import { GridManager } from '@/shared/utils/grid';
 import { CELL_HEIGHT, CELL_WIDTH } from '@/shared/lib/constants';

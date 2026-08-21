@@ -20,20 +20,23 @@ import {
   SHORTCUT_PRIORITY,
   useShortcutLayer,
 } from "@/shared/shortcuts/dispatcher";
-import { Button } from "@/shared/ui/button";
-import { ContentScrollArea } from "@/shared/ui/content-scroll-area";
-import { ColorSwatch } from "@/shared/ui/color-swatch";
 import {
+  Button,
+  ContentScrollArea,
+  ColorSwatch,
   FloatingSurface,
   SurfaceContent,
-} from "@/shared/ui/floating-surface";
-import { Surface } from "@/shared/ui/surface";
-import {
+  Surface,
   Tooltip,
   TooltipCreateHandle,
   TooltipPopup,
   TooltipTrigger,
-} from "@/shared/ui/tooltip";
+} from "@chardesk/ui";
+
+
+
+
+
 import { ColorPickerPanel } from "@/widgets/color-picker";
 import type { EditorFormFactor } from "@/widgets/editor-chrome/public";
 import { deriveCanvasInspectorModel } from "./model";

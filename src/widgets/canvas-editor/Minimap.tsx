@@ -12,7 +12,7 @@ import { useTheme } from "next-themes";
 import { useShallow } from "zustand/react/shallow";
 import { useCanvasState } from "@/domains/canvas/public";
 import { useUiI18n } from "@/shared/i18n";
-import { cn } from "@/shared/lib/utils";
+import { cn } from "@chardesk/ui";
 import type { Point } from "@/shared/types";
 import { resolveCanvasWheelDecision } from "./hooks/interaction/gestures/wheelInteraction";
 import { useCanvasEngineRuntime } from "./engine/useCanvasEngineRuntime";

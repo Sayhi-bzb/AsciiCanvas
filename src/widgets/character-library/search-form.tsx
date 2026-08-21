@@ -6,10 +6,10 @@ import {
   useLibraryStore,
   type CharacterViewId,
 } from "@/domains/character-library/public";
-import { cn } from "@/shared/lib/utils";
+import { cn, Input, IconButton } from "@chardesk/ui";
 import { useUiI18n } from "@/shared/i18n";
-import { Input } from "@/shared/ui/input";
-import { IconButton } from "@/shared/ui/icon-button";
+
+
 
 type SearchFormProps = Omit<React.ComponentProps<"form">, "onSubmit"> & {
   view: CharacterViewId;

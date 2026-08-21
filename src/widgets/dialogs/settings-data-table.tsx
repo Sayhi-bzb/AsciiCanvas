@@ -14,9 +14,18 @@ import {
   useRef,
   type ReactNode,
 } from 'react';
-import { cn } from '@/shared/lib/utils';
-import { Pressable } from '@/shared/ui/pressable';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shared/ui/table';
+import {
+  cn,
+  Pressable,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@chardesk/ui';
+
+
 
 export type SettingsDataTableColumn<ColumnId extends string = string> = {
   id: ColumnId;

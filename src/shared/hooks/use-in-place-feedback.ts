@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { FeedbackStatus } from "@/shared/styles/tokens";
+import type { FeedbackStatus } from "@chardesk/ui";
 
 type InPlaceFeedbackOperationResult<T> =
   | boolean

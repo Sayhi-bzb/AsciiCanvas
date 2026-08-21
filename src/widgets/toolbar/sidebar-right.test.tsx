@@ -10,7 +10,7 @@ import {
 import { SidebarRight } from "@/widgets/toolbar/sidebar-right";
 import { useEditorStore } from "@/domains/canvas/testing";
 import { useLibraryStore } from "@/domains/character-library/public";
-import { SidebarProvider } from "@/shared/ui/sidebar";
+import { SidebarProvider } from "@chardesk/ui";
 import {
   STRUCTURED_COMPONENT_TEMPLATES,
   STRUCTURED_PAGE_TEMPLATES,

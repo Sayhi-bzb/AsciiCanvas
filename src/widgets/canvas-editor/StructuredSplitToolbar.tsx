@@ -14,18 +14,21 @@ import {
 } from "@/domains/structured-content/public";
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
 import { useUiI18n } from "@/shared/i18n";
-import { cn } from "@/shared/lib/utils";
-import { gridCellRect } from "@/shared/metrics";
-import type { NodeBounds } from "@/shared/types";
-import { Button } from "@/shared/ui/button";
-import { FloatingSurface } from "@/shared/ui/floating-surface";
 import {
+  cn,
+  Button,
+  FloatingSurface,
   Tooltip,
   TooltipCreateHandle,
   TooltipPopup,
   TooltipTrigger,
   type TooltipHandle,
-} from "@/shared/ui/tooltip";
+} from "@chardesk/ui";
+import { gridCellRect } from "@/shared/metrics";
+import type { NodeBounds } from "@/shared/types";
+
+
+
 import type { EditorViewportFrame } from "@/widgets/editor-chrome/public";
 
 const SplitHorizontalIcon = HOST_ICONOLOGY.selectionAction["split-horizontal"];

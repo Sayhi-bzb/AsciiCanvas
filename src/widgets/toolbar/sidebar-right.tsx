@@ -7,7 +7,18 @@ import {
   SidebarStandard,
   SidebarTrigger,
   useSidebar,
-} from "@/shared/ui/sidebar";
+  cn,
+  ContentScrollArea,
+  Button,
+  SurfaceContent,
+  IconButton,
+  Input,
+  Surface,
+  Tooltip,
+  TooltipCreateHandle,
+  TooltipPopup,
+  TooltipTrigger,
+} from "@chardesk/ui";
 import { CharLibrary } from "@/widgets/character-library/char-library";
 import { SearchForm } from "@/widgets/character-library/search-form";
 import {
@@ -21,19 +32,14 @@ import {
   STRUCTURED_PAGE_TEMPLATES,
 } from "@/domains/structured-content/public";
 import { useCanvasState } from "@/domains/canvas/public";
-import { cn } from "@/shared/lib/utils";
-import { ContentScrollArea } from "@/shared/ui/content-scroll-area";
-import { Button } from "@/shared/ui/button";
-import { SurfaceContent } from "@/shared/ui/floating-surface";
-import { IconButton } from "@/shared/ui/icon-button";
-import { Input } from "@/shared/ui/input";
-import { Surface } from "@/shared/ui/surface";
-import {
-  Tooltip,
-  TooltipCreateHandle,
-  TooltipPopup,
-  TooltipTrigger,
-} from "@/shared/ui/tooltip";
+
+
+
+
+
+
+
+
 import { useShallow } from "zustand/react/shallow";
 import { useUiI18n } from "@/shared/i18n";
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
@@ -467,7 +473,11 @@ export function SidebarRight() {
               isCollapsed && "pointer-events-auto"
             )}
           >
-            <SidebarTrigger side="right" className="shrink-0" />
+            <SidebarTrigger
+              side="right"
+              aria-label={t("sidebar.toggle")}
+              className="shrink-0"
+            />
           </div>
         </SidebarHeader>
       }
