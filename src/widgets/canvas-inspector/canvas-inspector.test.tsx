@@ -68,7 +68,7 @@ describe("CanvasInspectorControl", () => {
       "w-[min(10rem,calc(100vw-2rem))]",
       "overflow-hidden"
     );
-    expect(content).toHaveClass("gap-0", "p-2");
+    expect(content).toHaveClass("gap-0", "p-2.5");
     expect(content).not.toHaveClass("px-1", "py-2");
     expect(colorPicker).toHaveClass("w-full", "px-0");
     expect(

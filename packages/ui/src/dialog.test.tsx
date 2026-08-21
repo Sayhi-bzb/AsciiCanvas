@@ -53,7 +53,15 @@ describe('dialog visual contract', () => {
     );
 
     const content = screen.getByRole('dialog');
-    expect(content).toHaveClass('border-0', 'shadow-dialog', 'rounded-surface', 'p-4', 'gap-4');
+    expect(content).toHaveClass(
+      'border-0',
+      'shadow-dialog',
+      'rounded-surface',
+      'ring-1',
+      'ring-surface-ring',
+      'p-5',
+      'gap-5'
+    );
     const header = content.querySelector('[data-slot="dialog-header"]');
     expect(header).toHaveClass('pr-12');
     expect(content).toHaveAccessibleDescription('Changes apply to this canvas.');
@@ -91,7 +99,15 @@ describe('dialog visual contract', () => {
     );
 
     const content = screen.getByRole('alertdialog');
-    expect(content).toHaveClass('border-0', 'shadow-dialog', 'rounded-surface', 'p-4', 'gap-4');
+    expect(content).toHaveClass(
+      'border-0',
+      'shadow-dialog',
+      'rounded-surface',
+      'ring-1',
+      'ring-surface-ring',
+      'p-5',
+      'gap-5'
+    );
     const header = content.querySelector('[data-slot="alert-dialog-header"]');
     expect(header).not.toHaveClass('pr-12', 'border-b', 'border-accent', 'bg-accent/40');
     const footer = content.querySelector('[data-slot="alert-dialog-footer"]');

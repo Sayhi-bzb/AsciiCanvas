@@ -43,7 +43,7 @@ describe("StructuredSplitToolbar", () => {
       "border-0",
       "shadow-host",
       "rounded-surface",
-      "p-[3px]"
+      "p-1"
     );
     expect(screen.getByLabelText("Delete split divider")).toBeDisabled();
 

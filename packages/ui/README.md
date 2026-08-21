@@ -4,6 +4,10 @@ Private CharDesk visual-system package. Product surfaces consume its theme and
 primitives instead of owning colors, borders, radii, shadows, or interaction
 states.
 
+The package defines one neutral surface ladder for page, embedded, floating,
+overlay, and modal UI. Product code supplies layout only; shared recipes own
+surface tone, contour, elevation, density, and interaction state.
+
 ```css
 @import "@chardesk/ui/theme.css";
 ```

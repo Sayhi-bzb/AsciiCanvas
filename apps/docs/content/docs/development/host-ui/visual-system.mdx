@@ -17,8 +17,12 @@ The visual ownership path has one direction:
 
 `shadow-host`, `shadow-overlay`, and `shadow-dialog` are the elevation ladder.
 `surface`, `control`, and `item` are the radius ladder. Surface and dialog
-shells use 12px; controls, fields, menu items, and selectable items use 6px;
+shells use 12px; controls, fields, menu items, and selectable items use 8px;
 color swatches remain circular.
+Page backgrounds, embedded regions, floating hosts, overlays, and dialogs form
+one neutral surface ladder. Embedded regions use tone without a contour;
+floating, overlay, and modal surfaces use the shared low-contrast ring and
+their corresponding elevation token.
 Viewport surfaces use semantic layer tokens; product instances do not assign raw
 overlay tiers or recreate shared surfaces. Presentation, presence, field, and
 swatch colors also have semantic tokens instead of component-local theme branches.
@@ -34,8 +38,8 @@ consume the same overlay recipe internally.
 
 [`FloatingSurface`](https://github.com/Sayhi-bzb/CharDesk/blob/main/packages/ui/src/floating-surface.tsx)
 provides two product compositions. `control-bar` contains 32px controls with
-3px shell padding and a 4px gap. `panel` clips its shell and uses
-`SurfaceContent` for compact 8px or default 16px padding; full-bleed media omits
+4px shell padding and a 4px gap. `panel` clips its shell and uses
+`SurfaceContent` for compact 10px or default 16px padding; full-bleed media omits
 the content wrapper. Deck is the panel spacing reference, while Zoom and Dock
 are the control-bar density reference.
 
@@ -46,8 +50,9 @@ border, radius, elevation, focus, hover, active state, and default icon sizing.
 A widget must express those decisions through typed primitive props and must not
 import `@chardesk/ui/styles` or its compatibility recipe path directly.
 
-`border` is the high-contrast contour for controls and explicit component
-boundaries. The `separator` token owns structural-divider color, while the
+`border` is the low-contrast contour for controls and explicit component
+boundaries. Floating contours use `surface-ring` so they do not change layout.
+The `separator` token owns structural-divider color, while the
 primitive or recipe owns geometry. Static separators, including menus and the
 presentation toolbar, are 2px and rounded. Resizable pane boundaries are 2px
 and straight; table and data-grid row boundaries remain 1px and straight.
@@ -88,7 +93,8 @@ opacity utilities.
 menu family translate those states into shared recipes. `SelectableItem` is a
 fixed compact row (12px text, 16px line height, 28px minimum height); Widgets
 may adjust its layout but do not override its typography. Other controls expose
-only their documented size or density options. Segmented controls use `joined`;
+only their documented size or density options. Default 32px controls and fields
+use 13px text; compact 28px controls use 12px. Segmented controls use `joined`;
 option sets use `ToggleGroup`. Presentation playback is the only themed
 override and marks that boundary with `data-visual-contract="presentation"`.
 
@@ -100,7 +106,7 @@ intentional raw interaction surface such as the Slide playback canvas.
 
 Dropdown primitives own the overlay surface, collision behavior, animation,
 viewport limits, and a compact minimum width. The product instance owns only
-its semantic width. Popovers expose `compact` (8px) and `default` (16px)
+its semantic width. Popovers expose `compact` (10px) and `default` (16px)
 content density; editor chrome defaults to compact. Dropdown, Context Menu, and Select items share the same
 compact/default density, radius, highlight, checked, disabled, destructive,
 and separator recipes. Dropdowns are reserved for command choices and grouped

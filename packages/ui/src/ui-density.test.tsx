@@ -32,11 +32,11 @@ describe("compact UI density", () => {
     );
     expect(screen.getByRole("button", { name: "Medium" })).toHaveClass(
       "h-8",
-      "text-xs"
+      "text-[13px]"
     );
     expect(screen.getByRole("button", { name: "Large" })).toHaveClass(
       "h-9",
-      "text-xs"
+      "text-sm"
     );
     expect(screen.getByRole("button", { name: "Extra small" })).toHaveClass(
       "cursor-pointer"
@@ -160,7 +160,7 @@ describe("compact UI density", () => {
     );
     expect(screen.getByLabelText("Field label")).toHaveClass(
       "h-8",
-      "text-xs",
+      "text-[13px]",
       "disabled:cursor-default"
     );
   });
@@ -190,7 +190,7 @@ describe("compact UI density", () => {
   });
 
   it("provides stable panel typography recipes", () => {
-    expect(rx.panelText()).toContain("text-xs");
+    expect(rx.panelText()).toContain("text-[13px]");
     expect(rx.panelHeading()).toContain("font-semibold");
   });
 
@@ -235,7 +235,11 @@ describe("compact UI density", () => {
       </>
     );
 
-    expect(screen.getByTestId("embedded-surface")).toHaveClass("bg-host-surface", "shadow-none");
+    expect(screen.getByTestId("embedded-surface")).toHaveClass(
+      "bg-secondary/70",
+      "shadow-none",
+      "ring-0"
+    );
     expect(screen.getByTestId("floating-surface")).toHaveClass("bg-host-surface", "shadow-host");
     expect(screen.getByTestId("overlay-surface")).toHaveClass("bg-overlay-surface", "shadow-overlay");
     expect(screen.getByTestId("overlay-surface")).toHaveClass("rounded-surface");

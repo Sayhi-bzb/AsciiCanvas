@@ -14,9 +14,11 @@ describe("FloatingSurface", () => {
       "bg-host-surface",
       "rounded-surface",
       "shadow-host",
+      "ring-1",
+      "ring-surface-ring",
       "flex",
       "gap-1",
-      "p-[3px]"
+      "p-1"
     )
   })
 
@@ -49,7 +51,7 @@ describe("SurfaceContent", () => {
       </>
     )
 
-    expect(screen.getByTestId("compact")).toHaveClass("p-2")
+    expect(screen.getByTestId("compact")).toHaveClass("p-2.5")
     expect(screen.getByTestId("default")).toHaveClass("p-4")
   })
 })

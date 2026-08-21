@@ -22,7 +22,7 @@ function FloatingSurface({
       className={cn(
         "pointer-events-auto",
         variant === "control-bar" &&
-          "relative flex items-center gap-1 p-[3px]",
+          "relative flex items-center gap-1 p-1",
         variant === "panel" && "overflow-hidden",
         className
       )}
@@ -44,7 +44,7 @@ function SurfaceContent({
     <div
       data-slot="surface-content"
       data-density={density}
-      className={cn(density === "compact" ? "p-2" : "p-4", className)}
+      className={cn(density === "compact" ? "p-2.5" : "p-4", className)}
       {...props}
     />
   )

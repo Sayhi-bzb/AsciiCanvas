@@ -319,7 +319,7 @@ describe('CharLibrary', () => {
       labels.essentials.length + 1
     );
     expect(groupHeader).toHaveAttribute('data-surface-kind', 'embedded');
-    expect(groupHeader).toHaveClass('sticky', 'top-0', 'z-10', 'bg-host-surface');
+    expect(groupHeader).toHaveClass('sticky', 'top-0', 'z-10', 'bg-secondary/70');
     expect(groupTrigger).toHaveClass('min-h-7', 'text-xs', 'leading-4');
     expect(groupTrigger).not.toHaveClass('min-h-8', 'text-sm');
     fireEvent.click(groupTrigger);

@@ -110,7 +110,7 @@ function SidebarViewRail<ViewId extends string>({
         }
         data-testid={`${testIdPrefix}-view-rail-${orientation}`}
         className={cn(
-          "flex p-[3px]",
+          "flex p-1",
           orientation === "vertical"
             ? "w-full flex-col items-center gap-1"
             : "w-full items-center justify-center gap-1"

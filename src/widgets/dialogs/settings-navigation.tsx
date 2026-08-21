@@ -65,7 +65,7 @@ export function SettingsNavigation<Value extends string>({
 
   return (
     <div className="flex min-h-0 min-w-0 flex-col">
-      <div data-slot="settings-search" className="p-1">
+      <div data-slot="settings-search" className="p-2 pb-1">
         <Input
           type="search"
           density="compact"
@@ -84,7 +84,7 @@ export function SettingsNavigation<Value extends string>({
           ref={resultsRef}
           data-slot="settings-search-results"
           aria-label={search.resultsLabel}
-          className="flex max-h-40 min-w-0 flex-col gap-1 overflow-auto p-1 md:max-h-none md:min-h-0 md:flex-1"
+          className="flex max-h-40 min-w-0 flex-col gap-1 overflow-auto p-2 pt-1 md:max-h-none md:min-h-0 md:flex-1"
         >
           {search.results.length > 0 ? (
             search.results.map((result, index) => (
@@ -112,7 +112,7 @@ export function SettingsNavigation<Value extends string>({
         </nav>
       ) : (
         <>
-          <div data-slot="settings-navigation-mobile" className="p-1 md:hidden [&_svg]:size-[1em]!">
+          <div data-slot="settings-navigation-mobile" className="p-2 md:hidden [&_svg]:size-[1em]!">
             <Select value={value} onValueChange={(nextValue) => onValueChange(nextValue as Value)}>
               <SelectTrigger className="w-full sm:w-44" aria-label={label}>
                 <SelectValue />
@@ -132,7 +132,7 @@ export function SettingsNavigation<Value extends string>({
 
           <div
             data-slot="settings-navigation-inline"
-            className="hidden min-w-0 px-1 py-2 md:block [&_svg]:size-[1em]!"
+            className="hidden min-w-0 p-2 md:block [&_svg]:size-[1em]!"
           >
             <nav aria-label={label} className="flex min-w-0 flex-col gap-1 py-1">
               {items.map(({ icon: Icon, title, value: itemValue }) => (

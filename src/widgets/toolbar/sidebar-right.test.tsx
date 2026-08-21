@@ -159,10 +159,11 @@ describe("SidebarRight structured templates", () => {
     const headerContent = screen.getByTestId("sidebar-header-content");
     expect(structuredRail).toHaveAttribute("aria-orientation", "vertical");
     expect(structuredRail).toHaveClass(
-      "bg-host-surface",
+      "bg-secondary/70",
       "rounded-surface",
       "border-0",
-      "shadow-none"
+      "shadow-none",
+      "ring-0"
     );
     expect(header).toHaveClass(
       "grid-cols-[var(--sidebar-width-icon)_minmax(0,1fr)]",
@@ -342,7 +343,7 @@ describe("SidebarRight structured templates", () => {
       '[data-slot="scroll-area"]'
     );
     const tabs = screen.getAllByRole("tab");
-    expect(rail).toHaveClass("bg-host-surface", "p-[3px]");
+    expect(rail).toHaveClass("bg-secondary/70", "p-1");
     expect(rail).toHaveClass("items-center");
     expect(rail.parentElement).not.toHaveClass("border-r", "border-b");
     expect(railSlot?.parentElement).toHaveClass(

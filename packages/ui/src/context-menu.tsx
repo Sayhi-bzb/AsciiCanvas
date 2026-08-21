@@ -30,7 +30,7 @@ function ContextMenuContent({
           rx.surface({ kind: 'overlay' }),
           rx.overlayMotion,
           rx.portalLayer({ modal: portalLayer === 'modal' }),
-          'text-popover-foreground data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 max-h-(--radix-context-menu-content-available-height) min-w-[8rem] origin-(--radix-context-menu-content-transform-origin) overflow-x-hidden overflow-y-auto p-[3px]',
+          'text-popover-foreground data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 max-h-(--radix-context-menu-content-available-height) min-w-[8rem] origin-(--radix-context-menu-content-transform-origin) overflow-x-hidden overflow-y-auto p-1',
           className
         )}
         {...props}
@@ -135,7 +135,7 @@ function ContextMenuSubContent({
           rx.surface({ kind: 'overlay' }),
           rx.overlayMotion,
           rx.portalLayer({ modal: portalLayer === 'modal' }),
-          'text-popover-foreground data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 min-w-[8rem] origin-(--radix-context-menu-content-transform-origin) overflow-hidden p-[3px]',
+          'text-popover-foreground data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 min-w-[8rem] origin-(--radix-context-menu-content-transform-origin) overflow-hidden p-1',
           className
         )}
         {...props}

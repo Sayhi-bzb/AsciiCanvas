@@ -95,7 +95,7 @@ describe('KeyboardShortcutsPanel', () => {
     const shortcutTable = shortcutGrid?.querySelector('table');
     expect(shortcutTable).toHaveAttribute('data-density', 'compact');
     expect(shortcutTable).toHaveAttribute('data-row-hover', 'none');
-    expect(shortcutTable).toHaveClass('min-w-0', 'table-fixed', 'text-xs', 'leading-4');
+    expect(shortcutTable).toHaveClass('min-w-0', 'table-fixed', 'text-[13px]', 'leading-5');
     expect(shortcutTable).not.toHaveClass('min-w-[560px]');
     expect(shortcutTable?.querySelectorAll('col')).toHaveLength(4);
     expect(shortcutTable?.querySelectorAll('col')[0]).toHaveClass('w-[30%]');

@@ -12,7 +12,7 @@ function Kbd({ className, invalid = false, ...props }: KbdProps) {
       data-slot="kbd"
       data-invalid={invalid || undefined}
       className={cn(
-        'pointer-events-none inline-flex h-5 w-fit min-w-5 items-center justify-center gap-1 rounded-sm bg-kbd-surface px-1 font-sans text-xs font-medium text-muted-foreground select-none',
+        'pointer-events-none inline-flex h-5 w-fit min-w-5 items-center justify-center gap-1 rounded-md bg-kbd-surface px-1.5 font-sans text-xs font-medium text-foreground/75 shadow-xs ring-1 ring-surface-ring select-none',
         'data-[invalid=true]:bg-error/10 data-[invalid=true]:text-error',
         "[&_svg:not([class*='size-'])]:size-3",
         '[[data-slot=tooltip-popup]_&]:h-4 [[data-slot=tooltip-popup]_&]:min-w-4 [[data-slot=tooltip-popup]_&]:bg-tooltip-kbd-surface [[data-slot=tooltip-popup]_&]:text-[10px] [[data-slot=tooltip-popup]_&]:text-tooltip-kbd-foreground',

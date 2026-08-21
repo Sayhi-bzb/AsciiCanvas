@@ -48,7 +48,7 @@ function SheetContent({
       <SheetPrimitive.Content
         data-slot="sheet-content"
         className={cn(
-          'bg-dialog-surface data-[state=open]:animate-in data-[state=closed]:animate-out fixed z-(--layer-modal) flex flex-col gap-4 border-0 shadow-dialog transition ease-in-out duration-[var(--motion-slow)] motion-reduce:animate-none motion-reduce:transition-none',
+          'bg-dialog-surface data-[state=open]:animate-in data-[state=closed]:animate-out fixed z-(--layer-modal) flex flex-col gap-5 border-0 shadow-dialog ring-1 ring-surface-ring transition ease-in-out duration-[var(--motion-slow)] motion-reduce:animate-none motion-reduce:transition-none',
           side === 'right' &&
             'data-[state=closed]:slide-out-to-right data-[state=open]:slide-in-from-right inset-y-0 right-0 h-full w-3/4 sm:max-w-sm',
           side === 'left' &&
@@ -78,7 +78,7 @@ function SheetHeader({ className, ...props }: React.ComponentProps<'div'>) {
   return (
     <div
       data-slot="sheet-header"
-      className={cn('flex flex-col gap-1.5 p-4', className)}
+      className={cn('flex flex-col gap-1.5 p-5', className)}
       {...props}
     />
   );
@@ -88,7 +88,7 @@ function SheetTitle({ className, ...props }: React.ComponentProps<typeof SheetPr
   return (
     <SheetPrimitive.Title
       data-slot="sheet-title"
-      className={cn('text-foreground text-sm leading-5 font-semibold', className)}
+      className={cn('text-foreground text-sm leading-5 font-medium tracking-tight', className)}
       {...props}
     />
   );

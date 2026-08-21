@@ -17,6 +17,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
+  Surface,
 } from '@chardesk/ui';
 
 
@@ -204,27 +205,29 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
           data-slot="settings-layout"
           className="grid min-h-0 min-w-0 grid-rows-[auto_minmax(0,1fr)_2.25rem] overflow-hidden md:grid-cols-[11rem_minmax(0,1fr)] md:grid-rows-[minmax(0,1fr)_2.25rem] md:gap-x-4"
         >
-          <aside className="min-h-0 min-w-0 md:row-span-2">
-            <SettingsNavigation
-              label={t('settings.navigation')}
-              items={navigationItems}
-              value={section}
-              onValueChange={changeSection}
-              search={{
-                label: t('settings.search'),
-                placeholder: t('settings.searchPlaceholder'),
-                resultsLabel: t('settings.searchResults'),
-                noResultsLabel: t('settings.noSearchResults'),
-                query: searchQuery,
-                results: searchResults,
-                onQueryChange: setSearchQuery,
-                onResultSelect: selectSearchResult,
-              }}
-            />
-          </aside>
+          <Surface asChild kind="embedded">
+            <aside className="min-h-0 min-w-0 md:row-span-2">
+              <SettingsNavigation
+                label={t('settings.navigation')}
+                items={navigationItems}
+                value={section}
+                onValueChange={changeSection}
+                search={{
+                  label: t('settings.search'),
+                  placeholder: t('settings.searchPlaceholder'),
+                  resultsLabel: t('settings.searchResults'),
+                  noResultsLabel: t('settings.noSearchResults'),
+                  query: searchQuery,
+                  results: searchResults,
+                  onQueryChange: setSearchQuery,
+                  onResultSelect: selectSearchResult,
+                }}
+              />
+            </aside>
+          </Surface>
           <div
             data-slot="settings-content"
-            className="flex min-h-0 min-w-0 overflow-hidden p-1 pt-2 md:col-start-2 md:row-start-1 md:pt-1"
+            className="flex min-h-0 min-w-0 overflow-hidden px-1 pt-3 md:col-start-2 md:row-start-1 md:pt-1"
           >
             {section === 'general' ? (
               <SettingsContentSection key="general" heading={t('settings.general')}>

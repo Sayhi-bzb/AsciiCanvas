@@ -57,7 +57,7 @@ function DialogContent({
               <IconButton
                 data-slot="dialog-close"
                 aria-label={messages.dialogClose}
-                className="absolute right-2 top-2 z-10"
+                className="absolute right-3 top-3 z-10"
               >
                 <X />
               </IconButton>
@@ -87,7 +87,7 @@ function DialogTitle({ className, ...props }: React.ComponentProps<typeof Dialog
   return (
     <DialogPrimitive.Title
       data-slot="dialog-title"
-      className={cn('text-sm leading-5 font-semibold', className)}
+      className={cn('text-sm leading-5 font-medium tracking-tight', className)}
       {...props}
     />
   );

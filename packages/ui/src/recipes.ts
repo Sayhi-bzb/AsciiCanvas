@@ -64,17 +64,17 @@ type TabTriggerOptions = {
 const surface = ({ kind = 'embedded', animated = false }: SurfaceOptions = {}) =>
   cn(
     'rounded-surface border-0',
-    kind === 'embedded' && 'bg-host-surface shadow-none',
-    kind === 'floating' && 'bg-host-surface shadow-host',
-    kind === 'overlay' && 'bg-overlay-surface shadow-overlay',
-    kind === 'transparent' && 'bg-transparent shadow-none',
+    kind === 'embedded' && 'bg-secondary/70 shadow-none ring-0',
+    kind === 'floating' && 'bg-host-surface shadow-host ring-1 ring-surface-ring',
+    kind === 'overlay' && 'bg-overlay-surface shadow-overlay ring-1 ring-surface-ring',
+    kind === 'transparent' && 'bg-transparent shadow-none ring-0',
     animated &&
       'transition-[background-color,box-shadow] duration-[var(--motion-standard)] ease-out motion-reduce:transition-none'
   );
 const dialogHeader = 'relative flex flex-col gap-1.5 text-left';
 
 const controlBase =
-  "inline-flex cursor-pointer items-center justify-center gap-2 whitespace-nowrap font-medium transition-[color,background-color,opacity,box-shadow] duration-[var(--motion-fast)] outline-none motion-reduce:transition-none disabled:pointer-events-none disabled:cursor-default disabled:opacity-50 focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:ring-inset data-[active=true]:focus-visible:ring-0 data-[pressed=true]:focus-visible:ring-0 data-[open=true]:focus-visible:ring-0 data-[state=open]:focus-visible:ring-0 data-[state=on]:focus-visible:ring-0 data-[state=open]:bg-control-open-surface data-[state=open]:text-foreground data-[state=open]:hover:bg-control-open-surface data-[state=open]:hover:text-foreground data-[state=open]:focus:bg-control-open-surface data-[state=open]:focus:text-foreground data-[state=on]:bg-control-pressed-surface data-[state=on]:text-foreground data-[state=on]:hover:bg-control-pressed-surface data-[state=on]:hover:text-foreground data-[state=on]:focus:bg-control-pressed-surface data-[state=on]:focus:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4";
+  "inline-flex cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap font-medium transition-[color,background-color,opacity,box-shadow,transform] duration-[var(--motion-fast)] outline-none select-none motion-reduce:transition-none active:scale-[0.98] motion-reduce:active:scale-100 disabled:pointer-events-none disabled:cursor-default disabled:opacity-50 focus-visible:ring-ring/45 focus-visible:ring-2 focus-visible:ring-inset data-[active=true]:focus-visible:ring-0 data-[pressed=true]:focus-visible:ring-0 data-[open=true]:focus-visible:ring-0 data-[state=open]:focus-visible:ring-0 data-[state=on]:focus-visible:ring-0 data-[state=open]:bg-control-open-surface data-[state=open]:text-foreground data-[state=open]:hover:bg-control-open-surface data-[state=open]:hover:text-foreground data-[state=open]:focus:bg-control-open-surface data-[state=open]:focus:text-foreground data-[state=on]:bg-control-pressed-surface data-[state=on]:text-foreground data-[state=on]:hover:bg-control-pressed-surface data-[state=on]:hover:text-foreground data-[state=on]:focus:bg-control-pressed-surface data-[state=on]:focus:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4";
 
 const controlTone: Record<Tone, string> = {
   primary: 'bg-primary text-primary-foreground hover:bg-primary/90',
@@ -88,8 +88,8 @@ const controlTone: Record<Tone, string> = {
 const controlSize: Record<Size, string> = {
   xs: 'h-6 px-2 text-[11px]',
   sm: 'h-7 px-2.5 text-xs',
-  md: 'h-8 px-3 text-xs',
-  lg: 'h-9 px-4 text-xs',
+  md: 'h-8 px-3 text-[13px]',
+  lg: 'h-9 px-4 text-sm',
 };
 
 const openControlSurface =
@@ -150,7 +150,7 @@ export const rx = {
   ),
   dialogShell: cn(
     'fixed left-1/2 top-1/2 z-(--layer-modal) grid w-full max-w-[calc(100%-2rem)]',
-    '-translate-x-1/2 -translate-y-1/2 gap-4 overflow-hidden rounded-surface border-0 bg-dialog-surface p-4 shadow-dialog outline-none sm:max-w-lg',
+    '-translate-x-1/2 -translate-y-1/2 gap-5 overflow-hidden rounded-surface border-0 bg-dialog-surface p-5 shadow-dialog ring-1 ring-surface-ring outline-none sm:max-w-lg',
     'data-[state=open]:animate-in data-[state=closed]:animate-out',
     'data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0',
     'data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95 duration-[var(--motion-slow)] motion-reduce:animate-none'
@@ -169,11 +169,11 @@ export const rx = {
   ),
   dropdownPanel: cn(
     surface({ kind: 'overlay' }),
-    'min-w-32 overflow-hidden p-[3px] text-popover-foreground outline-none'
+    'min-w-32 overflow-hidden p-1 text-popover-foreground outline-none'
   ),
   dropdownSubPanel: cn(
     surface({ kind: 'overlay' }),
-    'min-w-32 overflow-hidden p-[3px] text-popover-foreground outline-none'
+    'min-w-32 overflow-hidden p-1 text-popover-foreground outline-none'
   ),
   portalLayer: ({ modal = false }: { modal?: boolean } = {}) =>
     modal ? 'z-(--layer-modal-popover)' : 'z-(--layer-popover)',
@@ -194,7 +194,7 @@ export const rx = {
     cn(
       menuItemBase,
       density === 'compact' && 'min-h-7 py-1 text-xs',
-      density === 'default' && 'min-h-8 py-1.5 text-sm',
+      density === 'default' && 'min-h-8 py-1.5 text-[13px]',
       variant === 'destructive' &&
         'text-destructive focus:bg-destructive-muted focus:text-destructive data-[highlighted]:bg-destructive-muted data-[highlighted]:text-destructive [&_svg]:text-destructive',
       selected && activeControlState,
@@ -283,14 +283,16 @@ export const rx = {
 
   tabsList: ({ variant = 'default' }: { variant?: 'default' | 'line' } = {}) =>
     cn(
-      'group/tabs-list inline-flex w-fit items-center justify-center rounded-surface p-[3px] text-muted-foreground',
+      'group/tabs-list inline-flex w-fit items-center justify-center rounded-surface p-1 text-muted-foreground',
       'group-data-[orientation=horizontal]/tabs:h-9 group-data-[orientation=vertical]/tabs:h-fit group-data-[orientation=vertical]/tabs:flex-col',
-      variant === 'default' ? 'bg-muted' : 'gap-1 rounded-none bg-transparent'
+      variant === 'default'
+        ? 'bg-secondary/70 ring-1 ring-surface-ring'
+        : 'gap-1 rounded-none bg-transparent ring-0'
     ),
 
   tabsTrigger: ({ size = 'default', active = false }: TabTriggerOptions = {}) =>
     cn(
-      'relative inline-flex h-[calc(100%-1px)] flex-1 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-control border border-transparent px-2 py-1 text-sm font-medium text-muted-foreground transition-[color,background-color,box-shadow] duration-[var(--motion-fast)] motion-reduce:transition-none',
+      'relative inline-flex h-[calc(100%-1px)] flex-1 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-control border border-transparent px-2 py-1 text-[13px] font-medium text-muted-foreground transition-[color,background-color,box-shadow] duration-[var(--motion-fast)] motion-reduce:transition-none',
       'hover:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:ring-inset',
       'data-[state=active]:focus-visible:ring-0',
       'disabled:pointer-events-none disabled:cursor-default disabled:opacity-50 group-data-[orientation=vertical]/tabs:w-full group-data-[orientation=vertical]/tabs:justify-start',
@@ -306,7 +308,7 @@ export const rx = {
   field: ({ density = 'default', invalid = false, appearance = 'default' }: FieldOptions = {}) =>
     cn(
       'w-full min-w-0 rounded-control transition-colors duration-[var(--motion-fast)] outline-none motion-reduce:transition-none focus-visible:ring-inset',
-      density === 'default' && 'h-8 px-2.5 py-1.5 text-xs',
+      density === 'default' && 'h-8 px-2.5 py-1.5 text-[13px]',
       density === 'compact' && 'h-7 px-2 py-1 text-[11px]',
       appearance === 'default' &&
         'border border-input bg-field-surface shadow-xs focus-visible:ring-ring/50 focus-visible:ring-2',
@@ -317,6 +319,6 @@ export const rx = {
       invalid && 'border-error aria-invalid:border-error'
     ),
 
-  panelText: () => 'text-xs leading-4',
+  panelText: () => 'text-[13px] leading-5',
   panelHeading: () => 'text-xs leading-4 font-semibold',
 };
