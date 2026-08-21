@@ -14,6 +14,7 @@ import { splitLines } from '../multiline-utils.js'
 import type { ShapeRenderer, ShapeDimensions, ShapeRenderOptions } from './types.js'
 import { dirEquals } from '../edge-routing.js'
 import { type CornerChars, getCorners } from './corners.js'
+import { getShapePadding } from './padding.js'
 
 // ============================================================================
 // Shared dimension calculation
@@ -27,14 +28,15 @@ export function getBoxDimensions(label: string, options: ShapeRenderOptions): Sh
   const lines = splitLines(label)
   const maxLineWidth = Math.max(...lines.map(l => l.length), 0)
   const lineCount = lines.length
+  const padding = getShapePadding(options)
 
   // Width: 2*padding + maxLineWidth + 2 border chars
-  const innerWidth = 2 * options.padding + maxLineWidth
+  const innerWidth = 2 * padding.x + maxLineWidth
   const width = innerWidth + 2
 
   // Height: lineCount + 2*padding + 2 border chars
   // Ensure innerHeight is odd for symmetric vertical centering
-  const rawInnerHeight = lineCount + 2 * options.padding
+  const rawInnerHeight = lineCount + 2 * padding.y
   const innerHeight = rawInnerHeight % 2 === 0 ? rawInnerHeight + 1 : rawInnerHeight
   const height = innerHeight + 2
 
@@ -42,8 +44,8 @@ export function getBoxDimensions(label: string, options: ShapeRenderOptions): Sh
     width,
     height,
     labelArea: {
-      x: 1 + options.padding,
-      y: 1 + options.padding,
+      x: 1 + padding.x,
+      y: 1 + padding.y,
       width: maxLineWidth,
       height: lineCount,
     },

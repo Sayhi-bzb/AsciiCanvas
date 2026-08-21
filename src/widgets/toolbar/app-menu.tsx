@@ -38,12 +38,16 @@ import { useGitHubStars } from "./use-github-stars";
 import { useCanvasWorkspaceOptional } from "@/widgets/canvas-editor/engine/CanvasWorkspace";
 import { useOnboardingTour } from "@/widgets/onboarding/onboarding-context";
 import { useEditorPresentation } from "@/widgets/editor-chrome/public";
+import { RecoverableLazyBoundary } from "@/app/RecoverableLazyBoundary";
+import { requireLoadedModule } from "@/app/moduleLoadRecovery";
 
 const AppMenuTriggerIcon = HOST_ICONOLOGY.appMenu.trigger;
+const FileIcon = HOST_ICONOLOGY.appMenu.file;
 const ImportIcon = HOST_ICONOLOGY.appMenu.import;
 const ExportIcon = HOST_ICONOLOGY.appMenu.export;
 const SplitViewIcon = HOST_ICONOLOGY.appMenu.splitView;
 const ZenModeIcon = HOST_ICONOLOGY.appMenu.zenMode;
+const HelpIcon = HOST_ICONOLOGY.appMenu.help;
 const GuideIcon = HOST_ICONOLOGY.appMenu.guide;
 const DocumentationIcon = HOST_ICONOLOGY.appMenu.documentation;
 const GitHubIcon = HOST_ICONOLOGY.appMenu.github;
@@ -55,13 +59,13 @@ type ExportFeedbackTarget = {
   errorCode?: AppMenuExportErrorCode;
 };
 const ClearCanvasDialog = lazy(() =>
-  import("@/widgets/dialogs/clear-canvas-dialog").then((module) => ({
-    default: module.ClearCanvasDialog,
+  import("@/widgets/dialogs/clear-canvas-dialog").then((loaded) => ({
+    default: requireLoadedModule(loaded).ClearCanvasDialog,
   }))
 );
 const SettingsDialog = lazy(() =>
-  import("@/widgets/dialogs/settings-dialog").then((module) => ({
-    default: module.SettingsDialog,
+  import("@/widgets/dialogs/settings-dialog").then((loaded) => ({
+    default: requireLoadedModule(loaded).SettingsDialog,
   }))
 );
 
@@ -205,86 +209,106 @@ export function AppMenu() {
                 aria-label={t("appMenu.open")}
               >
                 <DropdownMenuGroup>
-                  <DropdownMenuItem
-                    disabled={isImporting}
-                    onSelect={openFilePicker}
-                  >
-                    <ImportIcon />
-                    {isImporting ? t("import.importing") : t("appMenu.import")}
-                  </DropdownMenuItem>
-                  {availableExportFormats.length > 0 && (
-                    <DropdownMenuSub>
-                      <DropdownMenuSubTrigger>
-                        <ExportIcon />
-                        {exportLabel}
-                      </DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent className="w-40" aria-label={exportLabel}>
-                        <DropdownMenuGroup>
-                          {availableExportFormats.map((definition) => (
-                            <DropdownMenuItem
-                              key={definition.format}
-                              feedback={
-                                exportFeedback?.target.format === definition.format
-                                  ? exportFeedback.status
-                                  : undefined
-                              }
-                              data-export-feedback={
-                                exportFeedback?.target.format === definition.format
-                                  ? exportFeedback.status
-                                  : undefined
-                              }
-                              onSelect={(event) => {
-                                event.preventDefault();
-                                void runExportFeedback(
-                                  { format: definition.format },
-                                  async () => {
-                                    const result = await exportActions.save(definition.format);
-                                    return result.ok
-                                      ? true
-                                      : {
-                                          success: false,
-                                          target: {
-                                            format: definition.format,
-                                            errorCode: result.errorCode,
-                                          },
-                                        };
-                                  }
-                                );
-                              }}
-                            >
-                              {definition.label}
-                              {exportFeedback?.target.format === definition.format &&
-                              exportFeedback.status === "success" ? (
-                                <span className="ml-auto">
-                                  <Check />
-                                </span>
-                              ) : exportFeedback?.target.format === definition.format &&
-                                exportFeedback.status === "error" ? (
-                                <span className="ml-auto">
-                                  <X />
-                                </span>
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>
+                      <FileIcon />
+                      {t("appMenu.file")}
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent className="w-40" aria-label={t("appMenu.file")}>
+                      <DropdownMenuGroup>
+                        <DropdownMenuItem
+                          disabled={isImporting}
+                          onSelect={openFilePicker}
+                        >
+                          <ImportIcon />
+                          {isImporting ? t("import.importing") : t("appMenu.import")}
+                        </DropdownMenuItem>
+                        {availableExportFormats.length > 0 && (
+                          <DropdownMenuSub>
+                            <DropdownMenuSubTrigger>
+                              <ExportIcon />
+                              {exportLabel}
+                            </DropdownMenuSubTrigger>
+                            <DropdownMenuSubContent className="w-40" aria-label={exportLabel}>
+                              <DropdownMenuGroup>
+                                {availableExportFormats.map((definition) => (
+                                  <DropdownMenuItem
+                                    key={definition.format}
+                                    feedback={
+                                      exportFeedback?.target.format === definition.format
+                                        ? exportFeedback.status
+                                        : undefined
+                                    }
+                                    data-export-feedback={
+                                      exportFeedback?.target.format === definition.format
+                                        ? exportFeedback.status
+                                        : undefined
+                                    }
+                                    onSelect={(event) => {
+                                      event.preventDefault();
+                                      void runExportFeedback(
+                                        { format: definition.format },
+                                        async () => {
+                                          const result = await exportActions.save(definition.format);
+                                          return result.ok
+                                            ? true
+                                            : {
+                                                success: false,
+                                                target: {
+                                                  format: definition.format,
+                                                  errorCode: result.errorCode,
+                                                },
+                                              };
+                                        }
+                                      );
+                                    }}
+                                  >
+                                    {definition.label}
+                                    {exportFeedback?.target.format === definition.format &&
+                                    exportFeedback.status === "success" ? (
+                                      <span className="ml-auto">
+                                        <Check />
+                                      </span>
+                                    ) : exportFeedback?.target.format === definition.format &&
+                                      exportFeedback.status === "error" ? (
+                                      <span className="ml-auto">
+                                        <X />
+                                      </span>
+                                    ) : null}
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuGroup>
+                              {exportErrorDescription ? (
+                                <StatusText tone="error" asChild>
+                                  <div role="alert" className="px-2 py-1.5 text-[11px] leading-4">
+                                    <div className="font-medium">{t("export.saveFailed")}</div>
+                                    <div>{exportErrorDescription}</div>
+                                  </div>
+                                </StatusText>
                               ) : null}
-                            </DropdownMenuItem>
-                          ))}
-                        </DropdownMenuGroup>
-                        {exportErrorDescription ? (
-                          <StatusText tone="error" asChild>
-                            <div role="alert" className="px-2 py-1.5 text-[11px] leading-4">
-                              <div className="font-medium">{t("export.saveFailed")}</div>
-                              <div>{exportErrorDescription}</div>
-                            </div>
-                          </StatusText>
-                        ) : null}
-                        <span role="status" className="sr-only">
-                          {exportFeedback?.status === "success"
-                            ? t("export.saved", {
-                                format: exportFeedback.target.format.toUpperCase(),
-                              })
-                            : ""}
-                        </span>
-                      </DropdownMenuSubContent>
-                    </DropdownMenuSub>
-                  )}
+                              <span role="status" className="sr-only">
+                                {exportFeedback?.status === "success"
+                                  ? t("export.saved", {
+                                      format: exportFeedback.target.format.toUpperCase(),
+                                    })
+                                  : ""}
+                              </span>
+                            </DropdownMenuSubContent>
+                          </DropdownMenuSub>
+                        )}
+                      </DropdownMenuGroup>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuGroup>
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onSelect={() => setClearOpen(true)}
+                        >
+                          <ClearIcon />
+                          {t("appMenu.clear")}
+                        </DropdownMenuItem>
+                      </DropdownMenuGroup>
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
                   {workspace && (
                     <DropdownMenuItem
                       onSelect={() => {
@@ -314,13 +338,6 @@ export function AppMenu() {
                     {t(zenMode ? "appMenu.exitZenMode" : "appMenu.zenMode")}
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    variant="destructive"
-                    onSelect={() => setClearOpen(true)}
-                  >
-                    <ClearIcon />
-                    {t("appMenu.clear")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
                     onSelect={() => {
                       setMenuOpen(false);
                       window.setTimeout(() => setSettingsOpen(true), 0);
@@ -329,26 +346,33 @@ export function AppMenu() {
                     <SettingsIcon />
                     {t("appMenu.settings")}
                   </DropdownMenuItem>
-                </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuGroup>
-                  <DropdownMenuItem
-                    disabled={!canStartTour}
-                    onSelect={() => {
-                      setMenuOpen(false);
-                      if (zenMode) setMode("standard");
-                      window.setTimeout(requestTourStart, 0);
-                    }}
-                  >
-                    <GuideIcon />
-                    {t("appMenu.guide")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onSelect={() => browser.openExternal("/docs")}
-                  >
-                    <DocumentationIcon />
-                    {t("appMenu.documentation")}
-                  </DropdownMenuItem>
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>
+                      <HelpIcon />
+                      {t("appMenu.help")}
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent className="w-48" aria-label={t("appMenu.help")}>
+                      <DropdownMenuGroup>
+                        <DropdownMenuItem
+                          disabled={!canStartTour}
+                          onSelect={() => {
+                            setMenuOpen(false);
+                            if (zenMode) setMode("standard");
+                            window.setTimeout(requestTourStart, 0);
+                          }}
+                        >
+                          <GuideIcon />
+                          {t("appMenu.guide")}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onSelect={() => browser.openExternal("/docs")}
+                        >
+                          <DocumentationIcon />
+                          {t("appMenu.documentation")}
+                        </DropdownMenuItem>
+                      </DropdownMenuGroup>
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
                   <DropdownMenuItem
                     onSelect={() => browser.openExternal(APP_SOURCE_URL)}
                   >
@@ -366,30 +390,38 @@ export function AppMenu() {
             </DropdownMenu>
       </div>
 
-      <Suspense fallback={null}>
-        {clearOpen && (
-          <ClearCanvasDialog
-            isCollapsed={false}
-            label={clearLabel}
-            description={clearDescription}
-            onConfirm={clearCanvas}
-            open={clearOpen}
-            onOpenChange={setClearOpen}
-            trigger={null}
-          />
-        )}
-        {settingsOpen && (
-          <SettingsDialog
-            open={settingsOpen}
-            onOpenChange={(open) => {
-              setSettingsOpen(open);
-              if (!open) {
-                window.setTimeout(() => menuTriggerRef.current?.focus(), 0);
-              }
-            }}
-          />
-        )}
-      </Suspense>
+      <RecoverableLazyBoundary
+        resetKey={`${clearOpen}:${settingsOpen}`}
+        onError={() => {
+          setClearOpen(false);
+          setSettingsOpen(false);
+        }}
+      >
+        <Suspense fallback={null}>
+          {clearOpen && (
+            <ClearCanvasDialog
+              isCollapsed={false}
+              label={clearLabel}
+              description={clearDescription}
+              onConfirm={clearCanvas}
+              open={clearOpen}
+              onOpenChange={setClearOpen}
+              trigger={null}
+            />
+          )}
+          {settingsOpen && (
+            <SettingsDialog
+              open={settingsOpen}
+              onOpenChange={(open) => {
+                setSettingsOpen(open);
+                if (!open) {
+                  window.setTimeout(() => menuTriggerRef.current?.focus(), 0);
+                }
+              }}
+            />
+          )}
+        </Suspense>
+      </RecoverableLazyBoundary>
     </>
   );
 }

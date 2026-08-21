@@ -21,6 +21,9 @@ const scriptNames = assetNames.filter((name) => name.endsWith(".js"));
 if (scriptNames.length === 0) {
   throw new Error("CharGraph build emitted no JavaScript entry.");
 }
+if (!scriptNames.some((name) => name.startsWith("elk-worker-"))) {
+  throw new Error("CharGraph build emitted no ELK worker asset.");
+}
 
 const scripts = await Promise.all(
   scriptNames.map((name) => readFile(path.join(siteOutput, "assets", name), "utf8"))

@@ -14,6 +14,7 @@ import type { ShapeRenderer, ShapeDimensions, ShapeRenderOptions } from './types
 import { dirEquals } from '../edge-routing.js'
 import { getBoxDimensions, renderBox, getBoxAttachmentPoint } from './rectangle.js'
 import { getCorners } from './corners.js'
+import { getShapePadding } from './padding.js'
 
 // ============================================================================
 // Subroutine — keeps custom double-border rendering
@@ -31,18 +32,19 @@ export const subroutineRenderer: ShapeRenderer = {
     const lines = splitLines(label)
     const maxLineWidth = Math.max(...lines.map(l => l.length), 0)
     const lineCount = lines.length
+    const padding = getShapePadding(options)
 
-    const innerWidth = 2 * options.padding + maxLineWidth
+    const innerWidth = 2 * padding.x + maxLineWidth
     const width = innerWidth + 4  // Double borders on each side
-    const innerHeight = lineCount + 2 * options.padding
+    const innerHeight = lineCount + 2 * padding.y
     const height = innerHeight + 2
 
     return {
       width,
       height,
       labelArea: {
-        x: 2 + options.padding,
-        y: 1 + options.padding,
+        x: 2 + padding.x,
+        y: 1 + padding.y,
         width: maxLineWidth,
         height: lineCount,
       },
@@ -145,18 +147,19 @@ export const cylinderRenderer: ShapeRenderer = {
     const lines = splitLines(label)
     const maxLineWidth = Math.max(...lines.map(l => l.length), 0)
     const lineCount = lines.length
+    const padding = getShapePadding(options)
 
-    const innerWidth = 2 * options.padding + maxLineWidth
+    const innerWidth = 2 * padding.x + maxLineWidth
     const width = innerWidth + 2
-    const innerHeight = lineCount + 2 * options.padding + 2  // Extra for curved top/bottom
+    const innerHeight = lineCount + 2 * padding.y + 2  // Extra for curved top/bottom
     const height = innerHeight + 2
 
     return {
       width,
       height,
       labelArea: {
-        x: 1 + options.padding,
-        y: 2 + options.padding,
+        x: 1 + padding.x,
+        y: 2 + padding.y,
         width: maxLineWidth,
         height: lineCount,
       },

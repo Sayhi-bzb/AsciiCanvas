@@ -38,6 +38,8 @@ import type {
   EditorViewportFrame,
 } from '@/widgets/editor-chrome/public';
 import { resolvePaneViewportFrame } from '@/widgets/editor-chrome/public';
+import { RecoverableLazyBoundary } from '@/app/RecoverableLazyBoundary';
+import { requireLoadedModule } from '@/app/moduleLoadRecovery';
 
 const ZOOM_STEP = 1.2;
 const ZOOM_EPSILON = 0.000001;
@@ -48,8 +50,8 @@ const GridIcon = HOST_ICONOLOGY.viewportAction.grid;
 const MinimapIcon = HOST_ICONOLOGY.viewportAction.minimap;
 const PlayIcon = HOST_ICONOLOGY.slideAction.play;
 const Minimap = lazy(() =>
-  import('@/widgets/canvas-editor/Minimap').then((module) => ({
-    default: module.Minimap,
+  import('@/widgets/canvas-editor/Minimap').then((loaded) => ({
+    default: requireLoadedModule(loaded).Minimap,
   }))
 );
 
@@ -221,9 +223,14 @@ export function ZoomControl({
           variant="panel"
           className="absolute bottom-full left-0 z-(--layer-popover) mb-2 w-auto"
         >
-          <Suspense fallback={<div className="h-[140px] w-[220px] bg-muted" />}>
-            <Minimap containerSize={viewportSize} />
-          </Suspense>
+          <RecoverableLazyBoundary
+            resetKey={minimapOpen}
+            onError={() => setMinimapOpen(false)}
+          >
+            <Suspense fallback={<div className="h-[140px] w-[220px] bg-muted" />}>
+              <Minimap containerSize={viewportSize} />
+            </Suspense>
+          </RecoverableLazyBoundary>
         </FloatingSurface>
       )}
       <ZoomAction

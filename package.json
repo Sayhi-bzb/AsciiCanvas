@@ -30,6 +30,7 @@
     "test:fonts": "npm test -w @chardesk/fonts",
     "test:blackboard": "npm test -w @chardesk/blackboard",
     "test:chargraph": "npm test -w @chardesk/chargraph",
+    "test:e2e:chargraph": "npm run test:e2e -w @chardesk/chargraph-site",
     "test:protocol": "npm test -w @chardesk/protocol",
     "test:viewer": "npm test -w @chardesk/viewer",
     "test:coverage": "vitest --coverage",

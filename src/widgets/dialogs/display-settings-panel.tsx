@@ -3,17 +3,16 @@
 import { useCallback, useMemo } from 'react';
 import {
   DEFAULT_TEXT_RENDER_THEME,
-  MARKDOWN_RULE_STYLE_BEHAVIORS,
+  TEXT_RENDER_FEATURES,
   useTextRenderingRuntime,
   useTextRenderProfile,
-  type MarkdownColorDefault,
-  type MarkdownColorSlotId,
-  type MarkdownRenderRuleId,
+  type TextRenderColorDefault,
+  type TextRenderFeatureDefinition,
   type TextRenderTheme,
   type TextRenderThemeTokenId,
   type TextRendererMode,
 } from '@/domains/document/public';
-import { useUiI18n } from '@/shared/i18n';
+import { useUiI18n, type I18nKey } from '@/shared/i18n';
 import {
   cn,
   Popover,
@@ -48,7 +47,7 @@ type DisplaySettingsPanelProps = {
 
 type DisplaySettingsColumnId = 'setting' | 'value' | 'color';
 
-type MarkdownColorSegment = {
+type ColorSegment = {
   color?: string;
   inherited?: boolean;
 };
@@ -66,27 +65,17 @@ type DisplaySetting =
         | 'settings.renderTheme.accentForeground'
         | 'settings.renderTheme.info'
         | 'settings.renderTheme.success'
+        | 'settings.renderTheme.warning'
+        | 'settings.renderTheme.danger'
         | 'settings.renderTheme.muted'
         | 'settings.renderTheme.surface'
         | 'settings.renderTheme.surfaceForeground';
     }
   | {
-      id: MarkdownRenderRuleId;
-      kind: 'markdown-rule';
-      label:
-        | 'settings.markdown.strong'
-        | 'settings.markdown.emphasis'
-        | 'settings.markdown.strikethrough'
-        | 'settings.markdown.link'
-        | 'settings.markdown.inlineCode'
-        | 'settings.markdown.heading'
-        | 'settings.markdown.blockquote'
-        | 'settings.markdown.list'
-        | 'settings.markdown.taskList'
-        | 'settings.markdown.thematicBreak'
-        | 'settings.markdown.codeBlock'
-        | 'settings.markdown.mermaid'
-        | 'settings.markdown.table';
+      id: string;
+      kind: 'render-feature';
+      label: I18nKey;
+      feature: TextRenderFeatureDefinition;
     };
 
 const rendererSetting: DisplaySetting = {
@@ -117,6 +106,8 @@ const themeSettings: readonly DisplaySetting[] = [
   },
   { id: 'theme:info', kind: 'theme-token', token: 'info', label: 'settings.renderTheme.info' },
   { id: 'theme:success', kind: 'theme-token', token: 'success', label: 'settings.renderTheme.success' },
+  { id: 'theme:warning', kind: 'theme-token', token: 'warning', label: 'settings.renderTheme.warning' },
+  { id: 'theme:danger', kind: 'theme-token', token: 'danger', label: 'settings.renderTheme.danger' },
   { id: 'theme:muted', kind: 'theme-token', token: 'muted', label: 'settings.renderTheme.muted' },
   { id: 'theme:surface', kind: 'theme-token', token: 'surface', label: 'settings.renderTheme.surface' },
   {
@@ -127,24 +118,18 @@ const themeSettings: readonly DisplaySetting[] = [
   },
 ];
 
-const inlineSettings: readonly DisplaySetting[] = [
-  { id: 'strong', kind: 'markdown-rule', label: 'settings.markdown.strong' },
-  { id: 'emphasis', kind: 'markdown-rule', label: 'settings.markdown.emphasis' },
-  { id: 'strikethrough', kind: 'markdown-rule', label: 'settings.markdown.strikethrough' },
-  { id: 'link', kind: 'markdown-rule', label: 'settings.markdown.link' },
-  { id: 'inline-code', kind: 'markdown-rule', label: 'settings.markdown.inlineCode' },
-];
-
-const blockSettings: readonly DisplaySetting[] = [
-  { id: 'heading', kind: 'markdown-rule', label: 'settings.markdown.heading' },
-  { id: 'blockquote', kind: 'markdown-rule', label: 'settings.markdown.blockquote' },
-  { id: 'list', kind: 'markdown-rule', label: 'settings.markdown.list' },
-  { id: 'task-list', kind: 'markdown-rule', label: 'settings.markdown.taskList' },
-  { id: 'thematic-break', kind: 'markdown-rule', label: 'settings.markdown.thematicBreak' },
-  { id: 'code-block', kind: 'markdown-rule', label: 'settings.markdown.codeBlock' },
-  { id: 'mermaid', kind: 'markdown-rule', label: 'settings.markdown.mermaid' },
-  { id: 'table', kind: 'markdown-rule', label: 'settings.markdown.table' },
-];
+const featureSettings = TEXT_RENDER_FEATURES.map((feature): DisplaySetting => ({
+  id: feature.id,
+  kind: 'render-feature',
+  label: feature.label,
+  feature,
+}));
+const inlineSettings = featureSettings.filter(
+  (setting) => setting.kind === 'render-feature' && setting.feature.settingsGroup === 'inline'
+);
+const blockSettings = featureSettings.filter(
+  (setting) => setting.kind === 'render-feature' && setting.feature.settingsGroup === 'blocks'
+);
 
 function MarkdownColorControl({
   defaultSegments,
@@ -154,7 +139,7 @@ function MarkdownColorControl({
   onPick,
   onReset,
 }: {
-  defaultSegments: readonly MarkdownColorSegment[];
+  defaultSegments: readonly ColorSegment[];
   label: string;
   color?: string;
   className?: string;
@@ -163,7 +148,7 @@ function MarkdownColorControl({
 }) {
   const { t } = useUiI18n();
   const inheritedLabel = t('settings.color.inherited');
-  const segments: MarkdownColorSegment[] = color
+  const segments: ColorSegment[] = color
     ? [{ color }]
     : [...defaultSegments];
   const composite = segments.length > 1;
@@ -224,9 +209,9 @@ function MarkdownColorControl({
 }
 
 const resolveDefaultSegments = (
-  source: MarkdownColorDefault,
+  source: TextRenderColorDefault,
   theme: TextRenderTheme
-): MarkdownColorSegment[] => {
+): ColorSegment[] => {
   if (source.kind === 'inherit') return [{ inherited: true }];
   if (source.kind === 'token') return [{ color: theme[source.token] }];
   return [
@@ -235,58 +220,32 @@ const resolveDefaultSegments = (
   ];
 };
 
-const markdownSlotLabel = (
-  slot: MarkdownColorSlotId,
-  fallback: string,
-  t: ReturnType<typeof useUiI18n>['t']
-) => {
-  switch (slot) {
-    case 'inline-code.foreground':
-      return t('settings.markdown.inlineCodeForeground');
-    case 'inline-code.background':
-      return t('settings.markdown.inlineCodeBackground');
-    case 'task-list.unchecked':
-      return t('settings.markdown.taskListUnchecked');
-    case 'task-list.checked':
-      return t('settings.markdown.taskListChecked');
-    case 'table.header.foreground':
-      return t('settings.markdown.tableHeaderForeground');
-    case 'table.header.background':
-      return t('settings.markdown.tableHeaderBackground');
-    case 'table.separator':
-      return t('settings.markdown.tableSeparator');
-    default:
-      return fallback;
-  }
-};
-
-function MarkdownRuleColorControls({
-  ruleId,
+function FeatureColorControls({
+  feature,
   label,
   theme,
   colors,
   onPick,
   onReset,
 }: {
-  ruleId: MarkdownRenderRuleId;
+  feature: TextRenderFeatureDefinition;
   label: string;
   theme: TextRenderTheme;
-  colors: Partial<Record<MarkdownColorSlotId, string>>;
-  onPick: (slot: MarkdownColorSlotId, color: string) => void;
-  onReset: (slot: MarkdownColorSlotId) => void;
+  colors: Record<string, string>;
+  onPick: (slot: string, color: string) => void;
+  onReset: (slot: string) => void;
 }) {
   const { t } = useUiI18n();
-  const behavior = MARKDOWN_RULE_STYLE_BEHAVIORS[ruleId];
-  if (behavior.kind === 'syntax') {
+  if (feature.colorSlots.length === 0) {
     return <span className="text-muted-foreground">{t('settings.color.syntax')}</span>;
   }
   return (
     <div className="flex justify-end gap-1">
-      {behavior.slots.map((slot) => (
+      {feature.colorSlots.map((slot) => (
         <MarkdownColorControl
           key={slot.id}
           defaultSegments={resolveDefaultSegments(slot.default, theme)}
-          label={markdownSlotLabel(slot.id, label, t)}
+          label={slot.label ? t(slot.label) : label}
           color={colors[slot.id]}
           className="ml-0"
           onPick={(color) => onPick(slot.id, color)}
@@ -366,6 +325,12 @@ export function DisplaySettingsPanel({
       bodyDataSlot="display-settings-list"
       groupRowDataSlot="display-settings-group-row"
       renderItemCell={(setting, columnId) => {
+        const featureConfig = setting.kind === 'render-feature'
+          ? textRenderProfile.features[setting.id] ?? {
+              enabled: setting.feature.defaultEnabled,
+              colors: {},
+            }
+          : null;
         if (columnId === 'setting') return t(setting.label);
         if (columnId === 'value') {
           if (setting.kind === 'theme-token') {
@@ -405,16 +370,19 @@ export function DisplaySettingsPanel({
               data-settings-control=""
               className="size-3.5 cursor-pointer accent-primary"
               aria-label={t(setting.label)}
-              checked={textRenderProfile.markdownRules[setting.id]}
-              onChange={(event) =>
+              checked={featureConfig!.enabled}
+              onChange={(event) => {
                 textRendering.setProfile({
                   ...textRenderProfile,
-                  markdownRules: {
-                    ...textRenderProfile.markdownRules,
-                    [setting.id]: event.currentTarget.checked,
+                  features: {
+                    ...textRenderProfile.features,
+                    [setting.id]: {
+                      ...featureConfig!,
+                      enabled: event.currentTarget.checked,
+                    },
                   },
-                })
-              }
+                });
+              }}
             />
           );
         }
@@ -445,24 +413,33 @@ export function DisplaySettingsPanel({
                 }}
               />
             ) : (
-              <MarkdownRuleColorControls
-                ruleId={setting.id}
+              <FeatureColorControls
+                feature={setting.feature}
                 label={t(setting.label)}
                 theme={resolvedTheme}
-                colors={textRenderProfile.markdownColors}
-                onPick={(slot, color) =>
+                colors={featureConfig!.colors}
+                onPick={(slot, color) => {
                   textRendering.setProfile({
                     ...textRenderProfile,
-                    markdownColors: {
-                      ...textRenderProfile.markdownColors,
-                      [slot]: color,
+                    features: {
+                      ...textRenderProfile.features,
+                      [setting.id]: {
+                        ...featureConfig!,
+                        colors: { ...featureConfig!.colors, [slot]: color },
+                      },
                     },
-                  })
-                }
+                  });
+                }}
                 onReset={(slot) => {
-                  const markdownColors = { ...textRenderProfile.markdownColors };
-                  delete markdownColors[slot];
-                  textRendering.setProfile({ ...textRenderProfile, markdownColors });
+                  const colors = { ...featureConfig!.colors };
+                  delete colors[slot];
+                  textRendering.setProfile({
+                    ...textRenderProfile,
+                    features: {
+                      ...textRenderProfile.features,
+                      [setting.id]: { ...featureConfig!, colors },
+                    },
+                  });
                 }}
               />
             )}

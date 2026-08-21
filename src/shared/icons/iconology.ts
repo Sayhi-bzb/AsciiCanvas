@@ -18,7 +18,9 @@ import {
   CopyPlus,
   Download,
   Eraser,
+  CircleHelp,
   Focus,
+  FolderOpen,
   Grid2X2,
   Italic,
   Hand,
@@ -194,10 +196,12 @@ export const HOST_ICONOLOGY = {
   } satisfies IconMap<'box' | 'splitBox' | 'circle' | 'line' | 'arrowLine' | 'stepline'>,
   appMenu: {
     trigger: Menu,
+    file: FolderOpen,
     import: Upload,
     export: Download,
     splitView: SquareSplitHorizontal,
     zenMode: Focus,
+    help: CircleHelp,
     guide: Compass,
     documentation: BookOpen,
     copy: Copy,
@@ -210,10 +214,12 @@ export const HOST_ICONOLOGY = {
     clear: Trash2,
   } satisfies IconMap<
     | 'trigger'
+    | 'file'
     | 'import'
     | 'export'
     | 'splitView'
     | 'zenMode'
+    | 'help'
     | 'guide'
     | 'documentation'
     | 'copy'

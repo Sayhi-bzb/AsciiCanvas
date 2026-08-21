@@ -293,7 +293,7 @@ export function CanvasInspectorControl({
             type="button"
             tone="subtle"
             shape="square"
-            size="sm"
+            size="xs"
             pressed={state === "on"}
             aria-pressed={state === "mixed" ? "mixed" : state === "on"}
             aria-label={t(meta.toggleLabel)}
@@ -331,7 +331,7 @@ export function CanvasInspectorControl({
             type="button"
             tone={meta.destructive ? "danger" : "subtle"}
             shape="square"
-            size="sm"
+            size="xs"
             aria-label={meta.label}
             disabled={!enabled}
             onClick={() => execute(id)}
@@ -387,24 +387,28 @@ export function CanvasInspectorControl({
             className="absolute left-[calc(100%+0.5rem)] top-0 w-[min(10rem,calc(100vw-2rem))]"
             onPointerDown={(event) => event.stopPropagation()}
           >
-          <ContentScrollArea className="max-h-[min(32rem,calc(100vh-5rem))]">
+          <ContentScrollArea
+            className="w-full overflow-hidden rounded-[inherit]"
+            viewportClassName="max-h-[min(32rem,calc(100vh-5rem))]"
+          >
             <SurfaceContent
               data-testid="canvas-inspector-content"
               inert={readOnly}
               aria-disabled={readOnly}
-              className="flex flex-col gap-0"
+              className="flex flex-col gap-2"
             >
               <ColorPickerPanel
                 value={model.activeColor}
                 onPick={applyColor}
+                density="compact"
                 defaultColor={COLOR_PRIMARY_TEXT}
                 canvasPickDestination={model.canvasPickDestination}
-                className="w-full px-0"
+                className="w-full p-0"
               />
 
               <div
                 data-testid="canvas-inspector-footer"
-                className="flex items-center justify-between gap-0.5 pb-1.5"
+                className="flex items-center justify-between gap-0.5"
               >
                 <Surface kind="embedded" asChild>
                   <div

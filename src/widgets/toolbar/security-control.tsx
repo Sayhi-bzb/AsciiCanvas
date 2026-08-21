@@ -10,11 +10,13 @@ import {
   TooltipPopup,
   TooltipTrigger,
 } from '@chardesk/ui';
+import { RecoverableLazyBoundary } from '@/app/RecoverableLazyBoundary';
+import { requireLoadedModule } from '@/app/moduleLoadRecovery';
 
 const SecurityIcon = HOST_ICONOLOGY.viewportAction.security;
 const DataSecurityDialog = lazy(() =>
-  import('@/widgets/dialogs/data-security-dialog').then((module) => ({
-    default: module.DataSecurityDialog,
+  import('@/widgets/dialogs/data-security-dialog').then((loaded) => ({
+    default: requireLoadedModule(loaded).DataSecurityDialog,
   }))
 );
 
@@ -55,19 +57,21 @@ export function SecurityControl() {
         </Tooltip>
       </div>
 
-      <Suspense fallback={null}>
-        {open && (
-          <DataSecurityDialog
-            open={open}
-            onOpenChange={(nextOpen) => {
-              setOpen(nextOpen);
-              if (!nextOpen) {
-                window.setTimeout(() => triggerRef.current?.focus(), 0);
-              }
-            }}
-          />
-        )}
-      </Suspense>
+      <RecoverableLazyBoundary resetKey={open} onError={() => setOpen(false)}>
+        <Suspense fallback={null}>
+          {open && (
+            <DataSecurityDialog
+              open={open}
+              onOpenChange={(nextOpen) => {
+                setOpen(nextOpen);
+                if (!nextOpen) {
+                  window.setTimeout(() => triggerRef.current?.focus(), 0);
+                }
+              }}
+            />
+          )}
+        </Suspense>
+      </RecoverableLazyBoundary>
     </>
   );
 }

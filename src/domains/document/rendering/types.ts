@@ -1,44 +1,11 @@
 import type { CharGraphFragment } from "@chardesk/chargraph";
 import type { CharDeskTextStyle } from "@chardesk/protocol";
+import type { I18nKey } from "@/shared/i18n";
 import type { GridCell } from "@/shared/types";
 
 export type BuiltInTextRendererId = "raw" | "ansi" | "markdown";
 export type TextRendererId = string;
 export type TextRendererMode = "auto" | TextRendererId;
-export type MarkdownRenderRuleId =
-  | "strong"
-  | "emphasis"
-  | "strikethrough"
-  | "link"
-  | "heading"
-  | "inline-code"
-  | "blockquote"
-  | "list"
-  | "task-list"
-  | "thematic-break"
-  | "code-block"
-  | "mermaid"
-  | "table";
-
-export type MarkdownRenderRules = Record<MarkdownRenderRuleId, boolean>;
-export type MarkdownColorSlotId =
-  | "strong.foreground"
-  | "emphasis.foreground"
-  | "strikethrough.foreground"
-  | "link.foreground"
-  | "heading.marker"
-  | "inline-code.foreground"
-  | "inline-code.background"
-  | "blockquote.marker"
-  | "list.marker"
-  | "task-list.unchecked"
-  | "task-list.checked"
-  | "thematic-break.foreground"
-  | "mermaid.foreground"
-  | "table.header.foreground"
-  | "table.header.background"
-  | "table.separator";
-export type MarkdownRenderColors = Partial<Record<MarkdownColorSlotId, string>>;
 export type TextRenderThemeTokenId =
   | "foreground"
   | "background"
@@ -46,12 +13,14 @@ export type TextRenderThemeTokenId =
   | "accent-foreground"
   | "info"
   | "success"
+  | "warning"
+  | "danger"
   | "muted"
   | "surface"
   | "surface-foreground";
 export type TextRenderTheme = Record<TextRenderThemeTokenId, string>;
 export type TextRenderThemeOverrides = Partial<TextRenderTheme>;
-export type MarkdownColorDefault =
+export type TextRenderColorDefault =
   | { readonly kind: "inherit" }
   | { readonly kind: "token"; readonly token: TextRenderThemeTokenId }
   | {
@@ -59,21 +28,33 @@ export type MarkdownColorDefault =
       readonly tokens: readonly TextRenderThemeTokenId[];
       readonly includesInherited?: boolean;
     };
-export type MarkdownRuleStyleBehavior =
-  | { readonly kind: "syntax" }
-  | {
-      readonly kind: "slots";
-      readonly slots: readonly {
-        readonly id: MarkdownColorSlotId;
-        readonly default: MarkdownColorDefault;
-      }[];
-    };
+export type TextRenderFeatureId = string;
+export type TextRenderFeatureColorSlotDefinition = {
+  readonly id: string;
+  readonly label?: I18nKey;
+  readonly default: TextRenderColorDefault;
+};
+export type TextRenderFeatureDefinition = {
+  readonly id: TextRenderFeatureId;
+  readonly rendererId: TextRendererId;
+  readonly settingsGroup: string;
+  readonly label: I18nKey;
+  readonly defaultEnabled: boolean;
+  readonly colorSlots: readonly TextRenderFeatureColorSlotDefinition[];
+};
+export type TextRenderFeatureConfig = {
+  enabled: boolean;
+  colors: Record<string, string>;
+};
+export type TextRenderFeatureSettings = Record<
+  TextRenderFeatureId,
+  TextRenderFeatureConfig
+>;
 
 export type TextRenderProfile = {
   mode: TextRendererMode;
   renderTheme: TextRenderThemeOverrides;
-  markdownRules: MarkdownRenderRules;
-  markdownColors: MarkdownRenderColors;
+  features: TextRenderFeatureSettings;
 };
 
 export type RenderedTextCell = GridCell & { x: number; y: number };
@@ -129,8 +110,7 @@ export type TextTransformResult = {
 export type TextRenderContext = {
   defaultColor: string;
   renderTheme: TextRenderTheme;
-  markdownRules: MarkdownRenderRules;
-  markdownColors: MarkdownRenderColors;
+  features: TextRenderFeatureSettings;
   forced: boolean;
 };
 

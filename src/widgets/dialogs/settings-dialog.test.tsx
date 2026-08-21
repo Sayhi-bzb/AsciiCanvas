@@ -187,7 +187,10 @@ describe('SettingsDialog', () => {
 
     expect(runtime.getProfile()).toMatchObject({
       mode: 'raw',
-      markdownRules: { strong: false, table: false },
+      features: {
+        'markdown.strong': { enabled: false },
+        'markdown.table': { enabled: false },
+      },
     });
   });
 
@@ -206,9 +209,29 @@ describe('SettingsDialog', () => {
 
     expect(screen.getByText('Syntax')).toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: 'Mermaid diagrams' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'GitHub alerts' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Unified diff' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Inline math' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Block math' })).toBeChecked();
+    expect(screen.getByRole('button', {
+      name: 'Customize color for Inline math: Default (Inherited)',
+    })).toHaveAttribute('data-inherited', 'true');
+    expect(screen.getByRole('button', {
+      name: 'Customize color for Block math: Default (Inherited)',
+    })).toHaveAttribute('data-inherited', 'true');
     expect(screen.getByRole('button', {
       name: 'Customize color for Mermaid diagrams: Default (Inherited)',
     })).toHaveAttribute('data-inherited', 'true');
+    expect(screen.getByRole('button', {
+      name: 'Customize color for Warning alerts: Default (#ca8a04)',
+    }).querySelector('[data-slot="color-swatch"]')).toHaveStyle({
+      backgroundColor: '#ca8a04',
+    });
+    expect(screen.getByRole('button', {
+      name: 'Customize color for Deleted lines: Default (#dc2626)',
+    }).querySelector('[data-slot="color-swatch"]')).toHaveStyle({
+      backgroundColor: '#dc2626',
+    });
     const inlineCodeColor = screen.getByRole('button', {
       name: 'Customize color for Inline code foreground: Default (#0891b2)',
     });
@@ -280,7 +303,9 @@ describe('SettingsDialog', () => {
     expect(screen.queryByRole('button', { name: 'Pick color from canvas' })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Pick ANSI color #800000' }));
 
-    expect(runtime.getProfile().markdownColors).toEqual({ 'strong.foreground': '#800000' });
+    expect(runtime.getProfile().features['markdown.strong']?.colors).toEqual({
+      foreground: '#800000',
+    });
     const customBoldColor = screen.getByRole('button', {
       name: 'Customize color for Bold: #800000',
     });
@@ -291,7 +316,7 @@ describe('SettingsDialog', () => {
       backgroundColor: '#800000',
     });
     fireEvent.click(screen.getByRole('button', { name: 'Restore default color' }));
-    expect(runtime.getProfile().markdownColors).toEqual({});
+    expect(runtime.getProfile().features['markdown.strong']?.colors).toEqual({});
     expect(
       screen.getByRole('button', { name: 'Customize color for Bold: Default (Inherited)' })
     ).toHaveAttribute('data-inherited', 'true');
@@ -348,17 +373,17 @@ describe('SettingsDialog', () => {
     }));
     fireEvent.click(screen.getByRole('button', { name: 'Pick ANSI color #008000' }));
 
-    expect(runtime.getProfile().markdownColors).toEqual({
-      'task-list.unchecked': '#800000',
-      'task-list.checked': '#008000',
+    expect(runtime.getProfile().features['markdown.task-list']?.colors).toEqual({
+      unchecked: '#800000',
+      checked: '#008000',
     });
 
     fireEvent.click(screen.getByRole('button', {
       name: 'Customize color for Unchecked tasks: #800000',
     }));
     fireEvent.click(screen.getByRole('button', { name: 'Restore default color' }));
-    expect(runtime.getProfile().markdownColors).toEqual({
-      'task-list.checked': '#008000',
+    expect(runtime.getProfile().features['markdown.task-list']?.colors).toEqual({
+      checked: '#008000',
     });
   });
 

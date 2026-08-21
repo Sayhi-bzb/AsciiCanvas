@@ -26,6 +26,22 @@ describe('ColorPickerPanel', () => {
     useEditorStore.setState(initialState, true);
   });
 
+  it('uses compact header actions without shrinking the palette tabs', () => {
+    render(
+      <ColorPickerPanel
+        value="#000000"
+        onPick={vi.fn()}
+        defaultColor="#000000"
+        density="compact"
+      />
+    );
+
+    expect(screen.getByRole('tab', { name: 'ANSI 16' })).toHaveClass('size-7');
+    expect(screen.getByRole('button', { name: 'Hex: #000000' })).toHaveClass('size-6');
+    expect(screen.getByRole('button', { name: 'Pick color from canvas' })).toHaveClass('size-6');
+    expect(screen.getByRole('button', { name: 'Restore default color' })).toHaveClass('size-6');
+  });
+
   it('switches between ansi 16 and preset color tabs', async () => {
     const onPick = vi.fn();
 

@@ -11,6 +11,7 @@ test.describe('App menu', () => {
     await page.goto('/');
 
     await page.getByRole('button', { name: 'Open menu' }).click();
+    await page.getByRole('menuitem', { name: 'File' }).hover();
     await page.getByRole('menuitem', { name: 'Export' }).hover();
     const downloadPromise = page.waitForEvent('download');
     await page.getByRole('menuitem', { name: 'CharDesk' }).click();
@@ -59,18 +60,23 @@ test.describe('App menu', () => {
     const menu = page.getByRole('menu', { name: 'Open menu' });
     await expect(menu).toBeVisible();
     await expect(menu.getByRole('menuitem').allTextContents()).resolves.toEqual([
-      'Import',
-      'Export',
-      'Split view',
-      'Zen Mode',
-      'Clear',
+      'File',
+      'Split',
+      'Zen',
       'Settings',
-      'Guide',
-      'Documentation',
+      'Help',
       'GitHub',
     ]);
 
-    await menu.getByRole('menuitem', { name: 'Export' }).hover();
+    await menu.getByRole('menuitem', { name: 'File' }).hover();
+    const fileMenu = page.getByRole('menu', { name: 'File' });
+    await expect(fileMenu).toBeVisible();
+    await expect(fileMenu.getByRole('menuitem').allTextContents()).resolves.toEqual([
+      'Import',
+      'Export',
+      'Clear',
+    ]);
+    await fileMenu.getByRole('menuitem', { name: 'Export' }).hover();
     const exportMenu = page.getByRole('menu', { name: 'Export' });
     await expect(exportMenu).toBeVisible();
     await expect(exportMenu.getByRole('menuitem').allTextContents()).resolves.toEqual([
@@ -97,7 +103,8 @@ test.describe('App menu', () => {
     await expect(page.getByRole('menuitem', { name: 'Copy' })).toHaveCount(0);
     await expect(page.getByRole('menuitem', { name: 'Save' })).toHaveCount(0);
 
-    const separator = menu.locator('[data-slot="dropdown-menu-separator"]');
+    await expect(menu.locator('[data-slot="dropdown-menu-separator"]')).toHaveCount(0);
+    const separator = fileMenu.locator('[data-slot="dropdown-menu-separator"]');
     await expect(separator).toHaveCSS('height', '2px');
     await expect(separator).toHaveClass(/rounded-full/, /bg-separator/);
 
@@ -121,13 +128,14 @@ test.describe('App menu', () => {
 
     await trigger.click();
     const clearMenu = page.getByRole('menu', { name: 'Open menu' });
-    await clearMenu.getByRole('menuitem', { name: 'Clear' }).click();
+    await clearMenu.getByRole('menuitem', { name: 'File' }).hover();
+    await page.getByRole('menu', { name: 'File' }).getByRole('menuitem', { name: 'Clear' }).click();
     await expect(page.getByRole('alertdialog')).toBeVisible();
     await expect(menuContent).toHaveCount(0);
     await page.getByRole('button', { name: 'Cancel' }).click();
   });
 
-  test('hides every split-pane widget in Zen Mode and restores pane state', async ({ page }) => {
+  test('hides every split-pane widget in Zen and restores pane state', async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.setItem('chardesk-canvas-split-enabled', 'true');
     });
@@ -155,7 +163,7 @@ test.describe('App menu', () => {
     const secondarySessionId = await secondaryView.getAttribute('data-session-id');
 
     await trigger.click();
-    await page.getByRole('menuitem', { name: 'Zen Mode' }).click();
+    await page.getByRole('menuitem', { name: 'Zen' }).click();
 
     await expect(trigger).toBeVisible();
     await expect(primarySelector).toHaveCount(0);
@@ -173,7 +181,7 @@ test.describe('App menu', () => {
     await expect(trigger).toHaveAttribute('aria-expanded', 'false');
     await trigger.click();
     await expect(trigger).toHaveAttribute('aria-expanded', 'true');
-    await page.getByRole('menuitem', { name: 'Exit Zen Mode' }).click();
+    await page.getByRole('menuitem', { name: 'Exit Zen' }).click();
 
     await expect(primarySelector).toBeVisible();
     await expect(secondarySelector).toBeVisible();
@@ -187,6 +195,12 @@ test.describe('App menu', () => {
   });
 
   test('auto-detects imports and exposes language and shortcuts in Settings', async ({ page }) => {
+    const outdatedOptimizedDependencies: string[] = [];
+    page.on('response', (response) => {
+      if (response.status() === 504) {
+        outdatedOptimizedDependencies.push(response.url());
+      }
+    });
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('/');
 
@@ -195,7 +209,8 @@ test.describe('App menu', () => {
     const menu = page.getByRole('menu', { name: 'Open menu' });
 
     const importChooser = page.waitForEvent('filechooser');
-    await menu.getByRole('menuitem', { name: 'Import' }).click();
+    await menu.getByRole('menuitem', { name: 'File' }).hover();
+    await page.getByRole('menu', { name: 'File' }).getByRole('menuitem', { name: 'Import' }).click();
     await importChooser;
     await expect(page.locator('input[type="file"]')).toHaveAttribute(
       'accept',
@@ -212,6 +227,7 @@ test.describe('App menu', () => {
 
     const settings = page.getByRole('dialog', { name: 'Settings' });
     await expect(settings).toBeVisible();
+    expect(outdatedOptimizedDependencies).toEqual([]);
     await expect(settings.getByRole('button', { name: 'Close' })).toHaveCount(0);
     await settings.getByRole('combobox', { name: 'Language' }).click();
     const languageOptions = page.getByRole('listbox');
@@ -220,7 +236,9 @@ test.describe('App menu', () => {
     await expect(page.getByRole('dialog', { name: '设置' })).toBeVisible();
 
     await page.getByRole('button', { name: '快捷键' }).click();
-    await expect(page.getByRole('heading', { name: '键盘快捷键' })).toBeVisible();
+    await expect(
+      page.getByRole('dialog', { name: '设置' }).locator('[data-slot="shortcut-grid"]')
+    ).toBeVisible();
 
     const overlay = page.locator('[data-slot="dialog-overlay"]');
     await overlay.click({ position: { x: 4, y: 4 } });

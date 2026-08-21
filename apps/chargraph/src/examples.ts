@@ -2,12 +2,19 @@ import { getCharGraphText, renderCharGraph } from "@chardesk/chargraph";
 import { mermaidRenderer } from "@chardesk/chargraph/mermaid";
 
 export type CharGraphExampleLevel = "basic" | "advanced";
+export type CharGraphExampleKind =
+  | "flowchart"
+  | "state"
+  | "sequence"
+  | "class"
+  | "er"
+  | "xychart";
 
 interface CharGraphExample {
   readonly id: string;
+  readonly kind: CharGraphExampleKind;
   readonly level: CharGraphExampleLevel;
-  readonly name: string;
-  readonly summary: string;
+  readonly detail?: string;
   readonly source: string;
   readonly expectedText: string;
 }
@@ -15,9 +22,8 @@ interface CharGraphExample {
 export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
   {
     id: "flowchart",
+    kind: "flowchart",
     level: "basic",
-    name: "流程图",
-    summary: "把判断、分支与循环转换为可复制的字符连线。",
     expectedText: "验证通过？",
     source: `flowchart LR
   A[用户输入] --> B{验证通过？}
@@ -26,9 +32,8 @@ export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
   },
   {
     id: "state",
+    kind: "state",
     level: "basic",
-    name: "状态图",
-    summary: "用 Unicode 节点保留状态之间的方向和转换条件。",
     expectedText: "审核",
     source: `stateDiagram-v2
   state "草稿" as draft
@@ -41,9 +46,8 @@ export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
   },
   {
     id: "sequence",
+    kind: "sequence",
     level: "basic",
-    name: "时序图",
-    summary: "在纯文本中表达参与者、消息顺序与响应关系。",
     expectedText: "返回结果",
     source: `sequenceDiagram
   participant U as 用户
@@ -53,9 +57,8 @@ export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
   },
   {
     id: "class",
+    kind: "class",
     level: "basic",
-    name: "类图",
-    summary: "以字符表格呈现类型、字段、方法和继承关系。",
     expectedText: "文档",
     source: `classDiagram
   class 文档 {
@@ -66,9 +69,8 @@ export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
   },
   {
     id: "er",
+    kind: "er",
     level: "basic",
-    name: "实体关系图",
-    summary: "保留实体字段、基数和关系标签。",
     expectedText: "订单",
     source: `erDiagram
   用户 ||--o{ 订单 : 创建
@@ -83,9 +85,8 @@ export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
   },
   {
     id: "xychart",
+    kind: "xychart",
     level: "basic",
-    name: "XY 图表",
-    summary: "用字符坐标与图形标记表达轻量数据趋势。",
     expectedText: "月度趋势",
     source: `xychart-beta
   title "月度趋势"
@@ -96,9 +97,9 @@ export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
   },
   {
     id: "flowchart-advanced",
+    kind: "flowchart",
     level: "advanced",
-    name: "流程图：形状与连线",
-    summary: "组合节点形状、虚线、粗线、双向边与带标签分支。",
+    detail: "形状与连线",
     expectedText: "校验规则",
     source: `flowchart LR
   A([开始]) --> B[/读取配置\\]
@@ -109,9 +110,9 @@ export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
   },
   {
     id: "state-advanced",
+    kind: "state",
     level: "advanced",
-    name: "状态图：订单生命周期",
-    summary: "以横向状态流表达成功、取消与多个终态。",
+    detail: "订单生命周期",
     expectedText: "已取消",
     source: `stateDiagram-v2
   direction LR
@@ -130,9 +131,9 @@ export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
   },
   {
     id: "sequence-advanced",
+    kind: "sequence",
     level: "advanced",
-    name: "时序图：分支与循环",
-    summary: "展示多参与者、注释、条件分支与循环区块。",
+    detail: "分支与循环",
     expectedText: "刷新会话",
     source: `sequenceDiagram
   participant U as 用户
@@ -153,9 +154,9 @@ export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
   },
   {
     id: "class-advanced",
+    kind: "class",
     level: "advanced",
-    name: "类图：接口与依赖",
-    summary: "展示接口、属性、方法、实现、依赖和带标签关联。",
+    detail: "接口与依赖",
     expectedText: "渲染器",
     source: `classDiagram
   class 文档 {
@@ -176,9 +177,9 @@ export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
   },
   {
     id: "er-advanced",
+    kind: "er",
     level: "advanced",
-    name: "实体关系图：订单模型",
-    summary: "组合多实体、键约束、不同基数和识别关系。",
+    detail: "订单模型",
     expectedText: "订单项",
     source: `erDiagram
   用户 ||--o{ 订单 : 创建
@@ -204,9 +205,9 @@ export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
   },
   {
     id: "xychart-advanced",
+    kind: "xychart",
     level: "advanced",
-    name: "XY 图表：横向混合图",
-    summary: "展示横向坐标、负数范围以及柱线混合序列。",
+    detail: "横向混合图",
     expectedText: "季度增长",
     source: `xychart-beta horizontal
   title "季度增长"

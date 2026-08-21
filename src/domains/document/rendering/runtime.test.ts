@@ -1,9 +1,30 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_TEXT_RENDER_PROFILE,
+  TEXT_RENDER_PROFILE_STORAGE_KEY,
   TextRenderingRuntime,
 } from "./runtime";
-import type { TextRenderResult } from "./types";
+import { migrateLegacyFeatureSettings } from "./features";
+import type { TextRenderProfile, TextRenderResult } from "./types";
+
+const profileWithMarkdown = ({
+  rules,
+  colors,
+  ...profile
+}: Partial<TextRenderProfile> & {
+  rules?: Record<string, boolean>;
+  colors?: Record<string, string>;
+} = {}): TextRenderProfile => ({
+  ...DEFAULT_TEXT_RENDER_PROFILE,
+  ...profile,
+  features: migrateLegacyFeatureSettings(rules, colors),
+});
+
+const legacyStorage = (profile: unknown) => ({
+  getItem: (key: string) =>
+    key === "chardesk-text-render-profile-v1" ? JSON.stringify(profile) : null,
+  setItem: () => undefined,
+});
 
 const textFrom = (result: TextRenderResult) =>
   result.kind === "plain"
@@ -188,16 +209,15 @@ describe("TextRenderingRuntime", () => {
 
   it("applies independent colors to inline Markdown rules", async () => {
     const runtime = new TextRenderingRuntime();
-    runtime.setProfile({
-      ...DEFAULT_TEXT_RENDER_PROFILE,
-      markdownColors: {
+    runtime.setProfile(profileWithMarkdown({
+      colors: {
         "strong.foreground": "#ff0000",
         "emphasis.foreground": "#00ff00",
         "strikethrough.foreground": "#0000ff",
         "link.foreground": "#ffff00",
         "inline-code.foreground": "#ff00ff",
       },
-    });
+    }));
     const result = await runtime.render(
       "**B** *I* ~~S~~ [L](https://example.com) `C`",
       "#111111"
@@ -214,16 +234,15 @@ describe("TextRenderingRuntime", () => {
 
   it("resolves theme tokens before rule overrides", async () => {
     const runtime = new TextRenderingRuntime();
-    runtime.setProfile({
-      ...DEFAULT_TEXT_RENDER_PROFILE,
+    runtime.setProfile(profileWithMarkdown({
       renderTheme: {
         accent: "#112233",
         info: "#223344",
         success: "#334455",
         surface: "#445566",
       },
-      markdownColors: { "heading.marker": "#abcdef" },
-    });
+      colors: { "heading.marker": "#abcdef" },
+    }));
     const result = await runtime.render(
       "# Head\n\n> Quote\n\n`code` [link](https://example.com)",
       "#111111"
@@ -241,15 +260,14 @@ describe("TextRenderingRuntime", () => {
 
   it("colors block decorations without recoloring their content", async () => {
     const runtime = new TextRenderingRuntime();
-    runtime.setProfile({
-      ...DEFAULT_TEXT_RENDER_PROFILE,
-      markdownColors: {
+    runtime.setProfile(profileWithMarkdown({
+      colors: {
         "heading.marker": "#aa0000",
         "blockquote.marker": "#00aa00",
         "list.marker": "#0000aa",
         "thematic-break.foreground": "#aaaa00",
       },
-    });
+    }));
     const result = await runtime.render(
       "# Head\n\n> Quote\n\n- Item\n\n---",
       "#111111"
@@ -267,14 +285,13 @@ describe("TextRenderingRuntime", () => {
 
   it("styles table headers as a band and keeps separators and body independent", async () => {
     const runtime = new TextRenderingRuntime();
-    runtime.setProfile({
-      ...DEFAULT_TEXT_RENDER_PROFILE,
-      markdownColors: {
+    runtime.setProfile(profileWithMarkdown({
+      colors: {
         "table.header.foreground": "#ffffff",
         "table.header.background": "#123456",
         "table.separator": "#654321",
       },
-    });
+    }));
     const result = await runtime.render(
       "| Left | Right |\n| --- | --- |\n| Body | Value |",
       "#111111"
@@ -332,22 +349,18 @@ describe("TextRenderingRuntime", () => {
 
   it("keeps list and task-list rules independently switchable", async () => {
     const runtime = new TextRenderingRuntime();
-    runtime.setProfile({
-      ...DEFAULT_TEXT_RENDER_PROFILE,
-      markdownRules: {
-        ...DEFAULT_TEXT_RENDER_PROFILE.markdownRules,
+    runtime.setProfile(profileWithMarkdown({
+      rules: {
         "task-list": false,
       },
-    });
+    }));
     expect(rowText(await runtime.render("- [ ] Todo", "#fff"), 0)).toBe("- [ ] Todo");
 
-    runtime.setProfile({
-      ...DEFAULT_TEXT_RENDER_PROFILE,
-      markdownRules: {
-        ...DEFAULT_TEXT_RENDER_PROFILE.markdownRules,
+    runtime.setProfile(profileWithMarkdown({
+      rules: {
         list: false,
       },
-    });
+    }));
     expect(rowText(await runtime.render("- [ ] **Todo**", "#fff"), 0)).toBe(
       "- [ ] **Todo**"
     );
@@ -355,13 +368,12 @@ describe("TextRenderingRuntime", () => {
 
   it("applies task colors independently and replaces ordered and nested prefixes", async () => {
     const runtime = new TextRenderingRuntime();
-    runtime.setProfile({
-      ...DEFAULT_TEXT_RENDER_PROFILE,
-      markdownColors: {
+    runtime.setProfile(profileWithMarkdown({
+      colors: {
         "task-list.unchecked": "#aa0000",
         "task-list.checked": "#00aa00",
       },
-    });
+    }));
     const result = await runtime.render(
       "1. [ ] Parent\n   - [x] Child",
       "#111111"
@@ -404,10 +416,9 @@ describe("TextRenderingRuntime", () => {
 
   it("renders fenced Mermaid as a Unicode grid with inherited or custom color", async () => {
     const runtime = new TextRenderingRuntime();
-    runtime.setProfile({
-      ...DEFAULT_TEXT_RENDER_PROFILE,
-      markdownColors: { "mermaid.foreground": "#123456" },
-    });
+    runtime.setProfile(profileWithMarkdown({
+      colors: { "mermaid.foreground": "#123456" },
+    }));
     const result = await runtime.render(
       "```mermaid\ngraph LR\n  A[开始] --> B[完成]\n```",
       "#111111"
@@ -425,15 +436,55 @@ describe("TextRenderingRuntime", () => {
     expect(result.cells.find((cell) => cell.char === "始")?.x).toBe((start?.x ?? 0) + 2);
   });
 
+  it("renders GitHub alerts with nested Markdown and semantic rail colors", async () => {
+    const result = await new TextRenderingRuntime().render(
+      "> [!WARNING]\n> Read **carefully** at [docs](https://example.com).",
+      "#111111"
+    );
+
+    expect(rowText(result, 0)).toBe("│ WARNING");
+    expect(rowText(result, 1)).toBe("│ Read carefully at docs.");
+    if (result.kind !== "styled") throw new Error("Expected styled alert");
+    expect(result.cells.find((cell) => cell.y === 0 && cell.char === "│")?.color)
+      .toBe("#ca8a04");
+    expect(result.cells.find((cell) => cell.char === "c")?.attrs?.bold).toBe(true);
+    expect(result.cells.find((cell) => cell.href)?.href).toBe("https://example.com");
+  });
+
+  it("renders unified diffs with semantic line colors and backgrounds", async () => {
+    const result = await new TextRenderingRuntime().render(
+      "```diff\n--- a/demo.ts\n+++ b/demo.ts\n@@ -1 +1 @@\n-old\n+new\n same\n```",
+      "#111111"
+    );
+
+    expect([0, 1, 2, 3, 4, 5].map((y) => rowText(result, y))).toEqual([
+      "--- a/demo.ts",
+      "+++ b/demo.ts",
+      "@@ -1 +1 @@",
+      "-old",
+      "+new",
+      " same",
+    ]);
+    if (result.kind !== "styled") throw new Error("Expected styled diff");
+    expect(result.cells.find((cell) => cell.y === 3)).toMatchObject({
+      color: "#dc2626",
+      bgColor: "#fbe5e5",
+    });
+    expect(result.cells.find((cell) => cell.y === 4)).toMatchObject({
+      color: "#16a34a",
+      bgColor: "#e3f4e9",
+    });
+    expect(result.cells.find((cell) => cell.y === 0)?.color).toBe("#94a3b8");
+    expect(result.cells.find((cell) => cell.y === 2)?.color).toBe("#2563eb");
+  });
+
   it("keeps Mermaid independently switchable from fenced code rendering", async () => {
     const runtime = new TextRenderingRuntime();
-    runtime.setProfile({
-      ...DEFAULT_TEXT_RENDER_PROFILE,
-      markdownRules: {
-        ...DEFAULT_TEXT_RENDER_PROFILE.markdownRules,
+    runtime.setProfile(profileWithMarkdown({
+      rules: {
         mermaid: false,
       },
-    });
+    }));
     const source = "```mermaid\ngraph LR\n  A --> B\n```";
     const disabledMermaid = await runtime.render(source, "#111111");
 
@@ -443,13 +494,11 @@ describe("TextRenderingRuntime", () => {
     ]);
     expect(disabledMermaid.diagnostics).toEqual([]);
 
-    runtime.setProfile({
-      ...DEFAULT_TEXT_RENDER_PROFILE,
-      markdownRules: {
-        ...DEFAULT_TEXT_RENDER_PROFILE.markdownRules,
+    runtime.setProfile(profileWithMarkdown({
+      rules: {
         "code-block": false,
       },
-    });
+    }));
     const disabledCodeBlocks = await runtime.render(source, "#111111");
     expect([0, 1, 2, 3].map((y) => rowText(disabledCodeBlocks, y))).toEqual([
       "```mermaid",
@@ -457,6 +506,33 @@ describe("TextRenderingRuntime", () => {
       "  A --> B",
       "```",
     ]);
+  });
+
+  it("renders inline and block math with independent colors", async () => {
+    const runtime = new TextRenderingRuntime();
+    runtime.setProfile(profileWithMarkdown({
+      mode: "markdown",
+      colors: {
+        "inline-math.foreground": "#123456",
+        "block-math.foreground": "#654321",
+      },
+    }));
+
+    const inline = await runtime.render(String.raw`Euler: $x^2$.`, "#111111");
+    const block = await runtime.render("$$\n\\frac{a+b}{c+d}\n$$", "#111111");
+
+    expect(textFrom(inline)).toBe("Euler: x².");
+    expect([0, 1, 2].map((y) => rowText(block, y))).toEqual([
+      " a + b",
+      "───────",
+      " c + d",
+    ]);
+    if (inline.kind !== "styled" || block.kind !== "styled") {
+      throw new Error("Expected styled math output");
+    }
+    expect(inline.cells.filter((cell) => cell.char === "x" || cell.char === "²")
+      .every((cell) => cell.color === "#123456")).toBe(true);
+    expect(block.cells.every((cell) => cell.color === "#654321")).toBe(true);
   });
 
   it("preserves the fenced source when Mermaid rendering fails", async () => {
@@ -476,14 +552,12 @@ describe("TextRenderingRuntime", () => {
 
   it("preserves disabled block rules as raw Markdown source", async () => {
     const runtime = new TextRenderingRuntime();
-    runtime.setProfile({
-      ...DEFAULT_TEXT_RENDER_PROFILE,
-      markdownRules: {
-        ...DEFAULT_TEXT_RENDER_PROFILE.markdownRules,
+    runtime.setProfile(profileWithMarkdown({
+      rules: {
         heading: false,
         table: false,
       },
-    });
+    }));
 
     const heading = await runtime.render("# **raw heading**", "#fff");
     const table = await runtime.render("| A |\n| - |\n| B |", "#fff");
@@ -497,13 +571,11 @@ describe("TextRenderingRuntime", () => {
 
   it("consumes disabled inline syntax without applying its style", async () => {
     const runtime = new TextRenderingRuntime();
-    runtime.setProfile({
-      ...DEFAULT_TEXT_RENDER_PROFILE,
-      markdownRules: {
-        ...DEFAULT_TEXT_RENDER_PROFILE.markdownRules,
+    runtime.setProfile(profileWithMarkdown({
+      rules: {
         strong: false,
       },
-    });
+    }));
     const result = await runtime.render("**plain**", "#fff");
 
     expect(textFrom(result)).toBe("plain");
@@ -528,69 +600,76 @@ describe("TextRenderingRuntime", () => {
       setItem: (key: string, value: string) => values.set(key, value),
     };
     const runtime = new TextRenderingRuntime({ storage });
-    runtime.setProfile({
-      ...DEFAULT_TEXT_RENDER_PROFILE,
+    runtime.setProfile(profileWithMarkdown({
       mode: "markdown",
       renderTheme: {
         accent: "#AABBCC",
         info: "invalid",
       },
-      markdownColors: {
+      colors: {
         "strong.foreground": "#AABBCC",
         "task-list.unchecked": "#123456",
         "task-list.checked": "#654321",
         "link.foreground": "invalid",
         ...({ "code-block": "#ff0000" } as Record<string, string>),
       },
-    });
+    }));
 
     expect(new TextRenderingRuntime({ storage }).getProfile()).toMatchObject({
       mode: "markdown",
       renderTheme: { accent: "#aabbcc" },
-      markdownColors: {
-        "strong.foreground": "#aabbcc",
-        "task-list.unchecked": "#123456",
-        "task-list.checked": "#654321",
+      features: {
+        "markdown.strong": { colors: { foreground: "#aabbcc" } },
+        "markdown.task-list": {
+          colors: { unchecked: "#123456", checked: "#654321" },
+        },
+      },
+    });
+    expect(values.has(TEXT_RENDER_PROFILE_STORAGE_KEY)).toBe(true);
+  });
+
+  it("loads profiles saved before Markdown color overrides existed", () => {
+    const storage = legacyStorage({ mode: "markdown", markdownRules: {} });
+
+    expect(new TextRenderingRuntime({ storage }).getProfile()).toMatchObject({
+      mode: "markdown",
+      renderTheme: {},
+      features: {
+        "markdown.task-list": { enabled: true, colors: {} },
+        "markdown.mermaid": { enabled: true, colors: {} },
       },
     });
   });
 
-  it("loads profiles saved before Markdown color overrides existed", () => {
-    const storage = {
-      getItem: () => JSON.stringify({
-        mode: "markdown",
-        markdownRules: DEFAULT_TEXT_RENDER_PROFILE.markdownRules,
-      }),
-      setItem: () => undefined,
-    };
-
-    expect(new TextRenderingRuntime({ storage }).getProfile()).toMatchObject({
+  it("enables new math rules when restoring an older profile", () => {
+    const storage = legacyStorage({
       mode: "markdown",
-      markdownRules: { "task-list": true, mermaid: true },
-      renderTheme: {},
-      markdownColors: {},
+      markdownRules: { strong: false },
+    });
+
+    expect(new TextRenderingRuntime({ storage }).getProfile().features).toMatchObject({
+      "markdown.strong": { enabled: false },
+      "markdown.inline-math": { enabled: true },
+      "markdown.block-math": { enabled: true },
     });
   });
 
   it("migrates legacy Markdown rule colors to semantic slots", () => {
-    const storage = {
-      getItem: () => JSON.stringify({
-        mode: "markdown",
-        markdownRules: DEFAULT_TEXT_RENDER_PROFILE.markdownRules,
-        markdownColors: {
-          heading: "#123456",
-          blockquote: "#234567",
-          table: "#345678",
-        },
-      }),
-      setItem: () => undefined,
-    };
+    const storage = legacyStorage({
+      mode: "markdown",
+      markdownColors: {
+        heading: "#123456",
+        blockquote: "#234567",
+        table: "#345678",
+      },
+    });
 
-    expect(new TextRenderingRuntime({ storage }).getProfile().markdownColors).toEqual({
-      "heading.marker": "#123456",
-      "blockquote.marker": "#234567",
-      "table.header.background": "#345678",
-      "table.separator": "#345678",
+    expect(new TextRenderingRuntime({ storage }).getProfile().features).toMatchObject({
+      "markdown.heading": { colors: { marker: "#123456" } },
+      "markdown.blockquote": { colors: { marker: "#234567" } },
+      "markdown.table": {
+        colors: { "header.background": "#345678", separator: "#345678" },
+      },
     });
   });
 

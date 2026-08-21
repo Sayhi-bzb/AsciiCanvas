@@ -35,24 +35,44 @@ disabled block rules preserve their source slice. Raw mode preserves all delimit
 results may be asynchronous, and clipboard commands await them before mutating Canvas.
 
 CharGraph owns the browser-safe Markdown core adapted from `marked-terminal`, Shiki code
-highlighting, and the independent Mermaid source-to-Unicode renderer. Markdown syntax extensions
+highlighting, and independent Mermaid and math renderers. Markdown syntax extensions
 may contribute `marked` tokenizers and transform tokens or fenced languages into the same fragment
-IR; the default Markdown entry injects Mermaid through that contract, while the core has no Mermaid
-dependency. Unsupported, invalid, or oversized Mermaid input falls back to the complete fenced
+IR; the document feature registry injects Alert, Diff, Mermaid, and math through that contract, while the core has
+no syntax-specific dependency. Unsupported, invalid, or oversized Mermaid input falls back to the complete fenced
 source with a diagnostic; disabling Mermaid keeps the inner source as an ordinary code block.
 Neither renderer imports terminal capability detection or Node polyfills. Markdown consumes
 `marked` tokens through a character renderer rather than its HTML renderer. Unsupported images and
 raw HTML preserve their original source with a diagnostic; generated HTML cannot leak into Canvas
 output.
 
+Container extensions may call the context's `renderBlocks` capability to render child `marked`
+tokens through the same rules, styles, source mapping, diagnostics, and extension set. GitHub Alerts
+use `marked-alert` for tokenization and render `NOTE`, `TIP`, `IMPORTANT`, `WARNING`, and `CAUTION`
+as a colored left rail while preserving nested Markdown. Unified `diff` and `patch` fences classify
+metadata, hunks, added, deleted, and context lines; additions and deletions receive semantic foreground
+and lightly mixed background colors. Diff does not infer a programming language, compare words, or
+apply patches.
+
+Math uses Temml's public TeX-to-MathML output and a DOM-free MathML adapter. Inline `$…$` and
+`\(…\)` become compact Unicode; block `$$…$$`, `\[…\]`, and `math`/`tex`/`latex` fences become a
+baseline-aware two-dimensional character box before flattening to fragments. Inline and block
+rules have independent inherited foreground slots. The adapter owns character-cell layout only;
+it never parses TeX or exposes Temml's private syntax tree. Invalid or bounded-out formulas preserve
+their complete Markdown source with a diagnostic.
+
 `TextRenderProfile.renderTheme` stores optional semantic token overrides; the resolved Renderer
-Theme is independent from the host UI theme. `markdownColors` stores optional rule-slot overrides.
-Style precedence is explicit ANSI, rule-slot override, Renderer Theme token, then inherited paste
-style. The rule behavior map in `rendering/theme.ts` owns each slot's token or inheritance default.
+Theme is independent from the host UI theme. Profile v2 stores each rule's enabled state and local
+color overrides under `features`. `rendering/features.ts` is the single authority for built-in
+feature identity, parser binding, settings group, label, defaults, and semantic styles. The renderer,
+Display settings, and settings search derive from that registry; adding a built-in rule does not
+require parallel UI maps. The public registry is read-only and does not load third-party code.
+Style precedence is explicit ANSI, feature color override, Renderer Theme token, then inherited paste
+style. Each feature definition owns its slots' token or inheritance defaults.
 Quote and heading colors belong to their markers; inline code owns foreground and background
 slots; table headers own foreground and background slots while separators are independent.
 Fenced code remains owned by Shiki token colors, and Mermaid inherits the paste foreground unless
-overridden. Persisted legacy rule colors migrate to the corresponding slots. Like every renderer
+overridden. Persisted profile v1 rules and global color keys migrate to feature-local profile v2
+settings on first read. Like every renderer
 setting, style changes affect future paste only because Canvas stores materialized cells.
 
 Verification lives in

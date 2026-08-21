@@ -1,5 +1,6 @@
 import type { ELK } from "elkjs/lib/elk-api.js";
-import { layoutWithElk } from "./elk-adapter.js";
+import type { ElkNode } from "elkjs/lib/elk-api.js";
+import { fromElkGraph, layoutWithElk, toElkGraph } from "./elk-adapter.js";
 import type { GraphLayoutEngine, GridLayout, LayoutGraph } from "./model.js";
 
 interface WorkerLike {
@@ -25,9 +26,10 @@ const createBrowserWorker = (): WorkerLike | undefined => {
 class ElkWorkerEngine implements GraphLayoutEngine {
   private readonly worker: WorkerLike;
   private readonly pending = new Map<number, {
-    resolve(layout: GridLayout): void;
+    resolve(data: unknown): void;
     reject(error: Error): void;
   }>();
+  private readonly ready: Promise<unknown>;
   private nextId = 1;
 
   constructor(worker: WorkerLike) {
@@ -35,29 +37,45 @@ class ElkWorkerEngine implements GraphLayoutEngine {
     this.worker.addEventListener("message", (event) => {
       const data = event.data as {
         id: number;
-        layout?: GridLayout;
-        error?: string;
+        data?: unknown;
+        error?: unknown;
       };
       const request = this.pending.get(data.id);
       if (!request) return;
       this.pending.delete(data.id);
-      if (data.layout) request.resolve(data.layout);
-      else request.reject(new Error(data.error ?? "ELK layout failed"));
+      if (data.error) {
+        request.reject(new Error(
+          data.error instanceof Error
+            ? data.error.message
+            : typeof data.error === "object" && data.error !== null && "message" in data.error
+              ? String(data.error.message)
+              : String(data.error),
+        ));
+      } else {
+        request.resolve(data.data);
+      }
     });
     this.worker.addEventListener("error", (event) => {
       const error = new Error(event.message || "ELK layout worker failed");
       for (const request of this.pending.values()) request.reject(error);
       this.pending.clear();
     });
+    this.ready = this.request({ cmd: "register", algorithms: ["layered"] });
   }
 
-  layout(graph: LayoutGraph): Promise<GridLayout> {
+  private request(command: Record<string, unknown>): Promise<unknown> {
     const id = this.nextId++;
-    const result = new Promise<GridLayout>((resolve, reject) => {
+    const result = new Promise<unknown>((resolve, reject) => {
       this.pending.set(id, { resolve, reject });
     });
-    this.worker.postMessage({ id, graph });
+    this.worker.postMessage({ ...command, id });
     return result;
+  }
+
+  async layout(graph: LayoutGraph): Promise<GridLayout> {
+    await this.ready;
+    const laidOut = await this.request({ cmd: "layout", graph: toElkGraph(graph) });
+    return fromElkGraph(graph, laidOut as ElkNode);
   }
 }
 

@@ -32,8 +32,12 @@ export interface ShapeDimensions {
 export interface ShapeRenderOptions {
   /** Use ASCII chars (+,-,|) vs Unicode box-drawing (┌,─,│) */
   useAscii: boolean
-  /** Padding inside the shape */
+  /** Padding inside the shape, used when an axis-specific value is absent */
   padding: number
+  /** Horizontal padding inside the shape */
+  paddingX?: number
+  /** Vertical padding inside the shape */
+  paddingY?: number
 }
 
 /**

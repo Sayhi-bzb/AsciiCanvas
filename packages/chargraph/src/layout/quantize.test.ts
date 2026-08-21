@@ -22,18 +22,26 @@ describe("cell layout projection", () => {
       height: 8,
       groups: [],
       nodes: [
-        { id: "a", label: "A", shape: "rectangle", x: 0, y: 0, width: 3, height: 3 },
-        { id: "b", label: "B", shape: "rectangle", x: 5, y: 0, width: 3, height: 3 },
-        { id: "obstacle", label: "X", shape: "rectangle", x: 3, y: 4, width: 3, height: 3 },
+        { id: "a", label: "A", x: 0, y: 0, width: 3, height: 3 },
+        { id: "b", label: "B", x: 5, y: 0, width: 3, height: 3 },
+        { id: "obstacle", label: "X", x: 3, y: 4, width: 3, height: 3 },
       ],
       edges: [{
         id: "edge",
         source: "a",
         target: "b",
-        labelWidth: 0,
-        style: "solid",
-        hasArrowStart: false,
-        hasArrowEnd: true,
+        sourceEndpoint: {
+          side: "right",
+          anchor: { x: 2, y: 1 },
+          marker: { x: 3, y: 1 },
+          outward: { x: 1, y: 0 },
+        },
+        targetEndpoint: {
+          side: "left",
+          anchor: { x: 5, y: 1 },
+          marker: { x: 4, y: 1 },
+          outward: { x: -1, y: 0 },
+        },
         points: [{ x: 2, y: 1 }, { x: 4, y: 5 }, { x: 6, y: 1 }],
       }],
     };
@@ -49,7 +57,6 @@ describe("cell layout projection", () => {
       nodes: [{
         id: "outside",
         label: "A",
-        shape: "rectangle",
         parentId: "group",
         x: 4,
         y: 4,
@@ -62,5 +69,37 @@ describe("cell layout projection", () => {
     expect(validateGridLayout(layout)).toContain(
       "Group group does not contain node outside",
     );
+  });
+
+  it("rejects endpoint markers that overlap their node border", () => {
+    const layout: GridLayout = {
+      width: 10,
+      height: 5,
+      groups: [],
+      nodes: [
+        { id: "a", label: "A", x: 0, y: 0, width: 3, height: 3 },
+        { id: "b", label: "B", x: 6, y: 0, width: 3, height: 3 },
+      ],
+      edges: [{
+        id: "edge",
+        source: "a",
+        target: "b",
+        sourceEndpoint: {
+          side: "right",
+          anchor: { x: 2, y: 1 },
+          marker: { x: 3, y: 1 },
+          outward: { x: 1, y: 0 },
+        },
+        targetEndpoint: {
+          side: "left",
+          anchor: { x: 6, y: 1 },
+          marker: { x: 6, y: 1 },
+          outward: { x: -1, y: 0 },
+        },
+        points: [{ x: 2, y: 1 }, { x: 3, y: 1 }, { x: 5, y: 1 }, { x: 6, y: 1 }],
+      }],
+    };
+
+    expect(validateGridLayout(layout)).toContain("Edge edge marker overlaps node b");
   });
 });

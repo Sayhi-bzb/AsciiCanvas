@@ -1,4 +1,5 @@
 import { formatShortcutLabel } from '@/domains/actions/public';
+import { TEXT_RENDER_FEATURES } from '@/domains/document/public';
 import type { KeymapBindingSnapshot } from '@/domains/editor/public';
 import type { I18nKey } from '@/shared/i18n';
 import {
@@ -90,23 +91,13 @@ export const getSettingsSearchResults = (
         t('settings.renderTheme.accent'),
         t('settings.renderTheme.info'),
         t('settings.renderTheme.success'),
+        t('settings.renderTheme.warning'),
+        t('settings.renderTheme.danger'),
         t('settings.renderTheme.muted'),
         t('settings.renderTheme.surface'),
         t('settings.markdownRules'),
         t('settings.column.color'),
-        t('settings.markdown.strong'),
-        t('settings.markdown.emphasis'),
-        t('settings.markdown.strikethrough'),
-        t('settings.markdown.link'),
-        t('settings.markdown.heading'),
-        t('settings.markdown.inlineCode'),
-        t('settings.markdown.blockquote'),
-        t('settings.markdown.list'),
-        t('settings.markdown.taskList'),
-        t('settings.markdown.thematicBreak'),
-        t('settings.markdown.codeBlock'),
-        t('settings.markdown.mermaid'),
-        t('settings.markdown.table'),
+        ...TEXT_RENDER_FEATURES.map((feature) => t(feature.label)),
         'ANSI',
         'Markdown',
         'Raw',

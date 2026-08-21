@@ -12,6 +12,7 @@ import { mkCanvas } from '../canvas.js'
 import { splitLines } from '../multiline-utils.js'
 import type { ShapeRenderer, ShapeDimensions, ShapeRenderOptions } from './types.js'
 import { getBoxAttachmentPoint } from './rectangle.js'
+import { getShapePadding } from './padding.js'
 
 /**
  * Stadium (pill) shape renderer.
@@ -33,18 +34,19 @@ export const stadiumRenderer: ShapeRenderer = {
     const lines = splitLines(label)
     const maxLineWidth = Math.max(...lines.map(l => l.length), 0)
     const lineCount = lines.length
+    const padding = getShapePadding(options)
 
-    const innerWidth = 2 * options.padding + maxLineWidth
+    const innerWidth = 2 * padding.x + maxLineWidth
     const width = innerWidth + 4  // Extra for rounded ends
-    const innerHeight = lineCount + 2 * options.padding
+    const innerHeight = lineCount + 2 * padding.y
     const height = Math.max(innerHeight + 2, 3)
 
     return {
       width,
       height,
       labelArea: {
-        x: 2 + options.padding,
-        y: 1 + options.padding,
+        x: 2 + padding.x,
+        y: 1 + padding.y,
         width: maxLineWidth,
         height: lineCount,
       },

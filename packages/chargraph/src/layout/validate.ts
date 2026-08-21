@@ -1,4 +1,10 @@
-import type { GridLayout, GridPoint, GridRect } from "./model.js";
+import type {
+  GridLayout,
+  GridPoint,
+  GridRect,
+  PositionedEdgeEndpoint,
+  PositionedLayoutNode,
+} from "./model.js";
 
 const containsInterior = (rect: GridRect, point: GridPoint) =>
   point.x > rect.x &&
@@ -18,6 +24,67 @@ const containsRect = (parent: GridRect, child: GridRect) =>
   child.x + child.width <= parent.x + parent.width &&
   child.y + child.height <= parent.y + parent.height;
 
+const pointEquals = (left: GridPoint, right: GridPoint) =>
+  left.x === right.x && left.y === right.y;
+
+const containsPoint = (rect: GridRect, point: GridPoint) =>
+  point.x >= rect.x &&
+  point.x < rect.x + rect.width &&
+  point.y >= rect.y &&
+  point.y < rect.y + rect.height;
+
+const onRectBoundary = (rect: GridRect, point: GridPoint) =>
+  containsPoint(rect, point) && (
+    point.x === rect.x ||
+    point.x === rect.x + rect.width - 1 ||
+    point.y === rect.y ||
+    point.y === rect.y + rect.height - 1
+  );
+
+const onBoundary = (node: PositionedLayoutNode, point: GridPoint) => {
+  const withinX = point.x >= node.x && point.x < node.x + node.width;
+  const withinY = point.y >= node.y && point.y < node.y + node.height;
+  return withinX && withinY && (
+    point.x === node.x ||
+    point.x === node.x + node.width - 1 ||
+    point.y === node.y ||
+    point.y === node.y + node.height - 1
+  );
+};
+
+const validateEndpoint = (
+  edgeId: string,
+  endpoint: PositionedEdgeEndpoint,
+  node: PositionedLayoutNode | undefined,
+  neighbor: GridPoint | undefined,
+) => {
+  if (!node) return [`Edge ${edgeId} references a missing endpoint node`];
+  const errors: string[] = [];
+  if (!onBoundary(node, endpoint.anchor)) {
+    errors.push(`Edge ${edgeId} anchor is not on node ${node.id}`);
+  }
+  const expectedMarker = {
+    x: endpoint.anchor.x + endpoint.outward.x,
+    y: endpoint.anchor.y + endpoint.outward.y,
+  };
+  if (!pointEquals(endpoint.marker, expectedMarker)) {
+    errors.push(`Edge ${edgeId} marker is not adjacent to node ${node.id}`);
+  }
+  if (onBoundary(node, endpoint.marker) || containsInterior(node, endpoint.marker)) {
+    errors.push(`Edge ${edgeId} marker overlaps node ${node.id}`);
+  }
+  if (neighbor) {
+    const travel = {
+      x: Math.sign(neighbor.x - endpoint.anchor.x),
+      y: Math.sign(neighbor.y - endpoint.anchor.y),
+    };
+    if (!pointEquals(travel, endpoint.outward)) {
+      errors.push(`Edge ${edgeId} terminal segment is not perpendicular to node ${node.id}`);
+    }
+  }
+  return errors;
+};
+
 const segmentPoints = (from: GridPoint, to: GridPoint): GridPoint[] => {
   if (from.x !== to.x && from.y !== to.y) return [];
   const dx = Math.sign(to.x - from.x);
@@ -35,6 +102,18 @@ const segmentPoints = (from: GridPoint, to: GridPoint): GridPoint[] => {
 export const validateGridLayout = (layout: GridLayout): string[] => {
   const errors: string[] = [];
   const groups = new Map(layout.groups.map((group) => [group.id, group]));
+  const nodes = new Map(layout.nodes.map((node) => [node.id, node]));
+  const edgeCellOwners = new Map<string, Set<string>>();
+  for (const edge of layout.edges) {
+    for (let index = 1; index < edge.points.length; index += 1) {
+      for (const point of segmentPoints(edge.points[index - 1]!, edge.points[index]!)) {
+        const key = `${point.x},${point.y}`;
+        const owners = edgeCellOwners.get(key) ?? new Set<string>();
+        owners.add(edge.id);
+        edgeCellOwners.set(key, owners);
+      }
+    }
+  }
 
   for (let index = 0; index < layout.nodes.length; index += 1) {
     const node = layout.nodes[index]!;
@@ -63,6 +142,18 @@ export const validateGridLayout = (layout: GridLayout): string[] => {
   }
 
   for (const edge of layout.edges) {
+    errors.push(...validateEndpoint(
+      edge.id,
+      edge.sourceEndpoint,
+      nodes.get(edge.source),
+      edge.points[1],
+    ));
+    errors.push(...validateEndpoint(
+      edge.id,
+      edge.targetEndpoint,
+      nodes.get(edge.target),
+      edge.points.at(-2),
+    ));
     for (let index = 1; index < edge.points.length; index += 1) {
       const from = edge.points[index - 1]!;
       const to = edge.points[index]!;
@@ -78,6 +169,54 @@ export const validateGridLayout = (layout: GridLayout): string[] => {
             break;
           }
         }
+      }
+    }
+    if (edge.label && edge.labelPosition) {
+      const protectedPoints = new Set(edge.points.map((point) => `${point.x},${point.y}`));
+      for (let x = edge.labelPosition.x; x < edge.labelPosition.x + edge.label.width; x += 1) {
+        for (let y = edge.labelPosition.y; y < edge.labelPosition.y + edge.label.height; y += 1) {
+          const point = { x, y };
+          const key = `${x},${y}`;
+          if (protectedPoints.has(key)) {
+            errors.push(`Edge ${edge.id} label overlaps a protected route cell`);
+          }
+          for (const node of layout.nodes) {
+            if (containsPoint(node, point)) {
+              errors.push(`Edge ${edge.id} label overlaps node ${node.id}`);
+              break;
+            }
+          }
+          for (const group of layout.groups) {
+            if (onRectBoundary(group, point)) {
+              errors.push(`Edge ${edge.id} label overlaps group ${group.id} border`);
+              break;
+            }
+          }
+          if ([...(edgeCellOwners.get(key) ?? [])].some((owner) => owner !== edge.id)) {
+            errors.push(`Edge ${edge.id} label overlaps another edge`);
+          }
+        }
+      }
+    }
+  }
+
+  const labeledEdges = layout.edges.filter((edge) => edge.label && edge.labelPosition);
+  for (let index = 0; index < labeledEdges.length; index += 1) {
+    const edge = labeledEdges[index]!;
+    const edgeLabel = {
+      ...edge.labelPosition!,
+      width: edge.label!.width,
+      height: edge.label!.height,
+    };
+    for (let otherIndex = index + 1; otherIndex < labeledEdges.length; otherIndex += 1) {
+      const other = labeledEdges[otherIndex]!;
+      const otherLabel = {
+        ...other.labelPosition!,
+        width: other.label!.width,
+        height: other.label!.height,
+      };
+      if (overlaps(edgeLabel, otherLabel)) {
+        errors.push(`Edge labels ${edge.id} and ${other.id} overlap`);
       }
     }
   }

@@ -2,6 +2,7 @@
   "compilerOptions": {
     "baseUrl": "../..",
     "paths": {
+      "@/*": ["apps/chargraph/src/*"],
       "@chardesk/chargraph": ["packages/chargraph/src/index.ts"],
       "@chardesk/chargraph/mermaid": ["packages/chargraph/src/mermaid.ts"],
       "@chardesk/fonts": ["packages/fonts/src/index.ts"],

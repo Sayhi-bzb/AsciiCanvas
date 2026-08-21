@@ -5,11 +5,13 @@ import {
 } from "./plugins";
 import { layoutCharDeskTextRuns } from "@chardesk/protocol";
 import { composeTextFragments } from "./compositor";
+import {
+  createDefaultFeatureSettings,
+  decodeFeatureSettings,
+  migrateLegacyFeatureSettings,
+} from "./features";
 import type {
   AttributedText,
-  MarkdownColorSlotId,
-  MarkdownRenderColors,
-  MarkdownRenderRules,
   TextRenderPlugin,
   TextRenderFragment,
   TextRenderProfile,
@@ -19,83 +21,20 @@ import type {
 } from "./types";
 import { DEFAULT_TEXT_RENDER_THEME } from "./theme";
 
-export const TEXT_RENDER_PROFILE_STORAGE_KEY = "chardesk-text-render-profile-v1";
+export const TEXT_RENDER_PROFILE_STORAGE_KEY = "chardesk-text-render-profile-v2";
+const LEGACY_TEXT_RENDER_PROFILE_STORAGE_KEY = "chardesk-text-render-profile-v1";
 
 export const DEFAULT_TEXT_RENDER_PROFILE: TextRenderProfile = {
   mode: "auto",
   renderTheme: {},
-  markdownColors: {},
-  markdownRules: {
-    strong: true,
-    emphasis: true,
-    strikethrough: true,
-    link: true,
-    heading: true,
-    "inline-code": true,
-    blockquote: true,
-    list: true,
-    "task-list": true,
-    "thematic-break": true,
-    "code-block": true,
-    mermaid: true,
-    table: true,
-  },
+  features: createDefaultFeatureSettings(),
 };
-
-const MARKDOWN_RULE_IDS = [
-  "strong",
-  "emphasis",
-  "strikethrough",
-  "link",
-  "heading",
-  "inline-code",
-  "blockquote",
-  "list",
-  "task-list",
-  "thematic-break",
-  "code-block",
-  "mermaid",
-  "table",
-] as const;
-
-const MARKDOWN_COLOR_SLOT_IDS = [
-  "strong.foreground",
-  "emphasis.foreground",
-  "strikethrough.foreground",
-  "link.foreground",
-  "heading.marker",
-  "inline-code.foreground",
-  "inline-code.background",
-  "blockquote.marker",
-  "list.marker",
-  "task-list.unchecked",
-  "task-list.checked",
-  "thematic-break.foreground",
-  "mermaid.foreground",
-  "table.header.foreground",
-  "table.header.background",
-  "table.separator",
-] as const satisfies readonly MarkdownColorSlotId[];
 
 const RENDER_THEME_TOKEN_IDS = Object.keys(DEFAULT_TEXT_RENDER_THEME) as Array<
   keyof typeof DEFAULT_TEXT_RENDER_THEME
 >;
 
-const LEGACY_MARKDOWN_COLOR_SLOTS = {
-  strong: ["strong.foreground"],
-  emphasis: ["emphasis.foreground"],
-  strikethrough: ["strikethrough.foreground"],
-  link: ["link.foreground"],
-  heading: ["heading.marker"],
-  "inline-code": ["inline-code.foreground"],
-  blockquote: ["blockquote.marker"],
-  list: ["list.marker"],
-  "thematic-break": ["thematic-break.foreground"],
-  mermaid: ["mermaid.foreground"],
-  table: ["table.header.background", "table.separator"],
-} as const satisfies Record<string, readonly MarkdownColorSlotId[]>;
-
-const normalizeMarkdownColor = (value: unknown) =>
+const normalizeColor = (value: unknown) =>
   typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value)
     ? value.toLowerCase()
     : null;
@@ -112,41 +51,36 @@ const decodeProfile = (
   const mode = candidateMode === "auto" || rendererIds?.has(candidateMode)
     ? candidateMode
     : DEFAULT_TEXT_RENDER_PROFILE.mode;
-  const sourceRules = candidate.markdownRules;
-  const markdownRules = Object.fromEntries(
-    MARKDOWN_RULE_IDS.map((id) => [
-      id,
-      typeof sourceRules?.[id] === "boolean"
-        ? sourceRules[id]
-        : DEFAULT_TEXT_RENDER_PROFILE.markdownRules[id],
-    ])
-  ) as MarkdownRenderRules;
-  const sourceColors = candidate.markdownColors;
-  const colorEntries = MARKDOWN_COLOR_SLOT_IDS.flatMap((id) => {
-    const color = normalizeMarkdownColor(sourceColors?.[id]);
-    return color ? [[id, color] as const] : [];
-  });
-  Object.entries(LEGACY_MARKDOWN_COLOR_SLOTS).forEach(([legacyId, slots]) => {
-    const color = normalizeMarkdownColor((sourceColors as Record<string, unknown> | undefined)?.[legacyId]);
-    if (!color) return;
-    slots.forEach((slot) => {
-      if (!colorEntries.some(([id]) => id === slot)) colorEntries.push([slot, color]);
-    });
-  });
-  const markdownColors = Object.fromEntries(colorEntries) as MarkdownRenderColors;
   const sourceTheme = candidate.renderTheme;
   const renderTheme = Object.fromEntries(
     RENDER_THEME_TOKEN_IDS.flatMap((id) => {
-      const color = normalizeMarkdownColor(sourceTheme?.[id]);
+      const color = normalizeColor(sourceTheme?.[id]);
       return color ? [[id, color]] : [];
     })
   );
   return {
     mode: mode as TextRenderProfile["mode"],
     renderTheme,
-    markdownRules,
-    markdownColors,
+    features: decodeFeatureSettings(candidate.features),
   };
+};
+
+const migrateLegacyProfile = (
+  value: unknown,
+  rendererIds: ReadonlySet<TextRendererId>
+): TextRenderProfile => {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return DEFAULT_TEXT_RENDER_PROFILE;
+  }
+  const candidate = value as Record<string, unknown>;
+  return decodeProfile({
+    mode: candidate.mode,
+    renderTheme: candidate.renderTheme,
+    features: migrateLegacyFeatureSettings(
+      candidate.markdownRules,
+      candidate.markdownColors
+    ),
+  }, rendererIds);
 };
 
 const readProfile = (
@@ -156,9 +90,16 @@ const readProfile = (
   if (!storage) return DEFAULT_TEXT_RENDER_PROFILE;
   try {
     const stored = storage.getItem(TEXT_RENDER_PROFILE_STORAGE_KEY);
-    return stored
-      ? decodeProfile(JSON.parse(stored), rendererIds)
-      : DEFAULT_TEXT_RENDER_PROFILE;
+    if (stored) return decodeProfile(JSON.parse(stored), rendererIds);
+    const legacyStored = storage.getItem(LEGACY_TEXT_RENDER_PROFILE_STORAGE_KEY);
+    if (!legacyStored) return DEFAULT_TEXT_RENDER_PROFILE;
+    const migrated = migrateLegacyProfile(JSON.parse(legacyStored), rendererIds);
+    try {
+      storage.setItem(TEXT_RENDER_PROFILE_STORAGE_KEY, JSON.stringify(migrated));
+    } catch {
+      // Migration remains usable in memory when browser storage is read-only.
+    }
+    return migrated;
   } catch {
     return DEFAULT_TEXT_RENDER_PROFILE;
   }
@@ -231,8 +172,7 @@ export class TextRenderingRuntime {
     const context = {
       defaultColor,
       renderTheme: { ...DEFAULT_TEXT_RENDER_THEME, ...profile.renderTheme },
-      markdownRules: profile.markdownRules,
-      markdownColors: profile.markdownColors,
+      features: profile.features,
       forced: profile.mode !== "auto",
     };
     let input: AttributedText = { text: source, spans: [], diagnostics: [] };

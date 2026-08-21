@@ -178,6 +178,8 @@ const extensionContext = (context: RenderContext) => ({
   style: (role: string) =>
     context.extensionStyles[role]
     ?? context.styles[role as MarkdownTextStyleRole],
+  renderBlocks: (tokens: readonly Token[], sourceOrigin: CharGraphSourceRange) =>
+    renderBlocks(tokens, sourceOrigin, context, "source"),
 });
 
 const renderExtension = async (
@@ -624,8 +626,12 @@ const hasRecognizedToken = (
   extensions: readonly MarkdownSyntaxExtension[]
 ) => {
   const parser = createParser(extensions);
+  const tokens = parser.lexer(source);
+  if (parser.defaults.walkTokens) {
+    parser.walkTokens(tokens, parser.defaults.walkTokens);
+  }
   let recognized = false;
-  parser.walkTokens(parser.lexer(source), (token) => {
+  parser.walkTokens(tokens, (token) => {
     if (
       RECOGNIZED_TOKEN_TYPES.has(token.type) ||
       !NON_SYNTAX_TOKEN_TYPES.has(token.type)
@@ -658,6 +664,9 @@ export const renderMarkdownWithExtensions = async (
     extensions,
   };
   const tokens = parser.lexer(normalized.text);
+  if (parser.defaults.walkTokens) {
+    await Promise.all(parser.walkTokens(tokens, parser.defaults.walkTokens));
+  }
   const fragments = await renderBlocks(
     tokens,
     { from: 0, to: normalized.text.length },

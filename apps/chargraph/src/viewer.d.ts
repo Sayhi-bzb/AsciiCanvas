@@ -9,6 +9,7 @@ declare module "react" {
         CharDeskViewerElement
       > & {
         controls?: "true" | "false";
+        fit?: "none" | "width" | "contain";
         interaction?: "grid" | "text";
         syntax?: "auto" | "plain" | "ansi";
       };

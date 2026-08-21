@@ -1,28 +1,33 @@
-import type { NodeShape, Direction, EdgeStyle } from "../vendor/types.js";
+import type { Direction } from "../vendor/types.js";
 
 export type LayoutDirection = Direction;
 
 export type LayoutRankConstraint = "first" | "last";
+export type LayoutPortPlacement = "center" | "distributed";
+
+export interface LayoutLabel {
+  text: string;
+  width: number;
+  height: number;
+}
 
 export interface LayoutNode {
   id: string;
   label: string;
-  shape: NodeShape;
   width: number;
   height: number;
   parentId?: string;
   rankConstraint?: LayoutRankConstraint;
+  portPlacement?: LayoutPortPlacement;
 }
 
 export interface LayoutEdge {
   id: string;
   source: string;
   target: string;
-  label?: string;
-  labelWidth: number;
-  style: EdgeStyle;
-  hasArrowStart: boolean;
-  hasArrowEnd: boolean;
+  label?: LayoutLabel;
+  /** Whether ELK reserves label bounds or the grid router places the label afterward. */
+  labelLayout?: "reserve" | "route";
 }
 
 export interface LayoutGroup {
@@ -48,6 +53,15 @@ export interface GridPoint {
   y: number;
 }
 
+export type GridSide = "top" | "right" | "bottom" | "left";
+
+export interface PositionedEdgeEndpoint {
+  side: GridSide;
+  anchor: GridPoint;
+  marker: GridPoint;
+  outward: GridPoint;
+}
+
 export interface GridRect extends GridPoint {
   width: number;
   height: number;
@@ -59,6 +73,8 @@ export interface PositionedLayoutGroup extends LayoutGroup, GridRect {}
 
 export interface PositionedLayoutEdge extends LayoutEdge {
   points: GridPoint[];
+  sourceEndpoint: PositionedEdgeEndpoint;
+  targetEndpoint: PositionedEdgeEndpoint;
   labelPosition?: GridPoint;
 }
 

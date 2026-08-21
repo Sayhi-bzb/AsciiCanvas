@@ -64,11 +64,13 @@ import { getAppActionShortcuts } from '@/domains/actions/public';
 import type { CanvasEditorCapabilities } from '@/widgets/canvas-editor/canvasEditorCapabilities';
 import type { EditorViewportFrame } from '@/widgets/editor-chrome/public';
 import { useUiI18n } from '@/shared/i18n';
+import { RecoverableLazyBoundary } from './RecoverableLazyBoundary';
+import { requireLoadedModule } from './moduleLoadRecovery';
 
 
 const SidebarRight = lazy(() =>
-  import('@/widgets/toolbar/sidebar-right').then((module) => ({
-    default: module.SidebarRight,
+  import('@/widgets/toolbar/sidebar-right').then((loaded) => ({
+    default: requireLoadedModule(loaded).SidebarRight,
   }))
 );
 
@@ -511,14 +513,19 @@ function AppContent() {
         )}
         bottomEnd={!showHostWidgets ? null : <SecurityControl />}
         sidebar={!showHostWidgets ? null : (
-          <Suspense fallback={null}>
-            <div
-              className="size-full min-h-0 overflow-visible"
-              inert={!capabilities.mutateContent || undefined}
-            >
-              <SidebarRight />
-            </div>
-          </Suspense>
+          <RecoverableLazyBoundary
+            resetKey={isRightPanelOpen}
+            onError={() => setIsRightPanelOpen(false)}
+          >
+            <Suspense fallback={null}>
+              <div
+                className="size-full min-h-0 overflow-visible"
+                inert={!capabilities.mutateContent || undefined}
+              >
+                <SidebarRight />
+              </div>
+            </Suspense>
+          </RecoverableLazyBoundary>
         )}
         canvas={
           <CanvasWorkspaceSurface

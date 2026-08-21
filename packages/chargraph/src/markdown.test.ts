@@ -101,6 +101,42 @@ describe("renderMarkdown", () => {
     expect(unsupported.diagnostics[0]?.code).toBe("markdown-mermaid-render-failed");
   });
 
+  it("renders inline, block, and fenced math through the syntax extension", async () => {
+    const inline = await renderMarkdown(String.raw`Euler: $e^{i\pi}+1=0$.`);
+    const block = await renderMarkdown("$$\n\\frac{a+b}{c+d}\n$$");
+    const fenced = await renderMarkdown("```math\n\\begin{matrix}a&b\\\\c&d\\end{matrix}\n```");
+
+    expect(getCharGraphText(inline)).toBe("Euler: e^(iπ) + 1 = 0.");
+    expect(getCharGraphText(block)).toBe(" a + b\n───────\n c + d");
+    expect(getCharGraphText(fenced)).toBe("⎡a  b⎤\n⎣c  d⎦");
+  });
+
+  it("recognizes parenthesis and bracket math delimiters", async () => {
+    const inline = await renderMarkdown(String.raw`Value: \(x^2\).`);
+    const block = await renderMarkdown("\\[\n\\sqrt{x+1}\n\\]");
+
+    expect(getCharGraphText(inline)).toBe("Value: x².");
+    expect(getCharGraphText(block)).toBe("  ─────\n √x + 1");
+  });
+
+  it("does not confuse escaped delimiters, currency, or incomplete math", async () => {
+    const rendered = await renderMarkdown(String.raw`Cost: \$5; incomplete $x + 1.`);
+
+    expect(getCharGraphText(rendered)).toBe("Cost: $5; incomplete $x + 1.");
+  });
+
+  it("supports separate inline and block math rules", async () => {
+    const inline = await renderMarkdown("$x^2$", {
+      extensionRules: { "inline-math": false },
+    });
+    const block = await renderMarkdown("$$\nx^2\n$$", {
+      extensionRules: { "block-math": false },
+    });
+
+    expect(getCharGraphText(inline)).toBe("x^2");
+    expect(getCharGraphText(block)).toBe("$$\nx^2\n$$");
+  });
+
   it("keeps source origins deterministic for repeated text and CRLF", async () => {
     const source = "foo **foo**\r\nfoo";
     const rendered = await renderMarkdown(source, {

@@ -9,7 +9,7 @@
 //   - Flowcharts and state diagrams — ELK Layered projected onto Unicode cells
 //   - State diagrams (stateDiagram-v2) — same pipeline as flowcharts
 //   - Sequence diagrams (sequenceDiagram) — column-based timeline layout
-//   - Class diagrams (classDiagram) — level-based UML layout
+//   - Class diagrams (classDiagram) — ELK layered UML layout
 //   - ER diagrams (erDiagram) — grid layout with crow's foot notation
 //
 // Usage:
@@ -19,20 +19,20 @@
 
 import { parseMermaid } from '../parser.js'
 import { renderLayeredMermaid } from '../../layout/mermaid.js'
+import { renderLayeredClass } from '../../layout/class.js'
+import { renderLayeredEr } from '../../layout/er.js'
 import { renderSequenceAscii } from './sequence.js'
-import { renderClassAscii } from './class-diagram.js'
-import { renderErAscii } from './er-diagram.js'
 import { renderXYChartAscii } from './xychart.js'
 import type { AsciiConfig } from './types.js'
 
 interface AsciiRenderOptions {
   /** true = ASCII chars (+,-,|,>), false = Unicode box-drawing (┌,─,│,►). Default: false */
   useAscii?: boolean
-  /** Horizontal spacing between nodes. Default: 5 */
+  /** Horizontal spacing between nodes. Default: 3 for Flow/State/Class; 5 elsewhere */
   paddingX?: number
-  /** Vertical spacing between nodes. Default: 5 */
+  /** Vertical spacing between nodes. Default: 1 for Flow/State, 3 for Class, 5 elsewhere */
   paddingY?: number
-  /** Padding inside node boxes. Default: 1 */
+  /** Padding inside node boxes. Default: 0 for Flow/State; 1 elsewhere */
   boxBorderPadding?: number
 }
 
@@ -100,20 +100,28 @@ export async function renderMermaidASCII(
       return renderSequenceAscii(text, config)
 
     case 'class':
-      return renderClassAscii(text, config)
+      return renderLayeredClass(text, {
+        ...config,
+        paddingX: options.paddingX ?? 3,
+        paddingY: options.paddingY ?? 3,
+      })
 
     case 'er':
-      return renderErAscii(text, config)
+      return renderLayeredEr(text, config)
 
     case 'flowchart':
     default: {
       // Flowchart + state diagram pipeline (original)
       const parsed = parseMermaid(text)
+      const explicitBoxPadding = options.boxBorderPadding
 
       return renderLayeredMermaid(parsed, {
         ...config,
-        paddingX: options.paddingX ?? 4,
-        paddingY: options.paddingY ?? 2,
+        paddingX: options.paddingX ?? 3,
+        paddingY: options.paddingY ?? 1,
+        boxBorderPadding: explicitBoxPadding ?? 0,
+        boxBorderPaddingX: explicitBoxPadding ?? 1,
+        boxBorderPaddingY: explicitBoxPadding ?? 0,
       })
     }
   }

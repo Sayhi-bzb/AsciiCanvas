@@ -5,12 +5,23 @@ import {
   type MarkdownRenderOptions,
 } from "./markdown.js";
 import { markdownMermaidExtension } from "./markdown-mermaid.js";
+import { markdownMathExtension } from "./markdown-math.js";
+import { markdownAlertExtension } from "./markdown-alert.js";
+import { markdownDiffExtension } from "./markdown-diff.js";
 
 export * from "./markdown.js";
 export * from "./markdown-extension.js";
 export { markdownMermaidExtension } from "./markdown-mermaid.js";
+export { markdownMathExtension } from "./markdown-math.js";
+export { markdownAlertExtension } from "./markdown-alert.js";
+export { markdownDiffExtension } from "./markdown-diff.js";
 
-const defaultExtensions = [markdownMermaidExtension];
+const defaultExtensions = [
+  markdownAlertExtension,
+  markdownDiffExtension,
+  markdownMathExtension,
+  markdownMermaidExtension,
+];
 
 export const markdownRenderer = createMarkdownRenderer({
   extensions: defaultExtensions,

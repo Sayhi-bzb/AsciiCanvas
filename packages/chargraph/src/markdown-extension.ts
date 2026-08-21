@@ -2,6 +2,7 @@ import type { CharDeskTextStyle } from "@chardesk/protocol";
 import type { MarkedExtension, Token } from "marked";
 import type {
   CharGraphAwaitable,
+  CharGraphFragment,
   CharGraphRenderResult,
   CharGraphSourceRange,
 } from "./model.js";
@@ -25,6 +26,10 @@ export type MarkdownExtensionRenderRequest =
 export type MarkdownExtensionRenderContext = {
   enabled(rule: string): boolean;
   style(role: string): CharDeskTextStyle | undefined;
+  renderBlocks(
+    tokens: readonly Token[],
+    sourceOrigin: CharGraphSourceRange
+  ): Promise<CharGraphFragment[]>;
 };
 
 export interface MarkdownSyntaxExtension {

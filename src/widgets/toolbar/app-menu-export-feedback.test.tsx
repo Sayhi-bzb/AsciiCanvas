@@ -18,6 +18,9 @@ describe("AppMenu export feedback", () => {
       button: 0,
       ctrlKey: false,
     });
+    const fileItem = await screen.findByRole("menuitem", { name: "File" });
+    fireEvent.pointerMove(fileItem, { pointerType: "mouse" });
+    await waitFor(() => expect(fileItem).toHaveAttribute("data-state", "open"));
     const exportItem = await screen.findByRole("menuitem", { name: "Export" });
     fireEvent.pointerMove(exportItem, { pointerType: "mouse" });
     await waitFor(() => expect(exportItem).toHaveAttribute("data-state", "open"));

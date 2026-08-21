@@ -38,6 +38,7 @@ import {
 type ColorPickerPanelProps = {
   value: string;
   onPick: (color: string) => void;
+  density?: 'default' | 'compact';
   defaultColor?: string;
   onReset?: () => void;
   showCustomInput?: boolean;
@@ -136,9 +137,11 @@ const normalizeHexColor = (value: string) => {
 function CanvasColorPickerAction({
   destination,
   onStarted,
+  size,
 }: {
   destination: 'foreground' | 'background';
   onStarted?: () => void;
+  size: 'xs' | 'sm';
 }) {
   const canvas = useCanvasRuntime();
   const { t } = useUiI18n();
@@ -160,7 +163,7 @@ function CanvasColorPickerAction({
             type="button"
             tone="subtle"
             shape="square"
-            size="sm"
+            size={size}
             aria-label={t('color.pickFromCanvas')}
             pressed={canvasColorPickerTarget !== null}
             className="shrink-0"
@@ -178,6 +181,7 @@ function CanvasColorPickerAction({
 export function ColorPickerPanel({
   value,
   onPick,
+  density = 'default',
   defaultColor,
   onReset,
   showCustomInput = true,
@@ -199,6 +203,7 @@ export function ColorPickerPanel({
   const normalizedValue = normalizeHexColor(value);
   const displayColor = normalizedCustomColor ?? normalizedValue ?? '#000000';
   const RestoreDefaultIcon = HOST_ICONOLOGY.colorPalette.restoreDefault;
+  const headerActionSize = density === 'compact' ? 'xs' : 'sm';
 
   useEffect(() => {
     setCustomColor(value);
@@ -262,6 +267,7 @@ export function ColorPickerPanel({
       }}
       orientation="horizontal"
       data-color-picker-panel="true"
+      data-density={density}
       className={cn('w-40 gap-2 px-1 py-1.5', className)}
     >
       <div data-testid="color-picker-header" className="flex items-center justify-between gap-0.5">
@@ -313,7 +319,7 @@ export function ColorPickerPanel({
                   type="button"
                   tone="subtle"
                   shape="square"
-                  size="sm"
+                  size={headerActionSize}
                   aria-label={`${t('color.hex')}: ${displayColor}`}
                   open={hexPopoverOpen}
                   className="shrink-0"
@@ -405,6 +411,7 @@ export function ColorPickerPanel({
               <CanvasColorPickerAction
                 destination={canvasPickDestination}
                 onStarted={onCanvasPickStarted}
+                size={headerActionSize}
               />
             ) : null}
 
@@ -417,7 +424,7 @@ export function ColorPickerPanel({
                     type="button"
                     tone="subtle"
                     shape="square"
-                    size="sm"
+                    size={headerActionSize}
                     aria-label={t('color.restoreDefault')}
                     className="shrink-0"
                     onClick={() => {

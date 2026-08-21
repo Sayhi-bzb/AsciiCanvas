@@ -34,6 +34,42 @@ describe('CharScene', () => {
     expect(scene.compose().canvas[0]![0]).toBe('─')
   })
 
+  it('merges mixed-priority topology when the route attaches to the node', () => {
+    const scene = new CharScene(1, 1, false)
+    scene.write(0, 0, '┆', 'line', {
+      owner: 'edge',
+      connections: ['node'],
+    })
+    scene.write(0, 0, '─', 'border', { owner: 'node' })
+
+    expect(scene.compose().canvas[0]![0]).toBe('┼')
+  })
+
+  it('uses an ASCII junction for a connected mixed-priority attachment', () => {
+    const scene = new CharScene(1, 1, true)
+    scene.write(0, 0, ':', 'line', {
+      owner: 'edge',
+      connections: ['node'],
+    })
+    scene.write(0, 0, '-', 'border', { owner: 'node' })
+
+    expect(scene.compose().canvas[0]![0]).toBe('+')
+  })
+
+  it('merges routes that share a semantic endpoint', () => {
+    const scene = new CharScene(1, 1, false)
+    scene.write(0, 0, '┆', 'line', {
+      owner: 'dependency',
+      connections: ['source', 'dependency-target'],
+    })
+    scene.write(0, 0, '─', 'border', {
+      owner: 'association',
+      connections: ['source', 'association-target'],
+    })
+
+    expect(scene.compose().canvas[0]![0]).toBe('┼')
+  })
+
   it('rasterizes typed boxes, strokes, markers, and reserved labels', () => {
     const scene = new CharScene(8, 4, false)
     scene.add({ kind: 'box', owner: 'node', x: 0, y: 0, width: 4, height: 3 })
@@ -46,6 +82,57 @@ describe('CharScene', () => {
     expect(output[6]![1]).toBe('┐')
     expect(output[6]![3]).toBe('v')
     expect(output[5]![0]).toBe(' ')
+  })
+
+  it('rounds two-direction stroke bends without rounding junctions', () => {
+    const cornerCases = [
+      { points: [{ x: 1, y: 0 }, { x: 0, y: 0 }, { x: 0, y: 1 }], at: { x: 0, y: 0 }, char: '╭' },
+      { points: [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }], at: { x: 1, y: 0 }, char: '╮' },
+      { points: [{ x: 1, y: 1 }, { x: 0, y: 1 }, { x: 0, y: 0 }], at: { x: 0, y: 1 }, char: '╰' },
+      { points: [{ x: 0, y: 1 }, { x: 1, y: 1 }, { x: 1, y: 0 }], at: { x: 1, y: 1 }, char: '╯' },
+    ]
+
+    for (const [index, corner] of cornerCases.entries()) {
+      const scene = new CharScene(2, 2, false)
+      scene.add({ kind: 'stroke', owner: `corner:${index}`, points: corner.points, rounded: true })
+      expect(scene.compose().canvas[corner.at.x]![corner.at.y]).toBe(corner.char)
+    }
+
+    const junction = new CharScene(3, 2, false)
+    junction.add({ kind: 'stroke', owner: 'horizontal', points: [{ x: 0, y: 0 }, { x: 2, y: 0 }], rounded: true })
+    junction.add({ kind: 'stroke', owner: 'vertical', points: [{ x: 1, y: 0 }, { x: 1, y: 1 }], rounded: true })
+    expect(junction.compose().canvas[1]![0]).toBe('┬')
+  })
+
+  it.each([
+    ['solid', '─', '│'],
+    ['dotted', '┄', '┆'],
+    ['thick', '━', '┃'],
+  ] as const)('keeps %s stroke segments around a light rounded bend', (style, horizontal, vertical) => {
+    const scene = new CharScene(3, 3, false)
+    scene.add({
+      kind: 'stroke',
+      owner: style,
+      points: [{ x: 0, y: 0 }, { x: 2, y: 0 }, { x: 2, y: 2 }],
+      style,
+      rounded: true,
+    })
+
+    const output = scene.compose().canvas
+    expect(output[1]![0]).toBe(horizontal)
+    expect(output[2]![0]).toBe('╮')
+    expect(output[2]![1]).toBe(vertical)
+  })
+
+  it('falls rounded strokes back to ASCII corners', () => {
+    const scene = new CharScene(3, 3, true)
+    scene.add({
+      kind: 'stroke',
+      owner: 'ascii',
+      points: [{ x: 0, y: 0 }, { x: 2, y: 0 }, { x: 2, y: 2 }],
+      rounded: true,
+    })
+    expect(scene.compose().canvas[2]![0]).toBe('+')
   })
 
   it('keeps square corners as an explicit opt-out', () => {

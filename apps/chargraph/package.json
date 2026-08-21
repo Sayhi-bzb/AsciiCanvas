@@ -5,6 +5,7 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite --host 127.0.0.1 --port 5185 --strictPort",
+    "test:e2e": "playwright test --config playwright.config.ts",
     "test": "vitest run --config vitest.config.ts",
     "typecheck": "tsc --noEmit"
   },
@@ -12,6 +13,7 @@
     "@chardesk/chargraph": "*",
     "@chardesk/ui": "*",
     "@chardesk/viewer": "*",
+    "motion": "^12.23.26",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },

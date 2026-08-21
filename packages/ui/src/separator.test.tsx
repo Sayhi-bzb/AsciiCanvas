@@ -24,4 +24,27 @@ describe("Separator", () => {
       "data-[orientation=vertical]:w-0.5"
     )
   })
+
+  it("uses a one-pixel square structural separator", () => {
+    const { container } = render(<Separator variant="structural" />)
+
+    expect(container.querySelector('[data-slot="separator"]')).toHaveClass(
+      "bg-separator",
+      "rounded-none",
+      "data-[orientation=horizontal]:h-px",
+      "data-[orientation=horizontal]:w-full"
+    )
+  })
+
+  it("preserves structural geometry for vertical separators", () => {
+    const { container } = render(
+      <Separator orientation="vertical" variant="structural" />
+    )
+
+    expect(container.querySelector('[data-slot="separator"]')).toHaveClass(
+      "rounded-none",
+      "data-[orientation=vertical]:h-full",
+      "data-[orientation=vertical]:w-px"
+    )
+  })
 })

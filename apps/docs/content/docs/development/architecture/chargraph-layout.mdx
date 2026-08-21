@@ -9,27 +9,43 @@ CharGraph routes diagrams by coordinate model, not Mermaid diagram name:
 
 | Model | Diagrams | Layout owner |
 | --- | --- | --- |
-| Directed relationships | Flow and State; later Class and ER | ELK Layered |
+| Directed relationships | Flow, State, Class, and ER | ELK Layered |
 | Time sequence | Sequence | Participant columns and message rows |
 | Cartesian data | XY | Axis and data-coordinate projection |
 
 The directed-graph pipeline is:
 
-`Mermaid AST -> LayoutGraph -> ELK Layered -> integer cell projection -> CharScene`
+`Mermaid AST -> diagram adapter -> LayoutGraph + presentation sidecar`
+
+`LayoutGraph -> ELK Layered -> integer cell projection -> GridLayout`
+
+`GridLayout + presentation sidecar -> CharScene`
 
 `LayoutGraph` owns measured rectangular nodes, containment, labels, directed
 edges, and rank constraints. It does not own Unicode glyphs, rounded corners,
-line styles, or UML markers. ELK owns layering, ordering, crossings, ports, and
-orthogonal bends. Cell projection owns integer coordinates and rejects
-diagonal routes, node overlap, and routes through node interiors. CharScene
+line styles, or UML markers. The sidecar owns node drawing, stroke appearance,
+and endpoint decoration, keyed by stable layout IDs. ELK owns layering,
+ordering, crossings, ports, and orthogonal bends. Cell projection owns integer
+coordinates and rejects diagonal routes, node overlap, and routes through node
+interiors. CharScene
 alone owns glyph composition.
+
+The shared layered renderer owns layout invocation, validation, group-edge-node
+composition order, route labels, cropping, and serialization. Diagram adapters
+may contribute node and endpoint painters but do not repeat those steps. Flow,
+State, Class, and ER use this contract. Class enables distributed ports and
+keeps UML compartments, namespaces, cardinalities, and relationship markers in
+its presentation sidecar. ER uses the same port policy for direction-aware
+crow's-foot cardinalities; its semantic relationships remain undirected while
+their declaration order supplies stable left-to-right layout orientation.
+Sequence keeps its participant-column coordinate model.
 
 For a feasible layout, priorities are ordered rather than mixed into unstable
 weights: direction, crossings, bends, Manhattan edge length, area, then stable
 source order. Diagram-specific placement exceptions do not belong in the
 shared layout engine; add an adapter or use the correct coordinate model.
 
-Flow and State rendering is asynchronous because browser layout runs in a
-worker. Worker-less runtimes use the same ELK adapter inline. A layout or
-projection failure returns the existing Mermaid diagnostic fallback; the old
-placement algorithm is not a fallback path.
+Flow, State, Class, and ER rendering is asynchronous because browser layout
+runs in a worker. Worker-less runtimes use the same ELK adapter inline. A layout
+or projection failure returns the existing Mermaid diagnostic fallback; the
+old placement algorithm is not a fallback path.

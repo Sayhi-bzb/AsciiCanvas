@@ -68,9 +68,11 @@ describe("CanvasInspectorControl", () => {
       "w-[min(10rem,calc(100vw-2rem))]",
       "overflow-hidden"
     );
-    expect(content).toHaveClass("gap-0", "p-2.5");
+    expect(content).toHaveClass("gap-2", "p-2.5");
+    expect(content).not.toHaveClass("gap-0");
     expect(content).not.toHaveClass("px-1", "py-2");
-    expect(colorPicker).toHaveClass("w-full", "px-0");
+    expect(colorPicker).toHaveClass("w-full", "p-0");
+    expect(colorPicker).not.toHaveClass("px-1", "py-1.5");
     expect(
       screen.getByRole("toolbar", { name: "Selection text formatting" })
     ).toBeInTheDocument();
@@ -272,10 +274,9 @@ describe("CanvasInspectorControl", () => {
       "flex",
       "items-center",
       "justify-between",
-      "gap-0.5",
-      "pb-1.5"
+      "gap-0.5"
     );
-    expect(footer).not.toHaveClass("pt-1.5");
+    expect(footer).not.toHaveClass("pt-1.5", "pb-1.5");
     expect(footer).not.toHaveClass("px-1", "mx-1");
     expect(toolbar).toHaveAttribute("data-surface-kind", "embedded");
     expect(toolbar).toHaveClass(
@@ -286,12 +287,12 @@ describe("CanvasInspectorControl", () => {
       "gap-0.5",
       "p-px"
     );
-    expect(bold).toHaveAttribute("data-size", "sm");
+    expect(bold).toHaveAttribute("data-size", "xs");
     expect(bold).toHaveAttribute("aria-pressed", "mixed");
     expect(italic).toHaveAttribute("aria-pressed", "false");
     expect(strike).toHaveAttribute("aria-pressed", "mixed");
     expect(inverse).toHaveAttribute("aria-pressed", "mixed");
-    expect(toolbar.querySelectorAll('button[data-size="sm"]')).toHaveLength(5);
+    expect(toolbar.querySelectorAll('button[data-size="xs"]')).toHaveLength(5);
 
     fireEvent.click(strike);
     expect(useEditorStore.getState().grid.get("0,0")?.attrs?.strike).toBe(true);

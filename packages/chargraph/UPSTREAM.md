@@ -6,8 +6,8 @@ commit `65f4e0ab8c289e9691a9e5bc4f9eac7108cf449b`.
 
 Only the text-rendering pipeline and its parsers are retained. CharDesk wraps
 that pipeline with its Unicode cell-width protocol. SVG and DOM rendering stay
-outside this package; Flow and State placement uses `elkjs` behind CharDesk's
-layout-neutral graph contract and integer-cell projection.
+outside this package; Flow, State, Class, and ER placement uses `elkjs` behind
+CharDesk's layout-neutral graph contract and integer-cell projection.
 
 Vendored files are excluded from repository lint and TypeScript diagnostics.
 The typed package boundary and renderer fixtures own verification of local
@@ -23,3 +23,8 @@ the browser build does not inherit Chalk, TTY detection, `node:process`, or
 terminal-specific highlighting. Styling is emitted through the CharDesk text
 protocol, code highlighting stays with Shiki, and cell measurement uses the
 protocol's Unicode width implementation. See `LICENSE.marked-terminal`.
+
+Math rendering uses [`Temml`](https://github.com/ronkok/Temml) as the TeX to
+MathML parser and [`saxes`](https://github.com/lddubeau/saxes) for browser-safe
+XML parsing. CharDesk owns only the MathML to character-cell adapter; it does
+not parse TeX syntax or depend on Temml's private parse tree.

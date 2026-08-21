@@ -54,39 +54,3 @@ export interface ErRelationship {
   /** Whether the relationship is identifying (solid line) or non-identifying (dashed) */
   identifying: boolean
 }
-
-// ============================================================================
-// Positioned ER diagram — ready for SVG rendering
-// ============================================================================
-
-export interface PositionedErDiagram {
-  width: number
-  height: number
-  entities: PositionedErEntity[]
-  relationships: PositionedErRelationship[]
-}
-
-export interface PositionedErEntity {
-  id: string
-  label: string
-  attributes: ErAttribute[]
-  x: number
-  y: number
-  width: number
-  height: number
-  /** Height of the header row */
-  headerHeight: number
-  /** Height per attribute row */
-  rowHeight: number
-}
-
-export interface PositionedErRelationship {
-  entity1: string
-  entity2: string
-  cardinality1: Cardinality
-  cardinality2: Cardinality
-  label: string
-  identifying: boolean
-  /** Path points from entity1 to entity2 */
-  points: Array<{ x: number; y: number }>
-}

@@ -13,6 +13,8 @@ function blankRoleCanvas(maxX: number, maxY: number): RoleCanvas {
 
 export interface SceneWriteOptions {
   owner?: string
+  /** Semantic owners that this topology is allowed to connect to. */
+  connections?: readonly string[]
   /** Text spaces reserve cells instead of being discarded. */
   reserve?: boolean
 }
@@ -34,6 +36,9 @@ export interface StrokePrimitive {
   owner: string
   points: ScenePoint[]
   role?: 'line' | 'border'
+  style?: 'solid' | 'dotted' | 'thick'
+  rounded?: boolean
+  connections?: readonly string[]
 }
 
 export interface MarkerPrimitive {
@@ -71,6 +76,7 @@ interface Contribution {
   char: string
   role: CharRole
   owner: string
+  connections: readonly string[]
   order: number
 }
 
@@ -86,8 +92,12 @@ const rolePriority: Record<CharRole, number> = {
 function topologyFor(char: string): { mask: number; rounded: boolean } | null {
   const unicode = getBoxGlyphTopology(char)
   if (unicode) return unicode
-  if (char === '-') return { mask: BoxConnection.left | BoxConnection.right, rounded: false }
-  if (char === '|') return { mask: BoxConnection.up | BoxConnection.down, rounded: false }
+  if (['-', '.', '=', '┄', '━'].includes(char)) {
+    return { mask: BoxConnection.left | BoxConnection.right, rounded: false }
+  }
+  if (['|', ':', '‖', '┆', '┃'].includes(char)) {
+    return { mask: BoxConnection.up | BoxConnection.down, rounded: false }
+  }
   if (char === '+') {
     return {
       mask: BoxConnection.up | BoxConnection.right | BoxConnection.down | BoxConnection.left,
@@ -96,6 +106,37 @@ function topologyFor(char: string): { mask: number; rounded: boolean } | null {
   }
   return null
 }
+
+function glyphForStroke(
+  mask: number,
+  style: NonNullable<StrokePrimitive['style']>,
+  useAscii: boolean,
+  rounded: boolean,
+): string {
+  const vertical = BoxConnection.up | BoxConnection.down
+  const horizontal = BoxConnection.left | BoxConnection.right
+  const hasVertical = (mask & vertical) !== 0
+  const hasHorizontal = (mask & horizontal) !== 0
+
+  if (rounded && hasVertical && hasHorizontal) {
+    return glyphForBoxConnections(mask, { useAscii, rounded: true })
+  }
+  if (style === 'dotted') {
+    if (hasVertical && !hasHorizontal) return useAscii ? ':' : '┆'
+    if (hasHorizontal && !hasVertical) return useAscii ? '.' : '┄'
+  }
+  if (style === 'thick') {
+    if (hasVertical && !hasHorizontal) return useAscii ? '‖' : '┃'
+    if (hasHorizontal && !hasVertical) return useAscii ? '=' : '━'
+  }
+  return glyphForBoxConnections(mask, { useAscii })
+}
+
+const sharesConnection = (left: Contribution, right: Contribution) =>
+  left.owner === right.owner ||
+  left.connections.includes(right.owner) ||
+  right.connections.includes(left.owner) ||
+  left.connections.some(connection => right.connections.includes(connection))
 
 /** Collect semantic contributors before rasterizing them to a character grid. */
 export class CharScene {
@@ -125,7 +166,13 @@ export class CharScene {
     this.resize(x + 1, y + 1)
     const key = `${x},${y}`
     const values = this.cells.get(key) ?? []
-    values.push({ char, role, owner: options.owner ?? 'anonymous', order: this.order++ })
+    values.push({
+      char,
+      role,
+      owner: options.owner ?? 'anonymous',
+      connections: options.connections ?? [],
+      order: this.order++,
+    })
     this.cells.set(key, values)
   }
 
@@ -200,7 +247,18 @@ export class CharScene {
     }
     for (const [key, mask] of masks) {
       const [x, y] = key.split(',').map(Number)
-      this.write(x, y, glyphForBoxConnections(mask, { useAscii: this.useAscii }), primitive.role ?? 'line', { owner: primitive.owner })
+      this.write(
+        x,
+        y,
+        glyphForStroke(
+          mask,
+          primitive.style ?? 'solid',
+          this.useAscii,
+          primitive.rounded ?? false,
+        ),
+        primitive.role ?? 'line',
+        { owner: primitive.owner, connections: primitive.connections },
+      )
     }
   }
 
@@ -213,7 +271,11 @@ export class CharScene {
       const [x, y] = key.split(',').map(Number)
       const highestPriority = Math.max(...values.map(value => rolePriority[value.role]))
       const winners = values.filter(value => rolePriority[value.role] === highestPriority)
-      const topology = winners.map(value =>
+      const connected = values.filter(value =>
+        rolePriority[value.role] === highestPriority ||
+        winners.some(winner => sharesConnection(value, winner)),
+      )
+      const topology = connected.map(value =>
         value.role === 'text' || value.role === 'arrow' ? null : topologyFor(value.char),
       )
       const allTopology = topology.every(Boolean)
@@ -221,10 +283,9 @@ export class CharScene {
       let char = winner.char
       let resolved = winners.length === 1
 
-      if (allTopology) {
+      if (allTopology && connected.length > 1) {
         const mask = topology.reduce((value, item) => value | item!.mask, 0)
-        const rounded = winners.length === 1 && Boolean(topology[0]!.rounded)
-        char = glyphForBoxConnections(mask, { useAscii: this.useAscii, rounded })
+        char = glyphForBoxConnections(mask, { useAscii: this.useAscii })
         resolved = true
       } else if (winners.every(value => value.char === winner.char)) {
         resolved = true

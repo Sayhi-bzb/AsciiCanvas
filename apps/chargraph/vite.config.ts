@@ -13,6 +13,10 @@ export default defineConfig({
   resolve: {
     alias: [
       {
+        find: /^@\//,
+        replacement: `${path.join(appDirectory, "src")}/`,
+      },
+      {
         find: /^@chardesk\/ui\/theme\.css$/,
         replacement: path.join(repositoryRoot, "packages/ui/theme.css"),
       },
