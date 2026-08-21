@@ -88,6 +88,10 @@ export default defineConfig({
         replacement: path.resolve(import.meta.dirname, "./packages/ui/src/index.ts"),
       },
       {
+        find: /^@chardesk\/fonts\/fonts\.css$/,
+        replacement: path.resolve(import.meta.dirname, "./packages/fonts/fonts.css"),
+      },
+      {
         find: /^@chardesk\/fonts$/,
         replacement: path.resolve(import.meta.dirname, "./packages/fonts/src/index.ts"),
       },
