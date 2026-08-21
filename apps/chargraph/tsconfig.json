@@ -4,15 +4,20 @@
     "paths": {
       "@chardesk/chargraph": ["packages/chargraph/src/index.ts"],
       "@chardesk/chargraph/mermaid": ["packages/chargraph/src/mermaid.ts"],
-      "@chardesk/protocol": ["packages/protocol/src/index.ts"]
+      "@chardesk/fonts": ["packages/fonts/src/index.ts"],
+      "@chardesk/protocol": ["packages/protocol/src/index.ts"],
+      "@chardesk/ui": ["packages/ui/src/index.ts"],
+      "@chardesk/ui/styles": ["packages/ui/src/styles.ts"],
+      "@chardesk/viewer": ["packages/viewer/src/index.ts"]
     },
     "target": "ES2022",
     "useDefineForClassFields": true,
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "moduleResolution": "bundler",
+    "jsx": "react-jsx",
     "allowImportingTsExtensions": true,
-    "types": ["node", "vite/client"],
+    "types": ["node", "vite/client", "react", "react-dom"],
     "noEmit": true,
     "strict": true,
     "noUncheckedIndexedAccess": true,

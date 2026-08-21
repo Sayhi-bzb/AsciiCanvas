@@ -78,4 +78,11 @@ describe('focus ring placement', () => {
     expect(rx.statusText({ tone: 'error' })).toBe('text-error');
     expect(rx.statusDot({ tone: 'success' })).toContain('bg-success');
   });
+
+  it('keeps static menu separators low-contrast, two-pixel, and rounded', () => {
+    expect(rx.menuSeparator).toContain('bg-separator');
+    expect(rx.menuSeparator).toContain('h-0.5');
+    expect(rx.menuSeparator).toContain('rounded-full');
+    expect(rx.menuSeparator).not.toContain('h-px');
+  });
 });

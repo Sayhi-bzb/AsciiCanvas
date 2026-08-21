@@ -21,6 +21,14 @@ export default defineConfig({
   resolve: {
     alias: [
       {
+        find: /^@chardesk\/ui\/styles$/,
+        replacement: path.resolve(import.meta.dirname, './packages/ui/src/styles.ts')
+      },
+      {
+        find: /^@chardesk\/ui$/,
+        replacement: path.resolve(import.meta.dirname, './packages/ui/src/index.ts')
+      },
+      {
         find: /^@chardesk\/fonts$/,
         replacement: path.resolve(import.meta.dirname, './packages/fonts/src/index.ts')
       },

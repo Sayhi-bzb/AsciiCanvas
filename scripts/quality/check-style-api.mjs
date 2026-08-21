@@ -4,6 +4,7 @@ import ts from "typescript";
 
 const ROOT = process.cwd();
 const SRC_DIR = join(ROOT, "src");
+const CHARGRAPH_SRC_DIR = join(ROOT, "apps", "chargraph", "src");
 const TARGET_EXTENSIONS = new Set([".ts", ".tsx"]);
 
 const checks = [
@@ -326,7 +327,7 @@ const isAllowedPath = (filePath, allowList) => {
 };
 
 const violations = [];
-const files = walk(SRC_DIR);
+const files = [...walk(SRC_DIR), ...walk(CHARGRAPH_SRC_DIR)];
 
 for (const filePath of files) {
   const content = readFileSync(filePath, "utf8");
@@ -361,6 +362,20 @@ for (const filePath of files) {
   }
 
   checkWidgetBehaviorOwnership(content, relFile);
+}
+
+const chargraphStylesheetPath = join(CHARGRAPH_SRC_DIR, "index.css");
+const chargraphStylesheet = readFileSync(chargraphStylesheetPath, "utf8")
+  .replace(/@import\s+[^;]+;/g, "")
+  .replace(/@source\s+[^;]+;/g, "")
+  .trim();
+
+if (chargraphStylesheet.length > 0) {
+  violations.push({
+    check: "CharGraph must consume @chardesk/ui without local visual CSS",
+    file: relative(ROOT, chargraphStylesheetPath).replace(/\\/g, "/"),
+    line: 1,
+  });
 }
 
 if (violations.length > 0) {

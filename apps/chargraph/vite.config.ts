@@ -1,5 +1,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import tailwindcss from "@tailwindcss/vite";
+import react from "@vitejs/plugin-react-swc";
 import { defineConfig } from "vite";
 
 const appDirectory = path.dirname(fileURLToPath(import.meta.url));
@@ -7,8 +9,29 @@ const repositoryRoot = path.resolve(appDirectory, "../..");
 
 export default defineConfig({
   base: "/chargraph/",
+  plugins: [react(), tailwindcss()],
   resolve: {
     alias: [
+      {
+        find: /^@chardesk\/ui\/theme\.css$/,
+        replacement: path.join(repositoryRoot, "packages/ui/theme.css"),
+      },
+      {
+        find: /^@chardesk\/ui\/styles$/,
+        replacement: path.join(repositoryRoot, "packages/ui/src/styles.ts"),
+      },
+      {
+        find: /^@chardesk\/ui$/,
+        replacement: path.join(repositoryRoot, "packages/ui/src/index.ts"),
+      },
+      {
+        find: /^@chardesk\/viewer$/,
+        replacement: path.join(repositoryRoot, "packages/viewer/src/index.ts"),
+      },
+      {
+        find: /^@chardesk\/fonts$/,
+        replacement: path.join(repositoryRoot, "packages/fonts/src/index.ts"),
+      },
       {
         find: /^@chardesk\/chargraph\/mermaid$/,
         replacement: path.join(repositoryRoot, "packages/chargraph/src/mermaid.ts"),

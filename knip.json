@@ -33,6 +33,10 @@
       "entry": ["src/index.ts", "src/mermaid.ts", "src/**/*.test.ts", "vitest.config.ts"],
       "project": ["src/**/*.ts"]
     },
+    "packages/ui": {
+      "entry": ["src/index.ts", "src/styles.ts"],
+      "project": ["src/**/*.{ts,tsx}"]
+    },
     "packages/blackboard": {
       "entry": [
         "src/cli.ts",
@@ -53,8 +57,8 @@
       "project": ["app/**/*.{ts,tsx}", "*.config.ts"]
     },
     "apps/chargraph": {
-      "entry": ["src/main.ts", "src/**/*.test.ts", "vite.config.ts", "vitest.config.ts"],
-      "project": ["src/**/*.ts", "*.config.ts"]
+      "entry": ["src/main.tsx", "src/**/*.test.ts", "vite.config.ts", "vitest.config.ts"],
+      "project": ["src/**/*.{ts,tsx}", "*.config.ts"]
     }
   },
   "include": [

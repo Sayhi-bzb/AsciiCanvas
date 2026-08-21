@@ -44,7 +44,11 @@ describe("ContextMenu styling", () => {
       "shadow-overlay",
       "rounded-surface"
     );
-    expect(screen.getByRole("separator")).toHaveClass("h-px", "bg-separator");
+    expect(screen.getByRole("separator")).toHaveClass(
+      "h-0.5",
+      "rounded-full",
+      "bg-separator"
+    );
 
     const subTrigger = screen.getByText("More");
     subTrigger.focus();

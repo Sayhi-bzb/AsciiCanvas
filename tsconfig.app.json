@@ -6,7 +6,9 @@
       "@chardesk/fonts": ["./packages/fonts/src/index.ts"],
       "@chardesk/chargraph": ["./packages/chargraph/src/index.ts"],
       "@chardesk/chargraph/mermaid": ["./packages/chargraph/src/mermaid.ts"],
-      "@chardesk/protocol": ["./packages/protocol/src/index.ts"]
+      "@chardesk/protocol": ["./packages/protocol/src/index.ts"],
+      "@chardesk/ui": ["./packages/ui/src/index.ts"],
+      "@chardesk/ui/styles": ["./packages/ui/src/styles.ts"]
     },
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
     "target": "ES2022",

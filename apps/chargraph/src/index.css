@@ -1,0 +1,3 @@
+@import "@chardesk/ui/theme.css";
+
+@source "./**/*.{ts,tsx}";
