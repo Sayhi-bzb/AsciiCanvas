@@ -736,9 +736,11 @@ describe("SidebarRight structured templates", () => {
       "bg-search-surface",
       "border-0",
       "shadow-none",
-      "focus-visible:ring-1"
+      "focus-visible:ring-2",
+      "focus-visible:ring-ring/45",
+      "focus-visible:ring-inset"
     );
-    expect(search).not.toHaveClass("bg-accent/60", "focus-visible:ring-2");
+    expect(search).not.toHaveClass("bg-accent/60", "focus-visible:ring-1");
     expect(search).toHaveClass(
       "[&::-webkit-search-cancel-button]:hidden"
     );
@@ -903,9 +905,11 @@ describe("SidebarRight structured templates", () => {
       "bg-search-surface",
       "border-0",
       "shadow-none",
-      "focus-visible:ring-1"
+      "focus-visible:ring-2",
+      "focus-visible:ring-ring/45",
+      "focus-visible:ring-inset"
     );
-    expect(search).not.toHaveClass("bg-accent/60", "focus-visible:ring-2");
+    expect(search).not.toHaveClass("bg-accent/60", "focus-visible:ring-1");
     expect(screen.getByRole("button", { name: "切换侧栏" })).toBeInTheDocument();
   });
 

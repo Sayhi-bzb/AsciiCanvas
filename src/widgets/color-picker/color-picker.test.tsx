@@ -121,7 +121,9 @@ describe('ColorPickerPanel', () => {
       'bg-search-surface',
       'border-0',
       'shadow-none',
-      'focus-visible:ring-1'
+      'focus-visible:ring-2',
+      'focus-visible:ring-ring/45',
+      'focus-visible:ring-inset'
     );
     expect(hexInput).not.toHaveClass('bg-muted/40');
     expect(screen.queryByRole('button', { name: 'Use' })).not.toBeInTheDocument();

@@ -1,18 +1,17 @@
 import * as React from 'react';
 
+import { rx } from './recipes.js';
 import { cn } from './utils.js';
 
-type PressableProps = React.ComponentProps<'button'> & {
-  focusRing?: 'inset' | 'outset';
-};
+type PressableProps = React.ComponentProps<'button'>;
 
-function Pressable({ className, focusRing = 'inset', ...props }: PressableProps) {
+function Pressable({ className, ...props }: PressableProps) {
   return (
     <button
       data-slot="pressable"
       className={cn(
-        'cursor-pointer rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring',
-        focusRing === 'inset' ? 'focus-visible:ring-inset' : 'focus-visible:ring-offset-1',
+        'cursor-pointer rounded-sm',
+        rx.focusRing(),
         'aria-pressed:focus-visible:ring-0',
         className
       )}

@@ -59,6 +59,13 @@ and straight; table and data-grid row boundaries remain 1px and straight.
 Interaction may strengthen a separator transiently but does not replace its
 resting token.
 
+Keyboard focus uses one shared recipe: a 2px inset `ring` at 45% opacity with
+no offset. Controls, fields, scroll viewports, resize handles, and reorderable
+items consume that recipe; appearance variants do not redefine its geometry.
+Invalid controls may replace the ring color with `invalid-ring`. Focus,
+selection, active state, and validation remain independent semantics, and
+product code does not define local ring width, opacity, placement, or offset.
+
 Interaction state has stable vocabulary:
 
 - `active` identifies the current editor tool or navigation mode.

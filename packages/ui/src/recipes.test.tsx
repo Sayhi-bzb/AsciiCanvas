@@ -4,7 +4,7 @@ import { rx } from './recipes.js';
 import { Pressable } from './pressable.js';
 
 describe('focus ring placement', () => {
-  it('keeps compact shared recipes inside their clipping boundary', () => {
+  it('uses one low-contrast inset focus ring across shared recipes', () => {
     const compactRecipes = [
       rx.control(),
       rx.selectableItem(),
@@ -16,31 +16,19 @@ describe('focus ring placement', () => {
     ];
 
     for (const className of compactRecipes) {
-      expect(className).toContain('focus-visible:ring-inset');
+      expect(className).toContain(rx.focusRing());
+      expect(className).not.toContain('focus-visible:ring-1');
+      expect(className).not.toContain('focus-visible:ring-offset-');
     }
     expect(rx.tabsTrigger()).not.toContain('focus-visible:outline-1');
   });
 
-  it('defaults Pressable to an inset ring and requires an explicit outset ring', () => {
-    render(
-      <>
-        <Pressable>Inset</Pressable>
-        <Pressable focusRing="outset">Outset</Pressable>
-      </>
-    );
+  it('uses the shared focus ring for Pressable', () => {
+    render(<Pressable>Pressable</Pressable>);
 
-    expect(screen.getByRole('button', { name: 'Inset' })).toHaveClass(
-      'focus-visible:ring-inset'
-    );
-    expect(screen.getByRole('button', { name: 'Inset' })).not.toHaveClass(
-      'focus-visible:ring-offset-1'
-    );
-    expect(screen.getByRole('button', { name: 'Outset' })).toHaveClass(
-      'focus-visible:ring-offset-1'
-    );
-    expect(screen.getByRole('button', { name: 'Outset' })).not.toHaveClass(
-      'focus-visible:ring-inset'
-    );
+    const pressable = screen.getByRole('button', { name: 'Pressable' });
+    expect(pressable).toHaveClass(...rx.focusRing().split(' '));
+    expect(pressable.className).not.toContain('focus-visible:ring-offset-');
   });
 
   it('lets explicit interaction states replace the focus ring', () => {

@@ -16,6 +16,7 @@ import {
   useReducedMotion,
   type MotionValue,
 } from "motion/react";
+import { rx } from "./recipes.js";
 import { cn } from "./utils.js";
 
 // Interaction model adapted from Moumenlab's MIT-licensed drag-to-reorder-list.
@@ -143,7 +144,8 @@ function ReorderableRow({
       tabIndex={0}
       aria-label={label}
       className={cn(
-        "relative cursor-grab rounded-md outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+        "relative cursor-grab rounded-md",
+        rx.focusRing(),
         lifted && "z-10 cursor-grabbing",
         className
       )}

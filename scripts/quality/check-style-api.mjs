@@ -56,6 +56,13 @@ const checks = [
     allow: [],
   },
   {
+    name: "Focus ring geometry belongs to the shared recipe",
+    pattern:
+      /\bfocus-visible:ring-(?:[1-9]\d*|ring(?:\/\d+)?|primary(?:\/\d+)?|inset|offset-[^\s"']+)/g,
+    productionOnly: true,
+    allow: ["packages/ui/src/recipes.ts"],
+  },
+  {
     name: "No raw Tailwind palette colors",
     pattern:
       /\b(?:bg|text|border|ring|fill|stroke)-(?:black|white|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|slate|gray|zinc|neutral|stone)(?:-|\/|\b)/g,

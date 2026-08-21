@@ -24,13 +24,15 @@ describe("Resizable styling", () => {
       "after:w-1",
       "hover:bg-muted-foreground/25",
       "active:bg-muted-foreground/40",
-      "focus-visible:ring-ring/50"
+      "focus-visible:ring-2",
+      "focus-visible:ring-ring/45",
+      "focus-visible:ring-inset"
     )
     expect(handle).not.toHaveClass(
       "w-px",
       "rounded-full",
       "bg-border",
-      "focus-visible:ring-ring"
+      "focus-visible:ring-1"
     )
   })
 

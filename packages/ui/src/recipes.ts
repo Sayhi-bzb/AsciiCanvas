@@ -72,9 +72,14 @@ const surface = ({ kind = 'embedded', animated = false }: SurfaceOptions = {}) =
       'transition-[background-color,box-shadow] duration-[var(--motion-standard)] ease-out motion-reduce:transition-none'
   );
 const dialogHeader = 'relative flex flex-col gap-1.5 text-left';
+const focusRing =
+  'outline-none focus-visible:ring-2 focus-visible:ring-ring/45 focus-visible:ring-inset';
 
-const controlBase =
-  "inline-flex cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap font-medium transition-[color,background-color,opacity,box-shadow,transform] duration-[var(--motion-fast)] outline-none select-none motion-reduce:transition-none active:scale-[0.98] motion-reduce:active:scale-100 disabled:pointer-events-none disabled:cursor-default disabled:opacity-50 focus-visible:ring-ring/45 focus-visible:ring-2 focus-visible:ring-inset data-[active=true]:focus-visible:ring-0 data-[pressed=true]:focus-visible:ring-0 data-[open=true]:focus-visible:ring-0 data-[state=open]:focus-visible:ring-0 data-[state=on]:focus-visible:ring-0 data-[state=open]:bg-control-open-surface data-[state=open]:text-foreground data-[state=open]:hover:bg-control-open-surface data-[state=open]:hover:text-foreground data-[state=open]:focus:bg-control-open-surface data-[state=open]:focus:text-foreground data-[state=on]:bg-control-pressed-surface data-[state=on]:text-foreground data-[state=on]:hover:bg-control-pressed-surface data-[state=on]:hover:text-foreground data-[state=on]:focus:bg-control-pressed-surface data-[state=on]:focus:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4";
+const controlBase = cn(
+  'inline-flex cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap font-medium transition-[color,background-color,opacity,box-shadow,transform] duration-[var(--motion-fast)] select-none motion-reduce:transition-none active:scale-[0.98] motion-reduce:active:scale-100 disabled:pointer-events-none disabled:cursor-default disabled:opacity-50',
+  focusRing,
+  "data-[active=true]:focus-visible:ring-0 data-[pressed=true]:focus-visible:ring-0 data-[open=true]:focus-visible:ring-0 data-[state=open]:focus-visible:ring-0 data-[state=on]:focus-visible:ring-0 data-[state=open]:bg-control-open-surface data-[state=open]:text-foreground data-[state=open]:hover:bg-control-open-surface data-[state=open]:hover:text-foreground data-[state=open]:focus:bg-control-open-surface data-[state=open]:focus:text-foreground data-[state=on]:bg-control-pressed-surface data-[state=on]:text-foreground data-[state=on]:hover:bg-control-pressed-surface data-[state=on]:hover:text-foreground data-[state=on]:focus:bg-control-pressed-surface data-[state=on]:focus:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
+);
 
 const controlTone: Record<Tone, string> = {
   primary: 'bg-primary text-primary-foreground hover:bg-primary/90',
@@ -142,6 +147,7 @@ const controlShape: Record<Shape, string> = {
 };
 
 export const rx = {
+  focusRing: () => focusRing,
   dialogOverlay: cn(
     'fixed inset-0 z-(--layer-modal-backdrop) bg-dialog-overlay',
     'data-[state=open]:animate-in data-[state=closed]:animate-out',
@@ -256,8 +262,9 @@ export const rx = {
     muted = false,
   }: SelectableItemOptions = {}) =>
     cn(
-      'inline-flex min-w-0 cursor-pointer items-center rounded-item bg-transparent outline-none transition-colors duration-[var(--motion-fast)] motion-reduce:transition-none',
-      'hover:bg-accent hover:text-accent-foreground focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:ring-inset',
+      'inline-flex min-w-0 cursor-pointer items-center rounded-item bg-transparent transition-colors duration-[var(--motion-fast)] motion-reduce:transition-none',
+      focusRing,
+      'hover:bg-accent hover:text-accent-foreground',
       'data-[selected=true]:focus-visible:ring-0',
       'disabled:pointer-events-none disabled:cursor-default disabled:opacity-50',
       'min-h-7 gap-1.5 px-2 text-xs leading-4',
@@ -275,8 +282,8 @@ export const rx = {
 
   swatchButton: ({ selected = false }: SwatchButtonOptions = {}) =>
     cn(
-      'inline-flex size-6 cursor-pointer items-center justify-center rounded-full bg-transparent outline-none',
-      'focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:ring-inset',
+      'inline-flex size-6 cursor-pointer items-center justify-center rounded-full bg-transparent',
+      focusRing,
       'disabled:pointer-events-none disabled:cursor-default disabled:opacity-50',
       selected && 'ring-2 ring-primary'
     ),
@@ -293,7 +300,8 @@ export const rx = {
   tabsTrigger: ({ size = 'default', active = false }: TabTriggerOptions = {}) =>
     cn(
       'relative inline-flex h-[calc(100%-1px)] flex-1 cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap rounded-control border border-transparent px-2 py-1 text-[13px] font-medium text-muted-foreground transition-[color,background-color,box-shadow] duration-[var(--motion-fast)] motion-reduce:transition-none',
-      'hover:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:ring-inset',
+      focusRing,
+      'hover:text-foreground focus-visible:border-ring',
       'data-[state=active]:focus-visible:ring-0',
       'disabled:pointer-events-none disabled:cursor-default disabled:opacity-50 group-data-[orientation=vertical]/tabs:w-full group-data-[orientation=vertical]/tabs:justify-start',
       'data-[state=active]:border-tab-active-border data-[state=active]:bg-control-active-surface data-[state=active]:text-foreground data-[state=active]:hover:bg-control-active-surface data-[state=active]:hover:text-foreground data-[state=active]:focus:bg-control-active-surface data-[state=active]:focus:text-foreground',
@@ -307,15 +315,16 @@ export const rx = {
 
   field: ({ density = 'default', invalid = false, appearance = 'default' }: FieldOptions = {}) =>
     cn(
-      'w-full min-w-0 rounded-control transition-colors duration-[var(--motion-fast)] outline-none motion-reduce:transition-none focus-visible:ring-inset',
+      'w-full min-w-0 rounded-control transition-colors duration-[var(--motion-fast)] motion-reduce:transition-none',
+      focusRing,
       density === 'default' && 'h-8 px-2.5 py-1.5 text-[13px]',
       density === 'compact' && 'h-7 px-2 py-1 text-[11px]',
       appearance === 'default' &&
-        'border border-input bg-field-surface shadow-xs focus-visible:ring-ring/50 focus-visible:ring-2',
+        'border border-input bg-field-surface shadow-xs',
       appearance === 'quiet' &&
-        'border-0 bg-transparent shadow-none focus-visible:ring-1 focus-visible:ring-ring',
+        'border-0 bg-transparent shadow-none',
       appearance === 'search' &&
-        'border-0 bg-search-surface shadow-none focus-visible:ring-1 focus-visible:ring-ring',
+        'border-0 bg-search-surface shadow-none',
       invalid && 'border-error aria-invalid:border-error'
     ),
 

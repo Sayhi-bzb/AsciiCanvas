@@ -124,8 +124,12 @@ describe("ReorderableList", () => {
     expect(onOpen).toHaveBeenCalledWith("one");
     expect(onMove).not.toHaveBeenCalled();
     expect(card).toHaveAccessibleName("One 1/3");
-    expect(card).toHaveClass("focus-visible:ring-offset-2");
-    expect(card).not.toHaveClass("focus-visible:ring-inset");
+    expect(card).toHaveClass(
+      "focus-visible:ring-2",
+      "focus-visible:ring-ring/45",
+      "focus-visible:ring-inset"
+    );
+    expect(card.className).not.toContain("focus-visible:ring-offset-");
     expect(screen.getAllByText(/^Open /).map((item) => item.textContent)).toEqual([
       "Open One",
       "Open Two",
