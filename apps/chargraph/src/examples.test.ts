@@ -12,14 +12,19 @@ const KINDS: readonly CharGraphExampleKind[] = [
   "class",
   "er",
   "xychart",
+  "markdown-basics",
+  "markdown-structure",
+  "markdown-code",
+  "markdown-alert",
+  "markdown-math",
 ];
 
 describe("CharGraph showcase examples", () => {
-  it("contains six basic and six advanced examples with unique IDs", () => {
-    expect(CHARGRAPH_EXAMPLES).toHaveLength(12);
-    expect(new Set(CHARGRAPH_EXAMPLES.map((example) => example.id))).toHaveLength(12);
-    expect(CHARGRAPH_EXAMPLES.filter((example) => example.level === "basic")).toHaveLength(6);
-    expect(CHARGRAPH_EXAMPLES.filter((example) => example.level === "advanced")).toHaveLength(6);
+  it("contains eleven basic and advanced example pairs with unique IDs", () => {
+    expect(CHARGRAPH_EXAMPLES).toHaveLength(22);
+    expect(new Set(CHARGRAPH_EXAMPLES.map((example) => example.id))).toHaveLength(22);
+    expect(CHARGRAPH_EXAMPLES.filter((example) => example.level === "basic")).toHaveLength(11);
+    expect(CHARGRAPH_EXAMPLES.filter((example) => example.level === "advanced")).toHaveLength(11);
   });
 
   it.each(KINDS)("contains a basic and advanced %s example", (kind) => {
@@ -30,14 +35,22 @@ describe("CharGraph showcase examples", () => {
     expect(examples[1]?.detail).toBeTruthy();
   });
 
-  it.each(CHARGRAPH_EXAMPLES)("renders $id with the real Mermaid plugin", async (example) => {
+  it.each(CHARGRAPH_EXAMPLES)("renders $id with its real renderer", async (example) => {
     const output = await renderExample(example);
 
-    expect(output.trim()).not.toBe("");
-    expect(output.trim()).not.toBe(example.source.trim());
-    expect(output).toContain(example.expectedText);
-    expect(output).not.toMatch(/[\uE000-\uF8FF]/u);
-    expect(output).not.toContain("\r");
-    expect(output).not.toContain("\uFFFD");
+    expect(output.text.trim()).not.toBe("");
+    expect(output.text.trim()).not.toBe(example.source.trim());
+    expect(output.text).toContain(example.expectedText);
+    expect(output.text).not.toMatch(/[\uE000-\uF8FF]/u);
+    expect(output.text).not.toContain("\r");
+    expect(output.text).not.toContain("\u001b");
+    expect(output.text).not.toContain("\uFFFD");
+
+    if (example.renderer === "markdown") {
+      expect(output.syntax).toBe("ansi");
+      expect(output.source).toContain("\u001b[");
+    } else {
+      expect(output).toMatchObject({ syntax: "plain", source: output.text });
+    }
   });
 });

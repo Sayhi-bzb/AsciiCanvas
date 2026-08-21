@@ -34,15 +34,48 @@ describe('CharScene', () => {
     expect(scene.compose().canvas[0]![0]).toBe('─')
   })
 
-  it('merges mixed-priority topology when the route attaches to the node', () => {
-    const scene = new CharScene(1, 1, false)
-    scene.write(0, 0, '┆', 'line', {
+  it.each([
+    ['dotted', [{ x: 2, y: 0 }, { x: 2, y: 1 }], { x: 2, y: 1 }, '┴'],
+    ['dotted', [{ x: 2, y: 3 }, { x: 2, y: 4 }], { x: 2, y: 3 }, '┬'],
+    ['dotted', [{ x: 0, y: 2 }, { x: 1, y: 2 }], { x: 1, y: 2 }, '┤'],
+    ['dotted', [{ x: 3, y: 2 }, { x: 4, y: 2 }], { x: 3, y: 2 }, '├'],
+    ['thick', [{ x: 2, y: 0 }, { x: 2, y: 1 }], { x: 2, y: 1 }, '┴'],
+    ['thick', [{ x: 2, y: 3 }, { x: 2, y: 4 }], { x: 2, y: 3 }, '┬'],
+    ['thick', [{ x: 0, y: 2 }, { x: 1, y: 2 }], { x: 1, y: 2 }, '┤'],
+    ['thick', [{ x: 3, y: 2 }, { x: 4, y: 2 }], { x: 3, y: 2 }, '├'],
+  ] as const)(
+    'preserves the exact %s endpoint topology at a node border',
+    (style, points, at, expected) => {
+      const scene = new CharScene(5, 5, false)
+      scene.add({ kind: 'box', owner: 'node', x: 1, y: 1, width: 3, height: 3 })
+      scene.add({
+        kind: 'stroke',
+        owner: 'edge',
+        connections: ['node'],
+        points: [...points],
+        role: 'line',
+        style,
+      })
+
+      expect(scene.compose().canvas[at.x]![at.y]).toBe(expected)
+    },
+  )
+
+  it('uses a four-way junction only when the stroke passes through the border', () => {
+    const scene = new CharScene(5, 5, false)
+    scene.add({ kind: 'box', owner: 'node', x: 1, y: 1, width: 3, height: 3 })
+    scene.add({
+      kind: 'stroke',
       owner: 'edge',
       connections: ['node'],
+      points: [{ x: 2, y: 0 }, { x: 2, y: 4 }],
+      role: 'line',
+      style: 'dotted',
     })
-    scene.write(0, 0, '─', 'border', { owner: 'node' })
 
-    expect(scene.compose().canvas[0]![0]).toBe('┼')
+    const output = scene.compose().canvas
+    expect(output[2]![1]).toBe('┼')
+    expect(output[2]![3]).toBe('┼')
   })
 
   it('uses an ASCII junction for a connected mixed-priority attachment', () => {

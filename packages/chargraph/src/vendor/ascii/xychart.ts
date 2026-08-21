@@ -22,8 +22,11 @@ import { composeLegacyCanvas } from './scene.js'
 // Constants
 // ============================================================================
 
-const PLOT_WIDTH = 60
-const PLOT_HEIGHT = 20
+const MIN_PLOT_WIDTH = 36
+const MIN_PLOT_HEIGHT = 12
+const MIN_CATEGORY_BAND_WIDTH = 10
+const MIN_HORIZONTAL_BAND_HEIGHT = 3
+const MIN_BAR_WIDTH = 3
 
 // Unicode box-drawing characters
 const UNI = {
@@ -64,10 +67,42 @@ const ASC = {
 /** Per-cell hex color override canvas. Parallel to RoleCanvas. */
 type HexCanvas = (string | null)[][]
 
+interface LegendItem {
+  symbol: string
+  label: string
+  globalIdx: number
+}
+
 /** Preserve series identity in the drawing pipeline without terminal colors. */
 function getSeriesColors(total: number): string[] {
   return Array.from({ length: total }, () => '')
 }
+
+function createLegendItems(
+  chart: XYChart,
+  ch: typeof UNI | typeof ASC,
+): LegendItem[] {
+  const items: LegendItem[] = []
+  let barIdx = 0
+  let lineIdx = 0
+  for (let index = 0; index < chart.series.length; index++) {
+    const series = chart.series[index]!
+    if (series.type === 'bar') {
+      items.push({ symbol: ch.bar, label: `Bar ${++barIdx}`, globalIdx: index })
+    } else {
+      items.push({ symbol: ch.hLine, label: `Line ${++lineIdx}`, globalIdx: index })
+    }
+  }
+  return items
+}
+
+const getLegendWidth = (items: LegendItem[]) => items.reduce(
+  (width, item, index) => width + (index > 0 ? 2 : 0) + item.label.length + 2,
+  0,
+)
+
+const getBarSeriesCount = (chart: XYChart) =>
+  chart.series.filter(series => series.type === 'bar').length
 
 // ============================================================================
 // Public API
@@ -102,20 +137,41 @@ function renderVertical(
   const yTicks = niceTickValues(yRange.min, yRange.max)
   const yLabels = yTicks.map(v => formatTickValue(v))
   const yGutter = Math.max(...yLabels.map(l => l.length)) + 1
-
-  const plotW = Math.max(PLOT_WIDTH, dataCount * 6)
-  const plotH = PLOT_HEIGHT
-  const bandW = Math.floor(plotW / dataCount)
   const catLabels = getCategoryLabels(chart, dataCount)
+  const legendItems = createLegendItems(chart, ch)
+  const barCount = getBarSeriesCount(chart)
+  const plotLeft = yGutter + 1
+  const contentWidth = Math.max(
+    chart.title?.length ?? 0,
+    chart.xAxis.title?.length ?? 0,
+    getLegendWidth(legendItems),
+  )
+  const minimumPlotWidth = Math.max(
+    MIN_PLOT_WIDTH,
+    contentWidth - plotLeft + 2,
+  )
+  const minimumBarBandWidth = barCount === 0
+    ? 0
+    : barCount * MIN_BAR_WIDTH + (barCount - 1) + 2
+  const bandW = Math.max(
+    MIN_CATEGORY_BAND_WIDTH,
+    Math.max(...catLabels.map(label => label.length)) + 2,
+    minimumBarBandWidth,
+    Math.ceil(minimumPlotWidth / dataCount),
+  )
+  const plotW = bandW * dataCount
+  const plotH = Math.max(
+    MIN_PLOT_HEIGHT,
+    (yTicks.length - 1) * 2 + 1,
+  )
 
   // Canvas dimensions
   const hasTitle = !!chart.title
   const hasXTitle = !!chart.xAxis.title
-  const hasLegend = chart.series.length > 1
+  const hasLegend = legendItems.length > 1
   const titleRow = hasTitle ? 0 : -1
   const plotTop = (hasTitle ? 2 : 0) + (hasLegend ? 1 : 0)
-  const plotLeft = yGutter + 1 // +1 for axis character
-  const totalW = plotLeft + bandW * dataCount + 2
+  const totalW = plotLeft + plotW + 2
   const xAxisRow = plotTop + plotH
   const xLabelRow = xAxisRow + 1
   const xTitleRow = hasXTitle ? xLabelRow + 1 : -1
@@ -144,7 +200,7 @@ function renderVertical(
   // 2. Legend
   if (hasLegend) {
     const legendRow = hasTitle ? 1 : 0
-    drawLegend(canvas, roles, hexColors, chart, legendRow, totalW, ch, seriesColors)
+    drawLegend(canvas, roles, hexColors, legendItems, legendRow, totalW, seriesColors)
   }
 
   // 3. Y-axis line + ticks + labels
@@ -260,19 +316,34 @@ function renderHorizontal(
 
   const yRange = chart.yAxis.range!
   const valueTicks = niceTickValues(yRange.min, yRange.max)
+  const valueLabels = valueTicks.map(value => formatTickValue(value))
   const catLabels = getCategoryLabels(chart, dataCount)
   const catGutter = Math.max(...catLabels.map(l => l.length)) + 1
-
-  const plotW = Math.max(PLOT_WIDTH, 40)
-  const bandH = Math.max(2, Math.floor(PLOT_HEIGHT / dataCount))
+  const legendItems = createLegendItems(chart, ch)
+  const barCount = getBarSeriesCount(chart)
+  const plotLeft = catGutter + 1
+  const maximumTickWidth = Math.max(...valueLabels.map(label => label.length))
+  const tickPlotWidth = valueTicks.length <= 1
+    ? maximumTickWidth
+    : (valueTicks.length - 1) * (maximumTickWidth + 2) + 1
+  const contentWidth = Math.max(
+    chart.title?.length ?? 0,
+    chart.yAxis.title?.length ?? 0,
+    getLegendWidth(legendItems),
+  )
+  const plotW = Math.max(
+    MIN_PLOT_WIDTH,
+    tickPlotWidth,
+    contentWidth - plotLeft + 2,
+  )
+  const bandH = Math.max(MIN_HORIZONTAL_BAND_HEIGHT, barCount * 2)
   const plotH = bandH * dataCount
 
   const hasTitle = !!chart.title
   const hasYTitle = !!chart.yAxis.title
-  const hasLegend = chart.series.length > 1
+  const hasLegend = legendItems.length > 1
   const plotTop = (hasTitle ? 2 : 0) + (hasLegend ? 1 : 0)
-  const plotLeft = catGutter + 1
-  const totalW = plotLeft + plotW + 2
+  const totalW = plotLeft + plotW + Math.max(2, Math.ceil(maximumTickWidth / 2))
   const totalH = plotTop + plotH + 2 + (hasYTitle ? 1 : 0)
   const xAxisRow = plotTop + plotH
 
@@ -298,7 +369,7 @@ function renderHorizontal(
   // Legend
   if (hasLegend) {
     const legendRow = hasTitle ? 1 : 0
-    drawLegend(canvas, roles, hexColors, chart, legendRow, totalW, ch, seriesColors)
+    drawLegend(canvas, roles, hexColors, legendItems, legendRow, totalW, seriesColors)
   }
 
   // Y-axis (category axis on left)
@@ -603,34 +674,12 @@ function drawLegend(
   canvas: Canvas,
   roles: RoleCanvas,
   hexCanvas: HexCanvas,
-  chart: XYChart,
+  items: LegendItem[],
   row: number,
   totalW: number,
-  ch: typeof UNI | typeof ASC,
   seriesColors: string[],
 ): void {
-  // Build legend items with global series indices
-  type LegendItem = { symbol: string; label: string; globalIdx: number }
-  const items: LegendItem[] = []
-  let barIdx = 0, lineIdx = 0
-  for (let si = 0; si < chart.series.length; si++) {
-    const s = chart.series[si]!
-    if (s.type === 'bar') {
-      items.push({ symbol: ch.bar, label: `Bar ${barIdx + 1}`, globalIdx: si })
-      barIdx++
-    } else {
-      items.push({ symbol: ch.hLine, label: `Line ${lineIdx + 1}`, globalIdx: si })
-      lineIdx++
-    }
-  }
-
-  // Calculate total legend width: "symbol space label  symbol space label ..."
-  let totalLen = 0
-  for (let i = 0; i < items.length; i++) {
-    if (i > 0) totalLen += 2 // gap between items
-    totalLen += 1 + 1 + items[i]!.label.length // symbol + space + label
-  }
-
+  const totalLen = getLegendWidth(items)
   const startCol = Math.max(0, Math.floor(totalW / 2 - totalLen / 2))
   let col = startCol
 

@@ -15,6 +15,8 @@ export interface SceneWriteOptions {
   owner?: string
   /** Semantic owners that this topology is allowed to connect to. */
   connections?: readonly string[]
+  /** Exact directional topology when the display glyph is ambiguous. */
+  topologyMask?: number
   /** Text spaces reserve cells instead of being discarded. */
   reserve?: boolean
 }
@@ -77,6 +79,7 @@ interface Contribution {
   role: CharRole
   owner: string
   connections: readonly string[]
+  topologyMask?: number
   order: number
 }
 
@@ -138,6 +141,12 @@ const sharesConnection = (left: Contribution, right: Contribution) =>
   right.connections.includes(left.owner) ||
   left.connections.some(connection => right.connections.includes(connection))
 
+const topologyForContribution = (value: Contribution) => {
+  if (value.role === 'text' || value.role === 'arrow') return null
+  if (value.topologyMask === undefined) return topologyFor(value.char)
+  return { mask: value.topologyMask, rounded: false }
+}
+
 /** Collect semantic contributors before rasterizing them to a character grid. */
 export class CharScene {
   private readonly cells = new Map<string, Contribution[]>()
@@ -171,6 +180,7 @@ export class CharScene {
       role,
       owner: options.owner ?? 'anonymous',
       connections: options.connections ?? [],
+      topologyMask: options.topologyMask,
       order: this.order++,
     })
     this.cells.set(key, values)
@@ -257,7 +267,11 @@ export class CharScene {
           primitive.rounded ?? false,
         ),
         primitive.role ?? 'line',
-        { owner: primitive.owner, connections: primitive.connections },
+        {
+          owner: primitive.owner,
+          connections: primitive.connections,
+          topologyMask: mask,
+        },
       )
     }
   }
@@ -275,9 +289,7 @@ export class CharScene {
         rolePriority[value.role] === highestPriority ||
         winners.some(winner => sharesConnection(value, winner)),
       )
-      const topology = connected.map(value =>
-        value.role === 'text' || value.role === 'arrow' ? null : topologyFor(value.char),
-      )
+      const topology = connected.map(topologyForContribution)
       const allTopology = topology.every(Boolean)
       const winner = winners[winners.length - 1]!
       let char = winner.char

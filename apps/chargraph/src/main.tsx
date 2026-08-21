@@ -23,6 +23,7 @@ import {
   CHARGRAPH_EXAMPLES,
   type CharGraphExampleKind,
   type CharGraphExampleLevel,
+  type CharGraphExampleRenderer,
   renderExample,
 } from "./examples";
 
@@ -40,9 +41,11 @@ interface RenderedExample {
   readonly id: string;
   readonly kind: CharGraphExampleKind;
   readonly level: CharGraphExampleLevel;
+  readonly renderer: CharGraphExampleRenderer;
   readonly detail?: string;
   readonly source: string;
   readonly output: string;
+  readonly outputSyntax: "ansi" | "plain";
 }
 
 const EXAMPLE_CATEGORIES: readonly {
@@ -55,6 +58,11 @@ const EXAMPLE_CATEGORIES: readonly {
   { kind: "class", label: "类图" },
   { kind: "er", label: "实体关系图" },
   { kind: "xychart", label: "XY 图表" },
+  { kind: "markdown-basics", label: "Markdown 基础排版" },
+  { kind: "markdown-structure", label: "列表与表格" },
+  { kind: "markdown-code", label: "代码与 Diff" },
+  { kind: "markdown-alert", label: "GitHub Alert" },
+  { kind: "markdown-math", label: "数学表达" },
 ];
 
 const DEFAULT_CATEGORY: CharGraphExampleKind = "flowchart";
@@ -87,7 +95,11 @@ const loadExample = (
   if (cached) return cached;
 
   const pending = renderExample(example)
-    .then((output) => ({ ...example, output }))
+    .then((output) => ({
+      ...example,
+      output: output.source,
+      outputSyntax: output.syntax,
+    }))
     .catch((error: unknown) => {
       renderedExampleCache.delete(example.id);
       throw error;
@@ -96,7 +108,15 @@ const loadExample = (
   return pending;
 };
 
-function UnicodeViewer({ source, label }: { source: string; label: string }) {
+function UnicodeViewer({
+  source,
+  syntax,
+  label,
+}: {
+  source: string;
+  syntax: "ansi" | "plain";
+  label: string;
+}) {
   const viewerRef = useRef<CharDeskViewerElement>(null);
 
   useEffect(() => {
@@ -104,10 +124,10 @@ function UnicodeViewer({ source, label }: { source: string; label: string }) {
     if (!viewer) return;
 
     viewer.source = source;
-    viewer.syntax = "plain";
+    viewer.syntax = syntax;
     viewer.controls = false;
     viewer.interaction = "text";
-  }, [source]);
+  }, [source, syntax]);
 
   return (
     <chardesk-viewer
@@ -117,7 +137,7 @@ function UnicodeViewer({ source, label }: { source: string; label: string }) {
       controls="false"
       fit="width"
       interaction="text"
-      syntax="plain"
+      syntax={syntax}
     />
   );
 }
@@ -127,7 +147,7 @@ function PageDivider() {
     <div
       data-slot="stripe-divider"
       data-bleed="true"
-      className="chargraph-stripe-divider mx-auto h-8 max-w-6xl border-x border-separator"
+      className="chargraph-stripe-divider mx-auto h-8 w-full max-w-6xl shrink-0 border-x border-separator"
       aria-hidden="true"
     />
   );
@@ -175,7 +195,7 @@ function Example({
         </>
       ) : null}
       <div data-slot="example-grid" className="grid min-w-0 lg:grid-cols-2">
-        <ExamplePanel label="Mermaid">
+        <ExamplePanel label={example.renderer === "markdown" ? "Markdown" : "Mermaid"}>
           <pre className="h-72 overflow-auto p-4 font-mono text-sm leading-relaxed whitespace-pre sm:p-6">
             {example.source}
           </pre>
@@ -187,6 +207,7 @@ function Example({
           <ExamplePanel label="Unicode">
             <UnicodeViewer
               source={example.output}
+              syntax={example.outputSyntax}
               label={`${categoryLabel} ${levelLabel} Unicode 输出`}
             />
           </ExamplePanel>
@@ -280,11 +301,11 @@ function App() {
     renderedCategory.kind === activeKind ? renderedCategory.examples : [];
 
   return (
-    <div className="relative isolate min-h-dvh overflow-x-clip bg-background px-2 text-foreground">
-      <main className="min-h-dvh">
+    <div className="relative isolate flex min-h-dvh flex-col overflow-x-clip bg-background px-2 text-foreground">
+      <main className="flex flex-1 flex-col">
         <header
           data-slot="page-frame"
-          className="chargraph-screen-line-top chargraph-screen-line-bottom mx-auto flex h-14 max-w-6xl items-center gap-2 border-x border-separator px-4 sm:px-6"
+          className="chargraph-screen-line-top chargraph-screen-line-bottom mx-auto flex h-14 w-full max-w-6xl items-center gap-2 border-x border-separator px-4 sm:px-6"
         >
           <a href="/" className="text-sm font-medium">
             CharGraph
@@ -302,14 +323,14 @@ function App() {
 
         <section
           data-slot="page-frame"
-          className="chargraph-screen-line-top chargraph-screen-line-bottom mx-auto max-w-6xl border-x border-separator px-4 py-12 sm:px-6 sm:py-16"
+          className="chargraph-screen-line-top chargraph-screen-line-bottom mx-auto w-full max-w-6xl border-x border-separator px-4 py-12 sm:px-6 sm:py-16"
           aria-labelledby="page-title"
         >
           <h1 id="page-title" className="text-3xl font-medium tracking-tight sm:text-4xl">
             CharGraph
           </h1>
           <p className="mt-2 font-mono text-sm text-muted-foreground">
-            Mermaid → Unicode
+            Mermaid + Markdown → Unicode
           </p>
         </section>
         <PageDivider />
@@ -317,7 +338,7 @@ function App() {
         <section
           data-slot="page-frame"
           data-frame="content"
-          className="chargraph-screen-line-top chargraph-screen-line-bottom mx-auto max-w-6xl border-x border-separator"
+          className="chargraph-screen-line-top chargraph-screen-line-bottom mx-auto w-full max-w-6xl flex-1 border-x border-separator"
         >
           <CategoryNavigation activeKind={activeKind} />
 
@@ -328,9 +349,27 @@ function App() {
                 {index < examples.length - 1 ? <ExampleDivider /> : null}
               </div>
             ))}
+            {examples.length > 0 ? (
+              <Separator
+                variant="structural"
+                data-boundary="examples-end"
+              />
+            ) : null}
           </div>
         </section>
       </main>
+
+      <PageDivider />
+      <footer
+        data-slot="page-frame"
+        data-frame="footer"
+        className="chargraph-screen-line-top chargraph-screen-line-bottom mx-auto flex h-14 w-full max-w-6xl shrink-0 items-center gap-2 border-x border-separator px-4 text-sm text-muted-foreground sm:px-6"
+      >
+        <p>CharGraph · CharDesk</p>
+        <Button asChild tone="link" size="sm" className="ml-auto">
+          <a href="https://github.com/Sayhi-bzb/CharDesk">GitHub</a>
+        </Button>
+      </footer>
     </div>
   );
 }

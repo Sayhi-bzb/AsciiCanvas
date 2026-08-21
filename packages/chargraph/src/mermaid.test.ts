@@ -232,7 +232,9 @@ describe("renderMermaidText", () => {
     expect(output).toContain("授权");
     expect(output).not.toContain("使用└─ 授权");
     expect(output.match(/[┬┴├┤]/gu)?.length).toBeGreaterThanOrEqual(2);
-    expect(output).toContain("┼");
+    expect(output).toContain("╭────────┴──────╮");
+    expect(output).toContain("╰─────┬─────┬───╯");
+    expect(output).not.toContain("┼");
     expect(output.split("\n").length).toBeLessThanOrEqual(28);
   });
 
