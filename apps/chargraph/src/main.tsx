@@ -3,6 +3,7 @@ import "./index.css";
 
 import { StrictMode, useEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
+import { Check, Copy, X } from "lucide-react";
 import {
   type CharDeskViewerElement,
   defineCharDeskViewer,
@@ -10,6 +11,7 @@ import {
 import {
   Button,
   FloatingSurface,
+  IconButton,
   Select,
   SelectContent,
   SelectGroup,
@@ -17,6 +19,11 @@ import {
   SelectTrigger,
   SelectValue,
   Separator,
+  Tooltip,
+  TooltipPopup,
+  TooltipProvider,
+  TooltipTrigger,
+  useInPlaceFeedback,
 } from "@chardesk/ui";
 import { LineNav } from "./components/line-nav";
 import {
@@ -87,6 +94,12 @@ const CATEGORY_NAV_ITEMS = EXAMPLE_CATEGORIES.map((category) => ({
   title: category.label,
   href: categoryHref(category.kind),
 }));
+
+const EXAMPLE_LEVEL_LABELS: Record<CharGraphExampleLevel, string> = {
+  basic: "Basic",
+  intermediate: "Intermediate",
+  advanced: "Advanced",
+};
 
 const loadExample = (
   example: (typeof CHARGRAPH_EXAMPLES)[number]
@@ -163,12 +176,79 @@ function ExampleDivider() {
   );
 }
 
-function ExamplePanel({ label, children }: { label: string; children: React.ReactNode }) {
+function CopyButton({
+  label,
+  value,
+  target,
+}: {
+  label: string;
+  value: string;
+  target: "source" | "unicode";
+}) {
+  const { feedback, run } = useInPlaceFeedback<"copy">();
+  const status = feedback?.target === "copy" ? feedback.status : undefined;
+  const actionLabel =
+    status === "success"
+      ? `${label} copied`
+      : status === "error"
+        ? `Could not copy ${label}`
+        : `Copy ${label}`;
+  const FeedbackIcon = status === "success" ? Check : status === "error" ? X : Copy;
+
+  const copy = () =>
+    run("copy", () => {
+      if (!navigator.clipboard?.writeText) return false;
+      return navigator.clipboard.writeText(value).then(() => true);
+    });
+
+  return (
+    <>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <IconButton
+              type="button"
+              size="xs"
+              feedback={status}
+              aria-label={actionLabel}
+              data-copy-target={target}
+              data-copy-feedback={status}
+              className="ml-auto shrink-0"
+              onClick={() => void copy()}
+            />
+          }
+        >
+          <FeedbackIcon data-icon="inline-start" aria-hidden="true" />
+        </TooltipTrigger>
+        <TooltipPopup side="top">{actionLabel}</TooltipPopup>
+      </Tooltip>
+      <span role="status" className="sr-only">
+        {status ? actionLabel : ""}
+      </span>
+    </>
+  );
+}
+
+function ExamplePanel({
+  label,
+  copyValue,
+  copyTarget,
+  children,
+}: {
+  label: string;
+  copyValue: string;
+  copyTarget: "source" | "unicode";
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex min-w-0 flex-col">
-      <p className="px-4 py-3 font-mono text-xs text-muted-foreground sm:px-6">
-        {label}
-      </p>
+      <div
+        data-slot="example-panel-header"
+        className="flex h-10 shrink-0 items-center px-4 sm:px-6"
+      >
+        <p className="font-mono text-xs text-muted-foreground">{label}</p>
+        <CopyButton label={label} value={copyValue} target={copyTarget} />
+      </div>
       <Separator variant="structural" />
       {children}
     </div>
@@ -182,7 +262,7 @@ function Example({
   categoryLabel: string;
   example: RenderedExample;
 }) {
-  const levelLabel = example.level === "basic" ? "Basic" : "Advanced";
+  const levelLabel = EXAMPLE_LEVEL_LABELS[example.level];
 
   return (
     <article id={example.id} aria-label={`${categoryLabel} ${levelLabel}`}>
@@ -195,8 +275,15 @@ function Example({
         </>
       ) : null}
       <div data-slot="example-grid" className="grid min-w-0 lg:grid-cols-2">
-        <ExamplePanel label={example.renderer === "markdown" ? "Markdown" : "Mermaid"}>
-          <pre className="h-72 overflow-auto p-4 font-mono text-sm leading-relaxed whitespace-pre sm:p-6">
+        <ExamplePanel
+          label={example.renderer === "markdown" ? "Markdown" : "Mermaid"}
+          copyValue={example.source}
+          copyTarget="source"
+        >
+          <pre
+            data-slot="example-source"
+            className="min-h-72 overflow-auto p-4 font-mono text-sm leading-relaxed whitespace-pre sm:p-6"
+          >
             {example.source}
           </pre>
         </ExamplePanel>
@@ -204,7 +291,11 @@ function Example({
           data-slot="example-output"
           className="border-separator border-t lg:border-t-0 lg:border-l"
         >
-          <ExamplePanel label="Unicode">
+          <ExamplePanel
+            label="Unicode"
+            copyValue={example.output}
+            copyTarget="unicode"
+          >
             <UnicodeViewer
               source={example.output}
               syntax={example.outputSyntax}
@@ -379,6 +470,8 @@ if (!root) throw new Error("CharGraph app root is missing.");
 
 createRoot(root).render(
   <StrictMode>
-    <App />
+    <TooltipProvider>
+      <App />
+    </TooltipProvider>
   </StrictMode>
 );

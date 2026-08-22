@@ -53,6 +53,8 @@ describe("text render feature registry", () => {
     expect(options.styles?.["table-header"]?.bgColor).toBe("#123456");
     expect(options.extensionRules?.["github-alert"]).toBe(true);
     expect(options.extensionRules?.diff).toBe(true);
+    expect(options.extensionRules?.["json-tree"]).toBe(true);
+    expect(options.extensionRules?.["yaml-tree"]).toBe(true);
     expect(options.extensionStyles?.["alert-warning"]?.color).toBe("#ca8a04");
     expect(options.extensionStyles?.["diff-added"]).toMatchObject({
       color: "#16a34a",
@@ -62,6 +64,11 @@ describe("text render feature registry", () => {
       color: "#dc2626",
       bgColor: "#fbe5e5",
     });
+    expect(options.extensionStyles?.["json-tree-connector"]?.color).toBe("#94a3b8");
+    expect(options.extensionStyles?.["json-tree-key"]?.color).toBe("#2563eb");
+    expect(options.extensionStyles?.["yaml-tree-string"]?.color).toBe("#16a34a");
+    expect(options.extensionStyles?.["yaml-tree-number"]?.color).toBe("#0891b2");
+    expect(options.extensionStyles?.["yaml-tree-keyword"]?.color).toBe("#ca8a04");
     expect(options.forced).toBe(true);
   });
 
@@ -82,5 +89,7 @@ describe("text render feature registry", () => {
     expect(settings["markdown.block-math"]?.enabled).toBe(true);
     expect(settings["markdown.github-alert"]?.enabled).toBe(true);
     expect(settings["markdown.diff"]?.enabled).toBe(true);
+    expect(settings["markdown.json-tree"]?.enabled).toBe(true);
+    expect(settings["markdown.yaml-tree"]?.enabled).toBe(true);
   });
 });

@@ -37,7 +37,7 @@ results may be asynchronous, and clipboard commands await them before mutating C
 CharGraph owns the browser-safe Markdown core adapted from `marked-terminal`, Shiki code
 highlighting, and independent Mermaid and math renderers. Markdown syntax extensions
 may contribute `marked` tokenizers and transform tokens or fenced languages into the same fragment
-IR; the document feature registry injects Alert, Diff, Mermaid, and math through that contract, while the core has
+IR; the document feature registry injects Alert, Diff, JSON/YAML trees, Mermaid, and math through that contract, while the core has
 no syntax-specific dependency. Unsupported, invalid, or oversized Mermaid input falls back to the complete fenced
 source with a diagnostic; disabling Mermaid keeps the inner source as an ordinary code block.
 Neither renderer imports terminal capability detection or Node polyfills. Markdown consumes
@@ -52,6 +52,15 @@ as a colored left rail while preserving nested Markdown. Unified `diff` and `pat
 metadata, hunks, added, deleted, and context lines; additions and deletions receive semantic foreground
 and lightly mixed background colors. Diff does not infer a programming language, compare words, or
 apply patches.
+
+JSON and YAML tree extensions turn `json`, `jsonc`, `yaml`, and `yml` fences into the same compact
+Unicode key tree. JSON uses `jsonc-parser` offsets; strict JSON and comment-tolerant JSONC remain
+separate dialects. YAML uses `yaml` document nodes, preserves document order, anchors, aliases, and
+merge keys without resolving aliases, and rejects complex mapping keys that the compact grammar
+cannot represent. The two features have independent switches and semantic color slots. Disabling a
+tree returns the fence to Shiki; invalid, unsupported, or bounded-out input preserves the complete
+fenced source with a diagnostic. Tree conversion is limited to fenced Markdown and does not detect
+bare clipboard data.
 
 Math uses Temml's public TeX-to-MathML output and a DOM-free MathML adapter. Inline `$…$` and
 `\(…\)` become compact Unicode; block `$$…$$`, `\[…\]`, and `math`/`tex`/`latex` fences become a

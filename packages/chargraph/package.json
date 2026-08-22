@@ -37,11 +37,13 @@
   "dependencies": {
     "@chardesk/protocol": "*",
     "elkjs": "^0.11.1",
+    "jsonc-parser": "^3.3.1",
     "marked": "^16.4.1",
     "marked-alert": "^2.1.2",
     "saxes": "^6.0.0",
     "shiki": "^4.4.3",
-    "temml": "^0.13.4"
+    "temml": "^0.13.4",
+    "yaml": "^2.9.0"
   },
   "engines": {
     "node": ">=18"

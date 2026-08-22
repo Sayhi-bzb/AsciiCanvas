@@ -211,6 +211,8 @@ describe('SettingsDialog', () => {
     expect(screen.getByRole('checkbox', { name: 'Mermaid diagrams' })).toBeChecked();
     expect(screen.getByRole('checkbox', { name: 'GitHub alerts' })).toBeChecked();
     expect(screen.getByRole('checkbox', { name: 'Unified diff' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'JSON tree' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'YAML tree' })).toBeChecked();
     expect(screen.getByRole('checkbox', { name: 'Inline math' })).toBeChecked();
     expect(screen.getByRole('checkbox', { name: 'Block math' })).toBeChecked();
     expect(screen.getByRole('button', {
@@ -232,6 +234,12 @@ describe('SettingsDialog', () => {
     }).querySelector('[data-slot="color-swatch"]')).toHaveStyle({
       backgroundColor: '#dc2626',
     });
+    expect(screen.getAllByRole('button', {
+      name: 'Customize color for Tree connectors: Default (#94a3b8)',
+    })).toHaveLength(2);
+    expect(screen.getAllByRole('button', {
+      name: 'Customize color for Tree keys: Default (#2563eb)',
+    })).toHaveLength(2);
     const inlineCodeColor = screen.getByRole('button', {
       name: 'Customize color for Inline code foreground: Default (#0891b2)',
     });

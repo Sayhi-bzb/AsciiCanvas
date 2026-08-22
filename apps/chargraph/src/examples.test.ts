@@ -20,19 +20,26 @@ const KINDS: readonly CharGraphExampleKind[] = [
 ];
 
 describe("CharGraph showcase examples", () => {
-  it("contains eleven basic and advanced example pairs with unique IDs", () => {
-    expect(CHARGRAPH_EXAMPLES).toHaveLength(22);
-    expect(new Set(CHARGRAPH_EXAMPLES.map((example) => example.id))).toHaveLength(22);
+  it("contains eleven three-level example sets with unique IDs", () => {
+    expect(CHARGRAPH_EXAMPLES).toHaveLength(33);
+    expect(new Set(CHARGRAPH_EXAMPLES.map((example) => example.id))).toHaveLength(33);
     expect(CHARGRAPH_EXAMPLES.filter((example) => example.level === "basic")).toHaveLength(11);
+    expect(CHARGRAPH_EXAMPLES.filter((example) => example.level === "intermediate"))
+      .toHaveLength(11);
     expect(CHARGRAPH_EXAMPLES.filter((example) => example.level === "advanced")).toHaveLength(11);
   });
 
-  it.each(KINDS)("contains a basic and advanced %s example", (kind) => {
+  it.each(KINDS)("contains basic, intermediate, and advanced %s examples", (kind) => {
     const examples = CHARGRAPH_EXAMPLES.filter((example) => example.kind === kind);
 
-    expect(examples.map((example) => example.level)).toEqual(["basic", "advanced"]);
+    expect(examples.map((example) => example.level)).toEqual([
+      "basic",
+      "intermediate",
+      "advanced",
+    ]);
     expect(examples[0]?.detail).toBeUndefined();
     expect(examples[1]?.detail).toBeTruthy();
+    expect(examples[2]?.detail).toBeTruthy();
   });
 
   it.each(CHARGRAPH_EXAMPLES)("renders $id with its real renderer", async (example) => {

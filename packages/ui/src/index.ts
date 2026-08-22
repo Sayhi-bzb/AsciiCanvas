@@ -32,6 +32,7 @@ export * from "./table.js";
 export * from "./tabs.js";
 export * from "./tooltip.js";
 export * from "./ui-provider.js";
+export * from "./use-in-place-feedback.js";
 export { useUiMessages } from "./ui-messages.js";
 export type { UiMessages } from "./ui-messages.js";
 export { rx } from "./recipes.js";

@@ -9,7 +9,7 @@ import {
 } from "@chardesk/chargraph/markdown";
 import { mermaidRenderer } from "@chardesk/chargraph/mermaid";
 
-export type CharGraphExampleLevel = "basic" | "advanced";
+export type CharGraphExampleLevel = "basic" | "intermediate" | "advanced";
 export type CharGraphExampleRenderer = "markdown" | "mermaid";
 export type CharGraphExampleKind =
   | "flowchart"
@@ -89,6 +89,20 @@ export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
   B -->|否| D[显示错误]`,
   },
   {
+    id: "flowchart-intermediate",
+    kind: "flowchart",
+    level: "intermediate",
+    renderer: "mermaid",
+    detail: "部署流水线",
+    expectedText: "生产环境",
+    source: `flowchart LR
+  U[代码提交] --> T
+  subgraph CI[持续集成]
+    T[运行测试] --> B[构建镜像]
+  end
+  B --> P[生产环境]`,
+  },
+  {
     id: "state",
     kind: "state",
     level: "basic",
@@ -104,6 +118,23 @@ export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
   done --> [*]`,
   },
   {
+    id: "state-intermediate",
+    kind: "state",
+    level: "intermediate",
+    renderer: "mermaid",
+    detail: "内容发布",
+    expectedText: "退回修改",
+    source: `stateDiagram-v2
+  state "编辑中" as editing
+  state "待审核" as review
+  state "已发布" as published
+  [*] --> editing
+  editing --> review : 提交
+  review --> editing : 退回修改
+  review --> published : 审核通过
+  published --> [*]`,
+  },
+  {
     id: "sequence",
     kind: "sequence",
     level: "basic",
@@ -114,6 +145,22 @@ export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
   participant S as 服务
   U->>S: 提交请求
   S-->>U: 返回结果`,
+  },
+  {
+    id: "sequence-intermediate",
+    kind: "sequence",
+    level: "intermediate",
+    renderer: "mermaid",
+    detail: "后台任务重试",
+    expectedText: "重试任务",
+    source: `sequenceDiagram
+  participant Q as 任务队列
+  participant W as Worker
+  participant A as API
+  Q->>W: 分发任务
+  W->>W: 重试任务
+  W-->>A: 回传结果
+  A-->>Q: 确认完成`,
   },
   {
     id: "class",
@@ -127,6 +174,20 @@ export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
     +保存()
   }
   文档 <|-- 画布`,
+  },
+  {
+    id: "class-intermediate",
+    kind: "class",
+    level: "intermediate",
+    renderer: "mermaid",
+    detail: "内容域模型",
+    expectedText: "内容域",
+    source: `classDiagram
+  namespace 内容域 {
+    class 文档
+    class 页面
+  }
+  文档 "1" --> "0..*" 页面 : 包含`,
   },
   {
     id: "er",
@@ -146,6 +207,22 @@ export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
   }`,
   },
   {
+    id: "er-intermediate",
+    kind: "er",
+    level: "intermediate",
+    renderer: "mermaid",
+    detail: "推荐与关注",
+    expectedText: "推荐",
+    source: `erDiagram
+  用户 ||--o{ 订单 : 创建
+  用户 |o..|{ 订单 : 关注
+  用户 ||--o{ 用户 : 推荐
+  用户 {
+    string id PK
+    string email UK
+  }`,
+  },
+  {
     id: "xychart",
     kind: "xychart",
     level: "basic",
@@ -157,6 +234,20 @@ export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
   y-axis "数量" 0 --> 10
   bar [3, 7, 5]
   line [2, 5, 8]`,
+  },
+  {
+    id: "xychart-intermediate",
+    kind: "xychart",
+    level: "intermediate",
+    renderer: "mermaid",
+    detail: "多环境容量",
+    expectedText: "预发布环境",
+    source: `xychart-beta
+  title "环境容量对比"
+  x-axis [开发环境, 预发布环境, 生产环境]
+  y-axis "实例数" 0 --> 20
+  bar [3, 6, 12]
+  bar [2, 4, 8]`,
   },
   {
     id: "flowchart-advanced",
@@ -298,6 +389,22 @@ export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
 访问 [CharDesk](https://github.com/Sayhi-bzb/CharDesk)，或运行 \`renderMarkdown\`。`,
   },
   {
+    id: "markdown-basics-intermediate",
+    kind: "markdown-basics",
+    level: "intermediate",
+    renderer: "markdown",
+    detail: "版本发布说明",
+    expectedText: "v0.2",
+    source: [
+      "### v0.2 发布说明",
+      "",
+      "**新增**：支持 Markdown 与 Mermaid。  ",
+      "*修复*：CJK 表格宽度与链接复制。",
+      "",
+      "完整记录见 [CHANGELOG](https://github.com/Sayhi-bzb/CharDesk)。",
+    ].join("\n"),
+  },
+  {
     id: "markdown-basics-advanced",
     kind: "markdown-basics",
     level: "advanced",
@@ -328,6 +435,21 @@ _Markdown 可以嵌套 **强调内容**。_
 - [ ] 发布文档`,
   },
   {
+    id: "markdown-structure-intermediate",
+    kind: "markdown-structure",
+    level: "intermediate",
+    renderer: "markdown",
+    detail: "嵌套发布清单",
+    expectedText: "回归测试",
+    source: `1. 准备发布
+    - [x] 更新版本
+    - [x] 生成产物
+2. 验证质量
+    - [x] 单元测试
+    - [ ] 回归测试
+3. 发布并观察指标`,
+  },
+  {
     id: "markdown-structure-advanced",
     kind: "markdown-structure",
     level: "advanced",
@@ -348,6 +470,21 @@ _Markdown 可以嵌套 **强调内容**。_
     source: `\`\`\`ts
 const output = await renderMarkdown(source);
 console.log(output.fragments.length);
+\`\`\``,
+  },
+  {
+    id: "markdown-code-intermediate",
+    kind: "markdown-code",
+    level: "intermediate",
+    renderer: "markdown",
+    detail: "渲染配置",
+    expectedText: "renderer",
+    source: `\`\`\`json
+{
+  "renderer": "markdown",
+  "features": ["alert", "diff", "math"],
+  "theme": "github-light"
+}
 \`\`\``,
   },
   {
@@ -381,6 +518,19 @@ index 1a2b3c4..5d6e7f8 100644
 > 使用 \`Unicode\` 输出便于复制。`,
   },
   {
+    id: "markdown-alert-intermediate",
+    kind: "markdown-alert",
+    level: "intermediate",
+    renderer: "markdown",
+    detail: "部署提醒",
+    expectedText: "IMPORTANT",
+    source: `> [!IMPORTANT]
+> 发布生产环境前请完成：
+> - 检查 **数据库迁移**
+> - 验证监控告警
+> - 阅读 [回滚手册](https://example.com/rollback)`,
+  },
+  {
     id: "markdown-alert-advanced",
     kind: "markdown-alert",
     level: "advanced",
@@ -404,6 +554,21 @@ index 1a2b3c4..5d6e7f8 100644
     renderer: "markdown",
     expectedText: "e^(iπ)",
     source: String.raw`Euler 恒等式：$e^{i\pi}+1=0$`,
+  },
+  {
+    id: "markdown-math-intermediate",
+    kind: "markdown-math",
+    level: "intermediate",
+    renderer: "markdown",
+    detail: "统计汇总",
+    expectedText: "∑",
+    source: String.raw`累计请求量：
+
+$$
+\sum_{i=1}^{n} x_i
+$$
+
+标准差核心项：$\sqrt{x+1}$`,
   },
   {
     id: "markdown-math-advanced",

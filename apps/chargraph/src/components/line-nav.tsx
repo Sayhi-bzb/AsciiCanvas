@@ -14,10 +14,13 @@ import { motion } from "motion/react";
 
 import { cn } from "@chardesk/ui";
 
+const NORMAL_LINE_WIDTH = 24;
+const EXPANDED_LINE_WIDTH = 40;
+
 const lineVariants = {
-  normal: { width: 24 },
-  active: { width: 40 },
-  hover: { width: 40 },
+  normal: { scaleX: NORMAL_LINE_WIDTH / EXPANDED_LINE_WIDTH },
+  active: { scaleX: 1 },
+  hover: { scaleX: 1 },
 };
 
 export type LineNavItem = {
@@ -59,7 +62,7 @@ export function LineNav({
       style={
         {
           ...style,
-          "--line-nav-width": `${lineVariants.normal.width}px`,
+          "--line-nav-width": `${NORMAL_LINE_WIDTH}px`,
         } as CSSProperties
       }
       {...props}
@@ -115,7 +118,7 @@ const LineNavEntry = memo(function LineNavEntry({
       >
         <motion.span
           data-slot="line-nav-marker"
-          className="block h-px shrink-0 bg-foreground/20 transition-[background-color] ease-out group-hover:bg-foreground group-aria-[current=page]:bg-foreground"
+          className="block h-px w-10 origin-left shrink-0 bg-foreground/20 transition-[background-color] ease-out group-hover:bg-foreground group-aria-[current=page]:bg-foreground"
           variants={lineVariants}
           transition={{ type: "spring", stiffness: 200, damping: 20 }}
         />

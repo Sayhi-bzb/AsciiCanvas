@@ -2,9 +2,11 @@ import type { CharDeskTextStyle } from "@chardesk/protocol";
 import {
   createMarkdownRenderer,
   markdownAlertExtension,
+  markdownJsonTreeExtension,
   markdownDiffExtension,
   markdownMathExtension,
   markdownMermaidExtension,
+  markdownYamlTreeExtension,
   type MarkdownRenderOptions,
   type MarkdownSyntaxExtension,
   type MarkdownTextRuleId,
@@ -122,6 +124,29 @@ const foreground = (
   ruleId: string,
   defaultValue: TextRenderColorDefault = inherit
 ) => slot("foreground", defaultValue, [`${ruleId}.foreground`, ruleId]);
+
+const dataTreeFeature = (
+  ruleId: "json-tree" | "yaml-tree",
+  label: I18nKey,
+  extension: MarkdownSyntaxExtension
+) => extensionFeature(ruleId, "blocks", label, extension, {
+  colorSlots: [
+    slot("connector", token("muted"), [], "settings.markdown.dataTreeConnector"),
+    slot("key", token("accent"), [], "settings.markdown.dataTreeKey"),
+    slot("string", token("success"), [], "settings.markdown.dataTreeString"),
+    slot("number", token("info"), [], "settings.markdown.dataTreeNumber"),
+    slot("keyword", token("warning"), [], "settings.markdown.dataTreeKeyword"),
+  ],
+  styles: (color) => ({
+    extension: {
+      [`${ruleId}-connector`]: { color: color("connector") },
+      [`${ruleId}-key`]: { color: color("key") },
+      [`${ruleId}-string`]: { color: color("string") },
+      [`${ruleId}-number`]: { color: color("number") },
+      [`${ruleId}-keyword`]: { color: color("keyword") },
+    },
+  }),
+});
 
 const INTERNAL_FEATURES = [
   coreFeature("strong", "inline", "settings.markdown.strong", {
@@ -308,6 +333,16 @@ const INTERNAL_FEATURES = [
         };
       },
     }
+  ),
+  dataTreeFeature(
+    "json-tree",
+    "settings.markdown.jsonTree",
+    markdownJsonTreeExtension
+  ),
+  dataTreeFeature(
+    "yaml-tree",
+    "settings.markdown.yamlTree",
+    markdownYamlTreeExtension
   ),
   extensionFeature(
     "mermaid",

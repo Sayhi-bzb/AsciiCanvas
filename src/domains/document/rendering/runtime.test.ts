@@ -478,6 +478,29 @@ describe("TextRenderingRuntime", () => {
     expect(result.cells.find((cell) => cell.y === 2)?.color).toBe("#2563eb");
   });
 
+  it("renders fenced JSON and YAML as independently styled data trees", async () => {
+    const runtime = new TextRenderingRuntime();
+    const json = await runtime.render(
+      "```json\n{\"user\":{\"name\":\"Ada\"},\"active\":true}\n```",
+      "#111111"
+    );
+    expect([0, 1, 2].map((y) => rowText(json, y))).toEqual([
+      "├─ user",
+      "│  └─ name: \"Ada\"",
+      "└─ active: true",
+    ]);
+    if (json.kind !== "styled") throw new Error("Expected styled JSON tree");
+    expect(json.cells.find((cell) => cell.char === "├")?.color).toBe("#94a3b8");
+    expect(json.cells.find((cell) => cell.char === "u")?.color).toBe("#2563eb");
+    expect(json.cells.find((cell) => cell.char === "A")?.color).toBe("#16a34a");
+    expect(json.cells.find((cell) => cell.y === 2 && cell.char === "r")?.color)
+      .toBe("#ca8a04");
+
+    runtime.setProfile(profileWithMarkdown({ rules: { "yaml-tree": false } }));
+    const yaml = await runtime.render("```yaml\nuser:\n  name: Ada\n```", "#111111");
+    expect([0, 1].map((y) => rowText(yaml, y))).toEqual(["user:", "  name: Ada"]);
+  });
+
   it("keeps Mermaid independently switchable from fenced code rendering", async () => {
     const runtime = new TextRenderingRuntime();
     runtime.setProfile(profileWithMarkdown({

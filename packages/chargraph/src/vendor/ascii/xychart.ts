@@ -73,6 +73,11 @@ interface LegendItem {
   globalIdx: number
 }
 
+interface SeriesEntry {
+  data: number[]
+  globalIdx: number
+}
+
 /** Preserve series identity in the drawing pipeline without terminal colors. */
 function getSeriesColors(total: number): string[] {
   return Array.from({ length: total }, () => '')
@@ -101,8 +106,12 @@ const getLegendWidth = (items: LegendItem[]) => items.reduce(
   0,
 )
 
-const getBarSeriesCount = (chart: XYChart) =>
-  chart.series.filter(series => series.type === 'bar').length
+const getSeriesEntries = (
+  chart: XYChart,
+  type: XYChart['series'][number]['type'],
+): SeriesEntry[] => chart.series.flatMap((series, globalIdx) =>
+  series.type === type ? [{ data: series.data, globalIdx }] : [],
+)
 
 // ============================================================================
 // Public API
@@ -139,7 +148,9 @@ function renderVertical(
   const yGutter = Math.max(...yLabels.map(l => l.length)) + 1
   const catLabels = getCategoryLabels(chart, dataCount)
   const legendItems = createLegendItems(chart, ch)
-  const barCount = getBarSeriesCount(chart)
+  const barEntries = getSeriesEntries(chart, 'bar')
+  const lineEntries = getSeriesEntries(chart, 'line')
+  const barCount = barEntries.length
   const plotLeft = yGutter + 1
   const contentWidth = Math.max(
     chart.title?.length ?? 0,
@@ -255,11 +266,6 @@ function renderVertical(
   }
 
   // 7. Bars — track global series index for per-series colors
-  const barEntries: { data: number[]; globalIdx: number }[] = []
-  for (let si = 0; si < chart.series.length; si++) {
-    if (chart.series[si]!.type === 'bar') barEntries.push({ data: chart.series[si]!.data, globalIdx: si })
-  }
-
   if (barEntries.length > 0) {
     const barCount = barEntries.length
     const usable = Math.max(1, bandW - 2)
@@ -289,11 +295,6 @@ function renderVertical(
   }
 
   // 8. Lines (staircase routing with rounded corners)
-  const lineEntries: { data: number[]; globalIdx: number }[] = []
-  for (let si = 0; si < chart.series.length; si++) {
-    if (chart.series[si]!.type === 'line') lineEntries.push({ data: chart.series[si]!.data, globalIdx: si })
-  }
-
   for (const entry of lineEntries) {
     if (entry.data.length === 0) continue
     const hexColor = seriesColors[entry.globalIdx]!
@@ -320,7 +321,9 @@ function renderHorizontal(
   const catLabels = getCategoryLabels(chart, dataCount)
   const catGutter = Math.max(...catLabels.map(l => l.length)) + 1
   const legendItems = createLegendItems(chart, ch)
-  const barCount = getBarSeriesCount(chart)
+  const barEntries = getSeriesEntries(chart, 'bar')
+  const lineEntries = getSeriesEntries(chart, 'line')
+  const barCount = barEntries.length
   const plotLeft = catGutter + 1
   const maximumTickWidth = Math.max(...valueLabels.map(label => label.length))
   const tickPlotWidth = valueTicks.length <= 1
@@ -415,11 +418,6 @@ function renderHorizontal(
   }
 
   // Bars (horizontal) — with per-series colors
-  const barEntries: { data: number[]; globalIdx: number }[] = []
-  for (let si = 0; si < chart.series.length; si++) {
-    if (chart.series[si]!.type === 'bar') barEntries.push({ data: chart.series[si]!.data, globalIdx: si })
-  }
-
   if (barEntries.length > 0) {
     const barCount = barEntries.length
     const singleBarH = 1
@@ -447,11 +445,6 @@ function renderHorizontal(
   }
 
   // Lines (horizontal staircase: value on x, category on y) — with per-series colors
-  const lineEntries: { data: number[]; globalIdx: number }[] = []
-  for (let si = 0; si < chart.series.length; si++) {
-    if (chart.series[si]!.type === 'line') lineEntries.push({ data: chart.series[si]!.data, globalIdx: si })
-  }
-
   for (const entry of lineEntries) {
     if (entry.data.length === 0) continue
     const hexColor = seriesColors[entry.globalIdx]!

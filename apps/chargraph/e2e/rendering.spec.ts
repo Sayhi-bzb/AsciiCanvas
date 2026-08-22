@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 const expectUnicodeViewersToFit = async (page: Page) => {
   const viewers = page.locator("chardesk-viewer");
-  await expect(viewers).toHaveCount(2);
+  await expect(viewers).toHaveCount(3);
 
   await expect.poll(async () => {
     const overflow = await viewers.evaluateAll((elements) =>
@@ -46,7 +46,7 @@ const expectStructuralChrome = async (page: Page) => {
   ).toBe(1);
 
   const dividers = page.locator('[data-slot="stripe-divider"]');
-  await expect(dividers).toHaveCount(4);
+  await expect(dividers).toHaveCount(5);
   await expect.poll(async () =>
     dividers.evaluateAll((elements) =>
       elements.every((element) => {
@@ -103,6 +103,67 @@ const expectFloatingLineNav = async (page: Page) => {
   expect(placement.gap).toBeLessThanOrEqual(17);
   expect(Math.abs(placement.verticalOffset)).toBeLessThanOrEqual(1);
 
+  const hoverLink = page
+    .getByRole("navigation", { name: "案例分类" })
+    .getByRole("link", { name: "Markdown 基础排版" });
+  const hoverMarker = hoverLink.locator('[data-slot="line-nav-marker"]');
+  const hoverLabel = hoverLink.locator("span").last();
+  const readHoverGeometry = async () => {
+    const [surface, labelLeft, content] = await Promise.all([
+      floatingNav.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        return { left: rect.left, right: rect.right, width: rect.width };
+      }),
+      hoverLabel.evaluate((element) => element.getBoundingClientRect().left),
+      contentFrame.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        return { left: rect.left, right: rect.right };
+      }),
+    ]);
+    return {
+      surfaceLeft: surface.left,
+      surfaceRight: surface.right,
+      surfaceWidth: surface.width,
+      labelLeft,
+      contentLeft: content.left,
+      contentRight: content.right,
+    };
+  };
+
+  await expect.poll(async () =>
+    hoverMarker.evaluate((element) =>
+      Math.round(element.getBoundingClientRect().width)
+    )
+  ).toBe(24);
+  const geometryBeforeHover = await readHoverGeometry();
+
+  await hoverLink.hover();
+  await expect.poll(async () =>
+    hoverMarker.evaluate((element) =>
+      Math.round(element.getBoundingClientRect().width)
+    )
+  ).toBe(40);
+  const geometryDuringHover = await readHoverGeometry();
+
+  for (const key of Object.keys(geometryBeforeHover) as Array<
+    keyof typeof geometryBeforeHover
+  >) {
+    expect(geometryDuringHover[key]).toBeCloseTo(geometryBeforeHover[key], 0);
+  }
+
+  await page.mouse.move(0, 0);
+  await expect.poll(async () =>
+    hoverMarker.evaluate((element) =>
+      Math.round(element.getBoundingClientRect().width)
+    )
+  ).toBe(24);
+  const geometryAfterHover = await readHoverGeometry();
+  for (const key of Object.keys(geometryBeforeHover) as Array<
+    keyof typeof geometryBeforeHover
+  >) {
+    expect(geometryAfterHover[key]).toBeCloseTo(geometryBeforeHover[key], 0);
+  }
+
   const topBeforeScroll = await floatingNav.evaluate(
     (element) => element.getBoundingClientRect().top
   );
@@ -151,7 +212,16 @@ const openDesktopCategory = async (
   ).toHaveCount(0);
   await expect(page.getByRole("heading", { level: 2, name: "Basic" })).toHaveCount(0);
   await expect(page.locator("main article").nth(1).getByRole("heading", { level: 2 })).toBeVisible();
-  await expect(page.locator("main article")).toHaveCount(2);
+  await expect(page.locator("main article").nth(2).getByRole("heading", { level: 2 })).toBeVisible();
+  await expect(page.locator("main article").nth(1)).toHaveAttribute(
+    "aria-label",
+    `${label} Intermediate`
+  );
+  await expect(page.locator("main article").nth(2)).toHaveAttribute(
+    "aria-label",
+    `${label} Advanced`
+  );
+  await expect(page.locator("main article")).toHaveCount(3);
 };
 
 test("renders directed diagrams through the category navigation", async ({ page }) => {
@@ -175,6 +245,9 @@ test("renders directed diagrams through the category navigation", async ({ page 
   await expect(flow).toContainText("否");
   await expect(flow).not.toContainText(/[─┄━]\^ +│/u);
   await expect(flow).not.toContainText("flowchart LR");
+  const deployment = page.locator("#flowchart-intermediate chardesk-viewer pre");
+  await expect(deployment).toContainText("持续集成");
+  await expect(deployment).toContainText("生产环境");
   await expectUnicodeViewersToFit(page);
   await expectStructuralChrome(page);
 
@@ -183,9 +256,20 @@ test("renders directed diagrams through the category navigation", async ({ page 
   await expect(state).toContainText("草稿");
   await expect(state).toContainText("审核");
   await expect(state).not.toContainText("stateDiagram-v2");
+  await expect(
+    page.locator("#state-intermediate chardesk-viewer pre")
+  ).toContainText("退回修改");
   await expectUnicodeViewersToFit(page);
 
+  await openDesktopCategory(page, "时序图", "sequence");
+  await expect(
+    page.locator("#sequence-intermediate chardesk-viewer pre")
+  ).toContainText("重试任务");
+
   await openDesktopCategory(page, "类图", "class");
+  const classModel = page.locator("#class-intermediate chardesk-viewer pre");
+  await expect(classModel).toContainText("内容域");
+  await expect(classModel).toContainText("0..*");
   const classDiagram = page.locator("#class-advanced chardesk-viewer pre");
   await expect(classDiagram).toContainText("<<interface>>");
   await expect(classDiagram).toContainText("渲染器");
@@ -195,6 +279,9 @@ test("renders directed diagrams through the category navigation", async ({ page 
   await expectUnicodeViewersToFit(page);
 
   await openDesktopCategory(page, "实体关系图", "er");
+  const socialModel = page.locator("#er-intermediate chardesk-viewer pre");
+  await expect(socialModel).toContainText("关注");
+  await expect(socialModel).toContainText("推荐");
   const erDiagram = page.locator("#er-advanced chardesk-viewer pre");
   await expect(erDiagram).toContainText("订单项");
   await expect(erDiagram).toContainText("被引用");
@@ -230,8 +317,21 @@ test("renders styled Markdown categories through the same showcase", async ({ pa
     "href",
     "https://github.com/Sayhi-bzb/CharDesk"
   );
+  await expect(
+    page.locator("#markdown-basics-intermediate chardesk-viewer pre")
+  ).toContainText("v0.2 发布说明");
+
+  await openDesktopCategory(page, "列表与表格", "markdown-structure");
+  const checklist = page.locator(
+    "#markdown-structure-intermediate chardesk-viewer pre"
+  );
+  await expect(checklist).toContainText("回归测试");
+  await expect(checklist).toContainText("○");
 
   await openDesktopCategory(page, "代码与 Diff", "markdown-code");
+  const config = page.locator("#markdown-code-intermediate chardesk-viewer");
+  await expect(config.locator("pre")).toContainText('"renderer": "markdown"');
+  await expect(config.locator(".run").first()).toBeVisible();
   const diff = page.locator("#markdown-code-advanced chardesk-viewer");
   await expect(diff.locator("pre")).toContainText("+  return next(value);");
   await expect
@@ -244,10 +344,16 @@ test("renders styled Markdown categories through the same showcase", async ({ pa
 
   await openDesktopCategory(page, "GitHub Alert", "markdown-alert");
   await expect(
+    page.locator("#markdown-alert-intermediate chardesk-viewer pre")
+  ).toContainText("│ IMPORTANT");
+  await expect(
     page.locator("#markdown-alert-advanced chardesk-viewer pre")
   ).toContainText("│ CAUTION");
 
   await openDesktopCategory(page, "数学表达", "markdown-math");
+  await expect(
+    page.locator("#markdown-math-intermediate chardesk-viewer pre")
+  ).toContainText("∑");
   await expect(
     page.locator("#markdown-math-advanced chardesk-viewer pre")
   ).toContainText("a + b");
@@ -269,7 +375,7 @@ test("uses the mobile category select without page overflow", async ({ page }) =
   ).toBeVisible();
   await expect(page.getByRole("navigation", { name: "案例分类" })).toBeHidden();
   await expect(page.locator('[data-slot="line-nav"]')).toBeHidden();
-  await expect(page.locator("main article")).toHaveCount(2);
+  await expect(page.locator("main article")).toHaveCount(3);
   await expectUnicodeViewersToFit(page);
   await expectStructuralChrome(page);
 
@@ -280,7 +386,10 @@ test("uses the mobile category select without page overflow", async ({ page }) =
   await expect(
     page.getByRole("heading", { level: 2, name: "横向混合图" })
   ).toBeVisible();
-  await expect(page.locator("main article")).toHaveCount(2);
+  await expect(
+    page.locator("#xychart-intermediate chardesk-viewer pre")
+  ).toContainText("预发布环境");
+  await expect(page.locator("main article")).toHaveCount(3);
   await expectUnicodeViewersToFit(page);
 
   const hasPageOverflow = await page.evaluate(
@@ -293,7 +402,7 @@ test("keeps the diagram boundary aligned across layout breakpoints", async ({ pa
   for (const width of [768, 1024, 1440, 1536, 1728]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("./#type-er");
-    await expect(page.locator("main article")).toHaveCount(2);
+    await expect(page.locator("main article")).toHaveCount(3);
 
     const categorySelect = page.getByRole("combobox", { name: "案例分类" });
     const lineNav = page.getByRole("navigation", { name: "案例分类" });
@@ -326,7 +435,7 @@ test("keeps the diagram boundary aligned across layout breakpoints", async ({ pa
 test("closes short and long pages with the framed footer", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 2000 });
   await page.goto("./#type-flowchart");
-  await expect(page.locator("main article")).toHaveCount(2);
+  await expect(page.locator("main article")).toHaveCount(3);
 
   const shortPageGeometry = await page
     .locator('[data-frame="footer"]')
@@ -388,7 +497,7 @@ test("closes short and long pages with the framed footer", async ({ page }) => {
 
   await page.setViewportSize({ width: 390, height: 600 });
   await page.goto("./#type-sequence");
-  await expect(page.locator("main article")).toHaveCount(2);
+  await expect(page.locator("main article")).toHaveCount(3);
 
   const longPageGeometry = await page
     .locator('[data-frame="footer"]')
@@ -427,5 +536,5 @@ test("supports category deep links and browser history", async ({ page }) => {
       .getByRole("navigation", { name: "案例分类" })
       .getByRole("link", { name: "流程图" })
   ).toHaveAttribute("aria-current", "page");
-  await expect(page.locator("main article")).toHaveCount(2);
+  await expect(page.locator("main article")).toHaveCount(3);
 });
