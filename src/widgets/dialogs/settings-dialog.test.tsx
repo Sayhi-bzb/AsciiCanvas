@@ -207,7 +207,8 @@ describe('SettingsDialog', () => {
       })
     );
 
-    expect(screen.getByText('Syntax')).toBeInTheDocument();
+    expect(screen.getAllByText('Syntax').length).toBeGreaterThan(0);
+    expect(screen.getByText('Math')).toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: 'Mermaid diagrams' })).toBeChecked();
     expect(screen.getByRole('checkbox', { name: 'GitHub alerts' })).toBeChecked();
     expect(screen.getByRole('checkbox', { name: 'Unified diff' })).toBeChecked();
@@ -215,15 +216,28 @@ describe('SettingsDialog', () => {
     expect(screen.getByRole('checkbox', { name: 'YAML tree' })).toBeChecked();
     expect(screen.getByRole('checkbox', { name: 'Inline math' })).toBeChecked();
     expect(screen.getByRole('checkbox', { name: 'Block math' })).toBeChecked();
+    expect(screen.queryByRole('checkbox', { name: 'Math palette' })).toBeNull();
     expect(screen.getByRole('button', {
-      name: 'Customize color for Inline math: Default (Inherited)',
+      name: 'Customize color for Content: Default (Inherited)',
     })).toHaveAttribute('data-inherited', 'true');
     expect(screen.getByRole('button', {
-      name: 'Customize color for Block math: Default (Inherited)',
+      name: 'Customize color for Operators: Default (#2563eb)',
+    }).querySelector('[data-slot="color-swatch"]')).toHaveStyle({
+      backgroundColor: '#2563eb',
+    });
+    expect(screen.getByRole('button', {
+      name: 'Customize color for Structure: Default (#94a3b8)',
+    }).querySelector('[data-slot="color-swatch"]')).toHaveStyle({
+      backgroundColor: '#94a3b8',
+    });
+    expect(screen.getByRole('button', {
+      name: 'Customize color for Node background: Default (Inherited)',
     })).toHaveAttribute('data-inherited', 'true');
     expect(screen.getByRole('button', {
-      name: 'Customize color for Mermaid diagrams: Default (Inherited)',
-    })).toHaveAttribute('data-inherited', 'true');
+      name: 'Customize color for Node border: Default (#2563eb)',
+    }).querySelector('[data-slot="color-swatch"]')).toHaveStyle({
+      backgroundColor: '#2563eb',
+    });
     expect(screen.getByRole('button', {
       name: 'Customize color for Warning alerts: Default (#ca8a04)',
     }).querySelector('[data-slot="color-swatch"]')).toHaveStyle({
@@ -240,6 +254,23 @@ describe('SettingsDialog', () => {
     expect(screen.getAllByRole('button', {
       name: 'Customize color for Tree keys: Default (#2563eb)',
     })).toHaveLength(2);
+    expect(screen.getAllByRole('button', {
+      name: 'Customize color for Array indices: Default (#94a3b8)',
+    })).toHaveLength(2);
+    expect(screen.getAllByRole('button', {
+      name: 'Customize color for Boolean values: Default (#ca8a04)',
+    })).toHaveLength(2);
+    expect(screen.getAllByRole('button', {
+      name: 'Customize color for Null values: Default (#94a3b8)',
+    })).toHaveLength(2);
+    expect(screen.getAllByRole('button', {
+      name: 'Customize color for Empty objects and arrays: Default (#94a3b8)',
+    })).toHaveLength(2);
+    expect(screen.getByRole('button', {
+      name: 'Customize color for YAML references: Default (#0891b2)',
+    })).toBeInTheDocument();
+    expect(screen.getAllByText('Tree structure')).toHaveLength(2);
+    expect(screen.getAllByText('Tree values')).toHaveLength(2);
     const inlineCodeColor = screen.getByRole('button', {
       name: 'Customize color for Inline code foreground: Default (#0891b2)',
     });

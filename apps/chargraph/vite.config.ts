@@ -41,6 +41,14 @@ export default defineConfig({
         replacement: path.join(repositoryRoot, "packages/chargraph/src/mermaid.ts"),
       },
       {
+        find: /^@chardesk\/chargraph\/markdown$/,
+        replacement: path.join(repositoryRoot, "packages/chargraph/src/markdown-default.ts"),
+      },
+      {
+        find: /^@chardesk\/chargraph\/theme$/,
+        replacement: path.join(repositoryRoot, "packages/chargraph/src/render-theme.ts"),
+      },
+      {
         find: /^@chardesk\/chargraph$/,
         replacement: path.join(repositoryRoot, "packages/chargraph/src/index.ts"),
       },

@@ -4,7 +4,12 @@ import {
   type CharDeskTextStyle,
 } from "@chardesk/protocol";
 import { Marked, type Token, type Tokens } from "marked";
-import type { BundledLanguage } from "shiki";
+import type {
+  BundledLanguage,
+  BundledTheme,
+  SpecialTheme,
+  ThemeRegistrationAny,
+} from "shiki";
 import {
   createCharGraphFragment as fragment,
   createCharGraphTextFragments as textFragments,
@@ -73,6 +78,7 @@ export type MarkdownRenderOptions = {
   extensionRules?: Readonly<Record<string, boolean>>;
   styles?: MarkdownTextStyles;
   extensionStyles?: Readonly<Record<string, CharDeskTextStyle>>;
+  codeTheme?: BundledTheme | SpecialTheme | ThemeRegistrationAny;
 };
 
 export type CreateMarkdownRendererOptions = {
@@ -127,6 +133,7 @@ type RenderContext = {
   diagnostics: CharGraphDiagnostic[];
   extensionRules: Readonly<Record<string, boolean>>;
   extensionStyles: Readonly<Record<string, CharDeskTextStyle>>;
+  codeTheme?: BundledTheme | SpecialTheme | ThemeRegistrationAny;
   extensions: readonly MarkdownSyntaxExtension[];
 };
 
@@ -408,7 +415,7 @@ const renderCode = async (
     const { codeToTokens } = await import("shiki");
     const highlighted = await codeToTokens(token.text, {
       lang: language as BundledLanguage,
-      theme: "github-light",
+      theme: context.codeTheme ?? "github-light",
     });
     const output: CharGraphFragment[] = [];
     let offset = 0;
@@ -661,6 +668,7 @@ export const renderMarkdownWithExtensions = async (
     diagnostics: [],
     extensionRules: options.extensionRules ?? {},
     extensionStyles: options.extensionStyles ?? {},
+    codeTheme: options.codeTheme,
     extensions,
   };
   const tokens = parser.lexer(normalized.text);

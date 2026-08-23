@@ -414,7 +414,7 @@ describe("TextRenderingRuntime", () => {
     expect(fallback.diagnostics[0]?.code).toBe("markdown-highlight-failed");
   });
 
-  it("renders fenced Mermaid as a Unicode grid with inherited or custom color", async () => {
+  it("renders fenced Mermaid as a Unicode grid and migrates its legacy color", async () => {
     const runtime = new TextRenderingRuntime();
     runtime.setProfile(profileWithMarkdown({
       colors: { "mermaid.foreground": "#123456" },
@@ -431,7 +431,9 @@ describe("TextRenderingRuntime", () => {
     expect(textFrom(result)).toContain("完成");
     expect(textFrom(result)).toContain("╭");
     if (result.kind !== "styled") throw new Error("Expected styled Mermaid");
-    expect(result.cells.every((cell) => cell.color === "#123456")).toBe(true);
+    expect(result.cells.filter((cell) => cell.char !== " ").every(
+      (cell) => cell.color === "#123456"
+    )).toBe(true);
     const start = result.cells.find((cell) => cell.char === "开");
     expect(result.cells.find((cell) => cell.char === "始")?.x).toBe((start?.x ?? 0) + 2);
   });
@@ -481,20 +483,40 @@ describe("TextRenderingRuntime", () => {
   it("renders fenced JSON and YAML as independently styled data trees", async () => {
     const runtime = new TextRenderingRuntime();
     const json = await runtime.render(
-      "```json\n{\"user\":{\"name\":\"Ada\"},\"active\":true}\n```",
+      "```json\n{\"user\":{\"name\":\"Ada\"},\"items\":[1,null],\"active\":true,\"empty\":[]}\n```",
       "#111111"
     );
-    expect([0, 1, 2].map((y) => rowText(json, y))).toEqual([
+    expect([0, 1, 2, 3, 4, 5, 6].map((y) => rowText(json, y))).toEqual([
       "├─ user",
       "│  └─ name: \"Ada\"",
-      "└─ active: true",
+      "├─ items",
+      "│  ├─ [0]: 1",
+      "│  └─ [1]: null",
+      "├─ active: true",
+      "└─ empty: []",
     ]);
     if (json.kind !== "styled") throw new Error("Expected styled JSON tree");
     expect(json.cells.find((cell) => cell.char === "├")?.color).toBe("#94a3b8");
     expect(json.cells.find((cell) => cell.char === "u")?.color).toBe("#2563eb");
     expect(json.cells.find((cell) => cell.char === "A")?.color).toBe("#16a34a");
-    expect(json.cells.find((cell) => cell.y === 2 && cell.char === "r")?.color)
+    expect(json.cells.find((cell) => cell.y === 3 && cell.char === "[")?.color)
+      .toBe("#94a3b8");
+    expect(json.cells.find((cell) => cell.y === 3 && cell.char === "1")?.color)
+      .toBe("#0891b2");
+    expect(json.cells.find((cell) => cell.y === 4 && cell.char === "n")?.color)
+      .toBe("#94a3b8");
+    expect(json.cells.find((cell) => cell.y === 5 && cell.char === "r")?.color)
       .toBe("#ca8a04");
+    expect(json.cells.find((cell) => cell.y === 6 && cell.char === "[")?.color)
+      .toBe("#94a3b8");
+
+    const yamlReferences = await runtime.render(
+      "```yaml\nbase: &base 1\ncopy: *base\n```",
+      "#111111"
+    );
+    if (yamlReferences.kind !== "styled") throw new Error("Expected styled YAML tree");
+    expect(yamlReferences.cells.find((cell) => cell.char === "&")?.color).toBe("#0891b2");
+    expect(yamlReferences.cells.find((cell) => cell.char === "*")?.color).toBe("#0891b2");
 
     runtime.setProfile(profileWithMarkdown({ rules: { "yaml-tree": false } }));
     const yaml = await runtime.render("```yaml\nuser:\n  name: Ada\n```", "#111111");
@@ -531,7 +553,7 @@ describe("TextRenderingRuntime", () => {
     ]);
   });
 
-  it("renders inline and block math with independent colors", async () => {
+  it("migrates math colors into a shared structure-aware palette", async () => {
     const runtime = new TextRenderingRuntime();
     runtime.setProfile(profileWithMarkdown({
       mode: "markdown",
@@ -555,7 +577,52 @@ describe("TextRenderingRuntime", () => {
     }
     expect(inline.cells.filter((cell) => cell.char === "x" || cell.char === "²")
       .every((cell) => cell.color === "#123456")).toBe(true);
-    expect(block.cells.every((cell) => cell.color === "#654321")).toBe(true);
+    expect(inline.cells.find((cell) => cell.char === "x")?.attrs?.italic).toBe(true);
+    expect(inline.cells.find((cell) => cell.char === "²")?.attrs?.italic).toBeUndefined();
+    expect(block.cells.filter((cell) => /[abcd]/.test(cell.char)).every(
+      (cell) => cell.color === "#123456" && cell.attrs?.italic
+    )).toBe(true);
+    expect(block.cells.filter((cell) => cell.char === "+").every(
+      (cell) => cell.color === "#2563eb"
+    )).toBe(true);
+    expect(block.cells.filter((cell) => cell.char === "─").every(
+      (cell) => cell.color === "#94a3b8"
+    )).toBe(true);
+  });
+
+  it("keeps explicit ANSI color over Math semantic styles", async () => {
+    const result = await new TextRenderingRuntime().render(
+      "[31m$x+1$[0m",
+      "#111111"
+    );
+
+    expect(result.pipeline).toEqual(["ansi", "markdown"]);
+    if (result.kind !== "styled") throw new Error("Expected styled math");
+    expect(result.cells.every((cell) => cell.color === "#800000")).toBe(true);
+    expect(result.cells.find((cell) => cell.char === "x")?.attrs?.italic).toBe(true);
+  });
+
+  it("applies one custom Math palette to inline and block layouts", async () => {
+    const runtime = new TextRenderingRuntime();
+    const profile = profileWithMarkdown({ mode: "markdown" });
+    profile.features["markdown.math-style"] = {
+      enabled: true,
+      colors: {
+        content: "#111122",
+        operator: "#223344",
+        structure: "#334455",
+      },
+    };
+    runtime.setProfile(profile);
+
+    const inline = await runtime.render("$x+1$", "#000000");
+    const block = await runtime.render("$$\n\\frac{x+1}{2}\n$$", "#000000");
+    if (inline.kind !== "styled" || block.kind !== "styled") {
+      throw new Error("Expected styled math");
+    }
+    expect(inline.cells.find((cell) => cell.char === "x")?.color).toBe("#111122");
+    expect(inline.cells.find((cell) => cell.char === "+")?.color).toBe("#223344");
+    expect(block.cells.find((cell) => cell.char === "─")?.color).toBe("#334455");
   });
 
   it("preserves the fenced source when Mermaid rendering fails", async () => {

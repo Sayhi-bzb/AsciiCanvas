@@ -5,6 +5,7 @@ import type {
   ElkGraphElement,
   ElkNode,
   ElkPoint,
+  ElkPort,
 } from "elkjs/lib/elk-api.js";
 import { quantizeCoordinate, quantizeRoute } from "./quantize.js";
 import type {
@@ -31,6 +32,7 @@ const directionMap: Record<LayoutDirection, string> = {
 const rootOptions = (
   direction: LayoutDirection,
   spacing: LayoutGraph["spacing"],
+  cycleBreaking: LayoutGraph["cycleBreaking"] = "automatic",
 ) => ({
   "elk.algorithm": "layered",
   "elk.direction": directionMap[direction],
@@ -38,6 +40,9 @@ const rootOptions = (
   "elk.hierarchyHandling": "INCLUDE_CHILDREN",
   "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
   "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+  ...(cycleBreaking === "depth-first"
+    ? { "elk.layered.cycleBreaking.strategy": "DEPTH_FIRST" }
+    : {}),
   "elk.spacing.nodeNode": String(spacing.nodeNode),
   "elk.spacing.edgeNode": "1",
   "elk.spacing.edgeEdge": "1",
@@ -58,7 +63,93 @@ const label = (id: string, value: LayoutLabel) => ({
   ...value,
 });
 
+type ElkPortSide = "NORTH" | "EAST" | "SOUTH" | "WEST";
+
+const endpointPortSide = (
+  direction: LayoutDirection,
+  selfLoop: boolean,
+  source: boolean,
+): ElkPortSide => {
+  if (selfLoop) return direction === "LR" || direction === "RL" ? "NORTH" : "EAST";
+  if (direction === "LR") return source ? "EAST" : "WEST";
+  if (direction === "RL") return source ? "WEST" : "EAST";
+  if (direction === "BT") return source ? "NORTH" : "SOUTH";
+  return source ? "SOUTH" : "NORTH";
+};
+
+const createIndependentPorts = (graph: LayoutGraph) => {
+  const independentNodes = new Set(
+    graph.nodes
+      .filter((node) => node.portAllocation === "independent")
+      .map((node) => node.id),
+  );
+  const portsByNode = new Map<string, ElkPort[]>();
+  const edgePorts = new Map<string, { source?: string; target?: string }>();
+  const requests: Array<{
+    edgeId: string;
+    nodeId: string;
+    end: "source" | "target";
+    side: ElkPortSide;
+  }> = [];
+  const sideCounts = new Map<string, number>();
+
+  const requestPort = (
+    edgeId: string,
+    nodeId: string,
+    end: "source" | "target",
+    side: ElkPortSide,
+  ) => {
+    if (!independentNodes.has(nodeId)) return;
+    requests.push({ edgeId, nodeId, end, side });
+    const sideKey = `${nodeId}:${side}`;
+    sideCounts.set(sideKey, (sideCounts.get(sideKey) ?? 0) + 1);
+  };
+
+  for (const edge of graph.edges) {
+    const selfLoop = edge.source === edge.target;
+    requestPort(
+      edge.id,
+      edge.source,
+      "source",
+      endpointPortSide(graph.direction, selfLoop, true),
+    );
+    requestPort(
+      edge.id,
+      edge.target,
+      "target",
+      endpointPortSide(graph.direction, selfLoop, false),
+    );
+  }
+
+  const sideIndexes = new Map<string, number>();
+  for (const { edgeId, nodeId, end, side } of requests) {
+    const sideKey = `${nodeId}:${side}`;
+    const logicalIndex = sideIndexes.get(sideKey) ?? 0;
+    sideIndexes.set(sideKey, logicalIndex + 1);
+    // ELK numbers ports clockwise around a node. Normalize that order so
+    // graph edge order always reads top-to-bottom or left-to-right.
+    const index = side === "SOUTH" || side === "WEST"
+      ? sideCounts.get(sideKey)! - logicalIndex - 1
+      : logicalIndex;
+    const id = `${edgeId}:${end}-port`;
+    const ports = portsByNode.get(nodeId) ?? [];
+    ports.push({
+      id,
+      width: 1,
+      height: 1,
+      layoutOptions: {
+        "elk.port.side": side,
+        "elk.port.index": String(index),
+      },
+    });
+    portsByNode.set(nodeId, ports);
+    edgePorts.set(edgeId, { ...edgePorts.get(edgeId), [end]: id });
+  }
+  return { portsByNode, edgePorts };
+};
+
 export const toElkGraph = (graph: LayoutGraph): ElkNode => {
+  const { portsByNode, edgePorts } = createIndependentPorts(graph);
   const directNodes = new Map<string | undefined, LayoutNode[]>();
   for (const node of graph.nodes) {
     const siblings = directNodes.get(node.parentId) ?? [];
@@ -92,10 +183,11 @@ export const toElkGraph = (graph: LayoutGraph): ElkNode => {
   };
   const directEdges = new Map<string | undefined, ElkExtendedEdge[]>();
   for (const edge of graph.edges) {
+    const ports = edgePorts.get(edge.id);
     const elkEdge: ElkExtendedEdge = {
       id: edge.id,
-      sources: [edge.source],
-      targets: [edge.target],
+      sources: [ports?.source ?? edge.source],
+      targets: [ports?.target ?? edge.target],
       labels: edge.label && edge.labelLayout !== "route"
         ? [label(`${edge.id}:label`, edge.label)]
         : undefined,
@@ -117,7 +209,7 @@ export const toElkGraph = (graph: LayoutGraph): ElkNode => {
       children: childrenFor(group.id),
       edges: directEdges.get(group.id),
       layoutOptions: {
-        ...rootOptions(graph.direction, graph.spacing),
+        ...rootOptions(graph.direction, graph.spacing, graph.cycleBreaking),
         "elk.padding": "[top=2,left=2,bottom=2,right=2]",
       },
     })),
@@ -125,7 +217,13 @@ export const toElkGraph = (graph: LayoutGraph): ElkNode => {
       id: node.id,
       width: node.width,
       height: node.height,
-      layoutOptions: rankOptions(node),
+      ports: portsByNode.get(node.id),
+      layoutOptions: {
+        ...rankOptions(node),
+        ...(portsByNode.has(node.id)
+          ? { "elk.portConstraints": "FIXED_ORDER" }
+          : {}),
+      },
     })),
   ];
 
@@ -133,7 +231,7 @@ export const toElkGraph = (graph: LayoutGraph): ElkNode => {
     id: "layout:root",
     children: childrenFor(undefined),
     edges: directEdges.get(undefined),
-    layoutOptions: rootOptions(graph.direction, graph.spacing),
+    layoutOptions: rootOptions(graph.direction, graph.spacing, graph.cycleBreaking),
   };
 };
 
@@ -218,15 +316,13 @@ const distributedCoordinate = (value: number, start: number, size: number) => {
 
 const endpointFor = (
   point: ElkPoint,
-  adjacent: ElkPoint,
   node: PositionedLayoutNode,
-  elkNode: { x: number; y: number; width: number; height: number },
-  layoutDirection: LayoutDirection,
-  source: boolean,
+  side: GridSide,
+  attachmentCount: number,
 ): PositionedEdgeEndpoint => {
-  const side = nearestNodeSide(point, adjacent, elkNode, layoutDirection, source);
   const outward = sideOutward[side];
-  const distributed = node.portPlacement === "distributed";
+  const distributed = node.portPlacement === "distributed" ||
+    (node.portPlacement === "adaptive" && attachmentCount > 1);
   const anchor = side === "left" || side === "right"
     ? {
         x: side === "left" ? node.x : node.x + node.width - 1,
@@ -279,16 +375,26 @@ const appendConnection = (
   appendPoint(points, to);
 };
 
+const pointOutsideEndpoint = (
+  endpoint: PositionedEdgeEndpoint,
+  clearance = 0,
+) => ({
+  x: endpoint.anchor.x + endpoint.outward.x * Math.max(1, clearance + 1),
+  y: endpoint.anchor.y + endpoint.outward.y * Math.max(1, clearance + 1),
+});
+
 const routeWithEndpoints = (
   points: GridPoint[],
   source: PositionedEdgeEndpoint,
   target: PositionedEdgeEndpoint,
+  sourceClearance = 0,
+  targetClearance = 0,
 ): GridPoint[] => {
   const waypoints = [
     source.anchor,
-    source.marker,
+    pointOutsideEndpoint(source, sourceClearance),
     ...points.slice(1, -1),
-    target.marker,
+    pointOutsideEndpoint(target, targetClearance),
     target.anchor,
   ];
   const result: GridPoint[] = [waypoints[0]!];
@@ -300,7 +406,27 @@ const routeWithEndpoints = (
       index === waypoints.length - 2 ? sideAxis(target.side) : undefined,
     );
   }
-  return simplifyOrthogonal(result, [source.marker, target.marker]);
+  return simplifyOrthogonal(result, [waypoints[1]!, waypoints.at(-2)!]);
+};
+
+const compactSelfLoop = (
+  points: GridPoint[],
+  source: PositionedEdgeEndpoint,
+  target: PositionedEdgeEndpoint,
+  sourceClearance = 0,
+  targetClearance = 0,
+) => {
+  if (source.side !== target.side) return points;
+  const clearance = Math.max(sourceClearance, targetClearance);
+  const sourceExit = pointOutsideEndpoint(source, clearance);
+  const targetExit = pointOutsideEndpoint(target, clearance);
+  if (sourceExit.x === targetExit.x && sourceExit.y === targetExit.y) return points;
+  return simplifyOrthogonal([
+    source.anchor,
+    sourceExit,
+    targetExit,
+    target.anchor,
+  ], [sourceExit, targetExit]);
 };
 
 const edgePoints = (edge: ElkExtendedEdge, offset: ElkPoint): ElkPoint[] => {
@@ -411,16 +537,16 @@ function* adjacentLabelCandidates(
       if (segment.horizontal) {
         const left = Math.min(segment.from.x, segment.to.x);
         const right = Math.max(segment.from.x, segment.to.x);
-        const x = Math.max(0, Math.floor((left + right - label.width) / 2));
+        const x = Math.floor((left + right - label.width) / 2);
         const above = { x, y: segment.from.y - label.height - distance + 1 };
-        if (above.y >= 0) yield { at: above };
+        yield { at: above };
         yield { at: { x, y: segment.from.y + distance } };
       } else {
         const top = Math.min(segment.from.y, segment.to.y);
         const bottom = Math.max(segment.from.y, segment.to.y);
-        const y = Math.max(0, Math.floor((top + bottom - label.height) / 2));
+        const y = Math.floor((top + bottom - label.height) / 2);
         const left = { x: segment.from.x - label.width - distance + 1, y };
-        if (left.x >= 0) yield { at: left };
+        yield { at: left };
         yield { at: { x: segment.from.x + distance, y } };
       }
     }
@@ -526,6 +652,56 @@ const placeEdgeLabels = (
   });
 };
 
+const translatePoint = (point: GridPoint, x: number, y: number): GridPoint => ({
+  x: point.x + x,
+  y: point.y + y,
+});
+
+const normalizeGridLayoutOrigin = (layout: GridLayout): GridLayout => {
+  const points = [
+    ...layout.nodes.map(({ x, y }) => ({ x, y })),
+    ...layout.groups.map(({ x, y }) => ({ x, y })),
+    ...layout.edges.flatMap((edge) => [
+      ...edge.points,
+      edge.sourceEndpoint.anchor,
+      edge.sourceEndpoint.marker,
+      edge.targetEndpoint.anchor,
+      edge.targetEndpoint.marker,
+      ...(edge.labelPosition ? [edge.labelPosition] : []),
+    ]),
+  ];
+  const offsetX = -Math.min(0, ...points.map((point) => point.x));
+  const offsetY = -Math.min(0, ...points.map((point) => point.y));
+  if (offsetX === 0 && offsetY === 0) return layout;
+  const translateEndpoint = (endpoint: PositionedEdgeEndpoint) => ({
+    ...endpoint,
+    anchor: translatePoint(endpoint.anchor, offsetX, offsetY),
+    marker: translatePoint(endpoint.marker, offsetX, offsetY),
+  });
+
+  return {
+    width: layout.width + offsetX,
+    height: layout.height + offsetY,
+    nodes: layout.nodes.map((node) => ({
+      ...node,
+      ...translatePoint(node, offsetX, offsetY),
+    })),
+    groups: layout.groups.map((group) => ({
+      ...group,
+      ...translatePoint(group, offsetX, offsetY),
+    })),
+    edges: layout.edges.map((edge) => ({
+      ...edge,
+      points: edge.points.map((point) => translatePoint(point, offsetX, offsetY)),
+      sourceEndpoint: translateEndpoint(edge.sourceEndpoint),
+      targetEndpoint: translateEndpoint(edge.targetEndpoint),
+      labelPosition: edge.labelPosition
+        ? translatePoint(edge.labelPosition, offsetX, offsetY)
+        : undefined,
+    })),
+  };
+};
+
 export const fromElkGraph = (
   graph: LayoutGraph,
   laidOut: ElkNode,
@@ -573,7 +749,7 @@ export const fromElkGraph = (
 
   const positionedById = new Map(nodes.map((node) => [node.id, node]));
   const modelEdges = new Map(graph.edges.map((edge) => [edge.id, edge]));
-  const routedEdges: RoutedEdge[] = positionedEdges.flatMap(({ edge, offset }) => {
+  const preparedEdges = positionedEdges.flatMap(({ edge, offset }) => {
     const modelEdge = modelEdges.get(edge.id);
     const source = modelEdge && positionedById.get(modelEdge.source);
     const target = modelEdge && positionedById.get(modelEdge.target);
@@ -582,25 +758,79 @@ export const fromElkGraph = (
     if (!modelEdge || !source || !target || !elkSource || !elkTarget) return [];
     const rawPoints = edgePoints(edge, offset);
     if (rawPoints.length < 2) return [];
+    return [{
+      edge,
+      offset,
+      modelEdge,
+      source,
+      target,
+      rawPoints,
+      sourceSide: nearestNodeSide(
+        rawPoints[0]!, rawPoints[1]!, elkSource, graph.direction, true,
+      ),
+      targetSide: nearestNodeSide(
+        rawPoints.at(-1)!, rawPoints.at(-2)!, elkTarget, graph.direction, false,
+      ),
+    }];
+  });
+  const attachmentCounts = new Map<string, number>();
+  const attachmentKey = (nodeId: string, side: GridSide) => `${nodeId}:${side}`;
+  for (const { modelEdge, sourceSide, targetSide } of preparedEdges) {
+    const sourceKey = attachmentKey(modelEdge.source, sourceSide);
+    const targetKey = attachmentKey(modelEdge.target, targetSide);
+    attachmentCounts.set(sourceKey, (attachmentCounts.get(sourceKey) ?? 0) + 1);
+    attachmentCounts.set(targetKey, (attachmentCounts.get(targetKey) ?? 0) + 1);
+  }
+
+  const routedEdges: RoutedEdge[] = preparedEdges.map(({
+    edge,
+    offset,
+    modelEdge,
+    source,
+    target,
+    rawPoints,
+    sourceSide,
+    targetSide,
+  }) => {
     const sourceEndpoint = endpointFor(
-      rawPoints[0]!, rawPoints[1]!, source, elkSource, graph.direction, true,
+      rawPoints[0]!,
+      source,
+      sourceSide,
+      attachmentCounts.get(attachmentKey(modelEdge.source, sourceSide)) ?? 1,
     );
     const targetEndpoint = endpointFor(
-      rawPoints.at(-1)!, rawPoints.at(-2)!, target, elkTarget, graph.direction, false,
+      rawPoints.at(-1)!,
+      target,
+      targetSide,
+      attachmentCounts.get(attachmentKey(modelEdge.target, targetSide)) ?? 1,
     );
-    const points = routeWithEndpoints(
-      quantizeRoute(rawPoints), sourceEndpoint, targetEndpoint,
+    const routed = routeWithEndpoints(
+      quantizeRoute(rawPoints),
+      sourceEndpoint,
+      targetEndpoint,
+      modelEdge.routing?.sourceClearance,
+      modelEdge.routing?.targetClearance,
     );
+    const points = modelEdge.source === modelEdge.target &&
+      modelEdge.routing?.selfLoop === "compact"
+      ? compactSelfLoop(
+          routed,
+          sourceEndpoint,
+          targetEndpoint,
+          modelEdge.routing.sourceClearance,
+          modelEdge.routing.targetClearance,
+        )
+      : routed;
     const elkLabelPosition = modelEdge.label
       ? labelPosition(edge, offset)
       : undefined;
-    return [{
+    return {
       ...modelEdge,
       points,
       sourceEndpoint,
       targetEndpoint,
       elkLabelPosition,
-    }];
+    };
   });
 
   const routeMaxX = Math.max(
@@ -629,7 +859,7 @@ export const fromElkGraph = (
       : []),
   );
 
-  return { width: maxX, height: maxY, nodes, edges, groups };
+  return normalizeGridLayoutOrigin({ width: maxX, height: maxY, nodes, edges, groups });
 };
 
 export const layoutWithElk = async (

@@ -1,7 +1,7 @@
-import { canvasToString } from "../vendor/ascii/canvas.js";
 import { CharScene, type StrokePrimitive } from "../vendor/ascii/scene.js";
+import { cropSurface, surfaceToString } from "../vendor/ascii/surface.js";
 import type { Canvas } from "../vendor/ascii/types.js";
-import type { CharRole } from "../vendor/ascii/types.js";
+import type { CharRole, MermaidStyleRole } from "../vendor/ascii/types.js";
 import { getDefaultGraphLayoutEngine } from "./elk.js";
 import type {
   GraphLayoutEngine,
@@ -70,42 +70,23 @@ export const endpointCell = (
   y: endpoint.anchor.y + endpoint.outward.y * distance,
 });
 
-const cropCanvas = (canvas: Canvas): Canvas => {
-  let minX = canvas.length;
-  let maxX = -1;
-  let minY = canvas[0]?.length ?? 0;
-  let maxY = -1;
-  for (let x = 0; x < canvas.length; x += 1) {
-    for (let y = 0; y < (canvas[0]?.length ?? 0); y += 1) {
-      if ((canvas[x]?.[y] ?? " ") === " ") continue;
-      minX = Math.min(minX, x);
-      maxX = Math.max(maxX, x);
-      minY = Math.min(minY, y);
-      maxY = Math.max(maxY, y);
-    }
-  }
-  if (maxX < minX || maxY < minY) return [[" "]];
-  return Array.from({ length: maxX - minX + 1 }, (_, x) =>
-    Array.from(
-      { length: maxY - minY + 1 },
-      (_, y) => canvas[minX + x]![minY + y]!,
-    ),
-  );
-};
-
 export const writeCanvasFragment = (
   scene: CharScene,
   canvas: Canvas,
   origin: { x: number; y: number },
   owner: string,
   classify: (x: number, y: number, char: string) => CharRole,
+  classifyStyle?: (x: number, y: number, char: string) => MermaidStyleRole,
 ) => {
   for (let x = 0; x < canvas.length; x += 1) {
     for (let y = 0; y < (canvas[0]?.length ?? 0); y += 1) {
       const char = canvas[x]?.[y] ?? " ";
-      if (char === " ") continue;
+      const styleRole = classifyStyle?.(x, y, char);
+      if (char === " " && styleRole !== "node.background") continue;
       scene.write(origin.x + x, origin.y + y, char, classify(x, y, char), {
         owner,
+        styleRole,
+        reserve: char === " ",
       });
     }
   }
@@ -127,7 +108,9 @@ const drawEdge = (
       endpoint: edge.sourceEndpoint,
       end: "source",
     });
-    if (presentation.sourceEndpoint.trimAnchor) points = points.slice(1);
+    if (presentation.sourceEndpoint.trimAnchor) {
+      points = [edge.sourceEndpoint.marker, ...points.slice(1)];
+    }
   }
   if (presentation.targetEndpoint) {
     presentation.targetEndpoint.paint(scene, {
@@ -136,7 +119,9 @@ const drawEdge = (
       endpoint: edge.targetEndpoint,
       end: "target",
     });
-    if (presentation.targetEndpoint.trimAnchor) points = points.slice(0, -1);
+    if (presentation.targetEndpoint.trimAnchor) {
+      points = [...points.slice(0, -1), edge.targetEndpoint.marker];
+    }
   }
 
   scene.add({
@@ -147,6 +132,8 @@ const drawEdge = (
     style: presentation.stroke.style,
     rounded: presentation.stroke.rounded,
     connections: [edge.source, edge.target],
+    styleRole: "edge.line",
+    topology: edge.routing?.topology,
   });
 
   if (edge.label && edge.labelPosition) {
@@ -157,12 +144,13 @@ const drawEdge = (
         at: { x: edge.labelPosition.x, y: edge.labelPosition.y + index },
         text: line,
         width: edge.label.width,
+        styleRole: "edge.label",
       });
     }
   }
 };
 
-export const renderGridLayout = (
+export const renderGridLayoutSurface = (
   layout: GridLayout,
   presentation: LayeredDiagramPresentation,
   context: LayeredRenderContext,
@@ -179,8 +167,18 @@ export const renderGridLayout = (
     presentation.drawNode(scene, node, context);
   }
 
-  return canvasToString(cropCanvas(scene.compose().canvas));
+  const composed = scene.compose();
+  return cropSurface({
+    canvas: composed.canvas,
+    styleRoleCanvas: composed.styleRoleCanvas,
+  });
 };
+
+export const renderGridLayout = (
+  layout: GridLayout,
+  presentation: LayeredDiagramPresentation,
+  context: LayeredRenderContext,
+) => surfaceToString(renderGridLayoutSurface(layout, presentation, context));
 
 export const renderLayeredDiagram = async (
   graph: LayoutGraph,
@@ -191,4 +189,15 @@ export const renderLayeredDiagram = async (
   const errors = validateGridLayout(layout);
   if (errors.length > 0) throw new Error(errors[0]);
   return renderGridLayout(layout, presentation, options);
+};
+
+export const renderLayeredDiagramSurface = async (
+  graph: LayoutGraph,
+  presentation: LayeredDiagramPresentation,
+  options: LayeredDiagramRenderOptions,
+) => {
+  const layout = await (options.engine ?? getDefaultGraphLayoutEngine()).layout(graph);
+  const errors = validateGridLayout(layout);
+  if (errors.length > 0) throw new Error(errors[0]);
+  return renderGridLayoutSurface(layout, presentation, options);
 };

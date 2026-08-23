@@ -5,6 +5,7 @@ import ts from "typescript";
 const ROOT = process.cwd();
 const SRC_DIR = join(ROOT, "src");
 const CHARGRAPH_SRC_DIR = join(ROOT, "apps", "chargraph", "src");
+const DOCS_APP_DIR = join(ROOT, "apps", "docs", "app");
 const UI_SRC_DIR = join(ROOT, "packages", "ui", "src");
 const TARGET_EXTENSIONS = new Set([".ts", ".tsx"]);
 
@@ -393,6 +394,35 @@ if (chargraphStylesheet.length > 0) {
     check: "CharGraph must consume @chardesk/ui without local visual CSS",
     file: relative(ROOT, chargraphStylesheetPath).replace(/\\/g, "/"),
     line: 1,
+  });
+}
+
+const docsStylesheetPath = join(DOCS_APP_DIR, "app.css");
+const docsStylesheet = readFileSync(docsStylesheetPath, "utf8");
+const requiredDocsImports = [
+  '@import "@chardesk/ui/theme.css";',
+  '@import "fumadocs-ui/css/shadcn.css";',
+  '@import "fumadocs-ui/css/preset.css";',
+];
+
+for (const requiredImport of requiredDocsImports) {
+  if (docsStylesheet.includes(requiredImport)) continue;
+  violations.push({
+    check: `Docs must consume the shared visual system: ${requiredImport}`,
+    file: relative(ROOT, docsStylesheetPath).replace(/\\/g, "/"),
+    line: 1,
+  });
+}
+
+for (const forbiddenImport of [
+  '@import "tailwindcss";',
+  '@import "fumadocs-ui/css/neutral.css";',
+]) {
+  if (!docsStylesheet.includes(forbiddenImport)) continue;
+  violations.push({
+    check: `Docs must not maintain a parallel theme: ${forbiddenImport}`,
+    file: relative(ROOT, docsStylesheetPath).replace(/\\/g, "/"),
+    line: lineFromIndex(docsStylesheet, docsStylesheet.indexOf(forbiddenImport)),
   });
 }
 

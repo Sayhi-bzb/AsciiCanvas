@@ -1,6 +1,28 @@
 import { createCharGraphFragment } from "./fragments.js";
-import type { MarkdownSyntaxExtension } from "./markdown-extension.js";
+import {
+  type MarkdownExtensionRenderContext,
+  type MarkdownSyntaxExtension,
+} from "./markdown-extension.js";
 import { parseDataTree, renderDataTree, type DataTreeStyles } from "./data-tree.js";
+
+const DATA_TREE_STYLE_SLOT_IDS = [
+  "connector",
+  "key",
+  "index",
+  "string",
+  "number",
+  "boolean",
+  "null",
+  "empty",
+  "reference",
+] as const;
+
+export const MARKDOWN_DATA_TREE_STYLE_ROLES = [
+  ...DATA_TREE_STYLE_SLOT_IDS.map((role) => `json-tree-${role}` as const),
+  ...DATA_TREE_STYLE_SLOT_IDS.map((role) => `yaml-tree-${role}` as const),
+] as const;
+type MarkdownDataTreeStyleRole =
+  typeof MARKDOWN_DATA_TREE_STYLE_ROLES[number];
 
 const fallback = (
   rawSource: string,
@@ -24,9 +46,9 @@ const fallback = (
 
 const styles = (
   prefix: "json-tree" | "yaml-tree",
-  context: Parameters<MarkdownSyntaxExtension["render"]>[1]
+  context: MarkdownExtensionRenderContext<MarkdownDataTreeStyleRole>
 ) => Object.fromEntries(
-  (["connector", "key", "string", "number", "keyword"] as const).map((role) => [
+  DATA_TREE_STYLE_SLOT_IDS.map((role) => [
     role,
     context.style(`${prefix}-${role}`),
   ])
@@ -40,7 +62,7 @@ const createDataTreeExtension = ({
   id: "json-tree" | "yaml-tree";
   languages: readonly string[];
   parserLanguage: "json" | "yaml";
-}): MarkdownSyntaxExtension => ({
+}): MarkdownSyntaxExtension<MarkdownDataTreeStyleRole> => ({
   id,
   fencedLanguages: languages,
   render(request, context) {

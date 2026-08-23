@@ -26,18 +26,30 @@ edges, and rank constraints. It does not own Unicode glyphs, rounded corners,
 line styles, or UML markers. The sidecar owns node drawing, stroke appearance,
 and endpoint decoration, keyed by stable layout IDs. ELK owns layering,
 ordering, crossings, ports, and orthogonal bends. Cell projection owns integer
-coordinates and rejects diagonal routes, node overlap, and routes through node
-interiors. CharScene
-alone owns glyph composition.
+coordinates, compact self-loops, route-aware labels, and topology validation.
+An independent edge cannot share a node port, marker cell, or collinear route
+cell; a perpendicular cell crossing remains valid. CharScene alone owns glyph composition. Its structural character roles decide collision
+and topology; a parallel Mermaid style-role canvas records visual meaning without affecting
+geometry. Serialization groups adjacent equal style roles into CharGraph fragments after layout
+and CJK-safe cell projection.
 
 The shared layered renderer owns layout invocation, validation, group-edge-node
 composition order, route labels, cropping, and serialization. Diagram adapters
 may contribute node and endpoint painters but do not repeat those steps. Flow,
 State, Class, and ER use this contract. Class enables distributed ports and
 keeps UML compartments, namespaces, cardinalities, and relationship markers in
-its presentation sidecar. ER uses the same port policy for direction-aware
-crow's-foot cardinalities; its semantic relationships remain undirected while
-their declaration order supplies stable left-to-right layout orientation.
+its presentation sidecar. ER opts into one fixed-order ELK port per relationship
+endpoint, expands an entity only when its border lacks port capacity, and reserves
+the complete direction-aware crow's-foot marker corridor. ER labels are placed
+against the projected route, and self-relationships use the compact grid route.
+Its semantic relationships remain undirected while their declaration order
+supplies stable left-to-right layout orientation.
+State preserves parser-level diagram identity, uses depth-first cycle breaking
+from its ranked pseudostates, and projects ELK attachment positions onto
+adaptive node ports: one attachment stays centered while a shared side remains
+distributed. Labels may be placed left or above the projected route; the final
+grid is translated back to a nonnegative origin. Feedback cycles therefore stay
+readable without inflating layer spacing.
 Sequence keeps its participant-column coordinate model.
 
 For a feasible layout, priorities are ordered rather than mixed into unstable

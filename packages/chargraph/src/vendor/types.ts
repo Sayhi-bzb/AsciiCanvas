@@ -4,6 +4,7 @@
 // ============================================================================
 
 export interface MermaidGraph {
+  diagramType: 'flowchart' | 'state'
   direction: Direction
   nodes: Map<string, MermaidNode>
   edges: MermaidEdge[]

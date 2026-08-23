@@ -1,16 +1,12 @@
-import type { CharDeskTextStyle } from "@chardesk/protocol";
 import {
-  createMarkdownRenderer,
-  markdownAlertExtension,
-  markdownJsonTreeExtension,
-  markdownDiffExtension,
-  markdownMathExtension,
-  markdownMermaidExtension,
-  markdownYamlTreeExtension,
+  CHARDESK_MARKDOWN_FEATURES,
+  createCharDeskMarkdownRenderOptions,
+  getCharDeskMarkdownColorDefault,
+  markdownRenderer,
   type MarkdownRenderOptions,
-  type MarkdownSyntaxExtension,
-  type MarkdownTextRuleId,
-  type MarkdownTextStyles,
+  type CharDeskMarkdownColorSlotId,
+  type CharDeskMarkdownFeatureId,
+  type CharDeskMarkdownFeatureStates,
 } from "@chardesk/chargraph/markdown";
 import type { I18nKey } from "@/shared/i18n";
 import type {
@@ -20,387 +16,357 @@ import type {
   TextRenderFeatureId,
   TextRenderFeatureSettings,
   TextRenderTheme,
-  TextRenderThemeTokenId,
 } from "./types";
 
 type InternalColorSlot = TextRenderFeatureDefinition["colorSlots"][number] & {
   readonly legacyIds: readonly string[];
+  readonly configAliases: readonly string[];
 };
 
-type MarkdownFeatureStyles = {
-  readonly core?: MarkdownTextStyles;
-  readonly extension?: Readonly<Record<string, CharDeskTextStyle>>;
-};
-
-type InternalFeatureDefinition = Omit<TextRenderFeatureDefinition, "colorSlots"> & {
+type InternalFeatureDefinition = Omit<TextRenderFeatureDefinition, "colorSlots" | "colorRows"> & {
   readonly colorSlots: readonly InternalColorSlot[];
+  readonly colorRows?: TextRenderFeatureDefinition["colorRows"];
   readonly legacyRuleId: string;
-  readonly markdown: {
-    readonly kind: "core" | "extension";
-    readonly ruleId: string;
-    readonly extension?: MarkdownSyntaxExtension;
-    readonly styles?: (
-      color: (slotId: string) => string | undefined,
-      theme: TextRenderTheme
-    ) => MarkdownFeatureStyles;
-  };
+  readonly markdownFeatureId: CharDeskMarkdownFeatureId;
 };
 
-const inherit = { kind: "inherit" } as const;
-const token = (value: TextRenderThemeTokenId) => ({
-  kind: "token",
-  token: value,
-} as const);
+const MARKDOWN_FEATURES_BY_ID = new Map(
+  CHARDESK_MARKDOWN_FEATURES.map((feature) => [feature.id, feature])
+);
 
-const mixHexColors = (foreground: string, background: string, weight: number) => {
-  const channel = (value: string, offset: number) => Number.parseInt(value.slice(offset, offset + 2), 16);
-  const mixed = [1, 3, 5].map((offset) => Math.round(
-    channel(foreground, offset) * weight + channel(background, offset) * (1 - weight)
-  ));
-  return `#${mixed.map((value) => value.toString(16).padStart(2, "0")).join("")}`;
-};
-
-const slot = (
-  id: string,
+const slot = <Feature extends CharDeskMarkdownFeatureId>(
+  _feature: Feature,
+  id: CharDeskMarkdownColorSlotId<Feature>,
   defaultValue: TextRenderColorDefault,
   legacyIds: readonly string[],
-  label?: I18nKey
+  label?: I18nKey,
+  configAliases: readonly string[] = [],
 ): InternalColorSlot => ({
   id,
   default: defaultValue,
   legacyIds,
+  configAliases,
   ...(label ? { label } : {}),
 });
 
-const coreFeature = (
-  ruleId: MarkdownTextRuleId,
-  settingsGroup: "inline" | "blocks",
+const themedSlot = <Feature extends CharDeskMarkdownFeatureId>(
+  feature: Feature,
+  id: CharDeskMarkdownColorSlotId<Feature>,
+  legacyIds: readonly string[],
+  label?: I18nKey,
+  configAliases: readonly string[] = [],
+) => slot(
+  feature,
+  id,
+  getCharDeskMarkdownColorDefault(feature, id),
+  legacyIds,
+  label,
+  configAliases
+);
+
+const hostFeature = (
+  ruleId: CharDeskMarkdownFeatureId,
+  settingsGroup: "inline" | "blocks" | "math",
   label: I18nKey,
   options: {
     colorSlots?: readonly InternalColorSlot[];
-    styles?: InternalFeatureDefinition["markdown"]["styles"];
+    colorRows?: TextRenderFeatureDefinition["colorRows"];
   } = {}
-): InternalFeatureDefinition => ({
-  id: `markdown.${ruleId}`,
-  rendererId: "markdown",
-  settingsGroup,
-  label,
-  defaultEnabled: true,
-  colorSlots: options.colorSlots ?? [],
-  legacyRuleId: ruleId,
-  markdown: {
-    kind: "core",
-    ruleId,
-    ...(options.styles ? { styles: options.styles } : {}),
-  },
-});
+): InternalFeatureDefinition => {
+  const feature = MARKDOWN_FEATURES_BY_ID.get(ruleId);
+  return {
+    id: `markdown.${ruleId}`,
+    rendererId: "markdown",
+    settingsGroup,
+    label,
+    control: feature?.kind === "style" ? "style" : "toggle",
+    defaultEnabled: feature?.defaultEnabled ?? true,
+    colorSlots: options.colorSlots ?? [],
+    ...(options.colorRows ? { colorRows: options.colorRows } : {}),
+    legacyRuleId: ruleId,
+    markdownFeatureId: ruleId,
+  };
+};
 
-const extensionFeature = (
-  ruleId: string,
-  settingsGroup: "inline" | "blocks",
-  label: I18nKey,
-  extension: MarkdownSyntaxExtension,
-  options: {
-    colorSlots?: readonly InternalColorSlot[];
-    styles?: InternalFeatureDefinition["markdown"]["styles"];
-  } = {}
-): InternalFeatureDefinition => ({
-  id: `markdown.${ruleId}`,
-  rendererId: "markdown",
-  settingsGroup,
-  label,
-  defaultEnabled: true,
-  colorSlots: options.colorSlots ?? [],
-  legacyRuleId: ruleId,
-  markdown: {
-    kind: "extension",
-    ruleId,
-    extension,
-    ...(options.styles ? { styles: options.styles } : {}),
-  },
-});
+type ForegroundFeatureId =
+  | "strong"
+  | "emphasis"
+  | "strikethrough"
+  | "link"
+  | "thematic-break";
 
-const foreground = (
-  ruleId: string,
-  defaultValue: TextRenderColorDefault = inherit
-) => slot("foreground", defaultValue, [`${ruleId}.foreground`, ruleId]);
+const foreground = (ruleId: ForegroundFeatureId) => themedSlot(
+  ruleId,
+  "foreground",
+  [`${ruleId}.foreground`, ruleId]
+);
 
 const dataTreeFeature = (
   ruleId: "json-tree" | "yaml-tree",
-  label: I18nKey,
-  extension: MarkdownSyntaxExtension
-) => extensionFeature(ruleId, "blocks", label, extension, {
-  colorSlots: [
-    slot("connector", token("muted"), [], "settings.markdown.dataTreeConnector"),
-    slot("key", token("accent"), [], "settings.markdown.dataTreeKey"),
-    slot("string", token("success"), [], "settings.markdown.dataTreeString"),
-    slot("number", token("info"), [], "settings.markdown.dataTreeNumber"),
-    slot("keyword", token("warning"), [], "settings.markdown.dataTreeKeyword"),
-  ],
-  styles: (color) => ({
-    extension: {
-      [`${ruleId}-connector`]: { color: color("connector") },
-      [`${ruleId}-key`]: { color: color("key") },
-      [`${ruleId}-string`]: { color: color("string") },
-      [`${ruleId}-number`]: { color: color("number") },
-      [`${ruleId}-keyword`]: { color: color("keyword") },
-    },
-  }),
-});
+  label: I18nKey
+) => {
+  const keywordLegacyIds = [`${ruleId}.keyword`];
+  const keywordConfigAliases = ["keyword"];
+  const structureSlotIds = ["connector", "key", "index"];
+  if (ruleId === "yaml-tree") structureSlotIds.push("reference");
+  return hostFeature(ruleId, "blocks", label, {
+    colorSlots: [
+      themedSlot(ruleId, "connector", [], "settings.markdown.dataTreeConnector"),
+      themedSlot(ruleId, "key", [], "settings.markdown.dataTreeKey"),
+      themedSlot(ruleId, "index", [], "settings.markdown.dataTreeIndex"),
+      themedSlot(ruleId, "string", [], "settings.markdown.dataTreeString"),
+      themedSlot(ruleId, "number", [], "settings.markdown.dataTreeNumber"),
+      themedSlot(
+        ruleId,
+        "boolean",
+        keywordLegacyIds,
+        "settings.markdown.dataTreeBoolean",
+        keywordConfigAliases
+      ),
+      themedSlot(
+        ruleId,
+        "null",
+        keywordLegacyIds,
+        "settings.markdown.dataTreeNull",
+        keywordConfigAliases
+      ),
+      themedSlot(
+        ruleId,
+        "empty",
+        keywordLegacyIds,
+        "settings.markdown.dataTreeEmpty",
+        keywordConfigAliases
+      ),
+      ...(ruleId === "yaml-tree"
+        ? [themedSlot(
+            ruleId,
+            "reference",
+            keywordLegacyIds,
+            "settings.markdown.dataTreeReference",
+            keywordConfigAliases
+          )]
+        : []),
+    ],
+    colorRows: [
+      {
+        id: "structure",
+        label: "settings.markdown.dataTreeStructure",
+        slotIds: structureSlotIds,
+      },
+      {
+        id: "values",
+        label: "settings.markdown.dataTreeValues",
+        slotIds: ["string", "number", "boolean", "null", "empty"],
+      },
+    ],
+  });
+};
 
 const INTERNAL_FEATURES = [
-  coreFeature("strong", "inline", "settings.markdown.strong", {
+  hostFeature("strong", "inline", "settings.markdown.strong", {
     colorSlots: [foreground("strong")],
-    styles: (color) => ({
-      core: { strong: { color: color("foreground"), attrs: { bold: true } } },
-    }),
   }),
-  coreFeature("emphasis", "inline", "settings.markdown.emphasis", {
+  hostFeature("emphasis", "inline", "settings.markdown.emphasis", {
     colorSlots: [foreground("emphasis")],
-    styles: (color) => ({
-      core: { emphasis: { color: color("foreground"), attrs: { italic: true } } },
-    }),
   }),
-  coreFeature("strikethrough", "inline", "settings.markdown.strikethrough", {
+  hostFeature("strikethrough", "inline", "settings.markdown.strikethrough", {
     colorSlots: [foreground("strikethrough")],
-    styles: (color) => ({
-      core: {
-        strikethrough: { color: color("foreground"), attrs: { strike: true } },
-      },
-    }),
   }),
-  coreFeature("link", "inline", "settings.markdown.link", {
-    colorSlots: [foreground("link", token("info"))],
-    styles: (color) => ({
-      core: { link: { color: color("foreground"), attrs: { underline: true } } },
-    }),
+  hostFeature("link", "inline", "settings.markdown.link", {
+    colorSlots: [foreground("link")],
   }),
-  coreFeature("inline-code", "inline", "settings.markdown.inlineCode", {
+  hostFeature("inline-code", "inline", "settings.markdown.inlineCode", {
     colorSlots: [
-      slot(
+      themedSlot(
+        "inline-code",
         "foreground",
-        token("info"),
         ["inline-code.foreground", "inline-code"],
         "settings.markdown.inlineCodeForeground"
       ),
-      slot(
+      themedSlot(
+        "inline-code",
         "background",
-        token("surface"),
         ["inline-code.background"],
         "settings.markdown.inlineCodeBackground"
       ),
     ],
-    styles: (color) => ({
-      core: {
-        "inline-code": {
-          color: color("foreground"),
-          bgColor: color("background"),
-        },
-      },
-    }),
   }),
-  extensionFeature(
+  hostFeature(
     "inline-math",
-    "inline",
-    "settings.markdown.inlineMath",
-    markdownMathExtension,
+    "math",
+    "settings.markdown.inlineMath"
+  ),
+  hostFeature(
+    "block-math",
+    "math",
+    "settings.markdown.blockMath"
+  ),
+  hostFeature(
+    "math-style",
+    "math",
+    "settings.markdown.mathStyle",
     {
-      colorSlots: [foreground("inline-math")],
-      styles: (color) => ({
-        extension: { "inline-math": { color: color("foreground") } },
-      }),
+      colorSlots: [
+        themedSlot(
+          "math-style",
+          "content",
+          ["inline-math.foreground", "inline-math", "block-math.foreground", "block-math"],
+          "settings.markdown.mathContent"
+        ),
+        themedSlot(
+          "math-style",
+          "operator",
+          [],
+          "settings.markdown.mathOperator"
+        ),
+        themedSlot(
+          "math-style",
+          "structure",
+          [],
+          "settings.markdown.mathStructure"
+        ),
+      ],
     }
   ),
-  coreFeature("heading", "blocks", "settings.markdown.heading", {
-    colorSlots: [slot("marker", token("accent"), ["heading.marker", "heading"])],
-    styles: (color) => ({
-      core: {
-        "heading-marker": { color: color("marker") },
-        "heading-1": { attrs: { bold: true, underline: true } },
-        "heading-2": { attrs: { bold: true } },
-        "heading-3": { attrs: { bold: true, italic: true } },
-        "heading-4": { attrs: { italic: true } },
-      },
-    }),
+  hostFeature("heading", "blocks", "settings.markdown.heading", {
+    colorSlots: [themedSlot("heading", "marker", ["heading.marker", "heading"])],
   }),
-  coreFeature("blockquote", "blocks", "settings.markdown.blockquote", {
-    colorSlots: [slot("marker", token("success"), ["blockquote.marker", "blockquote"])],
-    styles: (color) => ({
-      core: { "blockquote-marker": { color: color("marker") } },
-    }),
-  }),
-  coreFeature("list", "blocks", "settings.markdown.list", {
-    colorSlots: [slot(
+  hostFeature("blockquote", "blocks", "settings.markdown.blockquote", {
+    colorSlots: [themedSlot(
+      "blockquote",
       "marker",
-      { kind: "mixed", tokens: ["accent"], includesInherited: true },
+      ["blockquote.marker", "blockquote"]
+    )],
+  }),
+  hostFeature("list", "blocks", "settings.markdown.list", {
+    colorSlots: [themedSlot(
+      "list",
+      "marker",
       ["list.marker", "list"]
     )],
-    styles: (color, theme) => {
-      const marker = color("marker");
-      return {
-        core: {
-          ...(marker ? { "list-marker": { color: marker } } : {}),
-          "ordered-list-marker": { color: marker ?? theme.accent },
-        },
-      };
-    },
   }),
-  coreFeature("task-list", "blocks", "settings.markdown.taskList", {
+  hostFeature("task-list", "blocks", "settings.markdown.taskList", {
     colorSlots: [
-      slot(
+      themedSlot(
+        "task-list",
         "unchecked",
-        token("muted"),
         ["task-list.unchecked"],
         "settings.markdown.taskListUnchecked"
       ),
-      slot(
+      themedSlot(
+        "task-list",
         "checked",
-        token("success"),
         ["task-list.checked"],
         "settings.markdown.taskListChecked"
       ),
     ],
-    styles: (color) => ({
-      core: {
-        "task-unchecked": { color: color("unchecked") },
-        "task-checked": { color: color("checked") },
-      },
-    }),
   }),
-  coreFeature("thematic-break", "blocks", "settings.markdown.thematicBreak", {
+  hostFeature("thematic-break", "blocks", "settings.markdown.thematicBreak", {
     colorSlots: [foreground("thematic-break")],
-    styles: (color) => ({
-      core: {
-        ...(color("foreground")
-          ? { "thematic-break": { color: color("foreground") } }
-          : {}),
-      },
-    }),
   }),
-  coreFeature("code-block", "blocks", "settings.markdown.codeBlock"),
-  extensionFeature(
+  hostFeature("code-block", "blocks", "settings.markdown.codeBlock"),
+  hostFeature(
     "github-alert",
     "blocks",
     "settings.markdown.githubAlert",
-    markdownAlertExtension,
     {
       colorSlots: [
-        slot("note", token("info"), [], "settings.markdown.alertNote"),
-        slot("tip", token("success"), [], "settings.markdown.alertTip"),
-        slot("important", token("accent"), [], "settings.markdown.alertImportant"),
-        slot("warning", token("warning"), [], "settings.markdown.alertWarning"),
-        slot("caution", token("danger"), [], "settings.markdown.alertCaution"),
+        themedSlot("github-alert", "note", [], "settings.markdown.alertNote"),
+        themedSlot("github-alert", "tip", [], "settings.markdown.alertTip"),
+        themedSlot("github-alert", "important", [], "settings.markdown.alertImportant"),
+        themedSlot("github-alert", "warning", [], "settings.markdown.alertWarning"),
+        themedSlot("github-alert", "caution", [], "settings.markdown.alertCaution"),
       ],
-      styles: (color) => ({
-        extension: {
-          "alert-note": { color: color("note") },
-          "alert-tip": { color: color("tip") },
-          "alert-important": { color: color("important") },
-          "alert-warning": { color: color("warning") },
-          "alert-caution": { color: color("caution") },
-        },
-      }),
     }
   ),
-  extensionFeature(
+  hostFeature(
     "diff",
     "blocks",
     "settings.markdown.diff",
-    markdownDiffExtension,
     {
       colorSlots: [
-        slot("added", token("success"), [], "settings.markdown.diffAdded"),
-        slot("deleted", token("danger"), [], "settings.markdown.diffDeleted"),
-        slot("hunk", token("accent"), [], "settings.markdown.diffHunk"),
-        slot("metadata", token("muted"), [], "settings.markdown.diffMetadata"),
+        themedSlot("diff", "added", [], "settings.markdown.diffAdded"),
+        themedSlot("diff", "deleted", [], "settings.markdown.diffDeleted"),
+        themedSlot("diff", "hunk", [], "settings.markdown.diffHunk"),
+        themedSlot("diff", "metadata", [], "settings.markdown.diffMetadata"),
       ],
-      styles: (color, theme) => {
-        const added = color("added") ?? theme.success;
-        const deleted = color("deleted") ?? theme.danger;
-        return {
-          extension: {
-            "diff-added": {
-              color: added,
-              bgColor: mixHexColors(added, theme.background, 0.12),
-            },
-            "diff-deleted": {
-              color: deleted,
-              bgColor: mixHexColors(deleted, theme.background, 0.12),
-            },
-            "diff-hunk": { color: color("hunk") },
-            "diff-metadata": { color: color("metadata") },
-          },
-        };
-      },
     }
   ),
   dataTreeFeature(
     "json-tree",
-    "settings.markdown.jsonTree",
-    markdownJsonTreeExtension
+    "settings.markdown.jsonTree"
   ),
   dataTreeFeature(
     "yaml-tree",
-    "settings.markdown.yamlTree",
-    markdownYamlTreeExtension
+    "settings.markdown.yamlTree"
   ),
-  extensionFeature(
+  hostFeature(
     "mermaid",
     "blocks",
     "settings.markdown.mermaid",
-    markdownMermaidExtension,
     {
-      colorSlots: [foreground("mermaid")],
-      styles: (color) => ({
-        extension: { mermaid: { color: color("foreground") } },
-      }),
+      colorSlots: [
+        themedSlot("mermaid", "title", ["mermaid.foreground", "mermaid"], "settings.markdown.mermaidTitle", ["foreground"]),
+        themedSlot("mermaid", "node.text", ["mermaid.foreground", "mermaid"], "settings.markdown.mermaidNodeText", ["foreground"]),
+        themedSlot("mermaid", "node.border", ["mermaid.foreground", "mermaid"], "settings.markdown.mermaidNodeBorder", ["foreground"]),
+        themedSlot("mermaid", "node.background", [], "settings.markdown.mermaidNodeBackground"),
+        themedSlot("mermaid", "edge.line", ["mermaid.foreground", "mermaid"], "settings.markdown.mermaidEdgeLine", ["foreground"]),
+        themedSlot("mermaid", "edge.label", ["mermaid.foreground", "mermaid"], "settings.markdown.mermaidEdgeLabel", ["foreground"]),
+        themedSlot("mermaid", "edge.arrow", ["mermaid.foreground", "mermaid"], "settings.markdown.mermaidArrow", ["foreground"]),
+        themedSlot("mermaid", "container.border", ["mermaid.foreground", "mermaid"], "settings.markdown.mermaidContainerBorder", ["foreground"]),
+        themedSlot("mermaid", "container.title", ["mermaid.foreground", "mermaid"], "settings.markdown.mermaidContainerTitle", ["foreground"]),
+        themedSlot("mermaid", "chart.axis", ["mermaid.foreground", "mermaid"], "settings.markdown.mermaidChartAxis", ["foreground"]),
+        themedSlot("mermaid", "chart.grid", ["mermaid.foreground", "mermaid"], "settings.markdown.mermaidChartGrid", ["foreground"]),
+        themedSlot("mermaid", "chart.label", ["mermaid.foreground", "mermaid"], "settings.markdown.mermaidChartLabel", ["foreground"]),
+        themedSlot("mermaid", "series.1", ["mermaid.foreground", "mermaid"], "settings.markdown.mermaidSeries1", ["foreground"]),
+        themedSlot("mermaid", "series.2", ["mermaid.foreground", "mermaid"], "settings.markdown.mermaidSeries2", ["foreground"]),
+        themedSlot("mermaid", "series.3", ["mermaid.foreground", "mermaid"], "settings.markdown.mermaidSeries3", ["foreground"]),
+        themedSlot("mermaid", "series.4", ["mermaid.foreground", "mermaid"], "settings.markdown.mermaidSeries4", ["foreground"]),
+        themedSlot("mermaid", "series.5", ["mermaid.foreground", "mermaid"], "settings.markdown.mermaidSeries5", ["foreground"]),
+      ],
+      colorRows: [
+        { id: "node", label: "settings.markdown.mermaidNode", slotIds: ["node.text", "node.border", "node.background"] },
+        { id: "edge", label: "settings.markdown.mermaidEdge", slotIds: ["edge.line"] },
+        { id: "label", label: "settings.markdown.mermaidLabel", slotIds: ["title", "edge.label"] },
+        { id: "arrow", label: "settings.markdown.mermaidArrowRow", slotIds: ["edge.arrow"] },
+        { id: "container", label: "settings.markdown.mermaidContainer", slotIds: ["container.border", "container.title"] },
+        { id: "grid", label: "settings.markdown.mermaidGrid", slotIds: ["chart.axis", "chart.grid", "chart.label"] },
+        { id: "series", label: "settings.markdown.mermaidSeries", slotIds: ["series.1", "series.2", "series.3", "series.4", "series.5"] },
+      ],
     }
   ),
-  extensionFeature(
-    "block-math",
-    "blocks",
-    "settings.markdown.blockMath",
-    markdownMathExtension,
-    {
-      colorSlots: [foreground("block-math")],
-      styles: (color) => ({
-        extension: { "block-math": { color: color("foreground") } },
-      }),
-    }
-  ),
-  coreFeature("table", "blocks", "settings.markdown.table", {
+  hostFeature("table", "blocks", "settings.markdown.table", {
     colorSlots: [
-      slot(
+      themedSlot(
+        "table",
         "header.foreground",
-        token("accent-foreground"),
         ["table.header.foreground"],
         "settings.markdown.tableHeaderForeground"
       ),
-      slot(
+      themedSlot(
+        "table",
         "header.background",
-        token("accent"),
         ["table.header.background", "table"],
         "settings.markdown.tableHeaderBackground"
       ),
-      slot(
+      themedSlot(
+        "table",
         "separator",
-        token("muted"),
         ["table.separator", "table"],
         "settings.markdown.tableSeparator"
       ),
     ],
-    styles: (color) => ({
-      core: {
-        "table-header": {
-          color: color("header.foreground"),
-          bgColor: color("header.background"),
-          attrs: { bold: true },
-        },
-        "table-separator": { color: color("separator") },
-      },
-    }),
   }),
 ] as const satisfies readonly InternalFeatureDefinition[];
+
+const boundFeatureIds = new Set(
+  INTERNAL_FEATURES.map((feature) => feature.markdownFeatureId)
+);
+for (const feature of CHARDESK_MARKDOWN_FEATURES) {
+  if (!boundFeatureIds.has(feature.id)) {
+    throw new Error(`Markdown feature has no Canvas binding: ${feature.id}`);
+  }
+}
 
 const featureDefinition = (
   feature: InternalFeatureDefinition
@@ -409,6 +375,7 @@ const featureDefinition = (
   rendererId: feature.rendererId,
   settingsGroup: feature.settingsGroup,
   label: feature.label,
+  control: feature.control,
   defaultEnabled: feature.defaultEnabled,
   colorSlots: Object.freeze(feature.colorSlots.map((colorSlot) => {
     const defaultValue = colorSlot.default.kind === "mixed"
@@ -423,6 +390,12 @@ const featureDefinition = (
       ...(colorSlot.label ? { label: colorSlot.label } : {}),
     });
   })),
+  ...(feature.colorRows
+    ? { colorRows: Object.freeze(feature.colorRows.map((row) => Object.freeze({
+        ...row,
+        slotIds: Object.freeze([...row.slotIds]),
+      }))) }
+    : {}),
 });
 
 export const TEXT_RENDER_FEATURES: readonly TextRenderFeatureDefinition[] =
@@ -453,7 +426,9 @@ const decodeColors = (
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
   const source = value as Record<string, unknown>;
   return Object.fromEntries(definition.colorSlots.flatMap((colorSlot) => {
-    const color = normalizeColor(source[colorSlot.id]);
+    const color = normalizeColor(source[colorSlot.id])
+      ?? colorSlot.configAliases.map((id) => normalizeColor(source[id])).find(Boolean)
+      ?? null;
     return color ? [[colorSlot.id, color]] : [];
   }));
 };
@@ -462,7 +437,8 @@ export const decodeFeatureSettings = (value: unknown): TextRenderFeatureSettings
   const source = value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown>
     : {};
-  return Object.fromEntries(INTERNAL_FEATURES.map((definition) => {
+  const settings: TextRenderFeatureSettings = Object.fromEntries(
+    INTERNAL_FEATURES.map((definition) => {
     const candidate = source[definition.id];
     const record = candidate && typeof candidate === "object" && !Array.isArray(candidate)
       ? candidate as Partial<TextRenderFeatureConfig>
@@ -473,7 +449,23 @@ export const decodeFeatureSettings = (value: unknown): TextRenderFeatureSettings
         : definition.defaultEnabled,
       colors: decodeColors(record.colors, definition),
     }];
-  }));
+    })
+  );
+  const mathStyle = settings["markdown.math-style"];
+  if (mathStyle && !mathStyle.colors.content) {
+    const previousMathColor = ["markdown.inline-math", "markdown.block-math"]
+      .map((id) => source[id])
+      .flatMap((candidate) =>
+        candidate && typeof candidate === "object" && !Array.isArray(candidate)
+          ? [normalizeColor(
+              (candidate as Partial<TextRenderFeatureConfig>).colors?.foreground
+            )]
+          : []
+      )
+      .find(Boolean);
+    if (previousMathColor) mathStyle.colors.content = previousMathColor;
+  }
+  return settings;
 };
 
 export const migrateLegacyFeatureSettings = (
@@ -504,48 +496,35 @@ export const migrateLegacyFeatureSettings = (
   }));
 };
 
-const resolveDefaultColor = (
-  value: TextRenderColorDefault,
-  theme: TextRenderTheme
-) => value.kind === "token" ? theme[value.token] : undefined;
-
-export const createRegisteredMarkdownRenderer = () => {
-  const extensions = [...new Set(INTERNAL_FEATURES.flatMap((feature) =>
-    feature.markdown.extension ? [feature.markdown.extension] : []
-  ))];
-  return createMarkdownRenderer({ extensions });
-};
+export const createRegisteredMarkdownRenderer = () => markdownRenderer;
 
 export const createRegisteredMarkdownOptions = (
   settings: TextRenderFeatureSettings,
   theme: TextRenderTheme,
   forced: boolean
 ): MarkdownRenderOptions => {
-  const rules: Partial<Record<MarkdownTextRuleId, boolean>> = {};
-  const extensionRules: Record<string, boolean> = {};
-  const styles: MarkdownTextStyles = {};
-  const extensionStyles: Record<string, CharDeskTextStyle> = {};
+  const features: CharDeskMarkdownFeatureStates = {};
 
   for (const definition of INTERNAL_FEATURES) {
     const config = settings[definition.id] ?? {
       enabled: definition.defaultEnabled,
       colors: {},
     };
-    if (definition.markdown.kind === "core") {
-      rules[definition.markdown.ruleId as MarkdownTextRuleId] = config.enabled;
-    } else {
-      extensionRules[definition.markdown.ruleId] = config.enabled;
+    const colors: Record<string, string> = {};
+    for (const colorSlot of definition.colorSlots) {
+      const configured = normalizeColor(config.colors[colorSlot.id]);
+      if (!configured) continue;
+      colors[colorSlot.id] = configured;
     }
-    const color = (slotId: string) => {
-      const configured = normalizeColor(config.colors[slotId]);
-      if (configured) return configured;
-      const colorSlot = definition.colorSlots.find((item) => item.id === slotId);
-      return colorSlot ? resolveDefaultColor(colorSlot.default, theme) : undefined;
+    features[definition.markdownFeatureId] = {
+      enabled: config.enabled,
+      colors,
     };
-    const resolved = definition.markdown.styles?.(color, theme);
-    Object.assign(styles, resolved?.core);
-    Object.assign(extensionStyles, resolved?.extension);
   }
 
-  return { forced, rules, extensionRules, styles, extensionStyles };
+  return createCharDeskMarkdownRenderOptions({
+    theme,
+    features,
+    forced,
+  });
 };

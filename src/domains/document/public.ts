@@ -48,6 +48,7 @@ export type {
   TextRenderThemeTokenId,
   TextRenderColorDefault,
   TextRenderFeatureColorSlotDefinition,
+  TextRenderFeatureColorRowDefinition,
   TextRenderFeatureConfig,
   TextRenderFeatureDefinition,
   TextRenderFeatureId,

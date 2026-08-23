@@ -50,6 +50,7 @@ function parseFlowchart(lines: string[]): MermaidGraph {
   const direction = headerMatch[1]!.toUpperCase() as Direction
 
   const graph: MermaidGraph = {
+    diagramType: 'flowchart',
     direction,
     nodes: new Map(),
     edges: [],
@@ -182,6 +183,7 @@ function parseFlowchart(lines: string[]): MermaidGraph {
 
 function parseStateDiagram(lines: string[]): MermaidGraph {
   const graph: MermaidGraph = {
+    diagramType: 'state',
     direction: 'TD',
     nodes: new Map(),
     edges: [],

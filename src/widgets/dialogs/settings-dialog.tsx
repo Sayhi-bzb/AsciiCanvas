@@ -258,7 +258,11 @@ export function SettingsDialog({ open, onOpenChange }: SettingsDialogProps) {
               <SettingsContentSection key="display" heading={t('settings.display')}>
                 <DisplaySettingsPanel
                   revealSettingId={
-                    revealTarget?.type === 'text-renderer' ? 'text-renderer' : null
+                    revealTarget?.type === 'text-renderer'
+                      ? 'text-renderer'
+                      : revealTarget?.type === 'render-feature'
+                        ? revealTarget.featureId
+                        : null
                   }
                   onRevealComplete={() => setRevealTarget(null)}
                 />

@@ -102,4 +102,51 @@ describe("cell layout projection", () => {
 
     expect(validateGridLayout(layout)).toContain("Edge edge marker overlaps node b");
   });
+
+  it("rejects shared ports and collinear cells for independent edges", () => {
+    const endpoint = (
+      side: "right" | "left",
+      anchor: { x: number; y: number },
+    ) => ({
+      side,
+      anchor,
+      marker: { x: anchor.x + (side === "right" ? 1 : -1), y: anchor.y },
+      outward: { x: side === "right" ? 1 : -1, y: 0 },
+    });
+    const layout: GridLayout = {
+      width: 10,
+      height: 5,
+      groups: [],
+      nodes: [
+        { id: "a", label: "A", x: 0, y: 0, width: 3, height: 4 },
+        { id: "b", label: "B", x: 7, y: 0, width: 3, height: 4 },
+      ],
+      edges: [
+        {
+          id: "first",
+          source: "a",
+          target: "b",
+          routing: { topology: "independent", sourceClearance: 1, targetClearance: 1 },
+          sourceEndpoint: endpoint("right", { x: 2, y: 1 }),
+          targetEndpoint: endpoint("left", { x: 7, y: 1 }),
+          points: [{ x: 2, y: 1 }, { x: 7, y: 1 }],
+        },
+        {
+          id: "second",
+          source: "a",
+          target: "b",
+          routing: { topology: "independent", sourceClearance: 1, targetClearance: 1 },
+          sourceEndpoint: endpoint("right", { x: 2, y: 1 }),
+          targetEndpoint: endpoint("left", { x: 7, y: 1 }),
+          points: [{ x: 2, y: 1 }, { x: 7, y: 1 }],
+        },
+      ],
+    };
+
+    expect(validateGridLayout(layout)).toEqual(expect.arrayContaining([
+      "Independent edges first and second share a node port",
+      "Independent edges first and second share marker cells",
+      "Independent edges first and second share collinear route cells",
+    ]));
+  });
 });

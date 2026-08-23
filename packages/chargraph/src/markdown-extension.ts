@@ -6,7 +6,6 @@ import type {
   CharGraphRenderResult,
   CharGraphSourceRange,
 } from "./model.js";
-
 export type MarkdownExtensionRenderRequest =
   | {
       kind: "fenced-code";
@@ -23,22 +22,22 @@ export type MarkdownExtensionRenderRequest =
       sourceOrigin: CharGraphSourceRange;
     };
 
-export type MarkdownExtensionRenderContext = {
+export type MarkdownExtensionRenderContext<StyleRole extends string = string> = {
   enabled(rule: string): boolean;
-  style(role: string): CharDeskTextStyle | undefined;
+  style(role: StyleRole): CharDeskTextStyle | undefined;
   renderBlocks(
     tokens: readonly Token[],
     sourceOrigin: CharGraphSourceRange
   ): Promise<CharGraphFragment[]>;
 };
 
-export interface MarkdownSyntaxExtension {
+export interface MarkdownSyntaxExtension<StyleRole extends string = string> {
   readonly id: string;
   readonly marked?: MarkedExtension;
   readonly tokenTypes?: readonly string[];
   readonly fencedLanguages?: readonly string[];
   render(
     request: MarkdownExtensionRenderRequest,
-    context: MarkdownExtensionRenderContext
+    context: MarkdownExtensionRenderContext<StyleRole>
   ): CharGraphAwaitable<CharGraphRenderResult | null>;
 }

@@ -4,10 +4,14 @@ import {
   serializeCharGraphAnsi,
 } from "@chardesk/chargraph";
 import {
+  createCharDeskMarkdownStyles,
   renderMarkdown,
-  type MarkdownRenderOptions,
 } from "@chardesk/chargraph/markdown";
-import { mermaidRenderer } from "@chardesk/chargraph/mermaid";
+import {
+  createCharDeskMermaidStyles,
+  mermaidRenderer,
+} from "@chardesk/chargraph/mermaid";
+import { CHARDESK_LIGHT_RENDER_THEME } from "@chardesk/chargraph/theme";
 
 export type CharGraphExampleLevel = "basic" | "intermediate" | "advanced";
 export type CharGraphExampleRenderer = "markdown" | "mermaid";
@@ -25,9 +29,8 @@ export type CharGraphExampleKind =
   | "markdown-math";
 
 export type CharGraphExampleOutput = {
-  readonly source: string;
+  readonly protocolText: string;
   readonly text: string;
-  readonly syntax: "ansi" | "plain";
 };
 
 interface CharGraphExample {
@@ -35,46 +38,20 @@ interface CharGraphExample {
   readonly kind: CharGraphExampleKind;
   readonly level: CharGraphExampleLevel;
   readonly renderer: CharGraphExampleRenderer;
-  readonly detail?: string;
+  readonly title: string;
   readonly source: string;
   readonly expectedText: string;
 }
 
-const markdownOptions = {
-  styles: {
-    strong: { attrs: { bold: true } },
-    emphasis: { attrs: { italic: true } },
-    strikethrough: { attrs: { strike: true } },
-    link: { color: "#2563eb", attrs: { underline: true } },
-    "heading-marker": { color: "#2563eb" },
-    "heading-1": { attrs: { bold: true, underline: true } },
-    "heading-2": { attrs: { bold: true } },
-    "heading-3": { attrs: { bold: true } },
-    "heading-4": { attrs: { bold: true } },
-    "inline-code": { bgColor: "#e2e8f0" },
-    "blockquote-marker": { color: "#16a34a" },
-    "list-marker": { color: "#94a3b8" },
-    "ordered-list-marker": { color: "#94a3b8" },
-    "task-unchecked": { color: "#94a3b8" },
-    "task-checked": { color: "#16a34a" },
-    "thematic-break": { color: "#94a3b8" },
-    "table-header": { bgColor: "#e2e8f0", attrs: { bold: true } },
-    "table-separator": { color: "#94a3b8" },
-  },
-  extensionStyles: {
-    "alert-note": { color: "#0891b2" },
-    "alert-tip": { color: "#16a34a" },
-    "alert-important": { color: "#2563eb" },
-    "alert-warning": { color: "#ca8a04" },
-    "alert-caution": { color: "#dc2626" },
-    "diff-added": { color: "#16a34a", bgColor: "#e3f4e9" },
-    "diff-deleted": { color: "#dc2626", bgColor: "#fbe5e5" },
-    "diff-hunk": { color: "#2563eb" },
-    "diff-metadata": { color: "#94a3b8" },
-    "inline-math": { color: "#2563eb" },
-    "block-math": { color: "#2563eb" },
-  },
-} satisfies MarkdownRenderOptions;
+const markdownOptions = createCharDeskMarkdownStyles({
+  theme: CHARDESK_LIGHT_RENDER_THEME,
+});
+const mermaidOptions = {
+  characterSet: "unicode" as const,
+  styles: createCharDeskMermaidStyles({
+    theme: CHARDESK_LIGHT_RENDER_THEME,
+  }),
+};
 
 export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
   {
@@ -82,6 +59,7 @@ export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
     kind: "flowchart",
     level: "basic",
     renderer: "mermaid",
+    title: "输入校验",
     expectedText: "验证通过？",
     source: `flowchart LR
   A[用户输入] --> B{验证通过？}
@@ -93,7 +71,7 @@ export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
     kind: "flowchart",
     level: "intermediate",
     renderer: "mermaid",
-    detail: "部署流水线",
+    title: "部署流水线",
     expectedText: "生产环境",
     source: `flowchart LR
   U[代码提交] --> T
@@ -107,6 +85,7 @@ export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
     kind: "state",
     level: "basic",
     renderer: "mermaid",
+    title: "文档审核",
     expectedText: "审核",
     source: `stateDiagram-v2
   state "草稿" as draft
@@ -122,7 +101,7 @@ export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
     kind: "state",
     level: "intermediate",
     renderer: "mermaid",
-    detail: "内容发布",
+    title: "内容发布",
     expectedText: "退回修改",
     source: `stateDiagram-v2
   state "编辑中" as editing
@@ -139,6 +118,7 @@ export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
     kind: "sequence",
     level: "basic",
     renderer: "mermaid",
+    title: "请求响应",
     expectedText: "返回结果",
     source: `sequenceDiagram
   participant U as 用户
@@ -151,7 +131,7 @@ export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
     kind: "sequence",
     level: "intermediate",
     renderer: "mermaid",
-    detail: "后台任务重试",
+    title: "后台任务重试",
     expectedText: "重试任务",
     source: `sequenceDiagram
   participant Q as 任务队列
@@ -167,6 +147,7 @@ export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
     kind: "class",
     level: "basic",
     renderer: "mermaid",
+    title: "文档模型",
     expectedText: "文档",
     source: `classDiagram
   class 文档 {
@@ -180,7 +161,7 @@ export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
     kind: "class",
     level: "intermediate",
     renderer: "mermaid",
-    detail: "内容域模型",
+    title: "内容域模型",
     expectedText: "内容域",
     source: `classDiagram
   namespace 内容域 {
@@ -194,6 +175,7 @@ export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
     kind: "er",
     level: "basic",
     renderer: "mermaid",
+    title: "用户与订单",
     expectedText: "订单",
     source: `erDiagram
   用户 ||--o{ 订单 : 创建
@@ -211,7 +193,7 @@ export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
     kind: "er",
     level: "intermediate",
     renderer: "mermaid",
-    detail: "推荐与关注",
+    title: "推荐与关注",
     expectedText: "推荐",
     source: `erDiagram
   用户 ||--o{ 订单 : 创建
@@ -227,6 +209,7 @@ export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
     kind: "xychart",
     level: "basic",
     renderer: "mermaid",
+    title: "月度趋势",
     expectedText: "月度趋势",
     source: `xychart-beta
   title "月度趋势"
@@ -240,7 +223,7 @@ export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
     kind: "xychart",
     level: "intermediate",
     renderer: "mermaid",
-    detail: "多环境容量",
+    title: "多环境容量",
     expectedText: "预发布环境",
     source: `xychart-beta
   title "环境容量对比"
@@ -254,7 +237,7 @@ export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
     kind: "flowchart",
     level: "advanced",
     renderer: "mermaid",
-    detail: "形状与连线",
+    title: "形状与连线",
     expectedText: "校验规则",
     source: `flowchart LR
   A([开始]) --> B[/读取配置\\]
@@ -268,7 +251,7 @@ export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
     kind: "state",
     level: "advanced",
     renderer: "mermaid",
-    detail: "订单生命周期",
+    title: "订单生命周期",
     expectedText: "已取消",
     source: `stateDiagram-v2
   direction LR
@@ -290,7 +273,7 @@ export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
     kind: "sequence",
     level: "advanced",
     renderer: "mermaid",
-    detail: "分支与循环",
+    title: "分支与循环",
     expectedText: "刷新会话",
     source: `sequenceDiagram
   participant U as 用户
@@ -314,7 +297,7 @@ export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
     kind: "class",
     level: "advanced",
     renderer: "mermaid",
-    detail: "接口与依赖",
+    title: "接口与依赖",
     expectedText: "渲染器",
     source: `classDiagram
   class 文档 {
@@ -338,7 +321,7 @@ export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
     kind: "er",
     level: "advanced",
     renderer: "mermaid",
-    detail: "订单模型",
+    title: "订单模型",
     expectedText: "订单项",
     source: `erDiagram
   用户 ||--o{ 订单 : 创建
@@ -367,7 +350,7 @@ export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
     kind: "xychart",
     level: "advanced",
     renderer: "mermaid",
-    detail: "横向混合图",
+    title: "横向混合图",
     expectedText: "季度增长",
     source: `xychart-beta horizontal
   title "季度增长"
@@ -381,6 +364,7 @@ export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
     kind: "markdown-basics",
     level: "basic",
     renderer: "markdown",
+    title: "基础排版",
     expectedText: "Markdown 概览",
     source: `# Markdown 概览
 
@@ -393,7 +377,7 @@ export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
     kind: "markdown-basics",
     level: "intermediate",
     renderer: "markdown",
-    detail: "版本发布说明",
+    title: "版本发布说明",
     expectedText: "v0.2",
     source: [
       "### v0.2 发布说明",
@@ -409,7 +393,7 @@ export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
     kind: "markdown-basics",
     level: "advanced",
     renderer: "markdown",
-    detail: "组合样式与引用",
+    title: "组合样式与引用",
     expectedText: "语义样式",
     source: `## 阅读提示
 
@@ -424,6 +408,7 @@ _Markdown 可以嵌套 **强调内容**。_
     kind: "markdown-structure",
     level: "basic",
     renderer: "markdown",
+    title: "任务清单",
     expectedText: "完成渲染",
     source: `- 解析 Markdown
 - 生成字符图
@@ -439,7 +424,7 @@ _Markdown 可以嵌套 **强调内容**。_
     kind: "markdown-structure",
     level: "intermediate",
     renderer: "markdown",
-    detail: "嵌套发布清单",
+    title: "嵌套发布清单",
     expectedText: "回归测试",
     source: `1. 准备发布
     - [x] 更新版本
@@ -454,7 +439,7 @@ _Markdown 可以嵌套 **强调内容**。_
     kind: "markdown-structure",
     level: "advanced",
     renderer: "markdown",
-    detail: "CJK 表格与对齐",
+    title: "CJK 表格与对齐",
     expectedText: "字符图",
     source: `| 能力 | 状态 | 宽度 |
 | :--- | :---: | ---: |
@@ -466,6 +451,7 @@ _Markdown 可以嵌套 **强调内容**。_
     kind: "markdown-code",
     level: "basic",
     renderer: "markdown",
+    title: "代码块",
     expectedText: "renderMarkdown",
     source: `\`\`\`ts
 const output = await renderMarkdown(source);
@@ -477,7 +463,7 @@ console.log(output.fragments.length);
     kind: "markdown-code",
     level: "intermediate",
     renderer: "markdown",
-    detail: "渲染配置",
+    title: "渲染配置",
     expectedText: "renderer",
     source: `\`\`\`json
 {
@@ -492,7 +478,7 @@ console.log(output.fragments.length);
     kind: "markdown-code",
     level: "advanced",
     renderer: "markdown",
-    detail: "Unified Diff",
+    title: "Unified Diff",
     expectedText: "return next",
     source: `\`\`\`diff
 diff --git a/render.ts b/render.ts
@@ -510,6 +496,7 @@ index 1a2b3c4..5d6e7f8 100644
     kind: "markdown-alert",
     level: "basic",
     renderer: "markdown",
+    title: "提示信息",
     expectedText: "NOTE",
     source: `> [!NOTE]
 > CharGraph 会保留 **嵌套 Markdown**。
@@ -522,7 +509,7 @@ index 1a2b3c4..5d6e7f8 100644
     kind: "markdown-alert",
     level: "intermediate",
     renderer: "markdown",
-    detail: "部署提醒",
+    title: "部署提醒",
     expectedText: "IMPORTANT",
     source: `> [!IMPORTANT]
 > 发布生产环境前请完成：
@@ -535,7 +522,7 @@ index 1a2b3c4..5d6e7f8 100644
     kind: "markdown-alert",
     level: "advanced",
     renderer: "markdown",
-    detail: "语义告警",
+    title: "语义告警",
     expectedText: "CAUTION",
     source: `> [!IMPORTANT]
 > 渲染规则可以独立配置。
@@ -552,6 +539,7 @@ index 1a2b3c4..5d6e7f8 100644
     kind: "markdown-math",
     level: "basic",
     renderer: "markdown",
+    title: "行内公式",
     expectedText: "e^(iπ)",
     source: String.raw`Euler 恒等式：$e^{i\pi}+1=0$`,
   },
@@ -560,7 +548,7 @@ index 1a2b3c4..5d6e7f8 100644
     kind: "markdown-math",
     level: "intermediate",
     renderer: "markdown",
-    detail: "统计汇总",
+    title: "统计汇总",
     expectedText: "∑",
     source: String.raw`累计请求量：
 
@@ -575,7 +563,7 @@ $$
     kind: "markdown-math",
     level: "advanced",
     renderer: "markdown",
-    detail: "分式与矩阵",
+    title: "分式与矩阵",
     expectedText: "a + b",
     source: String.raw`$$
 \frac{a+b}{c+d}
@@ -590,18 +578,11 @@ $$
 export const renderExample = async (
   example: CharGraphExample
 ): Promise<CharGraphExampleOutput> => {
-  if (example.renderer === "markdown") {
-    const rendered = await renderMarkdown(example.source, markdownOptions);
-    return {
-      source: serializeCharGraphAnsi(rendered),
-      text: getCharGraphText(rendered),
-      syntax: "ansi",
-    };
-  }
-
-  const rendered = await renderCharGraph(example.source, mermaidRenderer, {
-    characterSet: "unicode",
-  });
-  const text = getCharGraphText(rendered);
-  return { source: text, text, syntax: "plain" };
+  const rendered = example.renderer === "markdown"
+    ? await renderMarkdown(example.source, markdownOptions)
+    : await renderCharGraph(example.source, mermaidRenderer, mermaidOptions);
+  return {
+    protocolText: serializeCharGraphAnsi(rendered),
+    text: getCharGraphText(rendered),
+  };
 };

@@ -4,17 +4,13 @@ import {
   detectMarkdownText as detectMarkdownTextWithExtensions,
   type MarkdownRenderOptions,
 } from "./markdown.js";
-import { markdownMermaidExtension } from "./markdown-mermaid.js";
-import { markdownMathExtension } from "./markdown-math.js";
-import { markdownAlertExtension } from "./markdown-alert.js";
-import { markdownDiffExtension } from "./markdown-diff.js";
-import {
-  markdownJsonTreeExtension,
-  markdownYamlTreeExtension,
-} from "./markdown-data-tree.js";
+import { CHARDESK_MARKDOWN_EXTENSIONS } from "./markdown-modules.js";
 
 export * from "./markdown.js";
 export * from "./markdown-extension.js";
+export * from "./markdown-module.js";
+export * from "./markdown-modules.js";
+export * from "./markdown-theme.js";
 export { markdownMermaidExtension } from "./markdown-mermaid.js";
 export { markdownMathExtension } from "./markdown-math.js";
 export { markdownAlertExtension } from "./markdown-alert.js";
@@ -24,21 +20,14 @@ export {
   markdownYamlTreeExtension,
 } from "./markdown-data-tree.js";
 
-const defaultExtensions = [
-  markdownAlertExtension,
-  markdownDiffExtension,
-  markdownJsonTreeExtension,
-  markdownYamlTreeExtension,
-  markdownMathExtension,
-  markdownMermaidExtension,
-];
+export { CHARDESK_MARKDOWN_EXTENSIONS } from "./markdown-modules.js";
 
 export const markdownRenderer = createMarkdownRenderer({
-  extensions: defaultExtensions,
+  extensions: CHARDESK_MARKDOWN_EXTENSIONS,
 });
 
 export const detectMarkdownText = (source: string) =>
-  detectMarkdownTextWithExtensions(source, defaultExtensions);
+  detectMarkdownTextWithExtensions(source, CHARDESK_MARKDOWN_EXTENSIONS);
 
 export const renderMarkdown = (
   source: string,

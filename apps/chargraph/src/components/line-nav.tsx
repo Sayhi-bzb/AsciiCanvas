@@ -31,6 +31,7 @@ export type LineNavItem = {
 export type LineNavProps = Omit<ComponentProps<"nav">, "children"> & {
   items: LineNavItem[];
   activeHref?: string;
+  activeAriaCurrent?: "page" | "location";
   scrollActiveIntoView?: boolean;
   onItemClick?: (
     item: LineNavItem,
@@ -43,6 +44,7 @@ export function LineNav({
   style,
   items,
   activeHref,
+  activeAriaCurrent = "page",
   scrollActiveIntoView = true,
   onItemClick,
   ...props
@@ -53,7 +55,7 @@ export function LineNav({
     if (scrollActiveIntoView) {
       activeItemRef.current?.scrollIntoView({ block: "center" });
     }
-  }, [scrollActiveIntoView]);
+  }, [activeHref, scrollActiveIntoView]);
 
   return (
     <nav
@@ -77,6 +79,7 @@ export function LineNav({
             title={item.title}
             href={item.href}
             active={isActive}
+            activeAriaCurrent={activeAriaCurrent}
             isLast={index === items.length - 1}
             onClick={
               onItemClick ? (event) => onItemClick(item, event) : undefined
@@ -93,6 +96,7 @@ const LineNavEntry = memo(function LineNavEntry({
   title,
   href,
   active = false,
+  activeAriaCurrent,
   isLast = false,
   onClick,
 }: {
@@ -100,6 +104,7 @@ const LineNavEntry = memo(function LineNavEntry({
   title: string;
   href: string;
   active?: boolean;
+  activeAriaCurrent: "page" | "location";
   isLast?: boolean;
   onClick?: MouseEventHandler<HTMLAnchorElement>;
 }) {
@@ -108,7 +113,7 @@ const LineNavEntry = memo(function LineNavEntry({
       <motion.a
         ref={ref}
         data-slot="line-nav-item"
-        aria-current={active ? "page" : undefined}
+        aria-current={active ? activeAriaCurrent : undefined}
         className="group relative flex h-px items-center gap-3 after:absolute after:top-1/2 after:left-0 after:size-full after:-translate-y-1/2 after:p-3.5"
         href={href}
         initial={false}
@@ -118,11 +123,11 @@ const LineNavEntry = memo(function LineNavEntry({
       >
         <motion.span
           data-slot="line-nav-marker"
-          className="block h-px w-10 origin-left shrink-0 bg-foreground/20 transition-[background-color] ease-out group-hover:bg-foreground group-aria-[current=page]:bg-foreground"
+          className="block h-px w-10 origin-left shrink-0 bg-foreground/20 transition-[background-color] ease-out group-hover:bg-foreground group-aria-[current=location]:bg-foreground group-aria-[current=page]:bg-foreground"
           variants={lineVariants}
           transition={{ type: "spring", stiffness: 200, damping: 20 }}
         />
-        <span className="text-sm whitespace-nowrap text-muted-foreground transition-[color] ease-out group-hover:text-foreground group-aria-[current=page]:text-foreground">
+        <span className="text-sm whitespace-nowrap text-muted-foreground transition-[color] ease-out group-hover:text-foreground group-aria-[current=location]:text-foreground group-aria-[current=page]:text-foreground">
           {title}
         </span>
       </motion.a>

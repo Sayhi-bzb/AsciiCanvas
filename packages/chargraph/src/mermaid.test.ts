@@ -1,7 +1,13 @@
 import { getTextCellWidth } from "@chardesk/protocol";
 import { describe, expect, it } from "vitest";
 import { getCharGraphText } from "./index.js";
-import { renderMermaid, type MermaidRenderOptions } from "./mermaid.js";
+import {
+  CHARDESK_MERMAID_COLOR_DEFAULTS,
+  createCharDeskMermaidStyles,
+  MERMAID_STYLE_ROLES,
+  renderMermaid,
+  type MermaidRenderOptions,
+} from "./mermaid.js";
 
 const renderMermaidText = (
   source: string,
@@ -18,6 +24,89 @@ const trimLineEnds = (value: string) => value
   .join("\n");
 
 describe("renderMermaidText", () => {
+  it("publishes one unique set of semantic style roles", () => {
+    expect(new Set(MERMAID_STYLE_ROLES).size).toBe(MERMAID_STYLE_ROLES.length);
+    expect(MERMAID_STYLE_ROLES).toContain("node.background");
+    expect(MERMAID_STYLE_ROLES).toContain("series.5");
+  });
+
+  it("owns one default and one resolved style for every semantic role", () => {
+    const styles = createCharDeskMermaidStyles();
+
+    expect(Object.keys(CHARDESK_MERMAID_COLOR_DEFAULTS))
+      .toEqual([...MERMAID_STYLE_ROLES]);
+    expect(Object.keys(styles))
+      .toEqual([...MERMAID_STYLE_ROLES]);
+    expect(CHARDESK_MERMAID_COLOR_DEFAULTS["edge.line"])
+      .toEqual({ kind: "token", token: "accent" });
+    expect(new Set([
+      styles["node.border"].color,
+      styles["edge.line"].color,
+      styles["edge.arrow"].color,
+    ])).toEqual(new Set(["#2563eb"]));
+  });
+
+  it("resolves Mermaid overrides without losing fixed attributes", () => {
+    const styles = createCharDeskMermaidStyles({
+      colors: {
+        title: "#123456",
+        "node.background": "#654321",
+        "edge.line": "#fedcba",
+        "edge.label": "#abcdef",
+      },
+    });
+
+    expect(styles.title).toEqual({
+      color: "#123456",
+      attrs: { bold: true },
+    });
+    expect(styles["node.text"]?.bgColor).toBe("#654321");
+    expect(styles["node.background"]?.bgColor).toBe("#654321");
+    expect(styles["edge.line"]?.color).toBe("#fedcba");
+    expect(styles["node.border"]?.color).toBe("#2563eb");
+    expect(styles["edge.arrow"]?.color).toBe("#2563eb");
+    expect(styles["edge.label"]).toEqual({
+      color: "#abcdef",
+      attrs: { italic: true },
+    });
+  });
+
+  it("emits independently styled semantic fragments without changing text", async () => {
+    const source = "flowchart LR\n  A[Start] -->|go| B[Done]";
+    const plain = await renderMermaidText(source);
+    const styled = await renderMermaid(source, {
+      styles: {
+        "node.text": { color: "#111111" },
+        "node.border": { color: "#222222" },
+        "edge.line": { color: "#333333" },
+        "edge.label": { color: "#444444" },
+        "edge.arrow": { color: "#555555" },
+      },
+    });
+
+    expect(getCharGraphText(styled)).toBe(plain);
+    expect(new Set(styled.fragments.map((fragment) => fragment.color))).toEqual(
+      new Set([undefined, "#111111", "#222222", "#333333", "#444444", "#555555"])
+    );
+  });
+
+  it("keeps XY series identities available to the style layer", async () => {
+    const result = await renderMermaid(`xychart-beta
+  x-axis [A, B]
+  y-axis 0 --> 10
+  bar [2, 8]
+  line [8, 2]`, {
+      styles: {
+        "series.1": { color: "#111111" },
+        "series.2": { color: "#222222" },
+      },
+    });
+
+    const colors = new Set(result.fragments.map((fragment) => fragment.color));
+    expect(colors.has("#111111")).toBe(true);
+    expect(colors.has("#222222")).toBe(true);
+  });
+
   it("produces deterministic layered output", async () => {
     const source = `flowchart LR
   A[入口] --> B{检查}
@@ -70,10 +159,10 @@ describe("renderMermaidText", () => {
       "flowchart BT\n  A[下] --> B[上]",
     ));
 
-    expect(vertical).toMatch(/╰─┬──╯\n  │\n  v/u);
+    expect(vertical).toMatch(/╰─┬──╯\n {2}│\n {2}v/u);
     expect(clampedZero).toBe(vertical);
     expect(clampedOne).toBe(vertical);
-    expect(bottomToTop).toMatch(/╰────╯\n  \^\n  │/u);
+    expect(bottomToTop).toMatch(/╰────╯\n {2}\^\n {2}│/u);
   });
 
   it("honors explicit Flow padding overrides", async () => {
@@ -209,6 +298,45 @@ describe("renderMermaidText", () => {
     expect(output).not.toMatch(/校验身份与会话.*│.*│/u);
   });
 
+  it("assigns sequence styles from drawing semantics", async () => {
+    const source = `sequenceDiagram
+  participant U as 用户
+  participant A as API
+  U->>A: 提交
+  Note over U,A: 校验
+  alt 通过
+    A-->>U: 完成
+  end`;
+    const result = await renderMermaid(source, {
+      styles: {
+        "node.text": { color: "#111111" },
+        "node.border": { color: "#222222" },
+        "node.background": { backgroundColor: "#333333" },
+        "edge.line": { color: "#444444" },
+        "edge.label": { color: "#555555" },
+        "edge.arrow": { color: "#666666" },
+        "container.border": { color: "#777777" },
+        "container.title": { color: "#888888" },
+      },
+    });
+
+    expect(getCharGraphText(result)).toBe(await renderMermaidText(source));
+    const colors = new Set(result.fragments.map((fragment) => fragment.color));
+    expect(colors).toEqual(new Set([
+      undefined,
+      "#111111",
+      "#222222",
+      "#444444",
+      "#555555",
+      "#666666",
+      "#777777",
+      "#888888",
+    ]));
+    expect(result.fragments.some(
+      (fragment) => fragment.backgroundColor === "#333333"
+    )).toBe(true);
+  });
+
   it("allocates independent class relationship ports and preserves member syntax", async () => {
     const output = await renderMermaidText(`classDiagram
   class 文档 {
@@ -298,6 +426,40 @@ describe("renderMermaidText", () => {
     expect(output.indexOf("●")).toBeLessThan(output.indexOf("草稿"));
     expect(output.indexOf("完成")).toBeLessThan(output.indexOf("◎"));
     expect(output).not.toMatch(/[╭┌].*●|●.*[╮┐]/u);
+  });
+
+  it("keeps a state feedback cycle vertical, compact, and separately routed", async () => {
+    const source = `stateDiagram-v2
+  state "已发布" as published
+  state "待审核" as review
+  state "编辑中" as editing
+  [*] --> editing
+  editing --> review : 提交
+  review --> editing : 退回修改
+  review --> published : 审核通过
+  published --> [*]`;
+    const rendered = await renderMermaid(source);
+    expect(rendered.diagnostics).toEqual([]);
+    const output = getCharGraphText(rendered);
+    const visibleLines = output.split("\n").filter((line) => line.trim().length > 0);
+    const rowOf = (text: string) => visibleLines.findIndex((line) => line.includes(text));
+    const lifecycleRows = ["●", "编辑中", "待审核", "已发布", "◎"].map(rowOf);
+
+    expect(lifecycleRows.every((row) => row >= 0), output).toBe(true);
+    expect(lifecycleRows).toEqual(
+      [...lifecycleRows].sort((left, right) => left - right),
+    );
+    expect(visibleLines.length).toBeLessThanOrEqual(21);
+    expect(output).toContain("提交");
+    expect(output).toContain("退回修改");
+    expect(output).toContain("审核通过");
+    expect(output).toMatch(/\^ {2,}│提交/u);
+    expect(output).toMatch(/退回修改│ {2,}v/u);
+    expect(output).toMatch(/●\s*\n\s*│\s*\n\s*v/u);
+    expect(output).not.toContain("╰╮");
+    expect(output).not.toContain("╭╯");
+    expect(output).not.toMatch(/[v^][─┄━]|[─┄━][v^]/u);
+    expectNoInternalCellTokens(output);
   });
 
   it("uses angle arrowheads for vertical, reversed, and bundled flow edges", async () => {

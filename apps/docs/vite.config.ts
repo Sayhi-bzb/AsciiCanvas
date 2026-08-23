@@ -9,14 +9,27 @@ const appDirectory = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "app"
 );
+const repositoryRoot = path.resolve(appDirectory, "../../..");
 
 export default defineConfig(({ command }) => ({
   base: command === "serve" ? "/docs/" : undefined,
+  publicDir: path.join(repositoryRoot, "public"),
   plugins: [fumadocsMdx(), tailwindcss(), reactRouter()],
   resolve: {
-    alias: {
-      "@": appDirectory,
-    },
+    alias: [
+      {
+        find: /^@\//,
+        replacement: `${appDirectory}/`,
+      },
+      {
+        find: /^@chardesk\/ui\/theme\.css$/,
+        replacement: path.join(repositoryRoot, "packages/ui/theme.css"),
+      },
+      {
+        find: /^@chardesk\/ui$/,
+        replacement: path.join(repositoryRoot, "packages/ui/src/index.ts"),
+      },
+    ],
   },
   optimizeDeps: {
     include: [
@@ -32,6 +45,7 @@ export default defineConfig(({ command }) => ({
       "fumadocs-core",
       "fumadocs-ui",
       "@fumadocs/base-ui",
+      "@chardesk/ui",
     ],
   },
 }));

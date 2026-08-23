@@ -9,7 +9,8 @@
     "jsx": "react-jsx",
     "rootDirs": [".", "./.react-router/types"],
     "paths": {
-      "@/*": ["./app/*"]
+      "@/*": ["./app/*"],
+      "@chardesk/ui": ["../../packages/ui/src/index.ts"]
     },
     "esModuleInterop": true,
     "verbatimModuleSyntax": true,

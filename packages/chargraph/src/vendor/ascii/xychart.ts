@@ -14,9 +14,10 @@
 
 import { parseXYChart } from '../xychart/parser.js'
 import type { XYChart } from '../xychart/types.js'
-import type { AsciiConfig, CharRole, Canvas, RoleCanvas } from './types.js'
+import type { AsciiConfig, CharRole, Canvas, MermaidStyleRole, RoleCanvas } from './types.js'
 import { BoxConnection, glyphForBoxConnections } from './box-drawing.js'
 import { composeLegacyCanvas } from './scene.js'
+import { createStyleRoleCanvas, surfaceToString, styleRoleFromCharRole } from './surface.js'
 
 // ============================================================================
 // Constants
@@ -61,11 +62,11 @@ const ASC = {
 } as const
 
 // ============================================================================
-// Multi-series color support
+// Multi-series semantic role support
 // ============================================================================
 
-/** Per-cell hex color override canvas. Parallel to RoleCanvas. */
-type HexCanvas = (string | null)[][]
+/** Per-cell series identity. Parallel to RoleCanvas. */
+type SeriesRoleCanvas = (MermaidStyleRole | null)[][]
 
 interface LegendItem {
   symbol: string
@@ -79,8 +80,42 @@ interface SeriesEntry {
 }
 
 /** Preserve series identity in the drawing pipeline without terminal colors. */
-function getSeriesColors(total: number): string[] {
-  return Array.from({ length: total }, () => '')
+function getSeriesRoles(total: number): MermaidStyleRole[] {
+  return Array.from(
+    { length: total },
+    (_, index) => `series.${index % 5 + 1}` as MermaidStyleRole,
+  )
+}
+
+const createChartSurface = (
+  canvas: Canvas,
+  roles: RoleCanvas,
+  seriesRoles: SeriesRoleCanvas,
+  titleRow: number,
+) => {
+  const styleRoleCanvas = createStyleRoleCanvas(canvas.length, canvas[0]?.length ?? 0)
+  for (let x = 0; x < canvas.length; x += 1) {
+    for (let y = 0; y < (canvas[0]?.length ?? 0); y += 1) {
+      const seriesRole = seriesRoles[x]?.[y] ?? null
+      const structural = roles[x]?.[y] ?? null
+      styleRoleCanvas[x]![y] = seriesRole
+        ?? (y === titleRow && structural === 'text'
+          ? 'title'
+          : structural === 'text'
+            ? 'chart.label'
+            : structural === 'border'
+              ? 'chart.axis'
+              : structural === 'line'
+                ? 'chart.grid'
+                : styleRoleFromCharRole(structural))
+    }
+  }
+  return {
+    canvas,
+    styleRoleCanvas,
+    trimTrailingSpaces: true,
+    trimTrailingLines: true,
+  }
 }
 
 function createLegendItems(
@@ -121,6 +156,13 @@ export function renderXYChartAscii(
   text: string,
   config: AsciiConfig,
 ): string {
+  return surfaceToString(renderXYChartSurface(text, config))
+}
+
+export function renderXYChartSurface(
+  text: string,
+  config: AsciiConfig,
+) {
   const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%'))
   const chart = parseXYChart(lines)
   const ch = config.useAscii ? ASC : UNI
@@ -138,9 +180,9 @@ export function renderXYChartAscii(
 function renderVertical(
   chart: XYChart,
   ch: typeof UNI | typeof ASC,
-): string {
+){
   const dataCount = getDataCount(chart)
-  if (dataCount === 0) return ''
+  if (dataCount === 0) return { canvas: [], styleRoleCanvas: [] }
 
   const yRange = chart.yAxis.range!
   const yTicks = niceTickValues(yRange.min, yRange.max)
@@ -191,10 +233,9 @@ function renderVertical(
   // Create canvas
   const canvas = createCanvas(totalW, totalH)
   const roles = createRoleCanvas(totalW, totalH)
-  const hexColors = createHexCanvas(totalW, totalH)
+  const seriesRoleCanvas = createSeriesRoleCanvas(totalW, totalH)
 
-  // Series colors
-  const seriesColors = getSeriesColors(chart.series.length)
+  const seriesRoles = getSeriesRoles(chart.series.length)
 
   // Scales
   const valueToRow = (v: number): number => {
@@ -211,7 +252,7 @@ function renderVertical(
   // 2. Legend
   if (hasLegend) {
     const legendRow = hasTitle ? 1 : 0
-    drawLegend(canvas, roles, hexColors, legendItems, legendRow, totalW, seriesColors)
+    drawLegend(canvas, roles, seriesRoleCanvas, legendItems, legendRow, totalW, seriesRoles)
   }
 
   // 3. Y-axis line + ticks + labels
@@ -275,7 +316,7 @@ function renderVertical(
 
     for (let bIdx = 0; bIdx < barEntries.length; bIdx++) {
       const entry = barEntries[bIdx]!
-      const hexColor = seriesColors[entry.globalIdx]!
+      const seriesRole = seriesRoles[entry.globalIdx]!
       for (let i = 0; i < entry.data.length; i++) {
         const cx = bandCenter(i)
         const groupLeft = cx - Math.floor(groupW / 2)
@@ -287,7 +328,7 @@ function renderVertical(
         for (let row = fromRow; row <= toRow; row++) {
           const displayRow = plotTop + (plotH - 1 - row)
           for (let c = bx; c < bx + singleBarW; c++) {
-            set(canvas, roles, displayRow, c, ch.bar, 'arrow', hexColors, hexColor)
+            set(canvas, roles, displayRow, c, ch.bar, 'arrow', seriesRoleCanvas, seriesRole)
           }
         }
       }
@@ -297,11 +338,16 @@ function renderVertical(
   // 8. Lines (staircase routing with rounded corners)
   for (const entry of lineEntries) {
     if (entry.data.length === 0) continue
-    const hexColor = seriesColors[entry.globalIdx]!
-    drawStaircaseLine(canvas, roles, entry.data, bandCenter, valueToRow, plotTop, plotH, plotLeft, bandW * dataCount, ch, hexColors, hexColor)
+    const seriesRole = seriesRoles[entry.globalIdx]!
+    drawStaircaseLine(canvas, roles, entry.data, bandCenter, valueToRow, plotTop, plotH, plotLeft, bandW * dataCount, ch, seriesRoleCanvas, seriesRole)
   }
 
-  return canvasToString(composeLegacyCanvas(canvas, ch === ASC))
+  return createChartSurface(
+    composeLegacyCanvas(canvas, ch === ASC),
+    roles,
+    seriesRoleCanvas,
+    titleRow,
+  )
 }
 
 // ============================================================================
@@ -311,9 +357,9 @@ function renderVertical(
 function renderHorizontal(
   chart: XYChart,
   ch: typeof UNI | typeof ASC,
-): string {
+){
   const dataCount = getDataCount(chart)
-  if (dataCount === 0) return ''
+  if (dataCount === 0) return { canvas: [], styleRoleCanvas: [] }
 
   const yRange = chart.yAxis.range!
   const valueTicks = niceTickValues(yRange.min, yRange.max)
@@ -352,10 +398,10 @@ function renderHorizontal(
 
   const canvas = createCanvas(totalW, totalH)
   const roles = createRoleCanvas(totalW, totalH)
-  const hexColors = createHexCanvas(totalW, totalH)
+  const seriesRoleCanvas = createSeriesRoleCanvas(totalW, totalH)
 
   // Series colors
-  const seriesColors = getSeriesColors(chart.series.length)
+  const seriesRoles = getSeriesRoles(chart.series.length)
 
   // Value scale (horizontal)
   const valueToCol = (v: number): number => {
@@ -372,7 +418,7 @@ function renderHorizontal(
   // Legend
   if (hasLegend) {
     const legendRow = hasTitle ? 1 : 0
-    drawLegend(canvas, roles, hexColors, legendItems, legendRow, totalW, seriesColors)
+    drawLegend(canvas, roles, seriesRoleCanvas, legendItems, legendRow, totalW, seriesRoles)
   }
 
   // Y-axis (category axis on left)
@@ -426,7 +472,7 @@ function renderHorizontal(
 
     for (let bIdx = 0; bIdx < barEntries.length; bIdx++) {
       const entry = barEntries[bIdx]!
-      const hexColor = seriesColors[entry.globalIdx]!
+      const seriesRole = seriesRoles[entry.globalIdx]!
       for (let i = 0; i < entry.data.length; i++) {
         const my = bandMid(i)
         const groupTop = my - Math.floor(groupH / 2)
@@ -437,7 +483,7 @@ function renderHorizontal(
 
         for (let r = by; r < by + singleBarH; r++) {
           for (let c = fromCol; c <= toCol; c++) {
-            set(canvas, roles, r, c, ch.bar, 'arrow', hexColors, hexColor)
+            set(canvas, roles, r, c, ch.bar, 'arrow', seriesRoleCanvas, seriesRole)
           }
         }
       }
@@ -447,11 +493,16 @@ function renderHorizontal(
   // Lines (horizontal staircase: value on x, category on y) — with per-series colors
   for (const entry of lineEntries) {
     if (entry.data.length === 0) continue
-    const hexColor = seriesColors[entry.globalIdx]!
-    drawHorizontalStaircaseLine(canvas, roles, entry.data, bandMid, valueToCol, plotTop, plotH, plotLeft, plotW, ch, hexColors, hexColor)
+    const seriesRole = seriesRoles[entry.globalIdx]!
+    drawHorizontalStaircaseLine(canvas, roles, entry.data, bandMid, valueToCol, plotTop, plotH, plotLeft, plotW, ch, seriesRoleCanvas, seriesRole)
   }
 
-  return canvasToString(composeLegacyCanvas(canvas, ch === ASC))
+  return createChartSurface(
+    composeLegacyCanvas(canvas, ch === ASC),
+    roles,
+    seriesRoleCanvas,
+    hasTitle ? 0 : -1,
+  )
 }
 
 // ============================================================================
@@ -474,8 +525,8 @@ function drawStaircaseLine(
   plotLeft: number,
   plotTotalW: number,
   ch: typeof UNI | typeof ASC,
-  hexCanvas?: HexCanvas,
-  hexColor?: string | null,
+  seriesRoleCanvas?: SeriesRoleCanvas,
+  seriesRole?: MermaidStyleRole | null,
 ): void {
   if (data.length === 0) return
 
@@ -488,7 +539,7 @@ function drawStaircaseLine(
   const drawAt = (col: number, row: number, char: string) => {
     const displayRow = plotTop + (plotH - 1 - row)
     if (displayRow >= 0 && col >= plotLeft && col < plotLeft + plotTotalW) {
-      set(canvas, roles, displayRow, col, char, 'arrow', hexCanvas, hexColor)
+      set(canvas, roles, displayRow, col, char, 'arrow', seriesRoleCanvas, seriesRole)
     }
   }
 
@@ -586,8 +637,8 @@ function drawHorizontalStaircaseLine(
   plotLeft: number,
   plotW: number,
   ch: typeof UNI | typeof ASC,
-  hexCanvas?: HexCanvas,
-  hexColor?: string | null,
+  seriesRoleCanvas?: SeriesRoleCanvas,
+  seriesRole?: MermaidStyleRole | null,
 ): void {
   if (data.length === 0) return
 
@@ -598,7 +649,7 @@ function drawHorizontalStaircaseLine(
 
   const drawAt = (row: number, col: number, char: string) => {
     if (row >= plotTop && row < plotTop + plotH && col >= plotLeft && col < plotLeft + plotW) {
-      set(canvas, roles, row, col, char, 'arrow', hexCanvas, hexColor)
+      set(canvas, roles, row, col, char, 'arrow', seriesRoleCanvas, seriesRole)
     }
   }
 
@@ -660,17 +711,17 @@ function drawHorizontalStaircaseLine(
 }
 
 // ============================================================================
-// Legend — shows series symbols with per-series colors
+// Legend — preserves the semantic identity of each series symbol
 // ============================================================================
 
 function drawLegend(
   canvas: Canvas,
   roles: RoleCanvas,
-  hexCanvas: HexCanvas,
+  seriesRoleCanvas: SeriesRoleCanvas,
   items: LegendItem[],
   row: number,
   totalW: number,
-  seriesColors: string[],
+  seriesRoles: MermaidStyleRole[],
 ): void {
   const totalLen = getLegendWidth(items)
   const startCol = Math.max(0, Math.floor(totalW / 2 - totalLen / 2))
@@ -679,8 +730,7 @@ function drawLegend(
   for (let i = 0; i < items.length; i++) {
     if (i > 0) col += 2 // gap
     const item = items[i]!
-    // Symbol with series-specific color
-    set(canvas, roles, row, col, item.symbol, 'arrow', hexCanvas, seriesColors[item.globalIdx])
+    set(canvas, roles, row, col, item.symbol, 'arrow', seriesRoleCanvas, seriesRoles[item.globalIdx])
     col += 1
     // Space (already ' ' from canvas init)
     col += 1
@@ -702,19 +752,23 @@ function createRoleCanvas(width: number, height: number): RoleCanvas {
   return Array.from({ length: width }, () => Array.from<CharRole | null>({ length: height }).fill(null))
 }
 
-function createHexCanvas(width: number, height: number): HexCanvas {
-  return Array.from({ length: width }, () => Array.from<string | null>({ length: height }).fill(null))
+function createSeriesRoleCanvas(width: number, height: number): SeriesRoleCanvas {
+  return Array.from(
+    { length: width },
+    () => Array.from<MermaidStyleRole | null>({ length: height }).fill(null),
+  )
 }
 
 function set(
   canvas: Canvas, roles: RoleCanvas, row: number, col: number,
   char: string, role: CharRole,
-  hexCanvas?: HexCanvas, hex?: string | null,
+  seriesRoleCanvas?: SeriesRoleCanvas,
+  seriesRole?: MermaidStyleRole | null,
 ): void {
   if (col >= 0 && col < canvas.length && row >= 0 && row < canvas[0]!.length) {
     canvas[col]![row] = char
     roles[col]![row] = role
-    if (hexCanvas && hex) hexCanvas[col]![row] = hex
+    if (seriesRoleCanvas && seriesRole) seriesRoleCanvas[col]![row] = seriesRole
   }
 }
 
@@ -732,7 +786,7 @@ function writeText(canvas: Canvas, roles: RoleCanvas, row: number, startCol: num
 }
 
 // ============================================================================
-// Canvas → string (with per-cell hex color support)
+// Canvas → string
 // ============================================================================
 
 function canvasToString(

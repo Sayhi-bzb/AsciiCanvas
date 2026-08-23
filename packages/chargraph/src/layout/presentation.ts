@@ -69,4 +69,9 @@ export const drawMultiBoxFragment = (
   origin,
   owner,
   (x, y, char) => classifyMultiBoxCell(x, y, char, canvas, useAscii),
+  (x, y, char) => char === " "
+    ? "node.background"
+    : classifyMultiBoxCell(x, y, char, canvas, useAscii) === "border"
+      ? "node.border"
+      : "node.text",
 );

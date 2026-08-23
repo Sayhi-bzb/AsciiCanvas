@@ -1,18 +1,26 @@
 import {
+  type CharDeskTextAttributes,
+  type CharDeskTextStyle,
   getGraphemeCellWidth,
   getTextCellWidth,
   splitGraphemes,
 } from "@chardesk/protocol";
 import { SaxesParser } from "saxes";
 import temml from "temml";
-import { createCharGraphFragment } from "./fragments.js";
+import {
+  createCharGraphFragment,
+  mergeCharGraphStyle,
+} from "./fragments.js";
 import { defineCharGraphRenderer } from "./model.js";
 import type { CharGraphDiagnostic, CharGraphRenderResult } from "./model.js";
 
 export type MathRenderLayout = "inline" | "block";
 
+export type MathStyleRole = "content" | "operator" | "structure" | "error";
+
 export type MathRenderOptions = {
   layout: MathRenderLayout;
+  styles?: Readonly<Partial<Record<MathStyleRole, CharDeskTextStyle>>>;
 };
 
 type MathMlNode = {
@@ -22,7 +30,13 @@ type MathMlNode = {
   text: string;
 };
 
-type Cell = string | null | undefined;
+type MathRun = {
+  text: string;
+  role: Exclude<MathStyleRole, "error">;
+  attrs?: CharDeskTextAttributes;
+};
+
+type Cell = MathRun | null | undefined;
 
 type MathBox = {
   rows: Cell[][];
@@ -136,13 +150,88 @@ const mapScript = (value: string, characters: ReadonlyMap<string, string>) => {
 const isAtomic = (value: string) =>
   splitGraphemes(value.trim()).length <= 1 || /^[\p{L}\p{N}]+$/u.test(value.trim());
 
-const grouped = (value: string) => isAtomic(value) ? value : `(${value})`;
+const run = (
+  text: string,
+  role: MathRun["role"] = "content",
+  attrs?: CharDeskTextAttributes
+): MathRun => ({ text, role, ...(attrs ? { attrs } : {}) });
 
-const compactChildren = (node: MathMlNode) =>
-  node.children.map(renderCompact).join("").replace(/ {2,}/g, " ").trim();
+const runsText = (runs: readonly MathRun[]) =>
+  runs.map((item) => item.text).join("");
 
-const renderCompact = (node: MathMlNode): string => {
-  const values = node.children.map(renderCompact);
+const TEXT_ATTRIBUTE_KEYS = [
+  "bold",
+  "italic",
+  "underline",
+  "strike",
+  "inverse",
+] as const;
+
+const sameAttributes = (
+  left?: CharDeskTextAttributes,
+  right?: CharDeskTextAttributes
+) => TEXT_ATTRIBUTE_KEYS.every((key) => left?.[key] === right?.[key]);
+
+const normalizedRuns = (runs: readonly MathRun[]) => {
+  const output: MathRun[] = [];
+  for (const item of runs) {
+    const text = item.text.replace(/ {2,}/g, " ");
+    if (!text) continue;
+    const previous = output.at(-1);
+    const sameStyle = previous?.role === item.role
+      && sameAttributes(previous.attrs, item.attrs);
+    if (sameStyle) previous.text += text;
+    else output.push({ ...item, text });
+  }
+  if (output[0]) output[0].text = output[0].text.replace(/^ +/, "");
+  if (output.at(-1)) output.at(-1)!.text = output.at(-1)!.text.replace(/ +$/, "");
+  return output.filter((item) => item.text);
+};
+
+const grouped = (runs: readonly MathRun[]) => isAtomic(runsText(runs))
+  ? [...runs]
+  : [run("(", "structure"), ...runs, run(")", "structure")];
+
+const mappedScript = (
+  runs: readonly MathRun[],
+  characters: ReadonlyMap<string, string>
+) => {
+  const mapped = runs.map((item) => {
+    const text = mapScript(item.text, characters);
+    return text ? { ...item, text } : null;
+  });
+  return mapped.every((item): item is MathRun => Boolean(item)) ? mapped : null;
+};
+
+const identifierAttrs = (variant?: string): CharDeskTextAttributes | undefined =>
+  variant === "normal" || variant?.includes("upright")
+    ? undefined
+    : { italic: true };
+
+const FENCE_OPERATORS = new Set(["(", ")", "[", "]", "{", "}", "|", "‖"]);
+
+const operatorRole = (node: MathMlNode, value: string): MathRun["role"] =>
+  node.attributes.fence === "true" || FENCE_OPERATORS.has(value)
+    ? "structure"
+    : "operator";
+
+const renderCompact = (
+  node: MathMlNode,
+  inheritedVariant?: string
+): MathRun[] => {
+  const variant = node.attributes.mathvariant ?? inheritedVariant;
+  const values = node.children.map((child) => renderCompact(child, variant));
+  const children = () => normalizedRuns(values.flat());
+  const fallbackScript = (value: readonly MathRun[], marker: "^" | "_") => [
+    run(`${marker}(`, "structure"),
+    ...value,
+    run(")", "structure"),
+  ];
+  const script = (
+    value: readonly MathRun[],
+    marker: "^" | "_",
+    characters: ReadonlyMap<string, string>
+  ) => mappedScript(value, characters) ?? fallbackScript(value, marker);
   switch (node.name) {
     case "math":
     case "mrow":
@@ -150,63 +239,88 @@ const renderCompact = (node: MathMlNode): string => {
     case "mpadded":
     case "menclose":
     case "semantics":
-      return compactChildren(node);
+      return children();
     case "annotation":
     case "annotation-xml":
     case "mphantom":
-      return "";
+      return [];
     case "mi":
+      return [run(node.text, "content", identifierAttrs(variant)), ...children()];
     case "mn":
     case "mtext":
     case "ms":
-      return `${node.text}${values.join("")}`;
+      return [run(node.text), ...children()];
     case "mo": {
-      const value = `${node.text}${values.join("")}`.trim();
-      return SPACED_OPERATORS.has(value) ? ` ${value} ` : value;
+      const value = `${node.text}${runsText(children())}`.trim();
+      const text = SPACED_OPERATORS.has(value) ? ` ${value} ` : value;
+      return [run(text, operatorRole(node, value))];
     }
     case "mspace":
-      return " ";
+      return [run(" ")];
     case "mfrac": {
-      const numerator = values[0] ?? "";
-      const denominator = values[1] ?? "";
-      return `${grouped(numerator)}/${grouped(denominator)}`;
+      return [
+        ...grouped(values[0] ?? []),
+        run("/", "structure"),
+        ...grouped(values[1] ?? []),
+      ];
     }
     case "msqrt":
-      return `√(${values.join("")})`;
+      return [run("√(", "structure"), ...values.flat(), run(")", "structure")];
     case "mroot": {
-      const radicand = values[0] ?? "";
-      const index = values[1] ?? "";
-      return `${mapScript(index, SUPER) ?? `[${index}]`}√(${radicand})`;
+      const index = values[1] ?? [];
+      return [
+        ...(mappedScript(index, SUPER) ?? [
+          run("[", "structure"), ...index, run("]", "structure"),
+        ]),
+        run("√(", "structure"),
+        ...(values[0] ?? []),
+        run(")", "structure"),
+      ];
     }
-    case "msup": {
-      const base = values[0] ?? "";
-      const exponent = values[1] ?? "";
-      return `${base}${mapScript(exponent, SUPER) ?? `^(${exponent})`}`;
-    }
-    case "msub": {
-      const base = values[0] ?? "";
-      const subscript = values[1] ?? "";
-      return `${base}${mapScript(subscript, SUB) ?? `_(${subscript})`}`;
-    }
-    case "msubsup": {
-      const base = values[0] ?? "";
-      const subscript = values[1] ?? "";
-      const exponent = values[2] ?? "";
-      return `${base}${mapScript(subscript, SUB) ?? `_(${subscript})`}${mapScript(exponent, SUPER) ?? `^(${exponent})`}`;
-    }
+    case "msup":
+      return [...(values[0] ?? []), ...script(values[1] ?? [], "^", SUPER)];
+    case "msub":
+      return [...(values[0] ?? []), ...script(values[1] ?? [], "_", SUB)];
+    case "msubsup":
+      return [
+        ...(values[0] ?? []),
+        ...script(values[1] ?? [], "_", SUB),
+        ...script(values[2] ?? [], "^", SUPER),
+      ];
     case "mover":
-      return `${values[0] ?? ""}${values[1] ?? ""}`;
+      return [...(values[0] ?? []), ...(values[1] ?? [])];
     case "munder":
-      return `${values[0] ?? ""}_(${values[1] ?? ""})`;
+      return [
+        ...(values[0] ?? []),
+        ...fallbackScript(values[1] ?? [], "_"),
+      ];
     case "munderover":
-      return `${values[0] ?? ""}_(${values[1] ?? ""})^(${values[2] ?? ""})`;
-    case "mtable":
-      return `[${node.children.map((row) => row.children.map(renderCompact).join(", ")).join("; ")}]`;
+      return [
+        ...(values[0] ?? []),
+        ...fallbackScript(values[1] ?? [], "_"),
+        ...fallbackScript(values[2] ?? [], "^"),
+      ];
+    case "mtable": {
+      const rows = node.children.map((row) => row.children.map(
+        (child) => renderCompact(child, variant)
+      ));
+      return [
+        run("[", "structure"),
+        ...rows.flatMap((row, rowIndex) => [
+          ...(rowIndex ? [run("; ", "structure")] : []),
+          ...row.flatMap((value, columnIndex) => [
+            ...(columnIndex ? [run(", ", "structure")] : []),
+            ...value,
+          ]),
+        ]),
+        run("]", "structure"),
+      ];
+    }
     case "mtr":
     case "mtd":
-      return values.join("");
+      return values.flat();
     default:
-      return `${node.text}${values.join("")}`;
+      return [run(node.text), ...values.flat()];
   }
 };
 
@@ -220,12 +334,16 @@ const blankBox = (width: number, height: number, baseline: number): MathBox => (
   baseline,
 });
 
-const textBox = (text: string): MathBox => {
+const textBox = (
+  text: string,
+  role: MathRun["role"] = "content",
+  attrs?: CharDeskTextAttributes
+): MathBox => {
   const width = getTextCellWidth(text);
   const box = blankBox(width, 1, 0);
   let x = 0;
   for (const grapheme of splitGraphemes(text)) {
-    box.rows[0]![x] = grapheme;
+    box.rows[0]![x] = { text: grapheme, role, ...(attrs ? { attrs } : {}) };
     const cellWidth = getGraphemeCellWidth(grapheme);
     for (let offset = 1; offset < cellWidth; offset += 1) {
       box.rows[0]![x + offset] = null;
@@ -271,7 +389,7 @@ const fractionBox = (numerator: MathBox, denominator: MathBox) => {
   const bottom = centered(denominator, width);
   const output = blankBox(width, top.height + 1 + bottom.height, top.height,);
   place(output, top, 0, 0);
-  place(output, textBox("─".repeat(width)), 0, top.height);
+  place(output, textBox("─".repeat(width), "structure"), 0, top.height);
   place(output, bottom, 0, top.height + 1);
   return output;
 };
@@ -296,7 +414,7 @@ const scriptsBox = (
 };
 
 const radicalBox = (radicand: MathBox, index?: MathBox) => {
-  const roof = textBox("─".repeat(Math.max(1, radicand.width)));
+  const roof = textBox("─".repeat(Math.max(1, radicand.width)), "structure");
   const leftWidth = Math.max(1, index?.width ?? 0) + 1;
   const output = blankBox(
     leftWidth + radicand.width,
@@ -305,13 +423,24 @@ const radicalBox = (radicand: MathBox, index?: MathBox) => {
   );
   if (index) place(output, index, 0, 0);
   place(output, roof, leftWidth, 0);
-  place(output, textBox("√"), leftWidth - 1, Math.min(output.height - 1, output.baseline));
+  place(
+    output,
+    textBox("√", "structure"),
+    leftWidth - 1,
+    Math.min(output.height - 1, output.baseline)
+  );
   place(output, radicand, leftWidth, 1);
   return output;
 };
 
 const fencedBox = (body: MathBox, left: string, right: string) => {
-  if (body.height === 1) return horizontal([textBox(left), body, textBox(right)]);
+  if (body.height === 1) {
+    return horizontal([
+      textBox(left, "structure"),
+      body,
+      textBox(right, "structure"),
+    ]);
+  }
   const leftLines = Array.from({ length: body.height }, (_, index) =>
     index === 0 ? "⎡" : index === body.height - 1 ? "⎣" : "⎢"
   );
@@ -319,14 +448,20 @@ const fencedBox = (body: MathBox, left: string, right: string) => {
     index === 0 ? "⎤" : index === body.height - 1 ? "⎦" : "⎥"
   );
   const output = blankBox(body.width + 2, body.height, body.baseline);
-  leftLines.forEach((value, y) => place(output, textBox(value), 0, y));
+  leftLines.forEach((value, y) =>
+    place(output, textBox(value, "structure"), 0, y)
+  );
   place(output, body, 1, 0);
-  rightLines.forEach((value, y) => place(output, textBox(value), body.width + 1, y));
+  rightLines.forEach((value, y) =>
+    place(output, textBox(value, "structure"), body.width + 1, y)
+  );
   return output;
 };
 
-const tableBox = (node: MathMlNode) => {
-  const rows = node.children.map((row) => row.children.map(renderBlock));
+const tableBox = (node: MathMlNode, inheritedVariant?: string) => {
+  const rows = node.children.map((row) => row.children.map(
+    (child) => renderBlock(child, inheritedVariant)
+  ));
   const columns = Math.max(0, ...rows.map((row) => row.length));
   const widths = Array.from({ length: columns }, (_, column) =>
     Math.max(0, ...rows.map((row) => row[column]?.width ?? 0))
@@ -366,8 +501,9 @@ const overUnderBox = (
   return output;
 };
 
-const renderBlock = (node: MathMlNode): MathBox => {
-  const boxes = node.children.map(renderBlock);
+const renderBlock = (node: MathMlNode, inheritedVariant?: string): MathBox => {
+  const variant = node.attributes.mathvariant ?? inheritedVariant;
+  const boxes = node.children.map((child) => renderBlock(child, variant));
   switch (node.name) {
     case "math":
     case "mrow":
@@ -381,13 +517,22 @@ const renderBlock = (node: MathMlNode): MathBox => {
     case "mphantom":
       return textBox("");
     case "mi":
+      return horizontal([
+        textBox(node.text, "content", identifierAttrs(variant)),
+        ...boxes,
+      ]);
     case "mn":
     case "mtext":
     case "ms":
       return horizontal([textBox(node.text), ...boxes]);
     case "mo": {
-      const value = `${node.text}${node.children.map(renderCompact).join("")}`.trim();
-      return textBox(SPACED_OPERATORS.has(value) ? ` ${value} ` : value);
+      const value = `${node.text}${runsText(
+        node.children.flatMap((child) => renderCompact(child, variant))
+      )}`.trim();
+      return textBox(
+        SPACED_OPERATORS.has(value) ? ` ${value} ` : value,
+        operatorRole(node, value)
+      );
     }
     case "mspace":
       return textBox(" ");
@@ -410,7 +555,7 @@ const renderBlock = (node: MathMlNode): MathBox => {
     case "munderover":
       return overUnderBox(boxes[0] ?? textBox(""), boxes[1], boxes[2]);
     case "mtable":
-      return tableBox(node);
+      return tableBox(node, variant);
     case "mtr":
     case "mtd":
       return horizontal(boxes);
@@ -419,14 +564,55 @@ const renderBlock = (node: MathMlNode): MathBox => {
   }
 };
 
-const mathBoxText = (box: MathBox) => box.rows.map((row) => {
-  let value = row.map((cell) => cell === undefined ? " " : cell ?? "").join("");
-  value = value.replace(/ +$/g, "");
-  return value;
-}).join("\n");
+const mathBoxRuns = (box: MathBox) => box.rows.flatMap((row, rowIndex) => {
+  let last = row.length - 1;
+  while (last >= 0 && row[last] === undefined) last -= 1;
+  const runs = row.slice(0, last + 1).flatMap((cell): MathRun[] => {
+    if (cell === undefined) return [run(" ")];
+    if (cell === null) return [];
+    return [{ ...cell }];
+  });
+  return rowIndex < box.rows.length - 1 ? [...runs, run("\n")] : runs;
+});
 
-const fallback = (source: string, message: string): CharGraphRenderResult => ({
-  fragments: [createCharGraphFragment(source, {}, { from: 0, to: source.length })],
+const styledFragments = (
+  runs: readonly MathRun[],
+  styles: MathRenderOptions["styles"],
+  sourceLength: number
+) => {
+  const fragments: CharGraphRenderResult["fragments"] = [];
+  for (const item of runs) {
+    const base = item.attrs ? { attrs: item.attrs } : {};
+    const style = mergeCharGraphStyle(base, styles?.[item.role]);
+    const previous = fragments.at(-1);
+    if (
+      previous
+      && previous.color === style.color
+      && previous.bgColor === style.bgColor
+      && sameAttributes(previous.attrs, style.attrs)
+    ) {
+      previous.text += item.text;
+      continue;
+    }
+    fragments.push(createCharGraphFragment(
+      item.text,
+      style,
+      { from: 0, to: sourceLength }
+    ));
+  }
+  return fragments;
+};
+
+const fallback = (
+  source: string,
+  message: string,
+  style?: CharDeskTextStyle
+): CharGraphRenderResult => ({
+  fragments: [createCharGraphFragment(
+    source,
+    style,
+    { from: 0, to: source.length }
+  )],
   recognized: true,
   diagnostics: [diagnostic("math-render-failed", message)],
 });
@@ -446,7 +632,11 @@ export const renderMath = (
   options: MathRenderOptions
 ): CharGraphRenderResult => {
   if (source.length > MAX_SOURCE_LENGTH) {
-    return fallback(source, "Could not render math: formula exceeds the 20000-character limit.");
+    return fallback(
+      source,
+      "Could not render math: formula exceeds the 20000-character limit.",
+      options.styles?.error
+    );
   }
   try {
     const mathMl = temml.renderToString(source, {
@@ -461,18 +651,23 @@ export const renderMath = (
     });
     const tree = parseMathMl(mathMl);
     const unsupported = unsupportedMathMlNodes(tree);
-    const text = options.layout === "inline"
+    const runs = options.layout === "inline"
       ? renderCompact(tree)
-      : mathBoxText(renderBlock(tree));
+      : mathBoxRuns(renderBlock(tree));
+    const text = runsText(runs);
     const cellCount = text.split("\n").reduce(
       (total, line) => total + getTextCellWidth(line),
       0
     );
     if (cellCount > MAX_OUTPUT_CELLS) {
-      return fallback(source, "Could not render math: rendered formula exceeds the cell limit.");
+      return fallback(
+        source,
+        "Could not render math: rendered formula exceeds the cell limit.",
+        options.styles?.error
+      );
     }
     return {
-      fragments: [createCharGraphFragment(text, {}, { from: 0, to: source.length })],
+      fragments: styledFragments(runs, options.styles, source.length),
       recognized: true,
       diagnostics: unsupported.length > 0
         ? [diagnostic(
@@ -483,7 +678,11 @@ export const renderMath = (
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return fallback(source, `Could not render math: ${message}`);
+    return fallback(
+      source,
+      `Could not render math: ${message}`,
+      options.styles?.error
+    );
   }
 };
 

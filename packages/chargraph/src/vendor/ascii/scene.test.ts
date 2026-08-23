@@ -103,6 +103,16 @@ describe('CharScene', () => {
     expect(scene.compose().canvas[0]![0]).toBe('┼')
   })
 
+  it('does not resolve collinear independent routes as shared topology', () => {
+    const scene = new CharScene(1, 1, false)
+    scene.write(0, 0, '─', 'line', { owner: 'first', topology: 'independent' })
+    scene.write(0, 0, '━', 'line', { owner: 'second', topology: 'independent' })
+
+    const result = scene.compose()
+    expect(result.canvas[0]![0]).toBe('━')
+    expect(result.collisions[0]?.resolved).toBe(false)
+  })
+
   it('rasterizes typed boxes, strokes, markers, and reserved labels', () => {
     const scene = new CharScene(8, 4, false)
     scene.add({ kind: 'box', owner: 'node', x: 0, y: 0, width: 4, height: 3 })

@@ -1,5 +1,19 @@
 import { expect, test, type Page } from "@playwright/test";
 
+const FIRST_CASE_TITLES: Record<string, string> = {
+  flowchart: "输入校验",
+  state: "文档审核",
+  sequence: "请求响应",
+  class: "文档模型",
+  er: "用户与订单",
+  xychart: "月度趋势",
+  "markdown-basics": "基础排版",
+  "markdown-structure": "任务清单",
+  "markdown-code": "代码块",
+  "markdown-alert": "提示信息",
+  "markdown-math": "行内公式",
+};
+
 const expectUnicodeViewersToFit = async (page: Page) => {
   const viewers = page.locator("chardesk-viewer");
   await expect(viewers).toHaveCount(3);
@@ -34,7 +48,7 @@ const expectStructuralChrome = async (page: Page) => {
   ).toBe(true);
 
   const frames = page.locator('[data-slot="page-frame"]');
-  await expect(frames).toHaveCount(4);
+  await expect(frames).toHaveCount(3);
   await expect.poll(async () =>
     frames.evaluateAll((elements) => {
       const edges = elements.map((element) => {
@@ -46,26 +60,70 @@ const expectStructuralChrome = async (page: Page) => {
   ).toBe(1);
 
   const dividers = page.locator('[data-slot="stripe-divider"]');
-  await expect(dividers).toHaveCount(5);
+  await expect(dividers).toHaveCount(4);
   await expect.poll(async () =>
     dividers.evaluateAll((elements) =>
       elements.every((element) => {
-        const style = getComputedStyle(
-          element,
-          element.getAttribute("data-bleed") === "true" ? "::before" : null
+        const pattern = element.querySelector<HTMLElement>(
+          '[data-slot="stripe-divider-pattern"]'
         );
-        return style.backgroundImage.includes("repeating-linear-gradient");
+        const boundaries = Array.from(
+          element.querySelectorAll<HTMLElement>('[data-boundary]')
+        );
+        if (!pattern || boundaries.length !== 2) return false;
+
+        const coversViewport = (layer: HTMLElement) => {
+          const rect = layer.getBoundingClientRect();
+          return rect.left <= 0 && rect.right >= window.innerWidth;
+        };
+        return (
+          element.getAttribute("data-bleed") === "true" &&
+          element.getBoundingClientRect().height === 32 &&
+          getComputedStyle(pattern).backgroundImage.includes(
+            "repeating-linear-gradient"
+          ) &&
+          coversViewport(pattern) &&
+          boundaries.every(
+            (boundary) =>
+              coversViewport(boundary) &&
+              getComputedStyle(boundary).height === "1px"
+          )
+        );
       })
     )
   ).toBe(true);
 };
 
+const expectCompactPageHeader = async (page: Page) => {
+  const header = page.locator('[data-frame="header"]');
+  const categories = page.locator('[data-slot="category-tabs"]');
+  const topDivider = page.locator(
+    '[data-frame="header"] + [data-slot="stripe-divider"]'
+  );
+
+  await expect(page.getByRole("heading", { level: 1, name: "CharGraph" })).toHaveCount(1);
+  await expect(page.getByText("Mermaid + Markdown → Unicode")).toHaveCount(0);
+  await expect(topDivider).toBeVisible();
+  await expect.poll(async () =>
+    topDivider.evaluate(
+      (element) =>
+        element.nextElementSibling?.getAttribute("data-frame") === "content"
+    )
+  ).toBe(true);
+  await expect.poll(async () =>
+    header.evaluate((element) => element.getBoundingClientRect().height)
+  ).toBe(48);
+  await expect.poll(async () =>
+    categories.evaluate((element) => element.getBoundingClientRect().height)
+  ).toBeLessThanOrEqual(52);
+};
+
 const expectLineNav = async (page: Page, activeLabel: string) => {
-  const navigation = page.getByRole("navigation", { name: "案例分类" });
+  const navigation = page.getByRole("navigation", { name: "案例" });
   await expect(navigation).toHaveAttribute("data-slot", "line-nav");
 
   const activeLink = navigation.getByRole("link", { name: activeLabel });
-  await expect(activeLink).toHaveAttribute("aria-current", "page");
+  await expect(activeLink).toHaveAttribute("aria-current", "location");
   await expect.poll(async () =>
     activeLink.locator('[data-slot="line-nav-marker"]').evaluate((element) =>
       Math.round(element.getBoundingClientRect().width)
@@ -79,7 +137,7 @@ const expectLineNav = async (page: Page, activeLabel: string) => {
 };
 
 const expectFloatingLineNav = async (page: Page) => {
-  const floatingNav = page.locator('[data-slot="category-floating-nav"]');
+  const floatingNav = page.locator('[data-slot="case-floating-nav"]');
   const contentFrame = page.locator('[data-frame="content"]');
 
   await expect(floatingNav).toBeVisible();
@@ -104,8 +162,9 @@ const expectFloatingLineNav = async (page: Page) => {
   expect(Math.abs(placement.verticalOffset)).toBeLessThanOrEqual(1);
 
   const hoverLink = page
-    .getByRole("navigation", { name: "案例分类" })
-    .getByRole("link", { name: "Markdown 基础排版" });
+    .getByRole("navigation", { name: "案例" })
+    .getByRole("link")
+    .nth(1);
   const hoverMarker = hoverLink.locator('[data-slot="line-nav-marker"]');
   const hoverLabel = hoverLink.locator("span").last();
   const readHoverGeometry = async () => {
@@ -201,27 +260,22 @@ const openDesktopCategory = async (
   label: string,
   kind: string
 ) => {
-  const link = page
-    .getByRole("navigation", { name: "案例分类" })
-    .getByRole("link", { name: label });
-  await link.click();
+  const tab = page.getByRole("tab", { name: label });
+  await tab.click();
   await expect(page).toHaveURL(new RegExp(`#type-${kind}$`));
-  await expect(link).toHaveAttribute("aria-current", "page");
+  await expect(tab).toHaveAttribute("aria-selected", "true");
   await expect(
     page.getByRole("heading", { level: 2, name: label, exact: true })
   ).toHaveCount(0);
-  await expect(page.getByRole("heading", { level: 2, name: "Basic" })).toHaveCount(0);
-  await expect(page.locator("main article").nth(1).getByRole("heading", { level: 2 })).toBeVisible();
-  await expect(page.locator("main article").nth(2).getByRole("heading", { level: 2 })).toBeVisible();
-  await expect(page.locator("main article").nth(1)).toHaveAttribute(
-    "aria-label",
-    `${label} Intermediate`
-  );
-  await expect(page.locator("main article").nth(2)).toHaveAttribute(
-    "aria-label",
-    `${label} Advanced`
-  );
   await expect(page.locator("main article")).toHaveCount(3);
+  await expect(
+    page.getByRole("heading", {
+      level: 2,
+      name: FIRST_CASE_TITLES[kind],
+      exact: true,
+    })
+  ).toBeVisible();
+  await expectLineNav(page, FIRST_CASE_TITLES[kind] ?? "");
 };
 
 test("renders directed diagrams through the category navigation", async ({ page }) => {
@@ -231,12 +285,12 @@ test("renders directed diagrams through the category navigation", async ({ page 
   await page.setViewportSize({ width: 1728, height: 900 });
   await page.goto("./");
 
-  await expect(
-    page
-      .getByRole("navigation", { name: "案例分类" })
-      .getByRole("link", { name: "流程图" })
-  ).toHaveAttribute("aria-current", "page");
-  await expectLineNav(page, "流程图");
+  await expectCompactPageHeader(page);
+  await expect(page.getByRole("tab", { name: "流程图" })).toHaveAttribute(
+    "aria-selected",
+    "true"
+  );
+  await expectLineNav(page, "输入校验");
   const flow = page.locator("#flowchart chardesk-viewer pre");
   await expect(flow).toContainText("用户输入");
   await expect(flow).toContainText("验证通过？");
@@ -245,6 +299,20 @@ test("renders directed diagrams through the category navigation", async ({ page 
   await expect(flow).toContainText("否");
   await expect(flow).not.toContainText(/[─┄━]\^ +│/u);
   await expect(flow).not.toContainText("flowchart LR");
+  await expect.poll(async () =>
+    page.locator("#flowchart chardesk-viewer span.run").evaluateAll((elements) =>
+      [...new Set(elements.map((element) =>
+        (element as HTMLElement).style.getPropertyValue("--run-fg")
+      ))]
+    )
+  ).toEqual(expect.arrayContaining(["#2563eb"]));
+  await expect.poll(async () =>
+    page.locator("#flowchart chardesk-viewer span.run").evaluateAll((elements) =>
+      elements.some((element) =>
+        (element as HTMLElement).style.getPropertyValue("--run-fg") === "#94a3b8"
+      )
+    )
+  ).toBe(false);
   const deployment = page.locator("#flowchart-intermediate chardesk-viewer pre");
   await expect(deployment).toContainText("持续集成");
   await expect(deployment).toContainText("生产环境");
@@ -282,6 +350,10 @@ test("renders directed diagrams through the category navigation", async ({ page 
   const socialModel = page.locator("#er-intermediate chardesk-viewer pre");
   await expect(socialModel).toContainText("关注");
   await expect(socialModel).toContainText("推荐");
+  const socialText = await socialModel.innerText();
+  const socialLines = socialText.trimEnd().split("\n");
+  expect(socialLines.length).toBeLessThanOrEqual(10);
+  expect(socialLines.find((line) => line.includes("推荐"))).toMatch(/[╭╮─┄]/u);
   const erDiagram = page.locator("#er-advanced chardesk-viewer pre");
   await expect(erDiagram).toContainText("订单项");
   await expect(erDiagram).toContainText("被引用");
@@ -293,6 +365,25 @@ test("renders directed diagrams through the category navigation", async ({ page 
   expect(pageErrors).toEqual([]);
 });
 
+test("uses LineNav as a scroll-aware case index", async ({ page }) => {
+  await page.setViewportSize({ width: 1728, height: 900 });
+  await page.goto("./#type-flowchart");
+  await expect(page.locator("main article")).toHaveCount(3);
+
+  const navigation = page.getByRole("navigation", { name: "案例" });
+  await navigation.getByRole("link", { name: "部署流水线" }).click();
+  await expect(page).toHaveURL(/#flowchart-intermediate$/);
+  await expectLineNav(page, "部署流水线");
+
+  await page.evaluate(() => window.scrollTo({ top: 0 }));
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+  await page.locator("#flowchart-advanced").evaluate((element) =>
+    element.scrollIntoView({ block: "start" })
+  );
+  await expectLineNav(page, "形状与连线");
+  await expect(page).toHaveURL(/#flowchart-intermediate$/);
+});
+
 test("renders styled Markdown categories through the same showcase", async ({ page }) => {
   const pageErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
@@ -300,8 +391,8 @@ test("renders styled Markdown categories through the same showcase", async ({ pa
   await page.setViewportSize({ width: 1728, height: 900 });
   await page.goto("./#type-markdown-basics");
 
-  await expect(page.getByText("Mermaid + Markdown → Unicode")).toBeVisible();
-  await expectLineNav(page, "Markdown 基础排版");
+  await expectCompactPageHeader(page);
+  await expectLineNav(page, "基础排版");
   await expect(
     page.locator("#markdown-basics").getByText("Markdown", { exact: true })
   ).toBeVisible();
@@ -365,24 +456,31 @@ test("uses the mobile category select without page overflow", async ({ page }) =
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("./#type-sequence");
 
-  await expect(page.getByRole("heading", { level: 1, name: "CharGraph" })).toBeVisible();
+  await expectCompactPageHeader(page);
   const categorySelect = page.getByRole("combobox", { name: "案例分类" });
+  const caseSelect = page.getByRole("combobox", { name: "案例", exact: true });
   await expect(categorySelect).toBeVisible();
   await expect(categorySelect).toContainText("时序图");
-  await expect(page.getByRole("heading", { level: 2, name: "Basic" })).toHaveCount(0);
+  await expect(caseSelect).toBeVisible();
+  await expect(caseSelect).toContainText("请求响应");
   await expect(
     page.getByRole("heading", { level: 2, name: "分支与循环" })
   ).toBeVisible();
-  await expect(page.getByRole("navigation", { name: "案例分类" })).toBeHidden();
   await expect(page.locator('[data-slot="line-nav"]')).toBeHidden();
   await expect(page.locator("main article")).toHaveCount(3);
   await expectUnicodeViewersToFit(page);
   await expectStructuralChrome(page);
 
+  await caseSelect.click();
+  await page.getByRole("option", { name: "分支与循环" }).click();
+  await expect(page).toHaveURL(/#sequence-advanced$/);
+  await expect(caseSelect).toContainText("分支与循环");
+
   await categorySelect.click();
   await page.getByRole("option", { name: "XY 图表" }).click();
   await expect(page).toHaveURL(/#type-xychart$/);
   await expect(categorySelect).toContainText("XY 图表");
+  await expect(caseSelect).toContainText("月度趋势");
   await expect(
     page.getByRole("heading", { level: 2, name: "横向混合图" })
   ).toBeVisible();
@@ -402,17 +500,43 @@ test("keeps the diagram boundary aligned across layout breakpoints", async ({ pa
   for (const width of [768, 1024, 1440, 1536, 1728]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("./#type-er");
+    await page.evaluate(() => window.scrollTo({ top: 0 }));
     await expect(page.locator("main article")).toHaveCount(3);
 
     const categorySelect = page.getByRole("combobox", { name: "案例分类" });
-    const lineNav = page.getByRole("navigation", { name: "案例分类" });
-    if (width < 1536) {
+    const categoryTabs = page.getByRole("tablist", { name: "案例分类" });
+    const caseSelect = page.getByRole("combobox", { name: "案例", exact: true });
+    const lineNav = page.locator('[data-slot="line-nav"]');
+    if (width < 1024) {
       await expect(categorySelect).toBeVisible();
+      await expect(categoryTabs).toBeHidden();
+      await expect(caseSelect).toBeVisible();
+      await expect(lineNav).toBeHidden();
+    } else if (width < 1536) {
+      await expect(categorySelect).toBeHidden();
+      await expect(categoryTabs).toBeVisible();
+      await expect(caseSelect).toBeVisible();
       await expect(lineNav).toBeHidden();
     } else {
       await expect(categorySelect).toBeHidden();
-      await expectLineNav(page, "实体关系图");
+      await expect(categoryTabs).toBeVisible();
+      await expect(caseSelect).toBeHidden();
+      await expectLineNav(page, "用户与订单");
       await expectFloatingLineNav(page);
+    }
+    if (width >= 1024) {
+      const tabGeometry = await categoryTabs.evaluate((element) => {
+        const triggers = Array.from(
+          element.querySelectorAll<HTMLElement>('[role="tab"]')
+        );
+        return {
+          fits: element.scrollWidth <= element.clientWidth,
+          rowCount: new Set(
+            triggers.map((trigger) => Math.round(trigger.getBoundingClientRect().top))
+          ).size,
+        };
+      });
+      expect(tabGeometry).toEqual({ fits: true, rowCount: 1 });
     }
 
     await expectExamplesToFillContentFrame(page);
@@ -519,22 +643,27 @@ test("supports category deep links and browser history", async ({ page }) => {
   await page.setViewportSize({ width: 1728, height: 900 });
   await page.goto("./#type-state");
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
-  const stateLink = page
-    .getByRole("navigation", { name: "案例分类" })
-    .getByRole("link", { name: "状态图" });
-  await expect(stateLink).toHaveAttribute("aria-current", "page");
-  await expectLineNav(page, "状态图");
+  const stateTab = page.getByRole("tab", { name: "状态图" });
+  await expect(stateTab).toHaveAttribute("aria-selected", "true");
+  await expectLineNav(page, "文档审核");
 
   await openDesktopCategory(page, "时序图", "sequence");
   await page.goBack();
   await expect(page).toHaveURL(/#type-state$/);
-  await expect(stateLink).toHaveAttribute("aria-current", "page");
+  await expect(stateTab).toHaveAttribute("aria-selected", "true");
+
+  await page.goto("./#sequence-advanced");
+  await expect(page.getByRole("tab", { name: "时序图" })).toHaveAttribute(
+    "aria-selected",
+    "true"
+  );
+  await expectLineNav(page, "分支与循环");
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
 
   await page.goto("./#type-unknown");
-  await expect(
-    page
-      .getByRole("navigation", { name: "案例分类" })
-      .getByRole("link", { name: "流程图" })
-  ).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("tab", { name: "流程图" })).toHaveAttribute(
+    "aria-selected",
+    "true"
+  );
   await expect(page.locator("main article")).toHaveCount(3);
 });

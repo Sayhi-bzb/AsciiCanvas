@@ -5,11 +5,36 @@ import {
   joinCharGraphLines,
   splitCharGraphLines,
 } from "./fragments.js";
-import type { MarkdownSyntaxExtension } from "./markdown-extension.js";
+import {
+  type MarkdownSyntaxExtension,
+} from "./markdown-extension.js";
 
-const alertRole = (variant: string) => `alert-${variant}`;
+export const MARKDOWN_ALERT_STYLE_ROLES = [
+  "alert-note",
+  "alert-tip",
+  "alert-important",
+  "alert-warning",
+  "alert-caution",
+] as const;
+type MarkdownAlertStyleRole =
+  typeof MARKDOWN_ALERT_STYLE_ROLES[number];
 
-export const markdownAlertExtension: MarkdownSyntaxExtension = {
+const alertRole = (
+  variant: string
+): MarkdownAlertStyleRole | undefined => {
+  switch (variant.toLowerCase()) {
+    case "note": return "alert-note";
+    case "tip": return "alert-tip";
+    case "important": return "alert-important";
+    case "warning": return "alert-warning";
+    case "caution": return "alert-caution";
+    default: return undefined;
+  }
+};
+
+export const markdownAlertExtension: MarkdownSyntaxExtension<
+  MarkdownAlertStyleRole
+> = {
   id: "github-alert",
   marked: markedAlert(),
   tokenTypes: ["alert"],
@@ -28,7 +53,8 @@ export const markdownAlertExtension: MarkdownSyntaxExtension = {
     }
 
     const token = request.token as Alert;
-    const style = context.style(alertRole(token.meta.variant));
+    const role = alertRole(token.meta.variant);
+    const style = role ? context.style(role) : undefined;
     const content = await context.renderBlocks(token.tokens, request.sourceOrigin);
     const markerOrigins = [...request.source.matchAll(/^ {0,3}>[ \t]?/gm)].map((match) => ({
       from: request.sourceOrigin.from + (match.index ?? 0),

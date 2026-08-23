@@ -21,6 +21,10 @@
       "types": "./dist/mermaid.d.ts",
       "import": "./dist/mermaid.js"
     },
+    "./theme": {
+      "types": "./dist/render-theme.d.ts",
+      "import": "./dist/render-theme.js"
+    },
     "./markdown": {
       "types": "./dist/markdown-default.d.ts",
       "import": "./dist/markdown-default.js"

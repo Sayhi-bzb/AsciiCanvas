@@ -10,6 +10,7 @@ import {
 } from "fumadocs-ui/layouts/docs/page";
 import type { Route } from "./+types/docs";
 import { useMDXComponents } from "@/components/mdx";
+import { DocsShellContainer } from "@/components/docs-shell";
 import {
   DOCS_HEAD,
   DOCS_HEAD_SHORT,
@@ -64,7 +65,11 @@ export default function DocsRoute({ loaderData }: Route.ComponentProps) {
   const { pageTree, path } = useFumadocsLoader(loaderData);
 
   return (
-    <DocsLayout {...baseOptions()} tree={pageTree}>
+    <DocsLayout
+      {...baseOptions()}
+      tree={pageTree}
+      slots={{ container: DocsShellContainer }}
+    >
       <Content path={path} />
     </DocsLayout>
   );

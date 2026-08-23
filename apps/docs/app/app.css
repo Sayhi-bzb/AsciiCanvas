@@ -1,6 +1,8 @@
-@import "tailwindcss";
-@import "fumadocs-ui/css/neutral.css";
+@import "@chardesk/ui/theme.css";
+@import "fumadocs-ui/css/shadcn.css";
 @import "fumadocs-ui/css/preset.css";
+
+@source "./**/*.{ts,tsx}";
 
 html {
   scrollbar-gutter: stable;

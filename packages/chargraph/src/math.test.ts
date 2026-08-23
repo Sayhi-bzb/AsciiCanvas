@@ -12,6 +12,43 @@ describe("renderMath", () => {
     expect(rendered.fragments[0]?.origin).toEqual({ from: 0, to: source.length });
   });
 
+  it("styles identifiers, operators, and structure from MathML semantics", () => {
+    const rendered = renderMath(String.raw`x^2 + \frac{1}{y}`, {
+      layout: "inline",
+      styles: {
+        content: { color: "#111111" },
+        operator: { color: "#222222" },
+        structure: { color: "#333333" },
+      },
+    });
+    const fragmentFor = (text: string) => rendered.fragments.find(
+      (fragment) => fragment.text.includes(text)
+    );
+
+    expect(getCharGraphText(rendered)).toBe("x² + 1/y");
+    expect(fragmentFor("x")).toMatchObject({
+      color: "#111111",
+      attrs: { italic: true },
+    });
+    expect(fragmentFor("²")).toMatchObject({ color: "#111111" });
+    expect(fragmentFor("²")?.attrs?.italic).toBeUndefined();
+    expect(fragmentFor("+")?.color).toBe("#222222");
+    expect(fragmentFor("/")?.color).toBe("#333333");
+  });
+
+  it("keeps math text and explicit normal identifiers upright", () => {
+    const rendered = renderMath(String.raw`\text{rate}+\mathrm{x}+y`, {
+      layout: "inline",
+    });
+    const fragmentFor = (text: string) => rendered.fragments.find(
+      (fragment) => fragment.text.includes(text)
+    );
+
+    expect(fragmentFor("rate")?.attrs?.italic).toBeUndefined();
+    expect(fragmentFor("x")?.attrs?.italic).toBeUndefined();
+    expect(fragmentFor("y")?.attrs?.italic).toBe(true);
+  });
+
   it("renders block fractions and matrices as two-dimensional cells", () => {
     const fraction = renderMath(String.raw`\frac{a+b}{c+d}`, { layout: "block" });
     const matrix = renderMath(
@@ -32,9 +69,13 @@ describe("renderMath", () => {
   });
 
   it("preserves invalid TeX with a diagnostic", () => {
-    const rendered = renderMath(String.raw`\frac{a`, { layout: "block" });
+    const rendered = renderMath(String.raw`\frac{a`, {
+      layout: "block",
+      styles: { error: { color: "#ff0000" } },
+    });
 
     expect(getCharGraphText(rendered)).toBe(String.raw`\frac{a`);
+    expect(rendered.fragments[0]?.color).toBe("#ff0000");
     expect(rendered.diagnostics[0]?.code).toBe("math-render-failed");
   });
 });

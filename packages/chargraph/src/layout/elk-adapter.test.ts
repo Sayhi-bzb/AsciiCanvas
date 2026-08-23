@@ -5,6 +5,109 @@ import type { LayoutGraph } from "./model.js";
 import { validateGridLayout } from "./validate.js";
 
 describe("ELK cell endpoint projection", () => {
+  it("maps rooted cycle breaking without changing the default", () => {
+    const graph: LayoutGraph = {
+      direction: "TD",
+      cycleBreaking: "depth-first",
+      spacing: { nodeNode: 2, nodeNodeBetweenLayers: 2 },
+      groups: [],
+      nodes: [
+        { id: "a", label: "A", width: 5, height: 3 },
+        { id: "b", label: "B", width: 5, height: 3 },
+      ],
+      edges: [{ id: "edge", source: "a", target: "b" }],
+    };
+
+    expect(toElkGraph(graph).layoutOptions?.["elk.layered.cycleBreaking.strategy"])
+      .toBe("DEPTH_FIRST");
+    expect(toElkGraph({ ...graph, cycleBreaking: "automatic" })
+      .layoutOptions?.["elk.layered.cycleBreaking.strategy"]).toBeUndefined();
+  });
+
+  it("gives every independent edge end a dedicated fixed-order ELK port", () => {
+    const graph: LayoutGraph = {
+      direction: "LR",
+      spacing: { nodeNode: 2, nodeNodeBetweenLayers: 6 },
+      groups: [],
+      nodes: [
+        {
+          id: "a",
+          label: "A",
+          width: 8,
+          height: 4,
+          portAllocation: "independent",
+        },
+        {
+          id: "b",
+          label: "B",
+          width: 8,
+          height: 4,
+          portAllocation: "independent",
+        },
+      ],
+      edges: [
+        { id: "first", source: "a", target: "b" },
+        { id: "second", source: "a", target: "b" },
+      ],
+    };
+
+    const elk = toElkGraph(graph);
+    const [source, target] = elk.children!;
+
+    expect(source?.ports).toHaveLength(2);
+    expect(target?.ports).toHaveLength(2);
+    expect(source?.layoutOptions?.["elk.portConstraints"]).toBe("FIXED_ORDER");
+    expect(new Set(elk.edges?.flatMap((edge) => edge.sources ?? [])).size).toBe(2);
+    expect(new Set(elk.edges?.flatMap((edge) => edge.targets ?? [])).size).toBe(2);
+  });
+
+  it.each([
+    ["LR", "EAST", ["0", "1"], "WEST", ["1", "0"]],
+    ["RL", "WEST", ["1", "0"], "EAST", ["0", "1"]],
+    ["TD", "SOUTH", ["1", "0"], "NORTH", ["0", "1"]],
+    ["BT", "NORTH", ["0", "1"], "SOUTH", ["1", "0"]],
+  ] as const)(
+    "normalizes %s independent ports into visual order",
+    (direction, sourceSide, sourceIndexes, targetSide, targetIndexes) => {
+      const graph: LayoutGraph = {
+        direction,
+        spacing: { nodeNode: 2, nodeNodeBetweenLayers: 6 },
+        groups: [],
+        nodes: [
+          {
+            id: "a",
+            label: "A",
+            width: 8,
+            height: 4,
+            portAllocation: "independent",
+          },
+          {
+            id: "b",
+            label: "B",
+            width: 8,
+            height: 4,
+            portAllocation: "independent",
+          },
+        ],
+        edges: [
+          { id: "first", source: "a", target: "b" },
+          { id: "second", source: "a", target: "b" },
+        ],
+      };
+
+      const [source, target] = toElkGraph(graph).children!;
+
+      expect(source?.ports?.map((port) => port.layoutOptions?.["elk.port.side"]))
+        .toEqual([sourceSide, sourceSide]);
+      expect(source?.ports?.map((port) => port.layoutOptions?.["elk.port.index"]))
+        .toEqual(sourceIndexes);
+      expect(target?.ports?.map((port) => port.layoutOptions?.["elk.port.side"]))
+        .toEqual([targetSide, targetSide]);
+      expect(target?.ports?.map((port) => port.layoutOptions?.["elk.port.index"]))
+        .toEqual(targetIndexes);
+    },
+  );
+
   it("omits route-placed labels from ELK without dropping their model data", () => {
     const graph: LayoutGraph = {
       direction: "LR",

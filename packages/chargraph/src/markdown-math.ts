@@ -1,7 +1,8 @@
 import type { MarkedExtension, Token } from "marked";
+import type { CharDeskTextStyle } from "@chardesk/protocol";
 import {
   createCharGraphFragment,
-  styleCharGraphFragments,
+  mergeCharGraphStyle,
 } from "./fragments.js";
 import type {
   MarkdownExtensionRenderRequest,
@@ -14,6 +15,17 @@ type MathToken = Token & {
   raw: string;
   text: string;
 };
+
+export const MARKDOWN_MATH_STYLE_ROLES = [
+  "inline-math",
+  "block-math",
+  "math-content",
+  "math-operator",
+  "math-structure",
+  "math-error",
+] as const;
+type MarkdownMathStyleRole =
+  typeof MARKDOWN_MATH_STYLE_ROLES[number];
 
 const findClosingDelimiter = (
   source: string,
@@ -113,7 +125,8 @@ const mathMarkedExtension: MarkedExtension = {
 
 const fallback = (
   request: MarkdownExtensionRenderRequest,
-  message: string
+  message: string,
+  style?: CharDeskTextStyle
 ) => {
   const source = request.kind === "fenced-code"
     ? request.rawSource.replace(/\n$/, "")
@@ -122,7 +135,7 @@ const fallback = (
     ? request.rawOrigin
     : request.sourceOrigin;
   return {
-    fragments: [createCharGraphFragment(source, {}, origin)],
+    fragments: [createCharGraphFragment(source, style ?? {}, origin)],
     recognized: true,
     diagnostics: [{
       code: "markdown-math-render-failed",
@@ -133,7 +146,9 @@ const fallback = (
   };
 };
 
-export const markdownMathExtension: MarkdownSyntaxExtension = {
+export const markdownMathExtension: MarkdownSyntaxExtension<
+  MarkdownMathStyleRole
+> = {
   id: "math",
   marked: mathMarkedExtension,
   tokenTypes: ["inlineMath", "blockMath"],
@@ -157,21 +172,29 @@ export const markdownMathExtension: MarkdownSyntaxExtension = {
     const source = request.kind === "fenced-code"
       ? request.source
       : token?.text ?? "";
-    const rendered = renderMath(source, { layout });
+    const rendered = renderMath(source, {
+      layout,
+      styles: {
+        content: mergeCharGraphStyle(
+          context.style(rule) ?? {},
+          context.style("math-content")
+        ),
+        operator: context.style("math-operator"),
+        structure: context.style("math-structure"),
+        error: context.style("math-error"),
+      },
+    });
     const failure = rendered.diagnostics.find(
       (item) => item.code === "math-render-failed"
     );
     if (failure) {
-      return fallback(request, failure.message);
+      return fallback(request, failure.message, context.style("math-error"));
     }
     return {
-      fragments: styleCharGraphFragments(
-        rendered.fragments.map((fragment) => ({
-          ...fragment,
-          origin: request.sourceOrigin,
-        })),
-        context.style(rule)
-      ),
+      fragments: rendered.fragments.map((fragment) => ({
+        ...fragment,
+        origin: request.sourceOrigin,
+      })),
       recognized: true,
       diagnostics: rendered.diagnostics.map((item) => ({
         ...item,

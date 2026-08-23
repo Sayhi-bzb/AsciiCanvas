@@ -15,6 +15,7 @@ import {
 import {
   endpointCell,
   renderLayeredDiagram,
+  renderLayeredDiagramSurface,
   type LayeredDiagramPresentation,
   type LayeredEndpointPresentation,
 } from "./render.js";
@@ -44,6 +45,60 @@ const entitySections = (
   const attributes = entity.attributes.flatMap(attributeLines);
   const header = splitLines(entity.label);
   return attributes.length === 0 ? [header] : [header, attributes];
+};
+
+interface EntityPortDemand {
+  top: number;
+  right: number;
+  left: number;
+}
+
+const emptyPortDemand = (): EntityPortDemand => ({
+  top: 0,
+  right: 0,
+  left: 0,
+});
+
+const getEntityPortDemand = (
+  relationships: readonly ErRelationship[],
+) => {
+  const demands = new Map<string, EntityPortDemand>();
+  const demandFor = (id: string) => {
+    const demand = demands.get(id) ?? emptyPortDemand();
+    demands.set(id, demand);
+    return demand;
+  };
+  for (const relationship of relationships) {
+    if (relationship.entity1 === relationship.entity2) {
+      demandFor(relationship.entity1).top += 2;
+      continue;
+    }
+    demandFor(relationship.entity1).right += 1;
+    demandFor(relationship.entity2).left += 1;
+  }
+  return demands;
+};
+
+const createEntityCanvas = (
+  sections: string[][],
+  demand: EntityPortDemand,
+  useAscii: boolean,
+) => {
+  const fitted = sections.map((section) => [...section]);
+  const last = fitted.at(-1)!;
+  let canvas = createMultiBoxCanvas(fitted, useAscii);
+  const minimumWidth = demand.top + 2;
+  if (canvas.length < minimumWidth) {
+    last.push(" ".repeat(minimumWidth - 2));
+    canvas = createMultiBoxCanvas(fitted, useAscii);
+  }
+  const minimumHeight = Math.max(demand.left, demand.right) + 2;
+  const missingRows = minimumHeight - (canvas[0]?.length ?? 1);
+  if (missingRows > 0) {
+    last.push(...Array.from({ length: missingRows }, () => ""));
+    canvas = createMultiBoxCanvas(fitted, useAscii);
+  }
+  return canvas;
 };
 
 const exactlyOneGlyph = (side: GridSide, useAscii: boolean) => {
@@ -109,10 +164,15 @@ export const createLayeredErDiagram = (
   const diagram = parseErDiagram(lines);
   if (diagram.entities.length === 0) return undefined;
 
+  const portDemands = getEntityPortDemand(diagram.relationships);
   const nodeVisuals = new Map<string, Canvas>();
   const nodes = diagram.entities.map((entity) => {
     const id = entityId(entity.id);
-    const canvas = createMultiBoxCanvas(entitySections(entity), config.useAscii);
+    const canvas = createEntityCanvas(
+      entitySections(entity),
+      portDemands.get(entity.id) ?? emptyPortDemand(),
+      config.useAscii,
+    );
     nodeVisuals.set(id, canvas);
     return {
       id,
@@ -120,6 +180,7 @@ export const createLayeredErDiagram = (
       width: canvas.length,
       height: canvas[0]?.length ?? 1,
       portPlacement: "distributed" as const,
+      portAllocation: "independent" as const,
     };
   });
 
@@ -132,6 +193,21 @@ export const createLayeredErDiagram = (
       source: entityId(relationship.entity1),
       target: entityId(relationship.entity2),
       label: createLayoutLabel(relationship.label),
+      labelLayout: "route" as const,
+      routing: {
+        topology: "independent" as const,
+        selfLoop: "compact" as const,
+        sourceClearance: getErEndpointGlyphs(
+          relationship.cardinality1,
+          "right",
+          config.useAscii,
+        ).length,
+        targetClearance: getErEndpointGlyphs(
+          relationship.cardinality2,
+          "left",
+          config.useAscii,
+        ).length,
+      },
     };
   });
 
@@ -139,7 +215,11 @@ export const createLayeredErDiagram = (
     direction: "LR",
     spacing: {
       nodeNode: Math.max(2, config.paddingY),
-      nodeNodeBetweenLayers: Math.max(6, config.paddingX),
+      nodeNodeBetweenLayers: Math.max(
+        6,
+        config.paddingX,
+        ...edges.map((edge) => (edge.label?.width ?? 0) + 3),
+      ),
     },
     nodes,
     edges,
@@ -177,4 +257,10 @@ export const renderLayeredEr = async (text: string, config: AsciiConfig) => {
   const diagram = createLayeredErDiagram(text, config);
   if (!diagram) return "";
   return renderLayeredDiagram(diagram.graph, diagram.presentation, config);
+};
+
+export const renderLayeredErSurface = async (text: string, config: AsciiConfig) => {
+  const diagram = createLayeredErDiagram(text, config);
+  if (!diagram) return { canvas: [], styleRoleCanvas: [] };
+  return renderLayeredDiagramSurface(diagram.graph, diagram.presentation, config);
 };

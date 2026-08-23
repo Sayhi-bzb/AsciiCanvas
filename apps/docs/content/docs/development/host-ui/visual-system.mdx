@@ -43,6 +43,13 @@ provides two product compositions. `control-bar` contains 32px controls with
 the content wrapper. Deck is the panel spacing reference, while Zoom and Dock
 are the control-bar density reference.
 
+`PageShell` owns the clipped viewport surface and page gutter. `PageFrame` owns
+the centered frame side borders and optional contained or viewport-bleeding
+structural boundaries. CharGraph and Docs share the page compositions; each
+product owns only its frame width, content, and responsive layout. Docs maps
+Fumadocs colors through its shadcn adapter and keeps navigation, search,
+sidebar, and table-of-contents behavior in Fumadocs.
+
 Shared compositions own repeated shell geometry and content density. Widget
 `className` owns product-specific position, size, scrolling, responsive
 visibility, and typography. Shared primitives and recipes own background,
@@ -58,6 +65,12 @@ presentation toolbar, are 2px and rounded. Resizable pane boundaries are 2px
 and straight; table and data-grid row boundaries remain 1px and straight.
 Interaction may strengthen a separator transiently but does not replace its
 resting token.
+
+`StripeDivider` owns the 32px diagonal section pattern and its two structural
+boundaries. Its optional `bleed` extent applies to the pattern and both
+boundaries as one contract; products own only placement, frame width, and side
+borders. A bleeding divider must live inside a horizontally clipped viewport
+surface.
 
 Keyboard focus uses one shared recipe: a 2px inset `ring` at 45% opacity with
 no offset. Controls, fields, scroll viewports, resize handles, and reorderable

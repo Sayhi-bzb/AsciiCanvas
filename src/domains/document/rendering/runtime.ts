@@ -18,6 +18,7 @@ import type {
   TextRenderResult,
   TextRendererId,
   TextRenderingStorage,
+  TextTransformResult,
 } from "./types";
 import { DEFAULT_TEXT_RENDER_THEME } from "./theme";
 
@@ -159,16 +160,6 @@ export class TextRenderingRuntime {
 
   render = async (source: string, defaultColor: string): Promise<TextRenderResult> => {
     const profile = this.#profile;
-    if (profile.mode === "raw") {
-      return {
-        kind: "plain",
-        renderer: "raw",
-        pipeline: ["raw"],
-        text: source,
-        diagnostics: [],
-      };
-    }
-
     const context = {
       defaultColor,
       renderTheme: { ...DEFAULT_TEXT_RENDER_THEME, ...profile.renderTheme },
@@ -202,36 +193,51 @@ export class TextRenderingRuntime {
       ? [...this.#plugins.values()]
           .filter((plugin) =>
             plugin.phase === "transform" &&
-            plugin.id !== "raw" &&
+            !plugin.fallback &&
             plugin.autoPriority !== undefined
           )
           .sort((left, right) => right.autoPriority! - left.autoPriority!)
       : [...this.#plugins.values()].filter(
           (plugin) => plugin.phase === "transform" && plugin.id === profile.mode
         );
-    let fragments: TextRenderFragment[] | null = null;
-    let transformDiagnostics: TextRenderResult["diagnostics"] = [];
+    let transformedResult: TextTransformResult | null = null;
     for (const plugin of transformers) {
       if (plugin.phase !== "transform") continue;
       const transformed = await plugin.transform(input, context);
       if (!transformed?.recognized) continue;
-      fragments = transformed.fragments;
-      transformDiagnostics = transformed.diagnostics;
+      transformedResult = transformed;
       pipeline.push(plugin.id);
       break;
     }
 
-    if (pipeline.length === 0) {
+    if (profile.mode === "auto" && pipeline.length === 0) {
+      const fallback = [...this.#plugins.values()].find(
+        (plugin) => plugin.phase === "transform" && plugin.fallback
+      );
+      if (fallback?.phase === "transform") {
+        const transformed = await fallback.transform(input, context);
+        if (transformed?.recognized) {
+          transformedResult = transformed;
+          pipeline.push(fallback.id);
+        }
+      }
+    }
+
+    if (transformedResult?.kind === "plain") {
       return {
         kind: "plain",
-        renderer: "raw",
-        pipeline: ["raw"],
-        text: source,
-        diagnostics: [],
+        renderer: pipeline.at(-1)!,
+        pipeline,
+        text: transformedResult.text,
+        diagnostics: [...input.diagnostics, ...transformedResult.diagnostics],
       };
     }
 
-    const resolvedFragments = fragments ?? [{
+    if (pipeline.length === 0) {
+      return { kind: "plain", renderer: "raw", pipeline: ["raw"], text: source, diagnostics: [] };
+    }
+
+    const resolvedFragments: TextRenderFragment[] = transformedResult?.fragments ?? [{
       text: input.text,
       origin: { from: 0, to: input.text.length },
     }];
@@ -254,7 +260,7 @@ export class TextRenderingRuntime {
       })),
       diagnostics: [
         ...input.diagnostics,
-        ...transformDiagnostics,
+        ...(transformedResult?.diagnostics ?? []),
         ...parsed.diagnostics.map((diagnostic) => ({ ...diagnostic })),
       ],
     };

@@ -16,8 +16,10 @@ const toDiagnostics = (
 export const rawTextRenderPlugin: TextRenderPlugin = {
   id: "raw",
   phase: "transform",
+  fallback: true,
   transform: (input) => ({
-    fragments: [{ text: input.text, origin: { from: 0, to: input.text.length } }],
+    kind: "plain",
+    text: input.text,
     diagnostics: [],
     recognized: true,
   }),

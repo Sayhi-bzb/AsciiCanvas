@@ -16,27 +16,39 @@ import { createCharGraphFragment } from "./fragments.js";
 import type { CharGraphDiagnostic, CharGraphFragment, CharGraphSourceRange } from "./model.js";
 import type { CharDeskTextStyle } from "@chardesk/protocol";
 
-export const DATA_TREE_LIMITS = {
+const DATA_TREE_LIMITS = {
   sourceLength: 20_000,
   sourceLines: 400,
   nodes: 2_000,
   depth: 64,
 } as const;
 
-export type DataTreeStyleRole =
+type DataTreeStyleRole =
   | "connector"
   | "key"
+  | "index"
   | "string"
   | "number"
-  | "keyword";
+  | "boolean"
+  | "null"
+  | "empty"
+  | "reference";
 
 export type DataTreeStyles = Partial<Record<DataTreeStyleRole, CharDeskTextStyle>>;
 
 type DataTreeRange = { from: number; to: number };
-type DataTreeValueKind = "string" | "number" | "keyword";
+type DataTreeLabelKind = "key" | "index" | "document";
+type DataTreeValueKind =
+  | "string"
+  | "number"
+  | "boolean"
+  | "null"
+  | "empty"
+  | "reference";
 
 type DataTreeNode = {
   label?: string;
+  labelKind?: DataTreeLabelKind;
   labelRange?: DataTreeRange;
   anchor?: string;
   tag?: string;
@@ -52,7 +64,7 @@ type DataTreeDocument = {
   range: DataTreeRange;
 };
 
-export type DataTreeParseResult =
+type DataTreeParseResult =
   | { documents: DataTreeDocument[]; diagnostics: [] }
   | { documents: null; diagnostics: CharGraphDiagnostic[] };
 
@@ -115,9 +127,9 @@ const scalarValue = (value: unknown): Pick<DataTreeNode, "value" | "valueKind"> 
     return { value: String(value), valueKind: "number" };
   }
   if (typeof value === "boolean") {
-    return { value: String(value), valueKind: "keyword" };
+    return { value: String(value), valueKind: "boolean" };
   }
-  if (value == null) return { value: "null", valueKind: "keyword" };
+  if (value == null) return { value: "null", valueKind: "null" };
   return { value: JSON.stringify(String(value)), valueKind: "string" };
 };
 
@@ -126,7 +138,8 @@ const jsonValueNode = (
   state: BuildState,
   depth: number,
   label?: string,
-  labelRange?: DataTreeRange
+  labelRange?: DataTreeRange,
+  labelKind: DataTreeLabelKind = "key"
 ): DataTreeNode => {
   const nodeRange = range(node.offset, node.length);
   countNode(state, depth, nodeRange);
@@ -142,12 +155,13 @@ const jsonValueNode = (
         state,
         depth + 1,
         formatKey(key.value),
-        range(key.offset, key.length)
+        range(key.offset, key.length),
+        "key"
       );
     });
     return {
-      ...(label === undefined ? {} : { label, labelRange }),
-      ...(children.length === 0 ? { value: "{}", valueKind: "keyword" as const } : {}),
+      ...(label === undefined ? {} : { label, labelRange, labelKind }),
+      ...(children.length === 0 ? { value: "{}", valueKind: "empty" as const } : {}),
       children,
       range: nodeRange,
       valueRange: nodeRange,
@@ -155,18 +169,25 @@ const jsonValueNode = (
   }
   if (node.type === "array") {
     const children = (node.children ?? []).map((child, index) =>
-      jsonValueNode(child, state, depth + 1, `[${index}]`, range(child.offset, child.length))
+      jsonValueNode(
+        child,
+        state,
+        depth + 1,
+        `[${index}]`,
+        range(child.offset, child.length),
+        "index"
+      )
     );
     return {
-      ...(label === undefined ? {} : { label, labelRange }),
-      ...(children.length === 0 ? { value: "[]", valueKind: "keyword" as const } : {}),
+      ...(label === undefined ? {} : { label, labelRange, labelKind }),
+      ...(children.length === 0 ? { value: "[]", valueKind: "empty" as const } : {}),
       children,
       range: nodeRange,
       valueRange: nodeRange,
     };
   }
   return {
-    ...(label === undefined ? {} : { label, labelRange }),
+    ...(label === undefined ? {} : { label, labelRange, labelKind }),
     ...scalarValue(node.value),
     children: [],
     range: nodeRange,
@@ -213,24 +234,25 @@ const yamlNode = (
   state: BuildState,
   depth: number,
   label?: string,
-  labelRange?: DataTreeRange
+  labelRange?: DataTreeRange,
+  labelKind: DataTreeLabelKind = "key"
 ): DataTreeNode => {
   const nodeRange = node ? yamlRange(node) : { from: 0, to: 0 };
   countNode(state, depth, nodeRange);
   const common = {
-    ...(label === undefined ? {} : { label, labelRange }),
+    ...(label === undefined ? {} : { label, labelRange, labelKind }),
     ...(node?.anchor ? { anchor: node.anchor } : {}),
     ...(node?.tag ? { tag: node.tag } : {}),
     range: nodeRange,
   };
   if (!node) {
-    return { ...common, value: "null", valueKind: "keyword", valueRange: nodeRange, children: [] };
+    return { ...common, value: "null", valueKind: "null", valueRange: nodeRange, children: [] };
   }
   if (isAlias(node)) {
     return {
       ...common,
       value: `*${node.source}`,
-      valueKind: "keyword",
+      valueKind: "reference",
       valueRange: nodeRange,
       children: [],
     };
@@ -248,23 +270,31 @@ const yamlNode = (
         state,
         depth + 1,
         formatKey(pair.key.value),
-        yamlRange(pair.key)
+        yamlRange(pair.key),
+        "key"
       );
     });
     return {
       ...common,
-      ...(children.length === 0 ? { value: "{}", valueKind: "keyword" as const } : {}),
+      ...(children.length === 0 ? { value: "{}", valueKind: "empty" as const } : {}),
       valueRange: nodeRange,
       children,
     };
   }
   if (isSeq(node)) {
     const children = node.items.map((item, index) =>
-      yamlNode(item as YamlNode | null, state, depth + 1, `[${index}]`, yamlRange(item))
+      yamlNode(
+        item as YamlNode | null,
+        state,
+        depth + 1,
+        `[${index}]`,
+        yamlRange(item),
+        "index"
+      )
     );
     return {
       ...common,
-      ...(children.length === 0 ? { value: "[]", valueKind: "keyword" as const } : {}),
+      ...(children.length === 0 ? { value: "[]", valueKind: "empty" as const } : {}),
       valueRange: nodeRange,
       children,
     };
@@ -363,23 +393,26 @@ const renderNodeHead = (
   if (node.label !== undefined) {
     output.push(createCharGraphFragment(
       node.label,
-      styles.key,
+      styles[node.labelKind === "index" ? "index" : "key"],
       translatedRange(sourceOrigin, node.labelRange ?? node.range)
     ));
   }
   if (node.anchor) {
-    output.push(createCharGraphFragment(` &${node.anchor}`, styles.keyword, nodeOrigin));
+    output.push(createCharGraphFragment(` &${node.anchor}`, styles.reference, nodeOrigin));
+  }
+  if (node.tag && node.value === undefined) {
+    output.push(createCharGraphFragment(` ${node.tag}`, styles.reference, nodeOrigin));
   }
   if (node.value !== undefined) {
     if (node.label !== undefined) {
       output.push(createCharGraphFragment(": ", styles.connector, nodeOrigin));
     }
     if (node.tag) {
-      output.push(createCharGraphFragment(`${node.tag} `, styles.keyword, nodeOrigin));
+      output.push(createCharGraphFragment(`${node.tag} `, styles.reference, nodeOrigin));
     }
     output.push(createCharGraphFragment(
       node.value,
-      styles[node.valueKind ?? "keyword"],
+      styles[node.valueKind ?? "null"],
       translatedRange(sourceOrigin, node.valueRange ?? node.range)
     ));
   }
@@ -415,6 +448,7 @@ const renderForest = (
 
 const documentNode = (document: DataTreeDocument, index: number): DataTreeNode => ({
   label: `document [${index + 1}]`,
+  labelKind: "document",
   labelRange: document.range,
   ...(document.root.value === undefined ? {} : {
     value: document.root.value,

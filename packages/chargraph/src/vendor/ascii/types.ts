@@ -8,6 +8,7 @@
 // ============================================================================
 
 import type { NodeShape } from '../types.js'
+import type { MermaidStyleRole } from '../../mermaid-style.js'
 
 // Re-export NodeShape for convenience
 export type { NodeShape }
@@ -211,6 +212,19 @@ export type CharRole =
  * null means the character has no role (whitespace).
  */
 export type RoleCanvas = (CharRole | null)[][]
+
+/** Visual meaning of a rendered Mermaid cell. Kept separate from CharRole,
+ * which exists solely for topology and collision resolution. */
+export type { MermaidStyleRole } from '../../mermaid-style.js'
+
+export type MermaidStyleRoleCanvas = (MermaidStyleRole | null)[][]
+
+export interface AsciiRenderSurface {
+  canvas: Canvas
+  styleRoleCanvas: MermaidStyleRoleCanvas
+  trimTrailingSpaces?: boolean
+  trimTrailingLines?: boolean
+}
 
 // ============================================================================
 // Edge bundling types

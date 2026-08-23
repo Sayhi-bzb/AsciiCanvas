@@ -1,9 +1,15 @@
+import { createCharGraphFragment } from "./fragments.js";
 import {
-  createCharGraphFragment,
-  styleCharGraphFragments,
-} from "./fragments.js";
-import type { MarkdownSyntaxExtension } from "./markdown-extension.js";
+  type MarkdownSyntaxExtension,
+} from "./markdown-extension.js";
 import { renderMermaid } from "./mermaid.js";
+import { MERMAID_STYLE_ROLES } from "./mermaid-style.js";
+
+export const MARKDOWN_MERMAID_STYLE_ROLES = MERMAID_STYLE_ROLES.map(
+  (role) => `mermaid.${role}` as const
+);
+type MarkdownMermaidStyleRole =
+  typeof MARKDOWN_MERMAID_STYLE_ROLES[number];
 
 const MAX_SOURCE_LENGTH = 20_000;
 const MAX_SOURCE_LINES = 400;
@@ -29,7 +35,9 @@ const fallback = (
   };
 };
 
-export const markdownMermaidExtension: MarkdownSyntaxExtension = {
+export const markdownMermaidExtension: MarkdownSyntaxExtension<
+  MarkdownMermaidStyleRole
+> = {
   id: "mermaid",
   fencedLanguages: ["mermaid"],
   async render(request, context) {
@@ -58,7 +66,12 @@ export const markdownMermaidExtension: MarkdownSyntaxExtension = {
         "Could not render Mermaid diagram: diagram exceeds the 20000-character or 400-line limit."
       );
     }
-    const diagram = await renderMermaid(request.source);
+    const diagram = await renderMermaid(request.source, {
+      styles: Object.fromEntries(MERMAID_STYLE_ROLES.flatMap((role) => {
+        const style = context.style(`mermaid.${role}`);
+        return style ? [[role, style]] : [];
+      })),
+    });
     if (diagram.diagnostics[0]) {
       return fallback(
         request.rawSource,
@@ -67,13 +80,10 @@ export const markdownMermaidExtension: MarkdownSyntaxExtension = {
       );
     }
     return {
-      fragments: styleCharGraphFragments(
-        diagram.fragments.map((fragment) => ({
-          ...fragment,
-          origin: request.sourceOrigin,
-        })),
-        context.style("mermaid")
-      ),
+      fragments: diagram.fragments.map((fragment) => ({
+        ...fragment,
+        origin: request.sourceOrigin,
+      })),
       recognized: true,
       diagnostics: [],
     };

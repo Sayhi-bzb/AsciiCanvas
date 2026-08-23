@@ -1,6 +1,6 @@
 // @ts-nocheck -- internal renderer scene; exercised at the package boundary.
 
-import type { Canvas, CharRole, RoleCanvas } from './types.js'
+import type { Canvas, CharRole, MermaidStyleRole, MermaidStyleRoleCanvas, RoleCanvas } from './types.js'
 import { BoxConnection, getBoxGlyphTopology, glyphForBoxConnections, glyphForBoxCorner } from './box-drawing.js'
 
 function blankCanvas(maxX: number, maxY: number): Canvas {
@@ -8,6 +8,10 @@ function blankCanvas(maxX: number, maxY: number): Canvas {
 }
 
 function blankRoleCanvas(maxX: number, maxY: number): RoleCanvas {
+  return Array.from({ length: maxX + 1 }, () => Array.from({ length: maxY + 1 }, () => null))
+}
+
+function blankStyleRoleCanvas(maxX: number, maxY: number): MermaidStyleRoleCanvas {
   return Array.from({ length: maxX + 1 }, () => Array.from({ length: maxY + 1 }, () => null))
 }
 
@@ -19,6 +23,8 @@ export interface SceneWriteOptions {
   topologyMask?: number
   /** Text spaces reserve cells instead of being discarded. */
   reserve?: boolean
+  styleRole?: MermaidStyleRole
+  topology?: 'shared' | 'independent'
 }
 
 export interface ScenePoint { x: number; y: number }
@@ -31,6 +37,7 @@ export interface BoxPrimitive {
   width: number
   height: number
   rounded?: boolean
+  styleRole?: MermaidStyleRole
 }
 
 export interface StrokePrimitive {
@@ -41,6 +48,8 @@ export interface StrokePrimitive {
   style?: 'solid' | 'dotted' | 'thick'
   rounded?: boolean
   connections?: readonly string[]
+  styleRole?: MermaidStyleRole
+  topology?: 'shared' | 'independent'
 }
 
 export interface MarkerPrimitive {
@@ -48,6 +57,7 @@ export interface MarkerPrimitive {
   owner: string
   at: ScenePoint
   char: string
+  styleRole?: MermaidStyleRole
 }
 
 export interface LabelPrimitive {
@@ -56,6 +66,7 @@ export interface LabelPrimitive {
   at: ScenePoint
   text: string
   width?: number
+  styleRole?: MermaidStyleRole
 }
 
 export type ScenePrimitive = BoxPrimitive | StrokePrimitive | MarkerPrimitive | LabelPrimitive
@@ -71,6 +82,7 @@ export interface SceneCollision {
 export interface ComposedScene {
   canvas: Canvas
   roleCanvas: RoleCanvas
+  styleRoleCanvas: MermaidStyleRoleCanvas
   collisions: SceneCollision[]
 }
 
@@ -81,6 +93,15 @@ interface Contribution {
   connections: readonly string[]
   topologyMask?: number
   order: number
+  styleRole: MermaidStyleRole
+  topology: 'shared' | 'independent'
+}
+
+const defaultStyleRole = (role: CharRole): MermaidStyleRole => {
+  if (role === 'text') return 'node.text'
+  if (role === 'arrow') return 'edge.arrow'
+  if (role === 'border') return 'node.border'
+  return 'edge.line'
 }
 
 const rolePriority: Record<CharRole, number> = {
@@ -138,8 +159,33 @@ function glyphForStroke(
 const sharesConnection = (left: Contribution, right: Contribution) =>
   left.owner === right.owner ||
   left.connections.includes(right.owner) ||
-  right.connections.includes(left.owner) ||
+  right.connections.includes(left.owner)
+
+const sharesNamedConnection = (left: Contribution, right: Contribution) =>
   left.connections.some(connection => right.connections.includes(connection))
+
+const perpendicular = (left: Contribution, right: Contribution) => {
+  if (rolePriority[left.role] !== rolePriority[right.role]) return false
+  const leftTopology = topologyForContribution(left)
+  const rightTopology = topologyForContribution(right)
+  if (!leftTopology || !rightTopology) return false
+  const horizontal = BoxConnection.left | BoxConnection.right
+  const vertical = BoxConnection.up | BoxConnection.down
+  const leftHorizontal = (leftTopology.mask & horizontal) !== 0
+  const leftVertical = (leftTopology.mask & vertical) !== 0
+  const rightHorizontal = (rightTopology.mask & horizontal) !== 0
+  const rightVertical = (rightTopology.mask & vertical) !== 0
+  return (leftHorizontal && !leftVertical && rightVertical && !rightHorizontal) ||
+    (leftVertical && !leftHorizontal && rightHorizontal && !rightVertical)
+}
+
+const mayMergeTopology = (left: Contribution, right: Contribution) =>
+  sharesConnection(left, right) ||
+  (left.topology === 'shared' && right.topology === 'shared' && (
+    rolePriority[left.role] === rolePriority[right.role] ||
+    sharesNamedConnection(left, right)
+  )) ||
+  perpendicular(left, right)
 
 const topologyForContribution = (value: Contribution) => {
   if (value.role === 'text' || value.role === 'arrow') return null
@@ -182,13 +228,18 @@ export class CharScene {
       connections: options.connections ?? [],
       topologyMask: options.topologyMask,
       order: this.order++,
+      styleRole: options.styleRole ?? defaultStyleRole(role),
+      topology: options.topology ?? 'shared',
     })
     this.cells.set(key, values)
   }
 
   add(primitive: ScenePrimitive): void {
     if (primitive.kind === 'marker') {
-      this.write(primitive.at.x, primitive.at.y, primitive.char, 'arrow', { owner: primitive.owner })
+      this.write(primitive.at.x, primitive.at.y, primitive.char, 'arrow', {
+        owner: primitive.owner,
+        styleRole: primitive.styleRole ?? 'edge.arrow',
+      })
       return
     }
     if (primitive.kind === 'label') {
@@ -199,7 +250,7 @@ export class CharScene {
           primitive.at.y,
           primitive.text[index] ?? ' ',
           'text',
-          { owner: primitive.owner, reserve: true },
+          { owner: primitive.owner, reserve: true, styleRole: primitive.styleRole ?? 'node.text' },
         )
       }
       return
@@ -208,17 +259,18 @@ export class CharScene {
       const right = primitive.x + primitive.width - 1
       const bottom = primitive.y + primitive.height - 1
       const rounded = primitive.rounded ?? true
-      this.write(primitive.x, primitive.y, glyphForBoxCorner(6, { useAscii: this.useAscii, rounded }), 'border', { owner: primitive.owner })
-      this.write(right, primitive.y, glyphForBoxCorner(12, { useAscii: this.useAscii, rounded }), 'border', { owner: primitive.owner })
-      this.write(primitive.x, bottom, glyphForBoxCorner(3, { useAscii: this.useAscii, rounded }), 'border', { owner: primitive.owner })
-      this.write(right, bottom, glyphForBoxCorner(9, { useAscii: this.useAscii, rounded }), 'border', { owner: primitive.owner })
+      const boxOptions = { owner: primitive.owner, styleRole: primitive.styleRole ?? 'node.border' }
+      this.write(primitive.x, primitive.y, glyphForBoxCorner(6, { useAscii: this.useAscii, rounded }), 'border', boxOptions)
+      this.write(right, primitive.y, glyphForBoxCorner(12, { useAscii: this.useAscii, rounded }), 'border', boxOptions)
+      this.write(primitive.x, bottom, glyphForBoxCorner(3, { useAscii: this.useAscii, rounded }), 'border', boxOptions)
+      this.write(right, bottom, glyphForBoxCorner(9, { useAscii: this.useAscii, rounded }), 'border', boxOptions)
       for (let x = primitive.x + 1; x < right; x++) {
-        this.write(x, primitive.y, glyphForBoxConnections(10, { useAscii: this.useAscii }), 'border', { owner: primitive.owner })
-        this.write(x, bottom, glyphForBoxConnections(10, { useAscii: this.useAscii }), 'border', { owner: primitive.owner })
+        this.write(x, primitive.y, glyphForBoxConnections(10, { useAscii: this.useAscii }), 'border', boxOptions)
+        this.write(x, bottom, glyphForBoxConnections(10, { useAscii: this.useAscii }), 'border', boxOptions)
       }
       for (let y = primitive.y + 1; y < bottom; y++) {
-        this.write(primitive.x, y, glyphForBoxConnections(5, { useAscii: this.useAscii }), 'border', { owner: primitive.owner })
-        this.write(right, y, glyphForBoxConnections(5, { useAscii: this.useAscii }), 'border', { owner: primitive.owner })
+        this.write(primitive.x, y, glyphForBoxConnections(5, { useAscii: this.useAscii }), 'border', boxOptions)
+        this.write(right, y, glyphForBoxConnections(5, { useAscii: this.useAscii }), 'border', boxOptions)
       }
       return
     }
@@ -271,6 +323,8 @@ export class CharScene {
           owner: primitive.owner,
           connections: primitive.connections,
           topologyMask: mask,
+          styleRole: primitive.styleRole ?? 'edge.line',
+          topology: primitive.topology ?? 'shared',
         },
       )
     }
@@ -279,19 +333,20 @@ export class CharScene {
   compose(): ComposedScene {
     const canvas = blankCanvas(this.maxX, this.maxY)
     const roleCanvas = blankRoleCanvas(this.maxX, this.maxY)
+    const styleRoleCanvas = blankStyleRoleCanvas(this.maxX, this.maxY)
     const collisions: SceneCollision[] = []
 
     for (const [key, values] of this.cells) {
       const [x, y] = key.split(',').map(Number)
       const highestPriority = Math.max(...values.map(value => rolePriority[value.role]))
       const winners = values.filter(value => rolePriority[value.role] === highestPriority)
+      const winner = winners[winners.length - 1]!
       const connected = values.filter(value =>
-        rolePriority[value.role] === highestPriority ||
-        winners.some(winner => sharesConnection(value, winner)),
+        value === winner || mayMergeTopology(value, winner),
       )
       const topology = connected.map(topologyForContribution)
       const allTopology = topology.every(Boolean)
-      const winner = winners[winners.length - 1]!
+      const compatibleWinners = winners.every(value => mayMergeTopology(value, winner))
       let char = winner.char
       let resolved = winners.length === 1
 
@@ -299,12 +354,13 @@ export class CharScene {
         const mask = topology.reduce((value, item) => value | item!.mask, 0)
         char = glyphForBoxConnections(mask, { useAscii: this.useAscii })
         resolved = true
-      } else if (winners.every(value => value.char === winner.char)) {
+      } else if (compatibleWinners && winners.every(value => value.char === winner.char)) {
         resolved = true
       }
 
       canvas[x]![y] = char
       roleCanvas[x]![y] = winner.role
+      styleRoleCanvas[x]![y] = winner.styleRole
 
       const owners = [...new Set(values.map(value => value.owner))]
       if (owners.length > 1) {
@@ -318,7 +374,7 @@ export class CharScene {
       }
     }
 
-    return { canvas, roleCanvas, collisions }
+    return { canvas, roleCanvas, styleRoleCanvas, collisions }
   }
 }
 

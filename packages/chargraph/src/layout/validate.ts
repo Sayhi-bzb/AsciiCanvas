@@ -3,6 +3,7 @@ import type {
   GridPoint,
   GridRect,
   PositionedEdgeEndpoint,
+  PositionedLayoutEdge,
   PositionedLayoutNode,
 } from "./model.js";
 
@@ -99,12 +100,49 @@ const segmentPoints = (from: GridPoint, to: GridPoint): GridPoint[] => {
   return result;
 };
 
+type RouteAxis = "horizontal" | "vertical";
+
+const routeAxes = (edge: PositionedLayoutEdge) => {
+  const result = new Map<string, Set<RouteAxis>>();
+  for (let index = 1; index < edge.points.length; index += 1) {
+    const from = edge.points[index - 1]!;
+    const to = edge.points[index]!;
+    if (from.x !== to.x && from.y !== to.y) continue;
+    const axis: RouteAxis = from.y === to.y ? "horizontal" : "vertical";
+    for (const point of segmentPoints(from, to)) {
+      const key = `${point.x},${point.y}`;
+      const axes = result.get(key) ?? new Set<RouteAxis>();
+      axes.add(axis);
+      result.set(key, axes);
+    }
+  }
+  return result;
+};
+
+const mustRemainIndependent = (
+  first: PositionedLayoutEdge,
+  second: PositionedLayoutEdge,
+) => first.routing?.topology === "independent" ||
+  second.routing?.topology === "independent";
+
+const markerCellKeys = (
+  endpoint: PositionedEdgeEndpoint,
+  clearance = 0,
+) => Array.from({ length: clearance }, (_, index) => {
+  const distance = index + 1;
+  return `${endpoint.anchor.x + endpoint.outward.x * distance},${
+    endpoint.anchor.y + endpoint.outward.y * distance
+  }`;
+});
+
 export const validateGridLayout = (layout: GridLayout): string[] => {
   const errors: string[] = [];
   const groups = new Map(layout.groups.map((group) => [group.id, group]));
   const nodes = new Map(layout.nodes.map((node) => [node.id, node]));
   const edgeCellOwners = new Map<string, Set<string>>();
+  const axesByEdge = new Map<string, ReturnType<typeof routeAxes>>();
   for (const edge of layout.edges) {
+    axesByEdge.set(edge.id, routeAxes(edge));
     for (let index = 1; index < edge.points.length; index += 1) {
       for (const point of segmentPoints(edge.points[index - 1]!, edge.points[index]!)) {
         const key = `${point.x},${point.y}`;
@@ -141,6 +179,50 @@ export const validateGridLayout = (layout: GridLayout): string[] => {
     }
   }
 
+  for (let index = 0; index < layout.edges.length; index += 1) {
+    const edge = layout.edges[index]!;
+    for (let otherIndex = index + 1; otherIndex < layout.edges.length; otherIndex += 1) {
+      const other = layout.edges[otherIndex]!;
+      if (!mustRemainIndependent(edge, other)) continue;
+
+      const endpoints = [
+        { node: edge.source, endpoint: edge.sourceEndpoint },
+        { node: edge.target, endpoint: edge.targetEndpoint },
+      ];
+      const otherEndpoints = [
+        { node: other.source, endpoint: other.sourceEndpoint },
+        { node: other.target, endpoint: other.targetEndpoint },
+      ];
+      if (endpoints.some((endpoint) => otherEndpoints.some((candidate) =>
+        endpoint.node === candidate.node &&
+        pointEquals(endpoint.endpoint.anchor, candidate.endpoint.anchor)
+      ))) {
+        errors.push(`Independent edges ${edge.id} and ${other.id} share a node port`);
+      }
+
+      const markerCells = new Set([
+        ...markerCellKeys(edge.sourceEndpoint, edge.routing?.sourceClearance),
+        ...markerCellKeys(edge.targetEndpoint, edge.routing?.targetClearance),
+      ]);
+      const otherMarkerCells = [
+        ...markerCellKeys(other.sourceEndpoint, other.routing?.sourceClearance),
+        ...markerCellKeys(other.targetEndpoint, other.routing?.targetClearance),
+      ];
+      if (otherMarkerCells.some((key) => markerCells.has(key))) {
+        errors.push(`Independent edges ${edge.id} and ${other.id} share marker cells`);
+      }
+
+      const axes = axesByEdge.get(edge.id)!;
+      const otherAxes = axesByEdge.get(other.id)!;
+      if ([...axes].some(([key, values]) => {
+        const candidates = otherAxes.get(key);
+        return candidates && [...values].some((axis) => candidates.has(axis));
+      })) {
+        errors.push(`Independent edges ${edge.id} and ${other.id} share collinear route cells`);
+      }
+    }
+  }
+
   for (const edge of layout.edges) {
     errors.push(...validateEndpoint(
       edge.id,
@@ -173,6 +255,8 @@ export const validateGridLayout = (layout: GridLayout): string[] => {
     }
     if (edge.label && edge.labelPosition) {
       const protectedPoints = new Set(edge.points.map((point) => `${point.x},${point.y}`));
+      const ownRouteCells = axesByEdge.get(edge.id) ?? new Map();
+      let adjacentToRoute = false;
       for (let x = edge.labelPosition.x; x < edge.labelPosition.x + edge.label.width; x += 1) {
         for (let y = edge.labelPosition.y; y < edge.labelPosition.y + edge.label.height; y += 1) {
           const point = { x, y };
@@ -195,7 +279,20 @@ export const validateGridLayout = (layout: GridLayout): string[] => {
           if ([...(edgeCellOwners.get(key) ?? [])].some((owner) => owner !== edge.id)) {
             errors.push(`Edge ${edge.id} label overlaps another edge`);
           }
+          adjacentToRoute ||= [
+            key,
+            `${x - 1},${y}`,
+            `${x + 1},${y}`,
+            `${x},${y - 1}`,
+            `${x},${y + 1}`,
+          ].some((candidate) => ownRouteCells.has(candidate));
         }
+      }
+      if (
+        edge.routing?.topology === "independent" &&
+        !adjacentToRoute
+      ) {
+        errors.push(`Edge ${edge.id} label is detached from its route`);
       }
     }
   }

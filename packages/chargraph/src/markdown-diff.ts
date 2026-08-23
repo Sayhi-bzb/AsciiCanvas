@@ -1,17 +1,22 @@
 import { createCharGraphFragment } from "./fragments.js";
-import type { MarkdownSyntaxExtension } from "./markdown-extension.js";
+import {
+  type MarkdownSyntaxExtension,
+} from "./markdown-extension.js";
 import type { CharGraphFragment } from "./model.js";
 
-type DiffLineRole =
-  | "diff-added"
-  | "diff-deleted"
-  | "diff-hunk"
-  | "diff-metadata"
-  | "diff-context";
+export const MARKDOWN_DIFF_STYLE_ROLES = [
+  "diff-added",
+  "diff-deleted",
+  "diff-hunk",
+  "diff-metadata",
+  "diff-context",
+] as const;
+type MarkdownDiffStyleRole =
+  typeof MARKDOWN_DIFF_STYLE_ROLES[number];
 
 const metadataLine = /^(?:diff --git |index |--- |\+\+\+ |(?:new|deleted) file mode |(?:old|new) mode |similarity index |rename (?:from|to) |Binary files |GIT binary patch|\\ No newline at end of file)/;
 
-const lineRole = (line: string): DiffLineRole => {
+const lineRole = (line: string): MarkdownDiffStyleRole => {
   if (metadataLine.test(line)) return "diff-metadata";
   if (line.startsWith("@@")) return "diff-hunk";
   if (line.startsWith("+")) return "diff-added";
@@ -19,7 +24,9 @@ const lineRole = (line: string): DiffLineRole => {
   return "diff-context";
 };
 
-export const markdownDiffExtension: MarkdownSyntaxExtension = {
+export const markdownDiffExtension: MarkdownSyntaxExtension<
+  MarkdownDiffStyleRole
+> = {
   id: "diff",
   fencedLanguages: ["diff", "patch"],
   render(request, context) {
@@ -33,7 +40,11 @@ export const markdownDiffExtension: MarkdownSyntaxExtension = {
         to: request.sourceOrigin.from + offset + line.length,
       };
       if (line) {
-        fragments.push(createCharGraphFragment(line, context.style(lineRole(line)), origin));
+        fragments.push(createCharGraphFragment(
+          line,
+          context.style(lineRole(line)),
+          origin
+        ));
       }
       offset += line.length;
       if (index < lines.length - 1) {

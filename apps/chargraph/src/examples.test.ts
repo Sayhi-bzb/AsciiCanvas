@@ -37,9 +37,8 @@ describe("CharGraph showcase examples", () => {
       "intermediate",
       "advanced",
     ]);
-    expect(examples[0]?.detail).toBeUndefined();
-    expect(examples[1]?.detail).toBeTruthy();
-    expect(examples[2]?.detail).toBeTruthy();
+    expect(examples.every((example) => example.title.trim().length > 0)).toBe(true);
+    expect(new Set(examples.map((example) => example.title))).toHaveLength(3);
   });
 
   it.each(CHARGRAPH_EXAMPLES)("renders $id with its real renderer", async (example) => {
@@ -53,11 +52,34 @@ describe("CharGraph showcase examples", () => {
     expect(output.text).not.toContain("\u001b");
     expect(output.text).not.toContain("\uFFFD");
 
-    if (example.renderer === "markdown") {
-      expect(output.syntax).toBe("ansi");
-      expect(output.source).toContain("\u001b[");
-    } else {
-      expect(output).toMatchObject({ syntax: "plain", source: output.text });
+    if (example.renderer === "mermaid") {
+      expect(output.protocolText).toContain("\u001b[");
     }
+  });
+
+  it("renders JSON trees with the shared Canvas semantic colors", async () => {
+    const example = CHARGRAPH_EXAMPLES.find(
+      (candidate) => candidate.id === "markdown-code-intermediate"
+    );
+    expect(example).toBeDefined();
+
+    const output = await renderExample(example!);
+
+    expect(output.protocolText).toContain("\u001b[38;2;37;99;235m");
+    expect(output.protocolText).toContain("\u001b[38;2;22;163;74m");
+    expect(output.protocolText).toContain("\u001b[38;2;148;163;184m");
+  });
+
+  it("renders Mermaid with the shared Renderer Theme", async () => {
+    const example = CHARGRAPH_EXAMPLES.find(
+      (candidate) => candidate.id === "flowchart"
+    );
+    expect(example).toBeDefined();
+
+    const output = await renderExample(example!);
+
+    expect(output.protocolText).toContain("\u001b[38;2;37;99;235m");
+    expect(output.protocolText).toContain("\u001b[38;2;148;163;184m");
+    expect(output.protocolText).not.toBe(output.text);
   });
 });

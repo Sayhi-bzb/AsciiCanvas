@@ -16,6 +16,7 @@ export type SettingsTarget = {
   focus?:
     | { type: 'language' }
     | { type: 'text-renderer' }
+    | { type: 'render-feature'; featureId: string }
     | { type: 'shortcut'; entryId: string };
 };
 
@@ -64,6 +65,43 @@ export const getSettingsSearchResults = (
         '中文',
       ]),
     },
+    ...TEXT_RENDER_FEATURES.flatMap((feature): SettingsSearchResult[] => [
+      {
+        id: `setting:${feature.id}`,
+        group: 'display',
+        groupTitle: displayTitle,
+        title: `${t('settings.markdownRules')} · ${t(feature.label)}`,
+        target: {
+          section: 'display',
+          focus: { type: 'render-feature', featureId: feature.id },
+        },
+        searchText: searchable([
+          t(feature.label),
+          ...feature.colorSlots.flatMap((slot) => slot.label ? [t(slot.label)] : []),
+        ]),
+      },
+      ...(feature.colorRows ?? []).map((row) => ({
+        id: `setting:${feature.id}:${row.id}`,
+        group: 'display' as const,
+        groupTitle: displayTitle,
+        title: `${t('settings.markdownRules')} · ${t(feature.label)} · ${t(row.label)}`,
+        target: {
+          section: 'display' as const,
+          focus: {
+            type: 'render-feature' as const,
+            featureId: `${feature.id}:${row.id}`,
+          },
+        },
+        searchText: searchable([
+          t(feature.label),
+          t(row.label),
+          ...row.slotIds.flatMap((slotId) => {
+            const slot = feature.colorSlots.find((item) => item.id === slotId);
+            return slot?.label ? [t(slot.label)] : [];
+          }),
+        ]),
+      })),
+    ]),
     {
       id: 'section:display',
       group: 'display',

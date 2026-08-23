@@ -8,6 +8,7 @@ import {
   useTextRenderProfile,
   type TextRenderColorDefault,
   type TextRenderFeatureDefinition,
+  type TextRenderFeatureColorSlotDefinition,
   type TextRenderTheme,
   type TextRenderThemeTokenId,
   type TextRendererMode,
@@ -76,6 +77,13 @@ type DisplaySetting =
       kind: 'render-feature';
       label: I18nKey;
       feature: TextRenderFeatureDefinition;
+    }
+  | {
+      id: string;
+      kind: 'render-feature-colors';
+      label: I18nKey;
+      feature: TextRenderFeatureDefinition;
+      slotIds: readonly string[];
     };
 
 const rendererSetting: DisplaySetting = {
@@ -118,17 +126,29 @@ const themeSettings: readonly DisplaySetting[] = [
   },
 ];
 
-const featureSettings = TEXT_RENDER_FEATURES.map((feature): DisplaySetting => ({
-  id: feature.id,
-  kind: 'render-feature',
-  label: feature.label,
-  feature,
-}));
+const featureSettings = TEXT_RENDER_FEATURES.flatMap((feature): DisplaySetting[] => [
+  {
+    id: feature.id,
+    kind: 'render-feature',
+    label: feature.label,
+    feature,
+  },
+  ...(feature.colorRows ?? []).map((row) => ({
+    id: `${feature.id}:${row.id}`,
+    kind: 'render-feature-colors' as const,
+    label: row.label,
+    feature,
+    slotIds: row.slotIds,
+  })),
+]);
 const inlineSettings = featureSettings.filter(
-  (setting) => setting.kind === 'render-feature' && setting.feature.settingsGroup === 'inline'
+  (setting) => 'feature' in setting && setting.feature.settingsGroup === 'inline'
+);
+const mathSettings = featureSettings.filter(
+  (setting) => 'feature' in setting && setting.feature.settingsGroup === 'math'
 );
 const blockSettings = featureSettings.filter(
-  (setting) => setting.kind === 'render-feature' && setting.feature.settingsGroup === 'blocks'
+  (setting) => 'feature' in setting && setting.feature.settingsGroup === 'blocks'
 );
 
 function MarkdownColorControl({
@@ -221,14 +241,14 @@ const resolveDefaultSegments = (
 };
 
 function FeatureColorControls({
-  feature,
+  slots,
   label,
   theme,
   colors,
   onPick,
   onReset,
 }: {
-  feature: TextRenderFeatureDefinition;
+  slots: readonly TextRenderFeatureColorSlotDefinition[];
   label: string;
   theme: TextRenderTheme;
   colors: Record<string, string>;
@@ -236,12 +256,12 @@ function FeatureColorControls({
   onReset: (slot: string) => void;
 }) {
   const { t } = useUiI18n();
-  if (feature.colorSlots.length === 0) {
+  if (slots.length === 0) {
     return <span className="text-muted-foreground">{t('settings.color.syntax')}</span>;
   }
   return (
     <div className="flex justify-end gap-1">
-      {feature.colorSlots.map((slot) => (
+      {slots.map((slot) => (
         <MarkdownColorControl
           key={slot.id}
           defaultSegments={resolveDefaultSegments(slot.default, theme)}
@@ -297,6 +317,7 @@ export function DisplaySettingsPanel({
       { id: 'rendering', label: t('settings.rendering'), items: [rendererSetting] },
       { id: 'theme', label: t('settings.renderTheme'), items: themeSettings },
       { id: 'inline', label: t('settings.markdownRules.inline'), items: inlineSettings },
+      { id: 'math', label: t('settings.markdownRules.math'), items: mathSettings },
       { id: 'blocks', label: t('settings.markdownRules.block'), items: blockSettings },
     ],
     [t]
@@ -325,13 +346,18 @@ export function DisplaySettingsPanel({
       bodyDataSlot="display-settings-list"
       groupRowDataSlot="display-settings-group-row"
       renderItemCell={(setting, columnId) => {
-        const featureConfig = setting.kind === 'render-feature'
-          ? textRenderProfile.features[setting.id] ?? {
-              enabled: setting.feature.defaultEnabled,
+        const renderFeature = 'feature' in setting ? setting.feature : null;
+        const featureConfig = renderFeature
+          ? textRenderProfile.features[renderFeature.id] ?? {
+              enabled: renderFeature.defaultEnabled,
               colors: {},
             }
           : null;
-        if (columnId === 'setting') return t(setting.label);
+        if (columnId === 'setting') {
+          return setting.kind === 'render-feature-colors'
+            ? <span className="ps-3">{t(setting.label)}</span>
+            : t(setting.label);
+        }
         if (columnId === 'value') {
           if (setting.kind === 'theme-token') {
             return <span className="text-muted-foreground">—</span>;
@@ -364,6 +390,8 @@ export function DisplaySettingsPanel({
                 </SelectGroup>
               </SelectContent>
             </Select>
+          ) : setting.kind === 'render-feature-colors' || renderFeature?.control === 'style' ? (
+            <span className="text-muted-foreground" aria-hidden="true">—</span>
           ) : (
             <input
               type="checkbox"
@@ -376,7 +404,7 @@ export function DisplaySettingsPanel({
                   ...textRenderProfile,
                   features: {
                     ...textRenderProfile.features,
-                    [setting.id]: {
+                    [setting.feature.id]: {
                       ...featureConfig!,
                       enabled: event.currentTarget.checked,
                     },
@@ -412,9 +440,13 @@ export function DisplaySettingsPanel({
                   textRendering.setProfile({ ...textRenderProfile, renderTheme });
                 }}
               />
+            ) : setting.kind === 'render-feature' && setting.feature.colorRows?.length ? (
+              <span className="text-muted-foreground" aria-hidden="true">—</span>
             ) : (
               <FeatureColorControls
-                feature={setting.feature}
+                slots={setting.kind === 'render-feature-colors'
+                  ? setting.feature.colorSlots.filter((slot) => setting.slotIds.includes(slot.id))
+                  : setting.feature.colorSlots}
                 label={t(setting.label)}
                 theme={resolvedTheme}
                 colors={featureConfig!.colors}
@@ -423,7 +455,7 @@ export function DisplaySettingsPanel({
                     ...textRenderProfile,
                     features: {
                       ...textRenderProfile.features,
-                      [setting.id]: {
+                      [setting.feature.id]: {
                         ...featureConfig!,
                         colors: { ...featureConfig!.colors, [slot]: color },
                       },
@@ -437,7 +469,7 @@ export function DisplaySettingsPanel({
                     ...textRenderProfile,
                     features: {
                       ...textRenderProfile.features,
-                      [setting.id]: { ...featureConfig!, colors },
+                      [setting.feature.id]: { ...featureConfig!, colors },
                     },
                   });
                 }}

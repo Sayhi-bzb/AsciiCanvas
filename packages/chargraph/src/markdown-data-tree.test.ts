@@ -14,15 +14,18 @@ describe("Markdown data tree extensions", () => {
   it("renders nested JSON objects, arrays, empty containers, and scalar roles", async () => {
     const rendered = await renderer.render([
       "```json",
-      '{"user":{"name":"Ada","roles":["admin","作者"]},"active":true,"score":3,"empty":{}}',
+      '{"user":{"name":"Ada","roles":["admin","作者"]},"active":true,"score":3,"empty":{},"missing":null,"items":[]}',
       "```",
     ].join("\n"), {
       extensionStyles: {
         "json-tree-connector": { color: "#111111" },
         "json-tree-key": { color: "#222222" },
-        "json-tree-string": { color: "#333333" },
-        "json-tree-number": { color: "#444444" },
-        "json-tree-keyword": { color: "#555555" },
+        "json-tree-index": { color: "#333333" },
+        "json-tree-string": { color: "#444444" },
+        "json-tree-number": { color: "#555555" },
+        "json-tree-boolean": { color: "#666666" },
+        "json-tree-null": { color: "#777777" },
+        "json-tree-empty": { color: "#888888" },
       },
     });
 
@@ -34,12 +37,18 @@ describe("Markdown data tree extensions", () => {
       "│     └─ [1]: \"作者\"",
       "├─ active: true",
       "├─ score: 3",
-      "└─ empty: {}",
+      "├─ empty: {}",
+      "├─ missing: null",
+      "└─ items: []",
     ].join("\n"));
     expect(rendered.fragments.find((item) => item.text === "name")?.color).toBe("#222222");
-    expect(rendered.fragments.find((item) => item.text === '"Ada"')?.color).toBe("#333333");
-    expect(rendered.fragments.find((item) => item.text === "3")?.color).toBe("#444444");
-    expect(rendered.fragments.find((item) => item.text === "true")?.color).toBe("#555555");
+    expect(rendered.fragments.find((item) => item.text === "[0]")?.color).toBe("#333333");
+    expect(rendered.fragments.find((item) => item.text === '"Ada"')?.color).toBe("#444444");
+    expect(rendered.fragments.find((item) => item.text === "3")?.color).toBe("#555555");
+    expect(rendered.fragments.find((item) => item.text === "true")?.color).toBe("#666666");
+    expect(rendered.fragments.find((item) => item.text === "null")?.color).toBe("#777777");
+    expect(rendered.fragments.find((item) => item.text === "{}")?.color).toBe("#888888");
+    expect(rendered.fragments.find((item) => item.text === "[]")?.color).toBe("#888888");
     expect(rendered.fragments.find((item) => item.text === "name")?.origin).toEqual({
       from: 17,
       to: 23,
@@ -69,10 +78,15 @@ describe("Markdown data tree extensions", () => {
       "message: |",
       "  hello",
       "  world",
+      "tagged: !thing value",
       "---",
       "next: 2",
       "```",
-    ].join("\n"));
+    ].join("\n"), {
+      extensionStyles: {
+        "yaml-tree-reference": { color: "#123456" },
+      },
+    });
 
     expect(getCharGraphText(rendered)).toBe([
       "├─ document [1]",
@@ -80,11 +94,15 @@ describe("Markdown data tree extensions", () => {
       "│  │  └─ enabled: true",
       "│  ├─ copy",
       "│  │  └─ <<: *base",
-      '│  └─ message: "hello\\nworld\\n"',
+      '│  ├─ message: "hello\\nworld\\n"',
+      '│  └─ tagged: !thing "value"',
       "└─ document [2]",
       "   └─ next: 2",
     ].join("\n"));
     expect(rendered.diagnostics).toEqual([]);
+    expect(rendered.fragments.find((item) => item.text === " &base")?.color).toBe("#123456");
+    expect(rendered.fragments.find((item) => item.text === "*base")?.color).toBe("#123456");
+    expect(rendered.fragments.find((item) => item.text === "!thing ")?.color).toBe("#123456");
   });
 
   it("keeps empty roots compact and rejects unsupported YAML complex keys", async () => {

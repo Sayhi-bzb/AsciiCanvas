@@ -54,8 +54,46 @@ test("copies Mermaid source and Unicode output with in-place feedback", async ({
 
   const unicodeCopy = article.locator('[data-copy-target="unicode"]');
   await unicodeCopy.click();
-  await expect.poll(() => readClipboard(page)).toBe(rendered.source);
+  await expect.poll(() => readClipboard(page)).toBe(rendered.protocolText);
   await expect(unicodeCopy).toHaveAttribute("data-copy-feedback", "success");
+});
+
+test("floats copy controls inside unlabeled content panels", async ({ page }) => {
+  await page.goto("./");
+
+  const article = page.locator("#flowchart");
+  await expect(article.locator('[data-slot="example-panel-header"]')).toHaveCount(0);
+
+  const panels = article.locator('[data-slot="example-panel"]');
+  await expect(panels).toHaveCount(2);
+  await expect(panels.nth(0)).toHaveAttribute("aria-label", "Mermaid");
+  await expect(panels.nth(1)).toHaveAttribute("aria-label", "Unicode");
+
+  for (const target of ["source", "unicode"] as const) {
+    const panel = article
+      .locator(`[data-copy-target="${target}"]`)
+      .locator('xpath=ancestor::*[@data-slot="example-panel"]');
+    const copy = panel.locator(`[data-copy-target="${target}"]`);
+    const geometry = await panel.evaluate((element) => {
+      const button = element.querySelector<HTMLElement>("[data-copy-target]");
+      if (!button) throw new Error("Copy control is missing");
+      const panelRect = element.getBoundingClientRect();
+      const buttonRect = button.getBoundingClientRect();
+      return {
+        top: buttonRect.top - panelRect.top,
+        right: panelRect.right - buttonRect.right,
+        contained:
+          buttonRect.top >= panelRect.top &&
+          buttonRect.right <= panelRect.right &&
+          buttonRect.bottom <= panelRect.bottom,
+      };
+    });
+
+    await expect(copy).toBeVisible();
+    expect(geometry.top).toBeCloseTo(12, 0);
+    expect(geometry.right).toBeCloseTo(12, 0);
+    expect(geometry.contained).toBe(true);
+  }
 });
 
 test("preserves ANSI styling when copying Markdown output", async ({ page }) => {
@@ -70,8 +108,8 @@ test("preserves ANSI styling when copying Markdown output", async ({ page }) => 
     .locator('[data-copy-target="unicode"]');
 
   await unicodeCopy.click();
-  await expect.poll(() => readClipboard(page)).toBe(rendered.source);
-  expect(rendered.source).toContain("\u001b[");
+  await expect.poll(() => readClipboard(page)).toBe(rendered.protocolText);
+  expect(rendered.protocolText).toContain("\u001b[");
 });
 
 test("shows clipboard failures in place without a toast", async ({ page }) => {

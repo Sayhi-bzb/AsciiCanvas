@@ -20,6 +20,7 @@ import {
 } from "./presentation.js";
 import {
   renderLayeredDiagram,
+  renderLayeredDiagramSurface,
   type LayeredDiagramPresentation,
   type LayeredEndpointPainter,
   type LayeredEndpointPresentation,
@@ -102,6 +103,7 @@ const paintCardinality = (
       at: { x: at.x, y: at.y + index },
       text: line,
       width: getTextCellWidth(line),
+      styleRole: "edge.label",
     });
   }
 };
@@ -208,6 +210,7 @@ export const createLayeredClassDiagram = (
         y: group.y,
         width: group.width,
         height: group.height,
+        styleRole: "container.border",
       });
       scene.add({
         kind: "label",
@@ -215,6 +218,7 @@ export const createLayeredClassDiagram = (
         at: { x: group.x + 1, y: group.y },
         text: group.label,
         width: getTextCellWidth(group.label),
+        styleRole: "container.title",
       });
     },
     drawNode(scene, node) {
@@ -257,4 +261,10 @@ export const renderLayeredClass = async (text: string, config: AsciiConfig) => {
   const diagram = createLayeredClassDiagram(text, config);
   if (!diagram) return "";
   return renderLayeredDiagram(diagram.graph, diagram.presentation, config);
+};
+
+export const renderLayeredClassSurface = async (text: string, config: AsciiConfig) => {
+  const diagram = createLayeredClassDiagram(text, config);
+  if (!diagram) return { canvas: [], styleRoleCanvas: [] };
+  return renderLayeredDiagramSurface(diagram.graph, diagram.presentation, config);
 };

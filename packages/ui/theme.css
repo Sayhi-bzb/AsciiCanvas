@@ -9,6 +9,17 @@
   --warning: var(--presentation-warning);
 }
 
+[data-slot='stripe-divider-pattern'] {
+  background-image: repeating-linear-gradient(
+    315deg,
+    color-mix(in oklab, var(--separator) 56%, transparent) 0,
+    color-mix(in oklab, var(--separator) 56%, transparent) 1px,
+    transparent 0,
+    transparent 50%
+  );
+  background-size: 10px 10px;
+}
+
 @theme inline {
   --font-sans:
     'Inter', 'Noto Sans SC', ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI',

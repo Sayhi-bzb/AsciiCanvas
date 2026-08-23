@@ -26,7 +26,10 @@ An ESC-less empty reset (`[m`) is ambiguous evidence and cannot activate ANSI by
 Markdown links beginning with `[m` from losing characters. Standard escapes, OSC 8, and non-empty
 supported SGR are explicit. Forced ANSI still accepts `[m`. When both syntaxes style one range,
 ANSI foreground, background, and OSC 8 href win; text attributes merge; Markdown controls visible
-structure. `TextRenderResult.pipeline` records the applied stages.
+structure. Raw is a fallback transformer: it runs only when no decoder or structural transformer
+recognized the source, while forced Raw selects that same plugin directly. ANSI-only input therefore
+materializes styled cells without passing through Raw. `TextRenderResult.pipeline` records the
+applied stages.
 
 Markdown renders Codex-style headings, inline code, links, blockquotes, lists, thematic
 breaks, fenced code, and GFM tables at natural content width. Layout never depends on the
@@ -35,10 +38,15 @@ disabled block rules preserve their source slice. Raw mode preserves all delimit
 results may be asynchronous, and clipboard commands await them before mutating Canvas.
 
 CharGraph owns the browser-safe Markdown core adapted from `marked-terminal`, Shiki code
-highlighting, and independent Mermaid and math renderers. Markdown syntax extensions
+highlighting, and independent Mermaid and math renderers. Each built-in Markdown module registers
+its parser extensions, feature identities and color defaults, and semantic style contribution once.
+The module registry derives the default extension manifest, public feature contracts, and render
+options; the theme layer only aggregates module contributions. Markdown syntax extensions
 may contribute `marked` tokenizers and transform tokens or fenced languages into the same fragment
-IR; the document feature registry injects Alert, Diff, JSON/YAML trees, Mermaid, and math through that contract, while the core has
-no syntax-specific dependency. Unsupported, invalid, or oversized Mermaid input falls back to the complete fenced
+IR. CharGraph's built-in extension manifest registers Alert, Diff, JSON/YAML trees, Mermaid, and
+math once for rendering and detection. The document feature registry binds those engine features to
+Canvas labels, settings groups, color-row layout, and legacy profile aliases; it does not own parser
+registration or renderer styles. Unsupported, invalid, or oversized Mermaid input falls back to the complete fenced
 source with a diagnostic; disabling Mermaid keeps the inner source as an ordinary code block.
 Neither renderer imports terminal capability detection or Node polyfills. Markdown consumes
 `marked` tokens through a character renderer rather than its HTML renderer. Unsupported images and
@@ -60,28 +68,40 @@ merge keys without resolving aliases, and rejects complex mapping keys that the 
 cannot represent. The two features have independent switches and semantic color slots. Disabling a
 tree returns the fence to Shiki; invalid, unsupported, or bounded-out input preserves the complete
 fenced source with a diagnostic. Tree conversion is limited to fenced Markdown and does not detect
-bare clipboard data.
+bare clipboard data. Connectors, keys, array indices, strings, numbers, booleans, nulls, and empty
+containers have separate roles; YAML adds a reference role for anchors, aliases, and tags. Keys use
+color without font emphasis. Previous `keyword` overrides expand across boolean, null, empty, and
+YAML reference roles when profiles are decoded.
 
 Math uses Temml's public TeX-to-MathML output and a DOM-free MathML adapter. Inline `$…$` and
 `\(…\)` become compact Unicode; block `$$…$$`, `\[…\]`, and `math`/`tex`/`latex` fences become a
-baseline-aware two-dimensional character box before flattening to fragments. Inline and block
-rules have independent inherited foreground slots. The adapter owns character-cell layout only;
-it never parses TeX or exposes Temml's private syntax tree. Invalid or bounded-out formulas preserve
-their complete Markdown source with a diagnostic.
+baseline-aware two-dimensional character box before flattening to fragments. Layout cells preserve
+MathML semantics through fragment output: identifiers use italic content, numbers and text remain
+upright, operators use the accent role, and generated fraction, radical, and fence glyphs use the
+muted structure role. Inline and block rules have independent switches and share one Math palette
+with content, operator, and structure slots. The adapter owns character-cell layout only; it never
+parses TeX or exposes Temml's private syntax tree. Invalid or bounded-out formulas preserve their
+complete Markdown source with a diagnostic and the Renderer Theme danger color. Previous inline
+and block foreground overrides migrate to shared content, preferring inline when both exist.
 
 `TextRenderProfile.renderTheme` stores optional semantic token overrides; the resolved Renderer
 Theme is independent from the host UI theme. Profile v2 stores each rule's enabled state and local
-color overrides under `features`. `rendering/features.ts` is the single authority for built-in
-feature identity, parser binding, settings group, label, defaults, and semantic styles. The renderer,
-Display settings, and settings search derive from that registry; adding a built-in rule does not
-require parallel UI maps. The public registry is read-only and does not load third-party code.
+color overrides under `features`. CharGraph's Renderer Theme owns the shared token palette;
+Markdown and Mermaid own their semantic defaults and style factories. Canvas and the CharGraph
+showcase are separate hosts of those contracts.
+`rendering/features.ts` owns settings labels, host grouping, compatibility, and persistence; its
+public registry derives identity and slot defaults from CharGraph contracts. Display settings and
+settings search derive from that registry rather than parallel UI maps.
 Style precedence is explicit ANSI, feature color override, Renderer Theme token, then inherited paste
 style. Each feature definition owns its slots' token or inheritance defaults.
 Quote and heading colors belong to their markers; inline code owns foreground and background
 slots; table headers own foreground and background slots while separators are independent.
-Fenced code remains owned by Shiki token colors, and Mermaid inherits the paste foreground unless
-overridden. Persisted profile v1 rules and global color keys migrate to feature-local profile v2
-settings on first read. Like every renderer
+Fenced-code scopes remain owned by Shiki. CharGraph derives their token colors from the resolved
+Renderer Theme; the bare library API keeps `github-light` as its compatibility fallback. Mermaid emits semantic roles for node, edge,
+label, arrow, container, chart grid, and data series cells; the document registry maps those roles
+to Renderer Theme tokens and feature-local overrides. Node fill remains transparent by default.
+Persisted single-foreground Mermaid settings expand across the new foreground roles, while profile
+v1 rules and global color keys migrate to feature-local profile v2 settings on first read. Like every renderer
 setting, style changes affect future paste only because Canvas stores materialized cells.
 
 Verification lives in

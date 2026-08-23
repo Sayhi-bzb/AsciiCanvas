@@ -18,11 +18,13 @@
 // ============================================================================
 
 import { parseMermaid } from '../parser.js'
-import { renderLayeredMermaid } from '../../layout/mermaid.js'
-import { renderLayeredClass } from '../../layout/class.js'
-import { renderLayeredEr } from '../../layout/er.js'
-import { renderSequenceAscii } from './sequence.js'
-import { renderXYChartAscii } from './xychart.js'
+import { renderLayeredMermaidSurface } from '../../layout/mermaid.js'
+import { renderLayeredClassSurface } from '../../layout/class.js'
+import { renderLayeredErSurface } from '../../layout/er.js'
+import { renderSequenceSurface } from './sequence.js'
+import { renderXYChartSurface } from './xychart.js'
+import { surfaceToString } from './surface.js'
+import type { AsciiRenderSurface } from './types.js'
 import type { AsciiConfig } from './types.js'
 
 interface AsciiRenderOptions {
@@ -82,6 +84,13 @@ export async function renderMermaidASCII(
   text: string,
   options: AsciiRenderOptions = {},
 ): string {
+  return surfaceToString(await renderMermaidSurface(text, options))
+}
+
+export async function renderMermaidSurface(
+  text: string,
+  options: AsciiRenderOptions = {},
+): Promise<AsciiRenderSurface> {
   const config: AsciiConfig = {
     useAscii: options.useAscii ?? false,
     paddingX: options.paddingX ?? 5,
@@ -94,20 +103,20 @@ export async function renderMermaidASCII(
 
   switch (diagramType) {
     case 'xychart':
-      return renderXYChartAscii(text, config)
+      return renderXYChartSurface(text, config)
 
     case 'sequence':
-      return renderSequenceAscii(text, config)
+      return renderSequenceSurface(text, config)
 
     case 'class':
-      return renderLayeredClass(text, {
+      return renderLayeredClassSurface(text, {
         ...config,
         paddingX: options.paddingX ?? 3,
         paddingY: options.paddingY ?? 3,
       })
 
     case 'er':
-      return renderLayeredEr(text, config)
+      return renderLayeredErSurface(text, config)
 
     case 'flowchart':
     default: {
@@ -115,7 +124,7 @@ export async function renderMermaidASCII(
       const parsed = parseMermaid(text)
       const explicitBoxPadding = options.boxBorderPadding
 
-      return renderLayeredMermaid(parsed, {
+      return renderLayeredMermaidSurface(parsed, {
         ...config,
         paddingX: options.paddingX ?? 3,
         paddingY: options.paddingY ?? 1,

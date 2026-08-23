@@ -19,6 +19,7 @@ import type {
 import { createLayoutLabel } from "./presentation.js";
 import {
   renderLayeredDiagram,
+  renderLayeredDiagramSurface,
   type LayeredDiagramPresentation,
   type LayeredEndpointPainter,
   writeCanvasFragment,
@@ -106,6 +107,17 @@ const createLayeredMermaidDiagram = (
   const owners = new Map<string, string>();
   const nodePresentations = new Map<string, MermaidNodePresentation>();
   const edgePresentations = new Map<string, MermaidEdgePresentation>();
+  const isStateDiagram = parsed.diagramType === "state";
+  const directedPairs = new Set(parsed.edges.map((edge) =>
+    `${edge.source}\0${edge.target}`
+  ));
+  const hasOppositeTransition = (source: string, target: string) =>
+    source !== target && directedPairs.has(`${target}\0${source}`);
+  const distributedStateNodes = new Set(
+    parsed.edges
+      .filter((edge) => hasOppositeTransition(edge.source, edge.target))
+      .flatMap((edge) => [edge.source, edge.target]),
+  );
   const hasBidirectionalEdge = parsed.edges.some((edge) =>
     edge.hasArrowStart && edge.hasArrowEnd
   );
@@ -132,6 +144,9 @@ const createLayeredMermaidDiagram = (
         : node.shape === "state-end"
           ? "last"
           : undefined,
+      portPlacement: isStateDiagram && distributedStateNodes.has(id)
+        ? "adaptive" as const
+        : undefined,
     };
   });
 
@@ -147,11 +162,13 @@ const createLayeredMermaidDiagram = (
       source: nodeId(edge.source),
       target: nodeId(edge.target),
       label: createLayoutLabel(edge.label),
+      labelLayout: isStateDiagram && edge.label ? "route" as const : undefined,
     };
   });
 
   const graph: LayoutGraph = {
     direction: parsed.direction,
+    cycleBreaking: isStateDiagram ? "depth-first" : undefined,
     spacing: parsed.direction === "LR" || parsed.direction === "RL"
       ? {
           nodeNode: Math.max(2, options.paddingY),
@@ -181,12 +198,14 @@ const createLayeredMermaidDiagram = (
         y: group.y,
         width: group.width,
         height: group.height,
+        styleRole: "container.border",
       });
       scene.add({
         kind: "label",
         owner: `${group.id}:label`,
         at: { x: group.x + 1, y: group.y },
         text: group.label,
+        styleRole: "container.title",
       });
     },
     drawNode(scene, node, context) {
@@ -209,6 +228,11 @@ const createLayeredMermaidDiagram = (
         node,
         node.id,
         (x, y, char) => roleForShapeCell(x, y, char, dimensions.labelArea),
+        (x, y, char) => char === " "
+          ? "node.background"
+          : roleForShapeCell(x, y, char, dimensions.labelArea) === "border"
+            ? "node.border"
+            : "node.text",
       );
     },
     edge(edge) {
@@ -239,4 +263,12 @@ export const renderLayeredMermaid = async (
 ) => {
   const diagram = createLayeredMermaidDiagram(parsed, options);
   return renderLayeredDiagram(diagram.graph, diagram.presentation, options);
+};
+
+export const renderLayeredMermaidSurface = async (
+  parsed: MermaidGraph,
+  options: LayeredMermaidRenderOptions,
+) => {
+  const diagram = createLayeredMermaidDiagram(parsed, options);
+  return renderLayeredDiagramSurface(diagram.graph, diagram.presentation, options);
 };
