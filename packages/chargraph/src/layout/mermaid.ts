@@ -198,6 +198,7 @@ const createLayeredMermaidDiagram = (
         width: group.width,
         height: group.height,
         styleRole: "container.border",
+        layer: "container",
       });
       scene.add({
         kind: "label",

@@ -575,7 +575,7 @@ function consumeNode(
     if (match) {
       id = match[1]!
       const label = normalizeBrTags(match[2]!)
-      registerNode(graph, subgraphStack, { id, label, shape })
+      registerNode(graph, subgraphStack, { id, label, shape }, true)
       remaining = text.slice(match[0].length)
       break
     }
@@ -589,7 +589,7 @@ function consumeNode(
     if (bareMatch) {
       id = bareMatch[1]!
       if (!graph.nodes.has(id)) {
-        registerNode(graph, subgraphStack, { id, label: id, shape: 'rectangle' })
+        registerNode(graph, subgraphStack, { id, label: id, shape: 'rectangle' }, false)
       }
       remaining = text.slice(bareMatch[0].length)
     }
@@ -611,10 +611,10 @@ function consumeNode(
 function registerNode(
   graph: MermaidGraph,
   subgraphStack: MermaidSubgraph[],
-  node: MermaidNode
+  node: MermaidNode,
+  explicit: boolean,
 ): void {
-  const isNew = !graph.nodes.has(node.id)
-  if (isNew) {
+  if (explicit || !graph.nodes.has(node.id)) {
     graph.nodes.set(node.id, node)
   }
   trackInSubgraph(subgraphStack, node.id)

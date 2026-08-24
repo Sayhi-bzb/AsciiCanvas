@@ -207,6 +207,28 @@ describe("clipboardActions", () => {
     expect(payload.richCells?.some((cell) => cell.color !== "#111111")).toBe(true);
   });
 
+  it("preserves text-render diagnostics in the clipboard payload", async () => {
+    const diagnostics = [{
+      code: "markdown-highlight-failed",
+      message: "Could not highlight unknown-language.",
+    }];
+    const payload = await readClipboardPayload(
+      {
+        getData: (type: string) => type === "text/plain" ? "source" : "",
+      } as unknown as DataTransfer,
+      "#111111",
+      async () => ({
+        kind: "plain",
+        renderer: "markdown",
+        pipeline: ["markdown"],
+        text: "source",
+        diagnostics,
+      })
+    );
+
+    expect(payload.diagnostics).toEqual(diagnostics);
+  });
+
   it("writes app-rich clipboard data during native copy events", async () => {
     const setData = vi.fn();
     const preventDefault = vi.fn();

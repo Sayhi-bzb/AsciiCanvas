@@ -79,6 +79,7 @@ export const useInteractionControllers = ({
     applyStructuredScene,
   } = store;
   const colorPickerClickRef = useRef(false);
+  const [cursor, setCursor] = useState("");
   const fallbackStructuredMovePreviewRef = useRef<StructuredMovePreview | null>(null);
   const fallbackRequestRenderRef = useRef<(() => void) | null>(null);
   const activeStructuredMovePreviewRef =
@@ -134,7 +135,7 @@ export const useInteractionControllers = ({
   const hoverInteraction = useCreation(
     () =>
       createHoverInteractionController({
-        getContainer: () => containerRef.current,
+        setCursor,
         setHoveredLink: (hit) => hoverOutputsRef.current.setHoveredLink(hit),
         setHoveredGrid: (point) => hoverOutputsRef.current.setHoveredGrid(point),
       }),
@@ -287,19 +288,6 @@ export const useInteractionControllers = ({
   ]);
 
   useShortcutLayer({
-    id: "canvas-modifier-observer",
-    priority: SHORTCUT_PRIORITY.observer,
-    onKeyDown: (event) => {
-      hoverInteraction.syncLinkModifierState(event);
-      return { claimed: false };
-    },
-    onKeyUp: (event) => {
-      hoverInteraction.syncLinkModifierState(event);
-      return { claimed: false };
-    },
-  });
-
-  useShortcutLayer({
     id: "canvas-active-interaction-cancel",
     priority: SHORTCUT_PRIORITY.canvasInteraction,
     onKeyDown: (event, context) => {
@@ -369,6 +357,7 @@ export const useInteractionControllers = ({
     cancelInteraction,
     cancelInteractionEffects,
     completeInteraction,
+    cursor,
     draggingSelection,
     edgeScroll,
     hoverInteraction,

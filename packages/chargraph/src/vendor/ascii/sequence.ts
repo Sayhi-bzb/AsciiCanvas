@@ -18,6 +18,14 @@ import { splitLines, maxLineWidth, lineCount } from './multiline-utils.js'
 import { BoxConnection, glyphForBoxConnections, glyphForBoxCorner } from './box-drawing.js'
 import { CharScene } from './scene.js'
 
+const SELF_LOOP_WIDTH = 4
+const SELF_LABEL_GAP = 2
+const MESSAGE_CLEARANCE = 2
+const MINIMUM_LIFELINE_GAP = 10
+
+const selfMessageRight = (origin: number, label: string) =>
+  origin + SELF_LOOP_WIDTH + SELF_LABEL_GAP + maxLineWidth(label)
+
 /** Classify a box-drawing character as 'border' or 'text'. */
 function classifyBoxChar(ch: string): CharRole {
   if (/^[┌┐└┘├┤┬┴┼│─╭╮╰╯+\-|]$/.test(ch)) return 'border'
@@ -63,14 +71,23 @@ export function renderSequenceSurface(text: string, config: AsciiConfig) {
   const actorBoxHeights = diagram.actors.map(a => lineCount(a.label) + 2) // lines + top/bottom border
   const actorBoxH = Math.max(...actorBoxHeights, 3) // Use max height for consistent lifeline positioning
 
-  // Compute minimum gap between adjacent lifelines based on message labels.
-  // For messages spanning multiple actors, distribute the required width across gaps.
-  const adjMaxWidth: number[] = new Array(Math.max(diagram.actors.length - 1, 0)).fill(0)
+  // Every boundary between adjacent lifelines owns one minimum-distance constraint.
+  const minimumLifelineGaps: number[] = new Array(
+    Math.max(diagram.actors.length - 1, 0),
+  ).fill(0)
 
   for (const msg of diagram.messages) {
     const fi = actorIdx.get(msg.from)!
     const ti = actorIdx.get(msg.to)!
-    if (fi === ti) continue // self-messages don't affect spacing
+    if (fi === ti) {
+      if (fi < diagram.actors.length - 1) {
+        minimumLifelineGaps[fi] = Math.max(
+          minimumLifelineGaps[fi]!,
+          selfMessageRight(0, msg.label) + MESSAGE_CLEARANCE,
+        )
+      }
+      continue
+    }
     const lo = Math.min(fi, ti)
     const hi = Math.max(fi, ti)
     // Required gap per span = (max line width + arrow decorations) / number of gaps
@@ -78,7 +95,10 @@ export function renderSequenceSurface(text: string, config: AsciiConfig) {
     const numGaps = hi - lo
     const perGap = Math.ceil(needed / numGaps)
     for (let g = lo; g < hi; g++) {
-      adjMaxWidth[g] = Math.max(adjMaxWidth[g]!, perGap)
+      minimumLifelineGaps[g] = Math.max(
+        minimumLifelineGaps[g]!,
+        perGap + MESSAGE_CLEARANCE,
+      )
     }
   }
 
@@ -87,8 +107,8 @@ export function renderSequenceSurface(text: string, config: AsciiConfig) {
   for (let i = 1; i < diagram.actors.length; i++) {
     const gap = Math.max(
       halfBox[i - 1]! + halfBox[i]! + 2,
-      adjMaxWidth[i - 1]! + 2,
-      10,
+      minimumLifelineGaps[i - 1]!,
+      MINIMUM_LIFELINE_GAP,
     )
     llX[i] = llX[i - 1]! + gap
   }
@@ -202,8 +222,10 @@ export function renderSequenceSurface(text: string, config: AsciiConfig) {
     const msg = diagram.messages[m]!
     if (msg.from === msg.to) {
       const fi = actorIdx.get(msg.from)!
-      const selfRight = llX[fi]! + 6 + 2 + msg.label.length
-      totalW = Math.max(totalW, selfRight + 1)
+      totalW = Math.max(
+        totalW,
+        selfMessageRight(llX[fi]!, msg.label) + MESSAGE_CLEARANCE,
+      )
     }
   }
   for (const np of notePositions) {
@@ -311,21 +333,20 @@ export function renderSequenceSurface(text: string, config: AsciiConfig) {
       //   │  │ Label     (row 1)
       //   │<─╯           (last row)
       const y0 = msgArrowY[m]!
-      const loopW = Math.max(4, 4)
       const msgLines = splitLines(msg.label)
       const bottomY = y0 + msgLines.length + 1
 
       // Row 0: start junction + horizontal + top-right corner
       setC(fromX, y0, JL, 'junction', 'edge.line')
-      for (let x = fromX + 1; x < fromX + loopW; x++) setC(x, y0, lineChar, 'line', 'edge.line')
-      setC(fromX + loopW, y0, TR, 'corner', 'edge.line')
+      for (let x = fromX + 1; x < fromX + SELF_LOOP_WIDTH; x++) setC(x, y0, lineChar, 'line', 'edge.line')
+      setC(fromX + SELF_LOOP_WIDTH, y0, TR, 'corner', 'edge.line')
 
       // Label rows: vertical on right side + one line of text
-      const labelX = fromX + loopW + 2
+      const labelX = fromX + SELF_LOOP_WIDTH + SELF_LABEL_GAP
       for (let lineIndex = 0; lineIndex < msgLines.length; lineIndex++) {
         const row = y0 + lineIndex + 1
         const line = msgLines[lineIndex]!
-        setC(fromX + loopW, row, V, 'line', 'edge.line')
+        setC(fromX + SELF_LOOP_WIDTH, row, V, 'line', 'edge.line')
         for (let index = 0; index < line.length; index++) {
           if (labelX + index < totalW) {
             setC(labelX + index, row, line[index]!, 'text', 'edge.label')
@@ -335,8 +356,8 @@ export function renderSequenceSurface(text: string, config: AsciiConfig) {
 
       // Last row: arrow-back + horizontal + bottom-right corner
       setC(fromX, bottomY, '<', 'arrow', 'edge.arrow')
-      for (let x = fromX + 1; x < fromX + loopW; x++) setC(x, bottomY, lineChar, 'line', 'edge.line')
-      setC(fromX + loopW, bottomY, BR, 'corner', 'edge.line')
+      for (let x = fromX + 1; x < fromX + SELF_LOOP_WIDTH; x++) setC(x, bottomY, lineChar, 'line', 'edge.line')
+      setC(fromX + SELF_LOOP_WIDTH, bottomY, BR, 'corner', 'edge.line')
     } else {
       // Normal message: label on row above, arrow on row below
       const labelY = msgLabelY[m]!

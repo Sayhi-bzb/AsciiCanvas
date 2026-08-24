@@ -19,7 +19,7 @@ import {
 import { getSlideEditingBufferId } from '../slideEditingBuffer';
 
 export const DEFAULT_SESSION_ID = 'canvas-1';
-export const DEFAULT_SESSION_NAME = 'Canvas 1';
+export const DEFAULT_SESSION_NAME = 'Welcome';
 export const DEFAULT_STRUCTURED_SESSION_ID = 'canvas-2';
 export const DEFAULT_STRUCTURED_SESSION_NAME = 'Canvas 2';
 export const DEFAULT_MODE = 'freeform' as const satisfies CanvasMode;

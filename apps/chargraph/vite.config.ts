@@ -38,6 +38,10 @@ export default defineConfig({
         replacement: path.join(repositoryRoot, "packages/fonts/src/index.ts"),
       },
       {
+        find: /^@chardesk\/chargraph\/examples$/,
+        replacement: path.join(repositoryRoot, "packages/chargraph/src/examples.ts"),
+      },
+      {
         find: /^@chardesk\/chargraph\/mermaid$/,
         replacement: path.join(repositoryRoot, "packages/chargraph/src/mermaid.ts"),
       },

@@ -135,7 +135,6 @@ export const useCanvasGestureAdapter = ({
           canvasMode,
           tool,
           clientPoint: { x, y },
-          event: event as MouseEvent,
           resolveMoveContext: ({
             clientPoint,
             shouldResolveStructuredSelectCursor,
@@ -162,7 +161,7 @@ export const useCanvasGestureAdapter = ({
             : capabilities.mutateContent;
         if (!canStart || (hasColorPickerTarget && !capabilities.mutateContent)) return;
         stopEdgeScroll();
-        hoverInteraction.clearLinkHover(mouseEvent);
+        hoverInteraction.clearLinkHover();
         if (hasColorPickerTarget) {
           const started = canvasDragStartRouteAdapter({
             canvasMode,

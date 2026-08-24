@@ -164,6 +164,7 @@ export const useCanvasInteraction = (
     cancelInteractionEffects,
     colorPickerClickRef,
     completeInteraction,
+    cursor,
     draggingSelection,
     edgeScroll,
     hoverInteraction,
@@ -417,8 +418,7 @@ export const useCanvasInteraction = (
   const canvasMoveExecutor = createCanvasMoveExecutor({
     updateColorPickerHover: (hoverPoint) =>
       hoverInteraction.updateColorPickerHover(hoverPoint),
-    updateLinkHover: (hit, hoverEvent) =>
-      hoverInteraction.updateLinkHover(hit, hoverEvent),
+    updateLinkHover: (hit) => hoverInteraction.updateLinkHover(hit),
     setHoveredGrid,
     setCursor: (cursor) => hoverInteraction.setCursor(cursor),
   });
@@ -594,6 +594,7 @@ export const useCanvasInteraction = (
   return {
     bind,
     activateInteractionOwner,
+    cursor,
     draggingSelection,
     handleDoubleClick,
     colorSourceChoice,

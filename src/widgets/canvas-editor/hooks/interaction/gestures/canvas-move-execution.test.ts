@@ -15,8 +15,6 @@ const linkHit: CanvasLinkHit = {
   href: "https://example.com",
 };
 
-const event = { ctrlKey: true, metaKey: false };
-
 const createExecutor = (): CanvasMoveExecutor => ({
   updateColorPickerHover: vi.fn(),
   updateLinkHover: vi.fn(),
@@ -30,8 +28,7 @@ describe("canvas move execution", () => {
 
     executeCanvasMoveDecision(
       { type: "color-picker-hover", point: { x: 1, y: 2 } },
-      executor,
-      event
+      executor
     );
 
     expect(executor.updateColorPickerHover).toHaveBeenCalledWith({ x: 1, y: 2 });
@@ -47,11 +44,10 @@ describe("canvas move execution", () => {
         linkHit: null,
         action: { type: "pan-hover" },
       },
-      executor,
-      event
+      executor
     );
 
-    expect(executor.updateLinkHover).toHaveBeenCalledWith(null, event);
+    expect(executor.updateLinkHover).toHaveBeenCalledWith(null);
     expect(executor.setCursor).toHaveBeenCalledWith("grab");
   });
   it("updates link hover before structured text cursor actions", () => {
@@ -63,11 +59,10 @@ describe("canvas move execution", () => {
         linkHit,
         action: { type: "structured-text-cursor" },
       },
-      executor,
-      event
+      executor
     );
 
-    expect(executor.updateLinkHover).toHaveBeenCalledWith(linkHit, event);
+    expect(executor.updateLinkHover).toHaveBeenCalledWith(linkHit);
     expect(executor.setCursor).toHaveBeenCalledWith("text");
   });
 
@@ -80,11 +75,10 @@ describe("canvas move execution", () => {
         linkHit: null,
         action: { type: "structured-shape-hover", point: { x: 3, y: 4 } },
       },
-      executor,
-      event
+      executor
     );
 
-    expect(executor.updateLinkHover).toHaveBeenCalledWith(null, event);
+    expect(executor.updateLinkHover).toHaveBeenCalledWith(null);
     expect(executor.setHoveredGrid).toHaveBeenCalledWith({ x: 3, y: 4 });
     expect(executor.setCursor).toHaveBeenCalledWith("crosshair");
   });
@@ -98,11 +92,26 @@ describe("canvas move execution", () => {
         linkHit,
         action: { type: "structured-select-hover", cursor: "ew-resize" },
       },
-      executor,
-      event
+      executor
     );
 
     expect(executor.setCursor).toHaveBeenCalledWith("ew-resize");
+  });
+
+  it("preserves the link pointer when structured select has no cursor", () => {
+    const executor = createExecutor();
+
+    executeCanvasMoveDecision(
+      {
+        type: "canvas-hover",
+        linkHit,
+        action: { type: "structured-select-hover", cursor: "" },
+      },
+      executor
+    );
+
+    expect(executor.updateLinkHover).toHaveBeenCalledWith(linkHit);
+    expect(executor.setCursor).not.toHaveBeenCalled();
   });
 
   it("executes eraser hover without changing cursor", () => {
@@ -114,8 +123,7 @@ describe("canvas move execution", () => {
         linkHit: null,
         action: { type: "eraser-hover", point: { x: 8, y: 1 } },
       },
-      executor,
-      event
+      executor
     );
 
     expect(executor.setHoveredGrid).toHaveBeenCalledWith({ x: 8, y: 1 });
@@ -135,12 +143,12 @@ describe("canvas move execution", () => {
     });
 
     executor.updateColorPickerHover({ x: 1, y: 2 });
-    executor.updateLinkHover(linkHit, event);
+    executor.updateLinkHover(linkHit);
     executor.setHoveredGrid({ x: 3, y: 4 });
     executor.setCursor("crosshair");
 
     expect(updateColorPickerHover).toHaveBeenCalledWith({ x: 1, y: 2 });
-    expect(updateLinkHover).toHaveBeenCalledWith(linkHit, event);
+    expect(updateLinkHover).toHaveBeenCalledWith(linkHit);
     expect(setHoveredGrid).toHaveBeenCalledWith({ x: 3, y: 4 });
     expect(setCursor).toHaveBeenCalledWith("crosshair");
   });
@@ -157,7 +165,6 @@ describe("canvas move execution", () => {
       linkHit,
       structuredSelectCursor: null,
       eraserHoverPoint: null,
-      event,
     });
 
     expect(executor.updateColorPickerHover).toHaveBeenCalledWith({ x: 1, y: 2 });
@@ -176,10 +183,9 @@ describe("canvas move execution", () => {
       linkHit,
       structuredSelectCursor: "move",
       eraserHoverPoint: null,
-      event,
     });
 
-    expect(executor.updateLinkHover).toHaveBeenCalledWith(linkHit, event);
+    expect(executor.updateLinkHover).toHaveBeenCalledWith(linkHit);
     expect(executor.setCursor).toHaveBeenCalledWith("move");
   });
   it("routes structured select moves with structured cursor resolution enabled", () => {
@@ -198,7 +204,6 @@ describe("canvas move execution", () => {
       canvasMode: "structured",
       tool: "select",
       clientPoint: { x: 20, y: 30 },
-      event,
       resolveMoveContext,
     });
 
@@ -215,7 +220,6 @@ describe("canvas move execution", () => {
       linkHit,
       structuredSelectCursor: "move",
       eraserHoverPoint: null,
-      event,
     });
   });
 
@@ -234,7 +238,6 @@ describe("canvas move execution", () => {
       canvasMode: "freeform",
       tool: "eraser",
       clientPoint: { x: 20, y: 30 },
-      event,
       resolveMoveContext,
     });
 

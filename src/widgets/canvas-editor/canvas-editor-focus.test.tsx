@@ -128,6 +128,25 @@ describe("CanvasEditor focus management", () => {
     applyFreeformSnapshotToYMaps([]);
   });
 
+  it("applies the interaction cursor to the canvas surface", () => {
+    vi.mocked(useCanvasInteraction).mockReturnValueOnce({
+      bind: {},
+      activateInteractionOwner: activateInteractionOwnerMock,
+      cursor: "pointer",
+      draggingSelection: null,
+      handleDoubleClick: handleDoubleClickMock,
+      colorSourceChoice: null,
+      selectColorSource: vi.fn(),
+      cancelColorSourceChoice: vi.fn(),
+    } as unknown as ReturnType<typeof useCanvasInteraction>);
+
+    render(<CanvasEditor onUndo={vi.fn()} onRedo={vi.fn()} />);
+
+    expect(screen.getByTestId("canvas-editor-surface")).toHaveStyle({
+      cursor: "pointer",
+    });
+  });
+
   it("keeps canvas layers stable and passes active canvas identity to the renderer", () => {
     const { rerender } = render(
       <CanvasEditor onUndo={vi.fn()} onRedo={vi.fn()} />

@@ -768,6 +768,18 @@ const endpointOnSideAt = (
   };
 };
 
+const attachmentCoordinateRange = (
+  node: PositionedLayoutNode,
+  vertical: boolean,
+) => {
+  const start = vertical ? node.x : node.y;
+  const size = vertical ? node.width : node.height;
+  const center = sideCenter(start, size);
+  return size <= 2
+    ? { minimum: center, maximum: center }
+    : { minimum: start + 1, maximum: start + size - 2 };
+};
+
 const alignReadableEndpoints = (
   edges: RoutedEdge[],
   nodes: PositionedLayoutNode[],
@@ -786,12 +798,10 @@ const alignReadableEndpoints = (
     if (!source || !target) return edge;
     const vertical = edge.sourceEndpoint.side === "top" ||
       edge.sourceEndpoint.side === "bottom";
-    const minimum = vertical
-      ? Math.max(source.x + 1, target.x + 1)
-      : Math.max(source.y + 1, target.y + 1);
-    const maximum = vertical
-      ? Math.min(source.x + source.width - 2, target.x + target.width - 2)
-      : Math.min(source.y + source.height - 2, target.y + target.height - 2);
+    const sourceRange = attachmentCoordinateRange(source, vertical);
+    const targetRange = attachmentCoordinateRange(target, vertical);
+    const minimum = Math.max(sourceRange.minimum, targetRange.minimum);
+    const maximum = Math.min(sourceRange.maximum, targetRange.maximum);
     if (minimum > maximum) return edge;
     const preferred = vertical
       ? Math.round((edge.sourceEndpoint.anchor.x + edge.targetEndpoint.anchor.x) / 2)
@@ -831,7 +841,7 @@ const separateConflictingEndpointMarkers = (
   const perpendicularSides: GridSide[] = direction === "LR" || direction === "RL"
     ? ["top", "bottom"]
     : ["left", "right"];
-  let result = [...edges];
+  const result = [...edges];
   for (let pass = 0; pass < edges.length; pass += 1) {
     const endpoints = new Map<string, Array<{
       index: number;
@@ -867,12 +877,9 @@ const separateConflictingEndpointMarkers = (
     const node = nodesById.get(nodeId);
     if (!node) break;
     const occupied = new Set(endpoints.keys());
-    const currentEndpoint = movable.end === "source"
-      ? edge.sourceEndpoint
-      : edge.targetEndpoint;
     const neighbor = movable.end === "source"
-      ? edge.points[1] ?? currentEndpoint.marker
-      : edge.points.at(-2) ?? currentEndpoint.marker;
+      ? edge.targetEndpoint.marker
+      : edge.sourceEndpoint.marker;
     const candidates = perpendicularSides
       .map((side) => endpointOnSide(node, side))
       .sort((left, right) => {
@@ -1030,14 +1037,43 @@ const repairInvalidRoutes = (
   edges: RoutedEdge[],
   nodes: PositionedLayoutNode[],
 ) => {
-  const hasShortDogleg = (points: GridPoint[]) => {
+  const shortDoglegCount = (points: GridPoint[]) => {
     const compact = compactOrthogonalPoints(points);
+    let count = 0;
     for (let index = 1; index < compact.length - 2; index += 1) {
       const from = compact[index]!;
       const to = compact[index + 1]!;
-      if (Math.abs(to.x - from.x) + Math.abs(to.y - from.y) < 2) return true;
+      if (Math.abs(to.x - from.x) + Math.abs(to.y - from.y) < 2) count += 1;
     }
-    return false;
+    return count;
+  };
+  const routeQuality = (points: GridPoint[], order: number) => {
+    const compact = compactOrthogonalPoints(points);
+    const length = compact.slice(1).reduce((total, point, index) => {
+      const previous = compact[index]!;
+      return total + Math.abs(point.x - previous.x) + Math.abs(point.y - previous.y);
+    }, 0);
+    const xs = compact.map((point) => point.x);
+    const ys = compact.map((point) => point.y);
+    const area = (Math.max(...xs) - Math.min(...xs) + 1) *
+      (Math.max(...ys) - Math.min(...ys) + 1);
+    return [
+      shortDoglegCount(compact),
+      Math.max(0, compact.length - 2),
+      length,
+      area,
+      order,
+    ] as const;
+  };
+  const compareQuality = (
+    left: readonly number[],
+    right: readonly number[],
+  ) => {
+    for (let index = 0; index < Math.max(left.length, right.length); index += 1) {
+      const difference = (left[index] ?? 0) - (right[index] ?? 0);
+      if (difference !== 0) return difference;
+    }
+    return 0;
   };
   const markerHasForeignAxis = (
     points: GridPoint[],
@@ -1086,7 +1122,7 @@ const repairInvalidRoutes = (
     }
   }
 
-  let result = [...edges];
+  const result = [...edges];
   for (let index = 0; index < result.length; index += 1) {
     const edge = result[index]!;
     if (edge.routing?.bundleId) continue;
@@ -1102,7 +1138,7 @@ const repairInvalidRoutes = (
       markerHasForeignAxis(edge.points, edge.targetEndpoint);
     const needsReadableRepair = edge.routing?.quality === "readable" &&
       edge.source !== edge.target &&
-      hasShortDogleg(edge.points);
+      shortDoglegCount(edge.points) > 0;
     const axes = routeAxisCells(edge.points);
     const sharesCollinearCell = result.some((candidate, candidateIndex) => {
       if (candidateIndex === index) return false;
@@ -1160,43 +1196,43 @@ const repairInvalidRoutes = (
       : blocked;
     readableBlocked.delete(pointKey(sourceExit));
     readableBlocked.delete(pointKey(targetExit));
-    let repaired = findOrthogonalRoute(
-      sourceExit,
-      targetExit,
-      readableBlocked,
-      occupied,
-      bounds,
-      readableOptions,
-    );
-    if (!repaired && readableOptions) {
-      repaired = findOrthogonalRoute(
+    const searchPlans: Array<{
+      blocked: ReadonlySet<string>;
+      options: OrthogonalRouteOptions | undefined;
+    }> = readableOptions
+      ? [
+          { blocked: readableBlocked, options: readableOptions },
+          {
+            blocked: readableBlocked,
+            options: { minimumRunBeforeBend: 2, occupiedCellCost: 64 },
+          },
+          { blocked: readableBlocked, options: { occupiedCellCost: 64 } },
+        ]
+      : [{ blocked, options: undefined }];
+    const candidates = searchPlans.flatMap((plan, order) => {
+      const repaired = findOrthogonalRoute(
         sourceExit,
         targetExit,
-        readableBlocked,
+        plan.blocked,
         occupied,
         bounds,
-        { minimumRunBeforeBend: 2, occupiedCellCost: 64 },
+        plan.options,
       );
-    }
-    if (!repaired && readableOptions && !needsReadableRepair) {
-      repaired = findOrthogonalRoute(
-        sourceExit,
-        targetExit,
-        blocked,
-        occupied,
-        bounds,
-      );
-    }
-    if (!repaired) continue;
-    result[index] = {
-      ...edge,
-      points: compactOrthogonalPoints([
+      if (!repaired) return [];
+      const points = compactOrthogonalPoints([
         edge.sourceEndpoint.anchor,
         edge.sourceEndpoint.marker,
         ...repaired,
         edge.targetEndpoint.marker,
         edge.targetEndpoint.anchor,
-      ]),
+      ]);
+      return [{ points, quality: routeQuality(points, order) }];
+    }).sort((left, right) => compareQuality(left.quality, right.quality));
+    const repaired = candidates[0];
+    if (!repaired) continue;
+    result[index] = {
+      ...edge,
+      points: repaired.points,
       routing: { ...edge.routing, topology: "independent" },
     };
   }

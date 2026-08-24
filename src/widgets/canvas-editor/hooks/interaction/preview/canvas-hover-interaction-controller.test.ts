@@ -10,49 +10,43 @@ const linkHit: CanvasLinkHit = {
 };
 
 describe("hover interaction controller", () => {
-  it("tracks link hover and uses pointer cursor only with modifiers", () => {
-    const container = document.createElement("div");
+  it("tracks link hover and uses a pointer cursor without modifiers", () => {
+    const setCursor = vi.fn();
     const setHoveredLink = vi.fn();
     const controller = createHoverInteractionController({
-      getContainer: () => container,
+      setCursor,
       setHoveredLink,
       setHoveredGrid: vi.fn(),
     });
 
-    controller.updateLinkHover(linkHit, { ctrlKey: false, metaKey: false });
+    controller.updateLinkHover(linkHit);
     expect(controller.getLinkCandidate()).toBe(linkHit);
     expect(setHoveredLink).toHaveBeenCalledWith(linkHit);
-    expect(container.style.cursor).toBe("");
-
-    controller.syncLinkModifierState({ ctrlKey: true, metaKey: false });
-    expect(container.style.cursor).toBe("pointer");
-
-    controller.syncLinkModifierState({ ctrlKey: false, metaKey: false });
-    expect(container.style.cursor).toBe("");
+    expect(setCursor).toHaveBeenCalledWith("pointer");
   });
 
   it("clears link hover and cursor", () => {
-    const container = document.createElement("div");
+    const setCursor = vi.fn();
     const setHoveredLink = vi.fn();
     const controller = createHoverInteractionController({
-      getContainer: () => container,
+      setCursor,
       setHoveredLink,
       setHoveredGrid: vi.fn(),
     });
 
-    controller.updateLinkHover(linkHit, { ctrlKey: true, metaKey: false });
+    controller.updateLinkHover(linkHit);
     controller.clearLinkHover();
 
     expect(controller.getLinkCandidate()).toBeNull();
     expect(setHoveredLink).toHaveBeenLastCalledWith(null);
-    expect(container.style.cursor).toBe("");
+    expect(setCursor).toHaveBeenLastCalledWith("");
   });
 
   it("updates color picker hover with crosshair cursor", () => {
-    const container = document.createElement("div");
+    const setCursor = vi.fn();
     const setHoveredGrid = vi.fn();
     const controller = createHoverInteractionController({
-      getContainer: () => container,
+      setCursor,
       setHoveredLink: vi.fn(),
       setHoveredGrid,
     });
@@ -60,7 +54,6 @@ describe("hover interaction controller", () => {
     controller.updateColorPickerHover({ x: 3, y: 5 });
 
     expect(setHoveredGrid).toHaveBeenCalledWith({ x: 3, y: 5 });
-    expect(container.style.cursor).toBe("crosshair");
+    expect(setCursor).toHaveBeenCalledWith("crosshair");
   });
 });
-

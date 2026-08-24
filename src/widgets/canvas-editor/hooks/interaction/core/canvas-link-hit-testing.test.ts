@@ -82,7 +82,7 @@ describe("resolveCanvasLinkHit", () => {
   });
 
 });
-describe("canvas link modifier affordance", () => {
+describe("canvas link affordance", () => {
   const hit = { y: 0, startX: 0, endX: 2, href: "https://example.com" };
 
   it("requires Ctrl or Meta before opening a canvas link", () => {
@@ -91,11 +91,8 @@ describe("canvas link modifier affordance", () => {
     expect(shouldOpenCanvasLink({ ctrlKey: false, metaKey: true })).toBe(true);
   });
 
-  it("uses a hand cursor only while Ctrl or Meta is held over a link", () => {
-    expect(shouldUseCanvasLinkPointer(hit, { ctrlKey: false, metaKey: false })).toBe(false);
-    expect(shouldUseCanvasLinkPointer(hit, { ctrlKey: true, metaKey: false })).toBe(true);
-    expect(shouldUseCanvasLinkPointer(hit, { ctrlKey: false, metaKey: true })).toBe(true);
-    expect(shouldUseCanvasLinkPointer(null, { ctrlKey: true, metaKey: false })).toBe(false);
+  it("uses a hand cursor whenever the pointer is over a link", () => {
+    expect(shouldUseCanvasLinkPointer(hit)).toBe(true);
+    expect(shouldUseCanvasLinkPointer(null)).toBe(false);
   });
 });
-

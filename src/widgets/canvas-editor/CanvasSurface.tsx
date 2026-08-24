@@ -75,7 +75,7 @@ export const CanvasSurface = forwardRef<HTMLDivElement, CanvasSurfaceProps>(func
       style={{ touchAction: 'none', ...style }}
       className={
         className ??
-        'relative size-full overflow-hidden bg-background touch-none select-none cursor-default'
+        'relative size-full overflow-hidden bg-background touch-none select-none'
       }
       {...surfaceProps}
     >

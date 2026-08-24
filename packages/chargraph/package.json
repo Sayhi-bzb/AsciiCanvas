@@ -32,6 +32,10 @@
     "./math": {
       "types": "./dist/math.d.ts",
       "import": "./dist/math.js"
+    },
+    "./examples": {
+      "types": "./dist/examples.d.ts",
+      "import": "./dist/examples.js"
     }
   },
   "scripts": {

@@ -28,10 +28,13 @@ and endpoint decoration, keyed by stable layout IDs. ELK owns layering,
 ordering, crossings, ports, and orthogonal bends. Cell projection owns integer
 coordinates, compact self-loops, route-aware labels, and topology validation.
 An independent edge cannot share a node port, marker cell, or collinear route
-cell; a perpendicular cell crossing remains valid. CharScene alone owns glyph composition. Its structural character roles decide collision
-and topology; a parallel Mermaid style-role canvas records visual meaning without affecting
-geometry. Serialization groups adjacent equal style roles into CharGraph fragments after layout
-and CJK-safe cell projection.
+cell; a perpendicular cell crossing remains valid. CharScene alone owns glyph
+composition. Scene layers decide which contribution is visible, while explicit
+connections and route bundles decide which contributions may share topology.
+Container borders sit above edges but never join them; node borders remain
+connective. A parallel Mermaid style-role canvas records visual meaning without
+affecting geometry. Serialization groups adjacent equal style roles into
+CharGraph fragments after layout and CJK-safe cell projection.
 
 Flow edges opt into structured routing after cell projection. Compatible
 fan-out and fan-in edges receive an explicit bundle identity and share one
@@ -40,9 +43,12 @@ endpoints. Marker cells are terminal and exclusive. After integer projection,
 invalid independent routes are repaired around nodes, marker corridors, and
 collinear routes before labels are placed and the scene is composed. Flow and
 State additionally opt into readable routing: overlapping opposite endpoints
-share an axis when possible, and repaired paths keep at least two cells between
-successive bends. Rounded glyphs therefore express real detours rather than
-one-cell doglegs. They also opt into Brandes–Köpf balanced node placement so
+share an axis when possible. Conflicting endpoints choose a free side toward
+the other endpoint. Route repair compares strict and relaxed orthogonal
+candidates by short legs, bends, length, area, then stable order instead of
+accepting the first feasible detour. Rounded glyphs therefore express real
+detours rather than search artifacts. Flow and State also opt into Brandes–Köpf
+balanced node placement so
 fork and join layers stay centered across graph depth; Class and ER retain ELK's
 automatic placement.
 
@@ -67,7 +73,8 @@ adaptive node ports: one attachment stays centered while a shared side remains
 distributed. Labels may be placed left or above the projected route; the final
 grid is translated back to a nonnegative origin. Feedback cycles therefore stay
 readable without inflating layer spacing.
-Sequence keeps its participant-column coordinate model.
+Sequence keeps its participant-column coordinate model and consumes the same
+scene-layer contract for lifelines, fragment borders, nodes, labels, and markers.
 
 For a feasible layout, priorities are ordered rather than mixed into unstable
 weights: direction, crossings, bends, Manhattan edge length, area, then stable

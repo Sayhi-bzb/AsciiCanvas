@@ -248,6 +248,7 @@ export const CanvasEditor = ({
 
   const {
     activateInteractionOwner = () => false,
+    cursor,
     draggingSelection,
     handleDoubleClick,
     colorSourceChoice,
@@ -346,6 +347,7 @@ export const CanvasEditor = ({
           onPointerDownCapture={activateCanvas}
           onWheelCapture={activateCanvas}
           data-canvas-view-active={active ? 'true' : 'false'}
+          style={{ cursor: cursor || undefined }}
           interactionUi={active}
           {...structuredTemplateDrop.surfaceProps}
           onDoubleClick={handleDoubleClick}

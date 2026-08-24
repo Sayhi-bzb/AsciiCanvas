@@ -10,6 +10,8 @@ import { canvasCommands } from "@/domains/canvas/testing";
 import { useShallow } from "zustand/react/shallow";
 import type { ToolType } from "@/domains/canvas/testing";
 import { ShortcutProvider } from "@/shared/shortcuts/dispatcher";
+import { DEFAULT_DEMO_GRID } from "@/domains/canvas/state/helpers/defaultDemo";
+import { GridManager } from "@/shared/utils/grid";
 
 const gestureState = vi.hoisted(() => ({
   handlers: null as Record<string, (input: unknown) => void> | null,
@@ -78,6 +80,7 @@ function InteractionHarnessContent() {
     }))
   );
   const {
+    cursor,
     draggingSelection,
     handleDoubleClick,
     colorSourceChoice,
@@ -96,6 +99,7 @@ function InteractionHarnessContent() {
       <div
         ref={containerRef}
         data-testid="canvas-root"
+        style={{ cursor: cursor || undefined }}
         data-selection-preview={
           draggingSelection ? JSON.stringify(draggingSelection) : "none"
         }
@@ -618,6 +622,52 @@ describe("structured text interaction", () => {
     });
 
     expect(getByTestId("canvas-root").style.cursor).toBe("text");
+  });
+
+  it("uses a pointer cursor over the real Welcome canvas links", () => {
+    const linkedEntry = DEFAULT_DEMO_GRID.find(([, cell]) => !!cell.href);
+    expect(linkedEntry).toBeDefined();
+    const linkedPoint = GridManager.fromKey(linkedEntry![0]);
+    useEditorStore.setState({
+      canvasMode: "freeform",
+      tool: "select",
+      offset: { x: 0, y: 0 },
+      zoom: 1,
+      grid: new Map(DEFAULT_DEMO_GRID),
+      structuredScene: [],
+    });
+    const { getByTestId } = render(<InteractionHarness />);
+    const screenPoint = GridManager.gridToScreen(
+      linkedPoint.x,
+      linkedPoint.y,
+      0,
+      0,
+      1
+    );
+
+    act(() => {
+      gestureState.handlers?.onMove?.({
+        xy: [screenPoint.x + 1, screenPoint.y + 1],
+        event: new MouseEvent("mousemove", {
+          bubbles: true,
+          cancelable: true,
+        }),
+      });
+    });
+
+    expect(getByTestId("canvas-root").style.cursor).toBe("pointer");
+
+    act(() => {
+      gestureState.handlers?.onMove?.({
+        xy: [-100, -100],
+        event: new MouseEvent("mousemove", {
+          bubbles: true,
+          cancelable: true,
+        }),
+      });
+    });
+
+    expect(getByTestId("canvas-root").style.cursor).toBe("");
   });
 
   it("uses a drawing cursor when hovering with structured shape tools", () => {

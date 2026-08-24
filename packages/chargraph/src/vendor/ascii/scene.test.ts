@@ -36,6 +36,56 @@ describe('CharScene', () => {
     expect(scene.compose().canvas[0]![0]).toBe('─')
   })
 
+  it('maps semantic style roles onto the shared scene layers', () => {
+    const scene = new CharScene(1, 1, false)
+    scene.write(0, 0, '│', 'line', { owner: 'lifeline', styleRole: 'edge.line' })
+    scene.write(0, 0, '─', 'border', {
+      owner: 'fragment',
+      styleRole: 'container.border',
+    })
+
+    const result = scene.compose()
+    expect(result.canvas[0]![0]).toBe('─')
+    expect(result.styleRoleCanvas[0]![0]).toBe('container.border')
+    expect(result.collisions[0]?.resolved).toBe(true)
+  })
+
+  it.each([
+    ['solid', '─'],
+    ['dotted', '┄'],
+    ['thick', '━'],
+  ] as const)('keeps a container border above a crossing %s edge', (style, segment) => {
+    const scene = new CharScene(5, 5, false)
+    scene.add({
+      kind: 'box',
+      owner: 'container',
+      x: 1,
+      y: 1,
+      width: 3,
+      height: 3,
+      styleRole: 'container.border',
+      layer: 'container',
+    })
+    scene.add({
+      kind: 'stroke',
+      owner: 'edge',
+      points: [{ x: 0, y: 2 }, { x: 4, y: 2 }],
+      style,
+      styleRole: 'edge.line',
+    })
+
+    const result = scene.compose()
+    expect(result.canvas[2]![2]).toBe(segment)
+    expect(result.canvas[1]![2]).toBe('│')
+    expect(result.canvas[3]![2]).toBe('│')
+    expect(result.styleRoleCanvas[1]![2]).toBe('container.border')
+    expect(result.collisions.filter(({ x, y }) => y === 2 && (x === 1 || x === 3)))
+      .toEqual([
+        expect.objectContaining({ x: 1, resolved: true }),
+        expect.objectContaining({ x: 3, resolved: true }),
+      ])
+  })
+
   it.each([
     ['dotted', [{ x: 2, y: 0 }, { x: 2, y: 1 }], { x: 2, y: 1 }, '┴'],
     ['dotted', [{ x: 2, y: 3 }, { x: 2, y: 4 }], { x: 2, y: 3 }, '┬'],

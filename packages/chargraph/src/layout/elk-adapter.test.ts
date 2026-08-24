@@ -272,6 +272,182 @@ describe("ELK cell endpoint projection", () => {
     expect(new Set(edge.points.map((point) => point.x))).toEqual(new Set([5]));
   });
 
+  it("treats tiny vertical endpoints as center-only attachment ranges", () => {
+    const graph: LayoutGraph = {
+      direction: "TD",
+      spacing: { nodeNode: 2, nodeNodeBetweenLayers: 2 },
+      groups: [],
+      nodes: [
+        { id: "start", label: "", width: 1, height: 1 },
+        { id: "state", label: "State", width: 12, height: 5 },
+        { id: "end", label: "", width: 1, height: 1 },
+      ],
+      edges: [
+        {
+          id: "enter",
+          source: "start",
+          target: "state",
+          routing: { quality: "readable", targetClearance: 1 },
+        },
+        {
+          id: "leave",
+          source: "state",
+          target: "end",
+          routing: { quality: "readable", targetClearance: 1 },
+        },
+      ],
+    };
+    const laidOut: ElkNode = {
+      id: "layout:root",
+      width: 20,
+      height: 14,
+      children: [
+        { id: "start", x: 12, y: 1, width: 1, height: 1 },
+        { id: "state", x: 6, y: 4, width: 12, height: 5 },
+        { id: "end", x: 12, y: 11, width: 1, height: 1 },
+      ],
+      edges: [
+        {
+          id: "enter",
+          sources: ["start"],
+          targets: ["state"],
+          sections: [{
+            id: "enter:section",
+            startPoint: { x: 12.5, y: 2 },
+            bendPoints: [{ x: 12.5, y: 3 }, { x: 11.5, y: 3 }],
+            endPoint: { x: 11.5, y: 4 },
+          }],
+        },
+        {
+          id: "leave",
+          sources: ["state"],
+          targets: ["end"],
+          sections: [{
+            id: "leave:section",
+            startPoint: { x: 11.5, y: 9 },
+            bendPoints: [{ x: 11.5, y: 10 }, { x: 12.5, y: 10 }],
+            endPoint: { x: 12.5, y: 11 },
+          }],
+        },
+      ],
+    };
+
+    const edges = fromElkGraph(graph, laidOut).edges;
+
+    expect(edges).toHaveLength(2);
+    for (const edge of edges) {
+      expect(edge.sourceEndpoint.anchor.x).toBe(12);
+      expect(edge.targetEndpoint.anchor.x).toBe(12);
+      expect(new Set(edge.points.map((point) => point.x))).toEqual(new Set([12]));
+    }
+  });
+
+  it("treats a tiny horizontal endpoint as a center-only attachment range", () => {
+    const graph: LayoutGraph = {
+      direction: "LR",
+      spacing: { nodeNode: 2, nodeNodeBetweenLayers: 2 },
+      groups: [],
+      nodes: [
+        { id: "start", label: "", width: 1, height: 1 },
+        { id: "state", label: "State", width: 7, height: 9 },
+      ],
+      edges: [{
+        id: "edge",
+        source: "start",
+        target: "state",
+        routing: { quality: "readable", targetClearance: 1 },
+      }],
+    };
+    const laidOut: ElkNode = {
+      id: "layout:root",
+      width: 14,
+      height: 16,
+      children: [
+        { id: "start", x: 1, y: 8, width: 1, height: 1 },
+        { id: "state", x: 4, y: 4, width: 7, height: 9 },
+      ],
+      edges: [{
+        id: "edge",
+        sources: ["start"],
+        targets: ["state"],
+        sections: [{
+          id: "edge:section",
+          startPoint: { x: 2, y: 8.5 },
+          bendPoints: [{ x: 3, y: 8.5 }, { x: 3, y: 7.5 }],
+          endPoint: { x: 4, y: 7.5 },
+        }],
+      }],
+    };
+
+    const edge = fromElkGraph(graph, laidOut).edges[0]!;
+
+    expect(edge.sourceEndpoint.anchor.y).toBe(8);
+    expect(edge.targetEndpoint.anchor.y).toBe(8);
+    expect(new Set(edge.points.map((point) => point.y))).toEqual(new Set([8]));
+  });
+
+  it("prefers a compact readable route over the first strict detour", () => {
+    const graph: LayoutGraph = {
+      direction: "LR",
+      spacing: { nodeNode: 2, nodeNodeBetweenLayers: 3 },
+      groups: [],
+      nodes: [
+        { id: "a", label: "A", width: 5, height: 3 },
+        { id: "b", label: "B", width: 5, height: 3 },
+      ],
+      edges: [{
+        id: "edge",
+        source: "a",
+        target: "b",
+        routing: { quality: "readable", targetClearance: 1 },
+      }],
+    };
+    const laidOut: ElkNode = {
+      id: "layout:root",
+      width: 20,
+      height: 15,
+      children: [
+        { id: "a", x: 5, y: 5, width: 5, height: 3 },
+        { id: "b", x: 12, y: 9, width: 5, height: 3 },
+      ],
+      edges: [{
+        id: "edge",
+        sources: ["a"],
+        targets: ["b"],
+        sections: [{
+          id: "edge:section",
+          startPoint: { x: 7, y: 5 },
+          bendPoints: [
+            { x: 7, y: 4 },
+            { x: 8, y: 4 },
+            { x: 8, y: 10 },
+          ],
+          endPoint: { x: 12, y: 10 },
+        }],
+      }],
+    };
+
+    const edge = fromElkGraph(graph, laidOut).edges[0]!;
+
+    expect(edge.points).toEqual([
+      { x: 7, y: 5 },
+      { x: 7, y: 4 },
+      { x: 10, y: 4 },
+      { x: 10, y: 10 },
+      { x: 12, y: 10 },
+    ]);
+    expect(validateGridLayout({
+      width: 20,
+      height: 15,
+      groups: [],
+      nodes: [
+        { ...graph.nodes[0]!, x: 5, y: 5 },
+        { ...graph.nodes[1]!, x: 12, y: 9 },
+      ],
+      edges: [edge],
+    })).toEqual([]);
+  });
+
   it("preserves distinct ELK attachment positions for distributed ports", () => {
     const graph: LayoutGraph = {
       direction: "LR",

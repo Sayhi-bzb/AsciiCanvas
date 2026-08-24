@@ -87,6 +87,30 @@ const failed = (
   return { status: "failed", reason };
 };
 
+const notifyPasteRenderDiagnostics = (
+  diagnostics: readonly { code: string; message: string }[]
+) => {
+  const unique = [...new Map(
+    diagnostics.map((diagnostic) => [
+      `${diagnostic.code}\u0000${diagnostic.message}`,
+      diagnostic.message,
+    ])
+  ).values()];
+  if (unique.length === 0) return;
+
+  const remaining = unique.length - 1;
+  const suffix = remaining > 0
+    ? ` ${remaining} more rendering ${remaining === 1 ? "issue was" : "issues were"} detected.`
+    : "";
+  const description = `${unique[0]}${suffix}`;
+  feedback.warning("Pasted with limited rendering", {
+    id: "paste-render-diagnostics",
+    description: description.length > 320
+      ? `${description.slice(0, 317)}…`
+      : description,
+  });
+};
+
 const getClipboardTargetFingerprint = (
   getActiveDocumentId: () => string,
   state: SelectionCommandState
@@ -525,6 +549,10 @@ export const createSelectionCommandFactory = ({
       return failed("stale-target");
     }
     const { pasteRichData, pasteRichRows, canvasMode } = state;
+    const completePaste = () => {
+      notifyPasteRenderDiagnostics(payload.diagnostics);
+      return applied(true);
+    };
 
     if (canvasMode === "structured") {
       const renderedCells = payload.richCells ??
@@ -556,7 +584,7 @@ export const createSelectionCommandFactory = ({
               )
             : (richText?.styleRanges ?? createInheritedTextStyleRanges(textTarget, normalizedText))
         );
-        return applied(true);
+        return completePaste();
       }
       const structured = payload.structured;
       if (structured) {
@@ -578,7 +606,7 @@ export const createSelectionCommandFactory = ({
           editingStructuredTextNodeId: null,
           structuredTextSelection: null,
         });
-        return applied(true);
+        return completePaste();
       }
 
       const richText = richCellsToStructuredText(renderedCells, {
@@ -615,21 +643,21 @@ export const createSelectionCommandFactory = ({
         editingStructuredTextNodeId: null,
         structuredTextSelection: null,
       });
-      return applied(true);
+      return completePaste();
     }
 
     if ("richRows" in payload && payload.richRows) {
       pasteRichRows(payload.richRows, undefined, {
         selectResult: canvasMode === "freeform",
       });
-      return applied(true);
+      return completePaste();
     }
 
     if (payload.richCells) {
       pasteRichData(payload.richCells, undefined, {
         selectResult: canvasMode === "freeform",
       });
-      return applied(true);
+      return completePaste();
     }
 
     if (payload.plainText) {
@@ -638,7 +666,7 @@ export const createSelectionCommandFactory = ({
       pasteRichData(cells, undefined, {
         selectResult: canvasMode === "freeform",
       });
-      return applied(true);
+      return completePaste();
     }
     return noop("empty-clipboard");
   },

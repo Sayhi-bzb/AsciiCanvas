@@ -6,10 +6,7 @@ import { resolveCanvasMoveDecision, type CanvasMoveDecision } from "./moveIntera
 
 export type CanvasMoveExecutor = {
   updateColorPickerHover: (point: Point | null) => void;
-  updateLinkHover: (
-    hit: CanvasLinkHit | null,
-    event: Pick<MouseEvent | KeyboardEvent, "ctrlKey" | "metaKey">
-  ) => void;
+  updateLinkHover: (hit: CanvasLinkHit | null) => void;
   setHoveredGrid: (point: Point | null) => void;
   setCursor: (cursor: string) => void;
 };
@@ -28,15 +25,14 @@ export const createCanvasMoveExecutor = ({
 
 export const executeCanvasMoveDecision = (
   decision: CanvasMoveDecision,
-  executor: CanvasMoveExecutor,
-  event: Pick<MouseEvent | KeyboardEvent, "ctrlKey" | "metaKey">
+  executor: CanvasMoveExecutor
 ): void => {
   if (decision.type === "color-picker-hover") {
     executor.updateColorPickerHover(decision.point);
     return;
   }
 
-  executor.updateLinkHover(decision.linkHit, event);
+  executor.updateLinkHover(decision.linkHit);
 
   switch (decision.action.type) {
     case "pan-hover":
@@ -50,7 +46,7 @@ export const executeCanvasMoveDecision = (
       executor.setCursor("crosshair");
       break;
     case "structured-select-hover":
-      executor.setCursor(decision.action.cursor);
+      if (decision.action.cursor) executor.setCursor(decision.action.cursor);
       break;
     case "eraser-hover":
       executor.setHoveredGrid(decision.action.point);
@@ -68,7 +64,6 @@ type CanvasMoveHandler = ({
   linkHit,
   structuredSelectCursor,
   eraserHoverPoint,
-  event,
 }: {
   hasColorPickerTarget: boolean;
   canvasMode: CanvasMode;
@@ -77,7 +72,6 @@ type CanvasMoveHandler = ({
   linkHit: CanvasLinkHit | null;
   structuredSelectCursor: string | null;
   eraserHoverPoint: Point | null;
-  event: Pick<MouseEvent | KeyboardEvent, "ctrlKey" | "metaKey">;
 }) => void;
 
 export const createCanvasMoveHandler = ({
@@ -92,7 +86,6 @@ export const createCanvasMoveHandler = ({
   linkHit,
   structuredSelectCursor,
   eraserHoverPoint,
-  event,
 }) =>
   executeCanvasMoveDecision(
     resolveCanvasMoveDecision({
@@ -104,8 +97,7 @@ export const createCanvasMoveHandler = ({
       structuredSelectCursor,
       eraserHoverPoint,
     }),
-    executor,
-    event
+    executor
   );
 type CanvasMoveRouteContext = {
   point: Point | null;
@@ -119,14 +111,12 @@ export type CanvasMoveRouteHandler = ({
   canvasMode,
   tool,
   clientPoint,
-  event,
   resolveMoveContext,
 }: {
   hasColorPickerTarget: boolean;
   canvasMode: CanvasMode;
   tool: ToolType;
   clientPoint: Point;
-  event: Pick<MouseEvent | KeyboardEvent, "ctrlKey" | "metaKey">;
   resolveMoveContext: (input: {
     clientPoint: Point;
     shouldResolveStructuredSelectCursor: boolean;
@@ -144,7 +134,6 @@ export const createCanvasMoveRouteHandler = ({
     canvasMode,
     tool,
     clientPoint,
-    event,
     resolveMoveContext,
   }) => {
     const moveContext = resolveMoveContext({
@@ -162,6 +151,5 @@ export const createCanvasMoveRouteHandler = ({
       linkHit: moveContext.linkHit,
       structuredSelectCursor: moveContext.structuredSelectCursor,
       eraserHoverPoint: moveContext.eraserHoverPoint,
-      event,
     });
   };

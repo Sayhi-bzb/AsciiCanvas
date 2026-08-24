@@ -16,7 +16,7 @@ import {
   getStructuredSplitBoxHandleAtPoint,
 } from '@/domains/structured-content/public';
 import { DEFAULT_SESSION_ID } from '@/domains/canvas/state/helpers/storeUtils';
-import { clipboard } from '@/shared/services/effects';
+import { clipboard, feedback } from '@/shared/services/effects';
 
 const initialState = useEditorStore.getState();
 const editorRuntime = createCanvasEditorRuntime({
@@ -534,6 +534,37 @@ describe('canvas session viewport state', () => {
     });
     expect(useEditorStore.getState().grid.get('0,0')?.char).toBe('A');
     expect(useEditorStore.getState().grid.get('1,0')?.char).toBe('B');
+  });
+
+  it('shows one warning after pasted text falls back from limited rendering', async () => {
+    useEditorStore.setState({ canvasMode: 'freeform' });
+    useEditorStore.getState().setTextCursor({ x: 0, y: 0 });
+    const warning = vi.spyOn(feedback, 'warning').mockImplementation(() => {});
+
+    await useEditorStore.getState().pasteFromClipboard({
+      eventDataTransfer: {
+        getData: (type: string) => type === 'text/plain'
+          ? '```not-a-language\nvalue\n```'
+          : '',
+      } as unknown as DataTransfer,
+    });
+
+    expect(warning).toHaveBeenCalledTimes(1);
+    expect(warning).toHaveBeenCalledWith(
+      'Pasted with limited rendering',
+      expect.objectContaining({
+        id: 'paste-render-diagnostics',
+        description: expect.stringContaining('Could not highlight'),
+      })
+    );
+
+    useEditorStore.getState().setTextCursor({ x: 0, y: 2 });
+    await useEditorStore.getState().pasteFromClipboard({
+      eventDataTransfer: {
+        getData: (type: string) => type === 'text/plain' ? 'plain text' : '',
+      } as unknown as DataTransfer,
+    });
+    expect(warning).toHaveBeenCalledTimes(1);
   });
 
   it('pastes structured clipboard content into freeform as surface cells', async () => {

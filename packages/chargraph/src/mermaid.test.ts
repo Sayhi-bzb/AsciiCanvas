@@ -8,6 +8,7 @@ import {
   renderMermaid,
   type MermaidRenderOptions,
 } from "./mermaid.js";
+import { parseMermaid } from "./vendor/parser.js";
 
 const renderMermaidText = (
   source: string,
@@ -498,6 +499,21 @@ describe("renderMermaidText", () => {
     expect(lines.every((line) => getTextCellWidth(line) === width)).toBe(true);
   });
 
+  it("keeps a Class namespace border above an entering relationship", async () => {
+    const output = await renderMermaidText(`classDiagram
+  namespace 内部 {
+    class 服务
+  }
+  class 客户端
+  客户端 --> 服务`);
+
+    expect(output).toContain("内部");
+    expect(output).toContain("客户端");
+    expect(output).toContain("服务");
+    expect(output).not.toContain("┼");
+    expectNoInternalCellTokens(output);
+  });
+
   it("renders all Class relationships with angle markers and dotted semantics", async () => {
     const unicode = await renderMermaidText(`classDiagram
   A <|-- B
@@ -540,6 +556,34 @@ describe("renderMermaidText", () => {
     expect(output.indexOf("●")).toBeLessThan(output.indexOf("草稿"));
     expect(output.indexOf("完成")).toBeLessThan(output.indexOf("◎"));
     expect(output).not.toMatch(/[╭┌].*●|●.*[╮┐]/u);
+  });
+
+  it("keeps bilingual state pseudo-node routes straight", async () => {
+    const source = `stateDiagram-v2
+  state "Draft 草稿" as draft
+  state "Review 审核" as review
+  state "Done 完成" as done
+  [*] --> draft
+  draft --> review : Submit 提交
+  review --> done : Approve 通过
+  done --> [*]`;
+    const unicode = await renderMermaidText(source);
+    const ascii = await renderMermaidText(source, { characterSet: "ascii" });
+    const initialRoute = unicode.split("\n")
+      .filter((line) => line.trim().length > 0)
+      .slice(0, 3)
+      .map((line) => line.trim());
+    const asciiInitialRoute = ascii.split("\n")
+      .filter((line) => line.trim().length > 0)
+      .slice(0, 3)
+      .map((line) => line.trim());
+
+    expect(initialRoute).toEqual(["●", "│", "v"]);
+    expect(asciiInitialRoute).toEqual(["*", "|", "v"]);
+    expect(unicode.indexOf("●")).toBeLessThan(unicode.indexOf("Draft 草稿"));
+    expect(unicode.indexOf("Done 完成")).toBeLessThan(unicode.indexOf("◎"));
+    expectNoInternalCellTokens(unicode);
+    expectNoInternalCellTokens(ascii);
   });
 
   it("keeps a state feedback cycle vertical, compact, and separately routed", async () => {
@@ -589,15 +633,51 @@ describe("renderMermaidText", () => {
     expect(`${vertical}\n${bottomToTop}\n${bundled}`).not.toMatch(/[▲▼◄►◥◤◢◣]/u);
   });
 
-  it("composes an edge crossing a subgraph border as a four-way junction", async () => {
+  it("keeps a subgraph border above an edge without joining their topology", async () => {
     const output = await renderMermaidText(`flowchart LR
   subgraph G[分组]
     A([开始]) --> B[处理]
   end
   X[外部] --> A`);
 
-    expect(output).toMatch(/├─+┼─*>\( +开始 +\)/u);
+    expect(output).toMatch(/│─*>\( +开始 +\)/u);
+    expect(output).not.toMatch(/[┼+]─*>\( +开始 +\)/u);
     expectNoInternalCellTokens(output);
+  });
+
+  it("upgrades a forward node reference with its later explicit declaration", async () => {
+    const output = await renderMermaidText(`flowchart LR
+  U[代码提交] --> T
+  subgraph CI[持续集成]
+    T[运行测试] --> B[构建镜像]
+  end
+  B --> P[生产环境]`);
+
+    expect(output).toContain("运行测试");
+    expect(output).not.toMatch(/│ +T +│/u);
+    expect(output).not.toContain("┼>");
+    expectNoInternalCellTokens(output);
+  });
+
+  it("keeps explicit node declarations authoritative over bare references", () => {
+    const forward = parseMermaid(`flowchart LR
+  U --> T
+  T([运行测试]) --> B`);
+    const repeated = parseMermaid(`flowchart LR
+  T([初始名称]) --> B
+  B --> T
+  T[最终名称]`);
+
+    expect(forward.nodes.get("T")).toEqual({
+      id: "T",
+      label: "运行测试",
+      shape: "stadium",
+    });
+    expect(repeated.nodes.get("T")).toEqual({
+      id: "T",
+      label: "最终名称",
+      shape: "rectangle",
+    });
   });
 
   it("keeps semantic UML, ER, and node-shape markers", async () => {
@@ -625,6 +705,12 @@ describe("renderMermaidText", () => {
     expect(output).toMatch(/[━┃]通过|通过[━┃]/u);
     expect(output).toContain("失败");
     expect(output).toMatch(/>│ 记录告警 │/u);
+    const lines = output.split("\n");
+    const validationRow = lines.findIndex((line) => line.includes("校验规则"));
+    const successRow = lines.findIndex((line) => line.includes("通过"));
+    expect(successRow).toBeGreaterThan(validationRow);
+    expect(lines.slice(0, validationRow).join("\n")).not.toContain("━");
+    expect(output).toMatch(/╰━+通过━+>│ 缓存 │/u);
     expectTerminalArrows(output);
     expectNoInternalCellTokens(output);
   });
@@ -697,6 +783,43 @@ describe("renderMermaidText", () => {
     expect(dashed).toMatch(/<╌+╯/u);
     expect(ascii).toMatch(/\+-+\+/u);
     expect(ascii).toMatch(/<-+\+/u);
+  });
+
+  it("reserves participant-column space for self-message labels", async () => {
+    const source = `sequenceDiagram
+  participant Q as 任务队列
+  participant W as Worker
+  participant A as API
+  Q->>W: 分发任务
+  W->>W: 重试任务
+  W-->>A: 回传结果
+  A-->>Q: 确认完成`;
+    const unicode = await renderMermaidText(source);
+    const ascii = await renderMermaidText(source, { characterSet: "ascii" });
+
+    expect(unicode).toMatch(/重试任务 {2,}│/u);
+    expect(ascii).toMatch(/重试任务 {2,}\|/u);
+    expect(unicode).toMatch(/├─+╮/u);
+    expect(unicode).toMatch(/<─+╯/u);
+    expectNoInternalCellTokens(unicode);
+    expectNoInternalCellTokens(ascii);
+  });
+
+  it("uses the widest self-message line as one column constraint", async () => {
+    const source = `sequenceDiagram
+  participant W as Worker
+  participant A as API
+  W->>W: 短<br/>更长的重试任务
+  W->>W: 重试
+  W->>A: 完成`;
+    const output = await renderMermaidText(source);
+    const labelLines = output.split("\n").filter((line) =>
+      line.includes("短") || line.includes("更长的重试任务") || line.includes("重试")
+    );
+
+    expect(labelLines).toHaveLength(3);
+    expect(labelLines.every((line) => / {2,}│\s*$/u.test(line))).toBe(true);
+    expectNoInternalCellTokens(output);
   });
 
   it("rounds subroutine outer corners without losing its double border", async () => {

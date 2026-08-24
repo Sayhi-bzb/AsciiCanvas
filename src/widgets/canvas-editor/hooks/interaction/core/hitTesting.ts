@@ -49,10 +49,7 @@ export const shouldOpenCanvasLink = (
   event: Pick<MouseEvent, "ctrlKey" | "metaKey">
 ) => event.ctrlKey || event.metaKey;
 
-export const shouldUseCanvasLinkPointer = (
-  hit: CanvasLinkHit | null,
-  event: Pick<MouseEvent | KeyboardEvent, "ctrlKey" | "metaKey">
-) => !!hit && shouldOpenCanvasLink(event);
+export const shouldUseCanvasLinkPointer = (hit: CanvasLinkHit | null) => !!hit;
 
 const isPointInHandle = (input: {
   point: Point;
@@ -326,4 +323,3 @@ export const resolveStructuredSelectHit = ({
     cursor: hit ? getStructuredHitCursor(hit, editingStructuredTextNodeId) : "",
   };
 };
-

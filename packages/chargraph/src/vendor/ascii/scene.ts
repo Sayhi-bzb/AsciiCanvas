@@ -27,9 +27,13 @@ export interface SceneWriteOptions {
   topology?: 'shared' | 'independent'
   /** Only strokes in the same explicit route bundle may share topology. */
   bundleId?: string
+  /** Visual plane; independent from whether two contributions share topology. */
+  layer?: SceneLayer
 }
 
 export interface ScenePoint { x: number; y: number }
+
+export type SceneLayer = 'background' | 'edge' | 'container' | 'node' | 'label' | 'marker'
 
 export interface BoxPrimitive {
   kind: 'box'
@@ -40,6 +44,7 @@ export interface BoxPrimitive {
   height: number
   rounded?: boolean
   styleRole?: MermaidStyleRole
+  layer?: SceneLayer
 }
 
 export interface StrokePrimitive {
@@ -53,6 +58,7 @@ export interface StrokePrimitive {
   styleRole?: MermaidStyleRole
   topology?: 'shared' | 'independent'
   bundleId?: string
+  layer?: SceneLayer
 }
 
 export interface MarkerPrimitive {
@@ -62,6 +68,7 @@ export interface MarkerPrimitive {
   char: string
   styleRole?: MermaidStyleRole
   bundleId?: string
+  layer?: SceneLayer
 }
 
 export interface LabelPrimitive {
@@ -71,6 +78,7 @@ export interface LabelPrimitive {
   text: string
   width?: number
   styleRole?: MermaidStyleRole
+  layer?: SceneLayer
 }
 
 export type ScenePrimitive = BoxPrimitive | StrokePrimitive | MarkerPrimitive | LabelPrimitive
@@ -100,6 +108,7 @@ interface Contribution {
   styleRole: MermaidStyleRole
   topology: 'shared' | 'independent'
   bundleId?: string
+  layer: SceneLayer
 }
 
 const defaultStyleRole = (role: CharRole): MermaidStyleRole => {
@@ -117,6 +126,32 @@ const rolePriority: Record<CharRole, number> = {
   arrow: 40,
   text: 50,
 }
+
+const layerPriority: Record<SceneLayer, number> = {
+  background: 0,
+  edge: 10,
+  container: 20,
+  node: 30,
+  label: 40,
+  marker: 50,
+}
+
+const defaultLayer = (
+  role: CharRole,
+  styleRole: MermaidStyleRole,
+): SceneLayer => {
+  if (styleRole === 'container.border') return 'container'
+  if (styleRole === 'container.title' || styleRole === 'edge.label' || styleRole === 'node.text') {
+    return 'label'
+  }
+  if (styleRole === 'node.background') return 'node'
+  if (styleRole === 'edge.arrow' || role === 'arrow') return 'marker'
+  if (styleRole === 'edge.line' || role === 'line' || role === 'corner') return 'edge'
+  return role === 'text' ? 'label' : 'node'
+}
+
+const visualPriority = (value: Contribution) =>
+  layerPriority[value.layer] * 100 + rolePriority[value.role]
 
 function topologyFor(char: string): { mask: number; rounded: boolean } | null {
   const unicode = getBoxGlyphTopology(char)
@@ -170,6 +205,7 @@ const sharesBundle = (left: Contribution, right: Contribution) =>
   left.bundleId !== undefined && left.bundleId === right.bundleId
 
 const perpendicular = (left: Contribution, right: Contribution) => {
+  if (left.layer !== right.layer) return false
   if (rolePriority[left.role] !== rolePriority[right.role]) return false
   const leftTopology = topologyForContribution(left)
   const rightTopology = topologyForContribution(right)
@@ -233,6 +269,10 @@ export class CharScene {
       styleRole: options.styleRole ?? defaultStyleRole(role),
       topology: options.topology ?? 'shared',
       bundleId: options.bundleId,
+      layer: options.layer ?? defaultLayer(
+        role,
+        options.styleRole ?? defaultStyleRole(role),
+      ),
     })
     this.cells.set(key, values)
   }
@@ -243,6 +283,7 @@ export class CharScene {
         owner: primitive.owner,
         styleRole: primitive.styleRole ?? 'edge.arrow',
         bundleId: primitive.bundleId,
+        layer: primitive.layer ?? 'marker',
       })
       return
     }
@@ -254,7 +295,12 @@ export class CharScene {
           primitive.at.y,
           primitive.text[index] ?? ' ',
           'text',
-          { owner: primitive.owner, reserve: true, styleRole: primitive.styleRole ?? 'node.text' },
+          {
+            owner: primitive.owner,
+            reserve: true,
+            styleRole: primitive.styleRole ?? 'node.text',
+            layer: primitive.layer ?? 'label',
+          },
         )
       }
       return
@@ -263,7 +309,11 @@ export class CharScene {
       const right = primitive.x + primitive.width - 1
       const bottom = primitive.y + primitive.height - 1
       const rounded = primitive.rounded ?? true
-      const boxOptions = { owner: primitive.owner, styleRole: primitive.styleRole ?? 'node.border' }
+      const boxOptions = {
+        owner: primitive.owner,
+        styleRole: primitive.styleRole ?? 'node.border',
+        layer: primitive.layer ?? 'node',
+      }
       this.write(primitive.x, primitive.y, glyphForBoxCorner(6, { useAscii: this.useAscii, rounded }), 'border', boxOptions)
       this.write(right, primitive.y, glyphForBoxCorner(12, { useAscii: this.useAscii, rounded }), 'border', boxOptions)
       this.write(primitive.x, bottom, glyphForBoxCorner(3, { useAscii: this.useAscii, rounded }), 'border', boxOptions)
@@ -330,6 +380,7 @@ export class CharScene {
           styleRole: primitive.styleRole ?? 'edge.line',
           topology: primitive.topology ?? 'shared',
           bundleId: primitive.bundleId,
+          layer: primitive.layer ?? 'edge',
         },
       )
     }
@@ -343,8 +394,8 @@ export class CharScene {
 
     for (const [key, values] of this.cells) {
       const [x, y] = key.split(',').map(Number)
-      const highestPriority = Math.max(...values.map(value => rolePriority[value.role]))
-      const winners = values.filter(value => rolePriority[value.role] === highestPriority)
+      const highestPriority = Math.max(...values.map(visualPriority))
+      const winners = values.filter(value => visualPriority(value) === highestPriority)
       const winner = winners[winners.length - 1]!
       const connected = values.filter(value =>
         value === winner || mayMergeTopology(value, winner),
@@ -383,7 +434,7 @@ export class CharScene {
           owners,
           roles: [...new Set(values.map(value => value.role))],
           resolved: !terminalMarkerConflict && (
-            resolved || values.some(value => rolePriority[value.role] !== highestPriority)
+            resolved || values.some(value => visualPriority(value) !== highestPriority)
           ),
         })
       }

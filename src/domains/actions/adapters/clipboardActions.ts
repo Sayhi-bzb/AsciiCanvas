@@ -103,6 +103,7 @@ const toRenderedClipboardPayload = async (
       structured: null,
       structuredText: null,
       plainText: source,
+      diagnostics: rendered.diagnostics,
     };
   }
   return rendered.kind === "styled"
@@ -111,12 +112,14 @@ const toRenderedClipboardPayload = async (
         structured: null,
         structuredText: null,
         plainText: source,
+        diagnostics: rendered.diagnostics,
       }
     : {
         richCells: null,
         structured: null,
         structuredText: null,
         plainText: rendered.text,
+        diagnostics: rendered.diagnostics,
       };
 };
 
@@ -531,6 +534,7 @@ export const readClipboardPayload = async (
       structured: eventRichPayload.structured,
       structuredText: eventRichPayload.structuredText,
       plainText: eventRichPayload.structuredText?.text ?? null,
+      diagnostics: [],
     };
   }
 
@@ -545,6 +549,7 @@ export const readClipboardPayload = async (
       structured: richPayload.structured,
       structuredText: richPayload.structuredText,
       plainText: richPayload.structuredText?.text ?? null,
+      diagnostics: [],
     };
   }
 
@@ -555,6 +560,7 @@ export const readClipboardPayload = async (
       structured: null,
       structuredText: null,
       plainText: null,
+      diagnostics: [],
       error: "clipboard-failed" as const,
     };
   }
@@ -562,5 +568,11 @@ export const readClipboardPayload = async (
     return await toRenderedClipboardPayload(text, defaultColor, renderText);
   }
 
-  return { richCells: null, structured: null, structuredText: null, plainText: null };
+  return {
+    richCells: null,
+    structured: null,
+    structuredText: null,
+    plainText: null,
+    diagnostics: [],
+  };
 };
