@@ -12,11 +12,14 @@ import type { ToolType } from "@/domains/canvas/testing";
 import { ShortcutProvider } from "@/shared/shortcuts/dispatcher";
 import { DEFAULT_DEMO_GRID } from "@/domains/canvas/state/helpers/defaultDemo";
 import { GridManager } from "@/shared/utils/grid";
+import { CanvasEngineRuntime } from "@/widgets/canvas-editor/engine/CanvasEngineRuntime";
 
 const gestureState = vi.hoisted(() => ({
   handlers: null as Record<string, (input: unknown) => void> | null,
   config: null as Record<string, unknown> | null,
 }));
+
+let interactionRuntime: CanvasEngineRuntime | undefined;
 
 vi.mock("@use-gesture/react", () => ({
   useGesture: vi.fn((handlers, config) => {
@@ -91,7 +94,8 @@ function InteractionHarnessContent() {
     containerRef,
     vi.fn(),
     structuredMovePreviewRef,
-    requestRenderRef
+    requestRenderRef,
+    interactionRuntime
   );
 
   return (
@@ -130,6 +134,8 @@ describe("structured text interaction", () => {
   const initialState = useEditorStore.getState();
 
   afterEach(() => {
+    interactionRuntime?.dispose();
+    interactionRuntime = undefined;
     gestureState.handlers = null;
     gestureState.config = null;
     useEditorStore.setState(initialState, true);
@@ -636,7 +642,20 @@ describe("structured text interaction", () => {
       grid: new Map(DEFAULT_DEMO_GRID),
       structuredScene: [],
     });
-    const { getByTestId } = render(<InteractionHarness />);
+    const runtime = new CanvasEngineRuntime({
+      getViewport: () => {
+        const state = useEditorStore.getState();
+        return { offset: state.offset, zoom: state.zoom };
+      },
+      setViewport: (updater) => {
+        const state = useEditorStore.getState();
+        const next = updater({ offset: state.offset, zoom: state.zoom });
+        useEditorStore.setState({ offset: next.offset, zoom: next.zoom });
+      },
+    });
+    const unregisterManager = vi.spyOn(runtime, "unregisterManager");
+    interactionRuntime = runtime;
+    const { getByTestId, unmount } = render(<InteractionHarness />);
     const screenPoint = GridManager.gridToScreen(
       linkedPoint.x,
       linkedPoint.y,
@@ -656,6 +675,7 @@ describe("structured text interaction", () => {
     });
 
     expect(getByTestId("canvas-root").style.cursor).toBe("pointer");
+    expect(unregisterManager).not.toHaveBeenCalled();
 
     act(() => {
       gestureState.handlers?.onMove?.({
@@ -668,6 +688,11 @@ describe("structured text interaction", () => {
     });
 
     expect(getByTestId("canvas-root").style.cursor).toBe("");
+
+    unmount();
+    expect(unregisterManager).toHaveBeenCalledTimes(1);
+    interactionRuntime = undefined;
+    runtime.dispose();
   });
 
   it("uses a drawing cursor when hovering with structured shape tools", () => {

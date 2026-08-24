@@ -216,6 +216,41 @@ export const useInteractionControllers = ({
         : null,
     [runtime]
   );
+  const managerTargetsRef = useRef({
+    edgeScroll,
+    interactionTransaction,
+    selectionPreview,
+    structuredPreviewQueue,
+    viewportInteraction,
+  });
+  useLayoutEffect(() => {
+    managerTargetsRef.current = {
+      edgeScroll,
+      interactionTransaction,
+      selectionPreview,
+      structuredPreviewQueue,
+      viewportInteraction,
+    };
+  }, [
+    edgeScroll,
+    interactionTransaction,
+    selectionPreview,
+    structuredPreviewQueue,
+    viewportInteraction,
+  ]);
+  const interactionManager = useCreation(
+    () => ({
+      dispose: () => {
+        const targets = managerTargetsRef.current;
+        targets.interactionTransaction.cancel();
+        targets.edgeScroll?.stop();
+        targets.viewportInteraction.cancel();
+        targets.structuredPreviewQueue.cancel();
+        targets.selectionPreview.cancel();
+      },
+    }),
+    []
+  );
   const cancelInteractionEffects = useCallback(() => {
     edgeScroll?.stop();
     viewportInteraction.cancel();
@@ -326,30 +361,12 @@ export const useInteractionControllers = ({
   }, [hoverInteraction, tool]);
 
   useEffect(() => {
-    const manager = {
-      dispose: () => {
-        interactionTransaction.cancel();
-        edgeScroll?.stop();
-        viewportInteraction.cancel();
-        structuredPreviewQueue.cancel();
-        selectionPreview.cancel();
-        hoverInteraction.setCursor("");
-      },
-    };
-    runtime?.registerManager("interaction", manager);
+    runtime?.registerManager("interaction", interactionManager);
     return () => {
-      if (runtime) runtime.unregisterManager("interaction", manager);
-      else manager.dispose();
+      if (runtime) runtime.unregisterManager("interaction", interactionManager);
+      else interactionManager.dispose();
     };
-  }, [
-    hoverInteraction,
-    edgeScroll,
-    interactionTransaction,
-    runtime,
-    selectionPreview,
-    structuredPreviewQueue,
-    viewportInteraction,
-  ]);
+  }, [interactionManager, runtime]);
 
   return {
     colorPickerClickRef,
