@@ -48,6 +48,7 @@ describe("text render feature registry", () => {
     settings["markdown.strong"]!.enabled = false;
     settings["markdown.inline-math"]!.enabled = false;
     settings["markdown.math-style"]!.colors.operator = "#abcdef";
+    settings["markdown.mermaid"]!.colors["edge.line"] = "#654321";
     settings["markdown.table"]!.colors["header.background"] = "#123456";
 
     const options = createRegisteredMarkdownOptions(
@@ -85,7 +86,7 @@ describe("text render feature registry", () => {
     expect(options.extensionStyles?.["yaml-tree-number"]?.color).toBe("#0891b2");
     expect(options.extensionStyles?.["yaml-tree-reference"]?.color).toBe("#0891b2");
     expect(options.extensionStyles?.["mermaid.node.border"]?.color).toBe("#2563eb");
-    expect(options.extensionStyles?.["mermaid.edge.line"]?.color).toBe("#2563eb");
+    expect(options.extensionStyles?.["mermaid.edge.line"]?.color).toBe("#654321");
     expect(options.extensionStyles?.["mermaid.node.background"]?.bgColor).toBeUndefined();
     expect(options.extensionStyles?.["mermaid.series.5"]?.color).toBe("#dc2626");
     expect(options.codeTheme).toMatchObject({
@@ -203,6 +204,21 @@ describe("text render feature registry", () => {
     expect(mermaid.colorRows?.every((row) => row.slotIds.every((slotId) =>
       mermaid.colorSlots.some((slot) => slot.id === slotId)
     ))).toBe(true);
+  });
+
+  it("drops retired Mermaid relation colors while preserving current colors", () => {
+    const colors = decodeFeatureSettings({
+      "markdown.mermaid": {
+        enabled: true,
+        colors: {
+          "relation.1": "#123456",
+          "relation.5": "#abcdef",
+          "edge.line": "#654321",
+        },
+      },
+    })["markdown.mermaid"]!.colors;
+
+    expect(colors).toEqual({ "edge.line": "#654321" });
   });
 
   it("decodes the previous v2 Mermaid foreground as semantic colors", () => {

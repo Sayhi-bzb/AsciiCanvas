@@ -42,6 +42,7 @@ import {
 import { LineNav } from "./components/line-nav";
 import {
   CHARGRAPH_EXAMPLES,
+  getExampleClipboardSource,
   type CharGraphExampleKind,
   type CharGraphExampleRenderer,
   renderExample,
@@ -284,7 +285,7 @@ function Example({
       <div data-slot="example-grid" className="grid min-w-0 lg:grid-cols-2">
         <ExamplePanel
           label={example.renderer === "markdown" ? "Markdown" : "Mermaid"}
-          copyValue={example.source}
+          copyValue={getExampleClipboardSource(example)}
           copyTarget="source"
         >
           <pre

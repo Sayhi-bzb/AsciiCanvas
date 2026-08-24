@@ -39,7 +39,7 @@ const textRendering = createTextRenderingRuntime();
 initializeCanvasTesting({
   selectionCommands: (documents) => createSelectionCommandFactory({
     getActiveDocumentId: documents.getActiveDocumentId,
-    renderClipboardText: textRendering.render,
+    renderClipboardText: textRendering.renderCompact,
   }),
   parseSessionSource: parseDocumentSessionSource,
 });

@@ -8,6 +8,7 @@ export {
   TEXT_RENDER_PROFILE_STORAGE_KEY,
   TextRenderingRuntime,
 } from "./rendering/runtime";
+export { TextRenderingWorkerClient } from "./rendering/worker-client";
 export {
   ansiTextRenderPlugin,
   createMarkdownTextRenderPlugin,
@@ -28,7 +29,10 @@ export type {
   Awaitable,
   AttributedText,
   BuiltInTextRendererId,
+  CompactTextRenderResult,
   RenderedTextCell,
+  RenderedTextRow,
+  RenderedTextSpan,
   TextRenderPlugin,
   TextDecoderPlugin,
   TextTransformerPlugin,

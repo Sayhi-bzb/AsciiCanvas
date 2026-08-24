@@ -9,6 +9,12 @@ import { applyFreeformSnapshotToYMaps as applySnapshot } from "./state/helpers/g
 export let defaultCanvasDocuments: CanvasDocumentRegistry;
 export let useEditorStore: CanvasStore;
 export let canvasCommands: ReturnType<typeof createCanvasCommands>;
+const TEST_PERSISTENCE_SNAPSHOT = {
+  phase: "ready",
+  save: "saved",
+  ownership: "writer",
+  error: null,
+} as const;
 export let testingCanvasRuntime: {
   store: CanvasStore;
   documents: CanvasDocumentRegistry;
@@ -16,6 +22,15 @@ export let testingCanvasRuntime: {
   subscribe: CanvasStore["subscribe"];
   commands: ReturnType<typeof createCanvasCommands>;
   queries: ReturnType<typeof createCanvasQueries>;
+  ready: Promise<void>;
+  getPersistenceSnapshot: () => {
+    phase: "ready";
+    save: "saved";
+    ownership: "writer";
+    error: null;
+  };
+  subscribePersistence: (listener: () => void) => () => void;
+  retryPersistence: () => Promise<void>;
   dispose: () => void;
 };
 
@@ -44,6 +59,10 @@ export const initializeCanvasTesting = ({
     subscribe: useEditorStore.subscribe,
     commands: canvasCommands,
     queries,
+    ready: Promise.resolve(),
+    getPersistenceSnapshot: () => TEST_PERSISTENCE_SNAPSHOT,
+    subscribePersistence: () => () => undefined,
+    retryPersistence: () => Promise.resolve(),
     dispose: () => undefined,
   };
   return testingCanvasRuntime;

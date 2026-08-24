@@ -7,6 +7,8 @@ import type {
   GraphLayoutEngine,
   GridLayout,
   LayoutGraph,
+  LayoutLabel,
+  GridPoint,
   PositionedEdgeEndpoint,
   PositionedLayoutEdge,
   PositionedLayoutGroup,
@@ -39,6 +41,7 @@ export interface LayeredEdgePresentation {
     style: NonNullable<StrokePrimitive["style"]>;
     role?: NonNullable<StrokePrimitive["role"]>;
     rounded?: boolean;
+    styleRole?: NonNullable<StrokePrimitive["styleRole"]>;
   };
   sourceEndpoint?: LayeredEndpointPresentation;
   targetEndpoint?: LayeredEndpointPresentation;
@@ -92,6 +95,24 @@ export const writeCanvasFragment = (
   }
 };
 
+const drawLabel = (
+  scene: CharScene,
+  owner: string,
+  label: LayoutLabel,
+  at: GridPoint,
+) => {
+  for (const [index, line] of label.text.split("\n").entries()) {
+    scene.add({
+      kind: "label",
+      owner: `${owner}:${index}`,
+      at: { x: at.x, y: at.y + index },
+      text: line,
+      width: label.width,
+      styleRole: "edge.label",
+    });
+  }
+};
+
 const drawEdge = (
   scene: CharScene,
   edge: PositionedLayoutEdge,
@@ -132,21 +153,29 @@ const drawEdge = (
     style: presentation.stroke.style,
     rounded: presentation.stroke.rounded,
     connections: [edge.source, edge.target],
-    styleRole: "edge.line",
+    styleRole: presentation.stroke.styleRole ?? "edge.line",
     topology: edge.routing?.topology,
+    bundleId: edge.routing?.bundleId,
   });
 
+  if (edge.sourceLabel && edge.sourceLabelPosition) {
+    drawLabel(
+      scene,
+      `${edge.id}:source-label`,
+      edge.sourceLabel,
+      edge.sourceLabelPosition,
+    );
+  }
+  if (edge.targetLabel && edge.targetLabelPosition) {
+    drawLabel(
+      scene,
+      `${edge.id}:target-label`,
+      edge.targetLabel,
+      edge.targetLabelPosition,
+    );
+  }
   if (edge.label && edge.labelPosition) {
-    for (const [index, line] of edge.label.text.split("\n").entries()) {
-      scene.add({
-        kind: "label",
-        owner: `${edge.id}:label:${index}`,
-        at: { x: edge.labelPosition.x, y: edge.labelPosition.y + index },
-        text: line,
-        width: edge.label.width,
-        styleRole: "edge.label",
-      });
-    }
+    drawLabel(scene, `${edge.id}:label`, edge.label, edge.labelPosition);
   }
 };
 
@@ -168,6 +197,12 @@ export const renderGridLayoutSurface = (
   }
 
   const composed = scene.compose();
+  const unresolved = composed.collisions.find((collision) => !collision.resolved);
+  if (unresolved) {
+    throw new Error(
+      `Unresolved scene collision at ${unresolved.x},${unresolved.y}: ${unresolved.owners.join(", ")}`,
+    );
+  }
   return cropSurface({
     canvas: composed.canvas,
     styleRoleCanvas: composed.styleRoleCanvas,

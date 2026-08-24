@@ -52,6 +52,12 @@ export type TextRenderProfile = {
 };
 
 export type RenderedTextCell = GridCell & { x: number; y: number };
+export type RenderedTextSpan = Omit<GridCell, "char"> & {
+  x: number;
+  width: number;
+  text: string;
+};
+export type RenderedTextRow = { y: number; spans: RenderedTextSpan[] };
 
 export type TextRenderDiagnostic = {
   code: string;
@@ -73,6 +79,18 @@ export type TextRenderResult =
       renderer: TextRendererId;
       pipeline: readonly TextRendererId[];
       cells: RenderedTextCell[];
+      diagnostics: TextRenderDiagnostic[];
+    };
+
+export type CompactTextRenderResult =
+  | Extract<TextRenderResult, { kind: "plain" }>
+  | {
+      kind: "spans";
+      renderer: TextRendererId;
+      pipeline: readonly TextRendererId[];
+      rows: RenderedTextRow[];
+      width: number;
+      height: number;
       diagnostics: TextRenderDiagnostic[];
     };
 

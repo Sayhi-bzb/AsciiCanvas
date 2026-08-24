@@ -1,4 +1,4 @@
-import type { RichTextCell } from "@/domains/canvas/public";
+import type { RichTextCell, RichTextRow } from "@/domains/canvas/public";
 import type {
   ClipboardCommandResult,
   SelectionCommandFactory,
@@ -40,6 +40,28 @@ type SelectionCommandState = ReturnType<Parameters<SelectionCommandFactory>[1]>;
 
 const resolveSelectionAreas = (state: SelectionCommandState) => {
   return getStaticGridSelectionAreas(state.staticGridSelection, state.grid);
+};
+
+const materializeRichRows = (rows: readonly RichTextRow[]): RichTextCell[] => {
+  const cells: RichTextCell[] = [];
+  for (const row of rows) {
+    for (const span of row.spans) {
+      let x = span.x;
+      for (const char of splitGraphemes(span.text)) {
+        cells.push({
+          x,
+          y: row.y,
+          char,
+          color: span.color,
+          ...(span.bgColor ? { bgColor: span.bgColor } : {}),
+          ...(span.attrs ? { attrs: { ...span.attrs } } : {}),
+          ...(span.href ? { href: span.href } : {}),
+        });
+        x += getCellOccupancy(char);
+      }
+    }
+  }
+  return cells;
 };
 
 const applied = (changed: boolean): ClipboardCommandResult => ({
@@ -502,12 +524,16 @@ export const createSelectionCommandFactory = ({
     if (getClipboardTargetFingerprint(getActiveDocumentId, state) !== targetFingerprint) {
       return failed("stale-target");
     }
-    const { pasteRichData, canvasMode } = state;
+    const { pasteRichData, pasteRichRows, canvasMode } = state;
 
     if (canvasMode === "structured") {
+      const renderedCells = payload.richCells ??
+        ("richRows" in payload && payload.richRows
+          ? materializeRichRows(payload.richRows)
+          : null);
       const textTarget = getStructuredTextPasteTarget(state);
       if (textTarget) {
-        const richText = richCellsToStructuredText(payload.richCells, {
+        const richText = richCellsToStructuredText(renderedCells, {
           color: brushColor,
         });
         const text =
@@ -555,7 +581,7 @@ export const createSelectionCommandFactory = ({
         return applied(true);
       }
 
-      const richText = richCellsToStructuredText(payload.richCells, {
+      const richText = richCellsToStructuredText(renderedCells, {
         color: brushColor,
       });
       const pastedText = payload.structuredText
@@ -588,6 +614,13 @@ export const createSelectionCommandFactory = ({
         textCursor: null,
         editingStructuredTextNodeId: null,
         structuredTextSelection: null,
+      });
+      return applied(true);
+    }
+
+    if ("richRows" in payload && payload.richRows) {
+      pasteRichRows(payload.richRows, undefined, {
+        selectResult: canvasMode === "freeform",
       });
       return applied(true);
     }

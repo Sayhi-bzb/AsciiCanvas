@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   CHARGRAPH_EXAMPLES,
+  getExampleClipboardSource,
   type CharGraphExampleKind,
   renderExample,
 } from "./examples";
@@ -39,6 +40,19 @@ describe("CharGraph showcase examples", () => {
     ]);
     expect(examples.every((example) => example.title.trim().length > 0)).toBe(true);
     expect(new Set(examples.map((example) => example.title))).toHaveLength(3);
+  });
+
+  it("uses canonical type-first syntax for Class attributes", async () => {
+    const examples = CHARGRAPH_EXAMPLES.filter((example) =>
+      example.id === "class" || example.id === "class-advanced"
+    );
+
+    expect(examples).toHaveLength(2);
+    for (const example of examples) {
+      expect(example.source).toContain("+string 标题");
+      expect(example.source).not.toMatch(/\+标题(?::\s*string|\s+string)/u);
+      expect((await renderExample(example)).text).toContain("+标题: string");
+    }
   });
 
   it.each(CHARGRAPH_EXAMPLES)("renders $id with its real renderer", async (example) => {
@@ -82,4 +96,30 @@ describe("CharGraph showcase examples", () => {
     expect(output.protocolText).toContain("\u001b[38;2;148;163;184m");
     expect(output.protocolText).not.toBe(output.text);
   });
+
+  it("copies Mermaid as a complete fenced block without changing its source", () => {
+    const example = CHARGRAPH_EXAMPLES.find(
+      (candidate) => candidate.id === "flowchart"
+    );
+    expect(example).toBeDefined();
+
+    const clipboardSource = getExampleClipboardSource(example!);
+
+    expect(example!.source).not.toContain("```");
+    expect(clipboardSource).toBe(`\`\`\`mermaid\n${example!.source}\n\`\`\``);
+    expect(clipboardSource.endsWith("```\n")).toBe(false);
+  });
+
+  it.each(["markdown-code", "markdown-code-intermediate", "markdown-code-advanced"])(
+    "does not duplicate the existing fence for %s",
+    (id) => {
+      const example = CHARGRAPH_EXAMPLES.find((candidate) => candidate.id === id);
+      expect(example).toBeDefined();
+
+      const clipboardSource = getExampleClipboardSource(example!);
+
+      expect(clipboardSource).toBe(example!.source);
+      expect(clipboardSource.match(/```/g)).toHaveLength(2);
+    }
+  );
 });

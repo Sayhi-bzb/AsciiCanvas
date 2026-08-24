@@ -25,6 +25,8 @@ export interface SceneWriteOptions {
   reserve?: boolean
   styleRole?: MermaidStyleRole
   topology?: 'shared' | 'independent'
+  /** Only strokes in the same explicit route bundle may share topology. */
+  bundleId?: string
 }
 
 export interface ScenePoint { x: number; y: number }
@@ -50,6 +52,7 @@ export interface StrokePrimitive {
   connections?: readonly string[]
   styleRole?: MermaidStyleRole
   topology?: 'shared' | 'independent'
+  bundleId?: string
 }
 
 export interface MarkerPrimitive {
@@ -58,6 +61,7 @@ export interface MarkerPrimitive {
   at: ScenePoint
   char: string
   styleRole?: MermaidStyleRole
+  bundleId?: string
 }
 
 export interface LabelPrimitive {
@@ -95,6 +99,7 @@ interface Contribution {
   order: number
   styleRole: MermaidStyleRole
   topology: 'shared' | 'independent'
+  bundleId?: string
 }
 
 const defaultStyleRole = (role: CharRole): MermaidStyleRole => {
@@ -161,8 +166,8 @@ const sharesConnection = (left: Contribution, right: Contribution) =>
   left.connections.includes(right.owner) ||
   right.connections.includes(left.owner)
 
-const sharesNamedConnection = (left: Contribution, right: Contribution) =>
-  left.connections.some(connection => right.connections.includes(connection))
+const sharesBundle = (left: Contribution, right: Contribution) =>
+  left.bundleId !== undefined && left.bundleId === right.bundleId
 
 const perpendicular = (left: Contribution, right: Contribution) => {
   if (rolePriority[left.role] !== rolePriority[right.role]) return false
@@ -181,10 +186,7 @@ const perpendicular = (left: Contribution, right: Contribution) => {
 
 const mayMergeTopology = (left: Contribution, right: Contribution) =>
   sharesConnection(left, right) ||
-  (left.topology === 'shared' && right.topology === 'shared' && (
-    rolePriority[left.role] === rolePriority[right.role] ||
-    sharesNamedConnection(left, right)
-  )) ||
+  (left.topology === 'shared' && right.topology === 'shared' && sharesBundle(left, right)) ||
   perpendicular(left, right)
 
 const topologyForContribution = (value: Contribution) => {
@@ -230,6 +232,7 @@ export class CharScene {
       order: this.order++,
       styleRole: options.styleRole ?? defaultStyleRole(role),
       topology: options.topology ?? 'shared',
+      bundleId: options.bundleId,
     })
     this.cells.set(key, values)
   }
@@ -239,6 +242,7 @@ export class CharScene {
       this.write(primitive.at.x, primitive.at.y, primitive.char, 'arrow', {
         owner: primitive.owner,
         styleRole: primitive.styleRole ?? 'edge.arrow',
+        bundleId: primitive.bundleId,
       })
       return
     }
@@ -325,6 +329,7 @@ export class CharScene {
           topologyMask: mask,
           styleRole: primitive.styleRole ?? 'edge.line',
           topology: primitive.topology ?? 'shared',
+          bundleId: primitive.bundleId,
         },
       )
     }
@@ -364,12 +369,22 @@ export class CharScene {
 
       const owners = [...new Set(values.map(value => value.owner))]
       if (owners.length > 1) {
+        const arrows = values.filter(value => value.role === 'arrow')
+        const markerOwner = (owner: string) =>
+          owner.replace(/:(?:source|target)-.*$/, '')
+        const terminalMarkerConflict = arrows.length > 0 && values
+          .filter(value => topologyForContribution(value) !== null)
+          .some(stroke => !arrows.some(arrow =>
+            markerOwner(arrow.owner) === stroke.owner || sharesBundle(arrow, stroke)
+          ))
         collisions.push({
           x,
           y,
           owners,
           roles: [...new Set(values.map(value => value.role))],
-          resolved: resolved || values.some(value => rolePriority[value.role] !== highestPriority),
+          resolved: !terminalMarkerConflict && (
+            resolved || values.some(value => rolePriority[value.role] !== highestPriority)
+          ),
         })
       }
     }

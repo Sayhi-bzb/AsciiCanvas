@@ -1,4 +1,8 @@
-import { getGraphemeCellWidth, splitGraphemes } from "./graphemes.js";
+import { createGraphemeCursor, getGraphemeCellWidth } from "./graphemes.js";
+import {
+  appendCharDeskTextSpan,
+  materializeCharDeskTextRows,
+} from "./row-spans.js";
 import type {
   CharDeskTextAttributes,
   CharDeskAnsiEvidence,
@@ -6,6 +10,7 @@ import type {
   CharDeskTextStyle,
   ParseCharDeskTextOptions,
   ParsedCharDeskText,
+  ParsedCharDeskTextRows,
 } from "./types.js";
 
 const BASIC_COLORS = [
@@ -250,10 +255,10 @@ const diagnostic = (
 
 export const CHARDESK_TEXT_PROTOCOL_VERSION = 1 as const;
 
-export const parseCharDeskText = (
+export const parseCharDeskTextRows = (
   source: string,
   options: ParseCharDeskTextOptions = {}
-): ParsedCharDeskText => {
+): ParsedCharDeskTextRows => {
   const syntax = options.syntax ?? "auto";
   const tabSize = options.tabSize ?? 4;
   if (!Number.isInteger(tabSize) || tabSize < 1) {
@@ -262,7 +267,7 @@ export const parseCharDeskText = (
 
   const defaults = cloneStyle(options.defaultStyle ?? {});
   let style = cloneStyle(defaults);
-  const cells: ParsedCharDeskText["cells"] = [];
+  const rows: ParsedCharDeskTextRows["rows"] = [];
   const diagnostics: CharDeskTextDiagnostic[] = [];
   const plainParts: string[] = [];
   let index = 0;
@@ -272,25 +277,15 @@ export const parseCharDeskText = (
   let hasAnsi = false;
   let ansiEvidence: CharDeskAnsiEvidence = "none";
   let hasLayout = false;
+  const graphemes = createGraphemeCursor(source);
 
-  const pushText = (text: string) => {
-    for (const grapheme of splitGraphemes(text)) {
-      const cellWidth = getGraphemeCellWidth(grapheme);
-      cells.push({
-        x,
-        y,
-        width: cellWidth,
-        text: grapheme,
-        ...(style.color ? { color: style.color } : {}),
-        ...(style.bgColor ? { bgColor: style.bgColor } : {}),
-        ...(style.attrs ? { attrs: cloneAttrs(style.attrs) } : {}),
-        ...(style.href ? { href: style.href } : {}),
-      });
-      x += cellWidth;
-      width = Math.max(width, x);
-      plainParts.push(grapheme);
-      hasLayout = true;
-    }
+  const pushGrapheme = (grapheme: string) => {
+    const cellWidth = getGraphemeCellWidth(grapheme);
+    appendCharDeskTextSpan(rows, x, y, cellWidth, grapheme, style, style.href);
+    x += cellWidth;
+    width = Math.max(width, x);
+    plainParts.push(grapheme);
+    hasLayout = true;
   };
 
   while (index < source.length) {
@@ -302,6 +297,7 @@ export const parseCharDeskText = (
         hasAnsi = true;
         ansiEvidence = "explicit";
         index = link.nextIndex;
+        graphemes.advanceTo(index);
         continue;
       }
 
@@ -327,6 +323,7 @@ export const parseCharDeskText = (
           );
         }
         index = sgr.nextIndex;
+        graphemes.advanceTo(index);
         continue;
       }
     }
@@ -340,12 +337,14 @@ export const parseCharDeskText = (
       plainParts.push("\n");
       hasLayout = true;
       index += isCrLf ? 2 : 1;
+      graphemes.advanceTo(index);
       continue;
     }
     if (char === "\t") {
       const spaces = tabSize - (x % tabSize);
-      pushText(" ".repeat(spaces));
+      for (let space = 0; space < spaces; space += 1) pushGrapheme(" ");
       index += 1;
+      graphemes.advanceTo(index);
       continue;
     }
     if (char !== undefined && char.charCodeAt(0) < 0x20) {
@@ -363,13 +362,14 @@ export const parseCharDeskText = (
               .padStart(4, "0")} was ignored.`
       );
       index += 1;
+      graphemes.advanceTo(index);
       continue;
     }
 
-    const grapheme = splitGraphemes(source.slice(index))[0];
-    if (!grapheme) break;
-    pushText(grapheme);
-    index += grapheme.length;
+    const next = graphemes.take(index);
+    if (!next) break;
+    pushGrapheme(next.segment);
+    index = next.nextIndex;
   }
 
   width = Math.max(width, x);
@@ -379,10 +379,21 @@ export const parseCharDeskText = (
     plainText: plainParts.join(""),
     width,
     height: hasLayout ? y + 1 : 0,
-    cells,
+    rows,
     hasAnsi,
     ansiEvidence,
     diagnostics,
+  };
+};
+
+export const parseCharDeskText = (
+  source: string,
+  options: ParseCharDeskTextOptions = {}
+): ParsedCharDeskText => {
+  const parsed = parseCharDeskTextRows(source, options);
+  return {
+    ...parsed,
+    cells: materializeCharDeskTextRows(parsed.rows),
   };
 };
 

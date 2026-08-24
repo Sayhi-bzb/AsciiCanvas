@@ -5,6 +5,28 @@ import type { LayoutGraph } from "./model.js";
 import { validateGridLayout } from "./validate.js";
 
 describe("ELK cell endpoint projection", () => {
+  it("reserves compound padding for endpoint-owned labels", () => {
+    const graph: LayoutGraph = {
+      direction: "TD",
+      spacing: { nodeNode: 2, nodeNodeBetweenLayers: 3 },
+      groups: [{ id: "group", label: "Domain" }],
+      nodes: [
+        { id: "a", label: "A", width: 5, height: 3, parentId: "group" },
+        { id: "b", label: "B", width: 5, height: 3, parentId: "group" },
+      ],
+      edges: [{
+        id: "edge",
+        source: "a",
+        target: "b",
+        targetLabel: { text: "0..*", width: 4, height: 1 },
+      }],
+    };
+
+    const group = toElkGraph(graph).children?.[0];
+    expect(group?.layoutOptions?.["elk.padding"])
+      .toBe("[top=2,left=2,bottom=2,right=5]");
+  });
+
   it("maps rooted cycle breaking without changing the default", () => {
     const graph: LayoutGraph = {
       direction: "TD",
@@ -22,6 +44,27 @@ describe("ELK cell endpoint projection", () => {
       .toBe("DEPTH_FIRST");
     expect(toElkGraph({ ...graph, cycleBreaking: "automatic" })
       .layoutOptions?.["elk.layered.cycleBreaking.strategy"]).toBeUndefined();
+  });
+
+  it("maps balanced node alignment without changing automatic graphs", () => {
+    const graph: LayoutGraph = {
+      direction: "TD",
+      nodeAlignment: "balanced",
+      spacing: { nodeNode: 2, nodeNodeBetweenLayers: 3 },
+      groups: [],
+      nodes: [
+        { id: "a", label: "A", width: 5, height: 3 },
+        { id: "b", label: "B", width: 5, height: 3 },
+      ],
+      edges: [{ id: "edge", source: "a", target: "b" }],
+    };
+
+    expect(toElkGraph(graph).layoutOptions?.[
+      "elk.layered.nodePlacement.bk.fixedAlignment"
+    ]).toBe("BALANCED");
+    expect(toElkGraph({ ...graph, nodeAlignment: "automatic" }).layoutOptions?.[
+      "elk.layered.nodePlacement.bk.fixedAlignment"
+    ]).toBeUndefined();
   });
 
   it("gives every independent edge end a dedicated fixed-order ELK port", () => {
@@ -184,6 +227,49 @@ describe("ELK cell endpoint projection", () => {
       edge.targetEndpoint.marker,
       edge.targetEndpoint.anchor,
     ]);
+  });
+
+  it("aligns readable endpoints instead of keeping a one-cell dogleg", () => {
+    const graph: LayoutGraph = {
+      direction: "TD",
+      spacing: { nodeNode: 2, nodeNodeBetweenLayers: 3 },
+      groups: [],
+      nodes: [
+        { id: "a", label: "A", width: 7, height: 3 },
+        { id: "b", label: "B", width: 7, height: 3 },
+      ],
+      edges: [{
+        id: "edge",
+        source: "a",
+        target: "b",
+        routing: { quality: "readable", targetClearance: 1 },
+      }],
+    };
+    const laidOut: ElkNode = {
+      id: "layout:root",
+      width: 20,
+      height: 14,
+      children: [
+        { id: "a", x: 1, y: 1, width: 7, height: 3 },
+        { id: "b", x: 2, y: 8, width: 7, height: 3 },
+      ],
+      edges: [{
+        id: "edge",
+        sources: ["a"],
+        targets: ["b"],
+        sections: [{
+          id: "edge:section",
+          startPoint: { x: 4.5, y: 4 },
+          bendPoints: [{ x: 4.5, y: 5 }, { x: 5.5, y: 5 }],
+          endPoint: { x: 5.5, y: 8 },
+        }],
+      }],
+    };
+
+    const edge = fromElkGraph(graph, laidOut).edges[0]!;
+
+    expect(edge.sourceEndpoint.anchor.x).toBe(edge.targetEndpoint.anchor.x);
+    expect(new Set(edge.points.map((point) => point.x))).toEqual(new Set([5]));
   });
 
   it("preserves distinct ELK attachment positions for distributed ports", () => {

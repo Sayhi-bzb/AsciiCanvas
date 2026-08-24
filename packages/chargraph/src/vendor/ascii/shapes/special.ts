@@ -23,9 +23,9 @@ import { getShapePadding } from './padding.js'
 /**
  * Subroutine shape renderer — double-bordered rectangle.
  * Renders as:
- *   ┌┬─────────┬┐
+ *   ╭┬─────────┬╮
  *   ││  Label  ││
- *   └┴─────────┴┘
+ *   ╰┴─────────┴╯
  */
 export const subroutineRenderer: ShapeRenderer = {
   getDimensions(label: string, options: ShapeRenderOptions): ShapeDimensions {
@@ -56,16 +56,17 @@ export const subroutineRenderer: ShapeRenderer = {
   render(label: string, dimensions: ShapeDimensions, options: ShapeRenderOptions): Canvas {
     const { width, height } = dimensions
     const canvas = mkCanvas(width - 1, height - 1)
+    const outerCorners = getCorners('rectangle', options.useAscii)
 
     const hChar = options.useAscii ? '-' : '─'
     const vChar = options.useAscii ? '|' : '│'
 
     // Top border
-    canvas[0]![0] = options.useAscii ? '+' : '┌'
+    canvas[0]![0] = outerCorners.tl
     canvas[1]![0] = options.useAscii ? '+' : '┬'
     for (let x = 2; x < width - 2; x++) canvas[x]![0] = hChar
     canvas[width - 2]![0] = options.useAscii ? '+' : '┬'
-    canvas[width - 1]![0] = options.useAscii ? '+' : '┐'
+    canvas[width - 1]![0] = outerCorners.tr
 
     // Sides with double border
     for (let y = 1; y < height - 1; y++) {
@@ -76,11 +77,11 @@ export const subroutineRenderer: ShapeRenderer = {
     }
 
     // Bottom border
-    canvas[0]![height - 1] = options.useAscii ? '+' : '└'
+    canvas[0]![height - 1] = outerCorners.bl
     canvas[1]![height - 1] = options.useAscii ? '+' : '┴'
     for (let x = 2; x < width - 2; x++) canvas[x]![height - 1] = hChar
     canvas[width - 2]![height - 1] = options.useAscii ? '+' : '┴'
-    canvas[width - 1]![height - 1] = options.useAscii ? '+' : '┘'
+    canvas[width - 1]![height - 1] = outerCorners.br
 
     // Center the label
     const lines = splitLines(label)

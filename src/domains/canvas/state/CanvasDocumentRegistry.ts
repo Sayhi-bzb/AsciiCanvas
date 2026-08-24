@@ -5,6 +5,13 @@ import type {
   StructuredNode,
 } from "@/domains/structured-content/public";
 import type { GridCell } from "@/shared/types";
+import {
+  CellPlaneIndex,
+  gridChangesToCellPlaneOperation,
+  gridEntriesToCellPlaneOperation,
+  type CellPlaneOperation,
+  type CellPlaneReader,
+} from "../cell-plane/model";
 import { areJsonValuesEqual } from "@/shared/utils/equality";
 import { normalizeGridCellEntries } from "@/shared/utils/grid-codec";
 export type CanvasHistoryMode = "save" | "merge" | "none" | "reset";
@@ -16,16 +23,23 @@ export type CanvasHistoryCheckpoint = {
 const LOCAL_ORIGIN = Symbol("canvas-local-origin");
 const HISTORY_IGNORED_ORIGIN = Symbol("canvas-history-ignored");
 
-type CanvasDocumentSeed = {
+export type CanvasDocumentSeed = {
   grid: [string, GridCell][];
   scene: StructuredNode[];
   components?: StructuredComponentInstance[];
+};
+
+export type CanvasDocumentLifecycle = {
+  onCreate: (id: string, doc: Y.Doc) => void;
+  onDelete: (id: string) => void;
 };
 
 type CanvasYDocument = {
   id: string;
   doc: Y.Doc;
   grid: Y.Map<GridCell>;
+  operations: Y.Array<CellPlaneOperation>;
+  cellPlaneIndex: CellPlaneIndex;
   scene: Y.Map<StructuredNode>;
   components: Y.Map<StructuredComponentInstance>;
   meta: Y.Map<unknown>;
@@ -37,6 +51,7 @@ type CanvasDocumentTransaction = {
   gridKeysChanged: Set<string>;
   sceneChanged: boolean;
   componentsChanged: boolean;
+  cellPlaneChanged: boolean;
 };
 
 type CanvasGridWriter = {
@@ -87,9 +102,12 @@ export class CanvasDocumentRegistry {
     availability: { canUndo: boolean; canRedo: boolean }
   ) => void>();
   #active: CanvasYDocument;
+  #lifecycle: CanvasDocumentLifecycle | null = null;
+  #operationSequence = 0;
   #disposed = false;
 
   readonly yMainGrid: Y.Map<GridCell>;
+  readonly yCellPlaneOperations: Y.Array<CellPlaneOperation>;
   readonly yStructuredScene: Y.Map<StructuredNode>;
   readonly yStructuredComponents: Y.Map<StructuredComponentInstance>;
 
@@ -97,6 +115,7 @@ export class CanvasDocumentRegistry {
     this.#active = this.#createDocument(initialId);
     this.#documents.set(initialId, this.#active);
     this.yMainGrid = createProxy(() => this.#active.grid);
+    this.yCellPlaneOperations = createProxy(() => this.#active.operations);
     this.yStructuredScene = createProxy(() => this.#active.scene);
     this.yStructuredComponents = createProxy(() => this.#active.components);
   }
@@ -116,6 +135,30 @@ export class CanvasDocumentRegistry {
   getActiveDocumentId = () => this.#active.id;
   getDocument = (id: string) => this.#documents.get(id) ?? null;
   getCollaborationDocument = (id: string) => this.#documents.get(id)?.doc ?? null;
+  getCellPlaneReader = (): CellPlaneReader => this.#active.cellPlaneIndex;
+
+  configureDocumentLifecycle = (lifecycle: CanvasDocumentLifecycle | null) => {
+    this.#lifecycle = lifecycle;
+  };
+
+  /** Installs a document that has already completed external persistence restore. */
+  adoptDocument = (id: string, doc: Y.Doc) => {
+    this.#assertActive();
+    const previous = this.#documents.get(id);
+    const wasActive = previous === this.#active;
+    const next = this.#createDocument(id, undefined, doc, false);
+    this.#documents.set(id, next);
+    if (wasActive) {
+      this.#active = next;
+      this.#activeListeners.forEach((listener) => listener(next, previous));
+    }
+    if (previous) {
+      previous.undoManager.destroy();
+      previous.doc.destroy();
+    }
+    this.#emitHistory();
+    return next;
+  };
 
   getDocumentSeed = (
     id: string,
@@ -188,7 +231,10 @@ export class CanvasDocumentRegistry {
     const document = this.#documents.get(id);
     if (!document) return false;
     document.doc.transact(() => {
-      if (mode === "structured") document.grid.clear();
+      if (mode === "structured") {
+        document.grid.clear();
+        document.operations.delete(0, document.operations.length);
+      }
       else {
         document.scene.clear();
         document.components.clear();
@@ -211,6 +257,7 @@ export class CanvasDocumentRegistry {
     document.undoManager.destroy();
     document.doc.destroy();
     this.#documents.delete(id);
+    this.#lifecycle?.onDelete(id);
     return true;
   };
 
@@ -222,6 +269,7 @@ export class CanvasDocumentRegistry {
       const change = this.#readTransaction(observed, transaction);
       if (
         change.gridKeysChanged.size > 0 ||
+        change.cellPlaneChanged ||
         change.sceneChanged ||
         change.componentsChanged
       ) listener(change);
@@ -295,7 +343,44 @@ export class CanvasDocumentRegistry {
   mutateGrid = (
     mutation: (grid: CanvasGridWriter) => void,
     history: CanvasHistoryMode | boolean = "save"
-  ) => this.runTransaction(() => mutation(this.#active.grid), history);
+  ) => this.runTransaction(() => {
+    const grid = this.#active.grid;
+    const changes = new Map<
+      string,
+      { before?: GridCell; after?: GridCell }
+    >();
+    const remember = (key: string) => {
+      if (changes.has(key)) return;
+      const before = grid.get(key);
+      changes.set(key, before ? { before } : {});
+    };
+    const writer: CanvasGridWriter = {
+      get: (key) => grid.get(key),
+      set: (key, value) => {
+        remember(key);
+        grid.set(key, value);
+      },
+      delete: (key) => {
+        remember(key);
+        grid.delete(key);
+      },
+      clear: () => {
+        Array.from(grid.keys()).forEach(remember);
+        grid.clear();
+      },
+    };
+    mutation(writer);
+    changes.forEach((change, key) => {
+      const after = grid.get(key);
+      if (after) change.after = after;
+      if (areJsonValuesEqual(change.before, change.after)) changes.delete(key);
+    });
+    const operation = gridChangesToCellPlaneOperation(
+      `${this.#active.doc.clientID}:${this.#operationSequence++}`,
+      changes
+    );
+    if (operation) this.#active.operations.push([operation]);
+  }, history);
 
   replaceStructuredContent = (
     scene: StructuredNode[],
@@ -310,7 +395,13 @@ export class CanvasDocumentRegistry {
     this.runTransaction(() => {
       this.#active.scene.clear();
       this.#active.grid.clear();
+      this.#active.operations.delete(0, this.#active.operations.length);
       entries.forEach(([key, cell]) => this.#active.grid.set(key, cell));
+      const bootstrap = gridEntriesToCellPlaneOperation(
+        `bootstrap:${this.#active.id}:${this.#operationSequence++}`,
+        entries
+      );
+      if (bootstrap) this.#active.operations.push([bootstrap]);
     }, "reset");
 
   dispose = () => {
@@ -325,25 +416,62 @@ export class CanvasDocumentRegistry {
     this.#documents.clear();
   };
 
-  #createDocument(id: string, seed?: CanvasDocumentSeed): CanvasYDocument {
-    const doc = new Y.Doc({ guid: id });
+  #createDocument(
+    id: string,
+    seed?: CanvasDocumentSeed,
+    source?: Y.Doc,
+    notifyLifecycle = true
+  ): CanvasYDocument {
+    const doc = source ?? new Y.Doc({ guid: id });
     const grid = doc.getMap<GridCell>("main-grid");
+    const operations = doc.getArray<CellPlaneOperation>("cell-plane-operations");
     const scene = doc.getMap<StructuredNode>("structured-scene");
     const components = doc.getMap<StructuredComponentInstance>("structured-components");
     const document: CanvasYDocument = {
       id,
       doc,
       grid,
+      operations,
+      cellPlaneIndex: new CellPlaneIndex(operations.toArray()),
       scene,
       components,
       meta: doc.getMap("document-meta"),
       integrityIssues: new Map(),
-      undoManager: new Y.UndoManager([grid, scene, components], {
+      undoManager: new Y.UndoManager([operations, grid, scene, components], {
         captureTimeout: 500,
         trackedOrigins: new Set([LOCAL_ORIGIN]),
       }),
     };
+    operations.observe((event) => {
+      const delta = event.changes.delta;
+      const insertedCount = delta.reduce(
+        (count, item) => count + (item.insert?.length ?? 0),
+        0
+      );
+      const deletedCount = delta.reduce(
+        (count, item) => count + (item.delete ?? 0),
+        0
+      );
+      const previousLength = operations.length - insertedCount + deletedCount;
+      let position = 0;
+      let appendOnly = deletedCount === 0;
+      const appended: CellPlaneOperation[] = [];
+      for (const item of delta) {
+        position += item.retain ?? 0;
+        if (item.insert) {
+          if (position !== previousLength + appended.length) appendOnly = false;
+          appended.push(...item.insert);
+          position += item.insert.length;
+        }
+      }
+      if (appendOnly) appended.forEach((operation) => document.cellPlaneIndex.append(operation));
+      else document.cellPlaneIndex = new CellPlaneIndex(operations.toArray());
+    });
     const repairOverlappingGridCells = (transaction: Y.Transaction) => {
+      if (
+        transaction.origin === LOCAL_ORIGIN ||
+        transaction.origin === HISTORY_IGNORED_ORIGIN
+      ) return;
       let gridChanged = false;
       for (const type of transaction.changed.keys()) {
         if (Object.is(type, grid)) gridChanged = true;
@@ -376,15 +504,22 @@ export class CanvasDocumentRegistry {
     document.undoManager.on("stack-cleared", notify);
     document.undoManager.on("stack-item-updated", notify);
     if (seed) this.#replaceDocument(document, seed);
+    if (notifyLifecycle) this.#lifecycle?.onCreate(id, doc);
     return document;
   }
 
   #replaceDocument(document: CanvasYDocument, seed: CanvasDocumentSeed) {
     document.doc.transact(() => {
       document.grid.clear();
+      document.operations.delete(0, document.operations.length);
       document.scene.clear();
       document.components.clear();
       seed.grid.forEach(([key, cell]) => document.grid.set(key, cell));
+      const bootstrap = gridEntriesToCellPlaneOperation(
+        `bootstrap:${document.id}`,
+        seed.grid
+      );
+      if (bootstrap) document.operations.push([bootstrap]);
       seed.scene.forEach((node) => document.scene.set(node.id, node));
       seed.components?.forEach((component) =>
         document.components.set(component.id, component)
@@ -398,13 +533,15 @@ export class CanvasDocumentRegistry {
       gridKeysChanged: new Set(),
       sceneChanged: false,
       componentsChanged: false,
+      cellPlaneChanged: false,
     };
     for (const [type, keys] of transaction.changed) {
       if (Object.is(type, document.grid)) {
         keys.forEach((key) => {
           if (key !== null) change.gridKeysChanged.add(key);
         });
-      } else if (Object.is(type, document.scene)) change.sceneChanged = true;
+      } else if (Object.is(type, document.operations)) change.cellPlaneChanged = true;
+      else if (Object.is(type, document.scene)) change.sceneChanged = true;
       else if (Object.is(type, document.components)) change.componentsChanged = true;
     }
     return change;

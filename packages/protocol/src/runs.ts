@@ -1,5 +1,9 @@
-import { getGraphemeCellWidth, splitGraphemes } from "./graphemes.js";
+import { createGraphemeCursor, getGraphemeCellWidth } from "./graphemes.js";
 import { CHARDESK_TEXT_PROTOCOL_VERSION } from "./parser.js";
+import {
+  appendCharDeskTextSpan,
+  materializeCharDeskTextRows,
+} from "./row-spans.js";
 import type {
   CharDeskTextAttributes,
   CharDeskTextDiagnostic,
@@ -7,6 +11,7 @@ import type {
   CharDeskTextStyle,
   LayoutCharDeskTextRunsOptions,
   ParsedCharDeskText,
+  ParsedCharDeskTextRows,
 } from "./types.js";
 
 const cloneAttrs = (attrs?: CharDeskTextAttributes) =>
@@ -25,17 +30,17 @@ const mergeStyle = (
     : {}),
 });
 
-export const layoutCharDeskTextRuns = (
+export const layoutCharDeskTextRunsToRows = (
   runs: readonly CharDeskTextRun[],
   options: LayoutCharDeskTextRunsOptions = {}
-): ParsedCharDeskText => {
+): ParsedCharDeskTextRows => {
   const tabSize = options.tabSize ?? 4;
   if (!Number.isInteger(tabSize) || tabSize < 1) {
     throw new RangeError("tabSize must be a positive integer.");
   }
 
   const source = runs.map((run) => run.text).join("");
-  const cells: ParsedCharDeskText["cells"] = [];
+  const rows: ParsedCharDeskTextRows["rows"] = [];
   const diagnostics: CharDeskTextDiagnostic[] = [];
   const plainParts: string[] = [];
   let x = 0;
@@ -43,29 +48,23 @@ export const layoutCharDeskTextRuns = (
   let width = 0;
   let hasLayout = false;
 
-  const pushText = (text: string, style: CharDeskTextStyle, href?: string) => {
-    for (const grapheme of splitGraphemes(text)) {
-      const cellWidth = getGraphemeCellWidth(grapheme);
-      cells.push({
-        x,
-        y,
-        width: cellWidth,
-        text: grapheme,
-        ...(style.color ? { color: style.color } : {}),
-        ...(style.bgColor ? { bgColor: style.bgColor } : {}),
-        ...(style.attrs ? { attrs: cloneAttrs(style.attrs) } : {}),
-        ...(href ? { href } : {}),
-      });
-      x += cellWidth;
-      width = Math.max(width, x);
-      plainParts.push(grapheme);
-      hasLayout = true;
-    }
+  const pushGrapheme = (
+    grapheme: string,
+    style: CharDeskTextStyle,
+    href?: string
+  ) => {
+    const cellWidth = getGraphemeCellWidth(grapheme);
+    appendCharDeskTextSpan(rows, x, y, cellWidth, grapheme, style, href);
+    x += cellWidth;
+    width = Math.max(width, x);
+    plainParts.push(grapheme);
+    hasLayout = true;
   };
 
   let sourceOffset = 0;
   for (const run of runs) {
     const style = mergeStyle(options.defaultStyle ?? {}, run);
+    const graphemes = createGraphemeCursor(run.text);
     let index = 0;
     while (index < run.text.length) {
       const char = run.text[index];
@@ -77,11 +76,16 @@ export const layoutCharDeskTextRuns = (
         plainParts.push("\n");
         hasLayout = true;
         index += isCrLf ? 2 : 1;
+        graphemes.advanceTo(index);
         continue;
       }
       if (char === "\t") {
-        pushText(" ".repeat(tabSize - (x % tabSize)), style, run.href);
+        const spaces = tabSize - (x % tabSize);
+        for (let space = 0; space < spaces; space += 1) {
+          pushGrapheme(" ", style, run.href);
+        }
         index += 1;
+        graphemes.advanceTo(index);
         continue;
       }
       if (char !== undefined && char.charCodeAt(0) < 0x20) {
@@ -99,12 +103,13 @@ export const layoutCharDeskTextRuns = (
                   .padStart(4, "0")} was ignored.`,
         });
         index += 1;
+        graphemes.advanceTo(index);
         continue;
       }
-      const grapheme = splitGraphemes(run.text.slice(index))[0];
-      if (!grapheme) break;
-      pushText(grapheme, style, run.href);
-      index += grapheme.length;
+      const next = graphemes.take(index);
+      if (!next) break;
+      pushGrapheme(next.segment, style, run.href);
+      index = next.nextIndex;
     }
     sourceOffset += run.text.length;
   }
@@ -116,9 +121,20 @@ export const layoutCharDeskTextRuns = (
     plainText: plainParts.join(""),
     width,
     height: hasLayout ? y + 1 : 0,
-    cells,
+    rows,
     hasAnsi: false,
     ansiEvidence: "none",
     diagnostics,
+  };
+};
+
+export const layoutCharDeskTextRuns = (
+  runs: readonly CharDeskTextRun[],
+  options: LayoutCharDeskTextRunsOptions = {}
+): ParsedCharDeskText => {
+  const parsed = layoutCharDeskTextRunsToRows(runs, options);
+  return {
+    ...parsed,
+    cells: materializeCharDeskTextRows(parsed.rows),
   };
 };

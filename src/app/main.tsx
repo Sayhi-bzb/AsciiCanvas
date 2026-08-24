@@ -23,10 +23,27 @@ const profile = window.location.pathname === "/blackboard"
   ? BLACKBOARD_HOST_PROFILE
   : EDITOR_HOST_PROFILE;
 const host = getApplicationEditorHost(profile);
+if (new URLSearchParams(window.location.search).has("canvas-stress")) {
+  Object.defineProperty(window, "__chardeskCanvasStress", {
+    configurable: true,
+    value: {
+      ready: () => host.canvas.ready,
+      flush: () => host.canvas.retryPersistence(),
+      cellCount: () => host.canvas.getState().grid.size,
+      persistence: () => host.canvas.getPersistenceSnapshot(),
+    },
+  });
+}
 if (profile.id === "editor") captureOnboardingEntryState();
 installModuleLoadRecovery();
 
 const root = ReactDOM.createRoot(document.getElementById("root")!);
+
+root.render(
+  <main className="flex min-h-dvh items-center justify-center bg-background text-sm text-muted-foreground">
+    Restoring canvas…
+  </main>
+);
 
 const renderLoadFailure = () => {
   root.render(
@@ -48,7 +65,7 @@ const renderLoadFailure = () => {
   );
 };
 
-void import("./App").then((module) => {
+void Promise.all([host.canvas.ready, import("./App")]).then(([, module]) => {
   const { default: App } = requireLoadedModule(module);
   root.render(
     <React.StrictMode>

@@ -21,3 +21,16 @@ export {
 export type { SessionCommands } from "./commands";
 export type { CanvasMode } from "./mode";
 export { isStaticGridMode } from "./mode";
+export {
+  CANVAS_CATALOG_DATABASE,
+  CANVAS_CATALOG_MARKER_KEY,
+  CANVAS_CATALOG_VERSION,
+  createIndexedDbCanvasCatalog,
+} from "./indexedDbCatalog";
+export type {
+  CanvasCatalog,
+  CanvasCatalogPreferences,
+  CanvasCatalogSession,
+  CanvasCatalogSlide,
+  CanvasCatalogSnapshot,
+} from "./indexedDbCatalog";

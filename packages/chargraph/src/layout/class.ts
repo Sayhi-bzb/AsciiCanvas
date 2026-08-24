@@ -6,7 +6,6 @@ import type {
   RelationshipType,
 } from "../vendor/class/types.js";
 import { splitLines } from "../vendor/ascii/multiline-utils.js";
-import type { CharScene } from "../vendor/ascii/scene.js";
 import type { AsciiConfig, Canvas } from "../vendor/ascii/types.js";
 import type {
   GridPoint,
@@ -86,53 +85,25 @@ const markerFor = (
   logicalEnd: "from" | "to",
 ) => relationship.markerAt === logicalEnd;
 
-const paintCardinality = (
-  scene: CharScene,
-  edgeId: string,
-  endpoint: PositionedEdgeEndpoint,
-  text: string,
-) => {
-  const lines = text.split("\n");
-  const at = endpoint.side === "left" || endpoint.side === "right"
-    ? { x: endpoint.marker.x, y: Math.max(0, endpoint.marker.y - lines.length) }
-    : { x: endpoint.marker.x + 2, y: endpoint.marker.y };
-  for (const [index, line] of lines.entries()) {
-    scene.add({
-      kind: "label",
-      owner: `${edgeId}:cardinality:${index}`,
-      at: { x: at.x, y: at.y + index },
-      text: line,
-      width: getTextCellWidth(line),
-      styleRole: "edge.label",
-    });
-  }
-};
-
 const endpointPresentation = (
   relationship: ClassRelationship,
   logicalEnd: "from" | "to",
 ): LayeredEndpointPresentation | undefined => {
   const hasMarker = markerFor(relationship, logicalEnd);
-  const cardinality = cardinalityFor(relationship, logicalEnd);
-  if (!hasMarker && !cardinality) return undefined;
+  if (!hasMarker) return undefined;
   const paint: LayeredEndpointPainter = (scene, context) => {
-    if (hasMarker) {
-      scene.add({
-        kind: "marker",
-        owner: `${context.edge.id}:${context.end}-uml-marker`,
-        at: context.endpoint.marker,
-        char: directionalMarker(
-          relationship.type,
-          travelTowardNode(context.endpoint),
-          context.useAscii,
-        ),
-      });
-    }
-    if (cardinality) {
-      paintCardinality(scene, context.edge.id, context.endpoint, cardinality);
-    }
+    scene.add({
+      kind: "marker",
+      owner: `${context.edge.id}:${context.end}-uml-marker`,
+      at: context.endpoint.marker,
+      char: directionalMarker(
+        relationship.type,
+        travelTowardNode(context.endpoint),
+        context.useAscii,
+      ),
+    });
   };
-  return { trimAnchor: hasMarker, paint };
+  return { trimAnchor: true, paint };
 };
 
 export const createLayeredClassDiagram = (
@@ -187,15 +158,25 @@ export const createLayeredClassDiagram = (
       source: nodeId(source),
       target: nodeId(target),
       label: createLayoutLabel(relationship.label),
+      sourceLabel: createLayoutLabel(cardinalityFor(relationship, sourceLogicalEnd)),
+      targetLabel: createLayoutLabel(cardinalityFor(relationship, targetLogicalEnd)),
       labelLayout: "route" as const,
     };
   });
+  const endpointLabelGap = Math.max(
+    3,
+    ...edges.map((edge) =>
+      (edge.sourceLabel?.height ?? 0) +
+      (edge.targetLabel?.height ?? 0) +
+      1
+    ),
+  );
 
   const graph: LayoutGraph = {
     direction: "TD",
     spacing: {
       nodeNode: Math.max(3, config.paddingX),
-      nodeNodeBetweenLayers: Math.max(3, config.paddingY),
+      nodeNodeBetweenLayers: Math.max(endpointLabelGap, config.paddingY),
     },
     nodes,
     edges,

@@ -5,13 +5,13 @@ description: Plugin boundary for converting pasted source text into editable Can
 
 External plain text crosses one runtime before paste:
 
-`clipboard source -> document text-rendering runtime -> plain text or styled protocol cells -> Canvas command`
+`clipboard source -> document text-rendering worker -> styled protocol row spans -> Canvas command`
 
 [`document/public.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/domains/document/public.ts)
 owns the plugin registry, active profile, persistence, and conversion result. `actions`
-only snapshots clipboard data and passes the result to Canvas. GridMap remains the only
-editable content store; renderer settings affect future paste and never reinterpret existing
-cells.
+only snapshots clipboard data and passes the result to Canvas. The compact boundary groups
+adjacent graphemes with one style; legacy callers may explicitly materialize cells. Renderer
+settings affect future paste and never reinterpret existing cells.
 
 Rendering has four stages: syntax decode, structural transform, style composition, and cell
 layout. ANSI is a decoder backed by `@chardesk/protocol`; Markdown delegates parsing and character
@@ -35,7 +35,9 @@ Markdown renders Codex-style headings, inline code, links, blockquotes, lists, t
 breaks, fenced code, and GFM tables at natural content width. Layout never depends on the
 viewport, zoom, or paste position. Disabled inline rules consume delimiters without styling;
 disabled block rules preserve their source slice. Raw mode preserves all delimiters. Renderer
-results may be asynchronous, and clipboard commands await them before mutating Canvas.
+results may be asynchronous, and clipboard commands await them before mutating Canvas. Inputs
+at or above 50,000 UTF-16 code units render in a module worker. The protocol layout is a streaming
+grapheme pass; a 10,000-line result stays as row spans until Canvas applies one transaction.
 
 CharGraph owns the browser-safe Markdown core adapted from `marked-terminal`, Shiki code
 highlighting, and independent Mermaid and math renderers. Each built-in Markdown module registers

@@ -1,4 +1,5 @@
 import {
+  CANVAS_CATALOG_MARKER_KEY,
   EDITOR_PERSISTENCE_KEY,
   LEGACY_EDITOR_PERSISTENCE_KEY,
 } from "@/domains/sessions/public";
@@ -43,7 +44,8 @@ function hasEditorPersistence() {
   try {
     return (
       window.localStorage.getItem(EDITOR_PERSISTENCE_KEY) !== null ||
-      window.localStorage.getItem(LEGACY_EDITOR_PERSISTENCE_KEY) !== null
+      window.localStorage.getItem(LEGACY_EDITOR_PERSISTENCE_KEY) !== null ||
+      window.localStorage.getItem(CANVAS_CATALOG_MARKER_KEY) !== null
     );
   } catch {
     return false;

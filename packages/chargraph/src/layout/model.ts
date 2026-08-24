@@ -29,6 +29,14 @@ export interface LayoutNode {
 export interface LayoutEdgeRouting {
   /** Whether collinear route cells may be shared with another edge. */
   topology?: LayoutTopology;
+  /** Explicit ownership for a structured fan-in or fan-out bus. */
+  bundleId?: string;
+  /** Opt-in to canonical orthogonal fan-in/fan-out bus construction. */
+  bundle?: "structured";
+  /** Only edges with the same visual routing contract may share a bus. */
+  bundleKey?: string;
+  /** Opt-in to legible cell-grid routing without one-cell doglegs. */
+  quality?: "readable";
   /** Whether a self-reference keeps ELK geometry or uses a compact grid route. */
   selfLoop?: "engine" | "compact";
   /** Marker cells reserved outward from each node boundary. */
@@ -41,6 +49,9 @@ export interface LayoutEdge {
   source: string;
   target: string;
   label?: LayoutLabel;
+  /** Labels owned by the source/target endpoint, such as UML cardinalities. */
+  sourceLabel?: LayoutLabel;
+  targetLabel?: LayoutLabel;
   /** Whether ELK reserves label bounds or the grid router places the label afterward. */
   labelLayout?: "reserve" | "route";
   routing?: LayoutEdgeRouting;
@@ -57,6 +68,8 @@ export interface LayoutGraph {
   direction: LayoutDirection;
   /** How a directed cycle chooses feedback edges before layering. */
   cycleBreaking?: LayoutCycleBreaking;
+  /** Cross-layer placement preference for layered node coordinates. */
+  nodeAlignment?: "automatic" | "balanced";
   spacing: {
     nodeNode: number;
     nodeNodeBetweenLayers: number;
@@ -94,6 +107,8 @@ export interface PositionedLayoutEdge extends LayoutEdge {
   sourceEndpoint: PositionedEdgeEndpoint;
   targetEndpoint: PositionedEdgeEndpoint;
   labelPosition?: GridPoint;
+  sourceLabelPosition?: GridPoint;
+  targetLabelPosition?: GridPoint;
 }
 
 export interface GridLayout {

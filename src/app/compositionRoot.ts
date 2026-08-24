@@ -13,6 +13,7 @@ import {
 import {
   createTextRenderingRuntime,
   parseDocumentSessionSource,
+  TextRenderingWorkerClient,
   type TextRenderingRuntime,
   type TextRenderingStorage,
 } from "@/domains/document/public";
@@ -46,6 +47,7 @@ export class ApplicationEditorHost {
   readonly collaboration: CollaborationRuntime;
   readonly editor: CanvasEditorRuntime;
   readonly textRendering: TextRenderingRuntime;
+  readonly textRenderingWorker: TextRenderingWorkerClient;
   readonly profile: EditorHostProfile;
   #disposed = false;
 
@@ -59,11 +61,12 @@ export class ApplicationEditorHost {
     this.profile = profile;
     this.collaboration = createCollaborationRuntime();
     this.textRendering = createTextRenderingRuntime({ storage: textRenderingStorage });
+    this.textRenderingWorker = new TextRenderingWorkerClient(this.textRendering);
     this.canvas = createCanvasRuntime({
       persistence: canvasPersistence,
       selectionCommands: createSelectionCommandFactory({
         getActiveDocumentId: () => this.canvas.documents.getActiveDocumentId(),
-        renderClipboardText: this.textRendering.render,
+        renderClipboardText: this.textRenderingWorker.render,
       }),
       parseSessionSource: parseDocumentSessionSource,
       reportIntegrityIssues: (issues) =>
@@ -93,6 +96,7 @@ export class ApplicationEditorHost {
     if (this.#disposed) return;
     this.#disposed = true;
     this.editor.dispose();
+    this.textRenderingWorker.dispose();
     await this.collaboration.disconnect();
     this.canvas.dispose();
   };

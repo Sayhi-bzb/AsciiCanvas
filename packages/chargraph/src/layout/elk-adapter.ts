@@ -33,6 +33,7 @@ const rootOptions = (
   direction: LayoutDirection,
   spacing: LayoutGraph["spacing"],
   cycleBreaking: LayoutGraph["cycleBreaking"] = "automatic",
+  nodeAlignment: LayoutGraph["nodeAlignment"] = "automatic",
 ) => ({
   "elk.algorithm": "layered",
   "elk.direction": directionMap[direction],
@@ -40,6 +41,9 @@ const rootOptions = (
   "elk.hierarchyHandling": "INCLUDE_CHILDREN",
   "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
   "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+  ...(nodeAlignment === "balanced"
+    ? { "elk.layered.nodePlacement.bk.fixedAlignment": "BALANCED" }
+    : {}),
   ...(cycleBreaking === "depth-first"
     ? { "elk.layered.cycleBreaking.strategy": "DEPTH_FIRST" }
     : {}),
@@ -166,6 +170,29 @@ export const toElkGraph = (graph: LayoutGraph): ElkNode => {
 
   const groupParents = new Map(graph.groups.map((group) => [group.id, group.parentId]));
   const nodesById = new Map(graph.nodes.map((node) => [node.id, node]));
+  const groupPadding = new Map(graph.groups.map((group) => [group.id, {
+    top: 2,
+    right: 2,
+    bottom: 2,
+    left: 2,
+  }]));
+  const reserveEndpointLabel = (
+    nodeId: string,
+    endpointLabel: LayoutLabel | undefined,
+  ) => {
+    const parentId = nodesById.get(nodeId)?.parentId;
+    const padding = parentId ? groupPadding.get(parentId) : undefined;
+    if (!padding || !endpointLabel) return;
+    if (graph.direction === "LR" || graph.direction === "RL") {
+      padding.top = Math.max(padding.top, endpointLabel.height + 1);
+    } else {
+      padding.right = Math.max(padding.right, endpointLabel.width + 1);
+    }
+  };
+  for (const edge of graph.edges) {
+    reserveEndpointLabel(edge.source, edge.sourceLabel);
+    reserveEndpointLabel(edge.target, edge.targetLabel);
+  }
   const ancestors = (parentId: string | undefined) => {
     const result: Array<string | undefined> = [];
     let current = parentId;
@@ -209,8 +236,16 @@ export const toElkGraph = (graph: LayoutGraph): ElkNode => {
       children: childrenFor(group.id),
       edges: directEdges.get(group.id),
       layoutOptions: {
-        ...rootOptions(graph.direction, graph.spacing, graph.cycleBreaking),
-        "elk.padding": "[top=2,left=2,bottom=2,right=2]",
+        ...rootOptions(
+          graph.direction,
+          graph.spacing,
+          graph.cycleBreaking,
+          graph.nodeAlignment,
+        ),
+        "elk.padding": (() => {
+          const padding = groupPadding.get(group.id)!;
+          return `[top=${padding.top},left=${padding.left},bottom=${padding.bottom},right=${padding.right}]`;
+        })(),
       },
     })),
     ...(directNodes.get(parentId) ?? []).map((node): ElkNode => ({
@@ -231,7 +266,12 @@ export const toElkGraph = (graph: LayoutGraph): ElkNode => {
     id: "layout:root",
     children: childrenFor(undefined),
     edges: directEdges.get(undefined),
-    layoutOptions: rootOptions(graph.direction, graph.spacing, graph.cycleBreaking),
+    layoutOptions: rootOptions(
+      graph.direction,
+      graph.spacing,
+      graph.cycleBreaking,
+      graph.nodeAlignment,
+    ),
   };
 };
 
@@ -452,6 +492,717 @@ interface RoutedEdge extends PositionedLayoutEdge {
   elkLabelPosition?: GridPoint;
 }
 
+type StructuredBundleKind = "fan-in" | "fan-out";
+
+const samePoint = (left: GridPoint, right: GridPoint) =>
+  left.x === right.x && left.y === right.y;
+
+const compactOrthogonalPoints = (points: GridPoint[]) => {
+  const unique = points.filter((point, index) =>
+    index === 0 || !samePoint(point, points[index - 1]!)
+  );
+  return unique.filter((point, index) => {
+    const previous = unique[index - 1];
+    const next = unique[index + 1];
+    if (!previous || !next) return true;
+    return !(
+      (previous.x === point.x && point.x === next.x) ||
+      (previous.y === point.y && point.y === next.y)
+    );
+  });
+};
+
+const cellsOnRoute = (points: GridPoint[]) => {
+  const cells: GridPoint[] = [];
+  for (let index = 1; index < points.length; index += 1) {
+    const from = points[index - 1]!;
+    const to = points[index]!;
+    if (from.x !== to.x && from.y !== to.y) return [];
+    const dx = Math.sign(to.x - from.x);
+    const dy = Math.sign(to.y - from.y);
+    let current = { ...from };
+    cells.push(current);
+    while (!samePoint(current, to)) {
+      current = { x: current.x + dx, y: current.y + dy };
+      cells.push(current);
+    }
+  }
+  return cells;
+};
+
+const routeAxisCells = (points: GridPoint[]) => {
+  const result = new Map<string, Set<RouteAxis>>();
+  for (let index = 1; index < points.length; index += 1) {
+    const from = points[index - 1]!;
+    const to = points[index]!;
+    if (from.x !== to.x && from.y !== to.y) continue;
+    const axis: RouteAxis = from.y === to.y ? "horizontal" : "vertical";
+    for (const point of cellsOnRoute([from, to])) {
+      const key = pointKey(point);
+      const axes = result.get(key) ?? new Set<RouteAxis>();
+      axes.add(axis);
+      result.set(key, axes);
+    }
+  }
+  return result;
+};
+
+const routeEntersForeignNode = (
+  edge: RoutedEdge,
+  points: GridPoint[],
+  nodes: PositionedLayoutNode[],
+) => cellsOnRoute(points).some((point) => nodes.some((node) =>
+  node.id !== edge.source &&
+  node.id !== edge.target &&
+  point.x > node.x &&
+  point.x < node.x + node.width - 1 &&
+  point.y > node.y &&
+  point.y < node.y + node.height - 1
+));
+
+const structuredBusRoute = (
+  edge: RoutedEdge,
+  kind: StructuredBundleKind,
+  busCoordinate: number,
+  vertical: boolean,
+) => {
+  const common = kind === "fan-out" ? edge.sourceEndpoint : edge.targetEndpoint;
+  const branch = kind === "fan-out" ? edge.targetEndpoint : edge.sourceEndpoint;
+  const commonJunction = vertical
+    ? { x: common.marker.x, y: busCoordinate }
+    : { x: busCoordinate, y: common.marker.y };
+  const branchJunction = vertical
+    ? { x: branch.marker.x, y: busCoordinate }
+    : { x: busCoordinate, y: branch.marker.y };
+  return compactOrthogonalPoints(kind === "fan-out"
+    ? [
+        edge.sourceEndpoint.anchor,
+        edge.sourceEndpoint.marker,
+        commonJunction,
+        branchJunction,
+        edge.targetEndpoint.marker,
+        edge.targetEndpoint.anchor,
+      ]
+    : [
+        edge.sourceEndpoint.anchor,
+        edge.sourceEndpoint.marker,
+        branchJunction,
+        commonJunction,
+        edge.targetEndpoint.marker,
+        edge.targetEndpoint.anchor,
+      ]);
+};
+
+const normalizeStructuredBundles = (
+  edges: RoutedEdge[],
+  nodes: PositionedLayoutNode[],
+  direction: LayoutDirection,
+) => {
+  const vertical = direction === "TD" || direction === "TB" || direction === "BT";
+  const sourceSide: GridSide = direction === "LR"
+    ? "right"
+    : direction === "RL"
+      ? "left"
+      : direction === "BT"
+        ? "top"
+        : "bottom";
+  const targetSide: GridSide = sourceSide === "right"
+    ? "left"
+    : sourceSide === "left"
+      ? "right"
+      : sourceSide === "top"
+        ? "bottom"
+        : "top";
+  const nodesById = new Map(nodes.map((node) => [node.id, node]));
+  const used = new Set<string>();
+  let result = [...edges];
+
+  const group = (kind: StructuredBundleKind) => {
+    const candidates = new Map<string, RoutedEdge[]>();
+    for (const edge of result) {
+      if (
+        used.has(edge.id) ||
+        edge.source === edge.target ||
+        edge.sourceLabel ||
+        edge.targetLabel ||
+        edge.routing?.bundle !== "structured" ||
+        edge.routing?.topology === "independent"
+      ) continue;
+      const sharedNodeId = kind === "fan-out" ? edge.source : edge.target;
+      const key = `${sharedNodeId}\0${edge.routing.bundleKey ?? "default"}`;
+      const members = candidates.get(key) ?? [];
+      members.push(edge);
+      candidates.set(key, members);
+    }
+
+    for (const members of candidates.values()) {
+      if (members.length < 2) continue;
+      const sharedNodeId = kind === "fan-out"
+        ? members[0]!.source
+        : members[0]!.target;
+      const sharedNode = nodesById.get(sharedNodeId);
+      if (!sharedNode) continue;
+      const otherNodes = members.map((edge) => nodesById.get(
+        kind === "fan-out" ? edge.target : edge.source,
+      ));
+      if (otherNodes.some((node) => !node)) continue;
+      const parentIds = new Set([sharedNode, ...otherNodes]
+        .map((node) => node?.parentId));
+      if (parentIds.size !== 1) continue;
+
+      const canonicalMembers = members.map((edge) => ({
+        ...edge,
+        sourceEndpoint: endpointOnSide(nodesById.get(edge.source)!, sourceSide),
+        targetEndpoint: endpointOnSide(nodesById.get(edge.target)!, targetSide),
+      }));
+      const commonEndpoints = canonicalMembers.map((edge) =>
+        kind === "fan-out" ? edge.sourceEndpoint : edge.targetEndpoint
+      );
+      const branchEndpoints = canonicalMembers.map((edge) =>
+        kind === "fan-out" ? edge.targetEndpoint : edge.sourceEndpoint
+      );
+      const commonSide = commonEndpoints[0]?.side;
+      const branchSide = branchEndpoints[0]?.side;
+      if (
+        !commonSide ||
+        !branchSide ||
+        commonEndpoints.some((endpoint) => endpoint.side !== commonSide) ||
+        branchEndpoints.some((endpoint) => endpoint.side !== branchSide)
+      ) continue;
+
+      const branchRanks = branchEndpoints.map((endpoint) =>
+        vertical ? endpoint.marker.y : endpoint.marker.x
+      );
+      const commonRank = vertical
+        ? commonEndpoints[0]!.marker.y
+        : commonEndpoints[0]!.marker.x;
+      const branchDirections = new Set(branchRanks.map((rank) =>
+        Math.sign(rank - commonRank)
+      ));
+      if (branchDirections.size !== 1 || branchDirections.has(0)) continue;
+      const branchDirection = [...branchDirections][0]!;
+      const nearestDistance = Math.min(...branchRanks.map((rank) =>
+        Math.abs(rank - commonRank)
+      ));
+      if (nearestDistance < 2) continue;
+      const busCoordinate = commonRank + branchDirection *
+        Math.max(1, Math.floor(nearestDistance / 2));
+      const sharedEndpoint = commonEndpoints[0]!;
+      const normalizedMembers = canonicalMembers.map((edge) => kind === "fan-out"
+        ? { ...edge, sourceEndpoint: sharedEndpoint }
+        : { ...edge, targetEndpoint: sharedEndpoint });
+      const routes = normalizedMembers.map((edge) => structuredBusRoute(
+        edge,
+        kind,
+        busCoordinate,
+        vertical,
+      ));
+      if (routes.some((route, index) =>
+        routeEntersForeignNode(normalizedMembers[index]!, route, nodes)
+      )) continue;
+
+      const bundleId = [
+        "bundle",
+        kind,
+        sharedNodeId,
+        members[0]!.routing?.bundleKey ?? "default",
+      ].join(":");
+      const normalizedById = new Map(normalizedMembers.map((edge, index) => [
+        edge.id,
+        { edge, points: routes[index]! },
+      ]));
+      result = result.map((edge) => normalizedById.has(edge.id)
+        ? {
+            ...normalizedById.get(edge.id)!.edge,
+            points: normalizedById.get(edge.id)!.points,
+            routing: { ...edge.routing, topology: "shared", bundleId },
+          }
+        : edge);
+      members.forEach((edge) => used.add(edge.id));
+    }
+  };
+
+  group("fan-out");
+  group("fan-in");
+  return result;
+};
+
+const endpointOnSide = (
+  node: PositionedLayoutNode,
+  side: GridSide,
+): PositionedEdgeEndpoint => {
+  const outward = sideOutward[side];
+  const anchor = side === "left" || side === "right"
+    ? {
+        x: side === "left" ? node.x : node.x + node.width - 1,
+        y: sideCenter(node.y, node.height),
+      }
+    : {
+        x: sideCenter(node.x, node.width),
+        y: side === "top" ? node.y : node.y + node.height - 1,
+      };
+  return {
+    side,
+    anchor,
+    marker: { x: anchor.x + outward.x, y: anchor.y + outward.y },
+    outward,
+  };
+};
+
+const endpointOnSideAt = (
+  node: PositionedLayoutNode,
+  side: GridSide,
+  coordinate: number,
+): PositionedEdgeEndpoint => {
+  const endpoint = endpointOnSide(node, side);
+  const anchor = side === "left" || side === "right"
+    ? { x: endpoint.anchor.x, y: coordinate }
+    : { x: coordinate, y: endpoint.anchor.y };
+  return {
+    ...endpoint,
+    anchor,
+    marker: {
+      x: anchor.x + endpoint.outward.x,
+      y: anchor.y + endpoint.outward.y,
+    },
+  };
+};
+
+const alignReadableEndpoints = (
+  edges: RoutedEdge[],
+  nodes: PositionedLayoutNode[],
+) => {
+  const nodesById = new Map(nodes.map((node) => [node.id, node]));
+  return edges.map((edge) => {
+    if (
+      edge.routing?.quality !== "readable" ||
+      edge.routing.bundleId ||
+      edge.source === edge.target ||
+      edge.sourceEndpoint.outward.x !== -edge.targetEndpoint.outward.x ||
+      edge.sourceEndpoint.outward.y !== -edge.targetEndpoint.outward.y
+    ) return edge;
+    const source = nodesById.get(edge.source);
+    const target = nodesById.get(edge.target);
+    if (!source || !target) return edge;
+    const vertical = edge.sourceEndpoint.side === "top" ||
+      edge.sourceEndpoint.side === "bottom";
+    const minimum = vertical
+      ? Math.max(source.x + 1, target.x + 1)
+      : Math.max(source.y + 1, target.y + 1);
+    const maximum = vertical
+      ? Math.min(source.x + source.width - 2, target.x + target.width - 2)
+      : Math.min(source.y + source.height - 2, target.y + target.height - 2);
+    if (minimum > maximum) return edge;
+    const preferred = vertical
+      ? Math.round((edge.sourceEndpoint.anchor.x + edge.targetEndpoint.anchor.x) / 2)
+      : Math.round((edge.sourceEndpoint.anchor.y + edge.targetEndpoint.anchor.y) / 2);
+    const coordinate = Math.max(minimum, Math.min(maximum, preferred));
+    const sourceEndpoint = endpointOnSideAt(
+      source,
+      edge.sourceEndpoint.side,
+      coordinate,
+    );
+    const targetEndpoint = endpointOnSideAt(
+      target,
+      edge.targetEndpoint.side,
+      coordinate,
+    );
+    return {
+      ...edge,
+      sourceEndpoint,
+      targetEndpoint,
+      points: routeWithEndpoints(
+        edge.points,
+        sourceEndpoint,
+        targetEndpoint,
+        edge.routing.sourceClearance,
+        edge.routing.targetClearance,
+      ),
+    };
+  });
+};
+
+const separateConflictingEndpointMarkers = (
+  edges: RoutedEdge[],
+  nodes: PositionedLayoutNode[],
+  direction: LayoutDirection,
+) => {
+  const nodesById = new Map(nodes.map((node) => [node.id, node]));
+  const perpendicularSides: GridSide[] = direction === "LR" || direction === "RL"
+    ? ["top", "bottom"]
+    : ["left", "right"];
+  let result = [...edges];
+  for (let pass = 0; pass < edges.length; pass += 1) {
+    const endpoints = new Map<string, Array<{
+      index: number;
+      end: "source" | "target";
+    }>>();
+    result.forEach((edge, index) => {
+      for (const [end, endpoint] of [
+        ["source", edge.sourceEndpoint],
+        ["target", edge.targetEndpoint],
+      ] as const) {
+        const key = pointKey(endpoint.marker);
+        const records = endpoints.get(key) ?? [];
+        records.push({ index, end });
+        endpoints.set(key, records);
+      }
+    });
+    const conflict = [...endpoints.values()].find((records) => {
+      const owners = new Set(records.map((record) => {
+        const edge = result[record.index]!;
+        return edge.routing?.bundleId ?? edge.id;
+      }));
+      return owners.size > 1;
+    });
+    if (!conflict) break;
+    const movable = [...conflict].sort((left, right) => {
+      const leftBundled = result[left.index]!.routing?.bundleId ? 1 : 0;
+      const rightBundled = result[right.index]!.routing?.bundleId ? 1 : 0;
+      if (leftBundled !== rightBundled) return leftBundled - rightBundled;
+      return left.end === "target" ? -1 : 1;
+    })[0]!;
+    const edge = result[movable.index]!;
+    const nodeId = movable.end === "source" ? edge.source : edge.target;
+    const node = nodesById.get(nodeId);
+    if (!node) break;
+    const occupied = new Set(endpoints.keys());
+    const currentEndpoint = movable.end === "source"
+      ? edge.sourceEndpoint
+      : edge.targetEndpoint;
+    const neighbor = movable.end === "source"
+      ? edge.points[1] ?? currentEndpoint.marker
+      : edge.points.at(-2) ?? currentEndpoint.marker;
+    const candidates = perpendicularSides
+      .map((side) => endpointOnSide(node, side))
+      .sort((left, right) => {
+        const leftOccupied = occupied.has(pointKey(left.marker)) ? 1 : 0;
+        const rightOccupied = occupied.has(pointKey(right.marker)) ? 1 : 0;
+        if (leftOccupied !== rightOccupied) return leftOccupied - rightOccupied;
+        const leftDistance = Math.abs(left.marker.x - neighbor.x) +
+          Math.abs(left.marker.y - neighbor.y);
+        const rightDistance = Math.abs(right.marker.x - neighbor.x) +
+          Math.abs(right.marker.y - neighbor.y);
+        return leftDistance - rightDistance;
+      });
+    const replacement = candidates[0];
+    if (!replacement) break;
+    const sourceEndpoint = movable.end === "source"
+      ? replacement
+      : edge.sourceEndpoint;
+    const targetEndpoint = movable.end === "target"
+      ? replacement
+      : edge.targetEndpoint;
+    result[movable.index] = {
+      ...edge,
+      sourceEndpoint,
+      targetEndpoint,
+      points: routeWithEndpoints(
+        edge.points,
+        sourceEndpoint,
+        targetEndpoint,
+        edge.routing?.sourceClearance,
+        edge.routing?.targetClearance,
+      ),
+    };
+  }
+  return result;
+};
+
+type RouteDirection = 0 | 1 | 2 | 3;
+
+const routeSteps: ReadonlyArray<GridPoint & { direction: RouteDirection }> = [
+  { x: 1, y: 0, direction: 0 },
+  { x: 0, y: 1, direction: 1 },
+  { x: -1, y: 0, direction: 2 },
+  { x: 0, y: -1, direction: 3 },
+];
+
+const routeDirectionFor = (vector: GridPoint): RouteDirection => {
+  const direction = routeSteps.find((step) =>
+    step.x === vector.x && step.y === vector.y
+  )?.direction;
+  if (direction === undefined) throw new Error("Invalid route direction vector");
+  return direction;
+};
+
+interface OrthogonalRouteOptions {
+  initialDirection?: RouteDirection;
+  initialRunLength?: number;
+  minimumRunBeforeBend?: number;
+  occupiedCellCost?: number;
+  requiredGoalDirection?: RouteDirection;
+}
+
+const findOrthogonalRoute = (
+  start: GridPoint,
+  goal: GridPoint,
+  blocked: ReadonlySet<string>,
+  occupied: ReadonlySet<string>,
+  bounds: { minX: number; minY: number; maxX: number; maxY: number },
+  options: OrthogonalRouteOptions = {},
+) => {
+  interface SearchState extends GridPoint {
+    direction: RouteDirection | -1;
+    runLength: number;
+    cost: number;
+    score: number;
+    key: string;
+  }
+  const minimumRun = Math.max(0, options.minimumRunBeforeBend ?? 0);
+  const initialDirection = options.initialDirection ?? -1;
+  const stateKey = (point: GridPoint, direction: number, runLength: number) =>
+    `${point.x},${point.y},${direction},${runLength}`;
+  const initialRunLength = initialDirection === -1
+    ? 0
+    : Math.min(minimumRun, Math.max(0, options.initialRunLength ?? minimumRun));
+  const startKey = stateKey(start, initialDirection, initialRunLength);
+  const open: SearchState[] = [{
+    ...start,
+    direction: initialDirection,
+    runLength: initialRunLength,
+    cost: 0,
+    score: Math.abs(goal.x - start.x) + Math.abs(goal.y - start.y),
+    key: startKey,
+  }];
+  const best = new Map([[startKey, 0]]);
+  const previous = new Map<string, string>();
+  const states = new Map<string, SearchState>([[startKey, open[0]!]]);
+  let goalKey: string | undefined;
+
+  while (open.length > 0) {
+    open.sort((left, right) => left.score - right.score || left.cost - right.cost);
+    const current = open.shift()!;
+    if (
+      current.x === goal.x &&
+      current.y === goal.y &&
+      (options.requiredGoalDirection === undefined ||
+        current.direction === options.requiredGoalDirection)
+    ) {
+      goalKey = current.key;
+      break;
+    }
+    for (const step of routeSteps) {
+      const next = { x: current.x + step.x, y: current.y + step.y };
+      if (
+        next.x < bounds.minX || next.x > bounds.maxX ||
+        next.y < bounds.minY || next.y > bounds.maxY
+      ) continue;
+      const cellKey = pointKey(next);
+      if (blocked.has(cellKey) && !samePoint(next, goal)) continue;
+      const bends = current.direction !== -1 && current.direction !== step.direction;
+      if (bends && current.runLength < minimumRun) continue;
+      const bendCost = bends ? 4 : 0;
+      const runLength = bends
+        ? 1
+        : Math.min(minimumRun, current.runLength + 1);
+      const nextCost = current.cost + 1 + bendCost +
+        (occupied.has(cellKey) ? options.occupiedCellCost ?? 8 : 0);
+      const key = stateKey(next, step.direction, runLength);
+      if (nextCost >= (best.get(key) ?? Number.POSITIVE_INFINITY)) continue;
+      const state: SearchState = {
+        ...next,
+        direction: step.direction,
+        runLength,
+        cost: nextCost,
+        score: nextCost + Math.abs(goal.x - next.x) + Math.abs(goal.y - next.y),
+        key,
+      };
+      best.set(key, nextCost);
+      previous.set(key, current.key);
+      states.set(key, state);
+      open.push(state);
+    }
+  }
+  if (!goalKey) return null;
+  const path: GridPoint[] = [];
+  let currentKey: string | undefined = goalKey;
+  while (currentKey) {
+    const state = states.get(currentKey);
+    if (!state) break;
+    path.push({ x: state.x, y: state.y });
+    currentKey = previous.get(currentKey);
+  }
+  return compactOrthogonalPoints(path.reverse());
+};
+
+const repairInvalidRoutes = (
+  edges: RoutedEdge[],
+  nodes: PositionedLayoutNode[],
+) => {
+  const hasShortDogleg = (points: GridPoint[]) => {
+    const compact = compactOrthogonalPoints(points);
+    for (let index = 1; index < compact.length - 2; index += 1) {
+      const from = compact[index]!;
+      const to = compact[index + 1]!;
+      if (Math.abs(to.x - from.x) + Math.abs(to.y - from.y) < 2) return true;
+    }
+    return false;
+  };
+  const markerHasForeignAxis = (
+    points: GridPoint[],
+    endpoint: PositionedEdgeEndpoint,
+  ) => points.slice(1).some((to, index) => {
+    const from = points[index]!;
+    const marker = endpoint.marker;
+    const contains = from.x === to.x
+      ? marker.x === from.x && marker.y >= Math.min(from.y, to.y) &&
+        marker.y <= Math.max(from.y, to.y)
+      : from.y === to.y && marker.y === from.y &&
+        marker.x >= Math.min(from.x, to.x) && marker.x <= Math.max(from.x, to.x);
+    if (!contains) return false;
+    const axis: RouteAxis = from.x === to.x ? "vertical" : "horizontal";
+    return axis !== sideAxis(endpoint.side);
+  });
+  const allPoints = [
+    ...nodes.flatMap((node) => [
+      { x: node.x, y: node.y },
+      { x: node.x + node.width - 1, y: node.y + node.height - 1 },
+    ]),
+    ...edges.flatMap((edge) => edge.points),
+  ];
+  const margin = 4;
+  const bounds = {
+    minX: Math.min(...allPoints.map((point) => point.x)) - margin,
+    minY: Math.min(...allPoints.map((point) => point.y)) - margin,
+    maxX: Math.max(...allPoints.map((point) => point.x)) + margin,
+    maxY: Math.max(...allPoints.map((point) => point.y)) + margin,
+  };
+  const nodeCells = new Set<string>();
+  for (const node of nodes) {
+    for (let x = node.x; x < node.x + node.width; x += 1) {
+      for (let y = node.y; y < node.y + node.height; y += 1) {
+        nodeCells.add(`${x},${y}`);
+      }
+    }
+  }
+  const markerOwners = new Map<string, Set<string>>();
+  for (const edge of edges) {
+    for (const marker of [edge.sourceEndpoint.marker, edge.targetEndpoint.marker]) {
+      const key = pointKey(marker);
+      const owners = markerOwners.get(key) ?? new Set<string>();
+      owners.add(edge.id);
+      markerOwners.set(key, owners);
+    }
+  }
+
+  let result = [...edges];
+  for (let index = 0; index < result.length; index += 1) {
+    const edge = result[index]!;
+    if (edge.routing?.bundleId) continue;
+    const ownMarkers = new Set([
+      pointKey(edge.sourceEndpoint.marker),
+      pointKey(edge.targetEndpoint.marker),
+    ]);
+    const crossesMarker = cellsOnRoute(edge.points).some((point) => {
+      const key = pointKey(point);
+      return !ownMarkers.has(key) && (markerOwners.get(key)?.size ?? 0) > 0;
+    });
+    const bendsThroughMarker = markerHasForeignAxis(edge.points, edge.sourceEndpoint) ||
+      markerHasForeignAxis(edge.points, edge.targetEndpoint);
+    const needsReadableRepair = edge.routing?.quality === "readable" &&
+      edge.source !== edge.target &&
+      hasShortDogleg(edge.points);
+    const axes = routeAxisCells(edge.points);
+    const sharesCollinearCell = result.some((candidate, candidateIndex) => {
+      if (candidateIndex === index) return false;
+      const sharesBundle = edge.routing?.bundleId !== undefined &&
+        candidate.routing?.bundleId === edge.routing.bundleId;
+      if (sharesBundle) return false;
+      const candidateAxes = routeAxisCells(candidate.points);
+      return [...axes].some(([key, values]) => {
+        const other = candidateAxes.get(key);
+        return other && [...values].some((axis) => other.has(axis));
+      });
+    });
+    if (
+      !crossesMarker &&
+      !bendsThroughMarker &&
+      !needsReadableRepair &&
+      !sharesCollinearCell &&
+      !routeEntersForeignNode(edge, edge.points, nodes)
+    ) continue;
+
+    const blocked = new Set(nodeCells);
+    for (const [key, owners] of markerOwners) {
+      if (!owners.has(edge.id)) blocked.add(key);
+    }
+    blocked.add(pointKey(edge.sourceEndpoint.marker));
+    blocked.add(pointKey(edge.targetEndpoint.marker));
+    const sourceExit = pointOutsideEndpoint(
+      edge.sourceEndpoint,
+      edge.routing?.sourceClearance,
+    );
+    const targetExit = pointOutsideEndpoint(
+      edge.targetEndpoint,
+      edge.routing?.targetClearance,
+    );
+    blocked.delete(pointKey(sourceExit));
+    blocked.delete(pointKey(targetExit));
+    const occupied = new Set(result.flatMap((candidate, candidateIndex) =>
+      candidateIndex === index ? [] : cellsOnRoute(candidate.points).map(pointKey)
+    ));
+    const readableOptions: OrthogonalRouteOptions | undefined =
+      edge.routing?.quality === "readable"
+        ? {
+            initialDirection: routeDirectionFor(edge.sourceEndpoint.outward),
+            initialRunLength: 1,
+            minimumRunBeforeBend: 2,
+            occupiedCellCost: 64,
+            requiredGoalDirection: routeDirectionFor({
+              x: -edge.targetEndpoint.outward.x,
+              y: -edge.targetEndpoint.outward.y,
+            }),
+          }
+        : undefined;
+    const readableBlocked = readableOptions
+      ? new Set([...blocked, ...occupied])
+      : blocked;
+    readableBlocked.delete(pointKey(sourceExit));
+    readableBlocked.delete(pointKey(targetExit));
+    let repaired = findOrthogonalRoute(
+      sourceExit,
+      targetExit,
+      readableBlocked,
+      occupied,
+      bounds,
+      readableOptions,
+    );
+    if (!repaired && readableOptions) {
+      repaired = findOrthogonalRoute(
+        sourceExit,
+        targetExit,
+        readableBlocked,
+        occupied,
+        bounds,
+        { minimumRunBeforeBend: 2, occupiedCellCost: 64 },
+      );
+    }
+    if (!repaired && readableOptions && !needsReadableRepair) {
+      repaired = findOrthogonalRoute(
+        sourceExit,
+        targetExit,
+        blocked,
+        occupied,
+        bounds,
+      );
+    }
+    if (!repaired) continue;
+    result[index] = {
+      ...edge,
+      points: compactOrthogonalPoints([
+        edge.sourceEndpoint.anchor,
+        edge.sourceEndpoint.marker,
+        ...repaired,
+        edge.targetEndpoint.marker,
+        edge.targetEndpoint.anchor,
+      ]),
+      routing: { ...edge.routing, topology: "independent" },
+    };
+  }
+  return result;
+};
+
 interface RouteSegment {
   index: number;
   from: GridPoint;
@@ -464,6 +1215,8 @@ interface LabelCandidate {
   at: GridPoint;
   allowedEdgeCells?: Set<string>;
 }
+
+type EndpointEnd = "source" | "target";
 
 const pointKey = (point: GridPoint) => `${point.x},${point.y}`;
 
@@ -576,6 +1329,39 @@ const addGroupBorderCells = (
   }
 };
 
+const endpointLabelCandidates = (
+  endpoint: PositionedEdgeEndpoint,
+  label: LayoutLabel,
+): LabelCandidate[] => {
+  if (endpoint.side === "top" || endpoint.side === "bottom") {
+    const y = endpoint.side === "top"
+      ? endpoint.marker.y - label.height + 1
+      : endpoint.marker.y;
+    return [
+      { at: { x: endpoint.marker.x + 2, y } },
+      { at: { x: endpoint.marker.x - label.width - 1, y } },
+    ];
+  }
+  const x = endpoint.side === "right"
+    ? endpoint.marker.x
+    : endpoint.marker.x - label.width + 1;
+  return [
+    { at: { x, y: endpoint.marker.y - label.height } },
+    { at: { x, y: endpoint.marker.y + 1 } },
+  ];
+};
+
+const containedByGroupInterior = (
+  candidate: LabelCandidate,
+  label: LayoutLabel,
+  group: GridLayout["groups"][number] | undefined,
+) => !group || (
+  candidate.at.x >= group.x + 1 &&
+  candidate.at.y >= group.y + 1 &&
+  candidate.at.x + label.width <= group.x + group.width - 1 &&
+  candidate.at.y + label.height <= group.y + group.height - 1
+);
+
 const placeEdgeLabels = (
   edges: RoutedEdge[],
   nodes: PositionedLayoutNode[],
@@ -586,6 +1372,8 @@ const placeEdgeLabels = (
   const blocked = new Set<string>();
   for (const node of nodes) addRectCells(blocked, node);
   for (const group of groups) addGroupBorderCells(blocked, group);
+  const nodesById = new Map(nodes.map((node) => [node.id, node]));
+  const groupsById = new Map(groups.map((group) => [group.id, group]));
 
   const edgeOwners = new Map<string, Set<string>>();
   const edgeCells = new Map<string, Set<string>>();
@@ -605,7 +1393,13 @@ const placeEdgeLabels = (
   }
 
   const reservedLabels = new Set<string>();
-  const isAvailable = (edge: RoutedEdge, label: LayoutLabel, candidate: LabelCandidate) => {
+  const isAvailable = (
+    edge: RoutedEdge,
+    label: LayoutLabel,
+    candidate: LabelCandidate,
+    ownerGroup?: GridLayout["groups"][number],
+  ) => {
+    if (!containedByGroupInterior(candidate, label, ownerGroup)) return false;
     const ownProtected = protectedCells.get(edge.id) ?? new Set<string>();
     for (const key of rectCellKeys(candidate.at, label.width, label.height)) {
       if (blocked.has(key) || reservedLabels.has(key) || ownProtected.has(key)) return false;
@@ -618,9 +1412,42 @@ const placeEdgeLabels = (
     return true;
   };
 
+  const endpointPositions = new Map<string, GridPoint>();
+  const placeEndpointLabel = (
+    edge: RoutedEdge,
+    end: EndpointEnd,
+    endpointLabel: LayoutLabel | undefined,
+  ) => {
+    if (!endpointLabel) return;
+    const endpoint = end === "source" ? edge.sourceEndpoint : edge.targetEndpoint;
+    const nodeId = end === "source" ? edge.source : edge.target;
+    const parentId = nodesById.get(nodeId)?.parentId;
+    const ownerGroup = parentId ? groupsById.get(parentId) : undefined;
+    const selected = endpointLabelCandidates(endpoint, endpointLabel).find((candidate) =>
+      isAvailable(edge, endpointLabel, candidate, ownerGroup)
+    );
+    if (!selected) {
+      throw new Error(`Could not place ${end} label for edge ${edge.id}`);
+    }
+    endpointPositions.set(`${edge.id}:${end}`, selected.at);
+    for (const key of rectCellKeys(selected.at, endpointLabel.width, endpointLabel.height)) {
+      reservedLabels.add(key);
+    }
+  };
+
+  for (const edge of edges) {
+    placeEndpointLabel(edge, "source", edge.sourceLabel);
+    placeEndpointLabel(edge, "target", edge.targetLabel);
+  }
+
   return edges.map((edge) => {
     const { elkLabelPosition, ...positioned } = edge;
-    if (!edge.label) return positioned;
+    const endpointPositioned = {
+      ...positioned,
+      sourceLabelPosition: endpointPositions.get(`${edge.id}:source`),
+      targetLabelPosition: endpointPositions.get(`${edge.id}:target`),
+    };
+    if (!edge.label) return endpointPositioned;
     const ownOrdinaryCells = new Set(
       [...(edgeCells.get(edge.id) ?? [])].filter((key) =>
         !(protectedCells.get(edge.id)?.has(key) ?? false)
@@ -648,7 +1475,7 @@ const placeEdgeLabels = (
     for (const key of rectCellKeys(selected.at, edge.label.width, edge.label.height)) {
       reservedLabels.add(key);
     }
-    return { ...positioned, labelPosition: selected.at };
+    return { ...endpointPositioned, labelPosition: selected.at };
   });
 };
 
@@ -668,6 +1495,8 @@ const normalizeGridLayoutOrigin = (layout: GridLayout): GridLayout => {
       edge.targetEndpoint.anchor,
       edge.targetEndpoint.marker,
       ...(edge.labelPosition ? [edge.labelPosition] : []),
+      ...(edge.sourceLabelPosition ? [edge.sourceLabelPosition] : []),
+      ...(edge.targetLabelPosition ? [edge.targetLabelPosition] : []),
     ]),
   ];
   const offsetX = -Math.min(0, ...points.map((point) => point.x));
@@ -697,6 +1526,12 @@ const normalizeGridLayoutOrigin = (layout: GridLayout): GridLayout => {
       targetEndpoint: translateEndpoint(edge.targetEndpoint),
       labelPosition: edge.labelPosition
         ? translatePoint(edge.labelPosition, offsetX, offsetY)
+        : undefined,
+      sourceLabelPosition: edge.sourceLabelPosition
+        ? translatePoint(edge.sourceLabelPosition, offsetX, offsetY)
+        : undefined,
+      targetLabelPosition: edge.targetLabelPosition
+        ? translatePoint(edge.targetLabelPosition, offsetX, offsetY)
         : undefined,
     })),
   };
@@ -782,7 +1617,7 @@ export const fromElkGraph = (
     attachmentCounts.set(targetKey, (attachmentCounts.get(targetKey) ?? 0) + 1);
   }
 
-  const routedEdges: RoutedEdge[] = preparedEdges.map(({
+  const rawRoutedEdges: RoutedEdge[] = preparedEdges.map(({
     edge,
     offset,
     modelEdge,
@@ -833,6 +1668,17 @@ export const fromElkGraph = (
     };
   });
 
+  const routedEdges = repairInvalidRoutes(
+    separateConflictingEndpointMarkers(
+      alignReadableEndpoints(
+        normalizeStructuredBundles(rawRoutedEdges, nodes, graph.direction),
+        nodes,
+      ),
+      nodes,
+      graph.direction,
+    ),
+    nodes,
+  );
   const routeMaxX = Math.max(
     quantizeCoordinate(laidOut.width),
     ...nodes.map((node) => node.x + node.width),
@@ -851,12 +1697,28 @@ export const fromElkGraph = (
     ...edges.flatMap((edge) => edge.label && edge.labelPosition
       ? [edge.labelPosition.x + edge.label.width]
       : []),
+    ...edges.flatMap((edge) => [
+      ...(edge.sourceLabel && edge.sourceLabelPosition
+        ? [edge.sourceLabelPosition.x + edge.sourceLabel.width]
+        : []),
+      ...(edge.targetLabel && edge.targetLabelPosition
+        ? [edge.targetLabelPosition.x + edge.targetLabel.width]
+        : []),
+    ]),
   );
   const maxY = Math.max(
     routeMaxY,
     ...edges.flatMap((edge) => edge.label && edge.labelPosition
       ? [edge.labelPosition.y + edge.label.height]
       : []),
+    ...edges.flatMap((edge) => [
+      ...(edge.sourceLabel && edge.sourceLabelPosition
+        ? [edge.sourceLabelPosition.y + edge.sourceLabel.height]
+        : []),
+      ...(edge.targetLabel && edge.targetLabelPosition
+        ? [edge.targetLabelPosition.y + edge.targetLabel.height]
+        : []),
+    ]),
   );
 
   return normalizeGridLayoutOrigin({ width: maxX, height: maxY, nodes, edges, groups });

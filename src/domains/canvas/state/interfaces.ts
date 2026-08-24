@@ -24,6 +24,16 @@ export interface RichTextCell {
   href?: string;
 }
 
+export interface RichTextSpan extends Omit<RichTextCell, "y" | "char"> {
+  text: string;
+  width: number;
+}
+
+export interface RichTextRow {
+  y: number;
+  spans: RichTextSpan[];
+}
+
 export type ClipboardCommandResult =
   | { status: "applied"; changed: boolean }
   | {
@@ -149,6 +159,11 @@ export interface TextSlice {
   ) => void;
   pasteRichData: (
     cells: RichTextCell[],
+    startPos?: Point,
+    options?: { selectResult?: boolean }
+  ) => void;
+  pasteRichRows: (
+    rows: readonly RichTextRow[],
     startPos?: Point,
     options?: { selectResult?: boolean }
   ) => void;

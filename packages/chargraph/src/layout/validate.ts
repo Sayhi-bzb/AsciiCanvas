@@ -2,6 +2,7 @@ import type {
   GridLayout,
   GridPoint,
   GridRect,
+  LayoutLabel,
   PositionedEdgeEndpoint,
   PositionedLayoutEdge,
   PositionedLayoutNode,
@@ -24,6 +25,13 @@ const containsRect = (parent: GridRect, child: GridRect) =>
   child.y >= parent.y &&
   child.x + child.width <= parent.x + parent.width &&
   child.y + child.height <= parent.y + parent.height;
+
+const groupInterior = (group: GridRect): GridRect => ({
+  x: group.x + 1,
+  y: group.y + 1,
+  width: Math.max(0, group.width - 2),
+  height: Math.max(0, group.height - 2),
+});
 
 const pointEquals = (left: GridPoint, right: GridPoint) =>
   left.x === right.x && left.y === right.y;
@@ -100,6 +108,16 @@ const segmentPoints = (from: GridPoint, to: GridPoint): GridPoint[] => {
   return result;
 };
 
+const rectCellKeys = (rect: GridRect) => {
+  const result: string[] = [];
+  for (let x = rect.x; x < rect.x + rect.width; x += 1) {
+    for (let y = rect.y; y < rect.y + rect.height; y += 1) {
+      result.push(`${x},${y}`);
+    }
+  }
+  return result;
+};
+
 type RouteAxis = "horizontal" | "vertical";
 
 const routeAxes = (edge: PositionedLayoutEdge) => {
@@ -152,6 +170,47 @@ export const validateGridLayout = (layout: GridLayout): string[] => {
       }
     }
   }
+
+  const endpointLabelRects: Array<GridRect & { owner: string }> = [];
+  const validateEndpointLabel = (
+    edge: PositionedLayoutEdge,
+    end: "source" | "target",
+    label: LayoutLabel | undefined,
+    position: GridPoint | undefined,
+  ) => {
+    if (!label) return;
+    if (!position) {
+      errors.push(`Edge ${edge.id} ${end} label has no position`);
+      return;
+    }
+    const rect = { ...position, width: label.width, height: label.height };
+    endpointLabelRects.push({ ...rect, owner: `${edge.id}:${end}` });
+    const nodeId = end === "source" ? edge.source : edge.target;
+    const parentId = nodes.get(nodeId)?.parentId;
+    const parent = parentId ? groups.get(parentId) : undefined;
+    if (parent && !containsRect(groupInterior(parent), rect)) {
+      errors.push(`Edge ${edge.id} ${end} label escapes group ${parent.id}`);
+    }
+    for (const key of rectCellKeys(rect)) {
+      const comma = key.indexOf(",");
+      const point = {
+        x: Number(key.slice(0, comma)),
+        y: Number(key.slice(comma + 1)),
+      };
+      if (layout.nodes.some((node) => containsPoint(node, point))) {
+        errors.push(`Edge ${edge.id} ${end} label overlaps a node`);
+        break;
+      }
+      if (layout.groups.some((group) => onRectBoundary(group, point))) {
+        errors.push(`Edge ${edge.id} ${end} label overlaps a group border`);
+        break;
+      }
+      if ((edgeCellOwners.get(key)?.size ?? 0) > 0) {
+        errors.push(`Edge ${edge.id} ${end} label overlaps an edge`);
+        break;
+      }
+    }
+  };
 
   for (let index = 0; index < layout.nodes.length; index += 1) {
     const node = layout.nodes[index]!;
@@ -236,6 +295,18 @@ export const validateGridLayout = (layout: GridLayout): string[] => {
       nodes.get(edge.target),
       edge.points.at(-2),
     ));
+    validateEndpointLabel(
+      edge,
+      "source",
+      edge.sourceLabel,
+      edge.sourceLabelPosition,
+    );
+    validateEndpointLabel(
+      edge,
+      "target",
+      edge.targetLabel,
+      edge.targetLabelPosition,
+    );
     for (let index = 1; index < edge.points.length; index += 1) {
       const from = edge.points[index - 1]!;
       const to = edge.points[index]!;
@@ -297,23 +368,23 @@ export const validateGridLayout = (layout: GridLayout): string[] => {
     }
   }
 
-  const labeledEdges = layout.edges.filter((edge) => edge.label && edge.labelPosition);
-  for (let index = 0; index < labeledEdges.length; index += 1) {
-    const edge = labeledEdges[index]!;
-    const edgeLabel = {
-      ...edge.labelPosition!,
-      width: edge.label!.width,
-      height: edge.label!.height,
-    };
-    for (let otherIndex = index + 1; otherIndex < labeledEdges.length; otherIndex += 1) {
-      const other = labeledEdges[otherIndex]!;
-      const otherLabel = {
-        ...other.labelPosition!,
-        width: other.label!.width,
-        height: other.label!.height,
-      };
-      if (overlaps(edgeLabel, otherLabel)) {
-        errors.push(`Edge labels ${edge.id} and ${other.id} overlap`);
+  const labels: Array<GridRect & { owner: string }> = [
+    ...layout.edges.flatMap((edge) => edge.label && edge.labelPosition
+      ? [{
+          ...edge.labelPosition,
+          width: edge.label.width,
+          height: edge.label.height,
+          owner: edge.id,
+        }]
+      : []),
+    ...endpointLabelRects,
+  ];
+  for (let index = 0; index < labels.length; index += 1) {
+    const label = labels[index]!;
+    for (let otherIndex = index + 1; otherIndex < labels.length; otherIndex += 1) {
+      const other = labels[otherIndex]!;
+      if (overlaps(label, other)) {
+        errors.push(`Edge labels ${label.owner} and ${other.owner} overlap`);
       }
     }
   }

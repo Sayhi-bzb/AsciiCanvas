@@ -5,9 +5,9 @@ description: Authority, projection, history, persistence, and synchronization di
 
 | Scope | Authority | History | Sync |
 | --- | --- | --- | --- |
-| `document` | Active grid, structured scene, and components in the Yjs document | Local origins | When collaborative |
+| `document` | Freeform CellPlane operations, structured scene, and components in the Yjs document | Local origins | When collaborative |
 | `workspace` | Tool, local interaction, active viewport, and preferences | No | No |
-| `session` | Canvas identity, mode, local snapshot or slide deck, saved viewport, and collaboration descriptor | No | No |
+| `session` | Canvas identity, mode, saved viewport, slide metadata, and collaboration descriptor in the IndexedDB catalog | No | No |
 | `presence` | Remote identity, cursor, transient selection | No | Ephemeral |
 | `derived` | Rendering, minimap, preview projections | No | No |
 
@@ -17,24 +17,38 @@ stay out of editor state and surface as collaboration integrity issues.
 
 ## Canonical flows
 
-- Canvas content: command or provider -> one Yjs transaction -> canvas projector
+- Freeform content: command -> one ordered CellPlane operation in a Yjs transaction ->
+  128x64 spatial projection -> canvas projector.
+- Structured content: command or provider -> one Yjs transaction -> canvas projector
   -> editor state -> widgets.
-- Session activation: projected session snapshot -> mode-authoritative Yjs map
+- Session activation: catalog descriptor -> restored mode-authoritative Yjs document
   -> one editor-state activation patch. The outgoing session checkpoints only
   its viewport because content projection is already current.
 - Slide activation: deck slide -> active Yjs editing buffer.
 - Slide edit: command -> active Yjs editing buffer -> deck and session snapshot.
-- Local restore: sessions decoder -> canvas recovery adapter -> active Yjs document.
+- Local restore: IndexedDB catalog -> `y-indexeddb` document restore -> canvas recovery
+  adapter -> active projection. Startup does not expose editing until the active document is ready.
 - Import: document parser -> `CanvasImportSnapshot` -> canvas session command.
-- Session persistence: editor snapshot -> persistence coordinator -> sessions
-  schema -> browser storage.
+- Session persistence: metadata projection -> sessions catalog transaction. Canvas content
+  remains in its Yjs document and persists as incremental `y-indexeddb` updates.
 - Slide preview: slide data -> canonical slide renderer -> preview or playback.
 - Selection command: DOM dispatcher -> editor keymap -> command registry ->
   canvas selection port -> Yjs document.
 
-Local sessions persist content snapshots. Collaborative sessions persist only
-their shell and descriptor; room content is restored through collaboration
-persistence, never from the editor snapshot.
+Local Freeform and Structured sessions persist one Yjs document per session. Slides persist
+one Yjs editing document per slide; the catalog owns ordering, names, and sizes. Collaborative
+sessions persist only their catalog shell and descriptor; room content is restored through
+collaboration persistence and never copied into local session persistence.
+
+The V5 localStorage envelope is a migration input only. Migration seeds and verifies all Yjs
+documents, commits the catalog, then removes the old key. A failure keeps the old value for retry.
+Canvas content never falls back to localStorage. One browser tab owns local writes; other tabs
+restore read-only until ownership is released. Undo history remains runtime-only.
+
+`main-grid` and Zustand `GridMap` are compatibility projections during the CellPlane migration.
+They are not renderer protocol inputs. New freeform transactions also append their compact row
+spans and erase intervals to `cell-plane-operations`; old snapshots become one bootstrap operation.
+Chunk indexes are disposable and never synchronized.
 
 For a local Structured session, scene and components are authoritative. Its
 session grid is a projector-maintained rendering cache; activation may reuse or

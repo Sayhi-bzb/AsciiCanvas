@@ -1,6 +1,10 @@
 import { useLocalStorageState } from 'ahooks';
 import { CanvasEditor } from '@/widgets/canvas-editor';
-import { useCanvasRuntime, useCanvasState } from '@/domains/canvas/public';
+import {
+  useCanvasPersistence,
+  useCanvasRuntime,
+  useCanvasState,
+} from '@/domains/canvas/public';
 import { Toolbar } from '@/widgets/toolbar/dock';
 import {
   SidebarProvider,
@@ -315,6 +319,7 @@ function AppContent() {
   useActiveCollaboration({ enabled: hostProfile.capabilities.collaborate });
   useHorizontalWheelNavigationGuard();
   const collaborationSnapshot = useCollaborationSnapshot();
+  const persistence = useCanvasPersistence();
   const activeCollaboration = useCanvasState(
     (state) =>
       state.canvasSessions.find((session) => session.id === state.activeCanvasId)?.collaboration
@@ -325,7 +330,7 @@ function AppContent() {
       !sameCollaborationRoom(activeCollaboration, collaborationSnapshot.descriptor));
   const capabilities = intersectHostCapabilities(
     hostProfile.capabilities,
-    !isCollaborationReadOnly
+    !isCollaborationReadOnly && persistence.ownership === 'writer'
   );
   const blackboardSource = useBlackboardSource({
     enabled: hostProfile.id === 'blackboard',

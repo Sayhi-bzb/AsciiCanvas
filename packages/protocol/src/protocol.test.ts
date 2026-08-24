@@ -6,7 +6,9 @@ import {
   decodeCharDeskTextRuns,
   getGraphemeCellWidth,
   layoutCharDeskTextRuns,
+  layoutCharDeskTextRunsToRows,
   parseCharDeskText,
+  parseCharDeskTextRows,
   splitGraphemes,
   stripCharDeskAnsi,
   UNICODE_DATA_VERSION,
@@ -185,6 +187,27 @@ describe("CharDesk Text Protocol v1 conformance", () => {
       { x: 3, y: 0, text: " ", href: "https://example.com" },
       { x: 4, y: 0, text: "B", href: "https://example.com" },
       { x: 0, y: 1, text: "C", href: "https://example.com" },
+    ]);
+  });
+
+  it("keeps large uniform input compact as one span per row", () => {
+    const source = Array.from({ length: 1_000 }, () => "a".repeat(100)).join("\n");
+    const parsed = parseCharDeskTextRows(source);
+
+    expect(parsed).toMatchObject({ width: 100, height: 1_000 });
+    expect(parsed.rows).toHaveLength(1_000);
+    expect(parsed.rows.every((row) => row.spans.length === 1)).toBe(true);
+  });
+
+  it("splits compact spans only at style boundaries", () => {
+    const parsed = layoutCharDeskTextRunsToRows([
+      { text: "ab", color: "#ffffff" },
+      { text: "cd", color: "#ff0000" },
+    ]);
+
+    expect(parsed.rows[0]?.spans).toMatchObject([
+      { x: 0, width: 2, text: "ab", color: "#ffffff" },
+      { x: 2, width: 2, text: "cd", color: "#ff0000" },
     ]);
   });
 });

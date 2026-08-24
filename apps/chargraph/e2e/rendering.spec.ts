@@ -301,11 +301,17 @@ test("renders directed diagrams through the category navigation", async ({ page 
   await expect(flow).not.toContainText("flowchart LR");
   await expect.poll(async () =>
     page.locator("#flowchart chardesk-viewer span.run").evaluateAll((elements) =>
-      [...new Set(elements.map((element) =>
+      new Set(elements.map((element) =>
         (element as HTMLElement).style.getPropertyValue("--run-fg")
-      ))]
+      ).filter((color) => [
+        "#2563eb",
+        "#0891b2",
+        "#16a34a",
+        "#ca8a04",
+        "#dc2626",
+      ].includes(color))).size
     )
-  ).toEqual(expect.arrayContaining(["#2563eb"]));
+  ).toBeGreaterThanOrEqual(2);
   await expect.poll(async () =>
     page.locator("#flowchart chardesk-viewer span.run").evaluateAll((elements) =>
       elements.some((element) =>

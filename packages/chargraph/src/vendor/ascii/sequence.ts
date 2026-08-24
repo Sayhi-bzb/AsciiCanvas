@@ -307,28 +307,36 @@ export function renderSequenceSurface(text: string, config: AsciiConfig) {
 
     if (isSelf) {
       // Self-message: 3-row loop to the right of the lifeline
-      //   ├──┐           (row 0 = msgArrowY)
+      //   ├──╮           (row 0 = msgArrowY)
       //   │  │ Label     (row 1)
-      //   │<─┘           (row 2)
+      //   │<─╯           (last row)
       const y0 = msgArrowY[m]!
       const loopW = Math.max(4, 4)
+      const msgLines = splitLines(msg.label)
+      const bottomY = y0 + msgLines.length + 1
 
       // Row 0: start junction + horizontal + top-right corner
       setC(fromX, y0, JL, 'junction', 'edge.line')
       for (let x = fromX + 1; x < fromX + loopW; x++) setC(x, y0, lineChar, 'line', 'edge.line')
-      setC(fromX + loopW, y0, useAscii ? '+' : '┐', 'corner', 'edge.line')
+      setC(fromX + loopW, y0, TR, 'corner', 'edge.line')
 
-      // Row 1: vertical on right side + label
-      setC(fromX + loopW, y0 + 1, V, 'line', 'edge.line')
+      // Label rows: vertical on right side + one line of text
       const labelX = fromX + loopW + 2
-      for (let i = 0; i < msg.label.length; i++) {
-        if (labelX + i < totalW) setC(labelX + i, y0 + 1, msg.label[i]!, 'text', 'edge.label')
+      for (let lineIndex = 0; lineIndex < msgLines.length; lineIndex++) {
+        const row = y0 + lineIndex + 1
+        const line = msgLines[lineIndex]!
+        setC(fromX + loopW, row, V, 'line', 'edge.line')
+        for (let index = 0; index < line.length; index++) {
+          if (labelX + index < totalW) {
+            setC(labelX + index, row, line[index]!, 'text', 'edge.label')
+          }
+        }
       }
 
-      // Row 2: arrow-back + horizontal + bottom-right corner
-      setC(fromX, y0 + 2, '<', 'arrow', 'edge.arrow')
-      for (let x = fromX + 1; x < fromX + loopW; x++) setC(x, y0 + 2, lineChar, 'line', 'edge.line')
-      setC(fromX + loopW, y0 + 2, useAscii ? '+' : '┘', 'corner', 'edge.line')
+      // Last row: arrow-back + horizontal + bottom-right corner
+      setC(fromX, bottomY, '<', 'arrow', 'edge.arrow')
+      for (let x = fromX + 1; x < fromX + loopW; x++) setC(x, bottomY, lineChar, 'line', 'edge.line')
+      setC(fromX + loopW, bottomY, BR, 'corner', 'edge.line')
     } else {
       // Normal message: label on row above, arrow on row below
       const labelY = msgLabelY[m]!

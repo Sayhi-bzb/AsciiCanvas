@@ -10,6 +10,53 @@ const segmenter =
     ? new Intl.Segmenter(undefined, { granularity: "grapheme" })
     : null;
 
+export type GraphemeSegment = {
+  segment: string;
+  index: number;
+};
+
+export const iterateGraphemes = (value: string): Iterable<GraphemeSegment> => {
+  if (!value) return [];
+  if (!segmenter) {
+    throw new Error(
+      "@chardesk/protocol requires Intl.Segmenter for deterministic grapheme parsing."
+    );
+  }
+  return {
+    *[Symbol.iterator]() {
+      for (const { segment, index } of segmenter.segment(value)) {
+        yield { segment, index };
+      }
+    },
+  };
+};
+
+export const segmentGraphemes = (value: string): GraphemeSegment[] =>
+  Array.from(iterateGraphemes(value));
+
+export const createGraphemeCursor = (value: string) => {
+  const iterator = iterateGraphemes(value)[Symbol.iterator]();
+  let current = iterator.next().value;
+  const advanceTo = (offset: number) => {
+    while (current && current.index + current.segment.length <= offset) {
+      current = iterator.next().value;
+    }
+  };
+  return {
+    advanceTo,
+    take: (offset: number) => {
+      advanceTo(offset);
+      if (!current) return null;
+      const result = {
+        segment: current.segment.slice(Math.max(0, offset - current.index)),
+        nextIndex: current.index + current.segment.length,
+      };
+      current = iterator.next().value;
+      return result;
+    },
+  };
+};
+
 const EMOJI_PRESENTATION = /\p{Emoji_Presentation}/u;
 const EMOJI_MODIFIER = /\p{Emoji_Modifier}/u;
 const EXTENDED_PICTOGRAPHIC = /\p{Extended_Pictographic}/u;
@@ -17,13 +64,7 @@ const REGIONAL_INDICATOR_PAIR = /^\p{Regional_Indicator}{2}$/u;
 const KEYCAP_SEQUENCE = /^[#*0-9]\uFE0F?\u20E3$/u;
 
 export const splitGraphemes = (value: string): string[] => {
-  if (!value) return [];
-  if (!segmenter) {
-    throw new Error(
-      "@chardesk/protocol requires Intl.Segmenter for deterministic grapheme parsing."
-    );
-  }
-  return Array.from(segmenter.segment(value), (part) => part.segment);
+  return segmentGraphemes(value).map(({ segment }) => segment);
 };
 
 const isEmojiGrapheme = (grapheme: string) => {

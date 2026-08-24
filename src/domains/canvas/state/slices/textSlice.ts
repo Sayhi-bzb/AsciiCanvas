@@ -98,6 +98,28 @@ const isWideFollowerRichCell = (
 
 type WrittenCell = { point: Point; char: string };
 
+type WrittenBounds = {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+};
+
+const selectWrittenBounds = (
+  selection: EditorState["staticGridSelection"],
+  bounds: WrittenBounds
+) => {
+  const start = { x: bounds.minX, y: bounds.minY };
+  if (bounds.minX === bounds.maxX && bounds.minY === bounds.maxY) {
+    return collapseGridSelectionTo(selection, start);
+  }
+  return selectGridRange(
+    selection,
+    { start, end: { x: bounds.maxX, y: bounds.maxY } },
+    { activeCell: "start" }
+  );
+};
+
 const selectWrittenCells = (
   selection: EditorState["staticGridSelection"],
   writes: WrittenCell[]
@@ -116,15 +138,7 @@ const selectWrittenCells = (
     maxY = Math.max(maxY, point.y);
   });
 
-  const start = { x: minX, y: minY };
-  if (minX === maxX && minY === maxY) {
-    return collapseGridSelectionTo(selection, start);
-  }
-  return selectGridRange(
-    selection,
-    { start, end: { x: maxX, y: maxY } },
-    { activeCell: "start" }
-  );
+  return selectWrittenBounds(selection, { minX, minY, maxX, maxY });
 };
 
 const findBoxNameTargetAtCursor = (
@@ -484,6 +498,70 @@ export const createTextSlice = (
       set((current) => ({
         textCursor: null,
         staticGridSelection: selectWrittenCells(current.staticGridSelection, writes),
+        staticGridEditMode: "navigate",
+        staticGridInputFlow: null,
+      }));
+    }
+  },
+
+  pasteRichRows: (rows, startPos, options) => {
+    const { textCursor, staticGridSelection, staticGridEditMode, canvasMode } = get();
+    if (canvasMode === "structured" || rows.length === 0) return;
+    const staticGridView = getStaticGridViewState({
+      selection: staticGridSelection,
+      editMode: staticGridEditMode,
+      textCursor,
+      grid: get().grid,
+    });
+    const basePos =
+      startPos ??
+      staticGridView.textCursor ??
+      (staticGridView.hasSelection
+        ? staticGridView.selectionGeometry.bounds?.start
+        : null) ??
+      textCursor ??
+      staticGridView.activeCell;
+    let writtenBounds: WrittenBounds | null = null;
+    documents.mutateGrid((gridWriter) => {
+      for (const row of rows) {
+        for (const span of row.spans) {
+          let x = basePos.x + span.x;
+          const y = basePos.y + row.y;
+          for (const char of splitGraphemes(span.text)) {
+            const width = getCellOccupancy(char);
+            placeStyledCellInYMap(
+              gridWriter,
+              x,
+              y,
+              char,
+              {
+                color: span.color,
+                ...(span.bgColor ? { bgColor: span.bgColor } : {}),
+                ...(span.attrs ? { attrs: span.attrs } : {}),
+                ...(span.href ? { href: span.href } : {}),
+              },
+              { preserveTargetBackground: true }
+            );
+            writtenBounds = writtenBounds
+              ? {
+                  minX: Math.min(writtenBounds.minX, x),
+                  minY: Math.min(writtenBounds.minY, y),
+                  maxX: Math.max(writtenBounds.maxX, x + width - 1),
+                  maxY: Math.max(writtenBounds.maxY, y),
+                }
+              : { minX: x, minY: y, maxX: x + width - 1, maxY: y };
+            x += width;
+          }
+        }
+      }
+    });
+    if (options?.selectResult && writtenBounds) {
+      set((current) => ({
+        textCursor: null,
+        staticGridSelection: selectWrittenBounds(
+          current.staticGridSelection,
+          writtenBounds!
+        ),
         staticGridEditMode: "navigate",
         staticGridInputFlow: null,
       }));

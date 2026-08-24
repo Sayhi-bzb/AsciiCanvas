@@ -33,6 +33,23 @@ and topology; a parallel Mermaid style-role canvas records visual meaning withou
 geometry. Serialization groups adjacent equal style roles into CharGraph fragments after layout
 and CJK-safe cell projection.
 
+Flow edges opt into structured routing after cell projection. Compatible
+fan-out and fan-in edges receive an explicit bundle identity and share one
+orthogonal bus; unrelated edges never gain shared topology from coincident
+endpoints. Marker cells are terminal and exclusive. After integer projection,
+invalid independent routes are repaired around nodes, marker corridors, and
+collinear routes before labels are placed and the scene is composed. Flow and
+State additionally opt into readable routing: overlapping opposite endpoints
+share an axis when possible, and repaired paths keep at least two cells between
+successive bends. Rounded glyphs therefore express real detours rather than
+one-cell doglegs. They also opt into Brandes–Köpf balanced node placement so
+fork and join layers stay centered across graph depth; Class and ER retain ELK's
+automatic placement.
+
+Flow, State, Class, and ER use the same structural color roles: `node.border`,
+`edge.line`, and `edge.arrow`. Diagram topology does not assign colors. XY
+series retain independent `series.1`–`series.5` roles.
+
 The shared layered renderer owns layout invocation, validation, group-edge-node
 composition order, route labels, cropping, and serialization. Diagram adapters
 may contribute node and endpoint painters but do not repeat those steps. Flow,

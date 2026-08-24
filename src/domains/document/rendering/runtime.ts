@@ -3,7 +3,10 @@ import {
   createMarkdownTextRenderPlugin,
   rawTextRenderPlugin,
 } from "./plugins";
-import { layoutCharDeskTextRuns } from "@chardesk/protocol";
+import {
+  layoutCharDeskTextRunsToRows,
+  materializeCharDeskTextRows,
+} from "@chardesk/protocol";
 import { composeTextFragments } from "./compositor";
 import {
   createDefaultFeatureSettings,
@@ -12,6 +15,7 @@ import {
 } from "./features";
 import type {
   AttributedText,
+  CompactTextRenderResult,
   TextRenderPlugin,
   TextRenderFragment,
   TextRenderProfile,
@@ -106,6 +110,22 @@ const readProfile = (
   }
 };
 
+const toRenderedRows = (
+  rows: ReturnType<typeof layoutCharDeskTextRunsToRows>["rows"],
+  defaultColor: string
+) => rows.map((row) => ({
+  y: row.y,
+  spans: row.spans.map((span) => ({
+    x: span.x,
+    width: span.width,
+    text: span.text,
+    color: span.color ?? defaultColor,
+    ...(span.bgColor ? { bgColor: span.bgColor } : {}),
+    ...(span.attrs ? { attrs: { ...span.attrs } } : {}),
+    ...(span.href ? { href: span.href } : {}),
+  })),
+}));
+
 export class TextRenderingRuntime {
   readonly #plugins = new Map<TextRendererId, TextRenderPlugin>();
   readonly #listeners = new Set<() => void>();
@@ -158,7 +178,29 @@ export class TextRenderingRuntime {
     this.#listeners.forEach((listener) => listener());
   };
 
-  render = async (source: string, defaultColor: string): Promise<TextRenderResult> => {
+  render = (source: string, defaultColor: string): Promise<TextRenderResult> =>
+    this.#render(source, defaultColor, false);
+
+  renderCompact = (
+    source: string,
+    defaultColor: string
+  ): Promise<CompactTextRenderResult> => this.#render(source, defaultColor, true);
+
+  #render(
+    source: string,
+    defaultColor: string,
+    compact: false
+  ): Promise<TextRenderResult>;
+  #render(
+    source: string,
+    defaultColor: string,
+    compact: true
+  ): Promise<CompactTextRenderResult>;
+  async #render(
+    source: string,
+    defaultColor: string,
+    compact: boolean
+  ): Promise<TextRenderResult | CompactTextRenderResult> {
     const profile = this.#profile;
     const context = {
       defaultColor,
@@ -224,6 +266,21 @@ export class TextRenderingRuntime {
     }
 
     if (transformedResult?.kind === "plain") {
+      if (compact) {
+        const parsed = layoutCharDeskTextRunsToRows(
+          [{ text: transformedResult.text }],
+          { defaultStyle: { color: defaultColor } }
+        );
+        return {
+          kind: "spans",
+          renderer: pipeline.at(-1)!,
+          pipeline,
+          rows: toRenderedRows(parsed.rows, defaultColor),
+          width: parsed.width,
+          height: parsed.height,
+          diagnostics: [...input.diagnostics, ...transformedResult.diagnostics],
+        };
+      }
       return {
         kind: "plain",
         renderer: pipeline.at(-1)!,
@@ -234,6 +291,21 @@ export class TextRenderingRuntime {
     }
 
     if (pipeline.length === 0) {
+      if (compact) {
+        const parsed = layoutCharDeskTextRunsToRows(
+          [{ text: source }],
+          { defaultStyle: { color: defaultColor } }
+        );
+        return {
+          kind: "spans",
+          renderer: "raw",
+          pipeline: ["raw"],
+          rows: toRenderedRows(parsed.rows, defaultColor),
+          width: parsed.width,
+          height: parsed.height,
+          diagnostics: [],
+        };
+      }
       return { kind: "plain", renderer: "raw", pipeline: ["raw"], text: source, diagnostics: [] };
     }
 
@@ -242,14 +314,30 @@ export class TextRenderingRuntime {
       origin: { from: 0, to: input.text.length },
     }];
     const runs = composeTextFragments(input, resolvedFragments);
-    const parsed = layoutCharDeskTextRuns(runs, {
+    const parsed = layoutCharDeskTextRunsToRows(runs, {
       defaultStyle: { color: defaultColor },
     });
+    const diagnostics = [
+      ...input.diagnostics,
+      ...(transformedResult?.diagnostics ?? []),
+      ...parsed.diagnostics.map((diagnostic) => ({ ...diagnostic })),
+    ];
+    if (compact) {
+      return {
+        kind: "spans",
+        renderer: pipeline.at(-1)!,
+        pipeline,
+        width: parsed.width,
+        height: parsed.height,
+        rows: toRenderedRows(parsed.rows, defaultColor),
+        diagnostics,
+      };
+    }
     return {
       kind: "styled",
       renderer: pipeline.at(-1)!,
       pipeline,
-      cells: parsed.cells.map((cell) => ({
+      cells: materializeCharDeskTextRows(parsed.rows).map((cell) => ({
         x: cell.x,
         y: cell.y,
         char: cell.text,
@@ -258,13 +346,9 @@ export class TextRenderingRuntime {
         ...(cell.attrs ? { attrs: { ...cell.attrs } } : {}),
         ...(cell.href ? { href: cell.href } : {}),
       })),
-      diagnostics: [
-        ...input.diagnostics,
-        ...(transformedResult?.diagnostics ?? []),
-        ...parsed.diagnostics.map((diagnostic) => ({ ...diagnostic })),
-      ],
+      diagnostics,
     };
-  };
+  }
 }
 
 export const createTextRenderingRuntime = (

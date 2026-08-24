@@ -40,18 +40,9 @@ const seedSession = async (
 
 const readPersistedState = async (
   page: Page,
-) => page.evaluate((storageKey) => {
-  const raw = localStorage.getItem(storageKey);
-  if (!raw) return null;
-  const state = JSON.parse(raw).state;
-  if (!state?.workspace || !state?.sessions) return state;
-  return {
-    ...state.workspace,
-    ...state.preferences,
-    canvasSessions: state.sessions.items,
-    activeCanvasId: state.sessions.activeId,
-  };
-}, STORAGE_KEY);
+) => page.evaluate(
+  'import("/src/app/compositionRoot.ts").then(async ({ getApplicationEditorHost }) => { const host = getApplicationEditorHost(); await host.canvas.ready; await host.canvas.retryPersistence(); const state = host.canvas.getState(); return { ...state, grid: Array.from(state.grid.entries()), canvasSessions: state.canvasSessions.map((session) => ({ ...session, grid: session.grid ? Array.from(session.grid) : [], scene: session.scene ? Array.from(session.scene) : [], components: session.components ? Array.from(session.components) : [] })) }; })'
+);
 
 const readLiveCanvasState = (page: Page) =>
   page.evaluate<{

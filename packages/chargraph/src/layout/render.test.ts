@@ -86,13 +86,13 @@ describe("layered diagram renderer", () => {
             paint(scene, context) {
               scene.add({
                 kind: "marker",
-                owner: "edge:marker",
+                owner: `${context.edge.id}:target-marker`,
                 at: context.endpoint.marker,
                 char: ">",
               });
               scene.add({
                 kind: "marker",
-                owner: "edge:marker-prefix",
+                owner: `${context.edge.id}:target-marker-prefix`,
                 at: {
                   x: context.endpoint.marker.x + context.endpoint.outward.x,
                   y: context.endpoint.marker.y + context.endpoint.outward.y,

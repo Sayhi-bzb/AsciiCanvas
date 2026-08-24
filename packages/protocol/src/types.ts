@@ -41,6 +41,18 @@ export type CharDeskTextCell = CharDeskTextStyle & {
   href?: string;
 };
 
+export type CharDeskTextSpan = CharDeskTextStyle & {
+  x: number;
+  width: number;
+  text: string;
+  href?: string;
+};
+
+export type CharDeskTextRow = {
+  y: number;
+  spans: CharDeskTextSpan[];
+};
+
 export type CharDeskTextDiagnosticCode =
   | "malformed-ansi"
   | "unsupported-control"
@@ -71,6 +83,10 @@ export type ParsedCharDeskText = {
   hasAnsi: boolean;
   ansiEvidence: CharDeskAnsiEvidence;
   diagnostics: CharDeskTextDiagnostic[];
+};
+
+export type ParsedCharDeskTextRows = Omit<ParsedCharDeskText, "cells"> & {
+  rows: CharDeskTextRow[];
 };
 
 export type CharDeskGeometryCell = Pick<

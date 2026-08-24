@@ -1,12 +1,22 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, useSyncExternalStore, type ReactNode } from "react";
 import { useStore } from "zustand";
 import type { EditorState } from "./state/interfaces";
 import type { CanvasRuntime } from "./runtime";
 
 type CanvasRuntimeContextValue = Pick<
   CanvasRuntime,
-  "store" | "documents" | "commands" | "queries" | "getState" | "subscribe" | "dispose"
+  | "store"
+  | "documents"
+  | "commands"
+  | "queries"
+  | "getState"
+  | "subscribe"
+  | "dispose"
+  | "ready"
+  | "getPersistenceSnapshot"
+  | "subscribePersistence"
+  | "retryPersistence"
 >;
 
 const CanvasRuntimeContext = createContext<CanvasRuntimeContextValue | null>(null);
@@ -41,3 +51,12 @@ export const useCanvasRuntime = () => {
 export const useCanvasState = <Selected,>(
   selector: (state: EditorState) => Selected
 ) => useStore(useCanvasRuntime().store, selector);
+
+export const useCanvasPersistence = () => {
+  const runtime = useCanvasRuntime();
+  return useSyncExternalStore(
+    runtime.subscribePersistence,
+    runtime.getPersistenceSnapshot,
+    runtime.getPersistenceSnapshot
+  );
+};

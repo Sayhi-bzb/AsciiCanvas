@@ -1,16 +1,21 @@
 export {
   CHARDESK_TEXT_PROTOCOL_VERSION,
   parseCharDeskText,
+  parseCharDeskTextRows,
   stripCharDeskAnsi,
 } from "./parser.js";
-export { layoutCharDeskTextRuns } from "./runs.js";
+export { layoutCharDeskTextRuns, layoutCharDeskTextRunsToRows } from "./runs.js";
+export { materializeCharDeskTextRows } from "./row-spans.js";
 export { decodeCharDeskTextRuns } from "./decode.js";
 export {
   getGraphemeCellWidth,
   getTextCellWidth,
+  iterateGraphemes,
+  segmentGraphemes,
   splitGraphemes,
   UNICODE_DATA_VERSION,
 } from "./graphemes.js";
+export type { GraphemeSegment } from "./graphemes.js";
 export {
   compareCharDeskGeometry,
   createCharDeskGeometrySnapshot,
@@ -23,6 +28,8 @@ export type {
   CharDeskGeometrySnapshot,
   CharDeskTextAttributes,
   CharDeskTextCell,
+  CharDeskTextRow,
+  CharDeskTextSpan,
   CharDeskTextDiagnostic,
   CharDeskTextDiagnosticCode,
   CharDeskTextStyle,
@@ -32,5 +39,6 @@ export type {
   LayoutCharDeskTextRunsOptions,
   ParseCharDeskTextOptions,
   ParsedCharDeskText,
+  ParsedCharDeskTextRows,
   DecodedCharDeskTextRuns,
 } from "./types.js";

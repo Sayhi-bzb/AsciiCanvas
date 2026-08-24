@@ -41,6 +41,22 @@ const rowText = (result: TextRenderResult, y: number) =>
     : result.text.split("\n")[y] ?? "";
 
 describe("TextRenderingRuntime", () => {
+  it("renders large raw input as compact row spans", async () => {
+    const runtime = new TextRenderingRuntime();
+    runtime.setProfile({ ...DEFAULT_TEXT_RENDER_PROFILE, mode: "raw" });
+    const result = await runtime.renderCompact(
+      Array.from({ length: 1_000 }, () => "a".repeat(100)).join("\n"),
+      "#fff"
+    );
+
+    expect(result.kind).toBe("spans");
+    expect(result.kind === "spans" && result.rows).toHaveLength(1_000);
+    expect(
+      result.kind === "spans" &&
+        result.rows.every((row) => row.spans.length === 1)
+    ).toBe(true);
+  });
+
   it("composes ANSI before Markdown in auto mode", async () => {
     const runtime = new TextRenderingRuntime();
     const result = await runtime.render("[1m**bold**[0m", "#fff");

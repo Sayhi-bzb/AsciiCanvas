@@ -12,6 +12,7 @@ import {
 } from '@chardesk/ui';
 import { RecoverableLazyBoundary } from '@/app/RecoverableLazyBoundary';
 import { requireLoadedModule } from '@/app/moduleLoadRecovery';
+import { useCanvasPersistence } from '@/domains/canvas/public';
 
 const SecurityIcon = HOST_ICONOLOGY.viewportAction.security;
 const DataSecurityDialog = lazy(() =>
@@ -26,13 +27,15 @@ export function SecurityControl() {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const tooltipHandle = useMemo(() => TooltipCreateHandle<string>(), []);
   const label = t('security.title');
+  const persistence = useCanvasPersistence();
 
   return (
     <>
       <div
         data-canvas-ui="true"
         data-testid="security-control-host"
-        className="pointer-events-auto"
+        className="pointer-events-auto relative"
+        data-persistence-state={persistence.save}
       >
         <TooltipTrigger
           handle={tooltipHandle}
@@ -52,6 +55,16 @@ export function SecurityControl() {
         >
           <SecurityIcon />
         </TooltipTrigger>
+        {(persistence.save === 'error' || persistence.ownership === 'reader') && (
+          <span
+            aria-label={persistence.ownership === 'reader'
+              ? t('security.persistence.reader')
+              : t('security.persistence.unsaved')}
+            className={persistence.ownership === 'reader'
+              ? 'pointer-events-none absolute right-0 top-0 size-2 rounded-full bg-warning'
+              : 'pointer-events-none absolute right-0 top-0 size-2 rounded-full bg-destructive'}
+          />
+        )}
         <Tooltip handle={tooltipHandle}>
           {({ payload }) => <TooltipPopup side="bottom">{payload}</TooltipPopup>}
         </Tooltip>

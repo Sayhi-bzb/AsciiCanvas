@@ -7,8 +7,13 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  Button,
 } from "@chardesk/ui";
-import { useCanvasState } from "@/domains/canvas/public";
+import {
+  useCanvasPersistence,
+  useCanvasRuntime,
+  useCanvasState,
+} from "@/domains/canvas/public";
 
 type DataSecurityDialogProps = {
   open: boolean;
@@ -20,6 +25,8 @@ export function DataSecurityDialog({
   onOpenChange,
 }: DataSecurityDialogProps) {
   const { t } = useUiI18n();
+  const canvas = useCanvasRuntime();
+  const persistence = useCanvasPersistence();
   const collaboration = useCanvasState((state) =>
     state.canvasSessions.find((session) => session.id === state.activeCanvasId)?.collaboration
   );
@@ -57,6 +64,25 @@ export function DataSecurityDialog({
           <p className="text-[11px] leading-4 text-muted-foreground">
             {collaboration ? t("security.collaborationNote") : t("security.storageNote")}
           </p>
+          {persistence.save === "error" && (
+            <div role="alert" className="flex items-center justify-between gap-3 rounded-control border border-destructive/30 p-2 text-xs">
+              <span className="min-w-0 text-destructive">
+                {t("security.persistence.unsavedDescription")}
+              </span>
+              <Button
+                size="sm"
+                tone="neutral"
+                onClick={() => void canvas.retryPersistence()}
+              >
+                {t("security.persistence.retry")}
+              </Button>
+            </div>
+          )}
+          {persistence.ownership === "reader" && (
+            <p role="status" className="rounded-control border p-2 text-xs text-muted-foreground">
+              {t("security.persistence.readerDescription")}
+            </p>
+          )}
         </DialogBody>
       </DialogContent>
     </Dialog>

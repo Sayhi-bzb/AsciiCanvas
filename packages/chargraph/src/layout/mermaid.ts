@@ -96,6 +96,8 @@ const arrowMarker: LayeredEndpointPainter = (scene, context) => {
       x: -context.endpoint.outward.x,
       y: -context.endpoint.outward.y,
     }),
+    styleRole: "edge.arrow",
+    bundleId: context.edge.routing?.bundleId,
   });
 };
 
@@ -108,20 +110,7 @@ const createLayeredMermaidDiagram = (
   const nodePresentations = new Map<string, MermaidNodePresentation>();
   const edgePresentations = new Map<string, MermaidEdgePresentation>();
   const isStateDiagram = parsed.diagramType === "state";
-  const directedPairs = new Set(parsed.edges.map((edge) =>
-    `${edge.source}\0${edge.target}`
-  ));
-  const hasOppositeTransition = (source: string, target: string) =>
-    source !== target && directedPairs.has(`${target}\0${source}`);
-  const distributedStateNodes = new Set(
-    parsed.edges
-      .filter((edge) => hasOppositeTransition(edge.source, edge.target))
-      .flatMap((edge) => [edge.source, edge.target]),
-  );
-  const hasBidirectionalEdge = parsed.edges.some((edge) =>
-    edge.hasArrowStart && edge.hasArrowEnd
-  );
-  const minimumLayerSpacing = hasBidirectionalEdge ? 3 : 2;
+  const minimumLayerSpacing = isStateDiagram ? 2 : 3;
   flattenGroups(parsed.subgraphs, undefined, groups, owners);
 
   const nodes: LayoutNode[] = [...parsed.nodes].map(([id, node]) => {
@@ -132,7 +121,10 @@ const createLayeredMermaidDiagram = (
       paddingX: options.boxBorderPaddingX,
       paddingY: options.boxBorderPaddingY,
     });
-    nodePresentations.set(idForLayout, { label: node.label, shape: node.shape });
+    nodePresentations.set(idForLayout, {
+      label: node.label,
+      shape: node.shape,
+    });
     return {
       id: idForLayout,
       label: node.label,
@@ -144,9 +136,7 @@ const createLayeredMermaidDiagram = (
         : node.shape === "state-end"
           ? "last"
           : undefined,
-      portPlacement: isStateDiagram && distributedStateNodes.has(id)
-        ? "adaptive" as const
-        : undefined,
+      portPlacement: "adaptive" as const,
     };
   });
 
@@ -162,13 +152,22 @@ const createLayeredMermaidDiagram = (
       source: nodeId(edge.source),
       target: nodeId(edge.target),
       label: createLayoutLabel(edge.label),
-      labelLayout: isStateDiagram && edge.label ? "route" as const : undefined,
+      labelLayout: edge.label ? "route" as const : undefined,
+      routing: {
+        quality: "readable" as const,
+        ...(!isStateDiagram
+          ? { bundle: "structured" as const, bundleKey: edge.style }
+          : {}),
+        ...(edge.hasArrowStart ? { sourceClearance: 1 } : {}),
+        ...(edge.hasArrowEnd ? { targetClearance: 1 } : {}),
+      },
     };
   });
 
   const graph: LayoutGraph = {
     direction: parsed.direction,
     cycleBreaking: isStateDiagram ? "depth-first" : undefined,
+    nodeAlignment: "balanced",
     spacing: parsed.direction === "LR" || parsed.direction === "RL"
       ? {
           nodeNode: Math.max(2, options.paddingY),
@@ -243,6 +242,7 @@ const createLayeredMermaidDiagram = (
           style: visual.style,
           role: visual.style === "solid" ? "border" : "line",
           rounded: true,
+          styleRole: "edge.line",
         },
         sourceEndpoint: visual.hasArrowStart
           ? { trimAnchor: true, paint: arrowMarker }

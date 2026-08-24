@@ -11,6 +11,18 @@ import {
   createCanvasQueries,
 } from "./state/canvasCommands";
 import type { CanvasSession } from "@/domains/sessions/public";
+import {
+  createBrowserCanvasPersistence,
+  type BrowserCanvasPersistence,
+  type CanvasPersistenceStatus,
+} from "./state/browserPersistence";
+
+const DISABLED_PERSISTENCE_STATUS: CanvasPersistenceStatus = {
+  phase: "ready",
+  save: "saved",
+  ownership: "writer",
+  error: null,
+};
 
 type CanvasRuntimeOptions = {
   documents?: CanvasDocumentRegistry;
@@ -26,33 +38,61 @@ export class CanvasRuntime {
   readonly store;
   readonly commands;
   readonly queries;
+  readonly persistence: BrowserCanvasPersistence | null;
+  readonly ready: Promise<void>;
   readonly #disposeStore: () => void;
   #disposed = false;
 
   constructor(options: CanvasRuntimeOptions) {
+    if (
+      options.persistence &&
+      options.persistence.key.trim().length === 0
+    ) {
+      throw new Error("Canvas persistence requires a non-empty instance key");
+    }
     this.documents = options.documents ?? new CanvasDocumentRegistry();
     const storeInstance = createEditorStore({
       documents: this.documents,
       selectionCommands: options.selectionCommands,
       parseSessionSource: options.parseSessionSource,
       reportIntegrityIssues: options.reportIntegrityIssues ?? (() => undefined),
-      persistence: options.persistence,
+      // Browser content persistence is coordinated against the authoritative
+      // Yjs documents. Zustand remains an in-memory projection.
+      persistence: false,
       initialSessions: options.initialSessions,
     });
     this.store = storeInstance.store;
     this.#disposeStore = storeInstance.dispose;
     this.commands = createCanvasCommands(this.store, this.documents);
     this.queries = createCanvasQueries(this.store, this.documents);
+    this.persistence = options.persistence
+      ? createBrowserCanvasPersistence({
+          legacyStorage: options.persistence.storage,
+          legacyKey: options.persistence.key,
+        })
+      : null;
+    this.ready = this.persistence
+      ? this.persistence.initialize(this.documents, this.store)
+      : Promise.resolve();
   }
 
   getState = () => this.store.getState();
   subscribe = (listener: Parameters<typeof this.store.subscribe>[0]) =>
     this.store.subscribe(listener);
 
+  getPersistenceSnapshot = (): CanvasPersistenceStatus =>
+    this.persistence?.getSnapshot() ?? DISABLED_PERSISTENCE_STATUS;
+
+  subscribePersistence = (listener: () => void): (() => void) =>
+    this.persistence?.subscribe(listener) ?? (() => undefined);
+
+  retryPersistence = () => this.persistence?.retry() ?? Promise.resolve();
+
   dispose = () => {
     if (this.#disposed) return;
     this.#disposed = true;
     this.#disposeStore();
+    this.persistence?.dispose();
     this.documents.dispose();
   };
 }

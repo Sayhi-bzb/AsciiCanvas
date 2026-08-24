@@ -43,6 +43,17 @@ interface CharGraphExample {
   readonly expectedText: string;
 }
 
+type CharGraphClipboardSource = Pick<
+  CharGraphExample,
+  "renderer" | "source"
+>;
+
+export const getExampleClipboardSource = ({
+  renderer,
+  source,
+}: CharGraphClipboardSource): string =>
+  renderer === "mermaid" ? `\`\`\`mermaid\n${source}\n\`\`\`` : source;
+
 const markdownOptions = createCharDeskMarkdownStyles({
   theme: CHARDESK_LIGHT_RENDER_THEME,
 });
@@ -149,9 +160,9 @@ export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
     renderer: "mermaid",
     title: "文档模型",
     expectedText: "文档",
-    source: `classDiagram
+  source: `classDiagram
   class 文档 {
-    +标题: string
+    +string 标题
     +保存()
   }
   文档 <|-- 画布`,
@@ -299,9 +310,9 @@ export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
     renderer: "mermaid",
     title: "接口与依赖",
     expectedText: "渲染器",
-    source: `classDiagram
+  source: `classDiagram
   class 文档 {
-    +标题 string
+    +string 标题
     +保存()
   }
   class 可保存 {

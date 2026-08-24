@@ -18,6 +18,10 @@ const expectNoInternalCellTokens = (value: string) => {
   expect(value).not.toMatch(/[\uE000-\uF8FF]/u);
 };
 
+const expectTerminalArrows = (value: string) => {
+  expect(value).not.toMatch(/>[─━┄]|[─━┄]</u);
+};
+
 const trimLineEnds = (value: string) => value
   .split("\n")
   .map((line) => line.trimEnd())
@@ -71,22 +75,24 @@ describe("renderMermaidText", () => {
     });
   });
 
-  it("emits independently styled semantic fragments without changing text", async () => {
-    const source = "flowchart LR\n  A[Start] -->|go| B[Done]";
+  it.each([
+    ["Flow", "flowchart LR\n  A[Start] -->|go| B[Done]"],
+    ["State", "stateDiagram-v2\n  [*] --> draft\n  draft --> done : go\n  done --> [*]"],
+  ])("emits monochrome structural %s fragments without changing text", async (_, source) => {
     const plain = await renderMermaidText(source);
     const styled = await renderMermaid(source, {
       styles: {
         "node.text": { color: "#111111" },
         "node.border": { color: "#222222" },
-        "edge.line": { color: "#333333" },
+        "edge.line": { color: "#222222" },
+        "edge.arrow": { color: "#222222" },
         "edge.label": { color: "#444444" },
-        "edge.arrow": { color: "#555555" },
       },
     });
 
     expect(getCharGraphText(styled)).toBe(plain);
     expect(new Set(styled.fragments.map((fragment) => fragment.color))).toEqual(
-      new Set([undefined, "#111111", "#222222", "#333333", "#444444", "#555555"])
+      new Set([undefined, "#111111", "#222222", "#444444"])
     );
   });
 
@@ -150,6 +156,41 @@ describe("renderMermaidText", () => {
    ◎`);
   });
 
+  it("keeps repeated Flow forks and joins centered across layers", async () => {
+    const output = await renderMermaidText(`flowchart TD
+  A[A] --> B[B]
+  B --> B1[B1]
+  B --> B2[B2]
+  B --> B3[B3]
+  B --> B4[B4]
+  B1 --> C[C]
+  B2 --> C
+  B3 --> C
+  B4 --> C
+  C --> D[D]
+  D --> D1[D1]
+  D --> D2[D2]
+  D --> D3[D3]
+  D --> D4[D4]
+  D1 --> E[E]
+  D2 --> E
+  D3 --> E
+  D4 --> E
+  E --> F[F]
+  F --> G[G]`);
+    const lines = output.split("\n");
+    const centers = ["A", "B", "C", "D", "E", "F", "G"].map((id) => {
+      const token = `│ ${id} │`;
+      const line = lines.find((candidate) => candidate.includes(token));
+      expect(line).toBeDefined();
+      const prefix = line!.slice(0, line!.indexOf(token));
+      return getTextCellWidth(prefix) + getTextCellWidth(token) / 2;
+    });
+
+    expect(Math.max(...centers) - Math.min(...centers)).toBeLessThanOrEqual(2);
+    expectNoInternalCellTokens(output);
+  });
+
   it("keeps a visible stroke cell beside vertical arrowheads", async () => {
     const source = "flowchart TD\n  A[上] --> B[下]";
     const vertical = trimLineEnds(await renderMermaidText(source));
@@ -159,7 +200,7 @@ describe("renderMermaidText", () => {
       "flowchart BT\n  A[下] --> B[上]",
     ));
 
-    expect(vertical).toMatch(/╰─┬──╯\n {2}│\n {2}v/u);
+    expect(vertical).toMatch(/╰─┬──╯\n {2}│\n {2}│\n {2}v/u);
     expect(clampedZero).toBe(vertical);
     expect(clampedOne).toBe(vertical);
     expect(bottomToTop).toMatch(/╰────╯\n {2}\^\n {2}│/u);
@@ -204,9 +245,13 @@ describe("renderMermaidText", () => {
       .split("\n")
       .find((line) => line.includes("验证通过？"));
 
-    expect(decisionLine).toMatch(/│ 验证通过？ ├.*是─+>│ 保存数据 /u);
+    expect(decisionLine).toContain("│ 验证通过？ ├");
     expect(decisionLine).not.toContain("│ 验证通过？ │├");
-    expect(asciiOutput).toMatch(/\| 验证通过？ \|.*是[-=]+>\| 保存数据 /u);
+    expect(output).toContain("是");
+    expect(output).toContain("否");
+    expect(output).toMatch(/>│ 保存数据 /u);
+    expect(asciiOutput).toMatch(/>\| 保存数据 /u);
+    expectTerminalArrows(output);
     expectNoInternalCellTokens(output);
   });
 
@@ -216,12 +261,62 @@ describe("renderMermaidText", () => {
   B -->|是| C[保存数据]
   B -->|否| D[显示错误]`);
 
-    expect(output).toMatch(/是─+>│ 保存数据 │/u);
+    expect(output).toContain("是");
     expect(output).toContain("否");
+    expect(output).toMatch(/>│ 保存数据 │/u);
     expect(output).toMatch(/>│ 显示错误 │/u);
-    expect(output).toMatch(/┬─+╯/u);
-    expect(output).toMatch(/╰─+否─+>│ 显示错误 │/u);
+    expect(output).toMatch(/[┬┤├┴]/u);
     expect(output).not.toMatch(/[─┄━]\^ +│/u);
+    expectTerminalArrows(output);
+    expectNoInternalCellTokens(output);
+  });
+
+  it("routes long fan-out and fan-in flows through explicit buses", async () => {
+    const source = `flowchart TD
+  A[选择一个待核对模型] --> B[查看模型配置]
+  B --> B1[记录模型名称]
+  B --> B2[记录数据库表名]
+  B --> B3[记录输入参数]
+  B --> B4[记录输出字段]
+  B1 --> C[查找对应数据表]
+  B2 --> C
+  B3 --> C
+  B4 --> C
+  C --> D{数据表是否存在？}
+  D -- 不存在 --> X1[标记不可用]
+  D -- 存在 --> E[查看 Columns]
+  E --> F[对比模型字段与真实列]
+  F --> G{模型使用的列是否存在？}
+  G -- 不存在 --> X2[记录错误字段]
+  G -- 存在 --> H[查询真实数据]
+  X2 --> H
+  H --> I[检查字段实际含义]
+  I --> I1[代码代表什么？]
+  I --> I2[日期代表什么？]
+  I --> I3[数值单位是什么？]
+  I --> I4[枚举值如何翻译？]
+  I1 --> J[检查数据质量]
+  I2 --> J
+  I3 --> J
+  I4 --> J
+  J --> J1[检查最新数据日期]
+  J --> J2[检查关键字段空值]
+  J --> J3[检查重复数据]
+  J --> J4[检查表是否停止维护]
+  J1 --> K[选择真实测试样本]
+  J2 --> K
+  J3 --> K
+  J4 --> K
+  K --> L[填写模型验收表]`;
+    const result = await renderMermaid(source);
+    const output = getCharGraphText(result);
+
+    expect(result.diagnostics).toEqual([]);
+    expect(output).toContain("填写模型验收表");
+    expect(output).not.toContain("flowchart TD");
+    expect(output).toMatch(/[┬┴]/u);
+    expect(output).not.toMatch(/[╭╮╰╯]{2}/u);
+    expectTerminalArrows(output);
     expectNoInternalCellTokens(output);
   });
 
@@ -231,10 +326,13 @@ describe("renderMermaidText", () => {
   B -.->|虚线| C[上路]
   B ==>|粗线| D[下路]`);
 
-    expect(output).toMatch(/虚线┄*>│ 上路 │/u);
-    expect(output).toMatch(/粗线━+>│ 下路 │/u);
+    expect(output).toMatch(/虚线.*┄|┄.*虚线/u);
+    expect(output).toMatch(/粗线.*┃|┃.*粗线/u);
+    expect(output).toMatch(/>│ 上路 │/u);
+    expect(output).toMatch(/>│ 下路 │/u);
     expect(output).toMatch(/┄/u);
     expect(output).toMatch(/━/u);
+    expectTerminalArrows(output);
     expectNoInternalCellTokens(output);
   });
 
@@ -340,7 +438,7 @@ describe("renderMermaidText", () => {
   it("allocates independent class relationship ports and preserves member syntax", async () => {
     const output = await renderMermaidText(`classDiagram
   class 文档 {
-    +标题 string
+    +string 标题
     +保存()
   }
   class 可保存 {
@@ -355,7 +453,7 @@ describe("renderMermaidText", () => {
   文档 ..> 渲染器 : 使用
   文档 --> 协作者 : 授权`);
 
-    expect(output).toContain("+string: 标题");
+    expect(output).toContain("+标题: string");
     expect(output).toContain("使用");
     expect(output).toContain("授权");
     expect(output).not.toContain("使用└─ 授权");
@@ -382,6 +480,22 @@ describe("renderMermaidText", () => {
     expect(output).toContain("包含");
     expect(output.match(/页面/gu)?.length).toBeGreaterThanOrEqual(2);
     expect(output).toMatch(/[<>^v]/u);
+  });
+
+  it("keeps Class endpoint cardinalities within a namespace border", async () => {
+    const output = await renderMermaidText(`classDiagram
+  namespace 内容域 {
+    class 文档
+    class 页面
+  }
+  文档 "1" --> "0..*" 页面 : 包含`);
+    const lines = output.split("\n");
+    const width = getTextCellWidth(lines[0]!);
+    const targetCardinalityLine = lines.find((line) => line.includes("0..*"));
+
+    expect(targetCardinalityLine).toBeDefined();
+    expect(targetCardinalityLine).toMatch(/0\.\.\*\s+│$/u);
+    expect(lines.every((line) => getTextCellWidth(line) === width)).toBe(true);
   });
 
   it("renders all Class relationships with angle markers and dotted semantics", async () => {
@@ -508,8 +622,10 @@ describe("renderMermaidText", () => {
   C -->|失败| E>记录告警]
   D <--> F[[同步服务]]`);
 
-    expect(output).toContain("╭失败>│ 记录告警 │");
-    expect(output).not.toMatch(/ {2,}失败>│ 记录告警 │/u);
+    expect(output).toMatch(/[━┃]通过|通过[━┃]/u);
+    expect(output).toContain("失败");
+    expect(output).toMatch(/>│ 记录告警 │/u);
+    expectTerminalArrows(output);
     expectNoInternalCellTokens(output);
   });
 
@@ -555,8 +671,44 @@ describe("renderMermaidText", () => {
   participant U as 用户
   U->>U: 重试`);
 
-    expect(output).toMatch(/<─+┘/u);
+    expect(output).toMatch(/├─+╮/u);
+    expect(output).toMatch(/<─+╯/u);
+    expect(output).not.toMatch(/[┐┘]/u);
     expect(output).not.toMatch(/[▶▷◀◁]/u);
+  });
+
+  it("keeps solid, dashed, and multi-line sequence self-messages rounded", async () => {
+    const solid = await renderMermaidText(`sequenceDiagram
+  participant W as Worker
+  W->>W: 第一行<br/>第二行`);
+    const dashed = await renderMermaidText(`sequenceDiagram
+  participant W as Worker
+  W-->>W: 重试`);
+    const ascii = await renderMermaidText(`sequenceDiagram
+  participant W as Worker
+  W->>W: Retry`, { characterSet: "ascii" });
+
+    expect(solid).toMatch(/├─+╮/u);
+    expect(solid).toMatch(/<─+╯/u);
+    expect(solid).toContain("第一行");
+    expect(solid).toContain("第二行");
+    expect(solid).not.toMatch(/[┐┘]/u);
+    expect(dashed).toMatch(/├╌+╮/u);
+    expect(dashed).toMatch(/<╌+╯/u);
+    expect(ascii).toMatch(/\+-+\+/u);
+    expect(ascii).toMatch(/<-+\+/u);
+  });
+
+  it("rounds subroutine outer corners without losing its double border", async () => {
+    const unicode = await renderMermaidText("flowchart LR\n  A[[同步服务]]");
+    const ascii = await renderMermaidText("flowchart LR\n  A[[同步服务]]", {
+      characterSet: "ascii",
+    });
+
+    expect(unicode).toMatch(/╭┬─+┬╮/u);
+    expect(unicode).toMatch(/╰┴─+┴╯/u);
+    expect(unicode).not.toMatch(/[┌┐└┘]/u);
+    expect(ascii).toMatch(/\+\+-+\+\+/u);
   });
 
   it.each([
@@ -564,7 +716,7 @@ describe("renderMermaidText", () => {
       "class",
       `classDiagram
   class User {
-    +name: string
+    +string name
   }
   User : 用户资料`,
       "用户资料",

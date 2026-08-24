@@ -14,7 +14,7 @@ describe('CharScene', () => {
     ])
   })
 
-  it('keeps markers and reserved labels independent from routes', () => {
+  it('keeps markers and reserved labels independent and reports terminal crossings', () => {
     const scene = new CharScene(3, 1, false)
     scene.write(0, 0, '─', 'line', { owner: 'route' })
     scene.write(0, 0, '>', 'arrow', { owner: 'marker' })
@@ -24,7 +24,9 @@ describe('CharScene', () => {
     const result = scene.compose()
     expect(result.canvas[0]![0]).toBe('>')
     expect(result.canvas[1]![0]).toBe(' ')
-    expect(result.collisions.every(collision => collision.resolved)).toBe(true)
+    expect(result.collisions).toEqual(expect.arrayContaining([
+      expect.objectContaining({ resolved: false, owners: ['route', 'marker'] }),
+    ]))
   })
 
   it('does not merge a route into a higher-priority box border', () => {
@@ -89,15 +91,17 @@ describe('CharScene', () => {
     expect(scene.compose().canvas[0]![0]).toBe('+')
   })
 
-  it('merges routes that share a semantic endpoint', () => {
+  it('merges route topology only inside an explicit bundle', () => {
     const scene = new CharScene(1, 1, false)
     scene.write(0, 0, '┆', 'line', {
       owner: 'dependency',
       connections: ['source', 'dependency-target'],
+      bundleId: 'bundle:source',
     })
     scene.write(0, 0, '─', 'border', {
       owner: 'association',
       connections: ['source', 'association-target'],
+      bundleId: 'bundle:source',
     })
 
     expect(scene.compose().canvas[0]![0]).toBe('┼')

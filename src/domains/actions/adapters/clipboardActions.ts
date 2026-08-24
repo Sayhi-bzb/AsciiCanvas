@@ -15,6 +15,7 @@ import type { StructuredNode, StructuredNodeStyle, StructuredTextNode, Structure
 import type { RichTextCell } from "@/domains/canvas/public";
 import {
   renderTextSource,
+  type CompactTextRenderResult,
   type TextRenderResult,
 } from "@/domains/document/public";
 import { clipboard } from "@/shared/services/effects";
@@ -84,7 +85,10 @@ export const parseAnsiClipboardText = (
 export type RenderClipboardText = (
   source: string,
   defaultColor: string
-) => TextRenderResult | Promise<TextRenderResult>;
+) =>
+  | TextRenderResult
+  | CompactTextRenderResult
+  | Promise<TextRenderResult | CompactTextRenderResult>;
 
 const toRenderedClipboardPayload = async (
   source: string,
@@ -92,6 +96,15 @@ const toRenderedClipboardPayload = async (
   renderText: RenderClipboardText
 ) => {
   const rendered = await renderText(source, defaultColor);
+  if (rendered.kind === "spans") {
+    return {
+      richRows: rendered.rows,
+      richCells: null,
+      structured: null,
+      structuredText: null,
+      plainText: source,
+    };
+  }
   return rendered.kind === "styled"
     ? {
         richCells: rendered.cells,

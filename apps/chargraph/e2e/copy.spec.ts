@@ -1,6 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { CHARGRAPH_EXAMPLES, renderExample } from "../src/examples";
+import {
+  CHARGRAPH_EXAMPLES,
+  getExampleClipboardSource,
+  renderExample,
+} from "../src/examples";
 
 declare global {
   interface Window {
@@ -43,7 +47,12 @@ test("copies Mermaid source and Unicode output with in-place feedback", async ({
 
   const sourceCopy = article.locator('[data-copy-target="source"]');
   await sourceCopy.click();
-  await expect.poll(() => readClipboard(page)).toBe(example.source);
+  await expect.poll(() => readClipboard(page)).toBe(
+    getExampleClipboardSource(example)
+  );
+  await expect(article.locator('[data-slot="example-source"]')).not.toContainText(
+    "```mermaid"
+  );
   await expect(sourceCopy).toHaveAttribute("data-copy-feedback", "success");
   await expect(sourceCopy).toHaveAttribute("data-feedback", "success");
   await expect(sourceCopy).toHaveClass(/text-success/);
