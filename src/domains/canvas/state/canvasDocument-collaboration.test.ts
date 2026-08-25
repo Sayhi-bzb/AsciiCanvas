@@ -1,8 +1,41 @@
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
 import { CanvasDocumentRegistry } from "./CanvasDocumentRegistry";
+import {
+  CellPlaneIndex,
+  gridChangesToCellPlaneOperation,
+  type CellPlaneOperation,
+} from "../cell-plane/model";
 
 const cell = (char: string) => ({ char, color: "#000000" });
+const readGrid = (doc: Y.Doc) =>
+  new CellPlaneIndex(
+    doc.getArray<CellPlaneOperation>("cell-plane-operations").toArray()
+  ).materialize();
+const mutateGrid = (
+  doc: Y.Doc,
+  id: string,
+  mutation: (grid: Map<string, ReturnType<typeof cell>>) => void
+) => {
+  const before = readGrid(doc);
+  const after = new Map(before);
+  mutation(after);
+  const changes = new Map<
+    string,
+    { before?: ReturnType<typeof cell>; after?: ReturnType<typeof cell> }
+  >();
+  new Set([...before.keys(), ...after.keys()]).forEach((key) => {
+    const previous = before.get(key);
+    const next = after.get(key);
+    if (JSON.stringify(previous) === JSON.stringify(next)) return;
+    changes.set(key, {
+      ...(previous ? { before: previous } : {}),
+      ...(next ? { after: next } : {}),
+    });
+  });
+  const operation = gridChangesToCellPlaneOperation(id, changes);
+  if (operation) doc.getArray<CellPlaneOperation>("cell-plane-operations").push([operation]);
+};
 const applyYMapValueDiff = <T extends { id: string }>(map: Y.Map<T>, values: T[]) => {
   const nextIds = new Set(values.map((value) => value.id));
   Array.from(map.keys()).forEach((id) => {
@@ -23,23 +56,25 @@ describe("canvas CRDT collaboration", () => {
     const remote = new Y.Doc();
     Y.applyUpdate(remote, Y.encodeStateAsUpdate(local));
 
-    remote.transact(() => {
-      remote.getMap("main-grid").set("0,0", cell("你"));
-      remote.getMap("main-grid").set("1,0", cell("B"));
+    mutateGrid(remote, "remote-overlap", (grid) => {
+      grid.set("0,0", cell("你"));
+      grid.set("1,0", cell("B"));
     });
     Y.applyUpdate(local, Y.encodeStateAsUpdate(remote));
 
-    expect(documents.yMainGrid.toJSON()).toEqual({ "1,0": cell("B") });
+    expect(Object.fromEntries(documents.getContentReader().materialize())).toEqual({
+      "1,0": cell("B"),
+    });
     Y.applyUpdate(remote, Y.encodeStateAsUpdate(local));
-    expect(remote.getMap("main-grid").toJSON()).toEqual({ "1,0": cell("B") });
+    expect(Object.fromEntries(readGrid(remote))).toEqual({ "1,0": cell("B") });
     documents.dispose();
   });
 
   it("converges independent cell edits", () => {
     const left = new Y.Doc();
     const right = new Y.Doc();
-    left.getMap("main-grid").set("0,0", cell("A"));
-    right.getMap("main-grid").set("1,0", cell("B"));
+    mutateGrid(left, "left-a", (grid) => grid.set("0,0", cell("A")));
+    mutateGrid(right, "right-b", (grid) => grid.set("1,0", cell("B")));
 
     const leftUpdate = Y.encodeStateAsUpdate(left);
     const rightUpdate = Y.encodeStateAsUpdate(right);
@@ -47,22 +82,24 @@ describe("canvas CRDT collaboration", () => {
     Y.applyUpdate(right, leftUpdate);
 
     const entries = (doc: Y.Doc) =>
-      Array.from(doc.getMap("main-grid").entries()).sort(([a], [b]) => a.localeCompare(b));
+      Array.from(readGrid(doc).entries()).sort(([a], [b]) => a.localeCompare(b));
     expect(entries(left)).toEqual(entries(right));
-    expect(left.getMap("main-grid").size).toBe(2);
+    expect(readGrid(left).size).toBe(2);
   });
 
   it("preserves hydrated remote content when the joining client makes its first edit", () => {
     const remote = new Y.Doc();
-    remote.getMap("main-grid").set("0,0", cell("R"));
-    remote.getMap("main-grid").set("1,0", cell("S"));
+    mutateGrid(remote, "remote-seed", (grid) => {
+      grid.set("0,0", cell("R"));
+      grid.set("1,0", cell("S"));
+    });
 
     const joining = new Y.Doc();
     Y.applyUpdate(joining, Y.encodeStateAsUpdate(remote));
-    joining.getMap("main-grid").set("2,0", cell("L"));
+    mutateGrid(joining, "joining-first", (grid) => grid.set("2,0", cell("L")));
     Y.applyUpdate(remote, Y.encodeStateAsUpdate(joining));
 
-    expect(remote.getMap("main-grid").toJSON()).toEqual({
+    expect(Object.fromEntries(readGrid(remote))).toEqual({
       "0,0": cell("R"),
       "1,0": cell("S"),
       "2,0": cell("L"),
@@ -79,15 +116,17 @@ describe("canvas CRDT collaboration", () => {
     for (let index = 0; index < 120; index += 1) {
       const doc = docs[random(docs.length)];
       const key = `${random(12)},${random(8)}`;
-      if (random(5) === 0) doc.getMap("main-grid").delete(key);
-      else doc.getMap("main-grid").set(key, cell(String.fromCharCode(65 + random(26))));
+      mutateGrid(doc, `random-${index}`, (grid) => {
+        if (random(5) === 0) grid.delete(key);
+        else grid.set(key, cell(String.fromCharCode(65 + random(26))));
+      });
     }
 
     const updates = docs.map((doc) => Y.encodeStateAsUpdate(doc));
     const delivery = [...updates, updates[0], updates[2]].sort(() => random(3) - 1);
     docs.forEach((doc) => delivery.forEach((update) => Y.applyUpdate(doc, update)));
 
-    const snapshots = docs.map((doc) => doc.getMap("main-grid").toJSON());
+    const snapshots = docs.map((doc) => Object.fromEntries(readGrid(doc)));
     expect(snapshots[1]).toEqual(snapshots[0]);
     expect(snapshots[2]).toEqual(snapshots[0]);
   });
@@ -98,14 +137,14 @@ describe("canvas CRDT collaboration", () => {
     const local = documents.getCollaborationDocument(id)!;
     const remote = new Y.Doc();
 
-    documents.runTransaction(() => documents.yMainGrid.set("0,0", cell("L")));
+    documents.mutateGrid((grid) => grid.set("0,0", cell("L")));
     Y.applyUpdate(remote, Y.encodeStateAsUpdate(local));
-    remote.getMap("main-grid").set("1,0", cell("R"));
+    mutateGrid(remote, "remote-r", (grid) => grid.set("1,0", cell("R")));
     Y.applyUpdate(local, Y.encodeStateAsUpdate(remote));
 
     documents.undo();
-    expect(documents.yMainGrid.has("0,0")).toBe(false);
-    expect(documents.yMainGrid.get("1,0")).toEqual(cell("R"));
+    expect(documents.getContentReader().getCell({ x: 0, y: 0 })).toBeUndefined();
+    expect(documents.getContentReader().getCell({ x: 1, y: 0 })).toEqual(cell("R"));
     documents.dispose();
   });
 
@@ -115,21 +154,18 @@ describe("canvas CRDT collaboration", () => {
     const local = documents.getCollaborationDocument(id)!;
     const remote = new Y.Doc();
 
-    documents.runTransaction(() => documents.yMainGrid.set("0,0", cell("B")));
+    documents.mutateGrid((grid) => grid.set("0,0", cell("B")));
     const checkpoint = documents.beginHistoryCheckpoint();
-    documents.runTransaction(
-      () => documents.yMainGrid.set("1,0", cell("L")),
-      "merge"
-    );
+    documents.mutateGrid((grid) => grid.set("1,0", cell("L")), "merge");
     Y.applyUpdate(remote, Y.encodeStateAsUpdate(local));
-    remote.getMap("main-grid").set("2,0", cell("R"));
+    mutateGrid(remote, "remote-checkpoint", (grid) => grid.set("2,0", cell("R")));
     Y.applyUpdate(local, Y.encodeStateAsUpdate(remote));
 
     checkpoint.cancel();
 
-    expect(documents.yMainGrid.get("0,0")).toEqual(cell("B"));
-    expect(documents.yMainGrid.has("1,0")).toBe(false);
-    expect(documents.yMainGrid.get("2,0")).toEqual(cell("R"));
+    expect(documents.getContentReader().getCell({ x: 0, y: 0 })).toEqual(cell("B"));
+    expect(documents.getContentReader().getCell({ x: 1, y: 0 })).toBeUndefined();
+    expect(documents.getContentReader().getCell({ x: 2, y: 0 })).toEqual(cell("R"));
     expect(documents.getHistoryAvailability()).toEqual({
       canUndo: true,
       canRedo: false,
@@ -142,12 +178,12 @@ describe("canvas CRDT collaboration", () => {
     const documents = new CanvasDocumentRegistry(id);
     const checkpoint = documents.beginHistoryCheckpoint();
 
-    documents.runTransaction(() => documents.yMainGrid.set("0,0", cell("A")), "merge");
-    documents.runTransaction(() => documents.yMainGrid.set("1,0", cell("B")), "merge");
+    documents.mutateGrid((grid) => grid.set("0,0", cell("A")), "merge");
+    documents.mutateGrid((grid) => grid.set("1,0", cell("B")), "merge");
     checkpoint.commit();
 
     expect(documents.undo()).toBe(true);
-    expect(documents.yMainGrid.size).toBe(0);
+    expect(documents.getContentReader().materialize()).toEqual(new Map());
     expect(documents.undo()).toBe(false);
     documents.dispose();
   });
@@ -161,7 +197,7 @@ describe("canvas CRDT collaboration", () => {
       canRedo: false,
     });
 
-    documents.runTransaction(() => documents.yMainGrid.set("0,0", cell("A")));
+    documents.mutateGrid((grid) => grid.set("0,0", cell("A")));
     expect(documents.getHistoryAvailability()).toEqual({
       canUndo: true,
       canRedo: false,

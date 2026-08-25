@@ -40,7 +40,7 @@ describe("syncHydratedStateToCanvasDocument", () => {
 
     syncHydratedStateToCanvasDocument(documents, hydratedState);
 
-    expect(documents.yMainGrid.size).toBe(0);
+    expect(documents.getContentReader().materialize()).toEqual(new Map());
     expect(documents.yStructuredScene.get("hydrated-text")).toEqual(scene[0]);
     documents.dispose();
   });

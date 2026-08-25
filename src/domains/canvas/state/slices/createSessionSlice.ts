@@ -10,6 +10,7 @@ import type {
 import {
   resolveSessionRuntime,
   getSessionCanvasDocumentId,
+  stripStaticSessionContent,
 } from "../helpers/storeUtils";
 import { getSlideEditingBufferId } from "../slideEditingBuffer";
 import {
@@ -113,24 +114,6 @@ const checkpointActiveSessionViewport = (
     }
   });
 
-const cacheStructuredRuntimeGrid = (
-  sessions: CanvasSession[],
-  target: CanvasSession,
-  runtime: ReturnType<typeof resolveSessionRuntime>
-) => {
-  if (
-    target.mode !== "structured" ||
-    target.grid === runtime.nextGridEntries
-  ) {
-    return sessions;
-  }
-  return sessions.map((session): CanvasSession =>
-    session.id === target.id && session.mode === "structured"
-      ? { ...session, grid: runtime.nextGridEntries }
-      : session
-  );
-};
-
 const activateSessionRuntime = (
   documents: CanvasDocumentRegistry,
   session: CanvasSession,
@@ -152,18 +135,18 @@ const activateSessionRuntime = (
     }
   );
 
-  if (session.mode === "slide" || !session.collaboration) {
+  if (session.mode === "slide") {
     return initialRuntime;
   }
 
-  const collaborativeSeed = documents.getDocumentSeed(session.id, session.mode);
+  const documentSeed = documents.getDocumentSeed(session.id, session.mode);
   return resolveSessionRuntime(
-    collaborativeSeed
+    documentSeed
       ? {
           ...session,
-          grid: collaborativeSeed.grid,
-          scene: collaborativeSeed.scene,
-          components: collaborativeSeed.components,
+          grid: documentSeed.grid,
+          scene: documentSeed.scene,
+          components: documentSeed.components,
         }
       : session,
     currentTool
@@ -209,10 +192,13 @@ export const createSessionSlice = (
           };
 
     const runtime = activateSessionRuntime(documents, newSession, state.tool);
-    const nextSessions = [...sessionsWithSnapshot, newSession];
+    const nextSessions = [
+      ...sessionsWithSnapshot,
+      stripStaticSessionContent(newSession),
+    ];
     set(
       createSessionActivationPatch(
-        cacheStructuredRuntimeGrid(nextSessions, newSession, runtime),
+        nextSessions,
         newSession.id,
         runtime
       )
@@ -236,16 +222,17 @@ export const createSessionSlice = (
       importedSnapshot
     );
     const runtime = activateSessionRuntime(documents, newSession, state.tool);
-    const nextSessions = [...sessionsWithSnapshot, newSession];
+    const storedSession = stripStaticSessionContent(newSession);
+    const nextSessions = [...sessionsWithSnapshot, storedSession];
     set(
       createSessionActivationPatch(
-        cacheStructuredRuntimeGrid(nextSessions, newSession, runtime),
+        nextSessions,
         newSession.id,
         runtime
       )
     );
 
-    return newSession;
+    return storedSession;
   },
   replaceCanvasSessionSnapshot: (sessionId, snapshot, options) => {
     const state = get();
@@ -273,8 +260,9 @@ export const createSessionSlice = (
           ...(target.collaboration ? { collaboration: target.collaboration } : {}),
           ...(preservedViewport ? { viewport: preservedViewport } : {}),
         };
+    const storedReplacement = stripStaticSessionContent(replacement);
     const nextSessions = state.canvasSessions.map((session) =>
-      session.id === sessionId ? replacement : session
+      session.id === sessionId ? storedReplacement : session
     );
     const runtime = resolveSessionRuntime(replacement, state.tool);
 
@@ -313,7 +301,7 @@ export const createSessionSlice = (
     const runtime = activateSessionRuntime(documents, target, state.tool);
     set(
       createSessionActivationPatch(
-        cacheStructuredRuntimeGrid(sessionsWithSnapshot, target, runtime),
+        sessionsWithSnapshot,
         canvasId,
         runtime
       )
@@ -347,7 +335,7 @@ export const createSessionSlice = (
     const runtime = activateSessionRuntime(documents, nextSession, state.tool);
     set(
       createSessionActivationPatch(
-        cacheStructuredRuntimeGrid(remaining, nextSession, runtime),
+        remaining,
         nextSession.id,
         runtime
       )

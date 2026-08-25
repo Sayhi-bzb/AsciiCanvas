@@ -31,7 +31,7 @@ import { useCanvasViewOptional } from './engine/CanvasWorkspace';
 import { CANVAS_FRAME_INVALIDATION } from './engine/FrameScheduler';
 import { resolveCanvasSurfaceGeometry } from './canvasSurfaceGeometry';
 import type { EditorViewportFrame } from '@/widgets/editor-chrome/public';
-import { computeVisibleContentBounds } from './minimap/geometry';
+import { computeVisibleSurfaceBounds } from './minimap/geometry';
 import {
   DEFAULT_CANVAS_EDITOR_CAPABILITIES,
   type CanvasEditorCapabilities,
@@ -117,14 +117,20 @@ export const CanvasEditor = ({
       fitContentRevision === lastFitContentRevisionRef.current ||
       !size
     ) return;
-    const bounds = computeVisibleContentBounds(rendererStore.grid);
+    const bounds = computeVisibleSurfaceBounds(rendererStore.contentReader);
     if (!bounds) return;
     lastFitContentRevisionRef.current = fitContentRevision;
     runtime.camera.fitBounds(bounds, size, {
       padding: 48,
       insets: viewportFrame?.insets,
     });
-  }, [fitContentRevision, rendererStore.grid, runtime, size, viewportFrame?.insets]);
+  }, [
+    fitContentRevision,
+    rendererStore.contentReader,
+    runtime,
+    size,
+    viewportFrame?.insets,
+  ]);
 
   useEffect(() => {
     const slideDeck = rendererStore.slideDeck;

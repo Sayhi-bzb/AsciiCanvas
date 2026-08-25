@@ -16,7 +16,11 @@ import {
 } from "@/domains/sessions/public";
 import type { SlideDeck } from "@/domains/slides/public";
 import type { GridCell } from "@/shared/types";
-import { gridEntriesToCellPlaneOperation } from "../cell-plane/model";
+import {
+  CellPlaneIndex,
+  gridEntriesToCellPlaneOperation,
+  type CellPlaneOperation,
+} from "../cell-plane/model";
 import type { CanvasStore } from "./editorStore";
 import {
   CanvasDocumentRegistry,
@@ -26,6 +30,7 @@ import { recoverPersistedEditorState } from "./editorPersistence";
 import { getSessionCanvasDocumentId } from "./helpers/storeUtils";
 
 const LOCAL_DOCUMENT_PREFIX = "chardesk-local-document-v1:";
+const CANVAS_DOCUMENT_SCHEMA_VERSION = 2;
 const SAVE_DELAY = 500;
 const WRITER_LOCK_NAME = "chardesk-canvas-workspace-writer-v1";
 const WRITER_LEASE_KEY = "chardesk-canvas-writer-lease-v1";
@@ -131,15 +136,12 @@ const emptySeed = (): CanvasDocumentSeed => ({
 });
 
 const isDocumentEmpty = (doc: Y.Doc) =>
-  doc.getMap("main-grid").size === 0 &&
   doc.getArray("cell-plane-operations").length === 0 &&
   doc.getMap("structured-scene").size === 0 &&
   doc.getMap("structured-components").size === 0;
 
 const applySeed = (doc: Y.Doc, id: string, seed: CanvasDocumentSeed) => {
   doc.transact(() => {
-    const grid = doc.getMap<GridCell>("main-grid");
-    seed.grid.forEach(([key, cell]) => grid.set(key, cell));
     const operation = gridEntriesToCellPlaneOperation(
       `bootstrap:${id}`,
       seed.grid
@@ -156,7 +158,7 @@ const applySeed = (doc: Y.Doc, id: string, seed: CanvasDocumentSeed) => {
       components.set(component.id, component)
     );
     const meta = doc.getMap<unknown>("document-meta");
-    meta.set("schemaVersion", 1);
+    meta.set("schemaVersion", CANVAS_DOCUMENT_SCHEMA_VERSION);
     meta.set("documentId", id);
   }, "local-persistence-bootstrap");
 };
@@ -178,7 +180,11 @@ const readDocumentSeed = (
 ): CanvasDocumentSeed => ({
   grid:
     mode === "freeform"
-      ? Array.from(doc.getMap<GridCell>("main-grid").entries())
+      ? Array.from(
+          new CellPlaneIndex(
+            doc.getArray<CellPlaneOperation>("cell-plane-operations").toArray()
+          ).materialize()
+        )
       : [],
   scene:
     mode === "structured"
@@ -199,6 +205,25 @@ const readDocumentSeed = (
         )
       : [],
 });
+
+const migrateLegacyDocument = (doc: Y.Doc, id: string) => {
+  const legacyGrid = doc.getMap<GridCell>("main-grid");
+  const operations = doc.getArray<CellPlaneOperation>("cell-plane-operations");
+  if (legacyGrid.size === 0) return;
+  doc.transact(() => {
+    if (operations.length === 0) {
+      const bootstrap = gridEntriesToCellPlaneOperation(
+        `legacy-bootstrap:${id}`,
+        Array.from(legacyGrid.entries())
+      );
+      if (bootstrap) operations.push([bootstrap]);
+    }
+    legacyGrid.clear();
+    const meta = doc.getMap<unknown>("document-meta");
+    meta.set("schemaVersion", CANVAS_DOCUMENT_SCHEMA_VERSION);
+    meta.set("documentId", id);
+  }, "local-persistence-migration");
+};
 
 const readLegacySessions = (storage: Storage, key: string) => {
   for (const candidate of [key, LEGACY_EDITOR_PERSISTENCE_KEY]) {
@@ -510,6 +535,7 @@ export class BrowserCanvasPersistence {
     const doc = new Y.Doc({ guid: id });
     const provider = new IndexeddbPersistence(name, doc);
     await provider.whenSynced;
+    migrateLegacyDocument(doc, id);
     this.#registerDocument(id, doc, provider);
     if (isDocumentEmpty(doc)) applySeed(doc, id, seed);
     await storeState(provider, true);

@@ -66,6 +66,7 @@ export const prepareTextExport = (
   }
 
   try {
+    const grid = context.surface.materialize();
     switch (format) {
       case "txt":
         return exportSucceeded(
@@ -76,7 +77,7 @@ export const prepareTextExport = (
                   context.structuredScene,
                   context.structuredComponents
                 )
-              : exportToString(context.grid),
+              : exportToString(grid),
             `chardesk-${getTimestamp()}.txt`,
             "text/plain;charset=utf-8"
           )
@@ -85,7 +86,7 @@ export const prepareTextExport = (
         return exportSucceeded(
           textArtifact(
             format,
-            exportToCharDesk(context.grid, {
+            exportToCharDesk(grid, {
               includeColor: context.includeColor,
             }),
             `chardesk-${getTimestamp()}.chardesk`,
@@ -96,7 +97,7 @@ export const prepareTextExport = (
         return exportSucceeded(
           textArtifact(
             format,
-            exportToAnsi(context.grid, {
+            exportToAnsi(grid, {
               includeColor: context.includeColor,
             }),
             `chardesk-${getTimestamp()}.ans`,
@@ -132,12 +133,13 @@ export const prepareExport = (
   if (textResult.ok || format !== "png") return textResult;
 
   try {
-    if (context.grid.size === 0) return exportFailed("empty-content");
+    const grid = context.surface.materialize();
+    if (grid.size === 0) return exportFailed("empty-content");
     return exportSucceeded({
       kind: "blob",
       format: "png",
       content: createPngBlobFromGrid(
-        context.grid,
+        grid,
         context.showGrid,
         context.includeColor
       ),

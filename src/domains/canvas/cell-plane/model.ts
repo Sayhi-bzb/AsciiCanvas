@@ -29,6 +29,66 @@ export type CellPlaneOperation = {
   rows: readonly CellRowMutation[];
 };
 
+const isSafeInteger = (value: unknown): value is number =>
+  typeof value === "number" && Number.isSafeInteger(value);
+
+const isTextAttributes = (value: unknown) =>
+  value === undefined ||
+  (!!value &&
+    typeof value === "object" &&
+    ["bold", "italic", "underline", "strike", "inverse"].every(
+      (key) =>
+        !(key in value) ||
+        typeof (value as Record<string, unknown>)[key] === "boolean"
+    ));
+
+export const isCellPlaneOperation = (
+  value: unknown
+): value is CellPlaneOperation => {
+  if (!value || typeof value !== "object") return false;
+  const operation = value as Partial<CellPlaneOperation>;
+  const bounds = operation.bounds;
+  if (
+    typeof operation.id !== "string" ||
+    operation.id.length === 0 ||
+    !bounds ||
+    !isSafeInteger(bounds.x) ||
+    !isSafeInteger(bounds.y) ||
+    !isSafeInteger(bounds.width) ||
+    !isSafeInteger(bounds.height) ||
+    bounds.width <= 0 ||
+    bounds.height <= 0 ||
+    !Array.isArray(operation.rows)
+  ) return false;
+  return operation.rows.every((candidate: unknown) => {
+    const row = candidate as Partial<CellRowMutation>;
+    return !!row &&
+    isSafeInteger(row.y) &&
+    Array.isArray(row.erase) &&
+    row.erase.every((interval: unknown) => {
+      const value = interval as Partial<GridInterval>;
+      return (
+        !!value &&
+        isSafeInteger(value.from) &&
+        isSafeInteger(value.to) &&
+        value.from <= value.to
+      );
+    }) &&
+    Array.isArray(row.spans) &&
+    row.spans.every((candidateSpan: unknown) => {
+      const span = candidateSpan as Partial<StyledCellSpan>;
+      return !!span &&
+        isSafeInteger(span.x) &&
+        typeof span.text === "string" &&
+        span.text.length > 0 &&
+        typeof span.color === "string" &&
+        (span.bgColor === undefined || typeof span.bgColor === "string") &&
+        (span.href === undefined || typeof span.href === "string") &&
+        isTextAttributes(span.attrs);
+    });
+  });
+};
+
 export type CellSpan = {
   x: number;
   cells: GridCell[];
@@ -39,12 +99,80 @@ export type CellPlaneRow = {
   spans: readonly CellSpan[];
 };
 
-export interface CellPlaneReader {
+export interface CanvasSurfaceReader {
   getCell(point: Point): GridCell | undefined;
   query(bounds: NodeBounds): Iterable<CellSpan & { y: number }>;
   rows(bounds?: NodeBounds): Iterable<CellPlaneRow>;
   getContentBounds(): NodeBounds | null;
+  materialize(bounds?: NodeBounds): Map<string, GridCell>;
 }
+
+export type CellPlaneReader = CanvasSurfaceReader;
+
+export const createGridSurfaceReader = (
+  grid: ReadonlyMap<string, GridCell>
+): CanvasSurfaceReader => ({
+  getCell: ({ x, y }) => grid.get(GridManager.toKey(x, y)),
+  *query(bounds) {
+    for (const row of this.rows(bounds)) {
+      for (const span of row.spans) yield { ...span, y: row.y };
+    }
+  },
+  *rows(bounds) {
+    const rows = new Map<number, Array<{ x: number; cell: GridCell }>>();
+    grid.forEach((cell, key) => {
+      const point = GridManager.fromKey(key);
+      if (
+        bounds &&
+        (point.x < bounds.x ||
+          point.x >= bounds.x + bounds.width ||
+          point.y < bounds.y ||
+          point.y >= bounds.y + bounds.height)
+      ) return;
+      const entries = rows.get(point.y) ?? [];
+      entries.push({ x: point.x, cell });
+      rows.set(point.y, entries);
+    });
+    for (const [y, entries] of [...rows].sort(([left], [right]) => left - right)) {
+      const spans: CellSpan[] = [];
+      let spanEnd = -Infinity;
+      for (const entry of entries.sort((left, right) => left.x - right.x)) {
+        const previous = spans[spans.length - 1];
+        if (previous && spanEnd === entry.x) previous.cells.push(entry.cell);
+        else spans.push({ x: entry.x, cells: [entry.cell] });
+        spanEnd = entry.x + getCellOccupancy(entry.cell.char);
+      }
+      yield { y, spans };
+    }
+  },
+  getContentBounds() {
+    let result: NodeBounds | null = null;
+    grid.forEach((cell, key) => {
+      const { x, y } = GridManager.fromKey(key);
+      result = unionBounds(result, {
+        x,
+        y,
+        width: getCellOccupancy(cell.char),
+        height: 1,
+      });
+    });
+    return result;
+  },
+  materialize(bounds) {
+    if (!bounds) return new Map(grid);
+    const result = new Map<string, GridCell>();
+    for (const row of this.rows(bounds)) {
+      for (const span of row.spans) {
+        let x = span.x;
+        for (const cell of span.cells) {
+          result.set(GridManager.toKey(x, row.y), cell);
+          x += getCellOccupancy(cell.char);
+        }
+      }
+    }
+    return result;
+  },
+});
 
 const floorDiv = (value: number, divisor: number) => Math.floor(value / divisor);
 const chunkKey = (x: number, y: number) => `${x},${y}`;
@@ -218,7 +346,7 @@ export const gridChangesToCellPlaneOperation = (
  * Ordered semantic operation index. Yjs owns the operation order; this class is
  * a disposable spatial projection and never writes collaborative state.
  */
-export class CellPlaneIndex implements CellPlaneReader {
+export class CellPlaneIndex implements CanvasSurfaceReader {
   readonly #operations: CellPlaneOperation[] = [];
   readonly #operationIndexesByChunk = new Map<string, number[]>();
   readonly #chunkCache = new Map<string, Map<string, GridCell>>();
@@ -229,7 +357,7 @@ export class CellPlaneIndex implements CellPlaneReader {
   }
 
   append(operation: CellPlaneOperation) {
-    if (operation.bounds.width <= 0 || operation.bounds.height <= 0) return;
+    if (!isCellPlaneOperation(operation)) return;
     const operationIndex = this.#operations.length;
     this.#operations.push(operation);
     this.#contentBounds = unionBounds(this.#contentBounds, operation.bounds);
@@ -306,7 +434,41 @@ export class CellPlaneIndex implements CellPlaneReader {
   }
 
   getContentBounds() {
-    return this.#contentBounds ? { ...this.#contentBounds } : null;
+    if (!this.#contentBounds) return null;
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const row of this.rows(this.#contentBounds)) {
+      for (const span of row.spans) {
+        let x = span.x;
+        for (const cell of span.cells) {
+          minX = Math.min(minX, x);
+          minY = Math.min(minY, row.y);
+          x += getCellOccupancy(cell.char);
+          maxX = Math.max(maxX, x);
+          maxY = Math.max(maxY, row.y + 1);
+        }
+      }
+    }
+    return Number.isFinite(minX)
+      ? { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
+      : null;
+  }
+
+  materialize(bounds = this.#contentBounds ?? undefined) {
+    const grid = new Map<string, GridCell>();
+    if (!bounds) return grid;
+    for (const row of this.rows(bounds)) {
+      for (const span of row.spans) {
+        let x = span.x;
+        for (const cell of span.cells) {
+          grid.set(GridManager.toKey(x, row.y), cell);
+          x += getCellOccupancy(cell.char);
+        }
+      }
+    }
+    return grid;
   }
 
   #resolveChunk(chunkX: number, chunkY: number) {

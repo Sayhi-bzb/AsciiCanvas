@@ -1,4 +1,5 @@
-import type { GridMap, Point } from "@/shared/types";
+import type { Point } from "@/shared/types";
+import type { CanvasSurfaceReader } from "@/domains/canvas/public";
 import type { CanvasLinkHit } from "../hooks/interaction/core/linkHitTesting";
 import { GridManager } from "@/shared/utils/grid";
 import {
@@ -16,13 +17,13 @@ type DrawGridLayerOptions = {
 
 export const drawGridLayer = (
   ctx: CanvasRenderingContext2D,
-  grid: GridMap | null,
+  reader: CanvasSurfaceReader | null,
   viewBounds: ViewBounds,
   zoom: number,
   offset: Point,
   options: DrawGridLayerOptions = {}
 ) => {
-  if (!grid || grid.size === 0) return;
+  if (!reader) return;
   const { alpha = 1, hoveredLink = null } = options;
 
   ctx.save();
@@ -32,7 +33,7 @@ export const drawGridLayer = (
   const visibleCells = [] as Array<{
     x: number;
     y: number;
-    cell: NonNullable<ReturnType<GridMap["get"]>>;
+    cell: NonNullable<ReturnType<CanvasSurfaceReader["getCell"]>>;
     screenX: number;
     screenY: number;
     drawBackground: boolean;
@@ -40,7 +41,7 @@ export const drawGridLayer = (
   }>;
   for (let y = viewBounds.startY; y <= viewBounds.endY; y++) {
     for (let x = viewBounds.startX; x <= viewBounds.endX; x++) {
-      const cell = grid.get(GridManager.toKey(x, y));
+      const cell = reader.getCell({ x, y });
       if (!cell) continue;
       const style = effectiveCellStyle(cell);
       const drawBackground = cell.char !== " " || !!style.bgColor || !!style.attrs;

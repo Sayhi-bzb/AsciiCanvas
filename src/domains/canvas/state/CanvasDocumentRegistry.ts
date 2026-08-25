@@ -9,11 +9,12 @@ import {
   CellPlaneIndex,
   gridChangesToCellPlaneOperation,
   gridEntriesToCellPlaneOperation,
+  isCellPlaneOperation,
   type CellPlaneOperation,
-  type CellPlaneReader,
+  type CanvasSurfaceReader,
 } from "../cell-plane/model";
 import { areJsonValuesEqual } from "@/shared/utils/equality";
-import { normalizeGridCellEntries } from "@/shared/utils/grid-codec";
+import { GridManager } from "@/shared/utils/grid";
 export type CanvasHistoryMode = "save" | "merge" | "none" | "reset";
 export type CanvasHistoryCheckpoint = {
   commit: () => void;
@@ -37,7 +38,6 @@ export type CanvasDocumentLifecycle = {
 type CanvasYDocument = {
   id: string;
   doc: Y.Doc;
-  grid: Y.Map<GridCell>;
   operations: Y.Array<CellPlaneOperation>;
   cellPlaneIndex: CellPlaneIndex;
   scene: Y.Map<StructuredNode>;
@@ -48,10 +48,9 @@ type CanvasYDocument = {
 };
 
 type CanvasDocumentTransaction = {
-  gridKeysChanged: Set<string>;
   sceneChanged: boolean;
   componentsChanged: boolean;
-  cellPlaneChanged: boolean;
+  contentChanged: boolean;
 };
 
 type CanvasGridWriter = {
@@ -106,7 +105,6 @@ export class CanvasDocumentRegistry {
   #operationSequence = 0;
   #disposed = false;
 
-  readonly yMainGrid: Y.Map<GridCell>;
   readonly yCellPlaneOperations: Y.Array<CellPlaneOperation>;
   readonly yStructuredScene: Y.Map<StructuredNode>;
   readonly yStructuredComponents: Y.Map<StructuredComponentInstance>;
@@ -114,7 +112,6 @@ export class CanvasDocumentRegistry {
   constructor(initialId = "canvas-initial") {
     this.#active = this.#createDocument(initialId);
     this.#documents.set(initialId, this.#active);
-    this.yMainGrid = createProxy(() => this.#active.grid);
     this.yCellPlaneOperations = createProxy(() => this.#active.operations);
     this.yStructuredScene = createProxy(() => this.#active.scene);
     this.yStructuredComponents = createProxy(() => this.#active.components);
@@ -135,7 +132,13 @@ export class CanvasDocumentRegistry {
   getActiveDocumentId = () => this.#active.id;
   getDocument = (id: string) => this.#documents.get(id) ?? null;
   getCollaborationDocument = (id: string) => this.#documents.get(id)?.doc ?? null;
-  getCellPlaneReader = (): CellPlaneReader => this.#active.cellPlaneIndex;
+  getContentReader(): CanvasSurfaceReader;
+  getContentReader(id: string): CanvasSurfaceReader | null;
+  getContentReader(id?: string): CanvasSurfaceReader | null {
+    return id
+      ? this.#documents.get(id)?.cellPlaneIndex ?? null
+      : this.#active.cellPlaneIndex;
+  }
 
   configureDocumentLifecycle = (lifecycle: CanvasDocumentLifecycle | null) => {
     this.#lifecycle = lifecycle;
@@ -167,7 +170,10 @@ export class CanvasDocumentRegistry {
     const document = this.#documents.get(id);
     if (!document) return null;
     return {
-      grid: mode === "freeform" ? Array.from(document.grid.entries()) : [],
+      grid:
+        mode === "freeform"
+          ? Array.from(document.cellPlaneIndex.materialize().entries())
+          : [],
       scene: mode === "structured" ? Array.from(document.scene.values()) : [],
       components:
         mode === "structured" ? Array.from(document.components.values()) : [],
@@ -232,7 +238,6 @@ export class CanvasDocumentRegistry {
     if (!document) return false;
     document.doc.transact(() => {
       if (mode === "structured") {
-        document.grid.clear();
         document.operations.delete(0, document.operations.length);
       }
       else {
@@ -268,8 +273,7 @@ export class CanvasDocumentRegistry {
     const handle = (transaction: Y.Transaction) => {
       const change = this.#readTransaction(observed, transaction);
       if (
-        change.gridKeysChanged.size > 0 ||
-        change.cellPlaneChanged ||
+        change.contentChanged ||
         change.sceneChanged ||
         change.componentsChanged
       ) listener(change);
@@ -344,35 +348,39 @@ export class CanvasDocumentRegistry {
     mutation: (grid: CanvasGridWriter) => void,
     history: CanvasHistoryMode | boolean = "save"
   ) => this.runTransaction(() => {
-    const grid = this.#active.grid;
+    const reader = this.#active.cellPlaneIndex;
     const changes = new Map<
       string,
       { before?: GridCell; after?: GridCell }
     >();
     const remember = (key: string) => {
       if (changes.has(key)) return;
-      const before = grid.get(key);
+      const before = reader.getCell(GridManager.fromKey(key));
       changes.set(key, before ? { before } : {});
     };
+    const read = (key: string) => {
+      const changed = changes.get(key);
+      return changed ? changed.after : reader.getCell(GridManager.fromKey(key));
+    };
     const writer: CanvasGridWriter = {
-      get: (key) => grid.get(key),
+      get: read,
       set: (key, value) => {
         remember(key);
-        grid.set(key, value);
+        changes.get(key)!.after = value;
       },
       delete: (key) => {
         remember(key);
-        grid.delete(key);
+        delete changes.get(key)!.after;
       },
       clear: () => {
-        Array.from(grid.keys()).forEach(remember);
-        grid.clear();
+        reader.materialize().forEach((_cell, key) => {
+          remember(key);
+          delete changes.get(key)!.after;
+        });
       },
     };
     mutation(writer);
     changes.forEach((change, key) => {
-      const after = grid.get(key);
-      if (after) change.after = after;
       if (areJsonValuesEqual(change.before, change.after)) changes.delete(key);
     });
     const operation = gridChangesToCellPlaneOperation(
@@ -394,9 +402,7 @@ export class CanvasDocumentRegistry {
   replaceFreeformGrid = (entries: [string, GridCell][]) =>
     this.runTransaction(() => {
       this.#active.scene.clear();
-      this.#active.grid.clear();
       this.#active.operations.delete(0, this.#active.operations.length);
-      entries.forEach(([key, cell]) => this.#active.grid.set(key, cell));
       const bootstrap = gridEntriesToCellPlaneOperation(
         `bootstrap:${this.#active.id}:${this.#operationSequence++}`,
         entries
@@ -423,21 +429,37 @@ export class CanvasDocumentRegistry {
     notifyLifecycle = true
   ): CanvasYDocument {
     const doc = source ?? new Y.Doc({ guid: id });
-    const grid = doc.getMap<GridCell>("main-grid");
     const operations = doc.getArray<CellPlaneOperation>("cell-plane-operations");
     const scene = doc.getMap<StructuredNode>("structured-scene");
     const components = doc.getMap<StructuredComponentInstance>("structured-components");
+    const integrityIssues = new Map<string, CollaborationIntegrityIssue>();
+    const rebuildContentIndex = () => {
+      const valid: CellPlaneOperation[] = [];
+      operations.toArray().forEach((operation, index) => {
+        const key = String(index);
+        if (isCellPlaneOperation(operation)) {
+          integrityIssues.delete(`cell-plane-operations:${key}`);
+          valid.push(operation);
+        } else {
+          integrityIssues.set(`cell-plane-operations:${key}`, {
+            channel: "cell-plane-operations",
+            key,
+            reason: "Invalid CellPlane operation",
+          });
+        }
+      });
+      return new CellPlaneIndex(valid);
+    };
     const document: CanvasYDocument = {
       id,
       doc,
-      grid,
       operations,
-      cellPlaneIndex: new CellPlaneIndex(operations.toArray()),
+      cellPlaneIndex: rebuildContentIndex(),
       scene,
       components,
       meta: doc.getMap("document-meta"),
-      integrityIssues: new Map(),
-      undoManager: new Y.UndoManager([operations, grid, scene, components], {
+      integrityIssues,
+      undoManager: new Y.UndoManager([operations, scene, components], {
         captureTimeout: 500,
         trackedOrigins: new Set([LOCAL_ORIGIN]),
       }),
@@ -464,38 +486,10 @@ export class CanvasDocumentRegistry {
           position += item.insert.length;
         }
       }
-      if (appendOnly) appended.forEach((operation) => document.cellPlaneIndex.append(operation));
-      else document.cellPlaneIndex = new CellPlaneIndex(operations.toArray());
+      if (appendOnly && appended.every(isCellPlaneOperation)) {
+        appended.forEach((operation) => document.cellPlaneIndex.append(operation));
+      } else document.cellPlaneIndex = rebuildContentIndex();
     });
-    const repairOverlappingGridCells = (transaction: Y.Transaction) => {
-      if (
-        transaction.origin === LOCAL_ORIGIN ||
-        transaction.origin === HISTORY_IGNORED_ORIGIN
-      ) return;
-      let gridChanged = false;
-      for (const type of transaction.changed.keys()) {
-        if (Object.is(type, grid)) gridChanged = true;
-      }
-      if (!gridChanged) return;
-      const normalized = new Map(
-        normalizeGridCellEntries(Array.from(grid.entries()))
-      );
-      const isNormalized =
-        normalized.size === grid.size &&
-        Array.from(normalized.entries()).every(([key, cell]) =>
-          areJsonValuesEqual(grid.get(key), cell)
-        );
-      if (isNormalized) return;
-      doc.transact(() => {
-        Array.from(grid.keys()).forEach((key) => {
-          if (!normalized.has(key)) grid.delete(key);
-        });
-        normalized.forEach((cell, key) => {
-          if (!areJsonValuesEqual(grid.get(key), cell)) grid.set(key, cell);
-        });
-      }, HISTORY_IGNORED_ORIGIN);
-    };
-    doc.on("afterTransaction", repairOverlappingGridCells);
     const notify = () => {
       if (document === this.#active) this.#emitHistory();
     };
@@ -510,11 +504,9 @@ export class CanvasDocumentRegistry {
 
   #replaceDocument(document: CanvasYDocument, seed: CanvasDocumentSeed) {
     document.doc.transact(() => {
-      document.grid.clear();
       document.operations.delete(0, document.operations.length);
       document.scene.clear();
       document.components.clear();
-      seed.grid.forEach(([key, cell]) => document.grid.set(key, cell));
       const bootstrap = gridEntriesToCellPlaneOperation(
         `bootstrap:${document.id}`,
         seed.grid
@@ -530,17 +522,12 @@ export class CanvasDocumentRegistry {
 
   #readTransaction(document: CanvasYDocument, transaction: Y.Transaction) {
     const change: CanvasDocumentTransaction = {
-      gridKeysChanged: new Set(),
       sceneChanged: false,
       componentsChanged: false,
-      cellPlaneChanged: false,
+      contentChanged: false,
     };
-    for (const [type, keys] of transaction.changed) {
-      if (Object.is(type, document.grid)) {
-        keys.forEach((key) => {
-          if (key !== null) change.gridKeysChanged.add(key);
-        });
-      } else if (Object.is(type, document.operations)) change.cellPlaneChanged = true;
+    for (const [type] of transaction.changed) {
+      if (Object.is(type, document.operations)) change.contentChanged = true;
       else if (Object.is(type, document.scene)) change.sceneChanged = true;
       else if (Object.is(type, document.components)) change.componentsChanged = true;
     }

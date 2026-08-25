@@ -24,6 +24,7 @@ import {
   DEFAULT_STRUCTURED_SESSION_NAME,
   getSessionCanvasDocumentId,
   resolveSessionRuntime,
+  stripStaticSessionContent,
 } from "./helpers/storeUtils";
 import type { EditorState } from "./interfaces";
 import type { CanvasDocumentRegistry } from "./CanvasDocumentRegistry";
@@ -84,7 +85,7 @@ export const recoverPersistedEditorState = (
     sessions.find((session) => session.id === activeCanvasId) ?? sessions[0];
   const runtime = resolveSessionRuntime(activeSession, state.tool || "select");
 
-  state.canvasSessions = sessions;
+  state.canvasSessions = sessions.map(stripStaticSessionContent);
   state.activeCanvasId = activeCanvasId;
   state.canvasMode = runtime.nextMode;
   state.slideDeck = runtime.nextSlideDeck;

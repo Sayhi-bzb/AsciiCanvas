@@ -1,4 +1,4 @@
-import type { GridMap } from "@/shared/types";
+import type { CanvasSurfaceReader } from "@/domains/canvas/public";
 import type { CanvasMode } from "@/domains/sessions/public";
 import type { StructuredComponentInstance, StructuredNode } from "@/domains/structured-content/public";
 import type { SlideDeck } from "@/domains/slides/public";
@@ -13,7 +13,7 @@ export type ExportFormat =
 
 export type ExportContext = {
   canvasMode: CanvasMode;
-  grid: GridMap;
+  surface: CanvasSurfaceReader;
   structuredScene: StructuredNode[];
   structuredComponents: StructuredComponentInstance[];
   includeColor: boolean;

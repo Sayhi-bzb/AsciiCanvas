@@ -1,6 +1,10 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { useEditorStore } from '@/domains/canvas/testing';
+import {
+  defaultCanvasDocuments,
+  useEditorStore,
+} from '@/domains/canvas/testing';
+import { getSlideEditingBufferId } from '@/domains/canvas/state/slideEditingBuffer';
 import {
   CanvasViewProvider,
   CanvasWorkspaceProvider,
@@ -41,6 +45,26 @@ describe('useCanvasEditorModels session binding', () => {
 
   it('renders inactive structured and slide sessions from their snapshots', () => {
     act(() => {
+      defaultCanvasDocuments.activateDocument('canvas-b', {
+        grid: [],
+        scene: [{
+          id: 'text-b',
+          type: 'text',
+          order: 0,
+          position: { x: 0, y: 0 },
+          text: 'B',
+          style: { color: '#000000' },
+        }],
+        components: [],
+      });
+      defaultCanvasDocuments.activateDocument(
+        getSlideEditingBufferId('canvas-c', 'slide-c'),
+        {
+          grid: [['0,0', { char: 'C', color: '#000000' }]],
+          scene: [],
+          components: [],
+        }
+      );
       useEditorStore.setState({
         activeCanvasId: 'canvas-a',
         canvasMode: 'freeform',

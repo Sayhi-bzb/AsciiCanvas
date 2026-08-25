@@ -24,6 +24,12 @@ export const DEFAULT_STRUCTURED_SESSION_ID = 'canvas-2';
 export const DEFAULT_STRUCTURED_SESSION_NAME = 'Canvas 2';
 export const DEFAULT_MODE = 'freeform' as const satisfies CanvasMode;
 const DEFAULT_VIEWPORT = { offset: { x: 0, y: 0 }, zoom: 1 };
+export const stripStaticSessionContent = (
+  session: CanvasSession
+): CanvasSession =>
+  session.mode === 'slide'
+    ? session
+    : { ...session, grid: [], scene: [], components: [] };
 export const getSessionCanvasDocumentId = (session: CanvasSession, slideDeck?: SlideDeck | null) =>
   session.mode === 'slide'
     ? getSlideEditingBufferId(session.id, (slideDeck ?? session.slideDeck).activeSlideId)

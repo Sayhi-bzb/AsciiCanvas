@@ -35,7 +35,7 @@ describe("collaboration room links", () => {
   it("accepts V2 room links without upgrading them", () => {
     const descriptor = {
       version: 2,
-      documentVersion: 2,
+      documentVersion: 3,
       mode: "freeform",
       provider: "p2p",
       roomId: "room-id-1234567890",
@@ -59,7 +59,7 @@ describe("collaboration room links", () => {
   it("treats WebSocket endpoints as part of room identity", () => {
     const first = {
       version: 2,
-      documentVersion: 2,
+      documentVersion: 3,
       mode: "freeform",
       provider: "websocket",
       roomId: "room-id-1234567890",
@@ -77,7 +77,7 @@ describe("collaboration room links", () => {
   it("treats V2 and V3 namespaces as different rooms", () => {
     const legacy = {
       version: 2,
-      documentVersion: 2,
+      documentVersion: 3,
       mode: "freeform",
       provider: "p2p",
       roomId: "room-id-1234567890",

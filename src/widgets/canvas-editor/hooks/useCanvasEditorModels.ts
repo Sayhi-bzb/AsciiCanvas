@@ -1,4 +1,5 @@
 import {
+  createGridSurfaceReader,
   useCanvasRuntime,
   useCanvasState,
   type CanvasState,
@@ -8,6 +9,8 @@ import { useCanvasViewOptional } from '../engine/CanvasWorkspace';
 import { createStaticGridState } from '@/domains/selection/public';
 import type { CanvasSession } from '@/domains/sessions/public';
 import { useMemo } from 'react';
+import { getSlideEditingBufferId } from '@/domains/canvas/state/slideEditingBuffer';
+import { sceneToGridEntries } from '@/domains/structured-content/public';
 
 type SessionContent = Pick<
   CanvasState,
@@ -20,7 +23,10 @@ type SessionContent = Pick<
   | 'activeCanvasHasSavedViewport'
 >;
 
-const resolveSessionContent = (session: CanvasSession): SessionContent => {
+const resolveSessionContent = (
+  session: CanvasSession,
+  documents: ReturnType<typeof useCanvasRuntime>["documents"]
+): SessionContent => {
   if (session.mode === 'slide') {
     const activeSlide = session.slideDeck.slides.find(
       (slide) => slide.id === session.slideDeck.activeSlideId
@@ -29,25 +35,40 @@ const resolveSessionContent = (session: CanvasSession): SessionContent => {
       activeCanvasId: session.id,
       canvasMode: session.mode,
       slideDeck: session.slideDeck,
-      grid: new Map(activeSlide?.grid ?? []),
+      grid:
+        (activeSlide &&
+          documents
+            .getContentReader(getSlideEditingBufferId(session.id, activeSlide.id))
+            ?.materialize()) ||
+        new Map(activeSlide?.grid ?? []),
       structuredScene: [],
       structuredComponents: [],
       activeCanvasHasSavedViewport: !!session.viewport,
     };
   }
+  const seed = documents.getDocumentSeed(session.id, session.mode);
+  const structuredScene = seed?.scene ?? session.scene;
   return {
     activeCanvasId: session.id,
     canvasMode: session.mode,
     slideDeck: null,
-    grid: new Map(session.grid),
-    structuredScene: session.scene,
-    structuredComponents: session.components ?? [],
+    grid: new Map(
+      session.mode === 'structured'
+        ? sceneToGridEntries(structuredScene)
+        : seed?.grid ?? session.grid
+    ),
+    structuredScene,
+    structuredComponents: seed?.components ?? session.components ?? [],
     activeCanvasHasSavedViewport: !!session.viewport,
   };
 };
 
 export const useCanvasEditorModels = () => {
-  const { commands: canvasCommands, queries: canvasQueries } = useCanvasRuntime();
+  const {
+    commands: canvasCommands,
+    documents,
+    queries: canvasQueries,
+  } = useCanvasRuntime();
   const canvasView = useCanvasViewOptional();
   const canvasSessions = useCanvasState((state) => state.canvasSessions);
   const interactionState = useCanvasState(
@@ -75,8 +96,11 @@ export const useCanvasEditorModels = () => {
     : undefined;
   const usesSessionSnapshot = !!boundSession && boundSession.id !== interactionState.activeCanvasId;
   const sessionContent = useMemo(
-    () => (usesSessionSnapshot ? resolveSessionContent(boundSession) : null),
-    [boundSession, usesSessionSnapshot]
+    () =>
+      usesSessionSnapshot
+        ? resolveSessionContent(boundSession, documents)
+        : null,
+    [boundSession, documents, usesSessionSnapshot]
   );
   const inactiveStaticGrid = useMemo(() => createStaticGridState(), []);
   const resolvedInteractionState = sessionContent
@@ -188,6 +212,30 @@ export const useCanvasEditorModels = () => {
           : null,
       }
     : rendererStore;
+  const contentDocumentId =
+    viewRendererStore.canvasMode === 'slide'
+      ? (() => {
+          const activeSlide = viewRendererStore.slideDeck?.slides.find(
+            (slide) => slide.id === viewRendererStore.slideDeck?.activeSlideId
+          );
+          return activeSlide
+            ? getSlideEditingBufferId(viewRendererStore.activeCanvasId, activeSlide.id)
+            : viewRendererStore.activeCanvasId;
+        })()
+      : viewRendererStore.activeCanvasId;
+  const contentReader = useMemo(
+    () =>
+      viewRendererStore.canvasMode === 'structured'
+        ? createGridSurfaceReader(viewRendererStore.grid)
+        : documents.getContentReader(contentDocumentId) ??
+          createGridSurfaceReader(viewRendererStore.grid),
+    [
+      contentDocumentId,
+      documents,
+      viewRendererStore.canvasMode,
+      viewRendererStore.grid,
+    ]
+  );
   const editorState = useCanvasState(
     useShallow((state) => ({
       grid: state.grid,
@@ -256,7 +304,7 @@ export const useCanvasEditorModels = () => {
 
   return {
     interaction: interactionStore,
-    renderer: viewRendererStore,
+    renderer: { ...viewRendererStore, contentReader },
     editor: editorStore,
   };
 };

@@ -1,4 +1,5 @@
 import type { GridMap, Point } from "@/shared/types";
+import type { CanvasSurfaceReader } from "@/domains/canvas/public";
 import { DEFAULT_GRID_RENDER_METRICS } from "@/shared/metrics";
 import { GridManager } from "@/shared/utils/grid";
 import type {
@@ -34,6 +35,38 @@ export const computeVisibleContentBounds = (
 
   if (!Number.isFinite(minX) || !Number.isFinite(minY)) return null;
   return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+};
+
+export const computeVisibleSurfaceBounds = (
+  reader: CanvasSurfaceReader
+): MinimapRect | null => {
+  const bounds = reader.getContentBounds();
+  if (!bounds) return null;
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  const { cellWidth, cellHeight } = DEFAULT_GRID_RENDER_METRICS;
+
+  for (const row of reader.rows(bounds)) {
+    for (const span of row.spans) {
+      let x = span.x;
+      for (const cell of span.cells) {
+        const occupancy = Math.max(GridManager.getCharWidth(cell.char), 1);
+        if (hasVisibleContent(cell)) {
+          minX = Math.min(minX, x * cellWidth);
+          minY = Math.min(minY, row.y * cellHeight);
+          maxX = Math.max(maxX, (x + occupancy) * cellWidth);
+          maxY = Math.max(maxY, (row.y + 1) * cellHeight);
+        }
+        x += occupancy;
+      }
+    }
+  }
+
+  return Number.isFinite(minX)
+    ? { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
+    : null;
 };
 
 const computeViewportWorldBounds = (

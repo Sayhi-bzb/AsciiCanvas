@@ -96,7 +96,7 @@ describe("session transitions", () => {
     });
   });
 
-  it("reuses the projected structured snapshot and keeps derived grid out of Yjs", () => {
+  it("restores structured content from the document without caching it in the session", () => {
     const freeformSessionId = useEditorStore.getState().activeCanvasId;
     useEditorStore.getState().createCanvasSession("structured");
     const structuredSessionId = useEditorStore.getState().activeCanvasId;
@@ -118,7 +118,10 @@ describe("session transitions", () => {
     useEditorStore.getState().switchCanvasSession(structuredSessionId);
 
     const restored = useEditorStore.getState();
-    expect(restored.structuredScene).toBe(projectedSession.scene);
+    expect(projectedSession.scene).toEqual([]);
+    expect(restored.structuredScene).toEqual([
+      expect.objectContaining({ id: "cached-text", text: "Cached" }),
+    ]);
     expect(restored.grid.get("2,3")?.char).toBe("C");
     expect(
       defaultCanvasDocuments
@@ -127,9 +130,24 @@ describe("session transitions", () => {
     ).toBe(0);
   });
 
-  it("repairs and retains a missing structured grid cache", () => {
+  it("derives a structured grid from the document without retaining a session cache", () => {
     const freeformSessionId = useEditorStore.getState().activeCanvasId;
     const structuredSessionId = `structured-cache-${crypto.randomUUID()}`;
+    const scene = [
+      {
+        id: "cache-text",
+        type: "text" as const,
+        order: 1,
+        position: { x: 4, y: 5 },
+        text: "Repair",
+        style: { color: "#111111" },
+      },
+    ];
+    defaultCanvasDocuments.activateDocument(structuredSessionId, {
+      grid: [],
+      scene,
+      components: [],
+    });
     useEditorStore.setState((state) => ({
       canvasSessions: [
         ...state.canvasSessions,
@@ -137,16 +155,7 @@ describe("session transitions", () => {
           id: structuredSessionId,
           name: "Structured Cache",
           mode: "structured",
-          scene: [
-            {
-              id: "cache-text",
-              type: "text",
-              order: 1,
-              position: { x: 4, y: 5 },
-              text: "Repair",
-              style: { color: "#111111" },
-            },
-          ],
+          scene: [],
           components: [],
           grid: [],
         },
@@ -157,13 +166,15 @@ describe("session transitions", () => {
     const repaired = useEditorStore
       .getState()
       .canvasSessions.find((session) => session.id === structuredSessionId)!;
-    expect(repaired.grid.length).toBeGreaterThan(0);
+    expect(repaired.grid).toEqual([]);
+    expect(useEditorStore.getState().grid.get("4,5")?.char).toBe("R");
 
     useEditorStore.getState().switchCanvasSession(freeformSessionId);
     useEditorStore.getState().switchCanvasSession(structuredSessionId);
     const restored = useEditorStore
       .getState()
       .canvasSessions.find((session) => session.id === structuredSessionId)!;
-    expect(restored.grid).toBe(repaired.grid);
+    expect(restored.grid).toEqual([]);
+    expect(useEditorStore.getState().grid.get("4,5")?.char).toBe("R");
   });
 });

@@ -13,7 +13,7 @@ describe("collaborative session persistence", () => {
   it("persists only the session shell, never a collaborative content snapshot", () => {
     const descriptor: CollaborationDescriptorV2 = {
       version: 2,
-      documentVersion: 2,
+      documentVersion: 3,
       mode: "freeform",
       provider: "p2p",
       roomId: "room-id-1234567890",

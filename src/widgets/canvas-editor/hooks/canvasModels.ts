@@ -1,4 +1,8 @@
-import type { CanvasRuntime, CanvasState } from "@/domains/canvas/public";
+import type {
+  CanvasRuntime,
+  CanvasState,
+  CanvasSurfaceReader,
+} from "@/domains/canvas/public";
 
 type CanvasCommands = CanvasRuntime["commands"];
 type CanvasQueries = CanvasRuntime["queries"];
@@ -25,7 +29,9 @@ export type CanvasRenderModel = Pick<CanvasState,
   | "editingStructuredTextNodeId"
   | "structuredTextSelection"
   | "canvasColorPickerTarget"
->;
+> & {
+  contentReader: CanvasSurfaceReader;
+};
 
 export type CanvasEditorModel = Pick<CanvasState,
   | "grid"

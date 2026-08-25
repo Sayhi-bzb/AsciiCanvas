@@ -10,12 +10,15 @@ import {
   parseDocumentSessionSource,
 } from "@/domains/document/public";
 import { parseSlideMarkdown } from "@/domains/slides/public";
+import { createGridSurfaceReader } from "@/domains/canvas/public";
 
 const createContext = (
   overrides: Partial<ExportContext> = {}
 ): ExportContext => ({
   canvasMode: "freeform",
-  grid: new Map([["0,0", { char: "A", color: "#ffffff" }]]),
+  surface: createGridSurfaceReader(
+    new Map([["0,0", { char: "A", color: "#ffffff" }]])
+  ),
   structuredScene: [],
   structuredComponents: [],
   includeColor: true,
@@ -52,7 +55,9 @@ describe("export service", () => {
     const result = prepareTextExport(
       createContext({
         canvasMode: "structured",
-        grid: new Map([["0,0", { char: "X", color: "#ff0000" }]]),
+        surface: createGridSurfaceReader(
+          new Map([["0,0", { char: "X", color: "#ff0000" }]])
+        ),
         structuredScene: [{
           id: "box-1",
           type: "box",
@@ -92,7 +97,7 @@ describe("export service", () => {
     const result = prepareTextExport(
       createContext({
         canvasMode: "structured",
-        grid: new Map(),
+        surface: createGridSurfaceReader(new Map()),
         structuredScene: [
           {
             id: "arrow-1",
@@ -119,7 +124,7 @@ describe("export service", () => {
     const result = prepareTextExport(
       createContext({
         canvasMode: "slide",
-        grid: new Map(),
+        surface: createGridSurfaceReader(new Map()),
         slideDeck: {
           activeSlideId: "slide-1",
           slides: [

@@ -23,7 +23,7 @@ describe("DataSecurityDialog", () => {
     const state = useEditorStore.getState();
     state.setCanvasSessionCollaboration(state.activeCanvasId, {
       version: 2,
-      documentVersion: 2,
+      documentVersion: 3,
       mode: "freeform",
       provider: "p2p",
       roomId: "room_identifier_1234",

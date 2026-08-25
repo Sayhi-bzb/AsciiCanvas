@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it } from "vitest";
 import * as Y from "yjs";
 import { defaultCanvasDocuments, useEditorStore } from "@/domains/canvas/testing";
+import {
+  gridEntriesToCellPlaneOperation,
+  type CellPlaneOperation,
+} from "../cell-plane/model";
 
 const initialState = useEditorStore.getState();
 const cell = (char: string) => ({ char, color: "#000000" });
@@ -47,13 +51,16 @@ describe("remote canvas document projection", () => {
     defaultCanvasDocuments.activateDocument(sessionId, { grid: [], scene: [], components: [] });
     const local = defaultCanvasDocuments.getCollaborationDocument(sessionId)!;
     const remote = new Y.Doc();
-    remote.getMap("main-grid").set("0,0", cell("R"));
-    remote.getMap("main-grid").set("1,0", cell("S"));
+    const remoteSeed = gridEntriesToCellPlaneOperation("remote-seed", [
+      ["0,0", cell("R")],
+      ["1,0", cell("S")],
+    ]);
+    if (remoteSeed) {
+      remote.getArray<CellPlaneOperation>("cell-plane-operations").push([remoteSeed]);
+    }
 
     Y.applyUpdate(local, Y.encodeStateAsUpdate(remote));
-    defaultCanvasDocuments.runTransaction(() =>
-      defaultCanvasDocuments.yMainGrid.set("2,0", cell("L"))
-    );
+    defaultCanvasDocuments.mutateGrid((grid) => grid.set("2,0", cell("L")));
 
     expect(Object.fromEntries(useEditorStore.getState().grid)).toEqual({
       "0,0": cell("R"),
@@ -94,7 +101,7 @@ describe("remote canvas document projection", () => {
     expect(projectionCount).toBe(1);
     expect(state.structuredScene).toEqual([textNode("local-text", "Local")]);
     expect(state.grid.get("2,3")?.char).toBe("L");
-    expect(state.canvasSessions[0].scene).toEqual(state.structuredScene);
+    expect(state.canvasSessions[0].scene).toEqual([]);
   });
 
   it("projects one remote structured transaction exactly once", () => {
@@ -132,6 +139,6 @@ describe("remote canvas document projection", () => {
     expect(projectionCount).toBe(1);
     expect(state.structuredScene).toEqual([textNode("remote-text", "Remote")]);
     expect(state.grid.get("2,3")?.char).toBe("R");
-    expect(state.canvasSessions[0].scene).toEqual(state.structuredScene);
+    expect(state.canvasSessions[0].scene).toEqual([]);
   });
 });

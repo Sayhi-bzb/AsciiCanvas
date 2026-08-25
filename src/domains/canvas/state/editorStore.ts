@@ -40,6 +40,7 @@ import {
 import {
   getSessionCanvasDocumentId,
   resolveSessionRuntime,
+  stripStaticSessionContent,
 } from "./helpers/storeUtils";
 import { isToolAllowedForMode } from "../model/tool";
 import { createDeferredSnapshotPersistStorage } from "./persistenceCoordinator";
@@ -101,6 +102,33 @@ export const createEditorStore = ({
           components: initialRuntime.nextComponents,
         }
       );
+      initialSessions.slice(1).forEach((session) => {
+        const runtime = resolveSessionRuntime(session, "select");
+        documents.activateDocument(
+          getSessionCanvasDocumentId(session, runtime.nextSlideDeck),
+          {
+            grid:
+              runtime.nextMode === "structured" ? [] : runtime.nextGridEntries,
+            scene:
+              runtime.nextMode === "structured" ? runtime.nextScene : [],
+            components: runtime.nextComponents,
+          }
+        );
+      });
+      documents.activateDocument(
+        getSessionCanvasDocumentId(initialSession, initialRuntime.nextSlideDeck),
+        {
+          grid:
+            initialRuntime.nextMode === "structured"
+              ? []
+              : initialRuntime.nextGridEntries,
+          scene:
+            initialRuntime.nextMode === "structured"
+              ? initialRuntime.nextScene
+              : [],
+          components: initialRuntime.nextComponents,
+        }
+      );
 
       disposers.push(subscribeCanvasDocumentProjection(
         documents,
@@ -125,7 +153,7 @@ export const createEditorStore = ({
         selectedStructuredSplitHandle: null,
         structuredContextPoint: null,
         structuredGridFocus: null,
-        canvasSessions: initialSessions,
+        canvasSessions: initialSessions.map(stripStaticSessionContent),
         activeCanvasId: initialSession.id,
         activeCanvasHasSavedViewport: initialRuntime.hasSavedViewport,
         ...documents.getHistoryAvailability(),

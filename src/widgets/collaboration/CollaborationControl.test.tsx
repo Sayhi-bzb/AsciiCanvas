@@ -174,7 +174,7 @@ describe('CollaborationControl', () => {
   it('shows clipboard failures on the copy-link button', async () => {
     const descriptor: CollaborationDescriptorV2 = {
       version: 2,
-      documentVersion: 2,
+      documentVersion: 3,
       mode: 'freeform',
       provider: 'p2p',
       roomId: 'room-id-1234567890',
@@ -198,7 +198,7 @@ describe('CollaborationControl', () => {
   it('shows room presence and keeps the menu open after leaving', async () => {
     const descriptor: CollaborationDescriptorV2 = {
       version: 2,
-      documentVersion: 2,
+      documentVersion: 3,
       mode: "structured",
       provider: 'p2p',
       roomId: 'room-id-1234567890',
@@ -245,7 +245,7 @@ describe('CollaborationControl', () => {
   it('distinguishes disconnected state from recoverable integrity warnings', async () => {
     const descriptor: CollaborationDescriptorV2 = {
       version: 2,
-      documentVersion: 2,
+      documentVersion: 3,
       mode: 'freeform',
       provider: 'p2p',
       roomId: 'room-id-1234567890',
@@ -262,7 +262,7 @@ describe('CollaborationControl', () => {
       errorKind: null,
       hasLocalCopy: true,
       integrityIssues: [
-        { channel: 'main-grid', key: '1,1', reason: 'Skipped one invalid remote cell.' },
+        { channel: 'cell-plane-operations', key: '1', reason: 'Skipped one invalid remote operation.' },
       ],
     };
 
@@ -291,7 +291,7 @@ describe('CollaborationControl', () => {
     });
     const descriptor: CollaborationDescriptorV2 = {
       version: 2,
-      documentVersion: 2,
+      documentVersion: 3,
       mode: 'structured',
       provider: 'p2p',
       roomId: 'room-id-1234567890',

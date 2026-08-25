@@ -1,4 +1,4 @@
-export const COLLABORATION_DOCUMENT_VERSION = 2 as const;
+export const COLLABORATION_DOCUMENT_VERSION = 3 as const;
 
 export type CollaborationCanvasMode = "freeform" | "structured";
 
@@ -56,7 +56,11 @@ type CollaborationErrorKind =
   | "invalid-remote-data";
 
 export type CollaborationIntegrityIssue = {
-  channel: "main-grid" | "structured-scene" | "structured-components" | "presence";
+  channel:
+    | "cell-plane-operations"
+    | "structured-scene"
+    | "structured-components"
+    | "presence";
   key: string;
   reason: string;
 };

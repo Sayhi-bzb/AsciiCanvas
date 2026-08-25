@@ -1,11 +1,10 @@
 import type { CollaborationIntegrityIssue } from "@/domains/collaboration/public";
 import type { StructuredComponentInstance, StructuredNode } from "@/domains/structured-content/public";
-import type { GridCell } from "@/shared/types";
-import { normalizeGridEntries, toStructuredNode } from "./helpers/snapshotHelpers";
+import { toStructuredNode } from "./helpers/snapshotHelpers";
 
 export const CANVAS_COLLABORATION_CHANNELS = {
   meta: { name: "document-meta", scope: "document" },
-  grid: { name: "main-grid", scope: "document" },
+  content: { name: "cell-plane-operations", scope: "document" },
   scene: { name: "structured-scene", scope: "document" },
   components: { name: "structured-components", scope: "document" },
   presence: { name: "presence", scope: "presence" },
@@ -21,30 +20,6 @@ const invalid = <T>(channel: CanvasDocumentChannel, key: string, reason: string)
   ok: false,
   issue: { channel, key, reason },
 });
-
-export const decodeCollaborativeGridCell = (
-  key: string,
-  value: unknown
-): CollaborationDecodeResult<GridCell> => {
-  try {
-    const coordinates = key.split(",");
-    if (
-      coordinates.length !== 2 ||
-      coordinates.some((coordinate) => {
-        if (!/^-?\d+$/.test(coordinate)) return true;
-        return !Number.isSafeInteger(Number(coordinate));
-      })
-    ) {
-      return invalid("main-grid", key, "Invalid grid coordinate key");
-    }
-    const normalized = normalizeGridEntries([[key, value]]);
-    return normalized.length === 1
-      ? { ok: true, value: normalized[0][1] }
-      : invalid("main-grid", key, "Invalid grid cell");
-  } catch {
-    return invalid("main-grid", key, "Invalid grid cell");
-  }
-};
 
 export const decodeCollaborativeStructuredNode = (
   key: string,

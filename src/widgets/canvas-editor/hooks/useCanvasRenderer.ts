@@ -13,6 +13,10 @@ import { isStaticGridMode } from '@/domains/sessions/public';
 import type { CanvasRenderModel } from './canvasModels';
 import { GridManager } from '@/shared/utils/grid';
 import type { SelectionArea, GridMap, Point, NodeBounds } from '@/shared/types';
+import {
+  createGridSurfaceReader,
+  type CanvasSurfaceReader,
+} from '@/domains/canvas/public';
 import type { StructuredSplitBoxNode } from '@/domains/structured-content/public';
 import type { CanvasLinkHit } from './interaction/core/linkHitTesting';
 import { getSelectionBounds } from '@/shared/utils/selection';
@@ -226,6 +230,7 @@ export const useCanvasRenderer = (
     offset,
     zoom,
     grid,
+    contentReader,
     scratchLayer,
     textCursor,
     staticGridSelection,
@@ -268,10 +273,28 @@ export const useCanvasRenderer = (
       layerOffset: Point,
       alpha = 1
     ) =>
-      drawGridLayer(ctx, targetGrid, viewBounds, layerZoom, layerOffset, {
+      drawGridLayer(
+        ctx,
+        targetGrid ? createGridSurfaceReader(targetGrid) : null,
+        viewBounds,
+        layerZoom,
+        layerOffset,
+        {
         alpha,
         hoveredLink,
-      }),
+        }
+      ),
+    [hoveredLink]
+  );
+  const drawSurface = useCallback(
+    (
+      ctx: CanvasRenderingContext2D,
+      reader: CanvasSurfaceReader,
+      viewBounds: ReturnType<typeof GridManager.getViewportGridBounds>,
+      layerZoom: number,
+      layerOffset: Point
+    ) =>
+      drawGridLayer(ctx, reader, viewBounds, layerZoom, layerOffset, { hoveredLink }),
     [hoveredLink]
   );
   useEffect(() => {
@@ -369,13 +392,11 @@ export const useCanvasRenderer = (
             color: GRID_COLOR,
           });
         }
-        drawLayer(
-          bgCtx,
-          renderedGrid,
-          viewBounds,
-          zoom,
-          renderOffset
-        );
+        if (structuredMovePreview) {
+          drawLayer(bgCtx, renderedGrid, viewBounds, zoom, renderOffset);
+        } else {
+          drawSurface(bgCtx, contentReader, viewBounds, zoom, renderOffset);
+        }
         if (slidePageRect) bgCtx.restore();
         renderedInvalidation |= CANVAS_FRAME_INVALIDATION.background;
       }
@@ -751,6 +772,7 @@ export const useCanvasRenderer = (
     size,
     surfaceGeometry,
     grid,
+    contentReader,
     scratchLayer,
     textCursor,
     staticGridSelection,
@@ -773,6 +795,7 @@ export const useCanvasRenderer = (
     structuredMovePreviewRef,
     requestRenderRef,
     drawLayer,
+    drawSurface,
     onViewportRendered,
     renderedTextCursor,
     staticGridView.activeCell,

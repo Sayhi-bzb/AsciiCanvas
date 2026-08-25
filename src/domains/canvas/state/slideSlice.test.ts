@@ -17,16 +17,16 @@ describe("slideSlice", () => {
     const firstSlideId = useEditorStore.getState().slideDeck?.activeSlideId;
     expect(firstSlideId).toBeTruthy();
 
-    defaultCanvasDocuments.runTransaction(() => {
-      defaultCanvasDocuments.yMainGrid.set(GridManager.toKey(0, 0), { char: "A", color: "#000" });
+    defaultCanvasDocuments.mutateGrid((grid) => {
+      grid.set(GridManager.toKey(0, 0), { char: "A", color: "#000" });
     });
     useEditorStore.getState().addSlide();
     const secondSlideId = useEditorStore.getState().slideDeck?.activeSlideId;
     expect(secondSlideId).toBeTruthy();
     expect(secondSlideId).not.toBe(firstSlideId);
 
-    defaultCanvasDocuments.runTransaction(() => {
-      defaultCanvasDocuments.yMainGrid.set(GridManager.toKey(1, 0), { char: "B", color: "#000" });
+    defaultCanvasDocuments.mutateGrid((grid) => {
+      grid.set(GridManager.toKey(1, 0), { char: "B", color: "#000" });
     });
 
     useEditorStore.getState().activateSlide(firstSlideId!);
@@ -42,9 +42,9 @@ describe("slideSlice", () => {
     useEditorStore.getState().createCanvasSession("slide", {
       slideSize: { columns: 2, rows: 1 },
     });
-    defaultCanvasDocuments.runTransaction(() => {
-      defaultCanvasDocuments.yMainGrid.set("1,0", { char: "A", color: "#000" });
-      defaultCanvasDocuments.yMainGrid.set("2,0", { char: "B", color: "#000" });
+    defaultCanvasDocuments.mutateGrid((grid) => {
+      grid.set("1,0", { char: "A", color: "#000" });
+      grid.set("2,0", { char: "B", color: "#000" });
     });
 
     expect(Array.from(useEditorStore.getState().grid.keys())).toEqual(["1,0"]);
@@ -132,8 +132,8 @@ describe("slideSlice", () => {
     const activeSlideId = useEditorStore.getState().slideDeck?.activeSlideId;
     expect(activeSlideId).toBeTruthy();
 
-    defaultCanvasDocuments.runTransaction(() => {
-      defaultCanvasDocuments.yMainGrid.set("0,0", { char: "A", color: "#000" });
+    defaultCanvasDocuments.mutateGrid((grid) => {
+      grid.set("0,0", { char: "A", color: "#000" });
     });
     expect(useEditorStore.getState().canUndo).toBe(true);
     expect(useEditorStore.getState().canRedo).toBe(false);
@@ -156,9 +156,9 @@ describe("slideSlice", () => {
       slideSize: { columns: 4, rows: 2 },
     });
     const firstSlideId = useEditorStore.getState().slideDeck!.activeSlideId;
-    defaultCanvasDocuments.runTransaction(() => {
-      defaultCanvasDocuments.yMainGrid.set("0,0", { char: "A", color: "#000" });
-      defaultCanvasDocuments.yMainGrid.set("3,1", { char: "B", color: "#000" });
+    defaultCanvasDocuments.mutateGrid((grid) => {
+      grid.set("0,0", { char: "A", color: "#000" });
+      grid.set("3,1", { char: "B", color: "#000" });
     });
 
     useEditorStore.getState().resizeSlide(firstSlideId, {
@@ -185,8 +185,8 @@ describe("slideSlice", () => {
       slideSize: { columns: 4, rows: 2 },
     });
     const firstSlideId = useEditorStore.getState().slideDeck!.activeSlideId;
-    defaultCanvasDocuments.runTransaction(() => {
-      defaultCanvasDocuments.yMainGrid.set("3,1", { char: "A", color: "#000" });
+    defaultCanvasDocuments.mutateGrid((grid) => {
+      grid.set("3,1", { char: "A", color: "#000" });
     });
     useEditorStore.getState().addSlide();
     const secondSlideId = useEditorStore.getState().slideDeck!.activeSlideId;

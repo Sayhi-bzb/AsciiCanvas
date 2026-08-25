@@ -112,7 +112,7 @@ class CollaborationSession {
       if (this.disposed) return;
 
       const hasLocalCopy =
-        this.doc.getMap("main-grid").size > 0 ||
+        this.doc.getArray("cell-plane-operations").length > 0 ||
         this.doc.getMap("structured-scene").size > 0 ||
         this.doc.getMap("structured-components").size > 0;
       ensureCollaborationDocumentMeta(this.descriptor, this.doc);

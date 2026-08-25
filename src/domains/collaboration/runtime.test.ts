@@ -66,7 +66,7 @@ const descriptor = (
   key = "room-key-1234567890123456789012345678901234567890"
 ): CollaborationDescriptorV2 => ({
   version: 2,
-  documentVersion: 2,
+  documentVersion: 3,
   mode: "freeform",
   provider: "websocket",
   roomId: "room-id-1234567890",
@@ -107,7 +107,7 @@ describe("collaboration document contract", () => {
     const current = descriptorV3("wss://one.example.com");
     const legacyP2p: CollaborationDescriptorV2 = {
       version: 2,
-      documentVersion: 2,
+      documentVersion: 3,
       mode: legacy.mode,
       provider: "p2p",
       roomId: legacy.roomId,
@@ -115,7 +115,7 @@ describe("collaboration document contract", () => {
     };
     const currentP2p: CollaborationDescriptorV3 = {
       version: 3,
-      documentVersion: 2,
+      documentVersion: 3,
       mode: current.mode,
       provider: "p2p",
       roomId: current.roomId,
@@ -166,7 +166,7 @@ describe("collaboration document contract", () => {
     ensureCollaborationDocumentMeta(freeform, doc);
 
     expect(doc.getMap("document-meta").toJSON()).toEqual({
-      documentVersion: 2,
+      documentVersion: 3,
       mode: "freeform",
       roomId: freeform.roomId,
     });
@@ -274,11 +274,11 @@ describe("collaboration document contract", () => {
     const changeListener = harness.awareness.on.mock.calls.find(([event]) => event === "change")?.[1];
     changeListener?.();
     harness.runtime.reportIntegrityIssues([
-      { channel: "main-grid", key: "0,0", reason: "Invalid grid cell" },
+      { channel: "cell-plane-operations", key: "0", reason: "Invalid CellPlane operation" },
     ]);
 
     expect(harness.runtime.getSnapshot().integrityIssues).toEqual([
-      { channel: "main-grid", key: "0,0", reason: "Invalid grid cell" },
+      { channel: "cell-plane-operations", key: "0", reason: "Invalid CellPlane operation" },
       { channel: "presence", key: "2", reason: "Invalid presence" },
     ]);
   });

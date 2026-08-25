@@ -3,7 +3,11 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Check, X } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
-import { useCanvasRuntime, useCanvasState } from "@/domains/canvas/public";
+import {
+  createGridSurfaceReader,
+  useCanvasRuntime,
+  useCanvasState,
+} from "@/domains/canvas/public";
 import {
   getAvailableExportFormats,
   type ExportContext,
@@ -126,7 +130,10 @@ export function AppMenu() {
   const exportContext = useMemo<ExportContext>(
     () => ({
       canvasMode,
-      grid,
+      surface:
+        canvasMode === "structured"
+          ? createGridSurfaceReader(grid)
+          : canvas.documents.getContentReader(),
       slideDeck,
       documentName,
       structuredScene,
@@ -136,6 +143,7 @@ export function AppMenu() {
     }),
     [
       canvasMode,
+      canvas.documents,
       documentName,
       grid,
       slideDeck,

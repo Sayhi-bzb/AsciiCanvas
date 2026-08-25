@@ -1,6 +1,5 @@
 import type { StoreApi } from "zustand";
 import type { CollaborationIntegrityIssue } from "@/domains/collaboration/public";
-import type { CanvasSession } from "@/domains/sessions/public";
 import {
   normalizeStructuredComponents,
   sceneToGridEntries,
@@ -8,8 +7,7 @@ import {
 import type { GridMap } from "@/shared/types";
 import { decodeCollaborativeStructuredComponent } from "./collaborationSchema";
 import {
-  patchGridByChangedKeys,
-  rebuildGridFromYMap,
+  rebuildGridFromContent,
   rebuildSceneFromYMap,
 } from "./helpers/gridHelpers";
 import { createMapFromEntries } from "./helpers/snapshotHelpers";
@@ -24,11 +22,6 @@ const projectObservedGrid = (state: EditorState, grid: GridMap) => {
   }
   return {
     grid,
-    canvasSessions: state.canvasSessions.map((session): CanvasSession =>
-      session.id === state.activeCanvasId && session.mode !== "slide"
-        ? { ...session, grid: Array.from(grid.entries()) }
-        : session
-    ),
   };
 };
 
@@ -45,17 +38,9 @@ export const subscribeCanvasDocumentProjection = (
   const unsubscribe = documents.observeActiveTransactions((transaction) => {
     const state = getState();
     if (state.canvasMode !== "structured") {
-      if (transaction.gridKeysChanged.size === 0) return;
-      const patchedGrid = patchGridByChangedKeys(
-        documents,
-        state.grid,
-        transaction.gridKeysChanged
-      );
+      if (!transaction.contentChanged) return;
       setState((current) =>
-        projectObservedGrid(
-          current,
-          patchedGrid ?? rebuildGridFromYMap(documents)
-        )
+        projectObservedGrid(current, rebuildGridFromContent(documents))
       );
       reportCurrentIntegrityIssues();
       return;
@@ -83,16 +68,6 @@ export const subscribeCanvasDocumentProjection = (
         structuredComponents,
         grid: createMapFromEntries(gridEntries),
         ...reconcileStructuredInteraction(current, structuredScene),
-        canvasSessions: current.canvasSessions.map((session) =>
-          session.id === current.activeCanvasId && session.mode !== "slide"
-            ? {
-                ...session,
-                scene: structuredScene,
-                components: structuredComponents,
-                grid: gridEntries,
-              }
-            : session
-        ),
       };
     });
     reportCurrentIntegrityIssues();
