@@ -24,15 +24,18 @@ export {
   CellPlaneIndex,
   cellPlanePatchToOperation,
   gridEntriesToCellPlaneOperation,
+  isIncrementalCanvasSurfaceReader,
   isSurfaceGridProjection,
 } from "./cell-plane/model";
 export type {
+  CanvasSurfaceChanges,
   CanvasSurfaceReader,
   CellPlaneOperation,
   CellPlanePatch,
   CellPlaneRow,
   CellRowMutation,
   GridInterval,
+  IncrementalCanvasSurfaceReader,
   StyledCellSpan,
 } from "./cell-plane/model";
 export { createGridSurfaceReader } from "./cell-plane/model";

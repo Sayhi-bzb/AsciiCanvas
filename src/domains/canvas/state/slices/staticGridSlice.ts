@@ -19,6 +19,7 @@ import {
 } from "@/domains/selection/public";
 import { clampPointToActiveSlide, getActiveSlideGridBounds } from "../slideBounds";
 import { resolveGridAnchor, resolveGridSlot } from "@/shared/utils/grid-occupancy";
+import { getSurfaceGridLineOriginX } from "../../cell-plane/model";
 
 const resolveStaticGridAddress = (
   state: EditorState,
@@ -32,6 +33,7 @@ const createInputFlow = (
   grid: state.grid,
   address,
   bounds: getActiveSlideGridBounds(state),
+  lineOriginX: getSurfaceGridLineOriginX(state.grid, address),
 });
 
 export const createStaticGridSlice: StateCreator<

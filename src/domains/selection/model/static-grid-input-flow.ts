@@ -43,8 +43,12 @@ export const createStaticGridInputFlow = (input: {
   grid: GridMap;
   address: GridAddress;
   bounds?: GridBounds | null;
+  lineOriginX?: number;
 }): StaticGridInputFlow => ({
-  lineOriginX: clampXToBounds(getGridLineOriginX(input.grid, input.address), input.bounds),
+  lineOriginX: clampXToBounds(
+    input.lineOriginX ?? getGridLineOriginX(input.grid, input.address),
+    input.bounds
+  ),
   nextCell: { ...input.address },
   activeCell: { ...input.address },
   previousCell: null,

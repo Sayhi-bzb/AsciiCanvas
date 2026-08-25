@@ -13,6 +13,7 @@ import { useTheme } from "next-themes";
 import { useShallow } from "zustand/react/shallow";
 import {
   createGridSurfaceReader,
+  isIncrementalCanvasSurfaceReader,
   isSurfaceGridProjection,
   useCanvasRuntime,
   useCanvasState,
@@ -137,7 +138,9 @@ export const Minimap = ({
     if (!contentReader) return;
     managerRef.current?.update({
       reader: contentReader,
-      contentRevision: grid,
+      contentRevision: isIncrementalCanvasSurfaceReader(contentReader)
+        ? contentReader.getRevision()
+        : grid,
       offset,
       zoom,
       viewportSize: containerSize,

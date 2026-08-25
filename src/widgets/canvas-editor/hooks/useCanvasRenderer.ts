@@ -15,6 +15,7 @@ import { GridManager } from '@/shared/utils/grid';
 import type { SelectionArea, GridMap, Point, NodeBounds } from '@/shared/types';
 import {
   createGridSurfaceReader,
+  isIncrementalCanvasSurfaceReader,
   type CanvasSurfaceReader,
 } from '@/domains/canvas/public';
 import type { StructuredSplitBoxNode } from '@/domains/structured-content/public';
@@ -57,6 +58,7 @@ import {
   type CanvasFrameInvalidation,
 } from '../engine/FrameScheduler';
 import { CanvasRenderManager } from '../engine/CanvasRenderManager';
+import { getIncrementalBackgroundBounds } from '../rendering/incrementalBackground';
 import {
   offsetCanvasViewportForSurface,
   type CanvasSurfaceGeometry,
@@ -68,6 +70,21 @@ interface LayerRefs {
   scratch: React.RefObject<HTMLCanvasElement | null>;
   ui: React.RefObject<HTMLCanvasElement | null>;
 }
+
+type BackgroundRenderSnapshot = {
+  canvas: HTMLCanvasElement;
+  reader: CanvasSurfaceReader;
+  revision: number;
+  activeCanvasId: string;
+  width: number;
+  height: number;
+  dpr: number;
+  offsetX: number;
+  offsetY: number;
+  zoom: number;
+  showGrid: boolean;
+  hoveredLink: CanvasLinkHit | null;
+};
 
 export const getStructuredSplitBoxActiveLeafBounds = (
   node: StructuredSplitBoxNode,
@@ -261,6 +278,7 @@ export const useCanvasRenderer = (
   );
   const renderedTextCursor = canvasMode !== 'structured' ? staticGridView.textCursor : textCursor;
   const [renderManager] = useState(() => new CanvasRenderManager());
+  const backgroundSnapshotRef = useRef<BackgroundRenderSnapshot | null>(null);
   const manualRenderRafRef = useRef<number | null>(null);
   const manualInvalidationRef = useRef<CanvasFrameInvalidation>(0);
 
@@ -353,51 +371,149 @@ export const useCanvasRenderer = (
       const bgCanvas = layers.bg.current;
       const bgCtx = bgCanvas?.getContext('2d', { alpha: false });
       if (renderBackground && bgCanvas && bgCtx) {
-        prepareCanvasSurface(
-          bgCanvas,
-          bgCtx,
-          surfaceGeometry.width,
-          surfaceGeometry.height,
-          dpr
-        );
-        bgCtx.fillStyle = slidePageRect ? "#e5e7eb" : BACKGROUND_COLOR;
-        bgCtx.fillRect(0, 0, surfaceGeometry.width, surfaceGeometry.height);
-        if (slidePageRect) {
-          bgCtx.save();
-          bgCtx.shadowColor = "rgba(15, 23, 42, 0.18)";
-          bgCtx.shadowBlur = 18;
-          bgCtx.shadowOffsetY = 4;
-          bgCtx.fillStyle = BACKGROUND_COLOR;
-          bgCtx.fillRect(
-            slidePageRect.x,
-            slidePageRect.y,
-            slidePageRect.width,
-            slidePageRect.height
-          );
-          bgCtx.restore();
-          clipToSlidePage(bgCtx);
-        }
+        const incrementalReader = isIncrementalCanvasSurfaceReader(contentReader)
+          ? contentReader
+          : null;
+        const revision = incrementalReader?.getRevision() ?? null;
+        const previous = backgroundSnapshotRef.current;
+        const staticInputsMatch =
+          revision !== null &&
+          previous !== null &&
+          previous.canvas === bgCanvas &&
+          previous.reader === contentReader &&
+          previous.activeCanvasId === activeCanvasId &&
+          previous.width === surfaceGeometry.width &&
+          previous.height === surfaceGeometry.height &&
+          previous.dpr === dpr &&
+          previous.offsetX === renderOffset.x &&
+          previous.offsetY === renderOffset.y &&
+          previous.zoom === zoom &&
+          previous.showGrid === showGrid &&
+          previous.hoveredLink === hoveredLink &&
+          canvasMode === "freeform" &&
+          !structuredMovePreview &&
+          !slidePageRect;
+        const incrementalBounds = staticInputsMatch && incrementalReader &&
+          revision !== previous.revision
+          ? getIncrementalBackgroundBounds(
+              incrementalReader.getChangesSince(previous.revision),
+              {
+                x: viewBounds.startX,
+                y: viewBounds.startY,
+                width: viewBounds.endX - viewBounds.startX + 1,
+                height: viewBounds.endY - viewBounds.startY + 1,
+              }
+            )
+          : null;
 
-        if (showGrid) {
-          drawGridLines(bgCtx, {
-            startX: viewBounds.startX,
-            endX: viewBounds.endX,
-            startY: viewBounds.startY,
-            endY: viewBounds.endY,
-            offsetX: renderOffset.x,
-            offsetY: renderOffset.y,
-            width: surfaceGeometry.width,
-            height: surfaceGeometry.height,
-            zoom,
-            color: GRID_COLOR,
-          });
-        }
-        if (structuredMovePreview) {
-          drawLayer(bgCtx, renderedGrid, viewBounds, zoom, renderOffset);
+        if (incrementalBounds) {
+          for (const bounds of incrementalBounds) {
+            const topLeft = gridCellRect(
+              { x: bounds.x, y: bounds.y },
+              { offset: renderOffset, zoom }
+            );
+            const x = Math.max(0, Math.floor(topLeft.x));
+            const y = Math.max(0, Math.floor(topLeft.y));
+            const right = Math.min(
+              surfaceGeometry.width,
+              Math.ceil(topLeft.x + topLeft.width * bounds.width)
+            );
+            const bottom = Math.min(
+              surfaceGeometry.height,
+              Math.ceil(topLeft.y + topLeft.height * bounds.height)
+            );
+            if (right <= x || bottom <= y) continue;
+            bgCtx.save();
+            bgCtx.beginPath();
+            bgCtx.rect(x, y, right - x, bottom - y);
+            bgCtx.clip();
+            bgCtx.fillStyle = BACKGROUND_COLOR;
+            bgCtx.fillRect(x, y, right - x, bottom - y);
+            if (showGrid) {
+              drawGridLines(bgCtx, {
+                startX: bounds.x,
+                endX: bounds.x + bounds.width,
+                startY: bounds.y,
+                endY: bounds.y + bounds.height,
+                offsetX: renderOffset.x,
+                offsetY: renderOffset.y,
+                width: surfaceGeometry.width,
+                height: surfaceGeometry.height,
+                zoom,
+                color: GRID_COLOR,
+              });
+            }
+            drawSurface(bgCtx, contentReader, {
+              startX: bounds.x,
+              endX: bounds.x + bounds.width - 1,
+              startY: bounds.y,
+              endY: bounds.y + bounds.height - 1,
+            }, zoom, renderOffset);
+            bgCtx.restore();
+          }
         } else {
-          drawSurface(bgCtx, contentReader, viewBounds, zoom, renderOffset);
+          prepareCanvasSurface(
+            bgCanvas,
+            bgCtx,
+            surfaceGeometry.width,
+            surfaceGeometry.height,
+            dpr
+          );
+          bgCtx.fillStyle = slidePageRect ? "#e5e7eb" : BACKGROUND_COLOR;
+          bgCtx.fillRect(0, 0, surfaceGeometry.width, surfaceGeometry.height);
+          if (slidePageRect) {
+            bgCtx.save();
+            bgCtx.shadowColor = "rgba(15, 23, 42, 0.18)";
+            bgCtx.shadowBlur = 18;
+            bgCtx.shadowOffsetY = 4;
+            bgCtx.fillStyle = BACKGROUND_COLOR;
+            bgCtx.fillRect(
+              slidePageRect.x,
+              slidePageRect.y,
+              slidePageRect.width,
+              slidePageRect.height
+            );
+            bgCtx.restore();
+            clipToSlidePage(bgCtx);
+          }
+
+          if (showGrid) {
+            drawGridLines(bgCtx, {
+              startX: viewBounds.startX,
+              endX: viewBounds.endX,
+              startY: viewBounds.startY,
+              endY: viewBounds.endY,
+              offsetX: renderOffset.x,
+              offsetY: renderOffset.y,
+              width: surfaceGeometry.width,
+              height: surfaceGeometry.height,
+              zoom,
+              color: GRID_COLOR,
+            });
+          }
+          if (structuredMovePreview) {
+            drawLayer(bgCtx, renderedGrid, viewBounds, zoom, renderOffset);
+          } else {
+            drawSurface(bgCtx, contentReader, viewBounds, zoom, renderOffset);
+          }
+          if (slidePageRect) bgCtx.restore();
         }
-        if (slidePageRect) bgCtx.restore();
+        backgroundSnapshotRef.current = revision === null
+          ? null
+          : {
+              canvas: bgCanvas,
+              reader: contentReader,
+              revision,
+              activeCanvasId,
+              width: surfaceGeometry.width,
+              height: surfaceGeometry.height,
+              dpr,
+              offsetX: renderOffset.x,
+              offsetY: renderOffset.y,
+              zoom,
+              showGrid,
+              hoveredLink,
+            };
         renderedInvalidation |= CANVAS_FRAME_INVALIDATION.background;
       }
 
@@ -704,11 +820,15 @@ export const useCanvasRenderer = (
       canvasMode,
       slideDeck,
     ];
+    const contentRevision = isIncrementalCanvasSurfaceReader(contentReader)
+      ? contentReader.getRevision()
+      : null;
     const invalidation = renderManager.update({
       background: [
         layers.bg.current,
         ...sharedViewportInputs,
-        grid,
+        contentReader,
+        contentRevision ?? grid,
         showGrid,
         hoveredLink,
         structuredMovePreview?.baseGrid ?? null,

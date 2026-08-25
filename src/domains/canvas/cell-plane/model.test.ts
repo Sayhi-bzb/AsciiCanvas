@@ -4,6 +4,8 @@ import {
   cellPlanePatchToOperation,
   createGridSurfaceReader,
   createSurfaceGridProjection,
+  getSurfaceGridLineOriginX,
+  isIncrementalCanvasSurfaceReader,
   isSurfaceGridProjection,
   type CellPlaneOperation,
 } from "./model";
@@ -159,5 +161,70 @@ describe("CellPlaneIndex", () => {
 
     expect(projection.has("0,0")).toBe(false);
     expect(projection.get("1,0")?.char).toBe("B");
+  });
+
+  it("reports merged bounds since an observed revision", () => {
+    const plane = new CellPlaneIndex();
+    expect(isIncrementalCanvasSurfaceReader(plane)).toBe(true);
+    const revision = plane.getRevision();
+
+    plane.append({
+      id: "left",
+      bounds: { x: 2, y: 3, width: 1, height: 1 },
+      rows: [{ y: 3, erase: [], spans: [{ x: 2, text: "A", color: "#fff" }] }],
+    });
+    plane.append({
+      id: "right",
+      bounds: { x: 3, y: 3, width: 2, height: 1 },
+      rows: [{ y: 3, erase: [], spans: [{ x: 3, text: "BC", color: "#fff" }] }],
+    });
+
+    expect(plane.getChangesSince(revision)).toEqual({
+      revision: 2,
+      full: false,
+      bounds: [{ x: 2, y: 3, width: 3, height: 1 }],
+    });
+    expect(plane.getChangesSince(2)).toEqual({
+      revision: 2,
+      full: false,
+      bounds: [],
+    });
+  });
+
+  it("falls back to full invalidation after the bounded history expires", () => {
+    const plane = new CellPlaneIndex();
+    for (let index = 0; index < 257; index += 1) {
+      plane.append({
+        id: String(index),
+        bounds: { x: index * 2, y: 0, width: 1, height: 1 },
+        rows: [{
+          y: 0,
+          erase: [],
+          spans: [{ x: index * 2, text: "A", color: "#fff" }],
+        }],
+      });
+    }
+
+    expect(plane.getChangesSince(0)).toEqual({ revision: 257, full: true });
+  });
+
+  it("finds a row origin through a surface projection without materializing it", () => {
+    const plane = new CellPlaneIndex([{
+      id: "line",
+      bounds: { x: 2, y: 4, width: 6, height: 1 },
+      rows: [{
+        y: 4,
+        erase: [],
+        spans: [
+          { x: 2, text: "你A", color: "#fff" },
+          { x: 7, text: "B", color: "#fff" },
+        ],
+      }],
+    }]);
+    const projection = createSurfaceGridProjection(plane);
+
+    expect(getSurfaceGridLineOriginX(projection, { x: 8, y: 4 })).toBe(7);
+    expect(getSurfaceGridLineOriginX(projection, { x: 4, y: 4 })).toBe(2);
+    expect(getSurfaceGridLineOriginX(new Map(), { x: 4, y: 4 })).toBeUndefined();
   });
 });

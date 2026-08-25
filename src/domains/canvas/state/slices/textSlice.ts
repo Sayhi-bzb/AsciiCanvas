@@ -39,6 +39,7 @@ import {
 import { clampPointToActiveSlide, getActiveSlideGridBounds } from "../slideBounds";
 import { resolveGridAnchor, resolveGridSlot } from "@/shared/utils/grid-occupancy";
 import { resolveEditorDocumentAddress } from "../helpers/gridHelpers";
+import { getSurfaceGridLineOriginX } from "../../cell-plane/model";
 
 const toCharIndexByColumn = (text: string, columnOffset: number) => {
   if (columnOffset <= 0) return 0;
@@ -86,6 +87,7 @@ const createInputFlow = (
   grid: state.grid,
   address,
   bounds: getActiveSlideGridBounds(state),
+  lineOriginX: getSurfaceGridLineOriginX(state.grid, address),
 });
 
 const isWideFollowerRichCell = (

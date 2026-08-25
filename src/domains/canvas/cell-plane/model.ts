@@ -10,6 +10,8 @@ import { resolveGridSlot } from "@/shared/utils/grid-occupancy";
 
 const CELL_PLANE_CHUNK_WIDTH = 128;
 const CELL_PLANE_CHUNK_HEIGHT = 64;
+const CELL_PLANE_INVALIDATION_HISTORY_LIMIT = 256;
+const CELL_PLANE_INVALIDATION_BOUNDS_LIMIT = 64;
 
 export type GridInterval = { from: number; to: number };
 
@@ -107,6 +109,16 @@ type CellSpan = {
   cells: GridCell[];
 };
 
+type CellPlaneChunkMutation = {
+  rows: CellRowMutation[];
+};
+
+type MutableCellRowMutation = {
+  y: number;
+  erase: GridInterval[];
+  spans: StyledCellSpan[];
+};
+
 export type CellPlaneRow = {
   y: number;
   spans: readonly CellSpan[];
@@ -119,6 +131,28 @@ export interface CanvasSurfaceReader {
   getContentBounds(): NodeBounds | null;
   materialize(bounds?: NodeBounds): Map<string, GridCell>;
 }
+
+export type CanvasSurfaceChanges =
+  | { revision: number; full: true }
+  | { revision: number; full: false; bounds: readonly NodeBounds[] };
+
+/** Optional capability for surfaces that can describe changes since a revision. */
+export interface IncrementalCanvasSurfaceReader extends CanvasSurfaceReader {
+  getRevision(): number;
+  getChangesSince(revision: number): CanvasSurfaceChanges;
+}
+
+interface CanvasSurfaceLineNavigator extends CanvasSurfaceReader {
+  getLineOriginX(point: Point): number;
+}
+
+export const isIncrementalCanvasSurfaceReader = (
+  reader: CanvasSurfaceReader
+): reader is IncrementalCanvasSurfaceReader =>
+  "getRevision" in reader &&
+  typeof reader.getRevision === "function" &&
+  "getChangesSince" in reader &&
+  typeof reader.getChangesSince === "function";
 
 export const createGridSurfaceReader = (
   grid: ReadonlyMap<string, GridCell>
@@ -185,11 +219,25 @@ export const createGridSurfaceReader = (
   },
 });
 
-const surfaceGridProjections = new WeakSet<ReadonlyMap<string, GridCell>>();
+const surfaceGridProjectionReaders = new WeakMap<
+  ReadonlyMap<string, GridCell>,
+  () => CanvasSurfaceReader
+>();
 
 export const isSurfaceGridProjection = (
   grid: ReadonlyMap<string, GridCell>
-) => surfaceGridProjections.has(grid);
+) => surfaceGridProjectionReaders.has(grid);
+
+export const getSurfaceGridLineOriginX = (
+  grid: ReadonlyMap<string, GridCell>,
+  point: Point
+) => {
+  const reader = surfaceGridProjectionReaders.get(grid)?.();
+  return reader && "getLineOriginX" in reader &&
+    typeof reader.getLineOriginX === "function"
+    ? (reader as CanvasSurfaceLineNavigator).getLineOriginX(point)
+    : undefined;
+};
 
 /** Map-compatible, non-owning facade for legacy interaction consumers. */
 export const createSurfaceGridProjection = (
@@ -227,7 +275,7 @@ export const createSurfaceGridProjection = (
     delete: { value: rejectMutation },
     clear: { value: rejectMutation },
   });
-  surfaceGridProjections.add(grid);
+  surfaceGridProjectionReaders.set(grid, reader);
   return grid;
 };
 
@@ -239,6 +287,12 @@ const intersects = (left: NodeBounds, right: NodeBounds) =>
   left.x + left.width > right.x &&
   left.y < right.y + right.height &&
   left.y + left.height > right.y;
+
+const touches = (left: NodeBounds, right: NodeBounds) =>
+  left.x <= right.x + right.width &&
+  left.x + left.width >= right.x &&
+  left.y <= right.y + right.height &&
+  left.y + left.height >= right.y;
 
 const unionBounds = (left: NodeBounds | null, right: NodeBounds) => {
   if (!left) return { ...right };
@@ -441,11 +495,13 @@ export const gridChangesToCellPlaneOperation = (
  * a disposable spatial projection and never writes collaborative state.
  */
 export class CellPlaneIndex implements CanvasSurfaceReader {
-  readonly #operations: CellPlaneOperation[] = [];
-  readonly #operationIndexesByChunk = new Map<string, number[]>();
+  readonly #mutationsByChunk = new Map<string, CellPlaneChunkMutation[]>();
+  readonly #chunkXsByRow = new Map<number, Set<number>>();
   readonly #chunkCache = new Map<string, Map<string, GridCell>>();
   #contentBounds: NodeBounds | null = null;
   #resolvedContentBounds: NodeBounds | null | undefined = null;
+  #revision = 0;
+  readonly #invalidations: Array<{ revision: number; bounds: NodeBounds }> = [];
 
   constructor(operations: readonly CellPlaneOperation[] = []) {
     operations.forEach((operation) => this.append(operation));
@@ -453,8 +509,15 @@ export class CellPlaneIndex implements CanvasSurfaceReader {
 
   append(operation: CellPlaneOperation) {
     if (!isCellPlaneOperation(operation)) return;
-    const operationIndex = this.#operations.length;
-    this.#operations.push(operation);
+    this.#revision += 1;
+    this.#invalidations.push({
+      revision: this.#revision,
+      bounds: { ...operation.bounds },
+    });
+    if (this.#invalidations.length > CELL_PLANE_INVALIDATION_HISTORY_LIMIT) {
+      this.#invalidations.shift();
+    }
+    this.#compileChunkMutations(operation);
     const previousBounds = this.#contentBounds;
     this.#contentBounds = unionBounds(this.#contentBounds, operation.bounds);
     this.#resolvedContentBounds =
@@ -477,12 +540,83 @@ export class CellPlaneIndex implements CanvasSurfaceReader {
     for (let chunkY = minChunkY; chunkY <= maxChunkY; chunkY += 1) {
       for (let chunkX = minChunkX; chunkX <= maxChunkX; chunkX += 1) {
         const key = chunkKey(chunkX, chunkY);
-        const indexes = this.#operationIndexesByChunk.get(key) ?? [];
-        indexes.push(operationIndex);
-        this.#operationIndexesByChunk.set(key, indexes);
         this.#chunkCache.delete(key);
       }
     }
+  }
+
+  getRevision() {
+    return this.#revision;
+  }
+
+  getChangesSince(revision: number): CanvasSurfaceChanges {
+    if (!Number.isSafeInteger(revision) || revision < 0 || revision > this.#revision) {
+      return { revision: this.#revision, full: true };
+    }
+    if (revision === this.#revision) {
+      return { revision: this.#revision, full: false, bounds: [] };
+    }
+    const oldestRevision = this.#invalidations[0]?.revision ?? this.#revision;
+    if (revision < oldestRevision - 1) {
+      return { revision: this.#revision, full: true };
+    }
+
+    const bounds: NodeBounds[] = [];
+    for (const invalidation of this.#invalidations) {
+      if (invalidation.revision <= revision) continue;
+      let merged = { ...invalidation.bounds };
+      for (let index = 0; index < bounds.length;) {
+        if (!touches(bounds[index]!, merged)) {
+          index += 1;
+          continue;
+        }
+        merged = unionBounds(bounds[index]!, merged);
+        bounds.splice(index, 1);
+        index = 0;
+      }
+      bounds.push(merged);
+      if (bounds.length > CELL_PLANE_INVALIDATION_BOUNDS_LIMIT) {
+        return { revision: this.#revision, full: true };
+      }
+    }
+    return { revision: this.#revision, full: false, bounds };
+  }
+
+  getLineOriginX(point: Point) {
+    let seedX: number | null = null;
+    const maxChunkX = floorDiv(point.x + 1, CELL_PLANE_CHUNK_WIDTH);
+    for (const chunkX of this.#chunkXsByRow.get(point.y) ?? []) {
+      if (chunkX > maxChunkX) continue;
+      const chunk = this.#resolveChunk(
+        chunkX,
+        floorDiv(point.y, CELL_PLANE_CHUNK_HEIGHT)
+      );
+      for (const key of chunk.keys()) {
+        const candidate = GridManager.fromKey(key);
+        if (
+          candidate.y === point.y &&
+          candidate.x <= point.x &&
+          (seedX === null || candidate.x > seedX)
+        ) seedX = candidate.x;
+      }
+    }
+    if (seedX === null) return point.x;
+
+    let runStartX = seedX;
+    while (true) {
+      const immediate = this.getCell({ x: runStartX - 1, y: point.y });
+      if (immediate && getCellOccupancy(immediate.char) === 1) {
+        runStartX -= 1;
+        continue;
+      }
+      const wide = this.getCell({ x: runStartX - 2, y: point.y });
+      if (wide && getCellOccupancy(wide.char) === 2) {
+        runStartX -= 2;
+        continue;
+      }
+      break;
+    }
+    return Math.min(point.x, runStartX);
   }
 
   getCell(point: Point) {
@@ -582,6 +716,52 @@ export class CellPlaneIndex implements CanvasSurfaceReader {
     return grid;
   }
 
+  #compileChunkMutations(operation: CellPlaneOperation) {
+    const rowsByChunk = new Map<string, Map<number, MutableCellRowMutation>>();
+    const getRow = (chunkX: number, y: number) => {
+      const key = chunkKey(chunkX, floorDiv(y, CELL_PLANE_CHUNK_HEIGHT));
+      const rows = rowsByChunk.get(key) ?? new Map<number, MutableCellRowMutation>();
+      let row = rows.get(y);
+      if (!row) {
+        row = { y, erase: [], spans: [] };
+        rows.set(y, row);
+        rowsByChunk.set(key, rows);
+        const chunkXs = this.#chunkXsByRow.get(y) ?? new Set<number>();
+        chunkXs.add(chunkX);
+        this.#chunkXsByRow.set(y, chunkXs);
+      }
+      return row;
+    };
+
+    for (const row of operation.rows) {
+      for (const interval of row.erase) {
+        const minChunkX = floorDiv(interval.from - 1, CELL_PLANE_CHUNK_WIDTH);
+        const maxChunkX = floorDiv(interval.to + 1, CELL_PLANE_CHUNK_WIDTH);
+        for (let chunkX = minChunkX; chunkX <= maxChunkX; chunkX += 1) {
+          getRow(chunkX, row.y).erase.push({ ...interval });
+        }
+      }
+      for (const span of row.spans) {
+        let x = span.x;
+        for (const char of splitGraphemes(span.text)) {
+          const width = getCellOccupancy(char);
+          const minChunkX = floorDiv(x - 1, CELL_PLANE_CHUNK_WIDTH);
+          const maxChunkX = floorDiv(x + width, CELL_PLANE_CHUNK_WIDTH);
+          for (let chunkX = minChunkX; chunkX <= maxChunkX; chunkX += 1) {
+            getRow(chunkX, row.y).spans.push({ ...span, x, text: char });
+          }
+          x += width;
+        }
+      }
+    }
+
+    for (const [key, rows] of rowsByChunk) {
+      const mutations = this.#mutationsByChunk.get(key) ?? [];
+      mutations.push({ rows: [...rows.values()] });
+      this.#mutationsByChunk.set(key, mutations);
+    }
+  }
+
   #resolveChunk(chunkX: number, chunkY: number) {
     const key = chunkKey(chunkX, chunkY);
     const cached = this.#chunkCache.get(key);
@@ -593,36 +773,23 @@ export class CellPlaneIndex implements CanvasSurfaceReader {
       height: CELL_PLANE_CHUNK_HEIGHT,
     };
     const projection = new Map<string, GridCell>();
-    for (const operationIndex of this.#operationIndexesByChunk.get(key) ?? []) {
-      const operation = this.#operations[operationIndex];
-      if (!operation || !intersects(operation.bounds, chunkBounds)) continue;
-      for (const row of operation.rows) {
-        if (row.y < chunkBounds.y || row.y >= chunkBounds.y + chunkBounds.height) continue;
+    for (const mutation of this.#mutationsByChunk.get(key) ?? []) {
+      for (const row of mutation.rows) {
         for (const interval of row.erase) {
           const from = Math.max(interval.from, chunkBounds.x - 1);
           const to = Math.min(interval.to, chunkBounds.x + chunkBounds.width);
           for (let x = from; x <= to; x += 1) deleteCellAt(projection, x, row.y);
         }
         for (const span of row.spans) {
-          let x = span.x;
-          for (const char of splitGraphemes(span.text)) {
-            const width = getCellOccupancy(char);
-            if (
-              x + width > chunkBounds.x - 1 &&
-              x < chunkBounds.x + chunkBounds.width + 1
-            ) {
-              const targetBackground = span.preserveTargetBackground
-                ? resolveGridSlot(projection, { x, y: row.y })?.cell.bgColor
-                : undefined;
-              writeStyledCell(
-                projection,
-                x,
-                row.y,
-                toCell(span, char, targetBackground)
-              );
-            }
-            x += width;
-          }
+          const targetBackground = span.preserveTargetBackground
+            ? resolveGridSlot(projection, { x: span.x, y: row.y })?.cell.bgColor
+            : undefined;
+          writeStyledCell(
+            projection,
+            span.x,
+            row.y,
+            toCell(span, span.text, targetBackground)
+          );
         }
       }
     }
