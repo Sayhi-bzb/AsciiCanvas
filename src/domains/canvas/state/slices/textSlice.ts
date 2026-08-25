@@ -522,40 +522,32 @@ export const createTextSlice = (
         : null) ??
       textCursor ??
       staticGridView.activeCell;
-    let writtenBounds: WrittenBounds | null = null;
-    documents.mutateGridAt(resolveEditorDocumentAddress(documents, get()), (gridWriter) => {
-      for (const row of rows) {
-        for (const span of row.spans) {
-          let x = basePos.x + span.x;
-          const y = basePos.y + row.y;
-          for (const char of splitGraphemes(span.text)) {
-            const width = getCellOccupancy(char);
-            placeStyledCellInYMap(
-              gridWriter,
-              x,
-              y,
-              char,
-              {
-                color: span.color,
-                ...(span.bgColor ? { bgColor: span.bgColor } : {}),
-                ...(span.attrs ? { attrs: span.attrs } : {}),
-                ...(span.href ? { href: span.href } : {}),
-              },
-              { preserveTargetBackground: true }
-            );
-            writtenBounds = writtenBounds
-              ? {
-                  minX: Math.min(writtenBounds.minX, x),
-                  minY: Math.min(writtenBounds.minY, y),
-                  maxX: Math.max(writtenBounds.maxX, x + width - 1),
-                  maxY: Math.max(writtenBounds.maxY, y),
-                }
-              : { minX: x, minY: y, maxX: x + width - 1, maxY: y };
-            x += width;
-          }
-        }
+    const operation = documents.applyCellPlanePatchAt(
+      resolveEditorDocumentAddress(documents, get()),
+      {
+        rows: rows.map((row) => ({
+          y: basePos.y + row.y,
+          erase: [],
+          spans: row.spans.map((span) => ({
+            x: basePos.x + span.x,
+            text: span.text,
+            color: span.color,
+            ...(span.bgColor ? { bgColor: span.bgColor } : {}),
+            ...(span.attrs ? { attrs: span.attrs } : {}),
+            ...(span.href ? { href: span.href } : {}),
+            preserveTargetBackground: true,
+          })),
+        })),
       }
-    });
+    );
+    const writtenBounds: WrittenBounds | null = operation
+      ? {
+          minX: operation.bounds.x,
+          minY: operation.bounds.y,
+          maxX: operation.bounds.x + operation.bounds.width - 1,
+          maxY: operation.bounds.y + operation.bounds.height - 1,
+        }
+      : null;
     if (options?.selectResult && writtenBounds) {
       set((current) => ({
         textCursor: null,

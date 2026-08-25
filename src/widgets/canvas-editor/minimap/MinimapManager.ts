@@ -2,7 +2,7 @@ import { DEFAULT_GRID_RENDER_METRICS } from "@/shared/metrics";
 import { GridManager } from "@/shared/utils/grid";
 import {
   clampMinimapCameraCenter,
-  computeMinimapTransform,
+  computeMinimapTransformFromBounds,
   computeMinimapViewportRect,
   lockMinimapPointToAxis,
   minimapPointToWorld,
@@ -34,7 +34,10 @@ export class MinimapManager {
   private renderState: MinimapRenderState | null = null;
   private transform: MinimapTransform | null = null;
   private viewportRect: MinimapRect | null = null;
-  private cachedGrid: MinimapRenderState["grid"] | null = null;
+  private cachedContentRevision: unknown;
+  private hasCachedContent = false;
+  private cachedContentBounds: MinimapRect | null = null;
+  private cancelScheduledContentRebuild: (() => void) | null = null;
   private cachedForeground = "";
   private colorPaths = new Map<string, Path2D>();
   private colors: MinimapColors;
@@ -65,6 +68,8 @@ export class MinimapManager {
     this.renderState = null;
     this.transform = null;
     this.viewportRect = null;
+    this.cancelScheduledContentRebuild?.();
+    this.cancelScheduledContentRebuild = null;
     this.colorPaths.clear();
   };
 
@@ -77,7 +82,7 @@ export class MinimapManager {
     const previousForeground = this.colors.foreground;
     this.colors = this.readColors();
     if (previousForeground !== this.colors.foreground) {
-      this.cachedGrid = null;
+      this.hasCachedContent = false;
     }
     this.render();
   };
@@ -130,43 +135,96 @@ export class MinimapManager {
 
   private rebuildPaths = (state: MinimapRenderState) => {
     if (
-      this.cachedGrid === state.grid &&
+      this.hasCachedContent &&
+      this.cachedContentRevision === state.contentRevision &&
       this.cachedForeground === this.colors.foreground
     ) {
       return;
     }
-    this.cachedGrid = state.grid;
+    this.hasCachedContent = true;
+    this.cachedContentRevision = state.contentRevision;
     this.cachedForeground = this.colors.foreground;
+    this.cachedContentBounds = null;
     this.colorPaths = new Map();
     const { cellWidth, cellHeight } = DEFAULT_GRID_RENDER_METRICS;
-
-    GridManager.iterate(state.grid, (cell, x, y) => {
-      const hasBackground =
-        !!cell.bgColor && cell.bgColor !== "transparent";
-      if (!hasBackground && (!cell.char || cell.char === " ")) return;
-      const color = hasBackground
-        ? cell.bgColor!
-        : cell.color || this.colors.foreground;
-      let path = this.colorPaths.get(color);
-      if (!path) {
-        path = new Path2D();
-        this.colorPaths.set(color, path);
+    const bounds = state.reader.getContentBounds();
+    if (!bounds) return;
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const row of state.reader.rows(bounds)) {
+      for (const span of row.spans) {
+        let x = span.x;
+        for (const cell of span.cells) {
+          const occupancy = Math.max(GridManager.getCharWidth(cell.char), 1);
+          const hasBackground = !!cell.bgColor && cell.bgColor !== "transparent";
+          if (hasBackground || (cell.char && cell.char !== " ")) {
+            const color = hasBackground
+              ? cell.bgColor!
+              : cell.color || this.colors.foreground;
+            let path = this.colorPaths.get(color);
+            if (!path) {
+              path = new Path2D();
+              this.colorPaths.set(color, path);
+            }
+            path.rect(
+              x * cellWidth,
+              row.y * cellHeight,
+              Math.max(occupancy * cellWidth * 0.9, 1),
+              Math.max(cellHeight * 0.9, 1)
+            );
+            minX = Math.min(minX, x * cellWidth);
+            minY = Math.min(minY, row.y * cellHeight);
+            maxX = Math.max(maxX, (x + occupancy) * cellWidth);
+            maxY = Math.max(maxY, (row.y + 1) * cellHeight);
+          }
+          x += occupancy;
+        }
       }
-      const occupancy = Math.max(GridManager.getCharWidth(cell.char), 1);
-      path.rect(
-        x * cellWidth,
-        y * cellHeight,
-        Math.max(occupancy * cellWidth * 0.9, 1),
-        Math.max(cellHeight * 0.9, 1)
-      );
+    }
+    this.cachedContentBounds = Number.isFinite(minX)
+      ? { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
+      : null;
+  };
+
+  private scheduleContentRebuild = () => {
+    if (this.cancelScheduledContentRebuild) return;
+    const rebuild = () => {
+      this.cancelScheduledContentRebuild = null;
+      const state = this.renderState;
+      if (!state) return;
+      this.hasCachedContent = false;
+      this.rebuildPaths(state);
+      this.render();
+    };
+    let idleHandle: number | null = null;
+    let timeoutHandle: number | null = null;
+    const frameHandle = window.requestAnimationFrame(() => {
+      if (typeof window.requestIdleCallback === "function") {
+        idleHandle = window.requestIdleCallback(rebuild, { timeout: 250 });
+      } else {
+        timeoutHandle = window.setTimeout(rebuild, 50);
+      }
     });
+    this.cancelScheduledContentRebuild = () => {
+      window.cancelAnimationFrame(frameHandle);
+      if (idleHandle !== null) window.cancelIdleCallback(idleHandle);
+      if (timeoutHandle !== null) window.clearTimeout(timeoutHandle);
+    };
   };
 
   render = () => {
     const state = this.renderState;
     if (!state) return;
-    const transform = computeMinimapTransform({
+    const contentChanged =
+      this.hasCachedContent &&
+      this.cachedContentRevision !== state.contentRevision;
+    if (contentChanged) this.scheduleContentRebuild();
+    else this.rebuildPaths(state);
+    const transform = computeMinimapTransformFromBounds({
       ...state,
+      contentBounds: this.cachedContentBounds,
       dimensions: this.dimensions,
       padding: this.padding,
     });
@@ -192,7 +250,6 @@ export class MinimapManager {
     ctx.fillRect(0, 0, width, height);
     if (!transform) return;
 
-    this.rebuildPaths(state);
     const { scale, drawableRect, worldBounds } = transform;
     ctx.setTransform(
       dpr * scale,

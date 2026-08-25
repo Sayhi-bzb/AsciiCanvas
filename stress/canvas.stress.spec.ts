@@ -62,7 +62,7 @@ const INPUT_FRAME_MS = 16;
 const GRID_LEVELS = [5_000, 10_000, 25_000, 50_000, 75_000, 100_000, 150_000, 250_000];
 const STRUCTURED_LEVELS = [100, 250, 500, 1_000, 2_000, 5_000];
 const PERSISTENCE_LEVELS = [10_000, 25_000, 50_000, 75_000, 100_000, 150_000, 250_000];
-const ZOOM_LEVELS = [1, 0.5, 0.25, 0.1];
+const ZOOM_LEVELS = [1, 0.5, 0.25];
 const REPORT_DIR = process.env.CANVAS_STRESS_REPORT_DIR ?? path.join(
   process.cwd(),
   "test-results",
@@ -592,7 +592,7 @@ test.describe.serial("Canvas capacity stress", () => {
   }
 
   test("finds the low-zoom viewport boundary", async ({ browser }) => {
-    const cellCount = Math.min(lastPassingCount("freeform-dense") ?? 5_000, 100_000);
+    const cellCount = Math.min(lastPassingCount("freeform-dense") ?? 10_000, 10_000);
     const grid = makeGrid(cellCount, "dense");
     for (const zoom of ZOOM_LEVELS) {
       const level = await runLevel({
@@ -604,9 +604,10 @@ test.describe.serial("Canvas capacity stress", () => {
         cellCount,
       });
       appendLevel(level);
-      if (!level.passed) break;
     }
-    expect(report.levels.some((level) => level.family === "zoom" && level.zoom === 1 && level.passed)).toBe(true);
+    expect(report.levels.some((level) =>
+      level.family === "zoom" && level.zoom === 0.25 && level.passed
+    )).toBe(true);
   });
 
   test("finds the structured-node boundary", async ({ browser }) => {

@@ -5,6 +5,7 @@ import {
   CHARDESK_TEXT_PROTOCOL_VERSION,
   decodeCharDeskTextRuns,
   getGraphemeCellWidth,
+  isEmojiGrapheme,
   layoutCharDeskTextRuns,
   layoutCharDeskTextRunsToRows,
   parseCharDeskText,
@@ -43,6 +44,15 @@ describe("CharDesk Text Protocol v1 conformance", () => {
   it("publishes pinned protocol and Unicode versions", () => {
     expect(CHARDESK_TEXT_PROTOCOL_VERSION).toBe(1);
     expect(UNICODE_DATA_VERSION).toBe("17.0.0");
+  });
+
+  it("classifies complete emoji graphemes independently of renderers", () => {
+    expect(isEmojiGrapheme("A")).toBe(false);
+    expect(isEmojiGrapheme("♥")).toBe(false);
+    expect(isEmojiGrapheme("♥️")).toBe(true);
+    expect(isEmojiGrapheme("🇨🇳")).toBe(true);
+    expect(isEmojiGrapheme("1️⃣")).toBe(true);
+    expect(isEmojiGrapheme("👩🏽‍💻")).toBe(true);
   });
 
   it("supports standard and shorthand SGR color forms", () => {

@@ -1,5 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import "./index.css";
+import "@chardesk/fonts/fonts.css";
 
 import {
   StrictMode,
@@ -40,7 +41,6 @@ import {
   useInPlaceFeedback,
 } from "@chardesk/ui";
 import { LineNav } from "./components/line-nav";
-import { LayoutLab } from "./layout-lab";
 import {
   CHARGRAPH_EXAMPLES,
   getExampleClipboardSource,
@@ -165,7 +165,6 @@ function UnicodeViewer({
     viewer.source = source;
     viewer.syntax = "ansi";
     viewer.controls = false;
-    viewer.interaction = "text";
   }, [source]);
 
   return (
@@ -182,7 +181,6 @@ function UnicodeViewer({
       aria-label={label}
       controls="false"
       fit="width"
-      interaction="text"
       syntax="ansi"
     />
   );
@@ -575,9 +573,6 @@ function ShowcaseApp() {
           </h1>
           <nav aria-label="Primary" className="ml-auto flex items-center gap-1">
             <Button asChild tone="subtle" size="sm">
-              <a href="/chargraph/?lab=layout">Lab</a>
-            </Button>
-            <Button asChild tone="subtle" size="sm">
               <a href="/">CharDesk</a>
             </Button>
             <Button asChild tone="subtle" size="sm">
@@ -661,21 +656,13 @@ function ShowcaseApp() {
   );
 }
 
-function App() {
-  return new URLSearchParams(window.location.search).get("lab") === "layout" ? (
-    <LayoutLab />
-  ) : (
-    <ShowcaseApp />
-  );
-}
-
 const root = document.querySelector<HTMLDivElement>("#app");
 if (!root) throw new Error("CharGraph app root is missing.");
 
 createRoot(root).render(
   <StrictMode>
     <TooltipProvider>
-      <App />
+      <ShowcaseApp />
     </TooltipProvider>
   </StrictMode>
 );

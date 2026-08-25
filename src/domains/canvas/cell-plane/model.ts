@@ -1,7 +1,12 @@
 import type { GridCell, NodeBounds, Point, TextAttributes } from "@/shared/types";
-import { getCellOccupancy, splitGraphemes } from "@/shared/metrics";
+import {
+  getCellOccupancy,
+  getTextCellWidth,
+  splitGraphemes,
+} from "@/shared/metrics";
 import { GridManager } from "@/shared/utils/grid";
 import { deleteCellAt, writeStyledCell } from "@/shared/utils/grid-ops";
+import { resolveGridSlot } from "@/shared/utils/grid-occupancy";
 
 const CELL_PLANE_CHUNK_WIDTH = 128;
 const CELL_PLANE_CHUNK_HEIGHT = 64;
@@ -15,6 +20,7 @@ export type StyledCellSpan = {
   bgColor?: string;
   attrs?: TextAttributes;
   href?: string;
+  preserveTargetBackground?: boolean;
 };
 
 export type CellRowMutation = {
@@ -26,6 +32,11 @@ export type CellRowMutation = {
 export type CellPlaneOperation = {
   id: string;
   bounds: NodeBounds;
+  rows: readonly CellRowMutation[];
+};
+
+/** Compact, rendering-neutral mutation accepted by the document write port. */
+export type CellPlanePatch = {
   rows: readonly CellRowMutation[];
 };
 
@@ -84,6 +95,8 @@ export const isCellPlaneOperation = (
         typeof span.color === "string" &&
         (span.bgColor === undefined || typeof span.bgColor === "string") &&
         (span.href === undefined || typeof span.href === "string") &&
+        (span.preserveTargetBackground === undefined ||
+          typeof span.preserveTargetBackground === "boolean") &&
         isTextAttributes(span.attrs);
     });
   });
@@ -172,6 +185,12 @@ export const createGridSurfaceReader = (
   },
 });
 
+const surfaceGridProjections = new WeakSet<ReadonlyMap<string, GridCell>>();
+
+export const isSurfaceGridProjection = (
+  grid: ReadonlyMap<string, GridCell>
+) => surfaceGridProjections.has(grid);
+
 /** Map-compatible, non-owning facade for legacy interaction consumers. */
 export const createSurfaceGridProjection = (
   source: CanvasSurfaceReader | (() => CanvasSurfaceReader)
@@ -208,6 +227,7 @@ export const createSurfaceGridProjection = (
     delete: { value: rejectMutation },
     clear: { value: rejectMutation },
   });
+  surfaceGridProjections.add(grid);
   return grid;
 };
 
@@ -229,13 +249,50 @@ const unionBounds = (left: NodeBounds | null, right: NodeBounds) => {
   return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
 };
 
-const toCell = (span: StyledCellSpan, char: string): GridCell => ({
+const toCell = (
+  span: StyledCellSpan,
+  char: string,
+  targetBackground?: string
+): GridCell => ({
   char,
   color: span.color,
-  ...(span.bgColor ? { bgColor: span.bgColor } : {}),
+  ...(span.bgColor
+    ? { bgColor: span.bgColor }
+    : span.preserveTargetBackground && targetBackground
+      ? { bgColor: targetBackground }
+      : {}),
   ...(span.attrs ? { attrs: { ...span.attrs } } : {}),
   ...(span.href ? { href: span.href } : {}),
 });
+
+export const cellPlanePatchToOperation = (
+  id: string,
+  patch: CellPlanePatch
+): CellPlaneOperation | null => {
+  let bounds: NodeBounds | null = null;
+  for (const row of patch.rows) {
+    for (const interval of row.erase) {
+      bounds = unionBounds(bounds, {
+        x: interval.from,
+        y: row.y,
+        width: interval.to - interval.from + 1,
+        height: 1,
+      });
+    }
+    for (const span of row.spans) {
+      const width = getTextCellWidth(span.text);
+      if (width <= 0) continue;
+      bounds = unionBounds(bounds, {
+        x: span.x,
+        y: row.y,
+        width,
+        height: 1,
+      });
+    }
+  }
+  if (!bounds) return null;
+  return { id, bounds, rows: patch.rows };
+};
 
 const sameCellStyle = (left: GridCell, right: GridCell) =>
   left.color === right.color &&
@@ -388,6 +445,7 @@ export class CellPlaneIndex implements CanvasSurfaceReader {
   readonly #operationIndexesByChunk = new Map<string, number[]>();
   readonly #chunkCache = new Map<string, Map<string, GridCell>>();
   #contentBounds: NodeBounds | null = null;
+  #resolvedContentBounds: NodeBounds | null | undefined = null;
 
   constructor(operations: readonly CellPlaneOperation[] = []) {
     operations.forEach((operation) => this.append(operation));
@@ -397,7 +455,15 @@ export class CellPlaneIndex implements CanvasSurfaceReader {
     if (!isCellPlaneOperation(operation)) return;
     const operationIndex = this.#operations.length;
     this.#operations.push(operation);
+    const previousBounds = this.#contentBounds;
     this.#contentBounds = unionBounds(this.#contentBounds, operation.bounds);
+    this.#resolvedContentBounds =
+      operation.rows.some((row) => row.erase.length > 0) ||
+      (!!previousBounds && intersects(previousBounds, operation.bounds))
+      ? undefined
+      : this.#resolvedContentBounds === undefined
+        ? undefined
+        : unionBounds(this.#resolvedContentBounds, operation.bounds);
     const minChunkX = floorDiv(operation.bounds.x - 1, CELL_PLANE_CHUNK_WIDTH);
     const maxChunkX = floorDiv(
       operation.bounds.x + operation.bounds.width,
@@ -471,6 +537,11 @@ export class CellPlaneIndex implements CanvasSurfaceReader {
   }
 
   getContentBounds() {
+    if (this.#resolvedContentBounds !== undefined) {
+      return this.#resolvedContentBounds
+        ? { ...this.#resolvedContentBounds }
+        : null;
+    }
     if (!this.#contentBounds) return null;
     let minX = Infinity;
     let minY = Infinity;
@@ -488,8 +559,11 @@ export class CellPlaneIndex implements CanvasSurfaceReader {
         }
       }
     }
-    return Number.isFinite(minX)
+    this.#resolvedContentBounds = Number.isFinite(minX)
       ? { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
+      : null;
+    return this.#resolvedContentBounds
+      ? { ...this.#resolvedContentBounds }
       : null;
   }
 
@@ -536,7 +610,17 @@ export class CellPlaneIndex implements CanvasSurfaceReader {
             if (
               x + width > chunkBounds.x - 1 &&
               x < chunkBounds.x + chunkBounds.width + 1
-            ) writeStyledCell(projection, x, row.y, toCell(span, char));
+            ) {
+              const targetBackground = span.preserveTargetBackground
+                ? resolveGridSlot(projection, { x, y: row.y })?.cell.bgColor
+                : undefined;
+              writeStyledCell(
+                projection,
+                x,
+                row.y,
+                toCell(span, char, targetBackground)
+              );
+            }
             x += width;
           }
         }

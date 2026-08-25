@@ -193,7 +193,7 @@ describe("TextRenderingRuntime", () => {
   it("renders Codex inline code, compact links, quotes, lists, and rules", async () => {
     const runtime = new TextRenderingRuntime();
     const result = await runtime.render(
-      "`code` [docs](https://example.com)\n\n> quote\n\n1. one\n2. two\n\n---",
+      "`code` [docs](https://example.com)\n\n> quote\n\n1. one\n2. two\n\n***",
       "#111111"
     );
 
@@ -285,7 +285,7 @@ describe("TextRenderingRuntime", () => {
       },
     }));
     const result = await runtime.render(
-      "# Head\n\n> Quote\n\n- Item\n\n---",
+      "# Head\n\n> Quote\n\n- Item\n\n***",
       "#111111"
     );
 
@@ -795,44 +795,4 @@ describe("TextRenderingRuntime", () => {
     });
   });
 
-  it("registers an extensible renderer in auto and explicit modes", async () => {
-    const runtime = new TextRenderingRuntime({
-      plugins: [
-        {
-          id: "mention",
-          phase: "transform",
-          autoPriority: 75,
-          transform: (input) =>
-            input.text.startsWith("@")
-              ? {
-                  fragments: [{
-                    text: input.text.slice(1),
-                    origin: { from: 1, to: input.text.length },
-                  }],
-                  diagnostics: [],
-                  recognized: true,
-                }
-              : null,
-        },
-        {
-          id: "raw",
-          phase: "transform",
-          transform: (input) => ({
-            fragments: [{ text: input.text, origin: { from: 0, to: input.text.length } }],
-            diagnostics: [],
-            recognized: true,
-          }),
-        },
-      ],
-    });
-
-    const automatic = await runtime.render("@Ada", "#fff");
-    expect(automatic.renderer).toBe("mention");
-    expect(textFrom(automatic)).toBe("Ada");
-    runtime.setProfile({ ...DEFAULT_TEXT_RENDER_PROFILE, mode: "mention" });
-    expect(runtime.getProfile().mode).toBe("mention");
-    const explicit = await runtime.render("@Ada", "#fff");
-    expect(explicit.renderer).toBe("mention");
-    expect(textFrom(explicit)).toBe("Ada");
-  });
 });

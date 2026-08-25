@@ -1,6 +1,6 @@
 # @chardesk/viewer
 
-DOM-first viewer for CharDesk Unicode and ANSI text. It renders selectable text, keeps the original source available for copying, and requires no framework.
+Canvas 2D viewer for CharDesk Unicode and ANSI text. It keeps the original source available for copying and requires no framework.
 
 ## Install
 
@@ -29,7 +29,7 @@ Keep the source in a light-DOM `pre`. It remains readable when JavaScript is una
 
 Use `controls="false"` for a passive embed. The default reading controls appear on hover or keyboard focus, and remain visible on touch devices. They provide zoom, fit, grid-selection copy, plain-text copy, and exact-source copy. See the [responsive Host demo](https://github.com/Sayhi-bzb/CharDesk/blob/main/packages/viewer/demo.html).
 
-The default `interaction="grid"` adds a terminal-style reading layer without replacing the DOM text. Click to place a cell cursor, drag to create a persistent rectangular cell selection, or use Shift with the arrow keys to extend it. Grid selections include empty and trailing cells; use `interaction="text"` when native browser text-flow selection is preferred. The system cursor remains the default arrow over content and a pointer over links. Manual zoom preserves the Viewer frame and changes the internal scrollable surface; Fit and source changes may recalculate the frame height.
+The Viewer uses one Grid interaction. Click to place a cell cursor, drag to create a persistent rectangular selection, or use Shift with the arrow keys to extend it. Selections include empty and trailing cells. Links use Canvas hit testing and Enter activates the link under the cursor. Manual zoom preserves the Viewer frame; Fit and source changes may recalculate its height.
 
 ## Programmatic usage
 
@@ -56,7 +56,7 @@ viewer.fitToViewport("width");
 - `zoom`: scale from `0.25` through `4`.
 - `fit`: `"none"`, `"width"`, or `"contain"`.
 - `controls`: shows or hides the built-in reading controls.
-- `interaction`: `"grid"` (default) or `"text"`.
+- `interaction`: `"grid"`; legacy `"text"` markup normalizes to Grid.
 - `parsedDocument`: the latest `ParsedCharDeskText`, including diagnostics.
 - `cursor`: the current `{ x, y }` cell, or `null`.
 - `selection`: the current `{ anchor, focus, rect }` grid selection, or `null`.
@@ -80,9 +80,7 @@ Override Viewer CSS variables from the host:
 
 ```css
 chardesk-viewer {
-  --chardesk-font-size: 14px;
   --chardesk-fit-max-font-size: 20px;
-  --chardesk-line-height: 1.25;
   --chardesk-color: #e5e7eb;
   --chardesk-background: #111827;
   --chardesk-border-color: transparent;
@@ -98,6 +96,6 @@ stay centered. Manual zoom is not limited by this fit-only cap.
 The default theme follows the Host color scheme. Stable Shadow Parts include
 `root`, `toolbar`, `zoom-controls`, `copy-controls`, `control`, `zoom-out`,
 `zoom-in`, `fit`, `copy-text`, `copy-source`, `viewport`, `stage`, `surface`,
-`document`, `interaction-layer`, `selection`, and `cursor`.
+`document`, `canvas`, `interaction-layer`, `selection`, and `cursor`.
 
-The remaining font, border, and control variables are visible in the element's Shadow DOM stylesheet. ANSI links are untrusted input: the Viewer renders only HTTP(S), mailto, relative, and fragment links.
+The remaining font, border, and control variables are visible in the element's Shadow DOM stylesheet. The visible document is Canvas-only; its fallback text remains available when Canvas is unsupported. ANSI links are untrusted input: the Viewer activates only HTTP(S), mailto, relative, and fragment links.

@@ -16,8 +16,13 @@ import {
   EDITOR_PERSISTENCE_VERSION,
   type CanvasSession,
 } from "@/domains/sessions/public";
+import type { StructuredNode } from "@/domains/structured-content/public";
 import { createCanvasRuntime, type CanvasRuntime } from "../runtime";
 import { gridEntriesToCellPlaneOperation } from "../cell-plane/model";
+import {
+  CANVAS_DOCUMENT_SCHEMA_VERSION,
+  getDefaultCanvasPageId,
+} from "./canvasDocumentModel";
 
 class MemoryStorage implements Storage {
   readonly #values = new Map<string, string>();
@@ -41,6 +46,7 @@ const EXTRA_DOCUMENT_DATABASES = [
   SLIDE_DOCUMENT_DATABASE,
   LEGACY_SLIDE_DOCUMENT_DATABASE,
 ];
+const V4_BACKUP_KEY = "ascii-canvas-persistence-v4-backup";
 
 const createRuntime = (
   storage: Storage,
@@ -59,7 +65,7 @@ const createRuntime = (
       getActiveDocumentId: () => runtime.documents.getActiveDocumentId(),
       renderClipboardText: async () => ({
         kind: "spans",
-        renderer: "plain",
+        renderer: "raw",
         pipeline: [],
         rows: [],
         width: 0,
@@ -111,6 +117,226 @@ describe("browser canvas persistence", () => {
     expect(second.getState().grid.get("1,0")?.char).toBe("B");
     expect(storage.getItem(CANVAS_CATALOG_MARKER_KEY)).toBe("1");
     expect(storage.getItem(EDITOR_PERSISTENCE_KEY)).toBeNull();
+  });
+
+  it("repairs intermediate Y.Map page descriptors without losing content", async () => {
+    const storage = new MemoryStorage();
+    const first = createRuntime(storage);
+    runtimes.push(first);
+    await first.ready;
+    await first.retryPersistence();
+    first.dispose();
+    runtimes = [];
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await clearDocument(DOCUMENT_DATABASE);
+
+    const pageId = getDefaultCanvasPageId(SESSION_ID);
+    const legacy = new Y.Doc({ guid: SESSION_ID });
+    const provider = new IndexeddbPersistence(DOCUMENT_DATABASE, legacy);
+    await provider.whenSynced;
+    const descriptor = new Y.Map<unknown>();
+    descriptor.set("id", pageId);
+    descriptor.set("kind", "cell-plane");
+    const nestedOperations = new Y.Array();
+    nestedOperations.push([
+      gridEntriesToCellPlaneOperation("intermediate-page", [[
+        "7,4",
+        { char: "旧", color: "#223344" },
+      ]])!,
+    ]);
+    descriptor.set("operations", nestedOperations);
+    legacy.getMap("document-pages").set(pageId, descriptor);
+    legacy.getArray("document-page-order").push([pageId]);
+    const meta = legacy.getMap("document-meta");
+    meta.set("schemaVersion", CANVAS_DOCUMENT_SCHEMA_VERSION);
+    meta.set("documentId", SESSION_ID);
+    meta.set("mode", "freeform");
+    meta.set("activePageId", pageId);
+    await storeState(provider, true);
+    await provider.destroy();
+    legacy.destroy();
+
+    const second = createRuntime(storage);
+    runtimes.push(second);
+    await second.ready;
+
+    expect(second.getPersistenceSnapshot()).toMatchObject({
+      phase: "ready",
+      save: "saved",
+      error: null,
+    });
+    expect(second.getState().canvasSessions.map(({ name }) => name))
+      .toEqual(["Persisted"]);
+    expect(second.getState().grid.get("7,4"))
+      .toMatchObject({ char: "旧", color: "#223344" });
+    const restored = second.documents.getCollaborationDocument(SESSION_ID);
+    expect(restored?.getMap("document-pages").get(pageId))
+      .not.toBeInstanceOf(Y.Map);
+  });
+
+  it("opens legacy IndexedDB content before seeding a missing catalog", async () => {
+    const storage = new MemoryStorage();
+    const legacy = new Y.Doc({ guid: SESSION_ID });
+    const provider = new IndexeddbPersistence(DOCUMENT_DATABASE, legacy);
+    await provider.whenSynced;
+    legacy.getMap("main-grid").set(
+      "8,6",
+      { char: "存", color: "#334455" }
+    );
+    await storeState(provider, true);
+    await provider.destroy();
+    legacy.destroy();
+
+    const runtime = createRuntime(storage);
+    runtimes.push(runtime);
+    await runtime.ready;
+
+    expect(runtime.getPersistenceSnapshot()).toMatchObject({
+      phase: "ready",
+      save: "saved",
+      error: null,
+    });
+    expect(runtime.getState().grid.get("8,6"))
+      .toMatchObject({ char: "存", color: "#334455" });
+    expect(runtime.getState().grid.get("0,0")).toBeUndefined();
+    expect(storage.getItem(CANVAS_CATALOG_MARKER_KEY)).toBe("1");
+  });
+
+  it("reattaches persisted sessions and names after a bootstrap catalog overwrite", async () => {
+    const storage = new MemoryStorage();
+    const bootstrapSessions: CanvasSession[] = [{
+      id: SESSION_ID,
+      name: "Welcome",
+      mode: "freeform",
+      scene: [],
+      components: [],
+      grid: [["0,0", { char: "A", color: "#111111" }]],
+    }];
+    const first = createRuntime(storage, bootstrapSessions);
+    runtimes.push(first);
+    await first.ready;
+    await first.retryPersistence();
+    first.dispose();
+    runtimes = [];
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const orphan = new Y.Doc({ guid: LEGACY_SESSION_ID });
+    const provider = new IndexeddbPersistence(
+      `chardesk-local-document-v1:${LEGACY_SESSION_ID}`,
+      orphan
+    );
+    await provider.whenSynced;
+    orphan.getMap("main-grid").set(
+      "3,2",
+      { char: "B", color: "#222222" }
+    );
+    await storeState(provider, true);
+    await provider.destroy();
+    orphan.destroy();
+    storage.setItem(V4_BACKUP_KEY, JSON.stringify({
+      version: 4,
+      state: {
+        canvasSessions: [
+          { ...bootstrapSessions[0], name: "Original canvas" },
+          {
+            id: LEGACY_SESSION_ID,
+            name: "Second canvas",
+            mode: "freeform",
+            scene: [],
+            components: [],
+            grid: [],
+          },
+        ],
+        activeCanvasId: LEGACY_SESSION_ID,
+        canvasMode: "freeform",
+        offset: { x: 0, y: 0 },
+        zoom: 1,
+      },
+    }));
+
+    const second = createRuntime(storage, bootstrapSessions);
+    runtimes.push(second);
+    await second.ready;
+
+    expect(second.getState().canvasSessions.map(({ id, name }) => ({ id, name })))
+      .toEqual([
+        { id: SESSION_ID, name: "Original canvas" },
+        { id: LEGACY_SESSION_ID, name: "Second canvas" },
+      ]);
+    expect(second.getState().activeCanvasId).toBe(LEGACY_SESSION_ID);
+    expect(second.getState().grid.get("3,2")?.char).toBe("B");
+  });
+
+  it("reattaches an orphan document even when historical names are unavailable", async () => {
+    const storage = new MemoryStorage();
+    const first = createRuntime(storage);
+    runtimes.push(first);
+    await first.ready;
+    await first.retryPersistence();
+    first.dispose();
+    runtimes = [];
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const orphan = new Y.Doc({ guid: LEGACY_SESSION_ID });
+    const provider = new IndexeddbPersistence(
+      `chardesk-local-document-v1:${LEGACY_SESSION_ID}`,
+      orphan
+    );
+    await provider.whenSynced;
+    orphan.getMap("main-grid").set(
+      "5,1",
+      { char: "R", color: "#333333" }
+    );
+    await storeState(provider, true);
+    await provider.destroy();
+    orphan.destroy();
+
+    const second = createRuntime(storage);
+    runtimes.push(second);
+    await second.ready;
+
+    expect(second.getState().canvasSessions).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: LEGACY_SESSION_ID,
+        name: "Recovered Canvas 1",
+        mode: "freeform",
+      }),
+    ]));
+  });
+
+  it("migrates a legacy structured document without flattening its scene", async () => {
+    const storage = new MemoryStorage();
+    const database = `chardesk-local-document-v1:${LEGACY_SESSION_ID}`;
+    const textNode: StructuredNode = {
+      id: "legacy-text",
+      type: "text",
+      order: 1,
+      position: { x: 3, y: 2 },
+      text: "Preserved",
+      style: { color: "#445566" },
+    };
+    const legacy = new Y.Doc({ guid: LEGACY_SESSION_ID });
+    const provider = new IndexeddbPersistence(database, legacy);
+    await provider.whenSynced;
+    legacy.getMap("structured-scene").set(textNode.id, textNode);
+    await storeState(provider, true);
+    await provider.destroy();
+    legacy.destroy();
+
+    const runtime = createRuntime(storage, [{
+      id: LEGACY_SESSION_ID,
+      name: "Structured legacy",
+      mode: "structured",
+      scene: [],
+      components: [],
+      grid: [],
+    }]);
+    runtimes.push(runtime);
+    await runtime.ready;
+
+    expect(runtime.getPersistenceSnapshot().phase).toBe("ready");
+    expect(runtime.getState().canvasMode).toBe("structured");
+    expect(runtime.getState().structuredScene).toEqual([textNode]);
   });
 
   it("migrates a V5 localStorage snapshot only after IndexedDB verification", async () => {

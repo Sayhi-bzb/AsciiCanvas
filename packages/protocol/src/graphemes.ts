@@ -67,7 +67,7 @@ export const splitGraphemes = (value: string): string[] => {
   return segmentGraphemes(value).map(({ segment }) => segment);
 };
 
-const isEmojiGrapheme = (grapheme: string) => {
+export const isEmojiGrapheme = (grapheme: string) => {
   if (KEYCAP_SEQUENCE.test(grapheme)) return true;
   if (REGIONAL_INDICATOR_PAIR.test(grapheme)) return true;
   if (grapheme.includes("\uFE0F")) return true;

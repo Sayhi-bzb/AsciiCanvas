@@ -16,6 +16,14 @@ const dimensions = (text: string) => {
   };
 };
 
+const consecutiveDistances = (positions: number[]) =>
+  positions.slice(1).map((position, index) => position - positions[index]!);
+
+const numericTickRows = (text: string) =>
+  text.split("\n").flatMap((line, row) =>
+    /^\s*-?\d+(?:\.\d+)?[┤┼+]/u.test(line) ? [row] : []
+  );
+
 describe("compact XY chart layout", () => {
   it("keeps a typical CJK vertical chart within the balanced footprint", async () => {
     const output = await renderXY(`xychart-beta
@@ -26,7 +34,14 @@ describe("compact XY chart layout", () => {
   line [2, 5, 8]`);
 
     expect(dimensions(output).width).toBeLessThanOrEqual(40);
-    expect(dimensions(output).height).toBe(17);
+    expect(dimensions(output).height).toBe(16);
+    expect(consecutiveDistances(numericTickRows(output))).toEqual([
+      2,
+      2,
+      2,
+      2,
+      2,
+    ]);
     expect(output).toContain("月度趋势");
     expect(output).toContain("一月");
     expect(output).toContain("三月");
@@ -47,6 +62,13 @@ describe("compact XY chart layout", () => {
     expect(output).toContain("第四季");
     expect(output).toContain("-5");
     expect(output).toContain("15");
+
+    const axisLine = output.split("\n").find((line) => line.includes("┼┬"));
+    expect(axisLine).toBeDefined();
+    const tickColumns = Array.from(axisLine!).flatMap((character, column) =>
+      character === "┬" ? [column] : []
+    );
+    expect(new Set(consecutiveDistances(tickColumns)).size).toBe(1);
   });
 
   it("expands for long categories and multiple bar series", async () => {
@@ -72,6 +94,12 @@ describe("compact XY chart layout", () => {
   line [1, 0, -1]`, { characterSet: "ascii" });
 
     expect(dimensions(output).width).toBeLessThanOrEqual(44);
+    expect(consecutiveDistances(numericTickRows(output))).toEqual([
+      2,
+      2,
+      2,
+      2,
+    ]);
     expect(output).toContain("#");
     expect(output).toMatch(/[+|-]/u);
   });

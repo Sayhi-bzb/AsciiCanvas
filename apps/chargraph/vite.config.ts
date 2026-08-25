@@ -34,12 +34,12 @@ export default defineConfig({
         replacement: path.join(repositoryRoot, "packages/viewer/src/index.ts"),
       },
       {
-        find: /^@chardesk\/fonts$/,
-        replacement: path.join(repositoryRoot, "packages/fonts/src/index.ts"),
+        find: /^@chardesk\/fonts\/fonts\.css$/,
+        replacement: path.join(repositoryRoot, "packages/fonts/fonts.css"),
       },
       {
-        find: /^@chardesk\/chargraph\/experimental\/block-layout$/,
-        replacement: path.join(repositoryRoot, "packages/chargraph/src/block-layout.ts"),
+        find: /^@chardesk\/fonts$/,
+        replacement: path.join(repositoryRoot, "packages/fonts/src/index.ts"),
       },
       {
         find: /^@chardesk\/chargraph\/examples$/,
@@ -60,6 +60,14 @@ export default defineConfig({
       {
         find: /^@chardesk\/chargraph$/,
         replacement: path.join(repositoryRoot, "packages/chargraph/src/index.ts"),
+      },
+      {
+        find: /^@chardesk\/rendering\/canvas$/,
+        replacement: path.join(repositoryRoot, "packages/rendering/src/canvas.ts"),
+      },
+      {
+        find: /^@chardesk\/rendering$/,
+        replacement: path.join(repositoryRoot, "packages/rendering/src/index.ts"),
       },
       {
         find: /^@chardesk\/protocol$/,

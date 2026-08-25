@@ -1,6 +1,5 @@
-import { parseCharDeskTextRows } from "@chardesk/protocol";
+import { layoutCharDeskTextRunsToRows } from "@chardesk/protocol";
 import { createCharGraphFragment } from "./fragments.js";
-import { defineCharGraphRenderer } from "./model.js";
 import type {
   CharGraphDiagnostic,
   CharGraphFragment,
@@ -11,6 +10,8 @@ import type {
 export type BlockLayoutBlock = {
   source: string;
   range: CharGraphSourceRange;
+  /** Lexical form retained only when Markdown needs to distinguish an escaped boundary. */
+  protectedSource?: string;
 };
 
 export type BlockLayoutDocument = {
@@ -27,6 +28,10 @@ export type BlockLayoutRenderOptions = {
   columnGap?: number;
   rowGap?: number;
 };
+
+export type BlockLayoutFieldRenderer = (
+  block: BlockLayoutBlock
+) => Promise<CharGraphRenderResult>;
 
 const NEXT_FIELD = "|||";
 const NEXT_ROW = "---";
@@ -82,22 +87,28 @@ const scanSourceLines = (source: string) => {
 export const parseBlockLayout = (source: string): BlockLayoutParseResult => {
   const rows: BlockLayoutBlock[][] = [[]];
   let blockLines: string[] = [];
+  let protectedBlockLines: string[] = [];
   let blockStart = 0;
   let offset = 0;
   let controlCount = 0;
 
   const finishBlock = (to: number) => {
+    const blockSource = blockLines.join("\n");
+    const protectedSource = protectedBlockLines.join("\n");
     rows.at(-1)!.push({
-      source: blockLines.join("\n"),
+      source: blockSource,
       range: { from: blockStart, to },
+      ...(protectedSource === blockSource ? {} : { protectedSource }),
     });
     blockLines = [];
+    protectedBlockLines = [];
   };
 
   scanSourceLines(source).forEach((line) => {
     const direction = classifyControlLine(line.text);
     if (!direction) {
       blockLines.push(unescapeControlLine(line.text));
+      protectedBlockLines.push(line.text);
       offset = line.next;
       return;
     }
@@ -134,10 +145,11 @@ type PlacedSpan = {
 const normalizeGap = (value: number | undefined, fallback: number) =>
   Number.isInteger(value) && value !== undefined && value >= 0 ? value : fallback;
 
-const renderDocument = (
+export const renderBlockLayoutDocument = async (
   document: BlockLayoutDocument,
-  options: BlockLayoutRenderOptions
-): Pick<CharGraphRenderResult, "fragments" | "diagnostics"> => {
+  renderField: BlockLayoutFieldRenderer,
+  options: BlockLayoutRenderOptions = {}
+): Promise<Pick<CharGraphRenderResult, "fragments" | "diagnostics">> => {
   const columnGap = normalizeGap(options.columnGap, 4);
   const rowGap = normalizeGap(options.rowGap, 1);
   const outputRows = new Map<number, PlacedSpan[]>();
@@ -149,15 +161,21 @@ const renderDocument = (
     let originX = 0;
     let layoutRowHeight = 1;
     for (const block of layoutRow) {
-      const parsed = parseCharDeskTextRows(block.source, { syntax: "auto" });
+      const rendered = await renderField(block);
+      const parsed = layoutCharDeskTextRunsToRows(rendered.fragments);
       const blockHeight = Math.max(1, parsed.height);
       layoutRowHeight = Math.max(layoutRowHeight, blockHeight);
       diagnostics.push(
+        ...rendered.diagnostics.map((item) => ({
+          ...item,
+          ...(item.offset === undefined
+            ? {}
+            : { offset: block.range.from + item.offset }),
+        })),
         ...parsed.diagnostics.map((item) => ({
+          ...item,
           code: `block-layout.protocol.${item.code}`,
-          message: item.message,
-          offset: block.range.from,
-          length: Math.max(1, block.range.to - block.range.from),
+          offset: block.range.from + item.offset,
         }))
       );
 
@@ -171,7 +189,7 @@ const renderDocument = (
             fragment: createCharGraphFragment(
               span.text,
               span,
-              block.range,
+              span.text.length > 0 ? block.range : undefined,
               span.href
             ),
           });
@@ -200,26 +218,3 @@ const renderDocument = (
 
   return { fragments, diagnostics };
 };
-
-export const renderBlockLayout = (
-  source: string,
-  options: BlockLayoutRenderOptions = {}
-): CharGraphRenderResult => {
-  const parsed = parseBlockLayout(source);
-  if (!parsed.document) {
-    return {
-      fragments: [createCharGraphFragment(source)],
-      recognized: false,
-      diagnostics: [],
-    };
-  }
-  return {
-    ...renderDocument(parsed.document, options),
-    recognized: true,
-  };
-};
-
-export const blockLayoutRenderer = defineCharGraphRenderer<BlockLayoutRenderOptions>({
-  id: "block-layout",
-  render: renderBlockLayout,
-});

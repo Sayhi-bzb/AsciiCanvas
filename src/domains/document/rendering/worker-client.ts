@@ -4,10 +4,15 @@ import type { CompactTextRenderResult } from "./types";
 const WORKER_RENDER_THRESHOLD = 50_000;
 
 type PendingRender = {
-  source: string;
-  defaultColor: string;
   resolve: (result: CompactTextRenderResult) => void;
   reject: (error: Error) => void;
+  cleanup: () => void;
+};
+
+const createAbortError = () => {
+  const error = new Error("Text rendering was cancelled.");
+  error.name = "AbortError";
+  return error;
 };
 
 export class TextRenderingWorkerClient {
@@ -20,14 +25,28 @@ export class TextRenderingWorkerClient {
     this.#runtime = runtime;
   }
 
-  render = (source: string, defaultColor: string) => {
+  render = (
+    source: string,
+    defaultColor: string,
+    options?: { signal?: AbortSignal }
+  ) => {
+    if (options?.signal?.aborted) return Promise.reject(createAbortError());
     if (source.length < WORKER_RENDER_THRESHOLD || typeof Worker === "undefined") {
       return this.#runtime.renderCompact(source, defaultColor);
     }
     const worker = this.#getWorker();
     const id = this.#nextId++;
     const result = new Promise<CompactTextRenderResult>((resolve, reject) => {
-      this.#pending.set(id, { source, defaultColor, resolve, reject });
+      const abort = () => {
+        const pending = this.#pending.get(id);
+        if (!pending) return;
+        this.#pending.delete(id);
+        pending.cleanup();
+        reject(createAbortError());
+      };
+      const cleanup = () => options?.signal?.removeEventListener("abort", abort);
+      options?.signal?.addEventListener("abort", abort, { once: true });
+      this.#pending.set(id, { resolve, reject, cleanup });
     });
     worker.postMessage({
       id,
@@ -42,7 +61,10 @@ export class TextRenderingWorkerClient {
     this.#worker?.terminate();
     this.#worker = null;
     const error = new Error("Text rendering worker was disposed.");
-    this.#pending.forEach(({ reject }) => reject(error));
+    this.#pending.forEach(({ reject, cleanup }) => {
+      cleanup();
+      reject(error);
+    });
     this.#pending.clear();
   };
 
@@ -59,12 +81,15 @@ export class TextRenderingWorkerClient {
       const pending = this.#pending.get(event.data.id);
       if (!pending) return;
       this.#pending.delete(event.data.id);
+      pending.cleanup();
       if (event.data.result) pending.resolve(event.data.result);
       else pending.reject(new Error(event.data.error ?? "Text rendering failed."));
     });
     worker.addEventListener("error", () => {
-      this.#pending.forEach(({ source, defaultColor, resolve, reject }) => {
-        void this.#runtime.renderCompact(source, defaultColor).then(resolve, reject);
+      const error = new Error("Text rendering worker failed.");
+      this.#pending.forEach(({ reject, cleanup }) => {
+        cleanup();
+        reject(error);
       });
       this.#pending.clear();
       worker.terminate();

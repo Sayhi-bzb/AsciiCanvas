@@ -36,10 +36,6 @@
     "./examples": {
       "types": "./dist/examples.d.ts",
       "import": "./dist/examples.js"
-    },
-    "./experimental/block-layout": {
-      "types": "./dist/block-layout.d.ts",
-      "import": "./dist/block-layout.js"
     }
   },
   "scripts": {

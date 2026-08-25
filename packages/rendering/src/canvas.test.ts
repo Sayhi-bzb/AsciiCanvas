@@ -1,0 +1,153 @@
+import { describe, expect, it, vi } from "vitest";
+import { createCharDeskRenderModel, resolveCharDeskCellVisual } from "./index.js";
+import {
+  drawCharDeskCanvasCells,
+  drawCharDeskCanvasDocument,
+  getCharDeskCanvasFont,
+  loadCharDeskCanvasFonts,
+  measureCharDeskCanvasDocument,
+  prepareCharDeskCanvasSurface,
+  resolveCharDeskCanvasCellVisual,
+} from "./canvas.js";
+
+const createContext = () => {
+  const operations: string[] = [];
+  const context = {
+    beginPath: vi.fn(),
+    clearRect: vi.fn(),
+    fillRect: vi.fn(() => operations.push("background")),
+    fillText: vi.fn(() => operations.push("text")),
+    lineTo: vi.fn(),
+    moveTo: vi.fn(),
+    restore: vi.fn(),
+    save: vi.fn(),
+    setTransform: vi.fn(),
+    stroke: vi.fn(),
+    fillStyle: "",
+    font: "",
+    lineWidth: 1,
+    strokeStyle: "",
+    textAlign: "start",
+    textBaseline: "alphabetic",
+  } as unknown as CanvasRenderingContext2D;
+  return { context, operations };
+};
+
+describe("CharDesk Canvas 2D renderer", () => {
+  it("routes emoji through the monochrome Canvas font", () => {
+    expect(getCharDeskCanvasFont(undefined, 1, { route: "emoji" }))
+      .toContain("'Noto Emoji'");
+
+    const { context } = createContext();
+    drawCharDeskCanvasCells(context, [{
+      cell: resolveCharDeskCellVisual({ text: "👋", color: "#111111" }),
+      x: 0,
+      y: 0,
+    }]);
+
+    expect(context.font).toContain("'Noto Emoji'");
+    expect(context.fillText).toHaveBeenCalledWith("👋", 9, 10);
+  });
+
+  it("draws all backgrounds before text and resolves inverse colors", () => {
+    const { context, operations } = createContext();
+    drawCharDeskCanvasCells(context, [{
+      cell: resolveCharDeskCellVisual({
+        text: "A",
+        color: "#112233",
+        attrs: { inverse: true },
+      }),
+      x: 0,
+      y: 0,
+      options: { palette: { color: "#000000", background: "#ffffff" } },
+    }]);
+
+    expect(operations).toEqual(["background", "text"]);
+    expect(context.fillRect).toHaveBeenCalledWith(0, 0, 9, 19);
+    expect(context.fillText).toHaveBeenCalledWith("A", 5, 10);
+    expect(resolveCharDeskCanvasCellVisual(
+      resolveCharDeskCellVisual({
+        text: "A",
+        color: "#112233",
+        attrs: { inverse: true },
+      }),
+      { color: "#000000", background: "#ffffff" }
+    )).toMatchObject({ color: "#ffffff", bgColor: "#112233" });
+  });
+
+  it("uses a monochrome replacement when the emoji face is unavailable", () => {
+    const { context } = createContext();
+    drawCharDeskCanvasCells(context, [{
+      cell: resolveCharDeskCellVisual({ text: "🚀" }),
+      x: 0,
+      y: 0,
+      options: { fontAvailability: { text: true, emoji: false } },
+    }]);
+
+    expect(context.fillText).toHaveBeenCalledWith("□", 9, 10);
+  });
+
+  it("measures and draws protocol cells on the shared 9 by 19 grid", () => {
+    const model = createCharDeskRenderModel("A界\n🙂");
+    expect(measureCharDeskCanvasDocument(model)).toMatchObject({
+      width: 59,
+      height: 70,
+      padding: 16,
+    });
+
+    const { context } = createContext();
+    const layout = drawCharDeskCanvasDocument(context, model, {
+      palette: { color: "#111111", background: "#ffffff" },
+    });
+    expect(layout.width).toBe(59);
+    expect(context.fillText).toHaveBeenCalledTimes(3);
+  });
+
+  it("rasterizes documents at the requested zoom instead of scaling a bitmap", () => {
+    const model = createCharDeskRenderModel("AB");
+    expect(measureCharDeskCanvasDocument(model, { zoom: 1.25 })).toMatchObject({
+      width: 62.5,
+      height: 63.75,
+      padding: 20,
+    });
+
+    const { context } = createContext();
+    drawCharDeskCanvasDocument(context, model, {
+      palette: { color: "#111111", background: "#ffffff" },
+      zoom: 1.25,
+    });
+
+    expect(context.font).toContain("18.75px");
+    expect(context.fillText).toHaveBeenNthCalledWith(1, "A", 26, 32);
+    expect(context.fillText).toHaveBeenNthCalledWith(2, "B", 37, 32);
+  });
+
+  it("prepares a DPR-aware backing surface", () => {
+    const { context } = createContext();
+    const canvas = { width: 0, height: 0, style: {} } as HTMLCanvasElement;
+    prepareCharDeskCanvasSurface(canvas, context, 120, 80, 2);
+
+    expect(canvas).toMatchObject({ width: 240, height: 160 });
+    expect(canvas.style.width).toBe("120px");
+    expect(context.setTransform).toHaveBeenCalledWith(2, 0, 0, 2, 0, 0);
+  });
+
+  it("reports route availability from the actual loaded font faces", async () => {
+    const load = vi.fn()
+      .mockResolvedValueOnce([{}])
+      .mockResolvedValueOnce([]);
+    vi.stubGlobal("document", {
+      fonts: { load, ready: Promise.resolve() },
+    });
+
+    try {
+      await expect(loadCharDeskCanvasFonts(["A", "🇨🇳"])).resolves.toEqual({
+        text: true,
+        emoji: false,
+      });
+      expect(load.mock.calls[1]?.[0]).toContain("Noto Emoji");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});

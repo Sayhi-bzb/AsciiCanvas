@@ -1,8 +1,17 @@
-import { CHARDESK_TEXT_FONT_FAMILY } from "@chardesk/fonts";
 import type {
   CharDeskTextSyntax,
   ParsedCharDeskText,
 } from "@chardesk/protocol";
+import {
+  DEFAULT_CHARDESK_CANVAS_FONT_AVAILABILITY,
+  DEFAULT_CHARDESK_CANVAS_METRICS,
+  drawCharDeskCanvasDocument,
+  loadCharDeskCanvasFonts,
+  measureCharDeskCanvasDocument,
+  prepareCharDeskCanvasSurface,
+  type CharDeskCanvasDocumentLayout,
+  type CharDeskCanvasFontAvailability,
+} from "@chardesk/rendering/canvas";
 import { sanitizeCharDeskHref } from "./link.js";
 import { calculateCharDeskFitZoom } from "./fit.js";
 import {
@@ -24,12 +33,12 @@ import {
 } from "./grid-interaction.js";
 import {
   createCharDeskRenderModel,
-  type CharDeskRenderRun,
+  type CharDeskRenderModel,
 } from "./render-model.js";
 
 export type CharDeskViewerFit = "none" | "width" | "contain";
 export type CharDeskViewerCopyFormat = "plain" | "source" | "selection";
-export type CharDeskViewerInteraction = "text" | "grid";
+export type CharDeskViewerInteraction = "grid";
 
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 4;
@@ -52,15 +61,9 @@ const normalizeSyntax = (value: string | null): CharDeskTextSyntax =>
     ? value
     : "auto";
 
-const normalizeInteraction = (value: string | null): CharDeskViewerInteraction =>
-  value === "text" ? "text" : "grid";
-
 const styles = `
   :host {
-    --chardesk-font-family: ${CHARDESK_TEXT_FONT_FAMILY};
-    --chardesk-font-size: 15px;
     --chardesk-fit-max-font-size: 20px;
-    --chardesk-line-height: 1.28;
     --chardesk-color: light-dark(#111827, #e5e7eb);
     --chardesk-background: light-dark(#ffffff, #111318);
     --chardesk-border-color: color-mix(in srgb, currentColor 16%, transparent);
@@ -189,45 +192,22 @@ const styles = `
   .surface {
     position: absolute;
     inset: 0 auto auto 0;
-    transform-origin: top left;
-  }
-
-  pre, .measure {
-    font-family: var(--chardesk-font-family);
-    font-size: var(--chardesk-font-size);
-    font-variant-ligatures: none;
-    font-feature-settings: "liga" 0, "calt" 0;
-    line-height: var(--chardesk-line-height);
-    white-space: pre;
-    tab-size: 4;
-  }
-
-  pre {
-    position: relative;
-    margin: 0;
-    padding: 16px;
-    width: max-content;
-    min-width: max-content;
-    color: var(--chardesk-color);
-    background: var(--chardesk-background);
-    cursor: default;
-    user-select: text;
-  }
-
-  .viewport[data-grid-interaction] pre {
-    user-select: none;
-    -webkit-user-select: none;
-  }
-
-  .measure, .fit-font-measure {
-    position: absolute;
-    visibility: hidden;
-    pointer-events: none;
   }
 
   .fit-font-measure {
+    position: absolute;
+    visibility: hidden;
+    pointer-events: none;
     font-size: var(--chardesk-fit-max-font-size);
     line-height: 1;
+  }
+
+  canvas {
+    display: block;
+    position: relative;
+    color: var(--chardesk-color);
+    background: var(--chardesk-background);
+    cursor: default;
   }
 
   .interaction-layer {
@@ -249,23 +229,6 @@ const styles = `
 
   .viewport:focus-within .grid-cursor { opacity: 1; }
 
-  .run {
-    color: var(--run-fg, var(--chardesk-color));
-    background: var(--run-bg, transparent);
-  }
-
-  .run.inverse {
-    color: var(--run-bg, var(--chardesk-background));
-    background: var(--run-fg, var(--chardesk-color));
-  }
-
-  .bold { font-weight: 700; }
-  .italic { font-style: italic; }
-  .underline { text-decoration-line: underline; }
-  .strike { text-decoration-line: line-through; }
-  .underline.strike { text-decoration-line: underline line-through; }
-
-  a { cursor: pointer; text-underline-offset: 0.16em; }
   .status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 
   @media (hover: none), (pointer: coarse) {
@@ -298,31 +261,6 @@ const createButton = (
   return button;
 };
 
-const appendRun = (parent: HTMLElement, run: CharDeskRenderRun) => {
-  const href = run.href ? sanitizeCharDeskHref(run.href) : null;
-  const hasPresentation =
-    !!run.color || !!run.bgColor || !!run.attrs || !!href;
-  if (!hasPresentation) {
-    parent.append(document.createTextNode(run.text));
-    return;
-  }
-
-  const element = href
-    ? document.createElement("a")
-    : document.createElement("span");
-  element.classList.add("run");
-  if (href && element instanceof HTMLAnchorElement) element.href = href;
-  if (run.color) element.style.setProperty("--run-fg", run.color);
-  if (run.bgColor) element.style.setProperty("--run-bg", run.bgColor);
-  if (run.attrs?.bold) element.classList.add("bold");
-  if (run.attrs?.italic) element.classList.add("italic");
-  if (run.attrs?.underline) element.classList.add("underline");
-  if (run.attrs?.strike) element.classList.add("strike");
-  if (run.attrs?.inverse) element.classList.add("inverse");
-  element.textContent = run.text;
-  parent.append(element);
-};
-
 export class CharDeskViewerElement extends HTMLElementBase {
   static observedAttributes = [
     "aria-label",
@@ -338,8 +276,7 @@ export class CharDeskViewerElement extends HTMLElementBase {
   readonly #viewport: HTMLDivElement;
   readonly #stage: HTMLDivElement;
   readonly #surface: HTMLDivElement;
-  readonly #documentElement: HTMLPreElement;
-  readonly #measure: HTMLSpanElement;
+  readonly #documentElement: HTMLCanvasElement;
   readonly #fitFontMeasure: HTMLSpanElement;
   readonly #cursorElement: HTMLDivElement;
   readonly #selectionElement: HTMLDivElement;
@@ -349,11 +286,24 @@ export class CharDeskViewerElement extends HTMLElementBase {
   #source = "";
   #hasExplicitSource = false;
   #parsedDocument: ParsedCharDeskText | null = null;
+  #renderModel: CharDeskRenderModel | null = null;
+  #documentLayout: CharDeskCanvasDocumentLayout = {
+    width: 32,
+    height: 32,
+    padding: 16,
+    metrics: DEFAULT_CHARDESK_CANVAS_METRICS,
+  };
+  #fontAvailability: CharDeskCanvasFontAvailability = {
+    ...DEFAULT_CHARDESK_CANVAS_FONT_AVAILABILITY,
+    emoji: false,
+  };
+  #renderVersion = 0;
+  #links = new Map<string, string>();
   #gridIndex: CharDeskGridIndex | null = null;
   #cursor: CharDeskGridPoint | null = null;
   #selection: CharDeskGridSelection | null = null;
-  #cellWidth = 0;
-  #cellHeight = 0;
+  #cellWidth = DEFAULT_CHARDESK_CANVAS_METRICS.cellWidth;
+  #cellHeight = DEFAULT_CHARDESK_CANVAS_METRICS.cellHeight;
   #selectionPointerId: number | null = null;
   #pointerAnchor: CharDeskGridPoint | null = null;
   #pointerStart: CharDeskGridPoint | null = null;
@@ -404,8 +354,9 @@ export class CharDeskViewerElement extends HTMLElementBase {
     this.#surface = document.createElement("div");
     this.#surface.className = "surface";
     this.#surface.setAttribute("part", "surface");
-    this.#documentElement = document.createElement("pre");
-    this.#documentElement.setAttribute("part", "document");
+    this.#documentElement = document.createElement("canvas");
+    this.#documentElement.setAttribute("part", "document canvas");
+    this.#documentElement.setAttribute("role", "img");
     const interactionLayer = document.createElement("div");
     interactionLayer.className = "interaction-layer";
     interactionLayer.setAttribute("part", "interaction-layer");
@@ -420,13 +371,10 @@ export class CharDeskViewerElement extends HTMLElementBase {
       this.#cursorElement
     );
     this.#surface.append(this.#documentElement, interactionLayer);
-    this.#measure = document.createElement("span");
-    this.#measure.className = "measure";
-    this.#measure.textContent = "0000000000";
     this.#fitFontMeasure = document.createElement("span");
     this.#fitFontMeasure.className = "fit-font-measure";
     this.#fitFontMeasure.textContent = "M";
-    this.#stage.append(this.#surface, this.#measure, this.#fitFontMeasure);
+    this.#stage.append(this.#surface, this.#fitFontMeasure);
     this.#viewport.append(this.#stage);
 
     this.#status = document.createElement("span");
@@ -479,7 +427,10 @@ export class CharDeskViewerElement extends HTMLElementBase {
       characterData: true,
       subtree: true,
     });
-    void document.fonts?.ready.then(() => this.#scheduleLayout());
+    void document.fonts?.ready.then(() => {
+      this.#drawDocument();
+      this.#scheduleLayout();
+    });
   }
 
   disconnectedCallback() {
@@ -499,11 +450,6 @@ export class CharDeskViewerElement extends HTMLElementBase {
     if (name === "zoom") {
       const value = Number(this.getAttribute("zoom"));
       if (Number.isFinite(value) && value > 0) this.#applyZoom(value);
-    }
-    if (name === "interaction" && this.interaction === "text") {
-      this.#resetPointerGesture();
-      this.clearSelection();
-      this.setCursor(null);
     }
     this.#syncAttributes();
   }
@@ -535,11 +481,11 @@ export class CharDeskViewerElement extends HTMLElementBase {
   }
 
   get interaction(): CharDeskViewerInteraction {
-    return normalizeInteraction(this.getAttribute("interaction"));
+    return "grid";
   }
 
-  set interaction(value: CharDeskViewerInteraction) {
-    this.setAttribute("interaction", normalizeInteraction(value));
+  set interaction(_value: CharDeskViewerInteraction) {
+    this.setAttribute("interaction", "grid");
   }
 
   get fit(): CharDeskViewerFit {
@@ -609,14 +555,12 @@ export class CharDeskViewerElement extends HTMLElementBase {
 
   fitToViewport(mode: CharDeskViewerFit = this.#fit === "none" ? "width" : this.#fit) {
     const fitMode = mode === "contain" ? "contain" : "width";
-    const naturalWidth = this.#documentElement.scrollWidth;
-    const naturalHeight = this.#documentElement.scrollHeight;
+    const naturalWidth = this.#documentLayout.width;
+    const naturalHeight = this.#documentLayout.height;
     const availableWidth = this.#viewport.clientWidth;
     const availableHeight = this.#viewport.clientHeight;
     if (naturalWidth <= 0 || availableWidth <= 0) return;
-    const baseFontSize = Number.parseFloat(
-      getComputedStyle(this.#documentElement).fontSize
-    );
+    const baseFontSize = this.#documentLayout.metrics.fontSize;
     const maxFontSize = Number.parseFloat(
       getComputedStyle(this.#fitFontMeasure).fontSize
     );
@@ -662,8 +606,17 @@ export class CharDeskViewerElement extends HTMLElementBase {
     const model = createCharDeskRenderModel(this.#source, {
       syntax: this.syntax,
     });
+    const renderVersion = ++this.#renderVersion;
+    this.#renderModel = model;
     this.#parsedDocument = model.document;
     this.#gridIndex = createCharDeskGridIndex(model.document);
+    this.#documentLayout = measureCharDeskCanvasDocument(model);
+    this.#links = new Map(
+      model.cells.flatMap((cell) => {
+        const href = cell.href ? sanitizeCharDeskHref(cell.href) : null;
+        return href ? [[`${cell.x},${cell.y}`, href] as const] : [];
+      })
+    );
     if (this.#selection) {
       this.#selection = null;
       this.#emitSelectionChange();
@@ -676,25 +629,59 @@ export class CharDeskViewerElement extends HTMLElementBase {
         this.#emitCursorChange();
       }
     }
-    this.#documentElement.replaceChildren();
-    model.rows.forEach((row, rowIndex) => {
-      row.runs.forEach((run) => appendRun(this.#documentElement, run));
-      if (rowIndex < model.rows.length - 1) {
-        this.#documentElement.append(document.createTextNode("\n"));
-      }
-    });
+    this.#documentElement.textContent = model.document.plainText;
     this.#documentElement.dataset.width = String(model.document.width);
     this.#documentElement.dataset.height = String(model.document.height);
     this.#documentElement.dataset.diagnostics = String(
       model.document.diagnostics.length
     );
+    this.#fontAvailability = { text: true, emoji: false };
+    this.#drawDocument();
     this.#scheduleLayout();
+    void loadCharDeskCanvasFonts(model.cells.map((cell) => ({
+      grapheme: cell.text,
+      bold: !!cell.attrs?.bold,
+      italic: !!cell.attrs?.italic,
+    }))).then((availability) => {
+      if (renderVersion !== this.#renderVersion) return;
+      this.#fontAvailability = availability;
+      this.#documentElement.toggleAttribute(
+        "data-emoji-font-missing",
+        !availability.emoji && model.cells.some((cell) => cell.fontRoute === "emoji")
+      );
+      this.#drawDocument();
+    });
+  }
+
+  #drawDocument() {
+    const model = this.#renderModel;
+    if (!model) return;
+    const ctx = this.#documentElement.getContext("2d");
+    if (!ctx) return;
+    const computed = getComputedStyle(this.#documentElement);
+    const color = computed.color || "#111827";
+    const background = computed.backgroundColor || "#ffffff";
+    const dpr = Math.max(1, globalThis.devicePixelRatio || 1);
+    const renderLayout = measureCharDeskCanvasDocument(model, {
+      zoom: this.#zoom,
+    });
+    prepareCharDeskCanvasSurface(
+      this.#documentElement,
+      ctx,
+      renderLayout.width,
+      renderLayout.height,
+      dpr
+    );
+    drawCharDeskCanvasDocument(ctx, model, {
+      palette: { color, background },
+      fontAvailability: this.#fontAvailability,
+      zoom: this.#zoom,
+    });
   }
 
   #scheduleLayout() {
     queueMicrotask(() => {
       if (!this.isConnected) return;
-      this.#measureGrid();
       if (this.#fit === "none") {
         this.#updateStageSize();
         this.#syncViewportHeight();
@@ -720,7 +707,7 @@ export class CharDeskViewerElement extends HTMLElementBase {
     if (!Number.isFinite(next)) return;
     const changed = next !== this.#zoom;
     this.#zoom = next;
-    this.#surface.style.transform = `scale(${next})`;
+    if (changed) this.#drawDocument();
     this.#updateStageSize();
     this.#updateGridOverlay();
     if (changed) {
@@ -733,20 +720,22 @@ export class CharDeskViewerElement extends HTMLElementBase {
   }
 
   #updateStageSize() {
-    this.#stage.style.width = `${this.#documentElement.scrollWidth * this.#zoom}px`;
-    this.#stage.style.height = `${this.#documentElement.scrollHeight * this.#zoom}px`;
+    this.#stage.style.width = `${this.#documentLayout.width * this.#zoom}px`;
+    this.#stage.style.height = `${this.#documentLayout.height * this.#zoom}px`;
     this.#updateSurfaceAlignment();
   }
 
   #updateSurfaceAlignment() {
-    const scaledWidth = this.#documentElement.scrollWidth * this.#zoom;
+    const scaledWidth = this.#documentLayout.width * this.#zoom;
     const availableWidth = this.#viewport.clientWidth;
-    const offset = Math.max(0, (availableWidth - scaledWidth) / 2);
+    const rawOffset = Math.max(0, (availableWidth - scaledWidth) / 2);
+    const dpr = Math.max(1, globalThis.devicePixelRatio || 1);
+    const offset = Math.round(rawOffset * dpr) / dpr;
     this.#surface.style.left = `${offset}px`;
   }
 
   #syncViewportHeight() {
-    const height = this.#documentElement.scrollHeight * this.#zoom;
+    const height = this.#documentLayout.height * this.#zoom;
     if (height <= 0 || !Number.isFinite(height)) return;
     this.#viewport.style.setProperty(
       "--chardesk-auto-viewport-height",
@@ -759,19 +748,9 @@ export class CharDeskViewerElement extends HTMLElementBase {
     const label = this.getAttribute("aria-label") ?? "CharDesk document";
     this.#viewport.setAttribute("aria-label", label);
     this.#documentElement.setAttribute("aria-label", label);
-    this.#viewport.tabIndex = this.interaction === "grid" ? 0 : -1;
-    this.#viewport.toggleAttribute(
-      "data-grid-interaction",
-      this.interaction === "grid"
-    );
-    this.#surface.style.transform = `scale(${this.#zoom})`;
+    this.#viewport.tabIndex = 0;
+    this.#viewport.setAttribute("data-grid-interaction", "");
     this.#updateGridOverlay();
-  }
-
-  #measureGrid() {
-    const rect = this.#measure.getBoundingClientRect();
-    this.#cellWidth = rect.width / 10;
-    this.#cellHeight = rect.height;
   }
 
   #resolvePointerPoint(
@@ -780,12 +759,9 @@ export class CharDeskViewerElement extends HTMLElementBase {
     boundary: "strict" | "clamp" = "strict"
   ) {
     if (!this.#gridIndex || !hasCharDeskGrid(this.#gridIndex)) return null;
-    if (this.#cellWidth <= 0 || this.#cellHeight <= 0) this.#measureGrid();
-    if (this.#cellWidth <= 0 || this.#cellHeight <= 0) return null;
     const rect = this.#documentElement.getBoundingClientRect();
-    const computed = getComputedStyle(this.#documentElement);
-    const paddingLeft = Number.parseFloat(computed.paddingLeft) || 0;
-    const paddingTop = Number.parseFloat(computed.paddingTop) || 0;
+    const paddingLeft = this.#documentLayout.padding;
+    const paddingTop = this.#documentLayout.padding;
     const point = {
       x: Math.floor(((clientX - rect.left) / this.#zoom - paddingLeft) / this.#cellWidth),
       y: Math.floor(((clientY - rect.top) / this.#zoom - paddingTop) / this.#cellHeight),
@@ -793,6 +769,22 @@ export class CharDeskViewerElement extends HTMLElementBase {
     return boundary === "clamp"
       ? normalizeCharDeskGridPoint(this.#gridIndex, point)
       : hitTestCharDeskGridPoint(this.#gridIndex, point);
+  }
+
+  #getLink(point: CharDeskGridPoint) {
+    if (!this.#gridIndex) return null;
+    const cell = getCharDeskGridCell(this.#gridIndex, point);
+    return cell ? this.#links.get(`${cell.x},${cell.y}`) ?? null : null;
+  }
+
+  #openLink(href: string, newWindow: boolean) {
+    const anchor = document.createElement("a");
+    anchor.href = href;
+    if (newWindow) {
+      anchor.target = "_blank";
+      anchor.rel = "noopener noreferrer";
+    }
+    anchor.click();
   }
 
   #resetPointerGesture() {
@@ -809,12 +801,10 @@ export class CharDeskViewerElement extends HTMLElementBase {
   }
 
   #handlePointerDown = (event: PointerEvent) => {
-    if (this.interaction !== "grid" || event.button !== 0) return;
-    if (event.composedPath().some((target) => target instanceof HTMLAnchorElement)) {
-      return;
-    }
+    if (event.button !== 0) return;
     const point = this.#resolvePointerPoint(event.clientX, event.clientY);
     if (!point) return;
+    if (this.#getLink(point)) return;
     event.preventDefault();
     this.#viewport.focus({ preventScroll: true });
     this.#selectionPointerId = event.pointerId;
@@ -826,8 +816,13 @@ export class CharDeskViewerElement extends HTMLElementBase {
   };
 
   #handlePointerMove = (event: PointerEvent) => {
+    if (this.#selectionPointerId === null) {
+      const point = this.#resolvePointerPoint(event.clientX, event.clientY);
+      this.#documentElement.style.cursor = point && this.#getLink(point)
+        ? "pointer"
+        : "default";
+    }
     if (
-      this.interaction !== "grid" ||
       this.#selectionPointerId !== event.pointerId ||
       !this.#pointerAnchor ||
       !this.#pointerStart
@@ -861,24 +856,25 @@ export class CharDeskViewerElement extends HTMLElementBase {
   };
 
   #handleClick = (event: MouseEvent) => {
-    if (this.interaction !== "grid") return;
     if (this.#suppressClick) {
       this.#suppressClick = false;
       event.preventDefault();
       return;
     }
-    if (event.composedPath().some((target) => target instanceof HTMLAnchorElement)) {
-      return;
-    }
     const point = this.#resolvePointerPoint(event.clientX, event.clientY);
     if (!point) return;
+    const href = this.#getLink(point);
+    if (href) {
+      this.#openLink(href, event.metaKey || event.ctrlKey);
+      return;
+    }
     this.#viewport.focus({ preventScroll: true });
     this.clearSelection();
     this.setCursor(point);
   };
 
   #handleKeyDown = (event: KeyboardEvent) => {
-    if (this.interaction !== "grid" || !this.#gridIndex) return;
+    if (!this.#gridIndex) return;
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "c") {
       if (!this.#selection) return;
       event.preventDefault();
@@ -889,6 +885,13 @@ export class CharDeskViewerElement extends HTMLElementBase {
       if (!this.#selection) return;
       event.preventDefault();
       this.clearSelection();
+      return;
+    }
+    if (event.key === "Enter" && this.#cursor) {
+      const href = this.#getLink(this.#cursor);
+      if (!href) return;
+      event.preventDefault();
+      this.#openLink(href, event.metaKey || event.ctrlKey);
       return;
     }
 
@@ -927,18 +930,18 @@ export class CharDeskViewerElement extends HTMLElementBase {
       element.style.display = "none";
       return;
     }
-    const computed = getComputedStyle(this.#documentElement);
-    const paddingLeft = Number.parseFloat(computed.paddingLeft) || 0;
-    const paddingTop = Number.parseFloat(computed.paddingTop) || 0;
+    const paddingLeft = this.#documentLayout.padding;
+    const paddingTop = this.#documentLayout.padding;
+    const zoom = this.#zoom;
     element.style.display = "block";
-    element.style.left = `${paddingLeft + rect.left * this.#cellWidth}px`;
-    element.style.top = `${paddingTop + rect.top * this.#cellHeight}px`;
-    element.style.width = `${(rect.right - rect.left + 1) * this.#cellWidth}px`;
-    element.style.height = `${(rect.bottom - rect.top + 1) * this.#cellHeight}px`;
+    element.style.left = `${(paddingLeft + rect.left * this.#cellWidth) * zoom}px`;
+    element.style.top = `${(paddingTop + rect.top * this.#cellHeight) * zoom}px`;
+    element.style.width = `${(rect.right - rect.left + 1) * this.#cellWidth * zoom}px`;
+    element.style.height = `${(rect.bottom - rect.top + 1) * this.#cellHeight * zoom}px`;
   }
 
   #updateGridOverlay() {
-    const enabled = this.interaction === "grid" && !!this.#gridIndex;
+    const enabled = !!this.#gridIndex;
     const cursorCell = enabled && this.#cursor && this.#gridIndex
       ? getCharDeskGridCell(this.#gridIndex, this.#cursor)
       : null;

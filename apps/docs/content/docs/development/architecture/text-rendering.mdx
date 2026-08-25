@@ -36,8 +36,10 @@ breaks, fenced code, and GFM tables at natural content width. Layout never depen
 viewport, zoom, or paste position. Disabled inline rules consume delimiters without styling;
 disabled block rules preserve their source slice. Raw mode preserves all delimiters. Renderer
 results may be asynchronous, and clipboard commands await them before mutating Canvas. Inputs
-at or above 50,000 UTF-16 code units render in a module worker. The protocol layout is a streaming
-grapheme pass; a 10,000-line result stays as row spans until Canvas applies one transaction.
+at or above 50,000 UTF-16 code units render in a module worker. Worker tasks may be cancelled,
+and a worker failure is surfaced instead of retrying a large render on the main thread. The
+protocol layout is a streaming grapheme pass; a 10,000-line result stays as row spans until
+Canvas applies one compact CellPlane operation.
 
 CharGraph owns the browser-safe Markdown core adapted from `marked-terminal`, Shiki code
 highlighting, and independent Mermaid and math renderers. Each built-in Markdown module registers

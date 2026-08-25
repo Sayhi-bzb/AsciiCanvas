@@ -68,6 +68,11 @@ export function DataSecurityDialog({
             <div role="alert" className="flex items-center justify-between gap-3 rounded-control border border-destructive/30 p-2 text-xs">
               <span className="min-w-0 text-destructive">
                 {t("security.persistence.unsavedDescription")}
+                {persistence.error && (
+                  <span className="mt-1 block break-words font-mono text-[10px] leading-4">
+                    {persistence.error}
+                  </span>
+                )}
               </span>
               <Button
                 size="sm"

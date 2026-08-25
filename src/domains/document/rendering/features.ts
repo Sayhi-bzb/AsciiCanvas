@@ -2,7 +2,6 @@ import {
   CHARDESK_MARKDOWN_FEATURES,
   createCharDeskMarkdownRenderOptions,
   getCharDeskMarkdownColorDefault,
-  markdownRenderer,
   type MarkdownRenderOptions,
   type CharDeskMarkdownColorSlotId,
   type CharDeskMarkdownFeatureId,
@@ -495,8 +494,6 @@ export const migrateLegacyFeatureSettings = (
     }];
   }));
 };
-
-export const createRegisteredMarkdownRenderer = () => markdownRenderer;
 
 export const createRegisteredMarkdownOptions = (
   settings: TextRenderFeatureSettings,

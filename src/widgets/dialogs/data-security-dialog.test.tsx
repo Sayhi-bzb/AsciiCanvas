@@ -1,7 +1,10 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { DataSecurityDialog } from "./data-security-dialog";
-import { useEditorStore } from "@/domains/canvas/testing";
+import {
+  testingCanvasRuntime,
+  useEditorStore,
+} from "@/domains/canvas/testing";
 
 describe("DataSecurityDialog", () => {
   it("states the local-first data boundary without overstating offline support", () => {
@@ -38,5 +41,28 @@ describe("DataSecurityDialog", () => {
     expect(dialog).not.toHaveTextContent("No analytics");
 
     useEditorStore.getState().setCanvasSessionCollaboration(state.activeCanvasId, null);
+  });
+
+  it("shows the concrete persistence failure alongside recovery guidance", () => {
+    const getSnapshot = testingCanvasRuntime.getPersistenceSnapshot;
+    const failure = {
+      phase: "degraded",
+      save: "error",
+      ownership: "writer",
+      error: "Canvas document has no valid pages: canvas-1",
+    } as const;
+    Object.assign(testingCanvasRuntime, {
+      getPersistenceSnapshot: () => failure,
+    });
+    try {
+      render(<DataSecurityDialog open onOpenChange={vi.fn()} />);
+      const alert = screen.getByRole("alert");
+      expect(alert).toHaveTextContent("Canvas changes are only in memory");
+      expect(alert).toHaveTextContent(
+        "Canvas document has no valid pages: canvas-1"
+      );
+    } finally {
+      Object.assign(testingCanvasRuntime, { getPersistenceSnapshot: getSnapshot });
+    }
   });
 });

@@ -50,7 +50,7 @@ export type CanvasYDocumentRoot = {
   doc: Y.Doc;
   meta: Y.Map<unknown>;
   pageOrder: Y.Array<string>;
-  pages: Y.Map<CanvasPageDescriptor>;
+  pages: Y.Map<unknown>;
 };
 
 const PAGE_OPERATIONS = "cell-plane-operations";
@@ -67,13 +67,19 @@ export const getCanvasDocumentRoot = (doc: Y.Doc): CanvasYDocumentRoot => ({
   pages: doc.getMap("document-pages"),
 });
 
-const readPageDescriptor = (
+const readStoredField = (value: unknown, key: string): unknown => {
+  if (value instanceof Y.Map) return value.get(key);
+  if (!value || typeof value !== "object") return undefined;
+  return (value as Record<string, unknown>)[key];
+};
+
+export const readCanvasPageDescriptor = (
   fallbackId: string,
   value: unknown
 ): CanvasPageDescriptor | null => {
   if (!value || typeof value !== "object") return null;
-  const candidate = value as Partial<CanvasPageDescriptor>;
-  const { id, kind } = candidate;
+  const id = readStoredField(value, "id");
+  const kind = readStoredField(value, "kind");
   if (
     typeof id !== "string" ||
     id !== fallbackId ||
@@ -82,10 +88,11 @@ const readPageDescriptor = (
     return null;
   }
   const descriptor: CanvasPageDescriptor = { id, kind };
-  const { name } = candidate;
+  const name = readStoredField(value, "name");
   if (typeof name === "string") descriptor.name = name;
-  const columns = candidate.size?.columns;
-  const rows = candidate.size?.rows;
+  const size = readStoredField(value, "size");
+  const columns = readStoredField(size, "columns");
+  const rows = readStoredField(size, "rows");
   if (
     Number.isSafeInteger(columns) &&
     Number.isSafeInteger(rows) &&
@@ -101,7 +108,7 @@ export const readCanvasYPage = (
   root: CanvasYDocumentRoot,
   pageId: string
 ): CanvasYPage | null => {
-  const descriptor = readPageDescriptor(pageId, root.pages.get(pageId));
+  const descriptor = readCanvasPageDescriptor(pageId, root.pages.get(pageId));
   if (!descriptor) return null;
   const prefix = `canvas-page:${encodeURIComponent(pageId)}:`;
   return {

@@ -7,6 +7,8 @@
       "@chardesk/chargraph": ["./packages/chargraph/src/index.ts"],
       "@chardesk/chargraph/mermaid": ["./packages/chargraph/src/mermaid.ts"],
       "@chardesk/protocol": ["./packages/protocol/src/index.ts"],
+      "@chardesk/rendering": ["./packages/rendering/src/index.ts"],
+      "@chardesk/rendering/canvas": ["./packages/rendering/src/canvas.ts"],
       "@chardesk/ui": ["./packages/ui/src/index.ts"],
       "@chardesk/ui/styles": ["./packages/ui/src/styles.ts"],
       "@chardesk/ui/components/*": ["./packages/ui/src/*"],

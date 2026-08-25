@@ -133,6 +133,14 @@ describe("CharGraph showcase examples", () => {
     expect(output.protocolText).toContain("\u001b[38;2;148;163;184m");
   });
 
+  it("renders the dashboard JSON fence through the canonical layout pipeline", async () => {
+    const output = await renderExample(BLOCK_LAYOUT_DASHBOARD_EXAMPLE);
+
+    expect(output.text).toContain("canvas");
+    expect(output.text).toContain("launch-plan");
+    expect(output.text).not.toContain("```json");
+  });
+
   it("renders Mermaid with the shared Renderer Theme", async () => {
     const example = CHARGRAPH_EXAMPLES.find(
       (candidate) => candidate.id === "flowchart"

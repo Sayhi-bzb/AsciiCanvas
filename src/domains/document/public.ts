@@ -10,11 +10,6 @@ export {
 } from "./rendering/runtime";
 export { TextRenderingWorkerClient } from "./rendering/worker-client";
 export {
-  ansiTextRenderPlugin,
-  createMarkdownTextRenderPlugin,
-  rawTextRenderPlugin,
-} from "./rendering/plugins";
-export {
   getTextRenderFeatureDefinition,
   TEXT_RENDER_FEATURES,
 } from "./rendering/features";
@@ -26,22 +21,11 @@ export {
   useTextRenderProfile,
 } from "./react";
 export type {
-  Awaitable,
-  AttributedText,
   BuiltInTextRendererId,
   CompactTextRenderResult,
   RenderedTextCell,
   RenderedTextRow,
   RenderedTextSpan,
-  TextRenderPlugin,
-  TextDecoderPlugin,
-  TextTransformerPlugin,
-  TextDecodeResult,
-  TextTransformResult,
-  TextRenderFragment,
-  TextRenderContext,
-  TextStyle,
-  TextStyleSpan,
   TextRenderProfile,
   TextRenderResult,
   TextRendererId,

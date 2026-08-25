@@ -1,10 +1,10 @@
 import { parseCharDeskText } from "@chardesk/protocol";
 import { describe, expect, it } from "vitest";
 import {
-  blockLayoutRenderer,
   parseBlockLayout,
+  renderCharGraphText,
   serializeBlockLayout,
-} from "./block-layout.js";
+} from "./index.js";
 import { getCharGraphText } from "./fragments.js";
 
 const blockSources = (source: string) =>
@@ -64,19 +64,19 @@ describe("block layout stream", () => {
     });
   });
 
-  it("places fields right and rows below the tallest field", () => {
-    const rendered = blockLayoutRenderer.render(
+  it("places fields right and rows below the tallest field", async () => {
+    const rendered = await renderCharGraphText(
       "AA\nAA\nAA\n|||\nB\n---\nC\n|||\nDD",
-      { columnGap: 2, rowGap: 1 }
+      { layout: { columnGap: 2, rowGap: 1 } }
     );
 
     expect(getCharGraphText(rendered)).toBe("AA  B\nAA\nAA\n\nC  DD");
   });
 
-  it("uses protocol width and preserves CharDesk styles", () => {
-    const rendered = blockLayoutRenderer.render(
+  it("uses protocol width and preserves CharDesk styles", async () => {
+    const rendered = await renderCharGraphText(
       "[1m你👋[m\n|||\n한글",
-      { columnGap: 1 }
+      { layout: { columnGap: 1 } }
     );
     const output = getCharGraphText(rendered);
 

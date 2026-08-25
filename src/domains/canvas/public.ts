@@ -21,11 +21,14 @@ export type { CanvasHistoryCheckpoint } from "./state/CanvasDocumentRegistry";
 export type { CanvasPersistenceStatus } from "./state/browserPersistence";
 export {
   CellPlaneIndex,
+  cellPlanePatchToOperation,
   gridEntriesToCellPlaneOperation,
+  isSurfaceGridProjection,
 } from "./cell-plane/model";
 export type {
   CanvasSurfaceReader,
   CellPlaneOperation,
+  CellPlanePatch,
   CellPlaneRow,
   CellRowMutation,
   GridInterval,

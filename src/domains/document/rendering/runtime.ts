@@ -1,32 +1,21 @@
 import {
-  ansiTextRenderPlugin,
-  createMarkdownTextRenderPlugin,
-  rawTextRenderPlugin,
-} from "./plugins";
-import {
   layoutCharDeskTextRunsToRows,
   materializeCharDeskTextRows,
 } from "@chardesk/protocol";
-import { composeTextFragments } from "./compositor";
+import { renderCharGraphText } from "@chardesk/chargraph";
 import {
   createDefaultFeatureSettings,
+  createRegisteredMarkdownOptions,
   decodeFeatureSettings,
   migrateLegacyFeatureSettings,
 } from "./features";
 import type {
-  AttributedText,
   CompactTextRenderResult,
-  TextRenderPlugin,
-  TextRenderFragment,
   TextRenderProfile,
   TextRenderResult,
-  TextRendererId,
-  RenderedTextSpan,
   TextRenderingStorage,
-  TextTransformResult,
 } from "./types";
 import { DEFAULT_TEXT_RENDER_THEME } from "./theme";
-import { parseBlockLayout } from "@chardesk/chargraph/experimental/block-layout";
 
 export const TEXT_RENDER_PROFILE_STORAGE_KEY = "chardesk-text-render-profile-v2";
 const LEGACY_TEXT_RENDER_PROFILE_STORAGE_KEY = "chardesk-text-render-profile-v1";
@@ -47,15 +36,14 @@ const normalizeColor = (value: unknown) =>
     : null;
 
 const decodeProfile = (
-  value: unknown,
-  rendererIds?: ReadonlySet<TextRendererId>
+  value: unknown
 ): TextRenderProfile => {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return DEFAULT_TEXT_RENDER_PROFILE;
   }
   const candidate = value as Partial<TextRenderProfile>;
   const candidateMode = typeof candidate.mode === "string" ? candidate.mode : "";
-  const mode = candidateMode === "auto" || rendererIds?.has(candidateMode)
+  const mode = ["auto", "raw", "ansi", "markdown"].includes(candidateMode)
     ? candidateMode
     : DEFAULT_TEXT_RENDER_PROFILE.mode;
   const sourceTheme = candidate.renderTheme;
@@ -73,8 +61,7 @@ const decodeProfile = (
 };
 
 const migrateLegacyProfile = (
-  value: unknown,
-  rendererIds: ReadonlySet<TextRendererId>
+  value: unknown
 ): TextRenderProfile => {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return DEFAULT_TEXT_RENDER_PROFILE;
@@ -87,20 +74,19 @@ const migrateLegacyProfile = (
       candidate.markdownRules,
       candidate.markdownColors
     ),
-  }, rendererIds);
+  });
 };
 
 const readProfile = (
-  storage: TextRenderingStorage | false | undefined,
-  rendererIds: ReadonlySet<TextRendererId>
+  storage: TextRenderingStorage | false | undefined
 ) => {
   if (!storage) return DEFAULT_TEXT_RENDER_PROFILE;
   try {
     const stored = storage.getItem(TEXT_RENDER_PROFILE_STORAGE_KEY);
-    if (stored) return decodeProfile(JSON.parse(stored), rendererIds);
+    if (stored) return decodeProfile(JSON.parse(stored));
     const legacyStored = storage.getItem(LEGACY_TEXT_RENDER_PROFILE_STORAGE_KEY);
     if (!legacyStored) return DEFAULT_TEXT_RENDER_PROFILE;
-    const migrated = migrateLegacyProfile(JSON.parse(legacyStored), rendererIds);
+    const migrated = migrateLegacyProfile(JSON.parse(legacyStored));
     try {
       storage.setItem(TEXT_RENDER_PROFILE_STORAGE_KEY, JSON.stringify(migrated));
     } catch {
@@ -129,35 +115,17 @@ const toRenderedRows = (
 }));
 
 export class TextRenderingRuntime {
-  readonly #plugins = new Map<TextRendererId, TextRenderPlugin>();
   readonly #listeners = new Set<() => void>();
   readonly #storage?: TextRenderingStorage | false;
   #profile: TextRenderProfile;
 
   constructor(options: {
     storage?: TextRenderingStorage | false;
-    plugins?: readonly TextRenderPlugin[];
   } = {}) {
     this.#storage = options.storage;
     this.#profile = DEFAULT_TEXT_RENDER_PROFILE;
-    const plugins = options.plugins ?? [
-      ansiTextRenderPlugin,
-      createMarkdownTextRenderPlugin(),
-      rawTextRenderPlugin,
-    ];
-    plugins.forEach((plugin) => this.register(plugin));
-    this.#profile = readProfile(options.storage, new Set(this.#plugins.keys()));
+    this.#profile = readProfile(options.storage);
   }
-
-  register = (plugin: TextRenderPlugin) => {
-    if (this.#plugins.has(plugin.id)) {
-      throw new Error(`Text renderer "${plugin.id}" is already registered.`);
-    }
-    this.#plugins.set(plugin.id, plugin);
-    return () => {
-      if (this.#plugins.get(plugin.id) === plugin) this.#plugins.delete(plugin.id);
-    };
-  };
 
   subscribe = (listener: () => void) => {
     this.#listeners.add(listener);
@@ -169,7 +137,7 @@ export class TextRenderingRuntime {
   getProfile = () => this.#profile;
 
   setProfile = (profile: TextRenderProfile) => {
-    this.#profile = decodeProfile(profile, new Set(this.#plugins.keys()));
+    this.#profile = decodeProfile(profile);
     if (this.#storage) {
       try {
         this.#storage.setItem(TEXT_RENDER_PROFILE_STORAGE_KEY, JSON.stringify(this.#profile));
@@ -181,12 +149,23 @@ export class TextRenderingRuntime {
   };
 
   render = async (source: string, defaultColor: string): Promise<TextRenderResult> => {
-    const layout = await this.#renderBlockLayout(source, defaultColor);
-    if (!layout) return this.#render(source, defaultColor, false);
+    const rendered = await this.#render(source);
+    if (rendered.renderer === "raw") {
+      return {
+        kind: "plain",
+        renderer: "raw",
+        pipeline: rendered.pipeline,
+        text: source,
+        diagnostics: rendered.diagnostics,
+      };
+    }
+    const layout = layoutCharDeskTextRunsToRows(rendered.fragments, {
+      defaultStyle: { color: defaultColor },
+    });
     return {
       kind: "styled",
-      renderer: "block-layout",
-      pipeline: ["block-layout"],
+      renderer: rendered.renderer,
+      pipeline: rendered.pipeline,
       cells: materializeCharDeskTextRows(layout.rows).map((cell) => ({
         x: cell.x,
         y: cell.y,
@@ -196,237 +175,38 @@ export class TextRenderingRuntime {
         ...(cell.attrs ? { attrs: { ...cell.attrs } } : {}),
         ...(cell.href ? { href: cell.href } : {}),
       })),
-      diagnostics: layout.diagnostics,
+      diagnostics: [...rendered.diagnostics, ...layout.diagnostics],
     };
   };
 
   renderCompact = (
     source: string,
     defaultColor: string
-  ): Promise<CompactTextRenderResult> => this.#renderBlockLayout(source, defaultColor)
-    .then((layout) => layout ?? this.#render(source, defaultColor, true));
-
-  async #renderBlockLayout(source: string, defaultColor: string) {
-    // `---` is also a Markdown thematic break. In the automatic text pipeline,
-    // only the layout-specific field separator is strong enough evidence that
-    // the source is a block layout. Explicit CharGraph consumers can still
-    // parse vertical-only layouts directly.
-    if (!source.split(/\r?\n/u).some((line) => line.trim() === "|||")) {
-      return null;
-    }
-    const parsed = parseBlockLayout(source);
-    if (!parsed.document) return null;
-    const columnGap = 4;
-    const rowGap = 1;
-    const rows = new Map<number, RenderedTextSpan[]>();
-    const diagnostics: TextRenderResult["diagnostics"] = [...parsed.diagnostics];
-    let originY = 0;
-    let width = 0;
-    let height = 0;
-    for (const layoutRow of parsed.document.rows) {
-      let originX = 0;
-      let rowHeight = 1;
-      for (const block of layoutRow) {
-        const rendered = await this.#render(block.source, defaultColor, true);
-        if (rendered.kind !== "spans") continue;
-        rowHeight = Math.max(rowHeight, rendered.height);
-        width = Math.max(width, originX + rendered.width);
-        rendered.rows.forEach((row) => {
-          const targetY = originY + row.y;
-          const target = rows.get(targetY) ?? [];
-          target.push(...row.spans.map((span) => ({
-            ...span,
-            x: originX + span.x,
-          })));
-          rows.set(targetY, target);
-        });
-        diagnostics.push(...rendered.diagnostics.map((diagnostic) => ({
-          ...diagnostic,
-          ...(diagnostic.offset !== undefined
-            ? { offset: block.range.from + diagnostic.offset }
-            : {}),
-        })));
-        originX += rendered.width + columnGap;
-      }
-      height = Math.max(height, originY + rowHeight);
-      originY += rowHeight + rowGap;
-    }
-    return {
-      kind: "spans" as const,
-      renderer: "block-layout",
-      pipeline: ["block-layout"],
-      rows: Array.from(rows, ([y, spans]) => ({
-        y,
-        spans: spans.sort((left, right) => left.x - right.x),
-      })).sort((left, right) => left.y - right.y),
-      width,
-      height,
-      diagnostics,
-    } satisfies CompactTextRenderResult;
-  }
-
-  #render(
-    source: string,
-    defaultColor: string,
-    compact: false
-  ): Promise<TextRenderResult>;
-  #render(
-    source: string,
-    defaultColor: string,
-    compact: true
-  ): Promise<CompactTextRenderResult>;
-  async #render(
-    source: string,
-    defaultColor: string,
-    compact: boolean
-  ): Promise<TextRenderResult | CompactTextRenderResult> {
-    const profile = this.#profile;
-    const context = {
-      defaultColor,
-      renderTheme: { ...DEFAULT_TEXT_RENDER_THEME, ...profile.renderTheme },
-      features: profile.features,
-      forced: profile.mode !== "auto",
-    };
-    let input: AttributedText = { text: source, spans: [], diagnostics: [] };
-    const pipeline: TextRendererId[] = [];
-
-    const decoders = profile.mode === "auto"
-      ? [...this.#plugins.values()]
-          .filter((plugin) => plugin.phase === "decode" && plugin.autoPriority !== undefined)
-          .sort((left, right) => right.autoPriority! - left.autoPriority!)
-      : [...this.#plugins.values()].filter(
-          (plugin) => plugin.phase === "decode" && plugin.id === profile.mode
-        );
-    for (const plugin of decoders) {
-      if (plugin.phase !== "decode") continue;
-      const decoded = await plugin.decode(input.text, context);
-      if (!decoded) continue;
-      input = {
-        text: decoded.text,
-        spans: decoded.spans,
-        diagnostics: [...input.diagnostics, ...decoded.diagnostics],
-      };
-      pipeline.push(plugin.id);
-      break;
-    }
-
-    const transformers = profile.mode === "auto"
-      ? [...this.#plugins.values()]
-          .filter((plugin) =>
-            plugin.phase === "transform" &&
-            !plugin.fallback &&
-            plugin.autoPriority !== undefined
-          )
-          .sort((left, right) => right.autoPriority! - left.autoPriority!)
-      : [...this.#plugins.values()].filter(
-          (plugin) => plugin.phase === "transform" && plugin.id === profile.mode
-        );
-    let transformedResult: TextTransformResult | null = null;
-    for (const plugin of transformers) {
-      if (plugin.phase !== "transform") continue;
-      const transformed = await plugin.transform(input, context);
-      if (!transformed?.recognized) continue;
-      transformedResult = transformed;
-      pipeline.push(plugin.id);
-      break;
-    }
-
-    if (profile.mode === "auto" && pipeline.length === 0) {
-      const fallback = [...this.#plugins.values()].find(
-        (plugin) => plugin.phase === "transform" && plugin.fallback
-      );
-      if (fallback?.phase === "transform") {
-        const transformed = await fallback.transform(input, context);
-        if (transformed?.recognized) {
-          transformedResult = transformed;
-          pipeline.push(fallback.id);
-        }
-      }
-    }
-
-    if (transformedResult?.kind === "plain") {
-      if (compact) {
-        const parsed = layoutCharDeskTextRunsToRows(
-          [{ text: transformedResult.text }],
-          { defaultStyle: { color: defaultColor } }
-        );
-        return {
-          kind: "spans",
-          renderer: pipeline.at(-1)!,
-          pipeline,
-          rows: toRenderedRows(parsed.rows, defaultColor),
-          width: parsed.width,
-          height: parsed.height,
-          diagnostics: [...input.diagnostics, ...transformedResult.diagnostics],
-        };
-      }
-      return {
-        kind: "plain",
-        renderer: pipeline.at(-1)!,
-        pipeline,
-        text: transformedResult.text,
-        diagnostics: [...input.diagnostics, ...transformedResult.diagnostics],
-      };
-    }
-
-    if (pipeline.length === 0) {
-      if (compact) {
-        const parsed = layoutCharDeskTextRunsToRows(
-          [{ text: source }],
-          { defaultStyle: { color: defaultColor } }
-        );
-        return {
-          kind: "spans",
-          renderer: "raw",
-          pipeline: ["raw"],
-          rows: toRenderedRows(parsed.rows, defaultColor),
-          width: parsed.width,
-          height: parsed.height,
-          diagnostics: [],
-        };
-      }
-      return { kind: "plain", renderer: "raw", pipeline: ["raw"], text: source, diagnostics: [] };
-    }
-
-    const resolvedFragments: TextRenderFragment[] = transformedResult?.fragments ?? [{
-      text: input.text,
-      origin: { from: 0, to: input.text.length },
-    }];
-    const runs = composeTextFragments(input, resolvedFragments);
-    const parsed = layoutCharDeskTextRunsToRows(runs, {
+  ): Promise<CompactTextRenderResult> => this.#render(source).then((rendered) => {
+    const parsed = layoutCharDeskTextRunsToRows(rendered.fragments, {
       defaultStyle: { color: defaultColor },
     });
-    const diagnostics = [
-      ...input.diagnostics,
-      ...(transformedResult?.diagnostics ?? []),
-      ...parsed.diagnostics.map((diagnostic) => ({ ...diagnostic })),
-    ];
-    if (compact) {
-      return {
-        kind: "spans",
-        renderer: pipeline.at(-1)!,
-        pipeline,
-        width: parsed.width,
-        height: parsed.height,
-        rows: toRenderedRows(parsed.rows, defaultColor),
-        diagnostics,
-      };
-    }
     return {
-      kind: "styled",
-      renderer: pipeline.at(-1)!,
-      pipeline,
-      cells: materializeCharDeskTextRows(parsed.rows).map((cell) => ({
-        x: cell.x,
-        y: cell.y,
-        char: cell.text,
-        color: cell.color ?? defaultColor,
-        ...(cell.bgColor ? { bgColor: cell.bgColor } : {}),
-        ...(cell.attrs ? { attrs: { ...cell.attrs } } : {}),
-        ...(cell.href ? { href: cell.href } : {}),
-      })),
-      diagnostics,
+      kind: "spans",
+      renderer: rendered.renderer,
+      pipeline: rendered.pipeline,
+      rows: toRenderedRows(parsed.rows, defaultColor),
+      width: parsed.width,
+      height: parsed.height,
+      diagnostics: [...rendered.diagnostics, ...parsed.diagnostics],
     };
+  });
+
+  #render(source: string) {
+    const profile = this.#profile;
+    return renderCharGraphText(source, {
+      mode: profile.mode,
+      markdown: createRegisteredMarkdownOptions(
+        profile.features,
+        { ...DEFAULT_TEXT_RENDER_THEME, ...profile.renderTheme },
+        profile.mode === "markdown"
+      ),
+    });
   }
 }
 

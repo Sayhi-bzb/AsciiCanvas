@@ -136,6 +136,31 @@ export const computeMinimapTransform = ({
   dimensions: MinimapDimensions;
   padding: number;
 }): MinimapTransform | null => {
+  return computeMinimapTransformFromBounds({
+    contentBounds: computeVisibleContentBounds(grid),
+    offset,
+    zoom,
+    viewportSize,
+    dimensions,
+    padding,
+  });
+};
+
+export const computeMinimapTransformFromBounds = ({
+  contentBounds,
+  offset,
+  zoom,
+  viewportSize,
+  dimensions,
+  padding,
+}: {
+  contentBounds: MinimapRect | null;
+  offset: Point;
+  zoom: number;
+  viewportSize: MinimapDimensions;
+  dimensions: MinimapDimensions;
+  padding: number;
+}): MinimapTransform | null => {
   if (
     zoom <= 0 ||
     viewportSize.width <= 0 ||
@@ -145,7 +170,6 @@ export const computeMinimapTransform = ({
   ) {
     return null;
   }
-  const contentBounds = computeVisibleContentBounds(grid);
   const viewportBounds = computeViewportWorldBounds(
     offset,
     zoom,

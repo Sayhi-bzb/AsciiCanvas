@@ -10,6 +10,7 @@ export { decodeCharDeskTextRuns } from "./decode.js";
 export {
   getGraphemeCellWidth,
   getTextCellWidth,
+  isEmojiGrapheme,
   iterateGraphemes,
   segmentGraphemes,
   splitGraphemes,

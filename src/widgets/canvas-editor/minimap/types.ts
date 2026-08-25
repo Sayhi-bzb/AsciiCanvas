@@ -1,4 +1,5 @@
-import type { GridMap, Point } from "@/shared/types";
+import type { Point } from "@/shared/types";
+import type { CanvasSurfaceReader } from "@/domains/canvas/public";
 
 export type MinimapDimensions = {
   width: number;
@@ -22,7 +23,8 @@ export type MinimapTransform = {
 };
 
 export type MinimapRenderState = {
-  grid: GridMap;
+  reader: CanvasSurfaceReader;
+  contentRevision: unknown;
   offset: Point;
   zoom: number;
   viewportSize: MinimapDimensions;

@@ -4,6 +4,7 @@ import type { CanvasLinkHit } from "../hooks/interaction/core/linkHitTesting";
 import { GridManager } from "@/shared/utils/grid";
 import {
   drawCellBatch,
+  getCellOccupancy,
   setTextRenderStyle,
 } from "@/shared/metrics";
 import { effectiveCellStyle } from "@/shared/utils/ansi";
@@ -30,55 +31,50 @@ export const drawGridLayer = (
   ctx.globalAlpha = alpha;
   setTextRenderStyle(ctx, zoom);
 
-  const visibleCells = [] as Array<{
-    x: number;
-    y: number;
-    cell: NonNullable<ReturnType<CanvasSurfaceReader["getCell"]>>;
-    screenX: number;
-    screenY: number;
-    drawBackground: boolean;
-    drawText: boolean;
-  }>;
-  for (let y = viewBounds.startY; y <= viewBounds.endY; y++) {
-    for (let x = viewBounds.startX; x <= viewBounds.endX; x++) {
-      const cell = reader.getCell({ x, y });
-      if (!cell) continue;
-      const style = effectiveCellStyle(cell);
-      const drawBackground = cell.char !== " " || !!style.bgColor || !!style.attrs;
-      const drawText = cell.char !== " " || !!style.attrs;
-      if (!drawBackground && !drawText) continue;
-      const pos = GridManager.gridToScreen(x, y, offset.x, offset.y, zoom);
-      visibleCells.push({
-        x,
-        y,
-        cell,
-        screenX: pos.x,
-        screenY: pos.y,
-        drawBackground,
-        drawText,
-      });
+  const visibleCells: Parameters<typeof drawCellBatch>[1][number][] = [];
+  const queryBounds = {
+    x: viewBounds.startX,
+    y: viewBounds.startY,
+    width: viewBounds.endX - viewBounds.startX + 1,
+    height: viewBounds.endY - viewBounds.startY + 1,
+  };
+  for (const span of reader.query(queryBounds)) {
+    let x = span.x;
+    for (const cell of span.cells) {
+      const width = getCellOccupancy(cell.char);
+      const style = cell.char === " " ? effectiveCellStyle(cell) : null;
+      const drawBackground = cell.char !== " " || !!style?.bgColor || !!style?.attrs;
+      const drawText = cell.char !== " " || !!style?.attrs;
+      if (drawBackground || drawText) {
+        const pos = GridManager.gridToScreen(
+          x,
+          span.y,
+          offset.x,
+          offset.y,
+          zoom
+        );
+        visibleCells.push({
+          cell,
+          x: pos.x,
+          y: pos.y,
+          drawBackground,
+          drawText,
+          options: {
+            zoom,
+            underline:
+              !!cell.href &&
+              !!hoveredLink &&
+              hoveredLink.href === cell.href &&
+              hoveredLink.y === span.y &&
+              x >= hoveredLink.startX &&
+              x <= hoveredLink.endX,
+          },
+        });
+      }
+      x += width;
     }
   }
 
-  drawCellBatch(
-    ctx,
-    visibleCells.map(({ x, y, cell, screenX, screenY, drawBackground, drawText }) => ({
-      cell,
-      x: screenX,
-      y: screenY,
-      drawBackground,
-      drawText,
-      options: {
-        zoom,
-        underline:
-          !!cell.href &&
-          !!hoveredLink &&
-          hoveredLink.href === cell.href &&
-          hoveredLink.y === y &&
-          x >= hoveredLink.startX &&
-          x <= hoveredLink.endX,
-      },
-    }))
-  );
+  drawCellBatch(ctx, visibleCells);
   ctx.restore();
 };

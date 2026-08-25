@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   CellPlaneIndex,
+  cellPlanePatchToOperation,
   createGridSurfaceReader,
   createSurfaceGridProjection,
+  isSurfaceGridProjection,
   type CellPlaneOperation,
 } from "./model";
 
@@ -17,6 +19,59 @@ const operation = (
 });
 
 describe("CellPlaneIndex", () => {
+  it("keeps compact text runs intact when compiling a patch", () => {
+    const compiled = cellPlanePatchToOperation("paste", {
+      rows: [{
+        y: 4,
+        erase: [],
+        spans: [{ x: 2, text: "A你B", color: "#fff" }],
+      }],
+    });
+
+    expect(compiled).toMatchObject({
+      bounds: { x: 2, y: 4, width: 4, height: 1 },
+      rows: [{ spans: [{ text: "A你B" }] }],
+    });
+  });
+
+  it("does not materialize large text runs while compiling a patch", () => {
+    const text = "A".repeat(100_000);
+    const compiled = cellPlanePatchToOperation("large-paste", {
+      rows: [{ y: 0, erase: [], spans: [{ x: 0, text, color: "#fff" }] }],
+    });
+
+    expect(compiled?.bounds.width).toBe(100_000);
+    expect(compiled?.rows[0]?.spans).toHaveLength(1);
+    expect(compiled?.rows[0]?.spans[0]?.text).toBe(text);
+  });
+
+  it("preserves each target background while replaying a compact patch", () => {
+    const base = operation("base", [{
+      y: 0,
+      erase: [],
+      spans: [
+        { x: 0, text: "A", color: "#fff", bgColor: "#f00" },
+        { x: 1, text: "B", color: "#fff", bgColor: "#0f0" },
+      ],
+    }]);
+    const paste = cellPlanePatchToOperation("paste", {
+      rows: [{
+        y: 0,
+        erase: [],
+        spans: [{
+          x: 0,
+          text: "xy",
+          color: "#111",
+          preserveTargetBackground: true,
+        }],
+      }],
+    })!;
+    const plane = new CellPlaneIndex([base, paste]);
+
+    expect(plane.getCell({ x: 0, y: 0 })).toMatchObject({ char: "x", bgColor: "#f00" });
+    expect(plane.getCell({ x: 1, y: 0 })).toMatchObject({ char: "y", bgColor: "#0f0" });
+  });
+
   it("resolves ordered overlap without changing non-overlapping cells", () => {
     const plane = new CellPlaneIndex([
       operation("base", [{ y: 0, erase: [], spans: [{ x: 0, text: "ABCD", color: "#fff" }] }]),
@@ -83,6 +138,8 @@ describe("CellPlaneIndex", () => {
     expect(reader.getContentBounds()).toEqual({ x: 2, y: 3, width: 2, height: 1 });
     expect([...reader.query({ x: 0, y: 0, width: 5, height: 5 })]).toHaveLength(1);
     const projection = createSurfaceGridProjection(reader);
+    expect(isSurfaceGridProjection(projection)).toBe(true);
+    expect(isSurfaceGridProjection(new Map())).toBe(false);
     expect(new Map(projection)).toEqual(
       new Map([["2,3", { char: "你", color: "#fff" }]])
     );

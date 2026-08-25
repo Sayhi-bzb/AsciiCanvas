@@ -7,10 +7,12 @@ import type {
 import type { GridCell } from "@/shared/types";
 import {
   CellPlaneIndex,
+  cellPlanePatchToOperation,
   gridChangesToCellPlaneOperation,
   gridEntriesToCellPlaneOperation,
   isCellPlaneOperation,
   type CellPlaneOperation,
+  type CellPlanePatch,
   type CanvasSurfaceReader,
 } from "../cell-plane/model";
 import { areJsonValuesEqual } from "@/shared/utils/equality";
@@ -611,6 +613,34 @@ export class CanvasDocumentRegistry {
       );
       if (operation) page.operations.push([operation]);
     }, history);
+  };
+
+  applyCellPlanePatch = (
+    patch: CellPlanePatch,
+    history: CanvasHistoryMode | boolean = "save"
+  ) => this.applyCellPlanePatchAt(this.getActiveAddress(), patch, history);
+
+  applyCellPlanePatchAt = (
+    address: CanvasDocumentAddress,
+    patch: CellPlanePatch,
+    history: CanvasHistoryMode | boolean = "save"
+  ) => {
+    const document = this.#documents.get(address.documentId);
+    const page = document?.pages.get(address.pageId);
+    if (!document || !page || page.descriptor.kind !== "cell-plane") {
+      throw new Error(
+        `Cell Plane page not found: ${address.documentId}/${address.pageId}`
+      );
+    }
+    const operation = cellPlanePatchToOperation(
+      `${document.doc.clientID}:${this.#operationSequence++}`,
+      patch
+    );
+    if (!operation) return null;
+    this.runTransactionAt(address, () => {
+      page.operations.push([operation]);
+    }, history);
+    return operation;
   };
 
   replaceStructuredContent = (

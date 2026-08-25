@@ -24,10 +24,11 @@ import { createStyleRoleCanvas, surfaceToString, styleRoleFromCharRole } from '.
 // ============================================================================
 
 const MIN_PLOT_WIDTH = 36
-const MIN_PLOT_HEIGHT = 12
 const MIN_CATEGORY_BAND_WIDTH = 10
 const MIN_HORIZONTAL_BAND_HEIGHT = 3
 const MIN_BAR_WIDTH = 3
+const VERTICAL_CELLS_PER_TICK = 2
+const SCALE_EPSILON = 1e-9
 
 // Unicode box-drawing characters
 const UNI = {
@@ -213,10 +214,13 @@ function renderVertical(
     Math.ceil(minimumPlotWidth / dataCount),
   )
   const plotW = bandW * dataCount
-  const plotH = Math.max(
-    MIN_PLOT_HEIGHT,
-    (yTicks.length - 1) * 2 + 1,
-  )
+  const yTickStep = getTickStep(yTicks, yRange.min, yRange.max)
+  const plotH = getScaleCellSpan(
+    yRange.min,
+    yRange.max,
+    yTickStep,
+    VERTICAL_CELLS_PER_TICK,
+  ) + 1
 
   // Canvas dimensions
   const hasTitle = !!chart.title
@@ -239,8 +243,12 @@ function renderVertical(
 
   // Scales
   const valueToRow = (v: number): number => {
-    const t = (v - yRange.min) / (yRange.max - yRange.min || 1)
-    return Math.round(t * (plotH - 1))
+    return valueToScaleCell(
+      v,
+      yRange.min,
+      yTickStep,
+      VERTICAL_CELLS_PER_TICK,
+    )
   }
   const bandCenter = (i: number): number => plotLeft + Math.floor(bandW * (i + 0.5))
 
@@ -380,11 +388,26 @@ function renderHorizontal(
     chart.yAxis.title?.length ?? 0,
     getLegendWidth(legendItems),
   )
-  const plotW = Math.max(
+  const minimumPlotWidth = Math.max(
     MIN_PLOT_WIDTH,
     tickPlotWidth,
     contentWidth - plotLeft + 2,
   )
+  const valueTickStep = getTickStep(valueTicks, yRange.min, yRange.max)
+  const numericTickSpan = Math.max(
+    1,
+    (yRange.max - yRange.min) / valueTickStep,
+  )
+  const cellsPerValueTick = Math.max(
+    maximumTickWidth + 2,
+    Math.ceil((minimumPlotWidth - 1) / numericTickSpan),
+  )
+  const plotW = getScaleCellSpan(
+    yRange.min,
+    yRange.max,
+    valueTickStep,
+    cellsPerValueTick,
+  ) + 1
   const bandH = Math.max(MIN_HORIZONTAL_BAND_HEIGHT, barCount * 2)
   const plotH = bandH * dataCount
 
@@ -405,8 +428,12 @@ function renderHorizontal(
 
   // Value scale (horizontal)
   const valueToCol = (v: number): number => {
-    const t = (v - yRange.min) / (yRange.max - yRange.min || 1)
-    return plotLeft + Math.round(t * (plotW - 1))
+    return plotLeft + valueToScaleCell(
+      v,
+      yRange.min,
+      valueTickStep,
+      cellsPerValueTick,
+    )
   }
   const bandMid = (i: number): number => plotTop + Math.floor(bandH * (i + 0.5))
 
@@ -840,6 +867,33 @@ function getCategoryLabels(chart: XYChart, count: number): string[] {
     return Array.from({ length: count }, (_, i) => formatTickValue(min + step * i))
   }
   return Array.from({ length: count }, (_, i) => String(i + 1))
+}
+
+function getTickStep(ticks: number[], min: number, max: number): number {
+  if (ticks.length > 1) {
+    const step = Math.abs(ticks[1]! - ticks[0]!)
+    if (step > 0) return step
+  }
+  return Math.abs(max - min) || 1
+}
+
+function getScaleCellSpan(
+  min: number,
+  max: number,
+  tickStep: number,
+  cellsPerTick: number,
+): number {
+  const exactSpan = ((max - min) / tickStep) * cellsPerTick
+  return Math.max(1, Math.ceil(exactSpan - SCALE_EPSILON))
+}
+
+function valueToScaleCell(
+  value: number,
+  min: number,
+  tickStep: number,
+  cellsPerTick: number,
+): number {
+  return Math.round(((value - min) / tickStep) * cellsPerTick)
 }
 
 /** Generate nice tick values for a numeric range. */

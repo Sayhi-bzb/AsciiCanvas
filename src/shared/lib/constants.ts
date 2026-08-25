@@ -4,7 +4,7 @@ export const CELL_HEIGHT = 19;
 export const GRID_COLOR = "#e5e7eb";
 export const BACKGROUND_COLOR = "#ffffff";
 
-export const MIN_ZOOM = 0.1;
+export const MIN_ZOOM = 0.25;
 export const MAX_ZOOM = 5;
 
 export const FONT_SIZE = 15;

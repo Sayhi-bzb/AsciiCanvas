@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { markdownRenderer } from "@chardesk/chargraph/markdown";
 import { DEFAULT_TEXT_RENDER_THEME } from "./theme";
 import {
   createDefaultFeatureSettings,
-  createRegisteredMarkdownRenderer,
   createRegisteredMarkdownOptions,
   decodeFeatureSettings,
   getTextRenderFeatureDefinition,
@@ -12,10 +10,6 @@ import {
 } from "./features";
 
 describe("text render feature registry", () => {
-  it("uses CharGraph's built-in Markdown extension manifest", () => {
-    expect(createRegisteredMarkdownRenderer()).toBe(markdownRenderer);
-  });
-
   it("owns unique feature and local color-slot identities", () => {
     expect(new Set(TEXT_RENDER_FEATURES.map((feature) => feature.id)).size).toBe(
       TEXT_RENDER_FEATURES.length

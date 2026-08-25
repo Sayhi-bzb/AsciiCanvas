@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { applyFreeformSnapshotToYMaps, useEditorStore } from "@/domains/canvas/testing";
+import {
+  applyFreeformSnapshotToYMaps,
+  defaultCanvasDocuments,
+  useEditorStore,
+} from "@/domains/canvas/testing";
 import type { EditorState } from "@/domains/canvas/state/interfaces";
 
 const initialState = useEditorStore.getState();
@@ -301,6 +305,35 @@ describe("textSlice paste background merging", () => {
         ["1,0", { char: "Y", color: "#00ff00", bgColor: "#0000ff" }],
       ])
     );
+  });
+
+  it("commits rich rows as one compact CellPlane operation", () => {
+    setTextState({ textCursor: { x: 3, y: 2 } });
+    const before = defaultCanvasDocuments.yCellPlaneOperations.length;
+
+    useEditorStore.getState().pasteRichRows([{
+      y: 0,
+      spans: [{
+        x: 0,
+        text: "A你B",
+        width: 4,
+        color: "#ff0000",
+      }],
+    }]);
+
+    expect(defaultCanvasDocuments.yCellPlaneOperations.length).toBe(before + 1);
+    expect(defaultCanvasDocuments.yCellPlaneOperations.get(before)).toMatchObject({
+      bounds: { x: 3, y: 2, width: 4, height: 1 },
+      rows: [{
+        y: 2,
+        spans: [{ x: 3, text: "A你B", preserveTargetBackground: true }],
+      }],
+    });
+    expect(useEditorStore.getState().grid).toEqual(new Map([
+      ["3,2", { char: "A", color: "#ff0000" }],
+      ["4,2", { char: "你", color: "#ff0000" }],
+      ["6,2", { char: "B", color: "#ff0000" }],
+    ]));
   });
 
   it("inherits the anchor background when pasting onto a wide follower", () => {

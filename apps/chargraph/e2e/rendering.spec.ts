@@ -38,10 +38,70 @@ test("renders the shared block layout dashboard as its own category", async ({
     "|||"
   );
   const viewer = article.locator("chardesk-viewer");
-  await expect(viewer.locator("pre")).toContainText("CharDesk Workspace");
-  await expect(viewer.locator("pre")).toContainText("All systems operational");
-  await expect(viewer.locator("a", { hasText: "github.com/Sayhi-bzb/CharDesk" }))
-    .toHaveAttribute("href", "https://github.com/Sayhi-bzb/CharDesk");
+  await expect(viewer.locator("canvas")).toContainText("CharDesk Workspace");
+  await expect(viewer.locator("canvas")).toContainText("All systems operational");
+  await expect(viewer.locator("pre")).toHaveCount(0);
+});
+
+test("renders emoji through the vendored monochrome Canvas font", async ({ page }) => {
+  await page.goto("./#type-block-layout");
+
+  const result = await page.evaluate(async () => {
+    const faces = await document.fonts.load("15px 'Noto Emoji'", "👋🚀");
+    const viewer = document.createElement("chardesk-viewer") as HTMLElement & {
+      source: string;
+      controls: boolean;
+    };
+    viewer.source = "👋 🚀";
+    viewer.controls = false;
+    viewer.setAttribute("fit", "none");
+    viewer.setAttribute("zoom", "1.25");
+    viewer.style.setProperty("--chardesk-color", "#000000");
+    viewer.style.setProperty("--chardesk-background", "#ffffff");
+    document.body.append(viewer);
+    await document.fonts.ready;
+    await new Promise<void>((resolve) => requestAnimationFrame(() =>
+      requestAnimationFrame(() => resolve())
+    ));
+    const canvas = viewer.shadowRoot?.querySelector("canvas");
+    const context = canvas?.getContext("2d");
+    const pixels = context && canvas
+      ? context.getImageData(0, 0, canvas.width, canvas.height).data
+      : new Uint8ClampedArray();
+    let visible = 0;
+    let colored = 0;
+    for (let offset = 0; offset < pixels.length; offset += 4) {
+      if ((pixels[offset + 3] ?? 0) === 0) continue;
+      visible += 1;
+      if (pixels[offset] !== pixels[offset + 1] ||
+          pixels[offset + 1] !== pixels[offset + 2]) {
+        colored += 1;
+      }
+    }
+    const missing = canvas?.hasAttribute("data-emoji-font-missing") ?? true;
+    const cssWidth = Number.parseFloat(canvas?.style.width ?? "0");
+    const backingRatio = canvas && cssWidth > 0 ? canvas.width / cssWidth : 0;
+    const surfaceTransform = (
+      viewer.shadowRoot?.querySelector<HTMLElement>("[part='surface']")
+    )?.style.transform ?? "missing";
+    viewer.remove();
+    return {
+      faceCount: faces.length,
+      visible,
+      colored,
+      missing,
+      backingRatio,
+      dpr: window.devicePixelRatio,
+      surfaceTransform,
+    };
+  });
+
+  expect(result.faceCount).toBeGreaterThan(0);
+  expect(result.visible).toBeGreaterThan(0);
+  expect(result.colored).toBe(0);
+  expect(result.missing).toBe(false);
+  expect(result.backingRatio).toBeCloseTo(result.dpr, 1);
+  expect(result.surfaceTransform).toBe("");
 });
 
 const expectUnicodeViewersToFit = async (page: Page) => {
@@ -321,7 +381,7 @@ test("renders directed diagrams through the category navigation", async ({ page 
     "true"
   );
   await expectLineNav(page, "输入校验");
-  const flow = page.locator("#flowchart chardesk-viewer pre");
+  const flow = page.locator("#flowchart chardesk-viewer canvas");
   await expect(flow).toContainText("用户输入");
   await expect(flow).toContainText("验证通过？");
   await expect(flow).toContainText(/是─+>│\s*保存数据\s*│/u);
@@ -330,51 +390,49 @@ test("renders directed diagrams through the category navigation", async ({ page 
   await expect(flow).not.toContainText(/[─┄━]\^ +│/u);
   await expect(flow).not.toContainText("flowchart LR");
   await expect.poll(async () =>
-    page.locator("#flowchart chardesk-viewer span.run").evaluateAll((elements) =>
-      new Set(elements.map((element) =>
-        (element as HTMLElement).style.getPropertyValue("--run-fg")
-      ).filter((color) => [
+    page.locator("#flowchart chardesk-viewer").evaluate((element) =>
+      new Set((element as unknown as { parsedDocument?: { cells: { color?: string }[] } })
+        .parsedDocument?.cells.map((cell) => cell.color).filter((color) => [
         "#2563eb",
         "#0891b2",
         "#16a34a",
         "#ca8a04",
         "#dc2626",
-      ].includes(color))).size
+      ].includes(color ?? ""))).size
     )
   ).toBeGreaterThanOrEqual(2);
   await expect.poll(async () =>
-    page.locator("#flowchart chardesk-viewer span.run").evaluateAll((elements) =>
-      elements.some((element) =>
-        (element as HTMLElement).style.getPropertyValue("--run-fg") === "#94a3b8"
-      )
+    page.locator("#flowchart chardesk-viewer").evaluate((element) =>
+      (element as unknown as { parsedDocument?: { cells: { color?: string }[] } })
+        .parsedDocument?.cells.some((cell) => cell.color === "#94a3b8") ?? false
     )
   ).toBe(false);
-  const deployment = page.locator("#flowchart-intermediate chardesk-viewer pre");
+  const deployment = page.locator("#flowchart-intermediate chardesk-viewer canvas");
   await expect(deployment).toContainText("持续集成");
   await expect(deployment).toContainText("生产环境");
   await expectUnicodeViewersToFit(page);
   await expectStructuralChrome(page);
 
   await openDesktopCategory(page, "状态图", "state");
-  const state = page.locator("#state chardesk-viewer pre");
+  const state = page.locator("#state chardesk-viewer canvas");
   await expect(state).toContainText("草稿");
   await expect(state).toContainText("审核");
   await expect(state).not.toContainText("stateDiagram-v2");
   await expect(
-    page.locator("#state-intermediate chardesk-viewer pre")
+    page.locator("#state-intermediate chardesk-viewer canvas")
   ).toContainText("退回修改");
   await expectUnicodeViewersToFit(page);
 
   await openDesktopCategory(page, "时序图", "sequence");
   await expect(
-    page.locator("#sequence-intermediate chardesk-viewer pre")
+    page.locator("#sequence-intermediate chardesk-viewer canvas")
   ).toContainText("重试任务");
 
   await openDesktopCategory(page, "类图", "class");
-  const classModel = page.locator("#class-intermediate chardesk-viewer pre");
+  const classModel = page.locator("#class-intermediate chardesk-viewer canvas");
   await expect(classModel).toContainText("内容域");
   await expect(classModel).toContainText("0..*");
-  const classDiagram = page.locator("#class-advanced chardesk-viewer pre");
+  const classDiagram = page.locator("#class-advanced chardesk-viewer canvas");
   await expect(classDiagram).toContainText("<<interface>>");
   await expect(classDiagram).toContainText("渲染器");
   await expect(classDiagram).toContainText(/[△▽◁▷^v]/u);
@@ -383,14 +441,14 @@ test("renders directed diagrams through the category navigation", async ({ page 
   await expectUnicodeViewersToFit(page);
 
   await openDesktopCategory(page, "实体关系图", "er");
-  const socialModel = page.locator("#er-intermediate chardesk-viewer pre");
+  const socialModel = page.locator("#er-intermediate chardesk-viewer canvas");
   await expect(socialModel).toContainText("关注");
   await expect(socialModel).toContainText("推荐");
-  const socialText = await socialModel.innerText();
+  const socialText = await socialModel.textContent() ?? "";
   const socialLines = socialText.trimEnd().split("\n");
   expect(socialLines.length).toBeLessThanOrEqual(10);
   expect(socialLines.find((line) => line.includes("推荐"))).toMatch(/[╭╮─┄]/u);
-  const erDiagram = page.locator("#er-advanced chardesk-viewer pre");
+  const erDiagram = page.locator("#er-advanced chardesk-viewer canvas");
   await expect(erDiagram).toContainText("订单项");
   await expect(erDiagram).toContainText("被引用");
   await expect(erDiagram).toContainText(/○[╟╢╥╨]/u);
@@ -437,52 +495,55 @@ test("renders styled Markdown categories through the same showcase", async ({ pa
   );
 
   const basics = page.locator("#markdown-basics chardesk-viewer");
-  await expect(basics.locator("pre")).toContainText("Markdown 概览");
-  await expect(basics.locator("pre")).not.toContainText("**粗体**");
-  await expect(basics.locator(".run.bold").first()).toBeVisible();
-  await expect(basics.locator("a", { hasText: "CharDesk" })).toHaveAttribute(
-    "href",
-    "https://github.com/Sayhi-bzb/CharDesk"
-  );
+  await expect(basics.locator("canvas")).toContainText("Markdown 概览");
+  await expect(basics.locator("canvas")).not.toContainText("**粗体**");
+  await expect.poll(() => basics.evaluate((element) => {
+    const cells = (element as unknown as {
+      parsedDocument?: { cells: { attrs?: { bold?: true }; href?: string }[] };
+    }).parsedDocument?.cells ?? [];
+    return {
+      bold: cells.some((cell) => cell.attrs?.bold),
+      link: cells.some((cell) =>
+        cell.href === "https://github.com/Sayhi-bzb/CharDesk"
+      ),
+    };
+  })).toEqual({ bold: true, link: true });
   await expect(
-    page.locator("#markdown-basics-intermediate chardesk-viewer pre")
+    page.locator("#markdown-basics-intermediate chardesk-viewer canvas")
   ).toContainText("v0.2 发布说明");
 
   await openDesktopCategory(page, "列表与表格", "markdown-structure");
   const checklist = page.locator(
-    "#markdown-structure-intermediate chardesk-viewer pre"
+    "#markdown-structure-intermediate chardesk-viewer canvas"
   );
   await expect(checklist).toContainText("回归测试");
   await expect(checklist).toContainText("○");
 
   await openDesktopCategory(page, "代码与 Diff", "markdown-code");
   const config = page.locator("#markdown-code-intermediate chardesk-viewer");
-  await expect(config.locator("pre")).toContainText('"renderer": "markdown"');
-  await expect(config.locator(".run").first()).toBeVisible();
+  await expect(config.locator("canvas")).toContainText('"renderer": "markdown"');
   const diff = page.locator("#markdown-code-advanced chardesk-viewer");
-  await expect(diff.locator("pre")).toContainText("+  return next(value);");
-  await expect
-    .poll(() =>
-      diff
-        .locator(".run", { hasText: "+  return next(value);" })
-        .evaluate((element) => getComputedStyle(element).backgroundColor)
-    )
-    .not.toBe("rgba(0, 0, 0, 0)");
+  await expect(diff.locator("canvas")).toContainText("+  return next(value);");
+  await expect.poll(() => diff.evaluate((element) =>
+    (element as unknown as {
+      parsedDocument?: { cells: { bgColor?: string }[] };
+    }).parsedDocument?.cells.some((cell) => !!cell.bgColor) ?? false
+  )).toBe(true);
 
   await openDesktopCategory(page, "GitHub Alert", "markdown-alert");
   await expect(
-    page.locator("#markdown-alert-intermediate chardesk-viewer pre")
+    page.locator("#markdown-alert-intermediate chardesk-viewer canvas")
   ).toContainText("│ IMPORTANT");
   await expect(
-    page.locator("#markdown-alert-advanced chardesk-viewer pre")
+    page.locator("#markdown-alert-advanced chardesk-viewer canvas")
   ).toContainText("│ CAUTION");
 
   await openDesktopCategory(page, "数学表达", "markdown-math");
   await expect(
-    page.locator("#markdown-math-intermediate chardesk-viewer pre")
+    page.locator("#markdown-math-intermediate chardesk-viewer canvas")
   ).toContainText("∑");
   await expect(
-    page.locator("#markdown-math-advanced chardesk-viewer pre")
+    page.locator("#markdown-math-advanced chardesk-viewer canvas")
   ).toContainText("a + b");
   await expectUnicodeViewersToFit(page);
   expect(pageErrors).toEqual([]);
@@ -521,7 +582,7 @@ test("uses the mobile category select without page overflow", async ({ page }) =
     page.getByRole("heading", { level: 2, name: "横向混合图" })
   ).toBeVisible();
   await expect(
-    page.locator("#xychart-intermediate chardesk-viewer pre")
+    page.locator("#xychart-intermediate chardesk-viewer canvas")
   ).toContainText("预发布环境");
   await expect(page.locator("main article")).toHaveCount(3);
   await expectUnicodeViewersToFit(page);

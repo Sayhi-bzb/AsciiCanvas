@@ -1,5 +1,5 @@
 import { createCellTextCodec } from "./cell-text.js";
-import { defineCharGraphRenderer } from "./index.js";
+import { defineCharGraphRenderer } from "./model.js";
 import type { MermaidStyleMap } from "./mermaid-style.js";
 import { renderMermaidSurface } from "./vendor/ascii/index.js";
 import { surfaceToStyleRuns } from "./vendor/ascii/surface.js";

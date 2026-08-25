@@ -12,6 +12,7 @@ export type {
   CharDeskRenderModel,
   CharDeskRenderRow,
   CharDeskRenderRun,
+  CharDeskRenderSegment,
 } from "./render-model.js";
 export { sanitizeCharDeskHref } from "./link.js";
 export type {

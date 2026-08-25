@@ -1,17 +1,9 @@
-import {
-  getCharGraphText,
-  renderCharGraph,
-  serializeCharGraphAnsi,
-} from "./index.js";
+import { serializeCharGraphAnsi } from "./ansi.js";
+import { getCharGraphText } from "./fragments.js";
+import { renderCharGraphText } from "./text.js";
 import {
   createCharDeskMarkdownStyles,
-  renderMarkdown,
 } from "./markdown-default.js";
-import {
-  createCharDeskMermaidStyles,
-  mermaidRenderer,
-} from "./mermaid.js";
-import { renderBlockLayout } from "./block-layout.js";
 import { BLOCK_LAYOUT_DASHBOARD_SOURCE } from "./block-layout-dashboard.js";
 import { CHARDESK_LIGHT_RENDER_THEME } from "./render-theme.js";
 
@@ -60,12 +52,6 @@ export const getExampleClipboardSource = ({
 const markdownOptions = createCharDeskMarkdownStyles({
   theme: CHARDESK_LIGHT_RENDER_THEME,
 });
-const mermaidOptions = {
-  characterSet: "unicode" as const,
-  styles: createCharDeskMermaidStyles({
-    theme: CHARDESK_LIGHT_RENDER_THEME,
-  }),
-};
 
 export const BLOCK_LAYOUT_DASHBOARD_EXAMPLE = {
   id: "block-layout-dashboard",
@@ -603,14 +589,9 @@ $$
 ];
 
 const renderExampleSource = async (example: CharGraphExample) => {
-  switch (example.renderer) {
-    case "block-layout":
-      return renderBlockLayout(example.source);
-    case "markdown":
-      return renderMarkdown(example.source, markdownOptions);
-    case "mermaid":
-      return renderCharGraph(example.source, mermaidRenderer, mermaidOptions);
-  }
+  return renderCharGraphText(getExampleClipboardSource(example), {
+    markdown: markdownOptions,
+  });
 };
 
 export const renderExample = async (

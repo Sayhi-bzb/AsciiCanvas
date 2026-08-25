@@ -20,8 +20,10 @@ use Registry focus as an implicit write target.
 
 ## Canonical flows
 
-- Freeform content: command -> one ordered CellPlane operation in a Yjs transaction ->
-  128x64 spatial projection -> canvas projector.
+- Freeform content: command -> compact `CellPlanePatch` -> one ordered CellPlane
+  operation in a Yjs transaction -> 128x64 spatial projection -> viewport query.
+  Text runs remain compact through the write boundary; target-background inheritance
+  is operation composition, not a per-cell read/modify/write pass.
 - Structured content: command or provider -> one Yjs transaction -> canvas projector
   -> editor state -> widgets.
 - Session activation: catalog descriptor -> restored mode-authoritative Yjs document
@@ -48,10 +50,17 @@ collaboration persistence and never copied into local session persistence.
 
 The V5 localStorage envelope is a migration input only. Migration seeds and verifies all Yjs
 documents, commits the catalog, then removes the old key. A failure keeps the old value for retry.
+Restore probes existing Yjs channels before seeding. Intermediate page descriptors are normalized
+in place, and legacy channels are cleared only after the page document has been stored successfully.
+If a bootstrap catalog replaced legacy metadata, restore reattaches sessions only when their local
+Yjs document databases still exist. Historical descriptors restore names and mode; an orphan without
+metadata receives a recovered shell. Deleted sessions are not resurrected.
 Canvas content never falls back to localStorage. One browser tab owns local writes; other tabs
 restore read-only until ownership is released. Undo history remains runtime-only.
 
-Freeform documents contain only ordered `cell-plane-operations`. A legacy local `main-grid`
+Freeform documents contain only ordered `cell-plane-operations`. Canvas rendering queries
+occupied spans inside the viewport, and Minimap caches its reader projection by document
+revision; camera movement never materializes the compatibility Map. A legacy local `main-grid`
 is converted once into a bootstrap operation and then cleared; collaboration version 4 rejects
 the old schema. `CanvasSurfaceReader` is the read contract for rendering and export. Freeform and
 Slide expose a read-only, non-owning Map facade to legacy interaction algorithms; Structured keeps

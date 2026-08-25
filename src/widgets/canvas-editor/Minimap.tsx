@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
@@ -10,7 +11,12 @@ import {
 } from "react";
 import { useTheme } from "next-themes";
 import { useShallow } from "zustand/react/shallow";
-import { useCanvasState } from "@/domains/canvas/public";
+import {
+  createGridSurfaceReader,
+  isSurfaceGridProjection,
+  useCanvasRuntime,
+  useCanvasState,
+} from "@/domains/canvas/public";
 import { useUiI18n } from "@/shared/i18n";
 import { cn } from "@chardesk/ui";
 import type { Point } from "@/shared/types";
@@ -54,12 +60,23 @@ export const Minimap = ({
   const { resolvedTheme } = useTheme();
   const { t } = useUiI18n();
   const runtime = useCanvasEngineRuntime();
-  const { grid, offset, zoom } = useCanvasState(
+  const canvas = useCanvasRuntime();
+  const { grid, offset, zoom, canvasMode } = useCanvasState(
     useShallow((state) => ({
       grid: state.grid,
       offset: state.offset,
       zoom: state.zoom,
+      canvasMode: state.canvasMode,
     }))
+  );
+  const contentReader = useMemo(
+    () => {
+      if (canvasMode === "structured" || !isSurfaceGridProjection(grid)) {
+        return createGridSurfaceReader(grid);
+      }
+      return canvas.documents.getContentReader();
+    },
+    [canvas.documents, canvasMode, grid]
   );
 
   const removeDragEndListeners = useCallback(() => {
@@ -117,13 +134,15 @@ export const Minimap = ({
 
   useEffect(() => {
     if (!containerSize) return;
+    if (!contentReader) return;
     managerRef.current?.update({
-      grid,
+      reader: contentReader,
+      contentRevision: grid,
       offset,
       zoom,
       viewportSize: containerSize,
     });
-  }, [containerSize, grid, offset, zoom]);
+  }, [containerSize, contentReader, grid, offset, zoom]);
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
