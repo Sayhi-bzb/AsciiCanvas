@@ -32,6 +32,7 @@ export * from "./surface.js";
 export * from "./swatch-button.js";
 export * from "./table.js";
 export * from "./tabs.js";
+export * from "./textarea.js";
 export * from "./tooltip.js";
 export * from "./ui-provider.js";
 export * from "./use-in-place-feedback.js";

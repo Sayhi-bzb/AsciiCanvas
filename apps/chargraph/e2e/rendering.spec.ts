@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 const FIRST_CASE_TITLES: Record<string, string> = {
+  "block-layout": "Product Workspace",
   flowchart: "输入校验",
   state: "文档审核",
   sequence: "请求响应",
@@ -13,6 +14,35 @@ const FIRST_CASE_TITLES: Record<string, string> = {
   "markdown-alert": "提示信息",
   "markdown-math": "行内公式",
 };
+
+test("renders the shared block layout dashboard as its own category", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1728, height: 900 });
+  await page.goto("./#type-block-layout");
+
+  await expect(page.getByRole("tab", { name: "二维布局" })).toHaveAttribute(
+    "aria-selected",
+    "true"
+  );
+  const article = page.locator("#block-layout-dashboard");
+  await expect(page.locator("main article")).toHaveCount(1);
+  await expect(article).toHaveAttribute(
+    "aria-label",
+    "二维布局 · Product Workspace"
+  );
+  await expect(
+    article.locator('[data-slot="example-panel"]').first()
+  ).toHaveAttribute("aria-label", "Layout");
+  await expect(article.locator('[data-slot="example-source"]')).toContainText(
+    "|||"
+  );
+  const viewer = article.locator("chardesk-viewer");
+  await expect(viewer.locator("pre")).toContainText("CharDesk Workspace");
+  await expect(viewer.locator("pre")).toContainText("All systems operational");
+  await expect(viewer.locator("a", { hasText: "github.com/Sayhi-bzb/CharDesk" }))
+    .toHaveAttribute("href", "https://github.com/Sayhi-bzb/CharDesk");
+});
 
 const expectUnicodeViewersToFit = async (page: Page) => {
   const viewers = page.locator("chardesk-viewer");

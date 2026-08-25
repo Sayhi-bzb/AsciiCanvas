@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  BLOCK_LAYOUT_DASHBOARD_EXAMPLE,
   CHARGRAPH_EXAMPLES,
   getExampleClipboardSource,
   type CharGraphExampleKind,
@@ -21,13 +22,16 @@ const KINDS: readonly CharGraphExampleKind[] = [
 ];
 
 describe("CharGraph showcase examples", () => {
-  it("contains eleven three-level example sets with unique IDs", () => {
-    expect(CHARGRAPH_EXAMPLES).toHaveLength(33);
-    expect(new Set(CHARGRAPH_EXAMPLES.map((example) => example.id))).toHaveLength(33);
+  it("contains eleven three-level sets and one standalone layout example", () => {
+    expect(CHARGRAPH_EXAMPLES).toHaveLength(34);
+    expect(new Set(CHARGRAPH_EXAMPLES.map((example) => example.id))).toHaveLength(34);
     expect(CHARGRAPH_EXAMPLES.filter((example) => example.level === "basic")).toHaveLength(11);
     expect(CHARGRAPH_EXAMPLES.filter((example) => example.level === "intermediate"))
       .toHaveLength(11);
-    expect(CHARGRAPH_EXAMPLES.filter((example) => example.level === "advanced")).toHaveLength(11);
+    expect(CHARGRAPH_EXAMPLES.filter((example) => example.level === "advanced")).toHaveLength(12);
+    expect(
+      CHARGRAPH_EXAMPLES.filter((example) => example.kind === "block-layout")
+    ).toEqual([BLOCK_LAYOUT_DASHBOARD_EXAMPLE]);
   });
 
   it("uses English titles and one natural language per basic example", () => {
@@ -154,6 +158,11 @@ describe("CharGraph showcase examples", () => {
         label: "CharGraph",
         href: "https://chardesk.com/chargraph/",
       },
+      {
+        id: "block-layout-dashboard",
+        label: "All systems operational",
+        href: "https://github.com/Sayhi-bzb/CharDesk",
+      },
     ];
 
     for (const item of cases) {
@@ -201,4 +210,15 @@ describe("CharGraph showcase examples", () => {
       expect(clipboardSource.match(/```/g)).toHaveLength(2);
     }
   );
+
+  it("copies the block layout stream without wrapping or rewriting it", () => {
+    const clipboardSource = getExampleClipboardSource(
+      BLOCK_LAYOUT_DASHBOARD_EXAMPLE
+    );
+
+    expect(clipboardSource).toBe(BLOCK_LAYOUT_DASHBOARD_EXAMPLE.source);
+    expect(clipboardSource).toContain("\n|||\n");
+    expect(clipboardSource).toContain("\n---\n");
+    expect(clipboardSource).toContain("```json");
+  });
 });

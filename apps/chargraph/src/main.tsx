@@ -40,6 +40,7 @@ import {
   useInPlaceFeedback,
 } from "@chardesk/ui";
 import { LineNav } from "./components/line-nav";
+import { LayoutLab } from "./layout-lab";
 import {
   CHARGRAPH_EXAMPLES,
   getExampleClipboardSource,
@@ -72,6 +73,7 @@ const EXAMPLE_CATEGORIES: readonly {
   kind: CharGraphExampleKind;
   label: string;
 }[] = [
+  { kind: "block-layout", label: "二维布局" },
   { kind: "flowchart", label: "流程图" },
   { kind: "state", label: "状态图" },
   { kind: "sequence", label: "时序图" },
@@ -84,6 +86,12 @@ const EXAMPLE_CATEGORIES: readonly {
   { kind: "markdown-alert", label: "GitHub Alert" },
   { kind: "markdown-math", label: "数学表达" },
 ];
+
+const RENDERER_LABELS: Record<CharGraphExampleRenderer, string> = {
+  "block-layout": "Layout",
+  markdown: "Markdown",
+  mermaid: "Mermaid",
+};
 
 const DEFAULT_CATEGORY: CharGraphExampleKind = "flowchart";
 const CATEGORY_HASH_PREFIX = "#type-";
@@ -284,7 +292,7 @@ function Example({
       <Separator variant="structural" />
       <div data-slot="example-grid" className="grid min-w-0 lg:grid-cols-2">
         <ExamplePanel
-          label={example.renderer === "markdown" ? "Markdown" : "Mermaid"}
+          label={RENDERER_LABELS[example.renderer]}
           copyValue={getExampleClipboardSource(example)}
           copyTarget="source"
         >
@@ -421,7 +429,7 @@ function CaseNavigation({
   );
 }
 
-function App() {
+function ShowcaseApp() {
   const [activeKind, setActiveKind] = useState(
     () => readShowcaseLocation().kind
   );
@@ -567,6 +575,9 @@ function App() {
           </h1>
           <nav aria-label="Primary" className="ml-auto flex items-center gap-1">
             <Button asChild tone="subtle" size="sm">
+              <a href="/chargraph/?lab=layout">Lab</a>
+            </Button>
+            <Button asChild tone="subtle" size="sm">
               <a href="/">CharDesk</a>
             </Button>
             <Button asChild tone="subtle" size="sm">
@@ -647,6 +658,14 @@ function App() {
         </Button>
       </PageFrame>
     </PageShell>
+  );
+}
+
+function App() {
+  return new URLSearchParams(window.location.search).get("lab") === "layout" ? (
+    <LayoutLab />
+  ) : (
+    <ShowcaseApp />
   );
 }
 

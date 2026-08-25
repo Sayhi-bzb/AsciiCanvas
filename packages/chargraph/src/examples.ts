@@ -11,11 +11,14 @@ import {
   createCharDeskMermaidStyles,
   mermaidRenderer,
 } from "./mermaid.js";
+import { renderBlockLayout } from "./block-layout.js";
+import { BLOCK_LAYOUT_DASHBOARD_SOURCE } from "./block-layout-dashboard.js";
 import { CHARDESK_LIGHT_RENDER_THEME } from "./render-theme.js";
 
 export type CharGraphExampleLevel = "basic" | "intermediate" | "advanced";
-export type CharGraphExampleRenderer = "markdown" | "mermaid";
+export type CharGraphExampleRenderer = "block-layout" | "markdown" | "mermaid";
 export type CharGraphExampleKind =
+  | "block-layout"
   | "flowchart"
   | "state"
   | "sequence"
@@ -63,6 +66,16 @@ const mermaidOptions = {
     theme: CHARDESK_LIGHT_RENDER_THEME,
   }),
 };
+
+export const BLOCK_LAYOUT_DASHBOARD_EXAMPLE = {
+  id: "block-layout-dashboard",
+  kind: "block-layout",
+  level: "advanced",
+  renderer: "block-layout",
+  title: "Product Workspace",
+  source: BLOCK_LAYOUT_DASHBOARD_SOURCE,
+  expectedText: "All systems operational",
+} as const satisfies CharGraphExample;
 
 export const CHARGRAPH_EXAMPLES: readonly CharGraphExample[] = [
   {
@@ -586,14 +599,24 @@ $$
 \begin{matrix}1&2\\3&4\end{matrix}
 \]`,
   },
+  BLOCK_LAYOUT_DASHBOARD_EXAMPLE,
 ];
+
+const renderExampleSource = async (example: CharGraphExample) => {
+  switch (example.renderer) {
+    case "block-layout":
+      return renderBlockLayout(example.source);
+    case "markdown":
+      return renderMarkdown(example.source, markdownOptions);
+    case "mermaid":
+      return renderCharGraph(example.source, mermaidRenderer, mermaidOptions);
+  }
+};
 
 export const renderExample = async (
   example: CharGraphExample
 ): Promise<CharGraphExampleOutput> => {
-  const rendered = example.renderer === "markdown"
-    ? await renderMarkdown(example.source, markdownOptions)
-    : await renderCharGraph(example.source, mermaidRenderer, mermaidOptions);
+  const rendered = await renderExampleSource(example);
   return {
     protocolText: serializeCharGraphAnsi(rendered),
     text: getCharGraphText(rendered),
