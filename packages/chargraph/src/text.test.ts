@@ -7,7 +7,7 @@ describe("canonical CharGraph text renderer", () => {
     const rendered = await renderCharGraphText([
       "Input",
       "```json",
-      '{\"name\":\"CharDesk\",\"ready\":true}',
+      '{"name":"CharDesk","ready":true}',
       "```",
       "|||",
       "Output",

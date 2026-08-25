@@ -88,6 +88,31 @@ describe('AppMenu slide interchange', () => {
     });
   });
 
+  it('keeps ANSI out of static canvas exports', async () => {
+    useEditorStore.setState({
+      canvasMode: 'freeform',
+      grid: new Map([['0,0', { char: 'A', color: '#ffffff' }]]),
+    });
+    act(() => setUiLanguage('en'));
+    render(<AppMenu />);
+
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Open menu' }), {
+      button: 0,
+      ctrlKey: false,
+    });
+    const fileItem = await screen.findByRole('menuitem', { name: 'File' });
+    fireEvent.pointerMove(fileItem, { pointerType: 'mouse' });
+    await waitFor(() => expect(fileItem).toHaveAttribute('data-state', 'open'));
+    const exportItem = screen.getByRole('menuitem', { name: 'Export' });
+    fireEvent.pointerMove(exportItem, { pointerType: 'mouse' });
+    await waitFor(() => expect(exportItem).toHaveAttribute('data-state', 'open'));
+
+    expect(await screen.findByRole('menuitem', { name: 'TXT' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'CharDesk' })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'PNG' })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'ANSI' })).not.toBeInTheDocument();
+  });
+
   it('opens settings and restores menu trigger focus', async () => {
     act(() => setUiLanguage('en'));
     render(<AppMenu />);

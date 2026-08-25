@@ -30,7 +30,7 @@ const scripts = await Promise.all(
 );
 const bundledSource = scripts.join("\n");
 for (const expected of [
-  "同一份结构，两种阅读方式",
+  "All systems operational",
   "flowchart LR",
   "sequenceDiagram",
   "xychart-beta",

@@ -34,10 +34,24 @@ export default defineConfig({
         replacement: path.resolve(import.meta.dirname, './packages/fonts/src/index.ts')
       },
       {
+        find: /^@chardesk\/chargraph\/markdown$/,
+        replacement: path.resolve(
+          import.meta.dirname,
+          './packages/chargraph/src/markdown-default.ts'
+        )
+      },
+      {
         find: /^@chardesk\/chargraph\/mermaid$/,
         replacement: path.resolve(
           import.meta.dirname,
           './packages/chargraph/src/mermaid.ts'
+        )
+      },
+      {
+        find: /^@chardesk\/chargraph\/theme$/,
+        replacement: path.resolve(
+          import.meta.dirname,
+          './packages/chargraph/src/render-theme.ts'
         )
       },
       {

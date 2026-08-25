@@ -1,17 +1,30 @@
+import { readFileSync } from "node:fs";
 import path from "node:path";
+import { readConfigFile } from "typescript";
 import { describe, expect, it } from "vitest";
 
 import config from "../vite.config";
+import testConfig from "../vitest.config";
+
+const findAlias = (
+  aliases: readonly unknown[],
+  specifier: string
+) => aliases.find(
+  (alias): alias is { find: RegExp; replacement: string } =>
+    typeof alias === "object" &&
+    alias !== null &&
+    "find" in alias &&
+    alias.find instanceof RegExp &&
+    alias.find.test(specifier)
+);
 
 describe("Vite workspace aliases", () => {
   it("serves the font stylesheet and its assets from the active worktree", () => {
     expect(config).not.toBeTypeOf("function");
     const aliases = Array.isArray(config.resolve?.alias) ? config.resolve.alias : [];
-    const fontStylesheet = aliases.find(
-      (alias) =>
-        typeof alias === "object" &&
-        alias.find instanceof RegExp &&
-        alias.find.test("@chardesk/fonts/fonts.css")
+    const fontStylesheet = findAlias(
+      aliases,
+      "@chardesk/fonts/fonts.css"
     );
 
     expect(fontStylesheet).toMatchObject({
@@ -21,9 +34,44 @@ describe("Vite workspace aliases", () => {
       aliases.findIndex(
         (alias) =>
           typeof alias === "object" &&
+          alias !== null &&
+          "find" in alias &&
           alias.find instanceof RegExp &&
           alias.find.test("@chardesk/fonts")
       )
     );
+  });
+
+  it.each([
+    ["@chardesk/chargraph/markdown", "packages/chargraph/src/markdown-default.ts"],
+    ["@chardesk/chargraph/theme", "packages/chargraph/src/render-theme.ts"],
+  ])("resolves %s from source in TypeScript, Vite, and Vitest", (
+    specifier,
+    sourcePath
+  ) => {
+    const expected = path.resolve(import.meta.dirname, "..", sourcePath);
+    const tsconfigPath = path.resolve(import.meta.dirname, "../tsconfig.app.json");
+    const { config: tsconfig, error } = readConfigFile(
+      tsconfigPath,
+      (file) => readFileSync(file, "utf8")
+    );
+    expect(error).toBeUndefined();
+    expect(tsconfig.compilerOptions.paths[specifier]).toEqual([
+      `./${sourcePath}`,
+    ]);
+
+    for (const candidate of [config, testConfig]) {
+      expect(candidate).not.toBeTypeOf("function");
+      const aliases = Array.isArray(candidate.resolve?.alias)
+        ? candidate.resolve.alias
+        : [];
+      const alias = findAlias(aliases, specifier);
+      const rootAlias = findAlias(aliases, "@chardesk/chargraph");
+
+      expect(alias).toMatchObject({ replacement: expected });
+      expect(alias && aliases.indexOf(alias)).toBeLessThan(
+        rootAlias ? aliases.indexOf(rootAlias) : -1
+      );
+    }
   });
 });
