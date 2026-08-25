@@ -61,6 +61,22 @@ const DEFAULT_DEPENDENCIES: CollaborationRuntimeDependencies = {
 
 const MAX_INTEGRITY_ISSUES = 50;
 
+const hasLocalDocumentContent = (doc: Y.Doc) => {
+  const pages = doc.getMap<{ id?: unknown }>("document-pages");
+  for (const [pageId, descriptor] of pages) {
+    if (descriptor?.id !== pageId) continue;
+    const prefix = `canvas-page:${encodeURIComponent(pageId)}:`;
+    if (
+      doc.getArray(prefix + "cell-plane-operations").length > 0 ||
+      doc.getMap(prefix + "structured-scene").size > 0 ||
+      doc.getMap(prefix + "structured-components").size > 0
+    ) {
+      return true;
+    }
+  }
+  return false;
+};
+
 const EMPTY_SNAPSHOT: CollaborationSnapshot = {
   descriptor: null,
   documentStatus: "idle",
@@ -111,10 +127,7 @@ class CollaborationSession {
       await persistence.whenSynced;
       if (this.disposed) return;
 
-      const hasLocalCopy =
-        this.doc.getArray("cell-plane-operations").length > 0 ||
-        this.doc.getMap("structured-scene").size > 0 ||
-        this.doc.getMap("structured-components").size > 0;
+      const hasLocalCopy = hasLocalDocumentContent(this.doc);
       ensureCollaborationDocumentMeta(this.descriptor, this.doc);
       const meta = this.doc.getMap<unknown>("document-meta");
       this.metaObserver = () => {

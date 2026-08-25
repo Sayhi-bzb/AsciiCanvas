@@ -24,7 +24,8 @@ import {
   DEFAULT_STRUCTURED_SESSION_NAME,
   getSessionCanvasDocumentId,
   resolveSessionRuntime,
-  stripStaticSessionContent,
+  stripSessionContent,
+  stripSlideDeckContent,
 } from "./helpers/storeUtils";
 import type { EditorState } from "./interfaces";
 import type { CanvasDocumentRegistry } from "./CanvasDocumentRegistry";
@@ -85,10 +86,12 @@ export const recoverPersistedEditorState = (
     sessions.find((session) => session.id === activeCanvasId) ?? sessions[0];
   const runtime = resolveSessionRuntime(activeSession, state.tool || "select");
 
-  state.canvasSessions = sessions.map(stripStaticSessionContent);
+  state.canvasSessions = sessions.map(stripSessionContent);
   state.activeCanvasId = activeCanvasId;
   state.canvasMode = runtime.nextMode;
-  state.slideDeck = runtime.nextSlideDeck;
+  state.slideDeck = runtime.nextSlideDeck
+    ? stripSlideDeckContent(runtime.nextSlideDeck)
+    : null;
   state.structuredScene = runtime.nextScene;
   state.structuredComponents = runtime.nextComponents;
   state.selectedStructuredNodeIds = [];
@@ -112,11 +115,16 @@ export const syncHydratedStateToCanvasDocument = (
   );
   if (!activeSession) return;
   if (activeSession.mode !== "slide" && activeSession.collaboration) {
-    documents.initializeCollaborativeDocument(activeSession.id);
+    documents.initializeCollaborativeDocument(activeSession.id, {
+      mode: activeSession.mode,
+      grid: [],
+      scene: [],
+      components: [],
+    });
     return;
   }
   documents.activateDocument(
-    getSessionCanvasDocumentId(activeSession, hydratedState.slideDeck),
+    getSessionCanvasDocumentId(activeSession),
     {
       grid:
         hydratedState.canvasMode === "structured"

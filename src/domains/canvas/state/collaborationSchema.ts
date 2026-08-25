@@ -4,9 +4,11 @@ import { toStructuredNode } from "./helpers/snapshotHelpers";
 
 export const CANVAS_COLLABORATION_CHANNELS = {
   meta: { name: "document-meta", scope: "document" },
-  content: { name: "cell-plane-operations", scope: "document" },
-  scene: { name: "structured-scene", scope: "document" },
-  components: { name: "structured-components", scope: "document" },
+  pageOrder: { name: "document-page-order", scope: "document" },
+  pages: { name: "document-pages", scope: "document" },
+  content: { name: "cell-plane-operations", scope: "page" },
+  scene: { name: "structured-scene", scope: "page" },
+  components: { name: "structured-components", scope: "page" },
   presence: { name: "presence", scope: "presence" },
 } as const;
 

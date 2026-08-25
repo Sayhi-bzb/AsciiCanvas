@@ -38,6 +38,7 @@ import {
 } from "@/domains/structured-content/public";
 import { clampPointToActiveSlide, getActiveSlideGridBounds } from "../slideBounds";
 import { resolveGridAnchor, resolveGridSlot } from "@/shared/utils/grid-occupancy";
+import { resolveEditorDocumentAddress } from "../helpers/gridHelpers";
 
 const toCharIndexByColumn = (text: string, columnOffset: number) => {
   if (columnOffset <= 0) return 0;
@@ -417,7 +418,7 @@ export const createTextSlice = (
     if (writes.length === 0 && flow === staticGridInputFlow) return;
 
     if (writes.length > 0) {
-      documents.mutateGrid((gridWriter) => {
+      documents.mutateGridAt(resolveEditorDocumentAddress(documents, get()), (gridWriter) => {
         writes.forEach(({ point, char }) => {
           placeCharInYMap(gridWriter, point.x, point.y, char, brushColor, options);
         });
@@ -471,7 +472,7 @@ export const createTextSlice = (
       cells.map((cell) => [GridManager.toKey(cell.x, cell.y), cell])
     );
     const writes: WrittenCell[] = [];
-    documents.mutateGrid((gridWriter) => {
+    documents.mutateGridAt(resolveEditorDocumentAddress(documents, get()), (gridWriter) => {
       cells.forEach((cell) => {
         if (isWideFollowerRichCell(cell, cellsBySourcePoint)) return;
         const nextPoint = {
@@ -522,7 +523,7 @@ export const createTextSlice = (
       textCursor ??
       staticGridView.activeCell;
     let writtenBounds: WrittenBounds | null = null;
-    documents.mutateGrid((gridWriter) => {
+    documents.mutateGridAt(resolveEditorDocumentAddress(documents, get()), (gridWriter) => {
       for (const row of rows) {
         for (const span of row.spans) {
           let x = basePos.x + span.x;
@@ -709,7 +710,7 @@ export const createTextSlice = (
     const backspaceOrigin = flow.exhausted ? flow.activeCell : flow.nextCell;
     const deletePos =
       flow.previousCell ?? resolveBackspaceAnchor(grid, backspaceOrigin.x, backspaceOrigin.y);
-    documents.mutateGrid((gridWriter) => {
+    documents.mutateGridAt(resolveEditorDocumentAddress(documents, get()), (gridWriter) => {
       deleteCellAt(gridWriter, deletePos.x, deletePos.y);
     });
     const nextFlow = {

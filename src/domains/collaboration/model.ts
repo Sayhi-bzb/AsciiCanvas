@@ -1,8 +1,8 @@
-export const COLLABORATION_DOCUMENT_VERSION = 3 as const;
+export const COLLABORATION_DOCUMENT_VERSION = 4 as const;
 
 export type CollaborationCanvasMode = "freeform" | "structured";
 
-type CollaborationDescriptorForVersion<Version extends 2 | 3> =
+type CollaborationDescriptorForVersion<Version extends 4> =
   | {
       version: Version;
       documentVersion: typeof COLLABORATION_DOCUMENT_VERSION;
@@ -21,13 +21,9 @@ type CollaborationDescriptorForVersion<Version extends 2 | 3> =
       endpoint: string;
     };
 
-export type CollaborationDescriptorV2 = CollaborationDescriptorForVersion<2>;
+export type CollaborationDescriptorV4 = CollaborationDescriptorForVersion<4>;
 
-export type CollaborationDescriptorV3 = CollaborationDescriptorForVersion<3>;
-
-export type CollaborationDescriptor =
-  | CollaborationDescriptorV2
-  | CollaborationDescriptorV3;
+export type CollaborationDescriptor = CollaborationDescriptorV4;
 
 export type CollaborationLinkParseResult =
   | { status: "none" }
@@ -62,6 +58,7 @@ export type CollaborationIntegrityIssue = {
     | "structured-components"
     | "presence";
   key: string;
+  pageId?: string;
   reason: string;
 };
 

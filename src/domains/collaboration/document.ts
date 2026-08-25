@@ -20,14 +20,12 @@ export const getCollaborationPersistenceName = async (
     "SHA-256",
     new TextEncoder().encode(identity)
   );
-  const namespace = descriptor.version === 2
-    ? "ascii-canvas-room-v2"
-    : "chardesk-room-v3";
+  const namespace = "chardesk-room-v4";
   return `${namespace}:${toBase64Url(new Uint8Array(digest))}`;
 };
 
 export const getCollaborationRoomName = (descriptor: CollaborationDescriptor) => {
-  const namespace = descriptor.version === 2 ? "asciicanvas-v2" : "chardesk-v3";
+  const namespace = "chardesk-v4";
   return descriptor.provider === "p2p"
     ? `${namespace}-${descriptor.roomId}`
     : `${namespace}-${descriptor.roomId}-${descriptor.key}`;
@@ -48,7 +46,13 @@ export const ensureCollaborationDocumentMeta = (
   doc: Y.Doc
 ) => {
   const meta = doc.getMap<unknown>("document-meta");
-  if (meta.size === 0) {
+  const roomId = meta.get("roomId");
+  const documentVersion = meta.get("documentVersion");
+  if (roomId === undefined && documentVersion === undefined) {
+    const mode = meta.get("mode");
+    if (mode !== undefined && mode !== descriptor.mode) {
+      throw new Error("Incompatible collaboration document");
+    }
     doc.transact(() => {
       meta.set("documentVersion", descriptor.documentVersion);
       meta.set("mode", descriptor.mode);
@@ -59,7 +63,7 @@ export const ensureCollaborationDocumentMeta = (
   if (meta.get("mode") !== descriptor.mode || meta.get("roomId") !== descriptor.roomId) {
     throw new Error("Incompatible collaboration document");
   }
-  const version = meta.get("documentVersion");
+  const version = documentVersion;
   if (version === descriptor.documentVersion) return;
   if (typeof version !== "number" || version > descriptor.documentVersion) {
     throw new Error("Incompatible collaboration document");

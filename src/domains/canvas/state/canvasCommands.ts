@@ -1,6 +1,7 @@
 import type { CanvasDocumentRegistry } from "./CanvasDocumentRegistry";
 import type { CanvasStore } from "./editorStore";
 import type { EditorState } from "./interfaces";
+import { resolveEditorDocumentAddress } from "./helpers/gridHelpers";
 
 const createCall = (store: CanvasStore) => <Key extends keyof EditorState>(
   key: Key,
@@ -23,15 +24,29 @@ export const createCanvasCommands = (
   documents: CanvasDocumentRegistry
 ) => {
 const call = createCall(store);
+const resolveAddress = () =>
+  resolveEditorDocumentAddress(documents, store.getState());
 return {
   history: {
-    undo: documents.undo,
-    redo: documents.redo,
-    beginCheckpoint: documents.beginHistoryCheckpoint,
-    finishCapture: documents.finishHistoryCapture,
+    undo: () => {
+      resolveAddress();
+      return documents.undo();
+    },
+    redo: () => {
+      resolveAddress();
+      return documents.redo();
+    },
+    beginCheckpoint: () => {
+      resolveAddress();
+      return documents.beginHistoryCheckpoint();
+    },
+    finishCapture: () => {
+      resolveAddress();
+      return documents.finishHistoryCapture();
+    },
     transact: <Result>(fn: () => Result, history: "save" | "merge" | "none" | "reset" = "save") => {
       let result!: Result;
-      documents.runTransaction(() => {
+      documents.runTransactionAt(resolveAddress(), () => {
         result = fn();
       }, history);
       return result;
@@ -89,7 +104,8 @@ return {
     ) => call("setSelectedStructuredSplitHandle", ...args),
   },
   grid: {
-    replace: documents.replaceFreeformGrid,
+    replace: (entries: Parameters<CanvasDocumentRegistry["replaceCellPage"]>[1]) =>
+      documents.replaceCellPage(resolveAddress(), entries),
     setScratchLayer: (...args: Parameters<EditorState["setScratchLayer"]>) =>
       call("setScratchLayer", ...args),
     addScratchPoints: (...args: Parameters<EditorState["addScratchPoints"]>) =>

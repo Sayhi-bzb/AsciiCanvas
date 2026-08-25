@@ -40,15 +40,17 @@ import {
 import {
   getSessionCanvasDocumentId,
   resolveSessionRuntime,
-  stripStaticSessionContent,
+  stripSessionContent,
 } from "./helpers/storeUtils";
 import { isToolAllowedForMode } from "../model/tool";
 import { createDeferredSnapshotPersistStorage } from "./persistenceCoordinator";
 import { createStructuredGridFocusPatch } from "./transitions/editorTransitions";
+import { resolveEditorDocumentAddress } from "./helpers/gridHelpers";
 import type { CollaborationIntegrityIssue } from "@/domains/collaboration/public";
 import type { SelectionCommandFactory } from "./selectionCommandPort";
 import type { CanvasSessionSourceParser } from "./sessionImportPort";
 import type { CanvasSession } from "@/domains/sessions/public";
+import { createSurfaceGridProjection } from "../cell-plane/model";
 
 export type CanvasStore = UseBoundStore<StoreApi<EditorState>>;
 
@@ -65,6 +67,39 @@ type CanvasStoreDependencies = {
   reportIntegrityIssues: (issues: CollaborationIntegrityIssue[]) => void;
   persistence: CanvasStorePersistence;
   initialSessions?: readonly CanvasSession[];
+};
+
+const seedSessionDocuments = (
+  documents: CanvasDocumentRegistry,
+  session: CanvasSession,
+  runtime: ReturnType<typeof resolveSessionRuntime>
+) => {
+  if (session.mode === "slide" && runtime.nextSlideDeck) {
+    documents.activateDocument(session.id, {
+      mode: "slide",
+      activePageId: runtime.nextSlideDeck.activeSlideId,
+      pages: runtime.nextSlideDeck.slides.map((slide) => ({
+        id: slide.id,
+        name: slide.name,
+        size: slide.size,
+        kind: "cell-plane",
+        grid: slide.grid,
+      })),
+      grid: [],
+      scene: [],
+      components: [],
+    });
+    return;
+  }
+  documents.activateDocument(
+    getSessionCanvasDocumentId(session),
+    {
+      grid: runtime.nextMode === "structured" ? [] : runtime.nextGridEntries,
+      scene: runtime.nextMode === "structured" ? runtime.nextScene : [],
+      components: runtime.nextComponents,
+      mode: runtime.nextMode,
+    }
+  );
 };
 
 export const createEditorStore = ({
@@ -88,47 +123,23 @@ export const createEditorStore = ({
   const initialRuntime = resolveSessionRuntime(initialSession, "select");
   const disposers: Array<() => void> = [];
   const stateCreator: StateCreator<EditorState> = (set, get, ...a) => {
-      documents.activateDocument(
-        getSessionCanvasDocumentId(initialSession, initialRuntime.nextSlideDeck),
-        {
-          grid:
-            initialRuntime.nextMode === "structured"
-              ? []
-              : initialRuntime.nextGridEntries,
-          scene:
-            initialRuntime.nextMode === "structured"
-              ? initialRuntime.nextScene
-              : [],
-          components: initialRuntime.nextComponents,
-        }
-      );
+      seedSessionDocuments(documents, initialSession, initialRuntime);
       initialSessions.slice(1).forEach((session) => {
         const runtime = resolveSessionRuntime(session, "select");
-        documents.activateDocument(
-          getSessionCanvasDocumentId(session, runtime.nextSlideDeck),
-          {
-            grid:
-              runtime.nextMode === "structured" ? [] : runtime.nextGridEntries,
-            scene:
-              runtime.nextMode === "structured" ? runtime.nextScene : [],
-            components: runtime.nextComponents,
-          }
-        );
+        seedSessionDocuments(documents, session, runtime);
       });
-      documents.activateDocument(
-        getSessionCanvasDocumentId(initialSession, initialRuntime.nextSlideDeck),
-        {
-          grid:
-            initialRuntime.nextMode === "structured"
-              ? []
-              : initialRuntime.nextGridEntries,
-          scene:
-            initialRuntime.nextMode === "structured"
-              ? initialRuntime.nextScene
-              : [],
-          components: initialRuntime.nextComponents,
-        }
+      const initialAddress = documents.getDocumentAddress(
+        initialSession.id,
+        initialSession.mode === "slide"
+          ? initialRuntime.nextSlideDeck?.activeSlideId
+          : undefined
       );
+      if (!initialAddress || !documents.activatePage(
+        initialAddress.documentId,
+        initialAddress.pageId
+      )) {
+        throw new Error(`Failed to activate initial Canvas session: ${initialSession.id}`);
+      }
 
       disposers.push(subscribeCanvasDocumentProjection(
         documents,
@@ -144,7 +155,10 @@ export const createEditorStore = ({
       return {
         offset: initialRuntime.nextOffset,
         zoom: initialRuntime.nextZoom,
-        grid: createMapFromEntries(initialRuntime.nextGridEntries),
+        grid:
+          initialRuntime.nextMode === "structured"
+            ? createMapFromEntries(initialRuntime.nextGridEntries)
+            : createSurfaceGridProjection(() => documents.getContentReader()),
         canvasMode: initialRuntime.nextMode,
         structuredScene: initialRuntime.nextScene,
         structuredComponents: initialRuntime.nextComponents,
@@ -153,7 +167,7 @@ export const createEditorStore = ({
         selectedStructuredSplitHandle: null,
         structuredContextPoint: null,
         structuredGridFocus: null,
-        canvasSessions: initialSessions.map(stripStaticSessionContent),
+        canvasSessions: initialSessions.map(stripSessionContent),
         activeCanvasId: initialSession.id,
         activeCanvasHasSavedViewport: initialRuntime.hasSavedViewport,
         ...documents.getHistoryAvailability(),
@@ -203,7 +217,8 @@ export const createEditorStore = ({
             componentSource,
             normalizedScene
           );
-          documents.replaceStructuredContent(
+          documents.replaceStructuredContentAt(
+            resolveEditorDocumentAddress(documents, get()),
             normalizedScene,
             normalizedComponents,
             history

@@ -14,11 +14,10 @@ import {
   type CanvasCatalogSnapshot,
   type CanvasSession,
 } from "@/domains/sessions/public";
-import type { SlideDeck } from "@/domains/slides/public";
 import type { GridCell } from "@/shared/types";
 import {
   CellPlaneIndex,
-  gridEntriesToCellPlaneOperation,
+  isCellPlaneOperation,
   type CellPlaneOperation,
 } from "../cell-plane/model";
 import type { CanvasStore } from "./editorStore";
@@ -28,9 +27,18 @@ import {
 } from "./CanvasDocumentRegistry";
 import { recoverPersistedEditorState } from "./editorPersistence";
 import { getSessionCanvasDocumentId } from "./helpers/storeUtils";
+import { rebuildGridFromContent } from "./helpers/gridHelpers";
+import {
+  createCanvasYPage,
+  getCanvasDocumentRoot,
+  getDefaultCanvasPageId,
+  readCanvasPageOrder,
+  readCanvasYPage,
+  writeCanvasDocumentMetadata,
+  type CanvasPageDraft,
+} from "./canvasDocumentModel";
 
 const LOCAL_DOCUMENT_PREFIX = "chardesk-local-document-v1:";
-const CANVAS_DOCUMENT_SCHEMA_VERSION = 2;
 const SAVE_DELAY = 500;
 const WRITER_LOCK_NAME = "chardesk-canvas-workspace-writer-v1";
 const WRITER_LEASE_KEY = "chardesk-canvas-writer-lease-v1";
@@ -135,93 +143,126 @@ const emptySeed = (): CanvasDocumentSeed => ({
   components: [],
 });
 
-const isDocumentEmpty = (doc: Y.Doc) =>
-  doc.getArray("cell-plane-operations").length === 0 &&
-  doc.getMap("structured-scene").size === 0 &&
-  doc.getMap("structured-components").size === 0;
+const isDocumentEmpty = (doc: Y.Doc) => {
+  const root = getCanvasDocumentRoot(doc);
+  const operations = doc.share.get("cell-plane-operations");
+  const scene = doc.share.get("structured-scene");
+  const components = doc.share.get("structured-components");
+  return root.pages.size === 0 &&
+    (!(operations instanceof Y.Array) || operations.length === 0) &&
+    (!(scene instanceof Y.Map) || scene.size === 0) &&
+    (!(components instanceof Y.Map) || components.size === 0);
+};
+
+const resolveSeedPages = (
+  id: string,
+  seed: CanvasDocumentSeed
+): CanvasPageDraft[] => {
+  if (seed.pages?.length) return seed.pages;
+  const kind = seed.mode === "structured" ? "structured" : "cell-plane";
+  return [{
+    id: seed.activePageId ?? getDefaultCanvasPageId(id),
+    kind,
+    ...(kind === "structured"
+      ? { scene: seed.scene, components: seed.components ?? [] }
+      : { grid: seed.grid }),
+  }];
+};
 
 const applySeed = (doc: Y.Doc, id: string, seed: CanvasDocumentSeed) => {
   doc.transact(() => {
-    const operation = gridEntriesToCellPlaneOperation(
-      `bootstrap:${id}`,
-      seed.grid
+    const root = getCanvasDocumentRoot(doc);
+    const pages = resolveSeedPages(id, seed);
+    pages.forEach((page) =>
+      createCanvasYPage(root, page, `bootstrap:${id}:${page.id}`)
     );
-    if (operation) {
-      doc.getArray("cell-plane-operations").push([operation]);
-    }
-    const scene = doc.getMap<(typeof seed.scene)[number]>("structured-scene");
-    seed.scene.forEach((node) => scene.set(node.id, node));
-    const components = doc.getMap<NonNullable<typeof seed.components>[number]>(
-      "structured-components"
+    const activePageId =
+      seed.activePageId && pages.some((page) => page.id === seed.activePageId)
+        ? seed.activePageId
+        : pages[0]!.id;
+    writeCanvasDocumentMetadata(
+      root,
+      id,
+      seed.mode ?? (pages[0]!.kind === "structured" ? "structured" : "freeform"),
+      activePageId
     );
-    seed.components?.forEach((component) =>
-      components.set(component.id, component)
-    );
-    const meta = doc.getMap<unknown>("document-meta");
-    meta.set("schemaVersion", CANVAS_DOCUMENT_SCHEMA_VERSION);
-    meta.set("documentId", id);
   }, "local-persistence-bootstrap");
 };
 
 const seedFromSession = (session: CanvasSession): CanvasDocumentSeed =>
   session.mode === "structured"
-    ? {
+      ? {
+        mode: "structured",
         grid: [],
         scene: session.scene,
         components: session.components ?? [],
       }
     : session.mode === "freeform"
-      ? { grid: session.grid, scene: [], components: [] }
+      ? { mode: "freeform", grid: session.grid, scene: [], components: [] }
       : emptySeed();
 
-const readDocumentSeed = (
-  doc: Y.Doc,
-  mode: "freeform" | "structured"
-): CanvasDocumentSeed => ({
-  grid:
-    mode === "freeform"
-      ? Array.from(
-          new CellPlaneIndex(
-            doc.getArray<CellPlaneOperation>("cell-plane-operations").toArray()
-          ).materialize()
-        )
-      : [],
-  scene:
-    mode === "structured"
-      ? Array.from(
-          doc
-            .getMap<CanvasDocumentSeed["scene"][number]>("structured-scene")
-            .values()
-        )
-      : [],
-  components:
-    mode === "structured"
-      ? Array.from(
-          doc
-            .getMap<NonNullable<CanvasDocumentSeed["components"]>[number]>(
-              "structured-components"
-            )
-            .values()
-        )
-      : [],
-});
+const readCellPlaneGrid = (doc: Y.Doc): [string, GridCell][] => {
+  const root = getCanvasDocumentRoot(doc);
+  const activePageId = root.meta.get("activePageId");
+  const pageId =
+    typeof activePageId === "string"
+      ? activePageId
+      : readCanvasPageOrder(root)[0];
+  const page = pageId ? readCanvasYPage(root, pageId) : null;
+  const operations = page?.operations ??
+    doc.getArray<CellPlaneOperation>("cell-plane-operations");
+  return Array.from(new CellPlaneIndex(operations.toArray()).materialize());
+};
 
 const migrateLegacyDocument = (doc: Y.Doc, id: string) => {
-  const legacyGrid = doc.getMap<GridCell>("main-grid");
-  const operations = doc.getArray<CellPlaneOperation>("cell-plane-operations");
-  if (legacyGrid.size === 0) return;
+  const root = getCanvasDocumentRoot(doc);
+  if (root.pages.size > 0) return;
+  const legacyGrid = doc.share.get("main-grid");
+  const operations = doc.share.get("cell-plane-operations");
+  const legacyScene = doc.share.get("structured-scene");
+  const legacyComponents = doc.share.get("structured-components");
+  if (
+    (!(legacyGrid instanceof Y.Map) || legacyGrid.size === 0) &&
+    (!(operations instanceof Y.Array) || operations.length === 0) &&
+    (!(legacyScene instanceof Y.Map) || legacyScene.size === 0) &&
+    (!(legacyComponents instanceof Y.Map) || legacyComponents.size === 0)
+  ) return;
   doc.transact(() => {
-    if (operations.length === 0) {
-      const bootstrap = gridEntriesToCellPlaneOperation(
-        `legacy-bootstrap:${id}`,
-        Array.from(legacyGrid.entries())
-      );
-      if (bootstrap) operations.push([bootstrap]);
-    }
-    legacyGrid.clear();
-    const meta = doc.getMap<unknown>("document-meta");
-    meta.set("schemaVersion", CANVAS_DOCUMENT_SCHEMA_VERSION);
-    meta.set("documentId", id);
+    const pageId = getDefaultCanvasPageId(id);
+    const structured =
+      (legacyScene instanceof Y.Map && legacyScene.size > 0) ||
+      (legacyComponents instanceof Y.Map && legacyComponents.size > 0);
+    const grid = legacyGrid instanceof Y.Map && legacyGrid.size > 0
+      ? Array.from(legacyGrid.entries()) as [string, GridCell][]
+      : Array.from(new CellPlaneIndex(
+          operations instanceof Y.Array
+            ? operations.toArray().filter(isCellPlaneOperation)
+            : []
+        ).materialize());
+    createCanvasYPage(root, {
+      id: pageId,
+      kind: structured ? "structured" : "cell-plane",
+      ...(structured
+        ? {
+            scene: legacyScene instanceof Y.Map
+              ? Array.from(legacyScene.values()) as CanvasDocumentSeed["scene"]
+              : [],
+            components: legacyComponents instanceof Y.Map
+              ? Array.from(legacyComponents.values()) as NonNullable<CanvasDocumentSeed["components"]>
+              : [],
+          }
+        : { grid }),
+    }, `legacy-bootstrap:${id}`);
+    if (legacyGrid instanceof Y.Map) legacyGrid.clear();
+    if (operations instanceof Y.Array) operations.delete(0, operations.length);
+    if (legacyScene instanceof Y.Map) legacyScene.clear();
+    if (legacyComponents instanceof Y.Map) legacyComponents.clear();
+    writeCanvasDocumentMetadata(
+      root,
+      id,
+      structured ? "structured" : "freeform",
+      pageId
+    );
   }, "local-persistence-migration");
 };
 
@@ -406,9 +447,12 @@ export class BrowserCanvasPersistence {
         ...(preferences ?? {}),
       });
       documents.activateDocument(
-        getSessionCanvasDocumentId(activeSession, hydrated.slideDeck),
+        getSessionCanvasDocumentId(activeSession),
         emptySeed()
       );
+      if (hydrated.canvasMode !== "structured") {
+        hydrated.grid = rebuildGridFromContent(documents);
+      }
       store.setState(hydrated, true);
       if (this.#writerLease.writer) {
         documents.configureDocumentLifecycle({
@@ -482,24 +526,36 @@ export class BrowserCanvasPersistence {
     const restored: CanvasSession[] = [];
     for (const session of sessions) {
       if (session.mode === "slide") {
-        const slides = [] as SlideDeck["slides"];
-        for (const slide of session.slideDeck.slides) {
-          const id = `${session.id}:slide:${slide.id}`;
-          const doc = await this.#openDocument(
-            id,
-            { grid: slide.grid, scene: [], components: [] },
-            resetDocuments
-          );
-          documents.adoptDocument(id, doc);
-          slides.push({
-            ...slide,
-            grid: readDocumentSeed(doc, "freeform").grid,
-          });
-        }
-        restored.push({
-          ...session,
-          slideDeck: { ...session.slideDeck, slides },
-        });
+        const initialDraft = resetDocuments
+          ? documents.getDocumentDraft(session.id)
+          : null;
+        const pages = initialDraft?.mode === "slide"
+          ? initialDraft.pages
+          : await Promise.all(
+              session.slideDeck.slides.map(async (slide) => ({
+                id: slide.id,
+                name: slide.name,
+                size: slide.size,
+                kind: "cell-plane" as const,
+                grid: slide.grid.length > 0 || resetDocuments
+                  ? slide.grid
+                  : await this.#readLegacySlideGrid(session.id, slide.id),
+              }))
+            );
+        const doc = await this.#openDocument(
+          session.id,
+          {
+            mode: "slide",
+            activePageId: session.slideDeck.activeSlideId,
+            pages,
+            grid: [],
+            scene: [],
+            components: [],
+          },
+          resetDocuments
+        );
+        documents.adoptDocument(session.id, doc);
+        restored.push(session);
         continue;
       }
       if (session.collaboration) {
@@ -508,21 +564,36 @@ export class BrowserCanvasPersistence {
         restored.push({ ...session, grid: [], scene: [], components: [] });
         continue;
       }
+      const existingSeed = documents.getDocumentSeed(session.id, session.mode);
       const doc = await this.#openDocument(
         session.id,
-        seedFromSession(session),
+        existingSeed ?? seedFromSession(session),
         resetDocuments
       );
       documents.adoptDocument(session.id, doc);
-      const seed = readDocumentSeed(doc, session.mode);
+      const seed = documents.getDocumentSeed(session.id, session.mode);
       restored.push({
         ...session,
-        grid: seed.grid,
-        scene: seed.scene,
-        components: seed.components,
+        grid: seed?.grid ?? [],
+        scene: seed?.scene ?? [],
+        components: seed?.components ?? [],
       });
     }
     return restored;
+  }
+
+  async #readLegacySlideGrid(sessionId: string, slideId: string) {
+    const id = `${sessionId}:slide:${slideId}`;
+    const doc = new Y.Doc({ guid: id });
+    const provider = new IndexeddbPersistence(getDocumentDatabaseName(id), doc);
+    try {
+      await provider.whenSynced;
+      migrateLegacyDocument(doc, id);
+      return readCellPlaneGrid(doc);
+    } finally {
+      await provider.destroy();
+      doc.destroy();
+    }
   }
 
   async #openDocument(

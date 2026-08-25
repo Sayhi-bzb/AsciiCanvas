@@ -4,9 +4,13 @@ import ts from "typescript";
 
 const SRC_ROOT = path.resolve("src");
 const RAW_CANVAS_BINDINGS = new Set([
-  "yMainGrid",
   "yStructuredScene",
   "yStructuredComponents",
+]);
+const IMPLICIT_DOCUMENT_MUTATIONS = new Set([
+  "mutateGrid",
+  "replaceStructuredContent",
+  "runTransaction",
 ]);
 const FORBIDDEN_PUBLIC_CANVAS_EXPORTS = new Set([
   "applyFreeformSnapshotToYMaps",
@@ -27,6 +31,7 @@ const CONTENT_STATE_WRITE_OWNERS = new Set([
   "domains/canvas/state/editorStore.ts",
 ]);
 const EDITOR_STORE_IMPORT_OWNERS = new Set([
+  "domains/canvas/state/browserPersistence.ts",
   "domains/canvas/state/canvasCommands.ts",
   "domains/canvas/state/canvasState.ts",
   "domains/canvas/testing.ts",
@@ -73,6 +78,13 @@ for (const absolute of collect(SRC_ROOT)) {
     return false;
   }
   function inspect(node) {
+    if (
+      ts.isStringLiteral(node) &&
+      node.text === "main-grid" &&
+      sourcePath !== "domains/canvas/state/browserPersistence.ts"
+    ) {
+      report(node, "legacy main-grid channel outside the one-shot local migration");
+    }
     if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
       const moduleName = node.moduleSpecifier.text;
       if (
@@ -95,6 +107,17 @@ for (const absolute of collect(SRC_ROOT)) {
       RAW_CANVAS_BINDINGS.has(node.expression.expression.text)
     ) {
       report(node, `raw canvas map mutation via ${node.expression.expression.text}`);
+    }
+    if (
+      sourcePath !== "domains/canvas/state/CanvasDocumentRegistry.ts" &&
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      IMPLICIT_DOCUMENT_MUTATIONS.has(node.expression.name.text)
+    ) {
+      report(
+        node,
+        `implicit active-page mutation via ${node.expression.name.text}; pass a CanvasDocumentAddress`
+      );
     }
     if (
       sourcePath === "domains/canvas/public.ts" &&

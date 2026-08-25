@@ -216,6 +216,7 @@ describe("editorHandlers text formatting", () => {
   });
 
   afterEach(() => {
+    useEditorStore.setState({ canvasMode: "structured" });
     canvasCommands.structured.applyScene([], false);
     useEditorStore.setState({
       canvasMode: "freeform",

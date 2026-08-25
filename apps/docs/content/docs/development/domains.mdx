@@ -14,7 +14,7 @@ description: Capability owners, public contracts, and non-obvious boundaries.
 | Export registry, preparation and browser delivery | [`export`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/domains/export/public.ts) | Pure preparation returns a delivery-neutral result before platform side effects |
 | Static-grid addresses, ranges and movement | [`selection`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/domains/selection/public.ts) | Deterministic and independent of React, DOM events and browser coordinates |
 | Session identity, catalog schema and migrations | [`sessions`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/domains/sessions/public.ts) | Owns IndexedDB catalog records and legacy decoding; Canvas owns Yjs document persistence coordination and runtime recovery |
-| Deck, slide mutation, dimensions and Markdown | [`slides`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/domains/slides/public.ts) | Owns pure deck rules and Markdown; Canvas owns the active editing buffer, projection, and crop/history coordination |
+| Deck, slide mutation, dimensions and Markdown | [`slides`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/domains/slides/public.ts) | Owns pure deck rules and Markdown; Canvas owns Slide document pages, active projection, and crop/history coordination |
 | Structured nodes, geometry, layout and scene rendering | [`structured-content`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/domains/structured-content/public.ts) | Model operations stay UI-independent; canvas applies a scene as one semantic mutation |
 
 Use the selected `public.ts` and nearest tests. Dependency rules are owned by

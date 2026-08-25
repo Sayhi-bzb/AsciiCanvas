@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   canvasCommands,
+  defaultCanvasDocuments,
   replaceCanvasGrid,
   useEditorStore,
 } from "@/domains/canvas/testing";
@@ -467,9 +468,15 @@ describe("CanvasInspectorControl", () => {
     fireEvent.click(screen.getByRole("button", { name: "Pick ANSI color #ff0000" }));
     expect(useEditorStore.getState().brushColor).toBe("#ff0000");
     expect(useEditorStore.getState().grid.get("0,0")?.color).toBe("#ff0000");
-    expect(useEditorStore.getState().slideDeck?.slides[0].grid[0]?.[1].color).toBe(
-      "#ff0000"
-    );
+    expect(useEditorStore.getState().slideDeck?.slides[0].grid).toEqual([]);
+    expect(
+      defaultCanvasDocuments
+        .getContentReader(
+          useEditorStore.getState().activeCanvasId,
+          firstSlideId
+        )
+        ?.getCell({ x: 0, y: 0 })?.color
+    ).toBe("#ff0000");
 
     act(() => {
       useEditorStore.getState().addSlide();
@@ -480,12 +487,15 @@ describe("CanvasInspectorControl", () => {
     });
     const secondSlideId = useEditorStore.getState().slideDeck!.activeSlideId;
     fireEvent.click(screen.getByRole("button", { name: "Pick ANSI color #00ff00" }));
-    const deckAfterSecondPick = useEditorStore.getState().slideDeck!;
     expect(
-      deckAfterSecondPick.slides.find((slide) => slide.id === firstSlideId)?.grid[0]?.[1].color
+      defaultCanvasDocuments
+        .getContentReader(useEditorStore.getState().activeCanvasId, firstSlideId)
+        ?.getCell({ x: 0, y: 0 })?.color
     ).toBe("#ff0000");
     expect(
-      deckAfterSecondPick.slides.find((slide) => slide.id === secondSlideId)?.grid[0]?.[1].color
+      defaultCanvasDocuments
+        .getContentReader(useEditorStore.getState().activeCanvasId, secondSlideId)
+        ?.getCell({ x: 0, y: 0 })?.color
     ).toBe("#00ff00");
 
     act(() => useEditorStore.getState().setTool("bg"));

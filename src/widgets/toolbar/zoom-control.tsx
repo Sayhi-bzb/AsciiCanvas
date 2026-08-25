@@ -11,7 +11,11 @@ import {
   type ComponentProps,
 } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { useCanvasRuntime, useCanvasState } from '@/domains/canvas/public';
+import {
+  materializeSlideDeckContent,
+  useCanvasRuntime,
+  useCanvasState,
+} from '@/domains/canvas/public';
 import { HOST_ICONOLOGY } from '@/shared/icons/iconology';
 import { MAX_ZOOM, MIN_ZOOM } from '@/shared/lib/constants';
 import {
@@ -88,13 +92,33 @@ export function ZoomControl({
   const runtime = useCanvasEngineRuntime();
   const workspace = useCanvasWorkspaceOptional();
   const activeCanvasView = useCanvasViewOptional();
-  const { zoom, canvasMode, slideDeck, showGrid } = useCanvasState(
+  const { zoom, canvasMode, slideDeck, showGrid, activeCanvasId, grid } = useCanvasState(
     useShallow((state) => ({
       zoom: state.zoom,
       canvasMode: state.canvasMode,
       slideDeck: state.slideDeck,
       showGrid: state.showGrid,
+      activeCanvasId: state.activeCanvasId,
+      grid: state.grid,
     }))
+  );
+  const playbackDeck = useMemo(
+    () =>
+      slideDeck
+        ? materializeSlideDeckContent(
+            canvas.documents,
+            activeCanvasId,
+            {
+              ...slideDeck,
+              slides: slideDeck.slides.map((slide) =>
+                slide.id === slideDeck.activeSlideId
+                  ? { ...slide, grid: Array.from(grid.entries()) }
+                  : slide
+              ),
+            }
+          )
+        : null,
+    [activeCanvasId, canvas.documents, grid, slideDeck]
   );
   const setShowGrid = canvas.commands.preferences.setShowGrid;
   const [minimapOpen, setMinimapOpen] = useState(false);
@@ -324,10 +348,10 @@ export function ZoomControl({
       <Tooltip handle={tooltipHandle}>
         {({ payload }) => <TooltipPopup side="top">{payload}</TooltipPopup>}
       </Tooltip>
-      {playbackOpen && slideDeck && (
+      {playbackOpen && playbackDeck && (
         <SlidePlaybackOverlay
-          deck={slideDeck}
-          initialSlideId={slideDeck.activeSlideId}
+          deck={playbackDeck}
+          initialSlideId={playbackDeck.activeSlideId}
           warning={
             playbackFeedback?.status === 'warning'
               ? t('slide.playback.fullscreenUnavailable')

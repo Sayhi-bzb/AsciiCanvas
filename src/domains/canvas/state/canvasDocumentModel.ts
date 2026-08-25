@@ -1,0 +1,168 @@
+import * as Y from "yjs";
+import type { CanvasMode } from "@/domains/sessions/public";
+import type {
+  StructuredComponentInstance,
+  StructuredNode,
+} from "@/domains/structured-content/public";
+import type { GridCell } from "@/shared/types";
+import {
+  gridEntriesToCellPlaneOperation,
+  type CellPlaneOperation,
+} from "../cell-plane/model";
+
+export const CANVAS_DOCUMENT_SCHEMA_VERSION = 3;
+
+export type CanvasDocumentAddress = {
+  documentId: string;
+  pageId: string;
+};
+
+export type CanvasPageContentKind = "cell-plane" | "structured";
+
+export type CanvasPageDescriptor = {
+  id: string;
+  kind: CanvasPageContentKind;
+  name?: string;
+  size?: { columns: number; rows: number };
+};
+
+export type CanvasPageDraft = CanvasPageDescriptor & {
+  grid?: [string, GridCell][];
+  scene?: StructuredNode[];
+  components?: StructuredComponentInstance[];
+};
+
+export type CanvasDocumentDraft = {
+  id: string;
+  mode: CanvasMode;
+  activePageId: string;
+  pages: CanvasPageDraft[];
+};
+
+export type CanvasYPage = {
+  descriptor: CanvasPageDescriptor;
+  operations: Y.Array<CellPlaneOperation>;
+  scene: Y.Map<StructuredNode>;
+  components: Y.Map<StructuredComponentInstance>;
+};
+
+export type CanvasYDocumentRoot = {
+  doc: Y.Doc;
+  meta: Y.Map<unknown>;
+  pageOrder: Y.Array<string>;
+  pages: Y.Map<CanvasPageDescriptor>;
+};
+
+const PAGE_OPERATIONS = "cell-plane-operations";
+const PAGE_SCENE = "structured-scene";
+const PAGE_COMPONENTS = "structured-components";
+
+export const getDefaultCanvasPageId = (documentId: string) =>
+  `${documentId}:page:main`;
+
+export const getCanvasDocumentRoot = (doc: Y.Doc): CanvasYDocumentRoot => ({
+  doc,
+  meta: doc.getMap("document-meta"),
+  pageOrder: doc.getArray("document-page-order"),
+  pages: doc.getMap("document-pages"),
+});
+
+const readPageDescriptor = (
+  fallbackId: string,
+  value: unknown
+): CanvasPageDescriptor | null => {
+  if (!value || typeof value !== "object") return null;
+  const candidate = value as Partial<CanvasPageDescriptor>;
+  const { id, kind } = candidate;
+  if (
+    typeof id !== "string" ||
+    id !== fallbackId ||
+    (kind !== "cell-plane" && kind !== "structured")
+  ) {
+    return null;
+  }
+  const descriptor: CanvasPageDescriptor = { id, kind };
+  const { name } = candidate;
+  if (typeof name === "string") descriptor.name = name;
+  const columns = candidate.size?.columns;
+  const rows = candidate.size?.rows;
+  if (
+    Number.isSafeInteger(columns) &&
+    Number.isSafeInteger(rows) &&
+    Number(columns) > 0 &&
+    Number(rows) > 0
+  ) {
+    descriptor.size = { columns: Number(columns), rows: Number(rows) };
+  }
+  return descriptor;
+};
+
+export const readCanvasYPage = (
+  root: CanvasYDocumentRoot,
+  pageId: string
+): CanvasYPage | null => {
+  const descriptor = readPageDescriptor(pageId, root.pages.get(pageId));
+  if (!descriptor) return null;
+  const prefix = `canvas-page:${encodeURIComponent(pageId)}:`;
+  return {
+    descriptor,
+    operations: root.doc.getArray<CellPlaneOperation>(prefix + PAGE_OPERATIONS),
+    scene: root.doc.getMap<StructuredNode>(prefix + PAGE_SCENE),
+    components: root.doc.getMap<StructuredComponentInstance>(prefix + PAGE_COMPONENTS),
+  };
+};
+
+export const createCanvasYPage = (
+  root: CanvasYDocumentRoot,
+  draft: CanvasPageDraft,
+  operationId: string
+): CanvasYPage => {
+  root.pages.set(draft.id, {
+    id: draft.id,
+    kind: draft.kind,
+    ...(draft.name ? { name: draft.name } : {}),
+    ...(draft.size ? { size: draft.size } : {}),
+  });
+  const page = readCanvasYPage(root, draft.id);
+  if (!page) throw new Error(`Failed to create Canvas page: ${draft.id}`);
+  const { operations, scene, components } = page;
+  if (draft.kind === "cell-plane") {
+    const bootstrap = gridEntriesToCellPlaneOperation(
+      operationId,
+      draft.grid ?? []
+    );
+    if (bootstrap) operations.push([bootstrap]);
+  } else {
+    draft.scene?.forEach((node) => scene.set(node.id, node));
+    draft.components?.forEach((component) =>
+      components.set(component.id, component)
+    );
+  }
+  if (!root.pageOrder.toArray().includes(draft.id)) {
+    root.pageOrder.push([draft.id]);
+  }
+  return page;
+};
+
+export const readCanvasPageOrder = (root: CanvasYDocumentRoot) => {
+  const existing = new Set(root.pages.keys());
+  const ordered = root.pageOrder
+    .toArray()
+    .filter((id, index, values) => existing.has(id) && values.indexOf(id) === index);
+  for (const id of existing) {
+    if (!ordered.includes(id)) ordered.push(id);
+  }
+  return ordered;
+};
+
+export const writeCanvasDocumentMetadata = (
+  root: CanvasYDocumentRoot,
+  documentId: string,
+  mode: CanvasMode,
+  activePageId: string
+) => {
+  root.meta.set("schemaVersion", CANVAS_DOCUMENT_SCHEMA_VERSION);
+  root.meta.set("documentId", documentId);
+  root.meta.set("mode", mode);
+  root.meta.set("activePageId", activePageId);
+};

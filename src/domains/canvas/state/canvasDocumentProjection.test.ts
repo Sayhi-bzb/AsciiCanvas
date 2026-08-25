@@ -51,12 +51,18 @@ describe("remote canvas document projection", () => {
     defaultCanvasDocuments.activateDocument(sessionId, { grid: [], scene: [], components: [] });
     const local = defaultCanvasDocuments.getCollaborationDocument(sessionId)!;
     const remote = new Y.Doc();
+    Y.applyUpdate(remote, Y.encodeStateAsUpdate(local));
+    const pageId = remote.getArray<string>("document-page-order").get(0)!;
     const remoteSeed = gridEntriesToCellPlaneOperation("remote-seed", [
       ["0,0", cell("R")],
       ["1,0", cell("S")],
     ]);
     if (remoteSeed) {
-      remote.getArray<CellPlaneOperation>("cell-plane-operations").push([remoteSeed]);
+      remote
+        .getArray<CellPlaneOperation>(
+          `canvas-page:${encodeURIComponent(pageId)}:cell-plane-operations`
+        )
+        .push([remoteSeed]);
     }
 
     Y.applyUpdate(local, Y.encodeStateAsUpdate(remote));
@@ -123,10 +129,19 @@ describe("remote canvas document projection", () => {
         },
       ],
     });
-    defaultCanvasDocuments.activateDocument(sessionId, { grid: [], scene: [], components: [] });
+    defaultCanvasDocuments.activateDocument(sessionId, {
+      mode: "structured",
+      grid: [],
+      scene: [],
+      components: [],
+    });
     const local = defaultCanvasDocuments.getCollaborationDocument(sessionId)!;
     const remote = new Y.Doc();
-    remote.getMap("structured-scene").set("remote-text", textNode("remote-text", "Remote"));
+    Y.applyUpdate(remote, Y.encodeStateAsUpdate(local));
+    const pageId = remote.getArray<string>("document-page-order").get(0)!;
+    remote
+      .getMap(`canvas-page:${encodeURIComponent(pageId)}:structured-scene`)
+      .set("remote-text", textNode("remote-text", "Remote"));
     let projectionCount = 0;
     const unsubscribe = useEditorStore.subscribe((state, previous) => {
       if (state.structuredScene !== previous.structuredScene) projectionCount += 1;

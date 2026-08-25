@@ -4,7 +4,6 @@ import type { SelectionCommandFactory } from "./state/selectionCommandPort";
 import { CanvasDocumentRegistry } from "./state/CanvasDocumentRegistry";
 import { createEditorStore, type CanvasStore } from "./state/editorStore";
 import { createCanvasCommands, createCanvasQueries } from "./state/canvasCommands";
-import { applyFreeformSnapshotToYMaps as applySnapshot } from "./state/helpers/gridHelpers";
 
 export let defaultCanvasDocuments: CanvasDocumentRegistry;
 export let useEditorStore: CanvasStore;
@@ -70,10 +69,10 @@ export const initializeCanvasTesting = ({
 
 export const getCanvasState = () => useEditorStore.getState();
 export const applyFreeformSnapshotToYMaps = (
-  entries: Parameters<typeof applySnapshot>[1]
-) => applySnapshot(defaultCanvasDocuments, entries);
-export const undoCanvas = () => defaultCanvasDocuments.undo();
-export const redoCanvas = () => defaultCanvasDocuments.redo();
+  entries: Parameters<CanvasDocumentRegistry["replaceCellPage"]>[1]
+) => canvasCommands.grid.replace(entries);
+export const undoCanvas = () => canvasCommands.history.undo();
+export const redoCanvas = () => canvasCommands.history.redo();
 export const replaceCanvasGrid = (
-  entries: Parameters<CanvasDocumentRegistry["replaceFreeformGrid"]>[0]
-) => defaultCanvasDocuments.replaceFreeformGrid(entries);
+  entries: Parameters<CanvasDocumentRegistry["replaceCellPage"]>[1]
+) => canvasCommands.grid.replace(entries);

@@ -21,10 +21,12 @@ import type {
   TextRenderProfile,
   TextRenderResult,
   TextRendererId,
+  RenderedTextSpan,
   TextRenderingStorage,
   TextTransformResult,
 } from "./types";
 import { DEFAULT_TEXT_RENDER_THEME } from "./theme";
+import { parseBlockLayout } from "@chardesk/chargraph/experimental/block-layout";
 
 export const TEXT_RENDER_PROFILE_STORAGE_KEY = "chardesk-text-render-profile-v2";
 const LEGACY_TEXT_RENDER_PROFILE_STORAGE_KEY = "chardesk-text-render-profile-v1";
@@ -178,13 +180,90 @@ export class TextRenderingRuntime {
     this.#listeners.forEach((listener) => listener());
   };
 
-  render = (source: string, defaultColor: string): Promise<TextRenderResult> =>
-    this.#render(source, defaultColor, false);
+  render = async (source: string, defaultColor: string): Promise<TextRenderResult> => {
+    const layout = await this.#renderBlockLayout(source, defaultColor);
+    if (!layout) return this.#render(source, defaultColor, false);
+    return {
+      kind: "styled",
+      renderer: "block-layout",
+      pipeline: ["block-layout"],
+      cells: materializeCharDeskTextRows(layout.rows).map((cell) => ({
+        x: cell.x,
+        y: cell.y,
+        char: cell.text,
+        color: cell.color ?? defaultColor,
+        ...(cell.bgColor ? { bgColor: cell.bgColor } : {}),
+        ...(cell.attrs ? { attrs: { ...cell.attrs } } : {}),
+        ...(cell.href ? { href: cell.href } : {}),
+      })),
+      diagnostics: layout.diagnostics,
+    };
+  };
 
   renderCompact = (
     source: string,
     defaultColor: string
-  ): Promise<CompactTextRenderResult> => this.#render(source, defaultColor, true);
+  ): Promise<CompactTextRenderResult> => this.#renderBlockLayout(source, defaultColor)
+    .then((layout) => layout ?? this.#render(source, defaultColor, true));
+
+  async #renderBlockLayout(source: string, defaultColor: string) {
+    // `---` is also a Markdown thematic break. In the automatic text pipeline,
+    // only the layout-specific field separator is strong enough evidence that
+    // the source is a block layout. Explicit CharGraph consumers can still
+    // parse vertical-only layouts directly.
+    if (!source.split(/\r?\n/u).some((line) => line.trim() === "|||")) {
+      return null;
+    }
+    const parsed = parseBlockLayout(source);
+    if (!parsed.document) return null;
+    const columnGap = 4;
+    const rowGap = 1;
+    const rows = new Map<number, RenderedTextSpan[]>();
+    const diagnostics: TextRenderResult["diagnostics"] = [...parsed.diagnostics];
+    let originY = 0;
+    let width = 0;
+    let height = 0;
+    for (const layoutRow of parsed.document.rows) {
+      let originX = 0;
+      let rowHeight = 1;
+      for (const block of layoutRow) {
+        const rendered = await this.#render(block.source, defaultColor, true);
+        if (rendered.kind !== "spans") continue;
+        rowHeight = Math.max(rowHeight, rendered.height);
+        width = Math.max(width, originX + rendered.width);
+        rendered.rows.forEach((row) => {
+          const targetY = originY + row.y;
+          const target = rows.get(targetY) ?? [];
+          target.push(...row.spans.map((span) => ({
+            ...span,
+            x: originX + span.x,
+          })));
+          rows.set(targetY, target);
+        });
+        diagnostics.push(...rendered.diagnostics.map((diagnostic) => ({
+          ...diagnostic,
+          ...(diagnostic.offset !== undefined
+            ? { offset: block.range.from + diagnostic.offset }
+            : {}),
+        })));
+        originX += rendered.width + columnGap;
+      }
+      height = Math.max(height, originY + rowHeight);
+      originY += rowHeight + rowGap;
+    }
+    return {
+      kind: "spans" as const,
+      renderer: "block-layout",
+      pipeline: ["block-layout"],
+      rows: Array.from(rows, ([y, spans]) => ({
+        y,
+        spans: spans.sort((left, right) => left.x - right.x),
+      })).sort((left, right) => left.y - right.y),
+      width,
+      height,
+      diagnostics,
+    } satisfies CompactTextRenderResult;
+  }
 
   #render(
     source: string,

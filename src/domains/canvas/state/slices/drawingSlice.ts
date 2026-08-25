@@ -32,6 +32,7 @@ import { createDocumentInteractionResetPatch } from "../transitions/editorTransi
 import { isStaticGridMode } from "@/domains/sessions/public";
 import { writeStyledCell } from "@/shared/utils/grid-ops";
 import { resolveGridSlot } from "@/shared/utils/grid-occupancy";
+import { resolveEditorDocumentAddress } from "../helpers/gridHelpers";
 
 type StructuredTextStyleUpdater = Parameters<
   typeof updateStructuredTextStyleRanges
@@ -188,7 +189,7 @@ export const createDrawingSlice = (
       return;
     }
     if (!scratchLayer || scratchLayer.size === 0) return;
-    documents.mutateGrid((grid) => {
+    documents.mutateGridAt(resolveEditorDocumentAddress(documents, get()), (grid) => {
       GridManager.iterate(scratchLayer, (cell, x, y) => {
         if (cell.bgColor && cell.char === " ") {
           const slot = resolveGridSlot(grid, { x, y });
@@ -223,7 +224,10 @@ export const createDrawingSlice = (
       set(createDocumentInteractionResetPatch());
       return;
     }
-    documents.mutateGrid((grid) => grid.clear());
+    documents.mutateGridAt(
+      resolveEditorDocumentAddress(documents, get()),
+      (grid) => grid.clear()
+    );
     set(createDocumentInteractionResetPatch());
   },
 
@@ -231,7 +235,7 @@ export const createDrawingSlice = (
     const { canvasMode } = get();
     if (canvasMode === "structured") return;
     if (points.length === 0) return;
-    documents.mutateGrid((grid) => {
+    documents.mutateGridAt(resolveEditorDocumentAddress(documents, get()), (grid) => {
       points.forEach((p) => {
         deleteCellAt(grid, p.x, p.y);
       });

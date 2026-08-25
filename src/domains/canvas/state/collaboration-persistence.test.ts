@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { useEditorStore } from "@/domains/canvas/testing";
 import { createPersistedEditorSnapshot } from "./editorPersistence";
-import type { CollaborationDescriptorV2 } from "@/domains/collaboration/public";
+import type { CollaborationDescriptorV4 } from "@/domains/collaboration/public";
 
 const initialState = useEditorStore.getState();
 
@@ -11,9 +11,9 @@ describe("collaborative session persistence", () => {
   });
 
   it("persists only the session shell, never a collaborative content snapshot", () => {
-    const descriptor: CollaborationDescriptorV2 = {
-      version: 2,
-      documentVersion: 3,
+    const descriptor: CollaborationDescriptorV4 = {
+      version: 4,
+      documentVersion: 4,
       mode: "freeform",
       provider: "p2p",
       roomId: "room-id-1234567890",

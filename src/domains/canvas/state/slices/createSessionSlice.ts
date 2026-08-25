@@ -10,9 +10,10 @@ import type {
 import {
   resolveSessionRuntime,
   getSessionCanvasDocumentId,
-  stripStaticSessionContent,
+  stripSessionContent,
+  stripSlideDeckContent,
 } from "../helpers/storeUtils";
-import { getSlideEditingBufferId } from "../slideEditingBuffer";
+import { activateSlidePage } from "../slideDocumentPages";
 import {
   normalizeSessionMode,
   createSessionId,
@@ -23,6 +24,7 @@ import type { CanvasSessionSourceParser } from "../sessionImportPort";
 import type { CanvasDocumentRegistry } from "../CanvasDocumentRegistry";
 import { sameCollaborationRoom } from "@/domains/collaboration/public";
 import { createSessionActivationPatch } from "../transitions/editorTransitions";
+import { rebuildGridFromContent } from "../helpers/gridHelpers";
 
 const getImportedSessionBaseName = (mode: CanvasImportSnapshot["mode"]) => {
   switch (mode) {
@@ -86,12 +88,6 @@ const destroySessionDocuments = (
   documents: CanvasDocumentRegistry,
   session: CanvasSession
 ) => {
-  if (session.mode === "slide") {
-    session.slideDeck.slides.forEach((slide) =>
-      documents.destroyDocument(getSlideEditingBufferId(session.id, slide.id))
-    );
-    return;
-  }
   documents.destroyDocument(session.id);
 };
 
@@ -120,8 +116,36 @@ const activateSessionRuntime = (
   currentTool: EditorState["tool"]
 ) => {
   const initialRuntime = resolveSessionRuntime(session, currentTool);
+  if (session.mode === "slide" && initialRuntime.nextSlideDeck) {
+    const activeSlide = initialRuntime.nextSlideDeck.slides.find(
+      (slide) => slide.id === initialRuntime.nextSlideDeck?.activeSlideId
+    );
+    documents.activateDocument(session.id, {
+      mode: "slide",
+      activePageId: initialRuntime.nextSlideDeck.activeSlideId,
+      pages: initialRuntime.nextSlideDeck.slides.map((slide) => ({
+        id: slide.id,
+        name: slide.name,
+        size: slide.size,
+        kind: "cell-plane",
+        grid: slide.grid,
+      })),
+      grid: [],
+      scene: [],
+      components: [],
+    });
+    if (activeSlide) documents.activatePage(session.id, activeSlide.id);
+    return {
+      ...initialRuntime,
+      nextSlideDeck: stripSlideDeckContent(initialRuntime.nextSlideDeck),
+      nextGridEntries: activeSlide
+        ? Array.from(documents.getContentReader().materialize())
+        : [],
+    };
+  }
+  if (session.mode === "slide") return initialRuntime;
   documents.activateDocument(
-    getSessionCanvasDocumentId(session, initialRuntime.nextSlideDeck),
+    getSessionCanvasDocumentId(session),
     {
       grid:
         initialRuntime.nextMode === "structured"
@@ -132,12 +156,9 @@ const activateSessionRuntime = (
           ? initialRuntime.nextScene
           : [],
       components: initialRuntime.nextComponents,
+      mode: initialRuntime.nextMode,
     }
   );
-
-  if (session.mode === "slide") {
-    return initialRuntime;
-  }
 
   const documentSeed = documents.getDocumentSeed(session.id, session.mode);
   return resolveSessionRuntime(
@@ -194,13 +215,16 @@ export const createSessionSlice = (
     const runtime = activateSessionRuntime(documents, newSession, state.tool);
     const nextSessions = [
       ...sessionsWithSnapshot,
-      stripStaticSessionContent(newSession),
+      stripSessionContent(newSession),
     ];
     set(
       createSessionActivationPatch(
         nextSessions,
         newSession.id,
-        runtime
+        runtime,
+        runtime.nextMode === "structured"
+          ? undefined
+          : rebuildGridFromContent(documents)
       )
     );
 
@@ -222,13 +246,16 @@ export const createSessionSlice = (
       importedSnapshot
     );
     const runtime = activateSessionRuntime(documents, newSession, state.tool);
-    const storedSession = stripStaticSessionContent(newSession);
+    const storedSession = stripSessionContent(newSession);
     const nextSessions = [...sessionsWithSnapshot, storedSession];
     set(
       createSessionActivationPatch(
         nextSessions,
         newSession.id,
-        runtime
+        runtime,
+        runtime.nextMode === "structured"
+          ? undefined
+          : rebuildGridFromContent(documents)
       )
     );
 
@@ -260,14 +287,54 @@ export const createSessionSlice = (
           ...(target.collaboration ? { collaboration: target.collaboration } : {}),
           ...(preservedViewport ? { viewport: preservedViewport } : {}),
         };
-    const storedReplacement = stripStaticSessionContent(replacement);
+    const storedReplacement = stripSessionContent(replacement);
     const nextSessions = state.canvasSessions.map((session) =>
       session.id === sessionId ? storedReplacement : session
     );
     const runtime = resolveSessionRuntime(replacement, state.tool);
 
+    if (replacement.mode === "slide" && runtime.nextSlideDeck) {
+      documents.activateDocument(replacement.id, {
+        mode: "slide",
+        activePageId: runtime.nextSlideDeck.activeSlideId,
+        pages: runtime.nextSlideDeck.slides.map((slide) => ({
+          id: slide.id,
+          name: slide.name,
+          size: slide.size,
+          kind: "cell-plane",
+          grid: slide.grid,
+        })),
+        grid: [],
+        scene: [],
+        components: [],
+      }, { replace: true });
+      if (sessionId !== state.activeCanvasId) {
+        set({ canvasSessions: nextSessions });
+        return;
+      }
+      const active = runtime.nextSlideDeck.slides.find(
+        (slide) => slide.id === runtime.nextSlideDeck?.activeSlideId
+      );
+      if (!active) return;
+      const activeGrid = activateSlidePage(
+        documents,
+        replacement.id,
+        active.id,
+        active.grid
+      );
+      if (options.resetHistory) documents.clearHistory();
+      set(createSessionActivationPatch(
+        nextSessions,
+        sessionId,
+        { ...runtime, nextSlideDeck: stripSlideDeckContent(runtime.nextSlideDeck) },
+        activeGrid
+      ));
+      return;
+    }
+
     if (sessionId !== state.activeCanvasId) {
       documents.resetDocument(replacement.id, {
+        mode: runtime.nextMode,
         grid: runtime.nextMode === "structured" ? [] : runtime.nextGridEntries,
         scene: runtime.nextMode === "structured" ? runtime.nextScene : [],
         components: runtime.nextComponents,
@@ -277,8 +344,9 @@ export const createSessionSlice = (
     }
 
     documents.activateDocument(
-      getSessionCanvasDocumentId(replacement, runtime.nextSlideDeck),
+      getSessionCanvasDocumentId(replacement),
       {
+        mode: runtime.nextMode,
         grid: runtime.nextMode === "structured" ? [] : runtime.nextGridEntries,
         scene: runtime.nextMode === "structured" ? runtime.nextScene : [],
         components: runtime.nextComponents,
@@ -286,7 +354,14 @@ export const createSessionSlice = (
       { replace: true }
     );
     if (options.resetHistory) documents.clearHistory();
-    set(createSessionActivationPatch(nextSessions, sessionId, runtime));
+    set(createSessionActivationPatch(
+      nextSessions,
+      sessionId,
+      runtime,
+      runtime.nextMode === "structured"
+        ? undefined
+        : rebuildGridFromContent(documents)
+    ));
   },
   switchCanvasSession: (canvasId) => {
     const state = get();
@@ -303,7 +378,10 @@ export const createSessionSlice = (
       createSessionActivationPatch(
         sessionsWithSnapshot,
         canvasId,
-        runtime
+        runtime,
+        runtime.nextMode === "structured"
+          ? undefined
+          : rebuildGridFromContent(documents)
       )
     );
 
@@ -337,7 +415,10 @@ export const createSessionSlice = (
       createSessionActivationPatch(
         remaining,
         nextSession.id,
-        runtime
+        runtime,
+        runtime.nextMode === "structured"
+          ? undefined
+          : rebuildGridFromContent(documents)
       )
     );
 

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { CellPlaneIndex, type CellPlaneOperation } from "./model";
+import {
+  CellPlaneIndex,
+  createGridSurfaceReader,
+  createSurfaceGridProjection,
+  type CellPlaneOperation,
+} from "./model";
 
 const operation = (
   id: string,
@@ -49,5 +54,53 @@ describe("CellPlaneIndex", () => {
     expect([...plane.query({ x: 127, y: 0, width: 2, height: 1 })]
       .flatMap((span) => span.cells)
       .map((cell) => cell.char)).toEqual(["A", "B"]);
+  });
+
+  it("derives final content bounds after an erase", () => {
+    const plane = new CellPlaneIndex([
+      operation("base", [{ y: 0, erase: [], spans: [{ x: 0, text: "A", color: "#fff" }] }], 101),
+      {
+        id: "far",
+        bounds: { x: 100, y: 0, width: 1, height: 1 },
+        rows: [{ y: 0, erase: [], spans: [{ x: 100, text: "B", color: "#fff" }] }],
+      },
+      {
+        id: "erase-far",
+        bounds: { x: 100, y: 0, width: 1, height: 1 },
+        rows: [{ y: 0, erase: [{ from: 100, to: 100 }], spans: [] }],
+      },
+    ]);
+
+    expect(plane.getContentBounds()).toEqual({ x: 0, y: 0, width: 1, height: 1 });
+  });
+
+  it("adapts a derived grid to the common surface reader contract", () => {
+    const reader = createGridSurfaceReader(new Map([
+      ["2,3", { char: "你", color: "#fff" }],
+    ]));
+
+    expect(reader.getCell({ x: 2, y: 3 })?.char).toBe("你");
+    expect(reader.getContentBounds()).toEqual({ x: 2, y: 3, width: 2, height: 1 });
+    expect([...reader.query({ x: 0, y: 0, width: 5, height: 5 })]).toHaveLength(1);
+    const projection = createSurfaceGridProjection(reader);
+    expect(new Map(projection)).toEqual(
+      new Map([["2,3", { char: "你", color: "#fff" }]])
+    );
+    expect(() => projection.set("0,0", { char: "X", color: "#fff" }))
+      .toThrow("read-only");
+  });
+
+  it("resolves replaceable authorities lazily", () => {
+    let reader = createGridSurfaceReader(new Map([
+      ["0,0", { char: "A", color: "#fff" }],
+    ]));
+    const projection = createSurfaceGridProjection(() => reader);
+
+    reader = createGridSurfaceReader(new Map([
+      ["1,0", { char: "B", color: "#fff" }],
+    ]));
+
+    expect(projection.has("0,0")).toBe(false);
+    expect(projection.get("1,0")?.char).toBe("B");
   });
 });

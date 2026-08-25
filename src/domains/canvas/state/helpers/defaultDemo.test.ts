@@ -9,7 +9,10 @@ import {
   DEFAULT_SESSION_NAME,
   DEFAULT_STRUCTURED_SESSION_ID,
 } from "@/domains/canvas/state/helpers/storeUtils";
-import { useEditorStore } from "@/domains/canvas/testing";
+import {
+  defaultCanvasDocuments,
+  useEditorStore,
+} from "@/domains/canvas/testing";
 import { GridManager } from "@/shared/utils/grid";
 import type { GridCell } from "@/shared/types";
 import generatedCasesMarkdown from "@/domains/canvas/state/helpers/default-demo-cases.generated.md?raw";
@@ -245,7 +248,7 @@ describe("default demo canvas", () => {
     expect(DEFAULT_DEMO_GRID.length).toBeGreaterThan(0);
     expect(firstSession?.name).toBe(DEFAULT_SESSION_NAME);
     expect(DEFAULT_SESSION_NAME).toBe("Welcome");
-    expect(firstSession?.grid).toEqual(DEFAULT_DEMO_GRID);
+    expect(firstSession?.grid).toEqual([]);
     expect(state.grid).toEqual(new Map(DEFAULT_DEMO_GRID));
     expect(state.grid.get(GridManager.toKey(1, 0))).toEqual({
       char: "█",
@@ -287,13 +290,18 @@ describe("default demo canvas", () => {
       name: "Canvas 2",
       mode: "structured",
     });
-    expect(structuredSession?.scene.some((node) => node.type === "splitBox")).toBe(
+    const structuredSeed = defaultCanvasDocuments.getDocumentSeed(
+      DEFAULT_STRUCTURED_SESSION_ID,
+      "structured"
+    );
+    expect(structuredSession?.scene).toEqual([]);
+    expect(structuredSeed?.scene.some((node) => node.type === "splitBox")).toBe(
       true
     );
-    expect(structuredSession?.components?.[0]).toMatchObject({
+    expect(structuredSeed?.components?.[0]).toMatchObject({
       templateId: "safari",
       label: "Safari",
     });
-    expect(structuredSession?.grid.length).toBeGreaterThan(0);
+    expect(structuredSession?.grid).toEqual([]);
   });
 });

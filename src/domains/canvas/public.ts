@@ -19,7 +19,10 @@ export { isToolAllowedForMode } from "./model/tool";
 export type { ToolType } from "./model/tool";
 export type { CanvasHistoryCheckpoint } from "./state/CanvasDocumentRegistry";
 export type { CanvasPersistenceStatus } from "./state/browserPersistence";
-export { CellPlaneIndex } from "./cell-plane/model";
+export {
+  CellPlaneIndex,
+  gridEntriesToCellPlaneOperation,
+} from "./cell-plane/model";
 export type {
   CanvasSurfaceReader,
   CellPlaneOperation,
@@ -29,3 +32,12 @@ export type {
   StyledCellSpan,
 } from "./cell-plane/model";
 export { createGridSurfaceReader } from "./cell-plane/model";
+export {
+  materializeSlideDeckContent,
+} from "./state/slideDocumentPages";
+export type {
+  CanvasDocumentAddress,
+  CanvasDocumentDraft,
+  CanvasPageDescriptor,
+  CanvasPageDraft,
+} from "./state/canvasDocumentModel";

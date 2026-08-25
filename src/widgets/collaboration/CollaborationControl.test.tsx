@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEditorStore } from '@/domains/canvas/testing';
 import {
   buildCollaborationUrl,
-  type CollaborationDescriptorV2,
+  type CollaborationDescriptorV4,
   type CollaborationSnapshot,
 } from '@/domains/collaboration/public';
 import { setUiLanguage } from '@/shared/i18n';
@@ -31,7 +31,7 @@ describe('CollaborationControl', () => {
 
   const seedSession = (
     mode: 'freeform' | 'structured' = 'freeform',
-    collaboration?: CollaborationDescriptorV2
+    collaboration?: CollaborationDescriptorV4
   ) => {
     act(() => {
       useEditorStore.setState({
@@ -172,9 +172,9 @@ describe('CollaborationControl', () => {
   });
 
   it('shows clipboard failures on the copy-link button', async () => {
-    const descriptor: CollaborationDescriptorV2 = {
-      version: 2,
-      documentVersion: 3,
+    const descriptor: CollaborationDescriptorV4 = {
+      version: 4,
+      documentVersion: 4,
       mode: 'freeform',
       provider: 'p2p',
       roomId: 'room-id-1234567890',
@@ -196,9 +196,9 @@ describe('CollaborationControl', () => {
   });
 
   it('shows room presence and keeps the menu open after leaving', async () => {
-    const descriptor: CollaborationDescriptorV2 = {
-      version: 2,
-      documentVersion: 3,
+    const descriptor: CollaborationDescriptorV4 = {
+      version: 4,
+      documentVersion: 4,
       mode: "structured",
       provider: 'p2p',
       roomId: 'room-id-1234567890',
@@ -243,9 +243,9 @@ describe('CollaborationControl', () => {
   });
 
   it('distinguishes disconnected state from recoverable integrity warnings', async () => {
-    const descriptor: CollaborationDescriptorV2 = {
-      version: 2,
-      documentVersion: 3,
+    const descriptor: CollaborationDescriptorV4 = {
+      version: 4,
+      documentVersion: 4,
       mode: 'freeform',
       provider: 'p2p',
       roomId: 'room-id-1234567890',
@@ -271,7 +271,7 @@ describe('CollaborationControl', () => {
     expect(screen.getByTestId('collaboration-connected-indicator')).toHaveClass('bg-error');
     openPanel();
     expect(await screen.findByText('Offline')).toHaveClass('text-error');
-    expect(screen.getByText('Skipped one invalid remote cell.')).toHaveClass('text-warning');
+    expect(screen.getByText('Skipped one invalid remote operation.')).toHaveClass('text-warning');
   });
 
   it('opens an incoming room in a dedicated session without clearing the active canvas', async () => {
@@ -289,9 +289,9 @@ describe('CollaborationControl', () => {
         ],
       });
     });
-    const descriptor: CollaborationDescriptorV2 = {
-      version: 2,
-      documentVersion: 3,
+    const descriptor: CollaborationDescriptorV4 = {
+      version: 4,
+      documentVersion: 4,
       mode: 'structured',
       provider: 'p2p',
       roomId: 'room-id-1234567890',

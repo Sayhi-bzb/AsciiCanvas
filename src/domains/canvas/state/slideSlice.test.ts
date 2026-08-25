@@ -38,7 +38,7 @@ describe("slideSlice", () => {
     expect(useEditorStore.getState().grid.has("0,0")).toBe(false);
   });
 
-  it("normalizes edits outside the finite slide page", () => {
+  it("keeps slide metadata free of projected cell content", () => {
     useEditorStore.getState().createCanvasSession("slide", {
       slideSize: { columns: 2, rows: 1 },
     });
@@ -47,8 +47,8 @@ describe("slideSlice", () => {
       grid.set("2,0", { char: "B", color: "#000" });
     });
 
-    expect(Array.from(useEditorStore.getState().grid.keys())).toEqual(["1,0"]);
-    expect(useEditorStore.getState().slideDeck?.slides[0].grid).toHaveLength(1);
+    expect(Array.from(useEditorStore.getState().grid.keys())).toEqual(["1,0", "2,0"]);
+    expect(useEditorStore.getState().slideDeck?.slides[0].grid).toEqual([]);
   });
 
   it("clears document interaction for every active page transition", () => {

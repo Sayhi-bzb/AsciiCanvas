@@ -1,9 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
-import type {
-  CollaborationDescriptorV2,
-  CollaborationDescriptorV3,
-} from "./model";
+import type { CollaborationDescriptorV4 } from "./model";
 import { getCollaborationRoomName } from "./document";
 import {
   CollaborationRuntime,
@@ -64,22 +61,14 @@ const createRuntimeHarness = () => {
 const descriptor = (
   endpoint: string,
   key = "room-key-1234567890123456789012345678901234567890"
-): CollaborationDescriptorV2 => ({
-  version: 2,
-  documentVersion: 3,
+): CollaborationDescriptorV4 => ({
+  version: 4,
+  documentVersion: 4,
   mode: "freeform",
   provider: "websocket",
   roomId: "room-id-1234567890",
   key,
   endpoint,
-});
-
-const descriptorV3 = (
-  endpoint: string,
-  key = "room-key-1234567890123456789012345678901234567890"
-): CollaborationDescriptorV3 => ({
-  ...descriptor(endpoint, key),
-  version: 3,
 });
 
 describe("collaboration document contract", () => {
@@ -102,49 +91,31 @@ describe("collaboration document contract", () => {
     expect(first).not.toContain("room-key");
   });
 
-  it("keeps V2 namespaces stable and uses CharDesk namespaces for V3", async () => {
-    const legacy = descriptor("wss://one.example.com");
-    const current = descriptorV3("wss://one.example.com");
-    const legacyP2p: CollaborationDescriptorV2 = {
-      version: 2,
-      documentVersion: 3,
-      mode: legacy.mode,
-      provider: "p2p",
-      roomId: legacy.roomId,
-      key: legacy.key,
-    };
-    const currentP2p: CollaborationDescriptorV3 = {
-      version: 3,
-      documentVersion: 3,
+  it("uses isolated CharDesk V4 namespaces", async () => {
+    const current = descriptor("wss://one.example.com");
+    const currentP2p: CollaborationDescriptorV4 = {
+      version: 4,
+      documentVersion: 4,
       mode: current.mode,
       provider: "p2p",
       roomId: current.roomId,
       key: current.key,
     };
 
-    expect(await getCollaborationPersistenceName(legacy)).toMatch(
-      /^ascii-canvas-room-v2:/
-    );
     expect(await getCollaborationPersistenceName(current)).toMatch(
-      /^chardesk-room-v3:/
-    );
-    expect(getCollaborationRoomName(legacy)).toBe(
-      `asciicanvas-v2-${legacy.roomId}-${legacy.key}`
+      /^chardesk-room-v4:/
     );
     expect(getCollaborationRoomName(current)).toBe(
-      `chardesk-v3-${current.roomId}-${current.key}`
-    );
-    expect(getCollaborationRoomName(legacyP2p)).toBe(
-      `asciicanvas-v2-${legacyP2p.roomId}`
+      `chardesk-v4-${current.roomId}-${current.key}`
     );
     expect(getCollaborationRoomName(currentP2p)).toBe(
-      `chardesk-v3-${currentP2p.roomId}`
+      `chardesk-v4-${currentP2p.roomId}`
     );
   });
 
   it("uses the descriptor version selected by the caller when connecting", async () => {
     const harness = createRuntimeHarness();
-    const current = descriptorV3("wss://one.example.com");
+    const current = descriptor("wss://one.example.com");
     const connect = harness.runtime.connect(current, new Y.Doc());
     harness.sync.resolve();
     await connect;
@@ -166,7 +137,7 @@ describe("collaboration document contract", () => {
     ensureCollaborationDocumentMeta(freeform, doc);
 
     expect(doc.getMap("document-meta").toJSON()).toEqual({
-      documentVersion: 3,
+      documentVersion: 4,
       mode: "freeform",
       roomId: freeform.roomId,
     });

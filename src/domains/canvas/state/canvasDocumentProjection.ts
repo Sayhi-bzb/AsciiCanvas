@@ -13,13 +13,9 @@ import {
 import { createMapFromEntries } from "./helpers/snapshotHelpers";
 import type { EditorState } from "./interfaces";
 import type { CanvasDocumentRegistry } from "./CanvasDocumentRegistry";
-import { projectSlideEditingBuffer } from "./slideEditingBuffer";
 import { reconcileStructuredInteraction } from "./transitions/editorTransitions";
 
-const projectObservedGrid = (state: EditorState, grid: GridMap) => {
-  if (state.canvasMode === "slide" && state.slideDeck) {
-    return projectSlideEditingBuffer(state, grid) ?? { grid };
-  }
+const projectObservedGrid = (grid: GridMap) => {
   return {
     grid,
   };
@@ -39,9 +35,7 @@ export const subscribeCanvasDocumentProjection = (
     const state = getState();
     if (state.canvasMode !== "structured") {
       if (!transaction.contentChanged) return;
-      setState((current) =>
-        projectObservedGrid(current, rebuildGridFromContent(documents))
-      );
+      setState(projectObservedGrid(rebuildGridFromContent(documents)));
       reportCurrentIntegrityIssues();
       return;
     }

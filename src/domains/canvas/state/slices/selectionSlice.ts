@@ -27,6 +27,7 @@ import { cloneTextAttributes } from "@/shared/utils/ansi";
 import { resolveGridSlot } from "@/shared/utils/grid-occupancy";
 import type { SelectionCommandFactory } from "../selectionCommandPort";
 import { getStructuredTextSelectionRange } from "@/domains/structured-content/public";
+import { resolveEditorDocumentAddress } from "../helpers/gridHelpers";
 
 const resolveSelectionAreas = (state: EditorState) => {
   return getStaticGridSelectionAreas(state.staticGridSelection, state.grid);
@@ -175,7 +176,7 @@ export const createSelectionSlice = (
       return;
     }
 
-    documents.mutateGrid((grid) => {
+    documents.mutateGridAt(resolveEditorDocumentAddress(documents, state), (grid) => {
       forEachSelectionSpan(state, ({ y, minX, maxX }) => {
         deleteRect(grid, minX, y, maxX, y);
       });
@@ -199,7 +200,7 @@ export const createSelectionSlice = (
 
     const charWidth = getCellOccupancy(char);
 
-    documents.mutateGrid((grid) => {
+    documents.mutateGridAt(resolveEditorDocumentAddress(documents, state), (grid) => {
       forEachSelectionSpan(state, ({ y, minX, maxX }) => {
         for (let x = minX; x <= maxX; x += charWidth) {
           if (x + charWidth - 1 > maxX) break;
@@ -221,7 +222,7 @@ export const createSelectionSlice = (
       attrs.strike === true ||
       attrs.inverse === true;
 
-    documents.mutateGrid((grid) => {
+    documents.mutateGridAt(resolveEditorDocumentAddress(documents, state), (grid) => {
       forEachSelectionSpan(state, ({ y, minX, maxX }) => {
         for (let x = minX; x <= maxX; x++) {
           if (resolveGridSlot(grid, { x, y })?.offset === 1) continue;
@@ -263,7 +264,7 @@ export const createSelectionSlice = (
     const selections = resolveSelectionAreas(state);
     if (state.canvasMode === "structured" || selections.length === 0) return;
 
-    documents.mutateGrid((grid) => {
+    documents.mutateGridAt(resolveEditorDocumentAddress(documents, state), (grid) => {
       forEachSelectionSpan(state, ({ y, minX, maxX }) => {
         for (let x = minX; x <= maxX; x++) {
           if (resolveGridSlot(grid, { x, y })?.offset === 1) continue;
@@ -283,7 +284,7 @@ export const createSelectionSlice = (
     if (canvasMode === "structured") return;
     if (selections.length === 0) return;
 
-    documents.mutateGrid((grid) => {
+    documents.mutateGridAt(resolveEditorDocumentAddress(documents, state), (grid) => {
       forEachSelectionSpan(state, ({ y, minX, maxX }) => {
         for (let x = minX; x <= maxX; x++) {
           if (resolveGridSlot(grid, { x, y })?.offset === 1) continue;
@@ -310,11 +311,12 @@ export const createSelectionSlice = (
   },
 
   fillArea: (area) => {
-    const { brushColor, canvasMode } = get();
+    const state = get();
+    const { brushColor, canvasMode } = state;
     if (canvasMode === "structured") return;
     const { minX, maxX, minY, maxY } = getSelectionBounds(area);
 
-    documents.mutateGrid((grid) => {
+    documents.mutateGridAt(resolveEditorDocumentAddress(documents, state), (grid) => {
       const updated = new Set<string>();
       for (let y = minY; y <= maxY; y++) {
         for (let x = minX; x <= maxX; x++) {

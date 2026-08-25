@@ -1,7 +1,11 @@
 "use client";
 
 import { useMemo, useRef, useState, type ComponentProps } from "react";
-import { useCanvasRuntime, useCanvasState } from "@/domains/canvas/public";
+import {
+  materializeSlideDeckContent,
+  useCanvasRuntime,
+  useCanvasState,
+} from "@/domains/canvas/public";
 import {
   getSlideResizeCropCount,
   type Slide,
@@ -91,6 +95,7 @@ export function SlideNavigator() {
   const canvas = useCanvasRuntime();
   const { t } = useUiI18n();
   const slideDeck = useCanvasState((state) => state.slideDeck);
+  const activeGrid = useCanvasState((state) => state.grid);
   const duplicateSlide = canvas.commands.slides.duplicate;
   const removeSlide = canvas.commands.slides.remove;
   const renameSlide = canvas.commands.slides.rename;
@@ -103,9 +108,18 @@ export function SlideNavigator() {
   const configureTriggerRef = useRef<HTMLButtonElement | null>(null);
   const actionTooltipHandle = useMemo(() => TooltipCreateHandle<string>(), []);
   if (!slideDeck) return null;
+  const hydratedSlides = materializeSlideDeckContent(
+    canvas.documents,
+    canvas.getState().activeCanvasId,
+    slideDeck
+  ).slides.map((slide) =>
+    slide.id === slideDeck.activeSlideId
+      ? { ...slide, grid: Array.from(activeGrid.entries()) }
+      : slide
+  );
   const pendingSlide = slideDeck.slides.find((slide) => slide.id === pendingDeleteId) ?? null;
   const configureSlide =
-    slideDeck.slides.find((slide) => slide.id === configureSlideId) ?? null;
+    hydratedSlides.find((slide) => slide.id === configureSlideId) ?? null;
   const getReorderAnnouncement = ({
     type,
     item,
@@ -142,6 +156,8 @@ export function SlideNavigator() {
         getAnnouncement={getReorderAnnouncement}
         renderItem={(slide, index, reorderState) => {
           const active = slide.id === slideDeck.activeSlideId;
+          const renderedSlide =
+            hydratedSlides.find((candidate) => candidate.id === slide.id) ?? slide;
           return (
             <CollectionCard
               selected={active}
@@ -169,7 +185,7 @@ export function SlideNavigator() {
                 aria-current={active ? "page" : undefined}
                 onClick={() => activateSlide(slide.id)}
               >
-                <SlidePreviewCanvas slide={slide} />
+                <SlidePreviewCanvas slide={renderedSlide} />
               </SelectableItem>
               <div
                 role="group"

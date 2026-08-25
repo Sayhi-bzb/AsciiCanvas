@@ -9,7 +9,6 @@ import { useCanvasViewOptional } from '../engine/CanvasWorkspace';
 import { createStaticGridState } from '@/domains/selection/public';
 import type { CanvasSession } from '@/domains/sessions/public';
 import { useMemo } from 'react';
-import { getSlideEditingBufferId } from '@/domains/canvas/state/slideEditingBuffer';
 import { sceneToGridEntries } from '@/domains/structured-content/public';
 
 type SessionContent = Pick<
@@ -38,7 +37,7 @@ const resolveSessionContent = (
       grid:
         (activeSlide &&
           documents
-            .getContentReader(getSlideEditingBufferId(session.id, activeSlide.id))
+            .getContentReader(session.id, activeSlide.id)
             ?.materialize()) ||
         new Map(activeSlide?.grid ?? []),
       structuredScene: [],
@@ -212,25 +211,20 @@ export const useCanvasEditorModels = () => {
           : null,
       }
     : rendererStore;
-  const contentDocumentId =
+  const contentDocumentId = viewRendererStore.activeCanvasId;
+  const contentPageId =
     viewRendererStore.canvasMode === 'slide'
-      ? (() => {
-          const activeSlide = viewRendererStore.slideDeck?.slides.find(
-            (slide) => slide.id === viewRendererStore.slideDeck?.activeSlideId
-          );
-          return activeSlide
-            ? getSlideEditingBufferId(viewRendererStore.activeCanvasId, activeSlide.id)
-            : viewRendererStore.activeCanvasId;
-        })()
-      : viewRendererStore.activeCanvasId;
+      ? viewRendererStore.slideDeck?.activeSlideId
+      : undefined;
   const contentReader = useMemo(
     () =>
       viewRendererStore.canvasMode === 'structured'
         ? createGridSurfaceReader(viewRendererStore.grid)
-        : documents.getContentReader(contentDocumentId) ??
+        : documents.getContentReader(contentDocumentId, contentPageId) ??
           createGridSurfaceReader(viewRendererStore.grid),
     [
       contentDocumentId,
+      contentPageId,
       documents,
       viewRendererStore.canvasMode,
       viewRendererStore.grid,

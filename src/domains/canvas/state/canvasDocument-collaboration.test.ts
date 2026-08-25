@@ -8,9 +8,17 @@ import {
 } from "../cell-plane/model";
 
 const cell = (char: string) => ({ char, color: "#000000" });
+const getCellPlaneOperations = (doc: Y.Doc) => {
+  const pageId = doc.getArray<string>("document-page-order").get(0);
+  return doc.getArray<CellPlaneOperation>(
+    pageId
+      ? `canvas-page:${encodeURIComponent(pageId)}:cell-plane-operations`
+      : "cell-plane-operations"
+  );
+};
 const readGrid = (doc: Y.Doc) =>
   new CellPlaneIndex(
-    doc.getArray<CellPlaneOperation>("cell-plane-operations").toArray()
+    getCellPlaneOperations(doc).toArray()
   ).materialize();
 const mutateGrid = (
   doc: Y.Doc,
@@ -34,7 +42,7 @@ const mutateGrid = (
     });
   });
   const operation = gridChangesToCellPlaneOperation(id, changes);
-  if (operation) doc.getArray<CellPlaneOperation>("cell-plane-operations").push([operation]);
+  if (operation) getCellPlaneOperations(doc).push([operation]);
 };
 const applyYMapValueDiff = <T extends { id: string }>(map: Y.Map<T>, values: T[]) => {
   const nextIds = new Set(values.map((value) => value.id));

@@ -1,9 +1,8 @@
-import type { GridCell } from "@/shared/types";
+import type { GridMap } from "@/shared/types";
 import type { CanvasSession } from "@/domains/sessions/public";
 import type { SlideDeck } from "@/domains/slides/public";
 import { createStaticGridState } from "@/domains/selection/public";
 import type { EditorState } from "../interfaces";
-import { createMapFromEntries } from "../helpers/snapshotHelpers";
 import type { resolveSessionRuntime } from "../helpers/storeUtils";
 import {
   getStructuredTextCaretPoint,
@@ -153,7 +152,8 @@ export const reconcileStructuredInteraction = (
 export const createSessionActivationPatch = (
   canvasSessions: CanvasSession[],
   activeCanvasId: string,
-  runtime: SessionRuntime
+  runtime: SessionRuntime,
+  contentGrid?: GridMap
 ): SessionActivationPatch => ({
   canvasSessions,
   activeCanvasId,
@@ -163,7 +163,7 @@ export const createSessionActivationPatch = (
   structuredComponents: runtime.nextComponents,
   // Runtime session entries have already crossed the persistence/import decoder.
   // Avoid decoding and cloning every cell again during an interactive switch.
-  grid: new Map(runtime.nextGridEntries),
+  grid: contentGrid ?? new Map(runtime.nextGridEntries),
   tool: runtime.nextTool,
   offset: runtime.nextOffset,
   zoom: runtime.nextZoom,
@@ -174,7 +174,7 @@ export const createSessionActivationPatch = (
 export const createSlideActivationPatch = (
   state: Pick<EditorState, "canvasSessions" | "activeCanvasId">,
   slideDeck: SlideDeck,
-  activeGrid: [string, GridCell][]
+  activeGrid: GridMap
 ): SlideActivationPatch => ({
   slideDeck,
   canvasSessions: state.canvasSessions.map((session) =>
@@ -182,6 +182,6 @@ export const createSlideActivationPatch = (
       ? { ...session, slideDeck }
       : session
   ),
-  grid: createMapFromEntries(activeGrid),
+  grid: activeGrid,
   ...createDocumentInteractionResetPatch(),
 });

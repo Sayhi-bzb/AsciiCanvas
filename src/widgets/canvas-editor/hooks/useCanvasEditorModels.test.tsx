@@ -4,7 +4,6 @@ import {
   defaultCanvasDocuments,
   useEditorStore,
 } from '@/domains/canvas/testing';
-import { getSlideEditingBufferId } from '@/domains/canvas/state/slideEditingBuffer';
 import {
   CanvasViewProvider,
   CanvasWorkspaceProvider,
@@ -58,9 +57,16 @@ describe('useCanvasEditorModels session binding', () => {
         components: [],
       });
       defaultCanvasDocuments.activateDocument(
-        getSlideEditingBufferId('canvas-c', 'slide-c'),
+        'canvas-c',
         {
-          grid: [['0,0', { char: 'C', color: '#000000' }]],
+          mode: 'slide',
+          activePageId: 'slide-c',
+          pages: [{
+            id: 'slide-c',
+            kind: 'cell-plane',
+            grid: [['0,0', { char: 'C', color: '#000000' }]],
+          }],
+          grid: [],
           scene: [],
           components: [],
         }

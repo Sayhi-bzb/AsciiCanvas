@@ -3,8 +3,8 @@ import { getCellOccupancy, splitGraphemes } from "@/shared/metrics";
 import { GridManager } from "@/shared/utils/grid";
 import { deleteCellAt, writeStyledCell } from "@/shared/utils/grid-ops";
 
-export const CELL_PLANE_CHUNK_WIDTH = 128;
-export const CELL_PLANE_CHUNK_HEIGHT = 64;
+const CELL_PLANE_CHUNK_WIDTH = 128;
+const CELL_PLANE_CHUNK_HEIGHT = 64;
 
 export type GridInterval = { from: number; to: number };
 
@@ -89,7 +89,7 @@ export const isCellPlaneOperation = (
   });
 };
 
-export type CellSpan = {
+type CellSpan = {
   x: number;
   cells: GridCell[];
 };
@@ -106,8 +106,6 @@ export interface CanvasSurfaceReader {
   getContentBounds(): NodeBounds | null;
   materialize(bounds?: NodeBounds): Map<string, GridCell>;
 }
-
-export type CellPlaneReader = CanvasSurfaceReader;
 
 export const createGridSurfaceReader = (
   grid: ReadonlyMap<string, GridCell>
@@ -173,6 +171,45 @@ export const createGridSurfaceReader = (
     return result;
   },
 });
+
+/** Map-compatible, non-owning facade for legacy interaction consumers. */
+export const createSurfaceGridProjection = (
+  source: CanvasSurfaceReader | (() => CanvasSurfaceReader)
+): Map<string, GridCell> => {
+  const grid = new Map<string, GridCell>();
+  const reader = () => typeof source === "function" ? source() : source;
+  const materialize = () => reader().materialize();
+  const rejectMutation = () => {
+    throw new Error("Canvas surface projections are read-only");
+  };
+  Object.defineProperties(grid, {
+    size: { get: () => materialize().size },
+    get: {
+      value: (key: string) => reader().getCell(GridManager.fromKey(key)),
+    },
+    has: {
+      value: (key: string) => reader().getCell(GridManager.fromKey(key)) !== undefined,
+    },
+    entries: { value: () => materialize().entries() },
+    keys: { value: () => materialize().keys() },
+    values: { value: () => materialize().values() },
+    [Symbol.iterator]: { value: () => materialize().entries() },
+    forEach: {
+      value: (
+        callbackfn: (value: GridCell, key: string, map: Map<string, GridCell>) => void,
+        thisArg?: unknown
+      ) => {
+        for (const [key, value] of materialize()) {
+          callbackfn.call(thisArg, value, key, grid);
+        }
+      },
+    },
+    set: { value: rejectMutation },
+    delete: { value: rejectMutation },
+    clear: { value: rejectMutation },
+  });
+  return grid;
+};
 
 const floorDiv = (value: number, divisor: number) => Math.floor(value / divisor);
 const chunkKey = (x: number, y: number) => `${x},${y}`;

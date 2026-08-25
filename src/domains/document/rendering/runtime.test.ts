@@ -539,6 +539,22 @@ describe("TextRenderingRuntime", () => {
     expect([0, 1].map((y) => rowText(yaml, y))).toEqual(["user:", "  name: Ada"]);
   });
 
+  it("renders each two-dimensional layout field through the normal pipeline", async () => {
+    const result = await new TextRenderingRuntime().render(
+      "```json\n{\"a\":1}\n```\n|||\n**B**\n---\nC",
+      "#111111"
+    );
+
+    expect(result.renderer).toBe("block-layout");
+    expect(rowText(result, 0)).toContain("└─ a: 1");
+    expect(rowText(result, 0)).toContain("B");
+    expect(rowText(result, 2)).toBe("C");
+    expect(
+      result.kind === "styled" &&
+        result.cells.find((cell) => cell.char === "B")?.attrs?.bold
+    ).toBe(true);
+  });
+
   it("keeps Mermaid independently switchable from fenced code rendering", async () => {
     const runtime = new TextRenderingRuntime();
     runtime.setProfile(profileWithMarkdown({

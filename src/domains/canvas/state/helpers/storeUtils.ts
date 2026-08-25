@@ -16,7 +16,6 @@ import {
   updateSlideGrid,
   type SlideDeck,
 } from '@/domains/slides/public';
-import { getSlideEditingBufferId } from '../slideEditingBuffer';
 
 export const DEFAULT_SESSION_ID = 'canvas-1';
 export const DEFAULT_SESSION_NAME = 'Welcome';
@@ -24,16 +23,21 @@ export const DEFAULT_STRUCTURED_SESSION_ID = 'canvas-2';
 export const DEFAULT_STRUCTURED_SESSION_NAME = 'Canvas 2';
 export const DEFAULT_MODE = 'freeform' as const satisfies CanvasMode;
 const DEFAULT_VIEWPORT = { offset: { x: 0, y: 0 }, zoom: 1 };
-export const stripStaticSessionContent = (
+export const stripSlideDeckContent = (deck: SlideDeck): SlideDeck => ({
+  ...deck,
+  slides: deck.slides.map((slide) => ({ ...slide, grid: [] })),
+});
+
+export const stripSessionContent = (
   session: CanvasSession
 ): CanvasSession =>
   session.mode === 'slide'
-    ? session
+    ? { ...session, slideDeck: stripSlideDeckContent(session.slideDeck) }
     : { ...session, grid: [], scene: [], components: [] };
-export const getSessionCanvasDocumentId = (session: CanvasSession, slideDeck?: SlideDeck | null) =>
-  session.mode === 'slide'
-    ? getSlideEditingBufferId(session.id, (slideDeck ?? session.slideDeck).activeSlideId)
-    : session.id;
+export const getSessionCanvasDocumentId = (
+  session: CanvasSession
+) =>
+  session.id;
 
 const normalizeSessionViewport = (viewport: CanvasSession['viewport'] | undefined) => {
   if (!viewport) return null;

@@ -10,8 +10,9 @@ import { isCellPlaneOperation } from "../cell-plane/model";
 
 describe("canvas collaboration schema", () => {
   it("declares durable document channels separately from presence", () => {
-    expect(CANVAS_COLLABORATION_CHANNELS.content.scope).toBe("document");
-    expect(CANVAS_COLLABORATION_CHANNELS.scene.scope).toBe("document");
+    expect(CANVAS_COLLABORATION_CHANNELS.pages.scope).toBe("document");
+    expect(CANVAS_COLLABORATION_CHANNELS.content.scope).toBe("page");
+    expect(CANVAS_COLLABORATION_CHANNELS.scene.scope).toBe("page");
     expect(CANVAS_COLLABORATION_CHANNELS.presence.scope).toBe("presence");
   });
 
@@ -62,6 +63,7 @@ describe("canvas collaboration schema", () => {
     const documents = new CanvasDocumentRegistry(id);
     documents.yCellPlaneOperations.push([{ id: "broken" } as never]);
     documents.yStructuredScene.set("node-a", { id: "node-b" } as never);
+    const pageId = documents.getActivePageId();
 
     expect(rebuildGridFromContent(documents)).toEqual(new Map());
     expect(rebuildSceneFromYMap(documents)).toEqual([]);
@@ -69,9 +71,15 @@ describe("canvas collaboration schema", () => {
       {
         channel: "cell-plane-operations",
         key: "0",
+        pageId,
         reason: "Invalid CellPlane operation",
       },
-      { channel: "structured-scene", key: "node-a", reason: "Invalid structured node" },
+      {
+        channel: "structured-scene",
+        key: "node-a",
+        pageId,
+        reason: "Invalid structured node",
+      },
     ]);
     documents.dispose();
   });

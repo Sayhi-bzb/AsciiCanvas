@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "react-router build",
+    "build": "node ../../scripts/docs/build-with-retry.mjs",
+    "build:react-router": "react-router build",
     "dev": "react-router dev --host 127.0.0.1 --port 5174 --strictPort",
     "typecheck": "react-router typegen && tsc --noEmit"
   },

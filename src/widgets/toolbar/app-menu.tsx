@@ -5,6 +5,7 @@ import { Check, X } from "lucide-react";
 import { useShallow } from "zustand/react/shallow";
 import {
   createGridSurfaceReader,
+  materializeSlideDeckContent,
   useCanvasRuntime,
   useCanvasState,
 } from "@/domains/canvas/public";
@@ -134,7 +135,13 @@ export function AppMenu() {
         canvasMode === "structured"
           ? createGridSurfaceReader(grid)
           : canvas.documents.getContentReader(),
-      slideDeck,
+      slideDeck: slideDeck
+        ? materializeSlideDeckContent(
+            canvas.documents,
+            activeCanvasId,
+            slideDeck
+          )
+        : null,
       documentName,
       structuredScene,
       structuredComponents,
@@ -144,6 +151,7 @@ export function AppMenu() {
     [
       canvasMode,
       canvas.documents,
+      activeCanvasId,
       documentName,
       grid,
       slideDeck,

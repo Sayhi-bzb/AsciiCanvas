@@ -5,7 +5,7 @@ description: Authority, projection, history, persistence, and synchronization di
 
 | Scope | Authority | History | Sync |
 | --- | --- | --- | --- |
-| `document` | Freeform CellPlane operations, structured scene, and components in the Yjs document | Local origins | When collaborative |
+| `document` | Ordered pages whose content kind is CellPlane or Structured in one Yjs document | Page-local local origins | When collaborative |
 | `workspace` | Tool, local interaction, active viewport, and preferences | No | No |
 | `session` | Canvas identity, mode, saved viewport, slide metadata, and collaboration descriptor in the IndexedDB catalog | No | No |
 | `presence` | Remote identity, cursor, transient selection | No | Ephemeral |
@@ -14,6 +14,9 @@ description: Authority, projection, history, persistence, and synchronization di
 A projection never writes back to its authority. Only local Yjs origins enter
 undo history. Remote values pass Canvas decoders before projection; invalid records
 stay out of editor state and surface as collaboration integrity issues.
+Every write resolves a `CanvasDocumentAddress` (`documentId`, `pageId`) before opening
+its transaction. Active-document convenience reads are projections only; commands do not
+use Registry focus as an implicit write target.
 
 ## Canonical flows
 
@@ -24,19 +27,22 @@ stay out of editor state and surface as collaboration integrity issues.
 - Session activation: catalog descriptor -> restored mode-authoritative Yjs document
   -> one editor-state activation patch. The outgoing session checkpoints only
   its viewport because content projection is already current.
-- Slide activation: deck slide -> active Yjs editing buffer.
-- Slide edit: command -> active Yjs editing buffer -> deck and session snapshot.
+- Slide activation: deck metadata -> matching page in the session Yjs document -> active projection.
+- Slide edit: command -> active Yjs page -> derived active grid.
 - Local restore: IndexedDB catalog -> `y-indexeddb` document restore -> canvas recovery
   adapter -> active projection. Startup does not expose editing until the active document is ready.
 - Import: document parser -> `CanvasImportSnapshot` -> canvas session command.
 - Session persistence: metadata projection -> sessions catalog transaction. Canvas content
   remains in its Yjs document and persists as incremental `y-indexeddb` updates.
-- Slide preview: slide data -> canonical slide renderer -> preview or playback.
+- Slide preview: deck metadata + page reader -> explicit grid snapshot -> canonical slide renderer.
 - Selection command: DOM dispatcher -> editor keymap -> command registry ->
   canvas selection port -> Yjs document.
+- Block layout text: `|||`-recognized layout -> per-field normal text renderer ->
+  composed CellPlane rows. A lone `---` remains a Markdown thematic break in auto mode.
 
-Local Freeform and Structured sessions persist one Yjs document per session. Slides persist
-one Yjs editing document per slide; the catalog owns ordering, names, and sizes. Collaborative
+Every local session persists one Yjs document. A Freeform or Structured document has one page;
+a Slide document has one page per slide. The catalog owns session identity and slide ordering,
+names, and sizes. Collaborative
 sessions persist only their catalog shell and descriptor; room content is restored through
 collaboration persistence and never copied into local session persistence.
 
@@ -45,11 +51,14 @@ documents, commits the catalog, then removes the old key. A failure keeps the ol
 Canvas content never falls back to localStorage. One browser tab owns local writes; other tabs
 restore read-only until ownership is released. Undo history remains runtime-only.
 
-`main-grid` and Zustand `GridMap` are compatibility projections during the CellPlane migration.
-They are not renderer protocol inputs. New freeform transactions also append their compact row
-spans and erase intervals to `cell-plane-operations`; old snapshots become one bootstrap operation.
-Chunk indexes are disposable and never synchronized.
+Freeform documents contain only ordered `cell-plane-operations`. A legacy local `main-grid`
+is converted once into a bootstrap operation and then cleared; collaboration version 4 rejects
+the old schema. `CanvasSurfaceReader` is the read contract for rendering and export. Freeform and
+Slide expose a read-only, non-owning Map facade to legacy interaction algorithms; Structured keeps
+only its disposable scene-to-grid projection. Chunk indexes and projections are never synchronized.
 
-For a local Structured session, scene and components are authoritative. Its
-session grid is a projector-maintained rendering cache; activation may reuse or
-repair that cache, but must not copy it into the Structured Yjs document.
+Freeform, Structured, and Slide session records contain metadata only at runtime. Switching sessions
+restores content from the matching Yjs document; the projector never writes content back into
+the session record. For Structured sessions, scene and components are authoritative and the
+rendering grid is derived on activation or projection. Slide preview, playback, resize, duplicate,
+and export materialize page content only at their explicit boundary.

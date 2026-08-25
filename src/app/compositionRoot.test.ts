@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 import { DEFAULT_TEXT_RENDER_PROFILE } from "@/domains/document/public";
+import { gridEntriesToCellPlaneOperation } from "@/domains/canvas/public";
 import {
   createApplicationEditorHost,
   getApplicationEditorHost,
@@ -192,10 +193,13 @@ describe("ApplicationEditorHost", () => {
     const local = host.canvas.queries.getCollaborationDocument(documentId)!;
     const remote = new Y.Doc();
     Y.applyUpdate(remote, Y.encodeStateAsUpdate(local));
-    remote.getMap("main-grid").set("0,0", {
-      char: "R",
-      color: "#ffffff",
-    });
+    const pageId = remote.getArray<string>("document-page-order").get(0)!;
+    remote.getArray(`canvas-page:${encodeURIComponent(pageId)}:cell-plane-operations`).push([
+      gridEntriesToCellPlaneOperation("remote:1", [["0,0", {
+        char: "R",
+        color: "#ffffff",
+      }]])!,
+    ]);
 
     Y.applyUpdate(local, Y.encodeStateAsUpdate(remote));
     host.canvas.commands.interaction.setTextCursor({ x: 1, y: 0 });

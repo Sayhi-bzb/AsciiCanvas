@@ -1,6 +1,11 @@
 import "fake-indexeddb/auto";
 import { deleteDB } from "idb";
-import { clearDocument } from "y-indexeddb";
+import * as Y from "yjs";
+import {
+  IndexeddbPersistence,
+  clearDocument,
+  storeState,
+} from "y-indexeddb";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createSelectionCommandFactory } from "@/domains/actions/public";
 import { parseDocumentSessionSource } from "@/domains/document/public";
@@ -12,6 +17,7 @@ import {
   type CanvasSession,
 } from "@/domains/sessions/public";
 import { createCanvasRuntime, type CanvasRuntime } from "../runtime";
+import { gridEntriesToCellPlaneOperation } from "../cell-plane/model";
 
 class MemoryStorage implements Storage {
   readonly #values = new Map<string, string>();
@@ -27,9 +33,13 @@ const SESSION_ID = "indexeddb-persistence-test";
 const DOCUMENT_DATABASE = `chardesk-local-document-v1:${SESSION_ID}`;
 const LEGACY_SESSION_ID = "legacy-indexeddb-test";
 const SLIDE_SESSION_ID = "slide-indexeddb-test";
+const SLIDE_DOCUMENT_DATABASE = `chardesk-local-document-v1:${SLIDE_SESSION_ID}`;
+const LEGACY_SLIDE_DOCUMENT_DATABASE =
+  `chardesk-local-document-v1:${SLIDE_SESSION_ID}:slide:slide-a`;
 const EXTRA_DOCUMENT_DATABASES = [
   `chardesk-local-document-v1:${LEGACY_SESSION_ID}`,
-  `chardesk-local-document-v1:${SLIDE_SESSION_ID}:slide:slide-a`,
+  SLIDE_DOCUMENT_DATABASE,
+  LEGACY_SLIDE_DOCUMENT_DATABASE,
 ];
 
 const createRuntime = (
@@ -153,7 +163,7 @@ describe("browser canvas persistence", () => {
     expect(storage.getItem(CANVAS_CATALOG_MARKER_KEY)).toBe("1");
   });
 
-  it("persists slide grids in their Yjs editing documents", async () => {
+  it("persists slide pages in one session Yjs document", async () => {
     const storage = new MemoryStorage();
     const slides: CanvasSession[] = [{
       id: SLIDE_SESSION_ID,
@@ -175,8 +185,10 @@ describe("browser canvas persistence", () => {
     const first = createRuntime(storage, slides);
     runtimes.push(first);
     await first.ready;
+    expect(first.getState().grid.get("0,0")?.char).toBe("X");
     first.commands.interaction.setTextCursor({ x: 1, y: 0 });
     first.commands.text.write("Y");
+    expect(first.getState().grid.get("0,0")?.char).toBe("X");
     await first.retryPersistence();
     first.dispose();
     runtimes = [];
@@ -187,6 +199,53 @@ describe("browser canvas persistence", () => {
     await second.ready;
     expect(second.getState().grid.get("0,0")?.char).toBe("X");
     expect(second.getState().grid.get("1,0")?.char).toBe("Y");
+  });
+
+  it("migrates legacy per-slide IndexedDB content into the session document", async () => {
+    const storage = new MemoryStorage();
+    const slides: CanvasSession[] = [{
+      id: SLIDE_SESSION_ID,
+      name: "Slides",
+      mode: "slide",
+      slideDeck: {
+        activeSlideId: "slide-a",
+        slides: [{
+          id: "slide-a",
+          name: "Slide A",
+          size: { columns: 80, rows: 24 },
+          grid: [],
+        }],
+      },
+      scene: [],
+      components: [],
+      grid: [],
+    }];
+    const first = createRuntime(storage, slides);
+    runtimes.push(first);
+    await first.ready;
+    await first.retryPersistence();
+    first.dispose();
+    runtimes = [];
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await clearDocument(SLIDE_DOCUMENT_DATABASE);
+
+    const legacy = new Y.Doc({ guid: `${SLIDE_SESSION_ID}:slide:slide-a` });
+    const provider = new IndexeddbPersistence(LEGACY_SLIDE_DOCUMENT_DATABASE, legacy);
+    await provider.whenSynced;
+    legacy.getArray("cell-plane-operations").push([
+      gridEntriesToCellPlaneOperation("legacy-slide", [[
+        "2,3",
+        { char: "旧", color: "#111111" },
+      ]])!,
+    ]);
+    await storeState(provider, true);
+    await provider.destroy();
+    legacy.destroy();
+
+    const second = createRuntime(storage, slides);
+    runtimes.push(second);
+    await second.ready;
+    expect(second.getState().grid.get("2,3")?.char).toBe("旧");
   });
 
   it("allows only one local writer across tabs sharing the workspace", async () => {
