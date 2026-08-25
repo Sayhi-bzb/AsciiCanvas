@@ -63,6 +63,7 @@ describe("SidebarRight structured templates", () => {
   });
 
   afterEach(() => {
+    vi.unstubAllGlobals();
     setActiveStructuredTemplateDragId(null);
     setUiLanguage("en");
     useEditorStore.setState(initialState, true);
@@ -95,6 +96,7 @@ describe("SidebarRight structured templates", () => {
   });
 
   it("shows structured templates instead of the character library in structured mode", () => {
+    vi.stubGlobal("IntersectionObserver", undefined);
     useEditorStore.setState({ canvasMode: "structured" });
 
     const { container } = render(

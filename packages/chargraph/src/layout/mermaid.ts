@@ -18,14 +18,13 @@ import type {
 } from "./model.js";
 import { createLayoutLabel } from "./presentation.js";
 import {
-  renderLayeredDiagram,
   renderLayeredDiagramSurface,
   type LayeredDiagramPresentation,
   type LayeredEndpointPainter,
   writeCanvasFragment,
 } from "./render.js";
 
-export interface LayeredMermaidRenderOptions {
+interface LayeredMermaidRenderOptions {
   useAscii: boolean;
   paddingX: number;
   paddingY: number;
@@ -256,14 +255,6 @@ const createLayeredMermaidDiagram = (
   };
 
   return { graph, presentation };
-};
-
-export const renderLayeredMermaid = async (
-  parsed: MermaidGraph,
-  options: LayeredMermaidRenderOptions,
-) => {
-  const diagram = createLayeredMermaidDiagram(parsed, options);
-  return renderLayeredDiagram(diagram.graph, diagram.presentation, options);
 };
 
 export const renderLayeredMermaidSurface = async (

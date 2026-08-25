@@ -43,8 +43,8 @@ import { useGitHubStars } from "./use-github-stars";
 import { useCanvasWorkspaceOptional } from "@/widgets/canvas-editor/engine/CanvasWorkspace";
 import { useOnboardingTour } from "@/widgets/onboarding/onboarding-context";
 import { useEditorPresentation } from "@/widgets/editor-chrome/public";
-import { RecoverableLazyBoundary } from "@/app/RecoverableLazyBoundary";
-import { requireLoadedModule } from "@/app/moduleLoadRecovery";
+import { RecoverableLazyBoundary } from "@/shared/components/RecoverableLazyBoundary";
+import { requireLoadedModule } from "@/shared/lib/moduleLoadRecovery";
 
 const AppMenuTriggerIcon = HOST_ICONOLOGY.appMenu.trigger;
 const FileIcon = HOST_ICONOLOGY.appMenu.file;

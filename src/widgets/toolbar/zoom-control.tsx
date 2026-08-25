@@ -42,8 +42,8 @@ import type {
   EditorViewportFrame,
 } from '@/widgets/editor-chrome/public';
 import { resolvePaneViewportFrame } from '@/widgets/editor-chrome/public';
-import { RecoverableLazyBoundary } from '@/app/RecoverableLazyBoundary';
-import { requireLoadedModule } from '@/app/moduleLoadRecovery';
+import { RecoverableLazyBoundary } from '@/shared/components/RecoverableLazyBoundary';
+import { requireLoadedModule } from '@/shared/lib/moduleLoadRecovery';
 
 const ZOOM_STEP = 1.2;
 const ZOOM_EPSILON = 0.000001;

@@ -68,8 +68,8 @@ import { getAppActionShortcuts } from '@/domains/actions/public';
 import type { CanvasEditorCapabilities } from '@/widgets/canvas-editor/canvasEditorCapabilities';
 import type { EditorViewportFrame } from '@/widgets/editor-chrome/public';
 import { useUiI18n } from '@/shared/i18n';
-import { RecoverableLazyBoundary } from './RecoverableLazyBoundary';
-import { requireLoadedModule } from './moduleLoadRecovery';
+import { RecoverableLazyBoundary } from '@/shared/components/RecoverableLazyBoundary';
+import { requireLoadedModule } from '@/shared/lib/moduleLoadRecovery';
 
 
 const SidebarRight = lazy(() =>

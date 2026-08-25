@@ -3,7 +3,7 @@ import { createContext, useContext } from 'react';
 export type EditorPresentationMode = 'standard' | 'zen';
 export type EditorWidgetRole = 'essential' | 'host' | 'pane' | 'contextual';
 
-export type EditorPresentationValue = {
+type EditorPresentationValue = {
   mode: EditorPresentationMode;
   setMode: (mode: EditorPresentationMode) => void;
   isWidgetVisible: (role: EditorWidgetRole) => boolean;

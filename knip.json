@@ -4,15 +4,16 @@
     ".": {
       "entry": [
         "src/app/main.tsx",
-        "src/domains/actions/public.ts",
-        "src/domains/document/public.ts",
-        "src/domains/editor/public.ts",
+        "src/app/App.tsx",
+        "src/domains/*/public.ts",
+        "src/widgets/dialogs/clear-canvas-dialog.tsx",
         "scripts/**/*.{mjs,ts}",
         "e2e/**/*.ts",
         "vite.config.ts",
         "vitest.config.ts",
         "playwright.config.ts",
-        "playwright.perf.config.ts"
+        "playwright.perf.config.ts",
+        "playwright.stress.config.ts"
       ],
       "project": [
         "src/**/*.{ts,tsx}",
@@ -73,7 +74,6 @@
     "packages/chargraph/src/vendor/**"
   ],
   "ignoreDependencies": [
-    "tailwindcss",
     "tw-animate-css"
   ]
 }

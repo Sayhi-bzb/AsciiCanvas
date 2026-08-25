@@ -9,8 +9,6 @@ export {
 } from "./EditorPresentation";
 export {
   useEditorPresentation,
-  type EditorPresentationMode,
-  type EditorWidgetRole,
 } from "./EditorPresentationContext";
 export {
   resolveEditorFormFactor,
@@ -19,5 +17,4 @@ export {
   resolveSidebarPresentation,
   type EditorFormFactor,
   type EditorViewportFrame,
-  type EditorPanePosition,
 } from "./types";

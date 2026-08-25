@@ -33,7 +33,7 @@ export type EditorViewportFrame = {
   center: { x: number; y: number };
 };
 
-export type EditorPanePosition = "single" | "start" | "end";
+type EditorPanePosition = "single" | "start" | "end";
 
 export const EMPTY_VIEWPORT_FRAME: EditorViewportFrame = {
   width: 0,

@@ -4,7 +4,7 @@ import {
   isModuleReloadPending,
   isRecoverableModuleLoadError,
   requireLoadedModule,
-} from './moduleLoadRecovery';
+} from '@/shared/lib/moduleLoadRecovery';
 
 const createStorage = () => {
   const values = new Map<string, string>();

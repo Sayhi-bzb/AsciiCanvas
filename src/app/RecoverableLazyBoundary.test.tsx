@@ -2,7 +2,7 @@ import { Component, type ReactNode } from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { feedback } from '@/shared/services/effects';
-import { RecoverableLazyBoundary } from './RecoverableLazyBoundary';
+import { RecoverableLazyBoundary } from '@/shared/components/RecoverableLazyBoundary';
 
 class OuterBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false };

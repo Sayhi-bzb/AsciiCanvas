@@ -16,11 +16,11 @@ import type {
 } from "./model.js";
 import { validateGridLayout } from "./validate.js";
 
-export interface LayeredRenderContext {
+interface LayeredRenderContext {
   useAscii: boolean;
 }
 
-export interface LayeredEndpointMarkerContext extends LayeredRenderContext {
+interface LayeredEndpointMarkerContext extends LayeredRenderContext {
   edge: PositionedLayoutEdge;
   endpoint: PositionedEdgeEndpoint;
   end: "source" | "target";
@@ -36,7 +36,7 @@ export interface LayeredEndpointPresentation {
   paint: LayeredEndpointPainter;
 }
 
-export interface LayeredEdgePresentation {
+interface LayeredEdgePresentation {
   stroke: {
     style: NonNullable<StrokePrimitive["style"]>;
     role?: NonNullable<StrokePrimitive["role"]>;
@@ -61,7 +61,7 @@ export interface LayeredDiagramPresentation {
   edge(edge: PositionedLayoutEdge): LayeredEdgePresentation;
 }
 
-export interface LayeredDiagramRenderOptions extends LayeredRenderContext {
+interface LayeredDiagramRenderOptions extends LayeredRenderContext {
   engine?: GraphLayoutEngine;
 }
 
@@ -179,7 +179,7 @@ const drawEdge = (
   }
 };
 
-export const renderGridLayoutSurface = (
+const renderGridLayoutSurface = (
   layout: GridLayout,
   presentation: LayeredDiagramPresentation,
   context: LayeredRenderContext,
@@ -209,7 +209,7 @@ export const renderGridLayoutSurface = (
   });
 };
 
-export const renderGridLayout = (
+const renderGridLayout = (
   layout: GridLayout,
   presentation: LayeredDiagramPresentation,
   context: LayeredRenderContext,

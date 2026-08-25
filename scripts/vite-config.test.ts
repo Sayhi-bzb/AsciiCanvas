@@ -45,6 +45,8 @@ describe("Vite workspace aliases", () => {
   it.each([
     ["@chardesk/chargraph/markdown", "packages/chargraph/src/markdown-default.ts"],
     ["@chardesk/chargraph/theme", "packages/chargraph/src/render-theme.ts"],
+    ["@chardesk/rendering", "packages/rendering/src/index.ts"],
+    ["@chardesk/rendering/canvas", "packages/rendering/src/canvas.ts"],
   ])("resolves %s from source in TypeScript, Vite, and Vitest", (
     specifier,
     sourcePath
@@ -66,12 +68,15 @@ describe("Vite workspace aliases", () => {
         ? candidate.resolve.alias
         : [];
       const alias = findAlias(aliases, specifier);
-      const rootAlias = findAlias(aliases, "@chardesk/chargraph");
+      const packageRoot = specifier.split("/").slice(0, 2).join("/");
+      const rootAlias = findAlias(aliases, packageRoot);
 
       expect(alias).toMatchObject({ replacement: expected });
-      expect(alias && aliases.indexOf(alias)).toBeLessThan(
-        rootAlias ? aliases.indexOf(rootAlias) : -1
-      );
+      if (specifier !== packageRoot) {
+        expect(alias && aliases.indexOf(alias)).toBeLessThan(
+          rootAlias ? aliases.indexOf(rootAlias) : -1
+        );
+      }
     }
   });
 });

@@ -10,8 +10,8 @@ import {
   TooltipPopup,
   TooltipTrigger,
 } from '@chardesk/ui';
-import { RecoverableLazyBoundary } from '@/app/RecoverableLazyBoundary';
-import { requireLoadedModule } from '@/app/moduleLoadRecovery';
+import { RecoverableLazyBoundary } from '@/shared/components/RecoverableLazyBoundary';
+import { requireLoadedModule } from '@/shared/lib/moduleLoadRecovery';
 import { useCanvasPersistence } from '@/domains/canvas/public';
 
 const SecurityIcon = HOST_ICONOLOGY.viewportAction.security;

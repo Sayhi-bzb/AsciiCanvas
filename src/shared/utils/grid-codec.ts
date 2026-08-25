@@ -7,7 +7,7 @@ import {
 import { GridManager } from "@/shared/utils/grid";
 import { writeStyledCell } from "@/shared/utils/grid-ops";
 
-export const normalizeGridCellEntries = (entries: [string, GridCell][]) => {
+const normalizeGridCellEntries = (entries: [string, GridCell][]) => {
   const latestByKey = new Map(entries);
   const sortable: Array<{ key: string; cell: GridCell; x: number; y: number }> = [];
   const passthrough: [string, GridCell][] = [];

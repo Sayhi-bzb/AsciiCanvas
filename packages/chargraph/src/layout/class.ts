@@ -18,7 +18,6 @@ import {
   drawMultiBoxFragment,
 } from "./presentation.js";
 import {
-  renderLayeredDiagram,
   renderLayeredDiagramSurface,
   type LayeredDiagramPresentation,
   type LayeredEndpointPainter,
@@ -237,12 +236,6 @@ export const createLayeredClassDiagram = (
     },
   };
   return { graph, presentation };
-};
-
-export const renderLayeredClass = async (text: string, config: AsciiConfig) => {
-  const diagram = createLayeredClassDiagram(text, config);
-  if (!diagram) return "";
-  return renderLayeredDiagram(diagram.graph, diagram.presentation, config);
 };
 
 export const renderLayeredClassSurface = async (text: string, config: AsciiConfig) => {

@@ -23,12 +23,12 @@ const lineVariants = {
   hover: { scaleX: 1 },
 };
 
-export type LineNavItem = {
+type LineNavItem = {
   title: string;
   href: string;
 };
 
-export type LineNavProps = Omit<ComponentProps<"nav">, "children"> & {
+type LineNavProps = Omit<ComponentProps<"nav">, "children"> & {
   items: LineNavItem[];
   activeHref?: string;
   activeAriaCurrent?: "page" | "location";

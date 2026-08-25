@@ -62,6 +62,20 @@ export default defineConfig({
         )
       },
       {
+        find: /^@chardesk\/rendering\/canvas$/,
+        replacement: path.resolve(
+          import.meta.dirname,
+          './packages/rendering/src/canvas.ts'
+        )
+      },
+      {
+        find: /^@chardesk\/rendering$/,
+        replacement: path.resolve(
+          import.meta.dirname,
+          './packages/rendering/src/index.ts'
+        )
+      },
+      {
         find: '@chardesk/protocol',
         replacement: path.resolve(
           import.meta.dirname,

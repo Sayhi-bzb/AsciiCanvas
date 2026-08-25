@@ -1,7 +1,7 @@
 import { Component, type ReactNode } from 'react';
 import { feedback } from '@/shared/services/effects';
 import { useUiI18n } from '@/shared/i18n';
-import { isRecoverableModuleLoadError } from './moduleLoadRecovery';
+import { isRecoverableModuleLoadError } from '@/shared/lib/moduleLoadRecovery';
 
 type RecoverableLazyBoundaryProps = {
   children: ReactNode;

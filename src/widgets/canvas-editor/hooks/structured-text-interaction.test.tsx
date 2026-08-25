@@ -10,7 +10,7 @@ import { canvasCommands } from "@/domains/canvas/testing";
 import { useShallow } from "zustand/react/shallow";
 import type { ToolType } from "@/domains/canvas/testing";
 import { ShortcutProvider } from "@/shared/shortcuts/dispatcher";
-import { DEFAULT_DEMO_GRID } from "@/domains/canvas/state/helpers/defaultDemo";
+import { DEFAULT_DEMO_GRID } from "@/domains/canvas/public";
 import { GridManager } from "@/shared/utils/grid";
 import { CanvasEngineRuntime } from "@/widgets/canvas-editor/engine/CanvasEngineRuntime";
 

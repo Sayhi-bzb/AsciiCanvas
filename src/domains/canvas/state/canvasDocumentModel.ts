@@ -17,7 +17,7 @@ export type CanvasDocumentAddress = {
   pageId: string;
 };
 
-export type CanvasPageContentKind = "cell-plane" | "structured";
+type CanvasPageContentKind = "cell-plane" | "structured";
 
 export type CanvasPageDescriptor = {
   id: string;

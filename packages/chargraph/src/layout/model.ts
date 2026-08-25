@@ -2,11 +2,11 @@ import type { Direction } from "../vendor/types.js";
 
 export type LayoutDirection = Direction;
 
-export type LayoutRankConstraint = "first" | "last";
-export type LayoutCycleBreaking = "automatic" | "depth-first";
-export type LayoutPortPlacement = "center" | "distributed" | "adaptive";
-export type LayoutPortAllocation = "shared" | "independent";
-export type LayoutTopology = "shared" | "independent";
+type LayoutRankConstraint = "first" | "last";
+type LayoutCycleBreaking = "automatic" | "depth-first";
+type LayoutPortPlacement = "center" | "distributed" | "adaptive";
+type LayoutPortAllocation = "shared" | "independent";
+type LayoutTopology = "shared" | "independent";
 
 export interface LayoutLabel {
   text: string;
@@ -26,7 +26,7 @@ export interface LayoutNode {
   portAllocation?: LayoutPortAllocation;
 }
 
-export interface LayoutEdgeRouting {
+interface LayoutEdgeRouting {
   /** Whether collinear route cells may be shared with another edge. */
   topology?: LayoutTopology;
   /** Explicit ownership for a structured fan-in or fan-out bus. */
@@ -44,7 +44,7 @@ export interface LayoutEdgeRouting {
   targetClearance?: number;
 }
 
-export interface LayoutEdge {
+interface LayoutEdge {
   id: string;
   source: string;
   target: string;

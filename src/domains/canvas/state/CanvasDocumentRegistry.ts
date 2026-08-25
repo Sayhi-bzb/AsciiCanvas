@@ -50,7 +50,7 @@ export type CanvasDocumentSeed = {
   pages?: CanvasPageDraft[];
 };
 
-export type CanvasDocumentLifecycle = {
+type CanvasDocumentLifecycle = {
   onCreate: (id: string, doc: Y.Doc) => void;
   onDelete: (id: string) => void;
 };

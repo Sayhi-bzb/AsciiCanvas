@@ -57,7 +57,7 @@ export type RenderedTextSpan = Omit<GridCell, "char"> & {
 };
 export type RenderedTextRow = { y: number; spans: RenderedTextSpan[] };
 
-export type TextRenderDiagnostic = {
+type TextRenderDiagnostic = {
   code: string;
   message: string;
   offset?: number;

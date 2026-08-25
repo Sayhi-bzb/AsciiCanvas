@@ -16,7 +16,7 @@ type ModuleLoadRecoveryOptions = {
 
 let moduleReloadPending = false;
 
-export class ModuleLoadError extends Error {
+class ModuleLoadError extends Error {
   constructor() {
     super('A dynamically imported module did not load');
     this.name = 'ModuleLoadError';

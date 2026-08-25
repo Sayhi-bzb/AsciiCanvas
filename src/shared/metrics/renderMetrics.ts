@@ -1,14 +1,12 @@
 import {
   alignCharDeskCanvasCoordinate,
   DEFAULT_CHARDESK_CANVAS_METRICS,
-  getCharDeskCanvasCellAnchor,
   getCharDeskCanvasFont,
   loadCharDeskCanvasFonts,
   prepareCharDeskCanvasSurface,
   type CharDeskCanvasFontSample,
   type CharDeskCanvasMetrics,
 } from "@chardesk/rendering/canvas";
-import { getCellOccupancy } from "./cellOccupancy";
 import type { RenderFontRoute } from "./fontRouting";
 
 export type GridRenderMetrics = CharDeskCanvasMetrics;
@@ -24,20 +22,6 @@ export const getCanvasFont = (
     route?: RenderFontRoute;
   }
 ) => getCharDeskCanvasFont(metrics, zoom, options);
-
-export const getTextCellAnchor = (
-  cellX: number,
-  cellY: number,
-  grapheme: string,
-  zoom: number,
-  metrics: GridRenderMetrics = DEFAULT_GRID_RENDER_METRICS
-) => getCharDeskCanvasCellAnchor(
-  cellX,
-  cellY,
-  getCellOccupancy(grapheme),
-  zoom,
-  metrics
-);
 
 export const alignCanvasCoordinate = alignCharDeskCanvasCoordinate;
 

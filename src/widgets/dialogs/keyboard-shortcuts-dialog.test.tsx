@@ -151,7 +151,8 @@ describe('KeyboardShortcutsPanel', () => {
     ).toBeNull();
     expect(screen.getByRole('dialog').querySelector('[data-slot="dialog-footer"]')).toHaveClass(
       'h-9',
-      'lg:col-start-2'
+      'md:col-start-2',
+      'md:row-start-2'
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Discard' }));

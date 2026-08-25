@@ -17,6 +17,7 @@ export type {
 export type { SelectionCommandFactory } from "./state/selectionCommandPort";
 export { isToolAllowedForMode } from "./model/tool";
 export type { ToolType } from "./model/tool";
+export { DEFAULT_DEMO_GRID } from "./state/helpers/defaultDemo";
 export type { CanvasHistoryCheckpoint } from "./state/CanvasDocumentRegistry";
 export type { CanvasPersistenceStatus } from "./state/browserPersistence";
 export {

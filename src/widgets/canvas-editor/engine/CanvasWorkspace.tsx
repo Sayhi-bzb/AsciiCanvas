@@ -24,8 +24,8 @@ export type CanvasViewId = 'primary' | 'secondary';
 const SPLIT_ENABLED_STORAGE_KEY = 'chardesk-canvas-split-enabled';
 const SPLIT_RATIO_STORAGE_KEY = 'chardesk-canvas-split-ratio';
 const DEFAULT_VIEWPORT: CanvasViewportState = { offset: { x: 0, y: 0 }, zoom: 1 };
-export type CanvasViewSize = { width: number; height: number };
-export type CanvasViewSnapshot = {
+type CanvasViewSize = { width: number; height: number };
+type CanvasViewSnapshot = {
   sessionId: string | null;
   viewport: CanvasViewportState;
   size?: CanvasViewSize;

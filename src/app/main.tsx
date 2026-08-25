@@ -17,7 +17,7 @@ import {
   installModuleLoadRecovery,
   isModuleReloadPending,
   requireLoadedModule,
-} from "./moduleLoadRecovery";
+} from "@/shared/lib/moduleLoadRecovery";
 
 const profile = window.location.pathname === "/blackboard"
   ? BLACKBOARD_HOST_PROFILE

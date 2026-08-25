@@ -14,7 +14,6 @@ import {
 } from "./presentation.js";
 import {
   endpointCell,
-  renderLayeredDiagram,
   renderLayeredDiagramSurface,
   type LayeredDiagramPresentation,
   type LayeredEndpointPresentation,
@@ -251,12 +250,6 @@ export const createLayeredErDiagram = (
     },
   };
   return { graph, presentation };
-};
-
-export const renderLayeredEr = async (text: string, config: AsciiConfig) => {
-  const diagram = createLayeredErDiagram(text, config);
-  if (!diagram) return "";
-  return renderLayeredDiagram(diagram.graph, diagram.presentation, config);
 };
 
 export const renderLayeredErSurface = async (text: string, config: AsciiConfig) => {
