@@ -148,8 +148,8 @@
 
 ╭────────────────────────────────────────────────────────────╮
 │ [1mOpen source workspace[0m                                      │
-│ CharDesk · [4;38;2;37;99;235m]8;;https://github.com/Sayhi-bzb/CharDesk\github.com/Sayhi-bzb/CharDesk]8;;\[0m          │
-│ CharGraph · [4;38;2;37;99;235m]8;;https://chardesk.com/chargraph/\chardesk.com/chargraph]8;;\[0m                  │
-│ [38;2;34;197;94mAll systems operational[0m · shared example           │
+│ CharDesk · [4;38;2;37;99;235m]8;;https://github.com/Sayhi-bzb/CharDesk\github.com/Sayhi-bzb/CharDesk]8;;\[0m                   │
+│ CharGraph · [4;38;2;37;99;235m]8;;https://chardesk.com/chargraph/\chardesk.com/chargraph]8;;\[0m                         │
+│ [38;2;34;197;94mAll systems operational[0m · shared example                   │
 ╰────────────────────────────────────────────────────────────╯
 ````

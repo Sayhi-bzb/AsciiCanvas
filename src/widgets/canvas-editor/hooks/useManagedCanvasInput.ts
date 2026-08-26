@@ -17,7 +17,9 @@ import { gridCellRect } from "@/shared/metrics";
 import { CELL_HEIGHT } from "@/shared/lib/constants";
 import {
   getStaticGridViewState,
+  getGridSelectionRanges,
 } from "@/domains/selection/public";
+import { classifyShortcutTarget } from "@/shared/utils/dom-focus";
 import { shouldIgnoreCanvasSurfaceGesture } from "./interaction/core/gestureGuards";
 import {
   resolveFillHotkeyChar,
@@ -59,7 +61,8 @@ type RunManagedAction = (
 
 const traceClipboardShortcut = (
   trace: ClipboardShortcutTrace,
-  canvasOwnsInputFocus: boolean
+  canvasOwnsInputFocus: boolean,
+  editor: ReturnType<typeof useEditor>
 ) => {
   if (!import.meta.env.DEV || typeof window === 'undefined') return;
   try {
@@ -73,6 +76,34 @@ const traceClipboardShortcut = (
     ...trace,
     activeElement: document.activeElement?.tagName ?? null,
     canvasOwnsInputFocus,
+    interaction: editor.getInteractionState().type,
+    selectionMode: editor.getState().staticGridSelection.mode,
+    selectionRangeCount: getGridSelectionRanges(
+      editor.getState().staticGridSelection
+    ).length,
+  });
+};
+
+const traceClipboardAction = (
+  actionId: ClipboardShortcutAction,
+  result: ActionResult,
+  canvasOwnsInputFocus: boolean,
+  editor: ReturnType<typeof useEditor>
+) => {
+  if (!import.meta.env.DEV || typeof window === 'undefined') return;
+  try {
+    if (window.localStorage.getItem(CLIPBOARD_DEBUG_STORAGE_KEY) !== '1') return;
+  } catch {
+    return;
+  }
+  console.debug('[CharDesk clipboard action]', {
+    actionId,
+    status: result.status,
+    reason: 'reason' in result ? result.reason : undefined,
+    activeElement: document.activeElement?.tagName ?? null,
+    canvasOwnsInputFocus,
+    interaction: editor.getInteractionState().type,
+    selectionMode: editor.getState().staticGridSelection.mode,
   });
 };
 
@@ -84,6 +115,7 @@ type UseManagedCanvasInputOptions = {
   onRedo?: () => void;
   enabled?: boolean;
   mutateEnabled?: boolean;
+  active?: boolean;
 };
 
 const getModifiedArrowEdge = (
@@ -105,6 +137,7 @@ export const useManagedCanvasInput = ({
   onRedo,
   enabled = true,
   mutateEnabled = true,
+  active = true,
 }: UseManagedCanvasInputOptions) => {
   const editor = useEditor();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -195,6 +228,28 @@ export const useManagedCanvasInput = ({
     canvasOwnsInputFocusRef.current = false;
     setCanvasOwnsInputFocus(false);
   }, []);
+  const reconcileManagedTextareaBlur = useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea || !canvasOwnsInputFocusRef.current) return;
+    const activeElement = document.activeElement;
+    if (activeElement === textarea) return;
+
+    const surface = textarea.closest('[data-testid="canvas-editor-surface"]');
+    const targetKind = classifyShortcutTarget(activeElement);
+    const isNeutralDocumentFocus =
+      activeElement === document.body || activeElement === document.documentElement;
+    const isSameCanvasSurface =
+      !!surface &&
+      activeElement instanceof Node &&
+      surface.contains(activeElement) &&
+      targetKind === 'canvas-surface';
+
+    if (isNeutralDocumentFocus || isSameCanvasSurface) {
+      focusManagedTextarea();
+      return;
+    }
+    releaseManagedTextarea();
+  }, [focusManagedTextarea, releaseManagedTextarea]);
   const handleCanvasPointerDown = (
     event: PointerEvent<HTMLDivElement>
   ) => {
@@ -232,17 +287,42 @@ export const useManagedCanvasInput = ({
     };
   }, [releaseManagedTextarea]);
 
+  useEffect(() => {
+    if (active) return;
+    let canceled = false;
+    queueMicrotask(() => {
+      if (!canceled) releaseManagedTextarea();
+    });
+    return () => {
+      canceled = true;
+    };
+  }, [active, releaseManagedTextarea]);
+
+  useEffect(() => {
+    const releaseOnWindowBlur = () => releaseManagedTextarea();
+    window.addEventListener('blur', releaseOnWindowBlur);
+    return () => window.removeEventListener('blur', releaseOnWindowBlur);
+  }, [releaseManagedTextarea]);
+
   const runManagedAction: RunManagedAction = useCallback(
     (
       actionId,
       e?: ClipboardEvent,
       source: ManagedActionSource = e ? 'clipboard-event' : 'context-menu'
-    ) =>
-      editor.commands.execute(actionId, {
+    ) => {
+      const result = editor.commands.execute(actionId, {
         source,
         clipboardEvent: e,
         managedTextarea: textareaRef.current,
-      }, source),
+      }, source);
+      traceClipboardAction(
+        actionId,
+        result,
+        canvasOwnsInputFocusRef.current,
+        editor
+      );
+      return result;
+    },
     [editor]
   );
   const [clipboardShortcutCoordinator] = useState(() =>
@@ -254,12 +334,12 @@ export const useManagedCanvasInput = ({
       runManagedAction(actionId, undefined, 'canvas-keydown');
     });
     clipboardShortcutCoordinator.setTraceHandler((trace) => {
-      traceClipboardShortcut(trace, canvasOwnsInputFocusRef.current);
+      traceClipboardShortcut(trace, canvasOwnsInputFocusRef.current, editor);
     });
     return () => {
       clipboardShortcutCoordinator.dispose();
     };
-  }, [clipboardShortcutCoordinator, runManagedAction]);
+  }, [clipboardShortcutCoordinator, editor, runManagedAction]);
 
   useShortcutLayer({
     id: "managed-canvas-commands",
@@ -267,8 +347,10 @@ export const useManagedCanvasInput = ({
     enabled: enabled && canvasOwnsInputFocus,
     onKeyDown: (event, context) => {
       if (
-        context.targetKind !== "managed-canvas" ||
-        event.target !== textareaRef.current
+        !canvasOwnsInputFocusRef.current ||
+        (event.target !== textareaRef.current &&
+          context.targetKind !== 'canvas-surface' &&
+          context.targetKind !== 'document')
       ) {
         return;
       }
@@ -288,7 +370,9 @@ export const useManagedCanvasInput = ({
       const resolution = resolveEditorKeymapEvent(
         editor,
         event,
-        context.targetKind
+        context.targetKind === 'document'
+          ? 'managed-canvas'
+          : context.targetKind
       );
       const commandId =
         resolution.type === "match" && resolution.entry.target.type === "command"
@@ -596,9 +680,7 @@ export const useManagedCanvasInput = ({
       onBlur: () => {
         isComposing.current = false;
         finalizedCompositionRef.current = null;
-        if (document.activeElement !== textareaRef.current) {
-          releaseManagedTextarea();
-        }
+        queueMicrotask(reconcileManagedTextareaBlur);
       },
     },
   };

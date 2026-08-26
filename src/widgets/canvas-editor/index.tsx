@@ -232,6 +232,7 @@ export const CanvasEditor = ({
     onRedo,
     enabled: effectiveCapabilities.copy || effectiveCapabilities.mutateContent,
     mutateEnabled: active && effectiveCapabilities.mutateContent,
+    active,
   });
   const isCanvasTextEditing = isStaticGridMode(canvasMode)
     ? editorStore.staticGridEditMode === 'text-edit'

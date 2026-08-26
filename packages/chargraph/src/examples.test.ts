@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { parseCharDeskText } from "@chardesk/protocol";
 import {
   BLOCK_LAYOUT_DASHBOARD_EXAMPLE,
   CHARGRAPH_EXAMPLES,
@@ -139,6 +140,17 @@ describe("CharGraph showcase examples", () => {
     expect(output.text).toContain("canvas");
     expect(output.text).toContain("launch-plan");
     expect(output.text).not.toContain("```json");
+  });
+
+  it("keeps every row of the dashboard link card aligned to its border", async () => {
+    const output = await renderExample(BLOCK_LAYOUT_DASHBOARD_EXAMPLE);
+    const lines = output.text.split("\n");
+    const titleRow = lines.findIndex((line) => line.includes("Open source workspace"));
+    const card = lines.slice(titleRow - 1, titleRow + 5);
+
+    expect(card).toHaveLength(6);
+    expect(card.map((line) => parseCharDeskText(line, { syntax: "plain" }).width))
+      .toEqual([62, 62, 62, 62, 62, 62]);
   });
 
   it("renders Mermaid with the shared Renderer Theme", async () => {

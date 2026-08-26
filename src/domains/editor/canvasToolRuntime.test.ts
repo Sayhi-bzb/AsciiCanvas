@@ -59,6 +59,66 @@ const createHarness = (initialTool: "select" | "brush" = "select") => {
 };
 
 describe("CanvasToolStateNode", () => {
+  it("finalizes the current selection draft before a command reads it", () => {
+    const runtime = createCanvasEditorRuntime({
+      state: { get: getCanvasState, subscribe: () => () => undefined },
+      history: {
+        undo: () => false,
+        redo: () => false,
+        beginCheckpoint: () => ({ commit: vi.fn(), cancel: vi.fn() }),
+        finishCapture: vi.fn(),
+      },
+      transactions: { run: <Result,>(fn: () => Result) => fn() },
+    });
+    const complete = vi.fn();
+    runtime.interactionPort.bind({
+      begin: vi.fn(),
+      start: vi.fn((event) => ({
+        state: {
+          type: "selecting" as const,
+          anchor: event.gridPoint!,
+          current: event.gridPoint!,
+        },
+      })),
+      update: vi.fn((state, event) =>
+        state.type === "selecting" && event.currentGrid
+          ? { ...state, current: event.currentGrid }
+          : state
+      ),
+      complete,
+      cancel: vi.fn(),
+    });
+    runtime.registerExtension(createCanvasEditorExtension(runtime.interactionPort)).start("select");
+    runtime.dispatch({
+      type: "canvas-drag-start",
+      canvasMode: "freeform",
+      button: 0,
+      isCtrlOrMetaPressed: false,
+      shiftKey: false,
+      detail: 1,
+      screenPoint: { x: 10, y: 20 },
+      gridPoint: { x: 1, y: 2 },
+      brushChar: "#",
+    });
+    runtime.dispatch({
+      type: "canvas-drag-update",
+      delta: { x: 3, y: 0 },
+      currentGrid: { x: 4, y: 2 },
+    });
+
+    expect(runtime.finalizePendingSelection()).toBe(true);
+    expect(complete).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "selecting",
+        anchor: { x: 1, y: 2 },
+        current: { x: 4, y: 2 },
+      }),
+      { x: 4, y: 2 }
+    );
+    expect(runtime.getInteractionState().type).toBe("idle");
+    expect(runtime.finalizePendingSelection()).toBe(false);
+  });
+
   it("routes a shared runtime to the explicitly active interaction owner", () => {
     const binding = new CanvasInteractionPortBinding();
     const primary = {

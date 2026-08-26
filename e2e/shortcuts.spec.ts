@@ -2,9 +2,14 @@ import { expect, test, type Page } from "@playwright/test";
 
 const STORAGE_KEY = "chardesk-persistence";
 const CELL_WIDTH = 9;
-const VIEWPORT = { offset: { x: 180, y: 130 }, zoom: 1 };
+// Keep seeded content in the unobstructed center of the Canvas. Coordinates near
+// the left edge can hit the character library instead of the Canvas surface.
+const VIEWPORT = { offset: { x: 720, y: 450 }, zoom: 1 };
 
-const seedFreeformSelection = async (page: Page) => {
+const seedFreeformSelection = async (
+  page: Page,
+  options: { releasePointer?: boolean } = {}
+) => {
   await page.evaluate(
     ({ storageKey, viewport }) => {
       const session = {
@@ -57,13 +62,15 @@ const seedFreeformSelection = async (page: Page) => {
   await page.mouse.move(start.x, start.y);
   await page.mouse.down();
   await page.mouse.move(start.x + CELL_WIDTH + 4, start.y, { steps: 3 });
-  await page.mouse.up();
+  if (options.releasePointer !== false) await page.mouse.up();
   await expect(surface.locator("textarea")).toBeFocused();
 };
 
 const readGrid = (page: Page) =>
   page.evaluate((storageKey) => {
-    const state = JSON.parse(localStorage.getItem(storageKey)!).state;
+    const snapshot = localStorage.getItem(storageKey);
+    if (!snapshot) return [];
+    const state = JSON.parse(snapshot).state;
     return state.workspace?.grid ?? state.grid;
   }, STORAGE_KEY);
 
@@ -159,6 +166,36 @@ test.describe("editor clipboard shortcuts", () => {
       await expect.poll(() => readGrid(page)).toEqual([]);
     });
   }
+
+  test("copies the first committed Canvas range", async ({ browserName, page }) => {
+    test.skip(
+      browserName === "webkit",
+      "Playwright WebKit does not bridge the native system clipboard"
+    );
+    await seedFreeformSelection(page);
+    await page.evaluate(() => navigator.clipboard.writeText("marker"));
+
+    await page.keyboard.press("Meta+c");
+
+    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe("AB");
+  });
+
+  test("finalizes the visible range when Copy arrives before pointerup", async ({
+    browserName,
+    page,
+  }) => {
+    test.skip(
+      browserName === "webkit",
+      "Playwright WebKit does not bridge the native system clipboard"
+    );
+    await seedFreeformSelection(page, { releasePointer: false });
+    await page.evaluate(() => navigator.clipboard.writeText("marker"));
+
+    await page.keyboard.press("Meta+c");
+    await page.mouse.up();
+
+    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toBe("AB");
+  });
 
   test("platform digits select visible Dock tools without reserving Shift+H", async ({
     page,

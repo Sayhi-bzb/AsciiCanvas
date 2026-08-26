@@ -66,6 +66,16 @@ export class CanvasEditorRuntime extends EditorRuntime<
       : { type: "idle" };
   };
 
+  finalizePendingSelection = () => {
+    const state = this.getInteractionState();
+    if (state.type !== "selecting") return false;
+    return this.dispatch({
+      type: "canvas-drag-end",
+      button: 0,
+      endGrid: state.current,
+    });
+  };
+
   cancelActiveInteraction = () => {
     if (this.getInteractionState().type === "idle") return false;
     return this.dispatch({

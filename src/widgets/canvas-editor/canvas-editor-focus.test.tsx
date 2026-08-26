@@ -390,6 +390,61 @@ describe("CanvasEditor focus management", () => {
     expect(writeText).toHaveBeenCalledWith("AB");
   });
 
+  it("copies a range while the managed textarea is reconciling a transient blur", async () => {
+    useEditorStore.setState({
+      canvasMode: "freeform",
+      textCursor: null,
+      staticGridSelection: createRangeSelection({ x: 0, y: 0 }, { x: 1, y: 0 }),
+    });
+    applyFreeformSnapshotToYMaps([
+      ["0,0", { char: "A", color: "#ffffff" }],
+      ["1,0", { char: "B", color: "#ffffff" }],
+    ]);
+    const writeText = vi.spyOn(clipboard, "writeText").mockResolvedValue(true);
+    const { container } = render(
+      <CanvasEditor onUndo={vi.fn()} onRedo={vi.fn()} />
+    );
+    const textarea = container.querySelector("textarea");
+    expect(textarea).not.toBeNull();
+    focusCanvasInput(container);
+
+    act(() => {
+      textarea!.blur();
+      fireEvent.keyDown(document.body, { key: "c", metaKey: true });
+    });
+
+    await vi.waitFor(() => expect(writeText).toHaveBeenCalledWith("AB"));
+    expect(document.activeElement).toBe(textarea);
+  });
+
+  it("releases Canvas input ownership when focus moves to an external control", async () => {
+    useEditorStore.setState({
+      canvasMode: "freeform",
+      textCursor: null,
+      staticGridSelection: createRangeSelection({ x: 0, y: 0 }, { x: 1, y: 0 }),
+    });
+    applyFreeformSnapshotToYMaps([
+      ["0,0", { char: "A", color: "#ffffff" }],
+      ["1,0", { char: "B", color: "#ffffff" }],
+    ]);
+    const writeText = vi.spyOn(clipboard, "writeText").mockResolvedValue(true);
+    const outside = document.createElement("button");
+    document.body.appendChild(outside);
+    const { container } = render(
+      <CanvasEditor onUndo={vi.fn()} onRedo={vi.fn()} />
+    );
+    focusCanvasInput(container);
+
+    outside.focus();
+    await act(async () => Promise.resolve());
+    fireEvent.keyDown(outside, { key: "c", metaKey: true });
+
+    await new Promise((resolve) => setTimeout(resolve, 180));
+    expect(document.activeElement).toBe(outside);
+    expect(writeText).not.toHaveBeenCalled();
+    outside.remove();
+  });
+
   it("lets a native cut event cancel the keyboard fallback", async () => {
     useEditorStore.setState({
       canvasMode: "freeform",

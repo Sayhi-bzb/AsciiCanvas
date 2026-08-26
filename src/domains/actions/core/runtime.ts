@@ -17,7 +17,17 @@ const ACTION_CHECKERS: Partial<Record<EditorActionId, ActionChecker>> = {
 };
 
 const CANVAS_FOCUS_COMMANDS = new Set<EditorActionId>(['copy', 'cut', 'paste', 'delete-selection']);
+const SELECTION_FINALIZING_COMMANDS = new Set<EditorActionId>([
+  'copy',
+  'copy-rich',
+  'copy-ansi',
+  'cut',
+]);
 const isFormattingCommand = (id: EditorActionId) => id.startsWith('format-');
+
+type PendingSelectionEditor = {
+  finalizePendingSelection?: () => boolean;
+};
 
 export type EditorCommandOptions = {
   source?: ActionSource;
@@ -44,12 +54,15 @@ const createCommand = (
     }
     return ACTION_CHECKERS[id]?.(state) ?? true;
   },
-  execute: (input, { editor, source, state }) => {
+  execute: (input, { editor, source }) => {
     const handler = editorHandlers[id] as ActionHandler<EditorCommandOptions> | undefined;
     if (!handler) return actionUnhandled('unknown-command');
+    if (SELECTION_FINALIZING_COMMANDS.has(id)) {
+      (editor as typeof editor & PendingSelectionEditor).finalizePendingSelection?.();
+    }
     const options = input ?? {};
     const context: ActionContext = {
-      state: state as CanvasState,
+      state: editor.getState() as CanvasState,
       canvas,
       setTool: (tool) => {
         editor.setCurrentTool(tool);
