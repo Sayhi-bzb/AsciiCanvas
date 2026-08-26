@@ -5,22 +5,62 @@ import {
   createGridSurfaceReader,
   createSurfaceGridProjection,
   getSurfaceGridLineOriginX,
+  decodeCellPlaneOperationRows,
+  encodeCellPlaneOperation,
   isIncrementalCanvasSurfaceReader,
+  isCellPlaneOperation,
   isSurfaceGridProjection,
-  type CellPlaneOperation,
+  type LegacyCellPlaneOperation,
 } from "./model";
 
 const operation = (
   id: string,
-  rows: CellPlaneOperation["rows"],
+  rows: LegacyCellPlaneOperation["rows"],
   width = 8
-): CellPlaneOperation => ({
+): LegacyCellPlaneOperation => ({
   id,
   bounds: { x: 0, y: 0, width, height: 1 },
   rows,
 });
 
 describe("CellPlaneIndex", () => {
+  it("round-trips compact rows without losing styles or wide graphemes", () => {
+    const rows: LegacyCellPlaneOperation["rows"] = [{
+      y: -3,
+      erase: [{ from: -2, to: 4 }],
+      spans: [{
+        x: -1,
+        text: "A你🙂",
+        color: "#123456",
+        bgColor: "#abcdef",
+        href: "https://example.com",
+        attrs: { bold: true, italic: true, underline: true, strike: true, inverse: true },
+        preserveTargetBackground: true,
+      }],
+    }];
+    const encoded = encodeCellPlaneOperation(
+      "round-trip",
+      { x: -2, y: -3, width: 8, height: 1 },
+      rows
+    );
+
+    expect(isCellPlaneOperation(encoded)).toBe(true);
+    expect(decodeCellPlaneOperationRows(encoded)).toEqual(rows);
+  });
+
+  it("rejects truncated compact payloads", () => {
+    const encoded = encodeCellPlaneOperation(
+      "truncated",
+      { x: 0, y: 0, width: 1, height: 1 },
+      [{ y: 0, erase: [], spans: [{ x: 0, text: "A", color: "#fff" }] }]
+    );
+
+    expect(isCellPlaneOperation({
+      ...encoded,
+      payload: encoded.payload.slice(0, -1),
+    })).toBe(false);
+  });
+
   it("keeps compact text runs intact when compiling a patch", () => {
     const compiled = cellPlanePatchToOperation("paste", {
       rows: [{
@@ -32,8 +72,11 @@ describe("CellPlaneIndex", () => {
 
     expect(compiled).toMatchObject({
       bounds: { x: 2, y: 4, width: 4, height: 1 },
-      rows: [{ spans: [{ text: "A你B" }] }],
+      format: 2,
     });
+    expect(decodeCellPlaneOperationRows(compiled!)).toMatchObject([
+      { spans: [{ text: "A你B" }] },
+    ]);
   });
 
   it("does not materialize large text runs while compiling a patch", () => {
@@ -43,8 +86,26 @@ describe("CellPlaneIndex", () => {
     });
 
     expect(compiled?.bounds.width).toBe(100_000);
-    expect(compiled?.rows[0]?.spans).toHaveLength(1);
-    expect(compiled?.rows[0]?.spans[0]?.text).toBe(text);
+    const rows = decodeCellPlaneOperationRows(compiled!);
+    expect(rows[0]?.spans).toHaveLength(1);
+    expect(rows[0]?.spans[0]?.text).toBe(text);
+  });
+
+  it("keeps content bounds incremental for writes inside a large plane", () => {
+    const initial = cellPlanePatchToOperation("initial", {
+      rows: [{
+        y: 0,
+        erase: [],
+        spans: [{ x: 0, text: "A".repeat(100_000), color: "#fff" }],
+      }],
+    })!;
+    const plane = new CellPlaneIndex([initial]);
+    plane.append(cellPlanePatchToOperation("overwrite", {
+      rows: [{ y: 0, erase: [], spans: [{ x: 1, text: "B", color: "#fff" }] }],
+    })!);
+
+    expect(plane.getContentBounds()).toEqual({ x: 0, y: 0, width: 100_000, height: 1 });
+    expect(plane.getStats().cachedChunks).toBe(0);
   });
 
   it("preserves each target background while replaying a compact patch", () => {

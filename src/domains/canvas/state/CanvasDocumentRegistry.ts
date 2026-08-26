@@ -10,7 +10,9 @@ import {
   cellPlanePatchToOperation,
   gridChangesToCellPlaneOperation,
   gridEntriesToCellPlaneOperation,
+  isEncodedCellPlaneOperation,
   isCellPlaneOperation,
+  toLegacyCellPlaneOperation,
   type CellPlaneOperation,
   type CellPlanePatch,
   type CanvasSurfaceReader,
@@ -51,6 +53,7 @@ export type CanvasStructuredContentPatch = {
 
 const LOCAL_ORIGIN = Symbol("canvas-local-origin");
 const HISTORY_IGNORED_ORIGIN = Symbol("canvas-history-ignored");
+const MAX_RESIDENT_PAGE_INDEXES = 4;
 
 export type CanvasDocumentSeed = {
   grid: [string, GridCell][];
@@ -67,7 +70,7 @@ type CanvasDocumentLifecycle = {
 };
 
 type CanvasPageRuntime = CanvasYPage & {
-  cellPlaneIndex: CellPlaneIndex;
+  cellPlaneIndex: CellPlaneIndex | null;
   undoManager: Y.UndoManager;
   dispose: () => void;
 };
@@ -85,6 +88,7 @@ type CanvasYDocument = {
   meta: Y.Map<unknown>;
   integrityIssues: Map<string, CollaborationIntegrityIssue>;
   undoManager: Y.UndoManager;
+  operationFormat: "encoded" | "legacy";
 };
 
 type CanvasDocumentTransaction = {
@@ -158,6 +162,7 @@ export class CanvasDocumentRegistry {
   #active: CanvasYDocument;
   #lifecycle: CanvasDocumentLifecycle | null = null;
   #operationSequence = 0;
+  readonly #recentPageIndexes: Array<{ documentId: string; pageId: string }> = [];
   #disposed = false;
 
   readonly yCellPlaneOperations: Y.Array<CellPlaneOperation>;
@@ -203,15 +208,62 @@ export class CanvasDocumentRegistry {
   getDocument = (id: string) => this.#documents.get(id) ?? null;
   getDocumentIds = () => Array.from(this.#documents.keys());
   getCollaborationDocument = (id: string) => this.#documents.get(id)?.doc ?? null;
+  getMemoryStats = () => {
+    let yjsStructs = 0;
+    let pages = 0;
+    let operations = 0;
+    let encodedOperations = 0;
+    let encodedPayloadBytes = 0;
+    let legacyOperations = 0;
+    let indexDirectoryChunks = 0;
+    let indexDirectoryRowReferences = 0;
+    let indexResidentBytes = 0;
+    let residentPageIndexes = 0;
+    this.#documents.forEach((document) => {
+      document.doc.store.clients.forEach((structs) => { yjsStructs += structs.length; });
+      document.pages.forEach((page) => {
+        pages += 1;
+        page.operations.forEach((operation) => {
+          operations += 1;
+          if (isEncodedCellPlaneOperation(operation)) {
+            encodedOperations += 1;
+            encodedPayloadBytes += operation.payload.byteLength;
+          } else legacyOperations += 1;
+        });
+        const stats = page.cellPlaneIndex?.getStats();
+        if (!stats) return;
+        residentPageIndexes += 1;
+        indexDirectoryChunks += stats.directoryChunks;
+        indexDirectoryRowReferences += stats.directoryRowReferences;
+        indexResidentBytes += stats.residentBytes;
+      });
+    });
+    return {
+      documents: this.#documents.size,
+      pages,
+      yjsStructs,
+      operations,
+      encodedOperations,
+      encodedPayloadBytes,
+      legacyOperations,
+      indexDirectoryChunks,
+      indexDirectoryRowReferences,
+      indexResidentBytes,
+      residentPageIndexes,
+    };
+  };
   getContentReader(): CanvasSurfaceReader;
   getContentReader(id: string, pageId?: string): CanvasSurfaceReader | null;
   getContentReader(id?: string, pageId?: string): CanvasSurfaceReader | null {
     if (!id) return this.#active.cellPlaneIndex;
     const document = this.#documents.get(id);
     if (!document) return null;
-    return pageId
-      ? document.pages.get(pageId)?.cellPlaneIndex ?? null
-      : document.cellPlaneIndex;
+    if (!pageId) {
+      const activePage = document.pages.get(document.activePageId);
+      return activePage ? this.#ensurePageIndex(document, activePage) : null;
+    }
+    const page = document.pages.get(pageId);
+    return page ? this.#ensurePageIndex(document, page) : null;
   }
 
   getPageDescriptors = (documentId = this.#active.id): CanvasPageDescriptor[] => {
@@ -242,7 +294,7 @@ export class CanvasDocumentRegistry {
         return [{
           ...page.descriptor,
           ...(page.operations
-            ? { grid: Array.from(page.cellPlaneIndex.materialize()) }
+            ? { grid: Array.from(this.#ensurePageIndex(document, page).materialize()) }
             : {
                 scene: Array.from(page.scene?.values() ?? []),
                 components: Array.from(page.components?.values() ?? []),
@@ -301,7 +353,7 @@ export class CanvasDocumentRegistry {
     return {
       grid:
         mode === "freeform" && page.operations
-          ? Array.from(page.cellPlaneIndex.materialize().entries())
+          ? Array.from(this.#ensurePageIndex(document, page).materialize().entries())
           : [],
       scene:
         mode === "structured" && page.scene
@@ -453,7 +505,8 @@ export class CanvasDocumentRegistry {
 
   prepareDocumentForCollaboration = (
     id: string,
-    mode: "freeform" | "structured"
+    mode: "freeform" | "structured",
+    documentVersion = 5
   ) => {
     const document = this.#documents.get(id);
     if (!document) return false;
@@ -465,7 +518,16 @@ export class CanvasDocumentRegistry {
         document.scene.clear();
         document.components.clear();
       }
+      if (documentVersion === 4) {
+        document.pages.forEach((page) => {
+          if (!page.operations.toArray().some(isEncodedCellPlaneOperation)) return;
+          const legacy = page.operations.toArray().map(toLegacyCellPlaneOperation);
+          page.operations.delete(0, page.operations.length);
+          page.operations.push(legacy);
+        });
+      }
     }, HISTORY_IGNORED_ORIGIN);
+    document.operationFormat = documentVersion === 4 ? "legacy" : "encoded";
     document.undoManager.clear();
     return true;
   };
@@ -483,6 +545,11 @@ export class CanvasDocumentRegistry {
     document.pages.forEach((page) => page.dispose());
     document.doc.destroy();
     this.#documents.delete(id);
+    for (let index = this.#recentPageIndexes.length - 1; index >= 0; index -= 1) {
+      if (this.#recentPageIndexes[index]?.documentId === id) {
+        this.#recentPageIndexes.splice(index, 1);
+      }
+    }
     if (deletePersisted) this.#lifecycle?.onDelete(id);
     return true;
   };
@@ -603,7 +670,7 @@ export class CanvasDocumentRegistry {
       );
     }
     return this.runTransactionAt(address, () => {
-      const reader = page.cellPlaneIndex;
+      const reader = this.#ensurePageIndex(document, page);
       const changes = new Map<
         string,
         { before?: GridCell; after?: GridCell }
@@ -642,7 +709,11 @@ export class CanvasDocumentRegistry {
         `${document.doc.clientID}:${this.#operationSequence++}`,
         changes
       );
-      if (operation) page.operations.push([operation]);
+      if (operation) page.operations.push([
+        document.operationFormat === "legacy"
+          ? toLegacyCellPlaneOperation(operation)
+          : operation,
+      ]);
     }, history);
   };
 
@@ -669,7 +740,11 @@ export class CanvasDocumentRegistry {
     );
     if (!operation) return null;
     this.runTransactionAt(address, () => {
-      page.operations.push([operation]);
+      page.operations.push([
+        document.operationFormat === "legacy"
+          ? toLegacyCellPlaneOperation(operation)
+          : operation,
+      ]);
     }, history);
     return operation;
   };
@@ -736,14 +811,18 @@ export class CanvasDocumentRegistry {
   ) => {
     const document = this.#documents.get(address.documentId);
     const page = document?.pages.get(address.pageId);
-    if (!page || page.descriptor.kind !== "cell-plane") return false;
+    if (!document || !page || page.descriptor.kind !== "cell-plane") return false;
     this.runTransactionAt(address, () => {
       page.operations.delete(0, page.operations.length);
       const bootstrap = gridEntriesToCellPlaneOperation(
         `bootstrap:${address.documentId}:${address.pageId}:${this.#operationSequence++}`,
         entries
       );
-      if (bootstrap) page.operations.push([bootstrap]);
+      if (bootstrap) page.operations.push([
+        document.operationFormat === "legacy"
+          ? toLegacyCellPlaneOperation(bootstrap)
+          : bootstrap,
+      ]);
     }, "reset");
     return true;
   };
@@ -768,7 +847,11 @@ export class CanvasDocumentRegistry {
             `replace:${documentId}:${draft.id}:${this.#operationSequence++}`,
             draft.grid ?? []
           );
-          if (bootstrap) page.operations.push([bootstrap]);
+          if (bootstrap) page.operations.push([
+            document.operationFormat === "legacy"
+              ? toLegacyCellPlaneOperation(bootstrap)
+              : bootstrap,
+          ]);
         } else {
           draft.scene?.forEach((node) => page.scene.set(node.id, node));
           draft.components?.forEach((component) =>
@@ -810,6 +893,7 @@ export class CanvasDocumentRegistry {
       document.doc.destroy();
     });
     this.#documents.clear();
+    this.#recentPageIndexes.length = 0;
   };
 
   #createDocument(
@@ -891,6 +975,7 @@ export class CanvasDocumentRegistry {
       meta: root.meta,
       integrityIssues,
       undoManager: null!,
+      operationFormat: "encoded",
     };
     this.#syncDocumentPages(document);
     if (seed?.activePageId && document.pages.has(seed.activePageId)) {
@@ -926,7 +1011,7 @@ export class CanvasDocumentRegistry {
     };
     const runtime: CanvasPageRuntime = {
       ...page,
-      cellPlaneIndex: rebuildContentIndex(),
+      cellPlaneIndex: null,
       undoManager: new Y.UndoManager(
         page.descriptor.kind === "cell-plane"
           ? [operations]
@@ -961,8 +1046,8 @@ export class CanvasDocumentRegistry {
         }
       }
       if (appendOnly && appended.every(isCellPlaneOperation)) {
-        appended.forEach((operation) => runtime.cellPlaneIndex.append(operation));
-      } else {
+        appended.forEach((operation) => runtime.cellPlaneIndex?.append(operation));
+      } else if (runtime.cellPlaneIndex) {
         runtime.cellPlaneIndex.dispose();
         runtime.cellPlaneIndex = rebuildContentIndex();
         if (
@@ -991,7 +1076,8 @@ export class CanvasDocumentRegistry {
       runtime.undoManager.off("stack-cleared", notify);
       runtime.undoManager.off("stack-item-updated", notify);
       runtime.undoManager.destroy();
-      runtime.cellPlaneIndex.dispose();
+      runtime.cellPlaneIndex?.dispose();
+      runtime.cellPlaneIndex = null;
     };
     return runtime;
   }
@@ -1029,12 +1115,46 @@ export class CanvasDocumentRegistry {
     this.#setActivePage(document, nextActivePageId);
   }
 
+  #ensurePageIndex(document: CanvasYDocument, page: CanvasPageRuntime) {
+    if (!page.cellPlaneIndex) {
+      page.cellPlaneIndex = new CellPlaneIndex(
+        page.operations.toArray().filter(isCellPlaneOperation)
+      );
+    }
+    const existing = this.#recentPageIndexes.findIndex(
+      (entry) =>
+        entry.documentId === document.id && entry.pageId === page.descriptor.id
+    );
+    if (existing >= 0) this.#recentPageIndexes.splice(existing, 1);
+    this.#recentPageIndexes.push({
+      documentId: document.id,
+      pageId: page.descriptor.id,
+    });
+    while (this.#recentPageIndexes.length > MAX_RESIDENT_PAGE_INDEXES) {
+      const victim = this.#recentPageIndexes.shift();
+      if (!victim) break;
+      const victimDocument = this.#documents.get(victim.documentId);
+      const victimPage = victimDocument?.pages.get(victim.pageId);
+      if (!victimPage?.cellPlaneIndex) continue;
+      if (
+        victimDocument === this.#active &&
+        victimPage.descriptor.id === victimDocument.activePageId
+      ) {
+        this.#recentPageIndexes.push(victim);
+        continue;
+      }
+      victimPage.cellPlaneIndex.dispose();
+      victimPage.cellPlaneIndex = null;
+    }
+    return page.cellPlaneIndex;
+  }
+
   #setActivePage(document: CanvasYDocument, pageId: string) {
     const page = document.pages.get(pageId);
     if (!page) throw new Error(`Canvas page not found: ${document.id}/${pageId}`);
     document.activePageId = pageId;
     document.operations = page.operations;
-    document.cellPlaneIndex = page.cellPlaneIndex;
+    document.cellPlaneIndex = this.#ensurePageIndex(document, page);
     document.scene = page.scene;
     document.components = page.components;
     document.undoManager = page.undoManager;

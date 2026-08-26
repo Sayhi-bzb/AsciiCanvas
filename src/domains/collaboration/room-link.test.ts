@@ -8,13 +8,13 @@ import {
 } from "./room-link";
 
 describe("collaboration room links", () => {
-  it("creates V4 links and keeps the room secret in the URL fragment", () => {
+  it("creates V5 links and keeps the room secret in the URL fragment", () => {
     vi.stubGlobal("crypto", { getRandomValues: (bytes: Uint8Array) => bytes.fill(7) });
     const descriptor = createCollaborationDescriptor("freeform");
     const url = buildCollaborationUrl(descriptor, "https://canvas.test/editor?theme=dark");
     expect(new URL(url).searchParams.has("room")).toBe(false);
     expect(new URL(url).hash).toContain("room=");
-    expect(descriptor.version).toBe(4);
+    expect(descriptor.version).toBe(5);
     expect(parseCollaborationUrl(url)).toEqual({ status: "valid", descriptor });
     vi.unstubAllGlobals();
   });
@@ -48,7 +48,7 @@ describe("collaboration room links", () => {
     });
   });
 
-  it.each([1, 2, 3, 5])(
+  it.each([1, 2, 3, 6])(
     "reports collaboration descriptor version %i as unsupported",
     (version) => {
       const encoded = btoa(JSON.stringify({ version })).replace(/=+$/g, "");
@@ -77,7 +77,7 @@ describe("collaboration room links", () => {
     ).toBe(false);
   });
 
-  it("matches only V4 descriptors with the same room identity", () => {
+  it("matches supported descriptors with the same room identity", () => {
     const room = {
       version: 4,
       documentVersion: 4,

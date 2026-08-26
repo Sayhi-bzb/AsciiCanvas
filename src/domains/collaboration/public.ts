@@ -1,6 +1,7 @@
 export type {
   CollaborationDescriptor,
   CollaborationDescriptorV4,
+  CollaborationDescriptorV5,
   CollaborationIntegrityIssue,
   CollaborationSnapshot,
 } from "./model";

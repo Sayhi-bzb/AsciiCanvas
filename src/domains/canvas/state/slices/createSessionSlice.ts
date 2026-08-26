@@ -475,7 +475,11 @@ export const createSessionSlice = (
     if (!session || session.mode === "slide") return;
     if (collaboration && collaboration.mode !== session.mode) return;
     if (collaboration) {
-      documents.prepareDocumentForCollaboration(canvasId, session.mode);
+      documents.prepareDocumentForCollaboration(
+        canvasId,
+        session.mode,
+        collaboration.documentVersion
+      );
     }
 
     set({

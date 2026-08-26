@@ -25,9 +25,10 @@ type StructuredNode = Record<string, unknown>;
 type BrowserProbe = {
   frames: number[];
   longTasks: number[];
+  longAnimationFrames: Array<{ duration: number; blockingDuration: number }>;
   inputPaint: number[];
   rafId: number;
-  observer: PerformanceObserver | null;
+  observers: PerformanceObserver[];
 };
 
 type StorageProbe = {
@@ -49,6 +50,7 @@ declare global {
       flush: () => Promise<void>;
       cellCount: () => number;
       surfaceStats: () => Record<string, number> | null;
+      memoryStats: () => Record<string, number>;
       persistence: () => { error: string | null };
     };
   }
@@ -311,9 +313,10 @@ const installFrameProbe = async (page: Page) => {
     const probe: BrowserProbe = {
       frames: [],
       longTasks: [],
+      longAnimationFrames: [],
       inputPaint: [],
       rafId: 0,
-      observer: null,
+      observers: [],
     };
     let previousFrame = performance.now();
     const tick = (timestamp: number) => {
@@ -326,14 +329,26 @@ const installFrameProbe = async (page: Page) => {
       requestAnimationFrame(() => requestAnimationFrame(() => {
         probe.inputPaint.push(performance.now() - startedAt);
       }));
-    }, { capture: true, once: true });
-    try {
-      probe.observer = new PerformanceObserver((list) => {
+    }, { capture: true });
+    if (PerformanceObserver.supportedEntryTypes.includes("longtask")) {
+      const observer = new PerformanceObserver((list) => {
         list.getEntries().forEach((entry) => probe.longTasks.push(entry.duration));
       });
-      probe.observer.observe({ entryTypes: ["longtask"] });
-    } catch {
-      probe.observer = null;
+      observer.observe({ type: "longtask", buffered: false });
+      probe.observers.push(observer);
+    }
+    if (PerformanceObserver.supportedEntryTypes.includes("long-animation-frame")) {
+      const observer = new PerformanceObserver((list) => {
+        list.getEntries().forEach((entry) => {
+          const frame = entry as PerformanceEntry & { blockingDuration?: number };
+          probe.longAnimationFrames.push({
+            duration: frame.duration,
+            blockingDuration: frame.blockingDuration ?? 0,
+          });
+        });
+      });
+      observer.observe({ type: "long-animation-frame", buffered: false });
+      probe.observers.push(observer);
     }
     probe.rafId = requestAnimationFrame(tick);
     window.__canvasStressProbe = probe;
@@ -344,10 +359,11 @@ const readFrameProbe = async (page: Page): Promise<CanvasStressMetrics> =>
   page.evaluate(() => {
     const probe = window.__canvasStressProbe!;
     cancelAnimationFrame(probe.rafId);
-    probe.observer?.disconnect();
+    probe.observers.forEach((observer) => observer.disconnect());
     const frames = probe.frames.slice(1);
     const sorted = [...frames].sort((left, right) => left - right);
     const p95Index = Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95));
+    const p99Index = Math.min(sorted.length - 1, Math.floor(sorted.length * 0.99));
     const performanceWithMemory = performance as Performance & {
       memory?: { usedJSHeapSize: number };
     };
@@ -356,12 +372,27 @@ const readFrameProbe = async (page: Page): Promise<CanvasStressMetrics> =>
       frameCount: frames.length,
       avgFrameMs: frames.reduce((sum, value) => sum + value, 0) / Math.max(frames.length, 1),
       p95FrameMs: sorted.length ? sorted[p95Index]! : 0,
+      p99FrameMs: sorted.length ? sorted[p99Index]! : 0,
       maxFrameMs: Math.max(0, ...frames),
       over32ms: frames.filter((value) => value > 32).length,
       over50ms: frames.filter((value) => value > 50).length,
       longTaskCount: probe.longTasks.length,
       maxLongTaskMs: Math.max(0, ...probe.longTasks),
-      inputPaintMs: probe.inputPaint[0] ?? null,
+      longAnimationFrameCount: probe.longAnimationFrames.length,
+      maxLongAnimationFrameMs: Math.max(
+        0,
+        ...probe.longAnimationFrames.map((frame) => frame.duration)
+      ),
+      maxBlockingDurationMs: Math.max(
+        0,
+        ...probe.longAnimationFrames.map((frame) => frame.blockingDuration)
+      ),
+      inputPaintMs: probe.inputPaint.length
+        ? [...probe.inputPaint].sort((left, right) => left - right)[
+            Math.min(probe.inputPaint.length - 1, Math.floor(probe.inputPaint.length * 0.95))
+          ]!
+        : null,
+      coldInputPaintMs: probe.inputPaint[0] ?? null,
       jsHeapBytes: performanceWithMemory.memory?.usedJSHeapSize ?? null,
       canvasBackingBytes: Array.from(document.querySelectorAll("canvas")).reduce(
         (sum, canvas) => sum + canvas.width * canvas.height * 4,
@@ -377,7 +408,17 @@ const dragFor = async (page: Page, durationMs = SCENARIO_MS) => {
   if (!bounds) throw new Error("Canvas surface has no bounding box");
   const start = { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
   await page.mouse.click(start.x, start.y);
-  await page.keyboard.press("x");
+  for (let sample = 0; sample < 21; sample += 1) {
+    await page.keyboard.press("x");
+    await page.waitForTimeout(100);
+  }
+  await page.evaluate(() => {
+    const probe = window.__canvasStressProbe;
+    if (!probe) return;
+    probe.frames = [];
+    probe.longTasks = [];
+    probe.longAnimationFrames = [];
+  });
   await page.mouse.move(start.x, start.y);
   await page.mouse.down({ button: "middle" });
   const startedAt = Date.now();
@@ -431,6 +472,7 @@ const runLevel = async ({
   let persistenceMs: number | null = null;
   let projectedCellCount: number | null = null;
   let surfaceStats: Record<string, number> | null = null;
+  let memoryStats: Record<string, number> | null = null;
   const context = await browser.newContext({
     viewport: VIEWPORT,
     deviceScaleFactor: DEVICE_SCALE_FACTOR,
@@ -460,18 +502,16 @@ const runLevel = async ({
         storage.writes = 0;
       });
       await installFrameProbe(page);
-      const cpuProfiler = CAPTURE_CPU_PROFILE
-        ? await context.newCDPSession(page)
-        : null;
-      if (cpuProfiler) {
-        await cpuProfiler.send("Profiler.enable");
-        await cpuProfiler.send("Profiler.start");
+      const diagnosticsSession = await context.newCDPSession(page);
+      if (CAPTURE_CPU_PROFILE) {
+        await diagnosticsSession.send("Profiler.enable");
+        await diagnosticsSession.send("Profiler.start");
       }
       const interactionStartedAt = await page.evaluate(() => performance.now());
       await dragFor(page);
       await page.waitForTimeout(300);
-      if (cpuProfiler) {
-        const { profile } = await cpuProfiler.send("Profiler.stop");
+      if (CAPTURE_CPU_PROFILE) {
+        const { profile } = await diagnosticsSession.send("Profiler.stop");
         await mkdir(REPORT_DIR, { recursive: true });
         await writeFile(
           path.join(REPORT_DIR, `${family}-${label.replaceAll(" ", "-")}.cpuprofile`),
@@ -480,8 +520,23 @@ const runLevel = async ({
         );
       }
       metrics = await readFrameProbe(page);
+      await diagnosticsSession.send("HeapProfiler.collectGarbage");
+      const heapAfterGc = await page.evaluate(() => {
+        const measured = performance as Performance & {
+          memory?: { usedJSHeapSize: number };
+        };
+        return measured.memory?.usedJSHeapSize ?? null;
+      });
+      metrics = {
+        ...metrics,
+        jsHeapBeforeGcBytes: metrics.jsHeapBytes,
+        jsHeapBytes: heapAfterGc,
+      };
       surfaceStats = await page.evaluate(
         () => window.__chardeskCanvasStress?.surfaceStats() ?? null
+      );
+      memoryStats = await page.evaluate(
+        () => window.__chardeskCanvasStress?.memoryStats() ?? null
       );
       await page.waitForTimeout(650);
       const storageProbe = await page.evaluate(() => window.__canvasStressStorage ?? null);
@@ -559,6 +614,7 @@ const runLevel = async ({
     ...(nodeCount === undefined ? {} : { nodeCount }),
     ...(readProjection ? { projectedCellCount } : {}),
     ...(surfaceStats ? { surfaceStats } : {}),
+    ...(memoryStats ? { memoryStats } : {}),
     ...(storageMode === "real" || verifyReload ? { persistenceMs, storageError } : {}),
     runtimeErrors,
     metrics,

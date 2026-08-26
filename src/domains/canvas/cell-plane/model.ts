@@ -13,6 +13,10 @@ const CELL_PLANE_CHUNK_HEIGHT = 64;
 const CELL_PLANE_INVALIDATION_HISTORY_LIMIT = 256;
 const CELL_PLANE_INVALIDATION_BOUNDS_LIMIT = 64;
 const CELL_PLANE_CHUNK_CACHE_LIMIT = 64;
+const CELL_PLANE_CHUNK_CACHE_BYTES_LIMIT = 32 * 1024 * 1024;
+const ESTIMATED_GRID_CELL_BYTES = 160;
+const CELL_PLANE_BINARY_FORMAT = 2 as const;
+const CELL_PLANE_BINARY_MAGIC = [0x43, 0x50, CELL_PLANE_BINARY_FORMAT] as const;
 
 export type GridInterval = { from: number; to: number };
 
@@ -32,11 +36,22 @@ export type CellRowMutation = {
   spans: readonly StyledCellSpan[];
 };
 
-export type CellPlaneOperation = {
+export type LegacyCellPlaneOperation = {
   id: string;
   bounds: NodeBounds;
   rows: readonly CellRowMutation[];
 };
+
+export type EncodedCellPlaneOperation = {
+  id: string;
+  bounds: NodeBounds;
+  format: typeof CELL_PLANE_BINARY_FORMAT;
+  payload: Uint8Array;
+};
+
+export type CellPlaneOperation =
+  | LegacyCellPlaneOperation
+  | EncodedCellPlaneOperation;
 
 /** Compact, rendering-neutral mutation accepted by the document write port. */
 export type CellPlanePatch = {
@@ -56,6 +71,280 @@ const isTextAttributes = (value: unknown) =>
         typeof (value as Record<string, unknown>)[key] === "boolean"
     ));
 
+type EncodedStyle = Omit<StyledCellSpan, "x" | "text">;
+
+const textEncoder = new TextEncoder();
+const textDecoder = new TextDecoder("utf-8", { fatal: true });
+
+const writeUnsigned = (output: number[], value: number) => {
+  if (!Number.isSafeInteger(value) || value < 0) {
+    throw new Error("CellPlane codec received an invalid unsigned integer");
+  }
+  let remaining = value;
+  while (remaining >= 0x80) {
+    output.push((remaining % 0x80) | 0x80);
+    remaining = Math.floor(remaining / 0x80);
+  }
+  output.push(remaining);
+};
+
+const writeSigned = (output: number[], value: number) => {
+  if (!Number.isSafeInteger(value)) {
+    throw new Error("CellPlane codec received an invalid signed integer");
+  }
+  writeUnsigned(output, value >= 0 ? value * 2 : -value * 2 - 1);
+};
+
+const writeString = (output: number[], value: string) => {
+  const bytes = textEncoder.encode(value);
+  writeUnsigned(output, bytes.length);
+  bytes.forEach((byte) => output.push(byte));
+};
+
+class BinaryReader {
+  #offset = 0;
+  readonly bytes: Uint8Array;
+
+  constructor(bytes: Uint8Array, offset = 0) {
+    this.bytes = bytes;
+    this.#offset = offset;
+  }
+
+  get offset() {
+    return this.#offset;
+  }
+
+  get done() {
+    return this.#offset === this.bytes.length;
+  }
+
+  readByte() {
+    const value = this.bytes[this.#offset];
+    if (value === undefined) throw new Error("Unexpected end of CellPlane payload");
+    this.#offset += 1;
+    return value;
+  }
+
+  readUnsigned() {
+    let result = 0;
+    let multiplier = 1;
+    for (let index = 0; index < 8; index += 1) {
+      const byte = this.readByte();
+      result += (byte & 0x7f) * multiplier;
+      if (!Number.isSafeInteger(result)) throw new Error("CellPlane integer overflow");
+      if ((byte & 0x80) === 0) return result;
+      multiplier *= 0x80;
+    }
+    throw new Error("CellPlane varint is too long");
+  }
+
+  readSigned() {
+    const value = this.readUnsigned();
+    return value % 2 === 0 ? value / 2 : -(value + 1) / 2;
+  }
+
+  readString() {
+    const length = this.readUnsigned();
+    const end = this.#offset + length;
+    if (end > this.bytes.length) throw new Error("Invalid CellPlane string length");
+    const value = textDecoder.decode(this.bytes.subarray(this.#offset, end));
+    this.#offset = end;
+    return value;
+  }
+}
+
+const styleKey = (span: StyledCellSpan) => JSON.stringify([
+  span.color,
+  span.bgColor ?? null,
+  span.href ?? null,
+  span.attrs?.bold ?? false,
+  span.attrs?.italic ?? false,
+  span.attrs?.underline ?? false,
+  span.attrs?.strike ?? false,
+  span.attrs?.inverse ?? false,
+  span.preserveTargetBackground ?? false,
+]);
+
+const encodeCellPlaneRows = (rows: readonly CellRowMutation[]) => {
+  const styles: EncodedStyle[] = [];
+  const styleIds = new Map<string, number>();
+  for (const row of rows) {
+    for (const span of row.spans) {
+      const key = styleKey(span);
+      if (styleIds.has(key)) continue;
+      styleIds.set(key, styles.length);
+      styles.push({
+        color: span.color,
+        ...(span.bgColor ? { bgColor: span.bgColor } : {}),
+        ...(span.attrs ? { attrs: { ...span.attrs } } : {}),
+        ...(span.href ? { href: span.href } : {}),
+        ...(span.preserveTargetBackground
+          ? { preserveTargetBackground: true }
+          : {}),
+      });
+    }
+  }
+
+  const output: number[] = [...CELL_PLANE_BINARY_MAGIC];
+  writeUnsigned(output, styles.length);
+  for (const style of styles) {
+    writeString(output, style.color);
+    writeString(output, style.bgColor ?? "");
+    writeString(output, style.href ?? "");
+    const flags =
+      (style.attrs?.bold ? 1 : 0) |
+      (style.attrs?.italic ? 2 : 0) |
+      (style.attrs?.underline ? 4 : 0) |
+      (style.attrs?.strike ? 8 : 0) |
+      (style.attrs?.inverse ? 16 : 0) |
+      (style.preserveTargetBackground ? 32 : 0);
+    output.push(flags);
+  }
+  writeUnsigned(output, rows.length);
+  for (const row of rows) {
+    writeSigned(output, row.y);
+    writeUnsigned(output, row.erase.length);
+    for (const interval of row.erase) {
+      writeSigned(output, interval.from);
+      writeSigned(output, interval.to);
+    }
+    writeUnsigned(output, row.spans.length);
+    for (const span of row.spans) {
+      writeSigned(output, span.x);
+      writeUnsigned(output, styleIds.get(styleKey(span))!);
+      writeString(output, span.text);
+    }
+  }
+  return Uint8Array.from(output);
+};
+
+type EncodedOperationView = {
+  styles: readonly EncodedStyle[];
+  rowOffsets: readonly number[];
+  hasErase: boolean;
+};
+
+const encodedViews = new WeakMap<EncodedCellPlaneOperation, EncodedOperationView>();
+
+const readEncodedStyles = (reader: BinaryReader) => {
+  for (const byte of CELL_PLANE_BINARY_MAGIC) {
+    if (reader.readByte() !== byte) throw new Error("Unsupported CellPlane payload");
+  }
+  return Array.from({ length: reader.readUnsigned() }, () => {
+    const color = reader.readString();
+    const bgColor = reader.readString();
+    const href = reader.readString();
+    const flags = reader.readByte();
+    if (!color || flags > 63) throw new Error("Invalid CellPlane style");
+    const attrs: TextAttributes = {
+      ...(flags & 1 ? { bold: true } : {}),
+      ...(flags & 2 ? { italic: true } : {}),
+      ...(flags & 4 ? { underline: true } : {}),
+      ...(flags & 8 ? { strike: true } : {}),
+      ...(flags & 16 ? { inverse: true } : {}),
+    };
+    return {
+      color,
+      ...(bgColor ? { bgColor } : {}),
+      ...(href ? { href } : {}),
+      ...(Object.keys(attrs).length ? { attrs } : {}),
+      ...(flags & 32 ? { preserveTargetBackground: true } : {}),
+    } satisfies EncodedStyle;
+  });
+};
+
+const readEncodedRow = (
+  reader: BinaryReader,
+  styles: readonly EncodedStyle[]
+): CellRowMutation => {
+    const y = reader.readSigned();
+    const erase = Array.from({ length: reader.readUnsigned() }, () => {
+      const from = reader.readSigned();
+      const to = reader.readSigned();
+      if (from > to) throw new Error("Invalid CellPlane erase interval");
+      return { from, to };
+    });
+    const spans = Array.from({ length: reader.readUnsigned() }, () => {
+      const x = reader.readSigned();
+      const style = styles[reader.readUnsigned()];
+      const text = reader.readString();
+      if (!style || !text) throw new Error("Invalid CellPlane span");
+      return { x, text, ...style };
+    });
+    return { y, erase, spans };
+};
+
+const getEncodedOperationView = (operation: EncodedCellPlaneOperation) => {
+  const cached = encodedViews.get(operation);
+  if (cached) return cached;
+  const reader = new BinaryReader(operation.payload);
+  const styles = readEncodedStyles(reader);
+  const rowCount = reader.readUnsigned();
+  const rowOffsets: number[] = [];
+  let hasErase = false;
+  for (let index = 0; index < rowCount; index += 1) {
+    rowOffsets.push(reader.offset);
+    const row = readEncodedRow(reader, styles);
+    if (row.erase.length > 0) hasErase = true;
+  }
+  if (!reader.done) throw new Error("Trailing CellPlane payload data");
+  const view = { styles, rowOffsets, hasErase };
+  encodedViews.set(operation, view);
+  return view;
+};
+
+const getOperationRowCount = (operation: CellPlaneOperation) =>
+  "format" in operation
+    ? getEncodedOperationView(operation).rowOffsets.length
+    : operation.rows.length;
+
+const getOperationRow = (operation: CellPlaneOperation, index: number) => {
+  if (!("format" in operation)) return operation.rows[index];
+  const view = getEncodedOperationView(operation);
+  const offset = view.rowOffsets[index];
+  return offset === undefined
+    ? undefined
+    : readEncodedRow(new BinaryReader(operation.payload, offset), view.styles);
+};
+
+const operationHasErase = (operation: CellPlaneOperation) =>
+  "format" in operation
+    ? getEncodedOperationView(operation).hasErase
+    : operation.rows.some((row) => row.erase.length > 0);
+
+export const decodeCellPlaneOperationRows = (
+  operation: CellPlaneOperation
+): readonly CellRowMutation[] => {
+  if (!("format" in operation)) return operation.rows;
+  return Array.from(
+    { length: getOperationRowCount(operation) },
+    (_, index) => getOperationRow(operation, index)!
+  );
+};
+
+export const encodeCellPlaneOperation = (
+  id: string,
+  bounds: NodeBounds,
+  rows: readonly CellRowMutation[]
+): EncodedCellPlaneOperation => ({
+  id,
+  bounds,
+  format: CELL_PLANE_BINARY_FORMAT,
+  payload: encodeCellPlaneRows(rows),
+});
+
+export const isEncodedCellPlaneOperation = (
+  operation: CellPlaneOperation
+): operation is EncodedCellPlaneOperation => "format" in operation;
+
+export const toLegacyCellPlaneOperation = (
+  operation: CellPlaneOperation
+): LegacyCellPlaneOperation => ({
+  id: operation.id,
+  bounds: { ...operation.bounds },
+  rows: decodeCellPlaneOperationRows(operation),
+});
+
 export const isCellPlaneOperation = (
   value: unknown
 ): value is CellPlaneOperation => {
@@ -71,9 +360,21 @@ export const isCellPlaneOperation = (
     !isSafeInteger(bounds.width) ||
     !isSafeInteger(bounds.height) ||
     bounds.width <= 0 ||
-    bounds.height <= 0 ||
-    !Array.isArray(operation.rows)
+    bounds.height <= 0
   ) return false;
+  if (
+    "format" in operation &&
+    operation.format === CELL_PLANE_BINARY_FORMAT &&
+    operation.payload instanceof Uint8Array
+  ) {
+    try {
+      decodeCellPlaneOperationRows(operation as EncodedCellPlaneOperation);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  if (!("rows" in operation) || !Array.isArray(operation.rows)) return false;
   return operation.rows.every((candidate: unknown) => {
     const row = candidate as Partial<CellRowMutation>;
     return !!row &&
@@ -110,14 +411,14 @@ type CellSpan = {
   cells: GridCell[];
 };
 
-type CellPlaneChunkMutation = {
-  rows: CellRowMutation[];
+type CellPlaneChunkReference = {
+  operation: CellPlaneOperation;
+  rowIndexes: readonly number[];
 };
 
-type MutableCellRowMutation = {
-  y: number;
-  erase: GridInterval[];
-  spans: StyledCellSpan[];
+type CellPlaneChunkCacheEntry = {
+  cells: Map<string, GridCell>;
+  bytes: number;
 };
 
 export type CellPlaneRow = {
@@ -287,12 +588,6 @@ export const createSurfaceGridProjection = (
 const floorDiv = (value: number, divisor: number) => Math.floor(value / divisor);
 const chunkKey = (x: number, y: number) => `${x},${y}`;
 
-const intersects = (left: NodeBounds, right: NodeBounds) =>
-  left.x < right.x + right.width &&
-  left.x + left.width > right.x &&
-  left.y < right.y + right.height &&
-  left.y + left.height > right.y;
-
 const touches = (left: NodeBounds, right: NodeBounds) =>
   left.x <= right.x + right.width &&
   left.x + left.width >= right.x &&
@@ -324,6 +619,20 @@ const toCell = (
   ...(span.href ? { href: span.href } : {}),
 });
 
+const getSingleCellAsciiSlice = (
+  text: string,
+  spanX: number,
+  fromX: number,
+  toX: number
+) => {
+  // Most large imported planes are ASCII. Avoid running Intl.Segmenter over an
+  // entire logical row when a chunk only needs a small window of that row.
+  if (!/^[\x20-\x7e]*$/.test(text)) return null;
+  const start = Math.max(0, fromX - spanX);
+  const end = Math.min(text.length, toX - spanX + 1);
+  return start < end ? { start, end } : { start: 0, end: 0 };
+};
+
 export const cellPlanePatchToOperation = (
   id: string,
   patch: CellPlanePatch
@@ -350,7 +659,7 @@ export const cellPlanePatchToOperation = (
     }
   }
   if (!bounds) return null;
-  return { id, bounds, rows: patch.rows };
+  return encodeCellPlaneOperation(id, bounds, patch.rows);
 };
 
 const sameCellStyle = (left: GridCell, right: GridCell) =>
@@ -420,11 +729,11 @@ export const gridEntriesToCellPlaneOperation = (
     previousSpanEnd = entry.x + getCellOccupancy(entry.cell.char);
     previousStyleCell = entry.cell;
   }
-  return {
+  return encodeCellPlaneOperation(
     id,
-    bounds: { x: minX, y: minY, width: maxX - minX, height: maxY - minY },
-    rows,
-  };
+    { x: minX, y: minY, width: maxX - minX, height: maxY - minY },
+    rows
+  );
 };
 
 export const gridChangesToCellPlaneOperation = (
@@ -488,11 +797,11 @@ export const gridChangesToCellPlaneOperation = (
         spans,
       };
     });
-  return {
+  return encodeCellPlaneOperation(
     id,
-    bounds: { x: minX, y: minY, width: maxX - minX, height: maxY - minY },
-    rows,
-  };
+    { x: minX, y: minY, width: maxX - minX, height: maxY - minY },
+    rows
+  );
 };
 
 /**
@@ -500,9 +809,14 @@ export const gridChangesToCellPlaneOperation = (
  * a disposable spatial projection and never writes collaborative state.
  */
 export class CellPlaneIndex implements CanvasSurfaceReader {
-  readonly #mutationsByChunk = new Map<string, CellPlaneChunkMutation[]>();
+  readonly #referencesByChunk = new Map<string, CellPlaneChunkReference[]>();
   readonly #chunkXsByRow = new Map<number, Set<number>>();
-  readonly #chunkCache = new Map<string, Map<string, GridCell>>();
+  readonly #chunkCache = new Map<string, CellPlaneChunkCacheEntry>();
+  #chunkCacheBytes = 0;
+  #operationCount = 0;
+  #encodedPayloadBytes = 0;
+  #legacyRowCount = 0;
+  #directoryRowReferences = 0;
   #contentBounds: NodeBounds | null = null;
   #resolvedContentBounds: NodeBounds | null | undefined = null;
   #revision = 0;
@@ -515,6 +829,9 @@ export class CellPlaneIndex implements CanvasSurfaceReader {
   append(operation: CellPlaneOperation) {
     if (!isCellPlaneOperation(operation)) return;
     this.#revision += 1;
+    this.#operationCount += 1;
+    if ("format" in operation) this.#encodedPayloadBytes += operation.payload.byteLength;
+    else this.#legacyRowCount += operation.rows.length;
     this.#invalidations.push({
       revision: this.#revision,
       bounds: { ...operation.bounds },
@@ -522,12 +839,10 @@ export class CellPlaneIndex implements CanvasSurfaceReader {
     if (this.#invalidations.length > CELL_PLANE_INVALIDATION_HISTORY_LIMIT) {
       this.#invalidations.shift();
     }
-    this.#compileChunkMutations(operation);
-    const previousBounds = this.#contentBounds;
+    this.#compileChunkReferences(operation);
     this.#contentBounds = unionBounds(this.#contentBounds, operation.bounds);
     this.#resolvedContentBounds =
-      operation.rows.some((row) => row.erase.length > 0) ||
-      (!!previousBounds && intersects(previousBounds, operation.bounds))
+      operationHasErase(operation)
       ? undefined
       : this.#resolvedContentBounds === undefined
         ? undefined
@@ -545,9 +860,25 @@ export class CellPlaneIndex implements CanvasSurfaceReader {
     for (let chunkY = minChunkY; chunkY <= maxChunkY; chunkY += 1) {
       for (let chunkX = minChunkX; chunkX <= maxChunkX; chunkX += 1) {
         const key = chunkKey(chunkX, chunkY);
-        this.#chunkCache.delete(key);
+        this.#deleteCachedChunk(key);
       }
     }
+  }
+
+  getStats() {
+    let cachedCells = 0;
+    this.#chunkCache.forEach((entry) => { cachedCells += entry.cells.size; });
+    return {
+      revision: this.#revision,
+      operationCount: this.#operationCount,
+      encodedPayloadBytes: this.#encodedPayloadBytes,
+      legacyRowCount: this.#legacyRowCount,
+      directoryChunks: this.#referencesByChunk.size,
+      directoryRowReferences: this.#directoryRowReferences,
+      cachedChunks: this.#chunkCache.size,
+      cachedCells,
+      residentBytes: this.#chunkCacheBytes,
+    };
   }
 
   getRevision() {
@@ -722,71 +1053,66 @@ export class CellPlaneIndex implements CanvasSurfaceReader {
   }
 
   dispose() {
-    this.#mutationsByChunk.clear();
+    this.#referencesByChunk.clear();
     this.#chunkXsByRow.clear();
     this.#chunkCache.clear();
+    this.#chunkCacheBytes = 0;
+    this.#operationCount = 0;
+    this.#encodedPayloadBytes = 0;
+    this.#legacyRowCount = 0;
+    this.#directoryRowReferences = 0;
     this.#invalidations.length = 0;
     this.#contentBounds = null;
     this.#resolvedContentBounds = null;
   }
 
-  #compileChunkMutations(operation: CellPlaneOperation) {
-    const rowsByChunk = new Map<string, Map<number, MutableCellRowMutation>>();
-    const getRow = (chunkX: number, y: number) => {
+  #compileChunkReferences(operation: CellPlaneOperation) {
+    const rowIndexesByChunk = new Map<string, Set<number>>();
+    const add = (chunkX: number, rowIndex: number, y: number) => {
       const key = chunkKey(chunkX, floorDiv(y, CELL_PLANE_CHUNK_HEIGHT));
-      const rows = rowsByChunk.get(key) ?? new Map<number, MutableCellRowMutation>();
-      let row = rows.get(y);
-      if (!row) {
-        row = { y, erase: [], spans: [] };
-        rows.set(y, row);
-        rowsByChunk.set(key, rows);
-        const chunkXs = this.#chunkXsByRow.get(y) ?? new Set<number>();
-        chunkXs.add(chunkX);
-        this.#chunkXsByRow.set(y, chunkXs);
-      }
-      return row;
+      const indexes = rowIndexesByChunk.get(key) ?? new Set<number>();
+      indexes.add(rowIndex);
+      rowIndexesByChunk.set(key, indexes);
+      const chunkXs = this.#chunkXsByRow.get(y) ?? new Set<number>();
+      chunkXs.add(chunkX);
+      this.#chunkXsByRow.set(y, chunkXs);
     };
 
-    for (const row of operation.rows) {
+    for (let rowIndex = 0; rowIndex < getOperationRowCount(operation); rowIndex += 1) {
+      const row = getOperationRow(operation, rowIndex);
+      if (!row) continue;
       for (const interval of row.erase) {
         const minChunkX = floorDiv(interval.from - 1, CELL_PLANE_CHUNK_WIDTH);
         const maxChunkX = floorDiv(interval.to + 1, CELL_PLANE_CHUNK_WIDTH);
         for (let chunkX = minChunkX; chunkX <= maxChunkX; chunkX += 1) {
-          getRow(chunkX, row.y).erase.push({ ...interval });
+          add(chunkX, rowIndex, row.y);
         }
       }
       for (const span of row.spans) {
-        const spansByChunk = new Map<
-          number,
-          { x: number; text: string[] }
-        >();
-        let x = span.x;
-        for (const char of splitGraphemes(span.text)) {
-          const width = getCellOccupancy(char);
-          const minChunkX = floorDiv(x - 1, CELL_PLANE_CHUNK_WIDTH);
-          const maxChunkX = floorDiv(x + width, CELL_PLANE_CHUNK_WIDTH);
-          for (let chunkX = minChunkX; chunkX <= maxChunkX; chunkX += 1) {
-            const compiled = spansByChunk.get(chunkX);
-            if (compiled) compiled.text.push(char);
-            else spansByChunk.set(chunkX, { x, text: [char] });
-          }
-          x += width;
+        const width = getTextCellWidth(span.text);
+        if (width <= 0) continue;
+        const minChunkX = floorDiv(span.x - 1, CELL_PLANE_CHUNK_WIDTH);
+        const maxChunkX = floorDiv(span.x + width, CELL_PLANE_CHUNK_WIDTH);
+        for (let chunkX = minChunkX; chunkX <= maxChunkX; chunkX += 1) {
+          add(chunkX, rowIndex, row.y);
         }
-        spansByChunk.forEach((compiled, chunkX) => {
-          getRow(chunkX, row.y).spans.push({
-            ...span,
-            x: compiled.x,
-            text: compiled.text.join(""),
-          });
-        });
       }
     }
 
-    for (const [key, rows] of rowsByChunk) {
-      const mutations = this.#mutationsByChunk.get(key) ?? [];
-      mutations.push({ rows: [...rows.values()] });
-      this.#mutationsByChunk.set(key, mutations);
-    }
+    rowIndexesByChunk.forEach((rowIndexes, key) => {
+      const references = this.#referencesByChunk.get(key) ?? [];
+      const indexes = [...rowIndexes];
+      references.push({ operation, rowIndexes: indexes });
+      this.#directoryRowReferences += indexes.length;
+      this.#referencesByChunk.set(key, references);
+    });
+  }
+
+  #deleteCachedChunk(key: string) {
+    const entry = this.#chunkCache.get(key);
+    if (!entry) return;
+    this.#chunkCache.delete(key);
+    this.#chunkCacheBytes -= entry.bytes;
   }
 
   #resolveChunk(chunkX: number, chunkY: number) {
@@ -795,7 +1121,7 @@ export class CellPlaneIndex implements CanvasSurfaceReader {
     if (cached) {
       this.#chunkCache.delete(key);
       this.#chunkCache.set(key, cached);
-      return cached;
+      return cached.cells;
     }
     const chunkBounds = {
       x: chunkX * CELL_PLANE_CHUNK_WIDTH,
@@ -804,16 +1130,47 @@ export class CellPlaneIndex implements CanvasSurfaceReader {
       height: CELL_PLANE_CHUNK_HEIGHT,
     };
     const projection = new Map<string, GridCell>();
-    for (const mutation of this.#mutationsByChunk.get(key) ?? []) {
-      for (const row of mutation.rows) {
+    for (const reference of this.#referencesByChunk.get(key) ?? []) {
+      for (const rowIndex of reference.rowIndexes) {
+        const row = getOperationRow(reference.operation, rowIndex);
+        if (!row) continue;
         for (const interval of row.erase) {
           const from = Math.max(interval.from, chunkBounds.x - 1);
           const to = Math.min(interval.to, chunkBounds.x + chunkBounds.width);
           for (let x = from; x <= to; x += 1) deleteCellAt(projection, x, row.y);
         }
         for (const span of row.spans) {
+          const asciiSlice = getSingleCellAsciiSlice(
+            span.text,
+            span.x,
+            chunkBounds.x - 1,
+            chunkBounds.x + chunkBounds.width
+          );
+          if (asciiSlice) {
+            for (let index = asciiSlice.start; index < asciiSlice.end; index += 1) {
+              const x = span.x + index;
+              const targetBackground = span.preserveTargetBackground
+                ? resolveGridSlot(projection, { x, y: row.y })?.cell.bgColor
+                : undefined;
+              writeStyledCell(
+                projection,
+                x,
+                row.y,
+                toCell(span, span.text[index]!, targetBackground)
+              );
+            }
+            continue;
+          }
           let x = span.x;
           for (const char of splitGraphemes(span.text)) {
+            const width = getCellOccupancy(char);
+            if (
+              x + width <= chunkBounds.x - 1 ||
+              x > chunkBounds.x + chunkBounds.width
+            ) {
+              x += width;
+              continue;
+            }
             const targetBackground = span.preserveTargetBackground
               ? resolveGridSlot(projection, { x, y: row.y })?.cell.bgColor
               : undefined;
@@ -823,14 +1180,21 @@ export class CellPlaneIndex implements CanvasSurfaceReader {
               row.y,
               toCell(span, char, targetBackground)
             );
-            x += getCellOccupancy(char);
+            x += width;
           }
         }
       }
     }
-    this.#chunkCache.set(key, projection);
-    if (this.#chunkCache.size > CELL_PLANE_CHUNK_CACHE_LIMIT) {
-      this.#chunkCache.delete(this.#chunkCache.keys().next().value!);
+    const bytes = 256 + projection.size * ESTIMATED_GRID_CELL_BYTES;
+    this.#chunkCache.set(key, { cells: projection, bytes });
+    this.#chunkCacheBytes += bytes;
+    while (
+      this.#chunkCache.size > CELL_PLANE_CHUNK_CACHE_LIMIT ||
+      this.#chunkCacheBytes > CELL_PLANE_CHUNK_CACHE_BYTES_LIMIT
+    ) {
+      const oldest = this.#chunkCache.keys().next().value;
+      if (!oldest) break;
+      this.#deleteCachedChunk(oldest);
     }
     return projection;
   }

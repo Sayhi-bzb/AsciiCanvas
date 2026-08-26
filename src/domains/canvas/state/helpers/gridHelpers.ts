@@ -1,5 +1,8 @@
 import type { CanvasDocumentRegistry } from "../CanvasDocumentRegistry";
-import { createSurfaceGridProjection } from "../../cell-plane/model";
+import {
+  createSurfaceGridProjection,
+  getSurfaceGridReader,
+} from "../../cell-plane/model";
 import type { StructuredNode } from "@/domains/structured-content/public";
 import type { EditorState } from "../interfaces";
 import { getDefaultCanvasPageId, type CanvasDocumentAddress } from "../canvasDocumentModel";
@@ -7,6 +10,7 @@ import {
   cloneStructuredNode,
   createStructuredSceneSurface,
   normalizeScene,
+  StructuredSceneSurfaceIndex,
 } from "@/domains/structured-content/public";
 import {
   decodeCollaborativeStructuredNode,
@@ -71,6 +75,19 @@ export const rebuildGridFromContent = (documents: CanvasDocumentRegistry) =>
 export const createStructuredGridProjection = (
   scene: readonly StructuredNode[]
 ) => createSurfaceGridProjection(createStructuredSceneSurface(scene));
+
+export const updateStructuredGridProjection = (
+  current: Map<string, import("@/shared/types").GridCell>,
+  scene: readonly StructuredNode[],
+  changedIds: readonly string[]
+) => {
+  const reader = getSurfaceGridReader(current);
+  if (reader instanceof StructuredSceneSurfaceIndex) {
+    reader.update(scene, changedIds);
+    return current;
+  }
+  return createStructuredGridProjection(scene);
+};
 
 export const rebuildSceneFromYMap = (documents: CanvasDocumentRegistry) => {
   const nextScene: StructuredNode[] = [];

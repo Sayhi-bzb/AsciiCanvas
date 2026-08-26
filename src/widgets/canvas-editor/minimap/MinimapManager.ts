@@ -30,6 +30,7 @@ type MinimapContentChunk = {
 
 const MINIMAP_CHUNK_COLUMNS = 128;
 const MINIMAP_CHUNK_ROWS = 64;
+const MINIMAP_CONTENT_REBUILD_DELAY_MS = 160;
 const floorDiv = (value: number, divisor: number) => Math.floor(value / divisor);
 const chunkKey = (column: number, row: number) => `${column},${row}`;
 
@@ -49,6 +50,7 @@ export class MinimapManager {
   private cachedReader: MinimapRenderState["reader"] | null = null;
   private hasCachedContent = false;
   private cachedContentBounds: MinimapRect | null = null;
+  private lastRenderedViewportKey: string | null = null;
   private cancelScheduledContentRebuild: (() => void) | null = null;
   private cachedForeground = "";
   private contentChunks = new Map<string, MinimapContentChunk>();
@@ -80,6 +82,7 @@ export class MinimapManager {
     this.renderState = null;
     this.transform = null;
     this.viewportRect = null;
+    this.lastRenderedViewportKey = null;
     this.cancelScheduledContentRebuild?.();
     this.cancelScheduledContentRebuild = null;
     this.contentChunks.clear();
@@ -337,7 +340,8 @@ export class MinimapManager {
   };
 
   private scheduleContentRebuild = () => {
-    if (this.cancelScheduledContentRebuild) return;
+    this.cancelScheduledContentRebuild?.();
+    this.cancelScheduledContentRebuild = null;
     const rebuild = () => {
       this.cancelScheduledContentRebuild = null;
       const state = this.renderState;
@@ -346,28 +350,36 @@ export class MinimapManager {
       this.render();
     };
     let idleHandle: number | null = null;
-    let timeoutHandle: number | null = null;
-    const frameHandle = window.requestAnimationFrame(() => {
+    const timeoutHandle = window.setTimeout(() => {
       if (typeof window.requestIdleCallback === "function") {
-        idleHandle = window.requestIdleCallback(rebuild, { timeout: 250 });
+        idleHandle = window.requestIdleCallback(rebuild, { timeout: 200 });
       } else {
-        timeoutHandle = window.setTimeout(rebuild, 50);
+        rebuild();
       }
-    });
+    }, MINIMAP_CONTENT_REBUILD_DELAY_MS);
     this.cancelScheduledContentRebuild = () => {
-      window.cancelAnimationFrame(frameHandle);
+      window.clearTimeout(timeoutHandle);
       if (idleHandle !== null) window.cancelIdleCallback(idleHandle);
-      if (timeoutHandle !== null) window.clearTimeout(timeoutHandle);
     };
   };
 
   render = () => {
     const state = this.renderState;
     if (!state) return;
+    const viewportKey = [
+      state.offset.x,
+      state.offset.y,
+      state.zoom,
+      state.viewportSize.width,
+      state.viewportSize.height,
+    ].join(":");
     const contentChanged =
       this.hasCachedContent &&
       this.cachedContentRevision !== state.contentRevision;
-    if (contentChanged) this.scheduleContentRebuild();
+    if (contentChanged) {
+      this.scheduleContentRebuild();
+      if (this.lastRenderedViewportKey === viewportKey) return;
+    }
     else this.rebuildPaths(state);
     const transform = computeMinimapTransformFromBounds({
       ...state,
@@ -389,6 +401,7 @@ export class MinimapManager {
     }
     this.canvas.style.width = `${this.dimensions.width}px`;
     this.canvas.style.height = `${this.dimensions.height}px`;
+    this.lastRenderedViewportKey = viewportKey;
 
     const { ctx } = this;
     ctx.resetTransform();

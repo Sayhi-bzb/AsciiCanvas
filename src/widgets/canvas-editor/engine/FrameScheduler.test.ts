@@ -69,4 +69,39 @@ describe("CanvasFrameScheduler", () => {
     expect(onViewport).toHaveBeenCalledWith(10);
     expect(onPreview).toHaveBeenCalledWith(10);
   });
+
+  it("runs interaction work first and defers background work past the budget", () => {
+    const frames: FrameRequestCallback[] = [];
+    let now = 0;
+    const scheduler = new CanvasFrameScheduler({
+      requestAnimationFrame: (callback) => {
+        frames.push(callback);
+        return frames.length;
+      },
+      cancelAnimationFrame: vi.fn(),
+      now: () => now,
+    }, { frameBudgetMs: 8 });
+    const order: string[] = [];
+
+    scheduler.request(
+      "background",
+      CANVAS_FRAME_INVALIDATION.background,
+      () => order.push("background")
+    );
+    scheduler.request(
+      "input",
+      CANVAS_FRAME_INVALIDATION.overlay,
+      () => {
+        order.push("input");
+        now = 10;
+      }
+    );
+
+    frames.shift()!(1);
+    expect(order).toEqual(["input"]);
+    expect(scheduler.getStats()).toMatchObject({ pending: 1, deferredFrames: 1 });
+
+    frames.shift()!(2);
+    expect(order).toEqual(["input", "background"]);
+  });
 });

@@ -301,33 +301,72 @@ const findStructuredNodeHitInOrder = (
 export class StructuredSceneQuery {
   private static readonly SPATIAL_INDEX_THRESHOLD = 256;
   private static readonly BUCKET_SIZE = 32;
+  private static readonly MAX_BUCKETS_PER_NODE = 256;
   private scene: readonly StructuredNode[] = [];
   private ordered: StructuredNode[] = [];
   private byId = new Map<string, StructuredNode>();
   private boundsById = new Map<string, NodeBounds>();
   private spatialBuckets: Map<string, StructuredNode[]> | null = null;
+  private bucketKeysById = new Map<string, string[]>();
+  private largeNodeIds = new Set<string>();
 
   constructor(scene: readonly StructuredNode[]) {
     this.update(scene);
   }
 
-  update(scene: readonly StructuredNode[]): void {
+  update(
+    scene: readonly StructuredNode[],
+    changedIds?: readonly string[]
+  ): void {
     if (
       scene.length === this.scene.length &&
       scene.every((node, index) => node === this.scene[index])
     ) {
       return;
     }
+    const nextById = new Map(scene.map((node) => [node.id, node]));
+    const changed = changedIds
+      ? new Set(changedIds)
+      : new Set([
+          ...this.byId.keys(),
+          ...nextById.keys(),
+        ].filter((id) => this.byId.get(id) !== nextById.get(id)));
+    const hadSpatialIndex = this.spatialBuckets !== null;
+    const needsSpatialIndex =
+      scene.length >= StructuredSceneQuery.SPATIAL_INDEX_THRESHOLD;
+    const rebuild =
+      this.scene.length === 0 ||
+      hadSpatialIndex !== needsSpatialIndex ||
+      changed.size > Math.max(64, Math.ceil(scene.length / 4));
+
     this.scene = [...scene];
-    this.ordered = [...this.scene].sort((a, b) => b.order - a.order);
-    this.byId = new Map(this.scene.map((node) => [node.id, node]));
-    this.boundsById = new Map(
-      this.scene.map((node) => [node.id, getStructuredNodeBounds(node)])
-    );
-    this.spatialBuckets =
-      this.scene.length >= StructuredSceneQuery.SPATIAL_INDEX_THRESHOLD
+    if (rebuild) {
+      this.byId = nextById;
+      this.boundsById = new Map(
+        this.scene.map((node) => [node.id, getStructuredNodeBounds(node)])
+      );
+      this.ordered = [...this.scene].sort((a, b) => b.order - a.order);
+      this.spatialBuckets = needsSpatialIndex
         ? this.buildSpatialBuckets()
         : null;
+      if (!needsSpatialIndex) {
+        this.bucketKeysById.clear();
+        this.largeNodeIds.clear();
+      }
+      return;
+    }
+
+    changed.forEach((id) => {
+      if (this.spatialBuckets) this.removeFromSpatialBuckets(id);
+      this.byId.delete(id);
+      this.boundsById.delete(id);
+      const next = nextById.get(id);
+      if (!next) return;
+      this.byId.set(id, next);
+      this.boundsById.set(id, getStructuredNodeBounds(next));
+      if (this.spatialBuckets) this.addToSpatialBuckets(next);
+    });
+    this.ordered = [...this.byId.values()].sort((a, b) => b.order - a.order);
   }
 
   getNode(id: string): StructuredNode | null {
@@ -335,8 +374,19 @@ export class StructuredSceneQuery {
   }
 
   findHit(point: Point): StructuredNodeHit | null {
-    const candidates = this.spatialBuckets?.get(this.getBucketKey(point));
-    return findStructuredNodeHitInOrder(candidates ?? this.ordered, point);
+    if (!this.spatialBuckets) return findStructuredNodeHitInOrder(this.ordered, point);
+    const candidates = new Map<string, StructuredNode>();
+    this.spatialBuckets.get(this.getBucketKey(point))?.forEach((node) => {
+      candidates.set(node.id, node);
+    });
+    this.largeNodeIds.forEach((id) => {
+      const node = this.byId.get(id);
+      if (node) candidates.set(id, node);
+    });
+    return findStructuredNodeHitInOrder(
+      [...candidates.values()].sort((a, b) => b.order - a.order),
+      point
+    );
   }
 
   getTextNodesInHitOrder(): StructuredTextNode[] {
@@ -369,23 +419,50 @@ export class StructuredSceneQuery {
 
   private buildSpatialBuckets(): Map<string, StructuredNode[]> {
     const buckets = new Map<string, StructuredNode[]>();
-    const size = StructuredSceneQuery.BUCKET_SIZE;
-    this.ordered.forEach((node) => {
-      const bounds = this.boundsById.get(node.id)!;
-      const startX = Math.floor(bounds.x / size);
-      const endX = Math.floor((bounds.x + bounds.width - 1) / size);
-      const startY = Math.floor(bounds.y / size);
-      const endY = Math.floor((bounds.y + bounds.height - 1) / size);
-      for (let bucketY = startY; bucketY <= endY; bucketY += 1) {
-        for (let bucketX = startX; bucketX <= endX; bucketX += 1) {
-          const key = `${bucketX},${bucketY}`;
-          const bucket = buckets.get(key);
-          if (bucket) bucket.push(node);
-          else buckets.set(key, [node]);
-        }
-      }
-    });
+    this.spatialBuckets = buckets;
+    this.bucketKeysById.clear();
+    this.largeNodeIds.clear();
+    this.ordered.forEach((node) => this.addToSpatialBuckets(node));
     return buckets;
+  }
+
+  private addToSpatialBuckets(node: StructuredNode): void {
+    if (!this.spatialBuckets) return;
+    const bounds = this.boundsById.get(node.id)!;
+    const size = StructuredSceneQuery.BUCKET_SIZE;
+    const startX = Math.floor(bounds.x / size);
+    const endX = Math.floor((bounds.x + bounds.width - 1) / size);
+    const startY = Math.floor(bounds.y / size);
+    const endY = Math.floor((bounds.y + bounds.height - 1) / size);
+    const bucketCount = (endX - startX + 1) * (endY - startY + 1);
+    if (bucketCount > StructuredSceneQuery.MAX_BUCKETS_PER_NODE) {
+      this.largeNodeIds.add(node.id);
+      return;
+    }
+    const keys: string[] = [];
+    for (let bucketY = startY; bucketY <= endY; bucketY += 1) {
+      for (let bucketX = startX; bucketX <= endX; bucketX += 1) {
+        const key = `${bucketX},${bucketY}`;
+        keys.push(key);
+        const bucket = this.spatialBuckets.get(key);
+        if (bucket) bucket.push(node);
+        else this.spatialBuckets.set(key, [node]);
+      }
+    }
+    this.bucketKeysById.set(node.id, keys);
+  }
+
+  private removeFromSpatialBuckets(id: string): void {
+    if (!this.spatialBuckets) return;
+    this.bucketKeysById.get(id)?.forEach((key) => {
+      const bucket = this.spatialBuckets!.get(key);
+      if (!bucket) return;
+      const next = bucket.filter((node) => node.id !== id);
+      if (next.length > 0) this.spatialBuckets!.set(key, next);
+      else this.spatialBuckets!.delete(key);
+    });
+    this.bucketKeysById.delete(id);
+    this.largeNodeIds.delete(id);
   }
 
   private getSelectionCandidates(bounds: NodeBounds): StructuredNode[] {
@@ -403,6 +480,10 @@ export class StructuredSceneQuery {
         });
       }
     }
+    this.largeNodeIds.forEach((id) => {
+      const node = this.byId.get(id);
+      if (node) candidates.set(id, node);
+    });
     return [...candidates.values()];
   }
 }
@@ -411,6 +492,16 @@ const structuredSceneQueryCache = new WeakMap<
   readonly StructuredNode[],
   StructuredSceneQuery
 >();
+
+export const bindStructuredSceneQuery = (
+  scene: readonly StructuredNode[],
+  query: StructuredSceneQuery,
+  changedIds?: readonly string[]
+) => {
+  query.update(scene, changedIds);
+  structuredSceneQueryCache.set(scene, query);
+  return query;
+};
 
 export const createStructuredSceneQuery = (
   scene: readonly StructuredNode[]

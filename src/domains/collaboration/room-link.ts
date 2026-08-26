@@ -2,7 +2,7 @@ import {
   COLLABORATION_DOCUMENT_VERSION,
   type CollaborationCanvasMode,
   type CollaborationDescriptor,
-  type CollaborationDescriptorV4,
+  type CollaborationDescriptorV5,
   type CollaborationLinkParseResult,
 } from "./model";
 
@@ -39,14 +39,14 @@ export const validateCollaborationEndpoint = (value: string) => {
 export const createCollaborationDescriptor = (
   mode: CollaborationCanvasMode,
   endpoint?: string
-): CollaborationDescriptorV4 => {
+): CollaborationDescriptorV5 => {
   const roomId = randomToken(16);
   const key = randomToken(32);
   if (endpoint) {
     const normalizedEndpoint = validateCollaborationEndpoint(endpoint);
     if (!normalizedEndpoint) throw new Error("Invalid collaboration endpoint");
     return {
-      version: 4,
+      version: 5,
       documentVersion: COLLABORATION_DOCUMENT_VERSION,
       mode,
       provider: "websocket",
@@ -56,7 +56,7 @@ export const createCollaborationDescriptor = (
     };
   }
   return {
-    version: 4,
+    version: 5,
     documentVersion: COLLABORATION_DOCUMENT_VERSION,
     mode,
     provider: "p2p",
@@ -71,8 +71,9 @@ export const isCollaborationDescriptor = (
   if (!value || typeof value !== "object") return false;
   const candidate = value as Record<string, unknown>;
   if (
-    candidate.version !== 4 ||
-    candidate.documentVersion !== COLLABORATION_DOCUMENT_VERSION ||
+    ((candidate.version !== 4 || candidate.documentVersion !== 4) &&
+      (candidate.version !== 5 ||
+        candidate.documentVersion !== COLLABORATION_DOCUMENT_VERSION)) ||
     (candidate.mode !== "freeform" && candidate.mode !== "structured") ||
     (candidate.provider !== "p2p" && candidate.provider !== "websocket") ||
     typeof candidate.roomId !== "string" ||

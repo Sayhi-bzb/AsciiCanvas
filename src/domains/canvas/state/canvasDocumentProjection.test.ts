@@ -3,7 +3,9 @@ import * as Y from "yjs";
 import type { StructuredNode } from "@/domains/structured-content/public";
 import { defaultCanvasDocuments, useEditorStore } from "@/domains/canvas/testing";
 import {
+  getSurfaceGridReader,
   gridEntriesToCellPlaneOperation,
+  isIncrementalCanvasSurfaceReader,
   type CellPlaneOperation,
 } from "../cell-plane/model";
 
@@ -142,6 +144,11 @@ describe("remote canvas document projection", () => {
         order: index,
       }))
     );
+    const projectedGrid = useEditorStore.getState().grid;
+    const projectedReader = getSurfaceGridReader(projectedGrid)!;
+    const projectedRevision = isIncrementalCanvasSurfaceReader(projectedReader)
+      ? projectedReader.getRevision()
+      : -1;
 
     const changedKeys = new Set<string>();
     const observer = (event: Y.YMapEvent<StructuredNode>) => {
@@ -159,6 +166,11 @@ describe("remote canvas document projection", () => {
     defaultCanvasDocuments.yStructuredScene.unobserve(observer);
 
     expect(changedKeys).toEqual(new Set(["node-500"]));
+    expect(useEditorStore.getState().grid).toBe(projectedGrid);
+    expect(
+      isIncrementalCanvasSurfaceReader(projectedReader) &&
+        projectedReader.getRevision()
+    ).toBe(projectedRevision + 1);
     expect(
       useEditorStore.getState().structuredScene.find((node) => node.id === "node-500")
     ).toMatchObject({ text: "Changed" });

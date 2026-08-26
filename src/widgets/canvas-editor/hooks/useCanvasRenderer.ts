@@ -59,6 +59,8 @@ import {
 } from '../engine/FrameScheduler';
 import { CanvasRenderManager } from '../engine/CanvasRenderManager';
 import { getIncrementalBackgroundBounds } from '../rendering/incrementalBackground';
+import { shouldDrawCanvasGrid } from '../rendering/canvasLod';
+import { CanvasRasterTileCache } from '../rendering/CanvasRasterTileCache';
 import {
   offsetCanvasViewportForSurface,
   type CanvasSurfaceGeometry,
@@ -278,6 +280,8 @@ export const useCanvasRenderer = (
   );
   const renderedTextCursor = canvasMode !== 'structured' ? staticGridView.textCursor : textCursor;
   const [renderManager] = useState(() => new CanvasRenderManager());
+  const [rasterTileCache] = useState(() => new CanvasRasterTileCache());
+  useEffect(() => () => rasterTileCache.clear(), [rasterTileCache]);
   const backgroundSnapshotRef = useRef<BackgroundRenderSnapshot | null>(null);
   const manualRenderRafRef = useRef<number | null>(null);
   const manualInvalidationRef = useRef<CanvasFrameInvalidation>(0);
@@ -371,6 +375,7 @@ export const useCanvasRenderer = (
       const bgCanvas = layers.bg.current;
       const bgCtx = bgCanvas?.getContext('2d', { alpha: false });
       if (renderBackground && bgCanvas && bgCtx) {
+        const drawVisibleGrid = showGrid && shouldDrawCanvasGrid(zoom);
         const incrementalReader = isIncrementalCanvasSurfaceReader(contentReader)
           ? contentReader
           : null;
@@ -388,9 +393,9 @@ export const useCanvasRenderer = (
           previous.offsetX === renderOffset.x &&
           previous.offsetY === renderOffset.y &&
           previous.zoom === zoom &&
-          previous.showGrid === showGrid &&
+          previous.showGrid === drawVisibleGrid &&
           previous.hoveredLink === hoveredLink &&
-          canvasMode === "freeform" &&
+          canvasMode !== "slide" &&
           !structuredMovePreview &&
           !slidePageRect;
         const incrementalBounds = staticInputsMatch && incrementalReader &&
@@ -429,7 +434,7 @@ export const useCanvasRenderer = (
             bgCtx.clip();
             bgCtx.fillStyle = BACKGROUND_COLOR;
             bgCtx.fillRect(x, y, right - x, bottom - y);
-            if (showGrid) {
+            if (drawVisibleGrid) {
               drawGridLines(bgCtx, {
                 startX: bounds.x,
                 endX: bounds.x + bounds.width,
@@ -477,7 +482,7 @@ export const useCanvasRenderer = (
             clipToSlidePage(bgCtx);
           }
 
-          if (showGrid) {
+          if (drawVisibleGrid) {
             drawGridLines(bgCtx, {
               startX: viewBounds.startX,
               endX: viewBounds.endX,
@@ -493,7 +498,18 @@ export const useCanvasRenderer = (
           }
           if (structuredMovePreview) {
             drawLayer(bgCtx, renderedGrid, viewBounds, zoom, renderOffset);
-          } else {
+          } else if (
+            hoveredLink ||
+            slidePageRect ||
+            !rasterTileCache.draw(
+              bgCtx,
+              contentReader,
+              viewBounds,
+              zoom,
+              renderOffset,
+              dpr
+            )
+          ) {
             drawSurface(bgCtx, contentReader, viewBounds, zoom, renderOffset);
           }
           if (slidePageRect) bgCtx.restore();
@@ -511,7 +527,7 @@ export const useCanvasRenderer = (
               offsetX: renderOffset.x,
               offsetY: renderOffset.y,
               zoom,
-              showGrid,
+              showGrid: drawVisibleGrid,
               hoveredLink,
             };
         renderedInvalidation |= CANVAS_FRAME_INVALIDATION.background;
@@ -868,6 +884,7 @@ export const useCanvasRenderer = (
     }
     const fonts = document.fonts;
     const handleFontLoad = () => {
+      rasterTileCache.clear();
       scheduleRender(renderManager.reset());
     };
     fonts?.addEventListener('loadingdone', handleFontLoad);
@@ -922,6 +939,7 @@ export const useCanvasRenderer = (
     staticGridView.hasSelection,
     staticGridView.selectionGeometry,
     renderManager,
+    rasterTileCache,
     runtime,
   ]);
 };

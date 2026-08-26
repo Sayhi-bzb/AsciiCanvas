@@ -20,12 +20,12 @@ export const getCollaborationPersistenceName = async (
     "SHA-256",
     new TextEncoder().encode(identity)
   );
-  const namespace = "chardesk-room-v4";
+  const namespace = `chardesk-room-v${descriptor.version}`;
   return `${namespace}:${toBase64Url(new Uint8Array(digest))}`;
 };
 
 export const getCollaborationRoomName = (descriptor: CollaborationDescriptor) => {
-  const namespace = "chardesk-v4";
+  const namespace = `chardesk-v${descriptor.version}`;
   return descriptor.provider === "p2p"
     ? `${namespace}-${descriptor.roomId}`
     : `${namespace}-${descriptor.roomId}-${descriptor.key}`;

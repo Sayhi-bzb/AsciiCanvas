@@ -8,7 +8,7 @@ import { decodeCollaborativeStructuredComponent } from "./collaborationSchema";
 import {
   rebuildGridFromContent,
   rebuildSceneFromYMapChanges,
-  createStructuredGridProjection,
+  updateStructuredGridProjection,
 } from "./helpers/gridHelpers";
 import type { EditorState } from "./interfaces";
 import type { CanvasDocumentRegistry } from "./CanvasDocumentRegistry";
@@ -67,7 +67,13 @@ export const subscribeCanvasDocumentProjection = (
       return {
         structuredScene,
         structuredComponents,
-        grid: createStructuredGridProjection(structuredScene),
+        grid: transaction.sceneChanged
+          ? updateStructuredGridProjection(
+              current.grid,
+              structuredScene,
+              transaction.sceneChangedIds
+            )
+          : current.grid,
         ...reconcileStructuredInteraction(current, structuredScene),
       };
     });

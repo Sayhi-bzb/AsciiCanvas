@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createStructuredSceneSurface } from "./surface";
 import { sceneToGridEntries } from "./scene";
+import { createStructuredSceneQuery } from "./box";
 import type { StructuredNode } from "./types";
 
 const scene: StructuredNode[] = [
@@ -63,5 +64,33 @@ describe("StructuredSceneSurfaceIndex", () => {
     }
 
     expect(surface.getStats().residentChunks).toBeLessThanOrEqual(64);
+    expect(surface.getStats().residentBytes).toBeLessThanOrEqual(32 * 1024 * 1024);
+  });
+
+  it("updates changed nodes in place and reports their old and new bounds", () => {
+    const surface = createStructuredSceneSurface(scene);
+    surface.getCell({ x: 2, y: 1 });
+    const revision = surface.getRevision();
+    const moved = scene.map((node) =>
+      node.id === "box" && node.type === "box"
+        ? { ...node, start: { x: 30, y: 10 }, end: { x: 48, y: 15 } }
+        : node
+    );
+
+    surface.update(moved, ["box"]);
+
+    expect(surface.getRevision()).toBe(revision + 1);
+    expect(surface.getChangesSince(revision)).toEqual({
+      revision: revision + 1,
+      full: false,
+      bounds: [
+        { x: 2, y: 1, width: 19, height: 6 },
+        { x: 30, y: 10, width: 19, height: 6 },
+      ],
+    });
+    expect(surface.getCell({ x: 2, y: 1 })?.char).not.toBe("╭");
+    expect(surface.getCell({ x: 30, y: 10 })?.char).toBe("╭");
+    expect(surface.materialize()).toEqual(new Map(sceneToGridEntries(moved)));
+    expect(createStructuredSceneQuery(moved)).toBe(surface.getSceneQuery());
   });
 });

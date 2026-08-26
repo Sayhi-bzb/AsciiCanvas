@@ -72,7 +72,7 @@ describe("MinimapManager incremental content", () => {
 
     plane.append(operation("B", 200));
     manager.update({ ...viewport, contentRevision: plane.getRevision() });
-    vi.advanceTimersByTime(50);
+    vi.advanceTimersByTime(160);
 
     expect(rows).toHaveBeenCalledTimes(1);
     expect(rows).toHaveBeenCalledWith({

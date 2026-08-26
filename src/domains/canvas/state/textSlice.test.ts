@@ -5,6 +5,7 @@ import {
   useEditorStore,
 } from "@/domains/canvas/testing";
 import type { EditorState } from "@/domains/canvas/state/interfaces";
+import { decodeCellPlaneOperationRows } from "@/domains/canvas/cell-plane/model";
 
 const initialState = useEditorStore.getState();
 
@@ -322,13 +323,15 @@ describe("textSlice paste background merging", () => {
     }]);
 
     expect(defaultCanvasDocuments.yCellPlaneOperations.length).toBe(before + 1);
-    expect(defaultCanvasDocuments.yCellPlaneOperations.get(before)).toMatchObject({
+    const operation = defaultCanvasDocuments.yCellPlaneOperations.get(before)!;
+    expect(operation).toMatchObject({
       bounds: { x: 3, y: 2, width: 4, height: 1 },
-      rows: [{
+      format: 2,
+    });
+    expect(decodeCellPlaneOperationRows(operation)).toMatchObject([{
         y: 2,
         spans: [{ x: 3, text: "A你B", preserveTargetBackground: true }],
-      }],
-    });
+      }]);
     expect(useEditorStore.getState().grid).toEqual(new Map([
       ["3,2", { char: "A", color: "#ff0000" }],
       ["4,2", { char: "你", color: "#ff0000" }],

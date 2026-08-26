@@ -91,5 +91,18 @@ describe("StructuredSceneQuery", () => {
         end: { x: 399, y: 198 },
       })
     ).toContain("text-9999");
+
+    const updated = scene
+      .filter((node) => node.id !== "text-9999")
+      .map((node) =>
+        node.id === "front" && node.type === "bg"
+          ? { ...node, start: { x: 500, y: 500 }, end: { x: 510, y: 510 } }
+          : node
+      );
+    query.update(updated, ["front", "text-9999"]);
+
+    expect(query.findHit({ x: 4, y: 2 })?.node.id).not.toBe("front");
+    expect(query.findHit({ x: 500, y: 500 })?.node.id).toBe("front");
+    expect(query.getNode("text-9999")).toBeNull();
   });
 });

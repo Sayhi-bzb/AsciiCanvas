@@ -68,6 +68,33 @@ describe("unified Canvas documents", () => {
     documents.dispose();
   });
 
+  it("creates page indexes on demand and keeps a bounded resident set", () => {
+    const documents = new CanvasDocumentRegistry("many-pages");
+    documents.activateDocument("many-pages", {
+      mode: "slide",
+      activePageId: "page-0",
+      pages: Array.from({ length: 8 }, (_, index) => ({
+        id: `page-${index}`,
+        kind: "cell-plane" as const,
+        grid: [["0,0", cell(String(index))]],
+      })),
+      grid: [],
+      scene: [],
+      components: [],
+    }, { replace: true });
+
+    expect(documents.getMemoryStats().residentPageIndexes).toBe(1);
+    for (let index = 1; index < 8; index += 1) {
+      expect(documents.getContentReader("many-pages", `page-${index}`))
+        .not.toBeNull();
+    }
+    expect(documents.getMemoryStats().residentPageIndexes).toBeLessThanOrEqual(4);
+    documents.activatePage("many-pages", "page-0");
+    expect(documents.getContentReader().getCell({ x: 0, y: 0 }))
+      .toEqual(cell("0"));
+    documents.dispose();
+  });
+
   it("merges independently initialized copies through deterministic page roots", () => {
     const id = `offline-${crypto.randomUUID()}`;
     const left = new CanvasDocumentRegistry(id);

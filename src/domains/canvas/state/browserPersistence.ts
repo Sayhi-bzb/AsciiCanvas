@@ -19,6 +19,7 @@ import type { GridCell } from "@/shared/types";
 import {
   CellPlaneIndex,
   gridEntriesToCellPlaneOperation,
+  isEncodedCellPlaneOperation,
   isCellPlaneOperation,
   type CellPlaneOperation,
 } from "../cell-plane/model";
@@ -296,6 +297,17 @@ const countDocumentStructs = (doc: Y.Doc) => {
   let count = 0;
   doc.store.clients.forEach((structs) => { count += structs.length; });
   return count;
+};
+
+const hasLegacyCellPlaneOperations = (doc: Y.Doc) => {
+  const root = getCanvasDocumentRoot(doc);
+  return readCanvasPageOrder(root).some((pageId) => {
+    const page = readCanvasYPage(root, pageId);
+    return page?.operations.toArray().some(
+      (operation) =>
+        isCellPlaneOperation(operation) && !isEncodedCellPlaneOperation(operation)
+    ) ?? false;
+  });
 };
 
 const createCompactedDocument = (doc: Y.Doc, id: string) => {
@@ -985,6 +997,13 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
         ? new Y.Doc({ guid: session.id })
         : await this.#loadSessionDocument(session, false);
       documents.adoptDocument(session.id, doc);
+      if (session.mode !== "slide" && session.collaboration) {
+        documents.prepareDocumentForCollaboration(
+          session.id,
+          session.mode,
+          session.collaboration.documentVersion
+        );
+      }
       this.touch(session.id);
       await this.#evictionTask;
       return true;
@@ -1075,6 +1094,11 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
       if (session.collaboration) {
         if (isActive) {
           documents.adoptDocument(session.id, new Y.Doc({ guid: session.id }));
+          documents.prepareDocumentForCollaboration(
+            session.id,
+            session.mode,
+            session.collaboration.documentVersion
+          );
         }
         restored.push({ ...session, grid: [], scene: [], components: [] });
         continue;
@@ -1155,7 +1179,11 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
       await provider.destroy();
       const migrated = migrateLegacyDocument(doc, id, seed);
       if (isDocumentEmpty(doc)) applySeed(doc, id, seed);
-      if (migrated || countDocumentStructs(doc) >= DOCUMENT_STRUCT_ROTATION_THRESHOLD) {
+      if (
+        migrated ||
+        hasLegacyCellPlaneOperations(doc) ||
+        countDocumentStructs(doc) >= DOCUMENT_STRUCT_ROTATION_THRESHOLD
+      ) {
         const compacted = createCompactedDocument(doc, id);
         doc.destroy();
         return compacted;
@@ -1165,7 +1193,11 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
     const migrated = migrateLegacyDocument(doc, id, seed);
     const seeded = isDocumentEmpty(doc);
     if (seeded) applySeed(doc, id, seed);
-    if (migrated || countDocumentStructs(doc) >= DOCUMENT_STRUCT_ROTATION_THRESHOLD) {
+    if (
+      migrated ||
+      hasLegacyCellPlaneOperations(doc) ||
+      countDocumentStructs(doc) >= DOCUMENT_STRUCT_ROTATION_THRESHOLD
+    ) {
       const compacted = createCompactedDocument(doc, id);
       const nextGeneration = generation + 1;
       const nextDatabaseName = getDocumentDatabaseName(id, nextGeneration);

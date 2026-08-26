@@ -39,6 +39,7 @@ if (new URLSearchParams(window.location.search).has("canvas-stress")) {
           ? reader.getStats()
           : null;
       },
+      memoryStats: () => host.canvas.queries.getMemoryStats(),
       persistence: () => host.canvas.getPersistenceSnapshot(),
     },
   });

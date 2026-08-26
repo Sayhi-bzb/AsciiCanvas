@@ -17,6 +17,27 @@ type CanvasFrameCallback = (
   invalidation: CanvasFrameInvalidation
 ) => void;
 
+export type CanvasFramePriority = "interaction" | "visible" | "background";
+
+type CanvasFrameRequestOptions = {
+  priority?: CanvasFramePriority;
+};
+
+const PRIORITY_ORDER: Record<CanvasFramePriority, number> = {
+  interaction: 0,
+  visible: 1,
+  background: 2,
+};
+
+const inferPriority = (invalidation: CanvasFrameInvalidation): CanvasFramePriority => {
+  if (
+    invalidation &
+    (CANVAS_FRAME_INVALIDATION.overlay | CANVAS_FRAME_INVALIDATION.presentation)
+  ) return "interaction";
+  if (invalidation & CANVAS_FRAME_INVALIDATION.scratch) return "visible";
+  return "background";
+};
+
 type AnimationFramePort = {
   requestAnimationFrame: (callback: FrameRequestCallback) => number;
   cancelAnimationFrame: (handle: number) => void;
@@ -34,27 +55,57 @@ export class CanvasFrameScheduler {
   private readonly port: AnimationFramePort;
   private readonly callbacks = new Map<
     string,
-    { callback: CanvasFrameCallback; invalidation: CanvasFrameInvalidation }
+    {
+      callback: CanvasFrameCallback;
+      invalidation: CanvasFrameInvalidation;
+      priority: CanvasFramePriority;
+    }
   >();
+  private readonly frameBudgetMs: number;
   private frameHandle: number | null = null;
   private disposed = false;
+  private deferredFrames = 0;
+  private lastWorkDurationMs = 0;
 
-  constructor(port: AnimationFramePort = getDefaultAnimationFramePort()) {
+  constructor(
+    port: AnimationFramePort = getDefaultAnimationFramePort(),
+    options: { frameBudgetMs?: number } = {}
+  ) {
     this.port = port;
+    this.frameBudgetMs = options.frameBudgetMs ?? 8;
   }
 
   request(
     key: string,
     invalidation: CanvasFrameInvalidation,
-    callback: CanvasFrameCallback
+    callback: CanvasFrameCallback,
+    options: CanvasFrameRequestOptions = {}
   ): void {
     if (this.disposed) return;
     const previous = this.callbacks.get(key);
+    const priority = options.priority ?? inferPriority(invalidation);
     this.callbacks.set(key, {
       callback,
       invalidation: (previous?.invalidation ?? 0) | invalidation,
+      priority:
+        previous && PRIORITY_ORDER[previous.priority] < PRIORITY_ORDER[priority]
+          ? previous.priority
+          : priority,
     });
-    if (this.frameHandle !== null) return;
+    this.scheduleFrame();
+  }
+
+  getStats() {
+    return {
+      pending: this.callbacks.size,
+      deferredFrames: this.deferredFrames,
+      lastWorkDurationMs: this.lastWorkDurationMs,
+      frameBudgetMs: this.frameBudgetMs,
+    };
+  }
+
+  private scheduleFrame(): void {
+    if (this.frameHandle !== null || this.disposed) return;
     this.frameHandle = this.port.requestAnimationFrame((timestamp) => {
       this.frameHandle = null;
       this.run(timestamp);
@@ -81,11 +132,34 @@ export class CanvasFrameScheduler {
   }
 
   private run(timestamp: number): void {
-    const callbacks = [...this.callbacks.values()];
-    this.callbacks.clear();
-    callbacks.forEach(({ callback, invalidation }) =>
-      callback(timestamp, invalidation)
+    const startedAt = this.port.now();
+    const callbacks = [...this.callbacks.entries()].sort(
+      ([, left], [, right]) =>
+        PRIORITY_ORDER[left.priority] - PRIORITY_ORDER[right.priority]
     );
+    this.callbacks.clear();
+    for (let index = 0; index < callbacks.length; index += 1) {
+      const [, task] = callbacks[index]!;
+      if (index > 0 && this.port.now() - startedAt >= this.frameBudgetMs) {
+        this.deferredFrames += 1;
+        for (const [pendingKey, pendingTask] of callbacks.slice(index)) {
+          const newer = this.callbacks.get(pendingKey);
+          this.callbacks.set(pendingKey, {
+            callback: newer?.callback ?? pendingTask.callback,
+            invalidation: (newer?.invalidation ?? 0) | pendingTask.invalidation,
+            priority:
+              newer &&
+              PRIORITY_ORDER[newer.priority] < PRIORITY_ORDER[pendingTask.priority]
+                ? newer.priority
+                : pendingTask.priority,
+          });
+        }
+        this.scheduleFrame();
+        break;
+      }
+      task.callback(timestamp, task.invalidation);
+    }
+    this.lastWorkDurationMs = this.port.now() - startedAt;
   }
 }
 
@@ -104,14 +178,20 @@ export class CanvasScopedFrameScheduler extends CanvasFrameScheduler {
   override request(
     key: string,
     invalidation: CanvasFrameInvalidation,
-    callback: CanvasFrameCallback
+    callback: CanvasFrameCallback,
+    options: CanvasFrameRequestOptions = {}
   ): void {
     const scopedKey = `${this.scope}:${key}`;
     this.pendingKeys.add(scopedKey);
-    this.parent.request(scopedKey, invalidation, (timestamp, pendingInvalidation) => {
-      this.pendingKeys.delete(scopedKey);
-      callback(timestamp, pendingInvalidation);
-    });
+    this.parent.request(
+      scopedKey,
+      invalidation,
+      (timestamp, pendingInvalidation) => {
+        this.pendingKeys.delete(scopedKey);
+        callback(timestamp, pendingInvalidation);
+      },
+      options
+    );
   }
 
   override now(): number {
