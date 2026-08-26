@@ -27,12 +27,18 @@ const DEFAULT_VIEWPORT: CanvasViewportState = { offset: { x: 0, y: 0 }, zoom: 1 
 type CanvasViewSize = { width: number; height: number };
 type CanvasViewSnapshot = {
   sessionId: string | null;
+  pendingSessionId: string | null;
+  loadState: 'idle' | 'loading' | 'error';
+  loadError: string | null;
   viewport: CanvasViewportState;
   size?: CanvasViewSize;
 };
 
 const DEFAULT_VIEW_SNAPSHOT: CanvasViewSnapshot = {
   sessionId: null,
+  pendingSessionId: null,
+  loadState: 'idle',
+  loadError: null,
   viewport: DEFAULT_VIEWPORT,
 };
 const EMPTY_SUBSCRIBE = () => () => undefined;
@@ -82,7 +88,13 @@ class CanvasViewRuntime {
     frameScheduler: CanvasFrameScheduler,
     publish: (viewport: CanvasViewportState) => void
   ) {
-    this.snapshot = { sessionId, viewport: cloneViewport(viewport) };
+    this.snapshot = {
+      sessionId,
+      pendingSessionId: null,
+      loadState: 'idle',
+      loadError: null,
+      viewport: cloneViewport(viewport),
+    };
     this.publish = publish;
     this.engine = new CanvasEngineRuntime({
       getViewport: this.getViewport,
@@ -95,6 +107,36 @@ class CanvasViewRuntime {
   getViewport = () => this.snapshot.viewport;
 
   getSessionId = () => this.snapshot.sessionId;
+
+  getRequestedSessionId = () =>
+    this.snapshot.pendingSessionId ?? this.snapshot.sessionId;
+
+  requestSession(sessionId: string, fallbackViewport: CanvasViewportState) {
+    if (!this.sessionViewports.has(sessionId)) {
+      this.sessionViewports.set(sessionId, cloneViewport(fallbackViewport));
+    }
+    if (sessionId === this.snapshot.sessionId) {
+      this.snapshot = {
+        ...this.snapshot,
+        pendingSessionId: null,
+        loadState: 'idle',
+        loadError: null,
+      };
+    } else {
+      this.snapshot = {
+        ...this.snapshot,
+        pendingSessionId: sessionId,
+        loadState: 'loading',
+        loadError: null,
+      };
+    }
+    this.listeners.forEach((listener) => listener());
+  }
+
+  failSessionRequest(message: string) {
+    this.snapshot = { ...this.snapshot, loadState: 'error', loadError: message };
+    this.listeners.forEach((listener) => listener());
+  }
 
   setViewport = (
     updater: (viewport: CanvasViewportState) => CanvasViewportState,
@@ -138,14 +180,25 @@ class CanvasViewRuntime {
 
   bindSession(sessionId: string, fallbackViewport: CanvasViewportState) {
     const currentSessionId = this.snapshot.sessionId;
-    if (currentSessionId === sessionId) return;
+    if (
+      currentSessionId === sessionId &&
+      this.snapshot.pendingSessionId === null &&
+      this.snapshot.loadState === 'idle'
+    ) return;
     if (currentSessionId) {
       this.sessionViewports.set(currentSessionId, cloneViewport(this.snapshot.viewport));
     }
     const viewport = cloneViewport(
       this.sessionViewports.get(sessionId) ?? fallbackViewport
     );
-    this.snapshot = { ...this.snapshot, sessionId, viewport };
+    this.snapshot = {
+      ...this.snapshot,
+      sessionId,
+      pendingSessionId: null,
+      loadState: 'idle',
+      loadError: null,
+      viewport,
+    };
     this.listeners.forEach((listener) => listener());
   }
 
@@ -159,7 +212,7 @@ class CanvasWorkspaceRuntime {
   readonly views: Record<CanvasViewId, CanvasViewRuntime>;
   private readonly frameScheduler = new CanvasFrameScheduler();
   private readonly publishViewport: (viewport: CanvasViewportState) => void;
-  private readonly switchSession: (sessionId: string) => void;
+  private readonly switchSession: (sessionId: string) => Promise<boolean>;
   private globalSessionId: string | null;
   private activeViewId: CanvasViewId = 'primary';
   private secondaryInitialized = false;
@@ -167,12 +220,14 @@ class CanvasWorkspaceRuntime {
   private ownerCount = 0;
   private releaseGeneration = 0;
   private disposed = false;
+  private activationGeneration = 0;
+  private switchingSessionId: string | null = null;
 
   constructor(
     sessionId: string | null,
     viewport: CanvasViewportState,
     publishViewport: (viewport: CanvasViewportState) => void,
-    switchSession: (sessionId: string) => void
+    switchSession: (sessionId: string) => Promise<boolean>
   ) {
     this.globalSessionId = sessionId;
     this.publishViewport = publishViewport;
@@ -210,25 +265,36 @@ class CanvasWorkspaceRuntime {
     return () => this.activeListeners.delete(listener);
   };
 
-  activate(viewId: CanvasViewId) {
+  async activate(viewId: CanvasViewId) {
+    const generation = ++this.activationGeneration;
     const changedView = this.activeViewId !== viewId;
     this.activeViewId = viewId;
     if (changedView) this.activeListeners.forEach((listener) => listener());
 
     const view = this.views[viewId];
-    const sessionId = view.getSessionId();
+    const sessionId = view.getRequestedSessionId();
     const viewport = cloneViewport(view.getViewport());
     if (sessionId && sessionId !== this.globalSessionId) {
-      this.switchSession(sessionId);
+      this.switchingSessionId = sessionId;
+      const switched = await this.switchSession(sessionId);
+      if (generation !== this.activationGeneration) return false;
+      this.switchingSessionId = null;
+      if (!switched) {
+        view.failSessionRequest('Canvas could not be loaded');
+        return false;
+      }
+      view.bindSession(sessionId, viewport);
       view.replaceViewport(viewport);
     } else {
+      if (sessionId) view.bindSession(sessionId, viewport);
       this.publishViewport(viewport);
     }
+    return true;
   }
 
   selectSession(viewId: CanvasViewId, sessionId: string, viewport: CanvasViewportState) {
-    this.views[viewId].bindSession(sessionId, viewport);
-    this.activate(viewId);
+    this.views[viewId].requestSession(sessionId, viewport);
+    void this.activate(viewId);
   }
 
   openSplit() {
@@ -255,6 +321,13 @@ class CanvasWorkspaceRuntime {
     viewport: CanvasViewportState,
     availableSessionIds: ReadonlySet<string>
   ) {
+    if (
+      this.switchingSessionId &&
+      sessionId !== this.switchingSessionId
+    ) {
+      this.switchingSessionId = null;
+      this.activationGeneration += 1;
+    }
     this.globalSessionId = sessionId;
     if (sessionId) {
       for (const view of Object.values(this.views)) {
@@ -372,6 +445,30 @@ export function CanvasWorkspaceProvider({ children }: { children: ReactNode }) {
     else runtime.closeSplit();
   }, [runtime, splitEnabled]);
 
+  useEffect(() => {
+    const syncRetained = () => {
+      const ids = new Set<string>();
+      const activeView = runtime.views[runtime.getActiveViewId()].getSnapshot();
+      if (activeView.sessionId) ids.add(activeView.sessionId);
+      if (activeView.pendingSessionId) ids.add(activeView.pendingSessionId);
+      if (splitEnabled) {
+        const secondary = runtime.views.secondary.getSnapshot();
+        if (secondary.sessionId) ids.add(secondary.sessionId);
+        if (secondary.pendingSessionId) ids.add(secondary.pendingSessionId);
+      }
+      canvas.setRetainedCanvasIds(Array.from(ids));
+    };
+    syncRetained();
+    const unsubPrimary = runtime.views.primary.subscribe(syncRetained);
+    const unsubSecondary = runtime.views.secondary.subscribe(syncRetained);
+    const unsubActive = runtime.subscribeActive(syncRetained);
+    return () => {
+      unsubActive();
+      unsubSecondary();
+      unsubPrimary();
+    };
+  }, [canvas, runtime, splitEnabled]);
+
   const setSplitEnabled = useCallback((enabled: boolean) => {
     storeSplitEnabled(enabled);
   }, [storeSplitEnabled]);
@@ -443,9 +540,12 @@ export const useCanvasViewOptional = () => {
     viewId: selectedViewId,
     runtime: selectedRuntime.engine,
     sessionId: snapshot.sessionId,
+    selectedSessionId: snapshot.pendingSessionId ?? snapshot.sessionId,
+    loadState: snapshot.loadState,
+    loadError: snapshot.loadError,
     viewport: snapshot.viewport,
     isActive: activeViewId === selectedViewId,
-    activate: () => workspace.runtime.activate(selectedViewId),
+    activate: () => { void workspace.runtime.activate(selectedViewId); },
     selectSession: (sessionId: string) =>
       workspace.selectViewSession(selectedViewId, sessionId),
     setOffset: (updater: (offset: CanvasViewportState['offset']) => CanvasViewportState['offset']) =>

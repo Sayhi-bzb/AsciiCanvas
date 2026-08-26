@@ -25,6 +25,20 @@ import type { CanvasDocumentRegistry } from "../CanvasDocumentRegistry";
 import { sameCollaborationRoom } from "@/domains/collaboration/public";
 import { createSessionActivationPatch } from "../transitions/editorTransitions";
 import { rebuildGridFromContent } from "../helpers/gridHelpers";
+import type { CanvasDocumentResidency } from "../documentResidencyPort";
+
+const activationGenerations = new WeakMap<CanvasDocumentRegistry, number>();
+
+const beginActivation = (documents: CanvasDocumentRegistry) => {
+  const generation = (activationGenerations.get(documents) ?? 0) + 1;
+  activationGenerations.set(documents, generation);
+  return generation;
+};
+
+const isCurrentActivation = (
+  documents: CanvasDocumentRegistry,
+  generation: number
+) => activationGenerations.get(documents) === generation;
 
 const getImportedSessionBaseName = (mode: CanvasImportSnapshot["mode"]) => {
   switch (mode) {
@@ -84,11 +98,13 @@ const createImportedSession = (
   return baseSession;
 };
 
-const destroySessionDocuments = (
+const destroySessionDocuments = async (
   documents: CanvasDocumentRegistry,
-  session: CanvasSession
+  session: CanvasSession,
+  residency?: CanvasDocumentResidency
 ) => {
-  documents.destroyDocument(session.id);
+  if (residency) await residency.delete(session.id);
+  else documents.destroyDocument(session.id);
 };
 
 const checkpointActiveSessionViewport = (
@@ -176,7 +192,8 @@ const activateSessionRuntime = (
 
 export const createSessionSlice = (
   documents: CanvasDocumentRegistry,
-  parseSessionSource: CanvasSessionSourceParser
+  parseSessionSource: CanvasSessionSourceParser,
+  residency?: CanvasDocumentResidency
 ): StateCreator<
   EditorState,
   [],
@@ -227,6 +244,7 @@ export const createSessionSlice = (
           : rebuildGridFromContent(documents)
       )
     );
+    residency?.touch(newSession.id);
 
   },
   importCanvasSession: (raw, options) => {
@@ -258,6 +276,7 @@ export const createSessionSlice = (
           : rebuildGridFromContent(documents)
       )
     );
+    residency?.touch(newSession.id);
 
     return storedSession;
   },
@@ -363,15 +382,22 @@ export const createSessionSlice = (
         : rebuildGridFromContent(documents)
     ));
   },
-  switchCanvasSession: (canvasId) => {
+  switchCanvasSession: async (canvasId) => {
     const state = get();
-    if (canvasId === state.activeCanvasId) return;
+    if (canvasId === state.activeCanvasId) {
+      residency?.touch(canvasId);
+      return true;
+    }
 
     const sessionsWithSnapshot = checkpointActiveSessionViewport(state);
     const target = sessionsWithSnapshot.find(
       (session) => session.id === canvasId
     );
-    if (!target) return;
+    if (!target) return false;
+
+    const generation = beginActivation(documents);
+    if (residency && !await residency.ensureLoaded(target)) return false;
+    if (!isCurrentActivation(documents, generation)) return false;
 
     const runtime = activateSessionRuntime(documents, target, state.tool);
     set(
@@ -384,32 +410,36 @@ export const createSessionSlice = (
           : rebuildGridFromContent(documents)
       )
     );
-
+    residency?.touch(canvasId);
+    return true;
   },
-  removeCanvasSession: (canvasId) => {
+  removeCanvasSession: async (canvasId) => {
     const state = get();
-    if (state.canvasSessions.length <= 1) return;
+    if (state.canvasSessions.length <= 1) return false;
 
     const sessionsWithSnapshot = checkpointActiveSessionViewport(state);
     const removedIndex = sessionsWithSnapshot.findIndex(
       (session) => session.id === canvasId
     );
-    if (removedIndex === -1) return;
+    if (removedIndex === -1) return false;
 
     const remaining = sessionsWithSnapshot.filter(
       (session) => session.id !== canvasId
     );
-    if (remaining.length === 0) return;
+    if (remaining.length === 0) return false;
 
     if (canvasId !== state.activeCanvasId) {
       set({ canvasSessions: remaining });
       const removedSession = sessionsWithSnapshot[removedIndex];
-      destroySessionDocuments(documents, removedSession);
-      return;
+      await destroySessionDocuments(documents, removedSession, residency);
+      return true;
     }
 
     const nextIndex = Math.min(removedIndex, remaining.length - 1);
     const nextSession = remaining[nextIndex];
+    const generation = beginActivation(documents);
+    if (residency && !await residency.ensureLoaded(nextSession)) return false;
+    if (!isCurrentActivation(documents, generation)) return false;
     const runtime = activateSessionRuntime(documents, nextSession, state.tool);
     set(
       createSessionActivationPatch(
@@ -422,7 +452,13 @@ export const createSessionSlice = (
       )
     );
 
-    destroySessionDocuments(documents, sessionsWithSnapshot[removedIndex]);
+    await destroySessionDocuments(
+      documents,
+      sessionsWithSnapshot[removedIndex],
+      residency
+    );
+    residency?.touch(nextSession.id);
+    return true;
   },
   renameCanvasSession: (canvasId, nextName) => {
     const name = nextName.trim();
@@ -460,7 +496,7 @@ export const createSessionSlice = (
         sameCollaborationRoom(session.collaboration, collaboration)
     );
     if (existing) {
-      get().switchCanvasSession(existing.id);
+      void get().switchCanvasSession(existing.id);
       return;
     }
 

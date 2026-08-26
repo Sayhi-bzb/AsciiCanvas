@@ -5,6 +5,7 @@ import type { EditorState } from "../interfaces";
 import { getDefaultCanvasPageId, type CanvasDocumentAddress } from "../canvasDocumentModel";
 import {
   cloneStructuredNode,
+  createStructuredSceneSurface,
   normalizeScene,
 } from "@/domains/structured-content/public";
 import {
@@ -67,6 +68,10 @@ export const resolveEditorDocumentAddress = (
 export const rebuildGridFromContent = (documents: CanvasDocumentRegistry) =>
   createSurfaceGridProjection(() => documents.getContentReader());
 
+export const createStructuredGridProjection = (
+  scene: readonly StructuredNode[]
+) => createSurfaceGridProjection(createStructuredSceneSurface(scene));
+
 export const rebuildSceneFromYMap = (documents: CanvasDocumentRegistry) => {
   const nextScene: StructuredNode[] = [];
   documents.yStructuredScene.forEach((value, key) => {
@@ -75,4 +80,29 @@ export const rebuildSceneFromYMap = (documents: CanvasDocumentRegistry) => {
     if (decoded.ok) nextScene.push(cloneStructuredNode(decoded.value));
   });
   return normalizeScene(nextScene);
+};
+
+export const rebuildSceneFromYMapChanges = (
+  documents: CanvasDocumentRegistry,
+  currentScene: readonly StructuredNode[],
+  changedIds: readonly string[]
+) => {
+  const nextById = new Map(currentScene.map((node) => [node.id, node]));
+  changedIds.forEach((key) => {
+    const value = documents.yStructuredScene.get(key);
+    if (value === undefined) {
+      nextById.delete(key);
+      documents.setIntegrityIssue("structured-scene", key, null);
+      return;
+    }
+    const decoded = decodeCollaborativeStructuredNode(key, value);
+    documents.setIntegrityIssue(
+      "structured-scene",
+      key,
+      decoded.ok ? null : decoded.issue
+    );
+    if (decoded.ok) nextById.set(key, cloneStructuredNode(decoded.value));
+    else nextById.delete(key);
+  });
+  return normalizeScene([...nextById.values()]);
 };

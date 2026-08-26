@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { EditorState } from "./interfaces";
 import { CanvasDocumentRegistry } from "./CanvasDocumentRegistry";
-import { syncHydratedStateToCanvasDocument } from "./editorPersistence";
+import {
+  createPersistedEditorSnapshot,
+  syncHydratedStateToCanvasDocument,
+} from "./editorPersistence";
 import { useEditorStore } from "@/domains/canvas/testing";
 
 describe("syncHydratedStateToCanvasDocument", () => {
@@ -43,5 +46,32 @@ describe("syncHydratedStateToCanvasDocument", () => {
     expect(documents.getContentReader().materialize()).toEqual(new Map());
     expect(documents.yStructuredScene.get("hydrated-text")).toEqual(scene[0]);
     documents.dispose();
+  });
+
+  it("persists a structured scene without a duplicate cell grid", () => {
+    const state = useEditorStore.getState();
+    const structuredState: EditorState = {
+      ...state,
+      canvasMode: "structured",
+      structuredScene: [
+        {
+          id: "persisted-text",
+          type: "text",
+          order: 1,
+          position: { x: 2, y: 3 },
+          text: "Persisted",
+          style: { color: "#111111" },
+        },
+      ],
+      structuredComponents: [],
+    };
+
+    const snapshot = createPersistedEditorSnapshot(structuredState);
+
+    expect(snapshot.workspace.structuredScene).toHaveLength(1);
+    expect(snapshot.workspace.grid).toEqual([]);
+    expect(
+      snapshot.sessions.items.find((session) => session.id === state.activeCanvasId)?.grid
+    ).toEqual([]);
   });
 });

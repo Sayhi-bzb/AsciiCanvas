@@ -30,6 +30,7 @@ export let testingCanvasRuntime: {
   };
   subscribePersistence: (listener: () => void) => () => void;
   retryPersistence: () => Promise<void>;
+  setRetainedCanvasIds: (ids: readonly string[]) => void;
   dispose: () => void;
 };
 
@@ -62,6 +63,7 @@ export const initializeCanvasTesting = ({
     getPersistenceSnapshot: () => TEST_PERSISTENCE_SNAPSHOT,
     subscribePersistence: () => () => undefined,
     retryPersistence: () => Promise.resolve(),
+    setRetainedCanvasIds: () => undefined,
     dispose: () => undefined,
   };
   return testingCanvasRuntime;

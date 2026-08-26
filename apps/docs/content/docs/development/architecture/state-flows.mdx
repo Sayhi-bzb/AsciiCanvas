@@ -24,8 +24,8 @@ use Registry focus as an implicit write target.
   operation in a Yjs transaction -> 128x64 spatial projection -> viewport query.
   Text runs remain compact through the write boundary; target-background inheritance
   is operation composition, not a per-cell read/modify/write pass.
-- Structured content: command or provider -> one Yjs transaction -> canvas projector
-  -> editor state -> widgets.
+- Structured content: immutable scene edit -> changed-node Yjs patch -> changed-key
+  canvas projection -> editor state -> chunked viewport surface -> widgets.
 - Session activation: catalog descriptor -> restored mode-authoritative Yjs document
   -> one editor-state activation patch. The outgoing session checkpoints only
   its viewport because content projection is already current.
@@ -33,9 +33,12 @@ use Registry focus as an implicit write target.
 - Slide edit: command -> active Yjs page -> derived active grid.
 - Local restore: IndexedDB catalog -> `y-indexeddb` document restore -> canvas recovery
   adapter -> active projection. Startup does not expose editing until the active document is ready.
+- Canvas switch: retain the current frame -> load the target Yjs document -> commit the latest
+  activation request -> release an unpinned least-recently-used document when over budget.
 - Import: document parser -> `CanvasImportSnapshot` -> canvas session command.
 - Session persistence: metadata projection -> sessions catalog transaction. Canvas content
-  remains in its Yjs document and persists as incremental `y-indexeddb` updates.
+  remains in its Yjs document and persists as incremental `y-indexeddb` updates. A flush
+  visits dirty documents only; routine edits never force workspace-wide snapshots.
 - Slide preview: deck metadata + page reader -> explicit grid snapshot -> canonical slide renderer.
 - Selection command: DOM dispatcher -> editor keymap -> command registry ->
   canvas selection port -> Yjs document.
@@ -51,20 +54,30 @@ collaboration persistence and never copied into local session persistence.
 The V5 localStorage envelope is a migration input only. Migration seeds and verifies all Yjs
 documents, commits the catalog, then removes the old key. A failure keeps the old value for retry.
 Restore probes existing Yjs channels before seeding. Intermediate page descriptors are normalized
-in place, and legacy channels are cleared only after the page document has been stored successfully.
+into a clean document generation. Documents with excessive Yjs struct history use the same
+generation rotation: write and verify the next generation, commit its catalog pointer, and reclaim
+older generations after a later verified startup. The active generation is always catalog-owned.
 If a bootstrap catalog replaced legacy metadata, restore reattaches sessions only when their local
 Yjs document databases still exist. Historical descriptors restore names and mode; an orphan without
 metadata receives a recovered shell. Deleted sessions are not resurrected.
 Canvas content never falls back to localStorage. One browser tab owns local writes; other tabs
 restore read-only until ownership is released. Undo history remains runtime-only.
 
+The catalog is the startup index; it does not make every Canvas resident. The active Canvas and
+both visible Split panes are pinned. The document repository retains at most four Canvas documents,
+using most-recently-used order for the remaining slots. Releasing a document flushes dirty local
+updates and disposes its runtime projections without deleting IndexedDB content. User deletion is a
+separate lifecycle operation. Reopening an evicted Canvas restores content but not its undo stack.
+
 Freeform documents contain only ordered `cell-plane-operations`. Canvas rendering queries
 occupied spans inside the viewport, and Minimap caches its reader projection by document
 revision; camera movement never materializes the compatibility Map. A legacy local `main-grid`
 is converted once into a bootstrap operation and then cleared; collaboration version 4 rejects
 the old schema. `CanvasSurfaceReader` is the read contract for rendering and export. Freeform and
-Slide expose a read-only, non-owning Map facade to legacy interaction algorithms; Structured keeps
-only its disposable scene-to-grid projection. Chunk indexes and projections are never synchronized.
+Slide expose a read-only, non-owning Map facade to legacy interaction algorithms. Structured exposes
+the same facade over a disposable spatial index that projects only requested 128x64 chunks; drag
+previews use the same surface. Structured scene and components are persisted once, never with a
+duplicate cell grid. Chunk indexes and projections are never synchronized.
 
 Freeform, Structured, and Slide session records contain metadata only at runtime. Switching sessions
 restores content from the matching Yjs document; the projector never writes content back into

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import * as Y from "yjs";
+import type { StructuredNode } from "@/domains/structured-content/public";
 import { defaultCanvasDocuments, useEditorStore } from "@/domains/canvas/testing";
 import {
   gridEntriesToCellPlaneOperation,
@@ -108,6 +109,59 @@ describe("remote canvas document projection", () => {
     expect(state.structuredScene).toEqual([textNode("local-text", "Local")]);
     expect(state.grid.get("2,3")?.char).toBe("L");
     expect(state.canvasSessions[0].scene).toEqual([]);
+  });
+
+  it("writes only the changed structured node for an immutable scene edit", () => {
+    const sessionId = `structured-patch-${crypto.randomUUID()}`;
+    useEditorStore.setState({
+      activeCanvasId: sessionId,
+      canvasMode: "structured",
+      structuredScene: [],
+      structuredComponents: [],
+      grid: new Map(),
+      canvasSessions: [
+        {
+          id: sessionId,
+          name: "Structured Patch",
+          mode: "structured",
+          grid: [],
+          scene: [],
+          components: [],
+        },
+      ],
+    });
+    defaultCanvasDocuments.activateDocument(sessionId, {
+      mode: "structured",
+      grid: [],
+      scene: [],
+      components: [],
+    });
+    useEditorStore.getState().applyStructuredScene(
+      Array.from({ length: 1_000 }, (_, index) => ({
+        ...textNode(`node-${index}`, `Text ${index}`),
+        order: index,
+      }))
+    );
+
+    const changedKeys = new Set<string>();
+    const observer = (event: Y.YMapEvent<StructuredNode>) => {
+      event.keysChanged.forEach((key) => changedKeys.add(key));
+    };
+    defaultCanvasDocuments.yStructuredScene.observe(observer);
+    const currentScene = useEditorStore.getState().structuredScene;
+    useEditorStore.getState().applyStructuredScene(
+      currentScene.map((node) =>
+        node.id === "node-500" && node.type === "text"
+          ? { ...node, text: "Changed" }
+          : node
+      )
+    );
+    defaultCanvasDocuments.yStructuredScene.unobserve(observer);
+
+    expect(changedKeys).toEqual(new Set(["node-500"]));
+    expect(
+      useEditorStore.getState().structuredScene.find((node) => node.id === "node-500")
+    ).toMatchObject({ text: "Changed" });
   });
 
   it("projects one remote structured transaction exactly once", () => {

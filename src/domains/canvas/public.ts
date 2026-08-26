@@ -24,8 +24,10 @@ export {
   CellPlaneIndex,
   cellPlanePatchToOperation,
   gridEntriesToCellPlaneOperation,
+  getSurfaceGridReader,
   isIncrementalCanvasSurfaceReader,
   isSurfaceGridProjection,
+  createSurfaceGridProjection,
 } from "./cell-plane/model";
 export type {
   CanvasSurfaceChanges,

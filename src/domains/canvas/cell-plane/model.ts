@@ -12,6 +12,7 @@ const CELL_PLANE_CHUNK_WIDTH = 128;
 const CELL_PLANE_CHUNK_HEIGHT = 64;
 const CELL_PLANE_INVALIDATION_HISTORY_LIMIT = 256;
 const CELL_PLANE_INVALIDATION_BOUNDS_LIMIT = 64;
+const CELL_PLANE_CHUNK_CACHE_LIMIT = 64;
 
 export type GridInterval = { from: number; to: number };
 
@@ -156,7 +157,7 @@ export const isIncrementalCanvasSurfaceReader = (
 
 export const createGridSurfaceReader = (
   grid: ReadonlyMap<string, GridCell>
-): CanvasSurfaceReader => ({
+): CanvasSurfaceReader => getSurfaceGridReader(grid) ?? ({
   getCell: ({ x, y }) => grid.get(GridManager.toKey(x, y)),
   *query(bounds) {
     for (const row of this.rows(bounds)) {
@@ -227,6 +228,10 @@ const surfaceGridProjectionReaders = new WeakMap<
 export const isSurfaceGridProjection = (
   grid: ReadonlyMap<string, GridCell>
 ) => surfaceGridProjectionReaders.has(grid);
+
+export const getSurfaceGridReader = (
+  grid: ReadonlyMap<string, GridCell>
+): CanvasSurfaceReader | null => surfaceGridProjectionReaders.get(grid)?.() ?? null;
 
 export const getSurfaceGridLineOriginX = (
   grid: ReadonlyMap<string, GridCell>,
@@ -716,6 +721,15 @@ export class CellPlaneIndex implements CanvasSurfaceReader {
     return grid;
   }
 
+  dispose() {
+    this.#mutationsByChunk.clear();
+    this.#chunkXsByRow.clear();
+    this.#chunkCache.clear();
+    this.#invalidations.length = 0;
+    this.#contentBounds = null;
+    this.#resolvedContentBounds = null;
+  }
+
   #compileChunkMutations(operation: CellPlaneOperation) {
     const rowsByChunk = new Map<string, Map<number, MutableCellRowMutation>>();
     const getRow = (chunkX: number, y: number) => {
@@ -742,16 +756,29 @@ export class CellPlaneIndex implements CanvasSurfaceReader {
         }
       }
       for (const span of row.spans) {
+        const spansByChunk = new Map<
+          number,
+          { x: number; text: string[] }
+        >();
         let x = span.x;
         for (const char of splitGraphemes(span.text)) {
           const width = getCellOccupancy(char);
           const minChunkX = floorDiv(x - 1, CELL_PLANE_CHUNK_WIDTH);
           const maxChunkX = floorDiv(x + width, CELL_PLANE_CHUNK_WIDTH);
           for (let chunkX = minChunkX; chunkX <= maxChunkX; chunkX += 1) {
-            getRow(chunkX, row.y).spans.push({ ...span, x, text: char });
+            const compiled = spansByChunk.get(chunkX);
+            if (compiled) compiled.text.push(char);
+            else spansByChunk.set(chunkX, { x, text: [char] });
           }
           x += width;
         }
+        spansByChunk.forEach((compiled, chunkX) => {
+          getRow(chunkX, row.y).spans.push({
+            ...span,
+            x: compiled.x,
+            text: compiled.text.join(""),
+          });
+        });
       }
     }
 
@@ -765,7 +792,11 @@ export class CellPlaneIndex implements CanvasSurfaceReader {
   #resolveChunk(chunkX: number, chunkY: number) {
     const key = chunkKey(chunkX, chunkY);
     const cached = this.#chunkCache.get(key);
-    if (cached) return cached;
+    if (cached) {
+      this.#chunkCache.delete(key);
+      this.#chunkCache.set(key, cached);
+      return cached;
+    }
     const chunkBounds = {
       x: chunkX * CELL_PLANE_CHUNK_WIDTH,
       y: chunkY * CELL_PLANE_CHUNK_HEIGHT,
@@ -781,19 +812,26 @@ export class CellPlaneIndex implements CanvasSurfaceReader {
           for (let x = from; x <= to; x += 1) deleteCellAt(projection, x, row.y);
         }
         for (const span of row.spans) {
-          const targetBackground = span.preserveTargetBackground
-            ? resolveGridSlot(projection, { x: span.x, y: row.y })?.cell.bgColor
-            : undefined;
-          writeStyledCell(
-            projection,
-            span.x,
-            row.y,
-            toCell(span, span.text, targetBackground)
-          );
+          let x = span.x;
+          for (const char of splitGraphemes(span.text)) {
+            const targetBackground = span.preserveTargetBackground
+              ? resolveGridSlot(projection, { x, y: row.y })?.cell.bgColor
+              : undefined;
+            writeStyledCell(
+              projection,
+              x,
+              row.y,
+              toCell(span, char, targetBackground)
+            );
+            x += getCellOccupancy(char);
+          }
         }
       }
     }
     this.#chunkCache.set(key, projection);
+    if (this.#chunkCache.size > CELL_PLANE_CHUNK_CACHE_LIMIT) {
+      this.#chunkCache.delete(this.#chunkCache.keys().next().value!);
+    }
     return projection;
   }
 }

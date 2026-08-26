@@ -24,6 +24,11 @@ export type CharDeskCanvasFontAvailability = Record<
   boolean
 >;
 
+export type CharDeskCanvasFontFamilies = Record<
+  CharDeskRenderFontRoute,
+  { regular: string; bold?: string }
+>;
+
 export type CharDeskCanvasCellDrawOptions = {
   color?: string;
   underline?: boolean;
@@ -31,6 +36,7 @@ export type CharDeskCanvasCellDrawOptions = {
   metrics?: CharDeskCanvasMetrics;
   palette?: CharDeskCanvasPalette;
   fontAvailability?: CharDeskCanvasFontAvailability;
+  fontFamilies?: CharDeskCanvasFontFamilies;
 };
 
 export type CharDeskCanvasCellDrawEntry = {
@@ -52,6 +58,7 @@ export type CharDeskCanvasDocumentOptions = {
   padding?: number;
   zoom?: number;
   fontAvailability?: CharDeskCanvasFontAvailability;
+  fontFamilies?: CharDeskCanvasFontFamilies;
 };
 
 export type CharDeskCanvasDocumentLayout = {
@@ -89,12 +96,13 @@ export const getCharDeskCanvasFont = (
     bold?: boolean;
     italic?: boolean;
     route?: CharDeskRenderFontRoute;
+    fontFamily?: string;
   }
 ) => {
   const route = options?.route ?? "text";
-  const fontFamily = route === "emoji"
+  const fontFamily = options?.fontFamily ?? (route === "emoji"
     ? CHARDESK_FONT_PROFILE.families.emoji
-    : metrics.fontFamily;
+    : metrics.fontFamily);
   return `${options?.italic ? "italic " : ""}${options?.bold ? "700 " : ""}${
     metrics.fontSize * zoom
   }px ${fontFamily}`;
@@ -207,6 +215,10 @@ const drawCellText = (
   const color = visual.color;
   const attrs: CharDeskTextAttributes | undefined = visual.attrs;
   const route = visual.fontRoute;
+  const routeFamilies = options?.fontFamilies?.[route];
+  const fontFamily = attrs?.bold
+    ? routeFamilies?.bold ?? routeFamilies?.regular
+    : routeFamilies?.regular;
   const text = route === "emoji" && !availability.emoji ? "□" : visual.text;
   const anchor = getCharDeskCanvasCellAnchor(
     entry.x,
@@ -220,6 +232,7 @@ const drawCellText = (
     bold: !!attrs?.bold,
     italic: !!attrs?.italic,
     route,
+    fontFamily,
   });
   ctx.textBaseline = "middle";
   ctx.textAlign = "center";
@@ -299,6 +312,7 @@ export const drawCharDeskCanvasDocument = (
       ...(options.fontAvailability
         ? { fontAvailability: options.fontAvailability }
         : {}),
+      ...(options.fontFamilies ? { fontFamilies: options.fontFamilies } : {}),
     },
   }));
   drawCharDeskCanvasCells(ctx, entries);

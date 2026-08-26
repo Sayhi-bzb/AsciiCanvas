@@ -15,6 +15,14 @@ import {
   getTextLayoutSurfaceCells,
 } from "./text-layout";
 
+const pointWithinBounds = (x: number, y: number, bounds?: NodeBounds) =>
+  !bounds || (
+    x >= bounds.x &&
+    x < bounds.x + bounds.width &&
+    y >= bounds.y &&
+    y < bounds.y + bounds.height
+  );
+
 const placeStyledCharInMap = (
   targetMap: {
     set(key: string, value: GridCell): void;
@@ -24,29 +32,34 @@ const placeStyledCharInMap = (
   x: number,
   y: number,
   char: string,
-  style: StructuredNode["style"]
+  style: StructuredNode["style"],
+  clipBounds?: NodeBounds
 ) => {
   const key = `${x},${y}`;
   const bgColor = style.bgColor ?? bgLayer.get(key);
-  targetMap.set(
-    key,
-    normalizeCellStyle({ char, ...style, ...(bgColor ? { bgColor } : {}) })
-  );
-  visibleForegroundKeys.add(key);
+  if (pointWithinBounds(x, y, clipBounds)) {
+    targetMap.set(
+      key,
+      normalizeCellStyle({ char, ...style, ...(bgColor ? { bgColor } : {}) })
+    );
+    visibleForegroundKeys.add(key);
+  }
 
   const occupancy = getCellOccupancy(char);
   for (let offset = 1; offset < occupancy; offset++) {
     const followerKey = `${x + offset},${y}`;
     const followerBgColor = style.bgColor ?? bgLayer.get(followerKey);
-    targetMap.set(
-      followerKey,
-      normalizeCellStyle({
-        char: " ",
-        ...style,
-        ...(followerBgColor ? { bgColor: followerBgColor } : {}),
-      })
-    );
-    visibleForegroundKeys.add(followerKey);
+    if (pointWithinBounds(x + offset, y, clipBounds)) {
+      targetMap.set(
+        followerKey,
+        normalizeCellStyle({
+          char: " ",
+          ...style,
+          ...(followerBgColor ? { bgColor: followerBgColor } : {}),
+        })
+      );
+      visibleForegroundKeys.add(followerKey);
+    }
   }
 };
 
@@ -84,7 +97,9 @@ export const trimTextToColumns = (text: string, maxColumns: number) => {
   return out;
 };
 
-export const getStructuredNodeBounds = (node: StructuredNode): NodeBounds => {
+const structuredNodeBoundsCache = new WeakMap<StructuredNode, NodeBounds>();
+
+const calculateStructuredNodeBounds = (node: StructuredNode): NodeBounds => {
   if (node.type === "box" || node.type === "splitBox" || node.type === "bg") {
     return toBounds(node.start, node.end);
   }
@@ -122,6 +137,18 @@ export const getStructuredNodeBounds = (node: StructuredNode): NodeBounds => {
   };
 };
 
+/**
+ * Structured nodes are immutable editor values. Cache their derived geometry so
+ * an edit can retain geometry for every structurally shared node.
+ */
+export const getStructuredNodeBounds = (node: StructuredNode): NodeBounds => {
+  const cached = structuredNodeBoundsCache.get(node);
+  if (cached) return { ...cached };
+  const bounds = calculateStructuredNodeBounds(node);
+  structuredNodeBoundsCache.set(node, bounds);
+  return { ...bounds };
+};
+
 const sortForDeterminism = (nodes: StructuredNode[]) => {
   return [...nodes].sort((a, b) => {
     const aBounds = getStructuredNodeBounds(a);
@@ -133,11 +160,16 @@ const sortForDeterminism = (nodes: StructuredNode[]) => {
   });
 };
 
-export const renderStructuredScene = (scene: readonly StructuredNode[]) => {
+export const renderStructuredScene = (
+  scene: readonly StructuredNode[],
+  clipBounds?: NodeBounds
+) => {
   const grid = new Map<string, GridCell>();
   const bgLayer = new Map<string, string>();
   const visibleForegroundKeys = new Set<string>();
-  const ordered = [...scene].sort((a, b) => a.order - b.order);
+  const ordered = scene
+    .filter((node) => !clipBounds || intersectsBounds(getStructuredNodeBounds(node), clipBounds))
+    .sort((a, b) => a.order - b.order);
 
   ordered.forEach((node) => {
     if (node.type === "box") {
@@ -150,7 +182,8 @@ export const renderStructuredScene = (scene: readonly StructuredNode[]) => {
           point.x,
           point.y,
           point.char,
-          node.style
+          node.style,
+          clipBounds
         );
       });
       if (node.name) {
@@ -166,7 +199,8 @@ export const renderStructuredScene = (scene: readonly StructuredNode[]) => {
             writeX,
             bounds.y,
             char,
-            node.style
+            node.style,
+            clipBounds
           );
           writeX += getCellOccupancy(char);
           if (writeX >= bounds.x + bounds.width - 1) break;
@@ -187,7 +221,8 @@ export const renderStructuredScene = (scene: readonly StructuredNode[]) => {
           point.x,
           point.y,
           point.char,
-          node.style
+          node.style,
+          clipBounds
         );
       });
       return;
@@ -208,7 +243,8 @@ export const renderStructuredScene = (scene: readonly StructuredNode[]) => {
           point.x,
           point.y,
           point.char,
-          node.style
+          node.style,
+          clipBounds
         );
       });
       return;
@@ -216,8 +252,16 @@ export const renderStructuredScene = (scene: readonly StructuredNode[]) => {
 
     if (node.type === "bg") {
       const bounds = getStructuredNodeBounds(node);
-      for (let y = bounds.y; y < bounds.y + bounds.height; y++) {
-        for (let x = bounds.x; x < bounds.x + bounds.width; x++) {
+      const startY = clipBounds ? Math.max(bounds.y, clipBounds.y) : bounds.y;
+      const endY = clipBounds
+        ? Math.min(bounds.y + bounds.height, clipBounds.y + clipBounds.height)
+        : bounds.y + bounds.height;
+      const startX = clipBounds ? Math.max(bounds.x, clipBounds.x) : bounds.x;
+      const endX = clipBounds
+        ? Math.min(bounds.x + bounds.width, clipBounds.x + clipBounds.width)
+        : bounds.x + bounds.width;
+      for (let y = startY; y < endY; y++) {
+        for (let x = startX; x < endX; x++) {
           const key = `${x},${y}`;
           if (node.style.bgColor) bgLayer.set(key, node.style.bgColor);
           visibleForegroundKeys.delete(key);
@@ -231,6 +275,7 @@ export const renderStructuredScene = (scene: readonly StructuredNode[]) => {
       createTextLayout(node.text, node.position),
       (offset) => mergeStructuredTextStyle(node.style, node.styleRanges, offset)
     ).forEach((cell) => {
+      if (!pointWithinBounds(cell.x, cell.y, clipBounds)) return;
       const key = `${cell.x},${cell.y}`;
       const bgColor = cell.bgColor ?? bgLayer.get(key);
       grid.set(
@@ -254,6 +299,8 @@ type SceneGridEntriesCacheEntry = {
   entries: Array<[string, GridCell]>;
 };
 
+const SCENE_GRID_CACHE_CELL_LIMIT = 10_000;
+
 const sceneGridEntriesCache = new WeakMap<
   readonly StructuredNode[],
   SceneGridEntriesCacheEntry
@@ -269,7 +316,11 @@ export const sceneToGridEntries = (scene: readonly StructuredNode[]) => {
     return cached.entries;
   }
   const entries = Array.from(renderStructuredScene(scene).entries());
-  sceneGridEntriesCache.set(scene, { scene: [...scene], entries });
+  if (entries.length <= SCENE_GRID_CACHE_CELL_LIMIT) {
+    sceneGridEntriesCache.set(scene, { scene: [...scene], entries });
+  } else {
+    sceneGridEntriesCache.delete(scene);
+  }
   return entries;
 };
 

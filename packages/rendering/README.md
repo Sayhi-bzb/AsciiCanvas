@@ -25,3 +25,8 @@ CSS bitmap transform.
 
 `@chardesk/protocol` owns parsing and Unicode cell layout. Hosts retain
 interaction, viewport, and application state.
+
+Headless hosts that register subset fonts under unique family names may pass
+`fontFamilies` in document or cell draw options. It selects regular and bold
+stacks independently for the text and emoji routes without changing browser
+font loading defaults.

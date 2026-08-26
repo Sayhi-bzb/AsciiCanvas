@@ -49,6 +49,26 @@ describe("CharDesk Canvas 2D renderer", () => {
     expect(context.fillText).toHaveBeenCalledWith("👋", 9, 10);
   });
 
+  it("allows headless hosts to supply route- and weight-specific font stacks", () => {
+    const { context } = createContext();
+    drawCharDeskCanvasCells(context, [{
+      cell: resolveCharDeskCellVisual({
+        text: "A",
+        attrs: { bold: true },
+      }),
+      x: 0,
+      y: 0,
+      options: {
+        fontFamilies: {
+          text: { regular: "Regular Face", bold: "Bold Face" },
+          emoji: { regular: "Emoji Face" },
+        },
+      },
+    }]);
+
+    expect(context.font).toContain("700 15px Bold Face");
+  });
+
   it("draws all backgrounds before text and resolves inverse colors", () => {
     const { context, operations } = createContext();
     drawCharDeskCanvasCells(context, [{

@@ -21,8 +21,8 @@ export interface SessionCommands {
     snapshot: CanvasImportSnapshot,
     options: { preserveViewport: boolean; resetHistory: boolean }
   ) => void;
-  switchCanvasSession: (canvasId: string) => void;
-  removeCanvasSession: (canvasId: string) => void;
+  switchCanvasSession: (canvasId: string) => Promise<boolean>;
+  removeCanvasSession: (canvasId: string) => Promise<boolean>;
   renameCanvasSession: (canvasId: string, nextName: string) => void;
   setCanvasSessionCollaboration: (
     canvasId: string,

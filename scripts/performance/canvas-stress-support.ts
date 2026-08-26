@@ -2,6 +2,7 @@ export const CANVAS_STRESS_THRESHOLDS = Object.freeze({
   p95FrameMs: 24,
   maxOver50msFrames: 2,
   maxInputPaintMs: 100,
+  maxJsHeapBytes: 256 * 1024 * 1024,
 });
 
 export type CanvasStressMetrics = {
@@ -25,6 +26,7 @@ export type CanvasStressLevel = {
   cellCount?: number;
   nodeCount?: number;
   projectedCellCount?: number | null;
+  surfaceStats?: Readonly<Record<string, number>>;
   zoom: number;
   snapshotBytes: number;
   persistenceMs?: number | null;
@@ -78,6 +80,13 @@ export const evaluateCanvasStressLevel = ({
     failures.push("input-paint");
   }
   if (metrics && metrics.inputPaintMs === null) failures.push("input-paint-unavailable");
+  if (
+    metrics?.jsHeapBytes !== null &&
+    metrics?.jsHeapBytes !== undefined &&
+    metrics.jsHeapBytes > CANVAS_STRESS_THRESHOLDS.maxJsHeapBytes
+  ) {
+    failures.push("js-heap");
+  }
   if (runtimeErrors.length > 0) failures.push("runtime-error");
   if (storageError) failures.push("storage-error");
   return failures;

@@ -20,15 +20,18 @@ import {
 } from "./slices";
 import {
   createMapFromEntries,
-  normalizeAndCloneScene,
   normalizeGridEntries,
 } from "./helpers/snapshotHelpers";
 import {
+  cloneStructuredNode,
   deriveStructuredComponentsFromScene,
+  normalizeScene,
   normalizeStructuredComponents,
 } from "@/domains/structured-content/public";
+import { areJsonValuesEqual } from "@/shared/utils/equality";
 import { normalizeBrushChar } from "@/shared/utils/characters";
 import { subscribeCanvasDocumentProjection } from "./canvasDocumentProjection";
+import { createStructuredGridProjection } from "./helpers/gridHelpers";
 import {
   createDefaultCanvasSessions,
   createPersistedEditorSnapshot,
@@ -51,6 +54,7 @@ import type { SelectionCommandFactory } from "./selectionCommandPort";
 import type { CanvasSessionSourceParser } from "./sessionImportPort";
 import type { CanvasSession } from "@/domains/sessions/public";
 import { createSurfaceGridProjection } from "../cell-plane/model";
+import type { CanvasDocumentResidency } from "./documentResidencyPort";
 
 export type CanvasStore = UseBoundStore<StoreApi<EditorState>>;
 
@@ -67,6 +71,7 @@ type CanvasStoreDependencies = {
   reportIntegrityIssues: (issues: CollaborationIntegrityIssue[]) => void;
   persistence: CanvasStorePersistence;
   initialSessions?: readonly CanvasSession[];
+  documentResidency?: CanvasDocumentResidency;
 };
 
 const seedSessionDocuments = (
@@ -109,6 +114,7 @@ export const createEditorStore = ({
   reportIntegrityIssues,
   persistence,
   initialSessions: configuredInitialSessions,
+  documentResidency,
 }: CanvasStoreDependencies): { store: CanvasStore; dispose: () => void } => {
   if (persistence && persistence.key.trim().length === 0) {
     throw new Error("Canvas persistence requires a non-empty instance key");
@@ -124,10 +130,12 @@ export const createEditorStore = ({
   const disposers: Array<() => void> = [];
   const stateCreator: StateCreator<EditorState> = (set, get, ...a) => {
       seedSessionDocuments(documents, initialSession, initialRuntime);
-      initialSessions.slice(1).forEach((session) => {
-        const runtime = resolveSessionRuntime(session, "select");
-        seedSessionDocuments(documents, session, runtime);
-      });
+      if (!documentResidency) {
+        initialSessions.slice(1).forEach((session) => {
+          const runtime = resolveSessionRuntime(session, "select");
+          seedSessionDocuments(documents, session, runtime);
+        });
+      }
       const initialAddress = documents.getDocumentAddress(
         initialSession.id,
         initialSession.mode === "slide"
@@ -157,7 +165,7 @@ export const createEditorStore = ({
         zoom: initialRuntime.nextZoom,
         grid:
           initialRuntime.nextMode === "structured"
-            ? createMapFromEntries(initialRuntime.nextGridEntries)
+            ? createStructuredGridProjection(initialRuntime.nextScene)
             : createSurfaceGridProjection(() => documents.getContentReader()),
         canvasMode: initialRuntime.nextMode,
         structuredScene: initialRuntime.nextScene,
@@ -205,22 +213,58 @@ export const createEditorStore = ({
             };
           }),
         applyStructuredScene: (scene, history = "save", components) => {
-          const normalizedScene = normalizeAndCloneScene(scene);
+          const current = get();
+          const normalizedScene = normalizeScene(scene);
           const componentSource = components ?? [
-            ...get().structuredComponents,
+            ...current.structuredComponents,
             ...deriveStructuredComponentsFromScene(normalizedScene).filter(
               (component) =>
-                !get().structuredComponents.some((existing) => existing.id === component.id)
+                !current.structuredComponents.some((existing) => existing.id === component.id)
             ),
           ];
           const normalizedComponents = normalizeStructuredComponents(
             componentSource,
             normalizedScene
           );
-          documents.replaceStructuredContentAt(
-            resolveEditorDocumentAddress(documents, get()),
-            normalizedScene,
-            normalizedComponents,
+          const currentNodes = new Map(current.structuredScene.map((node) => [node.id, node]));
+          const nextNodeIds = new Set(normalizedScene.map((node) => node.id));
+          const nodeUpserts = normalizedScene.flatMap((node) => {
+            const existing = currentNodes.get(node.id);
+            if (existing === node || areJsonValuesEqual(existing, node)) return [];
+            return [cloneStructuredNode(node)];
+          });
+          const nodeDeleteIds = current.structuredScene
+            .filter((node) => !nextNodeIds.has(node.id))
+            .map((node) => node.id);
+
+          const currentComponents = new Map(
+            current.structuredComponents.map((component) => [component.id, component])
+          );
+          const nextComponentIds = new Set(normalizedComponents.map((component) => component.id));
+          const componentUpserts = normalizedComponents.filter(
+            (component) =>
+              !areJsonValuesEqual(currentComponents.get(component.id), component)
+          );
+          const componentDeleteIds = current.structuredComponents
+            .filter((component) => !nextComponentIds.has(component.id))
+            .map((component) => component.id);
+
+          if (
+            nodeUpserts.length === 0 &&
+            nodeDeleteIds.length === 0 &&
+            componentUpserts.length === 0 &&
+            componentDeleteIds.length === 0
+          ) return;
+
+          documents.patchStructuredContentAt(
+            resolveEditorDocumentAddress(documents, current),
+            {
+              nodes: { upsert: nodeUpserts, deleteIds: nodeDeleteIds },
+              components: {
+                upsert: componentUpserts,
+                deleteIds: componentDeleteIds,
+              },
+            },
             history
           );
         },
@@ -254,7 +298,7 @@ export const createEditorStore = ({
               },
             };
           }),
-        ...createSessionSlice(documents, parseSessionSource)(set, get, ...a),
+        ...createSessionSlice(documents, parseSessionSource, documentResidency)(set, get, ...a),
         ...createStaticGridSlice(set, get, ...a),
         ...createSlideSlice(documents)(set, get, ...a),
 

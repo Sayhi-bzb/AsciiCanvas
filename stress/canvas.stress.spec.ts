@@ -48,6 +48,7 @@ declare global {
       ready: () => Promise<void>;
       flush: () => Promise<void>;
       cellCount: () => number;
+      surfaceStats: () => Record<string, number> | null;
       persistence: () => { error: string | null };
     };
   }
@@ -68,6 +69,7 @@ const REPORT_DIR = process.env.CANVAS_STRESS_REPORT_DIR ?? path.join(
   "test-results",
   "canvas-stress"
 );
+const CAPTURE_CPU_PROFILE = process.env.CANVAS_STRESS_CPU_PROFILE === "1";
 
 const report: CanvasStressReport = {
   generatedAt: new Date().toISOString(),
@@ -428,6 +430,7 @@ const runLevel = async ({
   let storageError: string | null = null;
   let persistenceMs: number | null = null;
   let projectedCellCount: number | null = null;
+  let surfaceStats: Record<string, number> | null = null;
   const context = await browser.newContext({
     viewport: VIEWPORT,
     deviceScaleFactor: DEVICE_SCALE_FACTOR,
@@ -457,10 +460,29 @@ const runLevel = async ({
         storage.writes = 0;
       });
       await installFrameProbe(page);
+      const cpuProfiler = CAPTURE_CPU_PROFILE
+        ? await context.newCDPSession(page)
+        : null;
+      if (cpuProfiler) {
+        await cpuProfiler.send("Profiler.enable");
+        await cpuProfiler.send("Profiler.start");
+      }
       const interactionStartedAt = await page.evaluate(() => performance.now());
       await dragFor(page);
       await page.waitForTimeout(300);
+      if (cpuProfiler) {
+        const { profile } = await cpuProfiler.send("Profiler.stop");
+        await mkdir(REPORT_DIR, { recursive: true });
+        await writeFile(
+          path.join(REPORT_DIR, `${family}-${label.replaceAll(" ", "-")}.cpuprofile`),
+          JSON.stringify(profile),
+          "utf8"
+        );
+      }
       metrics = await readFrameProbe(page);
+      surfaceStats = await page.evaluate(
+        () => window.__chardeskCanvasStress?.surfaceStats() ?? null
+      );
       await page.waitForTimeout(650);
       const storageProbe = await page.evaluate(() => window.__canvasStressStorage ?? null);
       storageError = storageProbe?.error ?? null;
@@ -536,6 +558,7 @@ const runLevel = async ({
     ...(cellCount === undefined ? {} : { cellCount }),
     ...(nodeCount === undefined ? {} : { nodeCount }),
     ...(readProjection ? { projectedCellCount } : {}),
+    ...(surfaceStats ? { surfaceStats } : {}),
     ...(storageMode === "real" || verifyReload ? { persistenceMs, storageError } : {}),
     runtimeErrors,
     metrics,

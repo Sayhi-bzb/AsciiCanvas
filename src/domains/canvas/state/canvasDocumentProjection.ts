@@ -2,15 +2,14 @@ import type { StoreApi } from "zustand";
 import type { CollaborationIntegrityIssue } from "@/domains/collaboration/public";
 import {
   normalizeStructuredComponents,
-  sceneToGridEntries,
 } from "@/domains/structured-content/public";
 import type { GridMap } from "@/shared/types";
 import { decodeCollaborativeStructuredComponent } from "./collaborationSchema";
 import {
   rebuildGridFromContent,
-  rebuildSceneFromYMap,
+  rebuildSceneFromYMapChanges,
+  createStructuredGridProjection,
 } from "./helpers/gridHelpers";
-import { createMapFromEntries } from "./helpers/snapshotHelpers";
 import type { EditorState } from "./interfaces";
 import type { CanvasDocumentRegistry } from "./CanvasDocumentRegistry";
 import { reconcileStructuredInteraction } from "./transitions/editorTransitions";
@@ -41,26 +40,34 @@ export const subscribeCanvasDocumentProjection = (
     }
     if (!transaction.sceneChanged && !transaction.componentsChanged) return;
     setState((current) => {
-      const structuredScene = rebuildSceneFromYMap(documents);
+      const structuredScene = transaction.sceneChanged
+        ? rebuildSceneFromYMapChanges(
+            documents,
+            current.structuredScene,
+            transaction.sceneChangedIds
+          )
+        : current.structuredScene;
+      const componentSource = transaction.componentsChanged
+        ? Array.from(documents.yStructuredComponents.entries()).flatMap(
+            ([key, value]) => {
+              const decoded = decodeCollaborativeStructuredComponent(key, value);
+              documents.setIntegrityIssue(
+                "structured-components",
+                key,
+                decoded.ok ? null : decoded.issue
+              );
+              return decoded.ok ? [decoded.value] : [];
+            }
+          )
+        : current.structuredComponents;
       const structuredComponents = normalizeStructuredComponents(
-        Array.from(documents.yStructuredComponents.entries()).flatMap(
-          ([key, value]) => {
-            const decoded = decodeCollaborativeStructuredComponent(key, value);
-            documents.setIntegrityIssue(
-              "structured-components",
-              key,
-              decoded.ok ? null : decoded.issue
-            );
-            return decoded.ok ? [decoded.value] : [];
-          }
-        ),
+        componentSource,
         structuredScene
       );
-      const gridEntries = sceneToGridEntries(structuredScene);
       return {
         structuredScene,
         structuredComponents,
-        grid: createMapFromEntries(gridEntries),
+        grid: createStructuredGridProjection(structuredScene),
         ...reconcileStructuredInteraction(current, structuredScene),
       };
     });

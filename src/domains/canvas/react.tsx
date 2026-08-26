@@ -17,6 +17,7 @@ type CanvasRuntimeContextValue = Pick<
   | "getPersistenceSnapshot"
   | "subscribePersistence"
   | "retryPersistence"
+  | "setRetainedCanvasIds"
 >;
 
 const CanvasRuntimeContext = createContext<CanvasRuntimeContextValue | null>(null);

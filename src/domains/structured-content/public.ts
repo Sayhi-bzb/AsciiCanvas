@@ -61,6 +61,12 @@ export {
   trimTextToColumns,
   withPointWithinBounds,
 } from "./model/scene";
+export {
+  createStructuredSceneSurface,
+  StructuredSceneSurfaceIndex,
+  type StructuredSceneSurface,
+  type StructuredSurfaceStats,
+} from "./model/surface";
 export type { StructuredTextSelection } from "./model/text-ranges";
 export {
   getStructuredTextCaretPoint,

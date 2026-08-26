@@ -5,7 +5,10 @@ import "./index.css";
 import { captureOnboardingEntryState } from "@/widgets/onboarding/onboarding-model";
 import { getApplicationEditorHost } from "./compositionRoot";
 import { EditorProvider } from "@/domains/editor/public";
-import { CanvasRuntimeProvider } from "@/domains/canvas/public";
+import {
+  CanvasRuntimeProvider,
+  getSurfaceGridReader,
+} from "@/domains/canvas/public";
 import { CollaborationRuntimeProvider } from "@/domains/collaboration/public";
 import { TextRenderingProvider } from "@/domains/document/public";
 import {
@@ -30,6 +33,12 @@ if (new URLSearchParams(window.location.search).has("canvas-stress")) {
       ready: () => host.canvas.ready,
       flush: () => host.canvas.retryPersistence(),
       cellCount: () => host.canvas.getState().grid.size,
+      surfaceStats: () => {
+        const reader = getSurfaceGridReader(host.canvas.getState().grid);
+        return reader && "getStats" in reader && typeof reader.getStats === "function"
+          ? reader.getStats()
+          : null;
+      },
       persistence: () => host.canvas.getPersistenceSnapshot(),
     },
   });

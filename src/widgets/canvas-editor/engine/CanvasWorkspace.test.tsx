@@ -168,7 +168,7 @@ describe('CanvasWorkspace', () => {
     expect(useEditorStore.getState().offset).toEqual({ x: 40, y: 20 });
   });
 
-  it('rebinds only the active pane for external switches and repairs deleted bindings', () => {
+  it('rebinds only the active pane for external switches and repairs deleted bindings', async () => {
     setTwoSessions();
     render(
       <CanvasWorkspaceProvider>
@@ -178,12 +178,12 @@ describe('CanvasWorkspace', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'select-secondary-b' }));
     fireEvent.click(screen.getByRole('button', { name: 'activate-primary' }));
-    act(() => useEditorStore.getState().switchCanvasSession('canvas-b'));
+    await act(() => useEditorStore.getState().switchCanvasSession('canvas-b'));
 
     expect(screen.getByTestId('primary-session')).toHaveTextContent('canvas-b');
     expect(screen.getByTestId('secondary-session')).toHaveTextContent('canvas-b');
 
-    act(() => useEditorStore.getState().removeCanvasSession('canvas-b'));
+    await act(() => useEditorStore.getState().removeCanvasSession('canvas-b'));
     expect(screen.getByTestId('primary-session')).toHaveTextContent('canvas-a');
     expect(screen.getByTestId('secondary-session')).toHaveTextContent('canvas-a');
   });

@@ -168,7 +168,7 @@ function BoundCanvasSessionSelector({
   return (
     <CanvasSessionSelector
       manageSessions={manageSessions}
-      selectedSessionId={view.sessionId}
+      selectedSessionId={view.selectedSessionId}
       onSelectSession={view.selectSession}
       onActivate={view.activate}
       onboardingTarget={onboardingTarget}
@@ -227,7 +227,9 @@ function CanvasPaneContent({
     <div
       data-testid={`canvas-view-${view.viewId}`}
       data-active={view.isActive ? 'true' : 'false'}
+      data-load-state={view.loadState}
       data-session-id={view.sessionId ?? undefined}
+      aria-busy={view.loadState === 'loading'}
       aria-label={
         view.viewId === 'primary' ? t('canvasView.primary') : t('canvasView.secondary')
       }
@@ -239,10 +241,27 @@ function CanvasPaneContent({
         capabilities={capabilities}
         fitContentRevision={fitContentRevision}
         viewportFrame={paneViewportFrame}
-        active={view.isActive}
+        active={view.isActive && view.loadState === 'idle'}
         onActivate={view.activate}
         onContainerSizeChange={view.setContainerSize}
       />
+      {view.loadState === 'loading' ? (
+        <div
+          data-testid={`canvas-view-loading-${view.viewId}`}
+          className="pointer-events-auto absolute inset-0 z-(--layer-controls) cursor-progress bg-transparent"
+        />
+      ) : null}
+      {view.loadState === 'error' && view.loadError ? (
+        <div
+          data-canvas-ui="true"
+          role="status"
+          className="pointer-events-none absolute left-1/2 top-(--editor-safe-top) z-(--layer-controls) -translate-x-1/2 rounded-md bg-background/90 px-2 py-1 shadow-sm"
+        >
+          <StatusText tone="error" className="whitespace-nowrap text-xs">
+            {view.loadError}
+          </StatusText>
+        </div>
+      ) : null}
       {split && view.viewId === 'secondary' ? (
         <EditorWidget role="pane">
           <div

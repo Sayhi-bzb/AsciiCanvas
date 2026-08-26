@@ -5,7 +5,7 @@ import type { Point } from "@/shared/types";
 import type { CanvasMode } from "./mode";
 
 export const CANVAS_CATALOG_DATABASE = "chardesk-canvas-catalog";
-export const CANVAS_CATALOG_VERSION = 1;
+export const CANVAS_CATALOG_VERSION = 2;
 export const CANVAS_CATALOG_MARKER_KEY = "chardesk-canvas-catalog-ready-v1";
 
 export type CanvasCatalogPreferences = {
@@ -23,6 +23,7 @@ export type CanvasCatalogSession = {
   viewport?: { offset: Point; zoom: number };
   collaboration?: CollaborationDescriptor;
   activeSlideId?: string;
+  documentGeneration?: number;
 };
 
 export type CanvasCatalogSlide = {
@@ -73,7 +74,8 @@ export type CanvasCatalog = {
 
 const openCatalog = (): Promise<IDBPDatabase<CanvasCatalogSchema>> =>
   openDB<CanvasCatalogSchema>(CANVAS_CATALOG_DATABASE, CANVAS_CATALOG_VERSION, {
-    upgrade(db) {
+    upgrade(db, oldVersion) {
+      if (oldVersion >= 1) return;
       db.createObjectStore("workspace", { keyPath: "id" });
       db.createObjectStore("sessions", { keyPath: "id" });
       const slides = db.createObjectStore("slides", {

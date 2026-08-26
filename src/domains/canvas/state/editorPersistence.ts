@@ -6,7 +6,6 @@ import {
 import {
   buildStructuredTemplate,
   normalizeStructuredComponents,
-  sceneToGridEntries,
 } from "@/domains/structured-content/public";
 import { COLOR_PRIMARY_TEXT, DEFAULT_BRUSH_CHAR } from "@/shared/lib/constants";
 import { normalizeBrushChar } from "@/shared/utils/characters";
@@ -29,16 +28,13 @@ import {
 } from "./helpers/storeUtils";
 import type { EditorState } from "./interfaces";
 import type { CanvasDocumentRegistry } from "./CanvasDocumentRegistry";
+import { createStructuredGridProjection } from "./helpers/gridHelpers";
 
 const DEFAULT_STRUCTURED_SAFARI_TEMPLATE = buildStructuredTemplate(
   "safari",
   { x: 4, y: 2 },
   { brushColor: COLOR_PRIMARY_TEXT, startOrder: 1 }
 );
-const DEFAULT_STRUCTURED_SAFARI_GRID = sceneToGridEntries(
-  DEFAULT_STRUCTURED_SAFARI_TEMPLATE.nodes
-);
-
 export const createDefaultCanvasSessions = (): CanvasSession[] => [
   {
     id: DEFAULT_SESSION_ID,
@@ -53,7 +49,7 @@ export const createDefaultCanvasSessions = (): CanvasSession[] => [
     mode: "structured",
     scene: DEFAULT_STRUCTURED_SAFARI_TEMPLATE.nodes,
     components: DEFAULT_STRUCTURED_SAFARI_TEMPLATE.components,
-    grid: DEFAULT_STRUCTURED_SAFARI_GRID,
+    grid: [],
   },
 ];
 
@@ -98,7 +94,9 @@ export const recoverPersistedEditorState = (
   state.selectedStructuredBoxId = null;
   state.selectedStructuredSplitHandle = null;
   state.structuredContextPoint = null;
-  state.grid = createMapFromEntries(runtime.nextGridEntries);
+  state.grid = runtime.nextMode === "structured"
+    ? createStructuredGridProjection(runtime.nextScene)
+    : createMapFromEntries(runtime.nextGridEntries);
   state.tool = runtime.nextTool;
   state.offset = runtime.nextOffset;
   state.zoom = runtime.nextZoom;
@@ -167,7 +165,7 @@ export const createPersistedEditorSnapshot = (state: EditorState) => {
       grid: activeIsCollaborative
         ? []
         : state.canvasMode === "structured"
-          ? sceneToGridEntries(state.structuredScene)
+          ? []
           : Array.from(state.grid.entries()),
     },
     sessions: { items: persistedSessions, activeId: state.activeCanvasId },

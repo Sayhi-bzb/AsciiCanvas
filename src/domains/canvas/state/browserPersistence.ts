@@ -41,6 +41,7 @@ import {
   writeCanvasDocumentMetadata,
   type CanvasPageDraft,
 } from "./canvasDocumentModel";
+import type { CanvasDocumentResidency } from "./documentResidencyPort";
 
 const LOCAL_DOCUMENT_PREFIX = "chardesk-local-document-v1:";
 const HISTORICAL_EDITOR_PERSISTENCE_KEYS = [
@@ -48,9 +49,12 @@ const HISTORICAL_EDITOR_PERSISTENCE_KEYS = [
   "ascii-canvas-persistence-v3-backup",
 ] as const;
 const SAVE_DELAY = 500;
+const DOCUMENT_GENERATION_SUFFIX = ":generation:";
+const DOCUMENT_STRUCT_ROTATION_THRESHOLD = 10_000;
 const WRITER_LOCK_NAME = "chardesk-canvas-workspace-writer-v1";
 const WRITER_LEASE_KEY = "chardesk-canvas-writer-lease-v1";
 const WRITER_LEASE_DURATION = 8_000;
+const MAX_RESIDENT_CANVASES = 4;
 
 export type CanvasPersistenceStatus = {
   phase: "restoring" | "ready" | "degraded";
@@ -70,6 +74,11 @@ type PersistedDocument = {
   doc: Y.Doc;
   provider: IndexeddbPersistence;
   updateListener: () => void;
+};
+
+type PersistedDocumentLocation = {
+  id: string;
+  generation: number;
 };
 
 type WriterLease = {
@@ -143,7 +152,26 @@ const waitForCatalog = async (catalog: CanvasCatalog) => {
   return null;
 };
 
-const getDocumentDatabaseName = (id: string) => `${LOCAL_DOCUMENT_PREFIX}${id}`;
+const getDocumentDatabaseName = (id: string, generation = 0) =>
+  `${LOCAL_DOCUMENT_PREFIX}${id}${generation > 0
+    ? `${DOCUMENT_GENERATION_SUFFIX}${generation}`
+    : ""}`;
+
+const parseDocumentDatabaseName = (
+  name: string
+): PersistedDocumentLocation | null => {
+  if (!name.startsWith(LOCAL_DOCUMENT_PREFIX)) return null;
+  const rawId = name.slice(LOCAL_DOCUMENT_PREFIX.length);
+  const generationMatch = /:generation:(\d+)$/.exec(rawId);
+  const id = generationMatch
+    ? rawId.slice(0, generationMatch.index)
+    : rawId;
+  if (!id || id.includes(":slide:")) return null;
+  return {
+    id,
+    generation: generationMatch ? Number(generationMatch[1]) : 0,
+  };
+};
 
 const emptySeed = (): CanvasDocumentSeed => ({
   grid: [],
@@ -174,19 +202,6 @@ const hasLegacyContent = (doc: Y.Doc) => {
     doc.getArray("cell-plane-operations").length > 0 ||
     doc.getMap("structured-scene").size > 0 ||
     doc.getMap("structured-components").size > 0;
-};
-
-const clearLegacyContent = (doc: Y.Doc) => {
-  const grid = doc.getMap("main-grid");
-  const operations = doc.getArray("cell-plane-operations");
-  const scene = doc.getMap("structured-scene");
-  const components = doc.getMap("structured-components");
-  doc.transact(() => {
-    grid.clear();
-    operations.delete(0, operations.length);
-    scene.clear();
-    components.clear();
-  }, "local-persistence-migration-cleanup");
 };
 
 const hasValidPages = (doc: Y.Doc) => {
@@ -233,6 +248,60 @@ const applySeed = (doc: Y.Doc, id: string, seed: CanvasDocumentSeed) => {
       activePageId
     );
   }, "local-persistence-bootstrap");
+};
+
+const readDocumentSeed = (doc: Y.Doc, id: string): CanvasDocumentSeed => {
+  const root = getCanvasDocumentRoot(doc);
+  const pages = readCanvasPageOrder(root).flatMap((pageId): CanvasPageDraft[] => {
+    const page = readCanvasYPage(root, pageId);
+    if (!page) return [];
+    if (page.descriptor.kind === "cell-plane") {
+      return [{
+        ...page.descriptor,
+        grid: Array.from(new CellPlaneIndex(
+          page.operations.toArray().filter(isCellPlaneOperation)
+        ).materialize()),
+      }];
+    }
+    return [{
+      ...page.descriptor,
+      scene: Array.from(page.scene.values()),
+      components: Array.from(page.components.values()),
+    }];
+  });
+  if (pages.length === 0) {
+    throw new Error(`Canvas document compaction found no pages: ${id}`);
+  }
+  const storedMode = root.meta.get("mode");
+  const mode =
+    storedMode === "freeform" || storedMode === "structured" || storedMode === "slide"
+      ? storedMode
+      : pages[0]!.kind === "structured" ? "structured" : "freeform";
+  const storedActivePageId = root.meta.get("activePageId");
+  return {
+    mode,
+    activePageId:
+      typeof storedActivePageId === "string" &&
+      pages.some((page) => page.id === storedActivePageId)
+        ? storedActivePageId
+        : pages[0]!.id,
+    pages,
+    grid: [],
+    scene: [],
+    components: [],
+  };
+};
+
+const countDocumentStructs = (doc: Y.Doc) => {
+  let count = 0;
+  doc.store.clients.forEach((structs) => { count += structs.length; });
+  return count;
+};
+
+const createCompactedDocument = (doc: Y.Doc, id: string) => {
+  const compacted = new Y.Doc({ guid: id });
+  applySeed(compacted, id, readDocumentSeed(doc, id));
+  return compacted;
 };
 
 const seedFromSession = (session: CanvasSession): CanvasDocumentSeed =>
@@ -465,15 +534,15 @@ const readLegacySessionSnapshots = (
   return snapshots;
 };
 
-const listPersistedDocumentIds = async () => {
+const listPersistedDocuments = async (): Promise<PersistedDocumentLocation[]> => {
   if (typeof indexedDB === "undefined" || !indexedDB.databases) return [];
   try {
     const databases = await indexedDB.databases();
-    return databases.flatMap(({ name }) => {
-      if (!name?.startsWith(LOCAL_DOCUMENT_PREFIX)) return [];
-      const id = name.slice(LOCAL_DOCUMENT_PREFIX.length);
-      return id && !id.includes(":slide:") ? [id] : [];
-    });
+    return databases.flatMap(({ name }) =>
+      name ? [parseDocumentDatabaseName(name)].filter(
+        (location): location is PersistedDocumentLocation => location !== null
+      ) : []
+    );
   } catch {
     return [];
   }
@@ -481,10 +550,14 @@ const listPersistedDocumentIds = async () => {
 
 const readPersistedDocumentShell = async (
   id: string,
-  recoveredIndex: number
+  recoveredIndex: number,
+  generation = 0
 ): Promise<CanvasSession | null> => {
   const doc = new Y.Doc({ guid: id });
-  const provider = new IndexeddbPersistence(getDocumentDatabaseName(id), doc);
+  const provider = new IndexeddbPersistence(
+    getDocumentDatabaseName(id, generation),
+    doc
+  );
   try {
     await provider.whenSynced;
     const root = getCanvasDocumentRoot(doc);
@@ -624,7 +697,8 @@ const sessionsFromCatalog = (catalog: CanvasCatalogSnapshot): CanvasSession[] =>
   });
 
 const createCatalogSnapshot = (
-  state: ReturnType<CanvasStore["getState"]>
+  state: ReturnType<CanvasStore["getState"]>,
+  documentGenerations: ReadonlyMap<string, number> = new Map()
 ): CanvasCatalogSnapshot => ({
   activeSessionId: state.activeCanvasId,
   sessions: state.canvasSessions.map((session) => ({
@@ -640,6 +714,9 @@ const createCatalogSnapshot = (
       : {}),
     ...(session.mode === "slide"
       ? { activeSlideId: session.slideDeck.activeSlideId }
+      : {}),
+    ...(documentGenerations.get(session.id)
+      ? { documentGeneration: documentGenerations.get(session.id) }
       : {}),
   })),
   slides: state.canvasSessions.flatMap((session) =>
@@ -662,16 +739,23 @@ const createCatalogSnapshot = (
   },
 });
 
-export class BrowserCanvasPersistence {
+export class BrowserCanvasPersistence implements CanvasDocumentResidency {
   readonly #legacyStorage: Storage;
   readonly #legacyKey: string;
   readonly #listeners = new Set<Listener>();
   readonly #documents = new Map<string, PersistedDocument>();
+  readonly #dirtyDocuments = new Map<string, number>();
+  readonly #documentGenerations = new Map<string, number>();
+  readonly #obsoleteDocumentDatabases = new Set<string>();
+  readonly #pinnedCanvasIds = new Set<string>();
+  readonly #recentCanvasIds: string[] = [];
+  #registry: CanvasDocumentRegistry | null = null;
   #catalog: CanvasCatalog | null = null;
   #store: CanvasStore | null = null;
   #unsubscribeStore: (() => void) | null = null;
   #metadataTimer: ReturnType<typeof setTimeout> | null = null;
   #documentTimer: ReturnType<typeof setTimeout> | null = null;
+  #evictionTask: Promise<void> = Promise.resolve();
   #lastCatalogJson = "";
   #writerLease: WriterLease | null = null;
   #status: CanvasPersistenceStatus = {
@@ -693,7 +777,12 @@ export class BrowserCanvasPersistence {
     return () => { this.#listeners.delete(listener); };
   };
 
-  initialize = async (documents: CanvasDocumentRegistry, store: CanvasStore) => {
+  initialize = async (
+    documents: CanvasDocumentRegistry,
+    store: CanvasStore,
+    bootstrapSessions?: readonly CanvasSession[]
+  ) => {
+    this.#registry = documents;
     this.#store = store;
     try {
       this.#writerLease = await acquireWriterLease(this.#legacyStorage);
@@ -724,11 +813,39 @@ export class BrowserCanvasPersistence {
           }
             : session
       );
-      const initialSessions = store.getState().canvasSessions;
+      const initialSessions = bootstrapSessions?.map((session) =>
+        structuredClone(session)
+      ) ?? store.getState().canvasSessions;
       const catalogSessions = storedCatalog
         ? sessionsFromCatalog(storedCatalog)
         : legacySessions ?? initialSessions;
-      const persistedDocumentIds = await listPersistedDocumentIds();
+      const persistedDocuments = await listPersistedDocuments();
+      const latestPersistedGeneration = new Map<string, number>();
+      persistedDocuments.forEach(({ id, generation }) => {
+        latestPersistedGeneration.set(
+          id,
+          Math.max(latestPersistedGeneration.get(id) ?? 0, generation)
+        );
+      });
+      storedCatalog?.sessions.forEach((session) => {
+        this.#documentGenerations.set(
+          session.id,
+          session.documentGeneration ?? 0
+        );
+      });
+      latestPersistedGeneration.forEach((generation, id) => {
+        if (!this.#documentGenerations.has(id)) {
+          this.#documentGenerations.set(id, generation);
+        }
+      });
+      persistedDocuments.forEach(({ id, generation }) => {
+        if (generation !== (this.#documentGenerations.get(id) ?? 0)) {
+          this.#obsoleteDocumentDatabases.add(
+            getDocumentDatabaseName(id, generation)
+          );
+        }
+      });
+      const persistedDocumentIds = Array.from(latestPersistedGeneration.keys());
       const recoveredCatalogSessions = mergeRecoverableSessions(
         catalogSessions,
         legacySnapshots,
@@ -741,7 +858,11 @@ export class BrowserCanvasPersistence {
       const recoveredDocumentShells = (await Promise.all(
         persistedDocumentIds
           .filter((id) => !knownSessionIds.has(id))
-          .map((id, index) => readPersistedDocumentShell(id, index))
+          .map((id, index) => readPersistedDocumentShell(
+            id,
+            index,
+            this.#documentGenerations.get(id) ?? 0
+          ))
       )).filter((session): session is CanvasSession => session !== null);
       const sourceSessions = [
         ...recoveredCatalogSessions,
@@ -765,7 +886,8 @@ export class BrowserCanvasPersistence {
       const restoredSessions = await this.#restoreSessions(
         documents,
         sourceSessions,
-        !storedCatalog && this.#writerLease.writer
+        !storedCatalog && this.#writerLease.writer,
+        activeSessionId
       );
       const activeSession =
         restoredSessions.find((session) => session.id === activeSessionId) ??
@@ -784,6 +906,10 @@ export class BrowserCanvasPersistence {
         getSessionCanvasDocumentId(activeSession),
         emptySeed()
       );
+      for (const id of documents.getDocumentIds()) {
+        if (id !== activeSession.id) await this.#releaseDocument(id);
+      }
+      this.touch(activeSession.id);
       if (hydrated.canvasMode !== "structured") {
         hydrated.grid = rebuildGridFromContent(documents);
       }
@@ -798,6 +924,8 @@ export class BrowserCanvasPersistence {
         if (!verified || verified.sessions.length !== restoredSessions.length) {
           throw new Error("Canvas catalog verification failed");
         }
+        await Promise.all(Array.from(this.#obsoleteDocumentDatabases, clearDocument));
+        this.#obsoleteDocumentDatabases.clear();
         if (legacy) {
           this.#legacyStorage.removeItem(legacy.key);
           this.#legacyStorage.removeItem(LEGACY_EDITOR_PERSISTENCE_KEY);
@@ -820,13 +948,22 @@ export class BrowserCanvasPersistence {
     if (!this.#catalog || !this.#store || !this.#writerLease?.writer) return;
     try {
       this.#publish({ save: "saving", error: null });
-      await Promise.all(
-        Array.from(this.#documents.values(), ({ provider }) =>
-          storeState(provider, true)
-        )
-      );
+      const dirty = Array.from(this.#dirtyDocuments);
+      await Promise.all(dirty.flatMap(([id]) => {
+        const provider = this.#documents.get(id)?.provider;
+        return provider ? [storeState(provider, false)] : [];
+      }));
+      dirty.forEach(([id, revision]) => {
+        if (this.#dirtyDocuments.get(id) === revision) {
+          this.#dirtyDocuments.delete(id);
+        }
+      });
       await this.#saveCatalog();
-      this.#publish({ phase: "ready", save: "saved", error: null });
+      this.#publish({
+        phase: "ready",
+        save: this.#dirtyDocuments.size === 0 ? "saved" : "saving",
+        error: null,
+      });
     } catch (error) {
       this.#publish({
         phase: "degraded",
@@ -834,6 +971,45 @@ export class BrowserCanvasPersistence {
         error: error instanceof Error ? error.message : "Canvas persistence failed",
       });
     }
+  };
+
+  ensureLoaded = async (session: CanvasSession): Promise<boolean> => {
+    const documents = this.#registry;
+    if (!documents) return false;
+    if (documents.getDocument(session.id)) {
+      this.touch(session.id);
+      return true;
+    }
+    try {
+      const doc = session.collaboration
+        ? new Y.Doc({ guid: session.id })
+        : await this.#loadSessionDocument(session, false);
+      documents.adoptDocument(session.id, doc);
+      this.touch(session.id);
+      await this.#evictionTask;
+      return true;
+    } catch (error) {
+      this.#handleError(error);
+      return false;
+    }
+  };
+
+  setPinnedCanvasIds = (ids: readonly string[]) => {
+    this.#pinnedCanvasIds.clear();
+    ids.forEach((id) => this.#pinnedCanvasIds.add(id));
+    void this.#queueEviction().catch((error) => this.#handleError(error));
+  };
+
+  touch = (id: string) => {
+    const index = this.#recentCanvasIds.indexOf(id);
+    if (index >= 0) this.#recentCanvasIds.splice(index, 1);
+    this.#recentCanvasIds.push(id);
+    void this.#queueEviction().catch((error) => this.#handleError(error));
+  };
+
+  delete = async (id: string) => {
+    await this.#releaseDocument(id);
+    await this.#deleteDocument(id);
   };
 
   dispose = () => {
@@ -846,6 +1022,7 @@ export class BrowserCanvasPersistence {
       void provider.destroy();
     });
     this.#documents.clear();
+    this.#registry = null;
     this.#catalog?.close();
     this.#catalog = null;
     this.#writerLease?.release();
@@ -855,10 +1032,16 @@ export class BrowserCanvasPersistence {
   async #restoreSessions(
     documents: CanvasDocumentRegistry,
     sessions: CanvasSession[],
-    resetDocuments: boolean
+    resetDocuments: boolean,
+    activeSessionId: string
   ) {
     const restored: CanvasSession[] = [];
     for (const session of sessions) {
+      const isActive = session.id === activeSessionId;
+      if (!isActive && !resetDocuments) {
+        restored.push(session);
+        continue;
+      }
       if (session.mode === "slide") {
         const initialDraft = resetDocuments
           ? documents.getDocumentDraft(session.id)
@@ -876,24 +1059,23 @@ export class BrowserCanvasPersistence {
                   : await this.#readLegacySlideGrid(session.id, slide.id),
               }))
             );
-        const doc = await this.#openDocument(
-          session.id,
-          {
-            mode: "slide",
-            activePageId: session.slideDeck.activeSlideId,
-            pages,
-            grid: [],
-            scene: [],
-            components: [],
-          }
-        );
-        documents.adoptDocument(session.id, doc);
+        const doc = await this.#openDocument(session.id, {
+          mode: "slide",
+          activePageId: session.slideDeck.activeSlideId,
+          pages,
+          grid: [],
+          scene: [],
+          components: [],
+        });
+        if (isActive) documents.adoptDocument(session.id, doc);
+        else await this.#closePersistedDocument(session.id, doc);
         restored.push(session);
         continue;
       }
       if (session.collaboration) {
-        const doc = new Y.Doc({ guid: session.id });
-        documents.adoptDocument(session.id, doc);
+        if (isActive) {
+          documents.adoptDocument(session.id, new Y.Doc({ guid: session.id }));
+        }
         restored.push({ ...session, grid: [], scene: [], components: [] });
         continue;
       }
@@ -902,8 +1084,11 @@ export class BrowserCanvasPersistence {
         session.id,
         existingSeed ?? seedFromSession(session)
       );
-      documents.adoptDocument(session.id, doc);
-      const seed = documents.getDocumentSeed(session.id, session.mode);
+      if (isActive) documents.adoptDocument(session.id, doc);
+      const seed = isActive
+        ? documents.getDocumentSeed(session.id, session.mode)
+        : readDocumentSeed(doc, session.id);
+      if (!isActive) await this.#closePersistedDocument(session.id, doc);
       restored.push({
         ...session,
         grid: seed?.grid ?? [],
@@ -914,12 +1099,37 @@ export class BrowserCanvasPersistence {
     return restored;
   }
 
+  async #loadSessionDocument(session: CanvasSession, resetDocument: boolean) {
+    if (session.mode === "slide") {
+      return this.#openDocument(session.id, {
+        mode: "slide",
+        activePageId: session.slideDeck.activeSlideId,
+        pages: session.slideDeck.slides.map((slide) => ({
+          id: slide.id,
+          name: slide.name,
+          size: slide.size,
+          kind: "cell-plane" as const,
+          grid: slide.grid,
+        })),
+        grid: [],
+        scene: [],
+        components: [],
+      });
+    }
+    const seed = resetDocument
+      ? seedFromSession(session)
+      : this.#registry?.getDocumentSeed(session.id, session.mode) ??
+        seedFromSession(session);
+    return this.#openDocument(session.id, seed);
+  }
+
   async #readLegacySlideGrid(sessionId: string, slideId: string) {
     const id = `${sessionId}:slide:${slideId}`;
     const doc = new Y.Doc({ guid: id });
     const provider = new IndexeddbPersistence(getDocumentDatabaseName(id), doc);
     try {
       await provider.whenSynced;
+      await provider.destroy();
       migrateLegacyDocument(doc, id, {
         mode: "freeform",
         grid: [],
@@ -928,7 +1138,6 @@ export class BrowserCanvasPersistence {
       });
       return readCellPlaneGrid(doc);
     } finally {
-      await provider.destroy();
       doc.destroy();
     }
   }
@@ -937,24 +1146,63 @@ export class BrowserCanvasPersistence {
     id: string,
     seed: CanvasDocumentSeed
   ) {
-    const name = getDocumentDatabaseName(id);
+    const generation = this.#documentGenerations.get(id) ?? 0;
+    const name = getDocumentDatabaseName(id, generation);
     const doc = new Y.Doc({ guid: id });
     const provider = new IndexeddbPersistence(name, doc);
     await provider.whenSynced;
-    const migrated = migrateLegacyDocument(doc, id, seed);
-    this.#registerDocument(id, doc, provider);
-    if (isDocumentEmpty(doc)) applySeed(doc, id, seed);
-    await storeState(provider, true);
-    if (migrated && hasLegacyContent(doc)) {
-      clearLegacyContent(doc);
-      await storeState(provider, true);
+    if (!this.#writerLease?.writer) {
+      await provider.destroy();
+      const migrated = migrateLegacyDocument(doc, id, seed);
+      if (isDocumentEmpty(doc)) applySeed(doc, id, seed);
+      if (migrated || countDocumentStructs(doc) >= DOCUMENT_STRUCT_ROTATION_THRESHOLD) {
+        const compacted = createCompactedDocument(doc, id);
+        doc.destroy();
+        return compacted;
+      }
+      return doc;
     }
+    const migrated = migrateLegacyDocument(doc, id, seed);
+    const seeded = isDocumentEmpty(doc);
+    if (seeded) applySeed(doc, id, seed);
+    if (migrated || countDocumentStructs(doc) >= DOCUMENT_STRUCT_ROTATION_THRESHOLD) {
+      const compacted = createCompactedDocument(doc, id);
+      const nextGeneration = generation + 1;
+      const nextDatabaseName = getDocumentDatabaseName(id, nextGeneration);
+      await clearDocument(nextDatabaseName);
+      const nextProvider = new IndexeddbPersistence(
+        nextDatabaseName,
+        compacted
+      );
+      await nextProvider.whenSynced;
+      await storeState(nextProvider, true);
+      if (!hasValidPages(compacted)) {
+        await nextProvider.destroy();
+        compacted.destroy();
+        throw new Error(`Canvas document compaction verification failed: ${id}`);
+      }
+      await provider.destroy();
+      doc.destroy();
+      this.#documentGenerations.set(id, nextGeneration);
+      this.#registerDocument(id, compacted, nextProvider);
+      return compacted;
+    }
+    this.#registerDocument(id, doc, provider);
+    if (seeded) await storeState(provider, true);
     return doc;
   }
 
   #attachDocument(id: string, doc: Y.Doc) {
     if (this.#documents.has(id)) return;
-    const provider = new IndexeddbPersistence(getDocumentDatabaseName(id), doc);
+    const session = this.#store?.getState().canvasSessions.find(
+      (candidate) => candidate.id === id
+    );
+    if (session?.mode !== "slide" && session?.collaboration) return;
+    const generation = this.#documentGenerations.get(id) ?? 0;
+    const provider = new IndexeddbPersistence(
+      getDocumentDatabaseName(id, generation),
+      doc
+    );
     this.#registerDocument(id, doc, provider);
     void provider.whenSynced.catch((error) => this.#handleError(error));
   }
@@ -964,9 +1212,72 @@ export class BrowserCanvasPersistence {
     doc: Y.Doc,
     provider: IndexeddbPersistence
   ) {
-    const updateListener = () => this.#scheduleDocumentFlush();
+    const updateListener = () => this.#scheduleDocumentFlush(id);
     doc.on("update", updateListener);
     this.#documents.set(id, { doc, provider, updateListener });
+  }
+
+  async #closePersistedDocument(id: string, doc: Y.Doc) {
+    const persisted = this.#documents.get(id);
+    if (persisted) {
+      persisted.doc.off("update", persisted.updateListener);
+      if (this.#dirtyDocuments.has(id)) await storeState(persisted.provider, false);
+      await persisted.provider.destroy();
+      this.#documents.delete(id);
+      this.#dirtyDocuments.delete(id);
+    }
+    doc.destroy();
+  }
+
+  async #detachLocalPersistence(id: string) {
+    const persisted = this.#documents.get(id);
+    if (!persisted) return;
+    this.#documents.delete(id);
+    persisted.doc.off("update", persisted.updateListener);
+    if (this.#dirtyDocuments.has(id)) await storeState(persisted.provider, false);
+    await persisted.provider.destroy();
+    this.#dirtyDocuments.delete(id);
+  }
+
+  async #releaseDocument(id: string) {
+    const documents = this.#registry;
+    if (!documents || id === documents.getActiveDocumentId()) return false;
+    const persisted = this.#documents.get(id);
+    if (persisted) {
+      persisted.doc.off("update", persisted.updateListener);
+      if (this.#dirtyDocuments.has(id)) await storeState(persisted.provider, false);
+      await persisted.provider.destroy();
+      this.#documents.delete(id);
+      this.#dirtyDocuments.delete(id);
+    }
+    const released = documents.releaseDocument(id);
+    if (released) {
+      const index = this.#recentCanvasIds.indexOf(id);
+      if (index >= 0) this.#recentCanvasIds.splice(index, 1);
+    }
+    return released;
+  }
+
+  async #evictDocuments() {
+    const documents = this.#registry;
+    if (!documents) return;
+    while (documents.getDocumentIds().length > MAX_RESIDENT_CANVASES) {
+      const activeId = documents.getActiveDocumentId();
+      const candidate = this.#recentCanvasIds.find((id) =>
+        id !== activeId &&
+        !this.#pinnedCanvasIds.has(id) &&
+        documents.getDocument(id)
+      ) ?? documents.getDocumentIds().find((id) =>
+        id !== activeId && !this.#pinnedCanvasIds.has(id)
+      );
+      if (!candidate || !await this.#releaseDocument(candidate)) return;
+    }
+  }
+
+  #queueEviction() {
+    const task = this.#evictionTask.then(() => this.#evictDocuments());
+    this.#evictionTask = task.catch(() => undefined);
+    return task;
   }
 
   async #deleteDocument(id: string) {
@@ -974,17 +1285,36 @@ export class BrowserCanvasPersistence {
     if (current) {
       current.doc.off("update", current.updateListener);
       this.#documents.delete(id);
+      this.#dirtyDocuments.delete(id);
       await current.provider.clearData();
-      return;
     }
-    await clearDocument(getDocumentDatabaseName(id));
+    this.#documentGenerations.delete(id);
+    const locations = await listPersistedDocuments();
+    await Promise.all(locations
+      .filter((location) => location.id === id)
+      .map((location) => clearDocument(
+        getDocumentDatabaseName(location.id, location.generation)
+      )));
   }
 
   #subscribeToStore() {
     if (!this.#store) return;
-    this.#lastCatalogJson = JSON.stringify(createCatalogSnapshot(this.#store.getState()));
+    this.#lastCatalogJson = JSON.stringify(createCatalogSnapshot(
+      this.#store.getState(),
+      this.#documentGenerations
+    ));
     this.#unsubscribeStore = this.#store.subscribe((state) => {
-      const nextJson = JSON.stringify(createCatalogSnapshot(state));
+      state.canvasSessions.forEach((session) => {
+        if (session.mode !== "slide" && session.collaboration) {
+          void this.#detachLocalPersistence(session.id).catch(
+            (error) => this.#handleError(error)
+          );
+        }
+      });
+      const nextJson = JSON.stringify(createCatalogSnapshot(
+        state,
+        this.#documentGenerations
+      ));
       if (nextJson === this.#lastCatalogJson) return;
       this.#lastCatalogJson = nextJson;
       if (this.#metadataTimer) clearTimeout(this.#metadataTimer);
@@ -998,17 +1328,28 @@ export class BrowserCanvasPersistence {
     });
   }
 
-  #scheduleDocumentFlush() {
+  #scheduleDocumentFlush(id: string) {
+    this.#dirtyDocuments.set(id, (this.#dirtyDocuments.get(id) ?? 0) + 1);
     if (this.#documentTimer) clearTimeout(this.#documentTimer);
     this.#publish({ save: "saving" });
     this.#documentTimer = setTimeout(() => {
       this.#documentTimer = null;
-      void Promise.all(
-        Array.from(this.#documents.values(), ({ provider }) =>
-          storeState(provider, true)
-        )
-      )
-        .then(() => this.#publish({ save: "saved", error: null }))
+      const dirty = Array.from(this.#dirtyDocuments);
+      void Promise.all(dirty.flatMap(([documentId]) => {
+        const provider = this.#documents.get(documentId)?.provider;
+        return provider ? [storeState(provider, false)] : [];
+      }))
+        .then(() => {
+          dirty.forEach(([documentId, revision]) => {
+            if (this.#dirtyDocuments.get(documentId) === revision) {
+              this.#dirtyDocuments.delete(documentId);
+            }
+          });
+          this.#publish({
+            save: this.#dirtyDocuments.size === 0 ? "saved" : "saving",
+            error: null,
+          });
+        })
         .catch((error) => this.#handleError(error));
     }, SAVE_DELAY);
   }
@@ -1017,7 +1358,10 @@ export class BrowserCanvasPersistence {
     if (!this.#catalog || !this.#store) {
       return Promise.reject(new Error("Canvas catalog is unavailable"));
     }
-    return this.#catalog.save(createCatalogSnapshot(this.#store.getState()));
+    return this.#catalog.save(createCatalogSnapshot(
+      this.#store.getState(),
+      this.#documentGenerations
+    ));
   }
 
   #handleError(error: unknown) {

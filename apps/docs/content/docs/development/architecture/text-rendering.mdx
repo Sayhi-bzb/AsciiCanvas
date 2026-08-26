@@ -57,6 +57,14 @@ Neither renderer imports terminal capability detection or Node polyfills. Markdo
 raw HTML preserve their original source with a diagnostic; generated HTML cannot leak into Canvas
 output.
 
+The [`chardesk` CLI](../../../../../../packages/cli/README.md) is a headless host of the same
+contracts. CharGraph input becomes styled fragments and Protocol layout; `.chardesk` input enters
+at Protocol decode. `check` stops at that compiled document. `render` sends it to a plain, ANSI,
+ESC-less CharDesk, or PNG backend; only PNG creates the shared Rendering model and uses its Canvas
+painter with vendored fonts on Node Canvas. ANSI serialization is an explicit output backend, never
+an internal step toward PNG. Browser workers, profiles, clipboard commands, and persistence remain
+application concerns.
+
 Container extensions may call the context's `renderBlocks` capability to render child `marked`
 tokens through the same rules, styles, source mapping, diagnostics, and extension set. GitHub Alerts
 use `marked-alert` for tokenization and render `NOTE`, `TIP`, `IMPORTANT`, `WARNING`, and `CAUTION`

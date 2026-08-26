@@ -38,6 +38,17 @@ export type CanvasHistoryCheckpoint = {
   cancel: () => void;
 };
 
+export type CanvasStructuredContentPatch = {
+  nodes?: {
+    upsert?: readonly StructuredNode[];
+    deleteIds?: readonly string[];
+  };
+  components?: {
+    upsert?: readonly StructuredComponentInstance[];
+    deleteIds?: readonly string[];
+  };
+};
+
 const LOCAL_ORIGIN = Symbol("canvas-local-origin");
 const HISTORY_IGNORED_ORIGIN = Symbol("canvas-history-ignored");
 
@@ -58,6 +69,7 @@ type CanvasDocumentLifecycle = {
 type CanvasPageRuntime = CanvasYPage & {
   cellPlaneIndex: CellPlaneIndex;
   undoManager: Y.UndoManager;
+  dispose: () => void;
 };
 
 type CanvasYDocument = {
@@ -78,7 +90,9 @@ type CanvasYDocument = {
 type CanvasDocumentTransaction = {
   address: CanvasDocumentAddress;
   sceneChanged: boolean;
+  sceneChangedIds: readonly string[];
   componentsChanged: boolean;
+  componentChangedIds: readonly string[];
   contentChanged: boolean;
   pagesChanged: boolean;
 };
@@ -102,6 +116,17 @@ const applyYMapValueDiff = <T extends { id: string }>(
     const current = map.get(value.id);
     if (!areJsonValuesEqual(current, value)) map.set(value.id, value);
   });
+};
+
+const applyYMapPatch = <T extends { id: string }>(
+  map: Y.Map<T>,
+  patch: {
+    upsert?: readonly T[];
+    deleteIds?: readonly string[];
+  } | undefined
+) => {
+  patch?.deleteIds?.forEach((id) => map.delete(id));
+  patch?.upsert?.forEach((value) => map.set(value.id, value));
 };
 
 const createProxy = <T extends object>(resolve: () => T): T =>
@@ -176,6 +201,7 @@ export class CanvasDocumentRegistry {
       : null;
   };
   getDocument = (id: string) => this.#documents.get(id) ?? null;
+  getDocumentIds = () => Array.from(this.#documents.keys());
   getCollaborationDocument = (id: string) => this.#documents.get(id)?.doc ?? null;
   getContentReader(): CanvasSurfaceReader;
   getContentReader(id: string, pageId?: string): CanvasSurfaceReader | null;
@@ -256,7 +282,7 @@ export class CanvasDocumentRegistry {
       this.#activeListeners.forEach((listener) => listener(next, previous));
     }
     if (previous) {
-      previous.pages.forEach((page) => page.undoManager.destroy());
+      previous.pages.forEach((page) => page.dispose());
       previous.doc.destroy();
     }
     this.#emitHistory();
@@ -415,7 +441,7 @@ export class CanvasDocumentRegistry {
   ) => {
     const previous = this.#active;
     const existing = this.#documents.get(id);
-    existing?.pages.forEach((page) => page.undoManager.destroy());
+    existing?.pages.forEach((page) => page.dispose());
     existing?.doc.destroy();
     const next = this.#createDocument(id, seed);
     this.#documents.set(id, next);
@@ -451,15 +477,20 @@ export class CanvasDocumentRegistry {
     return true;
   };
 
-  destroyDocument = (id: string) => {
+  #disposeDocument = (id: string, deletePersisted: boolean) => {
     const document = this.#documents.get(id);
     if (!document || document === this.#active) return false;
-    document.pages.forEach((page) => page.undoManager.destroy());
+    document.pages.forEach((page) => page.dispose());
     document.doc.destroy();
     this.#documents.delete(id);
-    this.#lifecycle?.onDelete(id);
+    if (deletePersisted) this.#lifecycle?.onDelete(id);
     return true;
   };
+
+  /** Releases an inactive runtime document without deleting persisted content. */
+  releaseDocument = (id: string) => this.#disposeDocument(id, false);
+
+  destroyDocument = (id: string) => this.#disposeDocument(id, true);
 
   observeActiveTransactions = (
     listener: (transaction: CanvasDocumentTransaction) => void
@@ -681,6 +712,24 @@ export class CanvasDocumentRegistry {
     }, history);
   };
 
+  patchStructuredContentAt = (
+    address: CanvasDocumentAddress,
+    patch: CanvasStructuredContentPatch,
+    history: CanvasHistoryMode | boolean = "save"
+  ) => {
+    const document = this.#documents.get(address.documentId);
+    const page = document?.pages.get(address.pageId);
+    if (!document || !page || page.descriptor.kind !== "structured") {
+      throw new Error(
+        `Structured page not found: ${address.documentId}/${address.pageId}`
+      );
+    }
+    return this.runTransactionAt(address, () => {
+      applyYMapPatch(page.scene, patch.nodes);
+      applyYMapPatch(page.components, patch.components);
+    }, history);
+  };
+
   replaceCellPage = (
     address: CanvasDocumentAddress,
     entries: [string, GridCell][]
@@ -727,7 +776,7 @@ export class CanvasDocumentRegistry {
           );
         }
       }, HISTORY_IGNORED_ORIGIN);
-      page.undoManager.destroy();
+      page.dispose();
       document.pages.delete(draft.id);
       this.#syncDocumentPages(document);
       return true;
@@ -757,7 +806,7 @@ export class CanvasDocumentRegistry {
     this.#activeListeners.clear();
     this.#historyListeners.clear();
     this.#documents.forEach((document) => {
-      document.pages.forEach((page) => page.undoManager.destroy());
+      document.pages.forEach((page) => page.dispose());
       document.doc.destroy();
     });
     this.#documents.clear();
@@ -887,8 +936,9 @@ export class CanvasDocumentRegistry {
           trackedOrigins: new Set([LOCAL_ORIGIN]),
         }
       ),
+      dispose: () => undefined,
     };
-    operations.observe((event) => {
+    const observeOperations = (event: Y.YArrayEvent<CellPlaneOperation>) => {
       const delta = event.changes.delta;
       const insertedCount = delta.reduce(
         (count, item) => count + (item.insert?.length ?? 0),
@@ -913,6 +963,7 @@ export class CanvasDocumentRegistry {
       if (appendOnly && appended.every(isCellPlaneOperation)) {
         appended.forEach((operation) => runtime.cellPlaneIndex.append(operation));
       } else {
+        runtime.cellPlaneIndex.dispose();
         runtime.cellPlaneIndex = rebuildContentIndex();
         if (
           document === this.#active &&
@@ -921,7 +972,8 @@ export class CanvasDocumentRegistry {
           document.cellPlaneIndex = runtime.cellPlaneIndex;
         }
       }
-    });
+    };
+    operations.observe(observeOperations);
     const notify = () => {
       if (
         document === this.#active &&
@@ -932,6 +984,15 @@ export class CanvasDocumentRegistry {
     runtime.undoManager.on("stack-item-popped", notify);
     runtime.undoManager.on("stack-cleared", notify);
     runtime.undoManager.on("stack-item-updated", notify);
+    runtime.dispose = () => {
+      operations.unobserve(observeOperations);
+      runtime.undoManager.off("stack-item-added", notify);
+      runtime.undoManager.off("stack-item-popped", notify);
+      runtime.undoManager.off("stack-cleared", notify);
+      runtime.undoManager.off("stack-item-updated", notify);
+      runtime.undoManager.destroy();
+      runtime.cellPlaneIndex.dispose();
+    };
     return runtime;
   }
 
@@ -952,7 +1013,7 @@ export class CanvasDocumentRegistry {
       }
     }
     document.pages.forEach((page, pageId) => {
-      if (!nextPages.has(pageId)) page.undoManager.destroy();
+      if (!nextPages.has(pageId)) page.dispose();
     });
     document.pages = nextPages;
     const storedActivePageId = document.root.meta.get("activePageId");
@@ -991,7 +1052,7 @@ export class CanvasDocumentRegistry {
           scene: seed.scene,
           components: seed.components,
         }];
-    document.pages.forEach((page) => page.undoManager.destroy());
+    document.pages.forEach((page) => page.dispose());
     document.doc.transact(() => {
       document.root.pages.clear();
       document.root.pageOrder.delete(0, document.root.pageOrder.length);
@@ -1019,15 +1080,27 @@ export class CanvasDocumentRegistry {
         pageId: document.activePageId,
       },
       sceneChanged: false,
+      sceneChangedIds: [],
       componentsChanged: false,
+      componentChangedIds: [],
       contentChanged: false,
       pagesChanged: false,
     };
     const activePage = document.pages.get(document.activePageId);
-    for (const [type] of transaction.changed) {
+    for (const [type, keys] of transaction.changed) {
       if (Object.is(type, activePage?.operations)) change.contentChanged = true;
-      else if (Object.is(type, activePage?.scene)) change.sceneChanged = true;
-      else if (Object.is(type, activePage?.components)) change.componentsChanged = true;
+      else if (Object.is(type, activePage?.scene)) {
+        change.sceneChanged = true;
+        change.sceneChangedIds = [...keys].filter(
+          (key): key is string => typeof key === "string"
+        );
+      }
+      else if (Object.is(type, activePage?.components)) {
+        change.componentsChanged = true;
+        change.componentChangedIds = [...keys].filter(
+          (key): key is string => typeof key === "string"
+        );
+      }
       else if (
         Object.is(type, document.root.pages) ||
         Object.is(type, document.root.pageOrder)

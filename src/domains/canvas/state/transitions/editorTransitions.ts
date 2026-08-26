@@ -11,6 +11,7 @@ import {
   type StructuredNode,
 } from "@/domains/structured-content/public";
 import { splitGraphemes } from "@/shared/metrics";
+import { createStructuredGridProjection } from "../helpers/gridHelpers";
 
 type SessionRuntime = ReturnType<typeof resolveSessionRuntime>;
 
@@ -163,7 +164,11 @@ export const createSessionActivationPatch = (
   structuredComponents: runtime.nextComponents,
   // Runtime session entries have already crossed the persistence/import decoder.
   // Avoid decoding and cloning every cell again during an interactive switch.
-  grid: contentGrid ?? new Map(runtime.nextGridEntries),
+  grid: contentGrid ?? (
+    runtime.nextMode === "structured"
+      ? createStructuredGridProjection(runtime.nextScene)
+      : new Map(runtime.nextGridEntries)
+  ),
   tool: runtime.nextTool,
   offset: runtime.nextOffset,
   zoom: runtime.nextZoom,

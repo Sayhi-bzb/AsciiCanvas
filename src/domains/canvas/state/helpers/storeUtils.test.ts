@@ -36,7 +36,7 @@ describe("resolveSessionRuntime", () => {
     expect(runtime.nextGridEntries).toBe(grid);
   });
 
-  it("renders a missing structured grid once per scene identity", () => {
+  it("does not synthesize a duplicate grid when structured content has only a scene", () => {
     const scene = [textNode];
     const session: CanvasSession = {
       id: "structured-missing-grid",
@@ -47,13 +47,10 @@ describe("resolveSessionRuntime", () => {
       grid: [],
     };
 
-    const first = resolveSessionRuntime(session, "select");
-    const second = resolveSessionRuntime(session, "select");
+    const runtime = resolveSessionRuntime(session, "select");
 
-    expect(first.nextGridEntries).toContainEqual([
-      "2,3",
-      expect.objectContaining({ char: "C" }),
-    ]);
-    expect(second.nextGridEntries).toBe(first.nextGridEntries);
+    expect(runtime.nextScene).toBe(scene);
+    expect(runtime.nextGridEntries).toBe(session.grid);
+    expect(runtime.nextGridEntries).toEqual([]);
   });
 });

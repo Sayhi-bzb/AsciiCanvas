@@ -6,7 +6,6 @@ import type {
   StructuredComponentInstance,
   StructuredNode,
 } from '@/domains/structured-content/public';
-import { sceneToGridEntries } from '@/domains/structured-content/public';
 import { MIN_ZOOM, MAX_ZOOM } from '@/shared/lib/constants';
 import { serializeGrid } from './snapshotHelpers';
 import { normalizeSessionMode } from '@/domains/sessions/public';
@@ -70,7 +69,7 @@ export const buildSessionSnapshot = (state: EditorState) => {
       mode: 'structured' as const,
       scene: state.structuredScene,
       components: state.structuredComponents,
-      grid: sceneToGridEntries(state.structuredScene),
+      grid: [],
       viewport: { offset: { ...state.offset }, zoom: state.zoom },
     };
   }
@@ -103,10 +102,9 @@ export const resolveSessionRuntime = (session: CanvasSession, currentTool: ToolT
   let nextGridEntries: CanvasSession['grid'];
   if (nextMode === 'structured') {
     const structuredGrid = session.mode !== 'slide' ? session.grid : [];
-    nextGridEntries =
-      structuredGrid.length > 0 || nextScene.length === 0
-        ? structuredGrid
-        : sceneToGridEntries(nextScene);
+    // Scene is authoritative. Keep an existing legacy grid readable, but never
+    // synthesize and retain a second full representation of structured content.
+    nextGridEntries = structuredGrid;
   } else if (nextMode === 'slide' && nextSlideDeck) {
     nextGridEntries =
       nextSlideDeck.slides.find(

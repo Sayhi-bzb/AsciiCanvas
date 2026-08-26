@@ -1,0 +1,33 @@
+{
+  "name": "@chardesk/cli",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Headless CharDesk source renderer and checker",
+  "type": "module",
+  "bin": {
+    "chardesk": "./dist/cli.js"
+  },
+  "scripts": {
+    "prebuild": "npm run build -w @chardesk/fonts && npm run build -w @chardesk/protocol && npm run build -w @chardesk/rendering && npm run build -w @chardesk/chargraph",
+    "build": "tsc -p tsconfig.json",
+    "pretypecheck": "npm run prebuild",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "pretest": "npm run build",
+    "test": "vitest run --config vitest.config.ts"
+  },
+  "dependencies": {
+    "@chardesk/chargraph": "*",
+    "@chardesk/fonts": "*",
+    "@chardesk/protocol": "*",
+    "@chardesk/rendering": "*",
+    "@napi-rs/canvas": "^1.0.8"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.4",
+    "typescript": "~5.9.3",
+    "vitest": "^4.1.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

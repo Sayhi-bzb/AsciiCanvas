@@ -5,6 +5,35 @@ import { CanvasDocumentRegistry } from "./CanvasDocumentRegistry";
 const cell = (char: string) => ({ char, color: "#000000" });
 
 describe("unified Canvas documents", () => {
+  it("releases inactive runtime state without deleting persisted content", () => {
+    const documents = new CanvasDocumentRegistry("canvas-a");
+    const deleted: string[] = [];
+    documents.configureDocumentLifecycle({
+      onCreate: () => undefined,
+      onDelete: (id) => deleted.push(id),
+    });
+    documents.activateDocument("canvas-b", {
+      mode: "freeform",
+      grid: [],
+      scene: [],
+      components: [],
+    });
+
+    expect(documents.releaseDocument("canvas-a")).toBe(true);
+    expect(documents.getDocument("canvas-a")).toBeNull();
+    expect(deleted).toEqual([]);
+
+    documents.activateDocument("canvas-c", {
+      mode: "freeform",
+      grid: [],
+      scene: [],
+      components: [],
+    });
+    expect(documents.destroyDocument("canvas-b")).toBe(true);
+    expect(deleted).toEqual(["canvas-b"]);
+    documents.dispose();
+  });
+
   it("keeps slide pages in one document with page-local history", () => {
     const documents = new CanvasDocumentRegistry("slides");
     documents.activateDocument("slides", {

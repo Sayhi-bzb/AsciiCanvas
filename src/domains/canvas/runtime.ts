@@ -51,6 +51,12 @@ export class CanvasRuntime {
       throw new Error("Canvas persistence requires a non-empty instance key");
     }
     this.documents = options.documents ?? new CanvasDocumentRegistry();
+    this.persistence = options.persistence
+      ? createBrowserCanvasPersistence({
+          legacyStorage: options.persistence.storage,
+          legacyKey: options.persistence.key,
+        })
+      : null;
     const storeInstance = createEditorStore({
       documents: this.documents,
       selectionCommands: options.selectionCommands,
@@ -60,19 +66,18 @@ export class CanvasRuntime {
       // Yjs documents. Zustand remains an in-memory projection.
       persistence: false,
       initialSessions: options.initialSessions,
+      documentResidency: this.persistence ?? undefined,
     });
     this.store = storeInstance.store;
     this.#disposeStore = storeInstance.dispose;
     this.commands = createCanvasCommands(this.store, this.documents);
     this.queries = createCanvasQueries(this.store, this.documents);
-    this.persistence = options.persistence
-      ? createBrowserCanvasPersistence({
-          legacyStorage: options.persistence.storage,
-          legacyKey: options.persistence.key,
-        })
-      : null;
     this.ready = this.persistence
-      ? this.persistence.initialize(this.documents, this.store)
+      ? this.persistence.initialize(
+          this.documents,
+          this.store,
+          options.initialSessions
+        )
       : Promise.resolve();
   }
 
@@ -87,6 +92,9 @@ export class CanvasRuntime {
     this.persistence?.subscribe(listener) ?? (() => undefined);
 
   retryPersistence = () => this.persistence?.retry() ?? Promise.resolve();
+
+  setRetainedCanvasIds = (ids: readonly string[]) =>
+    this.persistence?.setPinnedCanvasIds(ids);
 
   dispose = () => {
     if (this.#disposed) return;

@@ -14,6 +14,7 @@ import {
   CANVAS_CATALOG_MARKER_KEY,
   EDITOR_PERSISTENCE_KEY,
   EDITOR_PERSISTENCE_VERSION,
+  createIndexedDbCanvasCatalog,
   type CanvasSession,
 } from "@/domains/sessions/public";
 import type { StructuredNode } from "@/domains/structured-content/public";
@@ -45,8 +46,18 @@ const EXTRA_DOCUMENT_DATABASES = [
   `chardesk-local-document-v1:${LEGACY_SESSION_ID}`,
   SLIDE_DOCUMENT_DATABASE,
   LEGACY_SLIDE_DOCUMENT_DATABASE,
+  `${DOCUMENT_DATABASE}:generation:1`,
+  `${DOCUMENT_DATABASE}:generation:2`,
+  `chardesk-local-document-v1:${LEGACY_SESSION_ID}:generation:1`,
+  `chardesk-local-document-v1:${LEGACY_SESSION_ID}:generation:2`,
+  `${SLIDE_DOCUMENT_DATABASE}:generation:1`,
+  `${SLIDE_DOCUMENT_DATABASE}:generation:2`,
 ];
 const V4_BACKUP_KEY = "ascii-canvas-persistence-v4-backup";
+const RESIDENCY_SESSION_IDS = Array.from(
+  { length: 6 },
+  (_, index) => `residency-canvas-${index}`
+);
 
 const createRuntime = (
   storage: Storage,
@@ -86,6 +97,9 @@ describe("browser canvas persistence", () => {
     await deleteDB(CANVAS_CATALOG_DATABASE);
     await clearDocument(DOCUMENT_DATABASE);
     await Promise.all(EXTRA_DOCUMENT_DATABASES.map(clearDocument));
+    await Promise.all(RESIDENCY_SESSION_IDS.map((id) =>
+      clearDocument(`chardesk-local-document-v1:${id}`)
+    ));
   });
 
   afterEach(async () => {
@@ -95,6 +109,9 @@ describe("browser canvas persistence", () => {
     await deleteDB(CANVAS_CATALOG_DATABASE);
     await clearDocument(DOCUMENT_DATABASE);
     await Promise.all(EXTRA_DOCUMENT_DATABASES.map(clearDocument));
+    await Promise.all(RESIDENCY_SESSION_IDS.map((id) =>
+      clearDocument(`chardesk-local-document-v1:${id}`)
+    ));
   });
 
   it("restores Yjs cells while the catalog contains metadata only", async () => {
@@ -117,6 +134,55 @@ describe("browser canvas persistence", () => {
     expect(second.getState().grid.get("1,0")?.char).toBe("B");
     expect(storage.getItem(CANVAS_CATALOG_MARKER_KEY)).toBe("1");
     expect(storage.getItem(EDITOR_PERSISTENCE_KEY)).toBeNull();
+  });
+
+  it("loads Canvas documents on demand and keeps only pinned plus recent documents", async () => {
+    const storage = new MemoryStorage();
+    const sessions: CanvasSession[] = RESIDENCY_SESSION_IDS.map((id, index) => ({
+      id,
+      name: `Canvas ${index}`,
+      mode: "freeform",
+      scene: [],
+      components: [],
+      grid: [["0,0", { char: String(index), color: "#111111" }]],
+    }));
+    const runtime = createRuntime(storage, sessions);
+    runtimes.push(runtime);
+    await runtime.ready;
+
+    expect(runtime.documents.getDocumentIds()).toEqual([RESIDENCY_SESSION_IDS[0]]);
+    runtime.setRetainedCanvasIds(RESIDENCY_SESSION_IDS.slice(0, 2));
+
+    for (const [index, id] of RESIDENCY_SESSION_IDS.entries()) {
+      expect(await runtime.commands.sessions.switch(id)).toBe(true);
+      expect(runtime.getState().grid.get("0,0")?.char).toBe(String(index));
+      expect(runtime.documents.getDocumentIds().length).toBeLessThanOrEqual(4);
+    }
+
+    expect(runtime.documents.getDocumentIds()).toEqual(expect.arrayContaining(
+      RESIDENCY_SESSION_IDS.slice(0, 2)
+    ));
+
+    const stale = runtime.commands.sessions.switch(RESIDENCY_SESSION_IDS[2]!);
+    const latest = runtime.commands.sessions.switch(RESIDENCY_SESSION_IDS[3]!);
+    expect(await stale).toBe(false);
+    expect(await latest).toBe(true);
+    expect(runtime.getState().activeCanvasId).toBe(RESIDENCY_SESSION_IDS[3]);
+
+    const releasedId = RESIDENCY_SESSION_IDS.find(
+      (id) => !runtime.documents.getDocument(id)
+    )!;
+    expect(await runtime.commands.sessions.remove(releasedId)).toBe(true);
+    await runtime.retryPersistence();
+    runtime.dispose();
+    runtimes = [];
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const restored = createRuntime(storage, sessions);
+    runtimes.push(restored);
+    await restored.ready;
+    expect(restored.getState().canvasSessions.some(({ id }) => id === releasedId))
+      .toBe(false);
   });
 
   it("repairs intermediate Y.Map page descriptors without losing content", async () => {
@@ -487,5 +553,45 @@ describe("browser canvas persistence", () => {
     expect(writer.getPersistenceSnapshot().ownership).toBe("writer");
     expect(reader.getPersistenceSnapshot().ownership).toBe("reader");
     expect(reader.getState().grid.get("0,0")?.char).toBe("A");
+  });
+
+  it("rotates a tombstone-heavy document into a clean generation", async () => {
+    const storage = new MemoryStorage();
+    const first = createRuntime(storage);
+    runtimes.push(first);
+    await first.ready;
+    await first.retryPersistence();
+    first.dispose();
+    runtimes = [];
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const noisy = new Y.Doc({ guid: SESSION_ID });
+    const provider = new IndexeddbPersistence(DOCUMENT_DATABASE, noisy);
+    await provider.whenSynced;
+    const tombstones = noisy.getMap("compaction-test-tombstones");
+    noisy.transact(() => {
+      for (let index = 0; index < 10_100; index += 1) {
+        tombstones.set(String(index), index);
+      }
+      tombstones.clear();
+    });
+    await storeState(provider, true);
+    await provider.destroy();
+    noisy.destroy();
+
+    const second = createRuntime(storage);
+    runtimes.push(second);
+    await second.ready;
+
+    expect(second.getState().grid.get("0,0")?.char).toBe("A");
+    const catalog = await createIndexedDbCanvasCatalog();
+    const snapshot = await catalog.load();
+    catalog.close();
+    expect(snapshot?.sessions.find(({ id }) => id === SESSION_ID))
+      .toMatchObject({ documentGeneration: 1 });
+    const compacted = second.documents.getCollaborationDocument(SESSION_ID)!;
+    const structCount = Array.from(compacted.store.clients.values())
+      .reduce((count, structs) => count + structs.length, 0);
+    expect(structCount).toBeLessThan(100);
   });
 });

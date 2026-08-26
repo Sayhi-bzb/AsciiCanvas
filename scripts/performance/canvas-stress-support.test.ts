@@ -31,13 +31,19 @@ describe("canvas stress support", () => {
 
   it("classifies every strict threshold independently", () => {
     expect(evaluateCanvasStressLevel({
-      metrics: metrics({ p95FrameMs: 25, over50ms: 3, inputPaintMs: 101 }),
+      metrics: metrics({
+        p95FrameMs: 25,
+        over50ms: 3,
+        inputPaintMs: 101,
+        jsHeapBytes: 300 * 1024 * 1024,
+      }),
       runtimeErrors: ["page crashed"],
       storageError: "quota",
     })).toEqual([
       "p95-frame",
       "over-50ms-frames",
       "input-paint",
+      "js-heap",
       "runtime-error",
       "storage-error",
     ]);
@@ -56,7 +62,12 @@ describe("canvas stress support", () => {
         viewport: { width: 1440, height: 900 },
         deviceScaleFactor: 2,
       },
-      thresholds: { p95FrameMs: 24, maxOver50msFrames: 2, maxInputPaintMs: 100 },
+      thresholds: {
+        p95FrameMs: 24,
+        maxOver50msFrames: 2,
+        maxInputPaintMs: 100,
+        maxJsHeapBytes: 256 * 1024 * 1024,
+      },
       levels: [
         {
           family: "freeform-dense",

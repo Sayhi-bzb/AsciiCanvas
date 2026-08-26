@@ -1,5 +1,6 @@
 import {
   createGridSurfaceReader,
+  createSurfaceGridProjection,
   useCanvasRuntime,
   useCanvasState,
   type CanvasState,
@@ -9,7 +10,7 @@ import { useCanvasViewOptional } from '../engine/CanvasWorkspace';
 import { createStaticGridState } from '@/domains/selection/public';
 import type { CanvasSession } from '@/domains/sessions/public';
 import { useMemo } from 'react';
-import { sceneToGridEntries } from '@/domains/structured-content/public';
+import { createStructuredSceneSurface } from '@/domains/structured-content/public';
 
 type SessionContent = Pick<
   CanvasState,
@@ -34,12 +35,14 @@ const resolveSessionContent = (
       activeCanvasId: session.id,
       canvasMode: session.mode,
       slideDeck: session.slideDeck,
-      grid:
-        (activeSlide &&
-          documents
-            .getContentReader(session.id, activeSlide.id)
-            ?.materialize()) ||
-        new Map(activeSlide?.grid ?? []),
+    grid: activeSlide
+      ? (() => {
+          const reader = documents.getContentReader(session.id, activeSlide.id);
+          return reader
+            ? createSurfaceGridProjection(reader)
+            : new Map(activeSlide.grid);
+        })()
+      : new Map(),
       structuredScene: [],
       structuredComponents: [],
       activeCanvasHasSavedViewport: !!session.viewport,
@@ -51,11 +54,14 @@ const resolveSessionContent = (
     activeCanvasId: session.id,
     canvasMode: session.mode,
     slideDeck: null,
-    grid: new Map(
-      session.mode === 'structured'
-        ? sceneToGridEntries(structuredScene)
-        : seed?.grid ?? session.grid
-    ),
+    grid: session.mode === 'structured'
+      ? createSurfaceGridProjection(createStructuredSceneSurface(structuredScene))
+      : (() => {
+          const reader = documents.getContentReader(session.id);
+          return reader
+            ? createSurfaceGridProjection(reader)
+            : new Map(seed?.grid ?? session.grid);
+        })(),
     structuredScene,
     structuredComponents: seed?.components ?? session.components ?? [],
     activeCanvasHasSavedViewport: !!session.viewport,

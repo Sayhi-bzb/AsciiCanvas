@@ -11,6 +11,7 @@ Load only the required reference:
 - Markdown, fenced Mermaid or data, and math: [`references/chargraph.md`](references/chargraph.md).
 - Multi-field or multi-row Canvas composition: [`references/block-layout.md`](references/block-layout.md).
 - `.slides.md` structure: [`references/slides.md`](references/slides.md).
+- Headless source checking or artifact rendering: [`references/rendering.md`](references/rendering.md).
 - Styled Slides: Slides first, then ANSI.
 - Structured fields in a block layout: Block Layout first, then CharGraph; also
   load ANSI only when the source uses explicit CharDesk styles.
