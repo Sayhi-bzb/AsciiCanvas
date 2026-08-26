@@ -11,6 +11,10 @@ import {
   type CharDeskCliInputMode,
   type CharDeskCliOutputFormat,
 } from "./render.js";
+import {
+  CharDeskCliRasterProcessError,
+  renderSourceInRasterProcess,
+} from "./raster-process.js";
 
 type InputModeOption = "auto" | CharDeskCliInputMode;
 
@@ -266,7 +270,11 @@ const warning = (diagnostic: CharDeskCliDiagnostic) => {
 };
 
 const errorCode = (error: unknown) => {
-  if (error instanceof CliCommandError || error instanceof CharDeskCliRenderError) {
+  if (
+    error instanceof CliCommandError
+    || error instanceof CharDeskCliRenderError
+    || error instanceof CharDeskCliRasterProcessError
+  ) {
     return error.code;
   }
   return "render-failed";
@@ -314,13 +322,21 @@ const runRender = async (
   streams: CliStreams,
   cwd: string
 ) => {
-  const rendered = await renderSource({
-    source,
-    inputMode: resolveInputMode(command),
-    format: command.format,
-    scale: command.scale,
-    padding: command.padding,
-  });
+  const inputMode = resolveInputMode(command);
+  const rendered = command.format === "png"
+    ? await renderSourceInRasterProcess({
+        source,
+        inputMode,
+        scale: command.scale,
+        padding: command.padding,
+      })
+    : await renderSource({
+        source,
+        inputMode,
+        format: command.format,
+        scale: command.scale,
+        padding: command.padding,
+      });
   if (command.strict && rendered.diagnostics.length > 0) {
     const rejected = {
       status: "rejected",

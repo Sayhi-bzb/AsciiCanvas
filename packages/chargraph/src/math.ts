@@ -209,6 +209,10 @@ const identifierAttrs = (variant?: string): CharDeskTextAttributes | undefined =
     : { italic: true };
 
 const FENCE_OPERATORS = new Set(["(", ")", "[", "]", "{", "}", "|", "‖"]);
+const INVISIBLE_MATH_OPERATORS = /[\u2061-\u2064]/gu;
+
+const visibleOperatorText = (value: string) =>
+  value.replace(INVISIBLE_MATH_OPERATORS, "");
 
 const operatorRole = (node: MathMlNode, value: string): MathRun["role"] =>
   node.attributes.fence === "true" || FENCE_OPERATORS.has(value)
@@ -251,7 +255,10 @@ const renderCompact = (
     case "ms":
       return [run(node.text), ...children()];
     case "mo": {
-      const value = `${node.text}${runsText(children())}`.trim();
+      const value = visibleOperatorText(
+        `${node.text}${runsText(children())}`
+      ).trim();
+      if (!value) return [];
       const text = SPACED_OPERATORS.has(value) ? ` ${value} ` : value;
       return [run(text, operatorRole(node, value))];
     }
@@ -526,9 +533,10 @@ const renderBlock = (node: MathMlNode, inheritedVariant?: string): MathBox => {
     case "ms":
       return horizontal([textBox(node.text), ...boxes]);
     case "mo": {
-      const value = `${node.text}${runsText(
+      const value = visibleOperatorText(`${node.text}${runsText(
         node.children.flatMap((child) => renderCompact(child, variant))
-      )}`.trim();
+      )}`).trim();
+      if (!value) return textBox("");
       return textBox(
         SPACED_OPERATORS.has(value) ? ` ${value} ` : value,
         operatorRole(node, value)

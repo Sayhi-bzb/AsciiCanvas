@@ -167,7 +167,7 @@ const renderPng = async (
     import("@napi-rs/canvas"),
     import("./fonts.js"),
   ]);
-  const fontFamilies = await loadCharDeskNodeFonts(model);
+  const { fontFamilies, fontResolver } = await loadCharDeskNodeFonts(model);
   const canvas = createCanvas(layout.width, layout.height);
   const context = canvas.getContext("2d");
   context.fillStyle = PALETTE.background;
@@ -181,6 +181,7 @@ const renderPng = async (
       padding,
       fontAvailability: { text: true, emoji: true },
       fontFamilies,
+      fontResolver,
     }
   );
   return {

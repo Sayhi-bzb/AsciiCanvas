@@ -29,6 +29,13 @@ export type CharDeskCanvasFontFamilies = Record<
   { regular: string; bold?: string }
 >;
 
+export type CharDeskCanvasFontResolver = (input: {
+  grapheme: string;
+  route: CharDeskRenderFontRoute;
+  bold: boolean;
+  italic: boolean;
+}) => string | undefined;
+
 export type CharDeskCanvasCellDrawOptions = {
   color?: string;
   underline?: boolean;
@@ -37,6 +44,7 @@ export type CharDeskCanvasCellDrawOptions = {
   palette?: CharDeskCanvasPalette;
   fontAvailability?: CharDeskCanvasFontAvailability;
   fontFamilies?: CharDeskCanvasFontFamilies;
+  fontResolver?: CharDeskCanvasFontResolver;
 };
 
 export type CharDeskCanvasCellDrawEntry = {
@@ -59,6 +67,7 @@ export type CharDeskCanvasDocumentOptions = {
   zoom?: number;
   fontAvailability?: CharDeskCanvasFontAvailability;
   fontFamilies?: CharDeskCanvasFontFamilies;
+  fontResolver?: CharDeskCanvasFontResolver;
 };
 
 export type CharDeskCanvasDocumentLayout = {
@@ -216,10 +225,15 @@ const drawCellText = (
   const attrs: CharDeskTextAttributes | undefined = visual.attrs;
   const route = visual.fontRoute;
   const routeFamilies = options?.fontFamilies?.[route];
-  const fontFamily = attrs?.bold
-    ? routeFamilies?.bold ?? routeFamilies?.regular
-    : routeFamilies?.regular;
   const text = route === "emoji" && !availability.emoji ? "□" : visual.text;
+  const fontFamily = options?.fontResolver?.({
+    grapheme: text,
+    route,
+    bold: !!attrs?.bold,
+    italic: !!attrs?.italic,
+  }) ?? (attrs?.bold
+    ? routeFamilies?.bold ?? routeFamilies?.regular
+    : routeFamilies?.regular);
   const anchor = getCharDeskCanvasCellAnchor(
     entry.x,
     entry.y,
@@ -313,6 +327,7 @@ export const drawCharDeskCanvasDocument = (
         ? { fontAvailability: options.fontAvailability }
         : {}),
       ...(options.fontFamilies ? { fontFamilies: options.fontFamilies } : {}),
+      ...(options.fontResolver ? { fontResolver: options.fontResolver } : {}),
     },
   }));
   drawCharDeskCanvasCells(ctx, entries);

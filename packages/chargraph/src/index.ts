@@ -46,3 +46,16 @@ export type {
   CharGraphTextRenderResult,
   CharGraphTextRendererId,
 } from "./text.js";
+export {
+  adaptMermaidXYChart,
+  renderCartesianChart,
+  renderCartesianChartSurface,
+} from "./cartesian-chart.js";
+export type {
+  ChartValue,
+  CartesianChartAxis,
+  CartesianChartPoint,
+  CartesianChartSeries,
+  CartesianChartSpec,
+} from "./cartesian-chart.js";
+export { parseVegaLiteChart, VegaLiteChartError } from "./vega-lite-chart.js";

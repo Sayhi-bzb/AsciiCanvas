@@ -22,7 +22,10 @@ import { createCanvasRuntime, type CanvasRuntime } from "../runtime";
 import { gridEntriesToCellPlaneOperation } from "../cell-plane/model";
 import {
   CANVAS_DOCUMENT_SCHEMA_VERSION,
+  getCanvasDocumentRoot,
   getDefaultCanvasPageId,
+  readCanvasPageOrder,
+  readCanvasYPage,
 } from "./canvasDocumentModel";
 
 class MemoryStorage implements Storage {
@@ -593,5 +596,47 @@ describe("browser canvas persistence", () => {
     const structCount = Array.from(compacted.store.clients.values())
       .reduce((count, structs) => count + structs.length, 0);
     expect(structCount).toBeLessThan(100);
+  });
+
+  it("checkpoints a live operation-heavy document without losing content", async () => {
+    const storage = new MemoryStorage();
+    const runtime = createRuntime(storage);
+    runtimes.push(runtime);
+    await runtime.ready;
+
+    const doc = runtime.documents.getCollaborationDocument(SESSION_ID)!;
+    const root = getCanvasDocumentRoot(doc);
+    const page = readCanvasYPage(root, readCanvasPageOrder(root)[0]!)!;
+    doc.transact(() => {
+      page.operations.push(Array.from({ length: 5_000 }, (_, index) =>
+        gridEntriesToCellPlaneOperation(`checkpoint-${index}`, [[
+          "1,0",
+          { char: String(index % 10), color: "#223344" },
+        ]])!
+      ));
+    });
+
+    const checkpoint = runtime.persistence!.runCheckpointNow();
+    runtime.documents.mutateGrid((grid) => {
+      grid.set("2,0", { char: "尾", color: "#556677" });
+    });
+
+    expect(await checkpoint).toBe(true);
+    expect(runtime.documents.getContentReader().getCell({ x: 1, y: 0 }))
+      .toEqual({ char: "9", color: "#223344" });
+    expect(runtime.documents.getContentReader().getCell({ x: 2, y: 0 }))
+      .toEqual({ char: "尾", color: "#556677" });
+    expect(runtime.persistence!.getCheckpointDiagnostics()).toMatchObject({
+      phase: "idle",
+      generation: 1,
+      reason: "operations",
+      tailActions: 1,
+      error: null,
+    });
+    const catalog = await createIndexedDbCanvasCatalog();
+    const snapshot = await catalog.load();
+    catalog.close();
+    expect(snapshot?.sessions.find(({ id }) => id === SESSION_ID))
+      .toMatchObject({ documentGeneration: 1 });
   });
 });

@@ -4,7 +4,10 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { GlobalFonts } from "@napi-rs/canvas";
 import type { CharDeskRenderModel } from "@chardesk/rendering";
-import type { CharDeskCanvasFontFamilies } from "@chardesk/rendering/canvas";
+import type {
+  CharDeskCanvasFontFamilies,
+  CharDeskCanvasFontResolver,
+} from "@chardesk/rendering/canvas";
 
 type FontFace = {
   family: string;
@@ -76,9 +79,14 @@ const aliasFor = (path: string) =>
 const stack = (aliases: readonly string[]) =>
   aliases.map((alias) => `'${alias}'`).join(", ");
 
+type CharDeskNodeFontSet = {
+  fontFamilies: CharDeskCanvasFontFamilies;
+  fontResolver: CharDeskCanvasFontResolver;
+};
+
 export const loadCharDeskNodeFonts = async (
   model: CharDeskRenderModel
-): Promise<CharDeskCanvasFontFamilies> => {
+): Promise<CharDeskNodeFontSet> => {
   const faces = await loadFaces();
   const samples = model.cells
     .filter((cell) => cell.text.trim() !== "")
@@ -119,7 +127,7 @@ export const loadCharDeskNodeFonts = async (
   if (textRegular.length === 0) {
     throw new Error("No regular CharDesk text font was selected.");
   }
-  return {
+  const fontFamilies: CharDeskCanvasFontFamilies = {
     text: {
       regular: stack(textRegular),
       ...(textBold.length > 0
@@ -128,4 +136,28 @@ export const loadCharDeskNodeFonts = async (
     },
     emoji: { regular: stack([...emoji, ...textRegular]) },
   };
+  const fontResolver: CharDeskCanvasFontResolver = ({
+    grapheme,
+    route,
+    bold,
+  }) => {
+    const points = codePoints(grapheme);
+    const preferredWeight = bold ? 700 : 400;
+    const candidates = selected.filter((face) =>
+      (route === "emoji") === (face.family === "Noto Emoji")
+      && (bold ? face.weight >= preferredWeight : face.weight < 700)
+      && faceCovers(face, points)
+    );
+    const fallbackCandidates = candidates.length > 0
+      ? candidates
+      : selected.filter((face) => faceCovers(face, points));
+    const covered = points.every((point) => fallbackCandidates.some((face) =>
+      face.ranges.length === 0
+      || face.ranges.some(({ from, to }) => point >= from && point <= to)
+    ));
+    if (!covered) return undefined;
+    return stack(fallbackCandidates.map((face) => registeredPaths.get(face.path)!)
+      .filter(Boolean));
+  };
+  return { fontFamilies, fontResolver };
 };

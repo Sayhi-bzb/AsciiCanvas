@@ -11,7 +11,7 @@ CharGraph routes diagrams by coordinate model, not Mermaid diagram name:
 | --- | --- | --- |
 | Directed relationships | Flow, State, Class, and ER | ELK Layered |
 | Time sequence | Sequence | Participant columns and message rows |
-| Cartesian data | XY | Axis and data-coordinate projection |
+| Cartesian data | Mermaid XY and Vega-Lite fences | `CartesianChartSpec` and D3 scales |
 
 The directed-graph pipeline is:
 
@@ -55,6 +55,13 @@ automatic placement.
 Flow, State, Class, and ER use the same structural color roles: `node.border`,
 `edge.line`, and `edge.arrow`. Diagram topology does not assign colors. XY
 series retain independent `series.1`–`series.5` roles.
+
+`CartesianChartSpec` is the renderer-facing chart contract. Linear axes retain
+numeric coordinates; band axes retain ordered categories. D3 owns domain,
+ticks, and scale projection; Unicode rendering owns integer-cell quantization
+and mark glyphs. Vega-Lite unit specs and flat layers adapt inline `data.values`
+into that contract. Unsupported URL data, transforms, facets, repeats, and
+concatenation preserve the fenced source with a diagnostic.
 
 The shared layered renderer owns layout invocation, validation, group-edge-node
 composition order, route labels, cropping, and serialization. Diagram adapters

@@ -69,6 +69,25 @@ describe("CharDesk Canvas 2D renderer", () => {
     expect(context.font).toContain("700 15px Bold Face");
   });
 
+  it("lets headless hosts resolve an exact font for each grapheme", () => {
+    const { context } = createContext();
+    const fontResolver = vi.fn(() => "Exact Shard");
+    drawCharDeskCanvasCells(context, [{
+      cell: resolveCharDeskCellVisual({ text: "A", attrs: { italic: true } }),
+      x: 0,
+      y: 0,
+      options: { fontResolver },
+    }]);
+
+    expect(fontResolver).toHaveBeenCalledWith({
+      grapheme: "A",
+      route: "text",
+      bold: false,
+      italic: true,
+    });
+    expect(context.font).toContain("Exact Shard");
+  });
+
   it("draws all backgrounds before text and resolves inverse colors", () => {
     const { context, operations } = createContext();
     drawCharDeskCanvasCells(context, [{

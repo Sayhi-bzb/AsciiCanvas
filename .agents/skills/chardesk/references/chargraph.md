@@ -13,6 +13,8 @@ reinterpret existing cells.
 - `json`, `jsonc`, `yaml`, and `yml` fences: compact Unicode trees. Bare JSON
   or YAML is not detected.
 - `mermaid` fences: flowchart, state, sequence, class, ER, and XY chart.
+- `vega-lite` or `vegalite` fences: inline Cartesian line, point, bar, and
+  error-bar charts. Use `data.values`; URL data and transforms are unsupported.
 - Inline math: `$...$` and `\(...\)`.
 - Block math: `$$...$$`, `\[...\]`, and `math`, `tex`, or `latex` fences.
 

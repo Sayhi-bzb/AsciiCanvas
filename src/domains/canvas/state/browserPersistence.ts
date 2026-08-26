@@ -33,16 +33,30 @@ import { getSessionCanvasDocumentId } from "./helpers/storeUtils";
 import { rebuildGridFromContent } from "./helpers/gridHelpers";
 import {
   CANVAS_DOCUMENT_SCHEMA_VERSION,
-  createCanvasYPage,
   getCanvasDocumentRoot,
   getDefaultCanvasPageId,
   readCanvasPageDescriptor,
   readCanvasPageOrder,
   readCanvasYPage,
   writeCanvasDocumentMetadata,
-  type CanvasPageDraft,
 } from "./canvasDocumentModel";
 import type { CanvasDocumentResidency } from "./documentResidencyPort";
+import {
+  applyCanvasDocumentSeed,
+  createCompactedDocument,
+  readDocumentSeed,
+  resolveSeedPages,
+} from "./canvasCheckpointDocument";
+import {
+  CanvasCheckpointWorkerClient,
+} from "./canvasCheckpointWorkerClient";
+import { encodeCanvasCheckpointSnapshot } from "./canvasCheckpointSnapshot";
+import type { CanvasCheckpointTailEntry } from "./canvasCheckpointProtocol";
+import {
+  CanvasCheckpointService,
+  type CanvasCheckpointCandidate,
+  type CanvasCheckpointDiagnostics,
+} from "./CanvasCheckpointService";
 
 const LOCAL_DOCUMENT_PREFIX = "chardesk-local-document-v1:";
 const HISTORICAL_EDITOR_PERSISTENCE_KEYS = [
@@ -52,6 +66,7 @@ const HISTORICAL_EDITOR_PERSISTENCE_KEYS = [
 const SAVE_DELAY = 500;
 const DOCUMENT_GENERATION_SUFFIX = ":generation:";
 const DOCUMENT_STRUCT_ROTATION_THRESHOLD = 10_000;
+const CHECKPOINT_IDLE_DELAY = 5_000;
 const WRITER_LOCK_NAME = "chardesk-canvas-workspace-writer-v1";
 const WRITER_LEASE_KEY = "chardesk-canvas-writer-lease-v1";
 const WRITER_LEASE_DURATION = 8_000;
@@ -75,6 +90,18 @@ type PersistedDocument = {
   doc: Y.Doc;
   provider: IndexeddbPersistence;
   updateListener: () => void;
+};
+
+type BrowserCheckpointCandidate = CanvasCheckpointCandidate & {
+  id: string;
+  databaseName: string;
+  taskId: number;
+  doc: Y.Doc | null;
+  provider: IndexeddbPersistence | null;
+  digest: string | null;
+  snapshotBytes: number;
+  reclaimedBytes: number;
+  committed: boolean;
 };
 
 type PersistedDocumentLocation = {
@@ -216,87 +243,39 @@ const isDocumentEmpty = (doc: Y.Doc) => {
     !hasLegacyContent(doc);
 };
 
-const resolveSeedPages = (
-  id: string,
-  seed: CanvasDocumentSeed
-): CanvasPageDraft[] => {
-  if (seed.pages?.length) return seed.pages;
-  const kind = seed.mode === "structured" ? "structured" : "cell-plane";
-  return [{
-    id: seed.activePageId ?? getDefaultCanvasPageId(id),
-    kind,
-    ...(kind === "structured"
-      ? { scene: seed.scene, components: seed.components ?? [] }
-      : { grid: seed.grid }),
-  }];
-};
-
-const applySeed = (doc: Y.Doc, id: string, seed: CanvasDocumentSeed) => {
-  doc.transact(() => {
-    const root = getCanvasDocumentRoot(doc);
-    const pages = resolveSeedPages(id, seed);
-    pages.forEach((page) =>
-      createCanvasYPage(root, page, `bootstrap:${id}:${page.id}`)
-    );
-    const activePageId =
-      seed.activePageId && pages.some((page) => page.id === seed.activePageId)
-        ? seed.activePageId
-        : pages[0]!.id;
-    writeCanvasDocumentMetadata(
-      root,
-      id,
-      seed.mode ?? (pages[0]!.kind === "structured" ? "structured" : "freeform"),
-      activePageId
-    );
-  }, "local-persistence-bootstrap");
-};
-
-const readDocumentSeed = (doc: Y.Doc, id: string): CanvasDocumentSeed => {
-  const root = getCanvasDocumentRoot(doc);
-  const pages = readCanvasPageOrder(root).flatMap((pageId): CanvasPageDraft[] => {
-    const page = readCanvasYPage(root, pageId);
-    if (!page) return [];
-    if (page.descriptor.kind === "cell-plane") {
-      return [{
-        ...page.descriptor,
-        grid: Array.from(new CellPlaneIndex(
-          page.operations.toArray().filter(isCellPlaneOperation)
-        ).materialize()),
-      }];
-    }
-    return [{
-      ...page.descriptor,
-      scene: Array.from(page.scene.values()),
-      components: Array.from(page.components.values()),
-    }];
-  });
-  if (pages.length === 0) {
-    throw new Error(`Canvas document compaction found no pages: ${id}`);
-  }
-  const storedMode = root.meta.get("mode");
-  const mode =
-    storedMode === "freeform" || storedMode === "structured" || storedMode === "slide"
-      ? storedMode
-      : pages[0]!.kind === "structured" ? "structured" : "freeform";
-  const storedActivePageId = root.meta.get("activePageId");
-  return {
-    mode,
-    activePageId:
-      typeof storedActivePageId === "string" &&
-      pages.some((page) => page.id === storedActivePageId)
-        ? storedActivePageId
-        : pages[0]!.id,
-    pages,
-    grid: [],
-    scene: [],
-    components: [],
-  };
-};
-
 const countDocumentStructs = (doc: Y.Doc) => {
   let count = 0;
   doc.store.clients.forEach((structs) => { count += structs.length; });
   return count;
+};
+
+const getDocumentAuthorityMetrics = (doc: Y.Doc) => {
+  const root = getCanvasDocumentRoot(doc);
+  let operations = 0;
+  let authorityPayloadBytes = 0;
+  readCanvasPageOrder(root).forEach((pageId) => {
+    const page = readCanvasYPage(root, pageId);
+    if (page?.descriptor.kind === "structured") {
+      page.scene.forEach((value) => {
+        authorityPayloadBytes += JSON.stringify(value).length * 2;
+      });
+      page.components.forEach((value) => {
+        authorityPayloadBytes += JSON.stringify(value).length * 2;
+      });
+    }
+    page?.operations.forEach((operation) => {
+      if (!isCellPlaneOperation(operation)) return;
+      operations += 1;
+      authorityPayloadBytes += "payload" in operation
+        ? operation.payload.byteLength
+        : JSON.stringify(operation.rows).length * 2;
+    });
+  });
+  return {
+    yjsStructs: countDocumentStructs(doc),
+    operations,
+    authorityPayloadBytes,
+  };
 };
 
 const hasLegacyCellPlaneOperations = (doc: Y.Doc) => {
@@ -308,12 +287,6 @@ const hasLegacyCellPlaneOperations = (doc: Y.Doc) => {
         isCellPlaneOperation(operation) && !isEncodedCellPlaneOperation(operation)
     ) ?? false;
   });
-};
-
-const createCompactedDocument = (doc: Y.Doc, id: string) => {
-  const compacted = new Y.Doc({ guid: id });
-  applySeed(compacted, id, readDocumentSeed(doc, id));
-  return compacted;
 };
 
 const seedFromSession = (session: CanvasSession): CanvasDocumentSeed =>
@@ -758,6 +731,14 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
   readonly #documents = new Map<string, PersistedDocument>();
   readonly #dirtyDocuments = new Map<string, number>();
   readonly #documentGenerations = new Map<string, number>();
+  readonly #documentRevisions = new Map<string, number>();
+  readonly #checkpointServices = new Map<
+    string,
+    CanvasCheckpointService<BrowserCheckpointCandidate>
+  >();
+  readonly #checkpointTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  readonly #checkpointTails = new Map<string, CanvasCheckpointTailEntry[]>();
+  readonly #checkpointWorker = new CanvasCheckpointWorkerClient();
   readonly #obsoleteDocumentDatabases = new Set<string>();
   readonly #pinnedCanvasIds = new Set<string>();
   readonly #recentCanvasIds: string[] = [];
@@ -765,6 +746,7 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
   #catalog: CanvasCatalog | null = null;
   #store: CanvasStore | null = null;
   #unsubscribeStore: (() => void) | null = null;
+  #unsubscribeMutations: (() => void) | null = null;
   #metadataTimer: ReturnType<typeof setTimeout> | null = null;
   #documentTimer: ReturnType<typeof setTimeout> | null = null;
   #evictionTask: Promise<void> = Promise.resolve();
@@ -851,7 +833,11 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
         }
       });
       persistedDocuments.forEach(({ id, generation }) => {
-        if (generation !== (this.#documentGenerations.get(id) ?? 0)) {
+        const activeGeneration = this.#documentGenerations.get(id) ?? 0;
+        if (
+          generation !== activeGeneration &&
+          generation !== activeGeneration - 1
+        ) {
           this.#obsoleteDocumentDatabases.add(
             getDocumentDatabaseName(id, generation)
           );
@@ -927,6 +913,22 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
       }
       store.setState(hydrated, true);
       if (this.#writerLease.writer) {
+        this.#unsubscribeMutations = documents.subscribeMutations((envelope) => {
+          const revision = this.#documentRevisions.get(envelope.documentId) ?? 0;
+          if (revision <= 0 || !this.#documents.has(envelope.documentId)) return;
+          const entries = this.#checkpointTails.get(envelope.documentId) ?? [];
+          const last = entries.at(-1);
+          if (last?.revision === revision) {
+            entries[entries.length - 1] = {
+              revision,
+              envelopes: [...last.envelopes, envelope],
+            };
+          } else {
+            entries.push({ revision, envelopes: [envelope] });
+          }
+          if (entries.length > 4_096) entries.splice(0, entries.length - 4_096);
+          this.#checkpointTails.set(envelope.documentId, entries);
+        });
         documents.configureDocumentLifecycle({
           onCreate: (id, doc) => this.#attachDocument(id, doc),
           onDelete: (id) => { void this.#deleteDocument(id); },
@@ -985,6 +987,17 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
     }
   };
 
+  getCheckpointDiagnostics = (
+    id = this.#registry?.getActiveDocumentId()
+  ): CanvasCheckpointDiagnostics | null =>
+    id ? this.#checkpointServices.get(id)?.getDiagnostics() ?? null : null;
+
+  runCheckpointNow = (
+    id = this.#registry?.getActiveDocumentId()
+  ) => id
+    ? this.#checkpointServices.get(id)?.run() ?? Promise.resolve(false)
+    : Promise.resolve(false);
+
   ensureLoaded = async (session: CanvasSession): Promise<boolean> => {
     const documents = this.#registry;
     if (!documents) return false;
@@ -1034,8 +1047,16 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
   dispose = () => {
     this.#unsubscribeStore?.();
     this.#unsubscribeStore = null;
+    this.#unsubscribeMutations?.();
+    this.#unsubscribeMutations = null;
     if (this.#metadataTimer) clearTimeout(this.#metadataTimer);
     if (this.#documentTimer) clearTimeout(this.#documentTimer);
+    this.#checkpointTimers.forEach((timer) => clearTimeout(timer));
+    this.#checkpointTimers.clear();
+    this.#checkpointServices.forEach((service) => service.cancel());
+    this.#checkpointServices.clear();
+    this.#checkpointTails.clear();
+    void this.#checkpointWorker.dispose();
     this.#documents.forEach(({ doc, provider, updateListener }) => {
       doc.off("update", updateListener);
       void provider.destroy();
@@ -1178,7 +1199,7 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
     if (!this.#writerLease?.writer) {
       await provider.destroy();
       const migrated = migrateLegacyDocument(doc, id, seed);
-      if (isDocumentEmpty(doc)) applySeed(doc, id, seed);
+      if (isDocumentEmpty(doc)) applyCanvasDocumentSeed(doc, id, seed);
       if (
         migrated ||
         hasLegacyCellPlaneOperations(doc) ||
@@ -1192,7 +1213,7 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
     }
     const migrated = migrateLegacyDocument(doc, id, seed);
     const seeded = isDocumentEmpty(doc);
-    if (seeded) applySeed(doc, id, seed);
+    if (seeded) applyCanvasDocumentSeed(doc, id, seed);
     if (
       migrated ||
       hasLegacyCellPlaneOperations(doc) ||
@@ -1244,9 +1265,16 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
     doc: Y.Doc,
     provider: IndexeddbPersistence
   ) {
-    const updateListener = () => this.#scheduleDocumentFlush(id);
+    this.#documentRevisions.set(id, this.#documentRevisions.get(id) ?? 0);
+    const updateListener = () => {
+      this.#documentRevisions.set(id, (this.#documentRevisions.get(id) ?? 0) + 1);
+      this.#scheduleDocumentFlush(id);
+      this.#scheduleCheckpoint(id);
+    };
     doc.on("update", updateListener);
     this.#documents.set(id, { doc, provider, updateListener });
+    this.#ensureCheckpointService(id);
+    this.#scheduleCheckpoint(id);
   }
 
   async #closePersistedDocument(id: string, doc: Y.Doc) {
@@ -1257,6 +1285,7 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
       await persisted.provider.destroy();
       this.#documents.delete(id);
       this.#dirtyDocuments.delete(id);
+      this.#clearCheckpoint(id);
     }
     doc.destroy();
   }
@@ -1269,6 +1298,7 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
     if (this.#dirtyDocuments.has(id)) await storeState(persisted.provider, false);
     await persisted.provider.destroy();
     this.#dirtyDocuments.delete(id);
+    this.#clearCheckpoint(id);
   }
 
   async #releaseDocument(id: string) {
@@ -1281,6 +1311,7 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
       await persisted.provider.destroy();
       this.#documents.delete(id);
       this.#dirtyDocuments.delete(id);
+      this.#clearCheckpoint(id);
     }
     const released = documents.releaseDocument(id);
     if (released) {
@@ -1321,6 +1352,8 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
       await current.provider.clearData();
     }
     this.#documentGenerations.delete(id);
+    this.#documentRevisions.delete(id);
+    this.#clearCheckpoint(id);
     const locations = await listPersistedDocuments();
     await Promise.all(locations
       .filter((location) => location.id === id)
@@ -1384,6 +1417,165 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
         })
         .catch((error) => this.#handleError(error));
     }, SAVE_DELAY);
+  }
+
+  #scheduleCheckpoint(id: string) {
+    if (!this.#writerLease?.writer) return;
+    const existing = this.#checkpointTimers.get(id);
+    if (existing) clearTimeout(existing);
+    const timer = setTimeout(() => {
+      this.#checkpointTimers.delete(id);
+      void this.#checkpointServices.get(id)?.run().then((committed) => {
+        if (!committed && this.#checkpointServices.get(id)?.evaluate()) {
+          this.#scheduleCheckpoint(id);
+        }
+      }).catch((error) => this.#handleError(error));
+    }, CHECKPOINT_IDLE_DELAY);
+    this.#checkpointTimers.set(id, timer);
+  }
+
+  #clearCheckpoint(id: string) {
+    const timer = this.#checkpointTimers.get(id);
+    if (timer) clearTimeout(timer);
+    this.#checkpointTimers.delete(id);
+    this.#checkpointServices.get(id)?.cancel();
+    this.#checkpointServices.delete(id);
+    this.#checkpointTails.delete(id);
+  }
+
+  #ensureCheckpointService(id: string) {
+    if (this.#checkpointServices.has(id)) return;
+    const service = new CanvasCheckpointService<BrowserCheckpointCandidate>({
+      getGeneration: () => this.#documentGenerations.get(id) ?? 0,
+      getRevision: () => this.#documentRevisions.get(id) ?? 0,
+      getMetrics: () => {
+        const document = this.#documents.get(id);
+        return document
+          ? getDocumentAuthorityMetrics(document.doc)
+          : { yjsStructs: 0, operations: 0, authorityPayloadBytes: 0 };
+      },
+      build: async (generation, baseRevision, report) => {
+        const source = this.#documents.get(id)?.doc;
+        if (!source) throw new Error(`Canvas checkpoint source is unavailable: ${id}`);
+        const databaseName = getDocumentDatabaseName(id, generation);
+        report("encoding");
+        const snapshot = await encodeCanvasCheckpointSnapshot(source, id);
+        report("materializing", { snapshotBytes: snapshot.bytes });
+        const taskId = await this.#checkpointWorker.build({
+          documentId: id,
+          databaseName,
+          generation,
+          baseRevision,
+          snapshot: snapshot.buffer,
+        });
+        return {
+          id,
+          generation,
+          baseRevision,
+          databaseName,
+          taskId,
+          doc: null,
+          provider: null,
+          digest: null,
+          snapshotBytes: snapshot.bytes,
+          reclaimedBytes: 0,
+          committed: false,
+        };
+      },
+      catchUp: async (candidate, currentRevision, report) => {
+        const entries = (this.#checkpointTails.get(id) ?? []).filter(
+          ({ revision }) =>
+            revision > candidate.baseRevision && revision <= currentRevision
+        );
+        let expected = candidate.baseRevision + 1;
+        for (const entry of entries) {
+          if (entry.revision !== expected) return null;
+          expected += 1;
+        }
+        if (expected !== currentRevision + 1) return null;
+        report("replaying", {
+          tailActions: entries.reduce(
+            (count, entry) => count + entry.envelopes.length,
+            0
+          ),
+        });
+        candidate.baseRevision = await this.#checkpointWorker.appendTail(
+          candidate.taskId,
+          entries
+        );
+        return candidate;
+      },
+      verify: async (candidate, report) => {
+        report("persisting");
+        const result = await this.#checkpointWorker.finalize(candidate.taskId);
+        report("reopening", {
+          workerDurationMs: result.workerDurationMs,
+          snapshotBytes: result.snapshotBytes,
+        });
+        candidate.baseRevision = result.baseRevision;
+        candidate.digest = result.digest;
+        candidate.reclaimedBytes = Math.max(
+          0,
+          candidate.snapshotBytes - result.compactedBytes
+        );
+        const doc = new Y.Doc({ guid: id });
+        Y.applyUpdate(doc, result.update, "canvas-checkpoint-worker");
+        const provider = new IndexeddbPersistence(candidate.databaseName, doc);
+        await provider.whenSynced;
+        candidate.doc = doc;
+        candidate.provider = provider;
+        if (!hasValidPages(doc)) {
+          throw new Error(`Canvas checkpoint has no valid pages: ${id}`);
+        }
+        report("verifying");
+      },
+      commit: async (candidate) => {
+        const current = this.#documents.get(id);
+        const registry = this.#registry;
+        if (!current || !registry || !candidate.doc || !candidate.provider) {
+          throw new Error(`Canvas checkpoint target is unavailable: ${id}`);
+        }
+        if ((this.#documentRevisions.get(id) ?? 0) !== candidate.baseRevision) {
+          throw new Error(`Canvas checkpoint changed before commit: ${id}`);
+        }
+        const previousGeneration = this.#documentGenerations.get(id) ?? 0;
+        this.#documentGenerations.set(id, candidate.generation);
+        try {
+          await this.#saveCatalog();
+          if ((this.#documentRevisions.get(id) ?? 0) !== candidate.baseRevision) {
+            this.#documentGenerations.set(id, previousGeneration);
+            await this.#saveCatalog();
+            throw new Error(`Canvas checkpoint changed during commit: ${id}`);
+          }
+        } catch (error) {
+          this.#documentGenerations.set(id, previousGeneration);
+          throw error;
+        }
+        current.doc.off("update", current.updateListener);
+        this.#documents.delete(id);
+        candidate.committed = true;
+        this.#registerDocument(id, candidate.doc, candidate.provider);
+        registry.adoptDocument(id, candidate.doc);
+        await current.provider.destroy();
+        this.#dirtyDocuments.delete(id);
+        const tail = this.#checkpointTails.get(id) ?? [];
+        this.#checkpointTails.set(
+          id,
+          tail.filter(({ revision }) => revision > candidate.baseRevision)
+        );
+        return { reclaimedBytes: candidate.reclaimedBytes };
+      },
+      abort: async (candidate) => {
+        if (candidate.committed) return;
+        await candidate.provider?.destroy();
+        candidate.doc?.destroy();
+        await this.#checkpointWorker.abort(
+          candidate.taskId,
+          candidate.databaseName
+        );
+      },
+    });
+    this.#checkpointServices.set(id, service);
   }
 
   #saveCatalog() {

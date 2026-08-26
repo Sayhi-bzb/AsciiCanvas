@@ -22,6 +22,10 @@ import {
   markdownMermaidExtension,
 } from "./markdown-mermaid.js";
 import {
+  MARKDOWN_CHART_STYLE_ROLES,
+  markdownChartExtension,
+} from "./markdown-chart.js";
+import {
   defineCharDeskMarkdownFeature,
   defineCharDeskMarkdownModule,
 } from "./markdown-module.js";
@@ -128,6 +132,7 @@ const mathStyle = feature("math-style", "style", {
   structure: token("muted"),
 });
 const mermaid = feature("mermaid", "extension", CHARDESK_MERMAID_COLOR_DEFAULTS);
+const chart = feature("chart", "extension", {});
 
 const mixHexColors = (foreground: string, background: string, weight: number) => {
   const channel = (value: string, offset: number) =>
@@ -329,12 +334,29 @@ const mermaidModule = defineCharDeskMarkdownModule({
   },
 });
 
+const chartModule = defineCharDeskMarkdownModule({
+  id: "chart",
+  extensions: [markdownChartExtension],
+  features: [chart],
+  styleRoles: MARKDOWN_CHART_STYLE_ROLES,
+  resolveStyles(context) {
+    const styles = createCharDeskMermaidStyles({ theme: context.theme });
+    return {
+      extensionStyles: Object.fromEntries(MERMAID_STYLE_ROLES.map((role) => [
+        `chart.${role}`,
+        styles[role],
+      ])),
+    };
+  },
+});
+
 export const CHARDESK_MARKDOWN_MODULES = Object.freeze([
   coreModule,
   alertModule,
   diffModule,
   dataTreeModule,
   mathModule,
+  chartModule,
   mermaidModule,
 ]);
 

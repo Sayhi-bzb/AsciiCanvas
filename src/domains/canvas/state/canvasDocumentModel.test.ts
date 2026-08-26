@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
 import { CanvasDocumentRegistry } from "./CanvasDocumentRegistry";
+import {
+  createCanvasYPage,
+  getCanvasDocumentRoot,
+  writeCanvasDocumentMetadata,
+} from "./canvasDocumentModel";
 
 const cell = (char: string) => ({ char, color: "#000000" });
 
@@ -64,6 +69,37 @@ describe("unified Canvas documents", () => {
     expect(documents.getContentReader("slides", "slide-b")?.getCell({ x: 0, y: 0 }))
       .toBeUndefined();
     expect(documents.getContentReader("slides", "slide-a")?.getCell({ x: 0, y: 0 }))
+      .toEqual(cell("A"));
+    documents.dispose();
+  });
+
+  it("keeps semantic undo available after adopting a compacted Y.Doc", () => {
+    const id = "checkpoint-history";
+    const documents = new CanvasDocumentRegistry(id);
+    documents.mutateGrid((grid) => grid.set("0,0", cell("A")));
+    const draft = documents.getDocumentDraft(id)!;
+    const compacted = new Y.Doc({ guid: id });
+    const root = getCanvasDocumentRoot(compacted);
+    compacted.transact(() => {
+      draft.pages.forEach((page) => createCanvasYPage(
+        root,
+        page,
+        `checkpoint:${id}:${page.id}`
+      ));
+      writeCanvasDocumentMetadata(
+        root,
+        id,
+        draft.mode,
+        draft.activePageId
+      );
+    });
+
+    documents.adoptDocument(id, compacted);
+    expect(documents.getHistoryAvailability().canUndo).toBe(true);
+    expect(documents.undo()).toBe(true);
+    expect(documents.getContentReader().getCell({ x: 0, y: 0 })).toBeUndefined();
+    expect(documents.redo()).toBe(true);
+    expect(documents.getContentReader().getCell({ x: 0, y: 0 }))
       .toEqual(cell("A"));
     documents.dispose();
   });

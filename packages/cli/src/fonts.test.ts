@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { parseCharDeskFontFaces } from "./fonts.js";
+import { createCharDeskRenderModel } from "@chardesk/rendering";
+import { loadCharDeskNodeFonts, parseCharDeskFontFaces } from "./fonts.js";
 
 describe("CharDesk Node font CSS", () => {
   it("resolves generated font faces and Unicode ranges", () => {
@@ -21,5 +22,22 @@ describe("CharDesk Node font CSS", () => {
         { from: 0x1f600, to: 0x1f600 },
       ],
     }]);
+  });
+});
+
+describe("CharDesk Node font resolver", () => {
+  it("uses a minimal shard stack for a single grapheme", async () => {
+    const { fontResolver } = await loadCharDeskNodeFonts(
+      createCharDeskRenderModel("max\u2061")
+    );
+    const family = fontResolver({
+      grapheme: "\u2061",
+      route: "text",
+      bold: false,
+      italic: false,
+    });
+
+    expect(family).toBeTruthy();
+    expect(family?.split(", ")).toHaveLength(1);
   });
 });

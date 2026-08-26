@@ -34,11 +34,15 @@ import {
   type CanvasYDocumentRoot,
   type CanvasYPage,
 } from "./canvasDocumentModel";
+import { CanvasHistoryJournal } from "./CanvasHistoryJournal";
+import type { CanvasMutationEnvelope } from "./canvasMutationEnvelope";
 export type CanvasHistoryMode = "save" | "merge" | "none" | "reset";
 export type CanvasHistoryCheckpoint = {
   commit: () => void;
   cancel: () => void;
 };
+
+export type CanvasMutationListener = (envelope: CanvasMutationEnvelope) => void;
 
 export type CanvasStructuredContentPatch = {
   nodes?: {
@@ -159,9 +163,11 @@ export class CanvasDocumentRegistry {
   readonly #historyListeners = new Set<(
     availability: { canUndo: boolean; canRedo: boolean }
   ) => void>();
+  readonly #mutationListeners = new Set<CanvasMutationListener>();
   #active: CanvasYDocument;
   #lifecycle: CanvasDocumentLifecycle | null = null;
   #operationSequence = 0;
+  readonly #historyJournal: CanvasHistoryJournal;
   readonly #recentPageIndexes: Array<{ documentId: string; pageId: string }> = [];
   #disposed = false;
 
@@ -170,6 +176,9 @@ export class CanvasDocumentRegistry {
   readonly yStructuredComponents: Y.Map<StructuredComponentInstance>;
 
   constructor(initialId = "canvas-initial") {
+    this.#historyJournal = new CanvasHistoryJournal({
+      apply: (envelope) => this.#applyMutationEnvelope(envelope),
+    });
     this.#active = this.#createDocument(initialId);
     this.#documents.set(initialId, this.#active);
     this.yCellPlaneOperations = createProxy(() => this.#active.operations);
@@ -178,8 +187,9 @@ export class CanvasDocumentRegistry {
   }
 
   getHistoryAvailability = () => ({
-    canUndo: this.#active.undoManager.undoStack.length > 0,
-    canRedo: this.#active.undoManager.redoStack.length > 0,
+    ...this.#historyJournal.getAvailability(
+      this.#historyKey(this.getActiveAddress())
+    ),
   });
 
   subscribeHistoryAvailability = (
@@ -187,6 +197,11 @@ export class CanvasDocumentRegistry {
   ) => {
     this.#historyListeners.add(listener);
     return () => this.#historyListeners.delete(listener);
+  };
+
+  subscribeMutations = (listener: CanvasMutationListener) => {
+    this.#mutationListeners.add(listener);
+    return () => this.#mutationListeners.delete(listener);
   };
 
   getActiveDocumentId = () => this.#active.id;
@@ -428,6 +443,7 @@ export class CanvasDocumentRegistry {
         );
       }, HISTORY_IGNORED_ORIGIN);
       this.#syncDocumentPages(document);
+      this.#emitMutation({ kind: "page-upsert", documentId, page: draft });
     }
     return options?.activate ? this.activatePage(documentId, draft.id) : true;
   };
@@ -450,6 +466,7 @@ export class CanvasDocumentRegistry {
       const nextId = nextOrder[Math.min(previousIndex, nextOrder.length - 1)];
       if (nextId) this.#setActivePage(document, nextId);
     }
+    this.#emitMutation({ kind: "page-delete", documentId, pageId });
     return true;
   };
 
@@ -469,6 +486,11 @@ export class CanvasDocumentRegistry {
       });
     }, HISTORY_IGNORED_ORIGIN);
     this.#syncDocumentPages(document);
+    this.#emitMutation({
+      kind: "page-metadata",
+      documentId,
+      page: document.pages.get(pageId)?.descriptor ?? page.descriptor,
+    });
     return true;
   };
 
@@ -484,6 +506,13 @@ export class CanvasDocumentRegistry {
       document.root.pageOrder.delete(0, document.root.pageOrder.length);
       document.root.pageOrder.push(pageIds);
     }, HISTORY_IGNORED_ORIGIN);
+    this.#emitMutation({
+      kind: "page-order",
+      documentId,
+      pageIds,
+      activePageId: document.activePageId,
+      mode: this.#readDocumentMode(document),
+    });
     return true;
   };
 
@@ -493,6 +522,7 @@ export class CanvasDocumentRegistry {
   ) => {
     const previous = this.#active;
     const existing = this.#documents.get(id);
+    if (existing) this.#clearDocumentHistory(existing);
     existing?.pages.forEach((page) => page.dispose());
     existing?.doc.destroy();
     const next = this.#createDocument(id, seed);
@@ -529,12 +559,14 @@ export class CanvasDocumentRegistry {
     }, HISTORY_IGNORED_ORIGIN);
     document.operationFormat = documentVersion === 4 ? "legacy" : "encoded";
     document.undoManager.clear();
+    this.#clearDocumentHistory(document);
     return true;
   };
 
   resetDocument = (id: string, seed: CanvasDocumentSeed) => {
     const document = this.#documents.get(id);
     if (!document) return false;
+    this.#clearDocumentHistory(document);
     this.#replaceDocument(document, seed);
     return true;
   };
@@ -586,19 +618,39 @@ export class CanvasDocumentRegistry {
     };
   };
 
-  undo = () => !!this.#active.undoManager.undo();
-  redo = () => !!this.#active.undoManager.redo();
-  clearHistory = () => this.#active.undoManager.clear();
-  finishHistoryCapture = () => this.#active.undoManager.stopCapturing();
+  undo = () => {
+    const changed = this.#historyJournal.undo(
+      this.#historyKey(this.getActiveAddress())
+    );
+    if (changed) this.#emitHistory();
+    return changed;
+  };
+  redo = () => {
+    const changed = this.#historyJournal.redo(
+      this.#historyKey(this.getActiveAddress())
+    );
+    if (changed) this.#emitHistory();
+    return changed;
+  };
+  clearHistory = () => {
+    this.#historyJournal.clear(this.#historyKey(this.getActiveAddress()));
+    this.#active.pages.forEach((page) => page.undoManager.clear());
+    this.#emitHistory();
+  };
+  finishHistoryCapture = () => {
+    this.#active.undoManager.stopCapturing();
+    this.#historyJournal.finishCapture(this.#historyKey(this.getActiveAddress()));
+  };
 
   beginHistoryCheckpoint = (): CanvasHistoryCheckpoint => {
     const document = this.#active;
-    const manager = document.undoManager;
-    manager.stopCapturing();
-    const undoDepth = manager.undoStack.length;
+    const historyKey = this.#historyKey(this.getActiveAddress());
+    document.undoManager.stopCapturing();
+    const undoDepth = this.#historyJournal.getUndoDepth(historyKey);
     let settled = false;
     const finish = () => {
-      manager.stopCapturing();
+      document.undoManager.stopCapturing();
+      this.#historyJournal.finishCapture(historyKey);
       if (document === this.#active) this.#emitHistory();
     };
     return {
@@ -610,13 +662,8 @@ export class CanvasDocumentRegistry {
       cancel: () => {
         if (settled) return;
         settled = true;
-        manager.stopCapturing();
-        let rolledBack = false;
-        while (manager.undoStack.length > undoDepth) {
-          if (!manager.undo()) break;
-          rolledBack = true;
-        }
-        if (rolledBack) manager.clear(false, true);
+        document.undoManager.stopCapturing();
+        this.#historyJournal.rollbackTo(historyKey, undoDepth);
         finish();
       },
     };
@@ -648,7 +695,11 @@ export class CanvasDocumentRegistry {
       result = fn();
     }, origin);
     if (mode === "save") page.undoManager.stopCapturing();
-    else if (mode === "reset") page.undoManager.clear();
+    else if (mode === "reset") {
+      page.undoManager.clear();
+      this.#historyJournal.clear(this.#historyKey(address));
+      if (address.documentId === this.#active.id) this.#emitHistory();
+    }
     return result;
   };
 
@@ -669,7 +720,8 @@ export class CanvasDocumentRegistry {
         `Cell Plane page not found: ${address.documentId}/${address.pageId}`
       );
     }
-    return this.runTransactionAt(address, () => {
+    let emittedOperation: CellPlaneOperation | null = null;
+    const result = this.runTransactionAt(address, () => {
       const reader = this.#ensurePageIndex(document, page);
       const changes = new Map<
         string,
@@ -714,7 +766,29 @@ export class CanvasDocumentRegistry {
           ? toLegacyCellPlaneOperation(operation)
           : operation,
       ]);
+      emittedOperation = operation;
+      if (operation) {
+        const inverse = gridChangesToCellPlaneOperation(
+          `history:${document.doc.clientID}:${this.#operationSequence++}`,
+          new Map(Array.from(changes, ([key, change]) => [
+            key,
+            { before: change.after, after: change.before },
+          ]))
+        );
+        if (inverse) this.#captureHistory(
+          address,
+          operation,
+          inverse,
+          normalizeHistoryMode(history)
+        );
+      }
     }, history);
+    if (emittedOperation) this.#emitMutation({
+      kind: "cell-plane",
+      ...address,
+      operation: emittedOperation,
+    });
+    return result;
   };
 
   applyCellPlanePatch = (
@@ -739,6 +813,7 @@ export class CanvasDocumentRegistry {
       patch
     );
     if (!operation) return null;
+    const inverse = this.#createInverseCellPlaneOperation(document, page, operation);
     this.runTransactionAt(address, () => {
       page.operations.push([
         document.operationFormat === "legacy"
@@ -746,6 +821,13 @@ export class CanvasDocumentRegistry {
           : operation,
       ]);
     }, history);
+    if (inverse) this.#captureHistory(
+      address,
+      operation,
+      inverse,
+      normalizeHistoryMode(history)
+    );
+    this.#emitMutation({ kind: "cell-plane", ...address, operation });
     return operation;
   };
 
@@ -781,10 +863,20 @@ export class CanvasDocumentRegistry {
         components,
       });
     }
-    return this.runTransactionAt(address, () => {
+    const forward = this.#createStructuredReplacementPatch(page, scene, components);
+    const inverse = this.#invertStructuredPatch(page, forward);
+    const result = this.runTransactionAt(address, () => {
       applyYMapValueDiff(page.scene, scene);
       applyYMapValueDiff(page.components, components);
+      this.#captureStructuredHistory(
+        address,
+        forward,
+        inverse,
+        normalizeHistoryMode(history)
+      );
     }, history);
+    this.#emitMutation({ kind: "structured", ...address, ...forward });
+    return result;
   };
 
   patchStructuredContentAt = (
@@ -799,10 +891,19 @@ export class CanvasDocumentRegistry {
         `Structured page not found: ${address.documentId}/${address.pageId}`
       );
     }
-    return this.runTransactionAt(address, () => {
+    const inverse = this.#invertStructuredPatch(page, patch);
+    const result = this.runTransactionAt(address, () => {
       applyYMapPatch(page.scene, patch.nodes);
       applyYMapPatch(page.components, patch.components);
+      this.#captureStructuredHistory(
+        address,
+        patch,
+        inverse,
+        normalizeHistoryMode(history)
+      );
     }, history);
+    this.#emitMutation({ kind: "structured", ...address, ...patch });
+    return result;
   };
 
   replaceCellPage = (
@@ -824,6 +925,11 @@ export class CanvasDocumentRegistry {
           : bootstrap,
       ]);
     }, "reset");
+    this.#emitMutation({
+      kind: "page-upsert",
+      documentId: address.documentId,
+      page: { ...page.descriptor, grid: entries },
+    });
     return true;
   };
 
@@ -862,6 +968,7 @@ export class CanvasDocumentRegistry {
       page.dispose();
       document.pages.delete(draft.id);
       this.#syncDocumentPages(document);
+      this.#emitMutation({ kind: "page-upsert", documentId, page: draft });
       return true;
     }
     this.updatePage(documentId, draft.id, {
@@ -888,6 +995,7 @@ export class CanvasDocumentRegistry {
     this.#disposed = true;
     this.#activeListeners.clear();
     this.#historyListeners.clear();
+    this.#mutationListeners.clear();
     this.#documents.forEach((document) => {
       document.pages.forEach((page) => page.dispose());
       document.doc.destroy();
@@ -1229,9 +1337,221 @@ export class CanvasDocumentRegistry {
     return change;
   }
 
+  #captureHistory(
+    address: CanvasDocumentAddress,
+    forward: CellPlaneOperation,
+    inverse: CellPlaneOperation,
+    mode: CanvasHistoryMode
+  ) {
+    if (mode !== "save" && mode !== "merge") return;
+    this.#historyJournal.capture(this.#historyKey(address), {
+      forward: { kind: "cell-plane", ...address, operation: forward },
+      inverse: { kind: "cell-plane", ...address, operation: inverse },
+    }, mode);
+    if (address.documentId === this.#active.id) this.#emitHistory();
+  }
+
+  #captureStructuredHistory(
+    address: CanvasDocumentAddress,
+    forward: CanvasStructuredContentPatch,
+    inverse: CanvasStructuredContentPatch,
+    mode: CanvasHistoryMode
+  ) {
+    if (mode !== "save" && mode !== "merge") return;
+    this.#historyJournal.capture(this.#historyKey(address), {
+      forward: { kind: "structured", ...address, ...forward },
+      inverse: { kind: "structured", ...address, ...inverse },
+    }, mode);
+    if (address.documentId === this.#active.id) this.#emitHistory();
+  }
+
+  #createInverseCellPlaneOperation(
+    document: CanvasYDocument,
+    page: CanvasPageRuntime,
+    operation: CellPlaneOperation
+  ) {
+    const bounds = {
+      x: operation.bounds.x - 1,
+      y: operation.bounds.y,
+      width: operation.bounds.width + 2,
+      height: operation.bounds.height,
+    };
+    const before = this.#ensurePageIndex(document, page).materialize(bounds);
+    const bootstrap = gridEntriesToCellPlaneOperation(
+      `history-base:${document.doc.clientID}:${this.#operationSequence++}`,
+      Array.from(before)
+    );
+    const projection = new CellPlaneIndex([
+      ...(bootstrap ? [bootstrap] : []),
+      operation,
+    ]);
+    const after = projection.materialize(bounds);
+    projection.dispose();
+    const keys = new Set([...before.keys(), ...after.keys()]);
+    const changes = new Map<string, { before?: GridCell; after?: GridCell }>();
+    keys.forEach((key) => {
+      const previous = before.get(key);
+      const next = after.get(key);
+      if (!areJsonValuesEqual(previous, next)) {
+        changes.set(key, { before: next, after: previous });
+      }
+    });
+    return gridChangesToCellPlaneOperation(
+      `history:${document.doc.clientID}:${this.#operationSequence++}`,
+      changes
+    );
+  }
+
+  #createStructuredReplacementPatch(
+    page: CanvasPageRuntime,
+    scene: readonly StructuredNode[],
+    components: readonly StructuredComponentInstance[]
+  ): CanvasStructuredContentPatch {
+    const sceneIds = new Set(scene.map(({ id }) => id));
+    const componentIds = new Set(components.map(({ id }) => id));
+    return {
+      nodes: {
+        upsert: scene,
+        deleteIds: Array.from(page.scene.keys()).filter((id) => !sceneIds.has(id)),
+      },
+      components: {
+        upsert: components,
+        deleteIds: Array.from(page.components.keys()).filter(
+          (id) => !componentIds.has(id)
+        ),
+      },
+    };
+  }
+
+  #invertStructuredPatch(
+    page: CanvasPageRuntime,
+    patch: CanvasStructuredContentPatch
+  ): CanvasStructuredContentPatch {
+    const invert = <T extends { id: string }>(
+      map: Y.Map<T>,
+      valuePatch: { upsert?: readonly T[]; deleteIds?: readonly string[] } | undefined
+    ) => {
+      if (!valuePatch) return undefined;
+      const ids = new Set([
+        ...(valuePatch.deleteIds ?? []),
+        ...(valuePatch.upsert ?? []).map(({ id }) => id),
+      ]);
+      const upsert: T[] = [];
+      const deleteIds: string[] = [];
+      ids.forEach((id) => {
+        const current = map.get(id);
+        if (current) upsert.push(current);
+        else deleteIds.push(id);
+      });
+      return { upsert, deleteIds };
+    };
+    return {
+      nodes: invert(page.scene, patch.nodes),
+      components: invert(page.components, patch.components),
+    };
+  }
+
+  #applyMutationEnvelope(envelope: CanvasMutationEnvelope) {
+    const document = this.#documents.get(envelope.documentId);
+    if (!document) return;
+    if (envelope.kind === "cell-plane") {
+      const page = document.pages.get(envelope.pageId);
+      if (!page || page.descriptor.kind !== "cell-plane") return;
+      document.doc.transact(() => page.operations.push([
+        document.operationFormat === "legacy"
+          ? toLegacyCellPlaneOperation(envelope.operation)
+          : envelope.operation,
+      ]), HISTORY_IGNORED_ORIGIN);
+      this.#emitMutation(envelope);
+      return;
+    }
+    if (envelope.kind === "structured") {
+      const page = document.pages.get(envelope.pageId);
+      if (!page || page.descriptor.kind !== "structured") return;
+      document.doc.transact(() => {
+        applyYMapPatch(page.scene, envelope.nodes);
+        applyYMapPatch(page.components, envelope.components);
+      }, HISTORY_IGNORED_ORIGIN);
+      this.#emitMutation(envelope);
+      return;
+    }
+    if (envelope.kind === "page-metadata") {
+      document.doc.transact(() => {
+        document.root.pages.set(envelope.page.id, envelope.page);
+      }, HISTORY_IGNORED_ORIGIN);
+      this.#syncDocumentPages(document);
+      this.#emitMutation(envelope);
+      return;
+    }
+    if (envelope.kind === "page-upsert") {
+      document.doc.transact(() => {
+        const current = readCanvasYPage(document.root, envelope.page.id);
+        if (current) {
+          current.operations.delete(0, current.operations.length);
+          current.scene.clear();
+          current.components.clear();
+        }
+        createCanvasYPage(
+          document.root,
+          envelope.page,
+          `history:${document.id}:${this.#operationSequence++}`
+        );
+      }, HISTORY_IGNORED_ORIGIN);
+      this.#syncDocumentPages(document);
+      this.#emitMutation(envelope);
+      return;
+    }
+    if (envelope.kind === "page-delete") {
+      document.doc.transact(() => {
+        document.root.pages.delete(envelope.pageId);
+        const index = document.root.pageOrder.toArray().indexOf(envelope.pageId);
+        if (index >= 0) document.root.pageOrder.delete(index, 1);
+      }, HISTORY_IGNORED_ORIGIN);
+      this.#syncDocumentPages(document);
+      this.#emitMutation(envelope);
+      return;
+    }
+    document.doc.transact(() => {
+      document.root.pageOrder.delete(0, document.root.pageOrder.length);
+      document.root.pageOrder.push([...envelope.pageIds]);
+      writeCanvasDocumentMetadata(
+        document.root,
+        document.id,
+        envelope.mode,
+        envelope.activePageId
+      );
+    }, HISTORY_IGNORED_ORIGIN);
+    this.#syncDocumentPages(document);
+    this.#emitMutation(envelope);
+  }
+
+  #historyKey(address: CanvasDocumentAddress) {
+    return `${address.documentId}\u0000${address.pageId}`;
+  }
+
+  #clearDocumentHistory(document: CanvasYDocument) {
+    document.pages.forEach((_page, pageId) => {
+      this.#historyJournal.clear(this.#historyKey({
+        documentId: document.id,
+        pageId,
+      }));
+    });
+  }
+
   #emitHistory() {
     const availability = this.getHistoryAvailability();
     this.#historyListeners.forEach((listener) => listener(availability));
+  }
+
+  #emitMutation(envelope: CanvasMutationEnvelope) {
+    this.#mutationListeners.forEach((listener) => listener(envelope));
+  }
+
+  #readDocumentMode(document: CanvasYDocument): CanvasMode {
+    const mode = document.root.meta.get("mode");
+    return mode === "freeform" || mode === "structured" || mode === "slide"
+      ? mode
+      : "freeform";
   }
 
   #assertActive() {

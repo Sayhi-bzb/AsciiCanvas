@@ -68,6 +68,15 @@ describe("renderMath", () => {
     expect(getCharGraphText(sum)).toBe("  n\n  ∑  i\ni = 1");
   });
 
+  it("removes nonvisual MathML operators before creating cells", () => {
+    for (const source of [String.raw`V_{\max}`, String.raw`\lim_{x \to 0} x`]) {
+      const inline = getCharGraphText(renderMath(source, { layout: "inline" }));
+      const block = getCharGraphText(renderMath(source, { layout: "block" }));
+      expect(inline).not.toMatch(/[\u2061-\u2064]/u);
+      expect(block).not.toMatch(/[\u2061-\u2064]/u);
+    }
+  });
+
   it("preserves invalid TeX with a diagnostic", () => {
     const rendered = renderMath(String.raw`\frac{a`, {
       layout: "block",

@@ -58,6 +58,17 @@ describe("headless CharDesk PNG renderer", () => {
     });
   });
 
+  it("rasterizes TeX function operators without native fallback crashes", async () => {
+    const result = await renderSourceToPng({
+      source: String.raw`$$v = \frac{V_{\max}[S]}{K_m(1 + \frac{[I]}{K_i}) + [S]}$$`,
+      inputMode: "chargraph",
+      scale: 1,
+    });
+
+    expectPng(result.bytes);
+    expect(result.diagnostics).toEqual([]);
+  });
+
   it("materializes one compilation as plain, ANSI, and ESC-less CharDesk text", async () => {
     const options = {
       source: "**Ready** 界",

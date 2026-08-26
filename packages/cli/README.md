@@ -54,3 +54,5 @@ stdin as CharGraph source. Override it with `--input chargraph` or
 Successful file writes replace the explicit path atomically. Diagnostics go to
 stderr unless `--json` is selected. Exit codes are 0 for success, 1 for
 content/render/write failure, and 2 for invalid arguments.
+PNG uses an isolated native raster process. A backend signal or invalid worker
+result returns `raster-backend-crash` and never replaces the target artifact.

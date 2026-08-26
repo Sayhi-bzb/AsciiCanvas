@@ -264,6 +264,7 @@ const INTERNAL_FEATURES = [
     colorSlots: [foreground("thematic-break")],
   }),
   hostFeature("code-block", "blocks", "settings.markdown.codeBlock"),
+  hostFeature("chart", "blocks", "settings.markdown.chart"),
   hostFeature(
     "github-alert",
     "blocks",
