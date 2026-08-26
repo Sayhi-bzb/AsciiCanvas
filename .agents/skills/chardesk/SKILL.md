@@ -1,6 +1,6 @@
 ---
 name: chardesk
-description: Authoritative syntax and direct Blackboard workflow for CharDesk Unicode, ESC-less ANSI text, and `.slides.md` decks. Use when Codex needs to read, write, style, edit, or review CharDesk content or Slides files.
+description: Authoritative syntax and direct Blackboard workflow for CharDesk Canvas text, CharGraph structured sources, ESC-less ANSI, block layouts, and `.slides.md` decks. Use when Codex needs to create, edit, style, or review CharDesk content.
 ---
 
 # CharDesk formats
@@ -8,8 +8,12 @@ description: Authoritative syntax and direct Blackboard workflow for CharDesk Un
 Load only the required reference:
 
 - Canvas text or ANSI styling: [`references/ansi.md`](references/ansi.md).
+- Markdown, fenced Mermaid or data, and math: [`references/chargraph.md`](references/chargraph.md).
+- Multi-field or multi-row Canvas composition: [`references/block-layout.md`](references/block-layout.md).
 - `.slides.md` structure: [`references/slides.md`](references/slides.md).
 - Styled Slides: Slides first, then ANSI.
+- Structured fields in a block layout: Block Layout first, then CharGraph; also
+  load ANSI only when the source uses explicit CharDesk styles.
 
 For a Blackboard, use the named `.chardesk` path or `blackboard.chardesk` when
 none is named:
