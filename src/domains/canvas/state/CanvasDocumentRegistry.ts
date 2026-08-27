@@ -225,6 +225,11 @@ export class CanvasDocumentRegistry {
   getDocument = (id: string) => this.#documents.get(id) ?? null;
   getDocumentIds = () => Array.from(this.#documents.keys());
   getCollaborationDocument = (id: string) => this.#documents.get(id)?.doc ?? null;
+  getProjectionCacheStats = () => this.#projectionCacheBudget.getStats();
+  setProjectionCacheBudget = (bytes: number) =>
+    this.#projectionCacheBudget.setByteBudget(bytes);
+  subscribeProjectionCache = (listener: () => void) =>
+    this.#projectionCacheBudget.subscribe(listener);
   getMemoryStats = () => {
     let yjsStructs = 0;
     let pages = 0;

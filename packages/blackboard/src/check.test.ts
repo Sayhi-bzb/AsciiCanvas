@@ -7,6 +7,26 @@ describe("checkBlackboardBytes", () => {
   it("accepts Plain, ESC-less ANSI, CJK and emoji", () => {
     expect(checkBlackboardBytes(bytes("┌──┐\n│界│\n└──┘"))).toEqual({ accepted: true });
     expect(checkBlackboardBytes(bytes("[1;32m登录[0m 👩‍💻"))).toEqual({ accepted: true });
+    expect(checkBlackboardBytes(bytes([
+      "---",
+      "chardesk: document/v1",
+      "mode: freeform",
+      "---",
+      "[1;32mCanonical[0m",
+    ].join("\n")))).toEqual({ accepted: true });
+  });
+
+  it("rejects canonical modes that Blackboard cannot display", () => {
+    expect(checkBlackboardBytes(bytes([
+      "---",
+      "chardesk: document/v1",
+      "mode: slide",
+      "---",
+      "## Slide",
+    ].join("\n")))).toMatchObject({
+      accepted: false,
+      issue: { code: "unsupported-document-mode" },
+    });
   });
 
   it("rejects terminal escapes and protocol diagnostics", () => {

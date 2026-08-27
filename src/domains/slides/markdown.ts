@@ -2,9 +2,19 @@ import { parseCharDeskText, type CharDeskTextSyntax } from '@chardesk/protocol';
 import { COLOR_PRIMARY_TEXT } from '@/shared/lib/constants';
 import { GridManager } from '@/shared/utils/grid';
 import { createSlideDeck, addSlide } from './deck';
-import type { SlideDeck, SlideSize } from './model';
+import { DEFAULT_SLIDE_SIZE, type SlideDeck, type SlideSize } from './model';
 
 const SLIDE_MARKDOWN_SIGNATURE = 'slides/v1';
+
+export const isSlideMarkdownSource = (source: string) => {
+  const normalized = source.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
+  const lines = normalized.split('\n');
+  if (lines[0]?.trim() !== '---') return false;
+  const endIndex = lines.findIndex((line, index) => index > 0 && line.trim() === '---');
+  return endIndex > 0 && lines
+    .slice(1, endIndex)
+    .some((line) => /^chardesk:\s*slides\/v1\s*$/i.test(line.trim()));
+};
 
 type ParsedSlideMarkdown = {
   title?: string;
@@ -126,10 +136,14 @@ const parseSlideBlocks = (
     if (!['chardesk', 'text', 'ansi'].includes(language)) continue;
     const info = fenceMatch.groups.info.trim();
     const sizeMatch = /^size=(\S+)$/.exec(info);
-    const size = sizeMatch ? parseSlideSize(sizeMatch[1]) : null;
-    if (!size) {
-      throw new Error('CharDesk Slides v1 requires size=columnsxrows on every slide block.');
+    if (info && !sizeMatch) {
+      throw new Error('Invalid slide block info; expected size=columnsxrows.');
     }
+    const explicitSize = sizeMatch ? parseSlideSize(sizeMatch[1]) : null;
+    if (sizeMatch && !explicitSize) {
+      throw new Error('Invalid slide size; expected positive columnsxrows.');
+    }
+    const size = explicitSize ?? { ...DEFAULT_SLIDE_SIZE };
 
     slides.push({
       name: heading || `Slide ${slides.length + 1}`,
@@ -148,7 +162,13 @@ const parseSlideBlocks = (
 
 export const parseSlideMarkdown = (source: string): ParsedSlideMarkdown => {
   const { bodyLines, title } = parseFrontMatter(source);
-  const slides = parseSlideBlocks(bodyLines);
+  const parsed = parseSlideMarkdownBody(bodyLines.join('\n'));
+  return { ...parsed, ...(title ? { title } : {}) };
+};
+
+export const parseSlideMarkdownBody = (source: string): ParsedSlideMarkdown => {
+  const normalized = source.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
+  const slides = parseSlideBlocks(normalized.split('\n'));
   let slideDeck = createSlideDeck({
     initialSlideId: 'slide-1',
     initialSlideName: slides[0].name,
@@ -167,5 +187,5 @@ export const parseSlideMarkdown = (source: string): ParsedSlideMarkdown => {
   });
 
   slideDeck = { ...slideDeck, activeSlideId: slideDeck.slides[0].id };
-  return { slideDeck, ...(title ? { title } : {}) };
+  return { slideDeck };
 };

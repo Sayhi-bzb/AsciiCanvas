@@ -7,9 +7,7 @@ export type ExportFormat =
   | "txt"
   | "chardesk"
   | "ansi"
-  | "md"
-  | "png"
- ;
+  | "png";
 
 export type ExportContext = {
   canvasMode: CanvasMode;

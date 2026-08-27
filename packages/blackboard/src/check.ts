@@ -1,13 +1,18 @@
 import { readFile } from "node:fs/promises";
 import { parseCharDeskText } from "@chardesk/protocol";
 import { resolveReadableBoardPath, type WorkspaceBoardPath } from "./paths.js";
+import { resolveBlackboardSource } from "./document.js";
 
 type BlackboardCheckResult =
   | { accepted: true }
   | {
       accepted: false;
       issue: {
-        code: "invalid-utf8" | "terminal-escape" | "protocol-diagnostic";
+        code:
+          | "invalid-utf8"
+          | "unsupported-document-mode"
+          | "terminal-escape"
+          | "protocol-diagnostic";
         message: string;
         offset?: number;
       };
@@ -23,6 +28,17 @@ export const checkBlackboardBytes = (bytes: Uint8Array): BlackboardCheckResult =
     return {
       accepted: false,
       issue: { code: "invalid-utf8", message: "Blackboard source must be valid UTF-8." },
+    };
+  }
+  try {
+    source = resolveBlackboardSource(source);
+  } catch (error) {
+    return {
+      accepted: false,
+      issue: {
+        code: "unsupported-document-mode",
+        message: error instanceof Error ? error.message : "Unsupported CharDesk document mode.",
+      },
     };
   }
   if (source.includes("\u001b")) {

@@ -6,10 +6,15 @@ import {
 } from "./canvasWorkerFonts";
 import type {
   CanvasRenderedTile,
+  CanvasRenderWorkerResourceStats,
   CanvasRenderTileSpec,
   CanvasRenderWorkerRequest,
   CanvasRenderWorkerResponse,
 } from "./canvasRenderWorkerProtocol";
+import {
+  type CanvasMemoryPolicy,
+  CanvasMemoryGovernor,
+} from "./CanvasMemoryGovernor";
 
 type SourceState = {
   id: number;
@@ -37,6 +42,7 @@ type PendingRender = {
   onTile: (tile: CanvasRenderedTile) => void;
   receivedTiles: number;
   startedAt: number;
+  prefetchOnly: boolean;
   resolve: (summary: CanvasRenderBatchSummary) => void;
   reject: (error: Error) => void;
 };
@@ -80,14 +86,20 @@ export type CanvasRenderWorkerStats = {
   lastError: string | null;
   workers: number;
   poolExpansions: number;
+  sourcePayloadBytes: number;
+  sourceResidentBytes: number;
+  queuedTiles: number;
+  loadedFontFaces: number;
 };
 
 export class CanvasRenderWorkerClient {
+  readonly #memoryGovernor: CanvasMemoryGovernor | null;
   readonly #sources = new WeakMap<CellPlaneIndex, SourceState>();
   readonly #retainers = new WeakMap<CellPlaneIndex, number>();
   readonly #sourceIds = new Set<number>();
   readonly #sourceStates = new Set<SourceState>();
   readonly #pending = new Map<number, PendingRequest>();
+  readonly #workerResources = new Map<Worker, CanvasRenderWorkerResourceStats>();
   #worker: Worker | null = null;
   #secondaryWorker: Worker | null = null;
   #secondaryIdleTimer: ReturnType<typeof setTimeout> | null = null;
@@ -111,6 +123,11 @@ export class CanvasRenderWorkerClient {
   #cancelledTiles = 0;
   #lastError: string | null = null;
   #poolExpansions = 0;
+  #memoryPolicy: CanvasMemoryPolicy = { pressure: "normal", hidden: false };
+
+  constructor(memoryGovernor: CanvasMemoryGovernor | null = null) {
+    this.#memoryGovernor = memoryGovernor;
+  }
 
   project(
     reader: CellPlaneIndex,
@@ -168,6 +185,7 @@ export class CanvasRenderWorkerClient {
         onTile: input.onTile ?? (() => undefined),
         receivedTiles: 0,
         startedAt: performance.now(),
+        prefetchOnly: input.tiles.every(({ priority }) => priority === "prefetch"),
         resolve,
         reject,
       });
@@ -191,6 +209,25 @@ export class CanvasRenderWorkerClient {
     ));
   }
 
+  setMemoryPolicy(policy: CanvasMemoryPolicy): void {
+    this.#memoryPolicy = policy;
+    if (policy.hidden) {
+      this.#suspendWorkers("Canvas render workers suspended while hidden");
+      return;
+    }
+    if (policy.pressure === "critical") {
+      this.#pending.forEach((pending) => {
+        if (pending.kind === "render" && pending.prefetchOnly) {
+          pending.worker.postMessage({
+            type: "cancelPane",
+            paneId: pending.paneId,
+          } satisfies CanvasRenderWorkerRequest);
+        }
+      });
+    }
+    if (policy.pressure !== "normal") this.#scheduleSecondaryRetirement(0);
+  }
+
   retain(reader: CellPlaneIndex) {
     this.#retainers.set(reader, (this.#retainers.get(reader) ?? 0) + 1);
     let retained = true;
@@ -208,6 +245,7 @@ export class CanvasRenderWorkerClient {
   }
 
   getStats(): CanvasRenderWorkerStats {
+    const resources = this.#aggregateResources();
     return {
       available: !this.#disposed && !this.#failed && typeof Worker !== "undefined",
       rasterAvailable: this.#rasterAvailable === true,
@@ -228,6 +266,10 @@ export class CanvasRenderWorkerClient {
       lastError: this.#lastError,
       workers: this.#workers().length,
       poolExpansions: this.#poolExpansions,
+      sourcePayloadBytes: resources.sourcePayloadBytes,
+      sourceResidentBytes: resources.sourceResidentBytes,
+      queuedTiles: resources.queuedTiles,
+      loadedFontFaces: resources.loadedFontFaces,
     };
   }
 
@@ -241,6 +283,8 @@ export class CanvasRenderWorkerClient {
     });
     this.#worker = null;
     this.#secondaryWorker = null;
+    this.#workerResources.clear();
+    this.#memoryGovernor?.report("worker-source", 0);
     this.#sourceIds.clear();
     this.#sourceStates.clear();
     this.#rejectPending(new CanvasRenderWorkerError("Canvas render worker disposed", true));
@@ -327,7 +371,12 @@ export class CanvasRenderWorkerClient {
     const hardwareConcurrency = typeof navigator === "undefined"
       ? 4
       : navigator.hardwareConcurrency || 4;
-    if (!this.#secondaryWorker && pendingRenders >= 2 && hardwareConcurrency >= 6) {
+    if (
+      this.#memoryPolicy.pressure === "normal" &&
+      !this.#secondaryWorker &&
+      pendingRenders >= 2 &&
+      hardwareConcurrency >= 6
+    ) {
       this.#secondaryWorker = this.#createSecondaryWorker(primary);
       if (this.#secondaryWorker) this.#poolExpansions += 1;
     }
@@ -349,7 +398,14 @@ export class CanvasRenderWorkerClient {
         new URL("./canvasRender.worker.ts", import.meta.url),
         { type: "module", name: "chardesk-canvas-render-secondary" }
       );
-      worker.onmessage = primary.onmessage;
+      const primaryHandler = primary.onmessage;
+      worker.onmessage = (event: MessageEvent<CanvasRenderWorkerResponse>) => {
+        if (event.data.type === "resources") {
+          this.#recordWorkerResources(worker, event.data.stats);
+          return;
+        }
+        primaryHandler?.call(primary, event);
+      };
       worker.onerror = () => this.#failWorker(worker);
       worker.onmessageerror = () => this.#failWorker(worker);
       const faces = typeof document === "undefined" ? [] : collectCanvasWorkerFontFaces();
@@ -366,7 +422,12 @@ export class CanvasRenderWorkerClient {
   }
 
   #getWorker() {
-    if (this.#disposed || this.#failed || typeof Worker === "undefined") return null;
+    if (
+      this.#disposed ||
+      this.#failed ||
+      this.#memoryPolicy.hidden ||
+      typeof Worker === "undefined"
+    ) return null;
     if (this.#worker) return this.#worker;
     let worker: Worker;
     try {
@@ -385,6 +446,10 @@ export class CanvasRenderWorkerClient {
     this.#fontRevision = getCanvasWorkerFontRevision(faces);
     worker.onmessage = (event: MessageEvent<CanvasRenderWorkerResponse>) => {
       const response = event.data;
+      if (response.type === "resources") {
+        this.#recordWorkerResources(worker, response.stats);
+        return;
+      }
       if (response.type === "configured") {
         this.#rasterAvailable = response.rasterAvailable;
         return;
@@ -500,6 +565,8 @@ export class CanvasRenderWorkerClient {
     this.#failures += 1;
     this.#lastError = "Canvas render worker failed";
     worker.terminate();
+    this.#workerResources.delete(worker);
+    this.#reportWorkerMemory();
     if (this.#secondaryWorker === worker) {
       this.#secondaryWorker = null;
     } else if (this.#secondaryWorker) {
@@ -518,7 +585,7 @@ export class CanvasRenderWorkerClient {
     }
   }
 
-  #scheduleSecondaryRetirement() {
+  #scheduleSecondaryRetirement(delay = 5_000) {
     if (!this.#secondaryWorker || this.#secondaryIdleTimer !== null) return;
     this.#secondaryIdleTimer = setTimeout(() => {
       this.#secondaryIdleTimer = null;
@@ -535,7 +602,60 @@ export class CanvasRenderWorkerClient {
       worker.terminate();
       this.#secondaryWorker = null;
       this.#sourceStates.forEach((source) => source.workerStates.delete(worker));
-    }, 5_000);
+      this.#workerResources.delete(worker);
+      this.#reportWorkerMemory();
+    }, delay);
+  }
+
+  #aggregateResources(): CanvasRenderWorkerResourceStats {
+    return [...this.#workerResources.values()].reduce<CanvasRenderWorkerResourceStats>(
+      (total, stats) => ({
+        sourcePayloadBytes: total.sourcePayloadBytes + stats.sourcePayloadBytes,
+        sourceResidentBytes: total.sourceResidentBytes + stats.sourceResidentBytes,
+        sources: total.sources + stats.sources,
+        queuedBatches: total.queuedBatches + stats.queuedBatches,
+        queuedTiles: total.queuedTiles + stats.queuedTiles,
+        loadedFontFaces: total.loadedFontFaces + stats.loadedFontFaces,
+      }),
+      {
+        sourcePayloadBytes: 0,
+        sourceResidentBytes: 0,
+        sources: 0,
+        queuedBatches: 0,
+        queuedTiles: 0,
+        loadedFontFaces: 0,
+      }
+    );
+  }
+
+  #recordWorkerResources(worker: Worker, stats: CanvasRenderWorkerResourceStats) {
+    if (!this.#workers().includes(worker)) return;
+    this.#workerResources.set(worker, stats);
+    this.#reportWorkerMemory();
+  }
+
+  #reportWorkerMemory() {
+    const resources = this.#aggregateResources();
+    this.#memoryGovernor?.report(
+      "worker-source",
+      resources.sourcePayloadBytes + resources.sourceResidentBytes
+    );
+  }
+
+  #suspendWorkers(message: string) {
+    if (this.#secondaryIdleTimer !== null) clearTimeout(this.#secondaryIdleTimer);
+    this.#secondaryIdleTimer = null;
+    this.#rejectPending(new CanvasRenderWorkerError(message, true));
+    this.#workers().forEach((worker) => {
+      worker.postMessage({ type: "dispose" } satisfies CanvasRenderWorkerRequest);
+      worker.terminate();
+    });
+    this.#worker = null;
+    this.#secondaryWorker = null;
+    this.#rasterAvailable = null;
+    this.#sourceStates.forEach((source) => source.workerStates.clear());
+    this.#workerResources.clear();
+    this.#reportWorkerMemory();
   }
 
   #rejectSource(sourceId: number, error: Error) {

@@ -57,7 +57,7 @@ Build with editable text, boxes, backgrounds, dividers, lines, and arrows. Move 
 
 ### Slides
 
-Arrange a deck as editable text pages, or ask an Agent to generate a `.slides.md` file and continue editing it visually. See the [Slides file structure](.agents/skills/chardesk/references/slides.md).
+Arrange a deck as editable text pages, or ask an Agent to generate a `.chardesk` document and continue editing it visually. See the [Slides file structure](.agents/skills/chardesk/references/slides.md).
 
 ## Built for the human–AI loop
 

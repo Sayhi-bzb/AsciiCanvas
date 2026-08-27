@@ -25,7 +25,7 @@ export function useCanvasImport() {
     try {
       const raw = await file.text();
       importCanvasSession(raw, {
-        name: file.name.replace(/\.(?:slides\.md|chardesk|ans|md)$/i, ""),
+        name: file.name.replace(/\.(?:slides\.md|chardesk|ans|txt)$/i, ""),
         sourceName: file.name,
       });
     } catch (error) {

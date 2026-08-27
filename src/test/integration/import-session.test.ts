@@ -53,20 +53,21 @@ describe("importCanvasSession", () => {
       createDocumentInteractionResetPatch()
     );
   });
-  it("imports Agent-generated Markdown as a new active Slide Deck", () => {
+  it("imports an Agent-generated CharDesk document as a new active Slide Deck", () => {
     const before = useEditorStore.getState();
     const session = before.importCanvasSession(
       [
         "---",
-        "chardesk: slides/v1",
+        "chardesk: document/v1",
+        "mode: slide",
         "title: Agent Deck",
         "---",
         "## Intro",
-        "```text size=8x3",
+        "```text",
         " A",
         "```",
         "## Next",
-        "```chardesk size=8x3",
+        "```chardesk",
         "[31mR[0m",
         "```",
       ].join("\n")
@@ -80,6 +81,10 @@ describe("importCanvasSession", () => {
     expect(state.slideDeck?.slides.map((slide) => slide.name)).toEqual([
       "Intro",
       "Next",
+    ]);
+    expect(state.slideDeck?.slides.map((slide) => slide.size)).toEqual([
+      { columns: 100, rows: 27 },
+      { columns: 100, rows: 27 },
     ]);
     expect(state.grid.get("1,0")).toMatchObject({ char: "A" });
   });

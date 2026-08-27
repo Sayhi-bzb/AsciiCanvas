@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   CellPlaneIndex,
   CanvasProjectionCacheBudget,
@@ -238,6 +238,38 @@ describe("CellPlaneIndex", () => {
 
     expect(budget.getStats()).toMatchObject({ entries: 1, evictions: 1 });
     expect(left.getStats().cachedChunks + right.getStats().cachedChunks).toBe(1);
+  });
+
+  it("evicts existing projections when the shared budget shrinks", () => {
+    const budget = new CanvasProjectionCacheBudget(50_000);
+    const changed = vi.fn();
+    budget.subscribe(changed);
+    const left = new CellPlaneIndex([
+      operation("left", [{
+        y: 0,
+        erase: [],
+        spans: [{ x: 0, text: "A".repeat(128), color: "#fff" }],
+      }], 128),
+    ], budget);
+    const right = new CellPlaneIndex([{
+      id: "right",
+      bounds: { x: 128, y: 0, width: 128, height: 1 },
+      rows: [{
+        y: 0,
+        erase: [],
+        spans: [{ x: 128, text: "B".repeat(128), color: "#fff" }],
+      }],
+    }], budget);
+    left.getCell({ x: 0, y: 0 });
+    right.getCell({ x: 128, y: 0 });
+    const before = budget.getStats().bytes;
+
+    budget.setByteBudget(Math.floor(before / 2));
+
+    expect(budget.getStats().bytes).toBeLessThan(before);
+    expect(left.getCell({ x: 0, y: 0 })?.char).toBe("A");
+    expect(right.getCell({ x: 128, y: 0 })?.char).toBe("B");
+    expect(changed).toHaveBeenCalled();
   });
 
   it("derives final content bounds after an erase", () => {

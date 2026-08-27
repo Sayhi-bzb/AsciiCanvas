@@ -18,6 +18,9 @@ type CanvasRuntimeContextValue = Pick<
   | "subscribePersistence"
   | "retryPersistence"
   | "setRetainedCanvasIds"
+  | "getProjectionCacheStats"
+  | "setProjectionCacheBudget"
+  | "subscribeProjectionCache"
 >;
 
 const CanvasRuntimeContext = createContext<CanvasRuntimeContextValue | null>(null);

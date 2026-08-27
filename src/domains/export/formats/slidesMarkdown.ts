@@ -1,8 +1,11 @@
-import type { SlideDeck } from '@/domains/slides/public';
+import { DEFAULT_SLIDE_SIZE, type SlideDeck } from '@/domains/slides/public';
 import { GridManager } from '@/shared/utils/grid';
 import { exportSelectionToAnsi } from './text';
 
 const escapeFrontMatterValue = (value: string) => value.replace(/\r?\n/g, ' ').trim();
+
+const isDefaultSlideSize = (size: SlideDeck['slides'][number]['size']) =>
+  size.columns === DEFAULT_SLIDE_SIZE.columns && size.rows === DEFAULT_SLIDE_SIZE.rows;
 
 const resolveFence = (source: string) => {
   let length = 3;
@@ -50,10 +53,18 @@ export const exportSlideDeckToMarkdown = (
     `title: ${title}`,
     '---',
   ].join('\n');
+  return `${header}\n\n${exportSlideDeckBodyToMarkdown(slideDeck, options)}`;
+};
+
+export const exportSlideDeckBodyToMarkdown = (
+  slideDeck: SlideDeck,
+  options?: { includeColor?: boolean }
+) => {
   const pages = slideDeck.slides.map((slide) => {
     const { source, fence } = renderSlide(slide, options?.includeColor !== false);
     const size = `${slide.size.columns}x${slide.size.rows}`;
-    return `## ${escapeFrontMatterValue(slide.name)}\n\n${fence}chardesk size=${size}\n${source}\n${fence}`;
+    const info = isDefaultSlideSize(slide.size) ? '' : ` size=${size}`;
+    return `## ${escapeFrontMatterValue(slide.name)}\n\n${fence}chardesk${info}\n${source}\n${fence}`;
   });
-  return `${header}\n\n${pages.join('\n\n')}`;
+  return pages.join('\n\n');
 };

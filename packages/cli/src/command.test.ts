@@ -117,12 +117,43 @@ describe("chardesk render command", () => {
     ], board.value, cwd)).toBe(0);
     expect(JSON.parse(board.stdout())).toMatchObject({ inputMode: "chardesk" });
 
+    await writeFile(join(cwd, "canonical.chardesk"), [
+      "---",
+      "chardesk: document/v1",
+      "mode: freeform",
+      "---",
+      "[32mCanonical[0m",
+    ].join("\n"), "utf8");
+    const canonical = streams();
+    expect(await runCli([
+      "render", "canonical.chardesk", "-o", "canonical.txt", "--json",
+    ], canonical.value, cwd)).toBe(0);
+    expect(await readFile(join(cwd, "canonical.txt"), "utf8")).toBe("Canonical");
+
     const invalid = streams("```mermaid\nnot-a-diagram\n```");
     expect(await runCli([
       "render", "-", "-o", "invalid.png", "--strict", "--json",
     ], invalid.value, cwd)).toBe(1);
     expect(JSON.parse(invalid.stdout())).toMatchObject({ status: "rejected" });
     await expect(access(join(cwd, "invalid.png"))).rejects.toThrow();
+  });
+
+  it("recognizes unsupported canonical document modes", async () => {
+    const io = streams([
+      "---",
+      "chardesk: document/v1",
+      "mode: slide",
+      "---",
+      "## Intro",
+    ].join("\n"));
+
+    expect(await runCli([
+      "check", "-", "--input", "chardesk", "--json",
+    ], io.value)).toBe(1);
+    expect(JSON.parse(io.stdout())).toMatchObject({
+      status: "error",
+      code: "unsupported-document-mode",
+    });
   });
 
   it("writes inferred text formats and supports plain text on stdout", async () => {
@@ -140,6 +171,8 @@ describe("chardesk render command", () => {
     }
     expect(await readFile(join(cwd, "result.chardesk"), "utf8"))
       .not.toContain("\u001b");
+    expect(await readFile(join(cwd, "result.chardesk"), "utf8"))
+      .toContain("chardesk: document/v1");
 
     const stdout = streams("**Ready** 界");
     expect(await runCli([

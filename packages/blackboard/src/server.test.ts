@@ -53,6 +53,31 @@ describe("Blackboard Reader", () => {
     expect(await diagnostic.text()).toBe("[999mcurrent source[0m");
   });
 
+  it("serves only the body of a canonical freeform document", async () => {
+    const { board, running } = await fixture();
+    await writeFile(board.path, [
+      "---",
+      "chardesk: document/v1",
+      "mode: freeform",
+      "title: Board",
+      "---",
+      "[32mBody[0m",
+    ].join("\n"));
+
+    const response = await fetch(`${running.url}/board`);
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe("[32mBody[0m");
+
+    await writeFile(board.path, [
+      "---",
+      "chardesk: document/v1",
+      "mode: slide",
+      "---",
+      "## Slide",
+    ].join("\n"));
+    expect((await fetch(`${running.url}/board`)).status).toBe(422);
+  });
+
   it("serves the page and rejects writes and static traversal", async () => {
     const { running } = await fixture();
     const rootResponse = await fetch(running.url, { redirect: "manual" });

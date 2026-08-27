@@ -426,8 +426,9 @@ type BudgetEntry = { bytes: number; evict: () => void };
 
 /** Shared byte-bounded LRU for disposable Canvas projections. */
 export class CanvasProjectionCacheBudget {
-  readonly #byteBudget: number;
+  #byteBudget: number;
   readonly #entries = new Map<object, BudgetEntry>();
+  readonly #listeners = new Set<() => void>();
   #bytes = 0;
   #evictions = 0;
 
@@ -439,6 +440,24 @@ export class CanvasProjectionCacheBudget {
     this.release(token);
     this.#entries.set(token, { bytes, evict });
     this.#bytes += bytes;
+    this.#evictToBudget();
+    this.#emit();
+  }
+
+  setByteBudget(byteBudget: number) {
+    const normalized = Math.max(0, Math.floor(byteBudget));
+    if (normalized === this.#byteBudget) return;
+    this.#byteBudget = normalized;
+    this.#evictToBudget();
+    this.#emit();
+  }
+
+  subscribe(listener: () => void) {
+    this.#listeners.add(listener);
+    return () => this.#listeners.delete(listener);
+  }
+
+  #evictToBudget() {
     while (this.#bytes > this.#byteBudget && this.#entries.size > 1) {
       const oldest = this.#entries.entries().next().value as
         | [object, BudgetEntry]
@@ -463,6 +482,7 @@ export class CanvasProjectionCacheBudget {
     if (!entry) return;
     this.#entries.delete(token);
     this.#bytes -= entry.bytes;
+    this.#emit();
   }
 
   clear() {
@@ -470,6 +490,7 @@ export class CanvasProjectionCacheBudget {
     this.#entries.clear();
     this.#bytes = 0;
     entries.forEach(({ evict }) => evict());
+    this.#emit();
   }
 
   getStats() {
@@ -479,6 +500,10 @@ export class CanvasProjectionCacheBudget {
       entries: this.#entries.size,
       evictions: this.#evictions,
     };
+  }
+
+  #emit() {
+    this.#listeners.forEach((listener) => listener());
   }
 }
 

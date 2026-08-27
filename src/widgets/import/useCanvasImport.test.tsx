@@ -17,8 +17,8 @@ vi.mock("@/domains/canvas/public", async (importOriginal) => ({
 const createFileEvent = (text: () => Promise<string>) =>
   ({
     target: {
-      files: [{ name: "demo.md", text }],
-      value: "/demo.md",
+      files: [{ name: "demo.chardesk", text }],
+      value: "/demo.chardesk",
     },
   }) as unknown as React.ChangeEvent<HTMLInputElement>;
 
@@ -39,7 +39,7 @@ describe("useCanvasImport", () => {
 
     expect(importCanvasSession).toHaveBeenCalledWith("hello", {
       name: "demo",
-      sourceName: "demo.md",
+      sourceName: "demo.chardesk",
     });
     expect(feedback.success).not.toHaveBeenCalled();
   });

@@ -96,6 +96,14 @@ export class CanvasRuntime {
   setRetainedCanvasIds = (ids: readonly string[]) =>
     this.persistence?.setPinnedCanvasIds(ids);
 
+  getProjectionCacheStats = () => this.documents.getProjectionCacheStats();
+
+  setProjectionCacheBudget = (bytes: number) =>
+    this.documents.setProjectionCacheBudget(bytes);
+
+  subscribeProjectionCache = (listener: () => void) =>
+    this.documents.subscribeProjectionCache(listener);
+
   dispose = () => {
     if (this.#disposed) return;
     this.#disposed = true;

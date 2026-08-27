@@ -48,11 +48,13 @@ declare global {
     __chardeskCanvasStress?: {
       ready: () => Promise<void>;
       flush: () => Promise<void>;
+      switchSession: (id: string) => Promise<boolean>;
       cellCount: () => number;
       surfaceStats: () => Record<string, number> | null;
       memoryStats: () => Record<string, number>;
       rasterStats: () => Record<string, number> | null;
       renderWorkerStats: () => Record<string, number | boolean | string | null> | null;
+      resourceStats: () => Record<string, number | boolean | string> | null;
       persistence: () => { error: string | null };
     };
   }
@@ -204,6 +206,25 @@ const makePersistedState = ({
     },
     version: 5,
   };
+};
+
+const makeResidencyState = () => {
+  const sessionIds = ["residency-a", "residency-b", "residency-c", "residency-d"];
+  const grids = sessionIds.map((_, index) => makeGrid(5_000 + index * 250, "dense"));
+  const result = makePersistedState({ grid: grids[0] });
+  result.state.sessions = {
+    activeId: sessionIds[0]!,
+    items: sessionIds.map((id, index) => ({
+      id,
+      name: `Residency ${index + 1}`,
+      mode: "freeform" as const,
+      scene: [],
+      components: [],
+      grid: grids[index]!,
+      viewport: { offset: { x: 128, y: 128 }, zoom: 1 },
+    })),
+  };
+  return { snapshot: result, sessionIds };
 };
 
 const describeError = (error: unknown) =>
@@ -456,6 +477,7 @@ const runLevel = async ({
   storageMode = "virtual",
   readProjection = false,
   verifyReload = false,
+  switchSessionIds,
 }: {
   browser: Browser;
   family: CanvasStressLevel["family"];
@@ -467,6 +489,7 @@ const runLevel = async ({
   storageMode?: StorageProbe["mode"];
   readProjection?: boolean;
   verifyReload?: boolean;
+  switchSessionIds?: readonly string[];
 }): Promise<CanvasStressLevel> => {
   const serialized = JSON.stringify(snapshot);
   const runtimeErrors: string[] = [];
@@ -478,6 +501,7 @@ const runLevel = async ({
   let memoryStats: Record<string, number> | null = null;
   let rasterStats: Record<string, number> | null = null;
   let renderWorkerStats: Record<string, number | boolean | string | null> | null = null;
+  let resourceStats: Record<string, number | boolean | string> | null = null;
   const context = await browser.newContext({
     viewport: VIEWPORT,
     deviceScaleFactor: DEVICE_SCALE_FACTOR,
@@ -513,6 +537,16 @@ const runLevel = async ({
         await diagnosticsSession.send("Profiler.start");
       }
       const interactionStartedAt = await page.evaluate(() => performance.now());
+      if (switchSessionIds?.length) {
+        await page.evaluate(async (ids) => {
+          const diagnostics = window.__chardeskCanvasStress;
+          if (!diagnostics) throw new Error("Canvas stress diagnostics unavailable");
+          for (let index = 0; index < 24; index += 1) {
+            await diagnostics.switchSession(ids[index % ids.length]!);
+            await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+          }
+        }, switchSessionIds);
+      }
       await dragFor(page);
       await page.waitForTimeout(300);
       if (CAPTURE_CPU_PROFILE) {
@@ -549,6 +583,18 @@ const runLevel = async ({
       renderWorkerStats = await page.evaluate(
         () => window.__chardeskCanvasStress?.renderWorkerStats() ?? null
       );
+      resourceStats = await page.evaluate(
+        () => window.__chardeskCanvasStress?.resourceStats() ?? null
+      );
+      if (
+        switchSessionIds?.length &&
+        typeof renderWorkerStats?.sources === "number" &&
+        renderWorkerStats.sources > 2
+      ) {
+        runtimeErrors.push(
+          `worker retained ${renderWorkerStats.sources} sources after session cycling`
+        );
+      }
       await page.waitForTimeout(650);
       const storageProbe = await page.evaluate(() => window.__canvasStressStorage ?? null);
       storageError = storageProbe?.error ?? null;
@@ -608,6 +654,7 @@ const runLevel = async ({
     metrics,
     runtimeErrors,
     storageError,
+    resourceStats: resourceStats ?? undefined,
   });
   const failures = verifyReload
     ? evaluatedFailures.filter((failure) =>
@@ -628,6 +675,7 @@ const runLevel = async ({
     ...(memoryStats ? { memoryStats } : {}),
     ...(rasterStats ? { rasterStats } : {}),
     ...(renderWorkerStats ? { renderWorkerStats } : {}),
+    ...(resourceStats ? { resourceStats } : {}),
     ...(storageMode === "real" || verifyReload ? { persistenceMs, storageError } : {}),
     runtimeErrors,
     metrics,
@@ -728,6 +776,21 @@ test.describe.serial("Canvas capacity stress", () => {
       .reverse()
       .find((level) => level.family === "structured" && level.passed)?.nodeCount ?? null;
     expect(lastPassingNodes).toBeGreaterThanOrEqual(1_000);
+  });
+
+  test("keeps resource residency bounded while switching canvases", async ({ browser }) => {
+    const { snapshot, sessionIds } = makeResidencyState();
+    const level = await runLevel({
+      browser,
+      family: "residency",
+      label: "24 switches across 4 canvases",
+      snapshot,
+      zoom: 1,
+      switchSessionIds: sessionIds,
+    });
+    appendLevel(level);
+    markFamilyComplete("residency");
+    expect(level.passed).toBe(true);
   });
 
   test("verifies the IndexedDB persistence boundary", async ({ browser }) => {

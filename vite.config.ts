@@ -141,6 +141,13 @@ export default defineConfig({
         ),
       },
       {
+        find: "@chardesk/document",
+        replacement: path.resolve(
+          import.meta.dirname,
+          "./packages/document/src/index.ts"
+        ),
+      },
+      {
         find: "@chardesk/protocol",
         replacement: path.resolve(
           import.meta.dirname,

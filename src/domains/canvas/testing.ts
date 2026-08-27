@@ -31,6 +31,9 @@ export let testingCanvasRuntime: {
   subscribePersistence: (listener: () => void) => () => void;
   retryPersistence: () => Promise<void>;
   setRetainedCanvasIds: (ids: readonly string[]) => void;
+  getProjectionCacheStats: CanvasDocumentRegistry["getProjectionCacheStats"];
+  setProjectionCacheBudget: CanvasDocumentRegistry["setProjectionCacheBudget"];
+  subscribeProjectionCache: CanvasDocumentRegistry["subscribeProjectionCache"];
   dispose: () => void;
 };
 
@@ -64,6 +67,9 @@ export const initializeCanvasTesting = ({
     subscribePersistence: () => () => undefined,
     retryPersistence: () => Promise.resolve(),
     setRetainedCanvasIds: () => undefined,
+    getProjectionCacheStats: defaultCanvasDocuments.getProjectionCacheStats,
+    setProjectionCacheBudget: defaultCanvasDocuments.setProjectionCacheBudget,
+    subscribeProjectionCache: defaultCanvasDocuments.subscribeProjectionCache,
     dispose: () => undefined,
   };
   return testingCanvasRuntime;

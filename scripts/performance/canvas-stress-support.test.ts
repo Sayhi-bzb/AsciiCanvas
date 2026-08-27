@@ -43,6 +43,7 @@ describe("canvas stress support", () => {
       }),
       runtimeErrors: ["page crashed"],
       storageError: "quota",
+      resourceStats: { pressure: "critical" },
     })).toEqual([
       "p95-frame",
       "over-50ms-frames",
@@ -50,6 +51,7 @@ describe("canvas stress support", () => {
       "js-heap",
       "runtime-error",
       "storage-error",
+      "memory-critical",
     ]);
   });
 

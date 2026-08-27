@@ -28,8 +28,8 @@ const EXPORT_FORMATS: readonly ExportFormatDefinition[] = [
   {
     format: "chardesk",
     label: "CharDesk",
-    subLabel: "canvas",
-    modes: ["freeform", "structured"],
+    subLabel: "document",
+    modes: ["freeform", "structured", "slide"],
     artifactKind: "text",
     supportsColor: true,
     supportsClipboard: true,
@@ -40,16 +40,6 @@ const EXPORT_FORMATS: readonly ExportFormatDefinition[] = [
     label: "ANSI",
     subLabel: "terminal",
     modes: ALL_STATIC_MODES,
-    artifactKind: "text",
-    supportsColor: true,
-    supportsClipboard: true,
-    truncatePreview: true,
-  },
-  {
-    format: "md",
-    label: "Markdown",
-    subLabel: "slides",
-    modes: ["slide"],
     artifactKind: "text",
     supportsColor: true,
     supportsClipboard: true,
@@ -70,7 +60,7 @@ const EXPORT_FORMATS: readonly ExportFormatDefinition[] = [
 const FORMAT_ORDER: Record<CanvasMode, readonly ExportFormat[]> = {
   freeform: ["txt", "chardesk", "png"],
   structured: ["txt", "chardesk", "png"],
-  slide: ["md"],
+  slide: ["chardesk"],
 };
 
 export const getAvailableExportFormats = (mode: CanvasMode) =>

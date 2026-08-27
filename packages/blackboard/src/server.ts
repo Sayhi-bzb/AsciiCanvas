@@ -4,6 +4,7 @@ import { createServer, type ServerResponse } from "node:http";
 import { basename, extname, isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolveReadableBoardPath, type WorkspaceBoardPath } from "./paths.js";
+import { resolveBlackboardSource } from "./document.js";
 
 const SECURITY_HEADERS = {
   "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; connect-src 'self'; img-src 'none'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
@@ -85,9 +86,22 @@ export const startBlackboardServer = async ({
           send(response, 304, undefined, headers);
           return;
         }
-        send(response, 200, bytes, {
+        let source: string;
+        try {
+          source = resolveBlackboardSource(
+            new TextDecoder("utf-8", { fatal: true }).decode(bytes)
+          );
+        } catch (error) {
+          send(response, 422, error instanceof Error ? error.message : "Invalid board source.", {
+            ...headers,
+            "Content-Type": "text/plain; charset=utf-8",
+          });
+          return;
+        }
+        const body = new TextEncoder().encode(source);
+        send(response, 200, body, {
           ...headers,
-          "Content-Length": String(bytes.byteLength),
+          "Content-Length": String(body.byteLength),
           "Content-Type": "text/plain; charset=utf-8",
           "X-CharDesk-Source-Name": basename(board.path),
         });

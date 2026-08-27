@@ -9,7 +9,7 @@ import { CanvasWorkspaceProvider } from '@/widgets/canvas-editor/engine/CanvasWo
 import { OnboardingTourContext } from '@/widgets/onboarding/onboarding-context';
 import { EditorPresentationProvider } from '@/widgets/editor-chrome/public';
 
-describe('AppMenu slide interchange', () => {
+describe('AppMenu document interchange', () => {
   const initialState = useEditorStore.getState();
 
   beforeEach(() => {
@@ -29,7 +29,7 @@ describe('AppMenu slide interchange', () => {
     vi.unstubAllGlobals();
   });
 
-  it('offers Markdown import and export while a Slide Deck is active', async () => {
+  it('offers one CharDesk import and export while a Slide Deck is active', async () => {
     const slideDeck = createSlideDeck({ initialSlideId: 'slide-1' });
     useEditorStore.setState({
       canvasMode: 'slide',
@@ -53,7 +53,7 @@ describe('AppMenu slide interchange', () => {
     const { container } = render(<AppMenu />);
     expect(container.querySelector('input[type="file"]')).toHaveAttribute(
       'accept',
-      expect.stringContaining('.md')
+      '.chardesk,.slides.md,.ans,.txt'
     );
 
     fireEvent.pointerDown(screen.getByRole('button', { name: 'Open menu' }), {
@@ -73,10 +73,11 @@ describe('AppMenu slide interchange', () => {
     const exportItem = screen.getByRole('menuitem', { name: 'Export' });
     fireEvent.pointerMove(exportItem, { pointerType: 'mouse' });
     await waitFor(() => expect(exportItem).toHaveAttribute('data-state', 'open'));
-    expect(await screen.findByRole('menuitem', { name: 'Markdown' })).not.toHaveAttribute(
+    expect(await screen.findByRole('menuitem', { name: 'CharDesk' })).not.toHaveAttribute(
       'aria-haspopup',
       'menu'
     );
+    expect(screen.queryByRole('menuitem', { name: 'Markdown' })).not.toBeInTheDocument();
     const githubItem = screen.getByRole('menuitem', { name: /^GitHub/ });
     const githubMark = githubItem.querySelector('[data-slot="github-mark-icon"]');
     expect(githubMark).toHaveAttribute('viewBox', '0 0 98 96');

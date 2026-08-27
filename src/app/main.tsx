@@ -32,6 +32,7 @@ if (new URLSearchParams(window.location.search).has("canvas-stress")) {
     value: {
       ready: () => host.canvas.ready,
       flush: () => host.canvas.retryPersistence(),
+      switchSession: (id: string) => host.canvas.commands.sessions.switch(id),
       cellCount: () => host.canvas.queries.getActiveCellCount(),
       surfaceStats: () => {
         const reader = getSurfaceGridReader(host.canvas.getState().grid);
@@ -49,6 +50,29 @@ if (new URLSearchParams(window.location.search).has("canvas-stress")) {
           number | boolean | string | null
         >;
       }).__chardeskCanvasRenderWorkerStats?.() ?? null,
+      resourceStats: () => {
+        const snapshot = (window as Window & {
+          __chardeskCanvasResourceStats?: () => {
+            memory: {
+              pressure: string;
+              hidden: boolean;
+              totalBytes: number;
+              nominalBudget: number;
+              usage: Record<string, number>;
+            };
+            worker: { loadedFontFaces: number };
+          };
+        }).__chardeskCanvasResourceStats?.();
+        return snapshot ? {
+          pressure: snapshot.memory.pressure,
+          hidden: snapshot.memory.hidden,
+          accountedBytes: snapshot.memory.totalBytes,
+          nominalBudgetBytes: snapshot.memory.nominalBudget,
+          cellPlaneBytes: snapshot.memory.usage["cell-plane"] ?? 0,
+          workerSourceBytes: snapshot.memory.usage["worker-source"] ?? 0,
+          loadedFontFaces: snapshot.worker.loadedFontFaces,
+        } : null;
+      },
       persistence: () => host.canvas.getPersistenceSnapshot(),
     },
   });

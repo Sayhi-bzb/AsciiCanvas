@@ -9,7 +9,6 @@ import { clipboard } from "@/shared/services/effects";
 import {
   parseDocumentSessionSource,
 } from "@/domains/document/public";
-import { parseSlideMarkdown } from "@/domains/slides/public";
 import { createGridSurfaceReader } from "@/domains/canvas/public";
 
 const createContext = (
@@ -44,6 +43,8 @@ describe("export service", () => {
     });
     expect(result.value.filename).toMatch(/^chardesk-\d+\.chardesk$/);
     expect(result.value.content).not.toContain("\u001b");
+    expect(result.value.content).toContain("chardesk: document/v1");
+    expect(result.value.content).toContain("mode: freeform");
     const snapshot = parseDocumentSessionSource(result.value.content);
     expect(snapshot).toMatchObject({
       mode: "freeform",
@@ -51,7 +52,7 @@ describe("export service", () => {
     });
   });
 
-  it("flattens structured exports to a freeform visual canvas", () => {
+  it("round-trips structured scene content without flattening it", () => {
     const result = prepareTextExport(
       createContext({
         canvasMode: "structured",
@@ -73,9 +74,9 @@ describe("export service", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(parseDocumentSessionSource(result.value.content)).toMatchObject({
-      mode: "freeform",
-      scene: [],
-      grid: [["0,0", { char: "X", color: "#ff0000" }]],
+      mode: "structured",
+      scene: [{ id: "box-1", type: "box", order: 1 }],
+      components: [],
     });
   });
 
@@ -120,7 +121,7 @@ describe("export service", () => {
   });
 
 
-  it("round-trips positioned ANSI slide content through Markdown", () => {
+  it("round-trips positioned ANSI slide content through a CharDesk document", () => {
     const result = prepareTextExport(
       createContext({
         canvasMode: "slide",
@@ -138,24 +139,67 @@ describe("export service", () => {
         },
         documentName: "Agent Deck",
       }),
-      "md"
+      "chardesk"
     );
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value).toMatchObject({
-      format: "md",
-      mimeType: "text/markdown;charset=utf-8",
+      format: "chardesk",
+      mimeType: "text/plain;charset=utf-8",
     });
-    expect(result.value.filename).toMatch(/^chardesk-slides-\d+\.slides\.md$/);
+    expect(result.value.filename).toMatch(/^chardesk-\d+\.chardesk$/);
     expect(result.value.content).not.toContain("\u001b");
-    expect(result.value.content).toContain("chardesk: slides/v1");
+    expect(result.value.content).toContain("chardesk: document/v1");
+    expect(result.value.content).toContain("mode: slide");
     expect(result.value.content).toContain("```chardesk size=6x3");
 
-    const parsed = parseSlideMarkdown(result.value.content);
-    expect(parsed.title).toBe("Agent Deck");
+    const parsed = parseDocumentSessionSource(result.value.content);
+    expect(parsed.name).toBe("Agent Deck");
+    expect(parsed.mode).toBe("slide");
+    if (parsed.mode !== "slide") return;
     expect(parsed.slideDeck.slides[0].grid).toEqual([
       ["2,1", { char: "R", color: "#ff0000" }],
+    ]);
+  });
+
+  it("omits the default slide size while preserving custom sizes", () => {
+    const result = prepareTextExport(
+      createContext({
+        canvasMode: "slide",
+        surface: createGridSurfaceReader(new Map()),
+        slideDeck: {
+          activeSlideId: "slide-1",
+          slides: [
+            {
+              id: "slide-1",
+              name: "Default",
+              size: { columns: 100, rows: 27 },
+              grid: [["0,0", { char: "A", color: "#ffffff" }]],
+            },
+            {
+              id: "slide-2",
+              name: "Custom",
+              size: { columns: 80, rows: 24 },
+              grid: [["0,0", { char: "B", color: "#ffffff" }]],
+            },
+          ],
+        },
+      }),
+      "chardesk"
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.content).toContain("## Default\n\n```chardesk\n");
+    expect(result.value.content).toContain("## Custom\n\n```chardesk size=80x24\n");
+
+    const parsed = parseDocumentSessionSource(result.value.content);
+    expect(parsed.mode).toBe("slide");
+    if (parsed.mode !== "slide") return;
+    expect(parsed.slideDeck.slides.map((slide) => slide.size)).toEqual([
+      { columns: 100, rows: 27 },
+      { columns: 80, rows: 24 },
     ]);
   });
 

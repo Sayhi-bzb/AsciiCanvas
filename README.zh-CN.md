@@ -57,7 +57,7 @@ CharDesk 直接以文本承载视觉信息。你看到的仍是一张图，但�
 
 ### 幻灯片
 
-将每一页作为可编辑文本编排，或让 Agent 生成 `.slides.md` 文件，再回到画布继续调整。参见 [Slides 文件结构](.agents/skills/chardesk/references/slides.md)。
+将每一页作为可编辑文本编排，或让 Agent 生成 `.chardesk` 文档，再回到画布继续调整。参见 [Slides 文件结构](.agents/skills/chardesk/references/slides.md)。
 
 ## 为人与 AI 的往返协作而生
 

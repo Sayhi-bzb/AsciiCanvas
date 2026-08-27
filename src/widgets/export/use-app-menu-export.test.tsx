@@ -26,7 +26,7 @@ describe("useAppMenuExport", () => {
     deliverExportDownload.mockResolvedValue({ ok: true, value: true });
     const { result } = renderHook(() => useAppMenuExport(context));
 
-    await expect(result.current.save("md")).resolves.toEqual({ ok: true });
+    await expect(result.current.save("chardesk")).resolves.toEqual({ ok: true });
   });
 
   it("preserves the oversized-image error category for the menu", async () => {
@@ -51,7 +51,7 @@ describe("useAppMenuExport", () => {
     });
     const { result } = renderHook(() => useAppMenuExport(context));
 
-    await expect(result.current.save("md")).resolves.toEqual({
+    await expect(result.current.save("chardesk")).resolves.toEqual({
       ok: false,
       errorCode: "save-failed",
     });

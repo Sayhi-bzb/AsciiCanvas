@@ -35,6 +35,31 @@ describe('CharDesk Slides Markdown', () => {
     expect(result.slideDeck.slides[1].grid[0][1].color).toBe('#800000');
   });
 
+  it('uses the widescreen default when slide sizes are omitted', () => {
+    const result = parseSlideMarkdown(
+      createSource([
+        '## Plain',
+        '```text',
+        'A',
+        '```',
+        '## ANSI',
+        '```ansi',
+        '\u001b[31mB\u001b[0m',
+        '```',
+        '## CharDesk',
+        '```chardesk',
+        '[32mC[0m',
+        '```',
+      ])
+    );
+
+    expect(result.slideDeck.slides.map((slide) => slide.size)).toEqual([
+      { columns: 100, rows: 27 },
+      { columns: 100, rows: 27 },
+      { columns: 100, rows: 27 },
+    ]);
+  });
+
   it('uses fallback names and clips overflow, including wide boundary cells', () => {
     const result = parseSlideMarkdown(
       createSource(['```text size=4x2', 'ABCDE', 'abc界', 'third', '```'])
@@ -77,8 +102,8 @@ describe('CharDesk Slides Markdown', () => {
     ['bad version', ['---', 'chardesk: slides/v2', '---', '```text size=4x2', 'A', '```'].join('\n')],
     ['legacy header', ['---', 'asciicanvas: slides/v2', '---', '```text size=4x2', 'A', '```'].join('\n')],
     ['legacy fence', createSource(['```asciicanvas size=4x2', 'A', '```'])],
-    ['missing size', createSource(['```text', 'A', '```'])],
     ['bad size', createSource(['```text size=wide', 'A', '```'])],
+    ['unknown block info', createSource(['```text compact', 'A', '```'])],
     ['no slides', createSource(['Nothing here'])],
     ['open fence', createSource(['```text size=4x2', 'A'])],
   ])('rejects %s', (_label, source) => {

@@ -21,6 +21,7 @@ import { CanvasFrameScheduler, CanvasScopedFrameScheduler } from './FrameSchedul
 import { CanvasRasterTileCache } from '../rendering/CanvasRasterTileCache';
 import { CanvasRenderWorkerClient } from '../rendering/CanvasRenderWorkerClient';
 import { evaluateCanvasRenderHealth } from '../rendering/CanvasRenderHealth';
+import { CanvasMemoryGovernor } from '../rendering/CanvasMemoryGovernor';
 
 export type CanvasViewId = 'primary' | 'secondary';
 
@@ -213,10 +214,12 @@ class CanvasViewRuntime {
 
 class CanvasWorkspaceRuntime {
   readonly views: Record<CanvasViewId, CanvasViewRuntime>;
-  readonly renderWorker = new CanvasRenderWorkerClient();
+  readonly memoryGovernor = new CanvasMemoryGovernor();
+  readonly renderWorker = new CanvasRenderWorkerClient(this.memoryGovernor);
   readonly rasterTileCache = new CanvasRasterTileCache(
     undefined,
-    this.renderWorker
+    this.renderWorker,
+    this.memoryGovernor
   );
   private readonly frameScheduler = new CanvasFrameScheduler();
   private readonly publishViewport: (viewport: CanvasViewportState) => void;
@@ -230,16 +233,40 @@ class CanvasWorkspaceRuntime {
   private disposed = false;
   private activationGeneration = 0;
   private switchingSessionId: string | null = null;
+  private readonly releaseMemoryPolicy: () => void;
+  private readonly releaseProjectionCache: () => void;
 
   constructor(
     sessionId: string | null,
     viewport: CanvasViewportState,
     publishViewport: (viewport: CanvasViewportState) => void,
-    switchSession: (sessionId: string) => Promise<boolean>
+    switchSession: (sessionId: string) => Promise<boolean>,
+    memoryPort: {
+      getProjectionCacheStats: () => { bytes: number };
+      setProjectionCacheBudget: (bytes: number) => void;
+      subscribeProjectionCache: (listener: () => void) => () => void;
+    }
   ) {
     this.globalSessionId = sessionId;
     this.publishViewport = publishViewport;
     this.switchSession = switchSession;
+    const applyMemoryPolicy = (policy = this.memoryGovernor.getPolicy()) => {
+      this.rasterTileCache.syncMemoryPolicy();
+      this.renderWorker.setMemoryPolicy(policy);
+      memoryPort.setProjectionCacheBudget(
+        this.memoryGovernor.getLimit('cell-plane')
+      );
+    };
+    const syncProjectionCache = () => this.memoryGovernor.report(
+      'cell-plane',
+      memoryPort.getProjectionCacheStats().bytes
+    );
+    this.releaseMemoryPolicy = this.memoryGovernor.subscribe(applyMemoryPolicy);
+    this.releaseProjectionCache = memoryPort.subscribeProjectionCache(
+      syncProjectionCache
+    );
+    syncProjectionCache();
+    applyMemoryPolicy();
     const publish = (viewId: CanvasViewId) => (next: CanvasViewportState) => {
       if (
         viewId === this.activeViewId &&
@@ -383,6 +410,8 @@ class CanvasWorkspaceRuntime {
     this.views.secondary.engine.dispose();
     this.views.primary.engine.dispose();
     this.frameScheduler.dispose();
+    this.releaseProjectionCache();
+    this.releaseMemoryPolicy();
     this.rasterTileCache.clear();
     this.renderWorker.dispose();
   }
@@ -414,7 +443,12 @@ export function CanvasWorkspaceProvider({ children }: { children: ReactNode }) {
       state.activeCanvasId,
       { offset: state.offset, zoom: state.zoom },
       (viewport) => canvas.commands.viewport.setViewport(() => viewport),
-      canvas.commands.sessions.switch
+      canvas.commands.sessions.switch,
+      {
+        getProjectionCacheStats: canvas.getProjectionCacheStats,
+        setProjectionCacheBudget: canvas.setProjectionCacheBudget,
+        subscribeProjectionCache: canvas.subscribeProjectionCache,
+      }
     );
   });
   const [storedSplitEnabled, storeSplitEnabled] = useLocalStorageState<boolean>(
@@ -454,17 +488,28 @@ export function CanvasWorkspaceProvider({ children }: { children: ReactNode }) {
     const diagnostics = window as Window & {
       __chardeskCanvasRasterStats?: () => ReturnType<CanvasRasterTileCache['getStats']>;
       __chardeskCanvasRenderWorkerStats?: () => ReturnType<CanvasRenderWorkerClient['getStats']>;
+      __chardeskCanvasResourceStats?: () => {
+        memory: ReturnType<CanvasMemoryGovernor['getStats']>;
+        projection: ReturnType<typeof canvas.getProjectionCacheStats>;
+        raster: ReturnType<CanvasRasterTileCache['getStats']>;
+        worker: ReturnType<CanvasRenderWorkerClient['getStats']>;
+      };
       __chardeskCanvasRenderHealth?: () => ReturnType<typeof evaluateCanvasRenderHealth>;
     };
     const readStats = () => runtime.rasterTileCache.getStats();
     diagnostics.__chardeskCanvasRasterStats = readStats;
     const readWorkerStats = () => runtime.renderWorker.getStats();
     diagnostics.__chardeskCanvasRenderWorkerStats = readWorkerStats;
-    const readHealth = () => evaluateCanvasRenderHealth(readStats(), readWorkerStats());
+    const readResourceStats = () => ({
+      memory: runtime.memoryGovernor.getStats(),
+      projection: canvas.getProjectionCacheStats(),
+      raster: readStats(),
+      worker: readWorkerStats(),
+    });
+    diagnostics.__chardeskCanvasResourceStats = readResourceStats;
+    const readHealth = () => evaluateCanvasRenderHealth(readResourceStats());
     diagnostics.__chardeskCanvasRenderHealth = readHealth;
-    const syncPressure = () => runtime.rasterTileCache.setMemoryPressure(
-      document.hidden ? 'constrained' : 'normal'
-    );
+    const syncPressure = () => runtime.memoryGovernor.setVisibility(document.hidden);
     syncPressure();
     document.addEventListener('visibilitychange', syncPressure);
     return () => {
@@ -474,12 +519,15 @@ export function CanvasWorkspaceProvider({ children }: { children: ReactNode }) {
       if (diagnostics.__chardeskCanvasRenderWorkerStats === readWorkerStats) {
         delete diagnostics.__chardeskCanvasRenderWorkerStats;
       }
+      if (diagnostics.__chardeskCanvasResourceStats === readResourceStats) {
+        delete diagnostics.__chardeskCanvasResourceStats;
+      }
       if (diagnostics.__chardeskCanvasRenderHealth === readHealth) {
         delete diagnostics.__chardeskCanvasRenderHealth;
       }
       document.removeEventListener('visibilitychange', syncPressure);
     };
-  }, [runtime]);
+  }, [canvas, runtime]);
 
   useEffect(() => {
     if (splitEnabled) runtime.openSplit();

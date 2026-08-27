@@ -1,6 +1,7 @@
 # @chardesk/blackboard
 
-Local, read-only projection of one directly edited `.chardesk` Blackboard.
+Local, read-only projection of one canonical or legacy Freeform `.chardesk`
+Blackboard. Structured and Slide documents are rejected explicitly.
 
 - `serve [board.chardesk] [--port 7331]` serves the main CharDesk application at `/blackboard` on loopback.
 - `check <board.chardesk>` validates UTF-8 and visible ESC-less ANSI.

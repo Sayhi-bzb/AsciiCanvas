@@ -11,6 +11,7 @@ import {
 import type {
   CanvasRenderedTile,
   CanvasRenderTileSpec,
+  CanvasRenderWorkerResourceStats,
   CanvasRenderWorkerRequest,
   CanvasRenderWorkerResponse,
 } from "./canvasRenderWorkerProtocol";
@@ -40,11 +41,41 @@ let rasterAvailable = false;
 let rasterUnavailableReason: string | undefined;
 let processing = false;
 let nextPaneIndex = 0;
+let resourceReportTimer: ReturnType<typeof setTimeout> | null = null;
 
 const respond = (
   response: CanvasRenderWorkerResponse,
   transfer: Transferable[] = []
 ) => self.postMessage(response, transfer);
+
+const readResourceStats = (): CanvasRenderWorkerResourceStats => {
+  let sourcePayloadBytes = 0;
+  let sourceResidentBytes = 0;
+  sources.forEach(({ index }) => {
+    const stats = index.getStats();
+    sourcePayloadBytes += stats.encodedPayloadBytes;
+    sourceResidentBytes += stats.residentBytes;
+  });
+  return {
+    sourcePayloadBytes,
+    sourceResidentBytes,
+    sources: sources.size,
+    queuedBatches: batches.size,
+    queuedTiles: [...batches.values()].reduce(
+      (count, batch) => count + batch.tiles.length,
+      0
+    ),
+    loadedFontFaces: loadedFaces.size,
+  };
+};
+
+const scheduleResourceReport = () => {
+  if (resourceReportTimer !== null) return;
+  resourceReportTimer = setTimeout(() => {
+    resourceReportTimer = null;
+    respond({ type: "resources", stats: readResourceStats() });
+  }, 250);
+};
 
 const staleBatch = (batch: RenderBatch) => {
   respond({
@@ -68,6 +99,7 @@ const cancelBatch = (paneId: string) => {
   batches.delete(paneId);
   removePane(paneId);
   staleBatch(batch);
+  scheduleResourceReport();
 };
 
 const cancelSourceBatches = (sourceId: number) => {
@@ -255,7 +287,10 @@ const processNext = async () => {
         queueLatencyMs,
       }, [rendered.bitmap]);
       batch.queuedAt = performance.now();
-      if (batch.tiles.length === 0) finishBatch(batch);
+      if (batch.tiles.length === 0) {
+        finishBatch(batch);
+        scheduleResourceReport();
+      }
     }
   } catch (error) {
     if (batches.get(paneId) === batch) {
@@ -268,6 +303,7 @@ const processNext = async () => {
         revision: batch.revision,
         error: error instanceof Error ? error.message : "Worker tile rendering failed",
       });
+      scheduleResourceReport();
     }
   }
   scheduleNext();
@@ -288,6 +324,7 @@ self.onmessage = (event: MessageEvent<CanvasRenderWorkerRequest>) => {
       fontRevision,
       ...(rasterUnavailableReason ? { reason: rasterUnavailableReason } : {}),
     });
+    scheduleResourceReport();
     return;
   }
   if (request.type === "sync") {
@@ -297,6 +334,7 @@ self.onmessage = (event: MessageEvent<CanvasRenderWorkerRequest>) => {
       revision: request.revision,
       index: new CellPlaneIndex(request.operations),
     });
+    scheduleResourceReport();
     return;
   }
   if (request.type === "append") {
@@ -305,12 +343,14 @@ self.onmessage = (event: MessageEvent<CanvasRenderWorkerRequest>) => {
     cancelSourceBatches(request.sourceId);
     request.operations.forEach((operation) => source.index.append(operation));
     source.revision = request.revision;
+    scheduleResourceReport();
     return;
   }
   if (request.type === "release") {
     cancelSourceBatches(request.sourceId);
     sources.get(request.sourceId)?.index.dispose();
     sources.delete(request.sourceId);
+    scheduleResourceReport();
     return;
   }
   if (request.type === "cancelPane") {
@@ -318,6 +358,8 @@ self.onmessage = (event: MessageEvent<CanvasRenderWorkerRequest>) => {
     return;
   }
   if (request.type === "dispose") {
+    if (resourceReportTimer !== null) clearTimeout(resourceReportTimer);
+    resourceReportTimer = null;
     for (const paneId of [...paneOrder]) cancelBatch(paneId);
     sources.forEach(({ index }) => index.dispose());
     sources.clear();
@@ -345,6 +387,7 @@ self.onmessage = (event: MessageEvent<CanvasRenderWorkerRequest>) => {
         rows: [...source.index.rows(request.bounds)],
         durationMs: performance.now() - startedAt,
       });
+      scheduleResourceReport();
     } catch (error) {
       respond({
         type: "error",
@@ -353,6 +396,7 @@ self.onmessage = (event: MessageEvent<CanvasRenderWorkerRequest>) => {
         revision: request.revision,
         error: error instanceof Error ? error.message : "Canvas projection failed",
       });
+      scheduleResourceReport();
     }
     return;
   }

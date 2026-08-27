@@ -27,7 +27,6 @@ import {
 } from "./CanvasViewportResidencyManager";
 import {
   CanvasMemoryGovernor,
-  type CanvasMemoryPressure,
 } from "./CanvasMemoryGovernor";
 
 const DEFAULT_BYTE_BUDGET = 32 * 1024 * 1024;
@@ -238,8 +237,7 @@ export class CanvasRasterTileCache {
     this.#clearTiles();
   }
 
-  setMemoryPressure(pressure: CanvasMemoryPressure) {
-    this.#memoryGovernor.setPressure(pressure);
+  syncMemoryPolicy() {
     this.#evictToBudget();
   }
 
@@ -285,7 +283,7 @@ export class CanvasRasterTileCache {
       presentationFrames: this.#presentationFrames,
       deferredBatches: this.#deferredBatches,
       hotPatchBounds: this.#hotPatchBounds,
-      memoryBudget: Math.min(this.#byteBudget, memory.rasterLimit),
+      memoryBudget: Math.min(this.#byteBudget, memory.limits.raster),
       memoryPressure: memory.pressure,
       warmEntries: [...this.#warmKeys].filter((key) => this.#tiles.has(key)).length,
     };

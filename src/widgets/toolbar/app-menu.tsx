@@ -186,7 +186,7 @@ export function AppMenu() {
       <input
         ref={fileInputRef}
         type="file"
-        accept=".chardesk,.md,text/markdown,text/plain"
+        accept=".chardesk,.slides.md,.ans,.txt"
         className="sr-only"
         tabIndex={-1}
         aria-hidden="true"

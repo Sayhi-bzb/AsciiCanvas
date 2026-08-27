@@ -8,14 +8,15 @@
     "chardesk-blackboard": "./dist/cli.js"
   },
   "scripts": {
-    "prebuild": "npm run build -w @chardesk/protocol",
+    "prebuild": "npm run build -w @chardesk/document && npm run build -w @chardesk/protocol",
     "build": "tsc -p tsconfig.json",
-    "pretypecheck": "npm run build -w @chardesk/protocol",
+    "pretypecheck": "npm run build -w @chardesk/document && npm run build -w @chardesk/protocol",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "pretest": "npm run build",
     "test": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
+    "@chardesk/document": "*",
     "@chardesk/protocol": "*"
   },
   "devDependencies": {

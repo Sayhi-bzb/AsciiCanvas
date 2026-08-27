@@ -4,6 +4,10 @@ import { basename, dirname, extname, resolve } from "node:path";
 import type { Writable } from "node:stream";
 import { parseArgs } from "node:util";
 import {
+  parseCharDeskDocumentEnvelope,
+  serializeCharDeskDocumentEnvelope,
+} from "@chardesk/document";
+import {
   CharDeskCliRenderError,
   compileSource,
   renderSource,
@@ -245,6 +249,18 @@ const resolveInputMode = (
     : "chargraph"
   : command.inputMode;
 
+const resolveDocumentInput = (command: CommonCommand, source: string) => {
+  const document = parseCharDeskDocumentEnvelope(source);
+  if (!document) return { source, inputMode: resolveInputMode(command) };
+  if (document.mode !== "freeform") {
+    throw new CliCommandError(
+      "unsupported-document-mode",
+      `CharDesk CLI does not render ${document.mode} documents yet.`
+    );
+  }
+  return { source: document.body, inputMode: "chardesk" as const };
+};
+
 const writeAtomically = async (output: string, bytes: Uint8Array) => {
   const temporary = resolve(
     dirname(output),
@@ -304,9 +320,10 @@ const runCheck = async (
   source: string,
   streams: CliStreams
 ) => {
+  const input = resolveDocumentInput(command, source);
   const compiled = await compileSource({
-    source,
-    inputMode: resolveInputMode(command),
+    source: input.source,
+    inputMode: input.inputMode,
   });
   const status = compiled.diagnostics.length === 0 ? "valid" : "invalid";
   const result = { status, ...compilationResult(compiled) };
@@ -322,16 +339,17 @@ const runRender = async (
   streams: CliStreams,
   cwd: string
 ) => {
-  const inputMode = resolveInputMode(command);
+  const input = resolveDocumentInput(command, source);
+  const inputMode = input.inputMode;
   const rendered = command.format === "png"
     ? await renderSourceInRasterProcess({
-        source,
+        source: input.source,
         inputMode,
         scale: command.scale,
         padding: command.padding,
       })
     : await renderSource({
-        source,
+        source: input.source,
         inputMode,
         format: command.format,
         scale: command.scale,
@@ -349,8 +367,14 @@ const runRender = async (
   }
 
   const output = command.output === "-" ? "-" : resolve(cwd, command.output);
-  if (output === "-") streams.stdout.write(rendered.bytes);
-  else await writeAtomically(output, rendered.bytes);
+  const artifactBytes = command.format === "chardesk"
+    ? new TextEncoder().encode(serializeCharDeskDocumentEnvelope({
+        mode: "freeform",
+        body: decodeUtf8(rendered.bytes),
+      }))
+    : rendered.bytes;
+  if (output === "-") streams.stdout.write(artifactBytes);
+  else await writeAtomically(output, artifactBytes);
   const result = {
     status: "rendered",
     output,

@@ -27,7 +27,7 @@ export type CanvasStressMetrics = {
 };
 
 export type CanvasStressLevel = {
-  family: "freeform-sparse" | "freeform-dense" | "zoom" | "structured" | "persistence";
+  family: "freeform-sparse" | "freeform-dense" | "zoom" | "structured" | "residency" | "persistence";
   label: string;
   cellCount?: number;
   nodeCount?: number;
@@ -36,6 +36,7 @@ export type CanvasStressLevel = {
   memoryStats?: Readonly<Record<string, number>>;
   rasterStats?: Readonly<Record<string, number>>;
   renderWorkerStats?: Readonly<Record<string, number | boolean | string | null>>;
+  resourceStats?: Readonly<Record<string, number | boolean | string>>;
   zoom: number;
   snapshotBytes: number;
   persistenceMs?: number | null;
@@ -73,7 +74,11 @@ export const evaluateCanvasStressLevel = ({
   metrics,
   runtimeErrors,
   storageError,
-}: Pick<CanvasStressLevel, "metrics" | "runtimeErrors" | "storageError">) => {
+  resourceStats,
+}: Pick<
+  CanvasStressLevel,
+  "metrics" | "runtimeErrors" | "storageError" | "resourceStats"
+>) => {
   const failures: string[] = [];
   if (!metrics) failures.push("metrics-unavailable");
   if (metrics && metrics.p95FrameMs > CANVAS_STRESS_THRESHOLDS.p95FrameMs) {
@@ -99,6 +104,7 @@ export const evaluateCanvasStressLevel = ({
   }
   if (runtimeErrors.length > 0) failures.push("runtime-error");
   if (storageError) failures.push("storage-error");
+  if (resourceStats?.pressure === "critical") failures.push("memory-critical");
   return failures;
 };
 
@@ -126,6 +132,7 @@ export const createCanvasStressMarkdown = (report: CanvasStressReport) => {
     "freeform-dense",
     "zoom",
     "structured",
+    "residency",
     "persistence",
   ];
   const missingFamilies = expectedFamilies.filter(
@@ -157,12 +164,12 @@ export const createCanvasStressMarkdown = (report: CanvasStressReport) => {
     "",
     "## Levels",
     "",
-    "| Family | Level | Result | p95 / p99 frame | LoAF | >50ms | Input cold / p95 | Heap | Authority payload | Projection cache | Raster cache | Canvas | Snapshot | Persistence |",
-    "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"
+    "| Family | Level | Result | p95 / p99 frame | LoAF | >50ms | Input cold / p95 | Heap | Managed / budget | Pressure | Worker source | Fonts | Authority payload | Projection cache | Raster cache | Canvas | Snapshot | Persistence |",
+    "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"
   );
   report.levels.forEach((level) => {
     lines.push(
-      `| ${level.family} | ${level.label} | ${level.passed ? "pass" : `fail: ${level.failures.join(", ")}`} | ${formatNumber(level.metrics?.p95FrameMs)} / ${formatNumber(level.metrics?.p99FrameMs)} ms | ${level.metrics?.longAnimationFrameCount ?? "—"} | ${level.metrics?.over50ms ?? "—"} | ${formatNumber(level.metrics?.coldInputPaintMs)} / ${formatNumber(level.metrics?.inputPaintMs)} ms | ${formatBytes(level.metrics?.jsHeapBytes)} | ${formatBytes(level.memoryStats?.encodedPayloadBytes)} | ${formatBytes(level.memoryStats?.projectionCacheBudgetBytes)} | ${formatBytes(level.rasterStats?.bytes)} | ${formatBytes(level.metrics?.canvasBackingBytes)} | ${formatBytes(level.snapshotBytes)} | ${formatNumber(level.persistenceMs)} ms |`
+      `| ${level.family} | ${level.label} | ${level.passed ? "pass" : `fail: ${level.failures.join(", ")}`} | ${formatNumber(level.metrics?.p95FrameMs)} / ${formatNumber(level.metrics?.p99FrameMs)} ms | ${level.metrics?.longAnimationFrameCount ?? "—"} | ${level.metrics?.over50ms ?? "—"} | ${formatNumber(level.metrics?.coldInputPaintMs)} / ${formatNumber(level.metrics?.inputPaintMs)} ms | ${formatBytes(level.metrics?.jsHeapBytes)} | ${formatBytes(level.resourceStats?.accountedBytes as number | undefined)} / ${formatBytes(level.resourceStats?.nominalBudgetBytes as number | undefined)} | ${level.resourceStats?.pressure ?? "—"} | ${formatBytes(level.resourceStats?.workerSourceBytes as number | undefined)} | ${level.resourceStats?.loadedFontFaces ?? "—"} | ${formatBytes(level.memoryStats?.encodedPayloadBytes)} | ${formatBytes(level.memoryStats?.projectionCacheBudgetBytes)} | ${formatBytes(level.rasterStats?.bytes)} | ${formatBytes(level.metrics?.canvasBackingBytes)} | ${formatBytes(level.snapshotBytes)} | ${formatNumber(level.persistenceMs)} ms |`
     );
   });
   lines.push("");

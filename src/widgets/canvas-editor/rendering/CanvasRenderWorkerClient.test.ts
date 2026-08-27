@@ -4,6 +4,7 @@ import {
   cellPlanePatchToOperation,
 } from "@/domains/canvas/public";
 import { CanvasRenderWorkerClient } from "./CanvasRenderWorkerClient";
+import { CanvasMemoryGovernor } from "./CanvasMemoryGovernor";
 import type {
   CanvasRenderWorkerRequest,
   CanvasRenderWorkerResponse,
@@ -179,6 +180,65 @@ describe("CanvasRenderWorkerClient", () => {
     });
   });
 
+  it("aggregates worker-owned source memory without estimating font bytes", () => {
+    globalThis.Worker = FakeWorker as unknown as typeof Worker;
+    const governor = new CanvasMemoryGovernor();
+    const client = new CanvasRenderWorkerClient(governor);
+    const reader = new CellPlaneIndex([operation("initial", 0, "A")]);
+    client.project(reader, { x: 0, y: 0, width: 1, height: 1 });
+    const worker = FakeWorker.latest!;
+
+    worker.respond({
+      type: "resources",
+      stats: {
+        sourcePayloadBytes: 1_000,
+        sourceResidentBytes: 200,
+        sources: 1,
+        queuedBatches: 1,
+        queuedTiles: 3,
+        loadedFontFaces: 2,
+      },
+    });
+
+    expect(client.getStats()).toMatchObject({
+      sourcePayloadBytes: 1_000,
+      sourceResidentBytes: 200,
+      queuedTiles: 3,
+      loadedFontFaces: 2,
+    });
+    expect(governor.getStats().usage["worker-source"]).toBe(1_200);
+  });
+
+  it("suspends workers while hidden and recreates them lazily", async () => {
+    globalThis.Worker = FakeWorker as unknown as typeof Worker;
+    const client = new CanvasRenderWorkerClient();
+    const reader = new CellPlaneIndex([operation("initial", 0, "A")]);
+    const pending = client.project(reader, { x: 0, y: 0, width: 1, height: 1 })!;
+    const firstWorker = FakeWorker.latest!;
+
+    client.setMemoryPolicy({ pressure: "constrained", hidden: true });
+
+    await expect(pending).rejects.toThrow("suspended while hidden");
+    expect(firstWorker.terminated).toBe(true);
+    expect(client.getStats().workers).toBe(0);
+    expect(client.project(reader, { x: 0, y: 0, width: 1, height: 1 })).toBeNull();
+
+    client.setMemoryPolicy({ pressure: "normal", hidden: false });
+    const resumed = client.project(reader, { x: 0, y: 0, width: 1, height: 1 })!;
+    const secondWorker = FakeWorker.latest!;
+    expect(secondWorker).not.toBe(firstWorker);
+    const request = projectRequest(secondWorker);
+    secondWorker.respond({
+      type: "projected",
+      requestId: request.requestId,
+      sourceId: request.sourceId,
+      revision: request.revision,
+      rows: [],
+      durationMs: 1,
+    });
+    await expect(resumed).resolves.toEqual([]);
+  });
+
   it("rejects stale results and permanently falls back after worker failure", async () => {
     globalThis.Worker = FakeWorker as unknown as typeof Worker;
     const reader = new CellPlaneIndex([operation("initial", 0, "A")]);
@@ -274,5 +334,27 @@ describe("CanvasRenderWorkerClient", () => {
 
     expect(FakeWorker.instances).toHaveLength(2);
     expect(client.getStats()).toMatchObject({ workers: 2, poolExpansions: 1 });
+  });
+
+  it("does not expand the worker pool under memory pressure", () => {
+    globalThis.Worker = FakeWorker as unknown as typeof Worker;
+    vi.spyOn(navigator, "hardwareConcurrency", "get").mockReturnValue(8);
+    const client = new CanvasRenderWorkerClient();
+    client.setMemoryPolicy({ pressure: "constrained", hidden: false });
+    const reader = new CellPlaneIndex([operation("initial", 0, "A")]);
+    const tiles = [{
+      key: "tile",
+      bounds: { x: 0, y: 0, width: 1, height: 1 },
+      renderBounds: { x: -1, y: 0, width: 3, height: 1 },
+      rasterZoom: 1,
+      rasterDpr: 1,
+      lod: "full" as const,
+    }];
+
+    client.renderTiles(reader, { paneId: "one", viewportEpoch: 1, tiles });
+    client.renderTiles(reader, { paneId: "two", viewportEpoch: 1, tiles });
+    client.renderTiles(reader, { paneId: "three", viewportEpoch: 1, tiles });
+
+    expect(FakeWorker.instances).toHaveLength(1);
   });
 });

@@ -1,3 +1,4 @@
+import { serializeCharDeskDocumentEnvelope } from "@chardesk/document";
 import type { GridMap, SelectionArea } from "@/shared/types";
 import {
   createPngBlobFromGrid,
@@ -5,7 +6,7 @@ import {
 } from "../formats/raster";
 import { exportStructuredF12Text } from "../formats/structuredText";
 import { exportToAnsi, exportToCharDesk, exportToString } from "../formats/text";
-import { exportSlideDeckToMarkdown } from "../formats/slidesMarkdown";
+import { exportSlideDeckBodyToMarkdown } from "../formats/slidesMarkdown";
 import { getExportFormatDefinition } from "./registry";
 import {
   exportFailed,
@@ -82,17 +83,39 @@ export const prepareTextExport = (
             "text/plain;charset=utf-8"
           )
         );
-      case "chardesk":
+      case "chardesk": {
+        if (context.canvasMode === "slide" && !context.slideDeck) {
+          return exportFailed("canvas-unavailable");
+        }
+        const body = context.canvasMode === "structured"
+          ? JSON.stringify(
+              {
+                scene: context.structuredScene,
+                components: context.structuredComponents,
+              },
+              null,
+              2
+            )
+          : context.canvasMode === "slide"
+            ? exportSlideDeckBodyToMarkdown(context.slideDeck!, {
+                includeColor: context.includeColor,
+              })
+            : exportToCharDesk(grid, {
+                includeColor: context.includeColor,
+              });
         return exportSucceeded(
           textArtifact(
             format,
-            exportToCharDesk(grid, {
-              includeColor: context.includeColor,
+            serializeCharDeskDocumentEnvelope({
+              mode: context.canvasMode,
+              body,
+              ...(context.documentName ? { title: context.documentName } : {}),
             }),
             `chardesk-${getTimestamp()}.chardesk`,
             "text/plain;charset=utf-8"
           )
         );
+      }
       case "ansi":
         return exportSucceeded(
           textArtifact(
@@ -102,19 +125,6 @@ export const prepareTextExport = (
             }),
             `chardesk-${getTimestamp()}.ans`,
             "text/plain;charset=utf-8"
-          )
-        );
-      case "md":
-        if (!context.slideDeck) return exportFailed("canvas-unavailable");
-        return exportSucceeded(
-          textArtifact(
-            format,
-            exportSlideDeckToMarkdown(context.slideDeck, {
-              title: context.documentName,
-              includeColor: context.includeColor,
-            }),
-            `chardesk-slides-${getTimestamp()}.slides.md`,
-            "text/markdown;charset=utf-8"
           )
         );
       case "png":

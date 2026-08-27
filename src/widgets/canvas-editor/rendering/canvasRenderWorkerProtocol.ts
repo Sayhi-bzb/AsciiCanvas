@@ -20,6 +20,15 @@ export type CanvasRenderedTile = {
   bytes: number;
 };
 
+export type CanvasRenderWorkerResourceStats = {
+  sourcePayloadBytes: number;
+  sourceResidentBytes: number;
+  sources: number;
+  queuedBatches: number;
+  queuedTiles: number;
+  loadedFontFaces: number;
+};
+
 export type CanvasRenderWorkerRequest =
   | {
       type: "configure";
@@ -65,6 +74,10 @@ export type CanvasRenderWorkerResponse =
       rasterAvailable: boolean;
       fontRevision: string;
       reason?: string;
+    }
+  | {
+      type: "resources";
+      stats: CanvasRenderWorkerResourceStats;
     }
   | {
       type: "projected";

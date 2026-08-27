@@ -15,7 +15,7 @@ The output suffix selects the materialized artifact:
 | Suffix | Format | Artifact |
 | --- | --- | --- |
 | `.png` | `png` | Raster image |
-| `.chardesk` | `chardesk` | Styled ESC-less CharDesk text |
+| `.chardesk` | `chardesk` | Canonical Freeform CharDesk document |
 | `.ans` | `ansi` | Terminal ANSI text |
 | `.txt` | `text` | Plain Unicode text |
 
@@ -39,9 +39,10 @@ chardesk check input.md --json
 
 ## Input and options
 
-`auto` treats `.chardesk` as materialized ESC-less ANSI and other files or
-stdin as CharGraph source. Override it with `--input chargraph` or
-`--input chardesk`.
+`auto` recognizes canonical and legacy Freeform `.chardesk` input; other files
+or stdin default to CharGraph source. Canonical Structured and Slide documents
+return `unsupported-document-mode` until their headless renderers are added.
+Override non-document input with `--input chargraph` or `--input chardesk`.
 
 ```text
 --format <png|chardesk|ansi|text>
