@@ -12,6 +12,7 @@ import {
   resolveCanvasContentLod,
   type CanvasContentLod,
 } from "./canvasLod";
+import type { CharDeskCanvasContext } from "@chardesk/rendering/canvas";
 
 type ViewBounds = ReturnType<typeof GridManager.getViewportGridBounds>;
 
@@ -22,7 +23,7 @@ type DrawGridLayerOptions = {
 };
 
 export const drawGridLayer = (
-  ctx: CanvasRenderingContext2D,
+  ctx: CharDeskCanvasContext,
   reader: CanvasSurfaceReader | null,
   viewBounds: ViewBounds,
   zoom: number,

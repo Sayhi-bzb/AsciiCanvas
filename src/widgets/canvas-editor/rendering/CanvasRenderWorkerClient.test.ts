@@ -3,16 +3,16 @@ import {
   CellPlaneIndex,
   cellPlanePatchToOperation,
 } from "@/domains/canvas/public";
-import { CanvasProjectionWorkerClient } from "./CanvasProjectionWorkerClient";
+import { CanvasRenderWorkerClient } from "./CanvasRenderWorkerClient";
 import type {
-  CanvasProjectionWorkerRequest,
-  CanvasProjectionWorkerResponse,
-} from "./canvasProjectionWorkerProtocol";
+  CanvasRenderWorkerRequest,
+  CanvasRenderWorkerResponse,
+} from "./canvasRenderWorkerProtocol";
 
 class FakeWorker {
   static latest: FakeWorker | null = null;
-  readonly messages: CanvasProjectionWorkerRequest[] = [];
-  onmessage: ((event: MessageEvent<CanvasProjectionWorkerResponse>) => void) | null = null;
+  readonly messages: CanvasRenderWorkerRequest[] = [];
+  onmessage: ((event: MessageEvent<CanvasRenderWorkerResponse>) => void) | null = null;
   onerror: (() => void) | null = null;
   onmessageerror: (() => void) | null = null;
   terminated = false;
@@ -21,7 +21,7 @@ class FakeWorker {
     FakeWorker.latest = this;
   }
 
-  postMessage(message: CanvasProjectionWorkerRequest) {
+  postMessage(message: CanvasRenderWorkerRequest) {
     this.messages.push(message);
   }
 
@@ -29,8 +29,8 @@ class FakeWorker {
     this.terminated = true;
   }
 
-  respond(response: CanvasProjectionWorkerResponse) {
-    this.onmessage?.({ data: response } as MessageEvent<CanvasProjectionWorkerResponse>);
+  respond(response: CanvasRenderWorkerResponse) {
+    this.onmessage?.({ data: response } as MessageEvent<CanvasRenderWorkerResponse>);
   }
 }
 
@@ -50,19 +50,26 @@ const operation = (id: string, x: number, text: string) =>
     }],
   })!;
 
-describe("CanvasProjectionWorkerClient", () => {
+const projectRequest = (worker: FakeWorker) =>
+  [...worker.messages].reverse().find(
+    (message): message is Extract<CanvasRenderWorkerRequest, { type: "project" }> =>
+      message.type === "project"
+  )!;
+
+describe("CanvasRenderWorkerClient", () => {
   it("syncs once and appends only new operations", async () => {
     globalThis.Worker = FakeWorker as unknown as typeof Worker;
     const reader = new CellPlaneIndex([operation("initial", 0, "A")]);
-    const client = new CanvasProjectionWorkerClient();
+    const client = new CanvasRenderWorkerClient();
     const first = client.project(reader, { x: 0, y: 0, width: 1, height: 1 })!;
     const worker = FakeWorker.latest!;
 
-    expect(worker.messages.map(({ type }) => type)).toEqual(["sync", "project"]);
-    const firstRequest = worker.messages[1] as Extract<
-      CanvasProjectionWorkerRequest,
-      { type: "project" }
-    >;
+    expect(worker.messages.map(({ type }) => type)).toEqual([
+      "configure",
+      "sync",
+      "project",
+    ]);
+    const firstRequest = projectRequest(worker);
     worker.respond({
       type: "projected",
       requestId: firstRequest.requestId,
@@ -75,19 +82,16 @@ describe("CanvasProjectionWorkerClient", () => {
 
     reader.append(operation("next", 1, "B"));
     const second = client.project(reader, { x: 0, y: 0, width: 2, height: 1 })!;
-    expect(worker.messages.slice(2).map(({ type }) => type)).toEqual([
+    expect(worker.messages.slice(-2).map(({ type }) => type)).toEqual([
       "append",
       "project",
     ]);
-    const append = worker.messages[2] as Extract<
-      CanvasProjectionWorkerRequest,
+    const append = worker.messages.at(-2) as Extract<
+      CanvasRenderWorkerRequest,
       { type: "append" }
     >;
     expect(append.operations).toHaveLength(1);
-    const secondRequest = worker.messages[3] as Extract<
-      CanvasProjectionWorkerRequest,
-      { type: "project" }
-    >;
+    const secondRequest = projectRequest(worker);
     worker.respond({
       type: "projected",
       requestId: secondRequest.requestId,
@@ -104,16 +108,64 @@ describe("CanvasProjectionWorkerClient", () => {
     });
   });
 
+  it("accepts raster batches and accounts transferred bitmaps", async () => {
+    globalThis.Worker = FakeWorker as unknown as typeof Worker;
+    const reader = new CellPlaneIndex([operation("initial", 0, "A")]);
+    const client = new CanvasRenderWorkerClient();
+    const workerPromise = client.renderTiles(reader, {
+      paneId: "primary",
+      viewportEpoch: 1,
+      tiles: [{
+        key: "tile",
+        bounds: { x: 0, y: 0, width: 1, height: 1 },
+        renderBounds: { x: -1, y: 0, width: 3, height: 1 },
+        rasterZoom: 1,
+        rasterDpr: 1,
+        lod: "full",
+      }],
+    })!;
+    const worker = FakeWorker.latest!;
+    const configure = worker.messages[0] as Extract<
+      CanvasRenderWorkerRequest,
+      { type: "configure" }
+    >;
+    const request = worker.messages.at(-1) as Extract<
+      CanvasRenderWorkerRequest,
+      { type: "renderBatch" }
+    >;
+    const bitmap = { close() {} } as ImageBitmap;
+    worker.respond({
+      type: "renderedBatch",
+      requestId: request.requestId,
+      sourceId: request.sourceId,
+      revision: request.revision,
+      paneId: request.paneId,
+      viewportEpoch: request.viewportEpoch,
+      fontRevision: configure.fontRevision,
+      tiles: [{
+        key: "tile",
+        bounds: { x: 0, y: 0, width: 1, height: 1 },
+        bitmap,
+        bytes: 4,
+      }],
+      durationMs: 4,
+    });
+
+    await expect(workerPromise).resolves.toHaveLength(1);
+    expect(client.getStats()).toMatchObject({
+      rasterBatches: 1,
+      rasterTiles: 1,
+      rasterDurationMs: 4,
+    });
+  });
+
   it("rejects stale results and permanently falls back after worker failure", async () => {
     globalThis.Worker = FakeWorker as unknown as typeof Worker;
     const reader = new CellPlaneIndex([operation("initial", 0, "A")]);
-    const client = new CanvasProjectionWorkerClient();
+    const client = new CanvasRenderWorkerClient();
     const result = client.project(reader, { x: 0, y: 0, width: 1, height: 1 })!;
     const worker = FakeWorker.latest!;
-    const request = worker.messages[1] as Extract<
-      CanvasProjectionWorkerRequest,
-      { type: "project" }
-    >;
+    const request = projectRequest(worker);
     worker.respond({
       type: "stale",
       requestId: request.requestId,
@@ -131,7 +183,7 @@ describe("CanvasProjectionWorkerClient", () => {
   it("keeps shared pane sources until the final retainer releases them", async () => {
     globalThis.Worker = FakeWorker as unknown as typeof Worker;
     const reader = new CellPlaneIndex([operation("initial", 0, "A")]);
-    const client = new CanvasProjectionWorkerClient();
+    const client = new CanvasRenderWorkerClient();
     const releasePrimary = client.retain(reader);
     const releaseSecondary = client.retain(reader);
     const pending = client.project(reader, { x: 0, y: 0, width: 1, height: 1 })!;
@@ -152,7 +204,7 @@ describe("CanvasProjectionWorkerClient", () => {
       }
     } as unknown as typeof Worker;
     const reader = new CellPlaneIndex([operation("initial", 0, "A")]);
-    const client = new CanvasProjectionWorkerClient();
+    const client = new CanvasRenderWorkerClient();
 
     expect(client.project(reader, { x: 0, y: 0, width: 1, height: 1 })).toBeNull();
     expect(client.getStats()).toMatchObject({ available: false, failures: 1 });

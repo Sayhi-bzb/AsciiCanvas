@@ -5,7 +5,9 @@ import {
   loadCharDeskCanvasFonts,
   prepareCharDeskCanvasSurface,
   type CharDeskCanvasFontSample,
+  type CharDeskCanvasContext,
   type CharDeskCanvasMetrics,
+  type CharDeskCanvasSurface,
 } from "@chardesk/rendering/canvas";
 import type { RenderFontRoute } from "./fontRouting";
 
@@ -26,8 +28,8 @@ export const getCanvasFont = (
 export const alignCanvasCoordinate = alignCharDeskCanvasCoordinate;
 
 export const prepareCanvasSurface = (
-  canvas: HTMLCanvasElement,
-  ctx: CanvasRenderingContext2D,
+  canvas: CharDeskCanvasSurface,
+  ctx: CharDeskCanvasContext,
   width: number,
   height: number,
   dpr: number

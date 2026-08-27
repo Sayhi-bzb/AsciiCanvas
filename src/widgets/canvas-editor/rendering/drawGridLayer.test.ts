@@ -1,19 +1,21 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { CanvasSurfaceReader } from "@/domains/canvas/public";
-
-const { drawCellBatch } = vi.hoisted(() => ({ drawCellBatch: vi.fn() }));
-
-vi.mock("@/shared/metrics", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/shared/metrics")>()),
-  drawCellBatch,
-  setTextRenderStyle: vi.fn(),
-}));
 
 import { CellPlaneIndex } from "@/domains/canvas/public";
 import { drawGridLayer } from "./drawGridLayer";
 
 describe("drawGridLayer", () => {
-  beforeEach(() => drawCellBatch.mockClear());
+  const createContext = () => ({
+    save: vi.fn(),
+    restore: vi.fn(),
+    fillText: vi.fn(),
+    fillRect: vi.fn(),
+    beginPath: vi.fn(),
+    moveTo: vi.fn(),
+    lineTo: vi.fn(),
+    stroke: vi.fn(),
+    globalAlpha: 1,
+  } as unknown as CanvasRenderingContext2D);
 
   it("queries occupied spans instead of probing every viewport coordinate", () => {
     const getCell = vi.fn();
@@ -28,11 +30,7 @@ describe("drawGridLayer", () => {
       getCell,
       query,
     } as unknown as CanvasSurfaceReader;
-    const ctx = {
-      save: vi.fn(),
-      restore: vi.fn(),
-      globalAlpha: 1,
-    } as unknown as CanvasRenderingContext2D;
+    const ctx = createContext();
 
     drawGridLayer(
       ctx,
@@ -44,7 +42,7 @@ describe("drawGridLayer", () => {
 
     expect(query).toHaveBeenCalledWith({ x: 1, y: 3, width: 20, height: 8 });
     expect(getCell).not.toHaveBeenCalled();
-    expect(drawCellBatch).toHaveBeenCalledOnce();
+    expect(ctx.fillText).toHaveBeenCalledOnce();
   });
 
   it.each([
@@ -63,11 +61,7 @@ describe("drawGridLayer", () => {
         ],
       }],
     }]);
-    const ctx = {
-      save: vi.fn(),
-      restore: vi.fn(),
-      globalAlpha: 1,
-    } as unknown as CanvasRenderingContext2D;
+    const ctx = createContext();
 
     drawGridLayer(
       ctx,
@@ -77,9 +71,7 @@ describe("drawGridLayer", () => {
       { x: 0, y: 0 }
     );
 
-    expect(drawCellBatch.mock.calls[0]?.[1].map(
-      (entry: { cell: { char: string } }) => entry.cell.char
-    ))
+    expect(vi.mocked(ctx.fillText).mock.calls.map(([character]) => character))
       .toEqual(["你", "A"]);
   });
 
@@ -89,11 +81,7 @@ describe("drawGridLayer", () => {
       yield { x: 1, y: 0, cells: [{ char: "B", color: "#fff" }] };
     });
     const reader = { query } as unknown as CanvasSurfaceReader;
-    const ctx = {
-      save: vi.fn(),
-      restore: vi.fn(),
-      globalAlpha: 1,
-    } as unknown as CanvasRenderingContext2D;
+    const ctx = createContext();
 
     drawGridLayer(
       ctx,
@@ -103,9 +91,7 @@ describe("drawGridLayer", () => {
       { x: 0, y: 0 }
     );
 
-    expect(drawCellBatch.mock.calls[0]?.[1].map(
-      (entry: { cell: { char: string } }) => entry.cell.char
-    ))
+    expect(vi.mocked(ctx.fillText).mock.calls.map(([character]) => character))
       .toEqual(["B"]);
   });
 });

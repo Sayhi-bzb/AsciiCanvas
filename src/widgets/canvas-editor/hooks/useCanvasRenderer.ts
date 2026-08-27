@@ -225,7 +225,8 @@ export const useCanvasRenderer = (
   requestRenderRef?: React.MutableRefObject<(() => void) | null>,
   onViewportRendered?: (viewport: { offset: Point; zoom: number }) => void,
   runtime?: CanvasEngineRuntime,
-  sharedRasterTileCache?: CanvasRasterTileCache
+  sharedRasterTileCache?: CanvasRasterTileCache,
+  paneId = 'single'
 ) => {
   const {
     activeCanvasId,
@@ -267,8 +268,8 @@ export const useCanvasRenderer = (
   const rasterTileCache = sharedRasterTileCache ?? localRasterTileCache;
   useEffect(() => () => localRasterTileCache.clear(), [localRasterTileCache]);
   useEffect(
-    () => rasterTileCache.retain(contentReader),
-    [contentReader, rasterTileCache]
+    () => rasterTileCache.retain(contentReader, paneId),
+    [contentReader, paneId, rasterTileCache]
   );
   const manualRenderRafRef = useRef<number | null>(null);
   const manualInvalidationRef = useRef<CanvasFrameInvalidation>(0);
@@ -420,13 +421,14 @@ export const useCanvasRenderer = (
               zoom,
               renderOffset,
               dpr,
+              paneId,
               () => {
                 if (!disposed) {
                   scheduleRender(CANVAS_FRAME_INVALIDATION.background);
                 }
               }
             );
-            if (rasterStatus === "fallback") {
+            if (rasterStatus !== "complete") {
               drawSurface(bgCtx, contentReader, viewBounds, zoom, renderOffset);
             }
           }
@@ -829,6 +831,7 @@ export const useCanvasRenderer = (
     renderManager,
     rasterTileCache,
     sharedRasterTileCache,
+    paneId,
     runtime,
   ]);
 };

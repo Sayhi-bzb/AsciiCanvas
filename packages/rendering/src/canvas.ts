@@ -14,6 +14,11 @@ export type CharDeskCanvasMetrics = {
   fontFamily: string;
 };
 
+export type CharDeskCanvasSurface = HTMLCanvasElement | OffscreenCanvas;
+export type CharDeskCanvasContext =
+  | CanvasRenderingContext2D
+  | OffscreenCanvasRenderingContext2D;
+
 export type CharDeskCanvasPalette = {
   color: string;
   background: string;
@@ -137,15 +142,15 @@ export const getCharDeskCanvasCellAnchor = (
 });
 
 export const prepareCharDeskCanvasSurface = (
-  canvas: HTMLCanvasElement,
-  ctx: CanvasRenderingContext2D,
+  canvas: CharDeskCanvasSurface,
+  ctx: CharDeskCanvasContext,
   width: number,
   height: number,
   dpr: number
 ) => {
   const targetWidth = Math.round(width * dpr);
   const targetHeight = Math.round(height * dpr);
-  if (canvas.style) {
+  if ("style" in canvas) {
     canvas.style.width = `${width}px`;
     canvas.style.height = `${height}px`;
   }
@@ -175,7 +180,7 @@ export const resolveCharDeskCanvasCellVisual = (
 };
 
 const drawDecoration = (
-  ctx: CanvasRenderingContext2D,
+  ctx: CharDeskCanvasContext,
   x: number,
   y: number,
   width: number,
@@ -192,7 +197,7 @@ const drawDecoration = (
 };
 
 const drawCellBackground = (
-  ctx: CanvasRenderingContext2D,
+  ctx: CharDeskCanvasContext,
   entry: CharDeskCanvasCellDrawEntry
 ) => {
   const options = entry.options;
@@ -211,7 +216,7 @@ const drawCellBackground = (
 };
 
 const drawCellText = (
-  ctx: CanvasRenderingContext2D,
+  ctx: CharDeskCanvasContext,
   entry: CharDeskCanvasCellDrawEntry
 ) => {
   const options = entry.options;
@@ -280,7 +285,7 @@ const drawCellText = (
 };
 
 export const drawCharDeskCanvasCells = (
-  ctx: CanvasRenderingContext2D,
+  ctx: CharDeskCanvasContext,
   entries: readonly CharDeskCanvasCellDrawEntry[]
 ) => {
   ctx.save();
@@ -309,7 +314,7 @@ export const measureCharDeskCanvasDocument = (
 };
 
 export const drawCharDeskCanvasDocument = (
-  ctx: CanvasRenderingContext2D,
+  ctx: CharDeskCanvasContext,
   model: CharDeskRenderModel,
   options: CharDeskCanvasDocumentOptions
 ) => {

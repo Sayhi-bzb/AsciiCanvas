@@ -4,6 +4,7 @@ import {
   drawCharDeskCanvasCells,
   resolveCharDeskCanvasCellVisual,
   type CharDeskCanvasCellDrawOptions,
+  type CharDeskCanvasContext,
 } from "@chardesk/rendering/canvas";
 import type { RenderFontRoute } from "./fontRouting";
 import {
@@ -60,7 +61,7 @@ const toCanvasVisual = (cell: GridCell) => resolveCharDeskCellVisual({
 });
 
 export const drawGridLines = (
-  ctx: CanvasRenderingContext2D,
+  ctx: CharDeskCanvasContext,
   options: {
     startX: number;
     endX: number;
@@ -109,7 +110,7 @@ export const drawGridLines = (
 };
 
 export const setTextRenderStyle = (
-  ctx: CanvasRenderingContext2D,
+  ctx: CharDeskCanvasContext,
   zoom = 1,
   metrics: GridRenderMetrics = DEFAULT_GRID_RENDER_METRICS
 ) => {
@@ -119,7 +120,7 @@ export const setTextRenderStyle = (
 };
 
 export const drawTextCell = (
-  ctx: CanvasRenderingContext2D,
+  ctx: CharDeskCanvasContext,
   cell: GridCell,
   x: number,
   y: number,
@@ -129,7 +130,7 @@ export const drawTextCell = (
 };
 
 export const drawCellBackground = (
-  ctx: CanvasRenderingContext2D,
+  ctx: CharDeskCanvasContext,
   cell: GridCell,
   x: number,
   y: number,
@@ -145,7 +146,7 @@ export const drawCellBackground = (
 };
 
 export const drawCellText = (
-  ctx: CanvasRenderingContext2D,
+  ctx: CharDeskCanvasContext,
   cell: GridCell,
   x: number,
   y: number,
@@ -161,7 +162,7 @@ export const drawCellText = (
 };
 
 export const drawCellBatch = (
-  ctx: CanvasRenderingContext2D,
+  ctx: CharDeskCanvasContext,
   entries: readonly CanvasCellDrawEntry[]
 ) => {
   drawCharDeskCanvasCells(ctx, entries.map((entry) => ({

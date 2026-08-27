@@ -291,7 +291,8 @@ export const CanvasEditor = ({
     requestCanvasRenderRef,
     handleViewportRendered,
     runtime,
-    canvasWorkspace?.runtime.rasterTileCache
+    canvasWorkspace?.runtime.rasterTileCache,
+    canvasView?.viewId ?? 'single'
   );
 
   const activeContextMenu =
