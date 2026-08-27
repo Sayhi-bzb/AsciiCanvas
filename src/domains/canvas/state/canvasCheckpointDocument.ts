@@ -77,7 +77,7 @@ export const applyCanvasDocumentSeed = (
   }, "local-persistence-bootstrap");
 };
 
-export const captureCanvasCheckpointSource = (
+const captureCanvasCheckpointSource = (
   doc: Y.Doc,
   id: string
 ): CanvasCheckpointSource => {

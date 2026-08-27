@@ -61,7 +61,7 @@ import { CanvasRenderManager } from '../engine/CanvasRenderManager';
 import { shouldDrawCanvasGrid } from '../rendering/canvasLod';
 import { CanvasRasterTileCache } from '../rendering/CanvasRasterTileCache';
 import {
-  offsetCanvasViewportForSurface,
+  alignCanvasViewportForSurface,
   type CanvasSurfaceGeometry,
 } from '../canvasSurfaceGeometry';
 export type { StructuredMovePreview } from './interaction/structured/structuredInteractionPreview';
@@ -323,7 +323,7 @@ export const useCanvasRenderer = (
         : structuredScene;
 
       const dpr = window.devicePixelRatio || 1;
-      const renderOffset = offsetCanvasViewportForSurface(offset, surfaceGeometry);
+      const renderOffset = alignCanvasViewportForSurface(offset, surfaceGeometry, dpr);
       const viewBounds = GridManager.getViewportGridBounds(
         surfaceGeometry.width,
         surfaceGeometry.height,

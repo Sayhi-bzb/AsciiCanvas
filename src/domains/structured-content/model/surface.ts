@@ -35,7 +35,7 @@ export type StructuredSurfaceStats = {
   maxProjectionDurationMs: number;
 };
 
-export type StructuredSceneChanges =
+type StructuredSceneChanges =
   | { revision: number; full: true }
   | { revision: number; full: false; bounds: readonly NodeBounds[] };
 

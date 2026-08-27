@@ -42,20 +42,6 @@ const renderSlide = (
   return { source, fence };
 };
 
-export const exportSlideDeckToMarkdown = (
-  slideDeck: SlideDeck,
-  options?: { title?: string; includeColor?: boolean }
-) => {
-  const title = escapeFrontMatterValue(options?.title || 'Slides');
-  const header = [
-    '---',
-    'chardesk: slides/v1',
-    `title: ${title}`,
-    '---',
-  ].join('\n');
-  return `${header}\n\n${exportSlideDeckBodyToMarkdown(slideDeck, options)}`;
-};
-
 export const exportSlideDeckBodyToMarkdown = (
   slideDeck: SlideDeck,
   options?: { includeColor?: boolean }

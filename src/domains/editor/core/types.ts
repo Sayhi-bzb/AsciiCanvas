@@ -1,3 +1,5 @@
+import type { ShortcutTargetKind } from "@/shared/utils/dom-focus";
+
 export type EditorCommandCompletion<Data = unknown> =
   | { succeeded: true; changed: boolean; data?: Data; reason?: string }
   | { succeeded: false; changed: false; reason: string };
@@ -13,6 +15,18 @@ export type EditorCommandResult<Data = unknown> =
     };
 
 export type EditorCommandSource = string;
+
+export type EditorShortcutContext<State> = {
+  state: Readonly<State>;
+  targetKind: ShortcutTargetKind;
+  phase: "keydown" | "keyup";
+  target?: { kind: ShortcutTargetKind };
+  canvas?: { mode?: string; readOnly?: boolean; hasTextCursor?: boolean };
+  grid?: { editMode?: string; hasRange?: boolean };
+  structured?: { hasSelection?: boolean };
+  presentation?: { active?: boolean };
+  tool?: { id?: string | null };
+};
 
 export interface EditorStateAdapter<State> {
   get: () => State;
@@ -80,36 +94,4 @@ export type EditorInputEvent =
 
 export interface Disposable {
   dispose: () => void;
-}
-
-export interface EditorManagerFactory<State> {
-  id: string;
-  create: (editor: EditorCommandHost<State>) => Disposable;
-}
-
-export type EditorStateScope = "document" | "session" | "presence" | "derived";
-
-export interface EditorStateScopeDefinition {
-  key: string;
-  scope: EditorStateScope;
-}
-
-export interface EditorToolDefinition<State, Event = EditorInputEvent> {
-  id: string;
-  create: (
-    editor: EditorCommandHost<State>,
-    parent: import("./stateNode").EditorStateNode<State, Event>
-  ) => import("./stateNode").EditorStateNode<State, Event>;
-}
-
-export interface EditorExtension<State, Event = EditorInputEvent> {
-  id: string;
-  commands?: readonly AnyEditorCommandDefinition<State>[];
-  tools?: readonly EditorToolDefinition<State, Event>[];
-  keybindings?: readonly import("./keymap").KeymapEntry<
-    import("./runtime").EditorShortcutContext<State>
-  >[];
-  managers?: readonly EditorManagerFactory<State>[];
-  stateScopes?: readonly EditorStateScopeDefinition[];
-  setup?: (editor: EditorCommandHost<State>) => void | (() => void) | Disposable;
 }

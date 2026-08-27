@@ -137,13 +137,13 @@
                             │ Unicode Canvas         │    │  └─ demo
                             ╰────────────────────────╯    └─ publish ✓
 
-╭──────────────────────────────╮     [1mPalette[0m               [1mLayout notes[0m
-│ Recent activity              │     [38;2;239;68;68m● Coral[0m    #ef4444    |||  next field
-│                              │     [38;2;245;158;11m● Amber[0m    #f59e0b    ---  next row
-│ 10:42  Ada edited brief      │     [38;2;34;197;94m● Green[0m    #22c55e
-│ 10:39  Lin added palette     │     [38;2;59;130;246m● Blue[0m     #3b82f6    Escaped literals
-│ 10:31  Yuki linked CharGraph │     [38;2;139;92;246m● Violet[0m   #8b5cf6    |||
-│ 10:24  민준 resolved comment  │                          ---
+╭──────────────────────────────╮    [1mPalette[0m               [1mLayout notes[0m
+│ Recent activity              │    [38;2;239;68;68m● Coral[0m    #ef4444    |||  next field
+│                              │    [38;2;245;158;11m● Amber[0m    #f59e0b    ---  next row
+│ 10:42  Ada edited brief      │    [38;2;34;197;94m● Green[0m    #22c55e
+│ 10:39  Lin added palette     │    [38;2;59;130;246m● Blue[0m     #3b82f6    Escaped literals
+│ 10:31  Yuki linked CharGraph │    [38;2;139;92;246m● Violet[0m   #8b5cf6    |||
+│ 10:24  민준 resolved comment │                          ---
 ╰──────────────────────────────╯
 
 ╭────────────────────────────────────────────────────────────╮

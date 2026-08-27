@@ -71,6 +71,12 @@ export default defineConfig({
           if (normalizedId.includes("/node_modules/lucide-react/")) {
             return "icons";
           }
+          if (
+            normalizedId.includes("/node_modules/shiki/") ||
+            normalizedId.includes("/node_modules/@shikijs/")
+          ) {
+            return undefined;
+          }
           return "vendor";
         },
       },

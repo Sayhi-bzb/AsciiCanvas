@@ -14,6 +14,7 @@ import type { CanvasMode } from "./mode";
 import type { CanvasSession } from "./model";
 
 export const EDITOR_PERSISTENCE_VERSION = 5;
+export const PREVIOUS_EDITOR_PERSISTENCE_VERSION = 4;
 export const EDITOR_PERSISTENCE_KEY = "chardesk-persistence";
 export const LEGACY_EDITOR_PERSISTENCE_KEY = "ascii-canvas-persistence";
 
@@ -205,8 +206,32 @@ export const decodePersistedEditorState = (
   };
 };
 
-export const migratePersistedStateToV5 = (value: unknown) =>
-  decodePersistedEditorState(value);
+export class UnsupportedEditorPersistenceVersionError extends Error {
+  readonly version: number;
+
+  constructor(version: number) {
+    super(`Unsupported editor persistence version: ${version}`);
+    this.name = "UnsupportedEditorPersistenceVersionError";
+    this.version = version;
+  }
+}
+
+const assertSupportedPersistenceVersion = (version: number) => {
+  if (
+    version !== EDITOR_PERSISTENCE_VERSION &&
+    version !== PREVIOUS_EDITOR_PERSISTENCE_VERSION
+  ) {
+    throw new UnsupportedEditorPersistenceVersionError(version);
+  }
+};
+
+export const migratePersistedStateToV5 = (
+  value: unknown,
+  version = PREVIOUS_EDITOR_PERSISTENCE_VERSION,
+) => {
+  assertSupportedPersistenceVersion(version);
+  return decodePersistedEditorState(value);
+};
 
 export const isPersistedEditorStateV5 = (
   value: unknown
@@ -274,7 +299,10 @@ export const migrateLegacyEditorPersistence = (storage: Storage): boolean => {
     const legacyEnvelope = decodePersistedEnvelope(
       storage.getItem(LEGACY_EDITOR_PERSISTENCE_KEY)
     );
-    if (!legacyEnvelope) return false;
+    if (
+      !legacyEnvelope ||
+      legacyEnvelope.version !== PREVIOUS_EDITOR_PERSISTENCE_VERSION
+    ) return false;
 
     const migratedState = decodePersistedEditorState(legacyEnvelope.state);
     storage.setItem(

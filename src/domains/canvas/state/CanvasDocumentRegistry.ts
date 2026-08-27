@@ -43,9 +43,9 @@ export type CanvasHistoryCheckpoint = {
   cancel: () => void;
 };
 
-export type CanvasMutationListener = (envelope: CanvasMutationEnvelope) => void;
+type CanvasMutationListener = (envelope: CanvasMutationEnvelope) => void;
 
-export type CanvasStructuredContentPatch = {
+type CanvasStructuredContentPatch = {
   nodes?: {
     upsert?: readonly StructuredNode[];
     deleteIds?: readonly string[];

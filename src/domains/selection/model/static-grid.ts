@@ -2,16 +2,10 @@ import type { GridMap, Point, SelectionArea } from "@/shared/types";
 import { GridManager } from "@/shared/utils/grid";
 import { resolveGridAnchor, resolveGridSlot } from "@/shared/utils/grid-occupancy";
 import { getGridSelectionGeometry, getGridSelectionSpans } from "./grid-selection-geometry";
+import type { GridAddress, GridBounds, GridRange } from "./grid-types";
 
-export type GridAddress = Point;
 export type GridEditMode = "navigate" | "text-edit";
-
-export interface GridRange {
-  start: GridAddress;
-  end: GridAddress;
-}
-
-export type GridBounds = GridRange;
+export type { GridAddress, GridBounds, GridRange } from "./grid-types";
 
 type GridEdge = "left" | "right" | "top" | "bottom";
 

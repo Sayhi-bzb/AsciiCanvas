@@ -1,4 +1,4 @@
-import { createCssVariablesTheme, type ThemeRegistration } from "shiki";
+import { createCssVariablesTheme, type ThemeRegistration } from "shiki/core";
 import {
   CHARDESK_RENDER_THEME_TOKENS,
   type CharDeskRenderTheme,

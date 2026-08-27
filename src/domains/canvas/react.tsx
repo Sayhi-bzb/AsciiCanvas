@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useSyncExternalStore, type ReactNode } from "react";
 import { useStore } from "zustand";
-import type { EditorState } from "./state/interfaces";
+import type { CanvasState } from "./state/interfaces";
 import type { CanvasRuntime } from "./runtime";
 
 type CanvasRuntimeContextValue = Pick<
@@ -53,7 +53,7 @@ export const useCanvasRuntime = () => {
 };
 
 export const useCanvasState = <Selected,>(
-  selector: (state: EditorState) => Selected
+  selector: (state: CanvasState) => Selected
 ) => useStore(useCanvasRuntime().store, selector);
 
 export const useCanvasPersistence = () => {

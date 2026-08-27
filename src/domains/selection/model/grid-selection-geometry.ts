@@ -1,7 +1,7 @@
 import { union, type Polygon } from "polygon-clipping";
 import type { GridMap, Point } from "@/shared/types";
 import { getGridFootprint } from "@/shared/utils/grid-occupancy";
-import type { GridBounds, GridRange } from "./static-grid";
+import type { GridBounds, GridRange } from "./grid-types";
 
 export interface GridSelectionGeometry {
   polygons: Array<{ rings: Point[][] }>;

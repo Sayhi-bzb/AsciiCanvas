@@ -61,9 +61,18 @@ if (new URLSearchParams(window.location.search).has("canvas-stress")) {
               usage: Record<string, number>;
             };
             worker: { loadedFontFaces: number };
+            raster: {
+              qualityByPane: Record<string, {
+                scaleError: number;
+                sharpCoverage: number;
+                transientBytes: number;
+              }>;
+            };
           };
         }).__chardeskCanvasResourceStats?.();
-        return snapshot ? {
+        if (!snapshot) return null;
+        const paneQuality = Object.values(snapshot.raster.qualityByPane);
+        return {
           pressure: snapshot.memory.pressure,
           hidden: snapshot.memory.hidden,
           accountedBytes: snapshot.memory.totalBytes,
@@ -71,7 +80,17 @@ if (new URLSearchParams(window.location.search).has("canvas-stress")) {
           cellPlaneBytes: snapshot.memory.usage["cell-plane"] ?? 0,
           workerSourceBytes: snapshot.memory.usage["worker-source"] ?? 0,
           loadedFontFaces: snapshot.worker.loadedFontFaces,
-        } : null;
+          minimumSharpCoverage: paneQuality.length > 0
+            ? Math.min(...paneQuality.map(({ sharpCoverage }) => sharpCoverage))
+            : 1,
+          maximumScaleError: paneQuality.length > 0
+            ? Math.max(...paneQuality.map(({ scaleError }) => scaleError))
+            : 0,
+          transientRasterBytes: paneQuality.reduce(
+            (bytes, quality) => bytes + quality.transientBytes,
+            0
+          ),
+        };
       },
       persistence: () => host.canvas.getPersistenceSnapshot(),
     },

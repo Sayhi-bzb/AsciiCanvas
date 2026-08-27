@@ -53,7 +53,7 @@ type CanvasCheckpointAdapter<Candidate extends CanvasCheckpointCandidate> = {
   abort: (candidate: Candidate) => Promise<void>;
 };
 
-export type CanvasCheckpointReporter = (
+type CanvasCheckpointReporter = (
   phase: CanvasCheckpointDiagnostics["phase"],
   patch?: Partial<Pick<
     CanvasCheckpointDiagnostics,

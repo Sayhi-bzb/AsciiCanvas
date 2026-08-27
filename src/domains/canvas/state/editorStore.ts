@@ -321,9 +321,12 @@ export const createEditorStore = ({
         createSnapshot: createPersistedEditorSnapshot,
         shouldSchedule: shouldScheduleEditorPersistence,
       }),
-      migrate: (persistedState) => {
+      migrate: (persistedState, version) => {
         // Zustand types migrations as runtime state, while storage owns the V5 DTO.
-        return migratePersistedStateToV5(persistedState) as unknown as EditorState;
+        return migratePersistedStateToV5(
+          persistedState,
+          version,
+        ) as unknown as EditorState;
       },
       merge: (persistedState, currentState) => {
         if (!persistedState) return currentState;

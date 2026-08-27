@@ -17,7 +17,7 @@ type CanvasFrameCallback = (
   invalidation: CanvasFrameInvalidation
 ) => void;
 
-export type CanvasFramePriority = "interaction" | "visible" | "background";
+type CanvasFramePriority = "interaction" | "visible" | "background";
 
 type CanvasFrameRequestOptions = {
   priority?: CanvasFramePriority;

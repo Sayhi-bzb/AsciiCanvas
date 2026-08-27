@@ -35,6 +35,7 @@ const MIN_TILE_COLUMNS = 8;
 const MIN_TILE_ROWS = 4;
 const MAX_TILE_COLUMNS = 128;
 const MAX_TILE_ROWS = 64;
+const MIN_INTERACTIVE_REFINEMENT_ZOOM = 0.5;
 
 type ViewBounds = ReturnType<typeof GridManager.getViewportGridBounds>;
 
@@ -96,6 +97,15 @@ export type CanvasRasterTileStats = {
   memoryBudget: number;
   memoryPressure: string;
   warmEntries: number;
+  qualityByPane: Record<string, CanvasRasterPaneQuality>;
+};
+
+type CanvasRasterPaneQuality = {
+  targetZoom: number;
+  presentationZoom: number;
+  scaleError: number;
+  sharpCoverage: number;
+  transientBytes: number;
 };
 
 type CanvasRasterDrawOptions = {
@@ -161,11 +171,11 @@ const subtractBounds = (source: NodeBounds, cover: NodeBounds): NodeBounds[] => 
   ].filter(({ width, height }) => width > 0 && height > 0);
 };
 
-export const getCanvasRasterZoomBucket = (zoom: number) =>
-  Math.max(0.125, Math.round(zoom * 64) / 64);
+export const resolveCanvasRasterZoom = (zoom: number) =>
+  Math.max(0.125, zoom);
 
 export const getCanvasRasterTileShape = (zoom: number, dpr: number) => {
-  const rasterZoom = getCanvasRasterZoomBucket(zoom);
+  const rasterZoom = resolveCanvasRasterZoom(zoom);
   const rasterDpr = Math.min(2, Math.max(1, dpr));
   return {
     columns: clamp(
@@ -203,6 +213,8 @@ export class CanvasRasterTileCache {
   readonly #paneSignatures = new Map<string, string>();
   readonly #paneDeferredSignatures = new Map<string, string>();
   readonly #paneBatches = new Map<string, PendingBatch>();
+  readonly #paneTransientKeys = new Map<string, Set<string>>();
+  readonly #paneQuality = new Map<string, CanvasRasterPaneQuality>();
   readonly #warmKeys = new Set<string>();
   readonly #paneWarmKeys = new Map<string, Set<string>>();
   readonly #residency = new CanvasViewportResidencyManager();
@@ -255,6 +267,9 @@ export class CanvasRasterTileCache {
       this.#paneEpochs.delete(paneId);
       this.#paneSignatures.delete(paneId);
       this.#paneDeferredSignatures.delete(paneId);
+      this.#clearPaneTransientTiles(paneId);
+      this.#paneTransientKeys.delete(paneId);
+      this.#paneQuality.delete(paneId);
       this.#residency.release(paneId);
       this.#paneWarmKeys.delete(paneId);
       this.#rebuildWarmKeys();
@@ -286,6 +301,7 @@ export class CanvasRasterTileCache {
       memoryBudget: Math.min(this.#byteBudget, memory.limits.raster),
       memoryPressure: memory.pressure,
       warmEntries: [...this.#warmKeys].filter((key) => this.#tiles.has(key)).length,
+      qualityByPane: Object.fromEntries(this.#paneQuality),
     };
   }
 
@@ -306,6 +322,8 @@ export class CanvasRasterTileCache {
     if (typeof document === "undefined") return emptyResult;
     const paneId = options.paneId;
     const mode = options.mode ?? "settled";
+    const refineDuringViewport = mode === "viewport-interaction" &&
+      zoom >= MIN_INTERACTIVE_REFINEMENT_ZOOM;
     const readerState = this.#syncReader(reader);
     const shape = getCanvasRasterTileShape(zoom, dpr);
     const lod = resolveCanvasContentLod(zoom);
@@ -354,7 +372,9 @@ export class CanvasRasterTileCache {
     const visibleRequests = requests.filter(({ residency }) => residency === "visible");
     const visibleKeys = new Set(visibleRequests.map(({ key }) => key));
     this.#paneWarmKeys.set(paneId, new Set(
-      requests.filter(({ residency }) => residency === "warm").map(({ key }) => key)
+      mode === "viewport-interaction"
+        ? []
+        : requests.filter(({ residency }) => residency === "warm").map(({ key }) => key)
     ));
     this.#rebuildWarmKeys();
     const presentedKeys = this.#panePresentedKeys.get(paneId) ?? new Set<string>();
@@ -374,10 +394,17 @@ export class CanvasRasterTileCache {
     ].join(":");
     let viewportEpoch = this.#paneEpochs.get(paneId) ?? 0;
     if (this.#paneSignatures.get(paneId) !== signature) {
+      this.#cancelPaneBatch(paneId);
       this.#paneEpochChanges += 1;
       viewportEpoch += 1;
       this.#paneEpochs.set(paneId, viewportEpoch);
       this.#paneSignatures.set(paneId, signature);
+      if (refineDuringViewport) {
+        this.#replacePaneTransientKeys(paneId, visibleKeys);
+      } else {
+        this.#clearPaneTransientTiles(paneId, visibleKeys);
+        this.#paneTransientKeys.delete(paneId);
+      }
     }
     this.#evictToBudget();
 
@@ -393,6 +420,18 @@ export class CanvasRasterTileCache {
         paneId,
         viewportEpoch,
         missingRequests,
+        shape,
+        lod,
+        options.onTileReady
+      );
+    } else if (refineDuringViewport) {
+      this.#paneDeferredSignatures.delete(paneId);
+      this.#requestWorkerTiles(
+        reader,
+        readerState.revision ?? 0,
+        paneId,
+        viewportEpoch,
+        missingRequests.filter(({ residency }) => residency === "visible"),
         shape,
         lod,
         options.onTileReady
@@ -415,6 +454,25 @@ export class CanvasRasterTileCache {
       this.#presentationFrames += 1;
       presentationTiles.forEach((tile) => this.#drawTile(ctx, tile, zoom, offset));
     }
+
+    const sharpTiles = visibleRequests.filter(({ key }) => {
+      const tile = this.#tiles.get(key);
+      return tile !== undefined && !tile.stale;
+    }).length;
+    const sharpCoverage = visibleRequests.length === 0
+      ? 1
+      : sharpTiles / visibleRequests.length;
+    const presentationZoom = presentationTiles[0]?.rasterZoom ?? shape.rasterZoom;
+    this.#paneQuality.set(paneId, {
+      targetZoom: zoom,
+      presentationZoom,
+      scaleError: sharpCoverage === 1
+        ? 0
+        : Math.abs(presentationZoom - zoom) / zoom,
+      sharpCoverage,
+      transientBytes: [...(this.#paneTransientKeys.get(paneId) ?? [])]
+        .reduce((bytes, key) => bytes + (this.#tiles.get(key)?.bytes ?? 0), 0),
+    });
 
     const pendingKeys = new Set<string>();
     const refreshingKeys = new Set<string>();
@@ -548,7 +606,9 @@ export class CanvasRasterTileCache {
       lod,
       ...ownedRequests.map(({ key }) => key),
     ].join(":");
-    if (this.#paneBatches.get(paneId)?.signature === signature) return;
+    const activeBatch = this.#paneBatches.get(paneId);
+    if (activeBatch?.signature === signature) return;
+    if (activeBatch) this.#cancelPaneBatch(paneId);
     const batch: PendingBatch = { paneId, viewportEpoch, signature };
     const delivered = new Set<string>();
     const rendered = this.#renderWorker.renderTiles(reader, {
@@ -863,6 +923,8 @@ export class CanvasRasterTileCache {
     this.#paneEpochs.clear();
     this.#paneSignatures.clear();
     this.#paneDeferredSignatures.clear();
+    this.#paneTransientKeys.clear();
+    this.#paneQuality.clear();
     this.#residency.clear();
     this.#paneBatches.clear();
     this.#warmKeys.clear();
@@ -885,6 +947,20 @@ export class CanvasRasterTileCache {
     paneIds.forEach((paneId) => this.#cancelPaneBatch(paneId));
   }
 
+  #replacePaneTransientKeys(paneId: string, keys: Set<string>) {
+    this.#clearPaneTransientTiles(paneId, keys);
+    this.#paneTransientKeys.set(paneId, new Set(keys));
+  }
+
+  #clearPaneTransientTiles(paneId: string, preserve = new Set<string>()) {
+    const previous = this.#paneTransientKeys.get(paneId);
+    if (!previous) return;
+    for (const key of previous) {
+      if (preserve.has(key) || this.#isProtected(key, paneId)) continue;
+      this.#deleteTile(key);
+    }
+  }
+
   #cancelPaneBatch(paneId: string) {
     const batch = this.#paneBatches.get(paneId);
     if (!batch) return;
@@ -897,8 +973,9 @@ export class CanvasRasterTileCache {
     }
   }
 
-  #isProtected(key: string) {
-    for (const keys of this.#paneKeys.values()) {
+  #isProtected(key: string, excludedPaneId?: string) {
+    for (const [paneId, keys] of this.#paneKeys) {
+      if (paneId === excludedPaneId) continue;
       if (keys.has(key)) return true;
     }
     return false;

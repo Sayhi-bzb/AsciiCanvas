@@ -3,8 +3,8 @@ import {
   type ToolType,
 } from "@/domains/canvas/public";
 import { EditorRuntime } from "./core/runtime";
+import type { EditorExtension } from "./core/extension";
 import type {
-  EditorExtension,
   EditorHistoryPort,
   EditorStateAdapter,
   EditorTransactionPort,

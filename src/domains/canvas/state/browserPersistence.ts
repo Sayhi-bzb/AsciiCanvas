@@ -61,7 +61,6 @@ import {
 const LOCAL_DOCUMENT_PREFIX = "chardesk-local-document-v1:";
 const HISTORICAL_EDITOR_PERSISTENCE_KEYS = [
   "ascii-canvas-persistence-v4-backup",
-  "ascii-canvas-persistence-v3-backup",
 ] as const;
 const SAVE_DELAY = 500;
 const DOCUMENT_GENERATION_SUFFIX = ":generation:";
@@ -503,7 +502,14 @@ const readLegacySessionSnapshots = (
     if (!raw) continue;
     try {
       const envelope: unknown = JSON.parse(raw);
-      if (!envelope || typeof envelope !== "object" || !("state" in envelope)) {
+      if (
+        !envelope ||
+        typeof envelope !== "object" ||
+        !("state" in envelope) ||
+        !("version" in envelope) ||
+        ((envelope as { version?: unknown }).version !== 4 &&
+          (envelope as { version?: unknown }).version !== 5)
+      ) {
         continue;
       }
       snapshots.push({

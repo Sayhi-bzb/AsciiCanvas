@@ -9,7 +9,7 @@ export type CanvasWorkerFontFace = {
   unicodeRange?: string;
 };
 
-export type CanvasWorkerFontRange = { from: number; to: number };
+type CanvasWorkerFontRange = { from: number; to: number };
 
 const rangeCache = new Map<string, readonly CanvasWorkerFontRange[]>();
 

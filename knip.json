@@ -30,6 +30,10 @@
       "entry": ["src/index.ts", "src/**/*.test.ts", "vitest.config.ts"],
       "project": ["src/**/*.ts"]
     },
+    "packages/document": {
+      "entry": ["src/index.ts", "src/**/*.test.ts", "vitest.config.ts"],
+      "project": ["src/**/*.ts"]
+    },
     "packages/chargraph": {
       "entry": ["src/index.ts", "src/mermaid.ts", "src/**/*.test.ts", "vitest.config.ts"],
       "project": ["src/**/*.ts"]
@@ -71,7 +75,8 @@
     "duplicates"
   ],
   "ignore": [
-    "packages/chargraph/src/vendor/**"
+    "packages/chargraph/src/vendor/**",
+    "packages/document/document/**"
   ],
   "ignoreDependencies": [
     "tw-animate-css"

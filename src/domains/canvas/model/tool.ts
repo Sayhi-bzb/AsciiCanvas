@@ -1,4 +1,4 @@
-import type { CanvasMode } from "@/domains/sessions/public";
+type ToolCanvasMode = "freeform" | "structured" | "slide";
 
 export type ToolType =
   | "select"
@@ -42,9 +42,9 @@ const TOOLS_BY_MODE = {
     "bg",
   ],
   slide: NON_STRUCTURED_TOOLS,
-} as const satisfies Record<CanvasMode, readonly ToolType[]>;
+} as const satisfies Record<ToolCanvasMode, readonly ToolType[]>;
 
 export const isToolAllowedForMode = (
   tool: ToolType,
-  mode: CanvasMode
+  mode: ToolCanvasMode
 ): boolean => TOOLS_BY_MODE[mode].some((allowedTool) => allowedTool === tool);

@@ -1,5 +1,4 @@
 export const COLLABORATION_DOCUMENT_VERSION = 5 as const;
-export const LEGACY_COLLABORATION_DOCUMENT_VERSION = 4 as const;
 
 export type CollaborationCanvasMode = "freeform" | "structured";
 

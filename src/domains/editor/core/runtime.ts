@@ -1,36 +1,25 @@
 import { EditorCommandRegistry } from "./commandRegistry";
+import type { EditorExtension } from "./extension";
 import { EditorKeymap } from "./keymap";
-import type { ShortcutTargetKind } from "@/shared/utils/dom-focus";
 import { EditorRootStateNode } from "./stateNode";
 import { EditorStateScopeRegistry } from "./scopeRegistry";
 import type {
   Disposable,
   EditorCommandHost,
-  EditorExtension,
   EditorHistoryPort,
   EditorInputEvent,
+  EditorShortcutContext,
   EditorStateAdapter,
   EditorTransactionMode,
   EditorTransactionPort,
 } from "./types";
+export type { EditorShortcutContext } from "./types";
 
 type EditorRuntimeOptions<State> = {
   state: EditorStateAdapter<State>;
   history: EditorHistoryPort;
   transactions: EditorTransactionPort;
   onToolChange?: (id: string) => void;
-};
-
-export type EditorShortcutContext<State> = {
-  state: Readonly<State>;
-  targetKind: ShortcutTargetKind;
-  phase: "keydown" | "keyup";
-  target?: { kind: ShortcutTargetKind };
-  canvas?: { mode?: string; readOnly?: boolean; hasTextCursor?: boolean };
-  grid?: { editMode?: string; hasRange?: boolean };
-  structured?: { hasSelection?: boolean };
-  presentation?: { active?: boolean };
-  tool?: { id?: string | null };
 };
 
 const toDispose = (value: void | (() => void) | Disposable): (() => void) | null => {

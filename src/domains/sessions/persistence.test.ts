@@ -3,6 +3,7 @@ import {
   EDITOR_PERSISTENCE_KEY,
   EDITOR_PERSISTENCE_VERSION,
   LEGACY_EDITOR_PERSISTENCE_KEY,
+  UnsupportedEditorPersistenceVersionError,
   flattenPersistedEditorState,
   isPersistedEditorStateV5,
   migrateLegacyEditorPersistence,
@@ -24,6 +25,14 @@ const createMemoryStorage = (): Storage => {
 };
 
 describe("editor persistence v5", () => {
+  it("supports only the current and previous persistence versions", () => {
+    expect(() => migratePersistedStateToV5({}, 3)).toThrow(
+      UnsupportedEditorPersistenceVersionError,
+    );
+    expect(migratePersistedStateToV5({}, 4).schemaVersion).toBe(5);
+    expect(migratePersistedStateToV5({}, 5).schemaVersion).toBe(5);
+  });
+
   it("defaults the grid off while preserving an explicit preference", () => {
     expect(migratePersistedStateToV5({}).preferences.showGrid).toBe(false);
     expect(

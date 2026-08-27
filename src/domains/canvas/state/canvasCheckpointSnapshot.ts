@@ -60,7 +60,7 @@ type CapturedPage =
       components: StructuredComponentInstance[];
     };
 
-export type EncodedCanvasCheckpointSnapshot = {
+type EncodedCanvasCheckpointSnapshot = {
   buffer: ArrayBuffer;
   bytes: number;
   operationCount: number;

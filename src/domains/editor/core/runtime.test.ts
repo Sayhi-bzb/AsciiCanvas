@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { EditorRuntime } from "./runtime";
 import { EditorStateNode } from "./stateNode";
-import type { EditorExtension } from "./types";
+import type { EditorExtension } from "./extension";
 
 type TestState = { value: number };
 type TestEvent = { type: "ping" };

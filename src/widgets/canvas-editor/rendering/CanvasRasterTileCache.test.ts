@@ -7,7 +7,7 @@ import type { CanvasRenderWorkerClient } from "./CanvasRenderWorkerClient";
 import {
   CanvasRasterTileCache,
   getCanvasRasterTileShape,
-  getCanvasRasterZoomBucket,
+  resolveCanvasRasterZoom,
 } from "./CanvasRasterTileCache";
 
 const operation = (id: string, x: number, text: string) =>
@@ -26,10 +26,12 @@ const viewBounds = { startX: 0, endX: 20, startY: 0, endY: 10 };
 const context = {} as CanvasRenderingContext2D;
 
 describe("CanvasRasterTileCache geometry", () => {
-  it("uses stable zoom buckets", () => {
-    expect(getCanvasRasterZoomBucket(1.001)).toBe(1);
-    expect(getCanvasRasterZoomBucket(0.49)).toBe(0.484375);
-    expect(getCanvasRasterZoomBucket(0.1)).toBe(0.125);
+  it("rasterizes at the requested zoom instead of a nearby presentation bucket", () => {
+    for (const zoom of [0.5, 0.67, 0.73, 0.75, 0.9, 1]) {
+      expect(resolveCanvasRasterZoom(zoom)).toBe(zoom);
+      expect(getCanvasRasterTileShape(zoom, 2).rasterZoom).toBe(zoom);
+    }
+    expect(resolveCanvasRasterZoom(0.1)).toBe(0.125);
   });
 
   it("keeps raster tiles inside bounded device dimensions", () => {
@@ -44,7 +46,7 @@ describe("CanvasRasterTileCache geometry", () => {
     }
   });
 
-  it("defers worker batches while the viewport is moving", () => {
+  it("requests only exact visible tiles while the viewport is moving", () => {
     const worker = createWorker();
     const cache = new CanvasRasterTileCache(1024 * 1024, worker);
     const reader = new CellPlaneIndex([operation("initial", 5, "A")]);
@@ -53,17 +55,58 @@ describe("CanvasRasterTileCache geometry", () => {
       paneId: "primary",
       mode: "viewport-interaction",
     });
-    expect(worker.renderTiles).not.toHaveBeenCalled();
+    expect(worker.renderTiles).toHaveBeenCalledOnce();
+    const movingRequest = vi.mocked(worker.renderTiles).mock.calls[0]![1];
+    expect(movingRequest.tiles.length).toBeGreaterThan(0);
+    expect(movingRequest.tiles.every(({ priority }) => priority === "visible")).toBe(true);
     expect(moving.uncoveredBounds.length).toBeGreaterThan(0);
+    expect(cache.getStats().qualityByPane.primary).toMatchObject({
+      targetZoom: 1,
+      scaleError: 0,
+      sharpCoverage: 0,
+    });
 
     cache.draw(context, reader, viewBounds, 1, { x: 0, y: 0 }, 1, {
       paneId: "primary",
       mode: "settled",
     });
-    expect(worker.renderTiles).toHaveBeenCalledOnce();
-    const request = vi.mocked(worker.renderTiles).mock.calls[0]![1];
+    expect(worker.renderTiles).toHaveBeenCalledTimes(2);
+    const request = vi.mocked(worker.renderTiles).mock.calls[1]![1];
     expect(request.tiles.some(({ priority }) => priority === "visible")).toBe(true);
     expect(request.tiles.some(({ priority }) => priority === "prefetch")).toBe(true);
+  });
+
+  it("cancels superseded interaction generations", () => {
+    const worker = createWorker();
+    const cache = new CanvasRasterTileCache(1024 * 1024, worker);
+    const reader = new CellPlaneIndex([operation("initial", 5, "A")]);
+
+    cache.draw(context, reader, viewBounds, 0.67, { x: 0, y: 0 }, 2, {
+      paneId: "primary",
+      mode: "viewport-interaction",
+    });
+    cache.draw(context, reader, viewBounds, 0.73, { x: 0, y: 0 }, 2, {
+      paneId: "primary",
+      mode: "viewport-interaction",
+    });
+
+    expect(worker.cancelPane).toHaveBeenCalledWith("primary");
+    expect(worker.renderTiles).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(worker.renderTiles).mock.calls[1]![1].tiles[0]?.rasterZoom).toBe(0.73);
+  });
+
+  it("defers interactive refinement below 50 percent zoom", () => {
+    const worker = createWorker();
+    const cache = new CanvasRasterTileCache(1024 * 1024, worker);
+    const reader = new CellPlaneIndex([operation("initial", 5, "A")]);
+
+    cache.draw(context, reader, viewBounds, 0.25, { x: 0, y: 0 }, 2, {
+      paneId: "primary",
+      mode: "viewport-interaction",
+    });
+
+    expect(worker.renderTiles).not.toHaveBeenCalled();
+    expect(cache.getStats().deferredBatches).toBe(1);
   });
 
   it("returns a one-cell hot-patch halo for content edits", () => {

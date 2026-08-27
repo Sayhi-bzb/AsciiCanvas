@@ -35,6 +35,13 @@ export type { EditorShortcutContext } from "./core/runtime";
 export { EditorStateScopeRegistry } from "./core/scopeRegistry";
 export type { RegisteredEditorStateScope } from "./core/scopeRegistry";
 export { EditorRootStateNode, EditorStateNode } from "./core/stateNode";
+export type {
+  EditorExtension,
+  EditorManagerFactory,
+  EditorStateScope,
+  EditorStateScopeDefinition,
+  EditorToolDefinition,
+} from "./core/extension";
 export { defineEditorCommand } from "./core/types";
 export type {
   AnyEditorCommandDefinition,
@@ -45,15 +52,10 @@ export type {
   EditorCommandHost,
   EditorCommandResult,
   EditorCommandSource,
-  EditorExtension,
   EditorHistoryCheckpoint,
   EditorHistoryPort,
   EditorInputEvent,
-  EditorManagerFactory,
   EditorStateAdapter,
-  EditorStateScope,
-  EditorStateScopeDefinition,
-  EditorToolDefinition,
   EditorTransactionMode,
   EditorTransactionPort,
 } from "./core/types";

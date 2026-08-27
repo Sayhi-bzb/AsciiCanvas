@@ -1,4 +1,4 @@
-import type { EditorStateScopeDefinition } from "./types";
+import type { EditorStateScopeDefinition } from "./extension";
 
 export type RegisteredEditorStateScope = EditorStateScopeDefinition & { owner: string };
 

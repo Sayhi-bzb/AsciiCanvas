@@ -12,9 +12,11 @@ import { Up, Down, Left, Right, UpperLeft, UpperRight, LowerLeft, LowerRight, Mi
 import { mkCanvas } from '../canvas.js'
 import { splitLines } from '../multiline-utils.js'
 import type { ShapeRenderer, ShapeDimensions, ShapeRenderOptions } from './types.js'
-import { dirEquals } from '../edge-routing.js'
 import { type CornerChars, getCorners } from './corners.js'
 import { getShapePadding } from './padding.js'
+
+const dirEquals = (left: Direction, right: Direction) =>
+  left.x === right.x && left.y === right.y
 
 // ============================================================================
 // Shared dimension calculation
