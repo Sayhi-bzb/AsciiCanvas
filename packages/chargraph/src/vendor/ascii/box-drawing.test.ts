@@ -4,6 +4,7 @@ import {
   getBoxGlyphTopology,
   glyphForBoxCorner,
   glyphForBoxConnections,
+  glyphForWeightedBoxConnections,
   mergeBoxDrawingGlyphs,
 } from "./box-drawing.js";
 
@@ -69,6 +70,68 @@ describe("box-drawing topology", () => {
     expect(merge("╭", "┌")).toBe("┌");
     expect(merge("╭", "╴")).toBe("┬");
     expect(merge("╭", "│")).toBe("├");
+  });
+
+  it("maps complete double-line topology", () => {
+    const expected = [
+      "║", "═", "╚", "║", "║", "╔", "╠", "═",
+      "╝", "═", "╩", "╗", "╣", "╦", "╬",
+    ];
+
+    for (let mask = 1; mask <= 15; mask++) {
+      expect(glyphForWeightedBoxConnections(mask, {
+        horizontalWeight: "double",
+        verticalWeight: "double",
+      })).toBe(expected[mask - 1]);
+    }
+  });
+
+  it("maps mixed single and double junctions", () => {
+    expect(glyphForWeightedBoxConnections(14, {
+      horizontalWeight: "single",
+      verticalWeight: "double",
+    })).toBe("╥");
+    expect(glyphForWeightedBoxConnections(11, {
+      horizontalWeight: "single",
+      verticalWeight: "double",
+    })).toBe("╨");
+    expect(glyphForWeightedBoxConnections(7, {
+      horizontalWeight: "double",
+      verticalWeight: "single",
+    })).toBe("╞");
+    expect(glyphForWeightedBoxConnections(13, {
+      horizontalWeight: "double",
+      verticalWeight: "single",
+    })).toBe("╡");
+    expect(glyphForWeightedBoxConnections(15, {
+      horizontalWeight: "double",
+      verticalWeight: "single",
+    })).toBe("╪");
+    expect(glyphForWeightedBoxConnections(15, {
+      horizontalWeight: "single",
+      verticalWeight: "double",
+    })).toBe("╫");
+  });
+
+  it("recovers weights from double and mixed glyphs", () => {
+    expect(getBoxGlyphTopology("╬")).toEqual({
+      mask: 15,
+      rounded: false,
+      horizontalWeight: "double",
+      verticalWeight: "double",
+    });
+    expect(getBoxGlyphTopology("╪")).toEqual({
+      mask: 15,
+      rounded: false,
+      horizontalWeight: "double",
+      verticalWeight: "single",
+    });
+    expect(getBoxGlyphTopology("╫")).toEqual({
+      mask: 15,
+      rounded: false,
+      horizontalWeight: "single",
+      verticalWeight: "double",
+    });
   });
 
   it("composes split-box layers independently of drawing order", () => {

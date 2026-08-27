@@ -328,11 +328,11 @@ describe("renderMermaidText", () => {
   B ==>|粗线| D[下路]`);
 
     expect(output).toMatch(/虚线.*┄|┄.*虚线/u);
-    expect(output).toMatch(/粗线.*┃|┃.*粗线/u);
+    expect(output).toMatch(/粗线.*║|║.*粗线/u);
     expect(output).toMatch(/>│ 上路 │/u);
     expect(output).toMatch(/>│ 下路 │/u);
     expect(output).toMatch(/┄/u);
-    expect(output).toMatch(/━/u);
+    expect(output).toMatch(/═/u);
     expectTerminalArrows(output);
     expectNoInternalCellTokens(output);
   });
@@ -702,15 +702,15 @@ describe("renderMermaidText", () => {
   C -->|失败| E>记录告警]
   D <--> F[[同步服务]]`);
 
-    expect(output).toMatch(/[━┃]通过|通过[━┃]/u);
+    expect(output).toMatch(/[═║]通过|通过[═║]/u);
     expect(output).toContain("失败");
     expect(output).toMatch(/>│ 记录告警 │/u);
     const lines = output.split("\n");
     const validationRow = lines.findIndex((line) => line.includes("校验规则"));
     const successRow = lines.findIndex((line) => line.includes("通过"));
     expect(successRow).toBeGreaterThan(validationRow);
-    expect(lines.slice(0, validationRow).join("\n")).not.toContain("━");
-    expect(output).toMatch(/╰━+通过━+>│ 缓存 │/u);
+    expect(lines.slice(0, validationRow).join("\n")).not.toContain("═");
+    expect(output).toMatch(/╚═+通过═+>│ 缓存 │/u);
     expectTerminalArrows(output);
     expectNoInternalCellTokens(output);
   });

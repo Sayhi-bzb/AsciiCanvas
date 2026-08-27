@@ -53,7 +53,7 @@ describe('CharScene', () => {
   it.each([
     ['solid', '─'],
     ['dotted', '┄'],
-    ['thick', '━'],
+    ['thick', '═'],
   ] as const)('keeps a container border above a crossing %s edge', (style, segment) => {
     const scene = new CharScene(5, 5, false)
     scene.add({
@@ -91,10 +91,10 @@ describe('CharScene', () => {
     ['dotted', [{ x: 2, y: 3 }, { x: 2, y: 4 }], { x: 2, y: 3 }, '┬'],
     ['dotted', [{ x: 0, y: 2 }, { x: 1, y: 2 }], { x: 1, y: 2 }, '┤'],
     ['dotted', [{ x: 3, y: 2 }, { x: 4, y: 2 }], { x: 3, y: 2 }, '├'],
-    ['thick', [{ x: 2, y: 0 }, { x: 2, y: 1 }], { x: 2, y: 1 }, '┴'],
-    ['thick', [{ x: 2, y: 3 }, { x: 2, y: 4 }], { x: 2, y: 3 }, '┬'],
-    ['thick', [{ x: 0, y: 2 }, { x: 1, y: 2 }], { x: 1, y: 2 }, '┤'],
-    ['thick', [{ x: 3, y: 2 }, { x: 4, y: 2 }], { x: 3, y: 2 }, '├'],
+    ['thick', [{ x: 2, y: 0 }, { x: 2, y: 1 }], { x: 2, y: 1 }, '╨'],
+    ['thick', [{ x: 2, y: 3 }, { x: 2, y: 4 }], { x: 2, y: 3 }, '╥'],
+    ['thick', [{ x: 0, y: 2 }, { x: 1, y: 2 }], { x: 1, y: 2 }, '╡'],
+    ['thick', [{ x: 3, y: 2 }, { x: 4, y: 2 }], { x: 3, y: 2 }, '╞'],
   ] as const)(
     'preserves the exact %s endpoint topology at a node border',
     (style, points, at, expected) => {
@@ -129,6 +129,31 @@ describe('CharScene', () => {
     expect(output[2]![1]).toBe('┼')
     expect(output[2]![3]).toBe('┼')
   })
+
+  it.each([
+    ['double', 'double', '╬'],
+    ['double', 'single', '╪'],
+    ['single', 'double', '╫'],
+  ] as const)(
+    'composes %s horizontal and %s vertical crossing weights',
+    (horizontalWeight, verticalWeight, expected) => {
+      const scene = new CharScene(3, 3, false)
+      scene.add({
+        kind: 'stroke',
+        owner: 'horizontal',
+        points: [{ x: 0, y: 1 }, { x: 2, y: 1 }],
+        style: horizontalWeight === 'double' ? 'thick' : 'solid',
+      })
+      scene.add({
+        kind: 'stroke',
+        owner: 'vertical',
+        points: [{ x: 1, y: 0 }, { x: 1, y: 2 }],
+        style: verticalWeight === 'double' ? 'thick' : 'solid',
+      })
+
+      expect(scene.compose().canvas[1]![1]).toBe(expected)
+    },
+  )
 
   it('uses an ASCII junction for a connected mixed-priority attachment', () => {
     const scene = new CharScene(1, 1, true)
@@ -204,8 +229,8 @@ describe('CharScene', () => {
   it.each([
     ['solid', '─', '│'],
     ['dotted', '┄', '┆'],
-    ['thick', '━', '┃'],
-  ] as const)('keeps %s stroke segments around a light rounded bend', (style, horizontal, vertical) => {
+    ['thick', '═', '║'],
+  ] as const)('keeps %s stroke topology around a bend', (style, horizontal, vertical) => {
     const scene = new CharScene(3, 3, false)
     scene.add({
       kind: 'stroke',
@@ -217,7 +242,7 @@ describe('CharScene', () => {
 
     const output = scene.compose().canvas
     expect(output[1]![0]).toBe(horizontal)
-    expect(output[2]![0]).toBe('╮')
+    expect(output[2]![0]).toBe(style === 'thick' ? '╗' : '╮')
     expect(output[2]![1]).toBe(vertical)
   })
 
@@ -230,6 +255,22 @@ describe('CharScene', () => {
       rounded: true,
     })
     expect(scene.compose().canvas[2]![0]).toBe('+')
+  })
+
+  it('keeps the ASCII thick-stroke fallback', () => {
+    const scene = new CharScene(3, 3, true)
+    scene.add({
+      kind: 'stroke',
+      owner: 'ascii-thick',
+      points: [{ x: 0, y: 0 }, { x: 2, y: 0 }, { x: 2, y: 2 }],
+      style: 'thick',
+      rounded: true,
+    })
+
+    const output = scene.compose().canvas
+    expect(output[1]![0]).toBe('=')
+    expect(output[2]![0]).toBe('+')
+    expect(output[2]![1]).toBe('‖')
   })
 
   it('keeps square corners as an explicit opt-out', () => {

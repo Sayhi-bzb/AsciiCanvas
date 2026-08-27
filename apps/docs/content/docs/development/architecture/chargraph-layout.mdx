@@ -32,7 +32,9 @@ cell; a perpendicular cell crossing remains valid. CharScene alone owns glyph
 composition. Scene layers decide which contribution is visible, while explicit
 connections and route bundles decide which contributions may share topology.
 Container borders sit above edges but never join them; node borders remain
-connective. A parallel Mermaid style-role canvas records visual meaning without
+connective. Thick Mermaid edges use double-line topology while retaining ASCII
+arrow markers; CharScene resolves mixed single/double junctions at borders and
+crossings. A parallel Mermaid style-role canvas records visual meaning without
 affecting geometry. Serialization groups adjacent equal style roles into
 CharGraph fragments after layout and CJK-safe cell projection.
 

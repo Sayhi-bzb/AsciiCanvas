@@ -1,7 +1,14 @@
 // @ts-nocheck -- internal renderer scene; exercised at the package boundary.
 
 import type { Canvas, CharRole, MermaidStyleRole, MermaidStyleRoleCanvas, RoleCanvas } from './types.js'
-import { BoxConnection, getBoxGlyphTopology, glyphForBoxConnections, glyphForBoxCorner } from './box-drawing.js'
+import type { BoxLineWeight } from './box-drawing.js'
+import {
+  BoxConnection,
+  getBoxGlyphTopology,
+  glyphForBoxConnections,
+  glyphForBoxCorner,
+  glyphForWeightedBoxConnections,
+} from './box-drawing.js'
 
 function blankCanvas(maxX: number, maxY: number): Canvas {
   return Array.from({ length: maxX + 1 }, () => Array.from({ length: maxY + 1 }, () => ' '))
@@ -21,6 +28,8 @@ export interface SceneWriteOptions {
   connections?: readonly string[]
   /** Exact directional topology when the display glyph is ambiguous. */
   topologyMask?: number
+  /** Stroke weight retained while topology is composed. */
+  topologyWeight?: BoxLineWeight
   /** Text spaces reserve cells instead of being discarded. */
   reserve?: boolean
   styleRole?: MermaidStyleRole
@@ -104,6 +113,7 @@ interface Contribution {
   owner: string
   connections: readonly string[]
   topologyMask?: number
+  topologyWeight?: BoxLineWeight
   order: number
   styleRole: MermaidStyleRole
   topology: 'shared' | 'independent'
@@ -153,19 +163,52 @@ const defaultLayer = (
 const visualPriority = (value: Contribution) =>
   layerPriority[value.layer] * 100 + rolePriority[value.role]
 
-function topologyFor(char: string): { mask: number; rounded: boolean } | null {
+function topologyFor(char: string): {
+  mask: number
+  rounded: boolean
+  horizontalWeight: BoxLineWeight
+  verticalWeight: BoxLineWeight
+} | null {
   const unicode = getBoxGlyphTopology(char)
   if (unicode) return unicode
-  if (['-', '.', '=', '┄', '━'].includes(char)) {
-    return { mask: BoxConnection.left | BoxConnection.right, rounded: false }
+  if (['-', '.', '┄'].includes(char)) {
+    return {
+      mask: BoxConnection.left | BoxConnection.right,
+      rounded: false,
+      horizontalWeight: 'single',
+      verticalWeight: 'single',
+    }
   }
-  if (['|', ':', '‖', '┆', '┃'].includes(char)) {
-    return { mask: BoxConnection.up | BoxConnection.down, rounded: false }
+  if (['=', '━'].includes(char)) {
+    return {
+      mask: BoxConnection.left | BoxConnection.right,
+      rounded: false,
+      horizontalWeight: 'double',
+      verticalWeight: 'single',
+    }
+  }
+  if (['|', ':', '┆'].includes(char)) {
+    return {
+      mask: BoxConnection.up | BoxConnection.down,
+      rounded: false,
+      horizontalWeight: 'single',
+      verticalWeight: 'single',
+    }
+  }
+  if (['‖', '┃'].includes(char)) {
+    return {
+      mask: BoxConnection.up | BoxConnection.down,
+      rounded: false,
+      horizontalWeight: 'single',
+      verticalWeight: 'double',
+    }
   }
   if (char === '+') {
     return {
       mask: BoxConnection.up | BoxConnection.right | BoxConnection.down | BoxConnection.left,
       rounded: false,
+      horizontalWeight: 'single',
+      verticalWeight: 'single',
     }
   }
   return null
@@ -182,16 +225,19 @@ function glyphForStroke(
   const hasVertical = (mask & vertical) !== 0
   const hasHorizontal = (mask & horizontal) !== 0
 
-  if (rounded && hasVertical && hasHorizontal) {
-    return glyphForBoxConnections(mask, { useAscii, rounded: true })
+  if (style === 'thick') {
+    return glyphForWeightedBoxConnections(mask, {
+      useAscii,
+      horizontalWeight: 'double',
+      verticalWeight: 'double',
+    })
   }
   if (style === 'dotted') {
     if (hasVertical && !hasHorizontal) return useAscii ? ':' : '┆'
     if (hasHorizontal && !hasVertical) return useAscii ? '.' : '┄'
   }
-  if (style === 'thick') {
-    if (hasVertical && !hasHorizontal) return useAscii ? '‖' : '┃'
-    if (hasHorizontal && !hasVertical) return useAscii ? '=' : '━'
+  if (rounded && hasVertical && hasHorizontal) {
+    return glyphForBoxConnections(mask, { useAscii, rounded: true })
   }
   return glyphForBoxConnections(mask, { useAscii })
 }
@@ -228,7 +274,18 @@ const mayMergeTopology = (left: Contribution, right: Contribution) =>
 const topologyForContribution = (value: Contribution) => {
   if (value.role === 'text' || value.role === 'arrow') return null
   if (value.topologyMask === undefined) return topologyFor(value.char)
-  return { mask: value.topologyMask, rounded: false }
+  const horizontal = BoxConnection.left | BoxConnection.right
+  const vertical = BoxConnection.up | BoxConnection.down
+  return {
+    mask: value.topologyMask,
+    rounded: false,
+    horizontalWeight: (value.topologyMask & horizontal) !== 0
+      ? value.topologyWeight ?? 'single'
+      : 'single',
+    verticalWeight: (value.topologyMask & vertical) !== 0
+      ? value.topologyWeight ?? 'single'
+      : 'single',
+  }
 }
 
 /** Collect semantic contributors before rasterizing them to a character grid. */
@@ -265,6 +322,7 @@ export class CharScene {
       owner: options.owner ?? 'anonymous',
       connections: options.connections ?? [],
       topologyMask: options.topologyMask,
+      topologyWeight: options.topologyWeight,
       order: this.order++,
       styleRole: options.styleRole ?? defaultStyleRole(role),
       topology: options.topology ?? 'shared',
@@ -377,6 +435,7 @@ export class CharScene {
           owner: primitive.owner,
           connections: primitive.connections,
           topologyMask: mask,
+          topologyWeight: primitive.style === 'thick' ? 'double' : 'single',
           styleRole: primitive.styleRole ?? 'edge.line',
           topology: primitive.topology ?? 'shared',
           bundleId: primitive.bundleId,
@@ -408,7 +467,19 @@ export class CharScene {
 
       if (allTopology && connected.length > 1) {
         const mask = topology.reduce((value, item) => value | item!.mask, 0)
-        char = glyphForBoxConnections(mask, { useAscii: this.useAscii })
+        const horizontal = BoxConnection.left | BoxConnection.right
+        const vertical = BoxConnection.up | BoxConnection.down
+        const horizontalWeight = topology.some(item =>
+          (item!.mask & horizontal) !== 0 && item!.horizontalWeight === 'double'
+        ) ? 'double' : 'single'
+        const verticalWeight = topology.some(item =>
+          (item!.mask & vertical) !== 0 && item!.verticalWeight === 'double'
+        ) ? 'double' : 'single'
+        char = glyphForWeightedBoxConnections(mask, {
+          useAscii: this.useAscii,
+          horizontalWeight,
+          verticalWeight,
+        })
         resolved = true
       } else if (compatibleWinners && winners.every(value => value.char === winner.char)) {
         resolved = true
