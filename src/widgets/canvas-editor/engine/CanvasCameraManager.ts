@@ -45,6 +45,7 @@ const interpolateViewport = (
 export class CanvasCameraManager {
   private readonly port: CanvasCameraPort;
   private readonly frameScheduler: CanvasFrameScheduler;
+  private readonly onViewportActivity: () => void;
   private readonly viewportInteraction: ReturnType<
     typeof createViewportInteractionController
   >;
@@ -52,16 +53,26 @@ export class CanvasCameraManager {
   private animationTarget: CanvasViewportState | null = null;
   private disposed = false;
 
-  constructor(frameScheduler: CanvasFrameScheduler, port: CanvasCameraPort) {
+  constructor(
+    frameScheduler: CanvasFrameScheduler,
+    port: CanvasCameraPort,
+    onViewportActivity: () => void = () => undefined
+  ) {
     this.port = port;
     this.frameScheduler = frameScheduler;
+    this.onViewportActivity = onViewportActivity;
     this.viewportInteraction = createViewportInteractionController({
-      setOffset: (updater) =>
+      setOffset: (updater) => {
+        this.onViewportActivity();
         this.port.setViewport((viewport) => ({
           ...viewport,
           offset: updater(viewport.offset),
-        })),
-      setViewport: port.setViewport,
+        }));
+      },
+      setViewport: (updater) => {
+        this.onViewportActivity();
+        port.setViewport(updater);
+      },
       zoomBounds: { min: MIN_ZOOM, max: MAX_ZOOM },
       scheduler: createFrameSchedulerRafAdapter(
         frameScheduler,
@@ -88,6 +99,7 @@ export class CanvasCameraManager {
   panBy(dx: number, dy: number): void {
     if (!Number.isFinite(dx) || !Number.isFinite(dy)) return;
     this.cancelPending();
+    this.onViewportActivity();
     this.port.setViewport((viewport) => ({
       ...viewport,
       offset: { x: viewport.offset.x + dx, y: viewport.offset.y + dy },
@@ -106,6 +118,7 @@ export class CanvasCameraManager {
   zoomAt(nextZoom: number, anchor: Point): void {
     if (!Number.isFinite(nextZoom)) return;
     this.cancelPending();
+    this.onViewportActivity();
     this.port.setViewport((viewport) => {
       const zoom = clampZoom(nextZoom);
       if (zoom === viewport.zoom) return viewport;
@@ -282,6 +295,7 @@ export class CanvasCameraManager {
 
   private applyViewport(viewport: CanvasViewportState): void {
     if (this.disposed) return;
+    this.onViewportActivity();
     this.port.setViewport(() => ({
       offset: { ...viewport.offset },
       zoom: clampZoom(viewport.zoom),

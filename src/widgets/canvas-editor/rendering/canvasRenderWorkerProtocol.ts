@@ -10,6 +10,7 @@ export type CanvasRenderTileSpec = {
   rasterZoom: number;
   rasterDpr: number;
   lod: CanvasContentLod;
+  priority?: "visible" | "prefetch";
 };
 
 export type CanvasRenderedTile = {
@@ -54,6 +55,7 @@ export type CanvasRenderWorkerRequest =
       fontRevision: string;
       tiles: readonly CanvasRenderTileSpec[];
     }
+  | { type: "cancelPane"; paneId: string }
   | { type: "release"; sourceId: number }
   | { type: "dispose" };
 
@@ -73,14 +75,26 @@ export type CanvasRenderWorkerResponse =
       durationMs: number;
     }
   | {
-      type: "renderedBatch";
+      type: "renderedTile";
       requestId: number;
       sourceId: number;
       revision: number;
       paneId: string;
       viewportEpoch: number;
       fontRevision: string;
-      tiles: readonly CanvasRenderedTile[];
+      tile: CanvasRenderedTile;
+      durationMs: number;
+      queueLatencyMs: number;
+    }
+  | {
+      type: "renderedBatchComplete";
+      requestId: number;
+      sourceId: number;
+      revision: number;
+      paneId: string;
+      viewportEpoch: number;
+      fontRevision: string;
+      tileCount: number;
       durationMs: number;
     }
   | {
@@ -89,4 +103,5 @@ export type CanvasRenderWorkerResponse =
       sourceId: number;
       revision: number;
       error?: string;
+      cancelledTiles?: number;
     };

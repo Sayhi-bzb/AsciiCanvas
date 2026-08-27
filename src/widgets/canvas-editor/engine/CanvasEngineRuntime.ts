@@ -3,6 +3,7 @@ import {
   CanvasCameraManager,
   type CanvasCameraPort,
 } from "./CanvasCameraManager";
+import { CanvasRenderActivity } from "./CanvasRenderActivity";
 
 type CanvasEngineManager = {
   dispose: () => void;
@@ -11,6 +12,7 @@ type CanvasEngineManager = {
 /** Internal lifetime boundary for the imperative canvas engine. */
 export class CanvasEngineRuntime {
   readonly frameScheduler: CanvasFrameScheduler;
+  readonly renderActivity: CanvasRenderActivity;
   readonly camera: CanvasCameraManager;
   private readonly managers = new Map<string, CanvasEngineManager>();
   private ownerCount = 0;
@@ -22,7 +24,12 @@ export class CanvasEngineRuntime {
     frameScheduler = new CanvasFrameScheduler()
   ) {
     this.frameScheduler = frameScheduler;
-    this.camera = new CanvasCameraManager(frameScheduler, cameraPort);
+    this.renderActivity = new CanvasRenderActivity();
+    this.camera = new CanvasCameraManager(
+      frameScheduler,
+      cameraPort,
+      () => this.renderActivity.markViewportActivity()
+    );
   }
 
   /**
@@ -78,6 +85,7 @@ export class CanvasEngineRuntime {
     [...this.managers.values()].reverse().forEach((manager) => manager.dispose());
     this.managers.clear();
     this.camera.dispose();
+    this.renderActivity.dispose();
     this.frameScheduler.dispose();
   }
 }

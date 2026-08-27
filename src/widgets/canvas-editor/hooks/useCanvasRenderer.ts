@@ -273,6 +273,10 @@ export const useCanvasRenderer = (
   );
   const manualRenderRafRef = useRef<number | null>(null);
   const manualInvalidationRef = useRef<CanvasFrameInvalidation>(0);
+  const observedContentRef = useRef<{
+    reader: CanvasSurfaceReader;
+    revision: number | null;
+  } | null>(null);
 
   const drawLayer = useCallback(
     (
@@ -414,22 +418,70 @@ export const useCanvasRenderer = (
           } else if (hoveredLink || slidePageRect) {
             drawSurface(bgCtx, contentReader, viewBounds, zoom, renderOffset);
           } else {
-            const rasterStatus = rasterTileCache.draw(
+            const rasterResult = rasterTileCache.draw(
               bgCtx,
               contentReader,
               viewBounds,
               zoom,
               renderOffset,
               dpr,
-              paneId,
-              () => {
+              {
+                paneId,
+                mode: runtime?.renderActivity.getMode() ?? "settled",
+                onTileReady: () => {
                 if (!disposed) {
                   scheduleRender(CANVAS_FRAME_INVALIDATION.background);
                 }
+                },
               }
             );
-            if (rasterStatus !== "complete") {
-              drawSurface(bgCtx, contentReader, viewBounds, zoom, renderOffset);
+            const redrawBounds = [
+              ...rasterResult.uncoveredBounds,
+              ...rasterResult.patchBounds,
+            ];
+            for (const bounds of redrawBounds) {
+              const position = GridManager.gridToScreen(
+                bounds.x,
+                bounds.y,
+                renderOffset.x,
+                renderOffset.y,
+                zoom
+              );
+              const width = bounds.width * DEFAULT_GRID_RENDER_METRICS.cellWidth * zoom;
+              const height = bounds.height * DEFAULT_GRID_RENDER_METRICS.cellHeight * zoom;
+              bgCtx.save();
+              bgCtx.beginPath();
+              bgCtx.rect(position.x, position.y, width, height);
+              bgCtx.clip();
+              bgCtx.fillStyle = BACKGROUND_COLOR;
+              bgCtx.fillRect(position.x, position.y, width, height);
+              if (drawVisibleGrid) {
+                drawGridLines(bgCtx, {
+                  startX: bounds.x,
+                  endX: bounds.x + bounds.width - 1,
+                  startY: bounds.y,
+                  endY: bounds.y + bounds.height - 1,
+                  offsetX: renderOffset.x,
+                  offsetY: renderOffset.y,
+                  width: surfaceGeometry.width,
+                  height: surfaceGeometry.height,
+                  zoom,
+                  color: GRID_COLOR,
+                });
+              }
+              drawSurface(
+                bgCtx,
+                contentReader,
+                {
+                  startX: bounds.x,
+                  endX: bounds.x + bounds.width - 1,
+                  startY: bounds.y,
+                  endY: bounds.y + bounds.height - 1,
+                },
+                zoom,
+                renderOffset
+              );
+              bgCtx.restore();
             }
           }
         if (slidePageRect) bgCtx.restore();
@@ -728,6 +780,17 @@ export const useCanvasRenderer = (
     const contentRevision = isIncrementalCanvasSurfaceReader(contentReader)
       ? contentReader.getRevision()
       : null;
+    const observedContent = observedContentRef.current;
+    if (
+      runtime &&
+      observedContent?.reader === contentReader &&
+      observedContent.revision !== null &&
+      contentRevision !== null &&
+      observedContent.revision !== contentRevision
+    ) {
+      runtime.renderActivity.markContentActivity();
+    }
+    observedContentRef.current = { reader: contentReader, revision: contentRevision };
     const invalidation = renderManager.update({
       background: [
         layers.surface.current,
@@ -777,6 +840,11 @@ export const useCanvasRenderer = (
       scheduleRender(renderManager.reset());
     };
     fonts?.addEventListener('loadingdone', handleFontLoad);
+    const unsubscribeActivity = runtime?.renderActivity.subscribe((mode) => {
+      if (mode === "settled" && !disposed) {
+        scheduleRender(CANVAS_FRAME_INVALIDATION.background);
+      }
+    });
 
     scheduleRender(invalidation);
     return () => {
@@ -791,6 +859,7 @@ export const useCanvasRenderer = (
         requestRenderRef.current = null;
       }
       fonts?.removeEventListener('loadingdone', handleFontLoad);
+      unsubscribeActivity?.();
     };
   }, [
     activeCanvasId,

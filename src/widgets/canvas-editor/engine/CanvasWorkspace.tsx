@@ -20,6 +20,7 @@ import { CanvasEngineRuntime } from './CanvasEngineRuntime';
 import { CanvasFrameScheduler, CanvasScopedFrameScheduler } from './FrameScheduler';
 import { CanvasRasterTileCache } from '../rendering/CanvasRasterTileCache';
 import { CanvasRenderWorkerClient } from '../rendering/CanvasRenderWorkerClient';
+import { evaluateCanvasRenderHealth } from '../rendering/CanvasRenderHealth';
 
 export type CanvasViewId = 'primary' | 'secondary';
 
@@ -453,11 +454,19 @@ export function CanvasWorkspaceProvider({ children }: { children: ReactNode }) {
     const diagnostics = window as Window & {
       __chardeskCanvasRasterStats?: () => ReturnType<CanvasRasterTileCache['getStats']>;
       __chardeskCanvasRenderWorkerStats?: () => ReturnType<CanvasRenderWorkerClient['getStats']>;
+      __chardeskCanvasRenderHealth?: () => ReturnType<typeof evaluateCanvasRenderHealth>;
     };
     const readStats = () => runtime.rasterTileCache.getStats();
     diagnostics.__chardeskCanvasRasterStats = readStats;
     const readWorkerStats = () => runtime.renderWorker.getStats();
     diagnostics.__chardeskCanvasRenderWorkerStats = readWorkerStats;
+    const readHealth = () => evaluateCanvasRenderHealth(readStats(), readWorkerStats());
+    diagnostics.__chardeskCanvasRenderHealth = readHealth;
+    const syncPressure = () => runtime.rasterTileCache.setMemoryPressure(
+      document.hidden ? 'constrained' : 'normal'
+    );
+    syncPressure();
+    document.addEventListener('visibilitychange', syncPressure);
     return () => {
       if (diagnostics.__chardeskCanvasRasterStats === readStats) {
         delete diagnostics.__chardeskCanvasRasterStats;
@@ -465,6 +474,10 @@ export function CanvasWorkspaceProvider({ children }: { children: ReactNode }) {
       if (diagnostics.__chardeskCanvasRenderWorkerStats === readWorkerStats) {
         delete diagnostics.__chardeskCanvasRenderWorkerStats;
       }
+      if (diagnostics.__chardeskCanvasRenderHealth === readHealth) {
+        delete diagnostics.__chardeskCanvasRenderHealth;
+      }
+      document.removeEventListener('visibilitychange', syncPressure);
     };
   }, [runtime]);
 

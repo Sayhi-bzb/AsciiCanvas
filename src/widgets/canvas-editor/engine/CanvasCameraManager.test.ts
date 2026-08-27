@@ -4,7 +4,8 @@ import { CanvasCameraManager } from "./CanvasCameraManager";
 import { CanvasFrameScheduler } from "./FrameScheduler";
 
 const createHarness = (
-  initial: CanvasViewportState = { offset: { x: 0, y: 0 }, zoom: 1 }
+  initial: CanvasViewportState = { offset: { x: 0, y: 0 }, zoom: 1 },
+  onViewportActivity = vi.fn()
 ) => {
   let frame: FrameRequestCallback | null = null;
   let viewport = initial;
@@ -18,18 +19,22 @@ const createHarness = (
     }),
     now: () => 0,
   });
-  const camera = new CanvasCameraManager(scheduler, {
-    getViewport: () => viewport,
-    setViewport: (updater) => {
-      viewport = updater(viewport);
+  const camera = new CanvasCameraManager(
+    scheduler,
+    {
+      getViewport: () => viewport,
+      setViewport: (updater) => {
+        viewport = updater(viewport);
+      },
     },
-  });
+    onViewportActivity
+  );
   const run = (timestamp: number) => {
     const callback = frame;
     frame = null;
     callback?.(timestamp);
   };
-  return { camera, getViewport: () => viewport, run };
+  return { camera, getViewport: () => viewport, onViewportActivity, run };
 };
 
 describe("CanvasCameraManager", () => {
@@ -87,5 +92,16 @@ describe("CanvasCameraManager", () => {
       offset: { x: -100, y: 50 },
       zoom: 2,
     });
+  });
+
+  it("reports activity through queued, direct, and animated camera paths", () => {
+    const { camera, onViewportActivity, run } = createHarness();
+    camera.panBy(1, 1);
+    camera.queueZoomAt(1.1, { x: 10, y: 10 });
+    run(16);
+    camera.animateTo({ offset: { x: 20, y: 20 }, zoom: 2 }, { duration: 10 });
+    run(26);
+
+    expect(onViewportActivity).toHaveBeenCalledTimes(3);
   });
 });

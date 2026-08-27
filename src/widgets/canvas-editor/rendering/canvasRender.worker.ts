@@ -25,8 +25,9 @@ type RenderBatch = {
   viewportEpoch: number;
   fontRevision: string;
   tiles: CanvasRenderTileSpec[];
-  rendered: CanvasRenderedTile[];
+  renderedCount: number;
   durationMs: number;
+  queuedAt: number;
 };
 
 const sources = new Map<number, Source>();
@@ -45,17 +46,13 @@ const respond = (
   transfer: Transferable[] = []
 ) => self.postMessage(response, transfer);
 
-const closeRendered = (tiles: readonly CanvasRenderedTile[]) => {
-  tiles.forEach(({ bitmap }) => bitmap.close());
-};
-
 const staleBatch = (batch: RenderBatch) => {
-  closeRendered(batch.rendered);
   respond({
     type: "stale",
     requestId: batch.requestId,
     sourceId: batch.sourceId,
     revision: batch.revision,
+    cancelledTiles: batch.tiles.length,
   });
 };
 
@@ -192,18 +189,17 @@ const renderTile = async (
 const finishBatch = (batch: RenderBatch) => {
   batches.delete(batch.paneId);
   removePane(batch.paneId);
-  const transfer = batch.rendered.map(({ bitmap }) => bitmap as Transferable);
   respond({
-    type: "renderedBatch",
+    type: "renderedBatchComplete",
     requestId: batch.requestId,
     sourceId: batch.sourceId,
     revision: batch.revision,
     paneId: batch.paneId,
     viewportEpoch: batch.viewportEpoch,
     fontRevision: batch.fontRevision,
-    tiles: batch.rendered,
+    tileCount: batch.renderedCount,
     durationMs: batch.durationMs,
-  }, transfer);
+  });
 };
 
 const scheduleNext = () => {
@@ -237,20 +233,34 @@ const processNext = async () => {
     return;
   }
   const startedAt = performance.now();
+  const queueLatencyMs = startedAt - batch.queuedAt;
   try {
     const rendered = await renderTile(source, tile);
     if (batches.get(paneId) !== batch) {
       rendered.bitmap.close();
     } else {
-      batch.rendered.push(rendered);
-      batch.durationMs += performance.now() - startedAt;
+      const durationMs = performance.now() - startedAt;
+      batch.renderedCount += 1;
+      batch.durationMs += durationMs;
+      respond({
+        type: "renderedTile",
+        requestId: batch.requestId,
+        sourceId: batch.sourceId,
+        revision: batch.revision,
+        paneId: batch.paneId,
+        viewportEpoch: batch.viewportEpoch,
+        fontRevision: batch.fontRevision,
+        tile: rendered,
+        durationMs,
+        queueLatencyMs,
+      }, [rendered.bitmap]);
+      batch.queuedAt = performance.now();
       if (batch.tiles.length === 0) finishBatch(batch);
     }
   } catch (error) {
     if (batches.get(paneId) === batch) {
       batches.delete(paneId);
       removePane(paneId);
-      closeRendered(batch.rendered);
       respond({
         type: "font-error",
         requestId: batch.requestId,
@@ -303,6 +313,10 @@ self.onmessage = (event: MessageEvent<CanvasRenderWorkerRequest>) => {
     sources.delete(request.sourceId);
     return;
   }
+  if (request.type === "cancelPane") {
+    cancelBatch(request.paneId);
+    return;
+  }
   if (request.type === "dispose") {
     for (const paneId of [...paneOrder]) cancelBatch(paneId);
     sources.forEach(({ index }) => index.dispose());
@@ -353,6 +367,24 @@ self.onmessage = (event: MessageEvent<CanvasRenderWorkerRequest>) => {
     return;
   }
   cancelBatch(request.paneId);
+  const centerX = request.tiles.reduce(
+    (sum, tile) => sum + tile.bounds.x + tile.bounds.width / 2,
+    0
+  ) / Math.max(1, request.tiles.length);
+  const centerY = request.tiles.reduce(
+    (sum, tile) => sum + tile.bounds.y + tile.bounds.height / 2,
+    0
+  ) / Math.max(1, request.tiles.length);
+  const tiles = [...request.tiles].sort((left, right) => {
+    const priority = (left.priority === "prefetch" ? 1 : 0) -
+      (right.priority === "prefetch" ? 1 : 0);
+    if (priority !== 0) return priority;
+    const leftDistance = Math.abs(left.bounds.x + left.bounds.width / 2 - centerX) +
+      Math.abs(left.bounds.y + left.bounds.height / 2 - centerY);
+    const rightDistance = Math.abs(right.bounds.x + right.bounds.width / 2 - centerX) +
+      Math.abs(right.bounds.y + right.bounds.height / 2 - centerY);
+    return leftDistance - rightDistance;
+  });
   const batch: RenderBatch = {
     requestId: request.requestId,
     sourceId: request.sourceId,
@@ -360,9 +392,10 @@ self.onmessage = (event: MessageEvent<CanvasRenderWorkerRequest>) => {
     paneId: request.paneId,
     viewportEpoch: request.viewportEpoch,
     fontRevision: request.fontRevision,
-    tiles: [...request.tiles],
-    rendered: [],
+    tiles,
+    renderedCount: 0,
     durationMs: 0,
+    queuedAt: performance.now(),
   };
   batches.set(request.paneId, batch);
   paneOrder.push(request.paneId);

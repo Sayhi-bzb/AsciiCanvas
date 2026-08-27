@@ -5,6 +5,7 @@ import {
   type CanvasSurfaceReader,
 } from "@/domains/canvas/public";
 import type { NodeBounds, Point } from "@/shared/types";
+import type { CanvasRenderActivityMode } from "../engine/CanvasRenderActivity";
 import {
   DEFAULT_GRID_RENDER_METRICS,
   prepareCanvasSurface,
@@ -19,6 +20,15 @@ import {
   CanvasRenderWorkerError,
   type CanvasRenderWorkerClient,
 } from "./CanvasRenderWorkerClient";
+import { getIncrementalBackgroundBounds } from "./incrementalBackground";
+import {
+  CanvasViewportResidencyManager,
+  type CanvasTileResidency,
+} from "./CanvasViewportResidencyManager";
+import {
+  CanvasMemoryGovernor,
+  type CanvasMemoryPressure,
+} from "./CanvasMemoryGovernor";
 
 const DEFAULT_BYTE_BUDGET = 32 * 1024 * 1024;
 const TARGET_TILE_DEVICE_PIXELS = 768;
@@ -35,9 +45,15 @@ type RasterTile = {
   bytes: number;
   reader: CanvasSurfaceReader;
   stale: boolean;
+  rasterZoom: number;
+  rasterDpr: number;
 };
 
-type ReaderState = { id: number; revision: number | null };
+type ReaderState = {
+  id: number;
+  revision: number | null;
+  dirtyBounds: NodeBounds[] | null | undefined;
+};
 
 type PendingTile = {
   reader: CanvasSurfaceReader;
@@ -56,6 +72,7 @@ type PendingBatch = {
 type TileRequest = {
   key: string;
   bounds: NodeBounds;
+  residency: CanvasTileResidency;
 };
 
 export type CanvasRasterTileStats = {
@@ -74,9 +91,25 @@ export type CanvasRasterTileStats = {
   releaseCount: number;
   staleEntries: number;
   staleRefreshes: number;
+  presentationFrames: number;
+  deferredBatches: number;
+  hotPatchBounds: number;
+  memoryBudget: number;
+  memoryPressure: string;
+  warmEntries: number;
 };
 
-export type CanvasRasterDrawStatus = "complete" | "pending" | "fallback";
+type CanvasRasterDrawOptions = {
+  paneId: string;
+  mode?: CanvasRenderActivityMode;
+  onTileReady?: () => void;
+};
+
+type CanvasRasterDrawResult = {
+  status: "complete" | "pending" | "presentation" | "fallback";
+  patchBounds: readonly NodeBounds[];
+  uncoveredBounds: readonly NodeBounds[];
+};
 
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
@@ -88,6 +121,46 @@ const intersects = (left: NodeBounds, right: NodeBounds) =>
   left.x + left.width > right.x &&
   left.y < right.y + right.height &&
   left.y + left.height > right.y;
+
+const mergeBounds = (input: readonly NodeBounds[]) => {
+  const result: NodeBounds[] = [];
+  for (const bounds of input) {
+    let merged = { ...bounds };
+    for (let index = result.length - 1; index >= 0; index -= 1) {
+      const existing = result[index]!;
+      const touches = merged.x <= existing.x + existing.width &&
+        merged.x + merged.width >= existing.x &&
+        merged.y <= existing.y + existing.height &&
+        merged.y + merged.height >= existing.y;
+      if (!touches) continue;
+      result.splice(index, 1);
+      const x = Math.min(merged.x, existing.x);
+      const y = Math.min(merged.y, existing.y);
+      merged = {
+        x,
+        y,
+        width: Math.max(merged.x + merged.width, existing.x + existing.width) - x,
+        height: Math.max(merged.y + merged.height, existing.y + existing.height) - y,
+      };
+    }
+    result.push(merged);
+  }
+  return result;
+};
+
+const subtractBounds = (source: NodeBounds, cover: NodeBounds): NodeBounds[] => {
+  if (!intersects(source, cover)) return [source];
+  const x1 = Math.max(source.x, cover.x);
+  const y1 = Math.max(source.y, cover.y);
+  const x2 = Math.min(source.x + source.width, cover.x + cover.width);
+  const y2 = Math.min(source.y + source.height, cover.y + cover.height);
+  return [
+    { x: source.x, y: source.y, width: source.width, height: y1 - source.y },
+    { x: source.x, y: y2, width: source.width, height: source.y + source.height - y2 },
+    { x: source.x, y: y1, width: x1 - source.x, height: y2 - y1 },
+    { x: x2, y: y1, width: source.x + source.width - x2, height: y2 - y1 },
+  ].filter(({ width, height }) => width > 0 && height > 0);
+};
 
 export const getCanvasRasterZoomBucket = (zoom: number) =>
   Math.max(0.125, Math.round(zoom * 64) / 64);
@@ -119,15 +192,21 @@ export const getCanvasRasterTileShape = (zoom: number, dpr: number) => {
 
 export class CanvasRasterTileCache {
   readonly #byteBudget: number;
+  readonly #memoryGovernor: CanvasMemoryGovernor;
   readonly #tiles = new Map<string, RasterTile>();
   readonly #pendingTiles = new Map<string, PendingTile>();
   readonly #readerStates = new WeakMap<CanvasSurfaceReader, ReaderState>();
   readonly #renderWorker: CanvasRenderWorkerClient | null;
   readonly #workerFallbackReaders = new WeakSet<CanvasSurfaceReader>();
   readonly #paneKeys = new Map<string, Set<string>>();
+  readonly #panePresentedKeys = new Map<string, Set<string>>();
   readonly #paneEpochs = new Map<string, number>();
   readonly #paneSignatures = new Map<string, string>();
+  readonly #paneDeferredSignatures = new Map<string, string>();
   readonly #paneBatches = new Map<string, PendingBatch>();
+  readonly #warmKeys = new Set<string>();
+  readonly #paneWarmKeys = new Map<string, Set<string>>();
+  readonly #residency = new CanvasViewportResidencyManager();
   #nextReaderId = 1;
   #bytes = 0;
   #hits = 0;
@@ -141,17 +220,27 @@ export class CanvasRasterTileCache {
   #retainCount = 0;
   #releaseCount = 0;
   #staleRefreshes = 0;
+  #presentationFrames = 0;
+  #deferredBatches = 0;
+  #hotPatchBounds = 0;
 
   constructor(
     byteBudget = DEFAULT_BYTE_BUDGET,
-    renderWorker: CanvasRenderWorkerClient | null = null
+    renderWorker: CanvasRenderWorkerClient | null = null,
+    memoryGovernor = new CanvasMemoryGovernor(Math.max(byteBudget * 2, 8 * 1024 * 1024))
   ) {
     this.#byteBudget = byteBudget;
     this.#renderWorker = renderWorker;
+    this.#memoryGovernor = memoryGovernor;
   }
 
   clear() {
     this.#clearTiles();
+  }
+
+  setMemoryPressure(pressure: CanvasMemoryPressure) {
+    this.#memoryGovernor.setPressure(pressure);
+    this.#evictToBudget();
   }
 
   retain(reader: CanvasSurfaceReader, paneId: string) {
@@ -162,15 +251,21 @@ export class CanvasRasterTileCache {
     return () => {
       this.#releaseCount += 1;
       releaseWorker();
+      this.#cancelPaneBatch(paneId);
       this.#paneKeys.delete(paneId);
+      this.#panePresentedKeys.delete(paneId);
       this.#paneEpochs.delete(paneId);
       this.#paneSignatures.delete(paneId);
-      this.#paneBatches.delete(paneId);
+      this.#paneDeferredSignatures.delete(paneId);
+      this.#residency.release(paneId);
+      this.#paneWarmKeys.delete(paneId);
+      this.#rebuildWarmKeys();
       this.#evictToBudget();
     };
   }
 
   getStats(): CanvasRasterTileStats {
+    const memory = this.#memoryGovernor.getStats();
     return {
       bytes: this.#bytes,
       entries: this.#tiles.size,
@@ -187,6 +282,12 @@ export class CanvasRasterTileCache {
       releaseCount: this.#releaseCount,
       staleEntries: [...this.#tiles.values()].filter(({ stale }) => stale).length,
       staleRefreshes: this.#staleRefreshes,
+      presentationFrames: this.#presentationFrames,
+      deferredBatches: this.#deferredBatches,
+      hotPatchBounds: this.#hotPatchBounds,
+      memoryBudget: Math.min(this.#byteBudget, memory.rasterLimit),
+      memoryPressure: memory.pressure,
+      warmEntries: [...this.#warmKeys].filter((key) => this.#tiles.has(key)).length,
     };
   }
 
@@ -197,10 +298,16 @@ export class CanvasRasterTileCache {
     zoom: number,
     offset: Point,
     dpr: number,
-    paneId: string,
-    onTileReady?: () => void
-  ): CanvasRasterDrawStatus {
-    if (typeof document === "undefined") return "fallback";
+    options: CanvasRasterDrawOptions
+  ): CanvasRasterDrawResult {
+    const emptyResult: CanvasRasterDrawResult = {
+      status: "fallback",
+      patchBounds: [],
+      uncoveredBounds: [],
+    };
+    if (typeof document === "undefined") return emptyResult;
+    const paneId = options.paneId;
+    const mode = options.mode ?? "settled";
     const readerState = this.#syncReader(reader);
     const shape = getCanvasRasterTileShape(zoom, dpr);
     const lod = resolveCanvasContentLod(zoom);
@@ -209,9 +316,25 @@ export class CanvasRasterTileCache {
     const minTileY = floorDiv(viewBounds.startY, shape.rows);
     const maxTileY = floorDiv(viewBounds.endY, shape.rows);
 
+    const residencySignature = [
+      readerState.id,
+      shape.rasterZoom,
+      shape.rasterDpr,
+      lod,
+      shape.columns,
+      shape.rows,
+    ].join(":");
+    const residentTiles = this.#residency.update({
+      paneId,
+      signature: residencySignature,
+      minTileX,
+      maxTileX,
+      minTileY,
+      maxTileY,
+      mode,
+    });
     const requests: TileRequest[] = [];
-    for (let tileY = minTileY; tileY <= maxTileY; tileY += 1) {
-      for (let tileX = minTileX; tileX <= maxTileX; tileX += 1) {
+    for (const { x: tileX, y: tileY, residency } of residentTiles) {
         const key = [
           readerState.id,
           shape.rasterZoom,
@@ -228,11 +351,21 @@ export class CanvasRasterTileCache {
           width: shape.columns,
           height: shape.rows,
         };
-        requests.push({ key, bounds });
-      }
+        requests.push({ key, bounds, residency });
     }
-    const visibleKeys = new Set(requests.map(({ key }) => key));
-    this.#paneKeys.set(paneId, visibleKeys);
+    const visibleRequests = requests.filter(({ residency }) => residency === "visible");
+    const visibleKeys = new Set(visibleRequests.map(({ key }) => key));
+    this.#paneWarmKeys.set(paneId, new Set(
+      requests.filter(({ residency }) => residency === "warm").map(({ key }) => key)
+    ));
+    this.#rebuildWarmKeys();
+    const presentedKeys = this.#panePresentedKeys.get(paneId) ?? new Set<string>();
+    this.#paneKeys.set(
+      paneId,
+      mode === "viewport-interaction"
+        ? new Set([...visibleKeys, ...presentedKeys])
+        : visibleKeys
+    );
     const signature = [
       readerState.id,
       readerState.revision ?? 0,
@@ -254,68 +387,139 @@ export class CanvasRasterTileCache {
       const tile = this.#tiles.get(key);
       return !tile || tile.stale;
     });
-    this.#requestWorkerTiles(
-      reader,
-      readerState.revision ?? 0,
-      paneId,
-      viewportEpoch,
-      missingRequests,
-      shape,
-      lod
-    );
+    if (mode === "settled") {
+      this.#paneDeferredSignatures.delete(paneId);
+      this.#requestWorkerTiles(
+        reader,
+        readerState.revision ?? 0,
+        paneId,
+        viewportEpoch,
+        missingRequests,
+        shape,
+        lod,
+        options.onTileReady
+      );
+    } else {
+      if (
+        missingRequests.length > 0 &&
+        this.#paneDeferredSignatures.get(paneId) !== signature
+      ) {
+        this.#deferredBatches += 1;
+        this.#paneDeferredSignatures.set(paneId, signature);
+      }
+      if (mode === "viewport-interaction") this.#cancelPaneBatch(paneId);
+    }
+
+    const presentationTiles = [...presentedKeys]
+      .map((key) => this.#tiles.get(key))
+      .filter((tile): tile is RasterTile => tile !== undefined && tile.reader === reader);
+    if (mode === "viewport-interaction" && presentationTiles.length > 0) {
+      this.#presentationFrames += 1;
+      presentationTiles.forEach((tile) => this.#drawTile(ctx, tile, zoom, offset));
+    }
 
     const pendingKeys = new Set<string>();
     const refreshingKeys = new Set<string>();
-    for (const { key, bounds } of requests) {
+    const missingBounds: NodeBounds[] = [];
+    for (const { key, bounds } of visibleRequests) {
       const tile = this.#getTile(
         key,
         reader,
         readerState.revision ?? 0,
         bounds,
         shape,
-        lod
+        lod,
+        mode !== "settled"
       );
       if (!tile) {
         if (this.#pendingTiles.has(key)) {
           pendingKeys.add(key);
-          continue;
         }
-        return "fallback";
+        let fragments = [{ ...bounds }];
+        for (const presentation of presentationTiles) {
+          fragments = fragments.flatMap((fragment) =>
+            subtractBounds(fragment, presentation.bounds)
+          );
+        }
+        missingBounds.push(...fragments);
+        continue;
       }
       if (this.#pendingTiles.has(key)) refreshingKeys.add(key);
-      const position = GridManager.gridToScreen(
-        bounds.x,
-        bounds.y,
-        offset.x,
-        offset.y,
-        zoom
-      );
-      ctx.drawImage(
-        tile.image,
-        DEFAULT_GRID_RENDER_METRICS.cellWidth * shape.rasterZoom * shape.rasterDpr,
-        0,
-        bounds.width *
-          DEFAULT_GRID_RENDER_METRICS.cellWidth *
-          shape.rasterZoom *
-          shape.rasterDpr,
-        tile.image.height,
-        position.x,
-        position.y,
-        bounds.width * DEFAULT_GRID_RENDER_METRICS.cellWidth * zoom,
-        bounds.height * DEFAULT_GRID_RENDER_METRICS.cellHeight * zoom
-      );
+      if (mode === "viewport-interaction" && presentedKeys.has(key)) continue;
+      this.#drawTile(ctx, tile, zoom, offset);
     }
     const listenerKeys = new Set([...pendingKeys, ...refreshingKeys]);
-    if (listenerKeys.size > 0 && onTileReady) {
-      const complete = (key: string) => {
-        listenerKeys.delete(key);
-        if (listenerKeys.size === 0) onTileReady();
-      };
+    if (listenerKeys.size > 0 && options.onTileReady) {
       listenerKeys.forEach((key) => {
-        this.#pendingTiles.get(key)?.listeners.add(() => complete(key));
+        this.#pendingTiles.get(key)?.listeners.add(options.onTileReady!);
       });
     }
-    return pendingKeys.size > 0 ? "pending" : "complete";
+    if (
+      mode === "settled" &&
+      missingBounds.length === 0 &&
+      pendingKeys.size === 0 &&
+      refreshingKeys.size === 0
+    ) {
+      this.#panePresentedKeys.set(paneId, visibleKeys);
+      if (![...this.#tiles.values()].some(
+        (tile) => tile.reader === reader && tile.stale
+      )) {
+        readerState.dirtyBounds = undefined;
+      }
+    }
+    const viewportBounds = {
+      x: viewBounds.startX,
+      y: viewBounds.startY,
+      width: viewBounds.endX - viewBounds.startX + 1,
+      height: viewBounds.endY - viewBounds.startY + 1,
+    };
+    const patchBounds = readerState.dirtyBounds === null
+      ? [viewportBounds]
+      : readerState.dirtyBounds
+        ? getIncrementalBackgroundBounds(
+            { revision: readerState.revision ?? 0, full: false, bounds: readerState.dirtyBounds },
+            viewportBounds
+          ) ?? [viewportBounds]
+        : [];
+    this.#hotPatchBounds += patchBounds.length;
+    return {
+      status: mode === "viewport-interaction" && presentationTiles.length > 0
+        ? "presentation"
+        : missingBounds.length > 0
+          ? "fallback"
+          : pendingKeys.size > 0 || refreshingKeys.size > 0
+            ? "pending"
+            : "complete",
+      patchBounds,
+      uncoveredBounds: mergeBounds(missingBounds),
+    };
+  }
+
+  #drawTile(
+    ctx: CanvasRenderingContext2D,
+    tile: RasterTile,
+    zoom: number,
+    offset: Point
+  ) {
+    const position = GridManager.gridToScreen(
+      tile.bounds.x,
+      tile.bounds.y,
+      offset.x,
+      offset.y,
+      zoom
+    );
+    ctx.drawImage(
+      tile.image,
+      DEFAULT_GRID_RENDER_METRICS.cellWidth * tile.rasterZoom * tile.rasterDpr,
+      0,
+      tile.bounds.width * DEFAULT_GRID_RENDER_METRICS.cellWidth *
+        tile.rasterZoom * tile.rasterDpr,
+      tile.image.height,
+      position.x,
+      position.y,
+      tile.bounds.width * DEFAULT_GRID_RENDER_METRICS.cellWidth * zoom,
+      tile.bounds.height * DEFAULT_GRID_RENDER_METRICS.cellHeight * zoom
+    );
   }
 
   #requestWorkerTiles(
@@ -325,7 +529,8 @@ export class CanvasRasterTileCache {
     viewportEpoch: number,
     requests: readonly TileRequest[],
     shape: ReturnType<typeof getCanvasRasterTileShape>,
-    lod: CanvasContentLod
+    lod: CanvasContentLod,
+    onTileReady?: () => void
   ) {
     if (
       requests.length === 0 ||
@@ -347,17 +552,51 @@ export class CanvasRasterTileCache {
     ].join(":");
     if (this.#paneBatches.get(paneId)?.signature === signature) return;
     const batch: PendingBatch = { paneId, viewportEpoch, signature };
+    const delivered = new Set<string>();
     const rendered = this.#renderWorker.renderTiles(reader, {
       paneId,
       viewportEpoch,
-      tiles: ownedRequests.map(({ key, bounds }) => ({
+      tiles: ownedRequests.map(({ key, bounds, residency }) => ({
         key,
         bounds,
         renderBounds: this.#getRenderBounds(bounds),
         rasterZoom: shape.rasterZoom,
         rasterDpr: shape.rasterDpr,
         lod,
+        priority: residency === "visible"
+          ? "visible"
+          : "prefetch",
       })),
+      onTile: (tile) => {
+        const pending = this.#pendingTiles.get(tile.key);
+        if (
+          !pending ||
+          pending.batch !== batch ||
+          pending.reader !== reader ||
+          pending.revision !== revision ||
+          this.#readerStates.get(reader)?.revision !== revision
+        ) {
+          tile.bitmap.close();
+          return;
+        }
+        delivered.add(tile.key);
+        this.#pendingTiles.delete(tile.key);
+        this.#deleteTile(tile.key);
+        this.#tiles.set(tile.key, {
+          image: tile.bitmap,
+          bounds: tile.bounds,
+          bytes: tile.bytes,
+          reader,
+          stale: false,
+          rasterZoom: shape.rasterZoom,
+          rasterDpr: shape.rasterDpr,
+        });
+        this.#bytes += tile.bytes;
+        this.#asyncTiles += 1;
+        this.#workerRasterTiles += 1;
+        pending.listeners.forEach((listener) => listener());
+        this.#evictToBudget();
+      },
     });
     if (!rendered) return;
     this.#paneBatches.set(paneId, batch);
@@ -372,35 +611,7 @@ export class CanvasRasterTileCache {
       });
     }
 
-    void rendered.then((tiles) => {
-      const delivered = new Set<string>();
-      for (const tile of tiles) {
-        const pending = this.#pendingTiles.get(tile.key);
-        if (
-          !pending ||
-          pending.batch !== batch ||
-          pending.reader !== reader ||
-          pending.revision !== revision ||
-          this.#readerStates.get(reader)?.revision !== revision
-        ) {
-          tile.bitmap.close();
-          continue;
-        }
-        delivered.add(tile.key);
-        this.#pendingTiles.delete(tile.key);
-        this.#deleteTile(tile.key);
-        this.#tiles.set(tile.key, {
-          image: tile.bitmap,
-          bounds: tile.bounds,
-          bytes: tile.bytes,
-          reader,
-          stale: false,
-        });
-        this.#bytes += tile.bytes;
-        this.#asyncTiles += 1;
-        this.#workerRasterTiles += 1;
-        pending.listeners.forEach((listener) => listener());
-      }
+    void rendered.then(() => {
       for (const { key } of ownedRequests) {
         if (delivered.has(key)) continue;
         const pending = this.#pendingTiles.get(key);
@@ -413,6 +624,7 @@ export class CanvasRasterTileCache {
         this.#paneBatches.delete(paneId);
       }
       this.#evictToBudget();
+      onTileReady?.();
     }).catch((error: unknown) => {
       if (
         error instanceof CanvasRenderWorkerError &&
@@ -441,6 +653,7 @@ export class CanvasRasterTileCache {
         revision: isIncrementalCanvasSurfaceReader(reader)
           ? reader.getRevision()
           : null,
+        dirtyBounds: undefined,
       };
       this.#readerStates.set(reader, state);
       return state;
@@ -453,7 +666,12 @@ export class CanvasRasterTileCache {
       : reader.getChangesSince(state.revision);
     if (changes.full) {
       this.#clearReaderTiles(reader);
+      state.dirtyBounds = null;
     } else {
+      state.dirtyBounds = mergeBounds([
+        ...(state.dirtyBounds ?? []),
+        ...changes.bounds,
+      ]);
       for (const tile of this.#tiles.values()) {
         if (
           tile.reader === reader &&
@@ -475,11 +693,12 @@ export class CanvasRasterTileCache {
     revision: number,
     bounds: NodeBounds,
     shape: ReturnType<typeof getCanvasRasterTileShape>,
-    lod: ReturnType<typeof resolveCanvasContentLod>
+    lod: ReturnType<typeof resolveCanvasContentLod>,
+    preserveStale: boolean
   ) {
     const cached = this.#tiles.get(key);
     if (cached) {
-      if (cached.stale && !this.#pendingTiles.has(key)) {
+      if (cached.stale && !this.#pendingTiles.has(key) && !preserveStale) {
         this.#deleteTile(key);
       } else {
         this.#hits += 1;
@@ -491,6 +710,7 @@ export class CanvasRasterTileCache {
     const pending = this.#pendingTiles.get(key);
     if (pending) return null;
     this.#misses += 1;
+    if (preserveStale) return null;
     if (
       reader instanceof CellPlaneIndex &&
       this.#renderWorker &&
@@ -591,6 +811,8 @@ export class CanvasRasterTileCache {
       bytes: canvas.width * canvas.height * 4,
       reader: owner,
       stale: false,
+      rasterZoom: shape.rasterZoom,
+      rasterDpr: shape.rasterDpr,
     };
     return tile;
   }
@@ -635,12 +857,18 @@ export class CanvasRasterTileCache {
   }
 
   #clearTiles() {
+    [...this.#paneBatches.keys()].forEach((paneId) => this.#cancelPaneBatch(paneId));
     for (const key of [...this.#tiles.keys()]) this.#deleteTile(key);
     this.#pendingTiles.clear();
     this.#paneKeys.clear();
+    this.#panePresentedKeys.clear();
     this.#paneEpochs.clear();
     this.#paneSignatures.clear();
+    this.#paneDeferredSignatures.clear();
+    this.#residency.clear();
     this.#paneBatches.clear();
+    this.#warmKeys.clear();
+    this.#paneWarmKeys.clear();
   }
 
   #clearReaderTiles(reader: CanvasSurfaceReader) {
@@ -650,8 +878,24 @@ export class CanvasRasterTileCache {
   }
 
   #clearReaderPending(reader: CanvasSurfaceReader) {
+    const paneIds = new Set<string>();
     for (const [key, pending] of this.#pendingTiles) {
-      if (pending.reader === reader) this.#pendingTiles.delete(key);
+      if (pending.reader !== reader) continue;
+      if (pending.batch) paneIds.add(pending.batch.paneId);
+      this.#pendingTiles.delete(key);
+    }
+    paneIds.forEach((paneId) => this.#cancelPaneBatch(paneId));
+  }
+
+  #cancelPaneBatch(paneId: string) {
+    const batch = this.#paneBatches.get(paneId);
+    if (!batch) return;
+    this.#paneBatches.delete(paneId);
+    this.#renderWorker?.cancelPane(paneId);
+    for (const [key, pending] of this.#pendingTiles) {
+      if (pending.batch !== batch) continue;
+      this.#pendingTiles.delete(key);
+      pending.listeners.forEach((listener) => listener());
     }
   }
 
@@ -662,14 +906,24 @@ export class CanvasRasterTileCache {
     return false;
   }
 
+  #rebuildWarmKeys() {
+    this.#warmKeys.clear();
+    this.#paneWarmKeys.forEach((keys) => keys.forEach((key) => this.#warmKeys.add(key)));
+  }
+
   #evictToBudget() {
-    while (this.#bytes > this.#byteBudget && this.#tiles.size > 1) {
+    this.#memoryGovernor.report("raster", this.#bytes);
+    const budget = Math.min(this.#byteBudget, this.#memoryGovernor.getLimit("raster"));
+    while (this.#bytes > budget && this.#tiles.size > 1) {
       const key = [...this.#tiles.keys()].find(
+        (candidate) => !this.#isProtected(candidate) && this.#warmKeys.has(candidate)
+      ) ?? [...this.#tiles.keys()].find(
         (candidate) => !this.#isProtected(candidate)
       );
       if (!key) break;
       this.#deleteTile(key);
       this.#evictions += 1;
     }
+    this.#memoryGovernor.report("raster", this.#bytes);
   }
 }

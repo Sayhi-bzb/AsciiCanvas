@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   CellPlaneIndex,
   cellPlanePatchToOperation,
@@ -11,6 +11,7 @@ import type {
 
 class FakeWorker {
   static latest: FakeWorker | null = null;
+  static instances: FakeWorker[] = [];
   readonly messages: CanvasRenderWorkerRequest[] = [];
   onmessage: ((event: MessageEvent<CanvasRenderWorkerResponse>) => void) | null = null;
   onerror: (() => void) | null = null;
@@ -19,6 +20,7 @@ class FakeWorker {
 
   constructor() {
     FakeWorker.latest = this;
+    FakeWorker.instances.push(this);
   }
 
   postMessage(message: CanvasRenderWorkerRequest) {
@@ -39,6 +41,8 @@ const originalWorker = globalThis.Worker;
 afterEach(() => {
   globalThis.Worker = originalWorker;
   FakeWorker.latest = null;
+  FakeWorker.instances = [];
+  vi.restoreAllMocks();
 });
 
 const operation = (id: string, x: number, text: string) =>
@@ -112,9 +116,11 @@ describe("CanvasRenderWorkerClient", () => {
     globalThis.Worker = FakeWorker as unknown as typeof Worker;
     const reader = new CellPlaneIndex([operation("initial", 0, "A")]);
     const client = new CanvasRenderWorkerClient();
+    const delivered: ImageBitmap[] = [];
     const workerPromise = client.renderTiles(reader, {
       paneId: "primary",
       viewportEpoch: 1,
+      onTile: ({ bitmap }) => delivered.push(bitmap),
       tiles: [{
         key: "tile",
         bounds: { x: 0, y: 0, width: 1, height: 1 },
@@ -135,27 +141,41 @@ describe("CanvasRenderWorkerClient", () => {
     >;
     const bitmap = { close() {} } as ImageBitmap;
     worker.respond({
-      type: "renderedBatch",
+      type: "renderedTile",
       requestId: request.requestId,
       sourceId: request.sourceId,
       revision: request.revision,
       paneId: request.paneId,
       viewportEpoch: request.viewportEpoch,
       fontRevision: configure.fontRevision,
-      tiles: [{
+      tile: {
         key: "tile",
         bounds: { x: 0, y: 0, width: 1, height: 1 },
         bitmap,
         bytes: 4,
-      }],
+      },
+      durationMs: 4,
+      queueLatencyMs: 2,
+    });
+    expect(delivered).toEqual([bitmap]);
+    worker.respond({
+      type: "renderedBatchComplete",
+      requestId: request.requestId,
+      sourceId: request.sourceId,
+      revision: request.revision,
+      paneId: request.paneId,
+      viewportEpoch: request.viewportEpoch,
+      fontRevision: configure.fontRevision,
+      tileCount: 1,
       durationMs: 4,
     });
 
-    await expect(workerPromise).resolves.toHaveLength(1);
+    await expect(workerPromise).resolves.toEqual({ tileCount: 1, durationMs: 4 });
     expect(client.getStats()).toMatchObject({
       rasterBatches: 1,
       rasterTiles: 1,
       rasterDurationMs: 4,
+      maxQueueLatencyMs: 2,
     });
   });
 
@@ -208,5 +228,51 @@ describe("CanvasRenderWorkerClient", () => {
 
     expect(client.project(reader, { x: 0, y: 0, width: 1, height: 1 })).toBeNull();
     expect(client.getStats()).toMatchObject({ available: false, failures: 1 });
+  });
+
+  it("forwards pane cancellation to the worker", () => {
+    globalThis.Worker = FakeWorker as unknown as typeof Worker;
+    const client = new CanvasRenderWorkerClient();
+    const reader = new CellPlaneIndex([operation("initial", 0, "A")]);
+    client.renderTiles(reader, {
+      paneId: "secondary",
+      viewportEpoch: 1,
+      tiles: [{
+        key: "tile",
+        bounds: { x: 0, y: 0, width: 1, height: 1 },
+        renderBounds: { x: -1, y: 0, width: 3, height: 1 },
+        rasterZoom: 1,
+        rasterDpr: 1,
+        lod: "full",
+      }],
+    });
+
+    client.cancelPane("secondary");
+    expect(FakeWorker.latest!.messages.at(-1)).toEqual({
+      type: "cancelPane",
+      paneId: "secondary",
+    });
+  });
+
+  it("expands to at most two workers only after sustained render pressure", () => {
+    globalThis.Worker = FakeWorker as unknown as typeof Worker;
+    vi.spyOn(navigator, "hardwareConcurrency", "get").mockReturnValue(8);
+    const client = new CanvasRenderWorkerClient();
+    const reader = new CellPlaneIndex([operation("initial", 0, "A")]);
+    const tiles = [{
+      key: "tile",
+      bounds: { x: 0, y: 0, width: 1, height: 1 },
+      renderBounds: { x: -1, y: 0, width: 3, height: 1 },
+      rasterZoom: 1,
+      rasterDpr: 1,
+      lod: "full" as const,
+    }];
+
+    client.renderTiles(reader, { paneId: "one", viewportEpoch: 1, tiles });
+    client.renderTiles(reader, { paneId: "two", viewportEpoch: 1, tiles });
+    client.renderTiles(reader, { paneId: "three", viewportEpoch: 1, tiles });
+
+    expect(FakeWorker.instances).toHaveLength(2);
+    expect(client.getStats()).toMatchObject({ workers: 2, poolExpansions: 1 });
   });
 });
