@@ -56,6 +56,31 @@ const getViewport = (viewer: CharDeskViewerElement) =>
   viewer.shadowRoot?.querySelector("[part='viewport']") as HTMLDivElement;
 
 describe("CharDeskViewerElement", () => {
+  it("compiles explicit CharGraph sources before rendering", async () => {
+    const viewer = document.createElement("chardesk-viewer") as CharDeskViewerElement;
+    viewer.sourceKind = "chargraph";
+    viewer.source = "A\n|||\n**B**";
+    document.body.append(viewer);
+
+    await vi.waitFor(() => {
+      expect(viewer.parsedDocument?.plainText).toBe("A    B");
+    });
+    expect(viewer.parsedDocument?.cells.find((cell) => cell.text === "B")?.attrs?.bold)
+      .toBe(true);
+  });
+
+  it("does not apply a stale asynchronous CharGraph render", async () => {
+    const viewer = document.createElement("chardesk-viewer") as CharDeskViewerElement;
+    viewer.sourceKind = "chargraph";
+    document.body.append(viewer);
+    viewer.source = "**old**";
+    viewer.source = "**new**";
+
+    await vi.waitFor(() => {
+      expect(viewer.parsedDocument?.plainText).toBe("new");
+    });
+  });
+
   it("upgrades declarative fallback without changing its source", () => {
     const viewer = document.createElement("chardesk-viewer") as CharDeskViewerElement;
     const fallback = document.createElement("pre");

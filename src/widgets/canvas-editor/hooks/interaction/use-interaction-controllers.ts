@@ -8,7 +8,6 @@ import {
 import { useCreation } from "ahooks";
 import { useCanvasRuntime } from "@/domains/canvas/public";
 import type { CanvasEditorRuntime } from "@/domains/editor/public";
-import { MAX_ZOOM, MIN_ZOOM } from "@/shared/lib/constants";
 import type { SelectionArea } from "@/shared/types";
 import type { CanvasLinkHit } from "./core/linkHitTesting";
 import { createCanvasInteractionTransactionController } from "./core/interactionTransaction";
@@ -18,7 +17,6 @@ import { createHoverInteractionController } from "./preview/hoverInteractionCont
 import { createSelectionPreviewController } from "./preview/selectionPreviewController";
 import type { StructuredMovePreview } from "./structured/structuredInteractionPreview";
 import { createStructuredPreviewQueueController } from "./structured/structuredPreviewQueueExecution";
-import { createViewportInteractionController } from "./viewport/viewportInteractionController";
 import {
   SHORTCUT_PRIORITY,
   useShortcutLayer,
@@ -38,8 +36,6 @@ type ControllerStore = Pick<
   | "zoom"
   | "grid"
   | "canvasMode"
-  | "setOffset"
-  | "setViewport"
   | "setHoveredGrid"
   | "applyStructuredScene"
 > & {
@@ -61,7 +57,7 @@ export const useInteractionControllers = ({
   setHoveredLink: (hit: CanvasLinkHit | null) => void;
   structuredMovePreviewRef?: React.MutableRefObject<StructuredMovePreview | null>;
   requestRenderRef?: React.MutableRefObject<(() => void) | null>;
-  runtime?: CanvasEngineRuntime;
+  runtime: CanvasEngineRuntime;
   editorRuntime: CanvasEditorRuntime;
 }) => {
   const canvas = useCanvasRuntime();
@@ -73,8 +69,6 @@ export const useInteractionControllers = ({
     grid,
     canvasMode,
     slideDeck,
-    setOffset,
-    setViewport,
     setHoveredGrid,
     applyStructuredScene,
   } = store;
@@ -102,13 +96,11 @@ export const useInteractionControllers = ({
   ]);
   const previewScheduler = useCreation(
     () =>
-      runtime
-        ? createFrameSchedulerRafAdapter(
-            runtime.frameScheduler,
-            "structured-preview",
-            CANVAS_FRAME_INVALIDATION.overlay
-          )
-        : undefined,
+      createFrameSchedulerRafAdapter(
+        runtime.frameScheduler,
+        "structured-preview",
+        CANVAS_FRAME_INVALIDATION.overlay
+      ),
     [runtime]
   );
 
@@ -146,25 +138,16 @@ export const useInteractionControllers = ({
     []
   );
   const viewportInteraction = useCreation(
-    () => {
-      if (runtime) {
-        return {
-          queueOffsetDelta: (dx: number, dy: number) =>
-            runtime.camera.queuePan(dx, dy),
-          flushOffset: () => runtime.camera.flushPan(),
-          queueZoomDelta: (delta: number, x: number, y: number) =>
-            runtime.camera.queueZoomAt(delta, { x, y }),
-          flushZoom: () => runtime.camera.flushZoom(),
-          cancel: () => runtime.camera.cancelPending(),
-        };
-      }
-      return createViewportInteractionController({
-        setOffset,
-        setViewport,
-        zoomBounds: { min: MIN_ZOOM, max: MAX_ZOOM },
-      });
-    },
-    [runtime, setOffset, setViewport]
+    () => ({
+      queueOffsetDelta: (dx: number, dy: number) =>
+        runtime.camera.queuePan(dx, dy),
+      flushOffset: () => runtime.camera.flushPan(),
+      queueZoomDelta: (delta: number, x: number, y: number) =>
+        runtime.camera.queueZoomAt(delta, { x, y }),
+      flushZoom: () => runtime.camera.flushZoom(),
+      cancel: () => runtime.camera.cancelPending(),
+    }),
+    [runtime]
   );
   const structuredPreview = useCreation(
     () => {

@@ -20,6 +20,12 @@ type DrawGridLayerOptions = {
   alpha?: number;
   hoveredLink?: CanvasLinkHit | null;
   lod?: CanvasContentLod;
+  content?: "all" | "background" | "text";
+};
+
+export type DrawGridLayerResult = {
+  cells: number;
+  glyphs: number;
 };
 
 export const drawGridLayer = (
@@ -29,9 +35,10 @@ export const drawGridLayer = (
   zoom: number,
   offset: Point,
   options: DrawGridLayerOptions = {}
-) => {
-  if (!reader) return;
+): DrawGridLayerResult => {
+  if (!reader) return { cells: 0, glyphs: 0 };
   const { alpha = 1, hoveredLink = null } = options;
+  const content = options.content ?? "all";
   const lod = options.lod ?? resolveCanvasContentLod(zoom);
 
   ctx.save();
@@ -39,6 +46,7 @@ export const drawGridLayer = (
   setTextRenderStyle(ctx, zoom);
 
   const visibleCells: Parameters<typeof drawCellBatch>[1][number][] = [];
+  let glyphs = 0;
   const queryBounds = {
     x: viewBounds.startX - 1,
     y: viewBounds.startY,
@@ -50,10 +58,12 @@ export const drawGridLayer = (
     for (const cell of span.cells) {
       const width = getCellOccupancy(cell.char);
       const lodCell = getCanvasLodCell(cell, lod);
-      const { drawBackground, drawText } = lodCell;
+      const drawBackground = lodCell.drawBackground && content !== "text";
+      const drawText = lodCell.drawText && content !== "background";
       const intersectsView =
         x + width > viewBounds.startX && x <= viewBounds.endX;
       if (intersectsView && (drawBackground || drawText)) {
+        if (drawText) glyphs += 1;
         const pos = GridManager.gridToScreen(
           x,
           span.y,
@@ -86,4 +96,8 @@ export const drawGridLayer = (
 
   drawCellBatch(ctx, visibleCells);
   ctx.restore();
+  return {
+    cells: visibleCells.length,
+    glyphs,
+  };
 };

@@ -1,8 +1,9 @@
 import {
-  layoutCharDeskTextRunsToRows,
-  materializeCharDeskTextRows,
-} from "@chardesk/protocol";
-import { renderCharGraphText } from "@chardesk/chargraph";
+  compileCharDeskText,
+  materializeCompiledCharDeskText,
+  type CharDeskSourceKind,
+  type CharDeskTextCompilerId,
+} from "@chardesk/chargraph";
 import {
   createDefaultFeatureSettings,
   createRegisteredMarkdownOptions,
@@ -13,6 +14,7 @@ import type {
   CompactTextRenderResult,
   TextRenderProfile,
   TextRenderResult,
+  TextRendererId,
   TextRenderingStorage,
 } from "./types";
 import { DEFAULT_TEXT_RENDER_THEME } from "./theme";
@@ -99,8 +101,8 @@ const readProfile = (
 };
 
 const toRenderedRows = (
-  rows: ReturnType<typeof layoutCharDeskTextRunsToRows>["rows"],
-  defaultColor: string
+  rows: Awaited<ReturnType<typeof compileCharDeskText>>["rows"],
+  defaultColor: string,
 ) => rows.map((row) => ({
   y: row.y,
   spans: row.spans.map((span) => ({
@@ -113,6 +115,9 @@ const toRenderedRows = (
     ...(span.href ? { href: span.href } : {}),
   })),
 }));
+
+const toTextRendererId = (id: CharDeskTextCompilerId): TextRendererId =>
+  id === "plain" ? "raw" : id === "chardesk" ? "ansi" : id;
 
 export class TextRenderingRuntime {
   readonly #listeners = new Set<() => void>();
@@ -149,24 +154,22 @@ export class TextRenderingRuntime {
   };
 
   render = async (source: string, defaultColor: string): Promise<TextRenderResult> => {
-    const rendered = await this.#render(source);
-    if (rendered.renderer === "raw") {
+    const rendered = await this.#compile(source, defaultColor);
+    if (rendered.renderer === "plain" || rendered.renderer === "raw") {
       return {
         kind: "plain",
         renderer: "raw",
-        pipeline: rendered.pipeline,
+        pipeline: ["raw"],
         text: source,
         diagnostics: rendered.diagnostics,
       };
     }
-    const layout = layoutCharDeskTextRunsToRows(rendered.fragments, {
-      defaultStyle: { color: defaultColor },
-    });
+    const document = materializeCompiledCharDeskText(rendered);
     return {
       kind: "styled",
-      renderer: rendered.renderer,
-      pipeline: rendered.pipeline,
-      cells: materializeCharDeskTextRows(layout.rows).map((cell) => ({
+      renderer: toTextRendererId(rendered.renderer),
+      pipeline: rendered.pipeline.map(toTextRendererId),
+      cells: document.cells.map((cell) => ({
         x: cell.x,
         y: cell.y,
         char: cell.text,
@@ -175,32 +178,38 @@ export class TextRenderingRuntime {
         ...(cell.attrs ? { attrs: { ...cell.attrs } } : {}),
         ...(cell.href ? { href: cell.href } : {}),
       })),
-      diagnostics: [...rendered.diagnostics, ...layout.diagnostics],
+      diagnostics: rendered.diagnostics,
     };
   };
 
   renderCompact = (
     source: string,
     defaultColor: string
-  ): Promise<CompactTextRenderResult> => this.#render(source).then((rendered) => {
-    const parsed = layoutCharDeskTextRunsToRows(rendered.fragments, {
-      defaultStyle: { color: defaultColor },
-    });
+  ): Promise<CompactTextRenderResult> => this.#compile(source, defaultColor).then((rendered) => {
+    const renderer = toTextRendererId(rendered.renderer);
+    const pipeline = rendered.pipeline.map(toTextRendererId);
     return {
       kind: "spans",
-      renderer: rendered.renderer,
-      pipeline: rendered.pipeline,
-      rows: toRenderedRows(parsed.rows, defaultColor),
-      width: parsed.width,
-      height: parsed.height,
-      diagnostics: [...rendered.diagnostics, ...parsed.diagnostics],
+      renderer,
+      pipeline,
+      rows: toRenderedRows(rendered.rows, defaultColor),
+      width: rendered.width,
+      height: rendered.height,
+      diagnostics: rendered.diagnostics,
     };
   });
 
-  #render(source: string) {
+  #compile(source: string, defaultColor: string) {
     const profile = this.#profile;
-    return renderCharGraphText(source, {
-      mode: profile.mode,
+    const sourceKind: CharDeskSourceKind = profile.mode === "raw"
+      ? "plain"
+      : profile.mode === "ansi"
+        ? "ansi"
+        : "chargraph";
+    return compileCharDeskText(source, {
+      sourceKind,
+      chargraphMode: profile.mode === "markdown" ? "markdown" : "auto",
+      defaultStyle: { color: defaultColor },
       markdown: createRegisteredMarkdownOptions(
         profile.features,
         { ...DEFAULT_TEXT_RENDER_THEME, ...profile.renderTheme },

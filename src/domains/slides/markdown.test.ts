@@ -5,8 +5,8 @@ const createSource = (body: string[], metadata: string[] = ['title: Agent Deck']
   ['---', 'chardesk: slides/v1', ...metadata, '---', ...body].join('\n');
 
 describe('CharDesk Slides Markdown', () => {
-  it('parses ordered plain and ANSI slides', () => {
-    const result = parseSlideMarkdown(
+  it('parses ordered plain and ANSI slides', async () => {
+    const result = await parseSlideMarkdown(
       createSource([
         '## Intro',
         '',
@@ -35,8 +35,8 @@ describe('CharDesk Slides Markdown', () => {
     expect(result.slideDeck.slides[1].grid[0][1].color).toBe('#800000');
   });
 
-  it('uses the widescreen default when slide sizes are omitted', () => {
-    const result = parseSlideMarkdown(
+  it('uses the widescreen default when slide sizes are omitted', async () => {
+    const result = await parseSlideMarkdown(
       createSource([
         '## Plain',
         '```text',
@@ -60,8 +60,8 @@ describe('CharDesk Slides Markdown', () => {
     ]);
   });
 
-  it('uses fallback names and clips overflow, including wide boundary cells', () => {
-    const result = parseSlideMarkdown(
+  it('uses fallback names and clips overflow, including wide boundary cells', async () => {
+    const result = await parseSlideMarkdown(
       createSource(['```text size=4x2', 'ABCDE', 'abc界', 'third', '```'])
     );
 
@@ -77,8 +77,8 @@ describe('CharDesk Slides Markdown', () => {
     ]);
   });
 
-  it('parses independent slide sizes', () => {
-    const result = parseSlideMarkdown(
+  it('parses independent slide sizes', async () => {
+    const result = await parseSlideMarkdown(
       createSource([
         '## Wide',
         '```text size=100x27',
@@ -106,7 +106,44 @@ describe('CharDesk Slides Markdown', () => {
     ['unknown block info', createSource(['```text compact', 'A', '```'])],
     ['no slides', createSource(['Nothing here'])],
     ['open fence', createSource(['```text size=4x2', 'A'])],
-  ])('rejects %s', (_label, source) => {
-    expect(() => parseSlideMarkdown(source)).toThrow();
+  ])('rejects %s', async (_label, source) => {
+    await expect(parseSlideMarkdown(source)).rejects.toThrow();
+  });
+
+  it('compiles explicit CharGraph slide fences', async () => {
+    const result = await parseSlideMarkdown(
+      createSource([
+        '## Layout',
+        '````chargraph size=8x2',
+        'A',
+        '|||',
+        '**B**',
+        '````',
+      ])
+    );
+
+    expect(result.slideDeck.slides[0].grid.map(([key, cell]) => [key, cell.char])).toEqual([
+      ['0,0', 'A'],
+      ['5,0', 'B'],
+    ]);
+    expect(result.slideDeck.slides[0].grid[1]?.[1].attrs?.bold).toBe(true);
+  });
+
+  it('renders nested CharGraph data fences instead of storing their source', async () => {
+    const result = await parseSlideMarkdown(
+      createSource([
+        '## Data',
+        '````chargraph size=20x4',
+        '```json',
+        '{"gpu":true}',
+        '```',
+        '````',
+      ])
+    );
+    const text = result.slideDeck.slides[0].grid.map(([, cell]) => cell.char).join('');
+
+    expect(text).toContain('gpu');
+    expect(text).toContain('true');
+    expect(text).not.toContain('```');
   });
 });

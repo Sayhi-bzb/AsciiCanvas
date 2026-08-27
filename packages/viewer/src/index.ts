@@ -6,6 +6,7 @@ export type {
   CharDeskViewerFit,
   CharDeskViewerCopyFormat,
   CharDeskViewerInteraction,
+  CharDeskViewerSourceKind,
 } from "./viewer-element.js";
 export { createCharDeskRenderModel } from "./render-model.js";
 export type {

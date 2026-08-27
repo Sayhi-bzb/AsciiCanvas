@@ -861,7 +861,7 @@ export class CanvasRasterTileCache {
           shape.rasterZoom,
         y: -bounds.y * DEFAULT_GRID_RENDER_METRICS.cellHeight * shape.rasterZoom,
       },
-      { lod }
+      { lod, content: "background" }
     );
     const tile = {
       image: canvas,

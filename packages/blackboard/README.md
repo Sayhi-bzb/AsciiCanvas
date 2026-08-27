@@ -4,7 +4,7 @@ Local, read-only projection of one canonical or legacy Freeform `.chardesk`
 Blackboard. Structured and Slide documents are rejected explicitly.
 
 - `serve [board.chardesk] [--port 7331]` serves the main CharDesk application at `/blackboard` on loopback.
-- `check <board.chardesk>` validates UTF-8 and visible ESC-less ANSI.
+- `check <board.chardesk>` validates UTF-8 and visible ESC-less ANSI through the shared text compiler's `chardesk` source kind.
 
 The Agent writes the source with native filesystem tools. The server only reads
 the current file and keeps no second revision.

@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  alignCanvasViewportForSurface,
   CANVAS_OVERSCAN_PX,
   offsetCanvasViewportForSurface,
   resolveCanvasSurfaceGeometry,
@@ -34,11 +33,4 @@ describe('canvas surface geometry', () => {
     );
   });
 
-  it('aligns the visual viewport to physical pixels without changing logical state', () => {
-    const geometry = resolveCanvasSurfaceGeometry({ width: 800, height: 600 });
-
-    expect(
-      alignCanvasViewportForSurface({ x: 10.24, y: -4.26 }, geometry, 2)
-    ).toEqual({ x: 138, y: 123.5 });
-  });
 });

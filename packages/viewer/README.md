@@ -47,11 +47,16 @@ const viewer = document.querySelector<CharDeskViewerElement>(
 viewer.source = "[38;2;255;80;80mWarning[0m";
 viewer.syntax = "ansi";
 viewer.fitToViewport("width");
+
+// Structural syntax is opt-in and compiles asynchronously.
+viewer.sourceKind = "chargraph";
+viewer.source = "```mermaid\nflowchart LR\nA --> B\n```";
 ```
 
 ### Properties
 
 - `source`: Unicode text with optional standard or ESC-less ANSI.
+- `sourceKind`: `"protocol"` (default) or `"chargraph"`; only the latter interprets structural syntax.
 - `syntax`: `"auto"`, `"plain"`, or `"ansi"`.
 - `zoom`: scale from `0.25` through `4`.
 - `fit`: `"none"`, `"width"`, or `"contain"`.
@@ -72,7 +77,7 @@ viewer.fitToViewport("width");
 - `clearSelection()`
 - `copySelection()`
 
-The element emits `chardesk-zoom-change`, `chardesk-copy`, `chardesk-copy-error`, `chardesk-cursor-change`, and `chardesk-selection-change` events. Rectangular copies preserve empty and trailing cells; a selection boundary that meets a double-width grapheme expands to include the complete grapheme.
+The element emits `chardesk-zoom-change`, `chardesk-copy`, `chardesk-copy-error`, `chardesk-render-error`, `chardesk-cursor-change`, and `chardesk-selection-change` events. Rectangular copies preserve empty and trailing cells; a selection boundary that meets a double-width grapheme expands to include the complete grapheme.
 
 ## Theme
 

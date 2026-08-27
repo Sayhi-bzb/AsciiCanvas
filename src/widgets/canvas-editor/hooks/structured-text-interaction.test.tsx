@@ -21,6 +21,22 @@ const gestureState = vi.hoisted(() => ({
 
 let interactionRuntime: CanvasEngineRuntime | undefined;
 
+const getInteractionRuntime = () => {
+  if (interactionRuntime) return interactionRuntime;
+  interactionRuntime = new CanvasEngineRuntime({
+    getViewport: () => {
+      const state = useEditorStore.getState();
+      return { offset: state.offset, zoom: state.zoom };
+    },
+    setViewport: (updater) => {
+      const state = useEditorStore.getState();
+      const next = updater({ offset: state.offset, zoom: state.zoom });
+      useEditorStore.setState({ offset: next.offset, zoom: next.zoom });
+    },
+  });
+  return interactionRuntime;
+};
+
 vi.mock("@use-gesture/react", () => ({
   useGesture: vi.fn((handlers, config) => {
     gestureState.handlers = handlers;
@@ -95,7 +111,7 @@ function InteractionHarnessContent() {
     vi.fn(),
     structuredMovePreviewRef,
     requestRenderRef,
-    interactionRuntime
+    getInteractionRuntime()
   );
 
   return (

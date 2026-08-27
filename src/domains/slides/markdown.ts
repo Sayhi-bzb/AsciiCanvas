@@ -1,4 +1,10 @@
-import { parseCharDeskText, type CharDeskTextSyntax } from '@chardesk/protocol';
+import {
+  compileCharDeskText,
+  materializeCompiledCharDeskText,
+  type CharDeskSourceKind,
+} from '@chardesk/chargraph';
+import { createCharDeskMarkdownRenderOptions } from '@chardesk/chargraph/markdown';
+import { CHARDESK_LIGHT_RENDER_THEME } from '@chardesk/chargraph/theme';
 import { COLOR_PRIMARY_TEXT } from '@/shared/lib/constants';
 import { GridManager } from '@/shared/utils/grid';
 import { createSlideDeck, addSlide } from './deck';
@@ -52,17 +58,22 @@ const parseFrontMatter = (source: string) => {
   };
 };
 
-const toSyntax = (language: string): CharDeskTextSyntax => {
+const toSourceKind = (language: string): CharDeskSourceKind => {
   if (language === 'text') return 'plain';
   if (language === 'ansi') return 'ansi';
-  return 'auto';
+  if (language === 'chargraph') return 'chargraph';
+  return 'chardesk';
 };
 
-const toGridEntries = (source: string, syntax: CharDeskTextSyntax) => {
-  const parsed = parseCharDeskText(source, {
-    syntax,
+const toGridEntries = async (source: string, sourceKind: CharDeskSourceKind) => {
+  const compiled = await compileCharDeskText(source, {
+    sourceKind,
     defaultStyle: { color: COLOR_PRIMARY_TEXT },
+    markdown: createCharDeskMarkdownRenderOptions({
+      theme: CHARDESK_LIGHT_RENDER_THEME,
+    }),
   });
+  const parsed = materializeCompiledCharDeskText(compiled);
   return parsed.cells
     .filter(
       (cell) =>
@@ -106,7 +117,7 @@ const parseSlideBlocks = (
   const slides: Array<{
     name: string;
     source: string;
-    syntax: CharDeskTextSyntax;
+    sourceKind: CharDeskSourceKind;
     size: SlideSize;
   }> = [];
   let heading: string | null = null;
@@ -133,7 +144,7 @@ const parseSlideBlocks = (
       content.push(lines[index]);
     }
     if (!closed) throw new Error('Unclosed slide content fence.');
-    if (!['chardesk', 'text', 'ansi'].includes(language)) continue;
+    if (!['chardesk', 'text', 'ansi', 'chargraph'].includes(language)) continue;
     const info = fenceMatch.groups.info.trim();
     const sizeMatch = /^size=(\S+)$/.exec(info);
     if (info && !sizeMatch) {
@@ -148,7 +159,7 @@ const parseSlideBlocks = (
     slides.push({
       name: heading || `Slide ${slides.length + 1}`,
       source: content.join('\n'),
-      syntax: toSyntax(language),
+      sourceKind: toSourceKind(language),
       size,
     });
     heading = null;
@@ -160,31 +171,34 @@ const parseSlideBlocks = (
   return slides;
 };
 
-export const parseSlideMarkdown = (source: string): ParsedSlideMarkdown => {
+export const parseSlideMarkdown = async (source: string): Promise<ParsedSlideMarkdown> => {
   const { bodyLines, title } = parseFrontMatter(source);
-  const parsed = parseSlideMarkdownBody(bodyLines.join('\n'));
+  const parsed = await parseSlideMarkdownBody(bodyLines.join('\n'));
   return { ...parsed, ...(title ? { title } : {}) };
 };
 
-export const parseSlideMarkdownBody = (source: string): ParsedSlideMarkdown => {
+export const parseSlideMarkdownBody = async (source: string): Promise<ParsedSlideMarkdown> => {
   const normalized = source.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
   const slides = parseSlideBlocks(normalized.split('\n'));
+  const grids = await Promise.all(
+    slides.map((slide) => toGridEntries(slide.source, slide.sourceKind))
+  );
   let slideDeck = createSlideDeck({
     initialSlideId: 'slide-1',
     initialSlideName: slides[0].name,
-    initialGrid: toGridEntries(slides[0].source, slides[0].syntax),
+    initialGrid: grids[0],
     size: slides[0].size,
   });
 
-  slides.slice(1).forEach((slide, index) => {
+  for (const [index, slide] of slides.slice(1).entries()) {
     slideDeck = addSlide(slideDeck, {
       id: `slide-${index + 2}`,
       name: slide.name,
-      grid: toGridEntries(slide.source, slide.syntax),
+      grid: grids[index + 1],
       size: slide.size,
       afterSlideId: slideDeck.slides.at(-1)?.id,
     });
-  });
+  }
 
   slideDeck = { ...slideDeck, activeSlideId: slideDeck.slides[0].id };
   return { slideDeck };

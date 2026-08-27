@@ -92,6 +92,9 @@ export const useCanvasInteraction = (
   capabilities: CanvasEditorCapabilities = DEFAULT_CANVAS_EDITOR_CAPABILITIES,
   interactionOwnerId = "single"
 ) => {
+  if (!runtime) {
+    throw new Error('useCanvasInteraction requires a canvas engine runtime');
+  }
   const canvas = useCanvasRuntime();
   const editorRuntime = useEditor();
   const {
@@ -101,7 +104,6 @@ export const useCanvasInteraction = (
     setBrushBackgroundColor,
     canvasColorPickerTarget,
     setCanvasColorPickerTarget,
-    setViewport,
     canvasMode,
     addScratchPoints,
     commitScratch,
@@ -301,13 +303,8 @@ export const useCanvasInteraction = (
     executor: primaryDragEndExecutor,
   });
   const canvasPinchExecutor = createCanvasPinchExecutor({
-    setViewport: (updater) => {
-      if (runtime) {
-        runtime.camera.setViewport(updater(runtime.camera.getViewport()));
-      } else {
-        setViewport(updater);
-      }
-    },
+    setViewport: (updater) =>
+      runtime.camera.setViewport(updater(runtime.camera.getViewport())),
   });
   const canvasPinchHandler = createCanvasPinchHandler({
     executor: canvasPinchExecutor,

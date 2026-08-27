@@ -1,17 +1,14 @@
 import {
+  CharDeskTextCompileError,
+  compileCharDeskText,
   getCharGraphText,
-  renderCharGraphText,
+  materializeCompiledCharDeskText,
   serializeCharGraphAnsi,
   type CharGraphFragment,
 } from "@chardesk/chargraph";
 import { createCharDeskMarkdownRenderOptions } from "@chardesk/chargraph/markdown";
 import { CHARDESK_LIGHT_RENDER_THEME } from "@chardesk/chargraph/theme";
-import {
-  decodeCharDeskTextRuns,
-  layoutCharDeskTextRuns,
-  type ParsedCharDeskText,
-  type CharDeskTextDiagnostic,
-} from "@chardesk/protocol";
+import type { ParsedCharDeskText } from "@chardesk/protocol";
 import { createCharDeskRenderModelFromDocument } from "@chardesk/rendering";
 import {
   drawCharDeskCanvasDocument,
@@ -72,65 +69,36 @@ const PALETTE = {
 };
 const ESC = "\u001b";
 
-const toDiagnostic = (diagnostic: CharDeskTextDiagnostic): CharDeskCliDiagnostic => ({
-  code: diagnostic.code,
-  message: diagnostic.message,
-  ...(diagnostic.offset === undefined ? {} : { offset: diagnostic.offset }),
-  ...(diagnostic.length === undefined ? {} : { length: diagnostic.length }),
-});
-
-const fragmentsFromCharDesk = (source: string) => {
-  if (source.includes(ESC)) throw new CharDeskCliRenderError("terminal-escape");
-  const decoded = decodeCharDeskTextRuns(source, { syntax: "ansi" });
-  const fragments: CharGraphFragment[] = decoded.runs.map((run) => ({
-    text: run.text,
-    ...(run.color ? { color: run.color } : {}),
-    ...(run.bgColor ? { bgColor: run.bgColor } : {}),
-    ...(run.attrs ? { attrs: { ...run.attrs } } : {}),
-    ...(run.href ? { href: run.href } : {}),
-  }));
-  return { fragments, diagnostics: decoded.diagnostics.map(toDiagnostic) };
-};
-
 export const compileSource = async ({
   source,
   inputMode,
 }: CompileSourceOptions): Promise<CharDeskCliCompilation> => {
-  let fragments: CharGraphFragment[];
-  let renderer: string;
-  let pipeline: readonly string[];
-  let diagnostics: CharDeskCliDiagnostic[];
-
-  if (inputMode === "chardesk") {
-    const decoded = fragmentsFromCharDesk(source);
-    fragments = decoded.fragments;
-    renderer = "chardesk";
-    pipeline = ["chardesk"];
-    diagnostics = decoded.diagnostics;
-  } else {
-    const rendered = await renderCharGraphText(source, {
+  let compiled;
+  try {
+    compiled = await compileCharDeskText(source, {
+      sourceKind: inputMode,
       markdown: createCharDeskMarkdownRenderOptions({
         theme: CHARDESK_LIGHT_RENDER_THEME,
       }),
     });
-    fragments = rendered.fragments.map((fragment) => ({ ...fragment }));
-    renderer = rendered.renderer;
-    pipeline = rendered.pipeline;
-    diagnostics = rendered.diagnostics.map((diagnostic) => ({ ...diagnostic }));
+  } catch (error) {
+    if (error instanceof CharDeskTextCompileError) {
+      throw new CharDeskCliRenderError(error.code);
+    }
+    throw error;
   }
-
-  const document = layoutCharDeskTextRuns(fragments);
+  const document = materializeCompiledCharDeskText(compiled);
   if (document.width === 0 || document.height === 0) {
     throw new CharDeskCliRenderError("empty-content");
   }
   return {
     inputMode,
-    renderer,
-    pipeline,
+    renderer: compiled.renderer,
+    pipeline: compiled.pipeline,
     columns: document.width,
     rows: document.height,
-    diagnostics: [...diagnostics, ...document.diagnostics.map(toDiagnostic)],
-    fragments,
+    diagnostics: compiled.diagnostics.map((diagnostic) => ({ ...diagnostic })),
+    fragments: compiled.fragments,
     document,
   };
 };

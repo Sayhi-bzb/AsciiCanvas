@@ -1,5 +1,16 @@
 export { serializeCharGraphAnsi } from "./ansi.js";
 export {
+  CharDeskTextCompileError,
+  compileCharDeskText,
+  materializeCompiledCharDeskText,
+} from "./compiler.js";
+export type {
+  CharDeskSourceKind,
+  CharDeskTextCompilerId,
+  CompileCharDeskTextOptions,
+  CompiledCharDeskText,
+} from "./compiler.js";
+export {
   createCharGraphFragment,
   createCharGraphTextFragments,
   getCharGraphFragmentsText,

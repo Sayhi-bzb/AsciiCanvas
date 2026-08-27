@@ -13,6 +13,8 @@ Load only the required reference:
 - Slide document structure: [`references/slides.md`](references/slides.md).
 - Headless source checking or artifact rendering: [`references/rendering.md`](references/rendering.md).
 - Styled Slides: Slides first, then ANSI.
+- Slides that compile Markdown, Mermaid, data, math, or block layout: Slides
+  first, then CharGraph; load Block Layout when the source uses `|||` or `---`.
 - Structured fields in a block layout: Block Layout first, then CharGraph; also
   load ANSI only when the source uses explicit CharDesk styles.
 

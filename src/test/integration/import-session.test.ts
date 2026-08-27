@@ -20,9 +20,9 @@ describe("importCanvasSession", () => {
     applyFreeformSnapshotToYMaps([]);
   });
 
-  it("imports CharDesk text into a new active session", () => {
+  it("imports CharDesk text into a new active session", async () => {
     const sessionCount = useEditorStore.getState().canvasSessions.length;
-    const session = useEditorStore.getState().importCanvasSession(
+    const session = await useEditorStore.getState().importCanvasSession(
       "[38;2;255;0;0mA[0m  \n  [38;2;0;255;0mB[0m"
     );
 
@@ -35,7 +35,7 @@ describe("importCanvasSession", () => {
     expect(state.grid.get("2,1")).toEqual({ char: "B", color: "#00ff00" });
   });
 
-  it("clears document interaction when importing a session", () => {
+  it("clears document interaction when importing a session", async () => {
     useEditorStore.setState({
       textCursor: { x: 3, y: 4 },
       structuredGridFocus: { x: 5, y: 6 },
@@ -47,15 +47,15 @@ describe("importCanvasSession", () => {
       canvasColorPickerTarget: "auto",
     });
 
-    useEditorStore.getState().importCanvasSession("");
+    await useEditorStore.getState().importCanvasSession("");
 
     expect(useEditorStore.getState()).toMatchObject(
       createDocumentInteractionResetPatch()
     );
   });
-  it("imports an Agent-generated CharDesk document as a new active Slide Deck", () => {
+  it("imports an Agent-generated CharDesk document as a new active Slide Deck", async () => {
     const before = useEditorStore.getState();
-    const session = before.importCanvasSession(
+    const session = await before.importCanvasSession(
       [
         "---",
         "chardesk: document/v1",
@@ -89,16 +89,16 @@ describe("importCanvasSession", () => {
     expect(state.grid.get("1,0")).toMatchObject({ char: "A" });
   });
 
-  it("does not mutate sessions when the payload is invalid", () => {
+  it("does not mutate sessions when the payload is invalid", async () => {
     const before = useEditorStore.getState();
     const activeCanvasId = before.activeCanvasId;
     const sessionCount = before.canvasSessions.length;
 
-    expect(() =>
+    await expect(
       useEditorStore
         .getState()
         .importCanvasSession('{"type":"chardesk-document","version":1}')
-    ).toThrow("Legacy JSON");
+    ).rejects.toThrow("Legacy JSON");
 
     const after = useEditorStore.getState();
     expect(after.activeCanvasId).toBe(activeCanvasId);

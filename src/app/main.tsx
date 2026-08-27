@@ -71,6 +71,18 @@ if (new URLSearchParams(window.location.search).has("canvas-stress")) {
           };
         }).__chardeskCanvasResourceStats?.();
         if (!snapshot) return null;
+        const experience = (window as Window & {
+          __chardeskCanvasExperienceStats?: () => {
+            presentationFrames: number;
+            panRebases: number;
+            deferredPanRenders: number;
+            panSceneInvalidations: number;
+            panMissingBaselines: number;
+            viewportActivities: number;
+            directGlyphs: number;
+            lastSettleLatencyMs: number | null;
+          };
+        }).__chardeskCanvasExperienceStats?.();
         const paneQuality = Object.values(snapshot.raster.qualityByPane);
         return {
           pressure: snapshot.memory.pressure,
@@ -90,6 +102,14 @@ if (new URLSearchParams(window.location.search).has("canvas-stress")) {
             (bytes, quality) => bytes + quality.transientBytes,
             0
           ),
+          presentationFrames: experience?.presentationFrames ?? 0,
+          panRebases: experience?.panRebases ?? 0,
+          deferredPanRenders: experience?.deferredPanRenders ?? 0,
+          panSceneInvalidations: experience?.panSceneInvalidations ?? 0,
+          panMissingBaselines: experience?.panMissingBaselines ?? 0,
+          viewportActivities: experience?.viewportActivities ?? 0,
+          directGlyphs: experience?.directGlyphs ?? 0,
+          settleLatencyMs: experience?.lastSettleLatencyMs ?? 0,
         };
       },
       persistence: () => host.canvas.getPersistenceSnapshot(),

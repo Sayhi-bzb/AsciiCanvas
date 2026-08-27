@@ -23,6 +23,7 @@ import type { StructuredMovePreview } from './hooks/useCanvasRenderer';
 import { isStaticGridMode } from '@/domains/sessions/public';
 import {
   applyCanvasViewportPresentation,
+  CanvasViewportRebaseGate,
   resetCanvasViewportPresentation,
   type CanvasViewport,
 } from './hooks/viewportPresentation';
@@ -103,6 +104,10 @@ export const CanvasEditor = ({
     [structuredScene]
   );
   const renderedViewportRef = useRef<CanvasViewport | null>(null);
+  const viewportRebaseGateRef = useRef<CanvasViewportRebaseGate | null>(null);
+  if (viewportRebaseGateRef.current === null) {
+    viewportRebaseGateRef.current = new CanvasViewportRebaseGate();
+  }
   const lastSlideViewRef = useRef<{
     sessionId: string;
     pageKey: string;
@@ -165,7 +170,7 @@ export const CanvasEditor = ({
   ]);
 
   const presentViewport = useCallback((presented: CanvasViewport) => {
-    applyCanvasViewportPresentation(
+    const status = applyCanvasViewportPresentation(
       viewportLayerRef.current,
       renderedViewportRef.current,
       presented,
@@ -177,10 +182,18 @@ export const CanvasEditor = ({
           }
         : undefined
     );
-  }, [surfaceGeometry]);
+    runtime.renderExperience.recordPresentation(status);
+    if (viewportRebaseGateRef.current?.request(
+      status,
+      requestCanvasRenderRef.current
+    )) {
+      runtime.renderExperience.recordViewportRebase();
+    }
+  }, [runtime, surfaceGeometry]);
 
   const handleViewportRendered = useCallback(
     (rendered: CanvasViewport) => {
+      viewportRebaseGateRef.current?.complete();
       renderedViewportRef.current = {
         offset: { ...rendered.offset },
         zoom: rendered.zoom,
@@ -188,6 +201,10 @@ export const CanvasEditor = ({
       presentViewport(runtime.camera.getViewport());
     },
     [presentViewport, runtime]
+  );
+  const isViewportRebasePending = useCallback(
+    () => viewportRebaseGateRef.current?.isPending() ?? false,
+    []
   );
 
   useEffect(() => {
@@ -207,6 +224,7 @@ export const CanvasEditor = ({
       unsubscribe?.();
       runtime.frameScheduler.cancel('viewport-presentation');
       renderedViewportRef.current = null;
+      viewportRebaseGateRef.current?.complete();
       resetCanvasViewportPresentation(viewportLayer);
     };
   }, [getViewport, presentViewport, runtime, subscribeViewport]);
@@ -280,6 +298,22 @@ export const CanvasEditor = ({
     if (active) activateInteractionOwner();
   }, [active, activateInteractionOwner]);
 
+  useEffect(() => {
+    if (!active) return;
+    const diagnostics = window as Window & {
+      __chardeskCanvasExperienceStats?: () => ReturnType<
+        typeof runtime.renderExperience.getStats
+      >;
+    };
+    const readStats = () => runtime.renderExperience.getStats();
+    diagnostics.__chardeskCanvasExperienceStats = readStats;
+    return () => {
+      if (diagnostics.__chardeskCanvasExperienceStats === readStats) {
+        delete diagnostics.__chardeskCanvasExperienceStats;
+      }
+    };
+  }, [active, runtime]);
+
   useCanvasRenderer(
     canvasLayers,
     size,
@@ -292,7 +326,8 @@ export const CanvasEditor = ({
     handleViewportRendered,
     runtime,
     canvasWorkspace?.runtime.rasterTileCache,
-    canvasView?.viewId ?? 'single'
+    canvasView?.viewId ?? 'single',
+    isViewportRebasePending
   );
 
   const activeContextMenu =

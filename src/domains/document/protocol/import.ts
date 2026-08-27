@@ -1,4 +1,10 @@
-import { parseCharDeskText } from "@chardesk/protocol";
+import {
+  compileCharDeskText,
+  materializeCompiledCharDeskText,
+  type CharDeskSourceKind,
+} from "@chardesk/chargraph";
+import { createCharDeskMarkdownRenderOptions } from "@chardesk/chargraph/markdown";
+import { CHARDESK_LIGHT_RENDER_THEME } from "@chardesk/chargraph/theme";
 import type { CanvasImportSnapshot } from "@/domains/sessions/public";
 import { COLOR_PRIMARY_TEXT } from "@/shared/lib/constants";
 
@@ -12,25 +18,28 @@ const isLegacyJsonDocument = (source: string) => {
   }
 };
 
-export const parseCharDeskCanvasSource = (
-  source: string
-): CanvasImportSnapshot => {
+export const parseCharDeskCanvasSource = async (
+  source: string,
+  sourceKind: CharDeskSourceKind = "chardesk"
+): Promise<CanvasImportSnapshot> => {
   const trimmed = source.trimStart();
   if (isLegacyJsonDocument(trimmed)) {
     throw new Error("Legacy JSON CharDesk documents are not supported.");
   }
-  if (source.includes("\u001b")) {
-    throw new Error("CharDesk files use visible ESC-less ANSI controls.");
-  }
-
-  const parsed = parseCharDeskText(source, {
-    syntax: "ansi",
+  const compiled = await compileCharDeskText(source, {
+    sourceKind,
     defaultStyle: { color: COLOR_PRIMARY_TEXT },
+    markdown: createCharDeskMarkdownRenderOptions({
+      theme: CHARDESK_LIGHT_RENDER_THEME,
+    }),
   });
-  if (parsed.diagnostics.length > 0) {
+  if (
+    (sourceKind === "chardesk" || sourceKind === "ansi") &&
+    compiled.diagnostics.length > 0
+  ) {
     throw new Error("CharDesk source contains malformed or unsupported controls.");
   }
-
+  const parsed = materializeCompiledCharDeskText(compiled);
   return {
     mode: "freeform",
     scene: [],

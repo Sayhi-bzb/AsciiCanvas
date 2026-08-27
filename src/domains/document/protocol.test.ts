@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { parseDocumentSessionSource } from "@/domains/document/public";
 
 describe("CharDesk canvas text", () => {
-  it("imports a canonical freeform document without rendering its envelope", () => {
-    const snapshot = parseDocumentSessionSource([
+  it("imports a canonical freeform document without rendering its envelope", async () => {
+    const snapshot = await parseDocumentSessionSource([
       "---",
       "chardesk: document/v1",
       "mode: freeform",
@@ -19,8 +19,8 @@ describe("CharDesk canvas text", () => {
     });
   });
 
-  it("imports a canonical structured document without flattening its scene", () => {
-    const snapshot = parseDocumentSessionSource([
+  it("imports a canonical structured document without flattening its scene", async () => {
+    const snapshot = await parseDocumentSessionSource([
       "---",
       "chardesk: document/v1",
       "mode: structured",
@@ -47,8 +47,8 @@ describe("CharDesk canvas text", () => {
     });
   });
 
-  it("rejects broken structured references", () => {
-    expect(() => parseDocumentSessionSource([
+  it("rejects broken structured references", async () => {
+    await expect(parseDocumentSessionSource([
       "---",
       "chardesk: document/v1",
       "mode: structured",
@@ -63,11 +63,11 @@ describe("CharDesk canvas text", () => {
           roles: {},
         }],
       }),
-    ].join("\n"))).toThrow("references a missing node");
+    ].join("\n"))).rejects.toThrow("references a missing node");
   });
 
-  it("imports visible ESC-less ANSI as a freeform canvas", () => {
-    const snapshot = parseDocumentSessionSource(
+  it("imports visible ESC-less ANSI as a freeform canvas", async () => {
+    const snapshot = await parseDocumentSessionSource(
       "[1;38;2;255;0;0mA界[0m\n]8;;https://example.com\\B]8;;\\"
     );
 
@@ -80,8 +80,8 @@ describe("CharDesk canvas text", () => {
     ]);
   });
 
-  it("imports unstyled Unicode with inherited defaults", () => {
-    const snapshot = parseDocumentSessionSource("人🙂");
+  it("imports unstyled Unicode with inherited defaults", async () => {
+    const snapshot = await parseDocumentSessionSource("人🙂");
     expect(snapshot).toMatchObject({
       mode: "freeform",
       grid: [
@@ -91,15 +91,25 @@ describe("CharDesk canvas text", () => {
     });
   });
 
-  it("rejects invisible escapes, malformed controls, and legacy JSON", () => {
-    expect(() => parseDocumentSessionSource("\u001b[31mA\u001b[0m")).toThrow(
+  it("rejects invisible escapes, malformed controls, and legacy JSON", async () => {
+    await expect(parseDocumentSessionSource("\u001b[31mA\u001b[0m")).rejects.toThrow(
       "visible ESC-less ANSI"
     );
-    expect(() => parseDocumentSessionSource("A\u0001B")).toThrow(
+    await expect(parseDocumentSessionSource("A\u0001B")).rejects.toThrow(
       "malformed or unsupported controls"
     );
-    expect(() => parseDocumentSessionSource(
+    await expect(parseDocumentSessionSource(
       '{"type":"chardesk-document","version":1,"mode":"freeform","cells":[]}'
-    )).toThrow("Legacy JSON");
+    )).rejects.toThrow("Legacy JSON");
+  });
+
+  it("uses the source extension to select CharGraph or literal text", async () => {
+    const markdown = await parseDocumentSessionSource("**B**", { sourceName: "note.md" });
+    const text = await parseDocumentSessionSource("**B**", { sourceName: "note.txt" });
+
+    expect(markdown.mode === "freeform" && markdown.grid.map(([, cell]) => cell.char).join(""))
+      .toBe("B");
+    expect(text.mode === "freeform" && text.grid.map(([, cell]) => cell.char).join(""))
+      .toBe("**B**");
   });
 });

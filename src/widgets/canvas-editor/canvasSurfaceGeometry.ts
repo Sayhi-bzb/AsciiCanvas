@@ -32,16 +32,3 @@ export const offsetCanvasViewportForSurface = (
   x: offset.x - geometry.left,
   y: offset.y - geometry.top,
 });
-
-export const alignCanvasViewportForSurface = (
-  offset: Point,
-  geometry: CanvasSurfaceGeometry,
-  dpr: number
-): Point => {
-  const surfaceOffset = offsetCanvasViewportForSurface(offset, geometry);
-  const scale = Math.max(1, dpr);
-  return {
-    x: Math.round(surfaceOffset.x * scale) / scale,
-    y: Math.round(surfaceOffset.y * scale) / scale,
-  };
-};

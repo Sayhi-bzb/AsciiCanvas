@@ -15,7 +15,7 @@ export interface SessionCommands {
   importCanvasSession: (
     raw: string | unknown,
     options?: { name?: string; sourceName?: string }
-  ) => CanvasSession;
+  ) => Promise<CanvasSession>;
   replaceCanvasSessionSnapshot: (
     sessionId: string,
     snapshot: CanvasImportSnapshot,

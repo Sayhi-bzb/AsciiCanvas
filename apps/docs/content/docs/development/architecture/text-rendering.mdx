@@ -3,9 +3,15 @@ title: External Text Rendering
 description: Plugin boundary for converting pasted source text into editable Canvas cells.
 ---
 
-External plain text crosses one runtime before paste:
+All text hosts consume one compiler contract:
 
-`clipboard source -> document text-rendering worker -> styled protocol row spans -> Canvas command`
+`source + explicit kind -> CharGraph compiler -> Protocol row spans -> host`
+
+`chargraph` runs structural syntax such as Markdown, Mermaid, fenced data, math,
+and block layout. `chardesk`, `ansi`, and `plain` are explicit compiled or
+literal inputs and never enter structural recognition. Canvas paste, document
+import, Slides `chargraph` fences, CLI, Viewer, and Blackboard share this
+contract. Rendering consumes compiled documents and does not select syntax.
 
 [`document/public.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/domains/document/public.ts)
 owns the plugin registry, active profile, persistence, and conversion result. `actions`

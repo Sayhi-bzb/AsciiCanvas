@@ -3,11 +3,6 @@
 import { CellPlaneIndex } from "@/domains/canvas/public";
 import { DEFAULT_GRID_RENDER_METRICS, prepareCanvasSurface } from "@/shared/metrics";
 import { drawGridLayer } from "./drawGridLayer";
-import {
-  canvasWorkerFontFaceCovers,
-  CANVAS_WORKER_FONT_CALIBRATION_TEXT,
-  type CanvasWorkerFontFace,
-} from "./canvasWorkerFonts";
 import type {
   CanvasRenderedTile,
   CanvasRenderTileSpec,
@@ -34,8 +29,6 @@ type RenderBatch = {
 const sources = new Map<number, Source>();
 const batches = new Map<string, RenderBatch>();
 const paneOrder: string[] = [];
-const loadedFaces = new Map<string, Promise<FontFace>>();
-let fontFaces: readonly CanvasWorkerFontFace[] = [];
 let fontRevision = "unconfigured";
 let rasterAvailable = false;
 let rasterUnavailableReason: string | undefined;
@@ -65,7 +58,7 @@ const readResourceStats = (): CanvasRenderWorkerResourceStats => {
       (count, batch) => count + batch.tiles.length,
       0
     ),
-    loadedFontFaces: loadedFaces.size,
+    loadedFontFaces: 0,
   };
 };
 
@@ -108,81 +101,20 @@ const cancelSourceBatches = (sourceId: number) => {
   }
 };
 
-const codePoints = (text: string) =>
-  Array.from(text, (character) => character.codePointAt(0)!)
-    .filter(Number.isSafeInteger);
-
-const numericWeight = (weight: string) => {
-  const value = Number.parseInt(weight, 10);
-  return Number.isFinite(value) ? value : 400;
-};
-
-const loadFace = (descriptor: CanvasWorkerFontFace) => {
-  let promise = loadedFaces.get(descriptor.id);
-  if (promise) return promise;
-  const face = new FontFace(
-    descriptor.family,
-    `url(${JSON.stringify(descriptor.sourceUrl)}) format("woff2")`,
-    {
-      weight: descriptor.weight,
-      style: descriptor.style,
-      ...(descriptor.unicodeRange
-        ? { unicodeRange: descriptor.unicodeRange }
-        : {}),
-    }
-  );
-  self.fonts.add(face);
-  promise = face.load();
-  loadedFaces.set(descriptor.id, promise);
-  return promise;
-};
-
-const ensureTileFonts = async (
-  source: Source,
-  tile: CanvasRenderTileSpec
-) => {
-  if (tile.lod === "density") return;
-  const regularPoints = new Set<number>();
-  const boldPoints = new Set<number>();
-  for (const span of source.index.query(tile.renderBounds)) {
-    for (const cell of span.cells) {
-      if (cell.char.trim() === "") continue;
-      const target = cell.attrs?.bold ? boldPoints : regularPoints;
-      codePoints(cell.char).forEach((point) => target.add(point));
-    }
-  }
-  if (regularPoints.size === 0 && boldPoints.size === 0) return;
-  const regularCodePoints = [...regularPoints];
-  const boldCodePoints = [...boldPoints];
-  const selected = fontFaces.filter((face) => {
-    const weight = numericWeight(face.weight);
-    const points = weight >= 700 ? boldCodePoints : regularCodePoints;
-    return points.length > 0 && canvasWorkerFontFaceCovers(face, points);
-  });
-  await Promise.all(selected.map(loadFace));
-};
-
 const supportsWorkerRaster = () => {
   if (
     typeof OffscreenCanvas === "undefined" ||
-    typeof FontFace === "undefined" ||
-    !("fonts" in self)
+    typeof OffscreenCanvas.prototype.transferToImageBitmap !== "function"
   ) return false;
   const canvas = new OffscreenCanvas(1, 1);
   const ctx = canvas.getContext("2d");
-  if (!ctx || typeof canvas.transferToImageBitmap !== "function") return false;
-  ctx.font = `${DEFAULT_GRID_RENDER_METRICS.fontSize}px ${
-    DEFAULT_GRID_RENDER_METRICS.fontFamily
-  }`;
-  const measurement = ctx.measureText(CANVAS_WORKER_FONT_CALIBRATION_TEXT);
-  return Number.isFinite(measurement.width) && measurement.width > 0;
+  return !!ctx;
 };
 
 const renderTile = async (
   source: Source,
   tile: CanvasRenderTileSpec
 ): Promise<CanvasRenderedTile> => {
-  await ensureTileFonts(source, tile);
   const width = tile.renderBounds.width *
     DEFAULT_GRID_RENDER_METRICS.cellWidth * tile.rasterZoom;
   const height = tile.bounds.height *
@@ -207,7 +139,7 @@ const renderTile = async (
       y: -tile.bounds.y *
         DEFAULT_GRID_RENDER_METRICS.cellHeight * tile.rasterZoom,
     },
-    { lod: tile.lod }
+    { lod: tile.lod, content: "background" }
   );
   const bitmap = canvas.transferToImageBitmap();
   return {
@@ -297,7 +229,7 @@ const processNext = async () => {
       batches.delete(paneId);
       removePane(paneId);
       respond({
-        type: "font-error",
+        type: "error",
         requestId: batch.requestId,
         sourceId: batch.sourceId,
         revision: batch.revision,
@@ -312,12 +244,11 @@ const processNext = async () => {
 self.onmessage = (event: MessageEvent<CanvasRenderWorkerRequest>) => {
   const request = event.data;
   if (request.type === "configure") {
-    fontFaces = request.fontFaces;
     fontRevision = request.fontRevision;
-    rasterAvailable = supportsWorkerRaster() && fontFaces.length > 0;
+    rasterAvailable = supportsWorkerRaster();
     rasterUnavailableReason = rasterAvailable
       ? undefined
-      : "OffscreenCanvas or worker fonts unavailable";
+      : "OffscreenCanvas unavailable";
     respond({
       type: "configured",
       rasterAvailable,

@@ -247,10 +247,12 @@ export const createSessionSlice = (
     residency?.touch(newSession.id);
 
   },
-  importCanvasSession: (raw, options) => {
+  importCanvasSession: async (raw, options) => {
+    const importedSnapshot = await parseSessionSource(raw, {
+      sourceName: options?.sourceName,
+    });
     const state = get();
     const sessionsWithSnapshot = checkpointActiveSessionViewport(state);
-    const importedSnapshot = parseSessionSource(raw);
     const sessionId = createSessionId(sessionsWithSnapshot);
     const sessionName = resolveImportedSessionName(
       sessionsWithSnapshot,

@@ -1,5 +1,8 @@
 import { readFile } from "node:fs/promises";
-import { parseCharDeskText } from "@chardesk/protocol";
+import {
+  CharDeskTextCompileError,
+  compileCharDeskText,
+} from "@chardesk/chargraph";
 import { resolveReadableBoardPath, type WorkspaceBoardPath } from "./paths.js";
 import { resolveBlackboardSource } from "./document.js";
 
@@ -20,7 +23,9 @@ type BlackboardCheckResult =
 
 const utf8 = new TextDecoder("utf-8", { fatal: true });
 
-export const checkBlackboardBytes = (bytes: Uint8Array): BlackboardCheckResult => {
+export const checkBlackboardBytes = async (
+  bytes: Uint8Array
+): Promise<BlackboardCheckResult> => {
   let source: string;
   try {
     source = utf8.decode(bytes);
@@ -41,7 +46,11 @@ export const checkBlackboardBytes = (bytes: Uint8Array): BlackboardCheckResult =
       },
     };
   }
-  if (source.includes("\u001b")) {
+  let compiled;
+  try {
+    compiled = await compileCharDeskText(source, { sourceKind: "chardesk" });
+  } catch (error) {
+    if (!(error instanceof CharDeskTextCompileError)) throw error;
     return {
       accepted: false,
       issue: {
@@ -51,8 +60,7 @@ export const checkBlackboardBytes = (bytes: Uint8Array): BlackboardCheckResult =
       },
     };
   }
-  const parsed = parseCharDeskText(source, { syntax: "ansi" });
-  const issue = parsed.diagnostics[0];
+  const issue = compiled.diagnostics[0];
   if (issue) {
     return {
       accepted: false,

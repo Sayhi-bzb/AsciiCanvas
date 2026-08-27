@@ -1,13 +1,22 @@
 {
   "name": "@chardesk/chargraph",
   "version": "0.1.0",
-  "private": true,
   "description": "Pluggable source-to-Unicode rendering for CharDesk",
   "type": "module",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sayhi-bzb/CharDesk.git",
+    "directory": "packages/chargraph"
+  },
+  "homepage": "https://github.com/Sayhi-bzb/CharDesk/tree/main/packages/chargraph#readme",
+  "bugs": {
+    "url": "https://github.com/Sayhi-bzb/CharDesk/issues"
+  },
   "sideEffects": false,
   "files": [
     "dist",
+    "README.md",
     "LICENSE.beautiful-mermaid",
     "LICENSE.marked-terminal",
     "UPSTREAM.md"
@@ -47,7 +56,7 @@
     "test": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
-    "@chardesk/protocol": "*",
+    "@chardesk/protocol": "^0.3.0",
     "d3-scale": "^4.0.2",
     "elkjs": "^0.11.1",
     "jsonc-parser": "^3.3.1",
@@ -60,6 +69,10 @@
   },
   "engines": {
     "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
   },
   "devDependencies": {
     "@types/d3-scale": "^4.0.9"

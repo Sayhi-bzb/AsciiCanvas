@@ -31,7 +31,7 @@ describe("export service", () => {
     vi.unstubAllGlobals();
   });
 
-  it("builds a round-trippable CharDesk text artifact", () => {
+  it("builds a round-trippable CharDesk text artifact", async () => {
     const result = prepareTextExport(createContext(), "chardesk");
 
     expect(result.ok).toBe(true);
@@ -45,14 +45,14 @@ describe("export service", () => {
     expect(result.value.content).not.toContain("\u001b");
     expect(result.value.content).toContain("chardesk: document/v1");
     expect(result.value.content).toContain("mode: freeform");
-    const snapshot = parseDocumentSessionSource(result.value.content);
+    const snapshot = await parseDocumentSessionSource(result.value.content);
     expect(snapshot).toMatchObject({
       mode: "freeform",
       grid: [["0,0", { char: "A", color: "#ffffff" }]],
     });
   });
 
-  it("round-trips structured scene content without flattening it", () => {
+  it("round-trips structured scene content without flattening it", async () => {
     const result = prepareTextExport(
       createContext({
         canvasMode: "structured",
@@ -73,7 +73,7 @@ describe("export service", () => {
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(parseDocumentSessionSource(result.value.content)).toMatchObject({
+    expect(await parseDocumentSessionSource(result.value.content)).toMatchObject({
       mode: "structured",
       scene: [{ id: "box-1", type: "box", order: 1 }],
       components: [],
@@ -121,7 +121,7 @@ describe("export service", () => {
   });
 
 
-  it("round-trips positioned ANSI slide content through a CharDesk document", () => {
+  it("round-trips positioned ANSI slide content through a CharDesk document", async () => {
     const result = prepareTextExport(
       createContext({
         canvasMode: "slide",
@@ -154,7 +154,7 @@ describe("export service", () => {
     expect(result.value.content).toContain("mode: slide");
     expect(result.value.content).toContain("```chardesk size=6x3");
 
-    const parsed = parseDocumentSessionSource(result.value.content);
+    const parsed = await parseDocumentSessionSource(result.value.content);
     expect(parsed.name).toBe("Agent Deck");
     expect(parsed.mode).toBe("slide");
     if (parsed.mode !== "slide") return;
@@ -163,7 +163,7 @@ describe("export service", () => {
     ]);
   });
 
-  it("omits the default slide size while preserving custom sizes", () => {
+  it("omits the default slide size while preserving custom sizes", async () => {
     const result = prepareTextExport(
       createContext({
         canvasMode: "slide",
@@ -194,7 +194,7 @@ describe("export service", () => {
     expect(result.value.content).toContain("## Default\n\n```chardesk\n");
     expect(result.value.content).toContain("## Custom\n\n```chardesk size=80x24\n");
 
-    const parsed = parseDocumentSessionSource(result.value.content);
+    const parsed = await parseDocumentSessionSource(result.value.content);
     expect(parsed.mode).toBe("slide");
     if (parsed.mode !== "slide") return;
     expect(parsed.slideDeck.slides.map((slide) => slide.size)).toEqual([

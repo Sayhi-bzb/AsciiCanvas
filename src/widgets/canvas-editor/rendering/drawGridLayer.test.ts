@@ -94,4 +94,42 @@ describe("drawGridLayer", () => {
     expect(vi.mocked(ctx.fillText).mock.calls.map(([character]) => character))
       .toEqual(["B"]);
   });
+
+  it("separates raster backgrounds from direct glyphs", () => {
+    const reader = new CellPlaneIndex([{
+      id: "styled",
+      bounds: { x: 0, y: 0, width: 1, height: 1 },
+      rows: [{
+        y: 0,
+        erase: [],
+        spans: [{ x: 0, text: "A", color: "#fff", bgColor: "#123456" }],
+      }],
+    }]);
+    const background = createContext();
+    const text = createContext();
+
+    const backgroundResult = drawGridLayer(
+      background,
+      reader,
+      { startX: 0, endX: 0, startY: 0, endY: 0 },
+      1,
+      { x: 0, y: 0 },
+      { content: "background" }
+    );
+    const textResult = drawGridLayer(
+      text,
+      reader,
+      { startX: 0, endX: 0, startY: 0, endY: 0 },
+      1,
+      { x: 0, y: 0 },
+      { content: "text" }
+    );
+
+    expect(background.fillRect).toHaveBeenCalledOnce();
+    expect(background.fillText).not.toHaveBeenCalled();
+    expect(backgroundResult).toEqual({ cells: 1, glyphs: 0 });
+    expect(text.fillRect).not.toHaveBeenCalled();
+    expect(text.fillText).toHaveBeenCalledOnce();
+    expect(textResult).toEqual({ cells: 1, glyphs: 1 });
+  });
 });

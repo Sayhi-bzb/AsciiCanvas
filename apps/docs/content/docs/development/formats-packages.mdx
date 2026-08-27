@@ -5,6 +5,7 @@ description: Authorities for portable contracts consumed outside the editor runt
 
 | Contract | Authority | Compatibility evidence |
 | --- | --- | --- |
+| Text source compilation | [`@chardesk/chargraph`](https://github.com/Sayhi-bzb/CharDesk/blob/main/packages/chargraph/src/compiler.ts) owns explicit `chargraph`, `chardesk`, `ansi`, and `plain` source kinds and Protocol row output | [`compiler.test.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/packages/chargraph/src/compiler.test.ts) and [External text rendering](/development/architecture/text-rendering) |
 | Unicode, ANSI and ESC-less ANSI cells | [Package API](https://github.com/Sayhi-bzb/CharDesk/blob/main/packages/protocol/README.md) and [v1 specification](https://github.com/Sayhi-bzb/CharDesk/blob/main/packages/protocol/spec/v1.md) | [Conformance fixtures](https://github.com/Sayhi-bzb/CharDesk/blob/main/packages/protocol/fixtures/v1.json) executed by [`protocol.test.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/packages/protocol/src/protocol.test.ts); [Canvas round trip](/development/architecture/ansi-canvas-protocol) |
 | Canonical `.chardesk` envelope | [`@chardesk/document`](https://github.com/Sayhi-bzb/CharDesk/blob/main/packages/document/README.md) owns `document/v1`, mode, title, and body boundaries; mode codecs remain with their domains | [Envelope tests](https://github.com/Sayhi-bzb/CharDesk/blob/main/packages/document/src/index.test.ts) and App round trips |
 | Render model and Canvas 2D backend | [`@chardesk/rendering`](https://github.com/Sayhi-bzb/CharDesk/blob/main/packages/rendering/README.md) owns geometry, font routing, Canvas metrics, and cell painting consumed by the editor and Viewer | [`index.test.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/packages/rendering/src/index.test.ts) and [`canvas.test.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/packages/rendering/src/canvas.test.ts) verify model and pixel contracts |
@@ -20,8 +21,9 @@ Freeform bodies use visible ESC-less controls, Structured bodies store validated
 scene/components JSON, and Slide bodies use heading plus fenced-page text.
 [`parseDocumentSessionSource`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/domains/document/session-source.ts)
 is the import discriminator: `document/v1` routes by mode, legacy `slides/v1`
-routes to the Slides compatibility parser, and headerless text routes to the
-Freeform Canvas adapter.
+routes to the Slides compatibility parser. Headerless imports use their file
+suffix: `.md` is CharGraph, `.txt` is literal, `.ans` is ANSI, and an unknown
+or absent suffix remains compiled CharDesk for compatibility.
 Blackboard is an Editor Host Profile, not a `CanvasMode`; its Human actions are
 limited to navigation, selection, and copy while the source adapter retains the
 system-only snapshot projection entry point.

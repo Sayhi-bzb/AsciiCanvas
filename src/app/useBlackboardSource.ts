@@ -53,7 +53,7 @@ export const useBlackboardSource = ({ enabled }: { enabled: boolean }) => {
 
         const source = await response.text();
         const sourceName = response.headers.get("X-CharDesk-Source-Name") ?? "board.chardesk";
-        const snapshot = parseDocumentSessionSource(source);
+        const snapshot = await parseDocumentSessionSource(source, { sourceName });
         if (snapshot.mode !== "freeform") {
           throw new Error(`Blackboard requires a freeform snapshot, received ${snapshot.mode}`);
         }

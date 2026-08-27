@@ -8,9 +8,10 @@ import {
 import { parseCharDeskCanvasSource } from "./protocol/import";
 import { parseStructuredDocumentBody } from "./structured-source";
 
-export const parseDocumentSessionSource = (
-  raw: string | unknown
-): CanvasImportSnapshot => {
+export const parseDocumentSessionSource = async (
+  raw: string | unknown,
+  options?: { sourceName?: string }
+): Promise<CanvasImportSnapshot> => {
   if (typeof raw !== "string") {
     throw new Error("CharDesk source must be text.");
   }
@@ -18,8 +19,9 @@ export const parseDocumentSessionSource = (
   const document = parseCharDeskDocumentEnvelope(raw);
   if (document) {
     if (document.mode === "freeform") {
+      const snapshot = await parseCharDeskCanvasSource(document.body, "chardesk");
       return {
-        ...parseCharDeskCanvasSource(document.body),
+        ...snapshot,
         ...(document.title ? { name: document.title } : {}),
       };
     }
@@ -29,22 +31,30 @@ export const parseDocumentSessionSource = (
         ...(document.title ? { name: document.title } : {}),
       };
     }
-    const parsed = parseSlideMarkdownBody(document.body);
+    const parsed = await parseSlideMarkdownBody(document.body);
     return {
-      mode: "slide",
+      mode: "slide" as const,
       slideDeck: parsed.slideDeck,
       ...(document.title ? { name: document.title } : {}),
     };
   }
 
   if (isSlideMarkdownSource(raw)) {
-    const parsed = parseSlideMarkdown(raw);
+    const parsed = await parseSlideMarkdown(raw);
     return {
-      mode: "slide",
+      mode: "slide" as const,
       slideDeck: parsed.slideDeck,
       ...(parsed.title ? { name: parsed.title } : {}),
     };
   }
 
-  return parseCharDeskCanvasSource(raw);
+  const sourceName = options?.sourceName?.toLowerCase() ?? "";
+  const sourceKind = sourceName.endsWith(".md")
+    ? "chargraph"
+    : sourceName.endsWith(".txt")
+      ? "plain"
+      : sourceName.endsWith(".ans")
+        ? "ansi"
+        : "chardesk";
+  return parseCharDeskCanvasSource(raw, sourceKind);
 };

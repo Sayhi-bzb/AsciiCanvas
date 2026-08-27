@@ -4,6 +4,7 @@ import {
   type CanvasCameraPort,
 } from "./CanvasCameraManager";
 import { CanvasRenderActivity } from "./CanvasRenderActivity";
+import { CanvasRenderExperience } from "./CanvasRenderExperience";
 
 type CanvasEngineManager = {
   dispose: () => void;
@@ -13,6 +14,7 @@ type CanvasEngineManager = {
 export class CanvasEngineRuntime {
   readonly frameScheduler: CanvasFrameScheduler;
   readonly renderActivity: CanvasRenderActivity;
+  readonly renderExperience: CanvasRenderExperience;
   readonly camera: CanvasCameraManager;
   private readonly managers = new Map<string, CanvasEngineManager>();
   private ownerCount = 0;
@@ -25,10 +27,14 @@ export class CanvasEngineRuntime {
   ) {
     this.frameScheduler = frameScheduler;
     this.renderActivity = new CanvasRenderActivity();
+    this.renderExperience = new CanvasRenderExperience();
     this.camera = new CanvasCameraManager(
       frameScheduler,
       cameraPort,
-      () => this.renderActivity.markViewportActivity()
+      () => {
+        this.renderExperience.recordViewportActivity();
+        this.renderActivity.markViewportActivity();
+      }
     );
   }
 

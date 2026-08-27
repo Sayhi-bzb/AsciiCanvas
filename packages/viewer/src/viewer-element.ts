@@ -3,6 +3,13 @@ import type {
   ParsedCharDeskText,
 } from "@chardesk/protocol";
 import {
+  compileCharDeskText,
+  materializeCompiledCharDeskText,
+} from "@chardesk/chargraph";
+import { createCharDeskMarkdownRenderOptions } from "@chardesk/chargraph/markdown";
+import { CHARDESK_LIGHT_RENDER_THEME } from "@chardesk/chargraph/theme";
+import { createCharDeskRenderModelFromDocument } from "@chardesk/rendering";
+import {
   DEFAULT_CHARDESK_CANVAS_FONT_AVAILABILITY,
   DEFAULT_CHARDESK_CANVAS_METRICS,
   drawCharDeskCanvasDocument,
@@ -39,6 +46,7 @@ import {
 export type CharDeskViewerFit = "none" | "width" | "contain";
 export type CharDeskViewerCopyFormat = "plain" | "source" | "selection";
 export type CharDeskViewerInteraction = "grid";
+export type CharDeskViewerSourceKind = "protocol" | "chargraph";
 
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 4;
@@ -267,6 +275,7 @@ export class CharDeskViewerElement extends HTMLElementBase {
     "controls",
     "fit",
     "interaction",
+    "source-kind",
     "syntax",
     "zoom",
   ];
@@ -442,7 +451,7 @@ export class CharDeskViewerElement extends HTMLElementBase {
 
   attributeChangedCallback(name: string) {
     if (!this.shadowRoot) return;
-    if (name === "syntax") this.#render();
+    if (name === "syntax" || name === "source-kind") this.#render();
     if (name === "fit") {
       this.#fit = normalizeFit(this.getAttribute("fit"));
       if (!this.#suppressFitLayout) this.#scheduleLayout();
@@ -470,6 +479,16 @@ export class CharDeskViewerElement extends HTMLElementBase {
 
   set syntax(value: CharDeskTextSyntax) {
     this.setAttribute("syntax", value);
+  }
+
+  get sourceKind(): CharDeskViewerSourceKind {
+    return this.getAttribute("source-kind") === "chargraph"
+      ? "chargraph"
+      : "protocol";
+  }
+
+  set sourceKind(value: CharDeskViewerSourceKind) {
+    this.setAttribute("source-kind", value);
   }
 
   get controls() {
@@ -603,10 +622,36 @@ export class CharDeskViewerElement extends HTMLElementBase {
   }
 
   #render() {
-    const model = createCharDeskRenderModel(this.#source, {
-      syntax: this.syntax,
-    });
     const renderVersion = ++this.#renderVersion;
+    if (this.sourceKind === "chargraph") {
+      void compileCharDeskText(this.#source, {
+        sourceKind: "chargraph",
+        markdown: createCharDeskMarkdownRenderOptions({
+          theme: CHARDESK_LIGHT_RENDER_THEME,
+        }),
+      }).then((compiled) => {
+        if (renderVersion !== this.#renderVersion) return;
+        this.#applyRenderModel(
+          createCharDeskRenderModelFromDocument(
+            materializeCompiledCharDeskText(compiled)
+          ),
+          renderVersion
+        );
+      }).catch((error: unknown) => {
+        if (renderVersion !== this.#renderVersion) return;
+        this.#announce("Render failed");
+        this.dispatchEvent(new CustomEvent("chardesk-render-error", {
+          detail: { error },
+        }));
+      });
+      return;
+    }
+    this.#applyRenderModel(createCharDeskRenderModel(this.#source, {
+      syntax: this.syntax,
+    }), renderVersion);
+  }
+
+  #applyRenderModel(model: CharDeskRenderModel, renderVersion: number) {
     this.#renderModel = model;
     this.#parsedDocument = model.document;
     this.#gridIndex = createCharDeskGridIndex(model.document);
