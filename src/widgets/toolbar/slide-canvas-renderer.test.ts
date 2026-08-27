@@ -45,6 +45,31 @@ const createCanvas = () => {
 };
 
 describe("drawSlideCanvas", () => {
+  it("extends the page color through ultrawide playback gutters", () => {
+    const { calls, canvas } = createCanvas();
+
+    const layout = drawSlideCanvas({
+      canvas,
+      slide: {
+        id: "slide-1",
+        name: "Widescreen slide",
+        size: { columns: 100, rows: 27 },
+        grid: [],
+      },
+      size: { columns: 100, rows: 27 },
+      viewportWidth: 1600,
+      viewportHeight: 600,
+      padding: 0,
+      dpr: 1,
+    });
+
+    expect(layout?.x).toBeGreaterThan(0);
+    expect(calls[0]).toBe("fillRect:#ffffff:0,0,1600,600");
+    expect(calls[1]).toBe(
+      `fillRect:#ffffff:${layout?.x},${layout?.y},${layout?.width},${layout?.height}`
+    );
+  });
+
   it("renders the complete slide with backgrounds before text", () => {
     const { calls, canvas, ctx } = createCanvas();
     const slide: Slide = {

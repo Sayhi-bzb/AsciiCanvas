@@ -48,8 +48,7 @@ export const useCanvasGestureAdapter = ({
   canvasMode,
   tool,
   brushChar,
-  offset,
-  zoom,
+  getViewport,
   hasColorPickerTarget,
   selectedStructuredNodeIds,
   structuredScene,
@@ -73,8 +72,7 @@ export const useCanvasGestureAdapter = ({
   canvasMode: CanvasMode;
   tool: ToolType;
   brushChar: string;
-  offset: CanvasViewportState["offset"];
-  zoom: number;
+  getViewport: () => CanvasViewportState;
   hasColorPickerTarget: boolean;
   selectedStructuredNodeIds: string[];
   structuredScene: StructuredNode[];
@@ -100,7 +98,7 @@ export const useCanvasGestureAdapter = ({
         const anchor = pointerContext.resolveLocalPoint(ox, oy);
         pinchStartRef.current = anchor
           ? {
-              viewport: { offset: { ...offset }, zoom },
+              viewport: getViewport(),
               anchor,
             }
           : null;
@@ -112,7 +110,7 @@ export const useCanvasGestureAdapter = ({
         canvasPinchRouteHandler({
           pinchStart,
           scale,
-          currentViewport: { offset, zoom },
+          currentViewport: getViewport(),
           origin: { x: ox, y: oy },
           zoomBounds: { min: MIN_ZOOM, max: MAX_ZOOM },
           preventDefault: () => event.preventDefault(),

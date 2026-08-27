@@ -304,7 +304,7 @@ export const useCanvasInteraction = (
   });
   const canvasPinchExecutor = createCanvasPinchExecutor({
     setViewport: (updater) =>
-      runtime.camera.setViewport(updater(runtime.camera.getViewport())),
+      runtime.camera.setTransientViewport(updater(runtime.camera.getViewport())),
   });
   const canvasPinchHandler = createCanvasPinchHandler({
     executor: canvasPinchExecutor,
@@ -546,8 +546,7 @@ export const useCanvasInteraction = (
     canvasMode,
     tool,
     brushChar,
-    zoom,
-    offset,
+    getViewport: runtime.camera.getViewport.bind(runtime.camera),
     hasColorPickerTarget: !!canvasColorPickerTarget,
     selectedStructuredNodeIds,
     structuredScene,

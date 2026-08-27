@@ -31,7 +31,29 @@ describe('CanvasRenderExperience', () => {
       viewportActivities: 1,
       directGlyphFrames: 1,
       directGlyphs: 240,
+      lastPresentationLatencyMs: null,
+      maxPresentationGapMs: 0,
+      longPresentationGaps: 0,
       lastSettleLatencyMs: 14,
+    });
+  });
+
+  it('measures camera-to-presentation latency and long transform gaps', () => {
+    let now = 0;
+    const experience = new CanvasRenderExperience(() => now);
+
+    experience.recordViewportActivity();
+    now = 5;
+    experience.recordPresentation('presented');
+    now = 45;
+    experience.recordViewportActivity();
+    now = 48;
+    experience.recordPresentation('presented');
+
+    expect(experience.getStats()).toMatchObject({
+      lastPresentationLatencyMs: 3,
+      maxPresentationGapMs: 43,
+      longPresentationGaps: 1,
     });
   });
 });

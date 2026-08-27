@@ -23,6 +23,7 @@ import { cn } from "@chardesk/ui";
 import type { Point } from "@/shared/types";
 import { resolveCanvasWheelDecision } from "./hooks/interaction/gestures/wheelInteraction";
 import { useCanvasEngineRuntime } from "./engine/useCanvasEngineRuntime";
+import { useCanvasLiveViewportOptional } from "./engine/CanvasWorkspace";
 import {
   cameraCenterToOffset,
   expandMinimapRect,
@@ -62,7 +63,8 @@ export const Minimap = ({
   const { t } = useUiI18n();
   const runtime = useCanvasEngineRuntime();
   const canvas = useCanvasRuntime();
-  const { grid, offset, zoom, canvasMode } = useCanvasState(
+  const liveViewport = useCanvasLiveViewportOptional();
+  const { grid, offset: storedOffset, zoom: storedZoom, canvasMode } = useCanvasState(
     useShallow((state) => ({
       grid: state.grid,
       offset: state.offset,
@@ -70,6 +72,8 @@ export const Minimap = ({
       canvasMode: state.canvasMode,
     }))
   );
+  const offset = liveViewport?.offset ?? storedOffset;
+  const zoom = liveViewport?.zoom ?? storedZoom;
   const contentReader = useMemo(
     () => {
       if (canvasMode === "structured" || !isSurfaceGridProjection(grid)) {

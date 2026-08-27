@@ -6,6 +6,7 @@ import { TriangleAlert } from 'lucide-react';
 import type { SlideDeck } from '@/domains/slides/public';
 import { useEditor } from '@/domains/editor/public';
 import { HOST_ICONOLOGY } from '@/shared/icons/iconology';
+import { BACKGROUND_COLOR } from '@/shared/lib/constants';
 import { useUiI18n } from '@/shared/i18n';
 import { SHORTCUT_PRIORITY, useShortcutLayer } from '@/shared/shortcuts/dispatcher';
 import { Button, StatusText } from '@chardesk/ui';
@@ -142,7 +143,8 @@ export function SlidePlaybackOverlay({
       tabIndex={-1}
       data-testid="slide-playback"
       data-visual-contract="presentation"
-      className="fixed inset-0 z-(--layer-presentation) overflow-hidden bg-presentation-background outline-none"
+      style={{ backgroundColor: BACKGROUND_COLOR }}
+      className="fixed inset-0 z-(--layer-presentation) overflow-hidden outline-none"
     >
       <canvas
         ref={canvasRef}

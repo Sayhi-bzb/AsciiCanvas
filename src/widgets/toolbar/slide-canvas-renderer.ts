@@ -1,5 +1,6 @@
 import type { Slide, SlideSize } from "@/domains/slides/public";
 import {
+  BACKGROUND_COLOR,
   CELL_HEIGHT,
   CELL_WIDTH,
   COLOR_PRIMARY_TEXT,
@@ -36,8 +37,8 @@ export const drawSlideCanvas = ({
   viewportWidth,
   viewportHeight,
   padding,
-  backdropColor = "#111827",
-  pageColor = "#ffffff",
+  backdropColor,
+  pageColor = BACKGROUND_COLOR,
   defaultTextColor,
   dpr = typeof window === "undefined" ? 1 : window.devicePixelRatio || 1,
 }: DrawSlideCanvasOptions): SlidePlaybackLayout | null => {
@@ -46,8 +47,11 @@ export const drawSlideCanvas = ({
   if (!ctx) return null;
 
   prepareCanvasSurface(canvas, ctx, viewportWidth, viewportHeight, dpr);
-  if (backdropColor !== null) {
-    ctx.fillStyle = backdropColor;
+  const resolvedBackdropColor = backdropColor === undefined
+    ? pageColor
+    : backdropColor;
+  if (resolvedBackdropColor !== null) {
+    ctx.fillStyle = resolvedBackdropColor;
     ctx.fillRect(0, 0, viewportWidth, viewportHeight);
   }
 

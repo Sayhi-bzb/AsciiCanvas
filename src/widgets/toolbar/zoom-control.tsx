@@ -33,6 +33,7 @@ import { useUiI18n } from '@/shared/i18n';
 import { useInPlaceFeedback } from '@/shared/hooks/use-in-place-feedback';
 import { useCanvasEngineRuntime } from '@/widgets/canvas-editor/engine/useCanvasEngineRuntime';
 import {
+  useCanvasLiveViewportOptional,
   useCanvasViewOptional,
   useCanvasWorkspaceOptional,
 } from '@/widgets/canvas-editor/engine/CanvasWorkspace';
@@ -92,7 +93,8 @@ export function ZoomControl({
   const runtime = useCanvasEngineRuntime();
   const workspace = useCanvasWorkspaceOptional();
   const activeCanvasView = useCanvasViewOptional();
-  const { zoom, canvasMode, slideDeck, showGrid, activeCanvasId, grid } = useCanvasState(
+  const liveViewport = useCanvasLiveViewportOptional();
+  const { zoom: storedZoom, canvasMode, slideDeck, showGrid, activeCanvasId, grid } = useCanvasState(
     useShallow((state) => ({
       zoom: state.zoom,
       canvasMode: state.canvasMode,
@@ -102,6 +104,7 @@ export function ZoomControl({
       grid: state.grid,
     }))
   );
+  const zoom = liveViewport?.zoom ?? storedZoom;
   const playbackDeck = useMemo(
     () =>
       slideDeck

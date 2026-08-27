@@ -32,8 +32,6 @@ import type { useCanvasEditorModels } from "../useCanvasEditorModels";
 type ControllerStore = Pick<
   ReturnType<typeof useCanvasEditorModels>["interaction"],
   | "tool"
-  | "offset"
-  | "zoom"
   | "grid"
   | "canvasMode"
   | "setHoveredGrid"
@@ -64,8 +62,6 @@ export const useInteractionControllers = ({
   const {
     tool,
     activeCanvasId,
-    offset,
-    zoom,
     grid,
     canvasMode,
     slideDeck,
@@ -80,19 +76,17 @@ export const useInteractionControllers = ({
     structuredMovePreviewRef ?? fallbackStructuredMovePreviewRef;
   const activeRequestRenderRef = requestRenderRef ?? fallbackRequestRenderRef;
   const [draggingSelection, setDraggingSelection] = useState<SelectionArea | null>(null);
-  const pointerInputsRef = useRef({ offset, zoom, grid, canvasMode, slideDeck });
+  const pointerInputsRef = useRef({ grid, canvasMode, slideDeck });
   const hoverOutputsRef = useRef({ setHoveredLink, setHoveredGrid });
   useLayoutEffect(() => {
-    pointerInputsRef.current = { offset, zoom, grid, canvasMode, slideDeck };
+    pointerInputsRef.current = { grid, canvasMode, slideDeck };
     hoverOutputsRef.current = { setHoveredLink, setHoveredGrid };
   }, [
     canvasMode,
     grid,
-    offset,
     setHoveredGrid,
     setHoveredLink,
     slideDeck,
-    zoom,
   ]);
   const previewScheduler = useCreation(
     () =>
@@ -108,10 +102,7 @@ export const useInteractionControllers = ({
     () =>
       createCanvasPointerContextResolver({
         getRect: () => containerRef.current?.getBoundingClientRect(),
-        getViewport: () => ({
-          offset: pointerInputsRef.current.offset,
-          zoom: pointerInputsRef.current.zoom,
-        }),
+        getViewport: () => runtime.camera.getViewport(),
         getGrid: () => pointerInputsRef.current.grid,
         getGridBounds: () => {
           const current = pointerInputsRef.current;

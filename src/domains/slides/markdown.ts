@@ -74,7 +74,7 @@ const toGridEntries = async (source: string, sourceKind: CharDeskSourceKind) => 
     }),
   });
   const parsed = materializeCompiledCharDeskText(compiled);
-  return parsed.cells
+  const grid = parsed.cells
     .filter(
       (cell) =>
         cell.text !== ' ' ||
@@ -97,6 +97,13 @@ const toGridEntries = async (source: string, sourceKind: CharDeskSourceKind) => 
           },
         ] as const
     );
+  return {
+    grid,
+    size: {
+      columns: Math.max(1, parsed.width),
+      rows: Math.max(1, parsed.height),
+    },
+  };
 };
 
 const parseSlideSize = (value: string) => {
@@ -118,7 +125,7 @@ const parseSlideBlocks = (
     name: string;
     source: string;
     sourceKind: CharDeskSourceKind;
-    size: SlideSize;
+    size: SlideSize | 'auto';
   }> = [];
   let heading: string | null = null;
 
@@ -148,13 +155,18 @@ const parseSlideBlocks = (
     const info = fenceMatch.groups.info.trim();
     const sizeMatch = /^size=(\S+)$/.exec(info);
     if (info && !sizeMatch) {
-      throw new Error('Invalid slide block info; expected size=columnsxrows.');
+      throw new Error('Invalid slide block info; expected size=auto or size=columnsxrows.');
     }
-    const explicitSize = sizeMatch ? parseSlideSize(sizeMatch[1]) : null;
-    if (sizeMatch && !explicitSize) {
-      throw new Error('Invalid slide size; expected positive columnsxrows.');
+    const sizeValue = sizeMatch?.[1];
+    const explicitSize = sizeValue && sizeValue !== 'auto'
+      ? parseSlideSize(sizeValue)
+      : null;
+    if (sizeValue && sizeValue !== 'auto' && !explicitSize) {
+      throw new Error('Invalid slide size; expected auto or positive columnsxrows.');
     }
-    const size = explicitSize ?? { ...DEFAULT_SLIDE_SIZE };
+    const size = sizeValue === 'auto'
+      ? 'auto' as const
+      : explicitSize ?? { ...DEFAULT_SLIDE_SIZE };
 
     slides.push({
       name: heading || `Slide ${slides.length + 1}`,
@@ -180,22 +192,26 @@ export const parseSlideMarkdown = async (source: string): Promise<ParsedSlideMar
 export const parseSlideMarkdownBody = async (source: string): Promise<ParsedSlideMarkdown> => {
   const normalized = source.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
   const slides = parseSlideBlocks(normalized.split('\n'));
-  const grids = await Promise.all(
+  const compiledSlides = await Promise.all(
     slides.map((slide) => toGridEntries(slide.source, slide.sourceKind))
   );
+  const resolveSize = (index: number) =>
+    slides[index].size === 'auto'
+      ? compiledSlides[index].size
+      : slides[index].size;
   let slideDeck = createSlideDeck({
     initialSlideId: 'slide-1',
     initialSlideName: slides[0].name,
-    initialGrid: grids[0],
-    size: slides[0].size,
+    initialGrid: compiledSlides[0].grid,
+    size: resolveSize(0),
   });
 
   for (const [index, slide] of slides.slice(1).entries()) {
     slideDeck = addSlide(slideDeck, {
       id: `slide-${index + 2}`,
       name: slide.name,
-      grid: grids[index + 1],
-      size: slide.size,
+      grid: compiledSlides[index + 1].grid,
+      size: resolveSize(index + 1),
       afterSlideId: slideDeck.slides.at(-1)?.id,
     });
   }

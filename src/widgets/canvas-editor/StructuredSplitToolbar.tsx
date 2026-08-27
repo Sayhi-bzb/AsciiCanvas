@@ -30,6 +30,7 @@ import type { NodeBounds } from "@/shared/types";
 
 
 import type { EditorViewportFrame } from "@/widgets/editor-chrome/public";
+import { useCanvasLiveViewportOptional } from "./engine/CanvasWorkspace";
 
 const SplitHorizontalIcon = HOST_ICONOLOGY.selectionAction["split-horizontal"];
 const SplitVerticalIcon = HOST_ICONOLOGY.selectionAction["split-vertical"];
@@ -102,12 +103,13 @@ export function StructuredSplitToolbar({
   viewportFrame,
 }: StructuredSplitToolbarProps) {
   const canvas = useCanvasRuntime();
+  const liveViewport = useCanvasLiveViewportOptional();
   const { t } = useUiI18n();
   const tooltipHandle = useMemo(() => TooltipCreateHandle<string>(), []);
   const {
     canvasMode,
-    offset,
-    zoom,
+    offset: storedOffset,
+    zoom: storedZoom,
     structuredScene,
     selectedStructuredNodeIds,
     selectedStructuredSplitHandle,
@@ -125,6 +127,8 @@ export function StructuredSplitToolbar({
       structuredContextPoint: state.structuredContextPoint,
     }))
   );
+  const offset = liveViewport?.offset ?? storedOffset;
+  const zoom = liveViewport?.zoom ?? storedZoom;
 
   const model = useMemo(() => {
     if (canvasMode !== "structured" || selectedStructuredNodeIds.length !== 1) {

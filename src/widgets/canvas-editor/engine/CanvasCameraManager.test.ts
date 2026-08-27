@@ -9,6 +9,7 @@ const createHarness = (
 ) => {
   let frame: FrameRequestCallback | null = null;
   let viewport = initial;
+  const viewportWrites: Array<{ transient: boolean }> = [];
   const scheduler = new CanvasFrameScheduler({
     requestAnimationFrame: vi.fn((callback) => {
       frame = callback;
@@ -23,8 +24,9 @@ const createHarness = (
     scheduler,
     {
       getViewport: () => viewport,
-      setViewport: (updater) => {
+      setViewport: (updater, options) => {
         viewport = updater(viewport);
+        viewportWrites.push({ transient: options?.transient ?? false });
       },
     },
     onViewportActivity
@@ -34,12 +36,18 @@ const createHarness = (
     frame = null;
     callback?.(timestamp);
   };
-  return { camera, getViewport: () => viewport, onViewportActivity, run };
+  return {
+    camera,
+    getViewport: () => viewport,
+    onViewportActivity,
+    run,
+    viewportWrites,
+  };
 };
 
 describe("CanvasCameraManager", () => {
   it("coalesces queued anchored zoom through the shared frame scheduler", () => {
-    const { camera, getViewport, run } = createHarness();
+    const { camera, getViewport, run, viewportWrites } = createHarness();
 
     camera.queueZoomAt(1.25, { x: 100, y: 80 });
     camera.queueZoomAt(1.2, { x: 100, y: 80 });
@@ -50,6 +58,7 @@ describe("CanvasCameraManager", () => {
       offset: { x: -50, y: -40 },
       zoom: 1.5,
     });
+    expect(viewportWrites).toEqual([{ transient: true }]);
   });
 
   it("cancels an animation when a direct gesture changes the camera", () => {
@@ -68,7 +77,7 @@ describe("CanvasCameraManager", () => {
   });
 
   it("finishes animations exactly at the requested viewport", () => {
-    const { camera, getViewport, run } = createHarness();
+    const { camera, getViewport, run, viewportWrites } = createHarness();
     const target = { offset: { x: 120, y: -60 }, zoom: 2 };
     camera.animateTo(target, { duration: 100, easing: (progress) => progress });
 
@@ -78,6 +87,10 @@ describe("CanvasCameraManager", () => {
 
     expect(getViewport()).toEqual(target);
     expect(camera.getTargetViewport()).toEqual(target);
+    expect(viewportWrites).toEqual([
+      { transient: true },
+      { transient: false },
+    ]);
   });
 
   it("fits world bounds into the padded viewport", () => {

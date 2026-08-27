@@ -931,6 +931,14 @@ export const useCanvasRenderer = (
     const unsubscribeActivity = runtime?.renderActivity.subscribe((mode, previous) => {
       if (mode === "settled" && !disposed) {
         runtime.renderExperience.markSettling(previous);
+        const liveViewport = runtime.camera.getViewport();
+        if (
+          liveViewport.zoom !== zoom ||
+          liveViewport.offset.x !== offset.x ||
+          liveViewport.offset.y !== offset.y
+        ) {
+          return;
+        }
         scheduleRender(CANVAS_FRAME_INVALIDATION.background);
       }
     });

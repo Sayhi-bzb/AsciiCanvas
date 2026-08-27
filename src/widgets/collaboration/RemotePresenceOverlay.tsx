@@ -1,15 +1,15 @@
 import { useCanvasState } from "@/domains/canvas/public";
 import { useCollaborationSnapshot } from "./useCollaborationSnapshot";
 import { CELL_HEIGHT, CELL_WIDTH } from "@/shared/lib/constants";
-import { useCanvasViewOptional } from '@/widgets/canvas-editor/engine/CanvasWorkspace';
+import { useCanvasLiveViewportOptional } from '@/widgets/canvas-editor/engine/CanvasWorkspace';
 
 export function RemotePresenceOverlay() {
   const { peers } = useCollaborationSnapshot();
-  const canvasView = useCanvasViewOptional();
+  const liveViewport = useCanvasLiveViewportOptional();
   const storeOffset = useCanvasState((state) => state.offset);
   const storeZoom = useCanvasState((state) => state.zoom);
-  const offset = canvasView?.viewport.offset ?? storeOffset;
-  const zoom = canvasView?.viewport.zoom ?? storeZoom;
+  const offset = liveViewport?.offset ?? storeOffset;
+  const zoom = liveViewport?.zoom ?? storeZoom;
 
   return (
     <div className="pointer-events-none absolute inset-0 z-(--layer-presence) overflow-hidden" aria-hidden="true">

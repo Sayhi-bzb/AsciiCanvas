@@ -4,6 +4,7 @@ import { useEditorStore } from '@/domains/canvas/testing';
 import {
   CanvasViewProvider,
   CanvasWorkspaceProvider,
+  useCanvasLiveViewportOptional,
   useCanvasViewOptional,
   useCanvasWorkspace,
   type CanvasViewId,
@@ -11,11 +12,15 @@ import {
 
 function ViewHarness({ viewId }: { viewId: CanvasViewId }) {
   const view = useCanvasViewOptional();
+  const liveViewport = useCanvasLiveViewportOptional();
   if (!view) return null;
   return (
     <div>
       <output data-testid={`${viewId}-viewport`}>
         {view.viewport.offset.x},{view.viewport.offset.y},{view.viewport.zoom}
+      </output>
+      <output data-testid={`${viewId}-live-viewport`}>
+        {liveViewport?.offset.x},{liveViewport?.offset.y},{liveViewport?.zoom}
       </output>
       <output data-testid={`${viewId}-active`}>{String(view.isActive)}</output>
       <output data-testid={`${viewId}-session`}>{view.sessionId}</output>
@@ -28,6 +33,9 @@ function ViewHarness({ viewId }: { viewId: CanvasViewId }) {
       </button>
       <button type="button" onClick={() => view.runtime.camera.panBy(40, 20)}>
         {`pan-${viewId}`}
+      </button>
+      <button type="button" onClick={() => view.runtime.camera.queuePan(40, 20)}>
+        {`queue-pan-${viewId}`}
       </button>
       {[400, 500, 600, 1000].map((width) => (
         <button
@@ -62,6 +70,7 @@ describe('CanvasWorkspace', () => {
   const initialState = useEditorStore.getState();
 
   afterEach(() => {
+    vi.useRealTimers();
     localStorage.clear();
     useEditorStore.setState(initialState, true);
   });
@@ -96,6 +105,27 @@ describe('CanvasWorkspace', () => {
     expect(screen.getByTestId('secondary-viewport')).toHaveTextContent('50,35,1');
     expect(screen.getByTestId('secondary-active')).toHaveTextContent('true');
     expect(useEditorStore.getState().offset).toEqual({ x: 50, y: 35 });
+  });
+
+  it('publishes transient camera movement live and commits it once settled', async () => {
+    vi.useFakeTimers();
+    render(
+      <CanvasWorkspaceProvider>
+        <WorkspaceHarness />
+      </CanvasWorkspaceProvider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'queue-pan-primary' }));
+    await act(() => vi.advanceTimersByTimeAsync(20));
+
+    expect(screen.getByTestId('primary-live-viewport')).toHaveTextContent('40,20,1');
+    expect(screen.getByTestId('primary-viewport')).toHaveTextContent('0,0,1');
+    expect(useEditorStore.getState().offset).toEqual({ x: 0, y: 0 });
+
+    await act(() => vi.advanceTimersByTimeAsync(120));
+
+    expect(screen.getByTestId('primary-viewport')).toHaveTextContent('40,20,1');
+    expect(useEditorStore.getState().offset).toEqual({ x: 40, y: 20 });
   });
 
   it('binds each pane to a session and switches the global editor with the active pane', () => {

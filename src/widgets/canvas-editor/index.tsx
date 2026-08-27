@@ -29,7 +29,6 @@ import {
 } from './hooks/viewportPresentation';
 import { useCanvasEngineRuntime } from './engine/useCanvasEngineRuntime';
 import { useCanvasViewOptional, useCanvasWorkspaceOptional } from './engine/CanvasWorkspace';
-import { CANVAS_FRAME_INVALIDATION } from './engine/FrameScheduler';
 import { resolveCanvasSurfaceGeometry } from './canvasSurfaceGeometry';
 import type { EditorViewportFrame } from '@/widgets/editor-chrome/public';
 import { computeVisibleSurfaceBounds } from './minimap/geometry';
@@ -209,20 +208,15 @@ export const CanvasEditor = ({
 
   useEffect(() => {
     const viewportLayer = viewportLayerRef.current;
-    const schedulePresentation = (presented: CanvasViewport) => {
-      runtime.frameScheduler.request(
-        'viewport-presentation',
-        CANVAS_FRAME_INVALIDATION.presentation,
-        () => presentViewport(presented)
-      );
+    const presentCurrentViewport = () => {
+      presentViewport(getViewport?.() ?? runtime.camera.getViewport());
     };
-    schedulePresentation(runtime.camera.getViewport());
+    presentCurrentViewport();
     const unsubscribe = subscribeViewport?.(() => {
-      if (getViewport) schedulePresentation(getViewport());
+      presentCurrentViewport();
     });
     return () => {
       unsubscribe?.();
-      runtime.frameScheduler.cancel('viewport-presentation');
       renderedViewportRef.current = null;
       viewportRebaseGateRef.current?.complete();
       resetCanvasViewportPresentation(viewportLayer);

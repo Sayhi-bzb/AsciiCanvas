@@ -97,6 +97,43 @@ describe('CharDesk Slides Markdown', () => {
     ]);
   });
 
+  it('resolves auto sizes from compiled slide content', async () => {
+    const result = await parseSlideMarkdown(
+      createSource([
+        '## Plain',
+        '```text size=auto',
+        'A界',
+        'B',
+        '```',
+        '## Layout',
+        '````chargraph size=auto',
+        '**A**',
+        '|||',
+        '```json',
+        '{"gpu":true}',
+        '```',
+        '````',
+      ])
+    );
+
+    expect(result.slideDeck.slides[0].size).toEqual({ columns: 3, rows: 2 });
+    expect(result.slideDeck.slides[1].size.columns).toBeGreaterThan(5);
+    expect(result.slideDeck.slides[1].size.rows).toBeGreaterThan(0);
+    expect(result.slideDeck.slides[1].grid.some(([, cell]) => cell.char === 'A')).toBe(true);
+    expect(result.slideDeck.slides[1].grid.map(([, cell]) => cell.char).join('')).toContain('gpu');
+  });
+
+  it('uses a one-cell auto size for empty compiled content', async () => {
+    const result = await parseSlideMarkdown(
+      createSource(['## Empty', '```text size=auto', '', '```'])
+    );
+
+    expect(result.slideDeck.slides[0]).toMatchObject({
+      size: { columns: 1, rows: 1 },
+      grid: [],
+    });
+  });
+
   it.each([
     ['missing header', ['```text', 'A', '```'].join('\n')],
     ['bad version', ['---', 'chardesk: slides/v2', '---', '```text size=4x2', 'A', '```'].join('\n')],

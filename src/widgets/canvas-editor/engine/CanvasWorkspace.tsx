@@ -48,6 +48,7 @@ const DEFAULT_VIEW_SNAPSHOT: CanvasViewSnapshot = {
 const EMPTY_SUBSCRIBE = () => () => undefined;
 const GET_PRIMARY_VIEW_ID = () => 'primary' as const;
 const GET_DEFAULT_VIEW_SNAPSHOT = () => DEFAULT_VIEW_SNAPSHOT;
+const GET_DEFAULT_VIEWPORT = () => DEFAULT_VIEWPORT;
 
 const cloneViewport = (viewport: CanvasViewportState): CanvasViewportState => ({
   offset: { ...viewport.offset },
@@ -80,9 +81,12 @@ const centerViewport = (
 class CanvasViewRuntime {
   readonly engine: CanvasEngineRuntime;
   private snapshot: CanvasViewSnapshot;
+  private liveViewport: CanvasViewportState;
   private readonly sessionViewports = new Map<string, CanvasViewportState>();
   private pendingWorldCenter: { x: number; y: number } | null = null;
   private readonly listeners = new Set<() => void>();
+  private readonly presentationListeners = new Set<() => void>();
+  private readonly viewportListeners = new Set<() => void>();
   private readonly publish: (viewport: CanvasViewportState) => void;
 
   constructor(
@@ -99,16 +103,20 @@ class CanvasViewRuntime {
       loadError: null,
       viewport: cloneViewport(viewport),
     };
+    this.liveViewport = cloneViewport(viewport);
     this.publish = publish;
     this.engine = new CanvasEngineRuntime({
       getViewport: this.getViewport,
       setViewport: this.setViewport,
     }, new CanvasScopedFrameScheduler(frameScheduler, viewId));
+    this.engine.renderActivity.subscribe((mode) => {
+      if (mode === 'settled') this.commitViewport();
+    });
   }
 
   getSnapshot = () => this.snapshot;
 
-  getViewport = () => this.snapshot.viewport;
+  getViewport = () => this.liveViewport;
 
   getSessionId = () => this.snapshot.sessionId;
 
@@ -144,14 +152,26 @@ class CanvasViewRuntime {
 
   setViewport = (
     updater: (viewport: CanvasViewportState) => CanvasViewportState,
-    publish = true
+    options: { transient?: boolean; publish?: boolean } = {}
   ) => {
     const next = cloneViewport(updater(this.getViewport()));
-    if (sameViewport(this.snapshot.viewport, next)) return;
-    this.snapshot = { ...this.snapshot, viewport: next };
-    this.listeners.forEach((listener) => listener());
-    if (publish) this.publish(next);
+    const changed = !sameViewport(this.liveViewport, next);
+    if (changed) {
+      this.liveViewport = next;
+      this.presentationListeners.forEach((listener) => listener());
+      this.viewportListeners.forEach((listener) => listener());
+    }
+    if (options.transient) return;
+    this.commitViewport(options.publish ?? true);
   };
+
+  private commitViewport(publish = true) {
+    if (sameViewport(this.snapshot.viewport, this.liveViewport)) return;
+    const viewport = cloneViewport(this.liveViewport);
+    this.snapshot = { ...this.snapshot, viewport };
+    this.listeners.forEach((listener) => listener());
+    if (publish) this.publish(viewport);
+  }
 
   setContainerSize = (size: CanvasViewSize | undefined) => {
     if (!size || size.width <= 0 || size.height <= 0) return;
@@ -166,10 +186,15 @@ class CanvasViewRuntime {
     }
     if (sameSize(previousSize, size) && !pendingCenter) return;
 
-    const center = pendingCenter ?? viewportWorldCenter(this.snapshot.viewport, previousSize!);
-    const viewport = centerViewport(this.snapshot.viewport, size, center);
-    const viewportChanged = !sameViewport(this.snapshot.viewport, viewport);
+    const center = pendingCenter ?? viewportWorldCenter(this.liveViewport, previousSize!);
+    const viewport = centerViewport(this.liveViewport, size, center);
+    const viewportChanged = !sameViewport(this.liveViewport, viewport);
+    this.liveViewport = viewport;
     this.snapshot = { ...this.snapshot, viewport, size };
+    if (viewportChanged) {
+      this.presentationListeners.forEach((listener) => listener());
+      this.viewportListeners.forEach((listener) => listener());
+    }
     this.listeners.forEach((listener) => listener());
     if (viewportChanged) this.publish(viewport);
   };
@@ -179,7 +204,7 @@ class CanvasViewRuntime {
   }
 
   replaceViewport(viewport: CanvasViewportState, publish = false) {
-    this.setViewport(() => viewport, publish);
+    this.setViewport(() => viewport, { publish });
   }
 
   bindSession(sessionId: string, fallbackViewport: CanvasViewportState) {
@@ -190,7 +215,7 @@ class CanvasViewRuntime {
       this.snapshot.loadState === 'idle'
     ) return;
     if (currentSessionId) {
-      this.sessionViewports.set(currentSessionId, cloneViewport(this.snapshot.viewport));
+      this.sessionViewports.set(currentSessionId, cloneViewport(this.liveViewport));
     }
     const viewport = cloneViewport(
       this.sessionViewports.get(sessionId) ?? fallbackViewport
@@ -203,12 +228,25 @@ class CanvasViewRuntime {
       loadError: null,
       viewport,
     };
+    this.liveViewport = cloneViewport(viewport);
+    this.presentationListeners.forEach((listener) => listener());
+    this.viewportListeners.forEach((listener) => listener());
     this.listeners.forEach((listener) => listener());
   }
 
   subscribe = (listener: () => void) => {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
+  };
+
+  subscribeViewport = (listener: () => void) => {
+    this.viewportListeners.add(listener);
+    return () => this.viewportListeners.delete(listener);
+  };
+
+  subscribePresentation = (listener: () => void) => {
+    this.presentationListeners.add(listener);
+    return () => this.presentationListeners.delete(listener);
   };
 }
 
@@ -645,11 +683,29 @@ export const useCanvasViewOptional = () => {
         zoom: updater(current.zoom),
       })),
     setViewport: selectedRuntime.setViewport,
-    subscribeViewport: selectedRuntime.subscribe,
+    subscribeViewport: selectedRuntime.subscribePresentation,
     getViewport: selectedRuntime.getViewport,
     containerSize: snapshot.size,
     setContainerSize: selectedRuntime.setContainerSize,
   };
+};
+
+export const useCanvasLiveViewportOptional = () => {
+  const workspace = useContext(CanvasWorkspaceContext);
+  const view = useContext(CanvasViewContext);
+  const activeViewId = useSyncExternalStore(
+    workspace?.runtime.subscribeActive ?? EMPTY_SUBSCRIBE,
+    workspace?.runtime.getActiveViewId ?? GET_PRIMARY_VIEW_ID,
+    workspace?.runtime.getActiveViewId ?? GET_PRIMARY_VIEW_ID
+  );
+  const selectedViewId = view?.viewId ?? activeViewId;
+  const selectedRuntime = view?.runtime ?? workspace?.runtime.views[selectedViewId];
+  const viewport = useSyncExternalStore(
+    selectedRuntime?.subscribeViewport ?? EMPTY_SUBSCRIBE,
+    selectedRuntime?.getViewport ?? GET_DEFAULT_VIEWPORT,
+    selectedRuntime?.getViewport ?? GET_DEFAULT_VIEWPORT
+  );
+  return selectedRuntime ? viewport : null;
 };
 
 export const useActiveCanvasView = () => {

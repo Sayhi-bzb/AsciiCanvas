@@ -12,7 +12,8 @@ import {
 export type CanvasCameraPort = {
   getViewport: () => CanvasViewportState;
   setViewport: (
-    updater: (viewport: CanvasViewportState) => CanvasViewportState
+    updater: (viewport: CanvasViewportState) => CanvasViewportState,
+    options?: { transient?: boolean }
   ) => void;
 };
 
@@ -67,11 +68,11 @@ export class CanvasCameraManager {
         this.port.setViewport((viewport) => ({
           ...viewport,
           offset: updater(viewport.offset),
-        }));
+        }), { transient: true });
       },
       setViewport: (updater) => {
         this.onViewportActivity();
-        port.setViewport(updater);
+        port.setViewport(updater, { transient: true });
       },
       zoomBounds: { min: MIN_ZOOM, max: MAX_ZOOM },
       scheduler: createFrameSchedulerRafAdapter(
@@ -94,6 +95,11 @@ export class CanvasCameraManager {
   setViewport(viewport: CanvasViewportState): void {
     this.cancelPending();
     this.applyViewport(viewport);
+  }
+
+  setTransientViewport(viewport: CanvasViewportState): void {
+    this.cancelPending();
+    this.applyViewport(viewport, true);
   }
 
   panBy(dx: number, dy: number): void {
@@ -214,7 +220,10 @@ export class CanvasCameraManager {
         1,
         Math.max(0, (timestamp - startedAt) / duration)
       );
-      this.applyViewport(interpolateViewport(start, target, easing(progress)));
+      this.applyViewport(
+        interpolateViewport(start, target, easing(progress)),
+        progress < 1
+      );
       if (progress < 1) {
         this.frameScheduler.request(
           "camera-animation",
@@ -293,12 +302,18 @@ export class CanvasCameraManager {
     this.cancelPending();
   }
 
-  private applyViewport(viewport: CanvasViewportState): void {
+  private applyViewport(
+    viewport: CanvasViewportState,
+    transient = false
+  ): void {
     if (this.disposed) return;
     this.onViewportActivity();
-    this.port.setViewport(() => ({
-      offset: { ...viewport.offset },
-      zoom: clampZoom(viewport.zoom),
-    }));
+    this.port.setViewport(
+      () => ({
+        offset: { ...viewport.offset },
+        zoom: clampZoom(viewport.zoom),
+      }),
+      { transient }
+    );
   }
 }

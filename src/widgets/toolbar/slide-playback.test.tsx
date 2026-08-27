@@ -77,6 +77,9 @@ describe("Slide playback", () => {
     );
 
     expect(screen.getByRole("img", { name: "Second" })).toBeInTheDocument();
+    expect(screen.getByTestId("slide-playback")).toHaveStyle({
+      backgroundColor: "#ffffff",
+    });
     expect(screen.getByText("2 / 2")).toBeInTheDocument();
     expect(
       document.querySelector('[data-slot="slide-playback-separator"]')

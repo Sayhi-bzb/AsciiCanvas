@@ -12,8 +12,13 @@ export type CanvasRenderExperienceStats = {
   viewportActivities: number;
   directGlyphFrames: number;
   directGlyphs: number;
+  lastPresentationLatencyMs: number | null;
+  maxPresentationGapMs: number;
+  longPresentationGaps: number;
   lastSettleLatencyMs: number | null;
 };
+
+const LONG_PRESENTATION_GAP_MS = 34;
 
 /** Tracks user-visible camera presentation without owning rendering state. */
 export class CanvasRenderExperience {
@@ -29,6 +34,11 @@ export class CanvasRenderExperience {
   #viewportActivities = 0;
   #directGlyphFrames = 0;
   #directGlyphs = 0;
+  #lastViewportActivityAt: number | null = null;
+  #lastPresentationAt: number | null = null;
+  #lastPresentationLatencyMs: number | null = null;
+  #maxPresentationGapMs = 0;
+  #longPresentationGaps = 0;
   #settleStartedAt: number | null = null;
   #lastSettleLatencyMs: number | null = null;
 
@@ -46,6 +56,17 @@ export class CanvasRenderExperience {
   ): void {
     if (status === 'presented' || status === 'constrained') {
       this.#presentationFrames += 1;
+      const now = this.#now();
+      if (this.#lastViewportActivityAt !== null) {
+        this.#lastPresentationLatencyMs = now - this.#lastViewportActivityAt;
+        this.#lastViewportActivityAt = null;
+      }
+      if (this.#lastPresentationAt !== null) {
+        const gap = now - this.#lastPresentationAt;
+        this.#maxPresentationGapMs = Math.max(this.#maxPresentationGapMs, gap);
+        if (gap > LONG_PRESENTATION_GAP_MS) this.#longPresentationGaps += 1;
+      }
+      this.#lastPresentationAt = now;
     }
     if (status === 'constrained') this.#constrainedFrames += 1;
     if (status === 'out-of-coverage') this.#coverageMissFrames += 1;
@@ -62,6 +83,7 @@ export class CanvasRenderExperience {
 
   recordViewportActivity(): void {
     this.#viewportActivities += 1;
+    this.#lastViewportActivityAt = this.#now();
   }
 
   recordViewportSceneInvalidation(): void {
@@ -73,7 +95,10 @@ export class CanvasRenderExperience {
   }
 
   markSettling(previous: CanvasRenderActivityMode): void {
-    if (previous === 'viewport-interaction') this.#settleStartedAt = this.#now();
+    if (previous !== 'viewport-interaction') return;
+    this.#settleStartedAt = this.#now();
+    this.#lastViewportActivityAt = null;
+    this.#lastPresentationAt = null;
   }
 
   recordDirectGlyphFrame(glyphs: number): void {
@@ -97,6 +122,9 @@ export class CanvasRenderExperience {
       viewportActivities: this.#viewportActivities,
       directGlyphFrames: this.#directGlyphFrames,
       directGlyphs: this.#directGlyphs,
+      lastPresentationLatencyMs: this.#lastPresentationLatencyMs,
+      maxPresentationGapMs: this.#maxPresentationGapMs,
+      longPresentationGaps: this.#longPresentationGaps,
       lastSettleLatencyMs: this.#lastSettleLatencyMs,
     };
   }
