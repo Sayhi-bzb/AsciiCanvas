@@ -266,6 +266,10 @@ export const useCanvasRenderer = (
   const [localRasterTileCache] = useState(() => new CanvasRasterTileCache());
   const rasterTileCache = sharedRasterTileCache ?? localRasterTileCache;
   useEffect(() => () => localRasterTileCache.clear(), [localRasterTileCache]);
+  useEffect(
+    () => rasterTileCache.retain(contentReader),
+    [contentReader, rasterTileCache]
+  );
   const manualRenderRafRef = useRef<number | null>(null);
   const manualInvalidationRef = useRef<CanvasFrameInvalidation>(0);
 
@@ -303,6 +307,7 @@ export const useCanvasRenderer = (
     [hoveredLink]
   );
   useEffect(() => {
+    let disposed = false;
     const render = (invalidation: CanvasFrameInvalidation) => {
       if (!size || !surfaceGeometry || size.width === 0 || size.height === 0) return;
       const structuredMovePreview = structuredMovePreviewRef.current;
@@ -405,19 +410,25 @@ export const useCanvasRenderer = (
           }
           if (structuredMovePreview) {
             drawLayer(bgCtx, renderedGrid, viewBounds, zoom, renderOffset);
-          } else if (
-            hoveredLink ||
-            slidePageRect ||
-            !rasterTileCache.draw(
+          } else if (hoveredLink || slidePageRect) {
+            drawSurface(bgCtx, contentReader, viewBounds, zoom, renderOffset);
+          } else {
+            const rasterStatus = rasterTileCache.draw(
               bgCtx,
               contentReader,
               viewBounds,
               zoom,
               renderOffset,
-              dpr
-            )
-          ) {
-            drawSurface(bgCtx, contentReader, viewBounds, zoom, renderOffset);
+              dpr,
+              () => {
+                if (!disposed) {
+                  scheduleRender(CANVAS_FRAME_INVALIDATION.background);
+                }
+              }
+            );
+            if (rasterStatus === "fallback") {
+              drawSurface(bgCtx, contentReader, viewBounds, zoom, renderOffset);
+            }
           }
         if (slidePageRect) bgCtx.restore();
         renderedInvalidation |= CANVAS_FRAME_INVALIDATION.background;
@@ -767,6 +778,7 @@ export const useCanvasRenderer = (
 
     scheduleRender(invalidation);
     return () => {
+      disposed = true;
       runtime?.frameScheduler.cancel("canvas-renderer");
       if (manualRenderRafRef.current !== null) {
         cancelAnimationFrame(manualRenderRafRef.current);

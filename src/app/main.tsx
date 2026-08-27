@@ -43,6 +43,9 @@ if (new URLSearchParams(window.location.search).has("canvas-stress")) {
       rasterStats: () => (window as Window & {
         __chardeskCanvasRasterStats?: () => Record<string, number>;
       }).__chardeskCanvasRasterStats?.() ?? null,
+      projectionWorkerStats: () => (window as Window & {
+        __chardeskCanvasProjectionWorkerStats?: () => Record<string, number | boolean>;
+      }).__chardeskCanvasProjectionWorkerStats?.() ?? null,
       persistence: () => host.canvas.getPersistenceSnapshot(),
     },
   });

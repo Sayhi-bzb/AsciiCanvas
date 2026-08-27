@@ -10,7 +10,70 @@ const pointColumns = (text: string) => {
   return line ? Array.from(line).flatMap((value, index) => value === "●" ? [index] : []) : [];
 };
 
+const tickRows = (text: string, labels: readonly string[]) => {
+  const lines = text.split("\n");
+  return labels.map((label) => lines.findIndex((line) =>
+    new RegExp(`^\\s*${label}\\s+[│┤]`).test(line)
+  ));
+};
+
+const expectUniformGaps = (text: string, rows: readonly number[]) => {
+  expect(rows, text).not.toContain(-1);
+  const gaps = rows.slice(1).map((row, index) => row - rows[index]!);
+  expect(new Set(gaps).size).toBe(1);
+};
+
 describe("Cartesian charts", () => {
+  it("uses equal cell gaps for equal values in an explicit Y domain", () => {
+    const text = getCharGraphText(renderCartesianChart({
+      x: { scale: "linear" },
+      y: { scale: "linear", domain: [0, 2000] },
+      series: [{
+        mark: "line",
+        points: [{ x: 0, y: 280 }, { x: 1, y: 1860 }, { x: 2, y: 310 }],
+      }],
+    }));
+    const rows = tickRows(text, ["2000", "1500", "1000", "500", "0"]);
+
+    expectUniformGaps(text, rows);
+    expect(rows.slice(1).map((row, index) => row - rows[index]!))
+      .toEqual([4, 4, 4, 4]);
+  });
+
+  it("keeps nice and offset Y domains uniformly quantized", () => {
+    const auto = getCharGraphText(renderCartesianChart({
+      x: { scale: "linear" },
+      y: { scale: "linear" },
+      series: [{
+        mark: "point",
+        points: [{ x: 0, y: 280 }, { x: 1, y: 1860 }],
+      }],
+    }));
+    const offset = getCharGraphText(renderCartesianChart({
+      x: { scale: "linear" },
+      y: { scale: "linear", domain: [-0.1, 2.1] },
+      series: [{
+        mark: "errorbar",
+        points: [{ x: 0, y: 1, yLow: 0, yHigh: 2 }],
+      }],
+    }));
+
+    expectUniformGaps(auto, tickRows(auto, ["2000", "1500", "1000", "500", "0"]));
+    expectUniformGaps(offset, tickRows(offset, ["2", "1.5", "1", "0.5", "0"]));
+  });
+
+  it("applies the same Y spacing contract to Mermaid XY charts", () => {
+    const spec = adaptMermaidXYChart(parseXYChart([
+      "xychart-beta",
+      "x-axis [start, peak, recovery]",
+      "y-axis 0 --> 2000",
+      "line [280, 1860, 310]",
+    ]));
+    const text = getCharGraphText(renderCartesianChart(spec));
+
+    expectUniformGaps(text, tickRows(text, ["2000", "1500", "1000", "500", "0"]));
+  });
+
   it("projects irregular numeric x values instead of category indexes", () => {
     const text = getCharGraphText(renderCartesianChart({
       x: { scale: "linear" },

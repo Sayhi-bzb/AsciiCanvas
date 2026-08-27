@@ -52,6 +52,7 @@ declare global {
       surfaceStats: () => Record<string, number> | null;
       memoryStats: () => Record<string, number>;
       rasterStats: () => Record<string, number> | null;
+      projectionWorkerStats: () => Record<string, number | boolean> | null;
       persistence: () => { error: string | null };
     };
   }
@@ -476,6 +477,7 @@ const runLevel = async ({
   let surfaceStats: Record<string, number> | null = null;
   let memoryStats: Record<string, number> | null = null;
   let rasterStats: Record<string, number> | null = null;
+  let projectionWorkerStats: Record<string, number | boolean> | null = null;
   const context = await browser.newContext({
     viewport: VIEWPORT,
     deviceScaleFactor: DEVICE_SCALE_FACTOR,
@@ -543,6 +545,9 @@ const runLevel = async ({
       );
       rasterStats = await page.evaluate(
         () => window.__chardeskCanvasStress?.rasterStats() ?? null
+      );
+      projectionWorkerStats = await page.evaluate(
+        () => window.__chardeskCanvasStress?.projectionWorkerStats() ?? null
       );
       await page.waitForTimeout(650);
       const storageProbe = await page.evaluate(() => window.__canvasStressStorage ?? null);
@@ -622,6 +627,7 @@ const runLevel = async ({
     ...(surfaceStats ? { surfaceStats } : {}),
     ...(memoryStats ? { memoryStats } : {}),
     ...(rasterStats ? { rasterStats } : {}),
+    ...(projectionWorkerStats ? { projectionWorkerStats } : {}),
     ...(storageMode === "real" || verifyReload ? { persistenceMs, storageError } : {}),
     runtimeErrors,
     metrics,

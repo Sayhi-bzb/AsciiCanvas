@@ -870,6 +870,7 @@ export const gridChangesToCellPlaneOperation = (
  * a disposable spatial projection and never writes collaborative state.
  */
 export class CellPlaneIndex implements CanvasSurfaceReader {
+  readonly #operations: CellPlaneOperation[] = [];
   readonly #referencesByChunk = new Map<string, CellPlaneChunkReference[]>();
   readonly #chunkXsByRow = new Map<number, Set<number>>();
   readonly #chunkCache = new Map<string, CellPlaneChunkCacheEntry>();
@@ -894,6 +895,7 @@ export class CellPlaneIndex implements CanvasSurfaceReader {
 
   append(operation: CellPlaneOperation) {
     if (!isCellPlaneOperation(operation)) return;
+    this.#operations.push(operation);
     this.#revision += 1;
     this.#operationCount += 1;
     if ("format" in operation) this.#encodedPayloadBytes += operation.payload.byteLength;
@@ -949,6 +951,19 @@ export class CellPlaneIndex implements CanvasSurfaceReader {
 
   getRevision() {
     return this.#revision;
+  }
+
+  getOperationCount() {
+    return this.#operations.length;
+  }
+
+  getOperationsSince(operationCount: number) {
+    if (
+      !Number.isSafeInteger(operationCount) ||
+      operationCount < 0 ||
+      operationCount > this.#operations.length
+    ) return [...this.#operations];
+    return this.#operations.slice(operationCount);
   }
 
   getChangesSince(revision: number): CanvasSurfaceChanges {
@@ -1148,6 +1163,7 @@ export class CellPlaneIndex implements CanvasSurfaceReader {
     this.#legacyRowCount = 0;
     this.#directoryRowReferences = 0;
     this.#invalidations.length = 0;
+    this.#operations.length = 0;
     this.#contentBounds = null;
     this.#resolvedContentBounds = null;
   }

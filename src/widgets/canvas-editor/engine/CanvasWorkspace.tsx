@@ -19,6 +19,7 @@ import {
 import { CanvasEngineRuntime } from './CanvasEngineRuntime';
 import { CanvasFrameScheduler, CanvasScopedFrameScheduler } from './FrameScheduler';
 import { CanvasRasterTileCache } from '../rendering/CanvasRasterTileCache';
+import { CanvasProjectionWorkerClient } from '../rendering/CanvasProjectionWorkerClient';
 
 export type CanvasViewId = 'primary' | 'secondary';
 
@@ -211,7 +212,11 @@ class CanvasViewRuntime {
 
 class CanvasWorkspaceRuntime {
   readonly views: Record<CanvasViewId, CanvasViewRuntime>;
-  readonly rasterTileCache = new CanvasRasterTileCache();
+  readonly projectionWorker = new CanvasProjectionWorkerClient();
+  readonly rasterTileCache = new CanvasRasterTileCache(
+    undefined,
+    this.projectionWorker
+  );
   private readonly frameScheduler = new CanvasFrameScheduler();
   private readonly publishViewport: (viewport: CanvasViewportState) => void;
   private readonly switchSession: (sessionId: string) => Promise<boolean>;
@@ -378,6 +383,7 @@ class CanvasWorkspaceRuntime {
     this.views.primary.engine.dispose();
     this.frameScheduler.dispose();
     this.rasterTileCache.clear();
+    this.projectionWorker.dispose();
   }
 }
 
@@ -446,12 +452,18 @@ export function CanvasWorkspaceProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const diagnostics = window as Window & {
       __chardeskCanvasRasterStats?: () => ReturnType<CanvasRasterTileCache['getStats']>;
+      __chardeskCanvasProjectionWorkerStats?: () => ReturnType<CanvasProjectionWorkerClient['getStats']>;
     };
     const readStats = () => runtime.rasterTileCache.getStats();
     diagnostics.__chardeskCanvasRasterStats = readStats;
+    const readWorkerStats = () => runtime.projectionWorker.getStats();
+    diagnostics.__chardeskCanvasProjectionWorkerStats = readWorkerStats;
     return () => {
       if (diagnostics.__chardeskCanvasRasterStats === readStats) {
         delete diagnostics.__chardeskCanvasRasterStats;
+      }
+      if (diagnostics.__chardeskCanvasProjectionWorkerStats === readWorkerStats) {
+        delete diagnostics.__chardeskCanvasProjectionWorkerStats;
       }
     };
   }, [runtime]);

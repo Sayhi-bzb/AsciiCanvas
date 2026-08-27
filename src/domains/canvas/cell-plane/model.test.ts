@@ -194,6 +194,26 @@ describe("CellPlaneIndex", () => {
     });
   });
 
+  it("exposes append-only operations for a worker mirror", () => {
+    const first = operation("first", [{
+      y: 0,
+      erase: [],
+      spans: [{ x: 0, text: "A", color: "#fff" }],
+    }]);
+    const second = operation("second", [{
+      y: 0,
+      erase: [],
+      spans: [{ x: 1, text: "B", color: "#fff" }],
+    }]);
+    const plane = new CellPlaneIndex([first]);
+
+    plane.append(second);
+
+    expect(plane.getOperationCount()).toBe(2);
+    expect(plane.getOperationsSince(1)).toEqual([second]);
+    expect(plane.getOperationsSince(99)).toEqual([first, second]);
+  });
+
   it("shares one byte budget across independent projections", () => {
     const budget = new CanvasProjectionCacheBudget(25_000);
     const left = new CellPlaneIndex([

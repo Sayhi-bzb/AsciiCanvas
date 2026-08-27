@@ -35,6 +35,7 @@ export type CanvasStressLevel = {
   surfaceStats?: Readonly<Record<string, number>>;
   memoryStats?: Readonly<Record<string, number>>;
   rasterStats?: Readonly<Record<string, number>>;
+  projectionWorkerStats?: Readonly<Record<string, number | boolean>>;
   zoom: number;
   snapshotBytes: number;
   persistenceMs?: number | null;

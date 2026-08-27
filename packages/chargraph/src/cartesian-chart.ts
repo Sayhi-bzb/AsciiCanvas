@@ -64,7 +64,7 @@ export const adaptMermaidXYChart = (chart: XYChart): CartesianChartSpec => {
 
 type RoleCanvas = (MermaidStyleRole | null)[][];
 const WIDTH = 60;
-const HEIGHT = 16;
+const TARGET_PLOT_SPAN = 15;
 const SERIES_ROLES = [
   "series.1", "series.2", "series.3", "series.4", "series.5",
 ] as const;
@@ -158,9 +158,19 @@ const drawLine = (
 export const renderCartesianChartSurface = (
   spec: CartesianChartSpec
 ): AsciiRenderSurface => {
-  const yScale = scaleLinear(valueDomain(spec), [HEIGHT - 1, 0]);
+  const yScale = scaleLinear().domain(valueDomain(spec));
   if (!spec.y.domain) yScale.nice(5);
   const yTicks = yScale.ticks(5);
+  const yDomain = yScale.domain();
+  const domainSpan = Math.abs(yDomain[1]! - yDomain[0]!);
+  const tickStep = yTicks.length > 1
+    ? Math.abs(yTicks[1]! - yTicks[0]!)
+    : domainSpan;
+  const domainTickIntervals = tickStep > 0 ? domainSpan / tickStep : 1;
+  const tickGap = Math.max(1, Math.round(TARGET_PLOT_SPAN / domainTickIntervals));
+  const plotSpan = tickGap * domainTickIntervals;
+  const plotHeight = Math.ceil(plotSpan) + 1;
+  yScale.range([plotSpan, 0]);
   const yLabels = yTicks.map(formatTick);
   const left = Math.max(4, ...yLabels.map((label) => label.length)) + 2;
   const titleRows = spec.title ? 2 : 0;
@@ -168,7 +178,7 @@ export const renderCartesianChartSurface = (
   const legendRows = named.length > 0 ? 1 : 0;
   const top = titleRows + legendRows;
   const plotRight = left + WIDTH - 1;
-  const axisRow = top + HEIGHT;
+  const axisRow = top + plotHeight;
   const bottomRows = 2 + (spec.x.title ? 1 : 0);
   const totalWidth = plotRight + 2;
   const totalHeight = axisRow + bottomRows;
