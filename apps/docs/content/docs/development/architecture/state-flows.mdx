@@ -45,6 +45,14 @@ use Registry focus as an implicit write target.
 - Block layout text: `|||`-recognized layout -> per-field normal text renderer ->
   composed CellPlane rows. A lone `---` remains a Markdown thematic break in auto mode.
 
+The application module and Canvas restore load independently. App chrome mounts as
+soon as the module is available, while `CanvasPersistenceStatus.restore` gates the
+workspace, onboarding, collaboration, and editor surfaces. Restore failure opens an
+editable in-memory workspace instead of an empty editor. Retry prepares persisted
+documents off-screen, then atomically activates them; temporary edits are retained in
+a distinct recovered session. The mounted workspace becomes inert during that commit
+and is never replaced by a second loading screen.
+
 Every local session persists one Yjs document. A Freeform or Structured document has one page;
 a Slide document has one page per slide. The catalog owns session identity and slide ordering,
 names, and sizes. Collaborative

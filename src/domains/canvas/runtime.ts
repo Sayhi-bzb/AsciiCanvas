@@ -19,6 +19,11 @@ import {
 
 const DISABLED_PERSISTENCE_STATUS: CanvasPersistenceStatus = {
   phase: "ready",
+  restore: {
+    phase: "ready",
+    error: null,
+    temporaryDirty: false,
+  },
   save: "saved",
   ownership: "writer",
   error: null,
@@ -92,6 +97,8 @@ export class CanvasRuntime {
     this.persistence?.subscribe(listener) ?? (() => undefined);
 
   retryPersistence = () => this.persistence?.retry() ?? Promise.resolve();
+
+  retryRestore = () => this.persistence?.retryRestore() ?? Promise.resolve(false);
 
   setRetainedCanvasIds = (ids: readonly string[]) =>
     this.persistence?.setPinnedCanvasIds(ids);

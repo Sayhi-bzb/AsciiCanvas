@@ -8,6 +8,7 @@ import {
   EDITOR_PERSISTENCE_KEY,
   LEGACY_EDITOR_PERSISTENCE_KEY,
   CANVAS_CATALOG_MARKER_KEY,
+  createSessionId,
   createIndexedDbCanvasCatalog,
   decodePersistedEditorState,
   type CanvasCatalog,
@@ -28,7 +29,10 @@ import {
   CanvasDocumentRegistry,
   type CanvasDocumentSeed,
 } from "./CanvasDocumentRegistry";
-import { recoverPersistedEditorState } from "./editorPersistence";
+import {
+  createPersistedEditorSnapshot,
+  recoverPersistedEditorState,
+} from "./editorPersistence";
 import { getSessionCanvasDocumentId } from "./helpers/storeUtils";
 import { rebuildGridFromContent } from "./helpers/gridHelpers";
 import {
@@ -73,6 +77,11 @@ const MAX_RESIDENT_CANVASES = 4;
 
 export type CanvasPersistenceStatus = {
   phase: "restoring" | "ready" | "degraded";
+  restore: {
+    phase: "initializing" | "ready" | "temporary" | "retrying";
+    error: string | null;
+    temporaryDirty: boolean;
+  };
   save: "saved" | "saving" | "error";
   ownership: "writer" | "reader";
   error: string | null;
@@ -106,6 +115,12 @@ type BrowserCheckpointCandidate = CanvasCheckpointCandidate & {
 type PersistedDocumentLocation = {
   id: string;
   generation: number;
+};
+
+type RestoredSessions = {
+  sessions: CanvasSession[];
+  activeDocument: Y.Doc;
+  activeSessionId: string;
 };
 
 type WriterLease = {
@@ -299,6 +314,28 @@ const seedFromSession = (session: CanvasSession): CanvasDocumentSeed =>
     : session.mode === "freeform"
       ? { mode: "freeform", grid: session.grid, scene: [], components: [] }
       : emptySeed();
+
+const readActiveSessionSeed = (doc: Y.Doc, id: string): CanvasDocumentSeed => {
+  const seed = readDocumentSeed(doc, id);
+  const page = seed.pages?.find(({ id: pageId }) => pageId === seed.activePageId) ??
+    seed.pages?.[0];
+  if (!page) return seed;
+  return "grid" in page
+    ? {
+        mode: seed.mode,
+        activePageId: page.id,
+        grid: page.grid ?? [],
+        scene: [],
+        components: [],
+      }
+    : {
+        mode: seed.mode,
+        activePageId: page.id,
+        grid: [],
+        scene: page.scene ?? [],
+        components: page.components ?? [],
+      };
+};
 
 const readCellPlaneGrid = (doc: Y.Doc): [string, GridCell][] => {
   const root = getCanvasDocumentRoot(doc);
@@ -687,6 +724,46 @@ const sessionsFromCatalog = (catalog: CanvasCatalogSnapshot): CanvasSession[] =>
     };
   });
 
+const recoveredSessionName = (
+  sessions: readonly CanvasSession[],
+  index: number
+) => {
+  const base = index === 0 ? "Recovered Canvas" : `Recovered Canvas ${index + 1}`;
+  if (!sessions.some(({ name }) => name === base)) return base;
+  let suffix = index + 2;
+  while (sessions.some(({ name }) => name === `Recovered Canvas ${suffix}`)) {
+    suffix += 1;
+  }
+  return `Recovered Canvas ${suffix}`;
+};
+
+const cloneRecoveredSessions = (
+  source: readonly CanvasSession[],
+  restored: readonly CanvasSession[],
+  activeSessionId: string
+) => {
+  const sessions = [...restored];
+  let recoveredActiveId: string | null = null;
+  source.forEach((session, index) => {
+    const id = createSessionId(sessions);
+    const recovered: CanvasSession = session.mode === "slide"
+      ? {
+          ...structuredClone(session),
+          id,
+          name: recoveredSessionName(sessions, index),
+        }
+      : {
+          ...structuredClone(session),
+          id,
+          name: recoveredSessionName(sessions, index),
+          collaboration: undefined,
+        };
+    sessions.push(recovered);
+    if (session.id === activeSessionId) recoveredActiveId = id;
+  });
+  return { sessions, recoveredActiveId };
+};
+
 const createCatalogSnapshot = (
   state: ReturnType<CanvasStore["getState"]>,
   documentGenerations: ReadonlyMap<string, number> = new Map()
@@ -758,8 +835,17 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
   #evictionTask: Promise<void> = Promise.resolve();
   #lastCatalogJson = "";
   #writerLease: WriterLease | null = null;
+  #bootstrapSessions: readonly CanvasSession[] | undefined;
+  #temporaryStoreSubscription: (() => void) | null = null;
+  #temporaryMutationSubscription: (() => void) | null = null;
+  #temporarySessionShell = "";
   #status: CanvasPersistenceStatus = {
     phase: "restoring",
+    restore: {
+      phase: "initializing",
+      error: null,
+      temporaryDirty: false,
+    },
     save: "saved",
     ownership: "writer",
     error: null,
@@ -784,6 +870,41 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
   ) => {
     this.#registry = documents;
     this.#store = store;
+    this.#bootstrapSessions = (bootstrapSessions ?? store.getState().canvasSessions)
+      .map((session) => structuredClone(session));
+    await this.#runRestore();
+  };
+
+  retryRestore = async () => {
+    if (
+      this.#status.restore.phase !== "temporary" ||
+      !this.#registry ||
+      !this.#store
+    ) return false;
+    const temporaryDirty = this.#status.restore.temporaryDirty;
+    const recovery = temporaryDirty
+      ? createPersistedEditorSnapshot(this.#store.getState()).sessions
+      : null;
+    this.#stopTemporaryTracking();
+    this.#publish({
+      phase: "restoring",
+      restore: {
+        phase: "retrying",
+        error: null,
+        temporaryDirty,
+      },
+      error: null,
+    });
+    return this.#runRestore(recovery);
+  };
+
+  async #runRestore(
+    recovery: ReturnType<typeof createPersistedEditorSnapshot>["sessions"] | null = null
+  ) {
+    const documents = this.#registry;
+    const store = this.#store;
+    if (!documents || !store) return false;
+    let committed = false;
     try {
       this.#writerLease = await acquireWriterLease(this.#legacyStorage);
       this.#publish({
@@ -813,9 +934,8 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
           }
             : session
       );
-      const initialSessions = bootstrapSessions?.map((session) =>
-        structuredClone(session)
-      ) ?? store.getState().canvasSessions;
+      const initialSessions = (this.#bootstrapSessions ?? store.getState().canvasSessions)
+        .map((session) => structuredClone(session));
       const catalogSessions = storedCatalog
         ? sessionsFromCatalog(storedCatalog)
         : legacySessions ?? initialSessions;
@@ -887,25 +1007,44 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
         : storedCatalog?.activeSessionId ??
           legacy?.state.sessions.activeId ??
           store.getState().activeCanvasId;
-      const restoredSessions = await this.#restoreSessions(
+      let restored = await this.#restoreSessions(
         documents,
         sourceSessions,
         !storedCatalog && this.#writerLease.writer,
         activeSessionId
       );
-      const activeSession =
-        restoredSessions.find((session) => session.id === activeSessionId) ??
-        restoredSessions[0];
+      if (recovery && recovery.items.length > 0) {
+        await this.#closePersistedDocument(
+          restored.activeSessionId,
+          restored.activeDocument
+        );
+        restored = await this.#prepareRecoveredSessions(
+          restored.sessions,
+          recovery.items,
+          recovery.activeId
+        );
+      }
+      const activeSession = restored.sessions.find(
+        (session) => session.id === restored.activeSessionId
+      ) ?? restored.sessions[0];
       if (!activeSession) throw new Error("Canvas persistence restored no sessions");
 
       const current = store.getState();
       const preferences = storedCatalog?.preferences ?? legacy?.state.preferences;
       const hydrated = recoverPersistedEditorState({
         ...current,
-        canvasSessions: restoredSessions,
+        canvasSessions: restored.sessions,
         activeCanvasId: activeSession.id,
         ...(preferences ?? {}),
       });
+      documents.adoptDocument(activeSession.id, restored.activeDocument);
+      if (activeSession.mode !== "slide" && activeSession.collaboration) {
+        documents.prepareDocumentForCollaboration(
+          activeSession.id,
+          activeSession.mode,
+          activeSession.collaboration.documentVersion
+        );
+      }
       documents.activateDocument(
         getSessionCanvasDocumentId(activeSession),
         emptySeed()
@@ -918,6 +1057,17 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
         hydrated.grid = rebuildGridFromContent(documents);
       }
       store.setState(hydrated, true);
+      committed = true;
+      this.#publish({
+        phase: "ready",
+        restore: {
+          phase: "ready",
+          error: null,
+          temporaryDirty: false,
+        },
+        save: this.#writerLease.writer ? "saving" : "saved",
+        error: null,
+      });
       if (this.#writerLease.writer) {
         this.#unsubscribeMutations = documents.subscribeMutations((envelope) => {
           const revision = this.#documentRevisions.get(envelope.documentId) ?? 0;
@@ -941,7 +1091,7 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
         });
         await this.#saveCatalog();
         const verified = await this.#catalog.load();
-        if (!verified || verified.sessions.length !== restoredSessions.length) {
+        if (!verified || verified.sessions.length !== restored.sessions.length) {
           throw new Error("Canvas catalog verification failed");
         }
         await Promise.all(Array.from(this.#obsoleteDocumentDatabases, clearDocument));
@@ -954,15 +1104,112 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
         this.#subscribeToStore();
       }
       this.#publish({ phase: "ready", save: "saved", error: null });
+      return true;
     } catch (error) {
-      documents.configureDocumentLifecycle(null);
-      this.#publish({
-        phase: "degraded",
-        save: "error",
-        error: error instanceof Error ? error.message : "Canvas persistence failed",
-      });
+      const message = error instanceof Error ? error.message : "Canvas persistence failed";
+      if (committed) {
+        this.#handleError(error);
+        return true;
+      }
+      await this.#cleanupRestoreAttempt();
+      this.#enterTemporaryMode(message, recovery !== null);
+      return false;
     }
+  }
+
+  #temporaryShell(state: ReturnType<CanvasStore["getState"]>) {
+    return JSON.stringify(state.canvasSessions.map((session) => ({
+      id: session.id,
+      name: session.name,
+      mode: session.mode,
+    })));
+  }
+
+  #markTemporaryDirty = () => {
+    if (
+      this.#status.restore.phase !== "temporary" ||
+      this.#status.restore.temporaryDirty
+    ) return;
+    this.#publish({
+      restore: {
+        ...this.#status.restore,
+        temporaryDirty: true,
+      },
+    });
   };
+
+  #startTemporaryTracking(temporaryDirty: boolean) {
+    this.#stopTemporaryTracking();
+    const store = this.#store;
+    const documents = this.#registry;
+    if (!store || !documents) return;
+    this.#temporarySessionShell = this.#temporaryShell(store.getState());
+    this.#temporaryStoreSubscription = store.subscribe((state) => {
+      const shell = this.#temporaryShell(state);
+      if (shell === this.#temporarySessionShell) return;
+      this.#temporarySessionShell = shell;
+      this.#markTemporaryDirty();
+    });
+    this.#temporaryMutationSubscription = documents.subscribeMutations(
+      this.#markTemporaryDirty
+    );
+    if (temporaryDirty) this.#markTemporaryDirty();
+  }
+
+  #stopTemporaryTracking() {
+    this.#temporaryStoreSubscription?.();
+    this.#temporaryStoreSubscription = null;
+    this.#temporaryMutationSubscription?.();
+    this.#temporaryMutationSubscription = null;
+    this.#temporarySessionShell = "";
+  }
+
+  #enterTemporaryMode(error: string, temporaryDirty: boolean) {
+    this.#publish({
+      phase: "degraded",
+      restore: {
+        phase: "temporary",
+        error,
+        temporaryDirty,
+      },
+      save: "error",
+      error,
+    });
+    this.#startTemporaryTracking(temporaryDirty);
+  }
+
+  async #cleanupRestoreAttempt() {
+    this.#registry?.configureDocumentLifecycle(null);
+    this.#unsubscribeStore?.();
+    this.#unsubscribeStore = null;
+    this.#unsubscribeMutations?.();
+    this.#unsubscribeMutations = null;
+    if (this.#metadataTimer) clearTimeout(this.#metadataTimer);
+    this.#metadataTimer = null;
+    if (this.#documentTimer) clearTimeout(this.#documentTimer);
+    this.#documentTimer = null;
+    this.#checkpointTimers.forEach((timer) => clearTimeout(timer));
+    this.#checkpointTimers.clear();
+    this.#checkpointServices.forEach((service) => service.cancel());
+    this.#checkpointServices.clear();
+    this.#checkpointTails.clear();
+    const persisted = Array.from(this.#documents.values());
+    this.#documents.clear();
+    await Promise.all(persisted.map(async ({ doc, provider, updateListener }) => {
+      doc.off("update", updateListener);
+      await provider.destroy();
+      doc.destroy();
+    }));
+    this.#dirtyDocuments.clear();
+    this.#documentGenerations.clear();
+    this.#documentRevisions.clear();
+    this.#obsoleteDocumentDatabases.clear();
+    this.#lastCatalogJson = "";
+    this.#catalog?.close();
+    this.#catalog = null;
+    this.#writerLease?.release();
+    this.#writerLease = null;
+  }
 
   retry = async () => {
     if (!this.#catalog || !this.#store || !this.#writerLease?.writer) return;
@@ -1051,6 +1298,7 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
   };
 
   dispose = () => {
+    this.#stopTemporaryTracking();
     this.#unsubscribeStore?.();
     this.#unsubscribeStore = null;
     this.#unsubscribeMutations?.();
@@ -1080,8 +1328,9 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
     sessions: CanvasSession[],
     resetDocuments: boolean,
     activeSessionId: string
-  ) {
+  ): Promise<RestoredSessions> {
     const restored: CanvasSession[] = [];
+    let activeDocument: Y.Doc | null = null;
     for (const session of sessions) {
       const isActive = session.id === activeSessionId;
       if (!isActive && !resetDocuments) {
@@ -1113,19 +1362,14 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
           scene: [],
           components: [],
         });
-        if (isActive) documents.adoptDocument(session.id, doc);
+        if (isActive) activeDocument = doc;
         else await this.#closePersistedDocument(session.id, doc);
         restored.push(session);
         continue;
       }
       if (session.collaboration) {
         if (isActive) {
-          documents.adoptDocument(session.id, new Y.Doc({ guid: session.id }));
-          documents.prepareDocumentForCollaboration(
-            session.id,
-            session.mode,
-            session.collaboration.documentVersion
-          );
+          activeDocument = new Y.Doc({ guid: session.id });
         }
         restored.push({ ...session, grid: [], scene: [], components: [] });
         continue;
@@ -1135,10 +1379,8 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
         session.id,
         existingSeed ?? seedFromSession(session)
       );
-      if (isActive) documents.adoptDocument(session.id, doc);
-      const seed = isActive
-        ? documents.getDocumentSeed(session.id, session.mode)
-        : readDocumentSeed(doc, session.id);
+      if (isActive) activeDocument = doc;
+      const seed = readActiveSessionSeed(doc, session.id);
       if (!isActive) await this.#closePersistedDocument(session.id, doc);
       restored.push({
         ...session,
@@ -1147,7 +1389,60 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
         components: seed?.components ?? [],
       });
     }
-    return restored;
+    const resolvedActiveSession = restored.find(
+      (session) => session.id === activeSessionId
+    ) ?? restored[0];
+    if (!resolvedActiveSession) {
+      throw new Error("Canvas persistence restored no sessions");
+    }
+    if (!activeDocument || resolvedActiveSession.id !== activeSessionId) {
+      if (activeDocument) {
+        await this.#closePersistedDocument(activeSessionId, activeDocument);
+      }
+      activeDocument = resolvedActiveSession.collaboration
+        ? new Y.Doc({ guid: resolvedActiveSession.id })
+        : await this.#loadSessionDocument(resolvedActiveSession, false);
+    }
+    return {
+      sessions: restored,
+      activeDocument,
+      activeSessionId: resolvedActiveSession.id,
+    };
+  }
+
+  async #prepareRecoveredSessions(
+    restoredSessions: CanvasSession[],
+    temporarySessions: readonly CanvasSession[],
+    temporaryActiveId: string
+  ): Promise<RestoredSessions> {
+    const recovered = cloneRecoveredSessions(
+      temporarySessions,
+      restoredSessions,
+      temporaryActiveId
+    );
+    const recoveredSessions = recovered.sessions.slice(restoredSessions.length);
+    const activeSession = recoveredSessions.find(
+      ({ id }) => id === recovered.recoveredActiveId
+    ) ?? recoveredSessions[0];
+    if (!activeSession) {
+      throw new Error("Temporary Canvas recovery produced no sessions");
+    }
+    let activeDocument: Y.Doc | null = null;
+    for (const session of recoveredSessions) {
+      const doc = session.collaboration
+        ? new Y.Doc({ guid: session.id })
+        : await this.#loadSessionDocument(session, true);
+      if (session.id === activeSession.id) activeDocument = doc;
+      else await this.#closePersistedDocument(session.id, doc);
+    }
+    if (!activeDocument) {
+      throw new Error("Temporary Canvas recovery produced no active document");
+    }
+    return {
+      sessions: recovered.sessions,
+      activeDocument,
+      activeSessionId: activeSession.id,
+    };
   }
 
   async #loadSessionDocument(session: CanvasSession, resetDocument: boolean) {

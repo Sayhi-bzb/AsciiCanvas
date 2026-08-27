@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import "@chardesk/fonts/fonts.css";
 import "./index.css";
 import { captureOnboardingEntryState } from "@/widgets/onboarding/onboarding-model";
+import { ModuleLoadFailure, ModuleLoadingScreen } from "./StartupScreens";
 import { getApplicationEditorHost } from "./compositionRoot";
 import { EditorProvider } from "@/domains/editor/public";
 import {
@@ -121,33 +122,13 @@ installModuleLoadRecovery();
 
 const root = ReactDOM.createRoot(document.getElementById("root")!);
 
-root.render(
-  <main className="flex min-h-dvh items-center justify-center bg-background text-sm text-muted-foreground">
-    Restoring canvas…
-  </main>
-);
+root.render(<ModuleLoadingScreen />);
 
 const renderLoadFailure = () => {
-  root.render(
-    <main className="flex min-h-dvh items-center justify-center bg-background p-6 text-foreground">
-      <div role="alert" className="flex max-w-sm flex-col items-start gap-3">
-        <h1 className="text-base font-medium">Unable to load CharDesk</h1>
-        <p className="text-sm text-muted-foreground">
-          The interface changed or its cache expired. Reload to try again.
-        </p>
-        <button
-          type="button"
-          className="rounded-control bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
-          onClick={() => window.location.reload()}
-        >
-          Reload
-        </button>
-      </div>
-    </main>
-  );
+  root.render(<ModuleLoadFailure onReload={() => window.location.reload()} />);
 };
 
-void Promise.all([host.canvas.ready, import("./App")]).then(([, module]) => {
+void import("./App").then((module) => {
   const { default: App } = requireLoadedModule(module);
   root.render(
     <React.StrictMode>

@@ -38,6 +38,23 @@ class MemoryStorage implements Storage {
   setItem(key: string, value: string) { this.#values.set(key, value); }
 }
 
+class FailingStorage extends MemoryStorage {
+  #remainingFailures: number;
+
+  constructor(remainingFailures: number) {
+    super();
+    this.#remainingFailures = remainingFailures;
+  }
+
+  override setItem(key: string, value: string) {
+    if (this.#remainingFailures > 0) {
+      this.#remainingFailures -= 1;
+      throw new Error("Storage is temporarily unavailable");
+    }
+    super.setItem(key, value);
+  }
+}
+
 const SESSION_ID = "indexeddb-persistence-test";
 const DOCUMENT_DATABASE = `chardesk-local-document-v1:${SESSION_ID}`;
 const LEGACY_SESSION_ID = "legacy-indexeddb-test";
@@ -95,6 +112,7 @@ const createRuntime = (
 
 describe("browser canvas persistence", () => {
   let runtimes: CanvasRuntime[] = [];
+  let recoveredSessionIds: string[] = [];
 
   beforeEach(async () => {
     await deleteDB(CANVAS_CATALOG_DATABASE);
@@ -103,6 +121,7 @@ describe("browser canvas persistence", () => {
     await Promise.all(RESIDENCY_SESSION_IDS.map((id) =>
       clearDocument(`chardesk-local-document-v1:${id}`)
     ));
+    recoveredSessionIds = [];
   });
 
   afterEach(async () => {
@@ -113,6 +132,9 @@ describe("browser canvas persistence", () => {
     await clearDocument(DOCUMENT_DATABASE);
     await Promise.all(EXTRA_DOCUMENT_DATABASES.map(clearDocument));
     await Promise.all(RESIDENCY_SESSION_IDS.map((id) =>
+      clearDocument(`chardesk-local-document-v1:${id}`)
+    ));
+    await Promise.all(recoveredSessionIds.map((id) =>
       clearDocument(`chardesk-local-document-v1:${id}`)
     ));
   });
@@ -137,6 +159,72 @@ describe("browser canvas persistence", () => {
     expect(second.getState().grid.get("1,0")?.char).toBe("B");
     expect(storage.getItem(CANVAS_CATALOG_MARKER_KEY)).toBe("1");
     expect(storage.getItem(EDITOR_PERSISTENCE_KEY)).toBeNull();
+  });
+
+  it("keeps a failed restore editable and merges temporary work on retry", async () => {
+    const storage = new FailingStorage(1);
+    const runtime = createRuntime(storage);
+    runtimes.push(runtime);
+    await runtime.ready;
+
+    expect(runtime.getPersistenceSnapshot()).toMatchObject({
+      phase: "degraded",
+      restore: {
+        phase: "temporary",
+        temporaryDirty: false,
+      },
+    });
+
+    runtime.documents.mutateGrid((grid) => {
+      grid.set("2,0", { char: "T", color: "#334455" });
+    });
+    expect(runtime.getPersistenceSnapshot().restore.temporaryDirty).toBe(true);
+
+    expect(await runtime.retryRestore()).toBe(true);
+    expect(runtime.getPersistenceSnapshot()).toMatchObject({
+      phase: "ready",
+      restore: {
+        phase: "ready",
+        temporaryDirty: false,
+      },
+    });
+    expect(runtime.getState().canvasSessions.map(({ name }) => name)).toEqual([
+      "Persisted",
+      "Recovered Canvas",
+    ]);
+    recoveredSessionIds = runtime.getState().canvasSessions
+      .filter(({ name }) => name.startsWith("Recovered Canvas"))
+      .map(({ id }) => id);
+    expect(runtime.getState().canvasSessions.find(
+      ({ id }) => id === runtime.getState().activeCanvasId
+    )?.name).toBe("Recovered Canvas");
+    expect(runtime.getState().grid.get("2,0")).toEqual({
+      char: "T",
+      color: "#334455",
+    });
+  });
+
+  it("leaves temporary content untouched when restore retry fails", async () => {
+    const storage = new FailingStorage(2);
+    const runtime = createRuntime(storage);
+    runtimes.push(runtime);
+    await runtime.ready;
+    runtime.documents.mutateGrid((grid) => {
+      grid.set("3,0", { char: "U", color: "#556677" });
+    });
+
+    expect(await runtime.retryRestore()).toBe(false);
+    expect(runtime.getPersistenceSnapshot()).toMatchObject({
+      phase: "degraded",
+      restore: {
+        phase: "temporary",
+        temporaryDirty: true,
+      },
+    });
+    expect(runtime.getState().grid.get("3,0")).toEqual({
+      char: "U",
+      color: "#556677",
+    });
   });
 
   it("loads Canvas documents on demand and keeps only pinned plus recent documents", async () => {

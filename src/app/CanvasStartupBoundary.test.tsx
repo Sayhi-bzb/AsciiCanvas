@@ -1,0 +1,159 @@
+// @vitest-environment jsdom
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ReactNode } from "react";
+import {
+  CanvasRuntimeProvider,
+  type CanvasPersistenceStatus,
+} from "@/domains/canvas/public";
+import { setUiLanguage } from "@/shared/i18n";
+import { EditorChromeProvider } from "@/widgets/editor-chrome/public";
+import { createApplicationEditorHost } from "./compositionRoot";
+import { CanvasStartupBoundary } from "./CanvasStartupBoundary";
+
+const readyStatus: CanvasPersistenceStatus = {
+  phase: "ready",
+  restore: { phase: "ready", error: null, temporaryDirty: false },
+  save: "saved",
+  ownership: "writer",
+  error: null,
+};
+
+function createPersistenceHarness(initial: CanvasPersistenceStatus) {
+  const host = createApplicationEditorHost();
+  let status = initial;
+  const listeners = new Set<() => void>();
+  const retryRestore = vi.fn(async () => true);
+  const runtime = Object.assign(Object.create(host.canvas), {
+    getPersistenceSnapshot: () => status,
+    subscribePersistence: (listener: () => void) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    retryRestore,
+  });
+  return {
+    host,
+    retryRestore,
+    runtime,
+    setStatus(next: CanvasPersistenceStatus) {
+      status = next;
+      listeners.forEach((listener) => listener());
+    },
+  };
+}
+
+function renderBoundary(
+  runtime: ReturnType<typeof createPersistenceHarness>["runtime"],
+  children: ReactNode = <div data-testid="workspace">Workspace</div>
+) {
+  return render(
+    <CanvasRuntimeProvider runtime={runtime}>
+      <EditorChromeProvider>
+        <CanvasStartupBoundary>{children}</CanvasStartupBoundary>
+      </EditorChromeProvider>
+    </CanvasRuntimeProvider>
+  );
+}
+
+describe("CanvasStartupBoundary", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    setUiLanguage("en");
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("renders chrome immediately but delays progress feedback during restore", async () => {
+    const harness = createPersistenceHarness({
+      ...readyStatus,
+      phase: "restoring",
+      restore: {
+        phase: "initializing",
+        error: null,
+        temporaryDirty: false,
+      },
+    });
+    renderBoundary(harness.runtime);
+
+    expect(screen.getByTestId("startup-chrome")).toBeInTheDocument();
+    expect(screen.getByTestId("canvas-restore-surface")).toHaveAttribute(
+      "aria-busy",
+      "true"
+    );
+    expect(screen.queryByTestId("workspace")).not.toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+
+    await act(async () => vi.advanceTimersByTimeAsync(150));
+    expect(screen.getByRole("status")).toHaveTextContent("Restoring workspace");
+
+    harness.host.canvas.dispose();
+  });
+
+  it("mounts the workspace after restore becomes ready", () => {
+    const harness = createPersistenceHarness({
+      ...readyStatus,
+      phase: "restoring",
+      restore: {
+        phase: "initializing",
+        error: null,
+        temporaryDirty: false,
+      },
+    });
+    renderBoundary(harness.runtime);
+
+    act(() => harness.setStatus(readyStatus));
+    expect(screen.getByTestId("workspace")).toBeInTheDocument();
+    expect(screen.queryByTestId("canvas-restore-surface")).not.toBeInTheDocument();
+
+    harness.host.canvas.dispose();
+  });
+
+  it("keeps a temporary workspace usable and offers an in-place retry", () => {
+    const harness = createPersistenceHarness({
+      ...readyStatus,
+      phase: "degraded",
+      restore: {
+        phase: "temporary",
+        error: "IndexedDB unavailable",
+        temporaryDirty: true,
+      },
+    });
+    renderBoundary(harness.runtime);
+
+    expect(screen.getByTestId("workspace")).toBeInTheDocument();
+    expect(screen.getByTestId("temporary-canvas-alert")).toHaveTextContent(
+      "Temporary canvas"
+    );
+    expect(screen.getByTestId("workspace").parentElement).not.toHaveAttribute(
+      "inert"
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(harness.retryRestore).toHaveBeenCalledOnce();
+
+    harness.host.canvas.dispose();
+  });
+
+  it("freezes rather than unmounts the workspace while retrying", () => {
+    const harness = createPersistenceHarness({
+      ...readyStatus,
+      phase: "degraded",
+      restore: {
+        phase: "retrying",
+        error: "IndexedDB unavailable",
+        temporaryDirty: true,
+      },
+    });
+    renderBoundary(harness.runtime);
+
+    expect(screen.getByTestId("workspace")).toBeInTheDocument();
+    expect(screen.getByTestId("workspace").parentElement).toHaveAttribute("inert");
+    expect(screen.getByRole("button", { name: "Restoring" })).toBeDisabled();
+
+    harness.host.canvas.dispose();
+  });
+
+});

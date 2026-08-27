@@ -10,6 +10,11 @@ export let useEditorStore: CanvasStore;
 export let canvasCommands: ReturnType<typeof createCanvasCommands>;
 const TEST_PERSISTENCE_SNAPSHOT = {
   phase: "ready",
+  restore: {
+    phase: "ready",
+    error: null,
+    temporaryDirty: false,
+  },
   save: "saved",
   ownership: "writer",
   error: null,
@@ -24,12 +29,18 @@ export let testingCanvasRuntime: {
   ready: Promise<void>;
   getPersistenceSnapshot: () => {
     phase: "ready";
+    restore: {
+      phase: "ready";
+      error: null;
+      temporaryDirty: false;
+    };
     save: "saved";
     ownership: "writer";
     error: null;
   };
   subscribePersistence: (listener: () => void) => () => void;
   retryPersistence: () => Promise<void>;
+  retryRestore: () => Promise<boolean>;
   setRetainedCanvasIds: (ids: readonly string[]) => void;
   getProjectionCacheStats: CanvasDocumentRegistry["getProjectionCacheStats"];
   setProjectionCacheBudget: CanvasDocumentRegistry["setProjectionCacheBudget"];
@@ -66,6 +77,7 @@ export const initializeCanvasTesting = ({
     getPersistenceSnapshot: () => TEST_PERSISTENCE_SNAPSHOT,
     subscribePersistence: () => () => undefined,
     retryPersistence: () => Promise.resolve(),
+    retryRestore: () => Promise.resolve(false),
     setRetainedCanvasIds: () => undefined,
     getProjectionCacheStats: defaultCanvasDocuments.getProjectionCacheStats,
     setProjectionCacheBudget: defaultCanvasDocuments.setProjectionCacheBudget,

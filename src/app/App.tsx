@@ -70,6 +70,7 @@ import type { EditorViewportFrame } from '@/widgets/editor-chrome/public';
 import { useUiI18n } from '@/shared/i18n';
 import { RecoverableLazyBoundary } from '@/shared/components/RecoverableLazyBoundary';
 import { requireLoadedModule } from '@/shared/lib/moduleLoadRecovery';
+import { CanvasStartupBoundary } from './CanvasStartupBoundary';
 
 
 const SidebarRight = lazy(() =>
@@ -349,7 +350,9 @@ function AppContent() {
       !sameCollaborationRoom(activeCollaboration, collaborationSnapshot.descriptor));
   const capabilities = intersectHostCapabilities(
     hostProfile.capabilities,
-    !isCollaborationReadOnly && persistence.ownership === 'writer'
+    !isCollaborationReadOnly &&
+      persistence.ownership === 'writer' &&
+      persistence.restore.phase !== 'retrying'
   );
   const blackboardSource = useBlackboardSource({
     enabled: hostProfile.id === 'blackboard',
@@ -586,15 +589,17 @@ export default function App() {
     <UiProvider messages={uiMessages}>
       <ShortcutProvider>
         <TooltipProvider>
-          <OnboardingTourProvider>
-            <EditorPresentationProvider>
-              <CanvasWorkspaceProvider>
-                <EditorChromeProvider>
-                  <AppContent />
-                </EditorChromeProvider>
-              </CanvasWorkspaceProvider>
-            </EditorPresentationProvider>
-          </OnboardingTourProvider>
+          <EditorPresentationProvider>
+            <EditorChromeProvider>
+              <CanvasStartupBoundary>
+                <OnboardingTourProvider>
+                  <CanvasWorkspaceProvider>
+                    <AppContent />
+                  </CanvasWorkspaceProvider>
+                </OnboardingTourProvider>
+              </CanvasStartupBoundary>
+            </EditorChromeProvider>
+          </EditorPresentationProvider>
         </TooltipProvider>
       </ShortcutProvider>
     </UiProvider>
