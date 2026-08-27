@@ -64,9 +64,10 @@ export const CanvasEditor = ({
   const getViewport = canvasView?.getViewport;
   const runtime = useCanvasEngineRuntime();
   const effectiveCapabilities = capabilities;
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const contentCanvasRef = useRef<HTMLCanvasElement>(null);
+  const interactionCanvasRef = useRef<HTMLCanvasElement>(null);
   const canvasLayers = useMemo(
-    () => ({ surface: canvasRef }),
+    () => ({ content: contentCanvasRef, interaction: interactionCanvasRef }),
     [],
   );
   const containerRef = useRef<HTMLDivElement>(null);
@@ -319,7 +320,7 @@ export const CanvasEditor = ({
     requestCanvasRenderRef,
     handleViewportRendered,
     runtime,
-    canvasWorkspace?.runtime.rasterTileCache,
+    canvasWorkspace?.runtime.contentBackend,
     canvasView?.viewId ?? 'single',
     isViewportRebasePending
   );
@@ -372,7 +373,8 @@ export const CanvasEditor = ({
       <ContextMenuTrigger asChild>
         <CanvasSurface
           containerRef={containerRef}
-          canvasRef={canvasRef}
+          contentCanvasRef={contentCanvasRef}
+          interactionCanvasRef={interactionCanvasRef}
           viewportLayerRef={viewportLayerRef}
           surfaceGeometry={surfaceGeometry}
           containerSize={size}

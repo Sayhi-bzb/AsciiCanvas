@@ -13,7 +13,8 @@ import { EditorWidget, type EditorViewportFrame } from '@/widgets/editor-chrome/
 
 type CanvasSurfaceProps = HTMLAttributes<HTMLDivElement> & {
   containerRef: RefObject<HTMLDivElement | null>;
-  canvasRef: RefObject<HTMLCanvasElement | null>;
+  contentCanvasRef: RefObject<HTMLCanvasElement | null>;
+  interactionCanvasRef: RefObject<HTMLCanvasElement | null>;
   viewportLayerRef: RefObject<HTMLDivElement | null>;
   surfaceGeometry: CanvasSurfaceGeometry | undefined;
   containerSize: { width: number; height: number } | undefined;
@@ -33,7 +34,8 @@ const assignRef = <T,>(ref: Ref<T> | undefined, value: T | null) => {
 export const CanvasSurface = forwardRef<HTMLDivElement, CanvasSurfaceProps>(function CanvasSurface(
   {
     containerRef,
-    canvasRef,
+    contentCanvasRef,
+    interactionCanvasRef,
     viewportLayerRef,
     surfaceGeometry,
     containerSize,
@@ -80,7 +82,14 @@ export const CanvasSurface = forwardRef<HTMLDivElement, CanvasSurfaceProps>(func
         className="absolute inset-0 origin-top-left pointer-events-none will-change-transform"
       >
         <canvas
-          ref={canvasRef}
+          ref={contentCanvasRef}
+          data-canvas-layer="content"
+          className="absolute block pointer-events-none"
+          style={canvasStyle}
+        />
+        <canvas
+          ref={interactionCanvasRef}
+          data-canvas-layer="interaction"
           className="absolute block pointer-events-none"
           style={canvasStyle}
         />

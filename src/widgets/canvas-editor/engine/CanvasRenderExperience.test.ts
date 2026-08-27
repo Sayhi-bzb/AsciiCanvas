@@ -31,6 +31,7 @@ describe('CanvasRenderExperience', () => {
       viewportActivities: 1,
       directGlyphFrames: 1,
       directGlyphs: 240,
+      mainThreadGlyphs: 240,
       lastPresentationLatencyMs: null,
       maxPresentationGapMs: 0,
       longPresentationGaps: 0,

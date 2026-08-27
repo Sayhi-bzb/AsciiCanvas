@@ -60,6 +60,19 @@ export const canvasWorkerFontFaceCovers = (
   );
 };
 
+export const selectCanvasWorkerFontFaces = (
+  faces: readonly CanvasWorkerFontFace[],
+  graphemes: Iterable<string>
+) => {
+  const codePoints = new Set<number>();
+  for (const grapheme of graphemes) {
+    for (const character of grapheme) codePoints.add(character.codePointAt(0)!);
+  }
+  if (codePoints.size === 0) return [];
+  const points = [...codePoints];
+  return faces.filter((face) => canvasWorkerFontFaceCovers(face, points));
+};
+
 export const collectCanvasWorkerFontFaces = (
   styleSheets: StyleSheetList = document.styleSheets,
   baseUrl = document.baseURI

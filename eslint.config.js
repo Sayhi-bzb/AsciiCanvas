@@ -38,4 +38,20 @@ export default defineConfig([
       ],
     },
   },
+  {
+    files: ['src/**/*.worker.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@/domains/*/public', '@/domains/*/react'],
+              message: 'Workers may only import worker-safe domain leaf modules.',
+            },
+          ],
+        },
+      ],
+    },
+  },
 ])

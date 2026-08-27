@@ -12,7 +12,10 @@ import { SHORTCUT_PRIORITY, useShortcutLayer } from '@/shared/shortcuts/dispatch
 import { Button, StatusText } from '@chardesk/ui';
 
 import { drawSlideCanvas } from './slide-canvas-renderer';
-import { resolveSlidePlaybackIndex } from './slide-playback-model';
+import {
+  resolveSlidePlaybackIndex,
+  SLIDE_PLAYBACK_MAX_ZOOM,
+} from './slide-playback-model';
 
 const PreviousIcon = HOST_ICONOLOGY.slideAction.previous;
 const NextIcon = HOST_ICONOLOGY.slideAction.next;
@@ -110,6 +113,7 @@ export function SlidePlaybackOverlay({
         size: slide.size,
         viewportWidth: host.clientWidth,
         viewportHeight: host.clientHeight,
+        maxZoom: SLIDE_PLAYBACK_MAX_ZOOM,
       });
     render();
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(render);

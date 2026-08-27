@@ -2,6 +2,7 @@ export { CanvasRuntime, createCanvasRuntime } from "./runtime";
 export {
   CanvasRuntimeProvider,
   useCanvasPersistence,
+  useCanvasPersistenceSelector,
   useCanvasRuntime,
   useCanvasState,
 } from "./react";

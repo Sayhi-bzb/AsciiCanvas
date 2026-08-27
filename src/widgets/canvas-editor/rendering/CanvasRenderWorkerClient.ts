@@ -3,6 +3,7 @@ import type { NodeBounds } from "@/shared/types";
 import {
   collectCanvasWorkerFontFaces,
   getCanvasWorkerFontRevision,
+  type CanvasWorkerFontFace,
 } from "./canvasWorkerFonts";
 import type {
   CanvasRenderedTile,
@@ -52,6 +53,16 @@ type PendingRequest = PendingProjection | PendingRender;
 type CanvasRenderBatchSummary = {
   tileCount: number;
   durationMs: number;
+};
+
+const describeWorkerFailure = (event?: Event) => {
+  if (!(event instanceof ErrorEvent)) return "Canvas render worker failed";
+  const location = event.filename
+    ? `${event.filename}:${event.lineno}:${event.colno}`
+    : null;
+  return [event.message || "Canvas render worker failed", location]
+    .filter(Boolean)
+    .join(" at ");
 };
 
 export class CanvasRenderWorkerError extends Error {
@@ -109,6 +120,7 @@ export class CanvasRenderWorkerClient {
   #failed = false;
   #rasterAvailable: boolean | null = null;
   #fontRevision = "unconfigured";
+  #fontFaces: readonly CanvasWorkerFontFace[] | null = null;
   #requests = 0;
   #completed = 0;
   #rasterBatches = 0;
@@ -127,6 +139,28 @@ export class CanvasRenderWorkerClient {
 
   constructor(memoryGovernor: CanvasMemoryGovernor | null = null) {
     this.#memoryGovernor = memoryGovernor;
+  }
+
+  getFontRevision(): string {
+    this.#ensureFontConfiguration();
+    return this.#fontRevision;
+  }
+
+  getRasterAvailability(): boolean | null {
+    return this.#rasterAvailable;
+  }
+
+  refreshFonts(): string {
+    this.#fontFaces = typeof document === "undefined"
+      ? []
+      : collectCanvasWorkerFontFaces();
+    this.#fontRevision = getCanvasWorkerFontRevision(this.#fontFaces);
+    this.#workers().forEach((worker) => worker.postMessage({
+      type: "configure",
+      fontRevision: this.#fontRevision,
+      fontFaces: this.#fontFaces!,
+    } satisfies CanvasRenderWorkerRequest));
+    return this.#fontRevision;
   }
 
   project(
@@ -406,9 +440,9 @@ export class CanvasRenderWorkerClient {
         }
         primaryHandler?.call(primary, event);
       };
-      worker.onerror = () => this.#failWorker(worker);
-      worker.onmessageerror = () => this.#failWorker(worker);
-      const faces = typeof document === "undefined" ? [] : collectCanvasWorkerFontFaces();
+      worker.onerror = (event) => this.#failWorker(worker, event);
+      worker.onmessageerror = (event) => this.#failWorker(worker, event);
+      const faces = this.#ensureFontConfiguration();
       worker.postMessage({
         type: "configure",
         fontRevision: this.#fontRevision,
@@ -440,10 +474,7 @@ export class CanvasRenderWorkerClient {
       this.#failures += 1;
       return null;
     }
-    const faces = typeof document === "undefined"
-      ? []
-      : collectCanvasWorkerFontFaces();
-    this.#fontRevision = getCanvasWorkerFontRevision(faces);
+    const faces = this.#ensureFontConfiguration();
     worker.onmessage = (event: MessageEvent<CanvasRenderWorkerResponse>) => {
       const response = event.data;
       if (response.type === "resources") {
@@ -549,8 +580,8 @@ export class CanvasRenderWorkerClient {
       }
       pending.reject(new CanvasRenderWorkerError("Unexpected canvas worker response", true));
     };
-    worker.onerror = () => this.#failWorker(worker);
-    worker.onmessageerror = () => this.#failWorker(worker);
+    worker.onerror = (event) => this.#failWorker(worker, event);
+    worker.onmessageerror = (event) => this.#failWorker(worker, event);
     worker.postMessage({
       type: "configure",
       fontRevision: this.#fontRevision,
@@ -560,10 +591,20 @@ export class CanvasRenderWorkerClient {
     return worker;
   }
 
-  #failWorker(worker: Worker) {
+  #ensureFontConfiguration(): readonly CanvasWorkerFontFace[] {
+    if (this.#fontFaces) return this.#fontFaces;
+    this.#fontFaces = typeof document === "undefined"
+      ? []
+      : collectCanvasWorkerFontFaces();
+    this.#fontRevision = getCanvasWorkerFontRevision(this.#fontFaces);
+    return this.#fontFaces;
+  }
+
+  #failWorker(worker: Worker, event?: Event) {
     if (this.#worker !== worker && this.#secondaryWorker !== worker) return;
     this.#failures += 1;
-    this.#lastError = "Canvas render worker failed";
+    const error = describeWorkerFailure(event);
+    this.#lastError = error;
     worker.terminate();
     this.#workerResources.delete(worker);
     this.#reportWorkerMemory();
@@ -581,7 +622,7 @@ export class CanvasRenderWorkerClient {
     for (const [requestId, pending] of this.#pending) {
       if (pending.worker !== worker) continue;
       this.#pending.delete(requestId);
-      pending.reject(new CanvasRenderWorkerError("Canvas render worker failed", false));
+      pending.reject(new CanvasRenderWorkerError(error, false));
     }
   }
 

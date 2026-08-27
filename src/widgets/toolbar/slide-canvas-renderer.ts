@@ -19,11 +19,14 @@ import {
 
 type DrawSlideCanvasOptions = {
   canvas: HTMLCanvasElement;
-  slide: Slide;
+  slide: Omit<Slide, "grid"> & {
+    grid: Iterable<Slide["grid"][number]>;
+  };
   size: SlideSize;
   viewportWidth: number;
   viewportHeight: number;
   padding?: number;
+  maxZoom?: number;
   backdropColor?: string | null;
   pageColor?: string | null;
   defaultTextColor?: string;
@@ -37,6 +40,7 @@ export const drawSlideCanvas = ({
   viewportWidth,
   viewportHeight,
   padding,
+  maxZoom,
   backdropColor,
   pageColor = BACKGROUND_COLOR,
   defaultTextColor,
@@ -61,6 +65,7 @@ export const drawSlideCanvas = ({
     columns: size.columns,
     rows: size.rows,
     padding,
+    maxZoom,
   });
   if (pageColor !== null) {
     ctx.fillStyle = pageColor;
@@ -71,14 +76,16 @@ export const drawSlideCanvas = ({
   ctx.rect(layout.x, layout.y, layout.width, layout.height);
   ctx.clip();
 
-  const cells = slide.grid
-    .map(([key, cell]) => ({ ...GridManager.fromKey(key), cell }))
-    .filter(
-      ({ x, y }) =>
-        x >= 0 && x < size.columns && y >= 0 && y < size.rows
-    );
+  const visibleCells = function* () {
+    for (const [key, cell] of slide.grid) {
+      const { x, y } = GridManager.fromKey(key);
+      if (x >= 0 && x < size.columns && y >= 0 && y < size.rows) {
+        yield { x, y, cell };
+      }
+    }
+  };
 
-  for (const { x, y, cell } of cells) {
+  for (const { x, y, cell } of visibleCells()) {
     drawCellBackground(
       ctx,
       cell,
@@ -87,7 +94,7 @@ export const drawSlideCanvas = ({
       { zoom: layout.zoom }
     );
   }
-  for (const { x, y, cell } of cells) {
+  for (const { x, y, cell } of visibleCells()) {
     if (cell.char === " " && !cell.attrs) continue;
     const style = effectiveCellStyle(cell);
     const color =

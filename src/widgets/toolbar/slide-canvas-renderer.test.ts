@@ -45,6 +45,56 @@ const createCanvas = () => {
 };
 
 describe("drawSlideCanvas", () => {
+  it("keeps compact previews uncapped when no zoom limit is provided", () => {
+    const { canvas } = createCanvas();
+
+    const layout = drawSlideCanvas({
+      canvas,
+      slide: {
+        id: "slide-1",
+        name: "Compact preview",
+        size: { columns: 10, rows: 5 },
+        grid: [],
+      },
+      size: { columns: 10, rows: 5 },
+      viewportWidth: 1000,
+      viewportHeight: 600,
+      padding: 0,
+      dpr: 1,
+    });
+
+    expect(layout?.zoom).toBeGreaterThan(2);
+    expect(layout?.y).toBe(0);
+  });
+
+  it("forwards an optional zoom limit while centering the slide", () => {
+    const { canvas } = createCanvas();
+
+    const layout = drawSlideCanvas({
+      canvas,
+      slide: {
+        id: "slide-1",
+        name: "Compact slide",
+        size: { columns: 10, rows: 5 },
+        grid: [],
+      },
+      size: { columns: 10, rows: 5 },
+      viewportWidth: 1000,
+      viewportHeight: 600,
+      padding: 0,
+      maxZoom: 2,
+      dpr: 1,
+    });
+
+    expect(layout).toEqual({
+      x: 410,
+      y: 205,
+      width: 180,
+      height: 190,
+      zoom: 2,
+    });
+  });
+
   it("extends the page color through ultrawide playback gutters", () => {
     const { calls, canvas } = createCanvas();
 

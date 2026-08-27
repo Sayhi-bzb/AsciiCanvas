@@ -1,6 +1,9 @@
-import { CELL_HEIGHT, CELL_WIDTH } from "@/shared/lib/constants";
+import { CELL_HEIGHT, CELL_WIDTH, FONT_SIZE } from "@/shared/lib/constants";
 
 const PAGE_PADDING = 32;
+const MAX_PLAYBACK_FONT_SIZE = 30;
+
+export const SLIDE_PLAYBACK_MAX_ZOOM = MAX_PLAYBACK_FONT_SIZE / FONT_SIZE;
 
 export type SlidePlaybackLayout = {
   x: number;
@@ -16,12 +19,14 @@ export const resolveSlidePlaybackLayout = ({
   columns,
   rows,
   padding = PAGE_PADDING,
+  maxZoom = Number.POSITIVE_INFINITY,
 }: {
   viewportWidth: number;
   viewportHeight: number;
   columns: number;
   rows: number;
   padding?: number;
+  maxZoom?: number;
 }): SlidePlaybackLayout => {
   const availableWidth = Math.max(1, viewportWidth - padding * 2);
   const availableHeight = Math.max(1, viewportHeight - padding * 2);
@@ -29,7 +34,8 @@ export const resolveSlidePlaybackLayout = ({
     0.01,
     Math.min(
       availableWidth / (columns * CELL_WIDTH),
-      availableHeight / (rows * CELL_HEIGHT)
+      availableHeight / (rows * CELL_HEIGHT),
+      maxZoom
     )
   );
   const width = columns * CELL_WIDTH * zoom;

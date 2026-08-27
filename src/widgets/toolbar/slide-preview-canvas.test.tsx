@@ -18,12 +18,15 @@ const slide: Slide = {
 
 describe("SlidePreviewCanvas", () => {
   let resize: ResizeObserverCallback;
+  let intersect: IntersectionObserverCallback;
+  let intersectionVisible: boolean;
   const disconnect = vi.fn();
   const observe = vi.fn();
   const fonts = new EventTarget();
   const originalFonts = Object.getOwnPropertyDescriptor(document, "fonts");
 
   beforeEach(() => {
+    intersectionVisible = true;
     drawSlideCanvas.mockReset();
     disconnect.mockReset();
     observe.mockReset();
@@ -49,6 +52,26 @@ describe("SlidePreviewCanvas", () => {
         unobserve = vi.fn();
       },
     });
+    Object.defineProperty(globalThis, "IntersectionObserver", {
+      configurable: true,
+      value: class IntersectionObserverMock {
+        constructor(callback: IntersectionObserverCallback) {
+          intersect = callback;
+        }
+        observe = vi.fn((target: Element) => {
+          intersect(
+            [{ isIntersecting: intersectionVisible, target } as IntersectionObserverEntry],
+            this as unknown as IntersectionObserver
+          );
+        });
+        disconnect = vi.fn();
+        unobserve = vi.fn();
+        takeRecords = vi.fn(() => []);
+        root = null;
+        rootMargin = "240px 0px";
+        thresholds = [0];
+      },
+    });
     Object.defineProperty(document, "fonts", {
       configurable: true,
       value: fonts,
@@ -59,6 +82,7 @@ describe("SlidePreviewCanvas", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     Reflect.deleteProperty(globalThis, "ResizeObserver");
+    Reflect.deleteProperty(globalThis, "IntersectionObserver");
     if (originalFonts) {
       Object.defineProperty(document, "fonts", originalFonts);
     } else {
@@ -101,5 +125,13 @@ describe("SlidePreviewCanvas", () => {
     expect(disconnect).toHaveBeenCalledTimes(2);
     act(() => fonts.dispatchEvent(new Event("loadingdone")));
     expect(drawSlideCanvas).toHaveBeenCalledTimes(4);
+  });
+
+  it("does not mount or draw a canvas while the preview is outside the viewport", () => {
+    intersectionVisible = false;
+    const { container } = render(<SlidePreviewCanvas slide={slide} />);
+
+    expect(container.querySelector("canvas")).not.toBeInTheDocument();
+    expect(drawSlideCanvas).not.toHaveBeenCalled();
   });
 });

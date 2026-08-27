@@ -116,20 +116,27 @@ describe('CharDesk Slides Markdown', () => {
       ])
     );
 
-    expect(result.slideDeck.slides[0].size).toEqual({ columns: 3, rows: 2 });
-    expect(result.slideDeck.slides[1].size.columns).toBeGreaterThan(5);
-    expect(result.slideDeck.slides[1].size.rows).toBeGreaterThan(0);
+    expect(result.slideDeck.slides[0]).toMatchObject({
+      size: { columns: 11, rows: 6 },
+    });
+    expect(result.slideDeck.slides[0].grid.map(([key]) => key)).toEqual([
+      '4,2',
+      '5,2',
+      '4,3',
+    ]);
+    expect(result.slideDeck.slides[1].size.columns).toBeGreaterThan(13);
+    expect(result.slideDeck.slides[1].size.rows).toBeGreaterThan(4);
     expect(result.slideDeck.slides[1].grid.some(([, cell]) => cell.char === 'A')).toBe(true);
     expect(result.slideDeck.slides[1].grid.map(([, cell]) => cell.char).join('')).toContain('gpu');
   });
 
-  it('uses a one-cell auto size for empty compiled content', async () => {
+  it('pads empty auto content around its one-cell minimum size', async () => {
     const result = await parseSlideMarkdown(
       createSource(['## Empty', '```text size=auto', '', '```'])
     );
 
     expect(result.slideDeck.slides[0]).toMatchObject({
-      size: { columns: 1, rows: 1 },
+      size: { columns: 9, rows: 5 },
       grid: [],
     });
   });

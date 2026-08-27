@@ -29,6 +29,7 @@ const LIMITS = {
   p95FrameMs: 24,
   maxOver50msFrames: 2,
 };
+type PerformanceCanvasMode = "freeform" | "structured" | "slide";
 
 const key = (x: number, y: number) => `${x},${y}`;
 
@@ -96,18 +97,32 @@ const makeStructuredScene = (nodeCount = 96) => {
 };
 
 const makePersistedState = (
-  mode: "freeform" | "structured",
+  mode: PerformanceCanvasMode,
   options: { structuredNodeCount?: number } = {}
 ) => {
   const freeformGrid = makeGrid(180, 90);
   const structuredScene = makeStructuredScene(options.structuredNodeCount);
   const grid = mode === "structured" ? [] : freeformGrid;
+  const slideDeck = mode === "slide"
+    ? {
+        activeSlideId: "perf-slide",
+        slides: [
+          {
+            id: "perf-slide",
+            name: "Performance Slide",
+            size: { columns: 180, rows: 90 },
+            grid: freeformGrid,
+          },
+        ],
+      }
+    : null;
   const session = {
     id: "perf-session",
     name: "Performance Seed",
     mode,
     scene: mode === "structured" ? structuredScene : [],
     grid,
+    ...(slideDeck ? { slideDeck } : {}),
     viewport: { offset: { x: 180, y: 130 }, zoom: 1 },
   };
 
@@ -116,6 +131,7 @@ const makePersistedState = (
       offset: session.viewport.offset,
       zoom: session.viewport.zoom,
       canvasMode: mode,
+      slideDeck,
       structuredScene: mode === "structured" ? structuredScene : [],
       brushChar: "█",
       brushColor: "#111827",
@@ -199,7 +215,7 @@ const makeSessionSwitchPersistedState = () => {
 
 const seedCanvas = async (
   page: Page,
-  mode: "freeform" | "structured",
+  mode: PerformanceCanvasMode,
   options: { structuredNodeCount?: number } = {}
 ) => {
   const persisted = makePersistedState(mode, options);
@@ -225,7 +241,7 @@ const seedSessionSwitch = async (page: Page) => {
 
 const openSeededCanvas = async (
   page: Page,
-  mode: "freeform" | "structured",
+  mode: PerformanceCanvasMode,
   options: { structuredNodeCount?: number } = {}
 ) => {
   const runtimeErrors: string[] = [];
@@ -469,6 +485,77 @@ test.describe.serial("Performance smoke", () => {
 
     await testInfo.attach("freeform-summary.json", {
       body: JSON.stringify([pan, wheel, zoom], null, 2),
+      contentType: "application/json",
+    });
+  });
+
+  test("slide pan, wheel, and zoom use the shared raster path", async ({ page }, testInfo) => {
+    await openSeededCanvas(page, "slide");
+    await expect.poll(() => page.evaluate(() => {
+      const stats = (window as Window & {
+        __chardeskCanvasRasterStats?: () => {
+          qualityByPane: Record<string, { sharpCoverage: number }>;
+        };
+      }).__chardeskCanvasRasterStats?.();
+      const quality = Object.values(stats?.qualityByPane ?? {});
+      return quality.length > 0
+        ? Math.min(...quality.map(({ sharpCoverage }) => sharpCoverage))
+        : 0;
+    })).toBe(1);
+    const readRasterWork = () =>
+      page.evaluate(() => {
+        const diagnostics = window as Window & {
+          __chardeskCanvasRasterStats?: () => {
+            hits: number;
+            misses: number;
+          };
+          __chardeskCanvasExperienceStats?: () => {
+            deferredPanRenders: number;
+            deferredZoomRenders: number;
+            mainThreadGlyphs: number;
+          };
+        };
+        return {
+          raster: diagnostics.__chardeskCanvasRasterStats?.() ?? null,
+          experience: diagnostics.__chardeskCanvasExperienceStats?.() ?? null,
+        };
+      });
+    const before = await readRasterWork();
+
+    const pan = await runSmoothScenario(
+      page,
+      "slide-pan",
+      () => dragFor(page, { x: 720, y: 450 }, { x: 260, y: 120 }, { button: "middle" }),
+      testInfo
+    );
+    const wheel = await runSmoothScenario(
+      page,
+      "slide-wheel-pan",
+      () => wheelFor(page),
+      testInfo
+    );
+    const zoom = await runSmoothScenario(
+      page,
+      "slide-ctrl-wheel-zoom",
+      () => wheelFor(page, { ctrl: true }),
+      testInfo
+    );
+    const after = await readRasterWork();
+
+    expect(after.raster).not.toBeNull();
+    expect(
+      (after.raster?.hits ?? 0) + (after.raster?.misses ?? 0)
+    ).toBeGreaterThan(
+      (before.raster?.hits ?? 0) + (before.raster?.misses ?? 0)
+    );
+    expect(after.experience?.deferredPanRenders ?? 0).toBeGreaterThan(0);
+    expect(after.experience?.deferredZoomRenders ?? 0).toBeGreaterThan(0);
+    expect(after.experience?.mainThreadGlyphs).toBe(
+      before.experience?.mainThreadGlyphs
+    );
+
+    await testInfo.attach("slide-summary.json", {
+      body: JSON.stringify({ scenarios: [pan, wheel, zoom], before, after }, null, 2),
       contentType: "application/json",
     });
   });

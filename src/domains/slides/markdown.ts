@@ -11,6 +11,8 @@ import { createSlideDeck, addSlide } from './deck';
 import { DEFAULT_SLIDE_SIZE, type SlideDeck, type SlideSize } from './model';
 
 const SLIDE_MARKDOWN_SIGNATURE = 'slides/v1';
+const AUTO_SLIDE_PADDING = { columns: 4, rows: 2 } as const satisfies SlideSize;
+const NO_SLIDE_PADDING = { columns: 0, rows: 0 } as const satisfies SlideSize;
 
 export const isSlideMarkdownSource = (source: string) => {
   const normalized = source.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
@@ -65,7 +67,11 @@ const toSourceKind = (language: string): CharDeskSourceKind => {
   return 'chardesk';
 };
 
-const toGridEntries = async (source: string, sourceKind: CharDeskSourceKind) => {
+const toGridEntries = async (
+  source: string,
+  sourceKind: CharDeskSourceKind,
+  padding: SlideSize
+) => {
   const compiled = await compileCharDeskText(source, {
     sourceKind,
     defaultStyle: { color: COLOR_PRIMARY_TEXT },
@@ -87,7 +93,7 @@ const toGridEntries = async (source: string, sourceKind: CharDeskSourceKind) => 
     .map(
       (cell) =>
         [
-          GridManager.toKey(cell.x, cell.y),
+          GridManager.toKey(cell.x + padding.columns, cell.y + padding.rows),
           {
             char: cell.text,
             color: cell.color ?? COLOR_PRIMARY_TEXT,
@@ -100,8 +106,8 @@ const toGridEntries = async (source: string, sourceKind: CharDeskSourceKind) => 
   return {
     grid,
     size: {
-      columns: Math.max(1, parsed.width),
-      rows: Math.max(1, parsed.height),
+      columns: Math.max(1, parsed.width) + padding.columns * 2,
+      rows: Math.max(1, parsed.height) + padding.rows * 2,
     },
   };
 };
@@ -193,7 +199,13 @@ export const parseSlideMarkdownBody = async (source: string): Promise<ParsedSlid
   const normalized = source.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
   const slides = parseSlideBlocks(normalized.split('\n'));
   const compiledSlides = await Promise.all(
-    slides.map((slide) => toGridEntries(slide.source, slide.sourceKind))
+    slides.map((slide) =>
+      toGridEntries(
+        slide.source,
+        slide.sourceKind,
+        slide.size === 'auto' ? AUTO_SLIDE_PADDING : NO_SLIDE_PADDING
+      )
+    )
   );
   const resolveSize = (index: number) =>
     slides[index].size === 'auto'

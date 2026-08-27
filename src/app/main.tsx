@@ -81,6 +81,7 @@ if (new URLSearchParams(window.location.search).has("canvas-stress")) {
             panMissingBaselines: number;
             viewportActivities: number;
             directGlyphs: number;
+            mainThreadGlyphs: number;
             lastSettleLatencyMs: number | null;
           };
         }).__chardeskCanvasExperienceStats?.();
@@ -110,6 +111,7 @@ if (new URLSearchParams(window.location.search).has("canvas-stress")) {
           panMissingBaselines: experience?.panMissingBaselines ?? 0,
           viewportActivities: experience?.viewportActivities ?? 0,
           directGlyphs: experience?.directGlyphs ?? 0,
+          mainThreadGlyphs: experience?.mainThreadGlyphs ?? 0,
           settleLatencyMs: experience?.lastSettleLatencyMs ?? 0,
         };
       },

@@ -3,6 +3,7 @@ import {
   canvasWorkerFontFaceCovers,
   getCanvasWorkerFontRevision,
   parseCanvasWorkerFontRanges,
+  selectCanvasWorkerFontFaces,
 } from "./canvasWorkerFonts";
 
 describe("canvas worker fonts", () => {
@@ -30,5 +31,31 @@ describe("canvas worker fonts", () => {
     expect(getCanvasWorkerFontRevision([face])).not.toBe(
       getCanvasWorkerFontRevision([{ ...face, id: "updated" }])
     );
+  });
+
+  it("selects only font subsets needed by a tile", () => {
+    const faces = [
+      {
+        id: "ascii",
+        family: "Test",
+        sourceUrl: "/ascii.woff2",
+        weight: "400",
+        style: "normal",
+        unicodeRange: "U+20-7E",
+      },
+      {
+        id: "cjk",
+        family: "Test",
+        sourceUrl: "/cjk.woff2",
+        weight: "400",
+        style: "normal",
+        unicodeRange: "U+4E00-9FFF",
+      },
+    ];
+
+    expect(selectCanvasWorkerFontFaces(faces, ["A", "界"]).map(({ id }) => id))
+      .toEqual(["ascii", "cjk"]);
+    expect(selectCanvasWorkerFontFaces(faces, ["A"]).map(({ id }) => id))
+      .toEqual(["ascii"]);
   });
 });

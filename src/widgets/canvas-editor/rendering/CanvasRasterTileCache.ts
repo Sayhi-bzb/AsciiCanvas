@@ -36,6 +36,7 @@ const MIN_TILE_ROWS = 4;
 const MAX_TILE_COLUMNS = 128;
 const MAX_TILE_ROWS = 64;
 const MIN_INTERACTIVE_REFINEMENT_ZOOM = 0.5;
+const MAIN_RASTER_FRAME_BUDGET_MS = 4;
 
 type ViewBounds = ReturnType<typeof GridManager.getViewportGridBounds>;
 
@@ -111,6 +112,7 @@ type CanvasRasterPaneQuality = {
 type CanvasRasterDrawOptions = {
   paneId: string;
   mode?: CanvasRenderActivityMode;
+  contentBounds?: NodeBounds;
   onTileReady?: () => void;
 };
 
@@ -130,6 +132,16 @@ const intersects = (left: NodeBounds, right: NodeBounds) =>
   left.x + left.width > right.x &&
   left.y < right.y + right.height &&
   left.y + left.height > right.y;
+
+const intersectBounds = (left: NodeBounds, right: NodeBounds): NodeBounds | null => {
+  const x = Math.max(left.x, right.x);
+  const y = Math.max(left.y, right.y);
+  const endX = Math.min(left.x + left.width, right.x + right.width);
+  const endY = Math.min(left.y + left.height, right.y + right.height);
+  return endX > x && endY > y
+    ? { x, y, width: endX - x, height: endY - y }
+    : null;
+};
 
 const mergeBounds = (input: readonly NodeBounds[]) => {
   const result: NodeBounds[] = [];
@@ -234,6 +246,7 @@ export class CanvasRasterTileCache {
   #presentationFrames = 0;
   #deferredBatches = 0;
   #hotPatchBounds = 0;
+  #mainRasterDeferred = false;
 
   constructor(
     byteBudget = DEFAULT_BYTE_BUDGET,
@@ -246,6 +259,11 @@ export class CanvasRasterTileCache {
   }
 
   clear() {
+    this.#clearTiles();
+  }
+
+  invalidateFonts() {
+    this.#renderWorker?.refreshFonts();
     this.#clearTiles();
   }
 
@@ -327,13 +345,54 @@ export class CanvasRasterTileCache {
     const readerState = this.#syncReader(reader);
     const shape = getCanvasRasterTileShape(zoom, dpr);
     const lod = resolveCanvasContentLod(zoom);
-    const minTileX = floorDiv(viewBounds.startX, shape.columns);
-    const maxTileX = floorDiv(viewBounds.endX, shape.columns);
-    const minTileY = floorDiv(viewBounds.startY, shape.rows);
-    const maxTileY = floorDiv(viewBounds.endY, shape.rows);
+    const fontRevision = this.#renderWorker?.getFontRevision() ?? "main-thread";
+    const contentBounds = options.contentBounds;
+    const boundedView = contentBounds
+      ? {
+          startX: Math.max(viewBounds.startX, contentBounds.x),
+          endX: Math.min(
+            viewBounds.endX,
+            contentBounds.x + contentBounds.width - 1
+          ),
+          startY: Math.max(viewBounds.startY, contentBounds.y),
+          endY: Math.min(
+            viewBounds.endY,
+            contentBounds.y + contentBounds.height - 1
+          ),
+        }
+      : viewBounds;
+    if (
+      boundedView.startX > boundedView.endX ||
+      boundedView.startY > boundedView.endY
+    ) {
+      this.#cancelPaneBatch(paneId);
+      this.#residency.release(paneId);
+      this.#clearPaneTransientTiles(paneId);
+      this.#paneKeys.set(paneId, new Set());
+      this.#panePresentedKeys.set(paneId, new Set());
+      this.#paneWarmKeys.set(paneId, new Set());
+      this.#paneTransientKeys.delete(paneId);
+      this.#paneDeferredSignatures.delete(paneId);
+      this.#paneSignatures.delete(paneId);
+      this.#paneEpochs.delete(paneId);
+      this.#rebuildWarmKeys();
+      this.#paneQuality.set(paneId, {
+        targetZoom: zoom,
+        presentationZoom: shape.rasterZoom,
+        scaleError: 0,
+        sharpCoverage: 1,
+        transientBytes: 0,
+      });
+      return { status: "complete", patchBounds: [], uncoveredBounds: [] };
+    }
+    const minTileX = floorDiv(boundedView.startX, shape.columns);
+    const maxTileX = floorDiv(boundedView.endX, shape.columns);
+    const minTileY = floorDiv(boundedView.startY, shape.rows);
+    const maxTileY = floorDiv(boundedView.endY, shape.rows);
 
     const residencySignature = [
       readerState.id,
+      fontRevision,
       shape.rasterZoom,
       shape.rasterDpr,
       lod,
@@ -353,6 +412,7 @@ export class CanvasRasterTileCache {
     for (const { x: tileX, y: tileY, residency } of residentTiles) {
         const key = [
           readerState.id,
+          fontRevision,
           shape.rasterZoom,
           shape.rasterDpr,
           lod,
@@ -367,7 +427,9 @@ export class CanvasRasterTileCache {
           width: shape.columns,
           height: shape.rows,
         };
-        requests.push({ key, bounds, residency });
+        if (!contentBounds || intersects(bounds, contentBounds)) {
+          requests.push({ key, bounds, residency });
+        }
     }
     const visibleRequests = requests.filter(({ residency }) => residency === "visible");
     const visibleKeys = new Set(visibleRequests.map(({ key }) => key));
@@ -387,6 +449,7 @@ export class CanvasRasterTileCache {
     const signature = [
       readerState.id,
       readerState.revision ?? 0,
+      fontRevision,
       shape.rasterZoom,
       shape.rasterDpr,
       lod,
@@ -449,7 +512,12 @@ export class CanvasRasterTileCache {
 
     const presentationTiles = [...presentedKeys]
       .map((key) => this.#tiles.get(key))
-      .filter((tile): tile is RasterTile => tile !== undefined && tile.reader === reader);
+      .filter(
+        (tile): tile is RasterTile =>
+          tile !== undefined &&
+          tile.reader === reader &&
+          (!contentBounds || intersects(tile.bounds, contentBounds))
+      );
     if (mode === "viewport-interaction" && presentationTiles.length > 0) {
       this.#presentationFrames += 1;
       presentationTiles.forEach((tile) => this.#drawTile(ctx, tile, zoom, offset));
@@ -477,6 +545,8 @@ export class CanvasRasterTileCache {
     const pendingKeys = new Set<string>();
     const refreshingKeys = new Set<string>();
     const missingBounds: NodeBounds[] = [];
+    this.#mainRasterDeferred = false;
+    const mainRasterDeadline = performance.now() + MAIN_RASTER_FRAME_BUDGET_MS;
     for (const { key, bounds } of visibleRequests) {
       const tile = this.#getTile(
         key,
@@ -485,7 +555,8 @@ export class CanvasRasterTileCache {
         bounds,
         shape,
         lod,
-        mode !== "settled"
+        mode !== "settled",
+        mainRasterDeadline
       );
       if (!tile) {
         if (this.#pendingTiles.has(key)) {
@@ -524,10 +595,10 @@ export class CanvasRasterTileCache {
       }
     }
     const viewportBounds = {
-      x: viewBounds.startX,
-      y: viewBounds.startY,
-      width: viewBounds.endX - viewBounds.startX + 1,
-      height: viewBounds.endY - viewBounds.startY + 1,
+      x: boundedView.startX,
+      y: boundedView.startY,
+      width: boundedView.endX - boundedView.startX + 1,
+      height: boundedView.endY - boundedView.startY + 1,
     };
     const patchBounds = readerState.dirtyBounds === null
       ? [viewportBounds]
@@ -538,6 +609,17 @@ export class CanvasRasterTileCache {
           ) ?? [viewportBounds]
         : [];
     this.#hotPatchBounds += patchBounds.length;
+    const uncoveredBounds = contentBounds
+      ? mergeBounds(
+          missingBounds.flatMap((bounds) => {
+            const intersection = intersectBounds(bounds, contentBounds);
+            return intersection ? [intersection] : [];
+          })
+        )
+      : mergeBounds(missingBounds);
+    if (this.#mainRasterDeferred && options.onTileReady) {
+      queueMicrotask(options.onTileReady);
+    }
     return {
       status: mode === "viewport-interaction" && presentationTiles.length > 0
         ? "presentation"
@@ -547,7 +629,7 @@ export class CanvasRasterTileCache {
             ? "pending"
             : "complete",
       patchBounds,
-      uncoveredBounds: mergeBounds(missingBounds),
+      uncoveredBounds,
     };
   }
 
@@ -621,6 +703,7 @@ export class CanvasRasterTileCache {
         rasterZoom: shape.rasterZoom,
         rasterDpr: shape.rasterDpr,
         lod,
+        content: "all",
         priority: residency === "visible"
           ? "visible"
           : "prefetch",
@@ -656,7 +739,13 @@ export class CanvasRasterTileCache {
         this.#evictToBudget();
       },
     });
-    if (!rendered) return;
+    if (!rendered) {
+      if (this.#renderWorker.getRasterAvailability() === false) {
+        this.#workerFallbackReaders.add(reader);
+        queueMicrotask(() => onTileReady?.());
+      }
+      return;
+    }
     this.#paneBatches.set(paneId, batch);
     this.#workerBatchRequests += 1;
     for (const { key, bounds } of ownedRequests) {
@@ -686,8 +775,7 @@ export class CanvasRasterTileCache {
     }).catch((error: unknown) => {
       if (
         error instanceof CanvasRenderWorkerError &&
-        !error.recoverable &&
-        !error.rasterOnly
+        !error.recoverable
       ) {
         this.#workerFallbackReaders.add(reader);
       }
@@ -700,6 +788,7 @@ export class CanvasRasterTileCache {
       if (this.#paneBatches.get(paneId) === batch) {
         this.#paneBatches.delete(paneId);
       }
+      onTileReady?.();
     });
   }
 
@@ -752,7 +841,8 @@ export class CanvasRasterTileCache {
     bounds: NodeBounds,
     shape: ReturnType<typeof getCanvasRasterTileShape>,
     lod: ReturnType<typeof resolveCanvasContentLod>,
-    preserveStale: boolean
+    preserveStale: boolean,
+    mainRasterDeadline: number
   ) {
     const cached = this.#tiles.get(key);
     if (cached) {
@@ -820,6 +910,10 @@ export class CanvasRasterTileCache {
         return null;
       }
     }
+    if (performance.now() >= mainRasterDeadline) {
+      this.#mainRasterDeferred = true;
+      return null;
+    }
     const tile = this.#createTile(reader, bounds, shape, lod, reader);
     if (!tile) return null;
     this.#tiles.set(key, tile);
@@ -861,7 +955,7 @@ export class CanvasRasterTileCache {
           shape.rasterZoom,
         y: -bounds.y * DEFAULT_GRID_RENDER_METRICS.cellHeight * shape.rasterZoom,
       },
-      { lod, content: "background" }
+      { lod, content: "all" }
     );
     const tile = {
       image: canvas,

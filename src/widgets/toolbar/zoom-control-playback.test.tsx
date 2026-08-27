@@ -27,8 +27,31 @@ describe("ZoomControl slide playback", () => {
   let fullscreenElement: Element | null;
   let requestFullscreen: ReturnType<typeof vi.fn>;
   let exitFullscreen: ReturnType<typeof vi.fn>;
+  let intersectionVisible: boolean;
 
   beforeEach(() => {
+    intersectionVisible = true;
+    Object.defineProperty(globalThis, "IntersectionObserver", {
+      configurable: true,
+      value: class IntersectionObserverMock {
+        readonly callback: IntersectionObserverCallback;
+        constructor(callback: IntersectionObserverCallback) {
+          this.callback = callback;
+        }
+        observe = vi.fn((target: Element) => {
+          this.callback(
+            [{ isIntersecting: intersectionVisible, target } as IntersectionObserverEntry],
+            this as unknown as IntersectionObserver
+          );
+        });
+        disconnect = vi.fn();
+        unobserve = vi.fn();
+        takeRecords = vi.fn(() => []);
+        root = null;
+        rootMargin = "240px 0px";
+        thresholds = [0];
+      },
+    });
     fullscreenElement = null;
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
     requestFullscreen = vi.fn(async () => {
@@ -71,6 +94,7 @@ describe("ZoomControl slide playback", () => {
   afterEach(() => {
     useEditorStore.setState(initialState, true);
     vi.restoreAllMocks();
+    Reflect.deleteProperty(globalThis, "IntersectionObserver");
     if (originalFullscreenDescriptor) {
       Object.defineProperty(document, "fullscreenElement", originalFullscreenDescriptor);
     } else {
@@ -90,6 +114,26 @@ describe("ZoomControl slide playback", () => {
     } else {
       Reflect.deleteProperty(document, "exitFullscreen");
     }
+  });
+
+  it("keeps slide metadata mounted without drawing offscreen previews", () => {
+    intersectionVisible = false;
+    useEditorStore.setState({
+      slideDeck: {
+        activeSlideId: "slide-1",
+        slides: Array.from({ length: 30 }, (_, index) => ({
+          id: `slide-${index + 1}`,
+          name: `Slide ${index + 1}`,
+          size: { columns: 100, rows: 27 },
+          grid: [],
+        })),
+      },
+    });
+
+    render(<SlideNavigator />);
+
+    expect(screen.getAllByRole("listitem")).toHaveLength(30);
+    expect(screen.queryAllByTestId("slide-preview-canvas")).toHaveLength(0);
   });
 
   it("requests fullscreen, starts from the current slide, and closes when fullscreen exits", async () => {

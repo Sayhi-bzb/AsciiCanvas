@@ -18,7 +18,7 @@ import {
 } from '@/domains/canvas/public';
 import { CanvasEngineRuntime } from './CanvasEngineRuntime';
 import { CanvasFrameScheduler, CanvasScopedFrameScheduler } from './FrameScheduler';
-import { CanvasRasterTileCache } from '../rendering/CanvasRasterTileCache';
+import { RetainedCanvas2DContentBackend } from '../rendering/CanvasContentBackend';
 import { CanvasRenderWorkerClient } from '../rendering/CanvasRenderWorkerClient';
 import { evaluateCanvasRenderHealth } from '../rendering/CanvasRenderHealth';
 import { CanvasMemoryGovernor } from '../rendering/CanvasMemoryGovernor';
@@ -254,7 +254,7 @@ class CanvasWorkspaceRuntime {
   readonly views: Record<CanvasViewId, CanvasViewRuntime>;
   readonly memoryGovernor = new CanvasMemoryGovernor();
   readonly renderWorker = new CanvasRenderWorkerClient(this.memoryGovernor);
-  readonly rasterTileCache = new CanvasRasterTileCache(
+  readonly contentBackend = new RetainedCanvas2DContentBackend(
     undefined,
     this.renderWorker,
     this.memoryGovernor
@@ -289,7 +289,7 @@ class CanvasWorkspaceRuntime {
     this.publishViewport = publishViewport;
     this.switchSession = switchSession;
     const applyMemoryPolicy = (policy = this.memoryGovernor.getPolicy()) => {
-      this.rasterTileCache.syncMemoryPolicy();
+      this.contentBackend.syncMemoryPolicy();
       this.renderWorker.setMemoryPolicy(policy);
       memoryPort.setProjectionCacheBudget(
         this.memoryGovernor.getLimit('cell-plane')
@@ -450,7 +450,7 @@ class CanvasWorkspaceRuntime {
     this.frameScheduler.dispose();
     this.releaseProjectionCache();
     this.releaseMemoryPolicy();
-    this.rasterTileCache.clear();
+    this.contentBackend.clear();
     this.renderWorker.dispose();
   }
 }
@@ -524,17 +524,17 @@ export function CanvasWorkspaceProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const diagnostics = window as Window & {
-      __chardeskCanvasRasterStats?: () => ReturnType<CanvasRasterTileCache['getStats']>;
+      __chardeskCanvasRasterStats?: () => ReturnType<RetainedCanvas2DContentBackend['getStats']>;
       __chardeskCanvasRenderWorkerStats?: () => ReturnType<CanvasRenderWorkerClient['getStats']>;
       __chardeskCanvasResourceStats?: () => {
         memory: ReturnType<CanvasMemoryGovernor['getStats']>;
         projection: ReturnType<typeof canvas.getProjectionCacheStats>;
-        raster: ReturnType<CanvasRasterTileCache['getStats']>;
+        raster: ReturnType<RetainedCanvas2DContentBackend['getStats']>;
         worker: ReturnType<CanvasRenderWorkerClient['getStats']>;
       };
       __chardeskCanvasRenderHealth?: () => ReturnType<typeof evaluateCanvasRenderHealth>;
     };
-    const readStats = () => runtime.rasterTileCache.getStats();
+    const readStats = () => runtime.contentBackend.getStats();
     diagnostics.__chardeskCanvasRasterStats = readStats;
     const readWorkerStats = () => runtime.renderWorker.getStats();
     diagnostics.__chardeskCanvasRenderWorkerStats = readWorkerStats;

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { CanvasSurfaceReader } from "@/domains/canvas/public";
 
 import { CellPlaneIndex } from "@/domains/canvas/public";
-import { drawGridLayer } from "./drawGridLayer";
+import { drawGridLayer, drawHoveredLinkDecoration } from "./drawGridLayer";
 
 describe("drawGridLayer", () => {
   const createContext = () => ({
@@ -131,5 +131,34 @@ describe("drawGridLayer", () => {
     expect(text.fillRect).not.toHaveBeenCalled();
     expect(text.fillText).toHaveBeenCalledOnce();
     expect(textResult).toEqual({ cells: 1, glyphs: 1 });
+  });
+
+  it("draws a hovered link decoration without repainting its glyphs", () => {
+    const query = vi.fn(function* () {
+      yield {
+        x: 3,
+        y: 2,
+        cells: [{ char: "A", color: "#38bdf8", href: "https://example.com" }],
+      };
+    });
+    const reader = { query } as unknown as CanvasSurfaceReader;
+    const ctx = createContext();
+
+    drawHoveredLinkDecoration(
+      ctx,
+      reader,
+      {
+        href: "https://example.com",
+        startX: 3,
+        endX: 3,
+        y: 2,
+      },
+      1,
+      { x: 0, y: 0 }
+    );
+
+    expect(ctx.fillText).not.toHaveBeenCalled();
+    expect(ctx.stroke).toHaveBeenCalledOnce();
+    expect(query).toHaveBeenCalledWith({ x: 3, y: 2, width: 1, height: 1 });
   });
 });

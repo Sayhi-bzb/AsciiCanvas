@@ -1,7 +1,14 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useSyncExternalStore, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import { useStore } from "zustand";
 import type { CanvasState } from "./state/interfaces";
+import type { CanvasPersistenceStatus } from "./state/browserPersistence";
 import type { CanvasRuntime } from "./runtime";
 
 type CanvasRuntimeContextValue = Pick<
@@ -63,5 +70,22 @@ export const useCanvasPersistence = () => {
     runtime.subscribePersistence,
     runtime.getPersistenceSnapshot,
     runtime.getPersistenceSnapshot
+  );
+};
+
+type CanvasPersistenceSelection = string | number | boolean | null | undefined;
+
+export const useCanvasPersistenceSelector = <Selected extends CanvasPersistenceSelection,>(
+  selector: (status: CanvasPersistenceStatus) => Selected
+) => {
+  const runtime = useCanvasRuntime();
+  const getSelectedSnapshot = useCallback(
+    () => selector(runtime.getPersistenceSnapshot()),
+    [runtime, selector]
+  );
+  return useSyncExternalStore(
+    runtime.subscribePersistence,
+    getSelectedSnapshot,
+    getSelectedSnapshot
   );
 };

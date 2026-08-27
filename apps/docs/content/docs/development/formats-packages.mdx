@@ -20,7 +20,8 @@ description: Authorities for portable contracts consumed outside the editor runt
 Freeform bodies use visible ESC-less controls, Structured bodies store validated
 scene/components JSON, and Slide bodies use heading plus fenced-page text.
 Slide fences omit `size` for the `100x27` default, accept explicit dimensions,
-or use `size=auto` to resolve the page bounds from the compiled grid.
+or use `size=auto` to resolve the page bounds from the compiled grid with four
+columns of horizontal and two rows of vertical padding on each side.
 [`parseDocumentSessionSource`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/domains/document/session-source.ts)
 is the import discriminator: `document/v1` routes by mode, legacy `slides/v1`
 routes to the Slides compatibility parser. Headerless imports use their file

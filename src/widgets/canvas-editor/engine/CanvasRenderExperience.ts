@@ -12,6 +12,7 @@ export type CanvasRenderExperienceStats = {
   viewportActivities: number;
   directGlyphFrames: number;
   directGlyphs: number;
+  mainThreadGlyphs: number;
   lastPresentationLatencyMs: number | null;
   maxPresentationGapMs: number;
   longPresentationGaps: number;
@@ -34,6 +35,7 @@ export class CanvasRenderExperience {
   #viewportActivities = 0;
   #directGlyphFrames = 0;
   #directGlyphs = 0;
+  #mainThreadGlyphs = 0;
   #lastViewportActivityAt: number | null = null;
   #lastPresentationAt: number | null = null;
   #lastPresentationLatencyMs: number | null = null;
@@ -104,6 +106,7 @@ export class CanvasRenderExperience {
   recordDirectGlyphFrame(glyphs: number): void {
     this.#directGlyphFrames += 1;
     this.#directGlyphs = glyphs;
+    this.#mainThreadGlyphs += glyphs;
     if (this.#settleStartedAt === null) return;
     this.#lastSettleLatencyMs = this.#now() - this.#settleStartedAt;
     this.#settleStartedAt = null;
@@ -122,6 +125,7 @@ export class CanvasRenderExperience {
       viewportActivities: this.#viewportActivities,
       directGlyphFrames: this.#directGlyphFrames,
       directGlyphs: this.#directGlyphs,
+      mainThreadGlyphs: this.#mainThreadGlyphs,
       lastPresentationLatencyMs: this.#lastPresentationLatencyMs,
       maxPresentationGapMs: this.#maxPresentationGapMs,
       longPresentationGaps: this.#longPresentationGaps,

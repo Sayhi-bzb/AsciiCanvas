@@ -15,8 +15,8 @@ class FakeWorker {
   static instances: FakeWorker[] = [];
   readonly messages: CanvasRenderWorkerRequest[] = [];
   onmessage: ((event: MessageEvent<CanvasRenderWorkerResponse>) => void) | null = null;
-  onerror: (() => void) | null = null;
-  onmessageerror: (() => void) | null = null;
+  onerror: ((event: Event) => void) | null = null;
+  onmessageerror: ((event: Event) => void) | null = null;
   terminated = false;
 
   constructor() {
@@ -129,6 +129,7 @@ describe("CanvasRenderWorkerClient", () => {
         rasterZoom: 1,
         rasterDpr: 1,
         lod: "full",
+        content: "all",
       }],
     })!;
     const worker = FakeWorker.latest!;
@@ -255,8 +256,18 @@ describe("CanvasRenderWorkerClient", () => {
     await expect(result).rejects.toThrow("stale");
 
     const pending = client.project(reader, { x: 0, y: 0, width: 1, height: 1 })!;
-    worker.onerror?.();
-    await expect(pending).rejects.toThrow("worker failed");
+    worker.onerror?.(new ErrorEvent("error", {
+      message: "window is not defined",
+      filename: "react-refresh.js",
+      lineno: 12,
+      colno: 4,
+    }));
+    await expect(pending).rejects.toThrow(
+      "window is not defined at react-refresh.js:12:4"
+    );
+    expect(client.getStats().lastError).toBe(
+      "window is not defined at react-refresh.js:12:4"
+    );
     expect(client.project(reader, { x: 0, y: 0, width: 1, height: 1 })).toBeNull();
   });
 
@@ -304,6 +315,7 @@ describe("CanvasRenderWorkerClient", () => {
         rasterZoom: 1,
         rasterDpr: 1,
         lod: "full",
+        content: "all",
       }],
     });
 
@@ -311,6 +323,21 @@ describe("CanvasRenderWorkerClient", () => {
     expect(FakeWorker.latest!.messages.at(-1)).toEqual({
       type: "cancelPane",
       paneId: "secondary",
+    });
+  });
+
+  it("reconfigures live workers when fonts are invalidated", () => {
+    globalThis.Worker = FakeWorker as unknown as typeof Worker;
+    const client = new CanvasRenderWorkerClient();
+    const reader = new CellPlaneIndex([operation("initial", 0, "A")]);
+    client.project(reader, { x: 0, y: 0, width: 1, height: 1 });
+    const worker = FakeWorker.latest!;
+
+    const revision = client.refreshFonts();
+
+    expect(worker.messages.at(-1)).toMatchObject({
+      type: "configure",
+      fontRevision: revision,
     });
   });
 
@@ -326,6 +353,7 @@ describe("CanvasRenderWorkerClient", () => {
       rasterZoom: 1,
       rasterDpr: 1,
       lod: "full" as const,
+      content: "all" as const,
     }];
 
     client.renderTiles(reader, { paneId: "one", viewportEpoch: 1, tiles });
@@ -349,6 +377,7 @@ describe("CanvasRenderWorkerClient", () => {
       rasterZoom: 1,
       rasterDpr: 1,
       lod: "full" as const,
+      content: "all" as const,
     }];
 
     client.renderTiles(reader, { paneId: "one", viewportEpoch: 1, tiles });

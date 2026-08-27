@@ -1,8 +1,16 @@
 "use client";
 
-import { useMemo, useRef, useState, type ComponentProps } from "react";
 import {
-  materializeSlideDeckContent,
+  memo,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ComponentProps,
+} from "react";
+import {
+  isIncrementalCanvasSurfaceReader,
   useCanvasRuntime,
   useCanvasState,
 } from "@/domains/canvas/public";
@@ -91,11 +99,56 @@ export function SlideAddButton() {
   );
 }
 
+const SlideContentPreview = memo(function SlideContentPreview({
+  sessionId,
+  slide,
+}: {
+  sessionId: string;
+  slide: Slide;
+}) {
+  const canvas = useCanvasRuntime();
+  const subscribe = useCallback(
+    (listener: () => void) =>
+      canvas.documents.subscribeMutations((mutation) => {
+        if (
+          mutation.documentId === sessionId &&
+          "pageId" in mutation &&
+          mutation.pageId === slide.id
+        ) {
+          listener();
+        }
+      }),
+    [canvas.documents, sessionId, slide.id]
+  );
+  const getRevision = useCallback(() => {
+    const reader = canvas.documents.getContentReader(sessionId, slide.id);
+    return reader && isIncrementalCanvasSurfaceReader(reader)
+      ? reader.getRevision()
+      : -1;
+  }, [canvas.documents, sessionId, slide.id]);
+  const contentRevision = useSyncExternalStore(
+    subscribe,
+    getRevision,
+    getRevision
+  );
+  const loadGrid = useCallback(() => {
+    const reader = canvas.documents.getContentReader(sessionId, slide.id);
+    return reader ? Array.from(reader.materialize()) : slide.grid;
+  }, [canvas.documents, sessionId, slide.grid, slide.id]);
+
+  return (
+    <SlidePreviewCanvas
+      slide={slide}
+      contentRevision={contentRevision}
+      loadGrid={loadGrid}
+    />
+  );
+});
+
 export function SlideNavigator() {
   const canvas = useCanvasRuntime();
   const { t } = useUiI18n();
   const slideDeck = useCanvasState((state) => state.slideDeck);
-  const activeGrid = useCanvasState((state) => state.grid);
   const duplicateSlide = canvas.commands.slides.duplicate;
   const removeSlide = canvas.commands.slides.remove;
   const renameSlide = canvas.commands.slides.rename;
@@ -108,18 +161,24 @@ export function SlideNavigator() {
   const configureTriggerRef = useRef<HTMLButtonElement | null>(null);
   const actionTooltipHandle = useMemo(() => TooltipCreateHandle<string>(), []);
   if (!slideDeck) return null;
-  const hydratedSlides = materializeSlideDeckContent(
-    canvas.documents,
-    canvas.getState().activeCanvasId,
-    slideDeck
-  ).slides.map((slide) =>
-    slide.id === slideDeck.activeSlideId
-      ? { ...slide, grid: Array.from(activeGrid.entries()) }
-      : slide
-  );
+  const sessionId = canvas.getState().activeCanvasId;
   const pendingSlide = slideDeck.slides.find((slide) => slide.id === pendingDeleteId) ?? null;
-  const configureSlide =
-    hydratedSlides.find((slide) => slide.id === configureSlideId) ?? null;
+  const configureSlideMetadata =
+    slideDeck.slides.find((slide) => slide.id === configureSlideId) ?? null;
+  const configureSlide = configureSlideMetadata
+    ? {
+        ...configureSlideMetadata,
+        grid: (() => {
+          const reader = canvas.documents.getContentReader(
+            sessionId,
+            configureSlideMetadata.id
+          );
+          return reader
+            ? Array.from(reader.materialize())
+            : configureSlideMetadata.grid;
+        })(),
+      }
+    : null;
   const getReorderAnnouncement = ({
     type,
     item,
@@ -156,8 +215,6 @@ export function SlideNavigator() {
         getAnnouncement={getReorderAnnouncement}
         renderItem={(slide, index, reorderState) => {
           const active = slide.id === slideDeck.activeSlideId;
-          const renderedSlide =
-            hydratedSlides.find((candidate) => candidate.id === slide.id) ?? slide;
           return (
             <CollectionCard
               selected={active}
@@ -185,7 +242,7 @@ export function SlideNavigator() {
                 aria-current={active ? "page" : undefined}
                 onClick={() => activateSlide(slide.id)}
               >
-                <SlidePreviewCanvas slide={renderedSlide} />
+                <SlideContentPreview sessionId={sessionId} slide={slide} />
               </SelectableItem>
               <div
                 role="group"

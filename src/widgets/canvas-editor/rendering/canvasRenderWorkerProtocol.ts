@@ -10,6 +10,7 @@ export type CanvasRenderTileSpec = {
   rasterZoom: number;
   rasterDpr: number;
   lod: CanvasContentLod;
+  content: "all";
   priority?: "visible" | "prefetch";
 };
 

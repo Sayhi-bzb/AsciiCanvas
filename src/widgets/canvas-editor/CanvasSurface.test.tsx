@@ -13,7 +13,8 @@ describe('CanvasSurface', () => {
   it('composes canvas rasters without scaling host overlays or input', () => {
     const containerRef = createRef<HTMLDivElement>();
     const viewportLayerRef = createRef<HTMLDivElement>();
-    const canvasRef = createRef<HTMLCanvasElement>();
+    const contentCanvasRef = createRef<HTMLCanvasElement>();
+    const interactionCanvasRef = createRef<HTMLCanvasElement>();
     const textareaRef = createRef<HTMLTextAreaElement>();
     const surfaceGeometry = resolveCanvasSurfaceGeometry({ width: 1000, height: 700 });
 
@@ -21,7 +22,8 @@ describe('CanvasSurface', () => {
       <CanvasSurface
         containerRef={containerRef}
         viewportLayerRef={viewportLayerRef}
-        canvasRef={canvasRef}
+        contentCanvasRef={contentCanvasRef}
+        interactionCanvasRef={interactionCanvasRef}
         surfaceGeometry={surfaceGeometry}
         containerSize={{ width: 1000, height: 700 }}
         textareaRef={textareaRef}
@@ -37,8 +39,11 @@ describe('CanvasSurface', () => {
     expect(surface).toHaveAttribute('data-slot', 'canvas-surface');
     expect(surface).toHaveAttribute('data-onboarding-target', 'canvas');
     expect(layer).toHaveClass('absolute', 'inset-0', 'origin-top-left', 'will-change-transform');
-    expect(layer.querySelectorAll(':scope > canvas')).toHaveLength(1);
-    expect(layer).toContainElement(canvasRef.current);
+    expect(layer.querySelectorAll(':scope > canvas')).toHaveLength(2);
+    expect(layer).toContainElement(contentCanvasRef.current);
+    expect(layer).toContainElement(interactionCanvasRef.current);
+    expect(contentCanvasRef.current).toHaveAttribute('data-canvas-layer', 'content');
+    expect(interactionCanvasRef.current).toHaveAttribute('data-canvas-layer', 'interaction');
     layer.querySelectorAll(':scope > canvas').forEach((canvas) => {
       expect(canvas).toHaveStyle({
         left: '-128px',
@@ -58,7 +63,8 @@ describe('CanvasSurface', () => {
         <CanvasSurface
           containerRef={createRef<HTMLDivElement>()}
           viewportLayerRef={createRef<HTMLDivElement>()}
-          canvasRef={createRef<HTMLCanvasElement>()}
+          contentCanvasRef={createRef<HTMLCanvasElement>()}
+          interactionCanvasRef={createRef<HTMLCanvasElement>()}
           surfaceGeometry={undefined}
           containerSize={{ width: 800, height: 600 }}
           textareaRef={createRef<HTMLTextAreaElement>()}

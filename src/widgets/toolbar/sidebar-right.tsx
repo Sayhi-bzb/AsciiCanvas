@@ -428,7 +428,7 @@ export function SidebarRight() {
             : "opacity-100"
         )}
       >
-        {viewContent}
+        {isCollapsed ? null : viewContent}
       </ContentScrollArea>
     </div>
   );

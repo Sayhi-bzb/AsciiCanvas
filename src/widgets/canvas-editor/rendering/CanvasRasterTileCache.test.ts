@@ -20,6 +20,9 @@ const createWorker = () => ({
   renderTiles: vi.fn(() => new Promise(() => undefined)),
   project: vi.fn(() => null),
   cancelPane: vi.fn(),
+  getFontRevision: vi.fn(() => "test-fonts"),
+  refreshFonts: vi.fn(() => "test-fonts"),
+  getRasterAvailability: vi.fn(() => true),
 }) as unknown as CanvasRenderWorkerClient;
 
 const viewBounds = { startX: 0, endX: 20, startY: 0, endY: 10 };
@@ -59,6 +62,7 @@ describe("CanvasRasterTileCache geometry", () => {
     const movingRequest = vi.mocked(worker.renderTiles).mock.calls[0]![1];
     expect(movingRequest.tiles.length).toBeGreaterThan(0);
     expect(movingRequest.tiles.every(({ priority }) => priority === "visible")).toBe(true);
+    expect(movingRequest.tiles.every(({ content }) => content === "all")).toBe(true);
     expect(moving.uncoveredBounds.length).toBeGreaterThan(0);
     expect(cache.getStats().qualityByPane.primary).toMatchObject({
       targetZoom: 1,
@@ -74,6 +78,91 @@ describe("CanvasRasterTileCache geometry", () => {
     const request = vi.mocked(worker.renderTiles).mock.calls[1]![1];
     expect(request.tiles.some(({ priority }) => priority === "visible")).toBe(true);
     expect(request.tiles.some(({ priority }) => priority === "prefetch")).toBe(true);
+  });
+
+  it("bounds visible and warm tile work to a finite slide page", () => {
+    const worker = createWorker();
+    const cache = new CanvasRasterTileCache(1024 * 1024, worker);
+    const reader = new CellPlaneIndex([operation("initial", 5, "A")]);
+    const result = cache.draw(
+      context,
+      reader,
+      { startX: -200, endX: 200, startY: -100, endY: 100 },
+      1,
+      { x: 0, y: 0 },
+      1,
+      {
+        paneId: "slide",
+        mode: "settled",
+        contentBounds: { x: 0, y: 0, width: 10, height: 5 },
+      }
+    );
+
+    const request = vi.mocked(worker.renderTiles).mock.calls[0]![1];
+    expect(request.tiles).toHaveLength(1);
+    expect(request.tiles[0]?.bounds).toEqual(
+      expect.objectContaining({ x: 0, y: 0 })
+    );
+    expect(result.uncoveredBounds).toEqual([
+      { x: 0, y: 0, width: 10, height: 5 },
+    ]);
+  });
+
+  it("does no raster work when a finite slide page is outside the viewport", () => {
+    const worker = createWorker();
+    const cache = new CanvasRasterTileCache(1024 * 1024, worker);
+    const reader = new CellPlaneIndex([operation("initial", 5, "A")]);
+
+    const result = cache.draw(
+      context,
+      reader,
+      { startX: 40, endX: 80, startY: 20, endY: 40 },
+      1,
+      { x: 0, y: 0 },
+      1,
+      {
+        paneId: "slide",
+        mode: "viewport-interaction",
+        contentBounds: { x: 0, y: 0, width: 10, height: 5 },
+      }
+    );
+
+    expect(result).toEqual({
+      status: "complete",
+      patchBounds: [],
+      uncoveredBounds: [],
+    });
+    expect(worker.renderTiles).not.toHaveBeenCalled();
+    expect(cache.getStats().qualityByPane.slide).toMatchObject({
+      sharpCoverage: 1,
+      transientBytes: 0,
+    });
+  });
+
+  it("starts a fresh raster generation when a finite page re-enters the viewport", () => {
+    const worker = createWorker();
+    const cache = new CanvasRasterTileCache(1024 * 1024, worker);
+    const reader = new CellPlaneIndex([operation("initial", 5, "A")]);
+    const options = {
+      paneId: "slide",
+      mode: "viewport-interaction" as const,
+      contentBounds: { x: 0, y: 0, width: 10, height: 5 },
+    };
+
+    cache.draw(context, reader, viewBounds, 1, { x: 0, y: 0 }, 1, options);
+    cache.draw(
+      context,
+      reader,
+      { startX: 40, endX: 80, startY: 20, endY: 40 },
+      1,
+      { x: 0, y: 0 },
+      1,
+      options
+    );
+    cache.draw(context, reader, viewBounds, 1, { x: 0, y: 0 }, 1, options);
+
+    expect(worker.renderTiles).toHaveBeenCalledTimes(2);
+    expect(worker.cancelPane).toHaveBeenCalled();
   });
 
   it("cancels superseded interaction generations", () => {

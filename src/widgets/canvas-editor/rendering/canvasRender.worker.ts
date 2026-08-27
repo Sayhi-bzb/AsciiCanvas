@@ -1,8 +1,14 @@
 /// <reference lib="webworker" />
 
-import { CellPlaneIndex } from "@/domains/canvas/public";
+// Workers must only depend on worker-safe domain leaves. Importing the canvas
+// public barrel also loads the React runtime and Vite's React Refresh client.
+import { CellPlaneIndex } from "@/domains/canvas/cell-plane/model";
 import { DEFAULT_GRID_RENDER_METRICS, prepareCanvasSurface } from "@/shared/metrics";
 import { drawGridLayer } from "./drawGridLayer";
+import {
+  selectCanvasWorkerFontFaces,
+  type CanvasWorkerFontFace,
+} from "./canvasWorkerFonts";
 import type {
   CanvasRenderedTile,
   CanvasRenderTileSpec,
@@ -30,6 +36,10 @@ const sources = new Map<number, Source>();
 const batches = new Map<string, RenderBatch>();
 const paneOrder: string[] = [];
 let fontRevision = "unconfigured";
+let fontFaces: readonly CanvasWorkerFontFace[] = [];
+const loadedFontFaces = new Map<string, FontFace>();
+const pendingFontFaces = new Map<string, Promise<void>>();
+let fontGeneration = 0;
 let rasterAvailable = false;
 let rasterUnavailableReason: string | undefined;
 let processing = false;
@@ -58,8 +68,65 @@ const readResourceStats = (): CanvasRenderWorkerResourceStats => {
       (count, batch) => count + batch.tiles.length,
       0
     ),
-    loadedFontFaces: 0,
+    loadedFontFaces: loadedFontFaces.size,
   };
+};
+
+class CanvasWorkerFontError extends Error {}
+
+const workerFontSet = () =>
+  (self as DedicatedWorkerGlobalScope & { fonts?: FontFaceSet }).fonts;
+
+const clearWorkerFonts = () => {
+  const fonts = workerFontSet();
+  loadedFontFaces.forEach((face) => fonts?.delete(face));
+  loadedFontFaces.clear();
+  pendingFontFaces.clear();
+};
+
+const loadWorkerFontFace = (face: CanvasWorkerFontFace) => {
+  if (loadedFontFaces.has(face.id)) return Promise.resolve();
+  const pending = pendingFontFaces.get(face.id);
+  if (pending) return pending;
+  const generation = fontGeneration;
+  const task = (async () => {
+    try {
+      const fonts = workerFontSet();
+      if (!fonts || typeof FontFace === "undefined") {
+        throw new Error("Worker FontFace API unavailable");
+      }
+      const loaded = await new FontFace(
+        face.family,
+        `url(${JSON.stringify(face.sourceUrl)})`,
+        {
+          weight: face.weight,
+          style: face.style,
+          ...(face.unicodeRange ? { unicodeRange: face.unicodeRange } : {}),
+        }
+      ).load();
+      if (generation !== fontGeneration) return;
+      fonts.add(loaded);
+      loadedFontFaces.set(face.id, loaded);
+    } catch (error) {
+      throw new CanvasWorkerFontError(
+        error instanceof Error ? error.message : "Worker font loading failed"
+      );
+    }
+  })().finally(() => {
+    if (pendingFontFaces.get(face.id) === task) pendingFontFaces.delete(face.id);
+  });
+  pendingFontFaces.set(face.id, task);
+  return task;
+};
+
+const ensureTileFonts = async (source: Source, tile: CanvasRenderTileSpec) => {
+  const graphemes: string[] = [];
+  for (const span of source.index.query(tile.renderBounds)) {
+    for (const cell of span.cells) graphemes.push(cell.char);
+  }
+  await Promise.all(
+    selectCanvasWorkerFontFaces(fontFaces, graphemes).map(loadWorkerFontFace)
+  );
 };
 
 const scheduleResourceReport = () => {
@@ -111,10 +178,15 @@ const supportsWorkerRaster = () => {
   return !!ctx;
 };
 
+const supportsWorkerFonts = () =>
+  fontFaces.length === 0 ||
+  (typeof FontFace !== "undefined" && workerFontSet() !== undefined);
+
 const renderTile = async (
   source: Source,
   tile: CanvasRenderTileSpec
 ): Promise<CanvasRenderedTile> => {
+  await ensureTileFonts(source, tile);
   const width = tile.renderBounds.width *
     DEFAULT_GRID_RENDER_METRICS.cellWidth * tile.rasterZoom;
   const height = tile.bounds.height *
@@ -139,7 +211,7 @@ const renderTile = async (
       y: -tile.bounds.y *
         DEFAULT_GRID_RENDER_METRICS.cellHeight * tile.rasterZoom,
     },
-    { lod: tile.lod, content: "background" }
+    { lod: tile.lod, content: tile.content }
   );
   const bitmap = canvas.transferToImageBitmap();
   return {
@@ -229,7 +301,7 @@ const processNext = async () => {
       batches.delete(paneId);
       removePane(paneId);
       respond({
-        type: "error",
+        type: error instanceof CanvasWorkerFontError ? "font-error" : "error",
         requestId: batch.requestId,
         sourceId: batch.sourceId,
         revision: batch.revision,
@@ -244,11 +316,18 @@ const processNext = async () => {
 self.onmessage = (event: MessageEvent<CanvasRenderWorkerRequest>) => {
   const request = event.data;
   if (request.type === "configure") {
+    for (const paneId of [...paneOrder]) cancelBatch(paneId);
+    fontGeneration += 1;
+    clearWorkerFonts();
     fontRevision = request.fontRevision;
-    rasterAvailable = supportsWorkerRaster();
+    fontFaces = request.fontFaces;
+    const rasterSupported = supportsWorkerRaster();
+    rasterAvailable = rasterSupported && supportsWorkerFonts();
     rasterUnavailableReason = rasterAvailable
       ? undefined
-      : "OffscreenCanvas unavailable";
+      : !rasterSupported
+        ? "OffscreenCanvas unavailable"
+        : "Worker FontFace API unavailable";
     respond({
       type: "configured",
       rasterAvailable,

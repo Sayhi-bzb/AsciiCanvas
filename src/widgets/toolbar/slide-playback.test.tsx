@@ -7,6 +7,7 @@ import { SlidePlaybackOverlay } from "./slide-playback";
 import {
   resolveSlidePlaybackIndex,
   resolveSlidePlaybackLayout,
+  SLIDE_PLAYBACK_MAX_ZOOM,
 } from "./slide-playback-model";
 
 const deck: SlideDeck = {
@@ -53,6 +54,25 @@ describe("Slide playback", () => {
     expect(layout.y).toBeCloseTo(15);
     expect(layout.width).toBeCloseTo(1000);
     expect(layout.height).toBeCloseTo(570);
+  });
+
+  it("centers a small slide after reaching the playback zoom limit", () => {
+    const layout = resolveSlidePlaybackLayout({
+      viewportWidth: 1000,
+      viewportHeight: 600,
+      columns: 10,
+      rows: 5,
+      padding: 0,
+      maxZoom: SLIDE_PLAYBACK_MAX_ZOOM,
+    });
+
+    expect(layout).toEqual({
+      x: 410,
+      y: 205,
+      width: 180,
+      height: 190,
+      zoom: 2,
+    });
   });
 
   it("clamps manual navigation at the first and last slides", () => {

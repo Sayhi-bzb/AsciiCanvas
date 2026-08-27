@@ -6,6 +6,9 @@ const SRC_ROOT = path.resolve("src");
 const SOURCE_EXTENSIONS = new Set([".ts", ".tsx"]);
 const SKIPPED_DIRECTORIES = new Set(["__tests__", "test"]);
 const FORBIDDEN_SHARED_DOMAIN_NAME = /^Structured/;
+const WORKER_SAFE_DOMAIN_IMPORTS = new Set([
+  "domains/canvas/cell-plane/model",
+]);
 
 function collectSourceFiles(directory) {
   const files = [];
@@ -62,6 +65,10 @@ function validateDependency(sourcePath, targetPath, isTestFile) {
   if (target.layer === "domains" && source.domain !== target.domain) {
     const segments = targetPath.split("/");
     if (isTestFile && segments[2] === "testing") return null;
+    if (
+      sourcePath.endsWith(".worker.ts") &&
+      WORKER_SAFE_DOMAIN_IMPORTS.has(targetPath)
+    ) return null;
     if (segments[2] !== "public") return "cross-domain imports must use public.ts";
   }
   return null;
