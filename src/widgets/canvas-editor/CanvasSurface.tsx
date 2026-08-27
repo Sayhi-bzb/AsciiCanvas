@@ -10,13 +10,10 @@ import {
 import { StructuredSplitToolbar } from './StructuredSplitToolbar';
 import type { CanvasSurfaceGeometry } from './canvasSurfaceGeometry';
 import { EditorWidget, type EditorViewportFrame } from '@/widgets/editor-chrome/public';
-import { cn } from '@chardesk/ui';
 
 type CanvasSurfaceProps = HTMLAttributes<HTMLDivElement> & {
   containerRef: RefObject<HTMLDivElement | null>;
-  bgCanvasRef: RefObject<HTMLCanvasElement | null>;
-  scratchCanvasRef: RefObject<HTMLCanvasElement | null>;
-  uiCanvasRef: RefObject<HTMLCanvasElement | null>;
+  canvasRef: RefObject<HTMLCanvasElement | null>;
   viewportLayerRef: RefObject<HTMLDivElement | null>;
   surfaceGeometry: CanvasSurfaceGeometry | undefined;
   containerSize: { width: number; height: number } | undefined;
@@ -36,9 +33,7 @@ const assignRef = <T,>(ref: Ref<T> | undefined, value: T | null) => {
 export const CanvasSurface = forwardRef<HTMLDivElement, CanvasSurfaceProps>(function CanvasSurface(
   {
     containerRef,
-    bgCanvasRef,
-    scratchCanvasRef,
-    uiCanvasRef,
+    canvasRef,
     viewportLayerRef,
     surfaceGeometry,
     containerSize,
@@ -85,24 +80,8 @@ export const CanvasSurface = forwardRef<HTMLDivElement, CanvasSurfaceProps>(func
         className="absolute inset-0 origin-top-left pointer-events-none will-change-transform"
       >
         <canvas
-          ref={bgCanvasRef}
+          ref={canvasRef}
           className="absolute block pointer-events-none"
-          style={canvasStyle}
-        />
-        <canvas
-          ref={scratchCanvasRef}
-          className={cn(
-            'absolute block pointer-events-none',
-            !interactionUi && 'opacity-0'
-          )}
-          style={canvasStyle}
-        />
-        <canvas
-          ref={uiCanvasRef}
-          className={cn(
-            'absolute block pointer-events-none',
-            !interactionUi && 'opacity-60'
-          )}
           style={canvasStyle}
         />
       </div>

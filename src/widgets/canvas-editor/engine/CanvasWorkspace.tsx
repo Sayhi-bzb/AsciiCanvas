@@ -18,6 +18,7 @@ import {
 } from '@/domains/canvas/public';
 import { CanvasEngineRuntime } from './CanvasEngineRuntime';
 import { CanvasFrameScheduler, CanvasScopedFrameScheduler } from './FrameScheduler';
+import { CanvasRasterTileCache } from '../rendering/CanvasRasterTileCache';
 
 export type CanvasViewId = 'primary' | 'secondary';
 
@@ -210,6 +211,7 @@ class CanvasViewRuntime {
 
 class CanvasWorkspaceRuntime {
   readonly views: Record<CanvasViewId, CanvasViewRuntime>;
+  readonly rasterTileCache = new CanvasRasterTileCache();
   private readonly frameScheduler = new CanvasFrameScheduler();
   private readonly publishViewport: (viewport: CanvasViewportState) => void;
   private readonly switchSession: (sessionId: string) => Promise<boolean>;
@@ -375,6 +377,7 @@ class CanvasWorkspaceRuntime {
     this.views.secondary.engine.dispose();
     this.views.primary.engine.dispose();
     this.frameScheduler.dispose();
+    this.rasterTileCache.clear();
   }
 }
 
@@ -439,6 +442,19 @@ export function CanvasWorkspaceProvider({ children }: { children: ReactNode }) {
   }, [activeCanvasId, canvas, runtime]);
 
   useEffect(() => runtime.acquire(), [runtime]);
+
+  useEffect(() => {
+    const diagnostics = window as Window & {
+      __chardeskCanvasRasterStats?: () => ReturnType<CanvasRasterTileCache['getStats']>;
+    };
+    const readStats = () => runtime.rasterTileCache.getStats();
+    diagnostics.__chardeskCanvasRasterStats = readStats;
+    return () => {
+      if (diagnostics.__chardeskCanvasRasterStats === readStats) {
+        delete diagnostics.__chardeskCanvasRasterStats;
+      }
+    };
+  }, [runtime]);
 
   useEffect(() => {
     if (splitEnabled) runtime.openSplit();

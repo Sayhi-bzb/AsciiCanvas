@@ -34,6 +34,7 @@ export type CanvasStressLevel = {
   projectedCellCount?: number | null;
   surfaceStats?: Readonly<Record<string, number>>;
   memoryStats?: Readonly<Record<string, number>>;
+  rasterStats?: Readonly<Record<string, number>>;
   zoom: number;
   snapshotBytes: number;
   persistenceMs?: number | null;
@@ -57,6 +58,7 @@ export type CanvasStressReport = {
     deviceScaleFactor: number;
   };
   thresholds: typeof CANVAS_STRESS_THRESHOLDS;
+  completedFamilies: CanvasStressLevel["family"][];
   levels: CanvasStressLevel[];
 };
 
@@ -118,12 +120,25 @@ export const summarizeCanvasStressFamilies = (levels: readonly CanvasStressLevel
 };
 
 export const createCanvasStressMarkdown = (report: CanvasStressReport) => {
+  const expectedFamilies: CanvasStressLevel["family"][] = [
+    "freeform-sparse",
+    "freeform-dense",
+    "zoom",
+    "structured",
+    "persistence",
+  ];
+  const missingFamilies = expectedFamilies.filter(
+    (family) => !report.completedFamilies.includes(family)
+  );
   const lines = [
     "# Canvas stress report",
     "",
     `Generated: ${report.generatedAt}`,
     `Environment: ${report.environment.browser}; ${report.environment.cpuCount} × ${report.environment.cpu}; ${report.environment.platform}/${report.environment.architecture}`,
     `Viewport: ${report.environment.viewport.width} × ${report.environment.viewport.height} at DPR ${report.environment.deviceScaleFactor}`,
+    ...(missingFamilies.length
+      ? [`Status: INCOMPLETE — missing ${missingFamilies.join(", ")}`]
+      : ["Status: complete"]),
     "",
     "## Boundaries",
     "",
@@ -141,12 +156,12 @@ export const createCanvasStressMarkdown = (report: CanvasStressReport) => {
     "",
     "## Levels",
     "",
-    "| Family | Level | Result | p95 / p99 frame | LoAF | >50ms | Input cold / p95 | Heap | Authority payload | Index cache | Canvas | Snapshot | Persistence |",
-    "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"
+    "| Family | Level | Result | p95 / p99 frame | LoAF | >50ms | Input cold / p95 | Heap | Authority payload | Projection cache | Raster cache | Canvas | Snapshot | Persistence |",
+    "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"
   );
   report.levels.forEach((level) => {
     lines.push(
-      `| ${level.family} | ${level.label} | ${level.passed ? "pass" : `fail: ${level.failures.join(", ")}`} | ${formatNumber(level.metrics?.p95FrameMs)} / ${formatNumber(level.metrics?.p99FrameMs)} ms | ${level.metrics?.longAnimationFrameCount ?? "—"} | ${level.metrics?.over50ms ?? "—"} | ${formatNumber(level.metrics?.coldInputPaintMs)} / ${formatNumber(level.metrics?.inputPaintMs)} ms | ${formatBytes(level.metrics?.jsHeapBytes)} | ${formatBytes(level.memoryStats?.encodedPayloadBytes)} | ${formatBytes(level.memoryStats?.indexResidentBytes)} | ${formatBytes(level.metrics?.canvasBackingBytes)} | ${formatBytes(level.snapshotBytes)} | ${formatNumber(level.persistenceMs)} ms |`
+      `| ${level.family} | ${level.label} | ${level.passed ? "pass" : `fail: ${level.failures.join(", ")}`} | ${formatNumber(level.metrics?.p95FrameMs)} / ${formatNumber(level.metrics?.p99FrameMs)} ms | ${level.metrics?.longAnimationFrameCount ?? "—"} | ${level.metrics?.over50ms ?? "—"} | ${formatNumber(level.metrics?.coldInputPaintMs)} / ${formatNumber(level.metrics?.inputPaintMs)} ms | ${formatBytes(level.metrics?.jsHeapBytes)} | ${formatBytes(level.memoryStats?.encodedPayloadBytes)} | ${formatBytes(level.memoryStats?.projectionCacheBudgetBytes)} | ${formatBytes(level.rasterStats?.bytes)} | ${formatBytes(level.metrics?.canvasBackingBytes)} | ${formatBytes(level.snapshotBytes)} | ${formatNumber(level.persistenceMs)} ms |`
     );
   });
   lines.push("");

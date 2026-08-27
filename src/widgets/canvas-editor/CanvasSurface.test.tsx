@@ -13,9 +13,7 @@ describe('CanvasSurface', () => {
   it('composes canvas rasters without scaling host overlays or input', () => {
     const containerRef = createRef<HTMLDivElement>();
     const viewportLayerRef = createRef<HTMLDivElement>();
-    const bgCanvasRef = createRef<HTMLCanvasElement>();
-    const scratchCanvasRef = createRef<HTMLCanvasElement>();
-    const uiCanvasRef = createRef<HTMLCanvasElement>();
+    const canvasRef = createRef<HTMLCanvasElement>();
     const textareaRef = createRef<HTMLTextAreaElement>();
     const surfaceGeometry = resolveCanvasSurfaceGeometry({ width: 1000, height: 700 });
 
@@ -23,9 +21,7 @@ describe('CanvasSurface', () => {
       <CanvasSurface
         containerRef={containerRef}
         viewportLayerRef={viewportLayerRef}
-        bgCanvasRef={bgCanvasRef}
-        scratchCanvasRef={scratchCanvasRef}
-        uiCanvasRef={uiCanvasRef}
+        canvasRef={canvasRef}
         surfaceGeometry={surfaceGeometry}
         containerSize={{ width: 1000, height: 700 }}
         textareaRef={textareaRef}
@@ -41,10 +37,8 @@ describe('CanvasSurface', () => {
     expect(surface).toHaveAttribute('data-slot', 'canvas-surface');
     expect(surface).toHaveAttribute('data-onboarding-target', 'canvas');
     expect(layer).toHaveClass('absolute', 'inset-0', 'origin-top-left', 'will-change-transform');
-    expect(layer.querySelectorAll(':scope > canvas')).toHaveLength(3);
-    expect(layer).toContainElement(bgCanvasRef.current);
-    expect(layer).toContainElement(scratchCanvasRef.current);
-    expect(layer).toContainElement(uiCanvasRef.current);
+    expect(layer.querySelectorAll(':scope > canvas')).toHaveLength(1);
+    expect(layer).toContainElement(canvasRef.current);
     layer.querySelectorAll(':scope > canvas').forEach((canvas) => {
       expect(canvas).toHaveStyle({
         left: '-128px',
@@ -64,9 +58,7 @@ describe('CanvasSurface', () => {
         <CanvasSurface
           containerRef={createRef<HTMLDivElement>()}
           viewportLayerRef={createRef<HTMLDivElement>()}
-          bgCanvasRef={createRef<HTMLCanvasElement>()}
-          scratchCanvasRef={createRef<HTMLCanvasElement>()}
-          uiCanvasRef={createRef<HTMLCanvasElement>()}
+          canvasRef={createRef<HTMLCanvasElement>()}
           surfaceGeometry={undefined}
           containerSize={{ width: 800, height: 600 }}
           textareaRef={createRef<HTMLTextAreaElement>()}

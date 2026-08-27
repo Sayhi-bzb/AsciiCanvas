@@ -7,6 +7,7 @@ import type {
 import type { GridCell } from "@/shared/types";
 import {
   CellPlaneIndex,
+  CanvasProjectionCacheBudget,
   cellPlanePatchToOperation,
   gridChangesToCellPlaneOperation,
   gridEntriesToCellPlaneOperation,
@@ -169,6 +170,7 @@ export class CanvasDocumentRegistry {
   #operationSequence = 0;
   readonly #historyJournal: CanvasHistoryJournal;
   readonly #recentPageIndexes: Array<{ documentId: string; pageId: string }> = [];
+  readonly #projectionCacheBudget = new CanvasProjectionCacheBudget();
   #disposed = false;
 
   readonly yCellPlaneOperations: Y.Array<CellPlaneOperation>;
@@ -253,6 +255,7 @@ export class CanvasDocumentRegistry {
         indexResidentBytes += stats.residentBytes;
       });
     });
+    const projectionCache = this.#projectionCacheBudget.getStats();
     return {
       documents: this.#documents.size,
       pages,
@@ -265,8 +268,17 @@ export class CanvasDocumentRegistry {
       indexDirectoryRowReferences,
       indexResidentBytes,
       residentPageIndexes,
+      projectionCacheBudgetBytes: projectionCache.bytes,
+      projectionCacheBudgetLimit: projectionCache.byteBudget,
+      projectionCacheEntries: projectionCache.entries,
+      projectionCacheEvictions: projectionCache.evictions,
     };
   };
+  getActiveCellCount = () =>
+    this.#ensurePageIndex(
+      this.#active,
+      this.#active.pages.get(this.#active.activePageId)!
+    ).countCells();
   getContentReader(): CanvasSurfaceReader;
   getContentReader(id: string, pageId?: string): CanvasSurfaceReader | null;
   getContentReader(id?: string, pageId?: string): CanvasSurfaceReader | null {
@@ -1002,6 +1014,7 @@ export class CanvasDocumentRegistry {
     });
     this.#documents.clear();
     this.#recentPageIndexes.length = 0;
+    this.#projectionCacheBudget.clear();
   };
 
   #createDocument(
@@ -1115,7 +1128,7 @@ export class CanvasDocumentRegistry {
           });
         }
       });
-      return new CellPlaneIndex(valid);
+      return new CellPlaneIndex(valid, this.#projectionCacheBudget);
     };
     const runtime: CanvasPageRuntime = {
       ...page,
@@ -1226,7 +1239,8 @@ export class CanvasDocumentRegistry {
   #ensurePageIndex(document: CanvasYDocument, page: CanvasPageRuntime) {
     if (!page.cellPlaneIndex) {
       page.cellPlaneIndex = new CellPlaneIndex(
-        page.operations.toArray().filter(isCellPlaneOperation)
+        page.operations.toArray().filter(isCellPlaneOperation),
+        this.#projectionCacheBudget
       );
     }
     const existing = this.#recentPageIndexes.findIndex(

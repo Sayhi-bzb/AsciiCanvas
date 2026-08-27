@@ -32,7 +32,7 @@ if (new URLSearchParams(window.location.search).has("canvas-stress")) {
     value: {
       ready: () => host.canvas.ready,
       flush: () => host.canvas.retryPersistence(),
-      cellCount: () => host.canvas.getState().grid.size,
+      cellCount: () => host.canvas.queries.getActiveCellCount(),
       surfaceStats: () => {
         const reader = getSurfaceGridReader(host.canvas.getState().grid);
         return reader && "getStats" in reader && typeof reader.getStats === "function"
@@ -40,6 +40,9 @@ if (new URLSearchParams(window.location.search).has("canvas-stress")) {
           : null;
       },
       memoryStats: () => host.canvas.queries.getMemoryStats(),
+      rasterStats: () => (window as Window & {
+        __chardeskCanvasRasterStats?: () => Record<string, number>;
+      }).__chardeskCanvasRasterStats?.() ?? null,
       persistence: () => host.canvas.getPersistenceSnapshot(),
     },
   });

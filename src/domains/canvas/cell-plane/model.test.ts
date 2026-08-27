@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   CellPlaneIndex,
+  CanvasProjectionCacheBudget,
   cellPlanePatchToOperation,
   createGridSurfaceReader,
   createSurfaceGridProjection,
@@ -172,6 +173,51 @@ describe("CellPlaneIndex", () => {
     expect([...plane.query({ x: 127, y: 0, width: 2, height: 1 })]
       .flatMap((span) => span.cells)
       .map((cell) => cell.char)).toEqual(["A", "B"]);
+  });
+
+  it("counts logical cells without warming projection caches", () => {
+    const plane = new CellPlaneIndex([{
+      id: "count",
+      bounds: { x: 127, y: 0, width: 4, height: 1 },
+      rows: [{
+        y: 0,
+        erase: [],
+        spans: [{ x: 127, text: "A你B", color: "#fff" }],
+      }],
+    }]);
+
+    const before = plane.getStats();
+    expect(plane.countCells()).toBe(3);
+    expect(plane.getStats()).toMatchObject({
+      cachedChunks: before.cachedChunks,
+      residentBytes: before.residentBytes,
+    });
+  });
+
+  it("shares one byte budget across independent projections", () => {
+    const budget = new CanvasProjectionCacheBudget(25_000);
+    const left = new CellPlaneIndex([
+      operation("left", [{
+        y: 0,
+        erase: [],
+        spans: [{ x: 0, text: "A".repeat(128), color: "#fff" }],
+      }], 128),
+    ], budget);
+    const right = new CellPlaneIndex([{
+      id: "right",
+      bounds: { x: 128, y: 0, width: 128, height: 1 },
+      rows: [{
+        y: 0,
+        erase: [],
+        spans: [{ x: 128, text: "B".repeat(128), color: "#fff" }],
+      }],
+    }], budget);
+
+    left.getCell({ x: 0, y: 0 });
+    right.getCell({ x: 128, y: 0 });
+
+    expect(budget.getStats()).toMatchObject({ entries: 1, evictions: 1 });
+    expect(left.getStats().cachedChunks + right.getStats().cachedChunks).toBe(1);
   });
 
   it("derives final content bounds after an erase", () => {

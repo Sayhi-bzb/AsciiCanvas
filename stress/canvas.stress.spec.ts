@@ -51,6 +51,7 @@ declare global {
       cellCount: () => number;
       surfaceStats: () => Record<string, number> | null;
       memoryStats: () => Record<string, number>;
+      rasterStats: () => Record<string, number> | null;
       persistence: () => { error: string | null };
     };
   }
@@ -86,6 +87,7 @@ const report: CanvasStressReport = {
     deviceScaleFactor: DEVICE_SCALE_FACTOR,
   },
   thresholds: CANVAS_STRESS_THRESHOLDS,
+  completedFamilies: [],
   levels: [],
 };
 
@@ -473,6 +475,7 @@ const runLevel = async ({
   let projectedCellCount: number | null = null;
   let surfaceStats: Record<string, number> | null = null;
   let memoryStats: Record<string, number> | null = null;
+  let rasterStats: Record<string, number> | null = null;
   const context = await browser.newContext({
     viewport: VIEWPORT,
     deviceScaleFactor: DEVICE_SCALE_FACTOR,
@@ -537,6 +540,9 @@ const runLevel = async ({
       );
       memoryStats = await page.evaluate(
         () => window.__chardeskCanvasStress?.memoryStats() ?? null
+      );
+      rasterStats = await page.evaluate(
+        () => window.__chardeskCanvasStress?.rasterStats() ?? null
       );
       await page.waitForTimeout(650);
       const storageProbe = await page.evaluate(() => window.__canvasStressStorage ?? null);
@@ -615,6 +621,7 @@ const runLevel = async ({
     ...(readProjection ? { projectedCellCount } : {}),
     ...(surfaceStats ? { surfaceStats } : {}),
     ...(memoryStats ? { memoryStats } : {}),
+    ...(rasterStats ? { rasterStats } : {}),
     ...(storageMode === "real" || verifyReload ? { persistenceMs, storageError } : {}),
     runtimeErrors,
     metrics,
@@ -633,6 +640,10 @@ const lastPassingCount = (family: CanvasStressLevel["family"]) =>
   [...report.levels]
     .reverse()
     .find((level) => level.family === family && level.passed)?.cellCount ?? null;
+
+const markFamilyComplete = (family: CanvasStressLevel["family"]) => {
+  if (!report.completedFamilies.includes(family)) report.completedFamilies.push(family);
+};
 
 test.describe.serial("Canvas capacity stress", () => {
   test.afterAll(async () => {
@@ -666,6 +677,7 @@ test.describe.serial("Canvas capacity stress", () => {
         appendLevel(level);
         if (!level.passed) break;
       }
+      markFamilyComplete(`freeform-${density}`);
       expect(lastPassingCount(`freeform-${density}`)).toBeGreaterThanOrEqual(5_000);
     });
   }
@@ -684,6 +696,7 @@ test.describe.serial("Canvas capacity stress", () => {
       });
       appendLevel(level);
     }
+    markFamilyComplete("zoom");
     expect(report.levels.some((level) =>
       level.family === "zoom" && level.zoom === 0.25 && level.passed
     )).toBe(true);
@@ -704,6 +717,7 @@ test.describe.serial("Canvas capacity stress", () => {
       appendLevel(level);
       if (!level.passed) break;
     }
+    markFamilyComplete("structured");
     const lastPassingNodes = [...report.levels]
       .reverse()
       .find((level) => level.family === "structured" && level.passed)?.nodeCount ?? null;
@@ -725,6 +739,7 @@ test.describe.serial("Canvas capacity stress", () => {
       appendLevel(level);
       if (!level.passed) break;
     }
+    markFamilyComplete("persistence");
     expect(lastPassingCount("persistence")).toBeGreaterThanOrEqual(100_000);
   });
 });

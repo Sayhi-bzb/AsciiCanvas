@@ -58,7 +58,6 @@ import {
   type CanvasFrameInvalidation,
 } from '../engine/FrameScheduler';
 import { CanvasRenderManager } from '../engine/CanvasRenderManager';
-import { getIncrementalBackgroundBounds } from '../rendering/incrementalBackground';
 import { shouldDrawCanvasGrid } from '../rendering/canvasLod';
 import { CanvasRasterTileCache } from '../rendering/CanvasRasterTileCache';
 import {
@@ -68,25 +67,8 @@ import {
 export type { StructuredMovePreview } from './interaction/structured/structuredInteractionPreview';
 
 interface LayerRefs {
-  bg: React.RefObject<HTMLCanvasElement | null>;
-  scratch: React.RefObject<HTMLCanvasElement | null>;
-  ui: React.RefObject<HTMLCanvasElement | null>;
+  surface: React.RefObject<HTMLCanvasElement | null>;
 }
-
-type BackgroundRenderSnapshot = {
-  canvas: HTMLCanvasElement;
-  reader: CanvasSurfaceReader;
-  revision: number;
-  activeCanvasId: string;
-  width: number;
-  height: number;
-  dpr: number;
-  offsetX: number;
-  offsetY: number;
-  zoom: number;
-  showGrid: boolean;
-  hoveredLink: CanvasLinkHit | null;
-};
 
 export const getStructuredSplitBoxActiveLeafBounds = (
   node: StructuredSplitBoxNode,
@@ -242,7 +224,8 @@ export const useCanvasRenderer = (
   hoveredLink: CanvasLinkHit | null,
   requestRenderRef?: React.MutableRefObject<(() => void) | null>,
   onViewportRendered?: (viewport: { offset: Point; zoom: number }) => void,
-  runtime?: CanvasEngineRuntime
+  runtime?: CanvasEngineRuntime,
+  sharedRasterTileCache?: CanvasRasterTileCache
 ) => {
   const {
     activeCanvasId,
@@ -280,9 +263,9 @@ export const useCanvasRenderer = (
   );
   const renderedTextCursor = canvasMode !== 'structured' ? staticGridView.textCursor : textCursor;
   const [renderManager] = useState(() => new CanvasRenderManager());
-  const [rasterTileCache] = useState(() => new CanvasRasterTileCache());
-  useEffect(() => () => rasterTileCache.clear(), [rasterTileCache]);
-  const backgroundSnapshotRef = useRef<BackgroundRenderSnapshot | null>(null);
+  const [localRasterTileCache] = useState(() => new CanvasRasterTileCache());
+  const rasterTileCache = sharedRasterTileCache ?? localRasterTileCache;
+  useEffect(() => () => localRasterTileCache.clear(), [localRasterTileCache]);
   const manualRenderRafRef = useRef<number | null>(null);
   const manualInvalidationRef = useRef<CanvasFrameInvalidation>(0);
 
@@ -364,106 +347,30 @@ export const useCanvasRenderer = (
         ctx.clip();
         return true;
       };
+      const compositeInvalidation = invalidation === 0
+        ? 0
+        : CANVAS_FRAME_INVALIDATION.background |
+          CANVAS_FRAME_INVALIDATION.scratch |
+          CANVAS_FRAME_INVALIDATION.overlay;
       const renderBackground = CanvasRenderManager.includes(
-        invalidation,
+        compositeInvalidation,
         'background'
       );
-      const renderScratch = CanvasRenderManager.includes(invalidation, 'scratch');
-      const renderOverlay = CanvasRenderManager.includes(invalidation, 'overlay');
+      const renderScratch = CanvasRenderManager.includes(compositeInvalidation, 'scratch');
+      const renderOverlay = CanvasRenderManager.includes(compositeInvalidation, 'overlay');
       let renderedInvalidation = 0;
 
-      const bgCanvas = layers.bg.current;
+      const bgCanvas = layers.surface.current;
       const bgCtx = bgCanvas?.getContext('2d', { alpha: false });
       if (renderBackground && bgCanvas && bgCtx) {
         const drawVisibleGrid = showGrid && shouldDrawCanvasGrid(zoom);
-        const incrementalReader = isIncrementalCanvasSurfaceReader(contentReader)
-          ? contentReader
-          : null;
-        const revision = incrementalReader?.getRevision() ?? null;
-        const previous = backgroundSnapshotRef.current;
-        const staticInputsMatch =
-          revision !== null &&
-          previous !== null &&
-          previous.canvas === bgCanvas &&
-          previous.reader === contentReader &&
-          previous.activeCanvasId === activeCanvasId &&
-          previous.width === surfaceGeometry.width &&
-          previous.height === surfaceGeometry.height &&
-          previous.dpr === dpr &&
-          previous.offsetX === renderOffset.x &&
-          previous.offsetY === renderOffset.y &&
-          previous.zoom === zoom &&
-          previous.showGrid === drawVisibleGrid &&
-          previous.hoveredLink === hoveredLink &&
-          canvasMode !== "slide" &&
-          !structuredMovePreview &&
-          !slidePageRect;
-        const incrementalBounds = staticInputsMatch && incrementalReader &&
-          revision !== previous.revision
-          ? getIncrementalBackgroundBounds(
-              incrementalReader.getChangesSince(previous.revision),
-              {
-                x: viewBounds.startX,
-                y: viewBounds.startY,
-                width: viewBounds.endX - viewBounds.startX + 1,
-                height: viewBounds.endY - viewBounds.startY + 1,
-              }
-            )
-          : null;
-
-        if (incrementalBounds) {
-          for (const bounds of incrementalBounds) {
-            const topLeft = gridCellRect(
-              { x: bounds.x, y: bounds.y },
-              { offset: renderOffset, zoom }
-            );
-            const x = Math.max(0, Math.floor(topLeft.x));
-            const y = Math.max(0, Math.floor(topLeft.y));
-            const right = Math.min(
-              surfaceGeometry.width,
-              Math.ceil(topLeft.x + topLeft.width * bounds.width)
-            );
-            const bottom = Math.min(
-              surfaceGeometry.height,
-              Math.ceil(topLeft.y + topLeft.height * bounds.height)
-            );
-            if (right <= x || bottom <= y) continue;
-            bgCtx.save();
-            bgCtx.beginPath();
-            bgCtx.rect(x, y, right - x, bottom - y);
-            bgCtx.clip();
-            bgCtx.fillStyle = BACKGROUND_COLOR;
-            bgCtx.fillRect(x, y, right - x, bottom - y);
-            if (drawVisibleGrid) {
-              drawGridLines(bgCtx, {
-                startX: bounds.x,
-                endX: bounds.x + bounds.width,
-                startY: bounds.y,
-                endY: bounds.y + bounds.height,
-                offsetX: renderOffset.x,
-                offsetY: renderOffset.y,
-                width: surfaceGeometry.width,
-                height: surfaceGeometry.height,
-                zoom,
-                color: GRID_COLOR,
-              });
-            }
-            drawSurface(bgCtx, contentReader, {
-              startX: bounds.x,
-              endX: bounds.x + bounds.width - 1,
-              startY: bounds.y,
-              endY: bounds.y + bounds.height - 1,
-            }, zoom, renderOffset);
-            bgCtx.restore();
-          }
-        } else {
-          prepareCanvasSurface(
-            bgCanvas,
-            bgCtx,
-            surfaceGeometry.width,
-            surfaceGeometry.height,
-            dpr
-          );
+        prepareCanvasSurface(
+          bgCanvas,
+          bgCtx,
+          surfaceGeometry.width,
+          surfaceGeometry.height,
+          dpr
+        );
           bgCtx.fillStyle = slidePageRect ? "#e5e7eb" : BACKGROUND_COLOR;
           bgCtx.fillRect(0, 0, surfaceGeometry.width, surfaceGeometry.height);
           if (slidePageRect) {
@@ -512,37 +419,13 @@ export const useCanvasRenderer = (
           ) {
             drawSurface(bgCtx, contentReader, viewBounds, zoom, renderOffset);
           }
-          if (slidePageRect) bgCtx.restore();
-        }
-        backgroundSnapshotRef.current = revision === null
-          ? null
-          : {
-              canvas: bgCanvas,
-              reader: contentReader,
-              revision,
-              activeCanvasId,
-              width: surfaceGeometry.width,
-              height: surfaceGeometry.height,
-              dpr,
-              offsetX: renderOffset.x,
-              offsetY: renderOffset.y,
-              zoom,
-              showGrid: drawVisibleGrid,
-              hoveredLink,
-            };
+        if (slidePageRect) bgCtx.restore();
         renderedInvalidation |= CANVAS_FRAME_INVALIDATION.background;
       }
 
-      const scratchCanvas = layers.scratch.current;
-      const scratchCtx = scratchCanvas?.getContext('2d');
+      const scratchCanvas = bgCanvas;
+      const scratchCtx = bgCtx;
       if (renderScratch && scratchCanvas && scratchCtx) {
-        prepareCanvasSurface(
-          scratchCanvas,
-          scratchCtx,
-          surfaceGeometry.width,
-          surfaceGeometry.height,
-          dpr
-        );
         clipToSlidePage(scratchCtx);
         drawLayer(
           scratchCtx,
@@ -555,16 +438,9 @@ export const useCanvasRenderer = (
         renderedInvalidation |= CANVAS_FRAME_INVALIDATION.scratch;
       }
 
-      const uiCanvas = layers.ui.current;
-      const uiCtx = uiCanvas?.getContext('2d');
+      const uiCanvas = bgCanvas;
+      const uiCtx = bgCtx;
       if (renderOverlay && uiCanvas && uiCtx) {
-        prepareCanvasSurface(
-          uiCanvas,
-          uiCtx,
-          surfaceGeometry.width,
-          surfaceGeometry.height,
-          dpr
-        );
         clipToSlidePage(uiCtx);
 
         if (canvasMode !== 'structured') {
@@ -841,7 +717,7 @@ export const useCanvasRenderer = (
       : null;
     const invalidation = renderManager.update({
       background: [
-        layers.bg.current,
+        layers.surface.current,
         ...sharedViewportInputs,
         contentReader,
         contentRevision ?? grid,
@@ -850,12 +726,12 @@ export const useCanvasRenderer = (
         structuredMovePreview?.baseGrid ?? null,
       ],
       scratch: [
-        layers.scratch.current,
+        layers.surface.current,
         ...sharedViewportInputs,
         scratchLayer,
       ],
       overlay: [
-        layers.ui.current,
+        layers.surface.current,
         ...sharedViewportInputs,
         grid,
         textCursor,
@@ -940,6 +816,7 @@ export const useCanvasRenderer = (
     staticGridView.selectionGeometry,
     renderManager,
     rasterTileCache,
+    sharedRasterTileCache,
     runtime,
   ]);
 };

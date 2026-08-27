@@ -419,7 +419,68 @@ type CellPlaneChunkReference = {
 type CellPlaneChunkCacheEntry = {
   cells: Map<string, GridCell>;
   bytes: number;
+  budgetToken?: object;
 };
+
+type BudgetEntry = { bytes: number; evict: () => void };
+
+/** Shared byte-bounded LRU for disposable Canvas projections. */
+export class CanvasProjectionCacheBudget {
+  readonly #byteBudget: number;
+  readonly #entries = new Map<object, BudgetEntry>();
+  #bytes = 0;
+  #evictions = 0;
+
+  constructor(byteBudget = CELL_PLANE_CHUNK_CACHE_BYTES_LIMIT) {
+    this.#byteBudget = byteBudget;
+  }
+
+  register(token: object, bytes: number, evict: () => void) {
+    this.release(token);
+    this.#entries.set(token, { bytes, evict });
+    this.#bytes += bytes;
+    while (this.#bytes > this.#byteBudget && this.#entries.size > 1) {
+      const oldest = this.#entries.entries().next().value as
+        | [object, BudgetEntry]
+        | undefined;
+      if (!oldest) break;
+      this.#entries.delete(oldest[0]);
+      this.#bytes -= oldest[1].bytes;
+      this.#evictions += 1;
+      oldest[1].evict();
+    }
+  }
+
+  touch(token: object) {
+    const entry = this.#entries.get(token);
+    if (!entry) return;
+    this.#entries.delete(token);
+    this.#entries.set(token, entry);
+  }
+
+  release(token: object) {
+    const entry = this.#entries.get(token);
+    if (!entry) return;
+    this.#entries.delete(token);
+    this.#bytes -= entry.bytes;
+  }
+
+  clear() {
+    const entries = [...this.#entries.values()];
+    this.#entries.clear();
+    this.#bytes = 0;
+    entries.forEach(({ evict }) => evict());
+  }
+
+  getStats() {
+    return {
+      byteBudget: this.#byteBudget,
+      bytes: this.#bytes,
+      entries: this.#entries.size,
+      evictions: this.#evictions,
+    };
+  }
+}
 
 export type CellPlaneRow = {
   y: number;
@@ -821,8 +882,13 @@ export class CellPlaneIndex implements CanvasSurfaceReader {
   #resolvedContentBounds: NodeBounds | null | undefined = null;
   #revision = 0;
   readonly #invalidations: Array<{ revision: number; bounds: NodeBounds }> = [];
+  readonly #sharedCacheBudget: CanvasProjectionCacheBudget | null;
 
-  constructor(operations: readonly CellPlaneOperation[] = []) {
+  constructor(
+    operations: readonly CellPlaneOperation[] = [],
+    cacheBudget: CanvasProjectionCacheBudget | null = null
+  ) {
+    this.#sharedCacheBudget = cacheBudget;
     operations.forEach((operation) => this.append(operation));
   }
 
@@ -961,6 +1027,26 @@ export class CellPlaneIndex implements CanvasSurfaceReader {
     return this.#resolveChunk(chunkX, chunkY).get(GridManager.toKey(point.x, point.y));
   }
 
+  /** Counts logical cells without warming the resident chunk cache. */
+  countCells() {
+    let count = 0;
+    for (const key of this.#referencesByChunk.keys()) {
+      const [chunkX, chunkY] = key.split(",").map(Number);
+      const chunk = this.#projectChunk(chunkX!, chunkY!);
+      const left = chunkX! * CELL_PLANE_CHUNK_WIDTH;
+      const top = chunkY! * CELL_PLANE_CHUNK_HEIGHT;
+      const right = left + CELL_PLANE_CHUNK_WIDTH;
+      const bottom = top + CELL_PLANE_CHUNK_HEIGHT;
+      chunk.forEach((_cell, cellKey) => {
+        const point = GridManager.fromKey(cellKey);
+        if (point.x >= left && point.x < right && point.y >= top && point.y < bottom) {
+          count += 1;
+        }
+      });
+    }
+    return count;
+  }
+
   *query(bounds: NodeBounds) {
     for (const row of this.rows(bounds)) {
       for (const span of row.spans) yield { ...span, y: row.y };
@@ -1055,7 +1141,7 @@ export class CellPlaneIndex implements CanvasSurfaceReader {
   dispose() {
     this.#referencesByChunk.clear();
     this.#chunkXsByRow.clear();
-    this.#chunkCache.clear();
+    for (const key of [...this.#chunkCache.keys()]) this.#deleteCachedChunk(key);
     this.#chunkCacheBytes = 0;
     this.#operationCount = 0;
     this.#encodedPayloadBytes = 0;
@@ -1113,6 +1199,7 @@ export class CellPlaneIndex implements CanvasSurfaceReader {
     if (!entry) return;
     this.#chunkCache.delete(key);
     this.#chunkCacheBytes -= entry.bytes;
+    if (entry.budgetToken) this.#sharedCacheBudget?.release(entry.budgetToken);
   }
 
   #resolveChunk(chunkX: number, chunkY: number) {
@@ -1121,8 +1208,37 @@ export class CellPlaneIndex implements CanvasSurfaceReader {
     if (cached) {
       this.#chunkCache.delete(key);
       this.#chunkCache.set(key, cached);
+      if (cached.budgetToken) this.#sharedCacheBudget?.touch(cached.budgetToken);
       return cached.cells;
     }
+    const projection = this.#projectChunk(chunkX, chunkY);
+    const bytes = 256 + projection.size * ESTIMATED_GRID_CELL_BYTES;
+    const entry: CellPlaneChunkCacheEntry = { cells: projection, bytes };
+    this.#chunkCache.set(key, entry);
+    this.#chunkCacheBytes += bytes;
+    if (this.#sharedCacheBudget) {
+      const budgetToken = {};
+      entry.budgetToken = budgetToken;
+      this.#sharedCacheBudget.register(budgetToken, bytes, () => {
+        if (this.#chunkCache.get(key) !== entry) return;
+        this.#chunkCache.delete(key);
+        this.#chunkCacheBytes -= bytes;
+      });
+    }
+    while (
+      !this.#sharedCacheBudget &&
+      (this.#chunkCache.size > CELL_PLANE_CHUNK_CACHE_LIMIT ||
+        this.#chunkCacheBytes > CELL_PLANE_CHUNK_CACHE_BYTES_LIMIT)
+    ) {
+      const oldest = this.#chunkCache.keys().next().value;
+      if (!oldest) break;
+      this.#deleteCachedChunk(oldest);
+    }
+    return projection;
+  }
+
+  #projectChunk(chunkX: number, chunkY: number) {
+    const key = chunkKey(chunkX, chunkY);
     const chunkBounds = {
       x: chunkX * CELL_PLANE_CHUNK_WIDTH,
       y: chunkY * CELL_PLANE_CHUNK_HEIGHT,
@@ -1184,17 +1300,6 @@ export class CellPlaneIndex implements CanvasSurfaceReader {
           }
         }
       }
-    }
-    const bytes = 256 + projection.size * ESTIMATED_GRID_CELL_BYTES;
-    this.#chunkCache.set(key, { cells: projection, bytes });
-    this.#chunkCacheBytes += bytes;
-    while (
-      this.#chunkCache.size > CELL_PLANE_CHUNK_CACHE_LIMIT ||
-      this.#chunkCacheBytes > CELL_PLANE_CHUNK_CACHE_BYTES_LIMIT
-    ) {
-      const oldest = this.#chunkCache.keys().next().value;
-      if (!oldest) break;
-      this.#deleteCachedChunk(oldest);
     }
     return projection;
   }

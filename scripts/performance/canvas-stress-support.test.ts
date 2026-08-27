@@ -72,6 +72,7 @@ describe("canvas stress support", () => {
         maxInputPaintMs: 100,
         maxJsHeapBytes: 256 * 1024 * 1024,
       },
+      completedFamilies: ["freeform-dense"],
       levels: [
         {
           family: "freeform-dense",

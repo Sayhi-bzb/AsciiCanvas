@@ -24,7 +24,10 @@ type RasterTile = {
   canvas: HTMLCanvasElement;
   bounds: NodeBounds;
   bytes: number;
+  reader: CanvasSurfaceReader;
 };
+
+type ReaderState = { id: number; revision: number | null };
 
 export type CanvasRasterTileStats = {
   bytes: number;
@@ -76,8 +79,8 @@ export const getCanvasRasterTileShape = (zoom: number, dpr: number) => {
 export class CanvasRasterTileCache {
   readonly #byteBudget: number;
   readonly #tiles = new Map<string, RasterTile>();
-  #reader: CanvasSurfaceReader | null = null;
-  #revision: number | null = null;
+  readonly #readerStates = new WeakMap<CanvasSurfaceReader, ReaderState>();
+  #nextReaderId = 1;
   #bytes = 0;
   #hits = 0;
   #misses = 0;
@@ -88,10 +91,7 @@ export class CanvasRasterTileCache {
   }
 
   clear() {
-    this.#tiles.clear();
-    this.#reader = null;
-    this.#revision = null;
-    this.#bytes = 0;
+    this.#clearTiles();
   }
 
   getStats(): CanvasRasterTileStats {
@@ -113,7 +113,7 @@ export class CanvasRasterTileCache {
     dpr: number
   ) {
     if (typeof document === "undefined") return false;
-    this.#syncReader(reader);
+    const readerState = this.#syncReader(reader);
     const shape = getCanvasRasterTileShape(zoom, dpr);
     const lod = resolveCanvasContentLod(zoom);
     const minTileX = floorDiv(viewBounds.startX, shape.columns);
@@ -124,6 +124,7 @@ export class CanvasRasterTileCache {
     for (let tileY = minTileY; tileY <= maxTileY; tileY += 1) {
       for (let tileX = minTileX; tileX <= maxTileX; tileX += 1) {
         const key = [
+          readerState.id,
           shape.rasterZoom,
           shape.rasterDpr,
           lod,
@@ -167,30 +168,37 @@ export class CanvasRasterTileCache {
   }
 
   #syncReader(reader: CanvasSurfaceReader) {
-    if (reader !== this.#reader) {
-      this.clear();
-      this.#reader = reader;
-      this.#revision = isIncrementalCanvasSurfaceReader(reader)
-        ? reader.getRevision()
-        : null;
-      return;
+    let state = this.#readerStates.get(reader);
+    if (!state) {
+      state = {
+        id: this.#nextReaderId++,
+        revision: isIncrementalCanvasSurfaceReader(reader)
+          ? reader.getRevision()
+          : null,
+      };
+      this.#readerStates.set(reader, state);
+      return state;
     }
-    if (!isIncrementalCanvasSurfaceReader(reader)) return;
+    if (!isIncrementalCanvasSurfaceReader(reader)) return state;
     const revision = reader.getRevision();
-    if (this.#revision === revision) return;
-    const changes = this.#revision === null
+    if (state.revision === revision) return state;
+    const changes = state.revision === null
       ? { revision, full: true as const }
-      : reader.getChangesSince(this.#revision);
+      : reader.getChangesSince(state.revision);
     if (changes.full) {
-      this.#clearTiles();
+      this.#clearReaderTiles(reader);
     } else {
       for (const [key, tile] of this.#tiles) {
-        if (changes.bounds.some((bounds) => intersects(bounds, tile.bounds))) {
+        if (
+          tile.reader === reader &&
+          changes.bounds.some((bounds) => intersects(bounds, tile.bounds))
+        ) {
           this.#deleteTile(key);
         }
       }
     }
-    this.#revision = revision;
+    state.revision = revision;
+    return state;
   }
 
   #getTile(
@@ -244,6 +252,7 @@ export class CanvasRasterTileCache {
       canvas,
       bounds,
       bytes: canvas.width * canvas.height * 4,
+      reader,
     };
     this.#tiles.set(key, tile);
     this.#bytes += tile.bytes;
@@ -256,11 +265,18 @@ export class CanvasRasterTileCache {
     if (!tile) return;
     this.#tiles.delete(key);
     this.#bytes -= tile.bytes;
+    tile.canvas.width = 0;
+    tile.canvas.height = 0;
   }
 
   #clearTiles() {
-    this.#tiles.clear();
-    this.#bytes = 0;
+    for (const key of [...this.#tiles.keys()]) this.#deleteTile(key);
+  }
+
+  #clearReaderTiles(reader: CanvasSurfaceReader) {
+    for (const [key, tile] of this.#tiles) {
+      if (tile.reader === reader) this.#deleteTile(key);
+    }
   }
 
   #evictToBudget() {

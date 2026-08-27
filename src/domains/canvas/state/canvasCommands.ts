@@ -252,5 +252,6 @@ export const createCanvasQueries = (
   getNextStructuredOrder: () => store.getState().getNextStructuredOrder(),
   getActiveDocumentId: documents.getActiveDocumentId,
   getCollaborationDocument: documents.getCollaborationDocument,
+  getActiveCellCount: documents.getActiveCellCount,
   getMemoryStats: documents.getMemoryStats,
 } as const);

@@ -27,7 +27,7 @@ import {
   type CanvasViewport,
 } from './hooks/viewportPresentation';
 import { useCanvasEngineRuntime } from './engine/useCanvasEngineRuntime';
-import { useCanvasViewOptional } from './engine/CanvasWorkspace';
+import { useCanvasViewOptional, useCanvasWorkspaceOptional } from './engine/CanvasWorkspace';
 import { CANVAS_FRAME_INVALIDATION } from './engine/FrameScheduler';
 import { resolveCanvasSurfaceGeometry } from './canvasSurfaceGeometry';
 import type { EditorViewportFrame } from '@/widgets/editor-chrome/public';
@@ -59,15 +59,14 @@ export const CanvasEditor = ({
   onActivate,
 }: CanvasEditorProps) => {
   const canvasView = useCanvasViewOptional();
+  const canvasWorkspace = useCanvasWorkspaceOptional();
   const subscribeViewport = canvasView?.subscribeViewport;
   const getViewport = canvasView?.getViewport;
   const runtime = useCanvasEngineRuntime();
   const effectiveCapabilities = capabilities;
-  const bgCanvasRef = useRef<HTMLCanvasElement>(null);
-  const scratchCanvasRef = useRef<HTMLCanvasElement>(null);
-  const uiCanvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const canvasLayers = useMemo(
-    () => ({ bg: bgCanvasRef, scratch: scratchCanvasRef, ui: uiCanvasRef }),
+    () => ({ surface: canvasRef }),
     [],
   );
   const containerRef = useRef<HTMLDivElement>(null);
@@ -291,7 +290,8 @@ export const CanvasEditor = ({
     hoveredLink,
     requestCanvasRenderRef,
     handleViewportRendered,
-    runtime
+    runtime,
+    canvasWorkspace?.runtime.rasterTileCache
   );
 
   const activeContextMenu =
@@ -342,10 +342,8 @@ export const CanvasEditor = ({
       <ContextMenuTrigger asChild>
         <CanvasSurface
           containerRef={containerRef}
-          bgCanvasRef={bgCanvasRef}
+          canvasRef={canvasRef}
           viewportLayerRef={viewportLayerRef}
-          scratchCanvasRef={scratchCanvasRef}
-          uiCanvasRef={uiCanvasRef}
           surfaceGeometry={surfaceGeometry}
           containerSize={size}
           viewportFrame={viewportFrame}
