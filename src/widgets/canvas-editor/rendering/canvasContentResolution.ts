@@ -1,8 +1,8 @@
 export type CanvasContentResolutionMode = "full" | "coarse";
 
-export const CANVAS_CONTENT_COARSE_ENTER_ZOOM = 0.48;
-export const CANVAS_CONTENT_COARSE_EXIT_ZOOM = 0.55;
-export const CANVAS_CONTENT_COARSE_MAX_DPR = 1.5;
+const CANVAS_CONTENT_COARSE_ENTER_ZOOM = 0.48;
+const CANVAS_CONTENT_COARSE_EXIT_ZOOM = 0.55;
+const CANVAS_CONTENT_COARSE_MAX_DPR = 1.5;
 
 export const resolveCanvasContentResolutionMode = (
   zoom: number,

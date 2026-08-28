@@ -77,7 +77,7 @@ describe("ApplicationEditorHost", () => {
     expect(
       Array.from(host.canvas.getState().grid.values()).map((cell) => cell.char).join("")
     ).toBe("remark");
-    expect(host.canvas.getState().grid.get("0,0")?.color).toBe("#0891b2");
+    expect(host.canvas.getState().grid.get("0,0")?.color).toBe("#0969da");
   });
 
   it("persists pasted Mermaid diagrams as editable Unicode grid cells", async () => {

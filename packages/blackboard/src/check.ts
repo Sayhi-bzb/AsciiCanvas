@@ -11,7 +11,7 @@ import {
 import { resolveBlackboardSource } from "./document.js";
 import { BlackboardPackageError, compileBlackboardPackage } from "./package.js";
 
-export type BlackboardCheckResult =
+type BlackboardCheckResult =
   | { accepted: true; warnings?: string[] }
   | {
       accepted: false;

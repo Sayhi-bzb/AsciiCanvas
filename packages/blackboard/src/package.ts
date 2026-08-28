@@ -8,9 +8,8 @@ import {
 } from "./compiler.js";
 
 export { BlackboardPackageError } from "./compiler.js";
-export type { BlackboardPackageErrorCode } from "./compiler.js";
 
-export type CompiledBlackboardPackage = CompiledBlackboard & {
+type CompiledBlackboardPackage = CompiledBlackboard & {
   dependencies: string[];
 };
 
