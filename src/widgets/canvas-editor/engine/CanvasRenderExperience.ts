@@ -1,6 +1,6 @@
 import type { CanvasRenderActivityMode } from './CanvasRenderActivity';
 
-export type CanvasRenderExperienceStats = {
+type CanvasRenderExperienceStats = {
   presentationFrames: number;
   constrainedFrames: number;
   coverageMissFrames: number;

@@ -15,7 +15,7 @@ export interface CanvasContentBackend {
   clear(): void;
 }
 
-export type CanvasContentBackendStats = CanvasRasterTileStats & {
+type CanvasContentBackendStats = CanvasRasterTileStats & {
   backend: "retained-2d";
 };
 
