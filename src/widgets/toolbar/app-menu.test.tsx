@@ -12,6 +12,12 @@ import { EditorPresentationProvider } from '@/widgets/editor-chrome/public';
 describe('AppMenu document interchange', () => {
   const initialState = useEditorStore.getState();
 
+  const blackboardFile = (webkitRelativePath: string, source: string) =>
+    ({
+      webkitRelativePath,
+      text: async () => source,
+    }) as File;
+
   beforeEach(() => {
     window.localStorage.removeItem('chardesk-github-stars-v1');
     window.localStorage.removeItem('chardesk-canvas-split-enabled');
@@ -91,6 +97,50 @@ describe('AppMenu document interchange', () => {
     await waitFor(() => {
       expect(githubItem).toHaveTextContent('GitHub1,234');
       expect(githubItem.querySelector('.lucide-star')).toBeInTheDocument();
+    });
+  });
+
+  it('imports a Blackboard directory into a new active canvas', async () => {
+    const before = useEditorStore.getState();
+    const previousSessionId = before.activeCanvasId;
+    const previousSessionCount = before.canvasSessions.length;
+    const { container } = render(<AppMenu />);
+    const directoryInput = container.querySelectorAll('input[type="file"]')[1];
+
+    fireEvent.change(directoryInput, {
+      target: {
+        files: [
+          blackboardFile(
+            'gpu/blackboard.yaml',
+            [
+              'chardesk: blackboard/v1',
+              'title: Imported GPU',
+              'panels:',
+              '  overview: { source: panels/overview.panel }',
+              'layout:',
+              '  areas: [[overview]]',
+            ].join('\n')
+          ),
+          blackboardFile('gpu/panels/overview.panel', 'GPU'),
+        ],
+      },
+    });
+
+    await waitFor(() => {
+      const state = useEditorStore.getState();
+      expect(state.canvasSessions).toHaveLength(previousSessionCount + 1);
+      expect(state.activeCanvasId).not.toBe(previousSessionId);
+      expect(state.canvasSessions).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ id: previousSessionId }),
+          expect.objectContaining({
+            id: state.activeCanvasId,
+            name: 'Imported GPU',
+            mode: 'freeform',
+          }),
+        ])
+      );
+      expect(state.grid.get('0,0')).toMatchObject({ char: 'G' });
     });
   });
 

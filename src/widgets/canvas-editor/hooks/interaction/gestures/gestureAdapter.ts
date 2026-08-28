@@ -257,8 +257,6 @@ export const useCanvasGestureAdapter = ({
           isCtrlOrMetaPressed: isCtrlOrMeta(event),
           gestureDeltaX,
           gestureDeltaY,
-          eventDeltaX: wheelEvent.deltaX,
-          eventDeltaY: wheelEvent.deltaY,
           shiftKey: wheelEvent.shiftKey,
           origin: getCanvasWheelOrigin(wheelEvent),
           preventDefault: () => event.preventDefault(),

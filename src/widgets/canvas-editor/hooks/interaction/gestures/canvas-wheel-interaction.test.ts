@@ -141,7 +141,7 @@ describe("canvas wheel interaction", () => {
     expect(preventDefault).toHaveBeenCalledTimes(1);
     expect(executor.queueOffsetDelta).toHaveBeenCalledWith(-8, 0);
   });
-  it("routes wheel gestures through anchor resolution and event deltas", () => {
+  it("routes normalized wheel gesture deltas through anchor resolution", () => {
     const handler = vi.fn();
     const preventDefault = vi.fn();
     const resolveAnchor = vi.fn(() => ({ x: 20, y: 30 }));
@@ -151,8 +151,6 @@ describe("canvas wheel interaction", () => {
       isCtrlOrMetaPressed: true,
       gestureDeltaX: 1,
       gestureDeltaY: 2,
-      eventDeltaX: 3,
-      eventDeltaY: -100,
       shiftKey: false,
       origin: { x: 50, y: 60 },
       preventDefault,
@@ -162,22 +160,22 @@ describe("canvas wheel interaction", () => {
     expect(resolveAnchor).toHaveBeenCalledWith({ x: 50, y: 60 });
     expect(handler).toHaveBeenCalledWith({
       isCtrlOrMetaPressed: true,
-      deltaX: 3,
-      deltaY: -100,
+      deltaX: 1,
+      deltaY: 2,
       shiftKey: false,
       anchor: { x: 20, y: 30 },
       preventDefault,
     });
   });
 
-  it("routes wheel gestures through gesture deltas when event deltas are absent", () => {
+  it("preserves normalized fractional trackpad deltas", () => {
     const handler = vi.fn();
     const route = createCanvasWheelRouteHandler({ handler });
 
     route({
       isCtrlOrMetaPressed: false,
-      gestureDeltaX: 4,
-      gestureDeltaY: -6,
+      gestureDeltaX: 0.25,
+      gestureDeltaY: -0.75,
       shiftKey: true,
       origin: { x: 50, y: 60 },
       preventDefault: vi.fn(),
@@ -186,8 +184,8 @@ describe("canvas wheel interaction", () => {
 
     expect(handler).toHaveBeenCalledWith(
       expect.objectContaining({
-        deltaX: 4,
-        deltaY: -6,
+        deltaX: 0.25,
+        deltaY: -0.75,
         shiftKey: true,
         anchor: { x: 20, y: 30 },
       })
@@ -204,8 +202,6 @@ describe("canvas wheel interaction", () => {
       isCtrlOrMetaPressed: true,
       gestureDeltaX: 1,
       gestureDeltaY: 2,
-      eventDeltaX: 3,
-      eventDeltaY: -100,
       shiftKey: false,
       origin: { x: 50, y: 60 },
       preventDefault,

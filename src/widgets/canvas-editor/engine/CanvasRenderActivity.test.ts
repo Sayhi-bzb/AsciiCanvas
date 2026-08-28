@@ -37,4 +37,21 @@ describe("CanvasRenderActivity", () => {
     vi.advanceTimersByTime(20);
     expect(activity.getMode()).toBe("settled");
   });
+
+  it("keeps one viewport settle timer during high-frequency activity", () => {
+    vi.useFakeTimers();
+    const activity = new CanvasRenderActivity();
+
+    activity.markViewportActivity();
+    for (let index = 0; index < 10; index += 1) {
+      vi.advanceTimersByTime(8);
+      activity.markViewportActivity();
+      expect(vi.getTimerCount()).toBe(1);
+    }
+
+    vi.advanceTimersByTime(119);
+    expect(activity.getMode()).toBe("viewport-interaction");
+    vi.advanceTimersByTime(1);
+    expect(activity.getMode()).toBe("settled");
+  });
 });

@@ -2,6 +2,7 @@ export type CanvasContentResolutionMode = "full" | "coarse";
 
 export const CANVAS_CONTENT_COARSE_ENTER_ZOOM = 0.48;
 export const CANVAS_CONTENT_COARSE_EXIT_ZOOM = 0.55;
+export const CANVAS_CONTENT_COARSE_MAX_DPR = 1.5;
 
 export const resolveCanvasContentResolutionMode = (
   zoom: number,
@@ -20,5 +21,7 @@ export const resolveCanvasContentDpr = (
   const normalizedDpr = Number.isFinite(deviceDpr) && deviceDpr > 0
     ? deviceDpr
     : 1;
-  return mode === "coarse" ? Math.min(1, normalizedDpr) : normalizedDpr;
+  return mode === "coarse"
+    ? Math.min(CANVAS_CONTENT_COARSE_MAX_DPR, normalizedDpr)
+    : normalizedDpr;
 };

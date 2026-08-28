@@ -104,4 +104,130 @@ describe("CanvasFrameScheduler", () => {
     frames.shift()!(2);
     expect(order).toEqual(["input", "background"]);
   });
+
+  it("runs render work requested by an update in the same browser frame", () => {
+    const frames: FrameRequestCallback[] = [];
+    const scheduler = new CanvasFrameScheduler({
+      requestAnimationFrame: (callback) => {
+        frames.push(callback);
+        return frames.length;
+      },
+      cancelAnimationFrame: vi.fn(),
+      now: () => 0,
+    });
+    const order: string[] = [];
+
+    scheduler.request(
+      "camera",
+      CANVAS_FRAME_INVALIDATION.presentation,
+      () => {
+        order.push("update");
+        scheduler.request(
+          "renderer",
+          CANVAS_FRAME_INVALIDATION.background,
+          () => order.push("render"),
+          { phase: "render" }
+        );
+      }
+    );
+
+    frames.shift()!(16);
+
+    expect(order).toEqual(["update", "render"]);
+    expect(frames).toHaveLength(0);
+  });
+
+  it("keeps recursively requested update work for the next frame", () => {
+    const frames: FrameRequestCallback[] = [];
+    const scheduler = new CanvasFrameScheduler({
+      requestAnimationFrame: (callback) => {
+        frames.push(callback);
+        return frames.length;
+      },
+      cancelAnimationFrame: vi.fn(),
+      now: () => 0,
+    });
+    const timestamps: number[] = [];
+    const update = (timestamp: number) => {
+      timestamps.push(timestamp);
+      if (timestamps.length === 1) {
+        scheduler.request(
+          "animation",
+          CANVAS_FRAME_INVALIDATION.presentation,
+          update
+        );
+      }
+    };
+
+    scheduler.request(
+      "animation",
+      CANVAS_FRAME_INVALIDATION.presentation,
+      update
+    );
+    frames.shift()!(16);
+
+    expect(timestamps).toEqual([16]);
+    expect(frames).toHaveLength(1);
+
+    frames.shift()!(32);
+    expect(timestamps).toEqual([16, 32]);
+  });
+
+  it("defers same-frame render work when update work consumes the budget", () => {
+    const frames: FrameRequestCallback[] = [];
+    let now = 0;
+    const scheduler = new CanvasFrameScheduler({
+      requestAnimationFrame: (callback) => {
+        frames.push(callback);
+        return frames.length;
+      },
+      cancelAnimationFrame: vi.fn(),
+      now: () => now,
+    }, { frameBudgetMs: 8 });
+    const order: string[] = [];
+
+    scheduler.request(
+      "camera",
+      CANVAS_FRAME_INVALIDATION.presentation,
+      () => {
+        order.push("update");
+        scheduler.request(
+          "renderer",
+          CANVAS_FRAME_INVALIDATION.background,
+          () => order.push("render"),
+          { phase: "render" }
+        );
+        now = 9;
+      }
+    );
+
+    frames.shift()!(16);
+    expect(order).toEqual(["update"]);
+    expect(scheduler.getStats()).toMatchObject({ pending: 1, deferredFrames: 1 });
+
+    frames.shift()!(32);
+    expect(order).toEqual(["update", "render"]);
+  });
+
+  it("can be disposed safely from active frame work", () => {
+    const { run, port } = createPort();
+    const scheduler = new CanvasFrameScheduler(port);
+    const afterDispose = vi.fn();
+
+    scheduler.request(
+      "dispose",
+      CANVAS_FRAME_INVALIDATION.presentation,
+      () => scheduler.dispose()
+    );
+    scheduler.request(
+      "render",
+      CANVAS_FRAME_INVALIDATION.background,
+      afterDispose,
+      { phase: "render" }
+    );
+
+    expect(() => run()).not.toThrow();
+    expect(afterDispose).not.toHaveBeenCalled();
+    expect(scheduler.getStats().pending).toBe(0);
+  });
 });

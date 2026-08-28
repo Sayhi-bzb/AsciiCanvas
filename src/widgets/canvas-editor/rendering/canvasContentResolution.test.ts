@@ -20,8 +20,9 @@ describe("canvas content resolution", () => {
 
   it.each([
     { deviceDpr: 1, full: 1, coarse: 1 },
-    { deviceDpr: 2, full: 2, coarse: 1 },
-    { deviceDpr: 3, full: 3, coarse: 1 },
+    { deviceDpr: 1.5, full: 1.5, coarse: 1.5 },
+    { deviceDpr: 2, full: 2, coarse: 1.5 },
+    { deviceDpr: 3, full: 3, coarse: 1.5 },
   ])("resolves backing DPR for device DPR $deviceDpr", ({ deviceDpr, full, coarse }) => {
     expect(resolveCanvasContentDpr(deviceDpr, "full")).toBe(full);
     expect(resolveCanvasContentDpr(deviceDpr, "coarse")).toBe(coarse);

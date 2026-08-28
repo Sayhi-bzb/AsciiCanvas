@@ -734,7 +734,9 @@ export const useCanvasRenderer = (
           "canvas-renderer",
           invalidation,
           (_timestamp, pendingInvalidation) => render(pendingInvalidation),
-          priority ? { priority } : undefined
+          priority
+            ? { priority, phase: "render" }
+            : { phase: "render" }
         );
         return;
       }

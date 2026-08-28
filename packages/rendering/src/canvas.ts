@@ -219,6 +219,8 @@ const drawCellBackground = (
 type CanvasTextState = {
   font: string | null;
   color: string | null;
+  scaleX: number;
+  scaleY: number;
 };
 
 const drawCellText = (
@@ -268,7 +270,11 @@ const drawCellText = (
     ctx.fillStyle = textColor;
     state.color = textColor;
   }
-  ctx.fillText(text, Math.round(anchor.x), Math.round(anchor.y));
+  ctx.fillText(
+    text,
+    Math.round(anchor.x * state.scaleX) / state.scaleX,
+    Math.round(anchor.y * state.scaleY) / state.scaleY
+  );
 
   const cellWidth = metrics.cellWidth * zoom * visual.width;
   const cellHeight = metrics.cellHeight * zoom;
@@ -316,7 +322,13 @@ export const drawCharDeskCanvasCells = (
   }
   ctx.textBaseline = "middle";
   ctx.textAlign = "center";
-  const textState: CanvasTextState = { font: null, color: null };
+  const transform = ctx.getTransform?.();
+  const textState: CanvasTextState = {
+    font: null,
+    color: null,
+    scaleX: Math.hypot(transform?.a ?? 1, transform?.b ?? 0) || 1,
+    scaleY: Math.hypot(transform?.c ?? 0, transform?.d ?? 1) || 1,
+  };
   for (let index = 0; index < entries.length; index += 1) {
     const entry = entries[index]!;
     if (entry.drawText !== false) {

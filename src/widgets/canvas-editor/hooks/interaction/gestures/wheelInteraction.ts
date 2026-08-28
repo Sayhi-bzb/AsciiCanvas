@@ -140,8 +140,6 @@ export type CanvasWheelRouteHandler = ({
   isCtrlOrMetaPressed,
   gestureDeltaX,
   gestureDeltaY,
-  eventDeltaX,
-  eventDeltaY,
   shiftKey,
   origin,
   preventDefault,
@@ -150,8 +148,6 @@ export type CanvasWheelRouteHandler = ({
   isCtrlOrMetaPressed: boolean;
   gestureDeltaX: number;
   gestureDeltaY: number;
-  eventDeltaX?: number;
-  eventDeltaY?: number;
   shiftKey: boolean;
   origin: Point;
   preventDefault: () => void;
@@ -167,8 +163,6 @@ export const createCanvasWheelRouteHandler = ({
     isCtrlOrMetaPressed,
     gestureDeltaX,
     gestureDeltaY,
-    eventDeltaX,
-    eventDeltaY,
     shiftKey,
     origin,
     preventDefault,
@@ -179,8 +173,8 @@ export const createCanvasWheelRouteHandler = ({
 
     handler({
       isCtrlOrMetaPressed,
-      deltaX: eventDeltaX ?? gestureDeltaX,
-      deltaY: eventDeltaY ?? gestureDeltaY,
+      deltaX: gestureDeltaX,
+      deltaY: gestureDeltaY,
       shiftKey,
       anchor,
       preventDefault,

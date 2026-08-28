@@ -47,6 +47,27 @@ describe("viewport interaction controller", () => {
     expect(offset).toEqual({ x: 17, y: 18 });
   });
 
+  it("preserves fractional trackpad movement while coalescing a frame", () => {
+    const scheduler = createScheduler();
+    let offset: Point = { x: 0, y: 0 };
+    const controller = createViewportInteractionController({
+      setOffset: (updater) => {
+        offset = updater(offset);
+      },
+      setViewport: () => {},
+      zoomBounds: { min: 0.25, max: 4 },
+      scheduler,
+    });
+
+    controller.queueOffsetDelta(0.25, -0.5);
+    controller.queueOffsetDelta(0.75, -0.25);
+    controller.queueOffsetDelta(-0.125, 0.5);
+    scheduler.flush();
+
+    expect(offset).toEqual({ x: 0.875, y: -0.25 });
+    expect(scheduler.requestAnimationFrame).toHaveBeenCalledOnce();
+  });
+
   it("flushes queued offset immediately and cancels the pending RAF", () => {
     const scheduler = createScheduler();
     let offset: Point = { x: 0, y: 0 };

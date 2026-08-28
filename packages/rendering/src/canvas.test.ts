@@ -10,13 +10,14 @@ import {
   resolveCharDeskCanvasCellVisual,
 } from "./canvas.js";
 
-const createContext = () => {
+const createContext = (dpr = 1) => {
   const operations: string[] = [];
   const context = {
     beginPath: vi.fn(),
     clearRect: vi.fn(),
     fillRect: vi.fn(() => operations.push("background")),
     fillText: vi.fn(() => operations.push("text")),
+    getTransform: vi.fn(() => ({ a: dpr, b: 0, c: 0, d: dpr })),
     lineTo: vi.fn(),
     moveTo: vi.fn(),
     restore: vi.fn(),
@@ -34,6 +35,17 @@ const createContext = () => {
 };
 
 describe("CharDesk Canvas 2D renderer", () => {
+  it("aligns glyph anchors to device pixels instead of CSS pixels", () => {
+    const { context } = createContext(2);
+    drawCharDeskCanvasCells(context, [{
+      cell: resolveCharDeskCellVisual({ text: "A", color: "#111111" }),
+      x: 0,
+      y: 0,
+    }]);
+
+    expect(context.fillText).toHaveBeenCalledWith("A", 4.5, 9.5);
+  });
+
   it("routes emoji through the monochrome Canvas font", () => {
     expect(getCharDeskCanvasFont(undefined, 1, { route: "emoji" }))
       .toContain("'Noto Emoji'");

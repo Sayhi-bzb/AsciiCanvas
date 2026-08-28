@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import type { CanvasViewportState } from "@/domains/canvas/public";
 import { CanvasCameraManager } from "./CanvasCameraManager";
-import { CanvasFrameScheduler } from "./FrameScheduler";
+import {
+  CANVAS_FRAME_INVALIDATION,
+  CanvasFrameScheduler,
+} from "./FrameScheduler";
 
 const createHarness = (
   initial: CanvasViewportState = { offset: { x: 0, y: 0 }, zoom: 1 },
@@ -10,11 +13,13 @@ const createHarness = (
   let frame: FrameRequestCallback | null = null;
   let viewport = initial;
   const viewportWrites: Array<{ transient: boolean }> = [];
+  const viewportListeners = new Set<() => void>();
+  const requestAnimationFrame = vi.fn((callback: FrameRequestCallback) => {
+    frame = callback;
+    return 1;
+  });
   const scheduler = new CanvasFrameScheduler({
-    requestAnimationFrame: vi.fn((callback) => {
-      frame = callback;
-      return 1;
-    }),
+    requestAnimationFrame,
     cancelAnimationFrame: vi.fn(() => {
       frame = null;
     }),
@@ -27,6 +32,7 @@ const createHarness = (
       setViewport: (updater, options) => {
         viewport = updater(viewport);
         viewportWrites.push({ transient: options?.transient ?? false });
+        viewportListeners.forEach((listener) => listener());
       },
     },
     onViewportActivity
@@ -40,7 +46,13 @@ const createHarness = (
     camera,
     getViewport: () => viewport,
     onViewportActivity,
+    requestAnimationFrame,
     run,
+    scheduler,
+    subscribeViewport: (listener: () => void) => {
+      viewportListeners.add(listener);
+      return () => viewportListeners.delete(listener);
+    },
     viewportWrites,
   };
 };
@@ -59,6 +71,35 @@ describe("CanvasCameraManager", () => {
       zoom: 1.5,
     });
     expect(viewportWrites).toEqual([{ transient: true }]);
+  });
+
+  it("renders a queued pan from its updated viewport in the same frame", () => {
+    const {
+      camera,
+      getViewport,
+      requestAnimationFrame,
+      run,
+      scheduler,
+      subscribeViewport,
+    } = createHarness();
+    const renderedViewports: CanvasViewportState[] = [];
+    subscribeViewport(() => {
+      scheduler.request(
+        "canvas-renderer",
+        CANVAS_FRAME_INVALIDATION.background,
+        () => renderedViewports.push(getViewport()),
+        { phase: "render" }
+      );
+    });
+
+    camera.queuePan(5, -3);
+    camera.queuePan(4, 1);
+    run(16);
+
+    expect(renderedViewports).toEqual([
+      { offset: { x: 9, y: -2 }, zoom: 1 },
+    ]);
+    expect(requestAnimationFrame).toHaveBeenCalledOnce();
   });
 
   it("cancels an animation when a direct gesture changes the camera", () => {

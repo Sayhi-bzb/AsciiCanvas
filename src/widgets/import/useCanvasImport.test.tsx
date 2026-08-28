@@ -25,13 +25,36 @@ const createFileEvent = (text: () => Promise<string>) =>
     },
   }) as unknown as React.ChangeEvent<HTMLInputElement>;
 
-const createDirectoryEvent = () =>
-  ({
-    target: {
-      files: [{ webkitRelativePath: "gpu/blackboard.yaml" }],
-      value: "/gpu",
+const createDirectoryEvent = () => {
+  const selectedFile = {
+    webkitRelativePath: "gpu/blackboard.yaml",
+  } as File;
+  let value = "/gpu";
+  const files = {
+    get length() {
+      return value ? 1 : 0;
     },
-  }) as unknown as React.ChangeEvent<HTMLInputElement>;
+    item(index: number) {
+      return value && index === 0 ? selectedFile : null;
+    },
+    *[Symbol.iterator]() {
+      if (value) yield selectedFile;
+    },
+  } as FileList;
+  const target = {
+    get files() {
+      return files;
+    },
+    get value() {
+      return value;
+    },
+    set value(next: string) {
+      value = next;
+    },
+  } as HTMLInputElement;
+
+  return { target } as React.ChangeEvent<HTMLInputElement>;
+};
 
 describe("useCanvasImport", () => {
   beforeEach(() => {
@@ -83,6 +106,9 @@ describe("useCanvasImport", () => {
       await result.current.handleBlackboardDirectoryChange(createDirectoryEvent());
     });
 
+    expect(compileBlackboardDirectory).toHaveBeenCalledWith([
+      expect.objectContaining({ webkitRelativePath: "gpu/blackboard.yaml" }),
+    ]);
     expect(importCanvasSession).toHaveBeenCalledWith(
       [
         "---",
