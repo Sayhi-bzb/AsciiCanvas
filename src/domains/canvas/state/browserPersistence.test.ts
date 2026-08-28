@@ -62,22 +62,18 @@ const SLIDE_SESSION_ID = "slide-indexeddb-test";
 const SLIDE_DOCUMENT_DATABASE = `chardesk-local-document-v1:${SLIDE_SESSION_ID}`;
 const LEGACY_SLIDE_DOCUMENT_DATABASE =
   `chardesk-local-document-v1:${SLIDE_SESSION_ID}:slide:slide-a`;
-const EXTRA_DOCUMENT_DATABASES = [
-  `chardesk-local-document-v1:${LEGACY_SESSION_ID}`,
-  SLIDE_DOCUMENT_DATABASE,
-  LEGACY_SLIDE_DOCUMENT_DATABASE,
-  `${DOCUMENT_DATABASE}:generation:1`,
-  `${DOCUMENT_DATABASE}:generation:2`,
-  `chardesk-local-document-v1:${LEGACY_SESSION_ID}:generation:1`,
-  `chardesk-local-document-v1:${LEGACY_SESSION_ID}:generation:2`,
-  `${SLIDE_DOCUMENT_DATABASE}:generation:1`,
-  `${SLIDE_DOCUMENT_DATABASE}:generation:2`,
-];
 const V4_BACKUP_KEY = "ascii-canvas-persistence-v4-backup";
 const RESIDENCY_SESSION_IDS = Array.from(
   { length: 6 },
   (_, index) => `residency-canvas-${index}`
 );
+
+const clearTestDocumentDatabases = async () => {
+  const names = (await indexedDB.databases()).flatMap(({ name }) =>
+    name?.startsWith("chardesk-local-document-v1:") ? [name] : []
+  );
+  await Promise.all(names.map(clearDocument));
+};
 
 const createRuntime = (
   storage: Storage,
@@ -128,16 +124,10 @@ const openOlderCatalogTab = () => new Promise<IDBDatabase>((resolve, reject) => 
 
 describe("browser canvas persistence", () => {
   let runtimes: CanvasRuntime[] = [];
-  let recoveredSessionIds: string[] = [];
 
   beforeEach(async () => {
     await deleteDB(CANVAS_CATALOG_DATABASE);
-    await clearDocument(DOCUMENT_DATABASE);
-    await Promise.all(EXTRA_DOCUMENT_DATABASES.map(clearDocument));
-    await Promise.all(RESIDENCY_SESSION_IDS.map((id) =>
-      clearDocument(`chardesk-local-document-v1:${id}`)
-    ));
-    recoveredSessionIds = [];
+    await clearTestDocumentDatabases();
   });
 
   afterEach(async () => {
@@ -145,14 +135,7 @@ describe("browser canvas persistence", () => {
     runtimes = [];
     await new Promise((resolve) => setTimeout(resolve, 0));
     await deleteDB(CANVAS_CATALOG_DATABASE);
-    await clearDocument(DOCUMENT_DATABASE);
-    await Promise.all(EXTRA_DOCUMENT_DATABASES.map(clearDocument));
-    await Promise.all(RESIDENCY_SESSION_IDS.map((id) =>
-      clearDocument(`chardesk-local-document-v1:${id}`)
-    ));
-    await Promise.all(recoveredSessionIds.map((id) =>
-      clearDocument(`chardesk-local-document-v1:${id}`)
-    ));
+    await clearTestDocumentDatabases();
   });
 
   it("restores Yjs cells while the catalog contains metadata only", async () => {
@@ -228,9 +211,6 @@ describe("browser canvas persistence", () => {
       "Persisted",
       "Recovered Canvas",
     ]);
-    recoveredSessionIds = runtime.getState().canvasSessions
-      .filter(({ name }) => name.startsWith("Recovered Canvas"))
-      .map(({ id }) => id);
     expect(runtime.getState().canvasSessions.find(
       ({ id }) => id === runtime.getState().activeCanvasId
     )?.name).toBe("Recovered Canvas");
@@ -495,6 +475,138 @@ describe("browser canvas persistence", () => {
         mode: "freeform",
       }),
     ]));
+  });
+
+  it("recovers a full historical backup even when its IndexedDB document is gone", async () => {
+    const storage = new MemoryStorage();
+    const bootstrapSessions: CanvasSession[] = [{
+      id: SESSION_ID,
+      name: "Welcome",
+      mode: "freeform",
+      scene: [],
+      components: [],
+      grid: [],
+    }];
+    const first = createRuntime(storage, bootstrapSessions);
+    runtimes.push(first);
+    await first.ready;
+    await first.retryPersistence();
+    first.dispose();
+    runtimes = [];
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await clearDocument(DOCUMENT_DATABASE);
+
+    storage.setItem(V4_BACKUP_KEY, JSON.stringify({
+      version: 4,
+      state: {
+        canvasSessions: [{
+          id: LEGACY_SESSION_ID,
+          name: "Lost workspace",
+          mode: "freeform",
+          scene: [],
+          components: [],
+          grid: [["9,4", { char: "回", color: "#445566" }]],
+        }],
+        activeCanvasId: LEGACY_SESSION_ID,
+        canvasMode: "freeform",
+        offset: { x: 0, y: 0 },
+        zoom: 1,
+      },
+    }));
+
+    const recovered = createRuntime(storage, bootstrapSessions);
+    runtimes.push(recovered);
+    await recovered.ready;
+
+    expect(recovered.getState().canvasSessions).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: "Recovered · Lost workspace" }),
+    ]));
+    expect(recovered.getState().grid.get("9,4")?.char).toBe("回");
+  });
+
+  it("replays a synchronous catalog intent after an immediate refresh", async () => {
+    const storage = new MemoryStorage();
+    const first = createRuntime(storage);
+    runtimes.push(first);
+    await first.ready;
+
+    first.commands.sessions.create("freeform");
+    const createdId = first.getState().activeCanvasId;
+    const intent = JSON.parse(
+      storage.getItem("chardesk-canvas-catalog-intent-v1") ?? "null"
+    ) as { activeSessionId?: string; sessions?: { id: string }[] } | null;
+    expect(intent?.activeSessionId).toBe(createdId);
+    expect(intent?.sessions?.some(({ id }) => id === createdId)).toBe(true);
+
+    first.dispose();
+    runtimes = [];
+    const restored = createRuntime(storage);
+    runtimes.push(restored);
+    await restored.ready;
+    expect(restored.getState().activeCanvasId).toBe(createdId);
+    expect(restored.getState().canvasSessions.some(({ id }) => id === createdId))
+      .toBe(true);
+  });
+
+  it("tombstones a deleted Canvas without physically clearing its recovery data", async () => {
+    const storage = new MemoryStorage();
+    const first = createRuntime(storage);
+    runtimes.push(first);
+    await first.ready;
+    first.commands.sessions.create("freeform");
+    const deletedId = first.getState().activeCanvasId;
+    first.commands.interaction.setTextCursor({ x: 2, y: 1 });
+    first.commands.text.write("D");
+    await first.retryPersistence();
+
+    expect(await first.commands.sessions.remove(deletedId)).toBe(true);
+    const catalog = await createIndexedDbCanvasCatalog();
+    const snapshot = await catalog.load();
+    catalog.close();
+    expect(snapshot?.deletedSessionIds).toContain(deletedId);
+    expect((await indexedDB.databases()).map(({ name }) => name)).toContain(
+      `chardesk-local-document-v1:${deletedId}`
+    );
+
+    first.dispose();
+    runtimes = [];
+    const restored = createRuntime(storage);
+    runtimes.push(restored);
+    await restored.ready;
+    expect(restored.getState().canvasSessions.some(({ id }) => id === deletedId))
+      .toBe(false);
+  });
+
+  it("prefers a valid newer generation without deleting older databases", async () => {
+    const storage = new MemoryStorage();
+    const first = createRuntime(storage);
+    runtimes.push(first);
+    await first.ready;
+    await first.retryPersistence();
+    first.dispose();
+    runtimes = [];
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const newerDatabase = `${DOCUMENT_DATABASE}:generation:2`;
+    const newer = new Y.Doc({ guid: SESSION_ID });
+    const provider = new IndexeddbPersistence(newerDatabase, newer);
+    await provider.whenSynced;
+    newer.getMap("main-grid").set(
+      "6,3",
+      { char: "新", color: "#556677" }
+    );
+    await storeState(provider, true);
+    await provider.destroy();
+    newer.destroy();
+
+    const restored = createRuntime(storage);
+    runtimes.push(restored);
+    await restored.ready;
+    expect(restored.getState().grid.get("6,3")?.char).toBe("新");
+    const databaseNames = (await indexedDB.databases())
+      .map(({ name }) => name);
+    expect(databaseNames).toContain(DOCUMENT_DATABASE);
+    expect(databaseNames).toContain(newerDatabase);
   });
 
   it("migrates a legacy structured document without flattening its scene", async () => {

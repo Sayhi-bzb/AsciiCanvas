@@ -724,6 +724,24 @@ test.describe('Canvas', () => {
     }).toBeGreaterThan(1);
   });
 
+  test('restores a newly created session after an immediate reload', async ({ page }) => {
+    const before = await readLiveCanvasState(page);
+    await page.getByRole('button', { name: 'Select canvas' }).click();
+    await page.getByRole('button', { name: 'Create' }).click();
+    await page.getByRole('menuitem', { name: 'New Freeform' }).click();
+    const created = await readLiveCanvasState(page);
+    expect(created.sessions).toHaveLength(before.sessions.length + 1);
+    expect(created.activeCanvasId).not.toBe(before.activeCanvasId);
+
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(page.getByTestId('canvas-editor-surface')).toBeVisible();
+    const restored = await readLiveCanvasState(page);
+    expect(restored.activeCanvasId).toBe(created.activeCanvasId);
+    expect(restored.sessions).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: created.activeCanvasId }),
+    ]));
+  });
+
   test('binds different canvas sessions to split panes and restores them after reopening', async ({
     page,
   }) => {

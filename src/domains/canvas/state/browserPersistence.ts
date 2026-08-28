@@ -68,6 +68,7 @@ const LOCAL_DOCUMENT_PREFIX = "chardesk-local-document-v1:";
 const HISTORICAL_EDITOR_PERSISTENCE_KEYS = [
   "ascii-canvas-persistence-v4-backup",
 ] as const;
+const CATALOG_INTENT_KEY = "chardesk-canvas-catalog-intent-v1";
 const SAVE_DELAY = 500;
 const DOCUMENT_GENERATION_SUFFIX = ":generation:";
 const DOCUMENT_STRUCT_ROTATION_THRESHOLD = 10_000;
@@ -114,6 +115,19 @@ const bestEffortDestroyProvider = async (provider: IndexeddbPersistence) => {
         resolve();
       });
   });
+};
+
+const persistProviderState = async (
+  provider: IndexeddbPersistence,
+  forceStore: boolean
+) => {
+  if (!provider.db) return;
+  try {
+    await storeState(provider, forceStore);
+  } catch (error) {
+    if (!provider.db) return;
+    throw error;
+  }
 };
 
 const waitForDocumentSync = (
@@ -719,6 +733,50 @@ const readPersistedDocumentShell = async (
   }
 };
 
+const resolveDocumentGenerations = async (
+  storedCatalog: CanvasCatalogSnapshot | null,
+  persistedDocuments: readonly PersistedDocumentLocation[]
+) => {
+  const persistedById = new Map<string, number[]>();
+  persistedDocuments.forEach(({ id, generation }) => {
+    const generations = persistedById.get(id) ?? [];
+    generations.push(generation);
+    persistedById.set(id, generations);
+  });
+  const catalogGenerations = new Map(
+    storedCatalog?.sessions.map((session) => [
+      session.id,
+      session.documentGeneration ?? 0,
+    ]) ?? []
+  );
+  const resolved = new Map<string, number>();
+  for (const [id, generations] of persistedById) {
+    const ordered = Array.from(new Set(generations)).sort((a, b) => b - a);
+    const catalogGeneration = catalogGenerations.get(id);
+    if (catalogGeneration === undefined) {
+      resolved.set(id, ordered[0] ?? 0);
+      continue;
+    }
+    const catalogExists = ordered.includes(catalogGeneration);
+    const candidates = catalogExists
+      ? ordered.filter((generation) => generation > catalogGeneration)
+      : ordered;
+    for (const generation of candidates) {
+      const shell = await readPersistedDocumentShell(id, 0, generation);
+      if (!shell) continue;
+      resolved.set(id, generation);
+      break;
+    }
+    if (!resolved.has(id)) resolved.set(id, catalogGeneration);
+  }
+  storedCatalog?.sessions.forEach((session) => {
+    if (!resolved.has(session.id)) {
+      resolved.set(session.id, session.documentGeneration ?? 0);
+    }
+  });
+  return resolved;
+};
+
 const isBootstrapCatalogSession = (
   session: Pick<CanvasSession, "name" | "mode">,
   initial: CanvasSession | undefined
@@ -809,6 +867,80 @@ const recoveredSessionName = (
   return `Recovered Canvas ${suffix}`;
 };
 
+const hasRecoverableSessionContent = (session: CanvasSession) =>
+  session.mode === "slide"
+    ? session.slideDeck.slides.some((slide) => slide.grid.length > 0)
+    : session.grid.length > 0 || session.scene.length > 0 ||
+      (session.components?.length ?? 0) > 0;
+
+const recoverySourceId = (key: string, session: CanvasSession) => {
+  const value = JSON.stringify(session);
+  let hash = 2_166_136_261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16_777_619);
+  }
+  return `${key}:${session.id}:${(hash >>> 0).toString(36)}`;
+};
+
+const uniqueRecoveredName = (
+  sessions: readonly CanvasSession[],
+  originalName: string
+) => {
+  const base = `Recovered · ${originalName.trim() || "Canvas"}`;
+  if (!sessions.some(({ name }) => name === base)) return base;
+  let suffix = 2;
+  while (sessions.some(({ name }) => name === `${base} ${suffix}`)) suffix += 1;
+  return `${base} ${suffix}`;
+};
+
+const appendHistoricalRecoverySessions = (
+  sessions: readonly CanvasSession[],
+  snapshots: readonly LegacySessionSnapshot[],
+  persistedDocumentIds: ReadonlySet<string>,
+  initialSessions: readonly CanvasSession[],
+  recoveredSources: Set<string>,
+  deletedSessionIds: ReadonlySet<string>
+) => {
+  const recovered = [...sessions];
+  let recoveredActiveId: string | null = null;
+  const initial = new Map(initialSessions.map((session) => [session.id, session]));
+  for (const snapshot of snapshots) {
+    if (!HISTORICAL_EDITOR_PERSISTENCE_KEYS.includes(
+      snapshot.key as (typeof HISTORICAL_EDITOR_PERSISTENCE_KEYS)[number]
+    )) continue;
+    for (const historical of snapshot.state.sessions.items) {
+      if (!hasRecoverableSessionContent(historical)) continue;
+      if (deletedSessionIds.has(historical.id)) continue;
+      const source = recoverySourceId(snapshot.key, historical);
+      if (recoveredSources.has(source)) continue;
+      const current = sessions.find(({ id }) => id === historical.id);
+      const represented = !!current &&
+        !isBootstrapCatalogSession(current, initial.get(current.id));
+      if (represented || persistedDocumentIds.has(historical.id)) continue;
+      const id = createSessionId(recovered);
+      const session: CanvasSession = historical.mode === "slide"
+        ? {
+            ...structuredClone(historical),
+            id,
+            name: uniqueRecoveredName(recovered, historical.name),
+          }
+        : {
+            ...structuredClone(historical),
+            id,
+            name: uniqueRecoveredName(recovered, historical.name),
+            collaboration: undefined,
+          };
+      recovered.push(session);
+      recoveredSources.add(source);
+      if (historical.id === snapshot.state.sessions.activeId) {
+        recoveredActiveId = id;
+      }
+    }
+  }
+  return { sessions: recovered, recoveredActiveId };
+};
+
 const cloneRecoveredSessions = (
   source: readonly CanvasSession[],
   restored: readonly CanvasSession[],
@@ -838,11 +970,17 @@ const cloneRecoveredSessions = (
 
 const createCatalogSnapshot = (
   state: ReturnType<CanvasStore["getState"]>,
-  documentGenerations: ReadonlyMap<string, number> = new Map()
+  documentGenerations: ReadonlyMap<string, number> = new Map(),
+  previousDocumentGenerations: ReadonlyMap<string, number> = new Map(),
+  revision = 0,
+  recoveredSources: ReadonlySet<string> = new Set(),
+  deletedSessionIds: ReadonlySet<string> = new Set()
 ): CanvasCatalogSnapshot => ({
+  revision,
   activeSessionId: state.activeCanvasId,
-  sessions: state.canvasSessions.map((session) => ({
+  sessions: state.canvasSessions.map((session, order) => ({
     id: session.id,
+    order,
     name: session.name,
     mode: session.mode,
     viewport:
@@ -856,7 +994,15 @@ const createCatalogSnapshot = (
       ? { activeSlideId: session.slideDeck.activeSlideId }
       : {}),
     ...(documentGenerations.get(session.id)
-      ? { documentGeneration: documentGenerations.get(session.id) }
+      ? {
+          documentGeneration: documentGenerations.get(session.id),
+          ...(previousDocumentGenerations.has(session.id)
+            ? {
+                previousDocumentGeneration:
+                  previousDocumentGenerations.get(session.id),
+              }
+            : {}),
+        }
       : {}),
   })),
   slides: state.canvasSessions.flatMap((session) =>
@@ -877,7 +1023,53 @@ const createCatalogSnapshot = (
     showGrid: state.showGrid,
     exportShowGrid: state.exportShowGrid,
   },
+  recoveredSources: Array.from(recoveredSources).sort(),
+  deletedSessionIds: Array.from(deletedSessionIds).sort(),
 });
+
+const catalogStructureJson = (snapshot: CanvasCatalogSnapshot) => JSON.stringify({
+  activeSessionId: snapshot.activeSessionId,
+  sessions: snapshot.sessions.map((session) => ({
+    id: session.id,
+    order: session.order,
+    name: session.name,
+    mode: session.mode,
+    collaboration: session.collaboration,
+    activeSlideId: session.activeSlideId,
+    documentGeneration: session.documentGeneration,
+    previousDocumentGeneration: session.previousDocumentGeneration,
+  })),
+  slides: snapshot.slides,
+  recoveredSources: snapshot.recoveredSources,
+  deletedSessionIds: snapshot.deletedSessionIds,
+});
+
+const catalogSnapshotJson = (snapshot: CanvasCatalogSnapshot) => JSON.stringify({
+  ...snapshot,
+  slides: [...snapshot.slides].sort((left, right) => left.order - right.order),
+  recoveredSources: [...snapshot.recoveredSources].sort(),
+  deletedSessionIds: [...snapshot.deletedSessionIds].sort(),
+});
+
+const readCatalogIntent = (storage: Storage): CanvasCatalogSnapshot | null => {
+  try {
+    const value: unknown = JSON.parse(storage.getItem(CATALOG_INTENT_KEY) ?? "null");
+    if (!value || typeof value !== "object") return null;
+    const intent = value as Partial<CanvasCatalogSnapshot>;
+    if (
+      typeof intent.revision !== "number" ||
+      typeof intent.activeSessionId !== "string" ||
+      !Array.isArray(intent.sessions) ||
+      !Array.isArray(intent.slides) ||
+      !intent.preferences ||
+      !Array.isArray(intent.recoveredSources) ||
+      !Array.isArray(intent.deletedSessionIds)
+    ) return null;
+    return intent as CanvasCatalogSnapshot;
+  } catch {
+    return null;
+  }
+};
 
 export class BrowserCanvasPersistence implements CanvasDocumentResidency {
   readonly #legacyStorage: Storage;
@@ -886,6 +1078,7 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
   readonly #documents = new Map<string, PersistedDocument>();
   readonly #dirtyDocuments = new Map<string, number>();
   readonly #documentGenerations = new Map<string, number>();
+  readonly #previousDocumentGenerations = new Map<string, number>();
   readonly #documentRevisions = new Map<string, number>();
   readonly #checkpointServices = new Map<
     string,
@@ -894,7 +1087,8 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
   readonly #checkpointTimers = new Map<string, ReturnType<typeof setTimeout>>();
   readonly #checkpointTails = new Map<string, CanvasCheckpointTailEntry[]>();
   readonly #checkpointWorker = new CanvasCheckpointWorkerClient();
-  readonly #obsoleteDocumentDatabases = new Set<string>();
+  readonly #recoveredSources = new Set<string>();
+  readonly #deletedSessionIds = new Set<string>();
   readonly #pinnedCanvasIds = new Set<string>();
   readonly #recentCanvasIds: string[] = [];
   #registry: CanvasDocumentRegistry | null = null;
@@ -905,7 +1099,10 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
   #metadataTimer: ReturnType<typeof setTimeout> | null = null;
   #documentTimer: ReturnType<typeof setTimeout> | null = null;
   #evictionTask: Promise<void> = Promise.resolve();
+  #catalogSaveTask: Promise<void> = Promise.resolve();
+  #catalogRevision = 0;
   #lastCatalogJson = "";
+  #lastCatalogStructureJson = "";
   #writerLease: WriterLease | null = null;
   #bootstrapSessions: readonly CanvasSession[] | undefined;
   #temporaryStoreSubscription: (() => void) | null = null;
@@ -989,9 +1186,23 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
           new Error("Canvas catalog connection was interrupted")
         ),
       });
-      const storedCatalog = this.#writerLease.writer
+      const persistedCatalog = this.#writerLease.writer
         ? await this.#catalog.load()
         : await waitForCatalog(this.#catalog);
+      const catalogIntent = this.#writerLease.writer
+        ? readCatalogIntent(this.#legacyStorage)
+        : null;
+      const storedCatalog = catalogIntent &&
+          catalogIntent.revision > (persistedCatalog?.revision ?? -1)
+        ? catalogIntent
+        : persistedCatalog;
+      this.#catalogRevision = storedCatalog?.revision ?? 0;
+      storedCatalog?.recoveredSources.forEach((source) =>
+        this.#recoveredSources.add(source)
+      );
+      storedCatalog?.deletedSessionIds.forEach((id) =>
+        this.#deletedSessionIds.add(id)
+      );
       const legacySnapshots = readLegacySessionSnapshots(
         this.#legacyStorage,
         this.#legacyKey
@@ -1014,10 +1225,14 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
       );
       const initialSessions = (this.#bootstrapSessions ?? store.getState().canvasSessions)
         .map((session) => structuredClone(session));
-      const catalogSessions = storedCatalog
+      const catalogSessions = (storedCatalog
         ? sessionsFromCatalog(storedCatalog)
-        : legacySessions ?? initialSessions;
-      const persistedDocuments = await listPersistedDocuments();
+        : legacySessions ?? initialSessions).filter(
+          ({ id }) => !this.#deletedSessionIds.has(id)
+        );
+      const persistedDocuments = (await listPersistedDocuments()).filter(
+        ({ id }) => !this.#deletedSessionIds.has(id)
+      );
       const latestPersistedGeneration = new Map<string, number>();
       persistedDocuments.forEach(({ id, generation }) => {
         latestPersistedGeneration.set(
@@ -1025,25 +1240,26 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
           Math.max(latestPersistedGeneration.get(id) ?? 0, generation)
         );
       });
+      const resolvedGenerations = await resolveDocumentGenerations(
+        storedCatalog,
+        persistedDocuments
+      );
+      resolvedGenerations.forEach((generation, id) =>
+        this.#documentGenerations.set(id, generation)
+      );
       storedCatalog?.sessions.forEach((session) => {
-        this.#documentGenerations.set(
-          session.id,
-          session.documentGeneration ?? 0
-        );
-      });
-      latestPersistedGeneration.forEach((generation, id) => {
-        if (!this.#documentGenerations.has(id)) {
-          this.#documentGenerations.set(id, generation);
-        }
-      });
-      persistedDocuments.forEach(({ id, generation }) => {
-        const activeGeneration = this.#documentGenerations.get(id) ?? 0;
+        const catalogGeneration = session.documentGeneration ?? 0;
+        const resolvedGeneration = resolvedGenerations.get(session.id);
         if (
-          generation !== activeGeneration &&
-          generation !== activeGeneration - 1
+          resolvedGeneration !== undefined &&
+          resolvedGeneration !== catalogGeneration
         ) {
-          this.#obsoleteDocumentDatabases.add(
-            getDocumentDatabaseName(id, generation)
+          this.#previousDocumentGenerations.set(session.id, catalogGeneration);
+        }
+        if (session.previousDocumentGeneration !== undefined) {
+          this.#previousDocumentGenerations.set(
+            session.id,
+            session.previousDocumentGeneration
           );
         }
       });
@@ -1066,9 +1282,20 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
             this.#documentGenerations.get(id) ?? 0
           ))
       )).filter((session): session is CanvasSession => session !== null);
+      const historicalRecovery = appendHistoricalRecoverySessions(
+        [...recoveredCatalogSessions, ...recoveredDocumentShells],
+        legacySnapshots,
+        new Set(persistedDocumentIds),
+        initialSessions,
+        this.#recoveredSources,
+        this.#deletedSessionIds
+      );
       const sourceSessions = [
         ...recoveredCatalogSessions,
         ...recoveredDocumentShells,
+        ...historicalRecovery.sessions.slice(
+          recoveredCatalogSessions.length + recoveredDocumentShells.length
+        ),
       ];
       const catalogIsBootstrap = !!storedCatalog && storedCatalog.sessions.every(
         (session) => isBootstrapCatalogSession(
@@ -1080,7 +1307,8 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
         sourceSessions.some(({ id }) => id === state.sessions.activeId)
       )?.state.sessions.activeId;
       const activeSessionId = catalogIsBootstrap
-        ? recoveredActiveId ?? storedCatalog?.activeSessionId ??
+        ? historicalRecovery.recoveredActiveId ?? recoveredActiveId ??
+          storedCatalog?.activeSessionId ??
           store.getState().activeCanvasId
         : storedCatalog?.activeSessionId ??
           legacy?.state.sessions.activeId ??
@@ -1169,12 +1397,6 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
           onDelete: (id) => { void this.#deleteDocument(id); },
         });
         await this.#saveCatalog();
-        const verified = await this.#catalog.load();
-        if (!verified || verified.sessions.length !== restored.sessions.length) {
-          throw new Error("Canvas catalog verification failed");
-        }
-        await Promise.all(Array.from(this.#obsoleteDocumentDatabases, clearDocument));
-        this.#obsoleteDocumentDatabases.clear();
         if (legacy) {
           this.#legacyStorage.removeItem(legacy.key);
           this.#legacyStorage.removeItem(LEGACY_EDITOR_PERSISTENCE_KEY);
@@ -1287,9 +1509,14 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
     }));
     this.#dirtyDocuments.clear();
     this.#documentGenerations.clear();
+    this.#previousDocumentGenerations.clear();
     this.#documentRevisions.clear();
-    this.#obsoleteDocumentDatabases.clear();
+    this.#recoveredSources.clear();
+    this.#deletedSessionIds.clear();
+    this.#catalogRevision = 0;
+    this.#catalogSaveTask = Promise.resolve();
     this.#lastCatalogJson = "";
+    this.#lastCatalogStructureJson = "";
     this.#catalog?.close();
     this.#catalog = null;
     this.#writerLease?.release();
@@ -1303,7 +1530,7 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
       const dirty = Array.from(this.#dirtyDocuments);
       await Promise.all(dirty.flatMap(([id]) => {
         const provider = this.#documents.get(id)?.provider;
-        return provider ? [storeState(provider, false)] : [];
+        return provider ? [persistProviderState(provider, false)] : [];
       }));
       dirty.forEach(([id, revision]) => {
         if (this.#dirtyDocuments.get(id) === revision) {
@@ -1418,7 +1645,7 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
     let activeDocument: Y.Doc | null = null;
     for (const session of sessions) {
       const isActive = session.id === activeSessionId;
-      if (!isActive && !resetDocuments) {
+      if (!isActive && !resetDocuments && !hasRecoverableSessionContent(session)) {
         restored.push(session);
         continue;
       }
@@ -1622,7 +1849,7 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
       );
       try {
         await waitForDocumentSync(nextProvider, nextDatabaseName);
-        await storeState(nextProvider, true);
+        await persistProviderState(nextProvider, true);
       } catch (error) {
         await bestEffortDestroyProvider(nextProvider);
         compacted.destroy();
@@ -1642,12 +1869,13 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
       return compacted;
     }
     this.#registerDocument(id, doc, provider);
-    if (seeded) await storeState(provider, true);
+    if (seeded) await persistProviderState(provider, true);
     return doc;
   }
 
   #attachDocument(id: string, doc: Y.Doc) {
     if (this.#documents.has(id)) return;
+    this.#deletedSessionIds.delete(id);
     const session = this.#store?.getState().canvasSessions.find(
       (candidate) => candidate.id === id
     );
@@ -1682,7 +1910,9 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
     const persisted = this.#documents.get(id);
     if (persisted) {
       persisted.doc.off("update", persisted.updateListener);
-      if (this.#dirtyDocuments.has(id)) await storeState(persisted.provider, false);
+      if (this.#dirtyDocuments.has(id)) {
+        await persistProviderState(persisted.provider, false);
+      }
       await persisted.provider.destroy();
       this.#documents.delete(id);
       this.#dirtyDocuments.delete(id);
@@ -1696,7 +1926,9 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
     if (!persisted) return;
     this.#documents.delete(id);
     persisted.doc.off("update", persisted.updateListener);
-    if (this.#dirtyDocuments.has(id)) await storeState(persisted.provider, false);
+    if (this.#dirtyDocuments.has(id)) {
+      await persistProviderState(persisted.provider, false);
+    }
     await persisted.provider.destroy();
     this.#dirtyDocuments.delete(id);
     this.#clearCheckpoint(id);
@@ -1708,7 +1940,9 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
     const persisted = this.#documents.get(id);
     if (persisted) {
       persisted.doc.off("update", persisted.updateListener);
-      if (this.#dirtyDocuments.has(id)) await storeState(persisted.provider, false);
+      if (this.#dirtyDocuments.has(id)) {
+        await persistProviderState(persisted.provider, false);
+      }
       await persisted.provider.destroy();
       this.#documents.delete(id);
       this.#dirtyDocuments.delete(id);
@@ -1745,30 +1979,34 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
   }
 
   async #deleteDocument(id: string) {
+    this.#deletedSessionIds.add(id);
     const current = this.#documents.get(id);
     if (current) {
       current.doc.off("update", current.updateListener);
       this.#documents.delete(id);
       this.#dirtyDocuments.delete(id);
-      await current.provider.clearData();
+      await current.provider.destroy();
     }
     this.#documentGenerations.delete(id);
+    this.#previousDocumentGenerations.delete(id);
     this.#documentRevisions.delete(id);
     this.#clearCheckpoint(id);
-    const locations = await listPersistedDocuments();
-    await Promise.all(locations
-      .filter((location) => location.id === id)
-      .map((location) => clearDocument(
-        getDocumentDatabaseName(location.id, location.generation)
-      )));
+    this.#writeCatalogIntent();
+    await this.#saveCatalog();
   }
 
   #subscribeToStore() {
     if (!this.#store) return;
-    this.#lastCatalogJson = JSON.stringify(createCatalogSnapshot(
+    const initialSnapshot = createCatalogSnapshot(
       this.#store.getState(),
-      this.#documentGenerations
-    ));
+      this.#documentGenerations,
+      this.#previousDocumentGenerations,
+      this.#catalogRevision,
+      this.#recoveredSources,
+      this.#deletedSessionIds
+    );
+    this.#lastCatalogJson = catalogSnapshotJson(initialSnapshot);
+    this.#lastCatalogStructureJson = catalogStructureJson(initialSnapshot);
     this.#unsubscribeStore = this.#store.subscribe((state) => {
       state.canvasSessions.forEach((session) => {
         if (session.mode !== "slide" && session.collaboration) {
@@ -1777,14 +2015,34 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
           );
         }
       });
-      const nextJson = JSON.stringify(createCatalogSnapshot(
+      const snapshot = createCatalogSnapshot(
         state,
-        this.#documentGenerations
-      ));
+        this.#documentGenerations,
+        this.#previousDocumentGenerations,
+        this.#catalogRevision,
+        this.#recoveredSources,
+        this.#deletedSessionIds
+      );
+      const nextJson = catalogSnapshotJson(snapshot);
       if (nextJson === this.#lastCatalogJson) return;
+      const nextStructureJson = catalogStructureJson(snapshot);
+      const structureChanged = nextStructureJson !== this.#lastCatalogStructureJson;
       this.#lastCatalogJson = nextJson;
+      this.#lastCatalogStructureJson = nextStructureJson;
       if (this.#metadataTimer) clearTimeout(this.#metadataTimer);
       this.#publish({ save: "saving" });
+      if (structureChanged) {
+        this.#metadataTimer = null;
+        try {
+          this.#writeCatalogIntent();
+        } catch (error) {
+          this.#handleError(error);
+        }
+        void this.#saveCatalog()
+          .then(() => this.#publish({ save: "saved", error: null }))
+          .catch((error) => this.#handleError(error));
+        return;
+      }
       this.#metadataTimer = setTimeout(() => {
         this.#metadataTimer = null;
         void this.#saveCatalog()
@@ -1803,7 +2061,7 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
       const dirty = Array.from(this.#dirtyDocuments);
       void Promise.all(dirty.flatMap(([documentId]) => {
         const provider = this.#documents.get(documentId)?.provider;
-        return provider ? [storeState(provider, false)] : [];
+        return provider ? [persistProviderState(provider, false)] : [];
       }))
         .then(() => {
           dirty.forEach(([documentId, revision]) => {
@@ -1940,16 +2198,29 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
           throw new Error(`Canvas checkpoint changed before commit: ${id}`);
         }
         const previousGeneration = this.#documentGenerations.get(id) ?? 0;
+        const previousRecordedGeneration =
+          this.#previousDocumentGenerations.get(id);
         this.#documentGenerations.set(id, candidate.generation);
+        this.#previousDocumentGenerations.set(id, previousGeneration);
         try {
           await this.#saveCatalog();
           if ((this.#documentRevisions.get(id) ?? 0) !== candidate.baseRevision) {
             this.#documentGenerations.set(id, previousGeneration);
+            if (previousRecordedGeneration === undefined) {
+              this.#previousDocumentGenerations.delete(id);
+            } else {
+              this.#previousDocumentGenerations.set(id, previousRecordedGeneration);
+            }
             await this.#saveCatalog();
             throw new Error(`Canvas checkpoint changed during commit: ${id}`);
           }
         } catch (error) {
           this.#documentGenerations.set(id, previousGeneration);
+          if (previousRecordedGeneration === undefined) {
+            this.#previousDocumentGenerations.delete(id);
+          } else {
+            this.#previousDocumentGenerations.set(id, previousRecordedGeneration);
+          }
           throw error;
         }
         current.doc.off("update", current.updateListener);
@@ -1983,10 +2254,46 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
     if (!this.#catalog || !this.#store) {
       return Promise.reject(new Error("Canvas catalog is unavailable"));
     }
-    return this.#catalog.save(createCatalogSnapshot(
+    const catalog = this.#catalog;
+    const store = this.#store;
+    const task = this.#catalogSaveTask.then(async () => {
+      const snapshot = createCatalogSnapshot(
+        store.getState(),
+        this.#documentGenerations,
+        this.#previousDocumentGenerations,
+        this.#catalogRevision + 1,
+        this.#recoveredSources,
+        this.#deletedSessionIds
+      );
+      this.#legacyStorage.setItem(CATALOG_INTENT_KEY, JSON.stringify(snapshot));
+      await catalog.save(snapshot);
+      const verified = await catalog.load();
+      if (!verified || catalogSnapshotJson(verified) !== catalogSnapshotJson(snapshot)) {
+        throw new Error("Canvas catalog verification failed");
+      }
+      this.#catalogRevision = snapshot.revision;
+      this.#lastCatalogJson = catalogSnapshotJson(snapshot);
+      this.#lastCatalogStructureJson = catalogStructureJson(snapshot);
+      const intent = readCatalogIntent(this.#legacyStorage);
+      if (intent?.revision === snapshot.revision) {
+        this.#legacyStorage.removeItem(CATALOG_INTENT_KEY);
+      }
+    });
+    this.#catalogSaveTask = task.catch(() => undefined);
+    return task;
+  }
+
+  #writeCatalogIntent() {
+    if (!this.#store) return;
+    const snapshot = createCatalogSnapshot(
       this.#store.getState(),
-      this.#documentGenerations
-    ));
+      this.#documentGenerations,
+      this.#previousDocumentGenerations,
+      this.#catalogRevision + 1,
+      this.#recoveredSources,
+      this.#deletedSessionIds
+    );
+    this.#legacyStorage.setItem(CATALOG_INTENT_KEY, JSON.stringify(snapshot));
   }
 
   #handleError(error: unknown) {

@@ -18,12 +18,14 @@ export type CanvasCatalogPreferences = {
 
 export type CanvasCatalogSession = {
   id: string;
+  order?: number;
   name: string;
   mode: CanvasMode;
   viewport?: { offset: Point; zoom: number };
   collaboration?: CollaborationDescriptor;
   activeSlideId?: string;
   documentGeneration?: number;
+  previousDocumentGeneration?: number;
 };
 
 export type CanvasCatalogSlide = {
@@ -35,10 +37,13 @@ export type CanvasCatalogSlide = {
 };
 
 export type CanvasCatalogSnapshot = {
+  revision: number;
   activeSessionId: string;
   sessions: CanvasCatalogSession[];
   slides: CanvasCatalogSlide[];
   preferences: CanvasCatalogPreferences;
+  recoveredSources: string[];
+  deletedSessionIds: string[];
 };
 
 interface CanvasCatalogSchema extends DBSchema {
@@ -49,6 +54,9 @@ interface CanvasCatalogSchema extends DBSchema {
       schemaVersion: typeof CANVAS_CATALOG_VERSION;
       activeSessionId: string;
       migrationComplete: boolean;
+      revision?: number;
+      recoveredSources?: string[];
+      deletedSessionIds?: string[];
     };
   };
   sessions: {
@@ -184,10 +192,15 @@ export const createIndexedDbCanvasCatalog = async (
         exportShowGrid: preferences.exportShowGrid,
       };
       return {
+        revision: workspace.revision ?? 0,
         activeSessionId: workspace.activeSessionId,
-        sessions,
+        sessions: sessions.sort(
+          (left, right) => (left.order ?? 0) - (right.order ?? 0)
+        ),
         slides: slides.sort((left, right) => left.order - right.order),
         preferences: canvasPreferences,
+        recoveredSources: workspace.recoveredSources ?? [],
+        deletedSessionIds: workspace.deletedSessionIds ?? [],
       };
     },
     save: async (snapshot) => {
@@ -205,6 +218,9 @@ export const createIndexedDbCanvasCatalog = async (
           schemaVersion: CANVAS_CATALOG_VERSION,
           activeSessionId: snapshot.activeSessionId,
           migrationComplete: true,
+          revision: snapshot.revision,
+          recoveredSources: snapshot.recoveredSources,
+          deletedSessionIds: snapshot.deletedSessionIds,
         }),
         transaction.objectStore("preferences").put({
           id: "canvas",

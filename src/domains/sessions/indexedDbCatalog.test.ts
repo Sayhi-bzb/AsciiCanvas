@@ -10,9 +10,11 @@ import {
 } from "./indexedDbCatalog";
 
 const snapshot: CanvasCatalogSnapshot = {
+  revision: 3,
   activeSessionId: "canvas-a",
   sessions: [{
     id: "canvas-a",
+    order: 0,
     name: "Canvas A",
     mode: "slide",
     activeSlideId: "slide-2",
@@ -41,6 +43,8 @@ const snapshot: CanvasCatalogSnapshot = {
     showGrid: true,
     exportShowGrid: false,
   },
+  recoveredSources: [],
+  deletedSessionIds: [],
 };
 
 const openNativeCatalog = (version: number) => new Promise<IDBDatabase>(
@@ -93,7 +97,12 @@ describe("IndexedDB canvas catalog", () => {
     await catalog.save({
       ...snapshot,
       activeSessionId: "canvas-b",
-      sessions: [{ id: "canvas-b", name: "Canvas B", mode: "freeform" }],
+      sessions: [{
+        id: "canvas-b",
+        order: 0,
+        name: "Canvas B",
+        mode: "freeform",
+      }],
       slides: [],
     });
 
