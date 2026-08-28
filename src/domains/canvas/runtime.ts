@@ -21,6 +21,7 @@ const DISABLED_PERSISTENCE_STATUS: CanvasPersistenceStatus = {
   phase: "ready",
   restore: {
     phase: "ready",
+    reason: null,
     error: null,
     temporaryDirty: false,
   },

@@ -110,6 +110,22 @@ const createRuntime = (
   return runtime;
 };
 
+const openOlderCatalogTab = () => new Promise<IDBDatabase>((resolve, reject) => {
+  const request = indexedDB.open(CANVAS_CATALOG_DATABASE, 1);
+  request.onupgradeneeded = () => {
+    const database = request.result;
+    database.createObjectStore("workspace", { keyPath: "id" });
+    database.createObjectStore("sessions", { keyPath: "id" });
+    const slides = database.createObjectStore("slides", {
+      keyPath: ["sessionId", "id"],
+    });
+    slides.createIndex("by-session", "sessionId");
+    database.createObjectStore("preferences", { keyPath: "id" });
+  };
+  request.onerror = () => reject(request.error);
+  request.onsuccess = () => resolve(request.result);
+});
+
 describe("browser canvas persistence", () => {
   let runtimes: CanvasRuntime[] = [];
   let recoveredSessionIds: string[] = [];
@@ -159,6 +175,26 @@ describe("browser canvas persistence", () => {
     expect(second.getState().grid.get("1,0")?.char).toBe("B");
     expect(storage.getItem(CANVAS_CATALOG_MARKER_KEY)).toBe("1");
     expect(storage.getItem(EDITOR_PERSISTENCE_KEY)).toBeNull();
+  });
+
+  it("uses a temporary canvas when an older tab blocks the catalog upgrade", async () => {
+    const olderTab = await openOlderCatalogTab();
+    const runtime = createRuntime(new MemoryStorage());
+    runtimes.push(runtime);
+
+    await runtime.ready;
+
+    expect(runtime.getPersistenceSnapshot()).toMatchObject({
+      phase: "degraded",
+      restore: {
+        phase: "temporary",
+        reason: "upgrade-blocked",
+        temporaryDirty: false,
+      },
+    });
+
+    olderTab.close();
+    await new Promise((resolve) => setTimeout(resolve, 0));
   });
 
   it("keeps a failed restore editable and merges temporary work on retry", async () => {

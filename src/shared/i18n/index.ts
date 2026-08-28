@@ -232,6 +232,9 @@ const messages = {
     'startup.temporaryTitle': 'Temporary canvas',
     'startup.temporaryDescription':
       'The local workspace is unavailable. Retry to recover these edits with your saved canvases.',
+    'startup.upgradeBlockedTitle': 'Close other CharDesk tabs',
+    'startup.upgradeBlockedDescription':
+      'Another tab is using an older workspace database. Close other CharDesk tabs, then retry. Your saved canvases are unchanged.',
     'startup.retry': 'Retry',
     'startup.retrying': 'Restoring',
     'clear.title': 'Clear canvas?',
@@ -750,6 +753,9 @@ const messages = {
     'startup.temporaryTitle': '临时画布',
     'startup.temporaryDescription':
       '本地工作区暂不可用。重试后会将当前编辑与已保存画布一起恢复。',
+    'startup.upgradeBlockedTitle': '关闭其他 CharDesk 标签页',
+    'startup.upgradeBlockedDescription':
+      '另一个标签页正在使用旧版工作区数据库。关闭其他 CharDesk 标签页后重试；已保存的画布不会改变。',
     'startup.retry': '重试',
     'startup.retrying': '正在恢复',
     'clear.title': '确认清空？',

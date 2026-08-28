@@ -13,7 +13,7 @@ import { CanvasStartupBoundary } from "./CanvasStartupBoundary";
 
 const readyStatus: CanvasPersistenceStatus = {
   phase: "ready",
-  restore: { phase: "ready", error: null, temporaryDirty: false },
+  restore: { phase: "ready", reason: null, error: null, temporaryDirty: false },
   save: "saved",
   ownership: "writer",
   error: null,
@@ -72,6 +72,7 @@ describe("CanvasStartupBoundary", () => {
       phase: "restoring",
       restore: {
         phase: "initializing",
+        reason: null,
         error: null,
         temporaryDirty: false,
       },
@@ -98,6 +99,7 @@ describe("CanvasStartupBoundary", () => {
       phase: "restoring",
       restore: {
         phase: "initializing",
+        reason: null,
         error: null,
         temporaryDirty: false,
       },
@@ -117,6 +119,7 @@ describe("CanvasStartupBoundary", () => {
       phase: "degraded",
       restore: {
         phase: "temporary",
+        reason: "storage-unavailable",
         error: "IndexedDB unavailable",
         temporaryDirty: true,
       },
@@ -137,12 +140,36 @@ describe("CanvasStartupBoundary", () => {
     harness.host.canvas.dispose();
   });
 
+  it("explains how to unblock a workspace database upgrade", () => {
+    const harness = createPersistenceHarness({
+      ...readyStatus,
+      phase: "degraded",
+      restore: {
+        phase: "temporary",
+        reason: "upgrade-blocked",
+        error: "Canvas catalog upgrade is blocked by another tab",
+        temporaryDirty: false,
+      },
+    });
+    renderBoundary(harness.runtime);
+
+    expect(screen.getByTestId("temporary-canvas-alert")).toHaveTextContent(
+      "Close other CharDesk tabs"
+    );
+    expect(screen.getByTestId("temporary-canvas-alert")).toHaveTextContent(
+      "Your saved canvases are unchanged"
+    );
+
+    harness.host.canvas.dispose();
+  });
+
   it("freezes rather than unmounts the workspace while retrying", () => {
     const harness = createPersistenceHarness({
       ...readyStatus,
       phase: "degraded",
       restore: {
         phase: "retrying",
+        reason: null,
         error: "IndexedDB unavailable",
         temporaryDirty: true,
       },

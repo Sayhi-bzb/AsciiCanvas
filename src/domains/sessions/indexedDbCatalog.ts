@@ -72,22 +72,96 @@ export type CanvasCatalog = {
   close: () => void;
 };
 
-const openCatalog = (): Promise<IDBPDatabase<CanvasCatalogSchema>> =>
-  openDB<CanvasCatalogSchema>(CANVAS_CATALOG_DATABASE, CANVAS_CATALOG_VERSION, {
-    upgrade(db, oldVersion) {
-      if (oldVersion >= 1) return;
-      db.createObjectStore("workspace", { keyPath: "id" });
-      db.createObjectStore("sessions", { keyPath: "id" });
-      const slides = db.createObjectStore("slides", {
-        keyPath: ["sessionId", "id"],
-      });
-      slides.createIndex("by-session", "sessionId");
-      db.createObjectStore("preferences", { keyPath: "id" });
-    },
-  });
+export type CanvasCatalogFailureReason =
+  | "upgrade-blocked"
+  | "storage-timeout"
+  | "storage-unavailable";
 
-export const createIndexedDbCanvasCatalog = async (): Promise<CanvasCatalog> => {
-  const db = await openCatalog();
+export class CanvasCatalogOpenError extends Error {
+  readonly reason: CanvasCatalogFailureReason;
+
+  constructor(reason: CanvasCatalogFailureReason, message: string) {
+    super(message);
+    this.name = "CanvasCatalogOpenError";
+    this.reason = reason;
+  }
+}
+
+export type CanvasCatalogOpenOptions = {
+  openTimeoutMs?: number;
+  onUnavailable?: (reason: CanvasCatalogFailureReason) => void;
+};
+
+const CATALOG_OPEN_TIMEOUT = 5_000;
+
+const openCatalog = async ({
+  openTimeoutMs = CATALOG_OPEN_TIMEOUT,
+  onUnavailable,
+}: CanvasCatalogOpenOptions): Promise<IDBPDatabase<CanvasCatalogSchema>> => {
+  let database: IDBPDatabase<CanvasCatalogSchema> | null = null;
+  let rejectInterruption!: (error: CanvasCatalogOpenError) => void;
+  let settled = false;
+  const interruption = new Promise<never>((_, reject) => {
+    rejectInterruption = reject;
+  });
+  const opening = openDB<CanvasCatalogSchema>(
+    CANVAS_CATALOG_DATABASE,
+    CANVAS_CATALOG_VERSION,
+    {
+      upgrade(db, oldVersion) {
+        if (oldVersion >= 1) return;
+        db.createObjectStore("workspace", { keyPath: "id" });
+        db.createObjectStore("sessions", { keyPath: "id" });
+        const slides = db.createObjectStore("slides", {
+          keyPath: ["sessionId", "id"],
+        });
+        slides.createIndex("by-session", "sessionId");
+        db.createObjectStore("preferences", { keyPath: "id" });
+      },
+      blocked() {
+        rejectInterruption(new CanvasCatalogOpenError(
+          "upgrade-blocked",
+          "Canvas catalog upgrade is blocked by another tab"
+        ));
+      },
+      blocking() {
+        database?.close();
+        onUnavailable?.("storage-unavailable");
+      },
+      terminated() {
+        onUnavailable?.("storage-unavailable");
+      },
+    }
+  );
+  const timeout = setTimeout(() => {
+    rejectInterruption(new CanvasCatalogOpenError(
+      "storage-timeout",
+      "Canvas catalog did not open in time"
+    ));
+  }, openTimeoutMs);
+  void opening.then((opened) => {
+    if (settled) opened.close();
+  }).catch(() => undefined);
+
+  try {
+    database = await Promise.race([opening, interruption]);
+    return database;
+  } catch (error) {
+    if (error instanceof CanvasCatalogOpenError) throw error;
+    throw new CanvasCatalogOpenError(
+      "storage-unavailable",
+      error instanceof Error ? error.message : "Canvas catalog is unavailable"
+    );
+  } finally {
+    settled = true;
+    clearTimeout(timeout);
+  }
+};
+
+export const createIndexedDbCanvasCatalog = async (
+  options: CanvasCatalogOpenOptions = {}
+): Promise<CanvasCatalog> => {
+  const db = await openCatalog(options);
   return {
     load: async () => {
       const transaction = db.transaction(

@@ -14,6 +14,7 @@ import {
 import {
   useCanvasPersistence,
   useCanvasRuntime,
+  type CanvasRestoreFailureReason,
 } from "@/domains/canvas/public";
 import { useUiI18n } from "@/shared/i18n";
 import { EditorChromeLayout } from "@/widgets/editor-chrome/public";
@@ -66,13 +67,16 @@ function RestoringWorkspaceShell() {
 }
 
 function TemporaryWorkspaceAlert({
+  reason,
   retrying,
   onRetry,
 }: {
+  reason: CanvasRestoreFailureReason | null;
   retrying: boolean;
   onRetry: () => void;
 }) {
   const { t } = useUiI18n();
+  const upgradeBlocked = reason === "upgrade-blocked";
   return (
     <div
       data-canvas-ui="true"
@@ -81,9 +85,15 @@ function TemporaryWorkspaceAlert({
     >
       <Alert>
         <AlertTriangle aria-hidden="true" />
-        <AlertTitle>{t("startup.temporaryTitle")}</AlertTitle>
+        <AlertTitle>
+          {t(upgradeBlocked
+            ? "startup.upgradeBlockedTitle"
+            : "startup.temporaryTitle")}
+        </AlertTitle>
         <AlertDescription>
-          {t("startup.temporaryDescription")}
+          {t(upgradeBlocked
+            ? "startup.upgradeBlockedDescription"
+            : "startup.temporaryDescription")}
         </AlertDescription>
         <AlertAction>
           <Button
@@ -127,6 +137,7 @@ export function CanvasStartupBoundary({ children }: { children: ReactNode }) {
       </div>
       {temporary ? (
         <TemporaryWorkspaceAlert
+          reason={persistence.restore.reason}
           retrying={retrying}
           onRetry={() => void canvas.retryRestore()}
         />

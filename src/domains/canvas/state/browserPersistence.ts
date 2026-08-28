@@ -8,10 +8,12 @@ import {
   EDITOR_PERSISTENCE_KEY,
   LEGACY_EDITOR_PERSISTENCE_KEY,
   CANVAS_CATALOG_MARKER_KEY,
+  CanvasCatalogOpenError,
   createSessionId,
   createIndexedDbCanvasCatalog,
   decodePersistedEditorState,
   type CanvasCatalog,
+  type CanvasCatalogFailureReason,
   type CanvasCatalogSnapshot,
   type CanvasSession,
 } from "@/domains/sessions/public";
@@ -74,11 +76,67 @@ const WRITER_LOCK_NAME = "chardesk-canvas-workspace-writer-v1";
 const WRITER_LEASE_KEY = "chardesk-canvas-writer-lease-v1";
 const WRITER_LEASE_DURATION = 8_000;
 const MAX_RESIDENT_CANVASES = 4;
+const WRITER_LOCK_TIMEOUT = 2_000;
+const DOCUMENT_SYNC_TIMEOUT = 15_000;
+const RESTORE_CLEANUP_TIMEOUT = 2_000;
+
+export type CanvasRestoreFailureReason = CanvasCatalogFailureReason;
+
+class CanvasRestoreError extends Error {
+  readonly reason: CanvasRestoreFailureReason;
+
+  constructor(reason: CanvasRestoreFailureReason, message: string) {
+    super(message);
+    this.name = "CanvasRestoreError";
+    this.reason = reason;
+  }
+}
+
+const withRestoreTimeout = <T>(
+  promise: PromiseLike<T>,
+  timeoutMs: number,
+  message: string
+) => new Promise<T>((resolve, reject) => {
+  const timeout = setTimeout(() => {
+    reject(new CanvasRestoreError("storage-timeout", message));
+  }, timeoutMs);
+  Promise.resolve(promise).then(resolve, reject).finally(() => clearTimeout(timeout));
+});
+
+const bestEffortDestroyProvider = async (provider: IndexeddbPersistence) => {
+  await new Promise<void>((resolve) => {
+    const timeout = setTimeout(resolve, RESTORE_CLEANUP_TIMEOUT);
+    Promise.resolve()
+      .then(() => provider.destroy())
+      .catch(() => undefined)
+      .finally(() => {
+        clearTimeout(timeout);
+        resolve();
+      });
+  });
+};
+
+const waitForDocumentSync = (
+  provider: IndexeddbPersistence,
+  databaseName: string
+) => withRestoreTimeout(
+  provider.whenSynced,
+  DOCUMENT_SYNC_TIMEOUT,
+  `Canvas document did not sync in time: ${databaseName}`
+);
+
+const getRestoreFailureReason = (
+  error: unknown
+): CanvasRestoreFailureReason =>
+  error instanceof CanvasRestoreError || error instanceof CanvasCatalogOpenError
+    ? error.reason
+    : "storage-unavailable";
 
 export type CanvasPersistenceStatus = {
   phase: "restoring" | "ready" | "degraded";
   restore: {
     phase: "initializing" | "ready" | "temporary" | "retrying";
+    reason: CanvasRestoreFailureReason | null;
     error: string | null;
     temporaryDirty: boolean;
   };
@@ -169,7 +227,11 @@ const acquireWriterLease = async (storage: Storage): Promise<WriterLease> => {
   let releaseLock!: () => void;
   const released = new Promise<void>((resolve) => { releaseLock = resolve; });
   let resolveAcquired!: (writer: boolean) => void;
-  const acquired = new Promise<boolean>((resolve) => { resolveAcquired = resolve; });
+  let rejectAcquired!: (error: unknown) => void;
+  const acquired = new Promise<boolean>((resolve, reject) => {
+    resolveAcquired = resolve;
+    rejectAcquired = reject;
+  });
   void navigator.locks.request(
     WRITER_LOCK_NAME,
     { ifAvailable: true },
@@ -177,8 +239,18 @@ const acquireWriterLease = async (storage: Storage): Promise<WriterLease> => {
       resolveAcquired(!!lock);
       if (lock) await released;
     }
-  );
-  const writer = await acquired;
+  ).catch(rejectAcquired);
+  let writer: boolean;
+  try {
+    writer = await withRestoreTimeout(
+      acquired,
+      WRITER_LOCK_TIMEOUT,
+      "Canvas writer lock did not respond in time"
+    );
+  } catch (error) {
+    releaseLock();
+    throw error;
+  }
   return {
     writer,
     release: writer ? releaseLock : () => undefined,
@@ -587,7 +659,7 @@ const readPersistedDocumentShell = async (
     doc
   );
   try {
-    await provider.whenSynced;
+    await waitForDocumentSync(provider, getDocumentDatabaseName(id, generation));
     const root = getCanvasDocumentRoot(doc);
     const pageIds = readCanvasPageOrder(root);
     if (
@@ -642,7 +714,7 @@ const readPersistedDocumentShell = async (
       grid: [],
     };
   } finally {
-    await provider.destroy();
+    await bestEffortDestroyProvider(provider);
     doc.destroy();
   }
 };
@@ -843,6 +915,7 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
     phase: "restoring",
     restore: {
       phase: "initializing",
+      reason: null,
       error: null,
       temporaryDirty: false,
     },
@@ -890,6 +963,7 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
       phase: "restoring",
       restore: {
         phase: "retrying",
+        reason: null,
         error: null,
         temporaryDirty,
       },
@@ -910,7 +984,11 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
       this.#publish({
         ownership: this.#writerLease.writer ? "writer" : "reader",
       });
-      this.#catalog = await createIndexedDbCanvasCatalog();
+      this.#catalog = await createIndexedDbCanvasCatalog({
+        onUnavailable: () => this.#handleError(
+          new Error("Canvas catalog connection was interrupted")
+        ),
+      });
       const storedCatalog = this.#writerLease.writer
         ? await this.#catalog.load()
         : await waitForCatalog(this.#catalog);
@@ -1062,6 +1140,7 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
         phase: "ready",
         restore: {
           phase: "ready",
+          reason: null,
           error: null,
           temporaryDirty: false,
         },
@@ -1111,8 +1190,9 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
         this.#handleError(error);
         return true;
       }
+      const reason = getRestoreFailureReason(error);
       await this.#cleanupRestoreAttempt();
-      this.#enterTemporaryMode(message, recovery !== null);
+      this.#enterTemporaryMode(message, recovery !== null, reason);
       return false;
     }
   }
@@ -1164,11 +1244,16 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
     this.#temporarySessionShell = "";
   }
 
-  #enterTemporaryMode(error: string, temporaryDirty: boolean) {
+  #enterTemporaryMode(
+    error: string,
+    temporaryDirty: boolean,
+    reason: CanvasRestoreFailureReason
+  ) {
     this.#publish({
       phase: "degraded",
       restore: {
         phase: "temporary",
+        reason,
         error,
         temporaryDirty,
       },
@@ -1197,7 +1282,7 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
     this.#documents.clear();
     await Promise.all(persisted.map(async ({ doc, provider, updateListener }) => {
       doc.off("update", updateListener);
-      await provider.destroy();
+      await bestEffortDestroyProvider(provider);
       doc.destroy();
     }));
     this.#dirtyDocuments.clear();
@@ -1472,10 +1557,10 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
   async #readLegacySlideGrid(sessionId: string, slideId: string) {
     const id = `${sessionId}:slide:${slideId}`;
     const doc = new Y.Doc({ guid: id });
-    const provider = new IndexeddbPersistence(getDocumentDatabaseName(id), doc);
+    const databaseName = getDocumentDatabaseName(id);
+    const provider = new IndexeddbPersistence(databaseName, doc);
     try {
-      await provider.whenSynced;
-      await provider.destroy();
+      await waitForDocumentSync(provider, databaseName);
       migrateLegacyDocument(doc, id, {
         mode: "freeform",
         grid: [],
@@ -1484,6 +1569,7 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
       });
       return readCellPlaneGrid(doc);
     } finally {
+      await bestEffortDestroyProvider(provider);
       doc.destroy();
     }
   }
@@ -1496,7 +1582,13 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
     const name = getDocumentDatabaseName(id, generation);
     const doc = new Y.Doc({ guid: id });
     const provider = new IndexeddbPersistence(name, doc);
-    await provider.whenSynced;
+    try {
+      await waitForDocumentSync(provider, name);
+    } catch (error) {
+      await bestEffortDestroyProvider(provider);
+      doc.destroy();
+      throw error;
+    }
     if (!this.#writerLease?.writer) {
       await provider.destroy();
       const migrated = migrateLegacyDocument(doc, id, seed);
@@ -1528,8 +1620,16 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
         nextDatabaseName,
         compacted
       );
-      await nextProvider.whenSynced;
-      await storeState(nextProvider, true);
+      try {
+        await waitForDocumentSync(nextProvider, nextDatabaseName);
+        await storeState(nextProvider, true);
+      } catch (error) {
+        await bestEffortDestroyProvider(nextProvider);
+        compacted.destroy();
+        await bestEffortDestroyProvider(provider);
+        doc.destroy();
+        throw error;
+      }
       if (!hasValidPages(compacted)) {
         await nextProvider.destroy();
         compacted.destroy();

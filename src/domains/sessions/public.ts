@@ -27,10 +27,13 @@ export {
   CANVAS_CATALOG_DATABASE,
   CANVAS_CATALOG_MARKER_KEY,
   CANVAS_CATALOG_VERSION,
+  CanvasCatalogOpenError,
   createIndexedDbCanvasCatalog,
 } from "./indexedDbCatalog";
 export type {
   CanvasCatalog,
+  CanvasCatalogFailureReason,
+  CanvasCatalogOpenOptions,
   CanvasCatalogPreferences,
   CanvasCatalogSession,
   CanvasCatalogSlide,

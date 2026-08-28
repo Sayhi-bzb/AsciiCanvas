@@ -12,6 +12,7 @@ const TEST_PERSISTENCE_SNAPSHOT = {
   phase: "ready",
   restore: {
     phase: "ready",
+    reason: null,
     error: null,
     temporaryDirty: false,
   },
@@ -31,6 +32,7 @@ export let testingCanvasRuntime: {
     phase: "ready";
     restore: {
       phase: "ready";
+      reason: null;
       error: null;
       temporaryDirty: false;
     };
