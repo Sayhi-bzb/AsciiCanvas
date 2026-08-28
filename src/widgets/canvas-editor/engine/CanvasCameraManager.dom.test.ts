@@ -148,6 +148,34 @@ describe("CanvasCameraManager", () => {
     });
   });
 
+  it("aligns imported content to the viewport start without enlarging it", () => {
+    const { camera, getViewport } = createHarness();
+    camera.fitBounds(
+      { x: 100, y: 50, width: 400, height: 200 },
+      { width: 1000, height: 700 },
+      { alignment: "start", maxZoom: 1, padding: 100 }
+    );
+
+    expect(getViewport()).toEqual({
+      offset: { x: 0, y: 50 },
+      zoom: 1,
+    });
+  });
+
+  it("fits oversized imported content while preserving start alignment", () => {
+    const { camera, getViewport } = createHarness();
+    camera.fitBounds(
+      { x: 100, y: 50, width: 2000, height: 1000 },
+      { width: 1000, height: 700 },
+      { alignment: "start", maxZoom: 1, padding: 100 }
+    );
+
+    expect(getViewport()).toEqual({
+      offset: { x: 60, y: 80 },
+      zoom: 0.4,
+    });
+  });
+
   it("reports activity through queued, direct, and animated camera paths", () => {
     const { camera, onViewportActivity, run } = createHarness();
     camera.panBy(1, 1);

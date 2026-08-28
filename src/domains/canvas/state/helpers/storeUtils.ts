@@ -125,6 +125,5 @@ export const resolveSessionRuntime = (session: CanvasSession, currentTool: ToolT
       : getFallbackToolForMode(nextMode),
     nextOffset,
     nextZoom,
-    hasSavedViewport: !!viewport,
   };
 };

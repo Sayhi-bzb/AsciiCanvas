@@ -45,7 +45,7 @@ type SessionActivationPatch = Pick<
   | "tool"
   | "offset"
   | "zoom"
-  | "activeCanvasHasSavedViewport"
+  | "pendingCameraPlacement"
 > &
   DocumentInteractionResetPatch;
 
@@ -172,7 +172,7 @@ export const createSessionActivationPatch = (
   tool: runtime.nextTool,
   offset: runtime.nextOffset,
   zoom: runtime.nextZoom,
-  activeCanvasHasSavedViewport: runtime.hasSavedViewport,
+  pendingCameraPlacement: null,
   ...createDocumentInteractionResetPatch(),
 });
 

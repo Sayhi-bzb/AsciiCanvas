@@ -340,6 +340,11 @@ export class CanvasDocumentRegistry {
     const document = this.#documents.get(documentId);
     const page = document?.pages.get(pageId);
     if (!document || !page) return false;
+    if (document.root.meta.get("activePageId") !== pageId) {
+      document.doc.transact(() => {
+        document.root.meta.set("activePageId", pageId);
+      }, HISTORY_IGNORED_ORIGIN);
+    }
     const previous = this.#active;
     this.#active = document;
     this.#setActivePage(document, pageId);

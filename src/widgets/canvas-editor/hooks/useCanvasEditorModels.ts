@@ -20,7 +20,6 @@ type SessionContent = Pick<
   | 'grid'
   | 'structuredScene'
   | 'structuredComponents'
-  | 'activeCanvasHasSavedViewport'
 >;
 
 const resolveSessionContent = (
@@ -45,7 +44,6 @@ const resolveSessionContent = (
       : new Map(),
       structuredScene: [],
       structuredComponents: [],
-      activeCanvasHasSavedViewport: !!session.viewport,
     };
   }
   const seed = documents.getDocumentSeed(session.id, session.mode);
@@ -64,7 +62,6 @@ const resolveSessionContent = (
         })(),
     structuredScene,
     structuredComponents: seed?.components ?? session.components ?? [],
-    activeCanvasHasSavedViewport: !!session.viewport,
   };
 };
 
@@ -250,7 +247,7 @@ export const useCanvasEditorModels = () => {
       structuredComponents: state.structuredComponents,
       brushColor: state.brushColor,
       canvasColorPickerTarget: state.canvasColorPickerTarget,
-      activeCanvasHasSavedViewport: state.activeCanvasHasSavedViewport,
+      pendingCameraPlacement: state.pendingCameraPlacement,
     }))
   );
   const editorStore = {
@@ -285,6 +282,7 @@ export const useCanvasEditorModels = () => {
     moveStructuredGridFocus: canvasCommands.interaction.moveStructuredGridFocus,
     setTextCursor: canvasCommands.interaction.setTextCursor,
     setOffset: canvasView?.setOffset ?? canvasCommands.viewport.setOffset,
+    consumePendingCameraPlacement: canvasCommands.viewport.consumePendingPlacement,
     fillSelectionsWithChar: canvasCommands.selection.fillWithChar,
     clearSelections: canvasCommands.selection.clear,
     setStructuredGridFocus: canvasCommands.interaction.setStructuredGridFocus,

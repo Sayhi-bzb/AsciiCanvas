@@ -702,12 +702,20 @@ describe("browser canvas persistence", () => {
       mode: "slide",
       slideDeck: {
         activeSlideId: "slide-a",
-        slides: [{
-          id: "slide-a",
-          name: "Slide A",
-          size: { columns: 80, rows: 24 },
-          grid: [["0,0", { char: "X", color: "#111111" }]],
-        }],
+        slides: [
+          {
+            id: "slide-a",
+            name: "Slide A",
+            size: { columns: 80, rows: 24 },
+            grid: [["0,0", { char: "X", color: "#111111" }]],
+          },
+          {
+            id: "slide-b",
+            name: "Slide B",
+            size: { columns: 80, rows: 24 },
+            grid: [["0,0", { char: "Z", color: "#222222" }]],
+          },
+        ],
       },
       scene: [],
       components: [],
@@ -717,9 +725,17 @@ describe("browser canvas persistence", () => {
     runtimes.push(first);
     await first.ready;
     expect(first.getState().grid.get("0,0")?.char).toBe("X");
+    first.commands.slides.activate("slide-b");
+    expect(first.getState().slideDeck?.activeSlideId).toBe("slide-b");
+    expect(first.getState().grid.get("0,0")?.char).toBe("Z");
     first.commands.interaction.setTextCursor({ x: 1, y: 0 });
     first.commands.text.write("Y");
-    expect(first.getState().grid.get("0,0")?.char).toBe("X");
+    expect(first.getState().grid.get("0,0")?.char).toBe("Z");
+    const staleDocument = first.documents.getCollaborationDocument(SLIDE_SESSION_ID);
+    expect(staleDocument).not.toBeNull();
+    staleDocument!.transact(() => {
+      getCanvasDocumentRoot(staleDocument!).meta.set("activePageId", "slide-a");
+    }, "stale-slide-selection");
     await first.retryPersistence();
     first.dispose();
     runtimes = [];
@@ -728,8 +744,16 @@ describe("browser canvas persistence", () => {
     const second = createRuntime(storage, slides);
     runtimes.push(second);
     await second.ready;
-    expect(second.getState().grid.get("0,0")?.char).toBe("X");
+    expect(second.getState().slideDeck?.activeSlideId).toBe("slide-b");
+    expect(second.documents.getActivePageId()).toBe("slide-b");
+    expect(second.getState().grid.get("0,0")?.char).toBe("Z");
     expect(second.getState().grid.get("1,0")?.char).toBe("Y");
+    expect(
+      second.documents
+        .getContentReader(SLIDE_SESSION_ID, "slide-a")
+        ?.getCell({ x: 0, y: 0 })
+        ?.char
+    ).toBe("X");
   });
 
   it("migrates legacy per-slide IndexedDB content into the session document", async () => {

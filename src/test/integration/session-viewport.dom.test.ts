@@ -60,7 +60,6 @@ describe('canvas session viewport state', () => {
         ...initialState,
         offset: { x: 0, y: 0 },
         zoom: 1,
-        activeCanvasHasSavedViewport: false,
         grid: new Map(),
         canvasSessions: initialState.canvasSessions.map((session) =>
           session.id === DEFAULT_SESSION_ID
@@ -101,7 +100,6 @@ describe('canvas session viewport state', () => {
 
     expect(useEditorStore.getState().offset).toEqual({ x: 0, y: 0 });
     expect(useEditorStore.getState().zoom).toBe(1);
-    expect(useEditorStore.getState().activeCanvasHasSavedViewport).toBe(false);
 
     useEditorStore.getState().setOffset(() => ({ x: 100, y: 200 }));
     useEditorStore.getState().setZoom(() => 3);
@@ -109,7 +107,6 @@ describe('canvas session viewport state', () => {
 
     expect(useEditorStore.getState().offset).toEqual({ x: 10, y: 20 });
     expect(useEditorStore.getState().zoom).toBe(2);
-    expect(useEditorStore.getState().activeCanvasHasSavedViewport).toBe(true);
 
     useEditorStore.getState().setOffset(() => ({ x: 11, y: 22 }));
     useEditorStore.getState().setZoom(() => 1.5);
@@ -117,7 +114,6 @@ describe('canvas session viewport state', () => {
 
     expect(useEditorStore.getState().offset).toEqual({ x: 100, y: 200 });
     expect(useEditorStore.getState().zoom).toBe(3);
-    expect(useEditorStore.getState().activeCanvasHasSavedViewport).toBe(true);
   });
   it('creates and activates an empty structured session', () => {
     useEditorStore.getState().createCanvasSession('structured');

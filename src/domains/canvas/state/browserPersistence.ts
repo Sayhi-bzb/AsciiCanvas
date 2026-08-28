@@ -1355,6 +1355,17 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
         getSessionCanvasDocumentId(activeSession),
         emptySeed()
       );
+      if (
+        activeSession.mode === "slide" &&
+        !documents.activatePage(
+          activeSession.id,
+          activeSession.slideDeck.activeSlideId
+        )
+      ) {
+        throw new Error(
+          `Canvas persistence could not activate slide: ${activeSession.id}/${activeSession.slideDeck.activeSlideId}`
+        );
+      }
       for (const id of documents.getDocumentIds()) {
         if (id !== activeSession.id) await this.#releaseDocument(id);
       }

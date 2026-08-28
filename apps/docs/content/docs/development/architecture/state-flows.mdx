@@ -35,7 +35,9 @@ use Registry focus as an implicit write target.
   adapter -> active projection. Startup does not expose editing until the active document is ready.
 - Canvas switch: retain the current frame -> load the target Yjs document -> commit the latest
   activation request -> release an unpinned least-recently-used document when over budget.
-- Import: document parser -> `CanvasImportSnapshot` -> canvas session command.
+- Import: document parser -> `CanvasImportSnapshot` -> canvas session command ->
+  one-shot active-pane camera placement. The placement uses projected content bounds
+  and viewport insets at runtime; it is not part of the document protocol or persistence.
 - Session persistence: metadata projection -> sessions catalog transaction. Canvas content
   remains in its Yjs document and persists as incremental `y-indexeddb` updates. A flush
   visits dirty documents only; routine edits never force workspace-wide snapshots.

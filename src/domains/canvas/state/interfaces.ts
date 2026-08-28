@@ -200,6 +200,11 @@ export type CanvasViewportState = {
   zoom: number;
 };
 
+export type PendingCanvasCameraPlacement = {
+  sessionId: string;
+  kind: "content-start";
+};
+
 export type EditorState = {
   offset: Point;
   zoom: number;
@@ -225,13 +230,14 @@ export type EditorState = {
   canvasColorPickerTarget: CanvasColorPickerTarget | null;
   canvasSessions: CanvasSession[];
   activeCanvasId: string;
-  activeCanvasHasSavedViewport: boolean;
+  pendingCameraPlacement: PendingCanvasCameraPlacement | null;
   canUndo: boolean;
   canRedo: boolean;
 
   setOffset: (updater: (prev: Point) => Point) => void;
   setZoom: (updater: (prev: number) => number) => void;
   setViewport: (updater: (prev: CanvasViewportState) => CanvasViewportState) => void;
+  consumePendingCameraPlacement: (sessionId: string) => void;
   setTool: (tool: ToolType) => void;
   applyStructuredScene: (
     scene: StructuredNode[],

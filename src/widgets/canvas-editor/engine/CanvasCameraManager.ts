@@ -249,6 +249,8 @@ export class CanvasCameraManager {
       animated?: boolean;
       duration?: number;
       insets?: { top: number; right: number; bottom: number; left: number };
+      alignment?: "center" | "start";
+      maxZoom?: number;
     } = {}
   ): void {
     const padding = Math.max(0, options.padding ?? 48);
@@ -263,19 +265,25 @@ export class CanvasCameraManager {
     );
     const zoom = clampZoom(
       Math.min(
+        options.maxZoom ?? MAX_ZOOM,
         availableWidth / Math.max(1, bounds.width),
         availableHeight / Math.max(1, bounds.height)
       )
     );
+    const alignStart = options.alignment === "start";
     const target = {
       zoom,
       offset: {
-        x: insets.left +
-          (viewportSize.width - insets.left - insets.right - bounds.width * zoom) / 2 -
-          bounds.x * zoom,
-        y: insets.top +
-          (viewportSize.height - insets.top - insets.bottom - bounds.height * zoom) / 2 -
-          bounds.y * zoom,
+        x: alignStart
+          ? insets.left + padding - bounds.x * zoom
+          : insets.left +
+            (viewportSize.width - insets.left - insets.right - bounds.width * zoom) / 2 -
+            bounds.x * zoom,
+        y: alignStart
+          ? insets.top + padding - bounds.y * zoom
+          : insets.top +
+            (viewportSize.height - insets.top - insets.bottom - bounds.height * zoom) / 2 -
+            bounds.y * zoom,
       },
     };
     if (options.animated) {

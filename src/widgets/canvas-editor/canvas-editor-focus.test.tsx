@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { act, createEvent, fireEvent, render, screen } from "@testing-library/react";
+import { act, createEvent, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { ComponentProps } from "react";
 import { CanvasEditor as CanvasEditorUnderTest } from "@/widgets/canvas-editor";
 import { useCanvasInteraction } from "@/widgets/canvas-editor/hooks/useCanvasInteraction";
@@ -24,6 +24,15 @@ import {
   ShortcutProvider,
   useShortcutLayer,
 } from "@/shared/shortcuts/dispatcher";
+import { CanvasCameraManager } from "@/widgets/canvas-editor/engine/CanvasCameraManager";
+import { CELL_HEIGHT, CELL_WIDTH } from "@/shared/lib/constants";
+import type { SlideDeck } from "@/domains/slides/public";
+
+const useSizeMock = vi.hoisted(() => vi.fn());
+
+vi.mock("ahooks", () => ({
+  useSize: useSizeMock,
+}));
 
 vi.mock("@/widgets/canvas-editor/hooks/useCanvasRenderer", () => ({
   useCanvasRenderer: vi.fn(),
@@ -123,6 +132,7 @@ describe("CanvasEditor focus management", () => {
     vi.mocked(useCanvasRenderer).mockClear();
     handleDoubleClickMock.mockClear();
     activateInteractionOwnerMock.mockClear();
+    useSizeMock.mockReset();
     setActiveStructuredTemplateDragId(null);
     useEditorStore.setState(initialState, true);
     applyFreeformSnapshotToYMaps([]);
@@ -171,6 +181,69 @@ describe("CanvasEditor focus management", () => {
     const switchedCall = vi.mocked(useCanvasRenderer).mock.calls.at(-1);
     expect(switchedCall?.[0]).toBe(initialLayers);
     expect(switchedCall?.[3].activeCanvasId).toBe("renderer-target-canvas");
+  });
+
+  it("fits the active slide on first render even when the session restored a viewport", async () => {
+    useSizeMock.mockReturnValue({ width: 1000, height: 700 });
+    const fitBounds = vi
+      .spyOn(CanvasCameraManager.prototype, "fitBounds")
+      .mockImplementation(() => undefined);
+    const slideDeck: SlideDeck = {
+      activeSlideId: "slide-2",
+      slides: [
+        {
+          id: "slide-1",
+          name: "Intro",
+          size: { columns: 80, rows: 24 },
+          grid: [],
+        },
+        {
+          id: "slide-2",
+          name: "Active",
+          size: { columns: 100, rows: 30 },
+          grid: [["0,0", { char: "A", color: "#000000" }]],
+        },
+      ],
+    };
+    useEditorStore.setState({
+      activeCanvasId: "slides-restored",
+      canvasMode: "slide",
+      slideDeck,
+      offset: { x: -100_000, y: -100_000 },
+      zoom: 5,
+      grid: new Map(slideDeck.slides[1].grid),
+      canvasSessions: [
+        {
+          id: "slides-restored",
+          name: "Slides",
+          mode: "slide",
+          slideDeck,
+          viewport: { offset: { x: -100_000, y: -100_000 }, zoom: 5 },
+          scene: [],
+          components: [],
+          grid: [],
+        },
+      ],
+    });
+
+    render(<CanvasEditor onUndo={vi.fn()} onRedo={vi.fn()} />);
+
+    await waitFor(() =>
+      expect(fitBounds).toHaveBeenCalledWith(
+        {
+          x: 0,
+          y: 0,
+          width: 100 * CELL_WIDTH,
+          height: 30 * CELL_HEIGHT,
+        },
+        { width: 1000, height: 700 },
+        { padding: 48, insets: undefined }
+      )
+    );
+
+    fitBounds.mockClear();
+    act(() => useEditorStore.setState({ brushColor: "#123456" }));
+    expect(fitBounds).not.toHaveBeenCalled();
   });
 
   it("claims input focus on pointerdown before selection state changes", () => {

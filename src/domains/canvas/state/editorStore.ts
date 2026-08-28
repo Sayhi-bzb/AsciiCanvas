@@ -177,7 +177,7 @@ export const createEditorStore = ({
         structuredGridFocus: null,
         canvasSessions: initialSessions.map(stripSessionContent),
         activeCanvasId: initialSession.id,
-        activeCanvasHasSavedViewport: initialRuntime.hasSavedViewport,
+        pendingCameraPlacement: null,
         ...documents.getHistoryAvailability(),
         tool: initialRuntime.nextTool,
         brushChar: DEFAULT_BRUSH_CHAR,
@@ -201,6 +201,12 @@ export const createEditorStore = ({
               zoom: Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, viewport.zoom)),
             };
           }),
+        consumePendingCameraPlacement: (sessionId) =>
+          set((state) =>
+            state.pendingCameraPlacement?.sessionId === sessionId
+              ? { pendingCameraPlacement: null }
+              : {}
+          ),
         setTool: (tool) =>
           set((state) => {
             if (!isToolAllowedForMode(tool, state.canvasMode)) return state;

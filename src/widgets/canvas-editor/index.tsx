@@ -100,6 +100,38 @@ export const CanvasEditor = ({
   } | null>(null);
   const activeCanvasId = rendererStore.activeCanvasId;
   const lastFitContentRevisionRef = useRef(0);
+  const pendingCameraPlacement = editorStore.pendingCameraPlacement;
+  const consumePendingCameraPlacement =
+    editorStore.consumePendingCameraPlacement;
+
+  useLayoutEffect(() => {
+    if (
+      !active ||
+      !size ||
+      !activeCanvasId ||
+      pendingCameraPlacement?.sessionId !== activeCanvasId
+    ) return;
+
+    const bounds = computeVisibleSurfaceBounds(rendererStore.contentReader);
+    if (bounds) {
+      runtime.camera.fitBounds(bounds, size, {
+        alignment: "start",
+        maxZoom: 1,
+        padding: 48,
+        insets: viewportFrame?.insets,
+      });
+    }
+    consumePendingCameraPlacement(activeCanvasId);
+  }, [
+    active,
+    activeCanvasId,
+    consumePendingCameraPlacement,
+    pendingCameraPlacement,
+    rendererStore.contentReader,
+    runtime,
+    size,
+    viewportFrame?.insets,
+  ]);
 
   useEffect(() => {
     if (
@@ -131,10 +163,8 @@ export const CanvasEditor = ({
     if (!activeSlide) return;
     const pageKey = `${activeSlide.id}:${activeSlide.size.columns}x${activeSlide.size.rows}`;
     const previous = lastSlideViewRef.current;
-    const changedSession = previous?.sessionId !== activeCanvasId;
-    if (!changedSession && previous?.pageKey === pageKey) return;
+    if (previous?.sessionId === activeCanvasId && previous.pageKey === pageKey) return;
     lastSlideViewRef.current = { sessionId: activeCanvasId, pageKey };
-    if (changedSession && editorStore.activeCanvasHasSavedViewport) return;
     runtime.camera.fitBounds(
       {
         x: 0,
@@ -148,7 +178,6 @@ export const CanvasEditor = ({
   }, [
     activeCanvasId,
     canvasMode,
-    editorStore.activeCanvasHasSavedViewport,
     rendererStore.slideDeck,
     runtime,
     size,

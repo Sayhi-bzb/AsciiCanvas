@@ -46,7 +46,7 @@ export type CanvasEditorModel = Pick<CanvasState,
   | "structuredComponents"
   | "brushColor"
   | "canvasColorPickerTarget"
-  | "activeCanvasHasSavedViewport"
+  | "pendingCameraPlacement"
 > & {
   writeTextString: CanvasCommands["text"]["write"];
   backspaceText: CanvasCommands["text"]["backspace"];
@@ -65,6 +65,7 @@ export type CanvasEditorModel = Pick<CanvasState,
   moveStructuredGridFocus: CanvasCommands["interaction"]["moveStructuredGridFocus"];
   setTextCursor: CanvasCommands["interaction"]["setTextCursor"];
   setOffset: CanvasCommands["viewport"]["setOffset"];
+  consumePendingCameraPlacement: CanvasCommands["viewport"]["consumePendingPlacement"];
   fillSelectionsWithChar: CanvasCommands["selection"]["fillWithChar"];
   clearSelections: CanvasCommands["selection"]["clear"];
   setStructuredGridFocus: CanvasCommands["interaction"]["setStructuredGridFocus"];

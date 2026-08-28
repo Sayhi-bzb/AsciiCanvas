@@ -10,6 +10,7 @@ export {
 export type { CanvasState } from "./state/interfaces";
 export type {
   CanvasColorPickerTarget,
+  PendingCanvasCameraPlacement,
   CanvasViewportState,
   ClipboardCommandResult,
   RichTextCell,

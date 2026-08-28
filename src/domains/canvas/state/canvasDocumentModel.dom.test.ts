@@ -58,6 +58,10 @@ describe("unified Canvas documents", () => {
       (grid) => grid.set("0,0", cell("A"))
     );
     documents.activatePage("slides", "slide-b");
+    const slideDocument = documents.getCollaborationDocument("slides");
+    expect(slideDocument).not.toBeNull();
+    expect(getCanvasDocumentRoot(slideDocument!).meta.get("activePageId"))
+      .toBe("slide-b");
     documents.mutateGridAt(
       { documentId: "slides", pageId: "slide-b" },
       (grid) => grid.set("0,0", cell("B"))

@@ -57,6 +57,9 @@ return {
     setZoom: (...args: Parameters<EditorState["setZoom"]>) => call("setZoom", ...args),
     setViewport: (...args: Parameters<EditorState["setViewport"]>) =>
       call("setViewport", ...args),
+    consumePendingPlacement: (
+      ...args: Parameters<EditorState["consumePendingCameraPlacement"]>
+    ) => call("consumePendingCameraPlacement", ...args),
   },
   tools: {
     set: (...args: Parameters<EditorState["setTool"]>) => call("setTool", ...args),

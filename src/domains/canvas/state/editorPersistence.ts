@@ -100,7 +100,6 @@ export const recoverPersistedEditorState = (
   state.tool = runtime.nextTool;
   state.offset = runtime.nextOffset;
   state.zoom = runtime.nextZoom;
-  state.activeCanvasHasSavedViewport = runtime.hasSavedViewport;
   return state;
 };
 

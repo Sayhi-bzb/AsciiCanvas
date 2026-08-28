@@ -33,6 +33,13 @@ describe("importCanvasSession", () => {
     expect(state.canvasMode).toBe("freeform");
     expect(state.grid.get("0,0")).toEqual({ char: "A", color: "#ff0000" });
     expect(state.grid.get("2,1")).toEqual({ char: "B", color: "#00ff00" });
+    expect(state.pendingCameraPlacement).toEqual({
+      sessionId: session.id,
+      kind: "content-start",
+    });
+
+    state.consumePendingCameraPlacement(session.id);
+    expect(useEditorStore.getState().pendingCameraPlacement).toBeNull();
   });
 
   it("clears document interaction when importing a session", async () => {
@@ -87,6 +94,7 @@ describe("importCanvasSession", () => {
       { columns: 100, rows: 27 },
     ]);
     expect(state.grid.get("1,0")).toMatchObject({ char: "A" });
+    expect(state.pendingCameraPlacement).toBeNull();
   });
 
   it("does not mutate sessions when the payload is invalid", async () => {

@@ -268,16 +268,20 @@ export const createSessionSlice = (
     const runtime = activateSessionRuntime(documents, newSession, state.tool);
     const storedSession = stripSessionContent(newSession);
     const nextSessions = [...sessionsWithSnapshot, storedSession];
-    set(
-      createSessionActivationPatch(
+    set({
+      ...createSessionActivationPatch(
         nextSessions,
         newSession.id,
         runtime,
         runtime.nextMode === "structured"
           ? undefined
           : rebuildGridFromContent(documents)
-      )
-    );
+      ),
+      pendingCameraPlacement:
+        importedSnapshot.mode === "slide"
+          ? null
+          : { sessionId: newSession.id, kind: "content-start" },
+    });
     residency?.touch(newSession.id);
 
     return storedSession;
