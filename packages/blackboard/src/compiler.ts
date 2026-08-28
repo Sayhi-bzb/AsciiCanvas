@@ -4,6 +4,8 @@ import {
   type CharGraphFragment,
   type CompiledCharDeskText,
 } from "@chardesk/chargraph";
+import { createCharDeskMarkdownRenderOptions } from "@chardesk/chargraph/markdown";
+import { CHARDESK_LIGHT_RENDER_THEME } from "@chardesk/chargraph/theme";
 import {
   BlackboardManifestError,
   parseBlackboardManifest,
@@ -55,6 +57,10 @@ type RenderedPanel = {
   region: PanelRegion;
   compiled: CompiledCharDeskText;
 };
+
+const BLACKBOARD_MARKDOWN_OPTIONS = createCharDeskMarkdownRenderOptions({
+  theme: CHARDESK_LIGHT_RENDER_THEME,
+});
 
 const panelRegions = (manifest: BlackboardManifest) => {
   const regions = new Map<string, PanelRegion>();
@@ -214,7 +220,10 @@ const renderPanel = async (
   }
   let compiled: CompiledCharDeskText;
   try {
-    compiled = await compileCharDeskText(source, { sourceKind: "chargraph" });
+    compiled = await compileCharDeskText(source, {
+      sourceKind: "chargraph",
+      markdown: BLACKBOARD_MARKDOWN_OPTIONS,
+    });
   } catch (error) {
     throw new BlackboardPackageError(
       "invalid-panel",

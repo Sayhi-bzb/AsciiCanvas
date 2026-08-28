@@ -196,9 +196,6 @@ export const HOST_ICONOLOGY = {
   } satisfies IconMap<'box' | 'splitBox' | 'circle' | 'line' | 'arrowLine' | 'stepline'>,
   appMenu: {
     trigger: Menu,
-    file: FolderOpen,
-    import: Upload,
-    export: Download,
     splitView: SquareSplitHorizontal,
     zenMode: Focus,
     help: CircleHelp,
@@ -214,9 +211,6 @@ export const HOST_ICONOLOGY = {
     clear: Trash2,
   } satisfies IconMap<
     | 'trigger'
-    | 'file'
-    | 'import'
-    | 'export'
     | 'splitView'
     | 'zenMode'
     | 'help'
@@ -243,9 +237,22 @@ export const HOST_ICONOLOGY = {
     more: MoreHorizontal,
     rename: Pencil,
     create: Plus,
+    import: Upload,
+    importBlackboard: FolderOpen,
+    export: Download,
     close: Trash2,
     collaboration: Users,
-  } satisfies IconMap<'expand' | 'more' | 'rename' | 'create' | 'close' | 'collaboration'>,
+  } satisfies IconMap<
+    | 'expand'
+    | 'more'
+    | 'rename'
+    | 'create'
+    | 'import'
+    | 'importBlackboard'
+    | 'export'
+    | 'close'
+    | 'collaboration'
+  >,
   chrome: {
     'open-right-sidebar': PanelRightOpen,
     'toolbar-submenu': ChevronDown,

@@ -8,6 +8,7 @@ import { AppMenu } from './app-menu';
 import { CanvasWorkspaceProvider } from '@/widgets/canvas-editor/engine/CanvasWorkspace';
 import { OnboardingTourContext } from '@/widgets/onboarding/onboarding-context';
 import { EditorPresentationProvider } from '@/widgets/editor-chrome/public';
+import { CanvasBreadcrumb } from '@/widgets/session-tabs/CanvasBreadcrumb';
 
 describe('AppMenu document interchange', () => {
   const initialState = useEditorStore.getState();
@@ -56,7 +57,7 @@ describe('AppMenu document interchange', () => {
     });
     act(() => setUiLanguage('en'));
 
-    const { container } = render(<AppMenu />);
+    const { container } = render(<CanvasBreadcrumb />);
     const inputs = container.querySelectorAll('input[type="file"]');
     expect(inputs).toHaveLength(2);
     expect(inputs[0]).toHaveAttribute(
@@ -66,45 +67,20 @@ describe('AppMenu document interchange', () => {
     expect((inputs[1] as HTMLInputElement).webkitdirectory).toBe(true);
     expect(inputs[1]).toHaveAttribute('multiple');
 
-    fireEvent.pointerDown(screen.getByRole('button', { name: 'Open menu' }), {
+    fireEvent.click(screen.getByRole('button', { name: 'Select canvas' }));
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Import' }), {
       button: 0,
       ctrlKey: false,
     });
-
-    const fileItem = await screen.findByRole('menuitem', { name: 'File' });
-    fireEvent.pointerMove(fileItem, { pointerType: 'mouse' });
-    await waitFor(() => expect(fileItem).toHaveAttribute('data-state', 'open'));
-    await screen.findByRole('menuitem', { name: 'Import file' });
-    await screen.findByRole('menuitem', { name: 'Import Blackboard' });
-    expect(fileItem.closest('[data-slot="dropdown-menu-content"]')).toHaveClass(
-      'w-48',
-      'min-w-32',
-      'max-h-(--radix-dropdown-menu-content-available-height)'
-    );
-    const exportItem = screen.getByRole('menuitem', { name: 'Export' });
-    fireEvent.pointerMove(exportItem, { pointerType: 'mouse' });
-    await waitFor(() => expect(exportItem).toHaveAttribute('data-state', 'open'));
-    expect(await screen.findByRole('menuitem', { name: 'CharDesk' })).not.toHaveAttribute(
-      'aria-haspopup',
-      'menu'
-    );
-    expect(screen.queryByRole('menuitem', { name: 'Markdown' })).not.toBeInTheDocument();
-    const githubItem = screen.getByRole('menuitem', { name: /^GitHub/ });
-    const githubMark = githubItem.querySelector('[data-slot="github-mark-icon"]');
-    expect(githubMark).toHaveAttribute('viewBox', '0 0 98 96');
-    expect(githubMark?.querySelector('path')).toHaveAttribute('fill', 'currentColor');
-    expect(githubItem.querySelector('.lucide-git-fork')).not.toBeInTheDocument();
-    await waitFor(() => {
-      expect(githubItem).toHaveTextContent('GitHub1,234');
-      expect(githubItem.querySelector('.lucide-star')).toBeInTheDocument();
-    });
+    await screen.findByRole('menuitem', { name: 'File' });
+    await screen.findByRole('menuitem', { name: 'Blackboard' });
   });
 
   it('imports a Blackboard directory into a new active canvas', async () => {
     const before = useEditorStore.getState();
     const previousSessionId = before.activeCanvasId;
     const previousSessionCount = before.canvasSessions.length;
-    const { container } = render(<AppMenu />);
+    const { container } = render(<CanvasBreadcrumb />);
     const directoryInput = container.querySelectorAll('input[type="file"]')[1];
 
     fireEvent.change(directoryInput, {
@@ -121,7 +97,15 @@ describe('AppMenu document interchange', () => {
               '  areas: [[overview]]',
             ].join('\n')
           ),
-          blackboardFile('gpu/panels/overview.panel', 'GPU'),
+          blackboardFile(
+            'gpu/panels/overview.panel',
+            [
+              '```mermaid',
+              'flowchart LR',
+              '  A[GPU] --> B[Pixels]',
+              '```',
+            ].join('\n')
+          ),
         ],
       },
     });
@@ -140,7 +124,8 @@ describe('AppMenu document interchange', () => {
           }),
         ])
       );
-      expect(state.grid.get('0,0')).toMatchObject({ char: 'G' });
+      expect([...state.grid.values()].some((cell) => cell.char === 'G')).toBe(true);
+      expect([...state.grid.values()].some((cell) => cell.color === '#0969da')).toBe(true);
     });
   });
 
@@ -150,18 +135,19 @@ describe('AppMenu document interchange', () => {
       grid: new Map([['0,0', { char: 'A', color: '#ffffff' }]]),
     });
     act(() => setUiLanguage('en'));
-    render(<AppMenu />);
+    render(<CanvasBreadcrumb />);
 
-    fireEvent.pointerDown(screen.getByRole('button', { name: 'Open menu' }), {
+    const state = useEditorStore.getState();
+    const activeName = state.canvasSessions.find(
+      (session) => session.id === state.activeCanvasId
+    )!.name;
+    fireEvent.click(screen.getByRole('button', { name: 'Select canvas' }));
+    fireEvent.pointerDown(screen.getByRole('button', { name: `Manage ${activeName}` }), {
       button: 0,
       ctrlKey: false,
     });
-    const fileItem = await screen.findByRole('menuitem', { name: 'File' });
-    fireEvent.pointerMove(fileItem, { pointerType: 'mouse' });
-    await waitFor(() => expect(fileItem).toHaveAttribute('data-state', 'open'));
     const exportItem = screen.getByRole('menuitem', { name: 'Export' });
     fireEvent.pointerMove(exportItem, { pointerType: 'mouse' });
-    await waitFor(() => expect(exportItem).toHaveAttribute('data-state', 'open'));
 
     expect(await screen.findByRole('menuitem', { name: 'TXT' })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: 'CharDesk' })).toBeInTheDocument();
@@ -186,6 +172,20 @@ describe('AppMenu document interchange', () => {
 
     fireEvent.keyDown(document, { key: 'Escape' });
     await waitFor(() => expect(trigger).toHaveFocus());
+  });
+
+  it('keeps document I/O out of the app menu and exposes Clear canvas directly', async () => {
+    act(() => setUiLanguage('en'));
+    render(<AppMenu />);
+
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'Open menu' }), {
+      button: 0,
+      ctrlKey: false,
+    });
+
+    expect(await screen.findByRole('menuitem', { name: 'Clear canvas' })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'File' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: 'Export' })).not.toBeInTheDocument();
   });
 
   it('toggles split view from the app menu with the horizontal split icon', async () => {

@@ -2,53 +2,14 @@ export * from "./public";
 import type { CanvasSessionSourceParser } from "./state/sessionImportPort";
 import type { SelectionCommandFactory } from "./state/selectionCommandPort";
 import { CanvasDocumentRegistry } from "./state/CanvasDocumentRegistry";
-import { createEditorStore, type CanvasStore } from "./state/editorStore";
-import { createCanvasCommands, createCanvasQueries } from "./state/canvasCommands";
+import type { CanvasStore } from "./state/editorStore";
+import type { createCanvasCommands } from "./state/canvasCommands";
+import { CanvasRuntime } from "./runtime";
 
 export let defaultCanvasDocuments: CanvasDocumentRegistry;
 export let useEditorStore: CanvasStore;
 export let canvasCommands: ReturnType<typeof createCanvasCommands>;
-const TEST_PERSISTENCE_SNAPSHOT = {
-  phase: "ready",
-  restore: {
-    phase: "ready",
-    reason: null,
-    error: null,
-    temporaryDirty: false,
-  },
-  save: "saved",
-  ownership: "writer",
-  error: null,
-} as const;
-export let testingCanvasRuntime: {
-  store: CanvasStore;
-  documents: CanvasDocumentRegistry;
-  getState: CanvasStore["getState"];
-  subscribe: CanvasStore["subscribe"];
-  commands: ReturnType<typeof createCanvasCommands>;
-  queries: ReturnType<typeof createCanvasQueries>;
-  ready: Promise<void>;
-  getPersistenceSnapshot: () => {
-    phase: "ready";
-    restore: {
-      phase: "ready";
-      reason: null;
-      error: null;
-      temporaryDirty: false;
-    };
-    save: "saved";
-    ownership: "writer";
-    error: null;
-  };
-  subscribePersistence: (listener: () => void) => () => void;
-  retryPersistence: () => Promise<void>;
-  retryRestore: () => Promise<boolean>;
-  setRetainedCanvasIds: (ids: readonly string[]) => void;
-  getProjectionCacheStats: CanvasDocumentRegistry["getProjectionCacheStats"];
-  setProjectionCacheBudget: CanvasDocumentRegistry["setProjectionCacheBudget"];
-  subscribeProjectionCache: CanvasDocumentRegistry["subscribeProjectionCache"];
-  dispose: () => void;
-};
+export let testingCanvasRuntime: CanvasRuntime;
 
 export const initializeCanvasTesting = ({
   selectionCommands,
@@ -59,33 +20,14 @@ export const initializeCanvasTesting = ({
 }) => {
   if (testingCanvasRuntime) return testingCanvasRuntime;
   defaultCanvasDocuments = new CanvasDocumentRegistry();
-  useEditorStore = createEditorStore({
+  testingCanvasRuntime = new CanvasRuntime({
     documents: defaultCanvasDocuments,
     selectionCommands: selectionCommands(defaultCanvasDocuments),
     parseSessionSource,
-    reportIntegrityIssues: () => undefined,
     persistence: false,
-  }).store;
-  canvasCommands = createCanvasCommands(useEditorStore, defaultCanvasDocuments);
-  const queries = createCanvasQueries(useEditorStore, defaultCanvasDocuments);
-  testingCanvasRuntime = {
-    store: useEditorStore,
-    documents: defaultCanvasDocuments,
-    getState: useEditorStore.getState,
-    subscribe: useEditorStore.subscribe,
-    commands: canvasCommands,
-    queries,
-    ready: Promise.resolve(),
-    getPersistenceSnapshot: () => TEST_PERSISTENCE_SNAPSHOT,
-    subscribePersistence: () => () => undefined,
-    retryPersistence: () => Promise.resolve(),
-    retryRestore: () => Promise.resolve(false),
-    setRetainedCanvasIds: () => undefined,
-    getProjectionCacheStats: defaultCanvasDocuments.getProjectionCacheStats,
-    setProjectionCacheBudget: defaultCanvasDocuments.setProjectionCacheBudget,
-    subscribeProjectionCache: defaultCanvasDocuments.subscribeProjectionCache,
-    dispose: () => undefined,
-  };
+  });
+  useEditorStore = testingCanvasRuntime.store;
+  canvasCommands = testingCanvasRuntime.commands;
   return testingCanvasRuntime;
 };
 

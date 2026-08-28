@@ -198,6 +198,7 @@ export const useManagedCanvasInput = ({
   const hasActiveSelection = activeSelections.length > 0 || hasStructuredSelection;
   const [canvasOwnsInputFocus, setCanvasOwnsInputFocus] = useState(false);
   const canvasOwnsInputFocusRef = useRef(false);
+  const windowHasFocusRef = useRef(true);
   const managedTextareaPoint =
     activeTextCursor ??
     structuredGridFocus ??
@@ -230,7 +231,11 @@ export const useManagedCanvasInput = ({
   }, []);
   const reconcileManagedTextareaBlur = useCallback(() => {
     const textarea = textareaRef.current;
-    if (!textarea || !canvasOwnsInputFocusRef.current) return;
+    if (
+      !textarea ||
+      !canvasOwnsInputFocusRef.current ||
+      !windowHasFocusRef.current
+    ) return;
     const activeElement = document.activeElement;
     if (activeElement === textarea) return;
 
@@ -299,10 +304,20 @@ export const useManagedCanvasInput = ({
   }, [active, releaseManagedTextarea]);
 
   useEffect(() => {
-    const releaseOnWindowBlur = () => releaseManagedTextarea();
-    window.addEventListener('blur', releaseOnWindowBlur);
-    return () => window.removeEventListener('blur', releaseOnWindowBlur);
-  }, [releaseManagedTextarea]);
+    const suspendOnWindowBlur = () => {
+      windowHasFocusRef.current = false;
+    };
+    const restoreOnWindowFocus = () => {
+      windowHasFocusRef.current = true;
+      reconcileManagedTextareaBlur();
+    };
+    window.addEventListener('blur', suspendOnWindowBlur);
+    window.addEventListener('focus', restoreOnWindowFocus);
+    return () => {
+      window.removeEventListener('blur', suspendOnWindowBlur);
+      window.removeEventListener('focus', restoreOnWindowFocus);
+    };
+  }, [reconcileManagedTextareaBlur]);
 
   const runManagedAction: RunManagedAction = useCallback(
     (

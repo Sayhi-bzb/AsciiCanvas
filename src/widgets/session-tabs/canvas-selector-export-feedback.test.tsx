@@ -2,29 +2,34 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useEditorStore } from "@/domains/canvas/testing";
 import { setUiLanguage } from "@/shared/i18n";
-import { AppMenu } from "./app-menu";
+import { CanvasBreadcrumb } from "@/widgets/session-tabs/CanvasBreadcrumb";
 
 const { saveExport } = vi.hoisted(() => ({ saveExport: vi.fn() }));
 
-vi.mock("@/widgets/export/use-app-menu-export", () => ({
-  useAppMenuExport: () => ({ save: saveExport }),
+vi.mock("@/widgets/export/use-canvas-session-export", () => ({
+  useCanvasSessionExport: () => ({ save: saveExport }),
 }));
 
-describe("AppMenu export feedback", () => {
+describe("Canvas selector export feedback", () => {
   const initialState = useEditorStore.getState();
 
   const openPngExport = async () => {
-    fireEvent.pointerDown(screen.getByRole("button", { name: "Open menu" }), {
+    const state = useEditorStore.getState();
+    const target =
+      state.canvasSessions.find((session) => session.id !== state.activeCanvasId) ??
+      state.canvasSessions[0];
+    fireEvent.click(screen.getByRole("button", { name: "Select canvas" }));
+    fireEvent.pointerDown(screen.getByRole("button", { name: `Manage ${target.name}` }), {
       button: 0,
       ctrlKey: false,
     });
-    const fileItem = await screen.findByRole("menuitem", { name: "File" });
-    fireEvent.pointerMove(fileItem, { pointerType: "mouse" });
-    await waitFor(() => expect(fileItem).toHaveAttribute("data-state", "open"));
     const exportItem = await screen.findByRole("menuitem", { name: "Export" });
     fireEvent.pointerMove(exportItem, { pointerType: "mouse" });
-    await waitFor(() => expect(exportItem).toHaveAttribute("data-state", "open"));
-    return screen.findByRole("menuitem", { name: "PNG" });
+    return {
+      pngItem: await screen.findByRole("menuitem", { name: "PNG" }),
+      targetId: target.id,
+      activeCanvasId: state.activeCanvasId,
+    };
   };
 
   beforeEach(() => {
@@ -48,30 +53,30 @@ describe("AppMenu export feedback", () => {
 
   it("shows export success on the selected format item", async () => {
     saveExport.mockResolvedValue({ ok: true });
-    render(<AppMenu />);
-    const pngItem = await openPngExport();
+    render(<CanvasBreadcrumb />);
+    const { pngItem, targetId, activeCanvasId } = await openPngExport();
 
     fireEvent.click(pngItem);
 
     await waitFor(() => {
-      expect(pngItem).toHaveAttribute("data-export-feedback", "success");
       expect(pngItem).toHaveAttribute("data-feedback", "success");
       expect(pngItem).toHaveClass("text-success");
     });
     expect(pngItem.querySelector(".lucide-check")).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("PNG saved");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(saveExport).toHaveBeenCalledWith(targetId, "png");
+    expect(useEditorStore.getState().activeCanvasId).toBe(activeCanvasId);
   });
 
   it("keeps a detailed oversized-image error inside the export submenu", async () => {
     saveExport.mockResolvedValue({ ok: false, errorCode: "image-too-large" });
-    render(<AppMenu />);
-    const pngItem = await openPngExport();
+    render(<CanvasBreadcrumb />);
+    const { pngItem } = await openPngExport();
 
     fireEvent.click(pngItem);
 
     await waitFor(() => {
-      expect(pngItem).toHaveAttribute("data-export-feedback", "error");
       expect(pngItem).toHaveAttribute("data-feedback", "error");
       expect(pngItem).toHaveClass("text-error");
     });

@@ -10,7 +10,18 @@ import {
   createCanvasCommands,
   createCanvasQueries,
 } from "./state/canvasCommands";
-import type { CanvasSession } from "@/domains/sessions/public";
+import type { CanvasMode, CanvasSession } from "@/domains/sessions/public";
+import type { SlideDeck } from "@/domains/slides/public";
+import type {
+  StructuredComponentInstance,
+  StructuredNode,
+} from "@/domains/structured-content/public";
+import {
+  createGridSurfaceReader,
+  type CanvasSurfaceReader,
+} from "./cell-plane/model";
+import { createStructuredGridProjection } from "./state/helpers/gridHelpers";
+import { materializeSlideDeckContent } from "./state/slideDocumentPages";
 import {
   createBrowserCanvasPersistence,
   type BrowserCanvasPersistence,
@@ -37,6 +48,16 @@ type CanvasRuntimeOptions = {
   parseSessionSource: CanvasSessionSourceParser;
   reportIntegrityIssues?: (issues: CollaborationIntegrityIssue[]) => void;
   initialSessions?: readonly CanvasSession[];
+};
+
+export type CanvasSessionMaterialization = {
+  id: string;
+  name: string;
+  mode: CanvasMode;
+  surface: CanvasSurfaceReader;
+  structuredScene: StructuredNode[];
+  structuredComponents: StructuredComponentInstance[];
+  slideDeck: SlideDeck | null;
 };
 
 export class CanvasRuntime {
@@ -111,6 +132,59 @@ export class CanvasRuntime {
 
   subscribeProjectionCache = (listener: () => void) =>
     this.documents.subscribeProjectionCache(listener);
+
+  materializeSession = async (
+    sessionId: string
+  ): Promise<CanvasSessionMaterialization | null> => {
+    const session = this.store
+      .getState()
+      .canvasSessions.find((candidate) => candidate.id === sessionId);
+    if (!session) return null;
+    if (
+      !this.documents.getDocument(session.id) &&
+      !(await this.persistence?.ensureLoaded(session))
+    ) {
+      return null;
+    }
+
+    if (session.mode === "slide") {
+      const slideDeck = materializeSlideDeckContent(
+        this.documents,
+        session.id,
+        session.slideDeck
+      );
+      const activeSlide = slideDeck.slides.find(
+        (slide) => slide.id === slideDeck.activeSlideId
+      );
+      return {
+        id: session.id,
+        name: session.name,
+        mode: session.mode,
+        surface: createGridSurfaceReader(new Map(activeSlide?.grid ?? [])),
+        structuredScene: [],
+        structuredComponents: [],
+        slideDeck,
+      };
+    }
+
+    const seed = this.documents.getDocumentSeed(session.id, session.mode);
+    if (!seed) return null;
+    const structuredScene = [...seed.scene];
+    const structuredComponents = [...(seed.components ?? [])];
+    const grid =
+      session.mode === "structured"
+        ? createStructuredGridProjection(structuredScene)
+        : new Map(seed.grid);
+    return {
+      id: session.id,
+      name: session.name,
+      mode: session.mode,
+      surface: createGridSurfaceReader(new Map(grid)),
+      structuredScene,
+      structuredComponents,
+      slideDeck: null,
+    };
+  };
 
   dispose = () => {
     if (this.#disposed) return;

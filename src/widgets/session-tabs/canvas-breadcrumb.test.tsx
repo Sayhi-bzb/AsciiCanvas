@@ -143,13 +143,40 @@ describe("CanvasBreadcrumb", () => {
     expect(trigger).toHaveAttribute("data-onboarding-target", "canvas-selector");
 
     openPanel();
-    const create = screen.getByRole("button", { name: "Create" });
+    const create = screen.getByRole("button", { name: "New" });
     expect(create).toHaveAttribute("data-onboarding-target", "create-menu");
-    await openDropdown("Create");
+    expect(screen.getByRole("button", { name: "Import" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Add canvas/i })).not.toBeInTheDocument();
+    await openDropdown("New");
+    expect(screen.getByRole("menu", { name: "New" })).toHaveClass(
+      "w-[calc(50vw-1.5rem)]",
+      "max-w-44"
+    );
     expect(screen.getByRole("menuitem", { name: "New Structured" })).toHaveAttribute(
       "data-onboarding-target",
       "create-structured"
     );
+  });
+
+  it("activates the owning pane before opening an import picker", async () => {
+    const onActivate = vi.fn();
+    const { container } = render(
+      <CanvasSessionSelector onActivate={onActivate} />
+    );
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const clickPicker = vi.spyOn(fileInput, "click").mockImplementation(() => undefined);
+
+    openPanel();
+    await openDropdown("Import");
+    expect(screen.getByRole("menu", { name: "Import" })).toHaveClass(
+      "w-[calc(50vw-1.5rem)]",
+      "max-w-44"
+    );
+    fireEvent.click(screen.getByRole("menuitem", { name: "File" }));
+
+    expect(onActivate).toHaveBeenCalledTimes(2);
+    expect(clickPicker).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("dialog", { name: "Select canvas" })).not.toBeInTheDocument();
   });
 
   it("uses the slide icon and creates a slide deck with a custom size", async () => {
@@ -157,7 +184,7 @@ describe("CanvasBreadcrumb", () => {
 
     const selector = screen.getByRole("button", { name: "Select canvas" });
     openPanel();
-    await openDropdown("Create");
+    await openDropdown("New");
     const slidesTrigger = screen.getByRole("menuitem", { name: "New Slides" });
     expect(slidesTrigger.querySelector(".lucide-presentation")).toBeInTheDocument();
 
@@ -196,7 +223,7 @@ describe("CanvasBreadcrumb", () => {
     const sessionCount = useEditorStore.getState().canvasSessions.length;
 
     openPanel();
-    await openDropdown("Create");
+    await openDropdown("New");
     await openSubmenu("New Slides");
     fireEvent.click(screen.getByRole("menuitem", { name: "Custom size…" }));
     await screen.findByRole("dialog");

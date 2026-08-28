@@ -76,7 +76,7 @@ const focusRing =
   'outline-none focus-visible:ring-2 focus-visible:ring-ring/45 focus-visible:ring-inset';
 
 const controlBase = cn(
-  'inline-flex cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap font-medium transition-[color,background-color,opacity,box-shadow,transform] duration-[var(--motion-fast)] select-none motion-reduce:transition-none active:scale-[0.98] motion-reduce:active:scale-100 disabled:pointer-events-none disabled:cursor-default disabled:opacity-50',
+  'inline-flex cursor-pointer items-center justify-center gap-1.5 whitespace-nowrap font-medium transition-[color,background-color,opacity,box-shadow] duration-[var(--motion-fast)] select-none motion-reduce:transition-none disabled:pointer-events-none disabled:cursor-default disabled:opacity-50',
   focusRing,
   "data-[active=true]:focus-visible:ring-0 data-[pressed=true]:focus-visible:ring-0 data-[open=true]:focus-visible:ring-0 data-[state=open]:focus-visible:ring-0 data-[state=on]:focus-visible:ring-0 data-[state=open]:bg-control-open-surface data-[state=open]:text-foreground data-[state=open]:hover:bg-control-open-surface data-[state=open]:hover:text-foreground data-[state=open]:focus:bg-control-open-surface data-[state=open]:focus:text-foreground data-[state=on]:bg-control-pressed-surface data-[state=on]:text-foreground data-[state=on]:hover:bg-control-pressed-surface data-[state=on]:hover:text-foreground data-[state=on]:focus:bg-control-pressed-surface data-[state=on]:focus:text-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
 );
@@ -188,7 +188,6 @@ export const rx = {
   overlayMotion: cn(
     'data-[state=open]:animate-in data-[state=closed]:animate-out',
     'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
-    'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
     'duration-[var(--motion-standard)] motion-reduce:animate-none'
   ),
   menuItem: ({
@@ -319,12 +318,9 @@ export const rx = {
       focusRing,
       density === 'default' && 'h-8 px-2.5 py-1.5 text-[13px]',
       density === 'compact' && 'h-7 px-2 py-1 text-[11px]',
-      appearance === 'default' &&
-        'border border-input bg-field-surface shadow-xs',
-      appearance === 'quiet' &&
-        'border-0 bg-transparent shadow-none',
-      appearance === 'search' &&
-        'border-0 bg-search-surface shadow-none',
+      appearance === 'default' && 'border border-input bg-field-surface shadow-xs',
+      appearance === 'quiet' && 'border-0 bg-transparent shadow-none',
+      appearance === 'search' && 'border-0 bg-search-surface shadow-none',
       invalid && 'border-error aria-invalid:border-error'
     ),
 

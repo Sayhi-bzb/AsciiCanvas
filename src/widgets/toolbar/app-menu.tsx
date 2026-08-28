@@ -1,22 +1,9 @@
 "use client";
 
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { Check, X } from "lucide-react";
-import { useShallow } from "zustand/react/shallow";
-import {
-  createGridSurfaceReader,
-  materializeSlideDeckContent,
-  useCanvasRuntime,
-  useCanvasState,
-} from "@/domains/canvas/public";
-import {
-  getAvailableExportFormats,
-  type ExportContext,
-  type ExportFormat,
-} from "@/domains/export/public";
+import { useCanvasRuntime } from "@/domains/canvas/public";
 import {
   Button,
-  StatusText,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
@@ -27,16 +14,8 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@chardesk/ui";
-
-
 import { useUiI18n } from "@/shared/i18n";
-import { useCanvasImport } from "@/widgets/import/useCanvasImport";
-import {
-  useAppMenuExport,
-  type AppMenuExportErrorCode,
-} from "@/widgets/export/use-app-menu-export";
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
-import { useInPlaceFeedback } from "@/shared/hooks/use-in-place-feedback";
 import { browser } from "@/shared/services/effects";
 import { APP_SOURCE_URL } from "@/shared/lib/constants";
 import { useGitHubStars } from "./use-github-stars";
@@ -47,9 +26,6 @@ import { RecoverableLazyBoundary } from "@/shared/components/RecoverableLazyBoun
 import { requireLoadedModule } from "@/shared/lib/moduleLoadRecovery";
 
 const AppMenuTriggerIcon = HOST_ICONOLOGY.appMenu.trigger;
-const FileIcon = HOST_ICONOLOGY.appMenu.file;
-const ImportIcon = HOST_ICONOLOGY.appMenu.import;
-const ExportIcon = HOST_ICONOLOGY.appMenu.export;
 const SplitViewIcon = HOST_ICONOLOGY.appMenu.splitView;
 const ZenModeIcon = HOST_ICONOLOGY.appMenu.zenMode;
 const HelpIcon = HOST_ICONOLOGY.appMenu.help;
@@ -59,10 +35,6 @@ const GitHubIcon = HOST_ICONOLOGY.appMenu.github;
 const GitHubStarIcon = HOST_ICONOLOGY.appMenu.githubStar;
 const SettingsIcon = HOST_ICONOLOGY.appMenu.settings;
 const ClearIcon = HOST_ICONOLOGY.appMenu.clear;
-type ExportFeedbackTarget = {
-  format: ExportFormat;
-  errorCode?: AppMenuExportErrorCode;
-};
 const ClearCanvasDialog = lazy(() =>
   import("@/widgets/dialogs/clear-canvas-dialog").then((loaded) => ({
     default: requireLoadedModule(loaded).ClearCanvasDialog,
@@ -79,41 +51,10 @@ export function AppMenu() {
   const workspace = useCanvasWorkspaceOptional();
   const { mode, setMode } = useEditorPresentation();
   const zenMode = mode === "zen";
-  const {
-    grid,
-    canvasMode,
-    slideDeck,
-    structuredScene,
-    structuredComponents,
-    canvasSessions,
-    activeCanvasId,
-  } = useCanvasState(
-    useShallow((state) => ({
-      grid: state.grid,
-      canvasMode: state.canvasMode,
-      slideDeck: state.slideDeck,
-      structuredScene: state.structuredScene,
-      structuredComponents: state.structuredComponents,
-      canvasSessions: state.canvasSessions,
-      activeCanvasId: state.activeCanvasId,
-    }))
-  );
   const clearCanvas = canvas.commands.grid.clear;
-  const documentName = canvasSessions.find(
-    (session) => session.id === activeCanvasId
-  )?.name;
   const { t } = useUiI18n();
   const { canStart: canStartTour, requestStart: requestTourStart } =
     useOnboardingTour();
-  const {
-    directoryInputRef,
-    fileInputRef,
-    handleBlackboardDirectoryChange,
-    handleFileChange,
-    isImporting,
-    openBlackboardPicker,
-    openFilePicker,
-  } = useCanvasImport();
   const [clearOpen, setClearOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -126,56 +67,6 @@ export function AppMenu() {
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const clearLabel = t("sidebar.clear.canvas");
   const clearDescription = t("sidebar.clear.canvasDescription");
-  const exportLabel = t("appMenu.export");
-  const availableExportFormats = useMemo(
-    () => getAvailableExportFormats(canvasMode),
-    [canvasMode]
-  );
-  const exportContext = useMemo<ExportContext>(
-    () => ({
-      canvasMode,
-      surface:
-        canvasMode === "structured"
-          ? createGridSurfaceReader(grid)
-          : canvas.documents.getContentReader(),
-      slideDeck: slideDeck
-        ? materializeSlideDeckContent(
-            canvas.documents,
-            activeCanvasId,
-            slideDeck
-          )
-        : null,
-      documentName,
-      structuredScene,
-      structuredComponents,
-      includeColor: true,
-      showGrid: false,
-    }),
-    [
-      canvasMode,
-      canvas.documents,
-      activeCanvasId,
-      documentName,
-      grid,
-      slideDeck,
-      structuredComponents,
-      structuredScene,
-    ]
-  );
-  const exportActions = useAppMenuExport(exportContext);
-  const {
-    feedback: exportFeedback,
-    run: runExportFeedback,
-    clear: clearExportFeedback,
-  } = useInPlaceFeedback<ExportFeedbackTarget>({ errorDurationMs: 4000 });
-  const exportErrorDescription =
-    exportFeedback?.status === "error"
-      ? exportFeedback.target.errorCode === "image-too-large"
-        ? t("export.imageTooLargeDescription")
-        : t("export.saveFailedDescription", {
-            format: exportFeedback.target.format.toUpperCase(),
-          })
-      : null;
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -186,28 +77,6 @@ export function AppMenu() {
 
   return (
     <>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".chardesk,.slides.md,.ans,.txt"
-        className="sr-only"
-        tabIndex={-1}
-        aria-hidden="true"
-        onChange={handleFileChange}
-      />
-      <input
-        ref={(input) => {
-          directoryInputRef.current = input;
-          if (input) input.webkitdirectory = true;
-        }}
-        type="file"
-        multiple
-        className="sr-only"
-        tabIndex={-1}
-        aria-hidden="true"
-        onChange={handleBlackboardDirectoryChange}
-      />
-
       <div
         data-canvas-ui="true"
         data-testid="app-menu-host"
@@ -217,10 +86,7 @@ export function AppMenu() {
               key={mode}
               modal={false}
               open={menuOpen}
-              onOpenChange={(open) => {
-                setMenuOpen(open);
-                if (!open) clearExportFeedback();
-              }}
+              onOpenChange={setMenuOpen}
             >
               <DropdownMenuTrigger asChild>
                 <Button
@@ -240,113 +106,6 @@ export function AppMenu() {
                 aria-label={t("appMenu.open")}
               >
                 <DropdownMenuGroup>
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger>
-                      <FileIcon />
-                      {t("appMenu.file")}
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent className="w-40" aria-label={t("appMenu.file")}>
-                      <DropdownMenuGroup>
-                        <DropdownMenuItem
-                          disabled={isImporting}
-                          onSelect={openFilePicker}
-                        >
-                          <ImportIcon />
-                          {isImporting ? t("import.importing") : t("appMenu.importFile")}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          disabled={isImporting}
-                          onSelect={openBlackboardPicker}
-                        >
-                          <FileIcon />
-                          {t("appMenu.importBlackboard")}
-                        </DropdownMenuItem>
-                        {availableExportFormats.length > 0 && (
-                          <DropdownMenuSub>
-                            <DropdownMenuSubTrigger>
-                              <ExportIcon />
-                              {exportLabel}
-                            </DropdownMenuSubTrigger>
-                            <DropdownMenuSubContent className="w-40" aria-label={exportLabel}>
-                              <DropdownMenuGroup>
-                                {availableExportFormats.map((definition) => (
-                                  <DropdownMenuItem
-                                    key={definition.format}
-                                    feedback={
-                                      exportFeedback?.target.format === definition.format
-                                        ? exportFeedback.status
-                                        : undefined
-                                    }
-                                    data-export-feedback={
-                                      exportFeedback?.target.format === definition.format
-                                        ? exportFeedback.status
-                                        : undefined
-                                    }
-                                    onSelect={(event) => {
-                                      event.preventDefault();
-                                      void runExportFeedback(
-                                        { format: definition.format },
-                                        async () => {
-                                          const result = await exportActions.save(definition.format);
-                                          return result.ok
-                                            ? true
-                                            : {
-                                                success: false,
-                                                target: {
-                                                  format: definition.format,
-                                                  errorCode: result.errorCode,
-                                                },
-                                              };
-                                        }
-                                      );
-                                    }}
-                                  >
-                                    {definition.label}
-                                    {exportFeedback?.target.format === definition.format &&
-                                    exportFeedback.status === "success" ? (
-                                      <span className="ml-auto">
-                                        <Check />
-                                      </span>
-                                    ) : exportFeedback?.target.format === definition.format &&
-                                      exportFeedback.status === "error" ? (
-                                      <span className="ml-auto">
-                                        <X />
-                                      </span>
-                                    ) : null}
-                                  </DropdownMenuItem>
-                                ))}
-                              </DropdownMenuGroup>
-                              {exportErrorDescription ? (
-                                <StatusText tone="error" asChild>
-                                  <div role="alert" className="px-2 py-1.5 text-[11px] leading-4">
-                                    <div className="font-medium">{t("export.saveFailed")}</div>
-                                    <div>{exportErrorDescription}</div>
-                                  </div>
-                                </StatusText>
-                              ) : null}
-                              <span role="status" className="sr-only">
-                                {exportFeedback?.status === "success"
-                                  ? t("export.saved", {
-                                      format: exportFeedback.target.format.toUpperCase(),
-                                    })
-                                  : ""}
-                              </span>
-                            </DropdownMenuSubContent>
-                          </DropdownMenuSub>
-                        )}
-                      </DropdownMenuGroup>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuGroup>
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onSelect={() => setClearOpen(true)}
-                        >
-                          <ClearIcon />
-                          {t("appMenu.clear")}
-                        </DropdownMenuItem>
-                      </DropdownMenuGroup>
-                    </DropdownMenuSubContent>
-                  </DropdownMenuSub>
                   {workspace && (
                     <DropdownMenuItem
                       onSelect={() => {
@@ -375,6 +134,16 @@ export function AppMenu() {
                     <ZenModeIcon />
                     {t(zenMode ? "appMenu.exitZenMode" : "appMenu.zenMode")}
                   </DropdownMenuItem>
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onSelect={() => setClearOpen(true)}
+                  >
+                    <ClearIcon />
+                    {t("appMenu.clear")}
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
                   <DropdownMenuItem
                     onSelect={() => {
                       setMenuOpen(false);

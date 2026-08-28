@@ -10,8 +10,11 @@ test.describe('App menu', () => {
   test('round-trips a native CharDesk project file', async ({ page }) => {
     await page.goto('/');
 
-    await page.getByRole('button', { name: 'Open menu' }).click();
-    await page.getByRole('menuitem', { name: 'File' }).hover();
+    await page.getByRole('button', { name: 'Select canvas' }).click();
+    await page
+      .getByRole('button', { name: /^Manage / })
+      .first()
+      .click();
     await page.getByRole('menuitem', { name: 'Export' }).hover();
     const downloadPromise = page.waitForEvent('download');
     await page.getByRole('menuitem', { name: 'CharDesk' }).click();
@@ -21,8 +24,8 @@ test.describe('App menu', () => {
     expect(downloadPath).not.toBeNull();
     if (!downloadPath) return;
 
-    await page.locator('input[type="file"]').setInputFiles(downloadPath);
-    await expect(page.getByText('Import complete')).toBeVisible();
+    await page.locator('input[type="file"]').first().setInputFiles(downloadPath);
+    await expect(page.locator('[data-canvas-session-row]')).toHaveCount(3);
   });
 
   test('keeps inline actions open and closes when focus leaves', async ({ page }) => {
@@ -59,52 +62,12 @@ test.describe('App menu', () => {
     await trigger.click();
     const menu = page.getByRole('menu', { name: 'Open menu' });
     await expect(menu).toBeVisible();
-    await expect(menu.getByRole('menuitem').allTextContents()).resolves.toEqual([
-      'File',
-      'Split',
-      'Zen',
-      'Settings',
-      'Help',
-      'GitHub',
-    ]);
+    for (const name of ['Split', 'Zen', 'Clear canvas', 'Settings', 'Help', 'GitHub']) {
+      await expect(menu.getByRole('menuitem', { name: new RegExp(`^${name}`) })).toBeVisible();
+    }
 
-    await menu.getByRole('menuitem', { name: 'File' }).hover();
-    const fileMenu = page.getByRole('menu', { name: 'File' });
-    await expect(fileMenu).toBeVisible();
-    await expect(fileMenu.getByRole('menuitem').allTextContents()).resolves.toEqual([
-      'Import',
-      'Export',
-      'Clear',
-    ]);
-    await fileMenu.getByRole('menuitem', { name: 'Export' }).hover();
-    const exportMenu = page.getByRole('menu', { name: 'Export' });
-    await expect(exportMenu).toBeVisible();
-    await expect(exportMenu.getByRole('menuitem').allTextContents()).resolves.toEqual([
-      'TXT',
-      'CharDesk',
-      'ANSI',
-      'PNG',
-    ]);
-    const projectDownload = page.waitForEvent('download');
-    await exportMenu.getByRole('menuitem', { name: 'CharDesk' }).click();
-    const downloadedProject = await projectDownload;
-    expect(downloadedProject.suggestedFilename()).toMatch(/^chardesk-\d+\.chardesk$/);
-    await expect(menu).toBeVisible();
-    await expect(exportMenu).toBeVisible();
-    const txtItem = exportMenu.getByRole('menuitem', { name: 'TXT' });
-    await expect(txtItem).not.toHaveAttribute('aria-haspopup', 'menu');
-    const textDownload = page.waitForEvent('download');
-    await txtItem.click();
-    const downloadedText = await textDownload;
-    expect(downloadedText.suggestedFilename()).toMatch(/\.txt$/);
-    await expect(menu).toBeVisible();
-    await expect(exportMenu).toBeVisible();
-    await expect(page.getByRole('menu', { name: 'TXT' })).toHaveCount(0);
-    await expect(page.getByRole('menuitem', { name: 'Copy' })).toHaveCount(0);
-    await expect(page.getByRole('menuitem', { name: 'Save' })).toHaveCount(0);
-
-    await expect(menu.locator('[data-slot="dropdown-menu-separator"]')).toHaveCount(0);
-    const separator = fileMenu.locator('[data-slot="dropdown-menu-separator"]');
+    const separator = menu.locator('[data-slot="dropdown-menu-separator"]');
+    await expect(separator).toHaveCount(1);
     await expect(separator).toHaveCSS('height', '2px');
     await expect(separator).toHaveClass(/rounded-full/, /bg-separator/);
 
@@ -120,16 +83,17 @@ test.describe('App menu', () => {
     expect(securityBox).not.toBeNull();
     expect(securityBox!.x + securityBox!.width).toBe(1428);
     expect(securityBox!.y + securityBox!.height).toBe(888);
-    await expect(page.locator('[data-slot="sidebar-content"]')).toHaveCSS('padding-bottom', '48px');
+    await expect(page.locator('[data-slot="sidebar-content"]')).toHaveCSS('padding-bottom', '0px');
 
     await securityControl.click();
     await expect(page.getByRole('dialog')).toContainText('Data security');
     await page.keyboard.press('Escape');
 
     await trigger.click();
-    const clearMenu = page.getByRole('menu', { name: 'Open menu' });
-    await clearMenu.getByRole('menuitem', { name: 'File' }).hover();
-    await page.getByRole('menu', { name: 'File' }).getByRole('menuitem', { name: 'Clear' }).click();
+    await page
+      .getByRole('menu', { name: 'Open menu' })
+      .getByRole('menuitem', { name: 'Clear canvas' })
+      .click();
     await expect(page.getByRole('alertdialog')).toBeVisible();
     await expect(menuContent).toHaveCount(0);
     await page.getByRole('button', { name: 'Cancel' }).click();
@@ -205,25 +169,21 @@ test.describe('App menu', () => {
     await page.goto('/');
 
     const trigger = page.getByTestId('app-menu-host').getByRole('button');
+    const selector = page.getByRole('button', { name: 'Select canvas' });
+    await selector.click();
+    await page.getByRole('button', { name: 'Import' }).click();
+    await expect(page.locator('input[type="file"]').first()).toHaveAttribute(
+      'accept',
+      '.chardesk,.slides.md,.ans,.txt'
+    );
+    await page.keyboard.press('Escape');
+    await selector.click();
+    await expect(page.getByRole('dialog', { name: 'Select canvas' })).toBeHidden();
+
     await trigger.click();
     const menu = page.getByRole('menu', { name: 'Open menu' });
-
-    const importChooser = page.waitForEvent('filechooser');
-    await menu.getByRole('menuitem', { name: 'File' }).hover();
-    await page.getByRole('menu', { name: 'File' }).getByRole('menuitem', { name: 'Import' }).click();
-    await importChooser;
-    await expect(page.locator('input[type="file"]')).toHaveAttribute(
-      'accept',
-      '.chardesk,.md,text/markdown,text/plain'
-    );
-    await page.evaluate(() => window.dispatchEvent(new Event('blur')));
-    await expect(page.locator('[data-slot="dropdown-menu-content"]')).toHaveCount(0);
-
-    await trigger.click();
-    await page
-      .getByRole('menu', { name: 'Open menu' })
-      .getByRole('menuitem', { name: 'Settings' })
-      .click();
+    await expect(menu).toBeVisible();
+    await menu.getByRole('menuitem', { name: 'Settings' }).click();
 
     const settings = page.getByRole('dialog', { name: 'Settings' });
     await expect(settings).toBeVisible();
@@ -244,6 +204,47 @@ test.describe('App menu', () => {
     await overlay.click({ position: { x: 4, y: 4 } });
     await expect(settings).toBeHidden();
     await expect(trigger).toBeFocused();
+  });
+
+  test('keeps shared controls stable and opens selector actions toward available space', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/');
+
+    const selector = page.getByRole('button', { name: 'Select canvas' });
+    const restingBox = await selector.boundingBox();
+    expect(restingBox).not.toBeNull();
+    await page.mouse.move(
+      restingBox!.x + restingBox!.width / 2,
+      restingBox!.y + restingBox!.height / 2
+    );
+    await page.mouse.down();
+    await expect(selector).toHaveCSS('transform', 'none');
+    const pressedBox = await selector.boundingBox();
+    expect(pressedBox).toEqual(restingBox);
+    await page.mouse.up();
+
+    const newTrigger = page.getByRole('button', { name: 'New' });
+    await newTrigger.click();
+    const newMenu = page.getByRole('menu', { name: 'New' });
+    const newTriggerBox = await newTrigger.boundingBox();
+    const newMenuBox = await newMenu.boundingBox();
+    expect(newTriggerBox).not.toBeNull();
+    expect(newMenuBox).not.toBeNull();
+    expect(newMenuBox!.x).toBeGreaterThanOrEqual(newTriggerBox!.x + newTriggerBox!.width - 1);
+
+    await page.setViewportSize({ width: 320, height: 720 });
+    await page.reload();
+    await selector.click();
+    await page.getByRole('button', { name: 'Import' }).click();
+    const importMenu = page.getByRole('menu', { name: 'Import' });
+    await expect(importMenu).toHaveAttribute('data-side', 'bottom');
+    const importMenuBox = await importMenu.boundingBox();
+    expect(importMenuBox).not.toBeNull();
+    expect(importMenuBox!.width).toBeLessThanOrEqual(176);
+    expect(importMenuBox!.x).toBeGreaterThanOrEqual(0);
+    expect(importMenuBox!.x + importMenuBox!.width).toBeLessThanOrEqual(320);
   });
 
   test('switches Settings sections through the phone Select navigation', async ({ page }) => {

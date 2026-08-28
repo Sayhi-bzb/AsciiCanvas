@@ -331,6 +331,39 @@ describe("CanvasEditor focus management", () => {
     expect(onRedo).toHaveBeenCalledTimes(2);
   });
 
+  it("restores Canvas undo after the application regains focus", () => {
+    useEditorStore.setState({
+      textCursor: { x: 0, y: 0 },
+      canvasMode: "freeform",
+    });
+    useEditorStore.getState().writeTextString("A");
+    expect(useEditorStore.getState().canUndo).toBe(true);
+
+    const onUndo = vi.fn();
+    const { container } = render(
+      <CanvasEditor onUndo={onUndo} onRedo={vi.fn()} />
+    );
+    const textarea = container.querySelector("textarea");
+    expect(textarea).not.toBeNull();
+    focusCanvasInput(container);
+
+    act(() => {
+      window.dispatchEvent(new Event("blur"));
+      window.dispatchEvent(new Event("focus"));
+    });
+    expect(useEditorStore.getState().canUndo).toBe(true);
+    expect(document.activeElement).toBe(textarea);
+
+    const metaZ = createEvent.keyDown(textarea!, {
+      key: "z",
+      metaKey: true,
+    });
+    fireEvent(textarea!, metaZ);
+
+    expect(metaZ.defaultPrevented).toBe(true);
+    expect(onUndo).toHaveBeenCalledOnce();
+  });
+
   it("cuts selected structured nodes from the managed textarea shortcut", async () => {
     useEditorStore.getState().createCanvasSession("structured");
     useEditorStore.getState().applyStructuredScene(
@@ -437,6 +470,10 @@ describe("CanvasEditor focus management", () => {
 
     outside.focus();
     await act(async () => Promise.resolve());
+    act(() => {
+      window.dispatchEvent(new Event("blur"));
+      window.dispatchEvent(new Event("focus"));
+    });
     fireEvent.keyDown(outside, { key: "c", metaKey: true });
 
     await new Promise((resolve) => setTimeout(resolve, 180));

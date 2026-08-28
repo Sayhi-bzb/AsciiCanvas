@@ -23,6 +23,22 @@ describe('focus ring placement', () => {
     expect(rx.tabsTrigger()).not.toContain('focus-visible:outline-1');
   });
 
+  it('keeps control feedback geometry stable', () => {
+    const control = rx.control();
+
+    expect(control).toContain('transition-[color,background-color,opacity,box-shadow]');
+    expect(control).not.toContain('transform');
+    expect(control).not.toContain('active:scale-');
+  });
+
+  it('uses fade-only motion for transient overlays', () => {
+    expect(rx.overlayMotion).toContain('data-[state=open]:fade-in-0');
+    expect(rx.overlayMotion).toContain('data-[state=closed]:fade-out-0');
+    expect(rx.overlayMotion).toContain('duration-[var(--motion-standard)]');
+    expect(rx.overlayMotion).not.toContain('zoom-in');
+    expect(rx.overlayMotion).not.toContain('zoom-out');
+  });
+
   it('uses the shared focus ring for Pressable', () => {
     render(<Pressable>Pressable</Pressable>);
 

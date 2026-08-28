@@ -39,7 +39,7 @@ function PopoverContent({
           rx.overlayContent({ density }),
           rx.overlayMotion,
           rx.portalLayer({ modal: portalLayer === 'modal' }),
-          'text-popover-foreground data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-(--radix-popover-content-transform-origin) outline-hidden',
+          'text-popover-foreground data-[side=bottom]:slide-in-from-top-1 data-[side=left]:slide-in-from-right-1 data-[side=right]:slide-in-from-left-1 data-[side=top]:slide-in-from-bottom-1 origin-(--radix-popover-content-transform-origin) outline-hidden',
           className
         )}
         {...props}

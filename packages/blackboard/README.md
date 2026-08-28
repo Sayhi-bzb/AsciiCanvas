@@ -44,8 +44,12 @@ packages into one static Freeform projection and keeps no second revision or
 runtime layout layer.
 
 The App directory importer uses the same compiler but creates a normal editable
-session. Later filesystem changes do not update that imported snapshot. A
-complete example lives at [`demo/gpu-blackboard`](../../demo/gpu-blackboard).
+session. CharGraph Panels materialize the standard light Renderer Theme; explicit
+ANSI still has precedence. Later source or Renderer Theme changes do not update
+that imported snapshot. Use
+[`demo/gpu-blackboard`](../../demo/gpu-blackboard) for a compact example and
+[`demo/gpu-deep-dive-blackboard`](../../demo/gpu-deep-dive-blackboard) for a
+multi-panel CharGraph showcase.
 
 The main application build must exist before `serve` starts. Blackboard uses a
 non-persistent `freeform` session with navigation, selection, and copy enabled;

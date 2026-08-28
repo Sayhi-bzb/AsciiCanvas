@@ -135,8 +135,12 @@ Popover with ordinary buttons and dialog focus behavior.
 
 Motion uses three semantic durations: fast 120ms for control feedback,
 standard 180ms for floating surfaces and Sidebar transitions, and slow 240ms
-for modal surfaces. Components transition only the properties they own and
-disable non-essential motion under reduced-motion preferences.
+for modal surfaces. Ordinary controls transition color, background, opacity,
+and shadow without scaling or changing geometry. Transient Dropdown, Context
+Menu, Popover, and Select surfaces fade with at most a 4px directional shift;
+modal surfaces retain their separate slow zoom transition. Components
+transition only the properties they own and disable non-essential motion under
+reduced-motion preferences.
 
 ## Evidence
 

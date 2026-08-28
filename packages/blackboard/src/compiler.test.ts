@@ -22,6 +22,37 @@ describe("compileBlackboard", () => {
     });
   });
 
+  it("materializes the standard CharGraph semantic colors", async () => {
+    const readPanel = async () => [
+      "```mermaid",
+      "flowchart LR",
+      "  A[GPU] --> B[Pixels]",
+      "```",
+      "",
+      "```json",
+      '{"kind":"graphics"}',
+      "```",
+    ].join("\n");
+    const compiled = await compileBlackboard({
+      manifestSource: source(),
+      fallbackTitle: "gpu",
+      readPanel,
+    });
+
+    expect(compiled.source).toContain("[38;2;9;105;218m");
+    expect(compiled.source).toContain("[38;2;26;127;55m");
+  });
+
+  it("keeps explicit ANSI color above CharGraph semantic color", async () => {
+    const compiled = await compileBlackboard({
+      manifestSource: source(),
+      fallbackTitle: "gpu",
+      readPanel: async () => "[38;2;1;2;3m**custom**[0m",
+    });
+
+    expect(compiled.source).toContain("38;2;1;2;3m");
+  });
+
   it.each([
     "../outside.panel",
     "/outside.panel",

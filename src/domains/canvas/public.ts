@@ -1,4 +1,5 @@
 export { CanvasRuntime, createCanvasRuntime } from "./runtime";
+export type { CanvasSessionMaterialization } from "./runtime";
 export {
   CanvasRuntimeProvider,
   useCanvasPersistence,

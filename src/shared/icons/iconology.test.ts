@@ -4,7 +4,8 @@ import { HOST_ICONOLOGY } from "./iconology";
 describe("host iconology", () => {
   it("maps the GitHub star statistic icon", () => {
     expect(HOST_ICONOLOGY.appMenu.githubStar).toBeDefined();
-    expect(HOST_ICONOLOGY.appMenu.file).toBeDefined();
+    expect(HOST_ICONOLOGY.sessionAction.import).toBeDefined();
+    expect(HOST_ICONOLOGY.sessionAction.export).toBeDefined();
     expect(HOST_ICONOLOGY.appMenu.help).toBeDefined();
   });
 
