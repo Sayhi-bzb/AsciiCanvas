@@ -124,3 +124,13 @@ export const getCanvasWorkerFontRevision = (
   }
   return `${CHARDESK_FONT_PROFILE.id}:${(hash >>> 0).toString(16)}`;
 };
+
+/** @internal */
+export const CANVAS_WORKER_FONT_CALIBRATION_TEXT = [
+  "ASCII",
+  "中文",
+  "한글",
+  "日本",
+  "╭─╮",
+  "♥️",
+].join("");

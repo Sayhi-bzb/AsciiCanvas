@@ -21,6 +21,17 @@ The root [`package.json`](https://github.com/Sayhi-bzb/CharDesk/blob/main/packag
 owns exact commands and verification composition. When a guard rejects a valid
 architecture change, update the authority and guard together; do not add a local bypass.
 
+| Lane | Scope | Owner |
+| --- | --- | --- |
+| `check:quick` | Changed projects; no production build | Local iteration |
+| `check:pr -- --base <ref>` | Changed projects and their consumers | Pull requests |
+| `check:full` | Entire workspace, tests and production builds | `main` and release |
+
+Root Vitest files run in Node unless their filename ends in `.dom.test.ts` or
+`.dom.spec.ts`. React component tests (`.tsx`) run in JSDOM. CI exposes one stable
+`Verify` status while quality, workspace tests, Node tests, sharded DOM tests and
+builds run in parallel.
+
 Route boundary, public-contract and cycle failures to
 [`scripts/check-domain-boundaries.mjs`](https://github.com/Sayhi-bzb/CharDesk/blob/main/scripts/check-domain-boundaries.mjs);
 canvas state authority to `scripts/quality/check-state-ownership.mjs`; assertion

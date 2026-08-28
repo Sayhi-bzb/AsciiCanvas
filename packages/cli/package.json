@@ -8,11 +8,8 @@
     "chardesk": "./dist/cli.js"
   },
   "scripts": {
-    "prebuild": "npm run build -w @chardesk/fonts && npm run build -w @chardesk/protocol && npm run build -w @chardesk/document && npm run build -w @chardesk/rendering && npm run build -w @chardesk/chargraph",
     "build": "tsc -p tsconfig.json",
-    "pretypecheck": "npm run prebuild",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "pretest": "npm run build",
     "test": "vitest run --config vitest.config.ts"
   },
   "dependencies": {

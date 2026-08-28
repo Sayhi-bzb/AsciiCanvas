@@ -9,21 +9,118 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: verify-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  VERIFY_SCRIPT: ${{ github.event_name == 'pull_request' && 'check:pr' || 'check:full' }}
+  VERIFY_BASE: ${{ github.event.pull_request.base.sha || '' }}
+
 jobs:
-  verify:
+  quality:
+    name: Quality
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repository
+      - &checkout
+        name: Check out repository
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
-      - name: Set up Node.js
+      - &setup-node
+        name: Set up Node.js
         uses: actions/setup-node@v6
         with:
           node-version: 24
-          package-manager-cache: false
+          cache: npm
 
-      - name: Install dependencies
+      - &install
+        name: Install dependencies
         run: npm ci
 
-      - name: Verify repository
-        run: npm run verify
+      - name: Run quality checks
+        run: |
+          if [ -n "$VERIFY_BASE" ]; then
+            npm run "$VERIFY_SCRIPT" -- --phase quality --base "$VERIFY_BASE"
+          else
+            npm run "$VERIFY_SCRIPT" -- --phase quality
+          fi
+
+  workspace-tests:
+    name: Workspace tests
+    runs-on: ubuntu-latest
+    steps:
+      - *checkout
+      - *setup-node
+      - *install
+      - name: Run workspace tests
+        run: |
+          if [ -n "$VERIFY_BASE" ]; then
+            npm run "$VERIFY_SCRIPT" -- --phase workspace-tests --base "$VERIFY_BASE"
+          else
+            npm run "$VERIFY_SCRIPT" -- --phase workspace-tests
+          fi
+
+  node-tests:
+    name: Node tests
+    runs-on: ubuntu-latest
+    steps:
+      - *checkout
+      - *setup-node
+      - *install
+      - name: Run Node tests
+        run: |
+          if [ -n "$VERIFY_BASE" ]; then
+            npm run "$VERIFY_SCRIPT" -- --phase root-node --base "$VERIFY_BASE"
+          else
+            npm run "$VERIFY_SCRIPT" -- --phase root-node
+          fi
+
+  dom-tests:
+    name: DOM tests (${{ matrix.shard }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1/2, 2/2]
+    steps:
+      - *checkout
+      - *setup-node
+      - *install
+      - name: Run DOM tests
+        run: |
+          if [ -n "$VERIFY_BASE" ]; then
+            npm run "$VERIFY_SCRIPT" -- --phase root-dom --shard "${{ matrix.shard }}" --base "$VERIFY_BASE"
+          else
+            npm run "$VERIFY_SCRIPT" -- --phase root-dom --shard "${{ matrix.shard }}"
+          fi
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - *checkout
+      - *setup-node
+      - *install
+      - name: Build affected products
+        run: |
+          if [ -n "$VERIFY_BASE" ]; then
+            npm run "$VERIFY_SCRIPT" -- --phase build --base "$VERIFY_BASE"
+          else
+            npm run "$VERIFY_SCRIPT" -- --phase build
+          fi
+
+  verify:
+    name: Verify
+    if: ${{ always() }}
+    needs: [quality, workspace-tests, node-tests, dom-tests, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every verification lane
+        run: |
+          test "${{ needs.quality.result }}" = "success"
+          test "${{ needs.workspace-tests.result }}" = "success"
+          test "${{ needs.node-tests.result }}" = "success"
+          test "${{ needs.dom-tests.result }}" = "success"
+          test "${{ needs.build.result }}" = "success"

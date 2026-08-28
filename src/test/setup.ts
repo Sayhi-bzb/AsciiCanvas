@@ -1,6 +1,3 @@
-import '@testing-library/jest-dom';
-import { cleanup } from '@testing-library/react';
-import { afterEach } from 'vitest';
 import {
   initializeCanvasTesting,
   testingCanvasRuntime,
@@ -72,7 +69,3 @@ const engine = new CanvasEngineRuntime({
   setViewport: testingCanvasRuntime.commands.viewport.setViewport,
 });
 configureCanvasEngineRuntimeFallbackForTesting(engine);
-
-afterEach(() => {
-  cleanup();
-});

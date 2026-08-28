@@ -74,6 +74,7 @@
     "types",
     "duplicates"
   ],
+  "tags": ["-internal"],
   "ignore": [
     "packages/chargraph/src/vendor/**",
     "packages/document/document/**"

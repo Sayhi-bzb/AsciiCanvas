@@ -1,6 +1,7 @@
 import type { CanvasRenderActivityMode } from './CanvasRenderActivity';
 
-type CanvasRenderExperienceStats = {
+/** @internal */
+export type CanvasRenderExperienceStats = {
   presentationFrames: number;
   constrainedFrames: number;
   coverageMissFrames: number;

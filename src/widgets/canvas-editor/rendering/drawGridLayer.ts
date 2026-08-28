@@ -26,7 +26,8 @@ type DrawGridLayerOptions = {
   content?: "all" | "background" | "text";
 };
 
-type DrawGridLayerResult = {
+/** @internal */
+export type DrawGridLayerResult = {
   cells: number;
   glyphs: number;
 };

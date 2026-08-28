@@ -57,12 +57,6 @@ jobs:
       - name: Verify repository
         run: npm run verify
 
-      - name: Test fonts package
-        run: npm run test:fonts
-
-      - name: Test protocol package
-        run: npm run test:protocol
-
       - name: Pack release assets
         run: |
           mkdir release-assets

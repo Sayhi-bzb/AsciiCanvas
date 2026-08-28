@@ -18,7 +18,8 @@ type CanvasViewportPresentationBounds = {
   overscan: number;
 };
 
-type CanvasViewportPresentationStatus =
+/** @internal */
+export type CanvasViewportPresentationStatus =
   | 'identity'
   | 'presented'
   | 'constrained'
@@ -30,7 +31,8 @@ export type CanvasViewportRenderSnapshot = {
   sceneInputs: readonly unknown[];
 };
 
-type CanvasViewportRenderDecision =
+/** @internal */
+export type CanvasViewportRenderDecision =
   | 'defer-pan'
   | 'defer-zoom'
   | 'rebase'

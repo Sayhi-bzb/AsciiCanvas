@@ -1,17 +1,44 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react-swc';
 import path from 'path';
+import { workspaceAliases } from './scripts/testing/workspace-aliases.js'
 
 export default defineConfig({
   plugins: [react()],
   test: {
-    environment: 'jsdom',
-    globals: true,
-    setupFiles: ['./src/test/setup.ts'],
-    include: [
-      'src/**/*.{test,spec}.{ts,tsx}',
-      'packages/ui/src/**/*.{test,spec}.{ts,tsx}',
-      'scripts/**/*.{test,spec}.{ts,tsx}'
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'node',
+          environment: 'node',
+          globals: true,
+          setupFiles: ['./src/test/setup-node.ts'],
+          include: [
+            'src/**/*.{test,spec}.ts',
+            'packages/ui/src/**/*.{test,spec}.ts',
+            'scripts/**/*.{test,spec}.ts',
+          ],
+          exclude: ['**/*.dom.{test,spec}.ts'],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'dom',
+          environment: 'jsdom',
+          globals: true,
+          setupFiles: ['./src/test/setup-dom.ts'],
+          include: [
+            'src/**/*.dom.{test,spec}.ts',
+            'src/**/*.{test,spec}.tsx',
+            'packages/ui/src/**/*.dom.{test,spec}.ts',
+            'packages/ui/src/**/*.{test,spec}.tsx',
+            'scripts/**/*.dom.{test,spec}.ts',
+            'scripts/**/*.{test,spec}.tsx',
+          ],
+        },
+      },
     ],
     coverage: {
       provider: 'v8',
@@ -21,67 +48,7 @@ export default defineConfig({
   },
   resolve: {
     alias: [
-      {
-        find: /^@chardesk\/ui\/styles$/,
-        replacement: path.resolve(import.meta.dirname, './packages/ui/src/styles.ts')
-      },
-      {
-        find: /^@chardesk\/ui$/,
-        replacement: path.resolve(import.meta.dirname, './packages/ui/src/index.ts')
-      },
-      {
-        find: /^@chardesk\/fonts$/,
-        replacement: path.resolve(import.meta.dirname, './packages/fonts/src/index.ts')
-      },
-      {
-        find: /^@chardesk\/chargraph\/markdown$/,
-        replacement: path.resolve(
-          import.meta.dirname,
-          './packages/chargraph/src/markdown-default.ts'
-        )
-      },
-      {
-        find: /^@chardesk\/chargraph\/mermaid$/,
-        replacement: path.resolve(
-          import.meta.dirname,
-          './packages/chargraph/src/mermaid.ts'
-        )
-      },
-      {
-        find: /^@chardesk\/chargraph\/theme$/,
-        replacement: path.resolve(
-          import.meta.dirname,
-          './packages/chargraph/src/render-theme.ts'
-        )
-      },
-      {
-        find: /^@chardesk\/chargraph$/,
-        replacement: path.resolve(
-          import.meta.dirname,
-          './packages/chargraph/src/index.ts'
-        )
-      },
-      {
-        find: /^@chardesk\/rendering\/canvas$/,
-        replacement: path.resolve(
-          import.meta.dirname,
-          './packages/rendering/src/canvas.ts'
-        )
-      },
-      {
-        find: /^@chardesk\/rendering$/,
-        replacement: path.resolve(
-          import.meta.dirname,
-          './packages/rendering/src/index.ts'
-        )
-      },
-      {
-        find: '@chardesk/protocol',
-        replacement: path.resolve(
-          import.meta.dirname,
-          './packages/protocol/src/index.ts'
-        )
-      },
+      ...workspaceAliases,
       { find: '@', replacement: path.resolve(import.meta.dirname, './src') }
     ]
   }
