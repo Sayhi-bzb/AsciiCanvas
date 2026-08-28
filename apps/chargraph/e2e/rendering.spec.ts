@@ -1,18 +1,36 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
+import { CHARDESK_LIGHT_RENDER_THEME } from "@chardesk/chargraph/theme";
+import { CHARGRAPH_EXAMPLES } from "../src/examples";
 
-const FIRST_CASE_TITLES: Record<string, string> = {
-  "block-layout": "Product Workspace",
-  flowchart: "输入校验",
-  state: "文档审核",
-  sequence: "请求响应",
-  class: "文档模型",
-  er: "用户与订单",
-  xychart: "月度趋势",
-  "markdown-basics": "基础排版",
-  "markdown-structure": "任务清单",
-  "markdown-code": "代码块",
-  "markdown-alert": "提示信息",
-  "markdown-math": "行内公式",
+const firstCaseTitle = (kind: string) => {
+  const title = CHARGRAPH_EXAMPLES.find((example) => example.kind === kind)?.title;
+  if (!title) throw new RangeError(`Unknown CharGraph example kind: ${kind}`);
+  return title;
+};
+
+const exampleById = (id: string) => {
+  const example = CHARGRAPH_EXAMPLES.find((candidate) => candidate.id === id);
+  if (!example) throw new RangeError(`Unknown CharGraph example: ${id}`);
+  return example;
+};
+
+const readViewerColors = (viewer: Locator) => viewer.evaluate((element) => [
+  ...new Set(
+    (element as unknown as {
+      parsedDocument?: { cells: { color?: string }[] };
+    }).parsedDocument?.cells
+      .map((cell) => cell.color)
+      .filter((color): color is string => typeof color === "string") ?? []
+  ),
+]);
+
+const expectViewerColors = async (
+  viewer: Locator,
+  expectedColors: readonly string[]
+) => {
+  await expect.poll(() => readViewerColors(viewer)).toEqual(
+    expect.arrayContaining([...new Set(expectedColors)])
+  );
 };
 
 test("renders the shared block layout dashboard as its own category", async ({
@@ -361,11 +379,11 @@ const openDesktopCategory = async (
   await expect(
     page.getByRole("heading", {
       level: 2,
-      name: FIRST_CASE_TITLES[kind],
+      name: firstCaseTitle(kind),
       exact: true,
     })
   ).toBeVisible();
-  await expectLineNav(page, FIRST_CASE_TITLES[kind] ?? "");
+  await expectLineNav(page, firstCaseTitle(kind));
 };
 
 test("renders directed diagrams through the category navigation", async ({ page }) => {
@@ -380,36 +398,28 @@ test("renders directed diagrams through the category navigation", async ({ page 
     "aria-selected",
     "true"
   );
-  await expectLineNav(page, "输入校验");
-  const flow = page.locator("#flowchart chardesk-viewer canvas");
-  await expect(flow).toContainText("用户输入");
-  await expect(flow).toContainText("验证通过？");
-  await expect(flow).toContainText(/是─+>│\s*保存数据\s*│/u);
-  await expect(flow).toContainText(/>│\s*显示错误\s*│/u);
-  await expect(flow).toContainText("否");
+  await expectLineNav(page, firstCaseTitle("flowchart"));
+  const flowViewer = page.locator("#flowchart chardesk-viewer");
+  const flow = flowViewer.locator("canvas");
+  await expect(flow).toContainText(exampleById("flowchart").expectedText);
+  await expect(flow).toContainText(/Yes╭>│\s*Save\s*│/u);
+  await expect(flow).toContainText(/>│\s*Error\s*│/u);
+  await expect(flow).toContainText("No");
   await expect(flow).not.toContainText(/[─┄━]\^ +│/u);
   await expect(flow).not.toContainText("flowchart LR");
-  await expect.poll(async () =>
-    page.locator("#flowchart chardesk-viewer").evaluate((element) =>
-      new Set((element as unknown as { parsedDocument?: { cells: { color?: string }[] } })
-        .parsedDocument?.cells.map((cell) => cell.color).filter((color) => [
-        "#2563eb",
-        "#0891b2",
-        "#16a34a",
-        "#ca8a04",
-        "#dc2626",
-      ].includes(color ?? ""))).size
-    )
-  ).toBeGreaterThanOrEqual(2);
-  await expect.poll(async () =>
-    page.locator("#flowchart chardesk-viewer").evaluate((element) =>
-      (element as unknown as { parsedDocument?: { cells: { color?: string }[] } })
-        .parsedDocument?.cells.some((cell) => cell.color === "#94a3b8") ?? false
-    )
-  ).toBe(false);
-  const deployment = page.locator("#flowchart-intermediate chardesk-viewer canvas");
+  await expectViewerColors(flowViewer, [
+    CHARDESK_LIGHT_RENDER_THEME.accent,
+    CHARDESK_LIGHT_RENDER_THEME.foreground,
+  ]);
+  const deploymentViewer = page.locator(
+    "#flowchart-intermediate chardesk-viewer"
+  );
+  const deployment = deploymentViewer.locator("canvas");
   await expect(deployment).toContainText("持续集成");
   await expect(deployment).toContainText("生产环境");
+  await expectViewerColors(deploymentViewer, [
+    CHARDESK_LIGHT_RENDER_THEME["border-subtle"],
+  ]);
   await expectUnicodeViewersToFit(page);
   await expectStructuralChrome(page);
 
@@ -456,6 +466,16 @@ test("renders directed diagrams through the category navigation", async ({ page 
   await expect(erDiagram).not.toContainText("erDiagram");
   await expectUnicodeViewersToFit(page);
 
+  await openDesktopCategory(page, "XY 图表", "xychart");
+  const chartViewer = page.locator("#xychart chardesk-viewer");
+  await expect(chartViewer.locator("canvas")).toContainText("月度趋势");
+  await expectViewerColors(chartViewer, [
+    CHARDESK_LIGHT_RENDER_THEME.accent,
+    CHARDESK_LIGHT_RENDER_THEME.done,
+    CHARDESK_LIGHT_RENDER_THEME["grid-subtle"],
+  ]);
+  await expectUnicodeViewersToFit(page);
+
   expect(pageErrors).toEqual([]);
 });
 
@@ -486,17 +506,17 @@ test("renders styled Markdown categories through the same showcase", async ({ pa
   await page.goto("./#type-markdown-basics");
 
   await expectCompactPageHeader(page);
-  await expectLineNav(page, "基础排版");
-  await expect(
-    page.locator("#markdown-basics").getByText("Markdown", { exact: true })
-  ).toBeVisible();
-  await expect(page.locator("#markdown-basics > div pre").first()).toContainText(
-    "**粗体**"
-  );
+  await expectLineNav(page, firstCaseTitle("markdown-basics"));
+  const basicsArticle = page.locator("#markdown-basics");
+  await expect(basicsArticle.locator('[data-slot="example-panel"]').first())
+    .toHaveAttribute("aria-label", "Markdown");
+  await expect(basicsArticle.locator('[data-slot="example-source"]'))
+    .toContainText("**Bold**");
 
   const basics = page.locator("#markdown-basics chardesk-viewer");
-  await expect(basics.locator("canvas")).toContainText("Markdown 概览");
-  await expect(basics.locator("canvas")).not.toContainText("**粗体**");
+  await expect(basics.locator("canvas"))
+    .toContainText(exampleById("markdown-basics").expectedText);
+  await expect(basics.locator("canvas")).not.toContainText("**Bold**");
   await expect.poll(() => basics.evaluate((element) => {
     const cells = (element as unknown as {
       parsedDocument?: { cells: { attrs?: { bold?: true }; href?: string }[] };
@@ -521,7 +541,14 @@ test("renders styled Markdown categories through the same showcase", async ({ pa
 
   await openDesktopCategory(page, "代码与 Diff", "markdown-code");
   const config = page.locator("#markdown-code-intermediate chardesk-viewer");
-  await expect(config.locator("canvas")).toContainText('"renderer": "markdown"');
+  await expect(config.locator("canvas"))
+    .toContainText(exampleById("markdown-code-intermediate").expectedText);
+  await expectViewerColors(config, [
+    CHARDESK_LIGHT_RENDER_THEME.accent,
+    CHARDESK_LIGHT_RENDER_THEME.success,
+    CHARDESK_LIGHT_RENDER_THEME["border-subtle"],
+    CHARDESK_LIGHT_RENDER_THEME["muted-foreground"],
+  ]);
   const diff = page.locator("#markdown-code-advanced chardesk-viewer");
   await expect(diff.locator("canvas")).toContainText("+  return next(value);");
   await expect.poll(() => diff.evaluate((element) =>
@@ -559,7 +586,7 @@ test("uses the mobile category select without page overflow", async ({ page }) =
   await expect(categorySelect).toBeVisible();
   await expect(categorySelect).toContainText("时序图");
   await expect(caseSelect).toBeVisible();
-  await expect(caseSelect).toContainText("请求响应");
+  await expect(caseSelect).toContainText(firstCaseTitle("sequence"));
   await expect(
     page.getByRole("heading", { level: 2, name: "分支与循环" })
   ).toBeVisible();
@@ -577,7 +604,7 @@ test("uses the mobile category select without page overflow", async ({ page }) =
   await page.getByRole("option", { name: "XY 图表" }).click();
   await expect(page).toHaveURL(/#type-xychart$/);
   await expect(categorySelect).toContainText("XY 图表");
-  await expect(caseSelect).toContainText("月度趋势");
+  await expect(caseSelect).toContainText(firstCaseTitle("xychart"));
   await expect(
     page.getByRole("heading", { level: 2, name: "横向混合图" })
   ).toBeVisible();
@@ -618,7 +645,7 @@ test("keeps the diagram boundary aligned across layout breakpoints", async ({ pa
       await expect(categorySelect).toBeHidden();
       await expect(categoryTabs).toBeVisible();
       await expect(caseSelect).toBeHidden();
-      await expectLineNav(page, "用户与订单");
+      await expectLineNav(page, firstCaseTitle("er"));
       await expectFloatingLineNav(page);
     }
     if (width >= 1024) {
@@ -742,7 +769,7 @@ test("supports category deep links and browser history", async ({ page }) => {
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
   const stateTab = page.getByRole("tab", { name: "状态图" });
   await expect(stateTab).toHaveAttribute("aria-selected", "true");
-  await expectLineNav(page, "文档审核");
+  await expectLineNav(page, firstCaseTitle("state"));
 
   await openDesktopCategory(page, "时序图", "sequence");
   await page.goBack();

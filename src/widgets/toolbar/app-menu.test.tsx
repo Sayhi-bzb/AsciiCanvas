@@ -29,7 +29,7 @@ describe('AppMenu document interchange', () => {
     vi.unstubAllGlobals();
   });
 
-  it('offers one CharDesk import and export while a Slide Deck is active', async () => {
+  it('offers file and Blackboard imports while a Slide Deck is active', async () => {
     const slideDeck = createSlideDeck({ initialSlideId: 'slide-1' });
     useEditorStore.setState({
       canvasMode: 'slide',
@@ -51,10 +51,14 @@ describe('AppMenu document interchange', () => {
     act(() => setUiLanguage('en'));
 
     const { container } = render(<AppMenu />);
-    expect(container.querySelector('input[type="file"]')).toHaveAttribute(
+    const inputs = container.querySelectorAll('input[type="file"]');
+    expect(inputs).toHaveLength(2);
+    expect(inputs[0]).toHaveAttribute(
       'accept',
       '.chardesk,.slides.md,.ans,.txt'
     );
+    expect((inputs[1] as HTMLInputElement).webkitdirectory).toBe(true);
+    expect(inputs[1]).toHaveAttribute('multiple');
 
     fireEvent.pointerDown(screen.getByRole('button', { name: 'Open menu' }), {
       button: 0,
@@ -64,7 +68,8 @@ describe('AppMenu document interchange', () => {
     const fileItem = await screen.findByRole('menuitem', { name: 'File' });
     fireEvent.pointerMove(fileItem, { pointerType: 'mouse' });
     await waitFor(() => expect(fileItem).toHaveAttribute('data-state', 'open'));
-    await screen.findByRole('menuitem', { name: 'Import' });
+    await screen.findByRole('menuitem', { name: 'Import file' });
+    await screen.findByRole('menuitem', { name: 'Import Blackboard' });
     expect(fileItem.closest('[data-slot="dropdown-menu-content"]')).toHaveClass(
       'w-48',
       'min-w-32',

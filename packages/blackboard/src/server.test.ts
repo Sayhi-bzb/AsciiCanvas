@@ -98,4 +98,49 @@ describe("Blackboard Reader", () => {
     expect((await fetch(`${running.url}/board`)).status).toBe(403);
     expect(root).not.toBe(outside);
   });
+
+  it("serves a package as one canonical freeform projection and tracks panel revisions", async () => {
+    const root = await mkdtemp(join(tmpdir(), "chardesk-blackboard-package-server-"));
+    const client = join(root, "app");
+    const boardRoot = join(root, "gpu");
+    roots.push(root);
+    await mkdir(client);
+    await mkdir(join(boardRoot, "panels"), { recursive: true });
+    await writeFile(join(client, "index.html"), "<!doctype html><title>Blackboard</title>");
+    await writeFile(join(boardRoot, "blackboard.yaml"), `
+chardesk: blackboard/v1
+title: GPU
+panels:
+  left: { source: panels/left.panel }
+  right: { source: panels/right.panel }
+layout:
+  areas: [[left, right]]
+  gap: { column: 1, row: 0 }
+`);
+    await writeFile(join(boardRoot, "panels/left.panel"), "L");
+    await writeFile(join(boardRoot, "panels/right.panel"), "R");
+    const board = await resolveWorkspaceBoardPath(root, "gpu");
+    const running = await startBlackboardServer({ board, port: 0, appRoot: client });
+    close.push(running.close);
+
+    const first = await fetch(`${running.url}/board`);
+    expect(first.status).toBe(200);
+    expect(first.headers.get("x-chardesk-source-name")).toBe("blackboard.chardesk");
+    expect(await first.text()).toBe([
+      "---",
+      "chardesk: document/v1",
+      "mode: freeform",
+      "title: GPU",
+      "---",
+      "L R",
+    ].join("\n"));
+
+    await writeFile(join(boardRoot, "panels/right.panel"), "RR");
+    const revised = await fetch(`${running.url}/board`, {
+      headers: { "If-None-Match": first.headers.get("etag")! },
+    });
+    expect(revised.status).toBe(200);
+    expect(revised.headers.get("etag")).not.toBe(first.headers.get("etag"));
+    expect(await revised.text()).toContain("L RR");
+  });
 });

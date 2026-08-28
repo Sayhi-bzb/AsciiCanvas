@@ -8,6 +8,8 @@
 
 /** Parsed class diagram — logical structure from mermaid text */
 export interface ClassDiagram {
+  /** Layer direction declared by `direction`. */
+  direction: 'TD' | 'TB' | 'LR' | 'BT' | 'RL'
   /** All class definitions */
   classes: ClassNode[]
   /** Relationships between classes */

@@ -75,7 +75,7 @@ const heading = feature("heading", "core", { marker: token("accent") });
 const blockquote = feature("blockquote", "core", { marker: token("success") });
 const list = feature("list", "core", { marker: mixed(["accent"], true) });
 const taskList = feature("task-list", "core", {
-  unchecked: token("muted"),
+  unchecked: token("muted-foreground"),
   checked: token("success"),
 });
 const thematicBreak = feature("thematic-break", "core", { foreground: inherit });
@@ -83,7 +83,7 @@ const codeBlock = feature("code-block", "core", {});
 const table = feature("table", "core", {
   "header.foreground": token("accent-foreground"),
   "header.background": token("accent"),
-  separator: token("muted"),
+  separator: token("border-subtle"),
 });
 
 const githubAlert = feature("github-alert", "extension", {
@@ -98,29 +98,29 @@ const diff = feature("diff", "extension", {
   added: token("success"),
   deleted: token("danger"),
   hunk: token("accent"),
-  metadata: token("muted"),
+  metadata: token("muted-foreground"),
 });
 
 const jsonTree = feature("json-tree", "extension", {
-  connector: token("muted"),
+  connector: token("border-subtle"),
   key: token("accent"),
-  index: token("muted"),
+  index: token("muted-foreground"),
   string: token("success"),
   number: token("info"),
   boolean: token("warning"),
-  null: token("muted"),
-  empty: token("muted"),
+  null: token("muted-foreground"),
+  empty: token("muted-foreground"),
 });
 
 const yamlTree = feature("yaml-tree", "extension", {
-  connector: token("muted"),
+  connector: token("border-subtle"),
   key: token("accent"),
-  index: token("muted"),
+  index: token("muted-foreground"),
   string: token("success"),
   number: token("info"),
   boolean: token("warning"),
-  null: token("muted"),
-  empty: token("muted"),
+  null: token("muted-foreground"),
+  empty: token("muted-foreground"),
   reference: token("info"),
 });
 
@@ -129,7 +129,7 @@ const blockMath = feature("block-math", "extension", { foreground: inherit });
 const mathStyle = feature("math-style", "style", {
   content: inherit,
   operator: token("accent"),
-  structure: token("muted"),
+  structure: token("muted-foreground"),
 });
 const mermaid = feature("mermaid", "extension", CHARDESK_MERMAID_COLOR_DEFAULTS);
 const chart = feature("chart", "extension", {});

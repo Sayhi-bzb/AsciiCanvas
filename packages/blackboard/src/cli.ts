@@ -6,8 +6,8 @@ import { startBlackboardServer } from "./server.js";
 const usage = () => {
   console.error(
     "Usage:\n" +
-      "  chardesk-blackboard serve [board.chardesk] [--port 7331]\n" +
-      "  chardesk-blackboard check <board.chardesk>"
+      "  chardesk-blackboard serve [board.chardesk|blackboard.yaml|directory] [--port 7331]\n" +
+      "  chardesk-blackboard check <board.chardesk|blackboard.yaml|directory>"
   );
   process.exitCode = 2;
 };
@@ -59,7 +59,10 @@ try {
     const board = await resolveWorkspaceBoardPath(process.cwd(), args[0]!);
     const result = await checkBlackboardFile(board);
     if (result.accepted) {
-      console.log(JSON.stringify({ status: "accepted" }));
+      console.log(JSON.stringify({
+        status: "accepted",
+        ...(result.warnings ? { warnings: result.warnings } : {}),
+      }));
     } else {
       console.log(JSON.stringify({ status: "rejected", issue: result.issue }));
       process.exitCode = 1;

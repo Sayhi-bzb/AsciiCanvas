@@ -176,7 +176,7 @@ describe("TextRenderingRuntime", () => {
     ]);
     if (result.kind !== "styled") throw new Error("Expected styled headings");
     expect(result.cells.find((cell) => cell.y === 0 && cell.char === "#")?.color).toBe(
-      "#2563eb"
+      "#0969da"
     );
     expect(result.cells.find((cell) => cell.y === 0 && cell.char === "H")?.attrs).toEqual({
       bold: true,
@@ -204,22 +204,22 @@ describe("TextRenderingRuntime", () => {
     expect(rowText(result, 7)).toBe("———");
     if (result.kind !== "styled") throw new Error("Expected styled Markdown");
     expect(result.cells.find((cell) => cell.char === "c")).toMatchObject({
-      color: "#0891b2",
-      bgColor: "#e2e8f0",
+      color: "#0969da",
+      bgColor: "#f6f8fa",
     });
     expect(result.cells.find((cell) => cell.href === "https://example.com")).toMatchObject({
-      color: "#0891b2",
+      color: "#0969da",
       href: "https://example.com",
       attrs: { underline: true },
     });
     expect(result.cells.find((cell) => cell.y === 2 && cell.char === "│")).toMatchObject({
-      color: "#16a34a",
+      color: "#1a7f37",
     });
     expect(result.cells.find((cell) => cell.y === 2 && cell.char === "q")?.color).toBe(
       "#111111"
     );
     expect(result.cells.find((cell) => cell.y === 4 && cell.char === "1")).toMatchObject({
-      color: "#2563eb",
+      color: "#0969da",
     });
   });
 
@@ -353,11 +353,11 @@ describe("TextRenderingRuntime", () => {
     if (result.kind !== "styled") throw new Error("Expected styled task list");
     expect(result.cells.find((cell) => cell.char === "○")).toMatchObject({
       x: 0,
-      color: "#94a3b8",
+      color: "#59636e",
     });
     expect(result.cells.find((cell) => cell.char === "●")).toMatchObject({
       x: 0,
-      color: "#16a34a",
+      color: "#1a7f37",
     });
     expect(result.cells.find((cell) => cell.char === "T")?.color).toBe("#111111");
     expect(result.cells.find((cell) => cell.char === "D")?.color).toBe("#111111");
@@ -464,7 +464,7 @@ describe("TextRenderingRuntime", () => {
     expect(rowText(result, 1)).toBe("│ Read carefully at docs.");
     if (result.kind !== "styled") throw new Error("Expected styled alert");
     expect(result.cells.find((cell) => cell.y === 0 && cell.char === "│")?.color)
-      .toBe("#ca8a04");
+      .toBe("#9a6700");
     expect(result.cells.find((cell) => cell.char === "c")?.attrs?.bold).toBe(true);
     expect(result.cells.find((cell) => cell.href)?.href).toBe("https://example.com");
   });
@@ -485,15 +485,15 @@ describe("TextRenderingRuntime", () => {
     ]);
     if (result.kind !== "styled") throw new Error("Expected styled diff");
     expect(result.cells.find((cell) => cell.y === 3)).toMatchObject({
-      color: "#dc2626",
-      bgColor: "#fbe5e5",
+      color: "#d1242f",
+      bgColor: "#f9e5e6",
     });
     expect(result.cells.find((cell) => cell.y === 4)).toMatchObject({
-      color: "#16a34a",
-      bgColor: "#e3f4e9",
+      color: "#1a7f37",
+      bgColor: "#e4f0e7",
     });
-    expect(result.cells.find((cell) => cell.y === 0)?.color).toBe("#94a3b8");
-    expect(result.cells.find((cell) => cell.y === 2)?.color).toBe("#2563eb");
+    expect(result.cells.find((cell) => cell.y === 0)?.color).toBe("#59636e");
+    expect(result.cells.find((cell) => cell.y === 2)?.color).toBe("#0969da");
   });
 
   it("renders fenced JSON and YAML as independently styled data trees", async () => {
@@ -512,27 +512,27 @@ describe("TextRenderingRuntime", () => {
       "└─ empty: []",
     ]);
     if (json.kind !== "styled") throw new Error("Expected styled JSON tree");
-    expect(json.cells.find((cell) => cell.char === "├")?.color).toBe("#94a3b8");
-    expect(json.cells.find((cell) => cell.char === "u")?.color).toBe("#2563eb");
-    expect(json.cells.find((cell) => cell.char === "A")?.color).toBe("#16a34a");
+    expect(json.cells.find((cell) => cell.char === "├")?.color).toBe("#818b98");
+    expect(json.cells.find((cell) => cell.char === "u")?.color).toBe("#0969da");
+    expect(json.cells.find((cell) => cell.char === "A")?.color).toBe("#1a7f37");
     expect(json.cells.find((cell) => cell.y === 3 && cell.char === "[")?.color)
-      .toBe("#94a3b8");
+      .toBe("#59636e");
     expect(json.cells.find((cell) => cell.y === 3 && cell.char === "1")?.color)
-      .toBe("#0891b2");
+      .toBe("#0969da");
     expect(json.cells.find((cell) => cell.y === 4 && cell.char === "n")?.color)
-      .toBe("#94a3b8");
+      .toBe("#59636e");
     expect(json.cells.find((cell) => cell.y === 5 && cell.char === "r")?.color)
-      .toBe("#ca8a04");
+      .toBe("#9a6700");
     expect(json.cells.find((cell) => cell.y === 6 && cell.char === "[")?.color)
-      .toBe("#94a3b8");
+      .toBe("#59636e");
 
     const yamlReferences = await runtime.render(
       "```yaml\nbase: &base 1\ncopy: *base\n```",
       "#111111"
     );
     if (yamlReferences.kind !== "styled") throw new Error("Expected styled YAML tree");
-    expect(yamlReferences.cells.find((cell) => cell.char === "&")?.color).toBe("#0891b2");
-    expect(yamlReferences.cells.find((cell) => cell.char === "*")?.color).toBe("#0891b2");
+    expect(yamlReferences.cells.find((cell) => cell.char === "&")?.color).toBe("#0969da");
+    expect(yamlReferences.cells.find((cell) => cell.char === "*")?.color).toBe("#0969da");
 
     runtime.setProfile(profileWithMarkdown({ rules: { "yaml-tree": false } }));
     const yaml = await runtime.render("```yaml\nuser:\n  name: Ada\n```", "#111111");
@@ -615,10 +615,10 @@ describe("TextRenderingRuntime", () => {
       (cell) => cell.color === "#123456" && cell.attrs?.italic
     )).toBe(true);
     expect(block.cells.filter((cell) => cell.char === "+").every(
-      (cell) => cell.color === "#2563eb"
+      (cell) => cell.color === "#0969da"
     )).toBe(true);
     expect(block.cells.filter((cell) => cell.char === "─").every(
-      (cell) => cell.color === "#94a3b8"
+      (cell) => cell.color === "#59636e"
     )).toBe(true);
   });
 
@@ -748,6 +748,32 @@ describe("TextRenderingRuntime", () => {
       },
     });
     expect(values.has(TEXT_RENDER_PROFILE_STORAGE_KEY)).toBe(true);
+  });
+
+  it("migrates the legacy muted theme override into split semantic roles", () => {
+    const values = new Map([[TEXT_RENDER_PROFILE_STORAGE_KEY, JSON.stringify({
+      mode: "markdown",
+      renderTheme: {
+        muted: "#778899",
+        "grid-subtle": "#aabbcc",
+      },
+      features: {},
+    })]]);
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+    };
+    const runtime = new TextRenderingRuntime({ storage });
+
+    expect(runtime.getProfile().renderTheme).toEqual({
+      "muted-foreground": "#778899",
+      "border-subtle": "#778899",
+      "grid-subtle": "#aabbcc",
+    });
+
+    runtime.setProfile(runtime.getProfile());
+    expect(JSON.parse(values.get(TEXT_RENDER_PROFILE_STORAGE_KEY) ?? "{}")
+      .renderTheme).not.toHaveProperty("muted");
   });
 
   it("loads profiles saved before Markdown color overrides existed", () => {

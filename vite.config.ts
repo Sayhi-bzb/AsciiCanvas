@@ -105,6 +105,13 @@ export default defineConfig({
         replacement: path.resolve(import.meta.dirname, "./packages/fonts/src/index.ts"),
       },
       {
+        find: /^@chardesk\/blackboard$/,
+        replacement: path.resolve(
+          import.meta.dirname,
+          "./packages/blackboard/src/index.ts"
+        ),
+      },
+      {
         find: /^@chardesk\/chargraph\/markdown$/,
         replacement: path.resolve(
           import.meta.dirname,

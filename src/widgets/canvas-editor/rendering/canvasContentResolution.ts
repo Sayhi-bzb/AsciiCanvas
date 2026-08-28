@@ -1,0 +1,24 @@
+export type CanvasContentResolutionMode = "full" | "coarse";
+
+export const CANVAS_CONTENT_COARSE_ENTER_ZOOM = 0.48;
+export const CANVAS_CONTENT_COARSE_EXIT_ZOOM = 0.55;
+
+export const resolveCanvasContentResolutionMode = (
+  zoom: number,
+  currentMode: CanvasContentResolutionMode
+): CanvasContentResolutionMode => {
+  if (currentMode === "coarse") {
+    return zoom >= CANVAS_CONTENT_COARSE_EXIT_ZOOM ? "full" : "coarse";
+  }
+  return zoom <= CANVAS_CONTENT_COARSE_ENTER_ZOOM ? "coarse" : "full";
+};
+
+export const resolveCanvasContentDpr = (
+  deviceDpr: number,
+  mode: CanvasContentResolutionMode
+) => {
+  const normalizedDpr = Number.isFinite(deviceDpr) && deviceDpr > 0
+    ? deviceDpr
+    : 1;
+  return mode === "coarse" ? Math.min(1, normalizedDpr) : normalizedDpr;
+};

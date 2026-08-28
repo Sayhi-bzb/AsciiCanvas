@@ -310,11 +310,13 @@ const INTERNAL_FEATURES = [
         themedSlot("mermaid", "node.text", ["mermaid.foreground", "mermaid"], "settings.markdown.mermaidNodeText", ["foreground"]),
         themedSlot("mermaid", "node.border", ["mermaid.foreground", "mermaid"], "settings.markdown.mermaidNodeBorder", ["foreground"]),
         themedSlot("mermaid", "node.background", [], "settings.markdown.mermaidNodeBackground"),
-        themedSlot("mermaid", "edge.line", ["mermaid.foreground", "mermaid"], "settings.markdown.mermaidEdgeLine", ["foreground"]),
+        themedSlot("mermaid", "flow.node.marker", ["mermaid.foreground", "mermaid"], "settings.markdown.mermaidFlowMarker", ["foreground"]),
+        themedSlot("mermaid", "state.start", ["mermaid.foreground", "mermaid"], "settings.markdown.mermaidStateStart", ["foreground"]),
+        themedSlot("mermaid", "state.end", ["mermaid.foreground", "mermaid"], "settings.markdown.mermaidStateEnd", ["foreground"]),
         themedSlot("mermaid", "edge.label", ["mermaid.foreground", "mermaid"], "settings.markdown.mermaidEdgeLabel", ["foreground"]),
-        themedSlot("mermaid", "edge.arrow", ["mermaid.foreground", "mermaid"], "settings.markdown.mermaidArrow", ["foreground"]),
         themedSlot("mermaid", "container.border", ["mermaid.foreground", "mermaid"], "settings.markdown.mermaidContainerBorder", ["foreground"]),
         themedSlot("mermaid", "container.title", ["mermaid.foreground", "mermaid"], "settings.markdown.mermaidContainerTitle", ["foreground"]),
+        themedSlot("mermaid", "sequence.activation", ["mermaid.foreground", "mermaid"], "settings.markdown.mermaidActivation", ["foreground"]),
         themedSlot("mermaid", "chart.axis", ["mermaid.foreground", "mermaid"], "settings.markdown.mermaidChartAxis", ["foreground"]),
         themedSlot("mermaid", "chart.grid", ["mermaid.foreground", "mermaid"], "settings.markdown.mermaidChartGrid", ["foreground"]),
         themedSlot("mermaid", "chart.label", ["mermaid.foreground", "mermaid"], "settings.markdown.mermaidChartLabel", ["foreground"]),
@@ -326,10 +328,11 @@ const INTERNAL_FEATURES = [
       ],
       colorRows: [
         { id: "node", label: "settings.markdown.mermaidNode", slotIds: ["node.text", "node.border", "node.background"] },
-        { id: "edge", label: "settings.markdown.mermaidEdge", slotIds: ["edge.line"] },
+        { id: "flow", label: "settings.markdown.mermaidFlow", slotIds: ["flow.node.marker"] },
+        { id: "state", label: "settings.markdown.mermaidState", slotIds: ["state.start", "state.end"] },
         { id: "label", label: "settings.markdown.mermaidLabel", slotIds: ["title", "edge.label"] },
-        { id: "arrow", label: "settings.markdown.mermaidArrowRow", slotIds: ["edge.arrow"] },
         { id: "container", label: "settings.markdown.mermaidContainer", slotIds: ["container.border", "container.title"] },
+        { id: "sequence", label: "settings.markdown.mermaidSequence", slotIds: ["sequence.activation"] },
         { id: "grid", label: "settings.markdown.mermaidGrid", slotIds: ["chart.axis", "chart.grid", "chart.label"] },
         { id: "series", label: "settings.markdown.mermaidSeries", slotIds: ["series.1", "series.2", "series.3", "series.4", "series.5"] },
       ],
@@ -464,6 +467,24 @@ export const decodeFeatureSettings = (value: unknown): TextRenderFeatureSettings
       )
       .find(Boolean);
     if (previousMathColor) mathStyle.colors.content = previousMathColor;
+  }
+  const mermaid = settings["markdown.mermaid"];
+  const previousMermaid = source["markdown.mermaid"];
+  if (
+    mermaid &&
+    !mermaid.colors["node.border"] &&
+    previousMermaid &&
+    typeof previousMermaid === "object" &&
+    !Array.isArray(previousMermaid)
+  ) {
+    const previousColors = (previousMermaid as Partial<TextRenderFeatureConfig>)
+      .colors;
+    const previousStructuralColor = normalizeColor(previousColors?.["flow.node.border"])
+      ?? normalizeColor(previousColors?.["edge.line"])
+      ?? normalizeColor(previousColors?.["edge.arrow"]);
+    if (previousStructuralColor) {
+      mermaid.colors["node.border"] = previousStructuralColor;
+    }
   }
   return settings;
 };

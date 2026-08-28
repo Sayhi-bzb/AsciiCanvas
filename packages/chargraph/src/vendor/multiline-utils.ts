@@ -11,8 +11,8 @@ import { LINE_HEIGHT_RATIO } from './text-metrics.js'
 
 /**
  * Normalize label text: strip surrounding quotes, convert <br> tags and
- * literal \n sequences to newline characters. Strips unsupported HTML tags
- * but preserves formatting tags (<b>, <i>, <u>, <s>) for SVG rendering.
+ * literal \n sequences to newline characters. CharGraph's cell model owns
+ * styling separately, so inline Mermaid/HTML formatting is reduced to text.
  */
 export function normalizeBrTags(label: string): string {
   // Strip surrounding double quotes (Mermaid uses them for special chars in labels)
@@ -20,11 +20,10 @@ export function normalizeBrTags(label: string): string {
   return unquoted
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/\\n/g, '\n')
-    .replace(/<\/?(?:sub|sup|small|mark)\s*>/gi, '')
-    // Markdown formatting → HTML tags (order matters: ** before *)
-    .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
-    .replace(/(?<!\*)\*([^\s*](?:[^*]*[^\s*])?)\*(?!\*)/g, '<i>$1</i>')
-    .replace(/~~(.+?)~~/g, '<s>$1</s>')
+    .replace(/<\/?(?:b|strong|i|em|u|s|del|sub|sup|small|mark)\s*>/gi, '')
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/(?<!\*)\*([^\s*](?:[^*]*[^\s*])?)\*(?!\*)/g, '$1')
+    .replace(/~~(.+?)~~/g, '$1')
 }
 
 /**

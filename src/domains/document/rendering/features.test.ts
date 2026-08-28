@@ -42,7 +42,11 @@ describe("text render feature registry", () => {
     settings["markdown.strong"]!.enabled = false;
     settings["markdown.inline-math"]!.enabled = false;
     settings["markdown.math-style"]!.colors.operator = "#abcdef";
-    settings["markdown.mermaid"]!.colors["edge.line"] = "#654321";
+    settings["markdown.mermaid"]!.colors["node.border"] = "#654321";
+    settings["markdown.mermaid"]!.colors["sequence.activation"] = "#abcdef";
+    settings["markdown.mermaid"]!.colors["flow.node.marker"] = "#fedcba";
+    settings["markdown.mermaid"]!.colors["state.start"] = "#123abc";
+    settings["markdown.mermaid"]!.colors["state.end"] = "#456def";
     settings["markdown.table"]!.colors["header.background"] = "#123456";
 
     const options = createRegisteredMarkdownOptions(
@@ -55,34 +59,42 @@ describe("text render feature registry", () => {
     expect(options.extensionRules?.["inline-math"]).toBe(false);
     expect(options.extensionRules?.["math-style"]).toBeUndefined();
     expect(options.extensionStyles?.["math-operator"]?.color).toBe("#abcdef");
-    expect(options.extensionStyles?.["math-structure"]?.color).toBe("#94a3b8");
+    expect(options.extensionStyles?.["math-structure"]?.color).toBe("#59636e");
     expect(options.styles?.["table-header"]?.bgColor).toBe("#123456");
     expect(options.extensionRules?.["github-alert"]).toBe(true);
     expect(options.extensionRules?.diff).toBe(true);
     expect(options.extensionRules?.["json-tree"]).toBe(true);
     expect(options.extensionRules?.["yaml-tree"]).toBe(true);
-    expect(options.extensionStyles?.["alert-warning"]?.color).toBe("#ca8a04");
+    expect(options.extensionStyles?.["alert-warning"]?.color).toBe("#9a6700");
     expect(options.extensionStyles?.["diff-added"]).toMatchObject({
-      color: "#16a34a",
-      bgColor: "#e3f4e9",
+      color: "#1a7f37",
+      bgColor: "#e4f0e7",
     });
     expect(options.extensionStyles?.["diff-deleted"]).toMatchObject({
-      color: "#dc2626",
-      bgColor: "#fbe5e5",
+      color: "#d1242f",
+      bgColor: "#f9e5e6",
     });
-    expect(options.extensionStyles?.["json-tree-connector"]?.color).toBe("#94a3b8");
-    expect(options.extensionStyles?.["json-tree-key"]?.color).toBe("#2563eb");
-    expect(options.extensionStyles?.["json-tree-index"]?.color).toBe("#94a3b8");
-    expect(options.extensionStyles?.["json-tree-boolean"]?.color).toBe("#ca8a04");
-    expect(options.extensionStyles?.["json-tree-null"]?.color).toBe("#94a3b8");
-    expect(options.extensionStyles?.["json-tree-empty"]?.color).toBe("#94a3b8");
-    expect(options.extensionStyles?.["yaml-tree-string"]?.color).toBe("#16a34a");
-    expect(options.extensionStyles?.["yaml-tree-number"]?.color).toBe("#0891b2");
-    expect(options.extensionStyles?.["yaml-tree-reference"]?.color).toBe("#0891b2");
-    expect(options.extensionStyles?.["mermaid.node.border"]?.color).toBe("#2563eb");
+    expect(options.extensionStyles?.["json-tree-connector"]?.color).toBe("#818b98");
+    expect(options.extensionStyles?.["json-tree-key"]?.color).toBe("#0969da");
+    expect(options.extensionStyles?.["json-tree-index"]?.color).toBe("#59636e");
+    expect(options.extensionStyles?.["json-tree-boolean"]?.color).toBe("#9a6700");
+    expect(options.extensionStyles?.["json-tree-null"]?.color).toBe("#59636e");
+    expect(options.extensionStyles?.["json-tree-empty"]?.color).toBe("#59636e");
+    expect(options.extensionStyles?.["yaml-tree-string"]?.color).toBe("#1a7f37");
+    expect(options.extensionStyles?.["yaml-tree-number"]?.color).toBe("#0969da");
+    expect(options.extensionStyles?.["yaml-tree-reference"]?.color).toBe("#0969da");
+    expect(options.extensionStyles?.["mermaid.node.border"]?.color).toBe("#654321");
+    expect(options.extensionStyles?.["mermaid.flow.node.border"]?.color).toBe("#654321");
+    expect(options.extensionStyles?.["mermaid.flow.node.marker"]?.color).toBe("#fedcba");
+    expect(options.extensionStyles?.["mermaid.state.start"]?.color).toBe("#123abc");
+    expect(options.extensionStyles?.["mermaid.state.end"]?.color).toBe("#456def");
     expect(options.extensionStyles?.["mermaid.edge.line"]?.color).toBe("#654321");
+    expect(options.extensionStyles?.["mermaid.edge.arrow"]?.color).toBe("#654321");
+    expect(options.extensionStyles?.["mermaid.sequence.activation"]?.color)
+      .toBe("#abcdef");
     expect(options.extensionStyles?.["mermaid.node.background"]?.bgColor).toBeUndefined();
-    expect(options.extensionStyles?.["mermaid.series.5"]?.color).toBe("#dc2626");
+    expect(options.extensionStyles?.["mermaid.series.2"]?.color).toBe("#8250df");
+    expect(options.extensionStyles?.["mermaid.series.5"]?.color).toBe("#d1242f");
     expect(options.codeTheme).toMatchObject({
       name: expect.stringMatching(/^chardesk-render-/),
     });
@@ -178,8 +190,13 @@ describe("text render feature registry", () => {
 
     expect(colors["node.text"]).toBe("#123456");
     expect(colors["node.border"]).toBe("#123456");
-    expect(colors["edge.line"]).toBe("#123456");
-    expect(colors["edge.arrow"]).toBe("#123456");
+    expect(colors["flow.node.border"]).toBeUndefined();
+    expect(colors["flow.node.marker"]).toBe("#123456");
+    expect(colors["state.start"]).toBe("#123456");
+    expect(colors["state.end"]).toBe("#123456");
+    expect(colors["edge.line"]).toBeUndefined();
+    expect(colors["edge.arrow"]).toBeUndefined();
+    expect(colors["sequence.activation"]).toBe("#123456");
     expect(colors["series.5"]).toBe("#123456");
     expect(colors["node.background"]).toBeUndefined();
   });
@@ -188,19 +205,24 @@ describe("text render feature registry", () => {
     const mermaid = getTextRenderFeatureDefinition("markdown.mermaid")!;
     expect(mermaid.colorRows?.map((row) => row.id)).toEqual([
       "node",
-      "edge",
+      "flow",
+      "state",
       "label",
-      "arrow",
       "container",
+      "sequence",
       "grid",
       "series",
     ]);
+    expect(mermaid.colorRows?.find((row) => row.id === "flow")?.slotIds)
+      .toEqual(["flow.node.marker"]);
+    expect(mermaid.colorRows?.find((row) => row.id === "state")?.slotIds)
+      .toEqual(["state.start", "state.end"]);
     expect(mermaid.colorRows?.every((row) => row.slotIds.every((slotId) =>
       mermaid.colorSlots.some((slot) => slot.id === slotId)
     ))).toBe(true);
   });
 
-  it("drops retired Mermaid relation colors while preserving current colors", () => {
+  it("migrates retired edge colors into the authoritative node border", () => {
     const colors = decodeFeatureSettings({
       "markdown.mermaid": {
         enabled: true,
@@ -212,7 +234,60 @@ describe("text render feature registry", () => {
       },
     })["markdown.mermaid"]!.colors;
 
-    expect(colors).toEqual({ "edge.line": "#654321" });
+    expect(colors).toEqual({ "node.border": "#654321" });
+  });
+
+  it("prefers an existing node border over retired edge colors", () => {
+    const colors = decodeFeatureSettings({
+      "markdown.mermaid": {
+        enabled: true,
+        colors: {
+          "node.border": "#123456",
+          "edge.line": "#654321",
+          "edge.arrow": "#abcdef",
+        },
+      },
+    })["markdown.mermaid"]!.colors;
+
+    expect(colors["node.border"]).toBe("#123456");
+    expect(colors["edge.line"]).toBeUndefined();
+    expect(colors["edge.arrow"]).toBeUndefined();
+  });
+
+  it("migrates a retired Flow border into the authoritative node border", () => {
+    const colors = decodeFeatureSettings({
+      "markdown.mermaid": {
+        enabled: true,
+        colors: { "flow.node.border": "#ABCDEF" },
+      },
+    })["markdown.mermaid"]!.colors;
+
+    expect(colors).toEqual({ "node.border": "#abcdef" });
+  });
+
+  it("prefers an existing node border over a retired Flow border", () => {
+    const colors = decodeFeatureSettings({
+      "markdown.mermaid": {
+        enabled: true,
+        colors: {
+          "node.border": "#123456",
+          "flow.node.border": "#abcdef",
+        },
+      },
+    })["markdown.mermaid"]!.colors;
+
+    expect(colors).toEqual({ "node.border": "#123456" });
+  });
+
+  it("uses a retired arrow color when no border or line color exists", () => {
+    const colors = decodeFeatureSettings({
+      "markdown.mermaid": {
+        enabled: true,
+        colors: { "edge.arrow": "#abcdef" },
+      },
+    })["markdown.mermaid"]!.colors;
+
+    expect(colors).toEqual({ "node.border": "#abcdef" });
   });
 
   it("decodes the previous v2 Mermaid foreground as semantic colors", () => {

@@ -17,7 +17,7 @@ import type {
   TextRendererId,
   TextRenderingStorage,
 } from "./types";
-import { DEFAULT_TEXT_RENDER_THEME } from "./theme";
+import { DEFAULT_TEXT_RENDER_THEME, resolveTextRenderTheme } from "./theme";
 
 export const TEXT_RENDER_PROFILE_STORAGE_KEY = "chardesk-text-render-profile-v2";
 const LEGACY_TEXT_RENDER_PROFILE_STORAGE_KEY = "chardesk-text-render-profile-v1";
@@ -31,6 +31,11 @@ export const DEFAULT_TEXT_RENDER_PROFILE: TextRenderProfile = {
 const RENDER_THEME_TOKEN_IDS = Object.keys(DEFAULT_TEXT_RENDER_THEME) as Array<
   keyof typeof DEFAULT_TEXT_RENDER_THEME
 >;
+const LEGACY_MUTED_THEME_TOKEN_IDS = new Set([
+  "muted-foreground",
+  "border-subtle",
+  "grid-subtle",
+]);
 
 const normalizeColor = (value: unknown) =>
   typeof value === "string" && /^#[0-9a-f]{6}$/i.test(value)
@@ -48,10 +53,12 @@ const decodeProfile = (
   const mode = ["auto", "raw", "ansi", "markdown"].includes(candidateMode)
     ? candidateMode
     : DEFAULT_TEXT_RENDER_PROFILE.mode;
-  const sourceTheme = candidate.renderTheme;
+  const sourceTheme = candidate.renderTheme as Record<string, unknown> | undefined;
+  const legacyMuted = normalizeColor(sourceTheme?.muted);
   const renderTheme = Object.fromEntries(
     RENDER_THEME_TOKEN_IDS.flatMap((id) => {
-      const color = normalizeColor(sourceTheme?.[id]);
+      const color = normalizeColor(sourceTheme?.[id])
+        ?? (LEGACY_MUTED_THEME_TOKEN_IDS.has(id) ? legacyMuted : null);
       return color ? [[id, color]] : [];
     })
   );
@@ -212,7 +219,7 @@ export class TextRenderingRuntime {
       defaultStyle: { color: defaultColor },
       markdown: createRegisteredMarkdownOptions(
         profile.features,
-        { ...DEFAULT_TEXT_RENDER_THEME, ...profile.renderTheme },
+        resolveTextRenderTheme(profile.renderTheme),
         profile.mode === "markdown"
       ),
     });

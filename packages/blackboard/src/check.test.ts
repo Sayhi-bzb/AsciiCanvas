@@ -1,7 +1,16 @@
-import { describe, expect, it } from "vitest";
-import { checkBlackboardBytes } from "./check.js";
+import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
+import { checkBlackboardBytes, checkBlackboardFile } from "./check.js";
+import { resolveWorkspaceBoardPath } from "./paths.js";
 
 const bytes = (source: string) => new TextEncoder().encode(source);
+const roots: string[] = [];
+
+afterEach(async () => {
+  await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
+});
 
 describe("checkBlackboardBytes", () => {
   it("accepts Plain, ESC-less ANSI, CJK and emoji", async () => {
@@ -44,6 +53,27 @@ describe("checkBlackboardBytes", () => {
     await expect(checkBlackboardBytes(Uint8Array.from([0xc3, 0x28]))).resolves.toMatchObject({
       accepted: false,
       issue: { code: "invalid-utf8" },
+    });
+  });
+
+  it("checks every registered package panel and reports unused drafts", async () => {
+    const root = await mkdtemp(join(tmpdir(), "chardesk-blackboard-check-"));
+    roots.push(root);
+    await mkdir(join(root, "panels"));
+    await writeFile(join(root, "blackboard.yaml"), `
+chardesk: blackboard/v1
+panels:
+  shown: { source: panels/shown.panel }
+  draft: { source: panels/draft.panel }
+layout:
+  areas: [[shown]]
+`);
+    await writeFile(join(root, "panels/shown.panel"), "shown");
+    await writeFile(join(root, "panels/draft.panel"), "draft");
+    const board = await resolveWorkspaceBoardPath(root, ".");
+    await expect(checkBlackboardFile(board)).resolves.toEqual({
+      accepted: true,
+      warnings: ["Panel \"draft\" is registered but not used by layout.areas."],
     });
   });
 });

@@ -4,10 +4,13 @@ export const CHARDESK_RENDER_THEME_TOKENS = [
   "accent",
   "accent-foreground",
   "info",
+  "done",
   "success",
   "warning",
   "danger",
-  "muted",
+  "muted-foreground",
+  "border-subtle",
+  "grid-subtle",
   "surface",
   "surface-foreground",
 ] as const;
@@ -16,6 +19,11 @@ export type CharDeskRenderThemeToken =
   typeof CHARDESK_RENDER_THEME_TOKENS[number];
 
 export type CharDeskRenderTheme = Record<CharDeskRenderThemeToken, string>;
+
+/** Theme input accepted from current callers and profiles saved before muted split. */
+export type CharDeskRenderThemeInput = Partial<CharDeskRenderTheme> & {
+  readonly muted?: string;
+};
 
 export type CharDeskRenderColorDefault =
   | { readonly kind: "inherit" }
@@ -27,18 +35,38 @@ export type CharDeskRenderColorDefault =
     };
 
 export const CHARDESK_LIGHT_RENDER_THEME: CharDeskRenderTheme = Object.freeze({
-  foreground: "#000000",
+  foreground: "#1f2328",
   background: "#ffffff",
-  accent: "#2563eb",
+  accent: "#0969da",
   "accent-foreground": "#ffffff",
-  info: "#0891b2",
-  success: "#16a34a",
-  warning: "#ca8a04",
-  danger: "#dc2626",
-  muted: "#94a3b8",
-  surface: "#e2e8f0",
-  "surface-foreground": "#000000",
+  info: "#0969da",
+  done: "#8250df",
+  success: "#1a7f37",
+  warning: "#9a6700",
+  danger: "#d1242f",
+  "muted-foreground": "#59636e",
+  "border-subtle": "#818b98",
+  "grid-subtle": "#d1d9e0",
+  surface: "#f6f8fa",
+  "surface-foreground": "#1f2328",
 });
+
+const MUTED_THEME_TOKENS = new Set<CharDeskRenderThemeToken>([
+  "muted-foreground",
+  "border-subtle",
+  "grid-subtle",
+]);
+
+export const resolveCharDeskRenderTheme = (
+  input: CharDeskRenderThemeInput = {}
+): CharDeskRenderTheme => Object.freeze(Object.fromEntries(
+  CHARDESK_RENDER_THEME_TOKENS.map((token) => [
+    token,
+    input[token]
+      ?? (MUTED_THEME_TOKENS.has(token) ? input.muted : undefined)
+      ?? CHARDESK_LIGHT_RENDER_THEME[token],
+  ])
+) as unknown as CharDeskRenderTheme);
 
 export const resolveCharDeskRenderColor = (
   value: CharDeskRenderColorDefault,

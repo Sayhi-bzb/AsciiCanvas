@@ -9,13 +9,6 @@ export interface MermaidGraph {
   nodes: Map<string, MermaidNode>
   edges: MermaidEdge[]
   subgraphs: MermaidSubgraph[]
-  classDefs: Map<string, Record<string, string>>
-  /** Maps node IDs to their class names (from `class X className` or `:::className` shorthand) */
-  classAssignments: Map<string, string>
-  /** Maps node IDs to inline styles (from `style X fill:#f00,stroke:#333`) */
-  nodeStyles: Map<string, Record<string, string>>
-  /** Maps edge indices (or 'default') to inline styles from `linkStyle` directives */
-  linkStyles: Map<number | 'default', Record<string, string>>
 }
 
 export type Direction = 'TD' | 'TB' | 'LR' | 'BT' | 'RL'
@@ -54,9 +47,12 @@ export interface MermaidEdge {
   hasArrowStart: boolean
   /** Whether to render an arrowhead at the end (target end) of the edge */
   hasArrowEnd: boolean
+  startMarker?: EdgeMarker
+  endMarker?: EdgeMarker
 }
 
 export type EdgeStyle = 'solid' | 'dotted' | 'thick'
+export type EdgeMarker = 'arrow' | 'circle' | 'cross'
 
 export interface MermaidSubgraph {
   id: string

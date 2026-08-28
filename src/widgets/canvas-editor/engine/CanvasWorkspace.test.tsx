@@ -150,6 +150,60 @@ describe('CanvasWorkspace', () => {
     expect(screen.getByTestId('secondary-viewport')).toHaveTextContent('40,20,1');
   });
 
+  it('restores each canvas camera after an async session switch settles', async () => {
+    useEditorStore.setState({
+      activeCanvasId: 'canvas-a',
+      canvasMode: 'freeform',
+      grid: new Map(),
+      offset: { x: 10, y: 15 },
+      zoom: 1,
+      canvasSessions: [
+        {
+          id: 'canvas-a',
+          name: 'Alpha',
+          mode: 'freeform',
+          scene: [],
+          grid: [],
+          viewport: { offset: { x: 10, y: 15 }, zoom: 1 },
+        },
+        {
+          id: 'canvas-b',
+          name: 'Beta',
+          mode: 'freeform',
+          scene: [],
+          grid: [],
+          viewport: { offset: { x: 100, y: 200 }, zoom: 2 },
+        },
+      ],
+    });
+    render(
+      <CanvasWorkspaceProvider>
+        <WorkspaceHarness />
+      </CanvasWorkspaceProvider>
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'select-primary-b' }));
+      await Promise.resolve();
+    });
+    expect(screen.getByTestId('primary-viewport')).toHaveTextContent('100,200,2');
+
+    fireEvent.click(screen.getByRole('button', { name: 'pan-primary' }));
+    expect(screen.getByTestId('primary-viewport')).toHaveTextContent('140,220,2');
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'select-primary-a' }));
+      await Promise.resolve();
+    });
+    expect(screen.getByTestId('primary-viewport')).toHaveTextContent('10,15,1');
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'select-primary-b' }));
+      await Promise.resolve();
+    });
+    expect(screen.getByTestId('primary-viewport')).toHaveTextContent('140,220,2');
+  });
+
   it('preserves the same world center while split panes resize independently', () => {
     useEditorStore.setState({ offset: { x: 10, y: 15 }, zoom: 2 });
     render(

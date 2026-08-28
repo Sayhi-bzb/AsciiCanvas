@@ -25,6 +25,10 @@ import {
 
 // Re-export types
 export type { ShapeRenderer, ShapeDimensions, ShapeRenderOptions, ShapeRegistry }
+export {
+  createFlowCardPresentation,
+  type FlowCardPresentation,
+} from './flow-card.js'
 
 /**
  * Global shape registry — maps shape types to their renderers.

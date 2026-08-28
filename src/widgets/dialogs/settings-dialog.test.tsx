@@ -221,83 +221,83 @@ describe('SettingsDialog', () => {
       name: 'Customize color for Content: Default (Inherited)',
     })).toHaveAttribute('data-inherited', 'true');
     expect(screen.getByRole('button', {
-      name: 'Customize color for Operators: Default (#2563eb)',
+      name: 'Customize color for Operators: Default (#0969da)',
     }).querySelector('[data-slot="color-swatch"]')).toHaveStyle({
-      backgroundColor: '#2563eb',
+      backgroundColor: '#0969da',
     });
     expect(screen.getByRole('button', {
-      name: 'Customize color for Structure: Default (#94a3b8)',
+      name: 'Customize color for Structure: Default (#59636e)',
     }).querySelector('[data-slot="color-swatch"]')).toHaveStyle({
-      backgroundColor: '#94a3b8',
+      backgroundColor: '#59636e',
     });
     expect(screen.getByRole('button', {
       name: 'Customize color for Node background: Default (Inherited)',
     })).toHaveAttribute('data-inherited', 'true');
     expect(screen.getByRole('button', {
-      name: 'Customize color for Node border: Default (#2563eb)',
+      name: 'Customize color for Node border: Default (#0969da)',
     }).querySelector('[data-slot="color-swatch"]')).toHaveStyle({
-      backgroundColor: '#2563eb',
+      backgroundColor: '#0969da',
     });
     expect(screen.getByRole('button', {
-      name: 'Customize color for Warning alerts: Default (#ca8a04)',
+      name: 'Customize color for Warning alerts: Default (#9a6700)',
     }).querySelector('[data-slot="color-swatch"]')).toHaveStyle({
-      backgroundColor: '#ca8a04',
+      backgroundColor: '#9a6700',
     });
     expect(screen.getByRole('button', {
-      name: 'Customize color for Deleted lines: Default (#dc2626)',
+      name: 'Customize color for Deleted lines: Default (#d1242f)',
     }).querySelector('[data-slot="color-swatch"]')).toHaveStyle({
-      backgroundColor: '#dc2626',
+      backgroundColor: '#d1242f',
     });
     expect(screen.getAllByRole('button', {
-      name: 'Customize color for Tree connectors: Default (#94a3b8)',
+      name: 'Customize color for Tree connectors: Default (#818b98)',
     })).toHaveLength(2);
     expect(screen.getAllByRole('button', {
-      name: 'Customize color for Tree keys: Default (#2563eb)',
+      name: 'Customize color for Tree keys: Default (#0969da)',
     })).toHaveLength(2);
     expect(screen.getAllByRole('button', {
-      name: 'Customize color for Array indices: Default (#94a3b8)',
+      name: 'Customize color for Array indices: Default (#59636e)',
     })).toHaveLength(2);
     expect(screen.getAllByRole('button', {
-      name: 'Customize color for Boolean values: Default (#ca8a04)',
+      name: 'Customize color for Boolean values: Default (#9a6700)',
     })).toHaveLength(2);
     expect(screen.getAllByRole('button', {
-      name: 'Customize color for Null values: Default (#94a3b8)',
+      name: 'Customize color for Null values: Default (#59636e)',
     })).toHaveLength(2);
     expect(screen.getAllByRole('button', {
-      name: 'Customize color for Empty objects and arrays: Default (#94a3b8)',
+      name: 'Customize color for Empty objects and arrays: Default (#59636e)',
     })).toHaveLength(2);
     expect(screen.getByRole('button', {
-      name: 'Customize color for YAML references: Default (#0891b2)',
+      name: 'Customize color for YAML references: Default (#0969da)',
     })).toBeInTheDocument();
     expect(screen.getAllByText('Tree structure')).toHaveLength(2);
     expect(screen.getAllByText('Tree values')).toHaveLength(2);
     const inlineCodeColor = screen.getByRole('button', {
-      name: 'Customize color for Inline code foreground: Default (#0891b2)',
+      name: 'Customize color for Inline code foreground: Default (#0969da)',
     });
     expect(inlineCodeColor).toHaveAttribute('data-color-preview', 'default');
     expect(inlineCodeColor.querySelector('[data-slot="color-swatch"]')).toHaveStyle({
-      backgroundColor: '#0891b2',
+      backgroundColor: '#0969da',
     });
     expect(screen.getByRole('button', {
-      name: 'Customize color for Inline code background: Default (#e2e8f0)',
+      name: 'Customize color for Inline code background: Default (#f6f8fa)',
     }).querySelector('[data-slot="color-swatch"]')).toHaveStyle({
-      backgroundColor: '#e2e8f0',
+      backgroundColor: '#f6f8fa',
     });
 
     const blockquoteColor = screen.getByRole('button', {
-      name: 'Customize color for Blockquotes: Default (#16a34a)',
+      name: 'Customize color for Blockquotes: Default (#1a7f37)',
     });
     expect(blockquoteColor.querySelector('[data-slot="color-swatch"]')).toHaveStyle({
-      backgroundColor: '#16a34a',
+      backgroundColor: '#1a7f37',
     });
 
     const listColor = screen.getByRole('button', {
-      name: 'Customize color for Lists: Default (#2563eb / Inherited)',
+      name: 'Customize color for Lists: Default (#0969da / Inherited)',
     });
     expect(listColor).toHaveAttribute('data-color-preview', 'mixed');
     expect(listColor.querySelectorAll('[data-color-segment]')).toHaveLength(2);
-    expect(listColor.querySelector('[data-color-segment="#2563eb"]')).toHaveStyle({
-      backgroundColor: '#2563eb',
+    expect(listColor.querySelector('[data-color-segment="#0969da"]')).toHaveStyle({
+      backgroundColor: '#0969da',
     });
     expect(listColor.querySelector('[data-color-segment="inherited"]')).toHaveClass(
       'after:bg-muted-foreground'
@@ -305,28 +305,28 @@ describe('SettingsDialog', () => {
 
     expect(screen.getByRole('checkbox', { name: 'Task lists' })).toBeChecked();
     const uncheckedTaskColor = screen.getByRole('button', {
-      name: 'Customize color for Unchecked tasks: Default (#94a3b8)',
+      name: 'Customize color for Unchecked tasks: Default (#59636e)',
     });
     const checkedTaskColor = screen.getByRole('button', {
-      name: 'Customize color for Checked tasks: Default (#16a34a)',
+      name: 'Customize color for Checked tasks: Default (#1a7f37)',
     });
     expect(uncheckedTaskColor.querySelector('[data-slot="color-swatch"]')).toHaveStyle({
-      backgroundColor: '#94a3b8',
+      backgroundColor: '#59636e',
     });
     expect(checkedTaskColor.querySelector('[data-slot="color-swatch"]')).toHaveStyle({
-      backgroundColor: '#16a34a',
+      backgroundColor: '#1a7f37',
     });
 
     const tableHeaderColor = screen.getByRole('button', {
-      name: 'Customize color for Table header background: Default (#2563eb)',
+      name: 'Customize color for Table header background: Default (#0969da)',
     });
     expect(tableHeaderColor.querySelector('[data-slot="color-swatch"]')).toHaveStyle({
-      backgroundColor: '#2563eb',
+      backgroundColor: '#0969da',
     });
     expect(screen.getByRole('button', {
-      name: 'Customize color for Table separator: Default (#94a3b8)',
+      name: 'Customize color for Table separator: Default (#818b98)',
     }).querySelector('[data-slot="color-swatch"]')).toHaveStyle({
-      backgroundColor: '#94a3b8',
+      backgroundColor: '#818b98',
     });
 
     const boldColor = screen.getByRole('button', {
@@ -375,7 +375,7 @@ describe('SettingsDialog', () => {
     );
 
     fireEvent.click(screen.getByRole('button', {
-      name: 'Customize color for Accent: Default (#2563eb)',
+      name: 'Customize color for Accent: Default (#0969da)',
     }));
     fireEvent.click(screen.getByRole('button', { name: 'Pick ANSI color #800000' }));
 
@@ -404,11 +404,11 @@ describe('SettingsDialog', () => {
     );
 
     fireEvent.click(screen.getByRole('button', {
-      name: 'Customize color for Unchecked tasks: Default (#94a3b8)',
+      name: 'Customize color for Unchecked tasks: Default (#59636e)',
     }));
     fireEvent.click(screen.getByRole('button', { name: 'Pick ANSI color #800000' }));
     fireEvent.click(screen.getByRole('button', {
-      name: 'Customize color for Checked tasks: Default (#16a34a)',
+      name: 'Customize color for Checked tasks: Default (#1a7f37)',
     }));
     fireEvent.click(screen.getByRole('button', { name: 'Pick ANSI color #008000' }));
 

@@ -21,6 +21,16 @@ The directed-graph pipeline is:
 
 `GridLayout + presentation sidecar -> CharScene`
 
+Mermaid support is a reliable subset. Preprocessing removes comments and splits
+top-level semicolon statements; a diagram renders only when every remaining
+statement is consumed. Invalid syntax, unsupported directives, subgraph-edge
+targets, and subgraph direction overrides preserve the complete source with a
+diagnostic. The diagnostic remains metadata and never replaces the preserved
+artifact body. Parsers must not return a partial AST. Sequence activation uses
+the participant lifeline itself: `+` activates the receiver and `-` deactivates
+the sender, including nested intervals. Its `sequence.activation` style role
+defaults to the render theme's `warning` token independently of participant borders.
+
 `LayoutGraph` owns measured rectangular nodes, containment, labels, directed
 edges, and rank constraints. It does not own Unicode glyphs, rounded corners,
 line styles, or UML markers. The sidecar owns node drawing, stroke appearance,
@@ -54,9 +64,15 @@ balanced node placement so
 fork and join layers stay centered across graph depth; Class and ER retain ELK's
 automatic placement.
 
-Flow, State, Class, and ER use the same structural color roles: `node.border`,
-`edge.line`, and `edge.arrow`. Diagram topology does not assign colors. XY
-series retain independent `series.1`–`series.5` roles.
+Flow presents every node as the same rounded card. Mermaid shape semantics are
+retained by a first-line marker inside that card; multiline continuation text
+aligns after the marker. `node.border` owns every structural node border, and
+`flow.node.marker` owns the Flow shape signal. Every structural edge consumes
+its source node's `node.border`, so line and arrow cannot diverge from that
+border. Legacy `flow.node.border`, `edge.line`, and `edge.arrow` inputs are
+ordered compatibility fallbacks, not output roles. Edge labels remain
+independent. Topology does not assign colors. XY series retain independent
+`series.1`–`series.5` roles.
 
 `CartesianChartSpec` is the renderer-facing chart contract. Linear axes retain
 numeric coordinates; band axes retain ordered categories. D3 owns domain,
@@ -74,14 +90,17 @@ its presentation sidecar. ER opts into one fixed-order ELK port per relationship
 endpoint, expands an entity only when its border lacks port capacity, and reserves
 the complete direction-aware crow's-foot marker corridor. ER labels are placed
 against the projected route, and self-relationships use the compact grid route.
-Its semantic relationships remain undirected while their declaration order
-supplies stable left-to-right layout orientation.
+Its semantic relationships remain undirected while an optional Mermaid
+`direction` controls layout orientation; declaration order supplies stable
+orientation when no direction is declared.
 State preserves parser-level diagram identity, uses depth-first cycle breaking
 from its ranked pseudostates, and projects ELK attachment positions onto
 adaptive node ports: one attachment stays centered while a shared side remains
 distributed. Labels may be placed left or above the projected route; the final
 grid is translated back to a nonnegative origin. Feedback cycles therefore stay
-readable without inflating layer spacing.
+readable without inflating layer spacing. Initial and final pseudostates use the
+independent `state.start` and `state.end` semantic roles; their adjacent edges
+retain `node.border`.
 Sequence keeps its participant-column coordinate model and consumes the same
 scene-layer contract for lifelines, fragment borders, nodes, labels, and markers.
 

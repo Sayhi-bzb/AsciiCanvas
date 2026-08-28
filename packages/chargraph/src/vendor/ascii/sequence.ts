@@ -17,6 +17,7 @@ import { mkCanvas, mkRoleCanvas, canvasToString, increaseSize, increaseRoleCanva
 import { splitLines, maxLineWidth, lineCount } from './multiline-utils.js'
 import { BoxConnection, glyphForBoxConnections, glyphForBoxCorner } from './box-drawing.js'
 import { CharScene } from './scene.js'
+import { prepareMermaidLines } from '../parse-utils.js'
 
 const SELF_LOOP_WIDTH = 4
 const SELF_LABEL_GAP = 2
@@ -38,7 +39,7 @@ function classifyBoxChar(ch: string): CharRole {
  * Pipeline: parse → layout (columns + rows) → draw onto canvas → string.
  */
 export function renderSequenceSurface(text: string, config: AsciiConfig) {
-  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%'))
+  const lines = prepareMermaidLines(text)
   const diagram = parseSequenceDiagram(lines)
 
   if (diagram.actors.length === 0) return { canvas: [], styleRoleCanvas: [] }
@@ -126,6 +127,32 @@ export function renderSequenceSurface(text: string, config: AsciiConfig) {
 
   let curY = actorBoxH // start right below header boxes
 
+  const placeNotes = (afterIndex: number) => {
+    for (const note of diagram.notes.filter(candidate => candidate.afterIndex === afterIndex)) {
+      curY += 1
+      const nLines = splitLines(note.text)
+      const nWidth = Math.max(...nLines.map(l => l.length)) + 4
+      const nHeight = nLines.length + 2
+      const aIdx = actorIdx.get(note.actorIds[0]!) ?? 0
+      let nx: number
+      if (note.position === 'left') {
+        nx = llX[aIdx]! - nWidth - 1
+      } else if (note.position === 'right') {
+        nx = llX[aIdx]! + 2
+      } else if (note.actorIds.length >= 2) {
+        const aIdx2 = actorIdx.get(note.actorIds[1]!) ?? aIdx
+        nx = Math.floor((llX[aIdx]! + llX[aIdx2]!) / 2) - Math.floor(nWidth / 2)
+      } else {
+        nx = llX[aIdx]! - Math.floor(nWidth / 2)
+      }
+      nx = Math.max(0, nx)
+      notePositions.push({ x: nx, y: curY, width: nWidth, height: nHeight, lines: nLines })
+      curY += nHeight
+    }
+  }
+
+  placeNotes(-1)
+
   for (let m = 0; m < diagram.messages.length; m++) {
     // Block openings at this message
     for (let b = 0; b < diagram.blocks.length; b++) {
@@ -166,37 +193,7 @@ export function renderSequenceSurface(text: string, config: AsciiConfig) {
       curY += msgLineCount + 1  // label lines + arrow row
     }
 
-    // Notes after this message
-    for (let n = 0; n < diagram.notes.length; n++) {
-      if (diagram.notes[n]!.afterIndex === m) {
-        curY += 1
-        const note = diagram.notes[n]!
-        const nLines = splitLines(note.text)
-        const nWidth = Math.max(...nLines.map(l => l.length)) + 4
-        const nHeight = nLines.length + 2
-
-        // Determine x position based on note.position
-        const aIdx = actorIdx.get(note.actorIds[0]!) ?? 0
-        let nx: number
-        if (note.position === 'left') {
-          nx = llX[aIdx]! - nWidth - 1
-        } else if (note.position === 'right') {
-          nx = llX[aIdx]! + 2
-        } else {
-          // 'over' — center over actor(s)
-          if (note.actorIds.length >= 2) {
-            const aIdx2 = actorIdx.get(note.actorIds[1]!) ?? aIdx
-            nx = Math.floor((llX[aIdx]! + llX[aIdx2]!) / 2) - Math.floor(nWidth / 2)
-          } else {
-            nx = llX[aIdx]! - Math.floor(nWidth / 2)
-          }
-        }
-        nx = Math.max(0, nx)
-
-        notePositions.push({ x: nx, y: curY, width: nWidth, height: nHeight, lines: nLines })
-        curY += nHeight
-      }
-    }
+    placeNotes(m)
 
     // Block closings after this message
     for (let b = 0; b < diagram.blocks.length; b++) {
@@ -294,11 +291,44 @@ export function renderSequenceSurface(text: string, config: AsciiConfig) {
     currentOwner = `lifeline:${diagram.actors[i]!.id}`
     const x = llX[i]!
     for (let y = actorBoxH; y <= footerY; y++) {
-      setC(x, y, V, 'line', 'edge.line')
+      setC(x, y, V, 'line', 'node.border')
     }
   }
 
   // ---- DRAW: actor header + footer boxes (drawn over lifelines) ----
+
+  const activeSince = new Map<string, number[]>()
+  const activations: Array<{ actorId: string; top: number; bottom: number }> = []
+  for (let m = 0; m < diagram.messages.length; m++) {
+    const message = diagram.messages[m]!
+    if (message.activate) {
+      const starts = activeSince.get(message.to) ?? []
+      starts.push(msgArrowY[m]!)
+      activeSince.set(message.to, starts)
+    }
+    if (message.deactivate) {
+      const starts = activeSince.get(message.from)
+      const top = starts?.pop()
+      if (top === undefined) {
+        throw new Error(`Cannot deactivate inactive participant: "${message.from}"`)
+      }
+      if (starts.length === 0) {
+        activations.push({ actorId: message.from, top, bottom: msgArrowY[m]! })
+        activeSince.delete(message.from)
+      }
+    }
+  }
+  for (const [actorId, starts] of activeSince) {
+    activations.push({ actorId, top: starts[0]!, bottom: footerY - 1 })
+  }
+  for (const activation of activations) {
+    currentOwner = `activation:${activation.actorId}:${activation.top}`
+    const x = llX[actorIdx.get(activation.actorId)!]!
+    const char = useAscii ? '|' : '┃'
+    for (let y = activation.top; y <= Math.min(activation.bottom, footerY - 1); y++) {
+      setC(x, y, char, 'border', 'sequence.activation')
+    }
+  }
 
   for (let i = 0; i < diagram.actors.length; i++) {
     const actor = diagram.actors[i]!
@@ -314,6 +344,12 @@ export function renderSequenceSurface(text: string, config: AsciiConfig) {
   }
 
   // ---- DRAW: messages ----
+
+  const markerFor = (head: 'filled' | 'open' | 'cross', right: boolean) => {
+    if (head === 'cross') return 'x'
+    if (head === 'open') return right ? ')' : '('
+    return right ? '>' : '<'
+  }
 
   for (let m = 0; m < diagram.messages.length; m++) {
     const msg = diagram.messages[m]!
@@ -337,16 +373,16 @@ export function renderSequenceSurface(text: string, config: AsciiConfig) {
       const bottomY = y0 + msgLines.length + 1
 
       // Row 0: start junction + horizontal + top-right corner
-      setC(fromX, y0, JL, 'junction', 'edge.line')
-      for (let x = fromX + 1; x < fromX + SELF_LOOP_WIDTH; x++) setC(x, y0, lineChar, 'line', 'edge.line')
-      setC(fromX + SELF_LOOP_WIDTH, y0, TR, 'corner', 'edge.line')
+      setC(fromX, y0, JL, 'junction', 'node.border')
+      for (let x = fromX + 1; x < fromX + SELF_LOOP_WIDTH; x++) setC(x, y0, lineChar, 'line', 'node.border')
+      setC(fromX + SELF_LOOP_WIDTH, y0, TR, 'corner', 'node.border')
 
       // Label rows: vertical on right side + one line of text
       const labelX = fromX + SELF_LOOP_WIDTH + SELF_LABEL_GAP
       for (let lineIndex = 0; lineIndex < msgLines.length; lineIndex++) {
         const row = y0 + lineIndex + 1
         const line = msgLines[lineIndex]!
-        setC(fromX + SELF_LOOP_WIDTH, row, V, 'line', 'edge.line')
+        setC(fromX + SELF_LOOP_WIDTH, row, V, 'line', 'node.border')
         for (let index = 0; index < line.length; index++) {
           if (labelX + index < totalW) {
             setC(labelX + index, row, line[index]!, 'text', 'edge.label')
@@ -355,9 +391,9 @@ export function renderSequenceSurface(text: string, config: AsciiConfig) {
       }
 
       // Last row: arrow-back + horizontal + bottom-right corner
-      setC(fromX, bottomY, '<', 'arrow', 'edge.arrow')
-      for (let x = fromX + 1; x < fromX + SELF_LOOP_WIDTH; x++) setC(x, bottomY, lineChar, 'line', 'edge.line')
-      setC(fromX + SELF_LOOP_WIDTH, bottomY, BR, 'corner', 'edge.line')
+      setC(fromX, bottomY, markerFor(msg.arrowHead, false), 'arrow', 'node.border')
+      for (let x = fromX + 1; x < fromX + SELF_LOOP_WIDTH; x++) setC(x, bottomY, lineChar, 'line', 'node.border')
+      setC(fromX + SELF_LOOP_WIDTH, bottomY, BR, 'corner', 'node.border')
     } else {
       // Normal message: label on row above, arrow on row below
       const labelY = msgLabelY[m]!
@@ -380,14 +416,14 @@ export function renderSequenceSurface(text: string, config: AsciiConfig) {
 
       // Draw arrow line
       if (leftToRight) {
-        setC(fromX, arrowY, JL, 'junction', 'edge.line')
-        for (let x = fromX + 1; x < toX - 1; x++) setC(x, arrowY, lineChar, 'line', 'edge.line')
+        setC(fromX, arrowY, JL, 'junction', 'node.border')
+        for (let x = fromX + 1; x < toX - 1; x++) setC(x, arrowY, lineChar, 'line', 'node.border')
         // Keep the target lifeline visible: the marker occupies the adjacent cell.
-        setC(toX - 1, arrowY, '>', 'arrow', 'edge.arrow')
+        setC(toX - 1, arrowY, markerFor(msg.arrowHead, true), 'arrow', 'node.border')
       } else {
-        setC(fromX, arrowY, JR, 'junction', 'edge.line')
-        for (let x = toX + 2; x < fromX; x++) setC(x, arrowY, lineChar, 'line', 'edge.line')
-        setC(toX + 1, arrowY, '<', 'arrow', 'edge.arrow')
+        setC(fromX, arrowY, JR, 'junction', 'node.border')
+        for (let x = toX + 2; x < fromX; x++) setC(x, arrowY, lineChar, 'line', 'node.border')
+        setC(toX + 1, arrowY, markerFor(msg.arrowHead, false), 'arrow', 'node.border')
       }
     }
   }

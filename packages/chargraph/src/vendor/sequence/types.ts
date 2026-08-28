@@ -32,10 +32,10 @@ export interface Message {
   /** Arrow style: solid line or dashed line */
   lineStyle: 'solid' | 'dashed'
   /** Arrow head: filled (closed) or open */
-  arrowHead: 'filled' | 'open'
-  /** Activate the target lifeline (+) */
+  arrowHead: 'filled' | 'open' | 'cross'
+  /** Activate the target lifeline (+). */
   activate?: boolean
-  /** Deactivate the source lifeline (-) */
+  /** Deactivate the source lifeline (-). */
   deactivate?: boolean
 }
 

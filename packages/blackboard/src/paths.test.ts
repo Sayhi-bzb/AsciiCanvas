@@ -25,7 +25,17 @@ describe("resolveWorkspaceBoardPath", () => {
   it("rejects wrong suffixes and paths outside the workspace", async () => {
     const root = await mkdtemp(join(tmpdir(), "chardesk-blackboard-path-"));
     roots.push(root);
-    await expect(resolveWorkspaceBoardPath(root, "board.txt")).rejects.toThrow(".chardesk suffix");
+    await expect(resolveWorkspaceBoardPath(root, "board.txt")).rejects.toThrow(".chardesk file");
     await expect(resolveWorkspaceBoardPath(root, "../board.chardesk")).rejects.toThrow("inside the current workspace");
+  });
+
+  it("resolves a Blackboard directory to its root manifest", async () => {
+    const root = await mkdtemp(join(tmpdir(), "chardesk-blackboard-path-"));
+    roots.push(root);
+    await mkdir(join(root, "gpu"));
+    await expect(resolveWorkspaceBoardPath(root, "gpu")).resolves.toEqual({
+      root: await realpath(root),
+      path: join(await realpath(root), "gpu/blackboard.yaml"),
+    });
   });
 });

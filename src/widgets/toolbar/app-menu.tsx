@@ -106,9 +106,12 @@ export function AppMenu() {
   const { canStart: canStartTour, requestStart: requestTourStart } =
     useOnboardingTour();
   const {
+    directoryInputRef,
     fileInputRef,
+    handleBlackboardDirectoryChange,
     handleFileChange,
     isImporting,
+    openBlackboardPicker,
     openFilePicker,
   } = useCanvasImport();
   const [clearOpen, setClearOpen] = useState(false);
@@ -192,6 +195,18 @@ export function AppMenu() {
         aria-hidden="true"
         onChange={handleFileChange}
       />
+      <input
+        ref={(input) => {
+          directoryInputRef.current = input;
+          if (input) input.webkitdirectory = true;
+        }}
+        type="file"
+        multiple
+        className="sr-only"
+        tabIndex={-1}
+        aria-hidden="true"
+        onChange={handleBlackboardDirectoryChange}
+      />
 
       <div
         data-canvas-ui="true"
@@ -237,7 +252,14 @@ export function AppMenu() {
                           onSelect={openFilePicker}
                         >
                           <ImportIcon />
-                          {isImporting ? t("import.importing") : t("appMenu.import")}
+                          {isImporting ? t("import.importing") : t("appMenu.importFile")}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          disabled={isImporting}
+                          onSelect={openBlackboardPicker}
+                        >
+                          <FileIcon />
+                          {t("appMenu.importBlackboard")}
                         </DropdownMenuItem>
                         {availableExportFormats.length > 0 && (
                           <DropdownMenuSub>

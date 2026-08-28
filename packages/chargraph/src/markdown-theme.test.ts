@@ -56,7 +56,7 @@ describe("CharDesk Markdown theme", () => {
     expect(result.extensionStyles["math-operator"]?.color)
       .toBe(CHARDESK_LIGHT_RENDER_THEME.accent);
     expect(result.extensionStyles["math-structure"]?.color)
-      .toBe(CHARDESK_LIGHT_RENDER_THEME.muted);
+      .toBe(CHARDESK_LIGHT_RENDER_THEME["muted-foreground"]);
     expect(result.extensionStyles["math-error"]?.color)
       .toBe(CHARDESK_LIGHT_RENDER_THEME.danger);
   });
@@ -80,7 +80,7 @@ describe("CharDesk Markdown theme", () => {
 
   it("owns every color default used by the shared style factory", () => {
     expect(CHARDESK_MARKDOWN_COLOR_DEFAULTS["json-tree"].connector)
-      .toEqual({ kind: "token", token: "muted" });
+      .toEqual({ kind: "token", token: "border-subtle" });
     expect(CHARDESK_MARKDOWN_COLOR_DEFAULTS.list.marker)
       .toEqual({
         kind: "mixed",
@@ -143,7 +143,7 @@ describe("CharDesk Markdown theme", () => {
       accent: "#aa0000",
       info: "#0000aa",
       success: "#00aa00",
-      muted: "#777777",
+      "muted-foreground": "#777777",
     };
     const themed = await renderMarkdown(
       "```ts\nconst answer = \"yes\" // note\n```",
@@ -157,7 +157,7 @@ describe("CharDesk Markdown theme", () => {
     expect(themed.fragments.find((part) => part.text === "\"yes\"")?.color?.toLowerCase())
       .toBe(theme.success);
     expect(themed.fragments.find((part) => part.text === "// note")?.color?.toLowerCase())
-      .toBe(theme.muted);
+      .toBe(theme["muted-foreground"]);
     expect(themed.fragments.some((part) => part.color?.startsWith("var(")))
       .toBe(false);
 

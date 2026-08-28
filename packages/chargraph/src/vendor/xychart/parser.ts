@@ -29,9 +29,12 @@ export function parseXYChart(lines: string[]): XYChart {
   let title: string | undefined
   let horizontal = false
 
-  for (const line of lines) {
+  for (const [index, line] of lines.entries()) {
     // Header line — detect horizontal
     if (/^xychart(-beta)?\b/i.test(line)) {
+      if (index !== 0 || !/^xychart(-beta)?(?:\s+horizontal)?$/i.test(line)) {
+        throw new Error(`Invalid Mermaid XY chart header: "${line}"`)
+      }
       if (/\bhorizontal\b/i.test(line)) horizontal = true
       continue
     }
@@ -87,7 +90,11 @@ export function parseXYChart(lines: string[]): XYChart {
       series.push({ type: 'line', data: parseNumericArray(lineMatch[1]!) })
       continue
     }
+
+    throw new Error(`Unsupported Mermaid XY chart statement: "${line}"`)
   }
+
+  if (series.length === 0) throw new Error('Mermaid XY chart has no series')
 
   // Auto-derive y-axis range from data if not specified
   if (!yAxis.range && series.length > 0) {
@@ -112,5 +119,9 @@ export function parseXYChart(lines: string[]): XYChart {
 }
 
 function parseNumericArray(str: string): number[] {
-  return str.split(',').map(s => parseFloat(s.trim()))
+  const values = str.split(',').map(s => Number(s.trim()))
+  if (values.length === 0 || values.some(value => !Number.isFinite(value))) {
+    throw new Error(`Invalid Mermaid XY chart numeric series: "${str}"`)
+  }
+  return values
 }

@@ -27,6 +27,7 @@ import { normalizeBrTags } from '../multiline-utils.js'
  */
 export function parseClassDiagram(lines: string[]): ClassDiagram {
   const diagram: ClassDiagram = {
+    direction: 'TD',
     classes: [],
     relationships: [],
     namespaces: [],
@@ -42,6 +43,12 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i]!
+
+    const directionMatch = line.match(/^direction\s+(TD|TB|LR|BT|RL)$/i)
+    if (directionMatch && !currentClass && !currentNamespace) {
+      diagram.direction = directionMatch[1]!.toUpperCase() as ClassDiagram['direction']
+      continue
+    }
 
     // --- Inside a class body block ---
     if (currentClass && braceDepth > 0) {
@@ -68,8 +75,9 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
         } else {
           currentClass.attributes.push(member.member)
         }
+        continue
       }
-      continue
+      throw new Error(`Unsupported Mermaid class member: "${line}"`)
     }
 
     // --- Namespace block start ---
@@ -87,11 +95,12 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
     }
 
     // --- Class block start: `class ClassName {` or `class ClassName` ---
-    const classBlockMatch = line.match(/^class\s+(\S+?)(?:\s*~(\w+)~)?\s*\{$/)
+    const classBlockMatch = line.match(/^class\s+(\S+?)(?:\["([^"]+)"\])?(?:\s*~(\w+)~)?\s*\{$/)
     if (classBlockMatch) {
       const id = classBlockMatch[1]!
-      const generic = classBlockMatch[2]
-      const cls = ensureClass(classMap, id)
+      const label = classBlockMatch[2]
+      const generic = classBlockMatch[3]
+      const cls = ensureClass(classMap, id, label)
       if (generic) {
         cls.label = `${id}<${generic}>`
       }
@@ -104,11 +113,12 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
     }
 
     // --- Standalone class declaration (no body): `class ClassName` ---
-    const classOnlyMatch = line.match(/^class\s+(\S+?)(?:\s*~(\w+)~)?\s*$/)
+    const classOnlyMatch = line.match(/^class\s+(\S+?)(?:\["([^"]+)"\])?(?:\s*~(\w+)~)?\s*$/)
     if (classOnlyMatch) {
       const id = classOnlyMatch[1]!
-      const generic = classOnlyMatch[2]
-      const cls = ensureClass(classMap, id)
+      const label = classOnlyMatch[2]
+      const generic = classOnlyMatch[3]
+      const cls = ensureClass(classMap, id, label)
       if (generic) {
         cls.label = `${id}<${generic}>`
       }
@@ -157,19 +167,26 @@ export function parseClassDiagram(lines: string[]): ClassDiagram {
       diagram.relationships.push(rel)
       continue
     }
+
+    throw new Error(`Unsupported Mermaid statement: "${line}"`)
   }
 
+  if (currentClass || braceDepth > 0) throw new Error('Unclosed Mermaid class')
+  if (currentNamespace) throw new Error('Unclosed Mermaid namespace')
+
   diagram.classes = [...classMap.values()]
+  if (diagram.classes.length === 0) throw new Error('Mermaid class diagram has no classes')
   return diagram
 }
 
 /** Ensure a class exists in the map, creating a default if needed */
-function ensureClass(classMap: Map<string, ClassNode>, id: string): ClassNode {
+function ensureClass(classMap: Map<string, ClassNode>, id: string, label?: string): ClassNode {
   let cls = classMap.get(id)
   if (!cls) {
     cls = { id, label: id, attributes: [], methods: [] }
     classMap.set(id, cls)
   }
+  if (label !== undefined) cls.label = normalizeBrTags(label)
   return cls
 }
 

@@ -1,6 +1,7 @@
 // @ts-nocheck -- pinned upstream source; validated at the package boundary.
-import type { MermaidGraph, MermaidNode, MermaidEdge, MermaidSubgraph, Direction, NodeShape, EdgeStyle } from './types.js'
+import type { MermaidGraph, MermaidNode, MermaidEdge, MermaidSubgraph, Direction, NodeShape, EdgeStyle, EdgeMarker } from './types.js'
 import { normalizeBrTags } from './multiline-utils.js'
+import { prepareMermaidLines } from './parse-utils.js'
 
 // ============================================================================
 // Mermaid parser — flowcharts and state diagrams
@@ -19,7 +20,7 @@ import { normalizeBrTags } from './multiline-utils.js'
  * Throws on invalid/unsupported input.
  */
 export function parseMermaid(text: string): MermaidGraph {
-  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%'))
+  const lines = prepareMermaidLines(text)
 
   if (lines.length === 0) {
     throw new Error('Empty mermaid diagram')
@@ -55,14 +56,12 @@ function parseFlowchart(lines: string[]): MermaidGraph {
     nodes: new Map(),
     edges: [],
     subgraphs: [],
-    classDefs: new Map(),
-    classAssignments: new Map(),
-    nodeStyles: new Map(),
-    linkStyles: new Map(),
   }
 
   // Subgraph stack for nested subgraphs.
   const subgraphStack: MermaidSubgraph[] = []
+  let generatedSubgraphId = 0
+  const subgraphIds = new Set<string>()
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i]!
@@ -70,58 +69,31 @@ function parseFlowchart(lines: string[]): MermaidGraph {
     // --- classDef: `classDef name prop:val,prop:val` ---
     const classDefMatch = line.match(/^classDef\s+(\w+)\s+(.+)$/)
     if (classDefMatch) {
-      const name = classDefMatch[1]!
-      const propsStr = classDefMatch[2]!
-      const props = parseStyleProps(propsStr)
-      graph.classDefs.set(name, props)
-      continue
+      throw new Error(`Unsupported Mermaid statement: "${line}"`)
     }
 
     // --- class assignment: `class A,B className` ---
     const classAssignMatch = line.match(/^class\s+([\w,-]+)\s+(\w+)$/)
     if (classAssignMatch) {
-      const nodeIds = classAssignMatch[1]!.split(',').map(s => s.trim())
-      const className = classAssignMatch[2]!
-      for (const id of nodeIds) {
-        graph.classAssignments.set(id, className)
-      }
-      continue
+      throw new Error(`Unsupported Mermaid statement: "${line}"`)
     }
 
     // --- style statement: `style A,B fill:#f00,stroke:#333` ---
     const styleMatch = line.match(/^style\s+([\w,-]+)\s+(.+)$/)
     if (styleMatch) {
-      const nodeIds = styleMatch[1]!.split(',').map(s => s.trim())
-      const props = parseStyleProps(styleMatch[2]!)
-      for (const id of nodeIds) {
-        graph.nodeStyles.set(id, { ...graph.nodeStyles.get(id), ...props })
-      }
-      continue
+      throw new Error(`Unsupported Mermaid statement: "${line}"`)
     }
 
     // --- linkStyle: `linkStyle 0 stroke:#f00` or `linkStyle default stroke:#f00` ---
     const linkStyleMatch = line.match(/^linkStyle\s+(default|[\d,\s]+)\s+(.+)$/)
     if (linkStyleMatch) {
-      const target = linkStyleMatch[1]!.trim()
-      const props = parseStyleProps(linkStyleMatch[2]!)
-      if (target === 'default') {
-        graph.linkStyles.set('default', { ...graph.linkStyles.get('default'), ...props })
-      } else {
-        const indices = target.split(',').map(s => parseInt(s.trim(), 10))
-        for (const idx of indices) {
-          if (!isNaN(idx)) {
-            graph.linkStyles.set(idx, { ...graph.linkStyles.get(idx), ...props })
-          }
-        }
-      }
-      continue
+      throw new Error(`Unsupported Mermaid statement: "${line}"`)
     }
 
     // --- direction override inside subgraph: `direction LR` ---
     const dirMatch = line.match(/^direction\s+(TD|TB|LR|BT|RL)\s*$/i)
     if (dirMatch && subgraphStack.length > 0) {
-      subgraphStack[subgraphStack.length - 1]!.direction = dirMatch[1]!.toUpperCase() as Direction
-      continue
+      throw new Error('Subgraph direction overrides are not supported')
     }
 
     // --- subgraph start: `subgraph Label` or `subgraph id [Label]` ---
@@ -139,8 +111,11 @@ function parseFlowchart(lines: string[]): MermaidGraph {
       } else {
         // Use the label text as id (slugified)
         label = normalizeBrTags(rest)
-        id = rest.replace(/\s+/g, '_').replace(/[^\w]/g, '')
+        const slug = rest.replace(/\s+/g, '_').replace(/[^\w]/g, '')
+        id = slug || `_subgraph${++generatedSubgraphId}`
       }
+      while (subgraphIds.has(id)) id = `${id}_${++generatedSubgraphId}`
+      subgraphIds.add(id)
       const sg: MermaidSubgraph = { id, label, nodeIds: [], children: [] }
       subgraphStack.push(sg)
       continue
@@ -149,12 +124,11 @@ function parseFlowchart(lines: string[]): MermaidGraph {
     // --- subgraph end ---
     if (line === 'end') {
       const completed = subgraphStack.pop()
-      if (completed) {
-        if (subgraphStack.length > 0) {
-          subgraphStack[subgraphStack.length - 1]!.children.push(completed)
-        } else {
-          graph.subgraphs.push(completed)
-        }
+      if (!completed) throw new Error('Unexpected Mermaid subgraph end')
+      if (subgraphStack.length > 0) {
+        subgraphStack[subgraphStack.length - 1]!.children.push(completed)
+      } else {
+        graph.subgraphs.push(completed)
       }
       continue
     }
@@ -162,6 +136,13 @@ function parseFlowchart(lines: string[]): MermaidGraph {
     // --- Edge/node definitions ---
     parseEdgeLine(line, graph, subgraphStack)
   }
+
+  if (subgraphStack.length > 0) throw new Error('Unclosed Mermaid subgraph')
+  const groupIds = new Set(graph.subgraphs.flatMap(flattenSubgraphIds))
+  if (graph.edges.some(edge => groupIds.has(edge.source) || groupIds.has(edge.target))) {
+    throw new Error('Edges connected directly to subgraphs are not supported')
+  }
+  if (graph.nodes.size === 0) throw new Error('Mermaid flowchart has no nodes')
 
   return graph
 }
@@ -188,10 +169,6 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     nodes: new Map(),
     edges: [],
     subgraphs: [],
-    classDefs: new Map(),
-    classAssignments: new Map(),
-    nodeStyles: new Map(),
-    linkStyles: new Map(),
   }
 
   // Track composite state nesting (like subgraphs)
@@ -219,19 +196,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     // --- linkStyle: `linkStyle 0 stroke:#f00` or `linkStyle default stroke:#f00` ---
     const linkStyleMatch = line.match(/^linkStyle\s+(default|[\d,\s]+)\s+(.+)$/)
     if (linkStyleMatch) {
-      const target = linkStyleMatch[1]!.trim()
-      const props = parseStyleProps(linkStyleMatch[2]!)
-      if (target === 'default') {
-        graph.linkStyles.set('default', { ...graph.linkStyles.get('default'), ...props })
-      } else {
-        const indices = target.split(',').map(s => parseInt(s.trim(), 10))
-        for (const idx of indices) {
-          if (!isNaN(idx)) {
-            graph.linkStyles.set(idx, { ...graph.linkStyles.get(idx), ...props })
-          }
-        }
-      }
-      continue
+      throw new Error(`Unsupported Mermaid statement: "${line}"`)
     }
 
     // --- composite state start: `state CompositeState {` ---
@@ -317,7 +282,15 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
       registerStateNode(graph, compositeStack, { id, label, shape: 'rounded' })
       continue
     }
+
+    throw new Error(`Unsupported Mermaid statement: "${line}"`)
   }
+
+  if (compositeStack.length > 0) throw new Error('Unclosed composite state')
+  if (graph.edges.some(edge => !graph.nodes.has(edge.source) || !graph.nodes.has(edge.target))) {
+    throw new Error('Transitions connected directly to composite states are not supported')
+  }
+  if (graph.nodes.size === 0) throw new Error('Mermaid state diagram has no states')
 
   return graph
 }
@@ -363,24 +336,6 @@ function ensureStateNode(
 // Shared utilities
 // ============================================================================
 
-/** Parse "fill:#f00,stroke:#333" style property strings into a Record */
-function parseStyleProps(propsStr: string): Record<string, string> {
-  // Strip trailing semicolons — Mermaid tolerates them (e.g. `stroke:#f00;`)
-  const cleaned = propsStr.replace(/;\s*$/, '')
-  const props: Record<string, string> = {}
-  for (const pair of cleaned.split(',')) {
-    const colonIdx = pair.indexOf(':')
-    if (colonIdx > 0) {
-      const key = pair.slice(0, colonIdx).trim()
-      const val = pair.slice(colonIdx + 1).trim()
-      if (key && val) {
-        props[key] = val
-      }
-    }
-  }
-  return props
-}
-
 // ============================================================================
 // Flowchart edge line parser
 //
@@ -399,7 +354,7 @@ function parseStyleProps(propsStr: string): Record<string, string> {
  *
  * Optional label: -->|label text|
  */
-const ARROW_REGEX = /^(<)?(-->|-.->|==>|---|-\.-|===)(?:\|([^|]*)\|)?/
+const ARROW_REGEX = /^(<|o|x)?(-{2,}|-\.+-|={2,})([>ox])?(?:\|([^|]*)\|)?/
 
 /**
  * Text-embedded label regex — matches "-- label -->", "-. label .->", "== label ==>" syntax.
@@ -415,32 +370,32 @@ const TEXT_ARROW_REGEX = /^(<)?(--|-\.|==)\s+(.+?)\s+(-->|---|\.\->|-\.\-|==>|==
  */
 const NODE_PATTERNS: Array<{ regex: RegExp; shape: NodeShape }> = [
   // Triple delimiters (must be first)
-  { regex: /^([\w-]+)\(\(\((.+?)\)\)\)/, shape: 'doublecircle' },  // A(((text)))
+  { regex: /^([^\s()[\]{}<>|&=:]+)\(\(\((.+?)\)\)\)/, shape: 'doublecircle' },  // A(((text)))
 
   // Double delimiters with mixed brackets
-  { regex: /^([\w-]+)\(\[(.+?)\]\)/,     shape: 'stadium' },       // A([text])
-  { regex: /^([\w-]+)\(\((.+?)\)\)/,     shape: 'circle' },        // A((text))
-  { regex: /^([\w-]+)\[\[(.+?)\]\]/,     shape: 'subroutine' },    // A[[text]]
-  { regex: /^([\w-]+)\[\((.+?)\)\]/,     shape: 'cylinder' },      // A[(text)]
+  { regex: /^([^\s()[\]{}<>|&=:]+)\(\[(.+?)\]\)/,     shape: 'stadium' },       // A([text])
+  { regex: /^([^\s()[\]{}<>|&=:]+)\(\((.+?)\)\)/,     shape: 'circle' },        // A((text))
+  { regex: /^([^\s()[\]{}<>|&=:]+)\[\[(.+?)\]\]/,     shape: 'subroutine' },    // A[[text]]
+  { regex: /^([^\s()[\]{}<>|&=:]+)\[\((.+?)\)\]/,     shape: 'cylinder' },      // A[(text)]
 
   // Trapezoid variants — must come before plain [text]
-  { regex: /^([\w-]+)\[\/(.+?)\\\]/,     shape: 'trapezoid' },     // A[/text\]
-  { regex: /^([\w-]+)\[\\(.+?)\/\]/,     shape: 'trapezoid-alt' }, // A[\text/]
+  { regex: /^([^\s()[\]{}<>|&=:]+)\[\/(.+?)\\\]/,     shape: 'trapezoid' },     // A[/text\]
+  { regex: /^([^\s()[\]{}<>|&=:]+)\[\\(.+?)\/\]/,     shape: 'trapezoid-alt' }, // A[\text/]
 
   // Asymmetric flag shape
-  { regex: /^([\w-]+)>(.+?)\]/,          shape: 'asymmetric' },    // A>text]
+  { regex: /^([^\s()[\]{}<>|&=:]+)>(.+?)\]/,          shape: 'asymmetric' },    // A>text]
 
   // Double curly braces (hexagon) — must come before single {text}
-  { regex: /^([\w-]+)\{\{(.+?)\}\}/,     shape: 'hexagon' },       // A{{text}}
+  { regex: /^([^\s()[\]{}<>|&=:]+)\{\{(.+?)\}\}/,     shape: 'hexagon' },       // A{{text}}
 
   // Single-char delimiters (last — most common, least specific)
-  { regex: /^([\w-]+)\[(.+?)\]/,         shape: 'rectangle' },     // A[text]
-  { regex: /^([\w-]+)\((.+?)\)/,         shape: 'rounded' },       // A(text)
-  { regex: /^([\w-]+)\{(.+?)\}/,         shape: 'diamond' },       // A{text}
+  { regex: /^([^\s()[\]{}<>|&=:]+)\[(.+?)\]/,         shape: 'rectangle' },     // A[text]
+  { regex: /^([^\s()[\]{}<>|&=:]+)\((.+?)\)/,         shape: 'rounded' },       // A(text)
+  { regex: /^([^\s()[\]{}<>|&=:]+)\{(.+?)\}/,         shape: 'diamond' },       // A{text}
 ]
 
 /** Regex for a bare node reference (just an ID, no shape brackets) */
-const BARE_NODE_REGEX = /^([\w-]+)/
+const BARE_NODE_REGEX = /^([^\s()[\]{}<>|&=:]+?)(?=\s|:::|&|$|(?:-{2,}|-\.+-|={2,}))/
 
 /** Regex for ::: class shorthand suffix — matches :::className immediately after a node */
 const CLASS_SHORTHAND_REGEX = /^:::([\w][\w-]*)/
@@ -459,7 +414,9 @@ function parseEdgeLine(
 
   // Parse the first node group (possibly with & separators)
   const firstGroup = consumeNodeGroup(remaining, graph, subgraphStack)
-  if (!firstGroup || firstGroup.ids.length === 0) return
+  if (!firstGroup || firstGroup.ids.length === 0) {
+    throw new Error(`Unsupported Mermaid statement: "${line}"`)
+  }
 
   remaining = firstGroup.remaining.trim()
   let prevGroupIds = firstGroup.ids
@@ -469,22 +426,14 @@ function parseEdgeLine(
     let hasArrowStart: boolean
     let style: EdgeStyle
     let hasArrowEnd: boolean
+    let startMarker: EdgeMarker | undefined
+    let endMarker: EdgeMarker | undefined
     let edgeLabel: string | undefined
 
-    const arrowMatch = remaining.match(ARROW_REGEX)
-    if (arrowMatch) {
-      hasArrowStart = Boolean(arrowMatch[1])
-      const arrowOp = arrowMatch[2]!
-      const rawEdgeLabel = arrowMatch[3]?.trim()
-      edgeLabel = rawEdgeLabel ? normalizeBrTags(rawEdgeLabel) : undefined
-      remaining = remaining.slice(arrowMatch[0].length).trim()
-      style = arrowStyleFromOp(arrowOp)
-      hasArrowEnd = arrowOp.endsWith('>')
-    } else {
-      // Fallback: text-embedded label syntax (-- Yes -->, -. Maybe .->, == Sure ==>)
-      const textMatch = remaining.match(TEXT_ARROW_REGEX)
-      if (!textMatch) break
+    const textMatch = remaining.match(TEXT_ARROW_REGEX)
+    if (textMatch) {
       hasArrowStart = Boolean(textMatch[1])
+      startMarker = hasArrowStart ? 'arrow' : undefined
       const rawLabel = textMatch[3]!.trim()
       edgeLabel = rawLabel ? normalizeBrTags(rawLabel) : undefined
       const openOp = textMatch[2]!
@@ -492,11 +441,26 @@ function parseEdgeLine(
       remaining = remaining.slice(textMatch[0].length).trim()
       style = textArrowStyleFromOps(openOp, closeOp)
       hasArrowEnd = closeOp.endsWith('>')
+      endMarker = hasArrowEnd ? 'arrow' : undefined
+    } else {
+      const arrowMatch = remaining.match(ARROW_REGEX)
+      if (!arrowMatch) throw new Error(`Unsupported Mermaid statement: "${line}"`)
+      startMarker = markerFromToken(arrowMatch[1])
+      hasArrowStart = startMarker === 'arrow'
+      const arrowOp = arrowMatch[2]!
+      endMarker = markerFromToken(arrowMatch[3])
+      hasArrowEnd = endMarker === 'arrow'
+      const rawEdgeLabel = arrowMatch[4]?.trim()
+      edgeLabel = rawEdgeLabel ? normalizeBrTags(rawEdgeLabel) : undefined
+      remaining = remaining.slice(arrowMatch[0].length).trim()
+      style = arrowStyleFromOp(arrowOp)
     }
 
     // Parse the next node group
     const nextGroup = consumeNodeGroup(remaining, graph, subgraphStack)
-    if (!nextGroup || nextGroup.ids.length === 0) break
+    if (!nextGroup || nextGroup.ids.length === 0) {
+      throw new Error(`Invalid Mermaid edge: "${line}"`)
+    }
 
     remaining = nextGroup.remaining.trim()
 
@@ -510,12 +474,20 @@ function parseEdgeLine(
           style,
           hasArrowStart,
           hasArrowEnd,
+          startMarker,
+          endMarker,
         })
       }
     }
 
     prevGroupIds = nextGroup.ids
   }
+
+  if (remaining.length > 0) throw new Error(`Unsupported Mermaid statement: "${line}"`)
+}
+
+function flattenSubgraphIds(group: MermaidSubgraph): string[] {
+  return [group.id, ...group.children.flatMap(flattenSubgraphIds)]
 }
 
 interface ConsumedNodeGroup {
@@ -600,8 +572,7 @@ function consumeNode(
   // Check for ::: class shorthand suffix immediately after the node
   const classMatch = remaining.match(CLASS_SHORTHAND_REGEX)
   if (classMatch) {
-    graph.classAssignments.set(id, classMatch[1]!)
-    remaining = remaining.slice(classMatch[0].length)
+    throw new Error(`Mermaid class shorthand is not supported: "${classMatch[0]}"`)
   }
 
   return { id, remaining }
@@ -632,12 +603,17 @@ function trackInSubgraph(subgraphStack: MermaidSubgraph[], nodeId: string): void
 
 /** Map arrow operator string to edge style (ignoring direction) */
 function arrowStyleFromOp(op: string): EdgeStyle {
-  if (op === '-.->') return 'dotted'
-  if (op === '-.-') return 'dotted'
-  if (op === '==>') return 'thick'
-  if (op === '===') return 'thick'
+  if (op.includes('.')) return 'dotted'
+  if (op.startsWith('=')) return 'thick'
   // '-->'' and '---' are both solid
   return 'solid'
+}
+
+function markerFromToken(token: string | undefined): EdgeMarker | undefined {
+  if (token === '<' || token === '>') return 'arrow'
+  if (token === 'o') return 'circle'
+  if (token === 'x') return 'cross'
+  return undefined
 }
 
 /** Map text-embedded arrow open/close operators to edge style */

@@ -132,7 +132,7 @@ export function parseSequenceDiagram(lines: string[]): SequenceDiagram {
     // Patterns: A->>B, A-->>B, A-)B, A--)B, with optional +/- activation
     // Format: FROM ARROW TO: LABEL
     const msgMatch = line.match(
-      /^(\S+?)\s*(--?>?>|--?[)x]|--?>>|--?>)\s*([+-]?)(\S+?)\s*:\s*(.+)$/
+      /^(\S+?)\s*(-->>|->>|-->|->|--\)|-\)|--x|-x)\s*([+-]?)(\S+?)\s*:\s*(.+)$/
     )
     if (msgMatch) {
       const from = msgMatch[1]!
@@ -147,8 +147,11 @@ export function parseSequenceDiagram(lines: string[]): SequenceDiagram {
 
       // Determine line style and arrow head from the arrow operator
       const lineStyle = arrow.startsWith('--') ? 'dashed' : 'solid'
-      // ">>" = filled arrow, ")" or ">" alone = open arrow, "x" = cross (treat as filled)
-      const arrowHead = arrow.includes('>>') || arrow.includes('x') ? 'filled' : 'open'
+      const arrowHead = arrow.includes('x')
+        ? 'cross'
+        : arrow.includes('>>')
+          ? 'filled'
+          : 'open'
 
       const msg: Message = {
         from,
@@ -158,32 +161,8 @@ export function parseSequenceDiagram(lines: string[]): SequenceDiagram {
         arrowHead,
       }
 
-      // Activation/deactivation via +/- prefix on target
-      if (activationMark === '+') msg.activate = true
-      if (activationMark === '-') msg.deactivate = true
-
-      diagram.messages.push(msg)
-      continue
-    }
-
-    // --- Simplified message format: A->>B: Label (fallback with more relaxed regex) ---
-    const simpleMsgMatch = line.match(
-      /^(\S+?)\s*(->>|-->>|-\)|--\)|-x|--x|->|-->)\s*([+-]?)(\S+?)\s*:\s*(.+)$/
-    )
-    if (simpleMsgMatch) {
-      const from = simpleMsgMatch[1]!
-      const arrow = simpleMsgMatch[2]!
-      const activationMark = simpleMsgMatch[3]
-      const to = simpleMsgMatch[4]!
-      const label = normalizeBrTags(simpleMsgMatch[5]!.trim())
-
-      ensureActor(diagram, actorIds, from)
-      ensureActor(diagram, actorIds, to)
-
-      const lineStyle = arrow.startsWith('--') ? 'dashed' : 'solid'
-      const arrowHead = arrow.includes('>>') || arrow.includes('x') ? 'filled' : 'open'
-
-      const msg: Message = { from, to, label, lineStyle, arrowHead }
+      // Mermaid writes +/- before the target token, but '-' ends the sender's
+      // active interval while '+' starts the receiver's interval.
       if (activationMark === '+') msg.activate = true
       if (activationMark === '-') msg.deactivate = true
 
@@ -192,9 +171,15 @@ export function parseSequenceDiagram(lines: string[]): SequenceDiagram {
     }
 
     // --- activate / deactivate explicit commands ---
-    // These are handled implicitly via +/- on messages but can also appear standalone
-    // For now, we skip explicit activate/deactivate lines (they affect rendering only)
+    if (/^(?:activate|deactivate)\s+\S+$/.test(line)) {
+      throw new Error(`Unsupported Mermaid statement: "${line}"`)
+    }
+
+    throw new Error(`Unsupported Mermaid statement: "${line}"`)
   }
+
+  if (blockStack.length > 0) throw new Error('Unclosed Mermaid sequence block')
+  if (diagram.actors.length === 0) throw new Error('Mermaid sequence diagram has no actors')
 
   return diagram
 }

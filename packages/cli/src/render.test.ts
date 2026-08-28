@@ -99,6 +99,21 @@ describe("headless CharDesk PNG renderer", () => {
     });
   });
 
+  it("renders unsupported Mermaid source while keeping diagnostics out of the artifact", async () => {
+    const source = "```mermaid\nflowchart LR\nA-->B\nclick A https://example.com\n```";
+    const result = await renderSource({
+      source,
+      inputMode: "chargraph",
+      format: "text",
+    });
+    const artifact = new TextDecoder().decode(result.bytes);
+
+    expect(artifact).toBe(source);
+    expect(artifact).not.toContain("Mermaid source preserved:");
+    expect(result.diagnostics[0]?.message)
+      .toMatch(/^Mermaid source preserved:/u);
+  });
+
   it("rejects terminal escapes and oversized images", async () => {
     await expect(renderSourceToPng({
       source: "\u001b[31mRed\u001b[0m",

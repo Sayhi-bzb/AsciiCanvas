@@ -13,6 +13,7 @@
 // ============================================================================
 
 import { parseXYChart } from '../xychart/parser.js'
+import { prepareMermaidLines } from '../parse-utils.js'
 import type { XYChart } from '../xychart/types.js'
 import type { AsciiConfig, CharRole, Canvas, MermaidStyleRole, RoleCanvas } from './types.js'
 import { BoxConnection, glyphForBoxConnections } from './box-drawing.js'
@@ -164,7 +165,7 @@ export function renderXYChartSurface(
   text: string,
   config: AsciiConfig,
 ) {
-  const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%'))
+  const lines = prepareMermaidLines(text)
   const chart = parseXYChart(lines)
   const ch = config.useAscii ? ASC : UNI
 

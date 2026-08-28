@@ -129,9 +129,9 @@ describe("CharGraph showcase examples", () => {
 
     const output = await renderExample(example!);
 
-    expect(output.protocolText).toContain("\u001b[38;2;37;99;235m");
-    expect(output.protocolText).toContain("\u001b[38;2;22;163;74m");
-    expect(output.protocolText).toContain("\u001b[38;2;148;163;184m");
+    expect(output.protocolText).toContain("\u001b[38;2;9;105;218m");
+    expect(output.protocolText).toContain("\u001b[38;2;26;127;55m");
+    expect(output.protocolText).toContain("\u001b[38;2;129;139;152m");
   });
 
   it("renders the dashboard JSON fence through the canonical layout pipeline", async () => {
@@ -161,8 +161,8 @@ describe("CharGraph showcase examples", () => {
 
     const output = await renderExample(example!);
 
-    expect(output.protocolText).toContain("\u001b[38;2;37;99;235m");
-    expect(output.protocolText).toContain("\u001b[38;2;0;0;0m");
+    expect(output.protocolText).toContain("\u001b[38;2;9;105;218m");
+    expect(output.protocolText).toContain("\u001b[38;2;31;35;40m");
     expect(output.protocolText).not.toBe(output.text);
   });
 

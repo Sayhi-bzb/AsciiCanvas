@@ -65,10 +65,13 @@ type DisplaySetting =
         | 'settings.renderTheme.accent'
         | 'settings.renderTheme.accentForeground'
         | 'settings.renderTheme.info'
+        | 'settings.renderTheme.done'
         | 'settings.renderTheme.success'
         | 'settings.renderTheme.warning'
         | 'settings.renderTheme.danger'
-        | 'settings.renderTheme.muted'
+        | 'settings.renderTheme.mutedForeground'
+        | 'settings.renderTheme.borderSubtle'
+        | 'settings.renderTheme.gridSubtle'
         | 'settings.renderTheme.surface'
         | 'settings.renderTheme.surfaceForeground';
     }
@@ -113,10 +116,28 @@ const themeSettings: readonly DisplaySetting[] = [
     label: 'settings.renderTheme.accentForeground',
   },
   { id: 'theme:info', kind: 'theme-token', token: 'info', label: 'settings.renderTheme.info' },
+  { id: 'theme:done', kind: 'theme-token', token: 'done', label: 'settings.renderTheme.done' },
   { id: 'theme:success', kind: 'theme-token', token: 'success', label: 'settings.renderTheme.success' },
   { id: 'theme:warning', kind: 'theme-token', token: 'warning', label: 'settings.renderTheme.warning' },
   { id: 'theme:danger', kind: 'theme-token', token: 'danger', label: 'settings.renderTheme.danger' },
-  { id: 'theme:muted', kind: 'theme-token', token: 'muted', label: 'settings.renderTheme.muted' },
+  {
+    id: 'theme:muted-foreground',
+    kind: 'theme-token',
+    token: 'muted-foreground',
+    label: 'settings.renderTheme.mutedForeground',
+  },
+  {
+    id: 'theme:border-subtle',
+    kind: 'theme-token',
+    token: 'border-subtle',
+    label: 'settings.renderTheme.borderSubtle',
+  },
+  {
+    id: 'theme:grid-subtle',
+    kind: 'theme-token',
+    token: 'grid-subtle',
+    label: 'settings.renderTheme.gridSubtle',
+  },
   { id: 'theme:surface', kind: 'theme-token', token: 'surface', label: 'settings.renderTheme.surface' },
   {
     id: 'theme:surface-foreground',

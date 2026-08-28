@@ -26,6 +26,7 @@ import { renderXYChartSurface } from './xychart.js'
 import { surfaceToString } from './surface.js'
 import type { AsciiRenderSurface } from './types.js'
 import type { AsciiConfig } from './types.js'
+import { prepareMermaidLines } from '../parse-utils.js'
 
 interface AsciiRenderOptions {
   /** true = ASCII chars (+,-,|,>), false = Unicode box-drawing (┌,─,│,►). Default: false */
@@ -43,7 +44,7 @@ interface AsciiRenderOptions {
  * Mirrors the detection logic in src/index.ts for the SVG renderer.
  */
 function detectDiagramType(text: string): 'flowchart' | 'sequence' | 'class' | 'er' | 'xychart' {
-  const firstLine = text.trim().split('\n')[0]?.trim().toLowerCase() ?? ''
+  const firstLine = prepareMermaidLines(text)[0]?.toLowerCase() ?? ''
 
   if (/^xychart(-beta)?\b/.test(firstLine)) return 'xychart'
   if (/^sequencediagram\s*$/.test(firstLine)) return 'sequence'

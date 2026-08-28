@@ -118,6 +118,16 @@ class CanvasViewRuntime {
   getRequestedSessionId = () =>
     this.snapshot.pendingSessionId ?? this.snapshot.sessionId;
 
+  getRequestedViewport = () => {
+    const sessionId = this.getRequestedSessionId();
+    if (!sessionId || sessionId === this.snapshot.sessionId) {
+      return cloneViewport(this.liveViewport);
+    }
+    return cloneViewport(
+      this.sessionViewports.get(sessionId) ?? this.liveViewport
+    );
+  };
+
   requestSession(sessionId: string, fallbackViewport: CanvasViewportState) {
     if (!this.sessionViewports.has(sessionId)) {
       this.sessionViewports.set(sessionId, cloneViewport(fallbackViewport));
@@ -303,7 +313,7 @@ class CanvasWorkspaceRuntime {
 
     const view = this.views[viewId];
     const sessionId = view.getRequestedSessionId();
-    const viewport = cloneViewport(view.getViewport());
+    const viewport = view.getRequestedViewport();
     if (sessionId && sessionId !== this.globalSessionId) {
       this.switchingSessionId = sessionId;
       const switched = await this.switchSession(sessionId);
@@ -315,6 +325,7 @@ class CanvasWorkspaceRuntime {
       }
       view.bindSession(sessionId, viewport);
       view.replaceViewport(viewport);
+      this.publishViewport(viewport);
     } else {
       if (sessionId) view.bindSession(sessionId, viewport);
       this.publishViewport(viewport);
@@ -359,6 +370,9 @@ class CanvasWorkspaceRuntime {
       this.activationGeneration += 1;
     }
     this.globalSessionId = sessionId;
+    const isInternalSwitch =
+      !!sessionId && this.switchingSessionId === sessionId;
+
     if (sessionId) {
       for (const view of Object.values(this.views)) {
         const boundSessionId = view.getSessionId();
@@ -372,7 +386,7 @@ class CanvasWorkspaceRuntime {
     if (sessionId && activeView.getSessionId() !== sessionId) {
       activeView.bindSession(sessionId, viewport);
       this.publishViewport(activeView.getViewport());
-    } else {
+    } else if (!isInternalSwitch) {
       activeView.replaceViewport(viewport);
     }
   }

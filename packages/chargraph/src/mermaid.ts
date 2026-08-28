@@ -23,11 +23,33 @@ export interface MermaidRenderOptions {
   styles?: MermaidStyleMap;
 }
 
+const normalizeStructuralStyles = (
+  styles: MermaidStyleMap | undefined,
+): MermaidStyleMap | undefined => {
+  if (!styles) return undefined;
+  const structural = styles["node.border"]
+    ?? styles["flow.node.border"]
+    ?? styles["edge.line"]
+    ?? styles["edge.arrow"];
+  return {
+    ...styles,
+    ...(structural
+      ? {
+          "node.border": structural,
+          "flow.node.border": structural,
+          "edge.line": structural,
+          "edge.arrow": structural,
+        }
+      : {}),
+  };
+};
+
 export const renderMermaid = async (
   source: string,
   options: MermaidRenderOptions = {}
 ) => {
   try {
+    const styles = normalizeStructuralStyles(options.styles);
     const codec = createCellTextCodec();
     const rendered = await renderMermaidSurface(codec.encode(source), {
       useAscii: options.characterSet === "ascii",
@@ -38,7 +60,7 @@ export const renderMermaid = async (
     const runs = surfaceToStyleRuns(rendered);
     const styledFragments = runs.map(({ text, role }) => ({
         text: codec.decode(text).replace(/\r\n?/g, "\n"),
-        ...(role ? options.styles?.[role] : undefined),
+        ...(role ? styles?.[role] : undefined),
         origin: { from: 0, to: source.length },
       }));
     if (styledFragments.length === 0) {
@@ -48,7 +70,7 @@ export const renderMermaid = async (
       });
     }
     return {
-      fragments: options.styles
+      fragments: styles
         ? styledFragments
         : [{
             text: styledFragments.map((fragment) => fragment.text).join(""),
@@ -64,8 +86,8 @@ export const renderMermaid = async (
       diagnostics: [{
         code: "mermaid-render-failed",
         message: error instanceof Error
-          ? `Could not render Mermaid diagram: ${error.message}`
-          : "Could not render Mermaid diagram.",
+          ? `Mermaid source preserved: ${error.message}`
+          : "Mermaid source preserved: rendering failed.",
         offset: 0,
         length: source.length,
       }],

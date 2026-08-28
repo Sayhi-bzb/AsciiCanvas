@@ -113,6 +113,26 @@ describe('CharScene', () => {
     },
   )
 
+  it('merges perpendicular edge topology independently of semantic roles', () => {
+    const scene = new CharScene(3, 3, false)
+    scene.add({
+      kind: 'stroke',
+      owner: 'solid-horizontal',
+      points: [{ x: 0, y: 1 }, { x: 2, y: 1 }],
+      role: 'border',
+      style: 'solid',
+    })
+    scene.add({
+      kind: 'stroke',
+      owner: 'thick-vertical',
+      points: [{ x: 1, y: 0 }, { x: 1, y: 2 }],
+      role: 'line',
+      style: 'thick',
+    })
+
+    expect(scene.compose().canvas[1]![1]).toBe('╫')
+  })
+
   it('uses a four-way junction only when the stroke passes through the border', () => {
     const scene = new CharScene(5, 5, false)
     scene.add({ kind: 'box', owner: 'node', x: 1, y: 1, width: 3, height: 3 })

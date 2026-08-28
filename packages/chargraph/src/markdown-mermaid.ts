@@ -63,7 +63,7 @@ export const markdownMermaidExtension: MarkdownSyntaxExtension<
       return fallback(
         request.rawSource,
         request.rawOrigin,
-        "Could not render Mermaid diagram: diagram exceeds the 20000-character or 400-line limit."
+        "Mermaid source preserved: diagram exceeds the 20000-character or 400-line limit."
       );
     }
     const diagram = await renderMermaid(request.source, {

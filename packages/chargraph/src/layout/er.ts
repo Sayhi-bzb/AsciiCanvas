@@ -5,7 +5,9 @@ import type {
   ErRelationship,
 } from "../vendor/er/types.js";
 import { splitLines } from "../vendor/ascii/multiline-utils.js";
+import { prepareMermaidLines } from "../vendor/parse-utils.js";
 import type { AsciiConfig, Canvas } from "../vendor/ascii/types.js";
+import type { MermaidStyleRole } from "../mermaid-style.js";
 import type { GridSide, LayoutGraph } from "./model.js";
 import {
   createLayoutLabel,
@@ -21,6 +23,7 @@ import {
 
 interface ErEdgeVisual {
   relationship: ErRelationship;
+  borderStyleRole: MermaidStyleRole;
 }
 
 const entityId = (id: string) => `entity:${id}`;
@@ -134,6 +137,7 @@ export const getErEndpointGlyphs = (
 
 const cardinalityPresentation = (
   cardinality: Cardinality,
+  borderStyleRole: MermaidStyleRole,
 ): LayeredEndpointPresentation => ({
   trimAnchor: true,
   paint(scene, context) {
@@ -148,6 +152,7 @@ const cardinalityPresentation = (
         owner: `${context.edge.id}:${context.end}-cardinality:${index}`,
         at: endpointCell(context.endpoint, index + 1),
         char,
+        styleRole: borderStyleRole,
       });
     }
   },
@@ -157,9 +162,7 @@ export const createLayeredErDiagram = (
   text: string,
   config: AsciiConfig,
 ): { graph: LayoutGraph; presentation: LayeredDiagramPresentation } | undefined => {
-  const lines = text.split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0 && !line.startsWith("%%"));
+  const lines = prepareMermaidLines(text);
   const diagram = parseErDiagram(lines);
   if (diagram.entities.length === 0) return undefined;
 
@@ -186,7 +189,10 @@ export const createLayeredErDiagram = (
   const edgeVisuals = new Map<string, ErEdgeVisual>();
   const edges = diagram.relationships.map((relationship, index) => {
     const id = `er-edge:${index}`;
-    edgeVisuals.set(id, { relationship });
+    edgeVisuals.set(id, {
+      relationship,
+      borderStyleRole: "node.border",
+    });
     return {
       id,
       source: entityId(relationship.entity1),
@@ -211,7 +217,7 @@ export const createLayeredErDiagram = (
   });
 
   const graph: LayoutGraph = {
-    direction: "LR",
+    direction: diagram.direction,
     spacing: {
       nodeNode: Math.max(2, config.paddingY),
       nodeNodeBetweenLayers: Math.max(
@@ -237,14 +243,17 @@ export const createLayeredErDiagram = (
       return {
         stroke: {
           style: visual.relationship.identifying ? "solid" : "dotted",
-          role: visual.relationship.identifying ? "border" : "line",
+          role: "line",
           rounded: true,
+          styleRole: visual.borderStyleRole,
         },
         sourceEndpoint: cardinalityPresentation(
           visual.relationship.cardinality1,
+          visual.borderStyleRole,
         ),
         targetEndpoint: cardinalityPresentation(
           visual.relationship.cardinality2,
+          visual.borderStyleRole,
         ),
       };
     },

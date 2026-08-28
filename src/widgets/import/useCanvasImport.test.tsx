@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { feedback } from "@/shared/services/effects";
 import { useCanvasImport } from "./useCanvasImport";
 
-const { importCanvasSession } = vi.hoisted(() => ({
+const { compileBlackboardDirectory, importCanvasSession } = vi.hoisted(() => ({
+  compileBlackboardDirectory: vi.fn(),
   importCanvasSession: vi.fn(),
 }));
 
@@ -14,6 +15,8 @@ vi.mock("@/domains/canvas/public", async (importOriginal) => ({
   }),
 }));
 
+vi.mock("./blackboard-directory", () => ({ compileBlackboardDirectory }));
+
 const createFileEvent = (text: () => Promise<string>) =>
   ({
     target: {
@@ -22,9 +25,18 @@ const createFileEvent = (text: () => Promise<string>) =>
     },
   }) as unknown as React.ChangeEvent<HTMLInputElement>;
 
+const createDirectoryEvent = () =>
+  ({
+    target: {
+      files: [{ webkitRelativePath: "gpu/blackboard.yaml" }],
+      value: "/gpu",
+    },
+  }) as unknown as React.ChangeEvent<HTMLInputElement>;
+
 describe("useCanvasImport", () => {
   beforeEach(() => {
     importCanvasSession.mockReset();
+    compileBlackboardDirectory.mockReset();
     vi.spyOn(feedback, "success").mockImplementation(() => undefined);
     vi.spyOn(feedback, "error").mockImplementation(() => undefined);
   });
@@ -57,5 +69,44 @@ describe("useCanvasImport", () => {
     expect(feedback.error).toHaveBeenCalledWith("Import failed", {
       description: "Invalid document",
     });
+  });
+
+  it("imports a Blackboard directory as one canonical editable snapshot", async () => {
+    compileBlackboardDirectory.mockResolvedValue({
+      title: "GPU",
+      source: "L R",
+      warnings: [],
+    });
+    const { result } = renderHook(() => useCanvasImport());
+
+    await act(async () => {
+      await result.current.handleBlackboardDirectoryChange(createDirectoryEvent());
+    });
+
+    expect(importCanvasSession).toHaveBeenCalledWith(
+      [
+        "---",
+        "chardesk: document/v1",
+        "mode: freeform",
+        "title: GPU",
+        "---",
+        "L R",
+      ].join("\n"),
+      { name: "GPU", sourceName: "blackboard.chardesk" },
+    );
+  });
+
+  it("reports Blackboard directory failures through existing import feedback", async () => {
+    compileBlackboardDirectory.mockRejectedValue(new Error("Missing blackboard.yaml"));
+    const { result } = renderHook(() => useCanvasImport());
+
+    await act(async () => {
+      await result.current.handleBlackboardDirectoryChange(createDirectoryEvent());
+    });
+
+    expect(feedback.error).toHaveBeenCalledWith("Import failed", {
+      description: "Missing blackboard.yaml",
+    });
+    expect(importCanvasSession).not.toHaveBeenCalled();
   });
 });

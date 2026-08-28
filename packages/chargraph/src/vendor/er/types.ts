@@ -8,6 +8,8 @@
 
 /** Parsed ER diagram — logical structure from mermaid text */
 export interface ErDiagram {
+  /** Layer direction declared by `direction`. */
+  direction: 'TD' | 'TB' | 'LR' | 'BT' | 'RL'
   /** All entity definitions */
   entities: ErEntity[]
   /** Relationships between entities */

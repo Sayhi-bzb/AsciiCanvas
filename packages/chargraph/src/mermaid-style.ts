@@ -2,8 +2,10 @@ import type { CharDeskTextStyle } from "@chardesk/protocol";
 import {
   CHARDESK_LIGHT_RENDER_THEME,
   resolveCharDeskRenderColor,
+  resolveCharDeskRenderTheme,
   type CharDeskRenderColorDefault,
   type CharDeskRenderTheme,
+  type CharDeskRenderThemeInput,
   type CharDeskRenderThemeToken,
 } from "./render-theme.js";
 
@@ -13,11 +15,16 @@ export const MERMAID_STYLE_ROLES = [
   "node.text",
   "node.border",
   "node.background",
+  "flow.node.border",
+  "flow.node.marker",
+  "state.start",
+  "state.end",
   "edge.line",
   "edge.label",
   "edge.arrow",
   "container.border",
   "container.title",
+  "sequence.activation",
   "chart.axis",
   "chart.grid",
   "chart.label",
@@ -49,16 +56,21 @@ export const CHARDESK_MERMAID_COLOR_DEFAULTS = Object.freeze({
   "node.text": token("foreground"),
   "node.border": token("accent"),
   "node.background": inherit,
+  "flow.node.border": token("accent"),
+  "flow.node.marker": token("accent"),
+  "state.start": token("info"),
+  "state.end": token("success"),
   "edge.line": token("accent"),
   "edge.label": token("foreground"),
   "edge.arrow": token("accent"),
-  "container.border": token("muted"),
+  "container.border": token("border-subtle"),
   "container.title": token("accent"),
+  "sequence.activation": token("warning"),
   "chart.axis": token("foreground"),
-  "chart.grid": token("muted"),
+  "chart.grid": token("grid-subtle"),
   "chart.label": token("foreground"),
   "series.1": token("accent"),
-  "series.2": token("info"),
+  "series.2": token("done"),
   "series.3": token("success"),
   "series.4": token("warning"),
   "series.5": token("danger"),
@@ -67,35 +79,48 @@ export const CHARDESK_MERMAID_COLOR_DEFAULTS = Object.freeze({
 >);
 
 export const createCharDeskMermaidStyles = ({
-  theme = CHARDESK_LIGHT_RENDER_THEME,
+  theme: themeInput = CHARDESK_LIGHT_RENDER_THEME,
   colors = {},
 }: {
-  theme?: CharDeskRenderTheme;
+  theme?: CharDeskRenderThemeInput;
   colors?: Partial<Record<MermaidStyleRole, string>>;
 } = {}): CharDeskMermaidStyles => {
+  const theme: CharDeskRenderTheme = resolveCharDeskRenderTheme(themeInput);
   const color = (role: MermaidStyleRole) => colors[role]
     ?? resolveCharDeskRenderColor(CHARDESK_MERMAID_COLOR_DEFAULTS[role], theme);
   const nodeBackground = color("node.background");
-
+  const structuralColor = colors["node.border"]
+    ?? colors["flow.node.border"]
+    ?? colors["edge.line"]
+    ?? colors["edge.arrow"]
+    ?? resolveCharDeskRenderColor(
+      CHARDESK_MERMAID_COLOR_DEFAULTS["node.border"],
+      theme,
+    );
   return {
     title: { color: color("title"), attrs: { bold: true } },
     "node.text": {
       color: color("node.text"),
       bgColor: nodeBackground,
     },
-    "node.border": { color: color("node.border") },
+    "node.border": { color: structuralColor },
     "node.background": { bgColor: nodeBackground },
-    "edge.line": { color: color("edge.line") },
+    "flow.node.border": { color: structuralColor },
+    "flow.node.marker": { color: color("flow.node.marker") },
+    "state.start": { color: color("state.start") },
+    "state.end": { color: color("state.end") },
+    "edge.line": { color: structuralColor },
     "edge.label": {
       color: color("edge.label"),
       attrs: { italic: true },
     },
-    "edge.arrow": { color: color("edge.arrow") },
+    "edge.arrow": { color: structuralColor },
     "container.border": { color: color("container.border") },
     "container.title": {
       color: color("container.title"),
       attrs: { bold: true },
     },
+    "sequence.activation": { color: color("sequence.activation") },
     "chart.axis": { color: color("chart.axis") },
     "chart.grid": { color: color("chart.grid") },
     "chart.label": { color: color("chart.label") },

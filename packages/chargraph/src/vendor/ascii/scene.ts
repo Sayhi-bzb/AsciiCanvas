@@ -252,7 +252,6 @@ const sharesBundle = (left: Contribution, right: Contribution) =>
 
 const perpendicular = (left: Contribution, right: Contribution) => {
   if (left.layer !== right.layer) return false
-  if (rolePriority[left.role] !== rolePriority[right.role]) return false
   const leftTopology = topologyForContribution(left)
   const rightTopology = topologyForContribution(right)
   if (!leftTopology || !rightTopology) return false

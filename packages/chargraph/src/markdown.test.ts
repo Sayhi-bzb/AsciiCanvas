@@ -94,11 +94,20 @@ describe("renderMarkdown", () => {
     const unsupported = await renderMarkdown(
       "```mermaid\npie\n  title Unsupported\n```"
     );
+    const partiallySupported = await renderMarkdown(
+      "```mermaid\nflowchart LR\nA-->B\nclick A https://example.com\n```"
+    );
 
     expect(getCharGraphText(diagram)).toContain("开始");
     expect(getCharGraphText(diagram)).not.toContain("```");
     expect(getCharGraphText(unsupported)).toContain("```mermaid");
     expect(unsupported.diagnostics[0]?.code).toBe("markdown-mermaid-render-failed");
+    expect(getCharGraphText(partiallySupported)).toContain("click A");
+    expect(getCharGraphText(partiallySupported)).toContain("```mermaid");
+    expect(partiallySupported.diagnostics[0]?.code)
+      .toBe("markdown-mermaid-render-failed");
+    expect(partiallySupported.diagnostics[0]?.message)
+      .toMatch(/^Mermaid source preserved:/u);
   });
 
   it("renders inline, block, and fenced math through the syntax extension", async () => {

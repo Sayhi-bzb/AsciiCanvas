@@ -6,7 +6,9 @@ import type {
   RelationshipType,
 } from "../vendor/class/types.js";
 import { splitLines } from "../vendor/ascii/multiline-utils.js";
+import { prepareMermaidLines } from "../vendor/parse-utils.js";
 import type { AsciiConfig, Canvas } from "../vendor/ascii/types.js";
+import type { MermaidStyleRole } from "../mermaid-style.js";
 import type {
   GridPoint,
   LayoutGraph,
@@ -26,12 +28,14 @@ import {
 
 interface ClassNodeVisual {
   canvas: Canvas;
+  borderStyleRole: MermaidStyleRole;
 }
 
 interface ClassEdgeVisual {
   relationship: ClassRelationship;
   sourceLogicalEnd: "from" | "to";
   targetLogicalEnd: "from" | "to";
+  borderStyleRole: MermaidStyleRole;
 }
 
 const nodeId = (id: string) => `class:${id}`;
@@ -87,6 +91,7 @@ const markerFor = (
 const endpointPresentation = (
   relationship: ClassRelationship,
   logicalEnd: "from" | "to",
+  borderStyleRole: MermaidStyleRole,
 ): LayeredEndpointPresentation | undefined => {
   const hasMarker = markerFor(relationship, logicalEnd);
   if (!hasMarker) return undefined;
@@ -100,6 +105,7 @@ const endpointPresentation = (
         travelTowardNode(context.endpoint),
         context.useAscii,
       ),
+      styleRole: borderStyleRole,
     });
   };
   return { trimAnchor: true, paint };
@@ -109,9 +115,7 @@ export const createLayeredClassDiagram = (
   text: string,
   config: AsciiConfig,
 ): { graph: LayoutGraph; presentation: LayeredDiagramPresentation } | undefined => {
-  const lines = text.split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0 && !line.startsWith("%%"));
+  const lines = prepareMermaidLines(text);
   const diagram = parseClassDiagram(lines);
   if (diagram.classes.length === 0) return undefined;
 
@@ -125,7 +129,7 @@ export const createLayeredClassDiagram = (
   const nodes = diagram.classes.map((node) => {
     const id = nodeId(node.id);
     const canvas = createMultiBoxCanvas(buildClassSections(node), config.useAscii);
-    nodeVisuals.set(id, { canvas });
+    nodeVisuals.set(id, { canvas, borderStyleRole: "node.border" });
     return {
       id,
       label: node.label,
@@ -151,7 +155,14 @@ export const createLayeredClassDiagram = (
     const target = hierarchical ? child : relationship.to;
     const sourceLogicalEnd = source === relationship.from ? "from" : "to";
     const targetLogicalEnd = target === relationship.from ? "from" : "to";
-    edgeVisuals.set(id, { relationship, sourceLogicalEnd, targetLogicalEnd });
+    const sourceVisual = nodeVisuals.get(nodeId(source));
+    if (!sourceVisual) throw new Error(`Missing class source ${source}`);
+    edgeVisuals.set(id, {
+      relationship,
+      sourceLogicalEnd,
+      targetLogicalEnd,
+      borderStyleRole: sourceVisual.borderStyleRole,
+    });
     return {
       id,
       source: nodeId(source),
@@ -172,7 +183,7 @@ export const createLayeredClassDiagram = (
   );
 
   const graph: LayoutGraph = {
-    direction: "TD",
+    direction: diagram.direction,
     spacing: {
       nodeNode: Math.max(3, config.paddingX),
       nodeNodeBetweenLayers: Math.max(endpointLabelGap, config.paddingY),
@@ -221,16 +232,19 @@ export const createLayeredClassDiagram = (
       return {
         stroke: {
           style: dotted ? "dotted" : "solid",
-          role: dotted ? "line" : "border",
+          role: "line",
           rounded: true,
+          styleRole: visual.borderStyleRole,
         },
         sourceEndpoint: endpointPresentation(
           visual.relationship,
           visual.sourceLogicalEnd,
+          visual.borderStyleRole,
         ),
         targetEndpoint: endpointPresentation(
           visual.relationship,
           visual.targetLogicalEnd,
+          visual.borderStyleRole,
         ),
       };
     },

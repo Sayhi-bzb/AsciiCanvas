@@ -3,11 +3,16 @@ import {
   CharDeskTextCompileError,
   compileCharDeskText,
 } from "@chardesk/chargraph";
-import { resolveReadableBoardPath, type WorkspaceBoardPath } from "./paths.js";
+import {
+  isBlackboardManifestPath,
+  resolveReadableBoardPath,
+  type WorkspaceBoardPath,
+} from "./paths.js";
 import { resolveBlackboardSource } from "./document.js";
+import { BlackboardPackageError, compileBlackboardPackage } from "./package.js";
 
-type BlackboardCheckResult =
-  | { accepted: true }
+export type BlackboardCheckResult =
+  | { accepted: true; warnings?: string[] }
   | {
       accepted: false;
       issue: {
@@ -15,7 +20,11 @@ type BlackboardCheckResult =
           | "invalid-utf8"
           | "unsupported-document-mode"
           | "terminal-escape"
-          | "protocol-diagnostic";
+          | "protocol-diagnostic"
+          | "invalid-manifest"
+          | "invalid-panel-path"
+          | "missing-panel"
+          | "invalid-panel";
         message: string;
         offset?: number;
       };
@@ -74,5 +83,26 @@ export const checkBlackboardBytes = async (
   return { accepted: true };
 };
 
-export const checkBlackboardFile = async (board: WorkspaceBoardPath) =>
-  checkBlackboardBytes(await readFile(await resolveReadableBoardPath(board)));
+export const checkBlackboardFile = async (
+  board: WorkspaceBoardPath,
+): Promise<BlackboardCheckResult> => {
+  const readable = await resolveReadableBoardPath(board);
+  if (!isBlackboardManifestPath(readable)) {
+    return checkBlackboardBytes(await readFile(readable));
+  }
+  try {
+    const compiled = await compileBlackboardPackage(readable);
+    return {
+      accepted: true,
+      ...(compiled.warnings.length === 0
+        ? {}
+        : { warnings: compiled.warnings.map((warning) => warning.message) }),
+    };
+  } catch (error) {
+    if (!(error instanceof BlackboardPackageError)) throw error;
+    return {
+      accepted: false,
+      issue: { code: error.code, message: error.message },
+    };
+  }
+};

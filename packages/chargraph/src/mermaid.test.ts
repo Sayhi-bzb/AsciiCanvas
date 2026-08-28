@@ -8,6 +8,7 @@ import {
   renderMermaid,
   type MermaidRenderOptions,
 } from "./mermaid.js";
+import { CHARDESK_LIGHT_RENDER_THEME } from "./render-theme.js";
 import { parseMermaid } from "./vendor/parser.js";
 
 const renderMermaidText = (
@@ -32,6 +33,11 @@ describe("renderMermaidText", () => {
   it("publishes one unique set of semantic style roles", () => {
     expect(new Set(MERMAID_STYLE_ROLES).size).toBe(MERMAID_STYLE_ROLES.length);
     expect(MERMAID_STYLE_ROLES).toContain("node.background");
+    expect(MERMAID_STYLE_ROLES).toContain("flow.node.border");
+    expect(MERMAID_STYLE_ROLES).toContain("flow.node.marker");
+    expect(MERMAID_STYLE_ROLES).toContain("state.start");
+    expect(MERMAID_STYLE_ROLES).toContain("state.end");
+    expect(MERMAID_STYLE_ROLES).toContain("sequence.activation");
     expect(MERMAID_STYLE_ROLES).toContain("series.5");
   });
 
@@ -44,11 +50,38 @@ describe("renderMermaidText", () => {
       .toEqual([...MERMAID_STYLE_ROLES]);
     expect(CHARDESK_MERMAID_COLOR_DEFAULTS["edge.line"])
       .toEqual({ kind: "token", token: "accent" });
+    expect(CHARDESK_MERMAID_COLOR_DEFAULTS["sequence.activation"])
+      .toEqual({ kind: "token", token: "warning" });
+    expect(CHARDESK_MERMAID_COLOR_DEFAULTS["flow.node.border"])
+      .toEqual({ kind: "token", token: "accent" });
+    expect(CHARDESK_MERMAID_COLOR_DEFAULTS["flow.node.marker"])
+      .toEqual({ kind: "token", token: "accent" });
+    expect(CHARDESK_MERMAID_COLOR_DEFAULTS["state.start"])
+      .toEqual({ kind: "token", token: "info" });
+    expect(CHARDESK_MERMAID_COLOR_DEFAULTS["state.end"])
+      .toEqual({ kind: "token", token: "success" });
+    expect(styles["sequence.activation"])
+      .toEqual({ color: CHARDESK_LIGHT_RENDER_THEME.warning });
+    expect(styles["flow.node.border"])
+      .toEqual({ color: CHARDESK_LIGHT_RENDER_THEME.accent });
+    expect(styles["flow.node.marker"])
+      .toEqual({ color: CHARDESK_LIGHT_RENDER_THEME.accent });
+    expect(styles["state.start"])
+      .toEqual({ color: CHARDESK_LIGHT_RENDER_THEME.info });
+    expect(styles["state.end"])
+      .toEqual({ color: CHARDESK_LIGHT_RENDER_THEME.success });
+    expect(styles["container.border"])
+      .toEqual({ color: CHARDESK_LIGHT_RENDER_THEME["border-subtle"] });
+    expect(styles["chart.grid"])
+      .toEqual({ color: CHARDESK_LIGHT_RENDER_THEME["grid-subtle"] });
+    expect(styles["series.2"])
+      .toEqual({ color: CHARDESK_LIGHT_RENDER_THEME.done });
     expect(new Set([
       styles["node.border"].color,
+      styles["flow.node.border"].color,
       styles["edge.line"].color,
       styles["edge.arrow"].color,
-    ])).toEqual(new Set(["#2563eb"]));
+    ])).toEqual(new Set(["#0969da"]));
   });
 
   it("resolves Mermaid overrides without losing fixed attributes", () => {
@@ -68,12 +101,143 @@ describe("renderMermaidText", () => {
     expect(styles["node.text"]?.bgColor).toBe("#654321");
     expect(styles["node.background"]?.bgColor).toBe("#654321");
     expect(styles["edge.line"]?.color).toBe("#fedcba");
-    expect(styles["node.border"]?.color).toBe("#2563eb");
-    expect(styles["edge.arrow"]?.color).toBe("#2563eb");
+    expect(styles["node.border"]?.color).toBe("#fedcba");
+    expect(styles["flow.node.border"]?.color).toBe("#fedcba");
+    expect(styles["edge.arrow"]?.color).toBe("#fedcba");
     expect(styles["edge.label"]).toEqual({
       color: "#abcdef",
       attrs: { italic: true },
     });
+  });
+
+  it("prefers node borders and accepts a legacy Flow border fallback", () => {
+    const legacy = createCharDeskMermaidStyles({
+      colors: { "flow.node.border": "#abcdef" },
+    });
+    const explicit = createCharDeskMermaidStyles({
+      colors: {
+        "node.border": "#123456",
+        "flow.node.border": "#abcdef",
+        "flow.node.marker": "#fedcba",
+      },
+    });
+
+    expect(legacy["node.border"]?.color).toBe("#abcdef");
+    expect(legacy["flow.node.border"]?.color).toBe("#abcdef");
+    expect(legacy["edge.line"]?.color).toBe("#abcdef");
+    expect(explicit["flow.node.border"]?.color).toBe("#123456");
+    expect(explicit["edge.line"]?.color).toBe("#123456");
+    expect(explicit["flow.node.marker"]?.color).toBe("#fedcba");
+  });
+
+  it("styles Flow borders and markers independently without changing text", async () => {
+    const source = "flowchart LR\n  A([开始]) --> B{检查}";
+    const plain = await renderMermaidText(source);
+    const styled = await renderMermaid(source, {
+      styles: {
+        "flow.node.border": { color: "#111111" },
+        "flow.node.marker": { color: "#222222" },
+      },
+    });
+
+    expect(getCharGraphText(styled)).toBe(plain);
+    expect(styled.fragments.some((fragment) =>
+      fragment.color === "#111111" && /[╭╮╰╯]/u.test(fragment.text)
+    )).toBe(true);
+    expect(styled.fragments.some((fragment) =>
+      fragment.color === "#111111" && />/u.test(fragment.text)
+    )).toBe(true);
+    expect(styled.fragments.some((fragment) =>
+      fragment.color === "#222222" && /[●◇]/u.test(fragment.text)
+    )).toBe(true);
+  });
+
+  it("styles State pseudostates without coloring their adjacent edges", async () => {
+    const source = "stateDiagram-v2\n  [*] --> draft\n  draft --> [*]";
+    const styles = {
+      "node.border": { color: "#111111" },
+      "state.start": { color: "#222222" },
+      "state.end": { color: "#333333" },
+    } as const;
+    const unicode = await renderMermaid(source, { styles });
+    const ascii = await renderMermaid(source, {
+      characterSet: "ascii",
+      styles,
+    });
+
+    expect(unicode.fragments.some((fragment) =>
+      fragment.color === "#222222" && fragment.text.includes("●")
+    )).toBe(true);
+    expect(unicode.fragments.some((fragment) =>
+      fragment.color === "#333333" && fragment.text.includes("◎")
+    )).toBe(true);
+    expect(unicode.fragments.some((fragment) =>
+      fragment.color === "#111111" && /[│v]/u.test(fragment.text)
+    )).toBe(true);
+    expect(ascii.fragments.some((fragment) =>
+      fragment.color === "#222222" && fragment.text.includes("*")
+    )).toBe(true);
+    expect(ascii.fragments.some((fragment) =>
+      fragment.color === "#333333" && fragment.text.includes("O")
+    )).toBe(true);
+    expect([...unicode.fragments, ...ascii.fragments].every((fragment) =>
+      !["#222222", "#333333"].includes(fragment.color ?? "")
+        || !/[│|v^<>-]/u.test(fragment.text)
+    )).toBe(true);
+  });
+
+  it("treats legacy edge-only styles as a structural border fallback", async () => {
+    const source = "flowchart LR\n  A[Start] --> B[Done]";
+    const result = await renderMermaid(source, {
+      styles: { "edge.line": { color: "#123456" } },
+    });
+
+    expect(result.fragments.some((fragment) =>
+      fragment.color === "#123456" && /[╭╮╰╯]/u.test(fragment.text)
+    )).toBe(true);
+    expect(result.fragments.some((fragment) =>
+      fragment.color === "#123456" && />/u.test(fragment.text)
+    )).toBe(true);
+  });
+
+  it("styles sequence activation independently without changing its text", async () => {
+    const source = `sequenceDiagram
+participant User
+participant API
+User->>+API: Request
+API-->>-User: Completed`;
+    const plain = await renderMermaidText(source);
+    const styled = await renderMermaid(source, {
+      styles: {
+        "node.border": { color: "#111111" },
+        "edge.line": { color: "#222222" },
+        "edge.arrow": { color: "#333333" },
+        "sequence.activation": { color: "#abcdef" },
+      },
+    });
+    const activationFragments = styled.fragments.filter((fragment) =>
+      fragment.text.includes("┃")
+    );
+
+    expect(getCharGraphText(styled)).toBe(plain);
+    expect(activationFragments.length).toBeGreaterThan(0);
+    expect(activationFragments.every((fragment) =>
+      "color" in fragment && fragment.color === "#abcdef"
+    ))
+      .toBe(true);
+    expect(styled.fragments.some((fragment) =>
+      "color" in fragment &&
+      fragment.color === "#111111" &&
+      /[╭╮╰╯]/u.test(fragment.text)
+    )).toBe(true);
+    expect(styled.fragments.some((fragment) =>
+      "color" in fragment &&
+      fragment.color === "#111111" &&
+      /[>╌─]/u.test(fragment.text)
+    )).toBe(true);
+    expect(styled.fragments.every((fragment) =>
+      fragment.color !== "#222222" && fragment.color !== "#333333"
+    )).toBe(true);
   });
 
   it.each([
@@ -95,6 +259,39 @@ describe("renderMermaidText", () => {
     expect(new Set(styled.fragments.map((fragment) => fragment.color))).toEqual(
       new Set([undefined, "#111111", "#222222", "#444444"])
     );
+  });
+
+  it.each([
+    ["Flow", "flowchart LR\n  A[Start] --> B[Done]", "#111111", />/u],
+    ["State", "stateDiagram-v2\n  A --> B", "#111111", /[v^]/u],
+    ["Class", "classDiagram\n  A --> B", "#111111", /[>v^]/u],
+    ["ER", "erDiagram\n  A ||--o{ B : owns", "#111111", /○/u],
+    ["Sequence", "sequenceDiagram\n  A->>B: call", "#111111", />/u],
+  ])("binds %s node borders, edge lines, and arrows to one structural color", async (
+    _,
+    source,
+    expected,
+    marker,
+  ) => {
+    const result = await renderMermaid(source, {
+      styles: {
+        "node.border": { color: "#111111" },
+        "flow.node.border": { color: "#444444" },
+        "edge.line": { color: "#222222" },
+        "edge.arrow": { color: "#333333" },
+      },
+    });
+    expect(result.fragments.some((fragment) =>
+      fragment.color === expected && /[╭╮╰╯]/u.test(fragment.text)
+    )).toBe(true);
+    expect(result.fragments.some((fragment) =>
+      fragment.color === expected && marker.test(fragment.text)
+    )).toBe(true);
+    expect(result.fragments.every((fragment) =>
+      fragment.color !== "#222222"
+        && fragment.color !== "#333333"
+        && fragment.color !== "#444444"
+    )).toBe(true);
   });
 
   it("keeps XY series identities available to the style layer", async () => {
@@ -246,8 +443,8 @@ describe("renderMermaidText", () => {
       .split("\n")
       .find((line) => line.includes("验证通过？"));
 
-    expect(decisionLine).toContain("│ 验证通过？ ├");
-    expect(decisionLine).not.toContain("│ 验证通过？ │├");
+    expect(decisionLine).toContain("│ ◇ 验证通过？ ├");
+    expect(decisionLine).not.toContain("│ ◇ 验证通过？ │├");
     expect(output).toContain("是");
     expect(output).toContain("否");
     expect(output).toMatch(/>│ 保存数据 /u);
@@ -345,7 +542,7 @@ describe("renderMermaidText", () => {
   D --> A`);
 
     expect(output).toContain("^");
-    expect(output).toMatch(/◇─+┬.*◇/u);
+    expect(output).toContain("│ ◇ 验证？ │");
     expect(output).not.toMatch(/[◇│] +[├┤┬┴]/u);
   });
 
@@ -425,9 +622,7 @@ describe("renderMermaidText", () => {
       undefined,
       "#111111",
       "#222222",
-      "#444444",
       "#555555",
-      "#666666",
       "#777777",
       "#888888",
     ]));
@@ -640,8 +835,8 @@ describe("renderMermaidText", () => {
   end
   X[外部] --> A`);
 
-    expect(output).toMatch(/│─*>\( +开始 +\)/u);
-    expect(output).not.toMatch(/[┼+]─*>\( +开始 +\)/u);
+    expect(output).toMatch(/│─*>│ ● 开始 ├/u);
+    expect(output).not.toMatch(/[┼+]─*>│ ● 开始 ├/u);
     expectNoInternalCellTokens(output);
   });
 
@@ -691,7 +886,7 @@ describe("renderMermaidText", () => {
     expect(classOutput).not.toMatch(/[△▽◁▷]/u);
     expect(classOutput).toContain("◆");
     expect(erOutput).toMatch(/││─+创建─+○╟│/u);
-    expect(shapeOutput).toContain("▷──────┐");
+    expect(shapeOutput).toContain("│ ▷ 告警 │");
   });
 
   it("keeps edge labels inside route corners in advanced flowcharts", async () => {
@@ -704,13 +899,13 @@ describe("renderMermaidText", () => {
 
     expect(output).toMatch(/[═║]通过|通过[═║]/u);
     expect(output).toContain("失败");
-    expect(output).toMatch(/>│ 记录告警 │/u);
+    expect(output).toMatch(/>│ ▷ 记录告警 │/u);
     const lines = output.split("\n");
     const validationRow = lines.findIndex((line) => line.includes("校验规则"));
     const successRow = lines.findIndex((line) => line.includes("通过"));
     expect(successRow).toBeGreaterThan(validationRow);
     expect(lines.slice(0, validationRow).join("\n")).not.toContain("═");
-    expect(output).toMatch(/╚═+通过═+>│ 缓存 │/u);
+    expect(output).toMatch(/╚═+通过═+>│ ▤ 缓存 │/u);
     expectTerminalArrows(output);
     expectNoInternalCellTokens(output);
   });
@@ -822,16 +1017,18 @@ describe("renderMermaidText", () => {
     expectNoInternalCellTokens(output);
   });
 
-  it("rounds subroutine outer corners without losing its double border", async () => {
+  it("expresses a subroutine as a marked Flow card", async () => {
     const unicode = await renderMermaidText("flowchart LR\n  A[[同步服务]]");
     const ascii = await renderMermaidText("flowchart LR\n  A[[同步服务]]", {
       characterSet: "ascii",
     });
 
-    expect(unicode).toMatch(/╭┬─+┬╮/u);
-    expect(unicode).toMatch(/╰┴─+┴╯/u);
+    expect(unicode).toContain("│ ▣ 同步服务 │");
+    expect(unicode).toMatch(/^╭─+╮/u);
+    expect(unicode).toMatch(/╰─+╯$/u);
     expect(unicode).not.toMatch(/[┌┐└┘]/u);
-    expect(ascii).toMatch(/\+\+-+\+\+/u);
+    expect(ascii).toContain("| # 同步服务 |");
+    expect(ascii).toMatch(/^\+-+\+/u);
   });
 
   it.each([

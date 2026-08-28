@@ -3,8 +3,14 @@ import { readFile, realpath } from "node:fs/promises";
 import { createServer, type ServerResponse } from "node:http";
 import { basename, extname, isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { resolveReadableBoardPath, type WorkspaceBoardPath } from "./paths.js";
+import { serializeCharDeskDocumentEnvelope } from "@chardesk/document";
+import {
+  isBlackboardManifestPath,
+  resolveReadableBoardPath,
+  type WorkspaceBoardPath,
+} from "./paths.js";
 import { resolveBlackboardSource } from "./document.js";
+import { compileBlackboardPackage } from "./package.js";
 
 const SECURITY_HEADERS = {
   "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; connect-src 'self'; img-src 'none'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
@@ -46,6 +52,27 @@ type BlackboardServerOptions = {
   appRoot?: string;
 };
 
+const readBoardProjection = async (readable: string) => {
+  if (isBlackboardManifestPath(readable)) {
+    const compiled = await compileBlackboardPackage(readable);
+    return {
+      source: serializeCharDeskDocumentEnvelope({
+        mode: "freeform",
+        title: compiled.title,
+        body: compiled.source,
+      }),
+      sourceName: "blackboard.chardesk",
+    };
+  }
+  const bytes = await readFile(readable);
+  return {
+    source: resolveBlackboardSource(
+      new TextDecoder("utf-8", { fatal: true }).decode(bytes)
+    ),
+    sourceName: basename(readable),
+  };
+};
+
 export const startBlackboardServer = async ({
   board,
   port = 7331,
@@ -79,31 +106,32 @@ export const startBlackboardServer = async ({
           send(response, 403);
           return;
         }
-        const bytes = await readFile(readable);
-        const etag = `"${createHash("sha256").update(bytes).digest("hex")}"`;
+        let projection: Awaited<ReturnType<typeof readBoardProjection>>;
+        try {
+          projection = await readBoardProjection(readable);
+        } catch (error) {
+          send(response, 422, error instanceof Error ? error.message : "Invalid board source.", {
+            "Cache-Control": "no-store",
+            "Content-Type": "text/plain; charset=utf-8",
+          });
+          return;
+        }
+        const etag = `"${createHash("sha256")
+          .update(projection.sourceName)
+          .update("\0")
+          .update(projection.source)
+          .digest("hex")}"`;
         const headers = { "Cache-Control": "no-cache", ETag: etag };
         if (request.headers["if-none-match"] === etag) {
           send(response, 304, undefined, headers);
           return;
         }
-        let source: string;
-        try {
-          source = resolveBlackboardSource(
-            new TextDecoder("utf-8", { fatal: true }).decode(bytes)
-          );
-        } catch (error) {
-          send(response, 422, error instanceof Error ? error.message : "Invalid board source.", {
-            ...headers,
-            "Content-Type": "text/plain; charset=utf-8",
-          });
-          return;
-        }
-        const body = new TextEncoder().encode(source);
+        const body = new TextEncoder().encode(projection.source);
         send(response, 200, body, {
           ...headers,
           "Content-Length": String(body.byteLength),
           "Content-Type": "text/plain; charset=utf-8",
-          "X-CharDesk-Source-Name": basename(board.path),
+          "X-CharDesk-Source-Name": projection.sourceName,
         });
         return;
       }

@@ -19,17 +19,20 @@ import type { CharDeskMarkdownModule } from "./markdown-module.js";
 import {
   CHARDESK_LIGHT_RENDER_THEME,
   resolveCharDeskRenderColor,
+  resolveCharDeskRenderTheme,
   type CharDeskRenderColorDefault,
-  type CharDeskRenderTheme,
+  type CharDeskRenderThemeInput,
 } from "./render-theme.js";
 
 export {
   CHARDESK_LIGHT_RENDER_THEME,
   CHARDESK_RENDER_THEME_TOKENS,
+  resolveCharDeskRenderTheme,
 } from "./render-theme.js";
 export type {
   CharDeskRenderColorDefault,
   CharDeskRenderTheme,
+  CharDeskRenderThemeInput,
   CharDeskRenderThemeToken,
 } from "./render-theme.js";
 export type {
@@ -113,12 +116,13 @@ const configuredColor = (
 ) => (colors[featureId] as Readonly<Record<string, string>> | undefined)?.[slot];
 
 export const createCharDeskMarkdownStyles = ({
-  theme = CHARDESK_LIGHT_RENDER_THEME,
+  theme: themeInput = CHARDESK_LIGHT_RENDER_THEME,
   colors = {},
 }: {
-  theme?: CharDeskRenderTheme;
+  theme?: CharDeskRenderThemeInput;
   colors?: CharDeskMarkdownColorOverrides;
 } = {}): CharDeskMarkdownStyles => {
+  const theme = resolveCharDeskRenderTheme(themeInput);
   const styles: MarkdownTextStyles = {};
   const extensionStyles: Record<string, CharDeskTextStyle> = {};
   let codeTheme: ThemeRegistration | undefined;
@@ -157,7 +161,7 @@ export const createCharDeskMarkdownRenderOptions = ({
   features = {},
   forced = false,
 }: {
-  theme?: CharDeskRenderTheme;
+  theme?: CharDeskRenderThemeInput;
   features?: CharDeskMarkdownFeatureStates;
   forced?: boolean;
 } = {}): MarkdownRenderOptions => {

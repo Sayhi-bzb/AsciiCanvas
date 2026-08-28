@@ -32,6 +32,7 @@ import { normalizeBrTags } from '../multiline-utils.js'
  */
 export function parseErDiagram(lines: string[]): ErDiagram {
   const diagram: ErDiagram = {
+    direction: 'LR',
     entities: [],
     relationships: [],
   }
@@ -44,6 +45,12 @@ export function parseErDiagram(lines: string[]): ErDiagram {
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i]!
 
+    const directionMatch = line.match(/^direction\s+(TD|TB|LR|BT|RL)$/i)
+    if (directionMatch && !currentEntity) {
+      diagram.direction = directionMatch[1]!.toUpperCase() as ErDiagram['direction']
+      continue
+    }
+
     // --- Inside entity body ---
     if (currentEntity) {
       if (line === '}') {
@@ -55,8 +62,9 @@ export function parseErDiagram(lines: string[]): ErDiagram {
       const attr = parseAttribute(line)
       if (attr) {
         currentEntity.attributes.push(attr)
+        continue
       }
-      continue
+      throw new Error(`Unsupported Mermaid ER attribute: "${line}"`)
     }
 
     // --- Entity block start: `ENTITY_NAME {` ---
@@ -77,9 +85,14 @@ export function parseErDiagram(lines: string[]): ErDiagram {
       diagram.relationships.push(rel)
       continue
     }
+
+    throw new Error(`Unsupported Mermaid statement: "${line}"`)
   }
 
+  if (currentEntity) throw new Error('Unclosed Mermaid ER entity')
+
   diagram.entities = [...entityMap.values()]
+  if (diagram.entities.length === 0) throw new Error('Mermaid ER diagram has no entities')
   return diagram
 }
 
@@ -115,7 +128,7 @@ function parseAttribute(line: string): ErAttribute | null {
 
   // Extract key constraints
   const restWithoutComment = rest.replace(/"[^"]*"/, '').trim()
-  for (const part of restWithoutComment.split(/\s+/)) {
+  for (const part of restWithoutComment.split(/[\s,]+/)) {
     const upper = part.toUpperCase()
     if (upper === 'PK' || upper === 'FK' || upper === 'UK') {
       keys.push(upper as 'PK' | 'FK' | 'UK')

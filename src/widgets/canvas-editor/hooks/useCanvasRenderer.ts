@@ -62,6 +62,11 @@ import {
 } from '../engine/FrameScheduler';
 import { CanvasRenderManager } from '../engine/CanvasRenderManager';
 import { shouldDrawCanvasGrid } from '../rendering/canvasGridVisibility';
+import {
+  resolveCanvasContentDpr,
+  resolveCanvasContentResolutionMode,
+  type CanvasContentResolutionMode,
+} from '../rendering/canvasContentResolution';
 import type { CanvasSurfaceGeometry } from '../canvasSurfaceGeometry';
 export type { StructuredMovePreview } from './interaction/structured/structuredInteractionPreview';
 
@@ -268,6 +273,7 @@ export const useCanvasRenderer = (
   );
   const renderedTextCursor = canvasMode !== 'structured' ? staticGridView.textCursor : textCursor;
   const [renderManager] = useState(() => new CanvasRenderManager());
+  const contentResolutionModeRef = useRef<CanvasContentResolutionMode>('full');
   const fallbackViewportRef = useRef({ offset, zoom });
   useEffect(() => {
     fallbackViewportRef.current = { offset, zoom };
@@ -316,6 +322,14 @@ export const useCanvasRenderer = (
         : structuredScene;
 
       const dpr = window.devicePixelRatio || 1;
+      contentResolutionModeRef.current = resolveCanvasContentResolutionMode(
+        zoom,
+        contentResolutionModeRef.current
+      );
+      const contentDpr = resolveCanvasContentDpr(
+        dpr,
+        contentResolutionModeRef.current
+      );
       const renderOffset = offset;
       const viewBounds = GridManager.getViewportGridBounds(
         surfaceGeometry.width,
@@ -367,7 +381,7 @@ export const useCanvasRenderer = (
           bgCtx,
           surfaceGeometry.width,
           surfaceGeometry.height,
-          dpr
+          contentDpr
         );
           bgCtx.fillStyle = slidePageRect ? "#e5e7eb" : BACKGROUND_COLOR;
           bgCtx.fillRect(0, 0, surfaceGeometry.width, surfaceGeometry.height);

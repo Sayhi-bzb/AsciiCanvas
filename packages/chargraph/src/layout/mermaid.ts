@@ -1,14 +1,17 @@
 import { getBoxGlyphTopology } from "../vendor/ascii/box-drawing.js";
 import {
+  createFlowCardPresentation,
   getShapeDimensions,
   renderShape,
+  type FlowCardPresentation,
 } from "../vendor/ascii/shapes/index.js";
 import type { CharRole } from "../vendor/ascii/types.js";
+import type { MermaidStyleRole } from "../mermaid-style.js";
 import type {
   EdgeStyle,
+  EdgeMarker,
   MermaidGraph,
   MermaidSubgraph,
-  NodeShape,
 } from "../vendor/types.js";
 import type {
   GridPoint,
@@ -34,14 +37,20 @@ interface LayeredMermaidRenderOptions {
 }
 
 interface MermaidNodePresentation {
-  label: string;
-  shape: NodeShape;
+  canvas: FlowCardPresentation["canvas"];
+  dimensions: FlowCardPresentation["dimensions"];
+  marker?: FlowCardPresentation["marker"];
+  semanticStyleRole?: MermaidStyleRole;
+  borderStyleRole: MermaidStyleRole;
 }
 
 interface MermaidEdgePresentation {
   style: EdgeStyle;
   hasArrowStart: boolean;
   hasArrowEnd: boolean;
+  startMarker?: EdgeMarker;
+  endMarker?: EdgeMarker;
+  borderStyleRole: MermaidStyleRole;
 }
 
 const nodeId = (id: string) => `node:${id}`;
@@ -86,19 +95,28 @@ const arrowCharacter = (travel: GridPoint) => {
   return ">";
 };
 
-const arrowMarker: LayeredEndpointPainter = (scene, context) => {
-  scene.add({
-    kind: "marker",
-    owner: `${context.edge.id}:${context.end}-arrow`,
-    at: context.endpoint.marker,
-    char: arrowCharacter({
+const endpointMarker = (
+  marker: EdgeMarker,
+  borderStyleRole: MermaidStyleRole,
+): LayeredEndpointPainter =>
+  (scene, context) => {
+    const travel = {
       x: -context.endpoint.outward.x,
       y: -context.endpoint.outward.y,
-    }),
-    styleRole: "edge.arrow",
-    bundleId: context.edge.routing?.bundleId,
-  });
-};
+    };
+    scene.add({
+      kind: "marker",
+      owner: `${context.edge.id}:${context.end}-${marker}`,
+      at: context.endpoint.marker,
+      char: marker === "arrow"
+        ? arrowCharacter(travel)
+        : marker === "circle"
+          ? (context.useAscii ? "o" : "○")
+          : (context.useAscii ? "x" : "×"),
+      styleRole: borderStyleRole,
+      bundleId: context.edge.routing?.bundleId,
+    });
+  };
 
 const createLayeredMermaidDiagram = (
   parsed: MermaidGraph,
@@ -114,15 +132,27 @@ const createLayeredMermaidDiagram = (
 
   const nodes: LayoutNode[] = [...parsed.nodes].map(([id, node]) => {
     const idForLayout = nodeId(id);
-    const dimensions = getShapeDimensions(node.shape, node.label, {
+    const shapeOptions = {
       useAscii: options.useAscii,
       padding: options.boxBorderPadding,
       paddingX: options.boxBorderPaddingX,
       paddingY: options.boxBorderPaddingY,
-    });
+    };
+    const flowCard = !isStateDiagram
+      ? createFlowCardPresentation(node.shape, node.label, shapeOptions)
+      : undefined;
+    const dimensions = flowCard?.dimensions
+      ?? getShapeDimensions(node.shape, node.label, shapeOptions);
     nodePresentations.set(idForLayout, {
-      label: node.label,
-      shape: node.shape,
+      canvas: flowCard?.canvas ?? renderShape(node.shape, node.label, shapeOptions),
+      dimensions,
+      marker: flowCard?.marker,
+      semanticStyleRole: node.shape === "state-start"
+        ? "state.start"
+        : node.shape === "state-end"
+          ? "state.end"
+          : undefined,
+      borderStyleRole: "node.border",
     });
     return {
       id: idForLayout,
@@ -141,10 +171,17 @@ const createLayeredMermaidDiagram = (
 
   const edges = parsed.edges.map((edge, index) => {
     const id = `edge:${index}`;
+    const sourcePresentation = nodePresentations.get(nodeId(edge.source));
+    if (!sourcePresentation) {
+      throw new Error(`Missing presentation for edge source ${edge.source}`);
+    }
     edgePresentations.set(id, {
       style: edge.style,
       hasArrowStart: edge.hasArrowStart,
       hasArrowEnd: edge.hasArrowEnd,
+      startMarker: edge.startMarker,
+      endMarker: edge.endMarker,
+      borderStyleRole: sourcePresentation.borderStyleRole,
     });
     return {
       id,
@@ -157,8 +194,8 @@ const createLayeredMermaidDiagram = (
         ...(!isStateDiagram
           ? { bundle: "structured" as const, bundleKey: edge.style }
           : {}),
-        ...(edge.hasArrowStart ? { sourceClearance: 1 } : {}),
-        ...(edge.hasArrowEnd ? { targetClearance: 1 } : {}),
+        ...(edge.startMarker || edge.hasArrowStart ? { sourceClearance: 1 } : {}),
+        ...(edge.endMarker || edge.hasArrowEnd ? { targetClearance: 1 } : {}),
       },
     };
   });
@@ -207,31 +244,28 @@ const createLayeredMermaidDiagram = (
         styleRole: "container.title",
       });
     },
-    drawNode(scene, node, context) {
+    drawNode(scene, node) {
       const visual = nodePresentations.get(node.id);
       if (!visual) throw new Error(`Missing presentation for node ${node.id}`);
-      const shapeOptions = {
-        useAscii: context.useAscii,
-        padding: options.boxBorderPadding,
-        paddingX: options.boxBorderPaddingX,
-        paddingY: options.boxBorderPaddingY,
-      };
-      const dimensions = getShapeDimensions(
-        visual.shape,
-        visual.label,
-        shapeOptions,
-      );
+      const cellRole = (x: number, y: number, char: string) =>
+        roleForShapeCell(x, y, char, visual.dimensions.labelArea);
       writeCanvasFragment(
         scene,
-        renderShape(visual.shape, visual.label, shapeOptions),
+        visual.canvas,
         node,
         node.id,
-        (x, y, char) => roleForShapeCell(x, y, char, dimensions.labelArea),
-        (x, y, char) => char === " "
-          ? "node.background"
-          : roleForShapeCell(x, y, char, dimensions.labelArea) === "border"
-            ? "node.border"
-            : "node.text",
+        cellRole,
+        (x, y, char) => {
+          if (char === " ") return "node.background";
+          if (visual.semanticStyleRole) return visual.semanticStyleRole;
+          if (visual.marker?.x === x && visual.marker.y === y) {
+            return "flow.node.marker";
+          }
+          if (cellRole(x, y, char) === "border") {
+            return visual.borderStyleRole;
+          }
+          return "node.text";
+        },
       );
     },
     edge(edge) {
@@ -240,15 +274,27 @@ const createLayeredMermaidDiagram = (
       return {
         stroke: {
           style: visual.style,
-          role: visual.style === "solid" ? "border" : "line",
+          role: "line",
           rounded: true,
-          styleRole: "edge.line",
+          styleRole: visual.borderStyleRole,
         },
-        sourceEndpoint: visual.hasArrowStart
-          ? { trimAnchor: true, paint: arrowMarker }
+        sourceEndpoint: visual.startMarker || visual.hasArrowStart
+          ? {
+              trimAnchor: true,
+              paint: endpointMarker(
+                visual.startMarker ?? "arrow",
+                visual.borderStyleRole,
+              ),
+            }
           : undefined,
-        targetEndpoint: visual.hasArrowEnd
-          ? { trimAnchor: true, paint: arrowMarker }
+        targetEndpoint: visual.endMarker || visual.hasArrowEnd
+          ? {
+              trimAnchor: true,
+              paint: endpointMarker(
+                visual.endMarker ?? "arrow",
+                visual.borderStyleRole,
+              ),
+            }
           : undefined,
       };
     },
