@@ -2,59 +2,38 @@ import { describe, expect, it } from 'vitest';
 import { CanvasRenderExperience } from './CanvasRenderExperience';
 
 describe('CanvasRenderExperience', () => {
-  it('records compositor presentation, rebase, and settle quality', () => {
-    let now = 100;
-    const experience = new CanvasRenderExperience(() => now);
-
-    experience.recordPresentation('presented');
-    experience.recordPresentation('constrained');
-    experience.recordPresentation('out-of-coverage');
-    experience.recordViewportRebase();
-    experience.recordDeferredViewportRender('pan');
-    experience.recordDeferredViewportRender('zoom');
-    experience.recordViewportActivity();
-    experience.recordViewportSceneInvalidation();
-    experience.recordViewportMissingBaseline();
-    experience.markSettling('viewport-interaction');
-    now = 114;
-    experience.recordDirectGlyphFrame(240);
-
-    expect(experience.getStats()).toEqual({
-      presentationFrames: 2,
-      constrainedFrames: 1,
-      coverageMissFrames: 1,
-      viewportRebases: 1,
-      deferredPanRenders: 1,
-      deferredZoomRenders: 1,
-      viewportSceneInvalidations: 1,
-      viewportMissingBaselines: 1,
-      viewportActivities: 1,
-      directGlyphFrames: 1,
-      directGlyphs: 240,
-      mainThreadGlyphs: 240,
-      lastPresentationLatencyMs: null,
-      maxPresentationGapMs: 0,
-      longPresentationGaps: 0,
-      lastSettleLatencyMs: 14,
-    });
-  });
-
-  it('measures camera-to-presentation latency and long transform gaps', () => {
+  it('tracks exact frames, glyphs, latency, and long renders', () => {
     let now = 0;
     const experience = new CanvasRenderExperience(() => now);
 
     experience.recordViewportActivity();
-    now = 5;
-    experience.recordPresentation('presented');
-    now = 45;
-    experience.recordViewportActivity();
-    now = 48;
-    experience.recordPresentation('presented');
+    now = 12;
+    experience.recordDirectFrame(240, 8);
+    experience.markSettling('viewport-interaction');
+    now = 55;
+    experience.recordDirectFrame(180, 40);
 
-    expect(experience.getStats()).toMatchObject({
-      lastPresentationLatencyMs: 3,
-      maxPresentationGapMs: 43,
-      longPresentationGaps: 1,
+    expect(experience.getStats()).toEqual({
+      viewportActivities: 1,
+      directFrames: 2,
+      directGlyphs: 180,
+      totalDirectGlyphs: 420,
+      lastFrameDurationMs: 40,
+      maxFrameDurationMs: 40,
+      longFrames: 1,
+      lastInputPaintMs: 12,
+      lastSettleLatencyMs: 43,
     });
+  });
+
+  it('ignores non-viewport settling transitions', () => {
+    let now = 0;
+    const experience = new CanvasRenderExperience(() => now);
+
+    experience.markSettling('content-interaction');
+    now = 20;
+    experience.recordDirectFrame(1, 2);
+
+    expect(experience.getStats().lastSettleLatencyMs).toBeNull();
   });
 });

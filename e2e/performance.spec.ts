@@ -334,8 +334,13 @@ const runSmoothScenario = async (
   await action();
   await page.waitForTimeout(300);
   const metrics = await readSmoothProbe(page, name);
+  const renderer = await page.evaluate(() =>
+    (window as Window & {
+      __chardeskCanvasExperienceStats?: () => Record<string, number | null>;
+    }).__chardeskCanvasExperienceStats?.() ?? null
+  );
   await testInfo.attach(`${name}.json`, {
-    body: JSON.stringify(metrics, null, 2),
+    body: JSON.stringify({ metrics, renderer }, null, 2),
     contentType: "application/json",
   });
 
@@ -343,7 +348,10 @@ const runSmoothScenario = async (
   expect(metrics.p95FrameMs, `${name} p95 frame interval`).toBeLessThanOrEqual(
     limits.p95FrameMs
   );
-  expect(metrics.over50ms, `${name} >50ms frames`).toBeLessThanOrEqual(
+  expect(
+    metrics.over50ms,
+    `${name} >50ms frames; metrics=${JSON.stringify(metrics)}; renderer=${JSON.stringify(renderer)}`
+  ).toBeLessThanOrEqual(
     limits.maxOver50msFrames
   );
   return metrics;
@@ -489,38 +497,25 @@ test.describe.serial("Performance smoke", () => {
     });
   });
 
-  test("slide pan, wheel, and zoom use the shared raster path", async ({ page }, testInfo) => {
+  test("slide pan, wheel, and zoom use the shared exact renderer", async ({ page }, testInfo) => {
     await openSeededCanvas(page, "slide");
     await expect.poll(() => page.evaluate(() => {
-      const stats = (window as Window & {
-        __chardeskCanvasRasterStats?: () => {
-          qualityByPane: Record<string, { sharpCoverage: number }>;
-        };
-      }).__chardeskCanvasRasterStats?.();
-      const quality = Object.values(stats?.qualityByPane ?? {});
-      return quality.length > 0
-        ? Math.min(...quality.map(({ sharpCoverage }) => sharpCoverage))
-        : 0;
-    })).toBe(1);
-    const readRasterWork = () =>
+      return (window as Window & {
+        __chardeskCanvasExperienceStats?: () => { directFrames: number };
+      }).__chardeskCanvasExperienceStats?.().directFrames ?? 0;
+    })).toBeGreaterThan(0);
+    const readRenderWork = () =>
       page.evaluate(() => {
         const diagnostics = window as Window & {
-          __chardeskCanvasRasterStats?: () => {
-            hits: number;
-            misses: number;
-          };
           __chardeskCanvasExperienceStats?: () => {
-            deferredPanRenders: number;
-            deferredZoomRenders: number;
-            mainThreadGlyphs: number;
+            directFrames: number;
+            totalDirectGlyphs: number;
+            maxFrameDurationMs: number;
           };
         };
-        return {
-          raster: diagnostics.__chardeskCanvasRasterStats?.() ?? null,
-          experience: diagnostics.__chardeskCanvasExperienceStats?.() ?? null,
-        };
+        return diagnostics.__chardeskCanvasExperienceStats?.() ?? null;
       });
-    const before = await readRasterWork();
+    const before = await readRenderWork();
 
     const pan = await runSmoothScenario(
       page,
@@ -540,18 +535,11 @@ test.describe.serial("Performance smoke", () => {
       () => wheelFor(page, { ctrl: true }),
       testInfo
     );
-    const after = await readRasterWork();
+    const after = await readRenderWork();
 
-    expect(after.raster).not.toBeNull();
-    expect(
-      (after.raster?.hits ?? 0) + (after.raster?.misses ?? 0)
-    ).toBeGreaterThan(
-      (before.raster?.hits ?? 0) + (before.raster?.misses ?? 0)
-    );
-    expect(after.experience?.deferredPanRenders ?? 0).toBeGreaterThan(0);
-    expect(after.experience?.deferredZoomRenders ?? 0).toBeGreaterThan(0);
-    expect(after.experience?.mainThreadGlyphs).toBe(
-      before.experience?.mainThreadGlyphs
+    expect(after?.directFrames ?? 0).toBeGreaterThan(before?.directFrames ?? 0);
+    expect(after?.totalDirectGlyphs ?? 0).toBeGreaterThan(
+      before?.totalDirectGlyphs ?? 0
     );
 
     await testInfo.attach("slide-summary.json", {

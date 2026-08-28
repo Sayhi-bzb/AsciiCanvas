@@ -218,44 +218,4 @@ describe('CanvasWorkspace', () => {
     expect(screen.getByTestId('secondary-session')).toHaveTextContent('canvas-a');
   });
 
-  it('publishes unified resource stats and applies visibility pressure', () => {
-    let hidden = false;
-    vi.spyOn(document, 'hidden', 'get').mockImplementation(() => hidden);
-    render(
-      <CanvasWorkspaceProvider>
-        <WorkspaceHarness />
-      </CanvasWorkspaceProvider>
-    );
-    const diagnostics = window as Window & {
-      __chardeskCanvasResourceStats?: () => {
-        memory: {
-          pressure: string;
-          hidden: boolean;
-          limits: { 'cell-plane': number };
-        };
-        projection: { byteBudget: number };
-      };
-    };
-
-    expect(diagnostics.__chardeskCanvasResourceStats?.()).toMatchObject({
-      memory: { pressure: 'normal', hidden: false },
-    });
-    expect(
-      diagnostics.__chardeskCanvasResourceStats?.().projection.byteBudget
-    ).toBe(
-      diagnostics.__chardeskCanvasResourceStats?.().memory.limits['cell-plane']
-    );
-
-    hidden = true;
-    document.dispatchEvent(new Event('visibilitychange'));
-    expect(diagnostics.__chardeskCanvasResourceStats?.()).toMatchObject({
-      memory: { pressure: 'constrained', hidden: true },
-    });
-
-    hidden = false;
-    document.dispatchEvent(new Event('visibilitychange'));
-    expect(diagnostics.__chardeskCanvasResourceStats?.()).toMatchObject({
-      memory: { pressure: 'normal', hidden: false },
-    });
-  });
 });

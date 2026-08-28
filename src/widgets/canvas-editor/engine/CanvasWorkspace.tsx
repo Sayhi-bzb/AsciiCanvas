@@ -18,10 +18,6 @@ import {
 } from '@/domains/canvas/public';
 import { CanvasEngineRuntime } from './CanvasEngineRuntime';
 import { CanvasFrameScheduler, CanvasScopedFrameScheduler } from './FrameScheduler';
-import { RetainedCanvas2DContentBackend } from '../rendering/CanvasContentBackend';
-import { CanvasRenderWorkerClient } from '../rendering/CanvasRenderWorkerClient';
-import { evaluateCanvasRenderHealth } from '../rendering/CanvasRenderHealth';
-import { CanvasMemoryGovernor } from '../rendering/CanvasMemoryGovernor';
 
 export type CanvasViewId = 'primary' | 'secondary';
 
@@ -85,7 +81,6 @@ class CanvasViewRuntime {
   private readonly sessionViewports = new Map<string, CanvasViewportState>();
   private pendingWorldCenter: { x: number; y: number } | null = null;
   private readonly listeners = new Set<() => void>();
-  private readonly presentationListeners = new Set<() => void>();
   private readonly viewportListeners = new Set<() => void>();
   private readonly publish: (viewport: CanvasViewportState) => void;
 
@@ -158,7 +153,6 @@ class CanvasViewRuntime {
     const changed = !sameViewport(this.liveViewport, next);
     if (changed) {
       this.liveViewport = next;
-      this.presentationListeners.forEach((listener) => listener());
       this.viewportListeners.forEach((listener) => listener());
     }
     if (options.transient) return;
@@ -192,7 +186,6 @@ class CanvasViewRuntime {
     this.liveViewport = viewport;
     this.snapshot = { ...this.snapshot, viewport, size };
     if (viewportChanged) {
-      this.presentationListeners.forEach((listener) => listener());
       this.viewportListeners.forEach((listener) => listener());
     }
     this.listeners.forEach((listener) => listener());
@@ -229,7 +222,6 @@ class CanvasViewRuntime {
       viewport,
     };
     this.liveViewport = cloneViewport(viewport);
-    this.presentationListeners.forEach((listener) => listener());
     this.viewportListeners.forEach((listener) => listener());
     this.listeners.forEach((listener) => listener());
   }
@@ -244,21 +236,10 @@ class CanvasViewRuntime {
     return () => this.viewportListeners.delete(listener);
   };
 
-  subscribePresentation = (listener: () => void) => {
-    this.presentationListeners.add(listener);
-    return () => this.presentationListeners.delete(listener);
-  };
 }
 
 class CanvasWorkspaceRuntime {
   readonly views: Record<CanvasViewId, CanvasViewRuntime>;
-  readonly memoryGovernor = new CanvasMemoryGovernor();
-  readonly renderWorker = new CanvasRenderWorkerClient(this.memoryGovernor);
-  readonly contentBackend = new RetainedCanvas2DContentBackend(
-    undefined,
-    this.renderWorker,
-    this.memoryGovernor
-  );
   private readonly frameScheduler = new CanvasFrameScheduler();
   private readonly publishViewport: (viewport: CanvasViewportState) => void;
   private readonly switchSession: (sessionId: string) => Promise<boolean>;
@@ -271,40 +252,16 @@ class CanvasWorkspaceRuntime {
   private disposed = false;
   private activationGeneration = 0;
   private switchingSessionId: string | null = null;
-  private readonly releaseMemoryPolicy: () => void;
-  private readonly releaseProjectionCache: () => void;
 
   constructor(
     sessionId: string | null,
     viewport: CanvasViewportState,
     publishViewport: (viewport: CanvasViewportState) => void,
-    switchSession: (sessionId: string) => Promise<boolean>,
-    memoryPort: {
-      getProjectionCacheStats: () => { bytes: number };
-      setProjectionCacheBudget: (bytes: number) => void;
-      subscribeProjectionCache: (listener: () => void) => () => void;
-    }
+    switchSession: (sessionId: string) => Promise<boolean>
   ) {
     this.globalSessionId = sessionId;
     this.publishViewport = publishViewport;
     this.switchSession = switchSession;
-    const applyMemoryPolicy = (policy = this.memoryGovernor.getPolicy()) => {
-      this.contentBackend.syncMemoryPolicy();
-      this.renderWorker.setMemoryPolicy(policy);
-      memoryPort.setProjectionCacheBudget(
-        this.memoryGovernor.getLimit('cell-plane')
-      );
-    };
-    const syncProjectionCache = () => this.memoryGovernor.report(
-      'cell-plane',
-      memoryPort.getProjectionCacheStats().bytes
-    );
-    this.releaseMemoryPolicy = this.memoryGovernor.subscribe(applyMemoryPolicy);
-    this.releaseProjectionCache = memoryPort.subscribeProjectionCache(
-      syncProjectionCache
-    );
-    syncProjectionCache();
-    applyMemoryPolicy();
     const publish = (viewId: CanvasViewId) => (next: CanvasViewportState) => {
       if (
         viewId === this.activeViewId &&
@@ -448,10 +405,6 @@ class CanvasWorkspaceRuntime {
     this.views.secondary.engine.dispose();
     this.views.primary.engine.dispose();
     this.frameScheduler.dispose();
-    this.releaseProjectionCache();
-    this.releaseMemoryPolicy();
-    this.contentBackend.clear();
-    this.renderWorker.dispose();
   }
 }
 
@@ -481,12 +434,7 @@ export function CanvasWorkspaceProvider({ children }: { children: ReactNode }) {
       state.activeCanvasId,
       { offset: state.offset, zoom: state.zoom },
       (viewport) => canvas.commands.viewport.setViewport(() => viewport),
-      canvas.commands.sessions.switch,
-      {
-        getProjectionCacheStats: canvas.getProjectionCacheStats,
-        setProjectionCacheBudget: canvas.setProjectionCacheBudget,
-        subscribeProjectionCache: canvas.subscribeProjectionCache,
-      }
+      canvas.commands.sessions.switch
     );
   });
   const [storedSplitEnabled, storeSplitEnabled] = useLocalStorageState<boolean>(
@@ -521,51 +469,6 @@ export function CanvasWorkspaceProvider({ children }: { children: ReactNode }) {
   }, [activeCanvasId, canvas, runtime]);
 
   useEffect(() => runtime.acquire(), [runtime]);
-
-  useEffect(() => {
-    const diagnostics = window as Window & {
-      __chardeskCanvasRasterStats?: () => ReturnType<RetainedCanvas2DContentBackend['getStats']>;
-      __chardeskCanvasRenderWorkerStats?: () => ReturnType<CanvasRenderWorkerClient['getStats']>;
-      __chardeskCanvasResourceStats?: () => {
-        memory: ReturnType<CanvasMemoryGovernor['getStats']>;
-        projection: ReturnType<typeof canvas.getProjectionCacheStats>;
-        raster: ReturnType<RetainedCanvas2DContentBackend['getStats']>;
-        worker: ReturnType<CanvasRenderWorkerClient['getStats']>;
-      };
-      __chardeskCanvasRenderHealth?: () => ReturnType<typeof evaluateCanvasRenderHealth>;
-    };
-    const readStats = () => runtime.contentBackend.getStats();
-    diagnostics.__chardeskCanvasRasterStats = readStats;
-    const readWorkerStats = () => runtime.renderWorker.getStats();
-    diagnostics.__chardeskCanvasRenderWorkerStats = readWorkerStats;
-    const readResourceStats = () => ({
-      memory: runtime.memoryGovernor.getStats(),
-      projection: canvas.getProjectionCacheStats(),
-      raster: readStats(),
-      worker: readWorkerStats(),
-    });
-    diagnostics.__chardeskCanvasResourceStats = readResourceStats;
-    const readHealth = () => evaluateCanvasRenderHealth(readResourceStats());
-    diagnostics.__chardeskCanvasRenderHealth = readHealth;
-    const syncPressure = () => runtime.memoryGovernor.setVisibility(document.hidden);
-    syncPressure();
-    document.addEventListener('visibilitychange', syncPressure);
-    return () => {
-      if (diagnostics.__chardeskCanvasRasterStats === readStats) {
-        delete diagnostics.__chardeskCanvasRasterStats;
-      }
-      if (diagnostics.__chardeskCanvasRenderWorkerStats === readWorkerStats) {
-        delete diagnostics.__chardeskCanvasRenderWorkerStats;
-      }
-      if (diagnostics.__chardeskCanvasResourceStats === readResourceStats) {
-        delete diagnostics.__chardeskCanvasResourceStats;
-      }
-      if (diagnostics.__chardeskCanvasRenderHealth === readHealth) {
-        delete diagnostics.__chardeskCanvasRenderHealth;
-      }
-      document.removeEventListener('visibilitychange', syncPressure);
-    };
-  }, [canvas, runtime]);
 
   useEffect(() => {
     if (splitEnabled) runtime.openSplit();
@@ -683,7 +586,7 @@ export const useCanvasViewOptional = () => {
         zoom: updater(current.zoom),
       })),
     setViewport: selectedRuntime.setViewport,
-    subscribeViewport: selectedRuntime.subscribePresentation,
+    subscribeViewport: selectedRuntime.subscribeViewport,
     getViewport: selectedRuntime.getViewport,
     containerSize: snapshot.size,
     setContainerSize: selectedRuntime.setContainerSize,

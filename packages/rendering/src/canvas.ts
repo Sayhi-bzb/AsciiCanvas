@@ -170,7 +170,7 @@ export const resolveCharDeskCanvasCellVisual = (
 ): CharDeskCanvasCellVisual => {
   const color = cell.color ?? palette.color;
   if (!cell.attrs?.inverse) {
-    return { ...cell, color };
+    return cell.color ? cell as CharDeskCanvasCellVisual : { ...cell, color };
   }
   return {
     ...cell,
@@ -198,34 +198,40 @@ const drawDecoration = (
 
 const drawCellBackground = (
   ctx: CharDeskCanvasContext,
-  entry: CharDeskCanvasCellDrawEntry
+  entry: CharDeskCanvasCellDrawEntry,
+  visual: CharDeskCanvasCellVisual,
+  previousColor: string | null
 ) => {
   const options = entry.options;
   const metrics = options?.metrics ?? DEFAULT_CHARDESK_CANVAS_METRICS;
   const zoom = options?.zoom ?? 1;
-  const palette = options?.palette ?? DEFAULT_PALETTE;
-  const visual = resolveCharDeskCanvasCellVisual(entry.cell, palette);
-  if (!visual.bgColor) return;
-  ctx.fillStyle = visual.bgColor;
+  if (!visual.bgColor) return previousColor;
+  if (visual.bgColor !== previousColor) ctx.fillStyle = visual.bgColor;
   ctx.fillRect(
     entry.x,
     entry.y,
     metrics.cellWidth * zoom * entry.cell.width,
     metrics.cellHeight * zoom
   );
+  return visual.bgColor;
+};
+
+type CanvasTextState = {
+  font: string | null;
+  color: string | null;
 };
 
 const drawCellText = (
   ctx: CharDeskCanvasContext,
-  entry: CharDeskCanvasCellDrawEntry
+  entry: CharDeskCanvasCellDrawEntry,
+  visual: CharDeskCanvasCellVisual,
+  state: CanvasTextState
 ) => {
   const options = entry.options;
   const metrics = options?.metrics ?? DEFAULT_CHARDESK_CANVAS_METRICS;
   const zoom = options?.zoom ?? 1;
-  const palette = options?.palette ?? DEFAULT_PALETTE;
   const availability = options?.fontAvailability ??
     DEFAULT_CHARDESK_CANVAS_FONT_AVAILABILITY;
-  const visual = resolveCharDeskCanvasCellVisual(entry.cell, palette);
   const color = visual.color;
   const attrs: CharDeskTextAttributes | undefined = visual.attrs;
   const route = visual.fontRoute;
@@ -247,15 +253,21 @@ const drawCellText = (
     metrics
   );
 
-  ctx.font = getCharDeskCanvasFont(metrics, zoom, {
+  const font = getCharDeskCanvasFont(metrics, zoom, {
     bold: !!attrs?.bold,
     italic: !!attrs?.italic,
     route,
     fontFamily,
   });
-  ctx.textBaseline = "middle";
-  ctx.textAlign = "center";
-  ctx.fillStyle = options?.color ?? color;
+  if (font !== state.font) {
+    ctx.font = font;
+    state.font = font;
+  }
+  const textColor = options?.color ?? color;
+  if (textColor !== state.color) {
+    ctx.fillStyle = textColor;
+    state.color = textColor;
+  }
   ctx.fillText(text, Math.round(anchor.x), Math.round(anchor.y));
 
   const cellWidth = metrics.cellWidth * zoom * visual.width;
@@ -289,11 +301,27 @@ export const drawCharDeskCanvasCells = (
   entries: readonly CharDeskCanvasCellDrawEntry[]
 ) => {
   ctx.save();
-  for (const entry of entries) {
-    if (entry.drawBackground !== false) drawCellBackground(ctx, entry);
+  const visuals = new Array<CharDeskCanvasCellVisual>(entries.length);
+  let backgroundColor: string | null = null;
+  for (let index = 0; index < entries.length; index += 1) {
+    const entry = entries[index]!;
+    const visual = resolveCharDeskCanvasCellVisual(
+      entry.cell,
+      entry.options?.palette ?? DEFAULT_PALETTE
+    );
+    visuals[index] = visual;
+    if (entry.drawBackground !== false) {
+      backgroundColor = drawCellBackground(ctx, entry, visual, backgroundColor);
+    }
   }
-  for (const entry of entries) {
-    if (entry.drawText !== false) drawCellText(ctx, entry);
+  ctx.textBaseline = "middle";
+  ctx.textAlign = "center";
+  const textState: CanvasTextState = { font: null, color: null };
+  for (let index = 0; index < entries.length; index += 1) {
+    const entry = entries[index]!;
+    if (entry.drawText !== false) {
+      drawCellText(ctx, entry, visuals[index]!, textState);
+    }
   }
   ctx.restore();
 };

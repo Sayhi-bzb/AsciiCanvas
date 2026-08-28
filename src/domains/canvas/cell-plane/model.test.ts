@@ -175,6 +175,26 @@ describe("CellPlaneIndex", () => {
       .map((cell) => cell.char)).toEqual(["A", "B"]);
   });
 
+  it("visits only resident cells inside the requested bounds", () => {
+    const plane = new CellPlaneIndex([{
+      id: "visit",
+      bounds: { x: 127, y: 0, width: 4, height: 1 },
+      rows: [{
+        y: 0,
+        erase: [],
+        spans: [{ x: 127, text: "A你B", color: "#fff" }],
+      }],
+    }]);
+    const visited: Array<[number, number, string]> = [];
+
+    plane.visitCells(
+      { x: 128, y: 0, width: 2, height: 1 },
+      (x, y, cell) => visited.push([x, y, cell.char])
+    );
+
+    expect(visited).toEqual([[128, 0, "你"]]);
+  });
+
   it("counts logical cells without warming projection caches", () => {
     const plane = new CellPlaneIndex([{
       id: "count",

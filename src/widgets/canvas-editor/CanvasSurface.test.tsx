@@ -10,9 +10,8 @@ vi.mock('./StructuredSplitToolbar', () => ({
 }));
 
 describe('CanvasSurface', () => {
-  it('composes canvas rasters without scaling host overlays or input', () => {
+  it('composes exact canvas layers without scaling host overlays or input', () => {
     const containerRef = createRef<HTMLDivElement>();
-    const viewportLayerRef = createRef<HTMLDivElement>();
     const contentCanvasRef = createRef<HTMLCanvasElement>();
     const interactionCanvasRef = createRef<HTMLCanvasElement>();
     const textareaRef = createRef<HTMLTextAreaElement>();
@@ -21,7 +20,6 @@ describe('CanvasSurface', () => {
     render(
       <CanvasSurface
         containerRef={containerRef}
-        viewportLayerRef={viewportLayerRef}
         contentCanvasRef={contentCanvasRef}
         interactionCanvasRef={interactionCanvasRef}
         surfaceGeometry={surfaceGeometry}
@@ -38,7 +36,8 @@ describe('CanvasSurface', () => {
     const layer = screen.getByTestId('canvas-viewport-layer');
     expect(surface).toHaveAttribute('data-slot', 'canvas-surface');
     expect(surface).toHaveAttribute('data-onboarding-target', 'canvas');
-    expect(layer).toHaveClass('absolute', 'inset-0', 'origin-top-left', 'will-change-transform');
+    expect(layer).toHaveClass('absolute', 'inset-0', 'pointer-events-none');
+    expect(layer).not.toHaveClass('origin-top-left', 'will-change-transform');
     expect(layer.querySelectorAll(':scope > canvas')).toHaveLength(2);
     expect(layer).toContainElement(contentCanvasRef.current);
     expect(layer).toContainElement(interactionCanvasRef.current);
@@ -46,10 +45,10 @@ describe('CanvasSurface', () => {
     expect(interactionCanvasRef.current).toHaveAttribute('data-canvas-layer', 'interaction');
     layer.querySelectorAll(':scope > canvas').forEach((canvas) => {
       expect(canvas).toHaveStyle({
-        left: '-128px',
-        top: '-128px',
-        width: '1256px',
-        height: '956px',
+        left: '0px',
+        top: '0px',
+        width: '1000px',
+        height: '700px',
       });
     });
     expect(layer).not.toContainElement(screen.getByTestId('content-overlay'));
@@ -62,7 +61,6 @@ describe('CanvasSurface', () => {
       <EditorPresentationProvider initialMode="zen">
         <CanvasSurface
           containerRef={createRef<HTMLDivElement>()}
-          viewportLayerRef={createRef<HTMLDivElement>()}
           contentCanvasRef={createRef<HTMLCanvasElement>()}
           interactionCanvasRef={createRef<HTMLCanvasElement>()}
           surfaceGeometry={undefined}

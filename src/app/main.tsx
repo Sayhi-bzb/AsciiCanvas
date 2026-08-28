@@ -42,76 +42,35 @@ if (new URLSearchParams(window.location.search).has("canvas-stress")) {
           : null;
       },
       memoryStats: () => host.canvas.queries.getMemoryStats(),
-      rasterStats: () => (window as Window & {
-        __chardeskCanvasRasterStats?: () => Record<string, number>;
-      }).__chardeskCanvasRasterStats?.() ?? null,
-      renderWorkerStats: () => (window as Window & {
-        __chardeskCanvasRenderWorkerStats?: () => Record<
-          string,
-          number | boolean | string | null
-        >;
-      }).__chardeskCanvasRenderWorkerStats?.() ?? null,
       resourceStats: () => {
-        const snapshot = (window as Window & {
-          __chardeskCanvasResourceStats?: () => {
-            memory: {
-              pressure: string;
-              hidden: boolean;
-              totalBytes: number;
-              nominalBudget: number;
-              usage: Record<string, number>;
-            };
-            worker: { loadedFontFaces: number };
-            raster: {
-              qualityByPane: Record<string, {
-                scaleError: number;
-                sharpCoverage: number;
-                transientBytes: number;
-              }>;
-            };
-          };
-        }).__chardeskCanvasResourceStats?.();
-        if (!snapshot) return null;
+        const memory = host.canvas.queries.getMemoryStats();
         const experience = (window as Window & {
           __chardeskCanvasExperienceStats?: () => {
-            presentationFrames: number;
-            panRebases: number;
-            deferredPanRenders: number;
-            panSceneInvalidations: number;
-            panMissingBaselines: number;
             viewportActivities: number;
+            directFrames: number;
             directGlyphs: number;
-            mainThreadGlyphs: number;
+            totalDirectGlyphs: number;
+            lastFrameDurationMs: number | null;
+            maxFrameDurationMs: number;
+            longFrames: number;
+            lastInputPaintMs: number | null;
             lastSettleLatencyMs: number | null;
           };
         }).__chardeskCanvasExperienceStats?.();
-        const paneQuality = Object.values(snapshot.raster.qualityByPane);
         return {
-          pressure: snapshot.memory.pressure,
-          hidden: snapshot.memory.hidden,
-          accountedBytes: snapshot.memory.totalBytes,
-          nominalBudgetBytes: snapshot.memory.nominalBudget,
-          cellPlaneBytes: snapshot.memory.usage["cell-plane"] ?? 0,
-          workerSourceBytes: snapshot.memory.usage["worker-source"] ?? 0,
-          loadedFontFaces: snapshot.worker.loadedFontFaces,
-          minimumSharpCoverage: paneQuality.length > 0
-            ? Math.min(...paneQuality.map(({ sharpCoverage }) => sharpCoverage))
-            : 1,
-          maximumScaleError: paneQuality.length > 0
-            ? Math.max(...paneQuality.map(({ scaleError }) => scaleError))
-            : 0,
-          transientRasterBytes: paneQuality.reduce(
-            (bytes, quality) => bytes + quality.transientBytes,
-            0
-          ),
-          presentationFrames: experience?.presentationFrames ?? 0,
-          panRebases: experience?.panRebases ?? 0,
-          deferredPanRenders: experience?.deferredPanRenders ?? 0,
-          panSceneInvalidations: experience?.panSceneInvalidations ?? 0,
-          panMissingBaselines: experience?.panMissingBaselines ?? 0,
+          pressure: "normal",
+          hidden: document.hidden,
+          accountedBytes: memory.projectionCacheBudgetBytes,
+          nominalBudgetBytes: memory.projectionCacheBudgetLimit,
+          cellPlaneBytes: memory.projectionCacheBudgetBytes,
           viewportActivities: experience?.viewportActivities ?? 0,
+          directFrames: experience?.directFrames ?? 0,
           directGlyphs: experience?.directGlyphs ?? 0,
-          mainThreadGlyphs: experience?.mainThreadGlyphs ?? 0,
+          totalDirectGlyphs: experience?.totalDirectGlyphs ?? 0,
+          lastFrameDurationMs: experience?.lastFrameDurationMs ?? 0,
+          maxFrameDurationMs: experience?.maxFrameDurationMs ?? 0,
+          longFrames: experience?.longFrames ?? 0,
+          inputPaintMs: experience?.lastInputPaintMs ?? 0,
           settleLatencyMs: experience?.lastSettleLatencyMs ?? 0,
         };
       },

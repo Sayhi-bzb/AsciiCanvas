@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { CANVAS_FRAME_INVALIDATION } from '../engine/FrameScheduler';
 import {
   resolveCanvasRenderPasses,
-  shouldDrawCanvasHotPatch,
 } from './useCanvasRenderer';
 
 describe('canvas render passes', () => {
@@ -25,10 +24,5 @@ describe('canvas render passes', () => {
           CANVAS_FRAME_INVALIDATION.overlay
       )
     ).toEqual({ content: true, interaction: true });
-  });
-
-  it('keeps large content invalidations off the synchronous glyph path', () => {
-    expect(shouldDrawCanvasHotPatch({ x: 0, y: 0, width: 16, height: 16 })).toBe(true);
-    expect(shouldDrawCanvasHotPatch({ x: 0, y: 0, width: 17, height: 16 })).toBe(false);
   });
 });

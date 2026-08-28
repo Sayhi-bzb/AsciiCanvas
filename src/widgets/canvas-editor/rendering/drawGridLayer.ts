@@ -10,19 +10,22 @@ import {
   resolveCellVisual,
   setTextRenderStyle,
 } from "@/shared/metrics";
-import {
-  getCanvasLodCell,
-  resolveCanvasContentLod,
-  type CanvasContentLod,
-} from "./canvasLod";
 import type { CharDeskCanvasContext } from "@chardesk/rendering/canvas";
 
 type ViewBounds = ReturnType<typeof GridManager.getViewportGridBounds>;
+type GridDrawEntry = Parameters<typeof drawCellBatch>[1][number];
+type VisitableCanvasSurfaceReader = CanvasSurfaceReader & {
+  visitCells: (
+    bounds: { x: number; y: number; width: number; height: number },
+    visitor: (x: number, y: number, cell: GridDrawEntry["cell"]) => void
+  ) => void;
+};
+
+const gridDrawEntryCache = new WeakMap<object, GridDrawEntry>();
 
 type DrawGridLayerOptions = {
   alpha?: number;
   hoveredLink?: CanvasLinkHit | null;
-  lod?: CanvasContentLod;
   content?: "all" | "background" | "text";
 };
 
@@ -102,13 +105,12 @@ export const drawGridLayer = (
   if (!reader) return { cells: 0, glyphs: 0 };
   const { alpha = 1, hoveredLink = null } = options;
   const content = options.content ?? "all";
-  const lod = options.lod ?? resolveCanvasContentLod(zoom);
 
   ctx.save();
   ctx.globalAlpha = alpha;
   setTextRenderStyle(ctx, zoom);
 
-  const visibleCells: Parameters<typeof drawCellBatch>[1][number][] = [];
+  const visibleCells: GridDrawEntry[] = [];
   let glyphs = 0;
   const queryBounds = {
     x: viewBounds.startX - 1,
@@ -116,44 +118,57 @@ export const drawGridLayer = (
     width: viewBounds.endX - viewBounds.startX + 2,
     height: viewBounds.endY - viewBounds.startY + 1,
   };
-  for (const span of reader.query(queryBounds)) {
-    let x = span.x;
-    for (const cell of span.cells) {
-      const width = getCellOccupancy(cell.char);
-      const lodCell = getCanvasLodCell(cell, lod);
-      const drawBackground = lodCell.drawBackground && content !== "text";
-      const drawText = lodCell.drawText && content !== "background";
-      const intersectsView =
-        x + width > viewBounds.startX && x <= viewBounds.endX;
-      if (intersectsView && (drawBackground || drawText)) {
-        if (drawText) glyphs += 1;
-        const pos = GridManager.gridToScreen(
-          x,
-          span.y,
-          offset.x,
-          offset.y,
-          zoom
-        );
-        visibleCells.push({
-          cell: lodCell.cell,
-          x: pos.x,
-          y: pos.y,
-          drawBackground,
-          drawText,
-          options: {
-            zoom,
-            underline:
-              lod === "full" &&
-              !!cell.href &&
-              !!hoveredLink &&
-              hoveredLink.href === cell.href &&
-              hoveredLink.y === span.y &&
-              x >= hoveredLink.startX &&
-              x <= hoveredLink.endX,
-          },
-        });
+  const collectCell = (x: number, y: number, cell: GridDrawEntry["cell"]) => {
+    const width = getCellOccupancy(cell.char);
+    const hasBackground = cell.char !== " " || !!cell.bgColor || !!cell.attrs;
+    const hasText = cell.char !== " " || !!cell.attrs;
+    const drawBackground = hasBackground && content !== "text";
+    const drawText = hasText && content !== "background";
+    const intersectsView = x + width > viewBounds.startX && x <= viewBounds.endX;
+    if (intersectsView && (drawBackground || drawText)) {
+      if (drawText) glyphs += 1;
+      const pos = GridManager.gridToScreen(x, y, offset.x, offset.y, zoom);
+      const underline =
+        !!cell.href &&
+        !!hoveredLink &&
+        hoveredLink.href === cell.href &&
+        hoveredLink.y === y &&
+        x >= hoveredLink.startX &&
+        x <= hoveredLink.endX;
+      const entry = gridDrawEntryCache.get(cell) ?? {
+        cell,
+        x: pos.x,
+        y: pos.y,
+        drawBackground,
+        drawText,
+        options: { zoom, underline },
+      };
+      entry.x = pos.x;
+      entry.y = pos.y;
+      entry.drawBackground = drawBackground;
+      entry.drawText = drawText;
+      if (entry.options) {
+        entry.options.zoom = zoom;
+        entry.options.underline = underline;
+      } else {
+        entry.options = { zoom, underline };
       }
-      x += width;
+      gridDrawEntryCache.set(cell, entry);
+      visibleCells.push(entry);
+    }
+  };
+  if (
+    "visitCells" in reader &&
+    typeof (reader as VisitableCanvasSurfaceReader).visitCells === "function"
+  ) {
+    (reader as VisitableCanvasSurfaceReader).visitCells(queryBounds, collectCell);
+  } else {
+    for (const span of reader.query(queryBounds)) {
+      let x = span.x;
+      for (const cell of span.cells) {
+        collectCell(x, span.y, cell);
+        x += getCellOccupancy(cell.char);
+      }
     }
   }
 

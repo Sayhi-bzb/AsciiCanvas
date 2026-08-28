@@ -34,6 +34,9 @@ export type CanvasCellDrawEntry = {
   drawText?: boolean;
 };
 
+type CharDeskDrawEntry = Parameters<typeof drawCharDeskCanvasCells>[1][number];
+const canvasDrawEntryCache = new WeakMap<CanvasCellDrawEntry, CharDeskDrawEntry>();
+
 export const resolveCellVisual = (cell: GridCell): ResolvedCellVisual => {
   const visual = resolveCharDeskCanvasCellVisual(resolveCharDeskCellVisual({
     text: cell.char,
@@ -52,13 +55,21 @@ export const resolveCellVisual = (cell: GridCell): ResolvedCellVisual => {
   };
 };
 
-const toCanvasVisual = (cell: GridCell) => resolveCharDeskCellVisual({
-  text: cell.char,
-  color: cell.color,
-  ...(cell.bgColor ? { bgColor: cell.bgColor } : {}),
-  ...(cell.attrs ? { attrs: cell.attrs } : {}),
-  ...(cell.href ? { href: cell.href } : {}),
-});
+const canvasVisualCache = new WeakMap<GridCell, ReturnType<typeof resolveCharDeskCellVisual>>();
+
+const toCanvasVisual = (cell: GridCell) => {
+  const cached = canvasVisualCache.get(cell);
+  if (cached) return cached;
+  const visual = resolveCharDeskCellVisual({
+    text: cell.char,
+    color: cell.color,
+    ...(cell.bgColor ? { bgColor: cell.bgColor } : {}),
+    ...(cell.attrs ? { attrs: cell.attrs } : {}),
+    ...(cell.href ? { href: cell.href } : {}),
+  });
+  canvasVisualCache.set(cell, visual);
+  return visual;
+};
 
 export const drawGridLines = (
   ctx: CharDeskCanvasContext,
@@ -165,8 +176,19 @@ export const drawCellBatch = (
   ctx: CharDeskCanvasContext,
   entries: readonly CanvasCellDrawEntry[]
 ) => {
-  drawCharDeskCanvasCells(ctx, entries.map((entry) => ({
-    ...entry,
-    cell: toCanvasVisual(entry.cell),
-  })));
+  drawCharDeskCanvasCells(ctx, entries.map((entry) => {
+    const cached = canvasDrawEntryCache.get(entry) ?? {
+      cell: toCanvasVisual(entry.cell),
+      x: entry.x,
+      y: entry.y,
+    };
+    cached.cell = toCanvasVisual(entry.cell);
+    cached.x = entry.x;
+    cached.y = entry.y;
+    cached.options = entry.options;
+    cached.drawBackground = entry.drawBackground;
+    cached.drawText = entry.drawText;
+    canvasDrawEntryCache.set(entry, cached);
+    return cached;
+  }));
 };

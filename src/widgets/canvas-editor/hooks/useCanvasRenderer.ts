@@ -61,19 +61,8 @@ import {
   type CanvasFrameInvalidation,
 } from '../engine/FrameScheduler';
 import { CanvasRenderManager } from '../engine/CanvasRenderManager';
-import { shouldDrawCanvasGrid } from '../rendering/canvasLod';
-import {
-  type CanvasContentBackend,
-  RetainedCanvas2DContentBackend,
-} from '../rendering/CanvasContentBackend';
-import {
-  offsetCanvasViewportForSurface,
-  type CanvasSurfaceGeometry,
-} from '../canvasSurfaceGeometry';
-import {
-  resolveCanvasViewportRenderDecision,
-  type CanvasViewportRenderSnapshot,
-} from './viewportPresentation';
+import { shouldDrawCanvasGrid } from '../rendering/canvasGridVisibility';
+import type { CanvasSurfaceGeometry } from '../canvasSurfaceGeometry';
 export type { StructuredMovePreview } from './interaction/structured/structuredInteractionPreview';
 
 interface LayerRefs {
@@ -87,9 +76,6 @@ export const resolveCanvasRenderPasses = (invalidation: CanvasFrameInvalidation)
     CanvasRenderManager.includes(invalidation, 'scratch') ||
     CanvasRenderManager.includes(invalidation, 'overlay'),
 });
-
-export const shouldDrawCanvasHotPatch = (bounds: NodeBounds) =>
-  bounds.width * bounds.height <= 256;
 
 export const getStructuredSplitBoxActiveLeafBounds = (
   node: StructuredSplitBoxNode,
@@ -244,11 +230,7 @@ export const useCanvasRenderer = (
   structuredMovePreviewRef: React.RefObject<StructuredMovePreview | null>,
   hoveredLink: CanvasLinkHit | null,
   requestRenderRef?: React.MutableRefObject<(() => void) | null>,
-  onViewportRendered?: (viewport: { offset: Point; zoom: number }) => void,
-  runtime?: CanvasEngineRuntime,
-  sharedContentBackend?: CanvasContentBackend,
-  paneId = 'single',
-  isViewportRebasePending: () => boolean = () => false
+  runtime?: CanvasEngineRuntime
 ) => {
   const {
     activeCanvasId,
@@ -286,20 +268,16 @@ export const useCanvasRenderer = (
   );
   const renderedTextCursor = canvasMode !== 'structured' ? staticGridView.textCursor : textCursor;
   const [renderManager] = useState(() => new CanvasRenderManager());
-  const [localContentBackend] = useState(() => new RetainedCanvas2DContentBackend());
-  const contentBackend = sharedContentBackend ?? localContentBackend;
-  useEffect(() => () => localContentBackend.clear(), [localContentBackend]);
-  useEffect(
-    () => contentBackend.retain(contentReader, paneId),
-    [contentBackend, contentReader, paneId]
-  );
+  const fallbackViewportRef = useRef({ offset, zoom });
+  useEffect(() => {
+    fallbackViewportRef.current = { offset, zoom };
+  }, [offset, zoom]);
   const manualRenderRafRef = useRef<number | null>(null);
   const manualInvalidationRef = useRef<CanvasFrameInvalidation>(0);
   const observedContentRef = useRef<{
     reader: CanvasSurfaceReader;
     revision: number | null;
   } | null>(null);
-  const lastRenderedFrameRef = useRef<CanvasViewportRenderSnapshot | null>(null);
 
   const drawLayer = useCallback(
     (
@@ -324,74 +302,12 @@ export const useCanvasRenderer = (
       ),
     []
   );
-  const drawSurface = useCallback(
-    (
-      ctx: CanvasRenderingContext2D,
-      reader: CanvasSurfaceReader,
-      viewBounds: ReturnType<typeof GridManager.getViewportGridBounds>,
-      layerZoom: number,
-      layerOffset: Point,
-      content: "all" | "background" | "text" = "all"
-    ) =>
-      drawGridLayer(ctx, reader, viewBounds, layerZoom, layerOffset, {
-        content,
-      }),
-    []
-  );
   useEffect(() => {
     let disposed = false;
-    const readSceneInputs = (): readonly unknown[] => {
-      const structuredMovePreview = structuredMovePreviewRef.current;
-      const contentRevision = isIncrementalCanvasSurfaceReader(contentReader)
-        ? contentReader.getRevision()
-        : null;
-      return [
-        layers.content.current,
-        layers.interaction.current,
-        size?.width,
-        size?.height,
-        surfaceGeometry?.width,
-        surfaceGeometry?.height,
-        surfaceGeometry?.overscan,
-        activeCanvasId,
-        canvasMode,
-        slideDeck,
-        contentReader,
-        contentRevision ?? grid,
-        grid,
-        showGrid,
-        hoveredLink,
-        structuredMovePreview?.baseGrid ?? null,
-        structuredMovePreview?.movingGrid ?? null,
-        scratchLayer,
-        textCursor,
-        staticGridSelection,
-        staticGridEditMode,
-        draggingSelection,
-        tool,
-        structuredScene,
-        selectedStructuredNodeIds,
-        structuredGridFocus,
-        editingStructuredTextNodeId,
-        structuredTextSelection,
-        canvasColorPickerTarget,
-        paneId,
-      ];
-    };
-    const readViewportRenderDecision = () =>
-      resolveCanvasViewportRenderDecision(
-        lastRenderedFrameRef.current,
-        { offset, zoom },
-        readSceneInputs(),
-        runtime?.renderActivity.getMode() ?? 'settled',
-        isViewportRebasePending()
-      );
-    const shouldDeferCurrentViewport = () => {
-      const decision = readViewportRenderDecision();
-      return decision === 'defer-pan' || decision === 'defer-zoom';
-    };
     const render = (invalidation: CanvasFrameInvalidation) => {
       if (!size || !surfaceGeometry || size.width === 0 || size.height === 0) return;
+      const { offset, zoom } = runtime?.camera.getViewport() ?? fallbackViewportRef.current;
+      const frameStartedAt = performance.now();
       const structuredMovePreview = structuredMovePreviewRef.current;
       const renderedGrid = structuredMovePreview?.baseGrid ?? grid;
       const structuredPreviewMovingGrid = structuredMovePreview?.movingGrid ?? null;
@@ -400,7 +316,7 @@ export const useCanvasRenderer = (
         : structuredScene;
 
       const dpr = window.devicePixelRatio || 1;
-      const renderOffset = offsetCanvasViewportForSurface(offset, surfaceGeometry);
+      const renderOffset = offset;
       const viewBounds = GridManager.getViewportGridBounds(
         surfaceGeometry.width,
         surfaceGeometry.height,
@@ -488,79 +404,13 @@ export const useCanvasRenderer = (
           if (structuredMovePreview) {
             drawLayer(bgCtx, renderedGrid, viewBounds, zoom, renderOffset, 1, "background");
           } else {
-            const rasterResult = contentBackend.render(
+            directGlyphs = drawGridLayer(
               bgCtx,
               contentReader,
               viewBounds,
               zoom,
-              renderOffset,
-              dpr,
-              {
-                paneId,
-                mode: runtime?.renderActivity.getMode() ?? "settled",
-                contentBounds: canvasMode === "slide" && activeSlide
-                  ? {
-                      x: 0,
-                      y: 0,
-                      width: activeSlide.size.columns,
-                      height: activeSlide.size.rows,
-                    }
-                  : undefined,
-                onTileReady: () => {
-                  if (!disposed && !shouldDeferCurrentViewport()) {
-                    scheduleRender(CANVAS_FRAME_INVALIDATION.background);
-                  }
-                },
-              }
-            );
-            const redrawBounds = rasterResult.patchBounds.filter(
-              shouldDrawCanvasHotPatch
-            );
-            for (const bounds of redrawBounds) {
-              const position = GridManager.gridToScreen(
-                bounds.x,
-                bounds.y,
-                renderOffset.x,
-                renderOffset.y,
-                zoom
-              );
-              const width = bounds.width * DEFAULT_GRID_RENDER_METRICS.cellWidth * zoom;
-              const height = bounds.height * DEFAULT_GRID_RENDER_METRICS.cellHeight * zoom;
-              bgCtx.save();
-              bgCtx.beginPath();
-              bgCtx.rect(position.x, position.y, width, height);
-              bgCtx.clip();
-              bgCtx.fillStyle = BACKGROUND_COLOR;
-              bgCtx.fillRect(position.x, position.y, width, height);
-              if (drawVisibleGrid) {
-                drawGridLines(bgCtx, {
-                  startX: bounds.x,
-                  endX: bounds.x + bounds.width - 1,
-                  startY: bounds.y,
-                  endY: bounds.y + bounds.height - 1,
-                  offsetX: renderOffset.x,
-                  offsetY: renderOffset.y,
-                  width: surfaceGeometry.width,
-                  height: surfaceGeometry.height,
-                  zoom,
-                  color: GRID_COLOR,
-                });
-              }
-              directGlyphs += drawSurface(
-                bgCtx,
-                contentReader,
-                {
-                  startX: bounds.x,
-                  endX: bounds.x + bounds.width - 1,
-                  startY: bounds.y,
-                  endY: bounds.y + bounds.height - 1,
-                },
-                zoom,
-                renderOffset,
-                "all"
-              ).glyphs;
-              bgCtx.restore();
-            }
+              renderOffset
+            ).glyphs;
           }
           if (structuredMovePreview) {
             directGlyphs = drawLayer(
@@ -853,27 +703,24 @@ export const useCanvasRenderer = (
       }
       renderManager.commit(renderedInvalidation);
       if (CanvasRenderManager.includes(renderedInvalidation, 'background')) {
-        runtime?.renderExperience.recordDirectGlyphFrame(directGlyphs);
-      }
-      if (
-        CanvasRenderManager.includes(renderedInvalidation, 'background') ||
-        CanvasRenderManager.includes(renderedInvalidation, 'scratch')
-      ) {
-        lastRenderedFrameRef.current = {
-          viewport: { offset: { ...offset }, zoom },
-          sceneInputs: readSceneInputs(),
-        };
-        onViewportRendered?.({ offset: { ...offset }, zoom });
+        runtime?.renderExperience.recordDirectFrame(
+          directGlyphs,
+          performance.now() - frameStartedAt
+        );
       }
     };
 
-    const scheduleRender = (invalidation: CanvasFrameInvalidation) => {
+    const scheduleRender = (
+      invalidation: CanvasFrameInvalidation,
+      priority?: 'interaction'
+    ) => {
       if (invalidation === 0) return;
       if (runtime) {
         runtime.frameScheduler.request(
           "canvas-renderer",
           invalidation,
-          (_timestamp, pendingInvalidation) => render(pendingInvalidation)
+          (_timestamp, pendingInvalidation) => render(pendingInvalidation),
+          priority ? { priority } : undefined
         );
         return;
       }
@@ -945,58 +792,49 @@ export const useCanvasRenderer = (
         structuredMovePreview?.movingGrid ?? null,
       ],
     });
-    const requestManualRender = () =>
-      scheduleRender(
-        CANVAS_FRAME_INVALIDATION.background |
-          CANVAS_FRAME_INVALIDATION.overlay
+    const hasViewportInteractionContent = () => {
+      const movePreview = structuredMovePreviewRef.current;
+      return !!(
+        scratchLayer?.size ||
+        movePreview?.movingGrid.size ||
+        hoveredLink ||
+        draggingSelection ||
+        staticGridView.hasSelection ||
+        (canvasMode === 'structured' && (
+          structuredGridFocus ||
+          structuredTextSelection ||
+          selectedStructuredNodeIds.length > 0
+        )) ||
+        (tool === 'eraser' && hoveredGrid) ||
+        renderedTextCursor ||
+        (canvasColorPickerTarget && hoveredGrid)
       );
+    };
+    const requestManualRender = () => {
+      const interactionInvalidation = hasViewportInteractionContent()
+        ? CANVAS_FRAME_INVALIDATION.scratch | CANVAS_FRAME_INVALIDATION.overlay
+        : 0;
+      scheduleRender(
+        CANVAS_FRAME_INVALIDATION.background | interactionInvalidation,
+        'interaction'
+      );
+    };
     if (requestRenderRef) {
       requestRenderRef.current = requestManualRender;
     }
     const fonts = document.fonts;
     const handleFontLoad = () => {
-      contentBackend.invalidateFonts();
       scheduleRender(renderManager.reset());
     };
     fonts?.addEventListener('loadingdone', handleFontLoad);
     const unsubscribeActivity = runtime?.renderActivity.subscribe((mode, previous) => {
       if (mode === "settled" && !disposed) {
         runtime.renderExperience.markSettling(previous);
-        const liveViewport = runtime.camera.getViewport();
-        if (
-          liveViewport.zoom !== zoom ||
-          liveViewport.offset.x !== offset.x ||
-          liveViewport.offset.y !== offset.y
-        ) {
-          return;
-        }
         scheduleRender(CANVAS_FRAME_INVALIDATION.background);
       }
     });
 
-    const viewportRenderDecision = readViewportRenderDecision();
-    if (viewportRenderDecision === 'scene-change') {
-      runtime?.renderExperience.recordViewportSceneInvalidation();
-    }
-    if (viewportRenderDecision === 'missing-baseline') {
-      runtime?.renderExperience.recordViewportMissingBaseline();
-    }
-    if (
-      viewportRenderDecision === 'defer-pan' ||
-      viewportRenderDecision === 'defer-zoom'
-    ) {
-      runtime?.renderExperience.recordDeferredViewportRender(
-        viewportRenderDecision === 'defer-pan' ? 'pan' : 'zoom'
-      );
-    } else {
-      scheduleRender(
-        viewportRenderDecision === 'rebase'
-          ? CANVAS_FRAME_INVALIDATION.background |
-              CANVAS_FRAME_INVALIDATION.scratch |
-              CANVAS_FRAME_INVALIDATION.overlay
-          : invalidation
-      );
-    }
+    scheduleRender(invalidation);
     return () => {
       disposed = true;
       runtime?.frameScheduler.cancel("canvas-renderer");
@@ -1041,17 +879,11 @@ export const useCanvasRenderer = (
     structuredMovePreviewRef,
     requestRenderRef,
     drawLayer,
-    drawSurface,
-    onViewportRendered,
     renderedTextCursor,
     staticGridView.activeCell,
     staticGridView.hasSelection,
     staticGridView.selectionGeometry,
     renderManager,
-    contentBackend,
-    sharedContentBackend,
-    paneId,
     runtime,
-    isViewportRebasePending,
   ]);
 };

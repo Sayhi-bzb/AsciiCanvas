@@ -1087,6 +1087,38 @@ export class CellPlaneIndex implements CanvasSurfaceReader {
     return count;
   }
 
+  /** Iterates visible resident cells without building row and span projections. */
+  visitCells(
+    bounds: NodeBounds,
+    visitor: (x: number, y: number, cell: GridCell) => void
+  ) {
+    if (bounds.width <= 0 || bounds.height <= 0) return;
+    const minChunkX = floorDiv(bounds.x, CELL_PLANE_CHUNK_WIDTH);
+    const maxChunkX = floorDiv(bounds.x + bounds.width - 1, CELL_PLANE_CHUNK_WIDTH);
+    const minChunkY = floorDiv(bounds.y, CELL_PLANE_CHUNK_HEIGHT);
+    const maxChunkY = floorDiv(bounds.y + bounds.height - 1, CELL_PLANE_CHUNK_HEIGHT);
+    for (let chunkY = minChunkY; chunkY <= maxChunkY; chunkY += 1) {
+      for (let chunkX = minChunkX; chunkX <= maxChunkX; chunkX += 1) {
+        const chunkLeft = chunkX * CELL_PLANE_CHUNK_WIDTH;
+        const chunkTop = chunkY * CELL_PLANE_CHUNK_HEIGHT;
+        this.#resolveChunk(chunkX, chunkY).forEach((cell, key) => {
+          const point = GridManager.fromKey(key);
+          if (
+            point.x < chunkLeft ||
+            point.x >= chunkLeft + CELL_PLANE_CHUNK_WIDTH ||
+            point.y < chunkTop ||
+            point.y >= chunkTop + CELL_PLANE_CHUNK_HEIGHT ||
+            point.x < bounds.x ||
+            point.x >= bounds.x + bounds.width ||
+            point.y < bounds.y ||
+            point.y >= bounds.y + bounds.height
+          ) return;
+          visitor(point.x, point.y, cell);
+        });
+      }
+    }
+  }
+
   *query(bounds: NodeBounds) {
     for (const row of this.rows(bounds)) {
       for (const span of row.spans) yield { ...span, y: row.y };

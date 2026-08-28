@@ -52,8 +52,6 @@ declare global {
       cellCount: () => number;
       surfaceStats: () => Record<string, number> | null;
       memoryStats: () => Record<string, number>;
-      rasterStats: () => Record<string, number> | null;
-      renderWorkerStats: () => Record<string, number | boolean | string | null> | null;
       resourceStats: () => Record<string, number | boolean | string> | null;
       persistence: () => { error: string | null };
     };
@@ -499,8 +497,6 @@ const runLevel = async ({
   let projectedCellCount: number | null = null;
   let surfaceStats: Record<string, number> | null = null;
   let memoryStats: Record<string, number> | null = null;
-  let rasterStats: Record<string, number> | null = null;
-  let renderWorkerStats: Record<string, number | boolean | string | null> | null = null;
   let resourceStats: Record<string, number | boolean | string> | null = null;
   const context = await browser.newContext({
     viewport: VIEWPORT,
@@ -577,24 +573,9 @@ const runLevel = async ({
       memoryStats = await page.evaluate(
         () => window.__chardeskCanvasStress?.memoryStats() ?? null
       );
-      rasterStats = await page.evaluate(
-        () => window.__chardeskCanvasStress?.rasterStats() ?? null
-      );
-      renderWorkerStats = await page.evaluate(
-        () => window.__chardeskCanvasStress?.renderWorkerStats() ?? null
-      );
       resourceStats = await page.evaluate(
         () => window.__chardeskCanvasStress?.resourceStats() ?? null
       );
-      if (
-        switchSessionIds?.length &&
-        typeof renderWorkerStats?.sources === "number" &&
-        renderWorkerStats.sources > 2
-      ) {
-        runtimeErrors.push(
-          `worker retained ${renderWorkerStats.sources} sources after session cycling`
-        );
-      }
       await page.waitForTimeout(650);
       const storageProbe = await page.evaluate(() => window.__canvasStressStorage ?? null);
       storageError = storageProbe?.error ?? null;
@@ -673,8 +654,6 @@ const runLevel = async ({
     ...(readProjection ? { projectedCellCount } : {}),
     ...(surfaceStats ? { surfaceStats } : {}),
     ...(memoryStats ? { memoryStats } : {}),
-    ...(rasterStats ? { rasterStats } : {}),
-    ...(renderWorkerStats ? { renderWorkerStats } : {}),
     ...(resourceStats ? { resourceStats } : {}),
     ...(storageMode === "real" || verifyReload ? { persistenceMs, storageError } : {}),
     runtimeErrors,

@@ -15,7 +15,6 @@ type CanvasSurfaceProps = HTMLAttributes<HTMLDivElement> & {
   containerRef: RefObject<HTMLDivElement | null>;
   contentCanvasRef: RefObject<HTMLCanvasElement | null>;
   interactionCanvasRef: RefObject<HTMLCanvasElement | null>;
-  viewportLayerRef: RefObject<HTMLDivElement | null>;
   surfaceGeometry: CanvasSurfaceGeometry | undefined;
   containerSize: { width: number; height: number } | undefined;
   viewportFrame?: EditorViewportFrame;
@@ -36,7 +35,6 @@ export const CanvasSurface = forwardRef<HTMLDivElement, CanvasSurfaceProps>(func
     containerRef,
     contentCanvasRef,
     interactionCanvasRef,
-    viewportLayerRef,
     surfaceGeometry,
     containerSize,
     viewportFrame,
@@ -77,9 +75,8 @@ export const CanvasSurface = forwardRef<HTMLDivElement, CanvasSurfaceProps>(func
       {...surfaceProps}
     >
       <div
-        ref={viewportLayerRef}
         data-testid="canvas-viewport-layer"
-        className="absolute inset-0 origin-top-left pointer-events-none will-change-transform"
+        className="absolute inset-0 pointer-events-none"
       >
         <canvas
           ref={contentCanvasRef}

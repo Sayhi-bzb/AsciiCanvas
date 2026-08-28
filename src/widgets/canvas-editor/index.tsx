@@ -21,14 +21,8 @@ import {
 import type { CanvasLinkHit } from './hooks/interaction/core/linkHitTesting';
 import type { StructuredMovePreview } from './hooks/useCanvasRenderer';
 import { isStaticGridMode } from '@/domains/sessions/public';
-import {
-  applyCanvasViewportPresentation,
-  CanvasViewportRebaseGate,
-  resetCanvasViewportPresentation,
-  type CanvasViewport,
-} from './hooks/viewportPresentation';
 import { useCanvasEngineRuntime } from './engine/useCanvasEngineRuntime';
-import { useCanvasViewOptional, useCanvasWorkspaceOptional } from './engine/CanvasWorkspace';
+import { useCanvasViewOptional } from './engine/CanvasWorkspace';
 import { resolveCanvasSurfaceGeometry } from './canvasSurfaceGeometry';
 import type { EditorViewportFrame } from '@/widgets/editor-chrome/public';
 import { computeVisibleSurfaceBounds } from './minimap/geometry';
@@ -59,9 +53,7 @@ export const CanvasEditor = ({
   onActivate,
 }: CanvasEditorProps) => {
   const canvasView = useCanvasViewOptional();
-  const canvasWorkspace = useCanvasWorkspaceOptional();
   const subscribeViewport = canvasView?.subscribeViewport;
-  const getViewport = canvasView?.getViewport;
   const runtime = useCanvasEngineRuntime();
   const effectiveCapabilities = capabilities;
   const contentCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -71,7 +63,6 @@ export const CanvasEditor = ({
     [],
   );
   const containerRef = useRef<HTMLDivElement>(null);
-  const viewportLayerRef = useRef<HTMLDivElement>(null);
   const [hoveredLink, setHoveredLink] = useState<CanvasLinkHit | null>(null);
   const structuredMovePreviewRef = useRef<StructuredMovePreview | null>(null);
   const requestCanvasRenderRef = useRef<(() => void) | null>(null);
@@ -103,11 +94,6 @@ export const CanvasEditor = ({
     () => createStructuredSceneQuery(structuredScene),
     [structuredScene]
   );
-  const renderedViewportRef = useRef<CanvasViewport | null>(null);
-  const viewportRebaseGateRef = useRef<CanvasViewportRebaseGate | null>(null);
-  if (viewportRebaseGateRef.current === null) {
-    viewportRebaseGateRef.current = new CanvasViewportRebaseGate();
-  }
   const lastSlideViewRef = useRef<{
     sessionId: string;
     pageKey: string;
@@ -169,60 +155,10 @@ export const CanvasEditor = ({
     viewportFrame?.insets,
   ]);
 
-  const presentViewport = useCallback((presented: CanvasViewport) => {
-    const status = applyCanvasViewportPresentation(
-      viewportLayerRef.current,
-      renderedViewportRef.current,
-      presented,
-      surfaceGeometry
-        ? {
-            width: surfaceGeometry.viewportWidth,
-            height: surfaceGeometry.viewportHeight,
-            overscan: surfaceGeometry.overscan,
-          }
-        : undefined
-    );
-    runtime.renderExperience.recordPresentation(status);
-    if (viewportRebaseGateRef.current?.request(
-      status,
-      requestCanvasRenderRef.current
-    )) {
-      runtime.renderExperience.recordViewportRebase();
-    }
-  }, [runtime, surfaceGeometry]);
-
-  const handleViewportRendered = useCallback(
-    (rendered: CanvasViewport) => {
-      viewportRebaseGateRef.current?.complete();
-      renderedViewportRef.current = {
-        offset: { ...rendered.offset },
-        zoom: rendered.zoom,
-      };
-      presentViewport(runtime.camera.getViewport());
-    },
-    [presentViewport, runtime]
-  );
-  const isViewportRebasePending = useCallback(
-    () => viewportRebaseGateRef.current?.isPending() ?? false,
-    []
-  );
-
   useEffect(() => {
-    const viewportLayer = viewportLayerRef.current;
-    const presentCurrentViewport = () => {
-      presentViewport(getViewport?.() ?? runtime.camera.getViewport());
-    };
-    presentCurrentViewport();
-    const unsubscribe = subscribeViewport?.(() => {
-      presentCurrentViewport();
-    });
-    return () => {
-      unsubscribe?.();
-      renderedViewportRef.current = null;
-      viewportRebaseGateRef.current?.complete();
-      resetCanvasViewportPresentation(viewportLayer);
-    };
-  }, [getViewport, presentViewport, runtime, subscribeViewport]);
+    const unsubscribe = subscribeViewport?.(() => requestCanvasRenderRef.current?.());
+    return () => { unsubscribe?.(); };
+  }, [subscribeViewport]);
 
   const structuredTemplateDrop = useStructuredTemplateDrop({
     canvasMode,
@@ -318,11 +254,7 @@ export const CanvasEditor = ({
     structuredMovePreviewRef,
     hoveredLink,
     requestCanvasRenderRef,
-    handleViewportRendered,
-    runtime,
-    canvasWorkspace?.runtime.contentBackend,
-    canvasView?.viewId ?? 'single',
-    isViewportRebasePending
+    runtime
   );
 
   const activeContextMenu =
@@ -375,7 +307,6 @@ export const CanvasEditor = ({
           containerRef={containerRef}
           contentCanvasRef={contentCanvasRef}
           interactionCanvasRef={interactionCanvasRef}
-          viewportLayerRef={viewportLayerRef}
           surfaceGeometry={surfaceGeometry}
           containerSize={size}
           viewportFrame={viewportFrame}

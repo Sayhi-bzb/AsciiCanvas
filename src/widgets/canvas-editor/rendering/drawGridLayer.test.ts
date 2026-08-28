@@ -45,6 +45,57 @@ describe("drawGridLayer", () => {
     expect(ctx.fillText).toHaveBeenCalledOnce();
   });
 
+  it("uses direct cell visitation when the reader provides it", () => {
+    const query = vi.fn(function* () {
+      yield { x: 0, y: 0, cells: [{ char: "Q", color: "#fff" }] };
+    });
+    const visitCells = vi.fn((
+      _bounds: unknown,
+      visitor: (x: number, y: number, cell: { char: string; color: string }) => void
+    ) => visitor(4, 6, { char: "V", color: "#fff" }));
+    const ctx = createContext();
+
+    drawGridLayer(
+      ctx,
+      { query, visitCells } as unknown as CanvasSurfaceReader,
+      { startX: 4, endX: 4, startY: 6, endY: 6 },
+      1,
+      { x: 0, y: 0 }
+    );
+
+    expect(visitCells).toHaveBeenCalledWith(
+      { x: 3, y: 6, width: 2, height: 1 },
+      expect.any(Function)
+    );
+    expect(query).not.toHaveBeenCalled();
+    expect(ctx.fillText).toHaveBeenCalledWith("V", expect.any(Number), expect.any(Number));
+  });
+
+  it("draws glyphs at full fidelity at every zoom level", () => {
+    const query = vi.fn(function* () {
+      yield {
+        x: 0,
+        y: 0,
+        cells: [{
+          char: "A",
+          color: "#fff",
+          attrs: { bold: true, underline: true, strike: true },
+        }],
+      };
+    });
+    const ctx = createContext();
+
+    drawGridLayer(
+      ctx,
+      { query } as unknown as CanvasSurfaceReader,
+      { startX: 0, endX: 0, startY: 0, endY: 0 },
+      0.1,
+      { x: 0, y: 0 }
+    );
+
+    expect(ctx.fillText).toHaveBeenCalledWith("A", expect.any(Number), expect.any(Number));
+  });
+
   it.each([
     { name: "inside a chunk", wideX: 0 },
     { name: "across a chunk boundary", wideX: 63 },
@@ -95,7 +146,7 @@ describe("drawGridLayer", () => {
       .toEqual(["B"]);
   });
 
-  it("separates raster backgrounds from direct glyphs", () => {
+  it("can draw backgrounds and glyphs in separate passes", () => {
     const reader = new CellPlaneIndex([{
       id: "styled",
       bounds: { x: 0, y: 0, width: 1, height: 1 },

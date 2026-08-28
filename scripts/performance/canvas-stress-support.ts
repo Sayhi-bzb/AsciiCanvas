@@ -34,8 +34,6 @@ export type CanvasStressLevel = {
   projectedCellCount?: number | null;
   surfaceStats?: Readonly<Record<string, number>>;
   memoryStats?: Readonly<Record<string, number>>;
-  rasterStats?: Readonly<Record<string, number>>;
-  renderWorkerStats?: Readonly<Record<string, number | boolean | string | null>>;
   resourceStats?: Readonly<Record<string, number | boolean | string>>;
   zoom: number;
   snapshotBytes: number;
@@ -164,12 +162,12 @@ export const createCanvasStressMarkdown = (report: CanvasStressReport) => {
     "",
     "## Levels",
     "",
-    "| Family | Level | Result | p95 / p99 frame | LoAF | >50ms | Input cold / p95 | Heap | Managed / budget | Pressure | Worker source | Fonts | Authority payload | Projection cache | Raster cache | Canvas | Snapshot | Persistence |",
-    "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"
+    "| Family | Level | Result | p95 / p99 frame | LoAF | >50ms | Input cold / p95 | Heap | Projection / budget | Pressure | Render p95 | Long renders | Authority payload | Projection cache | Canvas | Snapshot | Persistence |",
+    "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |"
   );
   report.levels.forEach((level) => {
     lines.push(
-      `| ${level.family} | ${level.label} | ${level.passed ? "pass" : `fail: ${level.failures.join(", ")}`} | ${formatNumber(level.metrics?.p95FrameMs)} / ${formatNumber(level.metrics?.p99FrameMs)} ms | ${level.metrics?.longAnimationFrameCount ?? "—"} | ${level.metrics?.over50ms ?? "—"} | ${formatNumber(level.metrics?.coldInputPaintMs)} / ${formatNumber(level.metrics?.inputPaintMs)} ms | ${formatBytes(level.metrics?.jsHeapBytes)} | ${formatBytes(level.resourceStats?.accountedBytes as number | undefined)} / ${formatBytes(level.resourceStats?.nominalBudgetBytes as number | undefined)} | ${level.resourceStats?.pressure ?? "—"} | ${formatBytes(level.resourceStats?.workerSourceBytes as number | undefined)} | ${level.resourceStats?.loadedFontFaces ?? "—"} | ${formatBytes(level.memoryStats?.encodedPayloadBytes)} | ${formatBytes(level.memoryStats?.projectionCacheBudgetBytes)} | ${formatBytes(level.rasterStats?.bytes)} | ${formatBytes(level.metrics?.canvasBackingBytes)} | ${formatBytes(level.snapshotBytes)} | ${formatNumber(level.persistenceMs)} ms |`
+      `| ${level.family} | ${level.label} | ${level.passed ? "pass" : `fail: ${level.failures.join(", ")}`} | ${formatNumber(level.metrics?.p95FrameMs)} / ${formatNumber(level.metrics?.p99FrameMs)} ms | ${level.metrics?.longAnimationFrameCount ?? "—"} | ${level.metrics?.over50ms ?? "—"} | ${formatNumber(level.metrics?.coldInputPaintMs)} / ${formatNumber(level.metrics?.inputPaintMs)} ms | ${formatBytes(level.metrics?.jsHeapBytes)} | ${formatBytes(level.resourceStats?.accountedBytes as number | undefined)} / ${formatBytes(level.resourceStats?.nominalBudgetBytes as number | undefined)} | ${level.resourceStats?.pressure ?? "—"} | ${formatNumber(level.resourceStats?.maxFrameDurationMs as number | undefined)} ms | ${level.resourceStats?.longFrames ?? "—"} | ${formatBytes(level.memoryStats?.encodedPayloadBytes)} | ${formatBytes(level.memoryStats?.projectionCacheBudgetBytes)} | ${formatBytes(level.metrics?.canvasBackingBytes)} | ${formatBytes(level.snapshotBytes)} | ${formatNumber(level.persistenceMs)} ms |`
     );
   });
   lines.push("");
