@@ -125,7 +125,8 @@ export function ZoomControl({
   );
   const setShowGrid = canvas.commands.preferences.setShowGrid;
   const [minimapOpen, setMinimapOpen] = useState(false);
-  const [playbackOpen, setPlaybackOpen] = useState(false);
+  const [playbackSlideId, setPlaybackSlideId] = useState<string | null>(null);
+  const playbackSlideIdRef = useRef<string | null>(null);
   const {
     feedback: playbackFeedback,
     show: showPlaybackFeedback,
@@ -153,20 +154,31 @@ export function ZoomControl({
     [runtime]
   );
 
-  const exitPlayback = useCallback(() => {
+  const finishPlayback = useCallback((exitFullscreen: boolean) => {
+    const lastSlideId = playbackSlideIdRef.current;
+    if (!lastSlideId) return;
+    playbackSlideIdRef.current = null;
     clearPlaybackFeedback();
-    setPlaybackOpen(false);
-    if (!ownsFullscreenRef.current) return;
+    setPlaybackSlideId(null);
+    canvas.commands.slides.activate(lastSlideId);
+    if (!exitFullscreen || !ownsFullscreenRef.current) return;
     ownsFullscreenRef.current = false;
     if (document.fullscreenElement) {
       void document.exitFullscreen().catch(() => undefined);
     }
-  }, [clearPlaybackFeedback]);
+  }, [canvas.commands.slides, clearPlaybackFeedback]);
+
+  const exitPlayback = useCallback(() => finishPlayback(true), [finishPlayback]);
+
+  const updatePlaybackSlide = useCallback((slideId: string) => {
+    playbackSlideIdRef.current = slideId;
+    setPlaybackSlideId(slideId);
+  }, []);
 
   const startPlayback = useCallback(() => {
     if (!slideDeck) return;
     clearPlaybackFeedback();
-    setPlaybackOpen(true);
+    updatePlaybackSlide(slideDeck.activeSlideId);
     if (document.fullscreenElement) return;
     const requestFullscreen = document.documentElement.requestFullscreen;
     if (!requestFullscreen) {
@@ -181,13 +193,13 @@ export function ZoomControl({
       .catch(() => {
         showPlaybackFeedback('fullscreen', 'warning');
       });
-  }, [clearPlaybackFeedback, showPlaybackFeedback, slideDeck]);
+  }, [clearPlaybackFeedback, showPlaybackFeedback, slideDeck, updatePlaybackSlide]);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
       if (document.fullscreenElement || !ownsFullscreenRef.current) return;
       ownsFullscreenRef.current = false;
-      setPlaybackOpen(false);
+      finishPlayback(false);
     };
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => {
@@ -197,7 +209,7 @@ export function ZoomControl({
         void document.exitFullscreen().catch(() => undefined);
       }
     };
-  }, []);
+  }, [finishPlayback]);
 
   const animateZoomTo = useCallback(
     (requestedZoom: number) => {
@@ -351,10 +363,11 @@ export function ZoomControl({
       <Tooltip handle={tooltipHandle}>
         {({ payload }) => <TooltipPopup side="top">{payload}</TooltipPopup>}
       </Tooltip>
-      {playbackOpen && playbackDeck && (
+      {playbackSlideId && playbackDeck && (
         <SlidePlaybackOverlay
           deck={playbackDeck}
-          initialSlideId={playbackDeck.activeSlideId}
+          activeSlideId={playbackSlideId}
+          onActiveSlideChange={updatePlaybackSlide}
           warning={
             playbackFeedback?.status === 'warning'
               ? t('slide.playback.fullscreenUnavailable')

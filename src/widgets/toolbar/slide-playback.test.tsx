@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ShortcutProvider } from "@/shared/shortcuts/dispatcher";
 import { useEditorShortcutLayer } from "@/domains/editor/public";
@@ -31,6 +32,24 @@ const deck: SlideDeck = {
 function EditorShortcutTestLayer() {
   useEditorShortcutLayer();
   return null;
+}
+
+function PlaybackHarness({
+  initialSlideId,
+  onExit = vi.fn(),
+}: {
+  initialSlideId: string;
+  onExit?: () => void;
+}) {
+  const [activeSlideId, setActiveSlideId] = useState(initialSlideId);
+  return (
+    <SlidePlaybackOverlay
+      deck={deck}
+      activeSlideId={activeSlideId}
+      onActiveSlideChange={setActiveSlideId}
+      onExit={onExit}
+    />
+  );
 }
 
 describe("Slide playback", () => {
@@ -88,8 +107,7 @@ describe("Slide playback", () => {
     render(
       <ShortcutProvider>
         <EditorShortcutTestLayer />
-        <SlidePlaybackOverlay
-          deck={deck}
+        <PlaybackHarness
           initialSlideId="slide-2"
           onExit={onExit}
         />
@@ -119,11 +137,7 @@ describe("Slide playback", () => {
   it("uses the left and right canvas halves for manual navigation", () => {
     render(
       <ShortcutProvider>
-        <SlidePlaybackOverlay
-          deck={deck}
-          initialSlideId="slide-1"
-          onExit={vi.fn()}
-        />
+        <PlaybackHarness initialSlideId="slide-1" />
       </ShortcutProvider>
     );
     const canvas = screen.getByRole("img", { name: "First" });

@@ -136,7 +136,7 @@ describe("ZoomControl slide playback", () => {
     expect(screen.queryAllByTestId("slide-preview-canvas")).toHaveLength(0);
   });
 
-  it("requests fullscreen, starts from the current slide, and closes when fullscreen exits", async () => {
+  it("commits the last presented slide when fullscreen exits", async () => {
     render(
       <ShortcutProvider>
         <ZoomControl containerSize={{ width: 1000, height: 700 }} />
@@ -150,12 +150,16 @@ describe("ZoomControl slide playback", () => {
     expect(useEditorStore.getState().slideDeck?.activeSlideId).toBe("slide-2");
 
     await act(async () => undefined);
+    fireEvent.click(screen.getByRole("button", { name: "Previous slide" }));
+    expect(screen.getByRole("img", { name: "First" })).toBeInTheDocument();
+    expect(useEditorStore.getState().slideDeck?.activeSlideId).toBe("slide-2");
+
     fullscreenElement = null;
     fireEvent(document, new Event("fullscreenchange"));
     await waitFor(() =>
       expect(screen.queryByTestId("slide-playback")).not.toBeInTheDocument()
     );
-    expect(useEditorStore.getState().slideDeck?.activeSlideId).toBe("slide-2");
+    expect(useEditorStore.getState().slideDeck?.activeSlideId).toBe("slide-1");
   });
 
   it("keeps the window overlay open when fullscreen is rejected", async () => {
@@ -172,6 +176,13 @@ describe("ZoomControl slide playback", () => {
     );
     expect(screen.getByTestId("slide-playback-warning")).toHaveClass("text-warning");
     expect(screen.getByTestId("slide-playback")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Previous slide" }));
+    fireEvent.click(screen.getByRole("button", { name: "Exit presentation" }));
+
+    expect(screen.queryByTestId("slide-playback")).not.toBeInTheDocument();
+    expect(useEditorStore.getState().slideDeck?.activeSlideId).toBe("slide-1");
+    expect(exitFullscreen).not.toHaveBeenCalled();
   });
 
   it("shows the same inline warning when the Fullscreen API is unavailable", async () => {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { TriangleAlert } from 'lucide-react';
 import type { SlideDeck } from '@/domains/slides/public';
@@ -23,32 +23,37 @@ const CloseIcon = HOST_ICONOLOGY.slideAction.close;
 
 export function SlidePlaybackOverlay({
   deck,
-  initialSlideId,
+  activeSlideId,
   warning,
+  onActiveSlideChange,
   onExit,
 }: {
   deck: SlideDeck;
-  initialSlideId: string;
+  activeSlideId: string;
   warning?: string | null;
+  onActiveSlideChange: (slideId: string) => void;
   onExit: () => void;
 }) {
   const { t } = useUiI18n();
   const hostRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const initialIndex = Math.max(
+  const slideIndex = Math.max(
     0,
-    deck.slides.findIndex((slide) => slide.id === initialSlideId)
+    deck.slides.findIndex((slide) => slide.id === activeSlideId)
   );
-  const [slideIndex, setSlideIndex] = useState(initialIndex);
   const slide = deck.slides[slideIndex] ?? deck.slides[0];
   const isFirst = slideIndex === 0;
   const isLast = slideIndex === deck.slides.length - 1;
 
   const navigate = useCallback(
     (command: 'previous' | 'next' | 'first' | 'last') => {
-      setSlideIndex((current) => resolveSlidePlaybackIndex(current, command, deck.slides.length));
+      const nextIndex = resolveSlidePlaybackIndex(slideIndex, command, deck.slides.length);
+      const nextSlide = deck.slides[nextIndex];
+      if (nextSlide && nextSlide.id !== activeSlideId) {
+        onActiveSlideChange(nextSlide.id);
+      }
     },
-    [deck.slides.length]
+    [activeSlideId, deck.slides, onActiveSlideChange, slideIndex]
   );
   const editor = useEditor();
 
