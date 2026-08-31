@@ -1,5 +1,4 @@
 import type { GridCell, Point } from "@/shared/types";
-import type { CanvasMode } from "./mode";
 import type { StructuredComponentInstance, StructuredNode } from "@/domains/structured-content/public";
 import type { CollaborationDescriptor } from "@/domains/collaboration/public";
 import type { SlideDeck } from "@/domains/slides/public";
@@ -17,10 +16,19 @@ interface CanvasSessionBase {
 }
 
 interface StaticCanvasSession extends CanvasSessionBase {
-  mode: Exclude<CanvasMode, "slide">;
+  mode: "freeform" | "structured";
   scene: StructuredNode[];
   components?: StructuredComponentInstance[];
   grid: [string, GridCell][];
+}
+
+export interface BlackboardCanvasSession extends CanvasSessionBase {
+  mode: "blackboard";
+  workspaceId: string;
+  scene: StructuredNode[];
+  components?: StructuredComponentInstance[];
+  grid: [string, GridCell][];
+  collaboration?: never;
 }
 
 interface SlideCanvasSession extends CanvasSessionBase {
@@ -32,16 +40,26 @@ interface SlideCanvasSession extends CanvasSessionBase {
   collaboration?: never;
 }
 
-export type CanvasSession = StaticCanvasSession | SlideCanvasSession;
+export type CanvasSession = StaticCanvasSession | SlideCanvasSession | BlackboardCanvasSession;
+
+type StaticCanvasImportSnapshotBase = {
+  scene: StructuredNode[];
+  components: StructuredComponentInstance[];
+  grid: [string, GridCell][];
+  name?: string;
+};
+
+export type FreeformCanvasImportSnapshot = StaticCanvasImportSnapshotBase & {
+  mode: "freeform";
+};
+
+export type StructuredCanvasImportSnapshot = StaticCanvasImportSnapshotBase & {
+  mode: "structured";
+};
 
 export type CanvasImportSnapshot =
-  | {
-      mode: Exclude<CanvasMode, "slide">;
-      scene: StructuredNode[];
-      components: StructuredComponentInstance[];
-      grid: [string, GridCell][];
-      name?: string;
-    }
+  | FreeformCanvasImportSnapshot
+  | StructuredCanvasImportSnapshot
   | {
       mode: "slide";
       slideDeck: SlideDeck;

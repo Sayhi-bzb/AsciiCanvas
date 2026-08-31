@@ -3,7 +3,7 @@
 Shared compiler and local Reader for either one Freeform `.chardesk` or a
 multi-file Blackboard package. Structured and Slide documents are rejected.
 
-- App Menu → File → Import Blackboard imports a selected package directory as an editable Freeform snapshot.
+- App Menu → File → Import Blackboard stores the selected package in the browser repository and opens a read-only Blackboard session.
 - `serve [board.chardesk|blackboard.yaml|directory] [--port 7331]` serves the main CharDesk application at `/blackboard` on loopback.
 - `check <board.chardesk|blackboard.yaml|directory>` validates the source and every registered Panel.
 
@@ -39,18 +39,18 @@ filled rectangular span; `null` is empty space. Panel content determines track
 sizes, so the manifest contains no coordinates or dimensions. Registered but
 unused Panels are valid drafts and produce a warning.
 
-The Agent writes source files with native filesystem tools. The server composes
-packages into one static Freeform projection and keeps no second revision or
-runtime layout layer.
+The package is the authority. Compilation produces a disposable Canvas surface;
+it never writes source state into Canvas Yjs content.
 
-The App directory importer uses the same compiler but creates a normal editable
-session. CharGraph Panels materialize the standard light Renderer Theme; explicit
-ANSI still has precedence. Later source or Renderer Theme changes do not update
-that imported snapshot. Use
+The App keeps browser workspaces in IndexedDB and exposes revision-aware file CRUD
+through page tools. Invalid edits remain saved while the last valid surface stays
+visible. The local Reader watches filesystem sources and uses the same compiler.
+CharGraph Panels materialize the standard light Renderer Theme; explicit ANSI
+still has precedence. Use
 [`demo/gpu-blackboard`](../../demo/gpu-blackboard) for a compact example and
 [`demo/gpu-deep-dive-blackboard`](../../demo/gpu-deep-dive-blackboard) for a
 multi-panel CharGraph showcase.
 
-The main application build must exist before `serve` starts. Blackboard uses a
-non-persistent `freeform` session with navigation, selection, and copy enabled;
-content mutation and session management remain disabled for the Human host.
+The main application build must exist before `serve` starts. `blackboard` is a
+first-class Canvas mode with navigation, selection, copy, import, and export.
+Human content mutation and collaboration are disabled; Agents edit source files.

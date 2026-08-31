@@ -18,6 +18,17 @@ export const useBlackboardSource = ({ enabled }: { enabled: boolean }) => {
 
   useEffect(() => {
     if (!enabled) return;
+    const existing = canvas.getState().canvasSessions.find(
+      (session) => session.mode === "blackboard" && session.workspaceId === "local-reader",
+    );
+    if (!existing) {
+      canvas.commands.sessions.create("blackboard", {
+        blackboardWorkspaceId: "local-reader",
+        name: "Blackboard",
+      });
+    } else if (existing.id !== canvas.getState().activeCanvasId) {
+      void canvas.commands.sessions.switch(existing.id);
+    }
     let disposed = false;
     let timer: number | null = null;
     let controller: AbortController | null = null;
@@ -58,16 +69,19 @@ export const useBlackboardSource = ({ enabled }: { enabled: boolean }) => {
           throw new Error(`Blackboard requires a freeform snapshot, received ${snapshot.mode}`);
         }
         const preserveViewport = hasValidRevisionRef.current;
-        canvas.commands.sessions.replaceSnapshot(
-          "blackboard-source",
+        const target = canvas.getState().canvasSessions.find(
+          (session) => session.mode === "blackboard" && session.workspaceId === "local-reader",
+        );
+        if (!target) throw new Error("Local Blackboard session is unavailable.");
+        canvas.commands.sessions.replaceBlackboardProjection(
+          target.id,
           snapshot,
-          { preserveViewport, resetHistory: true }
+          {
+            preserveViewport,
+            title: sourceName.replace(/\.chardesk$/i, "") || "Blackboard",
+          },
         );
         if (!hasValidRevisionRef.current) {
-          canvas.commands.sessions.rename(
-            "blackboard-source",
-            sourceName.replace(/\.chardesk$/i, "") || "Blackboard"
-          );
           hasValidRevisionRef.current = true;
           setFirstFitRevision((revision) => revision + 1);
         }

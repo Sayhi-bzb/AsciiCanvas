@@ -4,6 +4,10 @@ import { useMemo, useRef, useState } from 'react';
 import { Check, X } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { useCanvasRuntime, useCanvasState } from '@/domains/canvas/public';
+import {
+  createBlackboardArchive,
+  useBlackboardRuntimeOptional,
+} from '@/domains/blackboard/public';
 import { SLIDE_SIZE_PRESETS, type SlideSize } from '@/domains/slides/public';
 import { getAvailableExportFormats, type ExportFormat } from '@/domains/export/public';
 import { HOST_ICONOLOGY } from '@/shared/icons/iconology';
@@ -78,8 +82,13 @@ const createOptionMeta = [
     labelKey: 'session.newStructured',
     icon: HOST_ICONOLOGY.canvasMode.structured,
   },
+  {
+    mode: 'blackboard' as const,
+    labelKey: 'session.newBlackboard',
+    icon: HOST_ICONOLOGY.canvasMode.blackboard,
+  },
 ] satisfies Array<{
-  mode: 'freeform' | 'structured';
+  mode: 'freeform' | 'structured' | 'blackboard';
   labelKey: I18nKey;
   icon: (typeof HOST_ICONOLOGY.canvasMode)[keyof typeof HOST_ICONOLOGY.canvasMode];
 }>;
@@ -102,6 +111,7 @@ export function CanvasSessionSelector({
   paneActive = false,
 }: CanvasSessionSelectorProps) {
   const canvas = useCanvasRuntime();
+  const blackboard = useBlackboardRuntimeOptional();
   const { t } = useUiI18n();
   const isMobile = useIsMobile();
   const { phase: onboardingPhase } = useOnboardingTour();
@@ -185,9 +195,18 @@ export function CanvasSessionSelector({
     closeSelector();
   };
 
-  const createSession = (mode: 'freeform' | 'structured') => {
+  const createSession = async (mode: 'freeform' | 'structured' | 'blackboard') => {
     onActivate?.();
-    createCanvasSession(mode);
+    if (mode === 'blackboard') {
+      if (!blackboard) throw new Error('Blackboard runtime is unavailable.');
+      const source = await blackboard.repository.createWorkspace();
+      createCanvasSession('blackboard', {
+        blackboardWorkspaceId: source.workspace.id,
+        name: source.workspace.title,
+      });
+    } else {
+      createCanvasSession(mode);
+    }
     closeSelector();
   };
 
@@ -201,6 +220,17 @@ export function CanvasSessionSelector({
     setRenamePanelWidth(panelContentRef.current?.getBoundingClientRect().width ?? null);
     setActionsOpenId(null);
     setRenameTargetId(id);
+  };
+
+  const exportBlackboard = async (workspaceId: string, name: string) => {
+    const source = await blackboard?.repository.readWorkspace(workspaceId);
+    if (!source) return;
+    const url = URL.createObjectURL(createBlackboardArchive(source));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${name.replace(/[^a-z0-9._-]+/giu, '-') || 'blackboard'}.zip`;
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
   };
 
   const commitRename = (name: string) => {
@@ -397,11 +427,20 @@ export function CanvasSessionSelector({
                             aria-label={manageLabel}
                           >
                             <DropdownMenuGroup>
-                              <DropdownMenuItem onSelect={() => openRename(session.id)}>
-                                <SessionRenameIcon />
-                                {t('session.rename')}
-                              </DropdownMenuItem>
-                              <DropdownMenuSub>
+                              {session.mode !== 'blackboard' && (
+                                <DropdownMenuItem onSelect={() => openRename(session.id)}>
+                                  <SessionRenameIcon />
+                                  {t('session.rename')}
+                                </DropdownMenuItem>
+                              )}
+                              {session.mode === 'blackboard' ? (
+                                <DropdownMenuItem onSelect={() => {
+                                  void exportBlackboard(session.workspaceId, session.name);
+                                }}>
+                                  <SessionExportIcon />
+                                  {t('session.export')}
+                                </DropdownMenuItem>
+                              ) : <DropdownMenuSub>
                                 <DropdownMenuSubTrigger>
                                   <SessionExportIcon />
                                   {t('session.export')}
@@ -480,7 +519,7 @@ export function CanvasSessionSelector({
                                       : ''}
                                   </span>
                                 </DropdownMenuSubContent>
-                              </DropdownMenuSub>
+                              </DropdownMenuSub>}
                             </DropdownMenuGroup>
                             <DropdownMenuSeparator />
                             <DropdownMenuGroup>
@@ -541,7 +580,7 @@ export function CanvasSessionSelector({
                       data-onboarding-target={
                         option.mode === 'structured' ? 'create-structured' : undefined
                       }
-                      onSelect={() => createSession(option.mode)}
+                      onSelect={() => { void createSession(option.mode); }}
                     >
                       <Icon />
                       {t(option.labelKey)}
@@ -667,7 +706,12 @@ export function CanvasSessionSelector({
               tone="danger"
               onClick={() => {
                 if (!pendingDeleteSession) return;
-                removeCanvasSession(pendingDeleteSession.id);
+                const deleted = pendingDeleteSession;
+                void removeCanvasSession(deleted.id).then(async (removed) => {
+                  if (removed && deleted.mode === 'blackboard') {
+                    await blackboard?.repository.deleteWorkspace(deleted.workspaceId);
+                  }
+                });
                 setPendingDeleteId(null);
                 restoreSelectorFocus();
               }}

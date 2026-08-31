@@ -20,6 +20,7 @@ const selectedCell = selectGridRange(
 );
 
 function Inspector({
+  available = true,
   formFactor = "desktop",
   readOnly = false,
 }: Partial<React.ComponentProps<typeof CanvasInspectorControl>>) {
@@ -27,6 +28,7 @@ function Inspector({
     <ShortcutProvider>
       <EditorShortcutTestLayer />
       <CanvasInspectorControl
+        available={available}
         formFactor={formFactor}
         readOnly={readOnly}
       />
@@ -45,6 +47,24 @@ describe("CanvasInspectorControl", () => {
       replaceCanvasGrid([]);
       useEditorStore.setState(initialState, true);
     });
+  });
+
+  it("removes the surface and shortcut registration while preserving its open state", () => {
+    useEditorStore.setState({ canvasMode: "freeform", tool: "select" });
+    const { rerender } = render(<Inspector />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Toggle inspector" }));
+    expect(screen.queryByTestId("canvas-inspector-panel")).not.toBeInTheDocument();
+
+    rerender(<Inspector available={false} />);
+    expect(
+      screen.queryByRole("button", { name: "Toggle inspector" })
+    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId("canvas-inspector-panel")).not.toBeInTheDocument();
+
+    rerender(<Inspector available />);
+    expect(screen.getByRole("button", { name: "Toggle inspector" })).toBeInTheDocument();
+    expect(screen.queryByTestId("canvas-inspector-panel")).not.toBeInTheDocument();
   });
 
   it("uses one persistent swatch trigger and one global open state", () => {

@@ -3,19 +3,34 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { feedback } from "@/shared/services/effects";
 import { useCanvasImport } from "./useCanvasImport";
 
-const { compileBlackboardDirectory, importCanvasSession } = vi.hoisted(() => ({
-  compileBlackboardDirectory: vi.fn(),
+const {
+  applyWorkspace,
+  createCanvasSession,
+  createWorkspace,
+  importCanvasSession,
+  readBlackboardDirectory,
+} = vi.hoisted(() => ({
+  applyWorkspace: vi.fn(),
+  createCanvasSession: vi.fn(),
+  createWorkspace: vi.fn(),
   importCanvasSession: vi.fn(),
+  readBlackboardDirectory: vi.fn(),
 }));
 
 vi.mock("@/domains/canvas/public", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/domains/canvas/public")>()),
   useCanvasRuntime: () => ({
-    commands: { sessions: { import: importCanvasSession } },
+    commands: { sessions: { create: createCanvasSession, import: importCanvasSession } },
   }),
 }));
 
-vi.mock("./blackboard-directory", () => ({ compileBlackboardDirectory }));
+vi.mock("@/domains/blackboard/public", () => ({
+  useBlackboardRuntimeOptional: () => ({
+    repository: { apply: applyWorkspace, createWorkspace },
+  }),
+}));
+
+vi.mock("./blackboard-directory", () => ({ readBlackboardDirectory }));
 
 const createFileEvent = (text: () => Promise<string>) =>
   ({
@@ -59,7 +74,10 @@ const createDirectoryEvent = () => {
 describe("useCanvasImport", () => {
   beforeEach(() => {
     importCanvasSession.mockReset();
-    compileBlackboardDirectory.mockReset();
+    readBlackboardDirectory.mockReset();
+    createCanvasSession.mockReset();
+    createWorkspace.mockReset();
+    applyWorkspace.mockReset();
     vi.spyOn(feedback, "success").mockImplementation(() => undefined);
     vi.spyOn(feedback, "error").mockImplementation(() => undefined);
   });
@@ -94,11 +112,17 @@ describe("useCanvasImport", () => {
     });
   });
 
-  it("imports a Blackboard directory as one canonical editable snapshot", async () => {
-    compileBlackboardDirectory.mockResolvedValue({
-      title: "GPU",
-      source: "L R",
-      warnings: [],
+  it("imports a Blackboard directory as a source-authoritative mode", async () => {
+    readBlackboardDirectory.mockResolvedValue({
+      compiled: { title: "GPU", source: "L R", warnings: [] },
+      sourceTree: new Map([
+        ["blackboard.yaml", "manifest"],
+        ["panels/main.panel", "L R"],
+      ]),
+    });
+    createWorkspace.mockResolvedValue({
+      workspace: { id: "workspace-1", title: "GPU", revision: 1 },
+      files: [{ path: "blackboard.yaml", content: "starter" }],
     });
     const { result } = renderHook(() => useCanvasImport());
 
@@ -106,24 +130,26 @@ describe("useCanvasImport", () => {
       await result.current.handleBlackboardDirectoryChange(createDirectoryEvent());
     });
 
-    expect(compileBlackboardDirectory).toHaveBeenCalledWith([
+    expect(readBlackboardDirectory).toHaveBeenCalledWith([
       expect.objectContaining({ webkitRelativePath: "gpu/blackboard.yaml" }),
     ]);
-    expect(importCanvasSession).toHaveBeenCalledWith(
+    expect(applyWorkspace).toHaveBeenCalledWith(
+      "workspace-1",
       [
-        "---",
-        "chardesk: document/v1",
-        "mode: freeform",
-        "title: GPU",
-        "---",
-        "L R",
-      ].join("\n"),
-      { name: "GPU", sourceName: "blackboard.chardesk" },
+        { op: "delete", path: "blackboard.yaml" },
+        { op: "write", path: "blackboard.yaml", content: "manifest" },
+        { op: "write", path: "panels/main.panel", content: "L R" },
+      ],
+      1,
     );
+    expect(createCanvasSession).toHaveBeenCalledWith("blackboard", {
+      blackboardWorkspaceId: "workspace-1",
+      name: "GPU",
+    });
   });
 
   it("reports Blackboard directory failures through existing import feedback", async () => {
-    compileBlackboardDirectory.mockRejectedValue(new Error("Missing blackboard.yaml"));
+    readBlackboardDirectory.mockRejectedValue(new Error("Missing blackboard.yaml"));
     const { result } = renderHook(() => useCanvasImport());
 
     await act(async () => {

@@ -53,6 +53,15 @@ const sessions: CanvasSession[] = [
       }],
     },
   },
+  {
+    id: "canvas-blackboard",
+    name: "Board",
+    mode: "blackboard",
+    workspaceId: "workspace-a",
+    scene: [],
+    components: [],
+    grid: [],
+  },
 ];
 
 describe("CanvasRuntime.materializeSession", () => {
@@ -113,6 +122,41 @@ describe("CanvasRuntime.materializeSession", () => {
     });
 
     await expect(runtime.materializeSession("missing")).resolves.toBeNull();
+  });
+
+  it("materializes the derived Blackboard surface instead of its empty shell", async () => {
+    runtime = createCanvasRuntime({
+      persistence: false,
+      initialSessions: sessions,
+      parseSessionSource: parseDocumentSessionSource,
+      selectionCommands: createSelectionCommandFactory({
+        getActiveDocumentId: () => runtime!.documents.getActiveDocumentId(),
+        renderClipboardText: async () => ({
+          kind: "spans",
+          renderer: "raw",
+          pipeline: [],
+          rows: [],
+          width: 0,
+          height: 0,
+          diagnostics: [],
+        }),
+      }),
+    });
+
+    runtime.commands.sessions.replaceBlackboardProjection(
+      "canvas-blackboard",
+      {
+        mode: "freeform",
+        grid: [["3,2", { char: "B", color: "#111111" }]],
+        scene: [],
+        components: [],
+      },
+    );
+
+    const materialized = await runtime.materializeSession("canvas-blackboard");
+    expect(materialized?.surface.getCell({ x: 3, y: 2 })?.char).toBe("B");
+    expect(runtime.documents.getDocumentSeed("canvas-blackboard", "freeform")?.grid)
+      .toEqual([]);
   });
 
   it("materializes structured projections and complete slide decks", async () => {

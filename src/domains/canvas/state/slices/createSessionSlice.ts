@@ -26,6 +26,7 @@ import { sameCollaborationRoom } from "@/domains/collaboration/public";
 import { createSessionActivationPatch } from "../transitions/editorTransitions";
 import { rebuildGridFromContent } from "../helpers/gridHelpers";
 import type { CanvasDocumentResidency } from "../documentResidencyPort";
+import { createGridSurfaceReader } from "../../cell-plane/model";
 
 const activationGenerations = new WeakMap<CanvasDocumentRegistry, number>();
 
@@ -73,7 +74,7 @@ const createImportedSession = (
   sessionId: string,
   name: string,
   snapshot: CanvasImportSnapshot
-): CanvasSession => {
+): Exclude<CanvasSession, { mode: "blackboard" }> => {
   if (snapshot.mode === "slide") {
     return {
       id: sessionId,
@@ -122,6 +123,8 @@ const checkpointActiveSessionViewport = (
       case "structured":
         return { ...session, viewport };
       case "freeform":
+        return { ...session, viewport };
+      case "blackboard":
         return { ...session, viewport };
     }
   });
@@ -176,7 +179,10 @@ const activateSessionRuntime = (
     }
   );
 
-  const documentSeed = documents.getDocumentSeed(session.id, session.mode);
+    const documentSeed = documents.getDocumentSeed(
+      session.id,
+      session.mode === "blackboard" ? "freeform" : session.mode,
+    );
   return resolveSessionRuntime(
     documentSeed
       ? {
@@ -220,9 +226,25 @@ export const createSessionSlice = (
             components: [],
             grid: [],
           }
-        : {
+        : normalizedMode === "blackboard"
+          ? {
+              id: sessionId,
+              name: options?.name?.trim() || resolveNextSessionName(
+                sessionsWithSnapshot,
+                normalizedMode,
+              ),
+              mode: "blackboard",
+              workspaceId: options?.blackboardWorkspaceId?.trim() || sessionId,
+              scene: [],
+              components: [],
+              grid: [],
+            }
+          : {
             id: sessionId,
-            name: resolveNextSessionName(sessionsWithSnapshot, normalizedMode),
+            name: options?.name?.trim() || resolveNextSessionName(
+              sessionsWithSnapshot,
+              normalizedMode,
+            ),
             mode: normalizedMode,
             scene: [],
             components: [],
@@ -290,6 +312,9 @@ export const createSessionSlice = (
     const state = get();
     const target = state.canvasSessions.find((session) => session.id === sessionId);
     if (!target) throw new Error(`Canvas session not found: ${sessionId}`);
+    if (target.mode === "blackboard") {
+      throw new Error("Blackboard projections are updated from their source workspace.");
+    }
     if (target.mode !== snapshot.mode) {
       throw new Error(
         `Canvas snapshot mode ${snapshot.mode} does not match session mode ${target.mode}`
@@ -388,6 +413,44 @@ export const createSessionSlice = (
         : rebuildGridFromContent(documents)
     ));
   },
+  replaceBlackboardProjection: (sessionId, snapshot, options) => {
+    const state = get();
+    const target = state.canvasSessions.find((session) => session.id === sessionId);
+    if (!target || target.mode !== "blackboard") {
+      throw new Error(`Blackboard session not found: ${sessionId}`);
+    }
+    const title = options?.title?.trim();
+    const viewport = options?.preserveViewport === false
+      ? undefined
+      : sessionId === state.activeCanvasId
+        ? { offset: { ...state.offset }, zoom: state.zoom }
+        : target.viewport;
+    const replacement: CanvasSession = {
+      ...target,
+      ...(title ? { name: title } : {}),
+      ...(viewport ? { viewport } : {}),
+      grid: [],
+      scene: [],
+      components: [],
+    };
+    const nextSessions = state.canvasSessions.map((session) =>
+      session.id === sessionId ? replacement : session
+    );
+    const surface = createGridSurfaceReader(new Map(snapshot.grid));
+    if (sessionId !== state.activeCanvasId) {
+      documents.setDerivedSurface(sessionId, surface);
+      set({ canvasSessions: nextSessions });
+      return;
+    }
+    documents.setDerivedSurface(sessionId, surface);
+    documents.clearHistory();
+    set(createSessionActivationPatch(
+      nextSessions,
+      sessionId,
+      resolveSessionRuntime(replacement, state.tool),
+      rebuildGridFromContent(documents),
+    ));
+  },
   switchCanvasSession: async (canvasId) => {
     const state = get();
     if (canvasId === state.activeCanvasId) {
@@ -478,7 +541,7 @@ export const createSessionSlice = (
   setCanvasSessionCollaboration: (canvasId, collaboration) => {
     const state = get();
     const session = state.canvasSessions.find((item) => item.id === canvasId);
-    if (!session || session.mode === "slide") return;
+    if (!session || session.mode === "slide" || session.mode === "blackboard") return;
     if (collaboration && collaboration.mode !== session.mode) return;
     if (collaboration) {
       documents.prepareDocumentForCollaboration(
@@ -490,7 +553,7 @@ export const createSessionSlice = (
 
     set({
       canvasSessions: state.canvasSessions.map((item) =>
-        item.mode !== "slide" && item.id === canvasId
+        item.mode !== "slide" && item.mode !== "blackboard" && item.id === canvasId
           ? {
               ...item,
               collaboration: collaboration ?? undefined,
@@ -502,7 +565,7 @@ export const createSessionSlice = (
   joinCanvasSessionCollaboration: (collaboration) => {
     const existing = get().canvasSessions.find(
       (session) =>
-        session.mode !== "slide" &&
+        session.mode !== "slide" && session.mode !== "blackboard" &&
         sameCollaborationRoom(session.collaboration, collaboration)
     );
     if (existing) {

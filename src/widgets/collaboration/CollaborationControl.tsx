@@ -112,7 +112,7 @@ export function CollaborationControl() {
   const statusLabel = t(statusPresentation.key);
 
   const start = (customEndpoint?: string) => {
-    if (!activeSession || activeSession.mode === "slide") return;
+    if (!activeSession || activeSession.mode === "slide" || activeSession.mode === "blackboard") return;
     try {
       const next = createCollaborationDescriptor(activeSession.mode, customEndpoint);
       setControlErrorKey(null);

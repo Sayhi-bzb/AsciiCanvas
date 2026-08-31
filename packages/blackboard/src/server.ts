@@ -144,7 +144,7 @@ export const startBlackboardServer = async ({
         return;
       }
       if (decoded === "/") {
-        send(response, 307, undefined, { Location: "/blackboard" });
+        send(response, 307, undefined, { Location: "/blackboard?reader=1" });
         return;
       }
       const asset = resolve(

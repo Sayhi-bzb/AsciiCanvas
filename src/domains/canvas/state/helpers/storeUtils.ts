@@ -48,10 +48,16 @@ const normalizeSessionViewport = (viewport: CanvasSession['viewport'] | undefine
 };
 
 const getFallbackToolForMode = (mode: CanvasMode): ToolType => {
-  return mode === 'structured' ? 'select' : 'brush';
+  return mode === 'structured' || mode === 'blackboard' ? 'select' : 'brush';
 };
 
 export const buildSessionSnapshot = (state: EditorState) => {
+  if (state.canvasMode === 'blackboard') {
+    return {
+      mode: 'blackboard' as const,
+      viewport: { offset: { ...state.offset }, zoom: state.zoom },
+    };
+  }
   if (state.canvasMode === 'slide') {
     const deck =
       state.slideDeck ??
@@ -96,12 +102,16 @@ export const resolveSessionRuntime = (session: CanvasSession, currentTool: ToolT
   // CanvasSession values are normalized at restore/import boundaries and kept in
   // sync by the active document projector. Preserve their identities here so a
   // session switch does not invalidate structured projection caches.
-  const nextScene = nextMode === 'structured' ? session.scene : [];
+  const nextScene = nextMode === 'structured' && session.mode === 'structured'
+    ? session.scene
+    : [];
   const nextComponents =
-    nextMode === 'structured' ? (session.components ?? []) : [];
+    nextMode === 'structured' && session.mode === 'structured'
+      ? (session.components ?? [])
+      : [];
   let nextGridEntries: CanvasSession['grid'];
   if (nextMode === 'structured') {
-    const structuredGrid = session.mode !== 'slide' ? session.grid : [];
+    const structuredGrid = session.mode === 'structured' ? session.grid : [];
     // Scene is authoritative. Keep an existing legacy grid readable, but never
     // synthesize and retain a second full representation of structured content.
     nextGridEntries = structuredGrid;
@@ -111,7 +121,9 @@ export const resolveSessionRuntime = (session: CanvasSession, currentTool: ToolT
         (slide) => slide.id === nextSlideDeck.activeSlideId
       )?.grid ?? [];
   } else {
-    nextGridEntries = session.mode !== 'slide' ? session.grid : [];
+    nextGridEntries = session.mode === 'freeform' || session.mode === 'structured'
+      ? session.grid
+      : [];
   }
 
   return {

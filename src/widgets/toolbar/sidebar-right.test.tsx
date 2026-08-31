@@ -29,6 +29,14 @@ const sortTemplateLabels = <T extends { id: string; label: string }>(
       a.id.localeCompare(b.id)
   );
 
+function SidebarRightForActiveMode() {
+  const canvasMode = useEditorStore((state) => state.canvasMode);
+  if (canvasMode === "blackboard") {
+    throw new Error("Blackboard does not own a Sidebar surface.");
+  }
+  return <SidebarRight canvasMode={canvasMode} />;
+}
+
 describe("SidebarRight structured templates", () => {
   const initialState = useEditorStore.getState();
   const initialLibraryState = useLibraryStore.getState();
@@ -73,7 +81,7 @@ describe("SidebarRight structured templates", () => {
   it("keeps the header toggle aligned with the left rail when collapsed", () => {
     const { container } = render(
       <SidebarProvider defaultOpen>
-        <SidebarRight />
+        <SidebarRightForActiveMode />
       </SidebarProvider>
     );
     const toggle = screen.getByRole("button", { name: /toggle sidebar/i });
@@ -101,7 +109,7 @@ describe("SidebarRight structured templates", () => {
 
     const { container } = render(
       <SidebarProvider>
-        <SidebarRight />
+        <SidebarRightForActiveMode />
       </SidebarProvider>
     );
     const content = container.querySelector('[data-slot="sidebar-content"]');
@@ -305,7 +313,7 @@ describe("SidebarRight structured templates", () => {
   it("does not render the migrated utility footer", () => {
     const { container } = render(
       <SidebarProvider>
-        <SidebarRight />
+        <SidebarRightForActiveMode />
       </SidebarProvider>
     );
 
@@ -334,7 +342,7 @@ describe("SidebarRight structured templates", () => {
 
     render(
       <SidebarProvider>
-        <SidebarRight />
+        <SidebarRightForActiveMode />
       </SidebarProvider>
     );
 
@@ -463,7 +471,7 @@ describe("SidebarRight structured templates", () => {
 
     render(
       <SidebarProvider>
-        <SidebarRight />
+        <SidebarRightForActiveMode />
       </SidebarProvider>
     );
 
@@ -519,7 +527,7 @@ describe("SidebarRight structured templates", () => {
 
     render(
       <SidebarProvider>
-        <SidebarRight />
+        <SidebarRightForActiveMode />
       </SidebarProvider>
     );
 
@@ -570,7 +578,7 @@ describe("SidebarRight structured templates", () => {
 
     const { container } = render(
       <SidebarProvider>
-        <SidebarRight />
+        <SidebarRightForActiveMode />
       </SidebarProvider>
     );
 
@@ -648,7 +656,7 @@ describe("SidebarRight structured templates", () => {
 
     render(
       <SidebarProvider>
-        <SidebarRight />
+        <SidebarRightForActiveMode />
       </SidebarProvider>
     );
 
@@ -727,7 +735,7 @@ describe("SidebarRight structured templates", () => {
 
     render(
       <SidebarProvider>
-        <SidebarRight />
+        <SidebarRightForActiveMode />
       </SidebarProvider>
     );
 
@@ -813,7 +821,7 @@ describe("SidebarRight structured templates", () => {
 
     render(
       <SidebarProvider>
-        <SidebarRight />
+        <SidebarRightForActiveMode />
       </SidebarProvider>
     );
 
@@ -834,7 +842,7 @@ describe("SidebarRight structured templates", () => {
 
     const { container } = render(
       <SidebarProvider>
-        <SidebarRight />
+        <SidebarRightForActiveMode />
       </SidebarProvider>
     );
 
@@ -873,7 +881,7 @@ describe("SidebarRight structured templates", () => {
 
     render(
       <SidebarProvider>
-        <SidebarRight />
+        <SidebarRightForActiveMode />
       </SidebarProvider>
     );
 
@@ -891,7 +899,7 @@ describe("SidebarRight structured templates", () => {
 
     render(
       <SidebarProvider>
-        <SidebarRight />
+        <SidebarRightForActiveMode />
       </SidebarProvider>
     );
 
@@ -923,7 +931,7 @@ describe("SidebarRight structured templates", () => {
 
     render(
       <SidebarProvider>
-        <SidebarRight />
+        <SidebarRightForActiveMode />
       </SidebarProvider>
     );
     const mountedNativeDragImage = document.querySelector<HTMLCanvasElement>(

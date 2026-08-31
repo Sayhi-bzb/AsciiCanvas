@@ -10,6 +10,7 @@ description: Authority, projection, history, persistence, and synchronization di
 | `session` | Canvas identity, mode, saved viewport, slide metadata, and collaboration descriptor in the IndexedDB catalog | No | No |
 | `presence` | Remote identity, cursor, transient selection | No | Ephemeral |
 | `derived` | Rendering, minimap, preview projections | No | No |
+| `blackboard` | Versioned source files in the browser repository or local Reader | Repository revisions | No |
 
 A projection never writes back to its authority. Only local Yjs origins enter
 undo history. Remote values pass Canvas decoders before projection; invalid records
@@ -46,6 +47,19 @@ use Registry focus as an implicit write target.
   canvas selection port -> Yjs document.
 - Block layout text: `|||`-recognized layout -> per-field normal text renderer ->
   composed CellPlane rows. A lone `---` remains a Markdown thematic break in auto mode.
+- Blackboard: source-tree transaction -> shared compiler -> derived Canvas surface.
+  Invalid source remains stored while the last valid surface stays mounted. Human
+  Canvas commands never write back to source files.
+- Blackboard site tool: explicit workspace (or the visible Blackboard workspace) ->
+  protocol-neutral file command -> source repository. Workspace discovery and creation are
+  available from any application route. The application selects one host adapter, preferring the complete
+  WebMCP surface over the OpenAI subset. Bootstrap registration keeps an adaptive handshake
+  for runtimes injected after page load; an unavailable workspace returns a stable result.
+  Standard WebMCP requires an origin-isolated document plus either Chrome's local testing
+  flag or an origin-bound trial token supplied as `VITE_WEBMCP_ORIGIN_TRIAL_TOKEN`.
+  `?webmcp=polyfill` and `VITE_WEBMCP_DEV_POLYFILL=1` enable the explicit development-only
+  protocol fallback. Inspect `data-webmcp-provider` and `data-webmcp-status` on the root
+  element when a host cannot discover the tools.
 
 The application module and Canvas restore load independently. App chrome mounts as
 soon as the module is available, while `CanvasPersistenceStatus.restore` gates the
@@ -55,11 +69,13 @@ documents off-screen, then atomically activates them; temporary edits are retain
 a distinct recovered session. The mounted workspace becomes inert during that commit
 and is never replaced by a second loading screen.
 
-Every local session persists one Yjs document. A Freeform or Structured document has one page;
+Every editable local session persists one Yjs document. A Freeform or Structured document has one page;
 a Slide document has one page per slide. The catalog owns session identity and slide ordering,
 names, and sizes. Collaborative
 sessions persist only their catalog shell and descriptor; room content is restored through
 collaboration persistence and never copied into local session persistence.
+Blackboard persists its catalog descriptor and source repository instead. Its runtime Yjs
+shell is empty and non-persistent; compiled surfaces have no undo or synchronization history.
 
 The V5 localStorage envelope is a migration input only. Migration seeds and verifies all Yjs
 documents, commits the catalog, then removes the old key. A failure keeps the old value for retry.

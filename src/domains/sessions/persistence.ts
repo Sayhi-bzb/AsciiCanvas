@@ -54,7 +54,8 @@ const decodePoint = (value: unknown): Point | null =>
     : null;
 
 const isCanvasMode = (value: unknown): value is CanvasMode =>
-  value === "freeform" || value === "structured" || value === "slide";
+  value === "freeform" || value === "structured" || value === "slide" ||
+  value === "blackboard";
 
 const decodeViewport = (value: unknown): CanvasSession["viewport"] | undefined => {
   if (!isRecord(value)) return undefined;
@@ -86,6 +87,25 @@ const decodeCanvasSession = (value: unknown): CanvasSession | null => {
           : "Slides",
       mode: "slide",
       slideDeck: normalizeSlideDeck(value.slideDeck, `${value.id}-slide-1`),
+      scene: [],
+      components: [],
+      grid: [],
+      ...(viewport ? { viewport } : {}),
+    };
+  }
+
+  if (value.mode === "blackboard") {
+    return {
+      id: value.id,
+      name:
+        typeof value.name === "string" && value.name.trim()
+          ? value.name
+          : "Blackboard",
+      mode: "blackboard",
+      workspaceId:
+        typeof value.workspaceId === "string" && value.workspaceId.trim()
+          ? value.workspaceId
+          : value.id,
       scene: [],
       components: [],
       grid: [],

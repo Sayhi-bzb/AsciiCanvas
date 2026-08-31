@@ -1,12 +1,13 @@
 import { useRef, useState, type ChangeEvent } from "react";
 import { useCanvasRuntime } from "@/domains/canvas/public";
-import { serializeCharDeskDocumentEnvelope } from "@chardesk/document";
+import { useBlackboardRuntimeOptional } from "@/domains/blackboard/public";
 import { feedback } from "@/shared/services/effects";
 import { useUiI18n } from "@/shared/i18n";
-import { compileBlackboardDirectory } from "./blackboard-directory";
+import { readBlackboardDirectory } from "./blackboard-directory";
 
 export function useCanvasImport() {
   const canvas = useCanvasRuntime();
+  const blackboard = useBlackboardRuntimeOptional();
   const { t } = useUiI18n();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const directoryInputRef = useRef<HTMLInputElement | null>(null);
@@ -61,15 +62,27 @@ export function useCanvasImport() {
 
     setIsImporting(true);
     try {
-      const compiled = await compileBlackboardDirectory(files);
-      await importCanvasSession(
-        serializeCharDeskDocumentEnvelope({
-          mode: "freeform",
-          title: compiled.title,
-          body: compiled.source,
-        }),
-        { name: compiled.title, sourceName: "blackboard.chardesk" },
+      if (!blackboard) throw new Error("Blackboard runtime is unavailable.");
+      const imported = await readBlackboardDirectory(files);
+      const workspace = await blackboard.repository.createWorkspace({
+        title: imported.compiled.title,
+      });
+      await blackboard.repository.apply(
+        workspace.workspace.id,
+        [
+          ...workspace.files.map(({ path }) => ({ op: "delete" as const, path })),
+          ...[...imported.sourceTree].map(([path, content]) => ({
+            op: "write" as const,
+            path,
+            content,
+          })),
+        ],
+        workspace.workspace.revision,
       );
+      canvas.commands.sessions.create("blackboard", {
+        blackboardWorkspaceId: workspace.workspace.id,
+        name: imported.compiled.title,
+      });
     } catch (error) {
       reportFailure(error);
     } finally {

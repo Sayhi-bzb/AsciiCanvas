@@ -46,7 +46,10 @@ const resolveSessionContent = (
       structuredComponents: [],
     };
   }
-  const seed = documents.getDocumentSeed(session.id, session.mode);
+  const seed = documents.getDocumentSeed(
+    session.id,
+    session.mode === 'blackboard' ? 'freeform' : session.mode,
+  );
   const structuredScene = seed?.scene ?? session.scene;
   return {
     activeCanvasId: session.id,

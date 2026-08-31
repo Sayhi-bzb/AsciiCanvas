@@ -1,6 +1,6 @@
 import {
   BlackboardPackageError,
-  compileBlackboard,
+  compileBlackboardSourceTree,
   type CompiledBlackboard,
 } from "@chardesk/blackboard";
 
@@ -10,7 +10,11 @@ type DirectoryFile = Pick<File, "text" | "webkitRelativePath">;
 
 export const compileBlackboardDirectory = async (
   selected: Iterable<DirectoryFile>,
-): Promise<CompiledBlackboard> => {
+): Promise<CompiledBlackboard> => (await readBlackboardDirectory(selected)).compiled;
+
+export const readBlackboardDirectory = async (
+  selected: Iterable<DirectoryFile>,
+) => {
   const files = [...selected];
   if (files.length === 0) {
     throw new BlackboardPackageError("invalid-manifest", "Choose a Blackboard directory.");
@@ -43,26 +47,18 @@ export const compileBlackboardDirectory = async (
     entries.set(relativePath, file);
   });
 
-  const manifest = entries.get(ROOT_MANIFEST);
-  if (!manifest) {
+  if (!entries.has(ROOT_MANIFEST)) {
     throw new BlackboardPackageError(
       "invalid-manifest",
       `Selected directory must contain ${ROOT_MANIFEST} at its root.`,
     );
   }
-  return compileBlackboard({
-    manifestSource: await manifest.text(),
-    fallbackTitle: rootName!,
-    readPanel: async ({ id, source }) => {
-      const panel = entries.get(source);
-      if (!panel) {
-        throw new BlackboardPackageError(
-          "missing-panel",
-          `Panel ${JSON.stringify(id)} source does not exist: ${source}`,
-          id,
-        );
-      }
-      return panel.text();
-    },
-  });
+  const sourceTree = new Map(await Promise.all(
+      [...entries].map(async ([path, file]) => [path, await file.text()] as const),
+    ));
+  const compiled = await compileBlackboardSourceTree(
+    sourceTree,
+    rootName!,
+  );
+  return { rootName: rootName!, sourceTree, compiled };
 };

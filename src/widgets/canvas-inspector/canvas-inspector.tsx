@@ -46,6 +46,7 @@ import {
 } from "./text-format-model";
 
 type CanvasInspectorControlProps = {
+  available?: boolean;
   formFactor: EditorFormFactor;
   readOnly?: boolean;
 };
@@ -94,6 +95,7 @@ const formatActionIds = {
 } as const;
 
 export function CanvasInspectorControl({
+  available = true,
   formFactor,
   readOnly = false,
 }: CanvasInspectorControlProps) {
@@ -197,6 +199,8 @@ export function CanvasInspectorControl({
   }, [canvas, state.canvasMode, state.tool]);
 
   useEffect(() => {
+    if (!available) return;
+
     const disposeCommand = editor.commands.register("canvas.inspector", {
       id: "ui.toggle-inspector",
       execute: () => {
@@ -218,12 +222,12 @@ export function CanvasInspectorControl({
       disposeBinding();
       disposeCommand();
     };
-  }, [editor]);
+  }, [available, editor]);
 
   useShortcutLayer({
     id: "canvas-inspector",
     priority: SHORTCUT_PRIORITY.dynamicCanvasCommand,
-    enabled: state.tool !== "pan",
+    enabled: available && state.tool !== "pan",
     onKeyDown: (event, context) => {
       if (
         context.targetKind === "editable" ||
@@ -237,6 +241,8 @@ export function CanvasInspectorControl({
       }
     },
   });
+
+  if (!available) return null;
 
   const applyColor = (color: string) => {
     if (readOnly) return;

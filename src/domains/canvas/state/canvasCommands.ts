@@ -220,6 +220,9 @@ return {
     replaceSnapshot: (
       ...args: Parameters<EditorState["replaceCanvasSessionSnapshot"]>
     ) => call("replaceCanvasSessionSnapshot", ...args),
+    replaceBlackboardProjection: (
+      ...args: Parameters<EditorState["replaceBlackboardProjection"]>
+    ) => call("replaceBlackboardProjection", ...args),
     switch: (...args: Parameters<EditorState["switchCanvasSession"]>) =>
       call("switchCanvasSession", ...args),
     remove: (...args: Parameters<EditorState["removeCanvasSession"]>) =>

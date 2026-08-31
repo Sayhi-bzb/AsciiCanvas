@@ -21,6 +21,7 @@ export type CanvasCatalogSession = {
   order?: number;
   name: string;
   mode: CanvasMode;
+  workspaceId?: string;
   viewport?: { offset: Point; zoom: number };
   collaboration?: CollaborationDescriptor;
   activeSlideId?: string;

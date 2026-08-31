@@ -9,7 +9,11 @@ export const resolveNextSessionName = (
   sessions: CanvasSession[],
   mode: CanvasMode = "freeform"
 ) => {
-  const prefix = mode === "slide" ? "Slides" : "Canvas";
+  const prefix = mode === "slide"
+    ? "Slides"
+    : mode === "blackboard"
+      ? "Blackboard"
+      : "Canvas";
   const pattern = new RegExp(`^${prefix}\\s+(\\d+)$`, "i");
   let maxIndex = 0;
   sessions.forEach((session) => {
@@ -33,7 +37,7 @@ export const createSessionId = (sessions: CanvasSession[]) => {
 };
 
 type StaticActiveSnapshot = {
-  mode: Exclude<CanvasMode, "slide">;
+  mode: "freeform" | "structured";
   scene: StructuredNode[];
   components?: StructuredComponentInstance[];
   grid: [string, { char: string; color: string }][];
@@ -46,7 +50,12 @@ type SlideActiveSnapshot = {
   viewport?: { offset: Point; zoom: number };
 };
 
-type ActiveSnapshot = StaticActiveSnapshot | SlideActiveSnapshot;
+type BlackboardActiveSnapshot = {
+  mode: "blackboard";
+  viewport?: { offset: Point; zoom: number };
+};
+
+type ActiveSnapshot = StaticActiveSnapshot | SlideActiveSnapshot | BlackboardActiveSnapshot;
 
 export const withActiveCanvasSnapshot = (
   sessions: CanvasSession[],
@@ -67,6 +76,11 @@ export const withActiveCanvasSnapshot = (
         viewport: snapshot.viewport,
       };
     }
+    if (snapshot.mode === "blackboard") {
+      return session.mode === "blackboard"
+        ? { ...session, viewport: snapshot.viewport }
+        : session;
+    }
     return {
       ...session,
       mode: snapshot.mode,
@@ -81,5 +95,6 @@ export const withActiveCanvasSnapshot = (
 export const normalizeSessionMode = (mode: unknown): CanvasMode => {
   if (mode === "slide") return "slide";
   if (mode === "structured") return "structured";
+  if (mode === "blackboard") return "blackboard";
   return "freeform";
 };

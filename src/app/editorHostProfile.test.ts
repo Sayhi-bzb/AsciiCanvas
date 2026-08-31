@@ -1,27 +1,47 @@
 import { describe, expect, it } from "vitest";
 import {
-  BLACKBOARD_HOST_PROFILE,
   EDITOR_HOST_PROFILE,
-  intersectHostCapabilities,
+  resolveEditorHostContract,
 } from "./editorHostProfile";
 
-describe("Editor Host profiles", () => {
-  it("keeps the editor fully capable and Blackboard observation-only", () => {
-    expect(Object.values(EDITOR_HOST_PROFILE.capabilities).every(Boolean)).toBe(true);
-    expect(BLACKBOARD_HOST_PROFILE.capabilities).toEqual({
-      navigate: true,
-      select: true,
-      copy: true,
-      mutateContent: false,
-      manageSessions: false,
-      collaborate: false,
-    });
+describe("Editor Host contract", () => {
+  it.each(["freeform", "structured", "slide"] as const)(
+    "exposes editable %s behavior and surfaces",
+    (mode) => {
+      expect(resolveEditorHostContract(EDITOR_HOST_PROFILE, mode, true)).toEqual({
+        capabilities: {
+          navigate: true,
+          select: true,
+          copy: true,
+          mutateContent: true,
+          manageSessions: true,
+          collaborate: mode !== "slide",
+        },
+        surfaces: { inspector: mode, sidebar: mode },
+      });
+    },
+  );
+
+  it("keeps inspection but removes insertion surfaces without write authority", () => {
+    expect(resolveEditorHostContract(EDITOR_HOST_PROFILE, "freeform", false))
+      .toEqual({
+        capabilities: {
+          ...EDITOR_HOST_PROFILE.capabilities,
+          mutateContent: false,
+        },
+        surfaces: { inspector: "freeform", sidebar: null },
+      });
   });
 
-  it("intersects collaboration edit permission without disabling observation", () => {
-    expect(intersectHostCapabilities(EDITOR_HOST_PROFILE.capabilities, false)).toEqual({
-      ...EDITOR_HOST_PROFILE.capabilities,
-      mutateContent: false,
-    });
+  it("makes Blackboard observation-only without editor surfaces", () => {
+    expect(resolveEditorHostContract(EDITOR_HOST_PROFILE, "blackboard", true))
+      .toEqual({
+        capabilities: {
+          ...EDITOR_HOST_PROFILE.capabilities,
+          mutateContent: false,
+          collaborate: false,
+        },
+        surfaces: { inspector: null, sidebar: null },
+      });
   });
 });

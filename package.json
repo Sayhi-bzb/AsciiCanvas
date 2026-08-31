@@ -63,6 +63,7 @@
     "@chardesk/protocol": "*",
     "@chardesk/rendering": "*",
     "@chardesk/ui": "*",
+    "@mcp-b/webmcp-polyfill": "5.1.0",
     "@tanstack/hotkeys": "0.8.0",
     "@tanstack/react-table": "^9.1.2",
     "@use-gesture/react": "^10.3.1",

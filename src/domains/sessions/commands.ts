@@ -5,6 +5,8 @@ import type { SlideSize } from "@/domains/slides/public";
 
 type CreateCanvasSessionOptions = {
   slideSize?: SlideSize;
+  blackboardWorkspaceId?: string;
+  name?: string;
 };
 
 export interface SessionCommands {
@@ -20,6 +22,11 @@ export interface SessionCommands {
     sessionId: string,
     snapshot: CanvasImportSnapshot,
     options: { preserveViewport: boolean; resetHistory: boolean }
+  ) => void;
+  replaceBlackboardProjection: (
+    sessionId: string,
+    snapshot: Extract<CanvasImportSnapshot, { mode: "freeform" }>,
+    options?: { title?: string; preserveViewport?: boolean }
   ) => void;
   switchCanvasSession: (canvasId: string) => Promise<boolean>;
   removeCanvasSession: (canvasId: string) => Promise<boolean>;

@@ -31,7 +31,6 @@ import {
   STRUCTURED_COMPONENT_TEMPLATES,
   STRUCTURED_PAGE_TEMPLATES,
 } from "@/domains/structured-content/public";
-import { useCanvasState } from "@/domains/canvas/public";
 
 
 
@@ -43,7 +42,10 @@ import { useCanvasState } from "@/domains/canvas/public";
 import { useShallow } from "zustand/react/shallow";
 import { useUiI18n } from "@/shared/i18n";
 import { HOST_ICONOLOGY } from "@/shared/icons/iconology";
-import { isStaticGridMode } from "@/domains/sessions/public";
+import {
+  isStaticGridMode,
+  type CanvasMode,
+} from "@/domains/sessions/public";
 import { useOnboardingTour } from "@/widgets/onboarding/onboarding-context";
 
 type StructuredSidebarTab = "template" | "components";
@@ -162,8 +164,13 @@ function SidebarViewRail<ViewId extends string>({
   );
 }
 
-export function SidebarRight() {
-  const canvasMode = useCanvasState((state) => state.canvasMode);
+type SidebarCanvasMode = Exclude<CanvasMode, "blackboard">;
+
+export function SidebarRight({
+  canvasMode,
+}: {
+  canvasMode: SidebarCanvasMode;
+}) {
 
   const { loadMainPacks, searchUnicode, unicodeSearchLoading } =
     useLibraryStore(

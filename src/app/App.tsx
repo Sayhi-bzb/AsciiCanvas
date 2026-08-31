@@ -60,9 +60,10 @@ import {
   useEditorChromeLayout,
   useEditorPresentation,
 } from '@/widgets/editor-chrome/public';
-import { intersectHostCapabilities } from './editorHostProfile';
+import { resolveEditorHostContract } from './editorHostProfile';
 import { useEditorHostProfile } from './useEditorHostProfile';
 import { useBlackboardSource } from './useBlackboardSource';
+import { useBlackboardWorkspace } from './useBlackboardWorkspace';
 import { getAppActionShortcuts } from '@/domains/actions/public';
 
 import type { CanvasEditorCapabilities } from '@/widgets/canvas-editor/canvasEditorCapabilities';
@@ -80,11 +81,10 @@ const SidebarRight = lazy(() =>
 );
 
 const getBlackboardStatusTone = (
-  state: ReturnType<typeof useBlackboardSource>['status']['state']
+  state: ReturnType<typeof useBlackboardSource>['status']['state'] |
+    ReturnType<typeof useBlackboardWorkspace>['status']['state']
 ): StatusTone => {
   switch (state) {
-    case 'current':
-      return 'success';
     case 'warning':
     case 'missing':
       return 'warning';
@@ -345,6 +345,7 @@ function AppContent() {
   const persistenceRestorePhase = useCanvasPersistenceSelector(
     (status) => status.restore.phase
   );
+  const activeCanvasMode = useCanvasState((state) => state.canvasMode);
   const activeCollaboration = useCanvasState(
     (state) =>
       state.canvasSessions.find((session) => session.id === state.activeCanvasId)?.collaboration
@@ -353,15 +354,22 @@ function AppContent() {
     !!activeCollaboration &&
     (!collaborationSnapshot.canEdit ||
       !sameCollaborationRoom(activeCollaboration, collaborationSnapshot.descriptor));
-  const capabilities = intersectHostCapabilities(
-    hostProfile.capabilities,
+  const hostContract = resolveEditorHostContract(
+    hostProfile,
+    activeCanvasMode,
     !isCollaborationReadOnly &&
       persistenceOwnership === 'writer' &&
       persistenceRestorePhase !== 'retrying'
   );
+  const { capabilities, surfaces } = hostContract;
+  const localReaderEnabled =
+    window.location.pathname === '/blackboard' &&
+    new URLSearchParams(window.location.search).get('reader') === '1';
   const blackboardSource = useBlackboardSource({
-    enabled: hostProfile.id === 'blackboard',
+    enabled: localReaderEnabled,
   });
+  const blackboardWorkspace = useBlackboardWorkspace({ enabled: !localReaderEnabled });
+  const blackboardStatus = localReaderEnabled ? blackboardSource : blackboardWorkspace;
   const { formFactor, sidebarPresentation, viewportFrame } = useEditorChromeLayout();
   const { mode, isWidgetVisible } = useEditorPresentation();
   const zenMode = mode === 'zen';
@@ -469,10 +477,10 @@ function AppContent() {
       onOpenChange={setIsRightPanelOpen}
       className="size-full overflow-hidden"
     >
-      <SidebarShortcutRegistration />
+      {surfaces.sidebar && <SidebarShortcutRegistration />}
       <SplitViewCommandRegistration />
       <EditorChromeLayout
-        sidebarOpen={showHostWidgets && isRightPanelOpen}
+        sidebarOpen={showHostWidgets && !!surfaces.sidebar && isRightPanelOpen}
         topStart={
           <div
             data-canvas-ui="true"
@@ -492,6 +500,7 @@ function AppContent() {
                   className="pointer-events-auto absolute left-0 top-9"
                 >
                   <CanvasInspectorControl
+                    available={!!surfaces.inspector}
                     formFactor={formFactor}
                     readOnly={!capabilities.mutateContent}
                   />
@@ -505,17 +514,20 @@ function AppContent() {
                 showPaneActivity={renderSplit}
               />
             </EditorWidget>
-            {showHostWidgets && hostProfile.id === 'blackboard' && (
-              <StatusText tone={getBlackboardStatusTone(blackboardSource.status.state)} asChild>
-                <span
-                  data-testid="blackboard-source-status"
-                  data-state={blackboardSource.status.state}
-                  className="pointer-events-auto truncate px-2 text-xs"
-                >
-                  {blackboardSource.status.message}
-                </span>
-              </StatusText>
-            )}
+            {showHostWidgets &&
+              canvasMode === 'blackboard' &&
+              blackboardStatus.status.state !== 'current' &&
+              blackboardStatus.status.state !== 'idle' && (
+                <StatusText tone={getBlackboardStatusTone(blackboardStatus.status.state)} asChild>
+                  <span
+                    data-testid="blackboard-source-status"
+                    data-state={blackboardStatus.status.state}
+                    className="pointer-events-auto truncate px-2 text-xs"
+                  >
+                    {blackboardStatus.status.message}
+                  </span>
+                </StatusText>
+              )}
             {showHostWidgets && capabilities.collaborate && (
               <div className="flex-none">
                 <CollaborationControl />
@@ -523,14 +535,18 @@ function AppContent() {
             )}
           </div>
         }
-        topEnd={showHostWidgets && formFactor === 'phone' ? <PhoneSidebarTrigger /> : null}
+        topEnd={
+          showHostWidgets && formFactor === 'phone' && surfaces.sidebar
+            ? <PhoneSidebarTrigger />
+            : null
+        }
         bottomStart={
           !showHostWidgets || formFactor === 'phone' ? null : (
             <ZoomControl viewportFrame={viewportFrame} formFactor={formFactor} />
           )
         }
         bottomCenter={!showHostWidgets ? null : (
-          <div aria-disabled={!capabilities.mutateContent}>
+          <div>
             <Toolbar
               tool={tool}
               setTool={setTool}
@@ -544,17 +560,14 @@ function AppContent() {
           </div>
         )}
         bottomEnd={!showHostWidgets ? null : <SecurityControl />}
-        sidebar={!showHostWidgets ? null : (
+        sidebar={!showHostWidgets || !surfaces.sidebar ? null : (
           <RecoverableLazyBoundary
             resetKey={isRightPanelOpen}
             onError={() => setIsRightPanelOpen(false)}
           >
             <Suspense fallback={null}>
-              <div
-                className="size-full min-h-0 overflow-visible"
-                inert={!capabilities.mutateContent || undefined}
-              >
-                <SidebarRight />
+              <div className="size-full min-h-0 overflow-visible">
+                <SidebarRight canvasMode={surfaces.sidebar} />
               </div>
             </Suspense>
           </RecoverableLazyBoundary>
@@ -564,7 +577,9 @@ function AppContent() {
             onUndo={handleUndo}
             onRedo={handleRedo}
             capabilities={capabilities}
-            fitContentRevision={blackboardSource.firstFitRevision}
+            fitContentRevision={
+              blackboardSource.firstFitRevision + blackboardWorkspace.firstFitRevision
+            }
             viewportFrame={viewportFrame}
             collaborate={capabilities.collaborate}
             manageSessions={capabilities.manageSessions}

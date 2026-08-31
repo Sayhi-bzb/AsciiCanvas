@@ -1,6 +1,9 @@
 export type {
+  BlackboardCanvasSession,
   CanvasImportSnapshot,
   CanvasSession,
+  FreeformCanvasImportSnapshot,
+  StructuredCanvasImportSnapshot,
 } from "./model";
 export {
   createSessionId,
@@ -21,8 +24,8 @@ export {
   UnsupportedEditorPersistenceVersionError,
 } from "./persistence";
 export type { SessionCommands } from "./commands";
-export type { CanvasMode } from "./mode";
-export { isStaticGridMode } from "./mode";
+export type { CanvasMode, CanvasModeCapabilities, CanvasModeDefinition } from "./mode";
+export { CANVAS_MODE_DEFINITIONS, getCanvasModeDefinition, isStaticGridMode } from "./mode";
 export {
   CANVAS_CATALOG_DATABASE,
   CANVAS_CATALOG_MARKER_KEY,

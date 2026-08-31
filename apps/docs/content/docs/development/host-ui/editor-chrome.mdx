@@ -5,9 +5,12 @@ description: Editor layout, form factor, viewport, and layer ownership.
 
 `EditorChromeProvider` derives form factor from the editor container, not the
 window. `EditorChromeLayout` places product chrome; widgets provide slot content
-without viewport positioning.
+without viewport positioning. The resolved Host Contract combines host policy,
+Canvas mode, and write authority before App composition decides which surfaces
+exist.
 
-- `desktop` and `compact` keep one right Sidebar shell over a stable Canvas.
+- When the Host Contract exposes a Sidebar, `desktop` and `compact` keep one right
+  Sidebar shell over a stable Canvas.
   Its toggle remains in the same header slot while the shell animates between
   expanded and trigger widths. The shell remains anchored to the right safe
   edge, so the left-rail toggle moves to the upper-right position on collapse.
@@ -17,6 +20,8 @@ without viewport positioning.
   owns the host surface and elevation, and its inner layer clips content during
   collapse. Chrome regions do not clip surface shadows.
 - `phone` presents the sidebar as a modal Sheet.
+- An omitted Sidebar has no shell, viewport reservation, phone trigger, shortcut
+  registration, or lazy content load. Blackboard omits both Sidebar and Inspector.
 - `EditorPresentationProvider` owns transient presentation mode. Widgets declare
   one role at their local render boundary: `essential`, `host`, `pane`, or
   `contextual`. Zen Mode keeps essential widgets, suppresses the other roles,

@@ -1,7 +1,7 @@
 import path from "path";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react-swc";
-import { defineConfig, type Plugin } from "vite";
+import { defineConfig, loadEnv, type Plugin } from "vite";
 
 function staticSiteDevRedirect(): Plugin {
   return {
@@ -27,15 +27,38 @@ function staticSiteDevRedirect(): Plugin {
   };
 }
 
+function webMcpOriginTrial(): Plugin {
+  let token = "";
+  return {
+    name: "chardesk-webmcp-origin-trial",
+    configResolved(config) {
+      token = (
+        process.env.VITE_WEBMCP_ORIGIN_TRIAL_TOKEN ??
+        loadEnv(config.mode, config.root, "VITE_").VITE_WEBMCP_ORIGIN_TRIAL_TOKEN ??
+        ""
+      ).trim();
+    },
+    transformIndexHtml() {
+      if (!token) return [];
+      return [{
+        tag: "meta",
+        attrs: { "http-equiv": "origin-trial", content: token },
+        injectTo: "head",
+      }];
+    },
+  };
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   // Use relative asset paths by default to avoid blank pages on subpath deploys.
   base: process.env.VITE_BASE_PATH || "./",
-  plugins: [staticSiteDevRedirect(), react(), tailwindcss()],
+  plugins: [staticSiteDevRedirect(), webMcpOriginTrial(), react(), tailwindcss()],
   optimizeDeps: {
     include: ["@tanstack/react-table"],
   },
   server: {
+    headers: { "Origin-Agent-Cluster": "?1" },
     proxy: {
       "/docs": {
         target: "http://127.0.0.1:5174",
@@ -46,6 +69,9 @@ export default defineConfig({
         ws: true,
       },
     },
+  },
+  preview: {
+    headers: { "Origin-Agent-Cluster": "?1" },
   },
   build: {
     rollupOptions: {

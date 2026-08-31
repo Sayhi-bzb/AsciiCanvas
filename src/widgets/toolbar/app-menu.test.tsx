@@ -1,14 +1,21 @@
+import 'fake-indexeddb/auto';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { deleteDB } from 'idb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEditorStore } from '@/domains/canvas/testing';
 import { createSlideDeck } from '@/domains/slides/public';
 import { setUiLanguage } from '@/shared/i18n';
-import { browser } from '@/shared/services/effects';
+import { browser, feedback } from '@/shared/services/effects';
 import { AppMenu } from './app-menu';
 import { CanvasWorkspaceProvider } from '@/widgets/canvas-editor/engine/CanvasWorkspace';
 import { OnboardingTourContext } from '@/widgets/onboarding/onboarding-context';
 import { EditorPresentationProvider } from '@/widgets/editor-chrome/public';
 import { CanvasBreadcrumb } from '@/widgets/session-tabs/CanvasBreadcrumb';
+import {
+  BlackboardRuntime,
+  BlackboardRuntimeProvider,
+  IndexedDbBlackboardRepository,
+} from '@/domains/blackboard/public';
 
 describe('AppMenu document interchange', () => {
   const initialState = useEditorStore.getState();
@@ -77,10 +84,18 @@ describe('AppMenu document interchange', () => {
   });
 
   it('imports a Blackboard directory into a new active canvas', async () => {
+    vi.spyOn(feedback, 'error').mockImplementation(() => undefined);
     const before = useEditorStore.getState();
     const previousSessionId = before.activeCanvasId;
     const previousSessionCount = before.canvasSessions.length;
-    const { container } = render(<CanvasBreadcrumb />);
+    const databaseName = `app-menu-blackboard-${crypto.randomUUID()}`;
+    const repository = new IndexedDbBlackboardRepository({ databaseName });
+    const blackboard = new BlackboardRuntime(repository);
+    const { container } = render(
+      <BlackboardRuntimeProvider runtime={blackboard}>
+        <CanvasBreadcrumb />
+      </BlackboardRuntimeProvider>
+    );
     const directoryInput = container.querySelectorAll('input[type="file"]')[1];
 
     fireEvent.change(directoryInput, {
@@ -111,6 +126,7 @@ describe('AppMenu document interchange', () => {
     });
 
     await waitFor(() => {
+      expect(feedback.error).not.toHaveBeenCalled();
       const state = useEditorStore.getState();
       expect(state.canvasSessions).toHaveLength(previousSessionCount + 1);
       expect(state.activeCanvasId).not.toBe(previousSessionId);
@@ -120,13 +136,26 @@ describe('AppMenu document interchange', () => {
           expect.objectContaining({
             id: state.activeCanvasId,
             name: 'Imported GPU',
-            mode: 'freeform',
+            mode: 'blackboard',
+            workspaceId: expect.any(String),
           }),
         ])
       );
-      expect([...state.grid.values()].some((cell) => cell.char === 'G')).toBe(true);
-      expect([...state.grid.values()].some((cell) => cell.color === '#0969da')).toBe(true);
     });
+
+    const imported = useEditorStore.getState().canvasSessions.find(
+      (session) => session.id === useEditorStore.getState().activeCanvasId,
+    );
+    if (!imported || imported.mode !== 'blackboard') {
+      throw new Error('Expected a Blackboard session.');
+    }
+    const source = await repository.readWorkspace(imported.workspaceId);
+    expect(source?.files).toEqual(expect.arrayContaining([
+      expect.objectContaining({ path: 'blackboard.yaml' }),
+      expect.objectContaining({ path: 'panels/overview.panel' }),
+    ]));
+    await repository.close();
+    await deleteDB(databaseName);
   });
 
   it('keeps ANSI out of static canvas exports', async () => {

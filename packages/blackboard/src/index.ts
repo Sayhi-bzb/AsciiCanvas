@@ -13,6 +13,14 @@ export {
   BlackboardManifestError,
   parseBlackboardManifest,
 } from "./manifest.js";
+export {
+  compileBlackboardSourceTree,
+  normalizeBlackboardPath,
+} from "./source-tree.js";
+export type {
+  BlackboardSourceTree,
+  BlackboardSourceTreeEntry,
+} from "./source-tree.js";
 export type {
   BlackboardManifest,
   BlackboardManifestWarning,

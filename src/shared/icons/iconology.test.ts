@@ -16,6 +16,7 @@ describe("host iconology", () => {
       "freeform",
       "structured",
       "slide",
+      "blackboard",
       "ai",
     ]);
     expect(Object.keys(HOST_ICONOLOGY.slideAction)).toEqual([

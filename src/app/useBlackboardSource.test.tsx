@@ -13,7 +13,8 @@ const createHost = () => {
     initialSessions: [{
       id: "blackboard-source",
       name: "Blackboard",
-      mode: "freeform",
+      mode: "blackboard",
+      workspaceId: "local-reader",
       scene: [],
       components: [],
       grid: [],

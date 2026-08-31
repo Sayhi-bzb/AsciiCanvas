@@ -63,6 +63,7 @@ import {
   type CanvasCheckpointCandidate,
   type CanvasCheckpointDiagnostics,
 } from "./CanvasCheckpointService";
+import { acquireOriginExclusiveLease } from "@/shared/services/originExclusiveLease";
 
 const LOCAL_DOCUMENT_PREFIX = "chardesk-local-document-v1:";
 const HISTORICAL_EDITOR_PERSISTENCE_KEYS = [
@@ -238,36 +239,22 @@ const acquireWriterLease = async (storage: Storage): Promise<WriterLease> => {
   if (typeof navigator === "undefined" || !navigator.locks) {
     return acquireStorageLease(storage);
   }
-  let releaseLock!: () => void;
-  const released = new Promise<void>((resolve) => { releaseLock = resolve; });
-  let resolveAcquired!: (writer: boolean) => void;
-  let rejectAcquired!: (error: unknown) => void;
-  const acquired = new Promise<boolean>((resolve, reject) => {
-    resolveAcquired = resolve;
-    rejectAcquired = reject;
-  });
-  void navigator.locks.request(
-    WRITER_LOCK_NAME,
-    { ifAvailable: true },
-    async (lock) => {
-      resolveAcquired(!!lock);
-      if (lock) await released;
-    }
-  ).catch(rejectAcquired);
-  let writer: boolean;
+  let lease;
   try {
-    writer = await withRestoreTimeout(
-      acquired,
+    lease = await withRestoreTimeout(
+      acquireOriginExclusiveLease({
+        manager: navigator.locks,
+        name: WRITER_LOCK_NAME,
+      }),
       WRITER_LOCK_TIMEOUT,
       "Canvas writer lock did not respond in time"
     );
   } catch (error) {
-    releaseLock();
     throw error;
   }
   return {
-    writer,
-    release: writer ? releaseLock : () => undefined,
+    writer: !!lease,
+    release: lease?.release ?? (() => undefined),
   };
 };
 
@@ -844,6 +831,16 @@ const sessionsFromCatalog = (catalog: CanvasCatalogSnapshot): CanvasSession[] =>
         grid: [],
       };
     }
+    if (session.mode === "blackboard") {
+      return {
+        ...base,
+        mode: "blackboard",
+        workspaceId: session.workspaceId ?? session.id,
+        scene: [],
+        components: [],
+        grid: [],
+      };
+    }
     return {
       ...base,
       mode: session.mode,
@@ -983,6 +980,9 @@ const createCatalogSnapshot = (
     order,
     name: session.name,
     mode: session.mode,
+    ...(session.mode === "blackboard"
+      ? { workspaceId: session.workspaceId }
+      : {}),
     viewport:
       session.id === state.activeCanvasId
         ? { offset: { ...state.offset }, zoom: state.zoom }
@@ -1034,6 +1034,7 @@ const catalogStructureJson = (snapshot: CanvasCatalogSnapshot) => JSON.stringify
     order: session.order,
     name: session.name,
     mode: session.mode,
+    workspaceId: session.workspaceId,
     collaboration: session.collaboration,
     activeSlideId: session.activeSlideId,
     documentGeneration: session.documentGeneration,
@@ -1690,6 +1691,19 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
         restored.push(session);
         continue;
       }
+      if (session.mode === "blackboard") {
+        const doc = new Y.Doc({ guid: session.id });
+        applyCanvasDocumentSeed(doc, session.id, {
+          mode: "blackboard",
+          grid: [],
+          scene: [],
+          components: [],
+        });
+        if (isActive) activeDocument = doc;
+        else doc.destroy();
+        restored.push({ ...session, grid: [], scene: [], components: [] });
+        continue;
+      }
       if (session.collaboration) {
         if (isActive) {
           activeDocument = new Y.Doc({ guid: session.id });
@@ -1697,7 +1711,10 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
         restored.push({ ...session, grid: [], scene: [], components: [] });
         continue;
       }
-      const existingSeed = documents.getDocumentSeed(session.id, session.mode);
+      const existingSeed = documents.getDocumentSeed(
+        session.id,
+        session.mode,
+      );
       const doc = await this.#openDocument(
         session.id,
         existingSeed ?? seedFromSession(session)
@@ -1769,6 +1786,16 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
   }
 
   async #loadSessionDocument(session: CanvasSession, resetDocument: boolean) {
+    if (session.mode === "blackboard") {
+      const doc = new Y.Doc({ guid: session.id });
+      applyCanvasDocumentSeed(doc, session.id, {
+        mode: "blackboard",
+        grid: [],
+        scene: [],
+        components: [],
+      });
+      return doc;
+    }
     if (session.mode === "slide") {
       return this.#openDocument(session.id, {
         mode: "slide",
@@ -1787,7 +1814,10 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
     }
     const seed = resetDocument
       ? seedFromSession(session)
-      : this.#registry?.getDocumentSeed(session.id, session.mode) ??
+      : this.#registry?.getDocumentSeed(
+          session.id,
+          session.mode,
+        ) ??
         seedFromSession(session);
     return this.#openDocument(session.id, seed);
   }
@@ -1886,6 +1916,7 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
 
   #attachDocument(id: string, doc: Y.Doc) {
     if (this.#documents.has(id)) return;
+    if (getCanvasDocumentRoot(doc).meta.get("mode") === "blackboard") return;
     this.#deletedSessionIds.delete(id);
     const session = this.#store?.getState().canvasSessions.find(
       (candidate) => candidate.id === id

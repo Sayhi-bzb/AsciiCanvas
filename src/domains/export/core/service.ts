@@ -58,6 +58,9 @@ export const prepareTextExport = (
   context: ExportContext,
   format: ExportFormat
 ): ExportResult<TextExportArtifact> => {
+  if (context.canvasMode === "blackboard") {
+    return exportFailed("unsupported-format");
+  }
   const definition = getExportFormatDefinition(format);
   if (
     !definition?.modes.includes(context.canvasMode) ||

@@ -82,7 +82,7 @@ describe("Blackboard Reader", () => {
     const { running } = await fixture();
     const rootResponse = await fetch(running.url, { redirect: "manual" });
     expect(rootResponse.status).toBe(307);
-    expect(rootResponse.headers.get("location")).toBe("/blackboard");
+    expect(rootResponse.headers.get("location")).toBe("/blackboard?reader=1");
     expect(await (await fetch(`${running.url}/blackboard`)).text()).toContain("Blackboard");
     expect((await fetch(`${running.url}/board`, { method: "POST" })).status).toBe(405);
     expect((await fetch(`${running.url}/%2e%2e/package.json`)).status).toBe(404);

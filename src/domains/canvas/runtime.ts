@@ -167,6 +167,20 @@ export class CanvasRuntime {
       };
     }
 
+    if (session.mode === "blackboard") {
+      const surface = this.documents.getContentReader(session.id);
+      if (!surface) return null;
+      return {
+        id: session.id,
+        name: session.name,
+        mode: session.mode,
+        surface,
+        structuredScene: [],
+        structuredComponents: [],
+        slideDeck: null,
+      };
+    }
+
     const seed = this.documents.getDocumentSeed(session.id, session.mode);
     if (!seed) return null;
     const structuredScene = [...seed.scene];

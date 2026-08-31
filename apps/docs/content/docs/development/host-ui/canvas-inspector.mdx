@@ -3,10 +3,10 @@ title: Canvas Inspector
 description: Shared appearance inspection, text formatting, layer eligibility, and responsive behavior across Canvas modes.
 ---
 
-One Canvas Inspector owns the host trigger, floating surface, `Alt+6` shortcut,
-and open state for Freeform and Structured modes. Its trigger always displays the
-active semantic color. It is open by default off phone, collapsed on phone, and
-closes when Hand becomes active.
+One Canvas Inspector owns the host trigger, floating surface, shortcut, and open
+state for supported modes. Its trigger always displays the active semantic color.
+It is open by default off phone, collapsed on phone, and closes when Hand becomes
+active.
 
 | Mode and target | Mutation boundary |
 | --- | --- |
@@ -23,13 +23,17 @@ through the same mutation boundary as a normal color pick, so the active creatio
 default and any active Freeform selection, Structured text range, or Structured
 node selection return to the canonical black default together.
 
-Read-only sessions retain the Inspector for inspection while its mutation controls
-remain inert. The floating surface never reserves Canvas viewport space.
+Read-only sessions in supported modes retain the Inspector while its mutation
+controls remain inert. The resolved Host Contract omits the Inspector from
+Blackboard, including its trigger and shortcut registration. Availability changes
+preserve the user's open state. The floating surface never reserves Canvas viewport
+space.
 Opening the Inspector preserves the active Structured text range so its appearance
 controls retain the same color mutation target. Split Box leaf and divider actions
 remain in their spatial Canvas toolbar rather than the Inspector.
 
 Authority: [`canvas-inspector.tsx`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/widgets/canvas-inspector/canvas-inspector.tsx),
 [`model.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/widgets/canvas-inspector/model.ts),
-and [`tool.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/domains/canvas/model/tool.ts).
+[`tool.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/domains/canvas/model/tool.ts),
+and [`editorHostProfile.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/src/app/editorHostProfile.ts).
 Evidence: their nearest tests and `structuredSelectionStyle.test.ts`.

@@ -157,6 +157,7 @@ const normalizeHistoryMode = (
 
 export class CanvasDocumentRegistry {
   readonly #documents = new Map<string, CanvasYDocument>();
+  readonly #derivedSurfaces = new Map<string, CanvasSurfaceReader>();
   readonly #activeListeners = new Set<(
     next: CanvasYDocument,
     previous: CanvasYDocument
@@ -279,15 +280,23 @@ export class CanvasDocumentRegistry {
       projectionCacheEvictions: projectionCache.evictions,
     };
   };
-  getActiveCellCount = () =>
-    this.#ensurePageIndex(
-      this.#active,
-      this.#active.pages.get(this.#active.activePageId)!
-    ).countCells();
+  getActiveCellCount = () => {
+    const derived = this.#derivedSurfaces.get(this.#active.id);
+    return derived
+      ? derived.materialize().size
+      : this.#ensurePageIndex(
+          this.#active,
+          this.#active.pages.get(this.#active.activePageId)!
+        ).countCells();
+  };
   getContentReader(): CanvasSurfaceReader;
   getContentReader(id: string, pageId?: string): CanvasSurfaceReader | null;
   getContentReader(id?: string, pageId?: string): CanvasSurfaceReader | null {
-    if (!id) return this.#active.cellPlaneIndex;
+    if (!id) {
+      return this.#derivedSurfaces.get(this.#active.id) ?? this.#active.cellPlaneIndex;
+    }
+    const derived = this.#derivedSurfaces.get(id);
+    if (derived && !pageId) return derived;
     const document = this.#documents.get(id);
     if (!document) return null;
     if (!pageId) {
@@ -297,6 +306,15 @@ export class CanvasDocumentRegistry {
     const page = document.pages.get(pageId);
     return page ? this.#ensurePageIndex(document, page) : null;
   }
+
+  setDerivedSurface = (id: string, surface: CanvasSurfaceReader) => {
+    if (!this.#documents.has(id)) {
+      throw new Error(`Canvas document not found for derived surface: ${id}`);
+    }
+    this.#derivedSurfaces.set(id, surface);
+  };
+
+  clearDerivedSurface = (id: string) => this.#derivedSurfaces.delete(id);
 
   getPageDescriptors = (documentId = this.#active.id): CanvasPageDescriptor[] => {
     const document = this.#documents.get(documentId);
@@ -599,6 +617,7 @@ export class CanvasDocumentRegistry {
     document.pages.forEach((page) => page.dispose());
     document.doc.destroy();
     this.#documents.delete(id);
+    this.#derivedSurfaces.delete(id);
     for (let index = this.#recentPageIndexes.length - 1; index >= 0; index -= 1) {
       if (this.#recentPageIndexes[index]?.documentId === id) {
         this.#recentPageIndexes.splice(index, 1);
@@ -1023,6 +1042,7 @@ export class CanvasDocumentRegistry {
       document.doc.destroy();
     });
     this.#documents.clear();
+    this.#derivedSurfaces.clear();
     this.#recentPageIndexes.length = 0;
     this.#projectionCacheBudget.clear();
   };
