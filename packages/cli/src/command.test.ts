@@ -30,9 +30,13 @@ const capture = () => {
   return { stream, text: () => text };
 };
 
-const streams = (input: Uint8Array | string = "") => {
+const streams = (
+  input: Uint8Array | string = "",
+  terminal: { isTTY?: boolean; columns?: number; rows?: number } = {},
+) => {
   const stdout = capture();
   const stderr = capture();
+  Object.assign(stdout.stream, terminal);
   return {
     value: {
       stdin: (async function* () { yield input; })(),
@@ -109,6 +113,86 @@ describe("chardesk render command", () => {
       .toThrow("result accepts only");
     expect(() => parseCliArguments(["result", "-", "--region", "1,2,0,4"]))
       .toThrow("positive safe integers");
+    expect(parseCliArguments([
+      "preview", "input.md", "--region", "4,5,40,20", "--color", "always",
+    ])).toEqual({
+      help: false,
+      command: {
+        kind: "preview",
+        input: "input.md",
+        inputMode: "auto",
+        json: false,
+        color: "always",
+        region: { x: 4, y: 5, columns: 40, rows: 20 },
+      },
+    });
+    expect(() => parseCliArguments(["preview", "-", "--color", "sometimes"]))
+      .toThrow("--color must be auto, always, or never");
+  });
+
+  it("previews ANSI for TTYs and plain text for non-TTY output", async () => {
+    const tty = streams("[31;1mA[0m", { isTTY: true, columns: 10, rows: 5 });
+    expect(await runCli([
+      "preview", "-", "--input", "chardesk",
+    ], tty.value, process.cwd(), {})).toBe(0);
+    expect(tty.stdout()).toContain("\u001b[1;38;2;128;0;0mA");
+    expect(tty.stdout()).not.toContain("48;2;255;255;255");
+    expect(tty.stdout()).not.toContain("result:");
+    expect(tty.stderr()).toBe("");
+
+    const plain = streams("[31;1mA[0m");
+    expect(await runCli([
+      "preview", "-", "--input", "chardesk",
+    ], plain.value, process.cwd(), {})).toBe(0);
+    expect(plain.stdout()).toBe("A\n");
+    expect(plain.stdout()).not.toContain("\u001b");
+
+    const forced = streams("[31mA[0m");
+    expect(await runCli([
+      "preview", "-", "--input", "chardesk", "--color", "always",
+    ], forced.value, process.cwd(), {})).toBe(0);
+    expect(forced.stdout()).toContain("\u001b[");
+  });
+
+  it("respects NO_COLOR and reports terminal viewport omissions", async () => {
+    const noColor = streams("[31mA[0m", { isTTY: true, columns: 10, rows: 5 });
+    expect(await runCli([
+      "preview", "-", "--input", "chardesk",
+    ], noColor.value, process.cwd(), { NO_COLOR: "" })).toBe(0);
+    expect(noColor.stdout()).toBe("A\n");
+    expect(noColor.stdout()).not.toContain("\u001b");
+
+    const dumb = streams("[31mA[0m", { isTTY: true, columns: 10, rows: 5 });
+    expect(await runCli([
+      "preview", "-", "--input", "chardesk",
+    ], dumb.value, process.cwd(), { TERM: "dumb" })).toBe(0);
+    expect(dumb.stdout()).toBe("A\n");
+    expect(dumb.stdout()).not.toContain("\u001b");
+
+    const cropped = streams("0123456789", { isTTY: true, columns: 6, rows: 5 });
+    expect(await runCli([
+      "preview", "-", "--input", "chardesk", "--color", "never",
+    ], cropped.value, process.cwd(), {})).toBe(0);
+    expect(cropped.stdout()).toBe("01234\n");
+    expect(cropped.stderr()).toContain("preview view x=0..4, y=0..0; omitted: right 5");
+
+    const tooSmall = streams("界", { isTTY: true, columns: 2, rows: 5 });
+    expect(await runCli([
+      "preview", "-", "--input", "chardesk",
+    ], tooSmall.value, process.cwd(), {})).toBe(1);
+    expect(tooSmall.stderr()).toContain("terminal-too-small");
+  });
+
+  it("prints diagnostic fallback previews and fails validation", async () => {
+    const invalid = streams(
+      "```mermaid\nnot-a-diagram\n```",
+      { isTTY: true, columns: 80, rows: 24 },
+    );
+    expect(await runCli([
+      "preview", "-", "--color", "never",
+    ], invalid.value, process.cwd(), {})).toBe(1);
+    expect(invalid.stdout().length).toBeGreaterThan(0);
+    expect(invalid.stderr()).toContain("warning");
   });
 
   it("prints a bounded materialized grid result without style controls", async () => {
@@ -182,6 +266,12 @@ describe("chardesk render command", () => {
       "result", "gpu", "--no-ruler", "--styles",
     ], styled.value, cwd)).toBe(0);
     expect(styled.stdout()).toContain("0:0-2{fg:#800000}");
+
+    const preview = streams();
+    expect(await runCli([
+      "preview", "gpu", "--color", "never",
+    ], preview.value, cwd, {})).toBe(0);
+    expect(preview.stdout()).toContain("GPU  显卡");
   });
 
   it("renders stdin to an atomically replaceable PNG and reports JSON", async () => {

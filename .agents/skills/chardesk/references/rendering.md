@@ -17,6 +17,8 @@ The command contract is owned by [`packages/cli/README.md`](../../../../packages
   inspection. It reports CSS-like absolute grid regions and declarations
   without terminal escapes; selectors are `y:x`, `y:x0-x1`, or
   `y0-y1:x0-x1`, with inclusive coordinates.
+- Use `preview <input|->` only when a human wants to view the styled content in
+  a terminal. Agent verification remains `result` and `result --styles`.
 - Use `render` for materialized output. The `.png`, `.chardesk`, `.ans`, and
   `.txt` suffixes select the artifact; use the user's requested path or a
   task-scoped temporary path for a preview.
@@ -34,6 +36,7 @@ The command contract is owned by [`packages/cli/README.md`](../../../../packages
 node_modules/.bin/chardesk check - --json
 node_modules/.bin/chardesk result -
 node_modules/.bin/chardesk result - --styles
+node_modules/.bin/chardesk preview -
 node_modules/.bin/chardesk render - -o <output.png> --strict --json
 node_modules/.bin/chardesk render - -o - --format text
 ```

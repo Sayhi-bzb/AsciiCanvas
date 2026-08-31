@@ -1,6 +1,6 @@
 # @chardesk/cli
 
-Headless CharDesk source renderer, checker, and grid inspector. It consumes the same CharGraph,
+Headless CharDesk renderer, checker, grid inspector, and terminal preview. It consumes the same CharGraph,
 Protocol, Rendering, and vendored font contracts as the application without
 starting a browser, server, or CharDesk UI.
 
@@ -64,6 +64,24 @@ rule. Unstyled cells are omitted. Evidence is capped at 256 merged regions;
 narrow `--region` when the result reports omissions. The default remains
 style-free.
 
+## Preview
+
+`preview` presents the materialized grid directly in a human terminal. It uses
+the terminal foreground and background for unstyled cells, while preserving
+explicit truecolor ANSI, text attributes, and OSC 8 links. The output is
+Protocol-cell accurate; font glyphs and emoji appearance remain terminal-owned.
+
+```sh
+chardesk preview input.md
+chardesk preview gpu-blackboard/ --region 80,0,80,24
+chardesk preview board.chardesk --color always
+```
+
+Without `--region`, the view fits `columns - 1` by `rows - 1` terminal cells to
+avoid automatic wrapping. `--color auto` is the default and emits plain text
+for pipes, `NO_COLOR`, and `TERM=dumb`; use `always` or `never` to override it.
+Viewport omissions are reported on stderr, leaving stdout as preview content.
+
 ## Input and options
 
 `auto` recognizes canonical and legacy Freeform `.chardesk` input, a
@@ -83,6 +101,7 @@ Override non-document input with `--input chargraph`, `--input chardesk`, or
 --region <x,y,columns,rows>  result only
 --no-ruler                   result only
 --styles                     result only; include materialized style evidence
+--color <auto|always|never>  preview only; default auto
 ```
 
 Successful file writes replace the explicit path atomically. Diagnostics go to

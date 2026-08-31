@@ -23,6 +23,7 @@ import {
   CharDeskCliRasterProcessError,
   renderSourceInRasterProcess,
 } from "./raster-process.js";
+import { projectCharDeskPreview } from "./preview.js";
 import {
   projectCharDeskResult,
   type CharDeskResultRegion,
@@ -56,12 +57,31 @@ type ResultCommand = CommonCommand & {
   styles: boolean;
 };
 
-type CliCommand = RenderCommand | CheckCommand | ResultCommand;
+type PreviewColor = "auto" | "always" | "never";
+
+type PreviewCommand = CommonCommand & {
+  kind: "preview";
+  color: PreviewColor;
+  region?: CharDeskResultRegion;
+};
+
+type CliCommand = RenderCommand | CheckCommand | ResultCommand | PreviewCommand;
+
+type CliOutput = Pick<Writable, "write"> & {
+  isTTY?: boolean;
+  columns?: number;
+  rows?: number;
+};
 
 type CliStreams = {
   stdin: AsyncIterable<Uint8Array | string>;
-  stdout: Pick<Writable, "write">;
+  stdout: CliOutput;
   stderr: Pick<Writable, "write">;
+};
+
+type CliEnvironment = {
+  NO_COLOR?: string;
+  TERM?: string;
 };
 
 class CliUsageError extends Error {
@@ -83,14 +103,16 @@ const CLI_USAGE = [
   "  chardesk render <input|-> -o <output|-> [options]",
   "  chardesk check <input|-> [options]",
   "  chardesk result <input|-> [options]",
+  "  chardesk preview <input|-> [options]",
   "",
   "Options:",
   "  -o, --output <path|->              Render output (required)",
   "      --format <png|chardesk|ansi|text>",
   "      --input <auto|chargraph|chardesk|blackboard>",
-  "      --region <x,y,columns,rows>      Result grid region",
+  "      --region <x,y,columns,rows>      Result or preview grid region",
   "      --no-ruler                      Hide result coordinates",
   "      --styles                        Include materialized style evidence",
+  "      --color <auto|always|never>     Preview color mode (default: auto)",
   "      --scale <1..4>                  PNG raster scale (default: 2)",
   "      --padding <0..256>              PNG logical padding (default: 16)",
   "      --strict                        Reject render diagnostics",
@@ -111,6 +133,7 @@ const parseRawArguments = (args: readonly string[]) => parseArgs({
     region: { type: "string" },
     "no-ruler": { type: "boolean", default: false },
     styles: { type: "boolean", default: false },
+    color: { type: "string" },
     strict: { type: "boolean", default: false },
     json: { type: "boolean", default: false },
     help: { type: "boolean", short: "h", default: false },
@@ -160,6 +183,16 @@ const parseRegion = (value: string | undefined): CharDeskResultRegion | undefine
   return { x: x!, y: y!, columns: columns!, rows: rows! };
 };
 
+const parsePreviewColor = (value: string | undefined): PreviewColor => {
+  const color = value ?? "auto";
+  if (!("auto,always,never".split(",") as PreviewColor[]).includes(
+    color as PreviewColor,
+  )) {
+    throw new CliUsageError("--color must be auto, always, or never.");
+  }
+  return color as PreviewColor;
+};
+
 const FORMAT_BY_EXTENSION: Record<string, CharDeskCliOutputFormat> = {
   ".png": "png",
   ".chardesk": "chardesk",
@@ -202,8 +235,13 @@ export const parseCliArguments = (
   }
   if (parsed.values.help) return { help: true };
   const [kind, input, ...extra] = parsed.positionals;
-  if (kind !== "render" && kind !== "check" && kind !== "result") {
-    throw new CliUsageError("The first argument must be render, check, or result.");
+  if (
+    kind !== "render"
+    && kind !== "check"
+    && kind !== "result"
+    && kind !== "preview"
+  ) {
+    throw new CliUsageError("The first argument must be render, check, result, or preview.");
   }
   if (!input || extra.length > 0) {
     throw new CliUsageError(`${kind} requires exactly one input.`);
@@ -222,6 +260,7 @@ export const parseCliArguments = (
       parsed.values.region !== undefined ||
       parsed.values["no-ruler"] ||
       parsed.values.styles ||
+      parsed.values.color !== undefined ||
       parsed.values.strict
     ) {
       throw new CliUsageError("check accepts only --input and --json options.");
@@ -235,6 +274,7 @@ export const parseCliArguments = (
       || parsed.values.format !== undefined
       || parsed.values.scale !== undefined
       || parsed.values.padding !== undefined
+      || parsed.values.color !== undefined
       || parsed.values.strict
       || parsed.values.json
     ) {
@@ -257,12 +297,42 @@ export const parseCliArguments = (
     };
   }
 
+  if (kind === "preview") {
+    if (
+      parsed.values.output !== undefined
+      || parsed.values.format !== undefined
+      || parsed.values.scale !== undefined
+      || parsed.values.padding !== undefined
+      || parsed.values["no-ruler"]
+      || parsed.values.styles
+      || parsed.values.strict
+      || parsed.values.json
+    ) {
+      throw new CliUsageError("preview accepts only --input, --region, and --color options.");
+    }
+    if (input === "-" && common.inputMode === "blackboard") {
+      throw new CliUsageError("Blackboard input requires a file or directory path.");
+    }
+    return {
+      help: false,
+      command: {
+        kind,
+        ...common,
+        color: parsePreviewColor(parsed.values.color),
+        region: parseRegion(parsed.values.region),
+      },
+    };
+  }
+
   if (
     parsed.values.region !== undefined
     || parsed.values["no-ruler"]
     || parsed.values.styles
+    || parsed.values.color !== undefined
   ) {
-    throw new CliUsageError("--region, --no-ruler, and --styles apply only to result output.");
+    throw new CliUsageError(
+      "--region, --no-ruler, --styles, and --color apply only to result or preview output.",
+    );
   }
 
   const output = parsed.values.output;
@@ -578,10 +648,76 @@ const runResult = async (
   return status === "valid" ? 0 : 1;
 };
 
+const terminalDimension = (
+  value: number | undefined,
+  reserve: number,
+  fallback: number,
+) => Number.isInteger(value) ? Math.max(0, value! - reserve) : fallback;
+
+const previewUsesColor = (
+  command: PreviewCommand,
+  stdout: CliOutput,
+  environment: CliEnvironment,
+) => command.color === "always" || (
+  command.color === "auto"
+  && stdout.isTTY === true
+  && environment.NO_COLOR === undefined
+  && environment.TERM?.toLowerCase() !== "dumb"
+);
+
+const runPreview = async (
+  command: PreviewCommand,
+  input: ResolvedCommandInput,
+  streams: CliStreams,
+  environment: CliEnvironment,
+) => {
+  const compiled = await compileSource({
+    source: input.source,
+    inputMode: input.inputMode,
+  });
+  if (
+    command.region
+    && (command.region.x >= compiled.columns || command.region.y >= compiled.rows)
+  ) {
+    throw new CliCommandError(
+      "region-out-of-bounds",
+      `Region origin must be inside the ${compiled.columns}×${compiled.rows} grid.`,
+    );
+  }
+  const projection = projectCharDeskPreview(compiled.document, {
+    region: command.region,
+    maximumColumns: terminalDimension(streams.stdout.columns, 1, 96),
+    maximumRows: terminalDimension(streams.stdout.rows, 1, 32),
+    color: previewUsesColor(command, streams.stdout, environment),
+  });
+  if (projection.view.columns === 0 || projection.view.rows === 0) {
+    throw new CliCommandError(
+      "terminal-too-small",
+      "The terminal viewport cannot contain a complete Protocol cell.",
+    );
+  }
+  streams.stdout.write(`${projection.text}\n`);
+  const omitted = omittedSummary(projection.omitted);
+  if (omitted !== "none") {
+    const endX = projection.view.x + projection.view.columns - 1;
+    const endY = projection.view.y + projection.view.rows - 1;
+    streams.stderr.write(
+      `preview view x=${projection.view.x}..${endX}, y=${projection.view.y}..${endY}; omitted: ${omitted}\n`,
+    );
+  }
+  compiled.diagnostics.forEach((item) => streams.stderr.write(warning(item)));
+  input.warnings.forEach((item) => streams.stderr.write(`warning blackboard: ${item}\n`));
+  return compiled.diagnostics.length === 0 ? 0 : 1;
+};
+
 export const runCli = async (
   args: readonly string[],
   streams: CliStreams,
-  cwd = process.cwd()
+  cwd = process.cwd(),
+  environment: CliEnvironment = {
+    NO_COLOR: process.env.NO_COLOR,
+    TERM: process.env.TERM,
+  },
 ): Promise<number> => {
   let parsed: ReturnType<typeof parseCliArguments>;
   try {
@@ -598,9 +734,12 @@ export const runCli = async (
   const command = parsed.command;
   try {
     const input = await resolveCommandInput(command, streams, cwd);
-    if (command.kind === "check") return runCheck(command, input, streams);
-    if (command.kind === "result") return runResult(command, input, streams);
-    return runRender(command, input, streams, cwd);
+    if (command.kind === "check") return await runCheck(command, input, streams);
+    if (command.kind === "result") return await runResult(command, input, streams);
+    if (command.kind === "preview") {
+      return await runPreview(command, input, streams, environment);
+    }
+    return await runRender(command, input, streams, cwd);
   } catch (error) {
     const result = {
       status: "error",
