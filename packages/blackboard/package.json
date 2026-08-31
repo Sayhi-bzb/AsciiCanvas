@@ -8,6 +8,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./node": {
+      "types": "./dist/package.d.ts",
+      "import": "./dist/package.js"
     }
   },
   "bin": {

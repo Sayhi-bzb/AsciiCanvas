@@ -1,8 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { readFile, rename, rm, writeFile } from "node:fs/promises";
-import { basename, dirname, extname, resolve } from "node:path";
+import { readFile, rename, rm, stat, writeFile } from "node:fs/promises";
+import { basename, dirname, extname, join, resolve } from "node:path";
 import type { Writable } from "node:stream";
 import { parseArgs } from "node:util";
+import {
+  BlackboardPackageError,
+  compileBlackboardPackage,
+} from "@chardesk/blackboard/node";
 import {
   parseCharDeskDocumentEnvelope,
   serializeCharDeskDocumentEnvelope,
@@ -19,8 +23,12 @@ import {
   CharDeskCliRasterProcessError,
   renderSourceInRasterProcess,
 } from "./raster-process.js";
+import {
+  projectCharDeskResult,
+  type CharDeskResultRegion,
+} from "./result.js";
 
-type InputModeOption = "auto" | CharDeskCliInputMode;
+type InputModeOption = "auto" | CharDeskCliInputMode | "blackboard";
 
 type CommonCommand = {
   input: string;
@@ -41,7 +49,14 @@ type CheckCommand = CommonCommand & {
   kind: "check";
 };
 
-type CliCommand = RenderCommand | CheckCommand;
+type ResultCommand = CommonCommand & {
+  kind: "result";
+  region?: CharDeskResultRegion;
+  ruler: boolean;
+  styles: boolean;
+};
+
+type CliCommand = RenderCommand | CheckCommand | ResultCommand;
 
 type CliStreams = {
   stdin: AsyncIterable<Uint8Array | string>;
@@ -67,11 +82,15 @@ const CLI_USAGE = [
   "Usage:",
   "  chardesk render <input|-> -o <output|-> [options]",
   "  chardesk check <input|-> [options]",
+  "  chardesk result <input|-> [options]",
   "",
   "Options:",
   "  -o, --output <path|->              Render output (required)",
   "      --format <png|chardesk|ansi|text>",
-  "      --input <auto|chargraph|chardesk>",
+  "      --input <auto|chargraph|chardesk|blackboard>",
+  "      --region <x,y,columns,rows>      Result grid region",
+  "      --no-ruler                      Hide result coordinates",
+  "      --styles                        Include materialized style evidence",
   "      --scale <1..4>                  PNG raster scale (default: 2)",
   "      --padding <0..256>              PNG logical padding (default: 16)",
   "      --strict                        Reject render diagnostics",
@@ -89,6 +108,9 @@ const parseRawArguments = (args: readonly string[]) => parseArgs({
     input: { type: "string" },
     scale: { type: "string" },
     padding: { type: "string" },
+    region: { type: "string" },
+    "no-ruler": { type: "boolean", default: false },
+    styles: { type: "boolean", default: false },
     strict: { type: "boolean", default: false },
     json: { type: "boolean", default: false },
     help: { type: "boolean", short: "h", default: false },
@@ -113,12 +135,29 @@ const integerOption = (
 
 const parseInputMode = (value: string | undefined): InputModeOption => {
   const inputMode = value ?? "auto";
-  if (!("auto,chargraph,chardesk".split(",") as InputModeOption[]).includes(
+  if (!("auto,chargraph,chardesk,blackboard".split(",") as InputModeOption[]).includes(
     inputMode as InputModeOption
   )) {
-    throw new CliUsageError("--input must be auto, chargraph, or chardesk.");
+    throw new CliUsageError("--input must be auto, chargraph, chardesk, or blackboard.");
   }
   return inputMode as InputModeOption;
+};
+
+const parseRegion = (value: string | undefined): CharDeskResultRegion | undefined => {
+  if (value === undefined) return undefined;
+  const parts = value.split(",");
+  if (parts.length !== 4 || parts.some((part) => !/^\d+$/u.test(part))) {
+    throw new CliUsageError("--region must be x,y,columns,rows using integers.");
+  }
+  const [x, y, columns, rows] = parts.map(Number);
+  if (
+    !Number.isSafeInteger(x) || !Number.isSafeInteger(y)
+    || !Number.isSafeInteger(columns) || !Number.isSafeInteger(rows)
+    || columns === 0 || rows === 0
+  ) {
+    throw new CliUsageError("--region columns and rows must be positive safe integers.");
+  }
+  return { x: x!, y: y!, columns: columns!, rows: rows! };
 };
 
 const FORMAT_BY_EXTENSION: Record<string, CharDeskCliOutputFormat> = {
@@ -163,8 +202,8 @@ export const parseCliArguments = (
   }
   if (parsed.values.help) return { help: true };
   const [kind, input, ...extra] = parsed.positionals;
-  if (kind !== "render" && kind !== "check") {
-    throw new CliUsageError("The first argument must be render or check.");
+  if (kind !== "render" && kind !== "check" && kind !== "result") {
+    throw new CliUsageError("The first argument must be render, check, or result.");
   }
   if (!input || extra.length > 0) {
     throw new CliUsageError(`${kind} requires exactly one input.`);
@@ -180,11 +219,50 @@ export const parseCliArguments = (
       parsed.values.format !== undefined ||
       parsed.values.scale !== undefined ||
       parsed.values.padding !== undefined ||
+      parsed.values.region !== undefined ||
+      parsed.values["no-ruler"] ||
+      parsed.values.styles ||
       parsed.values.strict
     ) {
       throw new CliUsageError("check accepts only --input and --json options.");
     }
     return { help: false, command: { kind, ...common } };
+  }
+
+  if (kind === "result") {
+    if (
+      parsed.values.output !== undefined
+      || parsed.values.format !== undefined
+      || parsed.values.scale !== undefined
+      || parsed.values.padding !== undefined
+      || parsed.values.strict
+      || parsed.values.json
+    ) {
+      throw new CliUsageError(
+        "result accepts only --input, --region, --no-ruler, and --styles options.",
+      );
+    }
+    if (input === "-" && common.inputMode === "blackboard") {
+      throw new CliUsageError("Blackboard input requires a file or directory path.");
+    }
+    return {
+      help: false,
+      command: {
+        kind,
+        ...common,
+        region: parseRegion(parsed.values.region),
+        ruler: !(parsed.values["no-ruler"] ?? false),
+        styles: parsed.values.styles ?? false,
+      },
+    };
+  }
+
+  if (
+    parsed.values.region !== undefined
+    || parsed.values["no-ruler"]
+    || parsed.values.styles
+  ) {
+    throw new CliUsageError("--region, --no-ruler, and --styles apply only to result output.");
   }
 
   const output = parsed.values.output;
@@ -247,7 +325,7 @@ const resolveInputMode = (
   ? command.input !== "-" && extname(command.input).toLowerCase() === ".chardesk"
     ? "chardesk"
     : "chargraph"
-  : command.inputMode;
+  : command.inputMode === "blackboard" ? "chardesk" : command.inputMode;
 
 const resolveDocumentInput = (command: CommonCommand, source: string) => {
   const document = parseCharDeskDocumentEnvelope(source);
@@ -290,6 +368,7 @@ const errorCode = (error: unknown) => {
     error instanceof CliCommandError
     || error instanceof CharDeskCliRenderError
     || error instanceof CharDeskCliRasterProcessError
+    || error instanceof BlackboardPackageError
   ) {
     return error.code;
   }
@@ -299,10 +378,56 @@ const errorCode = (error: unknown) => {
 const errorMessage = (error: unknown) =>
   error instanceof Error ? error.message : "CharDesk command failed.";
 
-const readSource = async (command: CommonCommand, streams: CliStreams, cwd: string) =>
-  command.input === "-"
-    ? readStdin(streams.stdin)
-    : decodeUtf8(await readFile(resolve(cwd, command.input)));
+type ResolvedCommandInput = {
+  source: string;
+  inputMode: CharDeskCliInputMode;
+  warnings: string[];
+};
+
+const resolveCommandInput = async (
+  command: CommonCommand,
+  streams: CliStreams,
+  cwd: string,
+): Promise<ResolvedCommandInput> => {
+  if (command.input === "-") {
+    if (command.inputMode === "blackboard") {
+      throw new CliCommandError(
+        "invalid-blackboard-input",
+        "Blackboard input requires a file or directory path.",
+      );
+    }
+    const source = await readStdin(streams.stdin);
+    return { ...resolveDocumentInput(command, source), warnings: [] };
+  }
+
+  const requested = resolve(cwd, command.input);
+  let directory = false;
+  try {
+    directory = (await stat(requested)).isDirectory();
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+  }
+  const blackboard = command.inputMode === "blackboard"
+    || (command.inputMode === "auto" && (directory || basename(requested) === "blackboard.yaml"));
+  if (blackboard) {
+    const manifest = directory ? join(requested, "blackboard.yaml") : requested;
+    if (basename(manifest) !== "blackboard.yaml") {
+      throw new CliCommandError(
+        "invalid-blackboard-input",
+        "Blackboard input must be blackboard.yaml or a directory containing it.",
+      );
+    }
+    const compiled = await compileBlackboardPackage(manifest);
+    return {
+      source: compiled.source,
+      inputMode: "chardesk",
+      warnings: compiled.warnings.map((item) => item.message),
+    };
+  }
+
+  const source = decodeUtf8(await readFile(requested));
+  return { ...resolveDocumentInput(command, source), warnings: [] };
+};
 
 const compilationResult = (
   compiled: Awaited<ReturnType<typeof compileSource>>
@@ -317,10 +442,9 @@ const compilationResult = (
 
 const runCheck = async (
   command: CheckCommand,
-  source: string,
+  input: ResolvedCommandInput,
   streams: CliStreams
 ) => {
-  const input = resolveDocumentInput(command, source);
   const compiled = await compileSource({
     source: input.source,
     inputMode: input.inputMode,
@@ -330,16 +454,18 @@ const runCheck = async (
   if (command.json) streams.stdout.write(`${JSON.stringify(result)}\n`);
   else if (status === "valid") streams.stdout.write("valid\n");
   else compiled.diagnostics.forEach((item) => streams.stderr.write(warning(item)));
+  if (!command.json) input.warnings.forEach((item) =>
+    streams.stderr.write(`warning blackboard: ${item}\n`)
+  );
   return status === "valid" ? 0 : 1;
 };
 
 const runRender = async (
   command: RenderCommand,
-  source: string,
+  input: ResolvedCommandInput,
   streams: CliStreams,
   cwd: string
 ) => {
-  const input = resolveDocumentInput(command, source);
   const inputMode = input.inputMode;
   const rendered = command.format === "png"
     ? await renderSourceInRasterProcess({
@@ -394,8 +520,62 @@ const runRender = async (
   }
   if (!command.json) {
     rendered.diagnostics.forEach((item) => streams.stderr.write(warning(item)));
+    input.warnings.forEach((item) => streams.stderr.write(`warning blackboard: ${item}\n`));
   }
   return 0;
+};
+
+const omittedSummary = (
+  omitted: ReturnType<typeof projectCharDeskResult>["omitted"],
+) => {
+  const parts = (Object.entries(omitted) as Array<[
+    keyof typeof omitted,
+    number,
+  ]>).flatMap(([side, amount]) => amount === 0 ? [] : [`${side} ${amount}`]);
+  return parts.length === 0 ? "none" : parts.join(" · ");
+};
+
+const runResult = async (
+  command: ResultCommand,
+  input: ResolvedCommandInput,
+  streams: CliStreams,
+) => {
+  const compiled = await compileSource({
+    source: input.source,
+    inputMode: input.inputMode,
+  });
+  if (
+    command.region
+    && (command.region.x >= compiled.columns || command.region.y >= compiled.rows)
+  ) {
+    throw new CliCommandError(
+      "region-out-of-bounds",
+      `Region origin must be inside the ${compiled.columns}×${compiled.rows} grid.`,
+    );
+  }
+  const projection = projectCharDeskResult(compiled.document, {
+    region: command.region,
+    ruler: command.ruler,
+    styles: command.styles,
+  });
+  const status = compiled.diagnostics.length === 0 ? "valid" : "invalid";
+  const endX = projection.view.x + projection.view.columns - 1;
+  const endY = projection.view.y + projection.view.rows - 1;
+  const output = [
+    `result: ${status}`,
+    `renderer: ${compiled.renderer}`,
+    `pipeline: ${compiled.pipeline.join(" → ")}`,
+    `grid: ${compiled.columns} cols × ${compiled.rows} rows`,
+    `view: x=${projection.view.x}..${endX}, y=${projection.view.y}..${endY} · ${projection.view.columns}×${projection.view.rows} cells`,
+    `omitted: ${omittedSummary(projection.omitted)}`,
+    "",
+    projection.text,
+  ];
+  if (projection.styleText) output.push("", projection.styleText);
+  streams.stdout.write(`${output.join("\n")}\n`);
+  compiled.diagnostics.forEach((item) => streams.stderr.write(warning(item)));
+  input.warnings.forEach((item) => streams.stderr.write(`warning blackboard: ${item}\n`));
+  return status === "valid" ? 0 : 1;
 };
 
 export const runCli = async (
@@ -417,10 +597,10 @@ export const runCli = async (
 
   const command = parsed.command;
   try {
-    const source = await readSource(command, streams, cwd);
-    return command.kind === "check"
-      ? await runCheck(command, source, streams)
-      : await runRender(command, source, streams, cwd);
+    const input = await resolveCommandInput(command, streams, cwd);
+    if (command.kind === "check") return runCheck(command, input, streams);
+    if (command.kind === "result") return runResult(command, input, streams);
+    return runRender(command, input, streams, cwd);
   } catch (error) {
     const result = {
       status: "error",

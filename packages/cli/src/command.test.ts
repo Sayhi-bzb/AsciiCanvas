@@ -1,4 +1,4 @@
-import { access, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Writable } from "node:stream";
@@ -88,6 +88,100 @@ describe("chardesk render command", () => {
     expect(() => parseCliArguments([
       "render", "input.md", "-o", "output.txt", "--scale", "2",
     ])).toThrow("apply only to PNG");
+    expect(() => parseCliArguments([
+      "render", "input.md", "-o", "output.txt", "--no-ruler",
+    ])).toThrow("apply only to result");
+    expect(parseCliArguments([
+      "result", "input.chardesk", "--region", "2,3,40,20", "--no-ruler",
+    ])).toEqual({
+      help: false,
+      command: {
+        kind: "result",
+        input: "input.chardesk",
+        inputMode: "auto",
+        json: false,
+        region: { x: 2, y: 3, columns: 40, rows: 20 },
+        ruler: false,
+        styles: false,
+      },
+    });
+    expect(() => parseCliArguments(["result", "-", "--json"]))
+      .toThrow("result accepts only");
+    expect(() => parseCliArguments(["result", "-", "--region", "1,2,0,4"]))
+      .toThrow("positive safe integers");
+  });
+
+  it("prints a bounded materialized grid result without style controls", async () => {
+    const io = streams("[31mA[0m \u754c\nCD");
+    expect(await runCli([
+      "result", "-", "--input", "chardesk",
+    ], io.value)).toBe(0);
+
+    expect(io.stdout()).toContain("result: valid");
+    expect(io.stdout()).toContain("grid: 4 cols × 2 rows");
+    expect(io.stdout()).toContain("0 │ A 界");
+    expect(io.stdout()).toContain("1 │ CD");
+    expect(io.stdout()).not.toContain("[31m");
+    expect(io.stderr()).toBe("");
+  });
+
+  it("adds style evidence only when explicitly requested", async () => {
+    const plain = streams("[31;1mStyled[0m plain");
+    expect(await runCli([
+      "result", "-", "--input", "chardesk", "--no-ruler",
+    ], plain.value)).toBe(0);
+    expect(plain.stdout()).not.toContain("styles:");
+
+    const styled = streams("[31;1mStyled[0m plain");
+    expect(await runCli([
+      "result", "-", "--input", "chardesk", "--no-ruler", "--styles",
+    ], styled.value)).toBe(0);
+    expect(styled.stdout()).toContain("styles:\n  0:0-5{fg:#800000;bold}");
+    expect(styled.stdout()).not.toContain("[31;1m");
+  });
+
+  it("supports absolute result regions and reports invalid fallback projections", async () => {
+    const region = streams("0123456789\nabcdefghij");
+    expect(await runCli([
+      "result", "-", "--input", "chardesk", "--region", "5,1,4,1", "--no-ruler",
+    ], region.value)).toBe(0);
+    expect(region.stdout()).toContain("view: x=5..8, y=1..1 · 4×1 cells");
+    expect(region.stdout()).toContain("\nfghi\n");
+
+    const invalid = streams("```mermaid\nnot-a-diagram\n```");
+    expect(await runCli(["result", "-"], invalid.value)).toBe(1);
+    expect(invalid.stdout()).toContain("result: invalid");
+    expect(invalid.stderr()).toContain("warning");
+  });
+
+  it("auto-detects Blackboard manifests and directories", async () => {
+    const cwd = await temporaryDirectory();
+    const board = join(cwd, "gpu");
+    await mkdir(join(board, "panels"), { recursive: true });
+    await writeFile(join(board, "blackboard.yaml"), [
+      "chardesk: blackboard/v1",
+      "panels:",
+      "  left: { source: panels/left.panel }",
+      "  right: { source: panels/right.panel }",
+      "layout:",
+      "  areas: [[left, right]]",
+      "  gap: { column: 2, row: 0 }",
+    ].join("\n"));
+    await writeFile(join(board, "panels/left.panel"), "[31mGPU[0m");
+    await writeFile(join(board, "panels/right.panel"), "\u663e卡");
+
+    for (const input of ["gpu", "gpu/blackboard.yaml"]) {
+      const io = streams();
+      expect(await runCli(["result", input, "--no-ruler"], io.value, cwd)).toBe(0);
+      expect(io.stdout()).toContain("GPU  显卡");
+      expect(io.stdout()).not.toContain("[31m");
+    }
+
+    const styled = streams();
+    expect(await runCli([
+      "result", "gpu", "--no-ruler", "--styles",
+    ], styled.value, cwd)).toBe(0);
+    expect(styled.stdout()).toContain("0:0-2{fg:#800000}");
   });
 
   it("renders stdin to an atomically replaceable PNG and reports JSON", async () => {

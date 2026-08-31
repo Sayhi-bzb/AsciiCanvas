@@ -13,6 +13,7 @@
     "test": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
+    "@chardesk/blackboard": "*",
     "@chardesk/chargraph": "*",
     "@chardesk/document": "*",
     "@chardesk/fonts": "*",
