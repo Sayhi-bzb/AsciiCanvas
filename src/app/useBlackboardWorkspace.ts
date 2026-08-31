@@ -3,7 +3,7 @@ import { useShallow } from "zustand/react/shallow";
 import { useBlackboardRuntime } from "@/domains/blackboard/public";
 import { useCanvasRuntime, useCanvasState } from "@/domains/canvas/public";
 
-export type BlackboardModeStatus =
+type BlackboardModeStatus =
   | { state: "idle" | "current" | "waiting"; message: string }
   | { state: "warning" | "missing"; message: string };
 

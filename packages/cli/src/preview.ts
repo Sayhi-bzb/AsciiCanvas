@@ -10,7 +10,7 @@ import type {
 } from "@chardesk/protocol";
 import type { CharDeskResultRegion } from "./result.js";
 
-export type CharDeskPreviewProjection = {
+type CharDeskPreviewProjection = {
   text: string;
   view: CharDeskResultRegion;
   omitted: {

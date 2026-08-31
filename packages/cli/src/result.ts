@@ -10,7 +10,7 @@ export type CharDeskResultRegion = {
   rows: number;
 };
 
-export type CharDeskResultProjection = {
+type CharDeskResultProjection = {
   text: string;
   styleText?: string;
   view: CharDeskResultRegion;
