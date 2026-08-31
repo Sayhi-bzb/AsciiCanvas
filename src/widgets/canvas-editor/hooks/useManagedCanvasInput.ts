@@ -113,7 +113,7 @@ type UseManagedCanvasInputOptions = {
   size: { width: number; height: number } | undefined;
   onUndo?: () => void;
   onRedo?: () => void;
-  enabled?: boolean;
+  copyEnabled?: boolean;
   mutateEnabled?: boolean;
   active?: boolean;
 };
@@ -135,7 +135,7 @@ export const useManagedCanvasInput = ({
   size,
   onUndo,
   onRedo,
-  enabled = true,
+  copyEnabled = true,
   mutateEnabled = true,
   active = true,
 }: UseManagedCanvasInputOptions) => {
@@ -359,7 +359,7 @@ export const useManagedCanvasInput = ({
   useShortcutLayer({
     id: "managed-canvas-commands",
     priority: SHORTCUT_PRIORITY.managedCanvas,
-    enabled: enabled && canvasOwnsInputFocus,
+    enabled: (copyEnabled || mutateEnabled) && canvasOwnsInputFocus,
     onKeyDown: (event, context) => {
       if (
         !canvasOwnsInputFocusRef.current ||
@@ -398,7 +398,7 @@ export const useManagedCanvasInput = ({
           ? commandId
           : null;
       if (clipboardCommand) {
-        if (clipboardCommand !== "copy" && !mutateEnabled) return;
+        if (clipboardCommand === "copy" ? !copyEnabled : !mutateEnabled) return;
         primeManagedTextarea();
         clipboardShortcutCoordinator.begin(clipboardCommand);
         return { claimed: true, preventDefault: false };
@@ -419,6 +419,10 @@ export const useManagedCanvasInput = ({
   });
 
   const handleCopy = (e: ReactClipboardEvent<HTMLTextAreaElement>) => {
+    if (!copyEnabled) {
+      e.preventDefault();
+      return;
+    }
     if (clipboardShortcutCoordinator.handleNative('copy') === 'suppress') {
       e.preventDefault();
       return;

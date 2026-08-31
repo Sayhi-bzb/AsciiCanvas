@@ -2,11 +2,11 @@ import type { SiteToolHostAdapter } from "../contracts";
 import {
   hasRegisterTool,
   toWebMcpTool,
-  type OpenAiModelContext,
+  type ImperativeWebMcpContext,
 } from "../modelContext";
 
-export const openAiSiteToolsAdapter: SiteToolHostAdapter<OpenAiModelContext> = {
-  id: "openai-site-tools",
+export const imperativeWebMcpAdapter: SiteToolHostAdapter<ImperativeWebMcpContext> = {
+  id: "imperative-webmcp",
   supports: hasRegisterTool,
   async install(context, tools) {
     for (const tool of tools) {

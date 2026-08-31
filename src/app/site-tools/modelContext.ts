@@ -17,11 +17,11 @@ export type WebMcpTool = Readonly<{
   ) => Promise<unknown> | unknown;
 }>;
 
-export type OpenAiModelContext = Readonly<{
+export type ImperativeWebMcpContext = Readonly<{
   registerTool: (tool: WebMcpTool) => Promise<unknown> | unknown;
 }>;
 
-export type StandardWebMcpContext = OpenAiModelContext & Readonly<{
+export type StandardWebMcpContext = ImperativeWebMcpContext & Readonly<{
   registerTool: (
     tool: WebMcpTool,
     options?: Readonly<{ signal?: AbortSignal }>,
@@ -33,7 +33,7 @@ export type StandardWebMcpContext = OpenAiModelContext & Readonly<{
 export const getDocumentModelContext = (target: Document): unknown =>
   (target as Document & { modelContext?: unknown }).modelContext;
 
-export const hasRegisterTool = (context: unknown): context is OpenAiModelContext =>
+export const hasRegisterTool = (context: unknown): context is ImperativeWebMcpContext =>
   typeof context === "object" && context !== null &&
   typeof (context as { registerTool?: unknown }).registerTool === "function";
 

@@ -15,6 +15,27 @@ describe("useManagedCanvasInput", () => {
     applyFreeformSnapshotToYMaps([]);
   });
 
+  it("suppresses native copy when copy capability is unavailable", () => {
+    const model = { ...useEditorStore.getState() };
+    const { result } = renderHook(
+      () => useManagedCanvasInput({
+        canvasMode: "freeform",
+        model,
+        size: { width: 800, height: 600 },
+        copyEnabled: false,
+        mutateEnabled: false,
+      }),
+      { wrapper: ShortcutProvider },
+    );
+    const preventDefault = vi.fn();
+
+    act(() => {
+      result.current.textareaProps.onCopy?.({ preventDefault } as never);
+    });
+
+    expect(preventDefault).toHaveBeenCalledOnce();
+  });
+
   it("does not fill a selection from a capture-prevented shortcut", () => {
     const fillSelectionsWithChar = vi.fn();
     const model = {

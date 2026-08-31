@@ -8,12 +8,12 @@ import {
 
 const createDocument = () => document.implementation.createHTMLDocument();
 
-const installContext = (target: Document, standard = true) => {
+const installContext = (target: Document, complete = true) => {
   Object.defineProperty(target, "modelContext", {
     configurable: true,
     value: {
       registerTool: vi.fn(),
-      ...(standard ? { getTools: vi.fn() } : {}),
+      ...(complete ? { getTools: vi.fn() } : {}),
     },
   });
 };
@@ -31,6 +31,13 @@ describe("WebMCP environment", () => {
       loadPolyfill,
     })).resolves.toBe("native");
     expect(loadPolyfill).not.toHaveBeenCalled();
+  });
+
+  it("recognizes a registerTool-only Site Tools host as native WebMCP", () => {
+    const target = createDocument();
+    installContext(target, false);
+
+    expect(detectDocumentWebMcpProvider(target)).toBe("native");
   });
 
   it("installs the explicit development polyfill", async () => {
@@ -76,14 +83,15 @@ describe("WebMCP environment", () => {
 
   it("publishes provider and registration diagnostics", () => {
     const target = createDocument();
-    updateWebMcpDiagnostics(target, "openai", {
+    updateWebMcpDiagnostics(target, "native", {
       role: "leader",
       status: "ready",
-      adapterId: "openai-site-tools",
+      adapterId: "imperative-webmcp",
     });
 
-    expect(target.documentElement.dataset.webmcpProvider).toBe("openai");
+    expect(target.documentElement.dataset.webmcpProvider).toBe("native");
     expect(target.documentElement.dataset.webmcpStatus).toBe("ready");
     expect(target.documentElement.dataset.webmcpRole).toBe("leader");
+    expect(target.documentElement.dataset.webmcpCapability).toBe("imperative");
   });
 });

@@ -523,6 +523,34 @@ describe("CanvasEditor focus management", () => {
     expect(document.activeElement).toBe(textarea);
   });
 
+  it("copies a Blackboard range without granting mutation capability", async () => {
+    useEditorStore.setState({
+      canvasMode: "blackboard",
+      textCursor: null,
+      grid: new Map([
+        ["0,0", { char: "A", color: "#ffffff" }],
+        ["1,0", { char: "B", color: "#ffffff" }],
+      ]),
+      staticGridSelection: createRangeSelection({ x: 0, y: 0 }, { x: 1, y: 0 }),
+    });
+    const writeText = vi.spyOn(clipboard, "writeText").mockResolvedValue(true);
+    const { container } = render(
+      <CanvasEditor
+        onUndo={vi.fn()}
+        onRedo={vi.fn()}
+        capabilities={{ navigate: true, select: true, copy: true, mutateContent: false }}
+      />
+    );
+    const textarea = container.querySelector("textarea");
+    expect(textarea).not.toBeNull();
+    focusCanvasInput(container);
+
+    fireEvent.keyDown(textarea!, { key: "c", metaKey: true });
+
+    await vi.waitFor(() => expect(writeText).toHaveBeenCalledWith("AB"));
+    expect(useEditorStore.getState().grid.size).toBe(2);
+  });
+
   it("releases Canvas input ownership when focus moves to an external control", async () => {
     useEditorStore.setState({
       canvasMode: "freeform",
@@ -897,6 +925,33 @@ describe("CanvasEditor focus management", () => {
     expect(await screen.findByText("Layer")).toBeInTheDocument();
     expect(screen.queryByText("Bring Forward")).not.toBeInTheDocument();
     expect(screen.queryByText("Send Backward")).not.toBeInTheDocument();
+  });
+
+  it("shows only copy actions in a read-only Blackboard context menu", async () => {
+    useEditorStore.setState({
+      canvasMode: "blackboard",
+      textCursor: null,
+      grid: new Map([
+        ["0,0", { char: "A", color: "#ffffff" }],
+        ["1,0", { char: "B", color: "#ffffff" }],
+      ]),
+      staticGridSelection: createRangeSelection({ x: 0, y: 0 }, { x: 1, y: 0 }),
+    });
+    const { container } = render(
+      <CanvasEditor
+        onUndo={vi.fn()}
+        onRedo={vi.fn()}
+        capabilities={{ navigate: true, select: true, copy: true, mutateContent: false }}
+      />
+    );
+
+    fireEvent.contextMenu(container.firstElementChild as HTMLDivElement);
+
+    expect(await screen.findByText("Copy as Text")).toBeInTheDocument();
+    expect(screen.getByText("Copy as ANSI")).toBeInTheDocument();
+    expect(screen.getByText("Snapshot (PNG)")).toBeInTheDocument();
+    expect(screen.queryByText("Paste Lot")).not.toBeInTheDocument();
+    expect(screen.queryByText("Delete")).not.toBeInTheDocument();
   });
   it("uses ctrl or command arrow keys for static-grid content navigation", () => {
     useEditorStore.setState({

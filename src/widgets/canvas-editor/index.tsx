@@ -27,6 +27,7 @@ import { resolveCanvasSurfaceGeometry } from './canvasSurfaceGeometry';
 import type { EditorViewportFrame } from '@/widgets/editor-chrome/public';
 import { computeVisibleSurfaceBounds } from './minimap/geometry';
 import {
+  filterCanvasContextMenuEntries,
   DEFAULT_CANVAS_EDITOR_CAPABILITIES,
   type CanvasEditorCapabilities,
 } from './canvasEditorCapabilities';
@@ -207,7 +208,7 @@ export const CanvasEditor = ({
     size,
     onUndo,
     onRedo,
-    enabled: effectiveCapabilities.copy || effectiveCapabilities.mutateContent,
+    copyEnabled: effectiveCapabilities.copy,
     mutateEnabled: active && effectiveCapabilities.mutateContent,
     active,
   });
@@ -288,8 +289,12 @@ export const CanvasEditor = ({
 
   const activeContextMenu =
     canvasMode === 'structured' ? STRUCTURED_CONTEXT_MENU : CANVAS_CONTEXT_MENU;
+  const availableContextMenu = useMemo(
+    () => filterCanvasContextMenuEntries(activeContextMenu, effectiveCapabilities),
+    [activeContextMenu, effectiveCapabilities],
+  );
   const handleContextMenu = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (!effectiveCapabilities.mutateContent) {
+    if (availableContextMenu.length === 0) {
       event.preventDefault();
       return;
     }
@@ -366,8 +371,11 @@ export const CanvasEditor = ({
         </CanvasSurface>
       </ContextMenuTrigger>
 
-      {effectiveCapabilities.mutateContent && (
-        <CanvasContextMenuContent entries={activeContextMenu} managedTextareaRef={textareaRef} />
+      {availableContextMenu.length > 0 && (
+        <CanvasContextMenuContent
+          entries={availableContextMenu}
+          managedTextareaRef={textareaRef}
+        />
       )}
     </ContextMenu>
   );

@@ -88,4 +88,46 @@ describe("editor keymap execution", () => {
     expect(root).toHaveBeenCalledOnce();
     engine.dispose();
   });
+
+  it("authorizes resolved entries before executing them", () => {
+    const copy = vi.fn(() => ({ handled: true as const, status: "succeeded" as const }));
+    const paste = vi.fn(() => ({ handled: true as const, status: "succeeded" as const }));
+    const editor = createCanvasEditorRuntime({
+      state: { get: getCanvasState, subscribe: () => () => undefined },
+      history: {
+        undo: () => false,
+        redo: () => false,
+        beginCheckpoint: () => ({ commit: vi.fn(), cancel: vi.fn() }),
+        finishCapture: vi.fn(),
+      },
+      transactions: { run: (operation) => operation() },
+    });
+    editor.registerExtension({
+      id: "test.authorization",
+      commands: [
+        { id: "copy", execute: copy },
+        { id: "paste", execute: paste },
+      ],
+      keybindings: [
+        { id: "copy", shortcuts: ["mod+c"], target: { type: "command", id: "copy" } },
+        { id: "paste", shortcuts: ["mod+v"], target: { type: "command", id: "paste" } },
+      ],
+    });
+    const engine = new EditorShortcutEngine(
+      editor,
+      1_500,
+      (entry) => entry.target.id === "copy",
+    );
+
+    expect(engine.handleKeyDown(
+      new KeyboardEvent("keydown", { key: "c", ctrlKey: true }),
+      "canvas-surface",
+    )).toMatchObject({ type: "executed" });
+    expect(engine.handleKeyDown(
+      new KeyboardEvent("keydown", { key: "v", ctrlKey: true }),
+      "canvas-surface",
+    )).toEqual({ type: "none" });
+    expect(copy).toHaveBeenCalledOnce();
+    expect(paste).not.toHaveBeenCalled();
+  });
 });

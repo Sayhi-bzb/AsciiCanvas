@@ -54,13 +54,18 @@ use Registry focus as an implicit write target.
   repository. An origin-exclusive lease elects one Agent Gateway across same-origin documents;
   standbys register nothing and take over after owner disposal. Workspace discovery and creation are
   available from any application route. The Gateway selects one host adapter, preferring the complete
-  WebMCP surface over the OpenAI subset. Bootstrap registration keeps an adaptive handshake
+  WebMCP surface over the imperative subset used by
+  [ChatGPT Site Tools](https://learn.chatgpt.com/docs/webmcp). Both consume the same
+  protocol-neutral tool definitions; the subset is a capability profile, not a vendor protocol.
+  Bootstrap registration keeps an adaptive handshake
   for runtimes injected after page load; an unavailable workspace returns a stable result.
   Standard WebMCP requires an origin-isolated document plus either Chrome's local testing
   flag or an origin-bound trial token supplied as `VITE_WEBMCP_ORIGIN_TRIAL_TOKEN`.
   `?webmcp=polyfill` and `VITE_WEBMCP_DEV_POLYFILL=1` enable the explicit development-only
-  protocol fallback. Inspect `data-webmcp-provider`, `data-webmcp-role`, and
-  `data-webmcp-status` when a host cannot discover the tools.
+  protocol fallback. ChatGPT discovers only imperative tools registered by JavaScript in the
+  top-level page; declarative and iframe tools are out of scope. Inspect `data-webmcp-provider`,
+  `data-webmcp-capability`, `data-webmcp-role`, and `data-webmcp-status` when a host cannot
+  discover the tools.
 
 The application module and Canvas restore load independently. App chrome mounts as
 soon as the module is available, while `CanvasPersistenceStatus.restore` gates the

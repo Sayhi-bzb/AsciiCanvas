@@ -59,11 +59,14 @@ class FakeLockManager {
   }
 }
 
-const createDocument = (registerTool = vi.fn()) => {
+const createDocument = (registerTool = vi.fn(), complete = true) => {
   const target = document.implementation.createHTMLDocument();
   Object.defineProperty(target, "modelContext", {
     configurable: true,
-    value: { registerTool, getTools: vi.fn() },
+    value: {
+      registerTool,
+      ...(complete ? { getTools: vi.fn() } : {}),
+    },
   });
   return { target, registerTool };
 };
@@ -93,6 +96,33 @@ describe("origin site tool gateway", () => {
     firstGateway.dispose();
     await vi.waitFor(() => expect(secondGateway.getSnapshot().status).toBe("ready"));
     expect(secondGateway.getSnapshot().role).toBe("leader");
+    expect(second.registerTool).toHaveBeenCalledOnce();
+    secondGateway.dispose();
+  });
+
+  it("keeps registerTool-only hosts single across same-origin documents", async () => {
+    const locks = new FakeLockManager() as unknown as LockManager;
+    const first = createDocument(vi.fn(), false);
+    const second = createDocument(vi.fn(), false);
+    const firstGateway = startOriginSiteToolGateway({
+      target: first.target,
+      tools,
+      lockManager: locks,
+    });
+    const secondGateway = startOriginSiteToolGateway({
+      target: second.target,
+      tools,
+      lockManager: locks,
+    });
+
+    await vi.waitFor(() => expect(firstGateway.getSnapshot().status).toBe("ready"));
+    expect(firstGateway.getSnapshot().adapterId).toBe("imperative-webmcp");
+    expect(first.registerTool).toHaveBeenCalledOnce();
+    expect(second.registerTool).not.toHaveBeenCalled();
+
+    firstGateway.dispose();
+    await vi.waitFor(() => expect(secondGateway.getSnapshot().status).toBe("ready"));
+    expect(secondGateway.getSnapshot().adapterId).toBe("imperative-webmcp");
     expect(second.registerTool).toHaveBeenCalledOnce();
     secondGateway.dispose();
   });

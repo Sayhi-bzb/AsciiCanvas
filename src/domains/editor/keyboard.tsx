@@ -53,8 +53,13 @@ export const resolveEditorKeymapEvent = (
 
 const executeEntry = (
   editor: EditorRuntime<CanvasState>,
-  entry: RegisteredKeymapEntry<EditorShortcutContext<CanvasState>>
+  entry: RegisteredKeymapEntry<EditorShortcutContext<CanvasState>>,
+  context?: EditorShortcutContext<CanvasState>,
+  canExecuteEntry?: EditorShortcutEntryPredicate,
 ) => {
+  if (context && canExecuteEntry && !canExecuteEntry(entry, context)) {
+    return { type: "none" as const };
+  }
   if (entry.target.type === "tool") {
     return editor.setCurrentTool(entry.target.id)
       ? { type: "executed" as const }
@@ -87,11 +92,21 @@ export class EditorShortcutEngine {
     matcher: ReturnType<typeof createSequenceMatcher>;
   }> | null = null;
   #timer: ReturnType<typeof setTimeout> | null = null;
+  #canExecuteEntry: EditorShortcutEntryPredicate | undefined;
 
-  constructor(editor: EditorRuntime<CanvasState>, timeoutMs = 1_500) {
+  constructor(
+    editor: EditorRuntime<CanvasState>,
+    timeoutMs = 1_500,
+    canExecuteEntry?: EditorShortcutEntryPredicate,
+  ) {
     this.#editor = editor;
     this.#timeoutMs = timeoutMs;
+    this.#canExecuteEntry = canExecuteEntry;
   }
+
+  setEntryPredicate = (predicate?: EditorShortcutEntryPredicate) => {
+    this.#canExecuteEntry = predicate;
+  };
 
   cancelChord = () => {
     this.#pending = null;
@@ -131,7 +146,7 @@ export class EditorShortcutEngine {
       this.cancelChord();
       const entry = this.#editor.keymap.resolveCandidates(sequences, context)[0];
       if (entry && (!event.repeat || (entry.repeat ?? "ignore") === "allow")) {
-        return executeEntry(this.#editor, entry);
+        return executeEntry(this.#editor, entry, context, this.#canExecuteEntry);
       }
       // A mismatched second stroke starts a fresh root resolution.
     }
@@ -144,16 +159,30 @@ export class EditorShortcutEngine {
     if (!entry || (event.repeat && (entry.repeat ?? "ignore") === "ignore")) {
       return { type: "none" as const };
     }
-    return executeEntry(this.#editor, entry);
+    return executeEntry(this.#editor, entry, context, this.#canExecuteEntry);
   }
 }
 
-export const useEditorShortcutLayer = ({ enabled = true }: { enabled?: boolean } = {}) => {
+export type EditorShortcutEntryPredicate = (
+  entry: RegisteredKeymapEntry<EditorShortcutContext<CanvasState>>,
+  context: EditorShortcutContext<CanvasState>,
+) => boolean;
+
+export const useEditorShortcutLayer = ({
+  enabled = true,
+  canExecuteEntry,
+}: {
+  enabled?: boolean;
+  canExecuteEntry?: EditorShortcutEntryPredicate;
+} = {}) => {
   const editor = useEditor();
   const engineRef = useRef<EditorShortcutEngine | null>(null);
   if (engineRef.current === null) {
-    engineRef.current = new EditorShortcutEngine(editor);
+    engineRef.current = new EditorShortcutEngine(editor, 1_500, canExecuteEntry);
   }
+  useEffect(() => {
+    engineRef.current?.setEntryPredicate(canExecuteEntry);
+  }, [canExecuteEntry]);
   useEffect(() => {
     const engine = engineRef.current;
     const cancel = () => engine?.cancelChord();

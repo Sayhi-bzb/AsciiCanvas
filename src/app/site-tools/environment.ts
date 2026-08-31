@@ -1,11 +1,11 @@
 import {
   getDocumentModelContext,
   hasRegisterTool,
-  isStandardWebMcpContext,
 } from "./modelContext";
 import type { OriginSiteToolGatewaySnapshot } from "./originGateway";
 
-export type WebMcpProvider = "native" | "openai" | "polyfill" | "unavailable";
+export type WebMcpProvider = "native" | "polyfill" | "unavailable";
+export type WebMcpCapability = "standard" | "imperative" | "unavailable";
 
 type WebMcpPolyfillLoader = () => Promise<void>;
 
@@ -26,8 +26,7 @@ export const detectDocumentWebMcpProvider = (
   target: Document,
 ): Exclude<WebMcpProvider, "polyfill"> => {
   const context = getDocumentModelContext(target);
-  if (isStandardWebMcpContext(context)) return "native";
-  return hasRegisterTool(context) ? "openai" : "unavailable";
+  return hasRegisterTool(context) ? "native" : "unavailable";
 };
 
 export const prepareDocumentWebMcp = async ({
@@ -49,6 +48,14 @@ export const prepareDocumentWebMcp = async ({
     : "unavailable";
 };
 
+const getWebMcpCapability = (
+  snapshot: OriginSiteToolGatewaySnapshot,
+): WebMcpCapability => {
+  if (snapshot.adapterId === "standard-webmcp") return "standard";
+  if (snapshot.adapterId === "imperative-webmcp") return "imperative";
+  return "unavailable";
+};
+
 export const updateWebMcpDiagnostics = (
   target: Document,
   provider: WebMcpProvider,
@@ -57,4 +64,5 @@ export const updateWebMcpDiagnostics = (
   target.documentElement.dataset.webmcpProvider = provider;
   target.documentElement.dataset.webmcpStatus = snapshot.status;
   target.documentElement.dataset.webmcpRole = snapshot.role;
+  target.documentElement.dataset.webmcpCapability = getWebMcpCapability(snapshot);
 };

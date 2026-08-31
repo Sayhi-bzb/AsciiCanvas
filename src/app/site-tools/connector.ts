@@ -1,4 +1,4 @@
-import { openAiSiteToolsAdapter } from "./adapters/openAiSiteTools";
+import { imperativeWebMcpAdapter } from "./adapters/imperativeWebMcp";
 import { standardWebMcpAdapter } from "./adapters/standardWebMcp";
 import type {
   AgentToolDefinition,
@@ -49,10 +49,10 @@ const resolveSiteToolHost = (
       install: () => standardWebMcpAdapter.install(context, tools),
     };
   }
-  if (openAiSiteToolsAdapter.supports(context)) {
+  if (imperativeWebMcpAdapter.supports(context)) {
     return {
-      id: openAiSiteToolsAdapter.id,
-      install: () => openAiSiteToolsAdapter.install(context, tools),
+      id: imperativeWebMcpAdapter.id,
+      install: () => imperativeWebMcpAdapter.install(context, tools),
     };
   }
   return null;
@@ -60,7 +60,7 @@ const resolveSiteToolHost = (
 
 export const hasDocumentSiteToolHost = (target: Document) => {
   const context = getDocumentModelContext(target);
-  return standardWebMcpAdapter.supports(context) || openAiSiteToolsAdapter.supports(context);
+  return standardWebMcpAdapter.supports(context) || imperativeWebMcpAdapter.supports(context);
 };
 
 export const startDocumentSiteTools = ({
@@ -128,7 +128,7 @@ export const startDocumentSiteTools = ({
         return;
       }
       setStatus("failed");
-      console.warn("Unable to register site tools with the OpenAI host.", error);
+      console.warn("Unable to register site tools with the imperative WebMCP host.", error);
     }
   };
 

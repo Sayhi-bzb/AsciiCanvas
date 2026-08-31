@@ -467,7 +467,7 @@ function AppContent() {
   };
 
   useGlobalShortcutCommands({
-    enabled: capabilities.mutateContent,
+    capabilities,
   });
 
   return (

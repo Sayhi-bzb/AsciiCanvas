@@ -1,6 +1,37 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("WebMCP", () => {
+  test("copies a Blackboard range through read-only host controls", async ({ context, page }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.goto("/blackboard?webmcp=polyfill");
+    await expect(page).toHaveURL(/workspace=/);
+    const surface = page.getByTestId("canvas-editor-surface");
+
+    await expect.poll(async () => {
+      await surface.click({ position: { x: 320, y: 240 } });
+      await page.keyboard.press("Meta+a");
+      await surface.click({ button: "right", position: { x: 320, y: 240 } });
+      const snapshot = page.getByRole("menuitem", { name: /Snapshot \(PNG\)/ });
+      const ready = await snapshot.isEnabled().catch(() => false);
+      await page.keyboard.press("Escape");
+      return ready;
+    }).toBe(true);
+
+    await surface.click({ position: { x: 320, y: 240 } });
+    await page.keyboard.press("Meta+a");
+    await page.evaluate(() => navigator.clipboard.writeText("marker"));
+    await page.keyboard.press("Meta+c");
+    await expect.poll(() => page.evaluate(() => navigator.clipboard.readText()))
+      .toContain("Blackboard");
+
+    await surface.click({ button: "right", position: { x: 320, y: 240 } });
+    await expect(page.getByRole("menuitem", { name: "Copy as Text" })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: "Copy as ANSI" })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: /Snapshot \(PNG\)/ })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: /Paste/ })).toHaveCount(0);
+    await expect(page.getByRole("menuitem", { name: "Delete" })).toHaveCount(0);
+  });
+
   test("mounts only Blackboard host surfaces on desktop and phone", async ({ page }) => {
     const assertBlackboardChrome = async () => {
       await expect.poll(() => page.locator("html").getAttribute("data-webmcp-status"))

@@ -56,8 +56,7 @@ const startBlackboardSiteTools = async () => {
     target: document,
     tools: blackboardAgentTools,
     onStatusChange: (snapshot) => {
-      if (snapshot.adapterId === "openai-site-tools") provider = "openai";
-      if (snapshot.adapterId === "standard-webmcp" && provider !== "polyfill") {
+      if (snapshot.adapterId !== null && provider !== "polyfill") {
         provider = "native";
       }
       updateWebMcpDiagnostics(document, provider, snapshot);

@@ -18,13 +18,13 @@ const createDocument = () => document.implementation.createHTMLDocument();
 const installContext = (
   target: Document,
   registerTool: (tool: WebMcpTool, options?: { signal?: AbortSignal }) => unknown,
-  standard = true,
+  complete = true,
 ) => {
   Object.defineProperty(target, "modelContext", {
     configurable: true,
     value: {
       registerTool,
-      ...(standard ? { getTools: vi.fn() } : {}),
+      ...(complete ? { getTools: vi.fn() } : {}),
     },
   });
 };
@@ -70,21 +70,30 @@ describe("site tool connector", () => {
     expect(registrationSignal.aborted).toBe(true);
   });
 
-  it("uses the single-registration OpenAI adapter when getTools is absent", async () => {
+  it("uses the imperative WebMCP adapter when getTools is absent", async () => {
     const target = createDocument();
     const registered: WebMcpTool[] = [];
     const registerTool = vi.fn((tool: WebMcpTool) => registered.push(tool));
     installContext(target, registerTool, false);
-    const openAiTools: readonly AgentToolDefinition[] = [{
+    const imperativeTools: readonly AgentToolDefinition[] = [{
       ...tools[0]!,
-      execute: () => "openai-result",
+      execute: () => "imperative-result",
     }];
+    const onStatusChange = vi.fn();
 
-    const connector = startDocumentSiteTools({ target, tools: openAiTools });
+    const connector = startDocumentSiteTools({
+      target,
+      tools: imperativeTools,
+      onStatusChange,
+    });
     await vi.waitFor(() => expect(connector.getStatus()).toBe("ready"));
 
     expect(registerTool.mock.calls[0]).toHaveLength(1);
-    expect(await registered[0]!.execute({})).toBe("openai-result");
+    expect(await registered[0]!.execute({})).toBe("imperative-result");
+    expect(onStatusChange).toHaveBeenLastCalledWith({
+      status: "ready",
+      adapterId: "imperative-webmcp",
+    });
     connector.dispose();
   });
 
@@ -122,7 +131,7 @@ describe("site tool connector", () => {
     connector.dispose();
   });
 
-  it("does not duplicate a partially failed Codex registration", async () => {
+  it("does not duplicate a partially failed imperative registration", async () => {
     vi.useFakeTimers();
     const target = createDocument();
     const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);

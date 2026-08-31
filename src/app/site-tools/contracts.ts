@@ -19,7 +19,7 @@ export type SiteToolInstallation = Readonly<{
   dispose: () => void;
 }>;
 
-export type SiteToolHostAdapterId = "standard-webmcp" | "openai-site-tools";
+export type SiteToolHostAdapterId = "standard-webmcp" | "imperative-webmcp";
 
 export interface SiteToolHostAdapter<Context = unknown> {
   readonly id: SiteToolHostAdapterId;
