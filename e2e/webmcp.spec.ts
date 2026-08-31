@@ -37,11 +37,19 @@ test.describe("WebMCP", () => {
         };
       }).modelContext;
       if (!context?.executeTool) return false;
-      const listFiles = (await context.getTools()).find(({ name }) => name === "list_files");
-      if (!listFiles) return false;
-      const output = await context.executeTool(listFiles, "{}");
-      const parsed = typeof output === "string" ? JSON.parse(output) : output;
-      return typeof parsed === "object" && parsed !== null && !("ok" in parsed && parsed.ok === false);
+      const tools = await context.getTools();
+      const listWorkspaces = tools.find(
+        ({ name }) => name === "chardesk_blackboard_list_workspaces",
+      );
+      const listFiles = tools.find(({ name }) => name === "chardesk_blackboard_list_files");
+      if (!listWorkspaces || !listFiles) return false;
+      const listed = await context.executeTool(listWorkspaces, "{}");
+      const parsed = typeof listed === "string" ? JSON.parse(listed) : listed;
+      const workspaceId = parsed?.workspaces?.[0]?.id;
+      if (typeof workspaceId !== "string") return false;
+      const output = await context.executeTool(listFiles, JSON.stringify({ workspaceId }));
+      const files = typeof output === "string" ? JSON.parse(output) : output;
+      return Array.isArray(files?.files);
     })).toBe(true);
 
     const result = await page.evaluate(async () => {
@@ -53,9 +61,15 @@ test.describe("WebMCP", () => {
       }).modelContext;
       if (!context?.executeTool) throw new Error("WebMCP executeTool is unavailable.");
       const tools = await context.getTools();
-      const listFiles = tools.find(({ name }) => name === "list_files");
-      if (!listFiles) throw new Error("list_files was not registered.");
-      const output = await context.executeTool(listFiles, "{}");
+      const listWorkspaces = tools.find(
+        ({ name }) => name === "chardesk_blackboard_list_workspaces",
+      );
+      const listFiles = tools.find(({ name }) => name === "chardesk_blackboard_list_files");
+      if (!listWorkspaces || !listFiles) throw new Error("Blackboard tools were not registered.");
+      const listed = await context.executeTool(listWorkspaces, "{}");
+      const workspaces = typeof listed === "string" ? JSON.parse(listed) : listed;
+      const workspaceId = workspaces.workspaces[0].id;
+      const output = await context.executeTool(listFiles, JSON.stringify({ workspaceId }));
       return {
         names: tools.map(({ name }) => name).sort(),
         output: typeof output === "string" ? JSON.parse(output) : output,
@@ -63,14 +77,14 @@ test.describe("WebMCP", () => {
     });
 
     expect(result.names).toEqual([
-      "apply_patch",
-      "check",
-      "create_workspace",
-      "delete_file",
-      "list_files",
-      "list_workspaces",
-      "read_file",
-      "write_file",
+      "chardesk_blackboard_apply_patch",
+      "chardesk_blackboard_check",
+      "chardesk_blackboard_create_workspace",
+      "chardesk_blackboard_delete_file",
+      "chardesk_blackboard_list_files",
+      "chardesk_blackboard_list_workspaces",
+      "chardesk_blackboard_read_file",
+      "chardesk_blackboard_write_file",
     ]);
     expect(result.output).toMatchObject({
       workspaceId: expect.any(String),
@@ -101,18 +115,23 @@ test.describe("WebMCP", () => {
         return typeof output === "string" ? JSON.parse(output) : output;
       };
 
-      const created = await execute("create_workspace", { title: "Root Agent" });
+      const created = await execute("chardesk_blackboard_create_workspace", {
+        title: "Root Agent",
+      });
       const workspaceId = created.workspaceId as string;
-      await execute("write_file", {
+      await execute("chardesk_blackboard_write_file", {
         workspaceId,
         path: "panels/root.panel",
         content: "Edited from chardesk.com/",
       });
       return {
         created,
-        listed: await execute("list_workspaces", {}),
-        read: await execute("read_file", { workspaceId, path: "panels/root.panel" }),
-        checked: await execute("check", { workspaceId }),
+        listed: await execute("chardesk_blackboard_list_workspaces", {}),
+        read: await execute("chardesk_blackboard_read_file", {
+          workspaceId,
+          path: "panels/root.panel",
+        }),
+        checked: await execute("chardesk_blackboard_check", { workspaceId }),
       };
     });
 
@@ -125,5 +144,34 @@ test.describe("WebMCP", () => {
       content: "Edited from chardesk.com/",
     });
     expect(result.checked).toMatchObject({ ok: true, workspaceId: result.created.workspaceId });
+  });
+
+  test("elects one origin gateway and transfers ownership after its tab closes", async ({
+    context,
+    page,
+  }) => {
+    await page.goto("/?webmcp=polyfill");
+    await expect(page.locator("html")).toHaveAttribute("data-webmcp-role", "leader");
+    await expect(page.locator("html")).toHaveAttribute("data-webmcp-status", "ready");
+
+    const standby = await context.newPage();
+    await standby.goto("/blackboard?webmcp=polyfill");
+    await expect(standby.locator("html")).toHaveAttribute("data-webmcp-role", "standby");
+    await expect.poll(() => standby.evaluate(async () => {
+      const modelContext = (document as Document & {
+        modelContext?: { getTools(): Promise<unknown[]> };
+      }).modelContext;
+      return modelContext ? (await modelContext.getTools()).length : -1;
+    })).toBe(0);
+
+    await page.close();
+    await expect(standby.locator("html")).toHaveAttribute("data-webmcp-role", "leader");
+    await expect(standby.locator("html")).toHaveAttribute("data-webmcp-status", "ready");
+    await expect.poll(() => standby.evaluate(async () => {
+      const modelContext = (document as Document & {
+        modelContext?: { getTools(): Promise<unknown[]> };
+      }).modelContext;
+      return modelContext ? (await modelContext.getTools()).length : -1;
+    })).toBe(8);
   });
 });

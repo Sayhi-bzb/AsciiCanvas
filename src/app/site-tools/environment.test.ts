@@ -77,11 +77,13 @@ describe("WebMCP environment", () => {
   it("publishes provider and registration diagnostics", () => {
     const target = createDocument();
     updateWebMcpDiagnostics(target, "openai", {
+      role: "leader",
       status: "ready",
       adapterId: "openai-site-tools",
     });
 
     expect(target.documentElement.dataset.webmcpProvider).toBe("openai");
     expect(target.documentElement.dataset.webmcpStatus).toBe("ready");
+    expect(target.documentElement.dataset.webmcpRole).toBe("leader");
   });
 });

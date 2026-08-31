@@ -1,6 +1,5 @@
-export type OriginExclusiveLease = Readonly<{
+type OriginExclusiveLease = Readonly<{
   release: () => void;
-  completion: Promise<void>;
 }>;
 
 type AcquireOriginExclusiveLeaseOptions = Readonly<{
@@ -28,16 +27,22 @@ export const acquireOriginExclusiveLease = ({
   const options: LockOptions = wait
     ? { mode: "exclusive", ...(signal ? { signal } : {}) }
     : { mode: "exclusive", ifAvailable: true };
-  let completion!: Promise<void>;
-  completion = manager.request(name, options, async (lock) => {
+  let resolveCompletion!: () => void;
+  let rejectCompletion!: (error: unknown) => void;
+  const completion = new Promise<void>((resolve, reject) => {
+    resolveCompletion = resolve;
+    rejectCompletion = reject;
+  });
+  const request = manager.request(name, options, async (lock) => {
     settled = true;
     if (!lock) {
       resolveAcquired(null);
       return;
     }
-    resolveAcquired({ release, completion });
+    resolveAcquired({ release });
     await held;
-  }).then(() => undefined);
+  });
+  void Promise.resolve(request).then(resolveCompletion, rejectCompletion);
   void completion.catch((error) => {
     if (!settled) rejectAcquired(error);
   });

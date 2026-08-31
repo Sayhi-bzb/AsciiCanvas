@@ -13,7 +13,7 @@ import type {
 const GATEWAY_LOCK_NAME = "chardesk-webmcp-agent-gateway-v1";
 const DEFAULT_RETRY_DELAYS = [50, 100, 250, 500, 1_000, 2_000] as const;
 
-export type OriginSiteToolRole = "leader" | "standby" | "unsupported";
+type OriginSiteToolRole = "leader" | "standby" | "unsupported";
 
 export type OriginSiteToolGatewaySnapshot = Readonly<{
   role: OriginSiteToolRole;

@@ -6,6 +6,7 @@ import type { WebMcpTool } from "./modelContext";
 
 const tools: readonly AgentToolDefinition[] = [{
   name: "read_workspace",
+  title: "Read workspace",
   description: "Read the active workspace.",
   inputSchema: { type: "object", properties: {}, additionalProperties: false },
   readOnly: true,
@@ -54,6 +55,7 @@ describe("site tool connector", () => {
     await vi.waitFor(() => expect(connector.getStatus()).toBe("ready"));
     expect(registerTool).toHaveBeenCalledTimes(1);
     const registered = registerTool.mock.calls[0]?.[0] as WebMcpTool;
+    expect(registered.title).toBe("Read workspace");
     const registrationSignal = registerTool.mock.calls[0]?.[1]?.signal as AbortSignal;
     expect(registered.annotations).toEqual({ readOnlyHint: true });
     expect(registered.outputSchema).toEqual(standardTools[0]?.outputSchema);

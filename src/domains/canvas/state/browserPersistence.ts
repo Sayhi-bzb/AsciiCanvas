@@ -239,19 +239,14 @@ const acquireWriterLease = async (storage: Storage): Promise<WriterLease> => {
   if (typeof navigator === "undefined" || !navigator.locks) {
     return acquireStorageLease(storage);
   }
-  let lease;
-  try {
-    lease = await withRestoreTimeout(
-      acquireOriginExclusiveLease({
-        manager: navigator.locks,
-        name: WRITER_LOCK_NAME,
-      }),
-      WRITER_LOCK_TIMEOUT,
-      "Canvas writer lock did not respond in time"
-    );
-  } catch (error) {
-    throw error;
-  }
+  const lease = await withRestoreTimeout(
+    acquireOriginExclusiveLease({
+      manager: navigator.locks,
+      name: WRITER_LOCK_NAME,
+    }),
+    WRITER_LOCK_TIMEOUT,
+    "Canvas writer lock did not respond in time"
+  );
   return {
     writer: !!lease,
     release: lease?.release ?? (() => undefined),
