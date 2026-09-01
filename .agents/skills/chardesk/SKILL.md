@@ -13,15 +13,19 @@ Load only the required reference:
 - Slide document structure: [`references/slides.md`](references/slides.md).
 - Headless source checking or artifact rendering: [`references/rendering.md`](references/rendering.md).
 - Multi-file Blackboard packages: [`references/blackboard.md`](references/blackboard.md).
+- Live browser Blackboard workspace: load
+  [`references/browser-blackboard.md`](references/browser-blackboard.md) only when
+  `chardesk_blackboard_*` tools are available and the task targets that workspace.
 - Styled Slides: Slides first, then ANSI.
 - Slides that compile Markdown, Mermaid, data, math, or block layout: Slides
   first, then CharGraph; load Block Layout when the source uses `|||` or `---`.
 - Structured fields in a block layout: Block Layout first, then CharGraph; also
   load ANSI only when the source uses explicit CharDesk styles.
 
-For a single-file Blackboard, use the named `.chardesk` path or
-`blackboard.chardesk` when none is named. For a package, read
-`blackboard.yaml` first and open only the Panels required by the task:
+When live Blackboard tools are unavailable, use the local source workflow. For
+a single-file Blackboard, use the named `.chardesk` path or
+`blackboard.chardesk` when none is named. For a package, read `blackboard.yaml`
+first and open only the Panels required by the task:
 
 1. Read an existing Blackboard before writing.
 2. Patch locally with `apply_patch`; clear or replace only when explicitly asked.

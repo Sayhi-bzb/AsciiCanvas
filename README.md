@@ -70,6 +70,21 @@ CharDesk keeps visual work in a form that fits naturally into text conversations
 
 The application does not require a built-in AI provider. The artifact itself is the interface: portable text that both sides can inspect.
 
+## Edit a Blackboard with an agent
+
+CharDesk exposes Blackboard source files through WebMCP and ChatGPT Site Tools. An agent edits the canonical text source instead of the rendered cells, and the open canvas updates from the same workspace.
+
+- **Chrome WebMCP:** enable `chrome://flags/#enable-webmcp-testing`, relaunch Chrome, then open [CharDesk Blackboard](https://chardesk.com/blackboard) in a tab connected to a compatible WebMCP agent. Chrome exposes the tools; it does not provide the agent by itself.
+- **ChatGPT Site Tools:** enable **Site tools** under **Settings → Browser → Permissions**, then open [CharDesk Blackboard](https://chardesk.com/blackboard) in the ChatGPT desktop app's built-in browser. See the [official Site Tools guide](https://learn.chatgpt.com/docs/webmcp).
+
+Make the bundled [`$chardesk` skill](.agents/skills/chardesk/SKILL.md) available to the agent, then try:
+
+```text
+$chardesk Introduce GPUs visually in the current Blackboard.
+```
+
+Agents without skill support can ask to use the page's CharDesk Blackboard tools directly. These browser capabilities are experimental and belong to the open page, so keep it open while the agent works.
+
 ## Text can carry more than words
 
 CharDesk brings together Unicode symbols, CJK characters, emoji, box drawing, Nerd Font glyphs, and color on a consistent grid. Its visual language can express structure and emphasis while remaining selectable and editable.

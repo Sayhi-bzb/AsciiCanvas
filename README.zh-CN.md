@@ -70,6 +70,21 @@ CharDesk 让视觉作品自然进入以文本为主的对话：
 
 应用不要求绑定某一家 AI 服务。作品本身就是交互介质：一份双方都可以检查的可移植文本。
 
+## 让 Agent 直接编辑 Blackboard
+
+CharDesk 通过 WebMCP 和 ChatGPT Site Tools 暴露 Blackboard 源文件。Agent 编辑的是规范文本源，而不是渲染后的 Cell；打开的画布会从同一个 Workspace 实时更新。
+
+- **Chrome WebMCP：**开启 `chrome://flags/#enable-webmcp-testing`，重启 Chrome，再让兼容 WebMCP 的 Agent 连接并访问 [CharDesk Blackboard](https://chardesk.com/blackboard)。Chrome 负责暴露工具，本身不提供 Agent。
+- **ChatGPT Site Tools：**在 **Settings → Browser → Permissions** 中开启 **Site tools**，再用 ChatGPT 桌面应用的内置浏览器打开 [CharDesk Blackboard](https://chardesk.com/blackboard)。参见 [OpenAI 官方 Site Tools 文档](https://learn.chatgpt.com/docs/webmcp)。
+
+让 Agent 可以使用仓库内置的 [`$chardesk` skill](.agents/skills/chardesk/SKILL.md)，然后发送：
+
+```text
+$chardesk 在当前 Blackboard 中，用可视化方式向我介绍什么是显卡。
+```
+
+不支持 skill 的 Agent 也可以直接调用页面提供的 CharDesk Blackboard 工具。这些浏览器能力仍处于实验阶段，并且属于当前打开的页面；Agent 工作期间请保持页面开启。
+
 ## 文本可以承载更多
 
 CharDesk 在一致的网格中组合 Unicode 符号、中日韩字符、Emoji、Box Drawing、Nerd Font 字形与颜色。它让文字呈现结构和视觉重点，同时保持可选择、可复制、可编辑。
