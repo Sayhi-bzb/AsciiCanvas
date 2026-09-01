@@ -5,7 +5,7 @@ import {
 import type { OriginSiteToolGatewaySnapshot } from "./originGateway";
 
 export type WebMcpProvider = "native" | "polyfill" | "unavailable";
-export type WebMcpCapability = "standard" | "imperative" | "unavailable";
+type WebMcpCapability = "standard" | "imperative" | "unavailable";
 
 type WebMcpPolyfillLoader = () => Promise<void>;
 

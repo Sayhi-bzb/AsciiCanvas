@@ -63,6 +63,7 @@ import {
 import { resolveEditorHostContract } from './editorHostProfile';
 import { useEditorHostProfile } from './useEditorHostProfile';
 import { useBlackboardSource } from './useBlackboardSource';
+import { isLocalBlackboardReaderRoute } from './blackboardRoute';
 import { useBlackboardWorkspace } from './useBlackboardWorkspace';
 import { getAppActionShortcuts } from '@/domains/actions/public';
 
@@ -362,9 +363,7 @@ function AppContent() {
       persistenceRestorePhase !== 'retrying'
   );
   const { capabilities, surfaces } = hostContract;
-  const localReaderEnabled =
-    window.location.pathname === '/blackboard' &&
-    new URLSearchParams(window.location.search).get('reader') === '1';
+  const localReaderEnabled = isLocalBlackboardReaderRoute(window.location);
   const blackboardSource = useBlackboardSource({
     enabled: localReaderEnabled,
   });
@@ -612,7 +611,9 @@ export default function App() {
           <EditorPresentationProvider>
             <EditorChromeProvider>
               <CanvasStartupBoundary>
-                <OnboardingTourProvider>
+                <OnboardingTourProvider
+                  autoStart={!isLocalBlackboardReaderRoute(window.location)}
+                >
                   <CanvasWorkspaceProvider>
                     <AppContent />
                   </CanvasWorkspaceProvider>

@@ -1,6 +1,6 @@
 {
   "name": "@chardesk/fonts",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Self-hosted fonts and the default CharDesk renderer font profile",
   "type": "module",
   "license": "MIT",
@@ -19,7 +19,9 @@
     "fonts",
     "unicode"
   ],
-  "sideEffects": ["./fonts.css"],
+  "sideEffects": [
+    "./fonts.css"
+  ],
   "files": [
     "assets",
     "dist",

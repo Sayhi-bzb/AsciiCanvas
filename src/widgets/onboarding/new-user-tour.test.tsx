@@ -134,6 +134,23 @@ describe("OnboardingTourProvider", () => {
     ).toBe(false);
   });
 
+  it("can disable automatic startup without disabling manual replay", async () => {
+    render(
+      <OnboardingTourProvider autoStart={false}>
+        <TourHarness />
+      </OnboardingTourProvider>
+    );
+
+    await flushTourStart();
+    expect(driverMock.factory).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Start tour" }));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(driverMock.factory).toHaveBeenCalledOnce();
+  });
+
   it("omits the freeform character guide outside freeform mode", async () => {
     useEditorStore.setState({ canvasMode: "structured" });
     window.localStorage.removeItem(EDITOR_PERSISTENCE_KEY);

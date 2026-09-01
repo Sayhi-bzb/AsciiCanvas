@@ -163,7 +163,7 @@ export class EditorShortcutEngine {
   }
 }
 
-export type EditorShortcutEntryPredicate = (
+type EditorShortcutEntryPredicate = (
   entry: RegisteredKeymapEntry<EditorShortcutContext<CanvasState>>,
   context: EditorShortcutContext<CanvasState>,
 ) => boolean;

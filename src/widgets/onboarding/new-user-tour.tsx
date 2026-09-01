@@ -202,7 +202,13 @@ function buildTourSteps(
   ];
 }
 
-export function OnboardingTourProvider({ children }: { children: ReactNode }) {
+export function OnboardingTourProvider({
+  children,
+  autoStart = true,
+}: {
+  children: ReactNode;
+  autoStart?: boolean;
+}) {
   const isMobile = useIsMobile();
   const { t } = useUiI18n();
   const canvasMode = useCanvasState((state) => state.canvasMode);
@@ -363,7 +369,7 @@ export function OnboardingTourProvider({ children }: { children: ReactNode }) {
   }, [endTour, phase]);
 
   useEffect(() => {
-    if (autoStartCheckedRef.current) return;
+    if (!autoStart || autoStartCheckedRef.current) return;
     let cancelled = false;
     const timeoutId = window.setTimeout(() => {
       if (cancelled || autoStartCheckedRef.current) return;
@@ -382,7 +388,7 @@ export function OnboardingTourProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       window.clearTimeout(timeoutId);
     };
-  }, [isMobile, startTour]);
+  }, [autoStart, isMobile, startTour]);
 
   useEffect(() => {
     mountedRef.current = true;

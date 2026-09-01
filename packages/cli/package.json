@@ -1,32 +1,62 @@
 {
   "name": "@chardesk/cli",
-  "version": "0.0.0",
-  "private": true,
-  "description": "Headless CharDesk source renderer and checker",
+  "version": "0.3.1",
+  "private": false,
+  "description": "Create, inspect, live-preview, and render CharDesk workspaces",
   "type": "module",
   "bin": {
     "chardesk": "./dist/cli.js"
   },
+  "files": [
+    "dist/cli.js",
+    "dist/raster-worker.js",
+    "dist/runtime",
+    "dist/LICENSE.beautiful-mermaid",
+    "dist/LICENSE.marked-terminal",
+    "dist/UPSTREAM.md",
+    "README.md"
+  ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "node scripts/build.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --config vitest.config.ts"
   },
   "dependencies": {
+    "@chardesk/fonts": "^0.3.0",
+    "@napi-rs/canvas": "^1.0.8",
+    "d3-scale": "^4.0.2",
+    "elkjs": "^0.11.1",
+    "jsonc-parser": "^3.3.1",
+    "marked": "^16.4.1",
+    "marked-alert": "^2.1.2",
+    "open": "^10.2.0",
+    "saxes": "^6.0.0",
+    "shiki": "^4.4.3",
+    "temml": "^0.13.4",
+    "yaml": "^2.9.0"
+  },
+  "devDependencies": {
     "@chardesk/blackboard": "*",
     "@chardesk/chargraph": "*",
     "@chardesk/document": "*",
-    "@chardesk/fonts": "*",
     "@chardesk/protocol": "*",
     "@chardesk/rendering": "*",
-    "@napi-rs/canvas": "^1.0.8"
-  },
-  "devDependencies": {
     "@types/node": "^24.10.4",
     "typescript": "~5.9.3",
+    "vite": "^8.2.0",
     "vitest": "^4.1.2"
   },
   "engines": {
     "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sayhi-bzb/CharDesk.git",
+    "directory": "packages/cli"
   }
 }

@@ -1,8 +1,60 @@
 # @chardesk/cli
 
-Headless CharDesk renderer, checker, grid inspector, and terminal preview. It consumes the same CharGraph,
-Protocol, Rendering, and vendored font contracts as the application without
-starting a browser, server, or CharDesk UI.
+Agent-first CharDesk workspace CLI. It creates and inspects source packages, opens the native
+Canvas locally, and renders portable artifacts. It consumes the same Blackboard, CharGraph,
+Protocol, Rendering, and font contracts as the CharDesk application.
+
+Run it without cloning CharDesk:
+
+```sh
+npx -y @chardesk/cli --help
+```
+
+## Workspace workflow
+
+Create a canonical multi-file Blackboard package:
+
+```sh
+chardesk init .chardesk/gpu --title "GPU"
+```
+
+Agents use normal filesystem tools to read and patch `blackboard.yaml` and `.panel` files. The
+files are the source of truth; the CLI does not introduce a proprietary CRUD layer.
+
+Inspect the compiled grid before showing it:
+
+```sh
+chardesk inspect .chardesk/gpu --json
+chardesk inspect .chardesk/gpu --panel architecture --styles --json
+chardesk inspect .chardesk/gpu --region 0,0,96,32
+```
+
+`inspect` reports the actual Protocol grid used by Canvas and PNG rendering. Its default view is
+bounded to 96×32 cells; `--region` selects an absolute grid region. `--styles` adds compact,
+Agent-readable style regions. `--panel` isolates one package panel by manifest ID.
+
+Open the workspace when a human wants to see it:
+
+```sh
+chardesk open .chardesk/gpu
+```
+
+`open` starts a managed background session, launches the default browser, and returns. The CLI
+ships the same CharDesk application runtime as the hosted product, opens its native read-only
+Blackboard mode at a tokenized loopback URL, and serves local source directly. It does not require
+CharDesk source code, a dev server, a cloud host, or an MCP server. Local files are never uploaded
+or modified by Canvas.
+
+```sh
+chardesk status
+chardesk close .chardesk/gpu
+chardesk close --all
+```
+
+Opening the same workspace reuses its compatible healthy session. Use `--no-browser` to return its
+URL without launching a browser, `--port` for a fixed loopback port, or `--foreground` to attach the
+server lifecycle to the current process. If a launched browser cannot report Canvas readiness,
+`open` returns a PNG fallback path instead.
 
 ## Render
 
@@ -10,102 +62,46 @@ starting a browser, server, or CharDesk UI.
 chardesk render input.md -o output.png
 ```
 
-The output suffix selects the materialized artifact:
+The output suffix selects the artifact:
 
 | Suffix | Format | Artifact |
 | --- | --- | --- |
 | `.png` | `png` | Raster image |
-| `.chardesk` | `chardesk` | Canonical Freeform CharDesk document |
+| `.chardesk` | `chardesk` | Canonical Freeform document |
 | `.ans` | `ansi` | Terminal ANSI text |
 | `.txt` | `text` | Plain Unicode text |
 
-Use `--format` to override suffix inference. Text formats may write to stdout;
-stdout requires an explicit format and cannot be combined with `--json`.
+Use `--format` to override suffix inference. Plain text on stdout requires an explicit format:
 
 ```sh
-printf '# Status\n\n**Ready**' |
-  chardesk render - -o - --format text
+printf '# Status\n\n**Ready**' | chardesk render - -o - --format text
 ```
 
-## Check
+PNG uses an isolated native raster process. `--strict` rejects compiler diagnostics without
+replacing an existing artifact.
 
-`check` runs the same source compiler without creating an artifact. Diagnostics
-make the command fail; `--json` includes the renderer, pipeline, dimensions, and
-diagnostics.
+## Inputs and options
 
-```sh
-chardesk check input.md --json
-```
-
-## Result
-
-`result` prints the materialized Protocol grid used by Canvas and PNG rendering.
-It is a bounded, style-free diagnostic view rather than a text artifact.
-
-```sh
-chardesk result input.md
-chardesk result gpu-blackboard/ --region 0,0,96,32
-chardesk result board.chardesk --no-ruler
-chardesk result input.md --styles
-```
-
-The default view is at most 96 columns by 32 rows. Metadata reports the full
-grid, visible absolute coordinates, and omitted edges. Coordinate rulers use
-Protocol cells, so CJK and other double-width graphemes stay aligned. A region
-that intersects a double-width cell expands by at most one column to keep the
-cell intact. Compiler diagnostics still print the fallback projection and make
-the command exit with status 1.
-
-`--styles` appends compact Agent-readable evidence from the same materialized
-cells. CSS-like rules use inclusive absolute selectors: `y:x`, `y:x0-x1`, or
-`y0-y1:x0-x1`, followed by declarations such as `{fg:#0969da;bold}`. Equal
-horizontal runs merge into rectangles, then regions sharing a style share one
-rule. Unstyled cells are omitted. Evidence is capped at 256 merged regions;
-narrow `--region` when the result reports omissions. The default remains
-style-free.
-
-## Preview
-
-`preview` presents the materialized grid directly in a human terminal. It uses
-the terminal foreground and background for unstyled cells, while preserving
-explicit truecolor ANSI, text attributes, and OSC 8 links. The output is
-Protocol-cell accurate; font glyphs and emoji appearance remain terminal-owned.
-
-```sh
-chardesk preview input.md
-chardesk preview gpu-blackboard/ --region 80,0,80,24
-chardesk preview board.chardesk --color always
-```
-
-Without `--region`, the view fits `columns - 1` by `rows - 1` terminal cells to
-avoid automatic wrapping. `--color auto` is the default and emits plain text
-for pipes, `NO_COLOR`, and `TERM=dumb`; use `always` or `never` to override it.
-Viewport omissions are reported on stderr, leaving stdout as preview content.
-
-## Input and options
-
-`auto` recognizes canonical and legacy Freeform `.chardesk` input, a
-`blackboard.yaml` manifest, or a directory containing that manifest; other
-files and stdin default to CharGraph source. Blackboard packages may also use
-`--input blackboard`, but require a filesystem path. Canonical Structured and Slide documents
-return `unsupported-document-mode` until their headless renderers are added.
-Override non-document input with `--input chargraph`, `--input chardesk`, or
-`--input blackboard`.
+`auto` recognizes a Freeform `.chardesk` document, `blackboard.yaml`, or a directory containing
+that manifest. Other files and stdin default to CharGraph source. Override detection with
+`--input chargraph`, `--input chardesk`, or `--input blackboard`. Structured and Slide documents
+return `unsupported-document-mode` until their headless renderers are available.
 
 ```text
---format <png|chardesk|ansi|text>
---scale <1..4>       PNG only; default 2
---padding <0..256>   PNG only; default 16 logical pixels
---strict             reject render diagnostics
---json               emit one machine-readable result
---region <x,y,columns,rows>  result only
---no-ruler                   result only
---styles                     result only; include materialized style evidence
---color <auto|always|never>  preview only; default auto
+--title <title>                    init only
+--port <0..65535>                  open only; default random
+--no-browser                       open only
+--foreground                       open only
+--panel <id>                       inspect one Blackboard panel
+--region <x,y,columns,rows>         inspect only
+--no-ruler                         inspect only
+--styles                           inspect only
+--format <png|chardesk|ansi|text>  render only
+--scale <1..4>                     PNG only; default 2
+--padding <0..256>                 PNG only; default 16
+--strict                           reject render diagnostics
+--json                             emit one machine-readable result
 ```
 
-Successful file writes replace the explicit path atomically. Diagnostics go to
-stderr unless `--json` is selected. Exit codes are 0 for success, 1 for
-content/render/write failure, and 2 for invalid arguments.
-PNG uses an isolated native raster process. A backend signal or invalid worker
-result returns `raster-backend-crash` and never replaces the target artifact.
+Successful writes replace the explicit path atomically. Exit codes are 0 for success, 1 for
+content/runtime/write failure, and 2 for invalid arguments.

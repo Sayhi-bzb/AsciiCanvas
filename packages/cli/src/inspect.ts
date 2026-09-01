@@ -3,17 +3,17 @@ import type {
   ParsedCharDeskText,
 } from "@chardesk/protocol";
 
-export type CharDeskResultRegion = {
+export type CharDeskInspectRegion = {
   x: number;
   y: number;
   columns: number;
   rows: number;
 };
 
-type CharDeskResultProjection = {
+type CharDeskInspectProjection = {
   text: string;
   styleText?: string;
-  view: CharDeskResultRegion;
+  view: CharDeskInspectRegion;
   omitted: {
     left: number;
     right: number;
@@ -142,8 +142,8 @@ const snapHorizontalBounds = (
 
 const resolveView = (
   document: ParsedCharDeskText,
-  requested?: CharDeskResultRegion,
-): CharDeskResultRegion => {
+  requested?: CharDeskInspectRegion,
+): CharDeskInspectRegion => {
   const base = requested ?? {
     x: 0,
     y: 0,
@@ -196,14 +196,14 @@ const projectRow = (
   return output.trimEnd();
 };
 
-export const projectCharDeskResult = (
+export const projectCharDeskInspect = (
   document: ParsedCharDeskText,
   options: {
-    region?: CharDeskResultRegion;
+    region?: CharDeskInspectRegion;
     ruler?: boolean;
     styles?: boolean;
   } = {},
-): CharDeskResultProjection => {
+): CharDeskInspectProjection => {
   const view = resolveView(document, options.region);
   const endX = view.x + view.columns;
   const endY = view.y + view.rows;

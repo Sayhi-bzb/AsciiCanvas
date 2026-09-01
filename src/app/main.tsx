@@ -27,6 +27,7 @@ import {
   updateWebMcpDiagnostics,
   type WebMcpProvider,
 } from "./site-tools/environment";
+import { isBlackboardRoute } from "./blackboardRoute";
 
 const profile = EDITOR_HOST_PROFILE;
 const host = getApplicationEditorHost(profile);
@@ -122,7 +123,7 @@ if (new URLSearchParams(window.location.search).has("canvas-stress")) {
     },
   });
 }
-if (window.location.pathname !== "/blackboard") {
+if (!isBlackboardRoute(window.location)) {
   captureOnboardingEntryState();
 }
 installModuleLoadRecovery();

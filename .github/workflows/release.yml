@@ -53,6 +53,11 @@ jobs:
           else
             echo "fonts_published=false" >> "$GITHUB_OUTPUT"
           fi
+          if npm view "@chardesk/cli@$version" version >/dev/null 2>&1; then
+            echo "cli_published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "cli_published=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Verify repository
         run: npm run verify
@@ -62,12 +67,14 @@ jobs:
           mkdir release-assets
           npm pack --workspace @chardesk/protocol --pack-destination release-assets
           npm pack --workspace @chardesk/fonts --pack-destination release-assets
+          npm pack --workspace @chardesk/cli --pack-destination release-assets
 
       - name: Smoke test packed packages
         run: >-
           node scripts/release/smoke-packed-packages.mjs
           release-assets/chardesk-protocol-${GITHUB_REF_NAME#v}.tgz
           release-assets/chardesk-fonts-${GITHUB_REF_NAME#v}.tgz
+          release-assets/chardesk-cli-${GITHUB_REF_NAME#v}.tgz
 
       - name: Publish protocol to npm
         if: steps.package-status.outputs.protocol_published != 'true'
@@ -76,6 +83,10 @@ jobs:
       - name: Publish fonts to npm
         if: steps.package-status.outputs.fonts_published != 'true'
         run: npm publish --workspace @chardesk/fonts --access public --provenance
+
+      - name: Publish CLI to npm
+        if: steps.package-status.outputs.cli_published != 'true'
+        run: npm publish --workspace @chardesk/cli --access public --provenance
 
       - name: Create GitHub Release
         run: |

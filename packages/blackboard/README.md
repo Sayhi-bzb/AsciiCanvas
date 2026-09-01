@@ -4,8 +4,8 @@ Shared compiler and local Reader for either one Freeform `.chardesk` or a
 multi-file Blackboard package. Structured and Slide documents are rejected.
 
 - App Menu → File → Import Blackboard stores the selected package in the browser repository and opens a read-only Blackboard session.
-- `serve [board.chardesk|blackboard.yaml|directory] [--port 7331]` serves the main CharDesk application at `/blackboard` on loopback.
-- `check <board.chardesk|blackboard.yaml|directory>` validates the source and every registered Panel.
+- `chardesk inspect` validates and materializes either source form.
+- `chardesk open` serves the main CharDesk application on a tokenized loopback URL.
 
 A package uses one root manifest and local Panel sources:
 
@@ -51,6 +51,6 @@ still has precedence. Use
 [`demo/gpu-deep-dive-blackboard`](../../demo/gpu-deep-dive-blackboard) for a
 multi-panel CharGraph showcase.
 
-The main application build must exist before `serve` starts. `blackboard` is a
+`blackboard` is a
 first-class Canvas mode with navigation, selection, copy, import, and export.
 Human content mutation and collaboration are disabled; Agents edit source files.

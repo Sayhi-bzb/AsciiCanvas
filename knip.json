@@ -44,11 +44,31 @@
     },
     "packages/blackboard": {
       "entry": [
-        "src/cli.ts",
+        "src/node.ts",
         "src/**/*.test.ts",
         "vitest.config.ts"
       ],
       "project": ["src/**/*.ts", "*.config.ts"]
+    },
+    "packages/cli": {
+      "entry": [
+        "src/cli.ts",
+        "src/raster-worker.ts",
+        "src/**/*.test.ts",
+        "scripts/build.mjs",
+        "vitest.config.ts"
+      ],
+      "project": ["src/**/*.ts", "scripts/*.mjs", "*.config.ts"],
+      "ignoreDependencies": [
+        "d3-scale",
+        "elkjs",
+        "jsonc-parser",
+        "marked",
+        "marked-alert",
+        "saxes",
+        "shiki",
+        "temml"
+      ]
     },
     "apps/docs": {
       "entry": [

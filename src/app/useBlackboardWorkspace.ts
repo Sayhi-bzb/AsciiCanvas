@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useShallow } from "zustand/react/shallow";
 import { useBlackboardRuntime } from "@/domains/blackboard/public";
+import { isBlackboardRoute } from "./blackboardRoute";
 import { useCanvasRuntime, useCanvasState } from "@/domains/canvas/public";
 
 type BlackboardModeStatus =
@@ -72,7 +73,7 @@ export const useBlackboardWorkspace = ({ enabled = true }: { enabled?: boolean }
   }, [activeSessionId, activeWorkspaceId, enabled, project, runtime]);
 
   useEffect(() => {
-    if (!enabled || window.location.pathname !== "/blackboard") return;
+    if (!enabled || !isBlackboardRoute(window.location)) return;
     const params = new URLSearchParams(window.location.search);
     if (params.get("reader") === "1") return;
     let disposed = false;

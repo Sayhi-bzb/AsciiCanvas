@@ -10,12 +10,9 @@
       "import": "./dist/index.js"
     },
     "./node": {
-      "types": "./dist/package.d.ts",
-      "import": "./dist/package.js"
+      "types": "./dist/node.d.ts",
+      "import": "./dist/node.js"
     }
-  },
-  "bin": {
-    "chardesk-blackboard": "./dist/cli.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

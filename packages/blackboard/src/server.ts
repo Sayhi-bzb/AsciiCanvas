@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readFile, realpath } from "node:fs/promises";
+import { readFile, realpath, stat } from "node:fs/promises";
 import { createServer, type ServerResponse } from "node:http";
 import { basename, extname, isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,7 +13,7 @@ import { resolveBlackboardSource } from "./document.js";
 import { compileBlackboardPackage } from "./package.js";
 
 const SECURITY_HEADERS = {
-  "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; connect-src 'self'; img-src 'none'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
+  "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self'; img-src 'self' data: blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
   "Referrer-Policy": "no-referrer",
   "X-Content-Type-Options": "nosniff",
 } as const;
@@ -50,6 +50,15 @@ type BlackboardServerOptions = {
   board: WorkspaceBoardPath;
   port?: number;
   appRoot?: string;
+  prefix?: string;
+};
+
+export type BlackboardServerSession = {
+  url: string;
+  canvasUrl: string;
+  ready: Promise<void>;
+  closed: Promise<void>;
+  close: () => Promise<void>;
 };
 
 const readBoardProjection = async (readable: string) => {
@@ -62,6 +71,7 @@ const readBoardProjection = async (readable: string) => {
         body: compiled.source,
       }),
       sourceName: "blackboard.chardesk",
+      dependencies: compiled.dependencies,
     };
   }
   const bytes = await readFile(readable);
@@ -70,14 +80,24 @@ const readBoardProjection = async (readable: string) => {
       new TextDecoder("utf-8", { fatal: true }).decode(bytes)
     ),
     sourceName: basename(readable),
+    dependencies: [readable],
   };
 };
+
+const dependencyRevision = async (paths: readonly string[]) => (await Promise.all(paths.map(async (path) => {
+  const value = await stat(path);
+  return `${path}\0${value.size}\0${value.mtimeMs}\0${value.ctimeMs}`;
+}))).join("\n");
 
 export const startBlackboardServer = async ({
   board,
   port = 7331,
   appRoot = defaultAppRoot,
+  prefix = "",
 }: BlackboardServerOptions) => {
+  if (prefix && !/^\/session\/[a-z0-9]+$/u.test(prefix)) {
+    throw new Error("Blackboard server prefix must be an opaque session path.");
+  }
   let staticRoot: string;
   try {
     staticRoot = await realpath(appRoot);
@@ -87,13 +107,45 @@ export const startBlackboardServer = async ({
       `CharDesk application build not found at ${appRoot}. Run the main application build first.`
     );
   }
+  let markReady: (() => void) | undefined;
+  let runtimeReady = false;
+  let projectionCache: {
+    readable: string;
+    revision: string;
+    value: Awaited<ReturnType<typeof readBoardProjection>>;
+  } | undefined;
+  const ready = new Promise<void>((resolveReady) => { markReady = resolveReady; });
   const server = createServer((request, response) => {
     void (async () => {
+      const requestedPath = new URL(request.url ?? "/", "http://127.0.0.1").pathname;
+      if (request.method === "POST" && requestedPath === `${prefix}/ready`) {
+        runtimeReady = true;
+        markReady?.();
+        markReady = undefined;
+        send(response, 204);
+        return;
+      }
+      if (prefix && request.method === "POST" && requestedPath === `${prefix}/close`) {
+        send(response, 202);
+        setImmediate(() => server.close());
+        return;
+      }
       if (request.method !== "GET") {
         send(response, 405, undefined, { Allow: "GET" });
         return;
       }
-      const pathname = new URL(request.url ?? "/", "http://127.0.0.1").pathname;
+      if (requestedPath === `${prefix}/health`) {
+        send(response, 200, JSON.stringify({ status: "ready", runtimeReady }), {
+          "Cache-Control": "no-store",
+          "Content-Type": "application/json; charset=utf-8",
+        });
+        return;
+      }
+      if (prefix && !requestedPath.startsWith(`${prefix}/`) && requestedPath !== prefix) {
+        send(response, 404);
+        return;
+      }
+      const pathname = prefix ? requestedPath.slice(prefix.length) || "/" : requestedPath;
       if (pathname === "/board") {
         let readable: string;
         try {
@@ -108,7 +160,19 @@ export const startBlackboardServer = async ({
         }
         let projection: Awaited<ReturnType<typeof readBoardProjection>>;
         try {
-          projection = await readBoardProjection(readable);
+          const cachedRevision = projectionCache?.readable === readable
+            ? await dependencyRevision(projectionCache.value.dependencies).catch(() => "changed")
+            : "changed";
+          if (projectionCache?.readable === readable && cachedRevision === projectionCache.revision) {
+            projection = projectionCache.value;
+          } else {
+            projection = await readBoardProjection(readable);
+            projectionCache = {
+              readable,
+              revision: await dependencyRevision(projection.dependencies),
+              value: projection,
+            };
+          }
         } catch (error) {
           send(response, 422, error instanceof Error ? error.message : "Invalid board source.", {
             "Cache-Control": "no-store",
@@ -144,7 +208,7 @@ export const startBlackboardServer = async ({
         return;
       }
       if (decoded === "/") {
-        send(response, 307, undefined, { Location: "/blackboard?reader=1" });
+        send(response, 307, undefined, { Location: `${prefix}/blackboard?reader=1` });
         return;
       }
       const asset = resolve(
@@ -188,12 +252,17 @@ export const startBlackboardServer = async ({
   });
   const address = server.address();
   if (!address || typeof address === "string") throw new Error("Blackboard server did not bind TCP.");
-  const url = `http://127.0.0.1:${address.port}`;
+  const origin = `http://127.0.0.1:${address.port}`;
+  const url = `${origin}${prefix}`;
+  const closed = new Promise<void>((resolveClosed) => server.once("close", resolveClosed));
   return {
     server,
     url,
+    canvasUrl: `${url}/blackboard?reader=1`,
+    ready,
+    closed,
     close: () => new Promise<void>((resolveClose, reject) =>
       server.close((error) => error ? reject(error) : resolveClose())
     ),
-  };
+  } satisfies BlackboardServerSession & { server: typeof server };
 };

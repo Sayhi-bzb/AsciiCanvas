@@ -11,6 +11,7 @@ if (!match) {
 
 const version = tag.slice(1);
 const packages = [
+  { name: "@chardesk/cli", path: "packages/cli" },
   { name: "@chardesk/fonts", path: "packages/fonts" },
   { name: "@chardesk/protocol", path: "packages/protocol" },
 ];
@@ -39,6 +40,4 @@ for (const descriptor of packages) {
   }
 }
 
-console.log(
-  `Release ${tag} matches both workspace packages and package-lock.json.`
-);
+console.log(`Release ${tag} matches all public packages and package-lock.json.`);

@@ -1,45 +1,33 @@
-# Headless checking and artifact rendering
+# Local inspection, Canvas viewing, and artifacts
 
-Use the CharDesk CLI when authored content needs validation or a materialized
-artifact without opening the app.
-The command contract is owned by [`packages/cli/README.md`](../../../../packages/cli/README.md).
+The command contract is owned by
+[`packages/cli/README.md`](../../../../packages/cli/README.md).
 
-- For generated or temporary content, stream UTF-8 source through stdin with
-  input `-`; create a source file only when the user wants to keep one.
-- Stdin uses CharGraph by default. Canonical or legacy Freeform `.chardesk`
-  input is recognized as ESC-less content; CLI rendering rejects Structured and
-  Slide document modes explicitly.
-- Use `check <input|-> --json` when the task needs diagnostics but no artifact.
-- Use `result <input|->` for the default layout review. It prints the actual
-  materialized Protocol grid with bounded absolute coordinates and does not
-  require opening an image.
-- Add `--styles` when foreground, background, attributes, or links need
-  inspection. It reports CSS-like absolute grid regions and declarations
-  without terminal escapes; selectors are `y:x`, `y:x0-x1`, or
-  `y0-y1:x0-x1`, with inclusive coordinates.
-- Use `preview <input|->` only when a human wants to view the styled content in
-  a terminal. Agent verification remains `result` and `result --styles`.
-- Use `render` for materialized output. The `.png`, `.chardesk`, `.ans`, and
-  `.txt` suffixes select the artifact; use the user's requested path or a
-  task-scoped temporary path for a preview.
-- `.chardesk` output is a canonical `document/v1` Freeform document. `.ans` and
-  `.txt` remain terminal and plain-text artifacts.
-- Do not call `view_image` for routine CharDesk verification. Use `result` for
-  content, geometry, coordinates, and clipping, and `result --styles` for
-  materialized style evidence.
-- For PNG, use `--strict --json`. Rendering, exporting, or taking a screenshot
-  does not authorize image inspection. Inspect the artifact only when the user
-  explicitly requests pixel-level visual review.
-- For plain text on stdout, use `-o - --format text` without `--json`.
+Use normal filesystem tools to author persistent source. The preferred workspace location is
+`.chardesk/<slug>/`; its `blackboard.yaml` and `.panel` files remain authoritative.
+
+- Use `inspect <path> --json` after writing. It verifies compilation and returns the materialized
+  Protocol grid without requiring a browser.
+- Add `--panel <id>` to isolate a package panel or `--region x,y,w,h` to inspect a large grid in
+  bounded sections.
+- Add `--styles` only when foreground, background, attributes, or links need verification.
+- Use `open <path>` when the human asks to see the result. It returns after starting a local native
+  Canvas session; use `status` and `close` to manage sessions.
+- Use `render` when the requested deliverable is `.png`, `.chardesk`, `.ans`, or `.txt`. For PNG,
+  use `--strict --json`.
+- For temporary content, stdin is valid for `inspect` and `render`; do not create a source file
+  unless the user wants to keep it. `open` requires a persistent path.
+- Do not inspect generated PNG pixels unless the user requests visual review. `inspect` owns
+  content, geometry, clipping, and materialized style verification.
 
 ```sh
-node_modules/.bin/chardesk check - --json
-node_modules/.bin/chardesk result -
-node_modules/.bin/chardesk result - --styles
-node_modules/.bin/chardesk preview -
-node_modules/.bin/chardesk render - -o <output.png> --strict --json
-node_modules/.bin/chardesk render - -o - --format text
+npx -y @chardesk/cli inspect .chardesk/example --json
+npx -y @chardesk/cli inspect .chardesk/example --panel overview --styles --json
+npx -y @chardesk/cli open .chardesk/example
+npx -y @chardesk/cli status
+npx -y @chardesk/cli close .chardesk/example
+npx -y @chardesk/cli render .chardesk/example -o <output.png> --strict --json
 ```
 
-Run `npm run build:cli` if the repository-local CLI has not been built. Do not
-install a global CLI or start the web application for this workflow.
+Inside the repository, run `npm run build:cli` and invoke `packages/cli/dist/cli.js`. Outside it,
+use the published `@chardesk/cli`; neither path requires a web application checkout or dev server.

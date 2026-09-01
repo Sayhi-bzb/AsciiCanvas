@@ -30,13 +30,9 @@ const capture = () => {
   return { stream, text: () => text };
 };
 
-const streams = (
-  input: Uint8Array | string = "",
-  terminal: { isTTY?: boolean; columns?: number; rows?: number } = {},
-) => {
+const streams = (input: Uint8Array | string = "") => {
   const stdout = capture();
   const stderr = capture();
-  Object.assign(stdout.stream, terminal);
   return {
     value: {
       stdin: (async function* () { yield input; })(),
@@ -49,6 +45,46 @@ const streams = (
 };
 
 describe("chardesk render command", () => {
+  it("initializes a minimal workspace without replacing existing content", async () => {
+    const cwd = await temporaryDirectory();
+    const io = streams();
+    expect(await runCli([
+      "init", "boards/demo", "--title", "GPU Notes",
+    ], io.value, cwd)).toBe(0);
+    expect(await readFile(join(cwd, "boards/demo/blackboard.yaml"), "utf8"))
+      .toContain('title: "GPU Notes"');
+    expect(await readFile(join(cwd, "boards/demo/main.panel"), "utf8"))
+      .toBe("# GPU Notes\n");
+    const conflict = streams();
+    expect(await runCli(["init", "boards/demo"], conflict.value, cwd)).toBe(1);
+    expect(conflict.stderr()).toContain("init-conflict");
+    expect(() => parseCliArguments(["init", "demo", "--force"]))
+      .toThrow("Unknown option");
+  });
+
+  it("parses the open command without accepting stdin or unrelated options", () => {
+    expect(parseCliArguments([
+      "open", "boards/demo", "--port", "7331", "--no-browser",
+      "--foreground", "--json",
+    ])).toEqual({
+      help: false,
+      command: {
+        kind: "open",
+        input: "boards/demo",
+        inputMode: "auto",
+        json: true,
+        port: 7331,
+        browser: false,
+        foreground: true,
+      },
+    });
+    expect(() => parseCliArguments(["open", "-"])).toThrow("requires a file");
+    for (const removed of ["check", "result", "preview"]) {
+      expect(() => parseCliArguments([removed, "input.md"]))
+        .toThrow("must be init, inspect, open, status, close, or render");
+    }
+  });
+
   it("parses the stable first-version command contract", () => {
     expect(parseCliArguments([
       "render", "input.md", "-o", "output.png", "--strict",
@@ -68,24 +104,13 @@ describe("chardesk render command", () => {
     });
   });
 
-  it("infers render formats and keeps check as a no-output command", () => {
+  it("infers render formats and parses inspect options", () => {
     expect(parseCliArguments([
       "render", "input.md", "-o", "board.chardesk",
     ])).toMatchObject({ command: { kind: "render", format: "chardesk" } });
     expect(parseCliArguments([
       "render", "input.md", "-o", "-", "--format", "text",
     ])).toMatchObject({ command: { kind: "render", output: "-", format: "text" } });
-    expect(parseCliArguments([
-      "check", "input.md", "--json",
-    ])).toEqual({
-      help: false,
-      command: {
-        kind: "check",
-        input: "input.md",
-        inputMode: "auto",
-        json: true,
-      },
-    });
     expect(() => parseCliArguments([
       "render", "input.md", "-o", "-", "--format", "text", "--json",
     ])).toThrow("--json cannot be combined");
@@ -94,13 +119,13 @@ describe("chardesk render command", () => {
     ])).toThrow("apply only to PNG");
     expect(() => parseCliArguments([
       "render", "input.md", "-o", "output.txt", "--no-ruler",
-    ])).toThrow("apply only to result");
+    ])).toThrow("does not apply to render");
     expect(parseCliArguments([
-      "result", "input.chardesk", "--region", "2,3,40,20", "--no-ruler",
+      "inspect", "input.chardesk", "--region", "2,3,40,20", "--no-ruler",
     ])).toEqual({
       help: false,
       command: {
-        kind: "result",
+        kind: "inspect",
         input: "input.chardesk",
         inputMode: "auto",
         json: false,
@@ -109,99 +134,22 @@ describe("chardesk render command", () => {
         styles: false,
       },
     });
-    expect(() => parseCliArguments(["result", "-", "--json"]))
-      .toThrow("result accepts only");
-    expect(() => parseCliArguments(["result", "-", "--region", "1,2,0,4"]))
-      .toThrow("positive safe integers");
     expect(parseCliArguments([
-      "preview", "input.md", "--region", "4,5,40,20", "--color", "always",
-    ])).toEqual({
-      help: false,
-      command: {
-        kind: "preview",
-        input: "input.md",
-        inputMode: "auto",
-        json: false,
-        color: "always",
-        region: { x: 4, y: 5, columns: 40, rows: 20 },
-      },
+      "inspect", "boards/demo", "--panel", "details", "--styles", "--json",
+    ])).toMatchObject({
+      command: { kind: "inspect", panel: "details", styles: true, json: true },
     });
-    expect(() => parseCliArguments(["preview", "-", "--color", "sometimes"]))
-      .toThrow("--color must be auto, always, or never");
+    expect(() => parseCliArguments(["inspect", "-", "--region", "1,2,0,4"]))
+      .toThrow("positive safe integers");
   });
 
-  it("previews ANSI for TTYs and plain text for non-TTY output", async () => {
-    const tty = streams("[31;1mA[0m", { isTTY: true, columns: 10, rows: 5 });
-    expect(await runCli([
-      "preview", "-", "--input", "chardesk",
-    ], tty.value, process.cwd(), {})).toBe(0);
-    expect(tty.stdout()).toContain("\u001b[1;38;2;128;0;0mA");
-    expect(tty.stdout()).not.toContain("48;2;255;255;255");
-    expect(tty.stdout()).not.toContain("result:");
-    expect(tty.stderr()).toBe("");
-
-    const plain = streams("[31;1mA[0m");
-    expect(await runCli([
-      "preview", "-", "--input", "chardesk",
-    ], plain.value, process.cwd(), {})).toBe(0);
-    expect(plain.stdout()).toBe("A\n");
-    expect(plain.stdout()).not.toContain("\u001b");
-
-    const forced = streams("[31mA[0m");
-    expect(await runCli([
-      "preview", "-", "--input", "chardesk", "--color", "always",
-    ], forced.value, process.cwd(), {})).toBe(0);
-    expect(forced.stdout()).toContain("\u001b[");
-  });
-
-  it("respects NO_COLOR and reports terminal viewport omissions", async () => {
-    const noColor = streams("[31mA[0m", { isTTY: true, columns: 10, rows: 5 });
-    expect(await runCli([
-      "preview", "-", "--input", "chardesk",
-    ], noColor.value, process.cwd(), { NO_COLOR: "" })).toBe(0);
-    expect(noColor.stdout()).toBe("A\n");
-    expect(noColor.stdout()).not.toContain("\u001b");
-
-    const dumb = streams("[31mA[0m", { isTTY: true, columns: 10, rows: 5 });
-    expect(await runCli([
-      "preview", "-", "--input", "chardesk",
-    ], dumb.value, process.cwd(), { TERM: "dumb" })).toBe(0);
-    expect(dumb.stdout()).toBe("A\n");
-    expect(dumb.stdout()).not.toContain("\u001b");
-
-    const cropped = streams("0123456789", { isTTY: true, columns: 6, rows: 5 });
-    expect(await runCli([
-      "preview", "-", "--input", "chardesk", "--color", "never",
-    ], cropped.value, process.cwd(), {})).toBe(0);
-    expect(cropped.stdout()).toBe("01234\n");
-    expect(cropped.stderr()).toContain("preview view x=0..4, y=0..0; omitted: right 5");
-
-    const tooSmall = streams("界", { isTTY: true, columns: 2, rows: 5 });
-    expect(await runCli([
-      "preview", "-", "--input", "chardesk",
-    ], tooSmall.value, process.cwd(), {})).toBe(1);
-    expect(tooSmall.stderr()).toContain("terminal-too-small");
-  });
-
-  it("prints diagnostic fallback previews and fails validation", async () => {
-    const invalid = streams(
-      "```mermaid\nnot-a-diagram\n```",
-      { isTTY: true, columns: 80, rows: 24 },
-    );
-    expect(await runCli([
-      "preview", "-", "--color", "never",
-    ], invalid.value, process.cwd(), {})).toBe(1);
-    expect(invalid.stdout().length).toBeGreaterThan(0);
-    expect(invalid.stderr()).toContain("warning");
-  });
-
-  it("prints a bounded materialized grid result without style controls", async () => {
+  it("prints a bounded materialized grid inspect view without style controls", async () => {
     const io = streams("[31mA[0m \u754c\nCD");
     expect(await runCli([
-      "result", "-", "--input", "chardesk",
+      "inspect", "-", "--input", "chardesk",
     ], io.value)).toBe(0);
 
-    expect(io.stdout()).toContain("result: valid");
+    expect(io.stdout()).toContain("inspect: valid");
     expect(io.stdout()).toContain("grid: 4 cols × 2 rows");
     expect(io.stdout()).toContain("0 │ A 界");
     expect(io.stdout()).toContain("1 │ CD");
@@ -209,32 +157,48 @@ describe("chardesk render command", () => {
     expect(io.stderr()).toBe("");
   });
 
+  it("inspects one Blackboard panel with structured output", async () => {
+    const cwd = await temporaryDirectory();
+    await runCli(["init", "boards/demo", "--title", "GPU"], streams().value, cwd);
+    const io = streams();
+    expect(await runCli([
+      "inspect", "boards/demo", "--panel", "main", "--styles", "--json",
+    ], io.value, cwd)).toBe(0);
+    expect(JSON.parse(io.stdout())).toMatchObject({
+      status: "valid",
+      panel: "main",
+      inputMode: "chargraph",
+      text: expect.stringContaining("GPU"),
+      diagnostics: [],
+    });
+  });
+
   it("adds style evidence only when explicitly requested", async () => {
     const plain = streams("[31;1mStyled[0m plain");
     expect(await runCli([
-      "result", "-", "--input", "chardesk", "--no-ruler",
+      "inspect", "-", "--input", "chardesk", "--no-ruler",
     ], plain.value)).toBe(0);
     expect(plain.stdout()).not.toContain("styles:");
 
     const styled = streams("[31;1mStyled[0m plain");
     expect(await runCli([
-      "result", "-", "--input", "chardesk", "--no-ruler", "--styles",
+      "inspect", "-", "--input", "chardesk", "--no-ruler", "--styles",
     ], styled.value)).toBe(0);
     expect(styled.stdout()).toContain("styles:\n  0:0-5{fg:#800000;bold}");
     expect(styled.stdout()).not.toContain("[31;1m");
   });
 
-  it("supports absolute result regions and reports invalid fallback projections", async () => {
+  it("supports absolute inspect regions and reports invalid fallback projections", async () => {
     const region = streams("0123456789\nabcdefghij");
     expect(await runCli([
-      "result", "-", "--input", "chardesk", "--region", "5,1,4,1", "--no-ruler",
+      "inspect", "-", "--input", "chardesk", "--region", "5,1,4,1", "--no-ruler",
     ], region.value)).toBe(0);
     expect(region.stdout()).toContain("view: x=5..8, y=1..1 · 4×1 cells");
     expect(region.stdout()).toContain("\nfghi\n");
 
     const invalid = streams("```mermaid\nnot-a-diagram\n```");
-    expect(await runCli(["result", "-"], invalid.value)).toBe(1);
-    expect(invalid.stdout()).toContain("result: invalid");
+    expect(await runCli(["inspect", "-"], invalid.value)).toBe(1);
+    expect(invalid.stdout()).toContain("inspect: invalid");
     expect(invalid.stderr()).toContain("warning");
   });
 
@@ -256,22 +220,17 @@ describe("chardesk render command", () => {
 
     for (const input of ["gpu", "gpu/blackboard.yaml"]) {
       const io = streams();
-      expect(await runCli(["result", input, "--no-ruler"], io.value, cwd)).toBe(0);
+      expect(await runCli(["inspect", input, "--no-ruler"], io.value, cwd)).toBe(0);
       expect(io.stdout()).toContain("GPU  显卡");
       expect(io.stdout()).not.toContain("[31m");
     }
 
     const styled = streams();
     expect(await runCli([
-      "result", "gpu", "--no-ruler", "--styles",
+      "inspect", "gpu", "--no-ruler", "--styles",
     ], styled.value, cwd)).toBe(0);
     expect(styled.stdout()).toContain("0:0-2{fg:#800000}");
 
-    const preview = streams();
-    expect(await runCli([
-      "preview", "gpu", "--color", "never",
-    ], preview.value, cwd, {})).toBe(0);
-    expect(preview.stdout()).toContain("GPU  显卡");
   });
 
   it("renders stdin to an atomically replaceable PNG and reports JSON", async () => {
@@ -332,7 +291,7 @@ describe("chardesk render command", () => {
     ].join("\n"));
 
     expect(await runCli([
-      "check", "-", "--input", "chardesk", "--json",
+      "inspect", "-", "--input", "chardesk", "--json",
     ], io.value)).toBe(1);
     expect(JSON.parse(io.stdout())).toMatchObject({
       status: "error",
@@ -364,24 +323,6 @@ describe("chardesk render command", () => {
     ], stdout.value, cwd)).toBe(0);
     expect(stdout.stdout()).toBe("Ready 界");
     expect(stdout.stderr()).toBe("");
-  });
-
-  it("checks valid and diagnostic-bearing input without writing an artifact", async () => {
-    const valid = streams("# Valid");
-    expect(await runCli(["check", "-", "--json"], valid.value)).toBe(0);
-    expect(JSON.parse(valid.stdout())).toMatchObject({
-      status: "valid",
-      renderer: "markdown",
-      diagnostics: [],
-    });
-
-    const invalid = streams("```mermaid\nnot-a-diagram\n```");
-    expect(await runCli(["check", "-", "--json"], invalid.value)).toBe(1);
-    expect(JSON.parse(invalid.stdout())).toMatchObject({
-      status: "invalid",
-      renderer: "markdown",
-    });
-    expect(JSON.parse(invalid.stdout()).diagnostics.length).toBeGreaterThan(0);
   });
 
   it("keeps usage and content failures on distinct exit codes", async () => {

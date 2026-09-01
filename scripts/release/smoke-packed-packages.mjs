@@ -3,17 +3,17 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-const [protocolTarball, fontsTarball] = process.argv.slice(2).map((value) =>
+const [protocolTarball, fontsTarball, cliTarball] = process.argv.slice(2).map((value) =>
   value ? path.resolve(value) : value
 );
 
-if (!protocolTarball || !fontsTarball) {
+if (!protocolTarball || !fontsTarball || !cliTarball) {
   throw new Error(
-    "Usage: node scripts/release/smoke-packed-packages.mjs <protocol.tgz> <fonts.tgz>"
+    "Usage: node scripts/release/smoke-packed-packages.mjs <protocol.tgz> <fonts.tgz> <cli.tgz>"
   );
 }
 
-for (const tarball of [protocolTarball, fontsTarball]) {
+for (const tarball of [protocolTarball, fontsTarball, cliTarball]) {
   if (!fs.existsSync(tarball)) {
     throw new Error(`Missing package tarball: ${tarball}`);
   }
@@ -38,6 +38,7 @@ try {
       "--no-fund",
       protocolTarball,
       fontsTarball,
+      cliTarball,
     ],
     { cwd: temporaryDirectory, stdio: "inherit" }
   );
@@ -69,6 +70,56 @@ try {
     cwd: temporaryDirectory,
     stdio: "inherit",
   });
+  const cli = path.join(
+    temporaryDirectory,
+    "node_modules",
+    ".bin",
+    process.platform === "win32" ? "chardesk.cmd" : "chardesk",
+  );
+  const cliRuntime = path.join(
+    temporaryDirectory,
+    "node_modules",
+    "@chardesk",
+    "cli",
+    "dist",
+    "runtime",
+    "index.html",
+  );
+  if (!fs.existsSync(cliRuntime)) {
+    throw new Error("Packed CLI did not include its local Canvas runtime");
+  }
+  const cliRuntimeHtml = fs.readFileSync(cliRuntime, "utf8");
+  if (!cliRuntimeHtml.includes("CharDesk — Unicode Canvas for Humans and AI")) {
+    throw new Error("Packed CLI did not include the full CharDesk application runtime");
+  }
+  if (!fs.existsSync(path.join(path.dirname(cliRuntime), "icon.svg"))) {
+    throw new Error("Packed CLI did not include the CharDesk application icon");
+  }
+  execFileSync(cli, ["init", "demo", "--title", "Packed CLI"], {
+    cwd: temporaryDirectory,
+    stdio: "inherit",
+  });
+  execFileSync(cli, ["inspect", "demo", "--json"], {
+    cwd: temporaryDirectory,
+    stdio: "inherit",
+  });
+  const opened = JSON.parse(execFileSync(cli, ["open", "demo", "--no-browser", "--json"], {
+    cwd: temporaryDirectory,
+    encoding: "utf8",
+  }));
+  try {
+    const health = await (await fetch(`${opened.url}/health`)).json();
+    if (health.status !== "ready") throw new Error("Packed CLI local Canvas was unhealthy");
+  } finally {
+    execFileSync(cli, ["close", "demo"], { cwd: temporaryDirectory, stdio: "inherit" });
+  }
+  execFileSync(cli, ["render", "demo", "-o", "demo.png"], {
+    cwd: temporaryDirectory,
+    stdio: "inherit",
+  });
+  if (!fs.readFileSync(path.join(temporaryDirectory, "demo.png")).subarray(1, 4).equals(Buffer.from("PNG"))) {
+    throw new Error("Packed CLI did not render a PNG artifact");
+  }
 } finally {
   fs.rmSync(temporaryDirectory, { recursive: true, force: true });
 }

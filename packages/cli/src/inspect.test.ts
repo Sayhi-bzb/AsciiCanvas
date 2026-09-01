@@ -1,6 +1,6 @@
 import type { ParsedCharDeskText } from "@chardesk/protocol";
 import { describe, expect, it } from "vitest";
-import { projectCharDeskResult } from "./result.js";
+import { projectCharDeskInspect } from "./inspect.js";
 
 const document = (
   width: number,
@@ -20,7 +20,7 @@ const document = (
 
 describe("plain text result projection", () => {
   it("projects protocol cells with absolute rulers and row coordinates", () => {
-    const result = projectCharDeskResult(document(14, 3, [
+    const result = projectCharDeskInspect(document(14, 3, [
       { x: 0, y: 0, width: 1, text: "A" },
       { x: 2, y: 0, width: 2, text: "界" },
       { x: 10, y: 2, width: 1, text: "Z" },
@@ -35,7 +35,7 @@ describe("plain text result projection", () => {
   });
 
   it("uses a bounded default view and keeps a boundary-wide cell intact", () => {
-    const result = projectCharDeskResult(document(120, 40, [
+    const result = projectCharDeskInspect(document(120, 40, [
       { x: 95, y: 0, width: 2, text: "界" },
     ]));
 
@@ -45,7 +45,7 @@ describe("plain text result projection", () => {
   });
 
   it("clamps explicit regions and can omit rulers", () => {
-    const result = projectCharDeskResult(document(8, 5, [
+    const result = projectCharDeskInspect(document(8, 5, [
       { x: 6, y: 4, width: 1, text: "X" },
     ]), {
       region: { x: 5, y: 3, columns: 10, rows: 10 },
@@ -58,7 +58,7 @@ describe("plain text result projection", () => {
   });
 
   it("deduplicates styles and merges adjacent protocol-width cells", () => {
-    const result = projectCharDeskResult(document(8, 2, [
+    const result = projectCharDeskInspect(document(8, 2, [
       {
         x: 0,
         y: 0,
@@ -119,7 +119,7 @@ describe("plain text result projection", () => {
       text: "x",
       color: x % 2 === 0 ? "#000000" : "#ffffff",
     }));
-    const result = projectCharDeskResult(document(300, 1, cells), {
+    const result = projectCharDeskInspect(document(300, 1, cells), {
       region: { x: 0, y: 0, columns: 300, rows: 1 },
       styles: true,
     });

@@ -11,7 +11,7 @@ Load only the required reference:
 - Markdown, fenced Mermaid or data, and math: [`references/chargraph.md`](references/chargraph.md).
 - Multi-field or multi-row Canvas composition: [`references/block-layout.md`](references/block-layout.md).
 - Slide document structure: [`references/slides.md`](references/slides.md).
-- Headless source checking or artifact rendering: [`references/rendering.md`](references/rendering.md).
+- Local inspection, Canvas viewing, or artifact rendering: [`references/rendering.md`](references/rendering.md).
 - Multi-file Blackboard packages: [`references/blackboard.md`](references/blackboard.md).
 - Live browser Blackboard workspace: load
   [`references/browser-blackboard.md`](references/browser-blackboard.md) only when
@@ -31,8 +31,9 @@ first and open only the Panels required by the task:
 2. Patch locally with `apply_patch`; clear or replace only when explicitly asked.
 3. For a new complex layout, write Plain first, then add sparse style controls
    with a second patch to the same file. Unstyled cells use the default style.
-4. Run `npm exec -- chardesk-blackboard check <board.chardesk|blackboard.yaml|directory>`.
-5. Report only what changed and where; do not repeat the Blackboard in chat.
+4. Run `npx -y @chardesk/cli inspect <board.chardesk|blackboard.yaml|directory> --json`.
+5. Run `chardesk open <path>` only when the human asks to see the Canvas.
+6. Report only what changed and where; do not repeat the Blackboard in chat.
 
 The protocol owns ANSI, CJK, grapheme, and width logic. Use visible ESC-less
 controls in `.chardesk`; never emit terminal ESC bytes or reproduce validation.

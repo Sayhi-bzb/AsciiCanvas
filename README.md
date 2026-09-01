@@ -76,6 +76,7 @@ CharDesk exposes Blackboard source files through WebMCP and ChatGPT Site Tools. 
 
 - **Chrome WebMCP:** enable `chrome://flags/#enable-webmcp-testing`, relaunch Chrome, then open [CharDesk Blackboard](https://chardesk.com/blackboard) in a tab connected to a compatible WebMCP agent. Chrome exposes the tools; it does not provide the agent by itself.
 - **ChatGPT Site Tools:** enable **Site tools** under **Settings → Browser → Permissions**, then open [CharDesk Blackboard](https://chardesk.com/blackboard) in the ChatGPT desktop app's built-in browser. See the [official Site Tools guide](https://learn.chatgpt.com/docs/webmcp).
+- **Codex CLI and terminal agents:** let the agent edit a project-local Blackboard with its normal filesystem tools, then run `npx -y @chardesk/cli open <path>` for a live, read-only Canvas projection. No repository clone or MCP server is required.
 
 Make the bundled [`$chardesk` skill](.agents/skills/chardesk/SKILL.md) available to the agent, then try:
 
@@ -105,7 +106,7 @@ CharDesk brings together Unicode symbols, CJK characters, emoji, box drawing, Ne
 
 ## For builders
 
-CharDesk output can also be consumed outside the editor. Use the [`chardesk` CLI](packages/cli/README.md) to check source or render it as PNG and materialized text, [`@chardesk/protocol`](packages/protocol/README.md) for the text interchange format, [`@chardesk/viewer`](packages/viewer/README.md) for framework-independent web rendering, and [`@chardesk/fonts`](packages/fonts/README.md) for compatible glyph assets. [CharGraph](https://chardesk.com/chargraph/) presents structured source as portable Unicode text. Each package owns its installation and API documentation.
+CharDesk output can also be consumed outside the editor. Use the [`chardesk` CLI](packages/cli/README.md) to inspect source, open a local native Canvas, or render PNG and materialized text, [`@chardesk/protocol`](packages/protocol/README.md) for the text interchange format, [`@chardesk/viewer`](packages/viewer/README.md) for framework-independent web rendering, and [`@chardesk/fonts`](packages/fonts/README.md) for compatible glyph assets. [CharGraph](https://chardesk.com/chargraph/) presents structured source as portable Unicode text. Each package owns its installation and API documentation.
 
 ## Thanks
 

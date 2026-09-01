@@ -52,10 +52,10 @@ describe("chardesk executable", () => {
       .toEqual([0x89, 0x50, 0x4e, 0x47]);
   });
 
-  it("checks stdin without producing an artifact", async () => {
+  it("inspects stdin without producing an artifact", async () => {
     const cwd = await mkdtemp(join(tmpdir(), "chardesk-cli-bin-"));
     temporaryDirectories.push(cwd);
-    const result = await runBinary(cwd, ["check", "-", "--json"], "# Valid");
+    const result = await runBinary(cwd, ["inspect", "-", "--json"], "# Valid");
 
     expect(result).toMatchObject({ code: 0, stderr: "" });
     expect(JSON.parse(result.stdout)).toMatchObject({

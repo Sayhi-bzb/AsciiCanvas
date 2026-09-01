@@ -32,6 +32,15 @@ export const useBlackboardSource = ({ enabled }: { enabled: boolean }) => {
     let disposed = false;
     let timer: number | null = null;
     let controller: AbortController | null = null;
+    let readyReported = false;
+    const reportReady = () => {
+      if (readyReported) return;
+      const ready = new URL("ready", document.baseURI);
+      if (ready.pathname.includes("/session/")) {
+        readyReported = true;
+        void fetch(ready, { method: "POST" }).catch(() => undefined);
+      }
+    };
 
     const schedule = () => {
       if (!disposed) timer = window.setTimeout(poll, 500);
@@ -39,13 +48,14 @@ export const useBlackboardSource = ({ enabled }: { enabled: boolean }) => {
     const poll = async () => {
       controller = new AbortController();
       try {
-        const response = await fetch("/board", {
+        const response = await fetch(new URL("board", document.baseURI), {
           headers: etagRef.current ? { "If-None-Match": etagRef.current } : {},
           signal: controller.signal,
           cache: "no-store",
         });
         if (response.status === 304) {
           setStatus({ state: "current", message: "Current" });
+          reportReady();
           return;
         }
         if (response.status === 404) {
@@ -87,6 +97,7 @@ export const useBlackboardSource = ({ enabled }: { enabled: boolean }) => {
         }
         etagRef.current = response.headers.get("ETag");
         setStatus({ state: "current", message: "Current" });
+        reportReady();
       } catch (error) {
         if (disposed || controller.signal.aborted) return;
         const message = error instanceof Error ? error.message : "Invalid Blackboard source";
