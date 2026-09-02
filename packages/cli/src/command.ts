@@ -639,6 +639,7 @@ export const runCli = async (
             url: session.url,
             runtimeReady: session.runtimeReady,
             startedAt: session.startedAt,
+            idleExpiresAt: session.idleExpiresAt,
           })),
         };
         streams.stdout.write(`${JSON.stringify(result)}\n`);

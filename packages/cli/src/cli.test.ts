@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
-import { access, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readFile, readdir, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -36,6 +36,30 @@ const runBinary = (
 });
 
 describe("chardesk executable", () => {
+  it("serializes concurrent opens and sweeps malformed session records", async () => {
+    const cwd = await mkdtemp(join(tmpdir(), "chardesk-cli-concurrent-open-"));
+    temporaryDirectories.push(cwd);
+    const env = { ...process.env, TMPDIR: cwd };
+    expect((await runBinary(cwd, ["init", "board", "--title", "Concurrent"], "", env)).code).toBe(0);
+    const manifest = join(cwd, "board", "blackboard.yaml");
+    const opened = await Promise.all([
+      runBinary(cwd, ["open", "board", "--no-browser", "--json"], "", env),
+      runBinary(cwd, ["open", manifest, "--no-browser", "--json"], "", env),
+    ]);
+    const sessions = opened.map((result) => JSON.parse(result.stdout) as { status: string; url: string });
+    expect(opened.map((result) => result.code)).toEqual([0, 0]);
+    expect(sessions[0]?.url).toBe(sessions[1]?.url);
+    expect(sessions.map((session) => session.status).sort()).toEqual(["opened", "reused"]);
+
+    const registry = join(cwd, "chardesk-sessions-v2");
+    const records = (await readdir(registry)).filter((name) => name.endsWith(".json"));
+    expect(records).toHaveLength(1);
+    expect((await runBinary(cwd, ["close", "--all"], "", env)).code).toBe(0);
+    await writeFile(join(registry, "malformed.json"), "{");
+    expect((await runBinary(cwd, ["status"], "", env)).stdout).toBe("No active CharDesk sessions.\n");
+    await expect(access(join(registry, "malformed.json"))).rejects.toThrow();
+  }, 20_000);
+
   it("accepts Agent-authored CharGraph source over stdin", async () => {
     const cwd = await mkdtemp(join(tmpdir(), "chardesk-cli-bin-"));
     temporaryDirectories.push(cwd);
@@ -137,6 +161,17 @@ describe("chardesk executable", () => {
     )).stdout) as { status: string; url: string };
     expect(incompatible.status).toBe("opened");
     expect(incompatible.url).not.toBe(migrated.url);
+
+    await new Promise((resolveWait) => setTimeout(resolveWait, 160));
+    const status = JSON.parse((await runBinary(
+      cwd,
+      ["status", "board", "--json"],
+      "",
+      env,
+    )).stdout) as { sessions: Array<{ url: string; idleExpiresAt: number }> };
+    expect(status.sessions).toHaveLength(1);
+    expect(status.sessions[0]?.url).toBe(incompatible.url);
+    expect(status.sessions[0]?.idleExpiresAt).toBeGreaterThan(Date.now());
 
     expect((await runBinary(cwd, ["close", "board"], "", env)).code).toBe(0);
   }, 20_000);

@@ -26,6 +26,42 @@ const fixture = async () => {
 };
 
 describe("Blackboard Reader", () => {
+  it("keeps an active reader leased and closes after client activity stops", async () => {
+    const root = await mkdtemp(join(tmpdir(), "chardesk-blackboard-lease-"));
+    const client = join(root, "app");
+    roots.push(root);
+    await mkdir(client);
+    await writeFile(join(client, "index.html"), "<!doctype html><title>Blackboard</title>");
+    const board = await resolveWorkspaceBoardPath(root, "blackboard.chardesk");
+    await writeFile(board.path, "Live");
+    const running = await startBlackboardServer({
+      board,
+      port: 0,
+      appRoot: client,
+      prefix: "/s/0123456789abcdefABCDEF",
+      sessionId: "lease-session",
+      idleTimeoutMs: 200,
+    });
+    close.push(running.close);
+
+    await new Promise((resolveWait) => setTimeout(resolveWait, 120));
+    const response = await fetch(new URL("board", running.url));
+    expect(response.status).toBe(200);
+    await new Promise((resolveWait) => setTimeout(resolveWait, 120));
+    const health = await (await fetch(new URL("health", running.url))).json();
+    expect(health).toMatchObject({
+      status: "ready",
+      sessionId: "lease-session",
+      runtimeReady: false,
+    });
+    expect(health.idleExpiresAt).toBeGreaterThan(health.lastActivityAt);
+
+    await expect(Promise.race([
+      running.closed.then(() => "closed"),
+      new Promise((resolveWait) => setTimeout(() => resolveWait("timeout"), 1_000)),
+    ])).resolves.toBe("closed");
+  });
+
   it("serves a missing board, revisions, and unchanged responses", async () => {
     const { board, running } = await fixture();
     expect((await fetch(new URL("board", running.url))).status).toBe(404);

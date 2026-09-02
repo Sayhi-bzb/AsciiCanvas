@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
-import { mkdir, readFile, readdir, realpath, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, realpath, rename, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { startBlackboardServer, type BlackboardServerSession } from "@chardesk/blackboard/node";
@@ -19,12 +19,15 @@ type OpenSessionOptions = {
   cwd: string;
   port?: number;
   runtimeRoot?: string;
+  sessionId?: string;
+  idleTimeoutMs?: number;
 };
 
 type ManagedSessionRecord = {
-  version: 3;
-  runtimeVersion: 1;
+  version: 4;
+  runtimeVersion: 2;
   cliVersion: string;
+  sessionId: string;
   pid: number;
   input: string;
   url: string;
@@ -36,13 +39,26 @@ type ManagedOpenResult = ManagedSessionRecord & {
   runtimeReady: boolean;
   fallbackOutput?: string;
   message?: string;
+  lastActivityAt: number;
+  idleExpiresAt: number;
+};
+
+type ManagedSessionHealth = {
+  status: string;
+  runtimeReady: boolean;
+  sessionId: string;
+  lastActivityAt: number;
+  idleExpiresAt: number;
 };
 
 const CLI_VERSION = (createRequire(import.meta.url)("../package.json") as { version: string }).version;
 const SESSION_ROOT = join(tmpdir(), "chardesk-sessions-v2");
 const LEGACY_SESSION_ROOT = join(tmpdir(), "chardesk-sessions-v1");
-const SESSION_RECORD_VERSION = 3;
-const RUNTIME_VERSION = 1;
+const SESSION_RECORD_VERSION = 4;
+const RUNTIME_VERSION = 2;
+const SESSION_IDLE_TIMEOUT_MS = 30 * 60 * 1_000;
+const SESSION_LOCK_STALE_MS = 15_000;
+const SESSION_LOCK_TIMEOUT_MS = 20_000;
 const runtimeRoot = () => new URL("./runtime/", import.meta.url).pathname;
 
 const resolveOpenInput = async (cwd: string, input: string) => {
@@ -66,6 +82,54 @@ const resolveOpenInput = async (cwd: string, input: string) => {
 const sessionKey = (input: string) => createHash("sha256").update(input).digest("hex").slice(0, 24);
 const sessionFileForInput = (input: string, root = SESSION_ROOT) =>
   join(root, `${sessionKey(input)}.json`);
+
+const delay = (milliseconds: number) => new Promise((resolveDelay) =>
+  setTimeout(resolveDelay, milliseconds)
+);
+
+const writeSession = async (path: string, record: ManagedSessionRecord) => {
+  await mkdir(dirname(path), { recursive: true });
+  const temporary = join(dirname(path), `.${basename(path)}.${process.pid}.${randomBytes(8).toString("hex")}.tmp`);
+  try {
+    await writeFile(temporary, JSON.stringify(record), { mode: 0o600 });
+    await rename(temporary, path);
+  } finally {
+    await rm(temporary, { force: true });
+  }
+};
+
+const withSessionLock = async <T>(sessionFile: string, action: () => Promise<T>) => {
+  const lock = `${sessionFile}.lock`;
+  const token = randomBytes(12).toString("hex");
+  const deadline = Date.now() + SESSION_LOCK_TIMEOUT_MS;
+  await mkdir(dirname(sessionFile), { recursive: true });
+  while (true) {
+    try {
+      await mkdir(lock);
+      await writeFile(join(lock, "owner.json"), JSON.stringify({ token, pid: process.pid, createdAt: Date.now() }));
+      break;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+      const age = await stat(lock).then((value) => Date.now() - value.mtimeMs).catch(() => 0);
+      if (age > SESSION_LOCK_STALE_MS) {
+        await rm(lock, { recursive: true, force: true });
+        continue;
+      }
+      if (Date.now() >= deadline) {
+        throw new CharDeskCliCommandError("session-lock-timeout", "CharDesk local Canvas startup is busy.");
+      }
+      await delay(80);
+    }
+  }
+  try {
+    return await action();
+  } finally {
+    const owner = await readFile(join(lock, "owner.json"), "utf8")
+      .then((value) => JSON.parse(value) as { token?: string })
+      .catch(() => null);
+    if (owner?.token === token) await rm(lock, { recursive: true, force: true });
+  }
+};
 
 const sessionEndpoint = (value: Record<string, unknown>, endpoint: string) => {
   if (typeof value.url !== "string") return null;
@@ -126,6 +190,7 @@ const readSession = async (path: string): Promise<ManagedSessionRecord | null> =
       return null;
     }
     const valid = typeof value.cliVersion === "string"
+      && typeof value.sessionId === "string"
       && typeof value.pid === "number"
       && typeof value.input === "string"
       && typeof value.url === "string"
@@ -136,6 +201,7 @@ const readSession = async (path: string): Promise<ManagedSessionRecord | null> =
     }
     return value as ManagedSessionRecord;
   } catch {
+    await rm(path, { force: true });
     return null;
   }
 };
@@ -147,7 +213,14 @@ const health = async (session: ManagedSessionRecord) => {
       signal: AbortSignal.timeout(1_000),
     });
     if (!response.ok) return null;
-    return await response.json() as { status: string; runtimeReady: boolean };
+    const current = await response.json() as Partial<ManagedSessionHealth>;
+    return current.status === "ready"
+      && current.sessionId === session.sessionId
+      && typeof current.runtimeReady === "boolean"
+      && typeof current.lastActivityAt === "number"
+      && typeof current.idleExpiresAt === "number"
+      ? current as ManagedSessionHealth
+      : null;
   } catch {
     return null;
   }
@@ -158,9 +231,16 @@ const waitFor = async <T>(read: () => Promise<T | null>, timeout = 8_000) => {
   while (Date.now() < deadline) {
     const value = await read();
     if (value) return value;
-    await new Promise((resolveWait) => setTimeout(resolveWait, 80));
+    await delay(80);
   }
   return null;
+};
+
+const removeOwnedSession = async (path: string, sessionId: string) => {
+  const current = await readFile(path, "utf8")
+    .then((value) => JSON.parse(value) as { sessionId?: string })
+    .catch(() => null);
+  if (current?.sessionId === sessionId) await rm(path, { force: true });
 };
 
 const validateSource = async (options: OpenSessionOptions) => {
@@ -201,6 +281,8 @@ export const startCharDeskOpenSession = async (
     port: options.port ?? 0,
     appRoot: options.runtimeRoot ?? runtimeRoot(),
     prefix: `/s/${token}`,
+    sessionId: options.sessionId,
+    idleTimeoutMs: options.idleTimeoutMs,
   });
 };
 
@@ -224,25 +306,31 @@ export const serveManagedOpenSession = async ({
   sessionFile: string;
 }) => {
   const input = await resolveOpenInput(options.cwd, options.request.input);
-  const running = await startCharDeskOpenSession(options);
+  const sessionId = randomBytes(16).toString("base64url");
+  const running = await startCharDeskOpenSession({
+    ...options,
+    sessionId,
+    idleTimeoutMs: options.idleTimeoutMs ?? SESSION_IDLE_TIMEOUT_MS,
+  });
   const record: ManagedSessionRecord = {
     version: SESSION_RECORD_VERSION,
     runtimeVersion: RUNTIME_VERSION,
     cliVersion: CLI_VERSION,
+    sessionId,
     pid: process.pid,
     input,
     url: running.url,
     startedAt: Date.now(),
   };
-  await mkdir(dirname(sessionFile), { recursive: true });
-  await writeFile(sessionFile, JSON.stringify(record), { mode: 0o600 });
-  const close = () => void running.close().finally(async () => {
-    await rm(sessionFile, { force: true });
-  });
+  await writeSession(sessionFile, record);
+  const removeRecord = () => withSessionLock(sessionFile, () =>
+    removeOwnedSession(sessionFile, sessionId)
+  );
+  const close = () => void running.close().catch(() => undefined);
   process.once("SIGINT", close);
   process.once("SIGTERM", close);
   await running.closed;
-  await rm(sessionFile, { force: true });
+  await removeRecord();
   return 0;
 };
 
@@ -262,56 +350,83 @@ export const openManagedSession = async ({
   await cleanLegacySessions();
   const input = await resolveOpenInput(options.cwd, options.request.input);
   const sessionFile = sessionFileForInput(input);
-  const existing = await readSession(sessionFile);
-  const existingHealth = existing ? await health(existing) : null;
-  if (existing && existingHealth) {
-    if (!browser) return { ...existing, status: "reused", runtimeReady: existingHealth.runtimeReady };
+  const ensured = await withSessionLock(sessionFile, async () => {
+    const existing = await readSession(sessionFile);
+    const existingHealth = existing ? await waitFor(() => health(existing), 640) : null;
+    if (existing && existingHealth) {
+      return { session: existing, current: existingHealth, status: "reused" as const };
+    }
+    if (existing) await removeOwnedSession(sessionFile, existing.sessionId);
+    const args = [cliEntry, "__serve", input, "--session-file", sessionFile];
+    if (options.port) args.push("--port", String(options.port));
+    const child = spawn(process.execPath, args, {
+      cwd: options.cwd,
+      detached: true,
+      stdio: "ignore",
+    });
+    child.unref();
+    const opened = await waitFor(async () => {
+      const session = await readSession(sessionFile);
+      const current = session ? await health(session) : null;
+      return session && current ? { session, current } : null;
+    });
+    if (!opened) {
+      throw new CharDeskCliCommandError("open-start-failed", "CharDesk local Canvas did not start.");
+    }
+    return { ...opened, status: "opened" as const };
+  });
+  const active = {
+    ...ensured.session,
+    runtimeReady: ensured.current.runtimeReady,
+    lastActivityAt: ensured.current.lastActivityAt,
+    idleExpiresAt: ensured.current.idleExpiresAt,
+  };
+  if (!browser) return { ...active, status: ensured.status };
+  if (ensured.status === "reused") {
     try {
-      await launchBrowser(existing.url);
-      const ready = existingHealth.runtimeReady
-        ? existingHealth
+      await launchBrowser(active.url);
+      const ready = active.runtimeReady
+        ? ensured.current
         : await waitFor(async () => {
-          const current = await health(existing);
+          const current = await health(ensured.session);
           return current?.runtimeReady ? current : null;
         });
-      if (ready) return { ...existing, status: "reused", runtimeReady: true };
+      if (ready) return {
+        ...active,
+        status: "reused",
+        runtimeReady: true,
+        lastActivityAt: ready.lastActivityAt,
+        idleExpiresAt: ready.idleExpiresAt,
+      };
     } catch {
       // The PNG fallback below keeps the user-visible result available.
     }
     return {
-      ...existing,
+      ...active,
       status: "fallback",
       runtimeReady: false,
       fallbackOutput: await renderFallback(options, input),
       message: "The browser Canvas was unavailable; generated a PNG fallback.",
     };
   }
-  await rm(sessionFile, { force: true });
-  const args = [cliEntry, "__serve", input, "--session-file", sessionFile];
-  if (options.port) args.push("--port", String(options.port));
-  const child = spawn(process.execPath, args, {
-    cwd: options.cwd,
-    detached: true,
-    stdio: "ignore",
-  });
-  child.unref();
-  const session = await waitFor(() => readSession(sessionFile));
-  if (!session) {
-    throw new CharDeskCliCommandError("open-start-failed", "CharDesk local Canvas did not start.");
-  }
-  if (!browser) return { ...session, status: "opened", runtimeReady: false };
   try {
-    await launchBrowser(session.url);
+    await launchBrowser(active.url);
     const runtime = await waitFor(async () => {
-      const current = await health(session);
+      const current = await health(ensured.session);
       return current?.runtimeReady ? current : null;
     });
-    if (runtime) return { ...session, status: "opened", runtimeReady: true };
+    if (runtime) return {
+      ...active,
+      status: "opened",
+      runtimeReady: true,
+      lastActivityAt: runtime.lastActivityAt,
+      idleExpiresAt: runtime.idleExpiresAt,
+    };
   } catch {
     // The PNG fallback below keeps the user-visible result available.
   }
   return {
-    ...session,
+    ...active,
     status: "fallback",
     runtimeReady: false,
     fallbackOutput: await renderFallback(options, input),
@@ -321,11 +436,25 @@ export const openManagedSession = async ({
 
 export const listManagedSessions = async (input?: string, cwd = process.cwd()) => {
   await cleanLegacySessions();
+  const readActive = (sessionFile: string) => withSessionLock(sessionFile, async () => {
+    const session = await readSession(sessionFile);
+    if (!session) return null;
+    const current = await waitFor(() => health(session), 640);
+    if (!current) {
+      await removeOwnedSession(sessionFile, session.sessionId);
+      return null;
+    }
+    return {
+      ...session,
+      runtimeReady: current.runtimeReady,
+      lastActivityAt: current.lastActivityAt,
+      idleExpiresAt: current.idleExpiresAt,
+    };
+  });
   if (input) {
     const resolved = await resolveOpenInput(cwd, input);
-    const session = await readSession(sessionFileForInput(resolved));
-    const current = session ? await health(session) : null;
-    return session && current ? [{ ...session, runtimeReady: current.runtimeReady }] : [];
+    const session = await readActive(sessionFileForInput(resolved));
+    return session ? [session] : [];
   }
   let names: string[];
   try {
@@ -334,13 +463,9 @@ export const listManagedSessions = async (input?: string, cwd = process.cwd()) =
     return [];
   }
   const sessions = await Promise.all(names.filter((name) => name.endsWith(".json")).map((name) =>
-    readSession(join(SESSION_ROOT, name))
+    readActive(join(SESSION_ROOT, name))
   ));
-  const healthy = await Promise.all(sessions.map(async (session) => {
-    const current = session ? await health(session) : null;
-    return session && current ? { ...session, runtimeReady: current.runtimeReady } : null;
-  }));
-  return healthy.filter((session): session is ManagedSessionRecord & { runtimeReady: boolean } => !!session);
+  return sessions.filter((session): session is NonNullable<typeof session> => !!session);
 };
 
 export const closeManagedSessions = async (input?: string, cwd = process.cwd()) => {
@@ -354,7 +479,8 @@ export const closeManagedSessions = async (input?: string, cwd = process.cwd()) 
       throw new CharDeskCliCommandError("close-failed", `Could not close ${session.input}.`);
     }
     await waitFor(async () => await health(session) ? null : true, 3_000);
-    await rm(sessionFileForInput(session.input), { force: true });
+    const sessionFile = sessionFileForInput(session.input);
+    await withSessionLock(sessionFile, () => removeOwnedSession(sessionFile, session.sessionId));
   }));
   return sessions.length;
 };

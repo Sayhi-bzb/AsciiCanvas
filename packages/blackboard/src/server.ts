@@ -51,6 +51,8 @@ type BlackboardServerOptions = {
   port?: number;
   appRoot?: string;
   prefix?: string;
+  sessionId?: string;
+  idleTimeoutMs?: number;
 };
 
 export type BlackboardServerSession = {
@@ -93,6 +95,8 @@ export const startBlackboardServer = async ({
   port = 7331,
   appRoot = defaultAppRoot,
   prefix = "",
+  sessionId,
+  idleTimeoutMs,
 }: BlackboardServerOptions) => {
   if (prefix && !/^\/s\/[A-Za-z0-9_-]{22}$/u.test(prefix)) {
     throw new Error("Blackboard server prefix must be an opaque session path.");
@@ -108,15 +112,28 @@ export const startBlackboardServer = async ({
   }
   let markReady: (() => void) | undefined;
   let runtimeReady = false;
+  let lastActivityAt = Date.now();
+  let idleTimer: NodeJS.Timeout | undefined;
+  let closePromise: Promise<void> | undefined;
   let projectionCache: {
     readable: string;
     revision: string;
     value: Awaited<ReturnType<typeof readBoardProjection>>;
   } | undefined;
   const ready = new Promise<void>((resolveReady) => { markReady = resolveReady; });
+  const idleExpiresAt = () => idleTimeoutMs ? lastActivityAt + idleTimeoutMs : undefined;
+  const touch = () => {
+    lastActivityAt = Date.now();
+    if (!idleTimeoutMs || closePromise) return;
+    if (idleTimer) clearTimeout(idleTimer);
+    idleTimer = setTimeout(() => { void closeServer().catch(() => undefined); }, idleTimeoutMs);
+    idleTimer.unref();
+  };
+  let closeServer = () => Promise.resolve();
   const server = createServer((request, response) => {
     void (async () => {
       const requestedPath = new URL(request.url ?? "/", "http://127.0.0.1").pathname;
+      if (!prefix || requestedPath === prefix || requestedPath.startsWith(`${prefix}/`)) touch();
       if (request.method === "POST" && requestedPath === `${prefix}/ready`) {
         runtimeReady = true;
         markReady?.();
@@ -126,7 +143,7 @@ export const startBlackboardServer = async ({
       }
       if (prefix && request.method === "POST" && requestedPath === `${prefix}/close`) {
         send(response, 202);
-        setImmediate(() => server.close());
+        setImmediate(() => { void closeServer().catch(() => undefined); });
         return;
       }
       if (request.method !== "GET") {
@@ -134,7 +151,12 @@ export const startBlackboardServer = async ({
         return;
       }
       if (requestedPath === `${prefix}/health`) {
-        send(response, 200, JSON.stringify({ status: "ready", runtimeReady }), {
+        send(response, 200, JSON.stringify({
+          status: "ready",
+          runtimeReady,
+          ...(sessionId ? { sessionId } : {}),
+          ...(idleTimeoutMs ? { lastActivityAt, idleExpiresAt: idleExpiresAt() } : {}),
+        }), {
           "Cache-Control": "no-store",
           "Content-Type": "application/json; charset=utf-8",
         });
@@ -250,13 +272,26 @@ export const startBlackboardServer = async ({
   const origin = `http://127.0.0.1:${address.port}`;
   const url = `${origin}${prefix}/`;
   const closed = new Promise<void>((resolveClosed) => server.once("close", resolveClosed));
+  closeServer = () => {
+    if (closePromise) return closePromise;
+    if (idleTimer) clearTimeout(idleTimer);
+    closePromise = new Promise<void>((resolveClose, reject) => {
+      const forceTimer = setTimeout(() => server.closeAllConnections(), 2_000);
+      forceTimer.unref();
+      server.close((error) => {
+        clearTimeout(forceTimer);
+        if (error) reject(error);
+        else resolveClose();
+      });
+    });
+    return closePromise;
+  };
+  touch();
   return {
     server,
     url,
     ready,
     closed,
-    close: () => new Promise<void>((resolveClose, reject) =>
-      server.close((error) => error ? reject(error) : resolveClose())
-    ),
+    close: closeServer,
   } satisfies BlackboardServerSession & { server: typeof server };
 };

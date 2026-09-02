@@ -64,7 +64,10 @@ npx -y @chardesk/cli close --all
 Opening a directory, its manifest, or a symlink to the same workspace reuses one compatible healthy
 session across CLI patch upgrades. Source edits do not change its URL. Use `--no-browser` to return
 the URL without launching a browser, `--port` for a fixed loopback port, or `--foreground` to attach the
-server lifecycle to the current process. If a launched browser cannot report Canvas readiness,
+server lifecycle to the current process. An open Canvas keeps its session leased; after the page and
+all local clients stop accessing it for 30 minutes, the background process exits automatically. A
+later `open` transparently starts a new session without changing the source workspace. If a launched
+browser cannot report Canvas readiness,
 `open` returns a PNG fallback path instead. `open --json` exposes the public session fields
 `status`, `input`, `url`, `runtimeReady`, and `watching`; process and registry metadata remain internal.
 

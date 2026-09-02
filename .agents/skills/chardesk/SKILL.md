@@ -36,6 +36,8 @@ Freeform Canvas input.
 
 Execute available setup, inspection, opening, rendering, and navigation actions
 directly. Open the first complete delivery once. Later filesystem edits are live:
-inspect them, then reuse the existing page without another open/close cycle.
+inspect them, then reuse the existing page without another open/close cycle. When
+the human asks to view a workspace after its local page was closed, run `open`
+again; the CLI reuses or recreates the session without a maintenance workflow.
 User-facing handoff reports the result and only the privileged UI action that
 requires the human.

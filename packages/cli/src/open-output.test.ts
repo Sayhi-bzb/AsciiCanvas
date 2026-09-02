@@ -44,13 +44,16 @@ const streams = () => {
 };
 
 const session = {
-  version: 3,
-  runtimeVersion: 1,
-  cliVersion: "0.3.1",
+  version: 4,
+  runtimeVersion: 2,
+  cliVersion: "0.3.4",
+  sessionId: "session-id",
   pid: 42,
   input: "/workspace/blackboard.yaml",
   url: "http://127.0.0.1:61491/s/0123456789abcdefABCDEF/",
   startedAt: 1,
+  lastActivityAt: 2,
+  idleExpiresAt: 3,
   status: "opened",
   runtimeReady: true,
 };
@@ -94,6 +97,7 @@ describe("chardesk open output", () => {
         url: session.url,
         runtimeReady: true,
         startedAt: 1,
+        idleExpiresAt: 3,
       }],
     });
   });

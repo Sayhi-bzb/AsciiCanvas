@@ -27,6 +27,8 @@ or artifact.
   persistent path.
 - After successful inspection, open the first complete delivery once. Later
   edits need only another inspection; the open Canvas updates in place.
+- When the human asks to view a workspace after its local page was closed, run
+  `open` again. Session reuse, recreation, and idle cleanup belong to the CLI.
 - If Canvas opening fails, deliver the fallback artifact or error directly.
 
 The published package requires neither a CharDesk checkout nor a dev server.

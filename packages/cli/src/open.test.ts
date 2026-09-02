@@ -1,9 +1,9 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { initializeCharDeskWorkspace } from "./init.js";
-import { startCharDeskOpenSession } from "./open.js";
+import { serveManagedOpenSession, startCharDeskOpenSession } from "./open.js";
 
 const directories: string[] = [];
 const sessions: Array<{ close: () => Promise<void> }> = [];
@@ -14,6 +14,27 @@ afterEach(async () => {
 });
 
 describe("chardesk local Canvas", () => {
+  it("removes its owned registry record after the idle lease expires", async () => {
+    const cwd = await mkdtemp(join(tmpdir(), "chardesk-managed-lease-"));
+    directories.push(cwd);
+    const runtimeRoot = join(cwd, "runtime");
+    await mkdir(runtimeRoot);
+    await writeFile(join(runtimeRoot, "index.html"), "<!doctype html><title>Local Canvas</title>");
+    const board = await initializeCharDeskWorkspace({ cwd, directory: "board", title: "Lease" });
+    const sessionFile = join(cwd, "session.json");
+
+    await expect(serveManagedOpenSession({
+      options: {
+        request: { input: board, inputMode: "auto" },
+        cwd,
+        runtimeRoot,
+        idleTimeoutMs: 120,
+      },
+      sessionFile,
+    })).resolves.toBe(0);
+    await expect(access(sessionFile)).rejects.toThrow();
+  });
+
   it("serves a tokenized same-origin runtime and live board projection", async () => {
     const cwd = await mkdtemp(join(tmpdir(), "chardesk-open-"));
     directories.push(cwd);
