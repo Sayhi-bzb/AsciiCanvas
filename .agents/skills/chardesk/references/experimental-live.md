@@ -1,19 +1,17 @@
 # Experimental live access
 
-Live browser integration is optional and experimental. When the task needs a
-shared live Canvas and `chardesk_blackboard_*` tools are unavailable, use
-available browser navigation to open the relevant setup surface directly. The
-host approval flow handles authorization. Continue through the [CLI](cli.md)
-when discovery still fails.
+When a shared live Canvas has no `chardesk_blackboard_*` tools, open its setup
+surface with available browser navigation. Continue through the [CLI](cli.md)
+if discovery still fails.
 
 ## ChatGPT Site Tools
 
-In the ChatGPT desktop app, open
+In the ChatGPT app, open
 [`https://chardesk.com/blackboard`](https://chardesk.com/blackboard) in the
 built-in browser. When Site Tools are disabled, open the settings surface when
 available; the user enables `Enable site tools` under
 `Settings > Browser > Permissions`. Site Tools belong to the open top-level
-page; ChatGPT currently supports an imperative subset of WebMCP.
+page.
 
 See the official [OpenAI Site Tools documentation](https://learn.chatgpt.com/docs/webmcp).
 
@@ -27,6 +25,5 @@ See the official [Chrome WebMCP documentation](https://developer.chrome.com/docs
 
 ## Guided activation
 
-Open the setup surface with browser actions. The user completes only permission
-changes, flag changes, and browser restart. Retry tool discovery once, then use
-the CLI path and open its local Canvas when the tools remain unavailable.
+The user completes only permission changes, flag changes, and browser restart.
+Retry discovery once, then use the CLI when tools remain unavailable.

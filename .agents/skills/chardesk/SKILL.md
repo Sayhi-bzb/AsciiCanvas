@@ -1,31 +1,27 @@
 ---
 name: chardesk
-description: Create, edit, inspect, show, or render CharDesk Canvas, Blackboard, CharGraph, and Slide content through the CLI or live workspace tools.
+description: Create, edit, inspect, or render CharDesk visual documents through the CLI or live workspace tools.
 ---
 
 # CharDesk
 
-Canonical source is the editable authority; Canvas cells are its projection.
+Canonical source is authoritative; Canvas is its projection.
 
-## Access
+## Route
 
-- Slides, file artifacts, and explicit local paths use
+- Local paths, Slides, and artifacts use
   [`references/cli.md`](references/cli.md).
-- An explicit Blackboard workspace ID or URL uses
+- A Blackboard workspace ID or URL uses
   [`references/live-workspace.md`](references/live-workspace.md) when
   `chardesk_blackboard_*` tools are available.
-- With no explicit target, prefer available live workspace tools; otherwise use
-  the CLI.
-- When a live Canvas is requested but its tools are unavailable, read
+- With no target, prefer available live workspace tools; otherwise use the CLI.
+- If a requested live Canvas has no tools, read
   [`references/experimental-live.md`](references/experimental-live.md).
-
-## Context
-
-- Content creation, editing, restructuring, or visual improvement uses the
-  executable [`CharGraph casebook`](references/authoring.md).
-- `blackboard.yaml` or a Blackboard package directory:
+- Creating or visually restructuring content uses the executable
+  [`CharGraph casebook`](references/authoring.md).
+- A `blackboard.yaml` or Blackboard package uses
   [`references/blackboard.md`](references/blackboard.md).
-- A Slide document or Slide deliverable:
+- A Slide source or deliverable uses
   [`references/slides.md`](references/slides.md).
 
 New unspecified documents default to a Blackboard package. Existing source
@@ -34,10 +30,5 @@ Freeform Canvas input.
 
 ## Delivery
 
-Execute available setup, inspection, opening, rendering, and navigation actions
-directly. Open the first complete delivery once. Later filesystem edits are live:
-inspect them, then reuse the existing page without another open/close cycle. When
-the human asks to view a workspace after its local page was closed, run `open`
-again; the CLI reuses or recreates the session without a maintenance workflow.
-User-facing handoff reports the result and only the privileged UI action that
-requires the human.
+Complete the required Agent actions. Hand off the result and only UI permission
+or restart actions that require the human.

@@ -39,7 +39,7 @@ layout:
   dimensions.
 - Registered Panels outside `layout.areas` remain valid drafts and produce a
   warning.
-- Panel content uses the full [authoring palette](authoring.md).
+- Panel content may draw from the [visual casebook](authoring.md).
 
 The Reader flattens the package into one static Freeform Canvas. The matrix is
 source organization rather than a visible node or persistent runtime layer.

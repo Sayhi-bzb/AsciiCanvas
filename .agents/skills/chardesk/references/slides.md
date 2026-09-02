@@ -23,8 +23,8 @@ title: Product overview
 - Frontmatter uses `chardesk: document/v1`, `mode: slide`, and an optional
   title.
 - Each `##` heading starts a page followed by its content fence.
-- `chardesk` contains compiled Canvas text; `chargraph` compiles the full
-  [authoring palette](authoring.md). `text` is literal text and `ansi` is
+- `chardesk` contains compiled Canvas text; `chargraph` compiles visual source
+  such as the [casebook](authoring.md). `text` is literal text and `ansi` is
   terminal ANSI input.
 - The default frame is `100x27`. A fence may set `size=<columns>x<rows>` or
   `size=auto`; auto sizes the compiled grid with four horizontal and two

@@ -11,7 +11,6 @@ command stream        │ ├──┼──┼──┼──┼──┼──
                       │ └──┴──┴──┴──┴──┴──┘  │
                       ╰──────────────────────╯
 
-One instruction becomes many simultaneous workers.
 |||
 ## Work becomes pixels
 
@@ -26,7 +25,6 @@ flowchart LR
   M --> F
 ```
 
-[90mThe grid gives the machine a body; the graph exposes its flow.[0m
 ---
 [1;38;2;130;80;223mCASE 02 · EL NIÑO OBSERVATORY[0m
 
@@ -39,7 +37,6 @@ Indonesia                               Americas
 
 East–west contrast: $T_1 - T_2$
 
-[90mA geographic cross-section keeps direction and distance visible.[0m
 |||
 ## Temperature anomaly
 
@@ -67,7 +64,6 @@ East–west contrast: $T_1 - T_2$
 }
 ```
 
-[90mThe curve carries change; uncertainty remains attached to each reading.[0m
 ---
 [1;38;2;31;136;61mCASE 03 · AGENT DELIVERY[0m
 
@@ -84,7 +80,6 @@ sequenceDiagram
   C-->>H: Open visual result
 ```
 
-[90mThe sequence keeps authorship, persistence, and projection distinct.[0m
 |||
 ## Canonical source
 
@@ -99,7 +94,6 @@ sequenceDiagram
 }
 ```
 
-[90mThe tree makes ownership and nesting inspectable.[0m
 |||
 [1mDelivery[0m
 
@@ -113,5 +107,3 @@ sequenceDiagram
 | --- | --- |
 | `.panel` | editable source |
 | Canvas | human view |
-
-[90mMotion leads the story; the small table pins two exact interfaces.[0m
