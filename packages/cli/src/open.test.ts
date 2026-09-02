@@ -18,8 +18,12 @@ describe("chardesk local Canvas", () => {
     const cwd = await mkdtemp(join(tmpdir(), "chardesk-open-"));
     directories.push(cwd);
     const runtimeRoot = join(cwd, "runtime");
-    await mkdir(runtimeRoot);
-    await writeFile(join(runtimeRoot, "index.html"), "<!doctype html><title>Local Canvas</title>");
+    await mkdir(join(runtimeRoot, "assets"), { recursive: true });
+    await writeFile(
+      join(runtimeRoot, "index.html"),
+      '<!doctype html><title>Local Canvas</title><script src="./assets/app.js"></script>',
+    );
+    await writeFile(join(runtimeRoot, "assets/app.js"), "export const ready = true;");
     const board = await initializeCharDeskWorkspace({ cwd, directory: "board", title: "Live" });
     const session = await startCharDeskOpenSession({
       request: { input: board, inputMode: "auto" },
@@ -28,25 +32,26 @@ describe("chardesk local Canvas", () => {
     });
     sessions.push(session);
 
-    expect(session.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/session\/[a-f0-9]{48}$/u);
+    expect(session.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/s\/[A-Za-z0-9_-]{22}\/$/u);
     const root = await fetch(session.url, { redirect: "manual" });
-    expect(root.status).toBe(307);
-    expect(root.headers.get("location")).toBe(`${new URL(session.url).pathname}/blackboard?reader=1`);
-    expect(await (await fetch(session.canvasUrl)).text()).toContain("Local Canvas");
+    expect(root.status).toBe(200);
+    expect(await root.text()).toContain("Local Canvas");
+    expect(await (await fetch(new URL("assets/app.js", session.url))).text())
+      .toContain("ready = true");
     expect((await fetch(new URL("/board", session.url))).status).toBe(404);
 
-    const projection = await fetch(new URL("board", `${session.url}/`));
+    const projection = await fetch(new URL("board", session.url));
     expect(projection.status).toBe(200);
     expect(await projection.text()).toContain("Live");
 
-    const before = await (await fetch(new URL("health", `${session.url}/`))).json();
+    const before = await (await fetch(new URL("health", session.url))).json();
     expect(before).toEqual({ status: "ready", runtimeReady: false });
-    expect((await fetch(new URL("ready", `${session.url}/`), { method: "POST" })).status).toBe(204);
+    expect((await fetch(new URL("ready", session.url), { method: "POST" })).status).toBe(204);
     await expect(session.ready).resolves.toBeUndefined();
-    const after = await (await fetch(new URL("health", `${session.url}/`))).json();
+    const after = await (await fetch(new URL("health", session.url))).json();
     expect(after).toEqual({ status: "ready", runtimeReady: true });
 
     await writeFile(join(board, "main.panel"), "# Revised\n");
-    expect(await (await fetch(new URL("board", `${session.url}/`))).text()).toContain("Revised");
+    expect(await (await fetch(new URL("board", session.url))).text()).toContain("Revised");
   });
 });

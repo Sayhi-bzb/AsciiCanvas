@@ -1,4 +1,4 @@
 interface:
   display_name: "CharDesk"
-  short_description: "Author CharDesk text, diagrams, and Blackboards"
-  default_prompt: "Use $chardesk to author or edit CharDesk content with the relevant format rules."
+  short_description: "Create visual Canvases, Blackboards, and Slides"
+  default_prompt: "Use $chardesk to create or edit this visual content."

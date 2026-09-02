@@ -70,6 +70,8 @@ export interface LayoutGraph {
   cycleBreaking?: LayoutCycleBreaking;
   /** Cross-layer placement preference for layered node coordinates. */
   nodeAlignment?: "automatic" | "balanced";
+  /** Whether non-transitive paths should define the visual backbone. */
+  pathAlignment?: "automatic" | "topology";
   spacing: {
     nodeNode: number;
     nodeNodeBetweenLayers: number;

@@ -1,8 +1,8 @@
 # Blackboard packages
 
-Use a package when one Freeform canvas needs independently editable spatial
-contexts. `blackboard.yaml` is the first-read context map; `.panel` files own
-local content and local Block Layout.
+A Blackboard package divides one Canvas into independently editable spatial
+contexts. `blackboard.yaml` is its first-read context map; `.panel` files own
+local content.
 
 ```text
 gpu/
@@ -31,15 +31,15 @@ layout:
 ```
 
 - `chardesk`, `panels`, and `layout.areas` are required.
-- `title` defaults to the package directory name.
-- `summary` is optional one-line routing context.
-- Panel sources are package-relative `.panel` paths and cannot escape the package.
-- Repeated IDs must form one filled rectangle; `null` is an empty area.
-- Content determines track sizes. Do not add coordinates or dimensions.
-- Registered Panels outside `layout.areas` are valid drafts and produce a warning.
-- Panel content uses normal CharGraph, ANSI, CJK, and Block Layout rules.
+- `title` defaults to the package directory name; `summary` is optional
+  one-line routing context.
+- Panel sources are package-relative `.panel` paths and stay inside the package.
+- Repeated IDs form one filled rectangle; `null` is an empty area.
+- Content determines track sizes. The layout matrix carries no coordinates or
+  dimensions.
+- Registered Panels outside `layout.areas` remain valid drafts and produce a
+  warning.
+- Panel content uses the full [authoring palette](authoring.md).
 
-The Reader flattens the package into one static Freeform canvas. App directory
-import creates an editable snapshot and does not retain a filesystem link. The
-matrix is source organization, not a visible node or persistent runtime layout
-layer.
+The Reader flattens the package into one static Freeform Canvas. The matrix is
+source organization rather than a visible node or persistent runtime layer.

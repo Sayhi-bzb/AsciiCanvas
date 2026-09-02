@@ -22,12 +22,12 @@ type OpenSessionOptions = {
 };
 
 type ManagedSessionRecord = {
-  version: 1;
+  version: 3;
+  runtimeVersion: 1;
   cliVersion: string;
   pid: number;
   input: string;
   url: string;
-  canvasUrl: string;
   startedAt: number;
 };
 
@@ -39,11 +39,10 @@ type ManagedOpenResult = ManagedSessionRecord & {
 };
 
 const CLI_VERSION = (createRequire(import.meta.url)("../package.json") as { version: string }).version;
-const SESSION_ROOT = join(
-  tmpdir(),
-  "chardesk-sessions-v1",
-  createHash("sha256").update(CLI_VERSION).digest("hex").slice(0, 12),
-);
+const SESSION_ROOT = join(tmpdir(), "chardesk-sessions-v2");
+const LEGACY_SESSION_ROOT = join(tmpdir(), "chardesk-sessions-v1");
+const SESSION_RECORD_VERSION = 3;
+const RUNTIME_VERSION = 1;
 const runtimeRoot = () => new URL("./runtime/", import.meta.url).pathname;
 
 const resolveOpenInput = async (cwd: string, input: string) => {
@@ -65,20 +64,77 @@ const resolveOpenInput = async (cwd: string, input: string) => {
 };
 
 const sessionKey = (input: string) => createHash("sha256").update(input).digest("hex").slice(0, 24);
-const sessionFileForInput = (input: string) => join(SESSION_ROOT, `${sessionKey(input)}.json`);
+const sessionFileForInput = (input: string, root = SESSION_ROOT) =>
+  join(root, `${sessionKey(input)}.json`);
+
+const sessionEndpoint = (value: Record<string, unknown>, endpoint: string) => {
+  if (typeof value.url !== "string") return null;
+  try {
+    const url = new URL(endpoint, value.url.endsWith("/") ? value.url : `${value.url}/`);
+    return url.protocol === "http:"
+      && (url.hostname === "127.0.0.1" || url.hostname === "localhost")
+      ? url
+      : null;
+  } catch {
+    return null;
+  }
+};
+
+const retireSession = async (value: Record<string, unknown>, path: string) => {
+  const closeUrl = sessionEndpoint(value, "close");
+  if (closeUrl) {
+    await fetch(closeUrl, {
+      method: "POST",
+      signal: AbortSignal.timeout(1_000),
+    }).catch(() => undefined);
+  }
+  await rm(path, { force: true });
+};
+
+const cleanLegacySessions = async () => {
+  let directories;
+  try {
+    directories = await readdir(LEGACY_SESSION_ROOT, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  await Promise.all(directories.filter((entry) => entry.isDirectory()).map(async (directory) => {
+    const root = join(LEGACY_SESSION_ROOT, directory.name);
+    let names: string[];
+    try {
+      names = await readdir(root);
+    } catch {
+      return;
+    }
+    await Promise.all(names.filter((name) => name.endsWith(".json")).map(async (name) => {
+      const path = join(root, name);
+      try {
+        const value = JSON.parse(await readFile(path, "utf8")) as Record<string, unknown>;
+        await retireSession(value, path);
+      } catch {
+        await rm(path, { force: true });
+      }
+    }));
+  }));
+};
 
 const readSession = async (path: string): Promise<ManagedSessionRecord | null> => {
   try {
-    const value = JSON.parse(await readFile(path, "utf8")) as Partial<ManagedSessionRecord>;
-    return value.version === 1
-      && value.cliVersion === CLI_VERSION
+    const value = JSON.parse(await readFile(path, "utf8")) as Record<string, unknown>;
+    if (value.version !== SESSION_RECORD_VERSION || value.runtimeVersion !== RUNTIME_VERSION) {
+      await retireSession(value, path);
+      return null;
+    }
+    const valid = typeof value.cliVersion === "string"
       && typeof value.pid === "number"
       && typeof value.input === "string"
       && typeof value.url === "string"
-      && typeof value.canvasUrl === "string"
-      && typeof value.startedAt === "number"
-      ? value as ManagedSessionRecord
-      : null;
+      && typeof value.startedAt === "number";
+    if (!valid) {
+      await retireSession(value, path);
+      return null;
+    }
+    return value as ManagedSessionRecord;
   } catch {
     return null;
   }
@@ -86,7 +142,7 @@ const readSession = async (path: string): Promise<ManagedSessionRecord | null> =
 
 const health = async (session: ManagedSessionRecord) => {
   try {
-    const response = await fetch(new URL("health", `${session.url}/`), {
+    const response = await fetch(new URL("health", session.url), {
       cache: "no-store",
       signal: AbortSignal.timeout(1_000),
     });
@@ -139,17 +195,17 @@ export const startCharDeskOpenSession = async (
   }
   await validateSource(options);
   const input = await resolveOpenInput(options.cwd, options.request.input);
-  const token = randomBytes(24).toString("hex");
+  const token = randomBytes(16).toString("base64url");
   return startBlackboardServer({
     board: { root: dirname(input), path: input },
     port: options.port ?? 0,
     appRoot: options.runtimeRoot ?? runtimeRoot(),
-    prefix: `/session/${token}`,
+    prefix: `/s/${token}`,
   });
 };
 
 export const launchCharDeskOpenSession = async (session: BlackboardServerSession) => {
-  await launchBrowser(session.canvasUrl);
+  await launchBrowser(session.url);
 };
 
 export const waitForOpenSession = async (session: BlackboardServerSession) => {
@@ -170,12 +226,12 @@ export const serveManagedOpenSession = async ({
   const input = await resolveOpenInput(options.cwd, options.request.input);
   const running = await startCharDeskOpenSession(options);
   const record: ManagedSessionRecord = {
-    version: 1,
+    version: SESSION_RECORD_VERSION,
+    runtimeVersion: RUNTIME_VERSION,
     cliVersion: CLI_VERSION,
     pid: process.pid,
     input,
     url: running.url,
-    canvasUrl: running.canvasUrl,
     startedAt: Date.now(),
   };
   await mkdir(dirname(sessionFile), { recursive: true });
@@ -203,6 +259,7 @@ export const openManagedSession = async ({
     throw new CharDeskCliCommandError("invalid-live-input", "open requires a file or directory path.");
   }
   await validateSource(options);
+  await cleanLegacySessions();
   const input = await resolveOpenInput(options.cwd, options.request.input);
   const sessionFile = sessionFileForInput(input);
   const existing = await readSession(sessionFile);
@@ -210,7 +267,7 @@ export const openManagedSession = async ({
   if (existing && existingHealth) {
     if (!browser) return { ...existing, status: "reused", runtimeReady: existingHealth.runtimeReady };
     try {
-      await launchBrowser(existing.canvasUrl);
+      await launchBrowser(existing.url);
       const ready = existingHealth.runtimeReady
         ? existingHealth
         : await waitFor(async () => {
@@ -244,7 +301,7 @@ export const openManagedSession = async ({
   }
   if (!browser) return { ...session, status: "opened", runtimeReady: false };
   try {
-    await launchBrowser(session.canvasUrl);
+    await launchBrowser(session.url);
     const runtime = await waitFor(async () => {
       const current = await health(session);
       return current?.runtimeReady ? current : null;
@@ -263,6 +320,7 @@ export const openManagedSession = async ({
 };
 
 export const listManagedSessions = async (input?: string, cwd = process.cwd()) => {
+  await cleanLegacySessions();
   if (input) {
     const resolved = await resolveOpenInput(cwd, input);
     const session = await readSession(sessionFileForInput(resolved));
@@ -288,7 +346,7 @@ export const listManagedSessions = async (input?: string, cwd = process.cwd()) =
 export const closeManagedSessions = async (input?: string, cwd = process.cwd()) => {
   const sessions = await listManagedSessions(input, cwd);
   await Promise.all(sessions.map(async (session) => {
-    const response = await fetch(new URL("close", `${session.url}/`), {
+    const response = await fetch(new URL("close", session.url), {
       method: "POST",
       signal: AbortSignal.timeout(1_000),
     });

@@ -578,8 +578,19 @@ export const runCli = async (
       const options = { request: command, cwd, port: command.port };
       if (command.foreground) {
         const session = await startCharDeskOpenSession(options);
-        const result = { status: "opened", url: session.canvasUrl, foreground: true };
-        streams.stdout.write(command.json ? `${JSON.stringify(result)}\n` : `${session.canvasUrl}\n`);
+        const result = {
+          status: "opened",
+          input: command.input,
+          url: session.url,
+          runtimeReady: false,
+          watching: true,
+          foreground: true,
+        };
+        streams.stdout.write(command.json
+          ? `${JSON.stringify(result)}\n`
+          : command.browser
+            ? "Opened CharDesk. Source updates are live.\n"
+            : `${session.url}\n`);
         if (command.browser) await launchCharDeskOpenSession(session);
         await waitForOpenSession(session);
         return 0;
@@ -589,11 +600,27 @@ export const runCli = async (
         cliEntry: process.argv[1]!,
         browser: command.browser,
       });
-      if (command.json) streams.stdout.write(`${JSON.stringify(session)}\n`);
+      if (command.json) {
+        const result = {
+          status: session.status,
+          input: session.input,
+          url: session.url,
+          runtimeReady: session.runtimeReady,
+          watching: true,
+          ...(session.fallbackOutput ? { fallbackOutput: session.fallbackOutput } : {}),
+          ...(session.message ? { message: session.message } : {}),
+        };
+        streams.stdout.write(`${JSON.stringify(result)}\n`);
+      }
       else if (session.status === "fallback") {
         streams.stdout.write(`${session.fallbackOutput}\n`);
         streams.stderr.write(`${session.message}\n`);
-      } else streams.stdout.write(`${session.canvasUrl}\n`);
+      } else if (!command.browser) streams.stdout.write(`${session.url}\n`);
+      else streams.stdout.write(
+        session.status === "reused"
+          ? "Reused CharDesk. Source updates are live.\n"
+          : "Opened CharDesk. Source updates are live.\n"
+      );
       return 0;
     }
     if (command.kind === "__serve") {
@@ -604,9 +631,20 @@ export const runCli = async (
     }
     if (command.kind === "status") {
       const sessions = await listManagedSessions(command.input, cwd);
-      if (command.json) streams.stdout.write(`${JSON.stringify({ status: "ok", sessions })}\n`);
+      if (command.json) {
+        const result = {
+          status: "ok",
+          sessions: sessions.map((session) => ({
+            input: session.input,
+            url: session.url,
+            runtimeReady: session.runtimeReady,
+            startedAt: session.startedAt,
+          })),
+        };
+        streams.stdout.write(`${JSON.stringify(result)}\n`);
+      }
       else if (sessions.length === 0) streams.stdout.write("No active CharDesk sessions.\n");
-      else sessions.forEach((session) => streams.stdout.write(`${session.input}\n${session.canvasUrl}\n`));
+      else sessions.forEach((session) => streams.stdout.write(`${session.input}\n${session.url}\n`));
       return 0;
     }
     if (command.kind === "close") {

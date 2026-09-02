@@ -64,7 +64,7 @@ describe("Blackboard source projection", () => {
 
     const grid = host.canvas.getState().grid;
     await act(async () => vi.advanceTimersByTimeAsync(500));
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(host.canvas.getState().grid).toBe(grid);
   });
 
@@ -75,6 +75,7 @@ describe("Blackboard source projection", () => {
         status: 200,
         headers: { ETag: '"valid"' },
       }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
       .mockResolvedValueOnce(new Response("[999mbroken", {
         status: 200,
         headers: { ETag: '"broken"' },
@@ -95,5 +96,40 @@ describe("Blackboard source projection", () => {
     expect(result.current.status.state).toBe("warning");
     expect(host.canvas.getState().grid).toBe(grid);
     expect(host.canvas.getState().grid.get("0,0")?.char).toBe("A");
+  });
+
+  it("applies later valid revisions without resetting the viewport", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response("A", {
+        status: 200,
+        headers: { ETag: '"first"' },
+      }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(new Response("B", {
+        status: 200,
+        headers: { ETag: '"second"' },
+      }));
+    vi.stubGlobal("fetch", fetchMock);
+    const host = createHost();
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <CanvasRuntimeProvider runtime={host.canvas}>{children}</CanvasRuntimeProvider>
+    );
+    const { result } = renderHook(
+      () => useBlackboardSource({ enabled: true }),
+      { wrapper }
+    );
+
+    await act(async () => Promise.resolve());
+    act(() => host.canvas.commands.viewport.setViewport(() => ({
+      offset: { x: 123, y: 456 },
+      zoom: 1.75,
+    })));
+    await act(async () => vi.advanceTimersByTimeAsync(500));
+
+    expect(host.canvas.getState().grid.get("0,0")?.char).toBe("B");
+    expect(host.canvas.getState().offset).toEqual({ x: 123, y: 456 });
+    expect(host.canvas.getState().zoom).toBe(1.75);
+    expect(result.current.firstFitRevision).toBe(1);
   });
 });

@@ -169,6 +169,12 @@ const createLayeredMermaidDiagram = (
     };
   });
 
+  const sourceCounts = new Map<string, number>();
+  const targetCounts = new Map<string, number>();
+  for (const edge of parsed.edges) {
+    sourceCounts.set(edge.source, (sourceCounts.get(edge.source) ?? 0) + 1);
+    targetCounts.set(edge.target, (targetCounts.get(edge.target) ?? 0) + 1);
+  }
   const edges = parsed.edges.map((edge, index) => {
     const id = `edge:${index}`;
     const sourcePresentation = nodePresentations.get(nodeId(edge.source));
@@ -183,15 +189,21 @@ const createLayeredMermaidDiagram = (
       endMarker: edge.endMarker,
       borderStyleRole: sourcePresentation.borderStyleRole,
     });
+    const competesForPort = (sourceCounts.get(edge.source) ?? 0) > 1 ||
+      (targetCounts.get(edge.target) ?? 0) > 1;
     return {
       id,
       source: nodeId(edge.source),
       target: nodeId(edge.target),
       label: createLayoutLabel(edge.label),
-      labelLayout: edge.label ? "route" as const : undefined,
+      labelLayout: edge.label
+        ? !isStateDiagram && competesForPort
+          ? "reserve" as const
+          : "route" as const
+        : undefined,
       routing: {
         quality: "readable" as const,
-        ...(!isStateDiagram
+        ...(!isStateDiagram && !edge.label
           ? { bundle: "structured" as const, bundleKey: edge.style }
           : {}),
         ...(edge.startMarker || edge.hasArrowStart ? { sourceClearance: 1 } : {}),
@@ -204,6 +216,7 @@ const createLayeredMermaidDiagram = (
     direction: parsed.direction,
     cycleBreaking: isStateDiagram ? "depth-first" : undefined,
     nodeAlignment: "balanced",
+    pathAlignment: isStateDiagram ? undefined : "topology",
     spacing: parsed.direction === "LR" || parsed.direction === "RL"
       ? {
           nodeNode: Math.max(2, options.paddingY),

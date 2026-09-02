@@ -1,13 +1,21 @@
 # @chardesk/cli
 
-Agent-first CharDesk workspace CLI. It creates and inspects source packages, opens the native
+Agent-first CharDesk workspace CLI. It creates and inspects source packages, opens the bundled
 Canvas locally, and renders portable artifacts. It consumes the same Blackboard, CharGraph,
 Protocol, Rendering, and font contracts as the CharDesk application.
 
-Run it without cloning CharDesk:
+Run it without cloning CharDesk or installing a global command:
 
 ```sh
 npx -y @chardesk/cli --help
+```
+
+The examples below use this no-install form. To use the shorter `chardesk`
+command instead, install it globally first:
+
+```sh
+npm install -g @chardesk/cli
+chardesk --help
 ```
 
 ## Workspace workflow
@@ -15,7 +23,7 @@ npx -y @chardesk/cli --help
 Create a canonical multi-file Blackboard package:
 
 ```sh
-chardesk init .chardesk/gpu --title "GPU"
+npx -y @chardesk/cli init .chardesk/gpu --title "GPU"
 ```
 
 Agents use normal filesystem tools to read and patch `blackboard.yaml` and `.panel` files. The
@@ -24,9 +32,9 @@ files are the source of truth; the CLI does not introduce a proprietary CRUD lay
 Inspect the compiled grid before showing it:
 
 ```sh
-chardesk inspect .chardesk/gpu --json
-chardesk inspect .chardesk/gpu --panel architecture --styles --json
-chardesk inspect .chardesk/gpu --region 0,0,96,32
+npx -y @chardesk/cli inspect .chardesk/gpu --json
+npx -y @chardesk/cli inspect .chardesk/gpu --panel architecture --styles --json
+npx -y @chardesk/cli inspect .chardesk/gpu --region 0,0,96,32
 ```
 
 `inspect` reports the actual Protocol grid used by Canvas and PNG rendering. Its default view is
@@ -36,30 +44,34 @@ Agent-readable style regions. `--panel` isolates one package panel by manifest I
 Open the workspace when a human wants to see it:
 
 ```sh
-chardesk open .chardesk/gpu
+npx -y @chardesk/cli open .chardesk/gpu
 ```
 
 `open` starts a managed background session, launches the default browser, and returns. The CLI
-ships the same CharDesk application runtime as the hosted product, opens its native read-only
-Blackboard mode at a tokenized loopback URL, and serves local source directly. It does not require
-CharDesk source code, a dev server, a cloud host, or an MCP server. Local files are never uploaded
-or modified by Canvas.
+ships the same CharDesk application runtime as the hosted product and opens a live source
+projection at a short `/s/<token>/` loopback URL. Human editing is disabled; source changes made by
+filesystem tools appear in the existing Canvas automatically. A normal launch prints
+`Opened CharDesk. Source updates are live.` or `Reused CharDesk. Source updates are live.` It does
+not require CharDesk source code, a dev server, a cloud host, or an MCP server. Local files are
+never uploaded or modified by Canvas.
 
 ```sh
-chardesk status
-chardesk close .chardesk/gpu
-chardesk close --all
+npx -y @chardesk/cli status
+npx -y @chardesk/cli close .chardesk/gpu
+npx -y @chardesk/cli close --all
 ```
 
-Opening the same workspace reuses its compatible healthy session. Use `--no-browser` to return its
-URL without launching a browser, `--port` for a fixed loopback port, or `--foreground` to attach the
+Opening a directory, its manifest, or a symlink to the same workspace reuses one compatible healthy
+session across CLI patch upgrades. Source edits do not change its URL. Use `--no-browser` to return
+the URL without launching a browser, `--port` for a fixed loopback port, or `--foreground` to attach the
 server lifecycle to the current process. If a launched browser cannot report Canvas readiness,
-`open` returns a PNG fallback path instead.
+`open` returns a PNG fallback path instead. `open --json` exposes the public session fields
+`status`, `input`, `url`, `runtimeReady`, and `watching`; process and registry metadata remain internal.
 
 ## Render
 
 ```sh
-chardesk render input.md -o output.png
+npx -y @chardesk/cli render input.md -o output.png
 ```
 
 The output suffix selects the artifact:
@@ -74,7 +86,7 @@ The output suffix selects the artifact:
 Use `--format` to override suffix inference. Plain text on stdout requires an explicit format:
 
 ```sh
-printf '# Status\n\n**Ready**' | chardesk render - -o - --format text
+printf '# Status\n\n**Ready**' | npx -y @chardesk/cli render - -o - --format text
 ```
 
 PNG uses an isolated native raster process. `--strict` rejects compiler diagnostics without

@@ -55,7 +55,6 @@ type BlackboardServerOptions = {
 
 export type BlackboardServerSession = {
   url: string;
-  canvasUrl: string;
   ready: Promise<void>;
   closed: Promise<void>;
   close: () => Promise<void>;
@@ -95,7 +94,7 @@ export const startBlackboardServer = async ({
   appRoot = defaultAppRoot,
   prefix = "",
 }: BlackboardServerOptions) => {
-  if (prefix && !/^\/session\/[a-z0-9]+$/u.test(prefix)) {
+  if (prefix && !/^\/s\/[A-Za-z0-9_-]{22}$/u.test(prefix)) {
     throw new Error("Blackboard server prefix must be an opaque session path.");
   }
   let staticRoot: string;
@@ -207,13 +206,9 @@ export const startBlackboardServer = async ({
         send(response, 400);
         return;
       }
-      if (decoded === "/") {
-        send(response, 307, undefined, { Location: `${prefix}/blackboard?reader=1` });
-        return;
-      }
       const asset = resolve(
         staticRoot,
-        decoded === "/blackboard" ? "index.html" : `.${decoded}`
+        decoded === "/" || decoded === "/blackboard" ? "index.html" : `.${decoded}`
       );
       if (!isInside(staticRoot, asset)) {
         send(response, 404);
@@ -253,12 +248,11 @@ export const startBlackboardServer = async ({
   const address = server.address();
   if (!address || typeof address === "string") throw new Error("Blackboard server did not bind TCP.");
   const origin = `http://127.0.0.1:${address.port}`;
-  const url = `${origin}${prefix}`;
+  const url = `${origin}${prefix}/`;
   const closed = new Promise<void>((resolveClosed) => server.once("close", resolveClosed));
   return {
     server,
     url,
-    canvasUrl: `${url}/blackboard?reader=1`,
     ready,
     closed,
     close: () => new Promise<void>((resolveClose, reject) =>

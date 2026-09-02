@@ -35,11 +35,9 @@ export const useBlackboardSource = ({ enabled }: { enabled: boolean }) => {
     let readyReported = false;
     const reportReady = () => {
       if (readyReported) return;
-      const ready = new URL("ready", document.baseURI);
-      if (ready.pathname.includes("/session/")) {
-        readyReported = true;
-        void fetch(ready, { method: "POST" }).catch(() => undefined);
-      }
+      readyReported = true;
+      void fetch(new URL("ready", document.baseURI), { method: "POST" })
+        .catch(() => undefined);
     };
 
     const schedule = () => {

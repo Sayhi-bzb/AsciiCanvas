@@ -1,39 +1,41 @@
 ---
 name: chardesk
-description: Authoritative syntax and direct Blackboard workflow for canonical `.chardesk` documents, Canvas text, CharGraph structured sources, ESC-less ANSI, block layouts, and Slides. Use when Codex needs to create, edit, style, or review CharDesk content.
+description: Create, edit, inspect, show, or render CharDesk Canvas, Blackboard, CharGraph, and Slide content through the CLI or live workspace tools.
 ---
 
-# CharDesk formats
+# CharDesk
 
-Load only the required reference:
+Canonical source is the editable authority; Canvas cells are its projection.
 
-- Canvas text or ANSI styling: [`references/ansi.md`](references/ansi.md).
-- Markdown, fenced Mermaid or data, and math: [`references/chargraph.md`](references/chargraph.md).
-- Multi-field or multi-row Canvas composition: [`references/block-layout.md`](references/block-layout.md).
-- Slide document structure: [`references/slides.md`](references/slides.md).
-- Local inspection, Canvas viewing, or artifact rendering: [`references/rendering.md`](references/rendering.md).
-- Multi-file Blackboard packages: [`references/blackboard.md`](references/blackboard.md).
-- Live browser Blackboard workspace: load
-  [`references/browser-blackboard.md`](references/browser-blackboard.md) only when
-  `chardesk_blackboard_*` tools are available and the task targets that workspace.
-- Styled Slides: Slides first, then ANSI.
-- Slides that compile Markdown, Mermaid, data, math, or block layout: Slides
-  first, then CharGraph; load Block Layout when the source uses `|||` or `---`.
-- Structured fields in a block layout: Block Layout first, then CharGraph; also
-  load ANSI only when the source uses explicit CharDesk styles.
+## Access
 
-When live Blackboard tools are unavailable, use the local source workflow. For
-a single-file Blackboard, use the named `.chardesk` path or
-`blackboard.chardesk` when none is named. For a package, read `blackboard.yaml`
-first and open only the Panels required by the task:
+- Slides, file artifacts, and explicit local paths use
+  [`references/cli.md`](references/cli.md).
+- An explicit Blackboard workspace ID or URL uses
+  [`references/live-workspace.md`](references/live-workspace.md) when
+  `chardesk_blackboard_*` tools are available.
+- With no explicit target, prefer available live workspace tools; otherwise use
+  the CLI.
+- When a live Canvas is requested but its tools are unavailable, read
+  [`references/experimental-live.md`](references/experimental-live.md).
 
-1. Read an existing Blackboard before writing.
-2. Patch locally with `apply_patch`; clear or replace only when explicitly asked.
-3. For a new complex layout, write Plain first, then add sparse style controls
-   with a second patch to the same file. Unstyled cells use the default style.
-4. Run `npx -y @chardesk/cli inspect <board.chardesk|blackboard.yaml|directory> --json`.
-5. Run `chardesk open <path>` only when the human asks to see the Canvas.
-6. Report only what changed and where; do not repeat the Blackboard in chat.
+## Context
 
-The protocol owns ANSI, CJK, grapheme, and width logic. Use visible ESC-less
-controls in `.chardesk`; never emit terminal ESC bytes or reproduce validation.
+- Content creation, editing, restructuring, or visual improvement uses the
+  executable [`CharGraph casebook`](references/authoring.md).
+- `blackboard.yaml` or a Blackboard package directory:
+  [`references/blackboard.md`](references/blackboard.md).
+- A Slide document or Slide deliverable:
+  [`references/slides.md`](references/slides.md).
+
+New unspecified documents default to a Blackboard package. Existing source
+determines its document contract. A standalone `.chardesk` remains a supported
+Freeform Canvas input.
+
+## Delivery
+
+Execute available setup, inspection, opening, rendering, and navigation actions
+directly. Open the first complete delivery once. Later filesystem edits are live:
+inspect them, then reuse the existing page without another open/close cycle.
+User-facing handoff reports the result and only the privileged UI action that
+requires the human.

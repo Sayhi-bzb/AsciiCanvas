@@ -3,8 +3,13 @@ type BlackboardLocation = Readonly<{
   search: string;
 }>;
 
-export const isBlackboardRoute = ({ pathname }: Pick<BlackboardLocation, "pathname">) =>
-  pathname === "/blackboard" || pathname.endsWith("/blackboard");
+const LOCAL_READER_PATH = /\/s\/[A-Za-z0-9_-]{22}\/?$/u;
 
-export const isLocalBlackboardReaderRoute = (location: BlackboardLocation) =>
-  isBlackboardRoute(location) && new URLSearchParams(location.search).get("reader") === "1";
+export const isLocalBlackboardReaderRoute = (
+  { pathname }: Pick<BlackboardLocation, "pathname">
+) => LOCAL_READER_PATH.test(pathname);
+
+export const isBlackboardRoute = (location: Pick<BlackboardLocation, "pathname">) =>
+  location.pathname === "/blackboard"
+  || location.pathname.endsWith("/blackboard")
+  || isLocalBlackboardReaderRoute(location);

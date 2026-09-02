@@ -48,21 +48,30 @@ crossings. A parallel Mermaid style-role canvas records visual meaning without
 affecting geometry. Serialization groups adjacent equal style roles into
 CharGraph fragments after layout and CJK-safe cell projection.
 
-Flow edges opt into structured routing after cell projection. Compatible
-fan-out and fan-in edges receive an explicit bundle identity and share one
-orthogonal bus; unrelated edges never gain shared topology from coincident
-endpoints. Marker cells are terminal and exclusive. After integer projection,
-invalid independent routes are repaired around nodes, marker corridors, and
-collinear routes before labels are placed and the scene is composed. Flow and
-State additionally opt into readable routing: overlapping opposite endpoints
-share an axis when possible. Conflicting endpoints choose a free side toward
-the other endpoint. Route repair compares strict and relaxed orthogonal
+Flow assigns alignment priority from topology. On the SCC condensation graph,
+an edge with a multi-hop alternative is a shortcut; the longest remaining path
+is the visual backbone. ELK straightens that backbone while shortcuts use an
+outer corridor. Cycles and parallel edges remain ordinary relationships.
+
+Flow edges opt into structured routing after cell projection. Only compatible,
+unlabelled fan-out or fan-in edges whose branch nodes occupy the same layer may
+share an explicit orthogonal bus. Labeled branches and cross-layer shortcuts
+remain independent. Labels competing at one endpoint reserve layout space;
+single-path labels remain route-placed. When continuous ELK attachments collapse
+onto one cell, Flow keeps the highest-priority aligned edge on the primary side
+and distributes other endpoint owners across free primary and perpendicular
+border cells. A bundle is one endpoint owner. State, Class, and ER retain their
+existing endpoint policies.
+
+Marker cells are terminal and exclusive. After integer projection, invalid
+independent routes are repaired around nodes, marker corridors, and collinear
+routes before labels are placed and the scene is composed. Flow and State
+additionally opt into readable routing: overlapping opposite endpoints share an
+axis when possible. Route repair compares strict and relaxed orthogonal
 candidates by short legs, bends, length, area, then stable order instead of
 accepting the first feasible detour. Rounded glyphs therefore express real
 detours rather than search artifacts. Flow and State also opt into Brandes–Köpf
-balanced node placement so
-fork and join layers stay centered across graph depth; Class and ER retain ELK's
-automatic placement.
+balanced node placement; Class and ER retain ELK's automatic placement.
 
 Flow presents every node as the same rounded card. Mermaid shape semantics are
 retained by a first-line marker inside that card; multiline continuation text

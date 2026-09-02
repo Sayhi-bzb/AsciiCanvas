@@ -1,30 +1,33 @@
-# Slides 文件结构
+# Slide documents
 
 ````md
 ---
 chardesk: document/v1
 mode: slide
-title: 产品介绍
+title: Product overview
 ---
 
-## 首页
+## Opening
 
-```chardesk
-┌────────────────────┐
-│      产品介绍      │
-└────────────────────┘
+```chargraph size=auto
+# Product overview
 ```
 
-## 结尾
+## Closing
 
 ```chardesk size=80x24
-        [36m谢谢[0m
+        [36mThank you[0m
 ```
 ````
 
-- 文件头使用 `chardesk: document/v1`、`mode: slide` 和可选标题。
-- 每个 `##` 标题开始一页，紧随其后的代码块是页面内容。
-- `chardesk` 表示已编译 Canvas 文本；`chargraph` 编译 Markdown、Mermaid、数据、数学和 Block Layout。字面文本用 `text`，终端 ANSI 用 `ansi`。
-- 省略 `size` 时使用默认画幅 `100x27`；自定义页面可用 `size=列数x行数` 覆盖。内容驱动的知识页使用 `size=auto`，画幅取统一编译器生成的完整网格尺寸，并在左右各留 4 格、上下各留 2 行。
-- `chardesk` 页面遵循 [`Canvas 文本语法`](./ansi.md)；`chargraph` 页面遵循 [`CharGraph`](./chargraph.md)。
-- `.chardesk` 是正式文件入口；旧 `.slides.md` 与每页显式声明尺寸的文件仅作为兼容输入。
+- Frontmatter uses `chardesk: document/v1`, `mode: slide`, and an optional
+  title.
+- Each `##` heading starts a page followed by its content fence.
+- `chardesk` contains compiled Canvas text; `chargraph` compiles the full
+  [authoring palette](authoring.md). `text` is literal text and `ansi` is
+  terminal ANSI input.
+- The default frame is `100x27`. A fence may set `size=<columns>x<rows>` or
+  `size=auto`; auto sizes the compiled grid with four horizontal and two
+  vertical padding cells.
+- `.chardesk` is the canonical file entry. Legacy `.slides.md` files remain
+  compatibility inputs.

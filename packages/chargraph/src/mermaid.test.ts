@@ -469,6 +469,61 @@ API-->>-User: Completed`;
     expectNoInternalCellTokens(output);
   });
 
+  it("keeps labeled fallback flow on the backbone and routes terminal and shortcut branches outside", async () => {
+    const result = await renderMermaid(`flowchart LR
+  E["查询每日市值"]
+  PRIMARY["首选<br/>Gangtise PG"]
+  OK{"查询成功？"}
+  FALLBACK["备用<br/>TuShare"]
+  OUTPUT["标准市值数据"]
+  FAIL["返回 unavailable"]
+  E --> PRIMARY
+  PRIMARY --> OK
+  OK -->|"成功"| OUTPUT
+  OK -->|"允许回退"| FALLBACK
+  OK -->|"不能回退"| FAIL
+  FALLBACK --> OUTPUT`);
+    const output = getCharGraphText(result);
+    const lines = output.split("\n");
+    const decisionRow = lines.findIndex((line) => line.includes("查询成功？"));
+    const failureRow = lines.findIndex((line) => line.includes("返回 unavailable"));
+    const fallbackRow = lines.findIndex((line) => line.includes("备用"));
+    const outputRow = lines.findIndex((line) => line.includes("标准市值数据"));
+    const successRow = lines.findIndex((line, index) =>
+      index > decisionRow && line.includes("成功")
+    );
+
+    expect(result.diagnostics).toEqual([]);
+    expect(failureRow).toBeLessThan(decisionRow);
+    expect(successRow).toBeGreaterThan(decisionRow);
+    expect(fallbackRow).toBe(outputRow);
+    expect(output).toMatch(/不能回退.*>│ 返回 unavailable │/u);
+    expect(output).toMatch(/允许回退.*╯/u);
+    expect(output).toMatch(/>│ {3}备用/u);
+    expectNoInternalCellTokens(output);
+  });
+
+  it("treats a transitive GPU edge as a lower shortcut instead of the visual backbone", async () => {
+    const result = await renderMermaid(`flowchart LR
+  C[CPU] ==>|PCIe| G[GPU 芯片]
+  G --> S[流式多处理器 SM]
+  G --> V[显存 VRAM]
+  S --> V
+  V -->|帧 / 结果| O[屏幕或程序]`);
+    const output = getCharGraphText(result);
+    const backbone = output.split("\n").find((line) =>
+      ["CPU", "GPU 芯片", "流式多处理器 SM", "显存 VRAM", "屏幕或程序"]
+        .every((label) => line.includes(label))
+    );
+
+    expect(result.diagnostics).toEqual([]);
+    expect(backbone).toBeDefined();
+    expect(output.indexOf("^", output.indexOf(backbone!))).toBeGreaterThan(-1);
+    expect(output).toMatch(/PCIe/u);
+    expect(output).toMatch(/[═║]/u);
+    expectNoInternalCellTokens(output);
+  });
+
   it("routes long fan-out and fan-in flows through explicit buses", async () => {
     const source = `flowchart TD
   A[选择一个待核对模型] --> B[查看模型配置]
@@ -525,7 +580,7 @@ API-->>-User: Completed`;
   B ==>|粗线| D[下路]`);
 
     expect(output).toMatch(/虚线.*┄|┄.*虚线/u);
-    expect(output).toMatch(/粗线.*║|║.*粗线/u);
+    expect(output).toMatch(/粗线.*[═║]|[═║].*粗线/u);
     expect(output).toMatch(/>│ 上路 │/u);
     expect(output).toMatch(/>│ 下路 │/u);
     expect(output).toMatch(/┄/u);
@@ -905,7 +960,8 @@ API-->>-User: Completed`;
     const successRow = lines.findIndex((line) => line.includes("通过"));
     expect(successRow).toBeGreaterThan(validationRow);
     expect(lines.slice(0, validationRow).join("\n")).not.toContain("═");
-    expect(output).toMatch(/╚═+通过═+>│ ▤ 缓存 │/u);
+    expect(output).toMatch(/[╚╔][═║]*通过[═║]*[╝╗]/u);
+    expect(output).toMatch(/>│ ▤ 缓存 │/u);
     expectTerminalArrows(output);
     expectNoInternalCellTokens(output);
   });

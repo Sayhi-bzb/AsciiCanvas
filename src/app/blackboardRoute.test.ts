@@ -4,7 +4,7 @@ import { isBlackboardRoute, isLocalBlackboardReaderRoute } from "./blackboardRou
 describe("Blackboard routes", () => {
   it.each([
     "/blackboard",
-    "/session/0123456789abcdef/blackboard",
+    "/s/0123456789abcdefABCDEF/",
   ])("recognizes %s", (pathname) => {
     expect(isBlackboardRoute({ pathname })).toBe(true);
   });
@@ -12,19 +12,18 @@ describe("Blackboard routes", () => {
   it.each([
     "/",
     "/blackboards",
-    "/session/0123456789abcdef/blackboard/board",
+    "/s/short/",
+    "/s/0123456789abcdefABCDEF/board",
   ])("rejects %s", (pathname) => {
     expect(isBlackboardRoute({ pathname })).toBe(false);
   });
 
-  it("requires the explicit local reader query", () => {
+  it("uses the opaque session root as the local reader route", () => {
     expect(isLocalBlackboardReaderRoute({
-      pathname: "/session/0123456789abcdef/blackboard",
-      search: "?reader=1",
+      pathname: "/s/0123456789abcdefABCDEF/",
     })).toBe(true);
     expect(isLocalBlackboardReaderRoute({
-      pathname: "/session/0123456789abcdef/blackboard",
-      search: "",
+      pathname: "/blackboard",
     })).toBe(false);
   });
 });

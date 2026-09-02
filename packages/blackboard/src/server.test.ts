@@ -28,24 +28,24 @@ const fixture = async () => {
 describe("Blackboard Reader", () => {
   it("serves a missing board, revisions, and unchanged responses", async () => {
     const { board, running } = await fixture();
-    expect((await fetch(`${running.url}/board`)).status).toBe(404);
+    expect((await fetch(new URL("board", running.url))).status).toBe(404);
 
     const source = "[1;32m登录[0m 👩‍💻";
     await writeFile(board.path, source);
-    const current = await fetch(`${running.url}/board`);
+    const current = await fetch(new URL("board", running.url));
     expect(current.status).toBe(200);
     expect(current.headers.get("content-type")).toBe("text/plain; charset=utf-8");
     expect(current.headers.get("etag")).toMatch(/^"[0-9a-f]{64}"$/);
     expect(current.headers.get("x-chardesk-source-name")).toBe("blackboard.chardesk");
     expect(await current.text()).toBe(source);
 
-    const unchanged = await fetch(`${running.url}/board`, {
+    const unchanged = await fetch(new URL("board", running.url), {
       headers: { "If-None-Match": current.headers.get("etag")! },
     });
     expect(unchanged.status).toBe(304);
 
     await writeFile(board.path, "[999mcurrent source[0m");
-    const diagnostic = await fetch(`${running.url}/board`, {
+    const diagnostic = await fetch(new URL("board", running.url), {
       headers: { "If-None-Match": current.headers.get("etag")! },
     });
     expect(diagnostic.status).toBe(200);
@@ -64,7 +64,7 @@ describe("Blackboard Reader", () => {
       "[32mBody[0m",
     ].join("\n"));
 
-    const response = await fetch(`${running.url}/board`);
+    const response = await fetch(new URL("board", running.url));
     expect(response.status).toBe(200);
     expect(await response.text()).toBe("[32mBody[0m");
 
@@ -75,17 +75,17 @@ describe("Blackboard Reader", () => {
       "---",
       "## Slide",
     ].join("\n"));
-    expect((await fetch(`${running.url}/board`)).status).toBe(422);
+    expect((await fetch(new URL("board", running.url))).status).toBe(422);
   });
 
   it("serves the page and rejects writes and static traversal", async () => {
     const { running } = await fixture();
     const rootResponse = await fetch(running.url, { redirect: "manual" });
-    expect(rootResponse.status).toBe(307);
-    expect(rootResponse.headers.get("location")).toBe("/blackboard?reader=1");
-    expect(await (await fetch(`${running.url}/blackboard`)).text()).toContain("Blackboard");
-    expect((await fetch(`${running.url}/board`, { method: "POST" })).status).toBe(405);
-    expect((await fetch(`${running.url}/%2e%2e/package.json`)).status).toBe(404);
+    expect(rootResponse.status).toBe(200);
+    expect(await rootResponse.text()).toContain("Blackboard");
+    expect(await (await fetch(new URL("blackboard", running.url))).text()).toContain("Blackboard");
+    expect((await fetch(new URL("board", running.url), { method: "POST" })).status).toBe(405);
+    expect((await fetch(`${running.url}%2e%2e/package.json`)).status).toBe(404);
   });
 
   it("rejects a board symlink that escapes after startup", async () => {
@@ -95,7 +95,7 @@ describe("Blackboard Reader", () => {
     const target = join(outside, "outside.chardesk");
     await writeFile(target, "outside");
     await symlink(target, board.path);
-    expect((await fetch(`${running.url}/board`)).status).toBe(403);
+    expect((await fetch(new URL("board", running.url))).status).toBe(403);
     expect(root).not.toBe(outside);
   });
 
@@ -123,7 +123,7 @@ layout:
     const running = await startBlackboardServer({ board, port: 0, appRoot: client });
     close.push(running.close);
 
-    const first = await fetch(`${running.url}/board`);
+    const first = await fetch(new URL("board", running.url));
     expect(first.status).toBe(200);
     expect(first.headers.get("x-chardesk-source-name")).toBe("blackboard.chardesk");
     expect(await first.text()).toBe([
@@ -136,7 +136,7 @@ layout:
     ].join("\n"));
 
     await writeFile(join(boardRoot, "panels/right.panel"), "RR");
-    const revised = await fetch(`${running.url}/board`, {
+    const revised = await fetch(new URL("board", running.url), {
       headers: { "If-None-Match": first.headers.get("etag")! },
     });
     expect(revised.status).toBe(200);

@@ -67,6 +67,67 @@ describe("ELK cell endpoint projection", () => {
     ]).toBeUndefined();
   });
 
+  it("prioritizes the longest non-transitive path over shortcuts and terminal branches", () => {
+    const graph: LayoutGraph = {
+      direction: "LR",
+      nodeAlignment: "balanced",
+      pathAlignment: "topology",
+      spacing: { nodeNode: 2, nodeNodeBetweenLayers: 3 },
+      groups: [],
+      nodes: ["entry", "primary", "decision", "fallback", "output", "failure"]
+        .map((id) => ({ id, label: id, width: 7, height: 3 })),
+      edges: [
+        { id: "entry-primary", source: "entry", target: "primary" },
+        { id: "primary-decision", source: "primary", target: "decision" },
+        { id: "success-shortcut", source: "decision", target: "output" },
+        { id: "decision-fallback", source: "decision", target: "fallback" },
+        { id: "decision-failure", source: "decision", target: "failure" },
+        { id: "fallback-output", source: "fallback", target: "output" },
+      ],
+    };
+
+    const priorities = new Map(toElkGraph(graph).edges?.map((edge) => [
+      edge.id,
+      edge.layoutOptions?.["elk.layered.priority.straightness"],
+    ]));
+
+    expect(priorities.get("success-shortcut")).toBe("0");
+    expect(priorities.get("decision-failure")).toBe("13");
+    for (const id of [
+      "entry-primary",
+      "primary-decision",
+      "decision-fallback",
+      "fallback-output",
+    ]) expect(priorities.get(id)).toBe("14");
+    expect(toElkGraph({ ...graph, pathAlignment: "automatic" }).edges
+      ?.every((edge) => edge.layoutOptions === undefined)).toBe(true);
+  });
+
+  it("does not classify cycle or parallel relationships as topology shortcuts", () => {
+    const graph: LayoutGraph = {
+      direction: "LR",
+      pathAlignment: "topology",
+      spacing: { nodeNode: 2, nodeNodeBetweenLayers: 3 },
+      groups: [],
+      nodes: ["a", "b", "c"].map((id) => ({
+        id,
+        label: id,
+        width: 5,
+        height: 3,
+      })),
+      edges: [
+        { id: "ab-first", source: "a", target: "b" },
+        { id: "ab-second", source: "a", target: "b" },
+        { id: "ba", source: "b", target: "a" },
+        { id: "ac", source: "a", target: "c" },
+      ],
+    };
+
+    expect(toElkGraph(graph).edges?.every((edge) =>
+      edge.layoutOptions?.["elk.layered.priority.straightness"] !== "0"
+    )).toBe(true);
+  });
+
   it("gives every independent edge end a dedicated fixed-order ELK port", () => {
     const graph: LayoutGraph = {
       direction: "LR",

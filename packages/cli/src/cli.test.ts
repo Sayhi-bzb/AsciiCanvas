@@ -1,5 +1,6 @@
+import { createHash } from "node:crypto";
 import { spawn } from "node:child_process";
-import { access, mkdtemp, readFile, rm } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -12,7 +13,12 @@ afterEach(async () => {
   ));
 });
 
-const runBinary = (cwd: string, args: readonly string[], input: string) => new Promise<{
+const runBinary = (
+  cwd: string,
+  args: readonly string[],
+  input = "",
+  env: NodeJS.ProcessEnv = process.env,
+) => new Promise<{
   code: number | null;
   stdout: string;
   stderr: string;
@@ -20,7 +26,7 @@ const runBinary = (cwd: string, args: readonly string[], input: string) => new P
   const child = spawn(process.execPath, [
     new URL("../dist/cli.js", import.meta.url).pathname,
     ...args,
-  ], { cwd, stdio: ["pipe", "pipe", "pipe"] });
+  ], { cwd, env, stdio: ["pipe", "pipe", "pipe"] });
   let stdout = "";
   let stderr = "";
   child.stdout.on("data", (chunk) => { stdout += chunk; });
@@ -64,4 +70,74 @@ describe("chardesk executable", () => {
       diagnostics: [],
     });
   });
+
+  it("keeps one live session for every path to the same workspace", async () => {
+    const cwd = await mkdtemp(join(tmpdir(), "chardesk-cli-open-"));
+    temporaryDirectories.push(cwd);
+    const env = { ...process.env, TMPDIR: cwd };
+    expect((await runBinary(cwd, ["init", "board", "--title", "Live"], "", env)).code).toBe(0);
+
+    const first = JSON.parse((await runBinary(
+      cwd,
+      ["open", "board", "--no-browser", "--json"],
+      "",
+      env,
+    )).stdout) as { status: string; url: string; watching: boolean };
+    expect(first).toMatchObject({ status: "opened", watching: true });
+
+    const manifest = join(cwd, "board", "blackboard.yaml");
+    const canonical = await realpath(manifest);
+    const recordName = `${createHash("sha256").update(canonical).digest("hex").slice(0, 24)}.json`;
+    const recordPath = join(cwd, "chardesk-sessions-v2", recordName);
+    const originalRecord = JSON.parse(await readFile(recordPath, "utf8")) as Record<string, unknown>;
+    await writeFile(join(cwd, "board", "main.panel"), "# Revised\n");
+    await writeFile(recordPath, JSON.stringify({ ...originalRecord, cliVersion: "0.3.0" }));
+
+    const second = JSON.parse((await runBinary(
+      cwd,
+      ["open", manifest, "--no-browser", "--json"],
+      "",
+      env,
+    )).stdout) as { status: string; url: string };
+    await symlink(manifest, join(cwd, "board-link.chardesk"));
+    const third = JSON.parse((await runBinary(
+      cwd,
+      ["open", "board-link.chardesk", "--no-browser", "--json"],
+      "",
+      env,
+    )).stdout) as { status: string; url: string };
+    const currentRecord = JSON.parse(await readFile(recordPath, "utf8")) as Record<string, unknown>;
+
+    expect(second).toMatchObject({ status: "reused", url: first.url });
+    expect(third).toMatchObject({ status: "reused", url: first.url });
+    expect(currentRecord.pid).toBe(originalRecord.pid);
+    expect(await (await fetch(new URL("board", first.url))).text()).toContain("Revised");
+
+    const legacyRoot = join(cwd, "chardesk-sessions-v1", "legacy-patch");
+    const legacyRecord = join(legacyRoot, "session.json");
+    await mkdir(legacyRoot, { recursive: true });
+    await writeFile(legacyRecord, JSON.stringify({ ...currentRecord, version: 2 }));
+    const migrated = JSON.parse((await runBinary(
+      cwd,
+      ["open", "board", "--no-browser", "--json"],
+      "",
+      env,
+    )).stdout) as { status: string; url: string };
+    expect(migrated.status).toBe("opened");
+    expect(migrated.url).not.toBe(first.url);
+    await expect(access(legacyRecord)).rejects.toThrow();
+
+    const replacementRecord = JSON.parse(await readFile(recordPath, "utf8")) as Record<string, unknown>;
+    await writeFile(recordPath, JSON.stringify({ ...replacementRecord, runtimeVersion: 99 }));
+    const incompatible = JSON.parse((await runBinary(
+      cwd,
+      ["open", "board", "--no-browser", "--json"],
+      "",
+      env,
+    )).stdout) as { status: string; url: string };
+    expect(incompatible.status).toBe("opened");
+    expect(incompatible.url).not.toBe(migrated.url);
+
+    expect((await runBinary(cwd, ["close", "board"], "", env)).code).toBe(0);
+  }, 20_000);
 });
