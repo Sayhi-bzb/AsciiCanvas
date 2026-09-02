@@ -1,5 +1,8 @@
 # Blackboard packages
 
+A Blackboard is a working surface. Ideas keep their place, time leaves traces,
+and proximity carries meaning.
+
 A Blackboard package divides one Canvas into independently editable spatial
 contexts. `blackboard.yaml` is its first-read context map; `.panel` files own
 local content.
@@ -39,7 +42,7 @@ layout:
   dimensions.
 - Registered Panels outside `layout.areas` remain valid drafts and produce a
   warning.
-- Panel content may draw from the [visual casebook](authoring.md).
+- Panel content may draw from the [materials](materials.md).
 
 The Reader flattens the package into one static Freeform Canvas. The matrix is
 source organization rather than a visible node or persistent runtime layer.

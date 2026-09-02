@@ -1,5 +1,8 @@
 # Slide documents
 
+A Slide is one visual moment in a sequence. Each page advances the thought while
+remaining inside the document's established scene.
+
 ````md
 ---
 chardesk: document/v1
@@ -24,8 +27,8 @@ title: Product overview
   title.
 - Each `##` heading starts a page followed by its content fence.
 - `chardesk` contains compiled Canvas text; `chargraph` compiles visual source
-  such as the [casebook](authoring.md). `text` is literal text and `ansi` is
-  terminal ANSI input.
+  from the available [materials](materials.md). `text` is literal text and
+  `ansi` is terminal ANSI input.
 - The default frame is `100x27`. A fence may set `size=<columns>x<rows>` or
   `size=auto`; auto sizes the compiled grid with four horizontal and two
   vertical padding cells.

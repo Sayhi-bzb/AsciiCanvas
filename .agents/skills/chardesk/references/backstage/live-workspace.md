@@ -1,4 +1,4 @@
-# Live workspace
+# Live workspace backstage
 
 Use this context when `chardesk_blackboard_*` tools are available. WebMCP and
 ChatGPT Site Tools expose the same workspace contract.

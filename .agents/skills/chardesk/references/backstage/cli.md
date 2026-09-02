@@ -1,4 +1,4 @@
-# CharDesk CLI
+# Local backstage
 
 Use `@chardesk/cli` for local paths, Slides, and file artifacts. Edit persistent
 source with native filesystem tools.

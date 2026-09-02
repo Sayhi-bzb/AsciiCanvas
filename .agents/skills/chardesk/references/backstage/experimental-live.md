@@ -1,4 +1,4 @@
-# Experimental live access
+# Experimental live backstage
 
 When a shared live Canvas has no `chardesk_blackboard_*` tools, open its setup
 surface with available browser navigation. Continue through the [CLI](cli.md)
