@@ -208,7 +208,7 @@ function parseMember(line: string): { member: ClassMember; isMethod: boolean } |
   if (methodMatch) {
     const name = methodMatch[1]!.trim()
     const params = methodMatch[2]?.trim() || undefined // Store the parameter string
-    const type = methodMatch[3]?.trim()
+    const type = methodMatch[3]?.trim().replace(/^:\s*/, '')
     // Check for static ($) or abstract (*) markers
     const isStatic = name.endsWith('$') || rest.includes('$')
     const isAbstract = name.endsWith('*') || rest.includes('*')
@@ -226,13 +226,16 @@ function parseMember(line: string): { member: ClassMember; isMethod: boolean } |
     }
   }
 
-  // It's an attribute: [Type] name or name Type
-  // Common patterns: "String name", "+int age", "name"
+  // It's an attribute: `Type name`, `name: Type`, or `name`.
+  const colonMatch = rest.match(/^([^\s:]+)\s*:\s*(.+)$/)
   const parts = rest.split(/\s+/)
   let name: string
   let type: string | undefined
 
-  if (parts.length >= 2) {
+  if (colonMatch) {
+    name = colonMatch[1]!
+    type = colonMatch[2]!.trim()
+  } else if (parts.length >= 2) {
     // "Type name" pattern
     type = parts[0]
     name = parts.slice(1).join(' ')

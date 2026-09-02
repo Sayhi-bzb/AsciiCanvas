@@ -492,8 +492,8 @@ describe("ELK cell endpoint projection", () => {
 
     expect(edge.points).toEqual([
       { x: 7, y: 5 },
-      { x: 7, y: 4 },
-      { x: 10, y: 4 },
+      { x: 7, y: 3 },
+      { x: 10, y: 3 },
       { x: 10, y: 10 },
       { x: 12, y: 10 },
     ]);

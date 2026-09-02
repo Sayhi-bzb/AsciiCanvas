@@ -126,82 +126,91 @@ export function renderSequenceSurface(text: string, config: AsciiConfig) {
   const notePositions: Array<{ x: number; y: number; width: number; height: number; lines: string[] }> = []
 
   let curY = actorBoxH // start right below header boxes
+  let eventY = actorBoxH
 
-  const placeNotes = (afterIndex: number) => {
-    for (const note of diagram.notes.filter(candidate => candidate.afterIndex === afterIndex)) {
-      curY += 1
-      const nLines = splitLines(note.text)
-      const nWidth = Math.max(...nLines.map(l => l.length)) + 4
-      const nHeight = nLines.length + 2
-      const aIdx = actorIdx.get(note.actorIds[0]!) ?? 0
-      let nx: number
-      if (note.position === 'left') {
-        nx = llX[aIdx]! - nWidth - 1
-      } else if (note.position === 'right') {
-        nx = llX[aIdx]! + 2
-      } else if (note.actorIds.length >= 2) {
-        const aIdx2 = actorIdx.get(note.actorIds[1]!) ?? aIdx
-        nx = Math.floor((llX[aIdx]! + llX[aIdx2]!) / 2) - Math.floor(nWidth / 2)
-      } else {
-        nx = llX[aIdx]! - Math.floor(nWidth / 2)
-      }
-      nx = Math.max(0, nx)
-      notePositions.push({ x: nx, y: curY, width: nWidth, height: nHeight, lines: nLines })
-      curY += nHeight
+  const activationPositions: Array<{ actorId: string; action: 'activate' | 'deactivate'; y: number }> = []
+  const blockIndexById = new Map(diagram.blocks.map((block, index) => [block.id, index]))
+  const placeNote = (noteIndex: number) => {
+    const note = diagram.notes[noteIndex]!
+    curY += 1
+    const nLines = splitLines(note.text)
+    const nWidth = Math.max(...nLines.map(l => l.length)) + 4
+    const nHeight = nLines.length + 2
+    const aIdx = actorIdx.get(note.actorIds[0]!) ?? 0
+    let nx: number
+    if (note.position === 'left') {
+      nx = llX[aIdx]! - nWidth - 1
+    } else if (note.position === 'right') {
+      nx = llX[aIdx]! + 2
+    } else if (note.actorIds.length >= 2) {
+      const aIdx2 = actorIdx.get(note.actorIds[1]!) ?? aIdx
+      nx = Math.floor((llX[aIdx]! + llX[aIdx2]!) / 2) - Math.floor(nWidth / 2)
+    } else {
+      nx = llX[aIdx]! - Math.floor(nWidth / 2)
     }
+    nx = Math.max(0, nx)
+    notePositions[noteIndex] = { x: nx, y: curY, width: nWidth, height: nHeight, lines: nLines }
+    curY += nHeight
+    eventY = curY
   }
 
-  placeNotes(-1)
-
-  for (let m = 0; m < diagram.messages.length; m++) {
-    // Block openings at this message
-    for (let b = 0; b < diagram.blocks.length; b++) {
-      if (diagram.blocks[b]!.startIndex === m) {
+  for (const event of diagram.timeline) {
+    if (event.kind === 'block-start') {
+      const blockIndex = blockIndexById.get(event.blockId)
+      if (blockIndex !== undefined) {
         curY += 2 // 1 blank + 1 header row
-        blockStartY.set(b, curY - 1)
+        blockStartY.set(blockIndex, curY - 1)
+        eventY = curY
       }
+      continue
     }
-
-    // Dividers at this message index
-    for (let b = 0; b < diagram.blocks.length; b++) {
-      for (let d = 0; d < diagram.blocks[b]!.dividers.length; d++) {
-        if (diagram.blocks[b]!.dividers[d]!.index === m) {
-          curY += 1
-          divYMap.set(`${b}:${d}`, curY)
-          curY += 1
-        }
-      }
-    }
-
-    curY += 1 // blank row before message
-
-    const msg = diagram.messages[m]!
-    const isSelf = msg.from === msg.to
-
-    // Calculate height needed for multi-line message labels
-    const msgLineCount = lineCount(msg.label)
-
-    if (isSelf) {
-      // Self-message occupies 3+ rows: top-arm, label-col(s), bottom-arm
-      msgLabelY[m] = curY + 1
-      msgArrowY[m] = curY
-      curY += 2 + msgLineCount // top-arm + label lines + bottom-arm
-    } else {
-      // Normal message: label row(s) then arrow row
-      msgLabelY[m] = curY
-      msgArrowY[m] = curY + msgLineCount  // arrow goes after all label lines
-      curY += msgLineCount + 1  // label lines + arrow row
-    }
-
-    placeNotes(m)
-
-    // Block closings after this message
-    for (let b = 0; b < diagram.blocks.length; b++) {
-      if (diagram.blocks[b]!.endIndex === m) {
+    if (event.kind === 'block-divider') {
+      const blockIndex = blockIndexById.get(event.blockId)
+      if (blockIndex !== undefined) {
         curY += 1
-        blockEndY.set(b, curY)
+        divYMap.set(`${blockIndex}:${event.dividerIndex}`, curY)
         curY += 1
+        eventY = curY
       }
+      continue
+    }
+    if (event.kind === 'block-end') {
+      const blockIndex = blockIndexById.get(event.blockId)
+      if (blockIndex !== undefined) {
+        curY += 1
+        blockEndY.set(blockIndex, curY)
+        curY += 1
+        eventY = curY
+      }
+      continue
+    }
+    if (event.kind === 'note') {
+      placeNote(event.index)
+      continue
+    }
+    if (event.kind === 'activation') {
+      const activation = diagram.activationEvents[event.index]!
+      activationPositions.push({ ...activation, y: eventY })
+      continue
+    }
+    if (event.kind === 'message') {
+      const m = event.index
+      curY += 1 // blank row before message
+      const msg = diagram.messages[m]!
+      const msgLineCount = lineCount(msg.label)
+      if (msg.from === msg.to) {
+        msgLabelY[m] = curY + 1
+        msgArrowY[m] = curY
+        curY += 2 + msgLineCount
+        eventY = curY - 1
+      } else {
+        msgLabelY[m] = curY
+        msgArrowY[m] = curY + msgLineCount
+        curY += msgLineCount + 1
+        eventY = msgArrowY[m]!
+      }
+      if (msg.activate) activationPositions.push({ actorId: msg.to, action: 'activate', y: msgArrowY[m]! })
+      if (msg.deactivate) activationPositions.push({ actorId: msg.from, action: 'deactivate', y: msgArrowY[m]! })
     }
   }
 
@@ -299,24 +308,25 @@ export function renderSequenceSurface(text: string, config: AsciiConfig) {
 
   const activeSince = new Map<string, number[]>()
   const activations: Array<{ actorId: string; top: number; bottom: number }> = []
-  for (let m = 0; m < diagram.messages.length; m++) {
-    const message = diagram.messages[m]!
-    if (message.activate) {
-      const starts = activeSince.get(message.to) ?? []
-      starts.push(msgArrowY[m]!)
-      activeSince.set(message.to, starts)
+  const activate = (actorId: string, y: number) => {
+    const starts = activeSince.get(actorId) ?? []
+    starts.push(y)
+    activeSince.set(actorId, starts)
+  }
+  const deactivate = (actorId: string, y: number) => {
+    const starts = activeSince.get(actorId)
+    const top = starts?.pop()
+    if (top === undefined) {
+      throw new Error(`Cannot deactivate inactive participant: "${actorId}"`)
     }
-    if (message.deactivate) {
-      const starts = activeSince.get(message.from)
-      const top = starts?.pop()
-      if (top === undefined) {
-        throw new Error(`Cannot deactivate inactive participant: "${message.from}"`)
-      }
-      if (starts.length === 0) {
-        activations.push({ actorId: message.from, top, bottom: msgArrowY[m]! })
-        activeSince.delete(message.from)
-      }
+    if (starts.length === 0) {
+      activations.push({ actorId, top, bottom: y })
+      activeSince.delete(actorId)
     }
+  }
+  for (const event of activationPositions) {
+    if (event.action === 'activate') activate(event.actorId, event.y)
+    else deactivate(event.actorId, event.y)
   }
   for (const [actorId, starts] of activeSince) {
     activations.push({ actorId, top: starts[0]!, bottom: footerY - 1 })

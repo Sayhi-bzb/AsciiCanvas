@@ -470,7 +470,7 @@ API-->>-User: Completed`;
   });
 
   it("keeps labeled fallback flow on the backbone and routes terminal and shortcut branches outside", async () => {
-    const result = await renderMermaid(`flowchart LR
+    const source = `flowchart LR
   E["查询每日市值"]
   PRIMARY["首选<br/>Gangtise PG"]
   OK{"查询成功？"}
@@ -482,7 +482,19 @@ API-->>-User: Completed`;
   OK -->|"成功"| OUTPUT
   OK -->|"允许回退"| FALLBACK
   OK -->|"不能回退"| FAIL
-  FALLBACK --> OUTPUT`);
+  FALLBACK --> OUTPUT`;
+    const reordered = source.replace(
+      `  OK -->|"成功"| OUTPUT
+  OK -->|"允许回退"| FALLBACK
+  OK -->|"不能回退"| FAIL`,
+      `  OK -->|"不能回退"| FAIL
+  OK -->|"成功"| OUTPUT
+  OK -->|"允许回退"| FALLBACK`,
+    );
+    const [result, reorderedResult] = await Promise.all([
+      renderMermaid(source),
+      renderMermaid(reordered),
+    ]);
     const output = getCharGraphText(result);
     const lines = output.split("\n");
     const decisionRow = lines.findIndex((line) => line.includes("查询成功？"));
@@ -498,8 +510,11 @@ API-->>-User: Completed`;
     expect(successRow).toBeGreaterThan(decisionRow);
     expect(fallbackRow).toBe(outputRow);
     expect(output).toMatch(/不能回退.*>│ 返回 unavailable │/u);
-    expect(output).toMatch(/允许回退.*╯/u);
-    expect(output).toMatch(/>│ {3}备用/u);
+    expect(lines[decisionRow]).toMatch(
+      /查询成功？.*允许回退.*>│ {3}备用/u,
+    );
+    expect(lines[decisionRow]).not.toMatch(/├[╮╯]|[╭╰]>│ {3}备用/u);
+    expect(getCharGraphText(reorderedResult)).toBe(output);
     expectNoInternalCellTokens(output);
   });
 
@@ -521,6 +536,29 @@ API-->>-User: Completed`;
     expect(output.indexOf("^", output.indexOf(backbone!))).toBeGreaterThan(-1);
     expect(output).toMatch(/PCIe/u);
     expect(output).toMatch(/[═║]/u);
+    expectNoInternalCellTokens(output);
+  });
+
+  it("keeps a labeled thick backbone aligned beneath a compact shortcut", async () => {
+    const result = await renderMermaid(`flowchart LR
+Client<-->Gateway
+Gateway==>|主链路|Service
+Client-. retry .->Service`);
+    const output = getCharGraphText(result);
+    const lines = output.split("\n");
+    const backboneRow = lines.findIndex((line) =>
+      ["Client", "Gateway", "Service"].every((label) => line.includes(label))
+    );
+    const retryRow = lines.findIndex((line) => line.includes("retry"));
+    const backbone = lines[backboneRow] ?? "";
+
+    expect(result.diagnostics).toEqual([]);
+    expect(backboneRow).toBeGreaterThanOrEqual(0);
+    expect(retryRow).toBeLessThan(backboneRow);
+    expect(backbone).toMatch(/Gateway.*═+ 主链路 ═+>.*Service/u);
+    expect(lines[retryRow]?.search(/\S/u)).toBeGreaterThanOrEqual(
+      backbone.indexOf("Client"),
+    );
     expectNoInternalCellTokens(output);
   });
 
@@ -861,8 +899,8 @@ API-->>-User: Completed`;
     expect(output).toContain("提交");
     expect(output).toContain("退回修改");
     expect(output).toContain("审核通过");
-    expect(output).toMatch(/\^ {2,}│提交/u);
-    expect(output).toMatch(/退回修改│ {2,}v/u);
+    expect(output).toMatch(/\^ {2,}│ 提交/u);
+    expect(output).toMatch(/退回修改 │ {2,}v/u);
     expect(output).toMatch(/●\s*\n\s*│\s*\n\s*v/u);
     expect(output).not.toContain("╰╮");
     expect(output).not.toContain("╭╯");
@@ -952,15 +990,15 @@ API-->>-User: Completed`;
   C -->|失败| E>记录告警]
   D <--> F[[同步服务]]`);
 
-    expect(output).toMatch(/[═║]通过|通过[═║]/u);
+    expect(output).toMatch(/[═║]+ 通过 [═║]+/u);
     expect(output).toContain("失败");
     expect(output).toMatch(/>│ ▷ 记录告警 │/u);
     const lines = output.split("\n");
     const validationRow = lines.findIndex((line) => line.includes("校验规则"));
     const successRow = lines.findIndex((line) => line.includes("通过"));
-    expect(successRow).toBeGreaterThan(validationRow);
+    expect(successRow).toBe(validationRow);
     expect(lines.slice(0, validationRow).join("\n")).not.toContain("═");
-    expect(output).toMatch(/[╚╔][═║]*通过[═║]*[╝╗]/u);
+    expect(lines[validationRow]).toMatch(/校验规则.*[═║]+ 通过 [═║]+>/u);
     expect(output).toMatch(/>│ ▤ 缓存 │/u);
     expectTerminalArrows(output);
     expectNoInternalCellTokens(output);

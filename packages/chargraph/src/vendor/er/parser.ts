@@ -189,7 +189,7 @@ function parseCardinality(str: string): Cardinality | null {
   // One or more: }| or |{ → sorted "|}" or "{|"
   if (sorted === '|}' || sorted === '{|') return 'many'
   // Zero or more: o{ or {o → sorted "{o" or "o{"
-  if (sorted === '{o' || sorted === 'o{') return 'zero-many'
+  if (sorted === '{o' || sorted === 'o{' || sorted === 'o}') return 'zero-many'
 
   return null
 }

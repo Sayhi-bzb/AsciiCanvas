@@ -16,6 +16,7 @@ import { normalizeBrTags } from '../multiline-utils.js'
 //   A--)B: Dashed open arrow
 //   A->>+B: Activate target
 //   A-->>-B: Deactivate source
+//   activate A / deactivate A
 //   loop Label ... end
 //   alt Label ... else Label ... end
 //   opt Label ... end
@@ -35,12 +36,15 @@ export function parseSequenceDiagram(lines: string[]): SequenceDiagram {
     messages: [],
     blocks: [],
     notes: [],
+    activationEvents: [],
+    timeline: [],
   }
 
   // Track actor IDs to auto-create actors referenced in messages
   const actorIds = new Set<string>()
   // Track block nesting with a stack
-  const blockStack: Array<{ type: Block['type']; label: string; startIndex: number; dividers: Block['dividers'] }> = []
+  const blockStack: Array<{ id: number; type: Block['type']; label: string; startIndex: number; dividers: Block['dividers'] }> = []
+  let nextBlockId = 0
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i]!
@@ -79,12 +83,13 @@ export function parseSequenceDiagram(lines: string[]): SequenceDiagram {
       if (posStr === 'left of') position = 'left'
       else if (posStr === 'right of') position = 'right'
 
-      diagram.notes.push({
+      const noteIndex = diagram.notes.push({
         actorIds: noteActorIds,
         text,
         position,
         afterIndex: diagram.messages.length - 1,
-      })
+      }) - 1
+      diagram.timeline.push({ kind: 'note', index: noteIndex })
       continue
     }
 
@@ -94,12 +99,15 @@ export function parseSequenceDiagram(lines: string[]): SequenceDiagram {
       const blockType = blockMatch[1] as Block['type']
       const rawBlockLabel = blockMatch[2]?.trim() ?? ''
       const label = normalizeBrTags(rawBlockLabel)
+      const blockId = nextBlockId++
       blockStack.push({
+        id: blockId,
         type: blockType,
         label,
         startIndex: diagram.messages.length,
         dividers: [],
       })
+      diagram.timeline.push({ kind: 'block-start', blockId })
       continue
     }
 
@@ -108,9 +116,15 @@ export function parseSequenceDiagram(lines: string[]): SequenceDiagram {
     if (dividerMatch && blockStack.length > 0) {
       const rawDividerLabel = dividerMatch[2]?.trim() ?? ''
       const label = normalizeBrTags(rawDividerLabel)
-      blockStack[blockStack.length - 1]!.dividers.push({
+      const block = blockStack[blockStack.length - 1]!
+      const dividerIndex = block.dividers.push({
         index: diagram.messages.length,
         label,
+      }) - 1
+      diagram.timeline.push({
+        kind: 'block-divider',
+        blockId: block.id,
+        dividerIndex,
       })
       continue
     }
@@ -119,12 +133,14 @@ export function parseSequenceDiagram(lines: string[]): SequenceDiagram {
     if (line === 'end' && blockStack.length > 0) {
       const completed = blockStack.pop()!
       diagram.blocks.push({
+        id: completed.id,
         type: completed.type,
         label: completed.label,
         startIndex: completed.startIndex,
         endIndex: Math.max(diagram.messages.length - 1, completed.startIndex),
         dividers: completed.dividers,
       })
+      diagram.timeline.push({ kind: 'block-end', blockId: completed.id })
       continue
     }
 
@@ -166,13 +182,23 @@ export function parseSequenceDiagram(lines: string[]): SequenceDiagram {
       if (activationMark === '+') msg.activate = true
       if (activationMark === '-') msg.deactivate = true
 
-      diagram.messages.push(msg)
+      const messageIndex = diagram.messages.push(msg) - 1
+      diagram.timeline.push({ kind: 'message', index: messageIndex })
       continue
     }
 
     // --- activate / deactivate explicit commands ---
-    if (/^(?:activate|deactivate)\s+\S+$/.test(line)) {
-      throw new Error(`Unsupported Mermaid statement: "${line}"`)
+    const activationMatch = line.match(/^(activate|deactivate)\s+(\S+)$/)
+    if (activationMatch) {
+      const action = activationMatch[1] as 'activate' | 'deactivate'
+      const actorId = activationMatch[2]!
+      ensureActor(diagram, actorIds, actorId)
+      const activationIndex = diagram.activationEvents.push({
+        actorId,
+        action,
+      }) - 1
+      diagram.timeline.push({ kind: 'activation', index: activationIndex })
+      continue
     }
 
     throw new Error(`Unsupported Mermaid statement: "${line}"`)

@@ -171,6 +171,9 @@ export const createLayeredClassDiagram = (
       sourceLabel: createLayoutLabel(cardinalityFor(relationship, sourceLogicalEnd)),
       targetLabel: createLayoutLabel(cardinalityFor(relationship, targetLogicalEnd)),
       labelLayout: "route" as const,
+      routing: relationship.from === relationship.to
+        ? { selfLoop: "compact" as const }
+        : undefined,
     };
   });
   const endpointLabelGap = Math.max(

@@ -316,8 +316,10 @@ export const validateGridLayout = (layout: GridLayout): string[] => {
       }
       for (const point of segmentPoints(from, to)) {
         for (const node of layout.nodes) {
-          if (node.id === edge.source || node.id === edge.target) continue;
-          if (containsInterior(node, point)) {
+          const allowedEndpoint =
+            node.id === edge.source && pointEquals(point, edge.sourceEndpoint.anchor) ||
+            node.id === edge.target && pointEquals(point, edge.targetEndpoint.anchor);
+          if (!allowedEndpoint && containsPoint(node, point)) {
             errors.push(`Edge ${edge.id} crosses node ${node.id}`);
             break;
           }

@@ -28,7 +28,9 @@ targets, and subgraph direction overrides preserve the complete source with a
 diagnostic. The diagnostic remains metadata and never replaces the preserved
 artifact body. Parsers must not return a partial AST. Sequence activation uses
 the participant lifeline itself: `+` activates the receiver and `-` deactivates
-the sender, including nested intervals. Its `sequence.activation` style role
+the sender; standalone `activate` and `deactivate` commands share the same
+source-ordered timeline as messages, notes, and block boundaries. Both forms
+support nested intervals. Its `sequence.activation` style role
 defaults to the render theme's `warning` token independently of participant borders.
 
 `LayoutGraph` owns measured rectangular nodes, containment, labels, directed
@@ -51,23 +53,37 @@ CharGraph fragments after layout and CJK-safe cell projection.
 Flow assigns alignment priority from topology. On the SCC condensation graph,
 an edge with a multi-hop alternative is a shortcut; the longest remaining path
 is the visual backbone. ELK straightens that backbone while shortcuts use an
-outer corridor. Cycles and parallel edges remain ordinary relationships.
+outer corridor. When the remaining backbone is one chain containing every node,
+integer projection aligns its node centers on the cross axis before endpoint
+routing. Cycles and parallel edges remain ordinary relationships.
 
 Flow edges opt into structured routing after cell projection. Only compatible,
 unlabelled fan-out or fan-in edges whose branch nodes occupy the same layer may
 share an explicit orthogonal bus. Labeled branches and cross-layer shortcuts
 remain independent. Labels competing at one endpoint reserve layout space;
-single-path labels remain route-placed. When continuous ELK attachments collapse
+single-path labels remain route-placed. Mermaid edge labels reserve one blank
+cell on each horizontal side, so they do not visually merge with strokes,
+markers, or node borders. When continuous ELK attachments collapse
 onto one cell, Flow keeps the highest-priority aligned edge on the primary side
 and distributes other endpoint owners across free primary and perpendicular
-border cells. A bundle is one endpoint owner. State, Class, and ER retain their
-existing endpoint policies.
+border cells. A bundle is one endpoint owner. Class and ER retain their
+diagram-specific port policies. A complete bipartite motif remains independent
+instead of being interpreted as overlapping fan buses. Larger cross-fans use
+independent ELK ports only when both sides compete and one side has at least
+three incident edges; ordinary decision fans keep their topology-aligned ports.
 
 Marker cells are terminal and exclusive. After integer projection, invalid
 independent routes are repaired around nodes, marker corridors, and collinear
-routes before labels are placed and the scene is composed. Flow and State
-additionally opt into readable routing: overlapping opposite endpoints share an
-axis when possible. Route repair compares strict and relaxed orthogonal
+routes before labels are placed and the scene is composed. Flow repair locks
+routes in topology-priority order, so lower-priority branches and shortcuts
+move around the backbone rather than deforming it. Readable Flow routes also
+prefer one visible line cell between an endpoint and its nearest bend. Strongly
+connected graphs skip DAG backbone priorities because they have no intrinsic
+forward path. Flow and State share terminal-corridor separation and stable
+route locking, and opt into readable routing: overlapping opposite endpoints
+share an axis when possible. Compact self-loops use two distinct node endpoints;
+multiple loops rotate across node sides so their routes and labels remain distinct.
+Route repair compares strict and relaxed orthogonal
 candidates by short legs, bends, length, area, then stable order instead of
 accepting the first feasible detour. Rounded glyphs therefore express real
 detours rather than search artifacts. Flow and State also opt into Brandes–Köpf

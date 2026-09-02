@@ -67,6 +67,23 @@ const label = (id: string, value: LayoutLabel) => ({
   ...value,
 });
 
+const hasDirectedCycle = (graph: LayoutGraph) => {
+  const adjacency = new Map(graph.nodes.map((node) => [node.id, [] as string[]]));
+  for (const edge of graph.edges) adjacency.get(edge.source)?.push(edge.target);
+  const visiting = new Set<string>();
+  const visited = new Set<string>();
+  const visit = (node: string): boolean => {
+    if (visiting.has(node)) return true;
+    if (visited.has(node)) return false;
+    visiting.add(node);
+    if ((adjacency.get(node) ?? []).some(visit)) return true;
+    visiting.delete(node);
+    visited.add(node);
+    return false;
+  };
+  return graph.nodes.some((node) => visit(node.id));
+};
+
 const topologyAlignment = (graph: LayoutGraph) => {
   const adjacency = new Map<string, string[]>();
   for (const node of graph.nodes) adjacency.set(node.id, []);
@@ -107,6 +124,14 @@ const topologyAlignment = (graph: LayoutGraph) => {
   for (const node of graph.nodes) {
     if (!indexes.has(node.id)) visit(node.id);
   }
+
+  const componentSizes = new Map<number, number>();
+  for (const component of components.values()) {
+    componentSizes.set(component, (componentSizes.get(component) ?? 0) + 1);
+  }
+  // A strongly connected component has no intrinsic forward backbone. Applying
+  // DAG shortcut priorities inside it makes arbitrary edges lock first.
+  if ([...componentSizes.values()].some((size) => size > 1)) return undefined;
 
   const componentAdjacency = new Map<number, Set<number>>();
   for (let component = 0; component < componentCount; component += 1) {
@@ -185,10 +210,60 @@ const topologyAlignment = (graph: LayoutGraph) => {
     return [
       edge.id,
       longestDepth(source, reverse, upstream) + 1 +
-        longestDepth(target, backbone, downstream),
+      longestDepth(target, backbone, downstream),
     ] as const;
   }));
-  return { shortcuts, priorities };
+  const backboneEdges = graph.edges.filter((edge) =>
+    edge.source !== edge.target && !shortcuts.has(edge.id)
+  );
+  const outgoing = new Map(graph.nodes.map((node) => [node.id, [] as string[]]));
+  const incoming = new Map(graph.nodes.map((node) => [node.id, 0]));
+  for (const edge of backboneEdges) {
+    outgoing.get(edge.source)?.push(edge.target);
+    incoming.set(edge.target, (incoming.get(edge.target) ?? 0) + 1);
+  }
+  const starts = graph.nodes.filter((node) => (incoming.get(node.id) ?? 0) === 0);
+  const linearBackbone = backboneEdges.length === graph.nodes.length - 1 &&
+      starts.length === 1 &&
+      [...outgoing.values()].every((targets) => targets.length <= 1) &&
+      [...incoming.values()].every((count) => count <= 1)
+    ? (() => {
+        const ordered: string[] = [];
+        const seen = new Set<string>();
+        let current: string | undefined = starts[0]!.id;
+        while (current !== undefined && !seen.has(current)) {
+          ordered.push(current);
+          seen.add(current);
+          current = outgoing.get(current)?.[0];
+        }
+        return ordered.length === graph.nodes.length ? ordered : undefined;
+      })()
+    : undefined;
+  return { shortcuts, priorities, linearBackbone };
+};
+
+const alignLinearBackboneNodes = (
+  nodes: PositionedLayoutNode[],
+  nodeIds: readonly string[] | undefined,
+  direction: LayoutDirection,
+) => {
+  if (!nodeIds || nodes.some((node) => node.parentId !== undefined)) return;
+  const nodesById = new Map(nodes.map((node) => [node.id, node]));
+  const members = nodeIds.flatMap((id) => {
+    const node = nodesById.get(id);
+    return node ? [node] : [];
+  });
+  if (members.length !== nodes.length) return;
+  const horizontal = direction === "LR" || direction === "RL";
+  const centers = members.map((node) => horizontal
+    ? sideCenter(node.y, node.height)
+    : sideCenter(node.x, node.width)
+  ).sort((left, right) => left - right);
+  const center = centers[Math.floor(centers.length / 2)]!;
+  for (const node of members) {
+    if (horizontal) node.y = center - Math.floor((node.height - 1) / 2);
+    else node.x = center - Math.floor((node.width - 1) / 2);
+  }
 };
 
 type ElkPortSide = "NORTH" | "EAST" | "SOUTH" | "WEST";
@@ -605,6 +680,30 @@ const compactSelfLoop = (
   ], [sourceExit, targetExit]);
 };
 
+const canonicalCompactSelfEndpoints = (
+  node: PositionedLayoutNode,
+  direction: LayoutDirection,
+  lane = 0,
+): [PositionedEdgeEndpoint, PositionedEdgeEndpoint] => {
+  const horizontal = direction === "LR" || direction === "RL";
+  const sides: GridSide[] = horizontal
+    ? ["top", "bottom", "right", "left"]
+    : ["right", "left", "bottom", "top"];
+  const side = sides[lane % sides.length]!;
+  if (side === "top" || side === "bottom") {
+    const first = Math.min(node.x + node.width - 1, node.x + 1);
+    const second = Math.max(first + 1, node.x + node.width - 2);
+    return [
+      endpointOnSideAt(node, side, first),
+      endpointOnSideAt(node, side, Math.min(second, node.x + node.width - 1)),
+    ];
+  }
+  return [
+    endpointOnSideAt(node, side, node.y),
+    endpointOnSideAt(node, side, node.y + node.height - 1),
+  ];
+};
+
 const edgePoints = (edge: ElkExtendedEdge, offset: ElkPoint): ElkPoint[] => {
   const section = edge.sections?.[0];
   if (!section) return [];
@@ -687,14 +786,18 @@ const routeEntersForeignNode = (
   edge: RoutedEdge,
   points: GridPoint[],
   nodes: PositionedLayoutNode[],
-) => cellsOnRoute(points).some((point) => nodes.some((node) =>
-  node.id !== edge.source &&
-  node.id !== edge.target &&
-  point.x > node.x &&
-  point.x < node.x + node.width - 1 &&
-  point.y > node.y &&
-  point.y < node.y + node.height - 1
-));
+) => cellsOnRoute(points).some((point) => nodes.some((node) => {
+  const inside = point.x >= node.x && point.x < node.x + node.width &&
+    point.y >= node.y && point.y < node.y + node.height;
+  if (!inside) return false;
+  if (node.id === edge.source && samePoint(point, edge.sourceEndpoint.anchor)) {
+    return false;
+  }
+  if (node.id === edge.target && samePoint(point, edge.targetEndpoint.anchor)) {
+    return false;
+  }
+  return true;
+}));
 
 const structuredBusRoute = (
   edge: RoutedEdge,
@@ -750,6 +853,12 @@ const normalizeStructuredBundles = (
         ? "bottom"
         : "top";
   const nodesById = new Map(nodes.map((node) => [node.id, node]));
+  const sourceCounts = new Map<string, number>();
+  const targetCounts = new Map<string, number>();
+  for (const edge of edges) {
+    sourceCounts.set(edge.source, (sourceCounts.get(edge.source) ?? 0) + 1);
+    targetCounts.set(edge.target, (targetCounts.get(edge.target) ?? 0) + 1);
+  }
   const used = new Set<string>();
   let result = [...edges];
 
@@ -781,6 +890,13 @@ const normalizeStructuredBundles = (
 
     for (const members of candidates.values()) {
       if (members.length < 2) continue;
+      // A complete bipartite motif is not one fan. Giving each source/target
+      // its own bus creates overlapping terminal corridors; keep those edges
+      // independent and let cell routing allocate separate paths instead.
+      if (members.some((edge) => kind === "fan-out"
+        ? (targetCounts.get(edge.target) ?? 0) > 1
+        : (sourceCounts.get(edge.source) ?? 0) > 1
+      )) continue;
       const sharedNodeId = kind === "fan-out"
         ? members[0]!.source
         : members[0]!.target;
@@ -987,7 +1103,35 @@ const shortDoglegCount = (points: GridPoint[]) => {
   return count;
 };
 
-const routeQuality = (points: GridPoint[], order = 0) => {
+const terminalDoglegCount = (
+  points: GridPoint[],
+  sourceMinimum = 0,
+  targetMinimum = 0,
+) => {
+  const compact = compactOrthogonalPoints(points);
+  if (compact.length <= 2) return 0;
+  const first = compact[0]!;
+  const second = compact[1]!;
+  const penultimate = compact.at(-2)!;
+  const last = compact.at(-1)!;
+  const sourceLength = Math.abs(second.x - first.x) +
+    Math.abs(second.y - first.y);
+  const targetLength = Math.abs(last.x - penultimate.x) +
+    Math.abs(last.y - penultimate.y);
+  return Number(sourceLength < sourceMinimum) +
+    Number(targetLength < targetMinimum);
+};
+
+const terminalMinimums = (edge: RoutedEdge) => ({
+  source: (edge.routing?.sourceClearance ?? 0) + 2,
+  target: (edge.routing?.targetClearance ?? 0) + 2,
+});
+
+const routeQuality = (
+  points: GridPoint[],
+  order = 0,
+  terminalMinimum = { source: 0, target: 0 },
+) => {
   const compact = compactOrthogonalPoints(points);
   const length = compact.slice(1).reduce((total, point, index) => {
     const previous = compact[index]!;
@@ -998,6 +1142,11 @@ const routeQuality = (points: GridPoint[], order = 0) => {
   const area = (Math.max(...xs) - Math.min(...xs) + 1) *
     (Math.max(...ys) - Math.min(...ys) + 1);
   return [
+    terminalDoglegCount(
+      compact,
+      terminalMinimum.source,
+      terminalMinimum.target,
+    ),
     shortDoglegCount(compact),
     Math.max(0, compact.length - 2),
     length,
@@ -1072,6 +1221,42 @@ const preferredOverflowSide = (
   return before > after ? "left" : "right";
 };
 
+const endpointTerminalKeys = (
+  edge: RoutedEdge,
+  end: "source" | "target",
+  endpoint: PositionedEdgeEndpoint,
+) => {
+  const clearance = end === "source"
+    ? edge.routing?.sourceClearance
+    : edge.routing?.targetClearance;
+  return Array.from(
+    { length: Math.max(2, (clearance ?? 0) + 2) },
+    (_, index) => pointKey({
+      x: endpoint.anchor.x + endpoint.outward.x * (index + 1),
+      y: endpoint.anchor.y + endpoint.outward.y * (index + 1),
+    }),
+  );
+};
+
+const terminalKeyHitsForeignNode = (
+  key: string,
+  edge: RoutedEdge,
+  end: "source" | "target",
+  nodes: PositionedLayoutNode[],
+) => {
+  const comma = key.indexOf(",");
+  const point = {
+    x: Number(key.slice(0, comma)),
+    y: Number(key.slice(comma + 1)),
+  };
+  const owner = end === "source" ? edge.source : edge.target;
+  return nodes.some((node) =>
+    node.id !== owner &&
+    point.x >= node.x && point.x < node.x + node.width &&
+    point.y >= node.y && point.y < node.y + node.height
+  );
+};
+
 const separateConflictingEndpointMarkers = (
   edges: RoutedEdge[],
   nodes: PositionedLayoutNode[],
@@ -1089,19 +1274,27 @@ const separateConflictingEndpointMarkers = (
         ["source", edge.sourceEndpoint],
         ["target", edge.targetEndpoint],
       ] as const) {
-        const key = pointKey(endpoint.marker);
-        const records = endpoints.get(key) ?? [];
-        records.push({ index, end });
-        endpoints.set(key, records);
+        for (const key of endpointTerminalKeys(edge, end, endpoint)) {
+          const records = endpoints.get(key) ?? [];
+          records.push({ index, end });
+          endpoints.set(key, records);
+        }
       }
     });
-    const conflict = [...endpoints.values()].find((records) => {
+    const conflict = [...endpoints].find(([key, records]) => {
       const owners = new Set(records.map((record) => {
         const edge = result[record.index]!;
         return edge.routing?.bundleId ?? edge.id;
       }));
-      return owners.size > 1;
-    });
+      return owners.size > 1 || records.some((record) =>
+        terminalKeyHitsForeignNode(
+          key,
+          result[record.index]!,
+          record.end,
+          nodes,
+        )
+      );
+    })?.[1];
     if (!conflict) break;
     const recordsByOwner = new Map<string, typeof conflict>();
     for (const record of conflict) {
@@ -1135,7 +1328,11 @@ const separateConflictingEndpointMarkers = (
         return total + Math.abs(nodeCenter - neighborCenter);
       }, 0);
       const quality = ownerEdges.reduce<number[]>((total, ownerEdge) => {
-        const current = routeQuality(ownerEdge.points);
+        const current = routeQuality(
+          ownerEdge.points,
+          0,
+          terminalMinimums(ownerEdge),
+        );
         return current.map((value, index) => value + (total[index] ?? 0));
       }, []);
       return {
@@ -1171,16 +1368,32 @@ const separateConflictingEndpointMarkers = (
     const candidates = [originalEndpoint.side, ...perpendicularSides]
       .flatMap((side) => endpointSlotsOnSide(node, side))
       .filter((candidate) => {
-        const records = endpoints.get(pointKey(candidate.marker)) ?? [];
-        return records.every((record) => {
-          const candidateEdge = result[record.index]!;
-          return (candidateEdge.routing?.bundleId ?? candidateEdge.id) === movable.owner;
-        });
+        return movable.records.every((record) =>
+          endpointTerminalKeys(
+            result[record.index]!,
+            record.end,
+            candidate,
+          ).every((key) =>
+            !terminalKeyHitsForeignNode(
+              key,
+              result[record.index]!,
+              record.end,
+              nodes,
+            ) && (endpoints.get(key) ?? []).every((occupied) => {
+              const occupiedEdge = result[occupied.index]!;
+              return (occupiedEdge.routing?.bundleId ?? occupiedEdge.id) === movable.owner;
+            })
+          )
+        );
       })
       .map((candidate, order) => {
         const quality = movable.records.reduce<number[]>((total, record) => {
           const rerouted = rerouteEndpoint(result[record.index]!, record.end, candidate);
-          const current = routeQuality(rerouted.points);
+          const current = routeQuality(
+            rerouted.points,
+            0,
+            terminalMinimums(rerouted),
+          );
           return current.map((value, index) => value + (total[index] ?? 0));
         }, []);
         const sideMismatch = candidate.side === originalEndpoint.side ||
@@ -1199,73 +1412,6 @@ const separateConflictingEndpointMarkers = (
         replacement,
       );
     }
-  }
-  return result;
-};
-
-const separateConflictingEndpointMarkersLegacy = (
-  edges: RoutedEdge[],
-  nodes: PositionedLayoutNode[],
-  direction: LayoutDirection,
-) => {
-  const nodesById = new Map(nodes.map((node) => [node.id, node]));
-  const perpendicularSides: GridSide[] = direction === "LR" || direction === "RL"
-    ? ["top", "bottom"]
-    : ["left", "right"];
-  const result = [...edges];
-  for (let pass = 0; pass < edges.length; pass += 1) {
-    const endpoints = new Map<string, Array<{
-      index: number;
-      end: "source" | "target";
-    }>>();
-    result.forEach((edge, index) => {
-      for (const [end, endpoint] of [
-        ["source", edge.sourceEndpoint],
-        ["target", edge.targetEndpoint],
-      ] as const) {
-        const key = pointKey(endpoint.marker);
-        const records = endpoints.get(key) ?? [];
-        records.push({ index, end });
-        endpoints.set(key, records);
-      }
-    });
-    const conflict = [...endpoints.values()].find((records) => {
-      const owners = new Set(records.map((record) => {
-        const edge = result[record.index]!;
-        return edge.routing?.bundleId ?? edge.id;
-      }));
-      return owners.size > 1;
-    });
-    if (!conflict) break;
-    const movable = [...conflict].sort((left, right) => {
-      const leftBundled = result[left.index]!.routing?.bundleId ? 1 : 0;
-      const rightBundled = result[right.index]!.routing?.bundleId ? 1 : 0;
-      if (leftBundled !== rightBundled) return leftBundled - rightBundled;
-      return left.end === "target" ? -1 : 1;
-    })[0]!;
-    const edge = result[movable.index]!;
-    const nodeId = movable.end === "source" ? edge.source : edge.target;
-    const node = nodesById.get(nodeId);
-    if (!node) break;
-    const occupied = new Set(endpoints.keys());
-    const neighbor = movable.end === "source"
-      ? edge.targetEndpoint.marker
-      : edge.sourceEndpoint.marker;
-    const candidates = perpendicularSides
-      .map((side) => endpointOnSide(node, side))
-      .sort((left, right) => {
-        const leftOccupied = occupied.has(pointKey(left.marker)) ? 1 : 0;
-        const rightOccupied = occupied.has(pointKey(right.marker)) ? 1 : 0;
-        if (leftOccupied !== rightOccupied) return leftOccupied - rightOccupied;
-        const leftDistance = Math.abs(left.marker.x - neighbor.x) +
-          Math.abs(left.marker.y - neighbor.y);
-        const rightDistance = Math.abs(right.marker.x - neighbor.x) +
-          Math.abs(right.marker.y - neighbor.y);
-        return leftDistance - rightDistance;
-      });
-    const replacement = candidates[0];
-    if (!replacement) break;
-    result[movable.index] = rerouteEndpoint(edge, movable.end, replacement);
   }
   return result;
 };
@@ -1293,6 +1439,7 @@ interface OrthogonalRouteOptions {
   minimumRunBeforeBend?: number;
   occupiedCellCost?: number;
   requiredGoalDirection?: RouteDirection;
+  minimumGoalRunLength?: number;
 }
 
 const findOrthogonalRoute = (
@@ -1338,7 +1485,8 @@ const findOrthogonalRoute = (
       current.x === goal.x &&
       current.y === goal.y &&
       (options.requiredGoalDirection === undefined ||
-        current.direction === options.requiredGoalDirection)
+        current.direction === options.requiredGoalDirection) &&
+      current.runLength >= (options.minimumGoalRunLength ?? 0)
     ) {
       goalKey = current.key;
       break;
@@ -1390,7 +1538,11 @@ const findOrthogonalRoute = (
 const repairInvalidRoutes = (
   edges: RoutedEdge[],
   nodes: PositionedLayoutNode[],
+  edgePriorities: ReadonlyMap<string, number> = new Map(),
+  allowOccupiedFallback = false,
 ) => {
+  const preserveTerminalLeads = edgePriorities.size > 0;
+  const nodesById = new Map(nodes.map((node) => [node.id, node]));
   const markerHasForeignAxis = (
     points: GridPoint[],
     endpoint: PositionedEdgeEndpoint,
@@ -1413,7 +1565,7 @@ const repairInvalidRoutes = (
     ]),
     ...edges.flatMap((edge) => edge.points),
   ];
-  const margin = 4;
+  const margin = Math.max(8, edges.length * 2);
   const bounds = {
     minX: Math.min(...allPoints.map((point) => point.x)) - margin,
     minY: Math.min(...allPoints.map((point) => point.y)) - margin,
@@ -1439,9 +1591,130 @@ const repairInvalidRoutes = (
   }
 
   const result = [...edges];
-  for (let index = 0; index < result.length; index += 1) {
-    const edge = result[index]!;
-    if (edge.routing?.bundleId) continue;
+  const lockedIndexes: number[] = [];
+  const routeOrder = result.map((edge, index) => ({
+    edge,
+    index,
+    priority: edgePriorities.get(edge.id) ?? 1,
+    quality: routeQuality(
+      edge.points,
+      0,
+      preserveTerminalLeads
+        ? terminalMinimums(edge)
+        : { source: 0, target: 0 },
+    ),
+    stableKey: [
+      edge.source,
+      edge.target,
+      edge.label?.text ?? "",
+      edge.id,
+    ].join("\0"),
+  }));
+  if (preserveTerminalLeads) {
+    routeOrder.sort((left, right) =>
+      right.priority - left.priority ||
+      compareQuality(left.quality, right.quality) ||
+      left.stableKey.localeCompare(right.stableKey)
+    );
+  }
+  for (const { index } of routeOrder) {
+    let edge = result[index]!;
+    if (edge.routing?.bundleId) {
+      lockedIndexes.push(index);
+      continue;
+    }
+    const occupied = new Set(lockedIndexes.flatMap((candidateIndex) =>
+      cellsOnRoute(result[candidateIndex]!.points).map(pointKey)
+    ));
+    const routeCrossesAttachedNode = (
+      candidate: RoutedEdge,
+      end: "source" | "target",
+    ) => {
+      const endpoint = end === "source"
+        ? candidate.sourceEndpoint
+        : candidate.targetEndpoint;
+      const nodeId = end === "source" ? candidate.source : candidate.target;
+      const node = nodesById.get(nodeId);
+      if (!node) return false;
+      return cellsOnRoute(candidate.points).some((point) => {
+        const inside = point.x >= node.x && point.x < node.x + node.width &&
+          point.y >= node.y && point.y < node.y + node.height;
+        if (!inside) return false;
+        return !samePoint(point, endpoint.anchor) && !(
+          candidate.source === candidate.target &&
+          samePoint(point, end === "source"
+            ? candidate.targetEndpoint.anchor
+            : candidate.sourceEndpoint.anchor)
+        );
+      });
+    };
+    const relocateBlockedEndpoint = (end: "source" | "target") => {
+      const endpoint = end === "source"
+        ? edge.sourceEndpoint
+        : edge.targetEndpoint;
+      const nodeId = end === "source" ? edge.source : edge.target;
+      const node = nodesById.get(nodeId);
+      if (!node) return;
+      const crossesAttachedNode = routeCrossesAttachedNode(edge, end);
+      if (
+        !crossesAttachedNode &&
+        !endpointTerminalKeys(edge, end, endpoint).some((key) => occupied.has(key))
+      ) {
+        return;
+      }
+      const preferred = preferredOverflowSide(edge, endpoint, node);
+      const perpendicular: GridSide[] = endpoint.side === "left" || endpoint.side === "right"
+        ? ["top", "bottom"]
+        : ["left", "right"];
+      const opposite: GridSide = endpoint.side === "left"
+        ? "right"
+        : endpoint.side === "right"
+          ? "left"
+          : endpoint.side === "top"
+            ? "bottom"
+            : "top";
+      const sides = [endpoint.side, preferred, ...perpendicular, opposite]
+        .filter((side): side is GridSide => side !== undefined)
+        .filter((side, candidateIndex, values) => values.indexOf(side) === candidateIndex);
+      const replacement = sides
+        .flatMap((side) => endpointSlotsOnSide(node, side))
+        .filter((candidate) =>
+          endpointTerminalKeys(edge, end, candidate).every((key) =>
+            !occupied.has(key) &&
+            !terminalKeyHitsForeignNode(key, edge, end, nodes) &&
+            [...(markerOwners.get(key) ?? [])].every((owner) => owner === edge.id)
+          )
+        )
+        .flatMap((candidate, order) => {
+          const candidateEdge = rerouteEndpoint(edge, end, candidate);
+          if (
+            !allowOccupiedFallback &&
+            (
+              routeCrossesAttachedNode(candidateEdge, end) ||
+              routeEntersForeignNode(candidateEdge, candidateEdge.points, nodes)
+            )
+          ) return [];
+          return [{
+            candidate,
+            quality: [...routeQuality(
+              candidateEdge.points,
+              0,
+              terminalMinimums(candidateEdge),
+            ), order],
+          }];
+        })
+        .sort((left, right) => compareQuality(left.quality, right.quality))[0]?.candidate;
+      if (!replacement) return;
+      markerOwners.get(pointKey(endpoint.marker))?.delete(edge.id);
+      edge = rerouteEndpoint(edge, end, replacement);
+      const replacementKey = pointKey(replacement.marker);
+      const owners = markerOwners.get(replacementKey) ?? new Set<string>();
+      owners.add(edge.id);
+      markerOwners.set(replacementKey, owners);
+      result[index] = edge;
+    };
+    relocateBlockedEndpoint("source");
+    relocateBlockedEndpoint("target");
     const ownMarkers = new Set([
       pointKey(edge.sourceEndpoint.marker),
       pointKey(edge.targetEndpoint.marker),
@@ -1454,10 +1727,21 @@ const repairInvalidRoutes = (
       markerHasForeignAxis(edge.points, edge.targetEndpoint);
     const needsReadableRepair = edge.routing?.quality === "readable" &&
       edge.source !== edge.target &&
-      shortDoglegCount(edge.points) > 0;
+      (
+        shortDoglegCount(edge.points) > 0 ||
+        preserveTerminalLeads && terminalDoglegCount(
+          edge.points,
+          terminalMinimums(edge).source,
+          terminalMinimums(edge).target,
+        ) > 0
+      );
     const axes = routeAxisCells(edge.points);
-    const sharesCollinearCell = result.some((candidate, candidateIndex) => {
-      if (candidateIndex === index) return false;
+    // Routes become immutable in deterministic order. Comparing against paths
+    // that will themselves move can reintroduce a collision after this edge
+    // has already been accepted.
+    const comparisonIndexes = lockedIndexes;
+    const sharesCollinearCell = comparisonIndexes.some((candidateIndex) => {
+      const candidate = result[candidateIndex]!;
       const sharesBundle = edge.routing?.bundleId !== undefined &&
         candidate.routing?.bundleId === edge.routing.bundleId;
       if (sharesBundle) return false;
@@ -1473,7 +1757,10 @@ const repairInvalidRoutes = (
       !needsReadableRepair &&
       !sharesCollinearCell &&
       !routeEntersForeignNode(edge, edge.points, nodes)
-    ) continue;
+    ) {
+      lockedIndexes.push(index);
+      continue;
+    }
 
     const blocked = new Set(nodeCells);
     for (const [key, owners] of markerOwners) {
@@ -1491,9 +1778,6 @@ const repairInvalidRoutes = (
     );
     blocked.delete(pointKey(sourceExit));
     blocked.delete(pointKey(targetExit));
-    const occupied = new Set(result.flatMap((candidate, candidateIndex) =>
-      candidateIndex === index ? [] : cellsOnRoute(candidate.points).map(pointKey)
-    ));
     const readableOptions: OrthogonalRouteOptions | undefined =
       edge.routing?.quality === "readable"
         ? {
@@ -1505,6 +1789,7 @@ const repairInvalidRoutes = (
               x: -edge.targetEndpoint.outward.x,
               y: -edge.targetEndpoint.outward.y,
             }),
+            minimumGoalRunLength: preserveTerminalLeads ? 2 : undefined,
           }
         : undefined;
     const readableBlocked = readableOptions
@@ -1519,10 +1804,32 @@ const repairInvalidRoutes = (
       ? [
           { blocked: readableBlocked, options: readableOptions },
           {
-            blocked: readableBlocked,
-            options: { minimumRunBeforeBend: 2, occupiedCellCost: 64 },
+            blocked: allowOccupiedFallback ? blocked : readableBlocked,
+            options: {
+              initialDirection: routeDirectionFor(edge.sourceEndpoint.outward),
+              initialRunLength: 1,
+              minimumRunBeforeBend: 2,
+              occupiedCellCost: 64,
+              requiredGoalDirection: routeDirectionFor({
+                x: -edge.targetEndpoint.outward.x,
+                y: -edge.targetEndpoint.outward.y,
+              }),
+              minimumGoalRunLength: preserveTerminalLeads ? 2 : undefined,
+            },
           },
-          { blocked: readableBlocked, options: { occupiedCellCost: 64 } },
+          {
+            blocked: allowOccupiedFallback ? blocked : readableBlocked,
+            options: {
+              initialDirection: routeDirectionFor(edge.sourceEndpoint.outward),
+              initialRunLength: 0,
+              minimumRunBeforeBend: 1,
+              occupiedCellCost: 64,
+              requiredGoalDirection: routeDirectionFor({
+                x: -edge.targetEndpoint.outward.x,
+                y: -edge.targetEndpoint.outward.y,
+              }),
+            },
+          },
         ]
       : [{ blocked, options: undefined }];
     const candidates = searchPlans.flatMap((plan, order) => {
@@ -1542,15 +1849,26 @@ const repairInvalidRoutes = (
         edge.targetEndpoint.marker,
         edge.targetEndpoint.anchor,
       ]);
-      return [{ points, quality: routeQuality(points, order) }];
+      return [{
+        points,
+        quality: routeQuality(
+          points,
+          order,
+          preserveTerminalLeads
+            ? terminalMinimums(edge)
+            : { source: 0, target: 0 },
+        ),
+      }];
     }).sort((left, right) => compareQuality(left.quality, right.quality));
     const repaired = candidates[0];
-    if (!repaired) continue;
-    result[index] = {
-      ...edge,
-      points: repaired.points,
-      routing: { ...edge.routing, topology: "independent" },
-    };
+    if (repaired) {
+      result[index] = {
+        ...edge,
+        points: repaired.points,
+        routing: { ...edge.routing, topology: "independent" },
+      };
+    }
+    lockedIndexes.push(index);
   }
   return result;
 };
@@ -1953,6 +2271,7 @@ export const fromElkGraph = (
     }
   };
   visit(laidOut.children, { x: 0, y: 0 });
+  alignLinearBackboneNodes(nodes, alignment?.linearBackbone, graph.direction);
 
   const positionedById = new Map(nodes.map((node) => [node.id, node]));
   const modelEdges = new Map(graph.edges.map((edge) => [edge.id, edge]));
@@ -1988,6 +2307,7 @@ export const fromElkGraph = (
     attachmentCounts.set(sourceKey, (attachmentCounts.get(sourceKey) ?? 0) + 1);
     attachmentCounts.set(targetKey, (attachmentCounts.get(targetKey) ?? 0) + 1);
   }
+  const compactSelfLoopCounts = new Map<string, number>();
 
   const rawRoutedEdges: RoutedEdge[] = preparedEdges.map(({
     edge,
@@ -1999,18 +2319,27 @@ export const fromElkGraph = (
     sourceSide,
     targetSide,
   }) => {
-    const sourceEndpoint = endpointFor(
+    let sourceEndpoint = endpointFor(
       rawPoints[0]!,
       source,
       sourceSide,
       attachmentCounts.get(attachmentKey(modelEdge.source, sourceSide)) ?? 1,
     );
-    const targetEndpoint = endpointFor(
+    let targetEndpoint = endpointFor(
       rawPoints.at(-1)!,
       target,
       targetSide,
       attachmentCounts.get(attachmentKey(modelEdge.target, targetSide)) ?? 1,
     );
+    if (modelEdge.source === modelEdge.target && modelEdge.routing?.selfLoop === "compact") {
+      const lane = compactSelfLoopCounts.get(modelEdge.source) ?? 0;
+      compactSelfLoopCounts.set(modelEdge.source, lane + 1);
+      [sourceEndpoint, targetEndpoint] = canonicalCompactSelfEndpoints(
+        source,
+        graph.direction,
+        lane,
+      );
+    }
     const routed = routeWithEndpoints(
       quantizeRoute(rawPoints),
       sourceEndpoint,
@@ -2044,10 +2373,17 @@ export const fromElkGraph = (
     normalizeStructuredBundles(rawRoutedEdges, nodes, graph.direction),
     nodes,
   );
-  const separatedEdges = alignment
-    ? separateConflictingEndpointMarkers(alignedEdges, nodes, alignment.priorities)
-    : separateConflictingEndpointMarkersLegacy(alignedEdges, nodes, graph.direction);
-  const routedEdges = repairInvalidRoutes(separatedEdges, nodes);
+  const separatedEdges = separateConflictingEndpointMarkers(
+    alignedEdges,
+    nodes,
+    alignment?.priorities ?? new Map(),
+  );
+  const routedEdges = repairInvalidRoutes(
+    separatedEdges,
+    nodes,
+    alignment?.priorities,
+    hasDirectedCycle(graph) || graph.edges.length > graph.nodes.length,
+  );
   const routeMaxX = Math.max(
     quantizeCoordinate(laidOut.width),
     ...nodes.map((node) => node.x + node.width),

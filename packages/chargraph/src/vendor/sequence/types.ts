@@ -16,7 +16,24 @@ export interface SequenceDiagram {
   blocks: Block[]
   /** Notes attached to actors */
   notes: Note[]
+  /** Explicit activation commands referenced by the ordered timeline. */
+  activationEvents: ActivationEvent[]
+  /** Source-ordered events that own vertical sequence placement. */
+  timeline: SequenceTimelineEvent[]
 }
+
+export interface ActivationEvent {
+  actorId: string
+  action: 'activate' | 'deactivate'
+}
+
+export type SequenceTimelineEvent =
+  | { kind: 'message'; index: number }
+  | { kind: 'note'; index: number }
+  | { kind: 'activation'; index: number }
+  | { kind: 'block-start'; blockId: number }
+  | { kind: 'block-divider'; blockId: number; dividerIndex: number }
+  | { kind: 'block-end'; blockId: number }
 
 export interface Actor {
   id: string
@@ -40,6 +57,8 @@ export interface Message {
 }
 
 export interface Block {
+  /** Stable parser identity used by timeline events. */
+  id: number
   /** Block type keyword */
   type: 'loop' | 'alt' | 'opt' | 'par' | 'critical' | 'break' | 'rect'
   /** Label for the block header */

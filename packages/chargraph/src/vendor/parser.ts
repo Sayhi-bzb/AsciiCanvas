@@ -395,7 +395,7 @@ const NODE_PATTERNS: Array<{ regex: RegExp; shape: NodeShape }> = [
 ]
 
 /** Regex for a bare node reference (just an ID, no shape brackets) */
-const BARE_NODE_REGEX = /^([^\s()[\]{}<>|&=:]+?)(?=\s|:::|&|$|(?:-{2,}|-\.+-|={2,}))/
+const BARE_NODE_REGEX = /^([^\s()[\]{}<>|&=:]+?)(?=\s|:::|&|$|(?:-{2,}|-\.+-|={2,})|<(?=(?:-{2,}|-\.+-|={2,}))|-\.\s)/
 
 /** Regex for ::: class shorthand suffix — matches :::className immediately after a node */
 const CLASS_SHORTHAND_REGEX = /^:::([\w][\w-]*)/
@@ -541,15 +541,31 @@ function consumeNode(
   let id: string | null = null
   let remaining: string = text
 
-  // Try each node pattern (shape-qualified)
-  for (const { regex, shape } of NODE_PATTERNS) {
-    const match = text.match(regex)
-    if (match) {
-      id = match[1]!
-      const label = normalizeBrTags(match[2]!)
-      registerNode(graph, subgraphStack, { id, label, shape }, true)
-      remaining = text.slice(match[0].length)
-      break
+  const bareMatch = text.match(BARE_NODE_REGEX)
+  const bareRemaining = bareMatch
+    ? text.slice(bareMatch[0].length).trimStart()
+    : ''
+  // Connector grammar owns the boundary before visually ambiguous `>` shapes.
+  const edgeNodeMatch = bareMatch && (
+    ARROW_REGEX.test(bareRemaining) || TEXT_ARROW_REGEX.test(bareRemaining)
+  ) ? bareMatch : null
+  if (edgeNodeMatch) {
+    id = edgeNodeMatch[1]!
+    if (!graph.nodes.has(id)) {
+      registerNode(graph, subgraphStack, { id, label: id, shape: 'rectangle' }, false)
+    }
+    remaining = text.slice(edgeNodeMatch[0].length)
+  } else {
+    // Try each node pattern (shape-qualified)
+    for (const { regex, shape } of NODE_PATTERNS) {
+      const match = text.match(regex)
+      if (match) {
+        id = match[1]!
+        const label = normalizeBrTags(match[2]!)
+        registerNode(graph, subgraphStack, { id, label, shape }, true)
+        remaining = text.slice(match[0].length)
+        break
+      }
     }
   }
 
@@ -557,13 +573,13 @@ function consumeNode(
   // If it already exists, do NOT track it in the current subgraph;
   // nodes belong to the subgraph where they're first defined.
   if (id === null) {
-    const bareMatch = text.match(BARE_NODE_REGEX)
-    if (bareMatch) {
-      id = bareMatch[1]!
+    const fallbackBareMatch = text.match(BARE_NODE_REGEX)
+    if (fallbackBareMatch) {
+      id = fallbackBareMatch[1]!
       if (!graph.nodes.has(id)) {
         registerNode(graph, subgraphStack, { id, label: id, shape: 'rectangle' }, false)
       }
-      remaining = text.slice(bareMatch[0].length)
+      remaining = text.slice(fallbackBareMatch[0].length)
     }
   }
 
