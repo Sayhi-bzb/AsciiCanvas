@@ -108,7 +108,11 @@ try {
     encoding: "utf8",
   }));
   try {
-    const health = await (await fetch(`${opened.url}/health`)).json();
+    const healthResponse = await fetch(new URL("health", opened.url));
+    if (!healthResponse.ok) {
+      throw new Error(`Packed CLI local Canvas health returned ${healthResponse.status}`);
+    }
+    const health = await healthResponse.json();
     if (health.status !== "ready") throw new Error("Packed CLI local Canvas was unhealthy");
   } finally {
     execFileSync(cli, ["close", "demo"], { cwd: temporaryDirectory, stdio: "inherit" });
