@@ -1,6 +1,6 @@
 ---
 name: chardesk
-description: Create, edit, inspect, or render CharDesk visual documents through the CLI or live workspace tools.
+description: Shape CharDesk Canvas, Blackboards, and Slides as real working scenes; create, edit, inspect, or render them through local or live tools.
 ---
 
 # CharDesk
