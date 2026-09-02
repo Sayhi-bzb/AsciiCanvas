@@ -76,6 +76,16 @@ try {
     ".bin",
     process.platform === "win32" ? "chardesk.cmd" : "chardesk",
   );
+  const cliManifest = JSON.parse(fs.readFileSync(path.join(
+    temporaryDirectory,
+    "node_modules",
+    "@chardesk",
+    "cli",
+    "package.json",
+  ), "utf8"));
+  if (cliManifest.bin?.chardesk !== "dist/cli.js" || !fs.existsSync(cli)) {
+    throw new Error("Packed CLI did not install the chardesk executable");
+  }
   const cliRuntime = path.join(
     temporaryDirectory,
     "node_modules",
