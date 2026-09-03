@@ -20,7 +20,7 @@ import {
   isModuleReloadPending,
   requireLoadedModule,
 } from "@/shared/lib/moduleLoadRecovery";
-import { createBlackboardAgentTools } from "./site-tools/blackboardTools";
+import { createChardeskAgentTools } from "./site-tools/chardeskTools";
 import { startOriginSiteToolGateway } from "./site-tools/originGateway";
 import {
   prepareDocumentWebMcp,
@@ -31,11 +31,11 @@ import { isBlackboardRoute } from "./blackboardRoute";
 
 const profile = EDITOR_HOST_PROFILE;
 const host = getApplicationEditorHost(profile);
-const blackboardAgentTools = createBlackboardAgentTools({
+const chardeskAgentTools = createChardeskAgentTools({
   blackboard: host.blackboard,
 });
 
-const startBlackboardSiteTools = async () => {
+const startChardeskSiteTools = async () => {
   let provider: WebMcpProvider = "unavailable";
   updateWebMcpDiagnostics(document, provider, {
     role: navigator.locks ? "standby" : "unsupported",
@@ -55,7 +55,7 @@ const startBlackboardSiteTools = async () => {
 
   startOriginSiteToolGateway({
     target: document,
-    tools: blackboardAgentTools,
+    tools: chardeskAgentTools,
     onStatusChange: (snapshot) => {
       if (snapshot.adapterId !== null && provider !== "polyfill") {
         provider = "native";
@@ -71,7 +71,7 @@ const startBlackboardSiteTools = async () => {
   }
 };
 
-void startBlackboardSiteTools();
+void startChardeskSiteTools();
 if (new URLSearchParams(window.location.search).has("canvas-stress")) {
   Object.defineProperty(window, "__chardeskCanvasStress", {
     configurable: true,

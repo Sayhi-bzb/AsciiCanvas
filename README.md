@@ -73,6 +73,7 @@ The application does not require a built-in AI provider. The artifact itself is 
 ## Edit a Blackboard with an agent
 
 CharDesk exposes Blackboard source files through WebMCP and ChatGPT Site Tools. An agent edits the canonical text source instead of the rendered cells, and the open canvas updates from the same workspace.
+Web-only agents can call `chardesk_read_materials` to load the same visual language and worked examples provided by the CharDesk skill.
 
 - **Chrome WebMCP:** enable `chrome://flags/#enable-webmcp-testing`, relaunch Chrome, then open [CharDesk Blackboard](https://chardesk.com/blackboard) in a tab connected to a compatible WebMCP agent. Chrome exposes the tools; it does not provide the agent by itself.
 - **ChatGPT Site Tools:** enable **Site tools** under **Settings → Browser → Permissions**, then open [CharDesk Blackboard](https://chardesk.com/blackboard) in the ChatGPT desktop app's built-in browser. See the [official Site Tools guide](https://learn.chatgpt.com/docs/webmcp).

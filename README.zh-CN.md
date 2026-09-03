@@ -73,6 +73,7 @@ CharDesk 让视觉作品自然进入以文本为主的对话：
 ## 让 Agent 直接编辑 Blackboard
 
 CharDesk 通过 WebMCP 和 ChatGPT Site Tools 暴露 Blackboard 源文件。Agent 编辑的是规范文本源，而不是渲染后的 Cell；打开的画布会从同一个 Workspace 实时更新。
+仅通过网页进入的 Agent 可以调用 `chardesk_read_materials`，加载与 CharDesk skill 相同的视觉语言和案例。
 
 - **Chrome WebMCP：**开启 `chrome://flags/#enable-webmcp-testing`，重启 Chrome，再让兼容 WebMCP 的 Agent 连接并访问 [CharDesk Blackboard](https://chardesk.com/blackboard)。Chrome 负责暴露工具，本身不提供 Agent。
 - **ChatGPT Site Tools：**在 **Settings → Browser → Permissions** 中开启 **Site tools**，再用 ChatGPT 桌面应用的内置浏览器打开 [CharDesk Blackboard](https://chardesk.com/blackboard)。参见 [OpenAI 官方 Site Tools 文档](https://learn.chatgpt.com/docs/webmcp)。

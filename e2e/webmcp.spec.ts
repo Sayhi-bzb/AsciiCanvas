@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("WebMCP", () => {
+  test.describe.configure({ mode: "serial" });
+
   test("copies a Blackboard range through read-only host controls", async ({ context, page }) => {
     await context.grantPermissions(["clipboard-read", "clipboard-write"]);
     await page.goto("/blackboard?webmcp=polyfill");
@@ -54,7 +56,7 @@ test.describe("WebMCP", () => {
     await assertBlackboardChrome();
   });
 
-  test("discovers and executes Blackboard tools through the development polyfill", async ({ page }) => {
+  test("discovers and executes CharDesk tools through the development polyfill", async ({ page }) => {
     await page.goto("/blackboard?webmcp=polyfill");
 
     await expect.poll(() => page.locator("html").getAttribute("data-webmcp-status"))
@@ -69,11 +71,22 @@ test.describe("WebMCP", () => {
       }).modelContext;
       if (!context?.executeTool) return false;
       const tools = await context.getTools();
+      const readMaterials = tools.find(
+        ({ name }) => name === "chardesk_read_materials",
+      );
       const listWorkspaces = tools.find(
         ({ name }) => name === "chardesk_blackboard_list_workspaces",
       );
       const listFiles = tools.find(({ name }) => name === "chardesk_blackboard_list_files");
-      if (!listWorkspaces || !listFiles) return false;
+      if (!readMaterials || !listWorkspaces || !listFiles) return false;
+      const materialOutput = await context.executeTool(readMaterials, "{}");
+      const materialResult = typeof materialOutput === "string"
+        ? JSON.parse(materialOutput)
+        : materialOutput;
+      if (
+        materialResult?.format !== "text/markdown" ||
+        !materialResult?.content?.includes("# Materials on the desk")
+      ) return false;
       const listed = await context.executeTool(listWorkspaces, "{}");
       const parsed = typeof listed === "string" ? JSON.parse(listed) : listed;
       const workspaceId = parsed?.workspaces?.[0]?.id;
@@ -116,6 +129,7 @@ test.describe("WebMCP", () => {
       "chardesk_blackboard_list_workspaces",
       "chardesk_blackboard_read_file",
       "chardesk_blackboard_write_file",
+      "chardesk_read_materials",
     ]);
     expect(result.output).toMatchObject({
       workspaceId: expect.any(String),
@@ -203,6 +217,6 @@ test.describe("WebMCP", () => {
         modelContext?: { getTools(): Promise<unknown[]> };
       }).modelContext;
       return modelContext ? (await modelContext.getTools()).length : -1;
-    })).toBe(8);
+    })).toBe(9);
   });
 });
