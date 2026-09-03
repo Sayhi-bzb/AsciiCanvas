@@ -75,11 +75,8 @@ test.describe("WebMCP", () => {
       const readMaterials = tools.find(
         ({ name }) => name === "chardesk_read_materials",
       );
-      const listWorkspaces = tools.find(
-        ({ name }) => name === "chardesk_blackboard_list_workspaces",
-      );
       const listFiles = tools.find(({ name }) => name === "chardesk_blackboard_list_files");
-      if (!readMaterials || !listWorkspaces || !listFiles) return false;
+      if (!readMaterials || !listFiles) return false;
       const materialOutput = await context.executeTool(readMaterials, "{}");
       const materialResult = typeof materialOutput === "string"
         ? JSON.parse(materialOutput)
@@ -89,11 +86,7 @@ test.describe("WebMCP", () => {
         typeof materialResult?.content !== "string" ||
         materialResult.content.length === 0
       ) return false;
-      const listed = await context.executeTool(listWorkspaces, "{}");
-      const parsed = typeof listed === "string" ? JSON.parse(listed) : listed;
-      const workspaceId = parsed?.workspaces?.[0]?.id;
-      if (typeof workspaceId !== "string") return false;
-      const output = await context.executeTool(listFiles, JSON.stringify({ workspaceId }));
+      const output = await context.executeTool(listFiles, "{}");
       const files = typeof output === "string" ? JSON.parse(output) : output;
       return Array.isArray(files?.files);
     })).toBe(true);
@@ -107,15 +100,9 @@ test.describe("WebMCP", () => {
       }).modelContext;
       if (!context?.executeTool) throw new Error("WebMCP executeTool is unavailable.");
       const tools = await context.getTools();
-      const listWorkspaces = tools.find(
-        ({ name }) => name === "chardesk_blackboard_list_workspaces",
-      );
       const listFiles = tools.find(({ name }) => name === "chardesk_blackboard_list_files");
-      if (!listWorkspaces || !listFiles) throw new Error("Blackboard tools were not registered.");
-      const listed = await context.executeTool(listWorkspaces, "{}");
-      const workspaces = typeof listed === "string" ? JSON.parse(listed) : listed;
-      const workspaceId = workspaces.workspaces[0].id;
-      const output = await context.executeTool(listFiles, JSON.stringify({ workspaceId }));
+      if (!listFiles) throw new Error("Blackboard tools were not registered.");
+      const output = await context.executeTool(listFiles, "{}");
       return {
         names: tools.map(({ name }) => name).sort(),
         output: typeof output === "string" ? JSON.parse(output) : output,
@@ -129,6 +116,7 @@ test.describe("WebMCP", () => {
       "chardesk_blackboard_delete_file",
       "chardesk_blackboard_list_files",
       "chardesk_blackboard_list_workspaces",
+      "chardesk_blackboard_open_workspace",
       "chardesk_blackboard_read_file",
       "chardesk_blackboard_write_file",
       "chardesk_read_materials",
@@ -140,7 +128,11 @@ test.describe("WebMCP", () => {
     });
   });
 
-  test("creates and edits a Blackboard workspace from the site root", async ({ page }) => {
+  test("creates, opens, and visibly edits a Blackboard from the site root", async ({
+    context,
+    page,
+  }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"]);
     await page.goto("/?webmcp=polyfill");
 
     await expect.poll(() => page.locator("html").getAttribute("data-webmcp-status"))
@@ -165,32 +157,42 @@ test.describe("WebMCP", () => {
       const created = await execute("chardesk_blackboard_create_workspace", {
         title: "Root Agent",
       });
-      const workspaceId = created.workspaceId as string;
       await execute("chardesk_blackboard_write_file", {
-        workspaceId,
-        path: "panels/root.panel",
-        content: "Edited from chardesk.com/",
+        path: "panels/welcome.panel",
+        content: "Visible from chardesk.com/",
       });
       return {
         created,
         listed: await execute("chardesk_blackboard_list_workspaces", {}),
         read: await execute("chardesk_blackboard_read_file", {
-          workspaceId,
-          path: "panels/root.panel",
+          path: "panels/welcome.panel",
         }),
-        checked: await execute("chardesk_blackboard_check", { workspaceId }),
+        checked: await execute("chardesk_blackboard_check", {}),
       };
     });
 
-    expect(result.created).toMatchObject({ title: "Root Agent", revision: 1 });
+    expect(result.created).toMatchObject({ title: "Root Agent", revision: 1, active: true });
+    await expect(page).toHaveURL(new RegExp(`workspace=${result.created.workspaceId}`));
     expect(result.listed.workspaces).toContainEqual(
-      expect.objectContaining({ id: result.created.workspaceId, title: "Root Agent" }),
+      expect.objectContaining({
+        id: result.created.workspaceId,
+        title: "Root Agent",
+        active: true,
+      }),
     );
     expect(result.read).toMatchObject({
       workspaceId: result.created.workspaceId,
-      content: "Edited from chardesk.com/",
+      content: "Visible from chardesk.com/",
     });
     expect(result.checked).toMatchObject({ ok: true, workspaceId: result.created.workspaceId });
+
+    const surface = page.getByTestId("canvas-editor-surface");
+    await expect.poll(async () => {
+      await surface.click({ position: { x: 320, y: 240 } });
+      await page.keyboard.press("Meta+a");
+      await page.keyboard.press("Meta+c");
+      return page.evaluate(() => navigator.clipboard.readText());
+    }).toContain("Visible from chardesk.com/");
   });
 
   test("registers tools independently in every top-level page", async ({
@@ -204,7 +206,7 @@ test.describe("WebMCP", () => {
         modelContext?: { getTools(): Promise<unknown[]> };
       }).modelContext;
       return modelContext ? (await modelContext.getTools()).length : -1;
-    })).toBe(9);
+    })).toBe(10);
 
     const blackboard = await context.newPage();
     await blackboard.goto("/blackboard?webmcp=polyfill");
@@ -214,7 +216,7 @@ test.describe("WebMCP", () => {
         modelContext?: { getTools(): Promise<unknown[]> };
       }).modelContext;
       return modelContext ? (await modelContext.getTools()).length : -1;
-    })).toBe(9);
+    })).toBe(10);
 
     await page.close();
     await expect(blackboard.locator("html")).toHaveAttribute("data-webmcp-status", "ready");
@@ -223,6 +225,17 @@ test.describe("WebMCP", () => {
         modelContext?: { getTools(): Promise<unknown[]> };
       }).modelContext;
       return modelContext ? (await modelContext.getTools()).length : -1;
-    })).toBe(9);
+    })).toBe(10);
+  });
+
+  test("keeps browser-persistent CRUD out of local CLI reader pages", async ({ page }) => {
+    await page.goto("/s/0123456789abcdefABCDEF/?webmcp=polyfill");
+    await expect(page.locator("html")).toHaveAttribute("data-webmcp-status", "ready");
+    await expect.poll(() => page.evaluate(async () => {
+      const modelContext = (document as Document & {
+        modelContext?: { getTools(): Promise<Array<{ name: string }>> };
+      }).modelContext;
+      return modelContext ? (await modelContext.getTools()).map(({ name }) => name) : [];
+    })).toEqual(["chardesk_read_materials"]);
   });
 });

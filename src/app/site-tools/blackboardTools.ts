@@ -12,14 +12,17 @@ import {
   type BlackboardWorkspaceSnapshot,
 } from "@/domains/blackboard/public";
 import type { AgentToolDefinition } from "./contracts";
+import type { BlackboardWorkspaceTarget } from "../blackboardWorkspaceTarget";
 
 type BlackboardAgentToolDependencies = Readonly<{
   blackboard: BlackboardRuntime;
+  workspaceTarget: BlackboardWorkspaceTarget;
 }>;
 
 export const BLACKBOARD_AGENT_TOOL_NAMES = {
   listWorkspaces: "chardesk_blackboard_list_workspaces",
   createWorkspace: "chardesk_blackboard_create_workspace",
+  openWorkspace: "chardesk_blackboard_open_workspace",
   listFiles: "chardesk_blackboard_list_files",
   readFile: "chardesk_blackboard_read_file",
   writeFile: "chardesk_blackboard_write_file",
@@ -44,6 +47,23 @@ const workspaceNotFoundOutputSchema = {
     message: { type: "string" },
   },
   required: ["ok", "code", "workspaceId", "message"],
+  additionalProperties: false,
+} as const;
+
+const workspaceNotActive = () => ({
+  ok: false as const,
+  code: "workspace_not_active" as const,
+  message: "Create or open a Blackboard workspace first.",
+});
+
+const workspaceNotActiveOutputSchema = {
+  type: "object",
+  properties: {
+    ok: { const: false },
+    code: { const: "workspace_not_active" },
+    message: { type: "string" },
+  },
+  required: ["ok", "code", "message"],
   additionalProperties: false,
 } as const;
 
@@ -127,18 +147,20 @@ const mutationOutputSchema = {
       additionalProperties: false,
     },
     workspaceNotFoundOutputSchema,
+    workspaceNotActiveOutputSchema,
   ],
 } as const;
 
-const withWorkspaceNotFound = (success: Readonly<Record<string, unknown>>) => ({
-  oneOf: [success, workspaceNotFoundOutputSchema],
+const withWorkspaceErrors = (success: Readonly<Record<string, unknown>>) => ({
+  oneOf: [success, workspaceNotFoundOutputSchema, workspaceNotActiveOutputSchema],
 });
 
 const workspaceInputProperty = {
   workspaceId: {
     type: "string",
     minLength: 1,
-    description: "Workspace ID returned by list_workspaces or create_workspace.",
+    description:
+      "Optional explicit target returned by list_workspaces or create_workspace. Omit it to use the active Blackboard visible in this page.",
   },
 } as const;
 
@@ -203,12 +225,18 @@ const optionalRevision = (input: Record<string, unknown>) => {
   return value;
 };
 
-const requireWorkspaceId = (input: Record<string, unknown>) => {
-  const value = requireString(input, "workspaceId");
-  if (!value.trim()) {
-    throw new Error("workspaceId must be a non-empty string.");
-  }
+const optionalWorkspaceId = (input: Record<string, unknown>) => {
+  const value = input.workspaceId;
+  if (value === undefined) return undefined;
+  if (typeof value !== "string") throw new Error("workspaceId must be a string.");
+  if (!value.trim()) throw new Error("workspaceId must be a non-empty string.");
   return value.trim();
+};
+
+const requireWorkspaceId = (input: Record<string, unknown>) => {
+  const workspaceId = optionalWorkspaceId(input);
+  if (!workspaceId) throw new Error("workspaceId must be a string.");
+  return workspaceId;
 };
 
 const optionalTitle = (input: Record<string, unknown>) => {
@@ -229,16 +257,21 @@ type SelectedWorkspace = Readonly<{
 }>;
 
 const isSelectedWorkspace = (
-  value: SelectedWorkspace | ReturnType<typeof workspaceNotFound>,
+  value:
+    | SelectedWorkspace
+    | ReturnType<typeof workspaceNotFound>
+    | ReturnType<typeof workspaceNotActive>,
 ): value is SelectedWorkspace => "source" in value;
 
 export const createBlackboardAgentTools = ({
   blackboard,
+  workspaceTarget,
 }: BlackboardAgentToolDependencies): readonly AgentToolDefinition[] => {
   const selected = async (input: Record<string, unknown>): Promise<
-    SelectedWorkspace | ReturnType<typeof workspaceNotFound>
+    SelectedWorkspace | ReturnType<typeof workspaceNotFound> | ReturnType<typeof workspaceNotActive>
   > => {
-    const workspaceId = requireWorkspaceId(input);
+    const workspaceId = optionalWorkspaceId(input) ?? workspaceTarget.getActiveWorkspaceId();
+    if (!workspaceId) return workspaceNotActive();
     const source = await blackboard.repository.readWorkspace(workspaceId);
     if (!source) return workspaceNotFound(workspaceId);
     return { workspaceId, source };
@@ -290,7 +323,7 @@ export const createBlackboardAgentTools = ({
       name: BLACKBOARD_AGENT_TOOL_NAMES.listWorkspaces,
       title: "List workspaces",
       description:
-        "List CharDesk Blackboard workspaces stored in this browser origin. After selecting one, call list_files before mutating it.",
+        "List CharDesk Blackboard workspaces stored in this browser origin and identify the one active in this page. Call open_workspace to show an existing workspace.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
       outputSchema: {
         type: "object",
@@ -306,8 +339,17 @@ export const createBlackboardAgentTools = ({
                 createdAt: { type: "integer", minimum: 0 },
                 updatedAt: { type: "integer", minimum: 0 },
                 url: { type: "string" },
+                active: { type: "boolean" },
               },
-              required: ["id", "title", "revision", "createdAt", "updatedAt", "url"],
+              required: [
+                "id",
+                "title",
+                "revision",
+                "createdAt",
+                "updatedAt",
+                "url",
+                "active",
+              ],
               additionalProperties: false,
             },
           },
@@ -316,12 +358,16 @@ export const createBlackboardAgentTools = ({
         additionalProperties: false,
       },
       readOnly: true,
-      execute: async () => ({
-        workspaces: (await blackboard.repository.listWorkspaces()).map((workspace) => ({
-          ...workspace,
-          url: workspaceUrl(workspace.id),
-        })),
-      }),
+      execute: async () => {
+        const activeWorkspaceId = workspaceTarget.getActiveWorkspaceId();
+        return {
+          workspaces: (await blackboard.repository.listWorkspaces()).map((workspace) => ({
+            ...workspace,
+            url: workspaceUrl(workspace.id),
+            active: workspace.id === activeWorkspaceId,
+          })),
+        };
+      },
     },
     {
       name: BLACKBOARD_AGENT_TOOL_NAMES.createWorkspace,
@@ -343,6 +389,7 @@ export const createBlackboardAgentTools = ({
           updatedAt: { type: "integer", minimum: 0 },
           url: { type: "string" },
           entrypoint: { const: BLACKBOARD_SOURCE_ENTRYPOINT },
+          active: { const: true },
         },
         required: [
           "workspaceId",
@@ -352,6 +399,7 @@ export const createBlackboardAgentTools = ({
           "updatedAt",
           "url",
           "entrypoint",
+          "active",
         ],
         additionalProperties: false,
       },
@@ -359,6 +407,7 @@ export const createBlackboardAgentTools = ({
         const { workspace } = await blackboard.repository.createWorkspace({
           title: optionalTitle(input),
         });
+        await workspaceTarget.activateWorkspace(workspace.id);
         return {
           workspaceId: workspace.id,
           title: workspace.title,
@@ -367,6 +416,46 @@ export const createBlackboardAgentTools = ({
           updatedAt: workspace.updatedAt,
           url: workspaceUrl(workspace.id),
           entrypoint: BLACKBOARD_SOURCE_ENTRYPOINT,
+          active: true,
+        };
+      },
+    },
+    {
+      name: BLACKBOARD_AGENT_TOOL_NAMES.openWorkspace,
+      title: "Open workspace",
+      description:
+        "Make an existing Blackboard the active Canvas in this page. Subsequent file tools can omit workspaceId.",
+      inputSchema: {
+        type: "object",
+        properties: workspaceInputProperty,
+        required: ["workspaceId"],
+        additionalProperties: false,
+      },
+      outputSchema: withWorkspaceErrors({
+        type: "object",
+        properties: {
+          ok: { const: true },
+          workspaceId: { type: "string" },
+          title: { type: "string" },
+          revision: { type: "integer", minimum: 0 },
+          url: { type: "string" },
+          active: { const: true },
+        },
+        required: ["ok", "workspaceId", "title", "revision", "url", "active"],
+        additionalProperties: false,
+      }),
+      execute: async (input) => {
+        const workspaceId = requireWorkspaceId(input);
+        const source = await blackboard.repository.readWorkspace(workspaceId);
+        if (!source) return workspaceNotFound(workspaceId);
+        await workspaceTarget.activateWorkspace(workspaceId);
+        return {
+          ok: true,
+          workspaceId,
+          title: source.workspace.title,
+          revision: source.workspace.revision,
+          url: workspaceUrl(workspaceId),
+          active: true,
         };
       },
     },
@@ -374,14 +463,13 @@ export const createBlackboardAgentTools = ({
       name: BLACKBOARD_AGENT_TOOL_NAMES.listFiles,
       title: "List files",
       description:
-        "Start here before editing an existing Blackboard. List its UTF-8 files and report which sources blackboard.yaml makes visible, keeps as drafts, or leaves unreferenced.",
+        "Start here before editing the active Blackboard. List its UTF-8 files and report which sources blackboard.yaml makes visible, keeps as drafts, or leaves unreferenced. workspaceId is optional.",
       inputSchema: {
         type: "object",
         properties: workspaceInputProperty,
-        required: ["workspaceId"],
         additionalProperties: false,
       },
-      outputSchema: withWorkspaceNotFound({
+      outputSchema: withWorkspaceErrors({
         type: "object",
         properties: {
           workspaceId: { type: "string" },
@@ -426,7 +514,7 @@ export const createBlackboardAgentTools = ({
       name: BLACKBOARD_AGENT_TOOL_NAMES.readFile,
       title: "Read file",
       description:
-        "Read one Blackboard source file. Read blackboard.yaml before editing, then read the panel sources it registers and places in layout.areas.",
+        "Read one source file from the active Blackboard unless workspaceId explicitly targets another. Read blackboard.yaml before editing, then read its visible panel sources.",
       inputSchema: {
         type: "object",
         properties: {
@@ -436,10 +524,10 @@ export const createBlackboardAgentTools = ({
             description: "Package-relative source path returned by list_files.",
           },
         },
-        required: ["workspaceId", "path"],
+        required: ["path"],
         additionalProperties: false,
       },
-      outputSchema: withWorkspaceNotFound({
+      outputSchema: withWorkspaceErrors({
         type: "object",
         properties: {
           path: { type: "string" },
@@ -469,7 +557,7 @@ export const createBlackboardAgentTools = ({
       name: BLACKBOARD_AGENT_TOOL_NAMES.writeFile,
       title: "Write file",
       description:
-        "Create or replace one UTF-8 Blackboard file. Saving a file does not make it visible: only panel sources registered by blackboard.yaml and placed in layout.areas affect the Canvas. Prefer apply_patch when changing a panel and the manifest together.",
+        "Create or replace one UTF-8 file in the active Blackboard unless workspaceId explicitly targets another. Saving a file does not make it visible: only panel sources registered by blackboard.yaml and placed in layout.areas affect the Canvas. Prefer apply_patch when changing a panel and the manifest together.",
       inputSchema: {
         type: "object",
         properties: {
@@ -482,10 +570,10 @@ export const createBlackboardAgentTools = ({
           baseRevision: {
             type: "integer",
             minimum: 0,
-            description: "Revision returned by the latest list or read operation.",
+            description: "Optional collision guard from a previous result.",
           },
         },
-        required: ["workspaceId", "path", "content"],
+        required: ["path", "content"],
         additionalProperties: false,
       },
       outputSchema: mutationOutputSchema,
@@ -501,7 +589,7 @@ export const createBlackboardAgentTools = ({
       name: BLACKBOARD_AGENT_TOOL_NAMES.applyPatch,
       title: "Apply patch",
       description:
-        "Preferred mutation for a Blackboard package. Atomically update blackboard.yaml and its panel files so the final layout is compiled once; the result reports whether the visible Canvas changed.",
+        "Preferred mutation for the active Blackboard. Atomically update blackboard.yaml and its panel files so the final layout is compiled once; workspaceId is optional and the result reports whether the Canvas projection changed.",
       inputSchema: {
         type: "object",
         properties: {
@@ -509,7 +597,7 @@ export const createBlackboardAgentTools = ({
           baseRevision: {
             type: "integer",
             minimum: 0,
-            description: "Revision returned by the latest list or read operation.",
+            description: "Optional collision guard from a previous result.",
           },
           operations: {
             type: "array",
@@ -531,7 +619,7 @@ export const createBlackboardAgentTools = ({
             },
           },
         },
-        required: ["workspaceId", "operations"],
+        required: ["operations"],
         additionalProperties: false,
       },
       outputSchema: mutationOutputSchema,
@@ -581,7 +669,7 @@ export const createBlackboardAgentTools = ({
       name: BLACKBOARD_AGENT_TOOL_NAMES.deleteFile,
       title: "Delete file",
       description:
-        "Delete one Blackboard source file. Deleting blackboard.yaml or a visible panel makes the projection invalid unless the same atomic patch repairs its references.",
+        "Delete one source file from the active Blackboard unless workspaceId explicitly targets another. Deleting blackboard.yaml or a visible panel makes the projection invalid unless the same atomic patch repairs its references.",
       inputSchema: {
         type: "object",
         properties: {
@@ -593,10 +681,10 @@ export const createBlackboardAgentTools = ({
           baseRevision: {
             type: "integer",
             minimum: 0,
-            description: "Revision returned by the latest list or read operation.",
+            description: "Optional collision guard from a previous result.",
           },
         },
-        required: ["workspaceId", "path"],
+        required: ["path"],
         additionalProperties: false,
       },
       outputSchema: mutationOutputSchema,
@@ -611,14 +699,13 @@ export const createBlackboardAgentTools = ({
       name: BLACKBOARD_AGENT_TOOL_NAMES.check,
       title: "Check workspace",
       description:
-        "Compile the blackboard.yaml entry graph without changing it. Valid means the visible projection compiles; inspect sourceGraph and warnings for stored files that remain drafts or are not visible.",
+        "Compile the active Blackboard's blackboard.yaml entry graph without changing it. workspaceId is optional. Inspect sourceGraph and warnings for drafts or unreferenced files.",
       inputSchema: {
         type: "object",
         properties: workspaceInputProperty,
-        required: ["workspaceId"],
         additionalProperties: false,
       },
-      outputSchema: withWorkspaceNotFound({
+      outputSchema: withWorkspaceErrors({
         oneOf: [
           {
             type: "object",

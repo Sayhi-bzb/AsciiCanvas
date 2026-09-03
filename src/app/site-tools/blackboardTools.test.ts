@@ -17,10 +17,26 @@ describe("Blackboard agent tools", () => {
   const createTools = (databaseName: string) => {
     const repository = new IndexedDbBlackboardRepository({ databaseName });
     disposals.push(async () => repository.close());
+    let activeWorkspaceId: string | null = null;
+    const workspaceTarget = {
+      getActiveWorkspaceId: () => activeWorkspaceId,
+      activateWorkspace: async (workspaceId: string) => {
+        if (!await repository.readWorkspace(workspaceId)) {
+          throw new Error(`Blackboard workspace not found: ${workspaceId}`);
+        }
+        activeWorkspaceId = workspaceId;
+      },
+    };
     const tools = createBlackboardAgentTools({
       blackboard: new BlackboardRuntime(repository),
+      workspaceTarget,
     });
-    return { repository, tools, byName: new Map(tools.map((tool) => [tool.name, tool])) };
+    return {
+      repository,
+      workspaceTarget,
+      tools,
+      byName: new Map(tools.map((tool) => [tool.name, tool])),
+    };
   };
 
   it("uses one namespaced public contract with human-readable titles", () => {
@@ -34,11 +50,33 @@ describe("Blackboard agent tools", () => {
         description.includes("workspace"))).toBe(true);
   });
 
-  it("requires an explicit workspace for workspace-scoped commands", async () => {
+  it("returns a structured result when no workspace is active", async () => {
     const { byName } = createTools(`agent-tools-target-${crypto.randomUUID()}`);
 
     await expect(byName.get(BLACKBOARD_AGENT_TOOL_NAMES.listFiles)!.execute({}))
-      .rejects.toThrow("workspaceId must be a string");
+      .resolves.toEqual({
+        ok: false,
+        code: "workspace_not_active",
+        message: "Create or open a Blackboard workspace first.",
+      });
+    await expect(byName.get(BLACKBOARD_AGENT_TOOL_NAMES.listFiles)!.execute({
+      workspaceId: 42,
+    })).rejects.toThrow("workspaceId must be a string");
+  });
+
+  it("uses the active workspace when workspaceId is omitted", async () => {
+    const { repository, workspaceTarget, byName } = createTools(
+      `agent-tools-active-${crypto.randomUUID()}`,
+    );
+    await repository.createWorkspace({ id: "first", title: "First" });
+    await repository.createWorkspace({ id: "second", title: "Second" });
+    await workspaceTarget.activateWorkspace("second");
+
+    await expect(byName.get(BLACKBOARD_AGENT_TOOL_NAMES.listFiles)!.execute({}))
+      .resolves.toMatchObject({ workspaceId: "second" });
+    await expect(byName.get(BLACKBOARD_AGENT_TOOL_NAMES.readFile)!.execute({
+      path: "panels/welcome.panel",
+    })).resolves.toMatchObject({ workspaceId: "second" });
   });
 
   it("isolates explicitly selected workspaces", async () => {
@@ -74,6 +112,7 @@ describe("Blackboard agent tools", () => {
       title: "Agent board",
       revision: 1,
       url: expect.stringMatching(/^\/blackboard\?workspace=/),
+      active: true,
     });
     const workspaceId = (created as { workspaceId: string }).workspaceId;
 
@@ -83,6 +122,7 @@ describe("Blackboard agent tools", () => {
           id: workspaceId,
           title: "Agent board",
           url: `/blackboard?workspace=${encodeURIComponent(workspaceId)}`,
+          active: true,
         })],
       });
     await byName.get(BLACKBOARD_AGENT_TOOL_NAMES.writeFile)!.execute({
@@ -96,6 +136,23 @@ describe("Blackboard agent tools", () => {
     })).resolves.toMatchObject({ workspaceId, content: "Created from the origin" });
     await expect(byName.get(BLACKBOARD_AGENT_TOOL_NAMES.check)!.execute({ workspaceId }))
       .resolves.toMatchObject({ ok: true, workspaceId });
+  });
+
+  it("opens an existing workspace as the default target", async () => {
+    const { repository, byName } = createTools(`agent-tools-open-${crypto.randomUUID()}`);
+    await repository.createWorkspace({ id: "first", title: "First" });
+    await repository.createWorkspace({ id: "second", title: "Second" });
+
+    await expect(byName.get(BLACKBOARD_AGENT_TOOL_NAMES.openWorkspace)!.execute({
+      workspaceId: "second",
+    })).resolves.toMatchObject({
+      ok: true,
+      workspaceId: "second",
+      title: "Second",
+      active: true,
+    });
+    await expect(byName.get(BLACKBOARD_AGENT_TOOL_NAMES.check)!.execute({}))
+      .resolves.toMatchObject({ ok: true, workspaceId: "second" });
   });
 
   it("returns a structured error when the explicit workspace does not exist", async () => {

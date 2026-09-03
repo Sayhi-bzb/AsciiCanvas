@@ -1,4 +1,5 @@
 import type { BlackboardRuntime } from "@/domains/blackboard/public";
+import type { BlackboardWorkspaceTarget } from "../blackboardWorkspaceTarget";
 import materials from "../../../.agents/skills/chardesk/references/materials.md?raw";
 import {
   BLACKBOARD_AGENT_TOOL_NAMES,
@@ -31,7 +32,10 @@ export const createChardeskMaterialsTool = (): AgentToolDefinition => ({
 });
 
 export const createChardeskAgentTools = (
-  dependencies: Readonly<{ blackboard: BlackboardRuntime }>,
+  dependencies: Readonly<{
+    blackboard: BlackboardRuntime;
+    workspaceTarget: BlackboardWorkspaceTarget;
+  }>,
 ): readonly AgentToolDefinition[] => [
   createChardeskMaterialsTool(),
   ...createBlackboardAgentTools(dependencies),

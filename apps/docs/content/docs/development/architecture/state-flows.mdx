@@ -50,10 +50,11 @@ use Registry focus as an implicit write target.
 - Blackboard: source-tree transaction -> shared compiler -> derived Canvas surface.
   Invalid source remains stored while the last valid surface stays mounted. Human
   Canvas commands never write back to source files.
-- Blackboard site tool: explicit workspace -> protocol-neutral namespaced command -> source
-  repository. Each top-level document registers its own tools; cross-tab selection belongs to the
-  consuming browser or bridge. Workspace discovery and creation are available from any application
-  route. Workspace reads expose the `blackboard.yaml` source graph;
+- Blackboard site tool: active page workspace -> protocol-neutral namespaced command -> source
+  repository. Explicit workspace IDs remain a compatibility override. Creation and opening bind
+  the page URL, Canvas session, and IndexedDB workspace before later file calls omit identity.
+  Each hosted top-level document owns its selection; local CLI reader pages expose materials but
+  not browser-persistent CRUD. Workspace reads expose the `blackboard.yaml` source graph;
   mutations report whether the compiled Canvas projection updated, stayed unchanged, or became
   invalid. A global read-only tool embeds the canonical skill materials
   at build time so web-only agents can load the same authoring context. The document connector

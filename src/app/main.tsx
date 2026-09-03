@@ -20,20 +20,32 @@ import {
   isModuleReloadPending,
   requireLoadedModule,
 } from "@/shared/lib/moduleLoadRecovery";
-import { createChardeskAgentTools } from "./site-tools/chardeskTools";
+import {
+  createChardeskAgentTools,
+  createChardeskMaterialsTool,
+} from "./site-tools/chardeskTools";
 import { startDocumentSiteTools } from "./site-tools/connector";
 import {
   prepareDocumentWebMcp,
   updateWebMcpDiagnostics,
   type WebMcpProvider,
 } from "./site-tools/environment";
-import { isBlackboardRoute } from "./blackboardRoute";
+import { isBlackboardRoute, isLocalBlackboardReaderRoute } from "./blackboardRoute";
+import { createBlackboardWorkspaceTarget } from "./blackboardWorkspaceTarget";
 
 const profile = EDITOR_HOST_PROFILE;
 const host = getApplicationEditorHost(profile);
-const chardeskAgentTools = createChardeskAgentTools({
-  blackboard: host.blackboard,
-});
+const chardeskAgentTools = isLocalBlackboardReaderRoute(window.location)
+  ? [createChardeskMaterialsTool()]
+  : createChardeskAgentTools({
+      blackboard: host.blackboard,
+      workspaceTarget: createBlackboardWorkspaceTarget({
+        blackboard: host.blackboard,
+        canvas: host.canvas,
+        location: window.location,
+        history: window.history,
+      }),
+    });
 
 const startChardeskSiteTools = async () => {
   let provider: WebMcpProvider = "unavailable";

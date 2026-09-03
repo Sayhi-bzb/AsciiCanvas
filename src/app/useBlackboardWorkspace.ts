@@ -3,6 +3,7 @@ import { useShallow } from "zustand/react/shallow";
 import { useBlackboardRuntime } from "@/domains/blackboard/public";
 import { isBlackboardRoute, isLocalBlackboardReaderRoute } from "./blackboardRoute";
 import { useCanvasRuntime, useCanvasState } from "@/domains/canvas/public";
+import { createBlackboardWorkspaceTarget } from "./blackboardWorkspaceTarget";
 
 type BlackboardModeStatus =
   | { state: "idle" | "current" | "waiting"; message: string }
@@ -92,17 +93,12 @@ export const useBlackboardWorkspace = ({ enabled = true }: { enabled?: boolean }
         requestedId ? { id: requestedId } : undefined,
       );
       if (disposed) return;
-      const existing = canvas.getState().canvasSessions.find(
-        (session) => session.mode === "blackboard" &&
-          session.workspaceId === source.workspace.id,
-      );
-      if (existing) await canvas.commands.sessions.switch(existing.id);
-      else canvas.commands.sessions.create("blackboard", {
-        blackboardWorkspaceId: source.workspace.id,
-        name: source.workspace.title,
-      });
-      params.set("workspace", source.workspace.id);
-      window.history.replaceState(null, "", `/blackboard?${params.toString()}`);
+      await createBlackboardWorkspaceTarget({
+        blackboard: runtime,
+        canvas,
+        location: window.location,
+        history: window.history,
+      }).activateWorkspace(source.workspace.id);
     })();
     return () => { disposed = true; };
   }, [canvas, enabled, runtime]);

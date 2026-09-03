@@ -106,7 +106,7 @@ Arrange content on Freeform or Structured canvases, compose multiline fields wit
 - **Chrome WebMCP:** experimental. Enable `chrome://flags/#enable-webmcp-testing`, relaunch Chrome, and keep [CharDesk](https://chardesk.com/) open for a compatible agent.
 - **ChatGPT Site Tools:** experimental. Enable **Site tools** under **Settings → Browser → Permissions**, then open CharDesk in ChatGPT's built-in browser. See the [official Site Tools guide](https://learn.chatgpt.com/docs/webmcp).
 
-Browser agents can call `chardesk_read_materials` to enter the same visual language and worked examples as the skill.
+Browser agents can call `chardesk_read_materials` to enter the same visual language and worked examples as the skill. Blackboard tools operate on the Canvas visible in that browser page; creating or opening a workspace activates it automatically.
 
 ## For builders
 

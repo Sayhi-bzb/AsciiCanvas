@@ -3,16 +3,17 @@
 Use this context when `chardesk_blackboard_*` tools are available. WebMCP and
 ChatGPT Site Tools expose the same workspace contract.
 
-1. Resolve an explicit workspace. Create one for new untargeted content; list
-   workspaces when an existing target is missing or ambiguous.
+1. Work in the active Blackboard. Create one for a new scene; open an existing
+   workspace only when the intended target is not already visible.
 2. List the source graph, read `blackboard.yaml` first, then read the visible
    Panels involved in the change.
-3. Batch related writes and deletes in one patch and pass `baseRevision`.
+3. Batch related writes and deletes in one patch. Use `baseRevision` only when
+   guarding against concurrent edits.
 4. Read `projectionStatus`, `sourceGraph`, and warnings from the mutation, then
    check the workspace. An unchanged projection routes the next edit through
    `blackboard.yaml` rather than another standalone file.
-5. Navigate to the returned workspace URL after creation; later edits keep the
-   current page.
+5. Creation and opening activate the Canvas; subsequent file calls omit
+   `workspaceId`.
 6. Report changed paths and the resulting revision.
 
 A revision conflict refreshes the source and recomputes one patch. A repeated
