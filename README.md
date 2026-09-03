@@ -34,38 +34,29 @@ The agent creates the source, checks it, and opens the canvas. You do not need t
 - Map architectures, workflows, timelines, and relationships.
 - Keep a Blackboard that people and agents can inspect and revise together.
 
-<table>
-  <tr>
-    <td width="50%">
-      <a href="./demo/readme-showcase/01-shared-medium.md"><img src="public/showcase/01-shared-medium.png" alt="CharDesk as a shared visual medium"></a>
-      <br><strong>Shared medium</strong> · <a href="./demo/readme-showcase/01-shared-medium.md">Source</a>
-    </td>
-    <td width="50%">
-      <a href="./demo/readme-showcase/02-gpu-blackboard.zh-CN.md"><img src="public/showcase/02-gpu-blackboard.zh-CN.png" alt="A visual explanation of how a GPU works"></a>
-      <br><strong>Visual explanation</strong> · <a href="./demo/readme-showcase/02-gpu-blackboard.zh-CN.md">Source</a>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%">
-      <a href="./demo/readme-showcase/03-el-nino-observatory.md"><img src="public/showcase/03-el-nino-observatory.png" alt="An El Niño scientific figure"></a>
-      <br><strong>Scientific figure</strong> · <a href="./demo/readme-showcase/03-el-nino-observatory.md">Source</a>
-    </td>
-    <td width="50%">
-      <a href="./demo/readme-showcase/04-story-slides.ja.md"><img src="public/showcase/04-story-slides.ja.png" alt="A character-based slide story"></a>
-      <br><strong>Character slides</strong> · <a href="./demo/readme-showcase/04-story-slides.ja.md">Source</a>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%">
-      <a href="./demo/readme-showcase/05-interface-console.md"><img src="public/showcase/05-interface-console.png" alt="An ANSI and Nerd Font product interface"></a>
-      <br><strong>Interface design</strong> · <a href="./demo/readme-showcase/05-interface-console.md">Source</a>
-    </td>
-    <td width="50%">
-      <a href="./demo/readme-showcase/06-agent-blackboard.md"><img src="public/showcase/06-agent-blackboard.png" alt="A shared human and agent Blackboard"></a>
-      <br><strong>Agent Blackboard</strong> · <a href="./demo/readme-showcase/06-agent-blackboard.md">Source</a>
-    </td>
-  </tr>
-</table>
+<a href="./demo/readme-showcase/01-shared-medium.md"><img src="public/showcase/01-shared-medium.png" alt="CharDesk as a shared visual medium" width="100%"></a>
+
+<sub><strong>Shared medium</strong> · <a href="./demo/readme-showcase/01-shared-medium.md">Source</a></sub>
+
+<a href="./demo/readme-showcase/02-gpu-blackboard.zh-CN.md"><img src="public/showcase/02-gpu-blackboard.zh-CN.png" alt="A visual explanation of how a GPU works" width="100%"></a>
+
+<sub><strong>Visual explanation</strong> · <a href="./demo/readme-showcase/02-gpu-blackboard.zh-CN.md">Source</a></sub>
+
+<a href="./demo/readme-showcase/03-el-nino-observatory.md"><img src="public/showcase/03-el-nino-observatory.png" alt="An El Niño scientific figure" width="100%"></a>
+
+<sub><strong>Scientific figure</strong> · <a href="./demo/readme-showcase/03-el-nino-observatory.md">Source</a></sub>
+
+<a href="./demo/readme-showcase/04-story-slides.ja.md"><img src="public/showcase/04-story-slides.ja.png" alt="A character-based slide story" width="100%"></a>
+
+<sub><strong>Character slides</strong> · <a href="./demo/readme-showcase/04-story-slides.ja.md">Source</a></sub>
+
+<a href="./demo/readme-showcase/05-interface-console.md"><img src="public/showcase/05-interface-console.png" alt="An ANSI and Nerd Font product interface" width="100%"></a>
+
+<sub><strong>Interface design</strong> · <a href="./demo/readme-showcase/05-interface-console.md">Source</a></sub>
+
+<a href="./demo/readme-showcase/06-agent-blackboard.md"><img src="public/showcase/06-agent-blackboard.png" alt="A shared human and agent Blackboard" width="100%"></a>
+
+<sub><strong>Agent Blackboard</strong> · <a href="./demo/readme-showcase/06-agent-blackboard.md">Source</a></sub>
 
 ## Why text can be visual
 
