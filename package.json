@@ -24,6 +24,8 @@
     "generate:character-data": "node scripts/data/generate-character-data.mjs",
     "welcome:generate": "npm run build -w @chardesk/protocol && npm run build -w @chardesk/chargraph && node scripts/data/generate-welcome-canvas.mjs",
     "welcome:verify": "npm run build -w @chardesk/protocol && npm run build -w @chardesk/chargraph && node scripts/data/generate-welcome-canvas.mjs --verify",
+    "showcase:generate": "npm run build:cli && node scripts/docs/generate-readme-showcase.mjs",
+    "showcase:verify": "npm run build:cli && node scripts/docs/generate-readme-showcase.mjs --verify",
     "characters:verify": "node scripts/data/generate-character-data.mjs --verify",
     "fonts:sync": "node scripts/fonts/vendor-fonts.mjs",
     "fonts:verify": "node scripts/fonts/vendor-fonts.mjs --verify",

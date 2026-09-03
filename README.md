@@ -25,10 +25,6 @@ $chardesk Explain how a GPU works as a visual blackboard.
 
 The agent creates the source, checks it, and opens the canvas. You do not need to learn a file format or configure an AI provider first.
 
-<div align="center">
-  <img src="public/demo.gif" alt="An agent and a person working through CharDesk" width="100%">
-</div>
-
 ## What you can make
 
 - Explain a concept as a spatial story instead of a wall of text.
@@ -38,9 +34,38 @@ The agent creates the source, checks it, and opens the canvas. You do not need t
 - Map architectures, workflows, timelines, and relationships.
 - Keep a Blackboard that people and agents can inspect and revise together.
 
-<div align="center">
-  <img src="public/Case/Case.webp" alt="Visual work made with CharDesk" width="100%">
-</div>
+<table>
+  <tr>
+    <td width="50%">
+      <a href="./demo/readme-showcase/01-shared-medium.md"><img src="public/showcase/01-shared-medium.png" alt="CharDesk as a shared visual medium"></a>
+      <br><strong>Shared medium</strong> · <a href="./demo/readme-showcase/01-shared-medium.md">Source</a>
+    </td>
+    <td width="50%">
+      <a href="./demo/readme-showcase/02-gpu-blackboard.zh-CN.md"><img src="public/showcase/02-gpu-blackboard.zh-CN.png" alt="A visual explanation of how a GPU works"></a>
+      <br><strong>Visual explanation</strong> · <a href="./demo/readme-showcase/02-gpu-blackboard.zh-CN.md">Source</a>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <a href="./demo/readme-showcase/03-el-nino-observatory.md"><img src="public/showcase/03-el-nino-observatory.png" alt="An El Niño scientific figure"></a>
+      <br><strong>Scientific figure</strong> · <a href="./demo/readme-showcase/03-el-nino-observatory.md">Source</a>
+    </td>
+    <td width="50%">
+      <a href="./demo/readme-showcase/04-story-slides.ja.md"><img src="public/showcase/04-story-slides.ja.png" alt="A character-based slide story"></a>
+      <br><strong>Character slides</strong> · <a href="./demo/readme-showcase/04-story-slides.ja.md">Source</a>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <a href="./demo/readme-showcase/05-interface-console.md"><img src="public/showcase/05-interface-console.png" alt="An ANSI and Nerd Font product interface"></a>
+      <br><strong>Interface design</strong> · <a href="./demo/readme-showcase/05-interface-console.md">Source</a>
+    </td>
+    <td width="50%">
+      <a href="./demo/readme-showcase/06-agent-blackboard.md"><img src="public/showcase/06-agent-blackboard.png" alt="A shared human and agent Blackboard"></a>
+      <br><strong>Agent Blackboard</strong> · <a href="./demo/readme-showcase/06-agent-blackboard.md">Source</a>
+    </td>
+  </tr>
+</table>
 
 ## Why text can be visual
 
@@ -55,10 +80,6 @@ CharDesk keeps both. A fixed Unicode grid carries position, box drawing carries 
            ⇅
    Agent edits tokens
 ```
-
-<div align="center">
-  <img src="public/Cover.png" alt="Unicode and ANSI artwork in CharDesk" width="100%">
-</div>
 
 ## The medium
 

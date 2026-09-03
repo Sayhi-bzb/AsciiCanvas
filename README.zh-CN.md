@@ -25,10 +25,6 @@ $chardesk 用一块可视化黑板解释显卡如何工作。
 
 Agent 会创建源码、检查结果并打开画布。你不需要先学习文件格式，也不需要配置 AI Provider。
 
-<div align="center">
-  <img src="public/demo.gif" alt="Agent 与人在 CharDesk 中协作" width="100%">
-</div>
-
 ## 可以用它做什么
 
 - 把概念讲成一段空间叙事，而不是堆成一堵文字墙。
@@ -38,9 +34,38 @@ Agent 会创建源码、检查结果并打开画布。你不需要先学习文�
 - 描绘架构、流程、时间线与关系。
 - 保留一块人和 Agent 都能检查、继续修改的 Blackboard。
 
-<div align="center">
-  <img src="public/Case/Case.webp" alt="使用 CharDesk 创作的视觉内容" width="100%">
-</div>
+<table>
+  <tr>
+    <td width="50%">
+      <a href="./demo/readme-showcase/01-shared-medium.md"><img src="public/showcase/01-shared-medium.png" alt="CharDesk 作为人与 Agent 共享的视觉媒介"></a>
+      <br><strong>共享视觉媒介</strong> · <a href="./demo/readme-showcase/01-shared-medium.md">源码</a>
+    </td>
+    <td width="50%">
+      <a href="./demo/readme-showcase/02-gpu-blackboard.zh-CN.md"><img src="public/showcase/02-gpu-blackboard.zh-CN.png" alt="显卡工作原理的可视化讲解"></a>
+      <br><strong>可视化讲解</strong> · <a href="./demo/readme-showcase/02-gpu-blackboard.zh-CN.md">源码</a>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <a href="./demo/readme-showcase/03-el-nino-observatory.md"><img src="public/showcase/03-el-nino-observatory.png" alt="厄尔尼诺科研图"></a>
+      <br><strong>科研图</strong> · <a href="./demo/readme-showcase/03-el-nino-observatory.md">源码</a>
+    </td>
+    <td width="50%">
+      <a href="./demo/readme-showcase/04-story-slides.ja.md"><img src="public/showcase/04-story-slides.ja.png" alt="字符幻灯片叙事"></a>
+      <br><strong>字符 Slides</strong> · <a href="./demo/readme-showcase/04-story-slides.ja.md">源码</a>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <a href="./demo/readme-showcase/05-interface-console.md"><img src="public/showcase/05-interface-console.png" alt="ANSI 与 Nerd Font 产品界面"></a>
+      <br><strong>界面设计</strong> · <a href="./demo/readme-showcase/05-interface-console.md">源码</a>
+    </td>
+    <td width="50%">
+      <a href="./demo/readme-showcase/06-agent-blackboard.md"><img src="public/showcase/06-agent-blackboard.png" alt="人与 Agent 共享的 Blackboard"></a>
+      <br><strong>Agent Blackboard</strong> · <a href="./demo/readme-showcase/06-agent-blackboard.md">源码</a>
+    </td>
+  </tr>
+</table>
 
 ## 为什么文本也可以是视觉媒介
 
@@ -55,10 +80,6 @@ CharDesk 同时保留两者。固定 Unicode 网格承载位置，Box Drawing �
           ⇅
    Agent 编辑 token
 ```
-
-<div align="center">
-  <img src="public/Cover.png" alt="CharDesk 中的 Unicode 与 ANSI 作品" width="100%">
-</div>
 
 ## 表达媒介
 
