@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  analyzeBlackboardSourceTree,
   compileBlackboardSourceTree,
   normalizeBlackboardPath,
 } from "./source-tree.js";
@@ -21,6 +22,24 @@ describe("Blackboard source tree", () => {
       ["panels/intro.panel", "Hello"],
     ]));
     expect(compiled).toMatchObject({ title: "Example", source: "Hello" });
+  });
+
+  it("classifies visible, draft, and unreferenced source files", () => {
+    const source = manifest.replace(
+      "    source: panels/intro.panel",
+      "    source: panels/intro.panel\n  draft:\n    source: panels/draft.panel",
+    );
+    expect(analyzeBlackboardSourceTree(new Map([
+      ["blackboard.yaml", source],
+      ["panels/intro.panel", "Hello"],
+      ["panels/draft.panel", "Later"],
+      ["gpu-intro.chardesk", "Invisible"],
+    ]))).toEqual({
+      entrypoint: "blackboard.yaml",
+      visibleFiles: ["panels/intro.panel"],
+      draftFiles: ["panels/draft.panel"],
+      unreferencedFiles: ["gpu-intro.chardesk"],
+    });
   });
 
   it.each(["../secret", "/root", "a\\b", "a//b"])(

@@ -29,6 +29,9 @@ describe("Blackboard agent tools", () => {
     expect(tools.map(({ name }) => name)).toEqual(Object.values(BLACKBOARD_AGENT_TOOL_NAMES));
     expect(tools.every(({ title }) => Boolean(title))).toBe(true);
     expect(tools.some(({ name }) => name === "apply_patch")).toBe(false);
+    expect(tools.filter(({ name }) => name !== BLACKBOARD_AGENT_TOOL_NAMES.listWorkspaces)
+      .every(({ description }) => description.includes("blackboard.yaml") ||
+        description.includes("workspace"))).toBe(true);
   });
 
   it("requires an explicit workspace for workspace-scoped commands", async () => {
@@ -127,5 +130,132 @@ describe("Blackboard agent tools", () => {
       .not.toMatchObject({ files: expect.arrayContaining([
         expect.objectContaining({ path: "panels/conflict.panel" }),
       ]) });
+  });
+
+  it("distinguishes stored files from sources visible on the Canvas", async () => {
+    const { repository, byName } = createTools(`agent-tools-graph-${crypto.randomUUID()}`);
+    const created = await repository.createWorkspace({ id: "board" });
+    const listFiles = byName.get(BLACKBOARD_AGENT_TOOL_NAMES.listFiles)!;
+    const writeFile = byName.get(BLACKBOARD_AGENT_TOOL_NAMES.writeFile)!;
+    const check = byName.get(BLACKBOARD_AGENT_TOOL_NAMES.check)!;
+
+    await expect(listFiles.execute({ workspaceId: "board" })).resolves.toMatchObject({
+      entrypoint: "blackboard.yaml",
+      projectionStatus: "valid",
+      sourceGraph: {
+        visibleFiles: ["panels/welcome.panel"],
+        draftFiles: [],
+        unreferencedFiles: [],
+      },
+    });
+
+    const orphan = await writeFile.execute({
+      workspaceId: "board",
+      path: "gpu-intro.chardesk",
+      content: "GPU",
+      baseRevision: created.workspace.revision,
+    });
+    expect(orphan).toMatchObject({
+      ok: true,
+      projectionStatus: "unchanged",
+      projectionChanged: false,
+      sourceGraph: { unreferencedFiles: ["gpu-intro.chardesk"] },
+      warnings: [expect.stringContaining("not visible on the Canvas")],
+    });
+
+    await expect(check.execute({ workspaceId: "board" })).resolves.toMatchObject({
+      ok: true,
+      sourceGraph: { unreferencedFiles: ["gpu-intro.chardesk"] },
+      warnings: [expect.stringContaining("gpu-intro.chardesk")],
+    });
+
+    const visible = await writeFile.execute({
+      workspaceId: "board",
+      path: "panels/welcome.panel",
+      content: "Visible GPU",
+      baseRevision: (orphan as { revision: number }).revision,
+    });
+    expect(visible).toMatchObject({
+      projectionStatus: "updated",
+      projectionChanged: true,
+    });
+
+    const draft = await byName.get(BLACKBOARD_AGENT_TOOL_NAMES.applyPatch)!.execute({
+      workspaceId: "board",
+      baseRevision: (visible as { revision: number }).revision,
+      operations: [
+        {
+          op: "replace",
+          path: "blackboard.yaml",
+          oldText: "layout:\n",
+          newText: "  draft:\n    source: panels/draft.panel\nlayout:\n",
+        },
+        { op: "write", path: "panels/draft.panel", content: "Later" },
+      ],
+    });
+    expect(draft).toMatchObject({
+      projectionStatus: "unchanged",
+      projectionChanged: false,
+      sourceGraph: { draftFiles: ["panels/draft.panel"] },
+      warnings: expect.arrayContaining([expect.stringContaining("not used by layout.areas")]),
+    });
+  });
+
+  it("evaluates an atomic manifest and panel patch as one final projection", async () => {
+    const { repository, byName } = createTools(`agent-tools-patch-${crypto.randomUUID()}`);
+    const created = await repository.createWorkspace({ id: "board" });
+    const applyPatch = byName.get(BLACKBOARD_AGENT_TOOL_NAMES.applyPatch)!;
+
+    const result = await applyPatch.execute({
+      workspaceId: "board",
+      baseRevision: created.workspace.revision,
+      operations: [
+        {
+          op: "replace",
+          path: "blackboard.yaml",
+          oldText: "source: panels/welcome.panel",
+          newText: "source: panels/gpu.panel",
+        },
+        { op: "write", path: "panels/gpu.panel", content: "GPU pipeline" },
+        { op: "delete", path: "panels/welcome.panel" },
+      ],
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      changed: ["blackboard.yaml", "panels/gpu.panel", "panels/welcome.panel"],
+      projectionStatus: "updated",
+      projectionChanged: true,
+      sourceGraph: {
+        visibleFiles: ["panels/gpu.panel"],
+        unreferencedFiles: [],
+      },
+      warnings: [],
+    });
+  });
+
+  it("persists invalid source while reporting that the projection stayed unchanged", async () => {
+    const { repository, byName } = createTools(`agent-tools-invalid-${crypto.randomUUID()}`);
+    const created = await repository.createWorkspace({ id: "board" });
+    const deleteFile = byName.get(BLACKBOARD_AGENT_TOOL_NAMES.deleteFile)!;
+    const check = byName.get(BLACKBOARD_AGENT_TOOL_NAMES.check)!;
+
+    await expect(deleteFile.execute({
+      workspaceId: "board",
+      path: "panels/welcome.panel",
+      baseRevision: created.workspace.revision,
+    })).resolves.toMatchObject({
+      ok: true,
+      projectionStatus: "invalid",
+      projectionChanged: false,
+      sourceGraph: { visibleFiles: ["panels/welcome.panel"] },
+      warnings: [expect.stringContaining("last valid Canvas remains visible")],
+    });
+
+    await expect(check.execute({ workspaceId: "board" })).resolves.toMatchObject({
+      ok: false,
+      code: "invalid_workspace",
+      message: expect.stringContaining("last valid Canvas remains visible"),
+    });
   });
 });

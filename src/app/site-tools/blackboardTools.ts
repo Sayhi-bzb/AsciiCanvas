@@ -1,4 +1,10 @@
-import { normalizeBlackboardPath } from "@chardesk/blackboard";
+import {
+  analyzeBlackboardSourceTree,
+  BLACKBOARD_SOURCE_ENTRYPOINT,
+  compileBlackboardSourceTree,
+  normalizeBlackboardPath,
+  type BlackboardSourceGraph,
+} from "@chardesk/blackboard";
 import {
   BlackboardRevisionConflictError,
   type BlackboardRuntime,
@@ -41,6 +47,37 @@ const workspaceNotFoundOutputSchema = {
   additionalProperties: false,
 } as const;
 
+const sourceGraphSchema = {
+  type: "object",
+  properties: {
+    entrypoint: {
+      const: BLACKBOARD_SOURCE_ENTRYPOINT,
+      description: "Manifest that owns the Blackboard panel and layout graph.",
+    },
+    visibleFiles: {
+      type: "array",
+      items: { type: "string" },
+      description: "Panel sources currently composed into the Canvas.",
+    },
+    draftFiles: {
+      type: "array",
+      items: { type: "string" },
+      description: "Registered panel sources not currently placed in layout.areas.",
+    },
+    unreferencedFiles: {
+      type: "array",
+      items: { type: "string" },
+      description: "Stored files not registered by blackboard.yaml and therefore not visible.",
+    },
+  },
+  required: ["entrypoint", "visibleFiles", "draftFiles", "unreferencedFiles"],
+  additionalProperties: false,
+} as const;
+
+const nullableSourceGraphSchema = {
+  oneOf: [{ type: "null" }, sourceGraphSchema],
+} as const;
+
 const mutationOutputSchema = {
   oneOf: [
     {
@@ -50,8 +87,33 @@ const mutationOutputSchema = {
         workspaceId: { type: "string" },
         revision: { type: "integer", minimum: 0 },
         changed: { type: "array", items: { type: "string" } },
+        entrypoint: { const: BLACKBOARD_SOURCE_ENTRYPOINT },
+        projectionStatus: {
+          enum: ["updated", "unchanged", "invalid"],
+          description: "Effect of the persisted mutation on the compiled Canvas projection.",
+        },
+        projectionChanged: {
+          type: "boolean",
+          description: "True only when the valid visible Canvas projection changed.",
+        },
+        sourceGraph: nullableSourceGraphSchema,
+        warnings: {
+          type: "array",
+          items: { type: "string" },
+          description: "Actionable projection and source-routing diagnostics.",
+        },
       },
-      required: ["ok", "workspaceId", "revision", "changed"],
+      required: [
+        "ok",
+        "workspaceId",
+        "revision",
+        "changed",
+        "entrypoint",
+        "projectionStatus",
+        "projectionChanged",
+        "sourceGraph",
+        "warnings",
+      ],
       additionalProperties: false,
     },
     {
@@ -73,8 +135,55 @@ const withWorkspaceNotFound = (success: Readonly<Record<string, unknown>>) => ({
 });
 
 const workspaceInputProperty = {
-  workspaceId: { type: "string", minLength: 1 },
+  workspaceId: {
+    type: "string",
+    minLength: 1,
+    description: "Workspace ID returned by list_workspaces or create_workspace.",
+  },
 } as const;
+
+type ProjectionInspection = Readonly<{
+  valid: boolean;
+  signature?: string;
+  title?: string;
+  sourceGraph: BlackboardSourceGraph | null;
+  warnings: readonly string[];
+}>;
+
+const unreferencedWarnings = (sourceGraph: BlackboardSourceGraph) =>
+  sourceGraph.unreferencedFiles.map((path) =>
+    `${path} is stored but not referenced by ${sourceGraph.entrypoint}, so it is not visible on the Canvas.`
+  );
+
+const inspectProjection = async (
+  source: BlackboardWorkspaceSnapshot,
+): Promise<ProjectionInspection> => {
+  let sourceGraph: BlackboardSourceGraph | null = null;
+  try {
+    sourceGraph = analyzeBlackboardSourceTree(source.files);
+    const compiled = await compileBlackboardSourceTree(source.files, source.workspace.title);
+    return {
+      valid: true,
+      signature: JSON.stringify([compiled.title, compiled.source]),
+      title: compiled.title,
+      sourceGraph,
+      warnings: [
+        ...compiled.warnings.map(({ message }) => message),
+        ...unreferencedWarnings(sourceGraph),
+      ],
+    };
+  } catch (error) {
+    return {
+      valid: false,
+      sourceGraph,
+      warnings: [
+        `Canvas projection is invalid: ${
+          error instanceof Error ? error.message : "Unknown Blackboard error."
+        } The last valid Canvas remains visible.`,
+      ],
+    };
+  }
+};
 
 const requireString = (input: Record<string, unknown>, key: string) => {
   const value = input[key];
@@ -136,21 +245,33 @@ export const createBlackboardAgentTools = ({
   };
 
   const apply = async (
-    workspaceId: string,
+    current: SelectedWorkspace,
     operations: readonly BlackboardWorkspaceOperation[],
     baseRevision?: number,
   ) => {
     try {
+      const before = await inspectProjection(current.source);
       const next = await blackboard.repository.apply(
-        workspaceId,
+        current.workspaceId,
         operations,
         baseRevision,
       );
+      const after = await inspectProjection(next);
+      const projectionStatus = !after.valid
+        ? "invalid"
+        : before.valid && before.signature === after.signature
+        ? "unchanged"
+        : "updated";
       return {
         ok: true,
-        workspaceId,
+        workspaceId: current.workspaceId,
         revision: next.workspace.revision,
         changed: operations.map(({ path }) => path),
+        entrypoint: BLACKBOARD_SOURCE_ENTRYPOINT,
+        projectionStatus,
+        projectionChanged: projectionStatus === "updated",
+        sourceGraph: after.sourceGraph,
+        warnings: after.warnings,
       };
     } catch (error) {
       if (error instanceof BlackboardRevisionConflictError) {
@@ -168,7 +289,8 @@ export const createBlackboardAgentTools = ({
     {
       name: BLACKBOARD_AGENT_TOOL_NAMES.listWorkspaces,
       title: "List workspaces",
-      description: "List CharDesk Blackboard workspaces stored in this browser origin.",
+      description:
+        "List CharDesk Blackboard workspaces stored in this browser origin. After selecting one, call list_files before mutating it.",
       inputSchema: { type: "object", properties: {}, additionalProperties: false },
       outputSchema: {
         type: "object",
@@ -204,7 +326,8 @@ export const createBlackboardAgentTools = ({
     {
       name: BLACKBOARD_AGENT_TOOL_NAMES.createWorkspace,
       title: "Create workspace",
-      description: "Create a CharDesk Blackboard workspace in this browser origin.",
+      description:
+        "Create a CharDesk Blackboard package in this browser origin. The returned blackboard.yaml entrypoint controls which panel files are visible; read it before replacing the starter Canvas.",
       inputSchema: {
         type: "object",
         properties: { title: { type: "string", minLength: 1 } },
@@ -219,8 +342,17 @@ export const createBlackboardAgentTools = ({
           createdAt: { type: "integer", minimum: 0 },
           updatedAt: { type: "integer", minimum: 0 },
           url: { type: "string" },
+          entrypoint: { const: BLACKBOARD_SOURCE_ENTRYPOINT },
         },
-        required: ["workspaceId", "title", "revision", "createdAt", "updatedAt", "url"],
+        required: [
+          "workspaceId",
+          "title",
+          "revision",
+          "createdAt",
+          "updatedAt",
+          "url",
+          "entrypoint",
+        ],
         additionalProperties: false,
       },
       execute: async (input) => {
@@ -234,13 +366,15 @@ export const createBlackboardAgentTools = ({
           createdAt: workspace.createdAt,
           updatedAt: workspace.updatedAt,
           url: workspaceUrl(workspace.id),
+          entrypoint: BLACKBOARD_SOURCE_ENTRYPOINT,
         };
       },
     },
     {
       name: BLACKBOARD_AGENT_TOOL_NAMES.listFiles,
       title: "List files",
-      description: "List UTF-8 source files in a selected CharDesk Blackboard workspace.",
+      description:
+        "Start here before editing an existing Blackboard. List its UTF-8 files and report which sources blackboard.yaml makes visible, keeps as drafts, or leaves unreferenced.",
       inputSchema: {
         type: "object",
         properties: workspaceInputProperty,
@@ -253,28 +387,55 @@ export const createBlackboardAgentTools = ({
           workspaceId: { type: "string" },
           revision: { type: "integer", minimum: 0 },
           files: { type: "array", items: { type: "string" } },
+          entrypoint: { const: BLACKBOARD_SOURCE_ENTRYPOINT },
+          projectionStatus: {
+            enum: ["valid", "invalid"],
+            description: "Whether the current blackboard.yaml entry graph compiles.",
+          },
+          sourceGraph: nullableSourceGraphSchema,
+          warnings: { type: "array", items: { type: "string" } },
         },
-        required: ["workspaceId", "revision", "files"],
+        required: [
+          "workspaceId",
+          "revision",
+          "files",
+          "entrypoint",
+          "projectionStatus",
+          "sourceGraph",
+          "warnings",
+        ],
         additionalProperties: false,
       }),
       readOnly: true,
       execute: async (input) => {
         const current = await selected(input);
         if (!isSelectedWorkspace(current)) return current;
+        const projection = await inspectProjection(current.source);
         return {
           workspaceId: current.workspaceId,
           revision: current.source.workspace.revision,
           files: current.source.files.map(({ path }) => path),
+          entrypoint: BLACKBOARD_SOURCE_ENTRYPOINT,
+          projectionStatus: projection.valid ? "valid" : "invalid",
+          sourceGraph: projection.sourceGraph,
+          warnings: projection.warnings,
         };
       },
     },
     {
       name: BLACKBOARD_AGENT_TOOL_NAMES.readFile,
       title: "Read file",
-      description: "Read one UTF-8 source file from a selected CharDesk Blackboard workspace.",
+      description:
+        "Read one Blackboard source file. Read blackboard.yaml before editing, then read the panel sources it registers and places in layout.areas.",
       inputSchema: {
         type: "object",
-        properties: { ...workspaceInputProperty, path: { type: "string" } },
+        properties: {
+          ...workspaceInputProperty,
+          path: {
+            type: "string",
+            description: "Package-relative source path returned by list_files.",
+          },
+        },
         required: ["workspaceId", "path"],
         additionalProperties: false,
       },
@@ -307,14 +468,22 @@ export const createBlackboardAgentTools = ({
     {
       name: BLACKBOARD_AGENT_TOOL_NAMES.writeFile,
       title: "Write file",
-      description: "Create or replace one UTF-8 source file in a selected Blackboard workspace.",
+      description:
+        "Create or replace one UTF-8 Blackboard file. Saving a file does not make it visible: only panel sources registered by blackboard.yaml and placed in layout.areas affect the Canvas. Prefer apply_patch when changing a panel and the manifest together.",
       inputSchema: {
         type: "object",
         properties: {
           ...workspaceInputProperty,
-          path: { type: "string" },
+          path: {
+            type: "string",
+            description: "Package-relative path. blackboard.yaml is the manifest; panel content uses .panel files.",
+          },
           content: { type: "string" },
-          baseRevision: { type: "integer", minimum: 0 },
+          baseRevision: {
+            type: "integer",
+            minimum: 0,
+            description: "Revision returned by the latest list or read operation.",
+          },
         },
         required: ["workspaceId", "path", "content"],
         additionalProperties: false,
@@ -325,18 +494,23 @@ export const createBlackboardAgentTools = ({
         const content = requireString(input, "content");
         const current = await selected(input);
         if (!isSelectedWorkspace(current)) return current;
-        return apply(current.workspaceId, [{ op: "write", path, content }], optionalRevision(input));
+        return apply(current, [{ op: "write", path, content }], optionalRevision(input));
       },
     },
     {
       name: BLACKBOARD_AGENT_TOOL_NAMES.applyPatch,
       title: "Apply patch",
-      description: "Atomically write, replace text in, or delete multiple Blackboard source files.",
+      description:
+        "Preferred mutation for a Blackboard package. Atomically update blackboard.yaml and its panel files so the final layout is compiled once; the result reports whether the visible Canvas changed.",
       inputSchema: {
         type: "object",
         properties: {
           ...workspaceInputProperty,
-          baseRevision: { type: "integer", minimum: 0 },
+          baseRevision: {
+            type: "integer",
+            minimum: 0,
+            description: "Revision returned by the latest list or read operation.",
+          },
           operations: {
             type: "array",
             minItems: 1,
@@ -344,7 +518,10 @@ export const createBlackboardAgentTools = ({
               type: "object",
               properties: {
                 op: { enum: ["write", "replace", "delete"] },
-                path: { type: "string" },
+                path: {
+                  type: "string",
+                  description: "Package-relative Blackboard source path.",
+                },
                 content: { type: "string" },
                 oldText: { type: "string" },
                 newText: { type: "string" },
@@ -397,19 +574,27 @@ export const createBlackboardAgentTools = ({
           byPath.set(path, next);
           return { op: "write", path, content: next };
         });
-        return apply(current.workspaceId, operations, optionalRevision(input));
+        return apply(current, operations, optionalRevision(input));
       },
     },
     {
       name: BLACKBOARD_AGENT_TOOL_NAMES.deleteFile,
       title: "Delete file",
-      description: "Delete one source file from a selected CharDesk Blackboard workspace.",
+      description:
+        "Delete one Blackboard source file. Deleting blackboard.yaml or a visible panel makes the projection invalid unless the same atomic patch repairs its references.",
       inputSchema: {
         type: "object",
         properties: {
           ...workspaceInputProperty,
-          path: { type: "string" },
-          baseRevision: { type: "integer", minimum: 0 },
+          path: {
+            type: "string",
+            description: "Package-relative Blackboard source path.",
+          },
+          baseRevision: {
+            type: "integer",
+            minimum: 0,
+            description: "Revision returned by the latest list or read operation.",
+          },
         },
         required: ["workspaceId", "path"],
         additionalProperties: false,
@@ -419,13 +604,14 @@ export const createBlackboardAgentTools = ({
         const path = requirePath(input);
         const current = await selected(input);
         if (!isSelectedWorkspace(current)) return current;
-        return apply(current.workspaceId, [{ op: "delete", path }], optionalRevision(input));
+        return apply(current, [{ op: "delete", path }], optionalRevision(input));
       },
     },
     {
       name: BLACKBOARD_AGENT_TOOL_NAMES.check,
       title: "Check workspace",
-      description: "Compile and validate a selected Blackboard workspace without changing it.",
+      description:
+        "Compile the blackboard.yaml entry graph without changing it. Valid means the visible projection compiles; inspect sourceGraph and warnings for stored files that remain drafts or are not visible.",
       inputSchema: {
         type: "object",
         properties: workspaceInputProperty,
@@ -433,28 +619,77 @@ export const createBlackboardAgentTools = ({
         additionalProperties: false,
       },
       outputSchema: withWorkspaceNotFound({
-        type: "object",
-        properties: {
-          ok: { const: true },
-          workspaceId: { type: "string" },
-          revision: { type: "integer", minimum: 0 },
-          title: { type: "string" },
-          warnings: { type: "array" },
-        },
-        required: ["ok", "workspaceId", "revision", "title", "warnings"],
-        additionalProperties: false,
+        oneOf: [
+          {
+            type: "object",
+            properties: {
+              ok: { const: true },
+              workspaceId: { type: "string" },
+              revision: { type: "integer", minimum: 0 },
+              title: { type: "string" },
+              entrypoint: { const: BLACKBOARD_SOURCE_ENTRYPOINT },
+              sourceGraph: sourceGraphSchema,
+              warnings: { type: "array", items: { type: "string" } },
+            },
+            required: [
+              "ok",
+              "workspaceId",
+              "revision",
+              "title",
+              "entrypoint",
+              "sourceGraph",
+              "warnings",
+            ],
+            additionalProperties: false,
+          },
+          {
+            type: "object",
+            properties: {
+              ok: { const: false },
+              code: { const: "invalid_workspace" },
+              workspaceId: { type: "string" },
+              revision: { type: "integer", minimum: 0 },
+              entrypoint: { const: BLACKBOARD_SOURCE_ENTRYPOINT },
+              sourceGraph: nullableSourceGraphSchema,
+              message: { type: "string" },
+            },
+            required: [
+              "ok",
+              "code",
+              "workspaceId",
+              "revision",
+              "entrypoint",
+              "sourceGraph",
+              "message",
+            ],
+            additionalProperties: false,
+          },
+        ],
       }),
       readOnly: true,
       execute: async (input) => {
         const current = await selected(input);
         if (!isSelectedWorkspace(current)) return current;
-        const compiled = await blackboard.compile(current.workspaceId);
+        const projection = await inspectProjection(current.source);
+        if (!projection.valid) {
+          return {
+            ok: false,
+            code: "invalid_workspace",
+            workspaceId: current.workspaceId,
+            revision: current.source.workspace.revision,
+            entrypoint: BLACKBOARD_SOURCE_ENTRYPOINT,
+            sourceGraph: projection.sourceGraph,
+            message: projection.warnings[0]!,
+          };
+        }
         return {
           ok: true,
           workspaceId: current.workspaceId,
-          revision: compiled.revision,
-          title: compiled.title,
-          warnings: compiled.warnings,
+          revision: current.source.workspace.revision,
+          title: projection.title!,
+          entrypoint: BLACKBOARD_SOURCE_ENTRYPOINT,
+          sourceGraph: projection.sourceGraph!,
+          warnings: projection.warnings,
         };
       },
     },

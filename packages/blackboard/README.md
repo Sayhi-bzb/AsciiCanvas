@@ -41,6 +41,8 @@ unused Panels are valid drafts and produce a warning.
 
 The package is the authority. Compilation produces a disposable Canvas surface;
 it never writes source state into Canvas Yjs content.
+`analyzeBlackboardSourceTree` classifies visible, draft, and unreferenced files
+against the `blackboard.yaml` entry graph without materializing the Canvas.
 
 The App keeps browser workspaces in IndexedDB and exposes revision-aware file CRUD
 through page tools. Invalid edits remain saved while the last valid surface stays

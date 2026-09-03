@@ -14,10 +14,13 @@ export {
   parseBlackboardManifest,
 } from "./manifest.js";
 export {
+  analyzeBlackboardSourceTree,
+  BLACKBOARD_SOURCE_ENTRYPOINT,
   compileBlackboardSourceTree,
   normalizeBlackboardPath,
 } from "./source-tree.js";
 export type {
+  BlackboardSourceGraph,
   BlackboardSourceTree,
   BlackboardSourceTreeEntry,
 } from "./source-tree.js";
