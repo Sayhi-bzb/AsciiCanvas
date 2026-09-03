@@ -27,3 +27,8 @@
 - [Core host icon controls](apps/docs/content/docs/development/host-ui/icon-controls.mdx)
 - [Dialog surfaces](apps/docs/content/docs/development/host-ui/dialogs.mdx)
 - [Interface content](apps/docs/content/docs/development/host-ui/interface-content.mdx)
+
+# Release Automation
+
+- User-visible commits use `fix:`, `feat:`, or `feat!:`. Release Please owns package versions, `version.txt`, the release manifest, changelog, tag, and GitHub release.
+- `fix:` and `feat:` publish a pre-1.0 patch; breaking commits publish a minor. `docs:`, `chore:`, and `ci:` do not request a release.

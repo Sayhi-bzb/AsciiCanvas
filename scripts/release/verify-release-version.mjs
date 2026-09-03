@@ -1,15 +1,27 @@
 import fs from "node:fs";
 
 const tag = process.argv[2];
-const match = /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.exec(tag ?? "");
+const releaseVersion = fs.readFileSync("version.txt", "utf8").trim();
+const releaseManifest = JSON.parse(
+  fs.readFileSync(".release-please-manifest.json", "utf8")
+);
+const match = tag
+  ? /^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.exec(tag)
+  : null;
 
-if (!match) {
+if (tag && !match) {
   throw new Error(
     `Release tag must be a stable SemVer tag such as v0.1.0; received ${tag ?? "<missing>"}`
   );
 }
 
-const version = tag.slice(1);
+const version = match ? tag.slice(1) : releaseVersion;
+
+if (releaseManifest["."] !== version) {
+  throw new Error(
+    `Release manifest version ${releaseManifest["."] ?? "<missing>"} does not match ${version}`
+  );
+}
 const packages = [
   { name: "@chardesk/cli", path: "packages/cli" },
   { name: "@chardesk/fonts", path: "packages/fonts" },
@@ -28,16 +40,18 @@ for (const descriptor of packages) {
   }
   if (manifest.version !== version) {
     throw new Error(
-      `${descriptor.name} version ${manifest.version} does not match tag ${tag}`
+      `${descriptor.name} version ${manifest.version} does not match ${version}`
     );
   }
 
   const locked = lockfile.packages?.[descriptor.path];
   if (locked?.version !== version) {
     throw new Error(
-      `${descriptor.name} lockfile version ${locked?.version ?? "<missing>"} does not match tag ${tag}`
+      `${descriptor.name} lockfile version ${locked?.version ?? "<missing>"} does not match ${version}`
     );
   }
 }
 
-console.log(`Release ${tag} matches all public packages and package-lock.json.`);
+console.log(
+  `${tag ? `Release ${tag}` : `Release metadata ${version}`} matches all public packages and package-lock.json.`
+);

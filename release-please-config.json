@@ -1,0 +1,29 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "simple",
+  "include-component-in-tag": false,
+  "include-v-in-tag": true,
+  "bump-minor-pre-major": true,
+  "bump-patch-for-minor-pre-major": true,
+  "changelog-sections": [
+    { "type": "feat", "section": "Features" },
+    { "type": "fix", "section": "Bug Fixes" },
+    { "type": "perf", "section": "Performance Improvements" }
+  ],
+  "packages": {
+    ".": {
+      "component": "chardesk",
+      "package-name": "@chardesk/cli",
+      "changelog-path": "packages/cli/CHANGELOG.md",
+      "version-file": "version.txt",
+      "extra-files": [
+        { "type": "json", "path": "packages/cli/package.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "packages/fonts/package.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "packages/protocol/package.json", "jsonpath": "$.version" },
+        { "type": "json", "path": "package-lock.json", "jsonpath": "$.packages['packages/cli'].version" },
+        { "type": "json", "path": "package-lock.json", "jsonpath": "$.packages['packages/fonts'].version" },
+        { "type": "json", "path": "package-lock.json", "jsonpath": "$.packages['packages/protocol'].version" }
+      ]
+    }
+  }
+}

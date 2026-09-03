@@ -86,6 +86,15 @@ try {
   if (cliManifest.bin?.chardesk !== "dist/cli.js" || !fs.existsSync(cli)) {
     throw new Error("Packed CLI did not install the chardesk executable");
   }
+  if (!fs.existsSync(path.join(
+    temporaryDirectory,
+    "node_modules",
+    "@chardesk",
+    "cli",
+    "CHANGELOG.md",
+  ))) {
+    throw new Error("Packed CLI did not include its changelog");
+  }
   const cliRuntime = path.join(
     temporaryDirectory,
     "node_modules",
