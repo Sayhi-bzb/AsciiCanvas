@@ -18,7 +18,7 @@ Canonical source is authoritative; Canvas is its projection.
   [`references/blackboard.md`](references/blackboard.md).
 - A Slide source or deliverable uses
   [`references/slides.md`](references/slides.md).
-- Creating or visually restructuring content uses the available
+- Creating, editing, or visually restructuring content uses the available
   [`materials`](references/materials.md).
 
 New unspecified documents default to a Blackboard package. Existing source
