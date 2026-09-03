@@ -136,6 +136,42 @@ describe("CanvasBreadcrumb", () => {
     expect(useEditorStore.getState().activeCanvasId).toBe("canvas-a");
   });
 
+  it("marks collaborative canvases with a success row surface", () => {
+    setTwoSessions();
+    act(() => {
+      useEditorStore.setState((state) => ({
+        canvasSessions: state.canvasSessions.map((session) =>
+          session.id === "canvas-b" && session.mode === "structured"
+            ? {
+                ...session,
+                collaboration: {
+                  version: 6,
+                  documentVersion: 6,
+                  mode: "structured",
+                  provider: "p2p",
+                  roomId: "room-id-1234567890",
+                  key: "room-key-1234567890123456789012345678901234567890",
+                },
+              }
+            : session
+        ),
+      }));
+    });
+
+    render(<CanvasBreadcrumb />);
+    openPanel();
+
+    const localRow = screen
+      .getByRole("button", { name: /^Alpha$/ })
+      .closest('[data-slot="selectable-item"]');
+    const sharedRow = screen
+      .getByRole("button", { name: /^Beta$/ })
+      .closest('[data-slot="selectable-item"]');
+    expect(localRow).not.toHaveAttribute("data-status");
+    expect(sharedRow).toHaveAttribute("data-status", "success");
+    expect(sharedRow).toHaveClass("bg-success-muted");
+  });
+
   it("exposes stable onboarding targets for creating a Structured Canvas", async () => {
     render(<CanvasBreadcrumb />);
 

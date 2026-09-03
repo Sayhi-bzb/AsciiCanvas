@@ -20,6 +20,7 @@ type ControlOptions = {
   open?: boolean;
   destructive?: boolean;
   feedback?: FeedbackStatus;
+  status?: StatusTone;
   subordinate?: boolean;
   joined?: 'start' | 'middle' | 'end';
 };
@@ -46,6 +47,7 @@ type SelectableItemOptions = {
   orientation?: 'horizontal' | 'vertical';
   selected?: boolean;
   muted?: boolean;
+  status?: StatusTone;
 };
 
 type CollectionCardOptions = {
@@ -114,6 +116,33 @@ const feedbackPersistentText: Record<FeedbackStatus, string> = {
     'text-warning hover:text-warning focus:text-warning data-[highlighted]:text-warning data-[state=open]:text-warning data-[state=open]:hover:text-warning data-[state=open]:focus:text-warning data-[state=open]:data-[highlighted]:text-warning data-[state=on]:text-warning data-[state=on]:hover:text-warning data-[state=on]:focus:text-warning data-[state=checked]:text-warning data-[state=checked]:focus:text-warning data-[state=checked]:data-[highlighted]:text-warning',
   error:
     'text-error hover:text-error focus:text-error data-[highlighted]:text-error data-[state=open]:text-error data-[state=open]:hover:text-error data-[state=open]:focus:text-error data-[state=open]:data-[highlighted]:text-error data-[state=on]:text-error data-[state=on]:hover:text-error data-[state=on]:focus:text-error data-[state=checked]:text-error data-[state=checked]:focus:text-error data-[state=checked]:data-[highlighted]:text-error',
+};
+const statusControlSurface: Record<StatusTone, string> = {
+  neutral:
+    'bg-control-active-surface hover:bg-control-active-surface focus:bg-control-active-surface data-[highlighted]:bg-control-active-surface data-[state=open]:bg-control-active-surface data-[state=open]:hover:bg-control-active-surface data-[state=open]:focus:bg-control-active-surface',
+  success:
+    'bg-success-muted hover:bg-success-muted focus:bg-success-muted data-[highlighted]:bg-success-muted data-[state=open]:bg-success-muted data-[state=open]:hover:bg-success-muted data-[state=open]:focus:bg-success-muted',
+  warning:
+    'bg-warning-muted hover:bg-warning-muted focus:bg-warning-muted data-[highlighted]:bg-warning-muted data-[state=open]:bg-warning-muted data-[state=open]:hover:bg-warning-muted data-[state=open]:focus:bg-warning-muted',
+  error:
+    'bg-error-muted hover:bg-error-muted focus:bg-error-muted data-[highlighted]:bg-error-muted data-[state=open]:bg-error-muted data-[state=open]:hover:bg-error-muted data-[state=open]:focus:bg-error-muted',
+};
+const selectableStatusSurface: Record<StatusTone, string> = {
+  neutral:
+    'bg-control-open-surface hover:bg-control-open-surface [&_[data-slot=button]]:hover:bg-control-open-surface',
+  success:
+    'bg-success-muted hover:bg-success-muted [&_[data-slot=button]]:hover:bg-success-muted',
+  warning:
+    'bg-warning-muted hover:bg-warning-muted [&_[data-slot=button]]:hover:bg-warning-muted',
+  error:
+    'bg-error-muted hover:bg-error-muted [&_[data-slot=button]]:hover:bg-error-muted',
+};
+const selectedSelectableStatusSurface: Record<StatusTone, string> = {
+  neutral:
+    'bg-control-active-surface hover:bg-control-active-surface [&_[data-slot=button]]:hover:bg-control-active-surface',
+  success: 'bg-success/20 hover:bg-success/20 [&_[data-slot=button]]:hover:bg-success/20',
+  warning: 'bg-warning/20 hover:bg-warning/20 [&_[data-slot=button]]:hover:bg-warning/20',
+  error: 'bg-error/20 hover:bg-error/20 [&_[data-slot=button]]:hover:bg-error/20',
 };
 const statusText: Record<StatusTone, string> = {
   neutral: 'text-muted-foreground',
@@ -217,6 +246,7 @@ export const rx = {
     open = false,
     destructive = false,
     feedback,
+    status,
     subordinate = false,
     joined,
   }: ControlOptions = {}) => {
@@ -247,7 +277,10 @@ export const rx = {
       outlined && 'border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground',
       persistentState,
       persistentState && destructive && destructivePersistentText,
-      feedback && feedbackPersistentText[feedback]
+      feedback && feedbackPersistentText[feedback],
+      status && statusControlSurface[status],
+      status === 'neutral' && persistentControlText,
+      status && status !== 'neutral' && feedbackPersistentText[status]
     );
   },
 
@@ -259,6 +292,7 @@ export const rx = {
     orientation = 'horizontal',
     selected = false,
     muted = false,
+    status,
   }: SelectableItemOptions = {}) =>
     cn(
       'inline-flex min-w-0 cursor-pointer items-center rounded-item bg-transparent transition-colors duration-[var(--motion-fast)] motion-reduce:transition-none',
@@ -269,7 +303,11 @@ export const rx = {
       'min-h-7 gap-1.5 px-2 text-xs leading-4',
       orientation === 'vertical' && 'flex-col items-stretch',
       muted ? 'text-muted-foreground' : 'text-foreground',
-      selected && activeControlState
+      selected && activeControlState,
+      status &&
+        (selected
+          ? selectedSelectableStatusSurface[status]
+          : selectableStatusSurface[status])
     ),
 
   collectionCard: ({ selected = false }: CollectionCardOptions = {}) =>

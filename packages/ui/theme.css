@@ -76,8 +76,11 @@
   --color-field-hover: var(--field-hover);
   --color-invalid-ring: var(--invalid-ring);
   --color-success: var(--success);
+  --color-success-muted: var(--success-muted);
   --color-warning: var(--warning);
+  --color-warning-muted: var(--warning-muted);
   --color-error: var(--error);
+  --color-error-muted: var(--error-muted);
   --color-destructive-muted: var(--destructive-muted);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-tab-active-border: var(--tab-active-border);
@@ -155,8 +158,11 @@
   --field-hover: oklch(1 0 0);
   --invalid-ring: color-mix(in oklch, var(--error) 20%, transparent);
   --success: oklch(0.45 0.14 150);
+  --success-muted: color-mix(in oklch, var(--success) 12%, transparent);
   --warning: oklch(0.48 0.13 75);
+  --warning-muted: color-mix(in oklch, var(--warning) 14%, transparent);
   --error: var(--destructive);
+  --error-muted: var(--destructive-muted);
   --destructive-muted: oklch(0.577 0.245 27.325 / 0.1);
   --destructive-foreground: oklch(1 0 0);
   --tab-active-border: transparent;

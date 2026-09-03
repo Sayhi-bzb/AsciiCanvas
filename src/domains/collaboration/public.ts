@@ -9,6 +9,7 @@ export {
   createCollaborationDescriptor,
   isCollaborationDescriptor,
   parseCollaborationUrl,
+  stripCollaborationUrl,
   sameCollaborationRoom,
   getCollaborationDocumentId,
   validateCollaborationEndpoint,

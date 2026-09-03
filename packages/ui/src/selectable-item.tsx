@@ -3,12 +3,14 @@ import { Slot } from "@radix-ui/react-slot"
 
 import { cn } from "./utils.js"
 import { rx } from "./recipes.js"
+import type { StatusTone } from "./tokens.js"
 
 type SelectableItemProps = React.ComponentProps<"button"> & {
   asChild?: boolean
   orientation?: "horizontal" | "vertical"
   selected?: boolean
   muted?: boolean
+  status?: StatusTone
 }
 
 function SelectableItem({
@@ -16,6 +18,7 @@ function SelectableItem({
   orientation = "horizontal",
   selected = false,
   muted = false,
+  status,
   className,
   ...props
 }: SelectableItemProps) {
@@ -25,8 +28,9 @@ function SelectableItem({
     <Comp
       data-slot="selectable-item"
       data-selected={selected || undefined}
+      data-status={status}
       className={cn(
-        rx.selectableItem({ orientation, selected, muted }),
+        rx.selectableItem({ orientation, selected, muted, status }),
         className
       )}
       {...props}

@@ -109,7 +109,7 @@ describe("compact UI density", () => {
         <IconButton aria-label="Compact icon" size="xs">
           <svg />
         </IconButton>
-        <SelectableItem selected>Selected row</SelectableItem>
+        <SelectableItem selected status="success">Selected row</SelectableItem>
         <SwatchButton aria-label="Selected color" color="#ff0000" selected />
         <Button tone="subtle" destructive joined="middle" subordinate>
           Destructive segment
@@ -119,7 +119,7 @@ describe("compact UI density", () => {
 
     expect(screen.getByRole("button", { name: "Compact icon" })).toHaveClass("size-6");
     expect(screen.getByRole("button", { name: "Selected row" })).toHaveClass(
-      "bg-control-active-surface",
+      "bg-success/20",
       "text-foreground",
       "cursor-pointer",
       "min-h-7",
@@ -131,6 +131,10 @@ describe("compact UI density", () => {
     expect(screen.getByRole("button", { name: "Selected row" })).not.toHaveClass(
       "min-h-8",
       "text-sm"
+    );
+    expect(screen.getByRole("button", { name: "Selected row" })).toHaveAttribute(
+      "data-status",
+      "success"
     );
     expect(screen.getByRole("button", { name: "Selected color" })).toHaveClass(
       "ring-2",

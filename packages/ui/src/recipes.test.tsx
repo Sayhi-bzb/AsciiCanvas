@@ -76,11 +76,36 @@ describe('focus ring placement', () => {
     expect(selectedError).toContain('data-[highlighted]:text-error');
   });
 
+  it('maps persistent control status to semantic surfaces without changing operation feedback', () => {
+    const success = rx.control({ status: 'success' });
+    const warning = rx.control({ status: 'warning' });
+    const error = rx.control({ status: 'error' });
+    const neutral = rx.control({ status: 'neutral' });
+
+    expect(success).toContain('bg-success-muted');
+    expect(success).toContain('text-success');
+    expect(warning).toContain('bg-warning-muted');
+    expect(warning).toContain('text-warning');
+    expect(error).toContain('bg-error-muted');
+    expect(error).toContain('text-error');
+    expect(neutral).toContain('bg-control-active-surface');
+    expect(neutral).toContain('text-foreground');
+    expect(rx.control({ feedback: 'success' })).not.toContain('bg-success-muted');
+  });
+
   it('maps persistent status text and dots through semantic recipes', () => {
     expect(rx.statusText({ tone: 'success' })).toBe('text-success');
     expect(rx.statusText({ tone: 'warning' })).toBe('text-warning');
     expect(rx.statusText({ tone: 'error' })).toBe('text-error');
     expect(rx.statusDot({ tone: 'success' })).toContain('bg-success');
+  });
+
+  it('maps selectable item status to a stronger selected surface', () => {
+    expect(rx.selectableItem({ status: 'success' })).toContain('bg-success-muted');
+    expect(rx.selectableItem({ status: 'success', selected: true })).toContain(
+      'bg-success/20'
+    );
+    expect(rx.selectableItem()).not.toContain('bg-success-muted');
   });
 
   it('keeps static menu separators low-contrast, two-pixel, and rounded', () => {

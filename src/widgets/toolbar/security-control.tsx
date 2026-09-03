@@ -13,6 +13,10 @@ import {
 import { RecoverableLazyBoundary } from '@/shared/components/RecoverableLazyBoundary';
 import { requireLoadedModule } from '@/shared/lib/moduleLoadRecovery';
 import { useCanvasPersistence } from '@/domains/canvas/public';
+import {
+  acknowledgeSecurityDisclosure,
+  hasAcknowledgedSecurityDisclosure,
+} from './security-disclosure';
 
 const SecurityIcon = HOST_ICONOLOGY.viewportAction.security;
 const DataSecurityDialog = lazy(() =>
@@ -24,17 +28,32 @@ const DataSecurityDialog = lazy(() =>
 export function SecurityControl() {
   const { t } = useUiI18n();
   const [open, setOpen] = useState(false);
+  const [disclosureUnread, setDisclosureUnread] = useState(
+    () => !hasAcknowledgedSecurityDisclosure()
+  );
   const triggerRef = useRef<HTMLButtonElement>(null);
   const tooltipHandle = useMemo(() => TooltipCreateHandle<string>(), []);
   const label = t('security.title');
   const persistence = useCanvasPersistence();
+  const status = persistence.save === 'error'
+    ? 'error'
+    : persistence.ownership === 'reader'
+      ? 'warning'
+      : disclosureUnread
+        ? 'success'
+        : undefined;
+  const openDialog = () => {
+    setDisclosureUnread(false);
+    acknowledgeSecurityDisclosure();
+    setOpen(true);
+  };
 
   return (
     <>
       <div
         data-canvas-ui="true"
         data-testid="security-control-host"
-        className="pointer-events-auto relative"
+        className="pointer-events-auto"
         data-persistence-state={persistence.save}
       >
         <TooltipTrigger
@@ -47,24 +66,15 @@ export function SecurityControl() {
               shape="square"
               size="md"
               open={open}
+              status={status}
               aria-label={label}
               data-testid="data-security-control"
-              onClick={() => setOpen(true)}
+              onClick={openDialog}
             />
           }
         >
           <SecurityIcon />
         </TooltipTrigger>
-        {(persistence.save === 'error' || persistence.ownership === 'reader') && (
-          <span
-            aria-label={persistence.ownership === 'reader'
-              ? t('security.persistence.reader')
-              : t('security.persistence.unsaved')}
-            className={persistence.ownership === 'reader'
-              ? 'pointer-events-none absolute right-0 top-0 size-2 rounded-full bg-warning'
-              : 'pointer-events-none absolute right-0 top-0 size-2 rounded-full bg-destructive'}
-          />
-        )}
         <Tooltip handle={tooltipHandle}>
           {({ payload }) => <TooltipPopup side="bottom">{payload}</TooltipPopup>}
         </Tooltip>

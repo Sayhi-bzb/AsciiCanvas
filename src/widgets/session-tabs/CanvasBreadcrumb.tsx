@@ -359,6 +359,7 @@ export function CanvasSessionSelector({
                   asChild
                   key={session.id}
                   selected={isActive}
+                  status={session.collaboration ? 'success' : undefined}
                   data-canvas-session-row={session.id}
                   data-active={isActive ? 'true' : undefined}
                   className="group/session-row flex w-full min-w-0 items-center p-0"

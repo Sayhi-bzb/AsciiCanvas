@@ -2,7 +2,6 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEditorStore } from '@/domains/canvas/testing';
 import {
-  buildCollaborationUrl,
   type CollaborationDescriptorV6,
   type CollaborationSnapshot,
 } from '@/domains/collaboration/public';
@@ -89,6 +88,7 @@ describe('CollaborationControl', () => {
     render(<CollaborationControl />);
 
     const trigger = screen.getByRole('button', { name: 'Collaboration' });
+    expect(trigger).not.toHaveAttribute('data-status');
     expect(trigger).not.toHaveAttribute('title');
     fireEvent.focus(trigger);
     expect(await screen.findByRole('tooltip')).toHaveTextContent('Collaboration');
@@ -105,7 +105,6 @@ describe('CollaborationControl', () => {
     expect(screen.getByRole('dialog', { name: 'Collaboration' })).toBeInTheDocument();
     expect(screen.getByText('P2P')).toBeInTheDocument();
     expect(useEditorStore.getState().canvasSessions[0].collaboration?.provider).toBe('p2p');
-    expect(window.location.hash).toContain('room=');
 
     fireEvent.click(screen.getByRole('button', { name: 'Copy edit link' }));
     await waitFor(() => expect(clipboardWrite).toHaveBeenCalledOnce());
@@ -165,7 +164,8 @@ describe('CollaborationControl', () => {
     expect(screen.queryByRole('dialog', { name: 'Collaboration' })).not.toBeInTheDocument();
     const trigger = screen.getByRole('button', { name: 'Collaboration' });
     await waitFor(() => expect(trigger).toHaveAttribute('data-error', 'true'));
-    expect(screen.getByTestId('collaboration-error-indicator')).toBeInTheDocument();
+    expect(trigger).toHaveAttribute('data-status', 'error');
+    expect(trigger).toHaveClass('bg-error-muted', 'text-error');
 
     openPanel();
     expect(await screen.findByRole('alert')).toHaveTextContent(message);
@@ -227,9 +227,11 @@ describe('CollaborationControl', () => {
 
     const trigger = screen.getByRole('button', { name: 'Collaboration' });
     expect(trigger).not.toHaveAttribute('data-active');
-    expect(screen.getByTestId('collaboration-connected-indicator')).toHaveClass('bg-success');
+    expect(trigger).toHaveAttribute('data-status', 'success');
+    expect(trigger).toHaveClass('bg-success-muted', 'text-success');
+    expect(screen.queryByTestId('collaboration-connected-indicator')).not.toBeInTheDocument();
     openPanel();
-    expect(trigger).toHaveClass('bg-control-open-surface');
+    expect(trigger).toHaveClass('bg-success-muted');
     expect(await screen.findByText('Connected')).toHaveClass('text-success');
     expect(screen.getByText('2 participant(s)')).toBeInTheDocument();
     expect(screen.getByText('Remote Peer')).toBeInTheDocument();
@@ -239,7 +241,6 @@ describe('CollaborationControl', () => {
     expect(screen.getByRole('dialog', { name: 'Collaboration' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Start P2P room' })).toBeInTheDocument();
     expect(useEditorStore.getState().canvasSessions[0].collaboration).toBeUndefined();
-    expect(window.location.hash).toBe('');
   });
 
   it('distinguishes disconnected state from recoverable integrity warnings', async () => {
@@ -268,51 +269,44 @@ describe('CollaborationControl', () => {
 
     render(<CollaborationControl />);
 
-    expect(screen.getByTestId('collaboration-connected-indicator')).toHaveClass('bg-error');
+    const trigger = screen.getByRole('button', { name: 'Collaboration' });
+    expect(trigger).toHaveAttribute('data-status', 'error');
+    expect(trigger).toHaveClass('bg-error-muted', 'text-error');
     openPanel();
     expect(await screen.findByText('Offline')).toHaveClass('text-error');
     expect(screen.getByText('Skipped one invalid remote operation.')).toHaveClass('text-warning');
   });
 
-  it('opens an incoming room in a dedicated session without clearing the active canvas', async () => {
-    act(() => {
-      useEditorStore.setState({
-        grid: new Map([["0,0", { char: "A", color: "#fff" }]]),
-        canvasSessions: [
-          {
-            id: 'collaboration-canvas',
-            name: 'Local canvas',
-            mode: 'freeform',
-            scene: [],
-            grid: [["0,0", { char: "A", color: "#fff" }]],
-          },
-        ],
-      });
-    });
-    const descriptor: CollaborationDescriptorV6 = {
-      version: 6,
-      documentVersion: 6,
-      mode: 'structured',
-      provider: 'p2p',
-      roomId: 'room-id-1234567890',
-      key: 'room-key-1234567890123456789012345678901234567890',
-    };
-    window.history.replaceState(null, '', buildCollaborationUrl(descriptor));
+  it.each([
+    ['restoring', 'idle', 'neutral'],
+    ['ready', 'connecting', 'neutral'],
+    ['ready', 'waiting-for-peer', 'warning'],
+  ] as const)(
+    'maps %s / %s collaboration state to the %s button surface',
+    (documentStatus, connectionStatus, status) => {
+      const descriptor: CollaborationDescriptorV6 = {
+        version: 6,
+        documentVersion: 6,
+        mode: 'freeform',
+        provider: 'p2p',
+        roomId: 'room-id-1234567890',
+        key: 'room-key-1234567890123456789012345678901234567890',
+      };
+      seedSession('freeform', descriptor);
+      snapshot = {
+        ...snapshot,
+        descriptor,
+        documentStatus,
+        connectionStatus,
+      };
 
-    render(<CollaborationControl />);
+      render(<CollaborationControl />);
 
-    await waitFor(() => {
-      expect(useEditorStore.getState().canvasSessions).toHaveLength(2);
-    });
-    const state = useEditorStore.getState();
-    const local = state.canvasSessions.find((session) => session.id === 'collaboration-canvas');
-    expect(local?.grid).toEqual([["0,0", { char: "A", color: "#fff" }]]);
-    expect(local?.collaboration).toBeUndefined();
-    expect(state.canvasMode).toBe('structured');
-
-    state.switchCanvasSession('collaboration-canvas');
-    expect(useEditorStore.getState().canvasSessions).toHaveLength(2);
-    expect(useEditorStore.getState().grid.get("0,0")?.char).toBe("A");
-  });
+      expect(screen.getByRole('button', { name: 'Collaboration' })).toHaveAttribute(
+        'data-status',
+        status
+      );
+    }
+  );
 
 });

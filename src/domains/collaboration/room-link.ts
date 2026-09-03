@@ -113,7 +113,18 @@ export const buildCollaborationUrl = (
 ) => {
   const url = new URL(baseUrl);
   url.searchParams.delete(ROOM_PARAM);
-  url.hash = new URLSearchParams({ [ROOM_PARAM]: encodeDescriptor(descriptor) }).toString();
+  const hash = new URLSearchParams(url.hash.slice(1));
+  hash.set(ROOM_PARAM, encodeDescriptor(descriptor));
+  url.hash = hash.toString();
+  return url.toString();
+};
+
+export const stripCollaborationUrl = (baseUrl = window.location.href) => {
+  const url = new URL(baseUrl);
+  url.searchParams.delete(ROOM_PARAM);
+  const hash = new URLSearchParams(url.hash.slice(1));
+  hash.delete(ROOM_PARAM);
+  url.hash = hash.toString();
   return url.toString();
 };
 

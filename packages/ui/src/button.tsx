@@ -4,7 +4,7 @@ import { Slot } from "@radix-ui/react-slot"
 
 import { cn } from "./utils.js"
 import { rx } from "./recipes.js"
-import type { FeedbackStatus, Shape, Size, Tone } from "./tokens.js"
+import type { FeedbackStatus, Shape, Size, StatusTone, Tone } from "./tokens.js"
 
 type ButtonTone = Tone
 type ButtonSize = Size
@@ -21,6 +21,7 @@ type ButtonVariantInput = {
   open?: boolean
   destructive?: boolean
   feedback?: FeedbackStatus
+  status?: StatusTone
   subordinate?: boolean
   joined?: "start" | "middle" | "end"
 }
@@ -35,6 +36,7 @@ const resolveButtonStyle = ({
   open,
   destructive,
   feedback,
+  status,
   subordinate,
   joined,
 }: Omit<ButtonVariantInput, "className">) => {
@@ -53,6 +55,7 @@ const resolveButtonStyle = ({
     open: open ?? false,
     destructive: destructive ?? false,
     feedback,
+    status,
     subordinate: subordinate ?? false,
     joined,
   }
@@ -71,6 +74,7 @@ const buttonVariants = (options: ButtonVariantInput = {}) => {
       open: resolved.open,
       destructive: resolved.destructive,
       feedback: resolved.feedback,
+      status: resolved.status,
       subordinate: resolved.subordinate,
       joined: resolved.joined,
     }),
@@ -89,6 +93,7 @@ export type ButtonProps = React.ComponentProps<"button"> & {
   open?: boolean
   destructive?: boolean
   feedback?: FeedbackStatus
+  status?: StatusTone
   subordinate?: boolean
   joined?: "start" | "middle" | "end"
 }
@@ -104,6 +109,7 @@ function Button({
   open,
   destructive,
   feedback,
+  status,
   subordinate,
   joined,
   asChild = false,
@@ -120,6 +126,7 @@ function Button({
     open,
     destructive,
     feedback,
+    status,
     subordinate,
     joined,
   })
@@ -135,6 +142,7 @@ function Button({
       data-open={resolved.open || undefined}
       data-destructive={resolved.destructive || undefined}
       data-feedback={resolved.feedback}
+      data-status={resolved.status}
       data-subordinate={resolved.subordinate || undefined}
       data-joined={resolved.joined}
       aria-pressed={
@@ -154,6 +162,7 @@ function Button({
         open,
         destructive,
         feedback,
+        status,
         subordinate,
         joined,
         className,

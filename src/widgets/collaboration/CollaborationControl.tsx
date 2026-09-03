@@ -22,7 +22,6 @@ import {
   PopoverContent,
   PopoverTrigger,
   Separator,
-  StatusDot,
   StatusText,
   Tooltip,
   TooltipPopup,
@@ -60,7 +59,7 @@ const getStatusPresentation = (
     case 'connecting':
       return { key: 'collaboration.status.connecting', tone: 'neutral' };
     case 'waiting-for-peer':
-      return { key: 'collaboration.status.waiting-for-peer', tone: 'neutral' };
+      return { key: 'collaboration.status.waiting-for-peer', tone: 'warning' };
     case 'online':
       return { key: 'collaboration.status.connected', tone: 'success' };
     case 'offline':
@@ -78,10 +77,7 @@ export function CollaborationControl() {
   const [endpoint, setEndpoint] = useState('');
   const [endpointTouched, setEndpointTouched] = useState(false);
   const [endpointRejected, setEndpointRejected] = useState(false);
-  const [incomingCollaboration] = useState(readIncomingCollaboration);
-  const [controlErrorKey, setControlErrorKey] = useState<I18nKey | null>(() =>
-    getIncomingCollaborationErrorKey(incomingCollaboration)
-  );
+  const [controlErrorKey, setControlErrorKey] = useState<I18nKey | null>(null);
   const {
     feedback: copyFeedback,
     run: runCopyFeedback,
@@ -92,14 +88,10 @@ export function CollaborationControl() {
     state.canvasSessions.find((session) => session.id === state.activeCanvasId)
   );
   const setCollaboration = canvas.commands.sessions.setCollaboration;
-  const joinCollaboration = canvas.commands.sessions.joinCollaboration;
   const descriptor = activeSession?.collaboration;
-
-  useEffect(() => {
-    if (incomingCollaboration.status === 'valid') {
-      joinCollaboration(incomingCollaboration.descriptor);
-    }
-  }, [incomingCollaboration, joinCollaboration]);
+  const visibleControlErrorKey = descriptor
+    ? null
+    : getIncomingCollaborationErrorKey(readIncomingCollaboration()) ?? controlErrorKey;
 
   useEffect(() => {
     if (!open) return;
@@ -117,7 +109,6 @@ export function CollaborationControl() {
       const next = createCollaborationDescriptor(activeSession.mode, customEndpoint);
       setControlErrorKey(null);
       setCollaboration(activeSession.id, next);
-      window.history.replaceState(null, '', buildCollaborationUrl(next));
     } catch {
       if (customEndpoint) {
         setEndpointRejected(true);
@@ -137,7 +128,6 @@ export function CollaborationControl() {
   const leave = () => {
     if (!activeSession) return;
     setCollaboration(activeSession.id, null);
-    window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`);
   };
 
   const forget = async () => {
@@ -181,27 +171,21 @@ export function CollaborationControl() {
                 shape="square"
                 size="md"
                 open={open}
-                data-error={controlErrorKey ? "true" : undefined}
-                className="pointer-events-auto relative"
+                status={
+                  visibleControlErrorKey
+                    ? 'error'
+                    : descriptor
+                      ? statusPresentation.tone
+                      : undefined
+                }
+                data-error={visibleControlErrorKey ? "true" : undefined}
+                className="pointer-events-auto"
                 aria-label={t('collaboration.title')}
                 data-testid="collaboration-control"
               />
             }
           >
             <CollaborationIcon />
-            {controlErrorKey ? (
-              <StatusDot
-                data-testid="collaboration-error-indicator"
-                tone="error"
-                className="absolute right-1 top-1"
-              />
-            ) : descriptor ? (
-              <StatusDot
-                data-testid="collaboration-connected-indicator"
-                tone={statusPresentation.tone}
-                className="absolute right-1 top-1"
-              />
-            ) : null}
           </TooltipTrigger>
         </PopoverTrigger>
         <TooltipPopup side="bottom">{t('collaboration.title')}</TooltipPopup>
@@ -237,10 +221,10 @@ export function CollaborationControl() {
           </div>
         )}
 
-        {controlErrorKey ? (
+        {visibleControlErrorKey ? (
           <StatusText tone="error" asChild>
             <div className="px-2 pb-1.5 text-[11px]" role="alert">
-              {t(controlErrorKey)}
+              {t(visibleControlErrorKey)}
             </div>
           </StatusText>
         ) : null}

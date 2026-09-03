@@ -5,6 +5,7 @@ import {
   getCollaborationDocumentId,
   parseCollaborationUrl,
   sameCollaborationRoom,
+  stripCollaborationUrl,
   validateCollaborationEndpoint,
 } from "./room-link";
 
@@ -20,6 +21,22 @@ describe("collaboration room links", () => {
       `collaboration:${descriptor.roomId}`
     );
     expect(parseCollaborationUrl(url)).toEqual({ status: "valid", descriptor });
+    vi.unstubAllGlobals();
+  });
+
+  it("adds and removes room identity without discarding unrelated URL state", () => {
+    vi.stubGlobal("crypto", { getRandomValues: (bytes: Uint8Array) => bytes.fill(7) });
+    const descriptor = createCollaborationDescriptor("freeform");
+    const url = buildCollaborationUrl(
+      descriptor,
+      "https://canvas.test/editor?theme=dark&room=legacy#panel=layers"
+    );
+
+    expect(new URL(url).search).toBe("?theme=dark");
+    expect(new URLSearchParams(new URL(url).hash.slice(1)).get("panel")).toBe("layers");
+    expect(stripCollaborationUrl(url)).toBe(
+      "https://canvas.test/editor?theme=dark#panel=layers"
+    );
     vi.unstubAllGlobals();
   });
 
