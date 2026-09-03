@@ -69,7 +69,7 @@ export type CanvasDocumentSeed = {
   pages?: CanvasPageDraft[];
 };
 
-export type CanvasCollaborationPreparation = {
+type CanvasCollaborationPreparation = {
   mode: "freeform" | "structured";
   documentVersion: number;
   roomId: string;
