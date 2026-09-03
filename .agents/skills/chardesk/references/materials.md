@@ -1,7 +1,11 @@
-# Materials on the desk
+# The visual workshop
 
-A scene can move between language, relationships, evidence, and signal without
-changing surfaces.
+A rendering assistant works beside the Blackboard. The compositor reads
+Markdown; the drafting table reads Mermaid; the plotter reads Vega-Lite; the
+formula bench reads mathematics; the source lightbox reads JSON, YAML, code,
+and diffs. `|||` and `---` move frames across the surface; ANSI, Unicode, emoji,
+and Nerd Font fill the lettering drawers. Every instrument leaves compatible
+marks on the same board.
 
 ## A shared medium
 
