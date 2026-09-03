@@ -1,13 +1,12 @@
 # Materials on the desk
 
 A scene is composed, not listed. Words, lines, symbols, color, diagrams, plots,
-formulas, and code can share one surface. The default face carries CJK,
-monochrome emoji, symbols, and Nerd Font icons.
+formulas, and code can share one surface.
 
 ```chardesk
 [1;38;2;9;105;218mMEANING[0m ──chooses──> [1mFORM[0m
-                         │
-       prose · diagram · signal · space
+                      │
+    prose · diagram · signal · space
 ```
 
 ## Form can carry the explanation
@@ -21,10 +20,10 @@ focus, fields, and signal; ESC-less OSC 8 carries a safe `http`, `https`,
 
                          [90mspace holds the pause[39m
 small voice ─────────────╮
-                        ├────────> [7m FOCUS [27m
-[30;48;2;255;189;46m atmosphere [0m ──────────╯                  [38;2;31;136;61m● signal[0m
+                         ├────────> [7m FOCUS [27m
+  [30;48;2;255;189;46m atmosphere [0m ──────────╯             [38;2;31;136;61m● signal[0m
 
-                  
+                  [38;2;9;105;218m[0m
                   │       [3mthe line becomes direction[23m
 origin ───────────┼──────────────────────────────> arrival
                   │
@@ -54,15 +53,17 @@ sequenceDiagram
 ```chardesk
 [1;38;2;9;105;218mOCEAN OBSERVATORY · EQUATORIAL PACIFIC[0m
 
+[38;2;245;158;11m☀[0m warming signal                         [38;2;9;105;218m🌊[0m ocean response
+
 WEST                                                    EAST
 Indonesia                                           Americas
    ☁ ☁          trade winds →→→
-≈≈≈≈≈≈≈╲────────────────────────────────────────╱≈≈≈≈≈≈≈  surface
+≈≈≈≈≈≈≈≈≈╲________________________________________╱≈≈≈≈≈≈≈≈≈  surface
  warm pool [48;2;255;189;46m            [0m▒▒░░░░░░░░░░░░░░░░░░  warm east
-          ╲──────────── thermocline ────────────╱
+         ╲______________ thermocline _____________╱
 
- anomaly  [38;2;9;105;218mJan ▁[38;2;130;80;223m Apr ▃[38;2;239;68;68m Jul ▆  Oct █[0m
- confidence  ├───────────────[38;2;31;136;61m●[0m───────────────┤
+ anomaly   [38;2;9;105;218mJan ▁[38;2;130;80;223m Apr ▃[38;2;239;68;68m Jul ▆  Oct █[0m
+ confidence ├──────────────────[38;2;31;136;61m●[0m──────────────────┤
 ```
 
 ```vega-lite
