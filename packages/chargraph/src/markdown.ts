@@ -26,6 +26,7 @@ import {
   type CharGraphFragment,
   type CharGraphRenderResult,
   type CharGraphSourceRange,
+  type CharGraphVisualGroup,
 } from "./model.js";
 import {
   locateCharGraphSourceRange as locateRaw,
@@ -590,10 +591,12 @@ const renderBlocks = async (
   tokens: readonly Token[],
   scope: CharGraphSourceRange,
   context: RenderContext,
-  separate: boolean | "source"
+  separate: boolean | "source",
+  visualGroups?: CharGraphVisualGroup[]
 ) => {
   const output: CharGraphFragment[] = [];
   let cursor = scope.from;
+  let outputRow = 0;
   let sourceHasBlankLine = false;
   for (const token of tokens) {
     const range = locateRaw(context.source, token.raw, scope, cursor);
@@ -610,9 +613,18 @@ const renderBlocks = async (
         : separate === "source"
           ? sourceHasBlankLine ? 2 : 1
           : 0;
-      if (lineBreaks) output.push(fragment("\n".repeat(lineBreaks), {}, range));
+      if (lineBreaks) {
+        output.push(fragment("\n".repeat(lineBreaks), {}, range));
+        outputRow += lineBreaks;
+      }
     }
+    const fromRow = outputRow;
     output.push(...rendered);
+    outputRow += rendered.reduce(
+      (total, item) => total + (item.text.match(/\n/g)?.length ?? 0),
+      0
+    );
+    visualGroups?.push({ fromRow, toRow: outputRow + 1 });
     sourceHasBlankLine = false;
   }
   return output;
@@ -675,11 +687,13 @@ export const renderMarkdownWithExtensions = async (
   if (parser.defaults.walkTokens) {
     await Promise.all(parser.walkTokens(tokens, parser.defaults.walkTokens));
   }
+  const visualGroups: CharGraphVisualGroup[] = [];
   const fragments = await renderBlocks(
     tokens,
     { from: 0, to: normalized.text.length },
     context,
-    true
+    true,
+    visualGroups
   );
   return restoreCharGraphSourceRanges(normalized, {
     fragments,
@@ -688,6 +702,7 @@ export const renderMarkdownWithExtensions = async (
       extensions
     ),
     diagnostics: context.diagnostics,
+    visualGroups,
   });
 };
 

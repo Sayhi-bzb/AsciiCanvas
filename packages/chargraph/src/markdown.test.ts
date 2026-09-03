@@ -42,12 +42,33 @@ describe("renderMarkdown", () => {
     const can = rendered.fragments.find((item) => item.text === "can");
 
     expect(getCharGraphText(rendered)).toBe("First\nSecond\n\nYou can combine them");
+    expect(rendered.visualGroups).toEqual([
+      { fromRow: 0, toRow: 2 },
+      { fromRow: 3, toRow: 4 },
+    ]);
     expect(getCharGraphText(rendered)).not.toContain("<br>");
     expect(can?.attrs).toMatchObject({ bold: true, italic: true });
     expect(rendered.fragments.filter((item) => /First|Second|You | combine/.test(item.text)))
       .toSatisfy((items: typeof rendered.fragments) =>
         items.every((item) => item.attrs?.italic === true)
       );
+  });
+
+  it("keeps internal blank rows inside one top-level visual group", async () => {
+    const rendered = await renderMarkdown([
+      "# Title",
+      "",
+      "```ts",
+      "const first = 1;",
+      "",
+      "const second = 2;",
+      "```",
+    ].join("\n"));
+
+    expect(rendered.visualGroups).toEqual([
+      { fromRow: 0, toRow: 1 },
+      { fromRow: 2, toRow: 5 },
+    ]);
   });
 
   it("preserves unsupported image and HTML source with diagnostics", async () => {

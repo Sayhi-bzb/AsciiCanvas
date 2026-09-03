@@ -31,6 +31,7 @@ export type {
   CharGraphRenderer,
   CharGraphRenderResult,
   CharGraphSourceRange,
+  CharGraphVisualGroup,
 } from "./model.js";
 export {
   locateCharGraphSourceRange,

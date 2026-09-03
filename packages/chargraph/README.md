@@ -23,3 +23,8 @@ CharDesk cells must not be reinterpreted as CharGraph source.
 CharGraph emits diagnostics and source-aware fragments. `@chardesk/protocol`
 alone owns grapheme segmentation, CJK width, tabs, and cell coordinates. See
 [UPSTREAM.md](./UPSTREAM.md) for adapted renderer attribution.
+
+Markdown results expose top-level `visualGroups` as half-open output row ranges.
+Block layout uses those semantic units to center narrower rendered groups inside
+each intrinsic-width field; results without group metadata retain their original
+alignment.

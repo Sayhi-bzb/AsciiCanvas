@@ -2,6 +2,7 @@ import { parseCharDeskText } from "@chardesk/protocol";
 import { describe, expect, it } from "vitest";
 import {
   parseBlockLayout,
+  renderBlockLayoutDocument,
   renderCharGraphText,
   serializeBlockLayout,
 } from "./index.js";
@@ -71,6 +72,53 @@ describe("block layout stream", () => {
     );
 
     expect(getCharGraphText(rendered)).toBe("AA  B\nAA\nAA\n\nC  DD");
+  });
+
+  it("centers narrower structured groups inside each field", async () => {
+    const rendered = await renderCharGraphText([
+      "123456789012",
+      "",
+      "| A | B |",
+      "|---|---|",
+      "| 1 | 2 |",
+      "|||",
+      "Label",
+      "",
+      "```mermaid",
+      "flowchart LR",
+      "  A[1] --> B[2]",
+      "```",
+    ].join("\n"), { layout: { columnGap: 4 } });
+
+    expect(getCharGraphText(rendered)).toBe([
+      "123456789012        Label",
+      "",
+      "   A    B       ╭───╮   ╭───╮",
+      "  ━━━  ━━━      │ 1 ├──>│ 2 │",
+      "   1    2       ╰───╯   ╰───╯",
+    ].join("\n"));
+  });
+
+  it("uses protocol cell width and floors odd centering space", async () => {
+    const rendered = await renderCharGraphText(
+      "123456789\n\n**界**\n|||\nX",
+      { layout: { columnGap: 2 } }
+    );
+
+    expect(getCharGraphText(rendered)).toBe("123456789  X\n\n   界");
+  });
+
+  it("ignores visual groups outside the rendered field", async () => {
+    const rendered = await renderBlockLayoutDocument({
+      rows: [[{ source: "A", range: { from: 0, to: 1 } }]],
+    }, async () => ({
+      fragments: [{ text: "A" }],
+      recognized: true,
+      diagnostics: [],
+      visualGroups: [{ fromRow: 0, toRow: Number.MAX_SAFE_INTEGER }],
+    }));
+
+    expect(getCharGraphText(rendered)).toBe("A");
   });
 
   it("uses protocol width and preserves CharDesk styles", async () => {

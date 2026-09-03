@@ -145,6 +145,40 @@ type PlacedSpan = {
 const normalizeGap = (value: number | undefined, fallback: number) =>
   Number.isInteger(value) && value !== undefined && value >= 0 ? value : fallback;
 
+const visualGroupInsets = (
+  rendered: CharGraphRenderResult,
+  rows: ReturnType<typeof layoutCharDeskTextRunsToRows>["rows"],
+  fieldWidth: number,
+  fieldHeight: number
+) => {
+  const insets = new Map<number, number>();
+  for (const group of rendered.visualGroups ?? []) {
+    if (
+      !Number.isInteger(group.fromRow) ||
+      !Number.isInteger(group.toRow) ||
+      group.fromRow < 0 ||
+      group.toRow <= group.fromRow ||
+      group.toRow > fieldHeight
+    ) continue;
+    const groupRows = rows.filter(
+      (row) => row.y >= group.fromRow && row.y < group.toRow
+    );
+    const groupWidth = Math.max(
+      0,
+      ...groupRows.flatMap((row) =>
+        row.spans.map((span) => span.x + span.width)
+      )
+    );
+    const inset = groupWidth < fieldWidth
+      ? Math.floor((fieldWidth - groupWidth) / 2)
+      : 0;
+    for (let row = group.fromRow; row < group.toRow; row += 1) {
+      insets.set(row, inset);
+    }
+  }
+  return insets;
+};
+
 export const renderBlockLayoutDocument = async (
   document: BlockLayoutDocument,
   renderField: BlockLayoutFieldRenderer,
@@ -163,6 +197,12 @@ export const renderBlockLayoutDocument = async (
     for (const block of layoutRow) {
       const rendered = await renderField(block);
       const parsed = layoutCharDeskTextRunsToRows(rendered.fragments);
+      const groupInsets = visualGroupInsets(
+        rendered,
+        parsed.rows,
+        parsed.width,
+        parsed.height
+      );
       const blockHeight = Math.max(1, parsed.height);
       layoutRowHeight = Math.max(layoutRowHeight, blockHeight);
       diagnostics.push(
@@ -184,7 +224,7 @@ export const renderBlockLayoutDocument = async (
         const target = outputRows.get(targetY) ?? [];
         for (const span of row.spans) {
           target.push({
-            x: originX + span.x,
+            x: originX + (groupInsets.get(row.y) ?? 0) + span.x,
             width: span.width,
             fragment: createCharGraphFragment(
               span.text,

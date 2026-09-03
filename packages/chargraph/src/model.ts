@@ -4,6 +4,13 @@ export type CharGraphAwaitable<T> = T | Promise<T>;
 
 export type CharGraphSourceRange = { from: number; to: number };
 
+export type CharGraphVisualGroup = {
+  /** Inclusive output row containing the group's first mark. */
+  fromRow: number;
+  /** Exclusive output row after the group's last mark. */
+  toRow: number;
+};
+
 export type CharGraphFragment = CharDeskTextRun & {
   origin?: CharGraphSourceRange;
 };
@@ -19,6 +26,8 @@ export type CharGraphRenderResult = {
   fragments: CharGraphFragment[];
   recognized: boolean;
   diagnostics: CharGraphDiagnostic[];
+  /** Top-level visual units that layout renderers may place as a whole. */
+  visualGroups?: CharGraphVisualGroup[];
 };
 
 export interface CharGraphRenderer<TOptions = undefined> {
