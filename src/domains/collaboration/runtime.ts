@@ -60,6 +60,9 @@ const DEFAULT_DEPENDENCIES: CollaborationRuntimeDependencies = {
 };
 
 const MAX_INTEGRITY_ISSUES = 50;
+type CollaborationPresenceInput = NonNullable<
+  Parameters<typeof buildCollaborationPresence>[1]
+>;
 
 const hasLocalDocumentContent = (doc: Y.Doc) => {
   const pages = doc.getMap<{ id?: unknown }>("document-pages");
@@ -98,6 +101,7 @@ class CollaborationSession {
   private metaObserver: (() => void) | null = null;
   private peerCount = 0;
   private disposed = false;
+  private presence: CollaborationPresenceInput = {};
   readonly descriptor: CollaborationDescriptor;
   private readonly doc: Y.Doc;
   private readonly publish: (patch: Partial<CollaborationSnapshot>) => void;
@@ -142,7 +146,7 @@ class CollaborationSession {
 
       const awareness = this.dependencies.createAwareness(this.doc);
       this.awareness = awareness;
-      awareness.setLocalState(buildCollaborationPresence(this.descriptor));
+      awareness.setLocalState(buildCollaborationPresence(this.descriptor, this.presence));
       awareness.on("change", () => {
         if (this.disposed) return;
         const { peers, issues } = readCollaborationPeers(awareness, this.descriptor.mode);
@@ -236,9 +240,9 @@ class CollaborationSession {
     });
   }
 
-  setPresence(input: { cursor?: { x: number; y: number } | null; selection?: unknown; tool?: string }) {
-    if (!this.awareness) return;
-    this.awareness.setLocalState(buildCollaborationPresence(this.descriptor, input));
+  setPresence(input: CollaborationPresenceInput) {
+    this.presence = input;
+    this.awareness?.setLocalState(buildCollaborationPresence(this.descriptor, input));
   }
 
   async dispose() {
@@ -263,6 +267,7 @@ export class CollaborationRuntime {
   private snapshot = EMPTY_SNAPSHOT;
   private listeners = new Set<Listener>();
   private session: CollaborationSession | null = null;
+  private presence: CollaborationPresenceInput = {};
   private generation = 0;
   private readonly dependencies: CollaborationRuntimeDependencies;
 
@@ -316,10 +321,12 @@ export class CollaborationRuntime {
       this.publish(patch);
     }, this.dependencies);
     this.session = session;
+    session.setPresence(this.presence);
     await session.start();
   }
 
-  setPresence(presence: { cursor?: { x: number; y: number } | null; selection?: unknown; tool?: string }) {
+  setPresence(presence: CollaborationPresenceInput) {
+    this.presence = presence;
     this.session?.setPresence(presence);
   }
 

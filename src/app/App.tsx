@@ -34,7 +34,7 @@ import { ShortcutProvider } from '@/shared/shortcuts/dispatcher';
 import { useActiveCollaboration } from './useActiveCollaboration';
 import { useHorizontalWheelNavigationGuard } from './useHorizontalWheelNavigationGuard';
 import { CollaborationControl } from '@/widgets/collaboration/CollaborationControl';
-import { RemotePresenceOverlay } from '@/widgets/collaboration/RemotePresenceOverlay';
+import { RemoteSelectionOverlay } from '@/widgets/collaboration/RemoteSelectionOverlay';
 import { useCollaborationSnapshot } from '@/widgets/collaboration/useCollaborationSnapshot';
 import { sameCollaborationRoom } from '@/domains/collaboration/public';
 import { OnboardingTourProvider } from '@/widgets/onboarding/new-user-tour';
@@ -278,7 +278,7 @@ function CanvasPaneContent({
           </div>
         </EditorWidget>
       ) : null}
-      {collaborate && view.isActive && <RemotePresenceOverlay />}
+      {collaborate && view.isActive && <RemoteSelectionOverlay />}
     </div>
   );
 }

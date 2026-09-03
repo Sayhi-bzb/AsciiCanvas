@@ -24,10 +24,11 @@ const room = (
 
 describe("useActiveCollaboration", () => {
   const initialState = useEditorStore.getState();
+  const setPresence = vi.fn();
   const runtime = {
     connect: vi.fn(),
     disconnect: vi.fn().mockResolvedValue(undefined),
-    setPresence: vi.fn(),
+    setPresence,
   } as unknown as CollaborationRuntime;
   const wrapper = ({ children }: { children: ReactNode }) => (
     <CollaborationRuntimeProvider runtime={runtime}>{children}</CollaborationRuntimeProvider>
@@ -127,5 +128,32 @@ describe("useActiveCollaboration", () => {
       }));
     });
     await waitFor(() => expect(window.location.href).toBe(buildCollaborationUrl(replacement)));
+  });
+
+  it("publishes discrete selection changes without cursor traffic", () => {
+    const descriptor = room("presence-room-1234567890");
+    act(() => {
+      testingCanvasRuntime.commands.sessions.create("freeform");
+      const canvasId = useEditorStore.getState().activeCanvasId;
+      testingCanvasRuntime.commands.sessions.setCollaboration(canvasId, descriptor);
+    });
+
+    const view = renderHook(() => useActiveCollaboration(), { wrapper });
+    setPresence.mockClear();
+
+    act(() => testingCanvasRuntime.commands.staticGrid.setSelectionRange({
+      start: { x: 2, y: 3 },
+      end: { x: 5, y: 4 },
+    }));
+    expect(setPresence).toHaveBeenCalledTimes(1);
+    expect(setPresence).toHaveBeenLastCalledWith(expect.objectContaining({
+      selection: expect.objectContaining({
+        mode: "freeform",
+        areas: [{ start: { x: 2, y: 3 }, end: { x: 5, y: 3 } }, { start: { x: 2, y: 4 }, end: { x: 5, y: 4 } }],
+      }),
+    }));
+    expect(setPresence.mock.calls[0]?.[0]).not.toHaveProperty("cursor");
+
+    view.unmount();
   });
 });

@@ -131,6 +131,27 @@ describe("collaboration document contract", () => {
     );
   });
 
+  it("publishes the latest selection supplied while the document is restoring", async () => {
+    const harness = createRuntimeHarness();
+    const connect = harness.runtime.connect(
+      descriptor("wss://one.example.com"),
+      new Y.Doc()
+    );
+    const selection = {
+      mode: "freeform" as const,
+      areas: [{ start: { x: 2, y: 3 }, end: { x: 5, y: 4 } }],
+    };
+
+    harness.runtime.setPresence({ selection, tool: "select" });
+    expect(harness.awareness.setLocalState).not.toHaveBeenCalled();
+
+    harness.sync.resolve();
+    await connect;
+    expect(harness.awareness.setLocalState).toHaveBeenCalledWith(
+      expect.objectContaining({ selection, tool: "select" })
+    );
+  });
+
   it("initializes immutable room metadata and rejects a mode mismatch", () => {
     const doc = new Y.Doc();
     const freeform = descriptor("wss://one.example.com");

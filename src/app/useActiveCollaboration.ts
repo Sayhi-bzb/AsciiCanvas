@@ -32,18 +32,25 @@ export const useActiveCollaboration = ({ enabled = true }: { enabled?: boolean }
   const collaboration = useCanvasState((state) =>
     state.canvasSessions.find((session) => session.id === state.activeCanvasId)?.collaboration
   );
-  const cursor = useCanvasState((state) => state.hoveredGrid);
   const canvasMode = useCanvasState((state) => state.canvasMode);
   const selectedStructuredNodeIds = useCanvasState(
     (state) => state.selectedStructuredNodeIds
   );
   const staticGridSelection = useCanvasState((state) => state.staticGridSelection);
   const grid = useCanvasState((state) => state.grid);
-  const selections = useMemo(
-    () =>
-      canvasMode === "structured"
-        ? selectedStructuredNodeIds
-        : getStaticGridSelectionAreas(staticGridSelection, grid),
+  const selection = useMemo(
+    () => {
+      if (canvasMode === "structured") {
+        return { mode: "structured" as const, nodeIds: selectedStructuredNodeIds };
+      }
+      if (canvasMode === "freeform") {
+        return {
+          mode: "freeform" as const,
+          areas: getStaticGridSelectionAreas(staticGridSelection, grid),
+        };
+      }
+      return undefined;
+    },
     [canvasMode, grid, selectedStructuredNodeIds, staticGridSelection]
   );
   const tool = useCanvasState((state) => state.tool);
@@ -91,10 +98,7 @@ export const useActiveCollaboration = ({ enabled = true }: { enabled?: boolean }
   }, [activeCanvasId, canvas, collaboration, collaborationRuntime, enabled]);
 
   useEffect(() => {
-    if (!enabled) return;
-    const timer = window.setTimeout(() => {
-      collaborationRuntime.setPresence({ cursor, selection: selections, tool });
-    }, 33);
-    return () => window.clearTimeout(timer);
-  }, [collaborationRuntime, cursor, enabled, selections, tool]);
+    if (!enabled || !collaboration) return;
+    collaborationRuntime.setPresence({ selection, tool });
+  }, [collaboration, collaborationRuntime, enabled, selection, tool]);
 };
