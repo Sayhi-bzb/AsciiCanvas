@@ -84,14 +84,12 @@ describe("WebMCP environment", () => {
   it("publishes provider and registration diagnostics", () => {
     const target = createDocument();
     updateWebMcpDiagnostics(target, "native", {
-      role: "leader",
       status: "ready",
       adapterId: "imperative-webmcp",
     });
 
     expect(target.documentElement.dataset.webmcpProvider).toBe("native");
     expect(target.documentElement.dataset.webmcpStatus).toBe("ready");
-    expect(target.documentElement.dataset.webmcpRole).toBe("leader");
     expect(target.documentElement.dataset.webmcpCapability).toBe("imperative");
   });
 });

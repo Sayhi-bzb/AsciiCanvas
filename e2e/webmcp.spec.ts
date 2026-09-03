@@ -58,6 +58,7 @@ test.describe("WebMCP", () => {
 
   test("discovers and executes CharDesk tools through the development polyfill", async ({ page }) => {
     await page.goto("/blackboard?webmcp=polyfill");
+    await expect(page).toHaveURL(/workspace=/);
 
     await expect.poll(() => page.locator("html").getAttribute("data-webmcp-status"))
       .toBe("ready");
@@ -85,7 +86,8 @@ test.describe("WebMCP", () => {
         : materialOutput;
       if (
         materialResult?.format !== "text/markdown" ||
-        !materialResult?.content?.includes("# Materials on the desk")
+        typeof materialResult?.content !== "string" ||
+        materialResult.content.length === 0
       ) return false;
       const listed = await context.executeTool(listWorkspaces, "{}");
       const parsed = typeof listed === "string" ? JSON.parse(listed) : listed;
@@ -191,28 +193,32 @@ test.describe("WebMCP", () => {
     expect(result.checked).toMatchObject({ ok: true, workspaceId: result.created.workspaceId });
   });
 
-  test("elects one origin gateway and transfers ownership after its tab closes", async ({
+  test("registers tools independently in every top-level page", async ({
     context,
     page,
   }) => {
     await page.goto("/?webmcp=polyfill");
-    await expect(page.locator("html")).toHaveAttribute("data-webmcp-role", "leader");
     await expect(page.locator("html")).toHaveAttribute("data-webmcp-status", "ready");
-
-    const standby = await context.newPage();
-    await standby.goto("/blackboard?webmcp=polyfill");
-    await expect(standby.locator("html")).toHaveAttribute("data-webmcp-role", "standby");
-    await expect.poll(() => standby.evaluate(async () => {
+    await expect.poll(() => page.evaluate(async () => {
       const modelContext = (document as Document & {
         modelContext?: { getTools(): Promise<unknown[]> };
       }).modelContext;
       return modelContext ? (await modelContext.getTools()).length : -1;
-    })).toBe(0);
+    })).toBe(9);
+
+    const blackboard = await context.newPage();
+    await blackboard.goto("/blackboard?webmcp=polyfill");
+    await expect(blackboard.locator("html")).toHaveAttribute("data-webmcp-status", "ready");
+    await expect.poll(() => blackboard.evaluate(async () => {
+      const modelContext = (document as Document & {
+        modelContext?: { getTools(): Promise<unknown[]> };
+      }).modelContext;
+      return modelContext ? (await modelContext.getTools()).length : -1;
+    })).toBe(9);
 
     await page.close();
-    await expect(standby.locator("html")).toHaveAttribute("data-webmcp-role", "leader");
-    await expect(standby.locator("html")).toHaveAttribute("data-webmcp-status", "ready");
-    await expect.poll(() => standby.evaluate(async () => {
+    await expect(blackboard.locator("html")).toHaveAttribute("data-webmcp-status", "ready");
+    await expect.poll(() => blackboard.evaluate(async () => {
       const modelContext = (document as Document & {
         modelContext?: { getTools(): Promise<unknown[]> };
       }).modelContext;

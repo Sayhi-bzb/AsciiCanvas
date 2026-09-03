@@ -261,11 +261,18 @@ describe("CanvasRuntime collaboration", () => {
 
       expect(guest.getState().grid.get("0,0")?.char).toBe("H");
 
-      guest.documents.mutateGrid((grid) => {
-        grid.set("1,0", { char: "G", color: "#222222" });
-      });
+      guest.commands.grid.replace([
+        ...guest.getState().grid.entries(),
+        ["1,0", { char: "G", color: "#222222" }],
+      ]);
       Y.applyUpdate(hostDocument, Y.encodeStateAsUpdate(guestDocument));
 
+      expect(
+        guest.documents
+          .getPageDescriptors(guestSessionId)
+          .map(({ id }) => id)
+      ).toEqual([sharedPageId]);
+      expect(host.getState().grid.get("0,0")?.char).toBe("H");
       expect(host.getState().grid.get("1,0")?.char).toBe("G");
     } finally {
       host.dispose();
@@ -319,6 +326,16 @@ describe("CanvasRuntime collaboration", () => {
       Y.applyUpdate(guestDocument, Y.encodeStateAsUpdate(hostDocument));
 
       expect(guest.getState().structuredScene).toEqual([hostNode]);
+      const guestNode = {
+        ...hostNode,
+        id: "guest-node",
+        position: { x: 4, y: 5 },
+        text: "Guest",
+      };
+      guest.commands.structured.applyScene([hostNode, guestNode]);
+      Y.applyUpdate(hostDocument, Y.encodeStateAsUpdate(guestDocument));
+
+      expect(host.getState().structuredScene).toEqual([hostNode, guestNode]);
       expect(host.documents.getPageDescriptors("structured-host-session"))
         .toEqual(guest.documents.getPageDescriptors(guestSessionId));
     } finally {

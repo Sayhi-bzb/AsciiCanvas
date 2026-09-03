@@ -21,7 +21,7 @@ import {
   requireLoadedModule,
 } from "@/shared/lib/moduleLoadRecovery";
 import { createChardeskAgentTools } from "./site-tools/chardeskTools";
-import { startOriginSiteToolGateway } from "./site-tools/originGateway";
+import { startDocumentSiteTools } from "./site-tools/connector";
 import {
   prepareDocumentWebMcp,
   updateWebMcpDiagnostics,
@@ -38,8 +38,7 @@ const chardeskAgentTools = createChardeskAgentTools({
 const startChardeskSiteTools = async () => {
   let provider: WebMcpProvider = "unavailable";
   updateWebMcpDiagnostics(document, provider, {
-    role: navigator.locks ? "standby" : "unsupported",
-    status: navigator.locks ? "waiting" : "failed",
+    status: "waiting",
     adapterId: null,
   });
   try {
@@ -53,7 +52,7 @@ const startChardeskSiteTools = async () => {
     console.warn("Unable to initialize the WebMCP development polyfill.", error);
   }
 
-  startOriginSiteToolGateway({
+  startDocumentSiteTools({
     target: document,
     tools: chardeskAgentTools,
     onStatusChange: (snapshot) => {

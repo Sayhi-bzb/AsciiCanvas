@@ -2,7 +2,7 @@ import {
   getDocumentModelContext,
   hasRegisterTool,
 } from "./modelContext";
-import type { OriginSiteToolGatewaySnapshot } from "./originGateway";
+import type { SiteToolConnectorSnapshot } from "./connector";
 
 export type WebMcpProvider = "native" | "polyfill" | "unavailable";
 type WebMcpCapability = "standard" | "imperative" | "unavailable";
@@ -49,7 +49,7 @@ export const prepareDocumentWebMcp = async ({
 };
 
 const getWebMcpCapability = (
-  snapshot: OriginSiteToolGatewaySnapshot,
+  snapshot: SiteToolConnectorSnapshot,
 ): WebMcpCapability => {
   if (snapshot.adapterId === "standard-webmcp") return "standard";
   if (snapshot.adapterId === "imperative-webmcp") return "imperative";
@@ -59,10 +59,9 @@ const getWebMcpCapability = (
 export const updateWebMcpDiagnostics = (
   target: Document,
   provider: WebMcpProvider,
-  snapshot: OriginSiteToolGatewaySnapshot,
+  snapshot: SiteToolConnectorSnapshot,
 ) => {
   target.documentElement.dataset.webmcpProvider = provider;
   target.documentElement.dataset.webmcpStatus = snapshot.status;
-  target.documentElement.dataset.webmcpRole = snapshot.role;
   target.documentElement.dataset.webmcpCapability = getWebMcpCapability(snapshot);
 };

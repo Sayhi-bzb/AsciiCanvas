@@ -556,6 +556,8 @@ export const createSessionSlice = (
           sharedDocumentId: getCollaborationDocumentId(collaboration),
         }
       );
+    } else {
+      documents.clearDocumentCollaboration(canvasId);
     }
 
     set({

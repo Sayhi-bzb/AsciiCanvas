@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
 import { CanvasDocumentRegistry } from "./CanvasDocumentRegistry";
+import { getCanvasDocumentRoot } from "./canvasDocumentModel";
 import {
   CellPlaneIndex,
   gridChangesToCellPlaneOperation,
@@ -57,6 +58,38 @@ const applyYMapValueDiff = <T extends { id: string }>(map: Y.Map<T>, values: T[]
 };
 
 describe("canvas CRDT collaboration", () => {
+  it("reattaches a bound collaboration page when a remote update removes page metadata", () => {
+    const id = `collaboration-page-repair-${crypto.randomUUID()}`;
+    const documents = new CanvasDocumentRegistry(id);
+    documents.mutateGrid((grid) => grid.set("0,0", cell("R")));
+    documents.prepareDocumentForCollaboration(id, {
+      mode: "freeform",
+      documentVersion: 6,
+      roomId: "repair-room-123456",
+      sharedDocumentId: "collaboration:repair-room-123456",
+    });
+    const stop = documents.observeActiveTransactions(() => undefined);
+    const doc = documents.getCollaborationDocument(id)!;
+    const root = getCanvasDocumentRoot(doc);
+
+    doc.transact(() => {
+      root.pages.clear();
+      root.pageOrder.delete(0, root.pageOrder.length);
+    }, "malformed-remote-update");
+
+    expect(documents.getPageDescriptors(id)).toEqual([
+      expect.objectContaining({
+        id: "collaboration:repair-room-123456:page:main",
+        kind: "cell-plane",
+      }),
+    ]);
+    expect(documents.getContentReader().getCell({ x: 0, y: 0 })).toEqual(
+      cell("R")
+    );
+    stop();
+    documents.dispose();
+  });
+
   it("repairs concurrent anchors that overlap a wide-cell footprint", () => {
     const id = `wide-overlap-${crypto.randomUUID()}`;
     const documents = new CanvasDocumentRegistry(id);

@@ -35,8 +35,9 @@ describe("site tool connector", () => {
     vi.useRealTimers();
   });
 
-  it("registers immediately when WebMCP exists during bootstrap", async () => {
+  it("registers immediately without origin coordination", async () => {
     const target = createDocument();
+    expect(target.defaultView?.navigator.locks).toBeUndefined();
     const registerTool = vi.fn();
     installContext(target, registerTool);
     const execute = vi.fn((_input, context) => context?.signal);

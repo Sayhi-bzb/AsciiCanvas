@@ -58,11 +58,6 @@ const resolveSiteToolHost = (
   return null;
 };
 
-export const hasDocumentSiteToolHost = (target: Document) => {
-  const context = getDocumentModelContext(target);
-  return standardWebMcpAdapter.supports(context) || imperativeWebMcpAdapter.supports(context);
-};
-
 export const startDocumentSiteTools = ({
   target,
   tools,

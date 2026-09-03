@@ -76,6 +76,10 @@ type CanvasCollaborationPreparation = {
   sharedDocumentId: string;
 };
 
+type CanvasCollaborationBinding = CanvasCollaborationPreparation & {
+  pageId: string;
+};
+
 type CanvasDocumentLifecycle = {
   onCreate: (id: string, doc: Y.Doc) => void;
   onDelete: (id: string) => void;
@@ -101,6 +105,8 @@ type CanvasYDocument = {
   integrityIssues: Map<string, CollaborationIntegrityIssue>;
   undoManager: Y.UndoManager;
   operationFormat: "encoded" | "legacy";
+  collaboration: CanvasCollaborationBinding | null;
+  repairingCollaborationPage: boolean;
 };
 
 type CanvasDocumentTransaction = {
@@ -588,26 +594,38 @@ export class CanvasDocumentRegistry {
     if (!document) return false;
     const { mode, documentVersion, roomId, sharedDocumentId } = preparation;
     const sharedPageId = getDefaultCanvasPageId(sharedDocumentId);
-    const activePage = document.pages.get(document.activePageId);
-    if (!activePage) return false;
+    document.collaboration = { ...preparation, pageId: sharedPageId };
+    const activePage =
+      document.pages.get(sharedPageId) ??
+      document.pages.get(document.activePageId);
 
-    const sharedPage: CanvasPageDraft = activePage.descriptor.id === sharedPageId
-      ? activePage.descriptor
-      : activePage.descriptor.kind === "cell-plane"
-        ? {
-            ...activePage.descriptor,
-            id: sharedPageId,
-            grid: Array.from(this.#ensurePageIndex(document, activePage).materialize()),
-          }
-        : {
-            ...activePage.descriptor,
-            id: sharedPageId,
-            scene: Array.from(activePage.scene.values()),
-            components: Array.from(activePage.components.values()),
-          };
+    const sharedPage: CanvasPageDraft = !activePage
+      ? {
+          id: sharedPageId,
+          kind: mode === "structured" ? "structured" : "cell-plane",
+        }
+      : activePage.descriptor.id === sharedPageId
+        ? activePage.descriptor
+        : activePage.descriptor.kind === "cell-plane"
+          ? {
+              ...activePage.descriptor,
+              id: sharedPageId,
+              grid: Array.from(
+                this.#ensurePageIndex(document, activePage).materialize()
+              ),
+            }
+          : {
+              ...activePage.descriptor,
+              id: sharedPageId,
+              scene: Array.from(activePage.scene.values()),
+              components: Array.from(activePage.components.values()),
+            };
 
     document.doc.transact(() => {
-      if (activePage.descriptor.id !== sharedPageId) {
+      if (
+        activePage?.descriptor.id !== sharedPageId ||
+        readCanvasPageOrder(document.root).length !== 1
+      ) {
         document.root.pages.clear();
         document.root.pageOrder.delete(0, document.root.pageOrder.length);
         createCanvasYPage(
@@ -617,7 +635,9 @@ export class CanvasDocumentRegistry {
         );
       }
       const page = readCanvasYPage(document.root, sharedPageId);
-      if (!page) throw new Error(`Failed to prepare collaboration page: ${sharedPageId}`);
+      if (!page) {
+        throw new Error(`Failed to prepare collaboration page: ${sharedPageId}`);
+      }
       if (mode === "structured") {
         page.operations.delete(0, page.operations.length);
       } else {
@@ -638,6 +658,13 @@ export class CanvasDocumentRegistry {
     document.operationFormat = "encoded";
     document.undoManager.clear();
     this.#clearDocumentHistory(document);
+    return true;
+  };
+
+  clearDocumentCollaboration = (id: string) => {
+    const document = this.#documents.get(id);
+    if (!document) return false;
+    document.collaboration = null;
     return true;
   };
 
@@ -1165,6 +1192,8 @@ export class CanvasDocumentRegistry {
       integrityIssues,
       undoManager: null!,
       operationFormat: "encoded",
+      collaboration: null,
+      repairingCollaborationPage: false,
     };
     this.#syncDocumentPages(document);
     if (seed?.activePageId && document.pages.has(seed.activePageId)) {
@@ -1272,21 +1301,65 @@ export class CanvasDocumentRegistry {
   }
 
   #syncDocumentPages(document: CanvasYDocument) {
-    const nextPages = new Map<string, CanvasPageRuntime>();
-    for (const pageId of readCanvasPageOrder(document.root)) {
-      const page = readCanvasYPage(document.root, pageId);
-      if (!page) continue;
-      const existing = document.pages.get(pageId);
-      if (
-        existing?.operations === page.operations &&
-        existing.descriptor.kind === page.descriptor.kind
-      ) {
-        existing.descriptor = page.descriptor;
-        nextPages.set(pageId, existing);
-      } else {
-        nextPages.set(pageId, this.#createPageRuntime(document, page));
+    const readPages = () => {
+      const pages = new Map<string, CanvasPageRuntime>();
+      for (const pageId of readCanvasPageOrder(document.root)) {
+        const page = readCanvasYPage(document.root, pageId);
+        if (!page) continue;
+        const existing = document.pages.get(pageId);
+        if (
+          existing?.operations === page.operations &&
+          existing.descriptor.kind === page.descriptor.kind
+        ) {
+          existing.descriptor = page.descriptor;
+          pages.set(pageId, existing);
+        } else {
+          pages.set(pageId, this.#createPageRuntime(document, page));
+        }
       }
+      return pages;
+    };
+
+    let nextPages = readPages();
+    if (
+      nextPages.size === 0 &&
+      document.collaboration &&
+      !document.repairingCollaborationPage
+    ) {
+      const binding = document.collaboration;
+      document.repairingCollaborationPage = true;
+      try {
+        document.doc.transact(() => {
+          createCanvasYPage(
+            document.root,
+            {
+              id: binding.pageId,
+              kind:
+                binding.mode === "structured" ? "structured" : "cell-plane",
+            },
+            `collaboration-repair:v${binding.documentVersion}:${binding.sharedDocumentId}:${binding.pageId}:${this.#operationSequence++}`
+          );
+          writeCanvasDocumentMetadata(
+            document.root,
+            binding.sharedDocumentId,
+            binding.mode,
+            binding.pageId
+          );
+          document.root.meta.set(
+            "documentVersion",
+            binding.documentVersion
+          );
+          document.root.meta.set("roomId", binding.roomId);
+        }, HISTORY_IGNORED_ORIGIN);
+      } finally {
+        document.repairingCollaborationPage = false;
+      }
+      nextPages = readPages();
     }
+    if (nextPages.size === 0) {
+      throw new Error(`Canvas document has no valid pages: ${document.id}`);
+    }
+
     document.pages.forEach((page, pageId) => {
       if (!nextPages.has(pageId)) page.dispose();
     });

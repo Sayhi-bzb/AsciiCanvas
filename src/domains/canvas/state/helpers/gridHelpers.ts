@@ -28,10 +28,14 @@ export const resolveEditorDocumentAddress = (
     | "structuredComponents"
   >
 ): CanvasDocumentAddress => {
+  const activeAddress =
+    state.canvasMode === "slide"
+      ? null
+      : documents.getDocumentAddress(state.activeCanvasId);
   const pageId =
     state.canvasMode === "slide"
       ? state.slideDeck?.activeSlideId
-      : getDefaultCanvasPageId(state.activeCanvasId);
+      : activeAddress?.pageId ?? getDefaultCanvasPageId(state.activeCanvasId);
   if (!pageId) throw new Error("Active Canvas page is unavailable");
   const kind = state.canvasMode === "structured" ? "structured" : "cell-plane";
   if (!documents.getDocument(state.activeCanvasId)) {
