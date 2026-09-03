@@ -58,6 +58,20 @@ Agent 会创建源码、检查结果并打开画布。你不需要先学习文�
 
 **Agent Blackboard** · [源码](demo/readme-showcase/06-agent-blackboard.md)
 
+### ANSI 界面实验
+
+[![上下文控制室](public/showcase/07-context-control-room.png)](demo/readme-showcase/07-context-control-room.md)
+
+**上下文控制室** · [源码](demo/readme-showcase/07-context-control-room.md)
+
+[![灵感信号播放器](public/showcase/08-idea-signal-player.png)](demo/readme-showcase/08-idea-signal-player.md)
+
+**灵感信号播放器** · [源码](demo/readme-showcase/08-idea-signal-player.md)
+
+[![口袋 Blackboard](public/showcase/09-pocket-blackboard.png)](demo/readme-showcase/09-pocket-blackboard.md)
+
+**口袋 Blackboard** · [源码](demo/readme-showcase/09-pocket-blackboard.md)
+
 ## 为什么文本也可以是视觉媒介
 
 人擅长扫视二维平面，语言模型擅长生成和修改 token 序列。截图保留了布局，却引入像素噪声，也很难在多轮协作中精确修改；普通文本容易编辑，却通常失去了空间与样式。

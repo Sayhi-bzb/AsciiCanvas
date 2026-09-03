@@ -17,6 +17,9 @@ const examples = [
   "04-story-slides.ja",
   "05-interface-console",
   "06-agent-blackboard",
+  "07-context-control-room",
+  "08-idea-signal-player",
+  "09-pocket-blackboard",
 ];
 
 await access(cli, constants.R_OK);

@@ -58,6 +58,20 @@ The agent creates the source, checks it, and opens the canvas. You do not need t
 
 **Agent Blackboard** · [Source](demo/readme-showcase/06-agent-blackboard.md)
 
+### ANSI interface studies
+
+[![A context control room](public/showcase/07-context-control-room.png)](demo/readme-showcase/07-context-control-room.md)
+
+**Context Control Room** · [Source](demo/readme-showcase/07-context-control-room.md)
+
+[![An idea signal player](public/showcase/08-idea-signal-player.png)](demo/readme-showcase/08-idea-signal-player.md)
+
+**Idea Signal Player** · [Source](demo/readme-showcase/08-idea-signal-player.md)
+
+[![A pocket Blackboard](public/showcase/09-pocket-blackboard.png)](demo/readme-showcase/09-pocket-blackboard.md)
+
+**Pocket Blackboard** · [Source](demo/readme-showcase/09-pocket-blackboard.md)
+
 ## Why text can be visual
 
 People scan a two-dimensional surface. Language models generate and edit token sequences. Screenshots preserve layout, but add pixel noise and are awkward to revise precisely across turns; plain text is easy to edit, but normally gives up space and style.
