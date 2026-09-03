@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { decodeCharDeskTextRuns } from "@chardesk/protocol";
 import {
   CharDeskCliRenderError,
+  compileInspectSource,
   compileSource,
   renderSource,
   renderSourceToPng,
@@ -14,6 +15,21 @@ const expectPng = (bytes: Uint8Array) => {
 };
 
 describe("headless CharDesk PNG renderer", () => {
+  it("builds a source-ordered block reading projection without changing Canvas size", async () => {
+    const source = "**A**\n|||\n\\|||\n---\n\n---\nC";
+    const result = await compileInspectSource({ source, inputMode: "chargraph" });
+
+    expect(result).toMatchObject({
+      projection: "blocks",
+      columns: 3,
+      rows: 5,
+      canvas: { columns: 8 },
+      diagnostics: [],
+    });
+    expect(result.document.plainText).toBe("A\n\n|||\n\nC");
+    expect(result.fragments.some((fragment) => fragment.attrs?.bold)).toBe(true);
+  });
+
   it("renders CharGraph Markdown and block layout without a DOM", async () => {
     const result = await renderSourceToPng({
       source: [

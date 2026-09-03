@@ -129,6 +129,7 @@ describe("chardesk render command", () => {
         input: "input.chardesk",
         inputMode: "auto",
         json: false,
+        canvas: true,
         region: { x: 2, y: 3, columns: 40, rows: 20 },
         ruler: false,
         styles: false,
@@ -137,8 +138,13 @@ describe("chardesk render command", () => {
     expect(parseCliArguments([
       "inspect", "boards/demo", "--panel", "details", "--styles", "--json",
     ])).toMatchObject({
-      command: { kind: "inspect", panel: "details", styles: true, json: true },
+      command: {
+        kind: "inspect", panel: "details", canvas: false, styles: true, json: true,
+      },
     });
+    expect(parseCliArguments([
+      "inspect", "input.md", "--canvas",
+    ])).toMatchObject({ command: { kind: "inspect", canvas: true } });
     expect(() => parseCliArguments(["inspect", "-", "--region", "1,2,0,4"]))
       .toThrow("positive safe integers");
   });
@@ -150,11 +156,55 @@ describe("chardesk render command", () => {
     ], io.value)).toBe(0);
 
     expect(io.stdout()).toContain("inspect: valid");
+    expect(io.stdout()).toContain("projection: canvas");
     expect(io.stdout()).toContain("grid: 4 cols × 2 rows");
     expect(io.stdout()).toContain("0 │ A 界");
     expect(io.stdout()).toContain("1 │ CD");
     expect(io.stdout()).not.toContain("[31m");
     expect(io.stderr()).toBe("");
+  });
+
+  it("stacks block layout fields into a plain reading projection", async () => {
+    const source = [
+      "aa",
+      "[31maa[0m",
+      "|||",
+      "[32mbb[0m",
+      "bb",
+      "---",
+    ].join("\n");
+    const reading = streams(source);
+    expect(await runCli([
+      "inspect", "-", "--input", "chargraph", "--no-ruler", "--styles", "--json",
+    ], reading.value)).toBe(0);
+    expect(JSON.parse(reading.stdout())).toMatchObject({
+      status: "valid",
+      projection: "blocks",
+      columns: 2,
+      rows: 5,
+      text: "aa\naa\n\nbb\nbb",
+      canvas: { columns: 8 },
+      styles: expect.stringContaining("3:0-1{fg:#008000}"),
+      diagnostics: [],
+    });
+
+    const canvas = streams(source);
+    expect(await runCli([
+      "inspect", "-", "--input", "chargraph", "--canvas", "--no-ruler", "--json",
+    ], canvas.value)).toBe(0);
+    const canvasResult = JSON.parse(canvas.stdout());
+    expect(canvasResult).toMatchObject({ projection: "canvas" });
+    expect(canvasResult.text).toMatch(/^aa {4}bb\naa {4}bb/u);
+
+    const region = streams(source);
+    expect(await runCli([
+      "inspect", "-", "--input", "chargraph", "--region", "0,0,2,2",
+      "--no-ruler", "--json",
+    ], region.value)).toBe(0);
+    expect(JSON.parse(region.stdout())).toMatchObject({
+      projection: "canvas",
+      text: "aa\naa",
+    });
   });
 
   it("inspects one Blackboard panel with structured output", async () => {

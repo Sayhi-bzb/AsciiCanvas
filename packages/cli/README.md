@@ -37,8 +37,11 @@ npx -y @chardesk/cli inspect .chardesk/gpu --panel architecture --styles --json
 npx -y @chardesk/cli inspect .chardesk/gpu --region 0,0,96,32
 ```
 
-`inspect` reports the actual Protocol grid used by Canvas and PNG rendering. Its default view is
-bounded to 96×32 cells; `--region` selects an absolute grid region. `--styles` adds compact,
+`inspect` reports materialized Protocol text without a browser. Its default view is bounded to
+96×32 cells. When CharGraph source uses `|||` or `---`, the default inspection
+projection renders each non-empty block independently and stacks their plain text in source order;
+the Canvas keeps its spatial layout. Use `--canvas` for that final spatial projection. `--region`
+selects an absolute Canvas grid region and implies `--canvas`. `--styles` adds compact,
 Agent-readable style regions. `--panel` isolates one package panel by manifest ID.
 
 Open the workspace when a human wants to see it:
@@ -109,6 +112,7 @@ return `unsupported-document-mode` until their headless renderers are available.
 --foreground                       open only
 --panel <id>                       inspect one Blackboard panel
 --region <x,y,columns,rows>         inspect only
+--canvas                            inspect final spatial Canvas projection
 --no-ruler                         inspect only
 --styles                           inspect only
 --format <png|chardesk|ansi|text>  render only

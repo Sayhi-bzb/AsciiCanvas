@@ -12,8 +12,11 @@ npx -y @chardesk/cli open <path>
 npx -y @chardesk/cli render <input> -o <output> --strict --json
 ```
 
-- `inspect` returns the materialized Protocol grid without a browser. Use
-  `--panel <id>`, `--region x,y,w,h`, or `--styles` for bounded evidence.
+- After writing content, use `inspect` to check its materialized plain text.
+  `|||` and `---` fields appear as a source-ordered vertical block stream so
+  spatial layout and ANSI do not obscure the content. Use `--canvas` or
+  `--region x,y,w,h` only when the final spatial projection matters;
+  `--panel <id>` and `--styles` provide bounded evidence.
 - `open` ensures a managed live source projection. Human editing is disabled;
   filesystem edits appear automatically. It is idempotent: invoke it whenever
   an interactive Canvas is requested, and let the CLI reuse, recreate, and

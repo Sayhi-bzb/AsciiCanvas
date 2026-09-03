@@ -24,7 +24,7 @@ import {
 } from "./open.js";
 import {
   CharDeskCliRenderError,
-  compileSource,
+  compileInspectSource,
   renderSource,
   type CharDeskCliDiagnostic,
   type CharDeskCliOutputFormat,
@@ -81,6 +81,7 @@ type RenderCommand = CommonCommand & {
 
 type InspectCommand = CommonCommand & {
   kind: "inspect";
+  canvas: boolean;
   region?: CharDeskInspectRegion;
   ruler: boolean;
   styles: boolean;
@@ -127,7 +128,8 @@ const CLI_USAGE = [
   "  -o, --output <path|->              Render output (required)",
   "      --format <png|chardesk|ansi|text>",
   "      --input <auto|chargraph|chardesk|blackboard>",
-  "      --region <x,y,columns,rows>      Inspect grid region",
+  "      --region <x,y,columns,rows>      Inspect Canvas region (implies --canvas)",
+  "      --canvas                        Inspect the spatial Canvas projection",
   "      --panel <id>                     Inspect one Blackboard panel",
   "      --no-ruler                      Hide inspect coordinates",
   "      --styles                        Include materialized style evidence",
@@ -149,6 +151,7 @@ const parseRawArguments = (args: readonly string[]) => parseArgs({
     scale: { type: "string" },
     padding: { type: "string" },
     region: { type: "string" },
+    canvas: { type: "boolean", default: false },
     "no-ruler": { type: "boolean", default: false },
     styles: { type: "boolean", default: false },
     strict: { type: "boolean", default: false },
@@ -330,7 +333,7 @@ export const parseCliArguments = (
     };
   }
   if (kind === "inspect") {
-    allow("input", "region", "no-ruler", "styles", "panel", "json");
+    allow("input", "region", "canvas", "no-ruler", "styles", "panel", "json");
     if (input === "-" && (common.inputMode === "blackboard" || parsed.values.panel)) {
       throw new CliUsageError("Blackboard panel inspection requires a file or directory path.");
     }
@@ -339,6 +342,7 @@ export const parseCliArguments = (
       command: {
         kind,
         ...common,
+        canvas: (parsed.values.canvas ?? false) || parsed.values.region !== undefined,
         region: parseRegion(parsed.values.region),
         ruler: !(parsed.values["no-ruler"] ?? false),
         styles: parsed.values.styles ?? false,
@@ -490,9 +494,10 @@ const runInspect = async (
   input: ResolvedCharDeskInput,
   streams: CliStreams,
 ) => {
-  const compiled = await compileSource({
+  const compiled = await compileInspectSource({
     source: input.source,
     inputMode: input.inputMode,
+    canvas: command.canvas,
   });
   if (
     command.region
@@ -513,11 +518,13 @@ const runInspect = async (
   const endY = projection.view.y + projection.view.rows - 1;
   const result = {
     status,
+    projection: compiled.projection,
     inputMode: compiled.inputMode,
     renderer: compiled.renderer,
     pipeline: compiled.pipeline,
     columns: compiled.columns,
     rows: compiled.rows,
+    ...(compiled.projection === "blocks" ? { canvas: compiled.canvas } : {}),
     view: projection.view,
     omitted: projection.omitted,
     text: projection.text,
@@ -530,9 +537,13 @@ const runInspect = async (
   } else {
     const output = [
     `${command.kind}: ${status}`,
+    `projection: ${compiled.projection}`,
     `renderer: ${compiled.renderer}`,
     `pipeline: ${compiled.pipeline.join(" → ")}`,
     `grid: ${compiled.columns} cols × ${compiled.rows} rows`,
+    ...(compiled.projection === "blocks"
+      ? [`canvas: ${compiled.canvas.columns} cols × ${compiled.canvas.rows} rows`]
+      : []),
     `view: x=${projection.view.x}..${endX}, y=${projection.view.y}..${endY} · ${projection.view.columns}×${projection.view.rows} cells`,
     `omitted: ${omittedSummary(projection.omitted)}`,
     "",

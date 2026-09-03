@@ -1,6 +1,7 @@
 import {
   CharDeskTextCompileError,
   compileCharDeskText,
+  parseBlockLayout,
   getCharGraphText,
   materializeCompiledCharDeskText,
   serializeCharGraphAnsi,
@@ -8,7 +9,10 @@ import {
 } from "@chardesk/chargraph";
 import { createCharDeskMarkdownRenderOptions } from "@chardesk/chargraph/markdown";
 import { CHARDESK_LIGHT_RENDER_THEME } from "@chardesk/chargraph/theme";
-import type { ParsedCharDeskText } from "@chardesk/protocol";
+import {
+  layoutCharDeskTextRuns,
+  type ParsedCharDeskText,
+} from "@chardesk/protocol";
 import { createCharDeskRenderModelFromDocument } from "@chardesk/rendering";
 import {
   drawCharDeskCanvasDocument,
@@ -36,7 +40,7 @@ type RenderSourceOptions = CompileSourceOptions & {
   padding?: number;
 };
 
-type CharDeskCliCompilation = {
+export type CharDeskCliCompilation = {
   inputMode: CharDeskCliInputMode;
   renderer: string;
   pipeline: readonly string[];
@@ -45,6 +49,11 @@ type CharDeskCliCompilation = {
   diagnostics: CharDeskCliDiagnostic[];
   fragments: CharGraphFragment[];
   document: ParsedCharDeskText;
+};
+
+export type CharDeskCliInspectCompilation = CharDeskCliCompilation & {
+  projection: "blocks" | "canvas";
+  canvas: { columns: number; rows: number };
 };
 
 type RenderSourceResult = Omit<CharDeskCliCompilation, "fragments" | "document"> & {
@@ -69,6 +78,10 @@ const PALETTE = {
 };
 const ESC = "\u001b";
 
+const markdownOptions = () => createCharDeskMarkdownRenderOptions({
+  theme: CHARDESK_LIGHT_RENDER_THEME,
+});
+
 export const compileSource = async ({
   source,
   inputMode,
@@ -77,9 +90,7 @@ export const compileSource = async ({
   try {
     compiled = await compileCharDeskText(source, {
       sourceKind: inputMode,
-      markdown: createCharDeskMarkdownRenderOptions({
-        theme: CHARDESK_LIGHT_RENDER_THEME,
-      }),
+      markdown: markdownOptions(),
     });
   } catch (error) {
     if (error instanceof CharDeskTextCompileError) {
@@ -100,6 +111,51 @@ export const compileSource = async ({
     diagnostics: compiled.diagnostics.map((diagnostic) => ({ ...diagnostic })),
     fragments: compiled.fragments,
     document,
+  };
+};
+
+export const compileInspectSource = async ({
+  source,
+  inputMode,
+  canvas = false,
+}: CompileSourceOptions & { canvas?: boolean }): Promise<CharDeskCliInspectCompilation> => {
+  const compiled = await compileSource({ source, inputMode });
+  const canvasSize = { columns: compiled.columns, rows: compiled.rows };
+  if (canvas || inputMode !== "chargraph") {
+    return { ...compiled, projection: "canvas", canvas: canvasSize };
+  }
+
+  const layout = parseBlockLayout(source).document;
+  if (!layout) return { ...compiled, projection: "canvas", canvas: canvasSize };
+
+  const fragments: CharGraphFragment[] = [];
+  for (const block of layout.rows.flat()) {
+    const rendered = await compileCharDeskText(
+      block.protectedSource ?? block.source,
+      {
+        sourceKind: "chargraph",
+        ...(block.protectedSource ? { chargraphMode: "markdown" as const } : {}),
+        markdown: markdownOptions(),
+        layout: false,
+      },
+    );
+    if (rendered.plainText.trim().length === 0) continue;
+    if (fragments.length > 0) fragments.push({ text: "\n\n" });
+    fragments.push(...rendered.fragments);
+  }
+  if (fragments.length === 0) {
+    return { ...compiled, projection: "canvas", canvas: canvasSize };
+  }
+
+  const document = layoutCharDeskTextRuns(fragments);
+  return {
+    ...compiled,
+    columns: document.width,
+    rows: document.height,
+    fragments,
+    document,
+    projection: "blocks",
+    canvas: canvasSize,
   };
 };
 
