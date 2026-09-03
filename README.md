@@ -2,112 +2,89 @@
 
 # CharDesk
 
-> **A Unicode canvas for humans and AI.**
+> **A shared visual medium for humans and language models.**
 
-CharDesk, formerly ASCII Canvas, is an editable Unicode grid for drawing diagrams, interfaces, and ideas. What you create stays visual for people and readable as text for language models.
+CharDesk turns Unicode text into a shared workspace: a canvas for people, editable tokens for agents.
 
-<p align="center">
-  <a href="https://chardesk.com/">
-    <img src="https://img.shields.io/badge/Open_CharDesk-22c55e?style=for-the-badge" alt="Open CharDesk">
-  </a>
-</p>
+[Open CharDesk](https://chardesk.com/) · [Explore CharGraph](https://chardesk.com/chargraph/) · [CLI reference](packages/cli/README.md)
+
+## Start with your agent
+
+Requires Node.js 20 or later.
+
+```sh
+npx skills add https://github.com/sayhi-bzb/chardesk --skill chardesk
+npm install -g @chardesk/cli
+```
+
+Then tell your agent what you want to see:
+
+```text
+$chardesk Explain how a GPU works as a visual blackboard.
+```
+
+The agent creates the source, checks it, and opens the canvas. You do not need to learn a file format or configure an AI provider first.
 
 <div align="center">
-  <img src="public/demo.gif" alt="Drawing on CharDesk" width="100%">
+  <img src="public/demo.gif" alt="An agent and a person working through CharDesk" width="100%">
 </div>
 
-## A shared visual language
+## What you can make
 
-People understand layout at a glance. Language models work naturally with token sequences. Screenshots bridge that gap, but they also carry pixel noise, consume visual context, and are difficult to revise precisely across multiple turns.
+- Explain a concept as a spatial story instead of a wall of text.
+- Present an idea as character-based slides.
+- Build scientific figures with plots, formulas, data, and annotations.
+- Sketch interfaces, terminals, dashboards, and product states.
+- Map architectures, workflows, timelines, and relationships.
+- Keep a Blackboard that people and agents can inspect and revise together.
 
-CharDesk uses text itself as the visual medium. A diagram remains a diagram when you look at it, yet it can still be copied, searched, versioned, and given directly to an AI without becoming an opaque image.
+<div align="center">
+  <img src="public/Case/Case.webp" alt="Visual work made with CharDesk" width="100%">
+</div>
 
-```text
-┌──────────────┐       ┌──────────────┐
-│ Human intent │──────>│ Shared canvas│
-└──────────────┘       └──────┬───────┘
-                              │
-                       ┌──────▼───────┐
-                       │ AI-readable  │
-                       │ text         │
-                       └──────────────┘
-```
+## Why text can be visual
 
-## Make ideas visible
+People scan a two-dimensional surface. Language models generate and edit token sequences. Screenshots preserve layout, but add pixel noise and are awkward to revise precisely across turns; plain text is easy to edit, but normally gives up space and style.
 
-Use CharDesk for:
-
-- flowcharts, architecture diagrams, and system maps;
-- interface wireframes and terminal-style mockups;
-- notes where spatial relationships matter;
-- Unicode art, icons, tables, and lightweight data views;
-- visual context that can move between a conversation, document, issue, or source file.
-
-No drawing skill is required. Start with shapes and templates, arrange them visually, then copy the result as text whenever you need it elsewhere.
-
-## One canvas, three ways to work
-
-### Freeform
-
-Draw directly on an infinite character grid. Place text and symbols anywhere, paint with Unicode characters, select regions, and reshape ideas without leaving the canvas.
-
-### Structured
-
-Build with editable text, boxes, backgrounds, dividers, lines, and arrows. Move and resize parts without redrawing the whole scene, or begin with reusable interface components and complete templates.
-
-### Slides
-
-Arrange a deck as editable text pages, or ask an Agent to generate a `.chardesk` document and continue editing it visually. See the [Slides file structure](.agents/skills/chardesk/references/slides.md).
-
-## Built for the human–AI loop
-
-CharDesk keeps visual work in a form that fits naturally into text conversations:
-
-1. Compose or refine an idea visually.
-2. Copy it as plain text or ANSI-styled text.
-3. Give the compact representation to an AI for analysis or revision.
-4. Paste text back into the canvas and continue visually.
-
-The application does not require a built-in AI provider. The artifact itself is the interface: portable text that both sides can inspect.
-
-## Edit a Blackboard with an agent
-
-CharDesk exposes Blackboard source files through WebMCP and ChatGPT Site Tools. An agent edits the canonical text source instead of the rendered cells, and the open canvas updates from the same workspace.
-Web-only agents can call `chardesk_read_materials` to load the same visual language and worked examples provided by the CharDesk skill.
-
-- **Chrome WebMCP:** enable `chrome://flags/#enable-webmcp-testing`, relaunch Chrome, then open [CharDesk Blackboard](https://chardesk.com/blackboard) in a tab connected to a compatible WebMCP agent. Chrome exposes the tools; it does not provide the agent by itself.
-- **ChatGPT Site Tools:** enable **Site tools** under **Settings → Browser → Permissions**, then open [CharDesk Blackboard](https://chardesk.com/blackboard) in the ChatGPT desktop app's built-in browser. See the [official Site Tools guide](https://learn.chatgpt.com/docs/webmcp).
-- **Codex CLI and terminal agents:** let the agent edit a project-local Blackboard with its normal filesystem tools, then run `npx -y @chardesk/cli open <path>` for a live, read-only Canvas projection. No repository clone or MCP server is required.
-
-Make the bundled [`$chardesk` skill](.agents/skills/chardesk/SKILL.md) available to the agent, then try:
+CharDesk keeps both. A fixed Unicode grid carries position, box drawing carries structure, and ANSI carries emphasis. The result remains selectable, searchable, diffable, and directly editable by an agent.
 
 ```text
-$chardesk Introduce GPUs visually in the current Blackboard.
+   Human reads a scene
+           ⇅
+   Unicode grid + ANSI
+           ⇅
+   Agent edits tokens
 ```
 
-Agents without skill support can ask to use the page's CharDesk Blackboard tools directly. These browser capabilities are experimental and belong to the open page, so keep it open while the agent works.
-
-## Text can carry more than words
-
-CharDesk brings together Unicode symbols, CJK characters, emoji, box drawing, Nerd Font glyphs, and color on a consistent grid. Its visual language can express structure and emphasis while remaining selectable and editable.
-
-<p align="center">
+<div align="center">
   <img src="public/Cover.png" alt="Unicode and ANSI artwork in CharDesk" width="100%">
-</p>
-
-## See what it can become
-
-<div align="center">
-  <img src="public/Case/Case.webp" alt="Examples created with CharDesk" width="100%">
 </div>
 
-<p align="center">
-  <a href="https://chardesk.com/"><strong>Open CharDesk and start creating →</strong></a>
-</p>
+## The medium
+
+### Visual text
+
+Unicode, box drawing, CJK, technical symbols, monochrome emoji, and Nerd Font glyphs share one grid. ESC-less ANSI adds foreground and background colors, bold, italic, underline, strike, and inverse styles without turning the work into an image.
+
+### Structured expression
+
+Write Markdown, Mermaid, math, GFM tables, fenced code, JSON, YAML, Vega-Lite, and XY or line charts. CharGraph compiles structured source into portable character graphics while preserving the source that produced it.
+
+### Spatial composition
+
+Arrange content on Freeform or Structured canvases, compose multiline fields with `|||` and `---`, collect complete scenes in a Blackboard, or tell a story with Slides. Every form resolves to the same character-grid rendering pipeline.
+
+### Agent access
+
+- **Local files and CLI:** the stable default. Agents use normal file tools; `chardesk` checks, previews, opens, and renders the result. See the [CLI reference](packages/cli/README.md).
+- **Chrome WebMCP:** experimental. Enable `chrome://flags/#enable-webmcp-testing`, relaunch Chrome, and keep [CharDesk](https://chardesk.com/) open for a compatible agent.
+- **ChatGPT Site Tools:** experimental. Enable **Site tools** under **Settings → Browser → Permissions**, then open CharDesk in ChatGPT's built-in browser. See the [official Site Tools guide](https://learn.chatgpt.com/docs/webmcp).
+
+Browser agents can call `chardesk_read_materials` to enter the same visual language and worked examples as the skill.
 
 ## For builders
 
-CharDesk output can also be consumed outside the editor. Use the [`chardesk` CLI](packages/cli/README.md) to inspect source, open a local native Canvas, or render PNG and materialized text, [`@chardesk/protocol`](packages/protocol/README.md) for the text interchange format, [`@chardesk/viewer`](packages/viewer/README.md) for framework-independent web rendering, and [`@chardesk/fonts`](packages/fonts/README.md) for compatible glyph assets. [CharGraph](https://chardesk.com/chargraph/) presents structured source as portable Unicode text. Each package owns its installation and API documentation.
+Use [`@chardesk/protocol`](packages/protocol/README.md) for interchange, [`@chardesk/viewer`](packages/viewer/README.md) for framework-independent rendering, and [`@chardesk/fonts`](packages/fonts/README.md) for the compatible glyph set. Each package owns its installation and API documentation.
 
 ## Thanks
 
