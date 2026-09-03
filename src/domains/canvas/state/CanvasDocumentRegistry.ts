@@ -69,6 +69,13 @@ export type CanvasDocumentSeed = {
   pages?: CanvasPageDraft[];
 };
 
+export type CanvasCollaborationPreparation = {
+  mode: "freeform" | "structured";
+  documentVersion: number;
+  roomId: string;
+  sharedDocumentId: string;
+};
+
 type CanvasDocumentLifecycle = {
   onCreate: (id: string, doc: Y.Doc) => void;
   onDelete: (id: string) => void;
@@ -575,29 +582,60 @@ export class CanvasDocumentRegistry {
 
   prepareDocumentForCollaboration = (
     id: string,
-    mode: "freeform" | "structured",
-    documentVersion = 5
+    preparation: CanvasCollaborationPreparation
   ) => {
     const document = this.#documents.get(id);
     if (!document) return false;
+    const { mode, documentVersion, roomId, sharedDocumentId } = preparation;
+    const sharedPageId = getDefaultCanvasPageId(sharedDocumentId);
+    const activePage = document.pages.get(document.activePageId);
+    if (!activePage) return false;
+
+    const sharedPage: CanvasPageDraft = activePage.descriptor.id === sharedPageId
+      ? activePage.descriptor
+      : activePage.descriptor.kind === "cell-plane"
+        ? {
+            ...activePage.descriptor,
+            id: sharedPageId,
+            grid: Array.from(this.#ensurePageIndex(document, activePage).materialize()),
+          }
+        : {
+            ...activePage.descriptor,
+            id: sharedPageId,
+            scene: Array.from(activePage.scene.values()),
+            components: Array.from(activePage.components.values()),
+          };
+
     document.doc.transact(() => {
+      if (activePage.descriptor.id !== sharedPageId) {
+        document.root.pages.clear();
+        document.root.pageOrder.delete(0, document.root.pageOrder.length);
+        createCanvasYPage(
+          document.root,
+          sharedPage,
+          `collaboration:v${documentVersion}:${sharedDocumentId}:${sharedPageId}:${this.#operationSequence++}`
+        );
+      }
+      const page = readCanvasYPage(document.root, sharedPageId);
+      if (!page) throw new Error(`Failed to prepare collaboration page: ${sharedPageId}`);
       if (mode === "structured") {
-        document.operations.delete(0, document.operations.length);
+        page.operations.delete(0, page.operations.length);
+      } else {
+        page.scene.clear();
+        page.components.clear();
       }
-      else {
-        document.scene.clear();
-        document.components.clear();
-      }
-      if (documentVersion === 4) {
-        document.pages.forEach((page) => {
-          if (!page.operations.toArray().some(isEncodedCellPlaneOperation)) return;
-          const legacy = page.operations.toArray().map(toLegacyCellPlaneOperation);
-          page.operations.delete(0, page.operations.length);
-          page.operations.push(legacy);
-        });
-      }
+      writeCanvasDocumentMetadata(
+        document.root,
+        sharedDocumentId,
+        mode,
+        sharedPageId
+      );
+      document.root.meta.set("documentVersion", documentVersion);
+      document.root.meta.set("roomId", roomId);
+      document.root.meta.delete("lastMigration");
     }, HISTORY_IGNORED_ORIGIN);
-    document.operationFormat = documentVersion === 4 ? "legacy" : "encoded";
+    this.#syncDocumentPages(document);
+    document.operationFormat = "encoded";
     document.undoManager.clear();
     this.#clearDocumentHistory(document);
     return true;

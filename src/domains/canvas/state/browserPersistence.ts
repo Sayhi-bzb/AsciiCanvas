@@ -18,6 +18,7 @@ import {
   type CanvasSession,
 } from "@/domains/sessions/public";
 import { SLIDE_SIZE_PRESETS } from "@/domains/slides/public";
+import { getCollaborationDocumentId } from "@/domains/collaboration/public";
 import type { GridCell } from "@/shared/types";
 import {
   CellPlaneIndex,
@@ -1343,8 +1344,12 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
       if (activeSession.mode !== "slide" && activeSession.collaboration) {
         documents.prepareDocumentForCollaboration(
           activeSession.id,
-          activeSession.mode,
-          activeSession.collaboration.documentVersion
+          {
+            mode: activeSession.mode,
+            documentVersion: activeSession.collaboration.documentVersion,
+            roomId: activeSession.collaboration.roomId,
+            sharedDocumentId: getCollaborationDocumentId(activeSession.collaboration),
+          }
         );
       }
       documents.activateDocument(
@@ -1585,8 +1590,12 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
       if (session.mode !== "slide" && session.collaboration) {
         documents.prepareDocumentForCollaboration(
           session.id,
-          session.mode,
-          session.collaboration.documentVersion
+          {
+            mode: session.mode,
+            documentVersion: session.collaboration.documentVersion,
+            roomId: session.collaboration.roomId,
+            sharedDocumentId: getCollaborationDocumentId(session.collaboration),
+          }
         );
       }
       this.touch(session.id);

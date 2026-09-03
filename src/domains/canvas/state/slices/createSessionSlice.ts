@@ -22,7 +22,10 @@ import {
 import { createSlideDeck } from "@/domains/slides/public";
 import type { CanvasSessionSourceParser } from "../sessionImportPort";
 import type { CanvasDocumentRegistry } from "../CanvasDocumentRegistry";
-import { sameCollaborationRoom } from "@/domains/collaboration/public";
+import {
+  getCollaborationDocumentId,
+  sameCollaborationRoom,
+} from "@/domains/collaboration/public";
 import { createSessionActivationPatch } from "../transitions/editorTransitions";
 import { rebuildGridFromContent } from "../helpers/gridHelpers";
 import type { CanvasDocumentResidency } from "../documentResidencyPort";
@@ -546,8 +549,12 @@ export const createSessionSlice = (
     if (collaboration) {
       documents.prepareDocumentForCollaboration(
         canvasId,
-        session.mode,
-        collaboration.documentVersion
+        {
+          mode: session.mode,
+          documentVersion: collaboration.documentVersion,
+          roomId: collaboration.roomId,
+          sharedDocumentId: getCollaborationDocumentId(collaboration),
+        }
       );
     }
 

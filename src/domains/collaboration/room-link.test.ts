@@ -2,19 +2,23 @@ import { describe, expect, it, vi } from "vitest";
 import {
   buildCollaborationUrl,
   createCollaborationDescriptor,
+  getCollaborationDocumentId,
   parseCollaborationUrl,
   sameCollaborationRoom,
   validateCollaborationEndpoint,
 } from "./room-link";
 
 describe("collaboration room links", () => {
-  it("creates V5 links and keeps the room secret in the URL fragment", () => {
+  it("creates V6 links and keeps the room secret in the URL fragment", () => {
     vi.stubGlobal("crypto", { getRandomValues: (bytes: Uint8Array) => bytes.fill(7) });
     const descriptor = createCollaborationDescriptor("freeform");
     const url = buildCollaborationUrl(descriptor, "https://canvas.test/editor?theme=dark");
     expect(new URL(url).searchParams.has("room")).toBe(false);
     expect(new URL(url).hash).toContain("room=");
-    expect(descriptor.version).toBe(5);
+    expect(descriptor.version).toBe(6);
+    expect(getCollaborationDocumentId(descriptor)).toBe(
+      `collaboration:${descriptor.roomId}`
+    );
     expect(parseCollaborationUrl(url)).toEqual({ status: "valid", descriptor });
     vi.unstubAllGlobals();
   });
@@ -48,7 +52,7 @@ describe("collaboration room links", () => {
     });
   });
 
-  it.each([1, 2, 3, 6])(
+  it.each([1, 2, 3, 4, 5])(
     "reports collaboration descriptor version %i as unsupported",
     (version) => {
       const encoded = btoa(JSON.stringify({ version })).replace(/=+$/g, "");
@@ -61,8 +65,8 @@ describe("collaboration room links", () => {
 
   it("treats WebSocket endpoints as part of room identity", () => {
     const first = {
-      version: 4,
-      documentVersion: 4,
+      version: 6,
+      documentVersion: 6,
       mode: "freeform",
       provider: "websocket",
       roomId: "room-id-1234567890",
@@ -79,8 +83,8 @@ describe("collaboration room links", () => {
 
   it("matches supported descriptors with the same room identity", () => {
     const room = {
-      version: 4,
-      documentVersion: 4,
+      version: 6,
+      documentVersion: 6,
       mode: "freeform",
       provider: "p2p",
       roomId: "room-id-1234567890",

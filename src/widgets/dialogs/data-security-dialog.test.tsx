@@ -25,8 +25,8 @@ describe("DataSecurityDialog", () => {
   it("replaces local-only claims with the active P2P data boundary", () => {
     const state = useEditorStore.getState();
     state.setCanvasSessionCollaboration(state.activeCanvasId, {
-      version: 4,
-      documentVersion: 4,
+      version: 6,
+      documentVersion: 6,
       mode: "freeform",
       provider: "p2p",
       roomId: "room_identifier_1234",

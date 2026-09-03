@@ -1,19 +1,19 @@
-export const COLLABORATION_DOCUMENT_VERSION = 5 as const;
+export const COLLABORATION_DOCUMENT_VERSION = 6 as const;
 
 export type CollaborationCanvasMode = "freeform" | "structured";
 
-type CollaborationDescriptorForVersion<Version extends 4 | 5> =
+export type CollaborationDescriptorV6 =
   | {
-      version: Version;
-      documentVersion: Version;
+      version: 6;
+      documentVersion: 6;
       mode: CollaborationCanvasMode;
       provider: "p2p";
       roomId: string;
       key: string;
     }
   | {
-      version: Version;
-      documentVersion: Version;
+      version: 6;
+      documentVersion: 6;
       mode: CollaborationCanvasMode;
       provider: "websocket";
       roomId: string;
@@ -21,12 +21,7 @@ type CollaborationDescriptorForVersion<Version extends 4 | 5> =
       endpoint: string;
     };
 
-export type CollaborationDescriptorV4 = CollaborationDescriptorForVersion<4>;
-export type CollaborationDescriptorV5 = CollaborationDescriptorForVersion<5>;
-
-export type CollaborationDescriptor =
-  | CollaborationDescriptorV4
-  | CollaborationDescriptorV5;
+export type CollaborationDescriptor = CollaborationDescriptorV6;
 
 export type CollaborationLinkParseResult =
   | { status: "none" }

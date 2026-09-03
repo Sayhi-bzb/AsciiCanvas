@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
-import type { CollaborationDescriptorV4 } from "./model";
+import type { CollaborationDescriptorV6 } from "./model";
 import { getCollaborationRoomName } from "./document";
 import {
   CollaborationRuntime,
@@ -61,9 +61,9 @@ const createRuntimeHarness = () => {
 const descriptor = (
   endpoint: string,
   key = "room-key-1234567890123456789012345678901234567890"
-): CollaborationDescriptorV4 => ({
-  version: 4,
-  documentVersion: 4,
+): CollaborationDescriptorV6 => ({
+  version: 6,
+  documentVersion: 6,
   mode: "freeform",
   provider: "websocket",
   roomId: "room-id-1234567890",
@@ -91,11 +91,11 @@ describe("collaboration document contract", () => {
     expect(first).not.toContain("room-key");
   });
 
-  it("uses isolated CharDesk V4 namespaces", async () => {
+  it("uses isolated CharDesk V6 namespaces", async () => {
     const current = descriptor("wss://one.example.com");
-    const currentP2p: CollaborationDescriptorV4 = {
-      version: 4,
-      documentVersion: 4,
+    const currentP2p: CollaborationDescriptorV6 = {
+      version: 6,
+      documentVersion: 6,
       mode: current.mode,
       provider: "p2p",
       roomId: current.roomId,
@@ -103,13 +103,13 @@ describe("collaboration document contract", () => {
     };
 
     expect(await getCollaborationPersistenceName(current)).toMatch(
-      /^chardesk-room-v4:/
+      /^chardesk-room-v6:/
     );
     expect(getCollaborationRoomName(current)).toBe(
-      `chardesk-v4-${current.roomId}-${current.key}`
+      `chardesk-v6-${current.roomId}-${current.key}`
     );
     expect(getCollaborationRoomName(currentP2p)).toBe(
-      `chardesk-v4-${currentP2p.roomId}`
+      `chardesk-v6-${currentP2p.roomId}`
     );
   });
 
@@ -137,7 +137,7 @@ describe("collaboration document contract", () => {
     ensureCollaborationDocumentMeta(freeform, doc);
 
     expect(doc.getMap("document-meta").toJSON()).toEqual({
-      documentVersion: 4,
+      documentVersion: 6,
       mode: "freeform",
       roomId: freeform.roomId,
     });

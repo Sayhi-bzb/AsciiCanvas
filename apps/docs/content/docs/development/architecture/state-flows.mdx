@@ -84,6 +84,10 @@ a Slide document has one page per slide. The catalog owns session identity and s
 names, and sizes. Collaborative
 sessions persist only their catalog shell and descriptor; room content is restored through
 collaboration persistence and never copied into local session persistence.
+Collaboration V6 derives one shared document and main-page identity from the room id;
+local session ids remain catalog-only and never name shared Yjs pages. Starting or joining a
+room rehomes the single local page to that shared identity before transport connects. Older
+collaboration descriptors are incompatible rather than migrated into the V6 room namespace.
 Blackboard persists its catalog descriptor and source repository instead. Its runtime Yjs
 shell is empty and non-persistent; compiled surfaces have no undo or synchronization history.
 
@@ -108,8 +112,8 @@ separate lifecycle operation. Reopening an evicted Canvas restores content but n
 Freeform documents contain only ordered `cell-plane-operations`. Canvas rendering queries
 occupied spans inside the viewport, and Minimap caches its reader projection by document
 revision; camera movement never materializes the compatibility Map. A legacy local `main-grid`
-is converted once into a bootstrap operation and then cleared; collaboration version 4 rejects
-the old schema. `CanvasSurfaceReader` is the read contract for rendering and export. Freeform and
+is converted once into a bootstrap operation and then cleared. `CanvasSurfaceReader` is the read
+contract for rendering and export. Freeform and
 Slide expose a read-only, non-owning Map facade to legacy interaction algorithms. Structured exposes
 the same facade over a disposable spatial index that projects only requested 128x64 chunks; drag
 previews use the same surface. Structured scene and components are persisted once, never with a

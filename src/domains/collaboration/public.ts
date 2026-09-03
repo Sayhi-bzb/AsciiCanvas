@@ -1,7 +1,6 @@
 export type {
   CollaborationDescriptor,
-  CollaborationDescriptorV4,
-  CollaborationDescriptorV5,
+  CollaborationDescriptorV6,
   CollaborationIntegrityIssue,
   CollaborationSnapshot,
 } from "./model";
@@ -11,6 +10,7 @@ export {
   isCollaborationDescriptor,
   parseCollaborationUrl,
   sameCollaborationRoom,
+  getCollaborationDocumentId,
   validateCollaborationEndpoint,
 } from "./room-link";
 export {

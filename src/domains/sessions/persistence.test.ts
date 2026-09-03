@@ -223,9 +223,8 @@ describe("editor persistence v5", () => {
     ]);
   });
 
-  it("keeps only supported V4 room descriptors", () => {
+  it("keeps only supported V6 room descriptors", () => {
     const base = {
-      documentVersion: 4,
       mode: "freeform",
       provider: "p2p",
       roomId: "room-id-1234567890",
@@ -241,7 +240,7 @@ describe("editor persistence v5", () => {
             mode: "freeform",
             scene: [],
             grid: [],
-            collaboration: { ...base, version: 2 },
+            collaboration: { ...base, version: 4, documentVersion: 4 },
           },
           {
             id: "current-room",
@@ -249,21 +248,21 @@ describe("editor persistence v5", () => {
             mode: "freeform",
             scene: [],
             grid: [],
-            collaboration: { ...base, version: 3 },
+            collaboration: { ...base, version: 5, documentVersion: 5 },
           },
           {
-            id: "v4-room",
-            name: "V4 room",
+            id: "v6-room",
+            name: "V6 room",
             mode: "freeform",
             scene: [],
             grid: [],
-            collaboration: { ...base, version: 4 },
+            collaboration: { ...base, version: 6, documentVersion: 6 },
           },
         ],
       },
     });
 
     expect(migrated.sessions.items.map((session) => session.collaboration?.version))
-      .toEqual([undefined, undefined, 4]);
+      .toEqual([undefined, undefined, 6]);
   });
 });

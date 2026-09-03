@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEditorStore } from '@/domains/canvas/testing';
 import {
   buildCollaborationUrl,
-  type CollaborationDescriptorV4,
+  type CollaborationDescriptorV6,
   type CollaborationSnapshot,
 } from '@/domains/collaboration/public';
 import { setUiLanguage } from '@/shared/i18n';
@@ -31,7 +31,7 @@ describe('CollaborationControl', () => {
 
   const seedSession = (
     mode: 'freeform' | 'structured' = 'freeform',
-    collaboration?: CollaborationDescriptorV4
+    collaboration?: CollaborationDescriptorV6
   ) => {
     act(() => {
       useEditorStore.setState({
@@ -172,9 +172,9 @@ describe('CollaborationControl', () => {
   });
 
   it('shows clipboard failures on the copy-link button', async () => {
-    const descriptor: CollaborationDescriptorV4 = {
-      version: 4,
-      documentVersion: 4,
+    const descriptor: CollaborationDescriptorV6 = {
+      version: 6,
+      documentVersion: 6,
       mode: 'freeform',
       provider: 'p2p',
       roomId: 'room-id-1234567890',
@@ -196,9 +196,9 @@ describe('CollaborationControl', () => {
   });
 
   it('shows room presence and keeps the menu open after leaving', async () => {
-    const descriptor: CollaborationDescriptorV4 = {
-      version: 4,
-      documentVersion: 4,
+    const descriptor: CollaborationDescriptorV6 = {
+      version: 6,
+      documentVersion: 6,
       mode: "structured",
       provider: 'p2p',
       roomId: 'room-id-1234567890',
@@ -243,9 +243,9 @@ describe('CollaborationControl', () => {
   });
 
   it('distinguishes disconnected state from recoverable integrity warnings', async () => {
-    const descriptor: CollaborationDescriptorV4 = {
-      version: 4,
-      documentVersion: 4,
+    const descriptor: CollaborationDescriptorV6 = {
+      version: 6,
+      documentVersion: 6,
       mode: 'freeform',
       provider: 'p2p',
       roomId: 'room-id-1234567890',
@@ -289,9 +289,9 @@ describe('CollaborationControl', () => {
         ],
       });
     });
-    const descriptor: CollaborationDescriptorV4 = {
-      version: 4,
-      documentVersion: 4,
+    const descriptor: CollaborationDescriptorV6 = {
+      version: 6,
+      documentVersion: 6,
       mode: 'structured',
       provider: 'p2p',
       roomId: 'room-id-1234567890',

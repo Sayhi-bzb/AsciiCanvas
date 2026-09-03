@@ -1,8 +1,11 @@
 import { afterEach, describe, expect, it } from "vitest";
+import * as Y from "yjs";
 import { createSelectionCommandFactory } from "@/domains/actions/public";
 import { parseDocumentSessionSource } from "@/domains/document/public";
+import type { CollaborationDescriptorV6 } from "@/domains/collaboration/public";
 import type { CanvasSession } from "@/domains/sessions/public";
 import { createCanvasRuntime, type CanvasRuntime } from "./runtime";
+import { CanvasDocumentRegistry } from "./state/CanvasDocumentRegistry";
 
 const sessions: CanvasSession[] = [
   {
@@ -187,5 +190,140 @@ describe("CanvasRuntime.materializeSession", () => {
       ["1,1", { char: "S", color: "#444444" }],
     ]);
     expect(slides?.surface.getCell({ x: 1, y: 1 })?.char).toBe("S");
+  });
+});
+
+describe("CanvasRuntime collaboration", () => {
+  const createRuntime = (initialSessions: CanvasSession[]) => {
+    const documents = new CanvasDocumentRegistry();
+    return createCanvasRuntime({
+      documents,
+      persistence: false,
+      initialSessions,
+      parseSessionSource: parseDocumentSessionSource,
+      selectionCommands: createSelectionCommandFactory({
+        getActiveDocumentId: documents.getActiveDocumentId,
+        renderClipboardText: async () => ({
+          kind: "spans",
+          renderer: "raw",
+          pipeline: [],
+          rows: [],
+          width: 0,
+          height: 0,
+          diagnostics: [],
+        }),
+      }),
+    });
+  };
+
+  it("shows the host's existing content when a fresh local session joins the room", () => {
+    const host = createRuntime([{
+      id: "host-session",
+      name: "Host",
+      mode: "freeform",
+      scene: [],
+      components: [],
+      grid: [["0,0", { char: "H", color: "#111111" }]],
+    }]);
+    const guest = createRuntime([{
+      id: "guest-local-session",
+      name: "Guest local",
+      mode: "freeform",
+      scene: [],
+      components: [],
+      grid: [],
+    }]);
+    const descriptor: CollaborationDescriptorV6 = {
+      version: 6,
+      documentVersion: 6,
+      mode: "freeform",
+      provider: "p2p",
+      roomId: "room-id-1234567890",
+      key: "room-key-1234567890123456789012345678901234567890",
+    };
+
+    try {
+      host.commands.sessions.setCollaboration("host-session", descriptor);
+      guest.commands.sessions.joinCollaboration(descriptor);
+
+      const guestSessionId = guest.getState().activeCanvasId;
+      const hostDocument = host.documents.getCollaborationDocument("host-session")!;
+      const guestDocument = guest.documents.getCollaborationDocument(guestSessionId)!;
+      const sharedPageId = `collaboration:${descriptor.roomId}:page:main`;
+
+      expect(host.documents.getPageDescriptors("host-session").map(({ id }) => id))
+        .toEqual([sharedPageId]);
+      expect(guest.documents.getPageDescriptors(guestSessionId).map(({ id }) => id))
+        .toEqual([sharedPageId]);
+      expect(host.getState().grid.get("0,0")?.char).toBe("H");
+
+      Y.applyUpdate(guestDocument, Y.encodeStateAsUpdate(hostDocument));
+
+      expect(guest.getState().grid.get("0,0")?.char).toBe("H");
+
+      guest.documents.mutateGrid((grid) => {
+        grid.set("1,0", { char: "G", color: "#222222" });
+      });
+      Y.applyUpdate(hostDocument, Y.encodeStateAsUpdate(guestDocument));
+
+      expect(host.getState().grid.get("1,0")?.char).toBe("G");
+    } finally {
+      host.dispose();
+      guest.dispose();
+    }
+  });
+
+  it("shares one structured page across different local session ids", () => {
+    const hostNode = {
+      id: "host-node",
+      type: "text" as const,
+      order: 1,
+      position: { x: 2, y: 3 },
+      text: "Host",
+      style: { color: "#333333" },
+    };
+    const host = createRuntime([{
+      id: "structured-host-session",
+      name: "Structured host",
+      mode: "structured",
+      scene: [hostNode],
+      components: [],
+      grid: [],
+    }]);
+    const guest = createRuntime([{
+      id: "structured-guest-local",
+      name: "Structured guest local",
+      mode: "structured",
+      scene: [],
+      components: [],
+      grid: [],
+    }]);
+    const descriptor: CollaborationDescriptorV6 = {
+      version: 6,
+      documentVersion: 6,
+      mode: "structured",
+      provider: "p2p",
+      roomId: "structured-room-1234",
+      key: "structured-room-key-1234567890123456789012345678901234",
+    };
+
+    try {
+      host.commands.sessions.setCollaboration("structured-host-session", descriptor);
+      guest.commands.sessions.joinCollaboration(descriptor);
+
+      const guestSessionId = guest.getState().activeCanvasId;
+      const hostDocument = host.documents.getCollaborationDocument(
+        "structured-host-session"
+      )!;
+      const guestDocument = guest.documents.getCollaborationDocument(guestSessionId)!;
+      Y.applyUpdate(guestDocument, Y.encodeStateAsUpdate(hostDocument));
+
+      expect(guest.getState().structuredScene).toEqual([hostNode]);
+      expect(host.documents.getPageDescriptors("structured-host-session"))
+        .toEqual(guest.documents.getPageDescriptors(guestSessionId));
+    } finally {
+      host.dispose();
+      guest.dispose();
+    }
   });
 });
