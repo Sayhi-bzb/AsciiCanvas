@@ -59,6 +59,8 @@ const RUNTIME_VERSION = 2;
 const SESSION_IDLE_TIMEOUT_MS = 30 * 60 * 1_000;
 const SESSION_LOCK_STALE_MS = 15_000;
 const SESSION_LOCK_TIMEOUT_MS = 20_000;
+const SESSION_START_TIMEOUT_MS = 20_000;
+const SESSION_START_ERROR_LIMIT = 4_096;
 const runtimeRoot = () => new URL("./runtime/", import.meta.url).pathname;
 
 const resolveOpenInput = async (cwd: string, input: string) => {
@@ -362,18 +364,45 @@ export const openManagedSession = async ({
     const child = spawn(process.execPath, args, {
       cwd: options.cwd,
       detached: true,
-      stdio: "ignore",
+      stdio: ["ignore", "ignore", "pipe"],
+    });
+    let spawnError: Error | undefined;
+    let startupError = "";
+    child.once("error", (error) => { spawnError = error; });
+    child.stderr?.setEncoding("utf8");
+    child.stderr?.on("data", (chunk: string) => {
+      startupError = `${startupError}${chunk}`.slice(-SESSION_START_ERROR_LIMIT);
     });
     child.unref();
-    const opened = await waitFor(async () => {
-      const session = await readSession(sessionFile);
-      const current = session ? await health(session) : null;
-      return session && current ? { session, current } : null;
-    });
-    if (!opened) {
-      throw new CharDeskCliCommandError("open-start-failed", "CharDesk local Canvas did not start.");
+    const failureMessage = () => {
+      const detail = startupError.trim();
+      if (detail) return `CharDesk local Canvas did not start: ${detail}`;
+      if (spawnError) return `CharDesk local Canvas did not start: ${spawnError.message}`;
+      if (child.exitCode !== null) {
+        return `CharDesk local Canvas exited during startup with code ${child.exitCode}.`;
+      }
+      if (child.signalCode !== null) {
+        return `CharDesk local Canvas exited during startup after ${child.signalCode}.`;
+      }
+      return `CharDesk local Canvas did not start within ${SESSION_START_TIMEOUT_MS / 1_000} seconds.`;
+    };
+    try {
+      const opened = await waitFor(async () => {
+        if (spawnError || child.exitCode !== null || child.signalCode !== null) {
+          throw new CharDeskCliCommandError("open-start-failed", failureMessage());
+        }
+        const session = await readSession(sessionFile);
+        const current = session ? await health(session) : null;
+        return session && current ? { session, current } : null;
+      }, SESSION_START_TIMEOUT_MS);
+      if (!opened) {
+        child.kill("SIGTERM");
+        throw new CharDeskCliCommandError("open-start-failed", failureMessage());
+      }
+      return { ...opened, status: "opened" as const };
+    } finally {
+      child.stderr?.destroy();
     }
-    return { ...opened, status: "opened" as const };
   });
   const active = {
     ...ensured.session,

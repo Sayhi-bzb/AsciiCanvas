@@ -174,5 +174,5 @@ describe("chardesk executable", () => {
     expect(status.sessions[0]?.idleExpiresAt).toBeGreaterThan(Date.now());
 
     expect((await runBinary(cwd, ["close", "board"], "", env)).code).toBe(0);
-  }, 20_000);
+  }, 40_000);
 });

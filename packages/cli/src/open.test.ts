@@ -3,7 +3,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { initializeCharDeskWorkspace } from "./init.js";
-import { serveManagedOpenSession, startCharDeskOpenSession } from "./open.js";
+import {
+  openManagedSession,
+  serveManagedOpenSession,
+  startCharDeskOpenSession,
+} from "./open.js";
 
 const directories: string[] = [];
 const sessions: Array<{ close: () => Promise<void> }> = [];
@@ -14,6 +18,21 @@ afterEach(async () => {
 });
 
 describe("chardesk local Canvas", () => {
+  it("reports a detached server failure without waiting for the startup deadline", async () => {
+    const cwd = await mkdtemp(join(tmpdir(), "chardesk-managed-startup-"));
+    directories.push(cwd);
+    const board = await initializeCharDeskWorkspace({ cwd, directory: "board", title: "Startup" });
+
+    const error = await openManagedSession({
+      options: { request: { input: board, inputMode: "auto" }, cwd },
+      cliEntry: join(cwd, "missing-cli.js"),
+      browser: false,
+    }).catch((failure: unknown) => failure);
+
+    expect(error).toMatchObject({ code: "open-start-failed" });
+    expect(error).toHaveProperty("message", expect.stringContaining("missing-cli.js"));
+  }, 10_000);
+
   it("removes its owned registry record after the idle lease expires", async () => {
     const cwd = await mkdtemp(join(tmpdir(), "chardesk-managed-lease-"));
     directories.push(cwd);

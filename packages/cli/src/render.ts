@@ -40,7 +40,7 @@ type RenderSourceOptions = CompileSourceOptions & {
   padding?: number;
 };
 
-export type CharDeskCliCompilation = {
+type CharDeskCliCompilation = {
   inputMode: CharDeskCliInputMode;
   renderer: string;
   pipeline: readonly string[];
@@ -51,7 +51,7 @@ export type CharDeskCliCompilation = {
   document: ParsedCharDeskText;
 };
 
-export type CharDeskCliInspectCompilation = CharDeskCliCompilation & {
+type CharDeskCliInspectCompilation = CharDeskCliCompilation & {
   projection: "blocks" | "canvas";
   canvas: { columns: number; rows: number };
 };
