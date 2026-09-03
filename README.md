@@ -34,29 +34,29 @@ The agent creates the source, checks it, and opens the canvas. You do not need t
 - Map architectures, workflows, timelines, and relationships.
 - Keep a Blackboard that people and agents can inspect and revise together.
 
-<a href="./demo/readme-showcase/01-shared-medium.md"><img src="public/showcase/01-shared-medium.png" alt="CharDesk as a shared visual medium" width="100%"></a>
+[![CharDesk as a shared visual medium](public/showcase/01-shared-medium.png)](demo/readme-showcase/01-shared-medium.md)
 
-<sub><strong>Shared medium</strong> · <a href="./demo/readme-showcase/01-shared-medium.md">Source</a></sub>
+**Shared medium** · [Source](demo/readme-showcase/01-shared-medium.md)
 
-<a href="./demo/readme-showcase/02-gpu-blackboard.zh-CN.md"><img src="public/showcase/02-gpu-blackboard.zh-CN.png" alt="A visual explanation of how a GPU works" width="100%"></a>
+[![A visual explanation of how a GPU works](public/showcase/02-gpu-blackboard.zh-CN.png)](demo/readme-showcase/02-gpu-blackboard.zh-CN.md)
 
-<sub><strong>Visual explanation</strong> · <a href="./demo/readme-showcase/02-gpu-blackboard.zh-CN.md">Source</a></sub>
+**Visual explanation** · [Source](demo/readme-showcase/02-gpu-blackboard.zh-CN.md)
 
-<a href="./demo/readme-showcase/03-el-nino-observatory.md"><img src="public/showcase/03-el-nino-observatory.png" alt="An El Niño scientific figure" width="100%"></a>
+[![An El Niño scientific figure](public/showcase/03-el-nino-observatory.png)](demo/readme-showcase/03-el-nino-observatory.md)
 
-<sub><strong>Scientific figure</strong> · <a href="./demo/readme-showcase/03-el-nino-observatory.md">Source</a></sub>
+**Scientific figure** · [Source](demo/readme-showcase/03-el-nino-observatory.md)
 
-<a href="./demo/readme-showcase/04-story-slides.ja.md"><img src="public/showcase/04-story-slides.ja.png" alt="A character-based slide story" width="100%"></a>
+[![A character-based slide story](public/showcase/04-story-slides.ja.png)](demo/readme-showcase/04-story-slides.ja.md)
 
-<sub><strong>Character slides</strong> · <a href="./demo/readme-showcase/04-story-slides.ja.md">Source</a></sub>
+**Character slides** · [Source](demo/readme-showcase/04-story-slides.ja.md)
 
-<a href="./demo/readme-showcase/05-interface-console.md"><img src="public/showcase/05-interface-console.png" alt="An ANSI and Nerd Font product interface" width="100%"></a>
+[![An ANSI and Nerd Font product interface](public/showcase/05-interface-console.png)](demo/readme-showcase/05-interface-console.md)
 
-<sub><strong>Interface design</strong> · <a href="./demo/readme-showcase/05-interface-console.md">Source</a></sub>
+**Interface design** · [Source](demo/readme-showcase/05-interface-console.md)
 
-<a href="./demo/readme-showcase/06-agent-blackboard.md"><img src="public/showcase/06-agent-blackboard.png" alt="A shared human and agent Blackboard" width="100%"></a>
+[![A shared human and agent Blackboard](public/showcase/06-agent-blackboard.png)](demo/readme-showcase/06-agent-blackboard.md)
 
-<sub><strong>Agent Blackboard</strong> · <a href="./demo/readme-showcase/06-agent-blackboard.md">Source</a></sub>
+**Agent Blackboard** · [Source](demo/readme-showcase/06-agent-blackboard.md)
 
 ## Why text can be visual
 

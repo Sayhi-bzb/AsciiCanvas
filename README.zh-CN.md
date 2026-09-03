@@ -34,29 +34,29 @@ Agent 会创建源码、检查结果并打开画布。你不需要先学习文�
 - 描绘架构、流程、时间线与关系。
 - 保留一块人和 Agent 都能检查、继续修改的 Blackboard。
 
-<a href="./demo/readme-showcase/01-shared-medium.md"><img src="public/showcase/01-shared-medium.png" alt="CharDesk 作为人与 Agent 共享的视觉媒介" width="100%"></a>
+[![CharDesk 作为人与 Agent 共享的视觉媒介](public/showcase/01-shared-medium.png)](demo/readme-showcase/01-shared-medium.md)
 
-<sub><strong>共享视觉媒介</strong> · <a href="./demo/readme-showcase/01-shared-medium.md">源码</a></sub>
+**共享视觉媒介** · [源码](demo/readme-showcase/01-shared-medium.md)
 
-<a href="./demo/readme-showcase/02-gpu-blackboard.zh-CN.md"><img src="public/showcase/02-gpu-blackboard.zh-CN.png" alt="显卡工作原理的可视化讲解" width="100%"></a>
+[![显卡工作原理的可视化讲解](public/showcase/02-gpu-blackboard.zh-CN.png)](demo/readme-showcase/02-gpu-blackboard.zh-CN.md)
 
-<sub><strong>可视化讲解</strong> · <a href="./demo/readme-showcase/02-gpu-blackboard.zh-CN.md">源码</a></sub>
+**可视化讲解** · [源码](demo/readme-showcase/02-gpu-blackboard.zh-CN.md)
 
-<a href="./demo/readme-showcase/03-el-nino-observatory.md"><img src="public/showcase/03-el-nino-observatory.png" alt="厄尔尼诺科研图" width="100%"></a>
+[![厄尔尼诺科研图](public/showcase/03-el-nino-observatory.png)](demo/readme-showcase/03-el-nino-observatory.md)
 
-<sub><strong>科研图</strong> · <a href="./demo/readme-showcase/03-el-nino-observatory.md">源码</a></sub>
+**科研图** · [源码](demo/readme-showcase/03-el-nino-observatory.md)
 
-<a href="./demo/readme-showcase/04-story-slides.ja.md"><img src="public/showcase/04-story-slides.ja.png" alt="字符幻灯片叙事" width="100%"></a>
+[![字符幻灯片叙事](public/showcase/04-story-slides.ja.png)](demo/readme-showcase/04-story-slides.ja.md)
 
-<sub><strong>字符 Slides</strong> · <a href="./demo/readme-showcase/04-story-slides.ja.md">源码</a></sub>
+**字符 Slides** · [源码](demo/readme-showcase/04-story-slides.ja.md)
 
-<a href="./demo/readme-showcase/05-interface-console.md"><img src="public/showcase/05-interface-console.png" alt="ANSI 与 Nerd Font 产品界面" width="100%"></a>
+[![ANSI 与 Nerd Font 产品界面](public/showcase/05-interface-console.png)](demo/readme-showcase/05-interface-console.md)
 
-<sub><strong>界面设计</strong> · <a href="./demo/readme-showcase/05-interface-console.md">源码</a></sub>
+**界面设计** · [源码](demo/readme-showcase/05-interface-console.md)
 
-<a href="./demo/readme-showcase/06-agent-blackboard.md"><img src="public/showcase/06-agent-blackboard.png" alt="人与 Agent 共享的 Blackboard" width="100%"></a>
+[![人与 Agent 共享的 Blackboard](public/showcase/06-agent-blackboard.png)](demo/readme-showcase/06-agent-blackboard.md)
 
-<sub><strong>Agent Blackboard</strong> · <a href="./demo/readme-showcase/06-agent-blackboard.md">源码</a></sub>
+**Agent Blackboard** · [源码](demo/readme-showcase/06-agent-blackboard.md)
 
 ## 为什么文本也可以是视觉媒介
 
