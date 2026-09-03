@@ -10,59 +10,28 @@ monochrome emoji, symbols, and Nerd Font icons.
        prose · diagram · signal · space
 ```
 
-## A surface can become an instrument
+## Form can carry the explanation
 
-Color may fill a field, mark focus, carry status, or establish hierarchy.
-Characters remain the geometry.
-
-```chardesk
-[37;44m╭───────────────────────────────────────────────────────────────────────────────╮[0m
-[37;44m│   [1mAMIBIOS EASY SETUP UTILITY - VERSION 1.24.2026[22m                              │[0m
-[37;44m├───────────────────────────────────────────────────────────────────────────────┤[0m
-[37;44m│ [7m Main [27m     Advanced     Power     Boot     Security     Exit                  │[0m
-[37;44m├───────────────────────────────────────┬───────────────────────────────────────┤[0m
-[37;44m│                                       │                                       │[0m
-[37;44m│  System Time:       [[1m11:05:25[22m]        │ Item Specific Help                    │[0m
-[37;44m│  System Date:       [[1m07/02/2026[22m]      │                                       │[0m
-[37;44m│                                       │ Use [Enter], [TAB]                    │[0m
-[37;44m│  Legacy Diskette A:  [1.44M, 3.5 in.] │ or [SHIFT-TAB] to select a field.     │[0m
-[37;44m│                                       │                                       │[0m
-[37;44m│ ┌─ Primary Master ──────────────────┐ │ Use [+] or [-] to                     │[0m
-[37;44m│ │ Type:             [Auto]          │ │ configure system Time.                │[0m
-[37;44m│ │ LBA Mode:         [On]            │ │                                       │[0m
-[37;44m│ │ Block Mode:       [4 Sectors]     │ │                                       │[0m
-[37;44m│ └───────────────────────────────────┘ │                                       │[0m
-[37;44m│                                       │                                       │[0m
-[37;44m│  [7m> System Memory:     640 KB        [27m  │                                       │[0m
-[37;44m│    Extended Memory:   16384 MB        │                                       │[0m
-[37;44m│                                       │                                       │[0m
-[37;44m│ [33m  [1;31mCPU Temperature:   45°C (Normal)[22;37m   │                                       │[0m
-[37;44m├───────────────────────────────────────┴───────────────────────────────────────┤[0m
-[37;44m│ F1:Help  ↑↓:Select Item  +/-:Change Values  F5:Defaults  F10:Save & Exit      │[0m
-[37;44m╰───────────────────────────────────────────────────────────────────────────────╯[0m
-```
-
-## A few marks can imply a product
-
-Whitespace participates. SGR sets emphasis and color; ESC-less OSC 8 carries a
-safe `http`, `https`, `mailto`, relative, or fragment link.
+Characters establish geometry. Whitespace sets rhythm. SGR carries hierarchy,
+focus, fields, and signal; ESC-less OSC 8 carries a safe `http`, `https`,
+`mailto`, relative, or fragment link.
 
 ```chardesk
-[92m󰓇[39m ]8;;https://open.spotify.com\Spotify Premium]8;;\                Desktop-PC
+[1;38;2;9;105;218mFORM FOLLOWS MEANING[0m
 
-            [33m󰝚 [1mBlinding Lights[22;39m
-        The Weeknd — After Hours
+                         [90mspace holds the pause[39m
+small voice ─────────────╮
+                        ├────────> [7m FOCUS [27m
+[30;48;2;255;189;46m atmosphere [0m ──────────╯                  [38;2;31;136;61m● signal[0m
 
-  01:45 [92m━━━━━━━━━━━━━━━━━━━━━━━[90m━━━━━━[39m 03:22
+                  
+                  │       [3mthe line becomes direction[23m
+origin ───────────┼──────────────────────────────> arrival
+                  │
+                  ╰── ▁ ▂ ▃ ▅ ▇  rhythm
 
-                  󰙣    󰐌    󰙡    
-
-Next Up
-  · Save Your Tears             [90m3:35[39m   [92m󰓏[39m
-  · Starboy                     [90m3:50[39m   [92m󰓏[39m
-  · Die For You                 [90m4:20[39m   [92m󰓏[39m
-
- [7;92m  󰠃  Listening on Living Room Echo  󰓃   [0m
+[90ma trace can fade ┄┄┄┄┄┄┄┄┄┄>[39m [1mwhat matters stays[22m
+]8;;https://chardesk.com\open the living surface ↗]8;;\
 ```
 
 ## Relationships choose their own grammar
