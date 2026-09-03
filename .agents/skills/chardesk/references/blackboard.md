@@ -4,6 +4,11 @@ A Blackboard is a wall-sized university teaching board: a broad field where a
 subject unfolds across several regions while earlier reasoning remains visible.
 The viewport moves across the board; it does not define the board's edge.
 
+A rendering assistant works beside the board. Give it Markdown, Mermaid,
+mathematics, or structured data whenever their native notation carries the idea
+best; it renders them directly onto the same surface beside freehand character
+work.
+
 A Blackboard package divides one Canvas into independently editable spatial
 contexts. `blackboard.yaml` is its first-read context map; `.panel` files own
 local content.
