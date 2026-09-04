@@ -22,8 +22,17 @@
 - [Agent navigation benchmark](apps/docs/content/docs/development/quality.mdx#agent-navigation)
 - Treat the domain reference as the authority for business responsibility and the ownership map as the authority for dependency direction; confirm implementation details in source and tests.
 
+# Product Design Routing
+
+- When shaping, implementing, or reviewing a user-facing CharDesk product interface, read [`DESIGN.md`](DESIGN.md) before loading surface-specific authorities.
+- This applies to workflows, information architecture, interaction, layout, product copy, responsive behavior, accessibility, and user-visible states.
+- Skip `DESIGN.md` for backend-only work, internal protocol behavior, tests with no shipped UI impact, prose documentation, marketing pages, and content authored inside Canvas, Blackboard, CharGraph, or Slides.
+- For creating, editing, styling, or reviewing those artifacts, use [the `chardesk` skill](.agents/skills/chardesk/SKILL.md).
+- `DESIGN.md` owns product judgment and routing. The authorities below own their implementation contracts.
+
 # Frontend Host Rules
 
+- [Visual system](apps/docs/content/docs/development/host-ui/visual-system.mdx)
 - [Core host icon controls](apps/docs/content/docs/development/host-ui/icon-controls.mdx)
 - [Dialog surfaces](apps/docs/content/docs/development/host-ui/dialogs.mdx)
 - [Interface content](apps/docs/content/docs/development/host-ui/interface-content.mdx)
