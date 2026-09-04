@@ -108,6 +108,7 @@ if (new URLSearchParams(window.location.search).has("canvas-stress")) {
             totalDirectGlyphs: number;
             lastFrameDurationMs: number | null;
             maxFrameDurationMs: number;
+            p95FrameDurationMs: number;
             longFrames: number;
             lastInputPaintMs: number | null;
             lastSettleLatencyMs: number | null;
@@ -125,6 +126,7 @@ if (new URLSearchParams(window.location.search).has("canvas-stress")) {
           totalDirectGlyphs: experience?.totalDirectGlyphs ?? 0,
           lastFrameDurationMs: experience?.lastFrameDurationMs ?? 0,
           maxFrameDurationMs: experience?.maxFrameDurationMs ?? 0,
+          p95FrameDurationMs: experience?.p95FrameDurationMs ?? 0,
           longFrames: experience?.longFrames ?? 0,
           inputPaintMs: experience?.lastInputPaintMs ?? 0,
           settleLatencyMs: experience?.lastSettleLatencyMs ?? 0,
