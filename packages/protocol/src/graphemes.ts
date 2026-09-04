@@ -62,12 +62,21 @@ const EMOJI_MODIFIER = /\p{Emoji_Modifier}/u;
 const EXTENDED_PICTOGRAPHIC = /\p{Extended_Pictographic}/u;
 const REGIONAL_INDICATOR_PAIR = /^\p{Regional_Indicator}{2}$/u;
 const KEYCAP_SEQUENCE = /^[#*0-9]\uFE0F?\u20E3$/u;
+const GRAPHEME_METRICS_CACHE_LIMIT = 4_096;
+
+type GraphemeMetrics = {
+  emoji: boolean;
+  width: 1 | 2;
+};
+
+const SINGLE_CELL_TEXT_METRICS: GraphemeMetrics = { emoji: false, width: 1 };
+const graphemeMetricsCache = new Map<string, GraphemeMetrics>();
 
 export const splitGraphemes = (value: string): string[] => {
   return segmentGraphemes(value).map(({ segment }) => segment);
 };
 
-export const isEmojiGrapheme = (grapheme: string) => {
+const classifyEmojiGrapheme = (grapheme: string) => {
   if (KEYCAP_SEQUENCE.test(grapheme)) return true;
   if (REGIONAL_INDICATOR_PAIR.test(grapheme)) return true;
   if (grapheme.includes("\uFE0F")) return true;
@@ -93,12 +102,32 @@ const isWideEastAsianCodePoint = (codePoint: number) => {
   return false;
 };
 
-export const getGraphemeCellWidth = (grapheme: string): 1 | 2 => {
-  if (!grapheme) return 1;
-  if (isEmojiGrapheme(grapheme)) return 2;
+const resolveGraphemeMetrics = (grapheme: string): GraphemeMetrics => {
+  if (!grapheme || (grapheme.length === 1 && grapheme.charCodeAt(0) <= 0x7f)) {
+    return SINGLE_CELL_TEXT_METRICS;
+  }
+  const cached = graphemeMetricsCache.get(grapheme);
+  if (cached) return cached;
+
+  const emoji = classifyEmojiGrapheme(grapheme);
   const firstCodePoint = grapheme.codePointAt(0) ?? 0;
-  return isWideEastAsianCodePoint(firstCodePoint) ? 2 : 1;
+  const metrics: GraphemeMetrics = {
+    emoji,
+    width: emoji || isWideEastAsianCodePoint(firstCodePoint) ? 2 : 1,
+  };
+  if (graphemeMetricsCache.size >= GRAPHEME_METRICS_CACHE_LIMIT) {
+    const oldest = graphemeMetricsCache.keys().next().value;
+    if (oldest !== undefined) graphemeMetricsCache.delete(oldest);
+  }
+  graphemeMetricsCache.set(grapheme, metrics);
+  return metrics;
 };
+
+export const isEmojiGrapheme = (grapheme: string) =>
+  resolveGraphemeMetrics(grapheme).emoji;
+
+export const getGraphemeCellWidth = (grapheme: string): 1 | 2 =>
+  resolveGraphemeMetrics(grapheme).width;
 
 export const getTextCellWidth = (text: string) => {
   let width = 0;

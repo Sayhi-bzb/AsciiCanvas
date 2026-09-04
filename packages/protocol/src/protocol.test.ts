@@ -60,6 +60,17 @@ describe("CharDesk Text Protocol v1 conformance", () => {
     expect(getTextCellWidth("Ae\u0301你👩🏽‍💻🇨🇳1️⃣")).toBe(10);
   });
 
+  it("keeps grapheme metrics correct after the bounded cache turns over", () => {
+    for (let index = 0; index <= 4_096; index += 1) {
+      const grapheme = String.fromCodePoint(0x10_000 + index);
+      expect(getGraphemeCellWidth(grapheme)).toBeGreaterThanOrEqual(1);
+      expect(typeof isEmojiGrapheme(grapheme)).toBe("boolean");
+    }
+
+    expect(getGraphemeCellWidth("A")).toBe(1);
+    expect(isEmojiGrapheme("👩🏽‍💻")).toBe(true);
+  });
+
   it("supports standard and shorthand SGR color forms", () => {
     const parsed = parseCharDeskText(
       "\u001b[31mA\u001b[48;5;21mB[38;2;1;2;3mC[0mD",
