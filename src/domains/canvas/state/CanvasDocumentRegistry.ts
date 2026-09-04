@@ -294,6 +294,11 @@ export class CanvasDocumentRegistry {
       structuredResidentBytes += stats.residentBytes;
     });
     const projectionCache = this.#projectionCacheBudget.getStats();
+    const history = this.#historyJournal.getStats();
+    const attributedProjectionCacheEntries =
+      indexCachedChunks + indexPreparedTextEntries;
+    const attributedProjectionCacheBytes =
+      indexResidentBytes + indexPreparedTextBytes;
     return {
       documents: this.#documents.size,
       pages,
@@ -315,10 +320,24 @@ export class CanvasDocumentRegistry {
       structuredResidentBytes,
       estimatedProjectionBytes:
         indexResidentBytes + indexPreparedTextBytes + structuredResidentBytes,
+      historyDocuments: history.documents,
+      historyGroups: history.groups,
+      historyActions: history.actions,
+      historyBytes: history.bytes,
       projectionCacheBudgetBytes: projectionCache.bytes,
       projectionCacheBudgetLimit: projectionCache.byteBudget,
       projectionCacheEntries: projectionCache.entries,
       projectionCacheEvictions: projectionCache.evictions,
+      attributedProjectionCacheEntries,
+      attributedProjectionCacheBytes,
+      unattributedProjectionCacheEntries: Math.max(
+        0,
+        projectionCache.entries - attributedProjectionCacheEntries
+      ),
+      unattributedProjectionCacheBytes: Math.max(
+        0,
+        projectionCache.bytes - attributedProjectionCacheBytes
+      ),
     };
   };
   getActiveCellCount = () => {
@@ -707,6 +726,7 @@ export class CanvasDocumentRegistry {
   #disposeDocument = (id: string, deletePersisted: boolean) => {
     const document = this.#documents.get(id);
     if (!document || document === this.#active) return false;
+    if (deletePersisted) this.#clearDocumentHistory(document);
     document.pages.forEach((page) => page.dispose());
     document.doc.destroy();
     this.#documents.delete(id);
@@ -770,6 +790,13 @@ export class CanvasDocumentRegistry {
     this.#historyJournal.clear(this.#historyKey(this.getActiveAddress()));
     this.#active.pages.forEach((page) => page.undoManager.clear());
     this.#emitHistory();
+  };
+  clearDocumentHistory = (id: string) => {
+    const document = this.#documents.get(id);
+    if (!document) return false;
+    this.#clearDocumentHistory(document);
+    if (document === this.#active) this.#emitHistory();
+    return true;
   };
   finishHistoryCapture = () => {
     this.#active.undoManager.stopCapturing();
@@ -1480,7 +1507,6 @@ export class CanvasDocumentRegistry {
           : pages[0]!.id;
       writeCanvasDocumentMetadata(document.root, document.id, mode, activePageId);
     }, HISTORY_IGNORED_ORIGIN);
-    document.pages = new Map();
     this.#syncDocumentPages(document);
   }
 

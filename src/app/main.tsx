@@ -109,6 +109,12 @@ if (new URLSearchParams(window.location.search).has("canvas-stress")) {
         });
         return id;
       },
+      generateHistory: (operationCount: number) => {
+        host.canvas.commands.interaction.setTextCursor({ x: 0, y: 0 });
+        for (let index = 0; index < operationCount; index += 1) {
+          host.canvas.commands.text.write("x");
+        }
+      },
       cellCount: () => host.canvas.queries.getActiveCellCount(),
       surfaceStats: () => {
         const reader = getSurfaceGridReader(host.canvas.getState().grid);

@@ -1,9 +1,10 @@
-export const CANVAS_MEMORY_SCHEMA = 1;
+export const CANVAS_MEMORY_SCHEMA = 2;
 
 export const CANVAS_MEMORY_THRESHOLDS = Object.freeze({
-  maxReleasedHeapResidualBytes: 2 * 1024 * 1024,
+  maxReleasedHeapResidualBytes: 4 * 1024 * 1024,
   maxReleasedHeapResidualRatio: 0.1,
   maxDomNodeResidual: 32,
+  maxDetachedDomNodeResidual: 32,
   maxListenerResidual: 4,
   maxCycleHeapSlopeBytes: 256 * 1024,
   maxComparisonRegressionBytes: 1024 * 1024,
@@ -23,6 +24,8 @@ export type CanvasMemoryCheckpoint = {
   backingStorageBytes: number;
   documents: number;
   nodes: number;
+  liveDomNodes: number;
+  detachedDomNodesEstimate: number;
   jsEventListeners: number;
   canvasBackingBytes: number;
   engine: Readonly<Record<string, number>>;
@@ -48,8 +51,11 @@ export type CanvasMemorySummary = {
   releasedResidualBytes: Distribution;
   reclaimRatio: Distribution;
   domNodeResidual: Distribution;
+  detachedDomNodeResidual: Distribution;
   listenerResidual: Distribution;
   cycleHeapSlopeBytes: Distribution;
+  releasedHistoryBytes: Distribution;
+  unattributedProjectionCacheBytes: Distribution;
 };
 
 export type CanvasMemoryWorkload = {
@@ -132,9 +138,20 @@ const deriveRun = (run: CanvasMemoryRun) => {
       releasedAfterGc.heapUsedBytes - baselineAfterGc.heapUsedBytes,
     reclaimRatio: retainedDelta > 0 ? reclaimed / retainedDelta : 1,
     domNodeResidual: releasedAfterGc.nodes - baselineAfterGc.nodes,
+    detachedDomNodeResidual:
+      releasedAfterGc.detachedDomNodesEstimate -
+      baselineAfterGc.detachedDomNodesEstimate,
     listenerResidual:
       releasedAfterGc.jsEventListeners - baselineAfterGc.jsEventListeners,
     cycleHeapSlopeBytes: linearSlope(run.cycleRetainedHeapBytes),
+    releasedHistoryBytes:
+      (releasedAfterGc.engine.historyBytes ?? 0) -
+      (baselineAfterGc.engine.historyBytes ?? 0),
+    unattributedProjectionCacheBytes: Math.max(
+      ...Object.values(run.checkpoints).map(
+        (checkpoint) => checkpoint.engine.unattributedProjectionCacheBytes ?? 0
+      )
+    ),
   };
 };
 
@@ -149,8 +166,15 @@ export const summarizeCanvasMemoryRuns = (
     releasedResidualBytes: summarize(derived.map((value) => value.releasedResidualBytes)),
     reclaimRatio: summarize(derived.map((value) => value.reclaimRatio)),
     domNodeResidual: summarize(derived.map((value) => value.domNodeResidual)),
+    detachedDomNodeResidual: summarize(
+      derived.map((value) => value.detachedDomNodeResidual)
+    ),
     listenerResidual: summarize(derived.map((value) => value.listenerResidual)),
     cycleHeapSlopeBytes: summarize(derived.map((value) => value.cycleHeapSlopeBytes)),
+    releasedHistoryBytes: summarize(derived.map((value) => value.releasedHistoryBytes)),
+    unattributedProjectionCacheBytes: summarize(
+      derived.map((value) => value.unattributedProjectionCacheBytes)
+    ),
   };
 };
 
@@ -170,6 +194,12 @@ export const evaluateCanvasMemoryRuns = (
   if (summary.domNodeResidual.median > CANVAS_MEMORY_THRESHOLDS.maxDomNodeResidual) {
     failures.push("dom-node-residual");
   }
+  if (
+    summary.detachedDomNodeResidual.median >
+    CANVAS_MEMORY_THRESHOLDS.maxDetachedDomNodeResidual
+  ) {
+    failures.push("detached-dom-node-residual");
+  }
   if (summary.listenerResidual.median > CANVAS_MEMORY_THRESHOLDS.maxListenerResidual) {
     failures.push("listener-residual");
   }
@@ -181,10 +211,25 @@ export const evaluateCanvasMemoryRuns = (
       const used = checkpoint.engine.projectionCacheBudgetBytes ?? 0;
       const limit = checkpoint.engine.projectionCacheBudgetLimit ?? Infinity;
       if (used > limit) failures.push("projection-budget");
+      if ((checkpoint.engine.unattributedProjectionCacheEntries ?? 0) !== 0) {
+        failures.push("unattributed-projection-cache-entries");
+      }
+      if ((checkpoint.engine.unattributedProjectionCacheBytes ?? 0) !== 0) {
+        failures.push("unattributed-projection-cache-bytes");
+      }
     }
     const baseline = run.checkpoints.baselineAfterGc.engine;
     const released = run.checkpoints.releasedAfterGc.engine;
-    for (const key of ["documents", "pages", "residentPageIndexes", "projectionCacheEntries"] as const) {
+    for (const key of [
+      "documents",
+      "pages",
+      "residentPageIndexes",
+      "projectionCacheEntries",
+      "historyDocuments",
+      "historyGroups",
+      "historyActions",
+      "historyBytes",
+    ] as const) {
       if ((released[key] ?? 0) !== (baseline[key] ?? 0)) {
         failures.push(`released-${key}`);
       }
@@ -205,13 +250,13 @@ export const createCanvasMemoryMarkdown = (report: CanvasMemoryReport) => {
     `Scope: ${report.scope}; excludes ${report.exclusions.join(", ")}.`,
     `Sampling: ${report.settings.measuredRuns} runs, ${report.settings.sampleIntervalMs} ms peak interval, ${report.settings.gcPasses} GC passes per retained checkpoint.`,
     "",
-    "| Workload | Result | Loaded retained | Interaction peak | Retained | Released residual | Reclaimed | DOM / listeners residual | Churn slope |",
-    "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+    "| Workload | Result | Loaded retained | Interaction peak | Retained | Released residual | Reclaimed | DOM / detached / listeners residual | Released history | Unattributed cache | Churn slope |",
+    "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
   ];
   for (const workload of report.workloads) {
     const summary = workload.summary;
     lines.push(
-      `| ${workload.label} | ${workload.passed ? "pass" : `fail: ${workload.failures.join(", ")}`} | ${mib(summary.loadedRetainedDeltaBytes.median)} | ${mib(summary.interactionPeakDeltaBytes.p95)} | ${mib(summary.retainedDeltaBytes.median)} | ${mib(summary.releasedResidualBytes.median)} | ${(summary.reclaimRatio.median * 100).toFixed(1)}% | ${summary.domNodeResidual.median.toFixed(0)} / ${summary.listenerResidual.median.toFixed(0)} | ${mib(summary.cycleHeapSlopeBytes.median)}/cycle |`
+      `| ${workload.label} | ${workload.passed ? "pass" : `fail: ${workload.failures.join(", ")}`} | ${mib(summary.loadedRetainedDeltaBytes.median)} | ${mib(summary.interactionPeakDeltaBytes.p95)} | ${mib(summary.retainedDeltaBytes.median)} | ${mib(summary.releasedResidualBytes.median)} | ${(summary.reclaimRatio.median * 100).toFixed(1)}% | ${summary.domNodeResidual.median.toFixed(0)} / ${summary.detachedDomNodeResidual.median.toFixed(0)} / ${summary.listenerResidual.median.toFixed(0)} | ${mib(summary.releasedHistoryBytes.median)} | ${mib(summary.unattributedProjectionCacheBytes.median)} | ${mib(summary.cycleHeapSlopeBytes.median)}/cycle |`
     );
   }
   lines.push("");

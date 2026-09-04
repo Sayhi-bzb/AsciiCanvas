@@ -32,6 +32,7 @@ type MemoryDiagnostics = {
   activeSessionId: () => string;
   setProjectionCacheBudget: (bytes: number) => void;
   loadSession: (snapshot: SessionSnapshot) => string;
+  generateHistory: (operationCount: number) => void;
   memoryStats: () => Record<string, number>;
 };
 type Workload = {
@@ -39,7 +40,7 @@ type Workload = {
   label: string;
   description: string;
   grids: GridEntry[][];
-  historyOperations?: number;
+  history?: { mode: "engine" | "managed-input"; operations: number };
   switches?: number;
   projectionBudgetBytes?: number;
   churn?: boolean;
@@ -155,13 +156,15 @@ const workloads: Workload[] = [
     description: `${count.toLocaleString()} mixed-width Unicode cells`,
     grids: [makeUnicodeGrid(count)],
   })),
-  ...[250, 1_000, 2_500].map((count) => ({
-    id: `history-${count}`,
-    label: `History ${count.toLocaleString()}`,
-    description: `${count.toLocaleString()} text-edit history operations`,
-    grids: [makeGrid(5_000)],
-    historyOperations: count,
-  })),
+  ...(["engine", "managed-input"] as const).flatMap((mode) =>
+    [250, 1_000, 2_500].map((count) => ({
+      id: `history-${mode}-${count}`,
+      label: `History ${mode} ${count.toLocaleString()}`,
+      description: `${count.toLocaleString()} ${mode} history operations`,
+      grids: [makeGrid(5_000)],
+      history: { mode, operations: count },
+    }))
+  ),
   {
     id: "residency-default",
     label: "Residency 4 documents",
@@ -261,7 +264,10 @@ const collectCheckpoint = async (
     if (!api) throw new Error("Canvas memory diagnostics unavailable");
     const canvasBackingBytes = [...document.querySelectorAll("canvas")]
       .reduce((sum, canvas) => sum + canvas.width * canvas.height * 4, 0);
-    return { canvasBackingBytes, engine: api.memoryStats() };
+    const walker = document.createTreeWalker(document, NodeFilter.SHOW_ALL);
+    let liveDomNodes = 1;
+    while (walker.nextNode()) liveDomNodes += 1;
+    return { canvasBackingBytes, engine: api.memoryStats(), liveDomNodes };
   });
   return {
     heapUsedBytes: heap.usedSize,
@@ -270,8 +276,11 @@ const collectCheckpoint = async (
     backingStorageBytes: heap.backingStorageSize,
     documents: dom.documents,
     nodes: dom.nodes,
+    liveDomNodes: browser.liveDomNodes,
+    detachedDomNodesEstimate: Math.max(0, dom.nodes - browser.liveDomNodes),
     jsEventListeners: dom.jsEventListeners,
-    ...browser,
+    canvasBackingBytes: browser.canvasBackingBytes,
+    engine: browser.engine,
   };
 };
 
@@ -337,6 +346,21 @@ test("measures canvas memory lifecycle workloads", async ({ browser }) => {
         await handle.evaluate((api) => api.ready());
         const cdp = await context.newCDPSession(page);
         await cdp.send("Runtime.enable");
+        // Put the baseline on the same post-create/delete lifecycle state as the
+        // released checkpoint. This excludes lazy session/UI initialization
+        // from retention while leaving the measured payload cold.
+        const warmupId = await handle.evaluate(
+          (api, value) => api.loadSession(value),
+          snapshot([])
+        );
+        await handle.evaluate((api) => api.ready());
+        await handle.evaluate(
+          (api, baselineId) => api.switchSession(baselineId),
+          "memory-baseline"
+        );
+        await handle.evaluate((api, targetId) => api.removeSession(targetId), warmupId);
+        await handle.evaluate((api) => api.ready());
+        await panCanvas(page);
         const baselineAfterGc = await collectCheckpoint(page, cdp);
         if (workload.projectionBudgetBytes !== undefined) {
           await handle.evaluate(
@@ -363,12 +387,18 @@ test("measures canvas memory lifecycle workloads", async ({ browser }) => {
           }
           if (!workload.churn) {
             loadedAfterGc = await collectCheckpoint(page, cdp);
-            if (workload.historyOperations) {
+            if (workload.history?.mode === "engine") {
+              await handle.evaluate(
+                (api, count) => api.generateHistory(count),
+                workload.history.operations
+              );
+              await handle.evaluate((api) => api.ready());
+            } else if (workload.history?.mode === "managed-input") {
               const surface = page.getByTestId("canvas-editor-surface");
               const bounds = await surface.boundingBox();
               if (!bounds) throw new Error("Canvas surface has no bounding box");
               await page.mouse.click(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
-              await page.keyboard.type("x".repeat(workload.historyOperations));
+              await page.keyboard.type("x".repeat(workload.history.operations));
               await handle.evaluate((api) => api.ready());
             }
             if (workload.switches) {

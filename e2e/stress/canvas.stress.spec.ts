@@ -59,6 +59,7 @@ declare global {
         scene: [];
         components: [];
       }) => string;
+      generateHistory: (operationCount: number) => void;
       cellCount: () => number;
       surfaceStats: () => Record<string, number> | null;
       memoryStats: () => Record<string, number>;

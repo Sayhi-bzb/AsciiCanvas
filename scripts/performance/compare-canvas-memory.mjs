@@ -40,7 +40,15 @@ if (!baselinePath || !candidatePath) {
   for (const beforeWorkload of baseline.workloads) {
     const afterWorkload = candidateById.get(beforeWorkload.id);
     if (!afterWorkload) throw new Error(`Candidate is missing workload ${beforeWorkload.id}`);
-    for (const metric of ["loadedRetainedDeltaBytes", "interactionPeakDeltaBytes", "retainedDeltaBytes", "releasedResidualBytes", "cycleHeapSlopeBytes"]) {
+    for (const metric of [
+      "loadedRetainedDeltaBytes",
+      "interactionPeakDeltaBytes",
+      "retainedDeltaBytes",
+      "releasedResidualBytes",
+      "releasedHistoryBytes",
+      "unattributedProjectionCacheBytes",
+      "cycleHeapSlopeBytes",
+    ]) {
       const before = beforeWorkload.summary[metric].median;
       const after = afterWorkload.summary[metric].median;
       const delta = after - before;

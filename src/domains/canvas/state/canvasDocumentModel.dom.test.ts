@@ -39,6 +39,76 @@ describe("unified Canvas documents", () => {
     documents.dispose();
   });
 
+  it("preserves history across residency release but clears it on deletion", () => {
+    const documents = new CanvasDocumentRegistry("baseline");
+    const seed = { mode: "freeform" as const, grid: [], scene: [], components: [] };
+    documents.activateDocument("target", seed);
+    documents.mutateGrid((grid) => grid.set("0,0", cell("A")));
+    expect(documents.getHistoryAvailability().canUndo).toBe(true);
+
+    documents.activateDocument("baseline", seed);
+    expect(documents.releaseDocument("target")).toBe(true);
+    documents.activateDocument("target", seed);
+    expect(documents.getHistoryAvailability().canUndo).toBe(true);
+
+    documents.activateDocument("baseline", seed);
+    expect(documents.destroyDocument("target")).toBe(true);
+    documents.activateDocument("target", seed);
+    expect(documents.getHistoryAvailability().canUndo).toBe(false);
+    expect(documents.getMemoryStats()).toMatchObject({
+      historyDocuments: 0,
+      historyGroups: 0,
+      historyActions: 0,
+      historyBytes: 0,
+    });
+    documents.dispose();
+  });
+
+  it("does not orphan projection cache entries during observed replacement", () => {
+    const documents = new CanvasDocumentRegistry("baseline");
+    const baseline = documents.getMemoryStats();
+    const stopObserving = documents.observeActiveTransactions(() => undefined);
+    const grid: [string, ReturnType<typeof cell>][] = Array.from(
+      { length: 160 },
+      (_, index) => [`${index * 2},0`, cell("你")]
+    );
+
+    documents.activateDocument("unicode", {
+      mode: "freeform",
+      grid: [],
+      scene: [],
+      components: [],
+    });
+    documents.activateDocument("unicode", {
+      mode: "freeform",
+      grid,
+      scene: [],
+      components: [],
+    }, { replace: true });
+    expect(documents.getContentReader().getCell({ x: 0, y: 0 }))
+      .toEqual(cell("你"));
+    expect(documents.getMemoryStats()).toMatchObject({
+      unattributedProjectionCacheEntries: 0,
+      unattributedProjectionCacheBytes: 0,
+    });
+
+    documents.activateDocument("baseline", {
+      mode: "freeform",
+      grid: [],
+      scene: [],
+      components: [],
+    });
+    expect(documents.destroyDocument("unicode")).toBe(true);
+    expect(documents.getMemoryStats()).toMatchObject({
+      projectionCacheEntries: baseline.projectionCacheEntries,
+      projectionCacheBudgetBytes: baseline.projectionCacheBudgetBytes,
+      unattributedProjectionCacheEntries: 0,
+      unattributedProjectionCacheBytes: 0,
+    });
+    stopObserving();
+    documents.dispose();
+  });
+
   it("keeps slide pages in one document with page-local history", () => {
     const documents = new CanvasDocumentRegistry("slides");
     documents.activateDocument("slides", {

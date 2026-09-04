@@ -69,6 +69,7 @@ export const CanvasEditor = ({
   const [hoveredLink, setHoveredLink] = useState<CanvasLinkHit | null>(null);
   const structuredMovePreviewRef = useRef<StructuredMovePreview | null>(null);
   const requestCanvasRenderRef = useRef<(() => void) | null>(null);
+  const restoringManagedInputFocusRef = useRef(false);
   const size = useSize(containerRef);
   const surfaceGeometry = useMemo(
     () => (size ? resolveCanvasSurfaceGeometry(size) : undefined),
@@ -200,6 +201,7 @@ export const CanvasEditor = ({
   });
   const {
     textareaRef,
+    restoreManagedInputFocus,
     canvasOwnsInputFocus,
     onCanvasPointerDown,
     textareaStyle,
@@ -233,6 +235,15 @@ export const CanvasEditor = ({
     ? { ...rendererStore, tool: 'pan' as const }
     : rendererStore;
 
+  useLayoutEffect(() => {
+    restoringManagedInputFocusRef.current = true;
+    try {
+      restoreManagedInputFocus();
+    } finally {
+      restoringManagedInputFocusRef.current = false;
+    }
+  }, [activeCanvasId, restoreManagedInputFocus]);
+
   const {
     activateInteractionOwner = () => false,
     cursor,
@@ -253,6 +264,7 @@ export const CanvasEditor = ({
   );
 
   const activateCanvas = useCallback(() => {
+    if (restoringManagedInputFocusRef.current) return;
     activateInteractionOwner();
     onActivate?.();
   }, [activateInteractionOwner, onActivate]);
@@ -358,6 +370,7 @@ export const CanvasEditor = ({
           onDoubleClick={handleDoubleClick}
           onPointerDown={onCanvasPointerDown}
           textareaRef={textareaRef}
+          textareaKey={activeCanvasId}
           textareaStyle={textareaStyle}
           textareaProps={textareaProps}
         >

@@ -273,6 +273,24 @@ describe("CanvasEditor focus management", () => {
     expect(textarea?.selectionEnd).toBe(1);
   });
 
+  it("recreates managed input on session change without losing canvas focus", () => {
+    const { container, getByTestId } = render(
+      <CanvasEditor onUndo={vi.fn()} onRedo={vi.fn()} />
+    );
+    fireEvent.pointerDown(getByTestId("canvas-editor-surface"));
+    const previous = container.querySelector("textarea");
+    expect(document.activeElement).toBe(previous);
+
+    act(() => {
+      useEditorStore.setState({ activeCanvasId: "managed-input-next-canvas" });
+    });
+
+    const next = container.querySelector("textarea");
+    expect(next).not.toBe(previous);
+    expect(document.activeElement).toBe(next);
+    expect(next).toHaveValue("\u00a0");
+  });
+
   it("activates the pane interaction owner before switching its session", () => {
     const order: string[] = [];
     activateInteractionOwnerMock.mockImplementation(() => {

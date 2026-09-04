@@ -225,6 +225,11 @@ export const useManagedCanvasInput = ({
     // target. Keep a selected sentinel so the native clipboard event fires.
     primeManagedTextarea();
   }, [primeManagedTextarea]);
+  const restoreManagedInputFocus = useCallback(() => {
+    if (!canvasOwnsInputFocusRef.current) return;
+    textareaRef.current?.focus({ preventScroll: true });
+    primeManagedTextarea();
+  }, [primeManagedTextarea]);
   const releaseManagedTextarea = useCallback(() => {
     canvasOwnsInputFocusRef.current = false;
     setCanvasOwnsInputFocus(false);
@@ -655,6 +660,7 @@ export const useManagedCanvasInput = ({
 
   return {
     textareaRef,
+    restoreManagedInputFocus,
     canvasOwnsInputFocus,
     onCanvasPointerDown: handleCanvasPointerDown,
     textareaStyle: textareaStyle as CSSProperties,

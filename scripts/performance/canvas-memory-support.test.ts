@@ -20,6 +20,8 @@ const checkpoint = (
   backingStorageBytes: 0,
   documents: 1,
   nodes: 100,
+  liveDomNodes: 90,
+  detachedDomNodesEstimate: 10,
   jsEventListeners: 10,
   canvasBackingBytes: 1000,
   engine: {
@@ -58,8 +60,9 @@ describe("canvas memory support", () => {
       ...run,
       checkpoints: {
         ...run.checkpoints,
-        releasedAfterGc: checkpoint(14_000_000, {
+        releasedAfterGc: checkpoint(15_000_000, {
           nodes: 200,
+          detachedDomNodesEstimate: 100,
           jsEventListeners: 20,
           engine: {
             documents: 2,
@@ -68,6 +71,12 @@ describe("canvas memory support", () => {
             projectionCacheEntries: 1,
             projectionCacheBudgetBytes: 2048,
             projectionCacheBudgetLimit: 1024,
+            historyDocuments: 1,
+            historyGroups: 1,
+            historyActions: 1,
+            historyBytes: 512,
+            unattributedProjectionCacheEntries: 1,
+            unattributedProjectionCacheBytes: 256,
           },
         }),
       },
@@ -76,10 +85,15 @@ describe("canvas memory support", () => {
     expect(evaluateCanvasMemoryRuns([failing]).failures).toEqual(expect.arrayContaining([
       "released-heap-residual",
       "dom-node-residual",
+      "detached-dom-node-residual",
       "listener-residual",
       "cycle-heap-slope",
       "projection-budget",
+      "unattributed-projection-cache-entries",
+      "unattributed-projection-cache-bytes",
       "released-documents",
+      "released-historyDocuments",
+      "released-historyBytes",
     ]));
   });
 
@@ -104,9 +118,10 @@ describe("canvas memory support", () => {
       },
       settings: { measuredRuns: 1, sampleIntervalMs: 100, gcPasses: 2 },
       thresholds: {
-        maxReleasedHeapResidualBytes: 2 * 1024 * 1024,
+        maxReleasedHeapResidualBytes: 4 * 1024 * 1024,
         maxReleasedHeapResidualRatio: 0.1,
         maxDomNodeResidual: 32,
+        maxDetachedDomNodeResidual: 32,
         maxListenerResidual: 4,
         maxCycleHeapSlopeBytes: 256 * 1024,
         maxComparisonRegressionBytes: 1024 * 1024,
@@ -124,5 +139,7 @@ describe("canvas memory support", () => {
     };
     expect(createCanvasMemoryMarkdown(report)).toContain("worker heaps");
     expect(createCanvasMemoryMarkdown(report)).toContain("25k Unicode");
+    expect(createCanvasMemoryMarkdown(report)).toContain("Released history");
+    expect(createCanvasMemoryMarkdown(report)).toContain("Unattributed cache");
   });
 });
