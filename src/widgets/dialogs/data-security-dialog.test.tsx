@@ -22,21 +22,22 @@ describe("DataSecurityDialog", () => {
     expect(dialog.querySelector(".border-accent")).not.toBeInTheDocument();
   });
 
-  it("replaces local-only claims with the active P2P data boundary", () => {
+  it("replaces local-only claims with the active sync-server data boundary", () => {
     const state = useEditorStore.getState();
     state.setCanvasSessionCollaboration(state.activeCanvasId, {
       version: 6,
       documentVersion: 6,
       mode: "freeform",
-      provider: "p2p",
+      provider: "websocket",
       roomId: "room_identifier_1234",
       key: "room_secret_key_123456789012345678901234567890",
+      endpoint: "wss://sync.example.com",
     });
 
     render(<DataSecurityDialog open onOpenChange={vi.fn()} />);
     const dialog = screen.getByRole("dialog", { name: "Data security" });
-    expect(dialog).toHaveTextContent("Peer-to-peer room");
-    expect(dialog).toHaveTextContent("encrypted signaling and WebRTC");
+    expect(dialog).toHaveTextContent("Sync server");
+    expect(dialog).toHaveTextContent("Updates pass through the WebSocket server");
     expect(dialog).toHaveTextContent("Anyone with the edit link can edit");
     expect(dialog).not.toHaveTextContent("No analytics");
 

@@ -1,6 +1,5 @@
 import 'fake-indexeddb/auto';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { deleteDB } from 'idb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEditorStore } from '@/domains/canvas/testing';
 import { createSlideDeck } from '@/domains/slides/public';
@@ -11,11 +10,6 @@ import { CanvasWorkspaceProvider } from '@/widgets/canvas-editor/engine/CanvasWo
 import { OnboardingTourContext } from '@/widgets/onboarding/onboarding-context';
 import { EditorPresentationProvider } from '@/widgets/editor-chrome/public';
 import { CanvasBreadcrumb } from '@/widgets/session-tabs/CanvasBreadcrumb';
-import {
-  BlackboardRuntime,
-  BlackboardRuntimeProvider,
-  IndexedDbBlackboardRepository,
-} from '@/domains/blackboard/public';
 
 describe('AppMenu document interchange', () => {
   const initialState = useEditorStore.getState();
@@ -83,19 +77,12 @@ describe('AppMenu document interchange', () => {
     await screen.findByRole('menuitem', { name: 'Blackboard' });
   });
 
-  it('imports a Blackboard directory into a new active canvas', async () => {
+  it('imports a Blackboard directory into a detached editable canvas', async () => {
     vi.spyOn(feedback, 'error').mockImplementation(() => undefined);
     const before = useEditorStore.getState();
     const previousSessionId = before.activeCanvasId;
     const previousSessionCount = before.canvasSessions.length;
-    const databaseName = `app-menu-blackboard-${crypto.randomUUID()}`;
-    const repository = new IndexedDbBlackboardRepository({ databaseName });
-    const blackboard = new BlackboardRuntime(repository);
-    const { container } = render(
-      <BlackboardRuntimeProvider runtime={blackboard}>
-        <CanvasBreadcrumb />
-      </BlackboardRuntimeProvider>
-    );
+    const { container } = render(<CanvasBreadcrumb />);
     const directoryInput = container.querySelectorAll('input[type="file"]')[1];
 
     fireEvent.change(directoryInput, {
@@ -136,8 +123,7 @@ describe('AppMenu document interchange', () => {
           expect.objectContaining({
             id: state.activeCanvasId,
             name: 'Imported GPU',
-            mode: 'blackboard',
-            workspaceId: expect.any(String),
+            mode: 'freeform',
           }),
         ])
       );
@@ -146,16 +132,11 @@ describe('AppMenu document interchange', () => {
     const imported = useEditorStore.getState().canvasSessions.find(
       (session) => session.id === useEditorStore.getState().activeCanvasId,
     );
-    if (!imported || imported.mode !== 'blackboard') {
-      throw new Error('Expected a Blackboard session.');
+    if (!imported || imported.mode !== 'freeform') {
+      throw new Error('Expected an editable Freeform session.');
     }
-    const source = await repository.readWorkspace(imported.workspaceId);
-    expect(source?.files).toEqual(expect.arrayContaining([
-      expect.objectContaining({ path: 'blackboard.yaml' }),
-      expect.objectContaining({ path: 'panels/overview.panel' }),
-    ]));
-    await repository.close();
-    await deleteDB(databaseName);
+    expect('workspaceId' in imported).toBe(false);
+    expect(useEditorStore.getState().grid.size).toBeGreaterThan(0);
   });
 
   it('keeps ANSI out of static canvas exports', async () => {

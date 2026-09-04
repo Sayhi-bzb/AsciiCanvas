@@ -10,6 +10,11 @@ export function CollaborationJoiningOverlay() {
 
   if (snapshot.documentStatus !== "joining") return null;
   const offline = snapshot.connectionStatus === "offline";
+  const message = offline
+    ? t("collaboration.joining.unavailable")
+    : snapshot.connectionStatus === "connecting"
+      ? t("collaboration.joining.connecting")
+      : t("collaboration.joining.waitingForHost");
 
   return (
     <div
@@ -23,9 +28,7 @@ export function CollaborationJoiningOverlay() {
       <div className="flex flex-col items-center gap-2 text-sm text-muted-foreground">
         {!offline && <Spinner />}
         <span>
-          {offline
-            ? t("collaboration.joining.unavailable")
-            : t("collaboration.status.joining")}
+          {message}
         </span>
         {offline && (
           <Button type="button" tone="subtle" size="sm" onClick={() => void runtime.retry()}>

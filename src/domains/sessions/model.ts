@@ -46,6 +46,15 @@ interface SlideCanvasSession extends CanvasSessionBase {
 
 export type CanvasSession = StaticCanvasSession | SlideCanvasSession | BlackboardCanvasSession;
 
+export type SourceBackedCanvasSession =
+  | BlackboardCanvasSession
+  | (SlideCanvasSession & { workspaceId: string });
+
+export const isSourceBackedCanvasSession = (
+  session: CanvasSession | null | undefined,
+): session is SourceBackedCanvasSession =>
+  !!session && "workspaceId" in session && !!session.workspaceId;
+
 type StaticCanvasImportSnapshotBase = {
   scene: StructuredNode[];
   components: StructuredComponentInstance[];

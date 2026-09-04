@@ -12,7 +12,7 @@ import {
 describe("collaboration room links", () => {
   it("creates V6 links and keeps the room secret in the URL fragment", () => {
     vi.stubGlobal("crypto", { getRandomValues: (bytes: Uint8Array) => bytes.fill(7) });
-    const descriptor = createCollaborationDescriptor("freeform");
+    const descriptor = createCollaborationDescriptor("freeform", "wss://sync.example.com");
     const url = buildCollaborationUrl(descriptor, "https://canvas.test/editor?theme=dark");
     expect(new URL(url).searchParams.has("room")).toBe(false);
     expect(new URL(url).hash).toContain("room=");
@@ -26,7 +26,7 @@ describe("collaboration room links", () => {
 
   it("adds and removes room identity without discarding unrelated URL state", () => {
     vi.stubGlobal("crypto", { getRandomValues: (bytes: Uint8Array) => bytes.fill(7) });
-    const descriptor = createCollaborationDescriptor("freeform");
+    const descriptor = createCollaborationDescriptor("freeform", "wss://sync.example.com");
     const url = buildCollaborationUrl(
       descriptor,
       "https://canvas.test/editor?theme=dark&room=legacy#panel=layers"
@@ -69,6 +69,22 @@ describe("collaboration room links", () => {
     });
   });
 
+  it("reports V6 P2P links as retired", () => {
+    const descriptor = {
+      version: 6,
+      documentVersion: 6,
+      mode: "freeform",
+      provider: "p2p",
+      roomId: "room-id-1234567890",
+      key: "room-key-1234567890123456789012345678901234567890",
+    } as const;
+    const encoded = btoa(JSON.stringify(descriptor)).replace(/=+$/g, "");
+    expect(parseCollaborationUrl(`https://canvas.test/#room=${encoded}`)).toEqual({
+      status: "retired",
+      provider: "p2p",
+    });
+  });
+
   it.each([1, 2, 3, 4, 5])(
     "reports collaboration descriptor version %i as unsupported",
     (version) => {
@@ -103,9 +119,10 @@ describe("collaboration room links", () => {
       version: 6,
       documentVersion: 6,
       mode: "freeform",
-      provider: "p2p",
+      provider: "websocket",
       roomId: "room-id-1234567890",
       key: "room-key-1234567890123456789012345678901234567890",
+      endpoint: "wss://sync.example.com",
     } as const;
     expect(sameCollaborationRoom(room, { ...room })).toBe(true);
   });

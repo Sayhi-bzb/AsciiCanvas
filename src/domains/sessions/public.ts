@@ -3,8 +3,10 @@ export type {
   CanvasImportSnapshot,
   CanvasSession,
   FreeformCanvasImportSnapshot,
+  SourceBackedCanvasSession,
   StructuredCanvasImportSnapshot,
 } from "./model";
+export { isSourceBackedCanvasSession } from "./model";
 export {
   createSessionId,
   normalizeSessionMode,

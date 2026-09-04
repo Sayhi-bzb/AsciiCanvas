@@ -17,9 +17,10 @@ const room = (
   version: 6,
   documentVersion: 6,
   mode,
-  provider: "p2p",
+  provider: "websocket",
   roomId,
   key: "room-key-1234567890123456789012345678901234567890",
+  endpoint: "wss://sync.example.com",
 });
 
 describe("useActiveCollaboration", () => {
@@ -67,6 +68,7 @@ describe("useActiveCollaboration", () => {
       expect(state.canvasSessions).toHaveLength(2);
       expect(state.canvasSessions.find((session) => session.id === state.activeCanvasId)?.collaboration)
         .toEqual(incoming);
+      expect(state.collaborationEndpoint).toBe("wss://sync.example.com");
     });
     await waitFor(() => {
       expect(runtime.connect).toHaveBeenCalledWith(incoming, expect.anything(), "guest");

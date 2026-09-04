@@ -260,11 +260,25 @@ describe("editor persistence v5", () => {
             grid: [],
             collaboration: { ...base, version: 6, documentVersion: 6 },
           },
+          {
+            id: "websocket-room",
+            name: "WebSocket room",
+            mode: "freeform",
+            scene: [],
+            grid: [],
+            collaboration: {
+              ...base,
+              version: 6,
+              documentVersion: 6,
+              provider: "websocket",
+              endpoint: "wss://sync.example.com",
+            },
+          },
         ],
       },
     });
 
     expect(migrated.sessions.items.map((session) => session.collaboration?.version))
-      .toEqual([undefined, undefined, 6]);
+      .toEqual([undefined, undefined, undefined, 6]);
   });
 });

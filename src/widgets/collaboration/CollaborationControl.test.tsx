@@ -84,7 +84,7 @@ describe('CollaborationControl', () => {
     window.history.replaceState(null, '', '/');
   });
 
-  it('opens a collaboration panel and keeps it open across P2P room actions', async () => {
+  it('opens a collaboration panel and keeps it open across sync room actions', async () => {
     render(<CollaborationControl />);
 
     const trigger = screen.getByRole('button', { name: 'Collaboration' });
@@ -100,12 +100,14 @@ describe('CollaborationControl', () => {
     expect(panel).toHaveClass('w-72', 'shadow-overlay');
     expect(screen.getByLabelText('Sync server')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Experimental' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Start direct P2P room' }));
+    fireEvent.change(screen.getByLabelText('Sync server'), {
+      target: { value: 'wss://sync.example.com' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
 
     expect(screen.getByRole('dialog', { name: 'Collaboration' })).toBeInTheDocument();
-    expect(screen.getByText('P2P')).toBeInTheDocument();
-    expect(useEditorStore.getState().canvasSessions[0].collaboration?.provider).toBe('p2p');
+    expect(screen.getByText('Sync server')).toBeInTheDocument();
+    expect(useEditorStore.getState().canvasSessions[0].collaboration?.provider).toBe('websocket');
 
     fireEvent.click(screen.getByRole('button', { name: 'Copy edit link' }));
     await waitFor(() => expect(clipboardWrite).toHaveBeenCalledOnce());
@@ -144,7 +146,7 @@ describe('CollaborationControl', () => {
     fireEvent.click(connect);
 
     expect(screen.getByRole('dialog', { name: 'Collaboration' })).toBeInTheDocument();
-    expect(screen.getByText('BYOS')).toBeInTheDocument();
+    expect(screen.getByText('Sync server')).toBeInTheDocument();
     expect(useEditorStore.getState().canvasSessions[0].collaboration).toMatchObject({
       provider: 'websocket',
       endpoint: 'wss://sync.example.com',
@@ -159,9 +161,41 @@ describe('CollaborationControl', () => {
     render(<CollaborationControl />);
     openPanel();
 
-    expect(await screen.findByLabelText('Sync server')).toHaveValue(
-      'wss://sync.example.com'
-    );
+    expect(await screen.findByText('sync.example.com')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Start collaboration' }));
+    expect(useEditorStore.getState().canvasSessions[0].collaboration).toMatchObject({
+      provider: 'websocket',
+      endpoint: 'wss://sync.example.com',
+    });
+  });
+
+  it('lets the user replace a remembered sync server', async () => {
+    useEditorStore.setState({ collaborationEndpoint: 'wss://old.example.com' });
+    render(<CollaborationControl />);
+    openPanel();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Change server' }));
+    expect(screen.getByLabelText('Sync server')).toHaveValue('wss://old.example.com');
+  });
+
+  it('does not offer collaboration for package-backed canvases', () => {
+    act(() => {
+      useEditorStore.setState({
+        activeCanvasId: 'blackboard',
+        canvasMode: 'blackboard',
+        canvasSessions: [{
+          id: 'blackboard',
+          name: 'Blackboard',
+          mode: 'blackboard',
+          workspaceId: 'workspace',
+          scene: [],
+          grid: [],
+        }],
+      });
+    });
+
+    render(<CollaborationControl />);
+    expect(screen.queryByRole('button', { name: 'Collaboration' })).not.toBeInTheDocument();
   });
 
   it.each([
@@ -170,6 +204,18 @@ describe('CollaborationControl', () => {
       'unsupported',
       `/#room=${btoa(JSON.stringify({ version: 4 })).replace(/=+$/g, '')}`,
       'This collaboration link uses an unsupported version.',
+    ],
+    [
+      'retired',
+      `/#room=${btoa(JSON.stringify({
+        version: 6,
+        documentVersion: 6,
+        mode: 'freeform',
+        provider: 'p2p',
+        roomId: 'room-id-1234567890',
+        key: 'room-key-1234567890123456789012345678901234567890',
+      })).replace(/=+$/g, '')}`,
+      'Direct P2P links are retired. Ask the host for a new sync-server link.',
     ],
   ])('keeps an %s incoming-link error on the collaboration control', async (_, url, message) => {
     window.history.replaceState(null, '', url);
@@ -190,9 +236,10 @@ describe('CollaborationControl', () => {
       version: 6,
       documentVersion: 6,
       mode: 'freeform',
-      provider: 'p2p',
+      provider: 'websocket',
       roomId: 'room-id-1234567890',
       key: 'room-key-1234567890123456789012345678901234567890',
+      endpoint: 'wss://sync.example.com',
     };
     seedSession('freeform', descriptor);
     clipboardWrite.mockRejectedValue(new Error('denied'));
@@ -214,9 +261,10 @@ describe('CollaborationControl', () => {
       version: 6,
       documentVersion: 6,
       mode: "structured",
-      provider: 'p2p',
+      provider: 'websocket',
       roomId: 'room-id-1234567890',
       key: 'room-key-1234567890123456789012345678901234567890',
+      endpoint: 'wss://sync.example.com',
     };
     seedSession('structured', descriptor);
     snapshot = {
@@ -253,8 +301,7 @@ describe('CollaborationControl', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Leave room' }));
 
     expect(screen.getByRole('dialog', { name: 'Collaboration' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Experimental' }));
-    expect(screen.getByRole('button', { name: 'Start direct P2P room' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Sync server')).toBeInTheDocument();
     expect(useEditorStore.getState().canvasSessions[0].collaboration).toBeUndefined();
   });
 
@@ -263,9 +310,10 @@ describe('CollaborationControl', () => {
       version: 6,
       documentVersion: 6,
       mode: 'freeform',
-      provider: 'p2p',
+      provider: 'websocket',
       roomId: 'room-id-1234567890',
       key: 'room-key-1234567890123456789012345678901234567890',
+      endpoint: 'wss://sync.example.com',
     };
     seedSession('freeform', descriptor);
     snapshot = {
@@ -289,13 +337,14 @@ describe('CollaborationControl', () => {
     expect(trigger).toHaveClass('bg-error-muted', 'text-error');
     openPanel();
     expect(await screen.findByText('Offline')).toHaveClass('text-error');
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
     expect(screen.getByText('Skipped one invalid remote operation.')).toHaveClass('text-warning');
   });
 
   it.each([
     ['restoring', 'idle', 'neutral'],
     ['ready', 'connecting', 'neutral'],
-    ['ready', 'waiting-for-peer', 'warning'],
+    ['joining', 'online', 'neutral'],
   ] as const)(
     'maps %s / %s collaboration state to the %s button surface',
     (documentStatus, connectionStatus, status) => {
@@ -303,9 +352,10 @@ describe('CollaborationControl', () => {
         version: 6,
         documentVersion: 6,
         mode: 'freeform',
-        provider: 'p2p',
+        provider: 'websocket',
         roomId: 'room-id-1234567890',
         key: 'room-key-1234567890123456789012345678901234567890',
+        endpoint: 'wss://sync.example.com',
       };
       seedSession('freeform', descriptor);
       snapshot = {

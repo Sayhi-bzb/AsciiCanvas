@@ -44,7 +44,15 @@ describe("CollaborationJoiningOverlay", () => {
     renderOverlay();
 
     expect(screen.getByTestId("collaboration-joining")).toHaveAttribute("aria-busy", "true");
-    expect(screen.getByText("Joining canvas")).toBeInTheDocument();
+    expect(screen.getByText("Connecting to sync server")).toBeInTheDocument();
+  });
+
+  it("distinguishes transport connection from the host handshake", () => {
+    setUiLanguage("en");
+    snapshot = { ...snapshot, documentStatus: "joining", connectionStatus: "online" };
+    renderOverlay();
+
+    expect(screen.getByText("Waiting for host")).toBeInTheDocument();
   });
 
   it("offers an in-place retry when the sync server is unavailable", () => {

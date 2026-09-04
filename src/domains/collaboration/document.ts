@@ -12,7 +12,7 @@ export const getCollaborationPersistenceName = async (
 ) => {
   const identity = JSON.stringify({
     provider: descriptor.provider,
-    endpoint: descriptor.provider === "websocket" ? descriptor.endpoint : null,
+    endpoint: descriptor.endpoint,
     roomId: descriptor.roomId,
     key: descriptor.key,
   });
@@ -26,9 +26,7 @@ export const getCollaborationPersistenceName = async (
 
 export const getCollaborationRoomName = (descriptor: CollaborationDescriptor) => {
   const namespace = `chardesk-v${descriptor.version}`;
-  return descriptor.provider === "p2p"
-    ? `${namespace}-${descriptor.roomId}`
-    : `${namespace}-${descriptor.roomId}-${descriptor.key}`;
+  return `${namespace}-${descriptor.roomId}-${descriptor.key}`;
 };
 
 type CollaborationDocumentMigration = {

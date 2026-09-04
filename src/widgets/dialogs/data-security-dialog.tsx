@@ -31,9 +31,7 @@ export function DataSecurityDialog({
     state.canvasSessions.find((session) => session.id === state.activeCanvasId)?.collaboration
   );
   const collaborationDisclosure = collaboration
-    ? collaboration.provider === "p2p"
-      ? [t("security.p2p.title"), t("security.p2p.description")] as const
-      : [t("security.byos.title"), t("security.byos.description")] as const
+    ? [t("security.syncServer.title"), t("security.syncServer.description")] as const
     : null;
   const disclosures = collaborationDisclosure
     ? [

@@ -26,7 +26,9 @@ export const useActiveCollaboration = ({ enabled = true }: { enabled?: boolean }
     incomingCollaboration.status === "valid" ? incomingCollaboration.descriptor : null
   );
   const preserveIncomingError = useRef(
-    incomingCollaboration.status === "invalid" || incomingCollaboration.status === "unsupported"
+    incomingCollaboration.status === "invalid" ||
+      incomingCollaboration.status === "unsupported" ||
+      incomingCollaboration.status === "retired"
   );
   const activeCanvasId = useCanvasState((state) => state.activeCanvasId);
   const collaboration = useCanvasState((state) =>
@@ -59,6 +61,8 @@ export const useActiveCollaboration = ({ enabled = true }: { enabled?: boolean }
   );
   const tool = useCanvasState((state) => state.tool);
   const joinCollaboration = canvas.commands.sessions.joinCollaboration;
+  const setCollaborationEndpoint =
+    canvas.commands.preferences.setCollaborationEndpoint;
 
   useEffect(() => {
     if (!enabled) return;
@@ -68,8 +72,9 @@ export const useActiveCollaboration = ({ enabled = true }: { enabled?: boolean }
       pendingIncomingCollaboration.current = null;
       return;
     }
+    setCollaborationEndpoint(incoming.endpoint);
     joinCollaboration(incoming);
-  }, [collaboration, enabled, joinCollaboration]);
+  }, [collaboration, enabled, joinCollaboration, setCollaborationEndpoint]);
 
   useEffect(() => {
     if (!enabled || typeof window === "undefined") return;

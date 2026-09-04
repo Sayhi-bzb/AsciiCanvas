@@ -4,33 +4,21 @@ import { feedback } from "@/shared/services/effects";
 import { useCanvasImport } from "./useCanvasImport";
 
 const {
-  applyWorkspace,
-  createCanvasSession,
-  createWorkspace,
+  compileBlackboardDirectory,
   importCanvasSession,
-  readBlackboardDirectory,
 } = vi.hoisted(() => ({
-  applyWorkspace: vi.fn(),
-  createCanvasSession: vi.fn(),
-  createWorkspace: vi.fn(),
+  compileBlackboardDirectory: vi.fn(),
   importCanvasSession: vi.fn(),
-  readBlackboardDirectory: vi.fn(),
 }));
 
 vi.mock("@/domains/canvas/public", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/domains/canvas/public")>()),
   useCanvasRuntime: () => ({
-    commands: { sessions: { create: createCanvasSession, import: importCanvasSession } },
+    commands: { sessions: { import: importCanvasSession } },
   }),
 }));
 
-vi.mock("@/domains/blackboard/public", () => ({
-  useBlackboardRuntimeOptional: () => ({
-    repository: { apply: applyWorkspace, createWorkspace },
-  }),
-}));
-
-vi.mock("./blackboard-directory", () => ({ readBlackboardDirectory }));
+vi.mock("./blackboard-directory", () => ({ compileBlackboardDirectory }));
 
 const createFileEvent = (text: () => Promise<string>) =>
   ({
@@ -74,10 +62,7 @@ const createDirectoryEvent = () => {
 describe("useCanvasImport", () => {
   beforeEach(() => {
     importCanvasSession.mockReset();
-    readBlackboardDirectory.mockReset();
-    createCanvasSession.mockReset();
-    createWorkspace.mockReset();
-    applyWorkspace.mockReset();
+    compileBlackboardDirectory.mockReset();
     vi.spyOn(feedback, "success").mockImplementation(() => undefined);
     vi.spyOn(feedback, "error").mockImplementation(() => undefined);
   });
@@ -112,17 +97,12 @@ describe("useCanvasImport", () => {
     });
   });
 
-  it("imports a Blackboard directory as a source-authoritative mode", async () => {
-    readBlackboardDirectory.mockResolvedValue({
-      compiled: { title: "GPU", source: "L R", warnings: [] },
-      sourceTree: new Map([
-        ["blackboard.yaml", "manifest"],
-        ["panels/main.panel", "L R"],
-      ]),
-    });
-    createWorkspace.mockResolvedValue({
-      workspace: { id: "workspace-1", title: "GPU", revision: 1 },
-      files: [{ path: "blackboard.yaml", content: "starter" }],
+  it("imports a Blackboard directory as a detached editable snapshot", async () => {
+    compileBlackboardDirectory.mockResolvedValue({
+      mode: "freeform",
+      title: "GPU",
+      source: "L R",
+      warnings: [],
     });
     const { result } = renderHook(() => useCanvasImport());
 
@@ -130,26 +110,43 @@ describe("useCanvasImport", () => {
       await result.current.handleBlackboardDirectoryChange(createDirectoryEvent());
     });
 
-    expect(readBlackboardDirectory).toHaveBeenCalledWith([
+    expect(compileBlackboardDirectory).toHaveBeenCalledWith([
       expect.objectContaining({ webkitRelativePath: "gpu/blackboard.yaml" }),
     ]);
-    expect(applyWorkspace).toHaveBeenCalledWith(
-      "workspace-1",
-      [
-        { op: "delete", path: "blackboard.yaml" },
-        { op: "write", path: "blackboard.yaml", content: "manifest" },
-        { op: "write", path: "panels/main.panel", content: "L R" },
-      ],
-      1,
-    );
-    expect(createCanvasSession).toHaveBeenCalledWith("blackboard", {
-      blackboardWorkspaceId: "workspace-1",
+    expect(importCanvasSession).toHaveBeenCalledWith([
+      "---",
+      "chardesk: document/v1",
+      "mode: freeform",
+      "title: GPU",
+      "---",
+      "L R",
+    ].join("\n"), {
       name: "GPU",
+      sourceName: "blackboard.chardesk",
     });
   });
 
+  it("keeps an imported Blackboard Slide package editable and detached", async () => {
+    compileBlackboardDirectory.mockResolvedValue({
+      mode: "slide",
+      title: "GPU deck",
+      source: "## Intro\n\n```chargraph size=auto\nGPU\n```",
+      warnings: [],
+    });
+    const { result } = renderHook(() => useCanvasImport());
+
+    await act(async () => {
+      await result.current.handleBlackboardDirectoryChange(createDirectoryEvent());
+    });
+
+    expect(importCanvasSession).toHaveBeenCalledWith(
+      expect.stringContaining("mode: slide\ntitle: GPU deck"),
+      { name: "GPU deck", sourceName: "blackboard.chardesk" },
+    );
+  });
+
   it("reports Blackboard directory failures through existing import feedback", async () => {
-    readBlackboardDirectory.mockRejectedValue(new Error("Missing blackboard.yaml"));
+    compileBlackboardDirectory.mockRejectedValue(new Error("Missing blackboard.yaml"));
     const { result } = renderHook(() => useCanvasImport());
 
     await act(async () => {

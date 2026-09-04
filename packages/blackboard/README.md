@@ -2,7 +2,9 @@
 
 Shared compiler and local Reader for multi-file Blackboard and Slide packages.
 
-- App Menu → File → Import Blackboard stores the selected package in the browser repository and opens a read-only Blackboard session.
+- App Menu → Import → Blackboard compiles the selected package into a detached,
+  editable `.chardesk` snapshot. Spatial packages become Freeform canvases; Slide
+  packages remain Slide decks.
 - `chardesk inspect --panel <id>` validates and materializes one package Panel.
 - `chardesk open` serves the main CharDesk application on a tokenized loopback URL.
 
@@ -60,8 +62,11 @@ Each Panel is one page. Its compiled content determines page dimensions by
 default; omit `size`. A deliberately fixed frame may set `size: 100x27` on that
 Panel. `layout.pages` owns navigation order.
 
-The package is the authority. Compilation produces a disposable Canvas surface;
-it never writes source state into Canvas Yjs content.
+The package is the authority only while a session remains attached to its source
+tree. Compilation then produces a disposable Canvas surface and never writes
+source state into Canvas Yjs content. A one-shot browser import deliberately
+breaks that attachment and materializes the compiled projection as an editable
+Canvas document.
 `analyzeBlackboardSourceTree` classifies visible, draft, and unreferenced files
 against the `blackboard.yaml` entry graph without materializing the Canvas.
 
@@ -76,4 +81,5 @@ multi-panel CharGraph showcase.
 
 Source-backed Blackboard and Slide sessions support navigation, selection, copy,
 import, export, and Slide playback. Human content mutation and collaboration are
-disabled; Agents edit source files.
+disabled; Agents edit source files. Detached `.chardesk` snapshots use the normal
+Freeform or Slide editing capabilities and cannot reconstruct the original package.

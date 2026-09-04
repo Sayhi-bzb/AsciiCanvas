@@ -38,9 +38,6 @@ const createRuntime = () =>
     }),
     createAwareness: (doc) => new Awareness(doc),
     createProvider: (descriptor, doc, awareness) => {
-      if (descriptor.provider !== "websocket") {
-        throw new Error("WebSocket integration test received a P2P descriptor");
-      }
       return new WebsocketProvider(
         descriptor.endpoint,
         getCollaborationRoomName(descriptor),

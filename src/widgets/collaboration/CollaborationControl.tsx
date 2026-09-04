@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Check, ChevronDown, X } from 'lucide-react';
+import { Check, X } from 'lucide-react';
 import { useCanvasRuntime, useCanvasState } from '@/domains/canvas/public';
 import {
   buildCollaborationUrl,
@@ -17,9 +17,6 @@ import { useUiI18n, type I18nKey } from '@/shared/i18n';
 import { clipboard } from '@/shared/services/effects';
 import {
   Button,
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
   Input,
   Popover,
   PopoverContent,
@@ -32,12 +29,6 @@ import {
   type StatusTone,
 } from '@chardesk/ui';
 
-
-
-
-
-
-
 const CollaborationIcon = HOST_ICONOLOGY.sessionAction.collaboration;
 const CopyIcon = HOST_ICONOLOGY.editorAction.copy;
 const readIncomingCollaboration = (): ReturnType<typeof parseCollaborationUrl> =>
@@ -46,6 +37,7 @@ const getIncomingCollaborationErrorKey = (
   incoming: ReturnType<typeof parseCollaborationUrl>
 ): I18nKey | null => {
   if (incoming.status === 'unsupported') return 'collaboration.link.unsupported';
+  if (incoming.status === 'retired') return 'collaboration.link.retired';
   if (incoming.status === 'invalid') return 'collaboration.link.invalid';
   return null;
 };
@@ -64,8 +56,6 @@ const getStatusPresentation = (
   switch (snapshot.connectionStatus) {
     case 'connecting':
       return { key: 'collaboration.status.connecting', tone: 'neutral' };
-    case 'waiting-for-peer':
-      return { key: 'collaboration.status.waiting-for-peer', tone: 'warning' };
     case 'online':
       return { key: 'collaboration.status.connected', tone: 'success' };
     case 'offline':
@@ -83,7 +73,7 @@ export function CollaborationControl() {
   const [endpoint, setEndpoint] = useState('');
   const [endpointTouched, setEndpointTouched] = useState(false);
   const [endpointRejected, setEndpointRejected] = useState(false);
-  const [controlErrorKey, setControlErrorKey] = useState<I18nKey | null>(null);
+  const [editingEndpoint, setEditingEndpoint] = useState(false);
   const {
     feedback: copyFeedback,
     run: runCopyFeedback,
@@ -98,7 +88,7 @@ export function CollaborationControl() {
   const descriptor = activeSession?.collaboration;
   const visibleControlErrorKey = descriptor
     ? null
-    : getIncomingCollaborationErrorKey(readIncomingCollaboration()) ?? controlErrorKey;
+    : getIncomingCollaborationErrorKey(readIncomingCollaboration());
 
   useEffect(() => {
     if (!open) return;
@@ -110,21 +100,14 @@ export function CollaborationControl() {
   const statusPresentation = getStatusPresentation(snapshot);
   const statusLabel = t(statusPresentation.key);
 
-  const start = (customEndpoint?: string) => {
+  const start = (customEndpoint: string) => {
     if (!activeSession || activeSession.mode === "slide" || activeSession.mode === "blackboard") return;
     try {
       const next = createCollaborationDescriptor(activeSession.mode, customEndpoint);
-      if (customEndpoint) {
-        canvas.commands.preferences.setCollaborationEndpoint(customEndpoint);
-      }
-      setControlErrorKey(null);
+      canvas.commands.preferences.setCollaborationEndpoint(next.endpoint);
       setCollaboration(activeSession.id, next);
     } catch {
-      if (customEndpoint) {
-        setEndpointRejected(true);
-      } else {
-        setControlErrorKey('collaboration.endpoint.invalid');
-      }
+      setEndpointRejected(true);
     }
   };
 
@@ -147,6 +130,7 @@ export function CollaborationControl() {
   };
 
   const normalizedEndpoint = validateCollaborationEndpoint(endpoint);
+  const normalizedPreferredEndpoint = validateCollaborationEndpoint(preferredEndpoint);
   const showEndpointError =
     endpointRejected ||
     (endpointTouched && endpoint.trim().length > 0 && !normalizedEndpoint);
@@ -162,13 +146,18 @@ export function CollaborationControl() {
       : copyFeedback?.status === 'error'
         ? X
         : CopyIcon;
-  if (activeSession?.mode === "slide") return null;
+  if (activeSession?.mode === "slide" || activeSession?.mode === "blackboard") return null;
 
   return (
     <Popover
       open={open}
       onOpenChange={(nextOpen) => {
-        if (nextOpen && !endpointTouched) setEndpoint(preferredEndpoint);
+        if (nextOpen) {
+          setEndpoint(preferredEndpoint);
+          setEndpointTouched(false);
+          setEndpointRejected(false);
+          setEditingEndpoint(!validateCollaborationEndpoint(preferredEndpoint));
+        }
         setOpen(nextOpen);
         if (!nextOpen) clearCopyFeedback();
       }}
@@ -213,11 +202,7 @@ export function CollaborationControl() {
           aria-live="polite"
         >
           <span className="font-semibold">
-            {descriptor
-              ? descriptor.provider === 'p2p'
-                ? 'P2P'
-                : 'BYOS'
-              : t('collaboration.title')}
+            {descriptor ? t('collaboration.server') : t('collaboration.title')}
           </span>
           <StatusText tone={statusPresentation.tone}>
             {statusLabel}
@@ -272,7 +257,31 @@ export function CollaborationControl() {
         <Separator className="my-1" />
 
         {!descriptor ? (
-          <>
+          normalizedPreferredEndpoint && !editingEndpoint ? (
+            <div className="flex flex-col gap-1.5 px-2 py-1.5">
+              <div className="truncate text-[11px] text-muted-foreground">
+                {new URL(normalizedPreferredEndpoint).host}
+              </div>
+              <Button
+                type="button"
+                tone="neutral"
+                size="sm"
+                className="w-full justify-center"
+                onClick={() => start(normalizedPreferredEndpoint)}
+              >
+                {t('collaboration.start')}
+              </Button>
+              <Button
+                type="button"
+                tone="subtle"
+                size="sm"
+                className="w-full justify-center"
+                onClick={() => setEditingEndpoint(true)}
+              >
+                {t('collaboration.server.change')}
+              </Button>
+            </div>
+          ) : (
             <form
               className="flex flex-col gap-1.5 px-2 py-1.5"
               onSubmit={(event) => {
@@ -291,7 +300,7 @@ export function CollaborationControl() {
                 htmlFor="collaboration-endpoint"
                 className="block text-[11px] leading-4 text-muted-foreground"
               >
-                {t('collaboration.byos')}
+                {t('collaboration.server')}
               </label>
               <div className="flex gap-1.5">
                 <Input
@@ -314,7 +323,7 @@ export function CollaborationControl() {
                 </Button>
               </div>
               <p className="text-[11px] leading-4 text-muted-foreground">
-                {t('collaboration.byos.note')}
+                {t('collaboration.server.note')}
               </p>
               {showEndpointError ? (
                 <StatusText tone="error" asChild>
@@ -328,33 +337,20 @@ export function CollaborationControl() {
                 </StatusText>
               ) : null}
             </form>
-            <Collapsible>
-              <CollapsibleTrigger asChild>
-                <Button
-                  type="button"
-                  tone="subtle"
-                  size="sm"
-                  className="w-full justify-between [&[data-state=open]>svg]:rotate-180"
-                >
-                  {t('collaboration.experimental')}
-                  <ChevronDown className="transition-transform" />
-                </Button>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <Button
-                  type="button"
-                  tone="subtle"
-                  size="sm"
-                  className="w-full justify-start"
-                  onClick={() => start()}
-                >
-                  {t('collaboration.start.p2p')}
-                </Button>
-              </CollapsibleContent>
-            </Collapsible>
-          </>
+          )
         ) : (
           <>
+            {snapshot.connectionStatus === 'offline' && (
+              <Button
+                type="button"
+                tone="subtle"
+                size="sm"
+                className="w-full justify-start"
+                onClick={() => void collaborationRuntime.retry()}
+              >
+                {t('collaboration.retry')}
+              </Button>
+            )}
             <Button
               type="button"
               tone="subtle"

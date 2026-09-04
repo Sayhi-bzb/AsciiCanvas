@@ -18,7 +18,10 @@ import {
   type CanvasSession,
 } from "@/domains/sessions/public";
 import { SLIDE_SIZE_PRESETS } from "@/domains/slides/public";
-import { getCollaborationDocumentId } from "@/domains/collaboration/public";
+import {
+  getCollaborationDocumentId,
+  isCollaborationDescriptor,
+} from "@/domains/collaboration/public";
 import type { GridCell } from "@/shared/types";
 import {
   CellPlaneIndex,
@@ -859,11 +862,14 @@ const sessionsFromCatalog = (catalog: CanvasCatalogSnapshot): CanvasSession[] =>
         grid: [],
       };
     }
+    const collaboration = isCollaborationDescriptor(session.collaboration)
+      ? session.collaboration
+      : undefined;
     return {
       ...base,
       mode: session.mode,
-      collaboration: session.collaboration,
-      collaborationRole: session.collaboration
+      collaboration,
+      collaborationRole: collaboration
         ? session.collaborationRole ?? "host"
         : undefined,
       scene: [],

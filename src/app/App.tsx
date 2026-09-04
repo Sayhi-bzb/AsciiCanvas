@@ -26,7 +26,10 @@ import { CanvasSessionSelector } from '@/widgets/session-tabs/CanvasBreadcrumb';
 
 import { AppMenu } from '@/widgets/toolbar/app-menu';
 import { getStaticGridViewState } from '@/domains/selection/public';
-import { isStaticGridMode } from '@/domains/sessions/public';
+import {
+  isSourceBackedCanvasSession,
+  isStaticGridMode,
+} from '@/domains/sessions/public';
 import { useGlobalShortcutCommands } from './useGlobalShortcutCommands';
 import { ZoomControl } from '@/widgets/toolbar/zoom-control';
 import { SecurityControl } from '@/widgets/toolbar/security-control';
@@ -354,8 +357,7 @@ function AppContent() {
     state.canvasSessions.find((session) => session.id === state.activeCanvasId)
   );
   const activeCollaboration = activeSession?.collaboration;
-  const sourceBacked = !!activeSession && "workspaceId" in activeSession &&
-    !!activeSession.workspaceId;
+  const sourceBacked = isSourceBackedCanvasSession(activeSession);
   const isCollaborationReadOnly =
     !!activeCollaboration &&
     (!collaborationSnapshot.canEdit ||

@@ -3,6 +3,7 @@ import { useShallow } from "zustand/react/shallow";
 import { useBlackboardRuntime } from "@/domains/blackboard/public";
 import { isBlackboardRoute, isLocalBlackboardReaderRoute } from "./blackboardRoute";
 import { useCanvasRuntime, useCanvasState } from "@/domains/canvas/public";
+import { isSourceBackedCanvasSession } from "@/domains/sessions/public";
 import { createBlackboardWorkspaceTarget } from "./blackboardWorkspaceTarget";
 
 type BlackboardModeStatus =
@@ -16,8 +17,7 @@ export const useBlackboardWorkspace = ({ enabled = true }: { enabled?: boolean }
     const session = state.canvasSessions.find(
       (candidate) => candidate.id === state.activeCanvasId,
     );
-    return session?.mode === "blackboard" ||
-        (session?.mode === "slide" && session.workspaceId)
+    return isSourceBackedCanvasSession(session)
       ? { activeSessionId: session.id, activeWorkspaceId: session.workspaceId }
       : { activeSessionId: null, activeWorkspaceId: null };
   }));

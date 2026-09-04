@@ -1,6 +1,5 @@
 import { Awareness } from "y-protocols/awareness";
 import { IndexeddbPersistence } from "y-indexeddb";
-import { WebrtcProvider } from "y-webrtc";
 import { WebsocketProvider } from "y-websocket";
 import type * as Y from "yjs";
 import {
@@ -48,15 +47,9 @@ const DEFAULT_DEPENDENCIES: CollaborationRuntimeDependencies = {
     new IndexeddbPersistence(await getCollaborationPersistenceName(descriptor), doc),
   createAwareness: (doc) => new Awareness(doc) as unknown as CollaborationAwareness,
   createProvider: (descriptor, doc, awareness) =>
-    (descriptor.provider === "p2p"
-      ? new WebrtcProvider(getCollaborationRoomName(descriptor), doc, {
-          password: descriptor.key,
-          awareness: awareness as unknown as Awareness,
-          maxConns: 8,
-        })
-      : new WebsocketProvider(descriptor.endpoint, getCollaborationRoomName(descriptor), doc, {
-          awareness: awareness as unknown as Awareness,
-        })) as unknown as NetworkProviderAdapter,
+    new WebsocketProvider(descriptor.endpoint, getCollaborationRoomName(descriptor), doc, {
+      awareness: awareness as unknown as Awareness,
+    }) as unknown as NetworkProviderAdapter,
 };
 
 const MAX_INTEGRITY_ISSUES = 50;
@@ -99,7 +92,6 @@ class CollaborationSession {
   private persistence: PersistenceAdapter | null = null;
   private awareness: CollaborationAwareness | null = null;
   private metaObserver: (() => void) | null = null;
-  private peerCount = 0;
   private providerSynced = false;
   private awaitingInitialRemote = false;
   private remoteHostReady = false;
@@ -157,7 +149,6 @@ class CollaborationSession {
       awareness.on("change", () => {
         if (this.disposed) return;
         const { peers, issues } = readCollaborationPeers(awareness, this.descriptor.mode);
-        this.peerCount = peers.length;
         this.remoteHostReady = peers.some(
           (peer) => peer.role === "host" && peer.documentReady === true
         );
@@ -210,35 +201,6 @@ class CollaborationSession {
   private connectProvider(awareness: CollaborationAwareness) {
     const provider = this.dependencies.createProvider(this.descriptor, this.doc, awareness);
     this.provider = provider;
-    if (this.descriptor.provider === "p2p") {
-      provider.on("peers", (event) => {
-        if (this.disposed) return;
-        const { webrtcPeers, bcPeers } = event as { webrtcPeers: string[]; bcPeers: string[] };
-        this.peerCount = webrtcPeers.length + bcPeers.length;
-        this.publish({
-          connectionStatus: this.peerCount > 0 ? "online" : "waiting-for-peer",
-        });
-        this.publishInitialRemoteReady();
-      });
-      provider.on("status", (event) => {
-        if (this.disposed) return;
-        const { connected } = event as { connected: boolean };
-        this.publish({
-          connectionStatus: connected
-            ? this.peerCount > 0 ? "online" : "waiting-for-peer"
-            : "offline",
-        });
-      });
-      provider.on("synced", (event) => {
-        const { synced } = event as { synced: boolean };
-        if (this.disposed || !synced) return;
-        this.providerSynced = true;
-        this.publishPresence();
-        this.publishInitialRemoteReady();
-      });
-      return;
-    }
-
     provider.on("status", (event) => {
       if (this.disposed) return;
       const { status } = event as { status: "connected" | "disconnected" | "connecting" };

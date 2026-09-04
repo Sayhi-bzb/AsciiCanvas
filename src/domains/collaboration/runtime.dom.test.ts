@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 import type { CollaborationDescriptorV6 } from "./model";
 import { getCollaborationRoomName } from "./document";
@@ -71,6 +71,22 @@ const descriptor = (
   endpoint,
 });
 
+beforeEach(() => {
+  const values = new Map<string, string>();
+  vi.stubGlobal("localStorage", {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => values.set(key, value),
+    removeItem: (key: string) => values.delete(key),
+    clear: () => values.clear(),
+    key: (index: number) => [...values.keys()][index] ?? null,
+    get length() { return values.size; },
+  } satisfies Storage);
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
 describe("collaboration document contract", () => {
   it("isolates local room caches by endpoint and key without exposing the key", async () => {
     const first = await getCollaborationPersistenceName(
@@ -93,23 +109,11 @@ describe("collaboration document contract", () => {
 
   it("uses isolated CharDesk V6 namespaces", async () => {
     const current = descriptor("wss://one.example.com");
-    const currentP2p: CollaborationDescriptorV6 = {
-      version: 6,
-      documentVersion: 6,
-      mode: current.mode,
-      provider: "p2p",
-      roomId: current.roomId,
-      key: current.key,
-    };
-
     expect(await getCollaborationPersistenceName(current)).toMatch(
       /^chardesk-room-v6:/
     );
     expect(getCollaborationRoomName(current)).toBe(
       `chardesk-v6-${current.roomId}-${current.key}`
-    );
-    expect(getCollaborationRoomName(currentP2p)).toBe(
-      `chardesk-v6-${currentP2p.roomId}`
     );
   });
 

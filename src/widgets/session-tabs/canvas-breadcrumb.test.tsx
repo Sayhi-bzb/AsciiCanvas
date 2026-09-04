@@ -148,9 +148,10 @@ describe("CanvasBreadcrumb", () => {
                   version: 6,
                   documentVersion: 6,
                   mode: "structured",
-                  provider: "p2p",
+                  provider: "websocket",
                   roomId: "room-id-1234567890",
                   key: "room-key-1234567890123456789012345678901234567890",
+                  endpoint: "wss://sync.example.com",
                 },
               }
             : session

@@ -50,6 +50,10 @@ use Registry focus as an implicit write target.
 - Blackboard: source-tree transaction -> shared compiler -> derived Canvas surface.
   Invalid source remains stored while the last valid surface stays mounted. Human
   Canvas commands never write back to source files.
+- Blackboard directory import: selected source tree -> shared compiler -> canonical
+  `.chardesk` envelope -> ordinary editable Freeform or Slide session. This is a
+  detached snapshot: it retains rendered content and Slide page order, not source
+  paths, drafts, or the manifest topology.
 - Blackboard site tool: active page workspace -> protocol-neutral namespaced command -> source
   repository. Explicit workspace IDs remain a compatibility override. Creation and opening bind
   the page URL, Canvas session, and IndexedDB workspace before later file calls omit identity.
@@ -86,9 +90,9 @@ sessions persist only their catalog shell and descriptor; room content is restor
 collaboration persistence and never copied into local session persistence.
 The catalog records whether a collaborating session is the local host or a guest. A guest with
 no cached room content remains in `joining` and cannot edit until transport sync and a
-host-ready presence handshake both arrive. The default transport is a user-owned, memory-only Yjs WebSocket service;
-P2P is experimental. The browser remembers the preferred endpoint, while each room link carries
-the endpoint needed by guests.
+host-ready presence handshake both arrive. The transport is a user-owned, memory-only Yjs WebSocket
+service. The browser remembers the preferred endpoint, while each room link carries the endpoint
+needed by guests.
 Collaboration V6 derives one shared document and main-page identity from the room id;
 local session ids remain catalog-only and never name shared Yjs pages. Starting or joining a
 room rehomes the single local page to that shared identity before transport connects. Older

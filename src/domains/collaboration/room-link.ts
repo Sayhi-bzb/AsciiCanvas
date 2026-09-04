@@ -38,30 +38,20 @@ export const validateCollaborationEndpoint = (value: string) => {
 
 export const createCollaborationDescriptor = (
   mode: CollaborationCanvasMode,
-  endpoint?: string
+  endpoint: string
 ): CollaborationDescriptorV6 => {
   const roomId = randomToken(16);
   const key = randomToken(32);
-  if (endpoint) {
-    const normalizedEndpoint = validateCollaborationEndpoint(endpoint);
-    if (!normalizedEndpoint) throw new Error("Invalid collaboration endpoint");
-    return {
-      version: 6,
-      documentVersion: COLLABORATION_DOCUMENT_VERSION,
-      mode,
-      provider: "websocket",
-      roomId,
-      key,
-      endpoint: normalizedEndpoint,
-    };
-  }
+  const normalizedEndpoint = validateCollaborationEndpoint(endpoint);
+  if (!normalizedEndpoint) throw new Error("Invalid collaboration endpoint");
   return {
     version: 6,
     documentVersion: COLLABORATION_DOCUMENT_VERSION,
     mode,
-    provider: "p2p",
+    provider: "websocket",
     roomId,
     key,
+    endpoint: normalizedEndpoint,
   };
 };
 
@@ -74,7 +64,7 @@ export const isCollaborationDescriptor = (
     candidate.version !== 6 ||
     candidate.documentVersion !== COLLABORATION_DOCUMENT_VERSION ||
     (candidate.mode !== "freeform" && candidate.mode !== "structured") ||
-    (candidate.provider !== "p2p" && candidate.provider !== "websocket") ||
+    candidate.provider !== "websocket" ||
     typeof candidate.roomId !== "string" ||
     candidate.roomId.length < 16 ||
     !TOKEN_PATTERN.test(candidate.roomId) ||
@@ -82,10 +72,8 @@ export const isCollaborationDescriptor = (
     candidate.key.length < 40 ||
     !TOKEN_PATTERN.test(candidate.key)
   ) return false;
-  return candidate.provider === "p2p"
-    ? candidate.endpoint === undefined
-    : typeof candidate.endpoint === "string" &&
-        validateCollaborationEndpoint(candidate.endpoint) === candidate.endpoint;
+  return typeof candidate.endpoint === "string" &&
+    validateCollaborationEndpoint(candidate.endpoint) === candidate.endpoint;
 };
 
 export const getCollaborationDocumentId = (
@@ -139,6 +127,14 @@ export const parseCollaborationUrl = (
     if (isCollaborationDescriptor(descriptor)) {
       return { status: "valid", descriptor };
     }
+    if (
+      descriptor &&
+      typeof descriptor === "object" &&
+      (descriptor as { version?: unknown }).version === 6 &&
+      (descriptor as { provider?: unknown }).provider === "p2p"
+    ) {
+      return { status: "retired", provider: "p2p" };
+    }
     if (descriptor && typeof descriptor === "object" && "version" in descriptor) {
       const version = (descriptor as { version?: unknown }).version;
       return {
@@ -164,5 +160,4 @@ export const sameCollaborationRoom = (
   left.key === right.key &&
   left.mode === right.mode &&
   left.documentVersion === right.documentVersion &&
-  (left.provider !== "websocket" ||
-    (right.provider === "websocket" && left.endpoint === right.endpoint));
+  left.endpoint === right.endpoint;
