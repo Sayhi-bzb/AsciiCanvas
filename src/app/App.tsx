@@ -138,13 +138,16 @@ function PhoneSidebarTrigger() {
 function SplitViewCommandRegistration() {
   const editor = useEditor();
   const { splitEnabled, setSplitEnabled } = useCanvasWorkspace();
+  const { viewportFrame } = useEditorChromeLayout();
+  const splitAvailable = viewportFrame.width === 0 || viewportFrame.width >= 640;
   useEffect(() => editor.commands.register('app.chrome', {
     id: 'ui.toggle-split-view',
     execute: () => {
+      if (!splitAvailable) return { handled: false, status: 'unhandled' };
       setSplitEnabled(!splitEnabled);
       return { handled: true, status: 'succeeded' };
     },
-  }), [editor, setSplitEnabled, splitEnabled]);
+  }), [editor, setSplitEnabled, splitAvailable, splitEnabled]);
   return null;
 }
 
@@ -254,14 +257,14 @@ function CanvasPaneContent({
       {view.loadState === 'loading' ? (
         <div
           data-testid={`canvas-view-loading-${view.viewId}`}
-          className="pointer-events-auto absolute inset-0 z-(--layer-controls) cursor-progress bg-transparent"
+          className="pointer-events-auto absolute inset-0 z-(--layer-canvas-interaction) cursor-progress bg-transparent"
         />
       ) : null}
       {view.loadState === 'error' && view.loadError ? (
         <div
           data-canvas-ui="true"
           role="status"
-          className="pointer-events-none absolute left-1/2 top-(--editor-safe-top) z-(--layer-controls) -translate-x-1/2 rounded-md bg-background/90 px-2 py-1 shadow-sm"
+          className="pointer-events-none absolute left-1/2 top-(--editor-safe-top) z-(--layer-contextual) -translate-x-1/2 rounded-md bg-background/90 px-2 py-1 shadow-sm"
         >
           <StatusText tone="error" className="whitespace-nowrap text-xs">
             {view.loadError}
@@ -273,7 +276,7 @@ function CanvasPaneContent({
           <div
             data-canvas-ui="true"
             data-testid="canvas-session-selector-secondary"
-            className="pointer-events-auto absolute left-(--editor-chrome-inset) top-(--editor-safe-top) z-(--layer-controls) max-w-[min(14rem,calc(100%-1rem))]"
+            className="pointer-events-auto absolute left-(--editor-chrome-inset) top-(--editor-safe-top) z-(--layer-chrome) max-w-[min(14rem,calc(100%-1rem))]"
           >
             <BoundCanvasSessionSelector
               manageSessions={manageSessions}
@@ -382,8 +385,8 @@ function AppContent() {
   const showHostWidgets = isWidgetVisible('host');
   const workspace = useCanvasWorkspace();
   const activeView = useActiveCanvasView();
-  const renderSplit =
-    workspace.splitEnabled && (viewportFrame.width === 0 || viewportFrame.width >= 640);
+  const splitAvailable = viewportFrame.width === 0 || viewportFrame.width >= 640;
+  const renderSplit = workspace.splitEnabled && splitAvailable;
   const hostedSelectorViewId: CanvasViewId = renderSplit ? 'primary' : activeView.viewId;
   const {
     tool,
@@ -497,7 +500,10 @@ function AppContent() {
             <div data-testid="app-primary-control-stack" className="relative size-8 flex-none">
               <div inert={!capabilities.manageSessions || undefined}>
                 <EditorWidget role="essential">
-                  <AppMenu />
+                  <AppMenu
+                    formFactor={formFactor}
+                    splitAvailable={splitAvailable}
+                  />
                 </EditorWidget>
               </div>
               <EditorWidget role="host">

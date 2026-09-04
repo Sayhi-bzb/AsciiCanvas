@@ -116,6 +116,7 @@ describe("OnboardingTourProvider", () => {
 
     expect(driverMock.factory).toHaveBeenCalledOnce();
     expect(driverMock.api.drive).toHaveBeenCalledOnce();
+    expect(driverMock.getConfig().allowKeyboardControl).toBe(true);
     expect(driverMock.getSteps()).toHaveLength(8);
     expect(driverMock.getSteps()[1].element).toBe(
       '[data-onboarding-target="character-library"]'

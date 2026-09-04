@@ -20,7 +20,7 @@ export function CollaborationJoiningOverlay() {
     <div
       data-canvas-ui="true"
       data-testid="collaboration-joining"
-      className="pointer-events-auto absolute inset-0 z-(--layer-controls) grid place-items-center bg-background"
+      className="pointer-events-auto absolute inset-0 z-(--layer-contextual) grid place-items-center bg-background"
       role="status"
       aria-live="polite"
       aria-busy={!offline}

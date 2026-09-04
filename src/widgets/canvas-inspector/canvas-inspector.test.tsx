@@ -121,7 +121,7 @@ describe("CanvasInspectorControl", () => {
     expect(screen.getByTestId("canvas-inspector-panel")).toBeVisible();
   });
 
-  it("starts collapsed on phone and adopts a resolved form factor before user input", () => {
+  it("starts expanded on desktop and collapsed on phone by product policy", () => {
     useEditorStore.setState({ canvasMode: "structured", tool: "select" });
     const view = render(<Inspector formFactor="desktop" />);
     expect(screen.getByTestId("canvas-inspector-panel")).toBeVisible();

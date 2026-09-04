@@ -130,6 +130,115 @@ describe('CharLibrary', () => {
     expect(starButton).toHaveTextContent('★');
   });
 
+  it('uses one tab stop and arrow keys to navigate a character collection', () => {
+    useLibraryStore.setState({
+      packs: {},
+      packStatus: { essentials: 'ready', nerd: 'ready', emoji: 'ready' },
+      packErrors: {},
+      searchQueries: { essentials: 'marks', nerd: '', emoji: '' },
+      searchResults: {
+        essentials: [
+          {
+            id: 'one',
+            grapheme: '!',
+            name: 'first mark',
+            aliases: [],
+            category: 'Po',
+            script: 'Common',
+            coverage: 2,
+            insertable: true,
+          },
+          {
+            id: 'two',
+            grapheme: '?',
+            name: 'second mark',
+            aliases: [],
+            category: 'Po',
+            script: 'Common',
+            coverage: 2,
+            insertable: true,
+          },
+          {
+            id: 'three',
+            grapheme: '‽',
+            name: 'third mark',
+            aliases: [],
+            category: 'Po',
+            script: 'Common',
+            coverage: 2,
+            insertable: true,
+          },
+        ],
+        nerd: [],
+        emoji: [],
+      },
+    });
+
+    render(
+      <SidebarProvider>
+        <CharLibrary view="essentials" />
+      </SidebarProvider>
+    );
+
+    const first = screen.getByRole('button', { name: /first mark/i });
+    const second = screen.getByRole('button', { name: /second mark/i });
+    const third = screen.getByRole('button', { name: /third mark/i });
+    expect(first).toHaveAttribute('tabindex', '0');
+    expect(second).toHaveAttribute('tabindex', '-1');
+    expect(third).toHaveAttribute('tabindex', '-1');
+    expect(screen.getByRole('group', { name: 'Character palette' })).toHaveAccessibleDescription(
+      /Use the arrow keys/
+    );
+
+    first.focus();
+    fireEvent.keyDown(first, { key: 'ArrowRight' });
+    expect(second).toHaveFocus();
+    expect(second).toHaveAttribute('tabindex', '0');
+
+    fireEvent.keyDown(second, { key: 'End' });
+    expect(third).toHaveFocus();
+    fireEvent.keyDown(third, { key: 'Home' });
+    expect(first).toHaveFocus();
+
+    vi.spyOn(first, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 0,
+      width: 28,
+      height: 28,
+      right: 28,
+      bottom: 28,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+    vi.spyOn(second, 'getBoundingClientRect').mockReturnValue({
+      left: 30,
+      top: 0,
+      width: 28,
+      height: 28,
+      right: 58,
+      bottom: 28,
+      x: 30,
+      y: 0,
+      toJSON: () => ({}),
+    });
+    vi.spyOn(third, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 30,
+      width: 28,
+      height: 28,
+      right: 28,
+      bottom: 58,
+      x: 0,
+      y: 30,
+      toJSON: () => ({}),
+    });
+    fireEvent.keyDown(first, { key: 'ArrowDown' });
+    expect(third).toHaveFocus();
+    fireEvent.keyDown(third, { key: 'ArrowUp' });
+    expect(first).toHaveFocus();
+  });
+
   it('shows an inline error icon without opening feedback UI', async () => {
     vi.useFakeTimers();
     vi.mocked(writeClipboardPayload).mockResolvedValue(false);

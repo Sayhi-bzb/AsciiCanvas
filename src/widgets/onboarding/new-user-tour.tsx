@@ -297,7 +297,7 @@ export function OnboardingTourProvider({
         doneBtnText: tRef.current("onboarding.done"),
         allowClose: true,
         allowScroll: false,
-        allowKeyboardControl: false,
+        allowKeyboardControl: true,
         overlayClickBehavior: () => undefined,
         onCloseClick: () => endTour("dismissed"),
         onDestroyed: cleanRuntime,

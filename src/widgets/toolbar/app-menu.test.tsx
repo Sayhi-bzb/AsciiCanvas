@@ -182,6 +182,7 @@ describe('AppMenu document interchange', () => {
 
     fireEvent.keyDown(document, { key: 'Escape' });
     await waitFor(() => expect(trigger).toHaveFocus());
+
   });
 
   it('keeps document I/O out of the app menu and exposes Clear canvas directly', async () => {
@@ -216,6 +217,46 @@ describe('AppMenu document interchange', () => {
     await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
     fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false });
     expect(await screen.findByRole('menuitem', { name: 'Close split' })).toBeInTheDocument();
+  });
+
+  it('hides unavailable split view and opens the touch guide on phone', async () => {
+    act(() => setUiLanguage('en'));
+    render(
+      <OnboardingTourContext.Provider
+        value={{ phase: 'idle', canStart: false, requestStart: vi.fn() }}
+      >
+        <CanvasWorkspaceProvider>
+          <AppMenu formFactor="phone" splitAvailable={false} />
+        </CanvasWorkspaceProvider>
+      </OnboardingTourContext.Provider>
+    );
+
+    const trigger = screen.getByRole('button', { name: 'Open menu' });
+    fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false });
+    expect(screen.queryByRole('menuitem', { name: 'Split' })).not.toBeInTheDocument();
+
+    const helpItem = await screen.findByRole('menuitem', { name: 'Help' });
+    fireEvent.pointerMove(helpItem, { pointerType: 'mouse' });
+    await waitFor(() => expect(helpItem).toHaveAttribute('data-state', 'open'));
+    const guideItem = await screen.findByRole('menuitem', { name: 'Guide' });
+    expect(guideItem).not.toHaveAttribute('aria-disabled', 'true');
+    fireEvent.click(guideItem);
+
+    expect(
+      await screen.findByRole('heading', { name: 'Using the canvas on touch' })
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Pinch with two fingers/)).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await waitFor(() => expect(trigger).toHaveFocus());
+
+    act(() => setUiLanguage('zh'));
+    fireEvent.pointerDown(trigger, { button: 0, ctrlKey: false });
+    const chineseHelpItem = await screen.findByRole('menuitem', { name: '帮助' });
+    fireEvent.pointerMove(chineseHelpItem, { pointerType: 'mouse' });
+    await waitFor(() => expect(chineseHelpItem).toHaveAttribute('data-state', 'open'));
+    fireEvent.click(await screen.findByRole('menuitem', { name: '引导' }));
+    expect(await screen.findByRole('heading', { name: '在触屏上使用画布' })).toBeInTheDocument();
   });
 
   it('starts the guide after closing the menu and opens documentation externally', async () => {

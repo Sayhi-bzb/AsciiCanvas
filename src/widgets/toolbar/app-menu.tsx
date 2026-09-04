@@ -21,7 +21,10 @@ import { APP_SOURCE_URL } from "@/shared/lib/constants";
 import { useGitHubStars } from "./use-github-stars";
 import { useCanvasWorkspaceOptional } from "@/widgets/canvas-editor/engine/CanvasWorkspace";
 import { useOnboardingTour } from "@/widgets/onboarding/onboarding-context";
-import { useEditorPresentation } from "@/widgets/editor-chrome/public";
+import {
+  useEditorPresentation,
+  type EditorFormFactor,
+} from "@/widgets/editor-chrome/public";
 import { RecoverableLazyBoundary } from "@/shared/components/RecoverableLazyBoundary";
 import { requireLoadedModule } from "@/shared/lib/moduleLoadRecovery";
 
@@ -45,8 +48,17 @@ const SettingsDialog = lazy(() =>
     default: requireLoadedModule(loaded).SettingsDialog,
   }))
 );
+const MobileGuideDialog = lazy(() => import("@/widgets/dialogs/mobile-guide-dialog"));
 
-export function AppMenu() {
+type AppMenuProps = {
+  formFactor?: EditorFormFactor;
+  splitAvailable?: boolean;
+};
+
+export function AppMenu({
+  formFactor = "desktop",
+  splitAvailable = true,
+}: AppMenuProps = {}) {
   const canvas = useCanvasRuntime();
   const workspace = useCanvasWorkspaceOptional();
   const { mode, setMode } = useEditorPresentation();
@@ -57,6 +69,7 @@ export function AppMenu() {
     useOnboardingTour();
   const [clearOpen, setClearOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [mobileGuideOpen, setMobileGuideOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const githubStars = useGitHubStars(APP_SOURCE_URL, menuOpen);
   const formattedGitHubStars = useMemo(
@@ -106,7 +119,7 @@ export function AppMenu() {
                 aria-label={t("appMenu.open")}
               >
                 <DropdownMenuGroup>
-                  {workspace && (
+                  {workspace && splitAvailable && (
                     <DropdownMenuItem
                       onSelect={() => {
                         setMenuOpen(false);
@@ -161,11 +174,17 @@ export function AppMenu() {
                     <DropdownMenuSubContent className="w-48" aria-label={t("appMenu.help")}>
                       <DropdownMenuGroup>
                         <DropdownMenuItem
-                          disabled={!canStartTour}
+                          disabled={formFactor !== "phone" && !canStartTour}
                           onSelect={() => {
                             setMenuOpen(false);
                             if (zenMode) setMode("standard");
-                            window.setTimeout(requestTourStart, 0);
+                            window.setTimeout(() => {
+                              if (formFactor === "phone") {
+                                setMobileGuideOpen(true);
+                              } else {
+                                requestTourStart();
+                              }
+                            }, 0);
                           }}
                         >
                           <GuideIcon />
@@ -198,10 +217,11 @@ export function AppMenu() {
       </div>
 
       <RecoverableLazyBoundary
-        resetKey={`${clearOpen}:${settingsOpen}`}
+        resetKey={`${clearOpen}:${settingsOpen}:${mobileGuideOpen}`}
         onError={() => {
           setClearOpen(false);
           setSettingsOpen(false);
+          setMobileGuideOpen(false);
         }}
       >
         <Suspense fallback={null}>
@@ -221,6 +241,17 @@ export function AppMenu() {
               open={settingsOpen}
               onOpenChange={(open) => {
                 setSettingsOpen(open);
+                if (!open) {
+                  window.setTimeout(() => menuTriggerRef.current?.focus(), 0);
+                }
+              }}
+            />
+          )}
+          {mobileGuideOpen && (
+            <MobileGuideDialog
+              open={mobileGuideOpen}
+              onOpenChange={(open) => {
+                setMobileGuideOpen(open);
                 if (!open) {
                   window.setTimeout(() => menuTriggerRef.current?.focus(), 0);
                 }

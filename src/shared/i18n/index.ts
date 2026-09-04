@@ -17,6 +17,21 @@ const messages = {
     'appMenu.help': 'Help',
     'appMenu.guide': 'Guide',
     'appMenu.documentation': 'Documentation',
+    'mobileGuide.title': 'Using the canvas on touch',
+    'mobileGuide.description':
+      'The same canvas adapts to touch without hiding its core tools.',
+    'mobileGuide.tools.title': 'Choose an action',
+    'mobileGuide.tools.description':
+      'The active tool controls what one finger does. Choose Select, Brush, Eraser, or Hand from the bottom toolbar.',
+    'mobileGuide.navigate.title': 'Move and zoom',
+    'mobileGuide.navigate.description':
+      'Choose Hand to move with one finger. Pinch with two fingers to move and zoom together.',
+    'mobileGuide.library.title': 'Add content',
+    'mobileGuide.library.description':
+      'Open the right sidebar to browse the characters, components, or slides available in the current canvas mode.',
+    'mobileGuide.recover.title': 'Undo a change',
+    'mobileGuide.recover.description':
+      'Use Undo in the bottom toolbar to reverse the latest editable change.',
     'appMenu.github': 'GitHub',
     'appMenu.project': 'CharDesk',
     'moduleLoad.failed': 'Interface failed to load',
@@ -165,6 +180,9 @@ const messages = {
     'character.view.emoji': 'Emoji',
     'character.view.unicode': 'Unicode',
     'character.search.label': 'Search characters',
+    'character.collection': 'Character palette',
+    'character.keyboardHint':
+      'Use the arrow keys to move between characters. Press Enter or Space to copy.',
     'character.search.unicodePlaceholder': 'Name, character, or U+ code',
     'character.search.currentPlaceholder': 'Search current view',
     'character.search.allUnicode': 'Search all Unicode',
@@ -547,6 +565,19 @@ const messages = {
     'appMenu.help': '帮助',
     'appMenu.guide': '引导',
     'appMenu.documentation': '文档',
+    'mobileGuide.title': '在触屏上使用画布',
+    'mobileGuide.description': '同一张画布会适配触控，同时保留核心工具。',
+    'mobileGuide.tools.title': '选择操作',
+    'mobileGuide.tools.description':
+      '当前工具决定单指操作。你可以从底部工具栏选择“选择”“画笔”“橡皮擦”或“手形工具”。',
+    'mobileGuide.navigate.title': '移动与缩放',
+    'mobileGuide.navigate.description':
+      '选择手形工具后可用单指移动画布；双指捏合可以同时移动和缩放。',
+    'mobileGuide.library.title': '添加内容',
+    'mobileGuide.library.description':
+      '打开右侧栏，浏览当前画布模式可用的字符、组件或幻灯片。',
+    'mobileGuide.recover.title': '撤销更改',
+    'mobileGuide.recover.description': '使用底部工具栏的“撤销”，恢复最近一次可编辑更改。',
     'appMenu.github': 'GitHub',
     'appMenu.project': 'CharDesk',
     'moduleLoad.failed': '界面加载失败',
@@ -695,6 +726,8 @@ const messages = {
     'character.view.emoji': 'Emoji',
     'character.view.unicode': 'Unicode',
     'character.search.label': '搜索字符',
+    'character.collection': '字符面板',
+    'character.keyboardHint': '使用方向键在字符之间移动，按回车键或空格键复制。',
     'character.search.unicodePlaceholder': '名称、字符或 U+ 编码',
     'character.search.currentPlaceholder': '搜索当前视图',
     'character.search.allUnicode': '搜索全部 Unicode',

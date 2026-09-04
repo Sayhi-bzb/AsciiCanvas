@@ -81,7 +81,7 @@ function TemporaryWorkspaceAlert({
     <div
       data-canvas-ui="true"
       data-testid="temporary-canvas-alert"
-      className="pointer-events-auto absolute left-1/2 top-(--editor-safe-top) z-(--layer-controls) w-[min(28rem,calc(100%-2rem))] -translate-x-1/2"
+      className="pointer-events-auto absolute left-1/2 top-(--editor-safe-top) z-(--layer-contextual) w-[min(28rem,calc(100%-2rem))] -translate-x-1/2"
     >
       <Alert>
         <AlertTriangle aria-hidden="true" />

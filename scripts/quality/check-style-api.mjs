@@ -7,6 +7,7 @@ const SRC_DIR = join(ROOT, "src");
 const CHARGRAPH_SRC_DIR = join(ROOT, "apps", "chargraph", "src");
 const DOCS_APP_DIR = join(ROOT, "apps", "docs", "app");
 const UI_SRC_DIR = join(ROOT, "packages", "ui", "src");
+const UI_THEME_PATH = join(ROOT, "packages", "ui", "theme.css");
 const TARGET_EXTENSIONS = new Set([".ts", ".tsx"]);
 
 const checks = [
@@ -347,6 +348,11 @@ const isAllowedPath = (filePath, allowList) => {
 
 const violations = [];
 const files = [...walk(SRC_DIR), ...walk(CHARGRAPH_SRC_DIR), ...walk(UI_SRC_DIR)];
+const declaredLayerTokens = new Set(
+  [...readFileSync(UI_THEME_PATH, "utf8").matchAll(/(--layer-[a-z-]+)\s*:/g)].map(
+    (match) => match[1]
+  )
+);
 
 for (const filePath of files) {
   const content = readFileSync(filePath, "utf8");
@@ -381,6 +387,15 @@ for (const filePath of files) {
   }
 
   checkWidgetBehaviorOwnership(content, relFile);
+
+  for (const match of content.matchAll(/--layer-[a-z-]+/g)) {
+    if (declaredLayerTokens.has(match[0])) continue;
+    violations.push({
+      check: `Viewport layer token must be declared in packages/ui/theme.css: ${match[0]}`,
+      file: relFile,
+      line: lineFromIndex(content, match.index ?? 0),
+    });
+  }
 }
 
 const chargraphStylesheetPath = join(CHARGRAPH_SRC_DIR, "index.css");

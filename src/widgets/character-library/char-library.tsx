@@ -1,6 +1,15 @@
 'use client';
 
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+} from 'react';
 import { Check, ChevronRight, Loader2, RefreshCcw, X } from 'lucide-react';
 import { writeClipboardPayload } from '@/domains/actions/public';
 import { useCanvasState } from '@/domains/canvas/public';
@@ -128,11 +137,19 @@ function CharButton({
   entry,
   feedbackStatus,
   onClick,
+  onFocus,
+  onKeyDown,
+  buttonRef,
+  tabIndex,
   tooltipHandle,
 }: {
   entry: CharacterRecord;
   feedbackStatus: CopyFeedback['status'] | null;
   onClick: (entry: CharacterRecord) => void;
+  onFocus: (entry: CharacterRecord) => void;
+  onKeyDown: (event: KeyboardEvent<HTMLButtonElement>, entry: CharacterRecord) => void;
+  buttonRef: (node: HTMLButtonElement | null) => void;
+  tabIndex: number;
   tooltipHandle: TooltipHandle<string>;
 }) {
   const { t } = useUiI18n();
@@ -157,6 +174,7 @@ function CharButton({
       disabled={unavailable}
       render={
         <IconButton
+          ref={buttonRef}
           type="button"
           size="sm"
           feedback={feedbackStatus ?? undefined}
@@ -165,6 +183,9 @@ function CharButton({
           data-copy-feedback={feedbackStatus ?? undefined}
           disabled={unavailable}
           onClick={() => onClick(entry)}
+          onFocus={() => onFocus(entry)}
+          onKeyDown={(event) => onKeyDown(event, entry)}
+          tabIndex={unavailable ? -1 : tabIndex}
           className="shrink-0"
         />
       }
@@ -217,11 +238,96 @@ function CharacterGrid({
 }) {
   const { t } = useUiI18n();
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [activeEntryKey, setActiveEntryKey] = useState<string | null>(null);
+  const buttonRefs = useRef(new Map<string, HTMLButtonElement>());
+  const keyboardHintId = useId();
   const tooltipHandle = useMemo(() => TooltipCreateHandle<string>(), []);
   const visibleEntries = paged ? entries.slice(0, visibleCount) : entries;
+  const focusableEntries = visibleEntries.filter((entry) => entry.insertable);
+  const focusableEntryKeys = focusableEntries.map(getCharacterEntryKey);
+  const resolvedActiveEntryKey =
+    activeEntryKey && focusableEntryKeys.includes(activeEntryKey)
+      ? activeEntryKey
+      : (focusableEntryKeys[0] ?? null);
+
+  useEffect(() => {
+    if (activeEntryKey !== resolvedActiveEntryKey) {
+      setActiveEntryKey(resolvedActiveEntryKey);
+    }
+  }, [activeEntryKey, resolvedActiveEntryKey]);
+
+  const registerButton = useCallback((entryKey: string, node: HTMLButtonElement | null) => {
+    if (node) buttonRefs.current.set(entryKey, node);
+    else buttonRefs.current.delete(entryKey);
+  }, []);
+
+  const moveFocus = useCallback(
+    (event: KeyboardEvent<HTMLButtonElement>, entry: CharacterRecord) => {
+      const currentKey = getCharacterEntryKey(entry);
+      const currentIndex = focusableEntryKeys.indexOf(currentKey);
+      if (currentIndex === -1) return;
+
+      let nextIndex: number | null = null;
+      if (event.key === 'Home') nextIndex = 0;
+      else if (event.key === 'End') nextIndex = focusableEntryKeys.length - 1;
+      else if (event.key === 'ArrowLeft') nextIndex = Math.max(0, currentIndex - 1);
+      else if (event.key === 'ArrowRight') {
+        nextIndex = Math.min(focusableEntryKeys.length - 1, currentIndex + 1);
+      } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+        const currentButton = buttonRefs.current.get(currentKey);
+        const currentRect = currentButton?.getBoundingClientRect();
+        if (currentRect && (currentRect.width > 0 || currentRect.height > 0)) {
+          const direction = event.key === 'ArrowDown' ? 1 : -1;
+          const currentCenterX = currentRect.left + currentRect.width / 2;
+          const currentCenterY = currentRect.top + currentRect.height / 2;
+          const candidate = focusableEntryKeys
+            .map((key, index) => {
+              const rect = buttonRefs.current.get(key)?.getBoundingClientRect();
+              if (!rect || index === currentIndex) return null;
+              const centerY = rect.top + rect.height / 2;
+              const rowDistance = (centerY - currentCenterY) * direction;
+              if (rowDistance <= 1) return null;
+              return {
+                index,
+                rowDistance,
+                columnDistance: Math.abs(rect.left + rect.width / 2 - currentCenterX),
+              };
+            })
+            .filter((value): value is NonNullable<typeof value> => value !== null)
+            .sort(
+              (left, right) =>
+                left.rowDistance - right.rowDistance ||
+                left.columnDistance - right.columnDistance
+            )[0];
+          nextIndex = candidate?.index ?? currentIndex;
+        } else {
+          nextIndex = event.key === 'ArrowDown'
+            ? Math.min(focusableEntryKeys.length - 1, currentIndex + 1)
+            : Math.max(0, currentIndex - 1);
+        }
+      }
+
+      if (nextIndex === null) return;
+      event.preventDefault();
+      const nextKey = focusableEntryKeys[nextIndex];
+      if (!nextKey) return;
+      setActiveEntryKey(nextKey);
+      buttonRefs.current.get(nextKey)?.focus();
+    },
+    [focusableEntryKeys]
+  );
+
   return (
     <>
-      <div className="flex flex-wrap gap-0.5 overflow-hidden py-1">
+      <p id={keyboardHintId} className="sr-only">
+        {t('character.keyboardHint')}
+      </p>
+      <div
+        role="group"
+        aria-label={t('character.collection')}
+        aria-describedby={keyboardHintId}
+        className="flex flex-wrap gap-0.5 overflow-hidden py-1"
+      >
         {visibleEntries.map((entry) => (
           <CharButton
             key={getCharacterEntryKey(entry)}
@@ -231,7 +337,14 @@ function CharacterGrid({
                 ? copyFeedback.status
                 : null
             }
-            onClick={onSelect}
+            onClick={(selectedEntry) => {
+              setActiveEntryKey(getCharacterEntryKey(selectedEntry));
+              onSelect(selectedEntry);
+            }}
+            onFocus={(focusedEntry) => setActiveEntryKey(getCharacterEntryKey(focusedEntry))}
+            onKeyDown={moveFocus}
+            buttonRef={(node) => registerButton(getCharacterEntryKey(entry), node)}
+            tabIndex={getCharacterEntryKey(entry) === resolvedActiveEntryKey ? 0 : -1}
             tooltipHandle={tooltipHandle}
           />
         ))}
