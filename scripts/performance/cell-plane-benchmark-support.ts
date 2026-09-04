@@ -1,4 +1,4 @@
-export const CELL_PLANE_BENCHMARK_SCHEMA = 2;
+export const CELL_PLANE_BENCHMARK_SCHEMA = 3;
 
 export const CELL_PLANE_PHASES = [
   "construct",
@@ -7,6 +7,7 @@ export const CELL_PLANE_PHASES = [
   "hotRenderPreparation",
   "append",
   "invalidatedProjection",
+  "invalidatedRenderPreparation",
 ] as const;
 
 export type CellPlanePhase = (typeof CELL_PLANE_PHASES)[number];
@@ -48,6 +49,9 @@ export interface CellPlaneBenchmarkResult {
     renderedCellCount: number;
     renderedGlyphCount: number;
     fillTextCalls: number;
+    invalidatedRenderedCellCount: number;
+    invalidatedRenderedGlyphCount: number;
+    invalidatedFillTextCalls: number;
     chunkCount: number;
     encodedPayloadBytes: number;
     residentBytes: number;
@@ -102,7 +106,7 @@ export function formatCellPlaneBenchmarkMarkdown(result: CellPlaneBenchmarkResul
       "",
       workload.description,
       "",
-      `Operations: ${workload.operationCount}; source cells: ${workload.sourceCellCount}; projected anchors: ${workload.projectedCellCount}; projection checksum: ${workload.projectionChecksum}; rendered cells: ${workload.renderedCellCount}; rendered glyphs: ${workload.renderedGlyphCount}; fillText calls: ${workload.fillTextCalls}; projected chunks: ${workload.chunkCount}; encoded payload: ${workload.encodedPayloadBytes} B; chunk cache: ${workload.residentBytes} B; total projection residency: ${workload.totalResidentBytes} B.`,
+      `Operations: ${workload.operationCount}; source cells: ${workload.sourceCellCount}; projected anchors: ${workload.projectedCellCount}; projection checksum: ${workload.projectionChecksum}; rendered cells: ${workload.renderedCellCount}; rendered glyphs: ${workload.renderedGlyphCount}; fillText calls: ${workload.fillTextCalls}; invalidated rendered cells: ${workload.invalidatedRenderedCellCount}; invalidated rendered glyphs: ${workload.invalidatedRenderedGlyphCount}; invalidated fillText calls: ${workload.invalidatedFillTextCalls}; projected chunks: ${workload.chunkCount}; encoded payload: ${workload.encodedPayloadBytes} B; chunk cache: ${workload.residentBytes} B; total projection residency: ${workload.totalResidentBytes} B.`,
       "",
       "| Phase | Min (ms) | Median (ms) | p95 (ms) | Samples |",
       "| --- | ---: | ---: | ---: | ---: |",

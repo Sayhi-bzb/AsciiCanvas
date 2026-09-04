@@ -54,6 +54,9 @@ describe("cell-plane benchmark support", () => {
           renderedCellCount: 10,
           renderedGlyphCount: 10,
           fillTextCalls: 10,
+          invalidatedRenderedCellCount: 10,
+          invalidatedRenderedGlyphCount: 10,
+          invalidatedFillTextCalls: 10,
           chunkCount: 1,
           encodedPayloadBytes: 50,
           residentBytes: 1600,
@@ -65,6 +68,7 @@ describe("cell-plane benchmark support", () => {
             hotRenderPreparation: distribution,
             append: distribution,
             invalidatedProjection: distribution,
+            invalidatedRenderPreparation: distribution,
           },
         },
       ],
@@ -74,5 +78,6 @@ describe("cell-plane benchmark support", () => {
     expect(markdown).toContain("# CellPlane performance measurement");
     expect(markdown).toContain("| coldProjection | 1.000 | 2.000 | 3.000 | 2 |");
     expect(markdown).toContain("Operations: 1; source cells: 100");
+    expect(markdown).toContain("invalidated rendered cells: 10");
   });
 });

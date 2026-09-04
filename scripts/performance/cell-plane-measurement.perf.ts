@@ -246,6 +246,9 @@ const measureWorkload = (
   let renderedCellCount = 0;
   let renderedGlyphCount = 0;
   let fillTextCalls = 0;
+  let invalidatedRenderedCellCount = 0;
+  let invalidatedRenderedGlyphCount = 0;
+  let invalidatedFillTextCalls = 0;
   let chunkCount = 0;
   let encodedPayloadBytes = 0;
   let residentBytes = 0;
@@ -302,6 +305,22 @@ const measureWorkload = (
     project(plane, workload.bounds);
     samples.invalidatedProjection.push(performance.now() - started);
 
+    renderProbe.reset();
+    started = performance.now();
+    const invalidatedRendered = render(
+      plane,
+      workload.bounds,
+      renderProbe.context,
+    );
+    samples.invalidatedRenderPreparation.push(performance.now() - started);
+    invalidatedRenderedCellCount = invalidatedRendered.cells;
+    invalidatedRenderedGlyphCount = invalidatedRendered.glyphs;
+    invalidatedFillTextCalls = renderProbe.getFillTextCalls();
+    digestSink ^=
+      invalidatedRenderedCellCount ^
+      invalidatedRenderedGlyphCount ^
+      invalidatedFillTextCalls;
+
     plane.dispose();
   }
 
@@ -311,6 +330,9 @@ const measureWorkload = (
     renderedCellCount,
     renderedGlyphCount,
     fillTextCalls,
+    invalidatedRenderedCellCount,
+    invalidatedRenderedGlyphCount,
+    invalidatedFillTextCalls,
     chunkCount,
     encodedPayloadBytes,
     residentBytes,
