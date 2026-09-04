@@ -87,7 +87,7 @@ try {
     "./node_modules/@playwright/test/cli.js",
     "test",
     "-c",
-    "playwright.perf.config.ts",
+    "e2e/playwright.perf.config.ts",
   ]);
 } finally {
   stopPreview();

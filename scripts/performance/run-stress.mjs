@@ -71,7 +71,7 @@ try {
     "./node_modules/@playwright/test/cli.js",
     "test",
     "-c",
-    "playwright.stress.config.ts",
+    "e2e/playwright.stress.config.ts",
   ], {
     env: { ...process.env, CANVAS_STRESS_REPORT_DIR: REPORT_DIR },
   });

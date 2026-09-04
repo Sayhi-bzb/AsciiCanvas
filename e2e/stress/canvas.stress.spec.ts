@@ -9,7 +9,7 @@ import {
   type CanvasStressLevel,
   type CanvasStressMetrics,
   type CanvasStressReport,
-} from "../scripts/performance/canvas-stress-support";
+} from "../../scripts/performance/canvas-stress-support";
 
 type GridCell = {
   char: string;

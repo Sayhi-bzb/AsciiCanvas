@@ -11,9 +11,7 @@
         "e2e/**/*.ts",
         "vite.config.ts",
         "vitest.config.ts",
-        "playwright.config.ts",
-        "playwright.perf.config.ts",
-        "playwright.stress.config.ts"
+        "playwright.config.ts"
       ],
       "project": [
         "src/**/*.{ts,tsx}",

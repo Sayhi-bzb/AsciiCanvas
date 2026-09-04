@@ -15,7 +15,7 @@
 
 # Architecture Navigation
 
-- [Blackboard product graph](kanban/FRAMEWORK_KANBAN.md)
+- [State and data flows](apps/docs/content/docs/development/architecture/state-flows.mdx)
 - [Ownership and dependency direction](apps/docs/content/docs/development/architecture/ownership.mdx)
 - [LLM–Human Text Protocol](apps/docs/content/docs/development/architecture/ansi-canvas-protocol.mdx)
 - [Domain reference](apps/docs/content/docs/development/domains.mdx)

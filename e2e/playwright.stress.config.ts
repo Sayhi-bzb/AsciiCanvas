@@ -8,7 +8,7 @@ export default defineConfig({
   workers: 1,
   reporter: [["list"]],
   timeout: 20 * 60_000,
-  outputDir: "test-results/canvas-stress/playwright",
+  outputDir: "../test-results/canvas-stress/playwright",
   use: {
     baseURL: "http://127.0.0.1:4174",
     trace: "off",
