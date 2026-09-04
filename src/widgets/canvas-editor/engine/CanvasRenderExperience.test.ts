@@ -20,6 +20,7 @@ describe('CanvasRenderExperience', () => {
       totalDirectGlyphs: 420,
       lastFrameDurationMs: 40,
       maxFrameDurationMs: 40,
+      p95FrameDurationMs: 40,
       longFrames: 1,
       lastInputPaintMs: 12,
       lastSettleLatencyMs: 43,
@@ -35,5 +36,14 @@ describe('CanvasRenderExperience', () => {
     experience.recordDirectFrame(1, 2);
 
     expect(experience.getStats().lastSettleLatencyMs).toBeNull();
+  });
+
+  it('bounds frame samples while reporting nearest-rank p95', () => {
+    const experience = new CanvasRenderExperience();
+    for (let duration = 1; duration <= 600; duration += 1) {
+      experience.recordDirectFrame(1, duration);
+    }
+
+    expect(experience.getStats().p95FrameDurationMs).toBe(575);
   });
 });
