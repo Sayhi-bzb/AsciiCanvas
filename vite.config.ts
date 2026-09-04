@@ -111,6 +111,13 @@ export default defineConfig({
   resolve: {
     alias: [
       {
+        find: /^@chardesk\/collaboration-protocol$/,
+        replacement: path.resolve(
+          import.meta.dirname,
+          "./packages/collaboration-protocol/src/index.ts"
+        ),
+      },
+      {
         find: /^@chardesk\/ui\/theme\.css$/,
         replacement: path.resolve(import.meta.dirname, "./packages/ui/theme.css"),
       },

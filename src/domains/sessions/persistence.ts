@@ -11,7 +11,7 @@ import {
 import type { GridCell, Point } from "@/shared/types";
 import { decodeGridEntries } from "@/shared/utils/grid-codec";
 import type { CanvasMode } from "./mode";
-import type { CanvasSession } from "./model";
+import type { CanvasSession, CanvasSourceBinding } from "./model";
 
 export const EDITOR_PERSISTENCE_VERSION = 5;
 export const PREVIOUS_EDITOR_PERSISTENCE_VERSION = 4;
@@ -38,7 +38,6 @@ interface PersistedEditorStateV5 {
     brushBackgroundColor?: string;
     showGrid: boolean;
     exportShowGrid: boolean;
-    collaborationEndpoint?: string;
   };
 }
 
@@ -55,8 +54,27 @@ const decodePoint = (value: unknown): Point | null =>
     : null;
 
 const isCanvasMode = (value: unknown): value is CanvasMode =>
-  value === "freeform" || value === "structured" || value === "slide" ||
-  value === "blackboard";
+  value === "freeform" || value === "structured" || value === "slide";
+
+const decodeSourceBinding = (value: unknown): CanvasSourceBinding | undefined => {
+  if (!isRecord(value) || value.kind !== "blackboard" ||
+      (value.provider !== "browser-workspace" && value.provider !== "local-reader") ||
+      typeof value.id !== "string" || !value.id.trim()) return undefined;
+  return { kind: "blackboard", provider: value.provider, id: value.id };
+};
+
+const decodeLegacySourceBinding = (value: Record<string, unknown>) => {
+  const current = decodeSourceBinding(value.sourceBinding);
+  if (current) return current;
+  if (typeof value.workspaceId !== "string" || !value.workspaceId.trim()) return undefined;
+  return {
+    kind: "blackboard" as const,
+    provider: value.workspaceId === "local-reader"
+      ? "local-reader" as const
+      : "browser-workspace" as const,
+    id: value.workspaceId,
+  };
+};
 
 const decodeViewport = (value: unknown): CanvasSession["viewport"] | undefined => {
   if (!isRecord(value)) return undefined;
@@ -75,10 +93,12 @@ const decodeScene = (value: unknown): StructuredNode[] =>
   );
 
 const decodeCanvasSession = (value: unknown): CanvasSession | null => {
-  if (!isRecord(value) || typeof value.id !== "string" || !isCanvasMode(value.mode)) {
+  if (!isRecord(value) || typeof value.id !== "string" ||
+      (!isCanvasMode(value.mode) && value.mode !== "blackboard")) {
     return null;
   }
   const viewport = decodeViewport(value.viewport);
+  const sourceBinding = decodeLegacySourceBinding(value);
   if (value.mode === "slide") {
     return {
       id: value.id,
@@ -88,9 +108,7 @@ const decodeCanvasSession = (value: unknown): CanvasSession | null => {
           : "Slides",
       mode: "slide",
       slideDeck: normalizeSlideDeck(value.slideDeck, `${value.id}-slide-1`),
-      ...(typeof value.workspaceId === "string" && value.workspaceId.trim()
-        ? { workspaceId: value.workspaceId }
-        : {}),
+      ...(sourceBinding ? { sourceBinding } : {}),
       scene: [],
       components: [],
       grid: [],
@@ -105,11 +123,12 @@ const decodeCanvasSession = (value: unknown): CanvasSession | null => {
         typeof value.name === "string" && value.name.trim()
           ? value.name
           : "Blackboard",
-      mode: "blackboard",
-      workspaceId:
-        typeof value.workspaceId === "string" && value.workspaceId.trim()
-          ? value.workspaceId
-          : value.id,
+      mode: "freeform",
+      sourceBinding: sourceBinding ?? {
+        kind: "blackboard",
+        provider: "browser-workspace",
+        id: value.id,
+      },
       scene: [],
       components: [],
       grid: [],
@@ -118,21 +137,21 @@ const decodeCanvasSession = (value: unknown): CanvasSession | null => {
   }
 
   const scene = decodeScene(value.scene);
-  const collaboration = isCollaborationDescriptor(value.collaboration)
+  const collaboration = !sourceBinding && isCollaborationDescriptor(value.collaboration)
     ? value.collaboration
     : undefined;
-  const collaborationRole = collaboration && value.collaborationRole === "guest"
+  const collaborationRole: "host" | "guest" | undefined =
+    collaboration && value.collaborationRole === "guest"
     ? "guest"
     : collaboration
       ? "host"
       : undefined;
-  return {
+  const base = {
     id: value.id,
     name:
       typeof value.name === "string" && value.name.trim()
         ? value.name
         : "Canvas",
-    mode: value.mode,
     scene,
     components: decodeStructuredComponents(value.components, scene),
     grid: decodeGridEntries(value.grid),
@@ -140,6 +159,13 @@ const decodeCanvasSession = (value: unknown): CanvasSession | null => {
     ...(collaboration ? { collaboration } : {}),
     ...(collaborationRole ? { collaborationRole } : {}),
   };
+  return value.mode === "structured"
+    ? { ...base, mode: "structured" }
+    : {
+        ...base,
+        mode: "freeform",
+        ...(sourceBinding ? { sourceBinding } : {}),
+      };
 };
 
 const createBlankSession = (): CanvasSession => ({
@@ -232,10 +258,6 @@ export const decodePersistedEditorState = (
         typeof preferences.exportShowGrid === "boolean"
           ? preferences.exportShowGrid
           : false,
-      collaborationEndpoint:
-        typeof preferences.collaborationEndpoint === "string"
-          ? preferences.collaborationEndpoint
-          : "",
     },
   };
 };

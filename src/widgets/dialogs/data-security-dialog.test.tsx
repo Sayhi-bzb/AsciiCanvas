@@ -44,6 +44,27 @@ describe("DataSecurityDialog", () => {
     useEditorStore.getState().setCanvasSessionCollaboration(state.activeCanvasId, null);
   });
 
+  it("describes the encrypted relay boundary for V7 rooms", () => {
+    const state = useEditorStore.getState();
+    state.setCanvasSessionCollaboration(state.activeCanvasId, {
+      version: 7,
+      documentVersion: 6,
+      mode: "freeform",
+      provider: "encrypted-relay",
+      roomId: "room_identifier_1234",
+      key: "room_secret_key_123456789012345678901234567890",
+    });
+
+    render(<DataSecurityDialog open onOpenChange={vi.fn()} />);
+    const dialog = screen.getByRole("dialog", { name: "Data security" });
+    expect(dialog).toHaveTextContent("Encrypted relay");
+    expect(dialog).toHaveTextContent("encrypted in this browser");
+    expect(dialog).toHaveTextContent("stores no room content");
+    expect(dialog).not.toHaveTextContent("may retain data");
+
+    useEditorStore.getState().setCanvasSessionCollaboration(state.activeCanvasId, null);
+  });
+
   it("shows the concrete persistence failure alongside recovery guidance", () => {
     const getSnapshot = testingCanvasRuntime.getPersistenceSnapshot;
     const failure = {

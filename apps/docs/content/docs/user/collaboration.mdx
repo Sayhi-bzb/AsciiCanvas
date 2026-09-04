@@ -1,36 +1,37 @@
 ---
 title: Collaboration
-description: Connect CharDesk to a user-owned, memory-only sync service.
+description: Share an encrypted live Canvas.
 ---
 
-CharDesk is a static application. Real-time collaboration connects directly from each browser to a WebSocket endpoint you provide; CharDesk does not host or retain room updates.
+Open Collaboration, start a room, and send the edit link. Canvas content and
+presence are encrypted in each browser before reaching the CharDesk relay. The
+room key stays in the link fragment and is not sent to the server.
 
-## Sync server
+Someone with a local copy must be online when a new device joins. When the last
+participant leaves, the relay deletes the room; each participant keeps their own
+browser copy.
 
-Run the official Yjs WebSocket server:
+## Deployment
+
+Production uses the managed endpoint `wss://sync.chardesk.com`. Override it at
+build time only when hosting a separate relay:
 
 ```bash
-npm install @y/websocket-server
-HOST=0.0.0.0 PORT=1234 npx y-websocket
+VITE_COLLABORATION_ENDPOINT=wss://sync.chardesk.com npm run build:app
 ```
 
-Expose it as `wss://` for a deployed CharDesk site. `ws://localhost` is accepted during local development. This configuration is memory-only: the host must stay online while a new guest joins, and restarting the server clears its rooms.
+Run the relay locally with `npm run dev:sync`; application development defaults
+to `ws://127.0.0.1:1234`. The production container is owned by
+`apps/sync-server/Dockerfile`. `deploy/sync/compose.yaml` keeps the relay on a
+private Docker network and publishes it through a remotely managed Cloudflare
+Tunnel. Configure `ALLOWED_ORIGINS` with the deployed CharDesk origins and keep
+the tunnel token outside the repository.
 
-For a container host that supports WebSocket upgrades, the complete runtime image is:
+The public hostname is the migration boundary. Keep `sync.chardesk.com` stable
+when moving the relay from a VPS to another runtime.
 
-```dockerfile
-FROM node:22-alpine
-RUN npm install -g @y/websocket-server@0.1.1
-ENV HOST=0.0.0.0 PORT=1234
-CMD ["y-websocket"]
-```
+## Security boundary
 
-Terminate TLS at the deployment platform and use its public `wss://` address in CharDesk. No database or CharDesk backend is required.
-
-## Share a canvas
-
-1. Open Collaboration and paste the sync endpoint. CharDesk remembers it in this browser.
-2. Select Connect, then copy the generated room link. Later rooms start with one action from the remembered server.
-3. Keep the host canvas open while the guest joins.
-
-A fresh guest remains on the joining screen until the room state arrives. If the endpoint is unavailable, Retry reconnects without changing the room link.
+The relay can see IP addresses, origins, room identifiers, connection timing, and
+encrypted frame sizes. It cannot decrypt Canvas content, selections, or presence.
+Anyone holding the complete edit link has the room key and can edit.

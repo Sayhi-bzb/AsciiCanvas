@@ -48,16 +48,10 @@ const normalizeSessionViewport = (viewport: CanvasSession['viewport'] | undefine
 };
 
 const getFallbackToolForMode = (mode: CanvasMode): ToolType => {
-  return mode === 'structured' || mode === 'blackboard' ? 'select' : 'brush';
+  return mode === 'structured' ? 'select' : 'brush';
 };
 
 export const buildSessionSnapshot = (state: EditorState) => {
-  if (state.canvasMode === 'blackboard') {
-    return {
-      mode: 'blackboard' as const,
-      viewport: { offset: { ...state.offset }, zoom: state.zoom },
-    };
-  }
   if (state.canvasMode === 'slide') {
     const deck =
       state.slideDeck ??

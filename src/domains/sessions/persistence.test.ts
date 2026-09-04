@@ -36,7 +36,6 @@ describe("editor persistence v5", () => {
   it("defaults the grid off while preserving an explicit preference", () => {
     const defaults = migratePersistedStateToV5({}).preferences;
     expect(defaults.showGrid).toBe(false);
-    expect(defaults.collaborationEndpoint).toBe("");
     expect(
       migratePersistedStateToV5({ preferences: { showGrid: true } }).preferences
         .showGrid
@@ -112,6 +111,33 @@ describe("editor persistence v5", () => {
     expect(migrated.sessions.items.map((session) => session.id)).toEqual(["static"]);
     expect(migrated.sessions.activeId).toBe("static");
     expect(isPersistedEditorStateV5(migrated)).toBe(true);
+  });
+
+  it("migrates legacy Blackboard ownership without preserving a second mode", () => {
+    const migrated = migratePersistedStateToV5({
+      workspace: { canvasMode: "blackboard" },
+      sessions: {
+        activeId: "board",
+        items: [{
+          id: "board",
+          name: "Board",
+          mode: "blackboard",
+          workspaceId: "workspace-1",
+          scene: [],
+          grid: [],
+        }],
+      },
+    });
+
+    expect(migrated.workspace.canvasMode).toBe("freeform");
+    expect(migrated.sessions.items[0]).toMatchObject({
+      mode: "freeform",
+      sourceBinding: {
+        kind: "blackboard",
+        provider: "browser-workspace",
+        id: "workspace-1",
+      },
+    });
   });
 
   it("creates a blank freeform session when no static session remains", () => {

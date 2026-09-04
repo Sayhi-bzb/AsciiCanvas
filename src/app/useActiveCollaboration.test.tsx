@@ -68,7 +68,6 @@ describe("useActiveCollaboration", () => {
       expect(state.canvasSessions).toHaveLength(2);
       expect(state.canvasSessions.find((session) => session.id === state.activeCanvasId)?.collaboration)
         .toEqual(incoming);
-      expect(state.collaborationEndpoint).toBe("wss://sync.example.com");
     });
     await waitFor(() => {
       expect(runtime.connect).toHaveBeenCalledWith(incoming, expect.anything(), "guest");

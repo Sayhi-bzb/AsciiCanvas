@@ -12,10 +12,12 @@ import {
   createSessionId,
   createIndexedDbCanvasCatalog,
   decodePersistedEditorState,
+  isSourceBackedCanvasSession,
   type CanvasCatalog,
   type CanvasCatalogFailureReason,
   type CanvasCatalogSnapshot,
   type CanvasSession,
+  type SourceBackedCanvasSession,
 } from "@/domains/sessions/public";
 import { SLIDE_SIZE_PRESETS } from "@/domains/slides/public";
 import {
@@ -842,7 +844,7 @@ const sessionsFromCatalog = (catalog: CanvasCatalogSnapshot): CanvasSession[] =>
       return {
         ...base,
         mode: "slide",
-        ...(session.workspaceId ? { workspaceId: session.workspaceId } : {}),
+        ...(session.sourceBinding ? { sourceBinding: session.sourceBinding } : {}),
         slideDeck: {
           slides,
           activeSlideId: session.activeSlideId ?? slides[0]?.id ?? "slide-1",
@@ -852,22 +854,23 @@ const sessionsFromCatalog = (catalog: CanvasCatalogSnapshot): CanvasSession[] =>
         grid: [],
       };
     }
-    if (session.mode === "blackboard") {
+    if (session.mode === "structured") {
       return {
         ...base,
-        mode: "blackboard",
-        workspaceId: session.workspaceId ?? session.id,
+        mode: "structured",
         scene: [],
         components: [],
         grid: [],
       };
     }
-    const collaboration = isCollaborationDescriptor(session.collaboration)
+    const collaboration = !session.sourceBinding &&
+      isCollaborationDescriptor(session.collaboration)
       ? session.collaboration
       : undefined;
     return {
       ...base,
-      mode: session.mode,
+      mode: "freeform",
+      ...(session.sourceBinding ? { sourceBinding: session.sourceBinding } : {}),
       collaboration,
       collaborationRole: collaboration
         ? session.collaborationRole ?? "host"
@@ -892,10 +895,42 @@ const recoveredSessionName = (
 };
 
 const hasRecoverableSessionContent = (session: CanvasSession) =>
-  session.mode === "slide"
+  isSourceBackedCanvasSession(session)
+    ? false
+    : session.mode === "slide"
     ? session.slideDeck.slides.some((slide) => slide.grid.length > 0)
     : session.grid.length > 0 || session.scene.length > 0 ||
       (session.components?.length ?? 0) > 0;
+
+const createSourceSessionSeed = (
+  session: SourceBackedCanvasSession,
+): CanvasDocumentSeed => session.mode === "slide"
+  ? {
+      mode: "slide",
+      activePageId: session.slideDeck.activeSlideId,
+      pages: session.slideDeck.slides.map((slide) => ({
+        id: slide.id,
+        name: slide.name,
+        size: slide.size,
+        kind: "cell-plane",
+        grid: slide.grid,
+      })),
+      grid: [],
+      scene: [],
+      components: [],
+    }
+  : {
+      mode: "freeform",
+      grid: [],
+      scene: [],
+      components: [],
+    };
+
+const createSourceSessionDocument = (session: SourceBackedCanvasSession) => {
+  const doc = new Y.Doc({ guid: session.id });
+  applyCanvasDocumentSeed(doc, session.id, createSourceSessionSeed(session));
+  return doc;
+};
 
 const recoverySourceId = (key: string, session: CanvasSession) => {
   const value = JSON.stringify(session);
@@ -1007,10 +1042,7 @@ const createCatalogSnapshot = (
     order,
     name: session.name,
     mode: session.mode,
-    ...(session.mode === "blackboard" ||
-        (session.mode === "slide" && session.workspaceId)
-      ? { workspaceId: session.workspaceId }
-      : {}),
+    ...(session.sourceBinding ? { sourceBinding: session.sourceBinding } : {}),
     viewport:
       session.id === state.activeCanvasId
         ? { offset: { ...state.offset }, zoom: state.zoom }
@@ -1053,9 +1085,6 @@ const createCatalogSnapshot = (
     brushBackgroundColor: state.brushBackgroundColor,
     showGrid: state.showGrid,
     exportShowGrid: state.exportShowGrid,
-    ...(state.collaborationEndpoint
-      ? { collaborationEndpoint: state.collaborationEndpoint }
-      : {}),
   },
   recoveredSources: Array.from(recoveredSources).sort(),
   deletedSessionIds: Array.from(deletedSessionIds).sort(),
@@ -1068,7 +1097,7 @@ const catalogStructureJson = (snapshot: CanvasCatalogSnapshot) => JSON.stringify
     order: session.order,
     name: session.name,
     mode: session.mode,
-    workspaceId: session.workspaceId,
+    sourceBinding: session.sourceBinding,
     collaboration: session.collaboration,
     collaborationRole: session.collaborationRole,
     activeSlideId: session.activeSlideId,
@@ -1728,29 +1757,8 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
     }
     try {
       let doc: Y.Doc;
-      if ("workspaceId" in session && session.workspaceId) {
-        doc = new Y.Doc({ guid: session.id });
-        applyCanvasDocumentSeed(doc, session.id, session.mode === "slide"
-          ? {
-              mode: "slide",
-              activePageId: session.slideDeck.activeSlideId,
-              pages: session.slideDeck.slides.map((slide) => ({
-                id: slide.id,
-                name: slide.name,
-                size: slide.size,
-                kind: "cell-plane" as const,
-                grid: slide.grid,
-              })),
-              grid: [],
-              scene: [],
-              components: [],
-            }
-          : {
-              mode: "blackboard",
-              grid: [],
-              scene: [],
-              components: [],
-            });
+      if (isSourceBackedCanvasSession(session)) {
+        doc = createSourceSessionDocument(session);
       } else {
         doc = session.collaboration
           ? new Y.Doc({ guid: session.id })
@@ -1912,28 +1920,14 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
         restored.push(session);
         continue;
       }
+      if (isSourceBackedCanvasSession(session)) {
+        const doc = createSourceSessionDocument(session);
+        if (isActive) activeDocument = doc;
+        else doc.destroy();
+        restored.push(session);
+        continue;
+      }
       if (session.mode === "slide") {
-        if (session.workspaceId) {
-          const doc = new Y.Doc({ guid: session.id });
-          applyCanvasDocumentSeed(doc, session.id, {
-            mode: "slide",
-            activePageId: session.slideDeck.activeSlideId,
-            pages: session.slideDeck.slides.map((slide) => ({
-              id: slide.id,
-              name: slide.name,
-              size: slide.size,
-              kind: "cell-plane",
-              grid: slide.grid,
-            })),
-            grid: [],
-            scene: [],
-            components: [],
-          });
-          if (isActive) activeDocument = doc;
-          else doc.destroy();
-          restored.push(session);
-          continue;
-        }
         const initialDraft = resetDocuments
           ? documents.getDocumentDraft(session.id)
           : null;
@@ -1961,19 +1955,6 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
         if (isActive) activeDocument = doc;
         else await this.#closePersistedDocument(session.id, doc);
         restored.push(session);
-        continue;
-      }
-      if (session.mode === "blackboard") {
-        const doc = new Y.Doc({ guid: session.id });
-        applyCanvasDocumentSeed(doc, session.id, {
-          mode: "blackboard",
-          grid: [],
-          scene: [],
-          components: [],
-        });
-        if (isActive) activeDocument = doc;
-        else doc.destroy();
-        restored.push({ ...session, grid: [], scene: [], components: [] });
         continue;
       }
       if (session.collaboration) {
@@ -2058,15 +2039,8 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
   }
 
   async #loadSessionDocument(session: CanvasSession, resetDocument: boolean) {
-    if (session.mode === "blackboard") {
-      const doc = new Y.Doc({ guid: session.id });
-      applyCanvasDocumentSeed(doc, session.id, {
-        mode: "blackboard",
-        grid: [],
-        scene: [],
-        components: [],
-      });
-      return doc;
+    if (isSourceBackedCanvasSession(session)) {
+      return createSourceSessionDocument(session);
     }
     if (session.mode === "slide") {
       return this.#openDocument(session.id, {
@@ -2173,12 +2147,11 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
 
   #attachDocument(id: string, doc: Y.Doc) {
     if (this.#documents.has(id)) return;
-    if (getCanvasDocumentRoot(doc).meta.get("mode") === "blackboard") return;
     this.#deletedSessionIds.delete(id);
     const session = this.#store?.getState().canvasSessions.find(
       (candidate) => candidate.id === id
     );
-    if (session && "workspaceId" in session && session.workspaceId) return;
+    if (isSourceBackedCanvasSession(session)) return;
     if (session?.mode !== "slide" && session?.collaboration) return;
     const generation = this.#documentGenerations.get(id) ?? 0;
     const provider = new IndexeddbPersistence(

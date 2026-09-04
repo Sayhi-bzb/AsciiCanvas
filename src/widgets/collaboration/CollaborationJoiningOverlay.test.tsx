@@ -47,12 +47,12 @@ describe("CollaborationJoiningOverlay", () => {
     expect(screen.getByText("Connecting to sync server")).toBeInTheDocument();
   });
 
-  it("distinguishes transport connection from the host handshake", () => {
+  it("distinguishes transport connection from the document-peer handshake", () => {
     setUiLanguage("en");
     snapshot = { ...snapshot, documentStatus: "joining", connectionStatus: "online" };
     renderOverlay();
 
-    expect(screen.getByText("Waiting for host")).toBeInTheDocument();
+    expect(screen.getByText("Waiting for someone with this canvas")).toBeInTheDocument();
   });
 
   it("offers an in-place retry when the sync server is unavailable", () => {

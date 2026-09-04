@@ -3,9 +3,10 @@ import type { CollaborationDescriptor } from "@/domains/collaboration/public";
 import type { SlideSize } from "@/domains/slides/public";
 import type { Point } from "@/shared/types";
 import type { CanvasMode } from "./mode";
+import type { CanvasSourceBinding } from "./model";
 
 export const CANVAS_CATALOG_DATABASE = "chardesk-canvas-catalog";
-export const CANVAS_CATALOG_VERSION = 2;
+export const CANVAS_CATALOG_VERSION = 3;
 export const CANVAS_CATALOG_MARKER_KEY = "chardesk-canvas-catalog-ready-v1";
 
 export type CanvasCatalogPreferences = {
@@ -14,7 +15,6 @@ export type CanvasCatalogPreferences = {
   brushBackgroundColor: string;
   showGrid: boolean;
   exportShowGrid: boolean;
-  collaborationEndpoint?: string;
 };
 
 export type CanvasCatalogSession = {
@@ -22,7 +22,7 @@ export type CanvasCatalogSession = {
   order?: number;
   name: string;
   mode: CanvasMode;
-  workspaceId?: string;
+  sourceBinding?: CanvasSourceBinding;
   viewport?: { offset: Point; zoom: number };
   collaboration?: CollaborationDescriptor;
   collaborationRole?: "host" | "guest";
@@ -104,6 +104,63 @@ export type CanvasCatalogOpenOptions = {
 };
 
 const CATALOG_OPEN_TIMEOUT = 5_000;
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  !!value && typeof value === "object" && !Array.isArray(value);
+
+const decodeSourceBinding = (
+  value: unknown,
+  legacyWorkspaceId?: unknown,
+): CanvasSourceBinding | undefined => {
+  if (value && typeof value === "object") {
+    const binding = value as Partial<CanvasSourceBinding>;
+    if (binding.kind === "blackboard" &&
+        (binding.provider === "browser-workspace" || binding.provider === "local-reader") &&
+        typeof binding.id === "string" && binding.id.trim()) {
+      return { kind: binding.kind, provider: binding.provider, id: binding.id };
+    }
+  }
+  if (typeof legacyWorkspaceId !== "string" || !legacyWorkspaceId.trim()) return undefined;
+  return {
+    kind: "blackboard",
+    provider: legacyWorkspaceId === "local-reader" ? "local-reader" : "browser-workspace",
+    id: legacyWorkspaceId,
+  };
+};
+
+const readLegacyWorkspaceId = (value: unknown) =>
+  isRecord(value) ? value.workspaceId : undefined;
+
+const normalizeCatalogSession = (value: CanvasCatalogSession): CanvasCatalogSession | null => {
+  const storedMode: unknown = value.mode;
+  const mode = storedMode === "blackboard" ? "freeform" : storedMode;
+  if (mode !== "freeform" && mode !== "structured" && mode !== "slide") return null;
+  const sourceBinding = mode === "structured"
+    ? undefined
+    : decodeSourceBinding(value.sourceBinding, readLegacyWorkspaceId(value));
+  const collaboration = sourceBinding ? undefined : value.collaboration;
+  return {
+    id: value.id,
+    ...(value.order === undefined ? {} : { order: value.order }),
+    name: value.name,
+    mode,
+    ...(sourceBinding ? { sourceBinding } : {}),
+    ...(value.viewport ? { viewport: value.viewport } : {}),
+    ...(collaboration ? {
+      collaboration,
+      collaborationRole: value.collaborationRole === "guest" ? "guest" : "host",
+    } : {}),
+    ...(value.activeSlideId === undefined
+      ? {}
+      : { activeSlideId: value.activeSlideId }),
+    ...(value.documentGeneration === undefined
+      ? {}
+      : { documentGeneration: value.documentGeneration }),
+    ...(value.previousDocumentGeneration === undefined
+      ? {}
+      : { previousDocumentGeneration: value.previousDocumentGeneration }),
+  };
+};
 
 const openCatalog = async ({
   openTimeoutMs = CATALOG_OPEN_TIMEOUT,
@@ -193,14 +250,13 @@ export const createIndexedDbCanvasCatalog = async (
         brushBackgroundColor: preferences.brushBackgroundColor,
         showGrid: preferences.showGrid,
         exportShowGrid: preferences.exportShowGrid,
-        ...(preferences.collaborationEndpoint
-          ? { collaborationEndpoint: preferences.collaborationEndpoint }
-          : {}),
       };
       return {
         revision: workspace.revision ?? 0,
         activeSessionId: workspace.activeSessionId,
-        sessions: sessions.sort(
+        sessions: sessions.map(normalizeCatalogSession)
+          .filter((session): session is CanvasCatalogSession => session !== null)
+          .sort(
           (left, right) => (left.order ?? 0) - (right.order ?? 0)
         ),
         slides: slides.sort((left, right) => left.order - right.order),

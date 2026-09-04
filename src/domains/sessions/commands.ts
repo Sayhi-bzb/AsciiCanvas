@@ -1,11 +1,14 @@
 import type { CanvasMode } from "./mode";
-import type { CanvasImportSnapshot, CanvasSession } from "./model";
+import type {
+  CanvasImportSnapshot,
+  CanvasSession,
+  CanvasSourceBinding,
+} from "./model";
 import type { CollaborationDescriptor } from "@/domains/collaboration/public";
 import type { SlideSize } from "@/domains/slides/public";
 
 type CreateCanvasSessionOptions = {
   slideSize?: SlideSize;
-  blackboardWorkspaceId?: string;
   name?: string;
 };
 
@@ -13,6 +16,10 @@ export interface SessionCommands {
   createCanvasSession: (
     mode?: CanvasMode,
     options?: CreateCanvasSessionOptions
+  ) => void;
+  openSourceSession: (
+    sourceBinding: CanvasSourceBinding,
+    options?: { name?: string; initialMode?: "freeform" | "slide" }
   ) => void;
   importCanvasSession: (
     raw: string | unknown,
@@ -23,10 +30,10 @@ export interface SessionCommands {
     snapshot: CanvasImportSnapshot,
     options: { preserveViewport: boolean; resetHistory: boolean }
   ) => void;
-  replaceBlackboardProjection: (
+  applySourceProjection: (
     sessionId: string,
-    snapshot: Extract<CanvasImportSnapshot, { mode: "freeform" }>,
-    options?: { title?: string; preserveViewport?: boolean }
+    snapshot: Extract<CanvasImportSnapshot, { mode: "freeform" | "slide" }>,
+    options?: { title?: string; preserveViewport?: boolean; resetHistory?: boolean }
   ) => void;
   switchCanvasSession: (canvasId: string) => Promise<boolean>;
   removeCanvasSession: (canvasId: string) => Promise<boolean>;

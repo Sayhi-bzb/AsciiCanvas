@@ -74,4 +74,35 @@ describe("syncHydratedStateToCanvasDocument", () => {
       snapshot.sessions.items.find((session) => session.id === state.activeCanvasId)?.grid
     ).toEqual([]);
   });
+
+  it("persists source-backed sessions as metadata-only shells", () => {
+    const state = useEditorStore.getState();
+    const sourceState: EditorState = {
+      ...state,
+      activeCanvasId: "source-board",
+      canvasMode: "freeform",
+      grid: new Map([["0,0", { char: "A", color: "#111111" }]]),
+      canvasSessions: [{
+        id: "source-board",
+        name: "Board",
+        mode: "freeform",
+        sourceBinding: {
+          kind: "blackboard",
+          provider: "browser-workspace",
+          id: "workspace-1",
+        },
+        scene: [],
+        components: [],
+        grid: [],
+      }],
+    };
+
+    const snapshot = createPersistedEditorSnapshot(sourceState);
+
+    expect(snapshot.workspace.grid).toEqual([]);
+    expect(snapshot.sessions.items[0]).toMatchObject({
+      sourceBinding: { id: "workspace-1" },
+      grid: [],
+    });
+  });
 });

@@ -26,7 +26,9 @@ export const getCollaborationPersistenceName = async (
 
 export const getCollaborationRoomName = (descriptor: CollaborationDescriptor) => {
   const namespace = `chardesk-v${descriptor.version}`;
-  return `${namespace}-${descriptor.roomId}-${descriptor.key}`;
+  return descriptor.version === 6
+    ? `${namespace}-${descriptor.roomId}-${descriptor.key}`
+    : `${namespace}-${descriptor.roomId}`;
 };
 
 type CollaborationDocumentMigration = {

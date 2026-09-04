@@ -57,7 +57,6 @@ const snapshot: CanvasCatalogSnapshot = {
     brushBackgroundColor: "#ffffff",
     showGrid: true,
     exportShowGrid: false,
-    collaborationEndpoint: "wss://sync.example.com",
   },
   recoveredSources: [],
   deletedSessionIds: [],
@@ -81,6 +80,14 @@ const openNativeCatalog = (version: number) => new Promise<IDBDatabase>(
     request.onerror = () => reject(request.error);
     request.onsuccess = () => resolve(request.result);
   }
+);
+
+const transactionDone = (transaction: IDBTransaction) => new Promise<void>(
+  (resolve, reject) => {
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+    transaction.onabort = () => reject(transaction.error);
+  },
 );
 
 describe("IndexedDB canvas catalog", () => {
@@ -126,6 +133,44 @@ describe("IndexedDB canvas catalog", () => {
     expect(restored?.sessions.map(({ id }) => id)).toEqual(["canvas-b"]);
     expect(restored?.slides).toEqual([]);
   });
+
+  it("normalizes the v2 Blackboard mode into a source binding", async () => {
+    const legacy = await openNativeCatalog(2);
+    const transaction = legacy.transaction(
+      ["workspace", "sessions", "preferences"],
+      "readwrite",
+    );
+    transaction.objectStore("workspace").put({
+      id: "current",
+      schemaVersion: 2,
+      activeSessionId: "board",
+      migrationComplete: true,
+    });
+    transaction.objectStore("sessions").put({
+      id: "board",
+      order: 0,
+      name: "Board",
+      mode: "blackboard",
+      workspaceId: "workspace-1",
+    });
+    transaction.objectStore("preferences").put({
+      id: "canvas",
+      ...snapshot.preferences,
+    });
+    await transactionDone(transaction);
+    legacy.close();
+
+    const catalog = await createIndexedDbCanvasCatalog();
+    catalogs.push(catalog);
+    expect((await catalog.load())?.sessions[0]).toMatchObject({
+      mode: "freeform",
+      sourceBinding: {
+        kind: "blackboard",
+        provider: "browser-workspace",
+        id: "workspace-1",
+      },
+    });
+  });
 });
 
 describe("IndexedDB canvas catalog lifecycle", () => {
@@ -154,9 +199,9 @@ describe("IndexedDB canvas catalog lifecycle", () => {
     const onUnavailable = vi.fn();
     const catalog = await createIndexedDbCanvasCatalog({ onUnavailable });
 
-    const future = await openNativeCatalog(3);
+    const future = await openNativeCatalog(4);
 
-    expect(future.version).toBe(3);
+    expect(future.version).toBe(4);
     expect(onUnavailable).toHaveBeenCalledWith("storage-unavailable");
     future.close();
     catalog.close();

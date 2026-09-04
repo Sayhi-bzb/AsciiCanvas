@@ -27,7 +27,6 @@ describe("collaborative session persistence", () => {
       structuredScene: [],
       structuredComponents: [],
       brushBackgroundColor: "#445566",
-      collaborationEndpoint: "wss://sync.example.com",
       canvasSessions: [
         {
           id: "room-session",
@@ -47,7 +46,7 @@ describe("collaborative session persistence", () => {
       sessions: {
         items: Array<{ grid: unknown[]; scene: unknown[]; collaborationRole?: string }>;
       };
-      preferences: { brushBackgroundColor: string; collaborationEndpoint: string };
+      preferences: { brushBackgroundColor: string };
     };
 
     expect(persisted.workspace.grid).toEqual([]);
@@ -58,6 +57,5 @@ describe("collaborative session persistence", () => {
       collaborationRole: "guest",
     });
     expect(persisted.preferences.brushBackgroundColor).toBe("#445566");
-    expect(persisted.preferences.collaborationEndpoint).toBe("wss://sync.example.com");
   });
 });

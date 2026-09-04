@@ -1,5 +1,6 @@
 import {
   EDITOR_PERSISTENCE_VERSION,
+  isSourceBackedCanvasSession,
   withActiveCanvasSnapshot,
   type CanvasSession,
 } from "@/domains/sessions/public";
@@ -67,8 +68,6 @@ export const recoverPersistedEditorState = (
   state.showGrid = typeof state.showGrid === "boolean" ? state.showGrid : false;
   state.exportShowGrid =
     typeof state.exportShowGrid === "boolean" ? state.exportShowGrid : false;
-  state.collaborationEndpoint =
-    typeof state.collaborationEndpoint === "string" ? state.collaborationEndpoint : "";
 
   const sessions =
     state.canvasSessions.length > 0
@@ -113,6 +112,15 @@ export const syncHydratedStateToCanvasDocument = (
     (session) => session.id === hydratedState.activeCanvasId
   );
   if (!activeSession) return;
+  if (isSourceBackedCanvasSession(activeSession)) {
+    documents.activateDocument(activeSession.id, {
+      mode: activeSession.mode,
+      grid: [],
+      scene: [],
+      components: [],
+    }, { replace: true });
+    return;
+  }
   if (activeSession.mode !== "slide" && activeSession.collaboration) {
     documents.initializeCollaborativeDocument(activeSession.id, {
       mode: activeSession.mode,
@@ -137,33 +145,35 @@ export const syncHydratedStateToCanvasDocument = (
   );
 };
 
-const stripCollaborativeSessionContent = (session: CanvasSession): CanvasSession =>
-  session.mode !== "slide" && session.collaboration
+const stripExternallyOwnedSessionContent = (session: CanvasSession): CanvasSession => {
+  if (isSourceBackedCanvasSession(session)) return stripSessionContent(session);
+  return session.mode !== "slide" && session.collaboration
     ? { ...session, grid: [], scene: [], components: [] }
     : session;
+};
 
 export const createPersistedEditorSnapshot = (state: EditorState) => {
   const activeSession = state.canvasSessions.find(
     (session) => session.id === state.activeCanvasId
   );
-  const activeIsCollaborative =
-    activeSession?.mode !== "slide" && !!activeSession?.collaboration;
+  const activeIsExternallyOwned = isSourceBackedCanvasSession(activeSession) ||
+    (activeSession?.mode !== "slide" && !!activeSession?.collaboration);
   const persistedSessions = withActiveCanvasSnapshot(
     state.canvasSessions,
     state.activeCanvasId,
     buildSessionSnapshot(state)
-  ).map(stripCollaborativeSessionContent);
+  ).map(stripExternallyOwnedSessionContent);
   return {
     schemaVersion: EDITOR_PERSISTENCE_VERSION,
     workspace: {
       offset: state.offset,
       zoom: state.zoom,
       canvasMode: state.canvasMode,
-      structuredScene: activeIsCollaborative ? [] : cloneScene(state.structuredScene),
-      structuredComponents: activeIsCollaborative
+      structuredScene: activeIsExternallyOwned ? [] : cloneScene(state.structuredScene),
+      structuredComponents: activeIsExternallyOwned
         ? []
         : normalizeStructuredComponents(state.structuredComponents, state.structuredScene),
-      grid: activeIsCollaborative
+      grid: activeIsExternallyOwned
         ? []
         : state.canvasMode === "structured"
           ? []
@@ -176,7 +186,6 @@ export const createPersistedEditorSnapshot = (state: EditorState) => {
       brushBackgroundColor: state.brushBackgroundColor,
       showGrid: state.showGrid,
       exportShowGrid: state.exportShowGrid,
-      collaborationEndpoint: state.collaborationEndpoint,
     },
   };
 };
@@ -199,5 +208,4 @@ export const shouldScheduleEditorPersistence = (
   previous.brushColor !== next.brushColor ||
   previous.brushBackgroundColor !== next.brushBackgroundColor ||
   previous.showGrid !== next.showGrid ||
-  previous.exportShowGrid !== next.exportShowGrid ||
-  previous.collaborationEndpoint !== next.collaborationEndpoint;
+  previous.exportShowGrid !== next.exportShowGrid;

@@ -12,7 +12,19 @@ export type CollaborationDescriptorV6 = {
   endpoint: string;
 };
 
-export type CollaborationDescriptor = CollaborationDescriptorV6;
+export type CollaborationDescriptorV7 = {
+  version: 7;
+  documentVersion: 6;
+  mode: CollaborationCanvasMode;
+  provider: "encrypted-relay";
+  roomId: string;
+  key: string;
+  endpoint?: string;
+};
+
+export type CollaborationDescriptor =
+  | CollaborationDescriptorV6
+  | CollaborationDescriptorV7;
 
 export type CollaborationLinkParseResult =
   | { status: "none" }

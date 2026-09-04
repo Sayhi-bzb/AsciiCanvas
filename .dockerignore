@@ -1,0 +1,11 @@
+.git
+.gitnexus
+.tmp
+**/build
+**/coverage
+**/dist
+**/node_modules
+**/test-results
+node_modules
+playwright-report
+proofshot-artifacts

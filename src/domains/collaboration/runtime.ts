@@ -2,11 +2,13 @@ import { Awareness } from "y-protocols/awareness";
 import { IndexeddbPersistence } from "y-indexeddb";
 import { WebsocketProvider } from "y-websocket";
 import type * as Y from "yjs";
+import { EncryptedRelayProvider } from "./encrypted-relay-provider";
 import {
   ensureCollaborationDocumentMeta,
   getCollaborationPersistenceName,
   getCollaborationRoomName,
 } from "./document";
+import { resolveCollaborationEndpoint } from "./room-link";
 import {
   buildCollaborationPresence,
   readCollaborationPeers,
@@ -46,10 +48,17 @@ const DEFAULT_DEPENDENCIES: CollaborationRuntimeDependencies = {
   createPersistence: async (descriptor, doc) =>
     new IndexeddbPersistence(await getCollaborationPersistenceName(descriptor), doc),
   createAwareness: (doc) => new Awareness(doc) as unknown as CollaborationAwareness,
-  createProvider: (descriptor, doc, awareness) =>
-    new WebsocketProvider(descriptor.endpoint, getCollaborationRoomName(descriptor), doc, {
-      awareness: awareness as unknown as Awareness,
-    }) as unknown as NetworkProviderAdapter,
+  createProvider: (descriptor, doc, awareness) => {
+    const endpoint = resolveCollaborationEndpoint(descriptor);
+    if (!endpoint) throw new Error("Collaboration service unavailable");
+    return descriptor.version === 6
+      ? new WebsocketProvider(endpoint, getCollaborationRoomName(descriptor), doc, {
+          awareness: awareness as unknown as Awareness,
+        }) as unknown as NetworkProviderAdapter
+      : new EncryptedRelayProvider(endpoint, descriptor.roomId, descriptor.key, doc, {
+          awareness: awareness as unknown as Awareness,
+        });
+  },
 };
 
 const MAX_INTEGRITY_ISSUES = 50;
@@ -94,7 +103,7 @@ class CollaborationSession {
   private metaObserver: (() => void) | null = null;
   private providerSynced = false;
   private awaitingInitialRemote = false;
-  private remoteHostReady = false;
+  private remoteDocumentReady = false;
   private disposed = false;
   private presence: CollaborationPresenceInput = {};
   readonly descriptor: CollaborationDescriptor;
@@ -149,9 +158,7 @@ class CollaborationSession {
       awareness.on("change", () => {
         if (this.disposed) return;
         const { peers, issues } = readCollaborationPeers(awareness, this.descriptor.mode);
-        this.remoteHostReady = peers.some(
-          (peer) => peer.role === "host" && peer.documentReady === true
-        );
+        this.remoteDocumentReady = peers.some((peer) => peer.documentReady === true);
         this.publish({ peers, integrityIssues: issues.slice(0, MAX_INTEGRITY_ISSUES) });
         this.publishInitialRemoteReady();
       });
@@ -232,7 +239,7 @@ class CollaborationSession {
   }
 
   private publishInitialRemoteReady() {
-    if (!this.awaitingInitialRemote || !this.providerSynced || !this.remoteHostReady) return;
+    if (!this.awaitingInitialRemote || !this.providerSynced || !this.remoteDocumentReady) return;
     this.awaitingInitialRemote = false;
     this.publish({ documentStatus: "ready", canEdit: true, hasLocalCopy: true });
   }

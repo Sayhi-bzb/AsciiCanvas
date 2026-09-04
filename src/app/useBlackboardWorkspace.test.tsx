@@ -58,8 +58,8 @@ describe("Blackboard workspace projection", () => {
       initialSessions: [{
         id: "canvas-board",
         name: "Board",
-        mode: "blackboard",
-        workspaceId: "board",
+        mode: "freeform",
+        sourceBinding: { kind: "blackboard", provider: "browser-workspace", id: "board" },
         scene: [],
         components: [],
         grid: [],
@@ -77,11 +77,11 @@ describe("Blackboard workspace projection", () => {
     const { result } = renderHook(() => useBlackboardWorkspace(), { wrapper });
 
     await waitFor(() => expect(result.current.status.state).toBe("current"));
-    expect(host.canvas.getState().canvasMode).toBe("blackboard");
+    expect(host.canvas.getState().canvasMode).toBe("freeform");
     expect(host.canvas.getState().grid.get("0,0")?.char).toBe("A");
     expect(host.canvas.getState().canvasSessions[0]).toMatchObject({
-      mode: "blackboard",
-      workspaceId: "board",
+      mode: "freeform",
+      sourceBinding: { kind: "blackboard", provider: "browser-workspace", id: "board" },
       grid: [],
     });
     const validGrid = host.canvas.getState().grid;
@@ -109,8 +109,8 @@ describe("Blackboard workspace projection", () => {
         {
           id: "canvas-board-route",
           name: "Board",
-          mode: "blackboard",
-          workspaceId: "board-route",
+          mode: "freeform",
+          sourceBinding: { kind: "blackboard", provider: "browser-workspace", id: "board-route" },
           scene: [],
           components: [],
           grid: [],
@@ -165,8 +165,8 @@ describe("Blackboard workspace projection", () => {
       initialSessions: [{
         id: "canvas-deck",
         name: "Deck",
-        mode: "blackboard",
-        workspaceId: "deck",
+        mode: "freeform",
+        sourceBinding: { kind: "blackboard", provider: "browser-workspace", id: "deck" },
         scene: [],
         components: [],
         grid: [],
@@ -185,7 +185,10 @@ describe("Blackboard workspace projection", () => {
 
     await waitFor(() => expect(result.current.status.state).toBe("current"));
     const session = host.canvas.getState().canvasSessions[0];
-    expect(session).toMatchObject({ mode: "slide", workspaceId: "deck" });
+    expect(session).toMatchObject({
+      mode: "slide",
+      sourceBinding: { provider: "browser-workspace", id: "deck" },
+    });
     if (session?.mode !== "slide") throw new Error("Expected a Slide session");
     expect(session.slideDeck.slides.map(({ name }) => name)).toEqual([
       "opening",
@@ -214,8 +217,8 @@ describe("Blackboard workspace projection", () => {
     ]);
     await waitFor(() => {
       expect(host.canvas.getState().canvasSessions[0]).toMatchObject({
-        mode: "blackboard",
-        workspaceId: "deck",
+        mode: "freeform",
+        sourceBinding: { provider: "browser-workspace", id: "deck" },
       });
       expect(host.canvas.getState().grid.get("0,0")?.char).toBe("B");
     });

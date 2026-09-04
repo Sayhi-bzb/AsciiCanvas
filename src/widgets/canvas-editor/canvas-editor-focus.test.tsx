@@ -525,7 +525,7 @@ describe("CanvasEditor focus management", () => {
 
   it("copies a Blackboard range without granting mutation capability", async () => {
     useEditorStore.setState({
-      canvasMode: "blackboard",
+      canvasMode: "freeform",
       textCursor: null,
       grid: new Map([
         ["0,0", { char: "A", color: "#ffffff" }],
@@ -929,7 +929,7 @@ describe("CanvasEditor focus management", () => {
 
   it("shows only copy actions in a read-only Blackboard context menu", async () => {
     useEditorStore.setState({
-      canvasMode: "blackboard",
+      canvasMode: "freeform",
       textCursor: null,
       grid: new Map([
         ["0,0", { char: "A", color: "#ffffff" }],

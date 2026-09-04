@@ -3,12 +3,13 @@
 import { useEffect, useState } from 'react';
 import { Check, X } from 'lucide-react';
 import { useCanvasRuntime, useCanvasState } from '@/domains/canvas/public';
+import { isSourceBackedCanvasSession } from '@/domains/sessions/public';
 import {
   buildCollaborationUrl,
   useCollaborationRuntime,
   createCollaborationDescriptor,
+  getManagedCollaborationEndpoint,
   parseCollaborationUrl,
-  validateCollaborationEndpoint,
 } from '@/domains/collaboration/public';
 import { useCollaborationSnapshot } from './useCollaborationSnapshot';
 import { HOST_ICONOLOGY } from '@/shared/icons/iconology';
@@ -17,7 +18,6 @@ import { useUiI18n, type I18nKey } from '@/shared/i18n';
 import { clipboard } from '@/shared/services/effects';
 import {
   Button,
-  Input,
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -70,10 +70,6 @@ export function CollaborationControl() {
   const collaborationRuntime = useCollaborationRuntime();
   const { t } = useUiI18n();
   const [open, setOpen] = useState(false);
-  const [endpoint, setEndpoint] = useState('');
-  const [endpointTouched, setEndpointTouched] = useState(false);
-  const [endpointRejected, setEndpointRejected] = useState(false);
-  const [editingEndpoint, setEditingEndpoint] = useState(false);
   const {
     feedback: copyFeedback,
     run: runCopyFeedback,
@@ -83,7 +79,6 @@ export function CollaborationControl() {
   const activeSession = useCanvasState((state) =>
     state.canvasSessions.find((session) => session.id === state.activeCanvasId)
   );
-  const preferredEndpoint = useCanvasState((state) => state.collaborationEndpoint);
   const setCollaboration = canvas.commands.sessions.setCollaboration;
   const descriptor = activeSession?.collaboration;
   const visibleControlErrorKey = descriptor
@@ -100,15 +95,11 @@ export function CollaborationControl() {
   const statusPresentation = getStatusPresentation(snapshot);
   const statusLabel = t(statusPresentation.key);
 
-  const start = (customEndpoint: string) => {
-    if (!activeSession || activeSession.mode === "slide" || activeSession.mode === "blackboard") return;
-    try {
-      const next = createCollaborationDescriptor(activeSession.mode, customEndpoint);
-      canvas.commands.preferences.setCollaborationEndpoint(next.endpoint);
-      setCollaboration(activeSession.id, next);
-    } catch {
-      setEndpointRejected(true);
-    }
+  const start = () => {
+    if (!activeSession || activeSession.mode === "slide" ||
+        isSourceBackedCanvasSession(activeSession)) return;
+    const next = createCollaborationDescriptor(activeSession.mode);
+    setCollaboration(activeSession.id, next);
   };
 
   const copyLink = async () => {
@@ -129,11 +120,7 @@ export function CollaborationControl() {
     leave();
   };
 
-  const normalizedEndpoint = validateCollaborationEndpoint(endpoint);
-  const normalizedPreferredEndpoint = validateCollaborationEndpoint(preferredEndpoint);
-  const showEndpointError =
-    endpointRejected ||
-    (endpointTouched && endpoint.trim().length > 0 && !normalizedEndpoint);
+  const managedEndpoint = getManagedCollaborationEndpoint();
   const copyLinkLabelKey =
     copyFeedback?.status === 'success'
       ? 'collaboration.link.copied'
@@ -146,18 +133,12 @@ export function CollaborationControl() {
       : copyFeedback?.status === 'error'
         ? X
         : CopyIcon;
-  if (activeSession?.mode === "slide" || activeSession?.mode === "blackboard") return null;
+  if (activeSession?.mode === "slide" || isSourceBackedCanvasSession(activeSession)) return null;
 
   return (
     <Popover
       open={open}
       onOpenChange={(nextOpen) => {
-        if (nextOpen) {
-          setEndpoint(preferredEndpoint);
-          setEndpointTouched(false);
-          setEndpointRejected(false);
-          setEditingEndpoint(!validateCollaborationEndpoint(preferredEndpoint));
-        }
         setOpen(nextOpen);
         if (!nextOpen) clearCopyFeedback();
       }}
@@ -257,87 +238,25 @@ export function CollaborationControl() {
         <Separator className="my-1" />
 
         {!descriptor ? (
-          normalizedPreferredEndpoint && !editingEndpoint ? (
-            <div className="flex flex-col gap-1.5 px-2 py-1.5">
-              <div className="truncate text-[11px] text-muted-foreground">
-                {new URL(normalizedPreferredEndpoint).host}
-              </div>
-              <Button
-                type="button"
-                tone="neutral"
-                size="sm"
-                className="w-full justify-center"
-                onClick={() => start(normalizedPreferredEndpoint)}
-              >
-                {t('collaboration.start')}
-              </Button>
-              <Button
-                type="button"
-                tone="subtle"
-                size="sm"
-                className="w-full justify-center"
-                onClick={() => setEditingEndpoint(true)}
-              >
-                {t('collaboration.server.change')}
-              </Button>
-            </div>
-          ) : (
-            <form
-              className="flex flex-col gap-1.5 px-2 py-1.5"
-              onSubmit={(event) => {
-                event.preventDefault();
-                if (normalizedEndpoint) {
-                  start(normalizedEndpoint);
-                } else if (endpoint.trim().length > 0) {
-                  setEndpointTouched(true);
-                }
-              }}
-              onKeyDown={(event) => {
-                if (event.key !== 'Escape') event.stopPropagation();
-              }}
+          <div className="flex flex-col gap-1.5 px-2 py-1.5">
+            <Button
+              type="button"
+              tone="neutral"
+              size="sm"
+              className="w-full justify-center"
+              disabled={!managedEndpoint}
+              onClick={start}
             >
-              <label
-                htmlFor="collaboration-endpoint"
-                className="block text-[11px] leading-4 text-muted-foreground"
-              >
-                {t('collaboration.server')}
-              </label>
-              <div className="flex gap-1.5">
-                <Input
-                  id="collaboration-endpoint"
-                  value={endpoint}
-                  aria-invalid={showEndpointError}
-                  aria-describedby={
-                    showEndpointError ? 'collaboration-endpoint-error' : undefined
-                  }
-                  onBlur={() => setEndpointTouched(true)}
-                  onChange={(event) => {
-                    setEndpoint(event.target.value);
-                    setEndpointRejected(false);
-                  }}
-                  placeholder="wss://sync.example.com"
-                  className="min-w-0 flex-1"
-                />
-                <Button type="submit" tone="subtle" disabled={!normalizedEndpoint}>
-                  {t('collaboration.connect')}
-                </Button>
-              </div>
-              <p className="text-[11px] leading-4 text-muted-foreground">
-                {t('collaboration.server.note')}
-              </p>
-              {showEndpointError ? (
-                <StatusText tone="error" asChild>
-                  <p
-                    id="collaboration-endpoint-error"
-                    role="alert"
-                    className="text-[11px] leading-4"
-                  >
-                    {t('collaboration.endpoint.invalid')}
-                  </p>
-                </StatusText>
-              ) : null}
-            </form>
-          )
+              {t('collaboration.start')}
+            </Button>
+            {!managedEndpoint ? (
+              <StatusText tone="warning" asChild>
+                <p className="text-[11px] leading-4" role="status">
+                  {t('collaboration.service.unavailable')}
+                </p>
+              </StatusText>
+            ) : null}
+          </div>
         ) : (
           <>
             {snapshot.connectionStatus === 'offline' && (

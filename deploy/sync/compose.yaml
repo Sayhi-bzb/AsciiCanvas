@@ -1,0 +1,64 @@
+name: chardesk-sync
+
+services:
+  sync-server:
+    build:
+      context: ../..
+      dockerfile: apps/sync-server/Dockerfile
+    image: chardesk-sync-server:${CHARDESK_SYNC_IMAGE_TAG:-local}
+    restart: unless-stopped
+    environment:
+      HOST: 0.0.0.0
+      PORT: 1234
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://chardesk.com,https://www.chardesk.com,https://ascii-canvas.pages.dev}
+      MAX_CONNECTIONS_PER_ROOM: ${MAX_CONNECTIONS_PER_ROOM:-30}
+      MAX_CONNECTIONS_PER_IP: ${MAX_CONNECTIONS_PER_IP:-20}
+      MAX_CONNECTION_ATTEMPTS_PER_MINUTE: ${MAX_CONNECTION_ATTEMPTS_PER_MINUTE:-120}
+      TRUST_PROXY: 1
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:1234/readyz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))
+      interval: 15s
+      timeout: 5s
+      retries: 4
+      start_period: 10s
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 512m
+    cpus: 1.0
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command:
+      - tunnel
+      - --no-autoupdate
+      - run
+      - --token
+      - ${CLOUDFLARE_TUNNEL_TOKEN:?Set CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      sync-server:
+        condition: service_healthy
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 256m
+    cpus: 0.5
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"

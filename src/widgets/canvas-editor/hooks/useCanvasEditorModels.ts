@@ -48,7 +48,7 @@ const resolveSessionContent = (
   }
   const seed = documents.getDocumentSeed(
     session.id,
-    session.mode === 'blackboard' ? 'freeform' : session.mode,
+    session.mode,
   );
   const structuredScene = seed?.scene ?? session.scene;
   return {

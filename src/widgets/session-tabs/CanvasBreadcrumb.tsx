@@ -5,6 +5,10 @@ import { Check, X } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { useCanvasRuntime, useCanvasState } from '@/domains/canvas/public';
 import {
+  isSourceBackedCanvasSession,
+  type CanvasMode,
+} from '@/domains/sessions/public';
+import {
   createBlackboardArchive,
   useBlackboardRuntimeOptional,
 } from '@/domains/blackboard/public';
@@ -73,22 +77,22 @@ type ExportFeedbackTarget = {
 
 const createOptionMeta = [
   {
-    mode: 'freeform' as const,
+    kind: 'freeform' as const,
     labelKey: 'session.newFreeform',
     icon: HOST_ICONOLOGY.canvasMode.freeform,
   },
   {
-    mode: 'structured' as const,
+    kind: 'structured' as const,
     labelKey: 'session.newStructured',
     icon: HOST_ICONOLOGY.canvasMode.structured,
   },
   {
-    mode: 'blackboard' as const,
+    kind: 'blackboard' as const,
     labelKey: 'session.newBlackboard',
-    icon: HOST_ICONOLOGY.canvasMode.blackboard,
+    icon: HOST_ICONOLOGY.sourceKind.blackboard,
   },
 ] satisfies Array<{
-  mode: 'freeform' | 'structured' | 'blackboard';
+  kind: CanvasMode | 'blackboard';
   labelKey: I18nKey;
   icon: (typeof HOST_ICONOLOGY.canvasMode)[keyof typeof HOST_ICONOLOGY.canvasMode];
 }>;
@@ -128,6 +132,7 @@ export function CanvasSessionSelector({
     }))
   );
   const createCanvasSession = canvas.commands.sessions.create;
+  const openSourceSession = canvas.commands.sessions.openSource;
   const switchCanvasSession = canvas.commands.sessions.switch;
   const removeCanvasSession = canvas.commands.sessions.remove;
   const renameCanvasSession = canvas.commands.sessions.rename;
@@ -165,7 +170,9 @@ export function CanvasSessionSelector({
   const pendingDeleteSession = pendingDeleteId
     ? (canvasSessions.find((session) => session.id === pendingDeleteId) ?? null)
     : null;
-  const ActiveModeIcon = HOST_ICONOLOGY.canvasMode[activeSession?.mode ?? 'freeform'];
+  const ActiveModeIcon = isSourceBackedCanvasSession(activeSession)
+    ? HOST_ICONOLOGY.sourceKind.blackboard
+    : HOST_ICONOLOGY.canvasMode[activeSession?.mode ?? 'freeform'];
   const canRemove = canvasSessions.length > 1;
 
   if (!manageSessions) {
@@ -195,17 +202,20 @@ export function CanvasSessionSelector({
     closeSelector();
   };
 
-  const createSession = async (mode: 'freeform' | 'structured' | 'blackboard') => {
+  const createSession = async (kind: 'freeform' | 'structured' | 'blackboard') => {
     onActivate?.();
-    if (mode === 'blackboard') {
+    if (kind === 'blackboard') {
       if (!blackboard) throw new Error('Blackboard runtime is unavailable.');
       const source = await blackboard.repository.createWorkspace();
-      createCanvasSession('blackboard', {
-        blackboardWorkspaceId: source.workspace.id,
+      openSourceSession({
+        kind: 'blackboard',
+        provider: 'browser-workspace',
+        id: source.workspace.id,
+      }, {
         name: source.workspace.title,
       });
     } else {
-      createCanvasSession(mode);
+      createCanvasSession(kind);
     }
     closeSelector();
   };
@@ -350,7 +360,9 @@ export function CanvasSessionSelector({
         >
           <div className="flex flex-col gap-0.5">
             {canvasSessions.map((session) => {
-              const ModeIcon = HOST_ICONOLOGY.canvasMode[session.mode];
+              const ModeIcon = isSourceBackedCanvasSession(session)
+                ? HOST_ICONOLOGY.sourceKind.blackboard
+                : HOST_ICONOLOGY.canvasMode[session.mode];
               const manageLabel = t('session.manage', { name: session.name });
               const isActive = session.id === selectedId;
               const isEditing = session.id === renameTargetId;
@@ -428,20 +440,13 @@ export function CanvasSessionSelector({
                             aria-label={manageLabel}
                           >
                             <DropdownMenuGroup>
-                              {session.mode !== 'blackboard' && (
+                              {!isSourceBackedCanvasSession(session) && (
                                 <DropdownMenuItem onSelect={() => openRename(session.id)}>
                                   <SessionRenameIcon />
                                   {t('session.rename')}
                                 </DropdownMenuItem>
                               )}
-                              {session.mode === 'blackboard' ? (
-                                <DropdownMenuItem onSelect={() => {
-                                  void exportBlackboard(session.workspaceId, session.name);
-                                }}>
-                                  <SessionExportIcon />
-                                  {t('session.export')}
-                                </DropdownMenuItem>
-                              ) : <DropdownMenuSub>
+                              <DropdownMenuSub>
                                 <DropdownMenuSubTrigger>
                                   <SessionExportIcon />
                                   {t('session.export')}
@@ -495,6 +500,17 @@ export function CanvasSessionSelector({
                                         </DropdownMenuItem>
                                       );
                                     })}
+                                    {isSourceBackedCanvasSession(session) &&
+                                    session.sourceBinding.provider === 'browser-workspace' ? (
+                                      <DropdownMenuItem onSelect={() => {
+                                        void exportBlackboard(
+                                          session.sourceBinding.id,
+                                          session.name,
+                                        );
+                                      }}>
+                                        {t('session.exportSource')}
+                                      </DropdownMenuItem>
+                                    ) : null}
                                   </DropdownMenuGroup>
                                   {exportFeedback?.status === 'error' &&
                                   exportFeedback.target.sessionId === session.id ? (
@@ -520,7 +536,7 @@ export function CanvasSessionSelector({
                                       : ''}
                                   </span>
                                 </DropdownMenuSubContent>
-                              </DropdownMenuSub>}
+                              </DropdownMenuSub>
                             </DropdownMenuGroup>
                             <DropdownMenuSeparator />
                             <DropdownMenuGroup>
@@ -577,11 +593,11 @@ export function CanvasSessionSelector({
                   const Icon = option.icon;
                   return (
                     <DropdownMenuItem
-                      key={option.mode}
+                      key={option.kind}
                       data-onboarding-target={
-                        option.mode === 'structured' ? 'create-structured' : undefined
+                        option.kind === 'structured' ? 'create-structured' : undefined
                       }
-                      onSelect={() => { void createSession(option.mode); }}
+                      onSelect={() => { void createSession(option.kind); }}
                     >
                       <Icon />
                       {t(option.labelKey)}
@@ -694,30 +710,33 @@ export function CanvasSessionSelector({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{t('session.delete.title')}</AlertDialogTitle>
+            <AlertDialogTitle>
+              {t(isSourceBackedCanvasSession(pendingDeleteSession)
+                ? 'session.closeSource.title'
+                : 'session.delete.title')}
+            </AlertDialogTitle>
             <AlertDialogDescription>
               {pendingDeleteSession
-                ? t('session.delete.description', { name: pendingDeleteSession.name })
+                ? t(isSourceBackedCanvasSession(pendingDeleteSession)
+                    ? 'session.closeSource.description'
+                    : 'session.delete.description', { name: pendingDeleteSession.name })
                 : t('session.delete.fallbackDescription')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t('dialog.cancel')}</AlertDialogCancel>
             <AlertDialogAction
-              tone="danger"
+              tone={isSourceBackedCanvasSession(pendingDeleteSession) ? 'primary' : 'danger'}
               onClick={() => {
                 if (!pendingDeleteSession) return;
-                const deleted = pendingDeleteSession;
-                void removeCanvasSession(deleted.id).then(async (removed) => {
-                  if (removed && deleted.mode === 'blackboard') {
-                    await blackboard?.repository.deleteWorkspace(deleted.workspaceId);
-                  }
-                });
+                void removeCanvasSession(pendingDeleteSession.id);
                 setPendingDeleteId(null);
                 restoreSelectorFocus();
               }}
             >
-              {t('session.delete.action')}
+              {t(isSourceBackedCanvasSession(pendingDeleteSession)
+                ? 'session.closeSource.action'
+                : 'session.delete.action')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -12,7 +12,7 @@ type EditorHostCapabilities = Readonly<{
   collaborate: boolean;
 }>;
 
-type HostSurfaceCanvasMode = Exclude<CanvasMode, "blackboard">;
+type HostSurfaceCanvasMode = CanvasMode;
 
 type EditorHostSurfacePermissions = Readonly<{
   inspector: boolean;
@@ -51,9 +51,13 @@ export const EDITOR_HOST_PROFILE: EditorHostProfile = {
 
 export const resolveEditorHostContract = (
   profile: EditorHostProfile,
-  mode: CanvasMode,
-  canEdit: boolean
+  context: Readonly<{
+    mode: CanvasMode;
+    canEdit: boolean;
+    sourceBacked: boolean;
+  }>
 ): ResolvedEditorHostContract => {
+  const { mode, canEdit, sourceBacked } = context;
   const modeCapabilities = getCanvasModeDefinition(mode).capabilities;
   const modeCanMutate =
     modeCapabilities.mutateCells ||
@@ -63,8 +67,6 @@ export const resolveEditorHostContract = (
     profile.capabilities.mutateContent &&
     canEdit &&
     modeCanMutate;
-  const surfaceMode: HostSurfaceCanvasMode | null =
-    mode === "blackboard" ? null : mode;
   const navigate = profile.capabilities.navigate && modeCapabilities.navigate;
 
   return {
@@ -75,14 +77,17 @@ export const resolveEditorHostContract = (
       copy: profile.capabilities.copy && modeCapabilities.copy,
       mutateContent,
       collaborate:
-        profile.capabilities.collaborate && modeCapabilities.collaborate,
+        profile.capabilities.collaborate &&
+        !sourceBacked &&
+        modeCapabilities.collaborate,
     },
     surfaces: {
-      inspector: profile.surfaces.inspector ? surfaceMode : null,
+      inspector:
+        profile.surfaces.inspector && !sourceBacked ? mode : null,
       sidebar:
         profile.surfaces.sidebar &&
           (mutateContent || (mode === "slide" && navigate))
-          ? surfaceMode
+          ? mode
           : null,
     },
   };

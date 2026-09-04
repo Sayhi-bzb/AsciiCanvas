@@ -31,9 +31,6 @@ const sortTemplateLabels = <T extends { id: string; label: string }>(
 
 function SidebarRightForActiveMode({ readOnly = false }: { readOnly?: boolean } = {}) {
   const canvasMode = useEditorStore((state) => state.canvasMode);
-  if (canvasMode === "blackboard") {
-    throw new Error("Blackboard does not own a Sidebar surface.");
-  }
   return <SidebarRight canvasMode={canvasMode} readOnly={readOnly} />;
 }
 

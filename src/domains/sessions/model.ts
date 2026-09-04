@@ -12,48 +12,52 @@ interface CanvasSessionBase {
   id: string;
   name: string;
   viewport?: CanvasViewport;
+  sourceBinding?: CanvasSourceBinding;
   collaboration?: CollaborationDescriptor;
   collaborationRole?: "host" | "guest";
 }
 
-interface StaticCanvasSession extends CanvasSessionBase {
-  mode: "freeform" | "structured";
+export type CanvasSourceBinding = Readonly<{
+  kind: "blackboard";
+  provider: "browser-workspace" | "local-reader";
+  id: string;
+}>;
+
+interface StaticCanvasSessionContent {
   scene: StructuredNode[];
   components?: StructuredComponentInstance[];
   grid: [string, GridCell][];
 }
 
-export interface BlackboardCanvasSession extends CanvasSessionBase {
-  mode: "blackboard";
-  workspaceId: string;
-  scene: StructuredNode[];
-  components?: StructuredComponentInstance[];
-  grid: [string, GridCell][];
-  collaboration?: never;
-  collaborationRole?: never;
-}
+export type FreeformCanvasSession = CanvasSessionBase &
+  StaticCanvasSessionContent &
+  { mode: "freeform" };
 
-interface SlideCanvasSession extends CanvasSessionBase {
+export type StructuredCanvasSession = CanvasSessionBase &
+  StaticCanvasSessionContent &
+  { mode: "structured"; sourceBinding?: never };
+
+interface SlideCanvasSessionContent extends CanvasSessionBase {
   mode: "slide";
-  workspaceId?: string;
   slideDeck: SlideDeck;
   scene: [];
   components?: [];
   grid: [];
-  collaboration?: never;
-  collaborationRole?: never;
 }
 
-export type CanvasSession = StaticCanvasSession | SlideCanvasSession | BlackboardCanvasSession;
-
 export type SourceBackedCanvasSession =
-  | BlackboardCanvasSession
-  | (SlideCanvasSession & { workspaceId: string });
+  | (FreeformCanvasSession & { sourceBinding: CanvasSourceBinding })
+  | (SlideCanvasSessionContent & { sourceBinding: CanvasSourceBinding });
+
+export type CanvasSession =
+  | FreeformCanvasSession
+  | StructuredCanvasSession
+  | SlideCanvasSessionContent;
 
 export const isSourceBackedCanvasSession = (
   session: CanvasSession | null | undefined,
 ): session is SourceBackedCanvasSession =>
-  !!session && "workspaceId" in session && !!session.workspaceId;
+  !!session && !!session.sourceBinding;
 
 type StaticCanvasImportSnapshotBase = {
   scene: StructuredNode[];
@@ -76,6 +80,5 @@ export type CanvasImportSnapshot =
   | {
       mode: "slide";
       slideDeck: SlideDeck;
-      workspaceId?: string;
       name?: string;
     };

@@ -76,9 +76,6 @@ return {
       call("setShowGrid", ...args),
     setExportShowGrid: (...args: Parameters<EditorState["setExportShowGrid"]>) =>
       call("setExportShowGrid", ...args),
-    setCollaborationEndpoint: (
-      ...args: Parameters<EditorState["setCollaborationEndpoint"]>
-    ) => call("setCollaborationEndpoint", ...args),
   },
   interaction: {
     setColorPickerTarget: (...args: Parameters<EditorState["setCanvasColorPickerTarget"]>) =>
@@ -218,14 +215,16 @@ return {
   sessions: {
     create: (...args: Parameters<EditorState["createCanvasSession"]>) =>
       call("createCanvasSession", ...args),
+    openSource: (...args: Parameters<EditorState["openSourceSession"]>) =>
+      call("openSourceSession", ...args),
     import: (...args: Parameters<EditorState["importCanvasSession"]>) =>
       call("importCanvasSession", ...args),
     replaceSnapshot: (
       ...args: Parameters<EditorState["replaceCanvasSessionSnapshot"]>
     ) => call("replaceCanvasSessionSnapshot", ...args),
-    replaceBlackboardProjection: (
-      ...args: Parameters<EditorState["replaceBlackboardProjection"]>
-    ) => call("replaceBlackboardProjection", ...args),
+    applySourceProjection: (
+      ...args: Parameters<EditorState["applySourceProjection"]>
+    ) => call("applySourceProjection", ...args),
     switch: (...args: Parameters<EditorState["switchCanvasSession"]>) =>
       call("switchCanvasSession", ...args),
     remove: (...args: Parameters<EditorState["removeCanvasSession"]>) =>

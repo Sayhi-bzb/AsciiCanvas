@@ -17,8 +17,9 @@ export const useBlackboardWorkspace = ({ enabled = true }: { enabled?: boolean }
     const session = state.canvasSessions.find(
       (candidate) => candidate.id === state.activeCanvasId,
     );
-    return isSourceBackedCanvasSession(session)
-      ? { activeSessionId: session.id, activeWorkspaceId: session.workspaceId }
+    return isSourceBackedCanvasSession(session) &&
+      session.sourceBinding.provider === "browser-workspace"
+      ? { activeSessionId: session.id, activeWorkspaceId: session.sourceBinding.id }
       : { activeSessionId: null, activeWorkspaceId: null };
   }));
   const [status, setStatus] = useState<BlackboardModeStatus>({
@@ -36,41 +37,11 @@ export const useBlackboardWorkspace = ({ enabled = true }: { enabled?: boolean }
     try {
       const compiled = await runtime.compile(workspaceId);
       if (generation !== generationRef.current) return;
-      if (compiled.snapshot.mode === "slide") {
-        const selected = canvas.getState().canvasSessions.find(
-          (session) => session.id === sessionId,
-        );
-        const currentPage = selected?.mode === "slide"
-          ? selected.slideDeck.slides.find(
-              (slide) => slide.id === selected.slideDeck.activeSlideId,
-            )
-          : null;
-        const retainedPage = currentPage
-          ? compiled.snapshot.slideDeck.slides.find(
-              (slide) => slide.name === currentPage.name,
-            )
-          : null;
-        const snapshot = retainedPage
-          ? {
-              ...compiled.snapshot,
-              slideDeck: {
-                ...compiled.snapshot.slideDeck,
-                activeSlideId: retainedPage.id,
-              },
-            }
-          : compiled.snapshot;
-        canvas.commands.sessions.replaceSnapshot(sessionId, snapshot, {
-          preserveViewport: true,
-          resetHistory: true,
-        });
-        canvas.commands.sessions.rename(sessionId, compiled.title);
-      } else {
-        canvas.commands.sessions.replaceBlackboardProjection(
-          sessionId,
-          compiled.snapshot,
-          { title: compiled.title, preserveViewport: true },
-        );
-      }
+      canvas.commands.sessions.applySourceProjection(
+        sessionId,
+        compiled.snapshot,
+        { title: compiled.title, preserveViewport: true },
+      );
       if (!fittedSessionsRef.current.has(sessionId)) {
         fittedSessionsRef.current.add(sessionId);
         setFirstFitRevision((revision) => revision + 1);
@@ -91,8 +62,7 @@ export const useBlackboardWorkspace = ({ enabled = true }: { enabled?: boolean }
   }, [canvas, runtime]);
 
   useEffect(() => {
-    if (!enabled || !activeSessionId || !activeWorkspaceId ||
-      activeWorkspaceId === "local-reader") {
+    if (!enabled || !activeSessionId || !activeWorkspaceId) {
       generationRef.current += 1;
       setStatus({ state: "idle", message: "" });
       return;

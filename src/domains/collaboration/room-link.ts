@@ -2,12 +2,14 @@ import {
   COLLABORATION_DOCUMENT_VERSION,
   type CollaborationCanvasMode,
   type CollaborationDescriptor,
-  type CollaborationDescriptorV6,
+  type CollaborationDescriptorV7,
   type CollaborationLinkParseResult,
 } from "./model";
 
 const ROOM_PARAM = "room";
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]+$/;
+const V7_KEY_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+const MANAGED_COLLABORATION_ENDPOINT = "wss://sync.chardesk.com";
 
 const randomToken = (byteLength: number) => {
   const bytes = crypto.getRandomValues(new Uint8Array(byteLength));
@@ -38,20 +40,22 @@ export const validateCollaborationEndpoint = (value: string) => {
 
 export const createCollaborationDescriptor = (
   mode: CollaborationCanvasMode,
-  endpoint: string
-): CollaborationDescriptorV6 => {
+  endpoint?: string
+): CollaborationDescriptorV7 => {
   const roomId = randomToken(16);
   const key = randomToken(32);
-  const normalizedEndpoint = validateCollaborationEndpoint(endpoint);
-  if (!normalizedEndpoint) throw new Error("Invalid collaboration endpoint");
+  const normalizedEndpoint = endpoint
+    ? validateCollaborationEndpoint(endpoint)
+    : undefined;
+  if (endpoint && !normalizedEndpoint) throw new Error("Invalid collaboration endpoint");
   return {
-    version: 6,
+    version: 7,
     documentVersion: COLLABORATION_DOCUMENT_VERSION,
     mode,
-    provider: "websocket",
+    provider: "encrypted-relay",
     roomId,
     key,
-    endpoint: normalizedEndpoint,
+    ...(normalizedEndpoint ? { endpoint: normalizedEndpoint } : {}),
   };
 };
 
@@ -61,20 +65,40 @@ export const isCollaborationDescriptor = (
   if (!value || typeof value !== "object") return false;
   const candidate = value as Record<string, unknown>;
   if (
-    candidate.version !== 6 ||
+    (candidate.version !== 6 && candidate.version !== 7) ||
     candidate.documentVersion !== COLLABORATION_DOCUMENT_VERSION ||
     (candidate.mode !== "freeform" && candidate.mode !== "structured") ||
-    candidate.provider !== "websocket" ||
+    (candidate.version === 6
+      ? candidate.provider !== "websocket"
+      : candidate.provider !== "encrypted-relay") ||
     typeof candidate.roomId !== "string" ||
     candidate.roomId.length < 16 ||
     !TOKEN_PATTERN.test(candidate.roomId) ||
     typeof candidate.key !== "string" ||
-    candidate.key.length < 40 ||
-    !TOKEN_PATTERN.test(candidate.key)
+    (candidate.version === 7
+      ? !V7_KEY_PATTERN.test(candidate.key)
+      : candidate.key.length < 40 || !TOKEN_PATTERN.test(candidate.key))
   ) return false;
-  return typeof candidate.endpoint === "string" &&
-    validateCollaborationEndpoint(candidate.endpoint) === candidate.endpoint;
+  if (candidate.version === 6) {
+    return typeof candidate.endpoint === "string" &&
+      validateCollaborationEndpoint(candidate.endpoint) === candidate.endpoint;
+  }
+  return candidate.endpoint === undefined ||
+    (typeof candidate.endpoint === "string" &&
+      validateCollaborationEndpoint(candidate.endpoint) === candidate.endpoint);
 };
+
+export const getManagedCollaborationEndpoint = () => {
+  const configured = import.meta.env.VITE_COLLABORATION_ENDPOINT?.trim();
+  if (configured) return validateCollaborationEndpoint(configured);
+  return import.meta.env.DEV
+    ? "ws://127.0.0.1:1234"
+    : MANAGED_COLLABORATION_ENDPOINT;
+};
+
+export const resolveCollaborationEndpoint = (
+  descriptor: CollaborationDescriptor
+) => descriptor.endpoint ?? getManagedCollaborationEndpoint();
 
 export const getCollaborationDocumentId = (
   descriptor: Pick<CollaborationDescriptor, "roomId">

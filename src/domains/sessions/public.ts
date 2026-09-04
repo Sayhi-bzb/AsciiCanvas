@@ -1,9 +1,11 @@
 export type {
-  BlackboardCanvasSession,
+  CanvasSourceBinding,
   CanvasImportSnapshot,
   CanvasSession,
+  FreeformCanvasSession,
   FreeformCanvasImportSnapshot,
   SourceBackedCanvasSession,
+  StructuredCanvasSession,
   StructuredCanvasImportSnapshot,
 } from "./model";
 export { isSourceBackedCanvasSession } from "./model";

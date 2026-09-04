@@ -14,7 +14,7 @@ export function CollaborationJoiningOverlay() {
     ? t("collaboration.joining.unavailable")
     : snapshot.connectionStatus === "connecting"
       ? t("collaboration.joining.connecting")
-      : t("collaboration.joining.waitingForHost");
+      : t("collaboration.joining.waitingForDocument");
 
   return (
     <div

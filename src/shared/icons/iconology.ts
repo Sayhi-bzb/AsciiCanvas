@@ -79,9 +79,11 @@ export const HOST_ICONOLOGY = {
     freeform: Pencil,
     structured: PanelsTopLeft,
     slide: Presentation,
-    blackboard: BookOpen,
     ai: Sparkles,
-  } satisfies IconMap<'freeform' | 'structured' | 'slide' | 'blackboard' | 'ai'>,
+  } satisfies IconMap<'freeform' | 'structured' | 'slide' | 'ai'>,
+  sourceKind: {
+    blackboard: BookOpen,
+  } satisfies IconMap<'blackboard'>,
   characterView: {
     essentials: CaseSensitive,
     nerd: Terminal,

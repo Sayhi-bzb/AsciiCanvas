@@ -367,10 +367,14 @@ function AppContent() {
       !sameCollaborationRoom(activeCollaboration, collaborationSnapshot.descriptor));
   const hostContract = resolveEditorHostContract(
     hostProfile,
-    activeCanvasMode,
-    !sourceBacked &&
-      !isCollaborationReadOnly &&
-      persistenceRestorePhase !== 'retrying'
+    {
+      mode: activeCanvasMode,
+      sourceBacked,
+      canEdit:
+        !sourceBacked &&
+        !isCollaborationReadOnly &&
+        persistenceRestorePhase !== 'retrying',
+    }
   );
   const { capabilities, surfaces } = hostContract;
   const localReaderEnabled = isLocalBlackboardReaderRoute(window.location);

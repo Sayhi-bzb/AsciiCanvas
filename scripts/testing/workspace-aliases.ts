@@ -4,6 +4,7 @@ const root = path.resolve(import.meta.dirname, '../..')
 const source = (relativePath: string) => path.resolve(root, relativePath)
 
 export const workspaceAliases = [
+  { find: /^@chardesk\/collaboration-protocol$/, replacement: source('packages/collaboration-protocol/src/index.ts') },
   { find: /^@chardesk\/chargraph\/examples$/, replacement: source('packages/chargraph/src/examples.ts') },
   { find: /^@chardesk\/chargraph\/markdown$/, replacement: source('packages/chargraph/src/markdown-default.ts') },
   { find: /^@chardesk\/chargraph\/mermaid$/, replacement: source('packages/chargraph/src/mermaid.ts') },

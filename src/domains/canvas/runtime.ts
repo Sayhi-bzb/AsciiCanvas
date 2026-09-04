@@ -10,7 +10,11 @@ import {
   createCanvasCommands,
   createCanvasQueries,
 } from "./state/canvasCommands";
-import type { CanvasMode, CanvasSession } from "@/domains/sessions/public";
+import {
+  isSourceBackedCanvasSession,
+  type CanvasMode,
+  type CanvasSession,
+} from "@/domains/sessions/public";
 import type { SlideDeck } from "@/domains/slides/public";
 import type {
   StructuredComponentInstance,
@@ -167,7 +171,7 @@ export class CanvasRuntime {
       };
     }
 
-    if (session.mode === "blackboard") {
+    if (isSourceBackedCanvasSession(session) && session.mode === "freeform") {
       const surface = this.documents.getContentReader(session.id);
       if (!surface) return null;
       return {

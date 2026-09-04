@@ -46,9 +46,7 @@ export class BlackboardRuntime {
       revision: source.workspace.revision,
       title: compiled.title,
       warnings: compiled.warnings.map(({ message }) => message),
-      snapshot: snapshot.mode === "slide"
-        ? { ...snapshot, workspaceId }
-        : snapshot,
+      snapshot,
     };
   }
 }

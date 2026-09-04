@@ -59,8 +59,8 @@ const sessions: CanvasSession[] = [
   {
     id: "canvas-blackboard",
     name: "Board",
-    mode: "blackboard",
-    workspaceId: "workspace-a",
+    mode: "freeform",
+    sourceBinding: { kind: "blackboard", provider: "browser-workspace", id: "workspace-a" },
     scene: [],
     components: [],
     grid: [],
@@ -146,7 +146,7 @@ describe("CanvasRuntime.materializeSession", () => {
       }),
     });
 
-    runtime.commands.sessions.replaceBlackboardProjection(
+    runtime.commands.sessions.applySourceProjection(
       "canvas-blackboard",
       {
         mode: "freeform",

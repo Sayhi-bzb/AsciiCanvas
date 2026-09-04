@@ -1,6 +1,6 @@
-export type CanvasMode = "freeform" | "structured" | "slide" | "blackboard";
+export type CanvasMode = "freeform" | "structured" | "slide";
 
-type StaticGridCanvasMode = "freeform" | "slide" | "blackboard";
+type StaticGridCanvasMode = "freeform" | "slide";
 
 export type CanvasModeCapabilities = Readonly<{
   navigate: boolean;
@@ -13,7 +13,6 @@ export type CanvasModeCapabilities = Readonly<{
 }>;
 
 export type CanvasModeDefinition = Readonly<{
-  authority: "yjs-document" | "blackboard-workspace";
   surface: "cell-plane" | "structured-projection" | "slide-page";
   capabilities: CanvasModeCapabilities;
 }>;
@@ -22,7 +21,6 @@ const NAVIGABLE = { navigate: true, select: true, copy: true } as const;
 
 export const CANVAS_MODE_DEFINITIONS = {
   freeform: {
-    authority: "yjs-document",
     surface: "cell-plane",
     capabilities: {
       ...NAVIGABLE,
@@ -33,7 +31,6 @@ export const CANVAS_MODE_DEFINITIONS = {
     },
   },
   structured: {
-    authority: "yjs-document",
     surface: "structured-projection",
     capabilities: {
       ...NAVIGABLE,
@@ -44,7 +41,6 @@ export const CANVAS_MODE_DEFINITIONS = {
     },
   },
   slide: {
-    authority: "yjs-document",
     surface: "slide-page",
     capabilities: {
       ...NAVIGABLE,
@@ -54,23 +50,12 @@ export const CANVAS_MODE_DEFINITIONS = {
       collaborate: false,
     },
   },
-  blackboard: {
-    authority: "blackboard-workspace",
-    surface: "cell-plane",
-    capabilities: {
-      ...NAVIGABLE,
-      mutateCells: false,
-      mutateScene: false,
-      managePages: false,
-      collaborate: false,
-    },
-  },
 } as const satisfies Record<CanvasMode, CanvasModeDefinition>;
 
-export const getCanvasModeDefinition = (mode: CanvasMode) =>
+export const getCanvasModeDefinition = (mode: CanvasMode): CanvasModeDefinition =>
   CANVAS_MODE_DEFINITIONS[mode];
 
 export const isStaticGridMode = (
   mode: CanvasMode
 ): mode is StaticGridCanvasMode =>
-  mode === "freeform" || mode === "slide" || mode === "blackboard";
+  mode === "freeform" || mode === "slide";

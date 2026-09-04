@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useCanvasRuntime } from "@/domains/canvas/public";
+import { isSourceBackedCanvasSession } from "@/domains/sessions/public";
 import { parseDocumentSessionSource } from "@/domains/document/public";
 
 type BlackboardSourceStatus =
@@ -19,11 +20,15 @@ export const useBlackboardSource = ({ enabled }: { enabled: boolean }) => {
   useEffect(() => {
     if (!enabled) return;
     const existing = canvas.getState().canvasSessions.find(
-      (session) => "workspaceId" in session && session.workspaceId === "local-reader",
+      (session) => isSourceBackedCanvasSession(session) &&
+        session.sourceBinding.provider === "local-reader",
     );
     if (!existing) {
-      canvas.commands.sessions.create("blackboard", {
-        blackboardWorkspaceId: "local-reader",
+      canvas.commands.sessions.openSource({
+        kind: "blackboard",
+        provider: "local-reader",
+        id: "local-reader",
+      }, {
         name: "Blackboard",
       });
     } else if (existing.id !== canvas.getState().activeCanvasId) {
@@ -78,43 +83,15 @@ export const useBlackboardSource = ({ enabled }: { enabled: boolean }) => {
         }
         const preserveViewport = hasValidRevisionRef.current;
         const target = canvas.getState().canvasSessions.find(
-          (session) => "workspaceId" in session && session.workspaceId === "local-reader",
+          (session) => isSourceBackedCanvasSession(session) &&
+            session.sourceBinding.provider === "local-reader",
         );
         if (!target) throw new Error("Local Blackboard session is unavailable.");
         const title = sourceName.replace(/\.chardesk$/i, "") || "Blackboard";
-        if (snapshot.mode === "slide") {
-          const currentPage = target.mode === "slide"
-            ? target.slideDeck.slides.find(
-                (slide) => slide.id === target.slideDeck.activeSlideId,
-              )
-            : null;
-          const retainedPage = currentPage
-            ? snapshot.slideDeck.slides.find((slide) => slide.name === currentPage.name)
-            : null;
-          canvas.commands.sessions.replaceSnapshot(
-            target.id,
-            {
-              ...snapshot,
-              workspaceId: "local-reader",
-              ...(retainedPage
-                ? {
-                    slideDeck: {
-                      ...snapshot.slideDeck,
-                      activeSlideId: retainedPage.id,
-                    },
-                  }
-                : {}),
-            },
-            { preserveViewport, resetHistory: true },
-          );
-          canvas.commands.sessions.rename(target.id, title);
-        } else {
-          canvas.commands.sessions.replaceBlackboardProjection(
-            target.id,
-            snapshot,
-            { preserveViewport, title },
-          );
-        }
+        canvas.commands.sessions.applySourceProjection(target.id, snapshot, {
+          preserveViewport,
+          title,
+        });
         if (!hasValidRevisionRef.current) {
           hasValidRevisionRef.current = true;
           setFirstFitRevision((revision) => revision + 1);

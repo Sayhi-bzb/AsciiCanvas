@@ -17,6 +17,7 @@ import { activateSlidePage } from "../slideDocumentPages";
 import {
   normalizeSessionMode,
   createSessionId,
+  isSourceBackedCanvasSession,
   resolveNextSessionName,
 } from "@/domains/sessions/public";
 import { createSlideDeck } from "@/domains/slides/public";
@@ -77,30 +78,36 @@ const createImportedSession = (
   sessionId: string,
   name: string,
   snapshot: CanvasImportSnapshot
-): Exclude<CanvasSession, { mode: "blackboard" }> => {
+): CanvasSession => {
   if (snapshot.mode === "slide") {
     return {
       id: sessionId,
       name,
       mode: "slide",
       slideDeck: snapshot.slideDeck,
-      ...(snapshot.workspaceId ? { workspaceId: snapshot.workspaceId } : {}),
       scene: [],
       components: [],
       grid: [],
     };
   }
 
-  const baseSession = {
-    id: sessionId,
-    name,
-    mode: snapshot.mode,
-    scene: snapshot.scene,
-    components: snapshot.components,
-    grid: snapshot.grid,
-  } satisfies CanvasSession;
-
-  return baseSession;
+  return snapshot.mode === "structured"
+    ? {
+        id: sessionId,
+        name,
+        mode: "structured",
+        scene: snapshot.scene,
+        components: snapshot.components,
+        grid: snapshot.grid,
+      }
+    : {
+        id: sessionId,
+        name,
+        mode: "freeform",
+        scene: snapshot.scene,
+        components: snapshot.components,
+        grid: snapshot.grid,
+      };
 };
 
 const destroySessionDocuments = async (
@@ -127,8 +134,6 @@ const checkpointActiveSessionViewport = (
       case "structured":
         return { ...session, viewport };
       case "freeform":
-        return { ...session, viewport };
-      case "blackboard":
         return { ...session, viewport };
     }
   });
@@ -183,10 +188,7 @@ const activateSessionRuntime = (
     }
   );
 
-    const documentSeed = documents.getDocumentSeed(
-      session.id,
-      session.mode === "blackboard" ? "freeform" : session.mode,
-    );
+  const documentSeed = documents.getDocumentSeed(session.id, session.mode);
   return resolveSessionRuntime(
     documentSeed
       ? {
@@ -216,8 +218,7 @@ export const createSessionSlice = (
 
     const normalizedMode = normalizeSessionMode(mode);
     const sessionId = createSessionId(sessionsWithSnapshot);
-    const newSession: CanvasSession =
-      normalizedMode === "slide"
+    const newSession: CanvasSession = normalizedMode === "slide"
         ? {
             id: sessionId,
             name: resolveNextSessionName(sessionsWithSnapshot, normalizedMode),
@@ -230,26 +231,25 @@ export const createSessionSlice = (
             components: [],
             grid: [],
           }
-        : normalizedMode === "blackboard"
-          ? {
-              id: sessionId,
-              name: options?.name?.trim() || resolveNextSessionName(
-                sessionsWithSnapshot,
-                normalizedMode,
-              ),
-              mode: "blackboard",
-              workspaceId: options?.blackboardWorkspaceId?.trim() || sessionId,
-              scene: [],
-              components: [],
-              grid: [],
-            }
-          : {
+        : normalizedMode === "structured"
+        ? {
             id: sessionId,
             name: options?.name?.trim() || resolveNextSessionName(
               sessionsWithSnapshot,
               normalizedMode,
             ),
-            mode: normalizedMode,
+            mode: "structured",
+            scene: [],
+            components: [],
+            grid: [],
+          }
+        : {
+            id: sessionId,
+            name: options?.name?.trim() || resolveNextSessionName(
+              sessionsWithSnapshot,
+              normalizedMode,
+            ),
+            mode: "freeform",
             scene: [],
             components: [],
             grid: [],
@@ -271,7 +271,45 @@ export const createSessionSlice = (
       )
     );
     residency?.touch(newSession.id);
-
+  },
+  openSourceSession: (sourceBinding, options) => {
+    const state = get();
+    const sessionsWithSnapshot = checkpointActiveSessionViewport(state);
+    const sessionId = createSessionId(sessionsWithSnapshot);
+    const mode = options?.initialMode ?? "freeform";
+    const name = options?.name?.trim() || "Blackboard";
+    const newSession: CanvasSession = mode === "slide"
+      ? {
+          id: sessionId,
+          name,
+          mode: "slide",
+          sourceBinding,
+          slideDeck: createSlideDeck({ initialSlideId: `${sessionId}-slide-1` }),
+          scene: [],
+          components: [],
+          grid: [],
+        }
+      : {
+          id: sessionId,
+          name,
+          mode: "freeform",
+          sourceBinding,
+          scene: [],
+          components: [],
+          grid: [],
+        };
+    const nextSessions = [...sessionsWithSnapshot, stripSessionContent(newSession)];
+    // Register source ownership before the document lifecycle observes activation.
+    // Persistence can then keep the runtime shell ephemeral from its first frame.
+    set({ canvasSessions: nextSessions });
+    const runtime = activateSessionRuntime(documents, newSession, state.tool);
+    set(createSessionActivationPatch(
+      nextSessions,
+      newSession.id,
+      runtime,
+      rebuildGridFromContent(documents),
+    ));
+    residency?.touch(newSession.id);
   },
   importCanvasSession: async (raw, options) => {
     const importedSnapshot = await parseSessionSource(raw, {
@@ -316,14 +354,10 @@ export const createSessionSlice = (
     const state = get();
     const target = state.canvasSessions.find((session) => session.id === sessionId);
     if (!target) throw new Error(`Canvas session not found: ${sessionId}`);
-    const sourceSlideProjection = snapshot.mode === "slide" &&
-      !!snapshot.workspaceId &&
-      (target.mode === "blackboard" || target.mode === "slide") &&
-      target.workspaceId === snapshot.workspaceId;
-    if (target.mode === "blackboard" && !sourceSlideProjection) {
-      throw new Error("Blackboard projections are updated from their source workspace.");
+    if (isSourceBackedCanvasSession(target)) {
+      throw new Error("Source-backed sessions are updated through their source binding.");
     }
-    if (target.mode !== snapshot.mode && !sourceSlideProjection) {
+    if (target.mode !== snapshot.mode) {
       throw new Error(
         `Canvas snapshot mode ${snapshot.mode} does not match session mode ${target.mode}`
       );
@@ -421,11 +455,11 @@ export const createSessionSlice = (
         : rebuildGridFromContent(documents)
     ));
   },
-  replaceBlackboardProjection: (sessionId, snapshot, options) => {
+  applySourceProjection: (sessionId, snapshot, options) => {
     const state = get();
     const target = state.canvasSessions.find((session) => session.id === sessionId);
-    if (!target || !("workspaceId" in target) || !target.workspaceId) {
-      throw new Error(`Source workspace session not found: ${sessionId}`);
+    if (!isSourceBackedCanvasSession(target)) {
+      throw new Error(`Source-backed Canvas session not found: ${sessionId}`);
     }
     const title = options?.title?.trim();
     const viewport = options?.preserveViewport === false
@@ -433,27 +467,98 @@ export const createSessionSlice = (
       : sessionId === state.activeCanvasId
         ? { offset: { ...state.offset }, zoom: state.zoom }
         : target.viewport;
-    const replacement: CanvasSession = {
-      id: target.id,
-      name: title || target.name,
-      mode: "blackboard",
-      workspaceId: target.workspaceId,
-      ...(viewport ? { viewport } : {}),
-      grid: [],
-      scene: [],
-      components: [],
-    };
+    const retainedSlide = snapshot.mode === "slide" && target.mode === "slide"
+      ? target.slideDeck.slides.find(
+          (slide) => slide.id === target.slideDeck.activeSlideId,
+        )
+      : null;
+    const retainedSlideId = retainedSlide && snapshot.mode === "slide"
+      ? snapshot.slideDeck.slides.find((slide) => slide.name === retainedSlide.name)?.id
+      : undefined;
+    const replacement: CanvasSession = snapshot.mode === "slide"
+      ? {
+          id: target.id,
+          name: title || target.name,
+          mode: "slide",
+          sourceBinding: target.sourceBinding,
+          slideDeck: retainedSlideId
+            ? { ...snapshot.slideDeck, activeSlideId: retainedSlideId }
+            : snapshot.slideDeck,
+          ...(viewport ? { viewport } : {}),
+          grid: [],
+          scene: [],
+          components: [],
+        }
+      : {
+          id: target.id,
+          name: title || target.name,
+          mode: "freeform",
+          sourceBinding: target.sourceBinding,
+          ...(viewport ? { viewport } : {}),
+          grid: [],
+          scene: [],
+          components: [],
+        };
     const nextSessions = state.canvasSessions.map((session) =>
-      session.id === sessionId ? replacement : session
+      session.id === sessionId ? stripSessionContent(replacement) : session
     );
+    if (snapshot.mode === "slide") {
+      if (replacement.mode !== "slide") return;
+      documents.clearDerivedSurface(sessionId);
+      if (sessionId !== state.activeCanvasId) {
+        documents.resetDocument(sessionId, {
+          mode: "slide",
+          activePageId: replacement.slideDeck.activeSlideId,
+          pages: replacement.slideDeck.slides.map((slide) => ({
+            id: slide.id,
+            name: slide.name,
+            size: slide.size,
+            kind: "cell-plane",
+            grid: slide.grid,
+          })),
+          grid: [],
+          scene: [],
+          components: [],
+        });
+        set({ canvasSessions: nextSessions });
+        return;
+      }
+      const runtime = activateSessionRuntime(documents, replacement, state.tool);
+      if (options?.resetHistory !== false) documents.clearHistory();
+      set(createSessionActivationPatch(
+        nextSessions,
+        sessionId,
+        runtime,
+        rebuildGridFromContent(documents),
+      ));
+      return;
+    }
     const surface = createGridSurfaceReader(new Map(snapshot.grid));
     if (sessionId !== state.activeCanvasId) {
-      documents.setDerivedSurface(sessionId, surface);
+      if (target.mode === "slide") {
+        documents.resetDocument(sessionId, {
+          mode: "freeform",
+          grid: [],
+          scene: [],
+          components: [],
+        });
+      }
+      if (documents.getDocument(sessionId)) {
+        documents.setDerivedSurface(sessionId, surface);
+      }
       set({ canvasSessions: nextSessions });
       return;
     }
+    if (target.mode === "slide") {
+      documents.activateDocument(sessionId, {
+        mode: "freeform",
+        grid: [],
+        scene: [],
+        components: [],
+      }, { replace: true });
+    }
     documents.setDerivedSurface(sessionId, surface);
-    documents.clearHistory();
+    if (options?.resetHistory !== false) documents.clearHistory();
     set(createSessionActivationPatch(
       nextSessions,
       sessionId,
@@ -544,14 +649,16 @@ export const createSessionSlice = (
     if (!name) return;
     set((state) => ({
       canvasSessions: state.canvasSessions.map((session) =>
-        session.id === canvasId ? { ...session, name } : session
+        session.id === canvasId && !isSourceBackedCanvasSession(session)
+          ? { ...session, name }
+          : session
       ),
     }));
   },
   setCanvasSessionCollaboration: (canvasId, collaboration, role = "host") => {
     const state = get();
     const session = state.canvasSessions.find((item) => item.id === canvasId);
-    if (!session || session.mode === "slide" || session.mode === "blackboard") return;
+    if (!session || session.mode === "slide" || isSourceBackedCanvasSession(session)) return;
     if (collaboration && collaboration.mode !== session.mode) return;
     if (collaboration) {
       documents.prepareDocumentForCollaboration(
@@ -569,7 +676,7 @@ export const createSessionSlice = (
 
     set({
       canvasSessions: state.canvasSessions.map((item) =>
-        item.mode !== "slide" && item.mode !== "blackboard" && item.id === canvasId
+        item.mode !== "slide" && !isSourceBackedCanvasSession(item) && item.id === canvasId
           ? {
               ...item,
               collaboration: collaboration ?? undefined,
@@ -582,7 +689,7 @@ export const createSessionSlice = (
   joinCanvasSessionCollaboration: (collaboration) => {
     const existing = get().canvasSessions.find(
       (session) =>
-        session.mode !== "slide" && session.mode !== "blackboard" &&
+        session.mode !== "slide" && !isSourceBackedCanvasSession(session) &&
         sameCollaborationRoom(session.collaboration, collaboration)
     );
     if (existing) {

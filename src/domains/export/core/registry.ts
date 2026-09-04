@@ -61,7 +61,6 @@ const FORMAT_ORDER: Record<CanvasMode, readonly ExportFormat[]> = {
   freeform: ["txt", "chardesk", "png"],
   structured: ["txt", "chardesk", "png"],
   slide: ["chardesk"],
-  blackboard: [],
 };
 
 export const getAvailableExportFormats = (mode: CanvasMode) =>

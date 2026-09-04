@@ -13,8 +13,8 @@ const createHost = () => {
     initialSessions: [{
       id: "blackboard-source",
       name: "Blackboard",
-      mode: "blackboard",
-      workspaceId: "local-reader",
+      mode: "freeform",
+      sourceBinding: { kind: "blackboard", provider: "local-reader", id: "local-reader" },
       scene: [],
       components: [],
       grid: [],
@@ -172,7 +172,10 @@ describe("Blackboard source projection", () => {
 
     await act(async () => Promise.resolve());
     const initial = host.canvas.getState().canvasSessions[0];
-    expect(initial).toMatchObject({ mode: "slide", workspaceId: "local-reader" });
+    expect(initial).toMatchObject({
+      mode: "slide",
+      sourceBinding: { provider: "local-reader", id: "local-reader" },
+    });
     if (initial?.mode !== "slide") throw new Error("Expected a Slide session");
     host.canvas.commands.slides.activate(initial.slideDeck.slides[1].id);
 

@@ -1,4 +1,4 @@
-type ToolCanvasMode = "freeform" | "structured" | "slide" | "blackboard";
+type ToolCanvasMode = "freeform" | "structured" | "slide";
 
 export type ToolType =
   | "select"
@@ -42,7 +42,6 @@ const TOOLS_BY_MODE = {
     "bg",
   ],
   slide: NON_STRUCTURED_TOOLS,
-  blackboard: ["select", "pan"],
 } as const satisfies Record<ToolCanvasMode, readonly ToolType[]>;
 
 export const isToolAllowedForMode = (

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 import type { CollaborationDescriptorV6 } from "./model";
 import { getCollaborationRoomName } from "./document";
@@ -71,20 +71,23 @@ const descriptor = (
   endpoint,
 });
 
-beforeEach(() => {
+const createMemoryStorage = (): Storage => {
   const values = new Map<string, string>();
-  vi.stubGlobal("localStorage", {
+  return {
     getItem: (key: string) => values.get(key) ?? null,
     setItem: (key: string, value: string) => values.set(key, value),
     removeItem: (key: string) => values.delete(key),
     clear: () => values.clear(),
     key: (index: number) => [...values.keys()][index] ?? null,
     get length() { return values.size; },
-  } satisfies Storage);
-});
+  };
+};
 
-afterEach(() => {
-  vi.unstubAllGlobals();
+beforeEach(() => {
+  Object.defineProperty(window, "localStorage", {
+    configurable: true,
+    value: createMemoryStorage(),
+  });
 });
 
 describe("collaboration document contract", () => {
@@ -200,7 +203,7 @@ describe("collaboration document contract", () => {
     expect(harness.runtime.getSnapshot().connectionStatus).toBe("online");
   });
 
-  it("keeps a fresh guest blocked until a remote peer and document sync arrive", async () => {
+  it("keeps a fresh guest blocked until a document-ready peer and sync arrive", async () => {
     const harness = createRuntimeHarness();
     const connect = harness.runtime.connect(
       descriptor("wss://one.example.com"),
@@ -230,17 +233,6 @@ describe("collaboration document contract", () => {
       ([event]) => event === "change"
     )?.[1];
     changeListener?.();
-    expect(harness.runtime.getSnapshot().documentStatus).toBe("joining");
-
-    harness.awareness.getStates().set(2, {
-      version: 1,
-      mode: "freeform",
-      role: "host",
-      documentReady: true,
-      user: { id: "host", name: "Host", color: "#0969da" },
-    });
-    changeListener?.();
-
     expect(harness.runtime.getSnapshot()).toMatchObject({
       documentStatus: "ready",
       canEdit: true,

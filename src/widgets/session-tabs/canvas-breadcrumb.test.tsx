@@ -333,6 +333,48 @@ describe("CanvasBreadcrumb", () => {
     ).toBe(false);
   });
 
+  it("treats a source-backed Canvas as a closeable view with snapshot and source exports", async () => {
+    setTwoSessions();
+    act(() => {
+      useEditorStore.setState((state) => ({
+        canvasSessions: state.canvasSessions.map((session) =>
+          session.id === "canvas-a" && session.mode === "freeform"
+            ? {
+                ...session,
+                name: "Board",
+                sourceBinding: {
+                  kind: "blackboard" as const,
+                  provider: "browser-workspace" as const,
+                  id: "workspace-1",
+                },
+              }
+            : session
+        ),
+      }));
+    });
+    render(<CanvasBreadcrumb />);
+
+    openPanel();
+    await openDropdown("Manage Board");
+    expect(screen.queryByRole("menuitem", { name: "Rename" })).not.toBeInTheDocument();
+    await openSubmenu("Export");
+    expect(screen.getByRole("menuitem", { name: "CharDesk" })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: "Source package" })).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    fireEvent.keyDown(document, { key: "Escape" });
+    await waitFor(() =>
+      expect(screen.queryByRole("menuitem", { name: "Source package" }))
+        .not.toBeInTheDocument()
+    );
+    if (!screen.queryByRole("dialog", { name: "Select canvas" })) openPanel();
+    await openDropdown("Manage Board");
+    fireEvent.click(await screen.findByRole("menuitem", { name: "Close" }));
+    expect(await screen.findByRole("heading", { name: "Close source view?" }))
+      .toBeInTheDocument();
+    expect(screen.getByText(/source files stay available/i)).toBeInTheDocument();
+  });
+
 
   it("translates operation UI without translating canvas names", async () => {
     setTwoSessions();

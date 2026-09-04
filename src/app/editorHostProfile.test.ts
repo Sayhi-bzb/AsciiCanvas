@@ -8,7 +8,11 @@ describe("Editor Host contract", () => {
   it.each(["freeform", "structured", "slide"] as const)(
     "exposes editable %s behavior and surfaces",
     (mode) => {
-      expect(resolveEditorHostContract(EDITOR_HOST_PROFILE, mode, true)).toEqual({
+      expect(resolveEditorHostContract(EDITOR_HOST_PROFILE, {
+        mode,
+        canEdit: true,
+        sourceBacked: false,
+      })).toEqual({
         capabilities: {
           navigate: true,
           select: true,
@@ -23,7 +27,11 @@ describe("Editor Host contract", () => {
   );
 
   it("keeps inspection but removes insertion surfaces without write authority", () => {
-    expect(resolveEditorHostContract(EDITOR_HOST_PROFILE, "freeform", false))
+    expect(resolveEditorHostContract(EDITOR_HOST_PROFILE, {
+      mode: "freeform",
+      canEdit: false,
+      sourceBacked: false,
+    }))
       .toEqual({
         capabilities: {
           ...EDITOR_HOST_PROFILE.capabilities,
@@ -34,7 +42,11 @@ describe("Editor Host contract", () => {
   });
 
   it("keeps Slide navigation visible without write authority", () => {
-    expect(resolveEditorHostContract(EDITOR_HOST_PROFILE, "slide", false))
+    expect(resolveEditorHostContract(EDITOR_HOST_PROFILE, {
+      mode: "slide",
+      canEdit: false,
+      sourceBacked: false,
+    }))
       .toEqual({
         capabilities: {
           ...EDITOR_HOST_PROFILE.capabilities,
@@ -45,8 +57,12 @@ describe("Editor Host contract", () => {
       });
   });
 
-  it("makes Blackboard observation-only without editor surfaces", () => {
-    expect(resolveEditorHostContract(EDITOR_HOST_PROFILE, "blackboard", true))
+  it("makes source-backed Freeform observation-only without editor surfaces", () => {
+    expect(resolveEditorHostContract(EDITOR_HOST_PROFILE, {
+      mode: "freeform",
+      canEdit: false,
+      sourceBacked: true,
+    }))
       .toEqual({
         capabilities: {
           ...EDITOR_HOST_PROFILE.capabilities,
@@ -55,5 +71,13 @@ describe("Editor Host contract", () => {
         },
         surfaces: { inspector: null, sidebar: null },
       });
+  });
+
+  it("keeps source-backed Slide navigation without an inspector", () => {
+    expect(resolveEditorHostContract(EDITOR_HOST_PROFILE, {
+      mode: "slide",
+      canEdit: false,
+      sourceBacked: true,
+    }).surfaces).toEqual({ inspector: null, sidebar: "slide" });
   });
 });

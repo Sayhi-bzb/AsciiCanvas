@@ -38,7 +38,8 @@ describe("Blackboard workspace target", () => {
     expect(window.location.pathname).toBe("/blackboard");
     expect(window.location.search).toBe("?webmcp=polyfill&workspace=gpu");
     expect(host.canvas.getState().canvasSessions.find(
-      (session) => session.mode === "blackboard" && session.workspaceId === "gpu",
+      (session) => session.sourceBinding?.provider === "browser-workspace" &&
+        session.sourceBinding.id === "gpu",
     )).toBeDefined();
   });
 
@@ -66,7 +67,34 @@ describe("Blackboard workspace target", () => {
 
     expect(target.getActiveWorkspaceId()).toBe("first");
     expect(host.canvas.getState().canvasSessions.filter(
-      (session) => session.mode === "blackboard",
+      (session) => session.sourceBinding?.provider === "browser-workspace",
     )).toHaveLength(2);
+  });
+
+  it("closes a source view without deleting its workspace", async () => {
+    const repository = new IndexedDbBlackboardRepository({
+      databaseName: `workspace-target-close-${crypto.randomUUID()}`,
+    });
+    const host = createApplicationEditorHost({ blackboardRepository: repository });
+    disposals.push(async () => {
+      await host.dispose();
+      await repository.close();
+    });
+    await repository.createWorkspace({ id: "kept", title: "Kept" });
+    const target = createBlackboardWorkspaceTarget({
+      blackboard: host.blackboard,
+      canvas: host.canvas,
+      location: window.location,
+      history: window.history,
+    });
+
+    await target.activateWorkspace("kept");
+    const sourceSession = host.canvas.getState().canvasSessions.find(
+      (session) => session.sourceBinding?.id === "kept",
+    );
+    expect(sourceSession).toBeDefined();
+    await host.canvas.commands.sessions.remove(sourceSession!.id);
+
+    await expect(repository.readWorkspace("kept")).resolves.not.toBeNull();
   });
 });
