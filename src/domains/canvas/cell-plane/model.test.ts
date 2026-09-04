@@ -266,6 +266,49 @@ describe("CellPlaneIndex", () => {
     expect(visited).toEqual([[128, 0, "你"]]);
   });
 
+  it("rebuilds cached visit coordinates after invalidation", () => {
+    const plane = new CellPlaneIndex([operation("base", [{
+      y: 0,
+      erase: [],
+      spans: [{ x: 0, text: "ABC", color: "#fff" }],
+    }], 3)]);
+    const read = () => {
+      const visited: Array<[number, string]> = [];
+      plane.visitCells(
+        { x: 0, y: 0, width: 3, height: 1 },
+        (x, _y, cell) => visited.push([x, cell.char])
+      );
+      return visited.sort(([left], [right]) => left - right);
+    };
+
+    expect(read()).toEqual([[0, "A"], [1, "B"], [2, "C"]]);
+    plane.append(operation("overwrite", [{
+      y: 0,
+      erase: [],
+      spans: [{ x: 1, text: "X", color: "#fff" }],
+    }], 3));
+
+    expect(read()).toEqual([[0, "A"], [1, "X"], [2, "C"]]);
+  });
+
+  it("preserves coordinates outside the Int32 snapshot range", () => {
+    const x = 0x80000000;
+    const encoded = encodeCellPlaneOperation(
+      "large-coordinate",
+      { x, y: -1, width: 1, height: 1 },
+      [{ y: -1, erase: [], spans: [{ x, text: "A", color: "#fff" }] }]
+    );
+    const plane = new CellPlaneIndex([encoded]);
+    const visited: Array<[number, number, string]> = [];
+
+    plane.visitCells(
+      { x, y: -1, width: 1, height: 1 },
+      (cellX, cellY, cell) => visited.push([cellX, cellY, cell.char])
+    );
+
+    expect(visited).toEqual([[x, -1, "A"]]);
+  });
+
   it("counts logical cells without warming projection caches", () => {
     const plane = new CellPlaneIndex([{
       id: "count",

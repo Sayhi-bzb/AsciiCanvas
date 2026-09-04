@@ -19,6 +19,7 @@ const CELL_PLANE_PREPARED_TEXT_CACHE_BYTES_LIMIT = 4 * 1024 * 1024;
 const PREPARED_TEXT_CHECKPOINT_GRAPHEMES = 64;
 const PREPARED_TEXT_MIN_CODE_UNITS = 16;
 const ESTIMATED_GRID_CELL_BYTES = 160;
+const ESTIMATED_CHUNK_VISIT_CELL_BYTES = 16;
 const ESTIMATED_PREPARED_TEXT_BASE_BYTES = 256;
 const CELL_PLANE_BINARY_FORMAT = 2 as const;
 const CELL_PLANE_BINARY_MAGIC = [0x43, 0x50, CELL_PLANE_BINARY_FORMAT] as const;
@@ -423,8 +424,33 @@ type CellPlaneChunkReference = {
 
 type CellPlaneChunkCacheEntry = {
   cells: Map<string, GridCell>;
+  visitSnapshot?: CellPlaneChunkVisitSnapshot;
   bytes: number;
   budgetToken?: object;
+};
+
+type CellPlaneChunkVisitSnapshot = {
+  cells: GridCell[];
+  coordinates: Int32Array;
+};
+
+const createChunkVisitSnapshot = (
+  cells: ReadonlyMap<string, GridCell>
+): CellPlaneChunkVisitSnapshot | undefined => {
+  const orderedCells = new Array<GridCell>(cells.size);
+  const coordinates = new Int32Array(cells.size * 2);
+  let index = 0;
+  for (const [key, cell] of cells) {
+    const { x, y } = GridManager.fromKey(key);
+    if (x < -0x80000000 || x > 0x7fffffff || y < -0x80000000 || y > 0x7fffffff) {
+      return undefined;
+    }
+    orderedCells[index] = cell;
+    coordinates[index * 2] = x;
+    coordinates[index * 2 + 1] = y;
+    index += 1;
+  }
+  return { cells: orderedCells, coordinates };
 };
 
 type PreparedCellTextCacheEntry = {
@@ -1160,23 +1186,39 @@ export class CellPlaneIndex implements CanvasSurfaceReader {
     const maxChunkX = floorDiv(bounds.x + bounds.width - 1, CELL_PLANE_CHUNK_WIDTH);
     const minChunkY = floorDiv(bounds.y, CELL_PLANE_CHUNK_HEIGHT);
     const maxChunkY = floorDiv(bounds.y + bounds.height - 1, CELL_PLANE_CHUNK_HEIGHT);
+    const boundsRight = bounds.x + bounds.width;
+    const boundsBottom = bounds.y + bounds.height;
     for (let chunkY = minChunkY; chunkY <= maxChunkY; chunkY += 1) {
       for (let chunkX = minChunkX; chunkX <= maxChunkX; chunkX += 1) {
         const chunkLeft = chunkX * CELL_PLANE_CHUNK_WIDTH;
         const chunkTop = chunkY * CELL_PLANE_CHUNK_HEIGHT;
-        this.#resolveChunk(chunkX, chunkY).forEach((cell, key) => {
-          const point = GridManager.fromKey(key);
+        const chunkRight = chunkLeft + CELL_PLANE_CHUNK_WIDTH;
+        const chunkBottom = chunkTop + CELL_PLANE_CHUNK_HEIGHT;
+        const entry = this.#resolveChunkEntry(chunkX, chunkY);
+        const snapshot = entry.visitSnapshot;
+        if (snapshot) {
+          for (let index = 0; index < snapshot.cells.length; index += 1) {
+            const x = snapshot.coordinates[index * 2]!;
+            const y = snapshot.coordinates[index * 2 + 1]!;
+            if (
+              x < chunkLeft || x >= chunkRight ||
+              y < chunkTop || y >= chunkBottom ||
+              x < bounds.x || x >= boundsRight ||
+              y < bounds.y || y >= boundsBottom
+            ) continue;
+            visitor(x, y, snapshot.cells[index]!);
+          }
+          continue;
+        }
+        entry.cells.forEach((cell, key) => {
+          const { x, y } = GridManager.fromKey(key);
           if (
-            point.x < chunkLeft ||
-            point.x >= chunkLeft + CELL_PLANE_CHUNK_WIDTH ||
-            point.y < chunkTop ||
-            point.y >= chunkTop + CELL_PLANE_CHUNK_HEIGHT ||
-            point.x < bounds.x ||
-            point.x >= bounds.x + bounds.width ||
-            point.y < bounds.y ||
-            point.y >= bounds.y + bounds.height
+            x < chunkLeft || x >= chunkRight ||
+            y < chunkTop || y >= chunkBottom ||
+            x < bounds.x || x >= boundsRight ||
+            y < bounds.y || y >= boundsBottom
           ) return;
-          visitor(point.x, point.y, cell);
+          visitor(x, y, cell);
         });
       }
     }
@@ -1399,17 +1441,29 @@ export class CellPlaneIndex implements CanvasSurfaceReader {
   }
 
   #resolveChunk(chunkX: number, chunkY: number) {
+    return this.#resolveChunkEntry(chunkX, chunkY).cells;
+  }
+
+  #resolveChunkEntry(chunkX: number, chunkY: number) {
     const key = chunkKey(chunkX, chunkY);
     const cached = this.#chunkCache.get(key);
     if (cached) {
       this.#chunkCache.delete(key);
       this.#chunkCache.set(key, cached);
       if (cached.budgetToken) this.#sharedCacheBudget?.touch(cached.budgetToken);
-      return cached.cells;
+      return cached;
     }
     const projection = this.#projectChunk(chunkX, chunkY);
-    const bytes = 256 + projection.size * ESTIMATED_GRID_CELL_BYTES;
-    const entry: CellPlaneChunkCacheEntry = { cells: projection, bytes };
+    const visitSnapshot = createChunkVisitSnapshot(projection);
+    const bytes = 256 + projection.size * (
+      ESTIMATED_GRID_CELL_BYTES +
+      (visitSnapshot ? ESTIMATED_CHUNK_VISIT_CELL_BYTES : 0)
+    );
+    const entry: CellPlaneChunkCacheEntry = {
+      cells: projection,
+      visitSnapshot,
+      bytes,
+    };
     this.#chunkCache.set(key, entry);
     this.#chunkCacheBytes += bytes;
     if (this.#sharedCacheBudget) {
@@ -1430,7 +1484,7 @@ export class CellPlaneIndex implements CanvasSurfaceReader {
       if (!oldest) break;
       this.#deleteCachedChunk(oldest);
     }
-    return projection;
+    return entry;
   }
 
   #projectChunk(chunkX: number, chunkY: number) {
