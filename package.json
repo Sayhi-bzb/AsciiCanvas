@@ -50,6 +50,8 @@
     "test:coverage": "vitest --coverage",
     "test:e2e": "playwright test",
     "test:perf": "npm run build && node scripts/performance/run-perf.mjs",
+    "test:engine-perf": "vitest run --config scripts/performance/vitest.engine.config.ts",
+    "compare:engine-perf": "node scripts/performance/compare-cell-plane-benchmarks.mjs",
     "test:stress": "npm run build:app && node scripts/performance/run-stress.mjs",
     "check:boundaries": "node scripts/check-domain-boundaries.mjs",
     "check:type-escapes": "node scripts/quality/check-type-escapes.mjs",

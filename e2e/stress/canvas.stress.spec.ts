@@ -65,6 +65,8 @@ const DEVICE_SCALE_FACTOR = 2;
 const SCENARIO_MS = 5_000;
 const INPUT_FRAME_MS = 16;
 const GRID_LEVELS = [5_000, 10_000, 25_000, 50_000, 75_000, 100_000, 150_000, 250_000];
+const UNICODE_GRID_LEVELS = [5_000, 10_000, 25_000, 50_000];
+const HISTORY_LEVELS = [250, 1_000, 2_500];
 const STRUCTURED_LEVELS = [100, 250, 500, 1_000, 2_000, 5_000];
 const PERSISTENCE_LEVELS = [10_000, 25_000, 50_000, 75_000, 100_000, 150_000, 250_000];
 const ZOOM_LEVELS = [1, 0.5, 0.25];
@@ -123,6 +125,26 @@ const makeGrid = (count: number, density: "sparse" | "dense"): GridEntry[] => {
     const slot = index * spacing;
     return [key(slot % width, Math.floor(slot / width)), makeCell(index)];
   });
+};
+
+const makeUnicodeGrid = (count: number): GridEntry[] => {
+  const chars = ["你", "👩🏽‍💻", "é", "A"] as const;
+  const widths = [2, 2, 1, 1] as const;
+  const rowWidth = Math.max(16, Math.ceil(Math.sqrt(count * 4)));
+  const entries: GridEntry[] = [];
+  let x = 0;
+  let y = 0;
+  for (let index = 0; index < count; index += 1) {
+    const charIndex = index % chars.length;
+    const width = widths[charIndex]!;
+    if (x + width > rowWidth) {
+      x = 0;
+      y += 1;
+    }
+    entries.push([key(x, y), { ...makeCell(index), char: chars[charIndex]! }]);
+    x += width;
+  }
+  return entries;
 };
 
 const makeStructuredScene = (nodeCount: number): StructuredNode[] => {
@@ -476,6 +498,7 @@ const runLevel = async ({
   readProjection = false,
   verifyReload = false,
   switchSessionIds,
+  historyOperationCount,
 }: {
   browser: Browser;
   family: CanvasStressLevel["family"];
@@ -488,6 +511,7 @@ const runLevel = async ({
   readProjection?: boolean;
   verifyReload?: boolean;
   switchSessionIds?: readonly string[];
+  historyOperationCount?: number;
 }): Promise<CanvasStressLevel> => {
   const serialized = JSON.stringify(snapshot);
   const runtimeErrors: string[] = [];
@@ -526,6 +550,18 @@ const runLevel = async ({
         storage.error = null;
         storage.writes = 0;
       });
+      if (historyOperationCount) {
+        const surface = page.getByTestId("canvas-editor-surface");
+        const bounds = await surface.boundingBox();
+        if (!bounds) throw new Error("Canvas surface has no bounding box");
+        await page.mouse.click(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+        await page.keyboard.type("x".repeat(historyOperationCount));
+        await page.evaluate(async () => {
+          const diagnostics = window.__chardeskCanvasStress;
+          if (!diagnostics) throw new Error("Canvas stress diagnostics unavailable");
+          await diagnostics.ready();
+        });
+      }
       await installFrameProbe(page);
       const diagnosticsSession = await context.newCDPSession(page);
       if (CAPTURE_CPU_PROFILE) {
@@ -570,6 +606,14 @@ const runLevel = async ({
       surfaceStats = await page.evaluate(
         () => window.__chardeskCanvasStress?.surfaceStats() ?? null
       );
+      if (
+        historyOperationCount &&
+        (surfaceStats?.operationCount ?? 0) < historyOperationCount
+      ) {
+        runtimeErrors.push(
+          `operation count ${surfaceStats?.operationCount ?? 0} did not reach ${historyOperationCount}`
+        );
+      }
       memoryStats = await page.evaluate(
         () => window.__chardeskCanvasStress?.memoryStats() ?? null
       );
@@ -651,6 +695,9 @@ const runLevel = async ({
     snapshotBytes: Buffer.byteLength(serialized),
     ...(cellCount === undefined ? {} : { cellCount }),
     ...(nodeCount === undefined ? {} : { nodeCount }),
+    ...(surfaceStats?.operationCount === undefined
+      ? {}
+      : { operationCount: surfaceStats.operationCount }),
     ...(readProjection ? { projectedCellCount } : {}),
     ...(surfaceStats ? { surfaceStats } : {}),
     ...(memoryStats ? { memoryStats } : {}),
@@ -714,6 +761,46 @@ test.describe.serial("Canvas capacity stress", () => {
       expect(lastPassingCount(`freeform-${density}`)).toBeGreaterThanOrEqual(5_000);
     });
   }
+
+  test("finds the mixed-Unicode freeform boundary", async ({ browser }) => {
+    for (const cellCount of UNICODE_GRID_LEVELS) {
+      const grid = makeUnicodeGrid(cellCount);
+      const level = await runLevel({
+        browser,
+        family: "freeform-unicode",
+        label: `${formatLevel(cellCount)} Unicode anchors`,
+        snapshot: makePersistedState({ grid }),
+        zoom: 1,
+        cellCount,
+      });
+      appendLevel(level);
+      if (!level.passed) break;
+    }
+    markFamilyComplete("freeform-unicode");
+    expect(lastPassingCount("freeform-unicode")).toBeGreaterThanOrEqual(5_000);
+  });
+
+  test("measures projection with deep freeform history", async ({ browser }) => {
+    const cellCount = 10_000;
+    const grid = makeGrid(cellCount, "dense");
+    for (const historyOperationCount of HISTORY_LEVELS) {
+      const level = await runLevel({
+        browser,
+        family: "freeform-history",
+        label: `${formatLevel(historyOperationCount)} edits @ ${formatLevel(cellCount)} cells`,
+        snapshot: makePersistedState({ grid }),
+        zoom: 1,
+        cellCount,
+        historyOperationCount,
+      });
+      appendLevel(level);
+      if (!level.passed) break;
+    }
+    markFamilyComplete("freeform-history");
+    expect(report.levels.some((level) =>
+      level.family === "freeform-history" && level.passed
+    )).toBe(true);
+  });
 
   test("finds the low-zoom viewport boundary", async ({ browser }) => {
     const cellCount = Math.min(lastPassingCount("freeform-dense") ?? 10_000, 10_000);

@@ -67,12 +67,16 @@ process.on("SIGTERM", () => {
 
 try {
   await waitForServer(URL);
-  await run(process.execPath, [
+  const playwrightArguments = [
     "./node_modules/@playwright/test/cli.js",
     "test",
     "-c",
     "e2e/playwright.stress.config.ts",
-  ], {
+    ...(process.env.CANVAS_STRESS_GREP
+      ? ["--grep", process.env.CANVAS_STRESS_GREP]
+      : []),
+  ];
+  await run(process.execPath, playwrightArguments, {
     env: { ...process.env, CANVAS_STRESS_REPORT_DIR: REPORT_DIR },
   });
   console.log(`Canvas stress report: ${path.join(REPORT_DIR, "report.md")}`);
