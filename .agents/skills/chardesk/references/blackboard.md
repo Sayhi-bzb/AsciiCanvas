@@ -14,6 +14,9 @@ A Blackboard package divides one Canvas into independently editable spatial
 contexts. `blackboard.yaml` is its first-read context map; `.panel` files own
 local content.
 
+`blackboard/v2` uses the same Panel package for ordered Slides; the
+[Slide reference](slides.md) owns that mode.
+
 ```text
 orbital-rendezvous/
 ├── blackboard.yaml

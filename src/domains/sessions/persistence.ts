@@ -38,6 +38,7 @@ interface PersistedEditorStateV5 {
     brushBackgroundColor?: string;
     showGrid: boolean;
     exportShowGrid: boolean;
+    collaborationEndpoint?: string;
   };
 }
 
@@ -87,6 +88,9 @@ const decodeCanvasSession = (value: unknown): CanvasSession | null => {
           : "Slides",
       mode: "slide",
       slideDeck: normalizeSlideDeck(value.slideDeck, `${value.id}-slide-1`),
+      ...(typeof value.workspaceId === "string" && value.workspaceId.trim()
+        ? { workspaceId: value.workspaceId }
+        : {}),
       scene: [],
       components: [],
       grid: [],
@@ -117,6 +121,11 @@ const decodeCanvasSession = (value: unknown): CanvasSession | null => {
   const collaboration = isCollaborationDescriptor(value.collaboration)
     ? value.collaboration
     : undefined;
+  const collaborationRole = collaboration && value.collaborationRole === "guest"
+    ? "guest"
+    : collaboration
+      ? "host"
+      : undefined;
   return {
     id: value.id,
     name:
@@ -129,6 +138,7 @@ const decodeCanvasSession = (value: unknown): CanvasSession | null => {
     grid: decodeGridEntries(value.grid),
     ...(viewport ? { viewport } : {}),
     ...(collaboration ? { collaboration } : {}),
+    ...(collaborationRole ? { collaborationRole } : {}),
   };
 };
 
@@ -222,6 +232,10 @@ export const decodePersistedEditorState = (
         typeof preferences.exportShowGrid === "boolean"
           ? preferences.exportShowGrid
           : false,
+      collaborationEndpoint:
+        typeof preferences.collaborationEndpoint === "string"
+          ? preferences.collaborationEndpoint
+          : "",
     },
   };
 };

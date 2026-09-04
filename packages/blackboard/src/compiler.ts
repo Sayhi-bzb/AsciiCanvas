@@ -11,6 +11,7 @@ import {
   parseBlackboardManifest,
   type BlackboardManifest,
   type BlackboardManifestWarning,
+  type BlackboardSpatialManifest,
 } from "./manifest.js";
 
 export type BlackboardPackageErrorCode =
@@ -40,6 +41,7 @@ export type CompileBlackboardOptions = {
 };
 
 export type CompiledBlackboard = {
+  mode: "freeform" | "slide";
   source: string;
   title: string;
   warnings: BlackboardManifestWarning[];
@@ -54,7 +56,8 @@ type PanelRegion = {
 
 type RenderedPanel = {
   id: string;
-  region: PanelRegion;
+  region?: PanelRegion;
+  source: string;
   compiled: CompiledCharDeskText;
 };
 
@@ -62,7 +65,7 @@ const BLACKBOARD_MARKDOWN_OPTIONS = createCharDeskMarkdownRenderOptions({
   theme: CHARDESK_LIGHT_RENDER_THEME,
 });
 
-const panelRegions = (manifest: BlackboardManifest) => {
+const panelRegions = (manifest: BlackboardSpatialManifest) => {
   const regions = new Map<string, PanelRegion>();
   manifest.layout.areas.forEach((row, rowIndex) => row.forEach((id, columnIndex) => {
     if (id === null) return;
@@ -105,7 +108,7 @@ const distributeTrackDeficit = (
 
 const sizeTracks = (
   count: number,
-  panels: RenderedPanel[],
+  panels: Array<RenderedPanel & { region: PanelRegion }>,
   axis: "column" | "row",
   gap: number,
 ) => {
@@ -139,7 +142,10 @@ const trackOrigins = (tracks: number[], gap: number) => {
   return origins;
 };
 
-const composePanels = (manifest: BlackboardManifest, panels: RenderedPanel[]) => {
+const composePanels = (
+  manifest: BlackboardSpatialManifest,
+  panels: Array<RenderedPanel & { region: PanelRegion }>,
+) => {
   const columnGap = manifest.layout.gap.column;
   const rowGap = manifest.layout.gap.row;
   const columns = sizeTracks(manifest.layout.areas[0]!.length, panels, "column", columnGap);
@@ -241,8 +247,38 @@ const renderPanel = async (
       request.id,
     );
   }
-  return region ? { id: request.id, region, compiled } satisfies RenderedPanel : undefined;
+  return {
+    id: request.id,
+    ...(region ? { region } : {}),
+    source,
+    compiled,
+  } satisfies RenderedPanel;
 };
+
+const resolveFence = (source: string) => {
+  let length = 3;
+  for (const match of source.matchAll(/^`+/gmu)) {
+    length = Math.max(length, match[0].length + 1);
+  }
+  return "`".repeat(length);
+};
+
+const composeSlides = (
+  manifest: Extract<BlackboardManifest, { mode: "slide" }>,
+  panels: ReadonlyMap<string, RenderedPanel>,
+) => manifest.layout.pages.map((id) => {
+  const panel = panels.get(id)!;
+  const definition = manifest.panels[id]!;
+  const fence = resolveFence(panel.source);
+  const title = (definition.title ?? id).replace(/[\r\n]+/gu, " ").trim();
+  return [
+    `## ${title}`,
+    "",
+    `${fence}chargraph size=${definition.size ?? "auto"}`,
+    panel.source,
+    fence,
+  ].join("\n");
+}).join("\n\n");
 
 export const compileBlackboard = async ({
   manifestSource,
@@ -258,12 +294,31 @@ export const compileBlackboard = async ({
     }
     throw error;
   }
-  const regions = panelRegions(parsed.manifest);
+  const regions = parsed.manifest.mode === "blackboard"
+    ? panelRegions(parsed.manifest)
+    : new Map<string, PanelRegion>();
   const rendered = await Promise.all(Object.entries(parsed.manifest.panels).map(
     ([id, panel]) => renderPanel({ id, source: panel.source }, regions.get(id), readPanel),
   ));
+  if (parsed.manifest.mode === "slide") {
+    return {
+      mode: "slide",
+      source: composeSlides(
+        parsed.manifest,
+        new Map(rendered.map((panel) => [panel.id, panel])),
+      ),
+      title: parsed.manifest.title ?? fallbackTitle,
+      warnings: parsed.warnings,
+    };
+  }
   return {
-    source: composePanels(parsed.manifest, rendered.flatMap((panel) => panel ? [panel] : [])),
+    mode: "freeform",
+    source: composePanels(
+      parsed.manifest,
+      rendered.filter(
+        (panel): panel is RenderedPanel & { region: PanelRegion } => !!panel.region,
+      ),
+    ),
     title: parsed.manifest.title ?? fallbackTitle,
     warnings: parsed.warnings,
   };

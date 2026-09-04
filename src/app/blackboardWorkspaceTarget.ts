@@ -23,7 +23,8 @@ export const createBlackboardWorkspaceTarget = ({
   const getActiveWorkspaceId = () => {
     const state = canvas.getState();
     const session = state.canvasSessions.find(({ id }) => id === state.activeCanvasId);
-    if (session?.mode === "blackboard" && session.workspaceId !== "local-reader") {
+    if (session && "workspaceId" in session &&
+        session.workspaceId && session.workspaceId !== "local-reader") {
       return session.workspaceId;
     }
     if (!isBlackboardRoute(location) || isLocalBlackboardReaderRoute(location)) return null;
@@ -35,7 +36,7 @@ export const createBlackboardWorkspaceTarget = ({
     if (!source) throw new Error(`Blackboard workspace not found: ${workspaceId}`);
     await canvas.ready;
     const existing = canvas.getState().canvasSessions.find(
-      (session) => session.mode === "blackboard" && session.workspaceId === workspaceId,
+      (session) => "workspaceId" in session && session.workspaceId === workspaceId,
     );
     if (existing) await canvas.commands.sessions.switch(existing.id);
     else {

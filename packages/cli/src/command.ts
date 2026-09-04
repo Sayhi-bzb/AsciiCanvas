@@ -48,6 +48,7 @@ type InitCommand = {
   kind: "init";
   directory: string;
   title?: string;
+  mode: "blackboard" | "slide";
 };
 
 type OpenCommand = CommonCommand & {
@@ -113,7 +114,7 @@ class CliUsageError extends Error {
 
 const CLI_USAGE = [
   "Usage:",
-  "  chardesk init <directory> [--title <title>]",
+  "  chardesk init <directory> [--mode <blackboard|slide>] [--title <title>]",
   "  chardesk inspect <input|-> [options]",
   "  chardesk open <input> [options]",
   "  chardesk status [input] [--json]",
@@ -122,6 +123,7 @@ const CLI_USAGE = [
   "",
   "Options:",
   "      --title <title>                 Workspace title for init",
+  "      --mode <blackboard|slide>       Workspace mode for init",
   "      --port <0..65535>               Local open port (default: random)",
   "      --no-browser                    Print the open URL without launching it",
   "      --foreground                    Keep the local Canvas attached to this process",
@@ -158,6 +160,7 @@ const parseRawArguments = (args: readonly string[]) => parseArgs({
     json: { type: "boolean", default: false },
     help: { type: "boolean", short: "h", default: false },
     title: { type: "string" },
+    mode: { type: "string" },
     port: { type: "string" },
     "no-browser": { type: "boolean", default: false },
     foreground: { type: "boolean", default: false },
@@ -292,10 +295,19 @@ export const parseCliArguments = (
   }
   if (!input || extra.length > 0) throw new CliUsageError(`${kind} requires exactly one input.`);
   if (kind === "init") {
-    allow("title");
+    allow("title", "mode");
+    const mode = parsed.values.mode ?? "blackboard";
+    if (mode !== "blackboard" && mode !== "slide") {
+      throw new CliUsageError("--mode must be blackboard or slide.");
+    }
     return {
       help: false,
-      command: { kind, directory: input, ...(parsed.values.title ? { title: parsed.values.title } : {}) },
+      command: {
+        kind,
+        directory: input,
+        mode,
+        ...(parsed.values.title ? { title: parsed.values.title } : {}),
+      },
     };
   }
   if (kind === "__serve") {
@@ -581,6 +593,7 @@ export const runCli = async (
         cwd,
         directory: command.directory,
         title: command.title,
+        mode: command.mode,
       });
       streams.stdout.write(`${root}\n`);
       return 0;

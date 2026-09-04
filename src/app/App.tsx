@@ -35,6 +35,7 @@ import { useActiveCollaboration } from './useActiveCollaboration';
 import { useHorizontalWheelNavigationGuard } from './useHorizontalWheelNavigationGuard';
 import { CollaborationControl } from '@/widgets/collaboration/CollaborationControl';
 import { RemoteSelectionOverlay } from '@/widgets/collaboration/RemoteSelectionOverlay';
+import { CollaborationJoiningOverlay } from '@/widgets/collaboration/CollaborationJoiningOverlay';
 import { useCollaborationSnapshot } from '@/widgets/collaboration/useCollaborationSnapshot';
 import { sameCollaborationRoom } from '@/domains/collaboration/public';
 import { OnboardingTourProvider } from '@/widgets/onboarding/new-user-tour';
@@ -279,7 +280,10 @@ function CanvasPaneContent({
         </EditorWidget>
       ) : null}
       {collaborate && view.isActive && (
-        <RemoteSelectionOverlay viewportFrame={paneViewportFrame} />
+        <>
+          <RemoteSelectionOverlay viewportFrame={paneViewportFrame} />
+          <CollaborationJoiningOverlay />
+        </>
       )}
     </div>
   );
@@ -346,10 +350,12 @@ function AppContent() {
     (status) => status.restore.phase
   );
   const activeCanvasMode = useCanvasState((state) => state.canvasMode);
-  const activeCollaboration = useCanvasState(
-    (state) =>
-      state.canvasSessions.find((session) => session.id === state.activeCanvasId)?.collaboration
+  const activeSession = useCanvasState((state) =>
+    state.canvasSessions.find((session) => session.id === state.activeCanvasId)
   );
+  const activeCollaboration = activeSession?.collaboration;
+  const sourceBacked = !!activeSession && "workspaceId" in activeSession &&
+    !!activeSession.workspaceId;
   const isCollaborationReadOnly =
     !!activeCollaboration &&
     (!collaborationSnapshot.canEdit ||
@@ -357,7 +363,8 @@ function AppContent() {
   const hostContract = resolveEditorHostContract(
     hostProfile,
     activeCanvasMode,
-    !isCollaborationReadOnly &&
+    !sourceBacked &&
+      !isCollaborationReadOnly &&
       persistenceRestorePhase !== 'retrying'
   );
   const { capabilities, surfaces } = hostContract;
@@ -512,7 +519,7 @@ function AppContent() {
               />
             </EditorWidget>
             {showHostWidgets &&
-              canvasMode === 'blackboard' &&
+              sourceBacked &&
               blackboardStatus.status.state !== 'current' &&
               blackboardStatus.status.state !== 'idle' && (
                 <StatusText tone={getBlackboardStatusTone(blackboardStatus.status.state)} asChild>
@@ -564,7 +571,10 @@ function AppContent() {
           >
             <Suspense fallback={null}>
               <div className="size-full min-h-0 overflow-visible">
-                <SidebarRight canvasMode={surfaces.sidebar} />
+                <SidebarRight
+                  canvasMode={surfaces.sidebar}
+                  readOnly={!capabilities.mutateContent}
+                />
               </div>
             </Suspense>
           </RecoverableLazyBoundary>

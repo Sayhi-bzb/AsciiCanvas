@@ -34,7 +34,9 @@ describe("editor persistence v5", () => {
   });
 
   it("defaults the grid off while preserving an explicit preference", () => {
-    expect(migratePersistedStateToV5({}).preferences.showGrid).toBe(false);
+    const defaults = migratePersistedStateToV5({}).preferences;
+    expect(defaults.showGrid).toBe(false);
+    expect(defaults.collaborationEndpoint).toBe("");
     expect(
       migratePersistedStateToV5({ preferences: { showGrid: true } }).preferences
         .showGrid

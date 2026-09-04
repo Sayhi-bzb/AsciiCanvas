@@ -84,6 +84,7 @@ const createImportedSession = (
       name,
       mode: "slide",
       slideDeck: snapshot.slideDeck,
+      ...(snapshot.workspaceId ? { workspaceId: snapshot.workspaceId } : {}),
       scene: [],
       components: [],
       grid: [],
@@ -315,10 +316,14 @@ export const createSessionSlice = (
     const state = get();
     const target = state.canvasSessions.find((session) => session.id === sessionId);
     if (!target) throw new Error(`Canvas session not found: ${sessionId}`);
-    if (target.mode === "blackboard") {
+    const sourceSlideProjection = snapshot.mode === "slide" &&
+      !!snapshot.workspaceId &&
+      (target.mode === "blackboard" || target.mode === "slide") &&
+      target.workspaceId === snapshot.workspaceId;
+    if (target.mode === "blackboard" && !sourceSlideProjection) {
       throw new Error("Blackboard projections are updated from their source workspace.");
     }
-    if (target.mode !== snapshot.mode) {
+    if (target.mode !== snapshot.mode && !sourceSlideProjection) {
       throw new Error(
         `Canvas snapshot mode ${snapshot.mode} does not match session mode ${target.mode}`
       );
@@ -419,8 +424,8 @@ export const createSessionSlice = (
   replaceBlackboardProjection: (sessionId, snapshot, options) => {
     const state = get();
     const target = state.canvasSessions.find((session) => session.id === sessionId);
-    if (!target || target.mode !== "blackboard") {
-      throw new Error(`Blackboard session not found: ${sessionId}`);
+    if (!target || !("workspaceId" in target) || !target.workspaceId) {
+      throw new Error(`Source workspace session not found: ${sessionId}`);
     }
     const title = options?.title?.trim();
     const viewport = options?.preserveViewport === false
@@ -429,8 +434,10 @@ export const createSessionSlice = (
         ? { offset: { ...state.offset }, zoom: state.zoom }
         : target.viewport;
     const replacement: CanvasSession = {
-      ...target,
-      ...(title ? { name: title } : {}),
+      id: target.id,
+      name: title || target.name,
+      mode: "blackboard",
+      workspaceId: target.workspaceId,
       ...(viewport ? { viewport } : {}),
       grid: [],
       scene: [],
@@ -541,7 +548,7 @@ export const createSessionSlice = (
       ),
     }));
   },
-  setCanvasSessionCollaboration: (canvasId, collaboration) => {
+  setCanvasSessionCollaboration: (canvasId, collaboration, role = "host") => {
     const state = get();
     const session = state.canvasSessions.find((item) => item.id === canvasId);
     if (!session || session.mode === "slide" || session.mode === "blackboard") return;
@@ -566,6 +573,7 @@ export const createSessionSlice = (
           ? {
               ...item,
               collaboration: collaboration ?? undefined,
+              collaborationRole: collaboration ? role : undefined,
             }
           : item
       ),
@@ -584,6 +592,6 @@ export const createSessionSlice = (
 
     get().createCanvasSession(collaboration.mode);
     const sessionId = get().activeCanvasId;
-    get().setCanvasSessionCollaboration(sessionId, collaboration);
+    get().setCanvasSessionCollaboration(sessionId, collaboration, "guest");
   },
 });

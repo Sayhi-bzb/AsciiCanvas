@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Check, X } from 'lucide-react';
+import { Check, ChevronDown, X } from 'lucide-react';
 import { useCanvasRuntime, useCanvasState } from '@/domains/canvas/public';
 import {
   buildCollaborationUrl,
@@ -17,6 +17,9 @@ import { useUiI18n, type I18nKey } from '@/shared/i18n';
 import { clipboard } from '@/shared/services/effects';
 import {
   Button,
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
   Input,
   Popover,
   PopoverContent,
@@ -51,6 +54,9 @@ const getStatusPresentation = (
 ): { key: I18nKey; tone: StatusTone } => {
   if (snapshot.documentStatus === 'restoring') {
     return { key: 'collaboration.status.loading-local', tone: 'neutral' };
+  }
+  if (snapshot.documentStatus === 'joining') {
+    return { key: 'collaboration.status.joining', tone: 'neutral' };
   }
   if (snapshot.documentStatus === 'incompatible' || snapshot.documentStatus === 'error') {
     return { key: 'collaboration.status.error', tone: 'error' };
@@ -87,6 +93,7 @@ export function CollaborationControl() {
   const activeSession = useCanvasState((state) =>
     state.canvasSessions.find((session) => session.id === state.activeCanvasId)
   );
+  const preferredEndpoint = useCanvasState((state) => state.collaborationEndpoint);
   const setCollaboration = canvas.commands.sessions.setCollaboration;
   const descriptor = activeSession?.collaboration;
   const visibleControlErrorKey = descriptor
@@ -107,6 +114,9 @@ export function CollaborationControl() {
     if (!activeSession || activeSession.mode === "slide" || activeSession.mode === "blackboard") return;
     try {
       const next = createCollaborationDescriptor(activeSession.mode, customEndpoint);
+      if (customEndpoint) {
+        canvas.commands.preferences.setCollaborationEndpoint(customEndpoint);
+      }
       setControlErrorKey(null);
       setCollaboration(activeSession.id, next);
     } catch {
@@ -158,6 +168,7 @@ export function CollaborationControl() {
     <Popover
       open={open}
       onOpenChange={(nextOpen) => {
+        if (nextOpen && !endpointTouched) setEndpoint(preferredEndpoint);
         setOpen(nextOpen);
         if (!nextOpen) clearCopyFeedback();
       }}
@@ -262,16 +273,6 @@ export function CollaborationControl() {
 
         {!descriptor ? (
           <>
-            <Button
-              type="button"
-              tone="subtle"
-              size="sm"
-              className="w-full justify-start"
-              onClick={() => start()}
-            >
-              {t('collaboration.start.p2p')}
-            </Button>
-            <Separator className="my-1" />
             <form
               className="flex flex-col gap-1.5 px-2 py-1.5"
               onSubmit={(event) => {
@@ -312,6 +313,9 @@ export function CollaborationControl() {
                   {t('collaboration.connect')}
                 </Button>
               </div>
+              <p className="text-[11px] leading-4 text-muted-foreground">
+                {t('collaboration.byos.note')}
+              </p>
               {showEndpointError ? (
                 <StatusText tone="error" asChild>
                   <p
@@ -324,6 +328,30 @@ export function CollaborationControl() {
                 </StatusText>
               ) : null}
             </form>
+            <Collapsible>
+              <CollapsibleTrigger asChild>
+                <Button
+                  type="button"
+                  tone="subtle"
+                  size="sm"
+                  className="w-full justify-between [&[data-state=open]>svg]:rotate-180"
+                >
+                  {t('collaboration.experimental')}
+                  <ChevronDown className="transition-transform" />
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <Button
+                  type="button"
+                  tone="subtle"
+                  size="sm"
+                  className="w-full justify-start"
+                  onClick={() => start()}
+                >
+                  {t('collaboration.start.p2p')}
+                </Button>
+              </CollapsibleContent>
+            </Collapsible>
           </>
         ) : (
           <>

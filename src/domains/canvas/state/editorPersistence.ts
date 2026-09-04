@@ -67,6 +67,8 @@ export const recoverPersistedEditorState = (
   state.showGrid = typeof state.showGrid === "boolean" ? state.showGrid : false;
   state.exportShowGrid =
     typeof state.exportShowGrid === "boolean" ? state.exportShowGrid : false;
+  state.collaborationEndpoint =
+    typeof state.collaborationEndpoint === "string" ? state.collaborationEndpoint : "";
 
   const sessions =
     state.canvasSessions.length > 0
@@ -174,6 +176,7 @@ export const createPersistedEditorSnapshot = (state: EditorState) => {
       brushBackgroundColor: state.brushBackgroundColor,
       showGrid: state.showGrid,
       exportShowGrid: state.exportShowGrid,
+      collaborationEndpoint: state.collaborationEndpoint,
     },
   };
 };
@@ -196,4 +199,5 @@ export const shouldScheduleEditorPersistence = (
   previous.brushColor !== next.brushColor ||
   previous.brushBackgroundColor !== next.brushBackgroundColor ||
   previous.showGrid !== next.showGrid ||
-  previous.exportShowGrid !== next.exportShowGrid;
+  previous.exportShowGrid !== next.exportShowGrid ||
+  previous.collaborationEndpoint !== next.collaborationEndpoint;

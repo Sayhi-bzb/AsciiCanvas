@@ -1,0 +1,38 @@
+---
+title: Collaboration
+description: Connect CharDesk to a user-owned, memory-only sync service.
+---
+
+CharDesk is a static application. Real-time collaboration connects directly from each browser to a WebSocket endpoint you provide; CharDesk does not host or retain room updates.
+
+## Sync server
+
+Run the official Yjs WebSocket server:
+
+```bash
+npm install @y/websocket-server
+HOST=0.0.0.0 PORT=1234 npx y-websocket
+```
+
+Expose it as `wss://` for a deployed CharDesk site. `ws://localhost` is accepted during local development. This configuration is memory-only: the host must stay online while a new guest joins, and restarting the server clears its rooms.
+
+For a container host that supports WebSocket upgrades, the complete runtime image is:
+
+```dockerfile
+FROM node:22-alpine
+RUN npm install -g @y/websocket-server@0.1.1
+ENV HOST=0.0.0.0 PORT=1234
+CMD ["y-websocket"]
+```
+
+Terminate TLS at the deployment platform and use its public `wss://` address in CharDesk. No database or CharDesk backend is required.
+
+## Share a canvas
+
+1. Open Collaboration and paste the sync endpoint. CharDesk remembers it in this browser.
+2. Select Connect, then copy the generated room link.
+3. Keep the host canvas open while the guest joins.
+
+A fresh guest remains on the joining screen until the room state arrives. If the endpoint is unavailable, Retry reconnects without changing the room link.
+
+Direct browser-to-browser rooms remain available under **Experimental**. Their reachability depends on the participants' networks.

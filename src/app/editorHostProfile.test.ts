@@ -33,6 +33,18 @@ describe("Editor Host contract", () => {
       });
   });
 
+  it("keeps Slide navigation visible without write authority", () => {
+    expect(resolveEditorHostContract(EDITOR_HOST_PROFILE, "slide", false))
+      .toEqual({
+        capabilities: {
+          ...EDITOR_HOST_PROFILE.capabilities,
+          mutateContent: false,
+          collaborate: false,
+        },
+        surfaces: { inspector: "slide", sidebar: "slide" },
+      });
+  });
+
   it("makes Blackboard observation-only without editor surfaces", () => {
     expect(resolveEditorHostContract(EDITOR_HOST_PROFILE, "blackboard", true))
       .toEqual({

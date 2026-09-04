@@ -19,6 +19,21 @@ const snapshot: CanvasCatalogSnapshot = {
     mode: "slide",
     activeSlideId: "slide-2",
     viewport: { offset: { x: 12, y: 8 }, zoom: 1.5 },
+  }, {
+    id: "canvas-b",
+    order: 1,
+    name: "Shared Canvas",
+    mode: "freeform",
+    collaborationRole: "guest",
+    collaboration: {
+      version: 6,
+      documentVersion: 6,
+      mode: "freeform",
+      provider: "websocket",
+      roomId: "catalog-room",
+      key: "catalog-key-123456789012345678901234567890123456",
+      endpoint: "wss://sync.example.com",
+    },
   }],
   slides: [
     {
@@ -42,6 +57,7 @@ const snapshot: CanvasCatalogSnapshot = {
     brushBackgroundColor: "#ffffff",
     showGrid: true,
     exportShowGrid: false,
+    collaborationEndpoint: "wss://sync.example.com",
   },
   recoveredSources: [],
   deletedSessionIds: [],

@@ -82,7 +82,7 @@ const sourceGraphSchema = {
     draftFiles: {
       type: "array",
       items: { type: "string" },
-      description: "Registered panel sources not currently placed in layout.areas.",
+      description: "Registered panel sources not currently placed in layout.areas or layout.pages.",
     },
     unreferencedFiles: {
       type: "array",
@@ -557,7 +557,7 @@ export const createBlackboardAgentTools = ({
       name: BLACKBOARD_AGENT_TOOL_NAMES.writeFile,
       title: "Write file",
       description:
-        "Create or replace one UTF-8 file in the active Blackboard unless workspaceId explicitly targets another. Saving a file does not make it visible: only panel sources registered by blackboard.yaml and placed in layout.areas affect the Canvas. Prefer apply_patch when changing a panel and the manifest together.",
+        "Create or replace one UTF-8 file in the active Blackboard unless workspaceId explicitly targets another. Saving a file does not make it visible: only panel sources registered by blackboard.yaml and placed in its layout affect the Canvas. Prefer apply_patch when changing a panel and the manifest together.",
       inputSchema: {
         type: "object",
         properties: {

@@ -10,6 +10,31 @@ layout:
 `;
 
 describe("compileBlackboard", () => {
+  it("compiles ordered Slide panels and defaults every page to auto size", async () => {
+    const panels = new Map([
+      ["panels/opening.panel", "# GPU"],
+      ["panels/details.panel", "```mermaid\nflowchart LR\nA --> B\n```"],
+    ]);
+    const compiled = await compileBlackboard({
+      manifestSource: `
+chardesk: blackboard/v2
+mode: slide
+title: GPU deck
+panels:
+  opening: { source: panels/opening.panel, title: Opening }
+  details: { source: panels/details.panel, title: Details, size: 80x24 }
+layout:
+  pages: [opening, details]
+`,
+      fallbackTitle: "fallback",
+      readPanel: async ({ source: path }) => panels.get(path)!,
+    });
+
+    expect(compiled).toMatchObject({ mode: "slide", title: "GPU deck" });
+    expect(compiled.source).toContain("## Opening\n\n```chargraph size=auto");
+    expect(compiled.source).toContain("## Details\n\n````chargraph size=80x24");
+  });
+
   it("uses an injected Panel reader and the directory fallback title", async () => {
     const readPanel = async () => "[1m界[0m\n|||\n👩‍💻";
     await expect(compileBlackboard({
@@ -17,6 +42,7 @@ describe("compileBlackboard", () => {
       fallbackTitle: "gpu",
       readPanel,
     })).resolves.toMatchObject({
+      mode: "freeform",
       title: "gpu",
       source: expect.stringContaining("👩‍💻"),
     });

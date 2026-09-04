@@ -1,4 +1,5 @@
 import { compileBlackboardSourceTree } from "@chardesk/blackboard";
+import { serializeCharDeskDocumentEnvelope } from "@chardesk/document";
 import { parseDocumentSessionSource } from "@/domains/document/public";
 import type { CanvasImportSnapshot } from "@/domains/sessions/public";
 import type { BlackboardWorkspaceRepository } from "./repository";
@@ -8,7 +9,9 @@ export type BlackboardCompilation = Readonly<{
   revision: number;
   title: string;
   warnings: readonly string[];
-  snapshot: Extract<CanvasImportSnapshot, { mode: "freeform" }>;
+  snapshot:
+    | Extract<CanvasImportSnapshot, { mode: "freeform" }>
+    | Extract<CanvasImportSnapshot, { mode: "slide" }>;
 }>;
 
 export class BlackboardRuntime {
@@ -25,18 +28,27 @@ export class BlackboardRuntime {
       source.files.map(({ path, content }) => ({ path, content })),
       source.workspace.title,
     );
-    const snapshot = await parseDocumentSessionSource(compiled.source, {
-      sourceName: "blackboard.chardesk",
-    });
-    if (snapshot.mode !== "freeform") {
-      throw new Error(`Blackboard compiler produced ${snapshot.mode} content.`);
+    const snapshot = await parseDocumentSessionSource(
+      serializeCharDeskDocumentEnvelope({
+        mode: compiled.mode,
+        title: compiled.title,
+        body: compiled.source,
+      }),
+      { sourceName: "blackboard.chardesk" },
+    );
+    if (snapshot.mode !== compiled.mode) {
+      throw new Error(
+        `Blackboard compiler produced ${snapshot.mode} content for ${compiled.mode} mode.`,
+      );
     }
     return {
       workspaceId,
       revision: source.workspace.revision,
       title: compiled.title,
       warnings: compiled.warnings.map(({ message }) => message),
-      snapshot,
+      snapshot: snapshot.mode === "slide"
+        ? { ...snapshot, workspaceId }
+        : snapshot,
     };
   }
 }

@@ -98,9 +98,10 @@ describe('CollaborationControl', () => {
 
     const panel = await screen.findByRole('dialog', { name: 'Collaboration' });
     expect(panel).toHaveClass('w-72', 'shadow-overlay');
-    expect(screen.getByLabelText('Custom sync server')).toBeInTheDocument();
+    expect(screen.getByLabelText('Sync server')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Start P2P room' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Experimental' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start direct P2P room' }));
 
     expect(screen.getByRole('dialog', { name: 'Collaboration' })).toBeInTheDocument();
     expect(screen.getByText('P2P')).toBeInTheDocument();
@@ -125,7 +126,7 @@ describe('CollaborationControl', () => {
     render(<CollaborationControl />);
     openPanel();
 
-    const endpoint = await screen.findByLabelText('Custom sync server');
+    const endpoint = await screen.findByLabelText('Sync server');
     fireEvent.change(endpoint, {
       target: { value: 'https://sync.example.com' },
     });
@@ -148,6 +149,19 @@ describe('CollaborationControl', () => {
       provider: 'websocket',
       endpoint: 'wss://sync.example.com',
     });
+    expect(useEditorStore.getState().collaborationEndpoint).toBe(
+      'wss://sync.example.com'
+    );
+  });
+
+  it('prefills the last valid sync server', async () => {
+    useEditorStore.setState({ collaborationEndpoint: 'wss://sync.example.com' });
+    render(<CollaborationControl />);
+    openPanel();
+
+    expect(await screen.findByLabelText('Sync server')).toHaveValue(
+      'wss://sync.example.com'
+    );
   });
 
   it.each([
@@ -239,7 +253,8 @@ describe('CollaborationControl', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Leave room' }));
 
     expect(screen.getByRole('dialog', { name: 'Collaboration' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Start P2P room' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Experimental' }));
+    expect(screen.getByRole('button', { name: 'Start direct P2P room' })).toBeInTheDocument();
     expect(useEditorStore.getState().canvasSessions[0].collaboration).toBeUndefined();
   });
 

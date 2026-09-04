@@ -247,6 +247,11 @@ describe("CanvasRuntime collaboration", () => {
       guest.commands.sessions.joinCollaboration(descriptor);
 
       const guestSessionId = guest.getState().activeCanvasId;
+      expect(host.getState().canvasSessions[0].collaborationRole).toBe("host");
+      expect(
+        guest.getState().canvasSessions.find(({ id }) => id === guestSessionId)
+          ?.collaborationRole
+      ).toBe("guest");
       const hostDocument = host.documents.getCollaborationDocument("host-session")!;
       const guestDocument = guest.documents.getCollaborationDocument(guestSessionId)!;
       const sharedPageId = `collaboration:${descriptor.roomId}:page:main`;

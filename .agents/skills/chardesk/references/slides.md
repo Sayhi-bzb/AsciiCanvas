@@ -3,34 +3,34 @@
 A Slide is one visual moment in a sequence. Each page advances the thought while
 remaining inside the document's established scene.
 
-````md
----
-chardesk: document/v1
+```text
+product-overview/
+├── blackboard.yaml
+└── panels/
+    ├── opening.panel
+    └── closing.panel
+```
+
+```yaml
+chardesk: blackboard/v2
 mode: slide
 title: Product overview
----
-
-## Opening
-
-```chargraph size=auto
-# Product overview
+panels:
+  opening:
+    source: panels/opening.panel
+    title: Opening
+  closing:
+    source: panels/closing.panel
+    title: Closing
+layout:
+  pages: [opening, closing]
 ```
 
-## Closing
-
-```chardesk size=80x24
-        [36mThank you[0m
-```
-````
-
-- Frontmatter uses `chardesk: document/v1`, `mode: slide`, and an optional
-  title.
-- Each `##` heading starts a page followed by its content fence.
-- `chardesk` contains compiled Canvas text; `chargraph` compiles visual source
-  from the available [materials](materials.md). `text` is literal text and
-  `ansi` is terminal ANSI input.
-- The default frame is `100x27`. A fence may set `size=<columns>x<rows>` or
-  `size=auto`; auto sizes the compiled grid with four horizontal and two
-  vertical padding cells.
-- `.chardesk` is the canonical file entry. Legacy `.slides.md` files remain
+- One `.panel` owns one page; `layout.pages` owns sequence.
+- Panel content draws freely from the available [materials](materials.md).
+- Page size follows compiled content automatically. Leave `size` absent.
+- A user-requested fixed frame sets `size: <columns>x<rows>` on that Panel.
+- Page titles are unique; an omitted `title` uses the Panel ID.
+- Registered Panels outside `layout.pages` remain drafts.
+- Standalone `.chardesk` Slide documents and legacy `.slides.md` remain
   compatibility inputs.

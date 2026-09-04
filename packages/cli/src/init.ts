@@ -2,7 +2,19 @@ import { mkdir, readdir, stat, writeFile } from "node:fs/promises";
 import { basename, resolve } from "node:path";
 import { CharDeskCliCommandError } from "./input.js";
 
-const manifest = (title: string) => `chardesk: blackboard/v1
+const manifest = (title: string, mode: "blackboard" | "slide") => mode === "slide"
+  ? `chardesk: blackboard/v2
+mode: slide
+title: ${JSON.stringify(title)}
+panels:
+  main:
+    source: panels/main.panel
+    title: Opening
+layout:
+  pages:
+    - main
+`
+  : `chardesk: blackboard/v1
 title: ${JSON.stringify(title)}
 panels:
   main:
@@ -19,10 +31,12 @@ export const initializeCharDeskWorkspace = async ({
   cwd,
   directory,
   title,
+  mode = "blackboard",
 }: {
   cwd: string;
   directory: string;
   title?: string;
+  mode?: "blackboard" | "slide";
 }) => {
   const root = resolve(cwd, directory);
   try {
@@ -39,9 +53,14 @@ export const initializeCharDeskWorkspace = async ({
     await mkdir(root, { recursive: true });
   }
   const workspaceTitle = title?.trim() || basename(root) || "CharDesk";
+  if (mode === "slide") await mkdir(resolve(root, "panels"), { recursive: true });
   await Promise.all([
-    writeFile(resolve(root, "blackboard.yaml"), manifest(workspaceTitle), { flag: "wx" }),
-    writeFile(resolve(root, "main.panel"), `# ${workspaceTitle}\n`, { flag: "wx" }),
+    writeFile(resolve(root, "blackboard.yaml"), manifest(workspaceTitle, mode), { flag: "wx" }),
+    writeFile(
+      resolve(root, mode === "slide" ? "panels/main.panel" : "main.panel"),
+      `# ${workspaceTitle}\n`,
+      { flag: "wx" },
+    ),
   ]);
   return root;
 };

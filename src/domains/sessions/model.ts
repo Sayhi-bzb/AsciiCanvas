@@ -13,6 +13,7 @@ interface CanvasSessionBase {
   name: string;
   viewport?: CanvasViewport;
   collaboration?: CollaborationDescriptor;
+  collaborationRole?: "host" | "guest";
 }
 
 interface StaticCanvasSession extends CanvasSessionBase {
@@ -29,15 +30,18 @@ export interface BlackboardCanvasSession extends CanvasSessionBase {
   components?: StructuredComponentInstance[];
   grid: [string, GridCell][];
   collaboration?: never;
+  collaborationRole?: never;
 }
 
 interface SlideCanvasSession extends CanvasSessionBase {
   mode: "slide";
+  workspaceId?: string;
   slideDeck: SlideDeck;
   scene: [];
   components?: [];
   grid: [];
   collaboration?: never;
+  collaborationRole?: never;
 }
 
 export type CanvasSession = StaticCanvasSession | SlideCanvasSession | BlackboardCanvasSession;
@@ -63,5 +67,6 @@ export type CanvasImportSnapshot =
   | {
       mode: "slide";
       slideDeck: SlideDeck;
+      workspaceId?: string;
       name?: string;
     };

@@ -179,4 +179,36 @@ layout:
     expect(revised.headers.get("etag")).not.toBe(first.headers.get("etag"));
     expect(await revised.text()).toContain("L RR");
   });
+
+  it("serves an ordered Panel package as one canonical Slide document", async () => {
+    const root = await mkdtemp(join(tmpdir(), "chardesk-slide-package-server-"));
+    const client = join(root, "app");
+    const boardRoot = join(root, "deck");
+    roots.push(root);
+    await mkdir(client);
+    await mkdir(join(boardRoot, "panels"), { recursive: true });
+    await writeFile(join(client, "index.html"), "<!doctype html><title>Slides</title>");
+    await writeFile(join(boardRoot, "blackboard.yaml"), `
+chardesk: blackboard/v2
+mode: slide
+title: GPU
+panels:
+  opening: { source: panels/opening.panel }
+  details: { source: panels/details.panel, title: Details, size: 80x24 }
+layout:
+  pages: [opening, details]
+`);
+    await writeFile(join(boardRoot, "panels/opening.panel"), "Opening");
+    await writeFile(join(boardRoot, "panels/details.panel"), "Details");
+    const board = await resolveWorkspaceBoardPath(root, "deck");
+    const running = await startBlackboardServer({ board, port: 0, appRoot: client });
+    close.push(running.close);
+
+    const response = await fetch(new URL("board", running.url));
+    expect(response.status).toBe(200);
+    const source = await response.text();
+    expect(source).toContain("mode: slide");
+    expect(source).toContain("## opening\n\n```chargraph size=auto");
+    expect(source).toContain("## Details\n\n```chargraph size=80x24");
+  });
 });

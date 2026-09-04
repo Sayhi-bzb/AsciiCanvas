@@ -4,7 +4,11 @@ import { createRequire } from "node:module";
 import { mkdir, readFile, readdir, realpath, rename, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
-import { startBlackboardServer, type BlackboardServerSession } from "@chardesk/blackboard/node";
+import {
+  compileBlackboardPackage,
+  startBlackboardServer,
+  type BlackboardServerSession,
+} from "@chardesk/blackboard/node";
 import launchBrowser from "open";
 import {
   CharDeskCliCommandError,
@@ -246,6 +250,11 @@ const removeOwnedSession = async (path: string, sessionId: string) => {
 };
 
 const validateSource = async (options: OpenSessionOptions) => {
+  const readable = await resolveOpenInput(options.cwd, options.request.input);
+  if (basename(readable) === "blackboard.yaml") {
+    await compileBlackboardPackage(readable);
+    return;
+  }
   const input = await resolveCharDeskInput({ request: options.request, cwd: options.cwd });
   const compiled = await compileSource({ source: input.source, inputMode: input.inputMode });
   if (compiled.diagnostics.length > 0) {

@@ -113,7 +113,11 @@ export const analyzeBlackboardSourceTree = (
     throw error;
   }
   const visibleIds = new Set(
-    manifest.layout.areas.flatMap((row) => row.filter((id): id is string => id !== null)),
+    manifest.mode === "slide"
+      ? manifest.layout.pages
+      : manifest.layout.areas.flatMap(
+          (row) => row.filter((id): id is string => id !== null),
+        ),
   );
   const visibleFiles = new Set<string>();
   const draftFiles = new Set<string>();

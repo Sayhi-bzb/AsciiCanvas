@@ -78,6 +78,10 @@ const decodePresence = (
   const selection = decodeSelection(state.selection, mode);
   return {
     user: { id: candidate.id, name: candidate.name, color: candidate.color },
+    ...(state.role === "host" || state.role === "guest" ? { role: state.role } : {}),
+    ...(typeof state.documentReady === "boolean"
+      ? { documentReady: state.documentReady }
+      : {}),
     ...(cursor !== undefined ? { cursor } : {}),
     ...(selection ? { selection } : {}),
     ...(typeof state.tool === "string" ? { tool: state.tool } : {}),
@@ -102,6 +106,10 @@ export const readCollaborationPeers = (
       id: presence.user.id,
       name: presence.user.name,
       color: presence.user.color,
+      ...(presence.role ? { role: presence.role } : {}),
+      ...(typeof presence.documentReady === "boolean"
+        ? { documentReady: presence.documentReady }
+        : {}),
       cursor: presence.cursor ?? null,
       selection: presence.selection,
     });
@@ -112,12 +120,14 @@ export const readCollaborationPeers = (
 
 export const buildCollaborationPresence = (
   descriptor: CollaborationDescriptor,
-  input: { cursor?: { x: number; y: number } | null; selection?: unknown; tool?: string } = {}
+  input: { cursor?: { x: number; y: number } | null; selection?: unknown; tool?: string } = {},
+  session?: { role: "host" | "guest"; documentReady: boolean }
 ): CollaborationPresenceV1 => {
   const selection = decodeSelection(input.selection, descriptor.mode);
   return {
     version: 1,
     mode: descriptor.mode,
+    ...(session ?? {}),
     user: getCollaborationIdentity(),
     ...(input.cursor === null || isPoint(input.cursor) ? { cursor: input.cursor } : {}),
     ...(selection ? { selection } : {}),

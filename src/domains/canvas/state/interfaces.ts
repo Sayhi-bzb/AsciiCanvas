@@ -226,6 +226,7 @@ export type EditorState = {
   structuredGridFocus: Point | null;
   showGrid: boolean;
   exportShowGrid: boolean;
+  collaborationEndpoint: string;
   hoveredGrid: Point | null;
   canvasColorPickerTarget: CanvasColorPickerTarget | null;
   canvasSessions: CanvasSession[];
@@ -252,6 +253,7 @@ export type EditorState = {
   setStructuredContextPoint: (point: Point | null) => void;
   setShowGrid: (show: boolean) => void;
   setExportShowGrid: (show: boolean) => void;
+  setCollaborationEndpoint: (endpoint: string) => void;
   setHoveredGrid: (pos: Point | null) => void;
 } & DrawingSlice &
   SlideSlice &

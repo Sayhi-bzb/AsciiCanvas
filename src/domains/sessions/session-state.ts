@@ -70,6 +70,9 @@ export const withActiveCanvasSnapshot = (
         name: session.name,
         mode: "slide",
         slideDeck: snapshot.slideDeck,
+        ...(session.mode === "slide" && session.workspaceId
+          ? { workspaceId: session.workspaceId }
+          : {}),
         scene: [],
         components: [],
         grid: [],

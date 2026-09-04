@@ -33,7 +33,8 @@ export interface SessionCommands {
   renameCanvasSession: (canvasId: string, nextName: string) => void;
   setCanvasSessionCollaboration: (
     canvasId: string,
-    collaboration: CollaborationDescriptor | null
+    collaboration: CollaborationDescriptor | null,
+    role?: "host" | "guest"
   ) => void;
   joinCanvasSessionCollaboration: (collaboration: CollaborationDescriptor) => void;
 }

@@ -32,6 +32,10 @@ export const useActiveCollaboration = ({ enabled = true }: { enabled?: boolean }
   const collaboration = useCanvasState((state) =>
     state.canvasSessions.find((session) => session.id === state.activeCanvasId)?.collaboration
   );
+  const collaborationRole = useCanvasState((state) =>
+    state.canvasSessions.find((session) => state.activeCanvasId === session.id)
+      ?.collaborationRole ?? "host"
+  );
   const canvasMode = useCanvasState((state) => state.canvasMode);
   const selectedStructuredNodeIds = useCanvasState(
     (state) => state.selectedStructuredNodeIds
@@ -93,9 +97,18 @@ export const useActiveCollaboration = ({ enabled = true }: { enabled?: boolean }
       return;
     }
     const document = canvas.queries.getCollaborationDocument(activeCanvasId);
-    if (document) void collaborationRuntime.connect(collaboration, document);
+    if (document) {
+      void collaborationRuntime.connect(collaboration, document, collaborationRole);
+    }
     return () => { void collaborationRuntime.disconnect(); };
-  }, [activeCanvasId, canvas, collaboration, collaborationRuntime, enabled]);
+  }, [
+    activeCanvasId,
+    canvas,
+    collaboration,
+    collaborationRole,
+    collaborationRuntime,
+    enabled,
+  ]);
 
   useEffect(() => {
     if (!enabled || !collaboration) return;

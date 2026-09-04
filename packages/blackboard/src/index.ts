@@ -10,6 +10,7 @@ export type {
 } from "./compiler.js";
 export {
   BLACKBOARD_MANIFEST_SIGNATURE,
+  BLACKBOARD_PACKAGE_SIGNATURE,
   BlackboardManifestError,
   parseBlackboardManifest,
 } from "./manifest.js";
@@ -28,4 +29,7 @@ export type {
   BlackboardManifest,
   BlackboardManifestWarning,
   BlackboardPanelDefinition,
+  BlackboardPanelSize,
+  BlackboardSlideManifest,
+  BlackboardSpatialManifest,
 } from "./manifest.js";

@@ -26,6 +26,12 @@ Create a canonical multi-file Blackboard package:
 npx -y @chardesk/cli init .chardesk/gpu --title "GPU"
 ```
 
+Create a Panel-based Slide deck with automatic page sizing:
+
+```sh
+npx -y @chardesk/cli init .chardesk/gpu-deck --mode slide --title "GPU"
+```
+
 Agents use normal filesystem tools to read and patch `blackboard.yaml` and `.panel` files. The
 files are the source of truth; the CLI does not introduce a proprietary CRUD layer.
 
@@ -101,12 +107,14 @@ replacing an existing artifact.
 ## Inputs and options
 
 `auto` recognizes a Freeform `.chardesk` document, `blackboard.yaml`, or a directory containing
-that manifest. Other files and stdin default to CharGraph source. Override detection with
+that manifest. `open` validates both Blackboard and Slide packages; use `--panel` to inspect an
+individual Slide Panel. Other files and stdin default to CharGraph source. Override detection with
 `--input chargraph`, `--input chardesk`, or `--input blackboard`. Structured and Slide documents
-return `unsupported-document-mode` until their headless renderers are available.
+passed as standalone document inputs remain outside the headless renderer.
 
 ```text
 --title <title>                    init only
+--mode <blackboard|slide>          init only; default blackboard
 --port <0..65535>                  open only; default random
 --no-browser                       open only
 --foreground                       open only

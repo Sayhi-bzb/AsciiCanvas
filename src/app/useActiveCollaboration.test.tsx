@@ -68,6 +68,9 @@ describe("useActiveCollaboration", () => {
       expect(state.canvasSessions.find((session) => session.id === state.activeCanvasId)?.collaboration)
         .toEqual(incoming);
     });
+    await waitFor(() => {
+      expect(runtime.connect).toHaveBeenCalledWith(incoming, expect.anything(), "guest");
+    });
     expect(window.location.hash).toContain("room=");
   });
 
@@ -91,7 +94,7 @@ describe("useActiveCollaboration", () => {
 
     renderHook(() => useActiveCollaboration(), { wrapper });
     await waitFor(() => expect(window.location.href).toBe(buildCollaborationUrl(first)));
-    await waitFor(() => expect(runtime.connect).toHaveBeenCalledWith(first, expect.anything()));
+    await waitFor(() => expect(runtime.connect).toHaveBeenCalledWith(first, expect.anything(), "host"));
 
     act(() => useEditorStore.setState({ activeCanvasId: localId }));
     await waitFor(() => expect(window.location.hash).toBe(""));
@@ -99,7 +102,7 @@ describe("useActiveCollaboration", () => {
 
     act(() => useEditorStore.setState({ activeCanvasId: secondId }));
     await waitFor(() => expect(window.location.href).toBe(buildCollaborationUrl(second)));
-    await waitFor(() => expect(runtime.connect).toHaveBeenCalledWith(second, expect.anything()));
+    await waitFor(() => expect(runtime.connect).toHaveBeenCalledWith(second, expect.anything(), "host"));
   });
 
   it("preserves invalid incoming links until a collaboration choice supersedes them", async () => {

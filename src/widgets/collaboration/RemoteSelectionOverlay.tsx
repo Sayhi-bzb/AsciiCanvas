@@ -1,4 +1,4 @@
-import { Tooltip, TooltipPopup, TooltipTrigger } from "@chardesk/ui";
+import { Button, Tooltip, TooltipPopup, TooltipTrigger } from "@chardesk/ui";
 import { useCanvasState } from "@/domains/canvas/public";
 import type { Point } from "@/shared/types";
 import {
@@ -91,10 +91,13 @@ export function RemoteSelectionOverlay({
         <Tooltip key={indicator.clientId}>
           <TooltipTrigger
             render={
-              <button
+              <Button
                 type="button"
+                tone="subtle"
+                shape="pill"
+                size="xs"
                 data-canvas-ui="true"
-                className="pointer-events-auto absolute size-5 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-full border-0 p-0 outline-none"
+                className="pointer-events-auto absolute size-5 -translate-x-1/2 -translate-y-1/2 border-0 p-0"
                 style={{
                   left: indicator.position.x,
                   top: indicator.position.y,

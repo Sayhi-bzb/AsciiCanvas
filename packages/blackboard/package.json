@@ -1,7 +1,7 @@
 {
   "name": "@chardesk/blackboard",
   "version": "0.0.0",
-  "description": "Local read-only Blackboard projection for CharDesk files and packages",
+  "description": "Source-authoritative Blackboard and Slide package compiler",
   "private": true,
   "type": "module",
   "exports": {

@@ -67,7 +67,7 @@ const readBoardProjection = async (readable: string) => {
     const compiled = await compileBlackboardPackage(readable);
     return {
       source: serializeCharDeskDocumentEnvelope({
-        mode: "freeform",
+        mode: compiled.mode,
         title: compiled.title,
         body: compiled.source,
       }),

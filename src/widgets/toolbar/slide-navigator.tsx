@@ -145,7 +145,58 @@ const SlideContentPreview = memo(function SlideContentPreview({
   );
 });
 
-export function SlideNavigator() {
+function ReadOnlySlideNavigator() {
+  const canvas = useCanvasRuntime();
+  const { t } = useUiI18n();
+  const slideDeck = useCanvasState((state) => state.slideDeck);
+  if (!slideDeck) return null;
+  const sessionId = canvas.getState().activeCanvasId;
+
+  return (
+    <SurfaceContent data-testid="slide-navigator" data-read-only="true">
+      <ol aria-label={t("slide.sidebar.title")} className="flex flex-col gap-3">
+        {slideDeck.slides.map((slide, index) => {
+          const active = slide.id === slideDeck.activeSlideId;
+          return (
+            <li key={slide.id}>
+              <CollectionCard selected={active}>
+                <SelectableItem
+                  type="button"
+                  orientation="vertical"
+                  selected={active}
+                  className="relative w-full overflow-hidden p-0 text-left"
+                  style={{
+                    aspectRatio:
+                      slide.size.columns * 9 +
+                      " / " +
+                      slide.size.rows * 19,
+                  }}
+                  aria-label={t(
+                    active ? "slide.previewCurrent" : "slide.preview",
+                    {
+                      name: slide.name,
+                      current: index + 1,
+                      total: slideDeck.slides.length,
+                    }
+                  )}
+                  aria-current={active ? "page" : undefined}
+                  onClick={() => canvas.commands.slides.activate(slide.id)}
+                >
+                  <SlideContentPreview sessionId={sessionId} slide={slide} />
+                </SelectableItem>
+                <div className="min-w-0 truncate px-1 py-1.5 text-xs text-foreground">
+                  {slide.name}
+                </div>
+              </CollectionCard>
+            </li>
+          );
+        })}
+      </ol>
+    </SurfaceContent>
+  );
+}
+
+function EditableSlideNavigator() {
   const canvas = useCanvasRuntime();
   const { t } = useUiI18n();
   const slideDeck = useCanvasState((state) => state.slideDeck);
@@ -379,4 +430,8 @@ export function SlideNavigator() {
       </AlertDialog>
     </SurfaceContent>
   );
+}
+
+export function SlideNavigator({ readOnly = false }: { readOnly?: boolean } = {}) {
+  return readOnly ? <ReadOnlySlideNavigator /> : <EditableSlideNavigator />;
 }

@@ -52,7 +52,7 @@ export const EDITOR_HOST_PROFILE: EditorHostProfile = {
 export const resolveEditorHostContract = (
   profile: EditorHostProfile,
   mode: CanvasMode,
-  collaborationCanEdit: boolean
+  canEdit: boolean
 ): ResolvedEditorHostContract => {
   const modeCapabilities = getCanvasModeDefinition(mode).capabilities;
   const modeCanMutate =
@@ -61,15 +61,16 @@ export const resolveEditorHostContract = (
     modeCapabilities.managePages;
   const mutateContent =
     profile.capabilities.mutateContent &&
-    collaborationCanEdit &&
+    canEdit &&
     modeCanMutate;
   const surfaceMode: HostSurfaceCanvasMode | null =
     mode === "blackboard" ? null : mode;
+  const navigate = profile.capabilities.navigate && modeCapabilities.navigate;
 
   return {
     capabilities: {
       ...profile.capabilities,
-      navigate: profile.capabilities.navigate && modeCapabilities.navigate,
+      navigate,
       select: profile.capabilities.select && modeCapabilities.select,
       copy: profile.capabilities.copy && modeCapabilities.copy,
       mutateContent,
@@ -79,7 +80,10 @@ export const resolveEditorHostContract = (
     surfaces: {
       inspector: profile.surfaces.inspector ? surfaceMode : null,
       sidebar:
-        profile.surfaces.sidebar && mutateContent ? surfaceMode : null,
+        profile.surfaces.sidebar &&
+          (mutateContent || (mode === "slide" && navigate))
+          ? surfaceMode
+          : null,
     },
   };
 };

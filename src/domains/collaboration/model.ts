@@ -32,6 +32,7 @@ export type CollaborationLinkParseResult =
 type CollaborationDocumentStatus =
   | "idle"
   | "restoring"
+  | "joining"
   | "ready"
   | "incompatible"
   | "error";
@@ -73,6 +74,8 @@ export type CollaborationPresenceSelection =
 export type CollaborationPresenceV1 = {
   version: 1;
   mode: CollaborationCanvasMode;
+  role?: "host" | "guest";
+  documentReady?: boolean;
   user: {
     id: string;
     name: string;
@@ -88,6 +91,8 @@ export type CollaborationPeer = {
   id: string;
   name: string;
   color: string;
+  role?: "host" | "guest";
+  documentReady?: boolean;
   cursor?: { x: number; y: number } | null;
   selection?: CollaborationPresenceSelection;
 };

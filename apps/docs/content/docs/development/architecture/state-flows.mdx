@@ -84,6 +84,11 @@ a Slide document has one page per slide. The catalog owns session identity and s
 names, and sizes. Collaborative
 sessions persist only their catalog shell and descriptor; room content is restored through
 collaboration persistence and never copied into local session persistence.
+The catalog records whether a collaborating session is the local host or a guest. A guest with
+no cached room content remains in `joining` and cannot edit until transport sync and a
+host-ready presence handshake both arrive. The default transport is a user-owned, memory-only Yjs WebSocket service;
+P2P is experimental. The browser remembers the preferred endpoint, while each room link carries
+the endpoint needed by guests.
 Collaboration V6 derives one shared document and main-page identity from the room id;
 local session ids remain catalog-only and never name shared Yjs pages. Starting or joining a
 room rehomes the single local page to that shared identity before transport connects. Older

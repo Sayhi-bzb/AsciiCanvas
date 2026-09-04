@@ -16,7 +16,8 @@ export const useBlackboardWorkspace = ({ enabled = true }: { enabled?: boolean }
     const session = state.canvasSessions.find(
       (candidate) => candidate.id === state.activeCanvasId,
     );
-    return session?.mode === "blackboard"
+    return session?.mode === "blackboard" ||
+        (session?.mode === "slide" && session.workspaceId)
       ? { activeSessionId: session.id, activeWorkspaceId: session.workspaceId }
       : { activeSessionId: null, activeWorkspaceId: null };
   }));
@@ -35,11 +36,41 @@ export const useBlackboardWorkspace = ({ enabled = true }: { enabled?: boolean }
     try {
       const compiled = await runtime.compile(workspaceId);
       if (generation !== generationRef.current) return;
-      canvas.commands.sessions.replaceBlackboardProjection(
-        sessionId,
-        compiled.snapshot,
-        { title: compiled.title, preserveViewport: true },
-      );
+      if (compiled.snapshot.mode === "slide") {
+        const selected = canvas.getState().canvasSessions.find(
+          (session) => session.id === sessionId,
+        );
+        const currentPage = selected?.mode === "slide"
+          ? selected.slideDeck.slides.find(
+              (slide) => slide.id === selected.slideDeck.activeSlideId,
+            )
+          : null;
+        const retainedPage = currentPage
+          ? compiled.snapshot.slideDeck.slides.find(
+              (slide) => slide.name === currentPage.name,
+            )
+          : null;
+        const snapshot = retainedPage
+          ? {
+              ...compiled.snapshot,
+              slideDeck: {
+                ...compiled.snapshot.slideDeck,
+                activeSlideId: retainedPage.id,
+              },
+            }
+          : compiled.snapshot;
+        canvas.commands.sessions.replaceSnapshot(sessionId, snapshot, {
+          preserveViewport: true,
+          resetHistory: true,
+        });
+        canvas.commands.sessions.rename(sessionId, compiled.title);
+      } else {
+        canvas.commands.sessions.replaceBlackboardProjection(
+          sessionId,
+          compiled.snapshot,
+          { title: compiled.title, preserveViewport: true },
+        );
+      }
       if (!fittedSessionsRef.current.has(sessionId)) {
         fittedSessionsRef.current.add(sessionId);
         setFirstFitRevision((revision) => revision + 1);

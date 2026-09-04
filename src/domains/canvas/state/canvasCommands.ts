@@ -76,6 +76,9 @@ return {
       call("setShowGrid", ...args),
     setExportShowGrid: (...args: Parameters<EditorState["setExportShowGrid"]>) =>
       call("setExportShowGrid", ...args),
+    setCollaborationEndpoint: (
+      ...args: Parameters<EditorState["setCollaborationEndpoint"]>
+    ) => call("setCollaborationEndpoint", ...args),
   },
   interaction: {
     setColorPickerTarget: (...args: Parameters<EditorState["setCanvasColorPickerTarget"]>) =>

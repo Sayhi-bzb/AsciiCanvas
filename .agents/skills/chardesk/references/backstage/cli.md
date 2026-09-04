@@ -7,6 +7,7 @@ The default new workspace location is `.chardesk/<slug>/`.
 
 ```sh
 npx -y @chardesk/cli init .chardesk/<slug> --title "<title>"
+npx -y @chardesk/cli init .chardesk/<slug> --mode slide --title "<title>"
 npx -y @chardesk/cli inspect <path> --json
 npx -y @chardesk/cli open <path>
 npx -y @chardesk/cli render <input> -o <output> --strict --json

@@ -196,6 +196,65 @@ describe("collaboration document contract", () => {
     expect(harness.runtime.getSnapshot().connectionStatus).toBe("online");
   });
 
+  it("keeps a fresh guest blocked until a remote peer and document sync arrive", async () => {
+    const harness = createRuntimeHarness();
+    const connect = harness.runtime.connect(
+      descriptor("wss://one.example.com"),
+      new Y.Doc(),
+      "guest"
+    );
+    harness.sync.resolve();
+    await connect;
+
+    expect(harness.runtime.getSnapshot()).toMatchObject({
+      documentStatus: "joining",
+      canEdit: false,
+      hasLocalCopy: false,
+    });
+
+    harness.providerListeners.get("sync")?.(true);
+    expect(harness.runtime.getSnapshot().documentStatus).toBe("joining");
+
+    harness.awareness.getStates().set(2, {
+      version: 1,
+      mode: "freeform",
+      role: "guest",
+      documentReady: true,
+      user: { id: "guest-2", name: "Guest", color: "#0969da" },
+    });
+    const changeListener = harness.awareness.on.mock.calls.find(
+      ([event]) => event === "change"
+    )?.[1];
+    changeListener?.();
+    expect(harness.runtime.getSnapshot().documentStatus).toBe("joining");
+
+    harness.awareness.getStates().set(2, {
+      version: 1,
+      mode: "freeform",
+      role: "host",
+      documentReady: true,
+      user: { id: "host", name: "Host", color: "#0969da" },
+    });
+    changeListener?.();
+
+    expect(harness.runtime.getSnapshot()).toMatchObject({
+      documentStatus: "ready",
+      canEdit: true,
+      hasLocalCopy: true,
+    });
+  });
+
+  it("restarts the active transport when retrying", async () => {
+    const harness = createRuntimeHarness();
+    const connect = harness.runtime.connect(descriptor("wss://one.example.com"), new Y.Doc());
+    harness.sync.resolve();
+    await connect;
+    await harness.runtime.retry();
+
+    expect(harness.createProvider).toHaveBeenCalledTimes(2);
+    expect(harness.provider.destroy).toHaveBeenCalledOnce();
+  });
+
   it("destroys every session-owned resource and ignores stale provider events", async () => {
     const harness = createRuntimeHarness();
     const connect = harness.runtime.connect(descriptor("wss://one.example.com"), new Y.Doc());

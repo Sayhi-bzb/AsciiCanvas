@@ -839,6 +839,7 @@ const sessionsFromCatalog = (catalog: CanvasCatalogSnapshot): CanvasSession[] =>
       return {
         ...base,
         mode: "slide",
+        ...(session.workspaceId ? { workspaceId: session.workspaceId } : {}),
         slideDeck: {
           slides,
           activeSlideId: session.activeSlideId ?? slides[0]?.id ?? "slide-1",
@@ -862,6 +863,9 @@ const sessionsFromCatalog = (catalog: CanvasCatalogSnapshot): CanvasSession[] =>
       ...base,
       mode: session.mode,
       collaboration: session.collaboration,
+      collaborationRole: session.collaboration
+        ? session.collaborationRole ?? "host"
+        : undefined,
       scene: [],
       components: [],
       grid: [],
@@ -997,7 +1001,8 @@ const createCatalogSnapshot = (
     order,
     name: session.name,
     mode: session.mode,
-    ...(session.mode === "blackboard"
+    ...(session.mode === "blackboard" ||
+        (session.mode === "slide" && session.workspaceId)
       ? { workspaceId: session.workspaceId }
       : {}),
     viewport:
@@ -1005,7 +1010,10 @@ const createCatalogSnapshot = (
         ? { offset: { ...state.offset }, zoom: state.zoom }
         : session.viewport,
     ...(session.mode !== "slide" && session.collaboration
-      ? { collaboration: session.collaboration }
+      ? {
+          collaboration: session.collaboration,
+          collaborationRole: session.collaborationRole ?? "host",
+        }
       : {}),
     ...(session.mode === "slide"
       ? { activeSlideId: session.slideDeck.activeSlideId }
@@ -1039,6 +1047,9 @@ const createCatalogSnapshot = (
     brushBackgroundColor: state.brushBackgroundColor,
     showGrid: state.showGrid,
     exportShowGrid: state.exportShowGrid,
+    ...(state.collaborationEndpoint
+      ? { collaborationEndpoint: state.collaborationEndpoint }
+      : {}),
   },
   recoveredSources: Array.from(recoveredSources).sort(),
   deletedSessionIds: Array.from(deletedSessionIds).sort(),
@@ -1053,6 +1064,7 @@ const catalogStructureJson = (snapshot: CanvasCatalogSnapshot) => JSON.stringify
     mode: session.mode,
     workspaceId: session.workspaceId,
     collaboration: session.collaboration,
+    collaborationRole: session.collaborationRole,
     activeSlideId: session.activeSlideId,
     documentGeneration: session.documentGeneration,
     previousDocumentGeneration: session.previousDocumentGeneration,
@@ -1709,9 +1721,35 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
       return true;
     }
     try {
-      const doc = session.collaboration
-        ? new Y.Doc({ guid: session.id })
-        : await this.#loadSessionDocument(session, false);
+      let doc: Y.Doc;
+      if ("workspaceId" in session && session.workspaceId) {
+        doc = new Y.Doc({ guid: session.id });
+        applyCanvasDocumentSeed(doc, session.id, session.mode === "slide"
+          ? {
+              mode: "slide",
+              activePageId: session.slideDeck.activeSlideId,
+              pages: session.slideDeck.slides.map((slide) => ({
+                id: slide.id,
+                name: slide.name,
+                size: slide.size,
+                kind: "cell-plane" as const,
+                grid: slide.grid,
+              })),
+              grid: [],
+              scene: [],
+              components: [],
+            }
+          : {
+              mode: "blackboard",
+              grid: [],
+              scene: [],
+              components: [],
+            });
+      } else {
+        doc = session.collaboration
+          ? new Y.Doc({ guid: session.id })
+          : await this.#loadSessionDocument(session, false);
+      }
       documents.adoptDocument(session.id, doc);
       if (session.mode !== "slide" && session.collaboration) {
         documents.prepareDocumentForCollaboration(
@@ -1869,6 +1907,27 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
         continue;
       }
       if (session.mode === "slide") {
+        if (session.workspaceId) {
+          const doc = new Y.Doc({ guid: session.id });
+          applyCanvasDocumentSeed(doc, session.id, {
+            mode: "slide",
+            activePageId: session.slideDeck.activeSlideId,
+            pages: session.slideDeck.slides.map((slide) => ({
+              id: slide.id,
+              name: slide.name,
+              size: slide.size,
+              kind: "cell-plane",
+              grid: slide.grid,
+            })),
+            grid: [],
+            scene: [],
+            components: [],
+          });
+          if (isActive) activeDocument = doc;
+          else doc.destroy();
+          restored.push(session);
+          continue;
+        }
         const initialDraft = resetDocuments
           ? documents.getDocumentDraft(session.id)
           : null;
@@ -2113,6 +2172,7 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
     const session = this.#store?.getState().canvasSessions.find(
       (candidate) => candidate.id === id
     );
+    if (session && "workspaceId" in session && session.workspaceId) return;
     if (session?.mode !== "slide" && session?.collaboration) return;
     const generation = this.#documentGenerations.get(id) ?? 0;
     const provider = new IndexeddbPersistence(

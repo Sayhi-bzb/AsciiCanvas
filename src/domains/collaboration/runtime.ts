@@ -100,21 +100,27 @@ class CollaborationSession {
   private awareness: CollaborationAwareness | null = null;
   private metaObserver: (() => void) | null = null;
   private peerCount = 0;
+  private providerSynced = false;
+  private awaitingInitialRemote = false;
+  private remoteHostReady = false;
   private disposed = false;
   private presence: CollaborationPresenceInput = {};
   readonly descriptor: CollaborationDescriptor;
   private readonly doc: Y.Doc;
   private readonly publish: (patch: Partial<CollaborationSnapshot>) => void;
   private readonly dependencies: CollaborationRuntimeDependencies;
+  private readonly role: "host" | "guest";
 
   constructor(
     descriptor: CollaborationDescriptor,
     doc: Y.Doc,
+    role: "host" | "guest",
     publish: (patch: Partial<CollaborationSnapshot>) => void,
     dependencies: CollaborationRuntimeDependencies
   ) {
     this.descriptor = descriptor;
     this.doc = doc;
+    this.role = role;
     this.publish = publish;
     this.dependencies = dependencies;
   }
@@ -132,6 +138,7 @@ class CollaborationSession {
       if (this.disposed) return;
 
       const hasLocalCopy = hasLocalDocumentContent(this.doc);
+      this.awaitingInitialRemote = this.role === "guest" && !hasLocalCopy;
       ensureCollaborationDocumentMeta(this.descriptor, this.doc);
       const meta = this.doc.getMap<unknown>("document-meta");
       this.metaObserver = () => {
@@ -146,17 +153,22 @@ class CollaborationSession {
 
       const awareness = this.dependencies.createAwareness(this.doc);
       this.awareness = awareness;
-      awareness.setLocalState(buildCollaborationPresence(this.descriptor, this.presence));
+      this.publishPresence();
       awareness.on("change", () => {
         if (this.disposed) return;
         const { peers, issues } = readCollaborationPeers(awareness, this.descriptor.mode);
+        this.peerCount = peers.length;
+        this.remoteHostReady = peers.some(
+          (peer) => peer.role === "host" && peer.documentReady === true
+        );
         this.publish({ peers, integrityIssues: issues.slice(0, MAX_INTEGRITY_ISSUES) });
+        this.publishInitialRemoteReady();
       });
 
       this.publish({
-        documentStatus: "ready",
+        documentStatus: this.awaitingInitialRemote ? "joining" : "ready",
         connectionStatus: "connecting",
-        canEdit: true,
+        canEdit: !this.awaitingInitialRemote,
         hasLocalCopy,
       });
       documentReady = true;
@@ -167,9 +179,15 @@ class CollaborationSession {
         error instanceof Error && error.message === "Incompatible collaboration document";
       const providerFailure = documentReady && !incompatible;
       this.publish({
-        documentStatus: incompatible ? "incompatible" : providerFailure ? "ready" : "error",
+        documentStatus: incompatible
+          ? "incompatible"
+          : providerFailure && this.awaitingInitialRemote
+            ? "joining"
+            : providerFailure
+              ? "ready"
+              : "error",
         connectionStatus: "offline",
-        canEdit: providerFailure,
+        canEdit: providerFailure && !this.awaitingInitialRemote,
         errorKind: incompatible
           ? "incompatible-document"
           : providerFailure
@@ -200,6 +218,7 @@ class CollaborationSession {
         this.publish({
           connectionStatus: this.peerCount > 0 ? "online" : "waiting-for-peer",
         });
+        this.publishInitialRemoteReady();
       });
       provider.on("status", (event) => {
         if (this.disposed) return;
@@ -209,6 +228,13 @@ class CollaborationSession {
             ? this.peerCount > 0 ? "online" : "waiting-for-peer"
             : "offline",
         });
+      });
+      provider.on("synced", (event) => {
+        const { synced } = event as { synced: boolean };
+        if (this.disposed || !synced) return;
+        this.providerSynced = true;
+        this.publishPresence();
+        this.publishInitialRemoteReady();
       });
       return;
     }
@@ -232,17 +258,33 @@ class CollaborationSession {
     provider.on("sync", (event) => {
       const isSynced = event as boolean;
       if (this.disposed || !isSynced) return;
+      this.providerSynced = true;
+      this.publishPresence();
       try {
         ensureCollaborationDocumentMeta(this.descriptor, this.doc);
+        this.publishInitialRemoteReady();
       } catch (error) {
         this.publishIncompatibleDocument(error);
       }
     });
   }
 
+  private publishInitialRemoteReady() {
+    if (!this.awaitingInitialRemote || !this.providerSynced || !this.remoteHostReady) return;
+    this.awaitingInitialRemote = false;
+    this.publish({ documentStatus: "ready", canEdit: true, hasLocalCopy: true });
+  }
+
   setPresence(input: CollaborationPresenceInput) {
     this.presence = input;
-    this.awareness?.setLocalState(buildCollaborationPresence(this.descriptor, input));
+    this.publishPresence();
+  }
+
+  private publishPresence() {
+    this.awareness?.setLocalState(buildCollaborationPresence(this.descriptor, this.presence, {
+      role: this.role,
+      documentReady: this.providerSynced,
+    }));
   }
 
   async dispose() {
@@ -269,6 +311,11 @@ export class CollaborationRuntime {
   private session: CollaborationSession | null = null;
   private presence: CollaborationPresenceInput = {};
   private generation = 0;
+  private connectionInput: {
+    descriptor: CollaborationDescriptor;
+    doc: Y.Doc;
+    role: "host" | "guest";
+  } | null = null;
   private readonly dependencies: CollaborationRuntimeDependencies;
 
   constructor(dependencies: Partial<CollaborationRuntimeDependencies> = {}) {
@@ -294,7 +341,12 @@ export class CollaborationRuntime {
     this.listeners.forEach((listener) => listener());
   }
 
-  async connect(descriptor: CollaborationDescriptor, doc: Y.Doc) {
+  async connect(
+    descriptor: CollaborationDescriptor,
+    doc: Y.Doc,
+    role: "host" | "guest" = "host"
+  ) {
+    this.connectionInput = { descriptor, doc, role };
     const generation = ++this.generation;
     const previousSession = this.session;
     this.session = null;
@@ -307,7 +359,7 @@ export class CollaborationRuntime {
       connectionStatus: "idle",
       canEdit: false,
     });
-    const session = new CollaborationSession(descriptor, doc, (patch) => {
+    const session = new CollaborationSession(descriptor, doc, role, (patch) => {
       if (this.generation !== generation || this.session !== session) return;
       if (patch.integrityIssues) {
         const documentIssues = this.snapshot.integrityIssues.filter(
@@ -341,11 +393,18 @@ export class CollaborationRuntime {
   }
 
   async disconnect() {
+    this.connectionInput = null;
     const generation = ++this.generation;
     const session = this.session;
     this.session = null;
     await session?.dispose();
     if (this.generation === generation) this.publish(EMPTY_SNAPSHOT);
+  }
+
+  async retry() {
+    const input = this.connectionInput;
+    if (!input) return;
+    await this.connect(input.descriptor, input.doc, input.role);
   }
 
   async forget(descriptor: CollaborationDescriptor) {

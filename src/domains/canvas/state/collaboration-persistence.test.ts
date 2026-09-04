@@ -26,6 +26,7 @@ describe("collaborative session persistence", () => {
       structuredScene: [],
       structuredComponents: [],
       brushBackgroundColor: "#445566",
+      collaborationEndpoint: "wss://sync.example.com",
       canvasSessions: [
         {
           id: "room-session",
@@ -35,19 +36,27 @@ describe("collaborative session persistence", () => {
           scene: [],
           components: [],
           collaboration: descriptor,
+          collaborationRole: "guest",
         },
       ],
     });
 
     const persisted = createPersistedEditorSnapshot(useEditorStore.getState()) as unknown as {
       workspace: { grid: unknown[]; structuredScene: unknown[] };
-      sessions: { items: Array<{ grid: unknown[]; scene: unknown[] }> };
-      preferences: { brushBackgroundColor: string };
+      sessions: {
+        items: Array<{ grid: unknown[]; scene: unknown[]; collaborationRole?: string }>;
+      };
+      preferences: { brushBackgroundColor: string; collaborationEndpoint: string };
     };
 
     expect(persisted.workspace.grid).toEqual([]);
     expect(persisted.workspace.structuredScene).toEqual([]);
-    expect(persisted.sessions.items[0]).toMatchObject({ grid: [], scene: [] });
+    expect(persisted.sessions.items[0]).toMatchObject({
+      grid: [],
+      scene: [],
+      collaborationRole: "guest",
+    });
     expect(persisted.preferences.brushBackgroundColor).toBe("#445566");
+    expect(persisted.preferences.collaborationEndpoint).toBe("wss://sync.example.com");
   });
 });

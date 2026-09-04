@@ -168,8 +168,10 @@ type SidebarCanvasMode = Exclude<CanvasMode, "blackboard">;
 
 export function SidebarRight({
   canvasMode,
+  readOnly = false,
 }: {
   canvasMode: SidebarCanvasMode;
+  readOnly?: boolean;
 }) {
 
   const { loadMainPacks, searchUnicode, unicodeSearchLoading } =
@@ -192,6 +194,7 @@ export function SidebarRight({
   const [activeSlideView, setActiveSlideView] =
     useState<SlideSidebarView>("slides");
   const [unicodeQuery, setUnicodeQuery] = useState("");
+  const navigationOnly = canvasMode === "slide" && readOnly;
   const structuredSearchRef = useRef<HTMLInputElement>(null);
   const characterViews: ReadonlyArray<SidebarView<CharacterViewId>> =
     CHARACTER_VIEWS.map((view) => ({
@@ -227,9 +230,9 @@ export function SidebarRight({
         };
 
   useEffect(() => {
-    if (!isStaticGridMode(canvasMode)) return;
+    if (!isStaticGridMode(canvasMode) || navigationOnly) return;
     void loadMainPacks();
-  }, [canvasMode, loadMainPacks]);
+  }, [canvasMode, loadMainPacks, navigationOnly]);
 
   useEffect(() => {
     if (onboardingPhase !== "character-library") return;
@@ -373,6 +376,16 @@ export function SidebarRight({
       );
       break;
     case "slide": {
+      if (navigationOnly) {
+        viewRail = null;
+        viewContent = <SlideNavigator readOnly />;
+        headerContent = (
+          <span className="truncate text-sm font-medium">
+            {t("slide.sidebar.title")}
+          </span>
+        );
+        break;
+      }
       viewRail = (
         <SidebarViewRail
           views={slideViews}
@@ -405,22 +418,26 @@ export function SidebarRight({
       data-testid="sidebar-mode-layout"
       className={cn(
         "min-h-0 min-w-0 flex-1 overflow-hidden",
-        isMobile
+        navigationOnly
+          ? "flex flex-col"
+          : isMobile
           ? "flex flex-col"
           : "grid grid-cols-[var(--sidebar-width-icon)_minmax(0,1fr)]"
       )}
     >
-      <div
-        data-testid="sidebar-view-rail-column"
-        className={cn(
-          "shrink-0",
-          isMobile
-            ? "p-1 pb-0"
-            : "col-start-1 row-start-1 px-0 py-1"
-        )}
-      >
-        {viewRail}
-      </div>
+      {!navigationOnly ? (
+        <div
+          data-testid="sidebar-view-rail-column"
+          className={cn(
+            "shrink-0",
+            isMobile
+              ? "p-1 pb-0"
+              : "col-start-1 row-start-1 px-0 py-1"
+          )}
+        >
+          {viewRail}
+        </div>
+      ) : null}
       <ContentScrollArea
         data-testid="sidebar-view-content"
         aria-hidden={isCollapsed || undefined}
@@ -429,7 +446,7 @@ export function SidebarRight({
         contentClassName={!isMobile ? "min-w-0 pr-1" : undefined}
         className={cn(
           "min-h-0 min-w-0 flex-1 transition-opacity duration-[var(--motion-standard)] motion-reduce:transition-none",
-          !isMobile && "col-start-2 row-start-1",
+          !isMobile && !navigationOnly && "col-start-2 row-start-1",
           isCollapsed
             ? "pointer-events-none opacity-0"
             : "opacity-100"

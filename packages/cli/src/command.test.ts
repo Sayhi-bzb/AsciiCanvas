@@ -62,6 +62,20 @@ describe("chardesk render command", () => {
       .toThrow("Unknown option");
   });
 
+  it("initializes a Panel-backed Slide package with implicit auto size", async () => {
+    const cwd = await temporaryDirectory();
+    const io = streams();
+    expect(await runCli([
+      "init", "deck", "--mode", "slide", "--title", "GPU Deck",
+    ], io.value, cwd)).toBe(0);
+    const manifest = await readFile(join(cwd, "deck/blackboard.yaml"), "utf8");
+    expect(manifest).toContain("chardesk: blackboard/v2\nmode: slide");
+    expect(manifest).toContain("pages:\n    - main");
+    expect(manifest).not.toContain("size:");
+    expect(await readFile(join(cwd, "deck/panels/main.panel"), "utf8"))
+      .toBe("# GPU Deck\n");
+  });
+
   it("parses the open command without accepting stdin or unrelated options", () => {
     expect(parseCliArguments([
       "open", "boards/demo", "--port", "7331", "--no-browser",

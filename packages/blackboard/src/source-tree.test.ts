@@ -42,6 +42,25 @@ describe("Blackboard source tree", () => {
     });
   });
 
+  it("classifies Slide pages through layout.pages", () => {
+    const source = `chardesk: blackboard/v2
+mode: slide
+panels:
+  opening: { source: panels/opening.panel }
+  draft: { source: panels/draft.panel }
+layout:
+  pages: [opening]
+`;
+    expect(analyzeBlackboardSourceTree(new Map([
+      ["blackboard.yaml", source],
+      ["panels/opening.panel", "Opening"],
+      ["panels/draft.panel", "Later"],
+    ]))).toMatchObject({
+      visibleFiles: ["panels/opening.panel"],
+      draftFiles: ["panels/draft.panel"],
+    });
+  });
+
   it.each(["../secret", "/root", "a\\b", "a//b"])(
     "rejects paths outside the virtual root: %s",
     (path) => expect(() => normalizeBlackboardPath(path)).toThrow(),

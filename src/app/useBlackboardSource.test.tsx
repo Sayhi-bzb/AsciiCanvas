@@ -132,4 +132,55 @@ describe("Blackboard source projection", () => {
     expect(host.canvas.getState().zoom).toBe(1.75);
     expect(result.current.firstFitRevision).toBe(1);
   });
+
+  it("projects a local Reader deck and retains its active page", async () => {
+    vi.useFakeTimers();
+    const deck = (details: string) => [
+      "---",
+      "chardesk: document/v1",
+      "mode: slide",
+      "title: Reader Deck",
+      "---",
+      "## Opening",
+      "",
+      "```chargraph size=auto",
+      "Opening",
+      "```",
+      "",
+      "## Details",
+      "",
+      "```chargraph size=auto",
+      details,
+      "```",
+    ].join("\n");
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(deck("Details v1"), {
+        status: 200,
+        headers: { ETag: '"first"' },
+      }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(new Response(deck("Details v2"), {
+        status: 200,
+        headers: { ETag: '"second"' },
+      }));
+    vi.stubGlobal("fetch", fetchMock);
+    const host = createHost();
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <CanvasRuntimeProvider runtime={host.canvas}>{children}</CanvasRuntimeProvider>
+    );
+    renderHook(() => useBlackboardSource({ enabled: true }), { wrapper });
+
+    await act(async () => Promise.resolve());
+    const initial = host.canvas.getState().canvasSessions[0];
+    expect(initial).toMatchObject({ mode: "slide", workspaceId: "local-reader" });
+    if (initial?.mode !== "slide") throw new Error("Expected a Slide session");
+    host.canvas.commands.slides.activate(initial.slideDeck.slides[1].id);
+
+    await act(async () => vi.advanceTimersByTimeAsync(500));
+    const current = host.canvas.getState().canvasSessions[0];
+    if (current?.mode !== "slide") throw new Error("Expected a Slide session");
+    expect(current.slideDeck.slides.find(
+      ({ id }) => id === current.slideDeck.activeSlideId,
+    )?.name).toBe("Details");
+  });
 });

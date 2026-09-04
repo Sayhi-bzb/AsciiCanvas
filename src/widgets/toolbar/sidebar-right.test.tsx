@@ -29,12 +29,12 @@ const sortTemplateLabels = <T extends { id: string; label: string }>(
       a.id.localeCompare(b.id)
   );
 
-function SidebarRightForActiveMode() {
+function SidebarRightForActiveMode({ readOnly = false }: { readOnly?: boolean } = {}) {
   const canvasMode = useEditorStore((state) => state.canvasMode);
   if (canvasMode === "blackboard") {
     throw new Error("Blackboard does not own a Sidebar surface.");
   }
-  return <SidebarRight canvasMode={canvasMode} />;
+  return <SidebarRight canvasMode={canvasMode} readOnly={readOnly} />;
 }
 
 describe("SidebarRight structured templates", () => {
@@ -570,6 +570,59 @@ describe("SidebarRight structured templates", () => {
     expect(useEditorStore.getState().slideDeck?.activeSlideId).toBe(
       useEditorStore.getState().slideDeck?.slides[1].id
     );
+  });
+
+  it("renders source-backed Slides as navigation-only", () => {
+    useEditorStore.setState({
+      canvasMode: "slide",
+      slideDeck: {
+        activeSlideId: "slide-1",
+        slides: [
+          {
+            id: "slide-1",
+            name: "Opening",
+            size: { columns: 30, rows: 12 },
+            grid: [],
+          },
+          {
+            id: "slide-2",
+            name: "Details",
+            size: { columns: 40, rows: 16 },
+            grid: [],
+          },
+        ],
+      },
+    });
+
+    render(
+      <SidebarProvider>
+        <SidebarRightForActiveMode readOnly />
+      </SidebarProvider>
+    );
+
+    expect(screen.getByTestId("sidebar-header-content"))
+      .toHaveTextContent("Slides");
+    expect(screen.queryByTestId("slide-view-rail-vertical"))
+      .not.toBeInTheDocument();
+    expect(screen.queryByTestId("sidebar-view-rail-column"))
+      .not.toBeInTheDocument();
+    expect(screen.getByTestId("slide-navigator"))
+      .toHaveAttribute("data-read-only", "true");
+    expect(screen.getByRole("list", { name: "Slides" }))
+      .toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Add slide" }))
+      .not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Configure slide size/ }))
+      .not.toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: /Rename/ }))
+      .not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", {
+      name: "Slide 2 of 2: Details",
+    }));
+    expect(useEditorStore.getState().slideDeck?.activeSlideId).toBe("slide-2");
+    expect(document.querySelector("[data-reorder-item]"))
+      .not.toBeInTheDocument();
   });
 
   it("collapses to only the trigger and preserves the selected character view", () => {

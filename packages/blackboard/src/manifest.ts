@@ -1,16 +1,27 @@
 import { parseDocument } from "yaml";
 
 export const BLACKBOARD_MANIFEST_SIGNATURE = "blackboard/v1";
+export const BLACKBOARD_PACKAGE_SIGNATURE = "blackboard/v2";
+
+export type BlackboardPanelSize = "auto" | `${number}x${number}`;
 
 export type BlackboardPanelDefinition = {
   source: string;
   summary?: string;
+  title?: string;
+  size?: BlackboardPanelSize;
 };
 
-export type BlackboardManifest = {
-  chardesk: typeof BLACKBOARD_MANIFEST_SIGNATURE;
+type BlackboardManifestBase = {
+  chardesk:
+    | typeof BLACKBOARD_MANIFEST_SIGNATURE
+    | typeof BLACKBOARD_PACKAGE_SIGNATURE;
   title?: string;
   panels: Record<string, BlackboardPanelDefinition>;
+};
+
+export type BlackboardSpatialManifest = BlackboardManifestBase & {
+  mode: "blackboard";
   layout: {
     areas: Array<Array<string | null>>;
     gap: {
@@ -19,6 +30,16 @@ export type BlackboardManifest = {
     };
   };
 };
+
+export type BlackboardSlideManifest = BlackboardManifestBase & {
+  chardesk: typeof BLACKBOARD_PACKAGE_SIGNATURE;
+  mode: "slide";
+  layout: {
+    pages: string[];
+  };
+};
+
+export type BlackboardManifest = BlackboardSpatialManifest | BlackboardSlideManifest;
 
 export type BlackboardManifestWarning = {
   code: "unused-panel";
@@ -52,7 +73,7 @@ const expectKnownKeys = (
   path: string,
 ) => {
   const unknown = Object.keys(value).find((key) => !allowed.includes(key));
-  if (unknown) fail(`${path}.${unknown} is not supported by ${BLACKBOARD_MANIFEST_SIGNATURE}.`);
+  if (unknown) fail(`${path}.${unknown} is not supported by this Blackboard package version.`);
 };
 
 const optionalText = (value: unknown, path: string): string | undefined => {
@@ -75,14 +96,40 @@ const gapValue = (value: unknown, fallback: number, path: string) => {
   return value as number;
 };
 
-const parsePanels = (value: unknown) => {
+const panelSize = (value: unknown, path: string): BlackboardPanelSize | undefined => {
+  if (value === undefined) return undefined;
+  if (value === "auto") return value;
+  if (typeof value !== "string" || !/^\d+x\d+$/iu.test(value)) {
+    fail(`${path} must be auto or columnsxrows.`);
+  }
+  const text = value as string;
+  const [rawColumns, rawRows] = text.split("x");
+  const columns = Number(rawColumns);
+  const rows = Number(rawRows);
+  if (!Number.isSafeInteger(columns) || columns <= 0 ||
+      !Number.isSafeInteger(rows) || rows <= 0) {
+    fail(`${path} must be auto or positive columnsxrows.`);
+  }
+  return text as BlackboardPanelSize;
+};
+
+const parsePanels = (
+  value: unknown,
+  version: typeof BLACKBOARD_MANIFEST_SIGNATURE | typeof BLACKBOARD_PACKAGE_SIGNATURE,
+) => {
   const input = expectRecord(value, "panels");
   if (Object.keys(input).length === 0) fail("panels must register at least one panel.");
   const panels: Record<string, BlackboardPanelDefinition> = {};
   for (const [id, raw] of Object.entries(input)) {
     if (id.trim().length === 0) fail("Panel IDs must not be empty.");
     const panel = expectRecord(raw, `panels.${id}`);
-    expectKnownKeys(panel, ["source", "summary"], `panels.${id}`);
+    expectKnownKeys(
+      panel,
+      version === BLACKBOARD_PACKAGE_SIGNATURE
+        ? ["source", "summary", "title", "size"]
+        : ["source", "summary"],
+      `panels.${id}`,
+    );
     const rawSource = panel.source;
     if (typeof rawSource !== "string" || rawSource.trim().length === 0) {
       fail(`panels.${id}.source must be a non-empty string.`);
@@ -92,9 +139,34 @@ const parsePanels = (value: unknown) => {
       fail(`panels.${id}.source must use the .panel suffix.`);
     }
     const summary = optionalText(panel.summary, `panels.${id}.summary`);
-    panels[id] = { source, ...(summary === undefined ? {} : { summary }) };
+    const title = optionalText(panel.title, `panels.${id}.title`);
+    const size = panelSize(panel.size, `panels.${id}.size`);
+    panels[id] = {
+      source,
+      ...(summary === undefined ? {} : { summary }),
+      ...(title === undefined ? {} : { title }),
+      ...(size === undefined ? {} : { size }),
+    };
   }
   return panels;
+};
+
+const parsePages = (
+  value: unknown,
+  panels: Record<string, BlackboardPanelDefinition>,
+) => {
+  if (!Array.isArray(value) || value.length === 0) {
+    fail("layout.pages must be a non-empty sequence.");
+  }
+  const pages = (value as unknown[]).map((entry, index) => {
+    if (typeof entry !== "string" || !(entry in panels)) {
+      fail(`layout.pages[${index}] must reference a registered panel.`);
+    }
+    return entry as string;
+  });
+  const duplicate = pages.find((id, index) => pages.indexOf(id) !== index);
+  if (duplicate) fail(`layout.pages contains duplicate panel ${JSON.stringify(duplicate)}.`);
+  return pages;
 };
 
 const parseAreas = (
@@ -154,13 +226,61 @@ export const parseBlackboardManifest = (
     throw new BlackboardManifestError("invalid-yaml", document.errors[0]!.message);
   }
   const root = expectRecord(document.toJS(), "blackboard.yaml");
-  expectKnownKeys(root, ["chardesk", "title", "panels", "layout"], "blackboard.yaml");
-  if (root.chardesk !== BLACKBOARD_MANIFEST_SIGNATURE) {
-    fail(`chardesk must be ${BLACKBOARD_MANIFEST_SIGNATURE}.`);
+  if (root.chardesk !== BLACKBOARD_MANIFEST_SIGNATURE &&
+      root.chardesk !== BLACKBOARD_PACKAGE_SIGNATURE) {
+    fail(`chardesk must be ${BLACKBOARD_MANIFEST_SIGNATURE} or ${BLACKBOARD_PACKAGE_SIGNATURE}.`);
   }
+  const version = root.chardesk as
+    | typeof BLACKBOARD_MANIFEST_SIGNATURE
+    | typeof BLACKBOARD_PACKAGE_SIGNATURE;
+  expectKnownKeys(
+    root,
+    version === BLACKBOARD_PACKAGE_SIGNATURE
+      ? ["chardesk", "mode", "title", "panels", "layout"]
+      : ["chardesk", "title", "panels", "layout"],
+    "blackboard.yaml",
+  );
+  const mode = (version === BLACKBOARD_MANIFEST_SIGNATURE
+    ? "blackboard"
+    : root.mode) as unknown;
+  if (mode !== "blackboard" && mode !== "slide") {
+    fail("blackboard.yaml.mode must be blackboard or slide.");
+  }
+  const packageMode = mode as "blackboard" | "slide";
   const title = optionalText(root.title, "title");
-  const panels = parsePanels(root.panels);
+  const panels = parsePanels(root.panels, version);
   const layout = expectRecord(root.layout, "layout");
+  if (packageMode === "slide") {
+    expectKnownKeys(layout, ["pages"], "layout");
+    const pages = parsePages(layout.pages, panels);
+    const titles = pages.map((id) => panels[id]!.title ?? id);
+    const duplicateTitle = titles.find(
+      (title, index) => titles.indexOf(title) !== index,
+    );
+    if (duplicateTitle) {
+      fail(`Slide page titles must be unique; found ${JSON.stringify(duplicateTitle)}.`);
+    }
+    const used = new Set(pages);
+    const warnings = Object.keys(panels)
+      .filter((id) => !used.has(id))
+      .map((panel) => ({
+        code: "unused-panel" as const,
+        message: `Panel ${JSON.stringify(panel)} is registered but not used by layout.pages.`,
+        panel,
+      }));
+    return {
+      manifest: {
+        chardesk: BLACKBOARD_PACKAGE_SIGNATURE,
+        mode: packageMode,
+        ...(title === undefined ? {} : { title }),
+        panels,
+        layout: { pages },
+      },
+      warnings,
+    };
+  }
+  const sizedPanel = Object.entries(panels).find(([, panel]) => panel.size !== undefined);
+  if (sizedPanel) fail(`panels.${sizedPanel[0]}.size is only supported in slide mode.`);
   expectKnownKeys(layout, ["areas", "gap"], "layout");
   const areas = parseAreas(layout.areas, panels);
   const rawGap = layout.gap === undefined ? {} : expectRecord(layout.gap, "layout.gap");
@@ -175,7 +295,8 @@ export const parseBlackboardManifest = (
     }));
   return {
     manifest: {
-      chardesk: BLACKBOARD_MANIFEST_SIGNATURE,
+      chardesk: version,
+      mode: packageMode,
       ...(title === undefined ? {} : { title }),
       panels,
       layout: {

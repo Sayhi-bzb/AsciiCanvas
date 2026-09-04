@@ -151,6 +151,12 @@ export const resolveCharDeskInput = async ({
       };
     }
     const compiled = await compileBlackboardPackage(manifest);
+    if (compiled.mode === "slide") {
+      throw new CharDeskCliCommandError(
+        "unsupported-document-mode",
+        "CharDesk CLI opens Slide packages as decks; inspect one panel with --panel.",
+      );
+    }
     return {
       source: compiled.source,
       sourceName: `${compiled.title || basename(resolve(manifest, ".."))}.chardesk`,
