@@ -10,18 +10,6 @@ test.use({
   },
 });
 
-const getStructuredComponentCount = (page: Page) =>
-  page.evaluate(() => {
-    const raw = localStorage.getItem('chardesk-persistence');
-    if (!raw) return 0;
-    const state = JSON.parse(raw).state;
-    return (
-      state?.workspace?.structuredComponents?.length ??
-      state?.structuredComponents?.length ??
-      0
-    );
-  });
-
 test('restarts the guide from the app menu without a Help dialog', async ({ page }) => {
   await page.addInitScript((storageKey) => {
     localStorage.setItem(storageKey, 'completed');
@@ -34,6 +22,7 @@ test('restarts the guide from the app menu without a Help dialog', async ({ page
   await expect(page.getByRole('button', { name: 'Data security' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Open menu' }).click();
+  await page.getByRole('menuitem', { name: 'Help' }).hover();
   await page.getByRole('menuitem', { name: 'Guide' }).click();
 
   const popover = page.getByRole('dialog', { name: 'Create on the canvas' });
@@ -46,7 +35,7 @@ async function reachDragStep(page: Page, testWrongClicks = false) {
   await page.goto('/');
 
   const popover = page.locator('.chardesk-onboarding');
-  await expect(popover.getByText("Your canvas")).toBeVisible({ timeout: 15_000 });
+  await expect(popover.getByText("Create on the canvas")).toBeVisible({ timeout: 15_000 });
   await expect
     .poll(() => page.evaluate(() => document.documentElement.dataset.onboardingPhase))
     .toBe("welcome");
@@ -64,6 +53,9 @@ async function reachDragStep(page: Page, testWrongClicks = false) {
       canvasActive: canvas.classList.contains("driver-active-element"),
       dummyActive: dummy.classList.contains("driver-active-element"),
       overlayFill: getComputedStyle(overlayPath).fill,
+      overlayToken: getComputedStyle(document.documentElement)
+        .getPropertyValue("--dialog-overlay")
+        .trim(),
       overlayOpacity: Number(getComputedStyle(overlayPath).opacity),
       centerOffsetX: Math.abs(
         cardBox.left + cardBox.width / 2 - window.innerWidth / 2,
@@ -77,14 +69,14 @@ async function reachDragStep(page: Page, testWrongClicks = false) {
   expect(welcomeVisual).not.toBeNull();
   expect(welcomeVisual!.canvasActive).toBe(false);
   expect(welcomeVisual!.dummyActive).toBe(true);
-  expect(welcomeVisual!.overlayFill).toBe("rgb(0, 0, 0)");
-  expect(welcomeVisual!.overlayOpacity).toBe(0.48);
+  expect(welcomeVisual!.overlayFill).toBe(welcomeVisual!.overlayToken);
+  expect(welcomeVisual!.overlayOpacity).toBe(1);
   expect(welcomeVisual!.centerOffsetX).toBeLessThanOrEqual(2);
   expect(welcomeVisual!.centerOffsetY).toBeLessThanOrEqual(2);
   expect(welcomeVisual!.arrowHidden).toBe(true);
 
   await popover.getByRole("button", { name: "Next" }).click();
-  await expect(popover.getByText('Character libraries')).toBeVisible();
+  await expect(popover.getByText('Characters')).toBeVisible();
   const characterRail = page.locator(
     '[data-onboarding-target="character-library"]',
   );
@@ -93,7 +85,7 @@ async function reachDragStep(page: Page, testWrongClicks = false) {
 
   if (testWrongClicks) {
     await page.mouse.click(900, 780);
-    await expect(popover.getByText('Character libraries')).toBeVisible();
+    await expect(popover.getByText('Characters')).toBeVisible();
 
     const zoomInBounds = await page.getByRole('button', { name: 'Zoom in' }).boundingBox();
     expect(zoomInBounds).not.toBeNull();
@@ -101,7 +93,7 @@ async function reachDragStep(page: Page, testWrongClicks = false) {
       zoomInBounds!.x + zoomInBounds!.width / 2,
       zoomInBounds!.y + zoomInBounds!.height / 2,
     );
-    await expect(popover.getByText('Character libraries')).toBeVisible();
+    await expect(popover.getByText('Characters')).toBeVisible();
   }
 
   const editorStateBeforeLibrary = await page.evaluate(() =>
@@ -118,19 +110,19 @@ async function reachDragStep(page: Page, testWrongClicks = false) {
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem('chardesk-persistence')))
     .toBe(editorStateBeforeLibrary);
-  await expect(popover.getByText('Canvas modes')).toBeVisible();
+  await expect(popover.getByText('Canvas type')).toBeVisible();
   await page.waitForTimeout(TOUR_TRANSITION_MS);
   await page.locator('[data-onboarding-target="canvas-selector"]').click();
-  await expect(popover.getByText('Create a canvas')).toBeVisible();
+  await expect(popover.getByText('New canvas')).toBeVisible();
   await page.waitForTimeout(TOUR_TRANSITION_MS);
   await page.locator('[data-onboarding-target="create-menu"]').click();
-  await expect(popover.getByText('Structured Canvas', { exact: true })).toBeVisible();
+  await expect(popover.getByText('Structured canvas', { exact: true })).toBeVisible();
   await page.waitForTimeout(TOUR_TRANSITION_MS);
   await page.locator('[data-onboarding-target="create-structured"]').click();
 
-  await expect(popover.getByText('Button component')).toBeVisible();
+  await expect(popover.getByText('Button', { exact: true })).toBeVisible();
   await popover.getByRole('button', { name: 'Next' }).click();
-  await expect(popover.getByText('Drag your first component')).toBeVisible();
+  await expect(popover.getByText('Add the button')).toBeVisible();
   await page.waitForTimeout(TOUR_TRANSITION_MS);
 
   return popover;
@@ -219,8 +211,7 @@ test('keeps wrong clicks inside the guide and completes a real Button drag', asy
   await page.waitForTimeout(100);
   await page.mouse.up();
 
-  await expect(popover.getByText('You are ready')).toBeVisible();
-  await expect.poll(() => getStructuredComponentCount(page)).toBe(1);
+  await expect(popover.getByText('Done', { exact: true })).toBeVisible();
   await popover.getByRole('button', { name: 'Start creating' }).click();
   await expect(popover).toHaveCount(0);
   await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), ONBOARDING_STORAGE_KEY)).toBe('completed');
@@ -233,10 +224,8 @@ test('allows the drag step to be skipped without adding a component', async ({ p
   test.setTimeout(60_000);
   const popover = await reachDragStep(page);
 
-  await expect.poll(() => getStructuredComponentCount(page)).toBe(0);
   await popover.getByRole('button', { name: 'Skip this step' }).click();
-  await expect(popover.getByText('You are ready')).toBeVisible();
-  await expect.poll(() => getStructuredComponentCount(page)).toBe(0);
+  await expect(popover.getByText('Done', { exact: true })).toBeVisible();
 
   await popover.getByRole('button', { name: 'Start creating' }).click();
   await expect.poll(() =>

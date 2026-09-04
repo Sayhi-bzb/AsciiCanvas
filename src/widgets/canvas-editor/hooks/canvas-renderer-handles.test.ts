@@ -5,12 +5,31 @@ import {
   drawGridActiveCellMarker,
   drawGridSelectionGeometry,
   getStructuredSplitBoxActiveLeafBounds,
+  type CanvasInteractionPalette,
 } from "@/widgets/canvas-editor/hooks/useCanvasRenderer";
 import { getGridSelectionGeometry } from "@/domains/selection/public";
 import {
   getStructuredLineHandlePoints,
   getStructuredRectHandlePoints,
 } from "@/domains/structured-content/public";
+
+const palette: CanvasInteractionPalette = {
+  selectionSurface: "selection-surface",
+  selectionBorder: "selection-border",
+  selectionMarker: "selection-marker",
+  textCursorSurface: "cursor-surface",
+  textCursorForeground: "cursor-foreground",
+  pickerOuter: "picker-outer",
+  pickerInner: "picker-inner",
+  pickerAccent: "picker-accent",
+  eraserSurface: "eraser-surface",
+  minimapSurface: "minimap-surface",
+  minimapContent: "minimap-content",
+  minimapViewportSurface: "minimap-viewport-surface",
+  minimapViewportBorder: "minimap-viewport-border",
+  workspaceSurface: "workspace-surface",
+  pageShadow: "page-shadow",
+};
 
 describe("useCanvasRenderer structured rect handles", () => {
   it("draws the semantic active-cell fill and border", () => {
@@ -32,11 +51,11 @@ describe("useCanvasRenderer structured rect handles", () => {
     drawActiveCellFocus(ctx, { x: 2, y: 3 }, {
       offset: { x: 0, y: 0 },
       zoom: 1,
-    });
+    }, palette);
 
     expect(styles).toEqual({
-      fill: "rgba(37, 99, 235, 0.12)",
-      stroke: "#2563eb",
+      fill: "selection-surface",
+      stroke: "selection-border",
     });
     expect(ctx.fillRect).toHaveBeenCalledWith(18, 57, 9, 19);
     expect(ctx.strokeRect).toHaveBeenCalledWith(18, 57, 9, 19);
@@ -59,9 +78,9 @@ describe("useCanvasRenderer structured rect handles", () => {
     drawGridActiveCellMarker(ctx, { x: 4, y: 3 }, {
       offset: { x: 0, y: 0 },
       zoom: 1,
-    });
+    }, palette);
     expect(styles).toEqual({
-      stroke: "rgba(37, 99, 235, 0.65)",
+      stroke: "selection-marker",
       lineWidth: 1,
     });
     expect(ctx.strokeRect).toHaveBeenCalledWith(37, 58, 7, 17);
@@ -89,7 +108,7 @@ describe("useCanvasRenderer structured rect handles", () => {
     drawGridSelectionGeometry(ctx, geometry, {
       offset: { x: 0, y: 0 },
       zoom: 1,
-    });
+    }, palette);
 
     expect(ctx.fill).toHaveBeenCalledOnce();
     expect(ctx.fill).toHaveBeenCalledWith("evenodd");
@@ -170,7 +189,7 @@ describe("useCanvasRenderer structured rect handles", () => {
     drawCanvasColorPickerAnchor(ctx, { x: 2, y: 3 }, {
       offset: { x: 0, y: 0 },
       zoom: 1,
-    });
+    }, palette);
 
     expect(ctx.strokeRect).toHaveBeenCalledTimes(2);
     expect(ctx.strokeRect).toHaveBeenCalledWith(18, 57, 9, 19);

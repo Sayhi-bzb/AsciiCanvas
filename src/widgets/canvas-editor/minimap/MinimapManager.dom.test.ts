@@ -59,7 +59,13 @@ describe("MinimapManager incremental content", () => {
       canvas,
       document.createElement("div"),
       { width: 220, height: 140 },
-      4
+      4,
+      {
+        background: "background",
+        foreground: "foreground",
+        viewportFill: "viewport-fill",
+        viewportStroke: "viewport-stroke",
+      }
     );
     const viewport = {
       reader: plane,

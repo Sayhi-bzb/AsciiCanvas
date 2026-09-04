@@ -16,7 +16,7 @@ import type {
 } from "./types";
 import type { Point } from "@/shared/types";
 
-type MinimapColors = {
+export type MinimapColors = {
   background: string;
   foreground: string;
   viewportFill: string;
@@ -33,9 +33,6 @@ const MINIMAP_CHUNK_ROWS = 64;
 const MINIMAP_CONTENT_REBUILD_DELAY_MS = 160;
 const floorDiv = (value: number, divisor: number) => Math.floor(value / divisor);
 const chunkKey = (column: number, row: number) => `${column},${row}`;
-
-const readCssColor = (name: string) =>
-  getComputedStyle(document.body).getPropertyValue(name).trim();
 
 export class MinimapManager {
   private readonly canvas: HTMLCanvasElement;
@@ -60,7 +57,8 @@ export class MinimapManager {
     canvas: HTMLCanvasElement,
     host: HTMLElement,
     dimensions: MinimapDimensions,
-    padding: number
+    padding: number,
+    colors: MinimapColors
   ) {
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("Minimap: could not get 2D canvas context");
@@ -68,7 +66,7 @@ export class MinimapManager {
     this.dimensions = dimensions;
     this.padding = padding;
     this.ctx = ctx;
-    this.colors = this.readColors();
+    this.colors = colors;
     this.observer =
       typeof ResizeObserver === "undefined"
         ? null
@@ -93,9 +91,9 @@ export class MinimapManager {
     this.render();
   };
 
-  updateColors = () => {
+  setColors = (colors: MinimapColors) => {
     const previousForeground = this.colors.foreground;
-    this.colors = this.readColors();
+    this.colors = colors;
     if (previousForeground !== this.colors.foreground) {
       this.hasCachedContent = false;
     }
@@ -137,16 +135,6 @@ export class MinimapManager {
     }
     return point;
   };
-
-  private readColors = (): MinimapColors => ({
-    background: readCssColor("--background") || "transparent",
-    foreground: readCssColor("--foreground") || "currentColor",
-    viewportFill: readCssColor("--muted-foreground") || "#737373",
-    viewportStroke:
-      readCssColor("--primary") ||
-      readCssColor("--muted-foreground") ||
-      "#737373",
-  });
 
   private addCellToChunk = (
     chunks: Map<string, MinimapContentChunk>,

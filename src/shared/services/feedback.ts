@@ -1,18 +1,16 @@
-import { toast } from "sonner";
-
-type ToastOptions = Parameters<typeof toast.success>[1];
+import { notify, type UiNotificationOptions } from "@chardesk/ui";
 
 export const feedback = {
-  success(message: string, options?: ToastOptions) {
-    toast.success(message, options);
+  success(message: string, options?: UiNotificationOptions) {
+    notify.success(message, options);
   },
-  error(message: string, options?: ToastOptions) {
-    toast.error(message, options);
+  error(message: string, options?: UiNotificationOptions) {
+    notify.error(message, options);
   },
-  warning(message: string, options?: ToastOptions) {
-    toast.warning(message, options);
+  warning(message: string, options?: UiNotificationOptions) {
+    notify.warning(message, options);
   },
   dismiss() {
-    toast.dismiss();
+    notify.dismiss();
   },
 };

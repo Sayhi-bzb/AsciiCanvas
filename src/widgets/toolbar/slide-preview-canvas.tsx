@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useTheme } from "next-themes";
 import type { Slide } from "@/domains/slides/public";
-import { COLOR_PRIMARY_TEXT } from "@/shared/lib/constants";
+import { useHostVisualTheme } from "@/shared/hooks/useHostVisualTheme";
 import { drawSlideCanvas } from "./slide-canvas-renderer";
 
 export function SlidePreviewCanvas({
@@ -17,7 +16,7 @@ export function SlidePreviewCanvas({
 }) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const { resolvedTheme } = useTheme();
+  const visualTheme = useHostVisualTheme(hostRef);
   const [visible, setVisible] = useState(
     () => typeof IntersectionObserver === "undefined"
   );
@@ -34,16 +33,12 @@ export function SlidePreviewCanvas({
   }, []);
 
   useEffect(() => {
-    if (!visible) return;
+    if (!visible || !visualTheme) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const render = () => {
       const { width, height } = canvas.getBoundingClientRect();
-      const defaultTextColor =
-        getComputedStyle(document.body)
-          .getPropertyValue("--foreground")
-          .trim() || COLOR_PRIMARY_TEXT;
       drawSlideCanvas({
         canvas,
         slide: loadGrid ? { ...slide, grid: loadGrid() } : slide,
@@ -53,7 +48,7 @@ export function SlidePreviewCanvas({
         padding: 0,
         backdropColor: null,
         pageColor: null,
-        defaultTextColor,
+        defaultTextColor: visualTheme.host.previewText,
       });
     };
 
@@ -67,7 +62,7 @@ export function SlidePreviewCanvas({
       observer?.disconnect();
       document.fonts?.removeEventListener("loadingdone", render);
     };
-  }, [contentRevision, loadGrid, resolvedTheme, slide, visible]);
+  }, [contentRevision, loadGrid, slide, visible, visualTheme]);
 
   return (
     <div ref={hostRef} className="pointer-events-none absolute inset-0">

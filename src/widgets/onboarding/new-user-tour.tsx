@@ -8,7 +8,6 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { DriveStep, Driver } from "driver.js";
 import { useCanvasState } from "@/domains/canvas/public";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { useUiI18n } from "@/shared/i18n";
@@ -26,6 +25,11 @@ import {
   writeOnboardingStatus,
   type OnboardingStatus,
 } from "./onboarding-model";
+import {
+  createOnboardingDriver,
+  type OnboardingDriver,
+  type OnboardingStep,
+} from "./driver-adapter";
 
 type Translate = ReturnType<typeof useUiI18n>["t"];
 
@@ -72,14 +76,14 @@ function buildTourSteps(
   t: Translate,
   actions: TourActions,
   includeCharacterLibrary: boolean
-): DriveStep[] {
+): OnboardingStep[] {
   const actionStep = (
     element: string,
     phase: OnboardingPhase,
     title: string,
     description: string,
-    options: Partial<DriveStep> = {}
-  ): DriveStep => ({
+    options: Partial<OnboardingStep> = {}
+  ): OnboardingStep => ({
     element,
     waitForElement: 5000,
     advanceOnClick: true,
@@ -217,7 +221,7 @@ export function OnboardingTourProvider({
     (state) => state.structuredComponents.length
   );
   const [phase, setPhase] = useState<OnboardingPhase>("idle");
-  const driverRef = useRef<Driver | null>(null);
+  const driverRef = useRef<OnboardingDriver | null>(null);
   const loadingRef = useRef(false);
   const mountedRef = useRef(true);
   const tRef = useRef(t);
@@ -229,9 +233,11 @@ export function OnboardingTourProvider({
   const autoStartCheckedRef = useRef(false);
   const initialHasPersistenceRef = useRef(hadEditorPersistenceOnEntry());
 
-  tRef.current = t;
-  activeCanvasIdRef.current = activeCanvasId;
-  structuredComponentCountRef.current = structuredComponentCount;
+  useEffect(() => {
+    tRef.current = t;
+    activeCanvasIdRef.current = activeCanvasId;
+    structuredComponentCountRef.current = structuredComponentCount;
+  }, [activeCanvasId, structuredComponentCount, t]);
 
   const cleanRuntime = useCallback(() => {
     driverRef.current = null;
@@ -276,34 +282,19 @@ export function OnboardingTourProvider({
 
     try {
       await waitForElement('[data-onboarding-target="canvas"]');
-      const [{ driver }] = await Promise.all([
-        import("driver.js"),
-        import("driver.js/dist/driver.css"),
-      ]);
-      if (!mountedRef.current) return;
-
-      const driverInstance = driver({
-        animate: true,
-        duration: 300,
-        overlayColor: "#000",
-        overlayOpacity: 0.48,
-        stagePadding: 6,
-        stageRadius: 10,
-        popoverClass: "chardesk-onboarding",
-        popoverOffset: 10,
-        showProgress: true,
+      const driverInstance = await createOnboardingDriver({
+        steps: createSteps(tRef.current),
         progressText: tRef.current("onboarding.progress"),
-        nextBtnText: tRef.current("onboarding.next"),
-        doneBtnText: tRef.current("onboarding.done"),
-        allowClose: true,
-        allowScroll: false,
-        allowKeyboardControl: true,
-        overlayClickBehavior: () => undefined,
-        onCloseClick: () => endTour("dismissed"),
+        nextButtonText: tRef.current("onboarding.next"),
+        doneButtonText: tRef.current("onboarding.done"),
+        onClose: () => endTour("dismissed"),
         onDestroyed: cleanRuntime,
       });
+      if (!mountedRef.current) {
+        driverInstance.destroy();
+        return;
+      }
       driverRef.current = driverInstance;
-      driverInstance.setSteps(createSteps(tRef.current));
       loadingRef.current = false;
       driverInstance.drive();
     } catch (error) {
@@ -325,7 +316,8 @@ export function OnboardingTourProvider({
     ) {
       return;
     }
-    setPhase("preparing-template");
+    const timeoutId = window.setTimeout(() => setPhase("preparing-template"), 0);
+    return () => window.clearTimeout(timeoutId);
   }, [activeCanvasId, canvasMode, phase]);
 
   useEffect(() => {
