@@ -141,7 +141,7 @@ const makeUnicodeGrid = (count: number): GridEntry[] => {
       x = 0;
       y += 1;
     }
-    entries.push([key(x, y), { ...makeCell(index), char: chars[charIndex]! }]);
+    entries.push([key(x, y), { char: chars[charIndex]!, color: "#1d4ed8" }]);
     x += width;
   }
   return entries;
