@@ -3,11 +3,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Slide } from "@/domains/slides/public";
 import { SlidePreviewCanvas } from "./slide-preview-canvas";
 
-const { drawSlideCanvas } = vi.hoisted(() => ({
+const { drawSlideCanvas, visualTheme } = vi.hoisted(() => ({
   drawSlideCanvas: vi.fn(),
+  visualTheme: {
+    revision: "light",
+    host: { previewText: "#f8fafc" },
+  },
 }));
 
 vi.mock("./slide-canvas-renderer", () => ({ drawSlideCanvas }));
+vi.mock("@/shared/hooks/useHostVisualTheme", () => ({
+  useHostVisualTheme: () => visualTheme,
+}));
 
 const slide: Slide = {
   id: "slide-1",
@@ -76,7 +83,6 @@ describe("SlidePreviewCanvas", () => {
       configurable: true,
       value: fonts,
     });
-    document.body.style.setProperty("--foreground", "#f8fafc");
   });
 
   afterEach(() => {
@@ -88,7 +94,6 @@ describe("SlidePreviewCanvas", () => {
     } else {
       Reflect.deleteProperty(document, "fonts");
     }
-    document.body.style.removeProperty("--foreground");
   });
 
   it("redraws for content, size, element resize, and font changes", () => {

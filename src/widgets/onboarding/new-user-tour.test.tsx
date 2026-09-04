@@ -57,8 +57,23 @@ const driverMock = vi.hoisted(() => {
     },
   };
 });
+const runtimeTheme = vi.hoisted(() => ({
+  host: {
+    background: "white",
+    foreground: "black",
+    overlay: "rgba(0, 0, 0, 0.32)",
+    previewText: "black",
+  },
+  motion: { slowMs: 240, reduced: false },
+  surface: { radiusPx: 12 },
+  canvas: {},
+}));
 
 vi.mock("driver.js", () => ({ driver: driverMock.factory }));
+vi.mock("@chardesk/ui", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@chardesk/ui")>(),
+  readUiRuntimeTheme: () => runtimeTheme,
+}));
 
 function TourHarness() {
   const { requestStart } = useOnboardingTour();
@@ -79,8 +94,19 @@ async function flushTourStart() {
 
 describe("OnboardingTourProvider", () => {
   beforeEach(() => {
+    const values = new Map<string, string>();
+    const storage: Storage = {
+      get length() { return values.size; },
+      clear: () => values.clear(),
+      getItem: (key) => values.get(key) ?? null,
+      key: (index) => [...values.keys()][index] ?? null,
+      removeItem: (key) => { values.delete(key); },
+      setItem: (key, value) => { values.set(key, value); },
+    };
+    Object.defineProperty(window, "localStorage", { configurable: true, value: storage });
     vi.useFakeTimers();
     driverMock.reset();
+    runtimeTheme.motion.reduced = false;
     window.localStorage.clear();
     setUiLanguage("en");
     Object.defineProperty(window, "innerWidth", {
@@ -117,6 +143,13 @@ describe("OnboardingTourProvider", () => {
     expect(driverMock.factory).toHaveBeenCalledOnce();
     expect(driverMock.api.drive).toHaveBeenCalledOnce();
     expect(driverMock.getConfig().allowKeyboardControl).toBe(true);
+    expect(driverMock.getConfig()).toMatchObject({
+      animate: true,
+      duration: 240,
+      overlayColor: "rgba(0, 0, 0, 0.32)",
+      overlayOpacity: 1,
+      stageRadius: 12,
+    });
     expect(driverMock.getSteps()).toHaveLength(8);
     expect(driverMock.getSteps()[1].element).toBe(
       '[data-onboarding-target="character-library"]'
@@ -150,6 +183,18 @@ describe("OnboardingTourProvider", () => {
       await Promise.resolve();
     });
     expect(driverMock.factory).toHaveBeenCalledOnce();
+  });
+
+  it("disables Driver animation when the Host requests reduced motion", async () => {
+    runtimeTheme.motion.reduced = true;
+    render(
+      <OnboardingTourProvider>
+        <TourHarness />
+      </OnboardingTourProvider>
+    );
+
+    await flushTourStart();
+    expect(driverMock.getConfig()).toMatchObject({ animate: false, duration: 0 });
   });
 
   it("omits the freeform character guide outside freeform mode", async () => {

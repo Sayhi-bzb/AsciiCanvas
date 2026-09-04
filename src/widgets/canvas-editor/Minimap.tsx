@@ -9,7 +9,6 @@ import {
   type PointerEvent as ReactPointerEvent,
   type WheelEvent as ReactWheelEvent,
 } from "react";
-import { useTheme } from "next-themes";
 import { useShallow } from "zustand/react/shallow";
 import {
   createGridSurfaceReader,
@@ -19,6 +18,7 @@ import {
   useCanvasState,
 } from "@/domains/canvas/public";
 import { useUiI18n } from "@/shared/i18n";
+import { useHostVisualTheme } from "@/shared/hooks/useHostVisualTheme";
 import { cn } from "@chardesk/ui";
 import type { Point } from "@/shared/types";
 import { resolveCanvasWheelDecision } from "./hooks/interaction/gestures/wheelInteraction";
@@ -59,7 +59,13 @@ export const Minimap = ({
   const endPointerSessionRef = useRef<() => void>(() => {});
   const [isViewportHovered, setIsViewportHovered] = useState(false);
   const [isDraggingViewport, setIsDraggingViewport] = useState(false);
-  const { resolvedTheme } = useTheme();
+  const visualTheme = useHostVisualTheme(hostRef);
+  const minimapColors = useMemo(() => visualTheme ? ({
+    background: visualTheme.canvas.minimapSurface,
+    foreground: visualTheme.canvas.minimapContent,
+    viewportFill: visualTheme.canvas.minimapViewportSurface,
+    viewportStroke: visualTheme.canvas.minimapViewportBorder,
+  }) : null, [visualTheme]);
   const { t } = useUiI18n();
   const runtime = useCanvasEngineRuntime();
   const canvas = useCanvasRuntime();
@@ -112,13 +118,14 @@ export const Minimap = ({
   useEffect(() => {
     const canvas = canvasRef.current;
     const host = hostRef.current;
-    if (!canvas || !host) return;
+    if (!canvas || !host || !minimapColors) return;
     try {
       const manager = new MinimapManager(
         canvas,
         host,
         MINIMAP_DIMENSIONS,
-        MINIMAP_PADDING
+        MINIMAP_PADDING,
+        minimapColors
       );
       managerRef.current = manager;
       return () => {
@@ -130,7 +137,7 @@ export const Minimap = ({
       console.error("Minimap initialization failed", error);
       return;
     }
-  }, [endPointerSession]);
+  }, [endPointerSession, minimapColors]);
 
   useEffect(
     () => () => runtime.camera.cancelAnimation(),
@@ -153,10 +160,11 @@ export const Minimap = ({
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
-      managerRef.current?.updateColors();
+      if (!minimapColors) return;
+      managerRef.current?.setColors(minimapColors);
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [resolvedTheme]);
+  }, [minimapColors]);
 
   const addDragEndListeners = useCallback(() => {
     document.body.addEventListener("pointerup", endPointerSession);

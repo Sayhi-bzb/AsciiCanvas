@@ -15,6 +15,7 @@ import {
 } from '@/domains/document/public';
 import { useUiI18n, type I18nKey } from '@/shared/i18n';
 import {
+  Checkbox,
   cn,
   Popover,
   PopoverContent,
@@ -414,20 +415,18 @@ export function DisplaySettingsPanel({
           ) : setting.kind === 'render-feature-colors' || renderFeature?.control === 'style' ? (
             <span className="text-muted-foreground" aria-hidden="true">—</span>
           ) : (
-            <input
-              type="checkbox"
+            <Checkbox
               data-settings-control=""
-              className="size-3.5 cursor-pointer accent-primary"
               aria-label={t(setting.label)}
               checked={featureConfig!.enabled}
-              onChange={(event) => {
+              onCheckedChange={(checked) => {
                 textRendering.setProfile({
                   ...textRenderProfile,
                   features: {
                     ...textRenderProfile.features,
                     [setting.feature.id]: {
                       ...featureConfig!,
-                      enabled: event.currentTarget.checked,
+                      enabled: checked === true,
                     },
                   },
                 });

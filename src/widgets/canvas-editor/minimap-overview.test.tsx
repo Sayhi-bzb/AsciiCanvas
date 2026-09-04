@@ -5,6 +5,20 @@ import { useEditorStore } from "@/domains/canvas/testing";
 import { GridManager } from "@/shared/utils/grid";
 import { setUiLanguage } from "@/shared/i18n";
 
+const visualTheme = vi.hoisted(() => ({
+    revision: "light",
+    canvas: {
+      minimapSurface: "white",
+      minimapContent: "black",
+      minimapViewportSurface: "rgba(0, 0, 0, 0.35)",
+      minimapViewportBorder: "black",
+    },
+}));
+
+vi.mock("@/shared/hooks/useHostVisualTheme", () => ({
+  useHostVisualTheme: () => visualTheme,
+}));
+
 const initialState = useEditorStore.getState();
 const pathInstances: MockPath2D[] = [];
 

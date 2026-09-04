@@ -12,6 +12,7 @@ import {
   useSidebar,
   TooltipProvider,
   Toaster,
+  Surface,
   StatusText,
   type StatusTone,
   ResizableHandle,
@@ -261,15 +262,16 @@ function CanvasPaneContent({
         />
       ) : null}
       {view.loadState === 'error' && view.loadError ? (
-        <div
+        <Surface
+          kind="overlay"
           data-canvas-ui="true"
           role="status"
-          className="pointer-events-none absolute left-1/2 top-(--editor-safe-top) z-(--layer-contextual) -translate-x-1/2 rounded-md bg-background/90 px-2 py-1 shadow-sm"
+          className="pointer-events-none absolute left-1/2 top-(--editor-safe-top) z-(--layer-contextual) -translate-x-1/2 px-2 py-1"
         >
           <StatusText tone="error" className="whitespace-nowrap text-xs">
             {view.loadError}
           </StatusText>
-        </div>
+        </Surface>
       ) : null}
       {split && view.viewId === 'secondary' ? (
         <EditorWidget role="pane">

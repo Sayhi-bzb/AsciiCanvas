@@ -7,6 +7,12 @@ The visual ownership path has one direction:
 
 `@chardesk/ui theme -> shared rx recipe -> shared UI primitive -> product composition`
 
+`UiProvider` is the Host runtime boundary. It owns localized primitive messages
+and light/dark/system theme state; the shipped default is light. Host code uses
+`useUiTheme` and never imports `next-themes`. Sonner, Radix, and Base UI are
+package internals. Domain-facing feedback keeps its application adapter but
+publishes through the package's stable `notify` API.
+
 - [`packages/ui/theme.css`](https://github.com/Sayhi-bzb/CharDesk/blob/main/packages/ui/theme.css)
   owns semantic color, surface, elevation, and viewport-layer tokens.
 - [`packages/ui/src/recipes.ts`](https://github.com/Sayhi-bzb/CharDesk/blob/main/packages/ui/src/recipes.ts)
@@ -14,6 +20,20 @@ The visual ownership path has one direction:
 - [`packages/ui/src`](https://github.com/Sayhi-bzb/CharDesk/tree/main/packages/ui/src)
   owns every domain-neutral primitive and composition. Products consume the
   package root; they do not maintain an application-local primitive layer.
+
+Canvas DOM and Canvas-rendered interaction affordances share the same Host
+contract. `readUiRuntimeTheme` is the only bridge from CSS semantics to
+imperative drawing values. The Host visual-theme hook supplies its typed palette
+and revision to the main renderer, Minimap, and slide preview so theme changes
+invalidate their frames. Selection, cursor, handles, picker, viewport chrome,
+and preview defaults belong to this bridge. Document cell colors, ANSI palettes,
+export defaults, and CharGraph render themes remain artifact-owned and do not
+consume the Host palette.
+
+Third-party UI integrations live behind product adapters. The onboarding
+adapter is the sole Driver.js owner and maps shared overlay, motion, radius, and
+reduced-motion semantics into Driver configuration. Product onboarding code
+owns only steps, copy, workflow state, and lifecycle callbacks.
 
 `shadow-host`, `shadow-overlay`, and `shadow-dialog` are the elevation ladder.
 `surface`, `control`, and `item` are the radius ladder. Surface and dialog
@@ -148,6 +168,8 @@ reduced-motion preferences.
   rejects legacy recipes, raw palette colors, component-local `dark:` branches,
   `space-x/y`, raw viewport tiers, raw Widget buttons, Widget-owned interaction
   states, direct icon sizing, square-control geometry overrides, and Widget-owned
-  shared surfaces.
+  shared surfaces. It also enforces the UI-package dependency facade, the sole
+  Driver.js adapter, runtime-theme token declarations, and the exact native
+  file-input and Canvas-textarea escape hatches.
 - Surface evidence: [`dialog.test.tsx`](https://github.com/Sayhi-bzb/CharDesk/blob/main/packages/ui/src/dialog.test.tsx)
   and [`context-menu.test.tsx`](https://github.com/Sayhi-bzb/CharDesk/blob/main/packages/ui/src/context-menu.test.tsx)

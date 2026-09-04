@@ -2,6 +2,7 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { toast } from 'sonner';
 
+import { notify } from './notifications.js';
 import { Toaster } from './sonner.js';
 
 describe('Toaster semantic status colors', () => {
@@ -10,9 +11,9 @@ describe('Toaster semantic status colors', () => {
   });
 
   it.each([
-    ['success', toast.success, 'text-success'],
-    ['warning', toast.warning, 'text-warning'],
-    ['error', toast.error, 'text-error'],
+    ['success', notify.success, 'text-success'],
+    ['warning', notify.warning, 'text-warning'],
+    ['error', notify.error, 'text-error'],
   ] as const)('colors the %s title and icon through semantic tokens', async (_, publish, color) => {
     render(<Toaster theme="light" />);
 

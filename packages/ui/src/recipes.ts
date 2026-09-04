@@ -177,6 +177,11 @@ const controlShape: Record<Shape, string> = {
 
 export const rx = {
   focusRing: () => focusRing,
+  checkbox: cn(
+    "peer size-3.5 shrink-0 cursor-pointer rounded-[4px] border border-input bg-field-surface shadow-xs transition-[background-color,border-color,box-shadow] duration-[var(--motion-fast)] motion-reduce:transition-none",
+    focusRing,
+    "data-[state=checked]:border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground data-[state=indeterminate]:border-primary data-[state=indeterminate]:bg-primary data-[state=indeterminate]:text-primary-foreground disabled:pointer-events-none disabled:cursor-default disabled:opacity-50 [&_svg]:size-3"
+  ),
   dialogOverlay: cn(
     'fixed inset-0 z-(--layer-modal-backdrop) bg-dialog-overlay',
     'data-[state=open]:animate-in data-[state=closed]:animate-out',

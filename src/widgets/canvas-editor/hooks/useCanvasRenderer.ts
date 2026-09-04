@@ -1,14 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   BACKGROUND_COLOR,
-  COLOR_ACTIVE_CELL_BG,
-  COLOR_ACTIVE_CELL_BORDER,
-  COLOR_ACTIVE_CELL_MARKER,
-  COLOR_SELECTION_BG,
-  COLOR_TEXT_CURSOR_BG,
-  COLOR_TEXT_CURSOR_FG,
   GRID_COLOR,
 } from '@/shared/lib/constants';
+import type { HostVisualTheme } from '@/shared/hooks/useHostVisualTheme';
 import { isStaticGridMode } from '@/domains/sessions/public';
 import type { CanvasRenderModel } from './canvasModels';
 import { GridManager } from '@/shared/utils/grid';
@@ -75,6 +70,8 @@ interface LayerRefs {
   interaction: React.RefObject<HTMLCanvasElement | null>;
 }
 
+export type CanvasInteractionPalette = HostVisualTheme['canvas'];
+
 export const resolveCanvasRenderPasses = (invalidation: CanvasFrameInvalidation) => ({
   content: CanvasRenderManager.includes(invalidation, 'background'),
   interaction:
@@ -100,7 +97,8 @@ export const getStructuredSplitBoxActiveLeafBounds = (
 export const drawCanvasColorPickerAnchor = (
   ctx: CanvasRenderingContext2D,
   point: Point,
-  viewport: { offset: Point; zoom: number }
+  viewport: { offset: Point; zoom: number },
+  palette: CanvasInteractionPalette
 ) => {
   const pos = gridCellRect(point, viewport);
   const x = Math.round(pos.x);
@@ -112,14 +110,14 @@ export const drawCanvasColorPickerAnchor = (
 
   ctx.save();
   ctx.lineWidth = lineWidth + 2;
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+  ctx.strokeStyle = palette.pickerOuter;
   ctx.strokeRect(x, y, width, height);
 
   ctx.lineWidth = lineWidth;
-  ctx.strokeStyle = '#111827';
+  ctx.strokeStyle = palette.pickerInner;
   ctx.strokeRect(x, y, width, height);
 
-  ctx.strokeStyle = '#f59e0b';
+  ctx.strokeStyle = palette.pickerAccent;
   ctx.lineWidth = Math.max(2, lineWidth);
   ctx.beginPath();
   ctx.moveTo(x, y + corner);
@@ -141,12 +139,13 @@ export const drawCanvasColorPickerAnchor = (
 export const drawActiveCellFocus = (
   ctx: CanvasRenderingContext2D,
   point: Point,
-  viewport: { offset: Point; zoom: number }
+  viewport: { offset: Point; zoom: number },
+  palette: CanvasInteractionPalette
 ) => {
   const pos = gridCellRect(point, viewport);
   ctx.save();
-  ctx.fillStyle = COLOR_ACTIVE_CELL_BG;
-  ctx.strokeStyle = COLOR_ACTIVE_CELL_BORDER;
+  ctx.fillStyle = palette.selectionSurface;
+  ctx.strokeStyle = palette.selectionBorder;
   ctx.lineWidth = Math.max(1, Math.round(1.5 * viewport.zoom));
   ctx.fillRect(
     Math.round(pos.x),
@@ -166,7 +165,8 @@ export const drawActiveCellFocus = (
 const drawGridSelectionPreview = (
   ctx: CanvasRenderingContext2D,
   area: SelectionArea,
-  viewport: { offset: Point; zoom: number }
+  viewport: { offset: Point; zoom: number },
+  palette: CanvasInteractionPalette
 ) => {
   const { minX, minY, maxX, maxY } = getSelectionBounds(area);
   const pos = gridCellRect({ x: minX, y: minY }, viewport);
@@ -176,7 +176,7 @@ const drawGridSelectionPreview = (
   const y = Math.round(pos.y);
 
   ctx.save();
-  ctx.fillStyle = COLOR_SELECTION_BG;
+  ctx.fillStyle = palette.selectionSurface;
   ctx.fillRect(x, y, width, height);
   ctx.restore();
 };
@@ -184,7 +184,8 @@ const drawGridSelectionPreview = (
 export const drawGridSelectionGeometry = (
   ctx: CanvasRenderingContext2D,
   geometry: GridSelectionGeometry,
-  viewport: { offset: Point; zoom: number }
+  viewport: { offset: Point; zoom: number },
+  palette: CanvasInteractionPalette
 ) => {
   if (geometry.polygons.length === 0) return;
   ctx.save();
@@ -199,9 +200,9 @@ export const drawGridSelectionGeometry = (
       ctx.closePath();
     });
   });
-  ctx.fillStyle = COLOR_SELECTION_BG;
+  ctx.fillStyle = palette.selectionSurface;
   ctx.fill("evenodd");
-  ctx.strokeStyle = COLOR_ACTIVE_CELL_BORDER;
+  ctx.strokeStyle = palette.selectionBorder;
   ctx.lineWidth = Math.max(1, Math.round(2 * viewport.zoom));
   ctx.stroke();
   ctx.restore();
@@ -210,12 +211,13 @@ export const drawGridSelectionGeometry = (
 export const drawGridActiveCellMarker = (
   ctx: CanvasRenderingContext2D,
   point: Point,
-  viewport: { offset: Point; zoom: number }
+  viewport: { offset: Point; zoom: number },
+  palette: CanvasInteractionPalette
 ) => {
   const pos = gridCellRect(point, viewport);
   const inset = Math.max(1, Math.round(viewport.zoom));
   ctx.save();
-  ctx.strokeStyle = COLOR_ACTIVE_CELL_MARKER;
+  ctx.strokeStyle = palette.selectionMarker;
   ctx.lineWidth = Math.max(1, Math.round(viewport.zoom));
   ctx.strokeRect(
     Math.round(pos.x) + inset,
@@ -234,6 +236,7 @@ export const useCanvasRenderer = (
   draggingSelection: SelectionArea | null,
   structuredMovePreviewRef: React.RefObject<StructuredMovePreview | null>,
   hoveredLink: CanvasLinkHit | null,
+  visualTheme: HostVisualTheme | null,
   requestRenderRef?: React.MutableRefObject<(() => void) | null>,
   runtime?: CanvasEngineRuntime
 ) => {
@@ -309,7 +312,9 @@ export const useCanvasRenderer = (
     []
   );
   useEffect(() => {
+    if (!visualTheme) return;
     let disposed = false;
+    const palette = visualTheme.canvas;
     const render = (invalidation: CanvasFrameInvalidation) => {
       if (!size || !surfaceGeometry || size.width === 0 || size.height === 0) return;
       const { offset, zoom } = runtime?.camera.getViewport() ?? fallbackViewportRef.current;
@@ -383,11 +388,11 @@ export const useCanvasRenderer = (
           surfaceGeometry.height,
           contentDpr
         );
-          bgCtx.fillStyle = slidePageRect ? "#e5e7eb" : BACKGROUND_COLOR;
+          bgCtx.fillStyle = slidePageRect ? palette.workspaceSurface : BACKGROUND_COLOR;
           bgCtx.fillRect(0, 0, surfaceGeometry.width, surfaceGeometry.height);
           if (slidePageRect) {
             bgCtx.save();
-            bgCtx.shadowColor = "rgba(15, 23, 42, 0.18)";
+            bgCtx.shadowColor = palette.pageShadow;
             bgCtx.shadowBlur = 18;
             bgCtx.shadowOffsetY = 4;
             bgCtx.fillStyle = BACKGROUND_COLOR;
@@ -495,12 +500,13 @@ export const useCanvasRenderer = (
           drawGridSelectionGeometry(uiCtx, geometry, {
             offset: renderOffset,
             zoom,
-          });
+          }, palette);
         } else if (draggingSelection) {
           drawGridSelectionPreview(
             uiCtx,
             draggingSelection,
-            { offset: renderOffset, zoom }
+            { offset: renderOffset, zoom },
+            palette
           );
         }
         if (canvasMode === 'structured' && structuredPreviewMovingGrid) {
@@ -516,7 +522,7 @@ export const useCanvasRenderer = (
             drawActiveCellFocus(uiCtx, structuredGridFocus, {
               offset: renderOffset,
               zoom,
-            });
+            }, palette);
           }
 
           const selectionRange = getStructuredTextSelectionRange(structuredTextSelection);
@@ -533,7 +539,7 @@ export const useCanvasRenderer = (
               selectionRange!.end
             ).forEach((rect) => {
               const pos = gridCellRect(rect.point, { offset: renderOffset, zoom });
-              uiCtx.fillStyle = COLOR_SELECTION_BG;
+              uiCtx.fillStyle = palette.selectionSurface;
               uiCtx.fillRect(
                 Math.round(pos.x),
                 Math.round(pos.y),
@@ -581,8 +587,8 @@ export const useCanvasRenderer = (
             const width = activeLeafBounds.width * pos.width;
             const height = activeLeafBounds.height * pos.height;
             uiCtx.save();
-            uiCtx.fillStyle = 'rgba(37, 99, 235, 0.06)';
-            uiCtx.strokeStyle = '#2563eb';
+            uiCtx.fillStyle = palette.selectionSurface;
+            uiCtx.strokeStyle = palette.selectionBorder;
             uiCtx.lineWidth = Math.max(2, Math.round(3 * zoom));
             uiCtx.fillRect(
               Math.round(pos.x),
@@ -600,7 +606,7 @@ export const useCanvasRenderer = (
           };
 
           uiCtx.save();
-          uiCtx.strokeStyle = '#2563eb';
+          uiCtx.strokeStyle = palette.selectionBorder;
           uiCtx.lineWidth = Math.max(1, Math.round(2 * zoom));
           selectedNodes.forEach((node) => drawStructuredBounds(getStructuredNodeBounds(node)));
 
@@ -634,8 +640,8 @@ export const useCanvasRenderer = (
                 ? getStructuredBoxBounds(selectedHandleNode)
                 : getStructuredNodeBounds(selectedHandleNode);
             const { pos, width, height } = drawStructuredBounds(bounds);
-            uiCtx.fillStyle = '#ffffff';
-            uiCtx.strokeStyle = '#2563eb';
+            uiCtx.fillStyle = palette.pickerOuter;
+            uiCtx.strokeStyle = palette.selectionBorder;
             uiCtx.lineWidth = 1;
             if (selectedHandleNode.type === 'splitBox') {
               drawActiveSplitBoxLeaf(selectedHandleNode, hoveredGrid ?? structuredContextPoint);
@@ -651,8 +657,8 @@ export const useCanvasRenderer = (
               });
             }
           } else if (selectedHandleNode?.type === 'line') {
-            uiCtx.fillStyle = '#ffffff';
-            uiCtx.strokeStyle = '#2563eb';
+            uiCtx.fillStyle = palette.pickerOuter;
+            uiCtx.strokeStyle = palette.selectionBorder;
             uiCtx.lineWidth = 1;
             getStructuredLineHandlePoints().forEach(({ point }) => {
               const endpoint = selectedHandleNode[point];
@@ -665,7 +671,7 @@ export const useCanvasRenderer = (
 
         if (tool === 'eraser' && hoveredGrid) {
           const pos = gridCellRect(hoveredGrid, { offset: renderOffset, zoom });
-          uiCtx.fillStyle = 'rgba(239, 68, 68, 0.3)';
+          uiCtx.fillStyle = palette.eraserSurface;
           uiCtx.fillRect(
             Math.round(pos.x),
             Math.round(pos.y),
@@ -677,7 +683,7 @@ export const useCanvasRenderer = (
         if (renderedTextCursor && !isStaticGridMode(canvasMode)) {
           const pos = gridCellRect(renderedTextCursor, { offset: renderOffset, zoom });
           if (canvasMode === 'structured' && editingStructuredTextNodeId) {
-            uiCtx.fillStyle = COLOR_TEXT_CURSOR_BG;
+            uiCtx.fillStyle = palette.textCursorSurface;
             uiCtx.fillRect(
               Math.round(pos.x),
               Math.round(pos.y),
@@ -689,7 +695,7 @@ export const useCanvasRenderer = (
               GridManager.toKey(renderedTextCursor.x, renderedTextCursor.y)
             );
             const occupancy = cell ? getCellOccupancy(cell.char) : 1;
-            uiCtx.fillStyle = COLOR_TEXT_CURSOR_BG;
+            uiCtx.fillStyle = palette.textCursorSurface;
             uiCtx.fillRect(
               Math.round(pos.x),
               Math.round(pos.y),
@@ -699,7 +705,7 @@ export const useCanvasRenderer = (
             if (cell) {
               setTextRenderStyle(uiCtx, zoom, DEFAULT_GRID_RENDER_METRICS);
               drawTextCell(uiCtx, cell, pos.x, pos.y, {
-                color: COLOR_TEXT_CURSOR_FG,
+                color: palette.textCursorForeground,
                 zoom,
               });
             }
@@ -710,7 +716,7 @@ export const useCanvasRenderer = (
           drawCanvasColorPickerAnchor(uiCtx, hoveredGrid, {
             offset: renderOffset,
             zoom,
-          });
+          }, palette);
         }
         if (slidePageRect) uiCtx.restore();
         renderedInvalidation |= CANVAS_FRAME_INVALIDATION.overlay;
@@ -901,5 +907,6 @@ export const useCanvasRenderer = (
     staticGridView.selectionGeometry,
     renderManager,
     runtime,
+    visualTheme,
   ]);
 };

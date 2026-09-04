@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import ts from "typescript";
+import { checkHostArchitecture } from "./style-api-rules.mjs";
 
 const ROOT = process.cwd();
 const SRC_DIR = join(ROOT, "src");
@@ -78,10 +79,10 @@ const checks = [
     allow: [],
   },
   {
-    name: "Widgets must compose semantic surfaces through Surface",
+    name: "Host must compose semantic surfaces through Surface",
     pattern:
       /\b(?:bg-(?:host|overlay|dialog)-surface|shadow-(?:host|overlay|dialog)|rx\.surface)\b/g,
-    file: /^src\/widgets\/.*\.tsx$/,
+    file: /^src\/(?:app|widgets)\/.*\.tsx$/,
     productionOnly: true,
     allow: [],
   },
@@ -140,6 +141,7 @@ const behaviorOwnedComponents = new Set([
   "ContextMenuSubTrigger",
   "SelectItem",
   "SelectTrigger",
+  "Checkbox",
 ]);
 
 const forbiddenBehaviorClass =
@@ -353,6 +355,20 @@ const declaredLayerTokens = new Set(
     (match) => match[1]
   )
 );
+const themeSource = readFileSync(UI_THEME_PATH, "utf8");
+const declaredThemeTokens = new Set(
+  [...themeSource.matchAll(/(--[a-z][a-z0-9-]+)\s*:/g)].map((match) => match[1])
+);
+const runtimeThemePath = join(UI_SRC_DIR, "runtime-theme.ts");
+const runtimeThemeSource = readFileSync(runtimeThemePath, "utf8");
+for (const match of runtimeThemeSource.matchAll(/["'](--[a-z][a-z0-9-]+)["']/g)) {
+  if (declaredThemeTokens.has(match[1])) continue;
+  violations.push({
+    check: `Runtime UI token must be declared in packages/ui/theme.css: ${match[1]}`,
+    file: relative(ROOT, runtimeThemePath).replace(/\\/g, "/"),
+    line: lineFromIndex(runtimeThemeSource, match.index ?? 0),
+  });
+}
 
 for (const filePath of files) {
   const content = readFileSync(filePath, "utf8");
@@ -387,6 +403,7 @@ for (const filePath of files) {
   }
 
   checkWidgetBehaviorOwnership(content, relFile);
+  violations.push(...checkHostArchitecture(content, relFile));
 
   for (const match of content.matchAll(/--layer-[a-z-]+/g)) {
     if (declaredLayerTokens.has(match[0])) continue;
