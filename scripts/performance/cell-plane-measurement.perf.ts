@@ -91,6 +91,14 @@ const makeWorkloads = (): Workload[] => {
     );
   }
 
+  const denseViewportOperation = operation("dense-viewport-base", {
+    rows: Array.from({ length: 64 }, (_, y) => ({
+      y,
+      erase: [],
+      spans: [{ x: 0, text: ".".repeat(128), color: "#ffffff" }],
+    })),
+  });
+
   return [
     {
       id: "ascii-long-span",
@@ -127,6 +135,16 @@ const makeWorkloads = (): Workload[] => {
       invalidation: eraseOperation("overlap-invalidate", 0, 127, 128),
       bounds: { x: 112, y: 0, width: 48, height: 1 },
       sourceCellCount: 1_154,
+    },
+    {
+      id: "dense-viewport-traversal",
+      label: "Dense viewport traversal",
+      description:
+        "One fully occupied 128 by 64 chunk traversed from the resident cache.",
+      operations: [denseViewportOperation],
+      invalidation: spanOperation("dense-viewport-invalidate", 32, 64, "X"),
+      bounds: { x: 0, y: 0, width: 128, height: 64 },
+      sourceCellCount: 8_192,
     },
   ];
 };
