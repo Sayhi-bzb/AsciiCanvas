@@ -65,6 +65,7 @@ const DEVICE_SCALE_FACTOR = 2;
 const SCENARIO_MS = 5_000;
 const INPUT_FRAME_MS = 16;
 const GRID_LEVELS = [5_000, 10_000, 25_000, 50_000, 75_000, 100_000, 150_000, 250_000];
+const UNICODE_GRID_COUNT = 25_000;
 const STRUCTURED_LEVELS = [100, 250, 500, 1_000, 2_000, 5_000];
 const PERSISTENCE_LEVELS = [10_000, 25_000, 50_000, 75_000, 100_000, 150_000, 250_000];
 const ZOOM_LEVELS = [1, 0.5, 0.25];
@@ -123,6 +124,25 @@ const makeGrid = (count: number, density: "sparse" | "dense"): GridEntry[] => {
     const slot = index * spacing;
     return [key(slot % width, Math.floor(slot / width)), makeCell(index)];
   });
+};
+
+const makeUnicodeGrid = (count: number): GridEntry[] => {
+  const graphemes = ["你", "👩🏽‍💻", "e\u0301"];
+  const entries: GridEntry[] = [];
+  const rowWidth = 2_048;
+  let x = 0;
+  let y = 0;
+  for (let index = 0; index < count; index += 1) {
+    const char = graphemes[index % graphemes.length]!;
+    const width = char === "e\u0301" ? 1 : 2;
+    if (x + width > rowWidth) {
+      x = 0;
+      y += 1;
+    }
+    entries.push([key(x, y), { char, color: "#1d4ed8" }]);
+    x += width;
+  }
+  return entries;
 };
 
 const makeStructuredScene = (nodeCount: number): StructuredNode[] => {
@@ -714,6 +734,27 @@ test.describe.serial("Canvas capacity stress", () => {
       expect(lastPassingCount(`freeform-${density}`)).toBeGreaterThanOrEqual(5_000);
     });
   }
+
+  test("keeps long Unicode spans smooth across chunk projections", async ({ browser }) => {
+    const grid = makeUnicodeGrid(UNICODE_GRID_COUNT);
+    const level = await runLevel({
+      browser,
+      family: "freeform-unicode",
+      label: `${formatLevel(UNICODE_GRID_COUNT)} mixed graphemes`,
+      snapshot: makePersistedState({ grid }),
+      zoom: 1,
+      cellCount: UNICODE_GRID_COUNT,
+    });
+    appendLevel(level);
+    markFamilyComplete("freeform-unicode");
+    expect(level.passed).toBe(true);
+    expect(level.surfaceStats).toMatchObject({
+      preparedTextEntries: expect.any(Number),
+      preparedTextHits: expect.any(Number),
+    });
+    expect(level.surfaceStats?.preparedTextEntries ?? 0).toBeGreaterThan(0);
+    expect(level.surfaceStats?.preparedTextHits ?? 0).toBeGreaterThan(0);
+  });
 
   test("finds the low-zoom viewport boundary", async ({ browser }) => {
     const cellCount = Math.min(lastPassingCount("freeform-dense") ?? 10_000, 10_000);

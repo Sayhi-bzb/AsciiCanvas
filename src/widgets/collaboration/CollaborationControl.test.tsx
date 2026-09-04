@@ -111,6 +111,9 @@ describe('CollaborationControl', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Copy edit link' }));
     await waitFor(() => expect(clipboardWrite).toHaveBeenCalledOnce());
+    expect(clipboardWrite).toHaveBeenCalledWith(
+      expect.stringMatching(/#r=[A-Za-z0-9_-]{66}$/)
+    );
     expect(screen.getByRole('button', { name: 'Edit link copied' })).toHaveAttribute(
       'data-copy-feedback',
       'success'

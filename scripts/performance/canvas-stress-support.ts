@@ -27,7 +27,14 @@ export type CanvasStressMetrics = {
 };
 
 export type CanvasStressLevel = {
-  family: "freeform-sparse" | "freeform-dense" | "zoom" | "structured" | "residency" | "persistence";
+  family:
+    | "freeform-sparse"
+    | "freeform-dense"
+    | "freeform-unicode"
+    | "zoom"
+    | "structured"
+    | "residency"
+    | "persistence";
   label: string;
   cellCount?: number;
   nodeCount?: number;
@@ -128,6 +135,7 @@ export const createCanvasStressMarkdown = (report: CanvasStressReport) => {
   const expectedFamilies: CanvasStressLevel["family"][] = [
     "freeform-sparse",
     "freeform-dense",
+    "freeform-unicode",
     "zoom",
     "structured",
     "residency",
