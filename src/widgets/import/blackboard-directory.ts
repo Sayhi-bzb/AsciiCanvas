@@ -12,7 +12,7 @@ export const compileBlackboardDirectory = async (
   selected: Iterable<DirectoryFile>,
 ): Promise<CompiledBlackboard> => (await readBlackboardDirectory(selected)).compiled;
 
-export const readBlackboardDirectory = async (
+const readBlackboardDirectory = async (
   selected: Iterable<DirectoryFile>,
 ) => {
   const files = [...selected];

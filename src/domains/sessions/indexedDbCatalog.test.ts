@@ -57,7 +57,6 @@ const snapshot: CanvasCatalogSnapshot = {
     brushBackgroundColor: "#ffffff",
     showGrid: true,
     exportShowGrid: false,
-    collaborationEndpoint: "wss://sync.example.com",
   },
   recoveredSources: [],
   deletedSessionIds: [],

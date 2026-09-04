@@ -1053,9 +1053,6 @@ const createCatalogSnapshot = (
     brushBackgroundColor: state.brushBackgroundColor,
     showGrid: state.showGrid,
     exportShowGrid: state.exportShowGrid,
-    ...(state.collaborationEndpoint
-      ? { collaborationEndpoint: state.collaborationEndpoint }
-      : {}),
   },
   recoveredSources: Array.from(recoveredSources).sort(),
   deletedSessionIds: Array.from(deletedSessionIds).sort(),

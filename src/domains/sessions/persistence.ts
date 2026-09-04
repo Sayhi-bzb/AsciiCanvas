@@ -38,7 +38,6 @@ interface PersistedEditorStateV5 {
     brushBackgroundColor?: string;
     showGrid: boolean;
     exportShowGrid: boolean;
-    collaborationEndpoint?: string;
   };
 }
 
@@ -232,10 +231,6 @@ export const decodePersistedEditorState = (
         typeof preferences.exportShowGrid === "boolean"
           ? preferences.exportShowGrid
           : false,
-      collaborationEndpoint:
-        typeof preferences.collaborationEndpoint === "string"
-          ? preferences.collaborationEndpoint
-          : "",
     },
   };
 };

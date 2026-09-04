@@ -14,7 +14,6 @@ export type CanvasCatalogPreferences = {
   brushBackgroundColor: string;
   showGrid: boolean;
   exportShowGrid: boolean;
-  collaborationEndpoint?: string;
 };
 
 export type CanvasCatalogSession = {
@@ -193,9 +192,6 @@ export const createIndexedDbCanvasCatalog = async (
         brushBackgroundColor: preferences.brushBackgroundColor,
         showGrid: preferences.showGrid,
         exportShowGrid: preferences.exportShowGrid,
-        ...(preferences.collaborationEndpoint
-          ? { collaborationEndpoint: preferences.collaborationEndpoint }
-          : {}),
       };
       return {
         revision: workspace.revision ?? 0,

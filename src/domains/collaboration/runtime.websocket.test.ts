@@ -38,6 +38,7 @@ const createRuntime = () =>
     }),
     createAwareness: (doc) => new Awareness(doc),
     createProvider: (descriptor, doc, awareness) => {
+      if (descriptor.version !== 6) throw new Error("Expected a V6 descriptor");
       return new WebsocketProvider(
         descriptor.endpoint,
         getCollaborationRoomName(descriptor),

@@ -2,6 +2,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEditorStore } from '@/domains/canvas/testing';
 import {
+  type CollaborationDescriptor,
   type CollaborationDescriptorV6,
   type CollaborationSnapshot,
 } from '@/domains/collaboration/public';
@@ -30,7 +31,7 @@ describe('CollaborationControl', () => {
 
   const seedSession = (
     mode: 'freeform' | 'structured' = 'freeform',
-    collaboration?: CollaborationDescriptorV6
+    collaboration?: CollaborationDescriptor
   ) => {
     act(() => {
       useEditorStore.setState({
@@ -98,16 +99,15 @@ describe('CollaborationControl', () => {
 
     const panel = await screen.findByRole('dialog', { name: 'Collaboration' });
     expect(panel).toHaveClass('w-72', 'shadow-overlay');
-    expect(screen.getByLabelText('Sync server')).toBeInTheDocument();
-
-    fireEvent.change(screen.getByLabelText('Sync server'), {
-      target: { value: 'wss://sync.example.com' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Connect' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Start collaboration' }));
 
     expect(screen.getByRole('dialog', { name: 'Collaboration' })).toBeInTheDocument();
     expect(screen.getByText('Sync server')).toBeInTheDocument();
-    expect(useEditorStore.getState().canvasSessions[0].collaboration?.provider).toBe('websocket');
+    expect(useEditorStore.getState().canvasSessions[0].collaboration).toMatchObject({
+      version: 7,
+      provider: 'encrypted-relay',
+    });
+    expect(useEditorStore.getState().canvasSessions[0].collaboration).not.toHaveProperty('endpoint');
 
     fireEvent.click(screen.getByRole('button', { name: 'Copy edit link' }));
     await waitFor(() => expect(clipboardWrite).toHaveBeenCalledOnce());
@@ -122,60 +122,6 @@ describe('CollaborationControl', () => {
     await waitFor(() =>
       expect(screen.queryByRole('dialog', { name: 'Collaboration' })).not.toBeInTheDocument()
     );
-  });
-
-  it('connects to a validated custom server without closing', async () => {
-    render(<CollaborationControl />);
-    openPanel();
-
-    const endpoint = await screen.findByLabelText('Sync server');
-    fireEvent.change(endpoint, {
-      target: { value: 'https://sync.example.com' },
-    });
-    fireEvent.blur(endpoint);
-    expect(endpoint).toHaveAttribute('aria-invalid', 'true');
-    expect(screen.getByRole('alert')).toHaveTextContent('Enter a secure WebSocket endpoint.');
-
-    fireEvent.change(endpoint, {
-      target: { value: 'wss://sync.example.com/' },
-    });
-    expect(endpoint).toHaveAttribute('aria-invalid', 'false');
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    const connect = screen.getByRole('button', { name: 'Connect' });
-    expect(connect).toBeEnabled();
-    fireEvent.click(connect);
-
-    expect(screen.getByRole('dialog', { name: 'Collaboration' })).toBeInTheDocument();
-    expect(screen.getByText('Sync server')).toBeInTheDocument();
-    expect(useEditorStore.getState().canvasSessions[0].collaboration).toMatchObject({
-      provider: 'websocket',
-      endpoint: 'wss://sync.example.com',
-    });
-    expect(useEditorStore.getState().collaborationEndpoint).toBe(
-      'wss://sync.example.com'
-    );
-  });
-
-  it('prefills the last valid sync server', async () => {
-    useEditorStore.setState({ collaborationEndpoint: 'wss://sync.example.com' });
-    render(<CollaborationControl />);
-    openPanel();
-
-    expect(await screen.findByText('sync.example.com')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Start collaboration' }));
-    expect(useEditorStore.getState().canvasSessions[0].collaboration).toMatchObject({
-      provider: 'websocket',
-      endpoint: 'wss://sync.example.com',
-    });
-  });
-
-  it('lets the user replace a remembered sync server', async () => {
-    useEditorStore.setState({ collaborationEndpoint: 'wss://old.example.com' });
-    render(<CollaborationControl />);
-    openPanel();
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Change server' }));
-    expect(screen.getByLabelText('Sync server')).toHaveValue('wss://old.example.com');
   });
 
   it('does not offer collaboration for package-backed canvases', () => {
@@ -301,7 +247,7 @@ describe('CollaborationControl', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Leave room' }));
 
     expect(screen.getByRole('dialog', { name: 'Collaboration' })).toBeInTheDocument();
-    expect(screen.getByLabelText('Sync server')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Start collaboration' })).toBeInTheDocument();
     expect(useEditorStore.getState().canvasSessions[0].collaboration).toBeUndefined();
   });
 

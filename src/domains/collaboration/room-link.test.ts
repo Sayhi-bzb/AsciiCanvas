@@ -10,13 +10,14 @@ import {
 } from "./room-link";
 
 describe("collaboration room links", () => {
-  it("creates V6 links and keeps the room secret in the URL fragment", () => {
+  it("creates managed V7 links and keeps the room key in the URL fragment", () => {
     vi.stubGlobal("crypto", { getRandomValues: (bytes: Uint8Array) => bytes.fill(7) });
-    const descriptor = createCollaborationDescriptor("freeform", "wss://sync.example.com");
+    const descriptor = createCollaborationDescriptor("freeform");
     const url = buildCollaborationUrl(descriptor, "https://canvas.test/editor?theme=dark");
     expect(new URL(url).searchParams.has("room")).toBe(false);
     expect(new URL(url).hash).toContain("room=");
-    expect(descriptor.version).toBe(6);
+    expect(descriptor).toMatchObject({ version: 7, provider: "encrypted-relay" });
+    expect(descriptor).not.toHaveProperty("endpoint");
     expect(getCollaborationDocumentId(descriptor)).toBe(
       `collaboration:${descriptor.roomId}`
     );
@@ -37,6 +38,16 @@ describe("collaboration room links", () => {
     expect(stripCollaborationUrl(url)).toBe(
       "https://canvas.test/editor?theme=dark#panel=layers"
     );
+    vi.unstubAllGlobals();
+  });
+
+  it("keeps an optional custom relay in a V7 descriptor", () => {
+    vi.stubGlobal("crypto", { getRandomValues: (bytes: Uint8Array) => bytes.fill(7) });
+    expect(createCollaborationDescriptor("structured", "wss://sync.example.com")).toMatchObject({
+      version: 7,
+      provider: "encrypted-relay",
+      endpoint: "wss://sync.example.com",
+    });
     vi.unstubAllGlobals();
   });
 

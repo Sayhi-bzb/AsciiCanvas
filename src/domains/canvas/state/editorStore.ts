@@ -185,7 +185,6 @@ export const createEditorStore = ({
         brushBackgroundColor: COLOR_PRIMARY_TEXT,
         showGrid: false,
         exportShowGrid: false,
-        collaborationEndpoint: "",
         hoveredGrid: null,
         canvasColorPickerTarget: null,
 
@@ -292,7 +291,6 @@ export const createEditorStore = ({
           set({ structuredContextPoint: point ? { ...point } : null }),
         setShowGrid: (show) => set({ showGrid: show }),
         setExportShowGrid: (show) => set({ exportShowGrid: show }),
-        setCollaborationEndpoint: (endpoint) => set({ collaborationEndpoint: endpoint }),
         setHoveredGrid: (pos) => set({ hoveredGrid: pos }),
         setStructuredGridFocus: (point) =>
           set(createStructuredGridFocusPatch(point)),

@@ -7,7 +7,7 @@ import type {
 } from "./contracts";
 import { getDocumentModelContext } from "./modelContext";
 
-export type SiteToolConnectorStatus =
+type SiteToolConnectorStatus =
   | "waiting"
   | "registering"
   | "ready"

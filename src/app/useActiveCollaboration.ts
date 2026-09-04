@@ -61,8 +61,6 @@ export const useActiveCollaboration = ({ enabled = true }: { enabled?: boolean }
   );
   const tool = useCanvasState((state) => state.tool);
   const joinCollaboration = canvas.commands.sessions.joinCollaboration;
-  const setCollaborationEndpoint =
-    canvas.commands.preferences.setCollaborationEndpoint;
 
   useEffect(() => {
     if (!enabled) return;
@@ -72,9 +70,8 @@ export const useActiveCollaboration = ({ enabled = true }: { enabled?: boolean }
       pendingIncomingCollaboration.current = null;
       return;
     }
-    setCollaborationEndpoint(incoming.endpoint);
     joinCollaboration(incoming);
-  }, [collaboration, enabled, joinCollaboration, setCollaborationEndpoint]);
+  }, [canvas, collaboration, enabled, joinCollaboration]);
 
   useEffect(() => {
     if (!enabled || typeof window === "undefined") return;

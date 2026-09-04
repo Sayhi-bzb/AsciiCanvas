@@ -14,14 +14,14 @@ type RemoteSelection =
   | { mode: "freeform"; areas: Array<{ start: Point; end: Point }> }
   | { mode: "structured"; nodeIds: string[] };
 
-export type RemotePeer = {
+type RemotePeer = {
   clientId: number;
   name: string;
   color: string;
   selection?: RemoteSelection;
 };
 
-export type ScreenRect = {
+type ScreenRect = {
   left: number;
   top: number;
   right: number;
@@ -38,7 +38,7 @@ export type RemoteSelectionVisual = {
   center: Point;
 };
 
-export type RemoteSelectionLayout = {
+type RemoteSelectionLayout = {
   visible: Array<RemoteSelectionVisual & { labelAnchor: Point }>;
   indicators: Array<RemoteSelectionVisual & {
     edge: "top" | "right" | "bottom" | "left";
