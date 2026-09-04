@@ -56,7 +56,10 @@ if (!baselinePath || !candidatePath) {
       baselineWorkload.operationCount !== candidateWorkload.operationCount ||
       baselineWorkload.sourceCellCount !== candidateWorkload.sourceCellCount ||
       baselineWorkload.projectedCellCount !== candidateWorkload.projectedCellCount ||
-      baselineWorkload.projectionChecksum !== candidateWorkload.projectionChecksum
+      baselineWorkload.projectionChecksum !== candidateWorkload.projectionChecksum ||
+      baselineWorkload.renderedCellCount !== candidateWorkload.renderedCellCount ||
+      baselineWorkload.renderedGlyphCount !== candidateWorkload.renderedGlyphCount ||
+      baselineWorkload.fillTextCalls !== candidateWorkload.fillTextCalls
     ) {
       throw new Error(`Projection changed for workload ${baselineWorkload.id}`);
     }

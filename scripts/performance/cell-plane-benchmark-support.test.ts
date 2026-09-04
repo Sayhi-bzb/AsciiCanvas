@@ -36,7 +36,12 @@ describe("cell-plane benchmark support", () => {
         cpu: "test cpu",
         cpuCount: 8,
       },
-      settings: { warmupRuns: 2, measuredRuns: 2, hotProjectionRepeats: 10 },
+      settings: {
+        warmupRuns: 2,
+        measuredRuns: 2,
+        hotProjectionRepeats: 10,
+        hotRenderRepeats: 10,
+      },
       workloads: [
         {
           id: "ascii",
@@ -46,6 +51,9 @@ describe("cell-plane benchmark support", () => {
           sourceCellCount: 100,
           projectedCellCount: 10,
           projectionChecksum: 1234,
+          renderedCellCount: 10,
+          renderedGlyphCount: 10,
+          fillTextCalls: 10,
           chunkCount: 1,
           encodedPayloadBytes: 50,
           residentBytes: 1600,
@@ -54,6 +62,7 @@ describe("cell-plane benchmark support", () => {
             construct: distribution,
             coldProjection: distribution,
             hotProjection: distribution,
+            hotRenderPreparation: distribution,
             append: distribution,
             invalidatedProjection: distribution,
           },

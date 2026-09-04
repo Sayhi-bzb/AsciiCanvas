@@ -13,6 +13,7 @@ import {
   type CellPlanePatch,
 } from "@/domains/canvas/cell-plane/model";
 import type { GridCell, NodeBounds } from "@/shared/types";
+import { drawGridLayer } from "@/widgets/canvas-editor/rendering/drawGridLayer";
 
 import {
   CELL_PLANE_BENCHMARK_SCHEMA,
@@ -26,6 +27,7 @@ import {
 const DEFAULT_WARMUP_RUNS = 5;
 const DEFAULT_MEASURED_RUNS = 20;
 const DEFAULT_HOT_PROJECTION_REPEATS = 40;
+const DEFAULT_HOT_RENDER_REPEATS = 40;
 
 interface Workload {
   id: string;
@@ -98,6 +100,14 @@ const makeWorkloads = (): Workload[] => {
       spans: [{ x: 0, text: ".".repeat(128), color: "#ffffff" }],
     })),
   });
+  const mixedUnicodeRow = `${"A你🙂é".repeat(21)}AA`;
+  const mixedUnicodeViewportOperation = operation("mixed-unicode-viewport-base", {
+    rows: Array.from({ length: 64 }, (_, y) => ({
+      y,
+      erase: [],
+      spans: [{ x: 0, text: mixedUnicodeRow, color: "#ffffff" }],
+    })),
+  });
 
   return [
     {
@@ -146,6 +156,16 @@ const makeWorkloads = (): Workload[] => {
       bounds: { x: 0, y: 0, width: 128, height: 64 },
       sourceCellCount: 8_192,
     },
+    {
+      id: "mixed-unicode-viewport",
+      label: "Mixed-Unicode viewport",
+      description:
+        "A full viewport of ASCII, CJK, emoji, and combining-mark graphemes.",
+      operations: [mixedUnicodeViewportOperation],
+      invalidation: spanOperation("mixed-unicode-viewport-invalidate", 32, 64, "Ω"),
+      bounds: { x: 0, y: 0, width: 128, height: 64 },
+      sourceCellCount: 5_504,
+    },
   ];
 };
 
@@ -161,6 +181,44 @@ const project = (plane: CellPlaneIndex, bounds: NodeBounds): ProjectionDigest =>
   digestSink ^= checksum;
   return { count, checksum };
 };
+
+const createRenderProbe = () => {
+  let fillTextCalls = 0;
+  const context = {
+    save() {},
+    restore() {},
+    fillText() { fillTextCalls += 1; },
+    fillRect() {},
+    beginPath() {},
+    moveTo() {},
+    lineTo() {},
+    stroke() {},
+    getTransform: () => ({ a: 1, b: 0, c: 0, d: 1 }),
+    globalAlpha: 1,
+  } as unknown as CanvasRenderingContext2D;
+  return {
+    context,
+    getFillTextCalls: () => fillTextCalls,
+    reset: () => { fillTextCalls = 0; },
+  };
+};
+
+const render = (
+  plane: CellPlaneIndex,
+  bounds: NodeBounds,
+  context: CanvasRenderingContext2D,
+) => drawGridLayer(
+  context,
+  plane,
+  {
+    startX: bounds.x,
+    endX: bounds.x + bounds.width - 1,
+    startY: bounds.y,
+    endY: bounds.y + bounds.height - 1,
+  },
+  1,
+  { x: 0, y: 0 },
+);
 
 const verifyWorkload = (workload: Workload) => {
   const plane = new CellPlaneIndex(workload.operations);
@@ -178,12 +236,16 @@ const measureWorkload = (
   workload: Workload,
   measuredRuns: number,
   hotProjectionRepeats: number,
+  hotRenderRepeats: number,
 ) => {
   const samples = Object.fromEntries(
     CELL_PLANE_PHASES.map((phase) => [phase, [] as number[]]),
   ) as Record<CellPlanePhase, number[]>;
   let projectedCellCount = 0;
   let projectionChecksum = 0;
+  let renderedCellCount = 0;
+  let renderedGlyphCount = 0;
+  let fillTextCalls = 0;
   let chunkCount = 0;
   let encodedPayloadBytes = 0;
   let residentBytes = 0;
@@ -205,6 +267,22 @@ const measureWorkload = (
     samples.hotProjection.push(
       (performance.now() - started) / hotProjectionRepeats,
     );
+
+    const renderProbe = createRenderProbe();
+    render(plane, workload.bounds, renderProbe.context);
+    renderProbe.reset();
+    let rendered = { cells: 0, glyphs: 0 };
+    started = performance.now();
+    for (let repeat = 0; repeat < hotRenderRepeats; repeat += 1) {
+      rendered = render(plane, workload.bounds, renderProbe.context);
+    }
+    samples.hotRenderPreparation.push(
+      (performance.now() - started) / hotRenderRepeats,
+    );
+    renderedCellCount = rendered.cells;
+    renderedGlyphCount = rendered.glyphs;
+    fillTextCalls = renderProbe.getFillTextCalls() / hotRenderRepeats;
+    digestSink ^= renderedCellCount ^ renderedGlyphCount ^ fillTextCalls;
 
     const stats = plane.getStats();
     projectedCellCount = cold.count;
@@ -230,6 +308,9 @@ const measureWorkload = (
   return {
     projectedCellCount,
     projectionChecksum,
+    renderedCellCount,
+    renderedGlyphCount,
+    fillTextCalls,
     chunkCount,
     encodedPayloadBytes,
     residentBytes,
@@ -247,11 +328,15 @@ test("measures CellPlane phase costs", async () => {
     process.env.CHARDESK_ENGINE_PERF_HOT_REPEATS,
     DEFAULT_HOT_PROJECTION_REPEATS,
   );
+  const hotRenderRepeats = positiveInteger(
+    process.env.CHARDESK_ENGINE_PERF_RENDER_REPEATS,
+    DEFAULT_HOT_RENDER_REPEATS,
+  );
   const workloads = makeWorkloads();
 
   for (const workload of workloads) {
     verifyWorkload(workload);
-    measureWorkload(workload, warmupRuns, hotProjectionRepeats);
+    measureWorkload(workload, warmupRuns, hotProjectionRepeats, hotRenderRepeats);
   }
 
   const result: CellPlaneBenchmarkResult = {
@@ -269,14 +354,24 @@ test("measures CellPlane phase costs", async () => {
       cpu: os.cpus()[0]?.model ?? "unknown",
       cpuCount: os.cpus().length,
     },
-    settings: { warmupRuns, measuredRuns, hotProjectionRepeats },
+    settings: {
+      warmupRuns,
+      measuredRuns,
+      hotProjectionRepeats,
+      hotRenderRepeats,
+    },
     workloads: workloads.map((workload) => ({
       id: workload.id,
       label: workload.label,
       description: workload.description,
       operationCount: workload.operations.length,
       sourceCellCount: workload.sourceCellCount,
-      ...measureWorkload(workload, measuredRuns, hotProjectionRepeats),
+      ...measureWorkload(
+        workload,
+        measuredRuns,
+        hotProjectionRepeats,
+        hotRenderRepeats,
+      ),
     })),
   };
 

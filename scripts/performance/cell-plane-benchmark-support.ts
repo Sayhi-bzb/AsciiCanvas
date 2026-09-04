@@ -1,9 +1,10 @@
-export const CELL_PLANE_BENCHMARK_SCHEMA = 1;
+export const CELL_PLANE_BENCHMARK_SCHEMA = 2;
 
 export const CELL_PLANE_PHASES = [
   "construct",
   "coldProjection",
   "hotProjection",
+  "hotRenderPreparation",
   "append",
   "invalidatedProjection",
 ] as const;
@@ -34,6 +35,7 @@ export interface CellPlaneBenchmarkResult {
     warmupRuns: number;
     measuredRuns: number;
     hotProjectionRepeats: number;
+    hotRenderRepeats: number;
   };
   workloads: Array<{
     id: string;
@@ -43,6 +45,9 @@ export interface CellPlaneBenchmarkResult {
     sourceCellCount: number;
     projectedCellCount: number;
     projectionChecksum: number;
+    renderedCellCount: number;
+    renderedGlyphCount: number;
+    fillTextCalls: number;
     chunkCount: number;
     encodedPayloadBytes: number;
     residentBytes: number;
@@ -85,7 +90,7 @@ export function formatCellPlaneBenchmarkMarkdown(result: CellPlaneBenchmarkResul
     `Commit: \`${result.gitCommit}\`${result.gitDirty ? " (dirty)" : ""}`,
     `Runtime: ${result.environment.node} on ${result.environment.platform}/${result.environment.arch}`,
     `CPU: ${result.environment.cpu} (${result.environment.cpuCount} logical cores)`,
-    `Sampling: ${result.settings.warmupRuns} warmups, ${result.settings.measuredRuns} measured runs, ${result.settings.hotProjectionRepeats} hot projections per sample`,
+    `Sampling: ${result.settings.warmupRuns} warmups, ${result.settings.measuredRuns} measured runs, ${result.settings.hotProjectionRepeats} hot projections and ${result.settings.hotRenderRepeats} hot render preparations per sample`,
     "",
     "Times are wall-clock milliseconds. Hot projection values are normalized to one projection.",
     "",
@@ -97,7 +102,7 @@ export function formatCellPlaneBenchmarkMarkdown(result: CellPlaneBenchmarkResul
       "",
       workload.description,
       "",
-      `Operations: ${workload.operationCount}; source cells: ${workload.sourceCellCount}; projected anchors: ${workload.projectedCellCount}; projection checksum: ${workload.projectionChecksum}; projected chunks: ${workload.chunkCount}; encoded payload: ${workload.encodedPayloadBytes} B; chunk cache: ${workload.residentBytes} B; total projection residency: ${workload.totalResidentBytes} B.`,
+      `Operations: ${workload.operationCount}; source cells: ${workload.sourceCellCount}; projected anchors: ${workload.projectedCellCount}; projection checksum: ${workload.projectionChecksum}; rendered cells: ${workload.renderedCellCount}; rendered glyphs: ${workload.renderedGlyphCount}; fillText calls: ${workload.fillTextCalls}; projected chunks: ${workload.chunkCount}; encoded payload: ${workload.encodedPayloadBytes} B; chunk cache: ${workload.residentBytes} B; total projection residency: ${workload.totalResidentBytes} B.`,
       "",
       "| Phase | Min (ms) | Median (ms) | p95 (ms) | Samples |",
       "| --- | ---: | ---: | ---: | ---: |",
