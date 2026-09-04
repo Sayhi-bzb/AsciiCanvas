@@ -14,7 +14,6 @@ import type { CharDeskCanvasContext } from "@chardesk/rendering/canvas";
 
 type ViewBounds = ReturnType<typeof GridManager.getViewportGridBounds>;
 type GridDrawEntry = Parameters<typeof drawCellBatch>[1][number];
-type CachedGridDrawEntry = GridDrawEntry & { occupancy: number };
 type VisitableCanvasSurfaceReader = CanvasSurfaceReader & {
   visitCells: (
     bounds: { x: number; y: number; width: number; height: number },
@@ -22,7 +21,7 @@ type VisitableCanvasSurfaceReader = CanvasSurfaceReader & {
   ) => void;
 };
 
-const gridDrawEntryCache = new WeakMap<object, CachedGridDrawEntry>();
+const gridDrawEntryCache = new WeakMap<object, GridDrawEntry>();
 
 type DrawGridLayerOptions = {
   alpha?: number;
@@ -120,8 +119,7 @@ export const drawGridLayer = (
     height: viewBounds.endY - viewBounds.startY + 1,
   };
   const collectCell = (x: number, y: number, cell: GridDrawEntry["cell"]) => {
-    const cachedEntry = gridDrawEntryCache.get(cell);
-    const width = cachedEntry?.occupancy ?? getCellOccupancy(cell.char);
+    const width = getCellOccupancy(cell.char);
     const hasBackground = cell.char !== " " || !!cell.bgColor || !!cell.attrs;
     const hasText = cell.char !== " " || !!cell.attrs;
     const drawBackground = hasBackground && content !== "text";
@@ -137,11 +135,10 @@ export const drawGridLayer = (
         hoveredLink.y === y &&
         x >= hoveredLink.startX &&
         x <= hoveredLink.endX;
-      const entry = cachedEntry ?? {
+      const entry = gridDrawEntryCache.get(cell) ?? {
         cell,
         x: pos.x,
         y: pos.y,
-        occupancy: width,
         drawBackground,
         drawText,
         options: { zoom, underline },
@@ -159,7 +156,6 @@ export const drawGridLayer = (
       gridDrawEntryCache.set(cell, entry);
       visibleCells.push(entry);
     }
-    return width;
   };
   if (
     "visitCells" in reader &&
@@ -170,7 +166,8 @@ export const drawGridLayer = (
     for (const span of reader.query(queryBounds)) {
       let x = span.x;
       for (const cell of span.cells) {
-        x += collectCell(x, span.y, cell);
+        collectCell(x, span.y, cell);
+        x += getCellOccupancy(cell.char);
       }
     }
   }

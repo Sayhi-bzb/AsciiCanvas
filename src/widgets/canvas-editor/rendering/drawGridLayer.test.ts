@@ -126,56 +126,6 @@ describe("drawGridLayer", () => {
       .toEqual(["你", "A"]);
   });
 
-  it("keeps cached occupancy scoped to the cell object", () => {
-    const wide = { char: "你", color: "#fff" };
-    let current = wide;
-    const visitCells = vi.fn((
-      _bounds: unknown,
-      visitor: (x: number, y: number, cell: typeof wide) => void
-    ) => visitor(0, 0, current));
-    const ctx = createContext();
-    const draw = () => drawGridLayer(
-      ctx,
-      { visitCells } as unknown as CanvasSurfaceReader,
-      { startX: 1, endX: 1, startY: 0, endY: 0 },
-      1,
-      { x: 0, y: 0 }
-    );
-
-    draw();
-    draw();
-    current = { char: "A", color: "#fff" };
-    draw();
-
-    expect(vi.mocked(ctx.fillText).mock.calls.map(([character]) => character))
-      .toEqual(["你", "你"]);
-  });
-
-  it("uses collected occupancy to advance fallback spans", () => {
-    const query = vi.fn(function* () {
-      yield {
-        x: 0,
-        y: 0,
-        cells: [
-          { char: "你", color: "#fff" },
-          { char: "A", color: "#fff" },
-        ],
-      };
-    });
-    const ctx = createContext();
-
-    drawGridLayer(
-      ctx,
-      { query } as unknown as CanvasSurfaceReader,
-      { startX: 2, endX: 2, startY: 0, endY: 0 },
-      1,
-      { x: 0, y: 0 }
-    );
-
-    expect(vi.mocked(ctx.fillText).mock.calls.map(([character]) => character))
-      .toEqual(["A"]);
-  });
-
   it("does not draw a single-width cell from the left query halo", () => {
     const query = vi.fn(function* () {
       yield { x: 0, y: 0, cells: [{ char: "A", color: "#fff" }] };
