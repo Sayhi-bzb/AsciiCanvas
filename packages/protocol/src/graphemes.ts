@@ -100,8 +100,10 @@ export const getGraphemeCellWidth = (grapheme: string): 1 | 2 => {
   return isWideEastAsianCodePoint(firstCodePoint) ? 2 : 1;
 };
 
-export const getTextCellWidth = (text: string) =>
-  splitGraphemes(text).reduce(
-    (total, grapheme) => total + getGraphemeCellWidth(grapheme),
-    0
-  );
+export const getTextCellWidth = (text: string) => {
+  let width = 0;
+  for (const { segment } of iterateGraphemes(text)) {
+    width += getGraphemeCellWidth(segment);
+  }
+  return width;
+};

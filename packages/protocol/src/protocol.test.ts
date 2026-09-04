@@ -5,6 +5,7 @@ import {
   CHARDESK_TEXT_PROTOCOL_VERSION,
   decodeCharDeskTextRuns,
   getGraphemeCellWidth,
+  getTextCellWidth,
   isEmojiGrapheme,
   layoutCharDeskTextRuns,
   layoutCharDeskTextRunsToRows,
@@ -53,6 +54,10 @@ describe("CharDesk Text Protocol v1 conformance", () => {
     expect(isEmojiGrapheme("🇨🇳")).toBe(true);
     expect(isEmojiGrapheme("1️⃣")).toBe(true);
     expect(isEmojiGrapheme("👩🏽‍💻")).toBe(true);
+  });
+
+  it("measures text width from a streaming grapheme traversal", () => {
+    expect(getTextCellWidth("Ae\u0301你👩🏽‍💻🇨🇳1️⃣")).toBe(10);
   });
 
   it("supports standard and shorthand SGR color forms", () => {

@@ -175,6 +175,77 @@ describe("CellPlaneIndex", () => {
       .map((cell) => cell.char)).toEqual(["A", "B"]);
   });
 
+  it("prepares Unicode spans once and reuses their offsets across chunks", () => {
+    const text = "你👩🏽‍💻e\u0301".repeat(80);
+    const plane = new CellPlaneIndex([{
+      id: "unicode",
+      bounds: { x: 0, y: 0, width: 400, height: 1 },
+      rows: [{ y: 0, erase: [], spans: [{ x: 0, text, color: "#fff" }] }],
+    }]);
+
+    expect(plane.getStats()).toMatchObject({
+      preparedTextEntries: 1,
+      preparedTextHits: 0,
+      preparedTextMisses: 1,
+    });
+    expect(plane.getCell({ x: 0, y: 0 })?.char).toBe("你");
+    expect(plane.getCell({ x: 130, y: 0 })?.char).toBe("你");
+    expect(plane.getStats()).toMatchObject({
+      preparedTextEntries: 1,
+      preparedTextHits: 2,
+      preparedTextMisses: 1,
+    });
+  });
+
+  it("rebuilds prepared Unicode text after shared-budget eviction", () => {
+    const budget = new CanvasProjectionCacheBudget(5_000);
+    const text = "你👩🏽‍💻e\u0301".repeat(80);
+    const plane = new CellPlaneIndex([{
+      id: "unicode",
+      bounds: { x: 0, y: 0, width: 400, height: 1 },
+      rows: [{ y: 0, erase: [], spans: [{ x: 0, text, color: "#fff" }] }],
+    }], budget);
+
+    expect(plane.getCell({ x: 0, y: 0 })?.char).toBe("你");
+    expect(plane.getStats()).toMatchObject({
+      preparedTextEntries: 0,
+      preparedTextEvictions: 1,
+    });
+    expect(plane.getCell({ x: 130, y: 0 })?.char).toBe("你");
+    expect(plane.getStats().preparedTextMisses).toBe(2);
+  });
+
+  it("releases prepared text and chunk entries when disposed", () => {
+    const budget = new CanvasProjectionCacheBudget(100_000);
+    const plane = new CellPlaneIndex([operation("unicode", [{
+      y: 0,
+      erase: [],
+      spans: [{ x: 0, text: "你".repeat(80), color: "#fff" }],
+    }], 160)], budget);
+    plane.getCell({ x: 0, y: 0 });
+    expect(budget.getStats().entries).toBe(2);
+
+    plane.dispose();
+
+    expect(budget.getStats()).toMatchObject({ entries: 0, bytes: 0 });
+  });
+
+  it("bounds prepared text retained without a shared cache budget", () => {
+    const operations = Array.from({ length: 300 }, (_, index) =>
+      operation(`unicode-${index}`, [{
+        y: index,
+        erase: [],
+        spans: [{ x: 0, text: `${"你".repeat(16)}${index}`, color: "#fff" }],
+      }], 40)
+    );
+    const plane = new CellPlaneIndex(operations);
+
+    expect(plane.getStats()).toMatchObject({
+      preparedTextEntries: 256,
+      preparedTextEvictions: 44,
+    });
+  });
+
   it("visits only resident cells inside the requested bounds", () => {
     const plane = new CellPlaneIndex([{
       id: "visit",
