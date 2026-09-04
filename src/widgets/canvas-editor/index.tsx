@@ -208,6 +208,7 @@ export const CanvasEditor = ({
     textareaProps,
   } = useManagedCanvasInput({
     canvasMode,
+    inputIdentity: activeCanvasId,
     model: editorStore,
     size,
     onUndo,

@@ -48,7 +48,12 @@ type Workload = {
 
 const VIEWPORT = { width: 1440, height: 900 };
 const DEVICE_SCALE_FACTOR = 2;
-const SAMPLE_INTERVAL_MS = 100;
+const requestedSampleIntervalMs = Number(
+  process.env.CHARDESK_MEMORY_SAMPLE_MS ?? 20
+);
+const SAMPLE_INTERVAL_MS = Number.isFinite(requestedSampleIntervalMs)
+  ? Math.max(10, requestedSampleIntervalMs)
+  : 20;
 const GC_PASSES = 2;
 const MEASURED_RUNS = Math.max(1, Number(process.env.CHARDESK_MEMORY_RUNS ?? 5));
 const WORKLOAD_FILTER = new Set(

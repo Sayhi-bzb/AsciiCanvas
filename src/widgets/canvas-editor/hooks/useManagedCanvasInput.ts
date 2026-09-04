@@ -109,6 +109,7 @@ const traceClipboardAction = (
 
 type UseManagedCanvasInputOptions = {
   canvasMode: CanvasMode;
+  inputIdentity?: string;
   model: CanvasEditorModel;
   size: { width: number; height: number } | undefined;
   onUndo?: () => void;
@@ -131,6 +132,7 @@ const getModifiedArrowEdge = (
 
 export const useManagedCanvasInput = ({
   canvasMode,
+  inputIdentity,
   model,
   size,
   onUndo,
@@ -177,6 +179,46 @@ export const useManagedCanvasInput = ({
     setCanvasColorPickerTarget,
     setHoveredGrid,
   } = model;
+  const pendingManagedTextRef = useRef("");
+  const pendingManagedTextFrameRef = useRef<number | null>(null);
+  const writeTextStringRef = useRef(writeTextString);
+  const mutateEnabledRef = useRef(mutateEnabled);
+  useLayoutEffect(() => {
+    writeTextStringRef.current = writeTextString;
+    mutateEnabledRef.current = mutateEnabled;
+  }, [mutateEnabled, writeTextString]);
+  const commitManagedTextNow = useCallback((value: string) => {
+    if (mutateEnabledRef.current && value) writeTextStringRef.current(value);
+  }, []);
+  const flushPendingManagedText = useCallback(() => {
+    if (pendingManagedTextFrameRef.current !== null) {
+      cancelAnimationFrame(pendingManagedTextFrameRef.current);
+      pendingManagedTextFrameRef.current = null;
+    }
+    const value = pendingManagedTextRef.current;
+    pendingManagedTextRef.current = "";
+    commitManagedTextNow(value);
+  }, [commitManagedTextNow]);
+  const discardPendingManagedText = useCallback(() => {
+    if (pendingManagedTextFrameRef.current !== null) {
+      cancelAnimationFrame(pendingManagedTextFrameRef.current);
+      pendingManagedTextFrameRef.current = null;
+    }
+    pendingManagedTextRef.current = "";
+  }, []);
+  const enqueueManagedText = useCallback((value: string) => {
+    if (!mutateEnabledRef.current || !value) return;
+    pendingManagedTextRef.current += value;
+    if (pendingManagedTextFrameRef.current !== null) return;
+    pendingManagedTextFrameRef.current = requestAnimationFrame(() => {
+      pendingManagedTextFrameRef.current = null;
+      flushPendingManagedText();
+    });
+  }, [flushPendingManagedText]);
+  useLayoutEffect(
+    () => () => discardPendingManagedText(),
+    [discardPendingManagedText, inputIdentity]
+  );
   const staticGridView = useMemo(
     () =>
       getStaticGridViewState({
@@ -263,6 +305,7 @@ export const useManagedCanvasInput = ({
   const handleCanvasPointerDown = (
     event: PointerEvent<HTMLDivElement>
   ) => {
+    flushPendingManagedText();
     if (shouldIgnoreCanvasSurfaceGesture(event.nativeEvent)) {
       releaseManagedTextarea();
       return;
@@ -289,16 +332,18 @@ export const useManagedCanvasInput = ({
       if (surface?.contains(target) && !shouldIgnoreCanvasSurfaceGesture(event)) {
         return;
       }
+      flushPendingManagedText();
       releaseManagedTextarea();
     };
     document.addEventListener('pointerdown', handleDocumentPointerDown, true);
     return () => {
       document.removeEventListener('pointerdown', handleDocumentPointerDown, true);
     };
-  }, [releaseManagedTextarea]);
+  }, [flushPendingManagedText, releaseManagedTextarea]);
 
   useEffect(() => {
     if (active) return;
+    flushPendingManagedText();
     let canceled = false;
     queueMicrotask(() => {
       if (!canceled) releaseManagedTextarea();
@@ -306,10 +351,11 @@ export const useManagedCanvasInput = ({
     return () => {
       canceled = true;
     };
-  }, [active, releaseManagedTextarea]);
+  }, [active, flushPendingManagedText, releaseManagedTextarea]);
 
   useEffect(() => {
     const suspendOnWindowBlur = () => {
+      flushPendingManagedText();
       windowHasFocusRef.current = false;
     };
     const restoreOnWindowFocus = () => {
@@ -322,7 +368,7 @@ export const useManagedCanvasInput = ({
       window.removeEventListener('blur', suspendOnWindowBlur);
       window.removeEventListener('focus', restoreOnWindowFocus);
     };
-  }, [reconcileManagedTextareaBlur]);
+  }, [flushPendingManagedText, reconcileManagedTextareaBlur]);
 
   const runManagedAction: RunManagedAction = useCallback(
     (
@@ -378,6 +424,7 @@ export const useManagedCanvasInput = ({
         ? getModifiedArrowEdge(event)
         : null;
       if (contentNavigationEdge) {
+        flushPendingManagedText();
         moveStaticGridFocusToContentBoundary(contentNavigationEdge, {
           extend: event.shiftKey,
         });
@@ -404,6 +451,7 @@ export const useManagedCanvasInput = ({
           : null;
       if (clipboardCommand) {
         if (clipboardCommand === "copy" ? !copyEnabled : !mutateEnabled) return;
+        flushPendingManagedText();
         primeManagedTextarea();
         clipboardShortcutCoordinator.begin(clipboardCommand);
         return { claimed: true, preventDefault: false };
@@ -411,6 +459,7 @@ export const useManagedCanvasInput = ({
       const historyCommand = commandId === "undo" || commandId === "redo" ? commandId : null;
       if (!historyCommand) return;
       if (!mutateEnabled) return;
+      flushPendingManagedText();
       const result = editor.commands.execute(historyCommand, {
         source: "canvas-keydown",
         managedTextarea: textareaRef.current,
@@ -424,6 +473,7 @@ export const useManagedCanvasInput = ({
   });
 
   const handleCopy = (e: ReactClipboardEvent<HTMLTextAreaElement>) => {
+    flushPendingManagedText();
     if (!copyEnabled) {
       e.preventDefault();
       return;
@@ -436,6 +486,7 @@ export const useManagedCanvasInput = ({
     if (isActionAccepted(result)) e.preventDefault();
   };
   const handleCut = (e: ReactClipboardEvent<HTMLTextAreaElement>) => {
+    flushPendingManagedText();
     if (!mutateEnabled) {
       e.preventDefault();
       return;
@@ -450,6 +501,7 @@ export const useManagedCanvasInput = ({
     }
   };
   const handlePaste = (e: ReactClipboardEvent<HTMLTextAreaElement>) => {
+    flushPendingManagedText();
     if (!mutateEnabled) {
       e.preventDefault();
       return;
@@ -517,6 +569,15 @@ export const useManagedCanvasInput = ({
     if (!isComposing.current) finalizedCompositionRef.current = null;
     if (e.defaultPrevented) return;
     if (isComposing.current) return;
+    const mod = e.ctrlKey || e.metaKey;
+    if (
+      mod ||
+      e.altKey ||
+      e.key.length !== 1 ||
+      (staticGridView.hasSelection && !activeTextCursor)
+    ) {
+      flushPendingManagedText();
+    }
     if (!mutateEnabled && (e.key === "Backspace" || e.key === "Delete")) {
       e.preventDefault();
       return;
@@ -539,8 +600,6 @@ export const useManagedCanvasInput = ({
       editor.commands.execute('delete-selection', undefined, 'canvas-keydown');
       return;
     }
-
-    const mod = e.ctrlKey || e.metaKey;
 
     if (staticGridMode && mod && e.key.toLowerCase() === 'a') {
       e.preventDefault();
@@ -652,9 +711,6 @@ export const useManagedCanvasInput = ({
     }
   };
 
-  const commitManagedText = (value: string) => {
-    if (mutateEnabled && value) writeTextString(value);
-  };
   const readManagedText = (value: string) =>
     value.replaceAll(MANAGED_TEXTAREA_SENTINEL, "");
 
@@ -666,13 +722,14 @@ export const useManagedCanvasInput = ({
     textareaStyle: textareaStyle as CSSProperties,
     textareaProps: {
       onCompositionStart: () => {
+        flushPendingManagedText();
         isComposing.current = true;
         finalizedCompositionRef.current = null;
       },
       onCompositionEnd: (event: CompositionEvent<HTMLTextAreaElement>) => {
         isComposing.current = false;
         const value = event.data || readManagedText(event.currentTarget.value);
-        commitManagedText(value);
+        commitManagedTextNow(value);
         finalizedCompositionRef.current = { value };
         primeManagedTextarea();
       },
@@ -694,7 +751,7 @@ export const useManagedCanvasInput = ({
           return;
         }
         if (!isComposing.current) {
-          commitManagedText(value);
+          enqueueManagedText(value);
           primeManagedTextarea();
         }
       },
@@ -703,6 +760,7 @@ export const useManagedCanvasInput = ({
       onCut: handleCut,
       onPaste: handlePaste,
       onBlur: () => {
+        flushPendingManagedText();
         isComposing.current = false;
         finalizedCompositionRef.current = null;
         queueMicrotask(reconcileManagedTextareaBlur);
