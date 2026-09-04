@@ -100,8 +100,10 @@ older generations after a later verified startup. The active generation is alway
 If a bootstrap catalog replaced legacy metadata, restore reattaches sessions only when their local
 Yjs document databases still exist. Historical descriptors restore names and mode; an orphan without
 metadata receives a recovered shell. Deleted sessions are not resurrected.
-Canvas content never falls back to localStorage. One browser tab owns local writes; other tabs
-restore read-only until ownership is released. Undo history remains runtime-only.
+Canvas content never falls back to localStorage. Every browser tab remains editable. Loaded local
+Yjs documents exchange updates over a same-origin channel and persist them independently; an
+exclusive coordinator owns checkpoint rotation, while catalog writes use short exclusive sections
+and merge changes against the latest snapshot. Undo history remains runtime-only per tab.
 
 The catalog is the startup index; it does not make every Canvas resident. The active Canvas and
 both visible Split panes are pinned. The document repository retains at most four Canvas documents,

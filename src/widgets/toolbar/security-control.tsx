@@ -37,11 +37,9 @@ export function SecurityControl() {
   const persistence = useCanvasPersistence();
   const status = persistence.save === 'error'
     ? 'error'
-    : persistence.ownership === 'reader'
-      ? 'warning'
-      : disclosureUnread
-        ? 'success'
-        : undefined;
+    : disclosureUnread
+      ? 'success'
+      : undefined;
   const openDialog = () => {
     setDisclosureUnread(false);
     acknowledgeSecurityDisclosure();

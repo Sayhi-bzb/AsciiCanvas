@@ -262,9 +262,6 @@ const messages = {
     'security.persistence.unsavedDescription':
       'Canvas changes are only in memory. Export now or retry local saving.',
     'security.persistence.retry': 'Retry',
-    'security.persistence.reader': 'Canvas is read-only in this tab',
-    'security.persistence.readerDescription':
-      'Another tab owns local editing. Close it and reload this tab to edit here.',
     'collaboration.title': 'Collaboration',
     'collaboration.description': 'Share this canvas as one encrypted edit room.',
     'collaboration.start.p2p': 'Start P2P room',
@@ -788,9 +785,6 @@ const messages = {
     'security.persistence.unsavedDescription':
       '画布更改目前只在内存中。请立即导出，或重试本地保存。',
     'security.persistence.retry': '重试',
-    'security.persistence.reader': '此标签页中的画布为只读',
-    'security.persistence.readerDescription':
-      '另一个标签页持有本地编辑权。关闭它并重新加载此标签页后即可编辑。',
     'collaboration.title': '协作',
     'collaboration.description': '将当前画布共享为一个加密编辑房间。',
     'collaboration.start.p2p': '启动 P2P 房间',

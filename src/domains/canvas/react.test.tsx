@@ -13,7 +13,7 @@ const readyStatus: CanvasPersistenceStatus = {
   phase: "ready",
   restore: { phase: "ready", reason: null, error: null, temporaryDirty: false },
   save: "saved",
-  ownership: "writer",
+  coordination: "coordinator",
   error: null,
 };
 
@@ -31,10 +31,10 @@ describe("useCanvasPersistenceSelector", () => {
       },
     };
     const Probe = () => {
-      const ownership = useCanvasPersistenceSelector(
-        (snapshot) => snapshot.ownership
+      const coordination = useCanvasPersistenceSelector(
+        (snapshot) => snapshot.coordination
       );
-      return <span>{ownership}</span>;
+      return <span>{coordination}</span>;
     };
 
     render(
@@ -53,10 +53,10 @@ describe("useCanvasPersistenceSelector", () => {
     expect(onRender).toHaveBeenCalledTimes(1);
 
     act(() => {
-      status = { ...status, ownership: "reader" };
+      status = { ...status, coordination: "peer" };
       listeners.forEach((listener) => listener());
     });
-    expect(screen.getByText("reader")).toBeInTheDocument();
+    expect(screen.getByText("peer")).toBeInTheDocument();
     expect(onRender).toHaveBeenCalledTimes(2);
   });
 });

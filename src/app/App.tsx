@@ -278,7 +278,9 @@ function CanvasPaneContent({
           </div>
         </EditorWidget>
       ) : null}
-      {collaborate && view.isActive && <RemoteSelectionOverlay />}
+      {collaborate && view.isActive && (
+        <RemoteSelectionOverlay viewportFrame={paneViewportFrame} />
+      )}
     </div>
   );
 }
@@ -340,9 +342,6 @@ function AppContent() {
   useActiveCollaboration({ enabled: hostProfile.capabilities.collaborate });
   useHorizontalWheelNavigationGuard();
   const collaborationSnapshot = useCollaborationSnapshot();
-  const persistenceOwnership = useCanvasPersistenceSelector(
-    (status) => status.ownership
-  );
   const persistenceRestorePhase = useCanvasPersistenceSelector(
     (status) => status.restore.phase
   );
@@ -359,7 +358,6 @@ function AppContent() {
     hostProfile,
     activeCanvasMode,
     !isCollaborationReadOnly &&
-      persistenceOwnership === 'writer' &&
       persistenceRestorePhase !== 'retrying'
   );
   const { capabilities, surfaces } = hostContract;

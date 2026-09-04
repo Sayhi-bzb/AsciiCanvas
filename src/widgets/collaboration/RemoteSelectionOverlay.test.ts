@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { StructuredNode } from "@/domains/structured-content/public";
 import type { GridMap } from "@/shared/types";
-import { resolveRemoteSelectionVisuals } from "./remoteSelectionGeometry";
+import {
+  resolveRemoteSelectionLayout,
+  resolveRemoteSelectionRevealViewport,
+  resolveRemoteSelectionVisuals,
+  type RemoteSelectionVisual,
+} from "./remoteSelectionGeometry";
 
 const viewport = {
   offset: { x: 10, y: 20 },
@@ -37,7 +42,7 @@ describe("resolveRemoteSelectionVisuals", () => {
       clientId: 7,
       name: "Ada",
       color: "#0969da",
-      anchor: { x: 10, y: 20 },
+      bounds: expect.objectContaining({ left: 10, top: 20 }),
     });
     expect(visuals[0].path).toContain("M10 20");
     expect(visuals[0].path).toContain("46 20");
@@ -67,7 +72,7 @@ describe("resolveRemoteSelectionVisuals", () => {
 
     expect(visuals).toEqual([expect.objectContaining({
       clientId: 8,
-      anchor: { x: 82, y: 134 },
+      center: { x: 127, y: 153 },
       path: "M82 134 H172 V172 H82 Z",
     })]);
   });
@@ -85,5 +90,99 @@ describe("resolveRemoteSelectionVisuals", () => {
       structuredScene: [],
       viewport,
     })).toEqual([]);
+  });
+
+  it("keeps partially visible selections on canvas and tracks fully offscreen ones", () => {
+    const createVisual = (
+      clientId: number,
+      bounds: RemoteSelectionVisual["bounds"]
+    ): RemoteSelectionVisual => ({
+      clientId,
+      name: `Peer ${clientId}`,
+      color: "#0969da",
+      path: "M0 0",
+      regions: [bounds],
+      bounds,
+      center: {
+        x: (bounds.left + bounds.right) / 2,
+        y: (bounds.top + bounds.bottom) / 2,
+      },
+    });
+    const layout = resolveRemoteSelectionLayout([
+      createVisual(1, { left: -5, top: 30, right: 5, bottom: 50 }),
+      createVisual(2, { left: 400, top: 80, right: 420, bottom: 100 }),
+    ], { x: 0, y: 0, width: 300, height: 200 });
+
+    expect(layout.visible).toEqual([
+      expect.objectContaining({ clientId: 1, labelAnchor: { x: 2, y: 14 } }),
+    ]);
+    expect(layout.indicators).toEqual([
+      expect.objectContaining({
+        clientId: 2,
+        edge: "right",
+        position: expect.objectContaining({ x: 286 }),
+      }),
+    ]);
+  });
+
+  it("separates peers on the same edge deterministically", () => {
+    const visuals: RemoteSelectionVisual[] = [1, 2, 3].map((clientId) => ({
+      clientId,
+      name: `Peer ${clientId}`,
+      color: "#0969da",
+      path: "M0 0",
+      regions: [{ left: 120, top: -100, right: 130, bottom: -90 }],
+      bounds: { left: 120, top: -100, right: 130, bottom: -90 },
+      center: { x: 125, y: -95 },
+    }));
+    const { indicators } = resolveRemoteSelectionLayout(
+      visuals,
+      { x: 0, y: 0, width: 300, height: 200 }
+    );
+
+    expect(indicators.map(({ edge }) => edge)).toEqual(["top", "top", "top"]);
+    expect(indicators[1].position.x - indicators[0].position.x).toBeGreaterThanOrEqual(24);
+    expect(indicators[2].position.x - indicators[1].position.x).toBeGreaterThanOrEqual(24);
+  });
+
+  it("places dots tangent to every pane edge", () => {
+    const bounds = [
+      { left: 140, top: -40, right: 160, bottom: -20 },
+      { left: 320, top: 90, right: 340, bottom: 110 },
+      { left: 140, top: 220, right: 160, bottom: 240 },
+      { left: -40, top: 90, right: -20, bottom: 110 },
+    ];
+    const visuals: RemoteSelectionVisual[] = bounds.map((item, index) => ({
+      clientId: index,
+      name: `Peer ${index}`,
+      color: "#0969da",
+      path: "M0 0",
+      regions: [item],
+      bounds: item,
+      center: {
+        x: (item.left + item.right) / 2,
+        y: (item.top + item.bottom) / 2,
+      },
+    }));
+
+    const { indicators } = resolveRemoteSelectionLayout(
+      visuals,
+      { x: 0, y: 0, width: 300, height: 200 }
+    );
+
+    expect(indicators.map(({ edge, position }) => ({ edge, position }))).toEqual([
+      { edge: "top", position: { x: 150, y: 14 } },
+      { edge: "right", position: { x: 286, y: 100 } },
+      { edge: "bottom", position: { x: 150, y: 186 } },
+      { edge: "left", position: { x: 14, y: 100 } },
+    ]);
+  });
+
+  it("centers a collaborator without changing zoom", () => {
+    expect(resolveRemoteSelectionRevealViewport(
+      { offset: { x: -100, y: 40 }, zoom: 2 },
+      { x: 300, y: 200 },
+      { x: 500, y: -50 }
+    )).toEqual({ offset: { x: -300, y: 290 }, zoom: 2 });
   });
 });

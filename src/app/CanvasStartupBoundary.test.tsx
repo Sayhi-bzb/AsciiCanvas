@@ -15,7 +15,7 @@ const readyStatus: CanvasPersistenceStatus = {
   phase: "ready",
   restore: { phase: "ready", reason: null, error: null, temporaryDirty: false },
   save: "saved",
-  ownership: "writer",
+  coordination: "coordinator",
   error: null,
 };
 

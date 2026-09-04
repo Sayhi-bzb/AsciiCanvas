@@ -803,7 +803,7 @@ describe("browser canvas persistence", () => {
     expect(second.getState().grid.get("2,3")?.char).toBe("旧");
   });
 
-  it("allows only one local writer across tabs sharing the workspace", async () => {
+  it("coordinates persistence without making peer tabs read-only", async () => {
     const storage = new MemoryStorage();
     const writer = createRuntime(storage);
     runtimes.push(writer);
@@ -813,9 +813,49 @@ describe("browser canvas persistence", () => {
     runtimes.push(reader);
     await reader.ready;
 
-    expect(writer.getPersistenceSnapshot().ownership).toBe("writer");
-    expect(reader.getPersistenceSnapshot().ownership).toBe("reader");
+    expect(writer.getPersistenceSnapshot().coordination).toBe("coordinator");
+    expect(reader.getPersistenceSnapshot().coordination).toBe("peer");
     expect(reader.getState().grid.get("0,0")?.char).toBe("A");
+
+    reader.commands.grid.replace([
+      ...reader.getState().grid.entries(),
+      ["1,0", { char: "P", color: "#222222" }],
+    ]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(writer.getState().grid.get("1,0")?.char).toBe("P");
+  });
+
+  it("merges concurrent catalog changes from coordinator and peer tabs", async () => {
+    const storage = new MemoryStorage();
+    const coordinator = createRuntime(storage);
+    runtimes.push(coordinator);
+    await coordinator.ready;
+
+    const peer = createRuntime(storage);
+    runtimes.push(peer);
+    await peer.ready;
+    coordinator.commands.sessions.create("freeform", { name: "Created in coordinator" });
+    const coordinatorCreatedId = coordinator.getState().activeCanvasId;
+    peer.commands.sessions.create("freeform", { name: "Created in peer" });
+    const peerCreatedId = peer.getState().activeCanvasId;
+    await new Promise((resolve) => setTimeout(resolve, 40));
+
+    coordinator.dispose();
+    peer.dispose();
+    runtimes = [];
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const restored = createRuntime(storage);
+    runtimes.push(restored);
+    await restored.ready;
+    expect(restored.getState().canvasSessions).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: coordinatorCreatedId,
+        name: "Created in coordinator",
+      }),
+      expect.objectContaining({ id: peerCreatedId, name: "Created in peer" }),
+    ]));
   });
 
   it("rotates a tombstone-heavy document into a clean generation", async () => {

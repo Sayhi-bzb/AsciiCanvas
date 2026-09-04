@@ -26,7 +26,7 @@ const testState = vi.hoisted(() => ({
       temporaryDirty: false,
     },
     save: 'saved' as 'saved' | 'saving' | 'error',
-    ownership: 'writer' as 'writer' | 'reader',
+    coordination: 'coordinator' as 'coordinator' | 'peer',
     error: null as string | null,
   },
 }));
@@ -57,7 +57,7 @@ describe('SecurityControl', () => {
       value: createMemoryStorage(),
     });
     testState.persistence.save = 'saved';
-    testState.persistence.ownership = 'writer';
+    testState.persistence.coordination = 'coordinator';
     testState.persistence.error = null;
     window.localStorage.removeItem(SECURITY_DISCLOSURE_STORAGE_KEY);
   });
@@ -109,11 +109,10 @@ describe('SecurityControl', () => {
   });
 
   it.each([
-    ['error', 'writer', 'error'],
-    ['saved', 'reader', 'warning'],
-  ] as const)('keeps %s / %s persistence status visible after opening', async (save, ownership, status) => {
+    ['error', 'coordinator', 'error'],
+  ] as const)('keeps %s / %s persistence status visible after opening', async (save, coordination, status) => {
     testState.persistence.save = save;
-    testState.persistence.ownership = ownership;
+    testState.persistence.coordination = coordination;
     render(<SecurityControl />);
 
     const control = screen.getByRole('button', { name: 'Data security' });

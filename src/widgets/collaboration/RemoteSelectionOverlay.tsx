@@ -1,77 +1,25 @@
+import { Tooltip, TooltipPopup, TooltipTrigger } from "@chardesk/ui";
 import { useCanvasState } from "@/domains/canvas/public";
-import type { CanvasMode } from "@/domains/sessions/public";
-import type { StructuredNode } from "@/domains/structured-content/public";
-import { CELL_HEIGHT, CELL_WIDTH } from "@/shared/lib/constants";
 import type { Point } from "@/shared/types";
-import { useCanvasLiveViewportOptional } from "@/widgets/canvas-editor/engine/CanvasWorkspace";
 import {
+  useCanvasLiveViewportOptional,
+  useCanvasViewOptional,
+} from "@/widgets/canvas-editor/engine/CanvasWorkspace";
+import type { EditorViewportFrame } from "@/widgets/editor-chrome/public";
+import {
+  resolveRemoteSelectionLayout,
+  resolveRemoteSelectionRevealViewport,
   resolveRemoteSelectionVisuals,
-  type RemotePeer,
 } from "./remoteSelectionGeometry";
 import { useCollaborationSnapshot } from "./useCollaborationSnapshot";
 
-const createPreviewPeers = ({
-  canvasMode,
-  structuredScene,
-  viewport,
+export function RemoteSelectionOverlay({
+  viewportFrame,
 }: {
-  canvasMode: CanvasMode;
-  structuredScene: StructuredNode[];
-  viewport: { offset: Point; zoom: number };
-}): RemotePeer[] => {
-  if (canvasMode === "structured") {
-    const identities = [
-      { name: "Ada", color: "#0969da" },
-      { name: "Lin", color: "#bf3989" },
-      { name: "Kai", color: "#1a7f37" },
-    ] as const;
-    return structuredScene.slice(0, 3).map((node, index) => ({
-      clientId: -(index + 1),
-      name: identities[index].name,
-      color: identities[index].color,
-      selection: { mode: "structured", nodeIds: [node.id] },
-    }));
-  }
-  if (canvasMode !== "freeform") return [];
-  const screenToGrid = (point: Point): Point => ({
-    x: Math.floor((point.x - viewport.offset.x) / (CELL_WIDTH * viewport.zoom)),
-    y: Math.floor((point.y - viewport.offset.y) / (CELL_HEIGHT * viewport.zoom)),
-  });
-  const width = typeof window === "undefined" ? 1024 : window.innerWidth;
-  const height = typeof window === "undefined" ? 768 : window.innerHeight;
-  const cell = screenToGrid({ x: width * 0.2, y: height * 0.25 });
-  const rangeStart = screenToGrid({ x: width * 0.42, y: height * 0.42 });
-  const overlapStart = screenToGrid({ x: width * 0.58, y: height * 0.52 });
-  return [
-    {
-      clientId: -1,
-      name: "Ada",
-      color: "#0969da",
-      selection: { mode: "freeform", areas: [{ start: cell, end: cell }] },
-    },
-    {
-      clientId: -2,
-      name: "Lin",
-      color: "#bf3989",
-      selection: {
-        mode: "freeform",
-        areas: [{ start: rangeStart, end: { x: rangeStart.x + 9, y: rangeStart.y + 3 } }],
-      },
-    },
-    {
-      clientId: -3,
-      name: "Kai",
-      color: "#1a7f37",
-      selection: {
-        mode: "freeform",
-        areas: [{ start: overlapStart, end: { x: overlapStart.x + 7, y: overlapStart.y + 2 } }],
-      },
-    },
-  ];
-};
-
-export function RemoteSelectionOverlay() {
+  viewportFrame?: EditorViewportFrame;
+}) {
   const { peers } = useCollaborationSnapshot();
+  const canvasView = useCanvasViewOptional();
   const liveViewport = useCanvasLiveViewportOptional();
   const storeOffset = useCanvasState((state) => state.offset);
   const storeZoom = useCanvasState((state) => state.zoom);
@@ -82,30 +30,40 @@ export function RemoteSelectionOverlay() {
     offset: liveViewport?.offset ?? storeOffset,
     zoom: liveViewport?.zoom ?? storeZoom,
   };
-  const previewParams = typeof window === "undefined"
-    ? null
-    : new URLSearchParams(window.location.search);
-  const previewEnabled = import.meta.env.DEV
-    && (previewParams?.get("collaboration-selections") === "preview"
-      || previewParams?.get("collaboration-cursors") === "preview");
-  const visiblePeers = previewEnabled
-    ? createPreviewPeers({ canvasMode, structuredScene, viewport })
-    : peers;
   const visuals = resolveRemoteSelectionVisuals({
-    peers: visiblePeers,
+    peers,
     canvasMode,
     grid,
     structuredScene,
     viewport,
   });
+  const size = canvasView?.containerSize;
+  const paneRect = {
+    x: 0,
+    y: 0,
+    width: size?.width ?? viewportFrame?.width ?? 0,
+    height: size?.height ?? viewportFrame?.height ?? 0,
+  };
+  const layout = resolveRemoteSelectionLayout(visuals, paneRect);
+
+  const reveal = (center: Point) => {
+    if (!canvasView) return;
+    const targetCenter = viewportFrame?.center ?? {
+      x: paneRect.width / 2,
+      y: paneRect.height / 2,
+    };
+    canvasView.runtime.camera.animateTo(
+      resolveRemoteSelectionRevealViewport(viewport, targetCenter, center),
+      { duration: 220 }
+    );
+  };
 
   return (
     <div
       className="pointer-events-none absolute inset-0 z-(--layer-presence) overflow-hidden"
-      aria-hidden="true"
     >
-      <svg className="absolute inset-0 size-full">
-        {visuals.map((visual) => (
+      <svg className="absolute inset-0 size-full" aria-hidden="true">
+        {layout.visible.map((visual) => (
           <path
             key={visual.clientId}
             d={visual.path}
@@ -116,17 +74,40 @@ export function RemoteSelectionOverlay() {
           />
         ))}
       </svg>
-      {visuals.map((visual) => (
+      {layout.visible.map((visual) => (
         <span
           key={visual.clientId}
+          aria-hidden="true"
           className="absolute whitespace-nowrap rounded-md px-1.5 py-0.5 text-[10px] font-medium leading-none text-presence-label-foreground shadow-xs"
           style={{
             backgroundColor: visual.color,
-            transform: `translate3d(${Math.max(2, visual.anchor.x)}px, ${Math.max(16, visual.anchor.y) - 16}px, 0)`,
+            transform: `translate3d(${visual.labelAnchor.x}px, ${visual.labelAnchor.y}px, 0)`,
           }}
         >
           {visual.name}
         </span>
+      ))}
+      {layout.indicators.map((indicator) => (
+        <Tooltip key={indicator.clientId}>
+          <TooltipTrigger
+            render={
+              <button
+                type="button"
+                data-canvas-ui="true"
+                className="pointer-events-auto absolute size-5 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-full border-0 p-0 outline-none"
+                style={{
+                  left: indicator.position.x,
+                  top: indicator.position.y,
+                  backgroundColor: indicator.color,
+                }}
+                aria-label={indicator.name}
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={() => reveal(indicator.center)}
+              />
+            }
+          />
+          <TooltipPopup>{indicator.name}</TooltipPopup>
+        </Tooltip>
       ))}
     </div>
   );

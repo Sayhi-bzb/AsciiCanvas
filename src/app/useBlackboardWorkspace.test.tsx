@@ -23,7 +23,10 @@ layout:
 
 describe("Blackboard workspace projection", () => {
   const disposals: Array<() => Promise<void>> = [];
-  afterEach(async () => Promise.all(disposals.splice(0).map((dispose) => dispose())));
+  afterEach(async () => {
+    window.history.replaceState(null, "", "/");
+    await Promise.all(disposals.splice(0).map((dispose) => dispose()));
+  });
 
   it("projects source revisions and keeps the last valid surface on failure", async () => {
     const repository = new IndexedDbBlackboardRepository({
@@ -73,5 +76,61 @@ describe("Blackboard workspace projection", () => {
     ]);
     await waitFor(() => expect(result.current.status.state).toBe("warning"));
     expect(host.canvas.getState().grid).toBe(validGrid);
+  });
+
+  it("releases the Blackboard route after switching to an editable Canvas", async () => {
+    const repository = new IndexedDbBlackboardRepository({
+      databaseName: `workspace-route-${crypto.randomUUID()}`,
+    });
+    const created = await repository.createWorkspace({ id: "board-route" });
+    await repository.apply("board-route", [
+      ...created.files.map(({ path }) => ({ op: "delete" as const, path })),
+      { op: "write", path: "blackboard.yaml", content: manifest },
+      { op: "write", path: "panels/main.panel", content: "Board" },
+    ], created.workspace.revision);
+    const host = createApplicationEditorHost({
+      blackboardRepository: repository,
+      initialSessions: [
+        {
+          id: "canvas-board-route",
+          name: "Board",
+          mode: "blackboard",
+          workspaceId: "board-route",
+          scene: [],
+          components: [],
+          grid: [],
+        },
+        {
+          id: "canvas-editable",
+          name: "Editable",
+          mode: "freeform",
+          scene: [],
+          components: [],
+          grid: [],
+        },
+      ],
+    });
+    disposals.push(async () => {
+      await host.dispose();
+      await repository.close();
+    });
+    window.history.replaceState(
+      null,
+      "",
+      "/blackboard?workspace=board-route&canvas-stress=1",
+    );
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <BlackboardRuntimeProvider runtime={host.blackboard}>
+        <CanvasRuntimeProvider runtime={host.canvas}>{children}</CanvasRuntimeProvider>
+      </BlackboardRuntimeProvider>
+    );
+    const { result } = renderHook(() => useBlackboardWorkspace(), { wrapper });
+
+    await waitFor(() => expect(result.current.status.state).toBe("current"));
+    expect(window.location.pathname).toBe("/blackboard");
+    await host.canvas.commands.sessions.switch("canvas-editable");
+
+    await waitFor(() => expect(window.location.pathname).toBe("/"));
+    expect(window.location.search).toBe("?canvas-stress=1");
   });
 });

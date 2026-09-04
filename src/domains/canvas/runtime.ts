@@ -37,7 +37,7 @@ const DISABLED_PERSISTENCE_STATUS: CanvasPersistenceStatus = {
     temporaryDirty: false,
   },
   save: "saved",
-  ownership: "writer",
+  coordination: "coordinator",
   error: null,
 };
 

@@ -27,6 +27,7 @@ export const useBlackboardWorkspace = ({ enabled = true }: { enabled?: boolean }
   const [firstFitRevision, setFirstFitRevision] = useState(0);
   const generationRef = useRef(0);
   const fittedSessionsRef = useRef(new Set<string>());
+  const ownsBlackboardRouteRef = useRef(false);
 
   const project = useCallback(async (sessionId: string, workspaceId: string) => {
     const generation = ++generationRef.current;
@@ -72,6 +73,22 @@ export const useBlackboardWorkspace = ({ enabled = true }: { enabled?: boolean }
       }
     });
   }, [activeSessionId, activeWorkspaceId, enabled, project, runtime]);
+
+  useEffect(() => {
+    if (!enabled || isLocalBlackboardReaderRoute(window.location)) return;
+    if (activeSessionId && isBlackboardRoute(window.location)) {
+      ownsBlackboardRouteRef.current = true;
+      return;
+    }
+    if (!activeSessionId && ownsBlackboardRouteRef.current) {
+      ownsBlackboardRouteRef.current = false;
+      if (!isBlackboardRoute(window.location)) return;
+      const params = new URLSearchParams(window.location.search);
+      params.delete("workspace");
+      const search = params.size > 0 ? `?${params.toString()}` : "";
+      window.history.replaceState(null, "", `/${search}`);
+    }
+  }, [activeSessionId, enabled]);
 
   useEffect(() => {
     if (!enabled

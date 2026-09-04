@@ -83,11 +83,6 @@ export function DataSecurityDialog({
               </Button>
             </div>
           )}
-          {persistence.ownership === "reader" && (
-            <p role="status" className="rounded-control border p-2 text-xs text-muted-foreground">
-              {t("security.persistence.readerDescription")}
-            </p>
-          )}
         </DialogBody>
       </DialogContent>
     </Dialog>

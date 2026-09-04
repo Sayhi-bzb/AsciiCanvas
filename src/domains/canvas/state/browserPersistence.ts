@@ -75,11 +75,14 @@ const SAVE_DELAY = 500;
 const DOCUMENT_GENERATION_SUFFIX = ":generation:";
 const DOCUMENT_STRUCT_ROTATION_THRESHOLD = 10_000;
 const CHECKPOINT_IDLE_DELAY = 5_000;
-const WRITER_LOCK_NAME = "chardesk-canvas-workspace-writer-v1";
-const WRITER_LEASE_KEY = "chardesk-canvas-writer-lease-v1";
-const WRITER_LEASE_DURATION = 8_000;
+const COORDINATOR_LOCK_NAME = "chardesk-canvas-workspace-writer-v1";
+const CATALOG_WRITE_LOCK_NAME = "chardesk-canvas-catalog-write-v1";
+const CATALOG_WRITE_LEASE_KEY = "chardesk-canvas-catalog-write-lease-v1";
+const LOCAL_DOCUMENT_SYNC_CHANNEL = "chardesk-canvas-document-sync-v1";
+const COORDINATOR_LEASE_KEY = "chardesk-canvas-writer-lease-v1";
+const COORDINATOR_LEASE_DURATION = 8_000;
 const MAX_RESIDENT_CANVASES = 4;
-const WRITER_LOCK_TIMEOUT = 2_000;
+const COORDINATOR_LOCK_TIMEOUT = 2_000;
 const DOCUMENT_SYNC_TIMEOUT = 15_000;
 const RESTORE_CLEANUP_TIMEOUT = 2_000;
 
@@ -157,7 +160,7 @@ export type CanvasPersistenceStatus = {
     temporaryDirty: boolean;
   };
   save: "saved" | "saving" | "error";
-  ownership: "writer" | "reader";
+  coordination: "coordinator" | "peer";
   error: string | null;
 };
 
@@ -171,8 +174,16 @@ type BrowserCanvasPersistenceOptions = {
 type PersistedDocument = {
   doc: Y.Doc;
   provider: IndexeddbPersistence;
-  updateListener: () => void;
+  updateListener: (update: Uint8Array, origin: unknown) => void;
 };
+
+type LocalDocumentSyncMessage = Readonly<{
+  type: "document-update";
+  senderId: string;
+  documentId: string;
+  generation: number;
+  update: Uint8Array;
+}>;
 
 type BrowserCheckpointCandidate = CanvasCheckpointCandidate & {
   id: string;
@@ -197,16 +208,20 @@ type RestoredSessions = {
   activeSessionId: string;
 };
 
-type WriterLease = {
-  writer: boolean;
+type ExclusiveLease = {
+  held: boolean;
   release: () => void;
 };
 
-const acquireStorageLease = (storage: Storage): WriterLease => {
+const acquireStorageLease = (
+  storage: Storage,
+  key: string,
+  duration: number,
+): ExclusiveLease => {
   const token = crypto.randomUUID();
   const read = () => {
     try {
-      return JSON.parse(storage.getItem(WRITER_LEASE_KEY) ?? "null") as {
+      return JSON.parse(storage.getItem(key) ?? "null") as {
         token?: string;
         expires?: number;
       } | null;
@@ -216,40 +231,46 @@ const acquireStorageLease = (storage: Storage): WriterLease => {
   };
   const current = read();
   if (current?.token && (current.expires ?? 0) > Date.now()) {
-    return { writer: false, release: () => undefined };
+    return { held: false, release: () => undefined };
   }
   const renew = () => storage.setItem(
-    WRITER_LEASE_KEY,
-    JSON.stringify({ token, expires: Date.now() + WRITER_LEASE_DURATION })
+    key,
+    JSON.stringify({ token, expires: Date.now() + duration })
   );
   renew();
   if (read()?.token !== token) {
-    return { writer: false, release: () => undefined };
+    return { held: false, release: () => undefined };
   }
-  const timer = setInterval(renew, WRITER_LEASE_DURATION / 2);
+  const timer = setInterval(renew, duration / 2);
   return {
-    writer: true,
+    held: true,
     release: () => {
       clearInterval(timer);
-      if (read()?.token === token) storage.removeItem(WRITER_LEASE_KEY);
+      if (read()?.token === token) storage.removeItem(key);
     },
   };
 };
 
-const acquireWriterLease = async (storage: Storage): Promise<WriterLease> => {
+const acquireCoordinatorLease = async (
+  storage: Storage,
+): Promise<ExclusiveLease> => {
   if (typeof navigator === "undefined" || !navigator.locks) {
-    return acquireStorageLease(storage);
+    return acquireStorageLease(
+      storage,
+      COORDINATOR_LEASE_KEY,
+      COORDINATOR_LEASE_DURATION,
+    );
   }
   const lease = await withRestoreTimeout(
     acquireOriginExclusiveLease({
       manager: navigator.locks,
-      name: WRITER_LOCK_NAME,
+      name: COORDINATOR_LOCK_NAME,
     }),
-    WRITER_LOCK_TIMEOUT,
-    "Canvas writer lock did not respond in time"
+    COORDINATOR_LOCK_TIMEOUT,
+    "Canvas coordinator lock did not respond in time"
   );
   return {
-    writer: !!lease,
+    held: !!lease,
     release: lease?.release ?? (() => undefined),
   };
 };
@@ -1048,6 +1069,94 @@ const catalogSnapshotJson = (snapshot: CanvasCatalogSnapshot) => JSON.stringify(
   deletedSessionIds: [...snapshot.deletedSessionIds].sort(),
 });
 
+const sameCatalogValue = (left: unknown, right: unknown) =>
+  JSON.stringify(left) === JSON.stringify(right);
+
+const mergeCatalogSnapshot = (
+  base: CanvasCatalogSnapshot | null,
+  local: CanvasCatalogSnapshot,
+  latest: CanvasCatalogSnapshot | null,
+): CanvasCatalogSnapshot => {
+  if (!latest) return { ...local, revision: Math.max(local.revision, 1) };
+  const deletedSessionIds = new Set([
+    ...latest.deletedSessionIds,
+    ...local.deletedSessionIds,
+  ]);
+  const baseSessions = new Map(base?.sessions.map((session) => [session.id, session]));
+  const sessions = new Map(latest.sessions.map((session) => [session.id, session]));
+  local.sessions.forEach((session) => {
+    if (!base || !sameCatalogValue(session, baseSessions.get(session.id))) {
+      sessions.set(session.id, session);
+    }
+  });
+  deletedSessionIds.forEach((id) => sessions.delete(id));
+
+  const slideKey = (slide: CanvasCatalogSnapshot["slides"][number]) =>
+    `${slide.sessionId}\u0000${slide.id}`;
+  const baseSlides = new Map(base?.slides.map((slide) => [slideKey(slide), slide]));
+  const slides = new Map(latest.slides.map((slide) => [slideKey(slide), slide]));
+  local.slides.forEach((slide) => {
+    const key = slideKey(slide);
+    if (!base || !sameCatalogValue(slide, baseSlides.get(key))) slides.set(key, slide);
+  });
+  for (const [key, slide] of slides) {
+    if (deletedSessionIds.has(slide.sessionId) || !sessions.has(slide.sessionId)) {
+      slides.delete(key);
+    }
+  }
+
+  const activeSessionId = (!base || local.activeSessionId !== base.activeSessionId)
+    ? local.activeSessionId
+    : latest.activeSessionId;
+  return {
+    revision: Math.max(local.revision, latest.revision) + 1,
+    activeSessionId: sessions.has(activeSessionId)
+      ? activeSessionId
+      : sessions.keys().next().value ?? local.activeSessionId,
+    sessions: [...sessions.values()].sort(
+      (left, right) => (left.order ?? 0) - (right.order ?? 0),
+    ),
+    slides: [...slides.values()].sort((left, right) => left.order - right.order),
+    preferences: !base || !sameCatalogValue(local.preferences, base.preferences)
+      ? local.preferences
+      : latest.preferences,
+    recoveredSources: [...new Set([
+      ...latest.recoveredSources,
+      ...local.recoveredSources,
+    ])].sort(),
+    deletedSessionIds: [...deletedSessionIds].sort(),
+  };
+};
+
+const withCatalogWriteLock = async <Value>(
+  storage: Storage,
+  task: () => Promise<Value>,
+) => {
+  const hasWebLocks = typeof navigator !== "undefined" && !!navigator.locks;
+  const browserLease = hasWebLocks
+    ? await acquireOriginExclusiveLease({
+        manager: navigator.locks,
+        name: CATALOG_WRITE_LOCK_NAME,
+        wait: true,
+      })
+    : null;
+  let lease: ExclusiveLease | null = browserLease
+    ? { held: true, release: browserLease.release }
+    : null;
+  if (!hasWebLocks) {
+    for (let attempt = 0; attempt < 100 && !lease?.held; attempt += 1) {
+      lease = acquireStorageLease(storage, CATALOG_WRITE_LEASE_KEY, 4_000);
+      if (!lease.held) await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+  }
+  if (!lease?.held) throw new Error("Canvas catalog write lock is unavailable");
+  try {
+    return await task();
+  } finally {
+    lease.release();
+  }
+};
+
 const readCatalogIntent = (storage: Storage): CanvasCatalogSnapshot | null => {
   try {
     const value: unknown = JSON.parse(storage.getItem(CATALOG_INTENT_KEY) ?? "null");
@@ -1084,6 +1193,11 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
   readonly #checkpointTimers = new Map<string, ReturnType<typeof setTimeout>>();
   readonly #checkpointTails = new Map<string, CanvasCheckpointTailEntry[]>();
   readonly #checkpointWorker = new CanvasCheckpointWorkerClient();
+  readonly #instanceId = crypto.randomUUID();
+  readonly #documentSyncChannel = typeof BroadcastChannel === "undefined"
+    ? null
+    : new BroadcastChannel(LOCAL_DOCUMENT_SYNC_CHANNEL);
+  readonly #pendingDocumentUpdates = new Map<string, Uint8Array[]>();
   readonly #recoveredSources = new Set<string>();
   readonly #deletedSessionIds = new Set<string>();
   readonly #pinnedCanvasIds = new Set<string>();
@@ -1100,7 +1214,10 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
   #catalogRevision = 0;
   #lastCatalogJson = "";
   #lastCatalogStructureJson = "";
-  #writerLease: WriterLease | null = null;
+  #lastCatalogSnapshot: CanvasCatalogSnapshot | null = null;
+  #coordinatorLease: ExclusiveLease | null = null;
+  #coordinationWaitController: AbortController | null = null;
+  #coordinationRetryTimer: ReturnType<typeof setTimeout> | null = null;
   #bootstrapSessions: readonly CanvasSession[] | undefined;
   #temporaryStoreSubscription: (() => void) | null = null;
   #temporaryMutationSubscription: (() => void) | null = null;
@@ -1114,13 +1231,32 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
       temporaryDirty: false,
     },
     save: "saved",
-    ownership: "writer",
+    coordination: "coordinator",
     error: null,
   };
 
   constructor(options: BrowserCanvasPersistenceOptions) {
     this.#legacyStorage = options.legacyStorage;
     this.#legacyKey = options.legacyKey ?? EDITOR_PERSISTENCE_KEY;
+    if (this.#documentSyncChannel) {
+      this.#documentSyncChannel.onmessage = (event: MessageEvent<LocalDocumentSyncMessage>) => {
+        const message = event.data;
+        if (
+          message?.type !== "document-update" ||
+          message.senderId === this.#instanceId
+        ) return;
+        const generation = this.#documentGenerations.get(message.documentId) ?? 0;
+        if (message.generation !== generation) return;
+        const document = this.#documents.get(message.documentId)?.doc;
+        if (document) {
+          Y.applyUpdate(document, message.update, this.#documentSyncChannel);
+          return;
+        }
+        const pending = this.#pendingDocumentUpdates.get(message.documentId) ?? [];
+        pending.push(message.update);
+        this.#pendingDocumentUpdates.set(message.documentId, pending);
+      };
+    }
   }
 
   getSnapshot = () => this.#status;
@@ -1174,19 +1310,19 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
     if (!documents || !store) return false;
     let committed = false;
     try {
-      this.#writerLease = await acquireWriterLease(this.#legacyStorage);
+      this.#coordinatorLease = await acquireCoordinatorLease(this.#legacyStorage);
       this.#publish({
-        ownership: this.#writerLease.writer ? "writer" : "reader",
+        coordination: this.#coordinatorLease.held ? "coordinator" : "peer",
       });
       this.#catalog = await createIndexedDbCanvasCatalog({
         onUnavailable: () => this.#handleError(
           new Error("Canvas catalog connection was interrupted")
         ),
       });
-      const persistedCatalog = this.#writerLease.writer
+      const persistedCatalog = this.#coordinatorLease.held
         ? await this.#catalog.load()
         : await waitForCatalog(this.#catalog);
-      const catalogIntent = this.#writerLease.writer
+      const catalogIntent = this.#coordinatorLease.held
         ? readCatalogIntent(this.#legacyStorage)
         : null;
       const storedCatalog = catalogIntent &&
@@ -1313,7 +1449,7 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
       let restored = await this.#restoreSessions(
         documents,
         sourceSessions,
-        !storedCatalog && this.#writerLease.writer,
+        !storedCatalog && this.#coordinatorLease.held,
         activeSessionId
       );
       if (recovery && recovery.items.length > 0) {
@@ -1384,38 +1520,23 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
           error: null,
           temporaryDirty: false,
         },
-        save: this.#writerLease.writer ? "saving" : "saved",
+        save: this.#coordinatorLease.held ? "saving" : "saved",
         error: null,
       });
-      if (this.#writerLease.writer) {
-        this.#unsubscribeMutations = documents.subscribeMutations((envelope) => {
-          const revision = this.#documentRevisions.get(envelope.documentId) ?? 0;
-          if (revision <= 0 || !this.#documents.has(envelope.documentId)) return;
-          const entries = this.#checkpointTails.get(envelope.documentId) ?? [];
-          const last = entries.at(-1);
-          if (last?.revision === revision) {
-            entries[entries.length - 1] = {
-              revision,
-              envelopes: [...last.envelopes, envelope],
-            };
-          } else {
-            entries.push({ revision, envelopes: [envelope] });
-          }
-          if (entries.length > 4_096) entries.splice(0, entries.length - 4_096);
-          this.#checkpointTails.set(envelope.documentId, entries);
-        });
-        documents.configureDocumentLifecycle({
-          onCreate: (id, doc) => this.#attachDocument(id, doc),
-          onDelete: (id) => { void this.#deleteDocument(id); },
-        });
+      if (this.#coordinatorLease.held) {
+        this.#enableCoordinatorServices();
         await this.#saveCatalog();
         if (legacy) {
           this.#legacyStorage.removeItem(legacy.key);
           this.#legacyStorage.removeItem(LEGACY_EDITOR_PERSISTENCE_KEY);
         }
         this.#legacyStorage.setItem(CANVAS_CATALOG_MARKER_KEY, "1");
-        this.#subscribeToStore();
-      }
+      } else this.#waitForCoordinatorHandoff();
+      documents.configureDocumentLifecycle({
+        onCreate: (id, doc) => this.#attachDocument(id, doc),
+        onDelete: (id) => { void this.#deleteDocument(id); },
+      });
+      this.#subscribeToStore();
       this.#publish({ phase: "ready", save: "saved", error: null });
       return true;
     } catch (error) {
@@ -1529,14 +1650,19 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
     this.#catalogSaveTask = Promise.resolve();
     this.#lastCatalogJson = "";
     this.#lastCatalogStructureJson = "";
+    this.#lastCatalogSnapshot = null;
     this.#catalog?.close();
     this.#catalog = null;
-    this.#writerLease?.release();
-    this.#writerLease = null;
+    this.#coordinatorLease?.release();
+    this.#coordinatorLease = null;
+    this.#coordinationWaitController?.abort();
+    this.#coordinationWaitController = null;
+    if (this.#coordinationRetryTimer) clearTimeout(this.#coordinationRetryTimer);
+    this.#coordinationRetryTimer = null;
   }
 
   retry = async () => {
-    if (!this.#catalog || !this.#store || !this.#writerLease?.writer) return;
+    if (!this.#catalog || !this.#store) return;
     try {
       this.#publish({ save: "saving", error: null });
       const dirty = Array.from(this.#dirtyDocuments);
@@ -1607,6 +1733,77 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
     }
   };
 
+  #enableCoordinatorServices() {
+    const documents = this.#registry;
+    if (!documents || this.#unsubscribeMutations) return;
+    this.#unsubscribeMutations = documents.subscribeMutations((envelope) => {
+      const revision = this.#documentRevisions.get(envelope.documentId) ?? 0;
+      if (revision <= 0 || !this.#documents.has(envelope.documentId)) return;
+      const entries = this.#checkpointTails.get(envelope.documentId) ?? [];
+      const last = entries.at(-1);
+      if (last?.revision === revision) {
+        entries[entries.length - 1] = {
+          revision,
+          envelopes: [...last.envelopes, envelope],
+        };
+      } else {
+        entries.push({ revision, envelopes: [envelope] });
+      }
+      if (entries.length > 4_096) entries.splice(0, entries.length - 4_096);
+      this.#checkpointTails.set(envelope.documentId, entries);
+    });
+    documents.getDocumentIds().forEach((id) => this.#scheduleCheckpoint(id));
+  }
+
+  #acceptCoordinatorLease(lease: ExclusiveLease) {
+    if (!this.#registry) {
+      lease.release();
+      return;
+    }
+    this.#coordinatorLease?.release();
+    this.#coordinatorLease = lease;
+    this.#coordinationWaitController = null;
+    if (this.#coordinationRetryTimer) clearTimeout(this.#coordinationRetryTimer);
+    this.#coordinationRetryTimer = null;
+    this.#publish({ coordination: "coordinator" });
+    this.#enableCoordinatorServices();
+  }
+
+  #waitForCoordinatorHandoff() {
+    if (!this.#registry || this.#coordinatorLease?.held) return;
+    if (typeof navigator !== "undefined" && navigator.locks) {
+      if (this.#coordinationWaitController) return;
+      const controller = new AbortController();
+      this.#coordinationWaitController = controller;
+      void acquireOriginExclusiveLease({
+        manager: navigator.locks,
+        name: COORDINATOR_LOCK_NAME,
+        wait: true,
+        signal: controller.signal,
+      }).then((lease) => {
+        if (!lease || controller.signal.aborted) {
+          lease?.release();
+          return;
+        }
+        this.#acceptCoordinatorLease({ held: true, release: lease.release });
+      }).catch((error) => {
+        if (!controller.signal.aborted) this.#handleError(error);
+      });
+      return;
+    }
+    if (this.#coordinationRetryTimer) return;
+    this.#coordinationRetryTimer = setTimeout(() => {
+      this.#coordinationRetryTimer = null;
+      const lease = acquireStorageLease(
+        this.#legacyStorage,
+        COORDINATOR_LEASE_KEY,
+        COORDINATOR_LEASE_DURATION,
+      );
+      if (lease.held) this.#acceptCoordinatorLease(lease);
+      else this.#waitForCoordinatorHandoff();
+    }, COORDINATOR_LEASE_DURATION / 2);
+  }
+
   setPinnedCanvasIds = (ids: readonly string[]) => {
     this.#pinnedCanvasIds.clear();
     ids.forEach((id) => this.#pinnedCanvasIds.add(id));
@@ -1638,6 +1835,12 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
     this.#checkpointServices.forEach((service) => service.cancel());
     this.#checkpointServices.clear();
     this.#checkpointTails.clear();
+    this.#coordinationWaitController?.abort();
+    this.#coordinationWaitController = null;
+    if (this.#coordinationRetryTimer) clearTimeout(this.#coordinationRetryTimer);
+    this.#coordinationRetryTimer = null;
+    this.#pendingDocumentUpdates.clear();
+    this.#documentSyncChannel?.close();
     void this.#checkpointWorker.dispose();
     this.#documents.forEach(({ doc, provider, updateListener }) => {
       doc.off("update", updateListener);
@@ -1647,8 +1850,8 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
     this.#registry = null;
     this.#catalog?.close();
     this.#catalog = null;
-    this.#writerLease?.release();
-    this.#writerLease = null;
+    this.#coordinatorLease?.release();
+    this.#coordinatorLease = null;
   };
 
   async #restoreSessions(
@@ -1861,29 +2064,14 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
       doc.destroy();
       throw error;
     }
-    if (!this.#writerLease?.writer) {
-      await provider.destroy();
-      const migrated = migrateLegacyDocument(doc, id, seed);
-      if (isDocumentEmpty(doc)) applyCanvasDocumentSeed(doc, id, seed);
-      if (
-        migrated ||
-        hasLegacyCellPlaneOperations(doc) ||
-        countDocumentStructs(doc) >= DOCUMENT_STRUCT_ROTATION_THRESHOLD
-      ) {
-        const compacted = createCompactedDocument(doc, id);
-        doc.destroy();
-        return compacted;
-      }
-      return doc;
-    }
     const migrated = migrateLegacyDocument(doc, id, seed);
     const seeded = isDocumentEmpty(doc);
     if (seeded) applyCanvasDocumentSeed(doc, id, seed);
-    if (
+    if (this.#coordinatorLease?.held && (
       migrated ||
       hasLegacyCellPlaneOperations(doc) ||
       countDocumentStructs(doc) >= DOCUMENT_STRUCT_ROTATION_THRESHOLD
-    ) {
+    )) {
       const compacted = createCompactedDocument(doc, id);
       const nextGeneration = generation + 1;
       const nextDatabaseName = getDocumentDatabaseName(id, nextGeneration);
@@ -1941,13 +2129,29 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
     provider: IndexeddbPersistence
   ) {
     this.#documentRevisions.set(id, this.#documentRevisions.get(id) ?? 0);
-    const updateListener = () => {
+    const updateListener = (update: Uint8Array, origin: unknown) => {
       this.#documentRevisions.set(id, (this.#documentRevisions.get(id) ?? 0) + 1);
       this.#scheduleDocumentFlush(id);
       this.#scheduleCheckpoint(id);
+      if (this.#documentSyncChannel && origin !== this.#documentSyncChannel) {
+        this.#documentSyncChannel.postMessage({
+          type: "document-update",
+          senderId: this.#instanceId,
+          documentId: id,
+          generation: this.#documentGenerations.get(id) ?? 0,
+          update,
+        } satisfies LocalDocumentSyncMessage);
+      }
     };
     doc.on("update", updateListener);
     this.#documents.set(id, { doc, provider, updateListener });
+    const pending = this.#pendingDocumentUpdates.get(id);
+    if (pending) {
+      this.#pendingDocumentUpdates.delete(id);
+      pending.forEach((update) => {
+        Y.applyUpdate(doc, update, this.#documentSyncChannel);
+      });
+    }
     this.#ensureCheckpointService(id);
     this.#scheduleCheckpoint(id);
   }
@@ -2053,6 +2257,7 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
     );
     this.#lastCatalogJson = catalogSnapshotJson(initialSnapshot);
     this.#lastCatalogStructureJson = catalogStructureJson(initialSnapshot);
+    this.#lastCatalogSnapshot = initialSnapshot;
     this.#unsubscribeStore = this.#store.subscribe((state) => {
       state.canvasSessions.forEach((session) => {
         if (session.mode !== "slide" && session.collaboration) {
@@ -2125,7 +2330,7 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
   }
 
   #scheduleCheckpoint(id: string) {
-    if (!this.#writerLease?.writer) return;
+    if (!this.#coordinatorLease?.held) return;
     const existing = this.#checkpointTimers.get(id);
     if (existing) clearTimeout(existing);
     const timer = setTimeout(() => {
@@ -2302,29 +2507,39 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
     }
     const catalog = this.#catalog;
     const store = this.#store;
-    const task = this.#catalogSaveTask.then(async () => {
-      const snapshot = createCatalogSnapshot(
-        store.getState(),
-        this.#documentGenerations,
-        this.#previousDocumentGenerations,
-        this.#catalogRevision + 1,
-        this.#recoveredSources,
-        this.#deletedSessionIds
-      );
-      this.#legacyStorage.setItem(CATALOG_INTENT_KEY, JSON.stringify(snapshot));
-      await catalog.save(snapshot);
-      const verified = await catalog.load();
-      if (!verified || catalogSnapshotJson(verified) !== catalogSnapshotJson(snapshot)) {
-        throw new Error("Canvas catalog verification failed");
-      }
-      this.#catalogRevision = snapshot.revision;
-      this.#lastCatalogJson = catalogSnapshotJson(snapshot);
-      this.#lastCatalogStructureJson = catalogStructureJson(snapshot);
-      const intent = readCatalogIntent(this.#legacyStorage);
-      if (intent?.revision === snapshot.revision) {
-        this.#legacyStorage.removeItem(CATALOG_INTENT_KEY);
-      }
-    });
+    const task = this.#catalogSaveTask.then(() => withCatalogWriteLock(
+      this.#legacyStorage,
+      async () => {
+        const localSnapshot = createCatalogSnapshot(
+          store.getState(),
+          this.#documentGenerations,
+          this.#previousDocumentGenerations,
+          this.#catalogRevision + 1,
+          this.#recoveredSources,
+          this.#deletedSessionIds
+        );
+        const latest = await catalog.load();
+        const snapshot = mergeCatalogSnapshot(
+          this.#lastCatalogSnapshot,
+          localSnapshot,
+          latest,
+        );
+        this.#legacyStorage.setItem(CATALOG_INTENT_KEY, JSON.stringify(snapshot));
+        await catalog.save(snapshot);
+        const verified = await catalog.load();
+        if (!verified || catalogSnapshotJson(verified) !== catalogSnapshotJson(snapshot)) {
+          throw new Error("Canvas catalog verification failed");
+        }
+        this.#catalogRevision = snapshot.revision;
+        this.#lastCatalogJson = catalogSnapshotJson(snapshot);
+        this.#lastCatalogStructureJson = catalogStructureJson(snapshot);
+        this.#lastCatalogSnapshot = snapshot;
+        const intent = readCatalogIntent(this.#legacyStorage);
+        if (intent?.revision === snapshot.revision) {
+          this.#legacyStorage.removeItem(CATALOG_INTENT_KEY);
+        }
+      },
+    ));
     this.#catalogSaveTask = task.catch(() => undefined);
     return task;
   }

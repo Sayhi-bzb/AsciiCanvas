@@ -48,7 +48,7 @@ describe("DataSecurityDialog", () => {
     const failure = {
       phase: "degraded",
       save: "error",
-      ownership: "writer",
+      coordination: "coordinator",
       error: "Canvas document has no valid pages: canvas-1",
     } as const;
     Object.assign(testingCanvasRuntime, {
