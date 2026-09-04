@@ -53,6 +53,8 @@
     "test:engine-perf": "vitest run --config scripts/performance/vitest.engine.config.ts",
     "compare:engine-perf": "node scripts/performance/compare-cell-plane-benchmarks.mjs",
     "test:stress": "npm run build:app && node scripts/performance/run-stress.mjs",
+    "test:memory": "npm run build:app && node scripts/performance/run-memory.mjs",
+    "compare:memory": "node scripts/performance/compare-canvas-memory.mjs",
     "check:boundaries": "node scripts/check-domain-boundaries.mjs",
     "check:type-escapes": "node scripts/quality/check-type-escapes.mjs",
     "check:state-ownership": "node scripts/quality/check-state-ownership.mjs",

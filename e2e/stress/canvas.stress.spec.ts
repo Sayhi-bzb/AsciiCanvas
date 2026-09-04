@@ -49,6 +49,16 @@ declare global {
       ready: () => Promise<void>;
       flush: () => Promise<void>;
       switchSession: (id: string) => Promise<boolean>;
+      removeSession: (id: string) => Promise<boolean>;
+      sessionIds: () => string[];
+      activeSessionId: () => string;
+      setProjectionCacheBudget: (bytes: number) => void;
+      loadSession: (snapshot: {
+        mode: "freeform" | "structured";
+        grid: GridEntry[];
+        scene: [];
+        components: [];
+      }) => string;
       cellCount: () => number;
       surfaceStats: () => Record<string, number> | null;
       memoryStats: () => Record<string, number>;

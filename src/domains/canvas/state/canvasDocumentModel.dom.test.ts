@@ -123,7 +123,19 @@ describe("unified Canvas documents", () => {
       components: [],
     }, { replace: true });
 
-    expect(documents.getMemoryStats().residentPageIndexes).toBe(1);
+    expect(documents.getMemoryStats()).toMatchObject({
+      documents: 1,
+      pages: 8,
+      residentPageIndexes: 1,
+      indexCachedChunks: expect.any(Number),
+      indexCachedCells: expect.any(Number),
+      indexPreparedTextEntries: expect.any(Number),
+      indexPreparedTextBytes: expect.any(Number),
+      structuredSurfaceCount: 0,
+      structuredResidentChunks: 0,
+      structuredResidentBytes: 0,
+      estimatedProjectionBytes: expect.any(Number),
+    });
     for (let index = 1; index < 8; index += 1) {
       expect(documents.getContentReader("many-pages", `page-${index}`))
         .not.toBeNull();

@@ -254,6 +254,10 @@ export class CanvasDocumentRegistry {
     let indexDirectoryChunks = 0;
     let indexDirectoryRowReferences = 0;
     let indexResidentBytes = 0;
+    let indexCachedChunks = 0;
+    let indexCachedCells = 0;
+    let indexPreparedTextEntries = 0;
+    let indexPreparedTextBytes = 0;
     let residentPageIndexes = 0;
     this.#documents.forEach((document) => {
       document.doc.store.clients.forEach((structs) => { yjsStructs += structs.length; });
@@ -272,7 +276,22 @@ export class CanvasDocumentRegistry {
         indexDirectoryChunks += stats.directoryChunks;
         indexDirectoryRowReferences += stats.directoryRowReferences;
         indexResidentBytes += stats.residentBytes;
+        indexCachedChunks += stats.cachedChunks;
+        indexCachedCells += stats.cachedCells;
+        indexPreparedTextEntries += stats.preparedTextEntries;
+        indexPreparedTextBytes += stats.preparedTextBytes;
       });
+    });
+    let structuredSurfaceCount = 0;
+    let structuredResidentChunks = 0;
+    let structuredResidentBytes = 0;
+    this.#derivedSurfaces.forEach((surface) => {
+      if (!("getStats" in surface) || typeof surface.getStats !== "function") return;
+      const stats = surface.getStats() as Record<string, number>;
+      if (typeof stats.residentBytes !== "number") return;
+      structuredSurfaceCount += 1;
+      structuredResidentChunks += stats.residentChunks ?? 0;
+      structuredResidentBytes += stats.residentBytes;
     });
     const projectionCache = this.#projectionCacheBudget.getStats();
     return {
@@ -286,7 +305,16 @@ export class CanvasDocumentRegistry {
       indexDirectoryChunks,
       indexDirectoryRowReferences,
       indexResidentBytes,
+      indexCachedChunks,
+      indexCachedCells,
+      indexPreparedTextEntries,
+      indexPreparedTextBytes,
       residentPageIndexes,
+      structuredSurfaceCount,
+      structuredResidentChunks,
+      structuredResidentBytes,
+      estimatedProjectionBytes:
+        indexResidentBytes + indexPreparedTextBytes + structuredResidentBytes,
       projectionCacheBudgetBytes: projectionCache.bytes,
       projectionCacheBudgetLimit: projectionCache.byteBudget,
       projectionCacheEntries: projectionCache.entries,

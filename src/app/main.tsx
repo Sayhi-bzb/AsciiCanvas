@@ -90,6 +90,25 @@ if (new URLSearchParams(window.location.search).has("canvas-stress")) {
       ready: () => host.canvas.ready,
       flush: () => host.canvas.retryPersistence(),
       switchSession: (id: string) => host.canvas.commands.sessions.switch(id),
+      removeSession: (id: string) => host.canvas.commands.sessions.remove(id),
+      sessionIds: () => host.canvas.getState().canvasSessions.map(({ id }) => id),
+      activeSessionId: () => host.canvas.getState().activeCanvasId,
+      setProjectionCacheBudget: (bytes: number) =>
+        host.canvas.setProjectionCacheBudget(bytes),
+      loadSession: (snapshot: {
+        mode: "freeform" | "structured";
+        grid: [string, { char: string; color: string; bgColor?: string }][];
+        scene: [];
+        components: [];
+      }) => {
+        host.canvas.commands.sessions.create(snapshot.mode, { name: "Memory probe" });
+        const id = host.canvas.getState().activeCanvasId;
+        host.canvas.commands.sessions.replaceSnapshot(id, snapshot, {
+          preserveViewport: false,
+          resetHistory: true,
+        });
+        return id;
+      },
       cellCount: () => host.canvas.queries.getActiveCellCount(),
       surfaceStats: () => {
         const reader = getSurfaceGridReader(host.canvas.getState().grid);
