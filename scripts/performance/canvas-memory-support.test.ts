@@ -44,6 +44,13 @@ const run: CanvasMemoryRun = {
   },
   interactionPeakHeapBytes: 20_000_000,
   cycleRetainedHeapBytes: [10_500_000, 10_600_000, 10_700_000],
+  render: {
+    contentFrames: 3,
+    fullContentFrames: 3,
+    partialContentFrames: 0,
+    glyphs: 300,
+    dirtyCellArea: 0,
+  },
 };
 
 describe("canvas memory support", () => {
@@ -53,6 +60,8 @@ describe("canvas memory support", () => {
     const evaluated = evaluateCanvasMemoryRuns([run]);
     expect(evaluated.failures).toEqual([]);
     expect(evaluated.summary.releasedResidualBytes.median).toBe(500_000);
+    expect(evaluated.summary.renderedGlyphs.median).toBe(300);
+    expect(evaluated.summary.historyActions.median).toBe(0);
   });
 
   it("flags budget and lifecycle retention failures", () => {
@@ -116,7 +125,14 @@ describe("canvas memory support", () => {
         viewport: { width: 1440, height: 900 },
         deviceScaleFactor: 2,
       },
-      settings: { measuredRuns: 1, sampleIntervalMs: 100, gcPasses: 2 },
+      settings: {
+        measuredRuns: 1,
+        sampleIntervalMs: 100,
+        gcPasses: 2,
+        renderMode: "normal",
+        inputMode: "canvas",
+        allocationSampling: false,
+      },
       thresholds: {
         maxReleasedHeapResidualBytes: 4 * 1024 * 1024,
         maxReleasedHeapResidualRatio: 0.1,
@@ -141,5 +157,6 @@ describe("canvas memory support", () => {
     expect(createCanvasMemoryMarkdown(report)).toContain("25k Unicode");
     expect(createCanvasMemoryMarkdown(report)).toContain("Released history");
     expect(createCanvasMemoryMarkdown(report)).toContain("Unattributed cache");
+    expect(createCanvasMemoryMarkdown(report)).toContain("Rendered glyphs");
   });
 });

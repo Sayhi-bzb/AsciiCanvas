@@ -34,6 +34,7 @@ type MemoryDiagnostics = {
   loadSession: (snapshot: SessionSnapshot) => string;
   generateHistory: (operationCount: number) => void;
   memoryStats: () => Record<string, number>;
+  renderStats: () => Record<string, number | null> | null;
 };
 type Workload = {
   id: string;
@@ -67,6 +68,59 @@ const REPORT_DIR = process.env.CANVAS_MEMORY_REPORT_DIR ?? path.join(
   "test-results",
   "canvas-memory"
 );
+const RENDER_MODE = process.env.CHARDESK_MEMORY_RENDER_MODE === "off"
+  ? "off"
+  : "normal";
+const INPUT_MODE = process.env.CHARDESK_MEMORY_INPUT_MODE === "inert"
+  ? "inert"
+  : process.env.CHARDESK_MEMORY_INPUT_MODE === "insert-text"
+    ? "insert-text"
+    : "canvas";
+const ALLOCATION_SAMPLING = process.env.CHARDESK_MEMORY_ALLOCATIONS === "1";
+
+type AllocationProfileNode = {
+  selfSize: number;
+  callFrame: {
+    functionName: string;
+    url: string;
+    lineNumber: number;
+  };
+  children?: AllocationProfileNode[];
+};
+
+const summarizeAllocationProfile = (root: AllocationProfileNode) => {
+  const totals = new Map<string, number>();
+  const visit = (node: AllocationProfileNode) => {
+    const frame = node.callFrame;
+    const key = `${frame.url || "(native)"}:${frame.lineNumber + 1}:${frame.functionName || "(anonymous)"}`;
+    totals.set(key, (totals.get(key) ?? 0) + node.selfSize);
+    node.children?.forEach(visit);
+  };
+  visit(root);
+  return [...totals]
+    .map(([frame, bytes]) => ({ frame, bytes }))
+    .sort((left, right) => right.bytes - left.bytes)
+    .slice(0, 30);
+};
+
+const renderCounters = (stats: Record<string, number | null> | null) => ({
+  contentFrames: stats?.directFrames ?? 0,
+  fullContentFrames: stats?.fullContentFrames ?? 0,
+  partialContentFrames: stats?.partialContentFrames ?? 0,
+  glyphs: stats?.totalDirectGlyphs ?? 0,
+  dirtyCellArea: stats?.totalDirtyCellArea ?? 0,
+});
+
+const subtractRenderCounters = (
+  after: ReturnType<typeof renderCounters>,
+  before: ReturnType<typeof renderCounters>
+) => ({
+  contentFrames: after.contentFrames - before.contentFrames,
+  fullContentFrames: after.fullContentFrames - before.fullContentFrames,
+  partialContentFrames: after.partialContentFrames - before.partialContentFrames,
+  glyphs: after.glyphs - before.glyphs,
+  dirtyCellArea: after.dirtyCellArea - before.dirtyCellArea,
+});
 const STORAGE_KEY = "chardesk-persistence";
 const ONBOARDING_KEY = "chardesk-onboarding-v1";
 
@@ -330,6 +384,11 @@ const panCanvas = async (page: Page) => {
 
 test("measures canvas memory lifecycle workloads", async ({ browser }) => {
   const measured = [];
+  const allocationProfiles: Array<{
+    workloadId: string;
+    runIndex: number;
+    topAllocations: ReturnType<typeof summarizeAllocationProfile>;
+  }> = [];
   expect(selectedWorkloads.length, "No memory workloads matched CHARDESK_MEMORY_WORKLOADS")
     .toBeGreaterThan(0);
   for (const workload of selectedWorkloads) {
@@ -342,10 +401,13 @@ test("measures canvas memory lifecycle workloads", async ({ browser }) => {
       const page = await context.newPage();
       try {
         await installBlankStorage(page);
-        await page.goto("/?canvas-stress=1", {
-          waitUntil: "domcontentloaded",
-          timeout: 30_000,
-        });
+        await page.goto(
+          `/?canvas-stress=1${RENDER_MODE === "off" ? "&canvas-stress-render=off" : ""}`,
+          {
+            waitUntil: "domcontentloaded",
+            timeout: 30_000,
+          }
+        );
         await page.locator("canvas").first().waitFor({ timeout: 30_000 });
         const handle = await diagnostics(page);
         await handle.evaluate((api) => api.ready());
@@ -377,6 +439,13 @@ test("measures canvas memory lifecycle workloads", async ({ browser }) => {
         const targetIds: string[] = [];
         const cycleRetainedHeapBytes: number[] = [];
         let loadedAfterGc: CanvasMemoryCheckpoint | null = null;
+        const renderBefore = renderCounters(
+          await handle.evaluate((api) => api.renderStats())
+        );
+        if (ALLOCATION_SAMPLING) {
+          await cdp.send("HeapProfiler.enable");
+          await cdp.send("HeapProfiler.startSampling", { samplingInterval: 32_768 });
+        }
         const interactionPeakHeapBytes = await measurePeak(cdp, async () => {
           for (const grid of workload.grids) {
             const id = await handle.evaluate((api, value) => api.loadSession(value), snapshot(grid));
@@ -399,11 +468,29 @@ test("measures canvas memory lifecycle workloads", async ({ browser }) => {
               );
               await handle.evaluate((api) => api.ready());
             } else if (workload.history?.mode === "managed-input") {
-              const surface = page.getByTestId("canvas-editor-surface");
-              const bounds = await surface.boundingBox();
-              if (!bounds) throw new Error("Canvas surface has no bounding box");
-              await page.mouse.click(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
-              await page.keyboard.type("x".repeat(workload.history.operations));
+              if (INPUT_MODE === "inert") {
+                await page.evaluate(() => {
+                  const textarea = document.createElement("textarea");
+                  textarea.dataset.memoryInputControl = "true";
+                  textarea.style.position = "fixed";
+                  textarea.style.inset = "0 auto auto 0";
+                  textarea.addEventListener("input", () => { textarea.value = ""; });
+                  document.body.append(textarea);
+                  textarea.focus();
+                });
+                await page.keyboard.type("x".repeat(workload.history.operations));
+                await page.locator("[data-memory-input-control]").evaluate((node) => node.remove());
+              } else {
+                const surface = page.getByTestId("canvas-editor-surface");
+                const bounds = await surface.boundingBox();
+                if (!bounds) throw new Error("Canvas surface has no bounding box");
+                await page.mouse.click(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+                if (INPUT_MODE === "insert-text") {
+                  await page.keyboard.insertText("x".repeat(workload.history.operations));
+                } else {
+                  await page.keyboard.type("x".repeat(workload.history.operations));
+                }
+              }
               await handle.evaluate((api) => api.ready());
             }
             if (workload.switches) {
@@ -417,8 +504,21 @@ test("measures canvas memory lifecycle workloads", async ({ browser }) => {
             await panCanvas(page);
           }
         });
+        if (ALLOCATION_SAMPLING) {
+          const { profile } = await cdp.send("HeapProfiler.stopSampling");
+          allocationProfiles.push({
+            workloadId: workload.id,
+            runIndex,
+            topAllocations: summarizeAllocationProfile(
+              profile.head as AllocationProfileNode
+            ),
+          });
+        }
 
         loadedAfterGc ??= await collectCheckpoint(page, cdp);
+        const renderAfter = renderCounters(
+          await handle.evaluate((api) => api.renderStats())
+        );
         const retainedAfterGc = await collectCheckpoint(page, cdp);
         if (!workload.churn) {
           await handle.evaluate((api) => api.switchSession("memory-baseline"));
@@ -439,6 +539,7 @@ test("measures canvas memory lifecycle workloads", async ({ browser }) => {
           },
           interactionPeakHeapBytes,
           cycleRetainedHeapBytes,
+          render: subtractRenderCounters(renderAfter, renderBefore),
         });
       } finally {
         await context.close();
@@ -480,6 +581,9 @@ test("measures canvas memory lifecycle workloads", async ({ browser }) => {
       measuredRuns: MEASURED_RUNS,
       sampleIntervalMs: SAMPLE_INTERVAL_MS,
       gcPasses: GC_PASSES,
+      renderMode: RENDER_MODE,
+      inputMode: INPUT_MODE,
+      allocationSampling: ALLOCATION_SAMPLING,
     },
     thresholds: CANVAS_MEMORY_THRESHOLDS,
     workloads: measured,
@@ -488,6 +592,13 @@ test("measures canvas memory lifecycle workloads", async ({ browser }) => {
   await Promise.all([
     writeFile(path.join(REPORT_DIR, "report.json"), `${JSON.stringify(report, null, 2)}\n`, "utf8"),
     writeFile(path.join(REPORT_DIR, "report.md"), createCanvasMemoryMarkdown(report), "utf8"),
+    ...(ALLOCATION_SAMPLING
+      ? [writeFile(
+          path.join(REPORT_DIR, "allocations.json"),
+          `${JSON.stringify(allocationProfiles, null, 2)}\n`,
+          "utf8"
+        )]
+      : []),
   ]);
 
   const failures = measured.flatMap((workload) =>

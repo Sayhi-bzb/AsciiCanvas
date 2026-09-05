@@ -6,6 +6,9 @@ export type CanvasRenderExperienceStats = {
   directFrames: number;
   directGlyphs: number;
   totalDirectGlyphs: number;
+  fullContentFrames: number;
+  partialContentFrames: number;
+  totalDirtyCellArea: number;
   lastFrameDurationMs: number | null;
   maxFrameDurationMs: number;
   p95FrameDurationMs: number;
@@ -24,6 +27,9 @@ export class CanvasRenderExperience {
   #directFrames = 0;
   #directGlyphs = 0;
   #totalDirectGlyphs = 0;
+  #fullContentFrames = 0;
+  #partialContentFrames = 0;
+  #totalDirtyCellArea = 0;
   #lastFrameDurationMs: number | null = null;
   #maxFrameDurationMs = 0;
   readonly #frameDurations = new Float64Array(FRAME_DURATION_SAMPLE_LIMIT);
@@ -49,10 +55,17 @@ export class CanvasRenderExperience {
     this.#settleStartedAt = this.#now();
   }
 
-  recordDirectFrame(glyphs: number, durationMs: number): void {
+  recordDirectFrame(
+    glyphs: number,
+    durationMs: number,
+    details: { kind?: 'full' | 'partial'; dirtyCellArea?: number } = {}
+  ): void {
     this.#directFrames += 1;
     this.#directGlyphs = glyphs;
     this.#totalDirectGlyphs += glyphs;
+    if (details.kind === 'partial') this.#partialContentFrames += 1;
+    else this.#fullContentFrames += 1;
+    this.#totalDirtyCellArea += details.dirtyCellArea ?? 0;
     this.#lastFrameDurationMs = durationMs;
     this.#maxFrameDurationMs = Math.max(this.#maxFrameDurationMs, durationMs);
     this.#frameDurations[this.#nextFrameDurationSample] = durationMs;
@@ -85,6 +98,9 @@ export class CanvasRenderExperience {
       directFrames: this.#directFrames,
       directGlyphs: this.#directGlyphs,
       totalDirectGlyphs: this.#totalDirectGlyphs,
+      fullContentFrames: this.#fullContentFrames,
+      partialContentFrames: this.#partialContentFrames,
+      totalDirtyCellArea: this.#totalDirtyCellArea,
       lastFrameDurationMs: this.#lastFrameDurationMs,
       maxFrameDurationMs: this.#maxFrameDurationMs,
       p95FrameDurationMs: durations[p95Index] ?? 0,

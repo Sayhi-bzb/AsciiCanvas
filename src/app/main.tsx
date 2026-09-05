@@ -123,6 +123,9 @@ if (new URLSearchParams(window.location.search).has("canvas-stress")) {
           : null;
       },
       memoryStats: () => host.canvas.queries.getMemoryStats(),
+      renderStats: () => (window as Window & {
+        __chardeskCanvasExperienceStats?: () => Record<string, number | null>;
+      }).__chardeskCanvasExperienceStats?.() ?? null,
       resourceStats: () => {
         const memory = host.canvas.queries.getMemoryStats();
         const experience = (window as Window & {

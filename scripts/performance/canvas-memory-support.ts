@@ -1,4 +1,4 @@
-export const CANVAS_MEMORY_SCHEMA = 2;
+export const CANVAS_MEMORY_SCHEMA = 3;
 
 export const CANVAS_MEMORY_THRESHOLDS = Object.freeze({
   maxReleasedHeapResidualBytes: 4 * 1024 * 1024,
@@ -35,6 +35,13 @@ export type CanvasMemoryRun = {
   checkpoints: Record<MemoryCheckpointName, CanvasMemoryCheckpoint>;
   interactionPeakHeapBytes: number;
   cycleRetainedHeapBytes: number[];
+  render: {
+    contentFrames: number;
+    fullContentFrames: number;
+    partialContentFrames: number;
+    glyphs: number;
+    dirtyCellArea: number;
+  };
 };
 
 export type Distribution = {
@@ -56,6 +63,13 @@ export type CanvasMemorySummary = {
   cycleHeapSlopeBytes: Distribution;
   releasedHistoryBytes: Distribution;
   unattributedProjectionCacheBytes: Distribution;
+  contentFrames: Distribution;
+  fullContentFrames: Distribution;
+  partialContentFrames: Distribution;
+  renderedGlyphs: Distribution;
+  dirtyCellArea: Distribution;
+  historyActions: Distribution;
+  operations: Distribution;
 };
 
 export type CanvasMemoryWorkload = {
@@ -90,6 +104,9 @@ export type CanvasMemoryReport = {
     measuredRuns: number;
     sampleIntervalMs: number;
     gcPasses: number;
+    renderMode: "normal" | "off";
+    inputMode: "canvas" | "inert" | "insert-text";
+    allocationSampling: boolean;
   };
   thresholds: typeof CANVAS_MEMORY_THRESHOLDS;
   workloads: CanvasMemoryWorkload[];
@@ -152,6 +169,21 @@ const deriveRun = (run: CanvasMemoryRun) => {
         (checkpoint) => checkpoint.engine.unattributedProjectionCacheBytes ?? 0
       )
     ),
+    contentFrames: run.render.contentFrames,
+    fullContentFrames: run.render.fullContentFrames,
+    partialContentFrames: run.render.partialContentFrames,
+    renderedGlyphs: run.render.glyphs,
+    dirtyCellArea: run.render.dirtyCellArea,
+    historyActions: Math.max(
+      0,
+      (retainedAfterGc.engine.historyActions ?? 0) -
+        (loadedAfterGc.engine.historyActions ?? 0)
+    ),
+    operations: Math.max(
+      0,
+      (retainedAfterGc.engine.operations ?? 0) -
+        (loadedAfterGc.engine.operations ?? 0)
+    ),
   };
 };
 
@@ -175,6 +207,13 @@ export const summarizeCanvasMemoryRuns = (
     unattributedProjectionCacheBytes: summarize(
       derived.map((value) => value.unattributedProjectionCacheBytes)
     ),
+    contentFrames: summarize(derived.map((value) => value.contentFrames)),
+    fullContentFrames: summarize(derived.map((value) => value.fullContentFrames)),
+    partialContentFrames: summarize(derived.map((value) => value.partialContentFrames)),
+    renderedGlyphs: summarize(derived.map((value) => value.renderedGlyphs)),
+    dirtyCellArea: summarize(derived.map((value) => value.dirtyCellArea)),
+    historyActions: summarize(derived.map((value) => value.historyActions)),
+    operations: summarize(derived.map((value) => value.operations)),
   };
 };
 
@@ -249,14 +288,15 @@ export const createCanvasMemoryMarkdown = (report: CanvasMemoryReport) => {
     `Commit: \`${report.gitCommit}\`${report.gitDirty ? " (dirty)" : ""}`,
     `Scope: ${report.scope}; excludes ${report.exclusions.join(", ")}.`,
     `Sampling: ${report.settings.measuredRuns} runs, ${report.settings.sampleIntervalMs} ms peak interval, ${report.settings.gcPasses} GC passes per retained checkpoint.`,
+    `Experiment: render=${report.settings.renderMode}, input=${report.settings.inputMode}, allocation sampling=${report.settings.allocationSampling ? "on" : "off"}.`,
     "",
-    "| Workload | Result | Loaded retained | Interaction peak | Retained | Released residual | Reclaimed | DOM / detached / listeners residual | Released history | Unattributed cache | Churn slope |",
-    "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+    "| Workload | Result | Loaded retained | Interaction peak | Retained | Released residual | Reclaimed | DOM / detached / listeners residual | Released history | Unattributed cache | Churn slope | Operations / history actions | Content frames (full/partial) | Rendered glyphs | Dirty cell area |",
+    "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
   ];
   for (const workload of report.workloads) {
     const summary = workload.summary;
     lines.push(
-      `| ${workload.label} | ${workload.passed ? "pass" : `fail: ${workload.failures.join(", ")}`} | ${mib(summary.loadedRetainedDeltaBytes.median)} | ${mib(summary.interactionPeakDeltaBytes.p95)} | ${mib(summary.retainedDeltaBytes.median)} | ${mib(summary.releasedResidualBytes.median)} | ${(summary.reclaimRatio.median * 100).toFixed(1)}% | ${summary.domNodeResidual.median.toFixed(0)} / ${summary.detachedDomNodeResidual.median.toFixed(0)} / ${summary.listenerResidual.median.toFixed(0)} | ${mib(summary.releasedHistoryBytes.median)} | ${mib(summary.unattributedProjectionCacheBytes.median)} | ${mib(summary.cycleHeapSlopeBytes.median)}/cycle |`
+      `| ${workload.label} | ${workload.passed ? "pass" : `fail: ${workload.failures.join(", ")}`} | ${mib(summary.loadedRetainedDeltaBytes.median)} | ${mib(summary.interactionPeakDeltaBytes.p95)} | ${mib(summary.retainedDeltaBytes.median)} | ${mib(summary.releasedResidualBytes.median)} | ${(summary.reclaimRatio.median * 100).toFixed(1)}% | ${summary.domNodeResidual.median.toFixed(0)} / ${summary.detachedDomNodeResidual.median.toFixed(0)} / ${summary.listenerResidual.median.toFixed(0)} | ${mib(summary.releasedHistoryBytes.median)} | ${mib(summary.unattributedProjectionCacheBytes.median)} | ${mib(summary.cycleHeapSlopeBytes.median)}/cycle | ${summary.operations.median.toFixed(0)} / ${summary.historyActions.median.toFixed(0)} | ${summary.contentFrames.median.toFixed(0)} (${summary.fullContentFrames.median.toFixed(0)}/${summary.partialContentFrames.median.toFixed(0)}) | ${summary.renderedGlyphs.median.toFixed(0)} | ${summary.dirtyCellArea.median.toFixed(0)} |`
     );
   }
   lines.push("");

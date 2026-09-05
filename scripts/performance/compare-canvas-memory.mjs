@@ -60,6 +60,31 @@ if (!baselinePath || !candidatePath) {
       if (delta > allowed) regressions.push(`${beforeWorkload.id}:${metric}`);
     }
   }
+  lines.push(
+    "",
+    "## Render and mutation work",
+    "",
+    "| Workload | Metric | Baseline median | Candidate median | Delta |",
+    "| --- | --- | ---: | ---: | ---: |",
+  );
+  for (const beforeWorkload of baseline.workloads) {
+    const afterWorkload = candidateById.get(beforeWorkload.id);
+    for (const metric of [
+      "operations",
+      "historyActions",
+      "contentFrames",
+      "fullContentFrames",
+      "partialContentFrames",
+      "renderedGlyphs",
+      "dirtyCellArea",
+    ]) {
+      const before = beforeWorkload.summary[metric].median;
+      const after = afterWorkload.summary[metric].median;
+      lines.push(
+        `| ${beforeWorkload.label} | ${metric} | ${before.toFixed(0)} | ${after.toFixed(0)} | ${pct(before, after)} |`,
+      );
+    }
+  }
   lines.push("", regressions.length ? `Guard regressions: ${regressions.join(", ")}` : "Guard regressions: none", "");
   const markdown = lines.join("\n");
   if (outputPath) await writeFile(path.resolve(outputPath), markdown);
