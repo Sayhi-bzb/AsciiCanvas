@@ -19,6 +19,7 @@ export type CanvasRenderExperienceStats = {
   managedInputTextLength: number;
   firstManagedInputBatches: number;
   burstManagedInputBatches: number;
+  capacityManagedInputBatches: number;
   boundaryManagedInputBatches: number;
   imeManagedInputBatches: number;
   firstManagedInputCommitP95Ms: number;
@@ -26,6 +27,12 @@ export type CanvasRenderExperienceStats = {
   burstManagedInputCommitMaxMs: number;
   managedInputCommitP95Ms: number;
   managedInputCommitMaxMs: number;
+  managedInputQueueP95Ms: number;
+  managedInputQueueMaxMs: number;
+  managedInputEndToEndP95Ms: number;
+  managedInputEndToEndMaxMs: number;
+  managedInputBatchTextLengthP95: number;
+  managedInputBatchTextLengthMax: number;
 };
 
 const LONG_FRAME_MS = 34;
@@ -63,6 +70,7 @@ export class CanvasRenderExperience {
   #managedInputTextLength = 0;
   #firstManagedInputBatches = 0;
   #burstManagedInputBatches = 0;
+  #capacityManagedInputBatches = 0;
   #boundaryManagedInputBatches = 0;
   #imeManagedInputBatches = 0;
   readonly #firstManagedInputLatencies = new Float64Array(INPUT_LATENCY_SAMPLE_LIMIT);
@@ -76,6 +84,18 @@ export class CanvasRenderExperience {
   #managedInputCommitDurationSamples = 0;
   #nextManagedInputCommitDurationSample = 0;
   #managedInputCommitMaxMs = 0;
+  readonly #managedInputQueueLatencies = new Float64Array(INPUT_LATENCY_SAMPLE_LIMIT);
+  #managedInputQueueLatencySamples = 0;
+  #nextManagedInputQueueLatencySample = 0;
+  #managedInputQueueMaxMs = 0;
+  readonly #managedInputEndToEndLatencies = new Float64Array(INPUT_LATENCY_SAMPLE_LIMIT);
+  #managedInputEndToEndLatencySamples = 0;
+  #nextManagedInputEndToEndLatencySample = 0;
+  #managedInputEndToEndMaxMs = 0;
+  readonly #managedInputBatchTextLengths = new Float64Array(INPUT_LATENCY_SAMPLE_LIMIT);
+  #managedInputBatchTextLengthSamples = 0;
+  #nextManagedInputBatchTextLengthSample = 0;
+  #managedInputBatchTextLengthMax = 0;
 
   constructor(now: () => number = () => performance.now()) {
     this.#now = now;
@@ -125,13 +145,50 @@ export class CanvasRenderExperience {
   }
 
   recordManagedInputBatch(sample: {
-    kind: 'first' | 'burst' | 'boundary' | 'ime';
+    kind: 'first' | 'burst' | 'capacity' | 'boundary' | 'ime';
     textLength: number;
     latencyMs: number;
     commitDurationMs: number;
   }): void {
     this.#managedInputBatches += 1;
     this.#managedInputTextLength += sample.textLength;
+    this.#managedInputQueueLatencies[this.#nextManagedInputQueueLatencySample] =
+      sample.latencyMs;
+    this.#nextManagedInputQueueLatencySample =
+      (this.#nextManagedInputQueueLatencySample + 1) % INPUT_LATENCY_SAMPLE_LIMIT;
+    this.#managedInputQueueLatencySamples = Math.min(
+      this.#managedInputQueueLatencySamples + 1,
+      INPUT_LATENCY_SAMPLE_LIMIT
+    );
+    this.#managedInputQueueMaxMs = Math.max(
+      this.#managedInputQueueMaxMs,
+      sample.latencyMs
+    );
+    const endToEndMs = sample.latencyMs + sample.commitDurationMs;
+    this.#managedInputEndToEndLatencies[this.#nextManagedInputEndToEndLatencySample] =
+      endToEndMs;
+    this.#nextManagedInputEndToEndLatencySample =
+      (this.#nextManagedInputEndToEndLatencySample + 1) % INPUT_LATENCY_SAMPLE_LIMIT;
+    this.#managedInputEndToEndLatencySamples = Math.min(
+      this.#managedInputEndToEndLatencySamples + 1,
+      INPUT_LATENCY_SAMPLE_LIMIT
+    );
+    this.#managedInputEndToEndMaxMs = Math.max(
+      this.#managedInputEndToEndMaxMs,
+      endToEndMs
+    );
+    this.#managedInputBatchTextLengths[this.#nextManagedInputBatchTextLengthSample] =
+      sample.textLength;
+    this.#nextManagedInputBatchTextLengthSample =
+      (this.#nextManagedInputBatchTextLengthSample + 1) % INPUT_LATENCY_SAMPLE_LIMIT;
+    this.#managedInputBatchTextLengthSamples = Math.min(
+      this.#managedInputBatchTextLengthSamples + 1,
+      INPUT_LATENCY_SAMPLE_LIMIT
+    );
+    this.#managedInputBatchTextLengthMax = Math.max(
+      this.#managedInputBatchTextLengthMax,
+      sample.textLength
+    );
     this.#managedInputCommitDurations[this.#nextManagedInputCommitDurationSample] =
       sample.commitDurationMs;
     this.#nextManagedInputCommitDurationSample =
@@ -168,11 +225,40 @@ export class CanvasRenderExperience {
         this.#burstManagedInputCommitMaxMs,
         sample.latencyMs
       );
+    } else if (sample.kind === 'capacity') {
+      this.#capacityManagedInputBatches += 1;
     } else if (sample.kind === 'boundary') {
       this.#boundaryManagedInputBatches += 1;
     } else {
       this.#imeManagedInputBatches += 1;
     }
+  }
+
+  resetManagedInputStats(): void {
+    this.#managedInputBatches = 0;
+    this.#managedInputTextLength = 0;
+    this.#firstManagedInputBatches = 0;
+    this.#burstManagedInputBatches = 0;
+    this.#capacityManagedInputBatches = 0;
+    this.#boundaryManagedInputBatches = 0;
+    this.#imeManagedInputBatches = 0;
+    this.#firstManagedInputLatencySamples = 0;
+    this.#nextFirstManagedInputLatencySample = 0;
+    this.#burstManagedInputLatencySamples = 0;
+    this.#nextBurstManagedInputLatencySample = 0;
+    this.#burstManagedInputCommitMaxMs = 0;
+    this.#managedInputCommitDurationSamples = 0;
+    this.#nextManagedInputCommitDurationSample = 0;
+    this.#managedInputCommitMaxMs = 0;
+    this.#managedInputQueueLatencySamples = 0;
+    this.#nextManagedInputQueueLatencySample = 0;
+    this.#managedInputQueueMaxMs = 0;
+    this.#managedInputEndToEndLatencySamples = 0;
+    this.#nextManagedInputEndToEndLatencySample = 0;
+    this.#managedInputEndToEndMaxMs = 0;
+    this.#managedInputBatchTextLengthSamples = 0;
+    this.#nextManagedInputBatchTextLengthSample = 0;
+    this.#managedInputBatchTextLengthMax = 0;
   }
 
   getStats(): CanvasRenderExperienceStats {
@@ -198,6 +284,7 @@ export class CanvasRenderExperience {
       managedInputTextLength: this.#managedInputTextLength,
       firstManagedInputBatches: this.#firstManagedInputBatches,
       burstManagedInputBatches: this.#burstManagedInputBatches,
+      capacityManagedInputBatches: this.#capacityManagedInputBatches,
       boundaryManagedInputBatches: this.#boundaryManagedInputBatches,
       imeManagedInputBatches: this.#imeManagedInputBatches,
       firstManagedInputCommitP95Ms: p95(
@@ -214,6 +301,21 @@ export class CanvasRenderExperience {
         this.#managedInputCommitDurationSamples
       ),
       managedInputCommitMaxMs: this.#managedInputCommitMaxMs,
+      managedInputQueueP95Ms: p95(
+        this.#managedInputQueueLatencies,
+        this.#managedInputQueueLatencySamples
+      ),
+      managedInputQueueMaxMs: this.#managedInputQueueMaxMs,
+      managedInputEndToEndP95Ms: p95(
+        this.#managedInputEndToEndLatencies,
+        this.#managedInputEndToEndLatencySamples
+      ),
+      managedInputEndToEndMaxMs: this.#managedInputEndToEndMaxMs,
+      managedInputBatchTextLengthP95: p95(
+        this.#managedInputBatchTextLengths,
+        this.#managedInputBatchTextLengthSamples
+      ),
+      managedInputBatchTextLengthMax: this.#managedInputBatchTextLengthMax,
     };
   }
 }

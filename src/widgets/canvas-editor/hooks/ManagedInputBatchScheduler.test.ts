@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   ManagedInputBatchScheduler,
+  resolveManagedInputBatchLimit,
   resolveManagedInputCommitCadence,
   type ManagedInputBatchSample,
 } from './ManagedInputBatchScheduler';
 
-const createHarness = (cadenceMs: number) => {
+const createHarness = (cadenceMs: number, maxPendingTextLength?: number) => {
   let now = 0;
   let nextHandle = 1;
   const frames = new Map<number, () => void>();
@@ -26,7 +27,7 @@ const createHarness = (cadenceMs: number) => {
     },
     clearTimer: (handle) => { timers.delete(handle); },
     commit: (value, sample) => { commits.push({ value, sample }); },
-  }, cadenceMs);
+  }, cadenceMs, maxPendingTextLength);
   return {
     scheduler,
     commits,
@@ -102,6 +103,28 @@ describe('ManagedInputBatchScheduler', () => {
     harness.scheduler.enqueue('new');
     expect(harness.pending()).toEqual({ frames: 1, timers: 0 });
   });
+
+  it('commits at the capacity boundary and cancels scheduled work', () => {
+    const harness = createHarness(50, 4);
+    harness.scheduler.enqueue('ab');
+    harness.scheduler.enqueue('cd');
+
+    expect(harness.commits).toEqual([{
+      value: 'abcd',
+      sample: { kind: 'capacity', textLength: 4, latencyMs: 0 },
+    }]);
+    expect(harness.pending()).toEqual({ frames: 0, timers: 0 });
+  });
+
+  it('keeps one browser input event atomic when it exceeds the threshold', () => {
+    const harness = createHarness(50, 4);
+    harness.scheduler.enqueue('👩🏽‍💻');
+
+    expect(harness.commits).toEqual([{
+      value: '👩🏽‍💻',
+      sample: { kind: 'capacity', textLength: '👩🏽‍💻'.length, latencyMs: 0 },
+    }]);
+  });
 });
 
 describe('resolveManagedInputCommitCadence', () => {
@@ -117,5 +140,22 @@ describe('resolveManagedInputCommitCadence', () => {
     expect(resolveManagedInputCommitCadence(
       '?canvas-stress-input-commit-ms=80', 50
     )).toBe(50);
+  });
+});
+
+describe('resolveManagedInputBatchLimit', () => {
+  it('only accepts experiment overrides on stress routes', () => {
+    expect(resolveManagedInputBatchLimit('')).toBe(Number.POSITIVE_INFINITY);
+    expect(resolveManagedInputBatchLimit('', 256)).toBe(256);
+    expect(resolveManagedInputBatchLimit('?canvas-stress=1', 256)).toBe(256);
+    expect(resolveManagedInputBatchLimit(
+      '?canvas-stress=1&canvas-stress-input-buffer-limit=unbounded'
+    )).toBe(Number.POSITIVE_INFINITY);
+    expect(resolveManagedInputBatchLimit(
+      '?canvas-stress=1&canvas-stress-input-buffer-limit=512', 256
+    )).toBe(512);
+    expect(resolveManagedInputBatchLimit(
+      '?canvas-stress-input-buffer-limit=unbounded', 256
+    )).toBe(256);
   });
 });

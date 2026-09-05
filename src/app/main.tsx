@@ -97,6 +97,10 @@ if (canvasStressParams.has("canvas-stress")) {
       removeSession: (id: string) => host.canvas.commands.sessions.remove(id),
       sessionIds: () => host.canvas.getState().canvasSessions.map(({ id }) => id),
       activeSessionId: () => host.canvas.getState().activeCanvasId,
+      createSession: (mode: "freeform" | "structured" = "freeform") => {
+        host.canvas.commands.sessions.create(mode, { name: "Input scheduling probe" });
+        return host.canvas.getState().activeCanvasId;
+      },
       setProjectionCacheBudget: (bytes: number) =>
         host.canvas.setProjectionCacheBudget(bytes),
       loadSession: (snapshot: {
@@ -119,6 +123,15 @@ if (canvasStressParams.has("canvas-stress")) {
           host.canvas.commands.text.write("x");
         }
       },
+      setTextCursor: (point: { x: number; y: number }) =>
+        (window as Window & {
+          __chardeskCanvasManagedInputSetCursor?: (
+            point: { x: number; y: number }
+          ) => void;
+        }).__chardeskCanvasManagedInputSetCursor?.(point),
+      managedInputCursor: () => (window as Window & {
+        __chardeskCanvasManagedInputCursor?: () => { x: number; y: number } | null;
+      }).__chardeskCanvasManagedInputCursor?.() ?? null,
       writeText: (value: string, start = { x: 0, y: 0 }) => {
         host.canvas.commands.interaction.setTextCursor(start);
         const startedAt = performance.now();
@@ -141,6 +154,20 @@ if (canvasStressParams.has("canvas-stress")) {
       renderStats: () => (window as Window & {
         __chardeskCanvasExperienceStats?: () => Record<string, number | null>;
       }).__chardeskCanvasExperienceStats?.() ?? null,
+      resetManagedInputStats: () => (window as Window & {
+        __chardeskCanvasExperienceResetManagedInput?: () => void;
+      }).__chardeskCanvasExperienceResetManagedInput?.(),
+      focusManagedInput: () => {
+        const focus = (window as Window & {
+          __chardeskCanvasManagedInputFocus?: () => void;
+        }).__chardeskCanvasManagedInputFocus;
+        if (!focus) return false;
+        focus();
+        return true;
+      },
+      managedInputIdentity: () => (window as Window & {
+        __chardeskCanvasManagedInputIdentity?: () => string;
+      }).__chardeskCanvasManagedInputIdentity?.() ?? null,
       resourceStats: () => {
         const memory = host.canvas.queries.getMemoryStats();
         const experience = (window as Window & {
@@ -159,12 +186,19 @@ if (canvasStressParams.has("canvas-stress")) {
             managedInputTextLength: number;
             firstManagedInputBatches: number;
             burstManagedInputBatches: number;
+            capacityManagedInputBatches: number;
             boundaryManagedInputBatches: number;
             firstManagedInputCommitP95Ms: number;
             burstManagedInputCommitP95Ms: number;
             burstManagedInputCommitMaxMs: number;
             managedInputCommitP95Ms: number;
             managedInputCommitMaxMs: number;
+            managedInputQueueP95Ms: number;
+            managedInputQueueMaxMs: number;
+            managedInputEndToEndP95Ms: number;
+            managedInputEndToEndMaxMs: number;
+            managedInputBatchTextLengthP95: number;
+            managedInputBatchTextLengthMax: number;
           };
         }).__chardeskCanvasExperienceStats?.();
         return {
@@ -187,6 +221,8 @@ if (canvasStressParams.has("canvas-stress")) {
           managedInputTextLength: experience?.managedInputTextLength ?? 0,
           firstManagedInputBatches: experience?.firstManagedInputBatches ?? 0,
           burstManagedInputBatches: experience?.burstManagedInputBatches ?? 0,
+          capacityManagedInputBatches:
+            experience?.capacityManagedInputBatches ?? 0,
           boundaryManagedInputBatches: experience?.boundaryManagedInputBatches ?? 0,
           firstManagedInputCommitP95Ms:
             experience?.firstManagedInputCommitP95Ms ?? 0,
@@ -196,6 +232,16 @@ if (canvasStressParams.has("canvas-stress")) {
             experience?.burstManagedInputCommitMaxMs ?? 0,
           managedInputCommitP95Ms: experience?.managedInputCommitP95Ms ?? 0,
           managedInputCommitMaxMs: experience?.managedInputCommitMaxMs ?? 0,
+          managedInputQueueP95Ms: experience?.managedInputQueueP95Ms ?? 0,
+          managedInputQueueMaxMs: experience?.managedInputQueueMaxMs ?? 0,
+          managedInputEndToEndP95Ms:
+            experience?.managedInputEndToEndP95Ms ?? 0,
+          managedInputEndToEndMaxMs:
+            experience?.managedInputEndToEndMaxMs ?? 0,
+          managedInputBatchTextLengthP95:
+            experience?.managedInputBatchTextLengthP95 ?? 0,
+          managedInputBatchTextLengthMax:
+            experience?.managedInputBatchTextLengthMax ?? 0,
         };
       },
       persistence: () => host.canvas.getPersistenceSnapshot(),

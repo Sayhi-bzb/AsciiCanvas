@@ -46,6 +46,7 @@ import {
 } from "./managedTextInputSession";
 import {
   ManagedInputBatchScheduler,
+  resolveManagedInputBatchLimit,
   resolveManagedInputCommitCadence,
   type ManagedInputBatchCommitSample,
 } from './ManagedInputBatchScheduler';
@@ -194,6 +195,8 @@ export const useManagedCanvasInput = ({
     clearTimer: (handle) => window.clearTimeout(handle),
     commit: () => undefined,
   }, resolveManagedInputCommitCadence(
+    typeof window === 'undefined' ? '' : window.location.search
+  ), resolveManagedInputBatchLimit(
     typeof window === 'undefined' ? '' : window.location.search
   )));
   useLayoutEffect(() => {
@@ -726,6 +729,7 @@ export const useManagedCanvasInput = ({
 
   return {
     textareaRef,
+    focusManagedTextarea,
     restoreManagedInputFocus,
     canvasOwnsInputFocus,
     onCanvasPointerDown: handleCanvasPointerDown,

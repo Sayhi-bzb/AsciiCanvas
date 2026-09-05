@@ -31,6 +31,7 @@ describe('CanvasRenderExperience', () => {
       managedInputTextLength: 0,
       firstManagedInputBatches: 0,
       burstManagedInputBatches: 0,
+      capacityManagedInputBatches: 0,
       boundaryManagedInputBatches: 0,
       imeManagedInputBatches: 0,
       firstManagedInputCommitP95Ms: 0,
@@ -38,6 +39,12 @@ describe('CanvasRenderExperience', () => {
       burstManagedInputCommitMaxMs: 0,
       managedInputCommitP95Ms: 0,
       managedInputCommitMaxMs: 0,
+      managedInputQueueP95Ms: 0,
+      managedInputQueueMaxMs: 0,
+      managedInputEndToEndP95Ms: 0,
+      managedInputEndToEndMaxMs: 0,
+      managedInputBatchTextLengthP95: 0,
+      managedInputBatchTextLengthMax: 0,
     });
   });
 
@@ -82,12 +89,14 @@ describe('CanvasRenderExperience', () => {
     experience.recordManagedInputBatch({ kind: 'burst', textLength: 4, latencyMs: 48, commitDurationMs: 8 });
     experience.recordManagedInputBatch({ kind: 'burst', textLength: 3, latencyMs: 52, commitDurationMs: 6 });
     experience.recordManagedInputBatch({ kind: 'boundary', textLength: 1, latencyMs: 2, commitDurationMs: 2 });
+    experience.recordManagedInputBatch({ kind: 'capacity', textLength: 512, latencyMs: 20, commitDurationMs: 5 });
 
     expect(experience.getStats()).toMatchObject({
-      managedInputBatches: 4,
-      managedInputTextLength: 10,
+      managedInputBatches: 5,
+      managedInputTextLength: 522,
       firstManagedInputBatches: 1,
       burstManagedInputBatches: 2,
+      capacityManagedInputBatches: 1,
       boundaryManagedInputBatches: 1,
       imeManagedInputBatches: 0,
       firstManagedInputCommitP95Ms: 12,
@@ -95,6 +104,33 @@ describe('CanvasRenderExperience', () => {
       burstManagedInputCommitMaxMs: 52,
       managedInputCommitP95Ms: 8,
       managedInputCommitMaxMs: 8,
+      managedInputQueueP95Ms: 52,
+      managedInputQueueMaxMs: 52,
+      managedInputEndToEndP95Ms: 58,
+      managedInputEndToEndMaxMs: 58,
+      managedInputBatchTextLengthP95: 512,
+      managedInputBatchTextLengthMax: 512,
+    });
+  });
+
+  it('resets managed input measurements without resetting render measurements', () => {
+    const experience = new CanvasRenderExperience();
+    experience.recordDirectFrame(10, 4);
+    experience.recordManagedInputBatch({
+      kind: 'capacity', textLength: 512, latencyMs: 20, commitDurationMs: 5,
+    });
+
+    experience.resetManagedInputStats();
+
+    expect(experience.getStats()).toMatchObject({
+      directFrames: 1,
+      managedInputBatches: 0,
+      managedInputTextLength: 0,
+      capacityManagedInputBatches: 0,
+      managedInputQueueP95Ms: 0,
+      managedInputCommitP95Ms: 0,
+      managedInputEndToEndP95Ms: 0,
+      managedInputBatchTextLengthMax: 0,
     });
   });
 });

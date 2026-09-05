@@ -1,4 +1,9 @@
-export type ManagedInputBatchKind = 'first' | 'burst' | 'boundary' | 'ime';
+export type ManagedInputBatchKind =
+  | 'first'
+  | 'burst'
+  | 'capacity'
+  | 'boundary'
+  | 'ime';
 
 export type ManagedInputBatchSample = {
   kind: ManagedInputBatchKind;
@@ -11,6 +16,7 @@ export type ManagedInputBatchCommitSample = ManagedInputBatchSample & {
 };
 
 export const DEFAULT_MANAGED_INPUT_COMMIT_CADENCE_MS = 32;
+export const DEFAULT_MANAGED_INPUT_BATCH_LIMIT = Number.POSITIVE_INFINITY;
 
 type ManagedInputBatchSchedulerPort = {
   now: () => number;
@@ -25,6 +31,7 @@ type ManagedInputBatchSchedulerPort = {
 export class ManagedInputBatchScheduler {
   readonly #port: ManagedInputBatchSchedulerPort;
   readonly #cadenceMs: number;
+  readonly #maxPendingTextLength: number;
   #commitHandler: ManagedInputBatchSchedulerPort['commit'];
   #pending = '';
   #pendingSince: number | null = null;
@@ -32,9 +39,16 @@ export class ManagedInputBatchScheduler {
   #timer: number | null = null;
   #lastCommitAt: number | null = null;
 
-  constructor(port: ManagedInputBatchSchedulerPort, cadenceMs: number) {
+  constructor(
+    port: ManagedInputBatchSchedulerPort,
+    cadenceMs: number,
+    maxPendingTextLength = DEFAULT_MANAGED_INPUT_BATCH_LIMIT
+  ) {
     this.#port = port;
     this.#cadenceMs = Math.max(0, cadenceMs);
+    this.#maxPendingTextLength = Number.isFinite(maxPendingTextLength)
+      ? Math.max(1, Math.floor(maxPendingTextLength))
+      : Number.POSITIVE_INFINITY;
     this.#commitHandler = port.commit;
   }
 
@@ -47,6 +61,10 @@ export class ManagedInputBatchScheduler {
     const now = this.#port.now();
     if (!this.#pending) this.#pendingSince = now;
     this.#pending += value;
+    if (this.#pending.length >= this.#maxPendingTextLength) {
+      this.flush('capacity');
+      return;
+    }
     if (this.#frame !== null || this.#timer !== null) return;
 
     const elapsed = this.#lastCommitAt === null
@@ -122,4 +140,15 @@ export const resolveManagedInputCommitCadence = (
   return cadence === 32 || cadence === 50 || cadence === 80
     ? cadence
     : defaultCadenceMs;
+};
+
+export const resolveManagedInputBatchLimit = (
+  search: string,
+  defaultLimit = DEFAULT_MANAGED_INPUT_BATCH_LIMIT
+): number => {
+  const params = new URLSearchParams(search);
+  if (!params.has('canvas-stress')) return defaultLimit;
+  const requested = params.get('canvas-stress-input-buffer-limit');
+  if (requested === 'unbounded') return Number.POSITIVE_INFINITY;
+  return requested === '512' ? 512 : defaultLimit;
 };

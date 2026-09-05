@@ -208,6 +208,7 @@ export const CanvasEditor = ({
   );
   const {
     textareaRef,
+    focusManagedTextarea,
     restoreManagedInputFocus,
     canvasOwnsInputFocus,
     onCanvasPointerDown,
@@ -288,15 +289,58 @@ export const CanvasEditor = ({
       __chardeskCanvasExperienceStats?: () => ReturnType<
         typeof runtime.renderExperience.getStats
       >;
+      __chardeskCanvasExperienceResetManagedInput?: () => void;
+      __chardeskCanvasManagedInputFocus?: () => void;
+      __chardeskCanvasManagedInputIdentity?: () => string;
+      __chardeskCanvasManagedInputSetCursor?: (point: { x: number; y: number }) => void;
+      __chardeskCanvasManagedInputCursor?: () => { x: number; y: number } | null;
     };
     const readStats = () => runtime.renderExperience.getStats();
+    const resetManagedInput = () => runtime.renderExperience.resetManagedInputStats();
+    const readManagedInputIdentity = () => activeCanvasId;
+    const setManagedInputCursor = (point: { x: number; y: number }) =>
+      editorStore.setTextCursor(point);
+    const readManagedInputCursor = () => editorStore.textCursor;
     diagnostics.__chardeskCanvasExperienceStats = readStats;
+    diagnostics.__chardeskCanvasExperienceResetManagedInput = resetManagedInput;
+    diagnostics.__chardeskCanvasManagedInputFocus = focusManagedTextarea;
+    diagnostics.__chardeskCanvasManagedInputIdentity = readManagedInputIdentity;
+    diagnostics.__chardeskCanvasManagedInputSetCursor = setManagedInputCursor;
+    diagnostics.__chardeskCanvasManagedInputCursor = readManagedInputCursor;
     return () => {
       if (diagnostics.__chardeskCanvasExperienceStats === readStats) {
         delete diagnostics.__chardeskCanvasExperienceStats;
       }
+      if (
+        diagnostics.__chardeskCanvasExperienceResetManagedInput === resetManagedInput
+      ) {
+        delete diagnostics.__chardeskCanvasExperienceResetManagedInput;
+      }
+      if (diagnostics.__chardeskCanvasManagedInputFocus === focusManagedTextarea) {
+        delete diagnostics.__chardeskCanvasManagedInputFocus;
+      }
+      if (
+        diagnostics.__chardeskCanvasManagedInputIdentity === readManagedInputIdentity
+      ) {
+        delete diagnostics.__chardeskCanvasManagedInputIdentity;
+      }
+      if (
+        diagnostics.__chardeskCanvasManagedInputSetCursor === setManagedInputCursor
+      ) {
+        delete diagnostics.__chardeskCanvasManagedInputSetCursor;
+      }
+      if (diagnostics.__chardeskCanvasManagedInputCursor === readManagedInputCursor) {
+        delete diagnostics.__chardeskCanvasManagedInputCursor;
+      }
     };
-  }, [active, runtime]);
+  }, [
+    active,
+    activeCanvasId,
+    editorStore.setTextCursor,
+    editorStore.textCursor,
+    focusManagedTextarea,
+    runtime,
+  ]);
 
   useCanvasRenderer(
     canvasLayers,
