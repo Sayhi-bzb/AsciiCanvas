@@ -109,6 +109,23 @@ describe("unified Canvas documents", () => {
     documents.dispose();
   });
 
+  it("rebuilds page observers before mutating a replaced empty document", () => {
+    const documents = new CanvasDocumentRegistry("replace-empty");
+    documents.activateDocument("replace-empty", {
+      mode: "freeform",
+      grid: [],
+      scene: [],
+      components: [],
+    }, { replace: true });
+
+    documents.mutateGrid((grid) => grid.set("0,0", cell("A")));
+
+    expect(documents.getContentReader().getCell({ x: 0, y: 0 }))
+      .toEqual(cell("A"));
+    expect(documents.getActiveCellCount()).toBe(1);
+    documents.dispose();
+  });
+
   it("keeps slide pages in one document with page-local history", () => {
     const documents = new CanvasDocumentRegistry("slides");
     documents.activateDocument("slides", {

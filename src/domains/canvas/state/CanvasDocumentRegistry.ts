@@ -1565,6 +1565,7 @@ export class CanvasDocumentRegistry {
           components: seed.components,
         }];
     document.pages.forEach((page) => page.dispose());
+    document.pages.clear();
     document.doc.transact(() => {
       document.root.pages.clear();
       document.root.pageOrder.delete(0, document.root.pageOrder.length);
