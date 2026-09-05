@@ -1,4 +1,4 @@
-export type ManagedInputBatchKind =
+type ManagedInputBatchKind =
   | 'first'
   | 'burst'
   | 'capacity'
@@ -15,8 +15,8 @@ export type ManagedInputBatchCommitSample = ManagedInputBatchSample & {
   commitDurationMs: number;
 };
 
-export const DEFAULT_MANAGED_INPUT_COMMIT_CADENCE_MS = 32;
-export const DEFAULT_MANAGED_INPUT_BATCH_LIMIT = Number.POSITIVE_INFINITY;
+const DEFAULT_MANAGED_INPUT_COMMIT_CADENCE_MS = 32;
+const DEFAULT_MANAGED_INPUT_BATCH_LIMIT = Number.POSITIVE_INFINITY;
 
 type ManagedInputBatchSchedulerPort = {
   now: () => number;

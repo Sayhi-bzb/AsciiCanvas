@@ -1,4 +1,4 @@
-export type CanvasMutationTimingSample = {
+type CanvasMutationTimingSample = {
   totalMs: number;
   mutationMs: number;
   normalizeMs: number;
@@ -13,14 +13,14 @@ export type CanvasMutationTimingSample = {
   inverseBytes: number;
 };
 
-export type CanvasMutationTimingDistribution = {
+type CanvasMutationTimingDistribution = {
   samples: number;
   median: number;
   p95: number;
   max: number;
 };
 
-export type CanvasMutationPerformanceStats = {
+type CanvasMutationPerformanceStats = {
   enabled: boolean;
   samples: number;
   stages: Record<keyof Omit<
