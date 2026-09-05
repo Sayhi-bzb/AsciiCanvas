@@ -77,6 +77,18 @@ const INPUT_MODE = process.env.CHARDESK_MEMORY_INPUT_MODE === "inert"
     ? "insert-text"
     : "canvas";
 const ALLOCATION_SAMPLING = process.env.CHARDESK_MEMORY_ALLOCATIONS === "1";
+const requestedInputDelayMs = Number(process.env.CHARDESK_MEMORY_INPUT_DELAY_MS ?? 0);
+const INPUT_DELAY_MS = Number.isFinite(requestedInputDelayMs)
+  ? Math.max(0, requestedInputDelayMs)
+  : 0;
+const requestedInputCommitCadence = process.env.CHARDESK_MEMORY_INPUT_COMMIT_MS;
+const INPUT_COMMIT_CADENCE = requestedInputCommitCadence === "32"
+  ? 32
+  : requestedInputCommitCadence === "50"
+    ? 50
+    : requestedInputCommitCadence === "80"
+      ? 80
+      : "frame";
 
 type AllocationProfileNode = {
   selfSize: number;
@@ -120,6 +132,33 @@ const subtractRenderCounters = (
   partialContentFrames: after.partialContentFrames - before.partialContentFrames,
   glyphs: after.glyphs - before.glyphs,
   dirtyCellArea: after.dirtyCellArea - before.dirtyCellArea,
+});
+
+const inputCounters = (stats: Record<string, number | null> | null) => ({
+  batches: stats?.managedInputBatches ?? 0,
+  textLength: stats?.managedInputTextLength ?? 0,
+  firstBatches: stats?.firstManagedInputBatches ?? 0,
+  burstBatches: stats?.burstManagedInputBatches ?? 0,
+  boundaryBatches: stats?.boundaryManagedInputBatches ?? 0,
+  imeBatches: stats?.imeManagedInputBatches ?? 0,
+  firstCommitP95Ms: stats?.firstManagedInputCommitP95Ms ?? 0,
+  burstCommitP95Ms: stats?.burstManagedInputCommitP95Ms ?? 0,
+  burstCommitMaxMs: stats?.burstManagedInputCommitMaxMs ?? 0,
+});
+
+const subtractInputCounters = (
+  after: ReturnType<typeof inputCounters>,
+  before: ReturnType<typeof inputCounters>
+) => ({
+  batches: after.batches - before.batches,
+  textLength: after.textLength - before.textLength,
+  firstBatches: after.firstBatches - before.firstBatches,
+  burstBatches: after.burstBatches - before.burstBatches,
+  boundaryBatches: after.boundaryBatches - before.boundaryBatches,
+  imeBatches: after.imeBatches - before.imeBatches,
+  firstCommitP95Ms: after.firstCommitP95Ms,
+  burstCommitP95Ms: after.burstCommitP95Ms,
+  burstCommitMaxMs: after.burstCommitMaxMs,
 });
 const STORAGE_KEY = "chardesk-persistence";
 const ONBOARDING_KEY = "chardesk-onboarding-v1";
@@ -402,7 +441,7 @@ test("measures canvas memory lifecycle workloads", async ({ browser }) => {
       try {
         await installBlankStorage(page);
         await page.goto(
-          `/?canvas-stress=1${RENDER_MODE === "off" ? "&canvas-stress-render=off" : ""}`,
+          `/?canvas-stress=1&canvas-stress-input-commit-ms=${INPUT_COMMIT_CADENCE}${RENDER_MODE === "off" ? "&canvas-stress-render=off" : ""}`,
           {
             waitUntil: "domcontentloaded",
             timeout: 30_000,
@@ -442,6 +481,9 @@ test("measures canvas memory lifecycle workloads", async ({ browser }) => {
         const renderBefore = renderCounters(
           await handle.evaluate((api) => api.renderStats())
         );
+        const inputBefore = inputCounters(
+          await handle.evaluate((api) => api.renderStats())
+        );
         if (ALLOCATION_SAMPLING) {
           await cdp.send("HeapProfiler.enable");
           await cdp.send("HeapProfiler.startSampling", { samplingInterval: 32_768 });
@@ -478,7 +520,9 @@ test("measures canvas memory lifecycle workloads", async ({ browser }) => {
                   document.body.append(textarea);
                   textarea.focus();
                 });
-                await page.keyboard.type("x".repeat(workload.history.operations));
+                await page.keyboard.type("x".repeat(workload.history.operations), {
+                  delay: INPUT_DELAY_MS,
+                });
                 await page.locator("[data-memory-input-control]").evaluate((node) => node.remove());
               } else {
                 const surface = page.getByTestId("canvas-editor-surface");
@@ -488,7 +532,9 @@ test("measures canvas memory lifecycle workloads", async ({ browser }) => {
                 if (INPUT_MODE === "insert-text") {
                   await page.keyboard.insertText("x".repeat(workload.history.operations));
                 } else {
-                  await page.keyboard.type("x".repeat(workload.history.operations));
+                  await page.keyboard.type("x".repeat(workload.history.operations), {
+                    delay: INPUT_DELAY_MS,
+                  });
                 }
               }
               await handle.evaluate((api) => api.ready());
@@ -519,6 +565,9 @@ test("measures canvas memory lifecycle workloads", async ({ browser }) => {
         const renderAfter = renderCounters(
           await handle.evaluate((api) => api.renderStats())
         );
+        const inputAfter = inputCounters(
+          await handle.evaluate((api) => api.renderStats())
+        );
         const retainedAfterGc = await collectCheckpoint(page, cdp);
         if (!workload.churn) {
           await handle.evaluate((api) => api.switchSession("memory-baseline"));
@@ -540,6 +589,7 @@ test("measures canvas memory lifecycle workloads", async ({ browser }) => {
           interactionPeakHeapBytes,
           cycleRetainedHeapBytes,
           render: subtractRenderCounters(renderAfter, renderBefore),
+          input: subtractInputCounters(inputAfter, inputBefore),
         });
       } finally {
         await context.close();
@@ -584,6 +634,8 @@ test("measures canvas memory lifecycle workloads", async ({ browser }) => {
       renderMode: RENDER_MODE,
       inputMode: INPUT_MODE,
       allocationSampling: ALLOCATION_SAMPLING,
+      inputCommitCadenceMs: INPUT_COMMIT_CADENCE,
+      inputDelayMs: INPUT_DELAY_MS,
     },
     thresholds: CANVAS_MEMORY_THRESHOLDS,
     workloads: measured,

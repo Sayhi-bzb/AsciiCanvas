@@ -10,6 +10,7 @@ import { CanvasColorSourceChooser } from './CanvasColorSourceChooser';
 import { StructuredTemplatePreviewOverlay } from './StructuredTemplatePreviewOverlay';
 import { useStructuredTemplateDrop } from './hooks/useStructuredTemplateDrop';
 import { useManagedCanvasInput } from './hooks/useManagedCanvasInput';
+import type { ManagedInputBatchSample } from './hooks/ManagedInputBatchScheduler';
 import { useCanvasSpacePan } from './hooks/useCanvasSpacePan';
 import { ContextMenu, ContextMenuTrigger } from '@chardesk/ui';
 import { CANVAS_CONTEXT_MENU, STRUCTURED_CONTEXT_MENU } from '@/domains/actions/public';
@@ -199,6 +200,12 @@ export const CanvasEditor = ({
     model: editorStore,
     enabled: effectiveCapabilities.mutateContent,
   });
+  const recordManagedInputBatch = useCallback(
+    (sample: ManagedInputBatchSample) => {
+      runtime?.renderExperience.recordManagedInputBatch(sample);
+    },
+    [runtime]
+  );
   const {
     textareaRef,
     restoreManagedInputFocus,
@@ -216,6 +223,7 @@ export const CanvasEditor = ({
     copyEnabled: effectiveCapabilities.copy,
     mutateEnabled: active && effectiveCapabilities.mutateContent,
     active,
+    onManagedInputBatch: recordManagedInputBatch,
   });
   const isCanvasTextEditing = isStaticGridMode(canvasMode)
     ? editorStore.staticGridEditMode === 'text-edit'

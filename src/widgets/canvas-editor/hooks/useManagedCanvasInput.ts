@@ -44,6 +44,11 @@ import {
   shouldSuppressFinalizedCompositionInput,
   type FinalizedManagedComposition,
 } from "./managedTextInputSession";
+import {
+  ManagedInputBatchScheduler,
+  resolveManagedInputCommitCadence,
+  type ManagedInputBatchSample,
+} from './ManagedInputBatchScheduler';
 
 const MANAGED_TEXTAREA_SENTINEL = "\u00a0";
 const CLIPBOARD_DEBUG_STORAGE_KEY = "chardesk.clipboardDebug";
@@ -117,6 +122,7 @@ type UseManagedCanvasInputOptions = {
   copyEnabled?: boolean;
   mutateEnabled?: boolean;
   active?: boolean;
+  onManagedInputBatch?: (sample: ManagedInputBatchSample) => void;
 };
 
 const getModifiedArrowEdge = (
@@ -140,6 +146,7 @@ export const useManagedCanvasInput = ({
   copyEnabled = true,
   mutateEnabled = true,
   active = true,
+  onManagedInputBatch,
 }: UseManagedCanvasInputOptions) => {
   const editor = useEditor();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -179,42 +186,36 @@ export const useManagedCanvasInput = ({
     setCanvasColorPickerTarget,
     setHoveredGrid,
   } = model;
-  const pendingManagedTextRef = useRef("");
-  const pendingManagedTextFrameRef = useRef<number | null>(null);
-  const writeTextStringRef = useRef(writeTextString);
-  const mutateEnabledRef = useRef(mutateEnabled);
+  const [managedInputScheduler] = useState(() => new ManagedInputBatchScheduler({
+    now: () => performance.now(),
+    requestFrame: (callback) => requestAnimationFrame(callback),
+    cancelFrame: (handle) => cancelAnimationFrame(handle),
+    setTimer: (callback, delayMs) => window.setTimeout(callback, delayMs),
+    clearTimer: (handle) => window.clearTimeout(handle),
+    commit: () => undefined,
+  }, resolveManagedInputCommitCadence(
+    typeof window === 'undefined' ? '' : window.location.search
+  )));
   useLayoutEffect(() => {
-    writeTextStringRef.current = writeTextString;
-    mutateEnabledRef.current = mutateEnabled;
-  }, [mutateEnabled, writeTextString]);
-  const commitManagedTextNow = useCallback((value: string) => {
-    if (mutateEnabledRef.current && value) writeTextStringRef.current(value);
-  }, []);
-  const flushPendingManagedText = useCallback(() => {
-    if (pendingManagedTextFrameRef.current !== null) {
-      cancelAnimationFrame(pendingManagedTextFrameRef.current);
-      pendingManagedTextFrameRef.current = null;
-    }
-    const value = pendingManagedTextRef.current;
-    pendingManagedTextRef.current = "";
-    commitManagedTextNow(value);
-  }, [commitManagedTextNow]);
-  const discardPendingManagedText = useCallback(() => {
-    if (pendingManagedTextFrameRef.current !== null) {
-      cancelAnimationFrame(pendingManagedTextFrameRef.current);
-      pendingManagedTextFrameRef.current = null;
-    }
-    pendingManagedTextRef.current = "";
-  }, []);
-  const enqueueManagedText = useCallback((value: string) => {
-    if (!mutateEnabledRef.current || !value) return;
-    pendingManagedTextRef.current += value;
-    if (pendingManagedTextFrameRef.current !== null) return;
-    pendingManagedTextFrameRef.current = requestAnimationFrame(() => {
-      pendingManagedTextFrameRef.current = null;
-      flushPendingManagedText();
+    managedInputScheduler.setCommitHandler((value, sample) => {
+      if (!mutateEnabled || !value) return;
+      writeTextString(value);
+      onManagedInputBatch?.(sample);
     });
-  }, [flushPendingManagedText]);
+    return () => managedInputScheduler.setCommitHandler(() => undefined);
+  }, [managedInputScheduler, mutateEnabled, onManagedInputBatch, writeTextString]);
+  const flushPendingManagedText = useCallback(
+    () => managedInputScheduler.flush(),
+    [managedInputScheduler]
+  );
+  const discardPendingManagedText = useCallback(
+    () => managedInputScheduler.discard(),
+    [managedInputScheduler]
+  );
+  const enqueueManagedText = useCallback((value: string) => {
+    if (!mutateEnabled || !value) return;
+    managedInputScheduler.enqueue(value);
+  }, [managedInputScheduler, mutateEnabled]);
   useLayoutEffect(
     () => () => discardPendingManagedText(),
     [discardPendingManagedText, inputIdentity]
@@ -362,11 +363,16 @@ export const useManagedCanvasInput = ({
       windowHasFocusRef.current = true;
       reconcileManagedTextareaBlur();
     };
+    const flushWhenHidden = () => {
+      if (document.hidden) flushPendingManagedText();
+    };
     window.addEventListener('blur', suspendOnWindowBlur);
     window.addEventListener('focus', restoreOnWindowFocus);
+    document.addEventListener('visibilitychange', flushWhenHidden);
     return () => {
       window.removeEventListener('blur', suspendOnWindowBlur);
       window.removeEventListener('focus', restoreOnWindowFocus);
+      document.removeEventListener('visibilitychange', flushWhenHidden);
     };
   }, [flushPendingManagedText, reconcileManagedTextareaBlur]);
 
@@ -729,7 +735,7 @@ export const useManagedCanvasInput = ({
       onCompositionEnd: (event: CompositionEvent<HTMLTextAreaElement>) => {
         isComposing.current = false;
         const value = event.data || readManagedText(event.currentTarget.value);
-        commitManagedTextNow(value);
+        managedInputScheduler.commitImmediate(value);
         finalizedCompositionRef.current = { value };
         primeManagedTextarea();
       },

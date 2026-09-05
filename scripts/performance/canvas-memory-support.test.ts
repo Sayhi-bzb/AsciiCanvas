@@ -51,6 +51,17 @@ const run: CanvasMemoryRun = {
     glyphs: 300,
     dirtyCellArea: 0,
   },
+  input: {
+    batches: 10,
+    textLength: 100,
+    firstBatches: 1,
+    burstBatches: 9,
+    boundaryBatches: 0,
+    imeBatches: 0,
+    firstCommitP95Ms: 12,
+    burstCommitP95Ms: 50,
+    burstCommitMaxMs: 52,
+  },
 };
 
 describe("canvas memory support", () => {
@@ -62,6 +73,7 @@ describe("canvas memory support", () => {
     expect(evaluated.summary.releasedResidualBytes.median).toBe(500_000);
     expect(evaluated.summary.renderedGlyphs.median).toBe(300);
     expect(evaluated.summary.historyActions.median).toBe(0);
+    expect(evaluated.summary.inputBatches.median).toBe(10);
   });
 
   it("flags budget and lifecycle retention failures", () => {
@@ -132,6 +144,8 @@ describe("canvas memory support", () => {
         renderMode: "normal",
         inputMode: "canvas",
         allocationSampling: false,
+        inputCommitCadenceMs: "frame",
+        inputDelayMs: 0,
       },
       thresholds: {
         maxReleasedHeapResidualBytes: 4 * 1024 * 1024,

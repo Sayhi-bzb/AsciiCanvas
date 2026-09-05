@@ -1,4 +1,4 @@
-export const CANVAS_MEMORY_SCHEMA = 3;
+export const CANVAS_MEMORY_SCHEMA = 4;
 
 export const CANVAS_MEMORY_THRESHOLDS = Object.freeze({
   maxReleasedHeapResidualBytes: 4 * 1024 * 1024,
@@ -42,6 +42,17 @@ export type CanvasMemoryRun = {
     glyphs: number;
     dirtyCellArea: number;
   };
+  input: {
+    batches: number;
+    textLength: number;
+    firstBatches: number;
+    burstBatches: number;
+    boundaryBatches: number;
+    imeBatches: number;
+    firstCommitP95Ms: number;
+    burstCommitP95Ms: number;
+    burstCommitMaxMs: number;
+  };
 };
 
 export type Distribution = {
@@ -70,6 +81,15 @@ export type CanvasMemorySummary = {
   dirtyCellArea: Distribution;
   historyActions: Distribution;
   operations: Distribution;
+  inputBatches: Distribution;
+  inputTextLength: Distribution;
+  firstInputBatches: Distribution;
+  burstInputBatches: Distribution;
+  boundaryInputBatches: Distribution;
+  imeInputBatches: Distribution;
+  firstInputCommitP95Ms: Distribution;
+  burstInputCommitP95Ms: Distribution;
+  burstInputCommitMaxMs: Distribution;
 };
 
 export type CanvasMemoryWorkload = {
@@ -107,6 +127,8 @@ export type CanvasMemoryReport = {
     renderMode: "normal" | "off";
     inputMode: "canvas" | "inert" | "insert-text";
     allocationSampling: boolean;
+    inputCommitCadenceMs: "frame" | 32 | 50 | 80;
+    inputDelayMs: number;
   };
   thresholds: typeof CANVAS_MEMORY_THRESHOLDS;
   workloads: CanvasMemoryWorkload[];
@@ -184,6 +206,15 @@ const deriveRun = (run: CanvasMemoryRun) => {
       (retainedAfterGc.engine.operations ?? 0) -
         (loadedAfterGc.engine.operations ?? 0)
     ),
+    inputBatches: run.input.batches,
+    inputTextLength: run.input.textLength,
+    firstInputBatches: run.input.firstBatches,
+    burstInputBatches: run.input.burstBatches,
+    boundaryInputBatches: run.input.boundaryBatches,
+    imeInputBatches: run.input.imeBatches,
+    firstInputCommitP95Ms: run.input.firstCommitP95Ms,
+    burstInputCommitP95Ms: run.input.burstCommitP95Ms,
+    burstInputCommitMaxMs: run.input.burstCommitMaxMs,
   };
 };
 
@@ -214,6 +245,21 @@ export const summarizeCanvasMemoryRuns = (
     dirtyCellArea: summarize(derived.map((value) => value.dirtyCellArea)),
     historyActions: summarize(derived.map((value) => value.historyActions)),
     operations: summarize(derived.map((value) => value.operations)),
+    inputBatches: summarize(derived.map((value) => value.inputBatches)),
+    inputTextLength: summarize(derived.map((value) => value.inputTextLength)),
+    firstInputBatches: summarize(derived.map((value) => value.firstInputBatches)),
+    burstInputBatches: summarize(derived.map((value) => value.burstInputBatches)),
+    boundaryInputBatches: summarize(derived.map((value) => value.boundaryInputBatches)),
+    imeInputBatches: summarize(derived.map((value) => value.imeInputBatches)),
+    firstInputCommitP95Ms: summarize(
+      derived.map((value) => value.firstInputCommitP95Ms)
+    ),
+    burstInputCommitP95Ms: summarize(
+      derived.map((value) => value.burstInputCommitP95Ms)
+    ),
+    burstInputCommitMaxMs: summarize(
+      derived.map((value) => value.burstInputCommitMaxMs)
+    ),
   };
 };
 
@@ -288,15 +334,15 @@ export const createCanvasMemoryMarkdown = (report: CanvasMemoryReport) => {
     `Commit: \`${report.gitCommit}\`${report.gitDirty ? " (dirty)" : ""}`,
     `Scope: ${report.scope}; excludes ${report.exclusions.join(", ")}.`,
     `Sampling: ${report.settings.measuredRuns} runs, ${report.settings.sampleIntervalMs} ms peak interval, ${report.settings.gcPasses} GC passes per retained checkpoint.`,
-    `Experiment: render=${report.settings.renderMode}, input=${report.settings.inputMode}, allocation sampling=${report.settings.allocationSampling ? "on" : "off"}.`,
+    `Experiment: render=${report.settings.renderMode}, input=${report.settings.inputMode}, input cadence=${report.settings.inputCommitCadenceMs} ms, input delay=${report.settings.inputDelayMs} ms, allocation sampling=${report.settings.allocationSampling ? "on" : "off"}.`,
     "",
-    "| Workload | Result | Loaded retained | Interaction peak | Retained | Released residual | Reclaimed | DOM / detached / listeners residual | Released history | Unattributed cache | Churn slope | Operations / history actions | Content frames (full/partial) | Rendered glyphs | Dirty cell area |",
-    "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+    "| Workload | Result | Loaded retained | Interaction peak | Retained | Released residual | Reclaimed | DOM / detached / listeners residual | Released history | Unattributed cache | Churn slope | Operations / history actions | Input batches (first/burst/boundary) | First/burst P95; burst max | Content frames (full/partial) | Rendered glyphs | Dirty cell area |",
+    "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
   ];
   for (const workload of report.workloads) {
     const summary = workload.summary;
     lines.push(
-      `| ${workload.label} | ${workload.passed ? "pass" : `fail: ${workload.failures.join(", ")}`} | ${mib(summary.loadedRetainedDeltaBytes.median)} | ${mib(summary.interactionPeakDeltaBytes.p95)} | ${mib(summary.retainedDeltaBytes.median)} | ${mib(summary.releasedResidualBytes.median)} | ${(summary.reclaimRatio.median * 100).toFixed(1)}% | ${summary.domNodeResidual.median.toFixed(0)} / ${summary.detachedDomNodeResidual.median.toFixed(0)} / ${summary.listenerResidual.median.toFixed(0)} | ${mib(summary.releasedHistoryBytes.median)} | ${mib(summary.unattributedProjectionCacheBytes.median)} | ${mib(summary.cycleHeapSlopeBytes.median)}/cycle | ${summary.operations.median.toFixed(0)} / ${summary.historyActions.median.toFixed(0)} | ${summary.contentFrames.median.toFixed(0)} (${summary.fullContentFrames.median.toFixed(0)}/${summary.partialContentFrames.median.toFixed(0)}) | ${summary.renderedGlyphs.median.toFixed(0)} | ${summary.dirtyCellArea.median.toFixed(0)} |`
+      `| ${workload.label} | ${workload.passed ? "pass" : `fail: ${workload.failures.join(", ")}`} | ${mib(summary.loadedRetainedDeltaBytes.median)} | ${mib(summary.interactionPeakDeltaBytes.p95)} | ${mib(summary.retainedDeltaBytes.median)} | ${mib(summary.releasedResidualBytes.median)} | ${(summary.reclaimRatio.median * 100).toFixed(1)}% | ${summary.domNodeResidual.median.toFixed(0)} / ${summary.detachedDomNodeResidual.median.toFixed(0)} / ${summary.listenerResidual.median.toFixed(0)} | ${mib(summary.releasedHistoryBytes.median)} | ${mib(summary.unattributedProjectionCacheBytes.median)} | ${mib(summary.cycleHeapSlopeBytes.median)}/cycle | ${summary.operations.median.toFixed(0)} / ${summary.historyActions.median.toFixed(0)} | ${summary.inputBatches.median.toFixed(0)} (${summary.firstInputBatches.median.toFixed(0)}/${summary.burstInputBatches.median.toFixed(0)}/${summary.boundaryInputBatches.median.toFixed(0)}) | ${summary.firstInputCommitP95Ms.median.toFixed(1)} / ${summary.burstInputCommitP95Ms.median.toFixed(1)}; ${summary.burstInputCommitMaxMs.median.toFixed(1)} ms | ${summary.contentFrames.median.toFixed(0)} (${summary.fullContentFrames.median.toFixed(0)}/${summary.partialContentFrames.median.toFixed(0)}) | ${summary.renderedGlyphs.median.toFixed(0)} | ${summary.dirtyCellArea.median.toFixed(0)} |`
     );
   }
   lines.push("");

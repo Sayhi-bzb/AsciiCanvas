@@ -87,6 +87,11 @@ const REPORT_DIR = process.env.CANVAS_STRESS_REPORT_DIR ?? path.join(
   "canvas-stress"
 );
 const CAPTURE_CPU_PROFILE = process.env.CANVAS_STRESS_CPU_PROFILE === "1";
+const INPUT_COMMIT_CADENCE = ["frame", "32", "50", "80"].includes(
+  process.env.CANVAS_STRESS_INPUT_COMMIT_MS ?? ""
+)
+  ? process.env.CANVAS_STRESS_INPUT_COMMIT_MS
+  : "frame";
 
 const report: CanvasStressReport = {
   generatedAt: new Date().toISOString(),
@@ -546,7 +551,10 @@ const runLevel = async ({
   try {
     if (storageMode === "virtual") await installVirtualStorage(page, serialized);
     else await installRealStorage(page, serialized);
-    await page.goto("/?canvas-stress=1", { waitUntil: "domcontentloaded", timeout: 30_000 });
+    await page.goto(
+      `/?canvas-stress=1&canvas-stress-input-commit-ms=${INPUT_COMMIT_CADENCE}`,
+      { waitUntil: "domcontentloaded", timeout: 30_000 }
+    );
     const seedError = await page.evaluate(() => window.__canvasStressStorage?.seedError ?? null);
     if (seedError) {
       storageError = seedError;
@@ -617,20 +625,20 @@ const runLevel = async ({
       surfaceStats = await page.evaluate(
         () => window.__chardeskCanvasStress?.surfaceStats() ?? null
       );
-      if (
-        historyOperationCount &&
-        (surfaceStats?.operationCount ?? 0) < historyOperationCount
-      ) {
-        runtimeErrors.push(
-          `operation count ${surfaceStats?.operationCount ?? 0} did not reach ${historyOperationCount}`
-        );
-      }
       memoryStats = await page.evaluate(
         () => window.__chardeskCanvasStress?.memoryStats() ?? null
       );
       resourceStats = await page.evaluate(
         () => window.__chardeskCanvasStress?.resourceStats() ?? null
       );
+      if (
+        historyOperationCount &&
+        (Number(resourceStats?.managedInputTextLength) || 0) < historyOperationCount
+      ) {
+        runtimeErrors.push(
+          `managed input length ${resourceStats?.managedInputTextLength ?? 0} did not reach ${historyOperationCount}`
+        );
+      }
       await page.waitForTimeout(650);
       const storageProbe = await page.evaluate(() => window.__canvasStressStorage ?? null);
       storageError = storageProbe?.error ?? null;

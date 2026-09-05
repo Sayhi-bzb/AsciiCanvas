@@ -15,10 +15,27 @@ export type CanvasRenderExperienceStats = {
   longFrames: number;
   lastInputPaintMs: number | null;
   lastSettleLatencyMs: number | null;
+  managedInputBatches: number;
+  managedInputTextLength: number;
+  firstManagedInputBatches: number;
+  burstManagedInputBatches: number;
+  boundaryManagedInputBatches: number;
+  imeManagedInputBatches: number;
+  firstManagedInputCommitP95Ms: number;
+  burstManagedInputCommitP95Ms: number;
+  burstManagedInputCommitMaxMs: number;
 };
 
 const LONG_FRAME_MS = 34;
 const FRAME_DURATION_SAMPLE_LIMIT = 512;
+const INPUT_LATENCY_SAMPLE_LIMIT = 512;
+
+const p95 = (samples: Float64Array, length: number) => {
+  const values = Array.from(samples.subarray(0, length)).sort(
+    (left, right) => left - right
+  );
+  return values[Math.max(0, Math.ceil(values.length * 0.95) - 1)] ?? 0;
+};
 
 /** Tracks exact visible-region rendering without owning rendering state. */
 export class CanvasRenderExperience {
@@ -40,6 +57,19 @@ export class CanvasRenderExperience {
   #lastInputPaintMs: number | null = null;
   #settleStartedAt: number | null = null;
   #lastSettleLatencyMs: number | null = null;
+  #managedInputBatches = 0;
+  #managedInputTextLength = 0;
+  #firstManagedInputBatches = 0;
+  #burstManagedInputBatches = 0;
+  #boundaryManagedInputBatches = 0;
+  #imeManagedInputBatches = 0;
+  readonly #firstManagedInputLatencies = new Float64Array(INPUT_LATENCY_SAMPLE_LIMIT);
+  #firstManagedInputLatencySamples = 0;
+  #nextFirstManagedInputLatencySample = 0;
+  readonly #burstManagedInputLatencies = new Float64Array(INPUT_LATENCY_SAMPLE_LIMIT);
+  #burstManagedInputLatencySamples = 0;
+  #nextBurstManagedInputLatencySample = 0;
+  #burstManagedInputCommitMaxMs = 0;
 
   constructor(now: () => number = () => performance.now()) {
     this.#now = now;
@@ -88,6 +118,44 @@ export class CanvasRenderExperience {
     }
   }
 
+  recordManagedInputBatch(sample: {
+    kind: 'first' | 'burst' | 'boundary' | 'ime';
+    textLength: number;
+    latencyMs: number;
+  }): void {
+    this.#managedInputBatches += 1;
+    this.#managedInputTextLength += sample.textLength;
+    if (sample.kind === 'first') {
+      this.#firstManagedInputBatches += 1;
+      this.#firstManagedInputLatencies[this.#nextFirstManagedInputLatencySample] =
+        sample.latencyMs;
+      this.#nextFirstManagedInputLatencySample =
+        (this.#nextFirstManagedInputLatencySample + 1) % INPUT_LATENCY_SAMPLE_LIMIT;
+      this.#firstManagedInputLatencySamples = Math.min(
+        this.#firstManagedInputLatencySamples + 1,
+        INPUT_LATENCY_SAMPLE_LIMIT
+      );
+    } else if (sample.kind === 'burst') {
+      this.#burstManagedInputBatches += 1;
+      this.#burstManagedInputLatencies[this.#nextBurstManagedInputLatencySample] =
+        sample.latencyMs;
+      this.#nextBurstManagedInputLatencySample =
+        (this.#nextBurstManagedInputLatencySample + 1) % INPUT_LATENCY_SAMPLE_LIMIT;
+      this.#burstManagedInputLatencySamples = Math.min(
+        this.#burstManagedInputLatencySamples + 1,
+        INPUT_LATENCY_SAMPLE_LIMIT
+      );
+      this.#burstManagedInputCommitMaxMs = Math.max(
+        this.#burstManagedInputCommitMaxMs,
+        sample.latencyMs
+      );
+    } else if (sample.kind === 'boundary') {
+      this.#boundaryManagedInputBatches += 1;
+    } else {
+      this.#imeManagedInputBatches += 1;
+    }
+  }
+
   getStats(): CanvasRenderExperienceStats {
     const durations = Array.from(
       this.#frameDurations.subarray(0, this.#frameDurationSamples)
@@ -107,6 +175,21 @@ export class CanvasRenderExperience {
       longFrames: this.#longFrames,
       lastInputPaintMs: this.#lastInputPaintMs,
       lastSettleLatencyMs: this.#lastSettleLatencyMs,
+      managedInputBatches: this.#managedInputBatches,
+      managedInputTextLength: this.#managedInputTextLength,
+      firstManagedInputBatches: this.#firstManagedInputBatches,
+      burstManagedInputBatches: this.#burstManagedInputBatches,
+      boundaryManagedInputBatches: this.#boundaryManagedInputBatches,
+      imeManagedInputBatches: this.#imeManagedInputBatches,
+      firstManagedInputCommitP95Ms: p95(
+        this.#firstManagedInputLatencies,
+        this.#firstManagedInputLatencySamples
+      ),
+      burstManagedInputCommitP95Ms: p95(
+        this.#burstManagedInputLatencies,
+        this.#burstManagedInputLatencySamples
+      ),
+      burstManagedInputCommitMaxMs: this.#burstManagedInputCommitMaxMs,
     };
   }
 }

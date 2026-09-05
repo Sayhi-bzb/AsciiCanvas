@@ -140,6 +140,14 @@ if (new URLSearchParams(window.location.search).has("canvas-stress")) {
             longFrames: number;
             lastInputPaintMs: number | null;
             lastSettleLatencyMs: number | null;
+            managedInputBatches: number;
+            managedInputTextLength: number;
+            firstManagedInputBatches: number;
+            burstManagedInputBatches: number;
+            boundaryManagedInputBatches: number;
+            firstManagedInputCommitP95Ms: number;
+            burstManagedInputCommitP95Ms: number;
+            burstManagedInputCommitMaxMs: number;
           };
         }).__chardeskCanvasExperienceStats?.();
         return {
@@ -158,6 +166,17 @@ if (new URLSearchParams(window.location.search).has("canvas-stress")) {
           longFrames: experience?.longFrames ?? 0,
           inputPaintMs: experience?.lastInputPaintMs ?? 0,
           settleLatencyMs: experience?.lastSettleLatencyMs ?? 0,
+          managedInputBatches: experience?.managedInputBatches ?? 0,
+          managedInputTextLength: experience?.managedInputTextLength ?? 0,
+          firstManagedInputBatches: experience?.firstManagedInputBatches ?? 0,
+          burstManagedInputBatches: experience?.burstManagedInputBatches ?? 0,
+          boundaryManagedInputBatches: experience?.boundaryManagedInputBatches ?? 0,
+          firstManagedInputCommitP95Ms:
+            experience?.firstManagedInputCommitP95Ms ?? 0,
+          burstManagedInputCommitP95Ms:
+            experience?.burstManagedInputCommitP95Ms ?? 0,
+          burstManagedInputCommitMaxMs:
+            experience?.burstManagedInputCommitMaxMs ?? 0,
         };
       },
       persistence: () => host.canvas.getPersistenceSnapshot(),

@@ -17,7 +17,10 @@ if (!baselinePath || !candidatePath) {
     scope: report.scope,
     exclusions: report.exclusions,
     environment: report.environment,
-    settings: report.settings,
+    settings: {
+      ...report.settings,
+      inputCommitCadenceMs: undefined,
+    },
   });
   if (JSON.stringify(context(baseline)) !== JSON.stringify(context(candidate))) {
     throw new Error("Memory reports use different environments or settings");
@@ -30,6 +33,7 @@ if (!baselinePath || !candidatePath) {
     "",
     `Baseline: ${baseline.label ?? baseline.gitCommit}`,
     `Candidate: ${candidate.label ?? candidate.gitCommit}`,
+    `Input cadence: ${baseline.settings.inputCommitCadenceMs} → ${candidate.settings.inputCommitCadenceMs} ms`,
     "",
     "Negative byte deltas use less memory.",
     "",
@@ -58,6 +62,32 @@ if (!baselinePath || !candidatePath) {
         Math.abs(before) * candidate.thresholds.maxComparisonRegressionRatio,
       );
       if (delta > allowed) regressions.push(`${beforeWorkload.id}:${metric}`);
+    }
+  }
+  lines.push(
+    "",
+    "## Managed input batching",
+    "",
+    "| Workload | Metric | Baseline median | Candidate median | Delta |",
+    "| --- | --- | ---: | ---: | ---: |",
+  );
+  for (const beforeWorkload of baseline.workloads) {
+    const afterWorkload = candidateById.get(beforeWorkload.id);
+    for (const metric of [
+      "inputBatches",
+      "inputTextLength",
+      "firstInputBatches",
+      "burstInputBatches",
+      "boundaryInputBatches",
+      "firstInputCommitP95Ms",
+      "burstInputCommitP95Ms",
+      "burstInputCommitMaxMs",
+    ]) {
+      const before = beforeWorkload.summary[metric].median;
+      const after = afterWorkload.summary[metric].median;
+      lines.push(
+        `| ${beforeWorkload.label} | ${metric} | ${before.toFixed(1)} | ${after.toFixed(1)} | ${pct(before, after)} |`,
+      );
     }
   }
   lines.push(

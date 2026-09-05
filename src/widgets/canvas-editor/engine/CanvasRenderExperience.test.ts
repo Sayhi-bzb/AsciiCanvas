@@ -27,6 +27,15 @@ describe('CanvasRenderExperience', () => {
       longFrames: 1,
       lastInputPaintMs: 12,
       lastSettleLatencyMs: 43,
+      managedInputBatches: 0,
+      managedInputTextLength: 0,
+      firstManagedInputBatches: 0,
+      burstManagedInputBatches: 0,
+      boundaryManagedInputBatches: 0,
+      imeManagedInputBatches: 0,
+      firstManagedInputCommitP95Ms: 0,
+      burstManagedInputCommitP95Ms: 0,
+      burstManagedInputCommitMaxMs: 0,
     });
   });
 
@@ -63,5 +72,25 @@ describe('CanvasRenderExperience', () => {
     }
 
     expect(experience.getStats().p95FrameDurationMs).toBe(575);
+  });
+
+  it('tracks managed input batching and first/burst latency separately', () => {
+    const experience = new CanvasRenderExperience();
+    experience.recordManagedInputBatch({ kind: 'first', textLength: 2, latencyMs: 12 });
+    experience.recordManagedInputBatch({ kind: 'burst', textLength: 4, latencyMs: 48 });
+    experience.recordManagedInputBatch({ kind: 'burst', textLength: 3, latencyMs: 52 });
+    experience.recordManagedInputBatch({ kind: 'boundary', textLength: 1, latencyMs: 2 });
+
+    expect(experience.getStats()).toMatchObject({
+      managedInputBatches: 4,
+      managedInputTextLength: 10,
+      firstManagedInputBatches: 1,
+      burstManagedInputBatches: 2,
+      boundaryManagedInputBatches: 1,
+      imeManagedInputBatches: 0,
+      firstManagedInputCommitP95Ms: 12,
+      burstManagedInputCommitP95Ms: 52,
+      burstManagedInputCommitMaxMs: 52,
+    });
   });
 });
