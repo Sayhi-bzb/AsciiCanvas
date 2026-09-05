@@ -79,6 +79,11 @@ export const resolveCanvasRenderPasses = (invalidation: CanvasFrameInvalidation)
     CanvasRenderManager.includes(invalidation, 'overlay'),
 });
 
+export const shouldSuppressCanvasContentRendering = (search: string) => {
+  const params = new URLSearchParams(search);
+  return params.has('canvas-stress') && params.get('canvas-stress-render') === 'off';
+};
+
 export const getStructuredSplitBoxActiveLeafBounds = (
   node: StructuredSplitBoxNode,
   point: Point | null
@@ -371,6 +376,9 @@ export const useCanvasRenderer = (
       };
       const renderPasses = resolveCanvasRenderPasses(invalidation);
       const renderBackground = renderPasses.content;
+      const suppressContentRendering = shouldSuppressCanvasContentRendering(
+        window.location.search
+      );
       const renderInteraction = renderPasses.interaction;
       const renderScratch = renderInteraction;
       const renderOverlay = renderInteraction;
@@ -379,7 +387,7 @@ export const useCanvasRenderer = (
 
       const bgCanvas = layers.content.current;
       const bgCtx = bgCanvas?.getContext('2d', { alpha: false });
-      if (renderBackground && bgCanvas && bgCtx) {
+      if (renderBackground && bgCanvas && bgCtx && !suppressContentRendering) {
         const drawVisibleGrid = showGrid && shouldDrawCanvasGrid(zoom);
         prepareCanvasSurface(
           bgCanvas,
@@ -443,6 +451,9 @@ export const useCanvasRenderer = (
             ).glyphs;
           }
           if (slidePageRect) bgCtx.restore();
+        renderedInvalidation |= CANVAS_FRAME_INVALIDATION.background;
+      }
+      if (renderBackground && suppressContentRendering) {
         renderedInvalidation |= CANVAS_FRAME_INVALIDATION.background;
       }
 

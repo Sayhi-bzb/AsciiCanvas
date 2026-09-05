@@ -1870,6 +1870,7 @@ export class BrowserCanvasPersistence implements CanvasDocumentResidency {
   };
 
   delete = async (id: string) => {
+    this.#registry?.clearDocumentHistory(id);
     await this.#releaseDocument(id);
     await this.#deleteDocument(id);
   };
