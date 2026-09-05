@@ -47,7 +47,7 @@ import {
 import {
   ManagedInputBatchScheduler,
   resolveManagedInputCommitCadence,
-  type ManagedInputBatchSample,
+  type ManagedInputBatchCommitSample,
 } from './ManagedInputBatchScheduler';
 
 const MANAGED_TEXTAREA_SENTINEL = "\u00a0";
@@ -122,7 +122,7 @@ type UseManagedCanvasInputOptions = {
   copyEnabled?: boolean;
   mutateEnabled?: boolean;
   active?: boolean;
-  onManagedInputBatch?: (sample: ManagedInputBatchSample) => void;
+  onManagedInputBatch?: (sample: ManagedInputBatchCommitSample) => void;
 };
 
 const getModifiedArrowEdge = (
@@ -199,8 +199,12 @@ export const useManagedCanvasInput = ({
   useLayoutEffect(() => {
     managedInputScheduler.setCommitHandler((value, sample) => {
       if (!mutateEnabled || !value) return;
+      const startedAt = performance.now();
       writeTextString(value);
-      onManagedInputBatch?.(sample);
+      onManagedInputBatch?.({
+        ...sample,
+        commitDurationMs: performance.now() - startedAt,
+      });
     });
     return () => managedInputScheduler.setCommitHandler(() => undefined);
   }, [managedInputScheduler, mutateEnabled, onManagedInputBatch, writeTextString]);

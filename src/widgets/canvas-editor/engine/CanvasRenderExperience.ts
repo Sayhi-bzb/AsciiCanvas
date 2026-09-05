@@ -24,6 +24,8 @@ export type CanvasRenderExperienceStats = {
   firstManagedInputCommitP95Ms: number;
   burstManagedInputCommitP95Ms: number;
   burstManagedInputCommitMaxMs: number;
+  managedInputCommitP95Ms: number;
+  managedInputCommitMaxMs: number;
 };
 
 const LONG_FRAME_MS = 34;
@@ -70,6 +72,10 @@ export class CanvasRenderExperience {
   #burstManagedInputLatencySamples = 0;
   #nextBurstManagedInputLatencySample = 0;
   #burstManagedInputCommitMaxMs = 0;
+  readonly #managedInputCommitDurations = new Float64Array(INPUT_LATENCY_SAMPLE_LIMIT);
+  #managedInputCommitDurationSamples = 0;
+  #nextManagedInputCommitDurationSample = 0;
+  #managedInputCommitMaxMs = 0;
 
   constructor(now: () => number = () => performance.now()) {
     this.#now = now;
@@ -122,9 +128,22 @@ export class CanvasRenderExperience {
     kind: 'first' | 'burst' | 'boundary' | 'ime';
     textLength: number;
     latencyMs: number;
+    commitDurationMs: number;
   }): void {
     this.#managedInputBatches += 1;
     this.#managedInputTextLength += sample.textLength;
+    this.#managedInputCommitDurations[this.#nextManagedInputCommitDurationSample] =
+      sample.commitDurationMs;
+    this.#nextManagedInputCommitDurationSample =
+      (this.#nextManagedInputCommitDurationSample + 1) % INPUT_LATENCY_SAMPLE_LIMIT;
+    this.#managedInputCommitDurationSamples = Math.min(
+      this.#managedInputCommitDurationSamples + 1,
+      INPUT_LATENCY_SAMPLE_LIMIT
+    );
+    this.#managedInputCommitMaxMs = Math.max(
+      this.#managedInputCommitMaxMs,
+      sample.commitDurationMs
+    );
     if (sample.kind === 'first') {
       this.#firstManagedInputBatches += 1;
       this.#firstManagedInputLatencies[this.#nextFirstManagedInputLatencySample] =
@@ -190,6 +209,11 @@ export class CanvasRenderExperience {
         this.#burstManagedInputLatencySamples
       ),
       burstManagedInputCommitMaxMs: this.#burstManagedInputCommitMaxMs,
+      managedInputCommitP95Ms: p95(
+        this.#managedInputCommitDurations,
+        this.#managedInputCommitDurationSamples
+      ),
+      managedInputCommitMaxMs: this.#managedInputCommitMaxMs,
     };
   }
 }

@@ -54,6 +54,7 @@
     "compare:engine-perf": "node scripts/performance/compare-cell-plane-benchmarks.mjs",
     "test:stress": "npm run build:app && node scripts/performance/run-stress.mjs",
     "test:memory": "npm run build:app && node scripts/performance/run-memory.mjs",
+    "test:input-commit": "npm run build:app && node scripts/performance/run-input-commit.mjs",
     "compare:memory": "node scripts/performance/compare-canvas-memory.mjs",
     "check:boundaries": "node scripts/check-domain-boundaries.mjs",
     "check:type-escapes": "node scripts/quality/check-type-escapes.mjs",

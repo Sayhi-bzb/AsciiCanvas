@@ -10,7 +10,7 @@ import { CanvasColorSourceChooser } from './CanvasColorSourceChooser';
 import { StructuredTemplatePreviewOverlay } from './StructuredTemplatePreviewOverlay';
 import { useStructuredTemplateDrop } from './hooks/useStructuredTemplateDrop';
 import { useManagedCanvasInput } from './hooks/useManagedCanvasInput';
-import type { ManagedInputBatchSample } from './hooks/ManagedInputBatchScheduler';
+import type { ManagedInputBatchCommitSample } from './hooks/ManagedInputBatchScheduler';
 import { useCanvasSpacePan } from './hooks/useCanvasSpacePan';
 import { ContextMenu, ContextMenuTrigger } from '@chardesk/ui';
 import { CANVAS_CONTEXT_MENU, STRUCTURED_CONTEXT_MENU } from '@/domains/actions/public';
@@ -201,7 +201,7 @@ export const CanvasEditor = ({
     enabled: effectiveCapabilities.mutateContent,
   });
   const recordManagedInputBatch = useCallback(
-    (sample: ManagedInputBatchSample) => {
+    (sample: ManagedInputBatchCommitSample) => {
       runtime?.renderExperience.recordManagedInputBatch(sample);
     },
     [runtime]

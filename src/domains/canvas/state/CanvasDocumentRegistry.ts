@@ -36,6 +36,7 @@ import {
   type CanvasYPage,
 } from "./canvasDocumentModel";
 import { CanvasHistoryJournal } from "./CanvasHistoryJournal";
+import { CanvasMutationPerformance } from './CanvasMutationPerformance';
 import type { CanvasMutationEnvelope } from "./canvasMutationEnvelope";
 export type CanvasHistoryMode = "save" | "merge" | "none" | "reset";
 export type CanvasHistoryCheckpoint = {
@@ -185,6 +186,7 @@ export class CanvasDocumentRegistry {
   readonly #historyJournal: CanvasHistoryJournal;
   readonly #recentPageIndexes: Array<{ documentId: string; pageId: string }> = [];
   readonly #projectionCacheBudget = new CanvasProjectionCacheBudget();
+  readonly #mutationPerformance = new CanvasMutationPerformance();
   #disposed = false;
 
   readonly yCellPlaneOperations: Y.Array<CellPlaneOperation>;
@@ -244,6 +246,10 @@ export class CanvasDocumentRegistry {
     this.#projectionCacheBudget.setByteBudget(bytes);
   subscribeProjectionCache = (listener: () => void) =>
     this.#projectionCacheBudget.subscribe(listener);
+  setMutationPerformanceEnabled = (enabled: boolean) =>
+    this.#mutationPerformance.setEnabled(enabled);
+  resetMutationPerformance = () => this.#mutationPerformance.reset();
+  getMutationPerformanceStats = () => this.#mutationPerformance.getStats();
   getMemoryStats = () => {
     let yjsStructs = 0;
     let pages = 0;
@@ -882,6 +888,21 @@ export class CanvasDocumentRegistry {
       );
     }
     let emittedOperation: CellPlaneOperation | null = null;
+    let inverseOperation: CellPlaneOperation | null = null;
+    const profiling = this.#mutationPerformance.isEnabled();
+    const totalStartedAt = profiling ? performance.now() : 0;
+    const timings = profiling ? {
+      mutationMs: 0,
+      normalizeMs: 0,
+      forwardEncodeMs: 0,
+      inverseEncodeMs: 0,
+      yjsPushMs: 0,
+      historyCaptureMs: 0,
+      transactionOverheadMs: 0,
+      notifyMs: 0,
+      changedCells: 0,
+    } : null;
+    const transactionStartedAt = profiling ? performance.now() : 0;
     const result = this.runTransactionAt(address, () => {
       const reader = this.#ensurePageIndex(document, page);
       const changes = new Map<
@@ -914,21 +935,35 @@ export class CanvasDocumentRegistry {
           });
         },
       };
+      const mutationStartedAt = profiling ? performance.now() : 0;
       mutation(writer);
+      if (timings) timings.mutationMs = performance.now() - mutationStartedAt;
+      const normalizeStartedAt = profiling ? performance.now() : 0;
       changes.forEach((change, key) => {
         if (areJsonValuesEqual(change.before, change.after)) changes.delete(key);
       });
+      if (timings) {
+        timings.normalizeMs = performance.now() - normalizeStartedAt;
+        timings.changedCells = changes.size;
+      }
+      const forwardStartedAt = profiling ? performance.now() : 0;
       const operation = gridChangesToCellPlaneOperation(
         `${document.doc.clientID}:${this.#operationSequence++}`,
         changes
       );
-      if (operation) page.operations.push([
-        document.operationFormat === "legacy"
-          ? toLegacyCellPlaneOperation(operation)
-          : operation,
-      ]);
+      if (timings) timings.forwardEncodeMs = performance.now() - forwardStartedAt;
+      if (operation) {
+        const pushStartedAt = profiling ? performance.now() : 0;
+        page.operations.push([
+          document.operationFormat === "legacy"
+            ? toLegacyCellPlaneOperation(operation)
+            : operation,
+        ]);
+        if (timings) timings.yjsPushMs = performance.now() - pushStartedAt;
+      }
       emittedOperation = operation;
       if (operation) {
+        const inverseStartedAt = profiling ? performance.now() : 0;
         const inverse = gridChangesToCellPlaneOperation(
           `history:${document.doc.clientID}:${this.#operationSequence++}`,
           new Map(Array.from(changes, ([key, change]) => [
@@ -936,19 +971,58 @@ export class CanvasDocumentRegistry {
             { before: change.after, after: change.before },
           ]))
         );
-        if (inverse) this.#captureHistory(
-          address,
-          operation,
-          inverse,
-          normalizeHistoryMode(history)
-        );
+        inverseOperation = inverse;
+        if (timings) timings.inverseEncodeMs = performance.now() - inverseStartedAt;
+        if (inverse) {
+          const historyStartedAt = profiling ? performance.now() : 0;
+          this.#captureHistory(
+            address,
+            operation,
+            inverse,
+            normalizeHistoryMode(history)
+          );
+          if (timings) {
+            timings.historyCaptureMs = performance.now() - historyStartedAt;
+          }
+        }
       }
     }, history);
-    if (emittedOperation) this.#emitMutation({
-      kind: "cell-plane",
-      ...address,
-      operation: emittedOperation,
-    });
+    if (timings) {
+      const measuredInsideTransaction =
+        timings.mutationMs +
+        timings.normalizeMs +
+        timings.forwardEncodeMs +
+        timings.inverseEncodeMs +
+        timings.yjsPushMs +
+        timings.historyCaptureMs;
+      timings.transactionOverheadMs = Math.max(
+        0,
+        performance.now() - transactionStartedAt - measuredInsideTransaction
+      );
+    }
+    if (emittedOperation) {
+      const notifyStartedAt = profiling ? performance.now() : 0;
+      this.#emitMutation({
+        kind: "cell-plane",
+        ...address,
+        operation: emittedOperation,
+      });
+      if (timings) timings.notifyMs = performance.now() - notifyStartedAt;
+    }
+    if (timings) {
+      const operationBytes = (operation: CellPlaneOperation | null) =>
+        operation && 'payload' in operation
+          ? operation.payload.byteLength
+          : operation
+            ? JSON.stringify(operation.rows).length * 2
+            : 0;
+      this.#mutationPerformance.record({
+        totalMs: performance.now() - totalStartedAt,
+        ...timings,
+        forwardBytes: operationBytes(emittedOperation),
+        inverseBytes: operationBytes(inverseOperation),
+      });
+    }
     return result;
   };
 

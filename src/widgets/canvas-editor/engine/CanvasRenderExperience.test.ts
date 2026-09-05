@@ -36,6 +36,8 @@ describe('CanvasRenderExperience', () => {
       firstManagedInputCommitP95Ms: 0,
       burstManagedInputCommitP95Ms: 0,
       burstManagedInputCommitMaxMs: 0,
+      managedInputCommitP95Ms: 0,
+      managedInputCommitMaxMs: 0,
     });
   });
 
@@ -76,10 +78,10 @@ describe('CanvasRenderExperience', () => {
 
   it('tracks managed input batching and first/burst latency separately', () => {
     const experience = new CanvasRenderExperience();
-    experience.recordManagedInputBatch({ kind: 'first', textLength: 2, latencyMs: 12 });
-    experience.recordManagedInputBatch({ kind: 'burst', textLength: 4, latencyMs: 48 });
-    experience.recordManagedInputBatch({ kind: 'burst', textLength: 3, latencyMs: 52 });
-    experience.recordManagedInputBatch({ kind: 'boundary', textLength: 1, latencyMs: 2 });
+    experience.recordManagedInputBatch({ kind: 'first', textLength: 2, latencyMs: 12, commitDurationMs: 4 });
+    experience.recordManagedInputBatch({ kind: 'burst', textLength: 4, latencyMs: 48, commitDurationMs: 8 });
+    experience.recordManagedInputBatch({ kind: 'burst', textLength: 3, latencyMs: 52, commitDurationMs: 6 });
+    experience.recordManagedInputBatch({ kind: 'boundary', textLength: 1, latencyMs: 2, commitDurationMs: 2 });
 
     expect(experience.getStats()).toMatchObject({
       managedInputBatches: 4,
@@ -91,6 +93,8 @@ describe('CanvasRenderExperience', () => {
       firstManagedInputCommitP95Ms: 12,
       burstManagedInputCommitP95Ms: 52,
       burstManagedInputCommitMaxMs: 52,
+      managedInputCommitP95Ms: 8,
+      managedInputCommitMaxMs: 8,
     });
   });
 });

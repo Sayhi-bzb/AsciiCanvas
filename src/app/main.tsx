@@ -83,7 +83,11 @@ const startChardeskSiteTools = async () => {
 };
 
 void startChardeskSiteTools();
-if (new URLSearchParams(window.location.search).has("canvas-stress")) {
+const canvasStressParams = new URLSearchParams(window.location.search);
+if (canvasStressParams.has("canvas-stress")) {
+  host.canvas.queries.setMutationPerformanceEnabled(
+    canvasStressParams.has('canvas-input-commit')
+  );
   Object.defineProperty(window, "__chardeskCanvasStress", {
     configurable: true,
     value: {
@@ -115,6 +119,15 @@ if (new URLSearchParams(window.location.search).has("canvas-stress")) {
           host.canvas.commands.text.write("x");
         }
       },
+      writeText: (value: string, start = { x: 0, y: 0 }) => {
+        host.canvas.commands.interaction.setTextCursor(start);
+        const startedAt = performance.now();
+        host.canvas.commands.text.write(value);
+        return performance.now() - startedAt;
+      },
+      undo: () => host.canvas.commands.history.undo(),
+      redo: () => host.canvas.commands.history.redo(),
+      gridEntries: () => Array.from(host.canvas.getState().grid),
       cellCount: () => host.canvas.queries.getActiveCellCount(),
       surfaceStats: () => {
         const reader = getSurfaceGridReader(host.canvas.getState().grid);
@@ -123,6 +136,8 @@ if (new URLSearchParams(window.location.search).has("canvas-stress")) {
           : null;
       },
       memoryStats: () => host.canvas.queries.getMemoryStats(),
+      mutationStats: () => host.canvas.queries.getMutationPerformanceStats(),
+      resetMutationStats: () => host.canvas.queries.resetMutationPerformance(),
       renderStats: () => (window as Window & {
         __chardeskCanvasExperienceStats?: () => Record<string, number | null>;
       }).__chardeskCanvasExperienceStats?.() ?? null,
@@ -148,6 +163,8 @@ if (new URLSearchParams(window.location.search).has("canvas-stress")) {
             firstManagedInputCommitP95Ms: number;
             burstManagedInputCommitP95Ms: number;
             burstManagedInputCommitMaxMs: number;
+            managedInputCommitP95Ms: number;
+            managedInputCommitMaxMs: number;
           };
         }).__chardeskCanvasExperienceStats?.();
         return {
@@ -177,6 +194,8 @@ if (new URLSearchParams(window.location.search).has("canvas-stress")) {
             experience?.burstManagedInputCommitP95Ms ?? 0,
           burstManagedInputCommitMaxMs:
             experience?.burstManagedInputCommitMaxMs ?? 0,
+          managedInputCommitP95Ms: experience?.managedInputCommitP95Ms ?? 0,
+          managedInputCommitMaxMs: experience?.managedInputCommitMaxMs ?? 0,
         };
       },
       persistence: () => host.canvas.getPersistenceSnapshot(),

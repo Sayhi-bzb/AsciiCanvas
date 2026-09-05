@@ -6,6 +6,10 @@ export type ManagedInputBatchSample = {
   latencyMs: number;
 };
 
+export type ManagedInputBatchCommitSample = ManagedInputBatchSample & {
+  commitDurationMs: number;
+};
+
 export const DEFAULT_MANAGED_INPUT_COMMIT_CADENCE_MS = 32;
 
 type ManagedInputBatchSchedulerPort = {
