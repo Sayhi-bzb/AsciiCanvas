@@ -793,6 +793,12 @@ test.describe.serial("Canvas capacity stress", () => {
         cellCount,
       });
       appendLevel(level);
+      expect(level.surfaceStats).toMatchObject({
+        preparedTextEntries: expect.any(Number),
+        preparedTextHits: expect.any(Number),
+      });
+      expect(level.surfaceStats?.preparedTextEntries ?? 0).toBeGreaterThan(0);
+      expect(level.surfaceStats?.preparedTextHits ?? 0).toBeGreaterThan(0);
       if (!level.passed) break;
     }
     markFamilyComplete("freeform-unicode");
